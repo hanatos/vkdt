@@ -1,0 +1,57 @@
+
+like:
+- job manager
+- some iops
+- noise profiling (but maybe auto?)
+
+dont like:
+- bloat
+- cmake
+- gtk
+- lab
+- dead features
+
+arch:
+- vulkan / glsl compute shaders
+  - this is not only about vs. opencl but also completely scheduling things on GPU,
+    interleaving jobs right, and overall getting more performance for small jobs
+    (thumbnail creation..)
+- imgui
+- on-device thumbnail cache
+
+pipeline:
+- match pixels (dense correspondences, multi image)
+  - highlight recon
+  - denoise
+- wavelet blend mode (separable a trous)
+  - heal/clone/blur
+  - denoise (try multi-scale trick?)
+- local laplacian
+  - tone manipulation in low freqs
+  - may allow us to use less octaves
+
+pipeline implementation:
+- two pipeline setups:
+  - full (low res) image for thumbnail
+  - one lowres preview and one cropped
+    both setup with fixed size buffers, for interactive edit or tiled export
+- fixed buffer allocs for all images
+- number of pipelines for parallel GPU scheduling
+- don't run preview if full is full roi
+
+iop:
+- crop/rotate
+- colour lut (but go from camera rgb directly?)
+- tone curve
+- local contrast
+- sharpen
+- demosaic
+- highlights
+- spot heal
+
+db:
+- special case to scale up to 1M images (4MB index)
+- build bvh on demand for 3 dimensions sort query should be a matter of milliseconds
+- rebuild after batch insertion of full directory
+- built-in undo lists
+
