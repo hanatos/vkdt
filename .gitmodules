@@ -1,0 +1,3 @@
+[submodule "ext/rawspeed"]
+	path = ext/rawspeed
+	url = https://github.com/darktable-org/rawspeed.git
