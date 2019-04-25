@@ -39,7 +39,7 @@ pipeline:
 - match pixels (dense correspondences, multi image)
   - highlight recon
   - denoise
-- wavelet blend mode (separable a trous)
+- wavelet blend mode (separable a trous? even decimated a trous?)
   - heal/clone/blur
   - denoise (try multi-scale trick?)
 - local laplacian
