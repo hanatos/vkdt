@@ -10,3 +10,6 @@
 // 4) query any range/sort order
 
 // then create a vertex array object from it and copy over to GPU for display
+
+// for 1) we need metadata as 20-bit index. needs a string pool/hashtable? look
+// into concurrencykit?
