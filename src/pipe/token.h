@@ -28,3 +28,5 @@ dt_token(const char *str)
 
 // use this literal to print it, it's not necessarily 0-terminated
 #define PRItkn ".8s"
+
+// TODO: supply wrapper for parsing of ascii and binary input files

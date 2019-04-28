@@ -1,6 +1,29 @@
 # pipeline design
 
+we want to support arbitrary numbers of input and output channels. this means
+under the hood we'll need a full blown node graph, and modules need to describe
+their i/o and buffer layouts in the most generic way. for vulkan, we'll turn
+this into a command buffer with dependencies.
+
 TODO: see pipe.h
+
+memory:
+we want one big allocation vkAllocateMemory and bind our buffers to it. each
+input/output image can be one buffer, all temp stuff we want as one buffer,
+too.  we'll push offsets through to the shader kernel if more chunks are
+required. unfortunately we can only have 128B/256B push_constants, which
+may mean depending on the limit in VkPhysicalDeviceLimits, we'll need to
+resort to uniform buffers instead.
+
+# pipe configuration io
+
+for each image, we want to setup the processing pipeline/node graph from
+scratch from a simple description format:
+
+TODO: see node.h
+
+TODO: also need simple description for input/output/temp requirements
+for each iop so we can auto-generate the vulkan pipelines
 
 
 # image operation (iop) interface
@@ -47,7 +70,8 @@ setv(token_t module, token_t param, int version, value)
 setnv(token_t module, token_t param, int num, int version, *value)
 ```
 
-a storage backend would then either serialise this into human readable ascii form:
+a storage backend would then either serialise this into human readable
+ascii form:
 
 ```
 exposure ev 2.0

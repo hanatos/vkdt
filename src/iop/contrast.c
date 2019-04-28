@@ -1,7 +1,49 @@
 #include "pipe.h"
 
+// TODO: for the local contrast op, maybe we'll want to split it like:
+//
+// [contr_beg] -> [tone curve] -> [contr_end]
+//    \_______________________________/
+// 
+// for an arbitrary tone manipulating module in the middle, which will be
+// run only on the brightness channel of the coarse residual.
+// the temp buffer with all the pyramids required for detail reconstruction
+// will need to be passed through on the side.
+//
+
+// TODO: we want simple descriptions here to autogenerate as much as we can of:
+// 1) i/o specs: input/output/temp buffers, format, colour annotation
+// 2) params: layout as uniforms, names when read from file/db
+// 3) gui: simple annotations for params
+
+
+// 1) maybe some textual description, for instance:
+// * read only: main input
+// * read only: context from preview pipe
+// * main output
+// * scratchpad memory
+// we'll need to know:
+// 
+// * static: colour format and channel config
+// * dynamic: size/dimensions
+//
+// the dynamic bits will need some api negotiation knowing required scratchpad
+// memory for all modules in the graph and a get_roi_out() get_roi_in() kind of
+// call chain. for non-linear dependency of scratchmem size on input size we may
+// need some bisection (assuming monotonic dependency).
+//
+// R16UI  in  input    
+// RGB16F in  context
+// R32F   out output
+// RGB32F tmp scratch
+
+// as to 2):
 // TODO: can we somehow simplify this into some preprocessor magic?
-// TODO: also need one array for gui annotations (slider, colour picker, curve, ..)
+// TODO: we could put this into a text file with lines such as:
+//
+// detail :detail:1.0
+// shadows:shadows:1.0
+// hilight:highlights:1.0
 
 // parameters to be translated and shown in gui:
 const char *param_str =
@@ -27,6 +69,8 @@ dt_token_t param_tkn =
   dt_token("shadows"),
   dt_token("hilight"),
 };
+
+// 3) TODO: also need one array for gui annotations (slider, colour picker, curve, ..)
 
 // our private data:
 typedef struct contrast_t
