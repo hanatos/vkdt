@@ -45,6 +45,11 @@ typedef struct dt_module_t
 
   // TODO: gui annotations: 
   float *param_min, *param_max;
+
+  // need special case callbacks, optionally:
+  // TODO: init() draw_gui(), ..? for custom gui
+  // load_input(void *); // this is a source node, gets the vkMapMemory mapped pointer to fill
+  // write_output(void *); // this is a sink node
 }
 dt_module_t;
 
