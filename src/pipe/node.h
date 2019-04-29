@@ -30,6 +30,12 @@ typedef struct dt_node_t
   dt_connector_t tmp[10];
   // TODO: store counts?
   // TODO: vulkan temporaries, pipeline etc?
+}
+dt_node_t;
+
+typedef struct dt_module_t
+{
+  dt_node_t *node;       // every module can have multiple nodes (for instance wavelets decompose, process, synthesise)
 
   // TODO: params: see contrast.c for an example:
   dt_token_t *param_tkn; // token for id
@@ -40,7 +46,7 @@ typedef struct dt_node_t
   // TODO: gui annotations: 
   float *param_min, *param_max;
 }
-dt_node_t;
+dt_module_t;
 
 // TODO: store list of nodes and list of connections
 // TODO: do topological sort for gui and for command buffer ingestion?
