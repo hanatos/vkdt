@@ -2,29 +2,65 @@
 
 #include "token.h"
 
+typedef enum dt_con_type_t
+{
+  s_invalid_con_type = 0,
+  s_output = 1,
+  s_tmp = 2,
+}
+dt_con_type_t;
+
+typedef enum dt_buf_type_t
+{
+  s_invalid_buf_type = 0,
+  s_rggb = 1,   // regular rggb bayer pattern, one channel per pixel
+  s_rgbx = 2,   // x-trans one channel per pixel
+  s_rgb = 3,    // rgb three channels per pixel
+  s_yuv = 4,    // yuv
+  s_y = 5,      // only y
+  s_mask = 6,   // single channel mask info
+}
+dt_con_type_t;
+
+typedef enum dt_buf_format_t
+{
+  s_invalid_format = 0,
+  s_f32 = 1,
+  s_16ui = 2,
+}
+dt_buf_format_t;
+
 typedef struct dt_connector_t
 {
-  dt_token_t name; // name of the connector
-  int type;        // TODO: enum for in/out/scratch
-  int format;      // TODO: enum/bit masks for RGB, YUV, etc, and 32F, 16UI, ..
+  dt_token_t name;        // name of the connector
+  dt_con_type_t type;     // input output?
+  dt_buf_type_t chan;     // channel types rggb, rgb, y, ..
+  dt_buf_format_t format; // storage format 32f, 16ui, ..
 }
 dt_connector_t;
 
+// TODO: maintain global list of such nodes
+typedef struct dt_node_id_t
+{
+  dt_token_t module; // module directory
+  dt_token_t node;   // node inside this module
+  dt_token_t id;     // id for multi instance
+}
+dt_node_id_t;
+
 typedef struct dt_connection_t
 {
-  dt_token_t out_node; // name of the output node
-  dt_token_t out_ndid; // id of the output node
-  dt_token_t out_conn; // name of the source in that node
-  dt_token_t in_node;  // name of the consumer node
-  dt_token_t in_ndid;  // id of the consumer node
-  dt_token_t in_conn;  // name of the sink in that node
+  dt_node_id_t out_node; // output node
+  dt_token_t   out_conn; // name of the source in that node
+  dt_node_id_t in_node;  // consumer node
+  dt_token_t   in_conn;  // name of the sink in that node
+  // TODO: colour space annotation, bayer pattern offsets, etc goes in here?
 }
 dt_connection_t;
 
 typedef struct dt_node_t
 {
-  dt_token_t name;         // class of the node, defines shaders and in/outputs
-  dt_token_t id;           // id as in multi-instance
+  dt_node_id_t nodeid;
   dt_connector_t in[10];
   dt_connector_t out[10];
   dt_connector_t tmp[10];
@@ -70,7 +106,7 @@ dt_module_t;
 // add new node in the pipeline, construct from class given by name
 // and with given multi-instance id
 void
-node_add(dt_token_t name, dt_token_t id);
+node_add(dt_token_t module, dt_token_t name, dt_token_t id);
 
 // connect out node0 -> in node1
 // this can fail and the reason will be returned in some enum.
@@ -78,8 +114,8 @@ node_add(dt_token_t name, dt_token_t id);
 // cycles might be another.
 int
 node_connect(
-    dt_token_t name0, dt_token_t id0, dt_token_t conn0,
-    dt_token_t name1, dt_token_t id1, dt_token_t conn1);
+    dt_token_t mod0, dt_token_t name0, dt_token_t id0, dt_token_t conn0,
+    dt_token_t mod1, dt_token_t name1, dt_token_t id1, dt_token_t conn1);
 
 // read params:
 int

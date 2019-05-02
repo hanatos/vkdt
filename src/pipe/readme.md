@@ -70,6 +70,8 @@ setv(token_t module, token_t param, int version, value)
 setnv(token_t module, token_t param, int num, int version, *value)
 ```
 
+# pipeline configuration/parametrs
+
 a storage backend would then either serialise this into human readable
 ascii form:
 
@@ -82,3 +84,11 @@ colorin matrix 1 0 0 0 1 0 0 0 1
 
 or if required for efficiency reasons could store it in binary as the uint64
 and values in floating point (some special byte to mark end of line)
+
+# meta information
+
+this would be input image file name and similar for input nodes as well as lens
+profiles/exif data, etc. in general strings that are required to setup the node
+graph but will not be uploaded to the gpu. most of this can probably be derived
+from the image and metadata automatically, some we would probably want to
+store in the above format as strings.
