@@ -5,7 +5,7 @@ under the hood we'll need a full blown node graph, and modules need to describe
 their i/o and buffer layouts in the most generic way. for vulkan, we'll turn
 this into a command buffer with dependencies.
 
-TODO: see pipe.h
+TODO: see graph.h
 
 memory:
 we want one big allocation vkAllocateMemory and bind our buffers to it. each
@@ -14,6 +14,13 @@ too.  we'll push offsets through to the shader kernel if more chunks are
 required. unfortunately we can only have 128B/256B push_constants, which
 may mean depending on the limit in VkPhysicalDeviceLimits, we'll need to
 resort to uniform buffers instead.
+
+graph.h transforms the DAG to a schedule for vulkan. it considers dependencies
+and memory allocation and initiates tiling if needed.
+
+we can have multiple sources (many raw images, 3d lut, ..) and many sinks
+(output for display, many tiles of output, histogram, colour picker, ..).
+
 
 # pipe configuration io
 

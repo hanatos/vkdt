@@ -5,8 +5,11 @@
 typedef enum dt_con_type_t
 {
   s_invalid_con_type = 0,
-  s_output = 1,
-  s_tmp = 2,
+  s_input,     // input, can be connected to another output
+  s_output,    // output, can be connected to another input
+  s_tmp,       // temp memory, will be reused by other nodes. can be connected for debugging.
+  s_source,    // source as for raw loading from cpu. will be allocated as host-visible memory
+  s_sink,      // sink as for file writing. will be allocated as host-visible memory
 }
 dt_con_type_t;
 

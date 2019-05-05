@@ -15,6 +15,17 @@ dt_graph_t;
 // TODO: if possible, push params as push constants, if not allocate uniform
 // TODO: buffers to copy over
 
+// TODO: include memory allocator:
+// traverse graph (DAG) depth first:
+// allocate memory for all write buffers (read ones need to be allocated previously)
+// this includes output and scratch mem (really we only need the read/write annotation, not output or scratch mem)
+
+  // TODO: for all nodes in DAG in depth first search (topological sort
+  // starting with source nodes, going towards sink nodes, eliminating dead
+  // code, probably pull from all sinks, need temporary memory on nodes)
+  // 
+  // allocate write buffers
+
 
 // TODO: wrap some functions like this in a vulkan support header:
 VkCommandBuffer create_commandbuffer(VkDevice d, VkCommandPool p);
