@@ -78,7 +78,7 @@ typedef struct qsort_t
   // TODO: other jobs in queue (say N). there will be at most one scan/swap
   // TODO: partition job in flight per thread queue, which means it's
   // TODO: N + #threads jobs total.
-  queue_t *q;
+  queue_t *queue;
 
   uint64_t *id;
   uint64_t sorted;
@@ -86,6 +86,7 @@ typedef struct qsort_t
 }
 qsort_t;
 
+static uint64_t node_job_work(qsort_t *s, queue_t *q, uint64_t left, uint64_t right);
 static void scan_job_work(qsort_t *s, queue_t *q, job_t *j);
 static void swap_job_work(qsort_t *s, queue_t *q, job_t *j);
 
@@ -172,7 +173,7 @@ static void scan_job_work(qsort_t *s, queue_t *q, job_t *j)
   __sync_fetch_and_add(j->scan.done, 1);
 }
 
-static void swap_job_work(qsort_t *s, job_t *j)
+static void swap_job_work(qsort_t *s, queue_t *q, job_t *j)
 {
   uint64_t r = j->swap.read - 1; // will increment first thing below
   uint64_t w = j->swap.write - 1;
@@ -209,14 +210,14 @@ static void swap_job_work(qsort_t *s, job_t *j)
     assert(w < wB);
 
     // swap
-    primid_t tmp = a->prims->primid[r];
-    a->prims->primid[r] = a->prims->primid[w];
-    a->prims->primid[w] = tmp;
+    uint64_t tmp = s->id[r];
+    s->id[r] = s->id[w];
+    s->id[w] = tmp;
   }
   __sync_fetch_and_add(j->swap.done, 1);
 }
 
-// sort primid indices in parallel
+// sort indices in parallel
 static uint64_t partition_par(
     qsort_t *s,
     queue_t *q,
@@ -224,7 +225,7 @@ static uint64_t partition_par(
     const int64_t begin, // begin of buffer
     const int64_t back)  // element after buffer
 {
-  // sort_tris with couple of threads for couple of blocks between [begin..back]
+  // partition list with couple of threads for couple of blocks between [begin..back]
   const int NVLA = 1024; // faster to allocate this way
   const int nt = thr.num_threads;
   assert(nt < NVLA);
@@ -236,14 +237,13 @@ static uint64_t partition_par(
   for(int t=0;t<nt;t++)
   {
     int j = q->num_jobs++;
-    // TODO: fix assertion
-    assert(j < 3*MAX_TREE_DEPTH + nt);
+    assert(j < 3*nt);
     job_t *job = q->jobs + j;
     job->type = s_job_scan;
     job->scan.pivot = pivot;
     job->scan.right = right+t;
-    job->scan.begin = begin + (uint64_t)( t   /(double)rt.num_threads*(back-begin));
-    job->scan.back  = begin + (uint64_t)((t+1)/(double)rt.num_threads*(back-begin));
+    job->scan.begin = begin + (uint64_t)( t   /(double)nt*(back-begin));
+    job->scan.back  = begin + (uint64_t)((t+1)/(double)nt*(back-begin));
     b_l[t] = job->scan.begin;
     b_e[t] = job->scan.back;
     job->scan.done = &done;
@@ -251,7 +251,7 @@ static uint64_t partition_par(
   threads_mutex_unlock(&q->mutex);
 
   // work while waiting
-  while(done < nt) do_one_job(b, s_job_scan);
+  while(done < nt) do_one_job(s, s_job_scan);
 
   uint64_t num_left = 0, num_right = 0;
   for(int t=0;t<nt;t++)
@@ -299,7 +299,7 @@ static uint64_t partition_par(
   {
     int j = q->num_jobs++;
     // TODO: fix assertion
-    assert(j < 3*MAX_TREE_DEPTH + nt);
+    assert(j < 3*nt);
     job_t *job = q->jobs + j;
     job->type = s_job_swap;
     uint64_t beg = ( t     *num_dislocated)/nt;
@@ -355,7 +355,7 @@ static uint64_t partition_par(
   threads_mutex_unlock(&q->mutex);
 
   // work while waiting
-  while(done < nt) do_one_job(b, s_job_swap);
+  while(done < nt) do_one_job(s, s_job_swap);
 
   return begin + num_left;
 }
@@ -368,7 +368,7 @@ static uint64_t partition(
     const int64_t begin, // begin of buffer
     const int64_t back)  // element after buffer
 {
-  if(rt.num_threads > 1 && back - begin > rt.num_threads * 1000)
+  if(thr.num_threads > 1 && back - begin > thr.num_threads * 100000)
     return partition_par(s, q, pivot, begin, back);
 
   return partition_ser(s, q, pivot, begin, back);
@@ -386,14 +386,17 @@ static uint64_t node_job_work(
   // less than 2 elements left to sort?
   if(left + 1 >= right) return right - left;
 
-  uint64_t pivot = id[(left+right)/2];
+  uint64_t pivot = s->id[(left+right)/2];
   int64_t split = partition(s, q, pivot, left, right);
   int64_t part[3] = {left, split, right};
+  const int nt = thr.num_threads;
 
   uint64_t done = 0;
   for(int p=0;p<2;p++)
   {
-    if(p || q->num_jobs >= s->num_threads)
+    if(part[p+1] - part[p] == 1) done += 1;
+    if(part[p+1] - part[p] <  2) continue;
+    if(p || q->num_jobs >= nt)
     { // in this thread:
       done += node_job_work(s, q, part[p], part[p+1]);
     }
@@ -401,7 +404,7 @@ static uint64_t node_job_work(
     { // push job to our queue for other threads:
       threads_mutex_lock(&q->mutex);
       int j = q->num_jobs++;
-      assert(j < 3*MAX_TREE_DEPTH + s->num_threads);
+      assert(j < 3*nt);
       job_t *job = q->jobs + j;
       job->type = s_job_node;
       job->node.left  = part[p];
@@ -417,16 +420,24 @@ static void *qsort_work(void *arg)
 {
   qsort_t *s = arg;
   while(1)
-    if(do_one_job(s, s_job_all) || (s->sorted >= s->num));
+    if(do_one_job(s, s_job_all) || (s->sorted >= s->num))
       return 0;
 }
 
-void qsort(uint64_t *id, uint64_t num)
+void pqsort(uint64_t *id, uint64_t num)
 {
   qsort_t s = {0};
   s.num = num;
   s.id = id;
   s.sorted = 0;
+  const int nt = thr.num_threads;
+  s.queue = malloc(sizeof(queue_t)*nt);
+  for(int k=0;k<nt;k++)
+  {
+    s.queue[k].num_jobs = 0;
+    s.queue[k].jobs = malloc(sizeof(job_t)*3*nt);
+    threads_mutex_init(&s.queue[k].mutex, 0);
+  }
   // TODO: pull out this initialisation so it can be reused?
   // TODO: alloc task queues and init mutices
   // TODO: empty all queues
@@ -440,10 +451,11 @@ void qsort(uint64_t *id, uint64_t num)
   s.queue[0].num_jobs = 1;
   // threads_mutex_unlock(&b->queue[0].mutex);
 
-  const int nt = thr.num_threads;
   for(int k=0;k<nt;k++)
-    pthread_pool_task_init(thr.task + k, &thr.pool, qsort_work, s);
+    pthread_pool_task_init(thr.task + k, &thr.pool, qsort_work, &s);
 
   // wait for the worker threads
   pthread_pool_wait(&thr.pool);
+
+  // TODO: tear down queues and mutices
 }

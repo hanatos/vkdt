@@ -1,18 +1,19 @@
-// g++ -fsanitize=address -Wall -ggdb3 -g test.cc -o test -lpthread -lm -fsanitize=address && ./test
-// clang++ -Wall -march=native -O3 test.cc -o rtest -lpthread -lm && ./rtest
-#include "sort.h"
+#include "threads.h"
+#include "qsort.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
 #include <time.h>
 
 int main()
 {
-  const int N = 10000;
-  uint64_t *arr = new uint64_t[N];//malloc(sizeof(uint64_t)*N);
+  threads_global_init(); // init thread pool
+  const int N = 1000000;
+  uint64_t *arr = malloc(sizeof(uint64_t)*N);
   for(int k=0;k<N;k++) arr[k] = ((uint64_t)lrand48() << 32) | lrand48();
   clock_t t = clock();
-  parallel_sort(arr, N);
+  pqsort(arr, N);
   t = clock() - t;
   fprintf(stderr, "time to sort %d entries %g s\n", N, t/(double)CLOCKS_PER_SEC);
   for(int k=1;k<N;k++)
@@ -21,6 +22,7 @@ int main()
     // fprintf(stderr, "%lu ", arr[k]);
   }
   // fprintf(stderr, "\n");
-  delete[] arr;
-  return 0;
+  free(arr);
+  threads_global_cleanup();
+  exit(0);
 }
