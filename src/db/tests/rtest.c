@@ -8,8 +8,9 @@
 
 int main()
 {
-  const int N = 10000;
-  uint64_t *arr = new uint64_t[N];//malloc(sizeof(uint64_t)*N);
+  threads_global_init();
+  const int N = 1000000;
+  uint64_t *arr = malloc(sizeof(uint64_t)*N);
   for(int k=0;k<N;k++) arr[k] = ((uint64_t)lrand48() << 32) | lrand48();
   clock_t t = clock();
   parallel_sort(arr, N);
@@ -21,6 +22,7 @@ int main()
     // fprintf(stderr, "%lu ", arr[k]);
   }
   // fprintf(stderr, "\n");
-  delete[] arr;
+  free(arr);
+  threads_global_cleanup();
   return 0;
 }

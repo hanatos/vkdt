@@ -1,18 +1,11 @@
 // https://github.com/vvnguyen/parallel-in-place-radix-sort
 // see dr.dobbs journal on the issue
-// TODO: we need pthread pool parallelism
 #pragma once
+#include "threads.h"
 
 #include <stdint.h>
 #include <assert.h>
 #include <time.h>
-// #include <atomic>
-#include <thread>
-#include <iostream>
-// #include <mutex>
-#include <functional>
-// #include <cassert>
-// #include <omp.h>
 
 static inline void
 insertion_sort(uint64_t* list, const int size)
@@ -96,64 +89,69 @@ void count(uint64_t *list, int size, int *histogram) {
 	}
 }
 
-
-void go_srt(int* histogram, uint64_t **marker, int &nr, const int max_nr)
+typedef struct prsort_t
 {
-  // atomic!
-	int index;
-	// m.lock();
-  index = __sync_fetch_and_add(&nr, 1);
-	// index = nr;
-	// ++nr;
-	// m.unlock();
-	// int size = 0;
-	while (index < max_nr)
+  int histogram[256];
+  uint64_t *marker[256];
+  int nr, max_nr;
+}
+prsort_t;
+
+void *go_srt(void *arg)
+{
+  prsort_t *s = arg;
+	int index = __sync_fetch_and_add(&s->nr, 1);
+	while (index < s->max_nr)
   {
-		if (histogram[index] > 64)
-			sort_block((marker[index] - histogram[index]), histogram[index], 48);//16);
-		else if (histogram[index] > 1)
-			insertion_sort((marker[index] - histogram[index]), histogram[index]);
-		// m.lock();
-		// index = nr;
-		// ++nr;
-		// m.unlock();
-    index = __sync_fetch_and_add(&nr, 1);
+		if (s->histogram[index] > 64)
+			sort_block((s->marker[index] - s->histogram[index]), s->histogram[index], 48);//16);
+		else if (s->histogram[index] > 1)
+			insertion_sort((s->marker[index] - s->histogram[index]), s->histogram[index]);
+    index = __sync_fetch_and_add(&s->nr, 1);
 	}
+  return 0;
 }
 
 
 void parallel_sort(uint64_t *arr, int size)
 {
+  prsort_t s = {{0}};
   // build histogram
-  int histogram[256] = { 0 };
 
   clock_t t = clock();
   // compute prefix sum
-  count(arr, size, histogram);
+  count(arr, size, s.histogram);
 
-  uint64_t *marker[256];
   uint64_t *previous = arr;
   for ( int i = 0; i < 256; ++i ) 
   {
-    marker[i] = previous;
-    previous += histogram[i];
+    s.marker[i] = previous;
+    previous += s.histogram[i];
   }
   assert(previous == arr + size);
 
-  srt(histogram, marker, 56);
+  srt(s.histogram, s.marker, 56);
   t = clock() - t;
   fprintf(stderr, "serial block: %g s\n", t/(double)CLOCKS_PER_SEC);
-  // mutex M;
-  int nr = 0;
-  const int max_nr = 256;
+  s.nr = 0;
+  s.max_nr = 256;
 		
   // TODO: this does not scale at all:
   // TODO: also, the serial variant is 25% faster.
 		// thread t1(go_srt, histogram, marker, std::ref(nr), max_nr);
 		// thread t2(go_srt, histogram, marker, std::ref(nr), max_nr);
 		// thread t3(go_srt, histogram, marker, std::ref(nr), max_nr);
-		go_srt(histogram, marker, std::ref(nr), max_nr);
+		// go_srt(histogram, marker, std::ref(nr), max_nr);
 		// t1.join();
 		// t2.join();
 		// t3.join();
+  const int nt = thr.num_threads;
+  for(int k=0;k<nt;k++)
+    pthread_pool_task_init(thr.task + k, &thr.pool, go_srt, &s);
+
+  // this serial variant is equally fast using our own thread pool, yay.
+  // go_srt(&s);
+
+  // wait for the worker threads
+  pthread_pool_wait(&thr.pool);
 }
