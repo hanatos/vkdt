@@ -5,6 +5,9 @@ under the hood we'll need a full blown node graph, and modules need to describe
 their i/o and buffer layouts in the most generic way. for vulkan, we'll turn
 this into a command buffer with dependencies.
 
+this is still called "pipeline" because we'll need to push it into a somewhat
+linear pipeline for execution on the gpu (via topological sort of the DAG).
+
 TODO: see graph.h
 
 memory:

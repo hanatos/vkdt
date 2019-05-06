@@ -15,16 +15,42 @@ dt_graph_t;
 // TODO: if possible, push params as push constants, if not allocate uniform
 // TODO: buffers to copy over
 
+// 
+static inline void
+traverse_node(
+    dt_node_t *node,
+    int dry_run,
+    dt_vkmem_t **out_mem) // output: allocated outputs, TODO in some fixed order
+{
+
+}
+
+static inline void
+traverse_graph
+{
 // TODO: include memory allocator:
 // traverse graph (DAG) depth first:
-// allocate memory for all write buffers (read ones need to be allocated previously)
-// this includes output and scratch mem (really we only need the read/write annotation, not output or scratch mem)
 
-  // TODO: for all nodes in DAG in depth first search (topological sort
-  // starting with source nodes, going towards sink nodes, eliminating dead
-  // code, probably pull from all sinks, need temporary memory on nodes)
-  // 
-  // allocate write buffers
+  // for all sink nodes:
+  // allocate all our write buffers
+  // traverse() to init our input buffers
+  // free all our write buffers
+
+  // TODO: the above may need a special optimisation step
+  // TODO: for short suffixes (i.e. histogram/colour picker nodes)
+  // TODO: to avoid keeping mem buffers for a long time
+
+  // traverse:
+  // if source, special callback and return output buffer
+  //
+  // traverse all connected input nodes
+  // have all input nodes free all their unconnected write buffers
+  // allocate memory for all write buffers (output + scratch)
+  // pretend to process/push to command queue
+  // have all input nodes free all their remaining write buffers (our input)
+  // return our output buffers (TODO: transfer ownership?)
+
+}
 
 
 // TODO: wrap some functions like this in a vulkan support header:

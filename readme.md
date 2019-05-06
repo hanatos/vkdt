@@ -21,13 +21,14 @@ arch:
     (thumbnail creation..)
 - imgui
 - does that mean c++ in the core?
-- python bindings?
+- python bindings (pybind11)
 
 dependencies:
 - vulkan
 - sdl2
 - submodule imgui
 - submodule rawspeed
+- submodule pybind11
 - libjpeg
 
 image list:
