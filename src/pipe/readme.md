@@ -5,12 +5,17 @@ under the hood we'll need a full blown node graph, and modules need to describe
 their i/o and buffer layouts in the most generic way. for vulkan, we'll turn
 this into a command buffer with dependencies.
 
+we can have multiple sources (many raw images, 3d lut, ..) and many sinks
+(output for display, many tiles of output, histogram, colour picker, ..).
+
 this is still called "pipeline" because we'll need to push it into a somewhat
 linear pipeline for execution on the gpu (via topological sort of the DAG).
 
 TODO: see graph.h
 
-memory:
+
+## memory
+
 we want one big allocation vkAllocateMemory and bind our buffers to it. each
 input/output image can be one buffer, all temp stuff we want as one buffer,
 too.  we'll push offsets through to the shader kernel if more chunks are
@@ -21,8 +26,27 @@ resort to uniform buffers instead.
 graph.h transforms the DAG to a schedule for vulkan. it considers dependencies
 and memory allocation and initiates tiling if needed.
 
-we can have multiple sources (many raw images, 3d lut, ..) and many sinks
-(output for display, many tiles of output, histogram, colour picker, ..).
+
+## layers
+
+the pipeline has a few different layers:
+
+* configurable layer, needs to read tokens for nodes and connections from
+ascii/binary file. this connects modules and sources/sinks.
+
+* self-configuring layer, nodes inside a module which aren't usually visible to
+the outside. these connections and node counts may depend on the regions of
+interest currently being processed. also, if the roi is not full, it will
+come with a context buffer (preview pipe). such roi+context may be packed into
+one connector that appears in the configurable layer. the module connects
+all intermediate buffers from the context layer to all necessary nodes.
+this layer could be handled by structs + pointers.
+might interface with this layer for debugging (reconnect intermediates to
+display sinks)
+
+* complete DAG of all atomic nodes which directly translates into vulkan/glsl
+
+maybe explicitly map this as modules/connections and node/connections?
 
 
 # pipe configuration io
