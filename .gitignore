@@ -1,2 +1,4 @@
 .*.swp
 src/pipe/tests/token
+*.o
+*.a
