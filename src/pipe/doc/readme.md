@@ -35,3 +35,24 @@ note that in general it is more complicated than this: every external connection
 can potentially come with a region of interest and a context buffer. that means
 there will be two vulkan buffers associated with the connection.
 TODO: simple gaussian blur with context buffer
+
+## connections
+
+a connection between modules carries an image buffer with all necessary
+information. that is:
+
+* geometry of the buffer (overall size, region of interest with scale)
+* colour and encoding format information
+* if the roi is not full size, there is an additional context buffer
+
+in particular, the image may be transported as two buffers: *roi* and *context*:
+
+![](images/roi.svg)
+
+it may not come in full for performance and memory reasons: when
+developing the image zoomed in, not all of the image has to be processed.
+when zoomed out, only a scaled down image may be sufficient.
+
+However, some modules require multi-scale context to be able to correctly
+render a roi. that comes in form of the *context* buffer which represents
+the full image but scaled down to lower resolution.
