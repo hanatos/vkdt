@@ -56,3 +56,13 @@ when zoomed out, only a scaled down image may be sufficient.
 However, some modules require multi-scale context to be able to correctly
 render a roi. that comes in form of the *context* buffer which represents
 the full image but scaled down to lower resolution.
+
+a connection between low-level nodes corresponds exactly to one vulkan buffer
+(encoded as offset and size in our heap allocation), as well as roi
+information. this means the nodes can be mapped directly to glsl kernels.
+
+on the module level, each connection has to carry context information. the
+module is responsible to transfer such context from input to output connectors,
+and potentially has to replicate the internal node structure. it can also
+create cross connections between context buffers and nodes that are used to
+process the roi buffer.
