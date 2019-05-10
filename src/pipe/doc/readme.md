@@ -1,4 +1,4 @@
-# pipeline setup
+# pipeline overview
 
 the pipeline is organised in layers. the first, user visible, layer is a graph
 on modules. these have config params and can be arranged freely, and quickly
@@ -84,3 +84,53 @@ create cross connections between context buffers and nodes that are used to
 process the roi buffer. this means that the context and roi buffers will always
 be handed down synchronously, avoiding costly and error prone synchronisation
 between independent pipelines.
+
+
+# pipeline configuration
+
+this is speed critical and needs to be benchmarked.
+
+## modules
+
+come from config files in ascii or binary. 64-bit tokens identify a module,
+an instance name, and a connector. from a list of modules and connections,
+the high-level module graph can be reconstructed.
+
+## nodes
+
+nodes depend on size of the processed buffers (roi and context, or just a full
+buffer? how many wavelet scales?). we can try and put as much as possible
+into a similar config file as for modules, but in general there may be a need
+for a c callback function that helps setup the nodes from code. this also avoids
+some identifier pollution (no need for another instance id inside the module).
+
+
+# pipeline compilation
+
+the node graph on the lowest level is a directed acyclic graph (DAG) with
+multiple sources and multiple sinks. each node directly maps to a glsl shader
+kernel and the whole graph can be sorted topologically to map to a vulkan
+command buffer.
+
+## topological sort
+
+* probably pull depth-first from sinks, to facilitate dead code eliminiation
+* put short sinks directly after node (colour picker or histogram) to end
+  the branch quickly and not keep memory buffers around for long
+
+## memory management
+
+* need generic memory manager to find out whether we'll run out of memory on the way
+* first pass: determine needed size of temp buffers
+* second pass: if necessary, cut down into tiles and re-run until we fit
+* allocate one vk memory block with one buffer, use push constants or uniforms
+  for buffer offsets
+* use allocation and free buffer linked lists (sub-optimal but don't expect N
+  to be large, more like 20 at most)
+
+## advanced scheduling
+
+may keep this for the future:
+
+* minimise memory usage/fragmentation
+* caching of active module inputs
