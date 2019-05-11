@@ -28,8 +28,8 @@ dt_con_type_t;
 typedef enum dt_buf_format_t
 {
   s_invalid_format = 0,
-  s_f32 = 1,
-  s_16ui = 2,
+  s_f32,
+  s_ui16,
 }
 dt_buf_format_t;
 

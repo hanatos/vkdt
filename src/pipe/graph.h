@@ -98,3 +98,8 @@ dt_graph_create_command_buffer()
   // TODO: reuse these for multiple images?
   vkFreeCommandBuffers(device, pool, 1, &cb);
 }
+
+// read modules from ascii or binary
+dt_graph_read()
+// write only modules connected to sink modules
+dt_graph_write();
