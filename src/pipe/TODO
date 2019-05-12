@@ -1,0 +1,32 @@
+* global init:
+  - static global struct
+  - dlopen all modules
+  - and init connector config
+  - default params
+  - gui annotations (min max range and id for gui element)
+
+* load pipeline config
+  - module add (name inst)
+  - connect (module inst connector x2)
+  - param module inst param name varargs
+
+* create nodes
+  - provide interface calls node_add node_connect and allocate ids in global list on graph
+  - from c callback
+ (- optionally: automatically for simple cases)
+
+* memory allocator
+  - see glibc malloc + friends
+  - best fit or first fit?
+
+* roi size negotiations:
+  - input to output
+  - output to input
+  - out of memory: cut into tiles and bisect
+
+* graph walking
+  - modules: for roi negotiations
+  - modules: for node creation
+  - nodes: for mem alloc
+  - nodes: for command buffer filling
+

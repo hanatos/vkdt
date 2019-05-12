@@ -1,55 +1,14 @@
 #pragma once
-
 #include "token.h"
 
-typedef enum dt_con_type_t
-{
-  s_invalid_con_type = 0,
-  s_input,     // input, can be connected to another output
-  s_output,    // output, can be connected to another input
-  s_tmp,       // temp memory, will be reused by other nodes. can be connected for debugging.
-  s_source,    // source as for raw loading from cpu. will be allocated as host-visible memory
-  s_sink,      // sink as for file writing. will be allocated as host-visible memory
-}
-dt_con_type_t;
-
-typedef enum dt_buf_type_t
-{
-  s_invalid_buf_type = 0,
-  s_rggb = 1,   // regular rggb bayer pattern, one channel per pixel
-  s_rgbx = 2,   // x-trans one channel per pixel
-  s_rgb = 3,    // rgb three channels per pixel
-  s_yuv = 4,    // yuv
-  s_y = 5,      // only y
-  s_mask = 6,   // single channel mask info
-}
-dt_con_type_t;
-
-typedef enum dt_buf_format_t
-{
-  s_invalid_format = 0,
-  s_f32,
-  s_ui16,
-}
-dt_buf_format_t;
-
-typedef struct dt_connector_t
+typedef struct dt_node_connector_t
 {
   dt_token_t name;        // name of the connector
   dt_con_type_t type;     // input output?
   dt_buf_type_t chan;     // channel types rggb, rgb, y, ..
   dt_buf_format_t format; // storage format 32f, 16ui, ..
 }
-dt_connector_t;
-
-// TODO: maintain global list of such nodes
-typedef struct dt_node_id_t
-{
-  dt_token_t module; // module directory
-  dt_token_t node;   // node inside this module
-  dt_token_t id;     // id for multi instance
-}
-dt_node_id_t;
+dt_node_connector_t;
 
 typedef struct dt_connection_t
 {

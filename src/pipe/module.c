@@ -39,6 +39,37 @@ int dt_module_so_load(
   dlclose(mod->dlhandle);
 }
 
+// reads one line of a connector configuration file.
+// this is: connector name, type, channels, format
+// as four tokens with ':' as separator.
+int dt_module_read_connector_ascii(
+    dt_connector_t *conn,
+    char *line)
+{
+  dt_token_t tkn[4] = {0};
+  char *c = line, *c0 = line;
+  for(int i=0;i<4;i++)
+  {
+    while(*c != ':' && *c != '\n' && c < c0+8) c++;
+    assert((i == 4 && *c = '\n') || (i != 4 && *c == ':'));
+    // TODO: some error message/code and return 1
+    *c = 0;
+    tkn[i] = dt_token(c0);
+    c0 = c;
+  }
+  conn->name = tkn[0];
+  conn->type = tkn[1];
+  conn->chan = tkn[2];
+  conn->format = tkn[3];
+  return 0;
+}
+
+int dt_module_read_params_ascii(
+    dt_module_t *mod,
+    char *line)
+{
+
+}
 
 int dt_module_read_ascii(
     const char *file)
