@@ -14,6 +14,57 @@
 // the graph on anything that has "connector" members and can execute macros
 // before and after descending the tree.
 
+setup_pipeline()
+{
+  // TODO: can be only one output sink node that determines ROI.
+  // TODO: but we can totally have more than one sink to pull in
+  // nodes for. we have to execute some of this multiple times
+  // and have a marker on nodes that we already traversed.
+{ // module scope
+  dt_module_t *const arr = graph->module;
+  // first pass: find output rois
+  int start_node_id = display_sink; // our output for export
+  // execute after all inputs have been traversed:
+  // int curr <- will be the current node
+  // TODO: walk all inputs and determine roi on all outputs
+#define TRAVERSE_POST \
+  arr[curr].modify_roi_out();
+#include "graph-traverse.inc"
+
+  // TODO: in fact we want this or that roi on output after considering
+  // scaling/zoom-to-fit/whatever.
+  // TODO: set display_sink output size
+
+  // TODO: 2nd pass: request input rois
+#define TRAVERSE_PRE\
+  arr[curr].modify_roi_in();
+#include "graph-traverse.inc"
+
+  // TODO: forward the output rois to other branches with sinks we didn't pull for:
+  // XXX
+} // end scope, done with modules
+
+{ // node scope
+  dt_node_t *const arr = graph->node;
+  int start_node_id = display_sink; // our output for export
+  // TODO: while(not happy) {
+  // TODO: 3rd pass: compute memory requirements
+  // TODO: if not happy: cut input roi in half or what
+#define TRAVERSE_POST\
+    arr[curr].alloc_outputs();\
+    arr[curr].free_inputs();
+#include "graph-traverse.inc"
+  // }
+  // TODO: do that one after the other for all chopped roi
+  // finally: create vulkan command buffer
+#define TRAVERSE_POST\
+    arr[curr].alloc_outputs();\
+    arr[curr].create_pipeline();\
+    arr[curr].free_inputs();
+#include "graph-traverse.inc"
+} // end scope, done with nodes
+}
+
 // 
 static inline void
 traverse_node(
