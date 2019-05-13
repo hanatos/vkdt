@@ -1,4 +1,5 @@
 .*.swp
 src/pipe/tests/token
+src/pipe/doc/readme.html
 *.o
 *.a
