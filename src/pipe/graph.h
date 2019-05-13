@@ -1,19 +1,18 @@
 #pragma once
 #include "node.h"
-
-typedef struct dt_graph_t
-{
-  dt_node_t       *nodes;
-  dt_connection_t *connections;
-  dt_module_t     *modules;
-  // TODO: fast mapping nodeid -> index in node list?
-}
-dt_graph_t;
+#include "module.h"
 
 // TODO: setup vulkan pipeline by
 // TODO: querying interface functions in module.
 // TODO: if possible, push params as push constants, if not allocate uniform
 // TODO: buffers to copy over
+
+// TODO: need to walk a few different graphs:
+//       on modules and on nodes. maybe it's a good idea to nest a node inside
+//       a module so we can call the same functions?
+// i think we'll go for a "template" kind of approach that just walks
+// the graph on anything that has "connector" members and can execute macros
+// before and after descending the tree.
 
 // 
 static inline void

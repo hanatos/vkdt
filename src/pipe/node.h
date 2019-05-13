@@ -1,55 +1,13 @@
 #pragma once
 #include "token.h"
 
-typedef struct dt_node_connector_t
-{
-  dt_token_t name;        // name of the connector
-  dt_con_type_t type;     // input output?
-  dt_buf_type_t chan;     // channel types rggb, rgb, y, ..
-  dt_buf_format_t format; // storage format 32f, 16ui, ..
-}
-dt_node_connector_t;
-
-typedef struct dt_connection_t
-{
-  dt_node_id_t out_node; // output node
-  dt_token_t   out_conn; // name of the source in that node
-  dt_node_id_t in_node;  // consumer node
-  dt_token_t   in_conn;  // name of the sink in that node
-  // TODO: colour space annotation, bayer pattern offsets, etc goes in here?
-}
-dt_connection_t;
-
 typedef struct dt_node_t
 {
-  dt_node_id_t nodeid;
-  dt_connector_t in[10];
-  dt_connector_t out[10];
-  dt_connector_t tmp[10];
+  dt_connector_t connector[10];
   // TODO: store counts?
   // TODO: vulkan temporaries, pipeline etc?
 }
 dt_node_t;
-
-typedef struct dt_module_t
-{
-  dt_node_t *node;       // every module can have multiple nodes (for instance wavelets decompose, process, synthesise)
-
-  // TODO: params: see contrast.c for an example:
-  dt_token_t *param_tkn; // token for id
-  float      *param_val; // float values to be copied as uniforms in this layout
-  float      *param_cnt; // number of values for each param
-  const char *param_str; // translatable string for each param
-
-  // TODO: gui annotations: 
-  float *param_min, *param_max;
-
-  // need special case callbacks, optionally:
-  // TODO: init() draw_gui(), ..? for custom gui
-  // load_input(void *); // this is a source node, gets the vkMapMemory mapped pointer to fill
-  // write_output(void *); // this is a sink node
-}
-dt_module_t;
 
 // TODO: store list of nodes and list of connections
 // TODO: do topological sort for gui and for command buffer ingestion?

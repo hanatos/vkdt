@@ -35,8 +35,12 @@ typedef struct dt_module_so_t
 }
 dt_module_so_t;
 
+// this is an instance of a module.
 typedef struct dt_module_t
 {
+  dt_module_so_t *so; // class of module
+  dt_token_t inst;    // instance name
+
   // TODO: has a list of publicly visible connectors
   // TODO: actually two list so we can store the context pipeline independently?
   dt_connector_t connector[10]; // enough for everybody, right?
@@ -108,12 +112,15 @@ typedef struct dt_connector_t
   dt_token_t chan;   // rgb yuv..
   dt_token_t format; // f32 ui16
 
-  int id;            // pointing back to module or node
+  // TODO: do we really need these?
+  int mid;           // pointing back to module or node
+  int cid;
   // TODO: outputs (write buffers) can be connected to multiple inputs
   // TODO: inputs (read buffers) can only be connected to exactly one output
   // TODO: maybe only keep track of where inputs come from? this is also
   //       how we'll access it in the DAG during DFS from sinks
-  int connected_id;  // pointing to connected module or node (or -1)
+  int connected_mid;  // pointing to connected module or node (or -1)
+  int connected_cid;
 
   // memory allocations for region of interest
   // as well as the context buffers, if any:
