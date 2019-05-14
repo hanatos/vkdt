@@ -6,7 +6,7 @@ int main(int argc, char *arg[])
 {
   dt_vkalloc_t a;
   dt_vkalloc_init(&a);
-  // TODO: alloc a few test things with know outcome
+  // alloc a few test things with known outcome
 
   dt_vkmem_t *test[70] = {0};
 
@@ -22,15 +22,19 @@ int main(int argc, char *arg[])
     assert(!err);
   }
   // TODO: random order!
-  for(int i=0;i<70;i++)
+  for(int i=0;i<70;i+=2)
+  {
+    dt_vkfree(&a, test[i]);
+    err = dt_vkalloc_check(&a);
+    assert(!err);
+  }
+  for(int i=70-1;i>=0;i-=2)
   {
     dt_vkfree(&a, test[i]);
     err = dt_vkalloc_check(&a);
     assert(!err);
   }
 
-  // TODO: alloc a bunch of random sizes, make sure rss etc matches
-  // TODO: implement and run consistency checks on internal state of vkalloc struct
   dt_vkalloc_cleanup(&a);
   exit(0);
 }

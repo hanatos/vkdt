@@ -1,12 +1,13 @@
 #pragma once
-
 // doubly-linked list macros for all structs
 // that have *prev and *next members.
+// apologies for, uhm, every line of code in this file i think.
 
 // O(1) append to head
 #define DLIST_PREPEND(L,E) ({\
   (E)->prev = (L)?(L)->prev:0;\
   (E)->next = (L);\
+  if(L && (L)->prev) (L)->prev->next = (E);\
   if(L) (L)->prev = (E);\
   (E);\
 })
