@@ -2,6 +2,9 @@
 #include "core/core.h"
 #include "dlist.h"
 #include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 
 // simple vulkan buffer memory allocator
@@ -9,10 +12,10 @@
 
 typedef struct dt_vkmem_t
 {
-  uint64_t offset;   // to be uploaded as uniform/push const
-  uint64_t size;     // only for us, the gpu will know what they asked for
-  dt_vkmem_t *prev;  // for alloced/free lists
-  dt_vkmem_t *next;
+  uint64_t offset;          // to be uploaded as uniform/push const
+  uint64_t size;            // only for us, the gpu will know what they asked for
+  struct dt_vkmem_t *prev;  // for alloced/free lists
+  struct dt_vkmem_t *next;
 }
 dt_vkmem_t;
 
@@ -64,7 +67,12 @@ dt_vkalloc_check(dt_vkalloc_t *a)
   uint64_t num_used = DLIST_LENGTH(a->used);
   uint64_t num_free = DLIST_LENGTH(a->free);
   uint64_t num_unused = DLIST_LENGTH(a->unused);
-  if(num_used + num_free + num_unused != a->pool_size) return 1;
+  if(num_used + num_free + num_unused != a->pool_size)
+  {
+    fprintf(stderr, "pool size %lu but used %lu + free %lu + unused %lu\n", a->pool_size,
+        num_used, num_free, num_unused);
+    return 1;
+  }
 
   // make sure free list refs sorted blocks of memory
   // also make sure they don't overlap
@@ -80,7 +88,7 @@ dt_vkalloc_check(dt_vkalloc_t *a)
   }
 
   // make sure every pointer in pool is ref'd exactly once
-  uint8_t *mark = calloc(sizeof(uint8_t)*a->pool_size);
+  uint8_t *mark = calloc(a->pool_size, sizeof(uint8_t));
   memset(mark, 0, sizeof(uint8_t)*a->pool_size);
   for(int i=0;i<3;i++)
   {
@@ -107,11 +115,12 @@ dt_vkalloc_check(dt_vkalloc_t *a)
     {
       for(int i=0;i<2;i++)
       {
-        dt_vkmem_t l2 = a->used;
+        dt_vkmem_t *l2 = a->used;
         if(i == 1) l2 = a->free;
         while(l2)
         {
           int good = 0;
+          if(l == l2) good = 1;
           if(l->offset >= l2->offset + l2->size) good = 1;
           if(l->offset +  l->size <= l2->offset) good = 1;
           if(!good) return 6; // overlap detected!
@@ -121,6 +130,19 @@ dt_vkalloc_check(dt_vkalloc_t *a)
       l = l->next;
     }
   }
+
+  // see whether rss and vmsize are lying to us:
+  l = a->used;
+  uint64_t rss = 0, vmsize = 0;
+  while(l)
+  {
+    vmsize = MAX(vmsize, l->offset+l->size);
+    rss += l->size;
+    l = l->next;
+  }
+  if(vmsize > a->vmsize) return 7;
+  if(rss != a->rss) return 8;
+
   return 0; // yay, we made it!
 }
 
@@ -186,6 +208,7 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
         if(t->offset + t->size == mem->offset)
         {
           t->size += mem->size;
+          if(a->free == mem) a->free = mem->next;
           DLIST_RM_ELEMENT(mem);
           a->unused = DLIST_PREPEND(a->unused, mem);
           mem = t;
@@ -198,6 +221,7 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
         {
           t->offset = mem->offset;
           t->size += mem->size;
+          if(a->free == mem) a->free = mem->next;
           DLIST_RM_ELEMENT(mem);
           a->unused = DLIST_PREPEND(a->unused, mem);
           mem = t;

@@ -1,8 +1,11 @@
 CC=clang
-CFLAGS+=-O3 -Wall
+CFLAGS+=-O0 -Wall -I../.. -g
 LDFLAGS+=
 
-all: token
+all: token alloc
 
 token: token.c ../token.h Makefile
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+alloc: alloc.c ../alloc.h ../dlist.h Makefile
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)

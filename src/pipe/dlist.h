@@ -4,12 +4,12 @@
 // that have *prev and *next members.
 
 // O(1) append to head
-#define DLIST_PREPEND(L,E) {\
+#define DLIST_PREPEND(L,E) ({\
   (E)->prev = (L)?(L)->prev:0;\
   (E)->next = (L);\
-  if(L) (L)->next = (E);\
-  return (E);\
-}
+  if(L) (L)->prev = (E);\
+  (E);\
+})
 
 // O(1) remove specific element
 #define DLIST_RM_ELEMENT(E) {\
@@ -19,19 +19,24 @@
 }
 
 // O(n) remove from list
-#define DLIST_REMOVE(L,E)\
+#define DLIST_REMOVE(L,E) ({\
+__typeof(L) R = ((E)==(L))? (E)->next : (L);\
 for(__typeof(L) I=(L);I!=0;I=I->next) {\
   if(I==(E)) {\
     if(I->prev) I->prev->next = I->next;\
     if(I->next) I->next->prev = I->prev;\
     I->prev = I->next = 0;\
-    return ((L)==(E)) ? 0 : (L);\
+    break;\
   }\
-}
+}\
+R;\
+})
 
 // O(n) compute length
-#define DLIST_LENGTH(L)\
-for(__typeof(L) I=(L), int l=0;I!=0;I=I->next) {\
-  if(!I) return l;\
+#define DLIST_LENGTH(L) ({\
+int l = 0;\
+for(__typeof(L) I=(L);I!=0;I=I->next) {\
   l++;\
-}
+}\
+l;\
+})
