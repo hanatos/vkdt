@@ -30,3 +30,6 @@
   - nodes: for mem alloc
   - nodes: for command buffer filling
 
+* build
+  - public api for modules
+  - public api for core/cli

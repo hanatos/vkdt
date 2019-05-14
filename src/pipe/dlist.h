@@ -11,10 +11,11 @@
   return (E);\
 }
 
+// O(1) remove specific element
 #define DLIST_RM_ELEMENT(E) {\
-  if((E)->prev) (E)->prev->next = (E)->next;
-  if((E)->next) (E)->next->prev = (E)->prev;
-  (E)->next = (E)->prev = 0;
+  if((E)->prev) (E)->prev->next = (E)->next;\
+  if((E)->next) (E)->next->prev = (E)->prev;\
+  (E)->next = (E)->prev = 0;\
 }
 
 // O(n) remove from list
@@ -26,4 +27,11 @@ for(__typeof(L) I=(L);I!=0;I=I->next) {\
     I->prev = I->next = 0;\
     return ((L)==(E)) ? 0 : (L);\
   }\
+}
+
+// O(n) compute length
+#define DLIST_LENGTH(L)\
+for(__typeof(L) I=(L), int l=0;I!=0;I=I->next) {\
+  if(!I) return l;\
+  l++;\
 }
