@@ -1,3 +1,4 @@
+#include "../alloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,5 +10,6 @@ int main(int argc, char *arg[])
 
   // TODO: alloc a bunch of random sizes, make sure rss etc matches
   // TODO: implement and run consistency checks on internal state of vkalloc struct
+  dt_vkalloc_cleanup(&a);
   exit(0);
 }
