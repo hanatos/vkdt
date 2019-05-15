@@ -40,6 +40,7 @@ typedef struct dt_module_t
 dt_module_t;
 
 
+// TODO: put this struct into graph.h?
 // the graph is stored as list of modules and list of nodes.
 // these have connectors with detailed buffer information which
 // also hold the id to the other connected module or node. thus,
