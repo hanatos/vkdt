@@ -12,5 +12,5 @@ token: token.c ../token.h Makefile
 alloc: alloc.c ../alloc.h ../dlist.h Makefile
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
-pipe: pipe.c ../global.h ../global.c ../token.h ../io.h Makefile
+pipe: pipe.c ../global.h ../global.c ../token.h ../io.h ../connector.h ../connector.inc Makefile
 	$(CC) $(CFLAGS) $< ../global.c -o $@ $(LDFLAGS) -ldl
