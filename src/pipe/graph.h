@@ -14,6 +14,30 @@
 // the graph on anything that has "connector" members and can execute macros
 // before and after descending the tree.
 
+static inline void
+dt_graph_alloc_outputs(dt_vkalloc_t *a, dt_node_t *node)
+{
+  for(int i=0;i<node->num_connectors;i++)
+    if(node->connector[i].type == dt_token("write") ||
+       node->connector[i].type == dt_token("source"))
+      dt_vkalloc(node->connector[i].mem, size);
+}
+
+// free all buffers which we are done with now that the node
+// has been processed. that is: all inputs and all of our outputs
+// which aren't connected to another node.
+static inline void
+dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
+{
+  for(int i=0;i<node->num_connectors;i++)
+    // TODO: what about sink nodes? do we keep them for caching? is the node
+    // responsible to copy these away?
+    if(node->connector[i].type == dt_token("read") ||
+       node->connector[i].type == dt_token("sink") ||
+       node->connector[i].connected_mid == -1)
+      dt_vkfree(node->connector[i].mem);
+}
+
 setup_pipeline()
 {
   // TODO: can be only one output sink node that determines ROI.
@@ -51,16 +75,16 @@ setup_pipeline()
   // TODO: 3rd pass: compute memory requirements
   // TODO: if not happy: cut input roi in half or what
 #define TRAVERSE_POST\
-    arr[curr].alloc_outputs();\
-    arr[curr].free_inputs();
+    dt_graph_alloc_outputs(allocator, arr+curr);\
+    dt_graph_alloc_inputs (allocator, arr+curr);
 #include "graph-traverse.inc"
   // }
   // TODO: do that one after the other for all chopped roi
   // finally: create vulkan command buffer
 #define TRAVERSE_POST\
-    arr[curr].alloc_outputs();\
+    dt_graph_alloc_outputs(allocator, arr+curr);\
     arr[curr].create_pipeline();\
-    arr[curr].free_inputs();
+    dt_graph_alloc_inputs (allocator, arr+curr);
 #include "graph-traverse.inc"
 } // end scope, done with nodes
 }
@@ -150,6 +174,10 @@ dt_graph_create_command_buffer()
 }
 
 // read modules from ascii or binary
+static inline int
 dt_graph_read()
+{
+}
+
 // write only modules connected to sink modules
 dt_graph_write();

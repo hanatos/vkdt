@@ -129,6 +129,14 @@ typedef struct dt_connector_t
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;
+
+  // buffer associated with this in case it connects nodes:
+  uint64_t offset, size;
+  // mem object for allocator:
+  // while this may seem duplicate with offset/size, it may be freed already
+  // and the offset and size are still valid for successive runs through the
+  // pipeline once it has been setup.
+  dt_vkmem_t *mem;
 }
 dt_connector_t;
 
