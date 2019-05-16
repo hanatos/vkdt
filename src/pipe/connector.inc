@@ -19,19 +19,20 @@
   int old_mod = cn1->connected_mid;
   if(old_mod >= 0)
   {
+    int old_con = cn1->connected_cid;
     if(old_mod >= graph->num_elements) { assert(0 && "sink inconsistent!"); return 4; }
-    if(graph->element[old_mod].type != dt_token("write") &&
-       graph->element[old_mod].type == dt_token("source"))
+    if(graph->element[old_mod].connector[old_con].type != dt_token("write") &&
+       graph->element[old_mod].connector[old_con].type == dt_token("source"))
     { assert(0 && "sink inconsistent!"); return 5; }
 
     // disconnect cn1
     cn1->connected_mid = cn1->connected_cid = -1;
 
     // decrement previous source's reference counter
-    if(graph->element[old_mod].connected_mid > 0)
+    if(graph->element[old_mod].connector[old_con].connected_mid > 0)
     {
-      graph->element[old_mod].connected_mid--;
-      if(graph->element[old_mod].connected_mid < 0)
+      graph->element[old_mod].connector[old_con].connected_mid--;
+      if(graph->element[old_mod].connector[old_con].connected_mid < 0)
       { assert(0 && "sink inconsistent!"); return 6; }
     }
     else

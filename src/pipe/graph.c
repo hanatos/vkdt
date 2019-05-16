@@ -1,11 +1,33 @@
 #include "graph.h"
+#include "io.h"
+
+void
+dt_graph_init(dt_graph_t *g)
+{
+  memset(g, 0, sizeof(*g));
+  // TODO: allocate params pool
+
+  // allocate module and node buffers:
+  g->max_modules = 100;
+  g->module = malloc(sizeof(dt_module_t)*g->max_modules);
+  g->max_nodes = 300;
+  g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
+  dt_vkalloc_init(&g->alloc);
+}
+
+void
+dt_graph_cleanup(dt_graph_t *g)
+{
+  dt_vkalloc_cleanup(&g->alloc);
+}
 
 // helper to read parameters from config file
 static inline int
-read_params_ascii(
+read_param_ascii(
     dt_graph_t *graph,
     char       *line)
 {
+#if 0
   // read module:instance:param:value x cnt
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
@@ -14,6 +36,7 @@ read_params_ascii(
   float val = dt_read_float(line, &line);
   // TODO: set parameter:
   // module_set_param(..); // XXX grab module(name,inst), grab param location from so and set floats!
+#endif
   return 0;
 }
 
@@ -30,8 +53,8 @@ read_connection_ascii(
   dt_token_t inst1 = dt_read_token(line, &line);
   dt_token_t conn1 = dt_read_token(line, &line);
 
-  int modid0 = dt_module_get(mod0, inst0);
-  int modid1 = dt_module_get(mod1, inst1);
+  int modid0 = dt_module_get(graph, mod0, inst0);
+  int modid1 = dt_module_get(graph, mod1, inst1);
   if(modid0 == -1 || modid1 == -1) return 1;
   dt_module_connect(graph, modid0, conn0, modid1, conn1);
   return 0;
@@ -43,11 +66,11 @@ read_module_ascii(
     dt_graph_t *graph,
     char       *line)
 {
-  // TODO: how does thes know it failed?
+  // TODO: how does this know it failed?
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
-  dt_module_add(graph, name, inst);
-  return 0;
+  // discard module id, but remember error state (returns modid=-1)
+  return dt_module_add(graph, name, inst) >= 0;
 }
 
 // this is a public api function on the graph, it reads the full stack
@@ -64,9 +87,9 @@ int dt_graph_read_config_ascii(
     if(fgetc(f) == EOF) break; // read \n
     char *c = line;
     dt_token_t cmd = dt_read_token(c, &c);
-    if     (cmd == dt_token("module"))  if(read_module_ascii(graph, c))     goto error;
-    else if(cmd == dt_token("connect")) if(read_connection_ascii(graph, c)) goto error;
-    else if(cmd == dt_token("param"))   if(read_param_ascii(graph, c))      goto error;
+    if     (cmd == dt_token("module")  && read_module_ascii(graph, c))     goto error;
+    else if(cmd == dt_token("connect") && read_connection_ascii(graph, c)) goto error;
+    else if(cmd == dt_token("param")   && read_param_ascii(graph, c))      goto error;
   }
   fclose(f);
   return 0;
@@ -76,6 +99,7 @@ error:
 }
 
 
+#if 0
 static inline void
 dt_graph_alloc_outputs(dt_vkalloc_t *a, dt_node_t *node)
 {
@@ -100,7 +124,7 @@ dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
       dt_vkfree(node->connector[i].mem);
 }
 
-setup_pipeline()
+void setup_pipeline()
 {
   // TODO: can be only one output sink node that determines ROI.
   // TODO: but we can totally have more than one sink to pull in
@@ -150,6 +174,7 @@ setup_pipeline()
 #include "graph-traverse.inc"
 } // end scope, done with nodes
 }
+#endif
 
 #if 0
 // TODO: setup vulkan pipeline by

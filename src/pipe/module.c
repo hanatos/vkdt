@@ -1,5 +1,5 @@
 #include "module.h"
-
+#include "graph.h"
 
 // this is a public api function
 int dt_module_add(
@@ -9,14 +9,14 @@ int dt_module_add(
 {
   // add to graph's list
   // make sure we have enough memory, realloc if not
-  if(graph->num_modules == graph->max_modules)
+  if(graph->num_modules == graph->max_modules-1)
   {
     assert(0 && "TODO: realloc module graph arrays");
     return -1;
   }
   const int modid = graph->num_modules++;
 
-  dt_module_t *mod = graph->modules+modid;
+  dt_module_t *mod = graph->module + modid;
   mod->name = name;
   mod->inst = inst;
 
@@ -32,30 +32,33 @@ int dt_module_add(
         // XXX get definition and count and then set
         // TODO: need to alloc pointer + data from graph
       }
-      // connectors:
+      // init connectors from our module class:
       for(int c=0;c<mod->so->num_connectors;c++)
       {
-        // XXX
-        memset 0
-        copy name type chan format
-        // TODO: set connector's module id to ours XXX do we need it at all?
-        // TODO: set connector's ref id's to -1 or ref count to 0 if a write|source node
-        if(type == dt_token("read") || type == dt_token("sink"))
+        mod->connector[c] = mod->so->connector[c];
+        dt_connector_t *cn = mod->connector+c;
+        // set connector's ref id's to -1 or ref count to 0 if a write|source node
+        if(cn->type == dt_token("read") || cn->type == dt_token("sink"))
         {
-          connected_mid = -1;
-          connected_cid = -1;
+          cn->connected_mid = -1;
+          cn->connected_cid = -1;
         }
-        else if(type == dt_token("write") || type == dt_token("source"))
+        else if(cn->type == dt_token("write") || cn->type == dt_token("source"))
         {
-          connected_mid = 0;
-          connected_cid = 0;
+          cn->connected_mid = 0;
+          cn->connected_cid = 0;
         }
       }
+      mod->num_connectors = mod->so->num_connectors;
       break;
     }
   }
-  // TODO: if connectors still empty return -1
-
+  // if connectors still empty fail
+  if(mod->num_connectors == 0)
+  {
+    graph->num_modules--;
+    return -1;
+  }
   return modid;
 }
 
@@ -72,20 +75,22 @@ int dt_module_remove(
     const int modid)
 {
   // TODO: mark as dead and increment dead counter. if we don't like it any
-  // more, perform some for garbage collection.
+  // more, perform some form of garbage collection.
   assert(modid >= 0 && graph->num_modules > modid);
   // disconnect all channels
-  for(int c=0;c<graph->module[modid].num_channels;c++)
-    dt_module_connect(graph, modid, c, -1, -1);
+  for(int c=0;c<graph->module[modid].num_connectors;c++)
+    if(dt_module_connect(graph, -1, -1, modid, c))
+      return -1;
   graph->module[modid].name = 0;
   graph->module[modid].inst = 0;
+  return 0;
 }
 
 // return modid or -1
 int dt_module_get(
     const dt_graph_t *graph,
-    const dt_token_t name,
-    const dt_token_t inst)
+    dt_token_t name,
+    dt_token_t inst)
 {
   // TODO: some smarter way? hash table? benchmark how much we lose
   // through this stupid O(n) approach. after all the comparisons are

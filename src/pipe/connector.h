@@ -28,20 +28,17 @@ dt_roi_t;
 // the ctx info is always ignored.
 typedef struct dt_connector_t
 {
-  // TODO: if these config things change between context and roi we'll need to redesign!
+  // TODO: if chan and format change between context and roi we'll need to redesign!
   dt_token_t name;   // connector name
   dt_token_t type;   // read write source sink
   dt_token_t chan;   // rgb yuv..
   dt_token_t format; // f32 ui16
 
-  // TODO: do we really need these?
-  int mid;           // pointing back to module or node
-  int cid;
-  // TODO: outputs (write buffers) can be connected to multiple inputs
-  // TODO: inputs (read buffers) can only be connected to exactly one output
-  // TODO: maybe only keep track of where inputs come from? this is also
-  //       how we'll access it in the DAG during DFS from sinks
-  int connected_mid;  // pointing to connected module or node (or -1)
+  // outputs (write buffers) can be connected to multiple inputs
+  // inputs (read buffers) can only be connected to exactly one output
+  // we only keep track of where inputs come from. this is also
+  // how we'll access it in the DAG during DFS from sinks.
+  int connected_mid;  // pointing to connected module or node (or -1). is a reference count for write buffers.
   int connected_cid;
 
   // memory allocations for region of interest

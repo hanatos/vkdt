@@ -1,6 +1,7 @@
 #pragma once
 #include "node.h"
 #include "module.h"
+#include "alloc.h"
 
 // the graph is stored as list of modules and list of nodes.
 // these have connectors with detailed buffer information which
@@ -20,13 +21,19 @@ typedef struct dt_graph_t
   uint32_t params_end, params_max;
 
   // TODO: also store full history somewhere
+
+  // allocator for buffers
+  dt_vkalloc_t alloc;
 }
 dt_graph_t;
+
+void dt_graph_init(dt_graph_t *g);
+void dt_graph_cleanup(dt_graph_t *g);
 
 // read modules from ascii or binary
 int dt_graph_read_config_ascii(
     dt_graph_t *graph,
-    const char *filename)
+    const char *filename);
 
 // write only modules connected to sink modules,
 // and only set parameters of modules once.

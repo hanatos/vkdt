@@ -11,14 +11,16 @@ int main()
   const dt_token_t test1 = dt_token("1234");
   const dt_token_t test2 = -1ul; // something like "ÿÿÿÿÿÿÿÿ" only you can't type it
   const dt_token_t test3 = dt_token("none"); // 0x656E6F6E
+  const dt_token_t test4 = 0ul; // 
 
 
   fprintf(stderr, "token '%" PRItkn "' and '%" PRItkn
-      "' -1 token '%" PRItkn"' or %lX\n",
+      "' -1 token '%" PRItkn"' or %lX and '%"PRItkn"'\n",
       dt_token_str(test0),
       dt_token_str(test1),
       dt_token_str(test2),
-      test3);
+      test3,
+      dt_token_str(test4));
 
   exit(0);
 }
