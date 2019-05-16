@@ -55,8 +55,27 @@ read_connection_ascii(
 
   int modid0 = dt_module_get(graph, mod0, inst0);
   int modid1 = dt_module_get(graph, mod1, inst1);
-  if(modid0 == -1 || modid1 == -1) return 1;
-  dt_module_connect(graph, modid0, conn0, modid1, conn1);
+  if(modid0 == -1 || modid1 == -1)
+  {
+    fprintf(stderr, "[read connect] "
+        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"\n",
+        dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
+        dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
+    fprintf(stderr, "[read connect] no such modules %d %d\n", modid0, modid1);
+    return 1;
+  }
+  int conid0 = dt_module_get_connector(graph->module+modid0, conn0);
+  int conid1 = dt_module_get_connector(graph->module+modid1, conn1);
+  int err = dt_module_connect(graph, modid0, conid0, modid1, conid1);
+  if(err)
+  {
+    fprintf(stderr, "[read connect] "
+        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"\n",
+        dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
+        dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
+    fprintf(stderr, "[read connect] connection failed: error %d\n", err);
+    return err;
+  }
   return 0;
 }
 
@@ -70,7 +89,7 @@ read_module_ascii(
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
   // discard module id, but remember error state (returns modid=-1)
-  return dt_module_add(graph, name, inst) >= 0;
+  return dt_module_add(graph, name, inst) < 0;
 }
 
 // this is a public api function on the graph, it reads the full stack
@@ -87,6 +106,7 @@ int dt_graph_read_config_ascii(
     if(fgetc(f) == EOF) break; // read \n
     char *c = line;
     dt_token_t cmd = dt_read_token(c, &c);
+    fprintf(stderr, "read %"PRItkn"\n", dt_token_str(cmd));
     if     (cmd == dt_token("module")  && read_module_ascii(graph, c))     goto error;
     else if(cmd == dt_token("connect") && read_connection_ascii(graph, c)) goto error;
     else if(cmd == dt_token("param")   && read_param_ascii(graph, c))      goto error;

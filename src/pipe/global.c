@@ -137,7 +137,8 @@ static inline void
 dt_module_so_unload(dt_module_so_t *mod)
 {
   // decrements ref count and unloads the dso if it drops to 0
-  dlclose(mod->dlhandle);
+  if(mod->dlhandle)
+    dlclose(mod->dlhandle);
 }
 
 int dt_pipe_global_init()
