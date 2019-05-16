@@ -1,4 +1,4 @@
 input:read:rgb:f32
 output:write:rgb:f32
-tonein:read:rgb:f32
-toneout:write:rgb:f32
+tonein:read:y:f32
+toneout:write:y:f32

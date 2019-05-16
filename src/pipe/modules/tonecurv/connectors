@@ -1,0 +1,2 @@
+input:read:y:f32
+output:write:y:f32
