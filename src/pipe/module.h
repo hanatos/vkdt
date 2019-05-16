@@ -34,7 +34,7 @@ typedef struct dt_module_t
   // compute facing parameters for uniform upload
   // simple code path for when both are equivalent
   // TODO: pointer or index for realloc?
-  dt_ui_param_t *params[10];  // points into pool stored with graph
+  float *params[10];  // points into pool stored with graph
   int num_params;
 }
 dt_module_t;
