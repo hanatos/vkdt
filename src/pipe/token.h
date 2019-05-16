@@ -12,7 +12,7 @@ static inline dt_token_t
 dt_token(const char *str)
 {
   // remember to switch off assertions for release:
-  assert(strnlen(str, 9) <= 8);
+  assert(strnlen(str, 8) <= 8);
   // this loop unfortunately needs to check whether the string
   // pointer is aligned or terminates early. gcc 8.3 carries every
   // byte through individually, clang-8.0 does it in four steps
@@ -20,6 +20,7 @@ dt_token(const char *str)
   for(int i=0;i<8;i++)
     if(str[i] != 0)
       t |= ((uint64_t)str[i])<<(8*i);
+    else break;
   return t;
 }
 
@@ -28,5 +29,3 @@ dt_token(const char *str)
 
 // use this literal to print it, it's not necessarily 0-terminated
 #define PRItkn ".8s"
-
-// TODO: supply wrapper for parsing of ascii and binary input files

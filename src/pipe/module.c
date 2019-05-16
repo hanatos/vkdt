@@ -28,6 +28,7 @@ int dt_module_add(
     {
       // TODO: slap over defaults and connectors
       // TODO: set connector's module id to ours
+      // TODO: set connector's ref id's to -1 or ref count to 0 if a write|source node
       break;
     }
   }
