@@ -55,7 +55,6 @@ dt_module_so_load(
     dt_module_so_t *mod,
     const char *dirname)
 {
-  fprintf(stderr, "[module so load] loading %s\n", dirname);
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
   char filename[2048], line[2048];
@@ -129,6 +128,7 @@ dt_module_so_load(
 
   // TODO: more sanity checks?
 
+  fprintf(stderr, "[module so load] loading %s\n", dirname);
   return 0;
 }
 

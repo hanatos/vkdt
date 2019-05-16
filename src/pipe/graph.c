@@ -106,7 +106,6 @@ int dt_graph_read_config_ascii(
     if(fgetc(f) == EOF) break; // read \n
     char *c = line;
     dt_token_t cmd = dt_read_token(c, &c);
-    fprintf(stderr, "read %"PRItkn"\n", dt_token_str(cmd));
     if     (cmd == dt_token("module")  && read_module_ascii(graph, c))     goto error;
     else if(cmd == dt_token("connect") && read_connection_ascii(graph, c)) goto error;
     else if(cmd == dt_token("param")   && read_param_ascii(graph, c))      goto error;
