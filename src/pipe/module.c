@@ -36,23 +36,31 @@ int dt_module_add(
   return modid;
 }
 
+int dt_module_get_connector(
+    const dt_module_t *m, dt_token_t conn)
+{
+  for(int c=0;c<m->num_connectors;c++)
+    if(m->connector[c].name == conn) return c;
+  return -1;
+}
+
 int dt_module_remove(
-    const dt_module_graph_t *graph,
+    dt_graph_t *graph,
     const int modid)
 {
-  // TODO: mark as dead and increment dead counter.
-  // TODO: if we don't like it any more, call graph_write and graph_read
-  // TODO: for garbage collection.
+  // TODO: mark as dead and increment dead counter. if we don't like it any
+  // more, perform some for garbage collection.
   assert(modid >= 0 && graph->num_modules > modid);
+  // disconnect all channels
+  for(int c=0;c<graph->module[modid].num_channels;c++)
+    dt_module_connect(graph, modid, c, -1, -1);
   graph->module[modid].name = 0;
   graph->module[modid].inst = 0;
-  dlclose(graph->module[modid].dlhandle);
-  graph->module[modid].dlhandle = 0;
 }
 
 // return modid or -1
 int dt_module_get(
-    const dt_module_graph_t *graph,
+    const dt_graph_t *graph,
     const dt_token_t name,
     const dt_token_t inst)
 {

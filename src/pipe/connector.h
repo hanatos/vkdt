@@ -63,8 +63,6 @@ typedef struct dt_connector_t
 dt_connector_t;
 
 // "templatised" connection functions for both modules and nodes
-typedef struct dt_module_graph_t dt_module_graph_t; // fwd declare
-int dt_module_connect(dt_module_graph_t *graph,
-    int m0, dt_token_t c0, int m1, dt_token_t c1);
-int dt_node_connect(dt_module_graph_t *graph,
-    int m0, dt_token_t c0, int m1, dt_token_t c1);
+typedef struct dt_graph_t dt_graph_t; // fwd declare
+int dt_module_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
+int dt_node_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);

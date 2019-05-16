@@ -39,14 +39,15 @@ typedef struct dt_module_t
 }
 dt_module_t;
 
+typedef struct dt_graph_t dt_grap_t; // fwd declare
 
-dt_module_t *dt_module_add(dt_token_t name, dt_token_t inst);
+// add a module to the graph, also init the dso class.
+dt_module_t *dt_module_add(dt_graph_t *graph, dt_token_t name, dt_token_t inst);
 
-dt_module_t *dt_module_get(dt_token_t name, dt_token_t inst);
+// return the id or -1 of the module of given name and instance
+int dt_module_get(dt_graph_t *graph, dt_token_t name, dt_token_t inst);
 
-// serialise (i.e. write module name and instance along with parameters)
-// this can be ascii or binary format.
-dt_module_write();
+int dt_module_get_connector(const dt_module_t *m, dt_token_t conn);
 
-// read module from ascii or binary
-dt_module_read();
+// remove module from the graph
+int dt_module_remove(dt_graph_t *graph, const int modid);

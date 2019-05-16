@@ -4,10 +4,7 @@
 int
 dt_module_connect(
     dt_module_graph_t *graph,
-    int m0,  // from
-    dt_token_t c0,
-    int m1,  // to
-    dt_token_t c1)
+    int m0, int c0, int m1, int c1)
 {
 #define element module
 #define num_elements num_modules
@@ -17,11 +14,8 @@ dt_module_connect(
 
 int
 dt_node_connect(
-    dt_module_graph_t *graph,
-    int m0,  // from
-    dt_token_t c0,
-    int m1,  // to
-    dt_token_t c1)
+    dt_graph_t *graph,
+    int m0, int c0, int m1, int c1)
 {
 #define element node
 #define num_elements num_nodes

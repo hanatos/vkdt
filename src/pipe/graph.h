@@ -18,6 +18,8 @@ typedef struct dt_graph_t
   // the end pointer until it is flushed completely.
   uint8_t *params_pool;
   uint32_t params_end, params_max;
+
+  // TODO: also store full history somewhere
 }
 dt_graph_t;
 
@@ -26,5 +28,13 @@ int dt_graph_read_config_ascii(
     dt_graph_t *graph,
     const char *filename)
 
-// write only modules connected to sink modules
-int dt_graph_write();
+// write only modules connected to sink modules,
+// and only set parameters of modules once.
+int dt_graph_write_compressed(
+    dt_graph_t *graph,
+    const char *filename);
+
+// write everything, including full history?
+int dt_graph_write(
+    dt_graph_t *graph,
+    const char *filename);
