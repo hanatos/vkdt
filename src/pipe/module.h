@@ -40,28 +40,6 @@ typedef struct dt_module_t
 dt_module_t;
 
 
-// TODO: put this struct into graph.h?
-// the graph is stored as list of modules and list of nodes.
-// these have connectors with detailed buffer information which
-// also hold the id to the other connected module or node. thus,
-// there is no need for an explicit list of connections.
-typedef struct dt_module_graph_t
-{
-  dt_module_t *module;
-  uint32_t num_modules, max_modules;
-
-  dt_node_t *node;
-  uint32_t num_nodes, max_nodes;
-
-  // memory pool for node params. this is a simple allocator that increments
-  // the end pointer until it is flushed completely.
-  uint8_t *params_pool;
-  uint32_t params_end, params_max;
-}
-dt_module_graph_t;
-
-dt_module_connect();
-
 dt_module_t *dt_module_add(dt_token_t name, dt_token_t inst);
 
 dt_module_t *dt_module_get(dt_token_t name, dt_token_t inst);

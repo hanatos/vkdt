@@ -98,11 +98,11 @@ dt_module_so_load(
     {
       fscanf(f, "%[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
-      fprintf(stderr, "parsing line `%s'\n", line);
       mod->param[i++] = read_param_config_ascii(line);
       if(i > sizeof(mod->param)/sizeof(mod->param[0])) break;
     }
     mod->num_params = i;
+    fclose(f);
   }
 
   // read connector info
@@ -124,6 +124,7 @@ dt_module_so_load(
       // TODO also init all the other variables, maybe inside this function
     }
     mod->num_connectors = i;
+    fclose(f);
   }
 
   // TODO: more sanity checks?

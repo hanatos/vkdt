@@ -1,23 +1,9 @@
 #include "module.h"
 
-static inline int
-dt_module_read_params_ascii(
-    dt_module_t *mod,
-    char *line)
-{
 
-}
-
-static inline int
-dt_module_read_ascii(
-    const char *file)
-{
-  // TODO: read name, instance
-  dt_module_add(graph, name, inst);
-}
-
+// this is a public api function
 int dt_module_add(
-    const dt_module_graph_t *graph,
+    const dt_graph_t *graph,
     const dt_token_t name,
     const dt_token_t inst)
 {
