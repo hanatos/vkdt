@@ -3,9 +3,9 @@
 
 // this is a public api function
 int dt_module_add(
-    const dt_graph_t *graph,
-    const dt_token_t name,
-    const dt_token_t inst)
+    dt_graph_t *graph,
+    dt_token_t name,
+    dt_token_t inst)
 {
   // add to graph's list
   // make sure we have enough memory, realloc if not
@@ -20,15 +20,37 @@ int dt_module_add(
   mod->name = name;
   mod->inst = inst;
 
-  // TODO: copy over module class!
-  dt_module_so_list_t *list = ; // XXX
-  for(int i=0;i<list->num_modules;i++)
-  { // TODO: hashtable? sort and bisect?
-    if(name == list->module[i].name)
+  // copy over initial info from module class:
+  for(int i=0;i<dt_pipe.num_modules;i++)
+  { // TODO: speed this up somehow?
+    if(name == dt_pipe.module[i].name)
     {
-      // TODO: slap over defaults and connectors
-      // TODO: set connector's module id to ours
-      // TODO: set connector's ref id's to -1 or ref count to 0 if a write|source node
+      mod->so = dt_pipe.module + i;
+      // TODO: slap over default params
+      for(int p=0;p<mod->so->num_params;p++)
+      {
+        // XXX get definition and count and then set
+        // TODO: need to alloc pointer + data from graph
+      }
+      // connectors:
+      for(int c=0;c<mod->so->num_connectors;c++)
+      {
+        // XXX
+        memset 0
+        copy name type chan format
+        // TODO: set connector's module id to ours XXX do we need it at all?
+        // TODO: set connector's ref id's to -1 or ref count to 0 if a write|source node
+        if(type == dt_token("read") || type == dt_token("sink"))
+        {
+          connected_mid = -1;
+          connected_cid = -1;
+        }
+        else if(type == dt_token("write") || type == dt_token("source"))
+        {
+          connected_mid = 0;
+          connected_cid = 0;
+        }
+      }
       break;
     }
   }
