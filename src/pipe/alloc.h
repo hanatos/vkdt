@@ -209,7 +209,7 @@ dt_vkalloc_check(dt_vkalloc_t *a)
   }
 
   // make sure every pointer in pool is ref'd exactly once
-  uint8_t *mark = calloc(a->pool_size, sizeof(uint8_t));
+  uint8_t *mark = alloca(a->pool_size, sizeof(uint8_t));
   memset(mark, 0, sizeof(uint8_t)*a->pool_size);
   for(int i=0;i<3;i++)
   {
