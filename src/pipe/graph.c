@@ -154,18 +154,20 @@ void dt_graph_setup_pipeline(
   // TODO: can be only one output sink node that determines ROI.
   // TODO: but we can totally have more than one sink to pull in
   // nodes for. we have to execute some of this multiple times
-  // and have a marker on nodes that we already traversed.
+  // and have a XXX marker XXX on nodes that we already traversed.
+  // there might also be cycles on module level.
 { // module scope
   dt_module_t *const arr = graph->module;
   // first pass: find output rois
   // just find first sink node:
-  int start_node_id = 0;
+  int display_node_id = 0;
   for(int i=0;i<graph->num_modules;i++)
     if(graph->module[i].connector[0].type == dt_token("sink"))
-    { start_node_id = i; break; }
+    { display_node_id = i; break; }
   // execute after all inputs have been traversed:
   // "int curr" will be the current node
-  // TODO: walk all inputs and determine roi on all outputs
+  // walk all inputs and determine roi on all outputs
+  int start_node_id = display_node_id;
 #define TRAVERSE_POST \
   arr[curr].so->modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
@@ -175,9 +177,13 @@ void dt_graph_setup_pipeline(
   // TODO: set display_sink output size
 
   // TODO: 2nd pass: request input rois
+  start_node_id = display_node_id;
 #define TRAVERSE_PRE\
   arr[curr].so->modify_roi_in(graph, arr+curr);
 #include "graph-traverse.inc"
+
+  // TODO: create nodes for all modules
+  // TODO: could this be done in the modify_roi_in pass?
 
   // TODO: forward the output rois to other branches with sinks we didn't pull for:
   // XXX
