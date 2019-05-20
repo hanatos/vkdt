@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string.h>
+#include <stdlib.h>
+
 static inline dt_token_t
 dt_read_token(
     char *line, // will be destroyed in the process, we'll insert 0 as end point

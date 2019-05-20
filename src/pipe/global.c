@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <stdio.h>
 
 dt_pipe_global_t dt_pipe;
 

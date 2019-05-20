@@ -9,8 +9,8 @@ all: token alloc pipe graph
 token: token.c ../token.h Makefile
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
-alloc: alloc.c ../alloc.h ../dlist.h Makefile
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+alloc: alloc.c ../alloc.h ../alloc.c ../dlist.h Makefile
+	$(CC) $(CFLAGS) $< ../alloc.c -o $@ $(LDFLAGS)
 
 pipe: pipe.c ../global.h ../global.c ../token.h ../io.h ../connector.h ../connector.inc Makefile
 	$(CC) $(CFLAGS) $< ../global.c -o $@ $(LDFLAGS) -ldl
@@ -24,6 +24,7 @@ GRAPH_DEPS=../graph.h\
            ../module.h\
            ../token.h
 GRAPH_C= ../graph.c\
+         ../alloc.c\
          ../connector.c\
          ../global.c\
          ../module.c

@@ -2,18 +2,19 @@
 #include "RawSpeed-API.h"
 
 extern "C" {
+#include "module.h"
 
-static CameraMetaData *meta = 0;
+static rawspeed::CameraMetaData *meta = 0;
 
 typedef struct rawinput_buf_t
 {
-  RawImage rimg;
+  rawspeed::RawImageData *rimg;
   char filename[PATH_MAX] = {0};
 }
 rawinput_buf_t;
 
 static void
-load_rawspeed_meta()
+rawspeed_load_meta()
 {
   /* Load rawspeed cameras.xml meta file once */
   if(meta == NULL)
@@ -26,7 +27,7 @@ load_rawspeed_meta()
       datadir[0] = '.'; // XXX
       snprintf(camfile, sizeof(camfile), "%s/rawspeed/cameras.xml", datadir);
       // never cleaned up (only when dt closes)
-      meta = new CameraMetaData(camfile);
+      meta = new rawspeed::CameraMetaData(camfile);
     }
     // XXX dt_pthread_mutex_unlock(&darktable.plugin_threadsafe);
   }
@@ -37,7 +38,7 @@ load_raw(
     dt_module_t *mod,
     const char *filename)
 {
-  dt_rawinput_buf_t *mod_data = mod->data;
+  rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   if(mod_data)
   {
     if(!strcmp(mod_data->filename, filename))
@@ -45,18 +46,18 @@ load_raw(
   }
 
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", mod_data->filename);
-  FileReader f(mod_data->filename);
+  rawspeed::FileReader f(mod_data->filename);
 
-  std::unique_ptr<RawDecoder> d;
-  std::unique_ptr<const Buffer> m;
+  std::unique_ptr<rawspeed::RawDecoder> d;
+  std::unique_ptr<const rawspeed::Buffer> m;
 
   try
   {
-    dt_rawspeed_load_meta();
+    rawspeed_load_meta();
 
     m = f.readFile();
 
-    RawParser t(m.get());
+    rawspeed::RawParser t(m.get());
     d = t.getDecoder(meta);
 
     if(!d.get()) return 1;
@@ -65,7 +66,8 @@ load_raw(
     d->checkSupport(meta);
     d->decodeRaw();
     d->decodeMetaData(meta);
-    mod_data->rimg = d->mRaw;
+    // wow, c++ is *such* an awesome language:
+    mod_data->rimg = &*d->mRaw;
 
     const auto errors = mod_data->rimg->getErrors();
     for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", mod_data->filename, error.c_str());
@@ -91,13 +93,14 @@ load_raw(
 
 void init(dt_module_t *mod)
 {
-  dt_rawinput_buf_t *dat = new dt_rawinput_buf_t();
+  rawinput_buf_t *dat = new rawinput_buf_t();
+  memset(dat, 0, sizeof(*dat));
 }
 
 void cleanup(dt_module_t *mod)
 {
-  dt_rawinput_buf_t *mod_data = mod->data;
-  delete mod_data; // deletes RawImage
+  rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  delete mod_data->rimg;
   mod->data = 0;
 }
 
@@ -108,8 +111,8 @@ void modify_roi_out(
 {
   // TODO: load image if not happened yet
   // int err = load_raw(mod, filename);
-  dt_rawinput_buf_t *mod_data = mod->data;
-  iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
+  rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  rawspeed::iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = dim_uncropped.x;
   mod->connector[0].roi.full_ht = dim_uncropped.y;
@@ -122,18 +125,19 @@ int load_input(
     void *mapped)
 {
   // XXX
-  // int err = load_raw(mod, filename);
-  uint16_t *buf = mapped;
+  int err = load_raw(mod, "test.cr2");
+  if(err) return 1;
+  uint16_t *buf = (uint16_t *)mapped;
 
   // dimensions of uncropped image
-  dt_rawinput_buf_t *mod_data = mod->data;
-  iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
+  rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  rawspeed::iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
   int wd = dim_uncropped.x;
   int ht = dim_uncropped.y;
 
   const size_t bufsize_compact = (size_t)wd * ht * mod_data->rimg->getBpp();
   const size_t bufsize_rawspeed = (size_t)mod_data->rimg->pitch * ht;
-  if(bufsize_mipmap == bufsize_rawspeed)
+  if(bufsize_compact == bufsize_rawspeed)
   {
     memcpy(buf, mod_data->rimg->getDataUncropped(0, 0), bufsize_compact);
     return 0;

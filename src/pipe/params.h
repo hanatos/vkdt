@@ -11,8 +11,8 @@ typedef struct dt_ui_param_t
   int32_t cnt;
   union
   {
-    float val[0];
-    char str[0];
+    float val[3]; // let's assume we at least have one argument + min/max
+    char str[12];
   };
   // directly after this go float* or char*
   // TODO: how to sort value and min/max or whatever gui stuff we need if it's cnt>1?

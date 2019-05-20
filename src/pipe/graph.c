@@ -1,6 +1,8 @@
 #include "graph.h"
 #include "io.h"
 
+#include <stdio.h>
+
 void
 dt_graph_init(dt_graph_t *g)
 {
