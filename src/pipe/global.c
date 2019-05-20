@@ -1,5 +1,7 @@
 #include "global.h"
 #include "io.h"
+#include "module.h"
+#include "graph.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -52,6 +54,31 @@ read_param_config_ascii(
   return p;
 }
 
+// default callback
+void
+modify_roi_out(dt_graph_t *graph, dt_module_t *module)
+{
+  // copy over roi from connector named "input" to all outputs ("write" or "sink")
+  int input = dt_module_get_connector(module, dt_token("input"));
+  dt_connector_t *c = module->connector+input;
+  dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    if(module->connector[i].type == dt_token("write") ||
+       module->connector[i].type == dt_token("sink"))
+    {
+      module->connector[i].roi.full_wd = roi->full_wd;
+      module->connector[i].roi.full_ht = roi->full_ht;
+    }
+  }
+}
+
+// default callback
+void
+modify_roi_in(dt_graph_t *graph, dt_module_t *module)
+{
+}
+
 static inline int
 dt_module_so_load(
     dt_module_so_t *mod,
@@ -68,20 +95,17 @@ dt_module_so_load(
   {
     mod->dlhandle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
     if(dlerror())
-    {
-      // TODO:
-      // fill default callbacks?
-    }
+      mod->dlhandle = 0;
   }
-  if(mod->dlhandle)// don't necessarily need code to execute if all stays at default behaviour
+  if(mod->dlhandle)
   {
-    mod->create_nodes = dlsym(mod->dlhandle, "create_nodes");
-    if(dlerror())
-    {
-      // TODO
-    }
+    mod->create_nodes   = dlsym(mod->dlhandle, "create_nodes");
+    mod->modify_roi_out = dlsym(mod->dlhandle, "modify_roi_out");
+    mod->modify_roi_in  = dlsym(mod->dlhandle, "modify_roi_in");
   }
   // TODO: go through empty callbacks once here and fill defaults:
+  if(!mod->modify_roi_out) mod->modify_roi_out = &modify_roi_out;
+  if(!mod->modify_roi_in ) mod->modify_roi_in  = &modify_roi_in;
 
   // read default params:
   // read param name, type, cnt, default value + bounds

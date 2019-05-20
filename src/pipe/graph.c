@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "module.h"
 #include "io.h"
 
 #include <stdio.h>
@@ -147,13 +148,6 @@ dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
 }
 #endif
 
-// TODO: put this default call back on module->so!
-static inline void
-modify_roi_out(dt_graph_t *graph, dt_module_t *module)
-{
-  // TODO: 
-}
-
 void dt_graph_setup_pipeline(
     dt_graph_t *graph)
 {
@@ -164,13 +158,16 @@ void dt_graph_setup_pipeline(
 { // module scope
   dt_module_t *const arr = graph->module;
   // first pass: find output rois
-  // XXX
-  int start_node_id = display_sink; // our output for export
+  // just find first sink node:
+  int start_node_id = 0;
+  for(int i=0;i<graph->num_modules;i++)
+    if(graph->module[i].connector[0].type == dt_token("sink"))
+    { start_node_id = i; break; }
   // execute after all inputs have been traversed:
-  // int curr <- will be the current node
+  // "int curr" will be the current node
   // TODO: walk all inputs and determine roi on all outputs
 #define TRAVERSE_POST \
-  arr[curr].modify_roi_out();
+  arr[curr].so->modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
 
   // TODO: in fact we want this or that roi on output after considering
@@ -179,7 +176,7 @@ void dt_graph_setup_pipeline(
 
   // TODO: 2nd pass: request input rois
 #define TRAVERSE_PRE\
-  arr[curr].modify_roi_in();
+  arr[curr].so->modify_roi_in(graph, arr+curr);
 #include "graph-traverse.inc"
 
   // TODO: forward the output rois to other branches with sinks we didn't pull for:

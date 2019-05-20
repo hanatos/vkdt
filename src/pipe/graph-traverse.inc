@@ -35,12 +35,12 @@
       TRAVERSE_PRE
       for(int i=0;i<arr[curr].num_connectors;i++)
       {
-        if(arr[curr].connector[i].type == dt_token_t("read"))
+        if(arr[curr].connector[i].type == dt_token("read"))
         { // need to recurse all inputs
           stack[++sp] = arr[curr].connector[i].connected_mid;
           done[sp] = 0;
         }
-        else if(arr[curr].connector[i].type == dt_token_t("source"))
+        else if(arr[curr].connector[i].type == dt_token("source"))
         {
           // TODO: special source callback?
         }

@@ -8,7 +8,11 @@
 // this queries the modules on startup, does the dlopen and expensive
 // parsing once, and holds a list for modules to quickly access run time.
 
+typedef struct dt_graph_t dt_grap_t; // fwd declare
+typedef struct dt_module_t dt_module_t;
 typedef int (*dt_module_create_nodes_t)(void *data);
+typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
+typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
 
 // this is all the "class" info that is not bound to an instance and can be
 // read once on startup
@@ -18,6 +22,9 @@ typedef struct dt_module_so_t
 
   void *dlhandle;
   dt_module_create_nodes_t create_nodes;
+
+  dt_module_modify_roi_out_t modify_roi_out;
+  dt_module_modify_roi_in_t  modify_roi_in;
 
   dt_connector_t connector[10]; // enough for everybody, right?
   int num_connectors;

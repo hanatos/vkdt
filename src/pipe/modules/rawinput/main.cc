@@ -107,10 +107,12 @@ void cleanup(dt_module_t *mod)
 // this callback is responsible to set the full_{wd,ht} dimensions on the
 // regions of interest on all "write"|"source" channels
 void modify_roi_out(
+    dt_graph_t  *graph,
     dt_module_t *mod)
 {
   // TODO: load image if not happened yet
   // int err = load_raw(mod, filename);
+  load_raw(mod, "test.cr2");
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
