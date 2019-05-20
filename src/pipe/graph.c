@@ -131,6 +131,7 @@ dt_graph_alloc_outputs(dt_vkalloc_t *a, dt_node_t *node)
 // free all buffers which we are done with now that the node
 // has been processed. that is: all inputs and all of our outputs
 // which aren't connected to another node.
+// TODO: consider protected buffers: for instance for loaded raw input, cached before currently active node, ..
 static inline void
 dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
 {
@@ -142,8 +143,17 @@ dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
        node->connector[i].connected_mid == -1)
       dt_vkfree(node->connector[i].mem);
 }
+#endif
 
-void setup_pipeline()
+// TODO: put this default call back on module->so!
+static inline void
+modify_roi_out(dt_graph_t *graph, dt_module_t *module)
+{
+  // TODO: 
+}
+
+void dt_graph_setup_pipeline(
+    dt_graph_t *graph)
 {
   // TODO: can be only one output sink node that determines ROI.
   // TODO: but we can totally have more than one sink to pull in
@@ -152,6 +162,7 @@ void setup_pipeline()
 { // module scope
   dt_module_t *const arr = graph->module;
   // first pass: find output rois
+  // XXX
   int start_node_id = display_sink; // our output for export
   // execute after all inputs have been traversed:
   // int curr <- will be the current node
@@ -173,6 +184,7 @@ void setup_pipeline()
   // XXX
 } // end scope, done with modules
 
+#if 0
 { // node scope
   dt_node_t *const arr = graph->node;
   int start_node_id = display_sink; // our output for export
@@ -192,8 +204,8 @@ void setup_pipeline()
     dt_graph_alloc_inputs (allocator, arr+curr);
 #include "graph-traverse.inc"
 } // end scope, done with nodes
-}
 #endif
+}
 
 #if 0
 // TODO: setup vulkan pipeline by

@@ -1,7 +1,4 @@
-* load pipeline config
-  - module add (name inst)
-  - connect (module inst connector x2)
-  - param module inst param name varargs
+* load param module inst param name varargs
 
 * create nodes
   - provide interface calls node_add node_connect and allocate ids in global list on graph

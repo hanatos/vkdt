@@ -56,6 +56,7 @@ typedef struct dt_connector_t
   // and the offset and size are still valid for successive runs through the
   // pipeline once it has been setup.
   dt_vkmem_t *mem;
+  uint64_t mem_flags; // protected bits etc go here
 }
 dt_connector_t;
 

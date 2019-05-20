@@ -37,6 +37,10 @@ typedef struct dt_module_t
   // TODO: pointer or index for realloc?
   float *params[10];  // points into pool stored with graph
   int num_params;
+
+  // this is useful for instance for a cpu caching of
+  // input data decoded from disk inside a module:
+  void *data; // if you indeed must store your own data.
 }
 dt_module_t;
 

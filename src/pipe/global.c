@@ -17,6 +17,7 @@ read_connector_ascii(
     dt_connector_t *conn,
     char *line)
 { // read tkn:tkn:tkn:tkn
+  memset(conn, 0, sizeof(*conn));
   conn->name = dt_read_token(line, &line);
   conn->type = dt_read_token(line, &line);
   conn->chan = dt_read_token(line, &line);
