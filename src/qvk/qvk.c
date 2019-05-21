@@ -148,9 +148,9 @@ const char *vk_requested_instance_extensions[] = {
 
 // XXX don't need ray tracing
 const char *vk_requested_device_extensions[] = {
-  VK_NV_RAY_TRACING_EXTENSION_NAME,
+  // VK_NV_RAY_TRACING_EXTENSION_NAME,
   VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-  VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+  // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // :( intel doesn't have it
 #ifdef VKPT_ENABLE_VALIDATION
   VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
 #endif
@@ -440,14 +440,14 @@ qvk_init()
   {
     int requested = 0;
     for(int j = 0; j < num_inst_ext_combined; j++)
-	{
+    {
       if(!strcmp(qvk.extensions[i].extensionName, ext[j]))
-	  {
+      {
         requested = 1;
         break;
       }
     }
-    fprintf(stderr, "[qvk] %s%s, ", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
+    fprintf(stderr, "%s%s, ", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
   }
   fprintf(stderr, "\n");
 
@@ -518,17 +518,17 @@ qvk_init()
     for(int j = 0; j < num_ext; j++) {
       printf("%s, ", ext_properties[j].extensionName);
 	  // XXX FIXME: no ray tracing needed!
-      if(!strcmp(ext_properties[j].extensionName, VK_NV_RAY_TRACING_EXTENSION_NAME)) {
+      // if(!strcmp(ext_properties[j].extensionName, VK_NV_RAY_TRACING_EXTENSION_NAME)) {
         if(picked_device < 0)
           picked_device = i;
-      }
+      // }
     }
     printf("\n");
   }
 
   if(picked_device < 0) {
-    fprintf(stderr, "[qvk] could not find any suitable device supporting " VK_NV_RAY_TRACING_EXTENSION_NAME"!");
-	return 1;
+    fprintf(stderr, "[qvk] could not find any suitable device supporting " VK_NV_RAY_TRACING_EXTENSION_NAME"!\n");
+    return 1;
   }
 
   printf("[qvk] picked device %d\n", picked_device);

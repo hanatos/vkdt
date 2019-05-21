@@ -172,21 +172,23 @@ extern qvk_t qvk;
 
 
 
-#define _VK_EXTENSION_LIST \
-	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
-	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
-	_VK_EXTENSION_DO(vkDestroyAccelerationStructureNV) \
-	_VK_EXTENSION_DO(vkGetAccelerationStructureMemoryRequirementsNV) \
-	_VK_EXTENSION_DO(vkBindAccelerationStructureMemoryNV) \
-	_VK_EXTENSION_DO(vkCmdBuildAccelerationStructureNV) \
-	_VK_EXTENSION_DO(vkCmdCopyAccelerationStructureNV) \
-	_VK_EXTENSION_DO(vkCmdTraceRaysNV) \
-	_VK_EXTENSION_DO(vkCreateRayTracingPipelinesNV) \
-	_VK_EXTENSION_DO(vkGetRayTracingShaderGroupHandlesNV) \
-	_VK_EXTENSION_DO(vkGetAccelerationStructureHandleNV) \
-	_VK_EXTENSION_DO(vkCmdWriteAccelerationStructuresPropertiesNV) \
-	_VK_EXTENSION_DO(vkCompileDeferredNV) \
-	_VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
+#define _VK_EXTENSION_LIST
+// none of these are supported on intel:
+// #define _VK_EXTENSION_LIST \
+// 	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
+// 	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
+// 	_VK_EXTENSION_DO(vkDestroyAccelerationStructureNV) \
+// 	_VK_EXTENSION_DO(vkGetAccelerationStructureMemoryRequirementsNV) \
+// 	_VK_EXTENSION_DO(vkBindAccelerationStructureMemoryNV) \
+// 	_VK_EXTENSION_DO(vkCmdBuildAccelerationStructureNV) \
+// 	_VK_EXTENSION_DO(vkCmdCopyAccelerationStructureNV) \
+// 	_VK_EXTENSION_DO(vkCmdTraceRaysNV) \
+// 	_VK_EXTENSION_DO(vkCreateRayTracingPipelinesNV) \
+// 	_VK_EXTENSION_DO(vkGetRayTracingShaderGroupHandlesNV) \
+// 	_VK_EXTENSION_DO(vkGetAccelerationStructureHandleNV) \
+// 	_VK_EXTENSION_DO(vkCmdWriteAccelerationStructuresPropertiesNV) \
+// 	_VK_EXTENSION_DO(vkCompileDeferredNV) \
+// 	_VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
 
 
 #define _VK_EXTENSION_DO(a) extern PFN_##a q##a;

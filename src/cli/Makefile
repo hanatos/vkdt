@@ -7,7 +7,7 @@ CFLAGS=-Wall -I. -I.. -g
 OPTFLAGS=-march=native -O3
 LDFLAGS=-L../qvk -lqvk -lvulkan
 
-$(TARGET):main.c Makefile
+$(TARGET):main.c Makefile ../qvk/libqvk.a
 	$(CC) $(CFLAGS) main.c -o vkdt-cli $(LDFLAGS)
 
 clean:
