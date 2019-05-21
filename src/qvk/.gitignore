@@ -1,0 +1,3 @@
+*.o
+libqvk.a
+libqvkgui.a
