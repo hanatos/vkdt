@@ -91,10 +91,11 @@ load_raw(
   return 0;
 }
 
-void init(dt_module_t *mod)
+int init(dt_module_t *mod)
 {
   rawinput_buf_t *dat = new rawinput_buf_t();
   memset(dat, 0, sizeof(*dat));
+  return 0;
 }
 
 void cleanup(dt_module_t *mod)

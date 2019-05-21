@@ -34,6 +34,13 @@ int main(int argc, char *argv[])
     }
   }
   fprintf(stdout, "}\n");
+
+
+  dt_graph_setup_pipeline(&graph);
+  // TODO: debug rois
+  // TODO: create mini pipeline with demosaic
+  // TODO: write something out
+
   dt_graph_cleanup(&graph);
   dt_pipe_global_cleanup();
   exit(0);

@@ -10,9 +10,13 @@
 
 typedef struct dt_graph_t dt_grap_t; // fwd declare
 typedef struct dt_module_t dt_module_t;
-typedef int (*dt_module_create_nodes_t)(void *data);
+typedef int  (*dt_module_create_nodes_t)(void *data);
 typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
+typedef void (*dt_module_write_output_t)(dt_module_t *module, void *buf);
+typedef void (*dt_module_load_input_t)  (dt_module_t *module, void *buf);
+typedef int  (*dt_module_init_t)(dt_module_t *module);
+typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 
 // this is all the "class" info that is not bound to an instance and can be
 // read once on startup
@@ -23,8 +27,23 @@ typedef struct dt_module_so_t
   void *dlhandle;
   dt_module_create_nodes_t create_nodes;
 
+  // pass full image forward through pipe, init roi.full_{wd,ht}
   dt_module_modify_roi_out_t modify_roi_out;
+
+  // pull required pixels from inputs, init roi.roi_* and ctx_*
   dt_module_modify_roi_in_t  modify_roi_in;
+
+  // creates the nodes for this module after roi negotiations
+  dt_module_create_nodes_t create_nodes;
+
+  // for sink nodes, will be called once processing ended
+  dt_module_write_output_t write_output;
+
+  // for source nodes, will be called before processing starts
+  dt_module_load_input_t load_input;
+
+  dt_module_init_t init;
+  dt_module_init_t cleanup;
 
   dt_connector_t connector[10]; // enough for everybody, right?
   int num_connectors;
