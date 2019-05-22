@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
   }
   if(!graphcfg)
   {
-    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg>");
+    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg> [-d verbosity]");
     exit(1);
   }
   if(qvk_init()) exit(1);
