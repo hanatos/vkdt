@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 // layered logging facility
 
@@ -13,6 +14,7 @@ typedef enum dt_log_mask_t
   s_log_db   = 1<<3,
   s_log_cli  = 1<<4,
   s_log_err  = 1<<5,
+  s_log_all  = -1ul,
 }
 dt_log_mask_t;
 
@@ -24,6 +26,43 @@ dt_log_t;
 
 extern dt_log_t dt_log_global;
 
+// this can be done to parse "-d level" from
+// the command line to add more verbose output
+static inline void
+dt_log_init_arg(int argc, char *argv[])
+{
+  const char *id[] = {
+    "none",
+    "qvk",
+    "pipe",
+    "gui",
+    "db",
+    "cli",
+    "err",
+    "all",
+  };
+  uint64_t verbose = 0ul;
+  for(int i=0;i<argc;i++)
+  {
+    if(!strcmp(argv[i], "-d") && i < argc-1)
+    {
+      i++;
+      for(int j=0;j<sizeof(id)/sizeof(id[0]);j++)
+      {
+        if(!strcmp(argv[i], id[j]))
+        {
+          if(j == 0)      verbose = 0ul;
+          else if(j == 7) verbose = -1ul;
+          else            verbose |= 1<<(j-1);
+        }
+      }
+    }
+  }
+  // user parameters add to the mask:
+  dt_log_global.mask |= verbose;
+}
+
+// call this first once
 static inline void
 dt_log_init(dt_log_mask_t verbose)
 {

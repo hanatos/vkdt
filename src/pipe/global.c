@@ -2,6 +2,7 @@
 #include "io.h"
 #include "module.h"
 #include "graph.h"
+#include "core/log.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -173,7 +174,7 @@ dt_module_so_load(
 
   // TODO: more sanity checks?
 
-  fprintf(stderr, "[module so load] loading %s\n", dirname);
+  dt_log(s_log_pipe, "[module so load] loading %s", dirname);
   return 0;
 }
 
@@ -194,7 +195,7 @@ int dt_pipe_global_init()
   DIR *fd = opendir("modules");
   if (!fd)
   {
-    fprintf(stderr, "[pipe global init] cannot open modules directory!\n");
+    dt_log(s_log_pipe, "[global init] cannot open modules directory!");
     return 1;
   }
   int i = 0;

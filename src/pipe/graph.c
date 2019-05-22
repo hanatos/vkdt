@@ -1,6 +1,7 @@
 #include "graph.h"
 #include "module.h"
 #include "io.h"
+#include "core/log.h"
 
 #include <stdio.h>
 
@@ -60,11 +61,11 @@ read_connection_ascii(
   int modid1 = dt_module_get(graph, mod1, inst1);
   if(modid0 == -1 || modid1 == -1)
   {
-    fprintf(stderr, "[read connect] "
-        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"\n",
+    dt_log(s_log_pipe, "[read connect] "
+        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
-    fprintf(stderr, "[read connect] no such modules %d %d\n", modid0, modid1);
+    dt_log(s_log_pipe, "[read connect] no such modules %d %d", modid0, modid1);
     return 1;
   }
   int conid0 = dt_module_get_connector(graph->module+modid0, conn0);
@@ -72,11 +73,11 @@ read_connection_ascii(
   int err = dt_module_connect(graph, modid0, conid0, modid1, conid1);
   if(err)
   {
-    fprintf(stderr, "[read connect] "
-        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"\n",
+    dt_log(s_log_pipe, "[read connect] "
+        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
-    fprintf(stderr, "[read connect] connection failed: error %d\n", err);
+    dt_log(s_log_pipe, "[read connect] connection failed: error %d", err);
     return err;
   }
   return 0;

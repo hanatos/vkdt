@@ -8,9 +8,16 @@
 int main(int argc, char *argv[])
 {
   dt_log_init(s_log_cli);
-  if(argc < 2)
+  dt_log_init_arg(argc, argv);
+  const char *graphcfg = 0;
+  for(int i=0;i<argc;i++)
   {
-    dt_log(s_log_cli, "usage: vkdt-cli <graph.cfg>");
+    if(!strcmp(argv[i], "-g") && i < argc-1)
+      graphcfg = argv[++i];
+  }
+  if(!graphcfg)
+  {
+    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg>");
     exit(1);
   }
   if(qvk_init()) exit(1);
@@ -20,7 +27,7 @@ int main(int argc, char *argv[])
   dt_pipe_global_init();
   dt_graph_t graph;
   dt_graph_init(&graph);
-  int err = dt_graph_read_config_ascii(&graph, argv[1]);
+  int err = dt_graph_read_config_ascii(&graph, graphcfg);
   if(err)
     dt_log(s_log_err, "could not load graph configuration!");
 

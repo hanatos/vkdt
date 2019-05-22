@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "qvk.h"
+#include "core/log.h"
 
 #include <vulkan/vulkan.h>
 // #include <SDL.h>
@@ -74,7 +75,7 @@ qvk_initialize_all(qvk_init_flags_t init_flags)
     qvk_init_t *init = qvk_initialization + i;
     if((init->flags & init_flags) != init_flags)
       continue;
-    fprintf(stderr, "[qvk] initializing %s\n", qvk_initialization[i].name);
+    dt_log(s_log_qvk, "initializing %s", qvk_initialization[i].name);
     assert(!init->is_initialized);
     init->is_initialized = init->initialize
       ? (init->initialize() == VK_SUCCESS)
@@ -93,7 +94,7 @@ qvk_destroy_all(qvk_init_flags_t destroy_flags)
     qvk_init_t *init = qvk_initialization + i;
     if((init->flags & destroy_flags) != destroy_flags)
       continue;
-    fprintf(stderr, "[qvk] destroying %s\n", qvk_initialization[i].name);
+    dt_log(s_log_qvk, "destroying %s", qvk_initialization[i].name);
     assert(init->is_initialized);
     init->is_initialized = init->destroy
       ? !(init->destroy() == VK_SUCCESS)
@@ -118,7 +119,7 @@ qvk_reload_shader()
   if(f)
   {
     while(fgets(buf, sizeof buf, f))
-      fprintf(stderr, "[qvk] %s", buf);
+      dt_log(s_log_qvk, "%s", buf);
     fclose(f);
   }
   qvk_destroy_all(QVK_INIT_RELOAD_SHADER);
@@ -215,7 +216,7 @@ vk_debug_callback(
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void *user_data)
 {
-  fprintf(stderr, "[qvk] validation layer: %s\n", callback_data->pMessage);
+  dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
   return VK_FALSE;
 }
 
@@ -259,11 +260,11 @@ create_swapchain()
   vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, NULL);
   VkSurfaceFormatKHR *avail_surface_formats = alloca(sizeof(VkSurfaceFormatKHR) * num_formats);
   vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, avail_surface_formats);
-  fprintf(stderr, "[qvk] num surface formats: %d\n", num_formats);
+  dt_log(s_log_qvk, "num surface formats: %d", num_formats);
 
-  fprintf(stderr, "[qvk] available surface formats:\n");
+  dt_log(s_log_qvk, "available surface formats:");
   for(int i = 0; i < num_formats; i++)
-    fprintf(stderr, "[qvk]  %s\n", vk_format_to_string(avail_surface_formats[i].format));
+    dt_log(s_log_qvk, vk_format_to_string(avail_surface_formats[i].format));
 
 
   VkFormat acceptable_formats[] = {
@@ -331,7 +332,7 @@ out:;
 
   if(vkCreateSwapchainKHR(qvk.device, &swpch_create_info, NULL, &qvk.swap_chain) != VK_SUCCESS)
   {
-    fprintf(stderr, "[qvk] error creating swapchain\n");
+    dt_log(s_log_qvk, "error creating swapchain");
     return 1;
   }
 
@@ -367,7 +368,7 @@ out:;
 
     if(vkCreateImageView(qvk.device, &img_create_info, NULL, qvk.swap_chain_image_views + i) != VK_SUCCESS)
 	{
-      fprintf(stderr, "[qvk] error creating image view!");
+      dt_log(s_log_qvk|s_log_err, "error creating image view!");
       return 1;
     }
   }
@@ -421,12 +422,11 @@ qvk_init()
 {
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
-  fprintf(stderr, "[qvk] available vulkan layers: \n");
+  dt_log(s_log_qvk, "available vulkan layers:");
   for(int i = 0; i < qvk.num_layers; i++) {
     int requested = layer_requested(qvk.layers[i].layerName);
-    fprintf(stderr, "[qvk] %s%s, ", qvk.layers[i].layerName, requested ? " (requested)" : "");
+    dt_log(s_log_qvk, "%s%s\n", qvk.layers[i].layerName, requested ? " (requested)" : "");
   }
-  fprintf(stderr, "\n");
 
   /* instance extensions */
   int num_inst_ext_combined = qvk.num_sdl2_extensions + LENGTH(vk_requested_instance_extensions);
@@ -435,7 +435,7 @@ qvk_init()
   memcpy(ext + qvk.num_sdl2_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions); /* valid here? */
-  fprintf(stderr, "[qvk] supported vulkan instance extensions: \n");
+  dt_log(s_log_qvk, "supported vulkan instance extensions:");
   for(int i = 0; i < qvk.num_extensions; i++)
   {
     int requested = 0;
@@ -447,9 +447,8 @@ qvk_init()
         break;
       }
     }
-    fprintf(stderr, "%s%s, ", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
+    dt_log(s_log_qvk, "%s%s", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
   }
-  fprintf(stderr, "\n");
 
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
@@ -486,7 +485,7 @@ qvk_init()
 #if 0 // XXX
   /* create surface */
   if(!SDL_Vulkan_CreateSurface(qvk.window, qvk.instance, &qvk.surface)) {
-    fprintf(stderr, "[qvk] could not create surface!\n");
+    dt_log(s_log_qvk, "could not create surface!");
     return 1;
   }
 #endif
@@ -506,32 +505,31 @@ qvk_init()
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
 
-    printf("dev %d: %s\n", i, dev_properties.deviceName);
-    printf("max number of allocations %d\n", dev_properties.limits.maxMemoryAllocationCount);
+    dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
+    dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     uint32_t num_ext;
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, NULL);
 
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-    printf("supported extensions:\n");
+    dt_log(s_log_qvk, "supported extensions:");
     for(int j = 0; j < num_ext; j++) {
-      printf("%s, ", ext_properties[j].extensionName);
+      dt_log(s_log_qvk, ext_properties[j].extensionName);
 	  // XXX FIXME: no ray tracing needed!
       // if(!strcmp(ext_properties[j].extensionName, VK_NV_RAY_TRACING_EXTENSION_NAME)) {
         if(picked_device < 0)
           picked_device = i;
       // }
     }
-    printf("\n");
   }
 
   if(picked_device < 0) {
-    fprintf(stderr, "[qvk] could not find any suitable device supporting " VK_NV_RAY_TRACING_EXTENSION_NAME"!\n");
+    dt_log(s_log_qvk, "could not find any suitable device supporting " VK_NV_RAY_TRACING_EXTENSION_NAME"!");
     return 1;
   }
 
-  printf("[qvk] picked device %d\n", picked_device);
+  dt_log(s_log_qvk, "picked device %d", picked_device);
 
   qvk.physical_device = devices[picked_device];
 
@@ -543,7 +541,7 @@ qvk_init()
   VkQueueFamilyProperties *queue_families = alloca(sizeof(VkQueueFamilyProperties) * num_queue_families);
   vkGetPhysicalDeviceQueueFamilyProperties(qvk.physical_device, &num_queue_families, queue_families);
 
-  printf("[qvk] num queue families: %d\n", num_queue_families);
+  dt_log(s_log_qvk, "num queue families: %d", num_queue_families);
 
   qvk.queue_idx_graphics = -1;
   qvk.queue_idx_compute  = -1;
@@ -573,7 +571,7 @@ qvk_init()
 
   if(qvk.queue_idx_graphics < 0 || qvk.queue_idx_compute < 0 || qvk.queue_idx_transfer < 0)
   {
-    fprintf(stderr, "[qvk] error: could not find suitable queue family!\n");
+    dt_log(s_log_err|s_log_qvk, "could not find suitable queue family!");
     return 1;
   }
 
@@ -695,7 +693,7 @@ qvk_init()
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
-    if(!q##a) { fprintf(stderr, "[qvk] warning: could not load function %s\n", #a); }
+    if(!q##a) { dt_log(s_log_qvk, "warning: could not load function %s", #a); }
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
@@ -708,8 +706,7 @@ load_file(const char *path, char **data, size_t *s)
   *data = NULL;
   FILE *f = fopen(path, "rb");
   if(!f) {
-    //Com_EPrintf("could not open %s\n", path);
-    fprintf(stderr, "[qvk] could not open %s\n", path);
+    dt_log(s_log_qvk, "could not open %s", path);
     /* let's try not to crash everything */
     char *ret = malloc(1);
     *s = 1;
@@ -723,7 +720,7 @@ load_file(const char *path, char **data, size_t *s)
   *data = malloc(*s + 1);
   //*data = aligned_alloc(4, *s + 1); // XXX lets hope malloc returns aligned memory
   if(fread(*data, 1, *s, f) != *s) {
-    fprintf(stderr, "[qvk] could not read file %s\n", path);
+    dt_log(s_log_qvk, "could not read file %s", path);
     fclose(f);
     *data[0] = 0;
     return 1;
