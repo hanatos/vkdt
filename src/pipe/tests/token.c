@@ -22,6 +22,14 @@ int main()
       test3,
       dt_token_str(test4));
 
+
+  dt_token_t a = dt_token("ui32");
+  dt_token_t b = dt_token("f32");
+  dt_token_t c = dt_token("ui16");
+  dt_token_t d = dt_token("ui8");
+  fprintf(stderr, "%lX %lX %lX %lX\n",
+      a, b, c, d);
+
   exit(0);
 }
 

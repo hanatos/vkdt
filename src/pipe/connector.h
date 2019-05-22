@@ -65,3 +65,25 @@ typedef struct dt_graph_t dt_graph_t; // fwd declare
 // connect source|write (m0,c0) -> sink|read (m1,c1)
 int dt_module_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
 int dt_node_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
+
+
+static inline size_t
+dt_connector_bytes_per_pixel(const dt_connector_t *c)
+{
+  const uint64_t ui32 = 0x32336975, f32 = 0x323366, ui16 = 0x36316975, ui8 = 386975;
+  switch(c->format)
+  {
+    case ui32:
+    case f32 : return 4;
+    case ui16: return 2;
+    case ui8 : return 1;
+  }
+  return 0;
+}
+
+static inline size_t
+dt_connector_bufsize(const dt_connector_t *c)
+{
+  const size_t bpp = dt_connector_bytes_per_pixel(c);
+  return bpp * c->roi.roi_wd * c->roi.roi_ht;
+}

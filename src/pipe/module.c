@@ -38,6 +38,7 @@ int dt_module_add(
       {
         mod->connector[c] = mod->so->connector[c];
         dt_connector_t *cn = mod->connector+c;
+        cn->mem = 0;
         // set connector's ref id's to -1 or ref count to 0 if a write|source node
         if(cn->type == dt_token("read") || cn->type == dt_token("sink"))
         {
@@ -80,6 +81,8 @@ int dt_module_remove(
   // TODO: mark as dead and increment dead counter. if we don't like it any
   // more, perform some form of garbage collection.
   assert(modid >= 0 && graph->num_modules > modid);
+  if(graph->module[modid].so->cleanup)
+    graph->module[modid].so->cleanup(graph->module+modid);
   // disconnect all channels
   for(int c=0;c<graph->module[modid].num_connectors;c++)
     if(dt_module_connect(graph, -1, -1, modid, c))

@@ -125,14 +125,27 @@ error:
 }
 
 
-#if 0
 static inline void
-dt_graph_alloc_outputs(dt_vkalloc_t *a, dt_node_t *node)
+alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
   for(int i=0;i<node->num_connectors;i++)
-    if(node->connector[i].type == dt_token("write") ||
-       node->connector[i].type == dt_token("source"))
-      dt_vkalloc(node->connector[i].mem, size);
+  {
+    dt_connector_t *c = node->connector+i;
+    if(c->type == dt_token("write") ||
+       c->type == dt_token("source"))
+    { // allocate our output buffers
+      const size_t size = dt_connector_bufsize(c);
+      c->mem = dt_vkalloc(&graph->alloc, size);
+      fprintf(stderr, "allocating %lu bytes for %"PRItkn" %"PRItkn" -> %lX\n",
+          size, dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
+    }
+    else if(c->type == dt_token("read") ||
+            c->type == dt_token("sink"))
+    { // point our inputs to their counterparts:
+      if(c->connected_mid >= 0)
+        c->mem = graph->node[c->connected_mid].connector[c->connected_cid].mem;
+    }
+  }
 }
 
 // free all buffers which we are done with now that the node
@@ -140,17 +153,37 @@ dt_graph_alloc_outputs(dt_vkalloc_t *a, dt_node_t *node)
 // which aren't connected to another node.
 // TODO: consider protected buffers: for instance for loaded raw input, cached before currently active node, ..
 static inline void
-dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
+free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
   for(int i=0;i<node->num_connectors;i++)
+  {
+    dt_connector_t *c = node->connector+i;
     // TODO: what about sink nodes? do we keep them for caching? is the node
     // responsible to copy these away?
-    if(node->connector[i].type == dt_token("read") ||
-       node->connector[i].type == dt_token("sink") ||
-       node->connector[i].connected_mid == -1)
-      dt_vkfree(node->connector[i].mem);
+    if((c->type == dt_token("read") ||
+        c->type == dt_token("sink")) &&
+        c->connected_mid >= 0)
+    {
+      fprintf(stderr, "freeing %"PRItkn" %"PRItkn" %lX\n",
+          dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
+      dt_vkfree(&graph->alloc, c->mem);
+    }
+    else if(c->type == dt_token("write") ||
+             c->type == dt_token("source"))// &&
+             //c->connected_mid == 0)
+    {
+      fprintf(stderr, "ref count %"PRItkn" %"PRItkn" %d\n",
+          dt_token_str(node->name), dt_token_str(c->name),
+          c->connected_mid);
+      if(c->connected_mid < 1)
+      {
+      fprintf(stderr, "freeing unconnected %"PRItkn" %"PRItkn" %lX\n",
+          dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
+      dt_vkfree(&graph->alloc, c->mem);
+      }
+    }
+  }
 }
-#endif
 
 // propagate full buffer size from source to sink
 static void
@@ -178,13 +211,23 @@ static void
 modify_roi_in(dt_graph_t *graph, dt_module_t *module)
 {
   if(module->so->modify_roi_in) return module->so->modify_roi_in(graph, module);
+
   // propagate roi request on output module to our inputs ("read")
   int output = dt_module_get_connector(module, dt_token("output"));
+  if(output == -1 && module->connector[0].type == dt_token("sink"))
+  { // by default ask for it all:
+    output = 0;
+    dt_roi_t *r = &module->connector[0].roi;
+    r->roi_wd = r->full_wd;
+    r->roi_ht = r->full_ht;
+    r->roi_scale = 1.0f;
+  }
   if(output < 0) return;
   dt_roi_t *roi = &module->connector[output].roi;
   for(int i=0;i<module->num_connectors;i++)
   {
-    if(module->connector[i].type == dt_token("read"))
+    if(module->connector[i].type == dt_token("read") ||
+       module->connector[i].type == dt_token("sink"))
     {
       dt_connector_t *c = module->connector+i;
       c->roi = *roi;
@@ -216,8 +259,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     node->connector[i] = module->connector[i];
     // update the connection node id to point to the node inside the module
     // associated with the given output connector:
-    if(node->connector[i].type == dt_token("read") ||
-       node->connector[i].type == dt_token("sink"))
+    if((node->connector[i].type == dt_token("read") ||
+        node->connector[i].type == dt_token("sink")) &&
+        module->connector[i].connected_mid >= 0)
       node->connector[i].connected_mid = graph->module[
         module->connector[i].connected_mid].connected_nodeid[i];
   }
@@ -237,36 +281,36 @@ void dt_graph_setup_pipeline(
   dt_module_t *const arr = graph->module;
   // first pass: find output rois
   // just find first sink node:
-  int display_node_id = 0;
+  int sink_node_id = 0;
   for(int i=0;i<graph->num_modules;i++)
     if(graph->module[i].connector[0].type == dt_token("sink"))
-    { display_node_id = i; break; }
+    { sink_node_id = i; break; }
   // execute after all inputs have been traversed:
   // "int curr" will be the current node
   // walk all inputs and determine roi on all outputs
-  int start_node_id = display_node_id;
+  int start_node_id = sink_node_id;
 #define TRAVERSE_POST \
   modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
 
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
-  // transparently in the display module's modify_roi_in first thing in the
+  // transparently in the sink module's modify_roi_in first thing in the
   // second pass.
 
   // 2nd pass: request input rois
   // and create nodes for all modules
   graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
-  start_node_id = display_node_id;
+  start_node_id = sink_node_id;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_PRE\
-  fprintf(stderr, "pre %"PRItkn"\n", dt_token_str(arr[curr].name));\
   modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
-  fprintf(stderr, "post %"PRItkn"\n", dt_token_str(arr[curr].name));\
   create_nodes(graph, arr+curr);
+  // dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));
 #define TRAVERSE_CYCLE\
-  fprintf(stderr, "cycle %"PRItkn"\n", dt_token_str(arr[curr].name));
+  fprintf(stderr, "[ERR] cycle %"PRItkn"->%"PRItkn"!\n", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+  dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 
   // TODO: when and how are module params updated and pointed to uniform buffers?
@@ -276,29 +320,39 @@ void dt_graph_setup_pipeline(
 } // end scope, done with modules
 
   assert(graph->num_nodes < sizeof(mark));
-#if 0
+#if 1
 { // node scope
   dt_node_t *const arr = graph->node;
-  int start_node_id = display_sink; // our output for export
+  int sink_node_id = 0;
+  for(int i=0;i<graph->num_nodes;i++)
+    if(graph->node[i].connector[0].type == dt_token("sink"))
+    { sink_node_id = i; break; }
+  int start_node_id = sink_node_id;
+#if 0
   // TODO: while(not happy) {
   // TODO: 3rd pass: compute memory requirements
   // TODO: if not happy: cut input roi in half or what
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
-    dt_graph_alloc_outputs(allocator, arr+curr);\
-    dt_graph_free_inputs (allocator, arr+curr);
+    alloc_outputs(allocator, arr+curr);\
+    free_inputs (allocator, arr+curr);
 #include "graph-traverse.inc"
   // }
   // TODO: do that one after the other for all chopped roi
+#endif
   // finally: create vulkan command buffer
   // TODO: check quake code how to create pipelines. do we first collect info
   // about buffers, descriptor sets, and pipelines and then atomically build
   // the vulkan stuff in the core?
   memset(mark, 0, sizeof(mark));
+  // XXX record_command_buffer(graph, arr+curr);
 #define TRAVERSE_POST\
-    dt_graph_alloc_outputs(allocator, arr+curr);\
-    record_command_buffer(graph, arr+curr);\
-    dt_graph_free_inputs (allocator, arr+curr);
+  alloc_outputs(graph, arr+curr);\
+  free_inputs  (graph, arr+curr);
+  // dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));
+#define TRAVERSE_CYCLE\
+  fprintf(stderr, "[ERR] cycle %"PRItkn"->%"PRItkn"!\n", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+  dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 } // end scope, done with nodes
 #endif

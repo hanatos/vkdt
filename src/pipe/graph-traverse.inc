@@ -14,6 +14,9 @@
 #ifndef TRAVERSE_CYCLE
 #define TRAVERSE_CYCLE
 #endif
+#ifndef TRAVERSE_UNCONNECTED
+#define TRAVERSE_UNCONNECTED
+#endif
 
 { // scope
   uint32_t stack[256];
@@ -41,10 +44,14 @@
       done[sp] = 1; // mark this node such that we only traverse the children once
       for(int i=0;i<arr[curr].num_connectors;i++)
       {
-        if(arr[curr].connector[i].type == dt_token("read") ||
-           arr[curr].connector[i].type == dt_token("sink"))
+        const int el = arr[curr].connector[i].connected_mid;
+        if(el < 0)
+        {
+          TRAVERSE_UNCONNECTED
+        }
+        else if(arr[curr].connector[i].type == dt_token("read") ||
+                arr[curr].connector[i].type == dt_token("sink"))
         { // need to recurse all inputs
-          int el = arr[curr].connector[i].connected_mid;
           if(mark[el])
           {
             TRAVERSE_CYCLE
@@ -60,12 +67,6 @@
             done[sp] = 0;
           }
         }
-        else if(arr[curr].connector[i].type == dt_token("source"))
-        {
-          // TODO: special source callback?
-        }
-        // TODO: if sink report error
-        // TODO: if marked node, report cycle and error out
       }
     }
   }
@@ -74,3 +75,4 @@
 #undef TRAVERSE_POST
 #undef TRAVERSE_PRE
 #undef TRAVERSE_CYCLE
+#undef TRAVERSE_UNCONNECTED

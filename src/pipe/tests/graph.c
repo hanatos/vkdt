@@ -38,13 +38,10 @@ int main(int argc, char *argv[])
 
   dt_graph_setup_pipeline(&graph);
   // TODO: debug rois
-  // TODO: create mini pipeline with demosaic
-  // TODO: write something out
   fprintf(stdout, "digraph N {\n");
   // for all nodes, print all incoming edges (outgoing don't have module ids)
   for(int m=0;m<graph.num_nodes;m++)
   {
-    fprintf(stdout, "%"PRItkn"\n", dt_token_str(graph.node[m].name));
     for(int c=0;c<graph.node[m].num_connectors;c++)
     {
       if((graph.node[m].connector[c].type == dt_token("read") ||
