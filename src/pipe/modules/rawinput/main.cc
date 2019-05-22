@@ -8,7 +8,9 @@ static rawspeed::CameraMetaData *meta = 0;
 
 typedef struct rawinput_buf_t
 {
-  rawspeed::RawImageData *rimg;
+  std::unique_ptr<rawspeed::RawDecoder> d;
+  std::unique_ptr<const rawspeed::Buffer> m;
+
   char filename[PATH_MAX] = {0};
 }
 rawinput_buf_t;
@@ -22,10 +24,11 @@ rawspeed_load_meta()
     // XXX dt_pthread_mutex_lock(&darktable.plugin_threadsafe);
     if(meta == NULL)
     {
-      char datadir[PATH_MAX] = { 0 }, camfile[PATH_MAX] = { 0 };
+      // char datadir[PATH_MAX] = { 0 };
+      char camfile[PATH_MAX] = { 0 };
       // dt_loc_get_datadir(datadir, sizeof(datadir));
-      datadir[0] = '.'; // XXX
-      snprintf(camfile, sizeof(camfile), "%s/rawspeed/cameras.xml", datadir);
+      const char *datadir = "../../ext/rawspeed/data"; // XXX
+      snprintf(camfile, sizeof(camfile), "%s/cameras.xml", datadir);
       // never cleaned up (only when dt closes)
       meta = new rawspeed::CameraMetaData(camfile);
     }
@@ -44,37 +47,32 @@ load_raw(
     if(!strcmp(mod_data->filename, filename))
       return 0; // already loaded
   }
+  else
+  {
+    assert(0); // this should be inited in init()
+  }
 
-  snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", mod_data->filename);
+  snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
   rawspeed::FileReader f(mod_data->filename);
-
-  std::unique_ptr<rawspeed::RawDecoder> d;
-  std::unique_ptr<const rawspeed::Buffer> m;
 
   try
   {
     rawspeed_load_meta();
 
-    m = f.readFile();
+    mod_data->m = f.readFile();
 
-    rawspeed::RawParser t(m.get());
-    d = t.getDecoder(meta);
+    rawspeed::RawParser t(mod_data->m.get());
+    mod_data->d = t.getDecoder(meta);
 
-    if(!d.get()) return 1;
+    if(!mod_data->d.get()) return 1;
 
-    d->failOnUnknown = true;
-    d->checkSupport(meta);
-    d->decodeRaw();
-    d->decodeMetaData(meta);
-    // wow, c++ is *such* an awesome language:
-    mod_data->rimg = &*d->mRaw;
+    mod_data->d->failOnUnknown = true;
+    mod_data->d->checkSupport(meta);
+    mod_data->d->decodeRaw();
+    mod_data->d->decodeMetaData(meta);
 
-    const auto errors = mod_data->rimg->getErrors();
+    const auto errors = mod_data->d->mRaw->getErrors();
     for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", mod_data->filename, error.c_str());
-
-    /* free auto pointers */
-    d.reset();
-    m.reset();
 
     // TODO: do some corruption detection and support for esoteric formats/fails here
   }
@@ -95,13 +93,25 @@ int init(dt_module_t *mod)
 {
   rawinput_buf_t *dat = new rawinput_buf_t();
   memset(dat, 0, sizeof(*dat));
+  mod->data = dat;
   return 0;
 }
 
 void cleanup(dt_module_t *mod)
 {
+#if 1 // DEBUG: keep address sanitizer/leak checking happy:
+  // remember to switch this off for non unit testing. it's
+  // a performance nightmare and not thread safe either.
+  delete meta;
+  meta = 0;
+#endif
+
+  if(!mod->data) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
-  delete mod_data->rimg;
+  /* free auto pointers */
+  mod_data->d.reset();
+  mod_data->m.reset();
+  delete mod_data;
   mod->data = 0;
 }
 
@@ -115,7 +125,7 @@ void modify_roi_out(
   // int err = load_raw(mod, filename);
   load_raw(mod, "test.cr2");
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
-  rawspeed::iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
+  rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = dim_uncropped.x;
   mod->connector[0].roi.full_ht = dim_uncropped.y;
@@ -134,15 +144,15 @@ int load_input(
 
   // dimensions of uncropped image
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
-  rawspeed::iPoint2D dim_uncropped = mod_data->rimg->getUncroppedDim();
+  rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
   int wd = dim_uncropped.x;
   int ht = dim_uncropped.y;
 
-  const size_t bufsize_compact = (size_t)wd * ht * mod_data->rimg->getBpp();
-  const size_t bufsize_rawspeed = (size_t)mod_data->rimg->pitch * ht;
+  const size_t bufsize_compact = (size_t)wd * ht * mod_data->d->mRaw->getBpp();
+  const size_t bufsize_rawspeed = (size_t)mod_data->d->mRaw->pitch * ht;
   if(bufsize_compact == bufsize_rawspeed)
   {
-    memcpy(buf, mod_data->rimg->getDataUncropped(0, 0), bufsize_compact);
+    memcpy(buf, mod_data->d->mRaw->getDataUncropped(0, 0), bufsize_compact);
     return 0;
   }
   else

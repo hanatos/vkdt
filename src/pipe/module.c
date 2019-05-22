@@ -19,6 +19,7 @@ int dt_module_add(
   dt_module_t *mod = graph->module + modid;
   mod->name = name;
   mod->inst = inst;
+  mod->data = 0;
 
   // copy over initial info from module class:
   for(int i=0;i<dt_pipe.num_modules;i++)
@@ -59,6 +60,8 @@ int dt_module_add(
     graph->num_modules--;
     return -1;
   }
+
+  if(mod->so->init) mod->so->init(mod);
   return modid;
 }
 

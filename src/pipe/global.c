@@ -55,50 +55,6 @@ read_param_config_ascii(
   return p;
 }
 
-// default callback
-static void
-modify_roi_out(dt_graph_t *graph, dt_module_t *module)
-{
-  // copy over roi from connector named "input" to all outputs ("write")
-  int input = dt_module_get_connector(module, dt_token("input"));
-  if(input < 0) return;
-  dt_connector_t *c = module->connector+input;
-  dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
-  c->roi = *roi; // also keep incoming roi in sync
-  for(int i=0;i<module->num_connectors;i++)
-  {
-    if(module->connector[i].type == dt_token("write"))
-    {
-      module->connector[i].roi.full_wd = roi->full_wd;
-      module->connector[i].roi.full_ht = roi->full_ht;
-    }
-  }
-}
-
-// default callback
-static void
-modify_roi_in(dt_graph_t *graph, dt_module_t *module)
-{
-  // propagate roi request on output module to our inputs ("read")
-  int output = dt_module_get_connector(module, dt_token("output"));
-  if(output < 0) return;
-  dt_roi_t *roi = &module->connector[output].roi;
-  for(int i=0;i<module->num_connectors;i++)
-  {
-    if(module->connector[i].type == dt_token("read"))
-    {
-      dt_connector_t *c = module->connector+i;
-      c->roi = *roi;
-      // make sure roi is good on the outgoing connector
-      if(c->connected_mid >= 0 && c->connected_cid >= 0)
-      {
-        dt_roi_t *roi2 = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
-        *roi2 = *roi;
-      }
-    }
-  }
-}
-
 static inline int
 dt_module_so_load(
     dt_module_so_t *mod,
@@ -114,18 +70,17 @@ dt_module_so_load(
   if(!stat(filename, &statbuf))
   {
     mod->dlhandle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
-    if(dlerror())
-      mod->dlhandle = 0;
+    if(!mod->dlhandle)
+      dt_log(s_log_pipe|s_log_err, dlerror());
   }
   if(mod->dlhandle)
   {
     mod->create_nodes   = dlsym(mod->dlhandle, "create_nodes");
     mod->modify_roi_out = dlsym(mod->dlhandle, "modify_roi_out");
     mod->modify_roi_in  = dlsym(mod->dlhandle, "modify_roi_in");
+    mod->init           = dlsym(mod->dlhandle, "init");
+    mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
   }
-  // TODO: go through empty callbacks once here and fill defaults:
-  if(!mod->modify_roi_out) mod->modify_roi_out = &modify_roi_out;
-  if(!mod->modify_roi_in ) mod->modify_roi_in  = &modify_roi_in;
 
   // read default params:
   // read param name, type, cnt, default value + bounds

@@ -1,6 +1,7 @@
 CC=clang
 CFLAGS+=-O0 -Wall -I../.. -g
-LDFLAGS+=
+LDFLAGS=
+# doesn't play so well with the rawspeed module so far:
 CFLAGS+=-fno-omit-frame-pointer -fsanitize=address
 LDFLAGS+=-fsanitize=address
 
@@ -13,6 +14,7 @@ alloc: alloc.c ../alloc.h ../alloc.c ../dlist.h Makefile
 	$(CC) $(CFLAGS) $< ../alloc.c -o $@ $(LDFLAGS)
 
 GRAPH_DEPS=../graph.h\
+           ../graph-traverse.inc\
            ../alloc.h\
            ../connector.h\
            ../connector.inc\

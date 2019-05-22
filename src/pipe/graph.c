@@ -22,6 +22,9 @@ dt_graph_init(dt_graph_t *g)
 void
 dt_graph_cleanup(dt_graph_t *g)
 {
+  for(int i=0;i<g->num_modules;i++)
+    if(g->module[i].so->cleanup)
+      g->module[i].so->cleanup(g->module+i);
   dt_vkalloc_cleanup(&g->alloc);
 }
 
@@ -149,17 +152,88 @@ dt_graph_free_inputs(dt_vkalloc_t *a, dt_node_t *node)
 }
 #endif
 
+// propagate full buffer size from source to sink
+static void
+modify_roi_out(dt_graph_t *graph, dt_module_t *module)
+{
+  if(module->so->modify_roi_out) return module->so->modify_roi_out(graph, module);
+  // copy over roi from connector named "input" to all outputs ("write")
+  int input = dt_module_get_connector(module, dt_token("input"));
+  if(input < 0) return;
+  dt_connector_t *c = module->connector+input;
+  dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+  c->roi = *roi; // also keep incoming roi in sync
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    if(module->connector[i].type == dt_token("write"))
+    {
+      module->connector[i].roi.full_wd = roi->full_wd;
+      module->connector[i].roi.full_ht = roi->full_ht;
+    }
+  }
+}
+
+// request input region of interest from sink to source
+static void
+modify_roi_in(dt_graph_t *graph, dt_module_t *module)
+{
+  if(module->so->modify_roi_in) return module->so->modify_roi_in(graph, module);
+  // propagate roi request on output module to our inputs ("read")
+  int output = dt_module_get_connector(module, dt_token("output"));
+  if(output < 0) return;
+  dt_roi_t *roi = &module->connector[output].roi;
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    if(module->connector[i].type == dt_token("read"))
+    {
+      dt_connector_t *c = module->connector+i;
+      c->roi = *roi;
+      // make sure roi is good on the outgoing connector
+      if(c->connected_mid >= 0 && c->connected_cid >= 0)
+      {
+        dt_roi_t *roi2 = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+        *roi2 = *roi;
+      }
+    }
+  }
+}
+
+// default callback for create nodes: pretty much copy the module
+static void
+create_nodes(dt_graph_t *graph, dt_module_t *module)
+{
+  if(module->so->create_nodes) return module->so->create_nodes(graph, module);
+  assert(graph->num_nodes < graph->max_nodes);
+  const int nodeid = graph->num_nodes++;
+  dt_node_t *node = graph->node + nodeid;
+
+  node->name = module->name;
+  node->kernel = module->name;
+  node->num_connectors = module->num_connectors;
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    module->connected_nodeid[i] = nodeid;
+    node->connector[i] = module->connector[i];
+    // update the connection node id to point to the node inside the module
+    // associated with the given output connector:
+    if(node->connector[i].type == dt_token("read") ||
+       node->connector[i].type == dt_token("sink"))
+      node->connector[i].connected_mid = graph->module[
+        module->connector[i].connected_mid].connected_nodeid[i];
+  }
+}
+
+
 void dt_graph_setup_pipeline(
     dt_graph_t *graph)
 {
-  // TODO: can be only one output sink node that determines ROI.
-  // TODO: but we can totally have more than one sink to pull in
-  // nodes for. we have to execute some of this multiple times
-  // and have a XXX marker XXX on nodes that we already traversed.
-  // there might also be cycles on module level.
+  // can be only one output sink node that determines ROI. but we can totally
+  // have more than one sink to pull in nodes for. we have to execute some of
+  // this multiple times. also we have a marker on nodes/modules that we
+  // already traversed. there might also be cycles on the module level.
   uint8_t mark[200] = {0};
-{ // module scope
   assert(graph->num_modules < sizeof(mark));
+{ // module scope
   dt_module_t *const arr = graph->module;
   // first pass: find output rois
   // just find first sink node:
@@ -172,27 +246,36 @@ void dt_graph_setup_pipeline(
   // walk all inputs and determine roi on all outputs
   int start_node_id = display_node_id;
 #define TRAVERSE_POST \
-  arr[curr].so->modify_roi_out(graph, arr+curr);
+  modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
 
-  // TODO: in fact we want this or that roi on output after considering
-  // scaling/zoom-to-fit/whatever.
-  // TODO: set display_sink output size
+  // now we don't always want the full size buffer but are interested in a
+  // scaled or cropped sub-region. actually this step is performed
+  // transparently in the display module's modify_roi_in first thing in the
+  // second pass.
 
-  // TODO: 2nd pass: request input rois
+  // 2nd pass: request input rois
+  // and create nodes for all modules
+  graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
   start_node_id = display_node_id;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_PRE\
-  arr[curr].so->modify_roi_in(graph, arr+curr);
+  fprintf(stderr, "pre %"PRItkn"\n", dt_token_str(arr[curr].name));\
+  modify_roi_in(graph, arr+curr);
+#define TRAVERSE_POST\
+  fprintf(stderr, "post %"PRItkn"\n", dt_token_str(arr[curr].name));\
+  create_nodes(graph, arr+curr);
+#define TRAVERSE_CYCLE\
+  fprintf(stderr, "cycle %"PRItkn"\n", dt_token_str(arr[curr].name));
 #include "graph-traverse.inc"
 
-  // TODO: create nodes for all modules
-  // TODO: could this be done in the modify_roi_in pass?
+  // TODO: when and how are module params updated and pointed to uniform buffers?
 
   // TODO: forward the output rois to other branches with sinks we didn't pull for:
   // XXX
 } // end scope, done with modules
 
+  assert(graph->num_nodes < sizeof(mark));
 #if 0
 { // node scope
   dt_node_t *const arr = graph->node;
@@ -203,16 +286,19 @@ void dt_graph_setup_pipeline(
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
     dt_graph_alloc_outputs(allocator, arr+curr);\
-    dt_graph_alloc_inputs (allocator, arr+curr);
+    dt_graph_free_inputs (allocator, arr+curr);
 #include "graph-traverse.inc"
   // }
   // TODO: do that one after the other for all chopped roi
   // finally: create vulkan command buffer
+  // TODO: check quake code how to create pipelines. do we first collect info
+  // about buffers, descriptor sets, and pipelines and then atomically build
+  // the vulkan stuff in the core?
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
     dt_graph_alloc_outputs(allocator, arr+curr);\
-    arr[curr].create_pipeline();\
-    dt_graph_alloc_inputs (allocator, arr+curr);
+    record_command_buffer(graph, arr+curr);\
+    dt_graph_free_inputs (allocator, arr+curr);
 #include "graph-traverse.inc"
 } // end scope, done with nodes
 #endif

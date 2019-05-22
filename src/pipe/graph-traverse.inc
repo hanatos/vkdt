@@ -41,19 +41,24 @@
       done[sp] = 1; // mark this node such that we only traverse the children once
       for(int i=0;i<arr[curr].num_connectors;i++)
       {
-        if(arr[curr].connector[i].type == dt_token("read"))
+        if(arr[curr].connector[i].type == dt_token("read") ||
+           arr[curr].connector[i].type == dt_token("sink"))
         { // need to recurse all inputs
           int el = arr[curr].connector[i].connected_mid;
           if(mark[el])
           {
             TRAVERSE_CYCLE
-            sp = -2;
-            break;
+            // bail out would be:
+            // sp = -2;
+            // break;
           }
-          assert(sp < sizeof(done)-1);
-          stack[++sp] = el;
-          mark[el] = 1;
-          done[sp] = 0;
+          else
+          { // push to stack only unmarked:
+            assert(sp < sizeof(done)-1);
+            stack[++sp] = el;
+            mark[el] = 1;
+            done[sp] = 0;
+          }
         }
         else if(arr[curr].connector[i].type == dt_token("source"))
         {

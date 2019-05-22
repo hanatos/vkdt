@@ -30,6 +30,9 @@ typedef struct dt_module_t
   dt_connector_t connector[10]; // enough for everybody, right?
   int num_connectors;
 
+  // store list of nodeids that go with the connectors
+  int connected_nodeid[10];
+
   // TODO: parameters:
   // human facing parameters for gui + serialisation
   // compute facing parameters for uniform upload

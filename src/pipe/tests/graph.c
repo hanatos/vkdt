@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
   // output dot file, build with
   // ./tests/graph > graph.dot
   // dot -Tpdf graph.dot -o graph.pdf
-  fprintf(stdout, "digraph G {\n");
+  fprintf(stdout, "digraph M {\n");
   // for all nodes, print all incoming edges (outgoing don't have module ids)
   for(int m=0;m<graph.num_modules;m++)
   {
@@ -40,6 +40,26 @@ int main(int argc, char *argv[])
   // TODO: debug rois
   // TODO: create mini pipeline with demosaic
   // TODO: write something out
+  fprintf(stdout, "digraph N {\n");
+  // for all nodes, print all incoming edges (outgoing don't have module ids)
+  for(int m=0;m<graph.num_nodes;m++)
+  {
+    fprintf(stdout, "%"PRItkn"\n", dt_token_str(graph.node[m].name));
+    for(int c=0;c<graph.node[m].num_connectors;c++)
+    {
+      if((graph.node[m].connector[c].type == dt_token("read") ||
+          graph.node[m].connector[c].type == dt_token("sink")) &&
+          graph.node[m].connector[c].connected_mid >= 0)
+      {
+        fprintf(stdout, "%"PRItkn" -> %"PRItkn"\n",
+            dt_token_str(graph.node[
+            graph.node[m].connector[c].connected_mid
+            ].name),
+            dt_token_str(graph.node[m].name));
+      }
+    }
+  }
+  fprintf(stdout, "}\n");
 
   dt_graph_cleanup(&graph);
   dt_pipe_global_cleanup();
