@@ -416,7 +416,7 @@ create_command_pool_and_fences()
   return VK_SUCCESS;
 }
 
-// TODO: maybe we can do this all without gui:
+// this function works without gui and consequently does not init SDL
 int
 qvk_init()
 {
@@ -425,7 +425,7 @@ qvk_init()
   dt_log(s_log_qvk, "available vulkan layers:");
   for(int i = 0; i < qvk.num_layers; i++) {
     int requested = layer_requested(qvk.layers[i].layerName);
-    dt_log(s_log_qvk, "%s%s\n", qvk.layers[i].layerName, requested ? " (requested)" : "");
+    dt_log(s_log_qvk, "%s%s", qvk.layers[i].layerName, requested ? " (requested)" : "");
   }
 
   /* instance extensions */

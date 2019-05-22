@@ -7,7 +7,7 @@
 
 int main(int argc, char *argv[])
 {
-  dt_log_init(s_log_cli);
+  dt_log_init(s_log_cli|s_log_pipe);
   dt_log_init_arg(argc, argv);
   const char *graphcfg = 0;
   for(int i=0;i<argc;i++)

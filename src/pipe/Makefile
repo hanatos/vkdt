@@ -3,13 +3,14 @@ CC=clang
 AR=ar
 CFLAGS=-Wall -I. -I.. -fPIC
 LDFLAGS=-ldl
-.PHONY: clean all debug
+MODULES=$(wildcard modules/*/Makefile)
+.PHONY: clean all debug modules $(MODULES)
 
 CFLAGS+=-g
 OPTFLAGS=-march=native -O3
 CFLAGS+=$(OPTFLAGS)
 
-all: $(TARGET)
+all: $(TARGET) modules
 
 # overwrites the above optimised build flags:
 debug:CFLAGS+=-gdwarf-2 -ggdb3 -O0
@@ -38,6 +39,12 @@ DEPS_H=alloc.h\
 $(TARGET):$(DEPS_O) $(DEPS_H) Makefile
 	$(AR) r $(TARGET) $(DEPS_O)
 
+modules: Makefile $(MODULES)
+
+modules/*/Makefile:
+	make -C $(dir $@)
+
 clean:
 	rm -f $(TARGET)
 	rm -f $(DEPS_O)
+	rm -f modules/*/lib*.so
