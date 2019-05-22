@@ -25,7 +25,6 @@ typedef struct dt_module_so_t
   dt_token_t name;
 
   void *dlhandle;
-  dt_module_create_nodes_t create_nodes;
 
   // pass full image forward through pipe, init roi.full_{wd,ht}
   dt_module_modify_roi_out_t modify_roi_out;

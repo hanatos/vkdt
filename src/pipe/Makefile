@@ -1,5 +1,6 @@
-TARGET=libpipe.so
+TARGET=libpipe.a
 CC=clang
+AR=ar
 CFLAGS=-Wall -I. -I.. -fPIC
 LDFLAGS=-ldl
 .PHONY: clean all debug
@@ -14,12 +15,12 @@ all: $(TARGET)
 debug:CFLAGS+=-gdwarf-2 -ggdb3 -O0
 debug:$(TARGET)
 
-CFILES=alloc.c\
-       connector.c\
-       global.c\
-       graph.c\
-       module.c
-HFILES=alloc.h\
+DEPS_O=alloc.o\
+       connector.o\
+       global.o\
+       graph.o\
+       module.o
+DEPS_H=alloc.h\
        connector.h\
        dlist.h\
        global.h\
@@ -31,8 +32,12 @@ HFILES=alloc.h\
        pipe.h\
        token.h
 
-TARGET:$(CFILES) $(HFILES) Makefile
-	$(CC) $(CFLAGS) $(CFILES) -shared -o $(TARGET) $(LDFLAGS)
+%.o:%.c $(DEPS_H) Makefile
+	$(CC) $(CFLAGS) $< -c -o $@
+
+$(TARGET):$(DEPS_O) $(DEPS_H) Makefile
+	$(AR) r $(TARGET) $(DEPS_O)
 
 clean:
 	rm -f $(TARGET)
+	rm -f $(DEPS_O)
