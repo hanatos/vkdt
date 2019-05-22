@@ -11,7 +11,7 @@ void modify_roi_in(
     dt_module_t *module)
 {
   // TODO: scale to our needs
-  dt_roi_t *r = &module->connector[0];
+  dt_roi_t *r = &module->connector[0].roi;
   r->roi_wd = r->full_wd;
   r->roi_ht = r->full_ht;
   r->roi_ox = 0;
@@ -41,9 +41,9 @@ void write_output(
     // align pfm header to sse, assuming the file will
     // be mmapped to page boundaries.
     char header[1024];
-    snprintf(header, 1024, "PF\n%lu %lu\n-1.0", width, height);
+    snprintf(header, 1024, "PF\n%d %d\n-1.0", width, height);
     size_t len = strlen(header);
-    fprintf(f, "PF\n%lu %lu\n-1.0", width, height);
+    fprintf(f, "PF\n%d %d\n-1.0", width, height);
     ssize_t off = 0;
     while((len + 1 + off) & 0xf) off++;
     while(off-- > 0) fprintf(f, "0");
