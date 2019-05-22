@@ -158,8 +158,6 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    // TODO: what about sink nodes? do we keep them for caching? is the node
-    // responsible to copy these away?
     if((c->type == dt_token("read") ||
         c->type == dt_token("sink")) &&
         c->connected_mid >= 0)
@@ -169,17 +167,16 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       dt_vkfree(&graph->alloc, c->mem);
     }
     else if(c->type == dt_token("write") ||
-             c->type == dt_token("source"))// &&
-             //c->connected_mid == 0)
+            c->type == dt_token("source"))
     {
       fprintf(stderr, "ref count %"PRItkn" %"PRItkn" %d\n",
           dt_token_str(node->name), dt_token_str(c->name),
           c->connected_mid);
       if(c->connected_mid < 1)
       {
-      fprintf(stderr, "freeing unconnected %"PRItkn" %"PRItkn" %lX\n",
-          dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
-      dt_vkfree(&graph->alloc, c->mem);
+        fprintf(stderr, "freeing unconnected %"PRItkn" %"PRItkn" %lX\n",
+            dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
+        dt_vkfree(&graph->alloc, c->mem);
       }
     }
   }
@@ -307,9 +304,10 @@ void dt_graph_setup_pipeline(
   modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
   create_nodes(graph, arr+curr);
-  // dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));
+  // TODO: in fact this should only be an error for default create nodes cases:
+  // TODO: the others might break the cycle by pushing more nodes.
 #define TRAVERSE_CYCLE\
-  fprintf(stderr, "[ERR] cycle %"PRItkn"->%"PRItkn"!\n", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+  dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
   dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 
