@@ -24,7 +24,8 @@ GRAPH_C= ../graph.c\
          ../alloc.c\
          ../connector.c\
          ../global.c\
-         ../module.c
+         ../module.c\
+         ../../core/log.c
 
 pipe: pipe.c $(GRAPH_DEPS) Makefile
 	$(CC) $(CFLAGS) $< $(GRAPH_C) -o $@ $(LDFLAGS) -ldl

@@ -45,3 +45,6 @@ int dt_graph_write_compressed(
 int dt_graph_write(
     dt_graph_t *graph,
     const char *filename);
+
+void dt_graph_setup_pipeline(
+    dt_graph_t *graph);
