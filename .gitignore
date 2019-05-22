@@ -2,3 +2,4 @@
 src/pipe/doc/readme.html
 *.o
 *.a
+built/

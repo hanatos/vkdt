@@ -5,7 +5,7 @@ pipe:
 	make -C pipe
 qvk:
 	make -C qvk
-cli:
+cli: qvk pipe
 	make -C cli
 
 clean: pipe-clean qvk-clean cli-clean Makefile
