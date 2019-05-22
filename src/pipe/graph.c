@@ -157,7 +157,9 @@ void dt_graph_setup_pipeline(
   // nodes for. we have to execute some of this multiple times
   // and have a XXX marker XXX on nodes that we already traversed.
   // there might also be cycles on module level.
+  uint8_t mark[200] = {0};
 { // module scope
+  assert(graph->num_modules < sizeof(mark));
   dt_module_t *const arr = graph->module;
   // first pass: find output rois
   // just find first sink node:
@@ -179,6 +181,7 @@ void dt_graph_setup_pipeline(
 
   // TODO: 2nd pass: request input rois
   start_node_id = display_node_id;
+  memset(mark, 0, sizeof(mark));
 #define TRAVERSE_PRE\
   arr[curr].so->modify_roi_in(graph, arr+curr);
 #include "graph-traverse.inc"
@@ -197,6 +200,7 @@ void dt_graph_setup_pipeline(
   // TODO: while(not happy) {
   // TODO: 3rd pass: compute memory requirements
   // TODO: if not happy: cut input roi in half or what
+  memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
     dt_graph_alloc_outputs(allocator, arr+curr);\
     dt_graph_alloc_inputs (allocator, arr+curr);
@@ -204,6 +208,7 @@ void dt_graph_setup_pipeline(
   // }
   // TODO: do that one after the other for all chopped roi
   // finally: create vulkan command buffer
+  memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
     dt_graph_alloc_outputs(allocator, arr+curr);\
     arr[curr].create_pipeline();\
