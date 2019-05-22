@@ -7,8 +7,11 @@
 
 int main(int argc, char *argv[])
 {
+  // init global things, log and pipeline:
   dt_log_init(s_log_cli|s_log_pipe);
   dt_log_init_arg(argc, argv);
+  dt_pipe_global_init();
+
   const char *graphcfg = 0;
   for(int i=0;i<argc;i++)
   {
@@ -22,9 +25,6 @@ int main(int argc, char *argv[])
   }
   if(qvk_init()) exit(1);
 
-  // TODO: create module graph from pipeline config
-  // TODO: create nodes from graph
-  dt_pipe_global_init();
   dt_graph_t graph;
   dt_graph_init(&graph);
   int err = dt_graph_read_config_ascii(&graph, graphcfg);
