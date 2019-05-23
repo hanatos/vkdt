@@ -31,6 +31,8 @@ int main(int argc, char *argv[])
   if(err)
     dt_log(s_log_err, "could not load graph configuration!");
 
+  dt_graph_setup_pipeline(&graph);
+
   qvk_cleanup();
   exit(0);
 }

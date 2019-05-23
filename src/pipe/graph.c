@@ -347,9 +347,8 @@ void dt_graph_setup_pipeline(
 #define TRAVERSE_POST\
   alloc_outputs(graph, arr+curr);\
   free_inputs  (graph, arr+curr);
-  // dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));
 #define TRAVERSE_CYCLE\
-  fprintf(stderr, "[ERR] cycle %"PRItkn"->%"PRItkn"!\n", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+  dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
   dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 } // end scope, done with nodes

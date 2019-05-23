@@ -1,3 +1,27 @@
+# darktable next generation
+
+this is a complete rewrite of darktable, naturally at this point
+with a heavily reduced feature set.
+
+# build instructions
+
+you should have checked out this repo recursively. if not, do
+```
+git submodule init
+git submodule update
+```
+to grab the dependencies in the ext/ folder. you should then
+be able to simply run 'make' from the top level.
+
+# running
+
+the binaries are currently wired to run from the bin/ directory:
+```
+cd bin/
+./vkdt-cli -g ../src/pipe/tests/pipe.cfg -d all
+```
+
+# differences to olden darktable
 
 like:
 - job manager
@@ -27,7 +51,7 @@ dependencies:
 - vulkan
 - sdl2
 - submodule imgui
-- submodule rawspeed
+- submodule rawspeed (pulls in pugixml and stdc++)
 - submodule pybind11
 - libjpeg
 
@@ -96,7 +120,7 @@ db:
   into memory at all times (and write out at the end)
   - 4MB 32-bit indices of all images
   - 4MB sorted indices for list of stars
-  - 5*4MB lists of colour labels
+  - 5x4MB lists of colour labels
   - 30MB avg 30chars file names
 - build bvh on demand for 3 dimensions sort query should be a matter of milliseconds
 - rebuild after batch insertion of full directory
