@@ -10,16 +10,11 @@
 void
 dt_vkalloc_init(dt_vkalloc_t *a)
 {
-  const uint64_t heap_size = 1ul<<40; // doesn't matter, we'll never allocate this for real
   memset(a, 0, sizeof(*a));
+  a->heap_size = 1ul<<40; // doesn't matter, we'll never allocate this for real
   a->pool_size = 100;
   a->vkmem_pool = malloc(sizeof(dt_vkmem_t)*a->pool_size);
-  memset(a->vkmem_pool, 0, sizeof(dt_vkmem_t)*a->pool_size); 
-  a->free = DLIST_PREPEND(a->free, a->vkmem_pool);
-  a->free->offset = 0;
-  a->free->size = heap_size;
-  for(int i=1;i<a->pool_size;i++)
-    a->unused = DLIST_PREPEND(a->unused, a->vkmem_pool+i);
+  dt_vkalloc_nuke(a);
 }
 
 void
@@ -29,6 +24,18 @@ dt_vkalloc_cleanup(dt_vkalloc_t *a)
   free(a->vkmem_pool);
   // don't free a, it's owned externally
   memset(a, 0, sizeof(*a));
+}
+
+void
+dt_vkalloc_nuke(dt_vkalloc_t *a)
+{
+  memset(a->vkmem_pool, 0, sizeof(dt_vkmem_t)*a->pool_size); 
+  a->free = DLIST_PREPEND(a->free, a->vkmem_pool);
+  a->free->offset = 0;
+  a->free->size = a->heap_size;
+  for(int i=1;i<a->pool_size;i++)
+    a->unused = DLIST_PREPEND(a->unused, a->vkmem_pool+i);
+  a->peak_rss = a->rss = a->vmsize = 0ul;
 }
 
 dt_vkmem_t*
