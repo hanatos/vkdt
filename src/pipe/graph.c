@@ -318,6 +318,9 @@ void dt_graph_setup_pipeline(
 } // end scope, done with modules
 
   assert(graph->num_nodes < sizeof(mark));
+  // free pipeline resources if previously allocated anything:
+  dt_vkalloc_nuke(&graph->alloc);
+  // TODO: also goes with potential leftovers from vulkan!
 #if 1
 { // node scope
   dt_node_t *const arr = graph->node;
@@ -352,6 +355,7 @@ void dt_graph_setup_pipeline(
   dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 } // end scope, done with nodes
+  dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB", graph->alloc.peak_rss/(1024.0*1024.0), graph->alloc.vmsize/(1024.0*1024.0));
 #endif
 }
 
