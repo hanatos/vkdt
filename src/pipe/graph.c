@@ -139,7 +139,21 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       c->mem = dt_vkalloc(&graph->alloc, size);
       fprintf(stderr, "allocating %lu bytes for %"PRItkn" %"PRItkn" -> %lX\n",
           size, dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
-      // TODO: create image and imageview
+      // push a VkImageCreateInfo struct somewhere, including VK_FORMAT_ info and resolution for this buffer
+      // vkCreateImage
+      // vkGetImageMemoryRequirements
+      // see total size dance accounting for alignment in quake textures.c
+
+      // TODO: keep offset and size for our records here and later once
+      // TODO: or pre-allocate because we know the memory type bits?
+      // vkAllocateMemory if not happened earlier or too small
+      // vkBindImageMemory to offset of all images (XXX this would require iterating over all nodes again)
+
+      // VkImageViewCreateInfo
+      // vkCreateImageView
+      // TODO: also see the label attachment thing if that's possible on intel
+      // TODO: create descriptor set with layout binding as connector id (+uniform buf?)
+      // vkUpdateDescriptorSets
     }
     else if(c->type == dt_token("read") ||
             c->type == dt_token("sink"))

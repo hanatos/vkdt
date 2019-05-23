@@ -80,6 +80,9 @@ dt_connector_bytes_per_pixel(const dt_connector_t *c)
   }
   return 0;
 }
+// TODO: transform f32 to
+// VK_FORMAT_R32G32B32_SFLOAT
+// etc
 
 static inline size_t
 dt_connector_bufsize(const dt_connector_t *c)
