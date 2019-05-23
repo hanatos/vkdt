@@ -16,7 +16,7 @@ $(BUILT)/rawspeed/librawspeed.a: Makefile $(BUILT)/rawspeed/CMakeCache.txt
 pthread-pool: Makefile
 	mkdir -p $(BUILT)/pthread-pool
 	make -C pthread-pool
-	mv pthread-pool/libpthreadpool.a $(BUILT)/pthread-pool/
+	cp pthread-pool/libpthreadpool.a $(BUILT)/pthread-pool/
 
 clean: Makefile
 	make -C pthread-pool clean

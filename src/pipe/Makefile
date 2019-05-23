@@ -16,6 +16,10 @@ all: $(TARGET) modules
 debug:CFLAGS+=-gdwarf-2 -ggdb3 -O0
 debug:$(TARGET)
 
+# TODO: now this also depends on vulkan headers in ../qvk
+# TODO: put these dependencies here explicitly:
+DEPS_QVK=../qvk/%.h
+
 DEPS_O=alloc.o\
        connector.o\
        global.o\
@@ -33,10 +37,10 @@ DEPS_H=alloc.h\
        pipe.h\
        token.h
 
-%.o:%.c $(DEPS_H) Makefile
+%.o:%.c $(DEPS_H) $(DEPS_QVK) Makefile
 	$(CC) $(CFLAGS) $< -c -o $@
 
-$(TARGET):$(DEPS_O) $(DEPS_H) Makefile
+$(TARGET):$(DEPS_O) Makefile
 	$(AR) r $(TARGET) $(DEPS_O)
 
 modules: Makefile $(MODULES)

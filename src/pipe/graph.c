@@ -134,10 +134,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(c->type == dt_token("write") ||
        c->type == dt_token("source"))
     { // allocate our output buffers
+      // FIXME in fact we are interested in vkGetImageMemoryRequirements
       const size_t size = dt_connector_bufsize(c);
       c->mem = dt_vkalloc(&graph->alloc, size);
       fprintf(stderr, "allocating %lu bytes for %"PRItkn" %"PRItkn" -> %lX\n",
           size, dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
+      // TODO: create image and imageview
     }
     else if(c->type == dt_token("read") ||
             c->type == dt_token("sink"))
@@ -238,6 +240,21 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
   }
 }
 
+static int
+record_command_buffer(dt_graph_t *graph, dt_node_t *node)
+{
+  // TODO: steal from svgf vulkan implementation:
+  // compute barriers on input images corresponding to vkmem allocations
+  // TODO: what are our images and how do we allocate them?
+  // push profiler start
+  // bind pipeline
+  // bind descriptor sets
+  // push constants
+  // dispatch pipeline
+  // stop profiler query
+  return 0;
+}
+
 // default callback for create nodes: pretty much copy the module
 static void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
@@ -264,6 +281,10 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
 }
 
+
+// TODO: rip apart into pieces that only update the essential minimum.
+// that is: only change params like roi offsets and node push
+// constants or uniform buffers, or input image.
 
 void dt_graph_setup_pipeline(
     dt_graph_t *graph)
@@ -346,9 +367,9 @@ void dt_graph_setup_pipeline(
   // about buffers, descriptor sets, and pipelines and then atomically build
   // the vulkan stuff in the core?
   memset(mark, 0, sizeof(mark));
-  // XXX record_command_buffer(graph, arr+curr);
 #define TRAVERSE_POST\
   alloc_outputs(graph, arr+curr);\
+  record_command_buffer(graph, arr+curr);\
   free_inputs  (graph, arr+curr);
 #define TRAVERSE_CYCLE\
   dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
