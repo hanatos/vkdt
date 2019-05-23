@@ -1,25 +1,16 @@
 TARGET=libpipe.a
-CC=clang
-AR=ar
-GLSLC=glslangValidator
 CFLAGS=-Wall -I. -I.. -fPIC
-LDFLAGS=-ldl
 MODULES=$(wildcard modules/*/Makefile)
 SPV=$(shell ls -1 modules/*/*.comp | sed -e 's/.comp/.spv/')
 .PHONY: clean all debug modules $(MODULES)
 
 CFLAGS+=-g
-OPTFLAGS=-march=native -O3
-CFLAGS+=$(OPTFLAGS)
+CFLAGS+=$(OPT_CFLAGS)
 
 all: $(TARGET) modules
 
-# overwrites the above optimised build flags:
-debug:CFLAGS+=-gdwarf-2 -ggdb3 -O0
-debug:$(TARGET)
-
-# TODO: now this also depends on vulkan headers in ../qvk
-# TODO: put these dependencies here explicitly:
+# now this also depends on vulkan headers in ../qvk
+# put these dependencies here explicitly:
 DEPS_QVK=../qvk/%.h
 
 DEPS_O=alloc.o\

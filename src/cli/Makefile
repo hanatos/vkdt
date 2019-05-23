@@ -2,10 +2,10 @@ TARGET=vkdt-cli
 
 .PHONY:clean
 
-CC=clang
 CFLAGS=-Wall -I. -I.. -g
-OPTFLAGS=-march=native -O3
 LDFLAGS=-L../qvk -lqvk -lvulkan -L../pipe -lpipe -ldl
+CFLAGS+=$(OPT_CFLAGS)
+LDFLAGS+=$(OPT_LDFLAGS)
 
 DEPS_H=../core/core.h\
        ../core/log.h
