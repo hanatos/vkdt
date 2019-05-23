@@ -1,9 +1,11 @@
 TARGET=libpipe.a
 CC=clang
 AR=ar
+GLSLC=glslangValidator
 CFLAGS=-Wall -I. -I.. -fPIC
 LDFLAGS=-ldl
 MODULES=$(wildcard modules/*/Makefile)
+SPV=$(shell ls -1 modules/*/*.comp | sed -e 's/.comp/.spv/')
 .PHONY: clean all debug modules $(MODULES)
 
 CFLAGS+=-g
@@ -43,10 +45,16 @@ DEPS_H=alloc.h\
 $(TARGET):$(DEPS_O) Makefile
 	$(AR) r $(TARGET) $(DEPS_O)
 
-modules: Makefile $(MODULES)
+modules: Makefile $(MODULES) $(SPV)
 
 modules/*/Makefile:
 	make -C $(dir $@)
+
+%.spv: %.comp
+	$(GLSLC) --target-env vulkan1.1 \
+    -DQVK_SHADER \
+    -V $< -o $@
+
 
 clean:
 	rm -f $(TARGET)

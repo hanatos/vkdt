@@ -59,12 +59,13 @@ arch:
 - python bindings (pybind11)
 
 dependencies:
-- vulkan
+- vulkan, glslangValidator
 - sdl2
 - submodule imgui
 - submodule rawspeed (pulls in pugixml and stdc++)
 - submodule pybind11
 - libjpeg
+- build: make, sed
 
 image list:
 - on-device thumbnail cache
