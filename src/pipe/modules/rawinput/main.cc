@@ -27,10 +27,17 @@ rawspeed_load_meta()
       // char datadir[PATH_MAX] = { 0 };
       char camfile[PATH_MAX] = { 0 };
       // dt_loc_get_datadir(datadir, sizeof(datadir));
-      const char *datadir = "../../ext/rawspeed/data"; // XXX
+      const char *datadir = "./data"; // assume we run from installed bin/ directory
       snprintf(camfile, sizeof(camfile), "%s/cameras.xml", datadir);
       // never cleaned up (only when dt closes)
-      meta = new rawspeed::CameraMetaData(camfile);
+      try
+      {
+        meta = new rawspeed::CameraMetaData(camfile);
+      }
+      catch(...)
+      {
+        fprintf(stderr, "[rawspeed] could not open cameras.xml!\n");
+      }
     }
     // XXX dt_pthread_mutex_unlock(&darktable.plugin_threadsafe);
   }
@@ -123,7 +130,7 @@ void modify_roi_out(
 {
   // TODO: load image if not happened yet
   // int err = load_raw(mod, filename);
-  load_raw(mod, "test.cr2");
+  if(load_raw(mod, "test.cr2")) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
