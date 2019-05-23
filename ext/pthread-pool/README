@@ -3,6 +3,10 @@ Pthread Pool - a lightweight thread pool implemented using Pthreads.
 Homepage: https://sourceforge.net/projects/pthread-pool/
 E-mail:   johngavingraham@googlemail.com
 
+License
+GNU Library or Lesser General Public License version 2.0 (LGPLv2)
+
+
 Overview
 --------
 
