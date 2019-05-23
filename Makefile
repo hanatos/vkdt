@@ -16,10 +16,10 @@ clean:
 
 distclean:
 	rm -rf built/
+	rm -rf bin/
 
 bin: src Makefile
-	mkdir -p bin/
+	mkdir -p bin/data
 	cp src/cli/vkdt-cli bin/
 	ln -sf ../src/pipe/modules bin/
-	mkdir -p bin/data
 	cp ext/rawspeed/data/cameras.xml bin/data
