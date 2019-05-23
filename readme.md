@@ -21,6 +21,17 @@ cd bin/
 ./vkdt-cli -g ../src/pipe/tests/pipe.cfg -d all
 ```
 
+# licence
+
+our code is licenced under the 2-clause bsd licence. there are parts
+from other libraries that are licenced differently. in particular:
+
+rawspeed:     LGPLv2
+pthread-pool: LGPLv2
+imgui:        MIT
+
+and we may link to some others, too.
+
 # differences to olden darktable
 
 like:
