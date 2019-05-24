@@ -2,6 +2,7 @@
 #include "module.h"
 #include "io.h"
 #include "core/log.h"
+#include "qvk/qvk.h"
 
 #include <stdio.h>
 
@@ -134,32 +135,192 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(c->type == dt_token("write") ||
        c->type == dt_token("source"))
     { // allocate our output buffers
+      VkFormat format = dt_connector_vkformat(c);
+      VkImageCreateInfo images_create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .extent = {
+          .width  = c->roi.roi_wd,
+          .height = c->roi.roi_ht,
+          .depth  = 1
+        },
+        .mipLevels             = 1,
+        .arrayLayers           = 1,
+        .samples               = VK_SAMPLE_COUNT_1_BIT,
+        .tiling                = VK_IMAGE_TILING_OPTIMAL,
+        .usage                 = VK_IMAGE_USAGE_STORAGE_BIT
+          | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+          | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+          | VK_IMAGE_USAGE_SAMPLED_BIT
+          | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
+        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = qvk.queue_idx_graphics, // XXX ???
+        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
+      };
+      QVK(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
+      ATTACH_LABEL_VARIABLE(img, IMAGE);
+
+      VkMemoryRequirements mem_req;
+      vkGetImageMemoryRequirements(qvk.device, c->image, &mem_req);
+      if(graph->memory_type_bits != ~0 && mem_req.memoryTypeBits != graph->memory_type_bits)
+        dt_log(s_log_qvk|s_log_err, "memory type bits don't match!");
+      graph->memory_type_bits = mem_req.memoryTypeBits;
+
+      assert(!(mem_req.alignment & (mem_req.alignment - 1)));
+      // XXX TODO: teach our allocator this?
+      // total_size += mem_req.alignment - 1;
+      // total_size &= ~(mem_req.alignment - 1);
+      // total_size += mem_req.size;
+
       // FIXME in fact we are interested in vkGetImageMemoryRequirements
       const size_t size = dt_connector_bufsize(c);
-      c->mem = dt_vkalloc(&graph->alloc, size);
-      fprintf(stderr, "allocating %lu bytes for %"PRItkn" %"PRItkn" -> %lX\n",
-          size, dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
-      // push a VkImageCreateInfo struct somewhere, including VK_FORMAT_ info and resolution for this buffer
-      // vkCreateImage
-      // vkGetImageMemoryRequirements
-      // see total size dance accounting for alignment in quake textures.c
-
-      // TODO: keep offset and size for our records here and later once
-      // TODO: or pre-allocate because we know the memory type bits?
-      // vkAllocateMemory if not happened earlier or too small
-      // vkBindImageMemory to offset of all images (XXX this would require iterating over all nodes again)
-
-      // VkImageViewCreateInfo
-      // vkCreateImageView
-      // TODO: also see the label attachment thing if that's possible on intel
-      // TODO: create descriptor set with layout binding as connector id (+uniform buf?)
-      // vkUpdateDescriptorSets
+      c->mem = dt_vkalloc(&graph->alloc, mem_req.size);
+      fprintf(stderr, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
+          "%"PRItkn" %"PRItkn" "
+          "-> %lX\n",
+          mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
+          dt_token_str(c->chan), dt_token_str(c->format),
+          (uint64_t)c->mem);
+      // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
+      c->offset = c->mem->offset;
     }
     else if(c->type == dt_token("read") ||
             c->type == dt_token("sink"))
     { // point our inputs to their counterparts:
       if(c->connected_mid >= 0)
-        c->mem = graph->node[c->connected_mid].connector[c->connected_cid].mem;
+      {
+        dt_connector_t *c2 = graph->node[c->connected_mid]
+          .connector+c->connected_cid;
+        c->mem        = c2->mem;
+        c->image      = c2->image;
+        // c->image_view = c2->image_view;
+      }
+    }
+  }
+}
+
+// 2nd pass, now we have images and vkDeviceMemory
+static inline void
+alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
+{
+  for(int i=0;i<node->num_connectors;i++)
+  {
+    dt_connector_t *c = node->connector+i;
+    if(c->type == dt_token("write") ||
+       c->type == dt_token("source"))
+    { // allocate our output buffers
+      VkFormat format = dt_connector_vkformat(c);
+
+      VkMemoryRequirements mem_req;
+      vkGetImageMemoryRequirements(qvk.device, c->image, &mem_req);
+
+      assert(!(mem_req.alignment & (mem_req.alignment - 1)));
+      // XXX TODO: teach our allocator this?
+      // total_size += mem_req.alignment - 1;
+      // total_size &= ~(mem_req.alignment - 1);
+      // total_size += mem_req.size;
+
+      // TODO: keep offset and size for our records here and later once
+      // TODO: or pre-allocate because we know the memory type bits?
+      // vkAllocateMemory if not happened earlier or too small
+      // vkBindImageMemory to offset of all images (XXX this would require iterating over all nodes again)
+      vkBindImageMemory(qvk.device, c->image, graph->vkmem, c->offset);
+
+      // TODO: i think we need to do the above ^ first
+
+      VkImageViewCreateInfo images_view_create_info = {
+        .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .viewType   = VK_IMAGE_VIEW_TYPE_2D,
+        .format     = format,
+        .image      = c->image,
+        .subresourceRange = {
+          .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+          .baseMipLevel   = 0,
+          .levelCount     = 1,
+          .baseArrayLayer = 0,
+          .layerCount     = 1
+        },
+        .components = {
+          VK_COMPONENT_SWIZZLE_IDENTITY,
+        },
+      };
+      // const int numc = dt_connector_channels(c);
+      // if(numc > 1) images_view_create_info.components.g = VK_COMPONENT_SWIZZLE_G;
+      // if(numc > 2) images_view_create_info.components.b = VK_COMPONENT_SWIZZLE_B;
+      // if(numc > 3) images_view_create_info.components.a = VK_COMPONENT_SWIZZLE_A;
+
+      QVK(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &c->image_view));
+      // ATTACH_LABEL_VARIABLE_NAME(qvk.images_views[VKPT_IMG_##_name], IMAGE_VIEW, #_name);
+
+      // TODO: also see the label attachment thing if that's possible on intel
+      // TODO: create descriptor set with layout binding as connector id (+uniform buf?)
+      // vkUpdateDescriptorSets
+#if 0
+      #define IMG_DO(_name, ...) \
+    [VKPT_IMG_##_name] = { \
+        .sampler     = VK_NULL_HANDLE, \
+        .imageView   = qvk.images_views[VKPT_IMG_##_name], \
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL \
+    },
+    VkDescriptorImageInfo desc_output_img_info[] = {
+        LIST_IMAGES
+    };
+#undef IMG_DO
+
+    VkDescriptorImageInfo img_info[] = {
+#define IMG_DO(_name, ...) \
+        [VKPT_IMG_##_name] = { \
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, \
+            .imageView   = qvk.images_views[VKPT_IMG_##_name], \
+            .sampler     = tex_sampler, \
+        },
+
+        LIST_IMAGES
+    };
+#undef IMG_DO
+
+    /* create information to update descriptor sets */
+    VkWriteDescriptorSet output_img_write[] = {
+#define IMG_DO(_name, _binding, ...) \
+        [VKPT_IMG_##_name] = { \
+            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, \
+            .dstSet          = qvk.desc_set_textures, \
+            .dstBinding      = BINDING_OFFSET_IMAGES + _binding, \
+            .dstArrayElement = 0, \
+            .descriptorCount = 1, \
+            .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, \
+            .pImageInfo      = desc_output_img_info + VKPT_IMG_##_name, \
+        },
+  LIST_IMAGES
+#undef IMG_DO
+#define IMG_DO(_name, _binding, ...) \
+        [VKPT_IMG_##_name + NUM_VKPT_IMAGES] = { \
+            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, \
+            .dstSet          = qvk.desc_set_textures, \
+            .dstBinding      = BINDING_OFFSET_TEXTURES + _binding, \
+            .dstArrayElement = 0, \
+            .descriptorCount = 1, \
+            .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, \
+            .pImageInfo      = img_info + VKPT_IMG_##_name, \
+        },
+    LIST_IMAGES
+#undef IMG_DO
+    };
+
+    vkUpdateDescriptorSets(qvk.device, LENGTH(output_img_write), output_img_write, 0, NULL);
+#endif
+    }
+    else if(c->type == dt_token("read") ||
+            c->type == dt_token("sink"))
+    { // point our inputs to their counterparts:
+      if(c->connected_mid >= 0)
+      {
+        dt_connector_t *c2 = graph->node[c->connected_mid]
+          .connector+c->connected_cid;
+        c->image      = c2->image;      // can't hurt to copy again
+        c->image_view = c2->image_view;
+      }
     }
   }
 }
@@ -181,6 +342,10 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       fprintf(stderr, "freeing %"PRItkn" %"PRItkn" %lX\n",
           dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
       dt_vkfree(&graph->alloc, c->mem);
+      // note that we keep the offset and VkImage etc around, we'll be using
+      // these in consecutive runs through the pipeline and only clean up at
+      // the very end. we just instruct our allocator that we're done with
+      // this portion of the memory.
     }
     else if(c->type == dt_token("write") ||
             c->type == dt_token("source"))
@@ -353,6 +518,8 @@ void dt_graph_setup_pipeline(
 } // end scope, done with modules
 
   assert(graph->num_nodes < sizeof(mark));
+
+
   // free pipeline resources if previously allocated anything:
   dt_vkalloc_nuke(&graph->alloc);
   // TODO: also goes with potential leftovers from vulkan!
@@ -380,6 +547,9 @@ void dt_graph_setup_pipeline(
   // TODO: check quake code how to create pipelines. do we first collect info
   // about buffers, descriptor sets, and pipelines and then atomically build
   // the vulkan stuff in the core?
+
+  // TODO: 1st pass alloc and free, 2nd pass alloc2 and record_command_buffer!
+  graph->memory_type_bits = ~0u;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
   alloc_outputs(graph, arr+curr);\
@@ -389,6 +559,16 @@ void dt_graph_setup_pipeline(
   dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
   dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
+
+  // XXX TODO: this in between pass 1 and pass2:
+  VkMemoryAllocateInfo mem_alloc_info = {
+    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .allocationSize  = graph->alloc.vmsize,
+    .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  };
+  QVK(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
+  // XXX
+
 } // end scope, done with nodes
   dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB", graph->alloc.peak_rss/(1024.0*1024.0), graph->alloc.vmsize/(1024.0*1024.0));
 #endif

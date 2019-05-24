@@ -24,6 +24,9 @@ typedef struct dt_graph_t
 
   // allocator for buffers
   dt_vkalloc_t alloc;
+
+  uint32_t memory_type_bits;
+  VkDeviceMemory vkmem;
 }
 dt_graph_t;
 

@@ -11,7 +11,12 @@ all: $(TARGET) modules
 
 # now this also depends on vulkan headers in ../qvk
 # put these dependencies here explicitly:
-DEPS_QVK=../qvk/%.h
+DEPS_QVK_H=../qvk/%.h
+DEPS_QVK_O=../qvk/qvk.o\
+           ../qvk/qvk_util.o
+
+../qvk/%.o:
+	make -C ../qvk $@
 
 DEPS_O=alloc.o\
        connector.o\
@@ -30,11 +35,11 @@ DEPS_H=alloc.h\
        pipe.h\
        token.h
 
-%.o:%.c $(DEPS_H) $(DEPS_QVK) Makefile
+%.o:%.c $(DEPS_H) $(DEPS_QVK_H) Makefile
 	$(CC) $(CFLAGS) $< -c -o $@
 
-$(TARGET):$(DEPS_O) Makefile
-	$(AR) r $(TARGET) $(DEPS_O)
+$(TARGET):$(DEPS_O) Makefile $(DEPS_QVK_O)
+	$(AR) r $(TARGET) $(DEPS_O) $(DEPS_QVK_O)
 
 modules: Makefile $(MODULES) $(SPV)
 

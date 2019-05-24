@@ -7,17 +7,18 @@ rawspeed: Makefile $(BUILT)/rawspeed/librawspeed.a
 
 $(BUILT)/rawspeed/CMakeCache.txt: Makefile
 	mkdir -p $(BUILT)/rawspeed
-	cmake -S rawspeed/ -B $(BUILT)/rawspeed/ -DBUILD_TESTING=0
+	cmake -S rawspeed/ -B $(BUILT)/rawspeed/ -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release
 
 $(BUILT)/rawspeed/librawspeed.a: Makefile $(BUILT)/rawspeed/CMakeCache.txt 
 	mkdir -p $(BUILT)/rawspeed
 	make -C $(BUILT)/rawspeed
-	touch $(BUILT)/rawspeed/librawspeed.a
+	strip -S $(BUILT)/rawspeed/librawspeed.a
 
 pthread-pool: Makefile
 	mkdir -p $(BUILT)/pthread-pool
 	make -C pthread-pool
 	cp pthread-pool/libpthreadpool.a $(BUILT)/pthread-pool/
+	strip -S $(BUILT)/pthread-pool/libpthreadpool.a
 
 clean: Makefile
 	make -C pthread-pool clean

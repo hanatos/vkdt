@@ -1,6 +1,6 @@
 CC=clang
 CFLAGS+=-O0 -Wall -I../.. -g
-LDFLAGS=
+LDFLAGS=-ldl -L../../qvk -lqvk -lvulkan
 # doesn't play so well with the rawspeed module so far:
 CFLAGS+=-fno-omit-frame-pointer -fsanitize=address
 LDFLAGS+=-fsanitize=address
@@ -30,7 +30,7 @@ GRAPH_C= ../graph.c\
          ../../core/log.c
 
 pipe: pipe.c $(GRAPH_DEPS) Makefile
-	$(CC) $(CFLAGS) $< $(GRAPH_C) -o $@ $(LDFLAGS) -ldl
+	$(CC) $(CFLAGS) $< $(GRAPH_C) -o $@ $(LDFLAGS)
 
 graph: graph.c $(GRAPH_DEPS) $(GRAPH_C) Makefile
-	$(CC) $(CFLAGS) $< $(GRAPH_C) -o $@ $(LDFLAGS) -ldl
+	$(CC) $(CFLAGS) $< $(GRAPH_C) -o $@ $(LDFLAGS)

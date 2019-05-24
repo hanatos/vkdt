@@ -4,6 +4,7 @@
 #include "alloc.h"
 
 #include <stdint.h>
+#include <vulkan/vulkan.h>
 
 // info about a region of interest.
 // stores full buffer dimensions, context and roi.
@@ -56,7 +57,10 @@ typedef struct dt_connector_t
   // and the offset and size are still valid for successive runs through the
   // pipeline once it has been setup.
   dt_vkmem_t *mem;
-  uint64_t mem_flags; // protected bits etc go here
+  uint64_t    mem_flags; // protected bits etc go here
+
+  VkImage     image;
+  VkImageView image_view;
 }
 dt_connector_t;
 
@@ -80,13 +84,61 @@ dt_connector_bytes_per_pixel(const dt_connector_t *c)
   }
   return 0;
 }
-// TODO: transform f32 to
-// VK_FORMAT_R32G32B32_SFLOAT
-// etc
+
+static inline int
+dt_connector_channels(const dt_connector_t *c)
+{
+  // bayer or x-trans?
+  if(c->chan == dt_token("rggb") || c->chan == dt_token("rgbx")) return 1;
+  return c->chan <=     0xff ? 1 :
+        (c->chan <=   0xffff ? 2 :
+        (c->chan <= 0xffffff ? 3 : 4));
+}
+
+static inline VkFormat
+dt_connector_vkformat(const dt_connector_t *c)
+{
+  const uint64_t ui32 = 0x32336975, f32 = 0x323366,
+                 ui16 = 0x36316975, ui8 = 386975;
+  const int len = dt_connector_channels(c);
+  switch(c->format)
+  {
+    case ui32: switch(len)
+    {
+      case 1: return VK_FORMAT_R32_UINT;
+      case 2: return VK_FORMAT_R32G32_UINT;
+      case 3: return VK_FORMAT_R32G32B32_UINT;
+      case 4: return VK_FORMAT_R32G32B32A32_UINT;
+    }
+    case f32 : switch(len)
+    {
+      case 1: return VK_FORMAT_R32_SFLOAT;
+      case 2: return VK_FORMAT_R32G32_SFLOAT;
+      case 3: return VK_FORMAT_R32G32B32_SFLOAT;
+      case 4: return VK_FORMAT_R32G32B32A32_SFLOAT;
+    }
+    case ui16: switch(len)
+    {
+      case 1: return VK_FORMAT_R16_UINT;
+      case 2: return VK_FORMAT_R16G16_UINT;
+      case 3: return VK_FORMAT_R16G16B16_UINT;
+      case 4: return VK_FORMAT_R16G16B16A16_UINT;
+    }
+    case ui8 : switch(len)
+    {
+      case 1: return VK_FORMAT_R8_UINT;
+      case 2: return VK_FORMAT_R8G8_UINT;
+      case 3: return VK_FORMAT_R8G8B8_UINT;
+      case 4: return VK_FORMAT_R8G8B8A8_UINT;
+    }
+  }
+  return VK_FORMAT_UNDEFINED;
+}
 
 static inline size_t
 dt_connector_bufsize(const dt_connector_t *c)
 {
+  const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
-  return bpp * c->roi.roi_wd * c->roi.roi_ht;
+  return numc * bpp * c->roi.roi_wd * c->roi.roi_ht;
 }

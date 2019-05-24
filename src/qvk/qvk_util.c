@@ -16,14 +16,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "shared/shared.h"
-#include "vk_util.h"
-#include "vkpt.h"
+// #include "shared/shared.h"
+#include "qvk_util.h"
+#include "qvk.h"
 
 #include <assert.h>
 
 uint32_t
-get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
+qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
 {
 	for(uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
 		if(mem_req_type_bits & (1 << i)) {
@@ -69,7 +69,7 @@ buffer_create(
 	VkMemoryAllocateInfo mem_alloc_info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.allocationSize = mem_reqs.size,
-		.memoryTypeIndex = get_memory_type(mem_reqs.memoryTypeBits, mem_properties)
+		.memoryTypeIndex = qvk_get_memory_type(mem_reqs.memoryTypeBits, mem_properties)
 	};
 
 	result = vkAllocateMemory(qvk.device, &mem_alloc_info, NULL, &buf->memory);
@@ -120,7 +120,7 @@ buffer_map(BufferResource_t *buf)
 	void *ret = NULL;
 	assert(buf->memory != VK_NULL_HANDLE);
 	assert(buf->size > 0);
-	_VK(vkMapMemory(qvk.device, buf->memory, 0 /*offset*/, buf->size, 0 /*flags*/, &ret));
+	QVK(vkMapMemory(qvk.device, buf->memory, 0 /*offset*/, buf->size, 0 /*flags*/, &ret));
 	return ret;
 }
 

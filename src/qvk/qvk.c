@@ -507,6 +507,8 @@ qvk_init()
 
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
+    dt_log(s_log_qvk, "max image allocation size %u x %u",
+        dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
     uint32_t num_ext;
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, NULL);
 
@@ -532,6 +534,7 @@ qvk_init()
   dt_log(s_log_qvk, "picked device %d", picked_device);
 
   qvk.physical_device = devices[picked_device];
+
 
   vkGetPhysicalDeviceMemoryProperties(qvk.physical_device, &qvk.mem_properties);
 

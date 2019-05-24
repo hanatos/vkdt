@@ -40,6 +40,6 @@ distclean:
 
 bin: src Makefile
 	mkdir -p bin/data
-	cp src/cli/vkdt-cli bin/
+	ln -sf ../src/cli/vkdt-cli bin/
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data

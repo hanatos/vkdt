@@ -1,0 +1,43 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout(push_constant, std140) uniform IterationInfo {
+	uint iteration;
+} push;
+
+layout(
+    set = 0, binding = 0
+) uniform usampler2D img; // would be sampler2D for f32
+
+layout(
+    set = 0, binding = 1, rg32f
+) uniform image2D img2;
+
+// #define GLOBAL_UBO_DESC_SET_IDX 0
+// #include "global_ubo.h"
+
+// #define GLOBAL_TEXTURES_DESC_SET_IDX 1
+// #include "global_textures.h"
+
+// #include "utils.glsl"
+// #include "asvgf.glsl"
+
+
+// demosaic reduced size. run on output dimensions, gather all colours from
+// input buffer (this might be 3x3 for xtrans).
+void
+main()
+{
+	ivec2 ipos = ivec2(gl_GlobalInvocationID);
+	// if(any(greaterThanEqual(ipos, ivec2(global_ubo.width, global_ubo.height))))
+		// return;
+
+	vec4 filtered = vec4(0);
+		filtered.rgb *= texelFetch(img, ipos, 0).rgb;
+
+	imageStore(img2, ipos, filtered);
+}
+

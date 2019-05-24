@@ -7,10 +7,16 @@ CC=clang
 AR=ar
 CFLAGS=-Wall -I. -I..
 LDFLAGS=-lvulkan
+CFLAGS+=$(OPT_CFLAGS)
+LDFLAGS+=$(OPT_LDFLAGS)
 
-$(TARGET):qvk.c qvk.h Makefile
-	$(CC) $(CFLAGS) qvk.c -c -o qvk.o
-	$(AR) r libqvk.a qvk.o
+DEPS_O=qvk.o\
+       qvk_util.o
+DEPS_H=qvk.h\
+       qvk_util.h
+
+$(TARGET):$(DEPS_O) $(DEPS_H) Makefile
+	$(AR) r libqvk.a $(DEPS_O)
 
 clean:
-	rm -f $(TARGET) $(TARGET_GUI)
+	rm -f $(TARGET) $(TARGET_GUI) $(DEPS_O)

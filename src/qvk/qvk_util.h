@@ -40,7 +40,7 @@ void buffer_unmap(BufferResource_t *buf);
 void *buffer_map(BufferResource_t *buf);
 void buffer_unmap(BufferResource_t *buf);
 
-uint32_t get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop);
+uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop);
 
 #define IMAGE_BARRIER(cmd_buf, ...) \
 	do { \

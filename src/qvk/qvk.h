@@ -18,10 +18,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "core/core.h"
+#include "core/log.h"
 
 #include <vulkan/vulkan.h>
 
-#include "vk_util.h"
+#include "qvk_util.h"
 
 // TODO: replace
 // #include "shaders/global_ubo.h"
@@ -33,14 +34,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //#define QVK_LOG_FUNC_(f) fprintf(stderr, "[qvk] %s\n", f)
 #define QVK_LOG_FUNC() QVK_LOG_FUNC_(__func__)
 
-#define QVK_FUNC_UNIMPLEMENTED_(f) fprintf(stderr, "[qvh] calling unimplemented function %s\n", f)
+#define QVK_FUNC_UNIMPLEMENTED_(f) dt_log(s_log_qvk, "calling unimplemented function %s", f)
 #define QVK_FUNC_UNIMPLEMENTED() QVK_FUNC_UNIMPLEMENTED_(__func__)
 
 #define QVK(...) \
 	do { \
 		VkResult _res = __VA_ARGS__; \
 		if(_res != VK_SUCCESS) { \
-			fprintf(stderr, "[qvk] error %d executing %s!\n", _res, # __VA_ARGS__); \
+			dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
 		} \
 	} while(0)
 
