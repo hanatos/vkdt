@@ -211,23 +211,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
        c->type == dt_token("source"))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
-
-      VkMemoryRequirements mem_req;
-      vkGetImageMemoryRequirements(qvk.device, c->image, &mem_req);
-
-      assert(!(mem_req.alignment & (mem_req.alignment - 1)));
-      // XXX TODO: teach our allocator this?
-      // total_size += mem_req.alignment - 1;
-      // total_size &= ~(mem_req.alignment - 1);
-      // total_size += mem_req.size;
-
-      // TODO: keep offset and size for our records here and later once
-      // TODO: or pre-allocate because we know the memory type bits?
-      // vkAllocateMemory if not happened earlier or too small
-      // vkBindImageMemory to offset of all images (XXX this would require iterating over all nodes again)
       vkBindImageMemory(qvk.device, c->image, graph->vkmem, c->offset);
-
-      // TODO: i think we need to do the above ^ first
 
       VkImageViewCreateInfo images_view_create_info = {
         .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -245,10 +229,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
           VK_COMPONENT_SWIZZLE_IDENTITY,
         },
       };
-      // const int numc = dt_connector_channels(c);
-      // if(numc > 1) images_view_create_info.components.g = VK_COMPONENT_SWIZZLE_G;
-      // if(numc > 2) images_view_create_info.components.b = VK_COMPONENT_SWIZZLE_B;
-      // if(numc > 3) images_view_create_info.components.a = VK_COMPONENT_SWIZZLE_A;
 
       QVK(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &c->image_view));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images_views[VKPT_IMG_##_name], IMAGE_VIEW, #_name);
@@ -548,26 +528,32 @@ void dt_graph_setup_pipeline(
   // about buffers, descriptor sets, and pipelines and then atomically build
   // the vulkan stuff in the core?
 
-  // TODO: 1st pass alloc and free, 2nd pass alloc2 and record_command_buffer!
+  // 1st pass alloc and free, 2nd pass alloc2 and record_command_buffer
   graph->memory_type_bits = ~0u;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
   alloc_outputs(graph, arr+curr);\
-  record_command_buffer(graph, arr+curr);\
   free_inputs  (graph, arr+curr);
 #define TRAVERSE_CYCLE\
   dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
   dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 
-  // XXX TODO: this in between pass 1 and pass2:
   VkMemoryAllocateInfo mem_alloc_info = {
     .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
     .allocationSize  = graph->alloc.vmsize,
     .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   };
   QVK(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
-  // XXX
+
+  memset(mark, 0, sizeof(mark));
+#define TRAVERSE_POST\
+  alloc_outputs2(graph, arr+curr);\
+  record_command_buffer(graph, arr+curr);
+#define TRAVERSE_CYCLE\
+  dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+  dt_node_connect(graph, -1,-1, curr, i);
+#include "graph-traverse.inc"
 
 } // end scope, done with nodes
   dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB", graph->alloc.peak_rss/(1024.0*1024.0), graph->alloc.vmsize/(1024.0*1024.0));
