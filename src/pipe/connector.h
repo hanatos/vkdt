@@ -18,6 +18,9 @@ typedef struct dt_roi_t
 }
 dt_roi_t;
 
+// shared property of nodes and modules: how many connectors do we allocate at
+// max for each one of them:
+#define DT_MAX_CONNECTORS 10
 // connectors are used for modules as well as for nodes.
 // modules:
 // TODO: these have to be setup very quickly using tokens from a file

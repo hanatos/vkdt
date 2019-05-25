@@ -27,11 +27,11 @@ typedef struct dt_module_t
 
   // TODO: has a list of publicly visible connectors
   // TODO: actually two list so we can store the context pipeline independently?
-  dt_connector_t connector[10]; // enough for everybody, right?
+  dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
   // store list of nodeids that go with the connectors
-  int connected_nodeid[10];
+  int connected_nodeid[DT_MAX_CONNECTORS];
 
   // TODO: parameters:
   // human facing parameters for gui + serialisation

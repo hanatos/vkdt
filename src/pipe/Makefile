@@ -25,6 +25,7 @@ DEPS_O=alloc.o\
        module.o
 DEPS_H=alloc.h\
        connector.h\
+       connector.inc\
        dlist.h\
        global.h\
        graph.h\
