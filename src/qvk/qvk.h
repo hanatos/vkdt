@@ -45,6 +45,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 		} \
 	} while(0)
 
+#define QVKR(...) \
+	do { \
+		VkResult _res = __VA_ARGS__; \
+		if(_res != VK_SUCCESS) { \
+			dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
+      return _res; \
+		} \
+	} while(0)
+
 /* see main.c to override default file path. By default it will strip away
  * QVK_MOD_, fix the file ending, and convert to lower case */
 #define LIST_SHADER_MODULES \

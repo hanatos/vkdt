@@ -5,6 +5,8 @@
 #include "qvk/qvk.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
 void
 dt_graph_init(dt_graph_t *g)
@@ -189,8 +191,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     { // point our inputs to their counterparts:
       if(c->connected_mid >= 0)
       {
-        dt_connector_t *c2 = graph->node[c->connected_mid]
-          .connector+c->connected_cid;
+        dt_connector_t *c2 =
+          graph->node[c->connected_mid].connector + c->connected_cid;
         c->mem        = c2->mem;
         c->image      = c2->image;
         // c->image_view = c2->image_view;
@@ -228,9 +230,66 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
           VK_COMPONENT_SWIZZLE_IDENTITY,
         },
       };
-
       QVK(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &c->image_view));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images_views[VKPT_IMG_##_name], IMAGE_VIEW, #_name);
+
+  // TODO create descriptor set per node
+#if 0
+  VkDescriptorSetAllocateInfo dset_info = {};
+  dset_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  dset_info.descriptorPool = graph->pool;
+  dset_info.descriptorSetCount = 1;
+  dset_info.pSetLayouts = &node->dset_layout;
+
+  // TODO store on node? or on graph? in one big array?
+  VkDescriptorSet dset;
+  QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &dset));
+#endif
+
+// TODO: this could be done after memory allocation, in alloc2:
+#if 0 // even later: instantiate descriptor sets:
+  VkDescriptorBufferInfo dset_infos[4] = {{0}};
+  dset_infos[0].buffer = ub;
+  dset_infos[0].range = VK_WHOLE_SIZE;
+
+  dset_infos[1].buffer = bin;
+  dset_infos[1].range = VK_WHOLE_SIZE;
+
+  dset_infos[2].buffer = bout;
+  dset_infos[2].range = VK_WHOLE_SIZE;
+
+  dset_infos[3].buffer = bout2;
+  dset_infos[3].range = VK_WHOLE_SIZE;
+
+  VkWriteDescriptorSet writes[8] = {{0}};
+  // ping:
+  writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  writes[0].dstSet = ds;
+  writes[0].dstBinding = 0;
+  writes[0].dstArrayElement = 0;
+  writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  writes[0].descriptorCount = 1;
+  writes[0].pBufferInfo = &dset_infos[0];
+
+  writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  writes[1].dstSet = ds;
+  writes[1].dstBinding = 1;
+  writes[1].dstArrayElement = 0;
+  writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  writes[1].descriptorCount = 1;
+  writes[1].pBufferInfo = &dset_infos[1];
+
+  writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  writes[2].dstSet = ds;
+  writes[2].dstBinding = 2;
+  writes[2].dstArrayElement = 0;
+  writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  writes[2].descriptorCount = 1;
+  writes[2].pBufferInfo = &dset_infos[2];
+  ...
+
+  vkUpdateDescriptorSets(qvk.device, 8, writes, 0, 0);
+#endif
 
       // TODO: also see the label attachment thing if that's possible on intel
       // TODO: create descriptor set with layout binding as connector id (+uniform buf?)
@@ -308,6 +367,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 // has been processed. that is: all inputs and all of our outputs
 // which aren't connected to another node.
 // TODO: consider protected buffers: for instance for loaded raw input, cached before currently active node, ..
+// TODO: probably facilitate via reference counting, the cache would be a user, too.
 static inline void
 free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
@@ -318,6 +378,8 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
         c->type == dt_token("sink")) &&
         c->connected_mid >= 0)
     {
+      // FIXME: we need a reference count on this buffer, there might be others
+      // FIXME: reading from the same resource in case the graph has a fork here
       fprintf(stderr, "freeing %"PRItkn" %"PRItkn" %lX\n",
           dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
       dt_vkfree(&graph->alloc, c->mem);
@@ -413,11 +475,17 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   return 0;
 }
 
-// TODO: put into qvk_utils:
-static inline void *read_file(const char *filename, size_t *len)
+// TODO: put into qvk_utils?
+static inline void *
+read_file(const char *filename, size_t *len)
 {
   FILE *f = fopen(filename, "rb");
-  if(!f) { perror("can't fopen"); return 0;}
+  if(!f)
+  {
+    dt_log(s_log_qvk|s_log_err, "failed to read shader '%s': %s!",
+        filename, strerror(errno));
+    return 0;
+  }
   fseek(f, 0, SEEK_END);
   const size_t filesize = ftell(f);
   fseek(f, 0, SEEK_SET);
@@ -436,30 +504,11 @@ static inline void *read_file(const char *filename, size_t *len)
   fclose(f);
   return file;
 }
-
-static inline VkShaderModule create_shader_module(
-    VkDevice d, const char *filename)
-{
-  size_t len;
-  void *data = read_file(filename, &len);
-
-  VkShaderModuleCreateInfo info = {0};
-  info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  info.codeSize = len;
-  info.pCode = data;
-
-  VkShaderModule shaderModule;
-  if (vkCreateShaderModule(d, &info, 0, &shaderModule) != VK_SUCCESS)
-    fprintf(stderr, "[vkrun] failed to create shader module!\n");
-
-  free(data);
-
-  return shaderModule;
-}
 // end TODO: put into qvk_utils
 
-// default callback for create nodes: pretty much copy the module
-static void
+// default callback for create nodes: pretty much copy the module.
+// also create vulkan pipeline and load spir-v portion of the compute shader.
+static int
 create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   if(module->so->create_nodes) return module->so->create_nodes(graph, module);
@@ -468,11 +517,16 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_node_t *node = graph->node + nodeid;
 
   node->name = module->name;
-  node->kernel = module->name;
+  node->kernel = dt_token("main");
   node->num_connectors = module->num_connectors;
 
+  // we'll bind our buffers in the same order as in the connectors file.
+  // binding 0 will be the global uniform buffer, containing a well specified
+  // region of interest bit, as well as the floating point array of module
+  // params.
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS+1] =
   { { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, 0 }, };
+  graph->dset_cnt_uniform++;
   for(int i=0;i<module->num_connectors;i++)
   {
     module->connected_nodeid[i] = nodeid;
@@ -486,189 +540,95 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         module->connector[i].connected_mid].connected_nodeid[i];
 
     bindings[i].binding = i+1;
-    // read or write?
-    bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      // or ?? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    if(node->connector[i].type == dt_token("read") ||
+       node->connector[i].type == dt_token("sink"))
+    {
+      graph->dset_cnt_image_read ++;
+      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }
+    else
+    {
+      graph->dset_cnt_image_write ++;
+      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
+    // this would be storage buffers:
+    // graph->dset_cnt_buffer ++;
     bindings[i].descriptorCount = 1;
-    bindings[i].stageFlags = VK_SHADER_STAGE_ALL; // or just compute?
-    // VK_SHADER_STAGE_COMPUTE_BIT
-    // we ignore: const VkSampler*      pImmutableSamplers = 0
+    bindings[i].stageFlags = VK_SHADER_STAGE_ALL; // or just compute? // VK_SHADER_STAGE_COMPUTE_BIT
+    bindings[i].pImmutableSamplers = 0;
   }
 
   // load spv kernel and pipeline
-
-    // VkDevice d,
-    // const char *filename,
-#if 0
+#if 0 // load platform dependent constants and layout, in case we need it:
   uint8_t shader_const_data[1024];
   size_t shader_const_data_size = 0;
   VkSpecializationMapEntry shader_const_map[1024]; // {id, start, size}
   uint32_t shader_const_map_cnt = 0;
-  VkSpecializationInfo info = {0};
-  info.mapEntryCount = shader_const_map_cnt;
-  info.pMapEntries = shader_const_map;
-  info.dataSize = shader_const_data_size;
-  info.pData = shader_const_data;
-
-  pipe_t p;
+  VkSpecializationInfo info = {
+    .mapEntryCount = shader_const_map_cnt,
+    .pMapEntries = shader_const_map,
+    .dataSize = shader_const_data_size,
+    .pData = shader_const_data
+  };
+#endif
 
   // create a descriptor set layout
-  VkDescriptorSetLayoutCreateInfo ds_layout_info = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = bindings_cnt,
-    .pBindings = bindings
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = module->num_connectors + 1,
+    .pBindings    = bindings,
   };
-
-  if (vkCreateDescriptorSetLayout(d, &ds_layout_info, 0, &p.ds_layout) != VK_SUCCESS)
-  {
-    fprintf(stderr, "[vkrun] could not create descriptor set layout!\n");
-    return p;
-  }
+  QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
 
   // create the pipeline layout
   VkPipelineLayoutCreateInfo layout_info = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount = 1,
-    .pSetLayouts = &p.ds_layout,
+    .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount         = 1,
+    .pSetLayouts            = &node->dset_layout,
     .pushConstantRangeCount = 0,
-    .pPushConstantRanges = 0,
+    .pPushConstantRanges    = 0,
+  };
+  QVK(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
+
+  // create the compute shader stage
+  char filename[1024] = {0};
+  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
+      dt_token_str(node->name), dt_token_str(node->kernel));
+
+  size_t len;
+  void *data = read_file(filename, &len);
+  if(!data) return 1;
+
+  VkShaderModule shader_module;
+  VkShaderModuleCreateInfo sm_info = {
+    .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+    .codeSize = len,
+    .pCode    = data
+  };
+  QVK(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
+  free(data);
+
+  VkPipelineShaderStageCreateInfo stage_info = {
+    .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
+    .pSpecializationInfo = 0,//&info;
+    .pName               = "main", // XXX really?
+    .module              = shader_module,
   };
 
-  if (vkCreatePipelineLayout(d, &layout_info, 0, &p.layout) != VK_SUCCESS)
-  {
-    fprintf(stderr, "[vkrun] could not create pipeline layout!\n");
-    return p;
-  }
-
-  // create the shader stages (only compute)
-  VkPipelineShaderStageCreateInfo stage_info = {};
-  stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-  stage_info.pSpecializationInfo = &info;
-  stage_info.pName = "main";
-  stage_info.module = create_shader_module(d, filename);
-
-
   // finally create the pipeline
-  VkComputePipelineCreateInfo pipeline_info = {};
-  pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  pipeline_info.stage = stage_info;
-  pipeline_info.layout = p.layout;
-
-  if (vkCreateComputePipelines(d, VK_NULL_HANDLE, 1, &pipeline_info, 0, &p.pipeline) != VK_SUCCESS)
-  {
-    fprintf(stderr, "[vkrun] could not create pipeline!\n");
-    return p;
-  }
+  VkComputePipelineCreateInfo pipeline_info = {
+    .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+    .stage  = stage_info,
+    .layout = node->pipeline_layout
+  };
+  QVK(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
 
   // we don't need the module any more
-  vkDestroyShaderModule(d, stage_info.module, 0);
-#endif
+  vkDestroyShaderModule(qvk.device, stage_info.module, 0);
 
-  // TODO; count needed descriptor pool size per node
-  // ds_count = total number of descriptor sets
-
-  // TODO: later after this pass for global (when vkAllocMem)
-  // create descriptor pool:
-#if 0
-  assert(bindings_cnt <= 20);
-  VkDescriptorPoolSize pool_sizes[20] = {{0}};
-  int pool_sizes_cnt = 0;
-  for(int k=0;k<bindings_cnt;k++)
-  {
-    int i=0;
-    for(;i<pool_sizes_cnt;i++)
-    {
-      if(bindings[k].descriptorType == pool_sizes[i].type)
-      {
-        pool_sizes[i].descriptorCount+=ds_count;
-        break;
-      }
-    }
-    if(i==pool_sizes_cnt)
-    {
-      pool_sizes_cnt++;
-      pool_sizes[i] = (VkDescriptorPoolSize){.type=bindings[k].descriptorType, .descriptorCount=ds_count};
-    }
-  }
-
-  VkDescriptorPoolCreateInfo pool_info = {0};
-  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  pool_info.poolSizeCount = pool_sizes_cnt;
-  pool_info.pPoolSizes = pool_sizes;
-  pool_info.maxSets = ds_count;
-
-  if (vkCreateDescriptorPool(d, &pool_info, 0, &p.pool) != VK_SUCCESS)
-  {
-    fprintf(stderr, "[vkrun] could not create descriptor pool!\n");
-    return p;
-  }
-#endif
-
-  // later: create descriptor set per node
-#if 0
-static inline VkDescriptorSet create_descriptorset(VkDevice d, pipe_t p)
-{
-  VkDescriptorSetAllocateInfo dset_info = {};
-  dset_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  dset_info.descriptorPool = p.pool;
-  dset_info.descriptorSetCount = 1;
-  dset_info.pSetLayouts = &p.ds_layout;
-
-  VkDescriptorSet dset;
-  if (vkAllocateDescriptorSets(d, &dset_info, &dset) != VK_SUCCESS)
-  {
-    fprintf(stderr, "[vkrun] could not create descriptor set");
-    return 0;
-  }
-  return dset;
-}
-#endif
-
-// TODO: this could be done after memory allocation, in alloc2:
-#if 0 // even later: instantiate descriptor sets:
-  VkDescriptorBufferInfo dset_infos[4] = {{0}};
-  dset_infos[0].buffer = ub;
-  dset_infos[0].range = VK_WHOLE_SIZE;
-
-  dset_infos[1].buffer = bin;
-  dset_infos[1].range = VK_WHOLE_SIZE;
-
-  dset_infos[2].buffer = bout;
-  dset_infos[2].range = VK_WHOLE_SIZE;
-
-  dset_infos[3].buffer = bout2;
-  dset_infos[3].range = VK_WHOLE_SIZE;
-
-  VkWriteDescriptorSet writes[8] = {{0}};
-  // ping:
-  writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writes[0].dstSet = ds;
-  writes[0].dstBinding = 0;
-  writes[0].dstArrayElement = 0;
-  writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  writes[0].descriptorCount = 1;
-  writes[0].pBufferInfo = &dset_infos[0];
-
-  writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writes[1].dstSet = ds;
-  writes[1].dstBinding = 1;
-  writes[1].dstArrayElement = 0;
-  writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  writes[1].descriptorCount = 1;
-  writes[1].pBufferInfo = &dset_infos[1];
-
-  writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writes[2].dstSet = ds;
-  writes[2].dstBinding = 2;
-  writes[2].dstArrayElement = 0;
-  writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  writes[2].descriptorCount = 1;
-  writes[2].pBufferInfo = &dset_infos[2];
-  ...
-
-  vkUpdateDescriptorSets(device, 8, writes, 0, 0);
-#endif
+  // TODO: set some init_good flag on the node
+  return 0;
 }
 
 
@@ -709,6 +669,11 @@ void dt_graph_setup_pipeline(
   // 2nd pass: request input rois
   // and create nodes for all modules
   graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
+  graph->dset_cnt_image_read = 0;
+  graph->dset_cnt_image_write = 0;
+  graph->dset_cnt_buffer = 0;
+  graph->dset_cnt_uniform = 0;
+  // TODO: nuke descriptor set pool?
   start_node_id = sink_node_id;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_PRE\
@@ -754,10 +719,6 @@ void dt_graph_setup_pipeline(
   // }
   // TODO: do that one after the other for all chopped roi
 #endif
-  // finally: create vulkan command buffer
-  // TODO: check quake code how to create pipelines. do we first collect info
-  // about buffers, descriptor sets, and pipelines and then atomically build
-  // the vulkan stuff in the core?
 
   // 1st pass alloc and free, 2nd pass alloc2 and record_command_buffer
   graph->memory_type_bits = ~0u;
@@ -778,28 +739,50 @@ void dt_graph_setup_pipeline(
   };
   QVK(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
 
+  // TODO: redo if updates:
+  // create descriptor pool:
+  VkDescriptorPoolSize pool_sizes[] = {{
+      .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = graph->dset_cnt_image_read,
+    }, {
+      .type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+      .descriptorCount = graph->dset_cnt_image_write,
+    }, {
+      .type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = graph->dset_cnt_buffer,
+    }, {
+      .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = graph->dset_cnt_uniform,
+    }};
 
-  // TODO
-#if 0 // create command buffer (TODO: if not happened yet)
-  // VkCommandBuffer cb = create_commandbuffer(device, pool);
-  // VkCommandBufferAllocateInfo info = {};
-  // info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  // info.commandPool = p;
-  // info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  // info.commandBufferCount = 1;
-  // VkCommandBuffer cb;
-  // if (vkAllocateCommandBuffers(d, &info, &cb) != VK_SUCCESS)
-  //   fprintf(stderr, "[vkrun] could not allocate command buffer!\n");
-  // return cb;
+  VkDescriptorPoolCreateInfo pool_info = {
+    .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .poolSizeCount = sizeof(pool_sizes)/sizeof(pool_sizes[0]),
+    .pPoolSizes    = pool_sizes,
+    .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
+                   + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
+  };
+  QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
 
-  VkCommandBufferBeginInfo begin_info = {0};
-  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(cb, &begin_info);
+  // XXX maybe we should have all these on the qvk struct?
+  // XXX it seems we either have our own pool of we use the global
+  // XXX command buffer
+#if 0
+  // create command buffer (TODO: if not happened yet)
+  VkCommandBufferAllocateInfo cbuf_info = {
+    .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .commandPool        = qvk.command_pool,
+    .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandBufferCount = 1,
+  };
+  QVK(vkAllocateCommandBuffers(qvk.device, &cbuf_info, &graph->command_buffer));
+
+  VkCommandBufferBeginInfo begin_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+  };
+  QVK(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
 #endif
-
-  // TODO: also create descriptor pool of appropriate size so alloc2 can create
-  // the descriptor sets
 
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
@@ -812,6 +795,31 @@ void dt_graph_setup_pipeline(
 
 } // end scope, done with nodes
   dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB", graph->alloc.peak_rss/(1024.0*1024.0), graph->alloc.vmsize/(1024.0*1024.0));
+
+#if 0
+  QVK(vkEndCommandBuffer(graph->command_buffer));
+
+  VkSubmitInfo submit = {
+    .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .commandBufferCount = 1,
+    .pCommandBuffers    = &graph->command_buffer,
+  };
+
+  // TODO: create all fences/barries once
+  VkFence fence;
+  VkFenceCreateInfo fence_info = {
+    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+  };
+  QVK(vkCreateFence(qvk.device, &fence_info, 0, &fence));
+
+  QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, fence));
+
+  // TODO: timeout?
+  QVK(vkWaitForFences(qvk.device, 1, &fence, VK_TRUE, 1ul<<40));
+  vkDestroyFence(qvk.device, fence, 0);
+#endif
+
+  //TODO: now can copy back result, call function in sink nodes
 #endif
 }
 

@@ -26,7 +26,14 @@ typedef struct dt_graph_t
   dt_vkalloc_t alloc;
 
   uint32_t memory_type_bits;
-  VkDeviceMemory vkmem;
+  VkDeviceMemory   vkmem;
+  VkDescriptorPool dset_pool;
+  VkCommandBuffer  command_buffer;
+
+  uint32_t dset_cnt_image_read;
+  uint32_t dset_cnt_image_write;
+  uint32_t dset_cnt_buffer;
+  uint32_t dset_cnt_uniform;
 }
 dt_graph_t;
 
