@@ -700,6 +700,40 @@ qvk_init()
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
+  // create texture samplers
+  VkSamplerCreateInfo sampler_info = {
+    .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter               = VK_FILTER_LINEAR,
+    .minFilter               = VK_FILTER_LINEAR,
+    .addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .anisotropyEnable        = VK_FALSE,
+    .maxAnisotropy           = 16,
+    .borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+    .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .minLod                  = 0.0f,
+    .maxLod                  = 128.0f,
+  };
+  QVK(vkCreateSampler(qvk.device, &sampler_info, NULL, &qvk.tex_sampler));
+  ATTACH_LABEL_VARIABLE(qvk.tex_sampler, SAMPLER);
+  VkSamplerCreateInfo sampler_nearest_info = {
+    .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter               = VK_FILTER_NEAREST,
+    .minFilter               = VK_FILTER_NEAREST,
+    .addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .anisotropyEnable        = VK_FALSE,
+    .maxAnisotropy           = 16,
+    .borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+    .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+  };
+  QVK(vkCreateSampler(qvk.device, &sampler_nearest_info, NULL, &qvk.tex_sampler_nearest));
+  ATTACH_LABEL_VARIABLE(qvk.tex_sampler_nearest, SAMPLER);
+
   return 0;
 }
 
@@ -820,6 +854,8 @@ int
 qvk_cleanup()
 {
   vkDeviceWaitIdle(qvk.device);
+  vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
+  vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
 
   destroy_swapchain();
   vkDestroySurfaceKHR  (qvk.instance, qvk.surface,    NULL);

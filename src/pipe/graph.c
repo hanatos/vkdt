@@ -231,6 +231,29 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 static inline void
 alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
+  // create descriptor set per node
+  VkDescriptorSetAllocateInfo dset_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = graph->dset_pool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &node->dset_layout,
+  };
+  QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
+
+  VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
+  VkWriteDescriptorSet img_dset[DT_MAX_CONNECTORS+1] = {{0}};
+  // TODO XXX need one VkBuffer for uniform data of this node
+  VkDescriptorBufferInfo uniform_info = {
+    // XXX .buffer      = node->uniform_buffer,
+    .range       = VK_WHOLE_SIZE,
+  };
+  img_dset[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  img_dset[0].dstSet          = node->dset;
+  img_dset[0].dstBinding      = 0;
+  img_dset[0].dstArrayElement = 0;
+  img_dset[0].descriptorCount = 1;
+  img_dset[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  img_dset[0].pBufferInfo     = &uniform_info;
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -259,121 +282,16 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       QVK(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &c->image_view));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images_views[VKPT_IMG_##_name], IMAGE_VIEW, #_name);
 
-  // TODO create descriptor set per node
-#if 0
-  VkDescriptorSetAllocateInfo dset_info = {};
-  dset_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  dset_info.descriptorPool = graph->pool;
-  dset_info.descriptorSetCount = 1;
-  dset_info.pSetLayouts = &node->dset_layout;
-
-  // TODO store on node? or on graph? in one big array?
-  VkDescriptorSet dset;
-  QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &dset));
-#endif
-
-// TODO: this could be done after memory allocation, in alloc2:
-#if 0 // even later: instantiate descriptor sets:
-  VkDescriptorBufferInfo dset_infos[4] = {{0}};
-  dset_infos[0].buffer = ub;
-  dset_infos[0].range = VK_WHOLE_SIZE;
-
-  dset_infos[1].buffer = bin;
-  dset_infos[1].range = VK_WHOLE_SIZE;
-
-  dset_infos[2].buffer = bout;
-  dset_infos[2].range = VK_WHOLE_SIZE;
-
-  dset_infos[3].buffer = bout2;
-  dset_infos[3].range = VK_WHOLE_SIZE;
-
-  VkWriteDescriptorSet writes[8] = {{0}};
-  // ping:
-  writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writes[0].dstSet = ds;
-  writes[0].dstBinding = 0;
-  writes[0].dstArrayElement = 0;
-  writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  writes[0].descriptorCount = 1;
-  writes[0].pBufferInfo = &dset_infos[0];
-
-  writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writes[1].dstSet = ds;
-  writes[1].dstBinding = 1;
-  writes[1].dstArrayElement = 0;
-  writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  writes[1].descriptorCount = 1;
-  writes[1].pBufferInfo = &dset_infos[1];
-
-  writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writes[2].dstSet = ds;
-  writes[2].dstBinding = 2;
-  writes[2].dstArrayElement = 0;
-  writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  writes[2].descriptorCount = 1;
-  writes[2].pBufferInfo = &dset_infos[2];
-  ...
-
-  vkUpdateDescriptorSets(qvk.device, 8, writes, 0, 0);
-#endif
-
-      // TODO: also see the label attachment thing if that's possible on intel
-      // TODO: create descriptor set with layout binding as connector id (+uniform buf?)
-      // vkUpdateDescriptorSets
-#if 0
-      #define IMG_DO(_name, ...) \
-    [VKPT_IMG_##_name] = { \
-        .sampler     = VK_NULL_HANDLE, \
-        .imageView   = qvk.images_views[VKPT_IMG_##_name], \
-        .imageLayout = VK_IMAGE_LAYOUT_GENERAL \
-    },
-    VkDescriptorImageInfo desc_output_img_info[] = {
-        LIST_IMAGES
-    };
-#undef IMG_DO
-
-    VkDescriptorImageInfo img_info[] = {
-#define IMG_DO(_name, ...) \
-        [VKPT_IMG_##_name] = { \
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, \
-            .imageView   = qvk.images_views[VKPT_IMG_##_name], \
-            .sampler     = tex_sampler, \
-        },
-
-        LIST_IMAGES
-    };
-#undef IMG_DO
-
-    /* create information to update descriptor sets */
-    VkWriteDescriptorSet output_img_write[] = {
-#define IMG_DO(_name, _binding, ...) \
-        [VKPT_IMG_##_name] = { \
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, \
-            .dstSet          = qvk.desc_set_textures, \
-            .dstBinding      = BINDING_OFFSET_IMAGES + _binding, \
-            .dstArrayElement = 0, \
-            .descriptorCount = 1, \
-            .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, \
-            .pImageInfo      = desc_output_img_info + VKPT_IMG_##_name, \
-        },
-  LIST_IMAGES
-#undef IMG_DO
-#define IMG_DO(_name, _binding, ...) \
-        [VKPT_IMG_##_name + NUM_VKPT_IMAGES] = { \
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, \
-            .dstSet          = qvk.desc_set_textures, \
-            .dstBinding      = BINDING_OFFSET_TEXTURES + _binding, \
-            .dstArrayElement = 0, \
-            .descriptorCount = 1, \
-            .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, \
-            .pImageInfo      = img_info + VKPT_IMG_##_name, \
-        },
-    LIST_IMAGES
-#undef IMG_DO
-    };
-
-    vkUpdateDescriptorSets(qvk.device, LENGTH(output_img_write), output_img_write, 0, NULL);
-#endif
+      img_info[i].sampler     = VK_NULL_HANDLE;
+      img_info[i].imageView   = c->image_view;
+      img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+      img_dset[i+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      img_dset[i+1].dstSet          = node->dset;
+      img_dset[i+1].dstBinding      = 1 + i; // offset by one for uniform
+      img_dset[i+1].dstArrayElement = 0;
+      img_dset[i+1].descriptorCount = 1;
+      img_dset[i+1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+      img_dset[i+1].pImageInfo      = img_info + i;
     }
     else if(c->type == dt_token("read") ||
             c->type == dt_token("sink"))
@@ -384,9 +302,21 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
           .connector+c->connected_cid;
         c->image      = c2->image;      // can't hurt to copy again
         c->image_view = c2->image_view;
+        img_info[i].sampler     = qvk.tex_sampler_nearest;
+        img_info[i].imageView   = c->image_view;
+        img_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        img_dset[i+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        img_dset[i+1].dstSet          = node->dset;
+        img_dset[i+1].dstBinding      = 1 + i; // offest by one for uniform
+        img_dset[i+1].dstArrayElement = 0;
+        img_dset[i+1].descriptorCount = 1;
+        img_dset[i+1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        img_dset[i+1].pImageInfo      = img_info + i;
       }
     }
   }
+  // XXX vkUpdateDescriptorSets(qvk.device, node->num_connectors+1, img_dset, 0, NULL);
+  vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset+1, 0, NULL);
 }
 
 // free all buffers which we are done with now that the node

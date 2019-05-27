@@ -130,6 +130,8 @@ typedef struct qvk_t
 	VkImage                     swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
 	VkImageView                 swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
 
+	VkSampler                   tex_sampler;
+	VkSampler                   tex_sampler_nearest;
 	uint32_t                    num_command_buffers;
 	VkCommandBuffer             *command_buffers;
 	VkCommandBuffer             cmd_buf_current;
