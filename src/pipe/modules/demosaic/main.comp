@@ -48,13 +48,14 @@ layout( // output f32 buffer rgb
 void
 main()
 {
+  // TODO: use roi info once we have uniform bufers!
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi)))
-    return;
+  // if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   // TODO: do something clever with filters etc
-  uvec4 rgba;
-  rgba.rgb = texelFetch(img_in, params.ro.off + 2*ipos, 0).rgb;
-  imageStore(img_out, ipos, rgba);
+  // uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
+  uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
+  vec4 outc = rgba * vec4(1.0/65535.0);
+  imageStore(img_out, ipos, outc);
 }
 
