@@ -242,14 +242,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 static inline void
 alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
-  // create descriptor set per node
-  VkDescriptorSetAllocateInfo dset_info = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorPool = graph->dset_pool,
-    .descriptorSetCount = 1,
-    .pSetLayouts = &node->dset_layout,
-  };
-  QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
+  if(node->dset_layout)
+  { // this is not set for sink nodes
+    // create descriptor set per node
+    VkDescriptorSetAllocateInfo dset_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = graph->dset_pool,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &node->dset_layout,
+    };
+    QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
+  }
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
   VkWriteDescriptorSet img_dset[DT_MAX_CONNECTORS+1] = {{0}};
@@ -325,8 +328,9 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     }
   }
   // XXX also pass uniform buffer:
+  if(node->dset_layout)
   // XXX vkUpdateDescriptorSets(qvk.device, node->num_connectors+1, img_dset, 0, NULL);
-  vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset+1, 0, NULL);
+    vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset+1, 0, NULL);
 }
 
 // free all buffers which we are done with now that the node
@@ -519,16 +523,23 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   node->kernel = dt_token("main");
   node->num_connectors = module->num_connectors;
 
+  // make sure we don't follow garbage pointers. pure sink or source nodes
+  // don't run a pipeline. and hence have no descriptor sets to construct. they
+  // do, however, have input or output images allocated for them.
+  node->pipeline = 0;
+  node->dset_layout = 0;
+  node->wd = node->ht = node->dp = 0;
   // determine kernel dimensions:
   int output = dt_module_get_connector(module, dt_token("output"));
-  // TODO: if output == -1 means we must be a sink, anyways there won't be any
-  // TODO: more glsl to be run here!
-  if(output < 0); // XXX
-  dt_roi_t *roi = &module->connector[output].roi;
-  node->wd = roi->roi_wd;
-  node->ht = roi->roi_ht;
-  node->dp = 1;
-  node->pipeline = 0; // just to be sure we don't follow garbage pointers
+  // output == -1 means we must be a sink, anyways there won't be any more glsl
+  // to be run here!
+  if(output >= 0)
+  {
+    dt_roi_t *roi = &module->connector[output].roi;
+    node->wd = roi->roi_wd;
+    node->ht = roi->roi_ht;
+    node->dp = 1;
+  }
 
   // we'll bind our buffers in the same order as in the connectors file.
   // binding 0 will be the global uniform buffer, containing a well specified
@@ -566,19 +577,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     bindings[i].pImmutableSamplers = 0;
   }
 
-  // load spv kernel and pipeline
-#if 0 // load platform dependent constants and layout, in case we need it:
-  uint8_t shader_const_data[1024];
-  size_t shader_const_data_size = 0;
-  VkSpecializationMapEntry shader_const_map[1024]; // {id, start, size}
-  uint32_t shader_const_map_cnt = 0;
-  VkSpecializationInfo info = {
-    .mapEntryCount = shader_const_map_cnt,
-    .pMapEntries = shader_const_map,
-    .dataSize = shader_const_data_size,
-    .pData = shader_const_data
-  };
-#endif
+  // a sink does not need this dance here:
+  if(output < 0) return 0;
 
   // create a descriptor set layout
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
@@ -636,7 +636,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // we don't need the module any more
   vkDestroyShaderModule(qvk.device, stage_info.module, 0);
 
-  // TODO: set some init_good flag on the node
   return 0;
 }
 
