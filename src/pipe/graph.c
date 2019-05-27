@@ -20,6 +20,27 @@ dt_graph_init(dt_graph_t *g)
   g->max_nodes = 300;
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
   dt_vkalloc_init(&g->alloc);
+
+  VkCommandPoolCreateInfo cmd_pool_create_info = {
+    .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .queueFamilyIndex = qvk.queue_idx_graphics,
+    .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+  };
+  QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &g->command_pool));
+
+  VkCommandBufferAllocateInfo cmd_buf_alloc_info = {
+    .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .commandPool        = g->command_pool,
+    .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandBufferCount = 1,
+  };
+  QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, &g->command_buffer));
+  VkFenceCreateInfo fence_info = {
+    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    /* fence's initial state set to be signaled to make program not hang */
+    .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+  };
+  QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
 }
 
 void
@@ -29,6 +50,8 @@ dt_graph_cleanup(dt_graph_t *g)
     if(g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
   dt_vkalloc_cleanup(&g->alloc);
+  // TODO: destroy command buffers and pool
+  vkDestroyFence(qvk.device, g->command_fence, 0);
 }
 
 // helper to read parameters from config file
@@ -767,25 +790,11 @@ void dt_graph_setup_pipeline(
   };
   QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
 
-  // XXX maybe we should have all these on the qvk struct?
-  // XXX it seems we either have our own pool of we use the global
-  // XXX command buffer
-#if 0
-  // create command buffer (TODO: if not happened yet)
-  VkCommandBufferAllocateInfo cbuf_info = {
-    .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-    .commandPool        = qvk.command_pool,
-    .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    .commandBufferCount = 1,
-  };
-  QVK(vkAllocateCommandBuffers(qvk.device, &cbuf_info, &graph->command_buffer));
-
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
   QVK(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
-#endif
 
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
@@ -799,7 +808,6 @@ void dt_graph_setup_pipeline(
 } // end scope, done with nodes
   dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB", graph->alloc.peak_rss/(1024.0*1024.0), graph->alloc.vmsize/(1024.0*1024.0));
 
-#if 0
   QVK(vkEndCommandBuffer(graph->command_buffer));
 
   VkSubmitInfo submit = {
@@ -808,19 +816,10 @@ void dt_graph_setup_pipeline(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
-  // TODO: create all fences/barries once
-  VkFence fence;
-  VkFenceCreateInfo fence_info = {
-    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
-  };
-  QVK(vkCreateFence(qvk.device, &fence_info, 0, &fence));
-
-  QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, fence));
+  QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
 
   // TODO: timeout?
-  QVK(vkWaitForFences(qvk.device, 1, &fence, VK_TRUE, 1ul<<40));
-  vkDestroyFence(qvk.device, fence, 0);
-#endif
+  QVK(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
 
   //TODO: now can copy back result, call function in sink nodes
 #endif

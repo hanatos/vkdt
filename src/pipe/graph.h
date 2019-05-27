@@ -7,6 +7,10 @@
 // these have connectors with detailed buffer information which
 // also hold the id to the other connected module or node. thus,
 // there is no need for an explicit list of connections.
+//
+// one graph is run by one thread, so it encapsulates all necessary
+// multithreading things for the vulkan backend (has it's own command pool for
+// instance)
 typedef struct dt_graph_t
 {
   dt_module_t *module;
@@ -28,7 +32,9 @@ typedef struct dt_graph_t
   uint32_t memory_type_bits;
   VkDeviceMemory   vkmem;
   VkDescriptorPool dset_pool;
-  VkCommandBuffer  command_buffer;
+  VkCommandBuffer  command_buffer; // we might have may buffers to interleave them (thumbnails?)
+  VkCommandPool    command_pool;   // but we definitely need one pool for ourselves (our thread)
+  VkFence          command_fence;  // one per command buffer
 
   uint32_t dset_cnt_image_read;
   uint32_t dset_cnt_image_write;
