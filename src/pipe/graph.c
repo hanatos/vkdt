@@ -673,7 +673,9 @@ void dt_graph_setup_pipeline(
   assert(graph->num_modules < sizeof(mark));
 { // module scope
   dt_module_t *const arr = graph->module;
+  // ==============================================
   // first pass: find output rois
+  // ==============================================
   // just find first sink node:
   int sink_node_id = 0;
   for(int i=0;i<graph->num_modules;i++)
@@ -692,8 +694,10 @@ void dt_graph_setup_pipeline(
   // transparently in the sink module's modify_roi_in first thing in the
   // second pass.
 
+  // ==============================================
   // 2nd pass: request input rois
   // and create nodes for all modules
+  // ==============================================
   graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
   graph->dset_cnt_image_read = 0;
   graph->dset_cnt_image_write = 0;
@@ -719,13 +723,15 @@ void dt_graph_setup_pipeline(
   // XXX
 } // end scope, done with modules
 
-  assert(graph->num_nodes < sizeof(mark));
 
+  assert(graph->num_nodes < sizeof(mark));
 
   // free pipeline resources if previously allocated anything:
   dt_vkalloc_nuke(&graph->alloc);
   // TODO: also goes with potential leftovers from vulkan!
-#if 1
+  // TODO: clean memory allocation and descriptor pool
+
+
 { // node scope
   dt_node_t *const arr = graph->node;
   int sink_node_id = 0;
@@ -733,6 +739,10 @@ void dt_graph_setup_pipeline(
     if(graph->node[i].connector[0].type == dt_token("sink"))
     { sink_node_id = i; break; }
   int start_node_id = sink_node_id;
+
+  // ==============================================
+  // TODO: tiling:
+  // ==============================================
 #if 0
   // TODO: while(not happy) {
   // TODO: 3rd pass: compute memory requirements
@@ -746,7 +756,9 @@ void dt_graph_setup_pipeline(
   // TODO: do that one after the other for all chopped roi
 #endif
 
-  // 1st pass alloc and free, 2nd pass alloc2 and record_command_buffer
+  // ==============================================
+  // 1st pass alloc and free, detect cycles
+  // ==============================================
   graph->memory_type_bits = ~0u;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
@@ -796,17 +808,19 @@ void dt_graph_setup_pipeline(
   };
   QVK(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
 
+  // ==============================================
+  // 2nd pass finish alloc and record commmand buf
+  // ==============================================
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
   alloc_outputs2(graph, arr+curr);\
   record_command_buffer(graph, arr+curr);
-#define TRAVERSE_CYCLE\
-  dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
-  dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 
 } // end scope, done with nodes
-  dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB", graph->alloc.peak_rss/(1024.0*1024.0), graph->alloc.vmsize/(1024.0*1024.0));
+  dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB",
+      graph->alloc.peak_rss/(1024.0*1024.0),
+      graph->alloc.vmsize  /(1024.0*1024.0));
 
   QVK(vkEndCommandBuffer(graph->command_buffer));
 
@@ -817,109 +831,7 @@ void dt_graph_setup_pipeline(
   };
 
   QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
-
-  // TODO: timeout?
   QVK(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
 
   //TODO: now can copy back result, call function in sink nodes
-#endif
 }
-
-#if 0
-// TODO: setup vulkan pipeline by
-// TODO: querying interface functions in module.
-// TODO: if possible, push params as push constants, if not allocate uniform
-// TODO: buffers to copy over
-
-// TODO: need to walk a few different graphs:
-//       on modules and on nodes. maybe it's a good idea to nest a node inside
-//       a module so we can call the same functions?
-// i think we'll go for a "template" kind of approach that just walks
-// the graph on anything that has "connector" members and can execute macros
-// before and after descending the tree.
-
-
-// 
-static inline void
-traverse_node(
-    dt_node_t *node,
-    int dry_run,
-    dt_vkmem_t **out_mem) // output: allocated outputs, TODO in some fixed order
-{
-
-}
-
-static inline void
-traverse_graph
-{
-// TODO: include memory allocator:
-// traverse graph (DAG) depth first:
-
-  // for all sink nodes:
-  // allocate all our write buffers
-  // traverse() to init our input buffers
-  // free all our write buffers
-
-  // TODO: the above may need a special optimisation step
-  // TODO: for short suffixes (i.e. histogram/colour picker nodes)
-  // TODO: to avoid keeping mem buffers for a long time
-
-  // traverse:
-  // if source, special callback and return output buffer
-  //
-  // traverse all connected input nodes
-  // have all input nodes free all their unconnected write buffers
-  // allocate memory for all write buffers (output + scratch)
-  // pretend to process/push to command queue
-  // have all input nodes free all their remaining write buffers (our input)
-  // return our output buffers (TODO: transfer ownership?)
-
-}
-
-
-// TODO: wrap some functions like this in a vulkan support header:
-VkCommandBuffer create_commandbuffer(VkDevice d, VkCommandPool p);
-
-
-dt_graph_create_command_buffer()
-{
-  VkCommandBuffer cb = create_commandbuffer(device, pool);
-
-  VkCommandBufferBeginInfo begin_info = {0};
-  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-  vkBeginCommandBuffer(cb, &begin_info);
-
-  // for every module:
-  // for every node:
-  // TODO: for every multiplicy of the same node that iterates (for instance for wavelet scales):
-  vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipe);
-  // bind descriptor set
-  // copy uniform data
-  // handle push constants
-  vkCmdDispatch(cb, wd, ht, 1);
-  // push memory barriers if applicable
-  //
-
-  vkEndCommandBuffer(cb);
-  VkSubmitInfo submit = {};
-  submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit.commandBufferCount = 1;
-  submit.pCommandBuffers = &cb;
-  // don't need waiting/signaling semaphores
-
-  VkFence fence;
-  VkFenceCreateInfo fence_info = {};
-  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  vkCreateFence(device, &fence_info, 0, &fence);
-
-  vkQueueSubmit(dqueues.compute.que, 1, &submit, fence);
-
-  vkWaitForFences(device, 1, &fence, VK_TRUE, 1ul<<40);
-  vkDestroyFence(device, fence, 0);
-
-  // TODO: reuse these for multiple images?
-  vkFreeCommandBuffers(device, pool, 1, &cb);
-}
-#endif
