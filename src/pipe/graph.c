@@ -268,6 +268,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   img_dset[0].descriptorCount = 1;
   img_dset[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   img_dset[0].pBufferInfo     = &uniform_info;
+  uint32_t ii = 0;
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -298,13 +299,14 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       img_info[i].sampler     = VK_NULL_HANDLE;
       img_info[i].imageView   = c->image_view;
       img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-      img_dset[i+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      img_dset[i+1].dstSet          = node->dset;
-      img_dset[i+1].dstBinding      = 1 + i; // offset by one for uniform
-      img_dset[i+1].dstArrayElement = 0;
-      img_dset[i+1].descriptorCount = 1;
-      img_dset[i+1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-      img_dset[i+1].pImageInfo      = img_info + i;
+      img_dset[ii+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      img_dset[ii+1].dstSet          = node->dset;
+      img_dset[ii+1].dstBinding      = 1 + i; // offset by one for uniform
+      img_dset[ii+1].dstArrayElement = 0;
+      img_dset[ii+1].descriptorCount = 1;
+      img_dset[ii+1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+      img_dset[ii+1].pImageInfo      = img_info + i;
+      ii++;
     }
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
@@ -317,20 +319,21 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         img_info[i].sampler     = qvk.tex_sampler_nearest;
         img_info[i].imageView   = c->image_view;
         img_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        img_dset[i+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        img_dset[i+1].dstSet          = node->dset;
-        img_dset[i+1].dstBinding      = 1 + i; // offest by one for uniform
-        img_dset[i+1].dstArrayElement = 0;
-        img_dset[i+1].descriptorCount = 1;
-        img_dset[i+1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        img_dset[i+1].pImageInfo      = img_info + i;
-      }
+        img_dset[ii+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        img_dset[ii+1].dstSet          = node->dset;
+        img_dset[ii+1].dstBinding      = 1 + i; // offest by one for uniform
+        img_dset[ii+1].dstArrayElement = 0;
+        img_dset[ii+1].descriptorCount = 1;
+        img_dset[ii+1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        img_dset[ii+1].pImageInfo      = img_info + i;
+        ii++;
+      } // else sorry not connected, buffer will not be bound
     }
   }
   // XXX also pass uniform buffer:
   if(node->dset_layout)
-  // XXX vkUpdateDescriptorSets(qvk.device, node->num_connectors+1, img_dset, 0, NULL);
-    vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset+1, 0, NULL);
+  // XXX vkUpdateDescriptorSets(qvk.device, ii+1, img_dset, 0, NULL);
+    vkUpdateDescriptorSets(qvk.device, ii, img_dset+1, 0, NULL);
 }
 
 // free all buffers which we are done with now that the node
