@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // for efficient storage and comparisons and sort etc,
 // a token is limited to 8 chars, and stored as int64:
@@ -29,3 +30,4 @@ dt_token(const char *str)
 
 // use this literal to print it, it's not necessarily 0-terminated
 #define PRItkn ".8s"
+

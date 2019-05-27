@@ -8,6 +8,18 @@
 #include <string.h>
 #include <errno.h>
 
+// convenience function to detect inputs
+static inline int
+dt_connector_input(dt_connector_t *c)
+{
+  return c->type == dt_token("read") || c->type == dt_token("sink");
+}
+static inline int
+dt_connector_output(dt_connector_t *c)
+{
+  return c->type == dt_token("write") || c->type == dt_token("source");
+}
+
 void
 dt_graph_init(dt_graph_t *g)
 {
@@ -212,8 +224,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
     }
-    else if(c->type == dt_token("read") ||
-            c->type == dt_token("sink"))
+    else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
       if(c->connected_mid >= 0)
       {
@@ -221,7 +232,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           graph->node[c->connected_mid].connector + c->connected_cid;
         c->mem        = c2->mem;
         c->image      = c2->image;
-        // c->image_view = c2->image_view;
+        // image view will follow in alloc_outputs2
       }
     }
   }
@@ -257,8 +268,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if(c->type == dt_token("write") ||
-       c->type == dt_token("source"))
+    if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       vkBindImageMemory(qvk.device, c->image, graph->vkmem, c->offset);
@@ -293,8 +303,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       img_dset[i+1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
       img_dset[i+1].pImageInfo      = img_info + i;
     }
-    else if(c->type == dt_token("read") ||
-            c->type == dt_token("sink"))
+    else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
       if(c->connected_mid >= 0)
       {
@@ -315,6 +324,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       }
     }
   }
+  // XXX also pass uniform buffer:
   // XXX vkUpdateDescriptorSets(qvk.device, node->num_connectors+1, img_dset, 0, NULL);
   vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset+1, 0, NULL);
 }
@@ -416,22 +426,55 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
   }
 }
 
+// convenience function for debugging in gdb:
+void dt_token_print(dt_token_t t)
+{
+  fprintf(stderr, "token: %"PRItkn"\n", dt_token_str(t));
+}
+
 static int
 record_command_buffer(dt_graph_t *graph, dt_node_t *node)
 {
-  // TODO: steal from svgf vulkan implementation:
-  // compute barriers on input images corresponding to vkmem allocations
-  // TODO: what are our images and how do we allocate them?
+  if(!node->pipeline) return 1;
+  VkCommandBuffer cmd_buf = graph->command_buffer;
+
+  // TODO: we could push back global uniform this way:
+  // VkDescriptorSet desc_sets[] = {
+  //   qvk.desc_set_ubo[qvk.current_image_index],
+  //   qvk.desc_set_textures,
+  //   qvk.desc_set_vertex_buffer
+  // };
+
+  // compute barriers on input images:
+  for(int i=0;i<node->num_connectors;i++)
+    if(dt_connector_input(node->connector+i))
+      if(node->connector[i].connected_mid >= 0)
+        BARRIER_COMPUTE(node->connector[i].image);
+
   // push profiler start
-  // bind pipeline
-  // bind descriptor sets
-  // push constants
-  // dispatch pipeline
+  // qvk_profiler_query() // <- TODO: implement this for our graph
+
+  vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
+  vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
+    node->pipeline_layout, 0, 1, &node->dset, 0, 0);
+
+  // update some buffers:
+  // vkCmdPushConstants(cmd_buf, pipeline_layout_atrous,
+      // VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
+  // vkCmdUpdateBuffer(, ub, 0, data_uniform_size, data_uniform);
+
+  vkCmdDispatch(cmd_buf,
+      (node->wd + 31) / 32,
+      (node->ht + 31) / 32,
+       node->dp);
+
   // stop profiler query
+  // qvk_profiler_query() // <- TODO: implement this for our graph
   return 0;
 }
 
 // TODO: put into qvk_utils?
+// TODO: dedup with what's in qvk.c
 static inline void *
 read_file(const char *filename, size_t *len)
 {
@@ -476,6 +519,17 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   node->kernel = dt_token("main");
   node->num_connectors = module->num_connectors;
 
+  // determine kernel dimensions:
+  int output = dt_module_get_connector(module, dt_token("output"));
+  // TODO: if output == -1 means we must be a sink, anyways there won't be any
+  // TODO: more glsl to be run here!
+  if(output < 0); // XXX
+  dt_roi_t *roi = &module->connector[output].roi;
+  node->wd = roi->roi_wd;
+  node->ht = roi->roi_ht;
+  node->dp = 1;
+  node->pipeline = 0; // just to be sure we don't follow garbage pointers
+
   // we'll bind our buffers in the same order as in the connectors file.
   // binding 0 will be the global uniform buffer, containing a well specified
   // region of interest bit, as well as the floating point array of module
@@ -489,15 +543,13 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     node->connector[i] = module->connector[i];
     // update the connection node id to point to the node inside the module
     // associated with the given output connector:
-    if((node->connector[i].type == dt_token("read") ||
-        node->connector[i].type == dt_token("sink")) &&
+    if(dt_connector_input(node->connector+i) &&
         module->connector[i].connected_mid >= 0)
       node->connector[i].connected_mid = graph->module[
         module->connector[i].connected_mid].connected_nodeid[i];
 
     bindings[i].binding = i+1;
-    if(node->connector[i].type == dt_token("read") ||
-       node->connector[i].type == dt_token("sink"))
+    if(dt_connector_input(node->connector+i))
     {
       graph->dset_cnt_image_read ++;
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -564,6 +616,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   QVK(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
   free(data);
 
+  // TODO: cache on module->so ?
   VkPipelineShaderStageCreateInfo stage_info = {
     .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
     .stage               = VK_SHADER_STAGE_COMPUTE_BIT,

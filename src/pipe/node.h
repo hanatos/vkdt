@@ -16,6 +16,8 @@ typedef struct dt_node_t
   VkPipelineLayout      pipeline_layout;
   VkDescriptorSet       dset;
   VkDescriptorSetLayout dset_layout;
+
+  uint32_t wd, ht, dp; // dimensions of kernel to be run
 }
 dt_node_t;
 

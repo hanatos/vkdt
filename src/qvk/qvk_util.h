@@ -55,6 +55,25 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
 				1, &img_mem_barrier); \
 	} while(0)
 
+#define BARRIER_COMPUTE(img) \
+  do { \
+    VkImageSubresourceRange subresource_range = { \
+      .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, \
+      .baseMipLevel   = 0, \
+      .levelCount     = 1, \
+      .baseArrayLayer = 0, \
+      .layerCount     = 1 \
+    }; \
+    IMAGE_BARRIER(cmd_buf, \
+        .image            = img, \
+        .subresourceRange = subresource_range, \
+        .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT, \
+        .dstAccessMask    = VK_ACCESS_TRANSFER_READ_BIT, \
+        .oldLayout        = VK_IMAGE_LAYOUT_GENERAL, \
+        .newLayout        = VK_IMAGE_LAYOUT_GENERAL, \
+    ); \
+  } while(0)
+
 #define CREATE_PIPELINE_LAYOUT(dev, layout, ...) \
 	do { \
 		VkPipelineLayoutCreateInfo pipeline_layout_info = { \

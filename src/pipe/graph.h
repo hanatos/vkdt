@@ -64,3 +64,5 @@ int dt_graph_write(
 
 void dt_graph_setup_pipeline(
     dt_graph_t *graph);
+
+void dt_token_print(dt_token_t t);
