@@ -21,7 +21,7 @@ void modify_roi_in(
 
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
-void write_output(
+void write_sink(
     dt_module_t *module,
     void *buf)
 {

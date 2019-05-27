@@ -55,15 +55,18 @@ typedef struct dt_connector_t
 
   // buffer associated with this in case it connects nodes:
   uint64_t offset, size;
+  uint64_t offset_staging, size_staging;
   // mem object for allocator:
   // while this may seem duplicate with offset/size, it may be freed already
   // and the offset and size are still valid for successive runs through the
   // pipeline once it has been setup.
   dt_vkmem_t *mem;
-  uint64_t    mem_flags; // protected bits etc go here
+  dt_vkmem_t *mem_staging;
+  uint64_t    mem_flags;  // protected bits etc go here
 
   VkImage     image;
   VkImageView image_view;
+  VkBuffer    staging;    // for sources and sinks
 }
 dt_connector_t;
 

@@ -138,9 +138,7 @@ void modify_roi_out(
   mod->connector[0].roi.full_ht = dim_uncropped.y;
 }
 
-// TODO: how do we get the vulkan buffers?
-// assume the caller takes care of vkMapMemory etc
-int load_input(
+int read_source(
     dt_module_t *mod,
     void *mapped)
 {

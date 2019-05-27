@@ -81,6 +81,8 @@ dt_module_so_load(
     mod->modify_roi_in  = dlsym(mod->dlhandle, "modify_roi_in");
     mod->init           = dlsym(mod->dlhandle, "init");
     mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
+    mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
+    mod->read_source    = dlsym(mod->dlhandle, "read_source");
   }
 
   // read default params:

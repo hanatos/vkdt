@@ -8,13 +8,13 @@
 // this queries the modules on startup, does the dlopen and expensive
 // parsing once, and holds a list for modules to quickly access run time.
 
-typedef struct dt_graph_t dt_grap_t; // fwd declare
+typedef struct dt_graph_t dt_graph_t; // fwd declare
 typedef struct dt_module_t dt_module_t;
 typedef int  (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
-typedef void (*dt_module_write_output_t)(dt_module_t *module, void *buf);
-typedef void (*dt_module_load_input_t)  (dt_module_t *module, void *buf);
+typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
+typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 
@@ -24,6 +24,7 @@ typedef struct dt_module_so_t
 {
   dt_token_t name;
 
+  // for dlopen state
   void *dlhandle;
 
   // pass full image forward through pipe, init roi.full_{wd,ht}
@@ -35,11 +36,10 @@ typedef struct dt_module_so_t
   // creates the nodes for this module after roi negotiations
   dt_module_create_nodes_t create_nodes;
 
-  // for sink nodes, will be called once processing ended
-  dt_module_write_output_t write_output;
-
   // for source nodes, will be called before processing starts
-  dt_module_load_input_t load_input;
+  dt_module_read_source_t read_source;
+  // for sink nodes, will be called once processing ended
+  dt_module_write_sink_t  write_sink;
 
   dt_module_init_t init;
   dt_module_init_t cleanup;
