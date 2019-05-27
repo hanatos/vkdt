@@ -1,5 +1,6 @@
 #include "module.h"
 #include "graph.h"
+#include "core/log.h"
 
 // this is a public api function
 int dt_module_add(
@@ -9,7 +10,7 @@ int dt_module_add(
 {
   // add to graph's list
   // make sure we have enough memory, realloc if not
-  if(graph->num_modules == graph->max_modules-1)
+  if(graph->num_modules >= graph->max_modules-1)
   {
     assert(0 && "TODO: realloc module graph arrays");
     return -1;
@@ -58,6 +59,7 @@ int dt_module_add(
   // if connectors still empty fail
   if(mod->num_connectors == 0)
   {
+    dt_log(s_log_pipe|s_log_err, "module %"PRItkn" has no connectors!", dt_token_str(name));
     graph->num_modules--;
     return -1;
   }
@@ -69,6 +71,7 @@ int dt_module_add(
 int dt_module_get_connector(
     const dt_module_t *m, dt_token_t conn)
 {
+  assert(m->num_connectors < DT_MAX_CONNECTORS);
   for(int c=0;c<m->num_connectors;c++)
     if(m->connector[c].name == conn) return c;
   return -1;

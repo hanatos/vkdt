@@ -60,6 +60,7 @@ dt_module_so_load(
     dt_module_so_t *mod,
     const char *dirname)
 {
+  if(!strcmp(dirname, ".") || !strcmp(dirname, "..")) return 1;
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
   char filename[2048], line[2048];
@@ -111,6 +112,7 @@ dt_module_so_load(
   if(!f)
   {
     // TODO: clean up!
+    dt_log(s_log_pipe|s_log_err, "module %s has no connectors!", dirname);
     return 1; // error, can't have zero connectors.
   }
   else
@@ -122,6 +124,11 @@ dt_module_so_load(
       if(fgetc(f) == EOF) break; // read \n
       read_connector_ascii(mod->connector+i++, line);
       // TODO also init all the other variables, maybe inside this function
+      dt_log(s_log_pipe, "connector %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn,
+          dt_token_str(mod->connector[i-1].name),
+          dt_token_str(mod->connector[i-1].type),
+          dt_token_str(mod->connector[i-1].chan),
+          dt_token_str(mod->connector[i-1].format));
     }
     mod->num_connectors = i;
     fclose(f);

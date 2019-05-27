@@ -82,13 +82,13 @@ dt_log(
     "[gui]",
     "[db]",
     "[cli]",
-    "[ERR]",
+    "\e[31m[ERR]\e[0m",
   };
 
   if(dt_log_global.mask & mask)
   {
     char str[2048];
-    int index = mask ? __builtin_ctz(mask)+1 : 0;
+    int index = mask ? 32-__builtin_clz(mask) : 0;
     if(index > sizeof(pre)/sizeof(pre[0])) index = 0;
     snprintf(str, sizeof(str), "%s %s\n", pre[index], format);
     va_list args;

@@ -65,7 +65,7 @@ read_connection_ascii(
 
   int modid0 = dt_module_get(graph, mod0, inst0);
   int modid1 = dt_module_get(graph, mod1, inst1);
-  if(modid0 == -1 || modid1 == -1)
+  if(modid0 <= -1 || modid1 <= -1 || modid0 >= graph->num_modules || modid1 >= graph->num_modules)
   {
     dt_log(s_log_pipe, "[read connect] "
         "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
@@ -83,7 +83,7 @@ read_connection_ascii(
         "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
-    dt_log(s_log_pipe, "[read connect] connection failed: error %d", err);
+    dt_log(s_log_pipe, "[read connect] connection failed: error %d: %s", err, dt_connector_error_str(err));
     return err;
   }
   return 0;
@@ -110,11 +110,13 @@ int dt_graph_read_config_ascii(
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
   char line[2048];
+  uint32_t lno = 0;
   while(!feof(f))
   {
     fscanf(f, "%[^\n]", line);
     if(fgetc(f) == EOF) break; // read \n
     char *c = line;
+    lno++;
     dt_token_t cmd = dt_read_token(c, &c);
     if     (cmd == dt_token("module")  && read_module_ascii(graph, c))     goto error;
     else if(cmd == dt_token("connect") && read_connection_ascii(graph, c)) goto error;
@@ -123,6 +125,7 @@ int dt_graph_read_config_ascii(
   fclose(f);
   return 0;
 error:
+  dt_log(s_log_pipe|s_log_err, "failed in line %u: '%s'", lno, line);
   fclose(f);
   return 1;
 }

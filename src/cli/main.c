@@ -29,7 +29,10 @@ int main(int argc, char *argv[])
   dt_graph_init(&graph);
   int err = dt_graph_read_config_ascii(&graph, graphcfg);
   if(err)
-    dt_log(s_log_err, "could not load graph configuration!");
+  {
+    dt_log(s_log_err, "could not load graph configuration from '%s'!", graphcfg);
+    exit(1);
+  }
 
   dt_graph_setup_pipeline(&graph);
 

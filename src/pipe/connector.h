@@ -73,6 +73,26 @@ typedef struct dt_graph_t dt_graph_t; // fwd declare
 int dt_module_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
 int dt_node_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
 
+static inline const char*
+dt_connector_error_str(const int err)
+{
+  switch(err)
+  {
+    case  1: return "no such destination node";
+    case  2: return "no such destination connector";
+    case  3: return "destination does not read";
+    case  4: return "destination inconsistent";
+    case  5: return "destination inconsistent";
+    case  6: return "destination inconsistent";
+    case  7: return "no such source node";
+    case  8: return "no such source connector";
+    case  9: return "source does not write";
+    case 10: return "channels do not match";
+    case 11: return "format does not match";
+    default: return "";
+  }
+}
+
 
 static inline size_t
 dt_connector_bytes_per_pixel(const dt_connector_t *c)
