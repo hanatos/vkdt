@@ -19,6 +19,18 @@ dt_connector_output(dt_connector_t *c)
 {
   return c->type == dt_token("write") || c->type == dt_token("source");
 }
+#if 0
+static inline int
+dt_node_source(dt_node_t *n)
+{
+  return n->connector[0].type == dt_token("source");
+}
+static inline int
+dt_node_sink(dt_node_t *n)
+{
+  return n->connector[0].type == dt_token("sink");
+}
+#endif
 
 void
 dt_graph_init(dt_graph_t *g)
@@ -31,7 +43,8 @@ dt_graph_init(dt_graph_t *g)
   g->module = malloc(sizeof(dt_module_t)*g->max_modules);
   g->max_nodes = 300;
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
-  dt_vkalloc_init(&g->alloc);
+  dt_vkalloc_init(&g->heap);
+  dt_vkalloc_init(&g->heap_staging);
 
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -61,7 +74,8 @@ dt_graph_cleanup(dt_graph_t *g)
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
-  dt_vkalloc_cleanup(&g->alloc);
+  dt_vkalloc_cleanup(&g->heap);
+  dt_vkalloc_cleanup(&g->heap_staging);
   // TODO: destroy command buffers and pool
   vkDestroyFence(qvk.device, g->command_fence, 0);
 }
@@ -172,8 +186,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if(c->type == dt_token("write") ||
-       c->type == dt_token("source"))
+    if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       VkImageCreateInfo images_create_info = {
@@ -214,15 +227,20 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // total_size += mem_req.size;
 
       const size_t size = dt_connector_bufsize(c);
-      c->mem = dt_vkalloc(&graph->alloc, mem_req.size);
-      fprintf(stderr, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
-          "%"PRItkn" %"PRItkn" "
-          "-> %lX\n",
+      c->mem = dt_vkalloc(&graph->heap, mem_req.size);
+      dt_log(s_log_pipe, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
+          "%"PRItkn" %"PRItkn,
           mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
-          dt_token_str(c->chan), dt_token_str(c->format),
-          (uint64_t)c->mem);
+          dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
+
+      // TODO: 
+      if(c->type == dt_token("source"))
+      {
+        // allocate staging buffer for uploading to the just allocated image
+      }
+
     }
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
@@ -230,9 +248,14 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       {
         dt_connector_t *c2 =
           graph->node[c->connected_mid].connector + c->connected_cid;
-        c->mem        = c2->mem;
-        c->image      = c2->image;
+        c->mem   = c2->mem;
+        c->image = c2->image;
         // image view will follow in alloc_outputs2
+        if(c->type == dt_token("sink"))
+        {
+          // TODO:
+          // allocate staging buffer for downloading from connected input
+        }
       }
     }
   }
@@ -355,7 +378,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       // FIXME: reading from the same resource in case the graph has a fork here
       fprintf(stderr, "freeing %"PRItkn" %"PRItkn" %lX\n",
           dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
-      dt_vkfree(&graph->alloc, c->mem);
+      dt_vkfree(&graph->heap, c->mem);
       // note that we keep the offset and VkImage etc around, we'll be using
       // these in consecutive runs through the pipeline and only clean up at
       // the very end. we just instruct our allocator that we're done with
@@ -371,7 +394,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       {
         fprintf(stderr, "freeing unconnected %"PRItkn" %"PRItkn" %lX\n",
             dt_token_str(node->name), dt_token_str(c->name), (uint64_t)c->mem);
-        dt_vkfree(&graph->alloc, c->mem);
+        dt_vkfree(&graph->heap, c->mem);
       }
     }
   }
@@ -381,7 +404,20 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
 static void
 modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
-  if(module->so->modify_roi_out) return module->so->modify_roi_out(graph, module);
+  if(module->so->modify_roi_out)
+  { // keep incoming roi in sync:
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      dt_connector_t *c = module->connector+i;
+      if(dt_connector_input(c) && c->connected_mid >= 0 && c->connected_cid >= 0)
+      {
+        dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+        c->roi = *roi;
+      }
+    }
+    return module->so->modify_roi_out(graph, module);
+  }
+  // default implementation:
   // copy over roi from connector named "input" to all outputs ("write")
   int input = dt_module_get_connector(module, dt_token("input"));
   if(input < 0) return;
@@ -724,7 +760,8 @@ void dt_graph_setup_pipeline(
   assert(graph->num_nodes < sizeof(mark));
 
   // free pipeline resources if previously allocated anything:
-  dt_vkalloc_nuke(&graph->alloc);
+  dt_vkalloc_nuke(&graph->heap);
+  dt_vkalloc_nuke(&graph->heap_staging);
   // TODO: also goes with potential leftovers from vulkan!
   // TODO: clean memory allocation and descriptor pool
 
@@ -769,10 +806,19 @@ void dt_graph_setup_pipeline(
   // TODO: reuse previous allocation if any and big enough
   VkMemoryAllocateInfo mem_alloc_info = {
     .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .allocationSize  = graph->alloc.vmsize,
-    .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    .allocationSize  = graph->heap.vmsize,
+    .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   };
   QVK(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
+
+  VkMemoryAllocateInfo mem_alloc_info_staging = {
+    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .allocationSize  = graph->heap_staging.vmsize,
+    .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits_staging,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  };
+  QVK(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
 
   // TODO: redo if updates:
   // create descriptor pool:
@@ -816,8 +862,8 @@ void dt_graph_setup_pipeline(
 
 } // end scope, done with nodes
   dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB",
-      graph->alloc.peak_rss/(1024.0*1024.0),
-      graph->alloc.vmsize  /(1024.0*1024.0));
+      graph->heap.peak_rss/(1024.0*1024.0),
+      graph->heap.vmsize  /(1024.0*1024.0));
 
   QVK(vkEndCommandBuffer(graph->command_buffer));
 

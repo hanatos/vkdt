@@ -26,11 +26,12 @@ typedef struct dt_graph_t
 
   // TODO: also store full history somewhere
 
-  // allocator for buffers
-  dt_vkalloc_t alloc;
+  dt_vkalloc_t heap;           // allocator for device buffers and images
+  dt_vkalloc_t heap_staging;   // used for staging memory, which has different flags
 
-  uint32_t memory_type_bits;
+  uint32_t memory_type_bits, memory_type_bits_staging;
   VkDeviceMemory   vkmem;
+  VkDeviceMemory   vkmem_staging;
   VkDescriptorPool dset_pool;
   VkCommandBuffer  command_buffer; // we might have may buffers to interleave them (thumbnails?)
   VkCommandPool    command_pool;   // but we definitely need one pool for ourselves (our thread)
