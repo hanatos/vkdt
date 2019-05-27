@@ -402,32 +402,44 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 static void
 modify_roi_in(dt_graph_t *graph, dt_module_t *module)
 {
-  if(module->so->modify_roi_in) return module->so->modify_roi_in(graph, module);
-
-  // propagate roi request on output module to our inputs ("read")
-  int output = dt_module_get_connector(module, dt_token("output"));
-  if(output == -1 && module->connector[0].type == dt_token("sink"))
-  { // by default ask for it all:
-    output = 0;
-    dt_roi_t *r = &module->connector[0].roi;
-    r->roi_wd = r->full_wd;
-    r->roi_ht = r->full_ht;
-    r->roi_scale = 1.0f;
-  }
-  if(output < 0) return;
-  dt_roi_t *roi = &module->connector[output].roi;
-  for(int i=0;i<module->num_connectors;i++)
+  if(module->so->modify_roi_in)
   {
-    if(module->connector[i].type == dt_token("read") ||
-       module->connector[i].type == dt_token("sink"))
+    module->so->modify_roi_in(graph, module);
+  }
+  else
+  {
+    // propagate roi request on output module to our inputs ("read")
+    int output = dt_module_get_connector(module, dt_token("output"));
+    if(output == -1 && module->connector[0].type == dt_token("sink"))
+    { // by default ask for it all:
+      output = 0;
+      dt_roi_t *r = &module->connector[0].roi;
+      r->roi_wd = r->full_wd;
+      r->roi_ht = r->full_ht;
+      r->roi_scale = 1.0f;
+    }
+    if(output < 0) return;
+    dt_roi_t *roi = &module->connector[output].roi;
+
+    // all input connectors get the same roi as our output:
+    for(int i=0;i<module->num_connectors;i++)
     {
       dt_connector_t *c = module->connector+i;
-      c->roi = *roi;
+      if(dt_connector_input(c)) c->roi = *roi;
+    }
+  }
+
+  // in any case copy over to output roi of connected modules:
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    dt_connector_t *c = module->connector+i;
+    if(dt_connector_input(c))
+    {
       // make sure roi is good on the outgoing connector
       if(c->connected_mid >= 0 && c->connected_cid >= 0)
       {
-        dt_roi_t *roi2 = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
-        *roi2 = *roi;
+        dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+        *roi = c->roi;
       }
     }
   }
