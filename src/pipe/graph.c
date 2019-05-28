@@ -188,7 +188,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
-      fprintf(stderr, "XXX creating image %d %d\n", c->roi.roi_wd, c->roi.roi_ht);
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -234,7 +233,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
-      fprintf(stderr, "XXX img offset %lu alignment %lu\n", c->offset, mem_req.alignment);
 
       if(c->type == dt_token("source"))
       {
@@ -255,7 +253,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size);
         c->offset_staging = c->mem_staging->offset;
         c->size_staging   = c->mem_staging->size;
-        fprintf(stderr, "XXX staging offset %lu alignment %lu\n", c->offset_staging, buf_mem_req.alignment);
       }
     }
     else if(dt_connector_input(c))
@@ -286,7 +283,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size);
           c->offset_staging = c->mem_staging->offset;
           c->size_staging   = c->mem_staging->size;
-          fprintf(stderr, "XXX staging offset %lu alignment %lu\n", c->offset_staging, buf_mem_req.alignment);
         }
       }
     }
@@ -522,7 +518,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
 
   const uint32_t wd = node->connector[0].roi.roi_wd;
   const uint32_t ht = node->connector[0].roi.roi_ht;
-  fprintf(stderr, "XXX copying memory %d %d\n", wd, ht);
   VkBufferImageCopy regions = {
     .bufferOffset      = 0,
     .bufferRowLength   = 0,
@@ -566,7 +561,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
 
   // add our global uniforms:
   VkDescriptorSet desc_sets[] = {
-    graph->uniform_dset,// XXX crashes??
+    graph->uniform_dset,
     node->dset,
   };
 
@@ -592,9 +587,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
   BARRIER_COMPUTE_BUFFER(graph->uniform_buffer);
 
-  fprintf(stderr, "XXX dispatching %"PRItkn" %d %d %d roi %d %d\n",
-      dt_token_str(node->name), node->wd, node->ht, node->dp,
-      node->connector[1].roi.roi_wd, node->connector[1].roi.roi_ht);
   vkCmdDispatch(cmd_buf,
       (node->wd + 31) / 32,
       (node->ht + 31) / 32,
@@ -716,7 +708,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // create the pipeline layout
   
   VkDescriptorSetLayout dset_layout[] = {
-    graph->uniform_dset_layout, // XXX crashes??
+    graph->uniform_dset_layout,
     node->dset_layout,
   };
   VkPipelineLayoutCreateInfo layout_info = {
