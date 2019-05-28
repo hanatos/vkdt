@@ -43,6 +43,7 @@ dt_graph_init(dt_graph_t *g)
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
   dt_vkalloc_init(&g->heap);
   dt_vkalloc_init(&g->heap_staging);
+  g->uniform_size = 4096;
 
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -306,18 +307,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
   VkWriteDescriptorSet img_dset[DT_MAX_CONNECTORS+1] = {{0}};
-  // TODO XXX need one VkBuffer for uniform data of this node
-  VkDescriptorBufferInfo uniform_info = {
-    // XXX .buffer      = node->uniform_buffer,
-    .range       = VK_WHOLE_SIZE,
-  };
-  img_dset[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  img_dset[0].dstSet          = node->dset;
-  img_dset[0].dstBinding      = 0;
-  img_dset[0].dstArrayElement = 0;
-  img_dset[0].descriptorCount = 1;
-  img_dset[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  img_dset[0].pBufferInfo     = &uniform_info;
   uint32_t ii = 0;
   for(int i=0;i<node->num_connectors;i++)
   {
@@ -569,7 +558,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
         1, &regions);
   }
 
-  // non sink and non source nodes have a pipeline:
+  // only non-sink and non-source nodes have a pipeline:
   if(!node->pipeline) return 1;
 
   // TODO: we could push back global uniform this way:
@@ -589,7 +578,16 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   // update some buffers:
   // vkCmdPushConstants(cmd_buf, pipeline_layout_atrous,
       // VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
-  // vkCmdUpdateBuffer(, ub, 0, data_uniform_size, data_uniform);
+  uint8_t uniform_buf[4096]; // max would be 65k
+  // can only be 65k or else we need to upload through staging etc
+  // offset and size have to be multiples of 4
+  size_t pos = 0;
+  for(int i=0;i<node->num_connectors;i++)
+  {
+    memcpy(uniform_buf + pos, &node->connector[i].roi, sizeof(dt_roi_t));
+    pos += sizeof(dt_roi_t);
+  }
+  vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
 
   vkCmdDispatch(cmd_buf,
       (node->wd + 31) / 32,
@@ -809,7 +807,7 @@ void dt_graph_setup_pipeline(
   graph->dset_cnt_image_read = 0;
   graph->dset_cnt_image_write = 0;
   graph->dset_cnt_buffer = 0;
-  graph->dset_cnt_uniform = 0;
+  graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
   // TODO: nuke descriptor set pool?
   start_node_id = sink_module_id;
   memset(mark, 0, sizeof(mark));
@@ -878,6 +876,8 @@ void dt_graph_setup_pipeline(
 #include "graph-traverse.inc"
 
   // TODO: reuse previous allocation if any and big enough
+
+  // image data to pass between nodes
   VkMemoryAllocateInfo mem_alloc_info = {
     .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
     .allocationSize  = graph->heap.vmsize,
@@ -886,6 +886,7 @@ void dt_graph_setup_pipeline(
   };
   QVK(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
 
+  // staging memory to copy to and from device
   VkMemoryAllocateInfo mem_alloc_info_staging = {
     .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
     .allocationSize  = graph->heap_staging.vmsize,
@@ -893,6 +894,25 @@ void dt_graph_setup_pipeline(
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
   };
   QVK(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
+
+  // uniform data to pass parameters
+  VkBufferCreateInfo buffer_info = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .size = graph->uniform_size,
+    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+  };
+  QVK(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
+  VkMemoryRequirements mem_req;
+  vkGetBufferMemoryRequirements(qvk.device, graph->uniform_buffer, &mem_req);
+  VkMemoryAllocateInfo mem_alloc_info_uniform = {
+    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .allocationSize  = graph->uniform_size,
+    .memoryTypeIndex = qvk_get_memory_type(mem_req.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+  };
+  QVK(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
+  vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
 
   // TODO: redo if updates:
   // create descriptor pool:
@@ -919,6 +939,39 @@ void dt_graph_setup_pipeline(
   };
   QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
 
+  // uniform descriptor
+  VkDescriptorSetLayoutBinding bindings = {
+    0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, 0
+  };
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings    = &bindings,
+  };
+  QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+  VkDescriptorSetAllocateInfo dset_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = graph->dset_pool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &graph->uniform_dset_layout,
+  };
+  QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &graph->uniform_dset));
+  VkDescriptorBufferInfo uniform_info = {
+    .buffer      = graph->uniform_buffer,
+    .range       = VK_WHOLE_SIZE,
+  };
+  VkWriteDescriptorSet buf_dset = {
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet          = graph->uniform_dset,
+    .dstBinding      = 0,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .pBufferInfo     = &uniform_info,
+  };
+  vkUpdateDescriptorSets(qvk.device, 1, &buf_dset, 0, NULL);
+
+  // begin command buffer
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,

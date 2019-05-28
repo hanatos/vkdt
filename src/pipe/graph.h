@@ -30,12 +30,18 @@ typedef struct dt_graph_t
   dt_vkalloc_t heap_staging;   // used for staging memory, which has different flags
 
   uint32_t memory_type_bits, memory_type_bits_staging;
-  VkDeviceMemory   vkmem;
-  VkDeviceMemory   vkmem_staging;
-  VkDescriptorPool dset_pool;
-  VkCommandBuffer  command_buffer; // we might have may buffers to interleave them (thumbnails?)
-  VkCommandPool    command_pool;   // but we definitely need one pool for ourselves (our thread)
-  VkFence          command_fence;  // one per command buffer
+  VkDeviceMemory        vkmem;
+  VkDeviceMemory        vkmem_staging;
+  VkDescriptorPool      dset_pool;
+  VkCommandBuffer       command_buffer; // we might have may buffers to interleave them (thumbnails?)
+  VkCommandPool         command_pool;   // but we definitely need one pool for ourselves (our thread)
+  VkFence               command_fence;  // one per command buffer
+
+  VkBuffer              uniform_buffer; // uniform buffer shared between all nodes
+  VkDeviceMemory        vkmem_uniform;
+  uint32_t              uniform_size;
+  VkDescriptorSetLayout uniform_dset_layout;
+  VkDescriptorSet       uniform_dset;
 
   uint32_t dset_cnt_image_read;
   uint32_t dset_cnt_image_write;
