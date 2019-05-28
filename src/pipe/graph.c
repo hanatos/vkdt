@@ -207,7 +207,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           | VK_IMAGE_USAGE_SAMPLED_BIT
           | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = qvk.queue_idx_graphics, // XXX ???
+        .queueFamilyIndexCount = qvk.queue_idx_compute,
         .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
       };
       QVK(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
@@ -306,8 +306,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   }
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
-  VkWriteDescriptorSet img_dset[DT_MAX_CONNECTORS+1] = {{0}};
-  uint32_t ii = 0;
+  VkWriteDescriptorSet img_dset[DT_MAX_CONNECTORS] = {{0}};
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -338,14 +337,13 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       img_info[i].sampler     = VK_NULL_HANDLE;
       img_info[i].imageView   = c->image_view;
       img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-      img_dset[ii+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      img_dset[ii+1].dstSet          = node->dset;
-      img_dset[ii+1].dstBinding      = 1 + i; // offset by one for uniform
-      img_dset[ii+1].dstArrayElement = 0;
-      img_dset[ii+1].descriptorCount = 1;
-      img_dset[ii+1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-      img_dset[ii+1].pImageInfo      = img_info + i;
-      ii++;
+      img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      img_dset[i].dstSet          = node->dset;
+      img_dset[i].dstBinding      = 1 + i; // offset by one for uniform
+      img_dset[i].dstArrayElement = 0;
+      img_dset[i].descriptorCount = 1;
+      img_dset[i].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+      img_dset[i].pImageInfo      = img_info + i;
 
       if(c->type == dt_token("source"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
@@ -361,25 +359,20 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         img_info[i].sampler     = qvk.tex_sampler_nearest;
         img_info[i].imageView   = c->image_view;
         img_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        img_dset[ii+1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        img_dset[ii+1].dstSet          = node->dset;
-        img_dset[ii+1].dstBinding      = 1 + i; // offest by one for uniform
-        img_dset[ii+1].dstArrayElement = 0;
-        img_dset[ii+1].descriptorCount = 1;
-        img_dset[ii+1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        img_dset[ii+1].pImageInfo      = img_info + i;
-        ii++;
+        img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        img_dset[i].dstSet          = node->dset;
+        img_dset[i].dstBinding      = 1 + i; // offset by one for uniform
+        img_dset[i].dstArrayElement = 0;
+        img_dset[i].descriptorCount = 1;
+        img_dset[i].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        img_dset[i].pImageInfo      = img_info + i;
       } // else sorry not connected, buffer will not be bound
       if(c->type == dt_token("sink"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
     }
   }
-  // TODO: pass uniform as extra descriptor set per graph!
-  // TODO: means we can remove it from here
-  // XXX also pass uniform buffer:
   if(node->dset_layout)
-  // XXX vkUpdateDescriptorSets(qvk.device, ii+1, img_dset, 0, NULL);
-    vkUpdateDescriptorSets(qvk.device, ii, img_dset+1, 0, NULL);
+    vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset, 0, NULL);
 }
 
 // free all buffers which we are done with now that the node
@@ -563,7 +556,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
 
   // add our global uniforms:
   VkDescriptorSet desc_sets[] = {
-    graph->uniform_dset,
+    // graph->uniform_dset,// XXX crashes??
     node->dset,
   };
 
@@ -572,7 +565,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
   vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-    node->pipeline_layout, 0, 2, desc_sets, 0, 0);
+    node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
 
   // update some buffers:
   // vkCmdPushConstants(cmd_buf, pipeline_layout_atrous,
@@ -667,12 +660,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
 
   // we'll bind our buffers in the same order as in the connectors file.
-  // binding 0 will be the global uniform buffer, containing a well specified
-  // region of interest bit, as well as the floating point array of module
-  // params.
-  VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS+1] =
-  { { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, 0 }, };
-  graph->dset_cnt_uniform++;
+  VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   for(int i=0;i<module->num_connectors;i++)
   {
     module->connected_nodeid[i] = nodeid;
@@ -684,7 +672,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       node->connector[i].connected_mid = graph->module[
         module->connector[i].connected_mid].connected_nodeid[i];
 
-    bindings[i].binding = i+1;
+    bindings[i].binding = i + 1; // keep one for the uniform buffer
     if(dt_connector_input(node->connector+i))
     {
       graph->dset_cnt_image_read ++;
@@ -709,16 +697,21 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // create a descriptor set layout
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
     .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = module->num_connectors + 1,
+    .bindingCount = module->num_connectors,
     .pBindings    = bindings,
   };
   QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
 
   // create the pipeline layout
+  
+  VkDescriptorSetLayout dset_layout[] = {
+    // graph->uniform_dset_layout, // XXX crashes??
+    node->dset_layout,
+  };
   VkPipelineLayoutCreateInfo layout_info = {
     .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount         = 1,
-    .pSetLayouts            = &node->dset_layout,
+    .setLayoutCount         = LENGTH(dset_layout),
+    .pSetLayouts            = dset_layout,
     .pushConstantRangeCount = 0,
     .pPushConstantRanges    = 0,
   };
@@ -784,6 +777,22 @@ void dt_graph_setup_pipeline(
   for(int i=0;i<graph->num_modules;i++)
     if(graph->module[i].connector[0].type == dt_token("sink"))
     { sink_module_id = i; break; }
+
+  // init layout of uniform descriptor set:
+  VkDescriptorSetLayoutBinding bindings = {
+    .binding = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_ALL,
+    .pImmutableSamplers = 0,
+  };
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings    = &bindings,
+  };
+  QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+
 { // module scope
   dt_module_t *const arr = graph->module;
   // ==============================================
@@ -839,7 +848,6 @@ void dt_graph_setup_pipeline(
   dt_vkalloc_nuke(&graph->heap_staging);
   // TODO: also goes with potential leftovers from vulkan!
   // TODO: clean memory allocation and descriptor pool
-
 
 { // node scope
   dt_node_t *const arr = graph->node;
@@ -944,15 +952,6 @@ void dt_graph_setup_pipeline(
   QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
 
   // uniform descriptor
-  VkDescriptorSetLayoutBinding bindings = {
-    0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, 0
-  };
-  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 1,
-    .pBindings    = &bindings,
-  };
-  QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
   VkDescriptorSetAllocateInfo dset_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool = graph->dset_pool,
