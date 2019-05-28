@@ -4,21 +4,23 @@
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
-layout(push_constant, std140) uniform IterationInfo {
-  uint iteration;
-} push;
+// layout(push_constant, std140) uniform IterationInfo {
+//   uint iteration;
+// } push;
 
 // TODO: put in external header (can we share with host?)
 struct roi_t
 {
-  ivec2 full;
-  ivec2 roi;
-  ivec2 off;
-  float scale;
+  uint full_wd, full_ht; // full input size
+  uint ctx_wd, ctx_ht;   // size of downscaled context buffer
+  uint roi_wd, roi_ht;   // dimensions of region of interest
+  uint roi_ox, roi_oy;   // offset in full image
+  float roi_scale;      // scale: roi_wd * roi_scale is on input scale
 };
 
-// TODO: global uniform stuff about image and roi
-layout(set = 0, binding = 0) uniform params_t {
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
   roi_t ri;
   roi_t ro;
   int filters;
@@ -48,14 +50,13 @@ layout( // output f32 buffer rgb
 void
 main()
 {
-  // TODO: use roi info once we have uniform bufers!
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  // if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  // if(any(greaterThanEqual(ipos, ivec2(params.ro.roi_wd,params.ro.roi_ht)))) return;
+  if(any(greaterThanEqual(ipos, ivec2(1000,1000)))) return;
 
   // TODO: do something clever with filters etc
   // uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
-  uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
-  vec4 outc = rgba * vec4(1.0/65535.0);
+  vec4 outc = vec4(1.0);//rgba * vec4(1.0/65535.0);
   imageStore(img_out, ipos, outc);
 }
 

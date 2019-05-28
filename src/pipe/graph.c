@@ -524,8 +524,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   const uint32_t ht = node->connector[0].roi.roi_ht;
   VkBufferImageCopy regions = {
     .bufferOffset      = 0,
-    .bufferRowLength   = 0,
-    .bufferImageHeight = 0,
+    .bufferRowLength   = wd,
+    .bufferImageHeight = ht,
     .imageSubresource  = {
       .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
       .mipLevel        = 0,
@@ -588,6 +588,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   }
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
 
+  fprintf(stderr, "XXX dispatching %"PRItkn" %d %d %d roi %d %d\n",
+      dt_token_str(node->name), node->wd, node->ht, node->dp,
+      node->connector[1].roi.roi_wd, node->connector[1].roi.roi_ht);
   vkCmdDispatch(cmd_buf,
       (node->wd + 31) / 32,
       (node->ht + 31) / 32,
@@ -699,8 +702,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     bindings[i].pImmutableSamplers = 0;
   }
 
-  // a sink does not need this dance here:
-  if(output < 0) return 0;
+  // a sink or a source does not need this dance here:
+  if(dt_node_sink(node) || dt_node_source(node))
+    return 0;
 
   // create a descriptor set layout
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
@@ -865,6 +869,7 @@ void dt_graph_setup_pipeline(
   // 1st pass alloc and free, detect cycles
   // ==============================================
   graph->memory_type_bits = ~0u;
+  graph->memory_type_bits_staging = ~0u;
   memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
   alloc_outputs(graph, arr+curr);\
@@ -979,7 +984,7 @@ void dt_graph_setup_pipeline(
 
   // upload all source data to staging memory
   uint8_t *mapped = 0;
-  vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped);
+  QVK(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
   for(int n=0;n<graph->num_nodes;n++)
   { // for all source nodes:
     dt_node_t *node = graph->node + n;
@@ -1019,9 +1024,9 @@ void dt_graph_setup_pipeline(
 
   QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
   QVK(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
-
+  
   uint8_t *mapped = 0;
-  vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped);
+  QVK(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
   for(int n=0;n<graph->num_nodes;n++)
   { // for all sink nodes:
     dt_node_t *node = graph->node + n;

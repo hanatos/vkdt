@@ -25,6 +25,7 @@ void write_sink(
     dt_module_t *module,
     void *buf)
 {
+  fprintf(stderr, "[export] writing 'test.pfm'\n");
   float *pixel = buf;
 
   const int width  = module->connector[0].roi.roi_wd;

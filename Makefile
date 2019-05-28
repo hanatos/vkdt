@@ -20,6 +20,7 @@ debug:all
 
 sanitize:OPT_CFLAGS=-fno-omit-frame-pointer -fsanitize=address -g
 sanitize:OPT_LDFLAGS=-fsanitize=address
+sanitize:all
 
 
 ext: Makefile

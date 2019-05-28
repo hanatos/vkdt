@@ -41,7 +41,7 @@ DEPS_H=../core/core.h\
 %.o:%.c $(DEPS_H) $(DEPS_QVK_H) Makefile
 	$(CC) $(CFLAGS) $< -c -o $@
 
-$(TARGET):$(DEPS_O) Makefile $(DEPS_QVK_O)
+$(TARGET):$(DEPS_O) $(DEPS_H) Makefile $(DEPS_QVK_O)
 	$(AR) r $(TARGET) $(DEPS_O) $(DEPS_QVK_O)
 
 modules: Makefile $(MODULES) $(SPV)
