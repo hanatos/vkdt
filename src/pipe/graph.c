@@ -188,6 +188,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
+      fprintf(stderr, "XXX creating image %d %d\n", c->roi.roi_wd, c->roi.roi_ht);
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -208,7 +209,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = qvk.queue_idx_compute,
-        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
+        .initialLayout         = VK_IMAGE_LAYOUT_GENERAL, // VK_IMAGE_LAYOUT_UNDEFINED,
       };
       QVK(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
       ATTACH_LABEL_VARIABLE(img, IMAGE);
@@ -233,6 +234,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
+      fprintf(stderr, "XXX img offset %lu alignment %lu\n", c->offset, mem_req.alignment);
 
       if(c->type == dt_token("source"))
       {
@@ -253,6 +255,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size);
         c->offset_staging = c->mem_staging->offset;
         c->size_staging   = c->mem_staging->size;
+        fprintf(stderr, "XXX staging offset %lu alignment %lu\n", c->offset_staging, buf_mem_req.alignment);
       }
     }
     else if(dt_connector_input(c))
@@ -283,6 +286,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size);
           c->offset_staging = c->mem_staging->offset;
           c->size_staging   = c->mem_staging->size;
+          fprintf(stderr, "XXX staging offset %lu alignment %lu\n", c->offset_staging, buf_mem_req.alignment);
         }
       }
     }
@@ -358,7 +362,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         c->image_view = c2->image_view;
         img_info[i].sampler     = qvk.tex_sampler_nearest;
         img_info[i].imageView   = c->image_view;
-        img_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         img_dset[i].dstSet          = node->dset;
         img_dset[i].dstBinding      = 1 + i; // offset by one for uniform
@@ -512,13 +516,16 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_input(node->connector+i))
       if(node->connector[i].connected_mid >= 0)
         BARRIER_COMPUTE(node->connector[i].image);
+  // TODO: these barriers ^ can perform layout transitions from write to read optimised layouts!
+  // TODO: probably need to specify oldLayout and newLayout correctly here
 
   const uint32_t wd = node->connector[0].roi.roi_wd;
   const uint32_t ht = node->connector[0].roi.roi_ht;
+  fprintf(stderr, "XXX copying memory %d %d\n", wd, ht);
   VkBufferImageCopy regions = {
     .bufferOffset      = 0,
-    .bufferRowLength   = wd,
-    .bufferImageHeight = ht,
+    .bufferRowLength   = 0,
+    .bufferImageHeight = 0,
     .imageSubresource  = {
       .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
       .mipLevel        = 0,
@@ -527,9 +534,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
     },
     .imageOffset = {0},
     .imageExtent = {
-      .width = wd,
+      .width  = wd,
       .height = ht,
-      .depth = 1,
+      .depth  = 1,
     },
   };
   if(dt_node_sink(node))
@@ -540,6 +547,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
         VK_IMAGE_LAYOUT_GENERAL,
         node->connector[0].staging,
         1, &regions);
+    BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
   }
   else if(dt_node_source(node))
   {
@@ -547,8 +555,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
         cmd_buf,
         node->connector[0].staging,
         node->connector[0].image,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_GENERAL,//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         1, &regions);
+    BARRIER_COMPUTE(node->connector[0].image);
   }
 
   // only non-sink and non-source nodes have a pipeline:
@@ -1009,9 +1018,13 @@ void dt_graph_setup_pipeline(
 #include "graph-traverse.inc"
 
 } // end scope, done with nodes
-  dt_log(s_log_pipe, "peak rss %g MB vmsize %g MB",
+  dt_log(s_log_pipe, "images : peak rss %g MB vmsize %g MB",
       graph->heap.peak_rss/(1024.0*1024.0),
       graph->heap.vmsize  /(1024.0*1024.0));
+
+  dt_log(s_log_pipe, "staging: peak rss %g MB vmsize %g MB",
+      graph->heap_staging.peak_rss/(1024.0*1024.0),
+      graph->heap_staging.vmsize  /(1024.0*1024.0));
 
   QVK(vkEndCommandBuffer(graph->command_buffer));
 

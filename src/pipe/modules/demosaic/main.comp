@@ -52,11 +52,11 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   // if(any(greaterThanEqual(ipos, ivec2(params.ro.roi_wd,params.ro.roi_ht)))) return;
-  if(any(greaterThanEqual(ipos, ivec2(1000,1000)))) return;
+  if(any(greaterThanEqual(ipos, ivec2(1200,1200)))) return;
 
   // TODO: do something clever with filters etc
-  // uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
-  vec4 outc = vec4(1.0);//rgba * vec4(1.0/65535.0);
+  uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
+  vec4 outc = rgba * vec4(1.0/65535.0);
   imageStore(img_out, ipos, outc);
 }
 

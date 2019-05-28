@@ -49,7 +49,8 @@ void write_sink(
     while((len + 1 + off) & 0xf) off++;
     while(off-- > 0) fprintf(f, "0");
     fprintf(f, "\n");
-    fwrite(pixel, sizeof(float), 3ul*width*height, f);
+    for(size_t k=0;k<width*height;k++)
+      fwrite(pixel+4*k, sizeof(float), 3ul, f);
     fclose(f);
   }
 }

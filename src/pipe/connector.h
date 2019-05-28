@@ -118,7 +118,8 @@ dt_connector_channels(const dt_connector_t *c)
   if(c->chan == dt_token("rggb") || c->chan == dt_token("rgbx")) return 1;
   return c->chan <=     0xff ? 1 :
         (c->chan <=   0xffff ? 2 :
-        (c->chan <= 0xffffff ? 3 : 4));
+         4);
+        // (c->chan <= 0xffffff ? 3 : 4));
 }
 
 static inline VkFormat
@@ -133,28 +134,28 @@ dt_connector_vkformat(const dt_connector_t *c)
     {
       case 1: return VK_FORMAT_R32_UINT;
       case 2: return VK_FORMAT_R32G32_UINT;
-      case 3: return VK_FORMAT_R32G32B32_UINT;
+      case 3: // return VK_FORMAT_R32G32B32_UINT;
       case 4: return VK_FORMAT_R32G32B32A32_UINT;
     }
     case f32 : switch(len)
     {
-      case 1: return VK_FORMAT_R32_SFLOAT;
-      case 2: return VK_FORMAT_R32G32_SFLOAT;
-      case 3: return VK_FORMAT_R32G32B32_SFLOAT;
-      case 4: return VK_FORMAT_R32G32B32A32_SFLOAT;
+      case 1: return VK_FORMAT_R32_SFLOAT;          // r32f
+      case 2: return VK_FORMAT_R32G32_SFLOAT;       // rg32f
+      case 3: // return VK_FORMAT_R32G32B32_SFLOAT; // glsl does not support this
+      case 4: return VK_FORMAT_R32G32B32A32_SFLOAT; // rgba32f
     }
     case ui16: switch(len)
     {
       case 1: return VK_FORMAT_R16_UINT;
       case 2: return VK_FORMAT_R16G16_UINT;
-      case 3: return VK_FORMAT_R16G16B16_UINT;
+      case 3: // return VK_FORMAT_R16G16B16_UINT;
       case 4: return VK_FORMAT_R16G16B16A16_UINT;
     }
     case ui8 : switch(len)
     {
       case 1: return VK_FORMAT_R8_UINT;
       case 2: return VK_FORMAT_R8G8_UINT;
-      case 3: return VK_FORMAT_R8G8B8_UINT;
+      case 3: // return VK_FORMAT_R8G8B8_UINT;
       case 4: return VK_FORMAT_R8G8B8A8_UINT;
     }
   }
