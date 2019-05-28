@@ -293,7 +293,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   }
 }
 
-// 2nd pass, now we have images and vkDeviceMemory
+// 2nd pass, now we have images and vkDeviceMemory, let's bind images and buffers
+// to memory and create descriptor sets
 static inline void
 alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
@@ -343,7 +344,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
       img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
       img_dset[i].dstSet          = node->dset;
-      img_dset[i].dstBinding      = 1 + i; // offset by one for uniform
+      img_dset[i].dstBinding      = i;
       img_dset[i].dstArrayElement = 0;
       img_dset[i].descriptorCount = 1;
       img_dset[i].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -365,7 +366,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         img_dset[i].dstSet          = node->dset;
-        img_dset[i].dstBinding      = 1 + i; // offset by one for uniform
+        img_dset[i].dstBinding      = i;
         img_dset[i].dstArrayElement = 0;
         img_dset[i].descriptorCount = 1;
         img_dset[i].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -565,7 +566,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
 
   // add our global uniforms:
   VkDescriptorSet desc_sets[] = {
-    // graph->uniform_dset,// XXX crashes??
+    graph->uniform_dset,// XXX crashes??
     node->dset,
   };
 
@@ -586,9 +587,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     memcpy(uniform_buf + pos, &node->connector[i].roi, sizeof(dt_roi_t));
-    pos += sizeof(dt_roi_t);
+    pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
   }
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
+  BARRIER_COMPUTE_BUFFER(graph->uniform_buffer);
 
   fprintf(stderr, "XXX dispatching %"PRItkn" %d %d %d roi %d %d\n",
       dt_token_str(node->name), node->wd, node->ht, node->dp,
@@ -681,7 +683,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       node->connector[i].connected_mid = graph->module[
         module->connector[i].connected_mid].connected_nodeid[i];
 
-    bindings[i].binding = i + 1; // keep one for the uniform buffer
+    bindings[i].binding = i;
     if(dt_connector_input(node->connector+i))
     {
       graph->dset_cnt_image_read ++;
@@ -714,7 +716,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // create the pipeline layout
   
   VkDescriptorSetLayout dset_layout[] = {
-    // graph->uniform_dset_layout, // XXX crashes??
+    graph->uniform_dset_layout, // XXX crashes??
     node->dset_layout,
   };
   VkPipelineLayoutCreateInfo layout_info = {
@@ -793,7 +795,6 @@ void dt_graph_setup_pipeline(
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_ALL,
-    .pImmutableSamplers = 0,
   };
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
     .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -953,7 +954,7 @@ void dt_graph_setup_pipeline(
 
   VkDescriptorPoolCreateInfo pool_info = {
     .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    .poolSizeCount = sizeof(pool_sizes)/sizeof(pool_sizes[0]),
+    .poolSizeCount = LENGTH(pool_sizes),
     .pPoolSizes    = pool_sizes,
     .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
                    + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
