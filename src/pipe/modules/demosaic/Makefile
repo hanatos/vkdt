@@ -1,4 +1,4 @@
-TARGET=libexport.so
+TARGET=libdemosaic.so
 CFLAGS=-Wall -I../.. -I../../.. -fPIC
 CFLAGS+=$(OPT_CFLAGS)
 LDFLAGS+=$(OPT_LDFLAGS)

@@ -44,11 +44,18 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, params.ro.roi+ivec2(1)))) return;
   // if(any(greaterThanEqual(ipos, ivec2(1200,1200)))) return;
 
-  // TODO: do something clever with filters etc
-  uvec4 rgba = texelFetch(img_in, 2*ipos, 0);
+  uint c0 = texelFetch(img_in, 2*ipos, 0).r;
+  uint c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
+  uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
+  uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
+  // TODO: do something clever with filters to switch between these two:
+  vec4 rgba = vec4(c1, (c0+c3)/2.0, c2, 1.0);
+  // vec4 rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
+  // TODO: for x-trans, we'll need to average 3x3 blocks and maybe have
+  // even more headaches about alignment of patterns (what is green?)
   vec4 outc = rgba * vec4(1.0/65535.0);
   imageStore(img_out, ipos, outc);
 }
