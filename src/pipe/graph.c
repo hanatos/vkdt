@@ -561,19 +561,18 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   // only non-sink and non-source nodes have a pipeline:
   if(!node->pipeline) return 1;
 
-  // TODO: we could push back global uniform this way:
-  // VkDescriptorSet desc_sets[] = {
-  //   qvk.desc_set_ubo[qvk.current_image_index],
-  //   qvk.desc_set_textures,
-  //   qvk.desc_set_vertex_buffer
-  // };
+  // add our global uniforms:
+  VkDescriptorSet desc_sets[] = {
+    graph->uniform_dset,
+    node->dset,
+  };
 
   // push profiler start
   // qvk_profiler_query() // <- TODO: implement this for our graph
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
   vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-    node->pipeline_layout, 0, 1, &node->dset, 0, 0);
+    node->pipeline_layout, 0, 2, desc_sets, 0, 0);
 
   // update some buffers:
   // vkCmdPushConstants(cmd_buf, pipeline_layout_atrous,
