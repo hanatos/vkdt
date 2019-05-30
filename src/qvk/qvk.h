@@ -203,45 +203,12 @@ extern qvk_t qvk;
 _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
-#define PROFILER_LIST \
-	PROFILER_DO(PROFILER_FRAME_TIME,                 0) \
-	PROFILER_DO(PROFILER_INSTANCE_GEOMETRY,          1) \
-	PROFILER_DO(PROFILER_BVH_UPDATE,                 1) \
-	PROFILER_DO(PROFILER_ASVGF_GRADIENT_SAMPLES,     1) \
-	PROFILER_DO(PROFILER_PATH_TRACER,                1) \
-	PROFILER_DO(PROFILER_ASVGF_FULL,                 1) \
-	PROFILER_DO(PROFILER_ASVGF_RECONSTRUCT_GRADIENT, 2) \
-	PROFILER_DO(PROFILER_ASVGF_TEMPORAL,             2) \
-	PROFILER_DO(PROFILER_ASVGF_ATROUS,               2) \
-	PROFILER_DO(PROFILER_ASVGF_TAA,                  2)
-
-enum {
-#define PROFILER_DO(a, ...) a,
-	PROFILER_LIST
-#undef PROFILER_DO
-	NUM_PROFILER_ENTRIES,
-};
-
-#define NUM_PROFILER_QUERIES_PER_FRAME (NUM_PROFILER_ENTRIES * 2)
-
-typedef enum {
-	PROFILER_START, 
-	PROFILER_STOP,
-} QVKProfilerAction;
-
 // global initialisation:
 VkResult qvk_init();
 VkResult qvk_cleanup();
 
 VkResult qvk_shader_modules_initialize();
 VkResult qvk_shader_modules_destroy();
-
-
-
-VkResult qvk_profiler_initialize();
-VkResult qvk_profiler_destroy();
-VkResult qvk_profiler_query(int idx, QVKProfilerAction action);
-VkResult qvk_profiler_next_frame(int frame_num);
 
 VkResult qvk_textures_initialize();
 VkResult qvk_textures_destroy();
