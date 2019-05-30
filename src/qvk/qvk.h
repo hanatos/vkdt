@@ -24,10 +24,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "qvk_util.h"
 
-// TODO: replace
-// #include "shaders/global_ubo.h"
-// #include "shaders/global_textures.h"
-
 #define LENGTH(a) ((sizeof (a)) / (sizeof(*(a))))
 
 #define QVK_LOG_FUNC_(f) do {} while(0)

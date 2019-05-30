@@ -29,7 +29,8 @@ typedef struct dt_graph_t
   dt_vkalloc_t heap;           // allocator for device buffers and images
   dt_vkalloc_t heap_staging;   // used for staging memory, which has different flags
 
-  uint32_t memory_type_bits, memory_type_bits_staging;
+  uint32_t              memory_type_bits;
+  uint32_t              memory_type_bits_staging;
   VkDeviceMemory        vkmem;
   VkDeviceMemory        vkmem_staging;
   VkDescriptorPool      dset_pool;
@@ -42,6 +43,11 @@ typedef struct dt_graph_t
   uint32_t              uniform_size;
   VkDescriptorSetLayout uniform_dset_layout;
   VkDescriptorSet       uniform_dset;
+
+  uint32_t              query_max;
+  uint32_t              query_cnt;
+  VkQueryPool           query_pool;
+  uint64_t             *query_pool_results;
 
   uint32_t dset_cnt_image_read;
   uint32_t dset_cnt_image_write;

@@ -65,6 +65,16 @@ dt_graph_init(dt_graph_t *g)
     .flags = VK_FENCE_CREATE_SIGNALED_BIT,
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
+
+  g->query_max = 100;
+  g->query_cnt = 0;
+  VkQueryPoolCreateInfo query_pool_info = {
+    .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+    .queryType  = VK_QUERY_TYPE_TIMESTAMP,
+    .queryCount = g->query_max,
+  };
+  QVK(vkCreateQueryPool(qvk.device, &query_pool_info, NULL, &g->query_pool));
+  g->query_pool_results = malloc(sizeof(uint64_t)*g->query_max);
 }
 
 void
@@ -77,6 +87,7 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_vkalloc_cleanup(&g->heap_staging);
   // TODO: destroy command buffers and pool
   vkDestroyFence(qvk.device, g->command_fence, 0);
+  vkDestroyQueryPool(qvk.device, g->query_pool, NULL);
 }
 
 // helper to read parameters from config file
@@ -566,7 +577,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   };
 
   // push profiler start
-  // qvk_profiler_query() // <- TODO: implement this for our graph
+  if(graph->query_cnt < graph->query_max)
+    vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        graph->query_pool, graph->query_cnt++);
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
   vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -592,8 +605,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
       (node->ht + 31) / 32,
        node->dp);
 
-  // stop profiler query
-  // qvk_profiler_query() // <- TODO: implement this for our graph
+  // get a profiler timestamp:
+  if(graph->query_cnt < graph->query_max)
+    vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        graph->query_pool, graph->query_cnt++);
   return 0;
 }
 
@@ -794,6 +809,7 @@ void dt_graph_setup_pipeline(
     .pBindings    = &bindings,
   };
   QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+  graph->query_cnt = 0;
 
 { // module scope
   dt_module_t *const arr = graph->module;
@@ -1019,6 +1035,9 @@ void dt_graph_setup_pipeline(
       graph->heap_staging.peak_rss/(1024.0*1024.0),
       graph->heap_staging.vmsize  /(1024.0*1024.0));
 
+  // clean up after ourselves
+  // XXX vkCmdResetQueryPool(qvk.cmd_buf_current, query_pool, 0, graph->query_cnt);
+
   QVK(vkEndCommandBuffer(graph->command_buffer));
 
   VkSubmitInfo submit = {
@@ -1046,4 +1065,17 @@ void dt_graph_setup_pipeline(
     }
   }
   vkUnmapMemory(qvk.device, graph->vkmem_staging);
+
+  QVK(vkGetQueryPoolResults(qvk.device, graph->query_pool,
+        0, graph->query_cnt,
+        sizeof(graph->query_pool_results[0]) * graph->query_max,
+        graph->query_pool_results,
+        sizeof(graph->query_pool_results[0]),
+        VK_QUERY_RESULT_64_BIT));
+  for(int i=0;i<graph->query_cnt;i+=2)
+  {
+    dt_log(s_log_pipe, "query %d: %8.2g ms", i,
+        (graph->query_pool_results[i+1]-
+        graph->query_pool_results[i])* 1e-6);
+  }
 }
