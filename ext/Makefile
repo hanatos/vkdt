@@ -7,7 +7,10 @@ rawspeed: Makefile $(BUILT)/rawspeed/librawspeed.a
 
 $(BUILT)/rawspeed/CMakeCache.txt: Makefile
 	mkdir -p $(BUILT)/rawspeed
-	cmake -S rawspeed/ -B $(BUILT)/rawspeed/ -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release
+	cd $(BUILT)/rawspeed; cmake ../../../ext/rawspeed -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release
+
+# for some reason this is challenging for older? cmake
+# cmake -S rawspeed/ -B $(BUILT)/rawspeed/ -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release
 
 $(BUILT)/rawspeed/librawspeed.a: Makefile $(BUILT)/rawspeed/CMakeCache.txt 
 	mkdir -p $(BUILT)/rawspeed
