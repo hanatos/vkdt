@@ -1,0 +1,47 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// TODO: put in external header (can we share with host?)
+struct roi_t
+{
+  uvec2 full;      // full input size
+  uvec2 ctx;       // size of downscaled context buffer
+  uvec2 roi;       // dimensions of region of interest
+  ivec2 off;       // offset in full image
+  float roi_scale; // scale: roi_wd * roi_scale is on input scale
+  float pad0;      // alignment of structs will be a multiple of vec4 it seems :(
+  float pad1;      // so we pad explicitly for sanity of mind.
+  float pad2;      // alternatively we could specify layout(offset=48) etc below.
+};
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  int filters;
+} params;
+
+
+layout( // input f32 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f32 buffer rgb
+    set = 1, binding = 1, rgba32f
+) uniform image2D img_out;
+
+// exposure
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec4 rgba = texelFetch(img_in, ipos, 0);
+  imageStore(img_out, ipos, vec4(rgba.rgb*4.0, 1));
+}
+

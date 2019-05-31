@@ -1,0 +1,2 @@
+input:read:rgb:f32
+output:write:rgb:f32
