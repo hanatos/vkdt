@@ -653,6 +653,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;
   dt_node_t *node = graph->node + nodeid;
+  int ctxnid = -1;
+  dt_node_t *ctxn = 0;
 
   node->name = module->name;
   node->kernel = dt_token("main");
@@ -676,6 +678,22 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     node->ht = roi->roi_ht;
     node->dp = 1;
   }
+
+  // TODO: if there is a ctx buffer, we'll need to run it through
+  // TODO: the module, too. as a default case, trick the node into
+  // TODO: running twice with a different roi
+#if 0
+  // do we need to output a context buffer?
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    if(module->connector[i].roi.ctx_wd > 0)
+    {
+      ctxnid = graph->num_nodes++;
+      ctxn = graph->node + ctxnid;
+      break;
+    }
+  }
+#endif
 
   // we'll bind our buffers in the same order as in the connectors file.
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};

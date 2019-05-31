@@ -25,19 +25,22 @@ typedef struct dt_module_t
   dt_token_t name;    // mirrored class name
   dt_token_t inst;    // instance name
 
+
   // TODO: has a list of publicly visible connectors
   // TODO: actually two list so we can store the context pipeline independently?
   dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
   // store list of nodeids that go with the connectors
-  int connected_nodeid[DT_MAX_CONNECTORS];
+  int connected_nodeid[DT_MAX_CONNECTORS];  // roi path
+  int connected_ctxnid[DT_MAX_CONNECTORS];  // ctx buf, if any
 
   // TODO: parameters:
   // human facing parameters for gui + serialisation
   // compute facing parameters for uniform upload
   // simple code path for when both are equivalent
   // TODO: pointer or index for realloc?
+  uint32_t version;   // module version affects param semantics
   float *params[10];  // points into pool stored with graph
   int num_params;
 
