@@ -219,7 +219,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = qvk.queue_idx_compute,
-        .initialLayout         = VK_IMAGE_LAYOUT_GENERAL, // VK_IMAGE_LAYOUT_UNDEFINED,
+        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
       };
       QVK(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
       ATTACH_LABEL_VARIABLE(img, IMAGE);
@@ -370,7 +370,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         c->image_view = c2->image_view;
         img_info[i].sampler     = qvk.tex_sampler_nearest;
         img_info[i].imageView   = c->image_view;
-        img_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        img_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         img_dset[i].dstSet          = node->dset;
         img_dset[i].dstBinding      = i;
@@ -524,8 +524,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_input(node->connector+i))
       if(node->connector[i].connected_mid >= 0)
         BARRIER_COMPUTE(node->connector[i].image);
-  // TODO: these barriers ^ can perform layout transitions from write to read optimised layouts!
-  // TODO: probably need to specify oldLayout and newLayout correctly here
 
   const uint32_t wd = node->connector[0].roi.roi_wd;
   const uint32_t ht = node->connector[0].roi.roi_ht;
@@ -562,7 +560,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
         cmd_buf,
         node->connector[0].staging,
         node->connector[0].image,
-        VK_IMAGE_LAYOUT_GENERAL,//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         1, &regions);
     BARRIER_COMPUTE(node->connector[0].image);
   }
