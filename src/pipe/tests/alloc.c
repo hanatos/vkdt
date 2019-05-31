@@ -18,7 +18,7 @@ int main(int argc, char *arg[])
   for(int i=0;i<70;i++)
   {
     uint64_t size = 1337 + 10*i;
-    test[i] = dt_vkalloc(&a, size);
+    test[i] = dt_vkalloc(&a, size, 1);
     err = dt_vkalloc_check(&a);
     assert(!err);
   }
