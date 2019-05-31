@@ -231,13 +231,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       graph->memory_type_bits = mem_req.memoryTypeBits;
 
       assert(!(mem_req.alignment & (mem_req.alignment - 1)));
-      // XXX TODO: teach our allocator this?
-      // total_size += mem_req.alignment - 1;
-      // total_size &= ~(mem_req.alignment - 1);
-      // total_size += mem_req.size;
 
       const size_t size = dt_connector_bufsize(c);
-      c->mem = dt_vkalloc(&graph->heap, mem_req.size);
+      c->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
       dt_log(s_log_pipe, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
           "%"PRItkn" %"PRItkn,
           mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
@@ -261,7 +257,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         if(graph->memory_type_bits_staging != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits_staging)
           dt_log(s_log_qvk|s_log_err, "staging memory type bits don't match!");
         graph->memory_type_bits_staging = buf_mem_req.memoryTypeBits;
-        c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size);
+        c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
         c->offset_staging = c->mem_staging->offset;
         c->size_staging   = c->mem_staging->size;
       }
@@ -291,7 +287,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           if(graph->memory_type_bits_staging != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits_staging)
             dt_log(s_log_qvk|s_log_err, "staging memory type bits don't match!");
           graph->memory_type_bits_staging = buf_mem_req.memoryTypeBits;
-          c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size);
+          c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
           c->offset_staging = c->mem_staging->offset;
           c->size_staging   = c->mem_staging->size;
         }

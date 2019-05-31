@@ -39,31 +39,35 @@ dt_vkalloc_nuke(dt_vkalloc_t *a)
 }
 
 dt_vkmem_t*
-dt_vkalloc(dt_vkalloc_t *a, uint64_t size)
+dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
   while(l)
   {
     dt_vkmem_t *mem = 0;
-    if(l->size == size)
+    if(l->size == size && !(l->offset & (alignment-1)))
     { // replace entry
       mem = l;
       DLIST_RM_ELEMENT(mem);
       if(l == a->free) a->free = l->next;
     }
 
-    if(l->size > size)
+    if((l->size > size && !(l->offset & (alignment-1))) ||
+        l->size > size + alignment)
     { // grab new mem entry from unused list
       assert(a->unused && "vkalloc: no more free slots!");
       if(!a->unused) return 0;
       mem = a->unused;
       a->unused = DLIST_REMOVE(a->unused, mem); // remove first is O(1)
-      // split, push to used and modify free entry
-      mem->offset = l->offset;
+      // split, push to used and modify free entry.
+      // we'll just forget about the bits in between our base pointer
+      // and the requested alignment. we rely on nuking the memory pool
+      // very often anyways. plus, what's a few kilobytes among friends.
+      mem->offset = (l->offset & ~(alignment-1)) + alignment;
       mem->size = size;
       l->size -= size;
-      l->offset += size;
+      l->offset = mem->offset + mem->size;
     }
 
     if(mem)
