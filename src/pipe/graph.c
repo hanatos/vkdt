@@ -177,9 +177,10 @@ int dt_graph_read_config_ascii(
     char *c = line;
     lno++;
     dt_token_t cmd = dt_read_token(c, &c);
-    if     (cmd == dt_token("module")  && read_module_ascii(graph, c))     goto error;
-    else if(cmd == dt_token("connect") && read_connection_ascii(graph, c)) goto error;
-    else if(cmd == dt_token("param")   && read_param_ascii(graph, c))      goto error;
+    if     (cmd == dt_token("module"))  { if(read_module_ascii(graph, c))     goto error;}
+    else if(cmd == dt_token("connect")) { if(read_connection_ascii(graph, c)) goto error;}
+    else if(cmd == dt_token("param"))   { if(read_param_ascii(graph, c))      goto error;}
+    else goto error;
   }
   fclose(f);
   return 0;
