@@ -20,8 +20,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "core/log.h"
 
 #include <vulkan/vulkan.h>
-// #include <SDL.h>
-// #include <SDL_vulkan.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -190,6 +188,7 @@ get_vk_layer_list(
   QVK(vkEnumerateInstanceLayerProperties(num_layers, *ext));
 }
 
+#if 0
 static int
 layer_supported(const char *name)
 {
@@ -199,6 +198,7 @@ layer_supported(const char *name)
       return 1;
   return 0;
 }
+#endif
 
 static int
 layer_requested(const char *name)
@@ -249,8 +249,8 @@ qvkDestroyDebugUtilsMessengerEXT(
   return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-static VkResult
-create_swapchain()
+VkResult
+qvk_create_swapchain()
 {
   /* create swapchain (query details and ignore them afterwards :-) )*/
   VkSurfaceCapabilitiesKHR surf_capabilities;
@@ -367,7 +367,7 @@ out:;
     };
 
     if(vkCreateImageView(qvk.device, &img_create_info, NULL, qvk.swap_chain_image_views + i) != VK_SUCCESS)
-	{
+    {
       dt_log(s_log_qvk|s_log_err, "error creating image view!");
       return 1;
     }
@@ -376,8 +376,15 @@ out:;
   return VK_SUCCESS;
 }
 
-static VkResult
-create_command_pool_and_fences()
+VkResult
+qvk_destroy_command_pool_and_fences()
+{
+  // TODO
+  return VK_SUCCESS;
+}
+
+VkResult
+qvk_create_command_pool_and_fences()
 {
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -480,15 +487,6 @@ qvk_init()
   };
 
   QVK(qvkCreateDebugUtilsMessengerEXT(qvk.instance, &dbg_create_info, NULL, &qvk.dbg_messenger));
-
-  // FIXME pull out into different compilation unit:
-#if 0 // XXX
-  /* create surface */
-  if(!SDL_Vulkan_CreateSurface(qvk.window, qvk.instance, &qvk.surface)) {
-    dt_log(s_log_qvk, "could not create surface!");
-    return 1;
-  }
-#endif
 
   /* pick physical device (iterate over all but pick device 0 anyways) */
   uint32_t num_devices = 0;
@@ -1012,9 +1010,9 @@ recreate_swapchain()
 {
   vkDeviceWaitIdle(qvk.device);
   qvk_destroy_all(QVK_INIT_SWAPCHAIN_RECREATE);
-  destroy_swapchain();
+  qvk_destroy_swapchain();
   SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
-  create_swapchain();
+  qvk_create_swapchain();
   qvk_initialize_all(QVK_INIT_SWAPCHAIN_RECREATE);
 }
 #endif
@@ -1114,68 +1112,6 @@ R_EndFrame()
 
 // TODO: this needs to go into gui init
 #if 0
-/* called when the library is loaded */
-qboolean
-R_Init(qboolean total)
-{
-  registration_sequence = 1;
-  // XXX these SDL functions need to be optional
-  qvk.window = SDL_CreateWindow("vkq2", 20, 50, r_config.width, r_config.height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-  if(!qvk.window) {
-    Com_Error(ERR_FATAL, "[vkq2] could not create window `%s'\n", SDL_GetError());
-    return qfalse;
-  }
-
-  if (!VID_Init()) {
-    Com_Error(ERR_FATAL, "[vkq2] VID_Init failed\n");
-    return qfalse;
-  }
-
-  vkpt_profiler       = Cvar_Get("vkpt_profiler",       "0",    0);
-  vkpt_reconstruction = Cvar_Get("vkpt_reconstruction", "1",    0);
-  cvar_rtx            = Cvar_Get("rtx",                 "off",  0);
-
-  qvk.win_width  = r_config.width;
-  qvk.win_height = r_config.height;
-
-  // XXX these SDL functions need to be optional
-  if(!SDL_Vulkan_GetInstanceExtensions(qvk.window, &qvk.num_sdl2_extensions, NULL)) {
-    Com_Error(ERR_FATAL, "[vkq2] couldn't get extension count\n");
-    return qfalse;
-  }
-  qvk.sdl2_extensions = malloc(sizeof(char*) * qvk.num_sdl2_extensions);
-  // XXX these SDL functions need to be optional
-  if(!SDL_Vulkan_GetInstanceExtensions(qvk.window, &qvk.num_sdl2_extensions, qvk.sdl2_extensions)) {
-    Com_Error(ERR_FATAL, "[vkq2] couldn't get extensions\n");
-    return qfalse;
-  }
-
-  Com_Printf("[vkq2] vk extension required by SDL2: \n");
-  for(int i = 0; i < qvk.num_sdl2_extensions; i++) {
-    Com_Printf("  %s\n", qvk.sdl2_extensions[i]);
-  }
-
-  IMG_Init();
-  IMG_GetPalette();
-  MOD_Init();
-
-  vkpt_refdef.light_positions = calloc(MAX_LIGHTS * 3 * 3, sizeof(float));
-  vkpt_refdef.light_colors    = calloc(MAX_LIGHTS, sizeof(uint32_t));
-
-  if(init_vulkan()) {
-    Com_Error(ERR_FATAL, "[vkq2] init vulkan failed\n");
-    return qfalse;
-  }
-  _VK(create_swapchain());
-  _VK(create_command_pool_and_fences());
-
-  _VK(vkpt_initialize_all(VKPT_INIT_DEFAULT));
-
-  Cmd_AddCommand("reload_shader", (xcommand_t)&vkpt_reload_shader);
-
-  return qtrue;
-}
-
 /* called before the library is unloaded */
 void
 R_Shutdown(qboolean total)

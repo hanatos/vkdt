@@ -207,6 +207,12 @@ _VK_EXTENSION_LIST
 VkResult qvk_init();
 VkResult qvk_cleanup();
 
+VkResult qvk_create_swapchain();
+VkResult qvk_destroy_swapchain();
+
+VkResult qvk_create_command_pool_and_fences();
+VkResult qvk_destroy_command_pool_and_fences();
+
 VkResult qvk_shader_modules_initialize();
 VkResult qvk_shader_modules_destroy();
 
