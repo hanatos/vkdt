@@ -1,5 +1,15 @@
+#include "gui.h"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
+#include "imgui_impl_sdl.h"
+#include "qvk/qvk.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+// XXX argh, what a terrible hack
+#define dt_log fprintf
+#define s_log_qvk stderr
 
 int dt_gui_init_imgui()
 {
@@ -19,17 +29,56 @@ int dt_gui_init_imgui()
   init_info.Instance = qvk.instance;
   init_info.PhysicalDevice = qvk.physical_device;
   init_info.Device = qvk.device;
-  init_info.QueueFamily = qvk.queue_graphics;
-  init_info.Queue = qvk.queue_idx_graphics;
+  init_info.QueueFamily = qvk.queue_idx_graphics;
+  init_info.Queue = qvk.queue_graphics;
   // TODO: need these specific for imgui:
-  init_info.PipelineCache = g_PipelineCache;
-  init_info.DescriptorPool = g_DescriptorPool;
-  init_info.Allocator = g_Allocator;
-  init_info.MinImageCount = g_MinImageCount;
-  init_info.ImageCount = wd->ImageCount;
-  init_info.CheckVkResultFn = check_vk_result;
-  // XXX what's this render pass?
-  ImGui_ImplVulkan_Init(&init_info, wd->RenderPass);
+  init_info.PipelineCache = vkdt.pipeline_cache;
+  init_info.DescriptorPool = vkdt.descriptor_pool;
+  init_info.Allocator = 0;
+  init_info.MinImageCount = vkdt.min_image_count;
+  init_info.ImageCount = vkdt.image_count;
+  init_info.CheckVkResultFn = 0;//check_vk_result;
+  // ================================
+  // TODO: put into gui.c!
+  // Create the Render Pass
+  {
+    VkAttachmentDescription attachment = {};
+    attachment.format = qvk.surf_format.format;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    // TODO clear enable?
+    attachment.loadOp = 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentReference color_attachment = {};
+    color_attachment.attachment = 0;
+    color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment;
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount = 1;
+    info.pAttachments = &attachment;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+    info.dependencyCount = 1;
+    info.pDependencies = &dependency;
+    const VkAllocationCallbacks* allocator = 0;
+    QVK(vkCreateRenderPass(qvk.device, &info, allocator, &vkdt.render_pass));
+  }
+  // ================================
+  ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
 
   // Load Fonts
   // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -46,20 +95,17 @@ int dt_gui_init_imgui()
   //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
   //IM_ASSERT(font != NULL);
 
-  // Upload Fonts
+  // upload Fonts
   {
-    // Use any command queue
-    // TODO: init these on qvk and use them!
-    VkCommandPool command_pool = wd->Frames[wd->FrameIndex].CommandPool;
-    VkCommandBuffer command_buffer = wd->Frames[wd->FrameIndex].CommandBuffer;
+    // use any command queue
+    VkCommandPool command_pool = qvk.command_pool; // XXX imgui has one per frame here, too
+    VkCommandBuffer command_buffer = qvk.command_buffers[0];
 
-    err = vkResetCommandPool(qvk.device, command_pool, 0);
-    check_vk_result(err);
+    QVK(vkResetCommandPool(qvk.device, command_pool, 0));
     VkCommandBufferBeginInfo begin_info = {};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    err = vkBeginCommandBuffer(command_buffer, &begin_info);
-    check_vk_result(err);
+    QVK(vkBeginCommandBuffer(command_buffer, &begin_info));
 
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 
@@ -67,15 +113,13 @@ int dt_gui_init_imgui()
     end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     end_info.commandBufferCount = 1;
     end_info.pCommandBuffers = &command_buffer;
-    err = vkEndCommandBuffer(command_buffer);
-    check_vk_result(err);
-    err = vkQueueSubmit(qvk.graphics, 1, &end_info, VK_NULL_HANDLE);
-    check_vk_result(err);
+    QVK(vkEndCommandBuffer(command_buffer));
+    QVK(vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE));
 
-    err = vkDeviceWaitIdle(qvk.device);
-    check_vk_result(err);
+    QVK(vkDeviceWaitIdle(qvk.device));
     ImGui_ImplVulkan_DestroyFontUploadObjects();
   }
+  return 0;
 }
 
 void dt_gui_poll_event(SDL_Event *event)
@@ -91,6 +135,7 @@ void dt_gui_poll_event(SDL_Event *event)
 // call from main loop:
 void dt_gui_render_frame()
 {
+#if 0
         if (g_SwapChainRebuild)
         {
             g_SwapChainRebuild = false;
@@ -98,13 +143,16 @@ void dt_gui_render_frame()
             ImGui_ImplVulkanH_CreateWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, g_SwapChainResizeWidth, g_SwapChainResizeHeight, g_MinImageCount);
             g_MainWindowData.FrameIndex = 0;
         }
+#endif
 
         // Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplSDL2_NewFrame(window);
+        ImGui_ImplSDL2_NewFrame(qvk.window);
         ImGui::NewFrame();
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+        bool show_demo_window = true;
+        bool show_another_window = false;
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
 
@@ -120,7 +168,7 @@ void dt_gui_render_frame()
             ImGui::Checkbox("Another Window", &show_another_window);
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            // ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -143,14 +191,14 @@ void dt_gui_render_frame()
 
         // Rendering
         ImGui::Render();
-        memcpy(&wd->ClearValue.color.float32[0], &clear_color, 4 * sizeof(float));
+        // memcpy(&wd->ClearValue.color.float32[0], &clear_color, 4 * sizeof(float));
 }
 
 void dt_gui_cleanup_imgui()
 {
+#if 0
     // Cleanup
-    err = vkDeviceWaitIdle(g_Device);
-    check_vk_result(err);
+    QVK(vkDeviceWaitIdle(g_Device));
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
@@ -160,4 +208,5 @@ void dt_gui_cleanup_imgui()
 
     SDL_DestroyWindow(window);
     SDL_Quit();
+#endif
 }

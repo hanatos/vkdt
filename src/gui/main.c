@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
       }
     }
 
+    dt_gui_render_frame();
     // TODO: equivalent of frame render and frame present
-
   }
 
   dt_gui_cleanup(&vkdt);

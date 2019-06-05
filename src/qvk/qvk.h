@@ -18,7 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "core/core.h"
-#include "core/log.h"
 
 #include <vulkan/vulkan.h>
 
