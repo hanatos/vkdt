@@ -47,21 +47,23 @@ int dt_gui_init(dt_gui_t *gui)
     return 1;
   }
 
+  VkBool32 res;
+  vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, qvk.queue_idx_graphics, qvk.surface, &res);
+  if (res != VK_TRUE)
+  {
+    dt_log(s_log_qvk|s_log_err, "no WSI support on physical device");
+    return 1;
+  }
+
   QVK(qvk_create_swapchain());
   QVK(qvk_create_command_pool_and_fences());
   // QVK(qvk_initialize_all(VKPT_INIT_DEFAULT));
-
-
-  // TODO: main loop and imgui!
-  // while(1)
-  // {
-  // TODO: call into render.cpp stuff here
-  // }
-
   return 0;
 }
 
 
 void dt_gui_cleanup(dt_gui_t *gui)
 {
+  SDL_DestroyWindow(qvk.window);
+  SDL_Quit();
 }

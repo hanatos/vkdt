@@ -41,6 +41,32 @@ int main(int argc, char *argv[])
 
   dt_graph_setup_pipeline(&graph);
 
+  // main loop
+  int running = 1;
+  while(running)
+  {
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+      // ImGui_ImplSDL2_ProcessEvent(&event);
+      if (event.type == SDL_QUIT)
+        running = 0;
+      else if (event.type == SDL_KEYDOWN)
+      {
+        running = 0; // TODO: grab esc
+      }
+      else if (event.type == SDL_WINDOWEVENT &&
+          event.window.event == SDL_WINDOWEVENT_RESIZED &&
+          event.window.windowID == SDL_GetWindowID(qvk.window))
+      {
+        // XXX need to rebuild the swap chain!
+      }
+    }
+
+    // TODO: equivalent of frame render and frame present
+
+  }
+
   dt_gui_cleanup(&vkdt);
   exit(0);
 }

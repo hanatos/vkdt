@@ -4,3 +4,4 @@ src/pipe/doc/readme.html
 *.a
 built/
 bin/
+src/gui/vkdt
