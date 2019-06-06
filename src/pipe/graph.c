@@ -200,6 +200,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
+      fprintf(stderr, "%d x %d %"PRItkn"\n", c->roi.roi_wd, c->roi.roi_ht, dt_token_str(node->name));
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,

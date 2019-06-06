@@ -63,10 +63,8 @@ int main(int argc, char *argv[])
       {
         // XXX need to rebuild the swap chain!
       }
-      fprintf(stderr, "polling\n");
     }
 
-    fprintf(stderr, "rendering\n");
     dt_gui_render_frame();
 
     dt_gui_render();

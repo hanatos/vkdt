@@ -1,3 +1,7 @@
+# entry point makefile.
+# dispatches external builds and calls our main makefile in src.
+# also handles some global settings for compilers and debug flags.
+
 .PHONY:all ext src clean distclean bin
 
 OPT_CFLAGS=-Wall -O3 -march=native -g
@@ -41,7 +45,7 @@ distclean:
 
 bin: src Makefile
 	mkdir -p bin/data
-	ln -sf ../src/cli/vkdt-cli bin/
-	ln -sf ../src/gui/vkdt bin/
+	ln -sf ../src/vkdt-cli bin/
+	ln -sf ../src/vkdt bin/
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data

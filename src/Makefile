@@ -1,15 +1,23 @@
-.PHONY:all clean
-all: vkdt-cli vkdt Makefile
+# flat makefile for everything.
+
+# modules which need a dso have a makefile, collect all these.
+# also all .comp compute shaders will be compiled to spir-v.
+MODULES=$(wildcard pipe/modules/*/Makefile)
+SPV=$(shell ls -1 pipe/modules/*/*.comp | sed -e 's/.comp/.spv/')
+.PHONY: all clean all modules $(MODULES)
+
+all: vkdt-cli vkdt modules Makefile
 
 include qvk/flat.mk
 include core/flat.mk
-include gui/flat.mk
 include pipe/flat.mk
+include gui/flat.mk
 include cli/flat.mk
 
 clean: Makefile
 	rm -f vkdt vkdt-cli 
-	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(QVK_O)
+	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O)
+	rm -f pipe/modules/*/lib*.so
 
 CFLAGS=-Wall -pipe -I.
 LDFLAGS=
@@ -26,6 +34,9 @@ core/%.o: core/%.c Makefile
 pipe/%.o: pipe/%.c Makefile
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
+cli/%.o: cli/%.c Makefile
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
+
 gui/%.o: gui/%.c Makefile
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
@@ -38,8 +49,24 @@ gui/%.o: gui/%.cpp Makefile
 ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
+# main application
 vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
-	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS)
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt \
+    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS)
 
+# command line interface
 vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
-	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt-cli $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS)
+	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt-cli \
+    $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS)
+
+
+modules: $(MODULES) $(SPV) Makefile
+
+pipe/modules/*/Makefile:
+	make -C $(dir $@)
+
+%.spv: %.comp
+	$(GLSLC) --target-env vulkan1.1 \
+    -DQVK_SHADER \
+    -V $< -o $@
+
