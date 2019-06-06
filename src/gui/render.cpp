@@ -11,7 +11,7 @@
 #define dt_log fprintf
 #define s_log_qvk stderr
 
-int dt_gui_init_imgui()
+extern "C" int dt_gui_init_imgui()
 {
   // Setup Dear ImGui context
   ImGui::CreateContext();
@@ -81,7 +81,7 @@ int dt_gui_init_imgui()
   return 0;
 }
 
-void dt_gui_poll_event(SDL_Event *event)
+extern "C" void dt_gui_poll_event(SDL_Event *event)
 {
   // Poll and handle events (inputs, window resize, etc.)
   // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -92,7 +92,7 @@ void dt_gui_poll_event(SDL_Event *event)
 }
 
 // call from main loop:
-void dt_gui_render_frame_imgui()
+extern "C" void dt_gui_render_frame_imgui()
 {
 #if 0
         if (g_SwapChainRebuild)
@@ -153,13 +153,13 @@ void dt_gui_render_frame_imgui()
         // memcpy(&wd->ClearValue.color.float32[0], &clear_color, 4 * sizeof(float));
 }
 
-void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
+extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 {
   // Record Imgui Draw Data and draw funcs into command buffer
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf);
 }
 
-void dt_gui_cleanup_imgui()
+extern "C" void dt_gui_cleanup_imgui()
 {
 #if 0
     // Cleanup

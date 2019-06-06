@@ -1,10 +1,7 @@
 TARGET=libqvk.a
-TARGET_GUI=libqvkgui.a
 
 .PHONY:clean
 
-CC=clang
-AR=ar
 CFLAGS=-Wall -I. -I..
 LDFLAGS=-lvulkan
 CFLAGS+=$(OPT_CFLAGS)
