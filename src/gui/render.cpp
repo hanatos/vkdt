@@ -57,8 +57,8 @@ extern "C" int dt_gui_init_imgui()
   // upload Fonts
   {
     // use any command queue
-    VkCommandPool command_pool = qvk.command_pool; // XXX imgui has one per frame here, too
-    VkCommandBuffer command_buffer = qvk.command_buffers[0];
+    VkCommandPool command_pool = vkdt.command_pool[0];
+    VkCommandBuffer command_buffer = vkdt.command_buffer[0];
 
     QVK(vkResetCommandPool(qvk.device, command_pool, 0));
     VkCommandBufferBeginInfo begin_info = {};
@@ -81,7 +81,7 @@ extern "C" int dt_gui_init_imgui()
   return 0;
 }
 
-extern "C" void dt_gui_poll_event(SDL_Event *event)
+extern "C" void dt_gui_poll_event_imgui(SDL_Event *event)
 {
   // Poll and handle events (inputs, window resize, etc.)
   // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.

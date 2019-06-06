@@ -62,27 +62,6 @@ int dt_gui_init()
   // QVK(qvk_create_command_pool_and_fences());
   // QVK(qvk_initialize_all(VKPT_INIT_DEFAULT));
 
-
-  // create framebuffers
-  VkImageView attachment[1] = {};
-  VkFramebufferCreateInfo fb_create_info = {
-    .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-    .renderPass      = vkdt.render_pass,
-    .attachmentCount = 1,
-    .pAttachments    = attachment,
-    .width           = qvk.extent.width,
-    .height          = qvk.extent.height,
-    .layers          = 1,
-  };
-  vkdt.min_image_count = 2;
-  vkdt.image_count = qvk.num_swap_chain_images;
-  for(int i = 0; i < vkdt.image_count; i++)
-  {
-    attachment[0] = qvk.swap_chain_image_views[i];
-    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
-  }
-
-
   // TODO: create our command pool and fences (see imgui_impl_vulkan.cpp)
   // ImGui_ImplVulkanH_CreateWindowSwapChain
 
@@ -127,6 +106,24 @@ int dt_gui_init()
   const VkAllocationCallbacks* allocator = 0;
   QVK(vkCreateRenderPass(qvk.device, &info, allocator, &vkdt.render_pass));
 
+  // create framebuffers
+  VkImageView attachment[1] = {};
+  VkFramebufferCreateInfo fb_create_info = {
+    .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+    .renderPass      = vkdt.render_pass,
+    .attachmentCount = 1,
+    .pAttachments    = attachment,
+    .width           = qvk.extent.width,
+    .height          = qvk.extent.height,
+    .layers          = 1,
+  };
+  vkdt.min_image_count = 2;
+  vkdt.image_count = qvk.num_swap_chain_images;
+  for(int i = 0; i < vkdt.image_count; i++)
+  {
+    attachment[0] = qvk.swap_chain_image_views[i];
+    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
+  }
 
   // create command pool and fences and semaphores
   for(int i = 0; i < vkdt.image_count; i++)

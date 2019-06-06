@@ -1,11 +1,14 @@
 #include "qvk/qvk.h"
-#include <SDL.h>
-#include <SDL_vulkan.h>
 
 #include "pipe/graph.h"
 #include "pipe/global.h"
 #include "core/log.h"
-#include "gui.h"
+#include "gui/gui.h"
+#include "gui/render.h"
+
+#include <SDL.h>
+#include <SDL_vulkan.h>
+#include <stdio.h>
 
 dt_gui_t vkdt;
 
@@ -47,7 +50,7 @@ int main(int argc, char *argv[])
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
-      // ImGui_ImplSDL2_ProcessEvent(&event);
+      dt_gui_poll_event_imgui(&event);
       if (event.type == SDL_QUIT)
         running = 0;
       else if (event.type == SDL_KEYDOWN)
@@ -60,8 +63,10 @@ int main(int argc, char *argv[])
       {
         // XXX need to rebuild the swap chain!
       }
+      fprintf(stderr, "polling\n");
     }
 
+    fprintf(stderr, "rendering\n");
     dt_gui_render_frame();
 
     dt_gui_render();

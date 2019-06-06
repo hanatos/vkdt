@@ -1,26 +1,15 @@
-.PHONY:all clean pipe qvk cli pipe-clean qvk-clean cli-clean
-all: cli vkdt Makefile
-
-pipe:
-	make -C pipe
-qvk:
-	make -C qvk
-cli: qvk pipe
-	make -C cli
-
-clean: pipe-clean qvk-clean cli-clean gui-clean Makefile
-
-pipe-clean:
-	make -C pipe clean
-qvk-clean:
-	make -C qvk clean
-cli-clean:
-	make -C cli clean
+.PHONY:all clean
+all: vkdt-cli vkdt Makefile
 
 include qvk/flat.mk
 include core/flat.mk
 include gui/flat.mk
 include pipe/flat.mk
+include cli/flat.mk
+
+clean: Makefile
+	rm -f vkdt vkdt-cli 
+	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(QVK_O)
 
 CFLAGS=-Wall -pipe -I.
 LDFLAGS=
@@ -49,5 +38,8 @@ gui/%.o: gui/%.cpp Makefile
 ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
-vkdt: $(QVK_O) $(GUI_O) $(CORE_O) Makefile
-	$(CC) $(QVK_O) $(GUI_O) $(CORE_O) $(PIPE_O) -o vkdt $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS)
+vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS)
+
+vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
+	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt-cli $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS)

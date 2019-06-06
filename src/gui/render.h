@@ -13,7 +13,7 @@ int dt_gui_init_imgui();
 void dt_gui_cleanup_imgui();
 
 // poll imgui events from given event
-void dt_gui_poll_event(SDL_Event *event);
+void dt_gui_poll_event_imgui(SDL_Event *event);
 
 // render imgui frame
 void dt_gui_render_frame_imgui();
