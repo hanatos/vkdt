@@ -383,6 +383,7 @@ qvk_destroy_command_pool_and_fences()
   return VK_SUCCESS;
 }
 
+#if 0
 VkResult
 qvk_create_command_pool_and_fences()
 {
@@ -422,6 +423,7 @@ qvk_create_command_pool_and_fences()
 
   return VK_SUCCESS;
 }
+#endif
 
 // this function works without gui and consequently does not init SDL
 int

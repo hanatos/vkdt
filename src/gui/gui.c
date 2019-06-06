@@ -58,6 +58,7 @@ int dt_gui_init()
   }
 
   // TODO: move these to here (need our own swapchain? but definitely our own command pool/things)
+  // SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
   QVK(qvk_create_swapchain());
   // QVK(qvk_create_command_pool_and_fences());
   // QVK(qvk_initialize_all(VKPT_INIT_DEFAULT));
@@ -70,7 +71,7 @@ int dt_gui_init()
     .format = qvk.surf_format.format,
     .samples = VK_SAMPLE_COUNT_1_BIT,
     // TODO clear enable?
-    .loadOp = 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .loadOp = 1 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
     .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -155,7 +156,7 @@ int dt_gui_init()
   }
   vkdt.frame_index = 0;
   vkdt.sem_index = 0;
-  vkdt.clear_value = (VkClearValue){{.float32={0.18f, 0.18f, 0.18f}}};
+  vkdt.clear_value = (VkClearValue){{.float32={0.18f, 0.18f, 0.18f, 1.0f}}};
 
   vkdt.pipeline_cache = VK_NULL_HANDLE;
   VkDescriptorPoolSize pool_sizes[] =
