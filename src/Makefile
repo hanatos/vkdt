@@ -1,4 +1,4 @@
-.PHONY:all clean pipe qvk cli gui pipe-clean qvk-clean cli-clean gui-clean
+.PHONY:all clean pipe qvk cli pipe-clean qvk-clean cli-clean
 all: cli vkdt Makefile
 
 pipe:
@@ -7,8 +7,6 @@ qvk:
 	make -C qvk
 cli: qvk pipe
 	make -C cli
-gui: qvk pipe
-	make -C gui
 
 clean: pipe-clean qvk-clean cli-clean gui-clean Makefile
 
@@ -18,8 +16,6 @@ qvk-clean:
 	make -C qvk clean
 cli-clean:
 	make -C cli clean
-gui-clean:
-	make -C gui clean
 
 include qvk/flat.mk
 include core/flat.mk
@@ -28,6 +24,9 @@ include pipe/flat.mk
 
 CFLAGS=-Wall -pipe -I.
 LDFLAGS=
+
+# TODO: find a generic way to temporarily overwrite CFLAGS and
+# TODO: use the default rules instead:
 
 qvk/%.o: qvk/%.c Makefile
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
@@ -42,6 +41,12 @@ gui/%.o: gui/%.c Makefile
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.cpp Makefile
+	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+
+../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
+	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+
+ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 vkdt: $(QVK_O) $(GUI_O) $(CORE_O) Makefile
