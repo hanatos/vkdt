@@ -1,4 +1,5 @@
 #pragma once
+#include <SDL.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,7 +16,9 @@ void dt_gui_cleanup_imgui();
 void dt_gui_poll_event(SDL_Event *event);
 
 // render imgui frame
-void dt_gui_render_frame();
+void dt_gui_render_frame_imgui();
+
+void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
 
 #ifdef __cplusplus
 }

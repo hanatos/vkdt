@@ -9,7 +9,6 @@
 
 dt_gui_t vkdt;
 
-
 int main(int argc, char *argv[])
 {
   // init global things, log and pipeline:
@@ -28,7 +27,7 @@ int main(int argc, char *argv[])
     dt_log(s_log_gui, "usage: vkdt -g <graph.cfg> [-d verbosity]");
     exit(1);
   }
-  if(dt_gui_init(&vkdt)) exit(1);
+  if(dt_gui_init()) exit(1);
 
   dt_graph_t graph;
   dt_graph_init(&graph);
@@ -64,9 +63,11 @@ int main(int argc, char *argv[])
     }
 
     dt_gui_render_frame();
-    // TODO: equivalent of frame render and frame present
+
+    dt_gui_render();
+    dt_gui_present();
   }
 
-  dt_gui_cleanup(&vkdt);
+  dt_gui_cleanup();
   exit(0);
 }

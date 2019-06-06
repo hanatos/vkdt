@@ -31,53 +31,12 @@ int dt_gui_init_imgui()
   init_info.Device = qvk.device;
   init_info.QueueFamily = qvk.queue_idx_graphics;
   init_info.Queue = qvk.queue_graphics;
-  // TODO: need these specific for imgui:
   init_info.PipelineCache = vkdt.pipeline_cache;
   init_info.DescriptorPool = vkdt.descriptor_pool;
   init_info.Allocator = 0;
   init_info.MinImageCount = vkdt.min_image_count;
   init_info.ImageCount = vkdt.image_count;
   init_info.CheckVkResultFn = 0;//check_vk_result;
-  // ================================
-  // TODO: put into gui.c!
-  // Create the Render Pass
-  {
-    VkAttachmentDescription attachment = {};
-    attachment.format = qvk.surf_format.format;
-    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    // TODO clear enable?
-    attachment.loadOp = 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    VkAttachmentReference color_attachment = {};
-    color_attachment.attachment = 0;
-    color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &color_attachment;
-    VkSubpassDependency dependency = {};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    VkRenderPassCreateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    info.attachmentCount = 1;
-    info.pAttachments = &attachment;
-    info.subpassCount = 1;
-    info.pSubpasses = &subpass;
-    info.dependencyCount = 1;
-    info.pDependencies = &dependency;
-    const VkAllocationCallbacks* allocator = 0;
-    QVK(vkCreateRenderPass(qvk.device, &info, allocator, &vkdt.render_pass));
-  }
-  // ================================
   ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
 
   // Load Fonts
@@ -133,7 +92,7 @@ void dt_gui_poll_event(SDL_Event *event)
 }
 
 // call from main loop:
-void dt_gui_render_frame()
+void dt_gui_render_frame_imgui()
 {
 #if 0
         if (g_SwapChainRebuild)
@@ -192,6 +151,12 @@ void dt_gui_render_frame()
         // Rendering
         ImGui::Render();
         // memcpy(&wd->ClearValue.color.float32[0], &clear_color, 4 * sizeof(float));
+}
+
+void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
+{
+  // Record Imgui Draw Data and draw funcs into command buffer
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf);
 }
 
 void dt_gui_cleanup_imgui()

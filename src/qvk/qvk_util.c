@@ -34,6 +34,7 @@ qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
 	return 0;
 }
 
+#if 0
 VkResult
 buffer_create(
 		BufferResource_t *buf,
@@ -131,6 +132,7 @@ buffer_unmap(BufferResource_t *buf)
 	buf->is_mapped = 0;
 	vkUnmapMemory(qvk.device, buf->memory);
 }
+#endif
 
 const char *
 vk_format_to_string(VkFormat format)
