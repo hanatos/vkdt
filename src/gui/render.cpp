@@ -109,6 +109,23 @@ extern "C" void dt_gui_render_frame_imgui()
         ImGui_ImplSDL2_NewFrame(qvk.window);
         ImGui::NewFrame();
 
+        { // TODO: build our gui here:
+          ImGuiWindowFlags window_flags = 0;
+          window_flags |= ImGuiWindowFlags_NoTitleBar;
+          // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
+          // window_flags |= ImGuiWindowFlags_MenuBar;
+          window_flags |= ImGuiWindowFlags_NoMove;
+          window_flags |= ImGuiWindowFlags_NoResize;
+          // if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
+          // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
+          // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
+          // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+          ImGui::SetNextWindowPos (ImVec2(0, 0),      ImGuiCond_FirstUseEver);
+          ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
+          ImGui::Begin("panel", 0, window_flags);
+          ImGui::End();
+        }
+
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         static bool show_demo_window = true;
         static bool show_another_window = false;

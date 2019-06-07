@@ -193,12 +193,6 @@ void dt_gui_cleanup()
   SDL_Quit();
 }
 
-// TODO: need per swap chain image:
-// fence
-// command_pool
-// command_buffer
-// frame buffer
-
 void dt_gui_render()
 {
   VkSemaphore image_acquired_semaphore  = vkdt.sem_image_acquired [vkdt.sem_index];
