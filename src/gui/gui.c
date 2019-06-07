@@ -14,7 +14,7 @@ int dt_gui_init()
   qvk.win_height = 786;
   qvk.window = SDL_CreateWindow("vkdt", 20, 50,
       qvk.win_width, qvk.win_height,
-      SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+      SDL_WINDOW_VULKAN);// | SDL_WINDOW_RESIZABLE); // XXX can't claim this until we implemented it!
   if(!qvk.window)
   {
     dt_log(s_log_gui|s_log_err, "could not create SDL window `%s'", SDL_GetError());
