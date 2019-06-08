@@ -542,8 +542,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
       .depth  = 1,
     },
   };
-  if(dt_node_sink(node))
-  {
+  if(dt_node_sink(node) && node->module->so->write_sink)
+  { // only schedule copy back if the node actually asks for it
     vkCmdCopyImageToBuffer(
         cmd_buf,
         node->connector[0].image,
@@ -722,10 +722,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     bindings[i].pImmutableSamplers = 0;
   }
 
-  // a sink or a source does not need this dance here:
-  if(dt_node_sink(node) || dt_node_source(node))
-    return 0;
-
   // create a descriptor set layout
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
     .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -733,6 +729,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     .pBindings    = bindings,
   };
   QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
+
+  // a sink or a source does not need a pipeline to be run.
+  // note, however, that a sink does need a descriptor set, as we want to bind
+  // it to imgui textures later on.
+  if(dt_node_sink(node) || dt_node_source(node))
+    return 0;
 
   // create the pipeline layout
   
@@ -1063,22 +1065,27 @@ void dt_graph_setup_pipeline(
   QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
   QVK(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
   
-  uint8_t *mapped = 0;
-  QVK(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
   for(int n=0;n<graph->num_nodes;n++)
   { // for all sink nodes:
     dt_node_t *node = graph->node + n;
     if(dt_node_sink(node))
     {
+      // XXX hack! TODO implement proper display node
+      graph->output = node;
       if(node->module->so->write_sink)
+      {
+        uint8_t *mapped = 0;
+        QVK(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE,
+              0, (void**)&mapped));
         node->module->so->write_sink(node->module,
             mapped + node->connector[0].offset_staging);
+        vkUnmapMemory(qvk.device, graph->vkmem_staging);
+      }
       else
         dt_log(s_log_err|s_log_pipe, "sink node '%"PRItkn"' has no write_sink() callback!",
             dt_token_str(node->name));
     }
   }
-  vkUnmapMemory(qvk.device, graph->vkmem_staging);
 
   QVK(vkGetQueryPoolResults(qvk.device, graph->query_pool,
         0, graph->query_cnt,

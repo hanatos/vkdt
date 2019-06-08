@@ -32,16 +32,15 @@ int main(int argc, char *argv[])
   }
   if(dt_gui_init()) exit(1);
 
-  dt_graph_t graph;
-  dt_graph_init(&graph);
-  int err = dt_graph_read_config_ascii(&graph, graphcfg);
+  dt_graph_init(&vkdt.graph_dev);
+  int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graphcfg);
   if(err)
   {
     dt_log(s_log_err|s_log_gui, "could not load graph configuration from '%s'!", graphcfg);
     exit(1);
   }
 
-  dt_graph_setup_pipeline(&graph);
+  dt_graph_setup_pipeline(&vkdt.graph_dev);
 
   // main loop
   int running = 1;
@@ -71,6 +70,7 @@ int main(int argc, char *argv[])
     dt_gui_present();
   }
 
+  dt_graph_cleanup(&vkdt.graph_dev);
   dt_gui_cleanup();
   exit(0);
 }

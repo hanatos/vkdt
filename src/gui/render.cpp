@@ -109,7 +109,28 @@ extern "C" void dt_gui_render_frame_imgui()
         ImGui_ImplSDL2_NewFrame(qvk.window);
         ImGui::NewFrame();
 
-        { // TODO: build our gui here:
+        { // center image view
+          ImGuiWindowFlags window_flags = 0;
+          window_flags |= ImGuiWindowFlags_NoTitleBar;
+          window_flags |= ImGuiWindowFlags_NoMove;
+          window_flags |= ImGuiWindowFlags_NoResize;
+          ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
+          ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
+          ImGui::Begin("center", 0, window_flags);
+
+          if(vkdt.graph_dev.output)
+          {
+            ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
+            // float wd = (float)vkdt.graph_dev.output->roi.roi_wd;
+            // float ht = (float)vkdt.graph_dev.output->roi.roi_ht;
+            ImGui::GetWindowDrawList()->AddImage(
+                imgid, ImVec2(0, 0), ImVec2(1420, 1080),
+                ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE);
+          }
+          ImGui::End();
+        }
+
+        { // right panel
           ImGuiWindowFlags window_flags = 0;
           window_flags |= ImGuiWindowFlags_NoTitleBar;
           // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
@@ -120,49 +141,26 @@ extern "C" void dt_gui_render_frame_imgui()
           // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
           // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
           // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-          ImGui::SetNextWindowPos (ImVec2(0, 0),      ImGuiCond_FirstUseEver);
+          ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_FirstUseEver);
           ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
-          ImGui::Begin("panel", 0, window_flags);
+          ImGui::Begin("panel-right", 0, window_flags);
+
+          static float exposure = 0.0f;
+          ImGui::SliderFloat("exposure", &exposure, -7.0f, 7.0f, "%2.1f ev");
+
+#if 0
+          ImGuiIO& io = ImGui::GetIO();
+          ImTextureID imgid = io.Fonts->TexID;   // XXX put VkImage of display node!
+          float wd = (float)io.Fonts->TexWidth;
+          float ht = (float)io.Fonts->TexHeight;
+          // lower level API:
+          // ImGui::GetWindowDrawList()->AddImage()
+          // IMGUI_API void  AddImage(ImTextureID user_texture_id, const ImVec2& a, const ImVec2& b, const ImVec2& uv_a = ImVec2(0,0), const ImVec2& uv_b = ImVec2(1,1), ImU32 col = IM_COL32_WHITE);
+          ImGui::Image(imgid, ImVec2(wd, ht),    // VkImage and dimensions
+              ImVec2(0,0), ImVec2(1,1),          // uv0 uv1
+              ImVec4(1,1,1,1), ImVec4(0,0,0,0)); // tint + border col
+#endif
           ImGui::End();
-        }
-
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        static bool show_demo_window = true;
-        static bool show_another_window = false;
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            // ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
         }
 
         // Rendering

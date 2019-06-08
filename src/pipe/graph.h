@@ -53,6 +53,8 @@ typedef struct dt_graph_t
   uint32_t dset_cnt_image_write;
   uint32_t dset_cnt_buffer;
   uint32_t dset_cnt_uniform;
+
+  dt_node_t *output; // XXX hack, remove for better display node + gui binding!
 }
 dt_graph_t;
 

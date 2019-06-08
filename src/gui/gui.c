@@ -10,8 +10,8 @@
   
 int dt_gui_init()
 {
-  qvk.win_width  = 1152;
-  qvk.win_height = 786;
+  qvk.win_width  = 1920;
+  qvk.win_height = 1080;
   qvk.window = SDL_CreateWindow("vkdt", 20, 50,
       qvk.win_width, qvk.win_height,
       SDL_WINDOW_VULKAN);// | SDL_WINDOW_RESIZABLE); // XXX can't claim this until we implemented it!

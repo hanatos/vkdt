@@ -1,9 +1,11 @@
 #pragma once
+#include "pipe/graph.h"
 
 #include <vulkan/vulkan.h>
 
 #define DT_GUI_MAX_IMAGES 8
 
+typedef struct dt_graph_t dt_graph_t;
 typedef struct dt_gui_t
 {
   VkRenderPass     render_pass;
@@ -23,6 +25,8 @@ typedef struct dt_gui_t
   uint32_t         sem_index;
   VkSemaphore      sem_image_acquired [DT_GUI_MAX_IMAGES];
   VkSemaphore      sem_render_complete[DT_GUI_MAX_IMAGES];
+
+  dt_graph_t       graph_dev;
 }
 dt_gui_t;
 
