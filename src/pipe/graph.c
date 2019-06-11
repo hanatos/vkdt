@@ -1154,8 +1154,8 @@ VkResult dt_graph_run(
   };
 
   QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
-  if(run & s_graph_run_wait_done)
-    QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<4));
+  if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
+    QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<30));
   
   if(run & s_graph_run_download_sink)
   {
