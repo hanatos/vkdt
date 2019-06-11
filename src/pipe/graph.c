@@ -86,6 +86,7 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_staging);
   // TODO: destroy command buffers and pool
+  // TODO: destroy descriptor pool
   vkDestroyFence(qvk.device, g->command_fence, 0);
   vkDestroyQueryPool(qvk.device, g->query_pool, NULL);
 }
@@ -797,6 +798,40 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 // that is: only change params like roi offsets and node push
 // constants or uniform buffers, or input image.
 
+// tasks:
+// vulkan:
+// memory allocations, images, imageviews, dset pool, descriptor sets
+// record command buffer
+// pipe:
+// modules: roi out, roi in, create nodes (may depend on params, but not usually!)
+// nodes allocate memory
+// upload sources
+// download sinks, if needed on cpu
+// passes:
+// 1) roi out
+// 2) roi in + create nodes
+// -- tiling/mem check goes here
+// 3) alloc + free (images)
+// 4) alloc2 (dset, imageviews) + record command buf (upload params)
+// 5) upload, queue, wait, download
+
+// change events:
+// new input image (5)
+// - upload source, re-run the rest unchanged
+// changed parameters (4) (2) (1)
+// - cached input image for active module? run only after this
+// - need to re-create nodes (wavelet scales, demosaic mode)?
+// - did even roi out change based on params
+// changed roi zoom/pan (.) (4) (2)
+// - have full image? nothing to do
+// - negotiate roi
+// - need to re-create nodes?
+// - allocation sizes unchanged (pan)? just re-run
+// - alloc changed (lens distortions)? re-alloc mem and images
+// attached new display/output
+// - keep nodes, add new ones (or just re-create)
+// - re-alloc
+
 void dt_graph_setup_pipeline(
     dt_graph_t *graph)
 {
@@ -983,6 +1018,11 @@ void dt_graph_setup_pipeline(
     .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
                    + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
   };
+  // TODO: if already allocated and large enough, do this:
+  // VkResult vkResetDescriptorPool(
+  //   VkDevice                                    device,
+  //   VkDescriptorPool                            descriptorPool,
+  //   VkDescriptorPoolResetFlags                  flags);
   QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
 
   // uniform descriptor

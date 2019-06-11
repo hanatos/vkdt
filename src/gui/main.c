@@ -47,7 +47,11 @@ int main(int argc, char *argv[])
   while(running)
   {
     SDL_Event event;
-    while (SDL_PollEvent(&event))
+    // block and wait for one event instead of polling all the time to save on
+    // gpu workload. might need an interrupt for "render finished" etc. we might
+    // do that via SDL_PushEvent().
+    SDL_WaitEvent(&event);
+    do
     {
       dt_gui_poll_event_imgui(&event);
       if (event.type == SDL_QUIT)
@@ -63,6 +67,7 @@ int main(int argc, char *argv[])
         // XXX need to rebuild the swap chain!
       }
     }
+    while (SDL_PollEvent(&event));
 
     dt_gui_render_frame();
 
