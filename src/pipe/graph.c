@@ -47,7 +47,7 @@ dt_graph_init(dt_graph_t *g)
 
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .queueFamilyIndex = qvk.queue_idx_graphics,
+    .queueFamilyIndex = qvk.queue_idx_compute,
     .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
   };
   QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &g->command_pool));
@@ -192,7 +192,7 @@ error:
 }
 
 
-static inline void
+static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
   for(int i=0;i<node->num_connectors;i++)
@@ -220,11 +220,13 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           | VK_IMAGE_USAGE_TRANSFER_DST_BIT
           | VK_IMAGE_USAGE_SAMPLED_BIT
           | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
-        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+        // we will potentially need access to these images from both graphics and compute pipeline:
+        .sharingMode           = VK_SHARING_MODE_CONCURRENT, //VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = qvk.queue_idx_compute,
         .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
       };
-      QVK(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
+      if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
+      QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
       ATTACH_LABEL_VARIABLE(img, IMAGE);
 
       VkMemoryRequirements mem_req;
@@ -243,6 +245,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
+      c->mem->ref = 1;  // one user: us
 
       if(c->type == dt_token("source"))
       {
@@ -253,7 +256,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
           .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
-        QVK(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
+        QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
 
         VkMemoryRequirements buf_mem_req;
         vkGetBufferMemoryRequirements(qvk.device, c->staging, &buf_mem_req);
@@ -263,6 +266,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
         c->offset_staging = c->mem_staging->offset;
         c->size_staging   = c->mem_staging->size;
+        c->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
       }
     }
     else if(dt_connector_input(c))
@@ -273,6 +277,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           graph->node[c->connected_mid].connector + c->connected_cid;
         c->mem   = c2->mem;
         c->image = c2->image;
+        c->mem->ref++; // register our usage
         // image view will follow in alloc_outputs2
         if(c->type == dt_token("sink"))
         {
@@ -283,7 +288,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
             .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
           };
-          QVK(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
+          QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
 
           VkMemoryRequirements buf_mem_req;
           vkGetBufferMemoryRequirements(qvk.device, c->staging, &buf_mem_req);
@@ -297,11 +302,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       }
     }
   }
+  return VK_SUCCESS;
 }
 
 // 2nd pass, now we have images and vkDeviceMemory, let's bind images and buffers
 // to memory and create descriptor sets
-static inline void
+static inline VkResult
 alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
   if(node->dset_layout)
@@ -313,7 +319,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       .descriptorSetCount = 1,
       .pSetLayouts = &node->dset_layout,
     };
-    QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
+    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
   }
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
@@ -342,7 +348,8 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
           VK_COMPONENT_SWIZZLE_IDENTITY,
         },
       };
-      QVK(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &c->image_view));
+      if(c->image_view) vkDestroyImageView(qvk.device, c->image_view, VK_NULL_HANDLE);
+      QVKR(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &c->image_view));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images_views[VKPT_IMG_##_name], IMAGE_VIEW, #_name);
 
       img_info[i].sampler     = VK_NULL_HANDLE;
@@ -384,13 +391,13 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   }
   if(node->dset_layout)
     vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset, 0, NULL);
+  return VK_SUCCESS;
 }
 
 // free all buffers which we are done with now that the node
 // has been processed. that is: all inputs and all of our outputs
 // which aren't connected to another node.
-// TODO: consider protected buffers: for instance for loaded raw input, cached before currently active node, ..
-// TODO: probably facilitate via reference counting, the cache would be a user, too.
+// note that vkfree doesn't in fact free anything in case the reference count is > 0
 static inline void
 free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
@@ -399,8 +406,6 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+i;
     if(dt_connector_input(c) && c->connected_mid >= 0)
     {
-      // FIXME: we need a reference count on this buffer, there might be others
-      // FIXME: reading from the same resource in case the graph has a fork here
       dt_log(s_log_pipe, "freeing %"PRItkn" %"PRItkn,
           dt_token_str(node->name), dt_token_str(c->name));
       dt_vkfree(&graph->heap, c->mem);
@@ -514,15 +519,30 @@ void dt_token_print(dt_token_t t)
   fprintf(stderr, "token: %"PRItkn"\n", dt_token_str(t));
 }
 
-static int
-record_command_buffer(dt_graph_t *graph, dt_node_t *node)
+static VkResult
+record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
+  // TODO: run flags and active module
+  if(node->name == dt_token("demosaic"))
+    *runflag = 1;
+  if(!*runflag) return VK_SUCCESS; // nothing to do yet
+
   VkCommandBuffer cmd_buf = graph->command_buffer;
   // compute barriers on input images:
-  for(int i=0;i<node->num_connectors;i++)
-    if(dt_connector_input(node->connector+i))
-      if(node->connector[i].connected_mid >= 0)
-        BARRIER_COMPUTE(node->connector[i].image);
+  if(dt_node_sink(node))
+  { // XXX does this break export? we want it to display stuff in graphics queue
+    for(int i=0;i<node->num_connectors;i++)
+      if(dt_connector_input(node->connector+i))
+        if(node->connector[i].connected_mid >= 0)
+          BARRIER_COMPUTE_SINK(node->connector[i].image);
+  }
+  else
+  {
+    for(int i=0;i<node->num_connectors;i++)
+      if(dt_connector_input(node->connector+i))
+        if(node->connector[i].connected_mid >= 0)
+          BARRIER_COMPUTE(node->connector[i].image);
+  }
 
   const uint32_t wd = node->connector[0].roi.roi_wd;
   const uint32_t ht = node->connector[0].roi.roi_ht;
@@ -565,7 +585,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   }
 
   // only non-sink and non-source nodes have a pipeline:
-  if(!node->pipeline) return 1;
+  if(!node->pipeline) return VK_SUCCESS;
 
   // add our global uniforms:
   VkDescriptorSet desc_sets[] = {
@@ -606,7 +626,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node)
   if(graph->query_cnt < graph->query_max)
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt++);
-  return 0;
+  return VK_SUCCESS;
 }
 
 // TODO: put into qvk_utils?
@@ -643,7 +663,7 @@ read_file(const char *filename, size_t *len)
 
 // default callback for create nodes: pretty much copy the module.
 // also create vulkan pipeline and load spir-v portion of the compute shader.
-static int
+static VkResult
 create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   if(module->so->create_nodes) return module->so->create_nodes(graph, module);
@@ -729,13 +749,13 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     .bindingCount = module->num_connectors,
     .pBindings    = bindings,
   };
-  QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
 
   // a sink or a source does not need a pipeline to be run.
   // note, however, that a sink does need a descriptor set, as we want to bind
   // it to imgui textures later on.
   if(dt_node_sink(node) || dt_node_source(node))
-    return 0;
+    return VK_SUCCESS;
 
   // create the pipeline layout
   
@@ -750,7 +770,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     .pushConstantRangeCount = 0,
     .pPushConstantRanges    = 0,
   };
-  QVK(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
+  QVKR(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
 
   // create the compute shader stage
   char filename[1024] = {0};
@@ -759,7 +779,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 
   size_t len;
   void *data = read_file(filename, &len);
-  if(!data) return 1;
+  if(!data) return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
   VkShaderModule shader_module;
   VkShaderModuleCreateInfo sm_info = {
@@ -767,7 +787,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     .codeSize = len,
     .pCode    = data
   };
-  QVK(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
+  QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
   free(data);
 
   // TODO: cache on module->so ?
@@ -785,12 +805,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     .stage  = stage_info,
     .layout = node->pipeline_layout
   };
-  QVK(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
+  QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
 
   // we don't need the module any more
   vkDestroyShaderModule(qvk.device, stage_info.module, 0);
 
-  return 0;
+  return VK_SUCCESS;
 }
 
 
@@ -832,8 +852,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 // - keep nodes, add new ones (or just re-create)
 // - re-alloc
 
-void dt_graph_setup_pipeline(
-    dt_graph_t *graph)
+VkResult dt_graph_run(
+    dt_graph_t     *graph,
+    dt_graph_run_t  run)
 {
   // can be only one output sink node that determines ROI. but we can totally
   // have more than one sink to pull in nodes for. we have to execute some of
@@ -847,19 +868,22 @@ void dt_graph_setup_pipeline(
     if(graph->module[i].connector[0].type == dt_token("sink"))
     { sink_module_id = i; break; }
 
-  // init layout of uniform descriptor set:
-  VkDescriptorSetLayoutBinding bindings = {
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_ALL,
-  };
-  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 1,
-    .pBindings    = &bindings,
-  };
-  QVK(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+  if(run & s_graph_run_alloc_dset)
+  {
+    // init layout of uniform descriptor set:
+    VkDescriptorSetLayoutBinding bindings = {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_ALL,
+    };
+    VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+      .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 1,
+      .pBindings    = &bindings,
+    };
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+  }
   graph->query_cnt = 0;
 
 { // module scope
@@ -871,9 +895,12 @@ void dt_graph_setup_pipeline(
   // "int curr" will be the current node
   // walk all inputs and determine roi on all outputs
   int start_node_id = sink_module_id;
+  if(run & s_graph_run_roi_out)
+  {
 #define TRAVERSE_POST \
-  modify_roi_out(graph, arr+curr);
+    modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
+  }
 
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
@@ -884,24 +911,28 @@ void dt_graph_setup_pipeline(
   // 2nd pass: request input rois
   // and create nodes for all modules
   // ==============================================
-  graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
-  graph->dset_cnt_image_read = 0;
-  graph->dset_cnt_image_write = 0;
-  graph->dset_cnt_buffer = 0;
-  graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
-  // TODO: nuke descriptor set pool?
-  start_node_id = sink_module_id;
-  memset(mark, 0, sizeof(mark));
+  if(run & (s_graph_run_roi_out| s_graph_run_create_nodes))
+  {
+    // XXX TODO: if we do this, we may want to alloc_dset, too?
+    graph->dset_cnt_image_read = 0;
+    graph->dset_cnt_image_write = 0;
+    graph->dset_cnt_buffer = 0;
+    graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
+    graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
+    // TODO: nuke descriptor set pool?
+    start_node_id = sink_module_id;
+    memset(mark, 0, sizeof(mark));
 #define TRAVERSE_PRE\
-  modify_roi_in(graph, arr+curr);
+    modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
-  create_nodes(graph, arr+curr);
-  // TODO: in fact this should only be an error for default create nodes cases:
-  // TODO: the others might break the cycle by pushing more nodes.
+    create_nodes(graph, arr+curr);
+    // TODO: in fact this should only be an error for default create nodes cases:
+    // TODO: the others might break the cycle by pushing more nodes.
 #define TRAVERSE_CYCLE\
-  dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
-  dt_module_connect(graph, -1,-1, curr, i);
+    dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+    dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
+  }
 
   // TODO: when and how are module params updated and pointed to uniform buffers?
 
@@ -945,141 +976,164 @@ void dt_graph_setup_pipeline(
   // ==============================================
   // 1st pass alloc and free, detect cycles
   // ==============================================
-  graph->memory_type_bits = ~0u;
-  graph->memory_type_bits_staging = ~0u;
-  memset(mark, 0, sizeof(mark));
+  if(run & s_graph_run_alloc_free)
+  {
+    graph->memory_type_bits = ~0u;
+    graph->memory_type_bits_staging = ~0u;
+    memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
-  alloc_outputs(graph, arr+curr);\
-  free_inputs  (graph, arr+curr);
+    QVKR(alloc_outputs(graph, arr+curr));\
+    free_inputs       (graph, arr+curr);
 #define TRAVERSE_CYCLE\
-  dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
-  dt_node_connect(graph, -1,-1, curr, i);
+    dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+    dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
+  }
 
   // TODO: reuse previous allocation if any and big enough
+  // XXX check sizes and runflags!
+  if(!graph->vkmem)
+  {
+    // image data to pass between nodes
+    VkMemoryAllocateInfo mem_alloc_info = {
+      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize  = graph->heap.vmsize,
+      .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits,
+          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    };
+    QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
 
-  // image data to pass between nodes
-  VkMemoryAllocateInfo mem_alloc_info = {
-    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .allocationSize  = graph->heap.vmsize,
-    .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-  };
-  QVK(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
+    // XXX TODO: separate check for staging mem
+    // staging memory to copy to and from device
+    VkMemoryAllocateInfo mem_alloc_info_staging = {
+      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize  = graph->heap_staging.vmsize,
+      .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits_staging,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+    };
+    QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
 
-  // staging memory to copy to and from device
-  VkMemoryAllocateInfo mem_alloc_info_staging = {
-    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .allocationSize  = graph->heap_staging.vmsize,
-    .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits_staging,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-  };
-  QVK(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
+    // TODO: XXX separate check for uniforms
+    // uniform data to pass parameters
+    VkBufferCreateInfo buffer_info = {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      .size = graph->uniform_size,
+      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+    QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
+    VkMemoryRequirements mem_req;
+    vkGetBufferMemoryRequirements(qvk.device, graph->uniform_buffer, &mem_req);
+    VkMemoryAllocateInfo mem_alloc_info_uniform = {
+      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize  = graph->uniform_size,
+      .memoryTypeIndex = qvk_get_memory_type(mem_req.memoryTypeBits,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+    };
+    QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
+    vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
+  }
 
-  // uniform data to pass parameters
-  VkBufferCreateInfo buffer_info = {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-    .size = graph->uniform_size,
-    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-  };
-  QVK(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
-  VkMemoryRequirements mem_req;
-  vkGetBufferMemoryRequirements(qvk.device, graph->uniform_buffer, &mem_req);
-  VkMemoryAllocateInfo mem_alloc_info_uniform = {
-    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .allocationSize  = graph->uniform_size,
-    .memoryTypeIndex = qvk_get_memory_type(mem_req.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-  };
-  QVK(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
-  vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
+  if(run & s_graph_run_alloc_dset)
+  {
+    // TODO: redo if updates:
+    if(graph->dset_pool)
+    {
+      // TODO: if already allocated and large enough, do this:
+      QVKR(vkResetDescriptorPool(qvk.device, graph->dset_pool, 0));
+    }
+    else
+      // TODO: if not big enough destroy first here
+    {
+      // create descriptor pool:
+      VkDescriptorPoolSize pool_sizes[] = {{
+        .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .descriptorCount = graph->dset_cnt_image_read,
+      }, {
+        .type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .descriptorCount = graph->dset_cnt_image_write,
+      }, {
+        .type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .descriptorCount = graph->dset_cnt_buffer,
+      }, {
+        .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+          .descriptorCount = graph->dset_cnt_uniform,
+      }};
 
-  // TODO: redo if updates:
-  // create descriptor pool:
-  VkDescriptorPoolSize pool_sizes[] = {{
-      .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .descriptorCount = graph->dset_cnt_image_read,
-    }, {
-      .type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-      .descriptorCount = graph->dset_cnt_image_write,
-    }, {
-      .type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = graph->dset_cnt_buffer,
-    }, {
-      .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .descriptorCount = graph->dset_cnt_uniform,
-    }};
+      VkDescriptorPoolCreateInfo pool_info = {
+        .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .poolSizeCount = LENGTH(pool_sizes),
+        .pPoolSizes    = pool_sizes,
+        .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
+          + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
+      };
+      if(graph->dset_pool)
+        vkDestroyDescriptorPool(qvk.device, graph->dset_pool, VK_NULL_HANDLE);
+      QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
+    }
 
-  VkDescriptorPoolCreateInfo pool_info = {
-    .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    .poolSizeCount = LENGTH(pool_sizes),
-    .pPoolSizes    = pool_sizes,
-    .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
-                   + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
-  };
-  // TODO: if already allocated and large enough, do this:
-  // VkResult vkResetDescriptorPool(
-  //   VkDevice                                    device,
-  //   VkDescriptorPool                            descriptorPool,
-  //   VkDescriptorPoolResetFlags                  flags);
-  QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
+    // uniform descriptor
+    VkDescriptorSetAllocateInfo dset_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = graph->dset_pool,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &graph->uniform_dset_layout,
+    };
+    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &graph->uniform_dset));
+    VkDescriptorBufferInfo uniform_info = {
+      .buffer      = graph->uniform_buffer,
+      .range       = VK_WHOLE_SIZE,
+    };
+    VkWriteDescriptorSet buf_dset = {
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = graph->uniform_dset,
+      .dstBinding      = 0,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = &uniform_info,
+    };
+    vkUpdateDescriptorSets(qvk.device, 1, &buf_dset, 0, NULL);
+  }
 
-  // uniform descriptor
-  VkDescriptorSetAllocateInfo dset_info = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorPool = graph->dset_pool,
-    .descriptorSetCount = 1,
-    .pSetLayouts = &graph->uniform_dset_layout,
-  };
-  QVK(vkAllocateDescriptorSets(qvk.device, &dset_info, &graph->uniform_dset));
-  VkDescriptorBufferInfo uniform_info = {
-    .buffer      = graph->uniform_buffer,
-    .range       = VK_WHOLE_SIZE,
-  };
-  VkWriteDescriptorSet buf_dset = {
-    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .dstSet          = graph->uniform_dset,
-    .dstBinding      = 0,
-    .dstArrayElement = 0,
-    .descriptorCount = 1,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .pBufferInfo     = &uniform_info,
-  };
-  vkUpdateDescriptorSets(qvk.device, 1, &buf_dset, 0, NULL);
+  vkResetCommandPool(qvk.device, graph->command_pool, 0);
 
   // begin command buffer
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
-  QVK(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
+  QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
 
   // upload all source data to staging memory
-  uint8_t *mapped = 0;
-  QVK(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
-  for(int n=0;n<graph->num_nodes;n++)
-  { // for all source nodes:
-    dt_node_t *node = graph->node + n;
-    if(dt_node_source(node))
-    {
-      if(node->module->so->read_source)
-        node->module->so->read_source(node->module,
-            mapped + node->connector[0].offset_staging);
-      else
-        dt_log(s_log_err|s_log_pipe, "source node '%"PRItkn"' has no read_source() callback!",
-            dt_token_str(node->name));
+  if(run & s_graph_run_upload_source)
+  {
+    uint8_t *mapped = 0;
+    QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
+    for(int n=0;n<graph->num_nodes;n++)
+    { // for all source nodes:
+      dt_node_t *node = graph->node + n;
+      if(dt_node_source(node))
+      {
+        if(node->module->so->read_source)
+          node->module->so->read_source(node->module,
+              mapped + node->connector[0].offset_staging);
+        else
+          dt_log(s_log_err|s_log_pipe, "source node '%"PRItkn"' has no read_source() callback!",
+              dt_token_str(node->name));
+      }
     }
+    vkUnmapMemory(qvk.device, graph->vkmem_staging);
   }
-  vkUnmapMemory(qvk.device, graph->vkmem_staging);
 
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
   // ==============================================
   memset(mark, 0, sizeof(mark));
+  int runflag = run & s_graph_run_upload_source ? 1 : 0;
 #define TRAVERSE_POST\
-  alloc_outputs2(graph, arr+curr);\
-  record_command_buffer(graph, arr+curr);
+  if(run & s_graph_run_alloc_dset)     QVKR(alloc_outputs2(graph, arr+curr));\
+  if(run & s_graph_run_record_cmd_buf) QVKR(record_command_buffer(graph, arr+curr, &runflag));
 #include "graph-traverse.inc"
 
 } // end scope, done with nodes
@@ -1091,10 +1145,7 @@ void dt_graph_setup_pipeline(
       graph->heap_staging.peak_rss/(1024.0*1024.0),
       graph->heap_staging.vmsize  /(1024.0*1024.0));
 
-  // clean up after ourselves
-  // XXX vkCmdResetQueryPool(qvk.cmd_buf_current, query_pool, 0, graph->query_cnt);
-
-  QVK(vkEndCommandBuffer(graph->command_buffer));
+  QVKR(vkEndCommandBuffer(graph->command_buffer));
 
   VkSubmitInfo submit = {
     .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -1102,32 +1153,36 @@ void dt_graph_setup_pipeline(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
-  QVK(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
-  QVK(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
+  QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
+  if(run & s_graph_run_wait_done)
+    QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<4));
   
-  for(int n=0;n<graph->num_nodes;n++)
-  { // for all sink nodes:
-    dt_node_t *node = graph->node + n;
-    if(dt_node_sink(node))
-    {
-      // XXX hack! TODO implement proper display node
-      graph->output = node;
-      if(node->module->so->write_sink)
+  if(run & s_graph_run_download_sink)
+  {
+    for(int n=0;n<graph->num_nodes;n++)
+    { // for all sink nodes:
+      dt_node_t *node = graph->node + n;
+      if(dt_node_sink(node))
       {
-        uint8_t *mapped = 0;
-        QVK(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE,
-              0, (void**)&mapped));
-        node->module->so->write_sink(node->module,
-            mapped + node->connector[0].offset_staging);
-        vkUnmapMemory(qvk.device, graph->vkmem_staging);
+        // XXX hack! TODO implement proper display node
+        graph->output = node;
+        if(node->module->so->write_sink)
+        {
+          uint8_t *mapped = 0;
+          QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE,
+                0, (void**)&mapped));
+          node->module->so->write_sink(node->module,
+              mapped + node->connector[0].offset_staging);
+          vkUnmapMemory(qvk.device, graph->vkmem_staging);
+        }
+        else
+          dt_log(s_log_err|s_log_pipe, "sink node '%"PRItkn"' has no write_sink() callback!",
+              dt_token_str(node->name));
       }
-      else
-        dt_log(s_log_err|s_log_pipe, "sink node '%"PRItkn"' has no write_sink() callback!",
-            dt_token_str(node->name));
     }
   }
 
-  QVK(vkGetQueryPoolResults(qvk.device, graph->query_pool,
+  QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
         0, graph->query_cnt,
         sizeof(graph->query_pool_results[0]) * graph->query_max,
         graph->query_pool_results,
@@ -1139,4 +1194,7 @@ void dt_graph_setup_pipeline(
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6);
   }
+  // clean up after ourselves
+  vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_cnt);
+  return VK_SUCCESS;
 }

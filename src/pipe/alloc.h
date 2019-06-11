@@ -9,7 +9,8 @@
 typedef struct dt_vkmem_t
 {
   uint64_t offset;          // to be uploaded as uniform/push const
-  uint64_t size;            // only for us, the gpu will know what they asked for
+  uint64_t ref  : 16;       // reference count
+  uint64_t size : 48;       // only for us, the gpu will know what they asked for
   struct dt_vkmem_t *prev;  // for alloced/free lists
   struct dt_vkmem_t *next;
 }

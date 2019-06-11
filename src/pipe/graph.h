@@ -58,6 +58,22 @@ typedef struct dt_graph_t
 }
 dt_graph_t;
 
+typedef enum dt_graph_run_t
+{
+  s_graph_run_none           = 0,
+  s_graph_run_roi_out        = 1<<0, // pass 1: recompute output roi
+  s_graph_run_roi_in         = 1<<1, // pass 2: recompute input roi requests
+  s_graph_run_create_nodes   = 1<<2, // pass 2: create nodes from modules
+  s_graph_run_alloc_free     = 1<<3, // pass 3: alloc and free images
+  s_graph_run_alloc_dset     = 1<<4, // pass 4: alloc descriptor sets and imageviews
+  s_graph_run_record_cmd_buf = 1<<5, // pass 4: record command buffer
+  s_graph_run_upload_source  = 1<<6, // final : upload new source image
+  s_graph_run_download_sink  = 1<<7, // final : download sink images
+  s_graph_run_wait_done      = 1<<8, // wait for fence
+  s_graph_run_all = -1u,
+}
+dt_graph_run_t;
+
 void dt_graph_init(dt_graph_t *g);
 void dt_graph_cleanup(dt_graph_t *g);
 
@@ -77,7 +93,8 @@ int dt_graph_write(
     dt_graph_t *graph,
     const char *filename);
 
-void dt_graph_setup_pipeline(
-    dt_graph_t *graph);
+VkResult dt_graph_run(
+    dt_graph_t     *graph,
+    dt_graph_run_t  run);
 
 void dt_token_print(dt_token_t t);

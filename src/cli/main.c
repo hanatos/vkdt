@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  dt_graph_setup_pipeline(&graph);
+  dt_graph_run(&graph, s_graph_run_all);
 
   qvk_cleanup();
   exit(0);

@@ -18,10 +18,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "core/core.h"
+#include "qvk_util.h"
 
 #include <vulkan/vulkan.h>
 
-#include "qvk_util.h"
 
 #define LENGTH(a) ((sizeof (a)) / (sizeof(*(a))))
 

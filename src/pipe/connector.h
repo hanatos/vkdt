@@ -62,7 +62,6 @@ typedef struct dt_connector_t
   // pipeline once it has been setup.
   dt_vkmem_t *mem;
   dt_vkmem_t *mem_staging;
-  uint64_t    mem_flags;  // protected bits etc go here
 
   VkImage     image;
   VkImageView image_view;

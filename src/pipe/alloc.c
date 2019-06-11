@@ -76,6 +76,7 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       a->peak_rss = MAX(a->peak_rss, a->rss);
       a->vmsize = MAX(a->vmsize, mem->offset + mem->size);
       a->used = DLIST_PREPEND(a->used, mem);
+      mem->ref = 0;
       return mem;
     }
     l = l->next;
@@ -86,6 +87,11 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 void
 dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
 {
+  if(mem->ref)
+  {
+    mem->ref--;
+    if(mem->ref) return; // don't free if still referenced
+  }
   // remove from used list, put back to free list.
   a->rss -= mem->size;
   a->used = DLIST_REMOVE(a->used, mem);
