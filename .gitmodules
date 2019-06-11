@@ -3,4 +3,4 @@
 	url = https://github.com/darktable-org/rawspeed.git
 [submodule "ext/imgui"]
 	path = ext/imgui
-	url = https://github.com/ocornut/imgui.git
+	url = https://github.com/hanatos/imgui.git

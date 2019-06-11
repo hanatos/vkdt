@@ -19,7 +19,8 @@ clean: Makefile
 	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O)
 	rm -f pipe/modules/*/lib*.so
 
-CFLAGS=-Wall -pipe -I.
+# for sched_affinity
+CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 LDFLAGS=
 
 # TODO: find a generic way to temporarily overwrite CFLAGS and
