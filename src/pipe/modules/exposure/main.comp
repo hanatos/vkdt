@@ -22,7 +22,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
-  int filters;
+  float ev;
 } params;
 
 
@@ -42,6 +42,6 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   vec4 rgba = texelFetch(img_in, ipos, 0);
-  imageStore(img_out, ipos, vec4(rgba.rgb*4.0, 1));
+  imageStore(img_out, ipos, vec4(rgba.rgb*pow(2, params.ev), 1));
 }
 
