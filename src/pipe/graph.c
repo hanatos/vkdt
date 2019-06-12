@@ -88,7 +88,8 @@ dt_graph_cleanup(dt_graph_t *g)
   // TODO: destroy command buffers and pool
   // TODO: destroy descriptor pool
   vkDestroyFence(qvk.device, g->command_fence, 0);
-  vkDestroyQueryPool(qvk.device, g->query_pool, NULL);
+  vkDestroyQueryPool(qvk.device, g->query_pool, 0);
+  vkDestroyCommandPool(qvk.device, g->command_pool, 0);
 }
 
 // helper to read parameters from config file
@@ -195,6 +196,7 @@ error:
 static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
+  fprintf(stderr, "XXX alloc node %"PRItkn"\n", dt_token_str(node->name));
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -245,7 +247,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
-      c->mem->ref = 1;  // one user: us
 
       if(c->type == dt_token("source"))
       {
@@ -277,7 +278,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           graph->node[c->connected_mid].connector + c->connected_cid;
         c->mem   = c2->mem;
         c->image = c2->image;
-        c->mem->ref++; // register our usage
+        // XXX how does this work for multiple display output nodes?
+        // c->mem->ref++; // register our usage // ownership has been transferred implicitly
         // image view will follow in alloc_outputs2
         if(c->type == dt_token("sink"))
         {
@@ -401,6 +403,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 static inline void
 free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
+  fprintf(stderr, "XXX free node %"PRItkn"\n", dt_token_str(node->name));
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -416,15 +419,19 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_output(c))
     {
-      dt_log(s_log_pipe, "ref count %"PRItkn" %"PRItkn" %d",
+      dt_log(s_log_pipe, "ref count %"PRItkn" %"PRItkn" %d %d",
           dt_token_str(node->name), dt_token_str(c->name),
-          c->connected_mid);
+          c->connected_mid, c->mem->ref);
+      // dt_vkfree(&graph->heap, c->mem);
+#if 1 // need to keep this for the next module
+      // XXX TODO: use ref counting instead of this heuristic
       if(c->connected_mid < 1)
       {
         dt_log(s_log_pipe, "freeing unconnected %"PRItkn" %"PRItkn,
             dt_token_str(node->name), dt_token_str(c->name));
         dt_vkfree(&graph->heap, c->mem);
       }
+#endif
     }
     // staging memory for sources or sinks only needed during execution once
     if(c->mem_staging)
@@ -523,26 +530,29 @@ static VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
   // TODO: run flags and active module
-  if(node->name == dt_token("demosaic"))
-    *runflag = 1;
+  if(node->name == dt_token("demosaic")) *runflag = 2; // XXX hack
   if(!*runflag) return VK_SUCCESS; // nothing to do yet
 
   VkCommandBuffer cmd_buf = graph->command_buffer;
-  // compute barriers on input images:
-  if(dt_node_sink(node))
-  { // XXX does this break export? we want it to display stuff in graphics queue
-    for(int i=0;i<node->num_connectors;i++)
-      if(dt_connector_input(node->connector+i))
-        if(node->connector[i].connected_mid >= 0)
-          BARRIER_COMPUTE_SINK(node->connector[i].image);
-  }
-  else
+  if(*runflag == 1) // only wait for non-cached inputs
   {
-    for(int i=0;i<node->num_connectors;i++)
-      if(dt_connector_input(node->connector+i))
-        if(node->connector[i].connected_mid >= 0)
-          BARRIER_COMPUTE(node->connector[i].image);
+    // compute barriers on input images:
+    if(dt_node_sink(node))
+    { // XXX does this break export? we want it to display stuff in graphics queue
+      for(int i=0;i<node->num_connectors;i++)
+        if(dt_connector_input(node->connector+i))
+          if(node->connector[i].connected_mid >= 0)
+            BARRIER_COMPUTE_SINK(node->connector[i].image);
+    }
+    else
+    {
+      for(int i=0;i<node->num_connectors;i++)
+        if(dt_connector_input(node->connector+i))
+          if(node->connector[i].connected_mid >= 0)
+            BARRIER_COMPUTE(node->connector[i].image);
+    }
   }
+  *runflag = 1;
 
   const uint32_t wd = node->connector[0].roi.roi_wd;
   const uint32_t ht = node->connector[0].roi.roi_ht;
@@ -943,12 +953,6 @@ VkResult dt_graph_run(
 
   assert(graph->num_nodes < sizeof(mark));
 
-  // free pipeline resources if previously allocated anything:
-  dt_vkalloc_nuke(&graph->heap);
-  dt_vkalloc_nuke(&graph->heap_staging);
-  // TODO: also goes with potential leftovers from vulkan!
-  // TODO: clean memory allocation and descriptor pool
-
 { // node scope
   dt_node_t *const arr = graph->node;
   int sink_node_id = 0;
@@ -978,6 +982,9 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & s_graph_run_alloc_free)
   {
+    // free pipeline resources if previously allocated anything:
+    dt_vkalloc_nuke(&graph->heap);
+    dt_vkalloc_nuke(&graph->heap_staging);
     graph->memory_type_bits = ~0u;
     graph->memory_type_bits_staging = ~0u;
     memset(mark, 0, sizeof(mark));
@@ -1096,12 +1103,15 @@ VkResult dt_graph_run(
     vkUpdateDescriptorSets(qvk.device, 1, &buf_dset, 0, NULL);
   }
 
-  vkResetCommandPool(qvk.device, graph->command_pool, 0);
+  // not really needed, vkBeginCommandBuffer will reset our cmd buf
+  // vkResetCommandPool(qvk.device, graph->command_pool, 0);
 
   // begin command buffer
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    // VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT would allow simultaneous execution while still pending.
+    // not sure about our images, i suppose they will need sync/double buffering in this case
   };
   QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
 
@@ -1130,7 +1140,7 @@ VkResult dt_graph_run(
   // 2nd pass finish alloc and record commmand buf
   // ==============================================
   memset(mark, 0, sizeof(mark));
-  int runflag = run & s_graph_run_upload_source ? 1 : 0;
+  int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
 #define TRAVERSE_POST\
   if(run & s_graph_run_alloc_dset)     QVKR(alloc_outputs2(graph, arr+curr));\
   if(run & s_graph_run_record_cmd_buf) QVKR(record_command_buffer(graph, arr+curr, &runflag));
@@ -1153,9 +1163,11 @@ VkResult dt_graph_run(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
+#if 0
   QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
   if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
     QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<30));
+#endif
   
   if(run & s_graph_run_download_sink)
   {
