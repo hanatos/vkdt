@@ -247,6 +247,11 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
+      // manual reference counting: we don't want to ref++ because we do
+      // alloc/free in one pass. this means one module would call free before
+      // the next module has a chance to up the ref counter.
+      // luckily we already know how many users are connected to this pin:
+      c->mem->ref = c->connected_mid + 1;
 
       if(c->type == dt_token("source"))
       {
@@ -278,8 +283,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           graph->node[c->connected_mid].connector + c->connected_cid;
         c->mem   = c2->mem;
         c->image = c2->image;
-        // XXX how does this work for multiple display output nodes?
-        // c->mem->ref++; // register our usage // ownership has been transferred implicitly
+        // c->mem->ref++; // already accounted for globally above
         // image view will follow in alloc_outputs2
         if(c->type == dt_token("sink"))
         {
@@ -409,7 +413,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+i;
     if(dt_connector_input(c) && c->connected_mid >= 0)
     {
-      dt_log(s_log_pipe, "freeing %"PRItkn" %"PRItkn,
+      dt_log(s_log_pipe, "freeing input %"PRItkn" %"PRItkn,
           dt_token_str(node->name), dt_token_str(c->name));
       dt_vkfree(&graph->heap, c->mem);
       // note that we keep the offset and VkImage etc around, we'll be using
@@ -419,11 +423,11 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_output(c))
     {
-      dt_log(s_log_pipe, "ref count %"PRItkn" %"PRItkn" %d %d",
+      dt_log(s_log_pipe, "freeing output ref count %"PRItkn" %"PRItkn" %d %d",
           dt_token_str(node->name), dt_token_str(c->name),
           c->connected_mid, c->mem->ref);
-      // dt_vkfree(&graph->heap, c->mem);
-#if 1 // need to keep this for the next module
+      dt_vkfree(&graph->heap, c->mem);
+#if 0 // need to keep this for the next module
       // XXX TODO: use ref counting instead of this heuristic
       if(c->connected_mid < 1)
       {
@@ -435,7 +439,11 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     }
     // staging memory for sources or sinks only needed during execution once
     if(c->mem_staging)
+    {
+      dt_log(s_log_pipe, "freeing staging %"PRItkn" %"PRItkn,
+          dt_token_str(node->name), dt_token_str(c->name));
       dt_vkfree(&graph->heap_staging, c->mem_staging);
+    }
   }
 }
 
@@ -1163,11 +1171,9 @@ VkResult dt_graph_run(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
-#if 0
   QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
   if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
     QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<30));
-#endif
   
   if(run & s_graph_run_download_sink)
   {
