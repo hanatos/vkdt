@@ -87,7 +87,6 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 void
 dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
 {
-  fprintf(stderr, "free ref %u\n", mem->ref);
   assert(mem->ref > 0);
   if(mem->ref)
   {
@@ -95,7 +94,6 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
     if(mem->ref) return; // don't free if still referenced
   }
   else return; // no ref count: already freed
-  fprintf(stderr, "FREE ***\n");
   // remove from used list, put back to free list.
   a->rss -= mem->size;
   a->used = DLIST_REMOVE(a->used, mem);

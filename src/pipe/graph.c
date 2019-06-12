@@ -196,7 +196,6 @@ error:
 static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
-  fprintf(stderr, "XXX alloc node %"PRItkn"\n", dt_token_str(node->name));
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -407,7 +406,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 static inline void
 free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
-  fprintf(stderr, "XXX free node %"PRItkn"\n", dt_token_str(node->name));
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -427,15 +425,6 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(node->name), dt_token_str(c->name),
           c->connected_mid, c->mem->ref);
       dt_vkfree(&graph->heap, c->mem);
-#if 0 // need to keep this for the next module
-      // XXX TODO: use ref counting instead of this heuristic
-      if(c->connected_mid < 1)
-      {
-        dt_log(s_log_pipe, "freeing unconnected %"PRItkn" %"PRItkn,
-            dt_token_str(node->name), dt_token_str(c->name));
-        dt_vkfree(&graph->heap, c->mem);
-      }
-#endif
     }
     // staging memory for sources or sinks only needed during execution once
     if(c->mem_staging)
@@ -1155,13 +1144,17 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
 
 } // end scope, done with nodes
-  dt_log(s_log_pipe, "images : peak rss %g MB vmsize %g MB",
-      graph->heap.peak_rss/(1024.0*1024.0),
-      graph->heap.vmsize  /(1024.0*1024.0));
 
-  dt_log(s_log_pipe, "staging: peak rss %g MB vmsize %g MB",
-      graph->heap_staging.peak_rss/(1024.0*1024.0),
-      graph->heap_staging.vmsize  /(1024.0*1024.0));
+  if(run & s_graph_run_alloc_free)
+  {
+    dt_log(s_log_pipe, "images : peak rss %g MB vmsize %g MB",
+        graph->heap.peak_rss/(1024.0*1024.0),
+        graph->heap.vmsize  /(1024.0*1024.0));
+
+    dt_log(s_log_pipe, "staging: peak rss %g MB vmsize %g MB",
+        graph->heap_staging.peak_rss/(1024.0*1024.0),
+        graph->heap_staging.vmsize  /(1024.0*1024.0));
+  }
 
   QVKR(vkEndCommandBuffer(graph->command_buffer));
 
@@ -1193,9 +1186,12 @@ VkResult dt_graph_run(
               mapped + node->connector[0].offset_staging);
           vkUnmapMemory(qvk.device, graph->vkmem_staging);
         }
+        /* in fact this is not an error. but we might consider adding a display
+         * callback in case this mapping and copying to cpu isn't needed.
         else
           dt_log(s_log_err|s_log_pipe, "sink node '%"PRItkn"' has no write_sink() callback!",
               dt_token_str(node->name));
+              */
       }
     }
   }
