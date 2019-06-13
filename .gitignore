@@ -3,6 +3,10 @@ src/pipe/doc/readme.html
 *.o
 *.a
 built/
+src/vkdt
+src/vkdt-cli
 bin/vkdt
 bin/vkdt-cli
-src/gui/vkdt
+bin/data
+bin/modules
+bin/imgui.ini
