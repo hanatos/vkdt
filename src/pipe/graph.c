@@ -62,7 +62,7 @@ dt_graph_init(dt_graph_t *g)
   VkFenceCreateInfo fence_info = {
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
     /* fence's initial state set to be signaled to make program not hang */
-    .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+    // .flags = VK_FENCE_CREATE_SIGNALED_BIT,
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
 
@@ -203,6 +203,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       dt_log(s_log_pipe, "%d x %d %"PRItkn, c->roi.roi_wd, c->roi.roi_ht, dt_token_str(node->name));
+      // as it turns out our compute and graphics queues are identical, which simplifies things
+      // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -222,8 +224,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           | VK_IMAGE_USAGE_SAMPLED_BIT
           | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
         // we will potentially need access to these images from both graphics and compute pipeline:
-        .sharingMode           = VK_SHARING_MODE_CONCURRENT, //VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = qvk.queue_idx_compute,
+        .sharingMode           = VK_SHARING_MODE_EXCLUSIVE, // VK_SHARING_MODE_CONCURRENT, 
+        .queueFamilyIndexCount = 0,//2,
+        .pQueueFamilyIndices   = 0,//queues,
         .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
       };
       if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
@@ -531,8 +534,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   if(!*runflag) return VK_SUCCESS; // nothing to do yet
 
   VkCommandBuffer cmd_buf = graph->command_buffer;
-  if(*runflag == 1) // only wait for non-cached inputs
+  //if(*runflag == 1) // only wait for non-cached inputs
   {
+#if 0 // this would potentially be needed if compute queue != graphics queue
     // compute barriers on input images:
     if(dt_node_sink(node))
     { // XXX does this break export? we want it to display stuff in graphics queue
@@ -542,11 +546,16 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
             BARRIER_COMPUTE_SINK(node->connector[i].image);
     }
     else
+#endif
     {
+      // wait for our input images and transfer them to read only.
+      // also wait for our output buffers to be transferred into general layout.
+      // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
       for(int i=0;i<node->num_connectors;i++)
         if(dt_connector_input(node->connector+i))
-          if(node->connector[i].connected_mid >= 0)
-            BARRIER_COMPUTE(node->connector[i].image);
+          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        else if(dt_connector_output(node->connector+i))
+          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
     }
   }
   *runflag = 1;
@@ -582,12 +591,14 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   }
   else if(dt_node_source(node))
   {
+    BARRIER_IMG_LAYOUT(node->connector[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     vkCmdCopyBufferToImage(
         cmd_buf,
         node->connector[0].staging,
         node->connector[0].image,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &regions);
+    // this will transfer into READ_ONLY_OPTIMAL
     BARRIER_COMPUTE(node->connector[0].image);
   }
 
@@ -746,7 +757,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     // this would be storage buffers:
     // graph->dset_cnt_buffer ++;
     bindings[i].descriptorCount = 1;
-    bindings[i].stageFlags = VK_SHADER_STAGE_ALL; // or just compute? // VK_SHADER_STAGE_COMPUTE_BIT
+    bindings[i].stageFlags = VK_SHADER_STAGE_ALL;//COMPUTE_BIT;
     bindings[i].pImmutableSamplers = 0;
   }
 
@@ -882,7 +893,7 @@ VkResult dt_graph_run(
       .binding = 0,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .descriptorCount = 1,
-      .stageFlags = VK_SHADER_STAGE_ALL,
+      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
     };
     VkDescriptorSetLayoutCreateInfo dset_layout_info = {
       .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -1049,19 +1060,19 @@ VkResult dt_graph_run(
     else
       // TODO: if not big enough destroy first here
     {
-      // create descriptor pool:
+      // create descriptor pool (keep at least one for each type)
       VkDescriptorPoolSize pool_sizes[] = {{
         .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-          .descriptorCount = graph->dset_cnt_image_read,
+          .descriptorCount = 1+graph->dset_cnt_image_read,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-          .descriptorCount = graph->dset_cnt_image_write,
+          .descriptorCount = 1+graph->dset_cnt_image_write,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .descriptorCount = graph->dset_cnt_buffer,
+          .descriptorCount = 1+graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-          .descriptorCount = graph->dset_cnt_uniform,
+          .descriptorCount = 1+graph->dset_cnt_uniform,
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
@@ -1111,6 +1122,7 @@ VkResult dt_graph_run(
     // not sure about our images, i suppose they will need sync/double buffering in this case
   };
   QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
+  vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_cnt);
 
   // upload all source data to staging memory
   if(run & s_graph_run_upload_source)
@@ -1164,6 +1176,7 @@ VkResult dt_graph_run(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
+  vkResetFences(qvk.device, 1, &graph->command_fence);
   QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
   if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
     QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<30));
@@ -1208,7 +1221,5 @@ VkResult dt_graph_run(
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6);
   }
-  // clean up after ourselves
-  vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_cnt);
   return VK_SUCCESS;
 }

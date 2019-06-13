@@ -16,6 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#define QVK_ENABLE_VALIDATION
+
 #include "qvk.h"
 #include "core/log.h"
 
@@ -150,7 +152,7 @@ const char *vk_requested_device_extensions[] = {
   // VK_NV_RAY_TRACING_EXTENSION_NAME,
   VK_KHR_SWAPCHAIN_EXTENSION_NAME,
   // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // :( intel doesn't have it
-#ifdef VKPT_ENABLE_VALIDATION
+#ifdef QVK_ENABLE_VALIDATION
   VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
 #endif
 };
@@ -286,10 +288,9 @@ out:;
   vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, NULL);
   VkPresentModeKHR *avail_present_modes = alloca(sizeof(VkPresentModeKHR) * num_present_modes);
   vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, avail_present_modes);
-
   //qvk.present_mode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-  //qvk.present_mode = VK_PRESENT_MODE_FIFO_KHR;
-  qvk.present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+  qvk.present_mode = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to be there, but has vsync frame time jitter
+  // qvk.present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
   //qvk.present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
   if(surf_capabilities.currentExtent.width != ~0u)
@@ -463,7 +464,7 @@ qvk_init()
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
-#ifdef VKPT_ENABLE_VALIDATION
+#ifdef QVK_ENABLE_VALIDATION
     .enabledLayerCount       = LENGTH(vk_requested_layers),
     .ppEnabledLayerNames     = vk_requested_layers,
 #endif

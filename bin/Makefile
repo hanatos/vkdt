@@ -10,4 +10,4 @@ clean:
 	make -C .. clean
 
 run:
-	./vkdt -g gui.cfg -d all
+	./run.sh
