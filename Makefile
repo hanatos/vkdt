@@ -19,7 +19,7 @@ export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL
 all: ext src bin
 
 # overwrites the above optimised build flags:
-debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0
+debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION
 debug:all
 
 sanitize:OPT_CFLAGS=-fno-omit-frame-pointer -fsanitize=address -g
