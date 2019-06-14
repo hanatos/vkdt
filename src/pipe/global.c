@@ -106,6 +106,9 @@ dt_module_so_load(
     }
     mod->num_params = i;
     fclose(f);
+    mod->param[0]->offset = 0;
+    for(int i=1;i<mod->num_params;i++) // TODO: sizeof(param.type)* !
+      mod->param[i]->offset = mod->param[i-1]->offset + sizeof(float)*mod->param[i-1]->cnt;
   }
 
   // read connector info
@@ -190,3 +193,9 @@ void dt_pipe_global_cleanup()
   memset(&dt_pipe, 0, sizeof(dt_pipe));
 }
 
+int dt_module_get_param(dt_module_so_t *so, dt_token_t param)
+{
+  for(int i=0;i<so->num_params;i++)
+    if(so->param[i]->name == param) return i;
+  return -1;
+}

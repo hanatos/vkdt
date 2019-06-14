@@ -68,3 +68,5 @@ int dt_pipe_global_init();
 
 // global cleanup:
 void dt_pipe_global_cleanup();
+
+int dt_module_get_param(dt_module_so_t *so, dt_token_t param);

@@ -40,9 +40,9 @@ typedef struct dt_module_t
   // compute facing parameters for uniform upload
   // simple code path for when both are equivalent
   // TODO: pointer or index for realloc?
-  uint32_t version;   // module version affects param semantics
-  float *params[10];  // points into pool stored with graph
-  int num_params;
+  uint32_t version;     // module version affects param semantics
+  uint8_t *param;       // points into pool stored with graph
+  int      param_size;
 
   // this is useful for instance for a cpu caching of
   // input data decoded from disk inside a module:

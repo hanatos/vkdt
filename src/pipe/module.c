@@ -28,15 +28,25 @@ int dt_module_add(
     if(name == dt_pipe.module[i].name)
     {
       mod->so = dt_pipe.module + i;
-      // TODO: slap over default params
-      for(int p=0;p<mod->so->num_params;p++)
+      // init params:
+      mod->param_size = 0;
+      if(mod->so->num_params)
       {
-        // XXX get definition and count and then set
-        // TODO: need to alloc pointer + data from graph
+        // TODO: sizeof(param.type)
+        mod->param_size = mod->so->param[mod->so->num_params-1]->offset + 
+                          sizeof(float)*mod->so->param[mod->so->num_params-1]->cnt; 
+        mod->param = graph->params_pool + graph->params_end;
+        graph->params_end += mod->param_size;
+        assert(graph->params_end <= graph->params_max);
       }
-      // init connectors from our module class:
+      for(int p=0;p<mod->so->num_params;p++)
+      { // init default params
+        float *block = (float *)(mod->param);
+        for(int i=0;i<mod->so->param[p]->cnt;i++)
+          block[i] = mod->so->param[p]->val[3*i];
+      }
       for(int c=0;c<mod->so->num_connectors;c++)
-      {
+      { // init connectors from our module class:
         mod->connector[c] = mod->so->connector[c];
         dt_connector_t *cn = mod->connector+c;
         cn->mem = 0;
@@ -56,9 +66,8 @@ int dt_module_add(
       break;
     }
   }
-  // if connectors still empty fail
   if(mod->num_connectors == 0)
-  {
+  { // if connectors still empty fail
     dt_log(s_log_pipe|s_log_err, "module %"PRItkn" has no connectors!", dt_token_str(name));
     graph->num_modules--;
     return -1;

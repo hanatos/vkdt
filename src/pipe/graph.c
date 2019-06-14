@@ -44,6 +44,9 @@ dt_graph_init(dt_graph_t *g)
   dt_vkalloc_init(&g->heap);
   dt_vkalloc_init(&g->heap_staging);
   g->uniform_size = 4096;
+  g->params_max = 4096;
+  g->params_end = 0;
+  g->params_pool = malloc(sizeof(uint8_t)*g->params_max);
 
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -90,6 +93,10 @@ dt_graph_cleanup(dt_graph_t *g)
   vkDestroyFence(qvk.device, g->command_fence, 0);
   vkDestroyQueryPool(qvk.device, g->query_pool, 0);
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
+  free(g->module);
+  free(g->node);
+  free(g->params_pool);
+  free(g->query_pool_results);
 }
 
 // helper to read parameters from config file
@@ -98,16 +105,21 @@ read_param_ascii(
     dt_graph_t *graph,
     char       *line)
 {
-#if 0
   // read module:instance:param:value x cnt
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
   dt_token_t parm = dt_read_token(line, &line);
-  // TODO: grab count from declaration in module_so_t and iterate this!
-  float val = dt_read_float(line, &line);
-  // TODO: set parameter:
-  // module_set_param(..); // XXX grab module(name,inst), grab param location from so and set floats!
-#endif
+  // grab count from declaration in module_so_t:
+  int modid = dt_module_get(graph, name, inst);
+  if(modid < 0 || modid > graph->num_modules) return 1;
+  int parid = dt_module_get_param(graph->module[modid].so, parm);
+  if(parid < 0) return 2;
+  const dt_ui_param_t *p = graph->module[modid].so->param[parid];
+  int cnt = p->cnt;
+  // TODO: switch(p->type)
+  float *block = (float *)(graph->module[modid].param + p->offset);
+  for(int i=0;i<cnt;i++)
+    *(block++) = dt_read_float(line, &line);
   return 0;
 }
 
@@ -632,6 +644,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     memcpy(uniform_buf + pos, &node->connector[i].roi, sizeof(dt_roi_t));
     pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
   }
+  // copy over module params
+  // memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
+  // pos += node->module->param_size;
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
   BARRIER_COMPUTE_BUFFER(graph->uniform_buffer);
 
