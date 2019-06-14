@@ -58,7 +58,8 @@ int main(int argc, char *argv[])
         running = 0;
       else if (event.type == SDL_KEYDOWN)
       {
-        running = 0; // TODO: grab esc
+        if(event.key.keysym.sym == SDLK_ESCAPE)
+          running = 0;
       }
       else if (event.type == SDL_WINDOWEVENT &&
           event.window.event == SDL_WINDOWEVENT_RESIZED &&
