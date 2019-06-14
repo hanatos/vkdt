@@ -136,6 +136,18 @@ void modify_roi_out(
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = dim_uncropped.x;
   mod->connector[0].roi.full_ht = dim_uncropped.y;
+
+  // TODO: data type, channels, bpp
+  if(mod_data->d->mRaw->blackLevelSeparate[0] == -1)
+    mod_data->d->mRaw->calculateBlackAreas();
+  for(int k=0;k<4;k++)
+  {
+    mod->img_param.black[k]        = mod_data->d->mRaw->blackLevelSeparate[k];
+    mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint;
+    mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k] * 1.0f/1024.0f;
+  }
+  // TODO: xtrans
+  mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
 }
 
 int read_source(

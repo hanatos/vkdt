@@ -17,6 +17,20 @@
 #include "global.h"
 #include "connector.h"
 
+// bare essential meta data that travels
+// with a (raw) input buffer along the graph.
+// since this data may be tampered with as it is processed
+// through the pipeline, every module holds its own instance.
+// in the worst case we wastefully copy it around.
+typedef struct dt_image_params_t
+{
+  float black[4];
+  float white[4];
+  float whitebalance[4];
+  uint32_t filters;
+  // TODO: other interesting things such as x-trans?
+}
+dt_image_params_t;
 
 // this is an instance of a module.
 typedef struct dt_module_t
@@ -35,6 +49,8 @@ typedef struct dt_module_t
   int connected_nodeid[DT_MAX_CONNECTORS];  // roi path
   int connected_ctxnid[DT_MAX_CONNECTORS];  // ctx buf, if any
 
+  dt_image_params_t img_param;
+
   // TODO: parameters:
   // human facing parameters for gui + serialisation
   // compute facing parameters for uniform upload
@@ -43,6 +59,13 @@ typedef struct dt_module_t
   uint32_t version;     // module version affects param semantics
   uint8_t *param;       // points into pool stored with graph
   int      param_size;
+
+  // these stay 0 unless inited by the module in init().
+  // if the module implements commit_params(), it shall be used
+  // to fill this block, which will then be uploaded as uniform
+  // to the kernels.
+  uint8_t *committed_param;
+  int      committed_param_size;
 
   // this is useful for instance for a cpu caching of
   // input data decoded from disk inside a module:

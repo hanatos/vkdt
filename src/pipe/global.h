@@ -17,6 +17,7 @@ typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
 typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
+typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
 
 // this is all the "class" info that is not bound to an instance and can be
 // read once on startup
@@ -28,6 +29,11 @@ typedef struct dt_module_so_t
   void *dlhandle;
 
   // pass full image forward through pipe, init roi.full_{wd,ht}
+  // this is also responsible of initing the img_params struct correctly
+  // given the parameters of the input connectors. the default is to copy
+  // over the struct of the first connector named "input" (this is done
+  // regardless whether a module implements the callback or not, and before
+  // the callback is executed if it exists).
   dt_module_modify_roi_out_t modify_roi_out;
 
   // pull required pixels from inputs, init roi.roi_* and ctx_*
@@ -35,6 +41,9 @@ typedef struct dt_module_so_t
 
   // creates the nodes for this module after roi negotiations
   dt_module_create_nodes_t create_nodes;
+
+  // commit new parameters from module's gui params to binary float blob
+  dt_module_commit_params_t commit_params;
 
   // for source nodes, will be called before processing starts
   dt_module_read_source_t read_source;

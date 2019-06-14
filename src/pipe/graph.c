@@ -455,6 +455,13 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
 static void
 modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
+  int input = dt_module_get_connector(module, dt_token("input"));
+  dt_connector_t *c = 0;
+  if(input >= 0)
+  { // first copy image metadata if we have a unique "input" connector
+    c = module->connector + input;
+    module->img_param = graph->module[c->connected_mid].img_param;
+  }
   if(module->so->modify_roi_out)
   { // keep incoming roi in sync:
     for(int i=0;i<module->num_connectors;i++)
@@ -470,9 +477,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   }
   // default implementation:
   // copy over roi from connector named "input" to all outputs ("write")
-  int input = dt_module_get_connector(module, dt_token("input"));
   if(input < 0) return;
-  dt_connector_t *c = module->connector+input;
   dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
   c->roi = *roi; // also keep incoming roi in sync
   for(int i=0;i<module->num_connectors;i++)
@@ -644,11 +649,26 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     memcpy(uniform_buf + pos, &node->connector[i].roi, sizeof(dt_roi_t));
     pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
   }
+  // XXX in fact i'm not sure any more we might need different params per node?
+  // XXX we still need to upload new roi. for large data portions shared between nodes
+  // XXX this may not be the smartest move.
   // copy over module params
   if(node->module->param_size)
   {
-    memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
-    pos += node->module->param_size;
+    // XXX FIXME: this is the wrong place!
+    // XXX FIXME: it should run per module, not per node.
+    // this probably means we want some other means to trigger this callback (how??)
+    if(node->module->so->commit_params)
+    {
+      node->module->so->commit_params(graph, node->module);
+      memcpy(uniform_buf + pos, node->module->committed_param, node->module->committed_param_size);
+      pos += node->module->committed_param_size;
+    }
+    else
+    {
+      memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
+      pos += node->module->param_size;
+    }
   }
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
   BARRIER_COMPUTE_BUFFER(graph->uniform_buffer);

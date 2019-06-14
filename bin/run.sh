@@ -4,4 +4,4 @@ export PATH=${PATH}:${VULKAN_SDK}/bin
 export LD_LIBRARY_PATH=${VULKAN_SDK}/lib
 # and the layers are in ~/.local/share/vulkan/explicit_layer.d, i.e.:
 # mkdir -p ~/.local/share/vulkan && cp -r ${VULKAN_SDK}/etc/explicit_layer.d/ ~/.local/share/vulkan
-./vkdt -g gui.cfg -d all
+gdb --args ./vkdt -g gui.cfg -d all
