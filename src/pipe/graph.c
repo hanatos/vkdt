@@ -645,8 +645,11 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
   }
   // copy over module params
-  // memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
-  // pos += node->module->param_size;
+  if(node->module->param_size)
+  {
+    memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
+    pos += node->module->param_size;
+  }
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
   BARRIER_COMPUTE_BUFFER(graph->uniform_buffer);
 

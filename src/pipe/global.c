@@ -39,13 +39,14 @@ read_param_config_ascii(
   // name:type:cnt:defval:min:max
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t type = dt_read_token(line, &line);
+  dt_log(s_log_pipe, "param %"PRItkn" %"PRItkn, dt_token_str(name), dt_token_str(type));
   int cnt = dt_read_int(line, &line);
   // TODO: sanity check and clamp?
   dt_ui_param_t *p = malloc(sizeof(*p) + cnt*3*sizeof(float));
   p->name = name;
   p->type = type;
   p->cnt = cnt;
-  float *val = (float*)(p + 1);
+  float *val = p->val;
   for(int i=0;i<p->cnt;i++)
   {
     *(val++) = dt_read_float(line, &line); // default

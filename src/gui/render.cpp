@@ -145,8 +145,15 @@ extern "C" void dt_gui_render_frame_imgui()
           ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
           ImGui::Begin("panel-right", 0, window_flags);
 
-          static float exposure = 0.0f;
-          ImGui::SliderFloat("exposure", &exposure, -7.0f, 7.0f, "%2.1f ev");
+          float *exposure = 0;
+          for(int i=0;i<10;i++)
+          {
+            if(vkdt.graph_dev.module[i].name == dt_token("exposure"))
+              exposure = (float*)vkdt.graph_dev.module[i].param;
+          }
+
+          if(exposure)
+            ImGui::SliderFloat("exposure", exposure, -7.0f, 7.0f, "%2.1f ev");
 
 #if 0
           ImGuiIO& io = ImGui::GetIO();

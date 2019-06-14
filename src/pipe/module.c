@@ -41,7 +41,7 @@ int dt_module_add(
       }
       for(int p=0;p<mod->so->num_params;p++)
       { // init default params
-        float *block = (float *)(mod->param);
+        float *block = (float *)(mod->param + mod->so->param[p]->offset);
         for(int i=0;i<mod->so->param[p]->cnt;i++)
           block[i] = mod->so->param[p]->val[3*i];
       }
