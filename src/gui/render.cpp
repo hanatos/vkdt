@@ -114,6 +114,7 @@ extern "C" void dt_gui_render_frame_imgui()
           window_flags |= ImGuiWindowFlags_NoTitleBar;
           window_flags |= ImGuiWindowFlags_NoMove;
           window_flags |= ImGuiWindowFlags_NoResize;
+          window_flags |= ImGuiWindowFlags_NoBackground;
           ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
           ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
           ImGui::Begin("center", 0, window_flags);
@@ -121,10 +122,14 @@ extern "C" void dt_gui_render_frame_imgui()
           if(vkdt.graph_dev.output)
           {
             ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
-            // float wd = (float)vkdt.graph_dev.output->roi.roi_wd;
-            // float ht = (float)vkdt.graph_dev.output->roi.roi_ht;
+            float wd = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
+            float ht = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+            float imwd = 1420, imht = 1080;
+            float scale = MIN(imwd/wd, imht/ht);
+            float w = scale * wd, h = scale * ht;
+            float x = (imwd - w)*.5f, y = (imht - h)*.5f;
             ImGui::GetWindowDrawList()->AddImage(
-                imgid, ImVec2(0, 0), ImVec2(1420, 1080),
+                imgid, ImVec2(x, y), ImVec2(w, h),
                 ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE);
           }
           ImGui::End();
