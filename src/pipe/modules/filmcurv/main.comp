@@ -1,0 +1,90 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// TODO: put in external header (can we share with host?)
+struct roi_t
+{
+  uvec2 full;      // full input size
+  uvec2 ctx;       // size of downscaled context buffer
+  uvec2 roi;       // dimensions of region of interest
+  ivec2 off;       // offset in full image
+  float roi_scale; // scale: roi_wd * roi_scale is on input scale
+  float pad0;      // alignment of structs will be a multiple of vec4 it seems :(
+  float pad1;      // so we pad explicitly for sanity of mind.
+  float pad2;      // alternatively we could specify layout(offset=48) etc below.
+};
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  vec4 x;
+  vec4 y;
+  vec4 m;
+} params;
+
+
+layout( // input f32 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f32 buffer rgb
+    set = 1, binding = 1, rgba32f
+) uniform image2D img_out;
+
+// TODO: move to header?
+// cubic hermite for four nodes
+float
+hermite4(float v)
+{
+  vec2 x = params.x.xy;
+  vec2 y = params.y.xy;
+  vec2 m = params.m.xy;
+  // linear extension if outside [0,1]
+  if(v < params.x.x)
+    return params.y.x + (v - params.x.x) * params.m.x;
+  if(v > params.x.w)
+    return params.y.w + (v - params.x.w) * params.m.w;
+
+  if(v > params.x.z)
+  {
+    x = params.x.zw;
+    y = params.y.zw;
+    m = params.m.zw;
+  }
+  else if(v > params.x.y)
+  {
+    x = params.x.xz;
+    y = params.y.xz;
+    m = params.m.xz;
+  }
+  float h = x.y - x.x;
+  float t = (v - x.x)/h;
+  float t2 = t * t;
+  float t3 = t * t2;
+  float h00 =  2.0 * t3 - 3.0 * t2 + 1.0;
+  float h10 =  1.0 * t3 - 2.0 * t2 + t;
+  float h01 = -2.0 * t3 + 3.0 * t2;
+  float h11 =  1.0 * t3 - 1.0 * t2;
+  return h00 * y.x + h10 * h * m.x + h01 * y.y + h11 * h * m.y;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec4 rgba = texelFetch(img_in, ipos, 0);
+  vec3 w = vec3(0.299, 0.587, 0.114);
+  float l0 = dot(w, rgba.rgb);
+  float l1 = hermite4(l0);
+  // colour reconstruction: keep rgb saturation ratio same as before
+  rgba.rgb *= l1/l0;
+  imageStore(img_out, ipos, vec4(rgba.rgb, 1));
+}
+
