@@ -30,7 +30,7 @@ m[0] = d[0];
 m[n-1] = d[n-1];
 for i in range(1,n-1):
   m[i] = (d[i-1] + d[i])*.5
-# XXX 
+# extrapolate derivative by using previous curvature:
 m[n-1] = max(m[n-2] + d[n-2] - d[n-3], 0.0)
 # monotone hermite clamping:
 for i in range(0,n):
