@@ -58,9 +58,9 @@ hermite4(float v)
   }
   else if(v > params.x.y)
   {
-    x = params.x.xz;
-    y = params.y.xz;
-    m = params.m.xz;
+    x = params.x.yz;
+    y = params.y.yz;
+    m = params.m.yz;
   }
   float h = x.y - x.x;
   float t = (v - x.x)/h;
@@ -85,6 +85,9 @@ main()
   float l1 = hermite4(l0);
   // colour reconstruction: keep rgb saturation ratio same as before
   rgba.rgb *= l1/l0;
+  // want to see why 8-bit output sucks? try this:
+  // float l1 = hermite4(ipos.x / float(params.ro.roi.x));
+  // rgba.rgb = vec3(l1);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 
