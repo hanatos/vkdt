@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 pos = np.linspace(-0.5, 1.5, 100)
-x=np.array([0.0,0.20,0.80,1.00])
-y=np.array([0.0,0.02,0.86,0.96])
+x=np.array([0.3,0.45,0.80,1.00])
+y=np.array([0.0,0.02,0.74,0.97])
 # M * c = y
 # or, because python seems to have it upside down:
 # c * M = y
@@ -49,7 +49,7 @@ for i in range(0,n):
 def hermite(v):
   if v < x[0]:
     # h = x[1] - x[0]
-    return x[0] + (v - x[0]) * m[0]
+    return y[0] + (v - x[0]) * m[0]
   if v > x[3]:
     h = x[3] - x[2]
     t = 1.0
