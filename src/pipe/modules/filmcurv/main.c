@@ -17,7 +17,10 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   m[0] = d[0];
   m[n-1] = d[n-1];
   for(int i=1;i<n-1;i++)
-    m[i] = (d[i-1] + d[i])*.5f;
+    if(d[i-1]*d[i] <= 0.0f)
+      m[i] = 0.0f;
+    else
+      m[i] = (d[i-1] + d[i])*.5f;
   m[n-1] = fmaxf(m[n-2] + d[n-2] - d[n-3], 0.0f);
   // monotone hermite clamping:
   for(int i=0;i<n;i++)

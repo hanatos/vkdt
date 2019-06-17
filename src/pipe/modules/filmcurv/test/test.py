@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 pos = np.linspace(-0.5, 1.5, 100)
 x=np.array([0.3,0.45,0.80,1.00])
-y=np.array([0.0,0.02,0.74,0.97])
+y=np.array([0.0,0.62,0.14,0.97])
 # M * c = y
 # or, because python seems to have it upside down:
 # c * M = y
@@ -27,9 +27,12 @@ for i in range(0,n-1):
   d[i]=(y[i+1] - y[i])/(x[i+1] - x[i])
 d[n-1] = d[n-2];
 m[0] = d[0];
-m[n-1] = d[n-1];
+m[n-1] = d[n-1]; # = d[n-2]
 for i in range(1,n-1):
-  m[i] = (d[i-1] + d[i])*.5
+  if d[i-1]*d[i] <= 0:
+    m[i] = 0.0
+  else:
+    m[i] = (d[i-1] + d[i])*.5
 # extrapolate derivative by using previous curvature:
 # m[n-1] = max((1.0 + m[n-2] + d[n-2] - d[n-3])*.5, 0.0)
 m[n-1] = max(m[n-2] + d[n-2] - d[n-3], 0.0)
@@ -94,6 +97,8 @@ plt.ylim([-0.5,1.5])
 plt.xlim([-0.5,1.5])
 plt.axvline(x=0.0,ymin=0.0,ymax=1.0)
 plt.axvline(x=1.0,ymin=0.0,ymax=1.0)
+plt.axvline(x=x[1],ymin=0.0,ymax=1.0)
+plt.axvline(x=x[2],ymin=0.0,ymax=1.0)
 plt.axhline(y=0.0,xmin=0.0,xmax=1.0)
 plt.axhline(y=1.0,xmin=0.0,xmax=1.0)
 plt.plot(pos, np.power(pos, 0)*c[0]+ pos*c[1] + pos*pos*c[2] + pos*pos*pos*c[3])
