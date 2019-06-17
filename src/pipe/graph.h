@@ -48,6 +48,7 @@ typedef struct dt_graph_t
   uint32_t              query_cnt;
   VkQueryPool           query_pool;
   uint64_t             *query_pool_results;
+  dt_token_t           *query_name;
 
   uint32_t dset_cnt_image_read;
   uint32_t dset_cnt_image_write;

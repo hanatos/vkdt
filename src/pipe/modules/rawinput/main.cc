@@ -1,10 +1,18 @@
 // unfortunately we'll link to rawspeed, so we need c++ here.
 #include "RawSpeed-API.h"
+#include <unistd.h>
 
 extern "C" {
 #include "module.h"
 
 static rawspeed::CameraMetaData *meta = 0;
+
+// way to define a clean api:
+// define this function, it is only declared in rawspeed:
+int rawspeed_get_number_of_processor_cores()
+{
+  return sysconf(_SC_NPROCESSORS_ONLN);
+}
 
 typedef struct rawinput_buf_t
 {
@@ -130,7 +138,7 @@ void modify_roi_out(
 {
   // TODO: load image if not happened yet
   // int err = load_raw(mod, filename);
-  if(load_raw(mod, "test.cr2")) return;
+  if(load_raw(mod, "test3.arw")) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
@@ -155,7 +163,7 @@ int read_source(
     void *mapped)
 {
   // XXX
-  int err = load_raw(mod, "test.cr2");
+  int err = load_raw(mod, "test3.arw");
   if(err) return 1;
   uint16_t *buf = (uint16_t *)mapped;
 

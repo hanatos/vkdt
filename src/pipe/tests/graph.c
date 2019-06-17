@@ -1,12 +1,17 @@
 #include "pipe/graph.h"
 #include "pipe/global.h"
+#include "core/log.h"
+#include "qvk/qvk.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
 int main(int argc, char *argv[])
 {
+  dt_log_init(s_log_cli|s_log_pipe);
+  dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
+  if(qvk_init()) exit(1);
   dt_graph_t graph;
   dt_graph_init(&graph);
   int err = dt_graph_read_config_ascii(&graph, "tests/pipe.cfg");
@@ -36,7 +41,7 @@ int main(int argc, char *argv[])
   fprintf(stdout, "}\n");
 
 
-  dt_graph_setup_pipeline(&graph);
+  dt_graph_run(&graph, s_graph_run_all);
   // TODO: debug rois
   fprintf(stdout, "digraph N {\n");
   // for all nodes, print all incoming edges (outgoing don't have module ids)
@@ -60,5 +65,6 @@ int main(int argc, char *argv[])
 
   dt_graph_cleanup(&graph);
   dt_pipe_global_cleanup();
+  qvk_cleanup();
   exit(0);
 }

@@ -2,12 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-// XXX this is a major fuckup.
 // XXX we need:
-// * so->params (ui)
-// * copy thereof on module (or at least the values) so the sliders can change them
-// * representation for gpu uniform buffer
-// XXX we also need:
 // * a place to execute commit_params on module level and only when needed
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {

@@ -41,8 +41,8 @@ main()
   uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
   uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
   // TODO: do something clever with filters to switch between these two:
-  vec4 rgba = vec4(c1, (c0+c3)/2.0, c2, 1.0);
-  // vec4 rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
+  // vec4 rgba = vec4(c1, (c0+c3)/2.0, c2, 1.0);
+  vec4 rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
   // TODO: for x-trans, we'll need to average 3x3 blocks and maybe have
   // even more headaches about alignment of patterns (what is green?)
   vec4 outc = rgba;//  * vec4(1.0/65535.0);

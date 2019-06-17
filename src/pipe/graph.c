@@ -78,6 +78,7 @@ dt_graph_init(dt_graph_t *g)
   };
   QVK(vkCreateQueryPool(qvk.device, &query_pool_info, NULL, &g->query_pool));
   g->query_pool_results = malloc(sizeof(uint64_t)*g->query_max);
+  g->query_name = malloc(sizeof(dt_token_t)*g->query_max);
 }
 
 void
@@ -97,6 +98,7 @@ dt_graph_cleanup(dt_graph_t *g)
   free(g->node);
   free(g->params_pool);
   free(g->query_pool_results);
+  free(g->query_name);
 }
 
 // helper to read parameters from config file
@@ -630,8 +632,11 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 
   // push profiler start
   if(graph->query_cnt < graph->query_max)
+  {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        graph->query_pool, graph->query_cnt++);
+        graph->query_pool, graph->query_cnt);
+    graph->query_name[graph->query_cnt++] = node->name;
+  }
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
   vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -680,8 +685,11 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 
   // get a profiler timestamp:
   if(graph->query_cnt < graph->query_max)
+  {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        graph->query_pool, graph->query_cnt++);
+        graph->query_pool, graph->query_cnt);
+    graph->query_name[graph->query_cnt++] = node->name;
+  }
   return VK_SUCCESS;
 }
 
@@ -1255,7 +1263,8 @@ VkResult dt_graph_run(
         VK_QUERY_RESULT_64_BIT));
   for(int i=0;i<graph->query_cnt;i+=2)
   {
-    dt_log(s_log_pipe, "query %d: %8.2g ms", i,
+    dt_log(s_log_pipe, "query %"PRItkn": %8.2g ms",
+        dt_token_str(graph->query_name[i]),
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6);
   }
