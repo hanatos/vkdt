@@ -14,7 +14,8 @@ typedef enum dt_log_mask_t
   s_log_gui  = 1<<2,
   s_log_db   = 1<<3,
   s_log_cli  = 1<<4,
-  s_log_err  = 1<<5,
+  s_log_perf = 1<<5,
+  s_log_err  = 1<<6,
   s_log_all  = -1ul,
 }
 dt_log_mask_t;
@@ -39,6 +40,7 @@ dt_log_init_arg(int argc, char *argv[])
     "gui",
     "db",
     "cli",
+    "perf",
     "err",
     "all",
   };
@@ -53,7 +55,7 @@ dt_log_init_arg(int argc, char *argv[])
         if(!strcmp(argv[i], id[j]))
         {
           if(j == 0)      verbose = 0ul;
-          else if(j == 7) verbose = -1ul;
+          else if(j == 8) verbose = -1ul;
           else            verbose |= 1<<(j-1);
         }
       }
@@ -83,6 +85,7 @@ dt_log(
     "[gui]",
     "[db]",
     "[cli]",
+    "[perf]",
     "\e[31m[ERR]\e[0m",
   };
 
