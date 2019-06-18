@@ -191,7 +191,6 @@ void dt_pipe_global_cleanup()
 {
   for(int i=0;i<dt_pipe.num_modules;i++)
     dt_module_so_unload(dt_pipe.module + i);
-  // TODO free all mem and dlclose()
   free(dt_pipe.module);
   memset(&dt_pipe, 0, sizeof(dt_pipe));
 }

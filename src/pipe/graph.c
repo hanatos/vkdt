@@ -89,8 +89,26 @@ dt_graph_cleanup(dt_graph_t *g)
       g->module[i].so->cleanup(g->module+i);
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_staging);
-  // TODO: destroy command buffers and pool
-  // TODO: destroy descriptor pool
+  // go through all modules and clean out VkImages
+  for(int i=0;i<g->num_nodes;i++)
+  {
+    for(int j=0;j<g->node[i].num_connectors;j++)
+    {
+      dt_connector_t *c = g->node[i].connector+j;
+      if(dt_connector_output(c))
+      {
+        if(c->image)      vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
+        if(c->image_view) vkDestroyImageView(qvk.device, c->image_view, VK_NULL_HANDLE);
+      }
+      if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
+    }
+  }
+  vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
+  vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
+  vkDestroyBuffer(qvk.device, g->uniform_buffer, 0);
+  vkFreeMemory(qvk.device, g->vkmem, 0);
+  vkFreeMemory(qvk.device, g->vkmem_staging, 0);
+  vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
   vkDestroyFence(qvk.device, g->command_fence, 0);
   vkDestroyQueryPool(qvk.device, g->query_pool, 0);
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);

@@ -79,6 +79,22 @@ handle_event(SDL_Event *event)
       }
     }
   }
+  else if (event->type == SDL_KEYDOWN)
+  {
+    if(event->key.keysym.sym == SDLK_r)
+    {
+      // DEBUG: reload shaders
+      dt_graph_cleanup(&vkdt.graph_dev);
+      dt_pipe_global_cleanup();
+      system("make debug"); // build shaders
+      dt_pipe_global_init();
+      dt_graph_init(&vkdt.graph_dev);
+      int err = dt_graph_read_config_ascii(&vkdt.graph_dev, vkdt.graph_cfg);
+      if(err) dt_log(s_log_err, "failed to reload_shaders!");
+      dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
+      // (TODO: re-init params from history)
+    }
+  }
 }
 
 int main(int argc, char *argv[])
@@ -101,6 +117,7 @@ int main(int argc, char *argv[])
   }
   if(dt_gui_init()) exit(1);
 
+  snprintf(vkdt.graph_cfg, sizeof(vkdt.graph_cfg), "%s", graphcfg);
   dt_graph_init(&vkdt.graph_dev);
   int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graphcfg);
   if(err)
