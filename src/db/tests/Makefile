@@ -1,4 +1,3 @@
-CC=clang
 CFLAGS+=-Wall -std=c11 -D_GNU_SOURCE
 CFLAGS+=-I../../core -I ../../../ext/pthread-pool
 CFLAGS+=-march=native -O3

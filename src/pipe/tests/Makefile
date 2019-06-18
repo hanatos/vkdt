@@ -1,4 +1,3 @@
-CC=clang
 CFLAGS+=-O0 -Wall -I../.. -g
 LDFLAGS=-ldl -L../../qvk -lqvk -lvulkan
 # doesn't play so well with the rawspeed module so far:
