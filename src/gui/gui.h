@@ -27,6 +27,17 @@ typedef struct dt_gui_t
   VkSemaphore      sem_render_complete[DT_GUI_MAX_IMAGES];
 
   dt_graph_t       graph_dev;
+
+  // center window configuration
+  // TODO: put on display node, too?
+  float view_look_at_x;
+  float view_look_at_y;
+  float view_scale;
+  int   view_x, view_y;
+  int   view_width;
+  int   view_height;
+
+  // TODO: current gui module/parameter configuration
 }
 dt_gui_t;
 

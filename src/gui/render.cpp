@@ -54,6 +54,8 @@ extern "C" int dt_gui_init_imgui()
   //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
   //IM_ASSERT(font != NULL);
 
+  // XXX TODO: move this out to gui.c so we don't need to use dt_log in cpp!
+  // XXX maybe just remove the QVK() :/
   // upload Fonts
   {
     // use any command queue
@@ -124,12 +126,18 @@ extern "C" void dt_gui_render_frame_imgui()
             ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
             float wd = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
             float ht = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
-            float imwd = 1420, imht = 1080;
+            float imwd = vkdt.view_width, imht = vkdt.view_height;
             float scale = MIN(imwd/wd, imht/ht);
+            if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
             float w = scale * wd, h = scale * ht;
-            float x = (imwd - w)*.5f, y = (imht - h)*.5f;
+            float cvx = vkdt.view_width *.5f;
+            float cvy = vkdt.view_height*.5f;
+            float ox = cvx - scale * vkdt.view_look_at_x;
+            float oy = cvy - scale * vkdt.view_look_at_y;
+            float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+            // TODO: move uv coordinates instead of whole window!
             ImGui::GetWindowDrawList()->AddImage(
-                imgid, ImVec2(x, y), ImVec2(w, h),
+                imgid, ImVec2(x, y), ImVec2(x+w, y+h),
                 ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE);
           }
           ImGui::End();

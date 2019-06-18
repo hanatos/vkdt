@@ -182,6 +182,13 @@ int dt_gui_init()
   };
   QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &vkdt.descriptor_pool));
 
+  vkdt.view_look_at_x = 0;
+  vkdt.view_look_at_y = 0;
+  vkdt.view_scale = -1.0f;
+  vkdt.view_x = 0;
+  vkdt.view_y = 0;
+  vkdt.view_width  = 1420;
+  vkdt.view_height = 1080;
   dt_gui_init_imgui();
 
   return 0;

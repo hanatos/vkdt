@@ -1,25 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-pos = np.linspace(-0.5, 1.5, 100)
+# define the curve via these control vertices here:
 x=np.array([0.3,0.45,0.80,1.00])
 y=np.array([0.0,0.62,0.14,0.97])
 # M * c = y
 # or, because python seems to have it upside down:
 # c * M = y
 # c = y * M.I
-# sanity check:
-# c * M = ?
-# we also want monotonicity, poly'(x) >= 0
-# 3*x^2 * c[3] + 2*x c[2] + c[1] >= 0
 M=np.matrix([[1,1,1,1],x,x*x,x*x*x])
 c = np.dot(y, M.I).A[0]
 
+# we also want monotonicity, poly'(x) >= 0
 # https://ws680.nist.gov/publication/get_pdf.cfm?pub_id=17206
 # cubic polynomial on [0,1] is monotonic iff
 # c0 (c0 + 2c1 + 3c2) >= 0   and
 # sqrt( (c1^2 + 3c1c2)^2 + (2c0 + 2c1 + 3c2)^2 (3c0c2^2 - c1^2c2)^2 ) +
 #       (c1^2 + 3c1c2)   + (2c0 + 2c1 + 3c2)   (3c0c2^2 - c1^2c2)    >= 0
+
+# monotone hermite spline:
 n=4;
 m=np.array([0.0,0.0,0.0,0.0,0.0])
 d=np.array([0.0,0.0,0.0,0.0,0.0])
@@ -51,19 +50,9 @@ for i in range(0,n):
 
 def hermite(v):
   if v < x[0]:
-    # h = x[1] - x[0]
     return y[0] + (v - x[0]) * m[0]
   if v > x[3]:
-    h = x[3] - x[2]
-    t = 1.0
-    t2 = t * t;
-    h00 =  6.0 * t2 - 6.0 * t;
-    h10 =  3.0 * t2 - 4.0 * t + 1.0;
-    h01 = -6.0 * t2 + 6.0 * t;
-    h11 =  3.0 * t2 - 2.0 * t;
-    # == h * m[3]
-    dv = h00 * y[2] + h10 * h * m[2] + h01 * y[3] + h11 * h * m[3];
-    return y[3] + (v - x[3]) * m[3] #dv
+    return y[3] + (v - x[3]) * m[3]
   i=0
   if v > x[2]:
     i = 2
@@ -80,19 +69,7 @@ def hermite(v):
 
   return h00 * y[i] + h10 * h * m[i] + h01 * y[i+1] + h11 * h * m[i+1];
 
-# h00 = (1.0+2.0*t)*(1.0-t)*(1.0-t)
-#  h10 = t*t*(3.0-2.0*t)
-#  h01 = t*(1.0-t)*(1.0-t) 
-#  h11 = t*t*(t-1.0)
-#  return y[i]*h00 + h*m[i]*h10 + y[i+1]*h01 + h*m[i+1]*h11
-
-
-# plt.plot(pos, np.dot(np.array([np.power(pos, 0),pos,pos*pos,pos*pos*pos]),c))
-# plt.plot(pos, np.polyval(c, pos))
-
 fig, ax = plt.subplots(figsize=(5,3))
-# plot = ax.plot(pos)[0]
-# plot.set_ydata(np.polyval(c, pos))
 plt.ylim([-0.5,1.5])
 plt.xlim([-0.5,1.5])
 plt.axvline(x=0.0,ymin=0.0,ymax=1.0)
@@ -101,6 +78,7 @@ plt.axvline(x=x[1],ymin=0.0,ymax=1.0)
 plt.axvline(x=x[2],ymin=0.0,ymax=1.0)
 plt.axhline(y=0.0,xmin=0.0,xmax=1.0)
 plt.axhline(y=1.0,xmin=0.0,xmax=1.0)
+pos = np.linspace(-0.5, 1.5, 100)
 plt.plot(pos, np.power(pos, 0)*c[0]+ pos*c[1] + pos*pos*c[2] + pos*pos*pos*c[3])
 plt.plot(pos, np.array([hermite(t) for t in pos]))
 fig.canvas.draw()

@@ -138,7 +138,7 @@ void modify_roi_out(
 {
   // TODO: load image if not happened yet
   // int err = load_raw(mod, filename);
-  if(load_raw(mod, "test3.arw")) return;
+  if(load_raw(mod, "test.cr2")) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
@@ -163,7 +163,7 @@ int read_source(
     void *mapped)
 {
   // XXX
-  int err = load_raw(mod, "test3.arw");
+  int err = load_raw(mod, "test.cr2");
   if(err) return 1;
   uint16_t *buf = (uint16_t *)mapped;
 

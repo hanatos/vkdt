@@ -12,6 +12,75 @@
 
 dt_gui_t vkdt;
 
+static void
+handle_event(SDL_Event *event)
+{
+  // TODO: get from somewhere better
+  float wd = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
+  float ht = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  static int m_x = -1, m_y = -1;
+  static float old_look_x = -1.0f, old_look_y = -1.0f;
+  if(event->type == SDL_MOUSEMOTION)
+  {
+    if(m_x >= 0 && vkdt.view_scale > 0.0f)
+    {
+      int dx = event->button.x - m_x;
+      int dy = event->button.y - m_y;
+      vkdt.view_look_at_x = old_look_x - dx / vkdt.view_scale;
+      vkdt.view_look_at_y = old_look_y - dy / vkdt.view_scale;
+      vkdt.view_look_at_x = CLAMP(vkdt.view_look_at_x, 0.0f, wd);
+      vkdt.view_look_at_y = CLAMP(vkdt.view_look_at_y, 0.0f, ht);
+    }
+  }
+  else if(event->type == SDL_MOUSEBUTTONUP)
+  {
+    m_x = m_y = -1;
+  }
+  else if(event->type == SDL_MOUSEBUTTONDOWN)
+  {
+    if(event->button.button == SDL_BUTTON_LEFT)
+    {
+      m_x = event->button.x;
+      m_y = event->button.y;
+      old_look_x = vkdt.view_look_at_x;
+      old_look_y = vkdt.view_look_at_y;
+    }
+    else if(event->button.button == SDL_BUTTON_MIDDLE)
+    {
+      // TODO: zoom 1:1
+      // TODO: two things: one is the display node which has
+      // TODO: parameters to be set to zoom and wd/ht so it'll affect the ROI.
+      // TODO: the other is zoom/pan in the gui for 200% or more and to
+      // TODO: move the image smoothly
+      // where does the mouse look in the current image?
+      float imwd = vkdt.view_width, imht = vkdt.view_height;
+      float scale = vkdt.view_scale <= 0.0f ? MIN(imwd/wd, imht/ht) : vkdt.view_scale;
+      float im_x = (event->button.x - (vkdt.view_x + imwd)/2.0f) / scale;
+      float im_y = (event->button.y - (vkdt.view_y + imht)/2.0f) / scale;
+      im_x += vkdt.view_look_at_x;
+      im_y += vkdt.view_look_at_y;
+      if(vkdt.view_scale <= 0.0f)
+      {
+        vkdt.view_scale = 1.0f;
+        vkdt.view_look_at_x = im_x;
+        vkdt.view_look_at_y = im_y;
+      }
+      else if(vkdt.view_scale >= 4.0f)
+      {
+        vkdt.view_scale = -1.0f;
+        vkdt.view_look_at_x = wd/2.0f;
+        vkdt.view_look_at_y = ht/2.0f;
+      }
+      else if(vkdt.view_scale >= 1.0f)
+      {
+        vkdt.view_scale *= 2.0f;
+        vkdt.view_look_at_x = im_x;
+        vkdt.view_look_at_y = im_y;
+      }
+    }
+  }
+}
+
 int main(int argc, char *argv[])
 {
   // init global things, log and pipeline:
@@ -67,6 +136,7 @@ int main(int argc, char *argv[])
       {
         // XXX need to rebuild the swap chain!
       }
+      handle_event(&event);
     }
     while (SDL_PollEvent(&event));
 
