@@ -132,6 +132,8 @@ extern "C" void dt_gui_render_frame_imgui()
             float w = scale * wd, h = scale * ht;
             float cvx = vkdt.view_width *.5f;
             float cvy = vkdt.view_height*.5f;
+            if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
+            if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
             float ox = cvx - scale * vkdt.view_look_at_x;
             float oy = cvy - scale * vkdt.view_look_at_y;
             float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
