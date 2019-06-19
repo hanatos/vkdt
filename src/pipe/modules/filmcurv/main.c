@@ -14,15 +14,15 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<n-1;i++)
     d[i] = (p[i+5] - p[i+4])/(p[i+1] - p[i]);
   d[n-1] = d[n-2];
-  m[0] = d[0];
-  if(d[0] < 0.0f) m[0] = 0.0f; // avoid broken extension < 0
-  m[n-1] = d[n-1];
   for(int i=1;i<n-1;i++)
     if(d[i-1]*d[i] <= 0.0f)
       m[i] = 0.0f;
     else
       m[i] = (d[i-1] + d[i])*.5f;
+  // for extrapolation: keep curvature constant
   m[n-1] = fmaxf(m[n-2] + d[n-2] - d[n-3], 0.0f);
+  m[0]   = fmaxf(m[1] + d[0] - d[1], 0.0f);
+
   // monotone hermite clamping:
   for(int i=0;i<n;i++)
   {
