@@ -1,0 +1,27 @@
+# pipeline features
+
+* support forks
+
+# pipeline reuse
+
+* debug/make sure runflags make sense/include all deps
+
+# gui
+
+* auto-generate gui for pipeline from config file
+
+# params and history
+
+* global buffer of commands (not only params)
+* version modules! (for params)
+* clean up commit_params mess..?
+
+# modules
+
+* actual demosaicing
+* estimate noise from raw (black area + one sample)
+* burst mode demosaic/denoise
+* clut with linear part: colour matrix
+* simple denoising with decimated fisz wavelets
+* guided filter for contrast enhancement
+  - box blur: iterated multi-tap box
