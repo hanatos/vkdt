@@ -15,6 +15,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     d[i] = (p[i+5] - p[i+4])/(p[i+1] - p[i]);
   d[n-1] = d[n-2];
   m[0] = d[0];
+  if(d[0] < 0.0f) m[0] = 0.0f; // avoid broken extension < 0
   m[n-1] = d[n-1];
   for(int i=1;i<n-1;i++)
     if(d[i-1]*d[i] <= 0.0f)
