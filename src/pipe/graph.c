@@ -224,10 +224,133 @@ error:
   return 1;
 }
 
+// TODO: put into qvk_utils?
+// TODO: dedup with what's in qvk.c
+static inline void *
+read_file(const char *filename, size_t *len)
+{
+  FILE *f = fopen(filename, "rb");
+  if(!f)
+  {
+    dt_log(s_log_qvk|s_log_err, "failed to read shader '%s': %s!",
+        filename, strerror(errno));
+    return 0;
+  }
+  fseek(f, 0, SEEK_END);
+  const size_t filesize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  char *file = malloc(filesize+1);
 
+  size_t rd = fread(file, sizeof(char), filesize, f);
+  file[filesize] = 0;
+  if(rd != filesize)
+  {
+    free(file);
+    file = 0;
+    fclose(f);
+    return 0;
+  }
+  if(len) *len = filesize;
+  fclose(f);
+  return file;
+}
+// end TODO: put into qvk_utils
+
+// allocate output buffers, also create vulkan pipeline and load spir-v portion
+// of the compute shader.
 static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
+  // create descriptor bindings and pipeline:
+  // TODO: check runflags for this?
+  // we'll bind our buffers in the same order as in the connectors file.
+  VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
+  for(int i=0;i<node->num_connectors;i++)
+  {
+    bindings[i].binding = i;
+    if(dt_connector_input(node->connector+i))
+    {
+      graph->dset_cnt_image_read ++;
+      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }
+    else
+    {
+      graph->dset_cnt_image_write ++;
+      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
+    // this would be storage buffers:
+    // graph->dset_cnt_buffer ++;
+    bindings[i].descriptorCount = 1;
+    bindings[i].stageFlags = VK_SHADER_STAGE_ALL;//COMPUTE_BIT;
+    bindings[i].pImmutableSamplers = 0;
+  }
+
+  // create a descriptor set layout
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = node->num_connectors,
+    .pBindings    = bindings,
+  };
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
+
+  // a sink or a source does not need a pipeline to be run.
+  // note, however, that a sink does need a descriptor set, as we want to bind
+  // it to imgui textures later on.
+  if(!(dt_node_sink(node) || dt_node_source(node)))
+  {
+    // create the pipeline layout
+    VkDescriptorSetLayout dset_layout[] = {
+      graph->uniform_dset_layout,
+      node->dset_layout,
+    };
+    VkPipelineLayoutCreateInfo layout_info = {
+      .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .setLayoutCount         = LENGTH(dset_layout),
+      .pSetLayouts            = dset_layout,
+      .pushConstantRangeCount = 0,
+      .pPushConstantRanges    = 0,
+    };
+    QVKR(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
+
+    // create the compute shader stage
+    char filename[1024] = {0};
+    snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
+        dt_token_str(node->name), dt_token_str(node->kernel));
+
+    size_t len;
+    void *data = read_file(filename, &len);
+    if(!data) return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+
+    VkShaderModule shader_module;
+    VkShaderModuleCreateInfo sm_info = {
+      .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+      .codeSize = len,
+      .pCode    = data
+    };
+    QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
+    free(data);
+
+    // TODO: cache on module->so ?
+    VkPipelineShaderStageCreateInfo stage_info = {
+      .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
+      .pSpecializationInfo = 0,//&info;
+      .pName               = "main", // XXX really?
+      .module              = shader_module,
+    };
+
+    // finally create the pipeline
+    VkComputePipelineCreateInfo pipeline_info = {
+      .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+      .stage  = stage_info,
+      .layout = node->pipeline_layout
+    };
+    QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
+
+    // we don't need the module any more
+    vkDestroyShaderModule(qvk.device, stage_info.module, 0);
+  } // done with pipeline
+
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -711,41 +834,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   return VK_SUCCESS;
 }
 
-// TODO: put into qvk_utils?
-// TODO: dedup with what's in qvk.c
-static inline void *
-read_file(const char *filename, size_t *len)
-{
-  FILE *f = fopen(filename, "rb");
-  if(!f)
-  {
-    dt_log(s_log_qvk|s_log_err, "failed to read shader '%s': %s!",
-        filename, strerror(errno));
-    return 0;
-  }
-  fseek(f, 0, SEEK_END);
-  const size_t filesize = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  char *file = malloc(filesize+1);
-
-  size_t rd = fread(file, sizeof(char), filesize, f);
-  file[filesize] = 0;
-  if(rd != filesize)
-  {
-    free(file);
-    file = 0;
-    fclose(f);
-    return 0;
-  }
-  if(len) *len = filesize;
-  fclose(f);
-  return file;
-}
-// end TODO: put into qvk_utils
-
 // default callback for create nodes: pretty much copy the module.
-// also create vulkan pipeline and load spir-v portion of the compute shader.
-static VkResult
+// does no vulkan work, just graph connections. shall not fail.
+static void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   if(module->so->create_nodes) return module->so->create_nodes(graph, module);
@@ -793,9 +884,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     }
   }
 #endif
-
-  // we'll bind our buffers in the same order as in the connectors file.
-  VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   for(int i=0;i<module->num_connectors;i++)
   {
     module->connected_nodeid[i] = nodeid;
@@ -806,93 +894,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         module->connector[i].connected_mid >= 0)
       node->connector[i].connected_mid = graph->module[
         module->connector[i].connected_mid].connected_nodeid[i];
-
-    bindings[i].binding = i;
-    if(dt_connector_input(node->connector+i))
-    {
-      graph->dset_cnt_image_read ++;
-      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    }
-    else
-    {
-      graph->dset_cnt_image_write ++;
-      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    }
-    // this would be storage buffers:
-    // graph->dset_cnt_buffer ++;
-    bindings[i].descriptorCount = 1;
-    bindings[i].stageFlags = VK_SHADER_STAGE_ALL;//COMPUTE_BIT;
-    bindings[i].pImmutableSamplers = 0;
   }
-
-  // create a descriptor set layout
-  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = module->num_connectors,
-    .pBindings    = bindings,
-  };
-  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
-
-  // a sink or a source does not need a pipeline to be run.
-  // note, however, that a sink does need a descriptor set, as we want to bind
-  // it to imgui textures later on.
-  if(dt_node_sink(node) || dt_node_source(node))
-    return VK_SUCCESS;
-
-  // create the pipeline layout
-  
-  VkDescriptorSetLayout dset_layout[] = {
-    graph->uniform_dset_layout,
-    node->dset_layout,
-  };
-  VkPipelineLayoutCreateInfo layout_info = {
-    .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount         = LENGTH(dset_layout),
-    .pSetLayouts            = dset_layout,
-    .pushConstantRangeCount = 0,
-    .pPushConstantRanges    = 0,
-  };
-  QVKR(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
-
-  // create the compute shader stage
-  char filename[1024] = {0};
-  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
-      dt_token_str(node->name), dt_token_str(node->kernel));
-
-  size_t len;
-  void *data = read_file(filename, &len);
-  if(!data) return VK_ERROR_INVALID_EXTERNAL_HANDLE;
-
-  VkShaderModule shader_module;
-  VkShaderModuleCreateInfo sm_info = {
-    .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-    .codeSize = len,
-    .pCode    = data
-  };
-  QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
-  free(data);
-
-  // TODO: cache on module->so ?
-  VkPipelineShaderStageCreateInfo stage_info = {
-    .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-    .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
-    .pSpecializationInfo = 0,//&info;
-    .pName               = "main", // XXX really?
-    .module              = shader_module,
-  };
-
-  // finally create the pipeline
-  VkComputePipelineCreateInfo pipeline_info = {
-    .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-    .stage  = stage_info,
-    .layout = node->pipeline_layout
-  };
-  QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
-
-  // we don't need the module any more
-  vkDestroyShaderModule(qvk.device, stage_info.module, 0);
-
-  return VK_SUCCESS;
 }
 
 

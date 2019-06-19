@@ -43,9 +43,9 @@ main()
   vec4 rgba;
   // TODO: in fact make sure we crop the roi on the host side so we won't have to deal with this shit:
   // if(param.filters == )
-  rgba = vec4(c1, (c0+c3)/2.0, c2, 1.0);
+  // rgba = vec4(c1, (c0+c3)/2.0, c2, 1.0);
   // TODO: else
-  // rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
+  rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
   // TODO: for x-trans, we'll need to average 3x3 blocks and maybe have
   // even more headaches about alignment of patterns (what is green?)
   vec4 outc = rgba;//  * vec4(1.0/65535.0);

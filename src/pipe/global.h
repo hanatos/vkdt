@@ -10,7 +10,7 @@
 
 typedef struct dt_graph_t dt_graph_t; // fwd declare
 typedef struct dt_module_t dt_module_t;
-typedef VkResult (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
+typedef void (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
