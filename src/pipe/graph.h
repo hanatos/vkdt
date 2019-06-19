@@ -61,11 +61,14 @@ dt_graph_t;
 
 typedef enum dt_graph_run_t
 {
+  // TODO: annotate what affects vk and what doesn't?
   s_graph_run_none           = 0,
   s_graph_run_roi_out        = 1<<0, // pass 1: recompute output roi
   s_graph_run_roi_in         = 1<<1, // pass 2: recompute input roi requests
   s_graph_run_create_nodes   = 1<<2, // pass 2: create nodes from modules
-  s_graph_run_alloc_free     = 1<<3, // pass 3: alloc and free images
+  // TODO: create pipeline + descriptor set layout
+  // TODO: allocate images
+  s_graph_run_alloc_free     = 1<<3, // pass 3: alloc and free images TODO: only alloc/free heap
   s_graph_run_alloc_dset     = 1<<4, // pass 4: alloc descriptor sets and imageviews
   s_graph_run_record_cmd_buf = 1<<5, // pass 4: record command buffer
   s_graph_run_upload_source  = 1<<6, // final : upload new source image

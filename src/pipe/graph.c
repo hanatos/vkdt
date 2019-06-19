@@ -258,6 +258,9 @@ read_file(const char *filename, size_t *len)
 
 // allocate output buffers, also create vulkan pipeline and load spir-v portion
 // of the compute shader.
+// TODO: need to disentangle allocation and vulkan code here, too
+// TODO: because the tiling memory allocation will want to run alloc/free many times
+// TODO: but only once create the vulkan images at the end.
 static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
@@ -335,7 +338,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
       .pSpecializationInfo = 0,//&info;
-      .pName               = "main", // XXX really?
+      .pName               = "main", // XXX really? TODO: put entry point function on node struct
       .module              = shader_module,
     };
 

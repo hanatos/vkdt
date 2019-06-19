@@ -24,4 +24,12 @@
 * clut with linear part: colour matrix
 * simple denoising with decimated fisz wavelets
 * guided filter for contrast enhancement
-  - box blur: iterated multi-tap box
+  - box blur: iterated, separable multi-tap box
+  - connectors:
+    input:read:rgba:f32
+    output:write:rgba:f32
+    coarse:write:y:f32
+    coarse2:read:y:f32
+  - params:
+    epsilon
+    detail strength
