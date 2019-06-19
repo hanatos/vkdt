@@ -160,45 +160,20 @@ extern "C" void dt_gui_render_frame_imgui()
           ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
           ImGui::Begin("panel-right", 0, window_flags);
 
-          // XXX TODO: get that automatically and not in this utterly shitty way:
-          float *exposure = 0;
-          for(int i=0;i<10;i++)
+          for(int i=0;i<vkdt.num_widgets;i++)
           {
-            if(vkdt.graph_dev.module[i].name == dt_token("exposure"))
-              exposure = (float*)vkdt.graph_dev.module[i].param;
-          }
-          if(exposure)
-            ImGui::SliderFloat("exposure", exposure, -7.0f, 7.0f, "%2.1f ev");
-
-          float *highlights = 0;
-          for(int i=0;i<10;i++)
-          {
-            if(vkdt.graph_dev.module[i].name == dt_token("filmcurv"))
-              highlights = (float*)vkdt.graph_dev.module[i].param+6;
-          }
-          if(highlights)
-            ImGui::SliderFloat("highlight rolloff", highlights, 0.0f, 1.0f, "%1.2f");
-
-          float *shadows = 0;
-          for(int i=0;i<10;i++)
-          {
-            if(vkdt.graph_dev.module[i].name == dt_token("filmcurv"))
-              shadows = (float*)vkdt.graph_dev.module[i].param+5;
-          }
-          if(shadows)
-            ImGui::SliderFloat("shadow kick", shadows, 0.0f, 1.0f, "%1.2f");
-
-          for(int i=0;i<10;i++)
-          {
-            if(vkdt.graph_dev.module[i].name == dt_token("filmcurv"))
-            {
-              float *black = (float*)vkdt.graph_dev.module[i].param+8;
-              ImGui::SliderFloat("black", black,
-                  vkdt.graph_dev.module[i].so->param[8]->val[1],
-                  vkdt.graph_dev.module[i].so->param[8]->val[2],
-                  "%1.5f");
-              break;
-            }
+            int modid = vkdt.widget_modid[i];
+            int parid = vkdt.widget_parid[i];
+            // TODO: distinguish by type:
+            // TODO: distinguish by count:
+            float *val = (float*)vkdt.graph_dev.module[modid].param + parid;
+            char str[10] = {0};
+            memcpy(str,
+                &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+              ImGui::SliderFloat(str, val,
+                  vkdt.graph_dev.module[modid].so->param[parid]->val[1],
+                  vkdt.graph_dev.module[modid].so->param[parid]->val[2],
+                  "%2.5f");
           }
 
 #if 0

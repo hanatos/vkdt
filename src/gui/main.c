@@ -91,8 +91,9 @@ handle_event(SDL_Event *event)
       dt_graph_init(&vkdt.graph_dev);
       int err = dt_graph_read_config_ascii(&vkdt.graph_dev, vkdt.graph_cfg);
       if(err) dt_log(s_log_err, "failed to reload_shaders!");
-      dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
       // (TODO: re-init params from history)
+      dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
+      dt_gui_read_ui_ascii("test.ui");
     }
   }
 }
@@ -127,6 +128,8 @@ int main(int argc, char *argv[])
   }
 
   dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
+  // TODO: get from command line
+  dt_gui_read_ui_ascii("test.ui");
 
   // main loop
   int running = 1;

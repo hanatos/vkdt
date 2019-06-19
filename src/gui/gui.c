@@ -2,6 +2,7 @@
 #include "qvk/qvk.h"
 #include "core/log.h"
 #include "render.h"
+#include "pipe/io.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -264,4 +265,47 @@ void dt_gui_present()
 void dt_gui_render_frame()
 {
   dt_gui_render_frame_imgui();
+}
+
+void
+dt_gui_add_widget(
+    dt_token_t module,
+    dt_token_t inst,
+    dt_token_t param)
+{
+  if(vkdt.num_widgets >= sizeof(vkdt.widget_modid)/sizeof(vkdt.widget_modid[0]))
+    return;
+
+  int modid = dt_module_get(&vkdt.graph_dev, module, inst);
+  if(modid < 0) return;
+  int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
+  if(parid < 0) return;
+
+  int i = vkdt.num_widgets++;
+  vkdt.widget_modid[i] = modid;
+  vkdt.widget_parid[i] = parid;
+}
+
+// TODO: also read descriptive text from here
+// TODO: maybe some more notes on precision or widget type, too?
+int
+dt_gui_read_ui_ascii(
+    const char *filename)
+{
+  vkdt.num_widgets = 0;
+  FILE *f = fopen(filename, "rb");
+  if(!f) return 1;
+  char buf[2048];
+  while(!feof(f))
+  {
+    char *line = buf;
+    fscanf(f, "%[^\n]", line);
+    if(fgetc(f) == EOF) break; // read \n
+    dt_token_t mod  = dt_read_token(line, &line);
+    dt_token_t inst = dt_read_token(line, &line);
+    dt_token_t parm = dt_read_token(line, &line);
+    dt_gui_add_widget(mod, inst, parm);
+  }
+  fclose(f);
+  return 0;
 }
