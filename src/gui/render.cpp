@@ -188,6 +188,19 @@ extern "C" void dt_gui_render_frame_imgui()
           if(shadows)
             ImGui::SliderFloat("shadow kick", shadows, 0.0f, 1.0f, "%1.2f");
 
+          for(int i=0;i<10;i++)
+          {
+            if(vkdt.graph_dev.module[i].name == dt_token("filmcurv"))
+            {
+              float *black = (float*)vkdt.graph_dev.module[i].param+8;
+              ImGui::SliderFloat("black", black,
+                  vkdt.graph_dev.module[i].so->param[8]->val[1],
+                  vkdt.graph_dev.module[i].so->param[8]->val[2],
+                  "%1.5f");
+              break;
+            }
+          }
+
 #if 0
           ImGuiIO& io = ImGui::GetIO();
           ImTextureID imgid = io.Fonts->TexID;   // XXX put VkImage of display node!

@@ -41,11 +41,12 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     }
   }
   for(int k=0;k<4;k++) f[8+k] = m[k];
+  f[12] = p[8];
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*12;
+  mod->committed_param_size = sizeof(float)*13;
   mod->committed_param = malloc(mod->committed_param_size);
   return 0;
 }
