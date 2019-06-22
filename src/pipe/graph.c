@@ -333,12 +333,14 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
     free(data);
 
-    // TODO: cache on module->so ?
+    // TODO: cache pipelines on module->so ?
+    char entry[10] = {0};
+    memcpy(entry, dt_token_str(node->entry), 8);
     VkPipelineShaderStageCreateInfo stage_info = {
       .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
       .pSpecializationInfo = 0,//&info;
-      .pName               = "main", // XXX really? TODO: put entry point function on node struct
+      .pName               = entry,
       .module              = shader_module,
     };
 
@@ -846,11 +848,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;
   dt_node_t *node = graph->node + nodeid;
-  int ctxnid = -1;
-  dt_node_t *ctxn = 0;
+  // int ctxnid = -1;
+  // dt_node_t *ctxn = 0;
 
   node->name = module->name;
-  node->kernel = dt_token("main");
+  node->kernel = dt_token("main"); // file name
+  node->entry  = dt_token("main"); // entry point function name
   node->num_connectors = module->num_connectors;
   node->module = module;
 
