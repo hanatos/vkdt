@@ -1,4 +1,5 @@
 #include "module.h"
+#include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -71,33 +72,9 @@ create_nodes(
   // TODO: if we have a context buffer, blur it in a separate set of nodes
   //       with a reduced blur radius
 
-  // TODO: need to deal with all module connectors. these are two
-  //       that need connecting currently:
-  // TODO: copy connection: module input  -- blur1  input
-  // TODO: copy connection: module output -- blur2v output
-
-  // module input
-  // TODO: put this into a copy_connector function
-  // TODO:  (and have corresponding copy_connector_ctx)
-  // module->connected_nodeid[0] = id_blur1;
-  // node_blur1->connector[0].{stuff??} = module->connector[0].{stuff??}
-  // if(dt_connector_input(node->connector+0) &&
-  // module->connector[0].connected_mid >= 0)
-  //     node_blur1->connector[i].connected_mid = graph->module[
-  //       module->connector[i].connected_mid].connected_nodeid[i];
-#if 0 // XXX
-  for(int i=0;i<module->num_connectors;i++)
-  {
-    module->connected_nodeid[i] = nodeid;
-    node->connector[i] = module->connector[i];
-    // update the connection node id to point to the node inside the module
-    // associated with the given output connector:
-    if(dt_connector_input(node->connector+i) &&
-        module->connector[i].connected_mid >= 0)
-      node->connector[i].connected_mid = graph->module[
-        module->connector[i].connected_mid].connected_nodeid[i];
-  }
-#endif
+  // wire module i/o connectors to nodes:
+  dt_connector_copy(graph, module, blur1,  0, 0);
+  dt_connector_copy(graph, module, blur2v, 1, 1);
 
   // interconnect nodes:
   dt_node_connect(graph, blur1,  blur1_output,  blur2h, blur2h_input);
