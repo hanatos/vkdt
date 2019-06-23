@@ -1,4 +1,0 @@
-# buffer configuration:
-# io:name token:colour:data format
-input:input:rgb:32f
-output:padded:y:32f

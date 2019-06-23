@@ -15,6 +15,8 @@
 * global buffer of commands (not only params)
 * version modules! (for params)
 * clean up commit_params mess..?
+* commit_params needs nodeid
+* support push constants via field on node?
 
 # modules
 

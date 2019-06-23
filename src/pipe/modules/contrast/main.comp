@@ -1,0 +1,79 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+} params;
+
+
+layout( // input f32 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f32 buffer rgb
+    set = 1, binding = 1, rgba32f
+) uniform image2D img_out;
+
+void
+blur1()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec2 ires = 1.0/vec2(params.ro.roi);
+
+  vec4 c0 = texture(img_in, (ipos + vec2(-.5,-.5))*ires);
+  vec4 c1 = texture(img_in, (ipos + vec2(-.5,+.5))*ires);
+  vec4 c2 = texture(img_in, (ipos + vec2(+.5,-.5))*ires);
+  vec4 c3 = texture(img_in, (ipos + vec2(+.5,+.5))*ires);
+  vec4 rgba = .25*(c0+c1+c2+c3);
+  imageStore(img_out, ipos, rgba);
+}
+
+void
+blur2h()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec2 ires = 1.0/vec2(params.ro.roi);
+
+  // TODO: use a push constant/parameter for the step size
+  vec4 c0 = texelFetch(img_in, ipos + ivec2(-4, 0), 0);
+  vec4 c1 = texelFetch(img_in, ipos + ivec2(-2, 0), 0);
+  vec4 c2 = texelFetch(img_in, ipos + ivec2( 0, 0), 0);
+  vec4 c3 = texelFetch(img_in, ipos + ivec2( 2, 0), 0);
+  vec4 c4 = texelFetch(img_in, ipos + ivec2( 4, 0), 0);
+  vec4 rgba = (1.0/16.0)*(c0+4.0*c1+6.0*c2+4.0*c3+c0);
+  imageStore(img_out, ipos, rgba);
+}
+
+void
+blur2v()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec2 ires = 1.0/vec2(params.ro.roi);
+
+  // TODO: use a push constant/parameter for the step size
+  vec4 c0 = texelFetch(img_in, ipos + ivec2(0,-4), 0);
+  vec4 c1 = texelFetch(img_in, ipos + ivec2(0,-2), 0);
+  vec4 c2 = texelFetch(img_in, ipos + ivec2(0, 0), 0);
+  vec4 c3 = texelFetch(img_in, ipos + ivec2(0, 2), 0);
+  vec4 c4 = texelFetch(img_in, ipos + ivec2(0, 4), 0);
+  vec4 rgba = (1.0/16.0)*(c0+4.0*c1+6.0*c2+4.0*c3+c0);
+  imageStore(img_out, ipos, rgba);
+}
+
+// for some reason we need this to compile:
+void main() {}
+
