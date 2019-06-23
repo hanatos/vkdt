@@ -1,34 +1,13 @@
 #include "graph.h"
 #include "module.h"
 #include "io.h"
+#include "modules/api.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-
-// convenience function to detect inputs
-static inline int
-dt_connector_input(dt_connector_t *c)
-{
-  return c->type == dt_token("read") || c->type == dt_token("sink");
-}
-static inline int
-dt_connector_output(dt_connector_t *c)
-{
-  return c->type == dt_token("write") || c->type == dt_token("source");
-}
-static inline int
-dt_node_source(dt_node_t *n)
-{
-  return n->connector[0].type == dt_token("source");
-}
-static inline int
-dt_node_sink(dt_node_t *n)
-{
-  return n->connector[0].type == dt_token("sink");
-}
 
 void
 dt_graph_init(dt_graph_t *g)
@@ -891,16 +870,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
 #endif
   for(int i=0;i<module->num_connectors;i++)
-  {
-    module->connected_nodeid[i] = nodeid;
-    node->connector[i] = module->connector[i];
-    // update the connection node id to point to the node inside the module
-    // associated with the given output connector:
-    if(dt_connector_input(node->connector+i) &&
-        module->connector[i].connected_mid >= 0)
-      node->connector[i].connected_mid = graph->module[
-        module->connector[i].connected_mid].connected_nodeid[i];
-  }
+    dt_connector_copy(graph, module, nodeid, i, i);
 }
 
 

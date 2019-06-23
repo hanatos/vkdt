@@ -73,12 +73,12 @@ create_nodes(
   //       with a reduced blur radius
 
   // wire module i/o connectors to nodes:
-  dt_connector_copy(graph, module, blur1,  0, 0);
-  dt_connector_copy(graph, module, blur2v, 1, 1);
+  dt_connector_copy(graph, module, id_blur1,  0, 0);
+  dt_connector_copy(graph, module, id_blur2v, 1, 1);
 
   // interconnect nodes:
-  dt_node_connect(graph, blur1,  blur1_output,  blur2h, blur2h_input);
-  dt_node_connect(graph, blur2h, blur2h_output, blur2v, blur2v_input);
+  dt_node_connect(graph, id_blur1,  1, id_blur2h, 0);
+  dt_node_connect(graph, id_blur2h, 1, id_blur2v, 0);
 
   // TODO: currently we require to init node->{wd,ht,dp} here too!
   // TODO: this would mean we'd need to re-create nodes for new roi, which indeed may be necessary for wavelet scales etc anyways
