@@ -37,7 +37,6 @@ create_nodes(
   // output image:
   // q = mean_a * I + mean_b
 
-
   // TODO: in fact these should be grey scale
   // TODO dt_node_add(graph, module, "name", "kernel", "entry")
   // all three nodes need this:
