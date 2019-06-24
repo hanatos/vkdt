@@ -229,7 +229,7 @@ dt_api_guided_filter(
   ci.chan = dt_token("rgba");
   co.chan = dt_token("rgba");
   dt_connector_t cm = {
-    .name   = dt_token("input"),
+    .name   = dt_token("ab"),
     .type   = dt_token("read"),
     .chan   = dt_token("rg"),
     .format = dt_token("f32"),
