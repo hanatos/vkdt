@@ -17,3 +17,8 @@ layout( // input f32 buffer rgb
 layout( // output f32 buffer rgb
     set = 1, binding = 1, rgba32f
 ) uniform image2D img_out;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint step;
+} push;

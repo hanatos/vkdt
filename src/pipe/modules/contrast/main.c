@@ -65,6 +65,8 @@ create_nodes(
     .connector = {
       ci, co,
     },
+    .push_constant_size = 4,
+    .push_constant = {2},
   };
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blur2v = graph->num_nodes++;
@@ -80,6 +82,8 @@ create_nodes(
     .connector = {
       ci, co,
     },
+    .push_constant_size = 4,
+    .push_constant = {2},
   };
 
   // TODO: context buffer handling:

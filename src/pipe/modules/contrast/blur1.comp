@@ -11,10 +11,27 @@ main()
 
   vec2 ires = 1.0/vec2(params.ro.roi);
 
+#if 1
   vec4 c0 = texture(img_in, (ipos + vec2(-.5,-.5))*ires);
   vec4 c1 = texture(img_in, (ipos + vec2(-.5,+.5))*ires);
   vec4 c2 = texture(img_in, (ipos + vec2(+.5,-.5))*ires);
   vec4 c3 = texture(img_in, (ipos + vec2(+.5,+.5))*ires);
   vec4 rgba = .25*(c0+c1+c2+c3);
+#endif
+#if 0
+  vec4 rgba = texelFetch(img_in, ipos, 0);
+#endif
+#if 0 // equivalent to the texture() version above
+  vec4 c0 = texelFetch(img_in, ipos + ivec(-1,-1), 0);
+  vec4 c1 = texelFetch(img_in, ipos + ivec(-1, 0), 0);
+  vec4 c2 = texelFetch(img_in, ipos + ivec(-1, 1), 0);
+  vec4 c3 = texelFetch(img_in, ipos + ivec( 0,-1), 0);
+  vec4 c4 = texelFetch(img_in, ipos + ivec( 0, 0), 0);
+  vec4 c5 = texelFetch(img_in, ipos + ivec( 0, 1), 0);
+  vec4 c6 = texelFetch(img_in, ipos + ivec( 1,-1), 0);
+  vec4 c7 = texelFetch(img_in, ipos + ivec( 1, 0), 0);
+  vec4 c8 = texelFetch(img_in, ipos + ivec( 1, 1), 0);
+  vec4 rgba = 1.0/9.0*(c0+c1+c2+c3+c4+c5+c6+c7+c8);
+#endif
   imageStore(img_out, ipos, rgba);
 }

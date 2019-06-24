@@ -285,12 +285,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       graph->uniform_dset_layout,
       node->dset_layout,
     };
+    VkPushConstantRange pcrange = {
+      .stageFlags = VK_SHADER_STAGE_ALL,
+      .offset     = 0,
+      .size       = node->push_constant_size,
+    };
     VkPipelineLayoutCreateInfo layout_info = {
       .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
       .setLayoutCount         = LENGTH(dset_layout),
       .pSetLayouts            = dset_layout,
-      .pushConstantRangeCount = 0,
-      .pPushConstantRanges    = 0,
+      .pushConstantRangeCount = node->push_constant_size ? 1 : 0,
+      .pPushConstantRanges    = node->push_constant_size ? &pcrange : 0,
     };
     QVKR(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
 
@@ -766,8 +771,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
 
   // update some buffers:
-  // vkCmdPushConstants(cmd_buf, pipeline_layout_atrous,
-      // VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
+  if(node->push_constant_size)
+    vkCmdPushConstants(cmd_buf, node->pipeline_layout,
+        VK_SHADER_STAGE_ALL, 0, node->push_constant_size, node->push_constant);
   uint8_t uniform_buf[4096]; // max would be 65k
   // can only be 65k or else we need to upload through staging etc
   // offset and size have to be multiples of 4
@@ -828,17 +834,18 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // int ctxnid = -1;
   // dt_node_t *ctxn = 0;
 
-  node->name = module->name;
-  node->kernel = dt_token("main"); // file name
-  node->num_connectors = module->num_connectors;
-  node->module = module;
+  *node = (dt_node_t) {
+    .name           = module->name,
+    .kernel         = dt_token("main"), // file name
+    .num_connectors = module->num_connectors,
+    .module         = module,
+    // make sure we don't follow garbage pointers. pure sink or source nodes
+    // don't run a pipeline. and hence have no descriptor sets to construct. they
+    // do, however, have input or output images allocated for them.
+    .pipeline       = 0,
+    .dset_layout    = 0,
+  };
 
-  // make sure we don't follow garbage pointers. pure sink or source nodes
-  // don't run a pipeline. and hence have no descriptor sets to construct. they
-  // do, however, have input or output images allocated for them.
-  node->pipeline = 0;
-  node->dset_layout = 0;
-  node->wd = node->ht = node->dp = 0;
   // determine kernel dimensions:
   int output = dt_module_get_connector(module, dt_token("output"));
   // output == -1 means we must be a sink, anyways there won't be any more glsl

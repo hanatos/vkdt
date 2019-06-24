@@ -23,6 +23,9 @@ typedef struct dt_node_t
   VkDescriptorSetLayout dset_layout;
 
   uint32_t wd, ht, dp;  // dimensions of kernel to be run
+
+  uint32_t push_constant[64];  // GTX1080 has size == 256 as max anyways
+  size_t   push_constant_size;
 }
 dt_node_t;
 
