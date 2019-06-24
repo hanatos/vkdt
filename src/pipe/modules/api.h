@@ -1,7 +1,7 @@
 #pragma once
-#include "node.h"
-#include "graph.h"
-#include "module.h"
+#include "pipe/node.h"
+#include "pipe/graph.h"
+#include "pipe/module.h"
 
 // some module specific helpers
 // TODO: is this the best place? what to add here?
