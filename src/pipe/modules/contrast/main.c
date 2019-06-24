@@ -49,54 +49,62 @@ create_nodes(
       ci, co,
     },
   };
-  // TODO: could run these on downsampled image instead
-  // add nodes blur2h and blur2v
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_blur2h = graph->num_nodes++;
-  dt_node_t *node_blur2h = graph->node + id_blur2h;
-  *node_blur2h = (dt_node_t) {
-    .name   = dt_token("blur2h"),
-    .kernel = dt_token("blur2h"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
-    .push_constant_size = 4,
-    .push_constant = {2},
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_blur2v = graph->num_nodes++;
-  dt_node_t *node_blur2v = graph->node + id_blur2v;
-  *node_blur2v = (dt_node_t) {
-    .name   = dt_token("blur2v"),
-    .kernel = dt_token("blur2v"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
-    .push_constant_size = 4,
-    .push_constant = {2},
-  };
+
+  int id_input = id_blur1;
+
+  // iterate gaussian blur how many times?
+  const int it = 2;
+  for(int i=0;i<it;i++)
+  {
+    // TODO: could run these on downsampled image instead
+    // add nodes blur2h and blur2v
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_blur2h = graph->num_nodes++;
+    dt_node_t *node_blur2h = graph->node + id_blur2h;
+    *node_blur2h = (dt_node_t) {
+      .name   = dt_token("blur2h"),
+      .kernel = dt_token("blur2h"),
+      .module = module,
+      .wd     = wd,
+      .ht     = ht,
+      .dp     = dp,
+      .num_connectors = 2,
+      .connector = {
+        ci, co,
+      },
+      .push_constant_size = 4,
+      .push_constant = {1u<<(i+1)},
+    };
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_blur2v = graph->num_nodes++;
+    dt_node_t *node_blur2v = graph->node + id_blur2v;
+    *node_blur2v = (dt_node_t) {
+      .name   = dt_token("blur2v"),
+      .kernel = dt_token("blur2v"),
+      .module = module,
+      .wd     = wd,
+      .ht     = ht,
+      .dp     = dp,
+      .num_connectors = 2,
+      .connector = {
+        ci, co,
+      },
+      .push_constant_size = 4,
+      .push_constant = {1u<<(i+1)},
+    };
+    // interconnect nodes:
+    dt_node_connect(graph, id_input,  1, id_blur2h, 0);
+    dt_node_connect(graph, id_blur2h, 1, id_blur2v, 0);
+    id_input = id_blur2v;
+  }
 
   // TODO: context buffer handling:
   // TODO: if we have a context buffer, blur it in a separate set of nodes
   //       with a reduced blur radius
 
   // wire module i/o connectors to nodes:
-  dt_connector_copy(graph, module, id_blur1,  0, 0);
-  dt_connector_copy(graph, module, id_blur2v, 1, 1);
-
-  // interconnect nodes:
-  dt_node_connect(graph, id_blur1,  1, id_blur2h, 0);
-  dt_node_connect(graph, id_blur2h, 1, id_blur2v, 0);
+  dt_connector_copy(graph, module, id_blur1, 0, 0);
+  dt_connector_copy(graph, module, id_input, 1, 1);
 
   // TODO: currently we require to init node->{wd,ht,dp} here too!
   // TODO: this would mean we'd need to re-create nodes for new roi, which indeed may be necessary for wavelet scales etc anyways
