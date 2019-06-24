@@ -67,7 +67,7 @@ pipe/modules/*/Makefile:
 	make -C $(dir $@)
 
 %.spv: %.comp
-	$(GLSLC) -Ipipe/modules --target-env vulkan1.1 \
+	$(GLSLC) -Ipipe/modules -I$(dir $<) --target-env vulkan1.1 \
     -DQVK_SHADER \
     -V $< -o $@
 

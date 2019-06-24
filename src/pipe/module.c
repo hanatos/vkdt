@@ -53,13 +53,13 @@ int dt_module_add(
         // set connector's ref id's to -1 or ref count to 0 if a write|source node
         if(cn->type == dt_token("read") || cn->type == dt_token("sink"))
         {
-          cn->connected_mid = -1;
-          cn->connected_cid = -1;
+          cn->connected_mi = -1;
+          cn->connected_mc = -1;
         }
         else if(cn->type == dt_token("write") || cn->type == dt_token("source"))
         {
-          cn->connected_mid = 0;
-          cn->connected_cid = 0;
+          cn->connected_mi = 0;
+          cn->connected_mc = 0;
         }
       }
       mod->num_connectors = mod->so->num_connectors;

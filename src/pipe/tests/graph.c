@@ -8,13 +8,20 @@
 
 int main(int argc, char *argv[])
 {
+  const char *cfg = 0;
+  if(argc > 1) cfg = argv[1];
+  else
+  {
+    fprintf(stderr, "please give a graph config as parameter\n");
+    exit(1);
+  }
   dt_log_init(s_log_cli|s_log_pipe);
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
   if(qvk_init()) exit(1);
   dt_graph_t graph;
   dt_graph_init(&graph);
-  int err = dt_graph_read_config_ascii(&graph, "tests/pipe.cfg");
+  int err = dt_graph_read_config_ascii(&graph, cfg);
   assert(!err);
   // TODO: perform some more exhaustive consistency checks
   // output dot file, build with

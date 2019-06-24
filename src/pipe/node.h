@@ -11,7 +11,6 @@ typedef struct dt_node_t
 {
   dt_token_t name;      // name of the node
   dt_token_t kernel;    // kernel.comp is the file name of the compute shader
-  dt_token_t entry;     // entry point function, such as "main"
 
   dt_module_t *module;  // reference back to module and class
 

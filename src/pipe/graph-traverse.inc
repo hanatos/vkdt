@@ -44,7 +44,7 @@
       done[sp] = 1; // mark this node such that we only traverse the children once
       for(int i=0;i<arr[curr].num_connectors;i++)
       {
-        const int el = arr[curr].connector[i].connected_mid;
+        const int el = arr[curr].connector[i].connected_mi;
         if(el < 0)
         {
           TRAVERSE_UNCONNECTED

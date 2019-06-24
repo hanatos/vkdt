@@ -11,6 +11,10 @@ create_nodes(
   // TODO: streamline the api needed to do things like this!
   // create a box blur node:
 
+  const int wd = module->connector[1].roi.roi_wd;
+  const int ht = module->connector[1].roi.roi_ht;
+  const int dp = 1;
+
   // TODO: in fact these should be grey scale
   // TODO dt_node_add(graph, module, "name", "kernel", "entry")
   // all three nodes need this:
@@ -19,12 +23,15 @@ create_nodes(
     .type   = dt_token("read"),
     .chan   = dt_token("rgba"),
     .format = dt_token("f32"),
+    .roi    = module->connector[0].roi,
+    .connected_mi = -1,
   };
   dt_connector_t co = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("rgba"),
     .format = dt_token("f32"),
+    .roi    = module->connector[1].roi,
   };
   // add node blur1
   assert(graph->num_nodes < graph->max_nodes);
@@ -32,23 +39,28 @@ create_nodes(
   dt_node_t *node_blur1 = graph->node + id_blur1;
   *node_blur1 = (dt_node_t) {
     .name   = dt_token("blur1"),
-    .kernel = dt_token("main"),
-    .entry  = dt_token("blur1"),
+    .kernel = dt_token("blur1"),
     .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
     .num_connectors = 2,
     .connector = {
       ci, co,
     },
   };
+  // TODO: could run these on downsampled image instead
   // add nodes blur2h and blur2v
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blur2h = graph->num_nodes++;
   dt_node_t *node_blur2h = graph->node + id_blur2h;
   *node_blur2h = (dt_node_t) {
     .name   = dt_token("blur2h"),
-    .kernel = dt_token("main"),
-    .entry  = dt_token("blur2h"),
+    .kernel = dt_token("blur2h"),
     .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
     .num_connectors = 2,
     .connector = {
       ci, co,
@@ -59,9 +71,11 @@ create_nodes(
   dt_node_t *node_blur2v = graph->node + id_blur2v;
   *node_blur2v = (dt_node_t) {
     .name   = dt_token("blur2v"),
-    .kernel = dt_token("main"),
-    .entry  = dt_token("blur2v"),
+    .kernel = dt_token("blur2v"),
     .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
     .num_connectors = 2,
     .connector = {
       ci, co,

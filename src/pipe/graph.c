@@ -297,7 +297,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     // create the compute shader stage
     char filename[1024] = {0};
     snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
-        dt_token_str(node->name), dt_token_str(node->kernel));
+        dt_token_str(node->module->name), dt_token_str(node->kernel));
 
     size_t len;
     void *data = read_file(filename, &len);
@@ -313,13 +313,11 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     free(data);
 
     // TODO: cache pipelines on module->so ?
-    char entry[10] = {0};
-    memcpy(entry, dt_token_str(node->entry), 8);
     VkPipelineShaderStageCreateInfo stage_info = {
       .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
       .pSpecializationInfo = 0,//&info;
-      .pName               = entry,
+      .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.
       .module              = shader_module,
     };
 
@@ -392,7 +390,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // alloc/free in one pass. this means one module would call free before
       // the next module has a chance to up the ref counter.
       // luckily we already know how many users are connected to this pin:
-      c->mem->ref = c->connected_mid + 1;
+      c->mem->ref = c->connected_mi + 1;
 
       if(c->type == dt_token("source"))
       {
@@ -418,10 +416,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
-      if(c->connected_mid >= 0)
+      if(c->connected_mi >= 0)
       {
         dt_connector_t *c2 =
-          graph->node[c->connected_mid].connector + c->connected_cid;
+          graph->node[c->connected_mi].connector + c->connected_mc;
         c->mem   = c2->mem;
         c->image = c2->image;
         // c->mem->ref++; // already accounted for globally above
@@ -515,10 +513,10 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
-      if(c->connected_mid >= 0)
+      if(c->connected_mi >= 0)
       {
-        dt_connector_t *c2 = graph->node[c->connected_mid]
-          .connector+c->connected_cid;
+        dt_connector_t *c2 = graph->node[c->connected_mi]
+          .connector + c->connected_mc;
         c->image      = c2->image;      // can't hurt to copy again
         c->image_view = c2->image_view;
         img_info[i].sampler     = qvk.tex_sampler_nearest;
@@ -551,7 +549,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if(dt_connector_input(c) && c->connected_mid >= 0)
+    if(dt_connector_input(c) && c->connected_mi >= 0)
     {
       dt_log(s_log_pipe, "freeing input %"PRItkn" %"PRItkn,
           dt_token_str(node->name), dt_token_str(c->name));
@@ -565,7 +563,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     {
       dt_log(s_log_pipe, "freeing output ref count %"PRItkn" %"PRItkn" %d %d",
           dt_token_str(node->name), dt_token_str(c->name),
-          c->connected_mid, c->mem->ref);
+          c->connected_mi, c->mem->ref);
       dt_vkfree(&graph->heap, c->mem);
     }
     // staging memory for sources or sinks only needed during execution once
@@ -587,16 +585,16 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   if(input >= 0)
   { // first copy image metadata if we have a unique "input" connector
     c = module->connector + input;
-    module->img_param = graph->module[c->connected_mid].img_param;
+    module->img_param = graph->module[c->connected_mi].img_param;
   }
   if(module->so->modify_roi_out)
   { // keep incoming roi in sync:
     for(int i=0;i<module->num_connectors;i++)
     {
       dt_connector_t *c = module->connector+i;
-      if(dt_connector_input(c) && c->connected_mid >= 0 && c->connected_cid >= 0)
+      if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
       {
-        dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+        dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
         c->roi = *roi;
       }
     }
@@ -605,7 +603,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   // default implementation:
   // copy over roi from connector named "input" to all outputs ("write")
   if(input < 0) return;
-  dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+  dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
   c->roi = *roi; // also keep incoming roi in sync
   for(int i=0;i<module->num_connectors;i++)
   {
@@ -655,9 +653,9 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     if(dt_connector_input(c))
     {
       // make sure roi is good on the outgoing connector
-      if(c->connected_mid >= 0 && c->connected_cid >= 0)
+      if(c->connected_mi >= 0 && c->connected_mc >= 0)
       {
-        dt_roi_t *roi = &graph->module[c->connected_mid].connector[c->connected_cid].roi;
+        dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
         *roi = c->roi;
       }
     }
@@ -686,7 +684,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     { // XXX does this break export? we want it to display stuff in graphics queue
       for(int i=0;i<node->num_connectors;i++)
         if(dt_connector_input(node->connector+i))
-          if(node->connector[i].connected_mid >= 0)
+          if(node->connector[i].connected_mi >= 0)
             BARRIER_COMPUTE_SINK(node->connector[i].image);
     }
     else
@@ -832,7 +830,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 
   node->name = module->name;
   node->kernel = dt_token("main"); // file name
-  node->entry  = dt_token("main"); // entry point function name
   node->num_connectors = module->num_connectors;
   node->module = module;
 
@@ -973,11 +970,6 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & (s_graph_run_roi_out| s_graph_run_create_nodes))
   {
-    // XXX TODO: if we do this, we may want to alloc_dset, too?
-    graph->dset_cnt_image_read = 0;
-    graph->dset_cnt_image_write = 0;
-    graph->dset_cnt_buffer = 0;
-    graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
     graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
     // TODO: nuke descriptor set pool?
     start_node_id = sink_module_id;
@@ -1035,6 +1027,11 @@ VkResult dt_graph_run(
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);
     dt_vkalloc_nuke(&graph->heap_staging);
+    // XXX TODO: if we do this, we may want to alloc_dset, too?
+    graph->dset_cnt_image_read = 0;
+    graph->dset_cnt_image_write = 0;
+    graph->dset_cnt_buffer = 0;
+    graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
     graph->memory_type_bits = ~0u;
     graph->memory_type_bits_staging = ~0u;
     memset(mark, 0, sizeof(mark));
@@ -1232,6 +1229,7 @@ VkResult dt_graph_run(
       {
         // XXX hack! TODO implement proper display node
         graph->output = node;
+          fprintf(stderr, "getting output from %"PRItkn"\n", dt_token_str(node->name));
         if(node->module->so->write_sink)
         {
           uint8_t *mapped = 0;
@@ -1250,6 +1248,28 @@ VkResult dt_graph_run(
       }
     }
   }
+
+#if 1 // DEBUG: output digraph of nodes
+  fprintf(stdout, "digraph N {\n");
+  // for all nodes, print all incoming edges (outgoing don't have module ids)
+  for(int m=0;m<graph->num_nodes;m++)
+  {
+    for(int c=0;c<graph->node[m].num_connectors;c++)
+    {
+      if((graph->node[m].connector[c].type == dt_token("read") ||
+          graph->node[m].connector[c].type == dt_token("sink")) &&
+          graph->node[m].connector[c].connected_mi >= 0)
+      {
+        fprintf(stdout, "%"PRItkn" -> %"PRItkn"\n",
+            dt_token_str(graph->node[
+            graph->node[m].connector[c].connected_mi
+            ].name),
+            dt_token_str(graph->node[m].name));
+      }
+    }
+  }
+  fprintf(stdout, "}\n");
+#endif
 
   QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
         0, graph->query_cnt,

@@ -42,9 +42,14 @@ typedef struct dt_connector_t
   // inputs (read buffers) can only be connected to exactly one output
   // we only keep track of where inputs come from. this is also
   // how we'll access it in the DAG during DFS from sinks.
-  int connected_mid;  // pointing to connected module or node (or -1). is a reference count for write buffers.
-  int connected_cid;
+  int connected_mi;  // pointing to connected module or node (or -1). is a reference count for write buffers.
+  int connected_mc;  // index of the connector on the module
 
+  // module only:
+  int connected_ni;  // pointing to connected node after create_nodes has been called
+  int connected_nc;  // index of the connector on the node
+
+  // TODO: all from here: strip out to second ctx connector, we'll need memory allocations etc as well:
   // memory allocations for region of interest
   // as well as the context buffers, if any:
   uint64_t roi_offset, roi_size;

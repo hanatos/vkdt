@@ -16,23 +16,23 @@
   dt_connector_t *cn1 = graph->element[m1].connector+c1;
   if(cn1->type != dt_token("read") && cn1->type != dt_token("sink")) return 3;
 
-  int old_mod = cn1->connected_mid;
+  int old_mod = cn1->connected_mi;
   if(old_mod >= 0)
   {
-    int old_con = cn1->connected_cid;
+    int old_con = cn1->connected_mc;
     if(old_mod >= graph->num_elements) { assert(0 && "sink inconsistent!"); return 4; }
     if(graph->element[old_mod].connector[old_con].type != dt_token("write") &&
        graph->element[old_mod].connector[old_con].type == dt_token("source"))
     { assert(0 && "sink inconsistent!"); return 5; }
 
     // disconnect cn1
-    cn1->connected_mid = cn1->connected_cid = -1;
+    cn1->connected_mi = cn1->connected_mc = -1;
 
     // decrement previous source's reference counter
-    if(graph->element[old_mod].connector[old_con].connected_mid > 0)
+    if(graph->element[old_mod].connector[old_con].connected_mi > 0)
     {
-      graph->element[old_mod].connector[old_con].connected_mid--;
-      if(graph->element[old_mod].connector[old_con].connected_mid < 0)
+      graph->element[old_mod].connector[old_con].connected_mi--;
+      if(graph->element[old_mod].connector[old_con].connected_mi < 0)
       { assert(0 && "sink inconsistent!"); return 6; }
     }
     else
@@ -60,14 +60,14 @@
   // the connection in one go, leaving us with a consintent state after.
 
   // connect input id
-  cn1->connected_mid = m0;
-  cn1->connected_cid = c0;
+  cn1->connected_mi = m0;
+  cn1->connected_mc = c0;
 
   // back connections are not unique, so we're just using this
   // as a reference counter, so we know there is /some/ connection.
   // we know which is which because cn0->type == "write"|"source".
-  cn0->connected_mid++;
-  cn0->connected_cid = 0;
+  cn0->connected_mi++;
+  cn0->connected_mc = 0;
 
   return 0;
 }

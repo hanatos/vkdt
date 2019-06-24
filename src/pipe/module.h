@@ -45,10 +45,6 @@ typedef struct dt_module_t
   dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
-  // store list of nodeids that go with the connectors
-  int connected_nodeid[DT_MAX_CONNECTORS];  // roi path
-  int connected_ctxnid[DT_MAX_CONNECTORS];  // ctx buf, if any
-
   dt_image_params_t img_param;
 
   // TODO: parameters:

@@ -18,6 +18,13 @@
 * commit_params needs nodeid
 * support push constants via field on node?
 
+# module api
+
+* pass struct with pointers to core so we don't need to re-link
+* module to have two connectors:
+  - main connection used for graph traversal, shared with node
+  - context buffer connection
+
 # modules
 
 * actual demosaicing

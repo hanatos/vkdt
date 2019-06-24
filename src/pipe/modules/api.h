@@ -37,10 +37,21 @@ dt_connector_copy(
     int mc,    // connector id on module to copy
     int nc)    // connector id on node to copy to
 {
-  module->connected_nodeid[mc] = nid;
+  // connect the node layer on the module:
+  module->connector[mc].connected_ni = nid;
+  module->connector[mc].connected_nc = nc;
+  // connect the node:
   graph->node[nid].connector[nc] = module->connector[mc];
+  // input connectors have a unique source. connect their node layer:
   if(dt_connector_input(module->connector+mc) &&
-      module->connector[mc].connected_mid >= 0)
-    graph->node[nid].connector[nc].connected_mid = graph->module[
-      module->connector[mc].connected_mid].connected_nodeid[mc];
+      module->connector[mc].connected_mi >= 0)
+  {
+    // connect our node to the nodeid stored on the module
+    graph->node[nid].connector[nc].connected_mi = graph->module[
+      module->connector[mc].connected_mi].connector[
+        module->connector[mc].connected_mc].connected_ni;
+    graph->node[nid].connector[nc].connected_mc = graph->module[
+      module->connector[mc].connected_mi].connector[
+        module->connector[mc].connected_mc].connected_nc;
+  }
 }
