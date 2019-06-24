@@ -15,6 +15,29 @@ create_nodes(
   const int ht = module->connector[1].roi.roi_ht;
   const int dp = 1;
 
+  // TODO: guided filter:
+  // need: input image p and guide image I
+
+  // compute in four nodes:
+  // mean_I  = mean(I)
+  // corr_I  = mean(I*I)
+  // mean_p  = mean(p)      and these two only if I != p
+  // corr_Ip = mean(I*p)
+
+  // compute in one node
+  // a = cov_Ip/(var_I + eps)
+  //   with cov_Ip = corr_Ip - mean_I * mean_p
+  //   and  var_I  = corr_I  - mean_I * mean_I
+  //   where both are equal in case I == p
+  // b = mean_p - a*mean_I
+
+  // compute in one blur:
+  // mean_ab = mean(ab)
+
+  // output image:
+  // q = mean_a * I + mean_b
+
+
   // TODO: in fact these should be grey scale
   // TODO dt_node_add(graph, module, "name", "kernel", "entry")
   // all three nodes need this:
@@ -33,6 +56,8 @@ create_nodes(
     .format = dt_token("f32"),
     .roi    = module->connector[1].roi,
   };
+
+  // TODO: not sure if this is effective at all. possibly remove:
   // add node blur1
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blur1 = graph->num_nodes++;
@@ -52,6 +77,7 @@ create_nodes(
 
   int id_input = id_blur1;
 
+  // TODO: factor this out into a header function:
   // iterate gaussian blur how many times?
   const int it = 2;
   for(int i=0;i<it;i++)
