@@ -302,7 +302,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     // create the compute shader stage
     char filename[1024] = {0};
     snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
-        dt_token_str(node->module->name), dt_token_str(node->kernel));
+        dt_token_str(node->name), dt_token_str(node->kernel));
 
     size_t len;
     void *data = read_file(filename, &len);
@@ -1267,11 +1267,15 @@ VkResult dt_graph_run(
           graph->node[m].connector[c].type == dt_token("sink")) &&
           graph->node[m].connector[c].connected_mi >= 0)
       {
-        fprintf(stdout, "%"PRItkn" -> %"PRItkn"\n",
+        fprintf(stdout, "%"PRItkn"_%"PRItkn" -> %"PRItkn"_%"PRItkn"\n",
             dt_token_str(graph->node[
             graph->node[m].connector[c].connected_mi
             ].name),
-            dt_token_str(graph->node[m].name));
+            dt_token_str(graph->node[
+            graph->node[m].connector[c].connected_mi
+            ].kernel),
+            dt_token_str(graph->node[m].name),
+            dt_token_str(graph->node[m].kernel));
       }
     }
   }

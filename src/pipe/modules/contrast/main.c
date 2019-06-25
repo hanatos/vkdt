@@ -62,7 +62,7 @@ create_nodes(
   const int id_blur1 = graph->num_nodes++;
   dt_node_t *node_blur1 = graph->node + id_blur1;
   *node_blur1 = (dt_node_t) {
-    .name   = dt_token("blur1"),
+    .name   = dt_token("contrast"),
     .kernel = dt_token("blur1"),
     .module = module,
     .wd     = wd,
@@ -87,7 +87,7 @@ create_nodes(
     const int id_blur2h = graph->num_nodes++;
     dt_node_t *node_blur2h = graph->node + id_blur2h;
     *node_blur2h = (dt_node_t) {
-      .name   = dt_token("blur2h"),
+      .name   = dt_token("contrast"),
       .kernel = dt_token("blur2h"),
       .module = module,
       .wd     = wd,
@@ -104,7 +104,7 @@ create_nodes(
     const int id_blur2v = graph->num_nodes++;
     dt_node_t *node_blur2v = graph->node + id_blur2v;
     *node_blur2v = (dt_node_t) {
-      .name   = dt_token("blur2v"),
+      .name   = dt_token("contrast"),
       .kernel = dt_token("blur2v"),
       .module = module,
       .wd     = wd,
