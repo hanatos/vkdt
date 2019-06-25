@@ -30,17 +30,20 @@ void
 dt_vkalloc_nuke(dt_vkalloc_t *a)
 {
   memset(a->vkmem_pool, 0, sizeof(dt_vkmem_t)*a->pool_size); 
+  a->free = a->used = a->unused = 0;
   a->free = DLIST_PREPEND(a->free, a->vkmem_pool);
   a->free->offset = 0;
   a->free->size = a->heap_size;
   for(int i=1;i<a->pool_size;i++)
     a->unused = DLIST_PREPEND(a->unused, a->vkmem_pool+i);
   a->peak_rss = a->rss = a->vmsize = 0ul;
+  assert(!dt_vkalloc_check(a));
 }
 
 dt_vkmem_t*
 dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {
+  assert(!dt_vkalloc_check(a));
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
   while(l)
@@ -49,16 +52,16 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
     if(l->size == size && !(l->offset & (alignment-1)))
     { // replace entry
       mem = l;
-      DLIST_RM_ELEMENT(mem);
       if(l == a->free) a->free = l->next;
+      DLIST_RM_ELEMENT(mem);
     }
-
-    if((l->size > size && !(l->offset & (alignment-1))) ||
+    else if((l->size > size && !(l->offset & (alignment-1))) ||
         l->size > size + alignment)
     { // grab new mem entry from unused list
       assert(a->unused && "vkalloc: no more free slots!");
       if(!a->unused) return 0;
       mem = a->unused;
+      assert(!dt_vkalloc_check(a));
       a->unused = DLIST_REMOVE(a->unused, mem); // remove first is O(1)
       // split, push to used and modify free entry.
       // we'll just forget about the bits in between our base pointer
@@ -77,16 +80,19 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       a->vmsize = MAX(a->vmsize, mem->offset + mem->size);
       a->used = DLIST_PREPEND(a->used, mem);
       mem->ref = 1;
+      assert(!dt_vkalloc_check(a));
       return mem;
     }
     l = l->next;
   }
-  return 0; // ouch, out of memory
+  assert(0 && "out of memory slots!");
+  return 0;
 }
 
 void
 dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
 {
+  assert(!dt_vkalloc_check(a));
   assert(mem->ref > 0);
   if(mem->ref)
   {
@@ -131,6 +137,7 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
           mem = t;
         }
       }
+      assert(!dt_vkalloc_check(a));
       return; // done
     }
   }
