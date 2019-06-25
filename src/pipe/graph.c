@@ -391,11 +391,11 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
-      // manual reference counting: we don't want to ref++ because we do
-      // alloc/free in one pass. this means one module would call free before
-      // the next module has a chance to up the ref counter.
-      // luckily we already know how many users are connected to this pin:
-      c->mem->ref = c->connected_mi + 1;
+      // reference counting. we can't just do a ref++ here because we will
+      // free directly after and wouldn't know which node later on still relies
+      // on this buffer. hence we ran a reference counting pass before this, and
+      // init the reference counter now accordingly:
+      c->mem->ref = c->connected_mi;
 
       if(c->type == dt_token("source"))
       {
@@ -416,6 +416,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
         c->offset_staging = c->mem_staging->offset;
         c->size_staging   = c->mem_staging->size;
+        // TODO: better and more general caching:
         c->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
       }
     }
@@ -427,7 +428,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           graph->node[c->connected_mi].connector + c->connected_mc;
         c->mem   = c2->mem;
         c->image = c2->image;
-        // c->mem->ref++; // already accounted for globally above
         // image view will follow in alloc_outputs2
         if(c->type == dt_token("sink"))
         {
@@ -829,6 +829,28 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   return VK_SUCCESS;
 }
 
+static void
+count_references(dt_graph_t *graph, dt_node_t *node)
+{
+  for(int c=0;c<node->num_connectors;c++)
+  {
+    if(dt_connector_input(node->connector+c))
+    {
+      // up reference counter of the connector that owns the output
+      int mi = node->connector[c].connected_mi;
+      int mc = node->connector[c].connected_mc;
+      graph->node[mi].connector[mc].connected_mi++;
+    }
+    else
+    {
+      // output cannot know all modules connected to it, so
+      // it stores the reference counter instead.
+      // ref counter = 1, which is us:
+      node->connector[c].connected_mi = 1;
+    }
+  }
+}
+
 // default callback for create nodes: pretty much copy the module.
 // does no vulkan work, just graph connections. shall not fail.
 static void
@@ -1064,6 +1086,12 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & s_graph_run_alloc_free)
   {
+    memset(mark, 0, sizeof(mark));
+    // perform reference counting on the final connected node graph.
+    // this is needed for memory allocation later:
+#define TRAVERSE_POST\
+    count_references(graph, arr+curr);
+#include "graph-traverse.inc"
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);
     dt_vkalloc_nuke(&graph->heap_staging);
