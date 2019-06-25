@@ -9,6 +9,25 @@ create_nodes(
     dt_module_t *module)
 {
   // TODO: streamline the api needed to do things like this!
+
+  int guided_entry = -1, guided_exit = -1;
+  dt_api_guided_filter(
+      graph, module, 
+      &module->connector[0].roi,
+      &guided_entry,
+      &guided_exit,
+      20,  // TODO: not used! put in push constants?
+      1e-2f);
+
+  // TODO: this sucks. now what if we need to connect even more? weird interface?
+  dt_connector_copy(graph, module, guided_entry, 0, 0);
+  // XXX FIXME: this one just copies the connector from the module which knows not that it's being used twice.
+  // XXX FIXME: maybe the most robust way of dealing with this is an additional ref counting stage on the nodes?
+  // XXX FIXME: can we do it in the same pass as create_nodes as a post traversal step?
+  dt_connector_copy(graph, module, guided_exit,  0, 0);
+  dt_connector_copy(graph, module, guided_exit,  1, 2);
+
+#if 0
   // create a box blur node:
 
   const int wd = module->connector[1].roi.roi_wd;
@@ -133,5 +152,6 @@ create_nodes(
 
   // TODO: currently we require to init node->{wd,ht,dp} here too!
   // TODO: this would mean we'd need to re-create nodes for new roi, which indeed may be necessary for wavelet scales etc anyways
+#endif
 }
 

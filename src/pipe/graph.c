@@ -535,6 +535,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         img_dset[i].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         img_dset[i].pImageInfo      = img_info + i;
       } // else sorry not connected, buffer will not be bound
+      // TODO: put error message here?
       if(c->type == dt_token("sink"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
     }
@@ -556,8 +557,10 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+i;
     if(dt_connector_input(c) && c->connected_mi >= 0)
     {
-      dt_log(s_log_pipe, "freeing input %"PRItkn" %"PRItkn,
-          dt_token_str(node->name), dt_token_str(c->name));
+      dt_log(s_log_pipe, "freeing input %"PRItkn"_%"PRItkn" %"PRItkn,
+          dt_token_str(node->name),
+          dt_token_str(node->kernel),
+          dt_token_str(c->name));
       dt_vkfree(&graph->heap, c->mem);
       // note that we keep the offset and VkImage etc around, we'll be using
       // these in consecutive runs through the pipeline and only clean up at
@@ -566,16 +569,20 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_output(c))
     {
-      dt_log(s_log_pipe, "freeing output ref count %"PRItkn" %"PRItkn" %d %d",
-          dt_token_str(node->name), dt_token_str(c->name),
+      dt_log(s_log_pipe, "freeing output ref count %"PRItkn"_%"PRItkn" %"PRItkn" %d %d",
+          dt_token_str(node->name),
+          dt_token_str(node->kernel),
+          dt_token_str(c->name),
           c->connected_mi, c->mem->ref);
       dt_vkfree(&graph->heap, c->mem);
     }
     // staging memory for sources or sinks only needed during execution once
     if(c->mem_staging)
     {
-      dt_log(s_log_pipe, "freeing staging %"PRItkn" %"PRItkn,
-          dt_token_str(node->name), dt_token_str(c->name));
+      dt_log(s_log_pipe, "freeing staging %"PRItkn"_%"PRItkn" %"PRItkn,
+          dt_token_str(node->name),
+          dt_token_str(node->kernel),
+          dt_token_str(c->name));
       dt_vkfree(&graph->heap_staging, c->mem_staging);
     }
   }
@@ -991,6 +998,32 @@ VkResult dt_graph_run(
     dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
     dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
+
+#if 1 // DEBUG: output digraph of nodes
+    fprintf(stdout, "digraph N {\n");
+    // for all nodes, print all incoming edges (outgoing don't have module ids)
+    for(int m=0;m<graph->num_nodes;m++)
+    {
+      for(int c=0;c<graph->node[m].num_connectors;c++)
+      {
+        if((graph->node[m].connector[c].type == dt_token("read") ||
+              graph->node[m].connector[c].type == dt_token("sink")) &&
+            graph->node[m].connector[c].connected_mi >= 0)
+        {
+          fprintf(stdout, "%"PRItkn"_%"PRItkn" -> %"PRItkn"_%"PRItkn"\n",
+              dt_token_str(graph->node[
+                graph->node[m].connector[c].connected_mi
+              ].name),
+              dt_token_str(graph->node[
+                graph->node[m].connector[c].connected_mi
+              ].kernel),
+              dt_token_str(graph->node[m].name),
+              dt_token_str(graph->node[m].kernel));
+        }
+      }
+    }
+    fprintf(stdout, "}\n");
+#endif
   }
 
   // TODO: when and how are module params updated and pointed to uniform buffers?
@@ -1255,32 +1288,6 @@ VkResult dt_graph_run(
       }
     }
   }
-
-#if 1 // DEBUG: output digraph of nodes
-  fprintf(stdout, "digraph N {\n");
-  // for all nodes, print all incoming edges (outgoing don't have module ids)
-  for(int m=0;m<graph->num_nodes;m++)
-  {
-    for(int c=0;c<graph->node[m].num_connectors;c++)
-    {
-      if((graph->node[m].connector[c].type == dt_token("read") ||
-          graph->node[m].connector[c].type == dt_token("sink")) &&
-          graph->node[m].connector[c].connected_mi >= 0)
-      {
-        fprintf(stdout, "%"PRItkn"_%"PRItkn" -> %"PRItkn"_%"PRItkn"\n",
-            dt_token_str(graph->node[
-            graph->node[m].connector[c].connected_mi
-            ].name),
-            dt_token_str(graph->node[
-            graph->node[m].connector[c].connected_mi
-            ].kernel),
-            dt_token_str(graph->node[m].name),
-            dt_token_str(graph->node[m].kernel));
-      }
-    }
-  }
-  fprintf(stdout, "}\n");
-#endif
 
   QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
         0, graph->query_cnt,
