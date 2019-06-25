@@ -100,6 +100,15 @@ dt_connector_error_str(const int err)
   }
 }
 
+#ifdef NDEBUG
+#define CONN(A) (A)
+#else
+#define CONN(A) \
+{ \
+  int err = (A); \
+  if(err) fprintf(stderr, "%s:%d connection failed: %s\n", __FILE__, __LINE__, dt_connector_error_str(err)); \
+}
+#endif
 
 static inline size_t
 dt_connector_bytes_per_pixel(const dt_connector_t *c)
