@@ -219,6 +219,10 @@ vk_debug_callback(
     void *user_data)
 {
   dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
+#ifndef NDEBUG
+  if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+    assert(0);
+#endif
   return VK_FALSE;
 }
 
