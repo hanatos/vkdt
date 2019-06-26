@@ -131,6 +131,7 @@ read_param_ascii(
       do str[i++] = *(line++);
       while(line[0] && (i < cnt));
     }
+    break;
     default:
     dt_log(s_log_err|s_log_pipe, "unknown param type %"PRItkn, dt_token_str(p->type));
   }
@@ -847,9 +848,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 static void
 count_references(dt_graph_t *graph, dt_node_t *node)
 {
-  dt_log(s_log_pipe, "counting references for %"PRItkn"_%"PRItkn,
-      dt_token_str(node->name),
-      dt_token_str(node->kernel));
+  // dt_log(s_log_pipe, "counting references for %"PRItkn"_%"PRItkn,
+  //     dt_token_str(node->name),
+  //     dt_token_str(node->kernel));
   for(int c=0;c<node->num_connectors;c++)
   {
     if(dt_connector_input(node->connector+c))
@@ -858,23 +859,22 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
       graph->node[mi].connector[mc].connected_mi++;
-      dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
-          graph->node[mi].connector[mc].connected_mi,
-          dt_token_str(graph->node[mi].name),
-          dt_token_str(graph->node[mi].kernel),
-          dt_token_str(graph->node[mi].connector[mc].name));
-
+      // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
+      //     graph->node[mi].connector[mc].connected_mi,
+      //     dt_token_str(graph->node[mi].name),
+      //     dt_token_str(graph->node[mi].kernel),
+      //     dt_token_str(graph->node[mi].connector[mc].name));
     }
     else
     {
       // output cannot know all modules connected to it, so
       // it stores the reference counter instead.
       node->connector[c].connected_mi++;
-      dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
-          node->connector[c].connected_mi,
-          dt_token_str(node->name),
-          dt_token_str(node->kernel),
-          dt_token_str(node->connector[c].name));
+      // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
+      //     node->connector[c].connected_mi,
+      //     dt_token_str(node->name),
+      //     dt_token_str(node->kernel),
+      //     dt_token_str(node->connector[c].name));
     }
   }
 }

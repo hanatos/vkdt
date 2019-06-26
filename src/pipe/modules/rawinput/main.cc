@@ -4,6 +4,7 @@
 #include <mutex>
 
 extern "C" {
+#include "modules/api.h"
 #include "module.h"
 
 static rawspeed::CameraMetaData *meta = 0;
@@ -141,9 +142,9 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
-  // TODO: load image if not happened yet
-  // int err = load_raw(mod, filename);
-  if(load_raw(mod, "test.cr2")) return;
+  // load image if not happened yet
+  const char *filename = dt_module_param_string(mod, 0);
+  if(load_raw(mod, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
   // we know we only have one connector called "output" (see our "connectors" file)
@@ -167,8 +168,8 @@ int read_source(
     dt_module_t *mod,
     void *mapped)
 {
-  // XXX
-  int err = load_raw(mod, "test.cr2");
+  const char *filename = dt_module_param_string(mod, 0);
+  int err = load_raw(mod, filename);
   if(err) return 1;
   uint16_t *buf = (uint16_t *)mapped;
 

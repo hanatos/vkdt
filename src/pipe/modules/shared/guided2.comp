@@ -33,7 +33,7 @@ main()
 
   const vec2 mean_corr = texelFetch(img_in, ipos, 0).rg;
   const float var = mean_corr.y - mean_corr.x * mean_corr.x;
-  const float a = var / (var + params.epsilon);
+  const float a = var / (var + params.epsilon*1e-4);
   const float b = mean_corr.x - a * mean_corr.x;
   imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
 }
