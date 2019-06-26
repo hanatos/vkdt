@@ -26,22 +26,24 @@ LDFLAGS=
 # TODO: find a generic way to temporarily overwrite CFLAGS and
 # TODO: use the default rules instead:
 
-qvk/%.o: qvk/%.c Makefile
+qvk/%.o: qvk/%.c Makefile $(QVK_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
 
-core/%.o: core/%.c Makefile
+core/%.o: core/%.c Makefile $(CORE_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
 
 pipe/%.o: pipe/%.c Makefile $(PIPE_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
-cli/%.o: cli/%.c Makefile
+cli/%.o: cli/%.c Makefile $(CLI_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
-gui/%.o: gui/%.c Makefile
+gui/%.o: gui/%.c Makefile $(GUI_H)
+	echo "c rule with headers "$(GUI_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
-gui/%.o: gui/%.cpp Makefile
+gui/%.o: gui/%.cpp Makefile $(GUI_H)
+	echo "c++ rule with headers "$(GUI_H)
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile

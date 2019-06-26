@@ -11,6 +11,7 @@ pipe/connector.inc\
 pipe/dlist.h\
 pipe/global.h\
 pipe/graph.h\
+pipe/graph-print.h\
 pipe/graph-traverse.inc\
 pipe/modules/api.h\
 pipe/io.h\
