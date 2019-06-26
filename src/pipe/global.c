@@ -30,6 +30,7 @@ read_connector_ascii(
 }
 
 // read param config and default values and gui annotations
+// TODO: put min and max values into gui definition instead?
 static inline dt_ui_param_t*
 read_param_config_ascii(
     char *line)
@@ -42,16 +43,30 @@ read_param_config_ascii(
   dt_log(s_log_pipe, "param %"PRItkn" %"PRItkn, dt_token_str(name), dt_token_str(type));
   int cnt = dt_read_int(line, &line);
   // TODO: sanity check and clamp?
-  dt_ui_param_t *p = malloc(sizeof(*p) + cnt*3*sizeof(float));
+  dt_ui_param_t *p = malloc(sizeof(*p) + dt_ui_param_size(type, cnt));
   p->name = name;
   p->type = type;
   p->cnt = cnt;
-  float *val = p->val;
-  for(int i=0;i<p->cnt;i++)
+  if(type == dt_token("float"))
   {
-    *(val++) = dt_read_float(line, &line); // default
-    *(val++) = dt_read_float(line, &line); // min
-    *(val++) = dt_read_float(line, &line); // max
+    float *val = p->val;
+    for(int i=0;i<p->cnt;i++)
+    {
+      *(val++) = dt_read_float(line, &line); // default
+      *(val++) = dt_read_float(line, &line); // min
+      *(val++) = dt_read_float(line, &line); // max
+    }
+  }
+  else if(type == dt_token("string"))
+  {
+    char *str = p->str;
+    int i = 0;
+    do *(str++) = *(line++);
+    while(line[0] && (i < cnt));
+  }
+  else
+  {
+    dt_log(s_log_err|s_log_pipe, "unknown parameter type: %"PRItkn, dt_token_str(type));
   }
   return p;
 }

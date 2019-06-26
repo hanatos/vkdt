@@ -28,6 +28,27 @@ dt_token(const char *str)
 // reinterpret a token as a string
 #define dt_token_str(A) ((const char *const)&(A))
 
+// reinterpret string as a token. this is butt-ugly, does the same as the
+// dt_token() constructor above, but can be used in const expressions.
+#define dt_token_static(A) \
+  ((A)[0] ? (\
+   (A)[1] ? (\
+   (A)[2] ? (\
+   (A)[3] ? (\
+   (A)[4] ? (\
+   (A)[5] ? (\
+   (A)[6] ? (\
+   (A)[7] ? (\
+   (A)[0] | ((uint64_t)(A)[1]<<8) | ((uint64_t)(A)[2]<<16) | ((uint64_t)(A)[3]<<24) | ((uint64_t)(A)[4] << 32) | ((uint64_t)(A)[5]<<40) | ((uint64_t)(A)[6]<<48) | ((uint64_t)(A)[7]<<56)) : \
+   (A)[0] | ((uint64_t)(A)[1]<<8) | ((uint64_t)(A)[2]<<16) | ((uint64_t)(A)[3]<<24) | ((uint64_t)(A)[4] << 32) | ((uint64_t)(A)[5]<<40) | ((uint64_t)(A)[6]<<48)) : \
+   (A)[0] | ((uint64_t)(A)[1]<<8) | ((uint64_t)(A)[2]<<16) | ((uint64_t)(A)[3]<<24) | ((uint64_t)(A)[4] << 32) | ((uint64_t)(A)[5]<<40)) : \
+   (A)[0] | ((uint64_t)(A)[1]<<8) | ((uint64_t)(A)[2]<<16) | ((uint64_t)(A)[3]<<24) | ((uint64_t)(A)[4] << 32)) : \
+   (A)[0] | ((uint64_t)(A)[1]<<8) | ((uint64_t)(A)[2]<<16) | ((uint64_t)(A)[3]<<24)) : \
+   (A)[0] | ((uint64_t)(A)[1]<<8) | ((uint64_t)(A)[2]<<16)) : \
+   (A)[0] | ((uint64_t)(A)[1]<<8)) : \
+   (A)[0]) \
+   : 0)
+
 // use this literal to print it, it's not necessarily 0-terminated
 #define PRItkn ".8s"
 

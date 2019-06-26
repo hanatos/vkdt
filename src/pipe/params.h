@@ -20,5 +20,28 @@ typedef struct dt_ui_param_t
 }
 dt_ui_param_t;
 
-// TODO: copy over block of floats.
-// TODO: how to keep mental sanity in glsl code? provide macros for offsets by name?
+static inline size_t
+dt_ui_param_type_size(const dt_token_t type)
+{
+  const dt_token_t tkn_float  = dt_token_static("float");
+  const dt_token_t tkn_string = dt_token_static("string");
+  switch(type)
+  {
+  case tkn_float:  return sizeof(float);
+  case tkn_string: return sizeof(char);
+  default: return 0;
+  }
+}
+
+static inline size_t
+dt_ui_param_size(const dt_token_t type, const int cnt)
+{
+  const dt_token_t tkn_float  = dt_token_static("float");
+  const dt_token_t tkn_string = dt_token_static("string");
+  switch(type)
+  {
+  case tkn_float:  return 3 * cnt * sizeof(float);
+  case tkn_string: return cnt * sizeof(char);
+  default: return 0;
+  }
+}

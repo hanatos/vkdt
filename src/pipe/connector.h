@@ -113,7 +113,10 @@ dt_connector_error_str(const int err)
 static inline size_t
 dt_connector_bytes_per_pixel(const dt_connector_t *c)
 {
-  const uint64_t ui32 = 0x32336975, f32 = 0x323366, ui16 = 0x36316975, ui8 = 386975;
+  const uint64_t f32  = dt_token_static("f32");
+  const uint64_t ui32 = dt_token_static("ui32");
+  const uint64_t ui16 = dt_token_static("ui16");
+  const uint64_t ui8  = dt_token_static("ui8");
   switch(c->format)
   {
     case ui32:
@@ -138,8 +141,10 @@ dt_connector_channels(const dt_connector_t *c)
 static inline VkFormat
 dt_connector_vkformat(const dt_connector_t *c)
 {
-  const uint64_t ui32 = 0x32336975, f32 = 0x323366,
-                 ui16 = 0x36316975, ui8 = 386975;
+  const uint64_t f32  = dt_token_static("f32");
+  const uint64_t ui32 = dt_token_static("ui32");
+  const uint64_t ui16 = dt_token_static("ui16");
+  const uint64_t ui8  = dt_token_static("ui8");
   const int len = dt_connector_channels(c);
   switch(c->format)
   {
