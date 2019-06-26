@@ -14,7 +14,6 @@ void
 dt_graph_init(dt_graph_t *g)
 {
   memset(g, 0, sizeof(*g));
-  // TODO: allocate params pool
 
   // allocate module and node buffers:
   g->max_modules = 100;
@@ -116,10 +115,25 @@ read_param_ascii(
   if(parid < 0) return 2;
   const dt_ui_param_t *p = graph->module[modid].so->param[parid];
   int cnt = p->cnt;
-  // TODO: switch(p->type)
-  float *block = (float *)(graph->module[modid].param + p->offset);
-  for(int i=0;i<cnt;i++)
-    *(block++) = dt_read_float(line, &line);
+  switch(p->type)
+  {
+    case dt_token_static("float"):
+    {
+      float *block = (float *)(graph->module[modid].param + p->offset);
+      for(int i=0;i<cnt;i++)
+        *(block++) = dt_read_float(line, &line);
+    }
+    break;
+    case dt_token_static("string"):
+    {
+      char *str = (char *)(graph->module[modid].param + p->offset);
+      int i = 0;
+      do str[i++] = *(line++);
+      while(line[0] && (i < cnt));
+    }
+    default:
+    dt_log(s_log_err|s_log_pipe, "unknown param type %"PRItkn, dt_token_str(p->type));
+  }
   return 0;
 }
 
@@ -1036,14 +1050,9 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
 
     // XXX DEBUG:
-    dt_graph_print_nodes(graph);
-    dt_graph_print_modules(graph);
+    // dt_graph_print_nodes(graph);
+    // dt_graph_print_modules(graph);
   }
-
-  // TODO: when and how are module params updated and pointed to uniform buffers?
-
-  // TODO: forward the output rois to other branches with sinks we didn't pull for:
-  // XXX
 } // end scope, done with modules
 
 
@@ -1296,7 +1305,6 @@ VkResult dt_graph_run(
       {
         // XXX hack! TODO implement proper display node
         graph->output = node;
-          fprintf(stderr, "getting output from %"PRItkn"\n", dt_token_str(node->name));
         if(node->module->so->write_sink)
         {
           uint8_t *mapped = 0;

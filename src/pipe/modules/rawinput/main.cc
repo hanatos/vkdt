@@ -1,6 +1,7 @@
 // unfortunately we'll link to rawspeed, so we need c++ here.
 #include "RawSpeed-API.h"
 #include <unistd.h>
+#include <mutex>
 
 extern "C" {
 #include "module.h"
@@ -23,13 +24,15 @@ typedef struct rawinput_buf_t
 }
 rawinput_buf_t;
 
-static void
+namespace {
+void
 rawspeed_load_meta()
 {
+  static std::mutex lock;
   /* Load rawspeed cameras.xml meta file once */
   if(meta == NULL)
   {
-    // XXX dt_pthread_mutex_lock(&darktable.plugin_threadsafe);
+    lock.lock();
     if(meta == NULL)
     {
       // char datadir[PATH_MAX] = { 0 };
@@ -47,11 +50,11 @@ rawspeed_load_meta()
         fprintf(stderr, "[rawspeed] could not open cameras.xml!\n");
       }
     }
-    // XXX dt_pthread_mutex_unlock(&darktable.plugin_threadsafe);
+    lock.unlock();
   }
 }
 
-static int
+int
 load_raw(
     dt_module_t *mod,
     const char *filename)
@@ -103,6 +106,8 @@ load_raw(
   }
   return 0;
 }
+
+} // end anonymous namespace
 
 int init(dt_module_t *mod)
 {

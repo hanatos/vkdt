@@ -61,7 +61,7 @@ read_param_config_ascii(
   {
     char *str = p->str;
     int i = 0;
-    do *(str++) = *(line++);
+    do str[i++] = *(line++);
     while(line[0] && (i < cnt));
   }
   else
@@ -124,8 +124,9 @@ dt_module_so_load(
     mod->num_params = i;
     fclose(f);
     mod->param[0]->offset = 0;
-    for(int i=1;i<mod->num_params;i++) // TODO: sizeof(param.type)* !
-      mod->param[i]->offset = mod->param[i-1]->offset + sizeof(float)*mod->param[i-1]->cnt;
+    for(int i=1;i<mod->num_params;i++)
+      mod->param[i]->offset = mod->param[i-1]->offset +
+        dt_ui_param_type_size(mod->param[i-1]->type)*mod->param[i-1]->cnt;
   }
 
   // read connector info
