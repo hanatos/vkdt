@@ -6,8 +6,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
   
 int dt_gui_init()
 {

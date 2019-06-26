@@ -36,7 +36,8 @@ handle_event(SDL_Event *event)
   {
     m_x = m_y = -1;
   }
-  else if(event->type == SDL_MOUSEBUTTONDOWN)
+  else if(event->type == SDL_MOUSEBUTTONDOWN &&
+      event->button.x < vkdt.view_x + vkdt.view_width)
   {
     if(event->button.button == SDL_BUTTON_LEFT)
     {
@@ -93,7 +94,7 @@ handle_event(SDL_Event *event)
       if(err) dt_log(s_log_err, "failed to reload_shaders!");
       // (TODO: re-init params from history)
       dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
-      dt_gui_read_ui_ascii("test.ui");
+      dt_gui_read_ui_ascii("darkroom.ui");
     }
   }
 }
@@ -129,7 +130,7 @@ int main(int argc, char *argv[])
 
   dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
   // TODO: get from command line
-  dt_gui_read_ui_ascii("test.ui");
+  dt_gui_read_ui_ascii("darkroom.ui");
 
   // main loop
   int running = 1;

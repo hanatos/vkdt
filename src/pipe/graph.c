@@ -4,6 +4,7 @@
 #include "modules/api.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
+#include "graph-print.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -1034,31 +1035,9 @@ VkResult dt_graph_run(
     dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 
-#if 1 // DEBUG: output digraph of nodes
-    fprintf(stdout, "digraph N {\n");
-    // for all nodes, print all incoming edges (outgoing don't have module ids)
-    for(int m=0;m<graph->num_nodes;m++)
-    {
-      for(int c=0;c<graph->node[m].num_connectors;c++)
-      {
-        if((graph->node[m].connector[c].type == dt_token("read") ||
-              graph->node[m].connector[c].type == dt_token("sink")) &&
-            graph->node[m].connector[c].connected_mi >= 0)
-        {
-          fprintf(stdout, "%"PRItkn"_%"PRItkn" -> %"PRItkn"_%"PRItkn"\n",
-              dt_token_str(graph->node[
-                graph->node[m].connector[c].connected_mi
-              ].name),
-              dt_token_str(graph->node[
-                graph->node[m].connector[c].connected_mi
-              ].kernel),
-              dt_token_str(graph->node[m].name),
-              dt_token_str(graph->node[m].kernel));
-        }
-      }
-    }
-    fprintf(stdout, "}\n");
-#endif
+    // XXX DEBUG:
+    dt_graph_print_nodes(graph);
+    dt_graph_print_modules(graph);
   }
 
   // TODO: when and how are module params updated and pointed to uniform buffers?
