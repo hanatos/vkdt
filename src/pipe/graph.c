@@ -832,6 +832,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 static void
 count_references(dt_graph_t *graph, dt_node_t *node)
 {
+  dt_log(s_log_pipe, "counting references for %"PRItkn"_%"PRItkn,
+      dt_token_str(node->name),
+      dt_token_str(node->kernel));
   for(int c=0;c<node->num_connectors;c++)
   {
     if(dt_connector_input(node->connector+c))
@@ -840,13 +843,23 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
       graph->node[mi].connector[mc].connected_mi++;
+      dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
+          graph->node[mi].connector[mc].connected_mi,
+          dt_token_str(graph->node[mi].name),
+          dt_token_str(graph->node[mi].kernel),
+          dt_token_str(graph->node[mi].connector[mc].name));
+
     }
     else
     {
       // output cannot know all modules connected to it, so
       // it stores the reference counter instead.
-      // ref counter = 1, which is us:
-      node->connector[c].connected_mi = 1;
+      node->connector[c].connected_mi++;
+      dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
+          node->connector[c].connected_mi,
+          dt_token_str(node->name),
+          dt_token_str(node->kernel),
+          dt_token_str(node->connector[c].name));
     }
   }
 }
@@ -1017,7 +1030,7 @@ VkResult dt_graph_run(
     // TODO: in fact this should only be an error for default create nodes cases:
     // TODO: the others might break the cycle by pushing more nodes.
 #define TRAVERSE_CYCLE\
-    dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+    dt_log(s_log_pipe, "module cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
     dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
 
@@ -1086,10 +1099,15 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & s_graph_run_alloc_free)
   {
+    // nuke reference counters:
+    for(int n=0;n<graph->num_nodes;n++)
+      for(int c=0;c<graph->node[n].num_connectors;c++)
+        if(dt_connector_output(graph->node[n].connector+c))
+          graph->node[n].connector[c].connected_mi = 0;
     memset(mark, 0, sizeof(mark));
     // perform reference counting on the final connected node graph.
     // this is needed for memory allocation later:
-#define TRAVERSE_POST\
+#define TRAVERSE_PRE\
     count_references(graph, arr+curr);
 #include "graph-traverse.inc"
     // free pipeline resources if previously allocated anything:
@@ -1107,7 +1125,9 @@ VkResult dt_graph_run(
     QVKR(alloc_outputs(graph, arr+curr));\
     free_inputs       (graph, arr+curr);
 #define TRAVERSE_CYCLE\
-    dt_log(s_log_pipe, "cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
+    dt_log(s_log_pipe, "cycle %"PRItkn"_%"PRItkn"->%"PRItkn"_%"PRItkn"!", \
+        dt_token_str(arr[curr].name), dt_token_str(arr[curr].kernel), \
+        dt_token_str(arr[el].name), dt_token_str(arr[el].kernel)); \
     dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
   }

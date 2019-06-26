@@ -67,10 +67,11 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       // we'll just forget about the bits in between our base pointer
       // and the requested alignment. we rely on nuking the memory pool
       // very often anyways. plus, what's a few kilobytes among friends.
+      size_t end = l->offset + l->size;
       mem->offset = (l->offset & ~(alignment-1)) + alignment;
       mem->size = size;
-      l->size -= size;
       l->offset = mem->offset + mem->size;
+      l->size = end - l->offset;
     }
 
     if(mem)

@@ -32,7 +32,7 @@ qvk/%.o: qvk/%.c Makefile
 core/%.o: core/%.c Makefile
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
 
-pipe/%.o: pipe/%.c Makefile
+pipe/%.o: pipe/%.c Makefile $(PIPE_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
 cli/%.o: cli/%.c Makefile

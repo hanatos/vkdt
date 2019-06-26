@@ -23,18 +23,24 @@
   uint8_t done[256];
   int sp = 0;
 
+  // TODO: init this with all sink nodes
   stack[0] = start_node_id;
   done[0] = 0;
-  mark[start_node_id] = 1;
 
   while(sp >= 0)
   {
     int curr = stack[sp];
-    if(done[sp])
+    if(mark[curr])
+    {
+      // it seems another dependency has pulled in this node and deps before us.
+      sp--;
+    }
+    else if(done[sp])
     { // have worked on this node before, now the subtree is done, too.
       // this is also the time when all the inputs are ready
       // execute post callback, if any
       TRAVERSE_POST
+      mark[curr] = 1;
       sp--;
     }
     else
@@ -54,16 +60,14 @@
         { // need to recurse all inputs
           if(mark[el])
           {
-            TRAVERSE_CYCLE
-            // bail out would be:
-            // sp = -2;
-            // break;
+            // in fact this is not enough to detect a cycle.
+            // it just means that we already processed this part of a bifurcation.
+            // no need to push dependency to stack, it's already done + marked.
           }
           else
           { // push to stack only unmarked:
             assert(sp < sizeof(done)-1);
             stack[++sp] = el;
-            mark[el] = 1;
             done[sp] = 0;
           }
         }

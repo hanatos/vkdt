@@ -7,9 +7,12 @@ pipe/module.o
 PIPE_H=\
 pipe/alloc.h\
 pipe/connector.h\
+pipe/connector.inc\
 pipe/dlist.h\
 pipe/global.h\
 pipe/graph.h\
+pipe/graph-traverse.inc\
+pipe/modules/api.h\
 pipe/io.h\
 pipe/module.h\
 pipe/node.h\
