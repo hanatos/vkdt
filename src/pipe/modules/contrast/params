@@ -1,1 +1,3 @@
 contrast:float:1:100.0:0.0:400.0
+radius:float:1:5.0:1.0:40.0
+edges:float:1:0.05:0.00001:1.0
