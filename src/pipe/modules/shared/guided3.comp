@@ -38,7 +38,10 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 w = vec3(0.299, 0.587, 0.114);
+  float lum0 = dot(w, rgb);
   vec2 ab = texelFetch(img_ab, ipos, 0).rg;
-  imageStore(img_out, ipos, vec4(ab.r * rgb + ab.g, 1.0));
+  float lum1 = ab.r * lum0 + ab.g;
+  imageStore(img_out, ipos, vec4(rgb * lum1/lum0, 1.0));
 }
 
