@@ -110,9 +110,18 @@ read_param_ascii(
   dt_token_t parm = dt_read_token(line, &line);
   // grab count from declaration in module_so_t:
   int modid = dt_module_get(graph, name, inst);
-  if(modid < 0 || modid > graph->num_modules) return 1;
+  if(modid < 0 || modid > graph->num_modules)
+  {
+    dt_log(s_log_err|s_log_pipe, "no such module/instance %"PRItkn"/%"PRItkn,
+        dt_token_str(name), dt_token_str(inst));
+    return 1;
+  }
   int parid = dt_module_get_param(graph->module[modid].so, parm);
-  if(parid < 0) return 2;
+  if(parid < 0)
+  {
+    dt_log(s_log_err|s_log_pipe, "no such parameter name %"PRItkn, dt_token_str(parm));
+    return 2;
+  }
   const dt_ui_param_t *p = graph->module[modid].so->param[parid];
   int cnt = p->cnt;
   switch(p->type)
