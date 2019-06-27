@@ -62,7 +62,8 @@ read_param_config_ascii(
     char *str = p->str;
     int i = 0;
     do str[i++] = *(line++);
-    while(line[0] && (i < cnt));
+    while(line[0] && (i < cnt-1));
+    str[i] = 0;
   }
   else
   {

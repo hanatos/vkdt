@@ -1,2 +1,3 @@
 input:read:rgb:f32
+coarse:read:y:f32
 output:write:rgb:f32

@@ -20,11 +20,11 @@ create_nodes(
       1e-2f);
 
   // TODO: this sucks. now what if we need to connect even more? weird interface?
+  // connect entry point of module (input rgb) to entry point of guided filter
   dt_connector_copy(graph, module, guided_entry, 0, 0);
-  // XXX FIXME: this one just copies the connector from the module which knows not that it's being used twice.
-  // XXX FIXME: maybe the most robust way of dealing with this is an additional ref counting stage on the nodes?
-  // XXX FIXME: can we do it in the same pass as create_nodes as a post traversal step?
+  // connect entry point of module (input rgb) to exit node of guided filter that needs it for reconstruction
   dt_connector_copy(graph, module, guided_exit,  0, 0);
+  // connect exit point of module (coarse luminance) to exit point of guided filter
   dt_connector_copy(graph, module, guided_exit,  1, 2);
 
 #if 0

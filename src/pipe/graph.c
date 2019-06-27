@@ -138,7 +138,8 @@ read_param_ascii(
       char *str = (char *)(graph->module[modid].param + p->offset);
       int i = 0;
       do str[i++] = *(line++);
-      while(line[0] && (i < cnt));
+      while(line[0] && (i < cnt-1));
+      str[i] = 0;
     }
     break;
     default:
