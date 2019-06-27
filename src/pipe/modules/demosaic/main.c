@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO: put in header!
+static inline int
+FC(const size_t row, const size_t col, const uint32_t filters)
+{
+  return filters >> (((row << 1 & 14) + (col & 1)) << 1) & 3;
+}
 
 void modify_roi_in(
     dt_graph_t *graph,
@@ -11,13 +17,28 @@ void modify_roi_in(
 {
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
-  // TODO: make sure rounding correctly!
   ri->roi_wd = 2*ro->roi_wd;
   ri->roi_ht = 2*ro->roi_ht;
-  // TODO: compute these from ro->scale and ro->ox
-  ri->roi_ox = 0;
-  ri->roi_oy = 0;
+  int rx = ri->roi_ox = 2*ro->roi_ox;
+  int ry = ri->roi_oy = 2*ro->roi_oy;
   ri->roi_scale = 1.0f;
+
+  // also move to beginning of demosaic rggb block boundary
+  uint32_t f = module->img_param.filters;
+  int ox = 0, oy = 0;
+  if(FC(ry,rx,f) == 1)
+  {
+    if(FC(ry,rx+1,f) == 0) ox = 1;
+    if(FC(ry,rx+1,f) == 2) oy = 1;
+  }
+  else if(FC(ry,rx,f) == 2)
+  {
+    ox = oy = 1;
+  }
+  ri->roi_ox += ox;
+  ri->roi_oy += oy;
+  ri->roi_wd -= ox;
+  ri->roi_ht -= oy;
 }
 
 void modify_roi_out(
@@ -27,7 +48,7 @@ void modify_roi_out(
   // this is just bayer 2x half size for now:
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
-  // TODO: make sure rounding correctly!
+  // this is rounding down to full bayer block size, which is good:
   ro->full_wd = ri->full_wd/2;
   ro->full_ht = ri->full_ht/2;
 }

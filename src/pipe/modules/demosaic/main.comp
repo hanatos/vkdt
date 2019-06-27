@@ -45,6 +45,7 @@ main()
   // if(param.filters == )
   // rgba = vec4(c1, (c0+c3)/2.0, c2, 1.0);
   // TODO: else
+  // rggb
   rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
   // TODO: for x-trans, we'll need to average 3x3 blocks and maybe have
   // even more headaches about alignment of patterns (what is green?)

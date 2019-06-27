@@ -26,6 +26,37 @@ typedef struct rawinput_buf_t
 rawinput_buf_t;
 
 namespace {
+
+// TODO: put in header!
+inline int
+FC(const size_t row, const size_t col, const uint32_t filters)
+{
+  return filters >> (((row << 1 & 14) + (col & 1)) << 1) & 3;
+}
+
+#if 0
+inline int
+FCxtrans(
+    const int row, const int col, const dt_iop_roi_t *const roi,
+    const uint8_t (*const xtrans)[6])
+{
+  // Add +600 (which must be a multiple of CFA width 6) as offset can
+  // be negative and need to ensure a non-negative array index. The
+  // negative offsets in current code come from the demosaic iop:
+  // Markesteijn 1-pass (-12), Markesteijn 3-pass (-17), and VNG (-2).
+  int irow = row + 600;
+  int icol = col + 600;
+  assert(irow >= 0 && icol >= 0);
+
+  if(roi)
+  {
+    irow += roi->y;
+    icol += roi->x;
+  }
+
+  return xtrans[irow % 6][icol % 6];
+}
+#endif
 void
 rawspeed_load_meta()
 {
@@ -161,7 +192,27 @@ void modify_roi_out(
     mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k] * 1.0f/1024.0f;
   }
   // TODO: xtrans
-  mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
+  // uncrop bayer sensor filter
+  rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
+  mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
+      mod_data->d->mRaw->cfa.getDcrawFilter(),
+      cropTL.x, cropTL.y);
+
+  // now we need to account for the pixel shift due to an offset filter:
+  dt_roi_t *ro = &mod->connector[0].roi;
+  uint32_t f = mod->img_param.filters;
+  int ox = 0, oy = 0;
+  if(FC(0,0,f) == 1)
+  {
+    if(FC(0,1,f) == 0) ox = 1;
+    if(FC(0,1,f) == 2) oy = 1;
+  }
+  else if(FC(0,0,f) == 2)
+  {
+    ox = oy = 1;
+  }
+  ro->full_wd -= ox;
+  ro->full_ht -= oy;
 }
 
 int read_source(
@@ -179,8 +230,21 @@ int read_source(
   int wd = dim_uncropped.x;
   int ht = dim_uncropped.y;
 
+  uint32_t f = mod->img_param.filters;
+  int ox = 0, oy = 0;
+  if(FC(0,0,f) == 1)
+  {
+    if(FC(0,1,f) == 0) ox = 1;
+    if(FC(0,1,f) == 2) oy = 1;
+  }
+  else if(FC(0,0,f) == 2)
+  {
+    ox = oy = 1;
+  }
+  wd -= ox;
+  ht -= oy;
   const size_t bufsize_compact = (size_t)wd * ht * mod_data->d->mRaw->getBpp();
-  const size_t bufsize_rawspeed = (size_t)mod_data->d->mRaw->pitch * ht;
+  const size_t bufsize_rawspeed = (size_t)mod_data->d->mRaw->pitch * dim_uncropped.y;
   if(bufsize_compact == bufsize_rawspeed)
   {
     memcpy(buf, mod_data->d->mRaw->getDataUncropped(0, 0), bufsize_compact);
@@ -188,8 +252,9 @@ int read_source(
   }
   else
   {
-    fprintf(stderr, "[rawspeed] failed\n");
-    return 1;
+    for(int j=0;j<ht;j++)
+      memcpy(buf + j*wd, mod_data->d->mRaw->getDataUncropped(ox, j+oy), sizeof(uint16_t)*wd);
+    return 0;
   }
 }
 

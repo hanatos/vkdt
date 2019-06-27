@@ -257,6 +257,15 @@ dt_api_guided_filter(
   *exit_nodeid = id_guided3;
 }
 
+const uint32_t *dt_module_param_uint32(
+    const dt_module_t *module,
+    int paramid)
+{
+  if(paramid >= 0 && paramid < module->so->num_params)
+    return (uint32_t *)(module->param + module->so->param[paramid]->offset);
+  return 0;
+}
+
 const float *dt_module_param_float(
     const dt_module_t *module,
     int paramid)
