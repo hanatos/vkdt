@@ -32,18 +32,27 @@ int dt_module_add(
       mod->param_size = 0;
       if(mod->so->num_params)
       {
-        // TODO: sizeof(param.type)
         mod->param_size = mod->so->param[mod->so->num_params-1]->offset + 
-                          sizeof(float)*mod->so->param[mod->so->num_params-1]->cnt; 
+          dt_ui_param_type_size(mod->so->param[mod->so->num_params-1]->type)*
+          mod->so->param[mod->so->num_params-1]->cnt; 
         mod->param = graph->params_pool + graph->params_end;
         graph->params_end += mod->param_size;
         assert(graph->params_end <= graph->params_max);
       }
       for(int p=0;p<mod->so->num_params;p++)
       { // init default params
-        float *block = (float *)(mod->param + mod->so->param[p]->offset);
-        for(int i=0;i<mod->so->param[p]->cnt;i++)
-          block[i] = mod->so->param[p]->val[3*i];
+        if(mod->so->param[p]->type == dt_token("float"))
+        {
+          float *block = (float *)(mod->param + mod->so->param[p]->offset);
+          for(int i=0;i<mod->so->param[p]->cnt;i++)
+            block[i] = mod->so->param[p]->val[3*i];
+        }
+        else if(mod->so->param[p]->type == dt_token("string"))
+        {
+          char *block = (char *)(mod->param + mod->so->param[p]->offset);
+          for(int i=0;i<mod->so->param[p]->cnt;i++)
+            block[i] = mod->so->param[p]->str[i];
+        }
       }
       for(int c=0;c<mod->so->num_connectors;c++)
       { // init connectors from our module class:
