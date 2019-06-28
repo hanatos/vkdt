@@ -10,6 +10,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
+  roi_t rl;
   roi_t ro;
   vec4 x;
   vec4 y;
@@ -73,14 +74,14 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  imageStore(img_out, ipos, vec4(vec3(params.x.y), 1));
+  // imageStore(img_out, ipos, vec4(vec3(params.black), 1));
   // float lum0 = texelFetch(img_lum, ipos, 0).r;
   // imageStore(img_out, ipos, vec4(vec3(lum0), 1));
-  return;//XXX
+  // return;//XXX
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  imageStore(img_out, ipos, vec4(rgb, 1));
-  return;//XXX
+  // imageStore(img_out, ipos, vec4(rgb, 1));
+  // return;//XXX
 
   vec3 w = vec3(0.299, 0.587, 0.114);
   float l0 = dot(w, rgb);

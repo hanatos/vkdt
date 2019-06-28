@@ -820,25 +820,53 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   // XXX we still need to upload new roi. for large data portions shared between nodes
   // XXX this may not be the smartest move.
   // copy over module params
-  if(node->module->param_size)
+  // XXX FIXME: this is the wrong place!
+  // XXX FIXME: it should run per module, not per node.
+  // this probably means we want some other means to trigger this callback (how??)
+  if(node->module->so->commit_params)
   {
-    // XXX FIXME: this is the wrong place!
-    // XXX FIXME: it should run per module, not per node.
-    // this probably means we want some other means to trigger this callback (how??)
-    if(node->module->so->commit_params)
+    node->module->so->commit_params(graph, node->module);
+    if(node->module->committed_param_size)
     {
-      node->module->so->commit_params(graph, node->module);
       memcpy(uniform_buf + pos, node->module->committed_param, node->module->committed_param_size);
-      pos += node->module->committed_param_size;
-    }
-    else
-    {
-      memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
-      pos += node->module->param_size;
+      pos += ((node->module->committed_param_size + 15)/16)*16;
     }
   }
+  else if(node->module->param_size)
+  {
+    memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
+    pos += node->module->param_size;
+  }
+
+  VkBufferMemoryBarrier ub_barrier = {
+    .sType         = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
+    .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+    .buffer = graph->uniform_buffer,
+    .offset = 0,
+    .size = pos,
+  };
+  vkCmdPipelineBarrier(
+      cmd_buf,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+      VK_PIPELINE_STAGE_TRANSFER_BIT,
+      0,
+      0, NULL,
+      1, &ub_barrier,
+      0, NULL);
+
   vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
-  BARRIER_COMPUTE_BUFFER(graph->uniform_buffer);
+
+  ub_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  ub_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+  vkCmdPipelineBarrier(
+      cmd_buf,
+      VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+      0,
+      0, NULL,
+      1, &ub_barrier,
+      0, NULL);
 
   vkCmdDispatch(cmd_buf,
       (node->wd + 31) / 32,
