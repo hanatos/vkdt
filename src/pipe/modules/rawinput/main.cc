@@ -203,44 +203,16 @@ void modify_roi_out(
       for(int j = 0; j < 6; ++j)
         f[j][i] = mod_data->d->mRaw->cfa.getColorAt(i, j);
 
-    // fprintf(stderr, "initial offsets: %d %d\n", ox, oy);
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+0,ox+0,f), FCxtrans(oy+0,ox+1,f), FCxtrans(oy+0,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+1,ox+0,f), FCxtrans(oy+1,ox+1,f), FCxtrans(oy+1,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+2,ox+0,f), FCxtrans(oy+2,ox+1,f), FCxtrans(oy+2,ox+2,f));
     // find first green in same row
     for(ox=0;ox<6&&FCxtrans(0,ox,f)!=1;ox++)
       ;
-    // fprintf(stderr, "green in same row offsets: %d %d\n", ox, oy);
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+0,ox+0,f), FCxtrans(oy+0,ox+1,f), FCxtrans(oy+0,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+1,ox+0,f), FCxtrans(oy+1,ox+1,f), FCxtrans(oy+1,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+2,ox+0,f), FCxtrans(oy+2,ox+1,f), FCxtrans(oy+2,ox+2,f));
     if(FCxtrans(0,ox+1,f) != 1 && FCxtrans(0,ox+2,f) != 1) // center of x-cross, need to go 2 down
     {
       oy = 2;
       ox = (ox + 2) % 3;
     }
-    // fprintf(stderr, "center detect offsets: %d %d\n", ox, oy);
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+0,ox+0,f), FCxtrans(oy+0,ox+1,f), FCxtrans(oy+0,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+1,ox+0,f), FCxtrans(oy+1,ox+1,f), FCxtrans(oy+1,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+2,ox+0,f), FCxtrans(oy+2,ox+1,f), FCxtrans(oy+2,ox+2,f));
     if(FCxtrans(oy+1,ox,f) == 1) // two greens above one another, nede to go down one
       oy++;
-    // fprintf(stderr, "two greens above offsets: %d %d\n", ox, oy);
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+0,ox+0,f), FCxtrans(oy+0,ox+1,f), FCxtrans(oy+0,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+1,ox+0,f), FCxtrans(oy+1,ox+1,f), FCxtrans(oy+1,ox+2,f));
-    // fprintf(stderr, "pattern: %d %d %d\n",
-    //     FCxtrans(oy+2,ox+0,f), FCxtrans(oy+2,ox+1,f), FCxtrans(oy+2,ox+2,f));
     if(FCxtrans(oy,ox+1,f) == 1)
     { // if x+1 is green, too, either x++ or x-=2 if x>=2
       if(ox >= 2) ox -= 2;
@@ -253,14 +225,6 @@ void modify_roi_out(
       if(ox < oy) ox += 3;
       else        oy += 3;
     }
-    //  fprintf(stderr, "final offsets: %d %d\n", ox, oy);
-    //  fprintf(stderr, "pattern: %d %d %d\n",
-    //      FCxtrans(oy+0,ox+0,f), FCxtrans(oy+0,ox+1,f), FCxtrans(oy+0,ox+2,f));
-    //  fprintf(stderr, "pattern: %d %d %d\n",
-    //      FCxtrans(oy+1,ox+0,f), FCxtrans(oy+1,ox+1,f), FCxtrans(oy+1,ox+2,f));
-    //  fprintf(stderr, "pattern: %d %d %d\n",
-    //      FCxtrans(oy+2,ox+0,f), FCxtrans(oy+2,ox+1,f), FCxtrans(oy+2,ox+2,f));
-    //  fprintf(stderr, "XXX offsets %d %d\n", ox, oy);
   }
   else
   {
