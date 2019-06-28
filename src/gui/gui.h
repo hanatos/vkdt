@@ -42,6 +42,8 @@ typedef struct dt_gui_t
   int num_widgets;
   int widget_modid[20];
   int widget_parid[20];
+  float widget_min[20];      // min slider value TODO: encapsulate into struct?
+  float widget_max[20];
 }
 dt_gui_t;
 
@@ -60,7 +62,7 @@ void dt_gui_render();
 void dt_gui_present();
 
 // add a widget for the given module instance and parameter name
-void dt_gui_add_widget(dt_token_t module, dt_token_t inst, dt_token_t param);
+void dt_gui_add_widget(dt_token_t module, dt_token_t inst, dt_token_t param, float min, float max);
 
 // read a gui configuration from ascii config file
 int dt_gui_read_ui_ascii(const char *filename);

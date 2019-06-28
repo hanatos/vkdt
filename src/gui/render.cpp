@@ -171,8 +171,8 @@ extern "C" void dt_gui_render_frame_imgui()
             memcpy(str,
                 &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
               ImGui::SliderFloat(str, val,
-                  vkdt.graph_dev.module[modid].so->param[parid]->val[1],
-                  vkdt.graph_dev.module[modid].so->param[parid]->val[2],
+                  vkdt.widget_min[i],
+                  vkdt.widget_max[i],
                   "%2.5f");
           }
 

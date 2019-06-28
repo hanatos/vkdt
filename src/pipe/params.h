@@ -12,23 +12,20 @@ typedef struct dt_ui_param_t
   int32_t offset;   // offset into uniform buffer
   union
   {
-    float val[3]; // let's assume we at least have one argument + min/max
-    char str[12];
+    float val[1]; // let's assume we at least have one argument
+    char str[4];
   };
   // directly after this go float* or char*
-  // TODO: how to sort value and min/max or whatever gui stuff we need if it's cnt>1?
 }
 dt_ui_param_t;
 
 static inline size_t
 dt_ui_param_type_size(const dt_token_t type)
 {
-  const dt_token_t tkn_float  = dt_token_static("float");
-  const dt_token_t tkn_string = dt_token_static("string");
   switch(type)
   {
-  case tkn_float:  return sizeof(float);
-  case tkn_string: return sizeof(char);
+  case dt_token_static("float"):  return sizeof(float);
+  case dt_token_static("string"): return sizeof(char);
   default: return 0;
   }
 }
@@ -36,12 +33,5 @@ dt_ui_param_type_size(const dt_token_t type)
 static inline size_t
 dt_ui_param_size(const dt_token_t type, const int cnt)
 {
-  const dt_token_t tkn_float  = dt_token_static("float");
-  const dt_token_t tkn_string = dt_token_static("string");
-  switch(type)
-  {
-  case tkn_float:  return 3 * cnt * sizeof(float);
-  case tkn_string: return cnt * sizeof(char);
-  default: return 0;
-  }
+  return cnt * dt_ui_param_type_size(type);
 }

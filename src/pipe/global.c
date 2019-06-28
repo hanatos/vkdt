@@ -51,11 +51,7 @@ read_param_config_ascii(
   {
     float *val = p->val;
     for(int i=0;i<p->cnt;i++)
-    {
-      *(val++) = dt_read_float(line, &line); // default
-      *(val++) = dt_read_float(line, &line); // min
-      *(val++) = dt_read_float(line, &line); // max
-    }
+      *(val++) = dt_read_float(line, &line); // default value
   }
   else if(type == dt_token("string"))
   {

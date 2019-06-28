@@ -271,7 +271,9 @@ void
 dt_gui_add_widget(
     dt_token_t module,
     dt_token_t inst,
-    dt_token_t param)
+    dt_token_t param,
+    float min,
+    float max)
 {
   if(vkdt.num_widgets >= sizeof(vkdt.widget_modid)/sizeof(vkdt.widget_modid[0]))
     return;
@@ -284,6 +286,8 @@ dt_gui_add_widget(
   int i = vkdt.num_widgets++;
   vkdt.widget_modid[i] = modid;
   vkdt.widget_parid[i] = parid;
+  vkdt.widget_min[i]   = min;
+  vkdt.widget_max[i]   = max;
 }
 
 // TODO: also read descriptive text from here
@@ -304,7 +308,9 @@ dt_gui_read_ui_ascii(
     dt_token_t mod  = dt_read_token(line, &line);
     dt_token_t inst = dt_read_token(line, &line);
     dt_token_t parm = dt_read_token(line, &line);
-    dt_gui_add_widget(mod, inst, parm);
+    float min = dt_read_float(line, &line);
+    float max = dt_read_float(line, &line);
+    dt_gui_add_widget(mod, inst, parm, min, max);
   }
   fclose(f);
   return 0;
