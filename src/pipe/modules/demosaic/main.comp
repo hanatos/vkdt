@@ -35,11 +35,34 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  uint c0 = texelFetch(img_in, 2*ipos, 0).r;
-  uint c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
-  uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
-  uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
-  vec4 rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
+  vec4 rgba;
+
+  if(params.filters == 9)
+  {
+    uint c0 = texelFetch(img_in, 3*ipos, 0).r;
+    uint c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
+    uint c2 = texelFetch(img_in, 3*ipos+ivec2(0,2), 0).r;
+    uint c3 = texelFetch(img_in, 3*ipos+ivec2(1,0), 0).r;
+    uint c4 = texelFetch(img_in, 3*ipos+ivec2(1,1), 0).r;
+    uint c5 = texelFetch(img_in, 3*ipos+ivec2(1,2), 0).r;
+    uint c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
+    uint c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
+    uint c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
+    rgba.g = (c0 + c2 + c4 + c6 + c8)*1.0/5.0;
+    vec2 col = vec2((c1 + c7)*0.5, (c3 + c5)*.5);
+    if(((ipos.x + ipos.y) & 1) > 0)
+      rgba.rb = col;
+    else
+      rgba.br = col;
+  }
+  else
+  {
+    uint c0 = texelFetch(img_in, 2*ipos, 0).r;
+    uint c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
+    uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
+    uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
+    rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
+  }
   // TODO: for x-trans, we'll need to average 3x3 blocks and maybe have
   // even more headaches about alignment of patterns (what is green?)
   imageStore(img_out, ipos, rgba);
