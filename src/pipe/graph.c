@@ -796,7 +796,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt);
-    graph->query_name[graph->query_cnt++] = node->name;
+    graph->query_name[graph->query_cnt++] = node->kernel;
   }
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
@@ -878,7 +878,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt);
-    graph->query_name[graph->query_cnt++] = node->name;
+    graph->query_name[graph->query_cnt++] = node->kernel;
   }
   return VK_SUCCESS;
 }
