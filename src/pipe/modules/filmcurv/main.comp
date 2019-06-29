@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
   vec4 y;
   vec4 m;
   float black;
+  float detail;
 } params;
 
 layout( // input f32 buffer rgb
@@ -79,13 +80,11 @@ main()
 
   vec3 w = vec3(0.299, 0.587, 0.114);
   float l0 = dot(w, rgb);
-  // float l1 = hermite4(l0);
   const float black_ev = params.black;
   const float black = exp2(black_ev);
   float white = 1.0f+exp2(black_ev);
   float l2 = hermite4((log2(l1+black)-black_ev)/(log2(white)-black_ev));
-  const float contrast = 2.0;
-  l2 += contrast * (l0 - l1);
+  l2 += params.detail * (l0 - l1);
   // colour reconstruction: keep rgb saturation ratio same as before
   rgb *= l2/l0;
   // want to see why 8-bit output sucks? try this:

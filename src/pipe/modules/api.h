@@ -91,7 +91,7 @@ dt_api_blur(
   };
   // push and interconnect a-trous gauss blur nodes
   // TODO: iterate until radius is matched, use smaller steps to achieve sub-power-of-two radii
-  const int it = 2;
+  const int it = 3;
   int nid_input = nodeid_input;
   int cid_input = connid_input;
   for(int i=0;i<it;i++)

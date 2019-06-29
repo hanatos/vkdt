@@ -2,4 +2,5 @@ exposure:01:exposure:-10:10
 filmcurv:01:y1:0:1
 filmcurv:01:y2:0:1
 filmcurv:01:black:-10:1
+filmcurv:01:detail:0:20
 contrast:01:edges:0.0:1.0

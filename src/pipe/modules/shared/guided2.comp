@@ -11,7 +11,6 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
-  float contrast;
   float radius;
   float epsilon;
 } params;
