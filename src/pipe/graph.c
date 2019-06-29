@@ -57,7 +57,8 @@ dt_graph_init(dt_graph_t *g)
   };
   QVK(vkCreateQueryPool(qvk.device, &query_pool_info, NULL, &g->query_pool));
   g->query_pool_results = malloc(sizeof(uint64_t)*g->query_max);
-  g->query_name = malloc(sizeof(dt_token_t)*g->query_max);
+  g->query_name   = malloc(sizeof(dt_token_t)*g->query_max);
+  g->query_kernel = malloc(sizeof(dt_token_t)*g->query_max);
 }
 
 void
@@ -96,6 +97,7 @@ dt_graph_cleanup(dt_graph_t *g)
   free(g->params_pool);
   free(g->query_pool_results);
   free(g->query_name);
+  free(g->query_kernel);
 }
 
 // helper to read parameters from config file
@@ -560,8 +562,13 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         img_dset[i].descriptorCount = 1;
         img_dset[i].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         img_dset[i].pImageInfo      = img_info + i;
-      } // else sorry not connected, buffer will not be bound
-      // TODO: put error message here?
+      }
+      else
+      { // else sorry not connected, buffer will not be bound.
+        // unconnected inputs are a problem however:
+        dt_log(s_log_err | s_log_pipe, "kernel %"PRItkn"_%"PRItkn":%d is not connected!",
+            dt_token_str(node->name), dt_token_str(node->kernel), i);
+      }
       if(c->type == dt_token("sink"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
     }
@@ -796,7 +803,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt);
-    graph->query_name[graph->query_cnt++] = node->kernel;
+    graph->query_name  [graph->query_cnt  ] = node->name;
+    graph->query_kernel[graph->query_cnt++] = node->kernel;
   }
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
@@ -878,7 +886,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt);
-    graph->query_name[graph->query_cnt++] = node->kernel;
+    graph->query_name  [graph->query_cnt  ] = node->name;
+    graph->query_kernel[graph->query_cnt++] = node->kernel;
   }
   return VK_SUCCESS;
 }
@@ -1370,8 +1379,9 @@ VkResult dt_graph_run(
         VK_QUERY_RESULT_64_BIT));
   for(int i=0;i<graph->query_cnt;i+=2)
   {
-    dt_log(s_log_perf, "query %"PRItkn": %8.2g ms",
-        dt_token_str(graph->query_name[i]),
+    dt_log(s_log_perf, "query %"PRItkn"_%"PRItkn":\t%8.2g ms",
+        dt_token_str(graph->query_name  [i]),
+        dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6);
   }

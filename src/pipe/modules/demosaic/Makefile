@@ -4,7 +4,7 @@ CFLAGS+=$(OPT_CFLAGS)
 LDFLAGS+=$(OPT_LDFLAGS)
 
 $(TARGET): main.c Makefile
-	$(CC) $(CFLAGS) main.c -shared -o $(TARGET) $(LDFLAGS)
+	$(CC) $(CFLAGS) main.c ../../connector.c -shared -o $(TARGET) $(LDFLAGS)
 
 clean:
 	rm -f $(TARGET)

@@ -1,0 +1,100 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t rg;
+  roi_t ro;
+  uint filters;
+} params;
+
+
+layout( // input uint16 buffer rggb
+    set = 1, binding = 0
+) uniform usampler2D img_in;
+
+layout( // input f32 buffer rgb gaussian covariance
+    set = 1, binding = 1
+) uniform sampler2D img_gauss;
+
+layout( // output f32 buffer rgb
+    set = 1, binding = 2, rgba32f
+) uniform image2D img_out;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+
+  // x trans looks like:
+  // . r . . b .
+  // b . b r . r
+  // . r . . b .
+  // . b . . r .
+  // r . r b . b
+  // . b . . r .
+  // so green needs a splat radius of 1, blue/red need 2
+  vec3 rgb = vec3(0.0);
+  vec3 w   = vec3(0.0);
+
+  // TODO: if filters == 9:
+  // TODO: and after this block the faster version for bayer with smaller nbhood
+  for(int j=-2;j<=2;j++)
+  {
+    for(int i=-2;i<=2;i++)
+    {
+      // TODO: texture() and use interpolated sampler!
+      ivec2 pos = opos+ivec2(i,j);
+      float col = texelFetch(img_in, pos, 0).r;
+
+      // eval gauss:
+      vec3 cov = texelFetch(img_gauss, pos/3, 0).rgb;
+      mat2 M = mat2(cov.x, cov.z, cov.y, cov.z);
+      M = inverse(M);
+      vec2 o = vec2(i, j);
+      // FIXME: matrix needs interpolated lookup and clamping and everything!
+      // FIXME: also needs adjustment for green weight etc
+      const float weight = max(0.0, 2.5-length(o))/2.5;//exp(dot(o, M * o));
+      col *= weight;
+
+      // rgb from pattern:
+      bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
+      pos = pos - (pos/3)*3;
+      if(((pos.x + pos.y) & 1) == 0)
+      {
+        // TODO: better way of doing this:
+        rgb.g += col * weight;
+        w.g += weight * weight;
+      }
+      else
+      {
+        if(blue_top ^^ (pos.y == 1))
+        {
+          rgb.b += col;
+          w.b += weight;
+        }
+        else
+        {
+          rgb.r += col;
+          w.r += weight;
+        }
+      }
+    }
+  }
+  rgb /= w;
+
+  // TODO: the radius should be specific to colour/green and bayer/xtrans!
+  // TODO: get uint16 bayer pixel in certain environment
+  // TODO: get downsampled gaussian covariance (use linear interpolation!)
+  // splat
+
+  imageStore(img_out, opos, vec4(rgb, 1.0));
+}

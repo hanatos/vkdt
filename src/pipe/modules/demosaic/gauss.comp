@@ -19,9 +19,9 @@ layout(std140, set = 0, binding = 0) uniform params_t
 } params;
 
 
-layout( // input uint16 buffer rggb
+layout( // input f32 buffer y
     set = 1, binding = 0
-) uniform usampler2D img_in;
+) uniform sampler2D img_in;
 
 layout( // output f32 buffer rgb
     set = 1, binding = 1, rgba32f
@@ -35,58 +35,35 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  vec4 rgba;
+  float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
+  float g01 = texelFetch(img_in, ipos+ivec2(-1, 0), 0).r;
+  float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
+  float g10 = texelFetch(img_in, ipos+ivec2( 0,-1), 0).r;
+  float g11 = texelFetch(img_in, ipos+ivec2( 0, 0), 0).r;
+  float g12 = texelFetch(img_in, ipos+ivec2( 0, 1), 0).r;
+  float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
+  float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).r;
+  float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
+  vec2 var = (g00-g11)*vec2(-1,-1)*vec2(-1,-1) +
+             (g01-g11)*vec2(-1, 0)*vec2(-1, 0) +
+             (g02-g11)*vec2(-1, 1)*vec2(-1, 1) +
+             (g10-g11)*vec2( 0,-1)*vec2( 0,-1) +
+             (g11-g11)*vec2( 0, 0)*vec2( 0, 0) +
+             (g12-g11)*vec2( 0, 1)*vec2( 0, 1) +
+             (g20-g11)*vec2( 1,-1)*vec2( 1,-1) +
+             (g21-g11)*vec2( 1, 0)*vec2( 1, 0) +
+             (g22-g11)*vec2( 1, 1)*vec2( 1, 1);
+  float cov= (g00-g11)*-1*-1 +
+             (g01-g11)*-1* 0 +
+             (g02-g11)*-1* 1 +
+             (g10-g11)* 0*-1 +
+             (g11-g11)* 0* 0 +
+             (g12-g11)* 0* 1 +
+             (g20-g11)* 1*-1 +
+             (g21-g11)* 1* 0 +
+             (g22-g11)* 1* 1;
 
-  if(params.filters == 9)
-  {
-    uint c0 = texelFetch(img_in, 3*ipos, 0).r;
-    uint c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
-    uint c2 = texelFetch(img_in, 3*ipos+ivec2(0,2), 0).r;
-    uint c3 = texelFetch(img_in, 3*ipos+ivec2(1,0), 0).r;
-    uint c4 = texelFetch(img_in, 3*ipos+ivec2(1,1), 0).r;
-    uint c5 = texelFetch(img_in, 3*ipos+ivec2(1,2), 0).r;
-    uint c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
-    uint c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
-    uint c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
-    rgba.g = (c0 + c2 + c4 + c6 + c8)*1.0/5.0;
-    vec2 col = vec2((c1 + c7)*0.5, (c3 + c5)*.5);
-    if(((ipos.x + ipos.y) & 1) > 0)
-      rgba.rb = col;
-    else
-      rgba.br = col;
-  }
-  else
-  {
-    uint c0 = texelFetch(img_in, 2*ipos, 0).r;
-    uint c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
-    uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
-    uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
-    rgba = vec4(c0, (c1+c2)/2.0, c3, 1.0);
-  }
-  imageStore(img_out, ipos, rgba);
-}
-
-// now the real work:
-// 1) subsample following the half-size routine above
-// 2) estimate gaussian params from xx^t in 3x3 nbhood around each pixel, clamp eigenvalues
-// 3) interpolate covariance matrices for every hi-res pixel
-// 4) gather gaussians from neighbours
-#if 0 // TODO
-
-void
-subsample_bayer()
-{
-  // this kernel is called with roi on low res:
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
-
-  uint c0 = texelFetch(img_in, 2*ipos, 0).r;
-  uint c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
-  uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
-  uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
-  // TODO: if(param.filters == ) xtrans?
-  vec4 gray = (c1 + c2 + c3 + c4)*0.25f;
-  imageStore(img_gray, ipos, rgba);
+  imageStore(img_out, ipos, vec4(var, cov, 1.0));
 }
 
 #if 0
@@ -134,7 +111,6 @@ static inline void getEVDSymmetric2x2(double pOutEigenvalues[2], double pOutEige
 	pOutEigenvectors[0] =  pOutEigenvectors[3];
 	pOutEigenvectors[1] = -pOutEigenvectors[2];
 }
-#endif
 
 void
 estimate_covariance()
@@ -143,33 +119,6 @@ estimate_covariance()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  float g00 = texelFetch(img_gray_in, ipos+ivec2(-1,-1)).r;
-  float g01 = texelFetch(img_gray_in, ipos+ivec2(-1, 0)).r;
-  float g02 = texelFetch(img_gray_in, ipos+ivec2(-1, 1)).r;
-  float g10 = texelFetch(img_gray_in, ipos+ivec2( 0,-1)).r;
-  float g11 = texelFetch(img_gray_in, ipos+ivec2( 0, 0)).r;
-  float g12 = texelFetch(img_gray_in, ipos+ivec2( 0, 1)).r;
-  float g20 = texelFetch(img_gray_in, ipos+ivec2( 1,-1)).r;
-  float g21 = texelFetch(img_gray_in, ipos+ivec2( 1, 0)).r;
-  float g22 = texelFetch(img_gray_in, ipos+ivec2( 1, 1)).r;
-  vec2 var = (g00-g11)*vec2(-1,-1)*vec2(-1,-1) +
-             (g01-g11)*vec2(-1, 0)*vec2(-1, 0) +
-             (g02-g11)*vec2(-1, 1)*vec2(-1, 1) +
-             (g10-g11)*vec2( 0,-1)*vec2( 0,-1) +
-             (g11-g11)*vec2( 0, 0)*vec2( 0, 0) +
-             (g12-g11)*vec2( 0, 1)*vec2( 0, 1) +
-             (g20-g11)*vec2( 1,-1)*vec2( 1,-1) +
-             (g21-g11)*vec2( 1, 0)*vec2( 1, 0) +
-             (g22-g11)*vec2( 1, 1)*vec2( 1, 1);
-  float cov= (g00-g11)*-1*-1 +
-             (g01-g11)*-1* 0 +
-             (g02-g11)*-1* 1 +
-             (g10-g11)* 0*-1 +
-             (g11-g11)* 0* 0 +
-             (g12-g11)* 0* 1 +
-             (g20-g11)* 1*-1 +
-             (g21-g11)* 1* 0 +
-             (g22-g11)* 1* 1;
   // TODO: construct matrix, do SVD, clamp eigenvalues, write back
   imageStore(img_cov, ipos, vec4(var, cov, 1.0));
 }
