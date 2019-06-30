@@ -6,10 +6,6 @@
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
-// layout(push_constant, std140) uniform IterationInfo {
-//   uint iteration;
-// } push;
-
 // global uniform stuff about image and roi
 layout(std140, set = 0, binding = 0) uniform params_t
 {
@@ -26,6 +22,60 @@ layout( // input f32 buffer y
 layout( // output f32 buffer rgb
     set = 1, binding = 1, rgba32f
 ) uniform image2D img_out;
+
+
+// (c) christoph peters:
+void svd2x2(
+    out vec2 eval,
+    out vec2 evec0,
+    out vec2 evec1,
+    mat2 M)
+{
+	// Define some short hands for the matrix entries
+	float a = M[0][0];
+	float b = M[1][0];
+	float c = M[1][1];
+	// Compute coefficients of the characteristic polynomial
+	float pHalf = -0.5 * (a + c);
+	float q = a*c - b*b;
+	// Solve the quadratic
+	float discriminant_root = sqrt(pHalf * pHalf - q);
+	eval.x = -pHalf + discriminant_root;
+	eval.y = -pHalf - discriminant_root;
+	// Subtract a scaled identity matrix to obtain a rank one matrix
+	float a0 = a - eval.x;
+	float b0 = b;
+	float c0 = c - eval.x;
+	// The column space of this matrix is orthogonal to the first eigenvector 
+	// and since the eigenvectors are orthogonal themselves, it agrees with the 
+	// second eigenvector. Pick the longer column to avoid cancellation.
+	float squaredLength0 = a0*a0 + b0*b0;
+	float squaredLength1 = b0*b0 + c0*c0;
+	float squaredLength;
+	if (squaredLength0 > squaredLength1)
+  {
+		evec1.x = a0;
+		evec1.y = b0;
+		squaredLength = squaredLength0;
+	}
+	else {
+		evec1.x = b0;
+		evec1.y = c0;
+		squaredLength = squaredLength1;
+	}
+	// If the eigenvector is exactly zero, both eigenvalues are the same and the 
+	// choice of orthogonal eigenvectors is arbitrary
+	evec1.x = (squaredLength == 0.0) ? 1.0 : evec1.x;
+	squaredLength = (squaredLength == 0.0) ? 1.0 : squaredLength;
+	// Now normalize
+	float invLength = 1.0 / sqrt(squaredLength);
+	evec1.x *= invLength;
+	evec1.y *= invLength;
+	// And rotate to get the other eigenvector
+	evec0.x =  evec1.y;
+	evec0.y = -evec1.x;
+}
+
 
 // demosaic reduced size. run on output dimensions, gather all colours from
 // input buffer (this might be 3x3 for xtrans).
@@ -62,56 +112,15 @@ main()
              (g20-g11)* 1*-1 +
              (g21-g11)* 1* 0 +
              (g22-g11)* 1* 1;
-
-  imageStore(img_out, ipos, vec4(var, cov, 1.0));
+  cov = 0.0;
+  mat2 M = mat2(var.x, cov, cov, var.y);
+  vec2 eval, evec0, evec1;
+  svd2x2(eval, evec0, evec1, M);
+  // imageStore(img_out, ipos, vec4(var, cov, 1.0));
+  imageStore(img_out, ipos, vec4(65535*(evec0+1.0), 10.0*eval.x, 1.0));
 }
 
 #if 0
-static inline void getEVDSymmetric2x2(double pOutEigenvalues[2], double pOutEigenvectors[4], const double pMatrix[4]) {
-	// Define some short hands for the matrix entries
-	double a = pMatrix[0];
-	double b = pMatrix[1];
-	double c = pMatrix[3];
-	// Compute coefficients of the characteristic polynomial
-	double pHalf = -0.5 * (a + c);
-	double q = a*c - b*b;
-	// Solve the quadratic
-	double discriminant_root = sqrt(pHalf * pHalf - q);
-	pOutEigenvalues[0] = -pHalf + discriminant_root;
-	pOutEigenvalues[1] = -pHalf - discriminant_root;
-	// Subtract a scaled identity matrix to obtain a rank one matrix
-	double a0 = a - pOutEigenvalues[0];
-	double b0 = b;
-	double c0 = c - pOutEigenvalues[0];
-	// The column space of this matrix is orthogonal to the first eigenvector 
-	// and since the eigenvectors are orthogonal themselves, it agrees with the 
-	// second eigenvector. Pick the longer column to avoid cancellation.
-	double squaredLength0 = a0*a0 + b0*b0;
-	double squaredLength1 = b0*b0 + c0*c0;
-	double squaredLength;
-	if (squaredLength0 > squaredLength1) {
-		pOutEigenvectors[2] = a0;
-		pOutEigenvectors[3] = b0;
-		squaredLength = squaredLength0;
-	}
-	else {
-		pOutEigenvectors[2] = b0;
-		pOutEigenvectors[3] = c0;
-		squaredLength = squaredLength1;
-	}
-	// If the eigenvector is exactly zero, both eigenvalues are the same and the 
-	// choice of orthogonal eigenvectors is arbitrary
-	pOutEigenvectors[2] = (squaredLength == 0.0) ? 1.0 : pOutEigenvectors[2];
-	squaredLength = (squaredLength == 0.0) ? 1.0 : squaredLength;
-	// Now normalize
-	double invLength = 1.0 / sqrt(squaredLength);
-	pOutEigenvectors[2] *= invLength;
-	pOutEigenvectors[3] *= invLength;
-	// And rotate to get the other eigenvector
-	pOutEigenvectors[0] =  pOutEigenvectors[3];
-	pOutEigenvectors[1] = -pOutEigenvectors[2];
-}
-
 void
 estimate_covariance()
 {
