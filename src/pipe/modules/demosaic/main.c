@@ -85,7 +85,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // TODO: need full size connector and half size connector!
+  // need full size connectors and half size connectors:
   const int block = module->img_param.filters == 9u ? 3 : 2;
   const int wd = module->connector[1].roi.roi_wd;
   const int ht = module->connector[1].roi.roi_ht;
@@ -188,6 +188,6 @@ create_nodes(
   CONN(dt_node_connect(graph, id_gauss, 1, id_splat, 1));
   dt_connector_copy(graph, module, id_down,  0, 0);
   dt_connector_copy(graph, module, id_splat, 1, 2);
-  // XXX DEBUG
+  // XXX DEBUG see output of gaussian params
   // dt_connector_copy(graph, module, id_gauss, 1, 1);
 }
