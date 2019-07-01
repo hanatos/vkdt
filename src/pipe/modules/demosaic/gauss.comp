@@ -25,7 +25,7 @@ layout( // output f32 buffer rgb
 
 
 // (c) christoph peters:
-void svd2x2(
+void evd2x2(
     out vec2 eval,
     out vec2 evec0,
     out vec2 evec1,
@@ -85,6 +85,11 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
+  // XXX
+  // float col = texelFetch(img_in, ipos, 0).r;
+  // imageStore(img_out, ipos, vec4(vec3(col), 1.0));
+  // return;// XXX
+
   float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
   float g01 = texelFetch(img_in, ipos+ivec2(-1, 0), 0).r;
   float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
@@ -94,56 +99,32 @@ main()
   float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
   float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).r;
   float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
-  vec2 var = (g00-g11)*vec2(-1,-1)*vec2(-1,-1) +
-             (g01-g11)*vec2(-1, 0)*vec2(-1, 0) +
-             (g02-g11)*vec2(-1, 1)*vec2(-1, 1) +
-             (g10-g11)*vec2( 0,-1)*vec2( 0,-1) +
-             (g11-g11)*vec2( 0, 0)*vec2( 0, 0) +
-             (g12-g11)*vec2( 0, 1)*vec2( 0, 1) +
-             (g20-g11)*vec2( 1,-1)*vec2( 1,-1) +
-             (g21-g11)*vec2( 1, 0)*vec2( 1, 0) +
-             (g22-g11)*vec2( 1, 1)*vec2( 1, 1);
-  float cov= (g00-g11)*-1*-1 +
-             (g01-g11)*-1* 0 +
-             (g02-g11)*-1* 1 +
-             (g10-g11)* 0*-1 +
-             (g11-g11)* 0* 0 +
-             (g12-g11)* 0* 1 +
-             (g20-g11)* 1*-1 +
-             (g21-g11)* 1* 0 +
-             (g22-g11)* 1* 1;
-  cov = 0.0;
+  float m = (g00 + g01 + g02 + g10 + g11 + g12 + g20 + g21 + g22)/9.0;
+  vec2 var = (g00-m)*vec2(-1,-1)*vec2(-1,-1) +
+             (g01-m)*vec2(-1, 0)*vec2(-1, 0) +
+             (g02-m)*vec2(-1, 1)*vec2(-1, 1) +
+             (g10-m)*vec2( 0,-1)*vec2( 0,-1) +
+             (g11-m)*vec2( 0, 0)*vec2( 0, 0) +
+             (g12-m)*vec2( 0, 1)*vec2( 0, 1) +
+             (g20-m)*vec2( 1,-1)*vec2( 1,-1) +
+             (g21-m)*vec2( 1, 0)*vec2( 1, 0) +
+             (g22-m)*vec2( 1, 1)*vec2( 1, 1);
+  float cov= (g00-m)*-1*-1 +
+             (g01-m)*-1* 0 +
+             (g02-m)*-1* 1 +
+             (g10-m)* 0*-1 +
+             (g11-m)* 0* 0 +
+             (g12-m)* 0* 1 +
+             (g20-m)* 1*-1 +
+             (g21-m)* 1* 0 +
+             (g22-m)* 1* 1;
   mat2 M = mat2(var.x, cov, cov, var.y);
   vec2 eval, evec0, evec1;
-  svd2x2(eval, evec0, evec1, M);
+  evd2x2(eval, evec0, evec1, M);
+  // DEBUG:
+  eval = vec2(1.0, 0.0);
+  // evec0 = vec2(0.0, 1.0);
   // imageStore(img_out, ipos, vec4(var, cov, 1.0));
-  imageStore(img_out, ipos, vec4(65535*(evec0+1.0), 10.0*eval.x, 1.0));
+  // imageStore(img_out, ipos, vec4(65535*(evec0+1.0), 10.0*eval.x, 1.0));
+  imageStore(img_out, ipos, vec4(evec1, eval.y/eval.x, 1.0));
 }
-
-#if 0
-void
-estimate_covariance()
-{
-  // this kernel is called with roi on low res:
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
-
-  // TODO: construct matrix, do SVD, clamp eigenvalues, write back
-  imageStore(img_cov, ipos, vec4(var, cov, 1.0));
-}
-
-void
-gather()
-{
-  // this kernel is called with roi on high res:
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
-
-  // TODO: make sure we have an interpolating/magnifying image sampler!
-  vec2 tc = vec2(ipos) / vec2(params.ro.roi);
-  vec4 cov = texture(img_cov, tc);
-
-  vec4 rgba;
-  imageStore(img_out, ipos, rgba);
-}
-#endif

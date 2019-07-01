@@ -58,14 +58,31 @@ main()
 
       // eval gauss:
       vec3 cov = texelFetch(img_gauss, pos/3, 0).rgb;
-      mat2 M = mat2(cov.x, cov.z, cov.y, cov.z);
-      M = inverse(M);
+      // mat2 M = mat2(cov.x, cov.z, cov.y, cov.z);
+      // M = inverse(M);
       vec2 o = vec2(i, j);
+      // gauss = x S-1 x with E*l*Et = S
+      // = xt (E*l*Et)-1 x
+      // = xt (Et 1/l E) x
+      // = (xt Et) 1/l (E x)
+      // = Ext 1/l Ex
+      mat2 E = mat2(cov.x, cov.y, -cov.y, cov.x);
+      o = E * o;
+      // o = cov.xy * o.x + vec2(-cov.y, cov.x) * o.y;
+      // XXX normalise?
+      float weight = exp(-dot(o, vec2(0.2, 0.2/(0.01+cov.z)) * o));
       // FIXME: matrix needs interpolated lookup and clamping and everything!
       // FIXME: also needs adjustment for green weight etc
-      float weight = max(0.0, 2.5-length(o))/2.5;//exp(dot(o, M * o));
-      if(i==0 && j==0) weight = 1000000.0;
+      // float weight = max(0.0, 2.5-length(o))/2.5;//exp(dot(o, M * o));
+      // if(i==0 && j==0) weight = 1000000.0;
       col *= weight;
+      if(pos.x % 10 == 0 && pos.y % 10 == 0)
+      {
+        rgb = vec3(0.0, 10000.0*weight, 0.0);
+        imageStore(img_out, opos, vec4(rgb, 1.0));
+        return;
+      }
+
 
       // rgb from pattern:
       bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
@@ -73,8 +90,8 @@ main()
       if(((pos.x + pos.y) & 1) == 0)
       {
         // TODO: better way of doing this:
-        rgb.g += col * weight;
-        w.g += weight * weight;
+        rgb.g += col;// * weight;
+        w.g += weight;// * weight;
       }
       else
       {

@@ -187,7 +187,7 @@ create_nodes(
   dt_connector_copy(graph, module, id_splat,  0, 0);
   CONN(dt_node_connect(graph, id_gauss, 1, id_splat, 1));
   dt_connector_copy(graph, module, id_down,  0, 0);
-  // dt_connector_copy(graph, module, id_splat, 1, 2);
+  dt_connector_copy(graph, module, id_splat, 1, 2);
   // XXX DEBUG
-  dt_connector_copy(graph, module, id_gauss, 1, 1);
+  // dt_connector_copy(graph, module, id_gauss, 1, 1);
 }

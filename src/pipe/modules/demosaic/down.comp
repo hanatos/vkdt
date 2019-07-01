@@ -28,6 +28,13 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
+  // XXX DEBUG
+ // float col = 0.0;
+ // if((ipos.x & 1) > 0) col = 65535.0;
+ // imageStore(img_out, ipos, vec4(col));
+ // return;
+  // XXX
+
   float lum;
   if(params.filters == 9)
   {
