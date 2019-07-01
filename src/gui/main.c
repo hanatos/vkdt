@@ -163,10 +163,19 @@ int main(int argc, char *argv[])
     }
     while (SDL_PollEvent(&event));
 
+    // TODO: rename? only calls imgui:
     dt_gui_render_frame();
 
     dt_gui_render();
     dt_gui_present();
+
+    // intel says:
+    // ==
+    // The pipeline is flushed when switching between 3D graphics rendering and
+    // compute functions. Asynchronous compute functions are not supported at
+    // this time. Batch the compute kernels into groups whenever possible.
+    // ==
+    // which is unfortunate for us :/
 
     // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
     // if(fence == VK_SUCCESS)

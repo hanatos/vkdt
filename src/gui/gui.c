@@ -157,6 +157,7 @@ int dt_gui_init()
   }
   vkdt.frame_index = 0;
   vkdt.sem_index = 0;
+  // XXX intel says 0,0,0,1 is fastest:
   vkdt.clear_value = (VkClearValue){{.float32={0.18f, 0.18f, 0.18f, 1.0f}}};
 
   vkdt.pipeline_cache = VK_NULL_HANDLE;

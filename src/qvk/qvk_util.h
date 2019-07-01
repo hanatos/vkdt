@@ -72,6 +72,8 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
 				1, &img_mem_barrier); \
 	} while(0)
 
+// XXX FIXME: apparently i'm using it wrong. if the input layout is UNDEFINED
+// the data may be discarded (but it's not, lucky me)
 #define BARRIER_IMG_LAYOUT(img, layout) \
   do { \
     VkImageSubresourceRange subresource_range = { \
