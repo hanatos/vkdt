@@ -45,6 +45,9 @@ main()
   vec3 rgb = vec3(0.0);
   vec3 w   = vec3(0.0);
 
+  // TODO: this filter is insanely slow. i guess unroll the loop etc would help,
+  // TODO: or just consider a few selected nb for blurring (instead the full 25)
+
   // TODO: if filters == 9:
   // TODO: and after this block the faster version for bayer with smaller nbhood
   for(int j=-2;j<=2;j++)
@@ -66,22 +69,30 @@ main()
       // = xt (Et 1/l E) x
       // = (xt Et) 1/l (E x)
       // = Ext 1/l Ex
-      mat2 E = mat2(cov.x, cov.y, -cov.y, cov.x);
+      // cov.xy = vec2(1, -1);
+      mat2 E = mat2(cov.x, -cov.y, cov.y, cov.x);
       o = E * o;
       // o = cov.xy * o.x + vec2(-cov.y, cov.x) * o.y;
-      // XXX normalise?
-      float weight = exp(-dot(o, vec2(0.2, 0.2/(0.01+cov.z)) * o));
+      // XXX normalise or not?
+      float scale = 4.0;//0.01;
+      float so = 1.0;
+      cov.z = clamp(scale*cov.z, 0.1, 10);
+      float weight = //1.0/(2.0*3.1415692)*so/(cov.z) *
+        exp(-0.5*dot(o, vec2(1./(cov.z*cov.z), so) * o));
+      // float weight = exp(-dot(o, vec2(.10, .10/(0.001)) * o));
       // FIXME: matrix needs interpolated lookup and clamping and everything!
       // FIXME: also needs adjustment for green weight etc
       // float weight = max(0.0, 2.5-length(o))/2.5;//exp(dot(o, M * o));
-      // if(i==0 && j==0) weight = 1000000.0;
+      if(i==0 && j==0) weight = 1000000.0;
       col *= weight;
+#if 0 // DEBUG: visualise gaussian splats
       if(pos.x % 10 == 0 && pos.y % 10 == 0)
       {
         rgb = vec3(0.0, 10000.0*weight, 0.0);
         imageStore(img_out, opos, vec4(rgb, 1.0));
         return;
       }
+#endif
 
 
       // rgb from pattern:
