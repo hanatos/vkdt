@@ -1385,5 +1385,7 @@ VkResult dt_graph_run(
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6);
   }
+  dt_log(s_log_perf, "total time:\t%8.2g ms",
+      (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6);
   return VK_SUCCESS;
 }

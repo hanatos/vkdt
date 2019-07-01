@@ -9,6 +9,7 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <stdio.h>
+#include <time.h>
 
 dt_gui_t vkdt;
 
@@ -134,6 +135,7 @@ int main(int argc, char *argv[])
 
   // main loop
   int running = 1;
+  clock_t beg = clock();
   while(running)
   {
     SDL_Event event;
@@ -166,6 +168,9 @@ int main(int argc, char *argv[])
     dt_gui_render();
     dt_gui_present();
 
+    // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
+    // if(fence == VK_SUCCESS)
+    {
     // TODO: if params changed:
     VkResult err = dt_graph_run(&vkdt.graph_dev,
         // s_graph_run_all);
@@ -173,6 +178,10 @@ int main(int argc, char *argv[])
        |s_graph_run_record_cmd_buf
        |s_graph_run_wait_done)); // if we don't wait we can't resubmit because the fence would be used twice.
     if(err != VK_SUCCESS) break;
+    }
+    clock_t end  = clock();
+    dt_log(s_log_perf, "total frame time %2.3f s", (end - beg)/(double)CLOCKS_PER_SEC);
+    beg = end;
   }
 
   dt_graph_cleanup(&vkdt.graph_dev);
