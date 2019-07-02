@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// XXX HACK! make scale dependent etc
+#define HALF_SIZE
+
 #if 0
 // TODO: put in header!
 static inline int
@@ -19,7 +22,11 @@ void modify_roi_in(
 {
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
-  const int block = 1;//module->img_param.filters == 9u ? 3 : 2;
+#ifdef HALF_SIZE
+  const int block = module->img_param.filters == 9u ? 3 : 2;
+#else
+  const int block = 1;
+#endif
   ri->roi_wd = block*ro->roi_wd;
   ri->roi_ht = block*ro->roi_ht;
   ri->roi_ox = block*ro->roi_ox;
@@ -57,7 +64,11 @@ void modify_roi_out(
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
   // this is rounding down to full bayer block size, which is good:
-  const int block = 1;//module->img_param.filters == 9u ? 3 : 2;
+#ifdef HALF_SIZE
+  const int block = module->img_param.filters == 9u ? 3 : 2;
+#else
+  const int block = 1;
+#endif
   ro->full_wd = ri->full_wd/block;
   ro->full_ht = ri->full_ht/block;
 }
@@ -85,6 +96,45 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+#ifdef HALF_SIZE
+  {
+  // we do whatever the default implementation would have done, too:
+  dt_connector_t ci = {
+    .name   = dt_token("input"),
+    .type   = dt_token("read"),
+    .chan   = dt_token("rggb"),
+    .format = dt_token("ui16"),
+    .roi    = module->connector[0].roi,
+    .connected_mi = -1,
+  };
+  dt_connector_t co = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("rgb"),
+    .format = dt_token("f32"),
+    .roi    = module->connector[1].roi,
+  };
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_half = graph->num_nodes++;
+  dt_node_t *node_half = graph->node + id_half;
+  *node_half = (dt_node_t) {
+    .name   = dt_token("demosaic"),
+    .kernel = dt_token("halfsize"),
+    .module = module,
+    .wd     = module->connector[1].roi.roi_wd,
+    .ht     = module->connector[1].roi.roi_ht,
+    .dp     = 1,
+    .num_connectors = 2,
+    .connector = {
+      ci, co,
+    },
+  };
+  // TODO: check connector config before!
+  dt_connector_copy(graph, module, id_half, 0, 0);
+  dt_connector_copy(graph, module, id_half, 1, 1);
+  return;
+  }
+#endif
   // need full size connectors and half size connectors:
   const int block = module->img_param.filters == 9u ? 3 : 2;
   const int wd = module->connector[1].roi.roi_wd;
