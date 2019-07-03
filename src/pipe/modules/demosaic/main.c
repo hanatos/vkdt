@@ -96,7 +96,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-#if 1
+#if 0 // experimental xtrans special case code. not any faster and quality not any better it seems now:
   {
   dt_connector_t ci = {
     .name   = dt_token("input"),
