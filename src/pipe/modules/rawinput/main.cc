@@ -181,15 +181,17 @@ void modify_roi_out(
   // TODO: xtrans
   // uncrop bayer sensor filter
   rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
-  mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
-      mod_data->d->mRaw->cfa.getDcrawFilter(),
-      cropTL.x, cropTL.y);
+  mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
+  if(mod->img_param.filters != 9u)
+    mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
+        mod_data->d->mRaw->cfa.getDcrawFilter(),
+        cropTL.x, cropTL.y);
 
   // now we need to account for the pixel shift due to an offset filter:
   dt_roi_t *ro = &mod->connector[0].roi;
   int ox = 0, oy = 0;
 
-   // special handling for x-trans sensors
+  // special handling for x-trans sensors
   if(mod->img_param.filters == 9u)
   {
     uint8_t f[6][6];
