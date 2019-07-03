@@ -106,6 +106,13 @@ create_nodes(
     .roi    = module->connector[0].roi,
     .connected_mi = -1,
   };
+  dt_connector_t cg = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("g"),
+    .format = dt_token("f32"),
+    .roi    = module->connector[1].roi,
+  };
   dt_connector_t co = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
@@ -125,12 +132,32 @@ create_nodes(
     .dp     = 1,
     .num_connectors = 2,
     .connector = {
-      ci, co,
+      ci, cg,
+    },
+  };
+  cg.name = dt_token("input");
+  cg.type = dt_token("read");
+  cg.connected_mi = -1;
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_col = graph->num_nodes++;
+  dt_node_t *node_col = graph->node + id_col;
+  *node_col = (dt_node_t) {
+    .name   = dt_token("demosaic"),
+    .kernel = dt_token("xtransc"),
+    .module = module,
+    .wd     = module->connector[1].roi.roi_wd/3,
+    .ht     = module->connector[1].roi.roi_ht/3,
+    .dp     = 1,
+    .num_connectors = 3,
+    .connector = {
+      ci, cg, co,
     },
   };
   // TODO: check connector config before!
   dt_connector_copy(graph, module, id_xtrans, 0, 0);
-  dt_connector_copy(graph, module, id_xtrans, 1, 1);
+  dt_connector_copy(graph, module, id_col,    0, 0);
+  dt_connector_copy(graph, module, id_col,    1, 2);
+  CONN(dt_node_connect(graph, id_xtrans, 1, id_col, 1));
   return;
   }
 #endif

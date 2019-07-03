@@ -19,8 +19,8 @@ layout( // input uint16 buffer rggb
     set = 1, binding = 0
 ) uniform usampler2D img_in;
 
-layout( // output f32 buffer rgb
-    set = 1, binding = 1, rgba32f
+layout( // output f32 buffer green channel only
+    set = 1, binding = 1, r32f
 ) uniform image2D img_out;
 
 void
@@ -40,12 +40,12 @@ main()
 
   // 1) find out which direction to blur predominantly
 
-  vec3 c0, c1, c2, c3, c4, c5, c6, c7, c8;
-  c0.g = texelFetch(img_in, opos, 0).r;
-  c2.g = texelFetch(img_in, opos+ivec2(2, 0), 0).r;
-  c4.g = texelFetch(img_in, opos+ivec2(1, 1), 0).r;
-  c6.g = texelFetch(img_in, opos+ivec2(0, 2), 0).r;
-  c8.g = texelFetch(img_in, opos+ivec2(2, 2), 0).r;
+  float c0, c1, c2, c3, c4, c5, c6, c7, c8;
+  c0 = texelFetch(img_in, opos, 0).r;
+  c2 = texelFetch(img_in, opos+ivec2(2, 0), 0).r;
+  c4 = texelFetch(img_in, opos+ivec2(1, 1), 0).r;
+  c6 = texelFetch(img_in, opos+ivec2(0, 2), 0).r;
+  c8 = texelFetch(img_in, opos+ivec2(2, 2), 0).r;
   float gl = texelFetch(img_in, opos+ivec2(-2,  1), 0).r;
   float gr = texelFetch(img_in, opos+ivec2( 4,  1), 0).r;
   float gt = texelFetch(img_in, opos+ivec2( 1, -2), 0).r;
@@ -54,12 +54,12 @@ main()
   {
     // v/h seem to work well:
     float vote_h  =
-        abs(c6.g - c0.g) + abs(c8.g - c2.g) + abs(gt - c4.g) + abs(gb - c4.g);
+        abs(c6 - c0) + abs(c8 - c2) + abs(gt - c4) + abs(gb - c4);
     float vote_v  =
-        abs(c2.g - c0.g) + abs(c8.g - c6.g) + abs(gl - c4.g) + abs(gr - c4.g);
+        abs(c2 - c0) + abs(c8 - c6) + abs(gl - c4) + abs(gr - c4);
     // these aren't detected at all:
-    float vote_d0 = 2*(abs(c0.g - c4.g) + abs(c8.g - c4.g));
-    float vote_d1 = 2*(abs(c2.g - c4.g) + abs(c6.g - c4.g));
+    float vote_d0 = 0;//2*(abs(c0 - c4) + abs(c8 - c4));
+    float vote_d1 = 0;//2*(abs(c2 - c4) + abs(c6 - c4));
     float vote = vote_h;
     if(vote_v  > vote) { win = 1; vote = vote_v; }
     if(vote_d0 > vote) { win = 2; vote = vote_d0; }
@@ -72,41 +72,42 @@ main()
   // 2) interpolate greens
   if(win == 0)
   { // horizontal interpolation
-    c1.g = (  c0.g + c2.g)*.5;
-    c3.g = (3*c4.g + gl  )*.25;
-    c5.g = (3*c4.g + gr  )*.25;
-    c7.g = (  c6.g + c8.g)*.5;
+    c1 = (  c0 + c2)*.5;
+    c3 = (3*c4 + gl  )*.25;
+    c5 = (3*c4 + gr  )*.25;
+    c7 = (  c6 + c8)*.5;
+    // c1 = c3 = c5 = c7 = 0;
   }
   else if(win == 1)
   { // vertical
-    c1.g = (3*c4.g + gt  )*.25;
-    c3.g = (  c0.g + c6.g)*.5;
-    c5.g = (  c2.g + c8.g)*.5;
-    c7.g = (3*c4.g + gb  )*.25;
+    c1 = (3*c4 + gt  )*.25;
+    c3 = (  c0 + c6)*.5;
+    c5 = (  c2 + c8)*.5;
+    c7 = (3*c4 + gb  )*.25;
   }
   else if(win == 2)
   { // first diagonal g2 <-> g6
-    c1.g = .25*(c0.g + 3*c4.g) + .25*(c2.g - c4.g);
-    c3.g = .25*(c0.g + 3*c4.g) + .25*(c6.g - c4.g);
-    c5.g = .25*(c8.g + 3*c4.g) + .25*(c2.g - c4.g);
-    c7.g = .25*(c8.g + 3*c4.g) + .25*(c6.g - c4.g);
-    // g1=g3=g5=g7=g4=0;
+    c1 = .25*(c0 + 3*c4) + .25*(c2 - c4);
+    c3 = .25*(c0 + 3*c4) + .25*(c6 - c4);
+    c5 = .25*(c8 + 3*c4) + .25*(c2 - c4);
+    c7 = .25*(c8 + 3*c4) + .25*(c6 - c4);
   }
   else if(win == 3)
   { // second diagonal g0 <-> g8
-    c1.g = .25*(c2.g + 3*c4.g) + .25*(c0.g - c4.g);
-    c3.g = .25*(c6.g + 3*c4.g) + .25*(c0.g - c4.g);
-    c5.g = .25*(c2.g + 3*c4.g) + .25*(c8.g - c4.g);
-    c7.g = .25*(c6.g + 3*c4.g) + .25*(c8.g - c4.g);
-    // g1=g3=g5=g7=g4=0;
+    c1 = .25*(c2 + 3*c4) + .25*(c0 - c4);
+    c3 = .25*(c6 + 3*c4) + .25*(c0 - c4);
+    c5 = .25*(c2 + 3*c4) + .25*(c8 - c4);
+    c7 = .25*(c6 + 3*c4) + .25*(c8 - c4);
   }
   else
   { // isotropic
-    c1.g = (2*c0.g + 2*c2.g + 2*c4.g + gt)/7.0;
-    c3.g = (2*c0.g + 2*c4.g + 2*c6.g + gl)/7.0;
-    c5.g = (2*c2.g + 2*c4.g + 2*c8.g + gr)/7.0;
-    c7.g = (2*c6.g + 2*c4.g + 2*c8.g + gb)/7.0;
+    c1 = (2*c0 + 3*c4 + 2*c2 + gt)/8.0;
+    c3 = (2*c0 + 3*c4 + 2*c6 + gl)/8.0;
+    c5 = (2*c2 + 3*c4 + 2*c8 + gr)/8.0;
+    c7 = (2*c6 + 3*c4 + 2*c8 + gb)/8.0;
+    //c1 = c3 = c5 = c7 = 0;
   }
+#if 0
   // TODO: probably need to put this in a separate pass so we can access more greens.
   // TODO: might not be too bad for perf since we could write a green only temp buffer,
   // TODO: releasing some register pressure on the way.
@@ -166,14 +167,15 @@ main()
     c6.rb = c6.g + .5*(c7.rb-c7.g + c3.rb-c3.g);
     c8.rb = c8.g + .5*(c7.rb-c7.g + c5.rb-c5.g);
   }
+#endif
 
-  imageStore(img_out, opos+ivec2(0, 0), vec4(c0, 1.0));
-  imageStore(img_out, opos+ivec2(1, 0), vec4(c1, 1.0));
-  imageStore(img_out, opos+ivec2(2, 0), vec4(c2, 1.0));
-  imageStore(img_out, opos+ivec2(0, 1), vec4(c3, 1.0));
-  imageStore(img_out, opos+ivec2(1, 1), vec4(c4, 1.0));
-  imageStore(img_out, opos+ivec2(2, 1), vec4(c5, 1.0));
-  imageStore(img_out, opos+ivec2(0, 2), vec4(c6, 1.0));
-  imageStore(img_out, opos+ivec2(1, 2), vec4(c7, 1.0));
-  imageStore(img_out, opos+ivec2(2, 2), vec4(c8, 1.0));
+  imageStore(img_out, opos+ivec2(0, 0), vec4(vec3(c0), 1.0));
+  imageStore(img_out, opos+ivec2(1, 0), vec4(vec3(c1), 1.0));
+  imageStore(img_out, opos+ivec2(2, 0), vec4(vec3(c2), 1.0));
+  imageStore(img_out, opos+ivec2(0, 1), vec4(vec3(c3), 1.0));
+  imageStore(img_out, opos+ivec2(1, 1), vec4(vec3(c4), 1.0));
+  imageStore(img_out, opos+ivec2(2, 1), vec4(vec3(c5), 1.0));
+  imageStore(img_out, opos+ivec2(0, 2), vec4(vec3(c6), 1.0));
+  imageStore(img_out, opos+ivec2(1, 2), vec4(vec3(c7), 1.0));
+  imageStore(img_out, opos+ivec2(2, 2), vec4(vec3(c8), 1.0));
 }
