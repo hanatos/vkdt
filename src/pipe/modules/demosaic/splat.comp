@@ -156,6 +156,20 @@ main()
       eval_gauss(cov, ivec2(i, j), col, weight);
       write_xtrans(ivec2(i, j), col, weight, rgb, w);
     }
+    // TODO: instead of the general slow loop above, use known stencils:
+    // rb:
+    // 1) center of X cross, require only 4 nb top/down left/right
+    // 2) center of square block, require four X with 8 nb
+    // g:
+    // 1) v block: 3nb top or bottom V A (maybe four?
+    // 2) h block: 3nb left or right < >
+    // since this has a shitton of branches, try to run the kernel on /3 size
+    // and compute the output for the whole block one by one
+    // this would of course make super resolution harder.
+
+    // also try:
+    // collapse each X to one quad (weight the center with 1/20 vs 1/5 to each corner)
+    // use this green only 2/3 downsized buffer instead of the /3 buffer to detect edge orientation
   }
   else
   { // bayer

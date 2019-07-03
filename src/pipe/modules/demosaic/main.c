@@ -5,7 +5,7 @@
 #include <string.h>
 
 // XXX HACK! make scale dependent etc
-#define HALF_SIZE
+// #define HALF_SIZE
 
 #if 0
 // TODO: put in header!
@@ -96,6 +96,44 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+#if 1
+  {
+  dt_connector_t ci = {
+    .name   = dt_token("input"),
+    .type   = dt_token("read"),
+    .chan   = dt_token("rggb"),
+    .format = dt_token("ui16"),
+    .roi    = module->connector[0].roi,
+    .connected_mi = -1,
+  };
+  dt_connector_t co = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("rgb"),
+    .format = dt_token("f32"),
+    .roi    = module->connector[1].roi,
+  };
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_xtrans = graph->num_nodes++;
+  dt_node_t *node_xtrans = graph->node + id_xtrans;
+  *node_xtrans = (dt_node_t) {
+    .name   = dt_token("demosaic"),
+    .kernel = dt_token("xtrans"),
+    .module = module,
+    .wd     = module->connector[1].roi.roi_wd/3,
+    .ht     = module->connector[1].roi.roi_ht/3,
+    .dp     = 1,
+    .num_connectors = 2,
+    .connector = {
+      ci, co,
+    },
+  };
+  // TODO: check connector config before!
+  dt_connector_copy(graph, module, id_xtrans, 0, 0);
+  dt_connector_copy(graph, module, id_xtrans, 1, 1);
+  return;
+  }
+#endif
 #ifdef HALF_SIZE
   {
   // we do whatever the default implementation would have done, too:

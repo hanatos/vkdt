@@ -67,7 +67,7 @@ handle_event(SDL_Event *event)
         vkdt.view_look_at_x = im_x;
         vkdt.view_look_at_y = im_y;
       }
-      else if(vkdt.view_scale >= 4.0f)
+      else if(vkdt.view_scale >= 8.0f)
       {
         vkdt.view_scale = -1.0f;
         vkdt.view_look_at_x = wd/2.0f;
