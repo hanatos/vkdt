@@ -40,11 +40,9 @@ cli/%.o: cli/%.c Makefile $(CLI_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.c Makefile $(GUI_H)
-	echo "c rule with headers "$(GUI_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.cpp Makefile $(GUI_H)
-	echo "c++ rule with headers "$(GUI_H)
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
