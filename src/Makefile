@@ -18,6 +18,7 @@ clean: Makefile
 	rm -f vkdt vkdt-cli 
 	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O)
 	rm -f pipe/modules/*/lib*.so
+	rm -f pipe/modules/*/*.spv
 
 # for sched_affinity
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
