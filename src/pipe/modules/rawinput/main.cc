@@ -5,7 +5,6 @@
 
 extern "C" {
 #include "modules/api.h"
-#include "module.h"
 
 static rawspeed::CameraMetaData *meta = 0;
 
@@ -138,7 +137,7 @@ int init(dt_module_t *mod)
 
 void cleanup(dt_module_t *mod)
 {
-#if 1 // DEBUG: keep address sanitizer/leak checking happy:
+#if 0 // DEBUG: keep address sanitizer/leak checking happy:
   // remember to switch this off for non unit testing. it's
   // a performance nightmare and not thread safe either.
   delete meta;
