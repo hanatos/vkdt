@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
 
   dt_graph_run(&graph, s_graph_run_all);
 
+  dt_graph_cleanup(&graph);
   qvk_cleanup();
   exit(0);
 }

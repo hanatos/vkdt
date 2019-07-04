@@ -147,16 +147,6 @@ const char *vk_requested_instance_extensions[] = {
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
 };
 
-// XXX don't need ray tracing
-const char *vk_requested_device_extensions[] = {
-  // VK_NV_RAY_TRACING_EXTENSION_NAME,
-  VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-  // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // :( intel doesn't have it
-#ifdef QVK_ENABLE_VALIDATION
-  VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
-#endif
-};
-
 static const VkApplicationInfo vk_app_info = {
   .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
   .pApplicationName   = "darktable ng",
@@ -683,12 +673,21 @@ qvk_init()
       .inheritedQueries = 1,
     }
   };
+
+  const char *vk_requested_device_extensions[] = {
+    // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // :( intel doesn't have it
+#ifdef QVK_ENABLE_VALIDATION
+    VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
+#endif
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME, // goes last because we might not want it without gui
+  };
+  const int len = LENGTH(vk_requested_device_extensions) - (qvk.window ? 0 : 1);
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pNext                   = &device_features,
     .pQueueCreateInfos       = queue_create_info,
     .queueCreateInfoCount    = num_create_queues,
-    .enabledExtensionCount   = LENGTH(vk_requested_device_extensions),
+    .enabledExtensionCount   = len,
     .ppEnabledExtensionNames = vk_requested_device_extensions,
   };
 
@@ -862,18 +861,16 @@ qvk_cleanup()
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
 
-  destroy_swapchain();
-  vkDestroySurfaceKHR  (qvk.instance, qvk.surface,    NULL);
+  if(qvk.window)  destroy_swapchain();
+  if(qvk.surface) vkDestroySurfaceKHR(qvk.instance, qvk.surface, NULL);
 
-  for(int i = 0; i < NUM_SEMAPHORES; i++) {
+  for(int i = 0; i < NUM_SEMAPHORES; i++)
     vkDestroySemaphore(qvk.device, qvk.semaphores[i], NULL);
-  }
 
-  for(int i = 0; i < QVK_MAX_FRAMES_IN_FLIGHT; i++) {
+  for(int i = 0; i < QVK_MAX_FRAMES_IN_FLIGHT; i++)
     vkDestroyFence(qvk.device, qvk.fences_frame_sync[i], NULL);
-  }
 
-  vkDestroyCommandPool   (qvk.device, qvk.command_pool,     NULL);
+  vkDestroyCommandPool (qvk.device, qvk.command_pool,     NULL);
 
   vkDestroyDevice      (qvk.device,   NULL);
   QVK(qvkDestroyDebugUtilsMessengerEXT(qvk.instance, qvk.dbg_messenger, NULL));

@@ -1,4 +1,4 @@
-#include "module.h"
+#include "modules/api.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,14 +25,12 @@ void write_sink(
     dt_module_t *module,
     void *buf)
 {
-  fprintf(stderr, "[export] writing 'test.pfm'\n");
+  const char *basename = dt_module_param_string(module, 0);
+  fprintf(stderr, "[export] writing '%s'\n", basename);
   float *pixel = buf;
 
   const int width  = module->connector[0].roi.roi_wd;
   const int height = module->connector[0].roi.roi_ht;
-
-  // TODO: get from ui params
-  const char *basename = "test"; // XXX
 
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.pfm", basename);

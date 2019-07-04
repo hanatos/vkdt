@@ -82,6 +82,9 @@ dt_graph_cleanup(dt_graph_t *g)
       }
       if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
     }
+    vkDestroyPipelineLayout     (qvk.device, g->node[i].pipeline_layout, 0);
+    vkDestroyPipeline           (qvk.device, g->node[i].pipeline,        0);
+    vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,     0);
   }
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
@@ -740,8 +743,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       // also wait for our output buffers to be transferred into general layout.
       // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
       for(int i=0;i<node->num_connectors;i++)
-        if(dt_connector_input(node->connector+i))
+        if(dt_connector_input(node->connector+i) && !node->module->so->write_sink)
           BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        else if(dt_connector_input(node->connector+i) && node->module->so->write_sink)
+          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         else if(dt_connector_output(node->connector+i))
           BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
     }
@@ -772,7 +777,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     vkCmdCopyImageToBuffer(
         cmd_buf,
         node->connector[0].image,
-        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         node->connector[0].staging,
         1, &regions);
     BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
