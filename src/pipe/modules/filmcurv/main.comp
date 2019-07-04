@@ -69,6 +69,18 @@ hermite4(float v)
   return h00 * y.x + h10 * h * m.x + h01 * y.y + h11 * h * m.y;
 }
 
+// ACEScc as specified in S-2014-003
+float
+acescc(float v)
+{
+  if(v <= 0.0)
+    return (log2(.00001526) + 9.72)/17.52;
+  else if(v < .0000305175) // 2^-15
+    return (log2(.00001526 + .5*v) + 9.72)/17.52;
+  else
+    return (log2(v) + 9.72)/17.52;
+}
+
 void
 main()
 {
@@ -78,8 +90,14 @@ main()
   float l1  = texelFetch(img_lum, ipos, 0).r;
   vec3  rgb = texelFetch(img_in,  ipos, 0).rgb;
 
+  // acescc luma:
+  // vec3 w = vec3(0.2126, 0.7152, 0.0722);
+
+  // xyz luma
   vec3 w = vec3(0.299, 0.587, 0.114);
   float l0 = dot(w, rgb);
+  // float l2 = acescc(l1);
+
   const float black_ev = params.black;
   const float black = exp2(black_ev);
   float white = 1.0f+exp2(black_ev);
