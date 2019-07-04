@@ -64,6 +64,14 @@ read_header(
   jpg->width = jpg->dinfo.image_width;
   jpg->height = jpg->dinfo.image_height;
 
+  for(int k=0;k<4;k++)
+  {
+    mod->img_param.black[k]        = 0.0f;
+    mod->img_param.white[k]        = 1.0f;
+    mod->img_param.whitebalance[k] = 1.0f;
+  }
+  mod->img_param.filters = 0;
+
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
   return 0;
 }

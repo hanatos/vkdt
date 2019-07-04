@@ -718,6 +718,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
   // TODO: run flags and active module
   if(node->name == dt_token("demosaic")) *runflag = 2; // XXX hack
+  if(node->name == dt_token("srgb2f")) *runflag = 2; // XXX hack
   if(!*runflag) return VK_SUCCESS; // nothing to do yet
 
   VkCommandBuffer cmd_buf = graph->command_buffer;
@@ -1385,7 +1386,8 @@ VkResult dt_graph_run(
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6);
   }
-  dt_log(s_log_perf, "total time:\t%8.2g ms",
-      (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6);
+  if(graph->query_cnt)
+    dt_log(s_log_perf, "total time:\t%8.2g ms",
+        (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6);
   return VK_SUCCESS;
 }
