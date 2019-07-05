@@ -94,6 +94,53 @@ extern "C" void dt_gui_poll_event_imgui(SDL_Event *event)
   // TODO: for the active module/widget, use events to move on-canvas stuff!
 }
 
+namespace {
+void view_to_image(
+    const float v[2],
+    float       img[2])
+{
+  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
+  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
+  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
+  float imwd = vkdt.view_width, imht = vkdt.view_height;
+  float scale = MIN(imwd/wd, imht/ht);
+  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
+  float cvx = vkdt.view_width *.5f;
+  float cvy = vkdt.view_height*.5f;
+  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
+  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
+  float ox = cvx - scale * vkdt.view_look_at_x;
+  float oy = cvy - scale * vkdt.view_look_at_y;
+  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+  img[0] = (v[0] - x) / (scale * fwd);
+  img[1] = (v[1] - y) / (scale * fht);
+}
+
+// convert normalised image coordinates to pixel coord on screen
+void image_to_view(
+    const float img[2], // image pixel coordinate in [0,1]^2
+    float       v[2])   // window pixel coordinate
+{
+  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
+  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
+  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
+  float imwd = vkdt.view_width, imht = vkdt.view_height;
+  float scale = MIN(imwd/wd, imht/ht);
+  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
+  float cvx = vkdt.view_width *.5f;
+  float cvy = vkdt.view_height*.5f;
+  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
+  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
+  float ox = cvx - scale * vkdt.view_look_at_x;
+  float oy = cvy - scale * vkdt.view_look_at_y;
+  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+  v[0] = x + scale * img[0] * fwd;
+  v[1] = y + scale * img[1] * fht;
+}
+} // anonymous namespace
+
 // call from main loop:
 extern "C" void dt_gui_render_frame_imgui()
 {
@@ -155,13 +202,11 @@ extern "C" void dt_gui_render_frame_imgui()
               case dt_token_static("quad"):
               {
                 float *v = (float *)vkdt.graph_dev.module[modid].param + parid;
-                ImVec2 p[] = {
-                  ImVec2(vkdt.view_x+vkdt.view_width*v[0], vkdt.view_y+vkdt.view_height*v[1]),
-                  ImVec2(vkdt.view_x+vkdt.view_width*v[2], vkdt.view_y+vkdt.view_height*v[3]),
-                  ImVec2(vkdt.view_x+vkdt.view_width*v[4], vkdt.view_y+vkdt.view_height*v[5]),
-                  ImVec2(vkdt.view_x+vkdt.view_width*v[6], vkdt.view_y+vkdt.view_height*v[7])};
+                float p[8];
+                for(int k=0;k<4;k++)
+                image_to_view(v+2*k, p+2*k);
                 ImGui::GetWindowDrawList()->AddPolyline(
-                    p, 4, IM_COL32_WHITE, true, 1.0);
+                    (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
                 break;
               }
               default:;
