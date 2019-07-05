@@ -1,0 +1,40 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  vec2 persp_a;
+  vec2 persp_b;
+  vec2 persp_c;
+  vec2 persp_d;
+  vec2 crop_x;
+  vec2 crop_y;
+} params;
+
+
+layout( // input f32 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f32 buffer rgb
+    set = 1, binding = 1, rgba32f
+) uniform image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec4 rgba = texelFetch(img_in, ipos, 0);
+  imageStore(img_out, ipos, vec4(rgba.rgb, 1));
+}
+

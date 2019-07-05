@@ -91,6 +91,7 @@ extern "C" void dt_gui_poll_event_imgui(SDL_Event *event)
   // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
   // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
   ImGui_ImplSDL2_ProcessEvent(event);
+  // TODO: for the active module/widget, use events to move on-canvas stuff!
 }
 
 // call from main loop:
@@ -142,6 +143,30 @@ extern "C" void dt_gui_render_frame_imgui()
                 imgid, ImVec2(x, y), ImVec2(x+w, y+h),
                 ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE);
           }
+          // center view has on-canvas widgets:
+          // TODO: only do this for the active module!
+          for(int i=0;i<vkdt.num_widgets;i++)
+          {
+            int modid = vkdt.widget[i].modid;
+            int parid = vkdt.widget[i].parid;
+            // distinguish by type:
+            switch(vkdt.widget[i].type)
+            {
+              case dt_token_static("quad"):
+              {
+                float *v = (float *)vkdt.graph_dev.module[modid].param + parid;
+                ImVec2 p[] = {
+                  ImVec2(vkdt.view_x+vkdt.view_width*v[0], vkdt.view_y+vkdt.view_height*v[1]),
+                  ImVec2(vkdt.view_x+vkdt.view_width*v[2], vkdt.view_y+vkdt.view_height*v[3]),
+                  ImVec2(vkdt.view_x+vkdt.view_width*v[4], vkdt.view_y+vkdt.view_height*v[5]),
+                  ImVec2(vkdt.view_x+vkdt.view_width*v[6], vkdt.view_y+vkdt.view_height*v[7])};
+                ImGui::GetWindowDrawList()->AddPolyline(
+                    p, 4, IM_COL32_WHITE, true, 1.0);
+                break;
+              }
+              default:;
+            }
+          }
           ImGui::End();
         }
 
@@ -162,32 +187,27 @@ extern "C" void dt_gui_render_frame_imgui()
 
           for(int i=0;i<vkdt.num_widgets;i++)
           {
-            int modid = vkdt.widget_modid[i];
-            int parid = vkdt.widget_parid[i];
-            // TODO: distinguish by type:
-            // TODO: distinguish by count:
-            float *val = (float*)vkdt.graph_dev.module[modid].param + parid;
-            char str[10] = {0};
-            memcpy(str,
-                &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
-              ImGui::SliderFloat(str, val,
-                  vkdt.widget_min[i],
-                  vkdt.widget_max[i],
-                  "%2.5f");
+            int modid = vkdt.widget[i].modid;
+            int parid = vkdt.widget[i].parid;
+            // distinguish by type:
+            switch(vkdt.widget[i].type)
+            {
+              case dt_token_static("slider"):
+              {
+                // TODO: distinguish by count:
+                float *val = (float*)vkdt.graph_dev.module[modid].param + parid;
+                char str[10] = {0};
+                memcpy(str,
+                    &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+                ImGui::SliderFloat(str, val,
+                    vkdt.widget[i].min,
+                    vkdt.widget[i].max,
+                    "%2.5f");
+                break;
+              }
+              default:;
+            }
           }
-
-#if 0
-          ImGuiIO& io = ImGui::GetIO();
-          ImTextureID imgid = io.Fonts->TexID;   // XXX put VkImage of display node!
-          float wd = (float)io.Fonts->TexWidth;
-          float ht = (float)io.Fonts->TexHeight;
-          // lower level API:
-          // ImGui::GetWindowDrawList()->AddImage()
-          // IMGUI_API void  AddImage(ImTextureID user_texture_id, const ImVec2& a, const ImVec2& b, const ImVec2& uv_a = ImVec2(0,0), const ImVec2& uv_b = ImVec2(1,1), ImU32 col = IM_COL32_WHITE);
-          ImGui::Image(imgid, ImVec2(wd, ht),    // VkImage and dimensions
-              ImVec2(0,0), ImVec2(1,1),          // uv0 uv1
-              ImVec4(1,1,1,1), ImVec4(0,0,0,0)); // tint + border col
-#endif
           ImGui::End();
         }
 

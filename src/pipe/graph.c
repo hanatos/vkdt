@@ -220,6 +220,7 @@ int dt_graph_read_config_ascii(
     if(fgetc(f) == EOF) break; // read \n
     char *c = line;
     lno++;
+    if(line[0] == '#') continue;
     dt_token_t cmd = dt_read_token(c, &c);
     if     (cmd == dt_token("module"))  { if(read_module_ascii(graph, c))     goto error;}
     else if(cmd == dt_token("connect")) { if(read_connection_ascii(graph, c)) goto error;}

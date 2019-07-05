@@ -273,10 +273,11 @@ dt_gui_add_widget(
     dt_token_t module,
     dt_token_t inst,
     dt_token_t param,
+    dt_token_t type,
     float min,
     float max)
 {
-  if(vkdt.num_widgets >= sizeof(vkdt.widget_modid)/sizeof(vkdt.widget_modid[0]))
+  if(vkdt.num_widgets >= sizeof(vkdt.widget)/sizeof(vkdt.widget[0]))
     return;
 
   int modid = dt_module_get(&vkdt.graph_dev, module, inst);
@@ -285,10 +286,11 @@ dt_gui_add_widget(
   if(parid < 0) return;
 
   int i = vkdt.num_widgets++;
-  vkdt.widget_modid[i] = modid;
-  vkdt.widget_parid[i] = parid;
-  vkdt.widget_min[i]   = min;
-  vkdt.widget_max[i]   = max;
+  vkdt.widget[i].modid = modid;
+  vkdt.widget[i].parid = parid;
+  vkdt.widget[i].type  = type;
+  vkdt.widget[i].min   = min;
+  vkdt.widget[i].max   = max;
 }
 
 // TODO: also read descriptive text from here
@@ -309,9 +311,20 @@ dt_gui_read_ui_ascii(
     dt_token_t mod  = dt_read_token(line, &line);
     dt_token_t inst = dt_read_token(line, &line);
     dt_token_t parm = dt_read_token(line, &line);
-    float min = dt_read_float(line, &line);
-    float max = dt_read_float(line, &line);
-    dt_gui_add_widget(mod, inst, parm, min, max);
+    dt_token_t type = dt_read_token(line, &line);
+    float min = 0.0f, max = 0.0f;
+    switch(type)
+    {
+      case dt_token_static("slider"):
+        min = dt_read_float(line, &line);
+        max = dt_read_float(line, &line);
+        break;
+      case dt_token_static("quad"):
+        break;
+      default:
+        dt_log(s_log_err, "unknown widget type in %s!", filename);
+    }
+    dt_gui_add_widget(mod, inst, parm, type, min, max);
   }
   fclose(f);
   return 0;

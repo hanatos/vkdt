@@ -5,7 +5,7 @@
 #include <string.h>
 
 // XXX HACK! make scale dependent etc
-// #define HALF_SIZE
+#define HALF_SIZE
 
 #if 0
 // TODO: put in header!
