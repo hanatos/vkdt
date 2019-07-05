@@ -172,26 +172,23 @@ extern "C" void dt_gui_render_frame_imgui()
           if(vkdt.graph_dev.output)
           {
             ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
-            float wd = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
-            float ht = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
-            float imwd = vkdt.view_width, imht = vkdt.view_height;
-            float scale = MIN(imwd/wd, imht/ht);
-            if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
-            float w = scale * wd, h = scale * ht;
-            float cvx = vkdt.view_width *.5f;
-            float cvy = vkdt.view_height*.5f;
-            if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
-            if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
-            float ox = cvx - scale * vkdt.view_look_at_x;
-            float oy = cvy - scale * vkdt.view_look_at_y;
-            float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
-            // TODO: move uv coordinates instead of whole window!
+            float im0[2], im1[2];
+            float v0[2] = {(float)vkdt.view_x, (float)vkdt.view_y};
+            float v1[2] = {(float)vkdt.view_x+vkdt.view_width, (float)vkdt.view_y+vkdt.view_height};
+            view_to_image(v0, im0);
+            view_to_image(v1, im1);
+            im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
+            im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
+            im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
+            im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
+            image_to_view(im0, v0);
+            image_to_view(im1, v1);
             ImGui::GetWindowDrawList()->AddImage(
-                imgid, ImVec2(x, y), ImVec2(x+w, y+h),
-                ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE);
+                imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
+                ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
           }
           // center view has on-canvas widgets:
-          // TODO: only do this for the active module!
+          // TODO: only do this for the active module/active widget!
           for(int i=0;i<vkdt.num_widgets;i++)
           {
             int modid = vkdt.widget[i].modid;
