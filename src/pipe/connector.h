@@ -11,12 +11,21 @@
 typedef struct dt_roi_t
 {
   uint32_t full_wd, full_ht; // full input size
+  // XXX TODO: remove ctx and put in a separate connector
   uint32_t ctx_wd, ctx_ht;   // size of downscaled context buffer
   uint32_t roi_wd, roi_ht;   // dimensions of region of interest
   uint32_t roi_ox, roi_oy;   // offset in full image
   float roi_scale;           // scale: roi_wd * roi_scale is on input scale
 }
 dt_roi_t;
+
+typedef enum dt_connector_flags_t
+{
+  s_conn_none   = 0,
+  s_conn_smooth = 1,
+}
+dt_connector_flags_t;
+
 
 // shared property of nodes and modules: how many connectors do we allocate at
 // max for each one of them:
@@ -32,11 +41,12 @@ dt_roi_t;
 // the ctx info is always ignored.
 typedef struct dt_connector_t
 {
-  // TODO: if chan and format change between context and roi we'll need to redesign!
   dt_token_t name;   // connector name
   dt_token_t type;   // read write source sink
   dt_token_t chan;   // rgb yuv..
   dt_token_t format; // f32 ui16
+
+  dt_connector_flags_t flags;
 
   // outputs (write buffers) can be connected to multiple inputs
   // inputs (read buffers) can only be connected to exactly one output
@@ -49,11 +59,13 @@ typedef struct dt_connector_t
   int connected_ni;  // pointing to connected node after create_nodes has been called
   int connected_nc;  // index of the connector on the node
 
+  // ==> snip
   // TODO: all from here: strip out to second ctx connector, we'll need memory allocations etc as well:
   // memory allocations for region of interest
   // as well as the context buffers, if any:
   uint64_t roi_offset, roi_size;
   uint64_t ctx_offset, ctx_size;
+  // <== snip
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;

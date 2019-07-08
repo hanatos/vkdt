@@ -556,7 +556,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
           .connector + c->connected_mc;
         c->image      = c2->image;      // can't hurt to copy again
         c->image_view = c2->image_view;
-        img_info[i].sampler     = qvk.tex_sampler_nearest;
+        img_info[i].sampler     = (c->flags & s_conn_smooth) ? qvk.tex_sampler : qvk.tex_sampler_nearest;
         img_info[i].imageView   = c->image_view;
         img_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         img_dset[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -706,6 +706,8 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       {
         dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
         *roi = c->roi;
+        // propagate flags:
+        graph->module[c->connected_mi].connector[c->connected_mc].flags |= c->flags;
       }
     }
   }

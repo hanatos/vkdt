@@ -60,15 +60,14 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  // this is just bayer 2x half size for now:
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
-  // this is rounding down to full bayer block size, which is good:
 #ifdef HALF_SIZE
   const int block = module->img_param.filters == 9u ? 3 : 2;
 #else
   const int block = 1;
 #endif
+  // this division is rounding down to full bayer block size, which is good:
   ro->full_wd = ri->full_wd/block;
   ro->full_ht = ri->full_ht/block;
 }

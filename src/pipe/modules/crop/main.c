@@ -2,6 +2,27 @@
 #include "gaussian_elimination.h"
 
 // TODO ROI
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  // TODO: set smooth flag on input connector only if we have any distortion parameter set
+  module->connector[0].flags = s_conn_smooth;
+
+  // TODO: consider crop/distortion
+  // copy to input
+  dt_roi_t *roi = &module->connector[1].roi;
+  module->connector[0].roi = *roi;
+}
+
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  // copy to output
+  // TODO: consider crop/distortion!
+  module->connector[1].roi = module->connector[0].roi;
+}
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {

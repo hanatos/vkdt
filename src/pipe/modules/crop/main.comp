@@ -36,8 +36,12 @@ main()
       (params.h10*xy.x + params.h11*xy.y + params.h12)/
       (params.h20*xy.x + params.h21*xy.y + params.h22));
   // rounding texture access:
-  // TODO: make smooth access as connector flag! and then use catmull-rom
-  vec4 rgba = texelFetch(img_in, ivec2(rd+0.5), 0);
+  // vec4 rgba = texelFetch(img_in, ivec2(rd+0.5), 0);
+  // bilinear:
+  // vec4 rgba = texture(img_in, rd/params.ri.roi);
+  // catmull rom is a little slower (especially on intel) but results
+  // in a bit more acuity:
+  vec4 rgba = sample_catmull_rom(img_in, rd/params.ri.roi);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 
