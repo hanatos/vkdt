@@ -145,21 +145,22 @@ int main(int argc, char *argv[])
     SDL_WaitEvent(&event);
     do
     {
-      dt_gui_poll_event_imgui(&event);
-      if (event.type == SDL_QUIT)
+      if(dt_gui_poll_event_imgui(&event))
+        ;
+      else if(event.type == SDL_QUIT)
         running = 0;
-      else if (event.type == SDL_KEYDOWN)
+      else if(event.type == SDL_KEYDOWN)
       {
         if(event.key.keysym.sym == SDLK_ESCAPE)
           running = 0;
       }
-      else if (event.type == SDL_WINDOWEVENT &&
+      else if(event.type == SDL_WINDOWEVENT &&
           event.window.event == SDL_WINDOWEVENT_RESIZED &&
           event.window.windowID == SDL_GetWindowID(qvk.window))
       {
         // XXX need to rebuild the swap chain!
       }
-      handle_event(&event);
+      else handle_event(&event);
     }
     while (SDL_PollEvent(&event));
 

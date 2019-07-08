@@ -3,6 +3,7 @@
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_sdl.h"
 #include "qvk/qvk.h"
+#include <SDL.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,59 @@
 // XXX argh, what a terrible hack
 #define dt_log fprintf
 #define s_log_qvk stderr
+
+// some ui state (probably clean up and put in a struct or so
+namespace { // anonymous gui state namespace
+static int active_widget = -1;
+static float quad_state[8] = {0.0f};
+} // end anonymous gui state space
+
+namespace {
+void view_to_image(
+    const float v[2],
+    float       img[2])
+{
+  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
+  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
+  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
+  float imwd = vkdt.view_width, imht = vkdt.view_height;
+  float scale = MIN(imwd/wd, imht/ht);
+  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
+  float cvx = vkdt.view_width *.5f;
+  float cvy = vkdt.view_height*.5f;
+  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
+  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
+  float ox = cvx - scale * vkdt.view_look_at_x;
+  float oy = cvy - scale * vkdt.view_look_at_y;
+  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+  img[0] = (v[0] - x) / (scale * fwd);
+  img[1] = (v[1] - y) / (scale * fht);
+}
+
+// convert normalised image coordinates to pixel coord on screen
+void image_to_view(
+    const float img[2], // image pixel coordinate in [0,1]^2
+    float       v[2])   // window pixel coordinate
+{
+  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
+  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
+  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
+  float imwd = vkdt.view_width, imht = vkdt.view_height;
+  float scale = MIN(imwd/wd, imht/ht);
+  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
+  float cvx = vkdt.view_width *.5f;
+  float cvy = vkdt.view_height*.5f;
+  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
+  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
+  float ox = cvx - scale * vkdt.view_look_at_x;
+  float oy = cvy - scale * vkdt.view_look_at_y;
+  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+  v[0] = x + scale * img[0] * fwd;
+  v[1] = y + scale * img[1] * fht;
+}
+} // anonymous namespace
 
 extern "C" int dt_gui_init_imgui()
 {
@@ -83,7 +137,7 @@ extern "C" int dt_gui_init_imgui()
   return 0;
 }
 
-extern "C" void dt_gui_poll_event_imgui(SDL_Event *event)
+extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
 {
   // Poll and handle events (inputs, window resize, etc.)
   // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -91,55 +145,62 @@ extern "C" void dt_gui_poll_event_imgui(SDL_Event *event)
   // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
   // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
   ImGui_ImplSDL2_ProcessEvent(event);
-  // TODO: for the active module/widget, use events to move on-canvas stuff!
+
+  if(active_widget >= 0)
+  {
+    const int i = active_widget;
+    switch(vkdt.widget[i].type)
+    {
+      case dt_token_static("quad"):
+      {
+        static int c = -1;
+        if(c >= 0 && event->type == SDL_MOUSEMOTION)
+        {
+          float n[] = {0, 0};
+          float v[] = {(float)event->button.x, (float)event->button.y};
+          view_to_image(v, n);
+          // convert view space mouse coordinate to normalised image
+          // copy to quad state at corner c
+          quad_state[2*c+0] = n[0];
+          quad_state[2*c+1] = n[1];
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONUP)
+        {
+          c = -1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        {
+          // find active corner if close enough
+          float m[] = {(float)event->button.x, (float)event->button.y};
+          float max_dist = FLT_MAX;
+          float px_dist = 10;
+          for(int cc=0;cc<4;cc++)
+          {
+            float n[] = {quad_state[2*cc+0], quad_state[2*cc+1]}, v[2];
+            image_to_view(n, v);
+            float dist2 =
+              (v[0]-m[0])*(v[0]-m[0])+
+              (v[1]-m[1])*(v[1]-m[1]);
+            if(dist2 < px_dist*px_dist)
+            {
+              if(dist2 < max_dist)
+              {
+                max_dist = dist2;
+                c = cc;
+              }
+            }
+          }
+          return max_dist < FLT_MAX;
+        }
+        break;
+      }
+      default:;
+    }
+  }
+  return 0;
 }
 
-namespace {
-void view_to_image(
-    const float v[2],
-    float       img[2])
-{
-  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
-  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
-  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
-  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
-  float imwd = vkdt.view_width, imht = vkdt.view_height;
-  float scale = MIN(imwd/wd, imht/ht);
-  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
-  float cvx = vkdt.view_width *.5f;
-  float cvy = vkdt.view_height*.5f;
-  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
-  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
-  float ox = cvx - scale * vkdt.view_look_at_x;
-  float oy = cvy - scale * vkdt.view_look_at_y;
-  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
-  img[0] = (v[0] - x) / (scale * fwd);
-  img[1] = (v[1] - y) / (scale * fht);
-}
-
-// convert normalised image coordinates to pixel coord on screen
-void image_to_view(
-    const float img[2], // image pixel coordinate in [0,1]^2
-    float       v[2])   // window pixel coordinate
-{
-  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
-  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
-  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
-  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
-  float imwd = vkdt.view_width, imht = vkdt.view_height;
-  float scale = MIN(imwd/wd, imht/ht);
-  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
-  float cvx = vkdt.view_width *.5f;
-  float cvy = vkdt.view_height*.5f;
-  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
-  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
-  float ox = cvx - scale * vkdt.view_look_at_x;
-  float oy = cvy - scale * vkdt.view_look_at_y;
-  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
-  v[0] = x + scale * img[0] * fwd;
-  v[1] = y + scale * img[1] * fht;
-}
-} // anonymous namespace
 
 // call from main loop:
 extern "C" void dt_gui_render_frame_imgui()
@@ -153,109 +214,130 @@ extern "C" void dt_gui_render_frame_imgui()
             g_MainWindowData.FrameIndex = 0;
         }
 #endif
+  // Start the Dear ImGui frame
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplSDL2_NewFrame(qvk.window);
+  ImGui::NewFrame();
 
-        // Start the Dear ImGui frame
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplSDL2_NewFrame(qvk.window);
-        ImGui::NewFrame();
+  { // center image view
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= ImGuiWindowFlags_NoTitleBar;
+    window_flags |= ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoResize;
+    window_flags |= ImGuiWindowFlags_NoBackground;
+    ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
+    ImGui::Begin("center", 0, window_flags);
 
-        { // center image view
-          ImGuiWindowFlags window_flags = 0;
-          window_flags |= ImGuiWindowFlags_NoTitleBar;
-          window_flags |= ImGuiWindowFlags_NoMove;
-          window_flags |= ImGuiWindowFlags_NoResize;
-          window_flags |= ImGuiWindowFlags_NoBackground;
-          ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
-          ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
-          ImGui::Begin("center", 0, window_flags);
-
-          if(vkdt.graph_dev.output)
+    if(vkdt.graph_dev.output)
+    {
+      ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
+      float im0[2], im1[2];
+      float v0[2] = {(float)vkdt.view_x, (float)vkdt.view_y};
+      float v1[2] = {(float)vkdt.view_x+vkdt.view_width, (float)vkdt.view_y+vkdt.view_height};
+      view_to_image(v0, im0);
+      view_to_image(v1, im1);
+      im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
+      im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
+      im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
+      im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
+      image_to_view(im0, v0);
+      image_to_view(im1, v1);
+      ImGui::GetWindowDrawList()->AddImage(
+          imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
+          ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+    }
+    // center view has on-canvas widgets:
+    if(active_widget >= 0)
+    {
+      const int i = active_widget;
+      // distinguish by type:
+      switch(vkdt.widget[i].type)
+      {
+        case dt_token_static("quad"):
           {
-            ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
-            float im0[2], im1[2];
-            float v0[2] = {(float)vkdt.view_x, (float)vkdt.view_y};
-            float v1[2] = {(float)vkdt.view_x+vkdt.view_width, (float)vkdt.view_y+vkdt.view_height};
-            view_to_image(v0, im0);
-            view_to_image(v1, im1);
-            im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
-            im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
-            im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
-            im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
-            image_to_view(im0, v0);
-            image_to_view(im1, v1);
-            ImGui::GetWindowDrawList()->AddImage(
-                imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
-                ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+            float *v = quad_state;
+            float p[8];
+            for(int k=0;k<4;k++)
+              image_to_view(v+2*k, p+2*k);
+            ImGui::GetWindowDrawList()->AddPolyline(
+                (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+            break;
           }
-          // center view has on-canvas widgets:
-          // TODO: only do this for the active module/active widget!
-          for(int i=0;i<vkdt.num_widgets;i++)
+        default:;
+      }
+    }
+    ImGui::End();
+  }
+
+  { // right panel
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= ImGuiWindowFlags_NoTitleBar;
+    // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
+    // window_flags |= ImGuiWindowFlags_MenuBar;
+    window_flags |= ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoResize;
+    // if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
+    // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
+    // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
+    // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+    ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
+    ImGui::Begin("panel-right", 0, window_flags);
+
+    for(int i=0;i<vkdt.num_widgets;i++)
+    {
+      int modid = vkdt.widget[i].modid;
+      int parid = vkdt.widget[i].parid;
+      // distinguish by type:
+      switch(vkdt.widget[i].type)
+      {
+        case dt_token_static("slider"):
+        {
+          // TODO: distinguish by count:
+          float *val = (float*)vkdt.graph_dev.module[modid].param + parid;
+          char str[10] = {0};
+          memcpy(str,
+              &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+          ImGui::SliderFloat(str, val,
+              vkdt.widget[i].min,
+              vkdt.widget[i].max,
+              "%2.5f");
+          break;
+        }
+        case dt_token_static("quad"):
+        {
+          float *v = (float *)vkdt.graph_dev.module[modid].param + parid;
+          if(active_widget == i)
           {
-            int modid = vkdt.widget[i].modid;
-            int parid = vkdt.widget[i].parid;
-            // distinguish by type:
-            switch(vkdt.widget[i].type)
+            if(ImGui::Button("done"))
             {
-              case dt_token_static("quad"):
-              {
-                float *v = (float *)vkdt.graph_dev.module[modid].param + parid;
-                float p[8];
-                for(int k=0;k<4;k++)
-                image_to_view(v+2*k, p+2*k);
-                ImGui::GetWindowDrawList()->AddPolyline(
-                    (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
-                break;
-              }
-              default:;
+              active_widget = -1;
+              // copy quad state to module params
+              memcpy(v, quad_state, sizeof(float)*8);
             }
           }
-          ImGui::End();
-        }
-
-        { // right panel
-          ImGuiWindowFlags window_flags = 0;
-          window_flags |= ImGuiWindowFlags_NoTitleBar;
-          // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
-          // window_flags |= ImGuiWindowFlags_MenuBar;
-          window_flags |= ImGuiWindowFlags_NoMove;
-          window_flags |= ImGuiWindowFlags_NoResize;
-          // if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
-          // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
-          // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
-          // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-          ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_FirstUseEver);
-          ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
-          ImGui::Begin("panel-right", 0, window_flags);
-
-          for(int i=0;i<vkdt.num_widgets;i++)
+          else
           {
-            int modid = vkdt.widget[i].modid;
-            int parid = vkdt.widget[i].parid;
-            // distinguish by type:
-            switch(vkdt.widget[i].type)
+            if(ImGui::Button("start"))
             {
-              case dt_token_static("slider"):
-              {
-                // TODO: distinguish by count:
-                float *val = (float*)vkdt.graph_dev.module[modid].param + parid;
-                char str[10] = {0};
-                memcpy(str,
-                    &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
-                ImGui::SliderFloat(str, val,
-                    vkdt.widget[i].min,
-                    vkdt.widget[i].max,
-                    "%2.5f");
-                break;
-              }
-              default:;
+              active_widget = i;
+              // copy to quad state
+              memcpy(quad_state, v, sizeof(float)*8);
+              // reset module params so the image will not appear distorted:
+              float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
+              memcpy(v, def, sizeof(float)*8);
             }
           }
-          ImGui::End();
+          break;
         }
+        default:;
+      }
+    }
+    ImGui::End();
+  } // end right panel
 
-        // Rendering
-        ImGui::Render();
-        // memcpy(&wd->ClearValue.color.float32[0], &clear_color, 4 * sizeof(float));
+  ImGui::Render();
 }
 
 extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
