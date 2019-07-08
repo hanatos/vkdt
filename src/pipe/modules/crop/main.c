@@ -63,6 +63,9 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   // XXX padding + column major!
   for(int i=0;i<9;i++)
     ((float*)module->committed_param)[i] = r[i];
+  // TODO: probably actually not necessary on device once we updated the ROI:
+  for(int i=0;i<4;i++)
+    ((float*)module->committed_param)[9+i] = inp[8+i];
 }
 
 int init(dt_module_t *mod)

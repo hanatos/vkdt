@@ -1,5 +1,6 @@
 #include "qvk/qvk.h"
 #include "pipe/graph.h"
+#include "pipe/graph-io.h"
 #include "pipe/global.h"
 #include "core/log.h"
 

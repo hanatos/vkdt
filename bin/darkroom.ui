@@ -5,3 +5,4 @@ filmcurv:01:black:slider:-10:1
 filmcurv:01:detail:slider:0:20
 contrast:01:edges:slider:0.0:1.0
 crop:01:perspect:quad
+crop:01:crop:axquad

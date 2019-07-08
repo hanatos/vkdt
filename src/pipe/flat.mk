@@ -3,6 +3,7 @@ pipe/alloc.o\
 pipe/connector.o\
 pipe/global.o\
 pipe/graph.o\
+pipe/graph-io.o\
 pipe/module.o
 PIPE_H=\
 pipe/alloc.h\
@@ -11,6 +12,7 @@ pipe/connector.inc\
 pipe/dlist.h\
 pipe/global.h\
 pipe/graph.h\
+pipe/graph-io.h\
 pipe/graph-print.h\
 pipe/graph-traverse.inc\
 pipe/modules/api.h\

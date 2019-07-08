@@ -14,8 +14,8 @@
 
 // some ui state (probably clean up and put in a struct or so
 namespace { // anonymous gui state namespace
-static int active_widget = -1;
-static float quad_state[8] = {0.0f};
+static int g_active_widget = -1;
+static float g_state[8] = {0.0f};
 } // end anonymous gui state space
 
 namespace {
@@ -146,9 +146,11 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
   // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
   ImGui_ImplSDL2_ProcessEvent(event);
 
-  if(active_widget >= 0)
+  const float px_dist = 20;
+
+  if(g_active_widget >= 0)
   {
-    const int i = active_widget;
+    const int i = g_active_widget;
     switch(vkdt.widget[i].type)
     {
       case dt_token_static("quad"):
@@ -161,8 +163,8 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
           view_to_image(v, n);
           // convert view space mouse coordinate to normalised image
           // copy to quad state at corner c
-          quad_state[2*c+0] = n[0];
-          quad_state[2*c+1] = n[1];
+          g_state[2*c+0] = n[0];
+          g_state[2*c+1] = n[1];
           return 1;
         }
         else if(event->type == SDL_MOUSEBUTTONUP)
@@ -174,10 +176,9 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
           // find active corner if close enough
           float m[] = {(float)event->button.x, (float)event->button.y};
           float max_dist = FLT_MAX;
-          float px_dist = 10;
           for(int cc=0;cc<4;cc++)
           {
-            float n[] = {quad_state[2*cc+0], quad_state[2*cc+1]}, v[2];
+            float n[] = {g_state[2*cc+0], g_state[2*cc+1]}, v[2];
             image_to_view(n, v);
             float dist2 =
               (v[0]-m[0])*(v[0]-m[0])+
@@ -188,6 +189,48 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
               {
                 max_dist = dist2;
                 c = cc;
+              }
+            }
+          }
+          return max_dist < FLT_MAX;
+        }
+        break;
+      }
+      case dt_token_static("axquad"):
+      {
+        static int e = -1;
+        if(e >= 0 && event->type == SDL_MOUSEMOTION)
+        {
+          float n[] = {0, 0};
+          float v[] = {(float)event->button.x, (float)event->button.y};
+          view_to_image(v, n);
+          float edge = e < 2 ? n[0] : n[1];
+          g_state[e] = edge;
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONUP)
+        {
+          e = -1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        {
+          // find active corner if close enough
+          float m[2] = {(float)event->button.x, (float)event->button.y};
+          float max_dist = FLT_MAX;
+          for(int ee=0;ee<4;ee++)
+          {
+            float n[] = {ee < 2 ? g_state[ee] : 0, ee >= 2 ? g_state[ee] : 0}, v[2];
+            image_to_view(n, v);
+            float dist2 =
+              ee < 2 ?
+              (v[0]-m[0])*(v[0]-m[0]) :
+              (v[1]-m[1])*(v[1]-m[1]);
+            if(dist2 < px_dist*px_dist)
+            {
+              if(dist2 < max_dist)
+              {
+                max_dist = dist2;
+                e = ee;
               }
             }
           }
@@ -248,22 +291,35 @@ extern "C" void dt_gui_render_frame_imgui()
           ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
     }
     // center view has on-canvas widgets:
-    if(active_widget >= 0)
+    if(g_active_widget >= 0)
     {
-      const int i = active_widget;
+      const int i = g_active_widget;
       // distinguish by type:
       switch(vkdt.widget[i].type)
       {
         case dt_token_static("quad"):
-          {
-            float *v = quad_state;
-            float p[8];
-            for(int k=0;k<4;k++)
-              image_to_view(v+2*k, p+2*k);
-            ImGui::GetWindowDrawList()->AddPolyline(
-                (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
-            break;
-          }
+        {
+          float *v = g_state;
+          float p[8];
+          for(int k=0;k<4;k++)
+            image_to_view(v+2*k, p+2*k);
+          ImGui::GetWindowDrawList()->AddPolyline(
+              (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          break;
+        }
+        case dt_token_static("axquad"):
+        {
+          float v[8] = {
+            g_state[0], g_state[2], g_state[1], g_state[2], 
+            g_state[1], g_state[3], g_state[0], g_state[3]
+          };
+          float p[8];
+          for(int k=0;k<4;k++)
+            image_to_view(v+2*k, p+2*k);
+          ImGui::GetWindowDrawList()->AddPolyline(
+              (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          break;
+        }
         default:;
       }
     }
@@ -289,13 +345,15 @@ extern "C" void dt_gui_render_frame_imgui()
     {
       int modid = vkdt.widget[i].modid;
       int parid = vkdt.widget[i].parid;
+      char string[256];
       // distinguish by type:
       switch(vkdt.widget[i].type)
       {
         case dt_token_static("slider"):
         {
           // TODO: distinguish by count:
-          float *val = (float*)vkdt.graph_dev.module[modid].param + parid;
+          float *val = (float*)(vkdt.graph_dev.module[modid].param + 
+            vkdt.graph_dev.module[modid].so->param[parid]->offset);
           char str[10] = {0};
           memcpy(str,
               &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
@@ -307,26 +365,68 @@ extern "C" void dt_gui_render_frame_imgui()
         }
         case dt_token_static("quad"):
         {
-          float *v = (float *)vkdt.graph_dev.module[modid].param + parid;
-          if(active_widget == i)
+          float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+            vkdt.graph_dev.module[modid].so->param[parid]->offset);
+          if(g_active_widget == i)
           {
-            if(ImGui::Button("done"))
+            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+                dt_token_str(vkdt.graph_dev.module[modid].name),
+                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            if(ImGui::Button(string))
             {
-              active_widget = -1;
+              // TODO: factor out into a "finalise gui" callback and also call it on shutdown!
+              g_active_widget = -1;
               // copy quad state to module params
-              memcpy(v, quad_state, sizeof(float)*8);
+              memcpy(v, g_state, sizeof(float)*8);
             }
           }
           else
           {
-            if(ImGui::Button("start"))
+            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+                dt_token_str(vkdt.graph_dev.module[modid].name),
+                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            if(ImGui::Button(string))
             {
-              active_widget = i;
+              g_active_widget = i;
               // copy to quad state
-              memcpy(quad_state, v, sizeof(float)*8);
+              memcpy(g_state, v, sizeof(float)*8);
               // reset module params so the image will not appear distorted:
               float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
               memcpy(v, def, sizeof(float)*8);
+            }
+          }
+          break;
+        }
+        case dt_token_static("axquad"):
+        {
+          float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+            vkdt.graph_dev.module[modid].so->param[parid]->offset);
+          if(g_active_widget == i)
+          {
+            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+                dt_token_str(vkdt.graph_dev.module[modid].name),
+                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            if(ImGui::Button(string))
+            {
+              // TODO: factor out into a "finalise gui" callback and also call it on shutdown!
+              g_active_widget = -1;
+              // copy quad state to module params
+              memcpy(v, g_state, sizeof(float)*4);
+            }
+          }
+          else
+          {
+            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+                dt_token_str(vkdt.graph_dev.module[modid].name),
+                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            if(ImGui::Button(string))
+            {
+              g_active_widget = i;
+              // copy to quad state
+              memcpy(g_state, v, sizeof(float)*4);
+              // reset module params so the image will not appear distorted:
+              float def[] = {0.f, 1.f, 0.f, 1.f};
+              memcpy(v, def, sizeof(float)*4);
             }
           }
           break;

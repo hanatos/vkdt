@@ -12,6 +12,8 @@ layout(std140, set = 0, binding = 0) uniform params_t
   roi_t ri;
   roi_t ro;
   float h00, h01, h02, h10, h11, h12, h20, h21, h22;
+  float crop_x, crop_X;
+  float crop_y, crop_Y;
 } params;
 
 

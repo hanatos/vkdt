@@ -257,7 +257,7 @@ dt_api_guided_filter(
   *exit_nodeid = id_guided3;
 }
 
-const uint32_t *dt_module_param_uint32(
+static inline const uint32_t *dt_module_param_uint32(
     const dt_module_t *module,
     int paramid)
 {
@@ -266,7 +266,7 @@ const uint32_t *dt_module_param_uint32(
   return 0;
 }
 
-const float *dt_module_param_float(
+static inline const float *dt_module_param_float(
     const dt_module_t *module,
     int paramid)
 {
@@ -275,7 +275,7 @@ const float *dt_module_param_float(
   return 0;
 }
 
-const char *dt_module_param_string(
+static inline const char *dt_module_param_string(
     const dt_module_t *module,
     int paramid)
 {

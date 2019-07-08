@@ -1,6 +1,7 @@
 #include "qvk/qvk.h"
 
 #include "pipe/graph.h"
+#include "pipe/graph-io.h"
 #include "pipe/global.h"
 #include "core/log.h"
 #include "gui/gui.h"
@@ -193,6 +194,8 @@ int main(int argc, char *argv[])
     dt_log(s_log_perf, "total frame time %2.3f s", (end - beg)/(double)CLOCKS_PER_SEC);
     beg = end;
   }
+
+  dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
 
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_gui_cleanup();

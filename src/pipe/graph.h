@@ -82,22 +82,6 @@ dt_graph_run_t;
 void dt_graph_init(dt_graph_t *g);
 void dt_graph_cleanup(dt_graph_t *g);
 
-// read modules from ascii or binary
-int dt_graph_read_config_ascii(
-    dt_graph_t *graph,
-    const char *filename);
-
-// write only modules connected to sink modules,
-// and only set parameters of modules once.
-int dt_graph_write_compressed(
-    dt_graph_t *graph,
-    const char *filename);
-
-// write everything, including full history?
-int dt_graph_write(
-    dt_graph_t *graph,
-    const char *filename);
-
 VkResult dt_graph_run(
     dt_graph_t     *graph,
     dt_graph_run_t  run);
