@@ -51,6 +51,7 @@ read_header(
   {
     jpeg_destroy_decompress(&(jpg->dinfo));
     fclose(jpg->f);
+    jpg->filename[0] = 0;
     return 1;
   }
   jpeg_create_decompress(&(jpg->dinfo));
@@ -90,6 +91,7 @@ read_plain(
       jpeg_destroy_decompress(&(jpg->dinfo));
       free(row_pointer[0]);
       fclose(jpg->f);
+      jpg->filename[0] = 0;
       return 1;
     }
     for(unsigned int i = 0; i < jpg->dinfo.image_width; i++)
@@ -111,6 +113,7 @@ jpeg_read(
   {
     jpeg_destroy_decompress(&(jpg->dinfo));
     fclose(jpg->f);
+    jpg->filename[0] = 0;
     return 1;
   }
 
@@ -134,6 +137,7 @@ void cleanup(dt_module_t *mod)
   jpginput_buf_t *jpg = mod->data;
   jpeg_destroy_decompress(&(jpg->dinfo));
   if(jpg->f) fclose(jpg->f);
+  jpg->filename[0] = 0;
   free(jpg);
   mod->data = 0;
 }
@@ -157,8 +161,7 @@ int read_source(
     void *mapped)
 {
   const char *filename = dt_module_param_string(mod, 0);
-  int err = read_header(mod, filename);
-  if(err) return 1;
+  if(read_header(mod, filename)) return 1;
   jpginput_buf_t *jpg = mod->data;
   jpeg_read(jpg, mapped);
   return 0;
