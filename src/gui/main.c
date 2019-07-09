@@ -184,10 +184,10 @@ int main(int argc, char *argv[])
     {
     // TODO: if params changed:
     VkResult err = dt_graph_run(&vkdt.graph_dev,
-        // s_graph_run_all);
-       (s_graph_run_download_sink
+        vkdt.graph_dev.runflags
+       |s_graph_run_download_sink
        |s_graph_run_record_cmd_buf
-       |s_graph_run_wait_done)); // if we don't wait we can't resubmit because the fence would be used twice.
+       |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
     if(err != VK_SUCCESS) break;
     }
     clock_t end  = clock();

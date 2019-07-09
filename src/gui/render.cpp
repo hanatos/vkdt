@@ -378,6 +378,7 @@ extern "C" void dt_gui_render_frame_imgui()
               g_active_widget = -1;
               // copy quad state to module params
               memcpy(v, g_state, sizeof(float)*8);
+              vkdt.graph_dev.runflags = s_graph_run_all;
             }
           }
           else
@@ -393,6 +394,7 @@ extern "C" void dt_gui_render_frame_imgui()
               // reset module params so the image will not appear distorted:
               float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
               memcpy(v, def, sizeof(float)*8);
+              vkdt.graph_dev.runflags = s_graph_run_all;
             }
           }
           break;
@@ -412,6 +414,7 @@ extern "C" void dt_gui_render_frame_imgui()
               g_active_widget = -1;
               // copy quad state to module params
               memcpy(v, g_state, sizeof(float)*4);
+              vkdt.graph_dev.runflags = s_graph_run_all;
             }
           }
           else
@@ -427,6 +430,7 @@ extern "C" void dt_gui_render_frame_imgui()
               // reset module params so the image will not appear distorted:
               float def[] = {0.f, 1.f, 0.f, 1.f};
               memcpy(v, def, sizeof(float)*4);
+              vkdt.graph_dev.runflags = s_graph_run_all;
             }
           }
           break;

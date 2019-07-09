@@ -1093,6 +1093,10 @@ VkResult dt_graph_run(
     // TODO: redo if updates:
     if(graph->dset_pool)
     {
+      // PERF: this is very crude. we want to wait for the image on the display output
+      // which might still be in use by the graphics pipeline! TODO: don't wait for
+      // this when doing export/thumbnail creation.
+      QVKR(vkDeviceWaitIdle(qvk.device));
       // TODO: if already allocated and large enough, do this:
       QVKR(vkResetDescriptorPool(qvk.device, graph->dset_pool, 0));
     }
@@ -1265,5 +1269,7 @@ VkResult dt_graph_run(
   if(graph->query_cnt)
     dt_log(s_log_perf, "total time:\t%8.2g ms",
         (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6);
+  // reset run flags:
+  graph->runflags = 0;
   return VK_SUCCESS;
 }

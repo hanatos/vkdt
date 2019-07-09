@@ -8,20 +8,41 @@ void modify_roi_in(
 {
   // TODO: set smooth flag on input connector only if we have any distortion parameter set
   module->connector[0].flags = s_conn_smooth;
+  const float *p_crop = dt_module_param_float(module, 1);
 
   // TODO: consider crop/distortion
   // copy to input
-  dt_roi_t *roi = &module->connector[1].roi;
-  module->connector[0].roi = *roi;
+  // module->connector[0].roi = module->connector[1].roi;
+
+  module->connector[0].roi.roi_wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.roi_ht = module->connector[0].roi.full_ht;
+  module->connector[0].roi.roi_ox = 0.0f;
+  module->connector[0].roi.roi_oy = 0.0f;
+  return; // XXX
+
+  // TODO: need full roi support or else rounding kills the scanline
+  // float x = module->connector[1].roi.full_wd * p_crop[0];
+  // float y = module->connector[1].roi.full_ht * p_crop[2];
+  float w = module->connector[1].roi.full_wd / (p_crop[1] - p_crop[0]);
+  float h = module->connector[1].roi.full_ht / (p_crop[3] - p_crop[2]);
+  float s = module->connector[1].roi.roi_scale;
+  // XXX TODO: the pipeline does not currently really support this
+  module->connector[0].roi.roi_ox = 0;//module->connector[1].roi.roi_ox + x / s;
+  module->connector[0].roi.roi_oy = 0;//module->connector[1].roi.roi_oy + y / s;
+  module->connector[0].roi.roi_wd = w / s;
+  module->connector[0].roi.roi_ht = h / s;
 }
 
 void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
+  const float *p_crop = dt_module_param_float(module, 1);
   // copy to output
-  // TODO: consider crop/distortion!
+  // TODO: consider distortion!
   module->connector[1].roi = module->connector[0].roi;
+  module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * (p_crop[1] - p_crop[0]);
+  module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * (p_crop[3] - p_crop[2]);
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
@@ -63,14 +84,14 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   // XXX padding + column major!
   for(int i=0;i<9;i++)
     ((float*)module->committed_param)[i] = r[i];
-  // TODO: probably actually not necessary on device once we updated the ROI:
+  const float *p_crop = dt_module_param_float(module, 1);
   for(int i=0;i<4;i++)
-    ((float*)module->committed_param)[9+i] = inp[8+i];
+    ((float*)module->committed_param)[9+i] = p_crop[i];
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*9;
+  mod->committed_param_size = sizeof(float)*13;
   mod->committed_param = malloc(mod->committed_param_size);
   return 0;
 }

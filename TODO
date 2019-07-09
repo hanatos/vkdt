@@ -8,8 +8,14 @@
 
 # gui
 
+* detect non-display output
 * dt-style sliders (which look good and have more precision)
 * support masking/post expose drawings
+* wire graph->runflags in a meaningful way!
+
+# cli
+
+* detect non-export output
 
 # params and history
 
@@ -31,3 +37,8 @@
 * burst mode demosaic/denoise
 * clut with linear part: colour matrix
 * simple denoising with decimated fisz wavelets
+
+# build
+
+* modules/api.h to include all graph_t module_t node_t connector_t structs so
+  recompilation triggers correctly

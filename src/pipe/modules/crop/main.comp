@@ -31,7 +31,9 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  vec2 xy = vec2(ipos.xy);
+  vec2 co = vec2(params.crop_x, params.crop_y);
+  // XXX crop switched off this looks correct
+  vec2 xy = co * params.ri.full + vec2(ipos.xy);
   vec2 rd = vec2(
       (params.h00*xy.x + params.h01*xy.y + params.h02)/
       (params.h20*xy.x + params.h21*xy.y + params.h22),
@@ -43,7 +45,9 @@ main()
   // vec4 rgba = texture(img_in, rd/params.ri.roi);
   // catmull rom is a little slower (especially on intel) but results
   // in a bit more acuity:
+  // XXX TODO: co or co normalised to roi wd instead of full wd?
   vec4 rgba = sample_catmull_rom(img_in, rd/params.ri.roi);
+  // vec4 rgba = sample_catmull_rom(img_in, rd/params.ri.roi);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 
