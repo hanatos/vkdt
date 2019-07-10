@@ -22,7 +22,8 @@ dt_roi_t;
 typedef enum dt_connector_flags_t
 {
   s_conn_none   = 0,
-  s_conn_smooth = 1,
+  s_conn_smooth = 1,  // access this with a bilinear sampler during read
+  s_conn_clear  = 2,  // clear this to zero before writing
 }
 dt_connector_flags_t;
 

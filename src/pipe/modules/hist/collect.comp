@@ -1,0 +1,39 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  vec4  crop;
+  float mode;
+} params;
+
+layout( // input f32 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output ui32 buffer rgb
+    set = 1, binding = 1, r32ui
+) uniform uimage2D img_out;
+
+// histogram counter. this runs on the input dimensions
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ri.roi))) return;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  uvec3 y = clamp(uvec3((1.0-rgb) * params.ro.roi.y + 0.5), 0, params.ro.roi.y-1);
+  // use 10-bit rgb
+  imageAtomicAdd(img_out, ivec2(ipos.x, y.r), 1);
+  imageAtomicAdd(img_out, ivec2(ipos.x, y.g), 1024);
+  imageAtomicAdd(img_out, ivec2(ipos.x, y.b), 1048576);
+}
+

@@ -28,7 +28,7 @@ typedef struct dt_image_params_t
   float white[4];
   float whitebalance[4];
   uint32_t filters;
-  // TODO: other interesting things such as x-trans?
+  // TODO: other interesting things?
 }
 dt_image_params_t;
 

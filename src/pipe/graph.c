@@ -614,12 +614,40 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       // also wait for our output buffers to be transferred into general layout.
       // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
       for(int i=0;i<node->num_connectors;i++)
-        if(dt_connector_input(node->connector+i) && !node->module->so->write_sink)
-          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        else if(dt_connector_input(node->connector+i) && node->module->so->write_sink)
-          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+      {
+        if(dt_connector_input(node->connector+i))
+        {
+          if(!node->module->so->write_sink)
+            BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+          else
+            BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        }
         else if(dt_connector_output(node->connector+i))
+        {
+          // wait for layout transition on the output back to general:
           BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
+          if(node->connector[i].flags & s_conn_clear)
+          {
+            // in case clearing is requested, zero out the image:
+            VkClearColorValue col = {{0}};
+            VkImageSubresourceRange range = {
+              .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
+              .baseMipLevel    = 0,
+              .levelCount      = 1,
+              .baseArrayLayer  = 0,
+              .layerCount      = 1
+            };
+            vkCmdClearColorImage(
+                cmd_buf,
+                node->connector[i].image,
+                VK_IMAGE_LAYOUT_GENERAL,
+                &col,
+                1,
+                &range);
+            BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
+          }
+        }
+      }
     }
   }
   *runflag = 1;

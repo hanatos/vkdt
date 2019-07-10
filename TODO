@@ -1,3 +1,8 @@
+# cleanup
+
+* remove ctx from roi and connector (need separate connector)
+* dt_node_connect and dt_connector_copy same order of args
+
 # pipeline features
 
 * support forks
