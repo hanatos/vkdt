@@ -267,12 +267,11 @@ qvk_create_swapchain()
     VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
   };
 
-  //qvk.surf_format.format     = VK_FORMAT_R8G8B8A8_SRGB;
-  //qvk.surf_format.format     = VK_FORMAT_B8G8R8A8_SRGB;
   for(int i = 0; i < LENGTH(acceptable_formats); i++) {
     for(int j = 0; j < num_formats; j++)
       if(acceptable_formats[i] == avail_surface_formats[j].format) {
         qvk.surf_format = avail_surface_formats[j];
+        dt_log(s_log_qvk, "colour space: %u", qvk.surf_format.colorSpace);
         goto out;
       }
   }
