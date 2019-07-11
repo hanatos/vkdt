@@ -150,9 +150,9 @@ int main(int argc, char *argv[])
         ;
       else if(event.type == SDL_QUIT)
         running = 0;
-      else if(event.type == SDL_KEYDOWN)
+      else if(event.type == SDL_KEYDOWN &&
+              event.key.keysym.sym == SDLK_ESCAPE)
       {
-        if(event.key.keysym.sym == SDLK_ESCAPE)
           running = 0;
       }
       else if(event.type == SDL_WINDOWEVENT &&
