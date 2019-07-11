@@ -20,11 +20,11 @@ create_nodes(
 
   // TODO: this sucks. now what if we need to connect even more? weird interface?
   // connect entry point of module (input rgb) to entry point of guided filter
-  dt_connector_copy(graph, module, guided_entry, 0, 0);
-  // connect entry point of module (input rgb) to exit node of guided filter that needs it for reconstruction
-  dt_connector_copy(graph, module, guided_exit,  0, 0);
-  // connect exit point of module (coarse luminance) to exit point of guided filter
-  dt_connector_copy(graph, module, guided_exit,  1, 2);
+  dt_connector_copy(graph, module, 0, guided_entry, 0);
+  // connect entry point of module (input rgb) to exnode of guided filter that needs it for reconstruction
+  dt_connector_copy(graph, module, 0, guided_exit,  0);
+  // connect exit point of module (coarse luminance) exit point of guided filter
+  dt_connector_copy(graph, module, 1, guided_exit,  2);
 
 #if 0
   // create a box blur node:
@@ -124,8 +124,8 @@ create_nodes(
   //       with a reduced blur radius
 
   // wire module i/o connectors to nodes:
-  dt_connector_copy(graph, module, id_blur1, 0, 0);
-  dt_connector_copy(graph, module, id_input, 1, 1);
+  dt_connector_copy(graph, module, 0, id_blur1, 0);
+  dt_connector_copy(graph, module, 1, id_input, 1);
 
   // TODO: currently we require to init node->{wd,ht,dp} here too!
   // TODO: this would mean we'd need to re-create nodes for new roi, which indeed may be necessary for wavelet scales etc anyways

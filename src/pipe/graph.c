@@ -884,7 +884,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
 #endif
   for(int i=0;i<module->num_connectors;i++)
-    dt_connector_copy(graph, module, nodeid, i, i);
+    dt_connector_copy(graph, module, i, nodeid, i);
 }
 
 

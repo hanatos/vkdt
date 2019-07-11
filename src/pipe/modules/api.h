@@ -33,8 +33,8 @@ static inline void
 dt_connector_copy(
     dt_graph_t  *graph,
     dt_module_t *module,
-    int nid,   // node id
     int mc,    // connector id on module to copy
+    int nid,   // node id
     int nc)    // connector id on node to copy to
 {
   // XXX FIXME: we do not account correctly for the buffer counters here!

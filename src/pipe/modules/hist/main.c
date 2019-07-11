@@ -64,8 +64,8 @@ create_nodes(
   };
 
   // interconnect nodes:
-  dt_connector_copy(graph, module, id_collect, 0, 0);
+  dt_connector_copy(graph, module, 0, id_collect, 0);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
-  dt_connector_copy(graph, module, id_map, 1, 1);
+  dt_connector_copy(graph, module, 1, id_map, 1);
 }
 

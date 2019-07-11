@@ -153,9 +153,9 @@ create_nodes(
     },
   };
   // TODO: check connector config before!
-  dt_connector_copy(graph, module, id_xtrans, 0, 0);
-  dt_connector_copy(graph, module, id_col,    0, 0);
-  dt_connector_copy(graph, module, id_col,    1, 2);
+  dt_connector_copy(graph, module, 0, id_xtrans, 0);
+  dt_connector_copy(graph, module, 0, id_col,    0);
+  dt_connector_copy(graph, module, 1, id_col,    2);
   CONN(dt_node_connect(graph, id_xtrans, 1, id_col, 1));
   return;
   }
@@ -194,8 +194,8 @@ create_nodes(
     },
   };
   // TODO: check connector config before!
-  dt_connector_copy(graph, module, id_half, 0, 0);
-  dt_connector_copy(graph, module, id_half, 1, 1);
+  dt_connector_copy(graph, module, 0, id_half, 0);
+  dt_connector_copy(graph, module, 1, id_half, 1);
   return;
   }
 #endif
@@ -298,10 +298,10 @@ create_nodes(
       ci, cg, co,
     },
   };
-  dt_connector_copy(graph, module, id_splat,  0, 0);
+  dt_connector_copy(graph, module, 0, id_splat, 0);
   CONN(dt_node_connect(graph, id_gauss, 1, id_splat, 1));
-  dt_connector_copy(graph, module, id_down,  0, 0);
-  dt_connector_copy(graph, module, id_splat, 1, 2);
+  dt_connector_copy(graph, module, 0, id_down,  0);
+  dt_connector_copy(graph, module, 1, id_splat, 2);
   // XXX DEBUG see output of gaussian params
-  // dt_connector_copy(graph, module, id_gauss, 1, 1);
+  // dt_connector_copy(graph, module, 1 id_gauss, 1);
 }
