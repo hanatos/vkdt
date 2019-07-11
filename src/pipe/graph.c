@@ -291,6 +291,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           dt_token_str(c->chan), dt_token_str(c->format));
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
+      c->size   = c->mem->size;
       // reference counting. we can't just do a ref++ here because we will
       // free directly after and wouldn't know which node later on still relies
       // on this buffer. hence we ran a reference counting pass before this, and
@@ -1072,10 +1073,9 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 
-  // TODO: reuse previous allocation if any and big enough
-  // XXX check sizes and runflags!
-  if(!graph->vkmem)
+  if(graph->heap.vmsize > graph->vkmem_size)
   {
+    if(graph->vkmem) vkFreeMemory(qvk.device, graph->vkmem, 0);
     // image data to pass between nodes
     VkMemoryAllocateInfo mem_alloc_info = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -1084,8 +1084,12 @@ VkResult dt_graph_run(
           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
+    graph->vkmem_size = graph->heap.vmsize;
+  }
 
-    // XXX TODO: separate check for staging mem
+  if(graph->heap_staging.vmsize > graph->vkmem_staging_size)
+  {
+    if(graph->vkmem_staging) vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
     // staging memory to copy to and from device
     VkMemoryAllocateInfo mem_alloc_info_staging = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -1094,8 +1098,12 @@ VkResult dt_graph_run(
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
+    graph->vkmem_staging_size = graph->heap_staging.vmsize;
+  }
 
-    // TODO: XXX separate check for uniforms
+  if(graph->vkmem_uniform_size < graph->uniform_size)
+  {
+    if(graph->vkmem_uniform) vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
     // uniform data to pass parameters
     VkBufferCreateInfo buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -1113,6 +1121,7 @@ VkResult dt_graph_run(
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
+    graph->vkmem_uniform_size = graph->uniform_size;
     vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
   }
 

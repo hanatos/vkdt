@@ -63,6 +63,10 @@ typedef struct dt_graph_t
   VkDescriptorSetLayout uniform_dset_layout;
   VkDescriptorSet       uniform_dset;
 
+  size_t                vkmem_size;
+  size_t                vkmem_staging_size;
+  size_t                vkmem_uniform_size;
+
   uint32_t              query_max;
   uint32_t              query_cnt;
   VkQueryPool           query_pool;
