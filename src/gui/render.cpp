@@ -37,8 +37,8 @@ void view_to_image(
     const float v[2],
     float       img[2])
 {
-  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
-  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.wd;
+  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.ht;
   float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
   float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
   float imwd = vkdt.view_width, imht = vkdt.view_height;
@@ -60,8 +60,8 @@ void image_to_view(
     const float img[2], // image pixel coordinate in [0,1]^2
     float       v[2])   // window pixel coordinate
 {
-  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.roi_wd;
-  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.roi_ht;
+  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.wd;
+  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.ht;
   float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
   float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
   float imwd = vkdt.view_width, imht = vkdt.view_height;

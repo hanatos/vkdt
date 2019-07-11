@@ -14,10 +14,10 @@ void modify_roi_in(
   // copy to input
   // module->connector[0].roi = module->connector[1].roi;
 
-  module->connector[0].roi.roi_wd = module->connector[0].roi.full_wd;
-  module->connector[0].roi.roi_ht = module->connector[0].roi.full_ht;
-  module->connector[0].roi.roi_ox = 0.0f;
-  module->connector[0].roi.roi_oy = 0.0f;
+  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  module->connector[0].roi.x = 0.0f;
+  module->connector[0].roi.y = 0.0f;
   return; // XXX
 
   // TODO: need full roi support or else rounding kills the scanline
@@ -25,12 +25,12 @@ void modify_roi_in(
   // float y = module->connector[1].roi.full_ht * p_crop[2];
   float w = module->connector[1].roi.full_wd / (p_crop[1] - p_crop[0]);
   float h = module->connector[1].roi.full_ht / (p_crop[3] - p_crop[2]);
-  float s = module->connector[1].roi.roi_scale;
+  float s = module->connector[1].roi.scale;
   // XXX TODO: the pipeline does not currently really support this
-  module->connector[0].roi.roi_ox = 0;//module->connector[1].roi.roi_ox + x / s;
-  module->connector[0].roi.roi_oy = 0;//module->connector[1].roi.roi_oy + y / s;
-  module->connector[0].roi.roi_wd = w / s;
-  module->connector[0].roi.roi_ht = h / s;
+  module->connector[0].roi.x = 0;//module->connector[1].roi.x + x / s;
+  module->connector[0].roi.y = 0;//module->connector[1].roi.y + y / s;
+  module->connector[0].roi.wd = w / s;
+  module->connector[0].roi.ht = h / s;
 }
 
 void modify_roi_out(

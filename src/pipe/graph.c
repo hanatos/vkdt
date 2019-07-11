@@ -244,7 +244,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
-      dt_log(s_log_pipe, "%d x %d %"PRItkn, c->roi.roi_wd, c->roi.roi_ht, dt_token_str(node->name));
+      dt_log(s_log_pipe, "%d x %d %"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name));
       // as it turns out our compute and graphics queues are identical, which simplifies things
       // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
       VkImageCreateInfo images_create_info = {
@@ -252,8 +252,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
         .extent = {
-          .width  = c->roi.roi_wd,
-          .height = c->roi.roi_ht,
+          .width  = c->roi.wd,
+          .height = c->roi.ht,
           .depth  = 1
         },
         .mipLevels             = 1,
@@ -549,9 +549,9 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     { // by default ask for it all:
       output = 0;
       dt_roi_t *r = &module->connector[0].roi;
-      r->roi_wd = r->full_wd;
-      r->roi_ht = r->full_ht;
-      r->roi_scale = 1.0f;
+      r->wd = r->full_wd;
+      r->ht = r->full_ht;
+      r->scale = 1.0f;
     }
     if(output < 0) return;
     dt_roi_t *roi = &module->connector[output].roi;
@@ -653,8 +653,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   }
   *runflag = 1;
 
-  const uint32_t wd = node->connector[0].roi.roi_wd;
-  const uint32_t ht = node->connector[0].roi.roi_ht;
+  const uint32_t wd = node->connector[0].roi.wd;
+  const uint32_t ht = node->connector[0].roi.ht;
   VkBufferImageCopy regions = {
     .bufferOffset      = 0,
     .bufferRowLength   = 0,
@@ -863,8 +863,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   if(output >= 0)
   {
     dt_roi_t *roi = &module->connector[output].roi;
-    node->wd = roi->roi_wd;
-    node->ht = roi->roi_ht;
+    node->wd = roi->wd;
+    node->ht = roi->ht;
     node->dp = 1;
   }
 

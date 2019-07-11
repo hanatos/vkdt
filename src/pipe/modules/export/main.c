@@ -12,11 +12,11 @@ void modify_roi_in(
 {
   // TODO: scale to our needs
   dt_roi_t *r = &module->connector[0].roi;
-  r->roi_wd = r->full_wd;
-  r->roi_ht = r->full_ht;
-  r->roi_ox = 0;
-  r->roi_oy = 0;
-  r->roi_scale = 1.0f;
+  r->wd = r->full_wd;
+  r->ht = r->full_ht;
+  r->x = 0;
+  r->y = 0;
+  r->scale = 1.0f;
 }
 
 // called after pipeline finished up to here.
@@ -29,8 +29,8 @@ void write_sink(
   fprintf(stderr, "[export] writing '%s'\n", basename);
   float *pixel = buf;
 
-  const int width  = module->connector[0].roi.roi_wd;
-  const int height = module->connector[0].roi.roi_ht;
+  const int width  = module->connector[0].roi.wd;
+  const int height = module->connector[0].roi.ht;
 
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.pfm", basename);

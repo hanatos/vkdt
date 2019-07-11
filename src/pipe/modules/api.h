@@ -69,8 +69,8 @@ dt_api_blur(
 {
   // TODO: detect pixel format on input and blur the whole thing in separate kernels
   const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
-  const uint32_t wd = conn_input->roi.roi_wd;
-  const uint32_t ht = conn_input->roi.roi_ht;
+  const uint32_t wd = conn_input->roi.wd;
+  const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = 1;
   // FIXME: currently only implemented two channel blur for guided filter:
   assert(conn_input->chan == dt_token("rg"));
@@ -154,8 +154,8 @@ dt_api_guided_filter(
     float        epsilon)      // tell edges from noise
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
-  const uint32_t wd = roi->roi_wd;
-  const uint32_t ht = roi->roi_ht;
+  const uint32_t wd = roi->wd;
+  const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
   dt_connector_t ci = {
     .name   = dt_token("input"),

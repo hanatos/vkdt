@@ -11,11 +11,9 @@
 typedef struct dt_roi_t
 {
   uint32_t full_wd, full_ht; // full input size
-  // XXX TODO: remove ctx and put in a separate connector
-  uint32_t ctx_wd, ctx_ht;   // size of downscaled context buffer
-  uint32_t roi_wd, roi_ht;   // dimensions of region of interest
-  uint32_t roi_ox, roi_oy;   // offset in full image
-  float roi_scale;           // scale: roi_wd * roi_scale is on input scale
+  uint32_t wd, ht;           // dimensions of region of interest
+  uint32_t x, y;             // offset in full image
+  float scale;               // scale: wd * scale is on input scale
 }
 dt_roi_t;
 
@@ -33,13 +31,9 @@ dt_connector_flags_t;
 #define DT_MAX_CONNECTORS 10
 // connectors are used for modules as well as for nodes.
 // modules:
-// TODO: these have to be setup very quickly using tokens from a file
-// TODO: some annotations here which will be filled by the tiling/roi passes:
-// if roi, then this comes with a context buffer, too.
+// these have to be setup very quickly using tokens from a file
 // these are only meta connections, the finest layer DAG will connect nodes
 // with memory allocations for vulkan etc.
-// nodes:
-// the ctx info is always ignored.
 typedef struct dt_connector_t
 {
   dt_token_t name;   // connector name
@@ -59,14 +53,6 @@ typedef struct dt_connector_t
   // module only:
   int connected_ni;  // pointing to connected node after create_nodes has been called
   int connected_nc;  // index of the connector on the node
-
-  // ==> snip
-  // TODO: all from here: strip out to second ctx connector, we'll need memory allocations etc as well:
-  // memory allocations for region of interest
-  // as well as the context buffers, if any:
-  uint64_t roi_offset, roi_size;
-  uint64_t ctx_offset, ctx_size;
-  // <== snip
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;
@@ -198,5 +184,5 @@ dt_connector_bufsize(const dt_connector_t *c)
 {
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
-  return numc * bpp * c->roi.roi_wd * c->roi.roi_ht;
+  return numc * bpp * c->roi.wd * c->roi.ht;
 }

@@ -27,14 +27,14 @@ void modify_roi_in(
 #else
   const int block = 1;
 #endif
-  ri->roi_wd = block*ro->roi_wd;
-  ri->roi_ht = block*ro->roi_ht;
-  ri->roi_ox = block*ro->roi_ox;
-  ri->roi_oy = block*ro->roi_oy;
-  ri->roi_scale = 1.0f;
+  ri->wd = block*ro->wd;
+  ri->ht = block*ro->ht;
+  ri->x  = block*ro->x;
+  ri->y  = block*ro->y;
+  ri->scale = 1.0f;
 
-  assert(ro->roi_ox == 0 && "TODO: move to block boundary");
-  assert(ro->roi_oy == 0 && "TODO: move to block boundary");
+  assert(ro->x == 0 && "TODO: move to block boundary");
+  assert(ro->y == 0 && "TODO: move to block boundary");
 #if 0
   // TODO: fix for x trans once there are roi!
   // also move to beginning of demosaic rggb block boundary
@@ -185,8 +185,8 @@ create_nodes(
     .name   = dt_token("demosaic"),
     .kernel = dt_token("halfsize"),
     .module = module,
-    .wd     = module->connector[1].roi.roi_wd,
-    .ht     = module->connector[1].roi.roi_ht,
+    .wd     = module->connector[1].roi.wd,
+    .ht     = module->connector[1].roi.ht,
     .dp     = 1,
     .num_connectors = 2,
     .connector = {
@@ -201,18 +201,18 @@ create_nodes(
 #endif
   // need full size connectors and half size connectors:
   const int block = module->img_param.filters == 9u ? 3 : 2;
-  const int wd = module->connector[1].roi.roi_wd;
-  const int ht = module->connector[1].roi.roi_ht;
+  const int wd = module->connector[1].roi.wd;
+  const int ht = module->connector[1].roi.ht;
   const int dp = 1;
   dt_roi_t roi_full = module->connector[0].roi;
   dt_roi_t roi_half = module->connector[0].roi;
   roi_half.full_wd /= block;
   roi_half.full_ht /= block;
-  roi_half.roi_wd  /= block;
-  roi_half.roi_ht  /= block;
-  roi_half.roi_ox  /= block;
-  roi_half.roi_oy  /= block;
-  // TODO roi_half.roi_scale??
+  roi_half.wd /= block;
+  roi_half.ht /= block;
+  roi_half.x  /= block;
+  roi_half.y  /= block;
+  // TODO roi_half.scale??
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),

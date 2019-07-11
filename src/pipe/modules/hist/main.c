@@ -33,8 +33,8 @@ create_nodes(
     .name   = dt_token("hist"),
     .kernel = dt_token("collect"),
     .module = module,
-    .wd     = module->connector[0].roi.roi_wd,
-    .ht     = module->connector[0].roi.roi_ht,
+    .wd     = module->connector[0].roi.wd,
+    .ht     = module->connector[0].roi.ht,
     .dp     = 1,
     .num_connectors = 2,
     .connector = {
@@ -54,8 +54,8 @@ create_nodes(
     .name   = dt_token("hist"),
     .kernel = dt_token("map"),
     .module = module,
-    .wd     = module->connector[1].roi.roi_wd,
-    .ht     = module->connector[1].roi.roi_ht,
+    .wd     = module->connector[1].roi.wd,
+    .ht     = module->connector[1].roi.ht,
     .dp     = 1,
     .num_connectors = 2,
     .connector = {
