@@ -1,6 +1,6 @@
-# darktable next generation
+# darktable which sucks less
 
-this is a complete rewrite of darktable, naturally at this point
+this is an experimental complete rewrite of darktable, naturally at this point
 with a heavily reduced feature set.
 
 # build instructions
@@ -23,8 +23,9 @@ cd bin/
 
 # licence
 
-our code is licenced under the 2-clause bsd licence. there are parts
-from other libraries that are licenced differently. in particular:
+our code is licenced under the 2-clause bsd licence (if not clearly marked
+otherwise in the respective source files). there are parts from other libraries
+that are licenced differently. in particular:
 
 rawspeed:     LGPLv2
 pthread-pool: LGPLv2
@@ -49,21 +50,22 @@ dont like:
 - multi module pipeline
 - speed
 
+# a few random thoughts and notes
+
 arch:
 - vulkan / glsl compute shaders
   - this is not only about vs. opencl but also completely scheduling things on GPU,
     interleaving jobs right, and overall getting more performance for small jobs
     (thumbnail creation..)
-- imgui
-- does that mean c++ in the core?
-- python bindings (pybind11)
+- imgui with tightly encapsulated c++ part responsible for the interfacing
+- python bindings (pybind11)?
 
 dependencies:
 - vulkan, glslangValidator
 - sdl2
 - submodule imgui
 - submodule rawspeed (pulls in pugixml and stdc++)
-- submodule pybind11
+- submodule pybind11?
 - libjpeg
 - build: make, sed
 
@@ -99,9 +101,8 @@ pipeline implementation:
 
 pipeline interface:
 - "human readable" 64-bit tokens to identify module/param?
-- get/set via generic interface
   - very simple serialisation as binary and "human readable"
-- implement cli and vkrun wrapper around shaders/pipeline
+- has a cli that does not link x
 - gui separate in a c++ compiled thing that calls into imgui
   - auto generate from params + meta description (curve etc)
 
@@ -117,9 +118,7 @@ iop:
 
 camera specific data:
 - require target shot/spectral calibration for input colour
-- white balance presets
 - fallback matrices?
-- black and white?
 
 metadata:
 - probably no way around exiv2

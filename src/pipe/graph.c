@@ -1001,10 +1001,6 @@ VkResult dt_graph_run(
     dt_log(s_log_pipe, "module cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
     dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
-
-    // XXX DEBUG:
-    // dt_graph_print_nodes(graph);
-    // dt_graph_print_modules(graph);
   }
 } // end scope, done with modules
 
@@ -1127,7 +1123,6 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc_dset)
   {
-    // TODO: redo if updates:
     if(graph->dset_pool)
     {
       // PERF: this is very crude. we want to wait for the image on the display output
@@ -1143,16 +1138,16 @@ VkResult dt_graph_run(
       // create descriptor pool (keep at least one for each type)
       VkDescriptorPoolSize pool_sizes[] = {{
         .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-          .descriptorCount = 1+graph->dset_cnt_image_read,
+        .descriptorCount = 1+graph->dset_cnt_image_read,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-          .descriptorCount = 1+graph->dset_cnt_image_write,
+        .descriptorCount = 1+graph->dset_cnt_image_write,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .descriptorCount = 1+graph->dset_cnt_buffer,
+        .descriptorCount = 1+graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-          .descriptorCount = 1+graph->dset_cnt_uniform,
+        .descriptorCount = 1+graph->dset_cnt_uniform,
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
@@ -1160,10 +1155,14 @@ VkResult dt_graph_run(
         .poolSizeCount = LENGTH(pool_sizes),
         .pPoolSizes    = pool_sizes,
         .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
-          + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
+                       + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
       };
       if(graph->dset_pool)
+      {
+        // FIXME: PERF: avoid this total stall (see above)! we're waiting for the graphics pipe
+        QVKR(vkDeviceWaitIdle(qvk.device));
         vkDestroyDescriptorPool(qvk.device, graph->dset_pool, VK_NULL_HANDLE);
+      }
       QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
     }
 
@@ -1279,12 +1278,6 @@ VkResult dt_graph_run(
               mapped + node->connector[0].offset_staging);
           vkUnmapMemory(qvk.device, graph->vkmem_staging);
         }
-        /* in fact this is not an error. but we might consider adding a display
-         * callback in case this mapping and copying to cpu isn't needed.
-        else
-          dt_log(s_log_err|s_log_pipe, "sink node '%"PRItkn"' has no write_sink() callback!",
-              dt_token_str(node->name));
-              */
       }
     }
   }
