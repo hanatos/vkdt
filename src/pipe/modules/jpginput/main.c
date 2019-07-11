@@ -36,9 +36,8 @@ read_header(
     const char *filename)
 {
   jpginput_buf_t *jpg = mod->data;
-  if(jpg)
-    if(!strcmp(jpg->filename, filename))
-      return 0; // already loaded
+  if(jpg && !strcmp(jpg->filename, filename))
+    return 0; // already loaded
   assert(jpg); // this should be inited in init()
 
   jpg->f = fopen(filename, "rb");
@@ -120,6 +119,11 @@ jpeg_read(
   (void)jpeg_start_decompress(&(jpg->dinfo));
   read_plain(jpg, out);
   (void)jpeg_finish_decompress(&(jpg->dinfo));
+  // i think libjpeg doesn't want us to retain the state, at least not the way
+  // by splitting here. so we'll just clean it all up:
+  jpeg_destroy_decompress(&(jpg->dinfo));
+  fclose(jpg->f);
+  jpg->filename[0] = 0;
   return 0;
 }
 
@@ -136,8 +140,11 @@ void cleanup(dt_module_t *mod)
   if(!mod->data) return;
   jpginput_buf_t *jpg = mod->data;
   jpeg_destroy_decompress(&(jpg->dinfo));
-  if(jpg->f) fclose(jpg->f);
-  jpg->filename[0] = 0;
+  if(jpg->filename[0])
+  {
+    if(jpg->f) fclose(jpg->f);
+    jpg->filename[0] = 0;
+  }
   free(jpg);
   mod->data = 0;
 }
