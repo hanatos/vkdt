@@ -16,6 +16,20 @@
 namespace { // anonymous gui state namespace
 static int g_active_widget = -1;
 static float g_state[8] = {0.0f};
+
+void widget_end()
+{
+  if(g_active_widget < 0) return; // all good already
+  int i = g_active_widget;
+  int modid = vkdt.widget[i].modid;
+  int parid = vkdt.widget[i].parid;
+  const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
+  float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset);
+  size_t size = dt_ui_param_size(p->type, p->cnt);
+  memcpy(v, g_state, size);
+  g_active_widget = -1;
+  vkdt.graph_dev.runflags = s_graph_run_all;
+}
 } // end anonymous gui state space
 
 namespace {
@@ -372,14 +386,7 @@ extern "C" void dt_gui_render_frame_imgui()
             snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
                 dt_token_str(vkdt.graph_dev.module[modid].name),
                 dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string))
-            {
-              // TODO: factor out into a "finalise gui" callback and also call it on shutdown!
-              g_active_widget = -1;
-              // copy quad state to module params
-              memcpy(v, g_state, sizeof(float)*8);
-              vkdt.graph_dev.runflags = s_graph_run_all;
-            }
+            if(ImGui::Button(string)) widget_end();
           }
           else
           {
@@ -388,6 +395,7 @@ extern "C" void dt_gui_render_frame_imgui()
                 dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
             if(ImGui::Button(string))
             {
+              widget_end(); // if another one is still in progress, end that now
               g_active_widget = i;
               // copy to quad state
               memcpy(g_state, v, sizeof(float)*8);
@@ -408,14 +416,7 @@ extern "C" void dt_gui_render_frame_imgui()
             snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
                 dt_token_str(vkdt.graph_dev.module[modid].name),
                 dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string))
-            {
-              // TODO: factor out into a "finalise gui" callback and also call it on shutdown!
-              g_active_widget = -1;
-              // copy quad state to module params
-              memcpy(v, g_state, sizeof(float)*4);
-              vkdt.graph_dev.runflags = s_graph_run_all;
-            }
+            if(ImGui::Button(string)) widget_end();
           }
           else
           {
@@ -424,6 +425,7 @@ extern "C" void dt_gui_render_frame_imgui()
                 dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
             if(ImGui::Button(string))
             {
+              widget_end(); // if another one is still in progress, end that now
               g_active_widget = i;
               // copy to quad state
               memcpy(g_state, v, sizeof(float)*4);
@@ -452,6 +454,7 @@ extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 
 extern "C" void dt_gui_cleanup_imgui()
 {
+  widget_end(); // commit params if still ongoing
 #if 0
     // Cleanup
     QVK(vkDeviceWaitIdle(g_Device));
