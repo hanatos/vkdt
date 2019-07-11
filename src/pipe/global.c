@@ -160,7 +160,6 @@ dt_module_so_load(
   return 0;
 }
 
-// TODO: in some global cleanup:
 static inline void
 dt_module_so_unload(dt_module_so_t *mod)
 {
