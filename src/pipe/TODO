@@ -1,5 +1,3 @@
-* load param module inst param name varargs
-
 * roi size negotiations:
   - out of memory: cut into tiles and bisect
 
