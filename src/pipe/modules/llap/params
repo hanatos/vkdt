@@ -1,0 +1,4 @@
+sigma:float:1:0.1
+shadows:float:1:0.0
+hilights:float:1:0.0
+clarity:float:1:1.0

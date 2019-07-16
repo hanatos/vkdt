@@ -1,0 +1,45 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  float sigma;
+  float shadows;
+  float highlights;
+  float clarity;
+} params;
+
+layout( // input f32 buffer y
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // input f32 buffer rgba original colour
+    set = 1, binding = 1
+) uniform sampler2D img_org;
+
+layout( // output f32 buffer local contrast + colour
+    set = 1, binding = 2, rgba32f
+) uniform image2D img_out;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+
+  float y = texelFetch(img_in, opos, 0).r;
+  // ACEScc luma: (TODO: maybe rather use rec2020)
+  vec3 w = vec3(0.2126, 0.7152, 0.0722);
+  vec3 rgb = texelFetch(img_org, opos, 0).rgb;
+  float yo = dot(w, rgb);
+  imageStore(img_out, opos, vec4(y/yo * rgb, 1));
+}
+

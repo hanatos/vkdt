@@ -28,7 +28,7 @@ dt_connector_flags_t;
 
 // shared property of nodes and modules: how many connectors do we allocate at
 // max for each one of them:
-#define DT_MAX_CONNECTORS 10
+#define DT_MAX_CONNECTORS 20
 // connectors are used for modules as well as for nodes.
 // modules:
 // these have to be setup very quickly using tokens from a file

@@ -1,0 +1,42 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  float sigma;
+  float shadows;
+  float highlights;
+  float clarity;
+} params;
+
+layout( // input f32 buffer y
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f32 buffer y blurred/downsized
+    set = 1, binding = 1, r32f
+) uniform image2D img_out;
+
+// gauss reduce, run on dimensions of reduced output buffer
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+
+  // blur, store only coarse res
+  const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
+  float y = 0.0f;
+  for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
+    y += texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).r * w[ii+2] * w[jj+2];
+  imageStore(img_out, opos, vec4(y));
+}
+

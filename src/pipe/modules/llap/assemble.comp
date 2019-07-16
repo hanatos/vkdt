@@ -1,0 +1,121 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri; // fine scale
+  roi_t ro; // coarse scale
+  // all of this is a lie because we have 15 roi and i'm too lazy to spell them out here.
+  // luckily we don't really need anything but the input dimensions.
+} params;
+
+layout( // input f32 buffer y, original input at this level
+    set = 1, binding = 0
+) uniform sampler2D img_input;
+
+layout( // input f32 buffer y coarse of current recon
+    set = 1, binding = 1
+) uniform sampler2D img_coarse;
+
+// we need 6 curves to avoid aliasing:
+layout(set = 1, binding =  2) uniform sampler2D img_g0_l0;
+layout(set = 1, binding =  3) uniform sampler2D img_g0_l1;
+layout(set = 1, binding =  4) uniform sampler2D img_g1_l0;
+layout(set = 1, binding =  5) uniform sampler2D img_g1_l1;
+layout(set = 1, binding =  6) uniform sampler2D img_g2_l0;
+layout(set = 1, binding =  7) uniform sampler2D img_g2_l1;
+layout(set = 1, binding =  8) uniform sampler2D img_g3_l0;
+layout(set = 1, binding =  9) uniform sampler2D img_g3_l1;
+layout(set = 1, binding = 10) uniform sampler2D img_g4_l0;
+layout(set = 1, binding = 11) uniform sampler2D img_g4_l1;
+layout(set = 1, binding = 12) uniform sampler2D img_g5_l0;
+layout(set = 1, binding = 13) uniform sampler2D img_g5_l1;
+
+layout( // output f32 buffer y finer level of output
+    set = 1, binding = 14, r32f
+) uniform image2D img_out;
+
+float gauss_expand(sampler2D img_in, ivec2 opos)
+{
+  float c = 0.0f;
+  const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
+  ivec2 ipos = opos/2;
+  const int d = (opos.x&1) + 2*(opos.y&1);
+  if(d == 0)
+  { // both are even, 3x3 stencil
+    for(int ii=-1;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
+      c += texelFetch(img_in, ipos+ivec2(ii,jj), 0).r * w[2*jj+2]*w[2*ii+2];
+  }
+  else if(d == 1)
+  { // i is odd, 2x3 stencil
+    for(int ii=0;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
+      c += texelFetch(img_in, ipos+ivec2(ii,jj), 0).r * w[2*jj+2]*w[2*ii+1];
+  }
+  else if(d == 2)
+  { // j is odd, 3x2 stencil
+    for(int ii=-1;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
+      c += texelFetch(img_in, ipos+ivec2(ii,jj), 0).r * w[2*jj+1]*w[2*ii+2];
+  }
+  else // d == 3
+  { // both are odd, 2x2 stencil
+    for(int ii=0;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
+      c += texelFetch(img_in, ipos+ivec2(ii,jj), 0).r * w[2*jj+1]*w[2*ii+1];
+  }
+  return 4.0f*c;
+}
+
+// assemble
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, params.ri.roi))) return;
+
+  // upsample img_coarse
+  float res = gauss_expand(img_coarse, opos/2);
+  // fetch input pixel
+  float v = texelFetch(img_input, opos, 0).r;
+  int hi = 1;
+  for(;hi<6.0f-1 && (hi+0.5f)/6.0f <= v;hi++);
+  int lo = hi-1;
+  // compute laplacian for brightness level g by upsampling l0 and subtracting l1
+  // blend together and add to upsampled coarse
+  float gamma_lo = (lo+0.5f)/6.0f;
+  float gamma_hi = (hi+0.5f)/6.0f;
+  const float a = clamp((v - gamma_lo)/(gamma_hi-gamma_lo), 0.0f, 1.0f);
+  float l0, l1;
+  if(hi == 5)
+  {
+    l0 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos/2);
+    l1 = texelFetch(img_g5_l0, opos, 0).r - gauss_expand(img_g5_l1, opos/2);
+  }
+  else if(hi == 4)
+  {
+    l0 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos/2);
+    l1 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos/2);
+  }
+  else if(hi == 3)
+  {
+    l0 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos/2);
+    l1 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos/2);
+  }
+  else if(hi == 2)
+  {
+    l0 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos/2);
+    l1 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos/2);
+  }
+  else // if(hi == 1)
+  {
+    l0 = texelFetch(img_g0_l0, opos, 0).r - gauss_expand(img_g0_l1, opos/2);
+    l1 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos/2);
+  }
+  
+  imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
+}
+
