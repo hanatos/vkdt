@@ -78,7 +78,7 @@ main()
   if(any(greaterThanEqual(opos, params.ri.roi))) return;
 
   // upsample img_coarse
-  float res = gauss_expand(img_coarse, opos/2);
+  float res = gauss_expand(img_coarse, opos);
   // fetch input pixel
   float v = texelFetch(img_input, opos, 0).r;
   int hi = 1;
@@ -92,30 +92,33 @@ main()
   float l0, l1;
   if(hi == 5)
   {
-    l0 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos/2);
-    l1 = texelFetch(img_g5_l0, opos, 0).r - gauss_expand(img_g5_l1, opos/2);
+    l0 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos);
+    l1 = texelFetch(img_g5_l0, opos, 0).r - gauss_expand(img_g5_l1, opos);
   }
   else if(hi == 4)
   {
-    l0 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos/2);
-    l1 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos/2);
+    l0 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos);
+    l1 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos);
   }
   else if(hi == 3)
   {
-    l0 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos/2);
-    l1 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos/2);
+    l0 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos);
+    l1 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos);
   }
   else if(hi == 2)
   {
-    l0 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos/2);
-    l1 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos/2);
+    l0 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos);
+    l1 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos);
   }
   else // if(hi == 1)
   {
-    l0 = texelFetch(img_g0_l0, opos, 0).r - gauss_expand(img_g0_l1, opos/2);
-    l1 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos/2);
+    l0 = texelFetch(img_g0_l0, opos, 0).r - gauss_expand(img_g0_l1, opos);
+    l1 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos);
   }
   
   imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
+  // imageStore(img_out, opos, vec4(res));
+  // imageStore(img_out, opos, vec4(lo/5.0));
+  // imageStore(img_out, opos, vec4(l1));
 }
 

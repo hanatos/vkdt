@@ -10,7 +10,13 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
-  roi_t ro;
+  roi_t ro0;
+  roi_t ro1;
+  roi_t ro2;
+  roi_t ro3;
+  roi_t ro4;
+  roi_t ro5;
+  roi_t rog;
   float sigma;
   float shadows;
   float highlights;
@@ -60,7 +66,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, params.ri.roi))) return;
 
   // ACEScc luma: (TODO: maybe rather use rec2020)
   vec3 w = vec3(0.2126, 0.7152, 0.0722);
