@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "llap.glsl"
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -81,14 +82,13 @@ main()
   float res = gauss_expand(img_coarse, opos);
   // fetch input pixel
   float v = texelFetch(img_input, opos, 0).r;
-  int hi = 1;
-  for(;hi<6.0f-1 && (hi+0.5f)/6.0f <= v;hi++);
+  int hi = gamma_hi_from_v(v);
   int lo = hi-1;
   // compute laplacian for brightness level g by upsampling l0 and subtracting l1
   // blend together and add to upsampled coarse
-  float gamma_lo = (lo+0.5f)/6.0f;
-  float gamma_hi = (hi+0.5f)/6.0f;
-  const float a = clamp((v - gamma_lo)/(gamma_hi-gamma_lo), 0.0f, 1.0f);
+  float gamma_lo = gamma_from_i(lo);
+  float gamma_hi = gamma_from_i(hi);
+  float a = clamp((v - gamma_lo)/(gamma_hi-gamma_lo), 0.0f, 1.0f);
   float l0, l1;
   if(hi == 5)
   {
@@ -117,8 +117,9 @@ main()
   }
   
   imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
-  // imageStore(img_out, opos, vec4(res));
+  // imageStore(img_out, opos, vec4(v));
   // imageStore(img_out, opos, vec4(lo/5.0));
   // imageStore(img_out, opos, vec4(l1));
+  // imageStore(img_out, opos, vec4(0.5f*(gamma_lo+gamma_hi)));
 }
 

@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "llap.glsl"
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -72,12 +73,12 @@ main()
   vec3 w = vec3(0.2126, 0.7152, 0.0722);
   float y = dot(w, texelFetch(img_in, ipos, 0).rgb);
 
-  imageStore(img_out0, ipos, vec4(curve(y, (0+.5f)/6.0f, params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out1, ipos, vec4(curve(y, (1+.5f)/6.0f, params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out2, ipos, vec4(curve(y, (2+.5f)/6.0f, params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out3, ipos, vec4(curve(y, (3+.5f)/6.0f, params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out4, ipos, vec4(curve(y, (4+.5f)/6.0f, params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out5, ipos, vec4(curve(y, (5+.5f)/6.0f, params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out0, ipos, vec4(curve(y, gamma_from_i(0), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out1, ipos, vec4(curve(y, gamma_from_i(1), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out2, ipos, vec4(curve(y, gamma_from_i(2), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out3, ipos, vec4(curve(y, gamma_from_i(3), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out4, ipos, vec4(curve(y, gamma_from_i(4), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out5, ipos, vec4(curve(y, gamma_from_i(5), params.sigma, params.shadows, params.highlights, params.clarity)));
   imageStore(img_grey, ipos, vec4(y));
 }
 
