@@ -1,5 +1,5 @@
 TARGET=libexport.so
-CFLAGS=-Wall -I../.. -I../../.. -fPIC
+CFLAGS=-Wall -I. -I../.. -I../../.. -fPIC
 CFLAGS+=$(OPT_CFLAGS)
 LDFLAGS+=$(OPT_LDFLAGS)
 

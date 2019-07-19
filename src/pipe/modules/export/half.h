@@ -13,7 +13,7 @@
 
 static inline float half_to_float(uint16_t hi)
 {
-  union FP32
+  typedef union FP32
   {
     uint u;
     float f;
@@ -23,8 +23,8 @@ static inline float half_to_float(uint16_t hi)
       uint Exponent : 8;
       uint Sign : 1;
     };
-  };
-  union FP16
+  } FP32;
+  typedef union FP16
   {
     unsigned short u;
     struct
@@ -33,7 +33,7 @@ static inline float half_to_float(uint16_t hi)
       uint Exponent : 5;
       uint Sign : 1;
     };
-  };
+  } FP16;
   FP16 h = { hi };
   static const FP32 magic = { 113 << 23 };
   static const uint32_t shifted_exp = 0x7c00 << 13; // exponent mask after shift
@@ -60,7 +60,7 @@ static inline float half_to_float(uint16_t hi)
 // infinity and doesn't round correctly. Handle with care.
 static inline uint16_t float_to_half(float fi)
 {
-  union FP32
+  typedef union FP32
   {
     uint u;
     float f;
@@ -70,8 +70,8 @@ static inline uint16_t float_to_half(float fi)
       uint Exponent : 8;
       uint Sign : 1;
     };
-  };
-  union FP16
+  } FP32;
+  typedef union FP16
   {
     unsigned short u;
     struct
@@ -80,7 +80,7 @@ static inline uint16_t float_to_half(float fi)
       uint Exponent : 5;
       uint Sign : 1;
     };
-  };
+  } FP16;
   FP32 f = { .f = fi };
   FP32 f32infty = { 255 << 23 };
   FP32 f16max = { (127 + 16) << 23 };
@@ -102,7 +102,7 @@ static inline uint16_t float_to_half(float fi)
 
   o.u = f.u >> 13; // Take the mantissa bits
   o.u |= sign >> 16;
-  return o;
+  return o.u;
 }
 
 // round-half-up (same as ISPC)
