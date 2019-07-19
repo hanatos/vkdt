@@ -28,6 +28,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <execinfo.h>
+
 
 typedef enum {
   QVK_INIT_DEFAULT            = 0,
@@ -211,7 +213,11 @@ vk_debug_callback(
   dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
 #ifndef NDEBUG
   if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+  {
+    void *const buf[100];
+    backtrace_symbols_fd(buf, 100, 2);
     assert(0);
+  }
 #endif
   return VK_FALSE;
 }

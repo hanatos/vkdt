@@ -179,7 +179,8 @@ extern qvk_t qvk;
 
 
 
-#define _VK_EXTENSION_LIST
+#define _VK_EXTENSION_LIST \
+  _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
 // none of these are supported on intel:
 // #define _VK_EXTENSION_LIST \
 // 	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
@@ -194,8 +195,7 @@ extern qvk_t qvk;
 // 	_VK_EXTENSION_DO(vkGetRayTracingShaderGroupHandlesNV) \
 // 	_VK_EXTENSION_DO(vkGetAccelerationStructureHandleNV) \
 // 	_VK_EXTENSION_DO(vkCmdWriteAccelerationStructuresPropertiesNV) \
-// 	_VK_EXTENSION_DO(vkCompileDeferredNV) \
-// 	_VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
+// 	_VK_EXTENSION_DO(vkCompileDeferredNV)
 
 
 #define _VK_EXTENSION_DO(a) extern PFN_##a q##a;

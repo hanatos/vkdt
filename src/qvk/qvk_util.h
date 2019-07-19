@@ -138,7 +138,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
 
 const char * vk_format_to_string(VkFormat format);
 
-#ifdef VKPT_ENABLE_VALIDATION
+#ifdef QVK_ENABLE_VALIDATION
 #define ATTACH_LABEL_VARIABLE(a, type) \
 	do { \
 		/*Com_Printf("attaching object label 0x%08lx %s\n", (uint64_t) a, #a);*/ \
@@ -153,7 +153,7 @@ const char * vk_format_to_string(VkFormat format);
 
 #define ATTACH_LABEL_VARIABLE_NAME(a, type, name) \
 	do { \
-		/*Com_Printf("attaching object label 0x%08lx %s\n", (uint64_t) a, name);*/ \
+		/*printf("attaching object label 0x%08lx %s\n", (uint64_t) a, name);*/ \
 		VkDebugMarkerObjectNameInfoEXT name_info = { \
 			.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT, \
 			.object = (uint64_t) a, \

@@ -225,6 +225,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.
       .module              = shader_module,
     };
+#ifdef QVK_ENABLE_VALIDATION
+    snprintf(filename, sizeof(filename), "%"PRItkn"_%"PRItkn, dt_token_str(node->name), dt_token_str(node->kernel));
+    ATTACH_LABEL_VARIABLE_NAME(shader_module, SHADER_MODULE, filename);
+#endif
 
     // finally create the pipeline
     VkComputePipelineCreateInfo pipeline_info = {
@@ -273,7 +277,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       };
       if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
       QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
-      ATTACH_LABEL_VARIABLE(img, IMAGE);
+      // ATTACH_LABEL_VARIABLE(c->image, IMAGE);
 
       VkMemoryRequirements mem_req;
       vkGetImageMemoryRequirements(qvk.device, c->image, &mem_req);
