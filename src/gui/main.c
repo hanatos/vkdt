@@ -127,11 +127,15 @@ int main(int argc, char *argv[])
   if(err)
   {
     dt_log(s_log_err|s_log_gui, "could not load graph configuration from '%s'!", graphcfg);
-    exit(1);
+    goto error;
   }
 
-  dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
-  // TODO: get from command line
+  if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
+  {
+    // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
+    dt_log(s_log_err|s_log_gui, "running the graph failed!");
+    goto error;
+  }
   dt_gui_read_ui_ascii("darkroom.ui");
 
   // main loop
@@ -197,6 +201,7 @@ int main(int argc, char *argv[])
 
   dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
 
+error:
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_gui_cleanup();
   exit(0);
