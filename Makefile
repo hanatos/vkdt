@@ -29,15 +29,15 @@ sanitize:all
 
 ext: Makefile
 	mkdir -p built/
-	make -C ext/
+	$(MAKE) -C ext/
 
 src: ext Makefile
 	mkdir -p built/
-	make -C src/
+	$(MAKE) -C src/
 
 clean:
-	make -C ext/ clean
-	make -C src/ clean
+	$(MAKE) -C ext/ clean
+	$(MAKE) -C src/ clean
 
 distclean:
 	rm -rf built/

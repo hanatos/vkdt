@@ -14,15 +14,15 @@ $(BUILT)/rawspeed/CMakeCache.txt: Makefile
 
 $(BUILT)/rawspeed/librawspeed.a: Makefile $(BUILT)/rawspeed/CMakeCache.txt 
 	mkdir -p $(BUILT)/rawspeed
-	make -C $(BUILT)/rawspeed
+	$(MAKE) -C $(BUILT)/rawspeed
 	strip -S $(BUILT)/rawspeed/librawspeed.a
 
 pthread-pool: Makefile
 	mkdir -p $(BUILT)/pthread-pool
-	make -C pthread-pool
+	$(MAKE) -C pthread-pool
 	cp pthread-pool/libpthreadpool.a $(BUILT)/pthread-pool/
 	strip -S $(BUILT)/pthread-pool/libpthreadpool.a
 
 clean: Makefile
-	make -C pthread-pool clean
+	$(MAKE) -C pthread-pool clean
 

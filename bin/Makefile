@@ -1,16 +1,16 @@
 .PHONY: all debug sanitize clean run
 
 all:
-	make -C ..
+	$(MAKE) -C ..
 
 debug:
-	make -C .. debug
+	$(MAKE) -C .. debug
 
 sanitize:
-	make -C .. sanitize
+	$(MAKE) -C .. sanitize
 
 clean:
-	make -C .. clean
+	$(MAKE) -C .. clean
 
 run:
 	./run.sh

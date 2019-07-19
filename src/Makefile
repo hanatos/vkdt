@@ -65,7 +65,7 @@ vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
 modules: $(MODULES) $(SPV) Makefile
 
 pipe/modules/*/Makefile:
-	make -C $(dir $@)
+	$(MAKE) -C $(dir $@)
 
 %.spv: %.comp
 	$(GLSLC) -Ipipe/modules -I$(dir $<) --target-env vulkan1.1 \
