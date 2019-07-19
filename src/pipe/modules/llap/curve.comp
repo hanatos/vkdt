@@ -24,18 +24,18 @@ layout(std140, set = 0, binding = 0) uniform params_t
   float clarity;
 } params;
 
-layout( // input f32 buffer rgba
+layout( // input f16 buffer rgba
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
 // six output buffers for each curve level
-layout(set = 1, binding = 1, r32f) uniform image2D img_out0;
-layout(set = 1, binding = 2, r32f) uniform image2D img_out1;
-layout(set = 1, binding = 3, r32f) uniform image2D img_out2;
-layout(set = 1, binding = 4, r32f) uniform image2D img_out3;
-layout(set = 1, binding = 5, r32f) uniform image2D img_out4;
-layout(set = 1, binding = 6, r32f) uniform image2D img_out5;
-layout(set = 1, binding = 7, r32f) uniform image2D img_grey;
+layout(set = 1, binding = 1, r16f) uniform image2D img_out0;
+layout(set = 1, binding = 2, r16f) uniform image2D img_out1;
+layout(set = 1, binding = 3, r16f) uniform image2D img_out2;
+layout(set = 1, binding = 4, r16f) uniform image2D img_out3;
+layout(set = 1, binding = 5, r16f) uniform image2D img_out4;
+layout(set = 1, binding = 6, r16f) uniform image2D img_out5;
+layout(set = 1, binding = 7, r16f) uniform image2D img_grey;
 
 float
 curve(

@@ -17,12 +17,12 @@ layout(std140, set = 0, binding = 0) uniform params_t
   float clarity;
 } params;
 
-layout( // input f32 buffer y
+layout( // input f16 buffer y
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output f32 buffer y blurred/downsized
-    set = 1, binding = 1, r32f
+layout( // output f16 buffer y blurred/downsized
+    set = 1, binding = 1, r16f
 ) uniform image2D img_out;
 
 // gauss reduce, run on dimensions of reduced output buffer

@@ -16,12 +16,12 @@ layout(std140, set = 0, binding = 0) uniform params_t
 } params;
 
 
-layout( // input f32 buffer rgb
+layout( // input f16 buffer rgb
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output f32 buffer rgb
-    set = 1, binding = 1, rgba32f
+layout( // output f16 buffer rgb
+    set = 1, binding = 1, rgba16f
 ) uniform image2D img_out;
 
 float

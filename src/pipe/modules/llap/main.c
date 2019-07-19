@@ -28,7 +28,7 @@ create_nodes(
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = dt_token("rgba"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[0].roi,
     .connected_mi = -1,
   };
@@ -36,7 +36,7 @@ create_nodes(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("y"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[0].roi,
   };
 
@@ -79,7 +79,7 @@ create_nodes(
       .name   = dt_token("inhi"),
       .type   = dt_token("read"),
       .chan   = dt_token("y"),
-      .format = dt_token("f32"),
+      .format = dt_token("f16"),
       .roi    = rf,
       .connected_mi = -1,
     };
@@ -90,7 +90,7 @@ create_nodes(
       .name   = dt_token("outhi"),
       .type   = dt_token("write"),
       .chan   = dt_token("y"),
-      .format = dt_token("f32"),
+      .format = dt_token("f16"),
       .roi    = rf,
     };
     dt_connector_t coc = cof;

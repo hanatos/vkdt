@@ -16,16 +16,16 @@ layout(std140, set = 0, binding = 0) uniform params_t
 } params;
 
 
-layout( // input f32 buffer rgb original image
+layout( // input f16 buffer rgb original image
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // input f32 buffer blurred ab
+layout( // input f16 buffer blurred ab
     set = 1, binding = 1
 ) uniform sampler2D img_ab;
 
-layout( // output f32 buffer y
-    set = 1, binding = 2, r32f
+layout( // output f16 buffer y
+    set = 1, binding = 2, r16f
 ) uniform image2D img_out;
 
 // final guided filter kernel:

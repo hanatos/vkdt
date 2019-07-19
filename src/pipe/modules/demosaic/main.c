@@ -109,14 +109,14 @@ create_nodes(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("g"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[1].roi,
   };
   dt_connector_t co = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("rgb"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[1].roi,
   };
   assert(graph->num_nodes < graph->max_nodes);
@@ -175,7 +175,7 @@ create_nodes(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("rgb"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[1].roi,
   };
   assert(graph->num_nodes < graph->max_nodes);
@@ -225,14 +225,14 @@ create_nodes(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("y"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = roi_half,
   };
   dt_connector_t cg = {
     .name   = dt_token("gauss"),
     .type   = dt_token("read"),
     .chan   = dt_token("rgb"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = roi_half,
     .connected_mi = -1,
   };
@@ -252,10 +252,10 @@ create_nodes(
     },
   };
   ci.chan   = dt_token("y");
-  ci.format = dt_token("f32");
+  ci.format = dt_token("f16");
   ci.roi    = roi_half;
   co.chan   = dt_token("rgb");
-  co.format = dt_token("f32");
+  co.format = dt_token("f16");
   co.roi    = roi_half;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_gauss = graph->num_nodes++;
@@ -278,10 +278,10 @@ create_nodes(
   ci.format = dt_token("ui16");
   ci.roi    = roi_full;
   co.chan   = dt_token("rgb");
-  co.format = dt_token("f32");
+  co.format = dt_token("f16");
   co.roi    = roi_full;
   cg.chan   = dt_token("rgb");
-  cg.format = dt_token("f32");
+  cg.format = dt_token("f16");
   cg.roi    = roi_half;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_splat = graph->num_nodes++;

@@ -78,7 +78,7 @@ dt_api_blur(
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = dt_token("rg"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = conn_input->roi,
     .connected_mi = -1,
   };
@@ -86,7 +86,7 @@ dt_api_blur(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("rg"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = conn_input->roi,
   };
   // push and interconnect a-trous gauss blur nodes
@@ -161,7 +161,7 @@ dt_api_guided_filter(
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = dt_token("rgba"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = *roi,
     .connected_mi = -1,
   };
@@ -169,7 +169,7 @@ dt_api_guided_filter(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("rg"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = *roi,
   };
 
@@ -235,7 +235,7 @@ dt_api_guided_filter(
     .name   = dt_token("ab"),
     .type   = dt_token("read"),
     .chan   = dt_token("rg"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = *roi,
     .connected_mi = -1,
   };
@@ -248,9 +248,9 @@ dt_api_guided_filter(
     .dp     = dp,
     .num_connectors = 3,
     .connector = {
-      ci, // - original image as input rgba f32
-      cm, // - mean a mean b as rg f32
-      co, // - output rgba f32
+      ci, // - original image as input rgba f16
+      cm, // - mean a mean b as rg f16
+      co, // - output rgba f16
     },
   };
   CONN(dt_node_connect(graph, id_blur2, 1, id_guided3, 1));

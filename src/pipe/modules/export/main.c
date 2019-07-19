@@ -1,10 +1,8 @@
 #include "modules/api.h"
+#include "half.h"
 
 #include <stdio.h>
 #include <string.h>
-
-// TODO: params struct
-
 
 void modify_roi_in(
     dt_graph_t *graph,
@@ -27,7 +25,7 @@ void write_sink(
 {
   const char *basename = dt_module_param_string(module, 0);
   fprintf(stderr, "[export] writing '%s'\n", basename);
-  float *pixel = buf;
+  uint16_t *p16 = buf;
 
   const int width  = module->connector[0].roi.wd;
   const int height = module->connector[0].roi.ht;
@@ -48,7 +46,13 @@ void write_sink(
     while(off-- > 0) fprintf(f, "0");
     fprintf(f, "\n");
     for(size_t k=0;k<width*height;k++)
-      fwrite(pixel+4*k, sizeof(float), 3ul, f);
+    {
+      float p32[3] = {
+        half_to_float(p16[4*k+0]),
+        half_to_float(p16[4*k+1]),
+        half_to_float(p16[4*k+2])};
+      fwrite(p32, sizeof(float), 3ul, f);
+    }
     fclose(f);
   }
 }

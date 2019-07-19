@@ -1,2 +1,2 @@
-input:read:y:f32
-output:write:y:f32
+input:read:y:f16
+output:write:y:f16

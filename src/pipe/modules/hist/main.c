@@ -13,7 +13,7 @@ create_nodes(
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = dt_token("rgba"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[0].roi,
     .connected_mi = -1,
   };
@@ -45,7 +45,7 @@ create_nodes(
   ci.chan   = dt_token("r");
   ci.format = dt_token("ui32");
   co.chan   = dt_token("rgba");
-  co.format = dt_token("f32");
+  co.format = dt_token("f16");
   co.flags  = 0;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_map = graph->num_nodes++;

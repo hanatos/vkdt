@@ -24,8 +24,8 @@ layout( // input float buffer g
     set = 1, binding = 1
 ) uniform sampler2D img_green;
 
-layout( // output f32 buffer rgb
-    set = 1, binding = 2, rgba32f
+layout( // output f16 buffer rgb
+    set = 1, binding = 2, rgba16f
 ) uniform image2D img_out;
 
 void

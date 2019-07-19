@@ -16,11 +16,11 @@ layout(std140, set = 0, binding = 0) uniform params_t
   // luckily we don't really need anything but the input dimensions.
 } params;
 
-layout( // input f32 buffer y, original input at this level
+layout( // input f16 buffer y, original input at this level
     set = 1, binding = 0
 ) uniform sampler2D img_input;
 
-layout( // input f32 buffer y coarse of current recon
+layout( // input f16 buffer y coarse of current recon
     set = 1, binding = 1
 ) uniform sampler2D img_coarse;
 
@@ -38,8 +38,8 @@ layout(set = 1, binding = 11) uniform sampler2D img_g4_l1;
 layout(set = 1, binding = 12) uniform sampler2D img_g5_l0;
 layout(set = 1, binding = 13) uniform sampler2D img_g5_l1;
 
-layout( // output f32 buffer y finer level of output
-    set = 1, binding = 14, r32f
+layout( // output f16 buffer y finer level of output
+    set = 1, binding = 14, r16f
 ) uniform image2D img_out;
 
 float gauss_expand(sampler2D img_in, ivec2 opos)

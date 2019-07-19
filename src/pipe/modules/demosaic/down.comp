@@ -18,8 +18,8 @@ layout( // input uint16 buffer rggb
     set = 1, binding = 0
 ) uniform usampler2D img_in;
 
-layout( // output f32 buffer y
-    set = 1, binding = 1, r32f
+layout( // output f16 buffer y
+    set = 1, binding = 1, r16f
 ) uniform image2D img_out;
 
 void

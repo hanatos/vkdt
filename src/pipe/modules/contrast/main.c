@@ -40,7 +40,7 @@ create_nodes(
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = dt_token("rgba"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[0].roi,
     .connected_mi = -1,
   };
@@ -48,7 +48,7 @@ create_nodes(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("rgba"),
-    .format = dt_token("f32"),
+    .format = dt_token("f16"),
     .roi    = module->connector[1].roi,
   };
 

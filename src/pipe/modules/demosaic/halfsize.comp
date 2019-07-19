@@ -19,8 +19,8 @@ layout( // input uint16 buffer rggb
     set = 1, binding = 0
 ) uniform usampler2D img_in;
 
-layout( // output f32 buffer rgb
-    set = 1, binding = 1, rgba32f
+layout( // output f16 buffer rgb
+    set = 1, binding = 1, rgba16f
 ) uniform image2D img_out;
 
 // demosaic reduced size. run on output dimensions, gather all colours from

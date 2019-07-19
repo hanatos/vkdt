@@ -20,12 +20,12 @@ layout( // input uint16 buffer rggb
     set = 1, binding = 0
 ) uniform usampler2D img_in;
 
-layout( // input f32 buffer rgb gaussian covariance
+layout( // input f16 buffer rgb gaussian covariance
     set = 1, binding = 1
 ) uniform sampler2D img_gauss;
 
-layout( // output f32 buffer rgb
-    set = 1, binding = 2, rgba32f
+layout( // output f16 buffer rgb
+    set = 1, binding = 2, rgba16f
 ) uniform image2D img_out;
 
 void

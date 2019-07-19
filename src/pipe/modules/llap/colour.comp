@@ -18,16 +18,16 @@ layout(std140, set = 0, binding = 0) uniform params_t
   float clarity;
 } params;
 
-layout( // input f32 buffer y
+layout( // input f16 buffer y
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // input f32 buffer rgba original colour
+layout( // input f16 buffer rgba original colour
     set = 1, binding = 1
 ) uniform sampler2D img_org;
 
-layout( // output f32 buffer local contrast + colour
-    set = 1, binding = 2, rgba32f
+layout( // output f16 buffer local contrast + colour
+    set = 1, binding = 2, rgba16f
 ) uniform image2D img_out;
 
 void
