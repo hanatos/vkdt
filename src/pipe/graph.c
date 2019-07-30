@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "graph-io.h"
 #include "module.h"
 #include "modules/api.h"
 #include "core/log.h"
@@ -103,8 +104,6 @@ dt_graph_cleanup(dt_graph_t *g)
   free(g->query_kernel);
 }
 
-// TODO: put into qvk_utils?
-// TODO: dedup with what's in qvk.c
 static inline void *
 read_file(const char *filename, size_t *len)
 {
@@ -133,7 +132,31 @@ read_file(const char *filename, size_t *len)
   fclose(f);
   return file;
 }
-// end TODO: put into qvk_utils
+
+VkResult
+dt_graph_create_shader_module(
+    dt_token_t node,
+    dt_token_t kernel,
+    VkShaderModule *shader_module)
+{
+  // create the compute shader stage
+  char filename[1024] = {0};
+  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
+      dt_token_str(node), dt_token_str(kernel));
+
+  size_t len;
+  void *data = read_file(filename, &len);
+  if(!data) return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+
+  VkShaderModuleCreateInfo sm_info = {
+    .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+    .codeSize = len,
+    .pCode    = data
+  };
+  QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, shader_module));
+  free(data);
+  return VK_SUCCESS;
+}
 
 // allocate output buffers, also create vulkan pipeline and load spir-v portion
 // of the compute shader.
@@ -175,6 +198,44 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   };
   QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
 
+  // TODO: if we need a rasterisation pass:
+#if 0
+  // TODO: create shader stages:
+  VkPipelineShaderStageCreateInfo
+    // TODO: create fixed function bits:
+    VkPipelineVertexInputStateCreateInfo
+    // ..
+  // create the render pass
+  VkAttachmentReference color_attachment = {
+    .attachment = 0,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+  };
+  VkSubpassDescription subpass = {
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &color_attachment,
+  };
+  VkSubpassDependency dependency = {
+    .srcSubpass = VK_SUBPASS_EXTERNAL,
+    .dstSubpass = 0,
+    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+  };
+  VkRenderPassCreateInfo info = {
+    .sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .attachmentCount = 1,  // TODO: XXX = number of connectors with drawn flag
+    .pAttachments    = &attachment_desc, // XXX = collected array of connectors
+    .subpassCount    = 1,
+    .pSubpasses      = &subpass,
+    .dependencyCount = 1,
+    .pDependencies   = &dependency,
+  };
+  // VkRenderPass render_pass; // XXX TODO: put on connector or on node?
+  QVK(vkCreateRenderPass(qvk.device, &info, 0, &node.render_pass));
+#endif
+
   // a sink or a source does not need a pipeline to be run.
   // note, however, that a sink does need a descriptor set, as we want to bind
   // it to imgui textures later on.
@@ -204,18 +265,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
         dt_token_str(node->name), dt_token_str(node->kernel));
 
-    size_t len;
-    void *data = read_file(filename, &len);
-    if(!data) return VK_ERROR_INVALID_EXTERNAL_HANDLE;
-
     VkShaderModule shader_module;
-    VkShaderModuleCreateInfo sm_info = {
-      .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-      .codeSize = len,
-      .pCode    = data
-    };
-    QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, &shader_module));
-    free(data);
+    QVKR(dt_graph_create_shader_module(node->name, node->kernel, &shader_module));
 
     // TODO: cache pipelines on module->so ?
     VkPipelineShaderStageCreateInfo stage_info = {
@@ -452,6 +503,23 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   }
   if(node->dset_layout)
     vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset, 0, NULL);
+
+  // TODO: XXX if drawn connectors on output, init framebuffers for imageviews!
+#if 0
+  // create framebuffers
+  VkImageView attachment[1] = {};
+  VkFramebufferCreateInfo fb_create_info = {
+    .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+    .renderPass      = node.render_pass,
+    .attachmentCount = 1,           // XXX number of drawn connectors
+    .pAttachments    = attachment,  // XXX collected list of their image views
+    .width           = qvk.extent.width, // XXX roi
+    .height          = qvk.extent.height,
+    .layers          = 1,
+  };
+    // attachment[0] = qvk.swap_chain_image_views[i];
+    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i)); // XXX node or connectors to hold their own framebuffers
+#endif
   return VK_SUCCESS;
 }
 
@@ -600,57 +668,64 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   if(node->name == dt_token("srgb2f")) *runflag = 2; // XXX hack
   if(!*runflag) return VK_SUCCESS; // nothing to do yet
 
+  // for drawn/rasterised buffers:
+  uint32_t attachment_desc_cnt = 0;
+  VkAttachmentDescription attachment_desc[DT_MAX_CONNECTORS];
+
   VkCommandBuffer cmd_buf = graph->command_buffer;
   //if(*runflag == 1) // only wait for non-cached inputs
   {
-#if 0 // this would potentially be needed if compute queue != graphics queue
-    // compute barriers on input images:
-    if(dt_node_sink(node))
-    { // XXX does this break export? we want it to display stuff in graphics queue
-      for(int i=0;i<node->num_connectors;i++)
-        if(dt_connector_input(node->connector+i))
-          if(node->connector[i].connected_mi >= 0)
-            BARRIER_COMPUTE_SINK(node->connector[i].image);
-    }
-    else
-#endif
+    // wait for our input images and transfer them to read only.
+    // also wait for our output buffers to be transferred into general layout.
+    // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
+    for(int i=0;i<node->num_connectors;i++)
     {
-      // wait for our input images and transfer them to read only.
-      // also wait for our output buffers to be transferred into general layout.
-      // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
-      for(int i=0;i<node->num_connectors;i++)
+      if(dt_connector_input(node->connector+i))
       {
-        if(dt_connector_input(node->connector+i))
+        if(!node->module->so->write_sink)
+          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        else
+          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+      }
+      else if(dt_connector_output(node->connector+i))
+      {
+        // wait for layout transition on the output back to general:
+        BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
+        if(node->connector[i].flags & s_conn_clear)
         {
-          if(!node->module->so->write_sink)
-            BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-          else
-            BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-        }
-        else if(dt_connector_output(node->connector+i))
-        {
-          // wait for layout transition on the output back to general:
+          // in case clearing is requested, zero out the image:
+          VkClearColorValue col = {{0}};
+          VkImageSubresourceRange range = {
+            .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel    = 0,
+            .levelCount      = 1,
+            .baseArrayLayer  = 0,
+            .layerCount      = 1
+          };
+          vkCmdClearColorImage(
+              cmd_buf,
+              node->connector[i].image,
+              VK_IMAGE_LAYOUT_GENERAL,
+              &col,
+              1,
+              &range);
           BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
-          if(node->connector[i].flags & s_conn_clear)
-          {
-            // in case clearing is requested, zero out the image:
-            VkClearColorValue col = {{0}};
-            VkImageSubresourceRange range = {
-              .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
-              .baseMipLevel    = 0,
-              .levelCount      = 1,
-              .baseArrayLayer  = 0,
-              .layerCount      = 1
-            };
-            vkCmdClearColorImage(
-                cmd_buf,
-                node->connector[i].image,
-                VK_IMAGE_LAYOUT_GENERAL,
-                &col,
-                1,
-                &range);
-            BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
-          }
+        }
+        if(node->connector[i].flags & s_conn_drawn)
+        {
+          // TODO: this connector needs to init a graphics command buffer!
+          // TODO: take note of this (flag) and init a render pass for this node later on!
+          // TODO: collect all s_conn_drawn connectors here and write their attachment_desc to array!
+          attachment_desc[attachment_desc_cnt++] = (VkAttachmentDescription){
+            .format         = dt_connector_vkformat(node->connector+i),
+            .samples        = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR, // VK_ATTACHMENT_LOAD_OP_DONT_CARE, // XXX select on s_conn_clear flag?
+            .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout    = VK_IMAGE_LAYOUT_GENERAL,
+          };
         }
       }
     }
@@ -698,6 +773,14 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     // this will transfer into READ_ONLY_OPTIMAL
     BARRIER_COMPUTE(node->connector[0].image);
   }
+
+  // TODO: if render pass (means no compute shader): execute the render pass here
+#if 0
+  // begin render pass
+  // push to graphics command buffer
+  // end render pass
+  // barriers ??
+#endif
 
   // only non-sink and non-source nodes have a pipeline:
   if(!node->pipeline) return VK_SUCCESS;

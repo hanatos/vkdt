@@ -93,3 +93,8 @@ VkResult dt_graph_run(
     dt_graph_run_t  run);
 
 void dt_token_print(dt_token_t t);
+
+VkResult dt_graph_create_shader_module(
+    dt_token_t node,
+    dt_token_t kernel,
+    VkShaderModule *shader_module);

@@ -22,6 +22,7 @@ typedef enum dt_connector_flags_t
   s_conn_none   = 0,
   s_conn_smooth = 1,  // access this with a bilinear sampler during read
   s_conn_clear  = 2,  // clear this to zero before writing
+  s_conn_drawn  = 4,  // this image is created via rasterisation pipeline, not a compute shader
 }
 dt_connector_flags_t;
 
@@ -70,6 +71,8 @@ typedef struct dt_connector_t
   VkImage     image;
   VkImageView image_view;
   VkBuffer    staging;    // for sources and sinks
+
+  VkFramebuffer framebuffer; // for draw kernels
 }
 dt_connector_t;
 

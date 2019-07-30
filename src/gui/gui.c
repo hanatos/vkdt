@@ -58,20 +58,14 @@ int dt_gui_init()
     return 1;
   }
 
-  // TODO: move these to here (need our own swapchain? but definitely our own command pool/things)
   // SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
   QVK(qvk_create_swapchain());
-  // QVK(qvk_create_command_pool_and_fences());
-  // QVK(qvk_initialize_all(VKPT_INIT_DEFAULT));
-
-  // TODO: create our command pool and fences (see imgui_impl_vulkan.cpp)
-  // ImGui_ImplVulkanH_CreateWindowSwapChain
 
   // create the render pass
   VkAttachmentDescription attachment_desc = {
     .format = qvk.surf_format.format,
     .samples = VK_SAMPLE_COUNT_1_BIT,
-    // TODO clear enable?
+    // clear enable?
     .loadOp = 1 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,

@@ -22,6 +22,8 @@ typedef struct dt_node_t
   VkDescriptorSet       dset;
   VkDescriptorSetLayout dset_layout;
 
+  VkRenderPass          draw_render_pass; // needed for raster kernels
+
   uint32_t wd, ht, dp;  // dimensions of kernel to be run
 
   uint32_t push_constant[64];  // GTX1080 has size == 256 as max anyways
