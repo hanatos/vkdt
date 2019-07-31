@@ -665,7 +665,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
   // TODO: run flags and active module
   if(node->name == dt_token("demosaic")) *runflag = 2; // XXX hack
-  if(node->name == dt_token("srgb2f")) *runflag = 2; // XXX hack
+  if(node->name == dt_token("srgb2f"))   *runflag = 2; // XXX hack
   if(!*runflag) return VK_SUCCESS; // nothing to do yet
 
   // for drawn/rasterised buffers:

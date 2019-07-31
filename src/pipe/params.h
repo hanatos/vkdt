@@ -13,7 +13,7 @@ typedef struct dt_ui_param_t
   union
   {
     float val[1]; // let's assume we at least have one argument
-    char str[4];
+    char  str[4];
   };
   // directly after this go float* or char*
 }
