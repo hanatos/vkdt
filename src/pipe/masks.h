@@ -1,4 +1,7 @@
 #pragma once
+#include "graph.h"
+
+#include <vulkan/vulkan.h>
 
 VkResult dt_masks_create_pipeline(
     dt_graph_t *graph,   // associated graph

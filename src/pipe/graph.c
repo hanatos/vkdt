@@ -1,5 +1,6 @@
 #include "graph.h"
 #include "graph-io.h"
+#include "masks.h"
 #include "module.h"
 #include "modules/api.h"
 #include "core/log.h"

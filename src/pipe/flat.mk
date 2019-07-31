@@ -4,6 +4,7 @@ pipe/connector.o\
 pipe/global.o\
 pipe/graph.o\
 pipe/graph-io.o\
+pipe/masks.o\
 pipe/module.o
 PIPE_H=\
 pipe/alloc.h\
@@ -17,6 +18,7 @@ pipe/graph-print.h\
 pipe/graph-traverse.inc\
 pipe/modules/api.h\
 pipe/io.h\
+pipe/masks.h\
 pipe/module.h\
 pipe/node.h\
 pipe/params.h\
