@@ -1,8 +1,16 @@
 # cleanup
 
+* committed_params no malloc() but use pool on graph! (contract to just set param_size and the rest is done in core?)
+* use vkCmdClearColorImage() on output images to avoid inefficiencies on GPU
+  while at it: using an incorrect src layout may lead to discarding the data during layout transform barriers
+* gui/render.cpp: use descriptor set of output image ("display" node "main" inst)
+* connectors propagate format from sink by one step: is just encoding
+  i.e. detect 8-bit vs floating point input buffers and create nodes accordingly?
+  connect(): downgrade f16 output to ui8 on the fly (etc)
+
 # pipeline features
 
-* support forks
+* support forks: init stack of graph traversal with all output nodes, not just the one
 
 # pipeline reuse
 
@@ -17,7 +25,8 @@
 
 # cli
 
-* detect non-export output
+* take cmd line argument which output display node names to process
+* replace display node by export + maybe 8-bit downsample node
 
 # params and history
 
@@ -25,6 +34,7 @@
 * version modules! (for params)
 * committed_params to use pool, too!
 * commit_params needs nodeid?
+* write sidecar file and enable to run without -g but use default sidecar instead
 
 # module api
 

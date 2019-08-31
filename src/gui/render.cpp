@@ -1,8 +1,10 @@
+extern "C" {
 #include "gui.h"
+#include "qvk/qvk.h"
+}
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_sdl.h"
-#include "qvk/qvk.h"
 #include <SDL.h>
 
 #include <stdio.h>
@@ -37,10 +39,12 @@ void view_to_image(
     const float v[2],
     float       img[2])
 {
-  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.wd;
-  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.ht;
-  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
-  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
+  dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+  assert(out);
+  float wd  = (float)out->connector[0].roi.wd;
+  float ht  = (float)out->connector[0].roi.ht;
+  float fwd = (float)out->connector[0].roi.full_wd;
+  float fht = (float)out->connector[0].roi.full_ht;
   float imwd = vkdt.view_width, imht = vkdt.view_height;
   float scale = MIN(imwd/wd, imht/ht);
   if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
@@ -60,10 +64,12 @@ void image_to_view(
     const float img[2], // image pixel coordinate in [0,1]^2
     float       v[2])   // window pixel coordinate
 {
-  float wd  = (float)vkdt.graph_dev.output->connector[0].roi.wd;
-  float ht  = (float)vkdt.graph_dev.output->connector[0].roi.ht;
-  float fwd = (float)vkdt.graph_dev.output->connector[0].roi.full_wd;
-  float fht = (float)vkdt.graph_dev.output->connector[0].roi.full_ht;
+  dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+  assert(out);
+  float wd  = (float)out->connector[0].roi.wd;
+  float ht  = (float)out->connector[0].roi.ht;
+  float fwd = (float)out->connector[0].roi.full_wd;
+  float fht = (float)out->connector[0].roi.full_ht;
   float imwd = vkdt.view_width, imht = vkdt.view_height;
   float scale = MIN(imwd/wd, imht/ht);
   if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
@@ -286,9 +292,11 @@ extern "C" void dt_gui_render_frame_imgui()
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("center", 0, window_flags);
 
-    if(vkdt.graph_dev.output)
+    dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+    if(out)
     {
-      ImTextureID imgid = vkdt.graph_dev.output->dset;   // XXX put DescriptorSet of display node!
+      // TODO: search for node "display" "main":
+      ImTextureID imgid = out->dset;   // XXX put DescriptorSet of display node!
       float im0[2], im1[2];
       float v0[2] = {(float)vkdt.view_x, (float)vkdt.view_y};
       float v1[2] = {(float)vkdt.view_x+vkdt.view_width, (float)vkdt.view_y+vkdt.view_height};

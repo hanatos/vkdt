@@ -214,8 +214,8 @@ vk_debug_callback(
 #ifndef NDEBUG
   if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
   {
-    void *const buf[100];
-    backtrace_symbols_fd(buf, 100, 2);
+    // void *const buf[100];
+    // backtrace_symbols_fd(buf, 100, 2);
     assert(0);
   }
 #endif

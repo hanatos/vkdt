@@ -17,9 +17,10 @@ dt_gui_t vkdt;
 static void
 handle_event(SDL_Event *event)
 {
-  // TODO: get from somewhere better
-  float wd = (float)vkdt.graph_dev.output->connector[0].roi.wd;
-  float ht = (float)vkdt.graph_dev.output->connector[0].roi.ht;
+  dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+  assert(out);
+  float wd = (float)out->connector[0].roi.wd;
+  float ht = (float)out->connector[0].roi.ht;
   static int m_x = -1, m_y = -1;
   static float old_look_x = -1.0f, old_look_y = -1.0f;
   if(event->type == SDL_MOUSEMOTION)

@@ -80,13 +80,13 @@ typedef struct dt_graph_t
   uint32_t              dset_cnt_uniform;
 
   dt_graph_run_t        runflags;      // used to trigger next runflags/invalidate things
-
-  dt_node_t *output; // XXX hack, remove for better display node + gui binding!
 }
 dt_graph_t;
 
 void dt_graph_init(dt_graph_t *g);
 void dt_graph_cleanup(dt_graph_t *g);
+
+dt_node_t *dt_graph_get_main_output(dt_graph_t *g);
 
 VkResult dt_graph_run(
     dt_graph_t     *graph,

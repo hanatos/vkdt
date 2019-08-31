@@ -7,6 +7,62 @@
 
 #include <stdlib.h>
 
+// replace given display node instance by export module.
+// returns 0 on success.
+static int
+replace_display(
+    dt_graph_t *graph,
+    dt_token_t  inst,
+    int         ldr,   // TODO: output format and params of all sorts
+    const char *filename)
+{
+  const int mid = dt_module_get(graph, dt_token_static("display"), inst);
+  if(mid < 0) return 1; // no display node by that name
+
+  // get module the display is connected to:
+  const int cid = dt_module_get_connector(graph->module+mid, dt_token_static("input"));
+  const int m0 = graph->module[mid].connector[cid].connected_mi;
+  const int c0 = graph->module[mid].connector[cid].connected_mc;
+
+  if(m0 < 0) return 2; // display input not connected
+
+  // new module export with same inst
+  // maybe new module 8-bit in between here
+  if(ldr)
+  {
+    const int m1 = dt_module_add(graph, dt_token_static("f2srgb"),  inst);
+    const int c1 = dt_module_get_connector(graph->module+m1, dt_token_static("input"));
+    const int m2 = dt_module_add(graph, dt_token_static("export8"), inst);
+    const int c2 = dt_module_get_connector(graph->module+m2, dt_token_static("input"));
+
+    // connect: source (m0, c0) -> destination (m1, c1)
+    dt_module_connect(graph, m0, c0, m1, c1);
+    dt_module_connect(graph, m1, c1, m2, c2);
+  }
+  else
+  {
+    const int m1 = dt_module_add(graph, dt_token_static("export"), inst);
+    const int c1 = dt_module_get_connector(graph->module+m1, dt_token_static("input"));
+    dt_module_connect(graph, m0, c0, m1, c1);
+  }
+  return 0;
+}
+
+// disconnect all remaining display nodes.
+static void
+disconnect_display_nodes(
+    dt_graph_t *graph)
+{
+  for(int m=0;m<graph->num_modules;m++)
+  {
+    if(graph->module[m].name == dt_token_static("display"))
+    {
+      const int c0 = dt_module_get_connector(graph->module+m, dt_token_static("input"));
+      dt_module_connect(graph, -1, -1, m, c0); // disconnect
+    }
+  }
+}
+
 int main(int argc, char *argv[])
 {
   // init global things, log and pipeline:

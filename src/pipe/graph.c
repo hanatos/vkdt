@@ -691,9 +691,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       else if(dt_connector_output(node->connector+i))
       {
         // wait for layout transition on the output back to general:
-        BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
         if(node->connector[i].flags & s_conn_clear)
         {
+          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
           // in case clearing is requested, zero out the image:
           VkClearColorValue col = {{0}};
           VkImageSubresourceRange range = {
@@ -706,12 +706,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
           vkCmdClearColorImage(
               cmd_buf,
               node->connector[i].image,
-              VK_IMAGE_LAYOUT_GENERAL,
+              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
               &col,
               1,
               &range);
-          BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
         }
+        BARRIER_IMG_LAYOUT(node->connector[i].image, VK_IMAGE_LAYOUT_GENERAL);
         if(node->connector[i].flags & s_conn_drawn)
         {
           // TODO: this connector needs to init a graphics command buffer!
@@ -1355,8 +1355,6 @@ VkResult dt_graph_run(
       dt_node_t *node = graph->node + n;
       if(dt_node_sink(node))
       {
-        // XXX hack! TODO implement proper display node
-        graph->output = node;
         if(node->module->so->write_sink)
         {
           uint8_t *mapped = 0;
@@ -1390,4 +1388,18 @@ VkResult dt_graph_run(
   // reset run flags:
   graph->runflags = 0;
   return VK_SUCCESS;
+}
+
+dt_node_t *
+dt_graph_get_main_output(
+    dt_graph_t *g)
+{
+  // TODO: cache somewhere on graph?
+  for(int n=0;n<g->num_nodes;n++)
+  {
+    if(g->node[n].module->name == dt_token("display") &&
+       g->node[n].module->inst == dt_token("main"))
+      return g->node+n;
+  }
+  return 0;
 }
