@@ -1,2 +1,2 @@
-filename:string:256:output.jpg
+filename:string:256:output
 quality:float:1:95

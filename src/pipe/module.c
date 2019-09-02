@@ -99,6 +99,7 @@ int dt_module_remove(
       return -1;
   graph->module[modid].name = 0;
   graph->module[modid].inst = 0;
+  graph->module[modid].connector[0].type = 0; // to avoid being detected as sink
   return 0;
 }
 

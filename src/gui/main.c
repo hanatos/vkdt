@@ -137,6 +137,13 @@ int main(int argc, char *argv[])
     dt_log(s_log_err|s_log_gui, "running the graph failed!");
     goto error;
   }
+
+  // nodes are only constructed after running once
+  if(!dt_graph_get_main_output(&vkdt.graph_dev))
+  {
+    dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
+    goto error;
+  }
   dt_gui_read_ui_ascii("darkroom.ui");
 
   // main loop

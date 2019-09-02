@@ -32,6 +32,7 @@ replace_display(
   {
     const int m1 = dt_module_add(graph, dt_token("f2srgb8"),  inst);
     const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+    const int co = dt_module_get_connector(graph->module+m1, dt_token("output"));
     const int m2 = dt_module_add(graph, dt_token("export8"), inst);
     const int c2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
 
@@ -42,31 +43,27 @@ replace_display(
       m0 = graph->module[m0].connector[cid].connected_mi;
     }
     // connect: source (m0, c0) -> destination (m1, c1)
-    dt_module_connect(graph, m0, c0, m1, c1);
-    dt_module_connect(graph, m1, c1, m2, c2);
+    CONN(dt_module_connect(graph, m0, c0, m1, c1));
+    CONN(dt_module_connect(graph, m1, co, m2, c2));
   }
   else
   {
     const int m1 = dt_module_add(graph, dt_token("export"), inst);
     const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-    dt_module_connect(graph, m0, c0, m1, c1);
+    CONN(dt_module_connect(graph, m0, c0, m1, c1));
   }
+  // TODO: set output filename parameter on export modules
   return 0;
 }
 
 // disconnect all remaining display nodes.
 static void
-disconnect_display_nodes(
+disconnect_display_modules(
     dt_graph_t *graph)
 {
   for(int m=0;m<graph->num_modules;m++)
-  {
     if(graph->module[m].name == dt_token("display"))
-    {
-      const int c0 = dt_module_get_connector(graph->module+m, dt_token("input"));
-      dt_module_connect(graph, -1, -1, m, c0); // disconnect
-    }
-  }
+      dt_module_remove(graph, m); // disconnect and reset/ignore
 }
 
 int main(int argc, char *argv[])
@@ -115,7 +112,7 @@ int main(int argc, char *argv[])
     exit(2);
   }
   // make sure all remaining display nodes are removed:
-  disconnect_display_nodes(&graph);
+  disconnect_display_modules(&graph);
 
   dt_graph_run(&graph, s_graph_run_all);
 
