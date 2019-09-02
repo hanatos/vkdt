@@ -309,11 +309,11 @@ dt_gui_read_ui_ascii(
     float min = 0.0f, max = 0.0f;
     switch(type)
     {
-      case dt_token_static("slider"):
+      case dt_token("slider"):
         min = dt_read_float(line, &line);
         max = dt_read_float(line, &line);
         break;
-      case dt_token_static("quad"):
+      case dt_token("quad"):
         break;
       default:
         dt_log(s_log_err, "unknown widget type in %s!", filename);

@@ -24,8 +24,8 @@ dt_ui_param_type_size(const dt_token_t type)
 {
   switch(type)
   {
-  case dt_token_static("float"):  return sizeof(float);
-  case dt_token_static("string"): return sizeof(char);
+  case dt_token("float"):  return sizeof(float);
+  case dt_token("string"): return sizeof(char);
   default: return 0;
   }
 }

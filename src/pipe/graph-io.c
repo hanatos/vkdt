@@ -31,14 +31,14 @@ read_param_ascii(
   int cnt = p->cnt;
   switch(p->type)
   {
-    case dt_token_static("float"):
+    case dt_token("float"):
     {
       float *block = (float *)(graph->module[modid].param + p->offset);
       for(int i=0;i<cnt;i++)
         *(block++) = dt_read_float(line, &line);
     }
     break;
-    case dt_token_static("string"):
+    case dt_token("string"):
     {
       char *str = (char *)(graph->module[modid].param + p->offset);
       int i = 0;
@@ -176,7 +176,7 @@ int dt_graph_write_config_ascii(
           dt_token_str(mod->so->param[p]->name));
       switch(mod->so->param[p]->type)
       {
-      case dt_token_static("float"):
+      case dt_token("float"):
       {
         const float *v = dt_module_param_float(mod, p);
         for(int i=0;i<mod->so->param[p]->cnt-1;i++)
@@ -184,7 +184,7 @@ int dt_graph_write_config_ascii(
         fprintf(f, "%g\n", v[mod->so->param[p]->cnt-1]);
         break;
       }
-      case dt_token_static("string"):
+      case dt_token("string"):
       {
         fprintf(f, "%s\n", dt_module_param_string(mod, p));
         break;

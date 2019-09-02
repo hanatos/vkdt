@@ -16,11 +16,11 @@ replace_display(
     int         ldr,   // TODO: output format and params of all sorts
     const char *filename)
 {
-  const int mid = dt_module_get(graph, dt_token_static("display"), inst);
+  const int mid = dt_module_get(graph, dt_token("display"), inst);
   if(mid < 0) return 1; // no display node by that name
 
   // get module the display is connected to:
-  int cid = dt_module_get_connector(graph->module+mid, dt_token_static("input"));
+  int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
   int m0 = graph->module[mid].connector[cid].connected_mi;
   int c0 = graph->module[mid].connector[cid].connected_mc;
 
@@ -30,14 +30,14 @@ replace_display(
   // maybe new module 8-bit in between here
   if(ldr)
   {
-    const int m1 = dt_module_add(graph, dt_token_static("f2srgb8"),  inst);
-    const int c1 = dt_module_get_connector(graph->module+m1, dt_token_static("input"));
-    const int m2 = dt_module_add(graph, dt_token_static("export8"), inst);
-    const int c2 = dt_module_get_connector(graph->module+m2, dt_token_static("input"));
+    const int m1 = dt_module_add(graph, dt_token("f2srgb8"),  inst);
+    const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+    const int m2 = dt_module_add(graph, dt_token("export8"), inst);
+    const int c2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
 
     if(graph->module[m0].name == dt_token("f2srgb"))
     { // detect and skip f2srgb (replaced by f2srgb8)
-      cid = dt_module_get_connector(graph->module+m0, dt_token_static("input"));
+      cid = dt_module_get_connector(graph->module+m0, dt_token("input"));
       c0 = graph->module[m0].connector[cid].connected_mc;
       m0 = graph->module[m0].connector[cid].connected_mi;
     }
@@ -47,8 +47,8 @@ replace_display(
   }
   else
   {
-    const int m1 = dt_module_add(graph, dt_token_static("export"), inst);
-    const int c1 = dt_module_get_connector(graph->module+m1, dt_token_static("input"));
+    const int m1 = dt_module_add(graph, dt_token("export"), inst);
+    const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
     dt_module_connect(graph, m0, c0, m1, c1);
   }
   return 0;
@@ -61,9 +61,9 @@ disconnect_display_nodes(
 {
   for(int m=0;m<graph->num_modules;m++)
   {
-    if(graph->module[m].name == dt_token_static("display"))
+    if(graph->module[m].name == dt_token("display"))
     {
-      const int c0 = dt_module_get_connector(graph->module+m, dt_token_static("input"));
+      const int c0 = dt_module_get_connector(graph->module+m, dt_token("input"));
       dt_module_connect(graph, -1, -1, m, c0); // disconnect
     }
   }

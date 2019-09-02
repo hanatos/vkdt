@@ -173,7 +173,7 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
     const int i = g_active_widget;
     switch(vkdt.widget[i].type)
     {
-      case dt_token_static("quad"):
+      case dt_token("quad"):
       {
         static int c = -1;
         if(c >= 0 && event->type == SDL_MOUSEMOTION)
@@ -216,7 +216,7 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
         }
         break;
       }
-      case dt_token_static("axquad"):
+      case dt_token("axquad"):
       {
         static int e = -1;
         if(e >= 0 && event->type == SDL_MOUSEMOTION)
@@ -319,7 +319,7 @@ extern "C" void dt_gui_render_frame_imgui()
       // distinguish by type:
       switch(vkdt.widget[i].type)
       {
-        case dt_token_static("quad"):
+        case dt_token("quad"):
         {
           float *v = g_state;
           float p[8];
@@ -329,7 +329,7 @@ extern "C" void dt_gui_render_frame_imgui()
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
         }
-        case dt_token_static("axquad"):
+        case dt_token("axquad"):
         {
           float v[8] = {
             g_state[0], g_state[2], g_state[1], g_state[2], 
@@ -371,7 +371,7 @@ extern "C" void dt_gui_render_frame_imgui()
       // distinguish by type:
       switch(vkdt.widget[i].type)
       {
-        case dt_token_static("slider"):
+        case dt_token("slider"):
         {
           // TODO: distinguish by count:
           float *val = (float*)(vkdt.graph_dev.module[modid].param + 
@@ -385,7 +385,7 @@ extern "C" void dt_gui_render_frame_imgui()
               "%2.5f");
           break;
         }
-        case dt_token_static("quad"):
+        case dt_token("quad"):
         {
           float *v = (float*)(vkdt.graph_dev.module[modid].param + 
             vkdt.graph_dev.module[modid].so->param[parid]->offset);
@@ -415,7 +415,7 @@ extern "C" void dt_gui_render_frame_imgui()
           }
           break;
         }
-        case dt_token_static("axquad"):
+        case dt_token("axquad"):
         {
           float *v = (float*)(vkdt.graph_dev.module[modid].param + 
             vkdt.graph_dev.module[modid].so->param[parid]->offset);
