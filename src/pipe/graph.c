@@ -1377,14 +1377,14 @@ VkResult dt_graph_run(
 
   for(int i=0;i<graph->query_cnt;i+=2)
   {
-    dt_log(s_log_perf, "query %"PRItkn"_%"PRItkn":\t%8.2g ms",
+    dt_log(s_log_perf, "query %"PRItkn"_%"PRItkn":\t%8.2f ms",
         dt_token_str(graph->query_name  [i]),
         dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
   }
   if(graph->query_cnt)
-    dt_log(s_log_perf, "total time:\t%8.2g ms",
+    dt_log(s_log_perf, "total time:\t%8.2f ms",
         (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds);
   // reset run flags:
   graph->runflags = 0;
