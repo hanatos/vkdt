@@ -1,6 +1,7 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
+// #extension GL_AMD_gpu_shader_half_float   : enable
 
 #include "shared.glsl"
 
@@ -66,6 +67,7 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   vec4 rgba = (texelFetch(img_in, ipos, 0) - params.black) * params.mul;
+  // f16vec4 rgba = (f16vec4(texelFetch(img_in, ipos, 0)) - float16_t(params.black)) * float16_t(params.mul);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
   // imageStore(img_out, ipos, vec4(apply_lut(rgba.rgb), 1));
 }
