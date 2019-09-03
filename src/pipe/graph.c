@@ -795,7 +795,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   // push profiler start
   if(graph->query_cnt < graph->query_max)
   {
-    vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt);
     graph->query_name  [graph->query_cnt  ] = node->name;
     graph->query_kernel[graph->query_cnt++] = node->kernel;
@@ -878,7 +878,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   // get a profiler timestamp:
   if(graph->query_cnt < graph->query_max)
   {
-    vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         graph->query_pool, graph->query_cnt);
     graph->query_name  [graph->query_cnt  ] = node->name;
     graph->query_kernel[graph->query_cnt++] = node->kernel;
@@ -1289,7 +1289,7 @@ VkResult dt_graph_run(
     // not sure about our images, i suppose they will need sync/double buffering in this case
   };
   QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
-  vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_cnt);
+  vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
 
   // upload all source data to staging memory
   if(run & s_graph_run_upload_source)
@@ -1374,17 +1374,18 @@ VkResult dt_graph_run(
         graph->query_pool_results,
         sizeof(graph->query_pool_results[0]),
         VK_QUERY_RESULT_64_BIT));
+
   for(int i=0;i<graph->query_cnt;i+=2)
   {
     dt_log(s_log_perf, "query %"PRItkn"_%"PRItkn":\t%8.2g ms",
         dt_token_str(graph->query_name  [i]),
         dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
-        graph->query_pool_results[i])* 1e-6);
+        graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
   }
   if(graph->query_cnt)
     dt_log(s_log_perf, "total time:\t%8.2g ms",
-        (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6);
+        (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds);
   // reset run flags:
   graph->runflags = 0;
   return VK_SUCCESS;

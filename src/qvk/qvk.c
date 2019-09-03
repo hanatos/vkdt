@@ -504,6 +504,7 @@ qvk_init()
     VkPhysicalDeviceFeatures   dev_features;
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
+    qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
 
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
