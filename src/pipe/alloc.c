@@ -33,6 +33,7 @@ dt_vkalloc_nuke(dt_vkalloc_t *a)
   a->free = a->used = a->unused = 0;
   a->free = DLIST_PREPEND(a->free, a->vkmem_pool);
   a->free->offset = 0;
+  a->free->offset_orig = 0;
   a->free->size = a->heap_size;
   for(int i=1;i<a->pool_size;i++)
     a->unused = DLIST_PREPEND(a->unused, a->vkmem_pool+i);
@@ -55,7 +56,7 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       if(l == a->free) a->free = l->next;
       DLIST_RM_ELEMENT(mem);
     }
-    else if((l->size > size && !(l->offset & (alignment-1))) ||
+    else if((l->size > size && !(l->offset_orig & (alignment-1))) ||
         l->size > size + alignment)
     { // grab new mem entry from unused list
       assert(a->unused && "vkalloc: no more free slots!");
@@ -67,11 +68,14 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       // we'll just forget about the bits in between our base pointer
       // and the requested alignment. we rely on nuking the memory pool
       // very often anyways. plus, what's a few kilobytes among friends.
-      size_t end = l->offset + l->size;
-      mem->offset = (l->offset & ~(alignment-1)) + alignment;
+      size_t end = l->offset_orig + l->size;
+      mem->offset_orig = l->offset_orig;
+      mem->offset = ((l->offset_orig + (alignment-1)) & ~(alignment-1));
+      assert(size < 1ul<<48);
       mem->size = size;
-      l->offset = mem->offset + mem->size;
-      l->size = end - l->offset;
+      l->offset = l->offset_orig = mem->offset + mem->size;
+      assert(end >= l->offset_orig);
+      l->size = end - l->offset_orig;
     }
 
     if(mem)
@@ -116,9 +120,9 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
       t = mem->prev;
       if(t)
       { // merge with before
-        if(t->offset + t->size == mem->offset)
+        if(t->offset + t->size == mem->offset_orig)
         {
-          t->size += mem->size;
+          t->size += mem->size + mem->offset - mem->offset_orig;
           if(a->free == mem) a->free = mem->next;
           DLIST_RM_ELEMENT(mem);
           a->unused = DLIST_PREPEND(a->unused, mem);
@@ -128,10 +132,10 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
       t = mem->next;
       if(t)
       { // merge with after
-        if(t->offset == mem->offset + mem->size)
+        if(t->offset_orig == mem->offset + mem->size)
         {
-          t->offset = mem->offset;
-          t->size += mem->size;
+          t->offset = t->offset_orig = mem->offset_orig;
+          t->size += mem->size + mem->offset - mem->offset_orig;
           if(a->free == mem) a->free = mem->next;
           DLIST_RM_ELEMENT(mem);
           a->unused = DLIST_PREPEND(a->unused, mem);
@@ -198,8 +202,8 @@ dt_vkalloc_check(dt_vkalloc_t *a)
   uint64_t pos = 0, next_pos = 0;
   while(l)
   {
-    if(l->offset < pos) return 2;
-    if(l->offset + l->size < next_pos) return 3;
+    if(l->offset_orig < pos) return 2;
+    if(l->offset_orig + l->size < next_pos) return 3;
     pos = l->offset;
     next_pos = l->offset + l->size;
     l = l->next;

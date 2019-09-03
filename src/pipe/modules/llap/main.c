@@ -64,7 +64,7 @@ create_nodes(
   rc.full_wd /= 2;
   rc.full_ht /= 2;
 
-  const int nl = 4;
+  const int nl = 7;
   int id_reduce[nl][7] = {{-1}};
   int cn_reduce[nl][7] = {{-1}};
   for(int k=0;k<7;k++)

@@ -50,7 +50,7 @@ dt_graph_init(dt_graph_t *g)
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
 
-  g->query_max = 100;
+  g->query_max = 200;
   g->query_cnt = 0;
   VkQueryPoolCreateInfo query_pool_info = {
     .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
