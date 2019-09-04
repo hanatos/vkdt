@@ -10,7 +10,6 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
-  roi_t rl;
   roi_t ro;
   vec4 x;
   vec4 y;
@@ -23,13 +22,8 @@ layout( // input f16 buffer rgb
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-// extra input buffer: luminance of blurred image
-layout( // input f16 buffer y
-    set = 1, binding = 1
-) uniform sampler2D img_lum;
-
 layout( // output f16 buffer rgb
-    set = 1, binding = 2, rgba16f
+    set = 1, binding = 1, rgba16f
 ) uniform image2D img_out;
 
 // TODO: move to header?
@@ -87,8 +81,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  float l1  = texelFetch(img_lum, ipos, 0).r;
-  vec3  rgb = texelFetch(img_in,  ipos, 0).rgb;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   // acescc luma:
   // vec3 w = vec3(0.2126, 0.7152, 0.0722);
@@ -96,15 +89,15 @@ main()
   // xyz luma
   vec3 w = vec3(0.299, 0.587, 0.114);
   float l0 = dot(w, rgb);
-  // float l2 = acescc(l1);
+  // float l0 = acescc(l1);
 
   const float black_ev = params.black;
   const float black = exp2(black_ev);
   float white = 1.0f+exp2(black_ev);
-  float l2 = (log2(l1+black)-black_ev)/(log2(white)-black_ev);
-  l2 = hermite4(l2 + params.detail * (l0 - l1));
+  float l1 = (log2(l0+black)-black_ev)/(log2(white)-black_ev);
+  l1 = hermite4(l1);// + params.detail * (l0 - l1));
   // colour reconstruction: keep rgb saturation ratio same as before
-  rgb *= l2/l0;
+  rgb *= l1/l0;
   // want to see why 8-bit output sucks? try this:
   // float l1 = hermite4(ipos.x / float(params.ro.roi.x));
   // rgba.rgb = vec3(l1);

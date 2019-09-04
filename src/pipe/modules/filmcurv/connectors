@@ -1,3 +1,2 @@
 input:read:rgba:f16
-coarse:read:y:f16
 output:write:rgba:f16
