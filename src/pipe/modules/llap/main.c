@@ -161,7 +161,9 @@ create_nodes(
 
   // connect input coarse buffer [1] (coarsest reduced unprocessed or from coarser assemble level)
   // TODO: insert tone curve in between here:
-  CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_assemble[nl-1], 1));
+  // CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_assemble[nl-1], 1));
+
+
   // connect ouput fine buffer [14] (input to coarse [1] on next finer level)
   for(int l=1;l<nl-1;l++)
     CONN(dt_node_connect(graph, id_assemble[l+1], 14, id_assemble[l], 1));
@@ -190,6 +192,37 @@ create_nodes(
     },
   };
   CONN(dt_node_connect(graph, id_assemble[1], 14, id_col, 0));
+
+
+  // XXX TODO: need to fill push constants in commit_params and grab some code from
+  // XXX filmcurve!
+  // TODO add filmcurve node and connect it!
+  // XXX
+  // dt_connector_copy(graph, module, 1, id_reduce[nl-1][6], cn_reduce[nl-1][6]);
+  // dt_connector_copy(graph, module, 2, id_assemble[nl-1], 1);
+  ci.chan = dt_token("y");
+  ci.name = dt_token("input");
+  co.chan = dt_token("y");
+  co.name = dt_token("output");
+  ci.roi  = graph->node[id_assemble[nl-1]].connector[1].roi;
+  co.roi  = graph->node[id_assemble[nl-1]].connector[1].roi;
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_film = graph->num_nodes++;
+  dt_node_t *node_film = graph->node + id_film;
+  *node_film = (dt_node_t) {
+    .name   = dt_token("filmcurv"),
+    .kernel = dt_token("main"),
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = {
+      ci, co,
+    },
+  };
+  CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_film, 0));
+  CONN(dt_node_connect(graph, id_film, 1, id_assemble[nl-1], 1));
 
   // wire module i/o connectors to nodes:
   dt_connector_copy(graph, module, 0, id_curve, 0);

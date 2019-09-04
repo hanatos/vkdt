@@ -345,6 +345,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           "%"PRItkn" %"PRItkn,
           mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
           dt_token_str(c->chan), dt_token_str(c->format));
+      assert(c->mem);
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
       c->size   = c->mem->size;
@@ -925,6 +926,7 @@ count_references(dt_graph_t *graph, dt_node_t *node)
 static void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
+  fprintf(stderr, "XXX create nodes for %"PRItkn"\n", dt_token_str(module->name));
   if(module->so->create_nodes) return module->so->create_nodes(graph, module);
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;
@@ -1022,8 +1024,6 @@ VkResult dt_graph_run(
   // have more than one sink to pull in nodes for. we have to execute some of
   // this multiple times. also we have a marker on nodes/modules that we
   // already traversed. there might also be cycles on the module level.
-  uint8_t mark[200] = {0};
-  assert(graph->num_modules < sizeof(mark));
   // just find first sink node:
   int sink_module_id = 0;
   for(int i=0;i<graph->num_modules;i++)
@@ -1063,6 +1063,8 @@ VkResult dt_graph_run(
     modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
   }
+  // XXX
+    dt_graph_print_modules(graph);
 
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
@@ -1078,7 +1080,6 @@ VkResult dt_graph_run(
     graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
     // TODO: nuke descriptor set pool?
     start_node_id = sink_module_id;
-    memset(mark, 0, sizeof(mark));
 #define TRAVERSE_PRE\
     modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
@@ -1092,8 +1093,7 @@ VkResult dt_graph_run(
   }
 } // end scope, done with modules
 
-
-  assert(graph->num_nodes < sizeof(mark));
+    dt_graph_print_nodes(graph);
 
 { // node scope
   dt_node_t *const arr = graph->node;
@@ -1110,7 +1110,6 @@ VkResult dt_graph_run(
   // TODO: while(not happy) {
   // TODO: 3rd pass: compute memory requirements
   // TODO: if not happy: cut input roi in half or what
-  memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
     alloc_outputs(allocator, arr+curr);\
     free_inputs (allocator, arr+curr);
@@ -1129,7 +1128,6 @@ VkResult dt_graph_run(
       for(int c=0;c<graph->node[n].num_connectors;c++)
         if(dt_connector_output(graph->node[n].connector+c))
           graph->node[n].connector[c].connected_mi = 0;
-    memset(mark, 0, sizeof(mark));
     // perform reference counting on the final connected node graph.
     // this is needed for memory allocation later:
 #define TRAVERSE_PRE\
@@ -1145,7 +1143,6 @@ VkResult dt_graph_run(
     graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
     graph->memory_type_bits = ~0u;
     graph->memory_type_bits_staging = ~0u;
-    memset(mark, 0, sizeof(mark));
 #define TRAVERSE_POST\
     QVKR(alloc_outputs(graph, arr+curr));\
     free_inputs       (graph, arr+curr);
@@ -1315,7 +1312,6 @@ VkResult dt_graph_run(
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
   // ==============================================
-  memset(mark, 0, sizeof(mark));
   int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
 #define TRAVERSE_POST\
   if(run & s_graph_run_alloc_dset)     QVKR(alloc_outputs2(graph, arr+curr));\

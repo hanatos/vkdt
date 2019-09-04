@@ -1,5 +1,7 @@
 # cleanup
 
+XXX filmcurve push constants instead of params and wire in llap/main.c!
+
 * committed_params no malloc() but use pool on graph! (contract to just set param_size and the rest is done in core?)
 * use vkCmdClearColorImage() on output images to avoid inefficiencies on GPU
   while at it: using an incorrect src layout may lead to discarding the data during layout transform barriers

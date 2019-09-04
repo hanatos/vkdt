@@ -21,10 +21,15 @@
 { // scope
   uint32_t stack[256];
   uint8_t done[256];
+  uint8_t mark[256] = {0};
+  // TODO: num mod num nodes?
+  // assert(graph->num_modules < sizeof(mark));
   int sp = 0;
 
   // TODO: init this with all sink nodes
   stack[0] = start_node_id;
+  // for(int i=0;i<graph->num_modules;i++)
+    // if(graph->module[i].connector[0].type == dt_token("sink"))
   done[0] = 0;
 
   while(sp >= 0)
@@ -32,7 +37,6 @@
     int curr = stack[sp];
     if(mark[curr])
     {
-      // it seems another dependency has pulled in this node and deps before us.
       sp--;
     }
     else if(done[sp])
@@ -45,7 +49,8 @@
     }
     else
     { // see it for the first time, push children
-      // pre traversal callback
+      // but do not remove the node yet. we still need it for the post traversal callback.
+      // exec pre traversal callback before pushing children:
       TRAVERSE_PRE
       done[sp] = 1; // mark this node such that we only traverse the children once
       for(int i=0;i<arr[curr].num_connectors;i++)
@@ -58,14 +63,8 @@
         else if(arr[curr].connector[i].type == dt_token("read") ||
                 arr[curr].connector[i].type == dt_token("sink"))
         { // need to recurse all inputs
-          if(mark[el])
-          {
-            // in fact this is not enough to detect a cycle.
-            // it just means that we already processed this part of a bifurcation.
-            // no need to push dependency to stack, it's already done + marked.
-          }
-          else
-          { // push to stack only unmarked:
+          if(!mark[el])
+          { // push to stack only unmarked
             assert(sp < sizeof(done)-1);
             stack[++sp] = el;
             done[sp] = 0;
