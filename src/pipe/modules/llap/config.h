@@ -1,0 +1,1 @@
+#define LLAP_HQ

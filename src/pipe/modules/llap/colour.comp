@@ -44,7 +44,7 @@ main()
   vec3 w = vec3(0.2126, 0.7152, 0.0722);
   vec3 rgb = texelFetch(img_org, opos, 0).rgb;
   float yo = dot(w, rgb);
-  imageStore(img_out, opos, vec4(vec3(y), 1));
-  // imageStore(img_out, opos, vec4(y/yo * rgb, 1));
+  // imageStore(img_out, opos, vec4(vec3(y), 1));
+  imageStore(img_out, opos, vec4(y/yo * rgb, 1));
 }
 

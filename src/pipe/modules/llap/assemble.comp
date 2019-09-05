@@ -43,10 +43,22 @@ layout(set = 1, binding = 10) uniform sampler2D img_g4_l0;
 layout(set = 1, binding = 11) uniform sampler2D img_g4_l1;
 layout(set = 1, binding = 12) uniform sampler2D img_g5_l0;
 layout(set = 1, binding = 13) uniform sampler2D img_g5_l1;
-
+#ifdef LLAP_HQ
+layout(set = 1, binding = 14) uniform sampler2D img_g6_l0;
+layout(set = 1, binding = 15) uniform sampler2D img_g6_l1;
+layout(set = 1, binding = 16) uniform sampler2D img_g7_l0;
+layout(set = 1, binding = 17) uniform sampler2D img_g7_l1;
+layout(set = 1, binding = 18) uniform sampler2D img_g8_l0;
+layout(set = 1, binding = 19) uniform sampler2D img_g8_l1;
+layout(set = 1, binding = 20) uniform sampler2D img_g9_l0;
+layout(set = 1, binding = 21) uniform sampler2D img_g9_l1;
+layout(set = 1, binding = 22, r16f) uniform image2D img_out; // output f16 buffer y finer level of output
+#else
 layout( // output f16 buffer y finer level of output
     set = 1, binding = 14, r16f
 ) uniform image2D img_out;
+#endif
+
 
 float gauss_expand(sampler2D img_in, ivec2 opos)
 {
@@ -96,6 +108,29 @@ main()
   float gamma_hi = gamma_from_i(hi);
   float a = clamp((v - gamma_lo)/(gamma_hi-gamma_lo), 0.0f, 1.0f);
   float l0, l1;
+#ifdef LLAP_HQ
+  if(hi == 9)
+  {
+    l0 = texelFetch(img_g8_l0, opos, 0).r - gauss_expand(img_g8_l1, opos);
+    l1 = texelFetch(img_g9_l0, opos, 0).r - gauss_expand(img_g9_l1, opos);
+  }
+  else if(hi == 8)
+  {
+    l0 = texelFetch(img_g7_l0, opos, 0).r - gauss_expand(img_g7_l1, opos);
+    l1 = texelFetch(img_g8_l0, opos, 0).r - gauss_expand(img_g8_l1, opos);
+  }
+  else if(hi == 7)
+  {
+    l0 = texelFetch(img_g6_l0, opos, 0).r - gauss_expand(img_g6_l1, opos);
+    l1 = texelFetch(img_g7_l0, opos, 0).r - gauss_expand(img_g7_l1, opos);
+  }
+  else if(hi == 6)
+  {
+    l0 = texelFetch(img_g5_l0, opos, 0).r - gauss_expand(img_g5_l1, opos);
+    l1 = texelFetch(img_g6_l0, opos, 0).r - gauss_expand(img_g6_l1, opos);
+  }
+  else
+#endif
   if(hi == 5)
   {
     l0 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos);
@@ -122,10 +157,6 @@ main()
     l1 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos);
   }
   
-  // TODO: res + scale * laplacian, scale depending on level
-  // float scale = (1.0f - push.scale);// * push.beta + 1.0-push.beta;
-  float scale = (1.0f-push.scale) * push.beta + 1.0-push.beta;
-      // scale = (1.0f - (l/(nl-1.0)))*params.beta + 1.0-params.beta; // <= this is what andrew adams does
-  imageStore(img_out, opos, vec4(res + scale*(l0 * (1.0f-a) + l1 * a)));
+  imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
 }
 

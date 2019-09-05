@@ -17,6 +17,12 @@ layout(std140, set = 0, binding = 0) uniform params_t
   roi_t ro3;
   roi_t ro4;
   roi_t ro5;
+#ifdef LLAP_HQ
+  roi_t ro6;
+  roi_t ro7;
+  roi_t ro8;
+  roi_t ro9;
+#endif
   roi_t rog;
   vec4 x;
   vec4 y;
@@ -38,7 +44,15 @@ layout(set = 1, binding = 3, r16f) uniform image2D img_out2;
 layout(set = 1, binding = 4, r16f) uniform image2D img_out3;
 layout(set = 1, binding = 5, r16f) uniform image2D img_out4;
 layout(set = 1, binding = 6, r16f) uniform image2D img_out5;
+#ifdef LLAP_HQ
+layout(set = 1, binding = 7,  r16f) uniform image2D img_out6;
+layout(set = 1, binding = 8,  r16f) uniform image2D img_out7;
+layout(set = 1, binding = 9,  r16f) uniform image2D img_out8;
+layout(set = 1, binding = 10, r16f) uniform image2D img_out9;
+layout(set = 1, binding = 11, r16f) uniform image2D img_grey;
+#else
 layout(set = 1, binding = 7, r16f) uniform image2D img_grey;
+#endif
 
 float
 curve(
@@ -82,6 +96,12 @@ main()
   imageStore(img_out3, ipos, vec4(curve(y, gamma_from_i(3), params.sigma, params.shadows, params.highlights, params.clarity)));
   imageStore(img_out4, ipos, vec4(curve(y, gamma_from_i(4), params.sigma, params.shadows, params.highlights, params.clarity)));
   imageStore(img_out5, ipos, vec4(curve(y, gamma_from_i(5), params.sigma, params.shadows, params.highlights, params.clarity)));
+#ifdef LLAP_HQ
+  imageStore(img_out6, ipos, vec4(curve(y, gamma_from_i(6), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out7, ipos, vec4(curve(y, gamma_from_i(7), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out8, ipos, vec4(curve(y, gamma_from_i(8), params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out9, ipos, vec4(curve(y, gamma_from_i(9), params.sigma, params.shadows, params.highlights, params.clarity)));
+#endif
   imageStore(img_grey, ipos, vec4(y));
 }
 

@@ -1,3 +1,4 @@
+#include "config.h"
 #include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>
@@ -93,6 +94,11 @@ create_nodes(
     .format = dt_token("f16"),
     .roi    = module->connector[0].roi,
   };
+#ifdef LLAP_HQ
+  const int num_gamma = 10;
+#else
+  const int num_gamma = 6;
+#endif
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_curve = graph->num_nodes++;
@@ -104,10 +110,13 @@ create_nodes(
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 8,
+    .num_connectors = 2 + num_gamma,
     .connector = {
       ci, co, co, co,
       co, co, co, co,
+#ifdef LLAP_HQ
+      co, co, co, co,
+#endif
     },
   };
 
@@ -119,9 +128,9 @@ create_nodes(
   rc.full_ht /= 2;
 
   const int nl = 8;
-  int id_reduce[nl][7] = {{-1}};
-  int cn_reduce[nl][7] = {{-1}};
-  for(int k=0;k<7;k++)
+  int id_reduce[nl][num_gamma+1] = {{-1}};
+  int cn_reduce[nl][num_gamma+1] = {{-1}};
+  for(int k=0;k<num_gamma+1;k++)
   {
     id_reduce[0][k] = id_curve;
     cn_reduce[0][k] = 1+k;
@@ -151,7 +160,7 @@ create_nodes(
     coc.roi = rc;
     coc.name = dt_token("outlo");
 
-    for(int k=0;k<7;k++)
+    for(int k=0;k<num_gamma+1;k++)
     { // for all brightness levels gamma:
       // one reduce node taking this gamma one coarser
       assert(graph->num_nodes < graph->max_nodes);
@@ -190,10 +199,13 @@ create_nodes(
       .wd     = rf.wd,
       .ht     = rf.ht,
       .dp     = dp,
-      .num_connectors = 15,
+      .num_connectors = 2*num_gamma + 3,
       .connector = {
         cif, cic,
         cif, cic, cif, cic, cif, cic, cif, cic, cif, cic, cif, cic,
+#ifdef LLAP_HQ
+        cif, cic, cif, cic, cif, cic, cif, cic,
+#endif
         cof,
       },
       .push_constant_size = 8,
@@ -201,13 +213,13 @@ create_nodes(
     };
     node_assemble->connector[0].name = dt_token("orighi");
     node_assemble->connector[1].name = dt_token("currlo");
-    for(int k=0;k<6;k++)
+    for(int k=0;k<num_gamma;k++)
     { // connect fine and coarse levels of curve processed buffers:
       CONN(dt_node_connect(graph, id_reduce[l-1][k], cn_reduce[l-1][k], id_assemble[l], 2+2*k  ));
       CONN(dt_node_connect(graph, id_reduce[l  ][k], cn_reduce[l  ][k], id_assemble[l], 2+2*k+1));
     }
     // connect fine reference, unprocessed:
-    CONN(dt_node_connect(graph, id_reduce[l-1][6], cn_reduce[l-1][6], id_assemble[l], 0));
+    CONN(dt_node_connect(graph, id_reduce[l-1][num_gamma], cn_reduce[l-1][num_gamma], id_assemble[l], 0));
 
     rf = rc;
     rc.wd /= 2;
@@ -219,7 +231,7 @@ create_nodes(
 
   // connect ouput fine buffer [14] (input to coarse [1] on next finer level)
   for(int l=1;l<nl-1;l++)
-    CONN(dt_node_connect(graph, id_assemble[l+1], 14, id_assemble[l], 1));
+    CONN(dt_node_connect(graph, id_assemble[l+1], 2*num_gamma + 2, id_assemble[l], 1));
 
   // wire into some recolouration node:
   dt_connector_t cy = ci;
@@ -244,13 +256,13 @@ create_nodes(
       cy, ci, co,
     },
   };
-  CONN(dt_node_connect(graph, id_assemble[1], 14, id_col, 0));
+  CONN(dt_node_connect(graph, id_assemble[1], 2*num_gamma+2, id_col, 0));
 
   // connect input coarse buffer [1] (coarsest reduced unprocessed or from coarser assemble level)
 #if 1
   // TODO: insert tone curve in between here:
   // XXX tried and doesn't work super well. put this back:
-  CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_assemble[nl-1], 1));
+  CONN(dt_node_connect(graph, id_reduce[nl-1][num_gamma], cn_reduce[nl-1][num_gamma], id_assemble[nl-1], 1));
 #else
   // XXX TODO: need to fill push constants in commit_params and grab some code from
   // XXX filmcurve!

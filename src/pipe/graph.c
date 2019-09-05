@@ -920,7 +920,6 @@ count_references(dt_graph_t *graph, dt_node_t *node)
 static void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
-  fprintf(stderr, "XXX create nodes for %"PRItkn"\n", dt_token_str(module->name));
   if(module->so->create_nodes) return module->so->create_nodes(graph, module);
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;
