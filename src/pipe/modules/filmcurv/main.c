@@ -1,8 +1,7 @@
-#include "module.h"
+#include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>
 
-#if 0 // XXX move to api.h or dispose of:
 void commit_params(dt_graph_t *graph, dt_node_t *node)
 {
   float *f = (float *)node->module->committed_param;
@@ -45,7 +44,6 @@ void commit_params(dt_graph_t *graph, dt_node_t *node)
   f[12] = p[8];
   f[13] = p[9];
 }
-#endif
 
 int init(dt_module_t *mod)
 {

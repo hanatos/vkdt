@@ -1,7 +1,7 @@
 exposure:01:exposure:slider:-10:10
-llap:01:y1:slider:0:1
-llap:01:y2:slider:0:1
-llap:01:black:slider:-10:2
+filmcurv:01:y1:slider:0:1
+filmcurv:01:y2:slider:0:1
+filmcurv:01:black:slider:-10:1
 contrast:01:edges:slider:0.0:1.0
 crop:01:perspect:quad
 crop:01:crop:axquad

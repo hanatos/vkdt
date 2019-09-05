@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-// TODO: make curve specific stuff an api function for reuse?
+#if 0
 void
 commit_params(
     dt_graph_t  *graph,
@@ -17,45 +17,8 @@ commit_params(
     f[1] = dt_module_param_float(node->module, 8)[0];
     return;
   }
-
-  // this is for node name film curve
-  // copy x and y
-  for(int k=0;k<8;k++) f[k] = p[k];
-  // init tangent
-  const int n=4;
-  float m[5], d[5];
-  for(int i=0;i<n-1;i++)
-    d[i] = (p[i+5] - p[i+4])/(p[i+1] - p[i]);
-  d[n-1] = d[n-2];
-  for(int i=1;i<n-1;i++)
-    if(d[i-1]*d[i] <= 0.0f)
-      m[i] = 0.0f;
-    else
-      m[i] = (d[i-1] + d[i])*.5f;
-  // for extrapolation: keep curvature constant
-  m[n-1] = fmaxf(m[n-2] + d[n-2] - d[n-3], 0.0f);
-  m[0]   = fmaxf(m[1] + d[0] - d[1], 0.0f);
-
-  // monotone hermite clamping:
-  for(int i=0;i<n;i++)
-  {
-    if(fabsf(d[i]) <= 1e-8f)
-      m[i] = m[i+1] = 0.0f;
-    else
-    {
-      const float alpha = m[i]   / d[i];
-      const float beta  = m[i+1] / d[i];
-      const float tau   = alpha * alpha + beta * beta;
-      if(tau > 9.0f)
-      {
-        m[i]   = 3.0f * m[i]   / sqrtf(tau);
-        m[i+1] = 3.0f * m[i+1] / sqrtf(tau);
-      }
-    }
-  }
-  for(int k=0;k<4;k++) f[8+k] = m[k];
-  f[12] = p[8];
 }
+#endif
 
 void
 create_nodes(
@@ -188,7 +151,7 @@ create_nodes(
     // - all 6x2 adjacent gamma levels (i/o to reduce)
     // output:
     // - next finer output pyramid
-    const float scale = l/(nl-1.0);
+    // const float scale = l/(nl-1.0);
     assert(graph->num_nodes < graph->max_nodes);
     id_assemble[l] = graph->num_nodes++;
     dt_node_t *node_assemble = graph->node + id_assemble[l];
@@ -208,8 +171,8 @@ create_nodes(
 #endif
         cof,
       },
-      .push_constant_size = 8,
-      .push_constant = { *(uint32_t*)(&scale), 0 }, 
+      // .push_constant_size = 8,
+      // .push_constant = { *(uint32_t*)(&scale), 0 }, 
     };
     node_assemble->connector[0].name = dt_token("orighi");
     node_assemble->connector[1].name = dt_token("currlo");
