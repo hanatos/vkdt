@@ -85,12 +85,12 @@ create_nodes(
 
   dt_roi_t rf = module->connector[0].roi;
   dt_roi_t rc = module->connector[0].roi;
-  rc.wd /= 2;
-  rc.ht /= 2;
-  rc.full_wd /= 2;
-  rc.full_ht /= 2;
+  rc.wd = (rc.wd-1)/2+1;
+  rc.ht = (rc.ht-1)/2+1;
+  rc.full_wd = (rc.full_wd-1)/2+1;
+  rc.full_ht = (rc.full_ht-1)/2+1;
 
-  const int nl = 8;
+  const int nl = 12;//8;
   int id_reduce[nl][num_gamma+1] = {{-1}};
   int cn_reduce[nl][num_gamma+1] = {{-1}};
   for(int k=0;k<num_gamma+1;k++)
@@ -185,10 +185,10 @@ create_nodes(
     CONN(dt_node_connect(graph, id_reduce[l-1][num_gamma], cn_reduce[l-1][num_gamma], id_assemble[l], 0));
 
     rf = rc;
-    rc.wd /= 2;
-    rc.ht /= 2;
-    rc.full_wd /= 2;
-    rc.full_ht /= 2;
+    rc.wd = (rc.wd-1)/2+1;
+    rc.ht = (rc.ht-1)/2+1;
+    rc.full_wd = (rc.full_wd-1)/2+1;
+    rc.full_ht = (rc.full_ht-1)/2+1;
   }
 
 
