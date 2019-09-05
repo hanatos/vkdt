@@ -27,6 +27,14 @@ create_nodes(
     .roi    = module->connector[0].roi,
     .connected_mi = -1,
   };
+  dt_connector_t cg = {
+    .name   = dt_token("coarse"),
+    .type   = dt_token("read"),
+    .chan   = dt_token("rgba"),
+    .format = dt_token("f16"),
+    .roi    = module->connector[0].roi,
+    .connected_mi = -1,
+  };
   dt_connector_t co = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
@@ -44,9 +52,9 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 2,
+    .num_connectors = 3,
     .connector = {
-      ci, co,
+      ci, cg, co,
     },
   };
 
