@@ -1,18 +1,16 @@
-#include "module.h"
+#include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>
 
-// XXX we need:
-// * a place to execute commit_params on module level and only when needed
-void commit_params(dt_graph_t *graph, dt_module_t *module)
+void commit_params(dt_graph_t *graph, dt_node_t *node)
 {
-  float *f = (float *)module->committed_param;
+  float *f = (float *)node->module->committed_param;
   for(int k=0;k<4;k++)
-    f[k] = module->img_param.black[k];
+    f[k] = node->module->img_param.black[k];
   for(int k=0;k<4;k++)
-    f[4+k] = powf(2.0f, ((float*)module->param)[0]) *
-       module->img_param.whitebalance[k] /
-      (module->img_param.white[k]-module->img_param.black[k]);
+    f[4+k] = powf(2.0f, ((float*)node->module->param)[0]) *
+       node->module->img_param.whitebalance[k] /
+      (node->module->img_param.white[k]-node->module->img_param.black[k]);
 }
 
 int init(dt_module_t *mod)

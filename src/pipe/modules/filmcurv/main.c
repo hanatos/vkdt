@@ -2,10 +2,11 @@
 #include <math.h>
 #include <stdlib.h>
 
-void commit_params(dt_graph_t *graph, dt_module_t *module)
+#if 0 // XXX move to api.h or dispose of:
+void commit_params(dt_graph_t *graph, dt_node_t *node)
 {
-  float *f = (float *)module->committed_param;
-  float *p = (float *)module->param;
+  float *f = (float *)node->module->committed_param;
+  float *p = (float *)node->module->param;
   // copy x and y
   for(int k=0;k<8;k++) f[k] = p[k];
   // init tangent
@@ -44,6 +45,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[12] = p[8];
   f[13] = p[9];
 }
+#endif
 
 int init(dt_module_t *mod)
 {

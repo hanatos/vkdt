@@ -2,6 +2,60 @@
 #include <math.h>
 #include <stdlib.h>
 
+// TODO: make curve specific stuff an api function for reuse?
+void
+commit_params(
+    dt_graph_t  *graph,
+    dt_node_t   *node)
+{
+  float *f = (float *)node->push_constant;
+  float *p = (float *)node->module->param;
+
+  if(node->kernel == dt_token("assemble"))
+  {
+    f[1] = dt_module_param_float(node->module, 8)[0];
+    return;
+  }
+
+  // this is for node name film curve
+  // copy x and y
+  for(int k=0;k<8;k++) f[k] = p[k];
+  // init tangent
+  const int n=4;
+  float m[5], d[5];
+  for(int i=0;i<n-1;i++)
+    d[i] = (p[i+5] - p[i+4])/(p[i+1] - p[i]);
+  d[n-1] = d[n-2];
+  for(int i=1;i<n-1;i++)
+    if(d[i-1]*d[i] <= 0.0f)
+      m[i] = 0.0f;
+    else
+      m[i] = (d[i-1] + d[i])*.5f;
+  // for extrapolation: keep curvature constant
+  m[n-1] = fmaxf(m[n-2] + d[n-2] - d[n-3], 0.0f);
+  m[0]   = fmaxf(m[1] + d[0] - d[1], 0.0f);
+
+  // monotone hermite clamping:
+  for(int i=0;i<n;i++)
+  {
+    if(fabsf(d[i]) <= 1e-8f)
+      m[i] = m[i+1] = 0.0f;
+    else
+    {
+      const float alpha = m[i]   / d[i];
+      const float beta  = m[i+1] / d[i];
+      const float tau   = alpha * alpha + beta * beta;
+      if(tau > 9.0f)
+      {
+        m[i]   = 3.0f * m[i]   / sqrtf(tau);
+        m[i+1] = 3.0f * m[i+1] / sqrtf(tau);
+      }
+    }
+  }
+  for(int k=0;k<4;k++) f[8+k] = m[k];
+  f[12] = p[8];
+}
+
 void
 create_nodes(
     dt_graph_t  *graph,
@@ -64,7 +118,7 @@ create_nodes(
   rc.full_wd /= 2;
   rc.full_ht /= 2;
 
-  const int nl = 7;
+  const int nl = 8;
   int id_reduce[nl][7] = {{-1}};
   int cn_reduce[nl][7] = {{-1}};
   for(int k=0;k<7;k++)
@@ -125,6 +179,7 @@ create_nodes(
     // - all 6x2 adjacent gamma levels (i/o to reduce)
     // output:
     // - next finer output pyramid
+    const float scale = l/(nl-1.0);
     assert(graph->num_nodes < graph->max_nodes);
     id_assemble[l] = graph->num_nodes++;
     dt_node_t *node_assemble = graph->node + id_assemble[l];
@@ -141,6 +196,8 @@ create_nodes(
         cif, cic, cif, cic, cif, cic, cif, cic, cif, cic, cif, cic,
         cof,
       },
+      .push_constant_size = 8,
+      .push_constant = { *(uint32_t*)(&scale), 0 }, 
     };
     node_assemble->connector[0].name = dt_token("orighi");
     node_assemble->connector[1].name = dt_token("currlo");
@@ -158,10 +215,6 @@ create_nodes(
     rc.full_wd /= 2;
     rc.full_ht /= 2;
   }
-
-  // connect input coarse buffer [1] (coarsest reduced unprocessed or from coarser assemble level)
-  // TODO: insert tone curve in between here:
-  // CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_assemble[nl-1], 1));
 
 
   // connect ouput fine buffer [14] (input to coarse [1] on next finer level)
@@ -193,7 +246,12 @@ create_nodes(
   };
   CONN(dt_node_connect(graph, id_assemble[1], 14, id_col, 0));
 
-
+  // connect input coarse buffer [1] (coarsest reduced unprocessed or from coarser assemble level)
+#if 1
+  // TODO: insert tone curve in between here:
+  // XXX tried and doesn't work super well. put this back:
+  CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_assemble[nl-1], 1));
+#else
   // XXX TODO: need to fill push constants in commit_params and grab some code from
   // XXX filmcurve!
   // TODO add filmcurve node and connect it!
@@ -220,9 +278,11 @@ create_nodes(
     .connector = {
       ci, co,
     },
+    .push_constant_size = 13*sizeof(float),
   };
   CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_film, 0));
   CONN(dt_node_connect(graph, id_film, 1, id_assemble[nl-1], 1));
+#endif
 
   // wire module i/o connectors to nodes:
   dt_connector_copy(graph, module, 0, id_curve, 0);

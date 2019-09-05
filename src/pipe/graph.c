@@ -819,21 +819,15 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     memcpy(uniform_buf + pos, &node->connector[i].roi, sizeof(dt_roi_t));
     pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
   }
-  // XXX in fact i'm not sure any more we might need different params per node?
-  // XXX we still need to upload new roi. for large data portions shared between nodes
-  // XXX this may not be the smartest move.
-  // copy over module params
-  // XXX FIXME: this is the wrong place!
-  // XXX FIXME: it should run per module, not per node.
-  // this probably means we want some other means to trigger this callback (how??)
+  // copy over module params, per node.
+  // we may want to skip this if the uniform buffer stays the same for all nodes of the module.
   if(node->module->so->commit_params)
+    node->module->so->commit_params(graph, node);
+
+  if(node->module->committed_param_size)
   {
-    node->module->so->commit_params(graph, node->module);
-    if(node->module->committed_param_size)
-    {
-      memcpy(uniform_buf + pos, node->module->committed_param, node->module->committed_param_size);
-      pos += ((node->module->committed_param_size + 15)/16)*16;
-    }
+    memcpy(uniform_buf + pos, node->module->committed_param, node->module->committed_param_size);
+    pos += ((node->module->committed_param_size + 15)/16)*16;
   }
   else if(node->module->param_size)
   {
@@ -1063,8 +1057,6 @@ VkResult dt_graph_run(
     modify_roi_out(graph, arr+curr);
 #include "graph-traverse.inc"
   }
-  // XXX
-    dt_graph_print_modules(graph);
 
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
@@ -1092,8 +1084,6 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 } // end scope, done with modules
-
-    dt_graph_print_nodes(graph);
 
 { // node scope
   dt_node_t *const arr = graph->node;

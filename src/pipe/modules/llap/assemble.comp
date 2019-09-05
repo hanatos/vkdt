@@ -16,6 +16,12 @@ layout(std140, set = 0, binding = 0) uniform params_t
   // luckily we don't really need anything but the input dimensions.
 } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  float scale;
+  float beta;
+} push;
+
 layout( // input f16 buffer y, original input at this level
     set = 1, binding = 0
 ) uniform sampler2D img_input;
@@ -116,10 +122,10 @@ main()
     l1 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos);
   }
   
-  imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
-  // imageStore(img_out, opos, vec4(v));
-  // imageStore(img_out, opos, vec4(lo/5.0));
-  // imageStore(img_out, opos, vec4(l1));
-  // imageStore(img_out, opos, vec4(0.5f*(gamma_lo+gamma_hi)));
+  // TODO: res + scale * laplacian, scale depending on level
+  // float scale = (1.0f - push.scale);// * push.beta + 1.0-push.beta;
+  float scale = (1.0f-push.scale) * push.beta + 1.0-push.beta;
+      // scale = (1.0f - (l/(nl-1.0)))*params.beta + 1.0-params.beta; // <= this is what andrew adams does
+  imageStore(img_out, opos, vec4(res + scale*(l0 * (1.0f-a) + l1 * a)));
 }
 

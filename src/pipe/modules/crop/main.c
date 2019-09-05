@@ -45,19 +45,19 @@ void modify_roi_out(
   module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * (p_crop[3] - p_crop[2]);
 }
 
-void commit_params(dt_graph_t *graph, dt_module_t *module)
+void commit_params(dt_graph_t *graph, dt_node_t *node)
 {
   // see:
   // pages 17-21 of Fundamentals of Texture Mapping and Image Warping, Paul Heckbert,
   // Master’s thesis, UCB/CSD 89/516, CS Division, U.C. Berkeley, June 1989
   // we have given:
   // a set of four points in screen space defining what should be a flat quad.
-  const float *inp = dt_module_param_float(module, 0);
+  const float *inp = dt_module_param_float(node->module, 0);
   float p[8];
   for(int k=0;k<4;k++)
   {
-    p[2*k+0] = module->connector[0].roi.full_wd * inp[2*k+0];
-    p[2*k+1] = module->connector[0].roi.full_ht * inp[2*k+1];
+    p[2*k+0] = node->module->connector[0].roi.full_wd * inp[2*k+0];
+    p[2*k+1] = node->module->connector[0].roi.full_ht * inp[2*k+1];
   }
   // the approach taken here is that a 2D point is transformed by a matrix
   // H * (x, y, 1)^t
@@ -83,10 +83,10 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
   // XXX padding + column major!
   for(int i=0;i<9;i++)
-    ((float*)module->committed_param)[i] = r[i];
-  const float *p_crop = dt_module_param_float(module, 1);
+    ((float*)node->module->committed_param)[i] = r[i];
+  const float *p_crop = dt_module_param_float(node->module, 1);
   for(int i=0;i<4;i++)
-    ((float*)module->committed_param)[9+i] = p_crop[i];
+    ((float*)node->module->committed_param)[9+i] = p_crop[i];
 }
 
 int init(dt_module_t *mod)

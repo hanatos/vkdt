@@ -10,6 +10,7 @@
 
 typedef struct dt_graph_t dt_graph_t; // fwd declare
 typedef struct dt_module_t dt_module_t;
+typedef struct dt_node_t dt_node_t;
 typedef void (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
@@ -17,7 +18,7 @@ typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
 typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
-typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
+typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_node_t *node);
 
 // this is all the "class" info that is not bound to an instance and can be
 // read once on startup
@@ -57,7 +58,7 @@ typedef struct dt_module_so_t
   int num_connectors;
 
   // pointer to variably-sized parameters
-  dt_ui_param_t *param[10];
+  dt_ui_param_t *param[30];
   int num_params;
 }
 dt_module_so_t;

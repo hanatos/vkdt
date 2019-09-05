@@ -11,6 +11,9 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
+  vec4 x;
+  vec4 y;
+  float black;
   float sigma;
   float shadows;
   float highlights;

@@ -11,12 +11,15 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
-  // TODO: XXX these need to go to push constants!
+} params;
+
+layout(push_constant, std140) uniform push_t
+{
   vec4 x;
   vec4 y;
   vec4 m;
   float black;
-} params;
+} push;
 
 layout( // input f16 buffer luminance
     set = 1, binding = 0
@@ -31,26 +34,26 @@ layout( // output f16 buffer luminance
 float
 hermite4(float v)
 {
-  vec2 x = params.x.xy;
-  vec2 y = params.y.xy;
-  vec2 m = params.m.xy;
+  vec2 x = push.x.xy;
+  vec2 y = push.y.xy;
+  vec2 m = push.m.xy;
   // linear extension if outside [0,1]
-  if(v < params.x.x)
-    return params.y.x + (v - params.x.x) * params.m.x;
-  if(v > params.x.w)
-    return params.y.w + (v - params.x.w) * params.m.w;
+  if(v < push.x.x)
+    return push.y.x + (v - push.x.x) * push.m.x;
+  if(v > push.x.w)
+    return push.y.w + (v - push.x.w) * push.m.w;
 
-  if(v > params.x.z)
+  if(v > push.x.z)
   {
-    x = params.x.zw;
-    y = params.y.zw;
-    m = params.m.zw;
+    x = push.x.zw;
+    y = push.y.zw;
+    m = push.m.zw;
   }
-  else if(v > params.x.y)
+  else if(v > push.x.y)
   {
-    x = params.x.yz;
-    y = params.y.yz;
-    m = params.m.yz;
+    x = push.x.yz;
+    y = push.y.yz;
+    m = push.m.yz;
   }
   float h = x.y - x.x;
   float t = (v - x.x)/h;
@@ -88,15 +91,15 @@ main()
   // float l0 = dot(w, rgb);
   // float l0 = acescc(l1);
 
-  const float black_ev = params.black;
+  const float black_ev = push.black;
   const float black = exp2(black_ev);
   float white = 1.0f+exp2(black_ev);
   float l1 = (log2(l0+black)-black_ev)/(log2(white)-black_ev);
-  l1 = hermite4(l1);// + params.detail * (l0 - l1));
+  l1 = hermite4(l1);// + push.detail * (l0 - l1));
   // colour reconstruction: keep rgb saturation ratio same as before
   // rgb *= l1/l0;
   // want to see why 8-bit output sucks? try this:
-  // float l1 = hermite4(ipos.x / float(params.ro.roi.x));
+  // float l1 = hermite4(ipos.x / float(push.ro.roi.x));
   // rgba.rgb = vec3(l1);
   imageStore(img_out, ipos, vec4(vec3(l1), 1));
 }
