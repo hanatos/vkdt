@@ -270,7 +270,12 @@ qvk_create_swapchain()
 
 
   VkFormat acceptable_formats[] = {
-    VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
+    // XXX when using srgb buffers, we don't need to apply the curve in f2srgb,
+    // XXX but can probably let fixed function hardware do the job. faster?
+    // XXX would need to double check that export does the right thing then.
+    // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
+    VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM,
+    VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM
   };
 
   for(int i = 0; i < LENGTH(acceptable_formats); i++) {

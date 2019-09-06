@@ -84,7 +84,7 @@ main()
 
   // xyz luma
   vec3 w = vec3(0.299, 0.587, 0.114);
-  float l0 = dot(w, rgb);
+  const float l0 = dot(w, rgb);
   // float l0 = acescc(l1);
 
   const float black_ev = params.black;
@@ -93,7 +93,16 @@ main()
   float l1 = (log2(l0+black)-black_ev)/(log2(white)-black_ev);
   l1 = hermite4(l1);// + params.detail * (l0 - l1));
   // colour reconstruction: keep rgb saturation ratio same as before
-  rgb *= l1/l0;
+  rgb *= l1/max(1e-10,l0);
+
+#if 1 // DEBUG: visualise curve TODO: tie to parameter
+  float x = ipos.x / float(params.ro.roi.x);
+  float y = (log2(x+black)-black_ev)/(log2(white)-black_ev);
+  y = hermite4(y);
+  if(abs((1.0-y) * params.ro.roi.y - ipos.y) < 5)
+    rgb = vec3(1, 0, 1);
+#endif
+
   // want to see why 8-bit output sucks? try this:
   // float l1 = hermite4(ipos.x / float(params.ro.roi.x));
   // rgba.rgb = vec3(l1);
