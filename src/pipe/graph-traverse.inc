@@ -1,7 +1,7 @@
 // piece of code that can be used to traverse DAGs defined by any
 // type that has a connector[] member.
 
-// assume: index of start node is: int start_node_id
+// assume: number of nodes/modules is int arr_cnt
 // assume: array of nodes is node_type arr[]
 
 // setup all callbacks to do nothing
@@ -22,15 +22,18 @@
   uint32_t stack[256];
   uint8_t done[256];
   uint8_t mark[256] = {0};
-  // TODO: num mod num nodes?
-  // assert(graph->num_modules < sizeof(mark));
-  int sp = 0;
+  assert(arr_cnt < sizeof(mark));
+  int sp = -1;
 
-  // TODO: init this with all sink nodes
-  stack[0] = start_node_id;
-  // for(int i=0;i<graph->num_modules;i++)
-    // if(graph->module[i].connector[0].type == dt_token("sink"))
-  done[0] = 0;
+  // init this with all sink nodes/modules
+  for(int i=0;i<arr_cnt;i++)
+  {
+    if(arr[i].connector[0].type == dt_token("sink"))
+    {
+      stack[++sp] = i;
+      done[sp] = 0;
+    }
+  }
 
   while(sp >= 0)
   {

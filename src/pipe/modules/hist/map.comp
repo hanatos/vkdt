@@ -34,7 +34,7 @@ main()
        cnt & 1023,
       (cnt >> 10) & 1023,
       (cnt >> 20) & 1023);
-  // rgb = pow(rgb, vec3(0.4));
+  rgb = pow(rgb, vec3(0.3));
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
 

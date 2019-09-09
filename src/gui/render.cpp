@@ -39,7 +39,7 @@ void view_to_image(
     const float v[2],
     float       img[2])
 {
-  dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   assert(out);
   float wd  = (float)out->connector[0].roi.wd;
   float ht  = (float)out->connector[0].roi.ht;
@@ -64,7 +64,7 @@ void image_to_view(
     const float img[2], // image pixel coordinate in [0,1]^2
     float       v[2])   // window pixel coordinate
 {
-  dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   assert(out);
   float wd  = (float)out->connector[0].roi.wd;
   float ht  = (float)out->connector[0].roi.ht;
@@ -394,11 +394,11 @@ extern "C" void dt_gui_render_frame_imgui()
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("center", 0, window_flags);
 
-    dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
-    if(out)
+    // draw center view image:
+    dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+    if(out_main)
     {
-      // TODO: search for node "display" "main":
-      ImTextureID imgid = out->dset;   // XXX put DescriptorSet of display node!
+      ImTextureID imgid = out_main->dset;
       float im0[2], im1[2];
       float v0[2] = {(float)vkdt.view_x, (float)vkdt.view_y};
       float v1[2] = {(float)vkdt.view_x+vkdt.view_width, (float)vkdt.view_y+vkdt.view_height};
@@ -464,6 +464,16 @@ extern "C" void dt_gui_render_frame_imgui()
     ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("panel-right", 0, window_flags);
+
+    // draw histogram image:
+    dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
+    if(out_hist)
+    {
+      ImGui::Image(out_hist->dset,
+          ImVec2(490, 300),//out_hist->connector[0].roi.wd, out_hist->connector[0].roi.ht),
+          ImVec2(0,0), ImVec2(1,1),
+          ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+    }
 
     for(int i=0;i<vkdt.num_widgets;i++)
     {

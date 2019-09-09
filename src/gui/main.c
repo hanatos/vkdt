@@ -17,7 +17,7 @@ dt_gui_t vkdt;
 static void
 handle_event(SDL_Event *event)
 {
-  dt_node_t *out = dt_graph_get_main_output(&vkdt.graph_dev);
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   assert(out);
   float wd = (float)out->connector[0].roi.wd;
   float ht = (float)out->connector[0].roi.ht;
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
   }
 
   // nodes are only constructed after running once
-  if(!dt_graph_get_main_output(&vkdt.graph_dev))
+  if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
   {
     dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
     goto error;
