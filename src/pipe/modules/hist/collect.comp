@@ -30,10 +30,12 @@ main()
   if(any(greaterThanEqual(ipos, params.ri.roi))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  float scale = float(params.ro.roi.x)/float(params.ri.roi.x);
+  int opos = clamp(int(scale * ipos.x), 0, int(params.ro.roi.x));
   uvec3 y = clamp(uvec3((1.0-rgb) * params.ro.roi.y + 0.5), 0, params.ro.roi.y-1);
   // use 10-bit rgb
-  imageAtomicAdd(img_out, ivec2(ipos.x, y.r), 1);
-  imageAtomicAdd(img_out, ivec2(ipos.x, y.g), 1024);
-  imageAtomicAdd(img_out, ivec2(ipos.x, y.b), 1048576);
+  imageAtomicAdd(img_out, ivec2(opos, y.r), 1);
+  imageAtomicAdd(img_out, ivec2(opos, y.g), 1024);
+  imageAtomicAdd(img_out, ivec2(opos, y.b), 1048576);
 }
 

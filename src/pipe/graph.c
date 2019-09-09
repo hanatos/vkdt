@@ -621,7 +621,6 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     int output = dt_module_get_connector(module, dt_token("output"));
     if(output == -1 && module->connector[0].type == dt_token("sink"))
     { // by default ask for it all:
-      // TODO: distinguish between histogram and main!
       output = 0;
       dt_roi_t *r = &module->connector[0].roi;
       r->wd = r->full_wd;

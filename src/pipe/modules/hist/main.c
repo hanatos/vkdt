@@ -1,6 +1,24 @@
 #include "modules/api.h"
 
-// TODO: roi in roi out
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  // always request constant histogram size:
+  module->connector[1].roi = module->connector[0].roi;
+  // smaller sizes are slower (at least on intel), probably more atomic contention:
+  module->connector[1].roi.full_wd = 1000;//490;
+  module->connector[1].roi.full_ht =  600;//300;
+}
+
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  // always request full input image:
+  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+}
 
 void
 create_nodes(
@@ -44,6 +62,7 @@ create_nodes(
   ci.roi    = co.roi;
   ci.chan   = dt_token("r");
   ci.format = dt_token("ui32");
+  ci.roi    = co.roi;
   co.chan   = dt_token("rgba");
   co.format = dt_token("f16");
   co.flags  = 0;
