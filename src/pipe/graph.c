@@ -341,10 +341,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 
       const size_t size = dt_connector_bufsize(c);
       c->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
-      dt_log(s_log_pipe, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
-          "%"PRItkn" %"PRItkn,
-          mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
-          dt_token_str(c->chan), dt_token_str(c->format));
+      // dt_log(s_log_pipe, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
+      //     "%"PRItkn" %"PRItkn,
+      //     mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
+      //     dt_token_str(c->chan), dt_token_str(c->format));
       assert(c->mem);
       // ATTACH_LABEL_VARIABLE_NAME(qvk.images[VKPT_IMG_##_name], IMAGE, #_name);
       c->offset = c->mem->offset;
@@ -537,10 +537,10 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+i;
     if(c->type == dt_token("read") && c->connected_mi >= 0)
     { // only free "read", not "sink" which we keep around for display
-      dt_log(s_log_pipe, "freeing input %"PRItkn"_%"PRItkn" %"PRItkn,
-          dt_token_str(node->name),
-          dt_token_str(node->kernel),
-          dt_token_str(c->name));
+      // dt_log(s_log_pipe, "freeing input %"PRItkn"_%"PRItkn" %"PRItkn,
+      //     dt_token_str(node->name),
+      //     dt_token_str(node->kernel),
+      //     dt_token_str(c->name));
       dt_vkfree(&graph->heap, c->mem);
       // note that we keep the offset and VkImage etc around, we'll be using
       // these in consecutive runs through the pipeline and only clean up at
@@ -549,11 +549,11 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_output(c))
     {
-      dt_log(s_log_pipe, "freeing output ref count %"PRItkn"_%"PRItkn" %"PRItkn" %d %d",
-          dt_token_str(node->name),
-          dt_token_str(node->kernel),
-          dt_token_str(c->name),
-          c->connected_mi, c->mem->ref);
+      // dt_log(s_log_pipe, "freeing output ref count %"PRItkn"_%"PRItkn" %"PRItkn" %d %d",
+      //     dt_token_str(node->name),
+      //     dt_token_str(node->kernel),
+      //     dt_token_str(c->name),
+      //     c->connected_mi, c->mem->ref);
       dt_vkfree(&graph->heap, c->mem);
     }
     // staging memory for sources or sinks only needed during execution once
@@ -1038,7 +1038,6 @@ VkResult dt_graph_run(
   graph->query_cnt = 0;
 
 { // module scope
-  fprintf(stderr, "XXXX MODULES\n");
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
   // ==============================================
@@ -1080,9 +1079,6 @@ VkResult dt_graph_run(
   }
 } // end scope, done with modules
 
-  fprintf(stderr, "XXXX NODES\n");
-  dt_graph_print_nodes(graph);
-  dt_graph_print_modules(graph);
 { // node scope
   dt_node_t *const arr = graph->node;
   const int arr_cnt = graph->num_nodes;
