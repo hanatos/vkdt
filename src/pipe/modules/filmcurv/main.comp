@@ -84,21 +84,23 @@ main()
 
   // xyz luma
   vec3 w = vec3(0.299, 0.587, 0.114);
-  const float l0 = dot(w, rgb);
+  // avoid negative luma due to noise or extreme colour saturation:
+  const float l0 = max(dot(w, rgb), 1e-10);
   // float l0 = acescc(l1);
 
   const float black_ev = params.black;
   const float black = exp2(black_ev);
-  float white = 1.0f+exp2(black_ev);
+  float white = 1.0f+black;
   float l1 = (log2(l0+black)-black_ev)/(log2(white)-black_ev);
-  l1 = hermite4(l1);// + params.detail * (l0 - l1));
+  l1 = hermite4(l1);
   // colour reconstruction: keep rgb saturation ratio same as before
-  rgb *= l1/max(1e-10,l0);
+  rgb *= l1/l0;
 
 #if 1 // DEBUG: visualise curve TODO: tie to parameter
-  float x = ipos.x / float(params.ro.roi.x);
+  float x = (ipos.x - 50)/ float(params.ro.roi.x-50);
   float y = (log2(x+black)-black_ev)/(log2(white)-black_ev);
   y = hermite4(y);
+  y = abs(y); // hack to show negative values on screen
   if(abs((1.0-y) * params.ro.roi.y - ipos.y) < 5)
     rgb = vec3(1, 0, 1);
 #endif

@@ -177,7 +177,6 @@ void modify_roi_out(
     mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint;
     mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k] * 1.0f/1024.0f;
   }
-  // TODO: xtrans
   // uncrop bayer sensor filter
   rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
   mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
