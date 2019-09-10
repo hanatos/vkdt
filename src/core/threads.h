@@ -47,11 +47,13 @@ static void *threads_tls_init_one(void *arg)
   // remember our thread id:
   thr_tls.tid = *(uint64_t *)arg;
 
+#ifundef __APPLE__
   // pin ourselves to a cpu:
   cpu_set_t set;
   CPU_ZERO(&set);
   CPU_SET(thr.cpuid[thr_tls.tid], &set);
   sched_setaffinity(0, sizeof(cpu_set_t), &set);
+#endif
 
   // pid_t tid = syscall(SYS_gettid);
   // fprintf(stdout, "[worker %03u] pinned to cpu %03u by thread %03d\n", rt_tls.tid, rt.threads->cpuid[rt_tls.tid], tid);
