@@ -47,7 +47,7 @@ static void *threads_tls_init_one(void *arg)
   // remember our thread id:
   thr_tls.tid = *(uint64_t *)arg;
 
-#ifundef __APPLE__
+#ifndef __APPLE__
   // pin ourselves to a cpu:
   cpu_set_t set;
   CPU_ZERO(&set);
