@@ -1,0 +1,50 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t rt;
+  roi_t rm;
+  roi_t ro;
+  float mode;
+  float opacity;
+} params;
+
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // top layer f16 buffer rgb
+    set = 1, binding = 1
+) uniform sampler2D img_top;
+
+layout( // mask f16 buffer single channel
+    set = 1, binding = 2
+) uniform sampler2D img_mask;
+
+layout( // output f16 buffer rgba
+    set = 1, binding = 3, rgba16f
+) uniform image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec3 rgb   = texelFetch(img_in,   ipos, 0).rgb;
+  vec3 top   = texelFetch(img_top,  ipos, 0).rgb;
+  float mask = texelFetch(img_mask, ipos, 0).r;
+  // TODO: switch based on mode, implement blend modes
+  rgb = mix(rgb, mix(rgb, top, mask), params.opacity);
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+
