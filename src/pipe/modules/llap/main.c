@@ -90,15 +90,16 @@ create_nodes(
   rc.full_wd = (rc.full_wd-1)/2+1;
   rc.full_ht = (rc.full_ht-1)/2+1;
 
-  const int nl = 12;//8;
-  int id_reduce[nl][num_gamma+1] = {{-1}};
-  int cn_reduce[nl][num_gamma+1] = {{-1}};
+  const int max_nl = 12;
+  int nl = max_nl;
+  int id_reduce[max_nl][num_gamma+1] = {{-1}};
+  int cn_reduce[max_nl][num_gamma+1] = {{-1}};
   for(int k=0;k<num_gamma+1;k++)
   {
     id_reduce[0][k] = id_curve;
     cn_reduce[0][k] = 1+k;
   }
-  int id_assemble[nl] = {-1};
+  int id_assemble[max_nl] = {-1};
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
     dt_connector_t cif = {
@@ -189,6 +190,11 @@ create_nodes(
     rc.ht = (rc.ht-1)/2+1;
     rc.full_wd = (rc.full_wd-1)/2+1;
     rc.full_ht = (rc.full_ht-1)/2+1;
+    if(rc.wd <= 1 || rc.ht <= 1)
+    { // make sure we have enough resolution
+      nl = l+1;
+      break;
+    }
   }
 
 
