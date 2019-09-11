@@ -37,10 +37,8 @@ main()
   if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
   float y = texelFetch(img_in, opos, 0).r;
-  // ACEScc luma: (TODO: maybe rather use rec2020)
-  vec3 w = vec3(0.2126, 0.7152, 0.0722);
   vec3 rgb = texelFetch(img_org, opos, 0).rgb;
-  float yo = dot(w, rgb);
+  float yo = luminance_rec2020(rgb);
   // imageStore(img_out, opos, vec4(vec3(y), 1));
   imageStore(img_out, opos, vec4(y/yo * rgb, 1));
 }

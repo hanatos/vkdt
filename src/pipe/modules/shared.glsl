@@ -61,3 +61,9 @@ vec4 sample_catmull_rom(sampler2D tex, vec2 uv)
   return result;
 }
 
+float luminance_rec2020(vec3 rec2020)
+{
+  // excerpt from the rec2020 to xyz matrix (y channel only)
+  vec3 w = vec3(0.2126729, 0.7151522, 0.0721750);
+  return dot(w, rec2020);
+}

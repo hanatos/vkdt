@@ -39,9 +39,8 @@ main()
   vec3 crs = texelFetch(img_coarse, ipos, 0).rgb;
 
   // xyz luma
-  vec3 w = vec3(0.299, 0.587, 0.114);
-  float l0 = dot(w, rgb);
-  float l1 = dot(w, crs);
+  float l0 = luminance_rec2020(rgb);
+  float l1 = luminance_rec2020(crs);
 
   float lum = l1 + params.detail * (l0 - l1);
   // colour reconstruction: keep rgb saturation ratio same as before

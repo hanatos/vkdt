@@ -31,8 +31,7 @@ main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  vec3 w = vec3(0.299, 0.587, 0.114);
-  float lum = dot(rgb, w);
+  float lum = luminance_rec2020(rgb);
   vec3 x = rgb - lum;
   // TODO: push towards 0.0 or 1.0
   x *= params.sat;

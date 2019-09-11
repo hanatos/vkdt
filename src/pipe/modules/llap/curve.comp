@@ -83,9 +83,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ri.roi))) return;
 
-  // ACEScc luma: (TODO: maybe rather use rec2020)
-  vec3 w = vec3(0.2126, 0.7152, 0.0722);
-  float y = dot(w, texelFetch(img_in, ipos, 0).rgb);
+  float y = luminance_rec2020(texelFetch(img_in, ipos, 0).rgb);
 
   imageStore(img_out0, ipos, vec4(curve(y, gamma_from_i(0), params.sigma, params.shadows, params.highlights, params.clarity)));
   imageStore(img_out1, ipos, vec4(curve(y, gamma_from_i(1), params.sigma, params.shadows, params.highlights, params.clarity)));

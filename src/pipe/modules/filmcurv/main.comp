@@ -82,10 +82,8 @@ main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  // xyz luma
-  vec3 w = vec3(0.299, 0.587, 0.114);
   // avoid negative luma due to noise or extreme colour saturation:
-  const float l0 = max(dot(w, rgb), 1e-10);
+  const float l0 = max(luminance_rec2020(rgb), 1e-10);
   // float l0 = acescc(l1);
 
   const float black_ev = params.black;
