@@ -18,6 +18,7 @@ void modify_roi_in(
   // always request full input image:
   module->connector[0].roi.wd = module->connector[0].roi.full_wd;
   module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  module->connector[0].roi.scale = 1.0f;
 }
 
 void
