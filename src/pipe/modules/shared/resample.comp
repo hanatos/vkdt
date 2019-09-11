@@ -1,0 +1,37 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+} params;
+
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 1, rgba16f
+) uniform image2D img_out;
+
+// resample input image to new resolution (determined by region of interest,
+// larger or smaller), using a catmull rom interpolation kernel
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+
+  vec2 ipos = opos * vec2(params.ri.roi)/vec2(params.ro.roi);
+  vec4 rgba = sample_catmull_rom(img_in, ipos);
+  imageStore(img_out, opos, rgba);
+}
+
