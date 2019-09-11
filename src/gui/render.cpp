@@ -18,6 +18,7 @@ extern "C" {
 namespace { // anonymous gui state namespace
 static int g_active_widget = -1;
 static float g_state[8] = {0.0f};
+static int g_lod = 1;
 
 void widget_end()
 {
@@ -470,9 +471,21 @@ extern "C" void dt_gui_render_frame_imgui()
     if(out_hist)
     {
       ImGui::Image(out_hist->dset,
-          ImVec2(490, 300),//out_hist->connector[0].roi.wd, out_hist->connector[0].roi.ht),
+          ImVec2(490, 300),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+    }
+
+    // LOD switcher
+    if(ImGui::SliderInt("LOD", &g_lod, 1, 16, "%d"))
+    {
+      // set graph output scale factor and
+      // trigger complete pipeline rebuild
+      vkdt.graph_dev.lod_scale = g_lod;
+      vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
+      // reset view
+      vkdt.view_look_at_x = FLT_MAX;
+      vkdt.view_look_at_y = FLT_MAX;
     }
 
     for(int i=0;i<vkdt.num_widgets;i++)

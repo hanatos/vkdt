@@ -80,6 +80,7 @@ typedef struct dt_graph_t
   uint32_t              dset_cnt_uniform;
 
   dt_graph_run_t        runflags;      // used to trigger next runflags/invalidate things
+  int                   lod_scale;     // scale output down by this factor. default = 1.
 }
 dt_graph_t;
 

@@ -61,6 +61,8 @@ dt_graph_init(dt_graph_t *g)
   g->query_pool_results = malloc(sizeof(uint64_t)*g->query_max);
   g->query_name   = malloc(sizeof(dt_token_t)*g->query_max);
   g->query_kernel = malloc(sizeof(dt_token_t)*g->query_max);
+
+  g->lod_scale = 1;
 }
 
 void
@@ -624,9 +626,9 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       output = 0;
       dt_roi_t *r = &module->connector[0].roi;
       r->scale = 1.0f;
-      // TODO: this is the performance/LOD switch for faster processing
-      // TODO: on low end computers. needs to be wired somehow!
-      // if(module->inst == dt_token("main")) r->scale = 9.0f;
+      // this is the performance/LOD switch for faster processing
+      // on low end computers. needs to be wired somehow in gui/config.
+      if(module->inst == dt_token("main")) r->scale = graph->lod_scale;
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
     }
