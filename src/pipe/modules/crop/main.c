@@ -31,6 +31,7 @@ void modify_roi_in(
   module->connector[0].roi.y = 0;//module->connector[1].roi.y + y / s;
   module->connector[0].roi.wd = w / s;
   module->connector[0].roi.ht = h / s;
+  module->connector[0].roi.scale = s;
 }
 
 void modify_roi_out(

@@ -43,8 +43,8 @@ void view_to_image(
   assert(out);
   float wd  = (float)out->connector[0].roi.wd;
   float ht  = (float)out->connector[0].roi.ht;
-  float fwd = (float)out->connector[0].roi.full_wd;
-  float fht = (float)out->connector[0].roi.full_ht;
+  float fwd = (float)out->connector[0].roi.full_wd/out->connector[0].roi.scale;
+  float fht = (float)out->connector[0].roi.full_ht/out->connector[0].roi.scale;
   float imwd = vkdt.view_width, imht = vkdt.view_height;
   float scale = MIN(imwd/wd, imht/ht);
   if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
@@ -68,8 +68,8 @@ void image_to_view(
   assert(out);
   float wd  = (float)out->connector[0].roi.wd;
   float ht  = (float)out->connector[0].roi.ht;
-  float fwd = (float)out->connector[0].roi.full_wd;
-  float fht = (float)out->connector[0].roi.full_ht;
+  float fwd = (float)out->connector[0].roi.full_wd/out->connector[0].roi.scale;
+  float fht = (float)out->connector[0].roi.full_ht/out->connector[0].roi.scale;
   float imwd = vkdt.view_width, imht = vkdt.view_height;
   float scale = MIN(imwd/wd, imht/ht);
   if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;

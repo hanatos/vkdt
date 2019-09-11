@@ -300,7 +300,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
-      // dt_log(s_log_pipe, "%d x %d %"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name));
+      // dt_log(s_log_pipe, "%d x %d %"PRItkn"_%"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name), dt_token_str(node->kernel));
       // as it turns out our compute and graphics queues are identical, which simplifies things
       // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
       VkImageCreateInfo images_create_info = {
@@ -623,9 +623,12 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     { // by default ask for it all:
       output = 0;
       dt_roi_t *r = &module->connector[0].roi;
-      r->wd = r->full_wd;
-      r->ht = r->full_ht;
       r->scale = 1.0f;
+      // TODO: this is the performance/LOD switch for faster processing
+      // TODO: on low end computers. needs to be wired somehow!
+      // if(module->inst == dt_token("main")) r->scale = 9.0f;
+      r->wd = r->full_wd/r->scale;
+      r->ht = r->full_ht/r->scale;
     }
     if(output < 0) return;
     dt_roi_t *roi = &module->connector[output].roi;

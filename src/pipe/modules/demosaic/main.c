@@ -20,16 +20,15 @@ void modify_roi_in(
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
 
-  const int block = module->img_param.filters == 9u ? 3 : 2;
-
   // round input to block size
+  // const int block = module->img_param.filters == 9u ? 3 : 2;
   // TODO: this truncates, not sure if we should round and be careful not to run over full dimensions instead?
-  float scale = ro->scale;
-  scale /= block;
-  ri->wd = block*(int)(scale * ro->wd);
-  ri->ht = block*(int)(scale * ro->ht);
-  ri->x  = block*(int)(scale * ro->x);
-  ri->y  = block*(int)(scale * ro->y);
+  // float scale = ro->scale;
+  // scale /= block;
+  ri->wd = ri->full_wd;//block*(int)(scale * ro->wd);
+  ri->ht = ri->full_ht;//block*(int)(scale * ro->ht);
+  ri->x  = 0;//block*(int)(scale * ro->x);
+  ri->y  = 0;//block*(int)(scale * ro->y);
   ri->scale = 1.0f;
 
   assert(ro->x == 0 && "TODO: move to block boundary");
@@ -113,7 +112,7 @@ create_nodes(
   dt_connector_t co = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
-    .chan   = dt_token("rgb"),
+    .chan   = dt_token("rgba"),
     .format = dt_token("f16"),
     .roi    = module->connector[1].roi,
   };
@@ -182,7 +181,7 @@ create_nodes(
     dt_connector_t co = {
       .name   = dt_token("output"),
       .type   = dt_token("write"),
-      .chan   = dt_token("rgb"),
+      .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = roi_half,
     };
@@ -259,7 +258,7 @@ create_nodes(
   dt_connector_t cg = {
     .name   = dt_token("gauss"),
     .type   = dt_token("read"),
-    .chan   = dt_token("rgb"),
+    .chan   = dt_token("rgba"),
     .format = dt_token("f16"),
     .roi    = roi_half,
     .connected_mi = -1,
@@ -282,7 +281,7 @@ create_nodes(
   ci.chan   = dt_token("y");
   ci.format = dt_token("f16");
   ci.roi    = roi_half;
-  co.chan   = dt_token("rgb");
+  co.chan   = dt_token("rgba");
   co.format = dt_token("f16");
   co.roi    = roi_half;
   assert(graph->num_nodes < graph->max_nodes);
@@ -305,10 +304,10 @@ create_nodes(
   ci.chan   = dt_token("rggb");
   ci.format = dt_token("ui16");
   ci.roi    = roi_full;
-  co.chan   = dt_token("rgb");
+  co.chan   = dt_token("rgba");
   co.format = dt_token("f16");
   co.roi    = roi_full;
-  cg.chan   = dt_token("rgb");
+  cg.chan   = dt_token("rgba");
   cg.format = dt_token("f16");
   cg.roi    = roi_half;
   assert(graph->num_nodes < graph->max_nodes);
