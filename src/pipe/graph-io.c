@@ -98,13 +98,15 @@ read_module_ascii(
     dt_graph_t *graph,
     char       *line)
 {
-  // TODO: how does this know it failed?
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
+  // in case of failure:
   // discard module id, but remember error state (returns modid=-1)
   return dt_module_add(graph, name, inst) < 0;
 }
 
+// TODO: rewrite this to work on a uint8_t * data pointer (same for write below)
+// TODO: also insert line start pointers (for history stack)
 // this is a public api function on the graph, it reads the full stack
 int dt_graph_read_config_ascii(
     dt_graph_t *graph,
