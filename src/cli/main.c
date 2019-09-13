@@ -104,6 +104,10 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  // dump original modules, i.e. with display modules
+  if(dump_graph == 1)
+    dt_graph_print_modules(&graph);
+
   // replace requested display node by export node:
   err = replace_display(&graph, output, ldr, filename);
   if(err)
@@ -116,9 +120,8 @@ int main(int argc, char *argv[])
 
   dt_graph_run(&graph, s_graph_run_all);
 
-  if(dump_graph == 1)
-    dt_graph_print_modules(&graph);
-  else if(dump_graph == 2)
+  // nodes we can only print after run() has been called:
+  if(dump_graph == 2)
     dt_graph_print_nodes(&graph);
 
   dt_graph_cleanup(&graph);
