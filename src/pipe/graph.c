@@ -592,9 +592,18 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
         c->roi = *roi;
       }
     }
-    return module->so->modify_roi_out(graph, module);
+    module->so->modify_roi_out(graph, module);
+    // mark roi in of all outputs as uninitialised:
+    for(int i=0;i<module->num_connectors;i++)
+      if(dt_connector_output(module->connector+i))
+        module->connector[i].roi.scale = -1.0f;
+    return;
   }
   // default implementation:
+  // mark roi in of all outputs as uninitialised:
+  for(int i=0;i<module->num_connectors;i++)
+    if(dt_connector_output(module->connector+i))
+      module->connector[i].roi.scale = -1.0f;
   // copy over roi from connector named "input" to all outputs ("write")
   if(input < 0) return;
   dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
@@ -632,7 +641,12 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
     }
-    if(output < 0) return;
+    if(output < 0)
+    {
+      dt_log(s_log_pipe|s_log_err, "input roi on %"PRItkn"_%"PRItkn" uninitialised!",
+          dt_token_str(module->name), dt_token_str(module->inst));
+      return;
+    }
     dt_roi_t *roi = &module->connector[output].roi;
 
     // all input connectors get the same roi as our output:
@@ -653,7 +667,12 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       if(c->connected_mi >= 0 && c->connected_mc >= 0)
       {
         dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
-        *roi = c->roi;
+        // if roi->scale > 0 it has been inited before and we're late to the party!
+        // in this case, reverse the process:
+        if(roi->scale > 0.0f)
+          c->roi = *roi; // TODO: this may mean that we need a resample node if the module can't handle it!
+        else
+          *roi = c->roi;
         // propagate flags:
         graph->module[c->connected_mi].connector[c->connected_mc].flags |= c->flags;
       }
@@ -925,6 +944,8 @@ count_references(dt_graph_t *graph, dt_node_t *node)
 static void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
+  // TODO: if roi size/scale does not match, insert resample node!
+  // TODO: where? inside create_nodes? or we fix it afterwards?
   if(module->so->create_nodes) return module->so->create_nodes(graph, module);
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;

@@ -11,26 +11,6 @@ void modify_roi_out(
   module->connector[1].roi.full_ht =  600;//300;
 }
 
-void modify_roi_in(
-    dt_graph_t *graph,
-    dt_module_t *module)
-{
-  // XXX
-  // always go with whatever is there instead of requesting
-  // TODO: make this a generic non-main-branch bifurcation behaviour!
-  // TODO: find out that the main branch ran through here already
-  // TODO: mark modules somehow? use side channel "input" "output" names?
-  dt_connector_t *c = module->connector+0;
-  dt_roi_t *r = &c->roi;
-  if(c->connected_mi >= 0 && c->connected_mc >= 0)
-  {
-    dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
-    r->scale = roi->scale;
-    r->wd = roi->wd;
-    r->ht = roi->ht;
-  }
-}
-
 void
 create_nodes(
     dt_graph_t  *graph,
