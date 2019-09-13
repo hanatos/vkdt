@@ -137,64 +137,122 @@ error:
   return 1;
 }
 
+#define WRITE(...) {\
+  int ret = snprintf(line, size, __VA_ARGS__); \
+  if(ret >= size) return 0; \
+  size -= ret; \
+  line += ret; \
+}
+
+// write module to ascii encoding
+char *
+dt_graph_write_module_ascii(
+    const dt_graph_t *graph,
+    const int         m,
+    char             *line,
+    size_t            size)
+{
+  WRITE("module:%"PRItkn":%"PRItkn"\n",
+      dt_token_str(graph->module[m].name),
+      dt_token_str(graph->module[m].inst));
+  return line;
+}
+
+// TODO: write connection
+// serialises only incoming connections (others can't be resolved due to ambiguity)
+char *
+dt_graph_write_connection_ascii(
+    const dt_graph_t *graph,
+    const int         m,      // module index
+    const int         i,      // connector index on given module
+    char             *line,
+    size_t            size)
+{
+  dt_connector_t *c = graph->module[m].connector+i;
+  if(!dt_connector_input(c)) return line; // refuse to serialise outgoing connections
+  WRITE("connect:"
+      "%"PRItkn":%"PRItkn":%"PRItkn":"
+      "%"PRItkn":%"PRItkn":%"PRItkn"\n",
+      dt_token_str(graph->module[c->connected_mi].name),
+      dt_token_str(graph->module[c->connected_mi].inst),
+      dt_token_str(graph->module[c->connected_mi].connector[c->connected_mc].name),
+      dt_token_str(graph->module[m].name),
+      dt_token_str(graph->module[m].inst),
+      dt_token_str(c->name));
+  return line;
+}
+
+// write param
+char *
+dt_graph_write_param_ascii(
+    const dt_graph_t *graph,
+    const int         m,
+    const int         p,
+    char             *line,
+    size_t            size)
+{
+  const dt_module_t *mod = graph->module + m;
+  WRITE("param:%"PRItkn":%"PRItkn":%"PRItkn":",
+      dt_token_str(mod->name),
+      dt_token_str(mod->inst),
+      dt_token_str(mod->so->param[p]->name));
+  switch(mod->so->param[p]->type)
+  {
+    case dt_token("float"):
+    {
+      const float *v = dt_module_param_float(mod, p);
+      for(int i=0;i<mod->so->param[p]->cnt-1;i++)
+        WRITE("%g:", v[i]);
+      WRITE("%g\n", v[mod->so->param[p]->cnt-1]);
+      break;
+    }
+    case dt_token("string"):
+    {
+      WRITE("%s\n", dt_module_param_string(mod, p));
+      break;
+    }
+    default:;
+  }
+  return line;
+}
+#undef WRITE
+
+// use individual functions above and write whole configuration in flat:
+// leave no parameters behind and discard history.
 int dt_graph_write_config_ascii(
     dt_graph_t *graph,
     const char *filename)
 {
-  FILE *f = fopen(filename, "wb");
-  if(!f) return 1;
+  size_t size = 64000;
+  char *org = malloc(size);
+  char *buf = org;
+  char *end = buf + size;
+
   // write all modules
   for(int m=0;m<graph->num_modules;m++)
-    fprintf(f, "module:%"PRItkn":%"PRItkn"\n",
-        dt_token_str(graph->module[m].name),
-        dt_token_str(graph->module[m].inst));
+    if(!(buf = dt_graph_write_module_ascii(graph, m, buf, end-buf)))
+      goto error;
+
   // write all connections
   for(int m=0;m<graph->num_modules;m++)
-  {
     for(int i=0;i<graph->module[m].num_connectors;i++)
-    {
-      dt_connector_t *c = graph->module[m].connector+i;
-      if(dt_connector_input(c))
-        fprintf(f, "connect:"
-            "%"PRItkn":%"PRItkn":%"PRItkn":"
-            "%"PRItkn":%"PRItkn":%"PRItkn"\n",
-            dt_token_str(graph->module[c->connected_mi].name),
-            dt_token_str(graph->module[c->connected_mi].inst),
-            dt_token_str(graph->module[c->connected_mi].connector[c->connected_mc].name),
-            dt_token_str(graph->module[m].name),
-            dt_token_str(graph->module[m].inst),
-            dt_token_str(c->name));
-    }
-  }
+      if(!(buf = dt_graph_write_connection_ascii(graph, m, i, buf, end-buf)))
+        goto error;
+
   // write all params
   for(int m=0;m<graph->num_modules;m++)
-  {
-    dt_module_t *mod = graph->module + m;
-    for(int p=0;p<mod->so->num_params;p++)
-    {
-      fprintf(f, "param:%"PRItkn":%"PRItkn":%"PRItkn":",
-          dt_token_str(mod->name),
-          dt_token_str(mod->inst),
-          dt_token_str(mod->so->param[p]->name));
-      switch(mod->so->param[p]->type)
-      {
-      case dt_token("float"):
-      {
-        const float *v = dt_module_param_float(mod, p);
-        for(int i=0;i<mod->so->param[p]->cnt-1;i++)
-          fprintf(f, "%g:", v[i]);
-        fprintf(f, "%g\n", v[mod->so->param[p]->cnt-1]);
-        break;
-      }
-      case dt_token("string"):
-      {
-        fprintf(f, "%s\n", dt_module_param_string(mod, p));
-        break;
-      }
-      default:;
-      }
-    }
-  }
+    for(int p=0;p<graph->module[m].so->num_params;p++)
+      if(!(buf = dt_graph_write_param_ascii(graph, m, p, buf, end-buf)))
+        goto error;
+
+  FILE *f = fopen(filename, "wb");
+  if(!f) goto error;
+  fwrite(org, 1, buf - org, f);
   fclose(f);
+  free(org);
   return 0;
+error:
+  dt_log(s_log_err, "failed to write config file %s", filename);
+  free(org);
+  return 1;
 }

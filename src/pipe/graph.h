@@ -43,7 +43,9 @@ typedef struct dt_graph_t
   uint8_t              *params_pool;
   uint32_t              params_end, params_max;
 
-  // TODO: also store full history somewhere
+  // store full history in this block:
+  uint8_t              *history_pool;
+  uint32_t              history_end, history_max;
 
   dt_vkalloc_t          heap;           // allocator for device buffers and images
   dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
