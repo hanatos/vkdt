@@ -699,6 +699,49 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   VkAttachmentDescription attachment_desc[DT_MAX_CONNECTORS];
 
   VkCommandBuffer cmd_buf = graph->command_buffer;
+
+  // special case for end of pipeline and thumbnail creation:
+  if(graph->thumbnail_wd > 0 &&
+      node->name         == dt_token("display") &&
+      node->module->inst == dt_token("main"))
+  {
+    // prepare display sink buffer for transfer to thumbnail memory:
+    // TODO: in general these need two layouts as arguments (defaults to broken UNDEFINED now):
+    BARRIER_IMG_LAYOUT(node->connector[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VkImageBlit blit = {
+      .srcSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .srcOffsets = {{0}, {
+        .x = node->connector[0].roi.wd,
+        .y = node->connector[0].roi.ht,
+        .z = 1}}, // XXX roi dimensions
+      .dstSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .dstOffsets = {{0}, {.x = graph->thumbnail_wd, .y = graph->thumbnail_ht, .z = 1}},
+    };
+    vkCmdBlitImage(
+        cmd_buf,
+        node->connector[0].image,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        graph->thumbnail_image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &blit,
+        VK_FILTER_NEAREST);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    return VK_SUCCESS;
+  }
+
+  // barriers and image layout transformations:
   //if(*runflag == 1) // only wait for non-cached inputs
   {
     // wait for our input images and transfer them to read only.
@@ -799,6 +842,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     // this will transfer into READ_ONLY_OPTIMAL
     BARRIER_COMPUTE(node->connector[0].image);
   }
+
 
   // TODO: if render pass (means no compute shader): execute the render pass here
 #if 0

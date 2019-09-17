@@ -83,6 +83,11 @@ typedef struct dt_graph_t
 
   dt_graph_run_t        runflags;      // used to trigger next runflags/invalidate things
   int                   lod_scale;     // scale output down by this factor. default = 1.
+
+  // overwrite output resolution and copy the main display to the given buffer:
+  VkImage               thumbnail_image;
+  int                   thumbnail_wd;
+  int                   thumbnail_ht;
 }
 dt_graph_t;
 

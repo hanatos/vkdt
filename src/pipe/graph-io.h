@@ -8,3 +8,6 @@ int dt_graph_read_config_ascii(
 int dt_graph_write_config_ascii(
     dt_graph_t *graph,
     const char *filename);
+
+// TODO: expose individual write to char* functions from io.c file!
+// TODO: then in render.cpp, write to graph->history_pool
