@@ -3,6 +3,7 @@
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/global.h"
+#include "pipe/thumbnails.h"
 #include "core/log.h"
 #include "gui/gui.h"
 #include "gui/render.h"
@@ -110,10 +111,21 @@ int main(int argc, char *argv[])
   dt_pipe_global_init();
 
   const char *graphcfg = 0;
+  const char *dirname  = 0;
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-g") && i < argc-1)
       graphcfg = argv[++i];
+    else if(!strcmp(argv[i], "--dir") && i < argc-1)
+      dirname = argv[++i];
+  }
+  if(dirname)
+  {
+    // DEBUG XXX this is just wired for testing right now:
+    dt_thumbnails_t tn;
+    dt_thumbnails_init(&tn);
+    dt_thumbnails_create(&tn, dirname);
+    dt_thumbnails_cleanup(&tn);
   }
   if(!graphcfg)
   {

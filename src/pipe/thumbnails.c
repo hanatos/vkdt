@@ -244,11 +244,6 @@ dt_thumbnails_create(
     // it seems the graph should have some stuff in place to reuse/rebuild
     // required vk structs:
     dt_graph_cleanup(&tn->graph);
-
-    // XXX can't do this here unless we want a new command buffer run:
-    // XXX maybe it's better to put inside graph_run and have it render
-    // XXX directly to our resources!
-    // XXX see graph.c:805
   }
 
 
