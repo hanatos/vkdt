@@ -79,7 +79,8 @@ int dt_module_add(
     if(mod->committed_param_size)
     {
       mod->committed_param = graph->params_pool + graph->params_end;
-      assert(graph->params_end + mod->committed_param_size <= graph->params_max);
+      graph->params_end += mod->committed_param_size;
+      assert(graph->params_end <= graph->params_max);
     }
   }
   return modid;
