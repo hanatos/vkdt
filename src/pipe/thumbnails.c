@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 void
@@ -257,16 +258,21 @@ dt_thumbnails_create(
     tn->graph.thumbnail_ht = tn->thumb_ht;
 
     // TODO: ask for reduced resolution in the graph:
+    tn->graph.lod_scale = 4; // XXX this is stupid. ask for exactly the thumb res!
 
+    clock_t beg = clock();
     if(dt_graph_run(&tn->graph, s_graph_run_all) != VK_SUCCESS)
     {
       dt_log(s_log_err, "running the thumbnail graph failed on image '%s'!", imgfilename);
       continue;
     }
+    clock_t end = clock();
+    dt_log(s_log_pipe, "ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
     // TODO: is this init/cleanup cycle needed?
     // it seems the graph should have some stuff in place to reuse/rebuild
     // required vk structs:
+    // XXX crashes without it. might need at least some minimal cleanup work.
     dt_graph_cleanup(&tn->graph);
     tn->thumb_cnt++;
   }

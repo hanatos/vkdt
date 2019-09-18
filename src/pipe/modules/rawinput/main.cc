@@ -2,6 +2,7 @@
 #include "RawSpeed-API.h"
 #include <unistd.h>
 #include <mutex>
+#include <ctime>
 
 extern "C" {
 #include "modules/api.h"
@@ -77,6 +78,7 @@ load_raw(
     dt_module_t *mod,
     const char *filename)
 {
+  clock_t beg = clock();
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   if(mod_data)
   {
@@ -122,6 +124,8 @@ load_raw(
     printf("[rawspeed] unhandled exception in\n");
     return 1;
   }
+  clock_t end = clock();
+  fprintf(stderr, "[rawspeed] load raw in %3.0fms\n", 1000.0*(end-beg)/CLOCKS_PER_SEC);
   return 0;
 }
 
