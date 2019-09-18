@@ -119,6 +119,13 @@ int main(int argc, char *argv[])
     else if(!strcmp(argv[i], "--dir") && i < argc-1)
       dirname = argv[++i];
   }
+  if(!graphcfg && !dirname)
+  {
+    dt_log(s_log_gui, "usage: vkdt -g <graph.cfg> [-d verbosity]");
+    exit(1);
+  }
+  if(dt_gui_init()) exit(1);
+
   if(dirname)
   {
     // DEBUG XXX this is just wired for testing right now:
@@ -127,12 +134,6 @@ int main(int argc, char *argv[])
     dt_thumbnails_create(&tn, dirname);
     dt_thumbnails_cleanup(&tn);
   }
-  if(!graphcfg)
-  {
-    dt_log(s_log_gui, "usage: vkdt -g <graph.cfg> [-d verbosity]");
-    exit(1);
-  }
-  if(dt_gui_init()) exit(1);
 
   snprintf(vkdt.graph_cfg, sizeof(vkdt.graph_cfg), "%s", graphcfg);
   dt_graph_init(&vkdt.graph_dev);

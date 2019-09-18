@@ -16,11 +16,5 @@ void commit_params(dt_graph_t *graph, dt_node_t *node)
 int init(dt_module_t *mod)
 {
   mod->committed_param_size = sizeof(float)*8;
-  mod->committed_param = malloc(mod->committed_param_size);
   return 0;
-}
-
-void cleanup(dt_module_t *mod)
-{
-  free(mod->committed_param);
 }

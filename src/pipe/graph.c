@@ -22,8 +22,8 @@ dt_graph_init(dt_graph_t *g)
   g->module = malloc(sizeof(dt_module_t)*g->max_modules);
   g->max_nodes = 300;
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
-  dt_vkalloc_init(&g->heap);
-  dt_vkalloc_init(&g->heap_staging);
+  dt_vkalloc_init(&g->heap, 100);
+  dt_vkalloc_init(&g->heap_staging, 100);
   g->uniform_size = 4096;
   g->params_max = 4096;
   g->params_end = 0;
@@ -1122,6 +1122,10 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 
+  // TODO: if the roi out is 0, probably reading some sources went wrong and we need to abort right here!
+  if(graph->module[graph->num_modules-1].connector[0].roi.full_wd == 0)
+    return VK_INCOMPLETE;
+
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
   // transparently in the sink module's modify_roi_in first thing in the
@@ -1347,7 +1351,7 @@ VkResult dt_graph_run(
       dt_node_t *node = graph->node + n;
       if(dt_node_source(node))
       {
-        if(node->module->so->read_source)
+        if(node->module->so->read_source) // TODO: detect error code!
           node->module->so->read_source(node->module,
               mapped + node->connector[0].offset_staging);
         else

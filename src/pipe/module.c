@@ -21,6 +21,8 @@ int dt_module_add(
   mod->name = name;
   mod->inst = inst;
   mod->data = 0;
+  mod->committed_param_size = 0;
+  mod->committed_param = 0;
 
   // copy over initial info from module class:
   for(int i=0;i<dt_pipe.num_modules;i++)
@@ -71,7 +73,15 @@ int dt_module_add(
     return -1;
   }
 
-  if(mod->so->init) mod->so->init(mod);
+  if(mod->so->init)
+  {
+    mod->so->init(mod);
+    if(mod->committed_param_size)
+    {
+      mod->committed_param = graph->params_pool + graph->params_end;
+      assert(graph->params_end + mod->committed_param_size <= graph->params_max);
+    }
+  }
   return modid;
 }
 

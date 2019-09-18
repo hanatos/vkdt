@@ -14,7 +14,6 @@ dt_thumbnails_init(
   memset(tn, 0, sizeof(*tn));
 
   dt_graph_init(&tn->graph);
-  dt_vkalloc_init(&tn->alloc);
 
   tn->thumb_wd = 400;
   tn->thumb_ht = 300;
@@ -27,7 +26,21 @@ dt_thumbnails_cleanup(
   // TODO: delete it all again
 }
 
-int
+static int
+accept_filename(
+    const char *f)
+{
+  // TODO: magic number checks instead.
+  const char *f2 = f + strlen(f);
+  while(f2 > f && *f2 != '.') f2--;
+  return !strcasecmp(f2, ".cr2") ||
+         !strcasecmp(f2, ".nef") ||
+         !strcasecmp(f2, ".orf") ||
+         !strcasecmp(f2, ".arw") ||
+         !strcasecmp(f2, ".raf");
+}
+
+VkResult
 dt_thumbnails_create(
     dt_thumbnails_t *tn,
     const char      *dirname)
@@ -40,19 +53,30 @@ dt_thumbnails_create(
   if(!dp)
   {
     dt_log(s_log_err, "could not open directory '%s'!", dirname);
-    return 1;
+    return VK_INCOMPLETE;
   }
   struct dirent *ep;
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
+    if(!accept_filename(ep->d_name)) continue;
     tn->thumb_max++;
+  }
+  if(tn->thumb_max == 0)
+  {
+    dt_log(s_log_err, "no usable images in directory '%s'!", dirname);
+    return VK_INCOMPLETE;
   }
   tn->thumb_cnt = 0;
   tn->thumb = malloc(sizeof(dt_thumbnail_t)*tn->thumb_max);
   memset(tn->thumb, 0, sizeof(dt_thumbnail_t)*tn->thumb_max);
+  // need at least one extra slot to catch free block (if contiguous, else more)
+  dt_vkalloc_init(&tn->alloc, tn->thumb_max + 10);
 
-  VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+  // XXX what are good "combinations of parameters" that the validation layer will allow??
+  // VkFormat format = VK_FORMAT_R8G8B8A8_UINT;//VK_FORMAT_R16G16B16A16_SFLOAT;// VK_FORMAT_R32_SFLOAT; // XXX VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+  VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;// VK_FORMAT_R32_SFLOAT; // XXX VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+  // VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,
@@ -66,11 +90,12 @@ dt_thumbnails_create(
     .arrayLayers           = 1,
     .samples               = VK_SAMPLE_COUNT_1_BIT,
     .tiling                = VK_IMAGE_TILING_OPTIMAL,
-    .usage                 = VK_IMAGE_USAGE_STORAGE_BIT
-      | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+    .usage                 =
+        VK_IMAGE_USAGE_STORAGE_BIT
+      // | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-      | VK_IMAGE_USAGE_SAMPLED_BIT
-      | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
+      | VK_IMAGE_USAGE_SAMPLED_BIT,
+      // | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
     .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
     .queueFamilyIndexCount = 0,
     .pQueueFamilyIndices   = 0,
@@ -181,14 +206,13 @@ dt_thumbnails_create(
 
   char imgfilename[4096] = {0};
   char cfgfilename[4096] = {0};
-  int i = -1;
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    i++;
+    if(!accept_filename(ep->d_name)) continue;
 
     snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dirname, ep->d_name);
-    // TODO: magic number checks
+    fprintf(stderr, "XXX loading thumb for img %s\n", ep->d_name);
 
     // load individual history stack if any
     // TODO: try this or load default.cfg instead:
@@ -228,7 +252,7 @@ dt_thumbnails_create(
     snprintf(param_filename, param_len, "%s", imgfilename);
 
     // let graph render into our thumbnail:
-    tn->graph.thumbnail_image = tn->thumb[i].image;
+    tn->graph.thumbnail_image = tn->thumb[tn->thumb_cnt].image;
     tn->graph.thumbnail_wd = tn->thumb_wd;
     tn->graph.thumbnail_ht = tn->thumb_ht;
 
@@ -244,8 +268,10 @@ dt_thumbnails_create(
     // it seems the graph should have some stuff in place to reuse/rebuild
     // required vk structs:
     dt_graph_cleanup(&tn->graph);
+    tn->thumb_cnt++;
   }
 
+  fprintf(stderr, "XXX done.\n");
 
   // have multiple dt_graph_t?
   // run without sync/wait and interleave rawspeed and gpu?
@@ -254,5 +280,5 @@ dt_thumbnails_create(
   // TODO: test perf
 
   closedir(dp);
-  return 0;
+  return VK_SUCCESS;
 }
