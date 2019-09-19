@@ -385,6 +385,43 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui_ImplSDL2_NewFrame(qvk.window);
   ImGui::NewFrame();
 
+  // TODO: if thumbnails are initialised, draw a couple of them on screen to prove that we've done something:
+#if 1
+  if(vkdt.thumbnails.thumb_cnt > 0)
+  { // center image view
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= ImGuiWindowFlags_NoTitleBar;
+    window_flags |= ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoResize;
+    window_flags |= ImGuiWindowFlags_NoBackground;
+    ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
+    ImGui::Begin("center", 0, window_flags);
+
+#if 1
+    for(int i=0;i<vkdt.thumbnails.thumb_cnt;i++)
+    {
+      for(int k=0;k<7;k++)
+      {
+        ImGui::Image(vkdt.thumbnails.thumb[i].dset,
+            ImVec2(200, 120),
+            ImVec2(0,0), ImVec2(1,1),
+            ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+        if(k < 6) ImGui::SameLine();
+        if(++i >= vkdt.thumbnails.thumb_cnt) break;
+      }
+    }
+#endif
+
+    ImGui::End(); // center window
+
+    // XXX ???
+    // or go to right panel?
+    ImGui::Render();
+    return;
+  }
+#endif
+
   { // center image view
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;

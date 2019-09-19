@@ -19,6 +19,7 @@ static void
 handle_event(SDL_Event *event)
 {
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(!out) return; // XXX fix for thumbnails
   assert(out);
   float wd = (float)out->connector[0].roi.wd;
   float ht = (float)out->connector[0].roi.ht;
@@ -129,33 +130,35 @@ int main(int argc, char *argv[])
   if(dirname)
   {
     // DEBUG XXX this is just wired for testing right now:
-    dt_thumbnails_t tn;
-    dt_thumbnails_init(&tn);
-    dt_thumbnails_create(&tn, dirname);
-    dt_thumbnails_cleanup(&tn);
+    dt_thumbnails_init(&vkdt.thumbnails);
+    dt_thumbnails_create(&vkdt.thumbnails, dirname);
+    // dt_thumbnails_cleanup(&tn);
   }
 
-  snprintf(vkdt.graph_cfg, sizeof(vkdt.graph_cfg), "%s", graphcfg);
-  dt_graph_init(&vkdt.graph_dev);
-  int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graphcfg);
-  if(err)
+  if(graphcfg)
   {
-    dt_log(s_log_err|s_log_gui, "could not load graph configuration from '%s'!", graphcfg);
-    goto error;
-  }
+    snprintf(vkdt.graph_cfg, sizeof(vkdt.graph_cfg), "%s", graphcfg);
+    dt_graph_init(&vkdt.graph_dev);
+    int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graphcfg);
+    if(err)
+    {
+      dt_log(s_log_err|s_log_gui, "could not load graph configuration from '%s'!", graphcfg);
+      goto error;
+    }
 
-  if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
-  {
-    // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
-    dt_log(s_log_err|s_log_gui, "running the graph failed!");
-    goto error;
-  }
+    if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
+    {
+      // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
+      dt_log(s_log_err|s_log_gui, "running the graph failed!");
+      goto error;
+    }
 
-  // nodes are only constructed after running once
-  if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
-  {
-    dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
-    goto error;
+    // nodes are only constructed after running once
+    if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
+    {
+      dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
+      goto error;
+    }
   }
   dt_gui_read_ui_ascii("darkroom.ui");
 
@@ -176,9 +179,9 @@ int main(int argc, char *argv[])
       else if(event.type == SDL_QUIT)
         running = 0;
       else if(event.type == SDL_KEYDOWN &&
-              event.key.keysym.sym == SDLK_ESCAPE)
+          event.key.keysym.sym == SDLK_ESCAPE)
       {
-          running = 0;
+        running = 0;
       }
       else if(event.type == SDL_WINDOWEVENT &&
           event.window.event == SDL_WINDOWEVENT_RESIZED &&
@@ -206,21 +209,23 @@ int main(int argc, char *argv[])
 
     // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
     // if(fence == VK_SUCCESS)
+    if(graphcfg)
     {
-    // TODO: if params changed:
-    VkResult err = dt_graph_run(&vkdt.graph_dev,
-        vkdt.graph_dev.runflags
-       |s_graph_run_download_sink
-       |s_graph_run_record_cmd_buf
-       |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
-    if(err != VK_SUCCESS) break;
+      // TODO: if params changed:
+      VkResult err = dt_graph_run(&vkdt.graph_dev,
+          vkdt.graph_dev.runflags
+         |s_graph_run_download_sink
+         |s_graph_run_record_cmd_buf
+         |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
+      if(err != VK_SUCCESS) break;
     }
     clock_t end  = clock();
     dt_log(s_log_perf, "total frame time %2.3f s", (end - beg)/(double)CLOCKS_PER_SEC);
     beg = end;
   }
 
-  dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
+  if(graphcfg)
+    dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
 
 error:
   dt_graph_cleanup(&vkdt.graph_dev);

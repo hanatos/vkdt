@@ -1,5 +1,6 @@
 #pragma once
 #include "pipe/graph.h"
+#include "pipe/thumbnails.h"
 
 #include <vulkan/vulkan.h>
 
@@ -38,6 +39,8 @@ typedef struct dt_gui_t
 
   char             graph_cfg[2048];
   dt_graph_t       graph_dev;
+
+  dt_thumbnails_t  thumbnails;  // for light table mode
 
   // center window configuration
   // TODO: put on display node, too?
