@@ -181,6 +181,7 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 3: // return VK_FORMAT_R8G8B8_UINT;
       case 4: return VK_FORMAT_R8G8B8A8_UINT;
     }
+    case dt_token("bc1") : return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   }
   return VK_FORMAT_UNDEFINED;
 }

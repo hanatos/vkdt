@@ -1,16 +1,10 @@
 # cleanup
 
-* committed_params no malloc() but use pool on graph! (contract to just set param_size and the rest is done in core?)
 * use vkCmdClearColorImage() on output images to avoid inefficiencies on GPU
   while at it: using an incorrect src layout may lead to discarding the data during layout transform barriers
-* gui/render.cpp: use descriptor set of output image ("display" node "main" inst)
-* connectors propagate format from sink by one step: is just encoding
-  i.e. detect 8-bit vs floating point input buffers and create nodes accordingly?
-  connect(): downgrade f16 output to ui8 on the fly (etc)
+* split export into pfmout, jpgout, ..
 
 # pipeline features
-
-* support forks: init stack of graph traversal with all output nodes, not just the one
 
 # pipeline reuse
 
@@ -18,7 +12,6 @@
 
 # gui
 
-* detect non-display output
 * dt-style sliders (which look good and have more precision)
 * support masking/post expose drawings
 * wire graph->runflags in a meaningful way!
@@ -26,7 +19,6 @@
 # cli
 
 * take cmd line argument which output display node names to process
-* replace display node by export + maybe 8-bit downsample node
 
 # params and history
 
@@ -48,7 +40,7 @@
 * estimate noise from raw (black area + one sample)
 * burst mode demosaic/denoise
 * clut with linear part: colour matrix
-* simple denoising with decimated fisz wavelets
+* simple denoising with fisz wavelets (finest scale decimated to support bayer+xtrans)
 
 # build
 
