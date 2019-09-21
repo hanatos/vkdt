@@ -108,9 +108,19 @@ int main(int argc, char *argv[])
   if(dump_graph == 1)
     dt_graph_print_modules(&graph);
 
+  // find "main" module
+  int found_main = 0;
+  for(int m=0;m<graph.num_modules;m++)
+  {
+    if(graph.module[m].inst == dt_token("main"))
+    {
+      found_main = 1;
+      break;
+    }
+  }
+
   // replace requested display node by export node:
-  err = replace_display(&graph, output, ldr, filename);
-  if(err)
+  if(!found_main && replace_display(&graph, output, ldr, filename))
   {
     dt_log(s_log_err, "graph does not contain suitable display node %"PRItkn"!", dt_token_str(output));
     exit(2);
