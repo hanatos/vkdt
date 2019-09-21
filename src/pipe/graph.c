@@ -640,6 +640,7 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       if(module->inst == dt_token("main")) r->scale = graph->lod_scale;
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
+      r->x = r->y = 0;
     }
     if(output < 0)
     {
