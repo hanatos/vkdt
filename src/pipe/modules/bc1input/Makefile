@@ -1,6 +1,6 @@
 TARGET=libbc1input.so
 CFLAGS=-Wall -I../.. -I../../.. -fPIC -g
-LDFLAGS=
+LDFLAGS=-lz
 CFLAGS+=$(OPT_CFLAGS)
 LDFLAGS+=$(OPT_LDFLAGS)
 
