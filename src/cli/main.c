@@ -108,11 +108,12 @@ int main(int argc, char *argv[])
   if(dump_graph == 1)
     dt_graph_print_modules(&graph);
 
-  // find "main" module
+  // find non-display "main" module
   int found_main = 0;
   for(int m=0;m<graph.num_modules;m++)
   {
-    if(graph.module[m].inst == dt_token("main"))
+    if(graph.module[m].inst == dt_token("main") &&
+       graph.module[m].name != dt_token("display"))
     {
       found_main = 1;
       break;
