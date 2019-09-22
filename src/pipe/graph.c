@@ -193,14 +193,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     bindings[i].pImmutableSamplers = 0;
   }
 
-  // create a descriptor set layout
-  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = node->num_connectors,
-    .pBindings    = bindings,
-  };
-  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
-
   // TODO: if we need a rasterisation pass:
 #if 0
   // TODO: create shader stages:
@@ -238,6 +230,18 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   // VkRenderPass render_pass; // XXX TODO: put on connector or on node?
   QVK(vkCreateRenderPass(qvk.device, &info, 0, &node.render_pass));
 #endif
+
+  // a sink needs a descriptor set (for display via imgui)
+  if(!dt_node_source(node))
+  {
+    // create a descriptor set layout
+    VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+      .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = node->num_connectors,
+      .pBindings    = bindings,
+    };
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &node->dset_layout));
+  }
 
   // a sink or a source does not need a pipeline to be run.
   // note, however, that a sink does need a descriptor set, as we want to bind
@@ -305,6 +309,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // dt_log(s_log_pipe, "%d x %d %"PRItkn"_%"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name), dt_token_str(node->kernel));
       // as it turns out our compute and graphics queues are identical, which simplifies things
       // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
+      int bc1 = c->format == dt_token("bc1");//format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -317,8 +322,14 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .mipLevels             = 1,
         .arrayLayers           = 1,
         .samples               = VK_SAMPLE_COUNT_1_BIT,
-        .tiling                = VK_IMAGE_TILING_OPTIMAL,
-        .usage                 = VK_IMAGE_USAGE_STORAGE_BIT
+        .tiling                = bc1 ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
+        .usage                 = 
+          bc1 ?
+          VK_IMAGE_ASPECT_COLOR_BIT
+          // | VK_IMAGE_USAGE_STORAGE_BIT // can't have this
+          | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+          | VK_IMAGE_USAGE_SAMPLED_BIT :
+          VK_IMAGE_USAGE_STORAGE_BIT
           | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
           | VK_IMAGE_USAGE_TRANSFER_DST_BIT
           | VK_IMAGE_USAGE_SAMPLED_BIT
@@ -327,7 +338,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE, // VK_SHARING_MODE_CONCURRENT, 
         .queueFamilyIndexCount = 0,//2,
         .pQueueFamilyIndices   = 0,//queues,
-        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
+        .initialLayout         = bc1 ?
+          VK_IMAGE_LAYOUT_PREINITIALIZED :
+          VK_IMAGE_LAYOUT_UNDEFINED,
       };
       if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
       QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
@@ -433,7 +446,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   }
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
-  VkWriteDescriptorSet img_dset[DT_MAX_CONNECTORS] = {{0}};
+  VkWriteDescriptorSet  img_dset[DT_MAX_CONNECTORS] = {{0}};
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -1449,8 +1462,9 @@ dt_graph_get_display(
   // TODO: cache somewhere on graph?
   for(int n=0;n<g->num_nodes;n++)
   {
-    if(g->node[n].module->name == dt_token("display") &&
-       g->node[n].module->inst == which)
+    if((g->node[n].module->name == dt_token("display") ||
+        g->node[n].module->name == dt_token("thumb")) &&
+        g->node[n].module->inst == which)
       return g->node+n;
   }
   return 0;

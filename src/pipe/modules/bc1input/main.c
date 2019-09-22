@@ -26,7 +26,7 @@ void modify_roi_out(
     fprintf(stderr, "[bc1input] %s: wrong magic number or version!\n", filename);
     gzclose(f);
   }
-  const uint32_t wd = header[2], ht = header[3];
+  const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
 }
@@ -52,8 +52,13 @@ int read_source(
     gzclose(f);
     return 1;
   }
-  const int wd = header[2], ht = header[3];
+  const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
+  fprintf(stderr, "[bc1input] %s magic %"PRItkn" version %u dim %u x %u\n",
+      filename, dt_token_str(header[0]),
+      header[1], header[2], header[3]);
   gzread(f, mapped, sizeof(uint8_t)*8*(wd/4)*(ht/4));
+  // XXX DEBUG
+  for(int k=0;k<8*(wd/4)*(ht/4);k++) ((uint8_t*)mapped)[k] = 255;
   gzclose(f);
   return 0;
 }

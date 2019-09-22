@@ -181,6 +181,7 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 3: // return VK_FORMAT_R8G8B8_UINT;
       case 4: return VK_FORMAT_R8G8B8A8_UINT;
     }
+    // XXX DEBUG case dt_token("bc1") : return VK_FORMAT_R16G16B16A16_SFLOAT;//VK_FORMAT_BC1_RGB_SRGB_BLOCK;
     case dt_token("bc1") : return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   }
   return VK_FORMAT_UNDEFINED;
@@ -189,6 +190,8 @@ dt_connector_vkformat(const dt_connector_t *c)
 static inline size_t
 dt_connector_bufsize(const dt_connector_t *c)
 {
+  if(c->format == dt_token("bc1")) return c->roi.wd/4*c->roi.ht/4 * 8;
+  // XXX DEBUG if(c->format == dt_token("bc1")) return c->roi.wd*c->roi.ht * 2*4;
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
   return numc * bpp * c->roi.wd * c->roi.ht;
