@@ -3,6 +3,8 @@
 * use vkCmdClearColorImage() on output images to avoid inefficiencies on GPU
   while at it: using an incorrect src layout may lead to discarding the data during layout transform barriers
 * split export into pfmout, jpgout, ..
+* look at StorageImageWriteWithoutFormat to get rid of f2srgb8 etc
+  seems it just needs layout () uniform *writeonly* image2D img_out;
 
 # pipeline features
 

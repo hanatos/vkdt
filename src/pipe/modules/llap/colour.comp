@@ -27,8 +27,8 @@ layout( // input f16 buffer rgba original colour
 ) uniform sampler2D img_org;
 
 layout( // output f16 buffer local contrast + colour
-    set = 1, binding = 2, rgba16f
-) uniform image2D img_out;
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
 
 void
 main()

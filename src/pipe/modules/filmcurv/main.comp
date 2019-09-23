@@ -22,8 +22,8 @@ layout( // input f16 buffer rgba
 ) uniform sampler2D img_in;
 
 layout( // output f16 buffer rgba
-    set = 1, binding = 1, rgba16f
-) uniform image2D img_out;
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
 
 // TODO: move to header?
 // cubic hermite for four nodes

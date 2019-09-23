@@ -385,7 +385,8 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui_ImplSDL2_NewFrame(qvk.window);
   ImGui::NewFrame();
 
-  // TODO: if thumbnails are initialised, draw a couple of them on screen to prove that we've done something:
+  // if thumbnails are initialised, draw a couple of them on screen to prove
+  // that we've done something:
 #if 1
   if(vkdt.thumbnails.thumb_cnt > 0)
   { // center image view
@@ -398,7 +399,6 @@ extern "C" void dt_gui_render_frame_imgui()
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("center", 0, window_flags);
 
-#if 1
     for(int i=0;i<vkdt.thumbnails.thumb_cnt;i++)
     {
       for(int k=0;k<7;k++)
@@ -411,7 +411,6 @@ extern "C" void dt_gui_render_frame_imgui()
         if(++i >= vkdt.thumbnails.thumb_cnt) break;
       }
     }
-#endif
 
     ImGui::End(); // center window
 

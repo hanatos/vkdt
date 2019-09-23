@@ -52,11 +52,11 @@ layout(set = 1, binding = 18) uniform sampler2D img_g8_l0;
 layout(set = 1, binding = 19) uniform sampler2D img_g8_l1;
 layout(set = 1, binding = 20) uniform sampler2D img_g9_l0;
 layout(set = 1, binding = 21) uniform sampler2D img_g9_l1;
-layout(set = 1, binding = 22, r16f) uniform image2D img_out; // output f16 buffer y finer level of output
+layout(set = 1, binding = 22) uniform writeonly image2D img_out; // output f16 buffer y finer level of output
 #else
 layout( // output f16 buffer y finer level of output
-    set = 1, binding = 14, r16f
-) uniform image2D img_out;
+    set = 1, binding = 14
+) uniform writeonly image2D img_out;
 #endif
 
 

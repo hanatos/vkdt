@@ -512,6 +512,7 @@ qvk_init()
     qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
 
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
+    dt_log(s_log_qvk, "store without format %d", dev_features.shaderStorageImageWriteWithoutFormat);
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     dt_log(s_log_qvk, "max image allocation size %u x %u",
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);

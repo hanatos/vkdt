@@ -19,8 +19,8 @@ layout( // input f16 buffer rgb
 ) uniform sampler2D img_in;
 
 layout( // output f16 buffer rgb
-    set = 1, binding = 1, rgba16f
-) uniform image2D img_out;
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
 
 // resample input image to new resolution (determined by region of interest,
 // larger or smaller), using a catmull rom interpolation kernel

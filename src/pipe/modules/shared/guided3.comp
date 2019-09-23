@@ -25,8 +25,8 @@ layout( // input f16 buffer blurred ab
 ) uniform sampler2D img_ab;
 
 layout( // output f16 buffer y
-    set = 1, binding = 2, r16f
-) uniform image2D img_out;
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
 
 // final guided filter kernel:
 // output = mean_a * I + mean_b

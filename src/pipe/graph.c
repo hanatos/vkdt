@@ -310,6 +310,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // as it turns out our compute and graphics queues are identical, which simplifies things
       // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
       int bc1 = c->format == dt_token("bc1");//format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+      // int bc1 = format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+      fprintf(stderr, "[XXXX] alloc image format %u\n", format);
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -338,13 +340,15 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE, // VK_SHARING_MODE_CONCURRENT, 
         .queueFamilyIndexCount = 0,//2,
         .pQueueFamilyIndices   = 0,//queues,
-        .initialLayout         = bc1 ?
-          VK_IMAGE_LAYOUT_PREINITIALIZED :
+        .initialLayout         = // bc1 ?
+          //VK_IMAGE_LAYOUT_PREINITIALIZED :
           VK_IMAGE_LAYOUT_UNDEFINED,
       };
       if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
       QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
-      // ATTACH_LABEL_VARIABLE(c->image, IMAGE);
+      char name[10] = {0}; snprintf(name, sizeof(name), "%"PRItkn":%"PRItkn,
+          dt_token_str(node->name), dt_token_str(c->name));
+      ATTACH_LABEL_VARIABLE_NAME(c->image, IMAGE, name);
 
       VkMemoryRequirements mem_req;
       vkGetImageMemoryRequirements(qvk.device, c->image, &mem_req);
@@ -443,6 +447,8 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       .pSetLayouts = &node->dset_layout,
     };
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
+    char name[10] = {0}; strncpy(name, dt_token_str(node->name), 8);
+    ATTACH_LABEL_VARIABLE_NAME(node->dset, DESCRIPTOR_SET, name);
   }
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
@@ -454,6 +460,8 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       vkBindImageMemory(qvk.device, c->image, graph->vkmem, c->offset);
+
+      fprintf(stderr, "[XXXX] alloc output dset format %u\n", format);
 
       VkImageViewCreateInfo images_view_create_info = {
         .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

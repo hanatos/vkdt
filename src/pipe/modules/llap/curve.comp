@@ -35,20 +35,20 @@ layout( // input f16 buffer rgba
 ) uniform sampler2D img_in;
 
 // six output buffers for each curve level
-layout(set = 1, binding = 1, r16f) uniform image2D img_out0;
-layout(set = 1, binding = 2, r16f) uniform image2D img_out1;
-layout(set = 1, binding = 3, r16f) uniform image2D img_out2;
-layout(set = 1, binding = 4, r16f) uniform image2D img_out3;
-layout(set = 1, binding = 5, r16f) uniform image2D img_out4;
-layout(set = 1, binding = 6, r16f) uniform image2D img_out5;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out0;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out1;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out2;
+layout(set = 1, binding = 4) uniform writeonly image2D img_out3;
+layout(set = 1, binding = 5) uniform writeonly image2D img_out4;
+layout(set = 1, binding = 6) uniform writeonly image2D img_out5;
 #ifdef LLAP_HQ
-layout(set = 1, binding = 7,  r16f) uniform image2D img_out6;
-layout(set = 1, binding = 8,  r16f) uniform image2D img_out7;
-layout(set = 1, binding = 9,  r16f) uniform image2D img_out8;
-layout(set = 1, binding = 10, r16f) uniform image2D img_out9;
-layout(set = 1, binding = 11, r16f) uniform image2D img_grey;
+layout(set = 1, binding =  7) uniform writeonly image2D img_out6;
+layout(set = 1, binding =  8) uniform writeonly image2D img_out7;
+layout(set = 1, binding =  9) uniform writeonly image2D img_out8;
+layout(set = 1, binding = 10) uniform writeonly image2D img_out9;
+layout(set = 1, binding = 11) uniform writeonly image2D img_grey;
 #else
-layout(set = 1, binding = 7, r16f) uniform image2D img_grey;
+layout(set = 1, binding = 7) uniform writeonly image2D img_grey;
 #endif
 
 float

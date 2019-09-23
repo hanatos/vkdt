@@ -147,7 +147,7 @@ dt_connector_vkformat(const dt_connector_t *c)
   switch(c->format)
   {
     case dt_token("ui32"): switch(len)
-    {
+    { // int32 does not have UNORM equivalents (use SFLOAT instead i guess)
       case 1: return VK_FORMAT_R32_UINT;
       case 2: return VK_FORMAT_R32G32_UINT;
       case 3: // return VK_FORMAT_R32G32B32_UINT;
@@ -169,20 +169,20 @@ dt_connector_vkformat(const dt_connector_t *c)
     }
     case dt_token("ui16"): switch(len)
     {
-      case 1: return VK_FORMAT_R16_UINT;
-      case 2: return VK_FORMAT_R16G16_UINT;
-      case 3: // return VK_FORMAT_R16G16B16_UINT;
-      case 4: return VK_FORMAT_R16G16B16A16_UINT;
+      case 1: return VK_FORMAT_R16_UNORM;
+      case 2: return VK_FORMAT_R16G16_UNORM;
+      case 3: // return VK_FORMAT_R16G16B16_UNORM;
+      case 4: return VK_FORMAT_R16G16B16A16_UNORM;
     }
     case dt_token("ui8") : switch(len)
     {
-      case 1: return VK_FORMAT_R8_UINT;
-      case 2: return VK_FORMAT_R8G8_UINT;
-      case 3: // return VK_FORMAT_R8G8B8_UINT;
-      case 4: return VK_FORMAT_R8G8B8A8_UINT;
+      case 1: return VK_FORMAT_R8_UNORM;
+      case 2: return VK_FORMAT_R8G8_UNORM;
+      case 3: // return VK_FORMAT_R8G8B8_UNORM;
+      case 4: return VK_FORMAT_R8G8B8A8_UNORM;
     }
-    // XXX DEBUG case dt_token("bc1") : return VK_FORMAT_R16G16B16A16_SFLOAT;//VK_FORMAT_BC1_RGB_SRGB_BLOCK;
-    case dt_token("bc1") : return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+    // XXX DEBUG case dt_token("bc1") : return VK_FORMAT_R16G16B16A16_SFLOAT;
+    case dt_token("bc1") : return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
   }
   return VK_FORMAT_UNDEFINED;
 }

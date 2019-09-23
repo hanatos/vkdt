@@ -15,8 +15,8 @@ layout( // input f16 buffer rg
 ) uniform sampler2D img_in;
 
 layout( // output f16 buffer rg
-    set = 1, binding = 1, rg16f
-) uniform image2D img_out;
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
 
 layout(push_constant, std140) uniform push_t
 {

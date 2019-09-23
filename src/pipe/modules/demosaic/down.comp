@@ -16,11 +16,11 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout( // input uint16 buffer rggb
     set = 1, binding = 0
-) uniform usampler2D img_in;
+) uniform sampler2D img_in;
 
 layout( // output f16 buffer y
-    set = 1, binding = 1, r16f
-) uniform image2D img_out;
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
 
 void
 main()
@@ -38,23 +38,23 @@ main()
   float lum;
   if(params.filters == 9)
   {
-    uint c0 = texelFetch(img_in, 3*ipos, 0).r;
-    uint c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
-    uint c2 = texelFetch(img_in, 3*ipos+ivec2(0,2), 0).r;
-    uint c3 = texelFetch(img_in, 3*ipos+ivec2(1,0), 0).r;
-    uint c4 = texelFetch(img_in, 3*ipos+ivec2(1,1), 0).r;
-    uint c5 = texelFetch(img_in, 3*ipos+ivec2(1,2), 0).r;
-    uint c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
-    uint c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
-    uint c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
+    float c0 = texelFetch(img_in, 3*ipos, 0).r;
+    float c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
+    float c2 = texelFetch(img_in, 3*ipos+ivec2(0,2), 0).r;
+    float c3 = texelFetch(img_in, 3*ipos+ivec2(1,0), 0).r;
+    float c4 = texelFetch(img_in, 3*ipos+ivec2(1,1), 0).r;
+    float c5 = texelFetch(img_in, 3*ipos+ivec2(1,2), 0).r;
+    float c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
+    float c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
+    float c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
     lum = (c0 + c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8)/9.0;
   }
   else
   {
-    uint c0 = texelFetch(img_in, 2*ipos, 0).r;
-    uint c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
-    uint c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
-    uint c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
+    float c0 = texelFetch(img_in, 2*ipos, 0).r;
+    float c1 = texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
+    float c2 = texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
+    float c3 = texelFetch(img_in, 2*ipos+ivec2(1,1), 0).r;
     lum = (c0+c1+c2+c3)/4.0;
   }
   imageStore(img_out, ipos, vec4(lum));

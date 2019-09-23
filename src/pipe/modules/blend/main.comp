@@ -31,8 +31,8 @@ layout( // mask f16 buffer single channel
 ) uniform sampler2D img_mask;
 
 layout( // output f16 buffer rgba
-    set = 1, binding = 3, rgba16f
-) uniform image2D img_out;
+    set = 1, binding = 3
+) uniform writeonly image2D img_out;
 
 void
 main()
