@@ -28,31 +28,12 @@ replace_display(
 
   // new module export with same inst
   // maybe new module 8-bit in between here
-  if(ldr)
-  {
-    const int m1 = dt_module_add(graph, dt_token("f2srgb8"),  inst);
-    const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-    const int co = dt_module_get_connector(graph->module+m1, dt_token("output"));
-    const int m2 = dt_module_add(graph, dt_token("export8"), inst);
-    const int c2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
+  dt_token_t export = ldr ? dt_token("export8") : dt_token("export");
+  const int m1 = dt_module_add(graph, export, inst);
+  const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+  CONN(dt_module_connect(graph, m0, c0, m1, c1));
 
-    if(graph->module[m0].name == dt_token("f2srgb"))
-    { // detect and skip f2srgb (replaced by f2srgb8)
-      cid = dt_module_get_connector(graph->module+m0, dt_token("input"));
-      c0 = graph->module[m0].connector[cid].connected_mc;
-      m0 = graph->module[m0].connector[cid].connected_mi;
-    }
-    // connect: source (m0, c0) -> destination (m1, c1)
-    CONN(dt_module_connect(graph, m0, c0, m1, c1));
-    CONN(dt_module_connect(graph, m1, co, m2, c2));
-  }
-  else
-  {
-    const int m1 = dt_module_add(graph, dt_token("export"), inst);
-    const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-    CONN(dt_module_connect(graph, m0, c0, m1, c1));
-  }
-  // TODO: set output filename parameter on export modules
+  // TODO: set output filename parameter on export module
   return 0;
 }
 
