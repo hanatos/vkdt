@@ -438,7 +438,7 @@ static inline VkResult
 alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
   if(node->dset_layout)
-  { // this is not set for sink nodes
+  { // this is not set for source nodes
     // create descriptor set per node
     VkDescriptorSetAllocateInfo dset_info = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,

@@ -16,7 +16,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout( // input uint8 buffer rgba
     set = 1, binding = 0
-) uniform usampler2D img_in;
+) uniform sampler2D img_in;
 
 layout( // output f16 buffer rgb
     set = 1, binding = 1
@@ -28,7 +28,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  vec4 rgba = texelFetch(img_in, ipos, 0).rgba/256.0;
+  vec4 rgba = texelFetch(img_in, ipos, 0).rgba;
   // undo srgb tone curve
   rgba.r = rgba.r <= 0.04045 ? rgba.r / 12.92 : pow((rgba.r + 0.055) / (1 + 0.055), 2.4);
   rgba.g = rgba.g <= 0.04045 ? rgba.g / 12.92 : pow((rgba.g + 0.055) / (1 + 0.055), 2.4);
