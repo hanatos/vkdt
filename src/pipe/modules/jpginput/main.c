@@ -94,7 +94,10 @@ read_plain(
       return 1;
     }
     for(unsigned int i = 0; i < jpg->dinfo.image_width; i++)
+    {
       for(int k = 0; k < 3; k++) tmp[4 * i + k] = row_pointer[0][3 * i + k];
+      tmp[4*i+3] = 255;
+    }
     tmp += 4 * jpg->width;
   }
   free(row_pointer[0]);
