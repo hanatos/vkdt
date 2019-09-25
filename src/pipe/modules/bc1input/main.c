@@ -57,8 +57,10 @@ int read_source(
       filename, dt_token_str(header[0]),
       header[1], header[2], header[3]);
   gzread(f, mapped, sizeof(uint8_t)*8*(wd/4)*(ht/4));
-  // XXX DEBUG
-  for(int k=0;k<8*(wd/4)*(ht/4);k++) ((uint8_t*)mapped)[k] = 255;
+  // XXX DEBUG at least we can see something:
+  // for(int k=0;k<8*(wd/4)*(ht/4);k++)
+    // fprintf(stderr, "%u\n", ((uint8_t*)mapped)[k]);
+    // ((uint8_t*)mapped)[k] = 55;
   gzclose(f);
   return 0;
 }

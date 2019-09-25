@@ -311,7 +311,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
       int bc1 = c->format == dt_token("bc1");//format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
       // int bc1 = format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
-      fprintf(stderr, "[XXXX] alloc image format %u\n", format);
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -460,8 +459,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       vkBindImageMemory(qvk.device, c->image, graph->vkmem, c->offset);
-
-      fprintf(stderr, "[XXXX] alloc output dset format %u\n", format);
 
       VkImageViewCreateInfo images_view_create_info = {
         .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

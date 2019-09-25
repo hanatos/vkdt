@@ -38,8 +38,13 @@ extern "C" void write_sink(
         for(int ii=0;ii<4;ii++)
           for(int c=0;c<4;c++)
             block[4*(4*jj+ii)+c] = in[4*(wd*(j+jj)+(i+ii))+c];
-      squish::CompressMasked(block, 0xffff, out + 8*(bx*j/4+i/4),
+      squish::CompressMasked(block, 0xffff, out + 8*(bx*(j/4)+(i/4)),
           squish::kDxt1 | squish::kColourRangeFit);
+      // fprintf(stderr, "%u %u %u %u\n", 
+      // out[8*(bx*(j/4)+(i/4))],
+      // out[8*(bx*(j/4)+(i/4))+1],
+      // out[8*(bx*(j/4)+(i/4))+2],
+      // out[8*(bx*(j/4)+(i/4))+3]);
     }
   }
 
