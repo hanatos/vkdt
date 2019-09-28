@@ -201,6 +201,7 @@ create_nodes(
       ci.chan   = dt_token("rgba");
       ci.format = dt_token("f16");
       ci.roi    = roi_half;
+      ci.flags  = s_conn_smooth;
       co.chan   = dt_token("rgba");
       co.format = dt_token("f16");
       co.roi    = module->connector[1].roi;
@@ -330,6 +331,7 @@ create_nodes(
     ci.chan   = dt_token("rgba");
     ci.format = dt_token("f16");
     ci.roi    = roi_full;
+    ci.flags  = s_conn_smooth;
     co.chan   = dt_token("rgba");
     co.format = dt_token("f16");
     co.roi    = module->connector[1].roi;
