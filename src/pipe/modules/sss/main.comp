@@ -1,0 +1,184 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#define M_PI   3.14159265358979323846  /* pi */
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ro;
+  float theta;  // angle of incidence: 0 normal; pi/2 tangent
+  float spp;    // number of paths per pixel
+  float albedo;
+  float mu_t;
+  float g;
+} params;
+
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 0
+) uniform writeonly image2D img_out;
+
+float sample_distance(float x0, float mu_t)
+{
+  return -log(1.0f-x0)/mu_t;
+}
+
+// pdf = 1.0f/(4.0f*M_PI);
+vec3 sample_sphere(vec2 x)
+{
+  const float z = 1.f - 2.f*x.x;
+  const float r = sqrt(1.f - z*z);
+  const float phi = 2.f*M_PI*x.y;
+  return vec3(r * cos(phi), r * sin(phi), z);
+}
+
+// pdf = 1/2pi
+vec3 sample_hemisphere(vec2 x)
+{
+  const float z = 1.f - x.x;
+  const float r = sqrt(1.f - z*z);
+  const float phi = 2.f*M_PI*x.y;
+  return vec3(r * cos(phi), r * sin(phi), z);
+}
+
+// pdf = 1.0f/(4.0f*M_PI) * (1.0f-g)/pow(1.0f + g*g - 2.0f*g*cos_theta, 3.0f/2.0f);
+vec3 sample_hg(vec2 x, float g)
+{
+  if(g == 0.0f) return sample_sphere(x);
+  const float sqr = (1.0f-g*g)/(1.0f-g*(2.0f*x.x-1));
+  const float cos_theta = 1.0f/(2.0f*g) * (1.0f + g*g - sqr*sqr);
+  const float phi = 2.0f*M_PI*x.y;
+  const float l = sqrt(max(0.0f, 1.0f-cos_theta*cos_theta));
+  return normalize(vec3(cos_theta, cos(phi)*l, sin(phi)*l));
+}
+
+float eval_hg(
+    const float g,
+    vec3 wi, vec3 wo)
+{
+  if(g == 0.0) return 1.0f/(4.0f*M_PI);
+  const float cos_theta = dot(wi, wo);
+  return 1.0f/(4.0f*M_PI) * (1.0f-g)/pow(1.0f + g*g - 2.0f*g*cos_theta, 3.0f/2.0f);
+}
+
+vec3 get_perpendicular(vec3 n)
+{
+  if(abs(n.y) < 0.5)
+  {
+    vec3 up = vec3(0, 1, 0);
+    return cross(n, up);
+  }
+  else
+  {
+    vec3 rg = vec3(1, 0, 0);
+    cross(n, rg);
+  }
+}
+
+mat3 get_onb(vec3 n)
+{
+  vec3 u = normalize(get_perpendicular(n));
+  vec3 v = cross(n, u);
+  return mat3(u, v, n);
+}
+
+// tiny encryption algorithm random numbers
+vec2
+encrypt_tea(uvec2 arg)
+{
+  const uint key[] = {
+    0xa341316c, 0xc8013ea4, 0xad90777d, 0x7e95761e
+  };
+  uint v0 = arg[0], v1 = arg[1];
+  uint sum = 0;
+  uint delta = 0x9e3779b9;
+
+  #pragma unroll
+  for(int i = 0; i < 16; i++) {
+    sum += delta;
+    v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+    v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+  }
+  return vec2(v0/(0xffffffffu+1.0), v1/(0xffffffffu+1.0));
+}
+
+vec2 next_rand(inout uvec2 seed)
+{
+  seed.y++;
+  return encrypt_tea(seed);
+}
+
+// TODO:
+// pdf(t) = D/((theta_b - theta_a)*(D*D - t*t))
+// sample_equiangular()
+// {
+//   // a, b: ray segment. theta_a, theta_b: angles that go with it
+     // D: shortest distance point/line
+//   return D * tan((1-x)*theta_a + x*theta_b);
+// }
+
+// some 2D output of a 3D searchlight problem, laser incidence to semi-infinite half space filled
+// with homogeneous medium.
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  float total = 0.0;
+  uint spp = uint(params.spp);
+  for(int s=0;s<spp;s++)
+  {
+    uvec2 seed = uvec2(ipos.x + 1337*ipos.y, 0 + 1000*s);
+
+    // special cased pt/nee so we avoid the atomics a light tracer would bring
+    // - sample direction under surface
+    vec3 pos = vec3(vec2(ipos.xy/vec2(params.ro.roi) - 0.5), 0.0f);
+    vec3 dir = sample_hemisphere(next_rand(seed));
+    dir.z = - dir.z;
+
+    const float mu_t = params.mu_t;
+    const float mu_s = params.albedo * params.mu_t;
+    const float mean_cos = params.g;
+
+    float contrib = 1.0;
+
+    for(int i=0;i<10;i++)
+    {
+      vec2 trand = next_rand(seed);
+      float t = sample_distance(trand.x, mu_t);
+      pos += dir*t;
+      if(pos.z > 0.0) break;
+
+      // nee
+      // - deterministically connect to line of "direct" illumination:
+      //   - consider line at angle theta
+      //   - equiangular sampling to current shading position requires bound on ray segment (first sample distance at mu_t/2, then equiangular?)
+      //   - sample transmittance from surface
+      t = sample_distance(trand.y, mu_t);
+      vec3 nee = t * vec3(sin(params.theta), 0.0, cos(params.theta));
+      float r = length(pos - nee);
+      vec3 con = (pos - nee)/r;
+      float hg0 = eval_hg(mean_cos, dir, con);
+      float hg1 = eval_hg(mean_cos, con, nee);
+      total += contrib * hg0 * hg1 * mu_s * mu_s / (r*r) * exp(-r*mu_t);
+
+      // TODO: rr with nee weight to kill paths far from home
+      // TDOO: rr with mu_s
+
+      // scatter
+      mat3 M = get_onb(dir);
+      dir = M * sample_hg(next_rand(seed), mean_cos);
+      contrib *= params.albedo;
+    }
+  }
+
+  const float L = 1000.0/spp;
+  imageStore(img_out, ipos, vec4(vec3(L * total), 1));
+}
+
