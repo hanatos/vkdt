@@ -74,10 +74,7 @@ dt_thumbnails_create(
   // need at least one extra slot to catch free block (if contiguous, else more)
   dt_vkalloc_init(&tn->alloc, tn->thumb_max + 10);
 
-  // XXX what are good "combinations of parameters" that the validation layer will allow??
-  // VkFormat format = VK_FORMAT_R8G8B8A8_UINT;//VK_FORMAT_R16G16B16A16_SFLOAT;// VK_FORMAT_R32_SFLOAT; // XXX VK_FORMAT_BC1_RGB_SRGB_BLOCK;
-  VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;// VK_FORMAT_R32_SFLOAT; // XXX VK_FORMAT_BC1_RGB_SRGB_BLOCK;
-  // VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+  VkFormat format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,
@@ -90,13 +87,11 @@ dt_thumbnails_create(
     .mipLevels             = 1,
     .arrayLayers           = 1,
     .samples               = VK_SAMPLE_COUNT_1_BIT,
-    .tiling                = VK_IMAGE_TILING_OPTIMAL,
+    .tiling                = VK_IMAGE_TILING_LINEAR,
     .usage                 =
-        VK_IMAGE_USAGE_STORAGE_BIT
-      // | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        VK_IMAGE_ASPECT_COLOR_BIT
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
       | VK_IMAGE_USAGE_SAMPLED_BIT,
-      // | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
     .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
     .queueFamilyIndexCount = 0,
     .pQueueFamilyIndices   = 0,
@@ -166,9 +161,6 @@ dt_thumbnails_create(
       .baseArrayLayer = 0,
       .layerCount     = 1
     },
-    .components = {
-      VK_COMPONENT_SWIZZLE_IDENTITY,
-    },
   };
   VkDescriptorSetAllocateInfo dset_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -219,7 +211,6 @@ dt_thumbnails_create(
     // TODO: try this or load default.cfg instead:
     // snprintf(cfgfilename, sizeof(cfgfilename), "%s/%s.cfg", dirname, ep->d_name);
     snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
-    // TODO: remove all extra displays
     dt_graph_init(&tn->graph);
     int err = dt_graph_read_config_ascii(&tn->graph, cfgfilename);
     if(err)
@@ -228,8 +219,10 @@ dt_thumbnails_create(
       continue;
     }
 
+    // TODO: remove all extra displays
+    // TODO: make sure we write bc1
+
     // set param for rawinput
-    // TODO: jpg input?
     // get module
     int modid = dt_module_get(&tn->graph, dt_token("rawinput"), dt_token("01"));
     dt_module_t *mod = tn->graph.module + modid;
@@ -252,6 +245,7 @@ dt_thumbnails_create(
 
     snprintf(param_filename, param_len, "%s", imgfilename);
 
+    // TODO: second pass: bc1 input to VkImage
     // let graph render into our thumbnail:
     tn->graph.thumbnail_image = tn->thumb[tn->thumb_cnt].image;
     tn->graph.thumbnail_wd = tn->thumb_wd;

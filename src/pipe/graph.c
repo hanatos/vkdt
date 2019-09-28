@@ -339,9 +339,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE, // VK_SHARING_MODE_CONCURRENT, 
         .queueFamilyIndexCount = 0,//2,
         .pQueueFamilyIndices   = 0,//queues,
-        .initialLayout         = // bc1 ?
-          //VK_IMAGE_LAYOUT_PREINITIALIZED :
-          VK_IMAGE_LAYOUT_UNDEFINED,
+        .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
       };
       if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
       QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
@@ -623,15 +621,25 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     if(dt_connector_output(module->connector+i))
       module->connector[i].roi.scale = -1.0f;
   // copy over roi from connector named "input" to all outputs ("write")
-  if(input < 0) return;
-  dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
-  c->roi = *roi; // also keep incoming roi in sync
+  dt_roi_t roi = {0};
+  if(input < 0)
+  {
+    // minimal default output size (for generator nodes with no callback)
+    // might warn about this.
+    roi.full_wd = 1024;
+    roi.full_ht = 1024;
+  }
+  else
+  {
+    roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
+    c->roi = roi; // also keep incoming roi in sync
+  }
   for(int i=0;i<module->num_connectors;i++)
   {
     if(module->connector[i].type == dt_token("write"))
     {
-      module->connector[i].roi.full_wd = roi->full_wd;
-      module->connector[i].roi.full_ht = roi->full_ht;
+      module->connector[i].roi.full_wd = roi.full_wd;
+      module->connector[i].roi.full_ht = roi.full_ht;
     }
   }
 }
@@ -709,8 +717,7 @@ static VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
   // TODO: run flags and active module
-  if(node->name == dt_token("demosaic")) *runflag = 2; // XXX hack
-  if(node->name == dt_token("srgb2f"))   *runflag = 2; // XXX hack
+  if(!dt_node_source(node)) *runflag = 2; // XXX hack: avoid single source upload
   if(!*runflag) return VK_SUCCESS; // nothing to do yet
 
   // for drawn/rasterised buffers:
@@ -721,7 +728,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 
   // special case for end of pipeline and thumbnail creation:
   if(graph->thumbnail_wd > 0 &&
-      node->name         == dt_token("display") &&
+      node->name         == dt_token("bc1out") &&
       node->module->inst == dt_token("main"))
   {
     // prepare display sink buffer for transfer to thumbnail memory:
