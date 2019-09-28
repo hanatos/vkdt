@@ -12,3 +12,8 @@ llap:01:hilights:slider:0.0:2.0
 saturate:01:sat:slider:0.0:2.0
 hilite:01:white:slider:0.0:2.0
 draw:01:draw:draw
+sss:01:spp:slider:1:200
+sss:01:theta:slider:0:1.52
+sss:01:albedo:slider:0.0:1.0
+sss:01:mu_t:slider:0.01:300.0
+sss:01:g:slider:-1:1
