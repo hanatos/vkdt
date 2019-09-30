@@ -1,11 +1,9 @@
 TARGET=libbc1out.so
-SQUISH_I=
-SQUISH_L=-lsquish
-CXXFLAGS=-Wall $(SQUISH_I) -I../.. -I../../.. -fPIC -g
-LDFLAGS=$(SQUISH_L) -lz
+CFLAGS=-Wall -I../.. -I../../.. -fPIC -g
+LDFLAGS=-lz
 
-$(TARGET): main.cc Makefile
-	$(CXX) $(CXXFLAGS) main.cc -shared -o $(TARGET) $(LDFLAGS)
+$(TARGET): main.c Makefile
+	$(CC) $(CFLAGS) main.c -shared -o $(TARGET) $(LDFLAGS)
 
 clean:
 	rm -f $(TARGET)

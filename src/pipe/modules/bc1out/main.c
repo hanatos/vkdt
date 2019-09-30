@@ -1,15 +1,16 @@
 #include "modules/api.h"
+#define STB_DXT_IMPLEMENTATION
+#include "stb_dxt.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <squish.h>
 #include <zlib.h>
 
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
-extern "C" void write_sink(
+void write_sink(
     dt_module_t *module,
     void *buf)
 {
@@ -23,7 +24,7 @@ extern "C" void write_sink(
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.bc1", basename);
 
-  // go through all 4x4 blocks and call squish::CompressMasked
+  // go through all 4x4 blocks
   // TODO: parallelise via our thread pool or openmp or what?
   const int bx = wd/4, by = ht/4;
   size_t num_blocks = bx * by;
@@ -38,13 +39,10 @@ extern "C" void write_sink(
         for(int ii=0;ii<4;ii++)
           for(int c=0;c<4;c++)
             block[4*(4*jj+ii)+c] = in[4*(wd*(j+jj)+(i+ii))+c];
-      squish::CompressMasked(block, 0xffff, out + 8*(bx*(j/4)+(i/4)),
-          squish::kDxt1 | squish::kColourRangeFit);
-      // fprintf(stderr, "%u %u %u %u\n", 
-      // out[8*(bx*(j/4)+(i/4))],
-      // out[8*(bx*(j/4)+(i/4))+1],
-      // out[8*(bx*(j/4)+(i/4))+2],
-      // out[8*(bx*(j/4)+(i/4))+3]);
+
+      stb_compress_dxt_block(
+          out + 8*(bx*(j/4)+(i/4)), block, 0,
+          0); // or slower: STB_DXT_HIGHQUAL
     }
   }
 
