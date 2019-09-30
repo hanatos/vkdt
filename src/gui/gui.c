@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <float.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
   
