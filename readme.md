@@ -30,10 +30,9 @@ the binaries are currently wired to run from the bin/ directory:
 cd bin/
 ./vkdt -g ./examples/histogram.cfg -d all
 ```
-note that you have to edit the filename in the example cfg to point
-to a file that actually exists on your system. if you want to run
-the command line interface 'vkdt-cli', you need to replace the
-'display' nodes by 'export' nodes (yes thes is inconvenient and will change).
+note that you have to edit the filename in the example cfg to point to a file
+that actually exists on your system. if you run the command line interface
+'vkdt-cli', it will replace all 'display' nodes by 'export' nodes.
 
 # licence
 
