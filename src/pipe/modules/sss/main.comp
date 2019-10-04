@@ -63,7 +63,7 @@ float eval_hg(
 {
   if(g == 0.0) return 1.0f/(4.0f*M_PI);
   const float cos_theta = dot(wi, wo);
-  return 1.0f/(4.0f*M_PI) * (1.0f-g)/pow(1.0f + g*g - 2.0f*g*cos_theta, 3.0f/2.0f);
+  return 1.0f/(4.0f*M_PI) * (1.0f-g)/max(1e-7, pow(1.0f + g*g - 2.0f*g*cos_theta, 3.0f/2.0f));
 }
 
 vec3 get_perpendicular(vec3 n)
@@ -132,6 +132,8 @@ main()
 
   float total = 0.0;
   uint spp = uint(params.spp);
+  // pointing up, towards light 
+  const vec3 lin = vec3(sin(params.theta), 0.0, cos(params.theta));
   for(int s=0;s<spp;s++)
   {
     uvec2 seed = uvec2(ipos.x + 1337*ipos.y, 0 + 1000*s);
@@ -161,15 +163,20 @@ main()
       //   - equiangular sampling to current shading position requires bound on ray segment (first sample distance at mu_t/2, then equiangular?)
       //   - sample transmittance from surface
       t = sample_distance(trand.y, mu_t);
-      vec3 nee = t * vec3(sin(params.theta), 0.0, cos(params.theta));
-      float r = length(pos - nee);
-      vec3 con = (pos - nee)/r;
-      float hg0 = eval_hg(mean_cos, dir, con);
-      float hg1 = eval_hg(mean_cos, con, nee);
-      total += contrib * hg0 * hg1 * mu_s * mu_s / (r*r) * exp(-r*mu_t);
+      vec3 nee = - t * lin;
+      float r = max(1e-7, length(nee - pos));
+      vec3 con = (nee - pos)/r;
+      float hg0 = mu_s * eval_hg(mean_cos, dir, con);
+      float hg1 = mu_s * eval_hg(mean_cos, con, lin);
+      float nee_contrib = contrib * hg0 * hg1 / (r*r) * exp(-r*mu_t);
+      total += nee_contrib;
 
-      // TODO: rr with nee weight to kill paths far from home
-      // TDOO: rr with mu_s
+      // rr with nee weight to kill paths far from home
+      vec2 rr = next_rand(seed);
+      if(rr.x > nee_contrib) break;
+      contrib *= 1./min(1.0, nee_contrib);
+
+      // TODO: rr with albedo?
 
       // scatter
       mat3 M = get_onb(dir);
@@ -178,7 +185,7 @@ main()
     }
   }
 
-  const float L = 1000.0/spp;
-  imageStore(img_out, ipos, vec4(vec3(L * total), 1));
+  const float res = clamp(total*1000.0/spp, 0.0, 65000.0);
+  imageStore(img_out, ipos, vec4(vec3(res), 1));
 }
 
