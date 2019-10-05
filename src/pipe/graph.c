@@ -733,38 +733,37 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       node->name         == dt_token("thumb") &&
       node->module->inst == dt_token("main"))
   {
-    // prepare display sink buffer for transfer to thumbnail memory:
-    // TODO: in general these need two layouts as arguments (defaults to broken UNDEFINED now):
-    BARRIER_IMG_LAYOUT(node->connector[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    VkImageBlit blit = {
+    VkImageCopy cp = {
       .srcSubresource = {
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .mipLevel = 0,
         .baseArrayLayer = 0,
         .layerCount = 1,
       },
-      .srcOffsets = {{0}, {
-        .x = node->connector[0].roi.wd,
-        .y = node->connector[0].roi.ht,
-        .z = 1}}, // XXX roi dimensions
+      .srcOffset = {0},
       .dstSubresource = {
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .mipLevel = 0,
         .baseArrayLayer = 0,
         .layerCount = 1,
       },
-      .dstOffsets = {{0}, {.x = graph->thumbnail_wd, .y = graph->thumbnail_ht, .z = 1}},
+      .dstOffset = {0},
+      .extent = {
+        // last resort crop. make sure this is not needed!
+        .width  = MIN(graph->thumbnail_wd, node->connector[0].roi.wd),
+        .height = MIN(graph->thumbnail_ht, node->connector[0].roi.ht),
+        .depth  = 1,
+      },
     };
-    vkCmdBlitImage(
-        cmd_buf,
+    BARRIER_IMG_LAYOUT(node->connector[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    vkCmdCopyImage(cmd_buf,
         node->connector[0].image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         graph->thumbnail_image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
-        &blit,
-        VK_FILTER_NEAREST);
+        &cp);
     BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     return VK_SUCCESS;
   }
