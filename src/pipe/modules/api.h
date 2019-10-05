@@ -284,3 +284,24 @@ static inline const char *dt_module_param_string(
   return 0;
 }
 
+static inline int
+dt_module_set_param_string(
+    const dt_module_t *module,
+    dt_token_t         param,
+    const char        *val)
+{
+  char *param_str = 0;
+  int param_len = 0;
+  for(int p=0;p<module->so->num_params;p++)
+  {
+    if(module->so->param[p]->name == param)
+    {
+      param_str = (char *)(module->param + module->so->param[p]->offset);
+      param_len = module->so->param[p]->cnt;
+      break;
+    }
+  }
+  if(!param_str) return 1;
+  snprintf(param_str, param_len, "%s", val);
+  return 0;
+}

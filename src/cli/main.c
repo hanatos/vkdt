@@ -3,6 +3,7 @@
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
 #include "pipe/global.h"
+#include "pipe/thumbnails.h"
 #include "core/log.h"
 
 #include <stdlib.h>
@@ -56,6 +57,7 @@ int main(int argc, char *argv[])
 
   const char *graphcfg = 0;
   int dump_graph = 0;
+  const char *thumbnails = 0;
   dt_token_t output = dt_token("main");
   const char *filename = "output";
   int ldr = 1;
@@ -67,14 +69,29 @@ int main(int argc, char *argv[])
       dump_graph = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
       dump_graph = 2;
+    else if(!strcmp(argv[i], "--thumbnails") && i < argc-1)
+      thumbnails = argv[++i];
     // TODO: parse more output: filename, format related things etc
   }
+
+  if(qvk_init()) exit(1);
+
+  if(thumbnails)
+  {
+    dt_thumbnails_t tn;
+    dt_thumbnails_init(&tn);
+    dt_thumbnails_cache_directory(&tn, thumbnails);
+    dt_thumbnails_cleanup(&tn);
+    qvk_cleanup();
+    exit(0);
+  }
+
   if(!graphcfg)
   {
-    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg> [-d verbosity] [--dump-modules|--dump-nodes]");
+    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg> [-d verbosity] [--dump-modules|--dump-nodes] [--thumbnails <dir>]");
+    qvk_cleanup();
     exit(1);
   }
-  if(qvk_init()) exit(1);
 
   dt_graph_t graph;
   dt_graph_init(&graph);
@@ -82,6 +99,7 @@ int main(int argc, char *argv[])
   if(err)
   {
     dt_log(s_log_err, "could not load graph configuration from '%s'!", graphcfg);
+    qvk_cleanup();
     exit(1);
   }
 

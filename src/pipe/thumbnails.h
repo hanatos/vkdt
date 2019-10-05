@@ -49,3 +49,4 @@ void dt_thumbnails_init   (dt_thumbnails_t *tn);
 void dt_thumbnails_cleanup(dt_thumbnails_t *tn);
 
 VkResult dt_thumbnails_create(dt_thumbnails_t *tn, const char *dirname);
+VkResult dt_thumbnails_cache_directory(dt_thumbnails_t *tn, const char      *dirname);
