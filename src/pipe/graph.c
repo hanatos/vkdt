@@ -284,8 +284,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       .module              = shader_module,
     };
 #ifdef QVK_ENABLE_VALIDATION
-    snprintf(filename, sizeof(filename), "%"PRItkn"_%"PRItkn, dt_token_str(node->name), dt_token_str(node->kernel));
-    ATTACH_LABEL_VARIABLE_NAME(shader_module, SHADER_MODULE, filename);
+    // can't have stack pointers
+    // snprintf(filename, sizeof(filename), "%"PRItkn"_%"PRItkn, dt_token_str(node->name), dt_token_str(node->kernel));
+    // ATTACH_LABEL_VARIABLE_NAME(shader_module, SHADER_MODULE, filename);
 #endif
 
     // finally create the pipeline
@@ -343,9 +344,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       };
       if(c->image) vkDestroyImage(qvk.device, c->image, VK_NULL_HANDLE);
       QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->image));
-      char name[10] = {0}; snprintf(name, sizeof(name), "%"PRItkn":%"PRItkn,
-          dt_token_str(node->name), dt_token_str(c->name));
-      ATTACH_LABEL_VARIABLE_NAME(c->image, IMAGE, name);
+      // can't have stack memory pointers here:
+      // char name[10] = {0}; snprintf(name, sizeof(name), "%"PRItkn":%"PRItkn,
+      //     dt_token_str(node->name), dt_token_str(c->name));
+      // ATTACH_LABEL_VARIABLE_NAME(c->image, IMAGE, name);
 
       VkMemoryRequirements mem_req;
       vkGetImageMemoryRequirements(qvk.device, c->image, &mem_req);
@@ -444,8 +446,8 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       .pSetLayouts = &node->dset_layout,
     };
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &node->dset));
-    char name[10] = {0}; strncpy(name, dt_token_str(node->name), 8);
-    ATTACH_LABEL_VARIABLE_NAME(node->dset, DESCRIPTOR_SET, name);
+    // char name[10] = {0}; strncpy(name, dt_token_str(node->name), 8);
+    // ATTACH_LABEL_VARIABLE_NAME(node->dset, DESCRIPTOR_SET, name);
   }
 
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS] = {{0}};
@@ -728,7 +730,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 
   // special case for end of pipeline and thumbnail creation:
   if(graph->thumbnail_wd > 0 &&
-      node->name         == dt_token("bc1out") &&
+      node->name         == dt_token("thumb") &&
       node->module->inst == dt_token("main"))
   {
     // prepare display sink buffer for transfer to thumbnail memory:

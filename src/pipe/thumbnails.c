@@ -249,19 +249,23 @@ dt_thumbnails_create(
   DIR *dp = opendir(dirname);
   if(!dp)
   {
-    dt_log(s_log_err, "could not open directory '%s'!", dirname);
+    dt_log(s_log_err, "[thm] could not open directory '%s'!", dirname);
     return VK_INCOMPLETE;
   }
   struct dirent *ep;
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    if(!accept_filename(ep->d_name)) continue;
+    // only load preprocessed bc1 thumbnails
+    const char *f = ep->d_name;
+    const char *f2 = f + strlen(f);
+    while(f2 > f && *f2 != '.') f2--;
+    if(strcasecmp(f2, ".bc1")) continue;
     tn->thumb_max++;
   }
   if(tn->thumb_max == 0)
   {
-    dt_log(s_log_err, "no usable images in directory '%s'!", dirname);
+    dt_log(s_log_err, "[thm] no usable images in directory '%s'!", dirname);
     return VK_INCOMPLETE;
   }
   tn->thumb_cnt = 0;
@@ -297,6 +301,12 @@ dt_thumbnails_create(
   for(int i=0;i<tn->thumb_max;i++)
   {
     QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &tn->thumb[i].image));
+
+#if 1 // leak
+    char *name = malloc(20);
+    snprintf(name, 20, "thumb%04d", i);
+    ATTACH_LABEL_VARIABLE_NAME(tn->thumb[i].image, IMAGE, name);
+#endif
     VkMemoryRequirements mem_req;
     vkGetImageMemoryRequirements(qvk.device, tn->thumb[i].image, &mem_req);
     if(memory_type_bits != ~0u && mem_req.memoryTypeBits != memory_type_bits)
@@ -398,7 +408,11 @@ dt_thumbnails_create(
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    if(!accept_filename(ep->d_name)) continue;
+    const char *f = ep->d_name;
+    const char *f2 = f + strlen(f);
+    while(f2 > f && *f2 != '.') f2--;
+    if(strcasecmp(f2, ".bc1")) continue;
+    // if(!accept_filename(ep->d_name)) continue;
 
     snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dirname, ep->d_name);
     fprintf(stderr, "XXX loading thumb for img %s\n", ep->d_name);
@@ -406,58 +420,40 @@ dt_thumbnails_create(
     // load individual history stack if any
     // TODO: try this or load default.cfg instead:
     // snprintf(cfgfilename, sizeof(cfgfilename), "%s/%s.cfg", dirname, ep->d_name);
-    snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
+    snprintf(cfgfilename, sizeof(cfgfilename), "thumb.cfg");
     dt_graph_init(&tn->graph);
     int err = dt_graph_read_config_ascii(&tn->graph, cfgfilename);
     if(err)
     {
-      dt_log(s_log_err, "could not load graph configuration from '%s'!", cfgfilename);
+      dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
       continue;
     }
-
-    // TODO: remove all extra displays
-    // TODO: make sure we write bc1
 
     // set param for rawinput
     // get module
-    int modid = dt_module_get(&tn->graph, dt_token("rawinput"), dt_token("01"));
-    dt_module_t *mod = tn->graph.module + modid;
-    char *param_filename = 0;
-    int param_len = 0;
-    for(int p=0;p<mod->so->num_params;p++)
+    int modid = dt_module_get(&tn->graph, dt_token("bc1input"), dt_token("01"));
+    if(modid < 0 ||
+      dt_module_set_param_string(tn->graph.module + modid, dt_token("filename"), imgfilename))
     {
-      if(mod->so->param[p]->name == dt_token("filename"))
-      {
-        param_filename = (char *)(mod->param + mod->so->param[p]->offset);
-        param_len = mod->so->param[p]->cnt;
-        break;
-      }
-    }
-    if(!param_filename)
-    {
-      dt_log(s_log_err, "config '%s' has no rawinput module!", cfgfilename);
+      dt_log(s_log_err, "[thm] config '%s' has no bc1in module!", cfgfilename);
+      dt_graph_cleanup(&tn->graph);
       continue;
     }
 
-    snprintf(param_filename, param_len, "%s", imgfilename);
-
-    // TODO: second pass: bc1 input to VkImage
     // let graph render into our thumbnail:
     tn->graph.thumbnail_image = tn->thumb[tn->thumb_cnt].image;
     tn->graph.thumbnail_wd = tn->thumb_wd;
     tn->graph.thumbnail_ht = tn->thumb_ht;
 
-    // TODO: ask for reduced resolution in the graph:
-    tn->graph.lod_scale = 4; // XXX this is stupid. ask for exactly the thumb res!
-
     clock_t beg = clock();
     if(dt_graph_run(&tn->graph, s_graph_run_all) != VK_SUCCESS)
     {
-      dt_log(s_log_err, "running the thumbnail graph failed on image '%s'!", imgfilename);
+      dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", imgfilename);
+      dt_graph_cleanup(&tn->graph);
       continue;
     }
     clock_t end = clock();
-    dt_log(s_log_pipe, "ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
+    dt_log(s_log_pipe, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
     // TODO: is this init/cleanup cycle needed?
     // it seems the graph should have some stuff in place to reuse/rebuild
