@@ -133,9 +133,9 @@ dt_thumbnails_cleanup(
   }
   free(tn->thumb);
   tn->thumb = 0;
-  vkDestroyDescriptorSetLayout(qvk.device, tn->dset_layout, 0);
-  vkDestroyDescriptorPool     (qvk.device, tn->dset_pool,   0);
-  vkFreeMemory                (qvk.device, tn->vkmem,       0);
+  if(tn->dset_layout) vkDestroyDescriptorSetLayout(qvk.device, tn->dset_layout, 0);
+  if(tn->dset_pool)   vkDestroyDescriptorPool     (qvk.device, tn->dset_pool,   0);
+  if(tn->vkmem)       vkFreeMemory                (qvk.device, tn->vkmem,       0);
   dt_vkalloc_cleanup(&tn->alloc);
 }
 

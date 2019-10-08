@@ -385,21 +385,23 @@ void render_lighttable()
     ImGui::Begin("lt center", 0, window_flags);
 
     // TODO: iterate over images, not thumbnails!
-    for(int i=0;i<vkdt.thumbnails.thumb_cnt;i++)
+    for(int i=0;i<vkdt.db.collection_cnt;i++)
     {
       for(int k=0;k<7;k++)
       {
+        uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
+        if(tid == -1u) tid = 0; // TODO: set to broken image or loading image
         // TODO: use our custom thumbnail widget here
         // TODO: grab return value and parse the bits!
         // TODO: have buttons been pressed? is it active/hovered?
         // TODO: is it visible? if so, update lru list of thumbnails
         // TODO: is thumbnail not available? push to job scheduler?
-        ImGui::Image(vkdt.thumbnails.thumb[i].dset,
+        ImGui::Image(vkdt.thumbnails.thumb[tid].dset,
             ImVec2(200, 120),
             ImVec2(0,0), ImVec2(1,1),
             ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
         if(k < 6) ImGui::SameLine();
-        if(++i >= vkdt.thumbnails.thumb_cnt) break;
+        if(++i >= vkdt.db.collection_cnt) break;
       }
     }
 

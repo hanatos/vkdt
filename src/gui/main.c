@@ -145,10 +145,9 @@ int main(int argc, char *argv[])
   if(dirname)
   {
     vkdt.view_mode = s_view_lighttable;
-    // DEBUG XXX this is just wired for testing right now:
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
-    // dt_thumbnails_create(&vkdt.thumbnails, dirname);
-    // dt_thumbnails_cleanup(&tn);
+    dt_db_init(&vkdt.db);
+    dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dirname);
   }
 
   if(graphcfg)
@@ -247,5 +246,7 @@ int main(int argc, char *argv[])
 error:
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_gui_cleanup();
+  dt_thumbnails_cleanup(&vkdt.thumbnails);
+  dt_db_cleanup(&vkdt.db);
   exit(0);
 }
