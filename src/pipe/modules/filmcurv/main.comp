@@ -94,7 +94,7 @@ main()
   // colour reconstruction: keep rgb saturation ratio same as before
   rgb *= l1/l0;
 
-#if 1 // DEBUG: visualise curve TODO: tie to parameter
+#if 0 // DEBUG: visualise curve TODO: tie to parameter
   float x = (ipos.x - 50)/ float(params.ro.roi.x-50);
   float y = (log2(x+black)-black_ev)/(log2(white)-black_ev);
   y = hermite4(y);
