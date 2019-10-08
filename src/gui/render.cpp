@@ -373,7 +373,6 @@ void render_lighttable()
 {
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
-  if(vkdt.thumbnails.thumb_cnt > 0)
   { // center image view
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -384,7 +383,6 @@ void render_lighttable()
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("lt center", 0, window_flags);
 
-    // TODO: iterate over images, not thumbnails!
     for(int i=0;i<vkdt.db.collection_cnt;i++)
     {
       for(int k=0;k<7;k++)

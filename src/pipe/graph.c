@@ -674,6 +674,8 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       }
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
+      r->wd = (r->wd/4)*4; // make sure we have bc1 blocks aligned
+      r->ht = (r->ht/4)*4;
       r->x = r->y = 0;
     }
     if(output < 0)
@@ -1186,7 +1188,7 @@ VkResult dt_graph_run(
 } // end scope, done with modules
 
   // if no more action than generating the output roi was requested, exit now:
-  if(run <= s_graph_run_create_nodes) return VK_SUCCESS;
+  if(run < s_graph_run_create_nodes<<1) return VK_SUCCESS;
 
 { // node scope
   dt_node_t *const arr = graph->node;

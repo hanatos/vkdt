@@ -329,6 +329,11 @@ dt_thumbnails_load_one(
   };
 
   QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &th->image));
+#if 1
+  char *name = malloc(100);
+  snprintf(name, 100, "thumb%04d", *thumb_index);
+  ATTACH_LABEL_VARIABLE_NAME(th->image, IMAGE, name);
+#endif
   VkMemoryRequirements mem_req;
   vkGetImageMemoryRequirements(qvk.device, th->image, &mem_req);
   if(mem_req.memoryTypeBits != tn->memory_type_bits)
@@ -380,7 +385,7 @@ dt_thumbnails_load_one(
 
   // now run the rest of the graph and copy over VkImage
   // let graph render into our thumbnail:
-  tn->graph.thumbnail_image = tn->thumb[tn->thumb_cnt].image;
+  tn->graph.thumbnail_image = tn->thumb[*thumb_index].image;
   // these should already match, let's not mess with rounding errors:
   // tn->graph.output_wd = wd;
   // tn->graph.output_ht = ht;

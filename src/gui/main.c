@@ -244,6 +244,7 @@ int main(int argc, char *argv[])
     dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
 
 error:
+  vkDeviceWaitIdle(qvk.device);
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
