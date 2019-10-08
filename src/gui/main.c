@@ -3,10 +3,11 @@
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/global.h"
-#include "pipe/thumbnails.h"
+#include "db/thumbnails.h"
 #include "core/log.h"
 #include "gui/gui.h"
 #include "gui/render.h"
+#include "db/db.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -16,10 +17,10 @@
 dt_gui_t vkdt;
 
 static void
-handle_event(SDL_Event *event)
+handle_event_darkroom(SDL_Event *event)
 {
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // XXX fix for thumbnails
+  if(!out) return; // should never happen
   assert(out);
   float wd = (float)out->connector[0].roi.wd;
   float ht = (float)out->connector[0].roi.ht;
@@ -104,6 +105,18 @@ handle_event(SDL_Event *event)
   }
 }
 
+static void
+handle_event(SDL_Event *event)
+{
+  switch(vkdt.view_mode)
+  {
+  case s_view_darkroom:
+    handle_event_darkroom(event);
+    break;
+  default:;
+  }
+}
+
 int main(int argc, char *argv[])
 {
   // init global things, log and pipeline:
@@ -127,8 +140,11 @@ int main(int argc, char *argv[])
   }
   if(dt_gui_init()) exit(1);
 
+  // TODO: clean up view mode logic!
+
   if(dirname)
   {
+    vkdt.view_mode = s_view_lighttable;
     // DEBUG XXX this is just wired for testing right now:
     dt_thumbnails_init(&vkdt.thumbnails);
     dt_thumbnails_create(&vkdt.thumbnails, dirname);
@@ -137,6 +153,7 @@ int main(int argc, char *argv[])
 
   if(graphcfg)
   {
+    vkdt.view_mode = s_view_darkroom;
     snprintf(vkdt.graph_cfg, sizeof(vkdt.graph_cfg), "%s", graphcfg);
     dt_graph_init(&vkdt.graph_dev);
     int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graphcfg);
@@ -193,8 +210,7 @@ int main(int argc, char *argv[])
     }
     while (SDL_PollEvent(&event));
 
-    // TODO: rename? only calls imgui:
-    dt_gui_render_frame();
+    dt_gui_render_frame_imgui();
 
     dt_gui_render();
     dt_gui_present();
@@ -209,7 +225,7 @@ int main(int argc, char *argv[])
 
     // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
     // if(fence == VK_SUCCESS)
-    if(graphcfg)
+    if(vkdt.view_mode == s_view_darkroom)
     {
       // TODO: if params changed:
       VkResult err = dt_graph_run(&vkdt.graph_dev,
@@ -224,6 +240,7 @@ int main(int argc, char *argv[])
     beg = end;
   }
 
+  // TODO: on exit dr mode!
   if(graphcfg)
     dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
 

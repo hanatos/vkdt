@@ -1,11 +1,14 @@
 #pragma once
 #include "pipe/graph.h"
 #include "pipe/thumbnails.h"
+#include "db/db.h"
 
 #include <vulkan/vulkan.h>
 
+// max images in flight in vulkan pipeline/swap chain
 #define DT_GUI_MAX_IMAGES 8
 
+// darkroom mode widgets to change module parameters
 typedef struct dt_widget_t
 {
   int        modid;
@@ -15,6 +18,15 @@ typedef struct dt_widget_t
   float      max;
 }
 dt_widget_t;
+
+// view modes, lighttable, darkroom, ..
+typedef enum dt_gui_view_t
+{
+  s_view_lighttable = 0,
+  s_view_darkroom   = 1,
+  s_view_cnt,
+}
+dt_gui_view_t;
 
 typedef struct dt_graph_t dt_graph_t;
 typedef struct dt_gui_t
@@ -40,7 +52,9 @@ typedef struct dt_gui_t
   char             graph_cfg[2048];
   dt_graph_t       graph_dev;
 
+  dt_db_t          db;          // image list and current query
   dt_thumbnails_t  thumbnails;  // for light table mode
+  dt_gui_view_t    view_mode;   // current view mode
 
   // center window configuration
   // TODO: put on display node, too?
@@ -62,8 +76,8 @@ extern dt_gui_t vkdt;
 int  dt_gui_init();
 void dt_gui_cleanup();
 
-// draws imgui things
-void dt_gui_render_frame();
+// draws imgui things, implemented in render.cc
+void dt_gui_render_frame_imgui();
 
 // records and submits command buffer
 void dt_gui_render();

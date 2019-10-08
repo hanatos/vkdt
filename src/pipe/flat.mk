@@ -5,8 +5,7 @@ pipe/global.o\
 pipe/graph.o\
 pipe/graph-io.o\
 pipe/masks.o\
-pipe/module.o\
-pipe/thumbnails.o
+pipe/module.o
 PIPE_H=\
 pipe/alloc.h\
 pipe/connector.h\
@@ -24,7 +23,6 @@ pipe/module.h\
 pipe/node.h\
 pipe/params.h\
 pipe/pipe.h\
-pipe/thumbnails.h\
 pipe/token.h
 PIPE_CFLAGS=
 PIPE_LDFLAGS=-ldl

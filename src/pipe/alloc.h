@@ -34,7 +34,7 @@ typedef struct dt_vkalloc_t
 }
 dt_vkalloc_t;
 
-void dt_vkalloc_init(dt_vkalloc_t *a, uint64_t pool_size);
+void dt_vkalloc_init(dt_vkalloc_t *a, uint64_t pool_size, uint64_t bytesize);
 void dt_vkalloc_cleanup(dt_vkalloc_t *a);
 
 // allocate memory

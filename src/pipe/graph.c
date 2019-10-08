@@ -22,8 +22,8 @@ dt_graph_init(dt_graph_t *g)
   g->module = malloc(sizeof(dt_module_t)*g->max_modules);
   g->max_nodes = 300;
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
-  dt_vkalloc_init(&g->heap, 100);
-  dt_vkalloc_init(&g->heap_staging, 100);
+  dt_vkalloc_init(&g->heap, 100, 1ul<<40); // bytesize doesn't matter
+  dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
   g->uniform_size = 4096;
   g->params_max = 4096;
   g->params_end = 0;
@@ -665,7 +665,13 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       r->scale = 1.0f;
       // this is the performance/LOD switch for faster processing
       // on low end computers. needs to be wired somehow in gui/config.
-      if(module->inst == dt_token("main")) r->scale = graph->lod_scale;
+      if(module->inst == dt_token("main"))
+      { // scale to fit into requested roi
+        if(graph->output_wd > 0 || graph->output_ht > 0)
+          r->scale = fmaxf(
+              r->full_wd / (float) graph->output_wd,
+              r->full_ht / (float) graph->output_ht);
+      }
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
       r->x = r->y = 0;
@@ -729,7 +735,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   VkCommandBuffer cmd_buf = graph->command_buffer;
 
   // special case for end of pipeline and thumbnail creation:
-  if(graph->thumbnail_wd > 0 &&
+  if(graph->thumbnail_image &&
       node->name         == dt_token("thumb") &&
       node->module->inst == dt_token("main"))
   {
@@ -750,8 +756,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       .dstOffset = {0},
       .extent = {
         // last resort crop. make sure this is not needed!
-        .width  = MIN(graph->thumbnail_wd, node->connector[0].roi.wd),
-        .height = MIN(graph->thumbnail_ht, node->connector[0].roi.ht),
+        .width  = MIN(graph->output_wd, node->connector[0].roi.wd),
+        .height = MIN(graph->output_ht, node->connector[0].roi.ht),
         .depth  = 1,
       },
     };
@@ -1162,7 +1168,7 @@ VkResult dt_graph_run(
   // 2nd pass: request input rois
   // and create nodes for all modules
   // ==============================================
-  if(run & (s_graph_run_roi_out| s_graph_run_create_nodes))
+  if(run & (s_graph_run_roi_out | s_graph_run_create_nodes))
   {
     graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
     // TODO: nuke descriptor set pool?
@@ -1178,6 +1184,9 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 } // end scope, done with modules
+
+  // if no more action than generating the output roi was requested, exit now:
+  if(run <= s_graph_run_create_nodes) return VK_SUCCESS;
 
 { // node scope
   dt_node_t *const arr = graph->node;
@@ -1234,6 +1243,7 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 
+  // TODO: should all this allocation be put behind a runflag?
   if(graph->heap.vmsize > graph->vkmem_size)
   {
     if(graph->vkmem) vkFreeMemory(qvk.device, graph->vkmem, 0);

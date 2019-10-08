@@ -367,27 +367,12 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
   return 0;
 }
 
+namespace {
 
-// call from main loop:
-extern "C" void dt_gui_render_frame_imgui()
+void render_lighttable()
 {
-#if 0
-        if (g_SwapChainRebuild)
-        {
-            g_SwapChainRebuild = false;
-            ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
-            ImGui_ImplVulkanH_CreateWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, g_SwapChainResizeWidth, g_SwapChainResizeHeight, g_MinImageCount);
-            g_MainWindowData.FrameIndex = 0;
-        }
-#endif
-  // Start the Dear ImGui frame
-  ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplSDL2_NewFrame(qvk.window);
-  ImGui::NewFrame();
-
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
-#if 1
   if(vkdt.thumbnails.thumb_cnt > 0)
   { // center image view
     ImGuiWindowFlags window_flags = 0;
@@ -397,12 +382,18 @@ extern "C" void dt_gui_render_frame_imgui()
     window_flags |= ImGuiWindowFlags_NoBackground;
     ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
-    ImGui::Begin("center", 0, window_flags);
+    ImGui::Begin("lt center", 0, window_flags);
 
+    // TODO: iterate over images, not thumbnails!
     for(int i=0;i<vkdt.thumbnails.thumb_cnt;i++)
     {
       for(int k=0;k<7;k++)
       {
+        // TODO: use our custom thumbnail widget here
+        // TODO: grab return value and parse the bits!
+        // TODO: have buttons been pressed? is it active/hovered?
+        // TODO: is it visible? if so, update lru list of thumbnails
+        // TODO: is thumbnail not available? push to job scheduler?
         ImGui::Image(vkdt.thumbnails.thumb[i].dset,
             ImVec2(200, 120),
             ImVec2(0,0), ImVec2(1,1),
@@ -412,15 +403,12 @@ extern "C" void dt_gui_render_frame_imgui()
       }
     }
 
-    ImGui::End(); // center window
-
-    // XXX ???
-    // or go to right panel?
-    ImGui::Render();
-    return;
+    ImGui::End(); // lt center window
   }
-#endif
+}
 
+void render_darkroom()
+{
   { // center image view
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -611,7 +599,37 @@ extern "C" void dt_gui_render_frame_imgui()
     }
     ImGui::End();
   } // end right panel
+}
 
+} // anonymous namespace
+
+// call from main loop:
+extern "C" void dt_gui_render_frame_imgui()
+{
+#if 0
+        if (g_SwapChainRebuild)
+        {
+            g_SwapChainRebuild = false;
+            ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
+            ImGui_ImplVulkanH_CreateWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, g_SwapChainResizeWidth, g_SwapChainResizeHeight, g_MinImageCount);
+            g_MainWindowData.FrameIndex = 0;
+        }
+#endif
+  // Start the Dear ImGui frame
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplSDL2_NewFrame(qvk.window);
+  ImGui::NewFrame();
+
+  switch(vkdt.view_mode)
+  {
+    case s_view_lighttable:
+      render_lighttable();
+      break;
+    case s_view_darkroom:
+      render_darkroom();
+      break;
+    default:;
+  }
   ImGui::Render();
 }
 

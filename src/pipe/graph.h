@@ -5,14 +5,11 @@
 
 typedef enum dt_graph_run_t
 {
-  // TODO: annotate what affects vk and what doesn't?
   s_graph_run_none           = 0,
   s_graph_run_roi_out        = 1<<0, // pass 1: recompute output roi
   s_graph_run_roi_in         = 1<<1, // pass 2: recompute input roi requests
   s_graph_run_create_nodes   = 1<<2, // pass 2: create nodes from modules
-  // TODO: create pipeline + descriptor set layout
-  // TODO: allocate images
-  s_graph_run_alloc_free     = 1<<3, // pass 3: alloc and free images TODO: only alloc/free heap
+  s_graph_run_alloc_free     = 1<<3, // pass 3: alloc and free images
   s_graph_run_alloc_dset     = 1<<4, // pass 4: alloc descriptor sets and imageviews
   s_graph_run_record_cmd_buf = 1<<5, // pass 4: record command buffer
   s_graph_run_upload_source  = 1<<6, // final : upload new source image
@@ -55,8 +52,8 @@ typedef struct dt_graph_t
   VkDeviceMemory        vkmem;
   VkDeviceMemory        vkmem_staging;
   VkDescriptorPool      dset_pool;
-  VkCommandBuffer       command_buffer; // we might have may buffers to interleave them (thumbnails?)
-  VkCommandPool         command_pool;   // but we definitely need one pool for ourselves (our thread)
+  VkCommandBuffer       command_buffer; // one thread per graph
+  VkCommandPool         command_pool;
   VkFence               command_fence;  // one per command buffer
 
   VkBuffer              uniform_buffer; // uniform buffer shared between all nodes
@@ -84,10 +81,10 @@ typedef struct dt_graph_t
   dt_graph_run_t        runflags;      // used to trigger next runflags/invalidate things
   int                   lod_scale;     // scale output down by this factor. default = 1.
 
-  // overwrite output resolution and copy the main display to the given buffer:
+  // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;
-  int                   thumbnail_wd;
-  int                   thumbnail_ht;
+  int                   output_wd;
+  int                   output_ht;
 }
 dt_graph_t;
 

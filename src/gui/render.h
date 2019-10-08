@@ -16,9 +16,6 @@ void dt_gui_cleanup_imgui();
 // return non-zero if event should not be passed on
 int dt_gui_poll_event_imgui(SDL_Event *event);
 
-// render imgui frame
-void dt_gui_render_frame_imgui();
-
 void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
 
 #ifdef __cplusplus

@@ -13,3 +13,32 @@
 
 // for 1) we need metadata as 20-bit index. needs a string pool/hashtable? look
 // into concurrencykit?
+
+// TODO: need to store list of loaded images
+// TODO: move to collection/database
+typedef struct dt_image_t
+{
+  char filename[2048];
+  uint32_t thumbnail;  // index into thumbnails->thumb[] or -1u
+}
+dt_image_t;
+
+typedef struct dt_db_t
+{
+  // list of images in database
+  dt_image_t *image;
+  uint32_t image_cnt;
+  uint32_t image_max;
+
+  // TODO: some sort criterion next to collection (or hidden in upper bits)
+
+  // current query
+  uint32_t *collection;
+  uint32_t  collection_cnt;
+  uint32_t  collection_max;
+}
+dt_db_t;
+
+// TODO: load directory into image[], call cache_one() to load thumb[]/VkImage
+// TODO: cache_one needs to grab lru and append to list after mru
+

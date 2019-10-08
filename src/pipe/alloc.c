@@ -8,10 +8,10 @@
 #include <assert.h>
 
 void
-dt_vkalloc_init(dt_vkalloc_t *a, uint64_t pool_size)
+dt_vkalloc_init(dt_vkalloc_t *a, uint64_t pool_size, uint64_t bytesize)
 {
   memset(a, 0, sizeof(*a));
-  a->heap_size = 1ul<<40; // doesn't matter, we'll never allocate this for real
+  a->heap_size = bytesize;
   a->pool_size = pool_size;
   a->vkmem_pool = malloc(sizeof(dt_vkmem_t)*a->pool_size);
   dt_vkalloc_nuke(a);

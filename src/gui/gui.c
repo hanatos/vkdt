@@ -258,11 +258,6 @@ void dt_gui_present()
   vkdt.sem_index = (vkdt.sem_index + 1) % vkdt.image_count;
 }
 
-void dt_gui_render_frame()
-{
-  dt_gui_render_frame_imgui();
-}
-
 void
 dt_gui_add_widget(
     dt_token_t module,

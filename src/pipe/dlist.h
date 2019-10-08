@@ -3,12 +3,21 @@
 // that have *prev and *next members.
 // apologies for, uhm, every line of code in this file i think.
 
-// O(1) append to head
+// O(1) prepend to head
 #define DLIST_PREPEND(L,E) ({\
   (E)->prev = (L)?(L)->prev:0;\
   (E)->next = (L);\
   if(L && (L)->prev) (L)->prev->next = (E);\
   if(L) (L)->prev = (E);\
+  (E);\
+})
+
+// O(1) append after L
+#define DLIST_APPEND(L,E) ({\
+  (E)->prev = (L);\
+  (E)->next = (L)?(L)->next:0;\
+  if(L && (L)->next) (L)->next->prev = (E);\
+  if(L) (L)->next = (E);\
   (E);\
 })
 

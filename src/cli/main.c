@@ -3,7 +3,7 @@
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
 #include "pipe/global.h"
-#include "pipe/thumbnails.h"
+#include "db/thumbnails.h"
 #include "core/log.h"
 
 #include <stdlib.h>
