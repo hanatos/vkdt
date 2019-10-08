@@ -505,7 +505,11 @@ void render_darkroom()
     {
       // set graph output scale factor and
       // trigger complete pipeline rebuild
-      vkdt.graph_dev.lod_scale = g_lod;
+      if(g_lod > 1)
+      {
+        vkdt.graph_dev.output_wd = 1420 / (g_lod-1);
+        vkdt.graph_dev.output_ht = 1080 / (g_lod-1);
+      }
       vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
       // reset view
       vkdt.view_look_at_x = FLT_MAX;
