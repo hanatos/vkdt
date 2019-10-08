@@ -757,9 +757,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       },
       .dstOffset = {0},
       .extent = {
-        // last resort crop. make sure this is not needed!
-        .width  = MIN(graph->output_wd, node->connector[0].roi.wd),
-        .height = MIN(graph->output_ht, node->connector[0].roi.ht),
+        .width  = node->connector[0].roi.wd,
+        .height = node->connector[0].roi.ht,
         .depth  = 1,
       },
     };
