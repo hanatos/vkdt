@@ -1,17 +1,20 @@
 #include "db.h"
+#include "thumbnails.h"
+#include "core/log.h"
 
 #include <sys/types.h>
 #include <dirent.h>
 #include <stdlib.h>
+#include <string.h>
 
 void
-dt_db_init(db_t *db)
+dt_db_init(dt_db_t *db)
 {
   memset(db, 0, sizeof(*db));
 }
 
 void
-dt_db_cleanup(db_t *db)
+dt_db_cleanup(dt_db_t *db)
 {
 }
 
@@ -33,8 +36,9 @@ accept_filename(
 
 
 void dt_db_load_directory(
-    db_t       *db,
-    const char *dirname)
+    dt_db_t         *db,
+    dt_thumbnails_t *thumbnails,
+    const char      *dirname)
 {
   DIR *dp = opendir(dirname);
   if(!dp)
@@ -72,7 +76,7 @@ void dt_db_load_directory(
         "%s", filename);
     uint32_t thumbid = -1u;
     if(dt_thumbnails_load_one(
-          &vkdt.thumbnails,
+          thumbnails,
           filename,
           &thumbid) != VK_SUCCESS) continue;
 

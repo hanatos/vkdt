@@ -3,6 +3,7 @@
 #include "qvk/qvk.h"
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
+#include "pipe/dlist.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -11,7 +12,7 @@
 #include <time.h>
 
 
-void
+VkResult
 dt_thumbnails_init(
     dt_thumbnails_t *tn,
     const int wd,
@@ -32,8 +33,8 @@ dt_thumbnails_init(
   dt_vkalloc_init(&tn->alloc, tn->thumb_max + 10, heap_size);
 
   // init lru list
-  tn->lru = tn->thumb[0];
-  tn->mru = tn->thumb[tn->thumb_max-1];
+  tn->lru = tn->thumb;
+  tn->mru = tn->thumb + tn->thumb_max-1;
   tn->thumb[0].next = tn->thumb+1;
   for(int k=1;k<tn->thumb_max-1;k++)
   {
@@ -71,7 +72,7 @@ dt_thumbnails_init(
   VkImage img;
   QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &img));
   VkMemoryRequirements mem_req;
-  vkGetImageMemoryRequirements(qvk.device, &img, &mem_req);
+  vkGetImageMemoryRequirements(qvk.device, img, &mem_req);
   tn->memory_type_bits = mem_req.memoryTypeBits;
   vkDestroyImage(qvk.device, img, VK_NULL_HANDLE);
 
@@ -118,6 +119,7 @@ dt_thumbnails_init(
   };
   for(int i=0;i<tn->thumb_max;i++)
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &tn->thumb[i].dset));
+  return VK_SUCCESS;
 }
 
 void
@@ -126,8 +128,8 @@ dt_thumbnails_cleanup(
 {
   for(int i=0;i<tn->thumb_max;i++)
   {
-    if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, th->image,      0);
-    if(tn->thumb[i].image_view) vkDestroyImageView(qvk.device, th->image_view, 0);
+    if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, tn->thumb[i].image,      0);
+    if(tn->thumb[i].image_view) vkDestroyImageView(qvk.device, tn->thumb[i].image_view, 0);
   }
   free(tn->thumb);
   tn->thumb = 0;
@@ -242,7 +244,7 @@ dt_thumbnails_load_one(
   char cfgfilename[1024] = {0};
   char imgfilename[1024] = {0};
   snprintf(cfgfilename, sizeof(cfgfilename), "thumb.cfg");
-  snprintf(imgfilename, sizeof(imgfilename), "%s.bc1");
+  snprintf(imgfilename, sizeof(imgfilename), "%s.bc1", filename);
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;
@@ -260,7 +262,7 @@ dt_thumbnails_load_one(
   dt_thumbnail_t *th = tn->lru;
   tn->lru = tn->lru->next;             // move head
   DLIST_RM_ELEMENT(th);                // disconnect old head
-  tn->rmu = DLIST_APPEND(tn->mru, th); // append to end and move tail
+  tn->mru = DLIST_APPEND(tn->mru, th); // append to end and move tail
   *thumb_index = th - tn->thumb;
   
 #if 1 // cache eviction
@@ -290,7 +292,7 @@ dt_thumbnails_load_one(
   // run graph only up to roi computations to get size
   // run all <= create nodes
   dt_graph_run_t run = ~-(s_graph_run_create_nodes<<1);
-  if(dt_graph_run(tn->graph, run) != VK_SUCCESS)
+  if(dt_graph_run(&tn->graph, run) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] failed to run first half of graph!");
     dt_graph_cleanup(&tn->graph);
@@ -299,8 +301,8 @@ dt_thumbnails_load_one(
 
   // now grab roi size from graph's main output node
   modid = dt_module_get(&tn->graph, dt_token("thumb"), dt_token("main"));
-  const int wd = tn->graph.module[modid].connector[0].roi->full_wd;
-  const int ht = tn->graph.module[modid].connector[0].roi->full_ht;
+  const int wd = tn->graph.module[modid].connector[0].roi.full_wd;
+  const int ht = tn->graph.module[modid].connector[0].roi.full_ht;
 
   VkFormat format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
   VkImageCreateInfo images_create_info = {

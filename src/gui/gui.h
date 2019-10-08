@@ -1,6 +1,6 @@
 #pragma once
 #include "pipe/graph.h"
-#include "pipe/thumbnails.h"
+#include "db/thumbnails.h"
 #include "db/db.h"
 
 #include <vulkan/vulkan.h>

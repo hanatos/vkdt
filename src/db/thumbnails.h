@@ -22,14 +22,14 @@
 
 typedef struct dt_thumbnail_t
 {
-  VkDescriptorSet       dset;
-  VkImage               image;
-  VkImageView           image_view;
-  dt_vkmem_t           *mem;
-  uint64_t              offset;
-  dt_thumbnail_t       *prev;    // dlist for lru cache
-  dt_thumbnail_t       *next;
-  uint32_t              imgid;   // index into images->image[] or -1u
+  VkDescriptorSet        dset;
+  VkImage                image;
+  VkImageView            image_view;
+  dt_vkmem_t            *mem;
+  uint64_t               offset;
+  struct dt_thumbnail_t *prev;    // dlist for lru cache
+  struct dt_thumbnail_t *next;
+  uint32_t               imgid;   // index into images->image[] or -1u
 }
 dt_thumbnail_t;
 
@@ -55,7 +55,7 @@ typedef struct dt_thumbnails_t
 dt_thumbnails_t;
 
 // init a thumbnail cache
-void dt_thumbnails_init(
+VkResult dt_thumbnails_init(
     dt_thumbnails_t *tn,     // struct to be constructed
     // to avoid demosaicing, you want at least 3x downsampling (x-trans):
     const int wd,            // max width of thumbnail

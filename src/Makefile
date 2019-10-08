@@ -11,6 +11,7 @@ all: vkdt-cli vkdt modules Makefile
 include qvk/flat.mk
 include core/flat.mk
 include pipe/flat.mk
+include db/flat.mk
 include gui/flat.mk
 include cli/flat.mk
 
@@ -36,6 +37,9 @@ core/%.o: core/%.c Makefile $(CORE_H)
 pipe/%.o: pipe/%.c Makefile $(PIPE_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
+db/%.o: db/%.c Makefile $(DB_H)
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(DB_CFLAGS) -c $< -o $@
+
 cli/%.o: cli/%.c Makefile $(CLI_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
@@ -52,14 +56,14 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # main application
-vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
-	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt \
-    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(OPT_LDFLAGS)
+vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt \
+    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # command line interface
-vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) Makefile
-	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) -o vkdt-cli \
-    $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(OPT_LDFLAGS)
+vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt-cli \
+    $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 
 modules: $(MODULES) $(SPV) Makefile

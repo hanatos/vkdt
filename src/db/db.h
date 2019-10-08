@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 // fast special cased parallel transactional database with generic
 // metadata search
 
@@ -14,8 +16,6 @@
 // for 1) we need metadata as 20-bit index. needs a string pool/hashtable? look
 // into concurrencykit?
 
-// TODO: need to store list of loaded images
-// TODO: move to collection/database
 typedef struct dt_image_t
 {
   char filename[2048];
@@ -39,6 +39,12 @@ typedef struct dt_db_t
 }
 dt_db_t;
 
-// TODO: load directory into image[], call cache_one() to load thumb[]/VkImage
-// TODO: cache_one needs to grab lru and append to list after mru
+void dt_db_init   (dt_db_t *db);
+void dt_db_cleanup(dt_db_t *db);
+
+typedef struct dt_thumbnails_t dt_thumbnails_t;
+void dt_db_load_directory(
+    dt_db_t         *db,
+    dt_thumbnails_t *thumbnails,
+    const char      *dirname);
 

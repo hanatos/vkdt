@@ -79,7 +79,8 @@ int main(int argc, char *argv[])
   if(thumbnails)
   {
     dt_thumbnails_t tn;
-    dt_thumbnails_init(&tn);
+    // only width/height will matter here
+    dt_thumbnails_init(&tn, 400, 400, 1000, 1ul<<30);
     dt_thumbnails_cache_directory(&tn, thumbnails);
     dt_thumbnails_cleanup(&tn);
     qvk_cleanup();

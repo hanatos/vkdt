@@ -146,8 +146,8 @@ int main(int argc, char *argv[])
   {
     vkdt.view_mode = s_view_lighttable;
     // DEBUG XXX this is just wired for testing right now:
-    dt_thumbnails_init(&vkdt.thumbnails);
-    dt_thumbnails_create(&vkdt.thumbnails, dirname);
+    dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
+    // dt_thumbnails_create(&vkdt.thumbnails, dirname);
     // dt_thumbnails_cleanup(&tn);
   }
 

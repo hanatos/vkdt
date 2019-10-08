@@ -668,7 +668,7 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       if(module->inst == dt_token("main"))
       { // scale to fit into requested roi
         if(graph->output_wd > 0 || graph->output_ht > 0)
-          r->scale = fmaxf(
+          r->scale = MAX(
               r->full_wd / (float) graph->output_wd,
               r->full_ht / (float) graph->output_ht);
       }
