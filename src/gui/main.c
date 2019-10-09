@@ -7,7 +7,6 @@
 #include "core/log.h"
 #include "gui/gui.h"
 #include "gui/render.h"
-#include "gui/darkroom.h"
 #include "gui/view.h"
 #include "db/db.h"
 

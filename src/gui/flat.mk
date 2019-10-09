@@ -1,6 +1,7 @@
 GUI_O=gui/gui.o\
       gui/render.o\
       gui/main.o\
+      gui/view.o\
       ../ext/imgui/imgui.o\
       ../ext/imgui/imgui_draw.o\
       ../ext/imgui/imgui_widgets.o\

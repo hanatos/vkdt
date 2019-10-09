@@ -1,7 +1,10 @@
 #pragma once
 
 #include "core/log.h"
+#include "core/core.h"
 #include "gui/gui.h"
+#include "pipe/graph.h"
+#include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
 
 #include <SDL.h>
@@ -11,7 +14,7 @@
 #include <unistd.h>
 
 // some static helper functions for the gui
-static void
+static inline void
 darkroom_handle_event(SDL_Event *event)
 {
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));

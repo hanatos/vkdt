@@ -1,5 +1,6 @@
 extern "C" {
 #include "gui.h"
+#include "view.h"
 #include "qvk/qvk.h"
 }
 #include "imgui.h"
@@ -402,7 +403,8 @@ void render_lighttable()
             ImVec4(0.5f,0.5f,0.5f,1.0f), ImVec4(1.0f,1.0f,1.0f,1.0f));
         if(ret)
         {
-          fprintf(stderr, "clicked on image %u %s\n", vkdt.db.collection[i], vkdt.db.image[vkdt.db.collection[i]].filename);
+          vkdt.db.current_image = vkdt.db.collection[i];
+          dt_view_switch(s_view_darkroom);
         }
         if(k < ipl-1) ImGui::SameLine();
         if(++i >= vkdt.db.collection_cnt) break;
