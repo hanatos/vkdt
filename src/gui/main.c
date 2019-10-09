@@ -14,6 +14,9 @@
 #include <SDL_vulkan.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 dt_gui_t vkdt;
 
@@ -24,18 +27,12 @@ int main(int argc, char *argv[])
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
 
-  const char *imgname = 0;
-  const char *dirname = 0;
-  for(int i=0;i<argc;i++)
+  const char *fname = 0;
+  if(argc > 1) fname = argv[argc-1];
+  struct stat statbuf;
+  if(!fname || stat(fname, &statbuf))
   {
-    if(!strcmp(argv[i], "-i") && i < argc-1)
-      imgname = argv[++i];
-    else if(!strcmp(argv[i], "--dir") && i < argc-1)
-      dirname = argv[++i];
-  }
-  if(!imgname && !dirname)
-  {
-    dt_log(s_log_gui, "usage: vkdt -i <image.raw> [-d verbosity]");
+    dt_log(s_log_gui, "usage: vkdt [-d verbosity] directory|rawfile");
     exit(1);
   }
   if(dt_gui_init()) exit(1);
@@ -43,20 +40,19 @@ int main(int argc, char *argv[])
   // TODO: clean up view mode logic!
 
   vkdt.view_mode = s_view_cnt;
-  // TODO: select based on stat?
-  if(dirname)
+  if((statbuf.st_mode & S_IFMT) == S_IFDIR)
   {
     vkdt.view_mode = s_view_lighttable;
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
     dt_db_init(&vkdt.db);
-    dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dirname);
+    dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, fname);
     dt_view_switch(s_view_lighttable);
   }
-  else if(imgname)
+  else
   {
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3, 1ul<<20);
     dt_db_init(&vkdt.db);
-    dt_db_load_image(&vkdt.db, &vkdt.thumbnails, imgname);
+    dt_db_load_image(&vkdt.db, &vkdt.thumbnails, fname);
     vkdt.db.current_image = 0;
     dt_view_switch(s_view_darkroom);
   }
