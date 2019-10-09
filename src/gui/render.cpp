@@ -383,9 +383,10 @@ void render_lighttable()
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("lt center", 0, window_flags);
 
+    const int ipl = 6;
     for(int i=0;i<vkdt.db.collection_cnt;i++)
     {
-      for(int k=0;k<7;k++)
+      for(int k=0;k<ipl;k++)
       {
         uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
         if(tid == -1u) tid = 0; // TODO: set to broken image or loading image
@@ -394,11 +395,16 @@ void render_lighttable()
         // TODO: have buttons been pressed? is it active/hovered?
         // TODO: is it visible? if so, update lru list of thumbnails
         // TODO: is thumbnail not available? push to job scheduler?
-        ImGui::Image(vkdt.thumbnails.thumb[tid].dset,
+        bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
             ImVec2(200, 120),
             ImVec2(0,0), ImVec2(1,1),
-            ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
-        if(k < 6) ImGui::SameLine();
+            10,
+            ImVec4(0.5f,0.5f,0.5f,1.0f), ImVec4(1.0f,1.0f,1.0f,1.0f));
+        if(ret)
+        {
+          fprintf(stderr, "clicked on image %u %s\n", vkdt.db.collection[i], vkdt.db.image[vkdt.db.collection[i]].filename);
+        }
+        if(k < ipl-1) ImGui::SameLine();
         if(++i >= vkdt.db.collection_cnt) break;
       }
     }
