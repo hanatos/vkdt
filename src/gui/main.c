@@ -18,18 +18,6 @@
 
 dt_gui_t vkdt;
 
-static void
-handle_event(SDL_Event *event)
-{
-  switch(vkdt.view_mode)
-  {
-  case s_view_darkroom:
-    darkroom_handle_event(event);
-    break;
-  default:;
-  }
-}
-
 int main(int argc, char *argv[])
 {
   // init global things, log and pipeline:
@@ -102,7 +90,7 @@ int main(int argc, char *argv[])
       {
         // XXX need to rebuild the swap chain!
       }
-      else handle_event(&event);
+      else dt_view_handle_event(&event);
     }
     while (SDL_PollEvent(&event));
 
@@ -111,13 +99,8 @@ int main(int argc, char *argv[])
     dt_gui_render();
     dt_gui_present();
 
-    switch(vkdt.view_mode)
-    {
-      case s_view_darkroom:
-        darkroom_process();
-        break;
-      default:;
-    }
+    dt_view_process();
+
     clock_t end  = clock();
     dt_log(s_log_perf, "total frame time %2.3f s", (end - beg)/(double)CLOCKS_PER_SEC);
     beg = end;

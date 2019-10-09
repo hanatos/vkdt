@@ -32,3 +32,27 @@ dt_view_switch(dt_gui_view_t view)
   }
   return 0;
 }
+
+static inline void
+dt_view_handle_event(SDL_Event *event)
+{
+  switch(vkdt.view_mode)
+  {
+  case s_view_darkroom:
+    darkroom_handle_event(event);
+    break;
+  default:;
+  }
+}
+
+static inline void
+dt_view_process()
+{
+  switch(vkdt.view_mode)
+  {
+    case s_view_darkroom:
+      darkroom_process();
+      break;
+    default:;
+  }
+}
