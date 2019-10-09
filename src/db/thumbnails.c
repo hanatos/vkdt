@@ -172,6 +172,7 @@ dt_thumbnails_cache_one(
   if(dt_graph_read_config_ascii(&tn->graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
+    dt_graph_cleanup(&tn->graph);
     return 2;
   }
 
@@ -182,6 +183,7 @@ dt_thumbnails_cache_one(
      dt_module_set_param_string(tn->graph.module + modid, dt_token("filename"), filename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no rawinput module!", cfgfilename);
+    dt_graph_cleanup(&tn->graph);
     return 3;
   }
 
@@ -190,6 +192,7 @@ dt_thumbnails_cache_one(
      dt_module_set_param_string(tn->graph.module + modid, dt_token("filename"), filename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no bc1out module!", cfgfilename);
+    dt_graph_cleanup(&tn->graph);
     return 3;
   }
 
@@ -201,6 +204,7 @@ dt_thumbnails_cache_one(
   if(dt_graph_run(&tn->graph, s_graph_run_all) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
+    dt_graph_cleanup(&tn->graph);
     return 4;
   }
   clock_t end = clock();
