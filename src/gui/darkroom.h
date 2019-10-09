@@ -179,6 +179,9 @@ darkroom_enter()
     dt_graph_cleanup(&vkdt.graph_dev);
     return 5;
   }
+
+  // rebuild gui specific to this image
+  dt_gui_read_ui_ascii("darkroom.ui");
   return 0;
 }
 

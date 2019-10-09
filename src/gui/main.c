@@ -60,7 +60,6 @@ int main(int argc, char *argv[])
     vkdt.db.current_image = 0;
     dt_view_switch(s_view_darkroom);
   }
-  dt_gui_read_ui_ascii("darkroom.ui");
 
   // main loop
   int running = 1;
