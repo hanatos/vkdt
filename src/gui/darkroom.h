@@ -103,6 +103,10 @@ darkroom_handle_event(SDL_Event *event)
       dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
       dt_gui_read_ui_ascii("darkroom.ui");
     }
+    else if(event->key.keysym.sym == SDLK_PERIOD)
+    {
+      dt_view_switch(s_view_lighttable);
+    }
   }
 }
 

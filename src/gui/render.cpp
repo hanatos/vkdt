@@ -270,6 +270,8 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
   // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
   ImGui_ImplSDL2_ProcessEvent(event);
 
+  // TODO: this is darkroom stuff
+  // TODO: probably move to darkroom.h and talk to the c++ gui via these g_* buffers
   const float px_dist = 20;
 
   if(g_active_widget >= 0)
@@ -397,7 +399,7 @@ void render_lighttable()
         // TODO: is it visible? if so, update lru list of thumbnails
         // TODO: is thumbnail not available? push to job scheduler?
         bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
-            ImVec2(200, 120),
+            ImVec2(208, 130),
             ImVec2(0,0), ImVec2(1,1),
             10,
             ImVec4(0.5f,0.5f,0.5f,1.0f), ImVec4(1.0f,1.0f,1.0f,1.0f));

@@ -1,5 +1,6 @@
 #include "gui/view.h"
 #include "gui/darkroom.h"
+#include "gui/lighttable.h"
 
 int
 dt_view_switch(dt_gui_view_t view)
@@ -38,6 +39,9 @@ dt_view_handle_event(SDL_Event *event)
   {
   case s_view_darkroom:
     darkroom_handle_event(event);
+    break;
+  case s_view_lighttable:
+    lighttable_handle_event(event);
     break;
   default:;
   }
