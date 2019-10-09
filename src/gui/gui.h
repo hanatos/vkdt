@@ -49,7 +49,6 @@ typedef struct dt_gui_t
   VkSemaphore      sem_image_acquired [DT_GUI_MAX_IMAGES];
   VkSemaphore      sem_render_complete[DT_GUI_MAX_IMAGES];
 
-  char             graph_cfg[2048];
   dt_graph_t       graph_dev;
 
   dt_db_t          db;          // image list and current query

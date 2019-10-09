@@ -7,6 +7,8 @@
 #include "core/log.h"
 #include "gui/gui.h"
 #include "gui/render.h"
+#include "gui/darkroom.h"
+#include "gui/view.h"
 #include "db/db.h"
 
 #include <SDL.h>
@@ -17,101 +19,12 @@
 dt_gui_t vkdt;
 
 static void
-handle_event_darkroom(SDL_Event *event)
-{
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-  assert(out);
-  float wd = (float)out->connector[0].roi.wd;
-  float ht = (float)out->connector[0].roi.ht;
-  static int m_x = -1, m_y = -1;
-  static float old_look_x = -1.0f, old_look_y = -1.0f;
-  if(event->type == SDL_MOUSEMOTION)
-  {
-    if(m_x >= 0 && vkdt.view_scale > 0.0f)
-    {
-      int dx = event->button.x - m_x;
-      int dy = event->button.y - m_y;
-      vkdt.view_look_at_x = old_look_x - dx / vkdt.view_scale;
-      vkdt.view_look_at_y = old_look_y - dy / vkdt.view_scale;
-      vkdt.view_look_at_x = CLAMP(vkdt.view_look_at_x, 0.0f, wd);
-      vkdt.view_look_at_y = CLAMP(vkdt.view_look_at_y, 0.0f, ht);
-    }
-  }
-  else if(event->type == SDL_MOUSEBUTTONUP)
-  {
-    m_x = m_y = -1;
-  }
-  else if(event->type == SDL_MOUSEBUTTONDOWN &&
-      event->button.x < vkdt.view_x + vkdt.view_width)
-  {
-    if(event->button.button == SDL_BUTTON_LEFT)
-    {
-      m_x = event->button.x;
-      m_y = event->button.y;
-      old_look_x = vkdt.view_look_at_x;
-      old_look_y = vkdt.view_look_at_y;
-    }
-    else if(event->button.button == SDL_BUTTON_MIDDLE)
-    {
-      // TODO: zoom 1:1
-      // TODO: two things: one is the display node which has
-      // TODO: parameters to be set to zoom and wd/ht so it'll affect the ROI.
-      // TODO: the other is zoom/pan in the gui for 200% or more and to
-      // TODO: move the image smoothly
-      // where does the mouse look in the current image?
-      float imwd = vkdt.view_width, imht = vkdt.view_height;
-      float scale = vkdt.view_scale <= 0.0f ? MIN(imwd/wd, imht/ht) : vkdt.view_scale;
-      float im_x = (event->button.x - (vkdt.view_x + imwd)/2.0f) / scale;
-      float im_y = (event->button.y - (vkdt.view_y + imht)/2.0f) / scale;
-      im_x += vkdt.view_look_at_x;
-      im_y += vkdt.view_look_at_y;
-      if(vkdt.view_scale <= 0.0f)
-      {
-        vkdt.view_scale = 1.0f;
-        vkdt.view_look_at_x = im_x;
-        vkdt.view_look_at_y = im_y;
-      }
-      else if(vkdt.view_scale >= 8.0f)
-      {
-        vkdt.view_scale = -1.0f;
-        vkdt.view_look_at_x = wd/2.0f;
-        vkdt.view_look_at_y = ht/2.0f;
-      }
-      else if(vkdt.view_scale >= 1.0f)
-      {
-        vkdt.view_scale *= 2.0f;
-        vkdt.view_look_at_x = im_x;
-        vkdt.view_look_at_y = im_y;
-      }
-    }
-  }
-  else if (event->type == SDL_KEYDOWN)
-  {
-    if(event->key.keysym.sym == SDLK_r)
-    {
-      // DEBUG: reload shaders
-      dt_graph_cleanup(&vkdt.graph_dev);
-      dt_pipe_global_cleanup();
-      system("make debug"); // build shaders
-      dt_pipe_global_init();
-      dt_graph_init(&vkdt.graph_dev);
-      int err = dt_graph_read_config_ascii(&vkdt.graph_dev, vkdt.graph_cfg);
-      if(err) dt_log(s_log_err, "failed to reload_shaders!");
-      // (TODO: re-init params from history)
-      dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
-      dt_gui_read_ui_ascii("darkroom.ui");
-    }
-  }
-}
-
-static void
 handle_event(SDL_Event *event)
 {
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
-    handle_event_darkroom(event);
+    darkroom_handle_event(event);
     break;
   default:;
   }
@@ -142,6 +55,10 @@ int main(int argc, char *argv[])
 
   // TODO: clean up view mode logic!
 
+  // TODO: always init thumbnails and db
+  // TODO: if graph is given, init with one image?
+  // TODO: maybe take image as argument, not the graph
+
   if(dirname)
   {
     vkdt.view_mode = s_view_lighttable;
@@ -153,28 +70,7 @@ int main(int argc, char *argv[])
   if(graphcfg)
   {
     vkdt.view_mode = s_view_darkroom;
-    snprintf(vkdt.graph_cfg, sizeof(vkdt.graph_cfg), "%s", graphcfg);
-    dt_graph_init(&vkdt.graph_dev);
-    int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graphcfg);
-    if(err)
-    {
-      dt_log(s_log_err|s_log_gui, "could not load graph configuration from '%s'!", graphcfg);
-      goto error;
-    }
-
-    if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
-    {
-      // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
-      dt_log(s_log_err|s_log_gui, "running the graph failed!");
-      goto error;
-    }
-
-    // nodes are only constructed after running once
-    if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
-    {
-      dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
-      goto error;
-    }
+    darkroom_enter();
   }
   dt_gui_read_ui_ascii("darkroom.ui");
 
@@ -214,38 +110,24 @@ int main(int argc, char *argv[])
     dt_gui_render();
     dt_gui_present();
 
-    // intel says:
-    // ==
-    // The pipeline is flushed when switching between 3D graphics rendering and
-    // compute functions. Asynchronous compute functions are not supported at
-    // this time. Batch the compute kernels into groups whenever possible.
-    // ==
-    // which is unfortunate for us :/
-
-    // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
-    // if(fence == VK_SUCCESS)
-    if(vkdt.view_mode == s_view_darkroom)
+    switch(vkdt.view_mode)
     {
-      // TODO: if params changed:
-      VkResult err = dt_graph_run(&vkdt.graph_dev,
-          vkdt.graph_dev.runflags
-         |s_graph_run_download_sink
-         |s_graph_run_record_cmd_buf
-         |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
-      if(err != VK_SUCCESS) break;
+      case s_view_darkroom:
+        darkroom_process();
+        break;
+      default:;
     }
     clock_t end  = clock();
     dt_log(s_log_perf, "total frame time %2.3f s", (end - beg)/(double)CLOCKS_PER_SEC);
     beg = end;
   }
 
+  vkDeviceWaitIdle(qvk.device);
+
   // TODO: on exit dr mode!
   if(graphcfg)
-    dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
+    darkroom_leave();
 
-error:
-  vkDeviceWaitIdle(qvk.device);
-  dt_graph_cleanup(&vkdt.graph_dev);
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   dt_db_cleanup(&vkdt.db);

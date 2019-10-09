@@ -11,6 +11,7 @@ void
 dt_db_init(dt_db_t *db)
 {
   memset(db, 0, sizeof(*db));
+  db->current_image = -1u;
 }
 
 void

@@ -36,6 +36,9 @@ typedef struct dt_db_t
   uint32_t *collection;
   uint32_t  collection_cnt;
   uint32_t  collection_max;
+
+  // currently selected image (when switching to darkroom mode, e.g.)
+  uint32_t current_image;
 }
 dt_db_t;
 
