@@ -2,8 +2,13 @@
 
 #include "core/log.h"
 #include "gui/gui.h"
+#include "pipe/modules/api.h"
+
 #include <SDL.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // some static helper functions for the gui
 static void
@@ -129,10 +134,14 @@ darkroom_enter()
   char graph_cfg[2048];
   snprintf(graph_cfg, sizeof(graph_cfg), "%s.cfg", vkdt.db.image[imgid].filename);
 
-  // TODO: stat, if doesn't exist, load default
-  // TODO: set filename param? (definitely do that for default cfg)
+  // stat, if doesn't exist, load default
+  // always set filename param? (definitely do that for default cfg)
+  struct stat statbuf;
+  if(stat(graph_cfg, &statbuf))
+    snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
 
   dt_graph_init(&vkdt.graph_dev);
+
   if(dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg))
   {
     dt_log(s_log_err|s_log_gui, "could not load graph configuration from '%s'!", graph_cfg);
@@ -140,12 +149,23 @@ darkroom_enter()
     return 2;
   }
 
+  // TODO: rename to "i-*" and also probe other file formats
+  int modid = dt_module_get(&vkdt.graph_dev, dt_token("rawinput"), dt_token("01"));
+  if(modid < 0 ||
+     dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
+       vkdt.db.image[imgid].filename))
+  {
+    dt_log(s_log_err|s_log_gui, "config '%s' has no rawinput module!", graph_cfg);
+    dt_graph_cleanup(&vkdt.graph_dev);
+    return 3;
+  }
+
   if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
   {
     // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
     dt_log(s_log_err|s_log_gui, "running the graph failed!");
     dt_graph_cleanup(&vkdt.graph_dev);
-    return 3;
+    return 4;
   }
 
   // nodes are only constructed after running once
@@ -154,7 +174,7 @@ darkroom_enter()
   {
     dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
     dt_graph_cleanup(&vkdt.graph_dev);
-    return 4;
+    return 5;
   }
   return 0;
 }

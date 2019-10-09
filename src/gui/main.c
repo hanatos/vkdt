@@ -37,40 +37,41 @@ int main(int argc, char *argv[])
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
 
-  const char *graphcfg = 0;
-  const char *dirname  = 0;
+  const char *imgname = 0;
+  const char *dirname = 0;
   for(int i=0;i<argc;i++)
   {
-    if(!strcmp(argv[i], "-g") && i < argc-1)
-      graphcfg = argv[++i];
+    if(!strcmp(argv[i], "-i") && i < argc-1)
+      imgname = argv[++i];
     else if(!strcmp(argv[i], "--dir") && i < argc-1)
       dirname = argv[++i];
   }
-  if(!graphcfg && !dirname)
+  if(!imgname && !dirname)
   {
-    dt_log(s_log_gui, "usage: vkdt -g <graph.cfg> [-d verbosity]");
+    dt_log(s_log_gui, "usage: vkdt -i <image.raw> [-d verbosity]");
     exit(1);
   }
   if(dt_gui_init()) exit(1);
 
   // TODO: clean up view mode logic!
 
-  // TODO: always init thumbnails and db
-  // TODO: if graph is given, init with one image?
-  // TODO: maybe take image as argument, not the graph
-
+  vkdt.view_mode = s_view_cnt;
+  // TODO: select based on stat?
   if(dirname)
   {
     vkdt.view_mode = s_view_lighttable;
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
     dt_db_init(&vkdt.db);
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dirname);
+    dt_view_switch(s_view_lighttable);
   }
-
-  if(graphcfg)
+  else if(imgname)
   {
-    vkdt.view_mode = s_view_darkroom;
-    darkroom_enter();
+    dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3, 1ul<<20);
+    dt_db_init(&vkdt.db);
+    dt_db_load_image(&vkdt.db, &vkdt.thumbnails, imgname);
+    vkdt.db.current_image = 0;
+    dt_view_switch(s_view_darkroom);
   }
   dt_gui_read_ui_ascii("darkroom.ui");
 
@@ -124,9 +125,8 @@ int main(int argc, char *argv[])
 
   vkDeviceWaitIdle(qvk.device);
 
-  // TODO: on exit dr mode!
-  if(graphcfg)
-    darkroom_leave();
+  // leave whatever view we're still in:
+  dt_view_switch(s_view_cnt);
 
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);

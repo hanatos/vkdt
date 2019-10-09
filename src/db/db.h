@@ -51,3 +51,7 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname);
 
+void dt_db_load_image(
+    dt_db_t         *db,
+    dt_thumbnails_t *thumbnails,
+    const char      *filename);
