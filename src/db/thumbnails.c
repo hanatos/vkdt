@@ -1,4 +1,5 @@
 #include "core/log.h"
+#include "db/db.h"
 #include "db/thumbnails.h"
 #include "qvk/qvk.h"
 #include "pipe/graph-io.h"
@@ -139,21 +140,6 @@ dt_thumbnails_cleanup(
   dt_vkalloc_cleanup(&tn->alloc);
 }
 
-// TODO: move outside, db.c needs it, too
-static int
-accept_filename(
-    const char *f)
-{
-  // TODO: magic number checks instead.
-  const char *f2 = f + strlen(f);
-  while(f2 > f && *f2 != '.') f2--;
-  return !strcasecmp(f2, ".cr2") ||
-         !strcasecmp(f2, ".nef") ||
-         !strcasecmp(f2, ".orf") ||
-         !strcasecmp(f2, ".arw") ||
-         !strcasecmp(f2, ".raf");
-}
-
 // process one image and write a .bc1 thumbnail
 // return 0 on success
 static VkResult
@@ -161,7 +147,7 @@ dt_thumbnails_cache_one(
     dt_thumbnails_t *tn,
     const char      *filename) 
 {
-  if(!accept_filename(filename)) return 1;
+  if(!dt_db_accept_filename(filename)) return 1;
 
   char cfgfilename[1024];
   // load individual history stack if any
@@ -230,7 +216,7 @@ dt_thumbnails_cache_directory(
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    if(!accept_filename(ep->d_name)) continue;
+    if(!dt_db_accept_filename(ep->d_name)) continue;
     snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
     (void) dt_thumbnails_cache_one(tn, filename);
   }
@@ -403,7 +389,7 @@ dt_thumbnails_load_one(
     return VK_INCOMPLETE;
   }
   clock_t end = clock();
-  dt_log(s_log_pipe, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  dt_log(s_log_pipe|s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
   dt_graph_cleanup(&tn->graph);
   return VK_SUCCESS;

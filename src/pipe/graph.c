@@ -1413,11 +1413,11 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc_free)
   {
-    dt_log(s_log_pipe, "images : peak rss %g MB vmsize %g MB",
+    dt_log(s_log_pipe|s_log_mem, "images : peak rss %g MB vmsize %g MB",
         graph->heap.peak_rss/(1024.0*1024.0),
         graph->heap.vmsize  /(1024.0*1024.0));
 
-    dt_log(s_log_pipe, "staging: peak rss %g MB vmsize %g MB",
+    dt_log(s_log_pipe|s_log_mem, "staging: peak rss %g MB vmsize %g MB",
         graph->heap_staging.peak_rss/(1024.0*1024.0),
         graph->heap_staging.vmsize  /(1024.0*1024.0));
   }

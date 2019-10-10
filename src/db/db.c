@@ -19,23 +19,6 @@ dt_db_cleanup(dt_db_t *db)
 {
 }
 
-// TODO: put in shared place so thumbnails can use it, too
-// TODO: is pipe the right place for thumbnails at all?
-static int
-accept_filename(
-    const char *f)
-{
-  // TODO: magic number checks instead.
-  const char *f2 = f + strlen(f);
-  while(f2 > f && *f2 != '.') f2--;
-  return !strcasecmp(f2, ".cr2") ||
-         !strcasecmp(f2, ".nef") ||
-         !strcasecmp(f2, ".orf") ||
-         !strcasecmp(f2, ".arw") ||
-         !strcasecmp(f2, ".raf");
-}
-
-
 void dt_db_load_directory(
     dt_db_t         *db,
     dt_thumbnails_t *thumbnails,
@@ -53,7 +36,7 @@ void dt_db_load_directory(
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    if(!accept_filename(ep->d_name)) continue;
+    if(!dt_db_accept_filename(ep->d_name)) continue;
     db->image_max++;
   }
 
@@ -68,7 +51,7 @@ void dt_db_load_directory(
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    if(!accept_filename(ep->d_name)) continue;
+    if(!dt_db_accept_filename(ep->d_name)) continue;
     snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
 
     const uint32_t imgid = db->image_cnt++;
@@ -98,7 +81,7 @@ void dt_db_load_image(
     dt_thumbnails_t *thumbnails,
     const char      *filename)
 {
-  if(!accept_filename(filename)) return;
+  if(!dt_db_accept_filename(filename)) return;
   db->image_max = 1;
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);

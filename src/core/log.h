@@ -15,7 +15,8 @@ typedef enum dt_log_mask_t
   s_log_db   = 1<<3,
   s_log_cli  = 1<<4,
   s_log_perf = 1<<5,
-  s_log_err  = 1<<6,
+  s_log_mem  = 1<<6,
+  s_log_err  = 1<<7,
   s_log_all  = -1ul,
 }
 dt_log_mask_t;
@@ -41,28 +42,31 @@ dt_log_init_arg(int argc, char *argv[])
     "db",
     "cli",
     "perf",
+    "mem",
     "err",
     "all",
   };
+  int num = sizeof(id)/sizeof(id[0]);
   uint64_t verbose = 0ul;
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-d") && i < argc-1)
     {
       i++;
-      for(int j=0;j<sizeof(id)/sizeof(id[0]);j++)
+      for(int j=0;j<num;j++)
       {
         if(!strcmp(argv[i], id[j]))
         {
-          if(j == 0)      verbose = 0ul;
-          else if(j == 8) verbose = -1ul;
-          else            verbose |= 1<<(j-1);
+          if(j == 0)          verbose = 0ul;
+          else if(j == num-1) verbose = -1ul;
+          else                verbose |= 1<<(j-1);
         }
       }
     }
   }
   // user parameters add to the mask:
   dt_log_global.mask |= verbose;
+  if(verbose == 0ul) dt_log_global.mask = verbose;
 }
 
 // call this first once
@@ -86,6 +90,7 @@ dt_log(
     "[db]",
     "[cli]",
     "[perf]",
+    "[mem]",
     "\e[31m[ERR]\e[0m",
   };
 

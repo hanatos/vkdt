@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <string.h>
+#include <strings.h>
 
 // fast special cased parallel transactional database with generic
 // metadata search
@@ -55,3 +57,18 @@ void dt_db_load_image(
     dt_db_t         *db,
     dt_thumbnails_t *thumbnails,
     const char      *filename);
+
+static inline int
+dt_db_accept_filename(
+    const char *f)
+{
+  // TODO: magic number checks instead.
+  const char *f2 = f + strlen(f);
+  while(f2 > f && *f2 != '.') f2--;
+  return !strcasecmp(f2, ".cr2") ||
+         !strcasecmp(f2, ".nef") ||
+         !strcasecmp(f2, ".orf") ||
+         !strcasecmp(f2, ".arw") ||
+         !strcasecmp(f2, ".dng") ||
+         !strcasecmp(f2, ".raf");
+}
