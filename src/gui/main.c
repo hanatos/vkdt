@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
     dt_view_process();
 
     clock_t end  = clock();
-    dt_log(s_log_perf, "total frame time %2.3f s", (end - beg)/(double)CLOCKS_PER_SEC);
+    dt_log(s_log_perf, "total frame time %2.3fs", (end - beg)/(double)CLOCKS_PER_SEC);
     beg = end;
   }
 

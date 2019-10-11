@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 void
 dt_db_init(dt_db_t *db)
@@ -48,6 +49,7 @@ void dt_db_load_directory(
   db->collection = malloc(sizeof(uint32_t)*db->collection_max);
 
   rewinddir(dp);
+  clock_t beg = clock();
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
@@ -69,6 +71,8 @@ void dt_db_load_directory(
     // TODO: in fact, continue with th=-1u and trigger a
     // TODO: thumbnail cache process in the background, try again later!
   }
+  clock_t end = clock();
+  dt_log(s_log_perf|s_log_db, "time to load thumbnails %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
   // collect all images: // TODO: abstract more
   db->collection_cnt = db->image_cnt;
