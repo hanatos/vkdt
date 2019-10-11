@@ -431,6 +431,7 @@ qvk_create_command_pool_and_fences()
 int
 qvk_init()
 {
+  threads_mutex_init(&qvk.queue_mutex, 0);
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
   dt_log(s_log_qvk, "available vulkan layers:");
@@ -765,6 +766,7 @@ int
 qvk_cleanup()
 {
   vkDeviceWaitIdle(qvk.device);
+  threads_mutex_destroy(&qvk.queue_mutex);
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
 

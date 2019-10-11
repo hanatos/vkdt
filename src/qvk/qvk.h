@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "core/core.h"
+#include "core/threads.h"
 #include "qvk_util.h"
 
 #include <vulkan/vulkan.h>
@@ -109,6 +110,7 @@ typedef struct qvk_t
 	VkPhysicalDevice            physical_device;
 	VkPhysicalDeviceMemoryProperties mem_properties;
 	VkDevice                    device;
+  threads_mutex_t             queue_mutex;
 	VkQueue                     queue_graphics;
 	VkQueue                     queue_compute;
 	VkQueue                     queue_transfer;
