@@ -90,8 +90,7 @@ load_raw(
     assert(0); // this should be inited in init()
   }
 
-  snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
-  rawspeed::FileReader f(mod_data->filename);
+  rawspeed::FileReader f(filename);
 
   try
   {
@@ -107,12 +106,20 @@ load_raw(
     mod_data->d->failOnUnknown = true;
     mod_data->d->checkSupport(meta);
     mod_data->d->decodeRaw();
+
     mod_data->d->decodeMetaData(meta);
 
     const auto errors = mod_data->d->mRaw->getErrors();
     for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", mod_data->filename, error.c_str());
 
     // TODO: do some corruption detection and support for esoteric formats/fails here
+    // the data type doesn't seem to be inited on hdrmerge raws:
+    // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
+    if(sizeof(uint16_t) != mod_data->d->mRaw->getBpp())
+    {
+      fprintf(stderr, "[rawinput] currently not handling floating point formats: %s\n", mod_data->filename);
+      return 1;
+    }
   }
   catch(const std::exception &exc)
   {
@@ -125,6 +132,7 @@ load_raw(
     return 1;
   }
   clock_t end = clock();
+  snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
   fprintf(stderr, "[rawspeed] load raw in %3.0fms\n", 1000.0*(end-beg)/CLOCKS_PER_SEC);
   return 0;
 }
@@ -151,8 +159,8 @@ void cleanup(dt_module_t *mod)
   if(!mod->data) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   /* free auto pointers */
-  mod_data->d.reset();
-  mod_data->m.reset();
+  if(mod_data->d.get()) mod_data->d.reset();
+  if(mod_data->m.get()) mod_data->m.reset();
   delete mod_data;
   mod->data = 0;
 }
@@ -282,7 +290,7 @@ int read_source(
   wd = (wd/block)*block;
   ht = (ht/block)*block;
   // TODO: make sure the roi we get on the connector agrees with this!
-  const size_t bufsize_compact = (size_t)wd * ht * mod_data->d->mRaw->getBpp();
+  const size_t bufsize_compact = (size_t)wd * ht * sizeof(uint16_t); // mod_data->d->mRaw->getBpp();
   const size_t bufsize_rawspeed = (size_t)mod_data->d->mRaw->pitch * dim_uncropped.y;
   if(bufsize_compact == bufsize_rawspeed)
   {
