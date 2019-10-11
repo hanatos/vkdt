@@ -158,9 +158,6 @@ static const VkApplicationInfo vk_app_info = {
   .apiVersion         = VK_API_VERSION_1_1,
 };
 
-/* use this to override file names */
-static const char *shader_module_file_names[NUM_QVK_SHADER_MODULES];
-
 static void
 get_vk_extension_list(
     const char *layer,
@@ -780,79 +777,6 @@ load_file(const char *path, char **data, size_t *s)
   }
   fclose(f);
   return 0;
-}
-
-static VkShaderModule
-create_shader_module_from_file(const char *name, const char *enum_name)
-{
-  char *data;
-  size_t size;
-
-  char path[1024];
-  snprintf(path, sizeof path, QVK_SHADER_PATH_TEMPLATE, name ? name : (enum_name + 8));
-  if(!name) {
-    int len = 0;
-    for(len = 0; path[len]; len++)
-      path[len] = tolower(path[len]);
-    while(--len >= 0) {
-      if(path[len] == '_') {
-        path[len] = '.';
-        break;
-      }
-    }
-  }
-
-  if(load_file(path, &data, &size))
-  {
-    free(data);
-    return VK_NULL_HANDLE;
-  }
-
-  VkShaderModule module;
-
-  VkShaderModuleCreateInfo create_info = {
-    .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-    .codeSize = size,
-    .pCode = (uint32_t *) data,
-  };
-
-  QVK(vkCreateShaderModule(qvk.device, &create_info, NULL, &module));
-
-  free(data);
-
-  return module;
-}
-
-VkResult
-qvk_shader_modules_initialize()
-{
-  VkResult ret = VK_SUCCESS;
-#define SHADER_MODULE_DO(a) do { \
-  qvk.shader_modules[a] = create_shader_module_from_file(shader_module_file_names[a], #a); \
-  ret = (ret == VK_SUCCESS && qvk.shader_modules[a]) ? VK_SUCCESS : VK_ERROR_INITIALIZATION_FAILED; \
-  if(qvk.shader_modules[a]) { \
-    ATTACH_LABEL_VARIABLE_NAME((uint64_t)qvk.shader_modules[a], SHADER_MODULE, #a); \
-  }\
-  } while(0);
-
-  LIST_SHADER_MODULES
-
-#undef SHADER_MODULE_DO
-  return ret;
-}
-
-VkResult
-qvk_shader_modules_destroy()
-{
-#define SHADER_MODULE_DO(a) \
-  vkDestroyShaderModule(qvk.device, qvk.shader_modules[a], NULL); \
-  qvk.shader_modules[a] = VK_NULL_HANDLE;
-
-  LIST_SHADER_MODULES
-
-#undef SHADER_MODULE_DO
-
-  return VK_SUCCESS;
 }
 
 static VkResult

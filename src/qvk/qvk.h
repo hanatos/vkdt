@@ -153,20 +153,6 @@ typedef struct qvk_t
 
 	uint32_t                    current_image_index;
 
-	VkShaderModule              shader_modules[NUM_QVK_SHADER_MODULES];
-
-	VkDescriptorSetLayout       desc_set_layout_ubo;
-	VkDescriptorSet             desc_set_ubo[QVK_MAX_SWAPCHAIN_IMAGES];
-
-	VkDescriptorSetLayout       desc_set_layout_textures;
-	VkDescriptorSet             desc_set_textures;
-  // TODO: bring back with headers above
-	// VkImage                     images      [NUM_QVK_IMAGES];
-	// VkImageView                 images_views[NUM_QVK_IMAGES];
-
-  VkDescriptorSetLayout       desc_set_layout_vertex_buffer;
-  VkDescriptorSet             desc_set_vertex_buffer;
-
   float                       ticks_to_nanoseconds;
 }
 qvk_t;
