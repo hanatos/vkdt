@@ -117,7 +117,7 @@ load_raw(
     // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
     if(sizeof(uint16_t) != mod_data->d->mRaw->getBpp())
     {
-      fprintf(stderr, "[rawinput] currently not handling floating point formats: %s\n", mod_data->filename);
+      fprintf(stderr, "[rawinput] currently not handling floating point formats: %s\n", filename);
       return 1;
     }
   }
@@ -133,7 +133,7 @@ load_raw(
   }
   clock_t end = clock();
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
-  fprintf(stderr, "[rawspeed] load raw in %3.0fms\n", 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  fprintf(stderr, "[rawspeed] load %s in %3.0fms\n", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
   return 0;
 }
 
