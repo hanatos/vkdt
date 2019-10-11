@@ -2,7 +2,7 @@ TARGET=librawinput.so
 RAWSPEED_I=../../../../ext/rawspeed
 RAWSPEED_L=../../../../built/ext/rawspeed
 CXXFLAGS=-Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ -I../.. -I../../.. -fPIC -g
-LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lpugixml -lomp -lz
+LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lpugixml -lomp -lz -ljpeg
 #CXXFLAGS+=-fsanitize=address -O0
 #LDFLAGS+=-fsanitize=address
 

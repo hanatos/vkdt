@@ -50,7 +50,7 @@ and we may link to some others, too.
 - vulkan, glslangValidator
 - sdl2
 - submodule imgui
-- submodule rawspeed (pulls in pugixml, stdc++, zlib)
+- submodule rawspeed (pulls in pugixml, stdc++, zlib, jpeg)
 - submodule pybind11?
 - libjpeg
 - build: make, sed
