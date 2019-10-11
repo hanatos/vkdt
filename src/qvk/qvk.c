@@ -750,35 +750,6 @@ qvk_init()
   return 0;
 }
 
-static int
-load_file(const char *path, char **data, size_t *s)
-{
-  *data = NULL;
-  FILE *f = fopen(path, "rb");
-  if(!f) {
-    dt_log(s_log_qvk, "could not open %s", path);
-    /* let's try not to crash everything */
-    char *ret = malloc(1);
-    *s = 1;
-    ret[0] = 0;
-    return 1;
-  }
-  fseek(f, 0, SEEK_END);
-  *s = ftell(f);
-  rewind(f);
-
-  *data = malloc(*s + 1);
-  //*data = aligned_alloc(4, *s + 1); // XXX lets hope malloc returns aligned memory
-  if(fread(*data, 1, *s, f) != *s) {
-    dt_log(s_log_qvk, "could not read file %s", path);
-    fclose(f);
-    *data[0] = 0;
-    return 1;
-  }
-  fclose(f);
-  return 0;
-}
-
 static VkResult
 destroy_swapchain()
 {
