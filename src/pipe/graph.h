@@ -85,6 +85,7 @@ typedef struct dt_graph_t
   VkImage               thumbnail_image;
   int                   output_wd;
   int                   output_ht;
+  void                 *io_mutex;      // if this is set to != 0 will be locked during read_source() calls
 }
 dt_graph_t;
 

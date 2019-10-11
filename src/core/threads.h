@@ -17,3 +17,11 @@ extern _Thread_local threads_tls_t thr_tls;
 void threads_global_init();
 void threads_global_cleanup();
 
+// push a new task (task < threads_num()) with given function and argument
+void threads_task(int task, void *(*func)(void *arg), void *arg);
+
+// wait for all tasks to complete
+void threads_wait();
+
+// return number of threads
+int threads_num();

@@ -1380,6 +1380,8 @@ VkResult dt_graph_run(
   vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
 
   // upload all source data to staging memory
+  threads_mutex_t *mutex = graph->io_mutex;
+  if(mutex) threads_mutex_lock(mutex);
   if(run & s_graph_run_upload_source)
   {
     uint8_t *mapped = 0;
@@ -1399,6 +1401,7 @@ VkResult dt_graph_run(
     }
     vkUnmapMemory(qvk.device, graph->vkmem_staging);
   }
+  if(mutex) threads_mutex_unlock(mutex);
 
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
@@ -1430,10 +1433,12 @@ VkResult dt_graph_run(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
+  threads_mutex_lock(&qvk.queue_mutex);
   vkResetFences(qvk.device, 1, &graph->command_fence);
   QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
   if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
     QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
+  threads_mutex_unlock(&qvk.queue_mutex);
   
   if(run & s_graph_run_download_sink)
   {

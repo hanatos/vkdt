@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
   dt_log_init(s_log_gui|s_log_pipe);
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
+  threads_global_init();
 
   const char *fname = 0;
   if(argc > 1) fname = argv[argc-1];
@@ -108,5 +109,6 @@ int main(int argc, char *argv[])
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   dt_db_cleanup(&vkdt.db);
+  threads_global_cleanup();
   exit(0);
 }

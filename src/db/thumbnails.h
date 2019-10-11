@@ -33,11 +33,13 @@ typedef struct dt_thumbnail_t
 }
 dt_thumbnail_t;
 
+#define DT_THUMBNAILS_THREADS 2
 typedef struct dt_thumbnails_t
 {
-  dt_graph_t graph;
+  dt_graph_t            graph[DT_THUMBNAILS_THREADS];
 
-  int thumb_wd, thumb_ht;
+  int                   thumb_wd;
+  int                   thumb_ht;
 
   dt_vkalloc_t          alloc;
   uint32_t              memory_type_bits;

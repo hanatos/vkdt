@@ -1,4 +1,5 @@
 #include "core/log.h"
+#include "../ext/pthread-pool/pthread_pool.h"
 #include "db/db.h"
 #include "db/thumbnails.h"
 #include "qvk/qvk.h"
@@ -144,6 +145,7 @@ dt_thumbnails_cleanup(
 // return 0 on success
 static VkResult
 dt_thumbnails_cache_one(
+    dt_graph_t      *graph,
     dt_thumbnails_t *tn,
     const char      *filename) 
 {
@@ -154,50 +156,81 @@ dt_thumbnails_cache_one(
   // TODO: try this or load default.cfg instead:
   // snprintf(cfgfilename, sizeof(cfgfilename), "%s/%s.cfg", dirname, ep->d_name);
   snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
-  dt_graph_init(&tn->graph);
-  if(dt_graph_read_config_ascii(&tn->graph, cfgfilename))
+  dt_graph_init(graph);
+  if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return 2;
   }
 
   // set param for rawinput
   // get module
-  int modid = dt_module_get(&tn->graph, dt_token("rawinput"), dt_token("01"));
+  int modid = dt_module_get(graph, dt_token("rawinput"), dt_token("01"));
   if(modid < 0 ||
-     dt_module_set_param_string(tn->graph.module + modid, dt_token("filename"), filename))
+     dt_module_set_param_string(graph->module + modid, dt_token("filename"), filename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no rawinput module!", cfgfilename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return 3;
   }
 
-  modid = dt_module_get(&tn->graph, dt_token("bc1out"), dt_token("main"));
+  modid = dt_module_get(graph, dt_token("bc1out"), dt_token("main"));
   if(modid < 0 ||
-     dt_module_set_param_string(tn->graph.module + modid, dt_token("filename"), filename))
+     dt_module_set_param_string(graph->module + modid, dt_token("filename"), filename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no bc1out module!", cfgfilename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return 3;
   }
 
   // ask for reduced resolution in the graph:
-  tn->graph.output_wd = tn->thumb_wd;
-  tn->graph.output_ht = tn->thumb_ht;
+  graph->output_wd = tn->thumb_wd;
+  graph->output_ht = tn->thumb_ht;
 
   clock_t beg = clock();
-  if(dt_graph_run(&tn->graph, s_graph_run_all) != VK_SUCCESS)
+  if(dt_graph_run(graph, s_graph_run_all) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return 4;
   }
   clock_t end = clock();
   dt_log(s_log_pipe|s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
-  dt_graph_cleanup(&tn->graph);
+  dt_graph_cleanup(graph);
   return VK_SUCCESS;
+}
+
+typedef struct cache_job_t
+{
+  dt_thumbnails_t *tn;
+  char dirname[1024];
+  int k;
+}
+cache_job_t;
+
+static void *thread_work(void *arg)
+{
+  cache_job_t *j = arg;
+  DIR *dp = opendir(j->dirname);
+  if(!dp) return 0;
+
+  struct dirent *ep;
+  char filename[2048];
+  int i = 0;
+  while((ep = readdir(dp)))
+  {
+    if((i++ % DT_THUMBNAILS_THREADS) == j->k)
+    {
+      if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
+      if(!dt_db_accept_filename(ep->d_name)) continue;
+      snprintf(filename, sizeof(filename), "%s/%s", j->dirname, ep->d_name);
+      (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn, filename);
+    }
+  }
+  closedir(dp);
+  return 0;
 }
 
 VkResult
@@ -211,16 +244,44 @@ dt_thumbnails_cache_directory(
     dt_log(s_log_err, "[thm] could not open directory '%s'!", dirname);
     return VK_INCOMPLETE;
   }
+  // for this threading to be effective, we need to
+  //  OMP_NESTED=true
+  //  OMP_MAX_ACTIVE_LEVELS=5
+  // (note that this can be set via the omp_* api, maybe in rawinput/main.cc?)
+  // because in fact the processing inside rawspeed (parallel via omp)
+  // seems to be a big chunk of the bottleneck (after io)
+#if 0
   struct dirent *ep;
   char filename[2048];
   while((ep = readdir(dp)))
   {
-    if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
-    if(!dt_db_accept_filename(ep->d_name)) continue;
-    snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
-    (void) dt_thumbnails_cache_one(tn, filename);
+      if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
+      if(!dt_db_accept_filename(ep->d_name)) continue;
+      snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
+      (void) dt_thumbnails_cache_one(tn->graph, tn, filename);
   }
+  closedir(dp);
   return VK_SUCCESS;
+#else
+  closedir(dp);
+
+  threads_mutex_t mutex;
+  threads_mutex_init(&mutex, 0);
+  cache_job_t job[DT_THUMBNAILS_THREADS];
+  for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
+  {
+    tn->graph[k].io_mutex = &mutex;
+    snprintf(job[k].dirname, sizeof(job[k].dirname), "%s", dirname);
+    job[k].k = k;
+    job[k].tn = tn;
+    threads_task(k, &thread_work, job+k);
+  }
+  threads_wait();
+  threads_mutex_destroy(&mutex);
+  for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
+    tn->graph[k].io_mutex = 0;
+  return VK_SUCCESS;
+#endif
 }
 
 // load one previously cached thumbnail to VkImage onto the GPU.
@@ -231,6 +292,7 @@ dt_thumbnails_load_one(
     const char      *filename,
     uint32_t        *thumb_index)
 {
+  dt_graph_t *graph = tn->graph;
   char cfgfilename[1024] = {0};
   char imgfilename[1024] = {0};
   snprintf(cfgfilename, sizeof(cfgfilename), "thumb.cfg");
@@ -239,11 +301,11 @@ dt_thumbnails_load_one(
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;
 
-  dt_graph_init(&tn->graph);
-  if(dt_graph_read_config_ascii(&tn->graph, cfgfilename))
+  dt_graph_init(graph);
+  if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
 
@@ -270,29 +332,29 @@ dt_thumbnails_load_one(
 
   // set param for rawinput
   // get module
-  int modid = dt_module_get(&tn->graph, dt_token("bc1input"), dt_token("01"));
+  int modid = dt_module_get(graph, dt_token("bc1input"), dt_token("01"));
   if(modid < 0 ||
-     dt_module_set_param_string(tn->graph.module + modid, dt_token("filename"), imgfilename))
+     dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no bc1in module!", cfgfilename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
 
   // run graph only up to roi computations to get size
   // run all <= create nodes
   dt_graph_run_t run = ~-(s_graph_run_create_nodes<<1);
-  if(dt_graph_run(&tn->graph, run) != VK_SUCCESS)
+  if(dt_graph_run(graph, run) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] failed to run first half of graph!");
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
 
   // now grab roi size from graph's main output node
-  modid = dt_module_get(&tn->graph, dt_token("thumb"), dt_token("main"));
-  const int wd = tn->graph.module[modid].connector[0].roi.full_wd;
-  const int ht = tn->graph.module[modid].connector[0].roi.full_ht;
+  modid = dt_module_get(graph, dt_token("thumb"), dt_token("main"));
+  const int wd = graph->module[modid].connector[0].roi.full_wd;
+  const int ht = graph->module[modid].connector[0].roi.full_ht;
 
   VkFormat format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
   VkImageCreateInfo images_create_info = {
@@ -319,7 +381,7 @@ dt_thumbnails_load_one(
   };
 
   QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &th->image));
-#if 1
+#if 0
   char *name = malloc(100);
   snprintf(name, 100, "thumb%04d", *thumb_index);
   ATTACH_LABEL_VARIABLE_NAME(th->image, IMAGE, name);
@@ -375,22 +437,22 @@ dt_thumbnails_load_one(
 
   // now run the rest of the graph and copy over VkImage
   // let graph render into our thumbnail:
-  tn->graph.thumbnail_image = tn->thumb[*thumb_index].image;
+  graph->thumbnail_image = tn->thumb[*thumb_index].image;
   // these should already match, let's not mess with rounding errors:
   // tn->graph.output_wd = wd;
   // tn->graph.output_ht = ht;
 
   clock_t beg = clock();
   // run all the rest we didn't run above
-  if(dt_graph_run(&tn->graph, ~run) != VK_SUCCESS)
+  if(dt_graph_run(graph, ~run) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", imgfilename);
-    dt_graph_cleanup(&tn->graph);
+    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
   clock_t end = clock();
   dt_log(s_log_pipe|s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
-  dt_graph_cleanup(&tn->graph);
+  dt_graph_cleanup(graph);
   return VK_SUCCESS;
 }

@@ -151,7 +151,6 @@ static inline void threads_tls_cleanup(threads_t *t)
   pthread_pool_wait(&t->pool);
 }
 
-
 static inline void threads_cleanup(threads_t *t)
 {
   threads_tls_cleanup(t);
@@ -167,3 +166,17 @@ void threads_global_cleanup()
   threads_cleanup(&thr);
 }
 
+void threads_task(int task, void *(*func)(void *arg), void *arg)
+{
+  pthread_pool_task_init(thr.task + task, &thr.pool, func, arg);
+}
+
+void threads_wait()
+{
+  pthread_pool_wait(&thr.pool);
+}
+
+int threads_num()
+{
+  return thr.num_threads;
+}

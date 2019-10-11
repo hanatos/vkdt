@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
   dt_log_init(s_log_cli|s_log_pipe);
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
+  threads_global_init();
 
   const char *graphcfg = 0;
   int dump_graph = 0;
@@ -136,6 +137,7 @@ int main(int argc, char *argv[])
     dt_graph_print_nodes(&graph);
 
   dt_graph_cleanup(&graph);
+  threads_global_cleanup();
   qvk_cleanup();
   exit(0);
 }
