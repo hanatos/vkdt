@@ -34,69 +34,29 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define QVK_FUNC_UNIMPLEMENTED() QVK_FUNC_UNIMPLEMENTED_(__func__)
 
 #define QVK(...) \
-	do { \
-		VkResult _res = __VA_ARGS__; \
-		if(_res != VK_SUCCESS) { \
-			dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
-		} \
-	} while(0)
+  do { \
+    VkResult _res = __VA_ARGS__; \
+    if(_res != VK_SUCCESS) { \
+      dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
+    } \
+  } while(0)
 
 #define QVKR(...) \
-	do { \
-		VkResult _res = __VA_ARGS__; \
-		if(_res != VK_SUCCESS) { \
-			dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
+  do { \
+    VkResult _res = __VA_ARGS__; \
+    if(_res != VK_SUCCESS) { \
+      dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
       return _res; \
-		} \
-	} while(0)
+    } \
+  } while(0)
 
-/* see main.c to override default file path. By default it will strip away
- * QVK_MOD_, fix the file ending, and convert to lower case */
-#define LIST_SHADER_MODULES \
-	SHADER_MODULE_DO(QVK_MOD_STRETCH_PIC_VERT)                       \
-	SHADER_MODULE_DO(QVK_MOD_STRETCH_PIC_FRAG)                       \
-	SHADER_MODULE_DO(QVK_MOD_PATH_TRACER_RGEN)                       \
-	SHADER_MODULE_DO(QVK_MOD_PATH_TRACER_RCHIT)                      \
-	SHADER_MODULE_DO(QVK_MOD_PATH_TRACER_RMISS)                      \
-	SHADER_MODULE_DO(QVK_MOD_PATH_TRACER_RTX_RGEN)                   \
-	SHADER_MODULE_DO(QVK_MOD_PATH_TRACER_RTX_RCHIT)                  \
-	SHADER_MODULE_DO(QVK_MOD_PATH_TRACER_RTX_RMISS)                  \
-	SHADER_MODULE_DO(QVK_MOD_INSTANCE_GEOMETRY_COMP)                 \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_SEED_RNG_COMP)                    \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_FWD_PROJECT_COMP)                 \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_GRADIENT_IMG_COMP)                \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_GRADIENT_ATROUS_COMP)             \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_ATROUS_COMP)                      \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_TEMPORAL_COMP)                    \
-	SHADER_MODULE_DO(QVK_MOD_ASVGF_TAA_COMP)                         \
-
-#ifndef QVK_SHADER_DIR
-#define QVK_SHADER_DIR "qvk_shaders"
-#endif
-
-#define QVK_SHADER_PATH_TEMPLATE QVK_SHADER_DIR "/%s.spv"
-
-#define QVK_SHADER_STAGE(_module, _stage) \
-	{ \
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, \
-		.stage = _stage, \
-		.module = qvk.shader_modules[_module], \
-		.pName = "main" \
-	}
-
-enum QVK_SHADER_MODULES {
-#define SHADER_MODULE_DO(a) a,
-	LIST_SHADER_MODULES
-#undef SHADER_MODULE_DO
-	NUM_QVK_SHADER_MODULES
-};
 
 #define QVK_MAX_FRAMES_IN_FLIGHT 2
 
 enum {
-	SEM_IMG_AVAILABLE   = 0,
-	SEM_RENDER_FINISHED = SEM_IMG_AVAILABLE   + QVK_MAX_FRAMES_IN_FLIGHT,
-	NUM_SEMAPHORES      = SEM_RENDER_FINISHED + QVK_MAX_FRAMES_IN_FLIGHT,
+  SEM_IMG_AVAILABLE   = 0,
+  SEM_RENDER_FINISHED = SEM_IMG_AVAILABLE   + QVK_MAX_FRAMES_IN_FLIGHT,
+  NUM_SEMAPHORES      = SEM_RENDER_FINISHED + QVK_MAX_FRAMES_IN_FLIGHT,
 };
 
 #define QVK_MAX_SWAPCHAIN_IMAGES 4
@@ -106,54 +66,54 @@ typedef struct SDL_Window SDL_Window;
 
 typedef struct qvk_t
 {
-	VkInstance                  instance;
-	VkPhysicalDevice            physical_device;
-	VkPhysicalDeviceMemoryProperties mem_properties;
-	VkDevice                    device;
+  VkInstance                  instance;
+  VkPhysicalDevice            physical_device;
+  VkPhysicalDeviceMemoryProperties mem_properties;
+  VkDevice                    device;
   threads_mutex_t             queue_mutex;
-	VkQueue                     queue_graphics;
-	VkQueue                     queue_compute;
-	VkQueue                     queue_transfer;
-	int32_t                     queue_idx_graphics;
-	int32_t                     queue_idx_compute;
-	int32_t                     queue_idx_transfer;
-	VkSurfaceKHR                surface;
-	VkSwapchainKHR              swap_chain;
-	VkSurfaceFormatKHR          surf_format;
-	VkPresentModeKHR            present_mode;
-	VkExtent2D                  extent;
-	VkCommandPool               command_pool;
-	uint32_t                    num_swap_chain_images;
-	VkImage                     swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
-	VkImageView                 swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
+  VkQueue                     queue_graphics;
+  VkQueue                     queue_compute;
+  VkQueue                     queue_transfer;
+  int32_t                     queue_idx_graphics;
+  int32_t                     queue_idx_compute;
+  int32_t                     queue_idx_transfer;
+  VkSurfaceKHR                surface;
+  VkSwapchainKHR              swap_chain;
+  VkSurfaceFormatKHR          surf_format;
+  VkPresentModeKHR            present_mode;
+  VkExtent2D                  extent;
+  VkCommandPool               command_pool;
+  uint32_t                    num_swap_chain_images;
+  VkImage                     swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
+  VkImageView                 swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
 
-	VkSampler                   tex_sampler;
-	VkSampler                   tex_sampler_nearest;
-	uint32_t                    num_command_buffers;
-	VkCommandBuffer             *command_buffers;
-	VkCommandBuffer             cmd_buf_current;
+  VkSampler                   tex_sampler;
+  VkSampler                   tex_sampler_nearest;
+  uint32_t                    num_command_buffers;
+  VkCommandBuffer             *command_buffers;
+  VkCommandBuffer             cmd_buf_current;
 
-	uint32_t                    num_extensions;
-	VkExtensionProperties       *extensions;
+  uint32_t                    num_extensions;
+  VkExtensionProperties       *extensions;
 
-	uint32_t                    num_layers;
-	VkLayerProperties           *layers;
+  uint32_t                    num_layers;
+  VkLayerProperties           *layers;
 
-	VkDebugUtilsMessengerEXT    dbg_messenger;
+  VkDebugUtilsMessengerEXT    dbg_messenger;
 
-	VkSemaphore                 semaphores[NUM_SEMAPHORES];
-	VkFence                     fences_frame_sync[QVK_MAX_FRAMES_IN_FLIGHT];
+  VkSemaphore                 semaphores[NUM_SEMAPHORES];
+  VkFence                     fences_frame_sync[QVK_MAX_FRAMES_IN_FLIGHT];
 
 
-	int                         win_width;
-	int                         win_height;
-	uint64_t                    frame_counter;
+  int                         win_width;
+  int                         win_height;
+  uint64_t                    frame_counter;
 
-	SDL_Window                  *window;
-	uint32_t                    num_sdl2_extensions;
-	const char                  **sdl2_extensions;
+  SDL_Window                  *window;
+  uint32_t                    num_sdl2_extensions;
+  const char                  **sdl2_extensions;
 
-	uint32_t                    current_image_index;
+  uint32_t                    current_image_index;
 
   float                       ticks_to_nanoseconds;
 }
@@ -161,26 +121,8 @@ qvk_t;
 
 extern qvk_t qvk;
 
-
-
 #define _VK_EXTENSION_LIST \
   _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
-// none of these are supported on intel:
-// #define _VK_EXTENSION_LIST \
-// 	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
-// 	_VK_EXTENSION_DO(vkCreateAccelerationStructureNV) \
-// 	_VK_EXTENSION_DO(vkDestroyAccelerationStructureNV) \
-// 	_VK_EXTENSION_DO(vkGetAccelerationStructureMemoryRequirementsNV) \
-// 	_VK_EXTENSION_DO(vkBindAccelerationStructureMemoryNV) \
-// 	_VK_EXTENSION_DO(vkCmdBuildAccelerationStructureNV) \
-// 	_VK_EXTENSION_DO(vkCmdCopyAccelerationStructureNV) \
-// 	_VK_EXTENSION_DO(vkCmdTraceRaysNV) \
-// 	_VK_EXTENSION_DO(vkCreateRayTracingPipelinesNV) \
-// 	_VK_EXTENSION_DO(vkGetRayTracingShaderGroupHandlesNV) \
-// 	_VK_EXTENSION_DO(vkGetAccelerationStructureHandleNV) \
-// 	_VK_EXTENSION_DO(vkCmdWriteAccelerationStructuresPropertiesNV) \
-// 	_VK_EXTENSION_DO(vkCompileDeferredNV)
-
 
 #define _VK_EXTENSION_DO(a) extern PFN_##a q##a;
 _VK_EXTENSION_LIST
@@ -195,9 +137,6 @@ VkResult qvk_destroy_swapchain();
 
 VkResult qvk_create_command_pool_and_fences();
 VkResult qvk_destroy_command_pool_and_fences();
-
-VkResult qvk_shader_modules_initialize();
-VkResult qvk_shader_modules_destroy();
 
 VkResult qvk_textures_initialize();
 VkResult qvk_textures_destroy();
@@ -216,10 +155,3 @@ VkResult qvk_uniform_buffer_update();
 
 VkResult qvk_images_initialize();
 VkResult qvk_images_destroy();
-
-VkResult vkpt_asvgf_initialize();
-VkResult vkpt_asvgf_destroy();
-VkResult vkpt_asvgf_create_pipelines();
-VkResult vkpt_asvgf_destroy_pipelines();
-VkResult vkpt_asvgf_record_cmd_buffer(VkCommandBuffer cmd_buf);
-VkResult vkpt_asvgf_create_gradient_samples(VkCommandBuffer cmd_buf, uint32_t frame_num);

@@ -754,9 +754,8 @@ qvk_init()
 static VkResult
 destroy_swapchain()
 {
-  for(int i = 0; i < qvk.num_swap_chain_images; i++) {
+  for(int i = 0; i < qvk.num_swap_chain_images; i++)
     vkDestroyImageView  (qvk.device, qvk.swap_chain_image_views[i], NULL);
-  }
 
   vkDestroySwapchainKHR(qvk.device,   qvk.swap_chain, NULL);
   return VK_SUCCESS;
