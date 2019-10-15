@@ -26,6 +26,20 @@ typedef enum dt_connector_flags_t
 }
 dt_connector_flags_t;
 
+#if 0
+// TODO: gcc can't do this either.
+// TODO: so we probably want to generate these in a makefile,
+// TODO: something like = 0x$(echo -n "ui16" | xxd -p -e | cut -f2 -d" ")ul
+typedef enum dt_connector_format_t
+{
+  s_format_f32  = dt_token("f32"),
+  s_format_f16  = dt_token("f16"),
+  s_format_ui32 = dt_token("ui32"),
+  s_format_ui16 = dt_token("ui16"),
+  s_format_ui8  = dt_token("ui8"),
+}
+dt_connector_format_t;
+#endif
 
 // shared property of nodes and modules: how many connectors do we allocate at
 // max for each one of them:
