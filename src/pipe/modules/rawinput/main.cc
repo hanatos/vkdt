@@ -1,5 +1,6 @@
 // unfortunately we'll link to rawspeed, so we need c++ here.
 #include "RawSpeed-API.h"
+#include <omp.h>
 #include <unistd.h>
 #include <mutex>
 #include <ctime>
@@ -54,6 +55,8 @@ rawspeed_load_meta()
     lock.lock();
     if(meta == NULL)
     {
+      omp_set_nested(1);
+      omp_set_max_active_levels(5);
       // char datadir[PATH_MAX] = { 0 };
       char camfile[PATH_MAX] = { 0 };
       // dt_loc_get_datadir(datadir, sizeof(datadir));
