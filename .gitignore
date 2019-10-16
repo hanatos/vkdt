@@ -7,6 +7,6 @@ src/vkdt
 src/vkdt-cli
 bin/vkdt
 bin/vkdt-cli
-bin/data
+bin/data/cameras.xml
 bin/modules
 bin/imgui.ini

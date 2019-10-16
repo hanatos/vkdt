@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
     }
     while (SDL_PollEvent(&event));
 
+    // TODO: lock qvk.queue_mutex for the graphics drawing
     dt_gui_render_frame_imgui();
 
     dt_gui_render();

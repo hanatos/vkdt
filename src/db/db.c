@@ -25,6 +25,10 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
+  uint32_t id;
+  dt_thumbnails_load_one(thumbnails, "../doc/busybee", &id);
+  dt_thumbnails_load_one(thumbnails, "../doc/bomb", &id);
+
   DIR *dp = opendir(dirname);
   if(!dp)
   {
@@ -57,19 +61,19 @@ void dt_db_load_directory(
     snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
 
     const uint32_t imgid = db->image_cnt++;
-    db->image[imgid].thumbnail = -1u;
+    db->image[imgid].thumbnail = 0; // loading icon
     snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
         "%s", filename);
-    uint32_t thumbid = -1u;
+
+    // TODO: dispatch in background thread:
+    uint32_t thumbid;
     if(dt_thumbnails_load_one(
           thumbnails,
           filename,
-          &thumbid) != VK_SUCCESS) continue;
+          &thumbid) != VK_SUCCESS)
+      thumbid = 1; // broken icon
 
     db->image[imgid].thumbnail = thumbid;
-
-    // TODO: in fact, continue with th=-1u and trigger a
-    // TODO: thumbnail cache process in the background, try again later!
   }
   clock_t end = clock();
   dt_log(s_log_perf|s_log_db, "time to load thumbnails %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);

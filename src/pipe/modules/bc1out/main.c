@@ -14,15 +14,12 @@ void write_sink(
     dt_module_t *module,
     void *buf)
 {
-  const char *basename = dt_module_param_string(module, 0);
-  fprintf(stderr, "[bc1out] writing '%s'\n", basename);
+  const char *filename = dt_module_param_string(module, 0);
+  fprintf(stderr, "[bc1out] writing '%s'\n", filename);
 
   const uint32_t wd = module->connector[0].roi.wd;
   const uint32_t ht = module->connector[0].roi.ht;
   const uint8_t *in = (const uint8_t *)buf;
-
-  char filename[512];
-  snprintf(filename, sizeof(filename), "%s.bc1", basename);
 
   // go through all 4x4 blocks
   // TODO: parallelise via our thread pool or openmp or what?

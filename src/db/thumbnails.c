@@ -2,6 +2,7 @@
 #include "../ext/pthread-pool/pthread_pool.h"
 #include "db/db.h"
 #include "db/thumbnails.h"
+#include "db/murmur3.h"
 #include "qvk/qvk.h"
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
@@ -12,6 +13,7 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <time.h>
+#include <errno.h>
 
 
 VkResult
@@ -23,6 +25,16 @@ dt_thumbnails_init(
     const size_t heap_size)
 {
   memset(tn, 0, sizeof(*tn));
+
+  // TODO: getenv(XDG_CACHE_HOME)
+  const char *home = getenv("HOME");
+  snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/.cache/vkdt", home);
+  int err = mkdir(tn->cachedir, 0755);
+  if(err && errno != EEXIST)
+  {
+    dt_log(s_log_err|s_log_db, "could not create thumbnail cache directory!");
+    return VK_INCOMPLETE;
+  }
 
   tn->thumb_wd = wd,
   tn->thumb_ht = ht,
@@ -151,11 +163,28 @@ dt_thumbnails_cache_one(
 {
   if(!dt_db_accept_filename(filename)) return 1;
 
+  // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
+  // if that already exists with a newer timestamp than the cfg, bail out
+
   char cfgfilename[1024];
-  // load individual history stack if any
-  // TODO: try this or load default.cfg instead:
-  // snprintf(cfgfilename, sizeof(cfgfilename), "%s/%s.cfg", dirname, ep->d_name);
-  snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
+  char bc1filename[1024];
+  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%X.bc1", tn->cachedir, hash);
+  snprintf(cfgfilename, sizeof(cfgfilename), "%s.cfg", filename);
+  struct stat statbuf = {0};
+  time_t tcfg = 0, tbc1 = 0;
+
+  if(!stat(cfgfilename, &statbuf))
+    tcfg = statbuf.st_mtim.tv_sec;
+  else snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
+
+  if(!stat(bc1filename, &statbuf))
+  { // check timestamp
+    tbc1 = statbuf.st_mtim.tv_sec;
+    if(tcfg && (tbc1 >= tcfg)) return VK_SUCCESS; // already up to date
+  }
+
+  // load history stack
   dt_graph_init(graph);
   if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
@@ -177,7 +206,7 @@ dt_thumbnails_cache_one(
 
   modid = dt_module_get(graph, dt_token("bc1out"), dt_token("main"));
   if(modid < 0 ||
-     dt_module_set_param_string(graph->module + modid, dt_token("filename"), filename))
+     dt_module_set_param_string(graph->module + modid, dt_token("filename"), bc1filename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no bc1out module!", cfgfilename);
     dt_graph_cleanup(graph);
@@ -230,6 +259,7 @@ static void *thread_work(void *arg)
     }
   }
   closedir(dp);
+  // TODO: cleanup mutex and job here
   return 0;
 }
 
@@ -250,7 +280,7 @@ dt_thumbnails_cache_directory(
   // (note that this can be set via the omp_* api, maybe in rawinput/main.cc?)
   // because in fact the processing inside rawspeed (parallel via omp)
   // seems to be a big chunk of the bottleneck (after io)
-#if 0
+#if 0 // single threaded variant
   struct dirent *ep;
   char filename[2048];
   while((ep = readdir(dp)))
@@ -276,7 +306,9 @@ dt_thumbnails_cache_directory(
     job[k].tn = tn;
     threads_task(k, &thread_work, job+k);
   }
+  // TODO: do not wait (and wait in the cli instead after calling this)
   threads_wait();
+  // TODO: cleanup in worker function
   threads_mutex_destroy(&mutex);
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
     tn->graph[k].io_mutex = 0;
@@ -284,7 +316,28 @@ dt_thumbnails_cache_directory(
 #endif
 }
 
-// load one previously cached thumbnail to VkImage onto the GPU.
+// TODO: if db loads a directory, kick off thumbnail creation of directory in bg
+//       (no startup wait)
+//       this step would then be the only thing in the non-gui thread
+// TODO: for currently visible collection: batch-update lru and trigger thumbnail loading
+// TODO: if necessary (bc1 file exists but not loaded, maybe need "ready" flag)
+// TODO: this should be fast enough to run every refresh.
+//       start single-thread and maybe interleave with two threads, too
+//       (needs lru mutex then)
+void
+dt_thumbnails_load_list(
+    dt_thumbnails_t *tn,
+    dt_db_t         *db,
+    uint32_t        *collection,
+    uint32_t         cnt)
+{
+  // TODO: lock mutex once
+  // TODO: for all images:
+  // TODO: if bc1 is not loaded load_one() (which might fail quickly)
+  // TODO: if bc1 is loaded update lru
+}
+
+// load a previously cached thumbnail to a VkImage onto the GPU.
 // returns VK_SUCCESS on success
 VkResult
 dt_thumbnails_load_one(
@@ -292,11 +345,14 @@ dt_thumbnails_load_one(
     const char      *filename,
     uint32_t        *thumb_index)
 {
+  *thumb_index = -1u;
   dt_graph_t *graph = tn->graph;
   char cfgfilename[1024] = {0};
   char imgfilename[1024] = {0};
   snprintf(cfgfilename, sizeof(cfgfilename), "thumb.cfg");
-  snprintf(imgfilename, sizeof(imgfilename), "%s.bc1", filename);
+  // TODO: make sure ./dir/file and dir//file etc turn out to be the same
+  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+  snprintf(imgfilename, sizeof(imgfilename), "%s/%X.bc1", tn->cachedir, hash);
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;

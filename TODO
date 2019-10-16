@@ -2,11 +2,14 @@
 
 * use vkCmdClearColorImage() on output images to avoid inefficiencies on GPU
   while at it: using an incorrect src layout may lead to discarding the data during layout transform barriers
-* split export into pfmout, jpgout, ..
-* look at StorageImageWriteWithoutFormat to get rid of f2srgb8 etc
-  seems it just needs layout () uniform *writeonly* image2D img_out;
+* rename input modules to i-* and output to o-*
+* go through all code and clean out debugging comments
 
 # pipeline features
+
+* parallel queue submission
+  * lock mutex in main drawing loop
+  * thread system with slots for worker threads and for tasks?
 
 # pipeline reuse
 

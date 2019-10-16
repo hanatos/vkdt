@@ -12,13 +12,11 @@
 // separate memory block and can be displayed in the gui.
 // 
 // this stores a list of thumbnails, the correspondence
-// to imgid needs to be done externally (image struct with pointer to here)
+// to imgid is done in the dt_image_t struct.
 //
-// TODO: just map to a list of loaded images? load from dummy graph via jpg on disk vs full raw?
-// maybe:
-// 1) create thumbnails and default history here
-// ~/.config/vkdt/<full path from root>/imgname.history
-// ~/.cache/vkdt/<full path from root>/imgname_hash.bc1
+// create thumbnails and default history here
+// /<full path from root>/imgname.raw.cfg
+// ~/.cache/vkdt/imgnamehash.bc1
 
 typedef struct dt_thumbnail_t
 {
@@ -53,6 +51,8 @@ typedef struct dt_thumbnails_t
   threads_mutex_t       lru_lock;
   dt_thumbnail_t       *lru;   // least recently used thumbnail, delete this first
   dt_thumbnail_t       *mru;   // most  recently used thumbnail, append here
+
+  char                  cachedir[1024];
 }
 dt_thumbnails_t;
 
