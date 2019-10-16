@@ -26,8 +26,8 @@ void dt_db_load_directory(
     const char      *dirname)
 {
   uint32_t id;
-  dt_thumbnails_load_one(thumbnails, "../doc/busybee", &id);
-  dt_thumbnails_load_one(thumbnails, "../doc/bomb", &id);
+  dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id);
+  dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id);
 
   DIR *dp = opendir(dirname);
   if(!dp)

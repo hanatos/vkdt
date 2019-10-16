@@ -350,9 +350,13 @@ dt_thumbnails_load_one(
   char cfgfilename[1024] = {0};
   char imgfilename[1024] = {0};
   snprintf(cfgfilename, sizeof(cfgfilename), "thumb.cfg");
-  // TODO: make sure ./dir/file and dir//file etc turn out to be the same
-  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
-  snprintf(imgfilename, sizeof(imgfilename), "%s/%X.bc1", tn->cachedir, hash);
+  if(strncmp(filename, "data/", 5))
+  { // only hash images that aren't straight from our resource directory:
+    // TODO: make sure ./dir/file and dir//file etc turn out to be the same
+    uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+    snprintf(imgfilename, sizeof(imgfilename), "%s/%X.bc1", tn->cachedir, hash);
+  }
+  else snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;
