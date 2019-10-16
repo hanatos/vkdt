@@ -68,8 +68,9 @@ VkResult dt_thumbnails_init(
 // free all resources
 void dt_thumbnails_cleanup(dt_thumbnails_t *tn);
 
-// should be run in a separate thread:
-// precache bc1 thumbnails for a directory of raw images
+// precache bc1 thumbnails for a directory of raw images.
+// runs in a separate thread, returns immediately. if you want to make sure
+// all threads finished processing, run threads_wait() after this.
 VkResult dt_thumbnails_cache_directory(dt_thumbnails_t *tn, const char *dirname);
 
 // load one bc1 thumbnail for a given filename. fills thumb_index and returns

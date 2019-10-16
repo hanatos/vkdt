@@ -248,6 +248,9 @@ static void *thread_work(void *arg)
   struct dirent *ep;
   char filename[2048];
   int i = 0;
+  threads_mutex_t mutex;
+  threads_mutex_init(&mutex, 0);
+  j->tn->graph[j->k].io_mutex = &mutex;
   while((ep = readdir(dp)))
   {
     if((i++ % DT_THUMBNAILS_THREADS) == j->k)
@@ -259,7 +262,10 @@ static void *thread_work(void *arg)
     }
   }
   closedir(dp);
-  // TODO: cleanup mutex and job here
+  // cleanup mutex and job here
+  j->tn->graph[j->k].io_mutex = 0;
+  threads_mutex_destroy(&mutex);
+  free(j);
   return 0;
 }
 
@@ -295,23 +301,14 @@ dt_thumbnails_cache_directory(
 #else
   closedir(dp);
 
-  threads_mutex_t mutex;
-  threads_mutex_init(&mutex, 0);
-  cache_job_t job[DT_THUMBNAILS_THREADS];
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
-    tn->graph[k].io_mutex = &mutex;
-    snprintf(job[k].dirname, sizeof(job[k].dirname), "%s", dirname);
-    job[k].k = k;
-    job[k].tn = tn;
-    threads_task(k, &thread_work, job+k);
+    cache_job_t *job = malloc(sizeof(cache_job_t));
+    snprintf(job->dirname, sizeof(job->dirname), "%s", dirname);
+    job->k = k;
+    job->tn = tn;
+    threads_task(k, &thread_work, job);
   }
-  // TODO: do not wait (and wait in the cli instead after calling this)
-  threads_wait();
-  // TODO: cleanup in worker function
-  threads_mutex_destroy(&mutex);
-  for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
-    tn->graph[k].io_mutex = 0;
   return VK_SUCCESS;
 #endif
 }

@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
     // only width/height will matter here
     dt_thumbnails_init(&tn, 400, 400, 1000, 1ul<<30);
     dt_thumbnails_cache_directory(&tn, thumbnails);
+    threads_wait(); // wait for bg threads to finish
     dt_thumbnails_cleanup(&tn);
     qvk_cleanup();
     exit(0);
