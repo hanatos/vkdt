@@ -384,35 +384,52 @@ void render_lighttable()
     window_flags |= ImGuiWindowFlags_NoBackground;
     ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
-    ImGui::Begin("lt center", 0, window_flags);
+    ImGui::Begin("lighttable center", 0, window_flags);
 
+    int wd = 208, ht = 130, border = 10;
     const int ipl = 6;
-    for(int i=0;i<vkdt.db.collection_cnt;i++)
+    const int cnt = vkdt.db.collection_cnt;
+    const int lines = (cnt+ipl-1)/ipl;
+    ImGuiListClipper clipper;
+    clipper.Begin(lines);
+    while(clipper.Step())
     {
-      for(int k=0;k<ipl;k++)
+      // for whatever reason (gauge sizes?) imgui will always pass [0,1) as a first range.
+      // we don't want these to trigger a deferred load.
+      // in case [0,1) is within the visible region, however, [1,8) might be the next
+      // range, for instance. this means we'll need to do some weird dance to detect it
+      // TODO: ^
+      // fprintf(stderr, "displaying range %u %u\n", clipper.DisplayStart, clipper.DisplayEnd);
+      dt_thumbnails_load_list(
+          &vkdt.thumbnails,
+          &vkdt.db,
+          vkdt.db.collection,
+          clipper.DisplayStart * ipl,
+          clipper.DisplayEnd   * ipl);
+      for(int line=clipper.DisplayStart;line<clipper.DisplayEnd;line++)
       {
-        uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
-        if(tid == -1u) tid = 0; // TODO: set to broken image or loading image
-        // TODO: use our custom thumbnail widget here
-        // TODO: grab return value and parse the bits!
-        // TODO: have buttons been pressed? is it active/hovered?
-        // TODO: is it visible? if so, update lru list of thumbnails
-        // TODO: is thumbnail not available? push to job scheduler?
-        bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
-            ImVec2(208, 130),
-            ImVec2(0,0), ImVec2(1,1),
-            10,
-            ImVec4(0.5f,0.5f,0.5f,1.0f), ImVec4(1.0f,1.0f,1.0f,1.0f));
-        if(ret)
+        int i = line * ipl;
+        // TODO: call dt_thumbnails_load_list with visible section!
+        for(int k=0;k<ipl;k++)
         {
-          vkdt.db.current_image = vkdt.db.collection[i];
-          dt_view_switch(s_view_darkroom);
+          uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
+          if(tid == -1u) tid = 0;
+          bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
+              ImVec2(wd, ht),
+              ImVec2(0,0), ImVec2(1,1),
+              border,
+              ImVec4(0.5f,0.5f,0.5f,1.0f), ImVec4(1.0f,1.0f,1.0f,1.0f));
+          if(ret)
+          {
+            vkdt.db.current_image = vkdt.db.collection[i];
+            dt_view_switch(s_view_darkroom);
+          }
+          if(k < ipl-1) ImGui::SameLine();
+          // else NextColumn()
+          if(++i >= cnt) break;
         }
-        if(k < ipl-1) ImGui::SameLine();
-        if(++i >= vkdt.db.collection_cnt) break;
       }
     }
-
     ImGui::End(); // lt center window
   }
 }
@@ -427,7 +444,7 @@ void render_darkroom()
     window_flags |= ImGuiWindowFlags_NoBackground;
     ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
-    ImGui::Begin("center", 0, window_flags);
+    ImGui::Begin("darkroom center", 0, window_flags);
 
     // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));

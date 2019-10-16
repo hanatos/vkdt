@@ -76,3 +76,16 @@ VkResult dt_thumbnails_cache_directory(dt_thumbnails_t *tn, const char *dirname)
 // load one bc1 thumbnail for a given filename. fills thumb_index and returns
 // VK_SUCCESS if all went well.
 VkResult dt_thumbnails_load_one(dt_thumbnails_t *tn, const char *filename, uint32_t *thumb_index);
+
+// update thumbnails for a list of image ids. this will run in this thread
+// and return after it's done. it'll update lru lists and try to load bc1 thumbnails
+// from the cache location. it does not trigger a bc1 creation process (such as
+// dt_thumbnails_cache_directory() does).
+typedef struct dt_db_t dt_db_t;
+void
+dt_thumbnails_load_list(
+    dt_thumbnails_t *tn,           // thumbnails to write to
+    struct dt_db_t  *db,           // database with image structs
+    uint32_t        *collection,   // array with image ids
+    uint32_t         beg,          // updating image[k] with k in [beg, end)
+    uint32_t         end);         // 

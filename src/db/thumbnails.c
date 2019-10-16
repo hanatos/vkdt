@@ -326,12 +326,28 @@ dt_thumbnails_load_list(
     dt_thumbnails_t *tn,
     dt_db_t         *db,
     uint32_t        *collection,
-    uint32_t         cnt)
+    uint32_t         beg,
+    uint32_t         end)
 {
-  // TODO: lock mutex once
-  // TODO: for all images:
-  // TODO: if bc1 is not loaded load_one() (which might fail quickly)
-  // TODO: if bc1 is loaded update lru
+  // for all images in given collection
+  for(int k=beg;k<end;k++)
+  {
+    const uint32_t imgid = collection[k];
+    dt_image_t *img = db->image + imgid;
+    if(img->thumbnail == 1) continue; // known broken
+    if(img->thumbnail == 0)
+    { // not loaded
+      if(dt_thumbnails_load_one(tn, img->filename, &img->thumbnail))
+        img->thumbnail = 1;
+    }
+    else
+    { // loaded, update lru
+      dt_thumbnail_t *th = tn->thumb + img->thumbnail;
+      if(th == tn->lru) tn->lru = tn->lru->next; // move head
+      DLIST_RM_ELEMENT(th);                      // disconnect old head
+      tn->mru = DLIST_APPEND(tn->mru, th);       // append to end and move tail
+    }
+  }
 }
 
 // load a previously cached thumbnail to a VkImage onto the GPU.

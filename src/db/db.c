@@ -52,6 +52,15 @@ void dt_db_load_directory(
   db->collection_max = db->image_max;
   db->collection = malloc(sizeof(uint32_t)*db->collection_max);
 
+  // TODO:
+#if 0
+  // launch background thread and forget it
+  dt_thumbnails_cache_directory(tmp_tn, dirname);
+  // hm leak tmp_tn? store it inside db and cleanup with threads_wait() at the end?
+  // need some kill switch to make threads abort?
+#endif
+
+  // TODO: put this into thumbnails_load_list() and call it dynamically
   rewinddir(dp);
   clock_t beg = clock();
   while((ep = readdir(dp)))
