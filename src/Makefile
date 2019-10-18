@@ -46,7 +46,7 @@ cli/%.o: cli/%.c Makefile $(CLI_H)
 gui/%.o: gui/%.c Makefile $(GUI_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
-gui/%.o: gui/%.cpp Makefile $(GUI_H)
+gui/%.o: gui/%.cc Makefile $(GUI_H)
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
