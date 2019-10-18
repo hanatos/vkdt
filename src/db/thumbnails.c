@@ -500,7 +500,7 @@ dt_thumbnails_load_one(
     },
   };
   VkDescriptorImageInfo img_info = {
-    .sampler       = qvk.tex_sampler, // qvk.tex_sampler_nearest,
+    .sampler       = wd > 32 ? qvk.tex_sampler : qvk.tex_sampler_nearest,
     .imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
   };
   VkWriteDescriptorSet img_dset = {
