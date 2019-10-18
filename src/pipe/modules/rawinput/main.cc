@@ -7,6 +7,7 @@
 
 extern "C" {
 #include "modules/api.h"
+#include "adobe_coeff.h"
 
 static rawspeed::CameraMetaData *meta = 0;
 
@@ -197,6 +198,12 @@ void modify_roi_out(
   mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
+  const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
+  fprintf(stderr, "XXX id %s\n", id);
+  float cam_xyz[12];
+  dt_dcraw_adobe_coeff(id, (float(*)[12]) cam_xyz);
+  for(int k=0;k<9;k++)
+    mod->img_param.cam_xyz[k] = cam_xyz[k];
   // uncrop bayer sensor filter
   rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
   mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();

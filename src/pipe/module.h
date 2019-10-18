@@ -29,6 +29,7 @@ typedef struct dt_image_params_t
   float whitebalance[4];
   uint32_t filters;
   // TODO: other interesting things?
+  float cam_xyz[9];
 }
 dt_image_params_t;
 
