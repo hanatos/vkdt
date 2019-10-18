@@ -40,6 +40,8 @@ dt_thumbnails_init(
   tn->thumb_ht = ht,
   tn->thumb_max = cnt;
 
+  if(cnt == 0) return VK_SUCCESS;
+
   tn->thumb_cnt = 0;
   tn->thumb = malloc(sizeof(dt_thumbnail_t)*tn->thumb_max);
   memset(tn->thumb, 0, sizeof(dt_thumbnail_t)*tn->thumb_max);
@@ -161,7 +163,7 @@ dt_thumbnails_cache_one(
     dt_thumbnails_t *tn,
     const char      *filename) 
 {
-  if(!dt_db_accept_filename(filename)) return 1;
+  if(!dt_db_accept_filename(filename)) return VK_INCOMPLETE;
 
   // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
   // if that already exists with a newer timestamp than the cfg, bail out
@@ -176,7 +178,13 @@ dt_thumbnails_cache_one(
 
   if(!stat(cfgfilename, &statbuf))
     tcfg = statbuf.st_mtim.tv_sec;
-  else snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
+  else
+  {
+    snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
+    if(!stat(cfgfilename, &statbuf))
+      tcfg = statbuf.st_mtim.tv_sec;
+    else return VK_INCOMPLETE;
+  }
 
   if(!stat(bc1filename, &statbuf))
   { // check timestamp
@@ -313,14 +321,14 @@ dt_thumbnails_cache_directory(
 #endif
 }
 
-// TODO: if db loads a directory, kick off thumbnail creation of directory in bg
-//       (no startup wait)
-//       this step would then be the only thing in the non-gui thread
-// TODO: for currently visible collection: batch-update lru and trigger thumbnail loading
-// TODO: if necessary (bc1 file exists but not loaded, maybe need "ready" flag)
-// TODO: this should be fast enough to run every refresh.
-//       start single-thread and maybe interleave with two threads, too
-//       (needs lru mutex then)
+// 1) if db loads a directory, kick off thumbnail creation of directory in bg
+//    this step is the only thing in the non-gui thread
+// 2) for currently visible collection: batch-update lru and trigger thumbnail loading
+//    if necessary (bc1 file exists but not loaded, maybe need "ready" flag)
+//    this should be fast enough to run every refresh.
+//    start single-thread and maybe interleave with two threads, too
+//    (needs lru mutex then)
+// this function is 2):
 void
 dt_thumbnails_load_list(
     dt_thumbnails_t *tn,

@@ -38,8 +38,6 @@ int main(int argc, char *argv[])
   }
   if(dt_gui_init()) exit(1);
 
-  // TODO: clean up view mode logic!
-
   vkdt.view_mode = s_view_cnt;
   if((statbuf.st_mode & S_IFMT) == S_IFDIR)
   {
@@ -48,6 +46,17 @@ int main(int argc, char *argv[])
     dt_db_init(&vkdt.db);
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, fname);
     dt_view_switch(s_view_lighttable);
+
+    // also we have a temporary thumbnails struct and background threads
+    // to create thumbnails, if necessary.
+    // we'll elegantly leak all this memory:
+    dt_thumbnails_t *tn = malloc(sizeof(*tn));
+    // only width/height will matter here
+    dt_thumbnails_init(tn, 400, 400, 0, 0);
+    dt_thumbnails_cache_directory(tn, fname);
+    // we should really do this (but don't):
+    // threads_wait(); // wait for bg threads to finish
+    // dt_thumbnails_cleanup(tn);
   }
   else
   {
