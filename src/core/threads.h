@@ -20,6 +20,12 @@ void threads_global_cleanup();
 // push a new task (task < threads_num()) with given function and argument
 void threads_task(int task, void *(*func)(void *arg), void *arg);
 
+// abandon all work and prepare for shutdown
+void threads_shutdown();
+
+// query shutdown
+int threads_shutting_down();
+
 // wait for all tasks to complete
 void threads_wait();
 

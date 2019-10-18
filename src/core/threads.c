@@ -31,6 +31,8 @@ typedef struct threads_t
 
   // sync init:
   atomic_int_fast32_t init;
+
+  int shutdown;
 }
 threads_t;
 
@@ -77,6 +79,7 @@ static inline void threads_init(threads_t *t)
   for(int k=0;k<t->num_threads;k++)
     pthread_pool_worker_init(t->worker + k, &t->pool, NULL);
   t->init = 0;
+  t->shutdown = 0;
 
   t->task = malloc(sizeof(pthread_pool_task_t)*t->num_threads);
   t->cpuid = malloc(sizeof(uint32_t)*t->num_threads);
@@ -162,6 +165,8 @@ static inline void threads_cleanup(threads_t *t)
 
 void threads_global_cleanup()
 {
+  threads_shutdown();
+  threads_wait(); // does not appear to cause deadlocks even if not currently running
   threads_tls_cleanup(&thr);
   threads_cleanup(&thr);
 }
@@ -179,4 +184,14 @@ void threads_wait()
 int threads_num()
 {
   return thr.num_threads;
+}
+
+void threads_shutdown()
+{
+  thr.shutdown = 1;
+}
+
+int threads_shutting_down()
+{
+  return thr.shutdown;
 }

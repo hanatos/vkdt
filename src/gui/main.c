@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
   }
   if(dt_gui_init()) exit(1);
 
+  dt_thumbnails_t *tmp_tn = 0;
   vkdt.view_mode = s_view_cnt;
   if((statbuf.st_mode & S_IFMT) == S_IFDIR)
   {
@@ -50,13 +51,10 @@ int main(int argc, char *argv[])
     // also we have a temporary thumbnails struct and background threads
     // to create thumbnails, if necessary.
     // we'll elegantly leak all this memory:
-    dt_thumbnails_t *tn = malloc(sizeof(*tn));
+    tmp_tn = malloc(sizeof(dt_thumbnails_t));
     // only width/height will matter here
-    dt_thumbnails_init(tn, 400, 400, 0, 0);
-    dt_thumbnails_cache_directory(tn, fname);
-    // we should really do this (but don't):
-    // threads_wait(); // wait for bg threads to finish
-    // dt_thumbnails_cleanup(tn);
+    dt_thumbnails_init(tmp_tn, 400, 400, 0, 0);
+    dt_thumbnails_cache_directory(tmp_tn, fname);
   }
   else
   {
@@ -120,5 +118,6 @@ int main(int argc, char *argv[])
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   dt_db_cleanup(&vkdt.db);
   threads_global_cleanup();
+  if(tmp_tn) dt_thumbnails_cleanup(tmp_tn);
   exit(0);
 }

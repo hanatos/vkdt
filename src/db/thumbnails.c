@@ -171,7 +171,7 @@ dt_thumbnails_cache_one(
   char cfgfilename[1024];
   char bc1filename[1024];
   uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%X.bc1", tn->cachedir, hash);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s.cfg", filename);
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
@@ -268,6 +268,7 @@ static void *thread_work(void *arg)
       snprintf(filename, sizeof(filename), "%s/%s", j->dirname, ep->d_name);
       (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn, filename);
     }
+    if(threads_shutting_down()) break;
   }
   closedir(dp);
   // cleanup mutex and job here
@@ -375,7 +376,7 @@ dt_thumbnails_load_one(
   { // only hash images that aren't straight from our resource directory:
     // TODO: make sure ./dir/file and dir//file etc turn out to be the same
     uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
-    snprintf(imgfilename, sizeof(imgfilename), "%s/%X.bc1", tn->cachedir, hash);
+    snprintf(imgfilename, sizeof(imgfilename), "%s/%x.bc1", tn->cachedir, hash);
   }
   else snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
   struct stat statbuf = {0};
