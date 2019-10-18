@@ -36,7 +36,6 @@ void dt_db_load_directory(
     return;
   }
   struct dirent *ep;
-  char filename[2048];
   db->image_max = 0;
   while((ep = readdir(dp)))
   {
@@ -47,45 +46,26 @@ void dt_db_load_directory(
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);
-  db->image_cnt = 0;
 
   db->collection_max = db->image_max;
   db->collection = malloc(sizeof(uint32_t)*db->collection_max);
 
-  // TODO:
-#if 0
-  // launch background thread and forget it
-  dt_thumbnails_cache_directory(tmp_tn, dirname);
-  // hm leak tmp_tn? store it inside db and cleanup with threads_wait() at the end?
-  // need some kill switch to make threads abort?
-#endif
-
-  // TODO: put this into thumbnails_load_list() and call it dynamically
+  // the gui thread in main.c starts two background threads creating thumbnails, if needed.
+  // thumbnails_load_list() will load the created bc1, triggered in render.cc
   rewinddir(dp);
   clock_t beg = clock();
   while((ep = readdir(dp)))
   {
     if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
     if(!dt_db_accept_filename(ep->d_name)) continue;
-    snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
 
     const uint32_t imgid = db->image_cnt++;
     db->image[imgid].thumbnail = 0; // loading icon
     snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
-        "%s", filename);
-
-    // TODO: dispatch in background thread:
-    uint32_t thumbid;
-    if(dt_thumbnails_load_one(
-          thumbnails,
-          filename,
-          &thumbid) != VK_SUCCESS)
-      thumbid = 1; // broken icon
-
-    db->image[imgid].thumbnail = thumbid;
+      "%s/%s", dirname, ep->d_name);
   }
   clock_t end = clock();
-  dt_log(s_log_perf|s_log_db, "time to load thumbnails %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
+  dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
   // collect all images: // TODO: abstract more
   db->collection_cnt = db->image_cnt;

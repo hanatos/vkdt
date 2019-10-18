@@ -404,12 +404,11 @@ void render_lighttable()
           &vkdt.thumbnails,
           &vkdt.db,
           vkdt.db.collection,
-          clipper.DisplayStart * ipl,
-          clipper.DisplayEnd   * ipl);
+          MIN(clipper.DisplayStart * ipl, vkdt.db.collection_cnt-1),
+          MIN(clipper.DisplayEnd   * ipl, vkdt.db.collection_cnt));
       for(int line=clipper.DisplayStart;line<clipper.DisplayEnd;line++)
       {
         int i = line * ipl;
-        // TODO: call dt_thumbnails_load_list with visible section!
         for(int k=0;k<ipl;k++)
         {
           uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;

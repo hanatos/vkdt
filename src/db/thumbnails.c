@@ -42,7 +42,6 @@ dt_thumbnails_init(
 
   if(cnt == 0) return VK_SUCCESS;
 
-  tn->thumb_cnt = 0;
   tn->thumb = malloc(sizeof(dt_thumbnail_t)*tn->thumb_max);
   memset(tn->thumb, 0, sizeof(dt_thumbnail_t)*tn->thumb_max);
   // need at least one extra slot to catch free block (if contiguous, else more)
@@ -230,6 +229,8 @@ dt_thumbnails_cache_one(
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
     dt_graph_cleanup(graph);
+    // mark as dead
+    link("data/bomb.bc1", bc1filename);
     return 4;
   }
   clock_t end = clock();
@@ -347,14 +348,16 @@ dt_thumbnails_load_list(
     if(img->thumbnail == 0)
     { // not loaded
       if(dt_thumbnails_load_one(tn, img->filename, &img->thumbnail))
-        img->thumbnail = 1;
+        img->thumbnail = 0;
     }
-    else
+    else if(img->thumbnail > 0 && img->thumbnail < tn->thumb_max)
     { // loaded, update lru
+      // threads_mutex_lock(&tn->lru_lock);
       dt_thumbnail_t *th = tn->thumb + img->thumbnail;
       if(th == tn->lru) tn->lru = tn->lru->next; // move head
       DLIST_RM_ELEMENT(th);                      // disconnect old head
       tn->mru = DLIST_APPEND(tn->mru, th);       // append to end and move tail
+      // threads_mutex_unlock(&tn->lru_lock);
     }
   }
 }
@@ -391,13 +394,14 @@ dt_thumbnails_load_one(
     return VK_INCOMPLETE;
   }
 
-  // TODO: assume mutex is locked from the outside?
   // allocate thumbnail from lru list
+  // threads_mutex_lock(&tn->lru_lock);
   dt_thumbnail_t *th = tn->lru;
   tn->lru = tn->lru->next;             // move head
   DLIST_RM_ELEMENT(th);                // disconnect old head
   tn->mru = DLIST_APPEND(tn->mru, th); // append to end and move tail
   *thumb_index = th - tn->thumb;
+  // threads_mutex_unlock(&tn->lru_lock);
   
 #if 1 // cache eviction
   // clean up memory in case there was something here:

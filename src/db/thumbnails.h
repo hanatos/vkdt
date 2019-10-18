@@ -45,10 +45,9 @@ typedef struct dt_thumbnails_t
   VkDescriptorPool      dset_pool;
   VkDescriptorSetLayout dset_layout;
   dt_thumbnail_t       *thumb;
-  int                   thumb_cnt;
   int                   thumb_max;
 
-  threads_mutex_t       lru_lock;
+  // threads_mutex_t       lru_lock; // currently not needed, only using lru cache in gui thread
   dt_thumbnail_t       *lru;   // least recently used thumbnail, delete this first
   dt_thumbnail_t       *mru;   // most  recently used thumbnail, append here
 

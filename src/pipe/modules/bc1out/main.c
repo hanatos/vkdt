@@ -43,10 +43,16 @@ void write_sink(
     }
   }
 
-  gzFile f = gzopen(filename, "wb");
+  char tmpfile[1024];
+  snprintf(tmpfile, sizeof(tmpfile), "%s.temp", filename);
+  gzFile f = gzopen(tmpfile, "wb");
   // write magic, version, width, height
   uint32_t header[4] = { dt_token("bc1z"), 1, wd, ht };
   gzwrite(f, header, sizeof(uint32_t)*4);
   gzwrite(f, out, sizeof(uint8_t)*8*num_blocks);
   gzclose(f);
+  // atomically create filename only when we're quite done writing:
+  unlink(filename); // just to be sure the link will work
+  link(tmpfile, filename);
+  unlink(tmpfile);
 }
