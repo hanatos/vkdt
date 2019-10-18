@@ -1,7 +1,7 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-#include "blur2_head.glsl"
+#include "blur_head.glsl"
 
 void
 main()

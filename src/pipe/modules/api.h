@@ -66,6 +66,7 @@ dt_api_blur(
     int          nodeid_input,
     int          connid_input,
     int          radius)
+  // TODO: dt_token channels // and support r, rg, rgb, rgba
 {
   // TODO: detect pixel format on input and blur the whole thing in separate kernels
   const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
@@ -97,13 +98,13 @@ dt_api_blur(
   for(int i=0;i<it;i++)
   {
     // TODO: could run these on downsampled image instead
-    // add nodes blur2h and blur2v
+    // add nodes blurh and blurv
     assert(graph->num_nodes < graph->max_nodes);
-    const int id_blur2h = graph->num_nodes++;
-    dt_node_t *node_blur2h = graph->node + id_blur2h;
-    *node_blur2h = (dt_node_t) {
+    const int id_blurh = graph->num_nodes++;
+    dt_node_t *node_blurh = graph->node + id_blurh;
+    *node_blurh = (dt_node_t) {
       .name   = dt_token("shared"),
-      .kernel = dt_token("blur2h"),
+      .kernel = dt_token("blurh"),
       .module = module,
       .wd     = wd,
       .ht     = ht,
@@ -116,11 +117,11 @@ dt_api_blur(
       .push_constant = {1u<<i},
     };
     assert(graph->num_nodes < graph->max_nodes);
-    const int id_blur2v = graph->num_nodes++;
-    dt_node_t *node_blur2v = graph->node + id_blur2v;
-    *node_blur2v = (dt_node_t) {
+    const int id_blurv = graph->num_nodes++;
+    dt_node_t *node_blurv = graph->node + id_blurv;
+    *node_blurv = (dt_node_t) {
       .name   = dt_token("shared"),
-      .kernel = dt_token("blur2v"),
+      .kernel = dt_token("blurv"),
       .module = module,
       .wd     = wd,
       .ht     = ht,
@@ -133,12 +134,43 @@ dt_api_blur(
       .push_constant = {1u<<i},
     };
     // interconnect nodes:
-    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blur2h, 0));
-    CONN(dt_node_connect(graph, id_blur2h,  1,         id_blur2v, 0));
-    nid_input = id_blur2v;
+    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blurh, 0));
+    CONN(dt_node_connect(graph, id_blurh,   1,         id_blurv, 0));
+    nid_input = id_blurv;
     cid_input = 1;
   }
   return nid_input;
+}
+
+static inline void
+dt_api_guided_filter_full(
+    dt_graph_t  *graph,        // graph to add nodes to
+    dt_module_t *module,
+    dt_roi_t    *roi,
+    int         *entry_nodeid,
+    int         *exit_nodeid,
+    int          radius,       // size of blur
+    float        epsilon)      // tell edges from noise
+{
+  // mean_I  = mean(I)
+  // mean_p  = mean(p)
+  // corr_I  = mean(I*I)
+  // corr_Ip = mean(I*p)
+  // var_I   = corr_I - mean_I*mean_I
+  // cov_Ip  = corr_Ip - mean_I*mean_p
+  // a = cov_Ip / (var_i + epsilon)
+  // b = mean_p - a * mean_I
+  // mean_a = mean(a)
+  // mean_b = mean(b)
+  // output = mean_a*I + mean_b
+
+  // these need to be four channels:
+  // TODO: compute rgba image (I,p,I*I,I*p)
+  // TODO: blur rgba image to get mean_(I,p) corr(I,Ip)
+  // TODO: compute a,b from that (with var_I, cov_Ip as intermediates in the shader)
+  // this is the same as in the p=I case below:
+  // TODO: blur(a,b)
+  // TODO: assemble output
 }
 
 // implements a guided filter without guide image, i.e. p=I.
@@ -173,7 +205,7 @@ dt_api_guided_filter(
     .roi    = *roi,
   };
 
-  // TODO: compute grey scale image rg32 with (I, I*I)
+  // compute grey scale image rg32 with (I, I*I)
   assert(graph->num_nodes < graph->max_nodes);
   const int id_guided1 = graph->num_nodes++;
   *entry_nodeid = id_guided1;
@@ -222,7 +254,7 @@ dt_api_guided_filter(
   // and blur once more:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  const int id_blur2 = dt_api_blur(graph, module, id_guided2, 1, radius);
+  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
 
   // final kernel:
   // output = mean_a * I + mean_b
@@ -253,7 +285,7 @@ dt_api_guided_filter(
       co, // - output rgba f16
     },
   };
-  CONN(dt_node_connect(graph, id_blur2, 1, id_guided3, 1));
+  CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
   *exit_nodeid = id_guided3;
 }
 
