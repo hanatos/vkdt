@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <mutex>
 #include <ctime>
+#include <math.h>
 
 extern "C" {
 #include "modules/api.h"
@@ -169,6 +170,36 @@ void cleanup(dt_module_t *mod)
   mod->data = 0;
 }
 
+int mat3inv(float *const dst, const float *const src)
+{
+#define A(y, x) src[(y - 1) * 3 + (x - 1)]
+#define B(y, x) dst[(y - 1) * 3 + (x - 1)]
+
+  const float det = A(1, 1) * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3))
+                    - A(2, 1) * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3))
+                    + A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+
+  const float epsilon = 1e-7f;
+  if(fabsf(det) < epsilon) return 1;
+
+  const float invDet = 1.f / det;
+
+  B(1, 1) = invDet * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3));
+  B(1, 2) = -invDet * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3));
+  B(1, 3) = invDet * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+
+  B(2, 1) = -invDet * (A(3, 3) * A(2, 1) - A(3, 1) * A(2, 3));
+  B(2, 2) = invDet * (A(3, 3) * A(1, 1) - A(3, 1) * A(1, 3));
+  B(2, 3) = -invDet * (A(2, 3) * A(1, 1) - A(2, 1) * A(1, 3));
+
+  B(3, 1) = invDet * (A(3, 2) * A(2, 1) - A(3, 1) * A(2, 2));
+  B(3, 2) = -invDet * (A(3, 2) * A(1, 1) - A(3, 1) * A(1, 2));
+  B(3, 3) = invDet * (A(2, 2) * A(1, 1) - A(2, 1) * A(1, 2));
+#undef A
+#undef B
+  return 0;
+}
+
 // this callback is responsible to set the full_{wd,ht} dimensions on the
 // regions of interest on all "write"|"source" channels
 void modify_roi_out(
@@ -199,11 +230,75 @@ void modify_roi_out(
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
   const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
-  fprintf(stderr, "XXX id %s\n", id);
-  float cam_xyz[12];
-  dt_dcraw_adobe_coeff(id, (float(*)[12]) cam_xyz);
+  float xyz_to_cam[12], mat[9];
+  dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam);
+  mat3inv(mat, xyz_to_cam);
+
+  // adjust matrix for camrgb -> rec2020 d65
+  const double D65[] = {0.95045471, 1.00000000, 1.08905029};
+  double cam_to_xyz[] = {
+    mat[0], mat[1], mat[2],
+    mat[3], mat[4], mat[5],
+    mat[6], mat[7], mat[8]};
+#if 0
+  // now white balance such that (1,1,1) maps to d65 in xyz:
+  // (we assume the previous wb coeffs did this for us)
+  for(int j=0;j<3;j++)
+  {
+    double norm = 0.0;
+    for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
+    for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= D65[j] / norm;
+  }
+#else
+  // bradford adapt 1 1 1 -> d65
+  double wh[3] = {0.0};
+  for(int j=0;j<3;j++)
+    for(int i=0;i<3;i++) wh[j] += cam_to_xyz[3*j+i];
+  double Bf[] = {
+    0.8951000,  0.2664000, -0.1614000,
+    -0.7502000,  1.7135000,  0.0367000,
+    0.0389000, -0.0685000,  1.0296000,
+  };
+  double Bb[] = {
+    0.9869929, -0.1470543,  0.1599627,
+    0.4323053,  0.5183603,  0.0492912,
+    -0.0085287,  0.0400428,  0.9684867,
+  };
+  double wh_b[3] = {0.0};
+  double d65_b[3] = {0.0};
+  for(int j=0;j<3;j++)
+    for(int i=0;i<3;i++)
+      wh_b[j] += Bf[3*j+i] * wh[i];
+  for(int j=0;j<3;j++)
+    for(int i=0;i<3;i++)
+      d65_b[j] += Bf[3*j+i] * D65[i];
+  double tmp[9] = {0.0};
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      tmp[3*j+i] = d65_b[j] / wh_b[j] * Bf[3*j+i];
+  double tmp2[9] = {0.0};
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+    tmp2[3*j+i] +=
+      Bb[3*j+k] * tmp[3*k+i];
+  double tmp3[9];
+  memcpy(tmp3, cam_to_xyz, sizeof(tmp3));
+  memset(cam_to_xyz, 0, sizeof(cam_to_xyz));
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+    cam_to_xyz[3*j+i] +=
+      tmp2[3*j+k] * tmp3[3*k+i];
+#endif
+
+  const float xyz_to_rec2020[] = {
+    1.7166511880, -0.3556707838, -0.2533662814,
+    -0.6666843518,  1.6164812366,  0.0157685458,
+    0.0176398574, -0.0427706133,  0.9421031212
+  };
+  float cam_to_rec2020[9] = {0.0f};
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+    cam_to_rec2020[3*j+i] +=
+      xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
   for(int k=0;k<9;k++)
-    mod->img_param.cam_xyz[k] = cam_xyz[k];
+    mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
+
   // uncrop bayer sensor filter
   rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
   mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();

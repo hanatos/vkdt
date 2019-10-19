@@ -594,6 +594,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
+  module->img_param = (dt_image_params_t){{0}};
   if(input >= 0)
   { // first copy image metadata if we have a unique "input" connector
     c = module->connector + input;

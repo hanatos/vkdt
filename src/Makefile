@@ -17,7 +17,7 @@ include cli/flat.mk
 
 clean: Makefile
 	rm -f vkdt vkdt-cli 
-	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O)
+	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O) $(DB_O)
 	rm -f pipe/modules/*/lib*.so
 	rm -f pipe/modules/*/*.spv
 
