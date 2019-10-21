@@ -89,8 +89,8 @@ int main(int argc, char *argv[])
       else if(event.type == SDL_WINDOWEVENT &&
           event.window.event == SDL_WINDOWEVENT_RESIZED &&
           event.window.windowID == SDL_GetWindowID(qvk.window))
-      {
-        // XXX need to rebuild the swap chain!
+      { // window resized, need to rebuild our swapchain:
+        dt_gui_recreate_swapchain();
       }
       else dt_view_handle_event(&event);
     }
