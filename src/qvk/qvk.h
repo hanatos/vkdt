@@ -52,13 +52,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #define QVK_MAX_FRAMES_IN_FLIGHT 2
-
-enum {
-  SEM_IMG_AVAILABLE   = 0,
-  SEM_RENDER_FINISHED = SEM_IMG_AVAILABLE   + QVK_MAX_FRAMES_IN_FLIGHT,
-  NUM_SEMAPHORES      = SEM_RENDER_FINISHED + QVK_MAX_FRAMES_IN_FLIGHT,
-};
-
 #define QVK_MAX_SWAPCHAIN_IMAGES 4
 
 // forward declare
@@ -100,10 +93,6 @@ typedef struct qvk_t
   VkLayerProperties           *layers;
 
   VkDebugUtilsMessengerEXT    dbg_messenger;
-
-  VkSemaphore                 semaphores[NUM_SEMAPHORES];
-  VkFence                     fences_frame_sync[QVK_MAX_FRAMES_IN_FLIGHT];
-
 
   int                         win_width;
   int                         win_height;

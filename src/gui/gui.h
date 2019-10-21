@@ -75,6 +75,9 @@ extern dt_gui_t vkdt;
 int  dt_gui_init();
 void dt_gui_cleanup();
 
+// create or resize swapchain
+VkResult dt_gui_recreate_swapchain();
+
 // draws imgui things, implemented in render.cc
 void dt_gui_render_frame_imgui();
 

@@ -636,15 +636,6 @@ void render_darkroom()
 // call from main loop:
 extern "C" void dt_gui_render_frame_imgui()
 {
-#if 0
-        if (g_SwapChainRebuild)
-        {
-            g_SwapChainRebuild = false;
-            ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
-            ImGui_ImplVulkanH_CreateWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, g_SwapChainResizeWidth, g_SwapChainResizeHeight, g_MinImageCount);
-            g_MainWindowData.FrameIndex = 0;
-        }
-#endif
   // Start the Dear ImGui frame
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplSDL2_NewFrame(qvk.window);

@@ -12,6 +12,7 @@
   
 int dt_gui_init()
 {
+  memset(&vkdt, 0, sizeof(vkdt));
   qvk.win_width  = 1920;
   qvk.win_height = 1080;
   qvk.window = SDL_CreateWindow("vkdt", 20, 50,
@@ -59,70 +60,10 @@ int dt_gui_init()
     return 1;
   }
 
-  // SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
-  QVK(qvk_create_swapchain());
+  dt_gui_recreate_swapchain();
 
-  // create the render pass
-  VkAttachmentDescription attachment_desc = {
-    .format = qvk.surf_format.format,
-    .samples = VK_SAMPLE_COUNT_1_BIT,
-    // clear enable?
-    .loadOp = 1 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-  };
-  VkAttachmentReference color_attachment = {
-    .attachment = 0,
-    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-  };
-  VkSubpassDescription subpass = {
-    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-    .colorAttachmentCount = 1,
-    .pColorAttachments = &color_attachment,
-  };
-  VkSubpassDependency dependency = {
-    .srcSubpass = VK_SUBPASS_EXTERNAL,
-    .dstSubpass = 0,
-    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-  };
-  VkRenderPassCreateInfo info = {
-    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-    .attachmentCount = 1,
-    .pAttachments = &attachment_desc,
-    .subpassCount = 1,
-    .pSubpasses = &subpass,
-    .dependencyCount = 1,
-    .pDependencies = &dependency,
-  };
-  const VkAllocationCallbacks* allocator = 0;
-  QVK(vkCreateRenderPass(qvk.device, &info, allocator, &vkdt.render_pass));
-
-  // create framebuffers
-  VkImageView attachment[1] = {};
-  VkFramebufferCreateInfo fb_create_info = {
-    .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-    .renderPass      = vkdt.render_pass,
-    .attachmentCount = 1,
-    .pAttachments    = attachment,
-    .width           = qvk.extent.width,
-    .height          = qvk.extent.height,
-    .layers          = 1,
-  };
-  vkdt.min_image_count = 2;
-  vkdt.image_count = qvk.num_swap_chain_images;
-  for(int i = 0; i < vkdt.image_count; i++)
-  {
-    attachment[0] = qvk.swap_chain_image_views[i];
-    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
-  }
-
-  // create command pool and fences and semaphores
+  // create command pool and fences and semaphores.
+  // assume image_count does not change, so we only need to do this once.
   for(int i = 0; i < vkdt.image_count; i++)
   {
     VkCommandPoolCreateInfo cmd_pool_create_info = {
@@ -189,6 +130,78 @@ int dt_gui_init()
   dt_gui_init_imgui();
 
   return 0;
+}
+
+// the following needs to be rerun on resize:
+VkResult
+dt_gui_recreate_swapchain()
+{
+  for(int i = 0; i < vkdt.image_count; i++)
+    vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
+  if(vkdt.render_pass)
+    vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
+  SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
+  QVK(qvk_create_swapchain());
+
+  // create the render pass
+  VkAttachmentDescription attachment_desc = {
+    .format = qvk.surf_format.format,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    // clear enable?
+    .loadOp = 1 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  };
+  VkAttachmentReference color_attachment = {
+    .attachment = 0,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+  };
+  VkSubpassDescription subpass = {
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &color_attachment,
+  };
+  VkSubpassDependency dependency = {
+    .srcSubpass = VK_SUBPASS_EXTERNAL,
+    .dstSubpass = 0,
+    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+  };
+  VkRenderPassCreateInfo info = {
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .attachmentCount = 1,
+    .pAttachments = &attachment_desc,
+    .subpassCount = 1,
+    .pSubpasses = &subpass,
+    .dependencyCount = 1,
+    .pDependencies = &dependency,
+  };
+  QVK(vkCreateRenderPass(qvk.device, &info, 0, &vkdt.render_pass));
+
+  // create framebuffers
+  VkImageView attachment[1] = {};
+  VkFramebufferCreateInfo fb_create_info = {
+    .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+    .renderPass      = vkdt.render_pass,
+    .attachmentCount = 1,
+    .pAttachments    = attachment,
+    .width           = qvk.extent.width,
+    .height          = qvk.extent.height,
+    .layers          = 1,
+  };
+  vkdt.min_image_count = 2;
+  vkdt.image_count = qvk.num_swap_chain_images;
+  for(int i = 0; i < vkdt.image_count; i++)
+  {
+    attachment[0] = qvk.swap_chain_image_views[i];
+    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
+  }
+  return VK_SUCCESS;
 }
 
 void dt_gui_cleanup()
