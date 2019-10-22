@@ -661,7 +661,7 @@ qvk_init()
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
-    if(!q##a) { dt_log(s_log_qvk, "warning: could not load function %s", #a); }
+    if(!q##a) { dt_log(s_log_qvk|s_log_err, "could not load function %s", #a); }
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
