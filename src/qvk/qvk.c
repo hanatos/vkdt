@@ -387,7 +387,7 @@ out:;
 }
 
 // this function works without gui and consequently does not init SDL
-int
+VkResult
 qvk_init()
 {
   threads_mutex_init(&qvk.queue_mutex, 0);
@@ -433,7 +433,7 @@ qvk_init()
     .ppEnabledExtensionNames = (const char * const*)ext,
   };
 
-  QVK(vkCreateInstance(&inst_create_info, NULL, &qvk.instance));
+  QVKR(vkCreateInstance(&inst_create_info, NULL, &qvk.instance));
 
   /* setup debug callback */
   VkDebugUtilsMessengerCreateInfoEXT dbg_create_info = {
@@ -450,15 +450,15 @@ qvk_init()
     .pUserData = NULL
   };
 
-  QVK(qvkCreateDebugUtilsMessengerEXT(qvk.instance, &dbg_create_info, NULL, &qvk.dbg_messenger));
+  QVKR(qvkCreateDebugUtilsMessengerEXT(qvk.instance, &dbg_create_info, NULL, &qvk.dbg_messenger));
 
   /* pick physical device (iterate over all but pick device 0 anyways) */
   uint32_t num_devices = 0;
-  QVK(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, NULL));
+  QVKR(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, NULL));
   if(num_devices == 0)
     return 1;
   VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
-  QVK(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
+  QVKR(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
   // can probably remove a few more here:
   VkPhysicalDeviceFeatures required_features = {
       .robustBufferAccess = 1,
@@ -697,7 +697,7 @@ QVK_FEATURE_DO(inheritedQueries)
   };
 
   /* create device and queue */
-  QVK(vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device));
+  QVKR(vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device));
 
   vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics);
   vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute);
@@ -725,7 +725,7 @@ QVK_FEATURE_DO(inheritedQueries)
     .minLod                  = 0.0f,
     .maxLod                  = 128.0f,
   };
-  QVK(vkCreateSampler(qvk.device, &sampler_info, NULL, &qvk.tex_sampler));
+  QVKR(vkCreateSampler(qvk.device, &sampler_info, NULL, &qvk.tex_sampler));
   ATTACH_LABEL_VARIABLE(qvk.tex_sampler, SAMPLER);
   VkSamplerCreateInfo sampler_nearest_info = {
     .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -740,10 +740,10 @@ QVK_FEATURE_DO(inheritedQueries)
     .unnormalizedCoordinates = VK_FALSE,
     .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_NEAREST,
   };
-  QVK(vkCreateSampler(qvk.device, &sampler_nearest_info, NULL, &qvk.tex_sampler_nearest));
+  QVKR(vkCreateSampler(qvk.device, &sampler_nearest_info, NULL, &qvk.tex_sampler_nearest));
   ATTACH_LABEL_VARIABLE(qvk.tex_sampler_nearest, SAMPLER);
 
-  return 0;
+  return VK_SUCCESS;
 }
 
 static VkResult
