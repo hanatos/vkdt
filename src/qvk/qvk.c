@@ -590,7 +590,7 @@ QVK_FEATURE_DO(inheritedQueries)
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
 #define QVK_FEATURE_DO(F)\
     if(dev_features.F == 0 && required_features.F == 1)\
-      dt_log(s_log_qvk|s_log_err, "device does not support requested feature ##F");
+      dt_log(s_log_qvk|s_log_err, "device does not support requested feature " #F );
     QVK_FEATURE_LIST
 #undef QVK_FEATURE_DO
 #undef QVK_FEATURE_LIST
