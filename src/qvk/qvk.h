@@ -38,6 +38,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     VkResult _res = __VA_ARGS__; \
     if(_res != VK_SUCCESS) { \
       dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
+      return 1; \
     } \
   } while(0)
 

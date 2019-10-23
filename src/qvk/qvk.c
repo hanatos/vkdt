@@ -719,9 +719,9 @@ QVK_FEATURE_DO(inheritedQueries)
   /* create device and queue */
   QVK(vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device));
 
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_transfer, 0, &qvk.queue_transfer);
+  QVK(vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics));
+  QVK(vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute));
+  QVK(vkGetDeviceQueue(qvk.device, qvk.queue_idx_transfer, 0, &qvk.queue_transfer));
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
