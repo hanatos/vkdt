@@ -459,7 +459,7 @@ qvk_init()
     return 1;
   VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
   QVK(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
-  // could probably remove the zero lines here to make the code look more compact:
+  // can probably remove a few more here:
   VkPhysicalDeviceFeatures required_features = {
       .robustBufferAccess = 1,
       .fullDrawIndexUint32 = 1,
@@ -467,24 +467,15 @@ qvk_init()
       .independentBlend = 1,
       .geometryShader = 1,
       .tessellationShader = 1,
-      .sampleRateShading = 0,
       .dualSrcBlend = 1,
       .logicOp = 1,
       .multiDrawIndirect = 1,
       .drawIndirectFirstInstance = 1,
       .depthClamp = 1,
       .depthBiasClamp = 1,
-      .fillModeNonSolid = 0,
       .depthBounds = 1,
-      .wideLines = 0,
-      .largePoints = 0,
-      .alphaToOne = 1,
-      .multiViewport = 0,
       .samplerAnisotropy = 1,
-      .textureCompressionETC2 = 0,
-      .textureCompressionASTC_LDR = 0,
-      .textureCompressionBC = 0,
-      .occlusionQueryPrecise = 0,
+      .textureCompressionBC = 1,
       .pipelineStatisticsQuery = 1,
       .vertexPipelineStoresAndAtomics = 1,
       .fragmentStoresAndAtomics = 1,
@@ -502,19 +493,9 @@ qvk_init()
       .shaderCullDistance = 1,
       .shaderFloat64 = 1,
       .shaderInt64 = 1,
-      .shaderInt16 = 1,
       .shaderResourceResidency = 1,
       .shaderResourceMinLod = 1,
       .sparseBinding = 1,
-      .sparseResidencyBuffer = 0,
-      .sparseResidencyImage2D = 0,
-      .sparseResidencyImage3D = 0,
-      .sparseResidency2Samples = 0,
-      .sparseResidency4Samples = 0,
-      .sparseResidency8Samples = 0,
-      .sparseResidency16Samples = 0,
-      .sparseResidencyAliased = 0,
-      .variableMultisampleRate = 0,
       .inheritedQueries = 1,
     };
 
@@ -584,7 +565,6 @@ QVK_FEATURE_DO(inheritedQueries)
     qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
 
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
-    dt_log(s_log_qvk, "store without format %d", dev_features.shaderStorageImageWriteWithoutFormat);
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     dt_log(s_log_qvk, "max image allocation size %u x %u",
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
