@@ -28,16 +28,41 @@ typedef enum dt_gui_view_t
 }
 dt_gui_view_t;
 
+// some global gui config options. this is a minimal
+// set of static user input
+typedef struct dt_gui_style_t
+{
+  float panel_width_frac;   // width of the side panel as fraction of the total window width
+  float border_frac;        // width of border between image and panel
+}
+dt_gui_style_t;
+
+// this is also gui style related, but has to be recomputed every time the
+// window is resized and may contain user input.
+typedef struct dt_gui_state_t
+{
+  // center window configuration
+  float look_at_x;
+  float look_at_y;
+  float scale;
+  int   center_x, center_y;
+  int   center_wd, center_ht;
+  int   panel_wd;
+}
+dt_gui_state_t;
+
 typedef struct dt_graph_t dt_graph_t;
 typedef struct dt_gui_t
 {
   VkRenderPass     render_pass;
-  VkPipelineCache  pipeline_cache;   // XXX
-  VkDescriptorPool descriptor_pool;   // XXX
+  VkPipelineCache  pipeline_cache;
+  VkDescriptorPool descriptor_pool;
   uint32_t         min_image_count;
   uint32_t         image_count;
 
   VkClearValue     clear_value;   // TODO: more colours
+  dt_gui_style_t   style;
+  dt_gui_state_t   state;
 
   uint32_t         frame_index;
   VkFence          fence         [DT_GUI_MAX_IMAGES];
@@ -54,15 +79,6 @@ typedef struct dt_gui_t
   dt_db_t          db;          // image list and current query
   dt_thumbnails_t  thumbnails;  // for light table mode
   dt_gui_view_t    view_mode;   // current view mode
-
-  // center window configuration
-  // TODO: put on display node, too?
-  float view_look_at_x;
-  float view_look_at_y;
-  float view_scale;
-  int   view_x, view_y;
-  int   view_width;
-  int   view_height;
 
   // current gui module/parameter configuration
   int num_widgets;

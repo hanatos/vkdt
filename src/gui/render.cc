@@ -47,16 +47,16 @@ void view_to_image(
   float ht  = (float)out->connector[0].roi.ht;
   float fwd = (float)out->connector[0].roi.full_wd/out->connector[0].roi.scale;
   float fht = (float)out->connector[0].roi.full_ht/out->connector[0].roi.scale;
-  float imwd = vkdt.view_width, imht = vkdt.view_height;
+  float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
   float scale = MIN(imwd/wd, imht/ht);
-  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
-  float cvx = vkdt.view_width *.5f;
-  float cvy = vkdt.view_height*.5f;
-  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
-  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
-  float ox = cvx - scale * vkdt.view_look_at_x;
-  float oy = cvy - scale * vkdt.view_look_at_y;
-  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+  if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
+  float cvx = vkdt.state.center_wd *.5f;
+  float cvy = vkdt.state.center_ht *.5f;
+  if(vkdt.state.look_at_x == FLT_MAX) vkdt.state.look_at_x = wd/2.0f;
+  if(vkdt.state.look_at_y == FLT_MAX) vkdt.state.look_at_y = ht/2.0f;
+  float ox = cvx - scale * vkdt.state.look_at_x;
+  float oy = cvy - scale * vkdt.state.look_at_y;
+  float x = ox + vkdt.state.center_x, y = oy + vkdt.state.center_y;
   img[0] = (v[0] - x) / (scale * fwd);
   img[1] = (v[1] - y) / (scale * fht);
 }
@@ -72,16 +72,16 @@ void image_to_view(
   float ht  = (float)out->connector[0].roi.ht;
   float fwd = (float)out->connector[0].roi.full_wd/out->connector[0].roi.scale;
   float fht = (float)out->connector[0].roi.full_ht/out->connector[0].roi.scale;
-  float imwd = vkdt.view_width, imht = vkdt.view_height;
+  float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
   float scale = MIN(imwd/wd, imht/ht);
-  if(vkdt.view_scale > 0.0f) scale = vkdt.view_scale;
-  float cvx = vkdt.view_width *.5f;
-  float cvy = vkdt.view_height*.5f;
-  if(vkdt.view_look_at_x == FLT_MAX) vkdt.view_look_at_x = wd/2.0f;
-  if(vkdt.view_look_at_y == FLT_MAX) vkdt.view_look_at_y = ht/2.0f;
-  float ox = cvx - scale * vkdt.view_look_at_x;
-  float oy = cvy - scale * vkdt.view_look_at_y;
-  float x = ox + vkdt.view_x, y = oy + vkdt.view_y;
+  if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
+  float cvx = vkdt.state.center_wd *.5f;
+  float cvy = vkdt.state.center_ht *.5f;
+  if(vkdt.state.look_at_x == FLT_MAX) vkdt.state.look_at_x = wd/2.0f;
+  if(vkdt.state.look_at_y == FLT_MAX) vkdt.state.look_at_y = ht/2.0f;
+  float ox = cvx - scale * vkdt.state.look_at_x;
+  float oy = cvy - scale * vkdt.state.look_at_y;
+  float x = ox + vkdt.state.center_x, y = oy + vkdt.state.center_y;
   v[0] = x + scale * img[0] * fwd;
   v[1] = y + scale * img[1] * fht;
 }
@@ -382,12 +382,14 @@ void render_lighttable()
     window_flags |= ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoResize;
     window_flags |= ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
     ImGui::Begin("lighttable center", 0, window_flags);
 
-    int wd = 208, ht = 130, border = 10;
     const int ipl = 6;
+    const int border = 0.01 * qvk.win_width;
+    const int wd = vkdt.state.center_wd / ipl - border*2;
+    const int ht = 0.6 * wd; // XXX probably do square in the future?
     const int cnt = vkdt.db.collection_cnt;
     const int lines = (cnt+ipl-1)/ipl;
     ImGuiListClipper clipper;
@@ -441,8 +443,8 @@ void render_darkroom()
     window_flags |= ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoResize;
     window_flags |= ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(0, 0),       ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(1420, 1080), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
     ImGui::Begin("darkroom center", 0, window_flags);
 
     // draw center view image:
@@ -451,8 +453,9 @@ void render_darkroom()
     {
       ImTextureID imgid = out_main->dset;
       float im0[2], im1[2];
-      float v0[2] = {(float)vkdt.view_x, (float)vkdt.view_y};
-      float v1[2] = {(float)vkdt.view_x+vkdt.view_width, (float)vkdt.view_y+vkdt.view_height};
+      float v0[2] = {(float)vkdt.state.center_x, (float)vkdt.state.center_y};
+      float v1[2] = {(float)vkdt.state.center_x+vkdt.state.center_wd,
+        (float)vkdt.state.center_y+vkdt.state.center_ht};
       view_to_image(v0, im0);
       view_to_image(v1, im1);
       im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
@@ -512,16 +515,21 @@ void render_darkroom()
     // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
     // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
     // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-    ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.center_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, window_flags);
 
     // draw histogram image:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
     if(out_hist)
     {
+      int border = 0.01 * qvk.win_width;
+      int wd = vkdt.state.panel_wd - border;
+      int ht = wd * 2.0f/3.0f;
       ImGui::Image(out_hist->dset,
-          ImVec2(490, 300),
+          ImVec2(wd, ht),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
@@ -533,13 +541,13 @@ void render_darkroom()
       // trigger complete pipeline rebuild
       if(g_lod > 1)
       {
-        vkdt.graph_dev.output_wd = 1420 / (g_lod-1);
-        vkdt.graph_dev.output_ht = 1080 / (g_lod-1);
+        vkdt.graph_dev.output_wd = vkdt.state.center_wd / (g_lod-1);
+        vkdt.graph_dev.output_ht = vkdt.state.center_ht / (g_lod-1);
       }
       vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
       // reset view
-      vkdt.view_look_at_x = FLT_MAX;
-      vkdt.view_look_at_y = FLT_MAX;
+      vkdt.state.look_at_x = FLT_MAX;
+      vkdt.state.look_at_y = FLT_MAX;
     }
 
     for(int i=0;i<vkdt.num_widgets;i++)

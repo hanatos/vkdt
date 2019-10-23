@@ -26,14 +26,14 @@ darkroom_handle_event(SDL_Event *event)
   static float old_look_x = -1.0f, old_look_y = -1.0f;
   if(event->type == SDL_MOUSEMOTION)
   {
-    if(m_x >= 0 && vkdt.view_scale > 0.0f)
+    if(m_x >= 0 && vkdt.state.scale > 0.0f)
     {
       int dx = event->button.x - m_x;
       int dy = event->button.y - m_y;
-      vkdt.view_look_at_x = old_look_x - dx / vkdt.view_scale;
-      vkdt.view_look_at_y = old_look_y - dy / vkdt.view_scale;
-      vkdt.view_look_at_x = CLAMP(vkdt.view_look_at_x, 0.0f, wd);
-      vkdt.view_look_at_y = CLAMP(vkdt.view_look_at_y, 0.0f, ht);
+      vkdt.state.look_at_x = old_look_x - dx / vkdt.state.scale;
+      vkdt.state.look_at_y = old_look_y - dy / vkdt.state.scale;
+      vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, wd);
+      vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, ht);
     }
   }
   else if(event->type == SDL_MOUSEBUTTONUP)
@@ -41,14 +41,14 @@ darkroom_handle_event(SDL_Event *event)
     m_x = m_y = -1;
   }
   else if(event->type == SDL_MOUSEBUTTONDOWN &&
-      event->button.x < vkdt.view_x + vkdt.view_width)
+      event->button.x < vkdt.state.center_x + vkdt.state.center_wd)
   {
     if(event->button.button == SDL_BUTTON_LEFT)
     {
       m_x = event->button.x;
       m_y = event->button.y;
-      old_look_x = vkdt.view_look_at_x;
-      old_look_y = vkdt.view_look_at_y;
+      old_look_x = vkdt.state.look_at_x;
+      old_look_y = vkdt.state.look_at_y;
     }
     else if(event->button.button == SDL_BUTTON_MIDDLE)
     {
@@ -58,29 +58,29 @@ darkroom_handle_event(SDL_Event *event)
       // TODO: the other is zoom/pan in the gui for 200% or more and to
       // TODO: move the image smoothly
       // where does the mouse look in the current image?
-      float imwd = vkdt.view_width, imht = vkdt.view_height;
-      float scale = vkdt.view_scale <= 0.0f ? MIN(imwd/wd, imht/ht) : vkdt.view_scale;
-      float im_x = (event->button.x - (vkdt.view_x + imwd)/2.0f) / scale;
-      float im_y = (event->button.y - (vkdt.view_y + imht)/2.0f) / scale;
-      im_x += vkdt.view_look_at_x;
-      im_y += vkdt.view_look_at_y;
-      if(vkdt.view_scale <= 0.0f)
+      float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
+      float scale = vkdt.state.scale <= 0.0f ? MIN(imwd/wd, imht/ht) : vkdt.state.scale;
+      float im_x = (event->button.x - (vkdt.state.center_x + imwd)/2.0f) / scale;
+      float im_y = (event->button.y - (vkdt.state.center_y + imht)/2.0f) / scale;
+      im_x += vkdt.state.look_at_x;
+      im_y += vkdt.state.look_at_y;
+      if(vkdt.state.scale <= 0.0f)
       {
-        vkdt.view_scale = 1.0f;
-        vkdt.view_look_at_x = im_x;
-        vkdt.view_look_at_y = im_y;
+        vkdt.state.scale = 1.0f;
+        vkdt.state.look_at_x = im_x;
+        vkdt.state.look_at_y = im_y;
       }
-      else if(vkdt.view_scale >= 8.0f)
+      else if(vkdt.state.scale >= 8.0f)
       {
-        vkdt.view_scale = -1.0f;
-        vkdt.view_look_at_x = wd/2.0f;
-        vkdt.view_look_at_y = ht/2.0f;
+        vkdt.state.scale = -1.0f;
+        vkdt.state.look_at_x = wd/2.0f;
+        vkdt.state.look_at_y = ht/2.0f;
       }
-      else if(vkdt.view_scale >= 1.0f)
+      else if(vkdt.state.scale >= 1.0f)
       {
-        vkdt.view_scale *= 2.0f;
-        vkdt.view_look_at_x = im_x;
-        vkdt.view_look_at_y = im_y;
+        vkdt.state.scale *= 2.0f;
+        vkdt.state.look_at_x = im_x;
+        vkdt.state.look_at_y = im_y;
       }
     }
   }

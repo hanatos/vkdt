@@ -9,10 +9,27 @@
 #include <float.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
+
+static void
+style_to_state()
+{
+  vkdt.state = (dt_gui_state_t) {
+    .look_at_x = FLT_MAX,
+    .look_at_y = FLT_MAX,
+    .scale = -1.0f,
+    .center_x = vkdt.style.border_frac * qvk.win_width,
+    .center_y = vkdt.style.border_frac * qvk.win_width,
+    .center_wd = (1.0f - vkdt.style.panel_width_frac - 2*vkdt.style.border_frac) * qvk.win_width,
+    .center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width,
+    .panel_wd = vkdt.style.panel_width_frac * qvk.win_width,
+  };
+}
   
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
+  vkdt.style.panel_width_frac = 0.2f;
+  vkdt.style.border_frac = 0.02f;
   qvk.win_width  = 1920;
   qvk.win_height = 1080;
   qvk.window = SDL_CreateWindow("vkdt", 20, 50,
@@ -120,13 +137,6 @@ int dt_gui_init()
   };
   QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &vkdt.descriptor_pool));
 
-  vkdt.view_look_at_x = FLT_MAX;
-  vkdt.view_look_at_y = FLT_MAX;
-  vkdt.view_scale = -1.0f;
-  vkdt.view_x = 0;
-  vkdt.view_y = 0;
-  vkdt.view_width  = 1420;
-  vkdt.view_height = 1080;
   dt_gui_init_imgui();
 
   return 0;
@@ -141,6 +151,7 @@ dt_gui_recreate_swapchain()
   if(vkdt.render_pass)
     vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
   SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
+  style_to_state();
   QVK(qvk_create_swapchain());
 
   // create the render pass
@@ -206,6 +217,7 @@ dt_gui_recreate_swapchain()
 
 void dt_gui_cleanup()
 {
+  vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
   SDL_DestroyWindow(qvk.window);
   SDL_Quit();
 }
