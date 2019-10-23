@@ -459,6 +459,121 @@ qvk_init()
     return 1;
   VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
   QVK(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
+  // could probably remove the zero lines here to make the code look more compact:
+  VkPhysicalDeviceFeatures required_features = {
+      .robustBufferAccess = 1,
+      .fullDrawIndexUint32 = 1,
+      .imageCubeArray = 1,
+      .independentBlend = 1,
+      .geometryShader = 1,
+      .tessellationShader = 1,
+      .sampleRateShading = 0,
+      .dualSrcBlend = 1,
+      .logicOp = 1,
+      .multiDrawIndirect = 1,
+      .drawIndirectFirstInstance = 1,
+      .depthClamp = 1,
+      .depthBiasClamp = 1,
+      .fillModeNonSolid = 0,
+      .depthBounds = 1,
+      .wideLines = 0,
+      .largePoints = 0,
+      .alphaToOne = 1,
+      .multiViewport = 0,
+      .samplerAnisotropy = 1,
+      .textureCompressionETC2 = 0,
+      .textureCompressionASTC_LDR = 0,
+      .textureCompressionBC = 0,
+      .occlusionQueryPrecise = 0,
+      .pipelineStatisticsQuery = 1,
+      .vertexPipelineStoresAndAtomics = 1,
+      .fragmentStoresAndAtomics = 1,
+      .shaderTessellationAndGeometryPointSize = 1,
+      .shaderImageGatherExtended = 1,
+      .shaderStorageImageExtendedFormats = 1,
+      .shaderStorageImageMultisample = 1,
+      .shaderStorageImageReadWithoutFormat = 1,
+      .shaderStorageImageWriteWithoutFormat = 1,
+      .shaderUniformBufferArrayDynamicIndexing = 1,
+      .shaderSampledImageArrayDynamicIndexing = 1,
+      .shaderStorageBufferArrayDynamicIndexing = 1,
+      .shaderStorageImageArrayDynamicIndexing = 1,
+      .shaderClipDistance = 1,
+      .shaderCullDistance = 1,
+      .shaderFloat64 = 1,
+      .shaderInt64 = 1,
+      .shaderInt16 = 1,
+      .shaderResourceResidency = 1,
+      .shaderResourceMinLod = 1,
+      .sparseBinding = 1,
+      .sparseResidencyBuffer = 0,
+      .sparseResidencyImage2D = 0,
+      .sparseResidencyImage3D = 0,
+      .sparseResidency2Samples = 0,
+      .sparseResidency4Samples = 0,
+      .sparseResidency8Samples = 0,
+      .sparseResidency16Samples = 0,
+      .sparseResidencyAliased = 0,
+      .variableMultisampleRate = 0,
+      .inheritedQueries = 1,
+    };
+
+#define QVK_FEATURE_LIST \
+QVK_FEATURE_DO(robustBufferAccess)\
+QVK_FEATURE_DO(fullDrawIndexUint32)\
+QVK_FEATURE_DO(imageCubeArray)\
+QVK_FEATURE_DO(independentBlend)\
+QVK_FEATURE_DO(geometryShader)\
+QVK_FEATURE_DO(tessellationShader)\
+QVK_FEATURE_DO(sampleRateShading)\
+QVK_FEATURE_DO(dualSrcBlend)\
+QVK_FEATURE_DO(logicOp)\
+QVK_FEATURE_DO(multiDrawIndirect)\
+QVK_FEATURE_DO(drawIndirectFirstInstance)\
+QVK_FEATURE_DO(depthClamp)\
+QVK_FEATURE_DO(depthBiasClamp)\
+QVK_FEATURE_DO(fillModeNonSolid)\
+QVK_FEATURE_DO(depthBounds)\
+QVK_FEATURE_DO(wideLines)\
+QVK_FEATURE_DO(largePoints)\
+QVK_FEATURE_DO(alphaToOne)\
+QVK_FEATURE_DO(multiViewport)\
+QVK_FEATURE_DO(samplerAnisotropy)\
+QVK_FEATURE_DO(textureCompressionETC2)\
+QVK_FEATURE_DO(textureCompressionASTC_LDR)\
+QVK_FEATURE_DO(textureCompressionBC)\
+QVK_FEATURE_DO(occlusionQueryPrecise)\
+QVK_FEATURE_DO(pipelineStatisticsQuery)\
+QVK_FEATURE_DO(vertexPipelineStoresAndAtomics)\
+QVK_FEATURE_DO(fragmentStoresAndAtomics)\
+QVK_FEATURE_DO(shaderTessellationAndGeometryPointSize)\
+QVK_FEATURE_DO(shaderImageGatherExtended)\
+QVK_FEATURE_DO(shaderStorageImageExtendedFormats)\
+QVK_FEATURE_DO(shaderStorageImageMultisample)\
+QVK_FEATURE_DO(shaderStorageImageReadWithoutFormat)\
+QVK_FEATURE_DO(shaderStorageImageWriteWithoutFormat)\
+QVK_FEATURE_DO(shaderUniformBufferArrayDynamicIndexing)\
+QVK_FEATURE_DO(shaderSampledImageArrayDynamicIndexing)\
+QVK_FEATURE_DO(shaderStorageBufferArrayDynamicIndexing)\
+QVK_FEATURE_DO(shaderStorageImageArrayDynamicIndexing)\
+QVK_FEATURE_DO(shaderClipDistance)\
+QVK_FEATURE_DO(shaderCullDistance)\
+QVK_FEATURE_DO(shaderFloat64)\
+QVK_FEATURE_DO(shaderInt64)\
+QVK_FEATURE_DO(shaderInt16)\
+QVK_FEATURE_DO(shaderResourceResidency)\
+QVK_FEATURE_DO(shaderResourceMinLod)\
+QVK_FEATURE_DO(sparseBinding)\
+QVK_FEATURE_DO(sparseResidencyBuffer)\
+QVK_FEATURE_DO(sparseResidencyImage2D)\
+QVK_FEATURE_DO(sparseResidencyImage3D)\
+QVK_FEATURE_DO(sparseResidency2Samples)\
+QVK_FEATURE_DO(sparseResidency4Samples)\
+QVK_FEATURE_DO(sparseResidency8Samples)\
+QVK_FEATURE_DO(sparseResidency16Samples)\
+QVK_FEATURE_DO(sparseResidencyAliased)\
+QVK_FEATURE_DO(variableMultisampleRate)\
+QVK_FEATURE_DO(inheritedQueries)
 
   int picked_device = -1;
   for(int i = 0; i < num_devices; i++) {
@@ -473,6 +588,12 @@ qvk_init()
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     dt_log(s_log_qvk, "max image allocation size %u x %u",
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
+#define QVK_FEATURE_DO(F)\
+    if(dev_features.F == 0 && required_features.F == 1)\
+      dt_log(s_log_qvk|s_log_err, "device does not support requested feature ##F");
+    QVK_FEATURE_LIST
+#undef QVK_FEATURE_DO
+#undef QVK_FEATURE_LIST
     uint32_t num_ext;
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, NULL);
 
@@ -575,64 +696,7 @@ qvk_init()
   VkPhysicalDeviceFeatures2 device_features = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
     .pNext = &idx_features,
-
-    .features = {
-      .robustBufferAccess = 1,
-      .fullDrawIndexUint32 = 1,
-      .imageCubeArray = 1,
-      .independentBlend = 1,
-      .geometryShader = 1,
-      .tessellationShader = 1,
-      .sampleRateShading = 0,
-      .dualSrcBlend = 1,
-      .logicOp = 1,
-      .multiDrawIndirect = 1,
-      .drawIndirectFirstInstance = 1,
-      .depthClamp = 1,
-      .depthBiasClamp = 1,
-      .fillModeNonSolid = 0,
-      .depthBounds = 1,
-      .wideLines = 0,
-      .largePoints = 0,
-      .alphaToOne = 1,
-      .multiViewport = 0,
-      .samplerAnisotropy = 1,
-      .textureCompressionETC2 = 0,
-      .textureCompressionASTC_LDR = 0,
-      .textureCompressionBC = 0,
-      .occlusionQueryPrecise = 0,
-      .pipelineStatisticsQuery = 1,
-      .vertexPipelineStoresAndAtomics = 1,
-      .fragmentStoresAndAtomics = 1,
-      .shaderTessellationAndGeometryPointSize = 1,
-      .shaderImageGatherExtended = 1,
-      .shaderStorageImageExtendedFormats = 1,
-      .shaderStorageImageMultisample = 1,
-      .shaderStorageImageReadWithoutFormat = 1,
-      .shaderStorageImageWriteWithoutFormat = 1,
-      .shaderUniformBufferArrayDynamicIndexing = 1,
-      .shaderSampledImageArrayDynamicIndexing = 1,
-      .shaderStorageBufferArrayDynamicIndexing = 1,
-      .shaderStorageImageArrayDynamicIndexing = 1,
-      .shaderClipDistance = 1,
-      .shaderCullDistance = 1,
-      .shaderFloat64 = 1,
-      .shaderInt64 = 1,
-      .shaderInt16 = 1,
-      .shaderResourceResidency = 1,
-      .shaderResourceMinLod = 1,
-      .sparseBinding = 1,
-      .sparseResidencyBuffer = 0,
-      .sparseResidencyImage2D = 0,
-      .sparseResidencyImage3D = 0,
-      .sparseResidency2Samples = 0,
-      .sparseResidency4Samples = 0,
-      .sparseResidency8Samples = 0,
-      .sparseResidency16Samples = 0,
-      .sparseResidencyAliased = 0,
-      .variableMultisampleRate = 0,
-      .inheritedQueries = 1,
-    }
+    .features = required_features,
   };
 
   const char *vk_requested_device_extensions[] = {
