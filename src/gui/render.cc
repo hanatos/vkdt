@@ -97,8 +97,8 @@ inline ImVec4 gamma(ImVec4 in)
 
 inline void dark_corporate_style()
 {
-	ImGuiStyle & style = ImGui::GetStyle();
-	ImVec4 * colors = style.Colors;
+  ImGuiStyle & style = ImGui::GetStyle();
+  ImVec4 * colors = style.Colors;
 
 	/// 0 = FLAT APPEARENCE
 	/// 1 = MORE "3D" LOOK
@@ -374,6 +374,7 @@ namespace {
 
 void render_lighttable()
 {
+  ImGuiStyle &style = ImGui::GetStyle();
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
   { // center image view
@@ -388,7 +389,7 @@ void render_lighttable()
 
     const int ipl = 6;
     const int border = 0.01 * qvk.win_width;
-    const int wd = vkdt.state.center_wd / ipl - border*2;
+    const int wd = vkdt.state.center_wd / ipl - border*2 - style.ItemSpacing.x*2;
     const int ht = 0.6 * wd; // XXX probably do square in the future?
     const int cnt = vkdt.db.collection_cnt;
     const int lines = (cnt+ipl-1)/ipl;
