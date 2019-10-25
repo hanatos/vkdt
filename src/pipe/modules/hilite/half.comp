@@ -11,6 +11,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
+  float white;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -36,6 +37,7 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   vec4 rgba;
+  const float white = push.white * params.white;
 
   if(push.filters == 9)
   {
@@ -49,16 +51,16 @@ main()
     float c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
     float c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
     // this tries to ignore clipped pixels in the average
-    if(c1 >= push.white) c1 = c7;
-    if(c7 >= push.white) c7 = c1;
-    if(c3 >= push.white) c3 = c5;
-    if(c5 >= push.white) c5 = c3;
+    if(c1 >= white) c1 = c7;
+    if(c7 >= white) c7 = c1;
+    if(c3 >= white) c3 = c5;
+    if(c5 >= white) c5 = c3;
     float ming = min(min(min(c0, c2), c4), min(c6, c8));
-    if(c0 >= push.white) c0 = ming;
-    if(c2 >= push.white) c2 = ming;
-    if(c4 >= push.white) c4 = ming;
-    if(c6 >= push.white) c6 = ming;
-    if(c8 >= push.white) c6 = ming;
+    if(c0 >= white) c0 = ming;
+    if(c2 >= white) c2 = ming;
+    if(c4 >= white) c4 = ming;
+    if(c6 >= white) c6 = ming;
+    if(c8 >= white) c6 = ming;
     rgba.g = (c0 + c2 + c4 + c6 + c8)*1.0/5.0;
     vec2 col = vec2((c1 + c7)*0.5, (c3 + c5)*.5);
     if(((ipos.x + ipos.y) & 1) > 0)
@@ -69,8 +71,8 @@ main()
   else
   {
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
-    if(c.x >= push.white) c.x = c.z;
-    if(c.z >= push.white) c.z = c.x;
+    if(c.x >= white) c.x = c.z;
+    if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
   }
   imageStore(img_out, ipos, rgba);

@@ -11,6 +11,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
+  float white;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -34,36 +35,22 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
+  const float white = push.white * params.white;
   // blur, store only coarse res
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
   vec3 col = vec3(0.0f);
-  vec3 wgt = vec3(0.0f);
+  float wgt = 0.0f;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
     vec3 rgb = texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).rgb;
     float u = w[ii+2]*w[jj+2];
-    if(rgb.r < push.white)
+    if(all(lessThan(rgb, vec3(white))))
     {
-      col.r += rgb.r * u;
-      wgt.r += u;
-    }
-    if(rgb.g < push.white)
-    {
-      col.g += rgb.g * u;
-      wgt.g += u;
-    }
-    if(rgb.b < push.white)
-    {
-      col.b += rgb.b * u;
-      wgt.b += u;
+      col += rgb * u;
+      wgt += u;
     }
   }
-  if(wgt.r == 0.0f) col.r = push.white;
-  else col.r /= wgt.r;
-  if(wgt.g == 0.0f) col.g = push.white;
-  else col.g /= wgt.g;
-  if(wgt.b == 0.0f) col.b = push.white;
-  else col.b /= wgt.b;
+  if(wgt == 0.0f) col = vec3(2*push.white);
+  else col /= wgt;
   imageStore(img_out, opos, vec4(col, 1));
 }
-

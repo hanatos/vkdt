@@ -12,7 +12,8 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
-  vec4 black;  // black point
+  vec4 black;  // black point, normalised
+  vec4 white;  // white point, normalised
   vec4 mul;    // multiplier = pow(2.0f, ev) * wb/(white-black)
   // float m[9];
   mat3 cam_to_rec2020;
@@ -68,9 +69,17 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  vec4 rgba = (texelFetch(img_in, ipos, 0) - params.black) * params.mul;
+  vec3 rgb = (texelFetch(img_in, ipos, 0).rgb - params.black.rgb) * params.mul.rgb;
   // f16vec4 rgba = (f16vec4(texelFetch(img_in, ipos, 0)) - float16_t(params.black)) * float16_t(params.mul);
-  rgba.rgb = rgba.rgb * params.cam_to_rec2020;
-  imageStore(img_out, ipos, vec4(rgba.rgb, 1));
+  // XXX FIXME: does not work because params.mul is wb * exposure * white (and only white knows the clipping point)
+  // clip away blown highlights
+  // float clip = params.white.x * min(params.mul.x, min(params.mul.y, params.mul.z));
+  // rgb = min(rgb, vec3(clip *(1.0 - params.black.y)));
+  // transform to rec2020
+  rgb = rgb * params.cam_to_rec2020;
+
+  // clip away negative numbers
+  rgb = max(vec3(0.0), rgb);
+  imageStore(img_out, ipos, vec4(rgb, 1));
 }
 

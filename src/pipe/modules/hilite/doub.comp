@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
   roi_t ri;
   roi_t rc;
   roi_t ro;
+  float white;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -41,6 +42,7 @@ main()
   if(any(greaterThanEqual(ipos, params.ri.roi))) return;
 
   vec3 upsm = texelFetch(img_coarse, ipos, 0).rgb;
+  const float white = push.white * params.white;
 
   if(push.filters == 9)
   {
@@ -60,7 +62,8 @@ main()
     float minr = min(c1, c7);
     float minb = min(c3, c5);
     float ming = min(min(min(c0, c2), c4), min(c6, c8));
-    float scale = 1.0f;
+    float scale = 0.0f;
+#if 1 // XXX DEBUG
     if(minr < ming)
     {
       if(minb < minr) scale = minb/upsm.b;
@@ -71,16 +74,17 @@ main()
       if(minb < ming) scale = minb/upsm.b;
       else            scale = ming/upsm.g;
     }
+#endif
     // replace clipped pixels by scaled counterparts
-    if(c1 >= push.white) c1 = upsm.r * scale;
-    if(c7 >= push.white) c7 = upsm.r * scale;
-    if(c3 >= push.white) c3 = upsm.b * scale;
-    if(c5 >= push.white) c5 = upsm.b * scale;
-    if(c0 >= push.white) c0 = upsm.r * scale;
-    if(c2 >= push.white) c2 = upsm.r * scale;
-    if(c4 >= push.white) c4 = upsm.r * scale;
-    if(c6 >= push.white) c6 = upsm.r * scale;
-    if(c8 >= push.white) c6 = upsm.r * scale;
+    if(c1 >= white) c1 = upsm.r * scale;
+    if(c7 >= white) c7 = upsm.r * scale;
+    if(c3 >= white) c3 = upsm.b * scale;
+    if(c5 >= white) c5 = upsm.b * scale;
+    if(c0 >= white) c0 = upsm.g * scale;
+    if(c2 >= white) c2 = upsm.g * scale;
+    if(c4 >= white) c4 = upsm.g * scale;
+    if(c6 >= white) c6 = upsm.g * scale;
+    if(c8 >= white) c8 = upsm.g * scale;
     imageStore(img_out, 3*ipos,            vec4(c0));
     imageStore(img_out, 3*ipos+ivec2(0,1), vec4(c1));
     imageStore(img_out, 3*ipos+ivec2(0,2), vec4(c2));
@@ -98,6 +102,7 @@ main()
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
     float ming = min(c.x, c.z);
     float scale = 1.0f;
+#if 1 // XXX DEBUG
     if(c.w < ming)
     {
       if(c.y < c.w) scale = c.y/upsm.b;
@@ -106,15 +111,19 @@ main()
     else
     {
       if(c.y < ming) scale = c.y /upsm.b;
-      else           scale = ming/upsm.g;
+      else           scale = 0.5f*(c.x+c.z)/upsm.g;
     }
-    if(c.x > push.white) c.x = scale * upsm.g;
-    if(c.y > push.white) c.y = scale * upsm.b;
-    if(c.z > push.white) c.z = scale * upsm.g;
-    if(c.w > push.white) c.w = scale * upsm.r;
-    imageStore(img_out, 2*ipos,            vec4(c.w));
-    imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
-    imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
-    imageStore(img_out, 2*ipos+ivec2(1,1), vec4(c.y));
+#endif
+    if(c.x >= white) c.x = scale * upsm.g;
+    if(c.y >= white) c.y = scale * upsm.b;
+    if(c.z >= white) c.z = scale * upsm.g;
+    if(c.w >= white) c.w = scale * upsm.r;
+    c = upsm.gbgr; // XXX DEBUG
+    // XXX FIXME: i think we don't want to write these in ui16 or unnormalised f16, since we'll blow out
+    // the highlights exceeding the 0x10000 number range!
+    imageStore(img_out, 2*ipos,            vec4(c.w/2));
+    imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z/2));
+    imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x/2));
+    imageStore(img_out, 2*ipos+ivec2(1,1), vec4(c.y/2));
   }
 }

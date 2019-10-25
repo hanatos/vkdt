@@ -784,17 +784,3 @@ qvk_cleanup()
   return 0;
 }
 
-// currently unused:
-#if 0
-static void
-recreate_swapchain()
-{
-  vkDeviceWaitIdle(qvk.device);
-  qvk_destroy_all(QVK_INIT_SWAPCHAIN_RECREATE);
-  qvk_destroy_swapchain();
-  SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
-  qvk_create_swapchain();
-  qvk_initialize_all(QVK_INIT_SWAPCHAIN_RECREATE);
-}
-#endif
-

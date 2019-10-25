@@ -88,20 +88,12 @@ darkroom_handle_event(SDL_Event *event)
   {
     if(event->key.keysym.sym == SDLK_r)
     {
-      // DEBUG: reload shaders
-      dt_graph_cleanup(&vkdt.graph_dev);
+      dt_log(s_log_err, "reloading shaders!!!");
+      dt_view_switch(s_view_cnt);
       dt_pipe_global_cleanup();
       system("make debug"); // build shaders
       dt_pipe_global_init();
-      dt_graph_init(&vkdt.graph_dev);
-      uint32_t imgid = vkdt.db.current_image;
-      char graph_cfg[2048];
-      snprintf(graph_cfg, sizeof(graph_cfg), "%s.cfg", vkdt.db.image[imgid].filename);
-      int err = dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
-      if(err) dt_log(s_log_err, "failed to reload_shaders!");
-      // (TODO: re-init params from history)
-      dt_graph_run(&vkdt.graph_dev, s_graph_run_all);
-      dt_gui_read_ui_ascii("darkroom.ui");
+      dt_view_switch(s_view_darkroom);
     }
     else if(event->key.keysym.sym == SDLK_PERIOD)
     {

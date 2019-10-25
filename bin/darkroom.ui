@@ -10,3 +10,4 @@ llap:01:clarity:slider:-1.0:10.0
 llap:01:shadows:slider:0.0:2.0
 llap:01:hilights:slider:0.0:2.0
 saturate:01:sat:slider:0.0:2.0
+hilite:01:white:slider:0.0:2.0

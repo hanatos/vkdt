@@ -1,4 +1,3 @@
-#include "config.h"
 #include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>
@@ -103,6 +102,11 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_doub, 0);
   dt_connector_copy(graph, module, 1, id_doub, 2);
 
+#if 0 // XXX DEBUG
+  CONN(dt_node_connect(graph, id_half, 1, id_doub, 1));
+  return;
+#endif
+
   dt_roi_t rf = roic;
   dt_roi_t rc = roic;
   rc.wd = (rc.wd-1)/2+1;
@@ -121,7 +125,7 @@ create_nodes(
   { // for all coarseness levels
     // add a reduce and an assemble node:
     assert(graph->num_nodes < graph->max_nodes);
-    id_reduce = graph->num_nodes++;
+    int id_reduce = graph->num_nodes++;
     dt_node_t *node_reduce = graph->node + id_reduce;
     *node_reduce = (dt_node_t) {
       .name   = dt_token("hilite"),
@@ -149,7 +153,7 @@ create_nodes(
       .push_constant = { *(uint32_t*)(&white), filters },
     };
     assert(graph->num_nodes < graph->max_nodes);
-    id_assemble = graph->num_nodes++;
+    int id_assemble = graph->num_nodes++;
     dt_node_t *node_assemble = graph->node + id_assemble;
     *node_assemble = (dt_node_t) {
       .name   = dt_token("hilite"),
@@ -186,7 +190,7 @@ create_nodes(
 
     // wire node connections:
     CONN(dt_node_connect(graph, node_in, conn_in, id_reduce, 0));
-    CONN(dt_node_connect(graph, node_in, conn_in, id_assemble, 1));
+    CONN(dt_node_connect(graph, node_in, conn_in, id_assemble, 0));
     node_in = id_reduce;
     conn_in = 1;
     CONN(dt_node_connect(graph, id_assemble, 2, node_up, conn_up));
