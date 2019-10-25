@@ -1,0 +1,120 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t rc;
+  roi_t ro;
+} params;
+
+layout(push_constant, std140) uniform push_t
+{
+  float white;
+  uint filters;
+} push;
+
+layout( // input uint16 buffer rggb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 1
+) uniform sampler2D img_coarse;
+
+layout( // output f16 buffer rggb
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+// upsample back to mosaic. this is either 3x3 or 2x2, depending on filters.
+// runs on coarse resolution.
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ri.roi))) return;
+
+  vec3 upsm = texelFetch(img_coarse, ipos, 0).rgb;
+
+  if(push.filters == 9)
+  {
+    // swap red and blue channels according to sensor layout
+    if(((ipos.x + ipos.y) & 1) == 0)
+      upsm.rb = upsm.br;
+    // get original input texels
+    float c0 = texelFetch(img_in, 3*ipos, 0).r;
+    float c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
+    float c2 = texelFetch(img_in, 3*ipos+ivec2(0,2), 0).r;
+    float c3 = texelFetch(img_in, 3*ipos+ivec2(1,0), 0).r;
+    float c4 = texelFetch(img_in, 3*ipos+ivec2(1,1), 0).r;
+    float c5 = texelFetch(img_in, 3*ipos+ivec2(1,2), 0).r;
+    float c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
+    float c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
+    float c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
+    float minr = min(c1, c7);
+    float minb = min(c3, c5);
+    float ming = min(min(min(c0, c2), c4), min(c6, c8));
+    float scale = 1.0f;
+    if(minr < ming)
+    {
+      if(minb < minr) scale = minb/upsm.b;
+      else            scale = minr/upsm.r;
+    }
+    else
+    {
+      if(minb < ming) scale = minb/upsm.b;
+      else            scale = ming/upsm.g;
+    }
+    // replace clipped pixels by scaled counterparts
+    if(c1 >= push.white) c1 = upsm.r * scale;
+    if(c7 >= push.white) c7 = upsm.r * scale;
+    if(c3 >= push.white) c3 = upsm.b * scale;
+    if(c5 >= push.white) c5 = upsm.b * scale;
+    if(c0 >= push.white) c0 = upsm.r * scale;
+    if(c2 >= push.white) c2 = upsm.r * scale;
+    if(c4 >= push.white) c4 = upsm.r * scale;
+    if(c6 >= push.white) c6 = upsm.r * scale;
+    if(c8 >= push.white) c6 = upsm.r * scale;
+    imageStore(img_out, 3*ipos,            vec4(c0));
+    imageStore(img_out, 3*ipos+ivec2(0,1), vec4(c1));
+    imageStore(img_out, 3*ipos+ivec2(0,2), vec4(c2));
+    imageStore(img_out, 3*ipos+ivec2(1,0), vec4(c3));
+    imageStore(img_out, 3*ipos+ivec2(1,1), vec4(c4));
+    imageStore(img_out, 3*ipos+ivec2(1,2), vec4(c5));
+    imageStore(img_out, 3*ipos+ivec2(2,0), vec4(c6));
+    imageStore(img_out, 3*ipos+ivec2(2,1), vec4(c7));
+    imageStore(img_out, 3*ipos+ivec2(2,2), vec4(c8));
+  }
+  else
+  {
+    // reads : w z -> r g
+    //         x y    g b
+    vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
+    float ming = min(c.x, c.z);
+    float scale = 1.0f;
+    if(c.w < ming)
+    {
+      if(c.y < c.w) scale = c.y/upsm.b;
+      else          scale = c.w/upsm.r;
+    }
+    else
+    {
+      if(c.y < ming) scale = c.y /upsm.b;
+      else           scale = ming/upsm.g;
+    }
+    if(c.x > push.white) c.x = scale * upsm.g;
+    if(c.y > push.white) c.y = scale * upsm.b;
+    if(c.z > push.white) c.z = scale * upsm.g;
+    if(c.w > push.white) c.w = scale * upsm.r;
+    imageStore(img_out, 2*ipos,            vec4(c.w));
+    imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
+    imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
+    imageStore(img_out, 2*ipos+ivec2(1,1), vec4(c.y));
+  }
+}
