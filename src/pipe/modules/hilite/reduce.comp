@@ -50,7 +50,7 @@ main()
       wgt += u;
     }
   }
-  if(wgt == 0.0f) col = vec3(2*push.white);
+  if(wgt == 0.0f) col = vec3(2.0);//push.white);
   else col /= wgt;
   imageStore(img_out, opos, vec4(col, 1));
 }

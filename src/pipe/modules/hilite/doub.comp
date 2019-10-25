@@ -18,6 +18,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 layout(push_constant, std140) uniform push_t
 {
   float white;
+  float black;
   uint filters;
 } push;
 
@@ -42,13 +43,14 @@ main()
   if(any(greaterThanEqual(ipos, params.ri.roi))) return;
 
   vec3 upsm = texelFetch(img_coarse, ipos, 0).rgb;
-  const float white = push.white * params.white;
+  const float white = -1.0;// XXX push.white * params.white;
 
   if(push.filters == 9)
   {
+    // upsm.r = upsm.b = 1.2*upsm.b;// = upsm.g;
     // swap red and blue channels according to sensor layout
     if(((ipos.x + ipos.y) & 1) == 0)
-      upsm.rb = upsm.br;
+      upsm.rgb = upsm.bgr;
     // get original input texels
     float c0 = texelFetch(img_in, 3*ipos, 0).r;
     float c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
@@ -62,8 +64,9 @@ main()
     float minr = min(c1, c7);
     float minb = min(c3, c5);
     float ming = min(min(min(c0, c2), c4), min(c6, c8));
-    float scale = 0.0f;
-#if 1 // XXX DEBUG
+    float scale = 1.0f;
+    // scale = (ming-push.black)/(upsm.g-push.black);
+#if 0 // XXX DEBUG
     if(minr < ming)
     {
       if(minb < minr) scale = minb/upsm.b;
@@ -76,24 +79,25 @@ main()
     }
 #endif
     // replace clipped pixels by scaled counterparts
-    if(c1 >= white) c1 = upsm.r * scale;
-    if(c7 >= white) c7 = upsm.r * scale;
-    if(c3 >= white) c3 = upsm.b * scale;
-    if(c5 >= white) c5 = upsm.b * scale;
-    if(c0 >= white) c0 = upsm.g * scale;
-    if(c2 >= white) c2 = upsm.g * scale;
-    if(c4 >= white) c4 = upsm.g * scale;
-    if(c6 >= white) c6 = upsm.g * scale;
-    if(c8 >= white) c8 = upsm.g * scale;
-    imageStore(img_out, 3*ipos,            vec4(c0));
-    imageStore(img_out, 3*ipos+ivec2(0,1), vec4(c1));
-    imageStore(img_out, 3*ipos+ivec2(0,2), vec4(c2));
-    imageStore(img_out, 3*ipos+ivec2(1,0), vec4(c3));
-    imageStore(img_out, 3*ipos+ivec2(1,1), vec4(c4));
-    imageStore(img_out, 3*ipos+ivec2(1,2), vec4(c5));
-    imageStore(img_out, 3*ipos+ivec2(2,0), vec4(c6));
-    imageStore(img_out, 3*ipos+ivec2(2,1), vec4(c7));
-    imageStore(img_out, 3*ipos+ivec2(2,2), vec4(c8));
+    if(c1 >= white) c1 = push.black + (upsm.r - push.black) * scale;
+    if(c7 >= white) c7 = push.black + (upsm.r - push.black) * scale;
+    if(c3 >= white) c3 = push.black + (upsm.b - push.black) * scale;
+    if(c5 >= white) c5 = push.black + (upsm.b - push.black) * scale;
+    if(c0 >= white) c0 = push.black + (upsm.g - push.black) * scale;
+    if(c2 >= white) c2 = push.black + (upsm.g - push.black) * scale;
+    if(c4 >= white) c4 = push.black + (upsm.g - push.black) * scale;
+    if(c6 >= white) c6 = push.black + (upsm.g - push.black) * scale;
+    if(c8 >= white) c8 = push.black + (upsm.g - push.black) * scale;
+    // XXX want headroom but can't scale c (because blackpoint not subtracted)
+    imageStore(img_out, 3*ipos,            vec4(vec3(c0), 1));
+    imageStore(img_out, 3*ipos+ivec2(0,1), vec4(vec3(c1), 1));
+    imageStore(img_out, 3*ipos+ivec2(0,2), vec4(vec3(c2), 1));
+    imageStore(img_out, 3*ipos+ivec2(1,0), vec4(vec3(c3), 1));
+    imageStore(img_out, 3*ipos+ivec2(1,1), vec4(vec3(c4), 1));
+    imageStore(img_out, 3*ipos+ivec2(1,2), vec4(vec3(c5), 1));
+    imageStore(img_out, 3*ipos+ivec2(2,0), vec4(vec3(c6), 1));
+    imageStore(img_out, 3*ipos+ivec2(2,1), vec4(vec3(c7), 1));
+    imageStore(img_out, 3*ipos+ivec2(2,2), vec4(vec3(c8), 1));
   }
   else
   {
@@ -105,25 +109,25 @@ main()
 #if 1 // XXX DEBUG
     if(c.w < ming)
     {
-      if(c.y < c.w) scale = c.y/upsm.b;
-      else          scale = c.w/upsm.r;
+      if(c.y < c.w) scale = (c.y-push.black)/(upsm.b-push.black);
+      else          scale = (c.w-push.black)/(upsm.r-push.black);
     }
     else
     {
-      if(c.y < ming) scale = c.y /upsm.b;
-      else           scale = 0.5f*(c.x+c.z)/upsm.g;
+      if(c.y < ming) scale = (c.y -push.black)/(upsm.b-push.black);
+      else           scale = (ming-push.black)/(upsm.g-push.black);
     }
 #endif
-    if(c.x >= white) c.x = scale * upsm.g;
-    if(c.y >= white) c.y = scale * upsm.b;
-    if(c.z >= white) c.z = scale * upsm.g;
-    if(c.w >= white) c.w = scale * upsm.r;
-    c = upsm.gbgr; // XXX DEBUG
+    if(c.x >= white) c.x = push.black + scale * (upsm.g-push.black);
+    if(c.y >= white) c.y = push.black + scale * (upsm.b-push.black);
+    if(c.z >= white) c.z = push.black + scale * (upsm.g-push.black);
+    if(c.w >= white) c.w = push.black + scale * (upsm.r-push.black);
+    // c = upsm.gbgr; // XXX DEBUG
     // XXX FIXME: i think we don't want to write these in ui16 or unnormalised f16, since we'll blow out
     // the highlights exceeding the 0x10000 number range!
-    imageStore(img_out, 2*ipos,            vec4(c.w/2));
-    imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z/2));
-    imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x/2));
-    imageStore(img_out, 2*ipos+ivec2(1,1), vec4(c.y/2));
+    imageStore(img_out, 2*ipos,            vec4(c.w));
+    imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
+    imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
+    imageStore(img_out, 2*ipos+ivec2(1,1), vec4(c.y));
   }
 }

@@ -22,6 +22,7 @@ create_nodes(
     dt_module_t *module)
 {
   float    white   = module->img_param.white[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
+  float    black   = module->img_param.black[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
   uint32_t filters = module->img_param.filters;
 
   const int wd = module->connector[0].roi.wd;
@@ -93,8 +94,8 @@ create_nodes(
       .format = dt_token("ui16"),
       .roi    = module->connector[0].roi,
     }},
-    .push_constant_size = 8,
-    .push_constant = { *(uint32_t*)(&white), filters },
+    .push_constant_size = 12,
+    .push_constant = { *(uint32_t*)(&white), *(uint32_t*)(&black), filters },
   };
 
   // wire module i/o connectors to nodes:
@@ -119,7 +120,7 @@ create_nodes(
   int node_up = id_doub;
   int conn_up = 1;
 
-  const int max_nl = 12;
+  const int max_nl = 8;//12; // XXX too much blurs in green from the sides!
   int nl = max_nl;
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
@@ -184,8 +185,8 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = rf,
       }},
-      .push_constant_size = 8,
-      .push_constant = { *(uint32_t*)(&white), filters },
+      .push_constant_size = 16,
+      .push_constant = { *(uint32_t*)(&white), *(uint32_t*)(&black), filters, l },
     };
 
     // wire node connections:
@@ -202,7 +203,7 @@ create_nodes(
     rc.ht = (rc.ht-1)/2+1;
     rc.full_wd = (rc.full_wd-1)/2+1;
     rc.full_ht = (rc.full_ht-1)/2+1;
-    if(rc.wd <= 1 || rc.ht <= 1)
+    if(rc.wd <= 1 || rc.ht <= 1 || l+1 == max_nl)
     { // make sure we have enough resolution
       nl = l+1;
       // connect last reduce to last assemble:

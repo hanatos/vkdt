@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "core/core.h"
 #include "gui/gui.h"
+#include "gui/render.h" // for set_lod
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
@@ -157,6 +158,9 @@ darkroom_enter()
     dt_graph_cleanup(&vkdt.graph_dev);
     return 3;
   }
+
+  // XXX remove: super ugly hack
+  dt_gui_set_lod(3);
 
   if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
   {

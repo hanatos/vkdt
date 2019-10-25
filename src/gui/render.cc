@@ -19,7 +19,7 @@ extern "C" {
 namespace { // anonymous gui state namespace
 static int g_active_widget = -1;
 static float g_state[8] = {0.0f};
-static int g_lod = 2;
+static int g_lod = 3;
 
 void widget_end()
 {
@@ -35,6 +35,22 @@ void widget_end()
   vkdt.graph_dev.runflags = s_graph_run_all;
 }
 } // end anonymous gui state space
+
+// premove this once we have a gui struct!
+extern "C" void dt_gui_set_lod(int lod)
+{
+  // set graph output scale factor and
+  // trigger complete pipeline rebuild
+  if(g_lod > 1)
+  {
+    vkdt.graph_dev.output_wd = vkdt.state.center_wd / (g_lod-1);
+    vkdt.graph_dev.output_ht = vkdt.state.center_ht / (g_lod-1);
+  }
+  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
+  // reset view
+  vkdt.state.look_at_x = FLT_MAX;
+  vkdt.state.look_at_y = FLT_MAX;
+}
 
 namespace {
 void view_to_image(
@@ -538,17 +554,7 @@ void render_darkroom()
     // LOD switcher
     if(ImGui::SliderInt("LOD", &g_lod, 1, 16, "%d"))
     {
-      // set graph output scale factor and
-      // trigger complete pipeline rebuild
-      if(g_lod > 1)
-      {
-        vkdt.graph_dev.output_wd = vkdt.state.center_wd / (g_lod-1);
-        vkdt.graph_dev.output_ht = vkdt.state.center_ht / (g_lod-1);
-      }
-      vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
-      // reset view
-      vkdt.state.look_at_x = FLT_MAX;
-      vkdt.state.look_at_y = FLT_MAX;
+      dt_gui_set_lod(g_lod);
     }
 
     for(int i=0;i<vkdt.num_widgets;i++)
