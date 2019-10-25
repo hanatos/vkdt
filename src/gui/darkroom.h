@@ -88,7 +88,6 @@ darkroom_handle_event(SDL_Event *event)
   {
     if(event->key.keysym.sym == SDLK_r)
     {
-      dt_log(s_log_err, "reloading shaders!!!");
       dt_view_switch(s_view_cnt);
       dt_pipe_global_cleanup();
       system("make debug"); // build shaders
