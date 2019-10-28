@@ -305,6 +305,7 @@ create_nodes(
   cg.chan   = dt_token("rgba");
   cg.format = dt_token("f16");
   cg.roi    = roi_half;
+  cg.flags  = s_conn_smooth;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_splat = graph->num_nodes++;
   dt_node_t *node_splat = graph->node + id_splat;

@@ -45,7 +45,7 @@ eval_gauss(
   // XXX normalise or not?
   float scale = 4.0;//0.01;
   float so = 1.0;
-  scale = clamp(scale*cov.z, 0.1, 10);
+  scale = clamp(scale*cov.z, 0.01, 100);
   weight = //1.0/(2.0*3.1415692)*so/(cov.z) *
     exp(-0.5*dot(of, vec2(1./(scale*scale), so) * of));
 #if 0 // DEBUG: visualise gaussian splats
@@ -66,7 +66,7 @@ void write_xtrans(
     inout vec3 w)
 {
   ivec2 pos = ivec2(gl_GlobalInvocationID)+o;
-  if(o == ivec2(0)) weight = 1000000.0;
+  if(o == ivec2(0)) weight *= 2;
   col *= weight;
   // rgb from pattern:
   bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
@@ -148,7 +148,8 @@ main()
   { // x-trans
     // pulling this one out of the loop goes down from 2ms -> 1.6ms on intel and
     // doesn't look much worse :/
-    vec3 cov = texelFetch(img_gauss, opos/3, 0).rgb;
+    // vec3 cov = texelFetch(img_gauss, opos/3+vec2(.5,.5), 0).rgb;
+    vec3 cov = textureLod(img_gauss, vec2(opos/3.0/textureSize(img_gauss, 0)), 0).rgb;
     // unrolling this loop manually results in a perf drop 1.6ms -> 3.3ms
     for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
     {
@@ -173,7 +174,8 @@ main()
   }
   else
   { // bayer
-    vec3 cov = texelFetch(img_gauss, opos/2, 0).rgb;
+    // vec3 cov = texelFetch(img_gauss, opos/2, 0).rgb;
+    vec3 cov = textureLod(img_gauss, vec2(opos/2.0/textureSize(img_gauss, 0)), 0).rgb;
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
     {
       float col, weight;

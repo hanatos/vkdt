@@ -111,11 +111,11 @@ main()
   // rescale upsampled values to match unclipped values in fine
   // this is risky because min might be close to black/0 so it may be unstable:
   float scale = 1.0f;
-  if     (fine.r < white && upsm.r > 0.01) scale = fine.r/upsm.r;
-  else if(fine.g < white && upsm.g > 0.01) scale = fine.g/upsm.g;
-  else if(fine.b < white && upsm.b > 0.01) scale = fine.b/upsm.b;
-  // XXX DEBUG
-  scale = fine.r/upsm.r;
+  scale = fine.r/upsm.r; // red seems to work well on skies for most cameras
+  // this is a bit too discontinuous:
+  // if     (fine.r < white && upsm.r > 0.01) scale = fine.r/upsm.r;
+  // else if(fine.g < white && upsm.g > 0.01) scale = fine.g/upsm.g;
+  // else if(fine.b < white && upsm.b > 0.01) scale = fine.b/upsm.b;
 
   vec3 rec = upsm * scale;
   // only overwrite clipped in fine

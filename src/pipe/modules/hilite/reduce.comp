@@ -43,7 +43,8 @@ main()
   {
     vec3 rgb = texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).rgb;
     float u = w[ii+2]*w[jj+2];
-    if(all(lessThan(rgb, vec3(white))))
+    if( all(greaterThan(rgb, vec3(0.1))) &&
+        all(lessThan(rgb, vec3(white))))
     {
       col += rgb * u;
       wgt += u;
