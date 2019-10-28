@@ -1,0 +1,43 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  uint crop_x, crop_y;
+  uint crop_X, crop_Y;
+  vec4 black;
+  vec4 white;
+} params;
+
+layout(
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout(
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// this is a dummy: it doesn't in fact denoise, but it crops away
+// the noise estimation areas and scales to black/white.
+// doesn't even care about different black/white for different colours.
+// works on bayer or xtrans mosaic data, runs on full output dimensions (not blocks)
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  float col = texelFetch(img_in, ipos+ivec2(params.crop_x, params.crop_y), 0).r;
+  // float col = texelFetch(img_in, ipos+ivec2(5, 2), 0).r;
+  col = max(0, (col - params.black.x)/(params.white.x - params.black.x));
+  imageStore(img_out, ipos, vec4(col, vec3(1)));
+}
+
