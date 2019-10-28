@@ -1,2 +1,2 @@
-input:read:rggb:ui16
+input:read:rggb:f16
 output:write:rggb:f16

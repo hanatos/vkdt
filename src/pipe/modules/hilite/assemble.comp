@@ -17,8 +17,6 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
-  float white;
-  float black;
   uint filters;
   uint level;
 } push;
@@ -40,7 +38,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
 {
   vec3 c = vec3(0.0f);
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
-  const float white = push.white * params.white;
+  const float white = params.white;
   float wgt = 0.0f;
   ivec2 ipos = opos/2;
   const int d = (opos.x&1) + 2*(opos.y&1);
@@ -108,18 +106,18 @@ main()
   // fetch input pixel
   vec3 fine = texelFetch(img_input, opos, 0).rgb;
 
-  const float white = push.white * params.white;
+  const float white = params.white;
 
   // rescale upsampled values to match unclipped values in fine
   // this is risky because min might be close to black/0 so it may be unstable:
   float scale = 1.0f;
-  if     (fine.r < white && upsm.r > 0.01) scale = (fine.r-push.black)/(upsm.r-push.black);
-  else if(fine.g < white && upsm.g > 0.01) scale = (fine.g-push.black)/(upsm.g-push.black);
-  else if(fine.b < white && upsm.b > 0.01) scale = (fine.b-push.black)/(upsm.b-push.black);
+  if     (fine.r < white && upsm.r > 0.01) scale = fine.r/upsm.r;
+  else if(fine.g < white && upsm.g > 0.01) scale = fine.g/upsm.g;
+  else if(fine.b < white && upsm.b > 0.01) scale = fine.b/upsm.b;
   // XXX DEBUG
-  scale = (fine.r-push.black)/(upsm.r-push.black);
+  scale = fine.r/upsm.r;
 
-  vec3 rec = push.black + (upsm - push.black) * scale;
+  vec3 rec = upsm * scale;
   // only overwrite clipped in fine
   if(push.level == 1)
   {

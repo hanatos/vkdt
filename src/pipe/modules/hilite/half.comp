@@ -16,7 +16,6 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
-  float white;
   uint filters;
 } push;
 
@@ -37,7 +36,7 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   vec4 rgba;
-  const float white = push.white * params.white;
+  const float white = params.white;
 
   if(push.filters == 9)
   {
@@ -68,7 +67,7 @@ main()
     // }
     // at least make sure we don't blur bogus colours
     if(maxg >= white)
-      c0 = c2 = c4 = c6 = c8 = 2*push.white;
+      c0 = c2 = c4 = c6 = c8 = 1.0;//2*push.white;
 #endif
     vec2 col = vec2((c1 + c7)*0.5, (c3 + c5)*.5);
     if(((ipos.x + ipos.y) & 1) > 0)

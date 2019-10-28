@@ -47,9 +47,9 @@ extern "C" void dt_gui_set_lod(int lod)
     vkdt.graph_dev.output_ht = vkdt.state.center_ht / (g_lod-1);
   }
   vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
-  // reset view
-  vkdt.state.look_at_x = FLT_MAX;
-  vkdt.state.look_at_y = FLT_MAX;
+  // reset view? would need to set zoom, too
+  // vkdt.state.look_at_x = FLT_MAX;
+  // vkdt.state.look_at_y = FLT_MAX;
 }
 
 namespace {

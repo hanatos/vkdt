@@ -21,8 +21,8 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  float    white   = module->img_param.white[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
-  float    black   = module->img_param.black[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
+  // float    white   = module->img_param.white[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
+  // float    black   = module->img_param.black[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
   uint32_t filters = module->img_param.filters;
 
   const int wd = module->connector[0].roi.wd;
@@ -59,8 +59,8 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roic,
     }},
-    .push_constant_size = 8,
-    .push_constant = { *(uint32_t*)(&white), filters },
+    .push_constant_size = 4,
+    .push_constant = { filters },
   };
   assert(graph->num_nodes < graph->max_nodes);
   const int id_doub = graph->num_nodes++;
@@ -94,8 +94,8 @@ create_nodes(
       .format = dt_token("ui16"),
       .roi    = module->connector[0].roi,
     }},
-    .push_constant_size = 12,
-    .push_constant = { *(uint32_t*)(&white), *(uint32_t*)(&black), filters },
+    .push_constant_size = 4,
+    .push_constant = { filters },
   };
 
   // wire module i/o connectors to nodes:
@@ -150,8 +150,8 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = rc,
       }},
-      .push_constant_size = 8,
-      .push_constant = { *(uint32_t*)(&white), filters },
+      .push_constant_size = 4,
+      .push_constant = { filters },
     };
     assert(graph->num_nodes < graph->max_nodes);
     int id_assemble = graph->num_nodes++;
@@ -185,8 +185,8 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = rf,
       }},
-      .push_constant_size = 16,
-      .push_constant = { *(uint32_t*)(&white), *(uint32_t*)(&black), filters, l },
+      .push_constant_size = 8,
+      .push_constant = { filters, l },
     };
 
     // wire node connections:

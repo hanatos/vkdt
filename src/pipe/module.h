@@ -28,6 +28,7 @@ typedef struct dt_image_params_t
   float white[4];
   float whitebalance[4];
   uint32_t filters;
+  uint32_t crop_aabb[4];
   // TODO: other interesting things?
   float cam_to_rec2020[9];
 }

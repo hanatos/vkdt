@@ -32,7 +32,6 @@ rawinput_buf_t;
 
 namespace {
 
-// TODO: put in header!
 inline int
 FC(const size_t row, const size_t col, const uint32_t filters)
 {
@@ -216,6 +215,15 @@ void modify_roi_out(
   mod->connector[0].roi.full_ht = dim_uncropped.y;
 
   // TODO: data type, channels, bpp
+
+  // dimensions of cropped image (cut away black borders for noise estimation)
+  rawspeed::iPoint2D dimCropped = mod_data->d->mRaw->dim;
+  rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
+  mod->img_param.crop_aabb[0] = cropTL.x;
+  mod->img_param.crop_aabb[1] = cropTL.y;
+  mod->img_param.crop_aabb[2] = cropTL.x + dimCropped.x;
+  mod->img_param.crop_aabb[3] = cropTL.y + dimCropped.y;
+
   if(mod_data->d->mRaw->blackLevelSeparate[0] == -1)
     mod_data->d->mRaw->calculateBlackAreas();
   for(int k=0;k<4;k++)
@@ -300,7 +308,6 @@ void modify_roi_out(
     mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
 
   // uncrop bayer sensor filter
-  rawspeed::iPoint2D cropTL = mod_data->d->mRaw->getCropOffset();
   mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
   if(mod->img_param.filters != 9u)
     mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
@@ -348,7 +355,7 @@ void modify_roi_out(
       else        oy += 3;
     }
   }
-  else
+  else // move to std bayer sensor offset
   {
     uint32_t f = mod->img_param.filters;
     if(FC(0,0,f) == 1)
@@ -361,12 +368,28 @@ void modify_roi_out(
       ox = oy = 1;
     }
   }
+  // unfortunately need to round to full 6x6 block for xtrans
+  const int block = mod->img_param.filters == 9u ? 3 : 2;
+  const int bigblock = mod->img_param.filters == 9u ? 6 : 2;
+  // crop aabb is relative to buffer we emit,
+  // so we need to move it along to the CFA pattern boundary
+  uint32_t *b = mod->img_param.crop_aabb;
+  b[2] -= ox;
+  b[3] -= oy;
+  // fprintf(stderr, "off %d %d\n", ox, oy);
+  // fprintf(stderr, "box %u %u %u %u\n", b[0], b[1], b[2], b[3]);
+  // and also we'll round it to cut only between CFA blocks
+  b[0] = ((b[0] + bigblock - 1) / bigblock) * bigblock;
+  b[1] = ((b[1] + bigblock - 1) / bigblock) * bigblock;
+  b[2] =  (b[2] / block) * block;
+  b[3] =  (b[3] / block) * block;
+  // fprintf(stderr, "bor %u %u %u %u\n", b[0], b[1], b[2], b[3]);
+
   mod_data->ox = ox;
   mod_data->oy = oy;
   ro->full_wd -= ox;
   ro->full_ht -= oy;
   // round down to full block size:
-  const int block = mod->img_param.filters == 9u ? 3 : 2;
   ro->full_wd = (ro->full_wd/block)*block;
   ro->full_ht = (ro->full_ht/block)*block;
 }

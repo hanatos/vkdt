@@ -16,7 +16,6 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
-  float white;
   uint filters;
 } push;
 
@@ -35,7 +34,7 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
-  const float white = push.white * params.white;
+  const float white = params.white;
   // blur, store only coarse res
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
   vec3 col = vec3(0.0f);
@@ -50,7 +49,7 @@ main()
       wgt += u;
     }
   }
-  if(wgt == 0.0f) col = vec3(2.0);//push.white);
+  if(wgt == 0.0f) col = vec3(1.0);
   else col /= wgt;
   imageStore(img_out, opos, vec4(col, 1));
 }
