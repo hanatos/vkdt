@@ -213,8 +213,10 @@ main()
     //         x y    g b
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
     float ming = min(c.x, c.z);
-    float scale = ming/upsm.g;
-#if 1 // XXX DEBUG
+    // TODO: find out by wb coeffs which one we assume to clip last:
+    // float scale = c.w/upsm.r;
+    float scale = c.y/upsm.b; // this is good for fire, but r is good for d65 skies
+#if 0 // XXX DEBUG
     if(c.w < ming)
     {
       if(c.y < c.w) scale = c.y/upsm.b;
@@ -226,10 +228,15 @@ main()
       else           scale = ming/upsm.g;
     }
 #endif
-    if(c.x >= white) c.x = scale * upsm.g;
-    if(c.y >= white) c.y = scale * upsm.b;
-    if(c.z >= white) c.z = scale * upsm.g;
-    if(c.w >= white) c.w = scale * upsm.r;
+    if(c.x >= white ||
+       c.y >= white ||
+       c.z >= white ||
+       c.w >= white)
+      c = scale * upsm.gbgr;
+    // if(c.x >= white) c.x = scale * upsm.g;
+    // if(c.y >= white) c.y = scale * upsm.b;
+    // if(c.z >= white) c.z = scale * upsm.g;
+    // if(c.w >= white) c.w = scale * upsm.r;
     // c = upsm.gbgr; // XXX DEBUG
     // XXX FIXME: i think we don't want to write these in ui16 or unnormalised f16, since we'll blow out
     // the highlights exceeding the 0x10000 number range!

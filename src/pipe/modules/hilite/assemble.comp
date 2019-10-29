@@ -119,13 +119,12 @@ main()
 
   vec3 rec = upsm * scale;
   // only overwrite clipped in fine
-  if(push.level == 1)
+  if(push.level <= 1)
   {
     if(any(greaterThanEqual(fine, vec3(white))))
       fine = rec;
   }
-  else
-    fine = upsm;
+  else fine = upsm;
   imageStore(img_out, opos, vec4(fine, 1));
 }
 
