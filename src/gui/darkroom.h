@@ -148,13 +148,13 @@ darkroom_enter()
     return 2;
   }
 
-  // TODO: rename to "i-*" and also probe other file formats
-  int modid = dt_module_get(&vkdt.graph_dev, dt_token("rawinput"), dt_token("01"));
+  // TODO: support other file formats instead of just raw?
+  int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
   if(modid < 0 ||
      dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
        vkdt.db.image[imgid].filename))
   {
-    dt_log(s_log_err|s_log_gui, "config '%s' has no rawinput module!", graph_cfg);
+    dt_log(s_log_err|s_log_gui, "config '%s' has no raw input module!", graph_cfg);
     dt_graph_cleanup(&vkdt.graph_dev);
     return 3;
   }

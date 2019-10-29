@@ -15,7 +15,7 @@ void write_sink(
     void *buf)
 {
   const char *filename = dt_module_param_string(module, 0);
-  fprintf(stderr, "[bc1out] writing '%s'\n", filename);
+  fprintf(stderr, "[o-bc1] writing '%s'\n", filename);
 
   const uint32_t wd = module->connector[0].roi.wd;
   const uint32_t ht = module->connector[0].roi.ht;

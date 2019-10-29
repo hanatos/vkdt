@@ -1,4 +1,4 @@
-TARGET=libbc1out.so
+TARGET=lib$(shell basename $(CURDIR)).so
 CFLAGS=-Wall -I../.. -I../../.. -fPIC -g
 LDFLAGS=-lz
 

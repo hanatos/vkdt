@@ -1,11 +1,11 @@
-TARGET=libexport8.so
-CFLAGS=-Wall -I../.. -I../../.. -fPIC
+TARGET=lib$(shell basename $(CURDIR)).so
+CFLAGS=-Wall -I../.. -I../../.. -fPIC -g
+LDFLAGS=-lz
 CFLAGS+=$(OPT_CFLAGS)
-LDFLAGS+=$(OPT_LDFLAGS) -ljpeg
+LDFLAGS+=$(OPT_LDFLAGS)
 
 $(TARGET): main.c Makefile
 	$(CC) $(CFLAGS) main.c -shared -o $(TARGET) $(LDFLAGS)
 
 clean:
 	rm -f $(TARGET)
-

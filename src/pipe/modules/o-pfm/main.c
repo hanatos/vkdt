@@ -24,7 +24,7 @@ void write_sink(
     void *buf)
 {
   const char *basename = dt_module_param_string(module, 0);
-  fprintf(stderr, "[export] writing '%s'\n", basename);
+  fprintf(stderr, "[o-pfm] writing '%s'\n", basename);
   uint16_t *p16 = buf;
 
   const int width  = module->connector[0].roi.wd;

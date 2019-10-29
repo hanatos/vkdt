@@ -1,4 +1,4 @@
-TARGET=librawinput.so
+TARGET=lib$(shell basename $(CURDIR)).so
 RAWSPEED_I=../../../../ext/rawspeed
 RAWSPEED_L=../../../../built/ext/rawspeed
 CXXFLAGS=-Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ -I../.. -I../../.. -fPIC -g

@@ -41,7 +41,7 @@ void write_sink(
     void *buf)
 {
   const char *basename = dt_module_param_string(module, 0);
-  fprintf(stderr, "[export8] writing '%s'\n", basename);
+  fprintf(stderr, "[o-jpg] writing '%s'\n", basename);
 
   const int width  = module->connector[0].roi.wd;
   const int height = module->connector[0].roi.ht;

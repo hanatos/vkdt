@@ -17,13 +17,13 @@ void modify_roi_out(
   gzFile f = gzopen(filename, "rb");
   if(!f || gzread(f, header, sizeof(uint32_t)*4) != sizeof(uint32_t)*4)
   {
-    fprintf(stderr, "[bc1input] %s: can't open file!\n", filename);
+    fprintf(stderr, "[i-bc1] %s: can't open file!\n", filename);
     if(f) gzclose(f);
   }
   // checks: magic != dt_token("bc1z") || version != 1
   if(header[0] != dt_token("bc1z") || header[1] != 1)
   {
-    fprintf(stderr, "[bc1input] %s: wrong magic number or version!\n", filename);
+    fprintf(stderr, "[i-bc1] %s: wrong magic number or version!\n", filename);
     gzclose(f);
   }
   const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
@@ -41,19 +41,19 @@ int read_source(
   gzFile f = gzopen(filename, "rb");
   if(!f || gzread(f, header, sizeof(uint32_t)*4) != sizeof(uint32_t)*4)
   {
-    fprintf(stderr, "[bc1input] %s: can't open file!\n", filename);
+    fprintf(stderr, "[i-bc1] %s: can't open file!\n", filename);
     if(f) gzclose(f);
     return 1;
   }
   // checks: magic != dt_token("bc1z") || version != 1
   if(header[0] != dt_token("bc1z") || header[1] != 1)
   {
-    fprintf(stderr, "[bc1input] %s: wrong magic number or version!\n", filename);
+    fprintf(stderr, "[i-bc1] %s: wrong magic number or version!\n", filename);
     gzclose(f);
     return 1;
   }
   const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
-  // fprintf(stderr, "[bc1input] %s magic %"PRItkn" version %u dim %u x %u\n",
+  // fprintf(stderr, "[i-bc1] %s magic %"PRItkn" version %u dim %u x %u\n",
   //     filename, dt_token_str(header[0]),
   //     header[1], header[2], header[3]);
   gzread(f, mapped, sizeof(uint8_t)*8*(wd/4)*(ht/4));

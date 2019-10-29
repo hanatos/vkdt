@@ -1,8 +1,5 @@
-TARGET=libjpginput.so
-JPEG_I=
-JPEG_L=-ljpeg
-CFLAGS=-Wall -I../.. -I../../.. -fPIC -g $(JPEG_I)
-LDFLAGS=$(JPEG_L)
+TARGET=lib$(shell basename $(CURDIR)).so
+CFLAGS=-Wall -I. -I../.. -I../../.. -fPIC
 CFLAGS+=$(OPT_CFLAGS)
 LDFLAGS+=$(OPT_LDFLAGS)
 
@@ -11,3 +8,4 @@ $(TARGET): main.c Makefile
 
 clean:
 	rm -f $(TARGET)
+

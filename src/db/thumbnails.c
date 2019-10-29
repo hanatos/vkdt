@@ -202,20 +202,20 @@ dt_thumbnails_cache_one(
 
   // set param for rawinput
   // get module
-  int modid = dt_module_get(graph, dt_token("rawinput"), dt_token("01"));
+  int modid = dt_module_get(graph, dt_token("i-raw"), dt_token("01"));
   if(modid < 0 ||
      dt_module_set_param_string(graph->module + modid, dt_token("filename"), filename))
   {
-    dt_log(s_log_err, "[thm] config '%s' has no rawinput module!", cfgfilename);
+    dt_log(s_log_err, "[thm] config '%s' has no raw input module!", cfgfilename);
     dt_graph_cleanup(graph);
     return 3;
   }
 
-  modid = dt_module_get(graph, dt_token("bc1out"), dt_token("main"));
+  modid = dt_module_get(graph, dt_token("o-bc1"), dt_token("main"));
   if(modid < 0 ||
      dt_module_set_param_string(graph->module + modid, dt_token("filename"), bc1filename))
   {
-    dt_log(s_log_err, "[thm] config '%s' has no bc1out module!", cfgfilename);
+    dt_log(s_log_err, "[thm] config '%s' has no bc1 output module!", cfgfilename);
     dt_graph_cleanup(graph);
     return 3;
   }
@@ -418,11 +418,11 @@ dt_thumbnails_load_one(
 
   // set param for rawinput
   // get module
-  int modid = dt_module_get(graph, dt_token("bc1input"), dt_token("01"));
+  int modid = dt_module_get(graph, dt_token("i-bc1"), dt_token("01"));
   if(modid < 0 ||
      dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
   {
-    dt_log(s_log_err, "[thm] config '%s' has no bc1in module!", cfgfilename);
+    dt_log(s_log_err, "[thm] config '%s' has no bc1 input module!", cfgfilename);
     dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }

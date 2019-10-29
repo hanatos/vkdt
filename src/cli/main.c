@@ -29,7 +29,7 @@ replace_display(
 
   // new module export with same inst
   // maybe new module 8-bit in between here
-  dt_token_t export = ldr ? dt_token("export8") : dt_token("export");
+  dt_token_t export = ldr ? dt_token("o-jpg") : dt_token("o-pfm");
   const int m1 = dt_module_add(graph, export, inst);
   const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
   CONN(dt_module_connect(graph, m0, c0, m1, c1));

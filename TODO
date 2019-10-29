@@ -2,7 +2,6 @@
 
 * use vkCmdClearColorImage() on output images to avoid inefficiencies on GPU
   while at it: using an incorrect src layout may lead to discarding the data during layout transform barriers
-* rename input modules to i-* and output to o-*
 * go through all code and clean out debugging comments
 
 # pipeline features
@@ -51,3 +50,4 @@
 
 * modules/api.h to include all graph_t module_t node_t connector_t structs so
   recompilation triggers correctly
+* parallel build to use longest job first (i-raw)
