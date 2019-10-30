@@ -7,11 +7,13 @@ dt_module_connect(
     dt_graph_t *graph,
     int m0, int c0, int m1, int c1)
 {
+#define connect_module
 #define element module
 #define num_elements num_modules
 #include "connector.inc"
 #undef num_elements
 #undef element
+#undef connect_module
 }
 
 int

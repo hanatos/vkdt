@@ -27,6 +27,11 @@
 
     // disconnect cn1
     cn1->connected_mi = cn1->connected_mc = -1;
+#ifdef connect_module
+    // this is the sink. the connector has a format that has been previously negotiated with the
+    // previous source. reset to the generic module->so version:
+    cn1->format = graph->element[m1].so->connector[c1].format;
+#endif
 
     // decrement previous source's reference counter
     if(graph->element[old_mod].connector[old_con].connected_mi > 0)
@@ -34,10 +39,24 @@
       graph->element[old_mod].connector[old_con].connected_mi--;
       if(graph->element[old_mod].connector[old_con].connected_mi < 0)
       { assert(0 && "sink inconsistent!"); return 6; }
+#ifdef connect_module
+      else if(graph->element[old_mod].connector[old_con].connected_mi == 0)
+      { // this is the old source, now disconnected.
+        // replace the format of this connector by the (potentially generic) module->so version
+        graph->element[old_mod].connector[old_con].format = graph->element[old_mod].so->connector[old_con].format;
+      }
+#endif
     }
     else
     { assert(0 && "sink inconsistent!"); return 6; }
   }
+
+  // cn0 is the source. it has either previously negotiated a specialised format with a different
+  // sink, in which case we need to respect it. or it didn't yet, in which case it will still
+  // have the wildcard format "*" which means we don't have to touch it.
+  //   the only case in which we'll have to reset is when an explicit disconnect takes place.
+  // note that this only happens with (-1, -1, sink, sink), so this case is covered above
+  // by resetting the previously connected input (old source).
 
   // actually just disconnect requested? we're done now, then:
   if(c0 < 0 || m0 < 0) return 0;
@@ -54,6 +73,14 @@
 
   // check buffer config for compatibility
   if(cn1->chan != cn0->chan) return 10;
+  // if output is already connected to another input, use this format as mandatory (can't be "*" any more)
+  // if any one is "*" use the other
+  // if both are "*" fall back to default "f16"
+  // this should mostly happen on the module level
+  if(cn1->format == dt_token("*")) cn1->format = cn0->format;
+  if(cn0->format == dt_token("*")) cn0->format = cn1->format;
+  if(cn1->format == dt_token("*")) cn1->format = dt_token("f16");
+  if(cn0->format == dt_token("*")) cn0->format = dt_token("f16");
   if(cn1->format != cn0->format) return 11;
 
   // now we checked everything will be alright, so we can proceed and execute
