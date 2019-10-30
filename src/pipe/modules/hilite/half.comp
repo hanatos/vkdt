@@ -83,6 +83,15 @@ main()
     if(c.x >= white) c.x = c.z;
     if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
+    if(all(lessThan(rgba.rgb, vec3(white))))
+    {
+      // XXX TODO: get from push const:
+      const vec3 wb = vec3(2, 1, 1.8);
+      float max = max(rgba.r*wb.r, max(rgba.g*wb.g, rgba.b*wb.b));
+      float min = min(rgba.r*wb.r, min(rgba.g*wb.g, rgba.b*wb.b));
+      float sat = (max-min)/max;
+      if(sat > 0.5) rgba = vec4(vec3(white), 1); 
+    }
   }
   imageStore(img_out, ipos, rgba);
 }

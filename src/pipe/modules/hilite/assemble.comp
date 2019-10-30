@@ -121,7 +121,8 @@ main()
   // only overwrite clipped in fine
   if(push.level <= 1)
   {
-    if(any(greaterThanEqual(fine, vec3(white))))
+    if(any(greaterThanEqual(fine, vec3(white)))
+      )// && all(lessThan(upsm, vec3(white))))
       fine = rec;
   }
   else fine = upsm;
