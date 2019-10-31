@@ -4,7 +4,7 @@
 
 .PHONY:all ext src clean distclean bin
 
-OPT_CFLAGS=-Wall -O3 -march=native -g
+OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
 OPT_LDFLAGS=
 CC=clang
 CXX=clang++

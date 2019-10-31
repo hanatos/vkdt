@@ -1,10 +1,17 @@
-# flat makefile for everything.
+# flat makefile for everything, -j friendly.
 
-# modules which need a dso have a makefile, collect all these.
+# modules which need a dso have flat.mk, collect all these.
+# generate list of all modules (the * in pipe/modules/*/flat.mk)
+MODULES=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
+MODULESXX=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
+# generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
+MOD_DSOS=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
+MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
 # also all .comp compute shaders will be compiled to spir-v.
-MODULES=$(wildcard pipe/modules/*/Makefile)
-SPV=$(shell ls -1 pipe/modules/*/*.comp | sed -e 's/.comp/.spv/')
-.PHONY: all clean all modules $(MODULES)
+SPV=$(patsubst %.comp,%.spv,$(shell ls -1 pipe/modules/*/*.comp))
+
+
+.PHONY: all clean all modules $(MODULES) $(MODULESXX)
 
 all: vkdt-cli vkdt modules Makefile
 
@@ -18,7 +25,7 @@ include cli/flat.mk
 clean: Makefile
 	rm -f vkdt vkdt-cli 
 	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O) $(DB_O)
-	rm -f pipe/modules/*/lib*.so
+	rm -f $(MOD_DSOS) $(MOD_DSOSXX)
 	rm -f pipe/modules/*/*.spv
 
 # for sched_affinity
@@ -56,20 +63,48 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # main application
+# ======================
 vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt \
     $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # command line interface
+# ======================
 vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt-cli \
     $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
+# modules
+# ======================
+modules: $(MODULES) $(MODULESXX) $(SPV) Makefile
 
-modules: $(MODULES) $(SPV) Makefile
+MOD_GLOBAL_DEPS=\
+  pipe/modules/api.h\
+  pipe/graph.h\
+  pipe/module.h\
+  pipe/node.h\
+  pipe/connector.h\
+  pipe/connector.c\
+  pipe/connector.inc
+MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC
 
-pipe/modules/*/Makefile:
-	$(MAKE) -C $(dir $@)
+# expand all cflags/ldflags/deps/extra-c from flat.mk:
+$(foreach MOD,$(MODULES) $(MODULESXX),\
+  $(eval MOD_CFLAGS=)\
+  $(eval MOD_LDFLAGS=)\
+  $(eval MOD_DEPS=)\
+  $(eval MOD_C=)\
+  $(eval include pipe/modules/$(MOD)/flat.mk)\
+  $(eval MOD_$(MOD)_CFLAGS=$(MOD_CFLAGS))\
+  $(eval MOD_$(MOD)_LDFLAGS=$(MOD_LDFLAGS))\
+  $(eval MOD_$(MOD)_DEPS=$(MOD_DEPS))\
+  $(eval MOD_$(MOD)_C=$(MOD_C)))
+
+$(MODULES):pipe/modules/%/lib%.so:pipe/modules/%/main.c pipe/modules/%/flat.mk $(MOD_$*_DEPS) $(MOD_GLOBAL_DEPS)
+	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$*_CFLAGS) -shared pipe/modules/$*/main.c $(MOD_$*_C) -o pipe/modules/$*/lib$*.so $(LDFLAGS) $(MOD_$*_LDFLAGS)
+
+$(MODULESXX):pipe/modules/%/lib%.so:pipe/modules/%/main.cc pipe/modules/%/flat.mk $(MOD_$*_DEPS) $(MOD_GLOBAL_DEPS)
+	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$*_CFLAGS) -shared pipe/modules/$*/main.cc $(MOD_$*_C) -o pipe/modules/$*/lib$*.so $(LDFLAGS) $(MOD_$*_LDFLAGS)
 
 %.spv: %.comp
 	$(GLSLC) -Ipipe/modules -I$(dir $<) --target-env vulkan1.1 \
