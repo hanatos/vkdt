@@ -20,7 +20,7 @@ dt_graph_init(dt_graph_t *g)
   // allocate module and node buffers:
   g->max_modules = 100;
   g->module = malloc(sizeof(dt_module_t)*g->max_modules);
-  g->max_nodes = 300;
+  g->max_nodes = 4000;
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
   dt_vkalloc_init(&g->heap, 100, 1ul<<40); // bytesize doesn't matter
   dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
@@ -50,7 +50,7 @@ dt_graph_init(dt_graph_t *g)
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
 
-  g->query_max = 200;
+  g->query_max = 2000;
   g->query_cnt = 0;
   VkQueryPoolCreateInfo query_pool_info = {
     .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
@@ -394,6 +394,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->size_staging   = c->mem_staging->size;
         // TODO: better and more general caching:
         c->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
+        c->mem_staging->ref++; // ref staging memory so we don't overwrite it before the pipe starts (will be written in read_source() in the module)
       }
     }
     else if(dt_connector_input(c))
@@ -424,6 +425,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           c->mem_staging    = dt_vkalloc(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
           c->offset_staging = c->mem_staging->offset;
           c->size_staging   = c->mem_staging->size;
+          c->mem_staging->ref++; // so we don't overwrite it before the pipe ends, because write_sink is called for all modules once at the end
         }
       }
     }
@@ -725,9 +727,10 @@ void dt_token_print(dt_token_t t)
 static VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
-  // TODO: run flags and active module
-  if(!dt_node_source(node)) *runflag = 2; // XXX hack: avoid single source upload
-  if(!*runflag) return VK_SUCCESS; // nothing to do yet
+  // runflag will be 1 if we ask to upload source explicitly (the first time around)
+  if((*runflag == 0) && dt_node_source(node))
+    return VK_SUCCESS;
+  // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
 
   // for drawn/rasterised buffers:
   uint32_t attachment_desc_cnt = 0;
@@ -832,7 +835,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       }
     }
   }
-  *runflag = 1;
 
   const uint32_t wd = node->connector[0].roi.wd;
   const uint32_t ht = node->connector[0].roi.ht;

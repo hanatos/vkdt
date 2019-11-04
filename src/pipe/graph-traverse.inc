@@ -19,9 +19,9 @@
 #endif
 
 { // scope
-  uint32_t stack[256];
-  uint8_t done[256];
-  uint8_t mark[256] = {0};
+  uint32_t stack[1000];
+  uint8_t done[1000];       // dimension is stack size
+  uint8_t mark[4000] = {0}; // dimension is number of nodes/modules
   assert(arr_cnt < sizeof(mark));
   int sp = -1;
 

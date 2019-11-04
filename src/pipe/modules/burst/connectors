@@ -1,0 +1,11 @@
+input:read:rggb:*
+warp:read:rggb:*
+output:write:rggb:f16
+debugi0:write:y:f16
+debugi1:write:y:f16
+debugi2:write:y:f16
+debugi3:write:y:f16
+debugw0:write:y:f16
+debugw1:write:y:f16
+debugw2:write:y:f16
+debugw3:write:y:f16

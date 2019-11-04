@@ -6,9 +6,8 @@
 
 # pipeline features
 
-* parallel queue submission
-  * lock mutex in main drawing loop
-  * thread system with slots for worker threads and for tasks?
+* sources never scale! the roi is still modified if there
+  isn't any blocker node (demosaic) on the way. this leads to segfaults.
 
 # pipeline reuse
 

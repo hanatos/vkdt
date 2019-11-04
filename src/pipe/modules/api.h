@@ -72,7 +72,6 @@ dt_api_blur(
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = 1;
-  assert(conn_input->chan == dt_token("rg"));
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),

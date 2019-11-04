@@ -1,0 +1,34 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+} params;
+
+layout( // input buffer, grey scale
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output buffer grey scale
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// output grey scale image downsized 2x2
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+
+  vec4 c0 = textureGather(img_in, (2*opos)/vec2(params.ri.roi), 0);
+  float c = c0.x+c0.y+c0.z+c0.w;
+  imageStore(img_out, opos, vec4(vec3(c), 1));
+}

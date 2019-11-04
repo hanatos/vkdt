@@ -1,0 +1,91 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t roff;
+  roi_t ro;
+} params;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint filters;
+} push;
+
+layout( // input buffer rggb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // input buffer warp offsets rgb
+    set = 1, binding = 1
+) uniform sampler2D img_off;
+
+layout( // output buffer rggb
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+// runs on output dimensions, reads offset texture
+// and input image at offset position, rounded to mosaic block.
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  int block = push.filters == 9 ? 3 : 2;
+  // offset is on coarse scale (/block):
+  vec3 off = block * textureLod(img_off, ipos/vec2(block*params.roff.roi), 0).rgb;
+
+  float col;
+  if(push.filters == 9)
+  { // xtrans: stupid hack #2: get block coordinate and select closest pixel of same colour
+    ivec2 pos = ipos - (ipos/3)*3;          // position inside src 3x3 block
+    ivec2 dst = (ivec2(ipos + off.rg)/3)*3; // beginning of dst 3x3 block
+    vec2 fdst = ipos + off.rg - dst;        // position inside dst 3x3 block (not rounded yet)
+    ivec2 rd; // final rounded read position
+    if(((pos.x + pos.y) & 1) == 0)
+    { // green pixel, round to any pixel in the X
+      ivec2 idst = clamp(ivec2(fdst), 0, 2);
+      if(idst.x == 0 || idst.x == 2) idst.y = fdst.y > 1.5 ? 2 : 0;
+      else idst.y = 1;
+      rd = dst + idst;
+    }
+    else // red and blue
+    {
+      ivec2 idst = ivec2(fdst.x > 1.5 ? 2 : 0, fdst.y > 1.5 ? 2 : 0);
+      bool blue_top = ((ipos.x/3 + ipos.y/3) & 1) > 0;
+      bool new_blue_top = ((dst.x + dst.y) & 1) > 0;
+      if(blue_top != new_blue_top) // argh whatever, this super explicit form works
+      { // swapping meaning of red and blue pixels
+        if(pos.y == 1) idst.x = 1;
+        else           idst.y = 1;
+      }
+      else
+      { // same pattern
+        if(pos.y == 1) idst.y = 1;
+        else           idst.x = 1;
+      }
+      rd = dst + idst;
+    }
+    col = texelFetch(img_in, rd, 0).r;
+  }
+  else if(push.filters == 0)
+  { // no mosaic: just grab pixel regardless of mosaic
+    col = texelFetch(img_in, ipos + ivec2(off.rg+.5), 0).r;
+  }
+  else
+  { // bayer: stupid hack #1 to keep mosaic pattern: round off to block size:
+    ivec2 offi = ivec2(off.rg / (block));
+    offi = block * offi;
+    col = texelFetch(img_in, ipos + offi, 0).r;
+  }
+
+  imageStore(img_out, ipos, vec4(vec3(col), 1));
+}

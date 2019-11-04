@@ -1,6 +1,21 @@
 #pragma once
 #include "pipe/graph.h"
 
+#define _pr(A) (A)
+#if 0 // does not work this way
+// dot can't do "i-raw" as module name, but it likes "i_raw" for instance
+static inline dt_token_t
+_pr(dt_token_t t)
+{
+  dt_token_t r = t;
+  for(int k=0;k<8;k++) if(((r>>8*k) & 0xff) == '-')
+  {
+    r &= ~(0xff<<(8*k));  // clear byte
+    r |= '_' << (8*k);    // set byte to '_'
+  }
+  return r;
+}
+#endif
 
 static inline void
 dt_graph_print_modules(
@@ -12,11 +27,11 @@ dt_graph_print_modules(
   {
     fprintf(stdout, "n%d_%"PRItkn" [label=\"%"PRItkn"|{",
         m,
-        dt_token_str(graph->module[m].name),
-        dt_token_str(graph->module[m].name));
+        dt_token_str(_pr(graph->module[m].name)),
+        dt_token_str(_pr(graph->module[m].name)));
     for(int c=0;c<graph->module[m].num_connectors;c++)
     {
-      fprintf(stdout, "<%d> %"PRItkn, c, dt_token_str(graph->module[m].connector[c].name));
+      fprintf(stdout, "<%d> %"PRItkn, c, dt_token_str(_pr(graph->module[m].connector[c].name)));
       if(c != graph->module[m].num_connectors - 1)
         fprintf(stdout, "|");
       else fprintf(stdout, "}\"];\n");
@@ -32,12 +47,12 @@ dt_graph_print_modules(
       {
         fprintf(stdout, "n%d_%"PRItkn":%d -> n%d_%"PRItkn":%d\n",
             graph->module[m].connector[c].connected_mi,
-            dt_token_str(graph->module[
+            dt_token_str(_pr(graph->module[
               graph->module[m].connector[c].connected_mi
-            ].name),
+            ].name)),
             graph->module[m].connector[c].connected_mc,
             m,
-            dt_token_str(graph->module[m].name),
+            dt_token_str(_pr(graph->module[m].name)),
             c);
       }
     }
@@ -56,13 +71,13 @@ dt_graph_print_nodes(
     fprintf(stdout, "n%d_%"PRItkn"_%"PRItkn
         " [label=\"%"PRItkn"_%"PRItkn"|{",
         m,
-        dt_token_str(graph->node[m].name),
-        dt_token_str(graph->node[m].kernel),
-        dt_token_str(graph->node[m].name),
-        dt_token_str(graph->node[m].kernel));
+        dt_token_str(_pr(graph->node[m].name)),
+        dt_token_str(_pr(graph->node[m].kernel)),
+        dt_token_str(_pr(graph->node[m].name)),
+        dt_token_str(_pr(graph->node[m].kernel)));
     for(int c=0;c<graph->node[m].num_connectors;c++)
     {
-      fprintf(stdout, "<%d> %"PRItkn, c, dt_token_str(graph->node[m].connector[c].name));
+      fprintf(stdout, "<%d> %"PRItkn, c, dt_token_str(_pr(graph->node[m].connector[c].name)));
       if(c != graph->node[m].num_connectors - 1)
         fprintf(stdout, "|");
       else fprintf(stdout, "}\"];\n");
@@ -78,16 +93,16 @@ dt_graph_print_nodes(
       {
         fprintf(stdout, "n%d_%"PRItkn"_%"PRItkn":%d -> n%d_%"PRItkn"_%"PRItkn":%d\n",
             graph->node[m].connector[c].connected_mi,
-            dt_token_str(graph->node[
+            dt_token_str(_pr(graph->node[
               graph->node[m].connector[c].connected_mi
-            ].name),
-            dt_token_str(graph->node[
+            ].name)),
+            dt_token_str(_pr(graph->node[
               graph->node[m].connector[c].connected_mi
-            ].kernel),
+            ].kernel)),
             graph->node[m].connector[c].connected_mc,
             m,
-            dt_token_str(graph->node[m].name),
-            dt_token_str(graph->node[m].kernel),
+            dt_token_str(_pr(graph->node[m].name)),
+            dt_token_str(_pr(graph->node[m].kernel)),
             c);
       }
     }

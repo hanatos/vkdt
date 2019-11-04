@@ -54,7 +54,7 @@ typedef struct dt_module_so_t
   dt_module_init_t init;
   dt_module_init_t cleanup;
 
-  dt_connector_t connector[10]; // enough for everybody, right?
+  dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
   // pointer to variably-sized parameters

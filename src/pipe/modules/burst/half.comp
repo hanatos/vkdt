@@ -11,29 +11,31 @@ layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
   roi_t ro;
-  uint filters;
 } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  uint filters;
+} push;
 
-layout( // input uint16 buffer rggb
+layout( // input buffer rggb
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output f16 buffer rgb
+layout( // output buffer gray scale
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-// demosaic reduced size. run on output dimensions, gather all colours from
-// input buffer (this might be 3x3 for xtrans).
+// output grey scale image downsized 2x2
+// (this might be 3x3 for xtrans).
 void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  vec4 rgba;
-
-  if(params.filters == 9)
+  vec3 rgb;
+  if(push.filters == 9)
   {
     float c0 = texelFetch(img_in, 3*ipos, 0).r;
     float c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;
@@ -44,17 +46,21 @@ main()
     float c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
     float c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
     float c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
-    rgba.g = (c0 + c2 + c4 + c6 + c8)*1.0/5.0;
+    rgb.g = (c0 + c2 + c4 + c6 + c8)*1.0/5.0;
     vec2 col = vec2((c1 + c7)*0.5, (c3 + c5)*.5);
     if(((ipos.x + ipos.y) & 1) > 0)
-      rgba.rb = col;
+      rgb.rb = col;
     else
-      rgba.br = col;
+      rgb.br = col;
   }
   else
   {
-    vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.roi), 0);
-    rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
+    vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
+    rgb = vec3(c.w, (c.x+c.z)/2.0, c.y);
   }
-  imageStore(img_out, ipos, rgba);
+  // rgb is probably not rec2020, so this weighting could be 1 1 1 or
+  // anything really instead:
+  float lum = dot(rgb, vec3(0.333, 0.333, 0.333));
+  // float lum = luminance_rec2020(rgb);
+  imageStore(img_out, ipos, vec4(vec3(lum), 1));
 }

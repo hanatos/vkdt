@@ -1,2 +1,2 @@
-input:read:rgba:*
+input:read:y:*
 output:write:rgba:ui8

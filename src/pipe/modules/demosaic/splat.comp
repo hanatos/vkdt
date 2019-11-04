@@ -77,18 +77,15 @@ void write_xtrans(
     rgb.g += col;// * weight;
     w.g += weight;// * weight;
   }
+  else if(blue_top ^^ (pos.y == 1))
+  {
+    rgb.b += col;
+    w.b += weight;
+  }
   else
   {
-    if(blue_top ^^ (pos.y == 1))
-    {
-      rgb.b += col;
-      w.b += weight;
-    }
-    else
-    {
-      rgb.r += col;
-      w.r += weight;
-    }
+    rgb.r += col;
+    w.r += weight;
   }
 }
 

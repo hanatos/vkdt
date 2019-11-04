@@ -27,16 +27,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  // convert linear rec2020 to linear rec709
-  mat3 M = mat3(
-      1.66022709, -0.58754775, -0.07283832,
-     -0.12455356,  1.13292608, -0.0083496,
-     -0.01815511, -0.100603  ,  1.11899813);
-  rgb *= M;
+  float lum = texelFetch(img_in, ipos, 0).r;
   // apply srgb tone curve
-  rgb.r = rgb.r <= 0.0031308 ? rgb.r * 12.92 : pow(rgb.r, 1.0/2.4)*(1+0.055)-0.055;
-  rgb.g = rgb.g <= 0.0031308 ? rgb.g * 12.92 : pow(rgb.g, 1.0/2.4)*(1+0.055)-0.055;
-  rgb.b = rgb.b <= 0.0031308 ? rgb.b * 12.92 : pow(rgb.b, 1.0/2.4)*(1+0.055)-0.055;
-  imageStore(img_out, ipos, vec4(rgb, 1.0));
+  lum = lum <= 0.0031308 ? lum * 12.92 : pow(lum, 1.0/2.4)*(1+0.055)-0.055;
+  imageStore(img_out, ipos, vec4(vec3(lum), 1.0));
 }

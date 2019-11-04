@@ -1,0 +1,68 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri0;    // roi of the reference image
+  roi_t ri1;    // roi of the warped image
+  roi_t roff;   // offset image from one layer coarser (res / push.scale)
+  roi_t ro;     // output buffer with warped distances | i0(x) - i1(x+off) |
+} params;
+
+layout(push_constant, std140) uniform push_t
+{
+  ivec2 off; // full offset will be scale * coarse offset + push.offset
+  int scale; // scale of the coarse input, or 0 if no coarse input
+} push;
+
+layout( // input buffer grey scale
+    set = 1, binding = 0
+) uniform sampler2D img_in0;
+
+layout( // input buffer grey scale
+    set = 1, binding = 1
+) uniform sampler2D img_in1;
+
+layout( // input buffer rgb coarse offset (dx dy dist)
+    set = 1, binding = 2
+) uniform sampler2D img_off;
+
+layout( // output buffer grey distance
+    set = 1, binding = 3
+) uniform writeonly image2D img_out;
+
+// write to offset image the abs distance between the two images,
+// where i1 is shifted by an offset (as in push constants) plus
+// the offset of any previous coarse buffers.
+// note that we're doing it wrong, and evaluating patches on top
+// of coarsely warped images (they aren't square any more).
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  float i0 = texelFetch(img_in0, ipos, 0).r;
+  float i1;
+  ivec2 off = ivec2(0);
+  if(push.scale > 0)
+  {
+    // XXX i think maybe this way of rescaling is wrong (since [0,1] aren't mapped entirely to coarser scale, but
+    // XXX instead the position is exactly /=4 and width/height is truncated to 4x4 blocks
+    off = ivec2(push.off + textureLod(img_off, ipos/vec2(push.scale*params.roff.roi), 0).rg * push.scale);
+    i1 = texelFetch(img_in1, ipos+off, 0).r;
+  }
+  else i1 = texelFetch(img_in1, ipos+push.off, 0).r;
+  // does not make much of a difference
+  float dist = abs(i0 - i1);
+  // float dist = (i0-i1)*(i0 - i1);
+
+  imageStore(img_out, ipos, vec4(vec3(dist), 1));
+}
+

@@ -137,7 +137,10 @@ darkroom_enter()
   // always set filename param? (definitely do that for default cfg)
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
+  {
+    dt_log(s_log_err|s_log_gui, "individual config %s not found, loading default!", graph_cfg);
     snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
+  }
 
   dt_graph_init(&vkdt.graph_dev);
 
@@ -160,7 +163,7 @@ darkroom_enter()
   }
 
   // XXX remove: super ugly hack
-  dt_gui_set_lod(3);
+  dt_gui_set_lod(0);
 
   if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
   {

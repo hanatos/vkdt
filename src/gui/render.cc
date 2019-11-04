@@ -19,7 +19,7 @@ extern "C" {
 namespace { // anonymous gui state namespace
 static int g_active_widget = -1;
 static float g_state[8] = {0.0f};
-static int g_lod = 3;
+static int g_lod = 0;
 
 void widget_end()
 {
