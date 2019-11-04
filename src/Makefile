@@ -11,7 +11,7 @@ MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
 SPV=$(patsubst %.comp,%.spv,$(shell ls -1 pipe/modules/*/*.comp))
 
 
-.PHONY: all clean all modules $(MODULES) $(MODULESXX)
+.PHONY: all clean all modules
 
 all: vkdt-cli vkdt modules Makefile
 
@@ -76,7 +76,7 @@ vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 
 # modules
 # ======================
-modules: $(MODULES) $(MODULESXX) $(SPV) Makefile
+modules: $(MOD_DSOS) $(MOD_DSOSXX) $(SPV) Makefile
 
 MOD_GLOBAL_DEPS=\
   pipe/modules/api.h\
@@ -100,11 +100,17 @@ $(foreach MOD,$(MODULES) $(MODULESXX),\
   $(eval MOD_$(MOD)_DEPS=$(MOD_DEPS))\
   $(eval MOD_$(MOD)_C=$(MOD_C)))
 
-$(MODULES):pipe/modules/%/lib%.so:pipe/modules/%/main.c pipe/modules/%/flat.mk $(MOD_$*_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$*_CFLAGS) -shared pipe/modules/$*/main.c $(MOD_$*_C) -o pipe/modules/$*/lib$*.so $(LDFLAGS) $(MOD_$*_LDFLAGS)
+define MOD_RULE
+pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
+	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(MOD_$(1)_LDFLAGS)
+endef
+$(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 
-$(MODULESXX):pipe/modules/%/lib%.so:pipe/modules/%/main.cc pipe/modules/%/flat.mk $(MOD_$*_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$*_CFLAGS) -shared pipe/modules/$*/main.cc $(MOD_$*_C) -o pipe/modules/$*/lib$*.so $(LDFLAGS) $(MOD_$*_LDFLAGS)
+define MOD_RULEXX
+pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
+	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(MOD_$(1)_LDFLAGS)
+endef
+$(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
 %.spv: %.comp
 	$(GLSLC) -Ipipe/modules -I$(dir $<) --target-env vulkan1.1 \
