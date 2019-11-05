@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 
   // main loop
   int running = 1;
+  int fullscreen = 0;
   clock_t beg = clock();
   while(running)
   {
@@ -89,21 +90,23 @@ int main(int argc, char *argv[])
       else if(event.type == SDL_KEYDOWN &&
               event.key.keysym.sym == SDLK_F11)
       {
-        // all of this crashes terribly
-        SDL_DisplayMode mode;
-        SDL_GetCurrentDisplayMode(0, &mode); // TODO get current screen
-        fprintf(stderr, "display mode %d %d\n", mode.w, mode.h);
-        SDL_SetWindowPosition(qvk.window, 0, 0);
-        // SDL_SetWindowSize(qvk.window, mode.w, mode.h); // does not work
-        // if(!(SDL_GetWindowFlags(qvk.window) & SDL_WINDOW_FULLSCREEN))
-        //   SDL_SetWindowFullscreen(qvk.window, SDL_WINDOW_FULLSCREEN);
-        // else
-        //   SDL_SetWindowFullscreen(qvk.window, 0);
-        //  printf("SDL_Init failed: %s\n", SDL_GetError()); // no error :(
-        // segfaults:
-        // SDL_Surface *screenSurface = SDL_GetWindowSurface(qvk.window);
-        // SDL_UpdateWindowSurface(qvk.window); // no effect
-        // dt_gui_recreate_swapchain();
+        if(fullscreen)
+        {
+          SDL_SetWindowSize(qvk.window, 1600, 800);
+          SDL_SetWindowPosition(qvk.window, 30, 40);
+          fullscreen = 0;
+        }
+        else
+        {
+          SDL_DisplayMode mode;
+          SDL_GetCurrentDisplayMode(0, &mode); // TODO get current screen
+          dt_log(s_log_gui, "display mode %d %d\n", mode.w, mode.h);
+          SDL_RestoreWindow(qvk.window);
+          SDL_SetWindowSize(qvk.window, mode.w, mode.h);
+          SDL_SetWindowPosition(qvk.window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+          fullscreen = 1;
+        }
+        dt_gui_recreate_swapchain();
       }
       else if(event.type == SDL_WINDOWEVENT &&
           event.window.event == SDL_WINDOWEVENT_RESIZED &&
