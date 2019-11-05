@@ -11,7 +11,7 @@ MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
 SPV=$(patsubst %.comp,%.spv,$(shell ls -1 pipe/modules/*/*.comp))
 
 
-.PHONY: all clean all modules
+.PHONY: all clean modules
 
 all: vkdt-cli vkdt modules Makefile
 
