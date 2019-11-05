@@ -16,7 +16,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-// #include "shared/shared.h"
 #include "qvk_util.h"
 #include "qvk.h"
 
@@ -34,108 +33,8 @@ qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
 	return 0;
 }
 
-#if 0
-VkResult
-buffer_create(
-		BufferResource_t *buf,
-		VkDeviceSize size, 
-		VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags mem_properties)
-{
-	assert(size > 0);
-	assert(buf);
-	VkResult result = VK_SUCCESS;
-
-	VkBufferCreateInfo buf_create_info = {
-		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-		.size  = size,
-		.usage = usage,
-		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-		.queueFamilyIndexCount = 0,
-		.pQueueFamilyIndices = NULL
-	};
-
-	buf->size = size;
-	buf->is_mapped = 0;
-
-	result = vkCreateBuffer(qvk.device, &buf_create_info, NULL, &buf->buffer);
-	if(result != VK_SUCCESS) {
-		goto fail_buffer;
-	}
-	assert(buf->buffer != VK_NULL_HANDLE);
-
-	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(qvk.device, buf->buffer, &mem_reqs);
-
-	VkMemoryAllocateInfo mem_alloc_info = {
-		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		.allocationSize = mem_reqs.size,
-		.memoryTypeIndex = qvk_get_memory_type(mem_reqs.memoryTypeBits, mem_properties)
-	};
-
-	result = vkAllocateMemory(qvk.device, &mem_alloc_info, NULL, &buf->memory);
-	if(result != VK_SUCCESS) {
-		goto fail_mem_alloc;
-	}
-
-	assert(buf->memory != VK_NULL_HANDLE);
-
-	result = vkBindBufferMemory(qvk.device, buf->buffer, buf->memory, 0);
-	if(result != VK_SUCCESS) {
-		goto fail_bind_buf_memory;
-	}
-
-	return VK_SUCCESS;
-
-fail_bind_buf_memory:
-	vkFreeMemory(qvk.device, buf->memory, NULL);
-fail_mem_alloc:
-	vkDestroyBuffer(qvk.device, buf->buffer, NULL);
-fail_buffer:
-	buf->buffer = VK_NULL_HANDLE;
-	buf->memory = VK_NULL_HANDLE;
-	buf->size   = 0;
-	return result;
-}
-
-VkResult
-buffer_destroy(BufferResource_t *buf)
-{
-	assert(!buf->is_mapped);
-	if(buf->memory != VK_NULL_HANDLE)
-		vkFreeMemory(qvk.device, buf->memory, NULL);
-	if(buf->buffer != VK_NULL_HANDLE)
-	vkDestroyBuffer(qvk.device, buf->buffer, NULL);
-	buf->buffer = VK_NULL_HANDLE;
-	buf->memory = VK_NULL_HANDLE;
-	buf->size   = 0;
-
-	return VK_SUCCESS;
-}
-
-void *
-buffer_map(BufferResource_t *buf)
-{
-	assert(!buf->is_mapped);
-	buf->is_mapped = 1;
-	void *ret = NULL;
-	assert(buf->memory != VK_NULL_HANDLE);
-	assert(buf->size > 0);
-	QVK(vkMapMemory(qvk.device, buf->memory, 0 /*offset*/, buf->size, 0 /*flags*/, &ret));
-	return ret;
-}
-
-void
-buffer_unmap(BufferResource_t *buf)
-{
-	assert(buf->is_mapped);
-	buf->is_mapped = 0;
-	vkUnmapMemory(qvk.device, buf->memory);
-}
-#endif
-
 const char *
-vk_format_to_string(VkFormat format)
+qvk_format_to_string(VkFormat format)
 {
 	switch(format) {
 	case  0: return "UNDEFINED";

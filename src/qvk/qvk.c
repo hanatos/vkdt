@@ -171,7 +171,7 @@ qvk_create_swapchain()
 
   dt_log(s_log_qvk, "available surface formats:");
   for(int i = 0; i < num_formats; i++)
-    dt_log(s_log_qvk, vk_format_to_string(avail_surface_formats[i].format));
+    dt_log(s_log_qvk, qvk_format_to_string(avail_surface_formats[i].format));
 
 
   VkFormat acceptable_formats[] = {
@@ -649,9 +649,9 @@ static VkResult
 destroy_swapchain()
 {
   for(int i = 0; i < qvk.num_swap_chain_images; i++)
-    vkDestroyImageView  (qvk.device, qvk.swap_chain_image_views[i], NULL);
+    vkDestroyImageView(qvk.device, qvk.swap_chain_image_views[i], NULL);
 
-  vkDestroySwapchainKHR(qvk.device,   qvk.swap_chain, NULL);
+  vkDestroySwapchainKHR(qvk.device, qvk.swap_chain, NULL);
   return VK_SUCCESS;
 }
 

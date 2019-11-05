@@ -21,25 +21,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <vulkan/vulkan.h>
 
-typedef struct BufferResource_s {
-	VkBuffer buffer;
-	VkDeviceMemory memory;
-	size_t size;
-	int is_mapped;
-} BufferResource_t;
-
-VkResult
-buffer_create(
-		BufferResource_t *buf,
-		VkDeviceSize size, 
-		VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags mem_properties);
-
-VkResult buffer_destroy(BufferResource_t *buf);
-void buffer_unmap(BufferResource_t *buf);
-void *buffer_map(BufferResource_t *buf);
-void buffer_unmap(BufferResource_t *buf);
-
 uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop);
 
 #define BARRIER_COMPUTE_BUFFER(buf) \
@@ -136,7 +117,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
 		_VK(vkCreatePipelineLayout(dev, &pipeline_layout_info, NULL, layout)); \
 	} while(0) \
 
-const char * vk_format_to_string(VkFormat format);
+const char *qvk_format_to_string(VkFormat format);
 
 #ifdef QVK_ENABLE_VALIDATION
 #define ATTACH_LABEL_VARIABLE(a, type) \

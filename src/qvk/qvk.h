@@ -122,25 +122,3 @@ VkResult qvk_init();
 VkResult qvk_cleanup();
 
 VkResult qvk_create_swapchain();
-VkResult qvk_destroy_swapchain();
-
-VkResult qvk_create_command_pool_and_fences();
-VkResult qvk_destroy_command_pool_and_fences();
-
-VkResult qvk_textures_initialize();
-VkResult qvk_textures_destroy();
-VkResult qvk_textures_end_registration();
-
-VkResult qvk_draw_initialize();
-VkResult qvk_draw_destroy();
-VkResult qvk_draw_destroy_pipelines();
-VkResult qvk_draw_create_pipelines();
-VkResult qvk_draw_submit_stretch_pics(VkCommandBuffer *cmd_buf);
-VkResult qvk_draw_clear_stretch_pics();
-
-VkResult qvk_uniform_buffer_create();
-VkResult qvk_uniform_buffer_destroy();
-VkResult qvk_uniform_buffer_update();
-
-VkResult qvk_images_initialize();
-VkResult qvk_images_destroy();
