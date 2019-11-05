@@ -324,7 +324,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .mipLevels             = 1,
         .arrayLayers           = 1,
         .samples               = VK_SAMPLE_COUNT_1_BIT,
-        .tiling                = bc1 ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
+        .tiling                = VK_IMAGE_TILING_OPTIMAL,
         .usage                 = 
           bc1 ?
           VK_IMAGE_ASPECT_COLOR_BIT
