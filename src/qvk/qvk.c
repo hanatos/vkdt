@@ -30,105 +30,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 #include <execinfo.h>
 
-
-typedef enum {
-  QVK_INIT_DEFAULT            = 0,
-  QVK_INIT_SWAPCHAIN_RECREATE = (1 << 0),
-  QVK_INIT_RELOAD_SHADER      = (1 << 1),
-}
-qvk_init_flags_t;
-
-// dynamic reloading facility, put our stuff in here!
-#if 0
-typedef struct qvk_init_t
-{
-  const char *name;
-  VkResult (*initialize)();
-  VkResult (*destroy)();
-  qvk_init_flags_t flags;
-  int is_initialized;
-}
-qvk_init_t;
-qvk_init_t qvk_initialization[] = {
-  { "profiler", vkpt_profiler_initialize,            vkpt_profiler_destroy,                QVK_INIT_DEFAULT,            0 },
-  { "shader",   vkpt_load_shader_modules,            vkpt_destroy_shader_modules,          QVK_INIT_RELOAD_SHADER,      0 },
-  { "vbo",      vkpt_vertex_buffer_create,           vkpt_vertex_buffer_destroy,           QVK_INIT_DEFAULT,            0 },
-  { "ubo",      vkpt_uniform_buffer_create,          vkpt_uniform_buffer_destroy,          QVK_INIT_DEFAULT,            0 },
-  { "textures", vkpt_textures_initialize,            vkpt_textures_destroy,                QVK_INIT_DEFAULT,            0 },
-  { "images",   vkpt_create_images,                  vkpt_destroy_images,                  QVK_INIT_SWAPCHAIN_RECREATE, 0 },
-  { "draw",     vkpt_draw_initialize,                vkpt_draw_destroy,                    QVK_INIT_DEFAULT,            0 },
-  { "lh",       vkpt_lh_initialize,                  vkpt_lh_destroy,                      QVK_INIT_DEFAULT,            0 },
-  { "pt",       vkpt_pt_init,                        vkpt_pt_destroy,                      QVK_INIT_DEFAULT,            0 },
-  { "pt|",      vkpt_pt_create_pipelines,            vkpt_pt_destroy_pipelines,            QVK_INIT_SWAPCHAIN_RECREATE
-                                                                                         | QVK_INIT_RELOAD_SHADER,      0 },
-  { "draw|",    vkpt_draw_create_pipelines,          vkpt_draw_destroy_pipelines,          QVK_INIT_SWAPCHAIN_RECREATE
-                                                                                         | QVK_INIT_RELOAD_SHADER,      0 },
-  { "vbo|",     vkpt_vertex_buffer_create_pipelines, vkpt_vertex_buffer_destroy_pipelines, QVK_INIT_RELOAD_SHADER,      0 },
-  { "asvgf",    vkpt_asvgf_initialize,               vkpt_asvgf_destroy,                   QVK_INIT_DEFAULT,            0 },
-  { "asvgf|",   vkpt_asvgf_create_pipelines,         vkpt_asvgf_destroy_pipelines,         QVK_INIT_RELOAD_SHADER,      0 },
-};
-
-static VkResult
-qvk_initialize_all(qvk_init_flags_t init_flags)
-{
-  vkDeviceWaitIdle(qvk.device);
-  for(int i = 0; i < LENGTH(qvk_initialization); i++)
-  {
-    qvk_init_t *init = qvk_initialization + i;
-    if((init->flags & init_flags) != init_flags)
-      continue;
-    dt_log(s_log_qvk, "initializing %s", qvk_initialization[i].name);
-    assert(!init->is_initialized);
-    init->is_initialized = init->initialize
-      ? (init->initialize() == VK_SUCCESS)
-      : 1;
-    assert(init->is_initialized);
-  }
-  return VK_SUCCESS;
-}
-
-static VkResult
-qvk_destroy_all(qvk_init_flags_t destroy_flags)
-{
-  vkDeviceWaitIdle(qvk.device);
-  for(int i = LENGTH(qvk_initialization) - 1; i >= 0; i--)
-  {
-    qvk_init_t *init = qvk_initialization + i;
-    if((init->flags & destroy_flags) != destroy_flags)
-      continue;
-    dt_log(s_log_qvk, "destroying %s", qvk_initialization[i].name);
-    assert(init->is_initialized);
-    init->is_initialized = init->destroy
-      ? !(init->destroy() == VK_SUCCESS)
-      : 0;
-    assert(!init->is_initialized);
-  }
-  return VK_SUCCESS;
-}
-#endif
-
-// XXX currently unused, but we want this feature
-#if 0
-void
-qvk_reload_shader()
-{
-  char buf[1024];
-#ifdef _WIN32
-  FILE *f = _popen("bash -c \"make -C/home/cschied/quake2-pt compile_shaders\"", "r");
-#else
-  FILE *f = popen("make -j compile_shaders", "r");
-#endif
-  if(f)
-  {
-    while(fgets(buf, sizeof buf, f))
-      dt_log(s_log_qvk, "%s", buf);
-    fclose(f);
-  }
-  qvk_destroy_all(QVK_INIT_RELOAD_SHADER);
-  qvk_initialize_all(QVK_INIT_RELOAD_SHADER);
-}
-#endif
-
 qvk_t qvk =
 {
   .win_width          = 1920,
@@ -141,7 +42,7 @@ _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
 const char *vk_requested_layers[] = {
-  "VK_LAYER_LUNARG_standard_validation"
+  "VK_LAYER_LUNARG_standard_validation",
 };
 
 const char *vk_requested_instance_extensions[] = {
