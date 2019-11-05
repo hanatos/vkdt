@@ -493,8 +493,6 @@ qvk_init()
       .shaderCullDistance = 1,
       .shaderFloat64 = 1,
       .shaderInt64 = 1,
-      .shaderResourceResidency = 1,
-      .shaderResourceMinLod = 1,
       .sparseBinding = 1,
       .inheritedQueries = 1,
     };
