@@ -117,6 +117,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
 		_VK(vkCreatePipelineLayout(dev, &pipeline_layout_info, NULL, layout)); \
 	} while(0) \
 
+const char *qvk_result_to_string(VkResult result);
 const char *qvk_format_to_string(VkFormat format);
 
 #ifdef QVK_ENABLE_VALIDATION

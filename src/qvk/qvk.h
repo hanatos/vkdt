@@ -37,7 +37,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   do { \
     VkResult _res = __VA_ARGS__; \
     if(_res != VK_SUCCESS) { \
-      dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
+      dt_log(s_log_qvk, "error %s executing %s!", qvk_result_to_string(_res), # __VA_ARGS__); \
     } \
   } while(0)
 
@@ -45,7 +45,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   do { \
     VkResult _res = __VA_ARGS__; \
     if(_res != VK_SUCCESS) { \
-      dt_log(s_log_qvk, "error %d executing %s!", _res, # __VA_ARGS__); \
+      dt_log(s_log_qvk, "error %s executing %s!", qvk_result_to_string(_res), # __VA_ARGS__); \
       return _res; \
     } \
   } while(0)
