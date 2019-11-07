@@ -120,10 +120,10 @@ dt_connector_error_str(const int err)
 #define CONN(A) (A)
 #else
 #define CONN(A) \
-{ \
+do { \
   int err = (A); \
   if(err) fprintf(stderr, "%s:%d connection failed: %s\n", __FILE__, __LINE__, dt_connector_error_str(err)); \
-}
+} while(0)
 #endif
 
 static inline size_t
