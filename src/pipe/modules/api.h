@@ -65,20 +65,18 @@ dt_api_blur(
     dt_module_t *module,
     int          nodeid_input,
     int          connid_input,
-    int          radius)
-  // TODO: dt_token channels // and support r, rg, rgb, rgba
+    uint32_t     radius)
 {
-  // TODO: detect pixel format on input and blur the whole thing in separate kernels
+  // detect pixel format on input and blur the whole thing in separable kernels
   const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = 1;
-  // FIXME: currently only implemented two channel blur for guided filter:
   assert(conn_input->chan == dt_token("rg"));
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
-    .chan   = dt_token("rg"),
+    .chan   = conn_input->chan,
     .format = dt_token("f16"),
     .roi    = conn_input->roi,
     .connected_mi = -1,
@@ -86,23 +84,23 @@ dt_api_blur(
   dt_connector_t co = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
-    .chan   = dt_token("rg"),
+    .chan   = conn_input->chan,
     .format = dt_token("f16"),
     .roi    = conn_input->roi,
   };
   // push and interconnect a-trous gauss blur nodes
+  // perf: could make faster by using a decimated scheme, see llap reduce for instance.
   // TODO: iterate until radius is matched, use smaller steps to achieve sub-power-of-two radii
-  const int it = 3;
+  int it = 0;
+  while(2*(1u<<it)+1 < radius) it++;
   int nid_input = nodeid_input;
   int cid_input = connid_input;
   for(int i=0;i<it;i++)
   {
-    // TODO: could run these on downsampled image instead
     // add nodes blurh and blurv
     assert(graph->num_nodes < graph->max_nodes);
     const int id_blurh = graph->num_nodes++;
-    dt_node_t *node_blurh = graph->node + id_blurh;
-    *node_blurh = (dt_node_t) {
+    graph->node[id_blurh] = (dt_node_t) {
       .name   = dt_token("shared"),
       .kernel = dt_token("blurh"),
       .module = module,
@@ -110,16 +108,13 @@ dt_api_blur(
       .ht     = ht,
       .dp     = dp,
       .num_connectors = 2,
-      .connector = {
-        ci, co,
-      },
+      .connector = { ci, co },
       .push_constant_size = 4,
       .push_constant = {1u<<i},
     };
     assert(graph->num_nodes < graph->max_nodes);
     const int id_blurv = graph->num_nodes++;
-    dt_node_t *node_blurv = graph->node + id_blurv;
-    *node_blurv = (dt_node_t) {
+    graph->node[id_blurv] = (dt_node_t) {
       .name   = dt_token("shared"),
       .kernel = dt_token("blurv"),
       .module = module,
@@ -127,9 +122,7 @@ dt_api_blur(
       .ht     = ht,
       .dp     = dp,
       .num_connectors = 2,
-      .connector = {
-        ci, co,
-      },
+      .connector = { ci, co },
       .push_constant_size = 4,
       .push_constant = {1u<<i},
     };
