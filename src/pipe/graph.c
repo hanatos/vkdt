@@ -675,8 +675,6 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       }
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
-      r->wd = (r->wd/4)*4; // make sure we have bc1 blocks aligned
-      r->ht = (r->ht/4)*4;
       r->x = r->y = 0;
     }
     if(output < 0)

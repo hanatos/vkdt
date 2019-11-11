@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "core/core.h"
 #define STB_DXT_IMPLEMENTATION
 #include "stb_dxt.h"
 
@@ -7,6 +8,25 @@
 #include <stdint.h>
 #include <string.h>
 #include <zlib.h>
+
+
+void modify_roi_in(
+    dt_graph_t  *graph,
+    dt_module_t *mod)
+{
+  dt_roi_t *r = &mod->connector[0].roi;
+  r->scale = 1.0f;
+  // scale to fit into requested roi
+  if(graph->output_wd > 0 || graph->output_ht > 0)
+    r->scale = MAX(
+        r->full_wd / (float) graph->output_wd,
+        r->full_ht / (float) graph->output_ht);
+  r->wd = r->full_wd/r->scale;
+  r->ht = r->full_ht/r->scale;
+  r->wd = (r->wd/4)*4; // make sure we have bc1 blocks aligned
+  r->ht = (r->ht/4)*4;
+  r->x = r->y = 0;
+}
 
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
