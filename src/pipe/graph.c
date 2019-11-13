@@ -865,6 +865,14 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   }
   else if(dt_node_source(node))
   {
+    // push profiler start
+    if(graph->query_cnt < graph->query_max)
+    {
+      vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+          graph->query_pool, graph->query_cnt);
+      graph->query_name  [graph->query_cnt  ] = node->name;
+      graph->query_kernel[graph->query_cnt++] = node->kernel;
+    }
     BARRIER_IMG_LAYOUT(node->connector[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     vkCmdCopyBufferToImage(
         cmd_buf,
@@ -874,6 +882,14 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
         1, &regions);
     // this will transfer into READ_ONLY_OPTIMAL
     BARRIER_COMPUTE(node->connector[0].image);
+    // get a profiler timestamp:
+    if(graph->query_cnt < graph->query_max)
+    {
+      vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+          graph->query_pool, graph->query_cnt);
+      graph->query_name  [graph->query_cnt  ] = node->name;
+      graph->query_kernel[graph->query_cnt++] = node->kernel;
+    }
   }
 
 
