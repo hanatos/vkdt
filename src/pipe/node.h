@@ -10,7 +10,7 @@ typedef struct dt_module_t dt_module_t;
 typedef struct dt_node_t
 {
   dt_token_t name;      // name of the node
-  dt_token_t kernel;    // kernel.comp is the file name of the compute shader
+  dt_token_t kernel;    // modules/node/kernel.comp is the file name of the compute shader
 
   dt_module_t *module;  // reference back to module and class
 
