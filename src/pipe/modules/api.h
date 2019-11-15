@@ -90,8 +90,8 @@ dt_api_blur(
   // push and interconnect a-trous gauss blur nodes
   // perf: could make faster by using a decimated scheme, see llap reduce for instance.
   // TODO: iterate until radius is matched, use smaller steps to achieve sub-power-of-two radii
-  int it = 0;
-  while(2*(1u<<it)+1 < radius) it++;
+  int it = 1;
+  while(2*(1u<<it) < radius) it++;
   int nid_input = nodeid_input;
   int cid_input = connid_input;
   for(int i=0;i<it;i++)

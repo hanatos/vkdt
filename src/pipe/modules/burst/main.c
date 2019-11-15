@@ -210,7 +210,12 @@ create_nodes(
         CONN(dt_node_connect(graph, id_down[0][i], 1, id_dist, 2));
 
       // blur output of dist node by tile size (depending on noise 16x16, 32x32 or 64x64?)
-      const int id_blur = dt_api_blur(graph, module, id_dist, 3, 16);
+      // XXX experimenting with blur. this starts to break things horribly!
+      int blur = 32;
+      if(i>=1) blur = 16;
+      if(i>=2) blur = 32;
+      if(i>=3) blur = 32; // FIXME: especially this has a severe impact, but the smallest res is 25x17!!
+      const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
 
       int first_time = 0;
       if(id_merged < 0 && id_offset < 0) first_time = 3;

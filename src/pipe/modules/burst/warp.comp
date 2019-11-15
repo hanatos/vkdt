@@ -45,7 +45,7 @@ main()
   vec3 off = block * textureLod(img_off, ipos/vec2(block*params.roff.roi), 0).rgb;
 
 #if 0
-  float col = .001*abs(off.y);
+  float col = abs(off.z);
 #else
   float col;
   if(push.filters == 9)
