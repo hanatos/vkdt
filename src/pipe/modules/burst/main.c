@@ -291,7 +291,8 @@ create_nodes(
   {
     // connect unwarped input buffer, downscaled:
     dt_connector_copy(graph, module, 3+i, id_down[0][i], 1);
-    if(i==NUM_LEVELS-1)
+    int coff = 0;
+    if(coff && (i==NUM_LEVELS-1))
     {
       dt_connector_copy(graph, module, 7+i, id_down[1][i], 1);
       continue;
@@ -319,7 +320,7 @@ create_nodes(
         .type   = dt_token("read"),
         .chan   = dt_token("rgb"),
         .format = dt_token("f16"),
-        .roi    = roi[i+2],
+        .roi    = roi[i+1+coff],
         .flags  = s_conn_smooth,
         .connected_mi = -1,
       },{
@@ -329,11 +330,11 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi[i+1],
       }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { 0 },
+      .push_constant_size = 2*sizeof(uint32_t),
+      .push_constant = { 0, coff ? 4 : 1 },
     };
-    CONN(dt_node_connect(graph, id_down[1][i], 1, id_warp, 0));
-    CONN(dt_node_connect(graph, id_off[i+1],   3, id_warp, 1));
+    CONN(dt_node_connect(graph, id_down[1][i],  1, id_warp, 0));
+    CONN(dt_node_connect(graph, id_off[i+coff], 3, id_warp, 1));
     dt_connector_copy(graph, module, 7+i, id_warp, 2);
   }
 #endif
@@ -370,8 +371,11 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roi[0],
     }},
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = { module->img_param.filters },
+    .push_constant_size = 2*sizeof(uint32_t),
+    .push_constant = {
+      module->img_param.filters,
+      module->img_param.filters == 9 ? 3 : 2,
+    },
   };
   dt_connector_copy(graph, module, 1, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 3, id_warp, 1));

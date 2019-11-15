@@ -17,6 +17,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 layout(push_constant, std140) uniform push_t
 {
   uint filters;
+  int  scale;
 } push;
 
 layout( // input buffer rggb
@@ -39,7 +40,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  int block = push.filters == 9 ? 3 : 2;
+  int block = push.scale;
   // offset is on coarse scale (/block):
   vec3 off = block * textureLod(img_off, ipos/vec2(block*params.roff.roi), 0).rgb;
 
