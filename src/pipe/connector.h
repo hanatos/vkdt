@@ -30,6 +30,12 @@ dt_connector_flags_t;
 // TODO: gcc can't do this either.
 // TODO: so we probably want to generate these in a makefile,
 // TODO: something like = 0x$(echo -n "ui16" | xxd -p -e | cut -f2 -d" ")ul
+// this seems to work:
+//  echo "cat << EOF" > test2.sh
+//  cat test.h | sed 's/dt_token("\(.*\)")/0x$(echo -n "\1" | xxd -p -e | tr -s " " | cut -f2 -d" ")ul/g' >> test2.sh
+//  echo "EOF" >> test2.sh
+//  . test2.sh
+//  rm test2.sh
 typedef enum dt_connector_format_t
 {
   s_format_f32  = dt_token("f32"),
