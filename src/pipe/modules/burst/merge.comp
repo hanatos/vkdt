@@ -45,15 +45,6 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-#if 0
-  // XXX DEBUG:
-  vec2 debug = 2.0*vec2(ipos - params.ro.roi*0.5)/vec2(params.ro.roi);
-  debug *= debug*debug;
-  debug *= 50;
-  imageStore(img_out, ipos, vec4(debug, 1, 1));
-  return;
-#endif
-
   // special cases:
   // * we are the first in our offset list, so there is nothing to merge but
   //   align the two buffers off + dist
@@ -62,7 +53,8 @@ main()
   if(push.first_time == 0)
   { // regular case
     float dist = texelFetch(img_dist, ipos, 0).r;
-    vec2  off  = textureLod(img_coff, ipos/vec2(push.scale*params.ri_coff.roi), 0).rg * push.scale + push.off;
+    // vec2  off  = textureLod(img_coff, ipos/vec2(push.scale*params.ri_coff.roi), 0).rg * push.scale + push.off;
+    vec2 off = sample_catmull_rom(img_coff, ipos/vec2(push.scale*params.ri_coff.roi)).rg * push.scale + push.off; 
     vec4 img1  = texelFetch(img_loff, ipos, 0);
     vec4 res = dist > img1.b ? img1 : vec4(off, dist, 1);
     imageStore(img_out, ipos, res);
@@ -70,7 +62,8 @@ main()
   else if(push.first_time == 1)
   { // first in the list, just align
     float dist = texelFetch(img_dist, ipos, 0).r;
-    vec2  off  = textureLod(img_coff, ipos/vec2(push.scale*params.ri_coff.roi), 0).rg * push.scale + push.off;
+    // vec2  off  = textureLod(img_coff, ipos/vec2(push.scale*params.ri_coff.roi), 0).rg * push.scale + push.off;
+    vec2  off  = sample_catmull_rom(img_coff, ipos/vec2(push.scale*params.ri_coff.roi)).rg * push.scale + push.off;
     imageStore(img_out, ipos, vec4(off, dist, 1));
   }
   else if(push.first_time == 2)

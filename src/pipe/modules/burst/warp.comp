@@ -43,6 +43,9 @@ main()
   // offset is on coarse scale (/block):
   vec3 off = block * textureLod(img_off, ipos/vec2(block*params.roff.roi), 0).rgb;
 
+#if 0
+  float col = .001*abs(off.y);
+#else
   float col;
   if(push.filters == 9)
   { // xtrans: stupid hack #2: get block coordinate and select closest pixel of same colour
@@ -86,6 +89,7 @@ main()
     offi = block * offi;
     col = texelFetch(img_in, ipos + offi, 0).r;
   }
+#endif
 
   imageStore(img_out, ipos, vec4(vec3(col), 1));
 }

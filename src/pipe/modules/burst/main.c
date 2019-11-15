@@ -145,14 +145,14 @@ create_nodes(
     int id_merged = -1;
     // XXX is it faster to do -1..1 and /2 instead of -2..2 and /4?
 #if DOWN==4
-    const int scale = 4;//i==0 ? block : 4;
-    const int vm = -2; // -4;//(i==NUM_LEVELS-1) ? -1 : 0;
-    const int vM =  3; //  5;//(i==NUM_LEVELS-1) ?  2 : scale;
-    const int um = -2; // -4;//(i==NUM_LEVELS-1) ? -1 : 0;
-    const int uM =  3; //  5;//(i==NUM_LEVELS-1) ?  2 : scale;
+    const int scale = 4;
+    const int vm = -2; // -4;
+    const int vM =  3; //  5;
+    const int um = -2; // -4;
+    const int uM =  3; //  5;
 #else
     // scale is to next *coarser* level so we can access id_offset!
-    const int scale = 2;// i==0 ? block : 2;
+    const int scale = 2;
     const int vm = -2;//-1;
     const int vM =  3;//2;
     const int um = -2;//-1;
@@ -259,13 +259,6 @@ create_nodes(
         .push_constant_size = 4*sizeof(uint32_t),
         .push_constant = { u, v, first_time, scale },  // first time does not have valid off1 as input
       };
-      // if(i==0 && u==vm && v==vm)
-      // {
-      // // XXX
-      // id_debug = id_merge;
-      // cn_debug = 3;
-      // }
-      // XXX DEBUG
       id_off[i] = id_merge;
 
       CONN(dt_node_connect(graph, id_blur, 1, id_merge, 0));
@@ -298,6 +291,11 @@ create_nodes(
   {
     // connect unwarped input buffer, downscaled:
     dt_connector_copy(graph, module, 3+i, id_down[0][i], 1);
+    if(i==NUM_LEVELS-1)
+    {
+      dt_connector_copy(graph, module, 7+i, id_down[1][i], 1);
+      continue;
+    }
     // connect warp node and warp downscaled buffer:
     assert(graph->num_nodes < graph->max_nodes);
     const int id_warp = graph->num_nodes++;
@@ -321,7 +319,7 @@ create_nodes(
         .type   = dt_token("read"),
         .chan   = dt_token("rgb"),
         .format = dt_token("f16"),
-        .roi    = roi[i+1],
+        .roi    = roi[i+2],
         .flags  = s_conn_smooth,
         .connected_mi = -1,
       },{
@@ -335,13 +333,10 @@ create_nodes(
       .push_constant = { 0 },
     };
     CONN(dt_node_connect(graph, id_down[1][i], 1, id_warp, 0));
-    CONN(dt_node_connect(graph, id_off[i],     3, id_warp, 1));
+    CONN(dt_node_connect(graph, id_off[i+1],   3, id_warp, 1));
     dt_connector_copy(graph, module, 7+i, id_warp, 2);
   }
-
 #endif
-
-  int debug_level = -1;
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_warp = graph->num_nodes++;
@@ -349,10 +344,8 @@ create_nodes(
     .name   = dt_token("burst"),
     .kernel = dt_token("warp"),
     .module = module,
-    // .wd     = roi[0].wd,
-    // .ht     = roi[0].ht,
-    .wd     = roi[debug_level+1].wd,
-    .ht     = roi[debug_level+1].ht,
+    .wd     = roi[0].wd,
+    .ht     = roi[0].ht,
     .dp     = 1,
     .num_connectors = 3,
     .connector = {{
@@ -360,17 +353,14 @@ create_nodes(
       .type   = dt_token("read"),
       .chan   = dt_token("y"),
       .format = dt_token("f16"),
-      // .format = module->connector[1].format,
-      // .roi    = roi[0],
-      .roi    = roi[debug_level+1],
+      .roi    = roi[0],
       .connected_mi = -1,
     },{
       .name   = dt_token("offset"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgb"),
       .format = dt_token("f16"),
-      // .roi    = roi[1],
-      .roi    = roi[debug_level+2],
+      .roi    = roi[1],
       .flags  = s_conn_smooth,
       .connected_mi = -1,
     },{
@@ -378,28 +368,16 @@ create_nodes(
       .type   = dt_token("write"),
       .chan   = dt_token("rggb"),
       .format = dt_token("f16"),
-      // .roi    = roi[0],
-      .roi    = roi[debug_level+1],
+      .roi    = roi[0],
     }},
     .push_constant_size = sizeof(uint32_t),
     .push_constant = { module->img_param.filters },
   };
-#if 0
-  // TODO: DEBUG: connect in between results, i.e. warp down[1][i] by off[i+1]
-  // off[0] has roi[1], off[1] has roi[2] ..
-  // down[1][0] has roi[1], down[1][1] has roi[2] ..
-  CONN(dt_node_connect(graph, id_down[1][debug_level], 1, id_warp, 0));
-  // using id_off[0] looks horrific!
-  CONN(dt_node_connect(graph, id_off[debug_level], 3, id_warp, 1));
-#else
   dt_connector_copy(graph, module, 1, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 3, id_warp, 1));
-  // XXX DEBUG CONN(dt_node_connect(graph, id_off[0], 3, id_warp, 1));
-#endif
   dt_connector_copy(graph, module, 2, id_warp, 2);
   if(id_debug >= 0)
   {
-  // XXX
     graph->node[id_warp].connector[1].chan   = graph->node[id_debug].connector[cn_debug].chan;
     graph->node[id_warp].connector[1].format = graph->node[id_debug].connector[cn_debug].format;
     CONN(dt_node_connect(graph, id_debug, cn_debug, id_warp, 1));
