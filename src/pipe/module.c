@@ -49,7 +49,8 @@ int dt_module_add(
       { // init connectors from our module class:
         mod->connector[c] = mod->so->connector[c];
         dt_connector_t *cn = mod->connector+c;
-        cn->mem = 0;
+        cn->array_length = 1; // modules don't support arrays for now
+        cn->array[0].mem = 0;
         // set connector's ref id's to -1 or ref count to 0 if a write|source node
         if(cn->type == dt_token("read") || cn->type == dt_token("sink"))
         {

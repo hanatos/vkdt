@@ -154,7 +154,7 @@ dt_masks_create_pipeline(
     .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
     .renderPass      = node->draw_render_pass,
     .attachmentCount = 1,
-    .pAttachments    = &node->connector[ci].image_view,
+    .pAttachments    = &node->connector[ci].array[0].image_view,
     .width           =  node->connector[ci].roi.wd,
     .height          =  node->connector[ci].roi.ht,
     .layers          = 1,

@@ -1,5 +1,6 @@
 /*
 Copyright (C) 2018 Christoph Schied
+Copyright (C) 2019 johannes hanika
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -571,6 +572,7 @@ QVK_FEATURE_DO(inheritedQueries)
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT,
     .runtimeDescriptorArray = 1,
     .shaderSampledImageArrayNonUniformIndexing = 1,
+    .shaderStorageImageArrayNonUniformIndexing = 1,
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
@@ -579,7 +581,7 @@ QVK_FEATURE_DO(inheritedQueries)
   };
 
   const char *vk_requested_device_extensions[] = {
-    // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // :( intel doesn't have it
+    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
 #ifdef QVK_ENABLE_VALIDATION
     VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
 #endif

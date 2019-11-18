@@ -71,7 +71,10 @@ dt_api_blur(
   const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
-  const uint32_t dp = 1;
+  const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
+  // TODO: is this necessary? or could we always go for [0]?
+  dt_token_t blurh = dp > 1 ? dt_token("blurah") : dt_token("blurh");
+  dt_token_t blurv = dp > 1 ? dt_token("blurav") : dt_token("blurv");
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
@@ -79,6 +82,7 @@ dt_api_blur(
     .format = dt_token("f16"),
     .roi    = conn_input->roi,
     .connected_mi = -1,
+    .array_length = conn_input->array_length,
   };
   dt_connector_t co = {
     .name   = dt_token("output"),
@@ -86,6 +90,7 @@ dt_api_blur(
     .chan   = conn_input->chan,
     .format = dt_token("f16"),
     .roi    = conn_input->roi,
+    .array_length = conn_input->array_length,
   };
   // push and interconnect a-trous gauss blur nodes
   // perf: could make faster by using a decimated scheme, see llap reduce for instance.
@@ -101,7 +106,7 @@ dt_api_blur(
     const int id_blurh = graph->num_nodes++;
     graph->node[id_blurh] = (dt_node_t) {
       .name   = dt_token("shared"),
-      .kernel = dt_token("blurh"),
+      .kernel = blurh,
       .module = module,
       .wd     = wd,
       .ht     = ht,
@@ -115,7 +120,7 @@ dt_api_blur(
     const int id_blurv = graph->num_nodes++;
     graph->node[id_blurv] = (dt_node_t) {
       .name   = dt_token("shared"),
-      .kernel = dt_token("blurv"),
+      .kernel = blurv,
       .module = module,
       .wd     = wd,
       .ht     = ht,

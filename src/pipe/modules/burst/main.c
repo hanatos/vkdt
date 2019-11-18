@@ -142,23 +142,23 @@ create_nodes(
   int id_offset = -1;
   for(int i=NUM_LEVELS-1;i>=0;i--) // all depths/coarseness levels, starting at coarsest
   {
-    int id_merged = -1;
+    // int id_merged = -1;
     // XXX is it faster to do -1..1 and /2 instead of -2..2 and /4?
 #if DOWN==4
     const int scale = 4;
-    const int vm = -2; // -4;
-    const int vM =  3; //  5;
-    const int um = -2; // -4;
-    const int uM =  3; //  5;
+    // const int vm = -2; // -4;
+    // const int vM =  3; //  5;
+    // const int um = -2; // -4;
+    // const int uM =  3; //  5;
 #else
     // scale is to next *coarser* level so we can access id_offset!
     const int scale = 2;
-    const int vm = -2;//-1;
-    const int vM =  3;//2;
-    const int um = -2;//-1;
-    const int uM =  3;//2;
+    // const int vm = -2;//-1;
+    // const int vM =  3;//2;
+    // const int um = -2;//-1;
+    // const int uM =  3;//2;
 #endif
-    for(int v=vm;v<vM;v++) for(int u=um;u<uM;u++)
+    // for(int v=vm;v<vM;v++) for(int u=um;u<uM;u++)
     { // for all offsets in search window
       assert(graph->num_nodes < graph->max_nodes);
       int id_dist = graph->num_nodes++;
@@ -168,7 +168,7 @@ create_nodes(
         .module = module,
         .wd     = roi[i+1].wd,
         .ht     = roi[i+1].ht,
-        .dp     = 1,
+        .dp     = 25,
         .num_connectors = 4,
         .connector = {{
           .name   = dt_token("input"),
@@ -198,29 +198,30 @@ create_nodes(
           .chan   = dt_token("y"),
           .format = dt_token("f16"),
           .roi    = roi[i+1],
+          .array_length = 25,
         }},
-        .push_constant_size = sizeof(uint32_t)*3,
-        .push_constant = { u, v, id_offset >= 0 ? scale : 0 },
+        .push_constant_size = sizeof(uint32_t),
+        .push_constant = { id_offset >= 0 ? scale : 0 },
       };
       CONN(dt_node_connect(graph, id_down[0][i], 1, id_dist, 0));
       CONN(dt_node_connect(graph, id_down[1][i], 1, id_dist, 1));
       if(id_offset >= 0)
-        CONN(dt_node_connect(graph, id_offset, 3, id_dist, 2));
+        CONN(dt_node_connect(graph, id_offset, 2, id_dist, 2));
       else // need to connect a dummy
         CONN(dt_node_connect(graph, id_down[0][i], 1, id_dist, 2));
 
       // blur output of dist node by tile size (depending on noise 16x16, 32x32 or 64x64?)
       // XXX experimenting with blur. this starts to break things horribly!
       int blur = 32;
-      if(i>=1) blur = 16;
-      if(i>=2) blur = 32;
-      if(i>=3) blur = 32; // FIXME: especially this has a severe impact, but the smallest res is 25x17!!
+      // if(i>=1) blur = 16;
+      // if(i>=2) blur = 32;
+      if(i>=3) blur = 16; // FIXME: especially this has a severe impact, but the smallest res is 25x17!!
       const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
 
-      int first_time = 0;
-      if(id_merged < 0 && id_offset < 0) first_time = 3;
-      if(id_merged >=0 && id_offset < 0) first_time = 2;
-      if(id_merged < 0 && id_offset >=0) first_time = 1;
+      // int first_time = 0;
+      // if(id_merged < 0 && id_offset < 0) first_time = 3;
+      // if(id_merged >=0 && id_offset < 0) first_time = 2;
+      // if(id_merged < 0 && id_offset >=0) first_time = 1;
       // merge output of blur node using "merge" (<off0, <off1, >merged)
       assert(graph->num_nodes < graph->max_nodes);
       const int id_merge = graph->num_nodes++;
@@ -231,7 +232,7 @@ create_nodes(
         .wd     = roi[i+1].wd,
         .ht     = roi[i+1].ht,
         .dp     = 1,
-        .num_connectors = 4,
+        .num_connectors = 3,
         .connector = {{
           .name   = dt_token("dist"),
           .type   = dt_token("read"),
@@ -239,6 +240,7 @@ create_nodes(
           .format = dt_token("f16"),
           .roi    = roi[i+1],
           .connected_mi = -1,
+          .array_length = 25,
         },{
           .name   = dt_token("coff"),
           .type   = dt_token("read"),
@@ -248,38 +250,27 @@ create_nodes(
           .flags  = s_conn_smooth,
           .connected_mi = -1,
         },{
-          .name   = dt_token("loff"),
-          .type   = dt_token("read"),
-          .chan   = id_merged >= 0 ? dt_token("rgb") : dt_token("y"),
-          .format = dt_token("f16"),
-          .roi    = roi[i+1],
-          .connected_mi = -1,
-        },{
           .name   = dt_token("merged"),
           .type   = dt_token("write"),
           .chan   = dt_token("rgb"),
           .format = dt_token("f16"),
           .roi    = roi[i+1],
         }},
-        .push_constant_size = 4*sizeof(uint32_t),
-        .push_constant = { u, v, first_time, scale },  // first time does not have valid off1 as input
+        .push_constant_size = sizeof(uint32_t),
+        .push_constant = { id_offset >= 0 ? scale : 0 },
       };
       id_off[i] = id_merge;
 
       CONN(dt_node_connect(graph, id_blur, 1, id_merge, 0));
       // connect coarse offset buffer from previous level:
       if(id_offset >= 0)
-        CONN(dt_node_connect(graph, id_offset, 3, id_merge, 1));
+        CONN(dt_node_connect(graph, id_offset, 2, id_merge, 1));
       else // need to connect a dummy
-        CONN(dt_node_connect(graph, id_blur, 1, id_merge, 1));
-      // connect previously merged offsets from same level:
-      if(id_merged >= 0)
-        CONN(dt_node_connect(graph, id_merged, 3, id_merge, 2));
-      else // connect dummy
-        CONN(dt_node_connect(graph, id_blur, 1, id_merge, 2));
-      id_merged = id_merge;
+        CONN(dt_node_connect(graph, id_down[1][i], 1, id_merge, 1));
+      // id_merged = id_merge;
       // last iteration: remember our merged output as offset for next finer scale:
-      if(u == vM-1 && v == vM-1) id_offset = id_merge;
+      // if(u == vM-1 && v == vM-1)
+        id_offset = id_merge;
     }
     // id_offset is the final merged offset buffer on this level, ready to be
     // used as input by the next finer level, if any
@@ -339,7 +330,7 @@ create_nodes(
       .push_constant = { 0, coff ? 4 : 1 },
     };
     CONN(dt_node_connect(graph, id_down[1][i],  1, id_warp, 0));
-    CONN(dt_node_connect(graph, id_off[i+coff], 3, id_warp, 1));
+    CONN(dt_node_connect(graph, id_off[i+coff], 2, id_warp, 1));
     dt_connector_copy(graph, module, 7+i, id_warp, 2);
   }
 #endif
@@ -383,7 +374,7 @@ create_nodes(
     },
   };
   dt_connector_copy(graph, module, 1, id_warp, 0);
-  CONN(dt_node_connect(graph, id_offset, 3, id_warp, 1));
+  CONN(dt_node_connect(graph, id_offset, 2, id_warp, 1));
   dt_connector_copy(graph, module, 2, id_warp, 2);
   if(id_debug >= 0)
   {

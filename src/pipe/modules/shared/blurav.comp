@@ -1,0 +1,21 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "blura_head.glsl"
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  int idx = int(gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec4 c0 = texelFetch(img_in[nonuniformEXT(idx)], ipos + ivec2(0,-2*push.step), 0);
+  vec4 c1 = texelFetch(img_in[nonuniformEXT(idx)], ipos + ivec2(0,-1*push.step), 0);
+  vec4 c2 = texelFetch(img_in[nonuniformEXT(idx)], ipos + ivec2(0, 0*push.step), 0);
+  vec4 c3 = texelFetch(img_in[nonuniformEXT(idx)], ipos + ivec2(0, 1*push.step), 0);
+  vec4 c4 = texelFetch(img_in[nonuniformEXT(idx)], ipos + ivec2(0, 2*push.step), 0);
+  // vec4 rgba = (1.0/16.0)*(c0+4.0*c1+6.0*c2+4.0*c3+c4);
+  vec4 rgba = (1.0/5.0)*(c0+c1+c2+c3+c4);
+  imageStore(img_out[nonuniformEXT(idx)], ipos, rgba);
+}

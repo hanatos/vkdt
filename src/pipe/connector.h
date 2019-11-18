@@ -50,6 +50,17 @@ dt_connector_format_t;
 // shared property of nodes and modules: how many connectors do we allocate at
 // max for each one of them:
 #define DT_MAX_CONNECTORS 30
+#define DT_MAX_CONNECTOR_ARRAY_SIZE 25
+
+typedef struct dt_connector_array_t
+{
+  uint64_t    offset, size;
+  dt_vkmem_t *mem;
+  VkImage     image;
+  VkImageView image_view;
+}
+dt_connector_array_t;
+
 // connectors are used for modules as well as for nodes.
 // modules:
 // these have to be setup very quickly using tokens from a file
@@ -79,19 +90,20 @@ typedef struct dt_connector_t
   dt_roi_t roi;
 
   // buffer associated with this in case it connects nodes:
-  uint64_t offset, size;
   uint64_t offset_staging, size_staging;
   // mem object for allocator:
   // while this may seem duplicate with offset/size, it may be freed already
   // and the offset and size are still valid for successive runs through the
   // pipeline once it has been setup.
-  dt_vkmem_t *mem;
   dt_vkmem_t *mem_staging;
 
-  VkImage     image;
-  VkImageView image_view;
-  VkBuffer    staging;    // for sources and sinks
+  // connectors can hold arrays of images, to facilitate more parallel
+  // processing for similar compute on small buffers.
+  // arrays are unsupported for: clearing, drawing, sources, and sinks.
+  int array_length;
+  dt_connector_array_t array[DT_MAX_CONNECTOR_ARRAY_SIZE];
 
+  VkBuffer      staging;     // for sources and sinks
   VkFramebuffer framebuffer; // for draw kernels
 }
 dt_connector_t;

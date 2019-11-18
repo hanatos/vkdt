@@ -17,7 +17,6 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
-  ivec2 off; // full offset will be scale * coarse offset + push.offset
   int scale; // scale of the coarse input, or 0 if no coarse input
 } push;
 
@@ -35,7 +34,7 @@ layout( // input buffer rgb coarse offset (dx dy dist)
 
 layout( // output buffer grey distance
     set = 1, binding = 3
-) uniform writeonly image2D img_out;
+) uniform writeonly image2D img_out[25];
 
 // write to offset image the abs distance between the two images,
 // where i1 is shifted by an offset (as in push constants) plus
@@ -45,21 +44,26 @@ layout( // output buffer grey distance
 void
 main()
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+  int offidx = int  (gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(ivec3(ipos, offidx), ivec3(params.ro.roi, 26)))) return;
+
+  int offy = offidx / 5;
+  int offx = offidx - 5*offy;
+  offx -= 2;
+  offy -= 2;
 
   float i0 = texelFetch(img_in0, ipos, 0).r;
   float i1;
-  ivec2 off = ivec2(0);
   if(push.scale > 0)
   {
-    off = ivec2(push.off + textureLod(img_off, ipos/vec2(push.scale*params.roff.roi), 0).rg * push.scale);
-    // off = ivec2(push.off + sample_catmull_rom(img_off, ipos/vec2(push.scale*params.roff.roi)).rg * push.scale);
+    // ivec2 off = ivec2(ivec2(offx, offy) + textureLod(img_off, ipos/vec2(push.scale*params.roff.roi), 0).rg * push.scale);
+    ivec2 off = ivec2(ivec2(offx, offy) + sample_catmull_rom(img_off, ipos/vec2(push.scale*params.roff.roi)).rg * push.scale);
     i1 = texelFetch(img_in1, ipos+off, 0).r;
   }
-  else i1 = texelFetch(img_in1, ipos+push.off, 0).r;
+  else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
   float dist = abs(i0 - i1);
 
-  imageStore(img_out, ipos, vec4(vec3(dist), 1));
+  imageStore(img_out[nonuniformEXT(offidx)], ipos, vec4(vec3(dist), 1));
 }
 
