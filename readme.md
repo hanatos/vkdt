@@ -3,6 +3,15 @@
 this is an experimental complete rewrite of darktable, naturally at this point
 with a heavily reduced feature set.
 
+the processing pipeline has been rewritten as a generic node graph (DAG) which
+supports multiple inputs and multiple outputs. all processing is done in glsl
+shaders/vulkan. this facilitates potentially heavy duty computational
+photography tasks, for instance aligning multiple raw files and merging them
+before further processing, as well as outputting many intermediate results as
+jpg for debugging. the gui profits from this scheme as well and can display
+textures while they are still on gpu and output the data to multiple
+targets, such as the main view and histograms.
+
 # build instructions
 
 you should have checked out this repo recursively. if not, do
