@@ -93,6 +93,7 @@ layer_supported(const char *name)
 }
 #endif
 
+#if 0
 static int
 layer_requested(const char *name)
 {
@@ -101,6 +102,7 @@ layer_requested(const char *name)
       return 1;
   return 0;
 }
+#endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 vk_debug_callback(
@@ -295,11 +297,11 @@ qvk_init()
   threads_mutex_init(&qvk.queue_mutex, 0);
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
-  dt_log(s_log_qvk, "available vulkan layers:");
-  for(int i = 0; i < qvk.num_layers; i++) {
-    int requested = layer_requested(qvk.layers[i].layerName);
-    dt_log(s_log_qvk, "%s%s", qvk.layers[i].layerName, requested ? " (requested)" : "");
-  }
+  // dt_log(s_log_qvk, "available vulkan layers:");
+  // for(int i = 0; i < qvk.num_layers; i++) {
+  //   int requested = layer_requested(qvk.layers[i].layerName);
+  //   dt_log(s_log_qvk, "%s%s", qvk.layers[i].layerName, requested ? " (requested)" : "");
+  // }
 
   /* instance extensions */
   int num_inst_ext_combined = qvk.num_sdl2_extensions + LENGTH(vk_requested_instance_extensions);
@@ -307,21 +309,21 @@ qvk_init()
   memcpy(ext, qvk.sdl2_extensions, qvk.num_sdl2_extensions * sizeof(*qvk.sdl2_extensions));
   memcpy(ext + qvk.num_sdl2_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
 
-  get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions); /* valid here? */
-  dt_log(s_log_qvk, "supported vulkan instance extensions:");
-  for(int i = 0; i < qvk.num_extensions; i++)
-  {
-    int requested = 0;
-    for(int j = 0; j < num_inst_ext_combined; j++)
-    {
-      if(!strcmp(qvk.extensions[i].extensionName, ext[j]))
-      {
-        requested = 1;
-        break;
-      }
-    }
-    dt_log(s_log_qvk, "%s%s", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
-  }
+  get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
+  // dt_log(s_log_qvk, "supported vulkan instance extensions:");
+  // for(int i = 0; i < qvk.num_extensions; i++)
+  // {
+  //   int requested = 0;
+  //   for(int j = 0; j < num_inst_ext_combined; j++)
+  //   {
+  //     if(!strcmp(qvk.extensions[i].extensionName, ext[j]))
+  //     {
+  //       requested = 1;
+  //       break;
+  //     }
+  //   }
+  //   dt_log(s_log_qvk, "%s%s", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
+  // }
 
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
@@ -480,15 +482,15 @@ QVK_FEATURE_DO(inheritedQueries)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-    dt_log(s_log_qvk, "supported extensions:");
-    for(int j = 0; j < num_ext; j++) {
-      dt_log(s_log_qvk, ext_properties[j].extensionName);
+    // dt_log(s_log_qvk, "supported extensions:");
+    // for(int j = 0; j < num_ext; j++) {
+      // dt_log(s_log_qvk, ext_properties[j].extensionName);
       // no ray tracing needed:
       // if(!strcmp(ext_properties[j].extensionName, VK_NV_RAY_TRACING_EXTENSION_NAME)) {
         if(picked_device < 0)
           picked_device = i;
       // }
-    }
+    // }
   }
 
   if(picked_device < 0) {
@@ -572,7 +574,7 @@ QVK_FEATURE_DO(inheritedQueries)
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT,
     .runtimeDescriptorArray = 1,
     .shaderSampledImageArrayNonUniformIndexing = 1,
-    .shaderStorageImageArrayNonUniformIndexing = 1,
+    // .descriptorBindingPartiallyBound = 1, // might need this for variably sized texture arrays
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
