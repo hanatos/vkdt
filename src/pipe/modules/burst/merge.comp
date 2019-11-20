@@ -51,7 +51,7 @@ main()
     int offy = idx / 5;
     int offx = idx - offy * 5;
     offx -= 2; offy -= 2;
-    float dist = texelFetch(img_dist[nonuniformEXT(idx)], ipos, 0).r;
+    float dist = texelFetch(img_dist[idx], ipos, 0).r;
     vec2 off = coff + ivec2(offx, offy);
     if(dist < res.z)
       res = vec4(off, dist, 1);

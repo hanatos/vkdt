@@ -215,8 +215,8 @@ out:;
     qvk.extent.height = MAX(surf_capabilities.minImageExtent.height, qvk.extent.height);
   }
 
-  uint32_t num_images = 2;
-  //uint32_t num_images = surf_capabilities.minImageCount + 1;
+  // uint32_t num_images = 2;
+  uint32_t num_images = surf_capabilities.minImageCount;
   if(surf_capabilities.maxImageCount > 0)
     num_images = MIN(num_images, surf_capabilities.maxImageCount);
 
@@ -581,7 +581,7 @@ QVK_FEATURE_DO(inheritedQueries)
   };
 
   const char *vk_requested_device_extensions[] = {
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
+    // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
 #ifdef QVK_ENABLE_VALIDATION
     VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
 #endif
