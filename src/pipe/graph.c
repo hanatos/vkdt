@@ -181,12 +181,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     bindings[i].binding = i;
     if(dt_connector_input(node->connector+i))
     {
-      graph->dset_cnt_image_read ++;
+      graph->dset_cnt_image_read += MAX(1, node->connector[i].array_length);
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
     else
     {
-      graph->dset_cnt_image_write ++;
+      graph->dset_cnt_image_write += MAX(1, node->connector[i].array_length);
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     }
     // this would be storage buffers:
