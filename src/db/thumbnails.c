@@ -73,7 +73,7 @@ dt_thumbnails_init(
     .mipLevels             = 1,
     .arrayLayers           = 1,
     .samples               = VK_SAMPLE_COUNT_1_BIT,
-    .tiling                = VK_IMAGE_TILING_LINEAR,
+    .tiling                = VK_IMAGE_TILING_OPTIMAL,
     .usage                 =
         VK_IMAGE_ASPECT_COLOR_BIT
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
