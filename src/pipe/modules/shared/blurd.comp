@@ -1,0 +1,98 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+} params;
+
+layout( // input buffer array
+    set = 1, binding = 0
+) uniform sampler2D img_in[];
+
+layout( // output buffer array
+    set = 1, binding = 1
+) uniform writeonly image2D img_out[];
+
+layout(push_constant, std140) uniform push_t
+{
+  ivec2 dir;  // (0,1) or (1,0)
+  int idx;    // iteration number
+} push;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  int idx = int(gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+
+#if 0
+  vec2 res = vec2(params.ri.roi);
+  vec2 uv = vec2(opos) / res;
+  vec4 color = vec4(0.0);
+#endif
+#if 0
+  // kawase blur, questionable quality + worse performance
+  vec2 off = (push.radius+.5)/res;
+  color += textureLod(img_in[idx], uv, 0);
+  color += textureLod(img_in[idx], uv + off * vec2(+1, -1), 0);
+  color += textureLod(img_in[idx], uv + off * vec2(-1, -1), 0);
+  color += textureLod(img_in[idx], uv + off * vec2(+1, +1), 0);
+  color += textureLod(img_in[idx], uv + off * vec2(-1, +1), 0);
+  color += textureLod(img_in[idx], uv + .4*off * vec2(+1,  0), 0);
+  color += textureLod(img_in[idx], uv + .4*off * vec2(-1,  0), 0);
+  color += textureLod(img_in[idx], uv + .4*off * vec2( 0, +1), 0);
+  color += textureLod(img_in[idx], uv + .4*off * vec2( 0, -1), 0);
+  color /= 5;
+#endif
+
+#if 0 // much slower (like 3x)
+  float cnt = 0;
+  for(int i=-push.radius;i<push.radius;i+=2)
+  {
+    vec2 st = uv + (i+.5)*push.dir/res;
+    color += textureLod(img_in[idx], st, 0);
+    cnt ++;
+  }
+  color /= cnt;
+#endif
+
+#if 0 // the 9-tap version
+  // using http://rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/
+  vec2 off1 = vec2(1.3846153846) * push.dir / res;
+  vec2 off2 = vec2(3.2307692308) * push.dir / res;
+  color += textureLod(img_in[idx], uv, 0) * 0.2270270270;
+  color += textureLod(img_in[idx], uv + off1, 0) * 0.3162162162;
+  color += textureLod(img_in[idx], uv - off1, 0) * 0.3162162162;
+  color += textureLod(img_in[idx], uv + off2, 0) * 0.0702702703;
+  color += textureLod(img_in[idx], uv - off2, 0) * 0.0702702703;
+#endif
+
+#if 1
+  vec2 res = vec2(params.ri.roi);
+  vec2 uv;
+  if(push.idx > 0)
+    uv = vec2(opos) / res;
+  else
+    uv = vec2(opos * (push.dir + vec2(1, 1))) / res;
+  vec4 color = vec4(0.0);
+#endif
+#if 1 // the 5-tap version
+  // vec2 off1 = vec2(1.3333333333333333) * push.dir / res;
+  vec2 off1 = pow(2, push.idx) * vec2(1.5) * push.dir / res;
+  color += textureLod(img_in[idx], uv, 0);// * 0.29411764705882354;
+  color += textureLod(img_in[idx], uv + off1, 0);// * 0.35294117647058826;
+  color += textureLod(img_in[idx], uv - off1, 0);// * 0.35294117647058826;
+  color /= 3;
+#endif
+
+  imageStore(img_out[idx], opos, color);
+}
+

@@ -21,9 +21,9 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // float    white   = module->img_param.white[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
-  // float    black   = module->img_param.black[0]/65535.0f; // XXX need vec4? need to / 0x10000u?
   uint32_t filters = module->img_param.filters;
+  // reinterpret to int bits:
+  const uint32_t *wb = (uint32_t *)module->img_param.whitebalance;
 
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
@@ -36,8 +36,7 @@ create_nodes(
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_half = graph->num_nodes++;
-  dt_node_t *node_half = graph->node + id_half;
-  *node_half = (dt_node_t) {
+  graph->node[id_half] = (dt_node_t) {
     .name   = dt_token("hilite"),
     .kernel = dt_token("half"),
     .module = module,
@@ -59,13 +58,12 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roic,
     }},
-    .push_constant_size = 4,
-    .push_constant = { filters },
+    .push_constant_size = 5*sizeof(float),
+    .push_constant = { wb[0], wb[1], wb[2], wb[3], filters },
   };
   assert(graph->num_nodes < graph->max_nodes);
   const int id_doub = graph->num_nodes++;
-  dt_node_t *node_doub = graph->node + id_doub;
-  *node_doub = (dt_node_t) {
+  graph->node[id_doub] = (dt_node_t) {
     .name   = dt_token("hilite"),
     .kernel = dt_token("doub"),
     .module = module,
@@ -94,8 +92,8 @@ create_nodes(
       .format = dt_token("ui16"),
       .roi    = module->connector[0].roi,
     }},
-    .push_constant_size = 4,
-    .push_constant = { filters },
+    .push_constant_size = 5*sizeof(float),
+    .push_constant = { wb[0], wb[1], wb[2], wb[3], filters },
   };
 
   // wire module i/o connectors to nodes:
@@ -120,15 +118,14 @@ create_nodes(
   int node_up = id_doub;
   int conn_up = 1;
 
-  const int max_nl = 8;//12; // XXX too much blurs in green from the sides!
+  const int max_nl = 9;//8;
   int nl = max_nl;
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
     // add a reduce and an assemble node:
     assert(graph->num_nodes < graph->max_nodes);
     int id_reduce = graph->num_nodes++;
-    dt_node_t *node_reduce = graph->node + id_reduce;
-    *node_reduce = (dt_node_t) {
+    graph->node[id_reduce] = (dt_node_t) {
       .name   = dt_token("hilite"),
       .kernel = dt_token("reduce"),
       .module = module,
@@ -150,13 +147,12 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = rc,
       }},
-      .push_constant_size = 4,
-      .push_constant = { filters },
+      .push_constant_size = 5*sizeof(float),
+      .push_constant = { wb[0], wb[1], wb[2], wb[3], filters },
     };
     assert(graph->num_nodes < graph->max_nodes);
     int id_assemble = graph->num_nodes++;
-    dt_node_t *node_assemble = graph->node + id_assemble;
-    *node_assemble = (dt_node_t) {
+    graph->node[id_assemble] = (dt_node_t) {
       .name   = dt_token("hilite"),
       .kernel = dt_token("assemble"),
       .module = module,
@@ -185,8 +181,8 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = rf,
       }},
-      .push_constant_size = 8,
-      .push_constant = { filters, l },
+      .push_constant_size = 6*sizeof(float),
+      .push_constant = { wb[0], wb[1], wb[2], wb[3], filters, l },
     };
 
     // wire node connections:

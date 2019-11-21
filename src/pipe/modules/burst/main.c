@@ -217,6 +217,8 @@ create_nodes(
       // if(i>=2) blur = 32;
       if(i>=3) blur = 16; // FIXME: especially this has a severe impact, but the smallest res is 25x17!!
       const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
+      // TODO: make this work. currently seems buggy/broken, but would go 13ms->8ms total render time!
+      // const int id_blur = dt_api_blur_flat(graph, module, id_dist, 3, blur);
 
       // int first_time = 0;
       // if(id_merged < 0 && id_offset < 0) first_time = 3;

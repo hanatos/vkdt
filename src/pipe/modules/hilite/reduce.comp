@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
+  vec4 wb;
   uint filters;
 } push;
 
@@ -43,12 +44,10 @@ main()
   {
     vec3 rgb = texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).rgb;
     float u = w[ii+2]*w[jj+2];
-    // XXX TODO: get from push const:
-    vec3 wb = vec3(2, 1, 1.8);
-    float max = max(rgb.r*wb.r, max(rgb.g*wb.g, rgb.b*wb.b));
-    float min = min(rgb.r*wb.r, min(rgb.g*wb.g, rgb.b*wb.b));
-    float sat = (max-min)/max;
-    if( sat < 0.2 && all(greaterThan(rgb, vec3(0.1))) &&
+    float cmax = max(rgb.r*push.wb.r, max(rgb.g*push.wb.g, rgb.b*push.wb.b));
+    float cmin = min(rgb.r*push.wb.r, min(rgb.g*push.wb.g, rgb.b*push.wb.b));
+    float sat = (cmax-cmin)/cmax;
+    if(// sat < 0.2 && all(greaterThan(rgb, vec3(0.1))) &&
         all(lessThan(rgb, vec3(white))))
     {
       col += rgb * u;

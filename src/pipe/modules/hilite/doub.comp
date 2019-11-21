@@ -17,6 +17,7 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
+  vec4 wb;
   uint filters;
 } push;
 
@@ -64,11 +65,30 @@ main()
     float minb = min(c3, c5);
     float ming = min(min(min(c0, c2), c4), min(c6, c8));
     float scale = 1.0f;
-    // determine scale by real red channel:
-    if(((ipos.x + ipos.y) & 1) == 0)
-      scale = minb/upsm.b;
+#if 0
+    if(push.wb.r > push.wb.g && push.wb.r > push.wb.b)
+    { // determine scale by real red channel:
+      if(((ipos.x + ipos.y) & 1) == 0) scale = minb/upsm.b;
+      else scale = minr/upsm.r;
+    }
+    else if(push.wb.b > push.wb.g && push.wb.b > push.wb.r)
+    { // determine scale by real blue channel:
+      if(((ipos.x + ipos.y) & 1) == 0) scale = minr/upsm.r;
+      else scale = minb/upsm.b;
+    }
     else
+    { // use green
+      scale = ming / upsm.g;
+    }
+#endif
+
+    // determine by blurry image, without wb:
+    if     (upsm.r < upsm.g && upsm.r < upsm.b)
       scale = minr/upsm.r;
+    else if(upsm.b < upsm.g && upsm.b < upsm.r)
+      scale = minb/upsm.b;
+    else if(upsm.g < upsm.r && upsm.g < upsm.b)
+      scale = ming / upsm.g;
     // if(ming < 0.6)
       // scale = ming/upsm.g; // no use taking green, this clips first
 #if 0 // XXX DEBUG
@@ -213,9 +233,20 @@ main()
     //         x y    g b
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
     float ming = min(c.x, c.z);
-    // TODO: find out by wb coeffs which one we assume to clip last:
-    // float scale = c.w/upsm.r;
-    float scale = c.y/upsm.b; // this is good for fire, but r is good for d65 skies
+    float scale;
+#if 0 // find by wb coeffs
+    // find out by wb coeffs which one we assume to clip last:
+    if     (push.wb.r > push.wb.g && push.wb.r > push.wb.b)
+      scale = c.w/upsm.r; // good for skies
+    else if(push.wb.b > push.wb.g && push.wb.b > push.wb.r)
+      scale = c.y/upsm.b; // good for fire
+    else
+      scale = ming/upsm.g;
+#endif
+    // find by blurry image
+    if     (upsm.r < upsm.g && upsm.r < upsm.b) scale = c.w/upsm.r;
+    else if(upsm.g < upsm.r && upsm.g < upsm.b) scale = ming/upsm.g;
+    else if(upsm.b < upsm.g && upsm.b < upsm.r) scale = c.y/upsm.b;
 #if 0 // XXX DEBUG
     if(c.w < ming)
     {
@@ -233,13 +264,8 @@ main()
        c.z >= white ||
        c.w >= white)
       c = scale * upsm.gbgr;
-    // if(c.x >= white) c.x = scale * upsm.g;
-    // if(c.y >= white) c.y = scale * upsm.b;
-    // if(c.z >= white) c.z = scale * upsm.g;
-    // if(c.w >= white) c.w = scale * upsm.r;
-    // c = upsm.gbgr; // XXX DEBUG
-    // XXX FIXME: i think we don't want to write these in ui16 or unnormalised f16, since we'll blow out
-    // the highlights exceeding the 0x10000 number range!
+    // XXX DEBUG:
+    // c = upsm.gbgr; // XXX
     imageStore(img_out, 2*ipos,            vec4(c.w));
     imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
     imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));

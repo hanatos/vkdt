@@ -57,6 +57,117 @@ dt_connector_copy(
   }
 }
 
+#if 1
+static inline int
+dt_api_blur_flat(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int          nodeid_input,
+    int          connid_input,
+    uint32_t     radius)
+{
+  // detect pixel format on input and blur the whole thing in separable kernels
+  const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
+  // const uint32_t wd = conn_input->roi.wd;
+  // const uint32_t ht = conn_input->roi.ht;
+  const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
+  dt_connector_t ci = {
+    .name   = dt_token("input"),
+    .type   = dt_token("read"),
+    .chan   = conn_input->chan,
+    .format = dt_token("f16"),
+    .roi    = conn_input->roi,
+    .flags  = s_conn_smooth,
+    .connected_mi = -1,
+    .array_length = conn_input->array_length,
+  };
+  dt_connector_t co = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = conn_input->chan,
+    .format = dt_token("f16"),
+    .roi    = conn_input->roi,
+    .array_length = conn_input->array_length,
+  };
+  dt_roi_t roi = conn_input->roi;
+  int nid_input = nodeid_input;
+  int cid_input = connid_input;
+  int it = 1;
+  // uint32_t rad = it;
+  // while(rad<radius) { it++; rad+=2*it; }
+  while(2*(1u<<it) < radius) it++;
+  for(uint32_t i=0;i<it;i++)
+  {
+    // add nodes blurh and blurv
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_blurh = graph->num_nodes++;
+    graph->node[id_blurh] = (dt_node_t) {
+      .name   = dt_token("shared"),
+      .kernel = dt_token("blurd"),
+      .module = module,
+      .wd     = i ? roi.wd : roi.wd/2,
+      .ht     = roi.ht,
+      .dp     = dp,
+      .num_connectors = 2,
+      .connector = { ci, co },
+      .push_constant_size = 3*sizeof(uint32_t),
+      .push_constant = { 1, 0, i },
+    };
+    graph->node[id_blurh].connector[0].roi = roi;
+    if(i == 0) roi.wd /= 2;
+    graph->node[id_blurh].connector[1].roi = roi;
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_blurv = graph->num_nodes++;
+    graph->node[id_blurv] = (dt_node_t) {
+      .name   = dt_token("shared"),
+      .kernel = dt_token("blurd"),
+      .module = module,
+      .wd     = roi.wd,
+      .ht     = i ? roi.ht : roi.ht/2,
+      .dp     = dp,
+      .num_connectors = 2,
+      .connector = { ci, co },
+      .push_constant_size = 3*sizeof(uint32_t),
+      .push_constant = { 0, 1, i },
+    };
+    graph->node[id_blurv].connector[0].roi = roi;
+    if(i == 0) roi.ht /= 2;
+    graph->node[id_blurv].connector[1].roi = roi;
+    // interconnect nodes:
+    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blurh, 0));
+    CONN(dt_node_connect(graph, id_blurh,   1,         id_blurv, 0));
+    nid_input = id_blurv;
+    cid_input = 1;
+  }
+#if 0
+  // now let's upsample at least a bit:
+  // for(int i=0;i<it;i++) { }
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_upsample = graph->num_nodes++;
+    roi = conn_input->roi;
+    roi.wd /= 2;
+    roi.ht /= 2;
+    graph->node[id_upsample] = (dt_node_t) {
+      .name   = dt_token("shared"),
+      .kernel = dt_token("resample"),
+      .module = module,
+      .wd     = roi.wd,
+      .ht     = roi.ht,
+      .dp     = dp,
+      .num_connectors = 2,
+      .connector = { ci, co },
+      .push_constant_size = 3*sizeof(uint32_t),
+      .push_constant = { 1, 0, 0 },
+    };
+    graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[1].roi;
+    graph->node[id_upsample].connector[1].roi = roi;
+    CONN(dt_node_connect(graph, nid_input,  cid_input, id_upsample, 0));
+    return id_upsample;
+#endif
+  return nid_input;
+}
+#endif
+
 // create new nodes, connect to given input node + connector id, perform blur
 // of given pixel radius, return nodeid (output connector will be #1).
 static inline int
