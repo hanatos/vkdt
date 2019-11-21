@@ -1,3 +1,5 @@
+#include "localsize.h"
+
 struct roi_t
 {
   uvec2 full;      // full input size

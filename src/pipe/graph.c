@@ -3,6 +3,7 @@
 #include "masks.h"
 #include "module.h"
 #include "modules/api.h"
+#include "modules/localsize.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
 #include "graph-print.h"
@@ -1010,8 +1011,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       0, NULL);
 
   vkCmdDispatch(cmd_buf,
-      (node->wd + 31) / 32,
-      (node->ht + 31) / 32,
+      (node->wd + DT_LOCAL_SIZE_X - 1) / DT_LOCAL_SIZE_X,
+      (node->ht + DT_LOCAL_SIZE_Y - 1) / DT_LOCAL_SIZE_Y,
        node->dp);
 
   // get a profiler timestamp:
