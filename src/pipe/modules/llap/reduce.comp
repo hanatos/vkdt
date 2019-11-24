@@ -19,24 +19,25 @@ layout(std140, set = 0, binding = 0) uniform params_t
 
 layout( // input f16 buffer y
     set = 1, binding = 0
-) uniform sampler2D img_in;
+) uniform sampler2D img_in[];
 
 layout( // output f16 buffer y blurred/downsized
     set = 1, binding = 1
-) uniform writeonly image2D img_out;
+) uniform writeonly image2D img_out[];
 
 // gauss reduce, run on dimensions of reduced output buffer
 void
 main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
+  int idx = int(gl_GlobalInvocationID.z);
   if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
   // blur, store only coarse res
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
   float y = 0.0f;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
-    y += texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).r * w[ii+2] * w[jj+2];
-  imageStore(img_out, opos, vec4(y));
+    y += texelFetch(img_in[idx], 2*opos+ivec2(ii,jj), 0).r * w[ii+2] * w[jj+2];
+  imageStore(img_out[idx], opos, vec4(y));
 }
 

@@ -11,19 +11,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 0) uniform params_t
 {
   roi_t ri;
-  roi_t ro0;
-  roi_t ro1;
-  roi_t ro2;
-  roi_t ro3;
-  roi_t ro4;
-  roi_t ro5;
-#ifdef LLAP_HQ
-  roi_t ro6;
-  roi_t ro7;
-  roi_t ro8;
-  roi_t ro9;
-#endif
-  roi_t rog;
+  roi_t ro;
   float sigma;
   float shadows;
   float highlights;
@@ -34,22 +22,13 @@ layout( // input f16 buffer rgba
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-// six output buffers for each curve level
-layout(set = 1, binding = 1) uniform writeonly image2D img_out0;
-layout(set = 1, binding = 2) uniform writeonly image2D img_out1;
-layout(set = 1, binding = 3) uniform writeonly image2D img_out2;
-layout(set = 1, binding = 4) uniform writeonly image2D img_out3;
-layout(set = 1, binding = 5) uniform writeonly image2D img_out4;
-layout(set = 1, binding = 6) uniform writeonly image2D img_out5;
-#ifdef LLAP_HQ
-layout(set = 1, binding =  7) uniform writeonly image2D img_out6;
-layout(set = 1, binding =  8) uniform writeonly image2D img_out7;
-layout(set = 1, binding =  9) uniform writeonly image2D img_out8;
-layout(set = 1, binding = 10) uniform writeonly image2D img_out9;
-layout(set = 1, binding = 11) uniform writeonly image2D img_grey;
-#else
-layout(set = 1, binding = 7) uniform writeonly image2D img_grey;
-#endif
+// output buffers for each curve level
+layout(set = 1, binding = 1) uniform writeonly image2D img_out[];
+
+layout(push_constant, std140) uniform push_t
+{
+  uint num_gamma;
+} push;
 
 float
 curve(
@@ -85,18 +64,10 @@ main()
 
   float y = luminance_rec2020(texelFetch(img_in, ipos, 0).rgb);
 
-  imageStore(img_out0, ipos, vec4(curve(y, gamma_from_i(0), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out1, ipos, vec4(curve(y, gamma_from_i(1), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out2, ipos, vec4(curve(y, gamma_from_i(2), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out3, ipos, vec4(curve(y, gamma_from_i(3), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out4, ipos, vec4(curve(y, gamma_from_i(4), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out5, ipos, vec4(curve(y, gamma_from_i(5), params.sigma, params.shadows, params.highlights, params.clarity)));
-#ifdef LLAP_HQ
-  imageStore(img_out6, ipos, vec4(curve(y, gamma_from_i(6), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out7, ipos, vec4(curve(y, gamma_from_i(7), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out8, ipos, vec4(curve(y, gamma_from_i(8), params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out9, ipos, vec4(curve(y, gamma_from_i(9), params.sigma, params.shadows, params.highlights, params.clarity)));
-#endif
-  imageStore(img_grey, ipos, vec4(y));
+  for(uint i=0;i<push.num_gamma;i++)
+    imageStore(img_out[i], ipos,
+        vec4(curve(y, gamma_from_i(i),
+            params.sigma, params.shadows, params.highlights, params.clarity)));
+  imageStore(img_out[push.num_gamma], ipos, vec4(y));
 }
 

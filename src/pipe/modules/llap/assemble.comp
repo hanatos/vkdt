@@ -10,55 +10,28 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 // global uniform stuff about image and roi
 layout(std140, set = 0, binding = 0) uniform params_t
 {
-  roi_t ri; // fine scale
-  roi_t ro; // coarse scale
-  // all of this is a lie because we have 15 roi and i'm too lazy to spell them out here.
-  // luckily we don't really need anything but the input dimensions.
+  roi_t rc;  // coarse scale
+  roi_t rl0; // coarse scale
+  roi_t rl1; // fine scale
+  roi_t ro;  // fine scale
 } params;
 
 layout(push_constant, std140) uniform push_t
 {
-  float scale;
-  float beta;
+  uint num_gamma;
+  uint first;
 } push;
 
-layout( // input f16 buffer y, original input at this level
-    set = 1, binding = 0
-) uniform sampler2D img_input;
-
 layout( // input f16 buffer y coarse of current recon
-    set = 1, binding = 1
+    set = 1, binding = 0
 ) uniform sampler2D img_coarse;
 
 // we need 6 curves to avoid aliasing:
-layout(set = 1, binding =  2) uniform sampler2D img_g0_l0;
-layout(set = 1, binding =  3) uniform sampler2D img_g0_l1;
-layout(set = 1, binding =  4) uniform sampler2D img_g1_l0;
-layout(set = 1, binding =  5) uniform sampler2D img_g1_l1;
-layout(set = 1, binding =  6) uniform sampler2D img_g2_l0;
-layout(set = 1, binding =  7) uniform sampler2D img_g2_l1;
-layout(set = 1, binding =  8) uniform sampler2D img_g3_l0;
-layout(set = 1, binding =  9) uniform sampler2D img_g3_l1;
-layout(set = 1, binding = 10) uniform sampler2D img_g4_l0;
-layout(set = 1, binding = 11) uniform sampler2D img_g4_l1;
-layout(set = 1, binding = 12) uniform sampler2D img_g5_l0;
-layout(set = 1, binding = 13) uniform sampler2D img_g5_l1;
-#ifdef LLAP_HQ
-layout(set = 1, binding = 14) uniform sampler2D img_g6_l0;
-layout(set = 1, binding = 15) uniform sampler2D img_g6_l1;
-layout(set = 1, binding = 16) uniform sampler2D img_g7_l0;
-layout(set = 1, binding = 17) uniform sampler2D img_g7_l1;
-layout(set = 1, binding = 18) uniform sampler2D img_g8_l0;
-layout(set = 1, binding = 19) uniform sampler2D img_g8_l1;
-layout(set = 1, binding = 20) uniform sampler2D img_g9_l0;
-layout(set = 1, binding = 21) uniform sampler2D img_g9_l1;
-layout(set = 1, binding = 22) uniform writeonly image2D img_out; // output f16 buffer y finer level of output
-#else
-layout( // output f16 buffer y finer level of output
-    set = 1, binding = 14
+layout(set = 1, binding = 1) uniform sampler2D img_l0[];
+layout(set = 1, binding = 2) uniform sampler2D img_l1[];
+layout( // output buffer y finer level of output
+    set = 1, binding = 3
 ) uniform writeonly image2D img_out;
-#endif
-
 
 float gauss_expand(sampler2D img_in, ivec2 opos)
 {
@@ -94,12 +67,16 @@ void
 main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, params.ri.roi))) return;
+  if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
   // upsample img_coarse
-  float res = gauss_expand(img_coarse, opos);
+  float res;
+  if(push.first > 0) // img_l1 ??? maybe all levels are wired off by one
+    res = gauss_expand(img_l0[push.num_gamma], opos);
+  else
+    res = gauss_expand(img_coarse, opos);
   // fetch input pixel
-  float v = texelFetch(img_input, opos, 0).r;
+  float v = texelFetch(img_l1[push.num_gamma], opos, 0).r;
   int hi = gamma_hi_from_v(v);
   int lo = hi-1;
   // compute laplacian for brightness level g by upsampling l0 and subtracting l1
@@ -108,53 +85,14 @@ main()
   float gamma_hi = gamma_from_i(hi);
   float a = clamp((v - gamma_lo)/(gamma_hi-gamma_lo), 0.0f, 1.0f);
   float l0, l1;
-#ifdef LLAP_HQ
-  if(hi == 9)
+  // stupid dance to avoid nonuniformEXT() not available on ancient intel:
+  for(int g=0;g<push.num_gamma;g++)
   {
-    l0 = texelFetch(img_g8_l0, opos, 0).r - gauss_expand(img_g8_l1, opos);
-    l1 = texelFetch(img_g9_l0, opos, 0).r - gauss_expand(img_g9_l1, opos);
-  }
-  else if(hi == 8)
-  {
-    l0 = texelFetch(img_g7_l0, opos, 0).r - gauss_expand(img_g7_l1, opos);
-    l1 = texelFetch(img_g8_l0, opos, 0).r - gauss_expand(img_g8_l1, opos);
-  }
-  else if(hi == 7)
-  {
-    l0 = texelFetch(img_g6_l0, opos, 0).r - gauss_expand(img_g6_l1, opos);
-    l1 = texelFetch(img_g7_l0, opos, 0).r - gauss_expand(img_g7_l1, opos);
-  }
-  else if(hi == 6)
-  {
-    l0 = texelFetch(img_g5_l0, opos, 0).r - gauss_expand(img_g5_l1, opos);
-    l1 = texelFetch(img_g6_l0, opos, 0).r - gauss_expand(img_g6_l1, opos);
-  }
-  else
-#endif
-  if(hi == 5)
-  {
-    l0 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos);
-    l1 = texelFetch(img_g5_l0, opos, 0).r - gauss_expand(img_g5_l1, opos);
-  }
-  else if(hi == 4)
-  {
-    l0 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos);
-    l1 = texelFetch(img_g4_l0, opos, 0).r - gauss_expand(img_g4_l1, opos);
-  }
-  else if(hi == 3)
-  {
-    l0 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos);
-    l1 = texelFetch(img_g3_l0, opos, 0).r - gauss_expand(img_g3_l1, opos);
-  }
-  else if(hi == 2)
-  {
-    l0 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos);
-    l1 = texelFetch(img_g2_l0, opos, 0).r - gauss_expand(img_g2_l1, opos);
-  }
-  else // if(hi == 1)
-  {
-    l0 = texelFetch(img_g0_l0, opos, 0).r - gauss_expand(img_g0_l1, opos);
-    l1 = texelFetch(img_g1_l0, opos, 0).r - gauss_expand(img_g1_l1, opos);
+    if(hi == g)
+    {
+      l0 = texelFetch(img_l0[g-1], opos, 0).r - gauss_expand(img_l1[g-1], opos);
+      l1 = texelFetch(img_l0[g  ], opos, 0).r - gauss_expand(img_l1[g  ], opos);
+    }
   }
   
   imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));

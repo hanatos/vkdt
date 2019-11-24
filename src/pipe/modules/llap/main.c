@@ -3,23 +3,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#if 0
-void
-commit_params(
-    dt_graph_t  *graph,
-    dt_node_t   *node)
-{
-  float *f = (float *)node->push_constant;
-  float *p = (float *)node->module->param;
-
-  if(node->kernel == dt_token("assemble"))
-  {
-    f[1] = dt_module_param_float(node->module, 8)[0];
-    return;
-  }
-}
-#endif
-
 void
 create_nodes(
     dt_graph_t  *graph,
@@ -42,21 +25,6 @@ create_nodes(
   //
   //      assemble  on all levels, with inputs all buffers from corresponding level
 
-  dt_connector_t ci = {
-    .name   = dt_token("input"),
-    .type   = dt_token("read"),
-    .chan   = dt_token("rgba"),
-    .format = dt_token("f16"),
-    .roi    = module->connector[0].roi,
-    .connected_mi = -1,
-  };
-  dt_connector_t co = {
-    .name   = dt_token("output"),
-    .type   = dt_token("write"),
-    .chan   = dt_token("y"),
-    .format = dt_token("f16"),
-    .roi    = module->connector[0].roi,
-  };
 #ifdef LLAP_HQ
   const int num_gamma = 10;
 #else
@@ -65,22 +33,31 @@ create_nodes(
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_curve = graph->num_nodes++;
-  dt_node_t *node_curve = graph->node + id_curve;
-  *node_curve = (dt_node_t) {
+  graph->node[id_curve] = (dt_node_t) {
     .name   = dt_token("llap"),
     .kernel = dt_token("curve"),
     .module = module,
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 2 + num_gamma,
-    .connector = {
-      ci, co, co, co,
-      co, co, co, co,
-#ifdef LLAP_HQ
-      co, co, co, co,
-#endif
-    },
+    .num_connectors = 2,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("y"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+      .array_length = num_gamma + 1,
+    }},
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = { num_gamma },
   };
 
   dt_roi_t rf = module->connector[0].roi;
@@ -92,60 +69,42 @@ create_nodes(
 
   const int max_nl = 12;
   int nl = max_nl;
-  int id_reduce[max_nl][num_gamma+1] = {{-1}};
-  int cn_reduce[max_nl][num_gamma+1] = {{-1}};
-  for(int k=0;k<num_gamma+1;k++)
-  {
-    id_reduce[0][k] = id_curve;
-    cn_reduce[0][k] = 1+k;
-  }
+  int id_reduce[max_nl] = {-1};
+  id_reduce[0] = id_curve;
   int id_assemble[max_nl] = {-1};
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
-    dt_connector_t cif = {
-      .name   = dt_token("inhi"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("y"),
-      .format = dt_token("f16"),
-      .roi    = rf,
-      .connected_mi = -1,
+    assert(graph->num_nodes < graph->max_nodes);
+    id_reduce[l] = graph->num_nodes++;
+    dt_node_t *node_reduce = graph->node + id_reduce[l];
+    *node_reduce = (dt_node_t) {
+      .name   = dt_token("llap"),
+      .kernel = dt_token("reduce"),
+      .module = module,
+      .wd     = rc.wd,
+      .ht     = rc.ht,
+      .dp     = num_gamma + 1,
+      .num_connectors = 2,
+      .connector = {{
+        .name   = dt_token("inhi"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("y"),
+        .format = dt_token("f16"),
+        .roi    = rf,
+        .connected_mi = -1,
+        .array_length = num_gamma + 1,
+      },{
+        .name   = dt_token("outlo"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("y"),
+        .format = dt_token("f16"),
+        .roi    = rc,
+        .array_length = num_gamma + 1,
+      }},
     };
-    dt_connector_t cic = cif;
-    cic.roi  = rc;
-    cic.name = dt_token("inlo");
-    dt_connector_t cof = {
-      .name   = dt_token("outhi"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("y"),
-      .format = dt_token("f16"),
-      .roi    = rf,
-    };
-    dt_connector_t coc = cof;
-    coc.roi = rc;
-    coc.name = dt_token("outlo");
+    // wire input:
+    CONN(dt_node_connect(graph, id_reduce[l-1], 1, id_reduce[l], 0));
 
-    for(int k=0;k<num_gamma+1;k++)
-    { // for all brightness levels gamma:
-      // one reduce node taking this gamma one coarser
-      assert(graph->num_nodes < graph->max_nodes);
-      id_reduce[l][k] = graph->num_nodes++;
-      cn_reduce[l][k] = 1;
-      dt_node_t *node_reduce = graph->node + id_reduce[l][k];
-      *node_reduce = (dt_node_t) {
-        .name   = dt_token("llap"),
-        .kernel = dt_token("reduce"),
-        .module = module,
-        .wd     = rc.wd,
-        .ht     = rc.ht,
-        .dp     = dp,
-        .num_connectors = 2,
-        .connector = {
-          cif, coc,
-        },
-      };
-      // wire input:
-      CONN(dt_node_connect(graph, id_reduce[l-1][k], cn_reduce[l-1][k], id_reduce[l][k], 0));
-    }
     // one assemble node taking as input:
     // - coarse output pyramid (start with coarsest of gray after global tonecurve)
     // - fine level of original input colour for laplacian selection
@@ -155,35 +114,52 @@ create_nodes(
     // const float scale = l/(nl-1.0);
     assert(graph->num_nodes < graph->max_nodes);
     id_assemble[l] = graph->num_nodes++;
-    dt_node_t *node_assemble = graph->node + id_assemble[l];
-    *node_assemble = (dt_node_t) {
+    graph->node[id_assemble[l]] = (dt_node_t) {
       .name   = dt_token("llap"),
       .kernel = dt_token("assemble"),
       .module = module,
       .wd     = rf.wd,
       .ht     = rf.ht,
       .dp     = dp,
-      .num_connectors = 2*num_gamma + 3,
-      .connector = {
-        cif, cic,
-        cif, cic, cif, cic, cif, cic, cif, cic, cif, cic, cif, cic,
-#ifdef LLAP_HQ
-        cif, cic, cif, cic, cif, cic, cif, cic,
-#endif
-        cof,
-      },
-      // .push_constant_size = 8,
-      // .push_constant = { *(uint32_t*)(&scale), 0 }, 
+      .num_connectors = 4,
+      .connector = {{
+        .name   = dt_token("coarse"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("y"),
+        .format = dt_token("f16"),
+        .roi    = rc,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("currlo"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("y"),
+        .format = dt_token("f16"),
+        .roi    = rc,
+        .connected_mi = -1,
+        .array_length = num_gamma + 1,
+      },{
+        .name   = dt_token("currhi"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("y"),
+        .format = dt_token("f16"),
+        .roi    = rf,
+        .connected_mi = -1,
+        .array_length = num_gamma + 1,
+      },{
+        .name   = dt_token("fine"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("y"),
+        .format = dt_token("f16"),
+        .roi    = rf,
+      }},
+      .push_constant_size = 2*sizeof(uint32_t),
+      .push_constant = { num_gamma, 0 },
     };
-    node_assemble->connector[0].name = dt_token("orighi");
-    node_assemble->connector[1].name = dt_token("currlo");
-    for(int k=0;k<num_gamma;k++)
-    { // connect fine and coarse levels of curve processed buffers:
-      CONN(dt_node_connect(graph, id_reduce[l-1][k], cn_reduce[l-1][k], id_assemble[l], 2+2*k  ));
-      CONN(dt_node_connect(graph, id_reduce[l  ][k], cn_reduce[l  ][k], id_assemble[l], 2+2*k+1));
-    }
-    // connect fine reference, unprocessed:
-    CONN(dt_node_connect(graph, id_reduce[l-1][num_gamma], cn_reduce[l-1][num_gamma], id_assemble[l], 0));
+    // connect fine and coarse levels of curve processed buffers:
+    CONN(dt_node_connect(graph, id_reduce[l-1], 1, id_assemble[l], 1));
+    CONN(dt_node_connect(graph, id_reduce[l  ], 1, id_assemble[l], 2));
+    if(l > 1)
+      CONN(dt_node_connect(graph, id_assemble[l], 3, id_assemble[l-1], 0));
 
     rf = rc;
     rc.wd = (rc.wd-1)/2+1;
@@ -196,24 +172,19 @@ create_nodes(
       break;
     }
   }
+  // id_assemble[l] now has unconnected [0] because no more coarser
+  // bind dummy and let kernel know where to find real data:
+  graph->node[id_assemble[nl-1]].push_constant[1] = 1;
+  CONN(dt_node_connect(graph, id_curve, 1, id_assemble[nl-1], 0));
 
+  // connect ouput fine buffer [3] (input to coarse [0] on next finer level)
+  // for(int l=1;l<nl-1;l++)
+    // CONN(dt_node_connect(graph, id_assemble[l+1], 3, id_assemble[l], 0));
 
-  // connect ouput fine buffer [14] (input to coarse [1] on next finer level)
-  for(int l=1;l<nl-1;l++)
-    CONN(dt_node_connect(graph, id_assemble[l+1], 2*num_gamma + 2, id_assemble[l], 1));
-
-  // wire into some recolouration node:
-  dt_connector_t cy = ci;
-  ci.chan = dt_token("rgba");
-  ci.name = dt_token("inrgb");
-  cy.chan = dt_token("y");
-  cy.name = dt_token("inlum");
-  co.chan = dt_token("rgba");
-  co.name = dt_token("output");
+  // wire into recolouration node:
   assert(graph->num_nodes < graph->max_nodes);
   const int id_col = graph->num_nodes++;
-  dt_node_t *node_col = graph->node + id_col;
-  *node_col = (dt_node_t) {
+  graph->node[id_col] = (dt_node_t) {
     .name   = dt_token("llap"),
     .kernel = dt_token("colour"),
     .module = module,
@@ -221,49 +192,29 @@ create_nodes(
     .ht     = ht,
     .dp     = dp,
     .num_connectors = 3,
-    .connector = {
-      cy, ci, co,
-    },
+    .connector = {{
+      .name   = dt_token("lum"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("y"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
+    },{
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("rgba"),
+    .format = dt_token("f16"),
+    .roi    = module->connector[0].roi,
+    }},
   };
-  CONN(dt_node_connect(graph, id_assemble[1], 2*num_gamma+2, id_col, 0));
-
-  // connect input coarse buffer [1] (coarsest reduced unprocessed or from coarser assemble level)
-#if 1
-  // TODO: insert tone curve in between here:
-  // XXX tried and doesn't work super well. put this back:
-  CONN(dt_node_connect(graph, id_reduce[nl-1][num_gamma], cn_reduce[nl-1][num_gamma], id_assemble[nl-1], 1));
-#else
-  // XXX TODO: need to fill push constants in commit_params and grab some code from
-  // XXX filmcurve!
-  // TODO add filmcurve node and connect it!
-  // XXX
-  // dt_connector_copy(graph, module, 1, id_reduce[nl-1][6], cn_reduce[nl-1][6]);
-  // dt_connector_copy(graph, module, 2, id_assemble[nl-1], 1);
-  ci.chan = dt_token("y");
-  ci.name = dt_token("input");
-  co.chan = dt_token("y");
-  co.name = dt_token("output");
-  ci.roi  = graph->node[id_assemble[nl-1]].connector[1].roi;
-  co.roi  = graph->node[id_assemble[nl-1]].connector[1].roi;
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_film = graph->num_nodes++;
-  dt_node_t *node_film = graph->node + id_film;
-  *node_film = (dt_node_t) {
-    .name   = dt_token("filmcurv"),
-    .kernel = dt_token("main"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
-    .push_constant_size = 13*sizeof(float),
-  };
-  CONN(dt_node_connect(graph, id_reduce[nl-1][6], cn_reduce[nl-1][6], id_film, 0));
-  CONN(dt_node_connect(graph, id_film, 1, id_assemble[nl-1], 1));
-#endif
+  CONN(dt_node_connect(graph, id_assemble[1], 3, id_col, 0));
 
   // wire module i/o connectors to nodes:
   dt_connector_copy(graph, module, 0, id_curve, 0);

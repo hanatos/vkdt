@@ -5,7 +5,7 @@
 #define gamma_cnt 6
 #endif
 
-float gamma_from_i(int i)
+float gamma_from_i(uint i)
 {
   // linear, next to no samples in blacks
   // return (i+0.5f)/6.0f;
