@@ -63,6 +63,39 @@ vec4 sample_catmull_rom(sampler2D tex, vec2 uv)
   return result;
 }
 
+// FIXME: like this but in correct please
+// cannibalised version of the above, softer kernel:
+vec4 sample_soft(sampler2D tex, vec2 uv)
+{
+  vec2 texSize = textureSize(tex, 0);
+  vec2 samplePos = uv * texSize;
+  vec2 texPos1 = samplePos;//floor(samplePos - 0.5) + 0.5;
+
+  vec2 texPos0 = texPos1 - vec2(1.5);
+  vec2 texPos3 = texPos1 + vec2(1.5);
+  vec2 texPos12 = texPos1;
+
+  texPos0 /= texSize;
+  texPos3 /= texSize;
+  texPos12 /= texSize;
+
+  vec4 result = vec4(0.0);
+  result += textureLod(tex, vec2(texPos0.x,  texPos0.y),  0);
+  result += textureLod(tex, vec2(texPos12.x, texPos0.y),  0);
+  result += textureLod(tex, vec2(texPos3.x,  texPos0.y),  0);
+
+  result += textureLod(tex, vec2(texPos0.x,  texPos12.y), 0);
+  result += textureLod(tex, vec2(texPos12.x, texPos12.y), 0);
+  result += textureLod(tex, vec2(texPos3.x,  texPos12.y), 0);
+
+  result += textureLod(tex, vec2(texPos0.x,  texPos3.y),  0);
+  result += textureLod(tex, vec2(texPos12.x, texPos3.y),  0);
+  result += textureLod(tex, vec2(texPos3.x,  texPos3.y),  0);
+
+  return result / 9;
+}
+
+
 float luminance_rec2020(vec3 rec2020)
 {
   // excerpt from the rec2020 to xyz matrix (y channel only)
