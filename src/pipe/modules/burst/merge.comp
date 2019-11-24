@@ -39,11 +39,10 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   // merge all offsets to find minimum distance
-  // float dist = texelFetch(img_dist[0], ipos, 0).r;
   // only one special case: do we have coarse or not (detect using scale):
   vec2 coff = vec2(0);
   if(push.scale > 0)
-    coff = sample_catmull_rom(img_coff, ipos/vec2(push.scale*params.ri_coff.roi)).rg * push.scale;
+    coff = sample_soft(img_coff, (ipos+.5f)/vec2(push.scale*params.ri_coff.roi)).rg * push.scale;
   vec4 res = vec4(0, 0, 6500000, 1);
 
   for(int idx=0;idx<25;idx++)
@@ -51,8 +50,8 @@ main()
     int offy = idx / 5;
     int offx = idx - offy * 5;
     offx -= 2; offy -= 2;
-    // float dist = texelFetch(img_dist[idx], ipos, 0).r;
-    float dist = sample_catmull_rom(img_dist[idx], ipos/vec2(params.ro.roi)).r;
+    // distance comes from a blurd output and we need to upsample it:
+    float dist = sample_soft(img_dist[idx], (ipos+.5f)/vec2(params.ro.roi)).r;
     vec2 off = coff + ivec2(offx, offy);
     if(dist < res.z)
       res = vec4(off, dist, 1);

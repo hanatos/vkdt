@@ -78,19 +78,32 @@ main()
 #if 1
   vec2 res = vec2(params.ri.roi);
   vec2 uv;
-  if(push.idx > 0)
-    uv = vec2(opos) / res;
-  else
-    uv = vec2(opos * (push.dir + vec2(1, 1))) / res;
   vec4 color = vec4(0.0);
+  if(push.idx > 0)
+  {
+    uv = vec2(opos + vec2(0.5)) / res;
+    vec2 off1 = push.idx * vec2(1.3333333333333333) * push.dir / res;
+    color += textureLod(img_in[idx], uv - off1, 0) * 0.29411764705882354;
+    color += textureLod(img_in[idx], uv + off1, 0) * 0.29411764705882354;
+    color += textureLod(img_in[idx], uv, 0) * 0.35294117647058826;
+    // color /= 3;
+  }
+  else
+  {
+  // yx swizzle because we want pixel center in y (no blur) if we blur in x
+    uv = vec2(opos * (push.dir + vec2(1, 1)) + .5*push.dir.yx) / res;
 #endif
 #if 1 // the 5-tap version
   // vec2 off1 = vec2(1.3333333333333333) * push.dir / res;
-  vec2 off1 = pow(2, push.idx) * vec2(1.5) * push.dir / res;
+  vec2 off1 = /*pow(2,push.idx) */ vec2( 1.0) * push.dir / res;
+  vec2 off2 = /*pow(2,push.idx) */ vec2( 2.0) * push.dir / res;
+  // vec2 off3 = pow(2, push.idx) * vec2(-2.0) * push.dir / res;
   color += textureLod(img_in[idx], uv, 0);// * 0.29411764705882354;
-  color += textureLod(img_in[idx], uv + off1, 0);// * 0.35294117647058826;
-  color += textureLod(img_in[idx], uv - off1, 0);// * 0.35294117647058826;
-  color /= 3;
+  color += textureLod(img_in[idx], uv + off1, 0);// * 0.29411764705882354;
+  color += textureLod(img_in[idx], uv + off2, 0);// * 0.35294117647058826;
+  // color += textureLod(img_in[idx], uv + off3, 0) * 0.2;// * 0.35294117647058826;
+  // color /= 2;
+  }
 #endif
 
   imageStore(img_out[idx], opos, color);

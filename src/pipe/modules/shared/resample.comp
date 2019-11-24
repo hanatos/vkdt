@@ -30,8 +30,10 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
-  vec2 ipos = opos / vec2(params.ro.roi);
-  vec4 rgba = sample_catmull_rom(img_in, ipos); // takes normalised coordinates
+  vec2 ipos = (opos + vec2(0.5))/ vec2(params.ro.roi);
+  // vec4 rgba = sample_catmull_rom(img_in, ipos); // takes normalised coordinates
+  vec4 rgba = sample_soft(img_in, ipos);
+  // vec4 rgba = textureLod(img_in, ipos, 0);
   imageStore(img_out, opos, rgba);
 }
 

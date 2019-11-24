@@ -20,15 +20,15 @@ layout(push_constant, std140) uniform push_t
   int  scale;
 } push;
 
-layout( // input buffer rggb
+layout( // input buffer
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // input buffer warp offsets rgb
+layout( // input buffer warp offsets
     set = 1, binding = 1
 ) uniform sampler2D img_off;
 
-layout( // output buffer rggb
+layout( // output buffer
     set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
@@ -42,10 +42,11 @@ main()
 
   int block = push.scale;
   // offset is on coarse scale (/block):
-  vec3 off = block * textureLod(img_off, ipos/vec2(block*params.roff.roi), 0).rgb;
+  // vec2 off = block * textureLod(img_off, (ipos+.5f)/vec2(block*params.roff.roi), 0).rg;
+  vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*params.roff.roi)).rg;
 
 #if 0
-  float col = abs(off.z);
+  float col = 0.1*abs(off.y);
 #else
   float col;
   if(push.filters == 9)
@@ -82,7 +83,8 @@ main()
   }
   else if(push.filters == 0)
   { // no mosaic: just grab pixel regardless of mosaic
-    col = texelFetch(img_in, ipos + ivec2(off.rg+.5), 0).r;
+    // col = texelFetch(img_in, ipos + ivec2(off.rg), 0).r;
+    col = textureLod(img_in, (vec2(ipos)+0.5 + off.rg)/vec2(params.ri.roi), 0).r;
   }
   else
   { // bayer: stupid hack #1 to keep mosaic pattern: round off to block size:

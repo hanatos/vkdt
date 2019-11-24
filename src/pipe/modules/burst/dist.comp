@@ -57,8 +57,7 @@ main()
   float i1;
   if(push.scale > 0)
   {
-    // ivec2 off = ivec2(ivec2(offx, offy) + textureLod(img_off, ipos/vec2(push.scale*params.roff.roi), 0).rg * push.scale);
-    ivec2 off = ivec2(ivec2(offx, offy) + sample_catmull_rom(img_off, ipos/vec2(push.scale*params.roff.roi)).rg * push.scale);
+    ivec2 off = ivec2(ivec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*params.roff.roi)).rg * push.scale);
     i1 = texelFetch(img_in1, ipos+off, 0).r;
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;

@@ -64,10 +64,14 @@ dt_api_blur_flat(
     dt_module_t *module,
     int          nodeid_input,
     int          connid_input,
+    int          *id_blur_in,
+    int          *id_blur_out,
     uint32_t     radius)
 {
   // detect pixel format on input and blur the whole thing in separable kernels
-  const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
+  const dt_connector_t *conn_input = nodeid_input >= 0 ?
+    graph->node[nodeid_input].connector + connid_input :
+    module->connector + connid_input;
   // const uint32_t wd = conn_input->roi.wd;
   // const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
@@ -93,6 +97,8 @@ dt_api_blur_flat(
   int nid_input = nodeid_input;
   int cid_input = connid_input;
   int it = 1;
+  if(id_blur_in)  *id_blur_in  = -1;
+  if(id_blur_out) *id_blur_out = -1;
   // uint32_t rad = it;
   // while(rad<radius) { it++; rad+=2*it; }
   while(2*(1u<<it) < radius) it++;
@@ -113,6 +119,7 @@ dt_api_blur_flat(
       .push_constant_size = 3*sizeof(uint32_t),
       .push_constant = { 1, 0, i },
     };
+    if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blurh;
     graph->node[id_blurh].connector[0].roi = roi;
     if(i == 0) roi.wd /= 2;
     graph->node[id_blurh].connector[1].roi = roi;
@@ -130,6 +137,7 @@ dt_api_blur_flat(
       .push_constant_size = 3*sizeof(uint32_t),
       .push_constant = { 0, 1, i },
     };
+    if(id_blur_out && i == it-1) *id_blur_out = id_blurv;
     graph->node[id_blurv].connector[0].roi = roi;
     if(i == 0) roi.ht /= 2;
     graph->node[id_blurv].connector[1].roi = roi;
