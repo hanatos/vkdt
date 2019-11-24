@@ -377,7 +377,6 @@ qvk_init()
       .drawIndirectFirstInstance = 1,
       .depthClamp = 1,
       .depthBiasClamp = 1,
-      .depthBounds = 1,
       .samplerAnisotropy = 1,
       .textureCompressionBC = 1,
       .pipelineStatisticsQuery = 1,
@@ -386,7 +385,6 @@ qvk_init()
       .shaderTessellationAndGeometryPointSize = 1,
       .shaderImageGatherExtended = 1,
       .shaderStorageImageExtendedFormats = 1,
-      .shaderStorageImageMultisample = 1,
       .shaderStorageImageReadWithoutFormat = 1,
       .shaderStorageImageWriteWithoutFormat = 1,
       .shaderUniformBufferArrayDynamicIndexing = 1,
@@ -397,7 +395,6 @@ qvk_init()
       .shaderCullDistance = 1,
       .shaderFloat64 = 1,
       .shaderInt64 = 1,
-      .sparseBinding = 1,
       .inheritedQueries = 1,
     };
 
