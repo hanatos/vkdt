@@ -91,7 +91,7 @@ dt_graph_print_nodes(
             graph->node[m].connector[c].type == dt_token("sink")) &&
           graph->node[m].connector[c].connected_mi >= 0)
       {
-        fprintf(stdout, "n%d_%s_%s:%d -> n%d_%s_%s:%d\n",
+        fprintf(stdout, "n%d_%s_%s:%d -> n%d_%s_%s:%d",
             graph->node[m].connector[c].connected_mi,
             _pr(graph->node[
               graph->node[m].connector[c].connected_mi
@@ -104,6 +104,10 @@ dt_graph_print_nodes(
             _pr(graph->node[m].name),
             _pr(graph->node[m].kernel),
             c);
+        if(graph->node[m].connector[c].array_length > 1)
+          fprintf(stdout, "[style=bold]\n");
+        else
+          fprintf(stdout, "\n");
       }
     }
   }
