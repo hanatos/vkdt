@@ -71,12 +71,12 @@ main()
 
   // upsample img_coarse
   float res;
-  if(push.first > 0) // img_l1 ??? maybe all levels are wired off by one
-    res = gauss_expand(img_l0[push.num_gamma], opos);
+  if(push.first > 0)
+    res = gauss_expand(img_l1[push.num_gamma], opos);
   else
     res = gauss_expand(img_coarse, opos);
   // fetch input pixel
-  float v = texelFetch(img_l1[push.num_gamma], opos, 0).r;
+  float v = texelFetch(img_l0[push.num_gamma], opos, 0).r;
   int hi = gamma_hi_from_v(v);
   int lo = hi-1;
   // compute laplacian for brightness level g by upsampling l0 and subtracting l1
@@ -86,6 +86,8 @@ main()
   float a = clamp((v - gamma_lo)/(gamma_hi-gamma_lo), 0.0f, 1.0f);
   float l0, l1;
   // stupid dance to avoid nonuniformEXT() not available on ancient intel:
+  // l0 = texelFetch(img_l0[nonuniformEXT(hi-1)], opos, 0).r - gauss_expand(img_l1[nonuniformEXT(hi-1)], opos);
+  // l1 = texelFetch(img_l0[nonuniformEXT(hi  )], opos, 0).r - gauss_expand(img_l1[nonuniformEXT(hi  )], opos);
   for(int g=0;g<push.num_gamma;g++)
   {
     if(hi == g)
