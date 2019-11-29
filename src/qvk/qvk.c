@@ -182,6 +182,7 @@ qvk_create_swapchain()
     // XXX but can probably let fixed function hardware do the job. faster?
     // XXX would need to double check that export does the right thing then.
     // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
+    VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_FORMAT_A2B10G10R10_UNORM_PACK32,
     VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM,
     VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM
   };
@@ -642,6 +643,9 @@ QVK_FEATURE_DO(inheritedQueries)
   };
   QVKR(vkCreateSampler(qvk.device, &sampler_nearest_info, NULL, &qvk.tex_sampler_nearest));
   ATTACH_LABEL_VARIABLE(qvk.tex_sampler_nearest, SAMPLER);
+
+  // initialise a safe fallback for cli mode ("dspy" format is going to look here):
+  qvk.surf_format.format = VK_FORMAT_R8G8B8A8_UNORM;
 
   return VK_SUCCESS;
 }

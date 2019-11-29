@@ -32,6 +32,8 @@ replace_display(
   dt_token_t export = ldr ? dt_token("o-jpg") : dt_token("o-pfm");
   const int m1 = dt_module_add(graph, export, inst);
   const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+  // we want the output modules to get the correct input:
+  graph->module[m0].connector[c0].format = ldr ? dt_token("ui8") : dt_token("f16");
   CONN(dt_module_connect(graph, m0, c0, m1, c1));
 
   // TODO: set output filename parameter on export module

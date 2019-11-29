@@ -2,6 +2,7 @@
 
 #include "token.h"
 #include "alloc.h"
+#include "qvk/qvk.h"
 
 #include <stdint.h>
 #include <vulkan/vulkan.h>
@@ -214,6 +215,7 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 4: return VK_FORMAT_R8G8B8A8_UNORM;
     }
     case dt_token("bc1") : return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+    case dt_token("dspy"): return qvk.surf_format.format;
   }
   return VK_FORMAT_UNDEFINED;
 }

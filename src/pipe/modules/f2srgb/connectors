@@ -1,2 +1,2 @@
 input:read:rgba:*
-output:write:rgba:ui8
+output:write:rgba:dspy
