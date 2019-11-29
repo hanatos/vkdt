@@ -40,7 +40,7 @@ read_param_config_ascii(
   // name:type:cnt:defval:min:max
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t type = dt_read_token(line, &line);
-  dt_log(s_log_pipe, "param %"PRItkn" %"PRItkn, dt_token_str(name), dt_token_str(type));
+  // dt_log(s_log_pipe, "param %"PRItkn" %"PRItkn, dt_token_str(name), dt_token_str(type));
   int cnt = dt_read_int(line, &line);
   // TODO: sanity check and clamp?
   dt_ui_param_t *p = malloc(sizeof(*p) + dt_ui_param_size(type, cnt));
@@ -144,11 +144,11 @@ dt_module_so_load(
       if(fgetc(f) == EOF) break; // read \n
       read_connector_ascii(mod->connector+i++, line);
       // TODO also init all the other variables, maybe inside this function
-      dt_log(s_log_pipe, "connector %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn,
-          dt_token_str(mod->connector[i-1].name),
-          dt_token_str(mod->connector[i-1].type),
-          dt_token_str(mod->connector[i-1].chan),
-          dt_token_str(mod->connector[i-1].format));
+      // dt_log(s_log_pipe, "connector %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn,
+      //     dt_token_str(mod->connector[i-1].name),
+      //     dt_token_str(mod->connector[i-1].type),
+      //     dt_token_str(mod->connector[i-1].chan),
+      //     dt_token_str(mod->connector[i-1].format));
     }
     mod->num_connectors = i;
     fclose(f);
@@ -156,7 +156,7 @@ dt_module_so_load(
 
   // TODO: more sanity checks?
 
-  dt_log(s_log_pipe, "[module so load] loading %s", dirname);
+  // dt_log(s_log_pipe, "[module so load] loading %s", dirname);
   return 0;
 }
 
