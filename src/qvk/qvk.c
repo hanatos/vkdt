@@ -17,8 +17,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-// #define QVK_ENABLE_VALIDATION
-
 #include "qvk.h"
 #include "core/log.h"
 
@@ -80,29 +78,6 @@ get_vk_layer_list(
   *ext = malloc(sizeof(**ext) * *num_layers);
   QVK(vkEnumerateInstanceLayerProperties(num_layers, *ext));
 }
-
-#if 0
-static int
-layer_supported(const char *name)
-{
-  assert(qvk.layers);
-  for(int i = 0; i < qvk.num_layers; i++)
-    if(!strcmp(name, qvk.layers[i].layerName))
-      return 1;
-  return 0;
-}
-#endif
-
-#if 0
-static int
-layer_requested(const char *name)
-{
-  for(int i = 0; i < LENGTH(vk_requested_layers); i++)
-    if(!strcmp(name, vk_requested_layers[i]))
-      return 1;
-  return 0;
-}
-#endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 vk_debug_callback(
@@ -201,10 +176,7 @@ out:;
   vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, NULL);
   VkPresentModeKHR *avail_present_modes = alloca(sizeof(VkPresentModeKHR) * num_present_modes);
   vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, avail_present_modes);
-  //qvk.present_mode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
   qvk.present_mode = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to be there, but has vsync frame time jitter
-  // qvk.present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
-  //qvk.present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
   if(surf_capabilities.currentExtent.width != ~0u)
   {
@@ -218,7 +190,6 @@ out:;
     qvk.extent.height = MAX(surf_capabilities.minImageExtent.height, qvk.extent.height);
   }
 
-  // uint32_t num_images = 2;
   uint32_t num_images = surf_capabilities.minImageCount;
   if(surf_capabilities.maxImageCount > 0)
     num_images = MIN(num_images, surf_capabilities.maxImageCount);
@@ -240,15 +211,10 @@ out:;
     .compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, /* no alpha for window transparency */
     .presentMode           = qvk.present_mode,
     .clipped               = VK_FALSE, /* do not render pixels that are occluded by other windows */
-    //.clipped               = VK_TRUE, /* do not render pixels that are occluded by other windows */
     .oldSwapchain          = old_swap_chain, /* need to provide previous swapchain in case of window resize */
   };
 
-  if(vkCreateSwapchainKHR(qvk.device, &swpch_create_info, NULL, &qvk.swap_chain) != VK_SUCCESS)
-  {
-    dt_log(s_log_qvk, "error creating swapchain");
-    return 1;
-  }
+  QVKR(vkCreateSwapchainKHR(qvk.device, &swpch_create_info, NULL, &qvk.swap_chain));
 
   vkGetSwapchainImagesKHR(qvk.device, qvk.swap_chain, &qvk.num_swap_chain_images, NULL);
   assert(qvk.num_swap_chain_images < QVK_MAX_SWAPCHAIN_IMAGES);
@@ -261,14 +227,6 @@ out:;
       .image      = qvk.swap_chain_images[i],
       .viewType   = VK_IMAGE_VIEW_TYPE_2D,
       .format     = qvk.surf_format.format,
-#if 1
-      .components = {
-        VK_COMPONENT_SWIZZLE_R,
-        VK_COMPONENT_SWIZZLE_G,
-        VK_COMPONENT_SWIZZLE_B,
-        VK_COMPONENT_SWIZZLE_A
-      },
-#endif
       .subresourceRange = {
         .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
         .baseMipLevel   = 0,
@@ -278,11 +236,7 @@ out:;
       }
     };
 
-    if(vkCreateImageView(qvk.device, &img_create_info, NULL, qvk.swap_chain_image_views + i) != VK_SUCCESS)
-    {
-      dt_log(s_log_qvk|s_log_err, "error creating image view!");
-      return 1;
-    }
+    QVKR(vkCreateImageView(qvk.device, &img_create_info, NULL, qvk.swap_chain_image_views + i));
   }
 
   if(old_swap_chain)
@@ -298,11 +252,6 @@ qvk_init()
   threads_mutex_init(&qvk.queue_mutex, 0);
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
-  // dt_log(s_log_qvk, "available vulkan layers:");
-  // for(int i = 0; i < qvk.num_layers; i++) {
-  //   int requested = layer_requested(qvk.layers[i].layerName);
-  //   dt_log(s_log_qvk, "%s%s", qvk.layers[i].layerName, requested ? " (requested)" : "");
-  // }
 
   /* instance extensions */
   int num_inst_ext_combined = qvk.num_sdl2_extensions + LENGTH(vk_requested_instance_extensions);
@@ -311,20 +260,6 @@ qvk_init()
   memcpy(ext + qvk.num_sdl2_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
-  // dt_log(s_log_qvk, "supported vulkan instance extensions:");
-  // for(int i = 0; i < qvk.num_extensions; i++)
-  // {
-  //   int requested = 0;
-  //   for(int j = 0; j < num_inst_ext_combined; j++)
-  //   {
-  //     if(!strcmp(qvk.extensions[i].extensionName, ext[j]))
-  //     {
-  //       requested = 1;
-  //       break;
-  //     }
-  //   }
-  //   dt_log(s_log_qvk, "%s%s", qvk.extensions[i].extensionName, requested ? " (requested)" : "");
-  // }
 
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
@@ -364,102 +299,69 @@ qvk_init()
     return 1;
   VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
   QVKR(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
-  // can probably remove a few more here:
-  VkPhysicalDeviceFeatures required_features = {
-      .robustBufferAccess = 1,
-      .fullDrawIndexUint32 = 1,
-      .imageCubeArray = 1,
-      .independentBlend = 1,
-      .geometryShader = 1,
-      .tessellationShader = 1,
-      .dualSrcBlend = 1,
-      .logicOp = 1,
-      .multiDrawIndirect = 1,
-      .drawIndirectFirstInstance = 1,
-      .depthClamp = 1,
-      .depthBiasClamp = 1,
-      .samplerAnisotropy = 1,
-      .textureCompressionBC = 1,
-      .pipelineStatisticsQuery = 1,
-      .vertexPipelineStoresAndAtomics = 1,
-      .fragmentStoresAndAtomics = 1,
-      .shaderTessellationAndGeometryPointSize = 1,
-      .shaderImageGatherExtended = 1,
-      .shaderStorageImageExtendedFormats = 1,
-      .shaderStorageImageReadWithoutFormat = 1,
-      .shaderStorageImageWriteWithoutFormat = 1,
-      .shaderUniformBufferArrayDynamicIndexing = 1,
-      .shaderSampledImageArrayDynamicIndexing = 1,
-      .shaderStorageBufferArrayDynamicIndexing = 1,
-      .shaderStorageImageArrayDynamicIndexing = 1,
-      .shaderClipDistance = 1,
-      .shaderCullDistance = 1,
-      .shaderFloat64 = 1,
-      .shaderInt64 = 1,
-      .inheritedQueries = 1,
-    };
 
+  // can probably remove a few more here:
 #define QVK_FEATURE_LIST \
-QVK_FEATURE_DO(robustBufferAccess)\
-QVK_FEATURE_DO(fullDrawIndexUint32)\
-QVK_FEATURE_DO(imageCubeArray)\
-QVK_FEATURE_DO(independentBlend)\
-QVK_FEATURE_DO(geometryShader)\
-QVK_FEATURE_DO(tessellationShader)\
-QVK_FEATURE_DO(sampleRateShading)\
-QVK_FEATURE_DO(dualSrcBlend)\
-QVK_FEATURE_DO(logicOp)\
-QVK_FEATURE_DO(multiDrawIndirect)\
-QVK_FEATURE_DO(drawIndirectFirstInstance)\
-QVK_FEATURE_DO(depthClamp)\
-QVK_FEATURE_DO(depthBiasClamp)\
-QVK_FEATURE_DO(fillModeNonSolid)\
-QVK_FEATURE_DO(depthBounds)\
-QVK_FEATURE_DO(wideLines)\
-QVK_FEATURE_DO(largePoints)\
-QVK_FEATURE_DO(alphaToOne)\
-QVK_FEATURE_DO(multiViewport)\
-QVK_FEATURE_DO(samplerAnisotropy)\
-QVK_FEATURE_DO(textureCompressionETC2)\
-QVK_FEATURE_DO(textureCompressionASTC_LDR)\
-QVK_FEATURE_DO(textureCompressionBC)\
-QVK_FEATURE_DO(occlusionQueryPrecise)\
-QVK_FEATURE_DO(pipelineStatisticsQuery)\
-QVK_FEATURE_DO(vertexPipelineStoresAndAtomics)\
-QVK_FEATURE_DO(fragmentStoresAndAtomics)\
-QVK_FEATURE_DO(shaderTessellationAndGeometryPointSize)\
-QVK_FEATURE_DO(shaderImageGatherExtended)\
-QVK_FEATURE_DO(shaderStorageImageExtendedFormats)\
-QVK_FEATURE_DO(shaderStorageImageMultisample)\
-QVK_FEATURE_DO(shaderStorageImageReadWithoutFormat)\
-QVK_FEATURE_DO(shaderStorageImageWriteWithoutFormat)\
-QVK_FEATURE_DO(shaderUniformBufferArrayDynamicIndexing)\
-QVK_FEATURE_DO(shaderSampledImageArrayDynamicIndexing)\
-QVK_FEATURE_DO(shaderStorageBufferArrayDynamicIndexing)\
-QVK_FEATURE_DO(shaderStorageImageArrayDynamicIndexing)\
-QVK_FEATURE_DO(shaderClipDistance)\
-QVK_FEATURE_DO(shaderCullDistance)\
-QVK_FEATURE_DO(shaderFloat64)\
-QVK_FEATURE_DO(shaderInt64)\
-QVK_FEATURE_DO(shaderInt16)\
-QVK_FEATURE_DO(shaderResourceResidency)\
-QVK_FEATURE_DO(shaderResourceMinLod)\
-QVK_FEATURE_DO(sparseBinding)\
-QVK_FEATURE_DO(sparseResidencyBuffer)\
-QVK_FEATURE_DO(sparseResidencyImage2D)\
-QVK_FEATURE_DO(sparseResidencyImage3D)\
-QVK_FEATURE_DO(sparseResidency2Samples)\
-QVK_FEATURE_DO(sparseResidency4Samples)\
-QVK_FEATURE_DO(sparseResidency8Samples)\
-QVK_FEATURE_DO(sparseResidency16Samples)\
-QVK_FEATURE_DO(sparseResidencyAliased)\
-QVK_FEATURE_DO(variableMultisampleRate)\
-QVK_FEATURE_DO(inheritedQueries)
+QVK_FEATURE_DO(robustBufferAccess, 1)\
+QVK_FEATURE_DO(fullDrawIndexUint32, 1)\
+QVK_FEATURE_DO(imageCubeArray, 1)\
+QVK_FEATURE_DO(independentBlend, 1)\
+QVK_FEATURE_DO(geometryShader, 1)\
+QVK_FEATURE_DO(tessellationShader, 1)\
+QVK_FEATURE_DO(sampleRateShading, 0)\
+QVK_FEATURE_DO(dualSrcBlend, 1)\
+QVK_FEATURE_DO(logicOp, 1)\
+QVK_FEATURE_DO(multiDrawIndirect, 1)\
+QVK_FEATURE_DO(drawIndirectFirstInstance, 1)\
+QVK_FEATURE_DO(depthClamp, 1)\
+QVK_FEATURE_DO(depthBiasClamp, 1)\
+QVK_FEATURE_DO(fillModeNonSolid, 0)\
+QVK_FEATURE_DO(depthBounds, 0)\
+QVK_FEATURE_DO(wideLines, 0)\
+QVK_FEATURE_DO(largePoints, 0)\
+QVK_FEATURE_DO(alphaToOne, 0)\
+QVK_FEATURE_DO(multiViewport, 0)\
+QVK_FEATURE_DO(samplerAnisotropy, 1)\
+QVK_FEATURE_DO(textureCompressionETC2, 0)\
+QVK_FEATURE_DO(textureCompressionASTC_LDR, 0)\
+QVK_FEATURE_DO(textureCompressionBC, 1)\
+QVK_FEATURE_DO(occlusionQueryPrecise, 0)\
+QVK_FEATURE_DO(pipelineStatisticsQuery, 1)\
+QVK_FEATURE_DO(vertexPipelineStoresAndAtomics, 1)\
+QVK_FEATURE_DO(fragmentStoresAndAtomics, 1)\
+QVK_FEATURE_DO(shaderTessellationAndGeometryPointSize, 1)\
+QVK_FEATURE_DO(shaderImageGatherExtended, 1)\
+QVK_FEATURE_DO(shaderStorageImageExtendedFormats, 1)\
+QVK_FEATURE_DO(shaderStorageImageMultisample, 0)\
+QVK_FEATURE_DO(shaderStorageImageReadWithoutFormat, 1)\
+QVK_FEATURE_DO(shaderStorageImageWriteWithoutFormat, 1)\
+QVK_FEATURE_DO(shaderUniformBufferArrayDynamicIndexing, 1)\
+QVK_FEATURE_DO(shaderSampledImageArrayDynamicIndexing, 1)\
+QVK_FEATURE_DO(shaderStorageBufferArrayDynamicIndexing, 1)\
+QVK_FEATURE_DO(shaderStorageImageArrayDynamicIndexing, 1)\
+QVK_FEATURE_DO(shaderClipDistance, 1)\
+QVK_FEATURE_DO(shaderCullDistance, 1)\
+QVK_FEATURE_DO(shaderFloat64, 1)\
+QVK_FEATURE_DO(shaderInt64, 1)\
+QVK_FEATURE_DO(shaderInt16, 0)\
+QVK_FEATURE_DO(shaderResourceResidency, 0)\
+QVK_FEATURE_DO(shaderResourceMinLod, 0)\
+QVK_FEATURE_DO(sparseBinding, 0)\
+QVK_FEATURE_DO(sparseResidencyBuffer, 0)\
+QVK_FEATURE_DO(sparseResidencyImage2D, 0)\
+QVK_FEATURE_DO(sparseResidencyImage3D, 0)\
+QVK_FEATURE_DO(sparseResidency2Samples, 0)\
+QVK_FEATURE_DO(sparseResidency4Samples, 0)\
+QVK_FEATURE_DO(sparseResidency8Samples, 0)\
+QVK_FEATURE_DO(sparseResidency16Samples, 0)\
+QVK_FEATURE_DO(sparseResidencyAliased, 0)\
+QVK_FEATURE_DO(variableMultisampleRate, 0)\
+QVK_FEATURE_DO(inheritedQueries, 1)
 
   int picked_device = -1;
+  VkPhysicalDeviceFeatures dev_features;
   for(int i = 0; i < num_devices; i++) {
     VkPhysicalDeviceProperties dev_properties;
-    VkPhysicalDeviceFeatures   dev_features;
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
     qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
@@ -468,9 +370,10 @@ QVK_FEATURE_DO(inheritedQueries)
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     dt_log(s_log_qvk, "max image allocation size %u x %u",
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
-#define QVK_FEATURE_DO(F)\
-    if(dev_features.F == 0 && required_features.F == 1)\
-      dt_log(s_log_qvk|s_log_err, "device does not support requested feature " #F );
+#define QVK_FEATURE_DO(F, R)\
+    if(dev_features.F == 0 && R == 1) {\
+      dev_features.F = 1;\
+      dt_log(s_log_qvk|s_log_err, "device does not support requested feature " #F ", trying anyways");}
     QVK_FEATURE_LIST
 #undef QVK_FEATURE_DO
 #undef QVK_FEATURE_LIST
@@ -577,7 +480,7 @@ QVK_FEATURE_DO(inheritedQueries)
   VkPhysicalDeviceFeatures2 device_features = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
     .pNext = &idx_features,
-    .features = required_features,
+    .features = dev_features,
   };
 
   const char *vk_requested_device_extensions[] = {
@@ -606,7 +509,7 @@ QVK_FEATURE_DO(inheritedQueries)
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
-    if(!q##a) { dt_log(s_log_qvk|s_log_err, "could not load function %s", #a); }
+    if(!q##a) { dt_log(s_log_qvk|s_log_err, "could not load function %s. do you have validation layers setup correctly?", #a); return VK_INCOMPLETE; }
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
@@ -672,7 +575,6 @@ qvk_cleanup()
   if(qvk.surface) vkDestroySurfaceKHR(qvk.instance, qvk.surface, NULL);
 
   vkDestroyCommandPool (qvk.device, qvk.command_pool,     NULL);
-
   vkDestroyDevice      (qvk.device,   NULL);
   QVK(qvkDestroyDebugUtilsMessengerEXT(qvk.instance, qvk.dbg_messenger, NULL));
   vkDestroyInstance    (qvk.instance, NULL);
@@ -687,4 +589,3 @@ qvk_cleanup()
 
   return 0;
 }
-

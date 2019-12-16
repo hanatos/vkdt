@@ -26,13 +26,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define LENGTH(a) ((sizeof (a)) / (sizeof(*(a))))
 
-#define QVK_LOG_FUNC_(f) do {} while(0)
-//#define QVK_LOG_FUNC_(f) fprintf(stderr, "[qvk] %s\n", f)
-#define QVK_LOG_FUNC() QVK_LOG_FUNC_(__func__)
-
-#define QVK_FUNC_UNIMPLEMENTED_(f) dt_log(s_log_qvk, "calling unimplemented function %s", f)
-#define QVK_FUNC_UNIMPLEMENTED() QVK_FUNC_UNIMPLEMENTED_(__func__)
-
 #define QVK(...) \
   do { \
     VkResult _res = __VA_ARGS__; \
@@ -49,7 +42,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
       return _res; \
     } \
   } while(0)
-
 
 #define QVK_MAX_FRAMES_IN_FLIGHT 2
 #define QVK_MAX_SWAPCHAIN_IMAGES 4
@@ -82,9 +74,6 @@ typedef struct qvk_t
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_nearest;
-  uint32_t                    num_command_buffers;
-  VkCommandBuffer             *command_buffers;
-  VkCommandBuffer             cmd_buf_current;
 
   uint32_t                    num_extensions;
   VkExtensionProperties       *extensions;

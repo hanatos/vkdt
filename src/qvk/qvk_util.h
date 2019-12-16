@@ -41,17 +41,17 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
   } while (0)
 
 #define IMAGE_BARRIER(cmd_buf, ...) \
-	do { \
-		VkImageMemoryBarrier img_mem_barrier = { \
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, \
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			__VA_ARGS__ \
-		}; \
-		vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
-				VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL, \
-				1, &img_mem_barrier); \
-	} while(0)
+  do { \
+    VkImageMemoryBarrier img_mem_barrier = { \
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, \
+      .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
+      .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
+      __VA_ARGS__ \
+    }; \
+    vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL, \
+        1, &img_mem_barrier); \
+  } while(0)
 
 // XXX FIXME: apparently i'm using it wrong. if the input layout is UNDEFINED
 // the data may be discarded (but it's not, lucky me)
@@ -75,47 +75,6 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
   } while(0)
 
 #define BARRIER_COMPUTE(img) BARRIER_IMG_LAYOUT(img, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-
-#define IMAGE_BARRIER_SINK(cmd_buf, ...) \
-	do { \
-		VkImageMemoryBarrier img_mem_barrier = { \
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, \
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			.dstQueueFamilyIndex = qvk.queue_idx_graphics, \
-			__VA_ARGS__ \
-		}; \
-		vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
-				VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL, \
-				1, &img_mem_barrier); \
-	} while(0)
-
-#define BARRIER_COMPUTE_SINK(img) \
-  do { \
-    VkImageSubresourceRange subresource_range = { \
-      .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, \
-      .baseMipLevel   = 0, \
-      .levelCount     = 1, \
-      .baseArrayLayer = 0, \
-      .layerCount     = 1 \
-    }; \
-    IMAGE_BARRIER_SINK(cmd_buf, \
-        .image            = img, \
-        .subresourceRange = subresource_range, \
-        .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT, \
-        .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
-        .oldLayout        = VK_IMAGE_LAYOUT_UNDEFINED, \
-        .newLayout        = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, \
-    ); \
-  } while(0)
-
-#define CREATE_PIPELINE_LAYOUT(dev, layout, ...) \
-	do { \
-		VkPipelineLayoutCreateInfo pipeline_layout_info = { \
-			.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, \
-			__VA_ARGS__ \
-		}; \
-		_VK(vkCreatePipelineLayout(dev, &pipeline_layout_info, NULL, layout)); \
-	} while(0) \
 
 const char *qvk_result_to_string(VkResult result);
 const char *qvk_format_to_string(VkFormat format);
