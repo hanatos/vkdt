@@ -99,8 +99,12 @@ qvk_t;
 
 extern qvk_t qvk;
 
+#ifdef QVK_ENABLE_VALIDATION
 #define _VK_EXTENSION_LIST \
   _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
+#else
+#define _VK_EXTENSION_LIST
+#endif
 
 #define _VK_EXTENSION_DO(a) extern PFN_##a q##a;
 _VK_EXTENSION_LIST

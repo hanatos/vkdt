@@ -59,6 +59,7 @@ typedef struct dt_graph_t
   VkBuffer              uniform_buffer; // uniform buffer shared between all nodes
   VkDeviceMemory        vkmem_uniform;
   uint32_t              uniform_size;
+  uint8_t              *uniform_mem;
   VkDescriptorSetLayout uniform_dset_layout;
   VkDescriptorSet       uniform_dset;
 
@@ -103,4 +104,5 @@ void dt_token_print(dt_token_t t);
 VkResult dt_graph_create_shader_module(
     dt_token_t node,
     dt_token_t kernel,
+    const char *type,   // "comp" "vert" "tesc" "tese" "geom" "frag"
     VkShaderModule *shader_module);

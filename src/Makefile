@@ -8,7 +8,9 @@ MODULESXX=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
 MOD_DSOS=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
 MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
 # also all .comp compute shaders will be compiled to spir-v.
-SPV=$(patsubst %.comp,%.spv,$(shell ls -1 pipe/modules/*/*.comp))
+SHD_EXT=comp vert tesc tese geom frag
+SPV=$(foreach shd,$(SHD_EXT),\
+$(patsubst %.$(shd),%.$(shd).spv,$(shell ls -1 pipe/modules/*/*.$(shd))))
 
 
 .PHONY: all clean modules
@@ -31,9 +33,6 @@ clean: Makefile
 # for sched_affinity
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 LDFLAGS=
-
-# TODO: find a generic way to temporarily overwrite CFLAGS and
-# TODO: use the default rules instead:
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
@@ -112,8 +111,10 @@ pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$
 endef
 $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
-%.spv: %.comp
-	$(GLSLC) -Ipipe/modules -I$(dir $<) --target-env vulkan1.1 \
-    -DQVK_SHADER \
-    -V $< -o $@
+define SPV_RULE
+%.$(1).spv: %.$(1)
+	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.1 \
+    -V $$< -o $$@
+endef
+$(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))
 

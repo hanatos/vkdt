@@ -1,6 +1,5 @@
 #include "graph.h"
 #include "graph-io.h"
-#include "masks.h"
 #include "module.h"
 #include "modules/api.h"
 #include "modules/localsize.h"
@@ -12,6 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 
 void
 dt_graph_init(dt_graph_t *g)
@@ -25,8 +28,9 @@ dt_graph_init(dt_graph_t *g)
   g->node = malloc(sizeof(dt_node_t)*g->max_nodes);
   dt_vkalloc_init(&g->heap, 100, 1ul<<40); // bytesize doesn't matter
   dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
-  g->uniform_size = 4096;
-  g->params_max = 4096;
+  g->uniform_size = 16384;
+  g->uniform_mem = malloc(sizeof(uint8_t)*g->uniform_size);
+  g->params_max = 16u<<20;
   g->params_end = 0;
   g->params_pool = malloc(sizeof(uint8_t)*g->params_max);
 
@@ -69,6 +73,7 @@ dt_graph_init(dt_graph_t *g)
 void
 dt_graph_cleanup(dt_graph_t *g)
 {
+  free(g->uniform_mem);
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -90,9 +95,11 @@ dt_graph_cleanup(dt_graph_t *g)
       }
       if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
     }
-    vkDestroyPipelineLayout     (qvk.device, g->node[i].pipeline_layout, 0);
-    vkDestroyPipeline           (qvk.device, g->node[i].pipeline,        0);
-    vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,     0);
+    vkDestroyPipelineLayout     (qvk.device, g->node[i].pipeline_layout,  0);
+    vkDestroyPipeline           (qvk.device, g->node[i].pipeline,         0);
+    vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
+    vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
+    vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
   }
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
@@ -144,12 +151,13 @@ VkResult
 dt_graph_create_shader_module(
     dt_token_t node,
     dt_token_t kernel,
+    const char *type,
     VkShaderModule *shader_module)
 {
   // create the compute shader stage
   char filename[1024] = {0};
-  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
-      dt_token_str(node), dt_token_str(kernel));
+  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".%s.spv",
+      dt_token_str(node), dt_token_str(kernel), type);
 
   size_t len;
   void *data = read_file(filename, &len);
@@ -176,6 +184,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   // create descriptor bindings and pipeline:
   // TODO: check runflags for this?
   // we'll bind our buffers in the same order as in the connectors file.
+  uint32_t drawn_connector_cnt = 0;
+  uint32_t drawn_connector[DT_MAX_CONNECTORS];
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   for(int i=0;i<node->num_connectors;i++)
   {
@@ -189,6 +199,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     {
       graph->dset_cnt_image_write += MAX(1, node->connector[i].array_length);
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+      if(node->type == s_node_graphics)
+        drawn_connector[drawn_connector_cnt++] = i;
     }
     // this would be storage buffers:
     // graph->dset_cnt_buffer ++;
@@ -197,43 +209,43 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     bindings[i].pImmutableSamplers = 0;
   }
 
-  // TODO: if we need a rasterisation pass:
-#if 0
-  // TODO: create shader stages:
-  VkPipelineShaderStageCreateInfo
-    // TODO: create fixed function bits:
-    VkPipelineVertexInputStateCreateInfo
-    // ..
-  // create the render pass
-  VkAttachmentReference color_attachment = {
-    .attachment = 0,
-    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-  };
-  VkSubpassDescription subpass = {
-    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-    .colorAttachmentCount = 1,
-    .pColorAttachments = &color_attachment,
-  };
-  VkSubpassDependency dependency = {
-    .srcSubpass = VK_SUBPASS_EXTERNAL,
-    .dstSubpass = 0,
-    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-  };
-  VkRenderPassCreateInfo info = {
-    .sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-    .attachmentCount = 1,  // TODO: XXX = number of connectors with drawn flag
-    .pAttachments    = &attachment_desc, // XXX = collected array of connectors
-    .subpassCount    = 1,
-    .pSubpasses      = &subpass,
-    .dependencyCount = 1,
-    .pDependencies   = &dependency,
-  };
-  // VkRenderPass render_pass; // XXX TODO: put on connector or on node?
-  QVK(vkCreateRenderPass(qvk.device, &info, 0, &node.render_pass));
-#endif
+  // create render pass in case we need rasterised output:
+  if(drawn_connector_cnt)
+  {
+    VkAttachmentDescription attachment_desc[DT_MAX_CONNECTORS];
+    VkAttachmentReference color_attachment[DT_MAX_CONNECTORS];
+    for(int i=0;i<drawn_connector_cnt;i++)
+    {
+      int k = drawn_connector[i];
+      attachment_desc[i] = (VkAttachmentDescription) {
+        .format         = dt_connector_vkformat(node->connector+k),
+        .samples        = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR, // VK_ATTACHMENT_LOAD_OP_DONT_CARE, // XXX select on s_conn_clear flag?
+        .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout    = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      color_attachment[i] = (VkAttachmentReference) {
+        .attachment = i,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      };
+    }
+    VkSubpassDescription subpass = {
+      .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+      .colorAttachmentCount = drawn_connector_cnt,
+      .pColorAttachments = color_attachment,
+    };
+    VkRenderPassCreateInfo info = {
+      .sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+      .attachmentCount = drawn_connector_cnt,
+      .pAttachments    = attachment_desc,
+      .subpassCount    = 1,
+      .pSubpasses      = &subpass,
+    };
+    QVK(vkCreateRenderPass(qvk.device, &info, 0, &node->draw_render_pass));
+  }
 
   // a sink needs a descriptor set (for display via imgui)
   if(!dt_node_source(node))
@@ -271,38 +283,176 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     };
     QVKR(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
 
-    // create the compute shader stage
-    char filename[1024] = {0};
-    snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".spv",
-        dt_token_str(node->name), dt_token_str(node->kernel));
+    if(drawn_connector_cnt)
+    { // create rasterisation pipeline
+      // TODO: cache shader modules on global struct? (we'll reuse the draw kernels for all strokes)
+      const int wd = node->connector[drawn_connector[0]].roi.wd;
+      const int ht = node->connector[drawn_connector[0]].roi.ht;
+      VkShaderModule shader_module_vert, shader_module_geom, shader_module_frag;
+      QVKR(dt_graph_create_shader_module(node->name, node->kernel, "vert", &shader_module_vert));
+      QVKR(dt_graph_create_shader_module(node->name, node->kernel, "frag", &shader_module_frag));
+      VkResult geom = dt_graph_create_shader_module(node->name, node->kernel, "geom", &shader_module_geom);
 
-    VkShaderModule shader_module;
-    QVKR(dt_graph_create_shader_module(node->name, node->kernel, &shader_module));
+      // vertex shader, geometry shader, fragment shader
+      VkPipelineShaderStageCreateInfo shader_info[] = {{
+        .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+          .stage  = VK_SHADER_STAGE_VERTEX_BIT,
+          .module = shader_module_vert,
+          .pName  = "main",
+      },{
+        .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+          .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
+          .module = shader_module_frag,
+          .pName  = "main",
+      },{
+        .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+          .stage  = VK_SHADER_STAGE_GEOMETRY_BIT,
+          .module = shader_module_geom,
+          .pName  = "main",
+      }};
 
-    // TODO: cache pipelines on module->so ?
-    VkPipelineShaderStageCreateInfo stage_info = {
-      .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
-      .pSpecializationInfo = 0,//&info;
-      .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.
-      .module              = shader_module,
-    };
-#ifdef QVK_ENABLE_VALIDATION
-    // can't have stack pointers
-    // snprintf(filename, sizeof(filename), "%"PRItkn"_%"PRItkn, dt_token_str(node->name), dt_token_str(node->kernel));
-    // ATTACH_LABEL_VARIABLE_NAME(shader_module, SHADER_MODULE, filename);
-#endif
+      VkPipelineVertexInputStateCreateInfo vertex_input_info = {
+        .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount   = 0,
+        .pVertexBindingDescriptions      = NULL,
+        .vertexAttributeDescriptionCount = 0,
+        .pVertexAttributeDescriptions    = NULL,
+      };
 
-    // finally create the pipeline
-    VkComputePipelineCreateInfo pipeline_info = {
-      .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-      .stage  = stage_info,
-      .layout = node->pipeline_layout
-    };
-    QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
+      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
+        .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        // TODO: make configurable:
+        .topology               = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+        .primitiveRestartEnable = VK_FALSE,
+      };
 
-    // we don't need the module any more
-    vkDestroyShaderModule(qvk.device, stage_info.module, 0);
+      VkViewport viewport = {
+        .x        = 0.0f,
+        .y        = 0.0f,
+        .width    = (float) wd,
+        .height   = (float) ht,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+      };
+
+      VkRect2D scissor = {
+        .offset = { 0, 0 },
+        .extent = {
+          .width  = wd,
+          .height = ht,
+        },
+      };
+
+      VkPipelineViewportStateCreateInfo viewport_state = {
+        .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount = 1,
+        .pViewports    = &viewport,
+        .scissorCount  = 1,
+        .pScissors     = &scissor,
+      };
+
+      VkPipelineRasterizationStateCreateInfo rasterizer_state = {
+        .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .depthClampEnable        = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE, /* skip rasterizer */
+        .polygonMode             = VK_POLYGON_MODE_FILL,
+        .lineWidth               = 1.0f,
+        .cullMode                = VK_CULL_MODE_NONE,
+        .frontFace               = VK_FRONT_FACE_CLOCKWISE,
+        .depthBiasEnable         = VK_FALSE,
+        .depthBiasConstantFactor = 0.0f,
+        .depthBiasClamp          = 0.0f,
+        .depthBiasSlopeFactor    = 0.0f,
+      };
+
+      VkPipelineMultisampleStateCreateInfo multisample_state = {
+        .sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .sampleShadingEnable   = VK_FALSE,
+        .rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT,
+        .minSampleShading      = 1.0f,
+        .pSampleMask           = NULL,
+        .alphaToCoverageEnable = VK_FALSE,
+        .alphaToOneEnable      = VK_FALSE,
+      };
+
+      VkPipelineColorBlendAttachmentState color_blend_attachment = {
+        .colorWriteMask      = VK_COLOR_COMPONENT_R_BIT
+          | VK_COLOR_COMPONENT_G_BIT
+          | VK_COLOR_COMPONENT_B_BIT
+          | VK_COLOR_COMPONENT_A_BIT,
+        .blendEnable         = VK_TRUE,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR,
+        .colorBlendOp        = VK_BLEND_OP_MAX,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .alphaBlendOp        = VK_BLEND_OP_MAX,
+      };
+
+      VkPipelineColorBlendStateCreateInfo color_blend_state = {
+        .sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .logicOpEnable   = VK_FALSE,
+        .logicOp         = VK_LOGIC_OP_COPY,
+        .attachmentCount = 1,
+        .pAttachments    = &color_blend_attachment,
+        .blendConstants  = { 0.0f, 0.0f, 0.0f, 0.0f },
+      };
+
+      VkGraphicsPipelineCreateInfo pipeline_info = {
+        .sType      = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = geom == VK_SUCCESS ? LENGTH(shader_info) : LENGTH(shader_info)-1,
+        .pStages    = shader_info,
+
+        .pVertexInputState   = &vertex_input_info,
+        .pInputAssemblyState = &input_assembly_info,
+        .pViewportState      = &viewport_state,
+        .pRasterizationState = &rasterizer_state,
+        .pMultisampleState   = &multisample_state,
+        .pDepthStencilState  = NULL,
+        .pColorBlendState    = &color_blend_state,
+        .pDynamicState       = NULL,
+
+        .layout              = node->pipeline_layout,
+        .renderPass          = node->draw_render_pass,
+        .subpass             = 0,
+
+        .basePipelineHandle  = VK_NULL_HANDLE,
+        .basePipelineIndex   = -1,
+      };
+
+      QVKR(vkCreateGraphicsPipelines(qvk.device, VK_NULL_HANDLE,
+            1, &pipeline_info, NULL, &node->pipeline));
+
+      // TODO: keep cached for others
+      vkDestroyShaderModule(qvk.device, shader_module_vert, 0);
+      vkDestroyShaderModule(qvk.device, shader_module_geom, 0);
+      vkDestroyShaderModule(qvk.device, shader_module_frag, 0);
+    }
+    else
+    { // create the compute shader stage
+      VkShaderModule shader_module;
+      QVKR(dt_graph_create_shader_module(node->name, node->kernel, "comp", &shader_module));
+
+      // TODO: cache pipelines on module->so ?
+      VkPipelineShaderStageCreateInfo stage_info = {
+        .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
+        .pSpecializationInfo = 0,
+        .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.
+        .module              = shader_module,
+      };
+
+      // finally create the pipeline
+      VkComputePipelineCreateInfo pipeline_info = {
+        .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage  = stage_info,
+        .layout = node->pipeline_layout
+      };
+      QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
+
+      // we don't need the module any more
+      vkDestroyShaderModule(qvk.device, stage_info.module, 0);
+    }
   } // done with pipeline
 
   for(int i=0;i<node->num_connectors;i++)
@@ -314,8 +464,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       // dt_log(s_log_pipe, "%d x %d %"PRItkn"_%"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name), dt_token_str(node->kernel));
       // as it turns out our compute and graphics queues are identical, which simplifies things
       // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
-      int bc1 = c->format == dt_token("bc1");//format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
-      // int bc1 = format == VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+      int bc1 = c->format == dt_token("bc1");
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -332,10 +481,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .usage                 = 
           bc1 ?
           VK_IMAGE_ASPECT_COLOR_BIT
-          // | VK_IMAGE_USAGE_STORAGE_BIT // can't have this
           | VK_IMAGE_USAGE_TRANSFER_DST_BIT
           | VK_IMAGE_USAGE_SAMPLED_BIT :
           VK_IMAGE_USAGE_STORAGE_BIT
+          | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
           | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
           | VK_IMAGE_USAGE_TRANSFER_DST_BIT
           | VK_IMAGE_USAGE_SAMPLED_BIT
@@ -466,6 +615,8 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   VkDescriptorImageInfo img_info[DT_MAX_CONNECTORS*DT_MAX_CONNECTOR_ARRAY_SIZE] = {{0}};
   VkWriteDescriptorSet  img_dset[DT_MAX_CONNECTORS] = {{0}};
   int cur_dset = 0;
+  uint32_t drawn_connector_cnt = 0;
+  uint32_t drawn_connector[DT_MAX_CONNECTORS];
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -512,6 +663,9 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 
       if(c->type == dt_token("source"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
+
+      if(node->type == s_node_graphics)
+        drawn_connector[drawn_connector_cnt++] = i;
     }
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts:
@@ -550,22 +704,29 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
   if(node->dset_layout)
     vkUpdateDescriptorSets(qvk.device, node->num_connectors, img_dset, 0, NULL);
 
-  // TODO: XXX if drawn connectors on output, init framebuffers for imageviews!
-#if 0
-  // create framebuffers
-  VkImageView attachment[1] = {};
-  VkFramebufferCreateInfo fb_create_info = {
-    .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-    .renderPass      = node.render_pass,
-    .attachmentCount = 1,           // XXX number of drawn connectors
-    .pAttachments    = attachment,  // XXX collected list of their image views
-    .width           = qvk.extent.width, // XXX roi
-    .height          = qvk.extent.height,
-    .layers          = 1,
-  };
-    // attachment[0] = qvk.swap_chain_image_views[i];
-    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i)); // XXX node or connectors to hold their own framebuffers
-#endif
+  if(drawn_connector_cnt)
+  { // create framebuffer
+    VkImageView attachment[DT_MAX_CONNECTORS];
+    for(int i=0;i<drawn_connector_cnt;i++)
+    { // make sure there is no array and make sure they are same res!
+      assert(node->connector[drawn_connector[i]].array_length <= 1);
+      assert(node->connector[drawn_connector[i]].roi.wd == 
+             node->connector[drawn_connector[0]].roi.wd);
+      assert(node->connector[drawn_connector[i]].roi.ht == 
+             node->connector[drawn_connector[0]].roi.ht);
+      attachment[i] = node->connector[drawn_connector[i]].array[0].image_view;
+    }
+    VkFramebufferCreateInfo fb_create_info = {
+      .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass      = node->draw_render_pass,
+      .attachmentCount = drawn_connector_cnt,
+      .pAttachments    = attachment,
+      .width           = node->connector[drawn_connector[0]].roi.wd,
+      .height          = node->connector[drawn_connector[0]].roi.ht,
+      .layers          = 1,
+    };
+    QVKR(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, &node->draw_framebuffer));
+  }
   return VK_SUCCESS;
 }
 
@@ -756,10 +917,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     return VK_SUCCESS;
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
 
-  // for drawn/rasterised buffers:
-  uint32_t attachment_desc_cnt = 0;
-  VkAttachmentDescription attachment_desc[DT_MAX_CONNECTORS];
-
   VkCommandBuffer cmd_buf = graph->command_buffer;
 
   // special case for end of pipeline and thumbnail creation:
@@ -802,63 +959,46 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   }
 
   // barriers and image layout transformations:
-  //if(*runflag == 1) // only wait for non-cached inputs
+  // wait for our input images and transfer them to read only.
+  // also wait for our output buffers to be transferred into general layout.
+  // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
+  for(int i=0;i<node->num_connectors;i++)
   {
-    // wait for our input images and transfer them to read only.
-    // also wait for our output buffers to be transferred into general layout.
-    // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
-    for(int i=0;i<node->num_connectors;i++)
+    if(dt_connector_input(node->connector+i))
     {
-      if(dt_connector_input(node->connector+i))
-      {
-        if(!node->module->so->write_sink)
-          for(int k=0;!k||k<node->connector[i].array_length;k++)
-            BARRIER_IMG_LAYOUT(node->connector[i].array[k].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        else
-          BARRIER_IMG_LAYOUT(node->connector[i].array[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-      }
-      else if(dt_connector_output(node->connector+i))
-      {
-        // wait for layout transition on the output back to general:
-        if(node->connector[i].flags & s_conn_clear)
-        {
-          BARRIER_IMG_LAYOUT(node->connector[i].array[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-          // in case clearing is requested, zero out the image:
-          VkClearColorValue col = {{0}};
-          VkImageSubresourceRange range = {
-            .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel    = 0,
-            .levelCount      = 1,
-            .baseArrayLayer  = 0,
-            .layerCount      = 1
-          };
-          vkCmdClearColorImage(
-              cmd_buf,
-              node->connector[i].array[0].image,
-              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-              &col,
-              1,
-              &range);
-        }
+      if(!node->module->so->write_sink)
         for(int k=0;!k||k<node->connector[i].array_length;k++)
-          BARRIER_IMG_LAYOUT(node->connector[i].array[k].image, VK_IMAGE_LAYOUT_GENERAL);
-        if(node->connector[i].flags & s_conn_drawn)
-        {
-          // TODO: this connector needs to init a graphics command buffer!
-          // TODO: take note of this (flag) and init a render pass for this node later on!
-          // TODO: collect all s_conn_drawn connectors here and write their attachment_desc to array!
-          attachment_desc[attachment_desc_cnt++] = (VkAttachmentDescription){
-            .format         = dt_connector_vkformat(node->connector+i),
-            .samples        = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR, // VK_ATTACHMENT_LOAD_OP_DONT_CARE, // XXX select on s_conn_clear flag?
-            .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout    = VK_IMAGE_LAYOUT_GENERAL,
-          };
-        }
+          BARRIER_IMG_LAYOUT(node->connector[i].array[k].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      else
+        BARRIER_IMG_LAYOUT(node->connector[i].array[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    }
+    else if(dt_connector_output(node->connector+i))
+    {
+      // wait for layout transition on the output back to general:
+      if(node->connector[i].flags & s_conn_clear)
+      {
+        BARRIER_IMG_LAYOUT(node->connector[i].array[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        // in case clearing is requested, zero out the image:
+        VkClearColorValue col = {{0}};
+        VkImageSubresourceRange range = {
+          .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
+          .baseMipLevel    = 0,
+          .levelCount      = 1,
+          .baseArrayLayer  = 0,
+          .layerCount      = 1
+        };
+        vkCmdClearColorImage(
+            cmd_buf,
+            node->connector[i].array[0].image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            &col,
+            1,
+            &range);
       }
+      if(node->type == s_node_graphics)
+        BARRIER_IMG_LAYOUT(node->connector[i].array[0].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+      else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+        BARRIER_IMG_LAYOUT(node->connector[i].array[k].image, VK_IMAGE_LAYOUT_GENERAL);
     }
   }
 
@@ -920,23 +1060,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     }
   }
 
-
-  // TODO: if render pass (means no compute shader): execute the render pass here
-#if 0
-  // begin render pass
-  // push to graphics command buffer
-  // end render pass
-  // barriers ??
-#endif
-
   // only non-sink and non-source nodes have a pipeline:
   if(!node->pipeline) return VK_SUCCESS;
-
-  // add our global uniforms:
-  VkDescriptorSet desc_sets[] = {
-    graph->uniform_dset,
-    node->dset,
-  };
 
   // push profiler start
   if(graph->query_cnt < graph->query_max)
@@ -947,39 +1072,68 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     graph->query_kernel[graph->query_cnt++] = node->kernel;
   }
 
-  vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
-  vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-    node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
+  // compute or graphics pipeline?
+  int draw = -1;
+  if(node->type == s_node_graphics)
+    for(int k=0;k<node->num_connectors;k++)
+      if(dt_connector_output(node->connector+k)) { draw = k; break; }
 
-  // update some buffers:
-  if(node->push_constant_size)
-    vkCmdPushConstants(cmd_buf, node->pipeline_layout,
-        VK_SHADER_STAGE_ALL, 0, node->push_constant_size, node->push_constant);
-  uint8_t uniform_buf[4096]; // max would be 65k
+  if(node->module->so->commit_params)
+    node->module->so->commit_params(graph, node);
+
+  // XXX TODO: avoid uniform_mem allocation by calling vkMapMemory on the
+  // uniform buffer. this also avoids the memory barriers pushed here (not
+  // written via incoherent memory access). unfortunately it's somehow broken
+  // XXX
+  uint8_t *uniform_mem = graph->uniform_mem;
+#if 0
+  size_t size = 0;
+  size += node->num_connectors * ((sizeof(dt_roi_t)+15)/16)*16;
+  if(node->module->committed_param_size)
+    size += node->module->committed_param_size;
+  else if(node->module->param_size)
+    size += node->module->param_size;
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
+        // VK_WHOLE_SIZE,
+        size,
+        0, (void**)&uniform_mem));
+  // VkMappedMemoryRange rg = {
+  //   .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+  //   .memory = graph->vkmem_uniform,
+  //   .offset = 0,
+  //   .size = VK_WHOLE_SIZE,//size,
+  // };
+  // QVKR(vkInvalidateMappedMemoryRanges(qvk.device, 1, &rg));
+#endif
+
   // can only be 65k or else we need to upload through staging etc
   // offset and size have to be multiples of 4
   size_t pos = 0;
   for(int i=0;i<node->num_connectors;i++)
   {
-    memcpy(uniform_buf + pos, &node->connector[i].roi, sizeof(dt_roi_t));
+    assert(pos + ((sizeof(dt_roi_t)+15)/16) * 16 < graph->uniform_size);
+    memcpy(uniform_mem + pos, &node->connector[i].roi, sizeof(dt_roi_t));
     pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
   }
   // copy over module params, per node.
   // we may want to skip this if the uniform buffer stays the same for all nodes of the module.
-  if(node->module->so->commit_params)
-    node->module->so->commit_params(graph, node);
-
   if(node->module->committed_param_size)
   {
-    memcpy(uniform_buf + pos, node->module->committed_param, node->module->committed_param_size);
+    assert(pos + (node->module->committed_param_size + 15)/16 < graph->uniform_size);
+    memcpy(uniform_mem + pos, node->module->committed_param, node->module->committed_param_size);
     pos += ((node->module->committed_param_size + 15)/16)*16;
   }
   else if(node->module->param_size)
   {
-    memcpy(uniform_buf + pos, node->module->param, node->module->param_size);
+    assert(pos + node->module->param_size < graph->uniform_size);
+    memcpy(uniform_mem + pos, node->module->param, node->module->param_size);
     pos += node->module->param_size;
   }
 
+#if 0
+  // QVKR(vkFlushMappedMemoryRanges(qvk.device, 1, &rg));
+  vkUnmapMemory(qvk.device, graph->vkmem_uniform);
+#else
   VkBufferMemoryBarrier ub_barrier = {
     .sType         = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
     .srcAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
@@ -990,30 +1144,89 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   };
   vkCmdPipelineBarrier(
       cmd_buf,
-      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+      // draw == -1 ?
+      // VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT :
+      // VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
       VK_PIPELINE_STAGE_TRANSFER_BIT,
       0,
       0, NULL,
       1, &ub_barrier,
       0, NULL);
 
-  vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, uniform_buf);
+  vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, graph->uniform_mem);
 
   ub_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
   ub_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
   vkCmdPipelineBarrier(
       cmd_buf,
       VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+      // draw == -1 ?
+      // VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT :
+      // VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
       0,
       0, NULL,
       1, &ub_barrier,
       0, NULL);
+#endif
 
-  vkCmdDispatch(cmd_buf,
-      (node->wd + DT_LOCAL_SIZE_X - 1) / DT_LOCAL_SIZE_X,
-      (node->ht + DT_LOCAL_SIZE_Y - 1) / DT_LOCAL_SIZE_Y,
-       node->dp);
+  if(draw != -1)
+  {
+    VkClearValue clear_color = { .color = { .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } };
+    VkRenderPassBeginInfo render_pass_info = {
+      .sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass        = node->draw_render_pass,
+      .framebuffer       = node->draw_framebuffer,
+      .renderArea.offset = { 0, 0 },
+      .renderArea.extent = {
+        .width  = node->connector[draw].roi.wd,
+        .height = node->connector[draw].roi.ht },
+      .clearValueCount   = 1,
+      .pClearValues      = &clear_color
+    };
+    vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+  }
+
+  // add our global uniforms:
+  VkDescriptorSet desc_sets[] = {
+    graph->uniform_dset,
+    node->dset,
+  };
+
+  if(draw != -1)
+  {
+    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, node->pipeline);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
+  }
+  else
+  {
+    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
+      node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
+  }
+
+  // update some buffers:
+  if(node->push_constant_size)
+    vkCmdPushConstants(cmd_buf, node->pipeline_layout,
+        VK_SHADER_STAGE_ALL, 0, node->push_constant_size, node->push_constant);
+
+  if(draw == -1)
+  {
+    vkCmdDispatch(cmd_buf,
+        (node->wd + DT_LOCAL_SIZE_X - 1) / DT_LOCAL_SIZE_X,
+        (node->ht + DT_LOCAL_SIZE_Y - 1) / DT_LOCAL_SIZE_Y,
+         node->dp);
+  }
+  else
+  {
+    const int pi = dt_module_get_param(node->module->so, dt_token("draw"));
+    const float *p_draw = dt_module_param_float(node->module, pi);
+    if(p_draw[0] > 0)
+      vkCmdDraw(cmd_buf, (int)p_draw[0], 1, 0, 0);
+    vkCmdEndRenderPass(cmd_buf);
+  }
 
   // get a profiler timestamp:
   if(graph->query_cnt < graph->query_max)
@@ -1071,8 +1284,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;
   dt_node_t *node = graph->node + nodeid;
-  // int ctxnid = -1;
-  // dt_node_t *ctxn = 0;
 
   *node = (dt_node_t) {
     .name           = module->name,
@@ -1086,6 +1297,14 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     .dset_layout    = 0,
   };
 
+  // compute shader or graphics pipeline?
+  char filename[1024] = {0};
+  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/main.vert.spv",
+      dt_token_str(module->name));
+  struct stat statbuf;
+  if(stat(filename, &statbuf)) node->type = s_node_compute;
+  else node->type = s_node_graphics;
+
   // determine kernel dimensions:
   int output = dt_module_get_connector(module, dt_token("output"));
   // output == -1 means we must be a sink, anyways there won't be any more glsl
@@ -1098,21 +1317,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     node->dp = 1;
   }
 
-  // TODO: if there is a ctx buffer, we'll need to run it through
-  // TODO: the module, too. as a default case, trick the node into
-  // TODO: running twice with a different roi
-#if 0
-  // do we need to output a context buffer?
-  for(int i=0;i<module->num_connectors;i++)
-  {
-    if(module->connector[i].roi.ctx_wd > 0)
-    {
-      ctxnid = graph->num_nodes++;
-      ctxn = graph->node + ctxnid;
-      break;
-    }
-  }
-#endif
   for(int i=0;i<module->num_connectors;i++)
     dt_connector_copy(graph, module, i, nodeid, i);
 }
@@ -1172,7 +1376,7 @@ VkResult dt_graph_run(
       .binding = 0,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .descriptorCount = 1,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      .stageFlags = VK_SHADER_STAGE_ALL,
     };
     VkDescriptorSetLayoutCreateInfo dset_layout_info = {
       .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -1323,7 +1527,10 @@ VkResult dt_graph_run(
     VkBufferCreateInfo buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
       .size = graph->uniform_size,
-      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      .usage = // VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT|
+        // trying to map uniform directly:
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));

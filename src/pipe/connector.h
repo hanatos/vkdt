@@ -23,7 +23,6 @@ typedef enum dt_connector_flags_t
   s_conn_none   = 0,
   s_conn_smooth = 1,  // access this with a bilinear sampler during read
   s_conn_clear  = 2,  // clear this to zero before writing
-  s_conn_drawn  = 4,  // this image is created via rasterisation pipeline, not a compute shader
 }
 dt_connector_flags_t;
 
@@ -105,7 +104,6 @@ typedef struct dt_connector_t
   dt_connector_array_t array[DT_MAX_CONNECTOR_ARRAY_SIZE];
 
   VkBuffer      staging;     // for sources and sinks
-  VkFramebuffer framebuffer; // for draw kernels
 }
 dt_connector_t;
 
@@ -152,6 +150,7 @@ dt_connector_bytes_per_pixel(const dt_connector_t *c)
   {
     case dt_token("ui32"):
     case dt_token("f32") :
+    case dt_token("dspy"):
       return 4;
     case dt_token("ui16"):
     case dt_token("f16") :
@@ -215,7 +214,13 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 4: return VK_FORMAT_R8G8B8A8_UNORM;
     }
     case dt_token("bc1") : return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
-    case dt_token("dspy"): return qvk.surf_format.format;
+                           // XXX FIXME: display format for intel is
+                           // VK_FORMAT_B8G8R8A8_UNORM
+                           // which is not supported as a storage format :(
+                           // TODO: need to detect 10 bit and explicitly set
+                           // to yet another surface format stored somewhere
+    // case dt_token("dspy"): return qvk.surf_format.format;
+    case dt_token("dspy"): return VK_FORMAT_R8G8B8A8_UNORM;
   }
   return VK_FORMAT_UNDEFINED;
 }

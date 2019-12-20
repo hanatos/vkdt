@@ -92,7 +92,7 @@ vk_debug_callback(
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
-    // assert(0);
+    assert(0);
   }
 #endif
   return VK_FALSE;
@@ -158,8 +158,8 @@ qvk_create_swapchain()
     // XXX would need to double check that export does the right thing then.
     // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
     VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_FORMAT_A2B10G10R10_UNORM_PACK32,
-    VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM,
-    VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM
+    VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM,
+    VK_FORMAT_R8G8B8_UNORM, VK_FORMAT_B8G8R8_UNORM,
   };
 
   for(int i = 0; i < LENGTH(acceptable_formats); i++) {
@@ -370,6 +370,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     dt_log(s_log_qvk, "max image allocation size %u x %u",
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
+    dt_log(s_log_qvk, "max uniform buffer range %u", dev_properties.limits.maxUniformBufferRange);
 #define QVK_FEATURE_DO(F, R)\
     if(dev_features.F == 0 && R == 1) {\
       dev_features.F = 1;\

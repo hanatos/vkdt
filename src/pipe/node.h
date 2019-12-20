@@ -7,6 +7,13 @@
 // fwd declare
 typedef struct dt_module_t dt_module_t;
 
+typedef enum dt_node_type_t
+{
+  s_node_compute  = 0,
+  s_node_graphics = 1,
+}
+dt_node_type_t;
+
 typedef struct dt_node_t
 {
   dt_token_t name;      // name of the node
@@ -23,6 +30,8 @@ typedef struct dt_node_t
   VkDescriptorSetLayout dset_layout;
 
   VkRenderPass          draw_render_pass; // needed for raster kernels
+  VkFramebuffer         draw_framebuffer; // 
+  dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer
 
   uint32_t wd, ht, dp;  // dimensions of kernel to be run
 

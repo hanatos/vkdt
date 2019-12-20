@@ -18,7 +18,7 @@ extern "C" {
 // some ui state (probably clean up and put in a struct or so
 namespace { // anonymous gui state namespace
 static int g_active_widget = -1;
-static float g_state[8] = {0.0f};
+static float g_state[2100] = {0.0f};
 static int g_lod = 0;
 
 void widget_end()
@@ -36,7 +36,7 @@ void widget_end()
 }
 } // end anonymous gui state space
 
-// premove this once we have a gui struct!
+// remove this once we have a gui struct!
 extern "C" void dt_gui_set_lod(int lod)
 {
   // set graph output scale factor and
@@ -182,9 +182,9 @@ inline void dark_corporate_style()
 	style.PopupBorderSize  = 1;
 	style.FrameBorderSize  = is3D;
 
-	style.WindowRounding    = 3;
-	style.ChildRounding     = 3;
-	style.FrameRounding     = 3;
+	style.WindowRounding    = 0;
+	style.ChildRounding     = 0;
+	style.FrameRounding     = 0;
 	style.ScrollbarRounding = 2;
 	style.GrabRounding      = 3;
 
@@ -385,6 +385,45 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
         }
         break;
       }
+      case dt_token("draw"):
+      {
+        // record mouse position relative to image
+        // append to state until 1000 lines
+        static int c = -1;
+        static int pressed = 0;
+        if(c >= 0 && event->type == SDL_MOUSEMOTION &&
+            pressed &&
+            c < 2004)
+        {
+          float n[] = {0, 0};
+          float v[] = {(float)event->button.x, (float)event->button.y};
+          view_to_image(v, n);
+          // convert view space mouse coordinate to normalised image
+          // copy to quad state at corner c
+          g_state[1+2*c+0] = n[0];
+          g_state[1+2*c+1] = n[1];
+          if(c == 0 || (c > 0 &&
+              fabsf(n[0] - g_state[1+2*(c-1)+0]) > 0.004 &&
+              fabsf(n[1] - g_state[1+2*(c-1)+1]) > 0.004))
+            g_state[0] = c++;
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONUP)
+        {
+          pressed = 0;
+          c = -1;
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        {
+          pressed = 1;
+          if(c < 0) c = 0;
+          // right click: remove stroke
+          if(event->button.button == SDL_BUTTON_RIGHT) c = -1;
+          return 1;
+        }
+        break;
+      }
       default:;
     }
   }
@@ -520,6 +559,20 @@ void render_darkroom()
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
         }
+        case dt_token("draw"):
+        {
+          float p[2004];
+          int cnt = g_state[0];
+          for(int k=0;k<cnt;k++)
+          {
+            p[2*k+0] = g_state[1+2*k+0];
+            p[2*k+1] = g_state[1+2*k+1];
+            image_to_view(p+2*k, p+2*k);
+          }
+          ImGui::GetWindowDrawList()->AddPolyline(
+              (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
+          break;
+        }
         default:;
       }
     }
@@ -609,7 +662,6 @@ void render_darkroom()
               // reset module params so the image will not appear distorted:
               float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
               memcpy(v, def, sizeof(float)*8);
-              vkdt.graph_dev.runflags = s_graph_run_all;
             }
           }
           break;
@@ -639,7 +691,35 @@ void render_darkroom()
               // reset module params so the image will not appear distorted:
               float def[] = {0.f, 1.f, 0.f, 1.f};
               memcpy(v, def, sizeof(float)*4);
-              vkdt.graph_dev.runflags = s_graph_run_all;
+            }
+          }
+          break;
+        }
+        case dt_token("draw"):
+        {
+          float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+            vkdt.graph_dev.module[modid].so->param[parid]->offset);
+          if(g_active_widget == i)
+          {
+            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+                dt_token_str(vkdt.graph_dev.module[modid].name),
+                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            if(ImGui::Button(string)) widget_end();
+          }
+          else
+          {
+            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+                dt_token_str(vkdt.graph_dev.module[modid].name),
+                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            if(ImGui::Button(string))
+            {
+              widget_end(); // if another one is still in progress, end that now
+              g_active_widget = i;
+              // copy to quad state
+              memcpy(g_state, v, sizeof(float)*((int)v[0]+1));
+              // XXX not sure if this is a good idea:
+              // switch off stroke on the current parameter set:
+              v[0] = 0.0f;
             }
           }
           break;
