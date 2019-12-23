@@ -19,18 +19,26 @@ extern "C" {
 namespace { // anonymous gui state namespace
 static int g_active_widget = -1;
 static float g_state[2100] = {0.0f};
+static float *g_mapped = 0;
 static int g_lod = 0;
 
 void widget_end()
 {
   if(g_active_widget < 0) return; // all good already
   int i = g_active_widget;
-  int modid = vkdt.widget[i].modid;
-  int parid = vkdt.widget[i].parid;
-  const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
-  float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset);
-  size_t size = dt_ui_param_size(p->type, p->cnt);
-  memcpy(v, g_state, size);
+  if(g_mapped)
+  {
+    g_mapped = 0;
+  }
+  else
+  {
+    int modid = vkdt.widget[i].modid;
+    int parid = vkdt.widget[i].parid;
+    const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset);
+    size_t size = dt_ui_param_size(p->type, p->cnt);
+    memcpy(v, g_state, size);
+  }
   g_active_widget = -1;
   vkdt.graph_dev.runflags = s_graph_run_all;
 }
@@ -400,12 +408,12 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
           view_to_image(v, n);
           // convert view space mouse coordinate to normalised image
           // copy to quad state at corner c
-          g_state[1+2*c+0] = n[0];
-          g_state[1+2*c+1] = n[1];
+          g_mapped[1+2*c+0] = n[0];
+          g_mapped[1+2*c+1] = n[1];
           if(c == 0 || (c > 0 &&
-              fabsf(n[0] - g_state[1+2*(c-1)+0]) > 0.004 &&
-              fabsf(n[1] - g_state[1+2*(c-1)+1]) > 0.004))
-            g_state[0] = c++;
+              fabsf(n[0] - g_mapped[1+2*(c-1)+0]) > 0.004 &&
+              fabsf(n[1] - g_mapped[1+2*(c-1)+1]) > 0.004))
+            g_mapped[0] = c++;
           return 1;
         }
         else if(event->type == SDL_MOUSEBUTTONUP)
@@ -560,13 +568,14 @@ void render_darkroom()
           break;
         }
         case dt_token("draw"):
-        {
+        { // this is not really needed.
+          // we map the buffer and get instant feedback on the image.
           float p[2004];
-          int cnt = g_state[0];
+          int cnt = g_mapped[0];
           for(int k=0;k<cnt;k++)
           {
-            p[2*k+0] = g_state[1+2*k+0];
-            p[2*k+1] = g_state[1+2*k+1];
+            p[2*k+0] = g_mapped[1+2*k+0];
+            p[2*k+1] = g_mapped[1+2*k+1];
             image_to_view(p+2*k, p+2*k);
           }
           ImGui::GetWindowDrawList()->AddPolyline(
@@ -715,11 +724,7 @@ void render_darkroom()
             {
               widget_end(); // if another one is still in progress, end that now
               g_active_widget = i;
-              // copy to quad state
-              memcpy(g_state, v, sizeof(float)*((int)v[0]+1));
-              // XXX not sure if this is a good idea:
-              // switch off stroke on the current parameter set:
-              v[0] = 0.0f;
+              g_mapped = v; // map state
             }
           }
           break;
