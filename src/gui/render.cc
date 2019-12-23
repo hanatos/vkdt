@@ -593,7 +593,7 @@ void render_darkroom()
     ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_Always);
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.center_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, window_flags);
 
     // draw histogram image:

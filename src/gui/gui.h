@@ -48,6 +48,7 @@ typedef struct dt_gui_state_t
   int   center_x, center_y;
   int   center_wd, center_ht;
   int   panel_wd;
+  int   panel_ht;
 }
 dt_gui_state_t;
 
