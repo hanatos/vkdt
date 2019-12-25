@@ -114,7 +114,8 @@ int dt_graph_read_config_ascii(
 {
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
-  char line[2048];
+  // needs to be large enough to hold 1000 vertices of drawn masks:
+  char line[30000];
   uint32_t lno = 0;
   while(!feof(f))
   {
@@ -158,7 +159,7 @@ dt_graph_write_module_ascii(
   return line;
 }
 
-// TODO: write connection
+// write connection
 // serialises only incoming connections (others can't be resolved due to ambiguity)
 char *
 dt_graph_write_connection_ascii(
