@@ -2,6 +2,7 @@ extern "C" {
 #include "gui.h"
 #include "view.h"
 #include "qvk/qvk.h"
+#include "pipe/modules/api.h"
 }
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
@@ -21,6 +22,7 @@ static int g_active_widget = -1;
 static float g_state[2100] = {0.0f};
 static float *g_mapped = 0;
 static int g_lod = 0;
+static float g_connector[100][30][2];
 
 void widget_end()
 {
@@ -61,8 +63,9 @@ extern "C" void dt_gui_set_lod(int lod)
   }
   vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
   // reset view? would need to set zoom, too
-  // vkdt.state.look_at_x = FLT_MAX;
-  // vkdt.state.look_at_y = FLT_MAX;
+  vkdt.state.look_at_x = FLT_MAX;
+  vkdt.state.look_at_y = FLT_MAX;
+  vkdt.state.scale = -1;
 }
 
 namespace {
@@ -504,6 +507,261 @@ void render_lighttable()
   }
 }
 
+void render_module(dt_graph_t *graph, dt_module_t *module)
+{
+  char name[30];
+  snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
+      dt_token_str(module->name), dt_token_str(module->inst));
+  float lineht = ImGui::GetTextLineHeight();
+  ImVec2 hp = ImGui::GetCursorScreenPos();
+  if(!ImGui::CollapsingHeader(name))
+  {
+    for(int k=0;k<module->num_connectors;k++)
+    {
+      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
+      g_connector[module - graph->module][k][1] = hp.y + 0.5f*lineht;
+      // this switches off connections of collapsed modules
+      // g_connector[module - graph->module][k][0] = -1;
+      // g_connector[module - graph->module][k][1] = -1;
+    }
+    return;
+  }
+  ImGuiWindowFlags window_flags = 0;
+  // window_flags |= ImGuiWindowFlags_NoTitleBar;
+  window_flags |= ImGuiWindowFlags_NoMove;
+  window_flags |= ImGuiWindowFlags_NoResize;
+  window_flags |= ImGuiWindowFlags_NoBackground;
+  snprintf(name, sizeof(name), "%" PRItkn "_%" PRItkn "_p", dt_token_str(module->name), dt_token_str(module->inst));
+  int ht = lineht * (module->num_connectors + 1);
+  ImGui::BeginChild(name, ImVec2(vkdt.state.panel_wd * 0.75, ht), false, window_flags);
+  // ImGui::Text("%" PRItkn, dt_token_str(module->name));
+  // module menu for pipeline config goes here:
+  // TODO
+  // ImGui::Button("remove");
+  // ImGui::SameLine();
+  // ImGui::Button("insert after");
+  // ImGui::SameLine();
+  // ImGui::Button("blend");
+
+  // ImGui::Button("move up");
+  // ImGui::SameLine();
+  // ImGui::Button("move down");
+  ImGui::EndChild();
+
+  ImGui::SameLine();
+
+  snprintf(name, sizeof(name), "%" PRItkn "_%" PRItkn "_c", dt_token_str(module->name), dt_token_str(module->inst));
+  ImGui::BeginChild(name, ImVec2(vkdt.state.panel_wd * 0.25, ht), false, window_flags);
+
+  for(int k=0;k<module->num_connectors;k++)
+  {
+    if(dt_connector_output(module->connector+k))
+    {
+      ImVec2 p = ImGui::GetCursorScreenPos();
+      ImGui::Text("%" PRItkn, dt_token_str(module->connector[k].name));
+      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
+      g_connector[module - graph->module][k][1] = p.y + 0.5f*lineht;
+    }
+  }
+  for(int k=0;k<module->num_connectors;k++)
+  {
+    if(dt_connector_input(module->connector+k))
+    {
+      ImVec2 p = ImGui::GetCursorScreenPos();
+      ImGui::Text("%" PRItkn, dt_token_str(module->connector[k].name));
+      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
+      g_connector[module - graph->module][k][1] = p.y + 0.5f*lineht;
+    }
+  }
+  ImGui::EndChild();
+}
+
+void render_darkroom_favourite()
+{
+  // streamlined "favourite" ui
+  for(int i=0;i<vkdt.num_widgets;i++)
+  {
+    int modid = vkdt.widget[i].modid;
+    int parid = vkdt.widget[i].parid;
+    char string[256];
+    // distinguish by type:
+    switch(vkdt.widget[i].type)
+    {
+      case dt_token("slider"):
+      {
+        // TODO: distinguish by count:
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + 
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        char str[10] = {0};
+        memcpy(str,
+            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        ImGui::SliderFloat(str, val,
+            vkdt.widget[i].min,
+            vkdt.widget[i].max,
+            "%2.5f");
+        break;
+      }
+      case dt_token("quad"):
+      {
+        float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        if(g_active_widget == i)
+        {
+          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+          if(ImGui::Button(string)) widget_end();
+        }
+        else
+        {
+          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+          if(ImGui::Button(string))
+          {
+            widget_end(); // if another one is still in progress, end that now
+            g_active_widget = i;
+            // copy to quad state
+            memcpy(g_state, v, sizeof(float)*8);
+            // reset module params so the image will not appear distorted:
+            float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
+            memcpy(v, def, sizeof(float)*8);
+          }
+        }
+        break;
+      }
+      case dt_token("axquad"):
+      {
+        float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        if(g_active_widget == i)
+        {
+          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+          if(ImGui::Button(string)) widget_end();
+        }
+        else
+        {
+          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+          if(ImGui::Button(string))
+          {
+            widget_end(); // if another one is still in progress, end that now
+            g_active_widget = i;
+            // copy to quad state
+            memcpy(g_state, v, sizeof(float)*4);
+            // reset module params so the image will not appear distorted:
+            float def[] = {0.f, 1.f, 0.f, 1.f};
+            memcpy(v, def, sizeof(float)*4);
+          }
+        }
+        break;
+      }
+      case dt_token("draw"):
+      {
+        float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        if(g_active_widget == i)
+        {
+          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+          if(ImGui::Button(string)) widget_end();
+        }
+        else
+        {
+          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+          if(ImGui::Button(string))
+          {
+            widget_end(); // if another one is still in progress, end that now
+            g_active_widget = i;
+            g_mapped = v; // map state
+          }
+        }
+        break;
+      }
+      default:;
+    }
+  }
+}
+
+void render_darkroom_full()
+{
+  ImGui::Text("unimplemented");
+}
+
+void render_darkroom_pipeline()
+{
+  // full featured module + connection ui
+  uint32_t mod_id[100];       // module id, including disconnected modules
+  uint32_t mod_in[100] = {0}; // module indentation level
+  dt_graph_t *graph = &vkdt.graph_dev;
+  assert(graph->num_modules < sizeof(mod_id)/sizeof(mod_id[0]));
+  for(int k=0;k<graph->num_modules;k++) mod_id[k] = k;
+  dt_module_t *const arr = graph->module;
+  const int arr_cnt = graph->num_modules;
+  int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
+#define TRAVERSE_PRE \
+  {\
+    pos2 = curr;\
+    while(mod_id[pos2] != curr) pos2 = mod_id[pos2];\
+    int tmp = mod_id[pos];\
+    mod_id[pos++] = mod_id[pos2];\
+    mod_id[pos2] = tmp;\
+    render_module(graph, arr+curr);\
+  }
+#include "pipe/graph-traverse.inc"
+
+  // now draw the disconnected modules
+  for(int m=pos;m<graph->num_modules;m++)
+    render_module(graph, arr+mod_id[m]);
+
+  // draw connectors outside of clipping region of individual widgets, on top.
+  // also go through list in reverse order such that the first connector will
+  // pick up the largest indentation to avoid most crossovers
+  for(int mi=graph->num_modules-1;mi>=0;mi--)
+  {
+    int m = mod_id[mi];
+    for(int k=graph->module[m].num_connectors-1;k>=0;k--)
+    {
+      if(dt_connector_input(graph->module[m].connector+k))
+      {
+        const float *p = g_connector[m][k];
+        int nid = graph->module[m].connector[k].connected_mi;
+        int cid = graph->module[m].connector[k].connected_mc;
+        const float *q = g_connector[nid][cid];
+        float b = vkdt.state.panel_wd * 0.02;
+        int rev = nid; // TODO: store reverse list?
+        while(mod_id[rev] != nid) rev = mod_id[rev];
+        // traverse mod_id list between mi and rev nid and get indentation level
+        int ident = 0;
+        if(mi < rev) for(int i=mi+1;i<rev;i++)
+        {
+          mod_in[i] ++;
+          ident = MAX(mod_in[i], ident);
+        }
+        else for(int i=rev+1;i<mi;i++)
+        {
+          mod_in[i] ++;
+          ident = MAX(mod_in[i], ident);
+        }
+        b *= ident + 1;
+        if(p[0] == -1 || q[0] == -1) continue;
+        float x[8] = {
+          p[0], p[1], p[0]+b, p[1],
+          q[0]+b, q[1], q[0], q[1],
+        };
+        ImGui::GetWindowDrawList()->AddPolyline(
+            (ImVec2 *)x, 4, IM_COL32_WHITE, false, 1.0);
+      }
+    }
+  }
+}
+
 void render_darkroom()
 {
   { // center image view
@@ -568,7 +826,7 @@ void render_darkroom()
           break;
         }
         case dt_token("draw"):
-        { // this is not really needed.
+        { // this is not really needed. draw line on top of stroke.
           // we map the buffer and get instant feedback on the image.
           float p[2004];
           int cnt = g_mapped[0];
@@ -599,8 +857,6 @@ void render_darkroom()
     // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
     // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
     // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-    ImGui::SetNextWindowPos (ImVec2(1420, 0),   ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(500, 1080), ImGuiCond_Always);
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, window_flags);
@@ -618,120 +874,32 @@ void render_darkroom()
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
 
-    // LOD switcher
     if(ImGui::SliderInt("LOD", &g_lod, 1, 16, "%d"))
-    {
+    { // LOD switcher
       dt_gui_set_lod(g_lod);
     }
 
-    for(int i=0;i<vkdt.num_widgets;i++)
+    ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+    if(ImGui::BeginTabBar("layer", tab_bar_flags))
     {
-      int modid = vkdt.widget[i].modid;
-      int parid = vkdt.widget[i].parid;
-      char string[256];
-      // distinguish by type:
-      switch(vkdt.widget[i].type)
+      if(ImGui::BeginTabItem("favourite"))
       {
-        case dt_token("slider"):
-        {
-          // TODO: distinguish by count:
-          float *val = (float*)(vkdt.graph_dev.module[modid].param + 
-            vkdt.graph_dev.module[modid].so->param[parid]->offset);
-          char str[10] = {0};
-          memcpy(str,
-              &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
-          ImGui::SliderFloat(str, val,
-              vkdt.widget[i].min,
-              vkdt.widget[i].max,
-              "%2.5f");
-          break;
-        }
-        case dt_token("quad"):
-        {
-          float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-            vkdt.graph_dev.module[modid].so->param[parid]->offset);
-          if(g_active_widget == i)
-          {
-            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-                dt_token_str(vkdt.graph_dev.module[modid].name),
-                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string)) widget_end();
-          }
-          else
-          {
-            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-                dt_token_str(vkdt.graph_dev.module[modid].name),
-                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string))
-            {
-              widget_end(); // if another one is still in progress, end that now
-              g_active_widget = i;
-              // copy to quad state
-              memcpy(g_state, v, sizeof(float)*8);
-              // reset module params so the image will not appear distorted:
-              float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
-              memcpy(v, def, sizeof(float)*8);
-            }
-          }
-          break;
-        }
-        case dt_token("axquad"):
-        {
-          float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-            vkdt.graph_dev.module[modid].so->param[parid]->offset);
-          if(g_active_widget == i)
-          {
-            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-                dt_token_str(vkdt.graph_dev.module[modid].name),
-                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string)) widget_end();
-          }
-          else
-          {
-            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-                dt_token_str(vkdt.graph_dev.module[modid].name),
-                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string))
-            {
-              widget_end(); // if another one is still in progress, end that now
-              g_active_widget = i;
-              // copy to quad state
-              memcpy(g_state, v, sizeof(float)*4);
-              // reset module params so the image will not appear distorted:
-              float def[] = {0.f, 1.f, 0.f, 1.f};
-              memcpy(v, def, sizeof(float)*4);
-            }
-          }
-          break;
-        }
-        case dt_token("draw"):
-        {
-          float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-            vkdt.graph_dev.module[modid].so->param[parid]->offset);
-          if(g_active_widget == i)
-          {
-            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-                dt_token_str(vkdt.graph_dev.module[modid].name),
-                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string)) widget_end();
-          }
-          else
-          {
-            snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-                dt_token_str(vkdt.graph_dev.module[modid].name),
-                dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-            if(ImGui::Button(string))
-            {
-              widget_end(); // if another one is still in progress, end that now
-              g_active_widget = i;
-              g_mapped = v; // map state
-            }
-          }
-          break;
-        }
-        default:;
+        render_darkroom_favourite();
+        ImGui::EndTabItem();
       }
+      if(ImGui::BeginTabItem("tweak all"))
+      {
+        render_darkroom_full();
+        ImGui::EndTabItem();
+      }
+      if(ImGui::BeginTabItem("pipeline config"))
+      {
+        render_darkroom_pipeline();
+        ImGui::EndTabItem();
+      }
+      ImGui::EndTabBar();
     }
+
     ImGui::End();
   } // end right panel
 }
