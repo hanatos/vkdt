@@ -1719,7 +1719,7 @@ VkResult dt_graph_run(
 
   for(int i=0;i<graph->query_cnt;i+=2)
   {
-    dt_log(s_log_perf, "query %"PRItkn"_%"PRItkn":\t%8.3f ms",
+    dt_log(s_log_perf, "%"PRItkn"_%"PRItkn":\t%8.3f ms",
         dt_token_str(graph->query_name  [i]),
         dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
