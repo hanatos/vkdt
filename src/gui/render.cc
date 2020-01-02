@@ -507,8 +507,10 @@ void render_lighttable()
   }
 }
 
-void render_module(dt_graph_t *graph, dt_module_t *module)
+int render_module(dt_graph_t *graph, dt_module_t *module)
 {
+  static int mod[2] = {-1,-1}, con[2] = {-1,-1};
+  static int err = 0;
   char name[30];
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(module->name), dt_token_str(module->inst));
@@ -524,56 +526,58 @@ void render_module(dt_graph_t *graph, dt_module_t *module)
       // g_connector[module - graph->module][k][0] = -1;
       // g_connector[module - graph->module][k][1] = -1;
     }
-    return;
+    return err;
   }
-  ImGuiWindowFlags window_flags = 0;
-  // window_flags |= ImGuiWindowFlags_NoTitleBar;
-  window_flags |= ImGuiWindowFlags_NoMove;
-  window_flags |= ImGuiWindowFlags_NoResize;
-  window_flags |= ImGuiWindowFlags_NoBackground;
-  snprintf(name, sizeof(name), "%" PRItkn "_%" PRItkn "_p", dt_token_str(module->name), dt_token_str(module->inst));
-  int ht = lineht * (module->num_connectors + 1);
-  ImGui::BeginChild(name, ImVec2(vkdt.state.panel_wd * 0.75, ht), false, window_flags);
-  // ImGui::Text("%" PRItkn, dt_token_str(module->name));
-  // module menu for pipeline config goes here:
-  // TODO
-  // ImGui::Button("remove");
-  // ImGui::SameLine();
-  // ImGui::Button("insert after");
-  // ImGui::SameLine();
-  // ImGui::Button("blend");
+  snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn "_col",
+      dt_token_str(module->name), dt_token_str(module->inst));
+  ImGui::Columns(2, name, false);
+  ImGui::SetColumnWidth(0, 0.75 * vkdt.state.panel_wd);
+  ImGui::SetColumnWidth(1, 0.25 * vkdt.state.panel_wd);
+  ImGui::Text("TODO: menu to add/move modules");
+  ImGui::NextColumn();
 
-  // ImGui::Button("move up");
-  // ImGui::SameLine();
-  // ImGui::Button("move down");
-  ImGui::EndChild();
-
-  ImGui::SameLine();
-
-  snprintf(name, sizeof(name), "%" PRItkn "_%" PRItkn "_c", dt_token_str(module->name), dt_token_str(module->inst));
-  ImGui::BeginChild(name, ImVec2(vkdt.state.panel_wd * 0.25, ht), false, window_flags);
-
-  for(int k=0;k<module->num_connectors;k++)
+  // buttons are unimpressed by this, they take a size argument:
+  // ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
+  ImVec2 size(0.13f*vkdt.state.panel_wd, 1.6*lineht);
+  const int mid = module - graph->module;
+  for(int j=0;j<2;j++) for(int k=0;k<module->num_connectors;k++)
   {
-    if(dt_connector_output(module->connector+k))
+    if((j == 0 && dt_connector_output(module->connector+k)) ||
+       (j == 1 && dt_connector_input (module->connector+k)))
     {
+      const int selected = (mod[j] == mid) && (con[j] == k);
       ImVec2 p = ImGui::GetCursorScreenPos();
-      ImGui::Text("%" PRItkn, dt_token_str(module->connector[k].name));
-      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
-      g_connector[module - graph->module][k][1] = p.y + 0.5f*lineht;
+      g_connector[mid][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
+      g_connector[mid][k][1] = p.y + 0.8f*lineht;
+
+      if(selected)
+      {
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.8f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+      }
+      snprintf(name, sizeof(name), "%" PRItkn, dt_token_str(module->connector[k].name));
+      ImGui::PushID(1337*mid + k);
+      if(ImGui::Button(name, size))
+      {
+        mod[j] = mid;
+        con[j] = k;
+        if(mod[1-j] >= 0 && con[1-j] >= 0)
+        {
+          err = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          con[0] = con[1] = mod[0] = mod[1] = -1;
+        }
+      }
+      ImGui::PopID();
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("click to connect");
+      if(selected)
+        ImGui::PopStyleColor(3);
     }
   }
-  for(int k=0;k<module->num_connectors;k++)
-  {
-    if(dt_connector_input(module->connector+k))
-    {
-      ImVec2 p = ImGui::GetCursorScreenPos();
-      ImGui::Text("%" PRItkn, dt_token_str(module->connector[k].name));
-      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
-      g_connector[module - graph->module][k][1] = p.y + 0.5f*lineht;
-    }
-  }
-  ImGui::EndChild();
+  ImGui::Columns(1);
+  return err;
 }
 
 void render_darkroom_favourite()
@@ -704,6 +708,7 @@ void render_darkroom_pipeline()
   for(int k=0;k<graph->num_modules;k++) mod_id[k] = k;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
+  int err = 0;
   int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
 #define TRAVERSE_PRE \
   {\
@@ -712,13 +717,17 @@ void render_darkroom_pipeline()
     int tmp = mod_id[pos];\
     mod_id[pos++] = mod_id[pos2];\
     mod_id[pos2] = tmp;\
-    render_module(graph, arr+curr);\
+    err = render_module(graph, arr+curr);\
   }
 #include "pipe/graph-traverse.inc"
 
+  if(graph->num_modules > pos) ImGui::Text("disconnected:");
   // now draw the disconnected modules
   for(int m=pos;m<graph->num_modules;m++)
-    render_module(graph, arr+mod_id[m]);
+    err = render_module(graph, arr+mod_id[m]);
+
+  if(err)
+    ImGui::Text("connection failed: %s", dt_connector_error_str(err));
 
   // draw connectors outside of clipping region of individual widgets, on top.
   // also go through list in reverse order such that the first connector will
@@ -733,10 +742,13 @@ void render_darkroom_pipeline()
         const float *p = g_connector[m][k];
         int nid = graph->module[m].connector[k].connected_mi;
         int cid = graph->module[m].connector[k].connected_mc;
+        if(nid < 0) continue; // disconnected
         const float *q = g_connector[nid][cid];
         float b = vkdt.state.panel_wd * 0.02;
         int rev = nid; // TODO: store reverse list?
-        while(mod_id[rev] != nid) rev = mod_id[rev];
+        if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
+        else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
+        if(mod_id[rev] != nid) continue;
         // traverse mod_id list between mi and rev nid and get indentation level
         int ident = 0;
         if(mi < rev) for(int i=mi+1;i<rev;i++)
