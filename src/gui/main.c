@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
   // main loop
   int running = 1;
   int fullscreen = 0;
+  int busy = 1;   // go to idle only after a few frames have passed since interaction
   clock_t beg = clock();
   while(running)
   {
@@ -75,8 +76,11 @@ int main(int argc, char *argv[])
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
     // do that via SDL_PushEvent().
-    SDL_WaitEvent(&event);
-    do
+    int have_event = 1;
+    if(busy >= 0)
+      have_event = SDL_PollEvent(&event);
+    else           SDL_WaitEvent(&event);
+    if(have_event) do
     {
       if(dt_gui_poll_event_imgui(&event))
         ;
@@ -115,8 +119,10 @@ int main(int argc, char *argv[])
         dt_gui_recreate_swapchain();
       }
       else dt_view_handle_event(&event);
+      busy = 2;
     }
     while (SDL_PollEvent(&event));
+    else busy--;
 
     // TODO: lock qvk.queue_mutex for the graphics drawing
     dt_gui_render_frame_imgui();
