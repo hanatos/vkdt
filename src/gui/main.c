@@ -125,7 +125,10 @@ int main(int argc, char *argv[])
     else busy--;
 
     // TODO: lock qvk.queue_mutex for the graphics drawing
+    clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();
+    clock_t end_rf  = clock();
+    dt_log(s_log_perf, "ui time %2.3fs", (end_rf - beg_rf)/(double)CLOCKS_PER_SEC);
 
     dt_gui_render();
     dt_gui_present();
