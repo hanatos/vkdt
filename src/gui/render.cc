@@ -44,6 +44,44 @@ void widget_end()
   g_active_widget = -1;
   vkdt.graph_dev.runflags = s_graph_run_all;
 }
+
+void draw_arrow(float p[8])
+{
+  float mark = vkdt.state.panel_wd * 0.02f;
+  // begin and end markers
+  float x[40] = {
+     0.0f,         0.2f*mark,
+    -0.375f*mark,  0.3f*mark,
+    -0.75f *mark,  0.1f*mark,
+    -0.75f *mark, -0.1f*mark,
+    -0.375f*mark, -0.3f*mark,
+     0.0f,        -0.2f*mark,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    -0.0f*mark,  0.5f*mark, -1.0f*mark, 0.0f,
+    -0.0f*mark, -0.5f*mark, -0.0f*mark, 0.0f,
+  };
+  // a few bezier points:
+  for(int i=0;i<7;i++)
+  {
+    x[2*i+0] += p[0];
+    x[2*i+1] += p[1];
+  }
+  for(int i=15;i<20;i++)
+  {
+    x[2*i+0] += p[6];
+    x[2*i+1] += p[7];
+  }
+  for(int i=7;i<15;i++)
+  {
+    const float t = (i-6.0f)/9.0f, tc = 1.0f-t;
+    const float t2 = t*t, tc2 = tc*tc;
+    const float t3 = t2*t, tc3 = tc2*tc;
+    x[2*i+0] = p[0] * tc3 + p[2] * 3.0f*tc2*t + p[4] * 3.0f*t2*tc + p[6] * t3;
+    x[2*i+1] = p[1] * tc3 + p[3] * 3.0f*tc2*t + p[5] * 3.0f*t2*tc + p[7] * t3;
+  }
+  ImGui::GetWindowDrawList()->AddPolyline(
+      (ImVec2 *)x, 20, IM_COL32_WHITE, false, 2.0);
+}
 } // end anonymous gui state space
 
 // remove this once we have a gui struct!
@@ -560,13 +598,20 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
       ImGui::PushID(1337*mid + k);
       if(ImGui::Button(name, size))
       {
-        mod[j] = mid;
-        con[j] = k;
-        if(mod[1-j] >= 0 && con[1-j] >= 0)
-        {
-          err = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          con[0] = con[1] = mod[0] = mod[1] = -1;
+        if(mod[j] == mid && con[j] == k)
+        { // deselect
+          mod[j] = con[j] = -1;
+        }
+        else
+        { // select
+          mod[j] = mid;
+          con[j] = k;
+          if(mod[1-j] >= 0 && con[1-j] >= 0)
+          {
+            err = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
+            vkdt.graph_dev.runflags = s_graph_run_all;
+            con[0] = con[1] = mod[0] = mod[1] = -1;
+          }
         }
       }
       ImGui::PopID();
@@ -744,7 +789,7 @@ void render_darkroom_pipeline()
         int cid = graph->module[m].connector[k].connected_mc;
         if(nid < 0) continue; // disconnected
         const float *q = g_connector[nid][cid];
-        float b = vkdt.state.panel_wd * 0.02;
+        float b = vkdt.state.panel_wd * 0.03;
         int rev = nid; // TODO: store reverse list?
         if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
         else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
@@ -761,14 +806,13 @@ void render_darkroom_pipeline()
           mod_in[i] ++;
           ident = MAX(mod_in[i], ident);
         }
-        b *= ident + 1;
+        float b2 = b * (ident + 2);
         if(p[0] == -1 || q[0] == -1) continue;
         float x[8] = {
-          p[0], p[1], p[0]+b, p[1],
-          q[0]+b, q[1], q[0], q[1],
+          q[0]+b , q[1], q[0]+b2, q[1],
+          p[0]+b2, p[1], p[0]+b , p[1],
         };
-        ImGui::GetWindowDrawList()->AddPolyline(
-            (ImVec2 *)x, 4, IM_COL32_WHITE, false, 1.0);
+        draw_arrow(x);
       }
     }
   }
