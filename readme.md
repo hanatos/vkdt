@@ -56,11 +56,11 @@ imgui:        MIT
 and we may link to some others, too.
 
 # dependencies:
-- vulkan, glslangValidator
-- sdl2
+- clang to compile (for now, will restore gcc compat at some point)
+- vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
+- sdl2 (libsdl2-dev)
 - submodule imgui
-- submodule rawspeed (pulls in pugixml, stdc++, zlib, jpeg)
-- submodule pybind11?
+- submodule rawspeed (pulls in pugixml, stdc++, zlib, jpeg, libomp-dev)
 - libjpeg
-- build: make, sed
+- build: make
 
