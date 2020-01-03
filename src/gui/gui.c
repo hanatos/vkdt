@@ -1,6 +1,7 @@
 #include "gui.h"
 #include "qvk/qvk.h"
 #include "core/log.h"
+#include "core/threads.h"
 #include "render.h"
 #include "pipe/io.h"
 
@@ -266,7 +267,9 @@ void dt_gui_render()
   };
 
   QVK(vkEndCommandBuffer(vkdt.command_buffer[i]));
+  threads_mutex_lock(&qvk.queue_mutex);
   QVK(vkQueueSubmit(qvk.queue_graphics, 1, &sub_info, vkdt.fence[i]));
+  threads_mutex_unlock(&qvk.queue_mutex);
 }
 
 void dt_gui_present()

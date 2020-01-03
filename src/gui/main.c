@@ -124,7 +124,6 @@ int main(int argc, char *argv[])
     while (SDL_PollEvent(&event));
     else busy--;
 
-    // TODO: lock qvk.queue_mutex for the graphics drawing
     clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();
     clock_t end_rf  = clock();
