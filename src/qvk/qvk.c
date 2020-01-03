@@ -366,6 +366,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
     qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
 
+    dt_log(s_log_qvk, "dev %d: vendorid 0x%x", i, dev_properties.vendorID);
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
     dt_log(s_log_qvk, "max number of allocations %d", dev_properties.limits.maxMemoryAllocationCount);
     dt_log(s_log_qvk, "max image allocation size %u x %u",
@@ -389,8 +390,9 @@ QVK_FEATURE_DO(inheritedQueries, 1)
       // dt_log(s_log_qvk, ext_properties[j].extensionName);
       // no ray tracing needed:
       // if(!strcmp(ext_properties[j].extensionName, VK_NV_RAY_TRACING_EXTENSION_NAME)) {
-        if(picked_device < 0)
-          picked_device = i;
+    // vendor ids are: nvidia 0x10de, intel 0x8086
+    if(picked_device < 0 || dev_properties.vendorID == 0x10de)
+      picked_device = i;
       // }
     // }
   }
