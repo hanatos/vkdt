@@ -553,12 +553,13 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(module->name), dt_token_str(module->inst));
   float lineht = ImGui::GetTextLineHeight();
+  float wd = 0.6f, bwd = 0.16f;
   ImVec2 hp = ImGui::GetCursorScreenPos();
   if(!ImGui::CollapsingHeader(name))
   {
     for(int k=0;k<module->num_connectors;k++)
     {
-      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
+      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
       g_connector[module - graph->module][k][1] = hp.y + 0.5f*lineht;
       // this switches off connections of collapsed modules
       // g_connector[module - graph->module][k][0] = -1;
@@ -569,14 +570,14 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn "_col",
       dt_token_str(module->name), dt_token_str(module->inst));
   ImGui::Columns(2, name, false);
-  ImGui::SetColumnWidth(0, 0.75 * vkdt.state.panel_wd);
-  ImGui::SetColumnWidth(1, 0.25 * vkdt.state.panel_wd);
+  ImGui::SetColumnWidth(0,       wd  * vkdt.state.panel_wd);
+  ImGui::SetColumnWidth(1, (1.0f-wd) * vkdt.state.panel_wd);
   ImGui::Text("TODO: menu to add/move modules");
   ImGui::NextColumn();
 
   // buttons are unimpressed by this, they take a size argument:
   // ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
-  ImVec2 size(0.13f*vkdt.state.panel_wd, 1.6*lineht);
+  ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
   const int mid = module - graph->module;
   for(int j=0;j<2;j++) for(int k=0;k<module->num_connectors;k++)
   {
@@ -585,7 +586,7 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
     {
       const int selected = (mod[j] == mid) && (con[j] == k);
       ImVec2 p = ImGui::GetCursorScreenPos();
-      g_connector[mid][k][0] = hp.x + vkdt.state.panel_wd * (0.75f + 0.13f);
+      g_connector[mid][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
       g_connector[mid][k][1] = p.y + 0.8f*lineht;
 
       if(selected)
