@@ -99,7 +99,7 @@ extern "C" void dt_gui_set_lod(int lod)
     vkdt.graph_dev.output_wd = 0;
     vkdt.graph_dev.output_ht = 0;
   }
-  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(-1u);
+  vkdt.graph_dev.runflags = s_graph_run_all;
   // reset view? would need to set zoom, too
   vkdt.state.look_at_x = FLT_MAX;
   vkdt.state.look_at_y = FLT_MAX;
@@ -645,10 +645,12 @@ void render_darkroom_favourite()
         char str[10] = {0};
         memcpy(str,
             &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
-        ImGui::SliderFloat(str, val,
+        if(ImGui::SliderFloat(str, val,
             vkdt.widget[i].min,
             vkdt.widget[i].max,
-            "%2.5f");
+            "%2.5f"))
+          // TODO: let module decide which flags are needed!
+          vkdt.graph_dev.runflags = s_graph_run_all;
         break;
       }
       case dt_token("quad"):

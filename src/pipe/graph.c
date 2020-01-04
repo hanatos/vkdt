@@ -73,6 +73,7 @@ dt_graph_init(dt_graph_t *g)
 void
 dt_graph_cleanup(dt_graph_t *g)
 {
+  QVK(vkDeviceWaitIdle(qvk.device));
   free(g->uniform_mem);
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].so->cleanup)

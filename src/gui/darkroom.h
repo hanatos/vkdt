@@ -115,13 +115,11 @@ darkroom_process()
 
   // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
   // if(fence == VK_SUCCESS)
-  // TODO: if params changed:
-  // VkResult err =
-  dt_graph_run(&vkdt.graph_dev,
-      vkdt.graph_dev.runflags
-      |s_graph_run_download_sink
-      |s_graph_run_record_cmd_buf
-      |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
+  if(vkdt.graph_dev.runflags)
+    // VkResult err =
+    dt_graph_run(&vkdt.graph_dev,
+        vkdt.graph_dev.runflags
+        |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
   // if(err != VK_SUCCESS) break;
 }
 
