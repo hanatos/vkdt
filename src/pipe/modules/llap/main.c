@@ -91,6 +91,7 @@ create_nodes(
         .chan   = dt_token("y"),
         .format = dt_token("f16"),
         .roi    = rf,
+        .flags  = s_conn_smooth,
         .connected_mi = -1,
         .array_length = num_gamma + 1,
       },{
@@ -128,6 +129,7 @@ create_nodes(
         .chan   = dt_token("y"),
         .format = dt_token("f16"),
         .roi    = rc,
+        .flags  = s_conn_smooth,
         .connected_mi = -1,
       },{
         .name   = dt_token("currlo"),
@@ -135,6 +137,7 @@ create_nodes(
         .chan   = dt_token("y"),
         .format = dt_token("f16"),
         .roi    = rc,
+        .flags  = s_conn_smooth,
         .connected_mi = -1,
         .array_length = num_gamma + 1,
       },{
@@ -143,6 +146,7 @@ create_nodes(
         .chan   = dt_token("y"),
         .format = dt_token("f16"),
         .roi    = rf,
+        .flags  = s_conn_smooth,
         .connected_mi = -1,
         .array_length = num_gamma + 1,
       },{
@@ -176,10 +180,6 @@ create_nodes(
   // bind dummy and let kernel know where to find real data:
   graph->node[id_assemble[nl-1]].push_constant[1] = 1;
   CONN(dt_node_connect(graph, id_curve, 1, id_assemble[nl-1], 0));
-
-  // connect ouput fine buffer [3] (input to coarse [0] on next finer level)
-  // for(int l=1;l<nl-1;l++)
-    // CONN(dt_node_connect(graph, id_assemble[l+1], 3, id_assemble[l], 0));
 
   // wire into recolouration node:
   assert(graph->num_nodes < graph->max_nodes);

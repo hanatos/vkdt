@@ -63,13 +63,12 @@ vec4 sample_catmull_rom(sampler2D tex, vec2 uv)
   return result;
 }
 
-// FIXME: like this but in correct please
 // cannibalised version of the above, softer kernel:
 vec4 sample_soft(sampler2D tex, vec2 uv)
 {
   vec2 texSize = textureSize(tex, 0);
   vec2 samplePos = uv * texSize;
-  vec2 texPos1 = samplePos;//floor(samplePos - 0.5) + 0.5;
+  vec2 texPos1 = samplePos;
 
   vec2 texPos0 = texPos1 - vec2(1.5);
   vec2 texPos3 = texPos1 + vec2(1.5);

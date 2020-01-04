@@ -35,6 +35,10 @@ layout( // output buffer y finer level of output
 
 float gauss_expand(sampler2D img_in, ivec2 opos)
 {
+#if 0 // unfortunately this is not the correct thing to do here:
+  vec2 ipos = (opos*0.5)/vec2(textureSize(img_in, 0));
+  return sample_soft(img_in, ipos).r;
+#else
   float c = 0.0f;
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
   ivec2 ipos = opos/2;
@@ -60,6 +64,7 @@ float gauss_expand(sampler2D img_in, ivec2 opos)
       c += texelFetch(img_in, ipos+ivec2(ii,jj), 0).r * w[2*jj+1]*w[2*ii+1];
   }
   return 4.0f*c;
+#endif
 }
 
 // assemble

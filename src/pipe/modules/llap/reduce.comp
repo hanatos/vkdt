@@ -34,10 +34,15 @@ main()
   if(any(greaterThanEqual(opos, params.ro.roi))) return;
 
   // blur, store only coarse res
+#if 0
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
   float y = 0.0f;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
     y += texelFetch(img_in[idx], 2*opos+ivec2(ii,jj), 0).r * w[ii+2] * w[jj+2];
   imageStore(img_out[idx], opos, vec4(y));
+#else // this is 2.5x faster at least on intel
+  vec2 ipos = (2*opos + vec2(0.5))/vec2(params.ri.roi);
+  imageStore(img_out[idx], opos, sample_soft(img_in[idx], ipos));
+#endif
 }
 
