@@ -211,6 +211,30 @@ dt_thumbnails_cache_one(
     return 3;
   }
 
+  // replace display by o-bc1 in case it's not default.cfg:
+  modid = dt_module_get(graph, dt_token("display"), dt_token("main"));
+  if(modid >= 0)
+  {
+    int cid = dt_module_get_connector(graph->module+modid, dt_token("input"));
+    int m0 = graph->module[modid].connector[cid].connected_mi;
+    int c0 = graph->module[modid].connector[cid].connected_mc;
+    if(m0 < 0)
+    {
+      dt_log(s_log_err, "[thm] config '%s' has no connected display module!", cfgfilename);
+      dt_graph_cleanup(graph);
+      return 3; // display input not connected
+    }
+    const int m1 = dt_module_add(graph, dt_token("o-bc1"), dt_token("main"));
+    const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+    graph->module[m0].connector[c0].format = graph->module[m1].connector[c1].format;
+    if(dt_module_connect(graph, m0, c0, m1, c1))
+    {
+      dt_log(s_log_err, "[thm] config '%s' connecting bc1 output failed!", cfgfilename);
+      dt_graph_cleanup(graph);
+      return 3;
+    }
+  }
+
   modid = dt_module_get(graph, dt_token("o-bc1"), dt_token("main"));
   if(modid < 0 ||
      dt_module_set_param_string(graph->module + modid, dt_token("filename"), bc1filename))
@@ -403,7 +427,7 @@ dt_thumbnails_load_one(
   *thumb_index = th - tn->thumb;
   // threads_mutex_unlock(&tn->lru_lock);
   
-#if 1 // cache eviction
+  // cache eviction:
   // clean up memory in case there was something here:
   if(th->image)      vkDestroyImage(qvk.device, th->image, VK_NULL_HANDLE);
   if(th->image_view) vkDestroyImageView(qvk.device, th->image_view, VK_NULL_HANDLE);
@@ -414,7 +438,6 @@ dt_thumbnails_load_one(
   if(th->mem)    dt_vkfree(&tn->alloc, th->mem);
   th->mem        = 0;
   // keep dset and prev/next dlist pointers! (i.e. don't memset th)
-#endif
 
   // set param for rawinput
   // get module
@@ -467,11 +490,6 @@ dt_thumbnails_load_one(
   };
 
   QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &th->image));
-#if 0
-  char *name = malloc(100);
-  snprintf(name, 100, "thumb%04d", *thumb_index);
-  ATTACH_LABEL_VARIABLE_NAME(th->image, IMAGE, name);
-#endif
   VkMemoryRequirements mem_req;
   vkGetImageMemoryRequirements(qvk.device, th->image, &mem_req);
   if(mem_req.memoryTypeBits != tn->memory_type_bits)
