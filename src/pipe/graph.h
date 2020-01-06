@@ -15,6 +15,7 @@ typedef enum dt_graph_run_t
   s_graph_run_upload_source  = 1<<6, // final : upload new source image
   s_graph_run_download_sink  = 1<<7, // final : download sink images
   s_graph_run_wait_done      = 1<<8, // wait for fence
+  s_graph_run_before_active  = 1<<9, // run all modules, even before active_module
   s_graph_run_all = -1u,
 }
 dt_graph_run_t;
@@ -81,6 +82,7 @@ typedef struct dt_graph_t
 
   dt_graph_run_t        runflags;      // used to trigger next runflags/invalidate things
   int                   lod_scale;     // scale output down by this factor. default = 1.
+  int                   active_module; // currently active module, relevant for runflags
 
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;

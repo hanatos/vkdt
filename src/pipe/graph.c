@@ -50,8 +50,6 @@ dt_graph_init(dt_graph_t *g)
   QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, &g->command_buffer));
   VkFenceCreateInfo fence_info = {
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-    /* fence's initial state set to be signaled to make program not hang */
-    // .flags = VK_FENCE_CREATE_SIGNALED_BIT,
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
 
@@ -68,6 +66,7 @@ dt_graph_init(dt_graph_t *g)
   g->query_kernel = malloc(sizeof(dt_token_t)*g->query_max);
 
   g->lod_scale = 1;
+  g->active_module = -1;
 }
 
 void
@@ -496,7 +495,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .pQueueFamilyIndices   = 0,//queues,
         .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
       };
-      for(int k=0;!k||k<c->array_length;k++)
+      for(int k=0;k<MAX(1,c->array_length);k++)
       {
         if(c->array[k].image) vkDestroyImage(qvk.device, c->array[k].image, VK_NULL_HANDLE);
         QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &c->array[k].image));
@@ -561,7 +560,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       {
         dt_connector_t *c2 =
           graph->node[c->connected_mi].connector + c->connected_mc;
-        for(int k=0;!k||k<c->array_length;k++)
+        for(int k=0;k<MAX(1,c->array_length);k++)
         {
           c->array[k].mem   = c2->array[k].mem;
           c->array[k].image = c2->array[k].image;

@@ -649,8 +649,11 @@ void render_darkroom_favourite()
             vkdt.widget[i].min,
             vkdt.widget[i].max,
             "%2.5f"))
+        {
           // TODO: let module decide which flags are needed!
-          vkdt.graph_dev.runflags = s_graph_run_all;
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all & ~s_graph_run_before_active);
+          vkdt.graph_dev.active_module = modid;
+        }
         break;
       }
       case dt_token("quad"):

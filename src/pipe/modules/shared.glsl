@@ -91,7 +91,28 @@ vec4 sample_soft(sampler2D tex, vec2 uv)
   result += textureLod(tex, vec2(texPos12.x, texPos3.y),  0);
   result += textureLod(tex, vec2(texPos3.x,  texPos3.y),  0);
 
-  return result / 9;
+  return result / 9.0f;
+}
+
+// use 2x2 lookups to simulate 3x3
+vec4 sample_semisoft(sampler2D tex, vec2 uv)
+{
+  vec2 texSize = textureSize(tex, 0);
+  vec2 texPosc = uv * texSize;
+
+  vec2 texPos0 = texPosc - vec2(.5);
+  vec2 texPos1 = texPosc + vec2(.5);
+
+  texPos0 /= texSize;
+  texPos1 /= texSize;
+
+  vec4 result = vec4(0.0);
+  result += textureLod(tex, vec2(texPos0.x, texPos0.y), 0);
+  result += textureLod(tex, vec2(texPos1.x, texPos0.y), 0);
+  result += textureLod(tex, vec2(texPos0.x, texPos1.y), 0);
+  result += textureLod(tex, vec2(texPos1.x, texPos1.y), 0);
+
+  return result / 4.0f;
 }
 
 
