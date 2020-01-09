@@ -22,7 +22,7 @@ style_to_state()
     .center_y = vkdt.style.border_frac * qvk.win_width,
     .center_wd = (1.0f - vkdt.style.panel_width_frac - 2*vkdt.style.border_frac) * qvk.win_width,
     .center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width,
-    .panel_wd = vkdt.style.panel_width_frac * qvk.win_width,
+    .panel_wd = vkdt.style.panel_width_frac * (16.0/9.0) * qvk.win_height, // qvk.win_width,
     .panel_ht = qvk.win_height,
   };
 }
