@@ -36,7 +36,11 @@ int main(int argc, char *argv[])
     dt_log(s_log_gui, "usage: vkdt [-d verbosity] directory|rawfile");
     exit(1);
   }
-  if(dt_gui_init()) exit(1);
+  if(dt_gui_init())
+  {
+    dt_log(s_log_gui|s_log_err, "failed to init gui/swapchain");
+    exit(1);
+  }
 
   dt_thumbnails_t *tmp_tn = 0;
   vkdt.view_mode = s_view_cnt;

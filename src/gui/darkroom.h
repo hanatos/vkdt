@@ -118,8 +118,9 @@ darkroom_process()
   if(vkdt.graph_dev.runflags)
     // VkResult err =
     dt_graph_run(&vkdt.graph_dev,
-        vkdt.graph_dev.runflags
-        |s_graph_run_wait_done); // if we don't wait we can't resubmit because the fence would be used twice.
+        (vkdt.graph_dev.runflags
+        &~s_graph_run_upload_source) // done that in darkroom_enter()
+        | s_graph_run_wait_done);    // if we don't wait we can't resubmit because the fence would be used twice.
   // if(err != VK_SUCCESS) break;
 }
 

@@ -36,7 +36,7 @@ int dt_gui_init()
   qvk.win_height = 1080;
   qvk.window = SDL_CreateWindow("vkdt", 20, 50,
       qvk.win_width, qvk.win_height,
-      SDL_WINDOW_VULKAN | SDL_WINDOW_BORDERLESS);// | SDL_WINDOW_RESIZABLE);
+      SDL_WINDOW_VULKAN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE);
   if(!qvk.window)
   {
     dt_log(s_log_gui|s_log_err, "could not create SDL window `%s'", SDL_GetError());
@@ -79,7 +79,7 @@ int dt_gui_init()
     return 1;
   }
 
-  dt_gui_recreate_swapchain();
+  QVKR(dt_gui_recreate_swapchain());
 
   // create command pool and fences and semaphores.
   // assume image_count does not change, so we only need to do this once.
@@ -90,7 +90,7 @@ int dt_gui_init()
       .queueFamilyIndex = qvk.queue_idx_graphics,
       .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
     };
-    QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, vkdt.command_pool+i));
+    QVKR(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, vkdt.command_pool+i));
 
     VkCommandBufferAllocateInfo cmd_buf_alloc_info = {
       .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -98,17 +98,17 @@ int dt_gui_init()
       .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
       .commandBufferCount = 1,
     };
-    QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, vkdt.command_buffer+i));
+    QVKR(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, vkdt.command_buffer+i));
 
     VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    QVK(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_image_acquired + i));
-    QVK(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_render_complete + i));
+    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_image_acquired + i));
+    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_render_complete + i));
 
     VkFenceCreateInfo fence_info = {
       .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
       .flags = VK_FENCE_CREATE_SIGNALED_BIT, /* fence's initial state set to be signaled to make program not hang */
     };
-    QVK(vkCreateFence(qvk.device, &fence_info, NULL, vkdt.fence + i));
+    QVKR(vkCreateFence(qvk.device, &fence_info, NULL, vkdt.fence + i));
   }
   vkdt.frame_index = 0;
   vkdt.sem_index = 0;
@@ -137,7 +137,7 @@ int dt_gui_init()
     .poolSizeCount = LENGTH(pool_sizes),
     .pPoolSizes    = pool_sizes,
   };
-  QVK(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &vkdt.descriptor_pool));
+  QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &vkdt.descriptor_pool));
 
   dt_gui_init_imgui();
 
@@ -154,7 +154,7 @@ dt_gui_recreate_swapchain()
     vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
   SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
   style_to_state();
-  QVK(qvk_create_swapchain());
+  QVKR(qvk_create_swapchain());
 
   // create the render pass
   VkAttachmentDescription attachment_desc = {
@@ -194,7 +194,7 @@ dt_gui_recreate_swapchain()
     .dependencyCount = 1,
     .pDependencies = &dependency,
   };
-  QVK(vkCreateRenderPass(qvk.device, &info, 0, &vkdt.render_pass));
+  QVKR(vkCreateRenderPass(qvk.device, &info, 0, &vkdt.render_pass));
 
   // create framebuffers
   VkImageView attachment[1] = {};
@@ -212,7 +212,7 @@ dt_gui_recreate_swapchain()
   for(int i = 0; i < vkdt.image_count; i++)
   {
     attachment[0] = qvk.swap_chain_image_views[i];
-    QVK(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
+    QVKR(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
   }
   return VK_SUCCESS;
 }
