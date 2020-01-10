@@ -38,8 +38,9 @@ main()
 
   float y = texelFetch(img_in, opos, 0).r;
   vec3 rgb = texelFetch(img_org, opos, 0).rgb;
-  float yo = luminance_rec2020(rgb);
+  float yo = max(luminance_rec2020(rgb), 0.01f);
+  float ratio = y/yo;
   // imageStore(img_out, opos, vec4(vec3(y), 1));
-  imageStore(img_out, opos, vec4(y/yo * rgb, 1));
+  imageStore(img_out, opos, vec4(max(vec3(0), ratio * rgb), 1));
 }
 
