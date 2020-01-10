@@ -148,6 +148,7 @@ int dt_gui_init()
 VkResult
 dt_gui_recreate_swapchain()
 {
+  QVKR(vkDeviceWaitIdle(qvk.device));
   for(int i = 0; i < vkdt.image_count; i++)
     vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
   if(vkdt.render_pass)
