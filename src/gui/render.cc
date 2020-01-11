@@ -50,16 +50,16 @@ void draw_arrow(float p[8])
   float mark = vkdt.state.panel_wd * 0.02f;
   // begin and end markers
   float x[60] = {
-     0.0f,         0.2f*mark,
-    -0.375f*mark,  0.3f*mark,
-    -0.75f *mark,  0.1f*mark,
-    -0.75f *mark, -0.1f*mark,
-    -0.375f*mark, -0.3f*mark,
-     0.0f,        -0.2f*mark,
+     0.0f,              0.2f*mark*0.5f,
+    -0.375f*mark*0.5f,  0.3f*mark*0.5f,
+    -0.75f *mark*0.5f,  0.1f*mark*0.5f,
+    -0.75f *mark*0.5f, -0.1f*mark*0.5f,
+    -0.375f*mark*0.5f, -0.3f*mark*0.5f,
+     0.0f,             -0.2f*mark*0.5f,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    -0.0f*mark,  0.5f*mark, -1.0f*mark, 0.0f,
-    -0.0f*mark, -0.5f*mark, -0.0f*mark, 0.0f,
+    -0.0f*mark,  0.4f*mark, -1.0f*mark, 0.0f,
+    -0.0f*mark, -0.4f*mark, -0.0f*mark, 0.0f,
   };
   // a few bezier points:
   for(int i=0;i<7;i++)
@@ -81,7 +81,7 @@ void draw_arrow(float p[8])
     x[2*i+1] = p[1] * tc3 + p[3] * 3.0f*tc2*t + p[5] * 3.0f*t2*tc + p[7] * t3;
   }
   ImGui::GetWindowDrawList()->AddPolyline(
-      (ImVec2 *)x, 30, IM_COL32_WHITE, false, 2.0);
+      (ImVec2 *)x, 30, IM_COL32_WHITE, false, vkdt.state.center_ht/500.0f);
 }
 } // end anonymous gui state space
 
