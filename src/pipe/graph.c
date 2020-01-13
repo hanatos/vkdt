@@ -83,23 +83,18 @@ dt_graph_cleanup(dt_graph_t *g)
       g->module[i].so->cleanup(g->module+i);
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_staging);
-  // go through all modules and clean out VkImages
+  for(int i=0;i<g->conn_image_end;i++)
+  {
+    if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+    g->conn_image_pool[i].image = 0;
+    g->conn_image_pool[i].image_view = 0;
+  }
   for(int i=0;i<g->num_nodes;i++)
   {
     for(int j=0;j<g->node[i].num_connectors;j++)
     {
       dt_connector_t *c = g->node[i].connector+j;
-      if(dt_connector_output(c))
-      {
-        for(int f=0;f<c->frames;f++)
-        for(int k=0;k<MIN(1,c->array_length);k++)
-        {
-          dt_connector_image_t *img = dt_graph_connector_image(
-              g, i, j, k, f);
-          if(img->image)      vkDestroyImage(qvk.device, img->image, VK_NULL_HANDLE);
-          if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
-        }
-      }
       if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
     }
     vkDestroyPipelineLayout     (qvk.device, g->node[i].pipeline_layout,  0);
@@ -565,20 +560,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     { // point our inputs to their counterparts:
       if(c->connected_mi >= 0)
       {
-        dt_connector_t *c2 =
-          graph->node[c->connected_mi].connector + c->connected_mc;
-        assert(c->frames == c2->frames);
-        for(int f=0;f<c->frames;f++)
-        for(int k=0;k<MAX(1,c->array_length);k++)
-        {
-          dt_connector_image_t *img  = dt_graph_connector_image(graph,
-              node - graph->node, i, k, f);
-          dt_connector_image_t *img2 = dt_graph_connector_image(graph,
-              c->connected_mi, c->connected_mc, k, f);
-          img->mem   = img2->mem;
-          img->image = img2->image;
-        }
-        // image view will follow in alloc_outputs2
+        // point to conn_image of connected output directly:
+        node->conn_image[i] = graph->node[c->connected_mi].conn_image[c->connected_mc];
         if(c->type == dt_token("sink"))
         {
           // allocate staging buffer for downloading from connected input
@@ -692,19 +675,14 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       if(c->connected_mi >= 0)
       {
         int ii = cur_dset;
-        dt_connector_t *c2 = graph->node[c->connected_mi]
-          .connector + c->connected_mc;
-        assert(c->frames == c2->frames); // this should be ensured during connection
+        // this should be ensured during connection:
+        assert(c->frames == graph->node[c->connected_mi].connector[c->connected_mc].frames);
         for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
         {
           for(int k=0;k<MAX(1,c->array_length);k++)
-          { // can't hurt to copy again
+          {
             dt_connector_image_t *img  = dt_graph_connector_image(graph,
                 node - graph->node, i, k, MIN(f, c->frames-1));
-            dt_connector_image_t *img2 = dt_graph_connector_image(graph,
-                c->connected_mi, c->connected_mc, k, MIN(f, c2->frames-1));
-            img->image      = img2->image;
-            img->image_view = img2->image_view;
             int iii = cur_dset++;
             img_info[iii].sampler     = (c->flags & s_conn_smooth) ? qvk.tex_sampler : qvk.tex_sampler_nearest;
             img_info[iii].imageView   = img->image_view;
@@ -1135,16 +1113,16 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   // written via incoherent memory access). unfortunately it's somehow broken
   // XXX
   uint8_t *uniform_mem = graph->uniform_mem;
+  // whooaeh, uniform mmap works for cli (??):
 #if 0
-  size_t size = 0;
-  size += node->num_connectors * ((sizeof(dt_roi_t)+15)/16)*16;
+  size_t size = node->num_connectors * ((sizeof(dt_roi_t)+15)/16)*16;
   if(node->module->committed_param_size)
     size += node->module->committed_param_size;
   else if(node->module->param_size)
     size += node->module->param_size;
   QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
-        // VK_WHOLE_SIZE,
-        size,
+        VK_WHOLE_SIZE,
+        // size,
         0, (void**)&uniform_mem));
   // VkMappedMemoryRange rg = {
   //   .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
@@ -1380,13 +1358,17 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   {
     for(int i=0;i<graph->node[n].num_connectors;i++)
     {
+      // TODO: also try to do this kind of =1 dance with array_length?
       if(graph->node[n].connector[i].frames == 0)
         graph->node[n].connector[i].frames = 1;
-      // TODO: also try to do this kind of =1 dance with array_length?
-      graph->node[n].conn_image[i] = graph->conn_image_end;
-      graph->conn_image_end += MAX(1,graph->node[n].connector[i].array_length)
-        * graph->node[n].connector[i].frames;
-      assert(graph->conn_image_end <= graph->conn_image_max);
+      if(dt_connector_output(graph->node[n].connector+i))
+      { // only allocate memory for output connectors
+        graph->node[n].conn_image[i] = graph->conn_image_end;
+        graph->conn_image_end += MAX(1,graph->node[n].connector[i].array_length)
+          * graph->node[n].connector[i].frames;
+        assert(graph->conn_image_end <= graph->conn_image_max);
+      }
+      else graph->node[n].conn_image[i] = -1;
     }
   }
 }
@@ -1488,6 +1470,13 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & (s_graph_run_roi_out | s_graph_run_create_nodes))
   {
+#if 0 // XXX this doesn't seem to work! double with what happens later?
+    for(int i=0;i<graph->conn_image_end;i++)
+    {
+      if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
+      if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+    }
+#endif
     graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
     graph->conn_image_end = 0;
     // TODO: nuke descriptor set pool?
