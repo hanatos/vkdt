@@ -20,6 +20,15 @@ typedef enum dt_graph_run_t
 }
 dt_graph_run_t;
 
+typedef struct dt_connector_image_t
+{
+  uint64_t    offset, size;
+  dt_vkmem_t *mem;
+  VkImage     image;
+  VkImageView image_view;
+}
+dt_connector_image_t;
+
 // the graph is stored as list of modules and list of nodes.
 // these have connectors with detailed buffer information which
 // also hold the id to the other connected module or node. thus,
@@ -44,6 +53,10 @@ typedef struct dt_graph_t
   // store full history in this block:
   uint8_t              *history_pool;
   uint32_t              history_end, history_max;
+
+  // memory pool for connector allocations
+  dt_connector_image_t *conn_image_pool;
+  uint32_t              conn_image_end, conn_image_max;
 
   dt_vkalloc_t          heap;           // allocator for device buffers and images
   dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
@@ -84,6 +97,8 @@ typedef struct dt_graph_t
   int                   lod_scale;     // scale output down by this factor. default = 1.
   int                   active_module; // currently active module, relevant for runflags
 
+  int                   frame;
+
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;
   int                   output_wd;
@@ -108,3 +123,12 @@ VkResult dt_graph_create_shader_module(
     dt_token_t kernel,
     const char *type,   // "comp" "vert" "tesc" "tese" "geom" "frag"
     VkShaderModule *shader_module);
+
+// return the memory allocation and VkImage etc corresponding to a node's connector
+dt_connector_image_t*
+dt_graph_connector_image(
+    dt_graph_t *graph,
+    int         nid,    // node id
+    int         cid,    // connector id
+    int         array,  // array index
+    int         frame); // frame number

@@ -4,6 +4,8 @@
 
 #include <vulkan/vulkan.h>
 
+#define DT_GRAPH_MAX_FRAMES 2
+
 // fwd declare
 typedef struct dt_module_t dt_module_t;
 
@@ -21,13 +23,14 @@ typedef struct dt_node_t
 
   dt_module_t *module;  // reference back to module and class
 
-  dt_connector_t connector[DT_MAX_CONNECTORS];
+  dt_connector_t connector [DT_MAX_CONNECTORS];
+  uint32_t       conn_image[DT_MAX_CONNECTORS]; // start offset for connector into graph's connector allocation pool
   int num_connectors;
 
   VkPipeline            pipeline;
   VkPipelineLayout      pipeline_layout;
-  VkDescriptorSet       dset;
-  VkDescriptorSetLayout dset_layout;
+  VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
+  VkDescriptorSetLayout dset_layout;               // they all share the same layout
 
   VkRenderPass          draw_render_pass; // needed for raster kernels
   VkFramebuffer         draw_framebuffer; // 
@@ -39,4 +42,14 @@ typedef struct dt_node_t
   size_t   push_constant_size;
 }
 dt_node_t;
+
+static inline uint32_t 
+dt_node_connector_image(
+    dt_node_t *node,
+    int cid,
+    int arr,
+    int frame)
+{
+  return node->conn_image[cid] + node->connector[cid].array_length * frame + arr;
+}
 

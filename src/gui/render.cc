@@ -843,7 +843,7 @@ void render_darkroom()
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-      ImTextureID imgid = out_main->dset;
+      ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame];
       float im0[2], im1[2];
       float v0[2] = {(float)vkdt.state.center_x, (float)vkdt.state.center_y};
       float v1[2] = {(float)vkdt.state.center_x+vkdt.state.center_wd,
@@ -933,7 +933,7 @@ void render_darkroom()
       int border = 0.01 * qvk.win_width;
       int wd = vkdt.state.panel_wd - border;
       int ht = wd * 2.0f/3.0f;
-      ImGui::Image(out_hist->dset,
+      ImGui::Image(out_hist->dset[vkdt.graph_dev.frame],
           ImVec2(wd, ht),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));

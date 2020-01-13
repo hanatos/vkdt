@@ -20,9 +20,11 @@ dt_roi_t;
 
 typedef enum dt_connector_flags_t
 {
-  s_conn_none   = 0,
-  s_conn_smooth = 1,  // access this with a bilinear sampler during read
-  s_conn_clear  = 2,  // clear this to zero before writing
+  s_conn_none     = 0,
+  s_conn_smooth   = 1,  // access this with a bilinear sampler during read // XXX TODO: always use smooth and texelFetch if not wanted
+  // TODO: don't promote flags?
+  s_conn_clear    = 2,  // clear this to zero before writing
+  s_conn_feedback = 3, // this connection is only in between frames (written frame 1 and read frame 2)
 }
 dt_connector_flags_t;
 
@@ -50,16 +52,6 @@ dt_connector_format_t;
 // shared property of nodes and modules: how many connectors do we allocate at
 // max for each one of them:
 #define DT_MAX_CONNECTORS 30
-#define DT_MAX_CONNECTOR_ARRAY_SIZE 25
-
-typedef struct dt_connector_array_t
-{
-  uint64_t    offset, size;
-  dt_vkmem_t *mem;
-  VkImage     image;
-  VkImageView image_view;
-}
-dt_connector_array_t;
 
 // connectors are used for modules as well as for nodes.
 // modules:
@@ -101,7 +93,13 @@ typedef struct dt_connector_t
   // processing for similar compute on small buffers.
   // arrays are unsupported for: clearing, drawing, sources, and sinks.
   int array_length;
-  dt_connector_array_t array[DT_MAX_CONNECTOR_ARRAY_SIZE];
+  // connectors can write to double-buffered output depending on animation frames.
+  // in the simplest case this is useful for sinks to double-buffer their data
+  // so drawing and computing can take place asynchronously.
+  int frames;
+  // a node's connector consumes array_length * frames buffers in the graph's
+  // conn_image[] pool. the location can be determined by dt_node_connector_image()
+  // and makes use of the node->conn_image index list.
 
   VkBuffer      staging;     // for sources and sinks
 }
