@@ -288,7 +288,7 @@ static void *thread_work(void *arg)
   {
     if((i++ % DT_THUMBNAILS_THREADS) == j->k)
     {
-      if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
+      if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue;
       if(!dt_db_accept_filename(ep->d_name)) continue;
       snprintf(filename, sizeof(filename), "%s/%s", j->dirname, ep->d_name);
       (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn, filename);
@@ -325,7 +325,7 @@ dt_thumbnails_cache_directory(
   char filename[2048];
   while((ep = readdir(dp)))
   {
-      if(ep->d_type != DT_REG) continue; // accept DT_LNK, too?
+      if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue; // accept DT_LNK, too?
       if(!dt_db_accept_filename(ep->d_name)) continue;
       snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
       (void) dt_thumbnails_cache_one(tn->graph, tn, filename);
