@@ -24,7 +24,7 @@ typedef enum dt_connector_flags_t
   s_conn_smooth   = 1,  // access this with a bilinear sampler during read // XXX TODO: always use smooth and texelFetch if not wanted
   // TODO: don't promote flags?
   s_conn_clear    = 2,  // clear this to zero before writing
-  s_conn_feedback = 3, // this connection is only in between frames (written frame 1 and read frame 2)
+  s_conn_feedback = 4,  // this connection is only in between frames (written frame 1 and read frame 2)
 }
 dt_connector_flags_t;
 

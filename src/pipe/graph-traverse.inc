@@ -63,6 +63,10 @@
         {
           TRAVERSE_UNCONNECTED
         }
+        else if(arr[curr].connector[i].flags & s_conn_feedback)
+        {
+          // feedback connections are not traversed, they operate in between frames.
+        }
         else if(arr[curr].connector[i].type == dt_token("read") ||
                 arr[curr].connector[i].type == dt_token("sink"))
         { // need to recurse all inputs

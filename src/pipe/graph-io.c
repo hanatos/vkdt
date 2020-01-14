@@ -57,7 +57,8 @@ read_param_ascii(
 static inline int
 read_connection_ascii(
     dt_graph_t *graph,
-    char       *line)
+    char       *line,
+    int         extra_flags)
 {
   dt_token_t mod0  = dt_read_token(line, &line);
   dt_token_t inst0 = dt_read_token(line, &line);
@@ -88,6 +89,11 @@ read_connection_ascii(
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
     dt_log(s_log_pipe, "[read connect] connection failed: error %d: %s", err, dt_connector_error_str(err));
     return err;
+  }
+  else
+  {
+    graph->module[modid0].connector[conid0].flags |= extra_flags;
+    graph->module[modid1].connector[conid1].flags |= extra_flags;
   }
   return 0;
 }
@@ -125,9 +131,10 @@ int dt_graph_read_config_ascii(
     lno++;
     if(line[0] == '#') continue;
     dt_token_t cmd = dt_read_token(c, &c);
-    if     (cmd == dt_token("module"))  { if(read_module_ascii(graph, c))     goto error;}
-    else if(cmd == dt_token("connect")) { if(read_connection_ascii(graph, c)) goto error;}
-    else if(cmd == dt_token("param"))   { if(read_param_ascii(graph, c))      goto error;}
+    if     (cmd == dt_token("module"))   { if(read_module_ascii(graph, c))        goto error;}
+    else if(cmd == dt_token("param"))    { if(read_param_ascii(graph, c))         goto error;}
+    else if(cmd == dt_token("connect"))  { if(read_connection_ascii(graph, c, 0)) goto error;}
+    else if(cmd == dt_token("feedback")) { if(read_connection_ascii(graph, c, s_conn_feedback)) goto error;}
     else goto error;
   }
   fclose(f);
