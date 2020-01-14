@@ -207,7 +207,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     }
     // this would be storage buffers:
     // graph->dset_cnt_buffer ++;
-    bindings[i].descriptorCount = MAX(node->connector[i].array_length, 1);
+    bindings[i].descriptorCount = MAX(1, node->connector[i].array_length);
     bindings[i].stageFlags = VK_SHADER_STAGE_ALL;//COMPUTE_BIT;
     bindings[i].pImmutableSamplers = 0;
   }
@@ -1626,24 +1626,25 @@ VkResult dt_graph_run(
       // create descriptor pool (keep at least one for each type)
       VkDescriptorPoolSize pool_sizes[] = {{
         .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = 1+graph->dset_cnt_image_read,
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_image_read,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-        .descriptorCount = 1+graph->dset_cnt_image_write,
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_image_write,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1+graph->dset_cnt_buffer,
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1+graph->dset_cnt_uniform,
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_uniform,
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .poolSizeCount = LENGTH(pool_sizes),
         .pPoolSizes    = pool_sizes,
-        .maxSets       = graph->dset_cnt_image_read + graph->dset_cnt_image_write
-                       + graph->dset_cnt_buffer     + graph->dset_cnt_uniform,
+        .maxSets       = DT_GRAPH_MAX_FRAMES*(
+            graph->dset_cnt_image_read + graph->dset_cnt_image_write
+          + graph->dset_cnt_buffer     + graph->dset_cnt_uniform),
       };
       if(graph->dset_pool)
       {
