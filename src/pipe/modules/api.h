@@ -316,7 +316,8 @@ dt_api_guided_filter_full(
   // mean_p  = blur(p)
   // corr_I  = blur(I*I)
   // corr_Ip = blur(I*p)
-  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius);
+  // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius);
+  const int id_blur1 = dt_api_blur_flat(graph, module, id_guided1, 2, 0, 0, radius);
 
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
@@ -336,6 +337,7 @@ dt_api_guided_filter_full(
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
+      .flags  = s_conn_smooth,
       .roi    = *roi,
       .connected_mi = -1,
     },{
@@ -351,7 +353,8 @@ dt_api_guided_filter_full(
   // this is the same as in the p=I case below:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
+  // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
+  const int id_blur = dt_api_blur_flat(graph, module, id_guided2, 1, 0, 0, radius);
   // final kernel:
   // output = mean_a * I + mean_b
   assert(graph->num_nodes < graph->max_nodes);
@@ -376,6 +379,7 @@ dt_api_guided_filter_full(
       .type   = dt_token("read"),
       .chan   = dt_token("rg"),
       .format = dt_token("f16"),
+      .flags  = s_conn_smooth,
       .roi    = *roi,
       .connected_mi = -1,
     },{

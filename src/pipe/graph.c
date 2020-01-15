@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -1416,6 +1417,7 @@ VkResult dt_graph_run(
     dt_graph_t     *graph,
     dt_graph_run_t  run)
 {
+  clock_t clock_beg = clock();
   // can be only one output sink node that determines ROI. but we can totally
   // have more than one sink to pull in nodes for. we have to execute some of
   // this multiple times. also we have a marker on nodes/modules that we
@@ -1470,14 +1472,13 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & (s_graph_run_roi_out | s_graph_run_create_nodes))
   {
-#if 0 // XXX this doesn't seem to work! double with what happens later?
+    QVKR(vkDeviceWaitIdle(qvk.device)); // can we avoid this?
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     }
-#endif
-    graph->num_nodes = 0; // delete all previous nodes XXX need to free some vk resources?
+    graph->num_nodes = 0; // delete all previous nodes XXX need to free some more vk resources?
     graph->conn_image_end = 0;
     // TODO: nuke descriptor set pool?
 #define TRAVERSE_PRE\
@@ -1556,7 +1557,11 @@ VkResult dt_graph_run(
   // TODO: should all this allocation be put behind a runflag?
   if(graph->heap.vmsize > graph->vkmem_size)
   {
-    if(graph->vkmem) vkFreeMemory(qvk.device, graph->vkmem, 0);
+    if(graph->vkmem)
+    {
+      QVKR(vkDeviceWaitIdle(qvk.device));
+      vkFreeMemory(qvk.device, graph->vkmem, 0);
+    }
     // image data to pass between nodes
     VkMemoryAllocateInfo mem_alloc_info = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -1570,7 +1575,11 @@ VkResult dt_graph_run(
 
   if(graph->heap_staging.vmsize > graph->vkmem_staging_size)
   {
-    if(graph->vkmem_staging) vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
+    if(graph->vkmem_staging)
+    {
+      QVKR(vkDeviceWaitIdle(qvk.device));
+      vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
+    }
     // staging memory to copy to and from device
     VkMemoryAllocateInfo mem_alloc_info_staging = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -1584,7 +1593,11 @@ VkResult dt_graph_run(
 
   if(graph->vkmem_uniform_size < graph->uniform_size)
   {
-    if(graph->vkmem_uniform) vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
+    if(graph->vkmem_uniform)
+    {
+      QVKR(vkDeviceWaitIdle(qvk.device));
+      vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
+    }
     // uniform data to pass parameters
     VkBufferCreateInfo buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -1739,6 +1752,9 @@ VkResult dt_graph_run(
   }
 
   QVKR(vkEndCommandBuffer(graph->command_buffer));
+
+  clock_t clock_end = clock();
+  dt_log(s_log_perf, "record cmd buf:\t%8.3f ms", 1000.0*(clock_end - clock_beg)/(double)CLOCKS_PER_SEC);
 
   VkSubmitInfo submit = {
     .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,

@@ -30,7 +30,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
-  const vec4 mean_corr = texelFetch(img_in, ipos, 0);
+  // const vec4 mean_corr = texelFetch(img_in, ipos, 0);
+  const vec4 mean_corr = textureLod(img_in, vec2(ipos)/vec2(params.ro.roi), 0);
   const float var = mean_corr.z - mean_corr.x * mean_corr.x;
   const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
   const float a = cov / (var + params.epsilon*1e-3);
