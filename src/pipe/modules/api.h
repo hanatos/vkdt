@@ -258,6 +258,10 @@ dt_api_blur(
   return nid_input;
 }
 
+// full guided filter:
+// input image      I (rgb) -> entry node [0]
+// input edge image p (rgb) -> entry node [1]
+// output filtered    (rgb) <- exit  node [2]
 static inline void
 dt_api_guided_filter_full(
     dt_graph_t  *graph,        // graph to add nodes to
@@ -268,25 +272,121 @@ dt_api_guided_filter_full(
     int          radius,       // size of blur
     float        epsilon)      // tell edges from noise
 {
-  // mean_I  = mean(I)
-  // mean_p  = mean(p)
-  // corr_I  = mean(I*I)
-  // corr_Ip = mean(I*p)
+  const uint32_t wd = roi->wd;
+  const uint32_t ht = roi->ht;
+  const uint32_t dp = 1;
+
+  // compute (I,p,I*I,I*p)
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_guided1 = graph->num_nodes++;
+  *entry_nodeid = id_guided1;
+  graph->node[id_guided1] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("guided1f"),
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors = 3,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("edges"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+    }},
+  };
+
+  // mean_I  = blur(I)
+  // mean_p  = blur(p)
+  // corr_I  = blur(I*I)
+  // corr_Ip = blur(I*p)
+  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius);
+
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
   // a = cov_Ip / (var_i + epsilon)
   // b = mean_p - a * mean_I
-  // mean_a = mean(a)
-  // mean_b = mean(b)
-  // output = mean_a*I + mean_b
+  const int id_guided2 = graph->num_nodes++;
+  graph->node[id_guided2] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("guided2f"),
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rg"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+    }},
+  };
+  CONN(dt_node_connect(graph, id_blur1, 1, id_guided2, 0));
 
-  // these need to be four channels:
-  // TODO: compute rgba image (I,p,I*I,I*p)
-  // TODO: blur rgba image to get mean_(I,p) corr(I,Ip)
-  // TODO: compute a,b from that (with var_I, cov_Ip as intermediates in the shader)
   // this is the same as in the p=I case below:
-  // TODO: blur(a,b)
-  // TODO: assemble output
+  // mean_a = blur(a)
+  // mean_b = blur(b)
+  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
+  // final kernel:
+  // output = mean_a * I + mean_b
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_guided3 = graph->num_nodes++;
+  graph->node[id_guided3] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("guided3"),
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors = 3,
+    .connector = {{ // original image as input rgba f16
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+      .connected_mi = -1,
+    },{ // mean ab
+      .name   = dt_token("ab"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rg"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+    }},
+  };
+  CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
+  *exit_nodeid = id_guided3;
 }
 
 // implements a guided filter without guide image, i.e. p=I.

@@ -1,0 +1,40 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  float radius;
+  float epsilon;
+} params;
+
+
+layout( // input mean_I mean_p corr_I corr_Ip
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f16 buffer ab
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  const vec4 mean_corr = texelFetch(img_in, ipos, 0);
+  const float var = mean_corr.z - mean_corr.x * mean_corr.x;
+  const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
+  const float a = cov / (var + params.epsilon*1e-3);
+  const float b = mean_corr.y - a * mean_corr.x;
+  imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
+}
+
