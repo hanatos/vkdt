@@ -1820,6 +1820,8 @@ dt_graph_connector_image(
     int         array,  // array index
     int         frame)  // frame number
 {
+  if(graph->node[nid].conn_image[cid] == -1)
+    dt_log(s_log_err, "requesting unconnected image buffer!");
   uint32_t id = dt_node_connector_image(
       graph->node + nid, cid, array, frame);
   return graph->conn_image_pool + id;

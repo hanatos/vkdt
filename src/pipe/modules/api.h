@@ -260,6 +260,7 @@ dt_api_blur(
 
 // full guided filter:
 // input image      I (rgb) -> entry node [0]
+// input image      I (rgb) -> exit  node [0]
 // input edge image p (rgb) -> entry node [1]
 // output filtered    (rgb) <- exit  node [2]
 static inline void

@@ -1,0 +1,46 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t ro;
+  float radius;
+  float epsilon;
+  float zone0;
+  float zone1;
+  float zone2;
+  float zone3;
+  float zone4;
+  float zone5;
+  float zone6;
+} params;
+
+
+layout( // input rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  float lum = clamp(luminance_rec2020(rgb), 0.0f, 1.0f);
+  float black = 0.001f; // ranges from 0..-6.9something
+  int zone = clamp(int(7+log((lum+black)/(1.0+black))), 0, 6);
+  imageStore(img_out, ipos, vec4(vec3(zone), 1));
+}
+

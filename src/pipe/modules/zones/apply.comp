@@ -1,0 +1,60 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// global uniform stuff about image and roi
+layout(std140, set = 0, binding = 0) uniform params_t
+{
+  roi_t ri;
+  roi_t rz;
+  roi_t ro;
+  float radius;
+  float epsilon;
+  float zone0;
+  float zone1;
+  float zone2;
+  float zone3;
+  float zone4;
+  float zone5;
+  float zone6;
+} params;
+
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // input zones
+    set = 1, binding = 1
+) uniform sampler2D img_zone;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+
+  vec3  rgb  = texelFetch(img_in, ipos, 0).rgb;
+  float zone = texelFetch(img_zone, ipos, 0).r;
+  float i = floor(zone);
+  float f = fract(zone);
+  float ev0, ev1;
+  if     (i < 1) { ev0 = params.zone0; ev1 = params.zone1;}
+  else if(i < 2) { ev0 = params.zone1; ev1 = params.zone2;}
+  else if(i < 3) { ev0 = params.zone2; ev1 = params.zone3;}
+  else if(i < 4) { ev0 = params.zone3; ev1 = params.zone4;}
+  else if(i < 5) { ev0 = params.zone4; ev1 = params.zone5;}
+  else if(i < 6) { ev0 = params.zone5; ev1 = params.zone6;}
+  else           { ev0 = params.zone6; ev1 = params.zone6;}
+  vec3 res = rgb * (pow(2.0f, ev0) * (1.0f-f) + pow(2.0f, ev1) * f);
+  imageStore(img_out, ipos, vec4(res, 1));
+}
+

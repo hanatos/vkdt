@@ -17,3 +17,12 @@ sss:01:theta:slider:0:1.52
 sss:01:albedo:slider:0.0:1.0
 sss:01:mu_t:slider:0.01:300.0
 sss:01:g:slider:-1:1
+zones:01:radius:slider:1:100
+zones:01:epsilon:slider:0.001:1.0
+zones:01:zone0:slider:-5:5
+zones:01:zone1:slider:-5:5
+zones:01:zone2:slider:-5:5
+zones:01:zone3:slider:-5:5
+zones:01:zone4:slider:-5:5
+zones:01:zone5:slider:-5:5
+zones:01:zone6:slider:-5:5
