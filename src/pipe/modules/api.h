@@ -57,7 +57,6 @@ dt_connector_copy(
   }
 }
 
-#if 1
 static inline int
 dt_api_blur_flat(
     dt_graph_t  *graph,
@@ -72,14 +71,12 @@ dt_api_blur_flat(
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
     graph->node[nodeid_input].connector + connid_input :
     module->connector + connid_input;
-  // const uint32_t wd = conn_input->roi.wd;
-  // const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = conn_input->chan,
-    .format = dt_token("f16"),
+    .format = conn_input->format,
     .roi    = conn_input->roi,
     .flags  = s_conn_smooth,
     .connected_mi = -1,
@@ -89,7 +86,7 @@ dt_api_blur_flat(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = conn_input->chan,
-    .format = dt_token("f16"),
+    .format = conn_input->format,
     .roi    = conn_input->roi,
     .array_length = conn_input->array_length,
   };
@@ -174,7 +171,6 @@ dt_api_blur_flat(
 #endif
   return nid_input;
 }
-#endif
 
 // create new nodes, connect to given input node + connector id, perform blur
 // of given pixel radius, return nodeid (output connector will be #1).
@@ -270,7 +266,7 @@ dt_api_guided_filter_full(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    int          radius,       // size of blur
+    float        radius,       // size of blur
     float        epsilon)      // tell edges from noise
 {
   const uint32_t wd = roi->wd;
@@ -321,7 +317,7 @@ dt_api_guided_filter_full(
 
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
-  // a = cov_Ip / (var_i + epsilon)
+  // a = cov_Ip / (var_I + epsilon)
   // b = mean_p - a * mean_I
   const int id_guided2 = graph->num_nodes++;
   graph->node[id_guided2] = (dt_node_t) {

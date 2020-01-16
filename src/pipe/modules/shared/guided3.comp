@@ -37,8 +37,7 @@ main()
   if(any(greaterThanEqual(ipos, params.ro.roi))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  vec3 w = vec3(0.299, 0.587, 0.114);
-  float lum0 = dot(w, rgb);
+  float lum0 = luminance_rec2020(rgb);
   // vec2 ab = texelFetch(img_ab, ipos, 0).rg;
   vec2 ab = textureLod(img_ab, vec2(ipos)/vec2(params.ro.roi), 0).rg;
   float lum1 = ab.r * lum0 + ab.g;

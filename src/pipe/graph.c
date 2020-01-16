@@ -1374,70 +1374,37 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
 }
 
-
-// TODO: rip apart into pieces that only update the essential minimum.
-// that is: only change params like roi offsets and node push
-// constants or uniform buffers, or input image.
-
-// tasks:
-// vulkan:
-// memory allocations, images, imageviews, dset pool, descriptor sets
-// record command buffer
-// pipe:
-// modules: roi out, roi in, create nodes (may depend on params, but not usually!)
-// nodes allocate memory
-// upload sources
-// download sinks, if needed on cpu
-// passes:
-// 1) roi out
-// 2) roi in + create nodes
-// -- tiling/mem check goes here
-// 3) alloc + free (images)
-// 4) alloc2 (dset, imageviews) + record command buf (upload params)
-// 5) upload, queue, wait, download
-
-// change events:
-// new input image (5)
-// - upload source, re-run the rest unchanged
-// changed parameters (4) (2) (1)
-// - cached input image for active module? run only after this
-// - need to re-create nodes (wavelet scales, demosaic mode)?
-// - did even roi out change based on params
-// changed roi zoom/pan (.) (4) (2)
-// - have full image? nothing to do
-// - negotiate roi
-// - need to re-create nodes?
-// - allocation sizes unchanged (pan)? just re-run
-// - alloc changed (lens distortions)? re-alloc mem and images
-// attached new display/output
-// - keep nodes, add new ones (or just re-create)
-// - re-alloc
-
 VkResult dt_graph_run(
     dt_graph_t     *graph,
     dt_graph_run_t  run)
 {
   clock_t clock_beg = clock();
-  // can be only one output sink node that determines ROI. but we can totally
-  // have more than one sink to pull in nodes for. we have to execute some of
-  // this multiple times. also we have a marker on nodes/modules that we
-  // already traversed. there might also be cycles on the module level.
 
-  if(run & s_graph_run_alloc_dset)
+  // only waiting for the gui thread to draw our output, and only
+  // if we intend to clean it up behind their back
+  if(graph->gui_attached &&
+    (run & (s_graph_run_alloc | s_graph_run_create_nodes)))
+    QVKR(vkDeviceWaitIdle(qvk.device));
+
+  if(run & s_graph_run_alloc)
   {
-    // init layout of uniform descriptor set:
-    VkDescriptorSetLayoutBinding bindings = {
-      .binding = 0,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .descriptorCount = 1,
-      .stageFlags = VK_SHADER_STAGE_ALL,
-    };
-    VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-      .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-      .bindingCount = 1,
-      .pBindings    = &bindings,
-    };
-    QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+    // XXX really modify here?
+    // run |= s_graph_run_upload_source; // destroying buffers means uploading again
+    if(!graph->uniform_dset_layout)
+    { // init layout of uniform descriptor set:
+      VkDescriptorSetLayoutBinding bindings = {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_ALL,
+      };
+      VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+        .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings    = &bindings,
+      };
+      QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
+    }
   }
   graph->query_cnt = 0;
 
@@ -1450,7 +1417,7 @@ VkResult dt_graph_run(
   // execute after all inputs have been traversed:
   // "int curr" will be the current node
   // walk all inputs and determine roi on all outputs
-  if(run & s_graph_run_roi_out)
+  if(run & s_graph_run_roi)
   {
 #define TRAVERSE_POST \
     modify_roi_out(graph, arr+curr);
@@ -1470,17 +1437,29 @@ VkResult dt_graph_run(
   // 2nd pass: request input rois
   // and create nodes for all modules
   // ==============================================
-  if(run & (s_graph_run_roi_out | s_graph_run_create_nodes))
+  if(run & (s_graph_run_roi | s_graph_run_create_nodes))
   {
-    QVKR(vkDeviceWaitIdle(qvk.device)); // can we avoid this?
+    // delete all previous nodes
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     }
-    graph->num_nodes = 0; // delete all previous nodes XXX need to free some more vk resources?
+    graph->num_nodes = 0;
     graph->conn_image_end = 0;
-    // TODO: nuke descriptor set pool?
+    for(int i=0;i<graph->num_nodes;i++)
+    {
+      for(int j=0;j<graph->node[i].num_connectors;j++)
+      {
+        dt_connector_t *c = graph->node[i].connector+j;
+        if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
+      }
+      vkDestroyPipelineLayout     (qvk.device, graph->node[i].pipeline_layout,  0);
+      vkDestroyPipeline           (qvk.device, graph->node[i].pipeline,         0);
+      vkDestroyDescriptorSetLayout(qvk.device, graph->node[i].dset_layout,      0);
+      vkDestroyFramebuffer        (qvk.device, graph->node[i].draw_framebuffer, 0);
+      vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
+    }
 #define TRAVERSE_PRE\
     modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
@@ -1521,7 +1500,7 @@ VkResult dt_graph_run(
   // ==============================================
   // 1st pass alloc and free, detect cycles
   // ==============================================
-  if(run & s_graph_run_alloc_free)
+  if(run & s_graph_run_alloc)
   {
     // nuke reference counters:
     for(int n=0;n<graph->num_nodes;n++)
@@ -1622,19 +1601,17 @@ VkResult dt_graph_run(
     vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
   }
 
-  if(run & s_graph_run_alloc_dset)
+  if(run & s_graph_run_alloc)
   {
-    if(graph->dset_pool)
+    if(graph->dset_pool &&
+      graph->dset_cnt_image_read_alloc >= graph->dset_cnt_image_read &&
+      graph->dset_cnt_image_write_alloc >= graph->dset_cnt_image_write &&
+      graph->dset_cnt_buffer_alloc >= graph->dset_cnt_buffer &&
+      graph->dset_cnt_uniform_alloc >= graph->dset_cnt_uniform)
     {
-      // PERF: this is very crude. we want to wait for the image on the display output
-      // which might still be in use by the graphics pipeline! TODO: don't wait for
-      // this when doing export/thumbnail creation.
-      QVKR(vkDeviceWaitIdle(qvk.device));
-      // TODO: if already allocated and large enough, do this:
       QVKR(vkResetDescriptorPool(qvk.device, graph->dset_pool, 0));
     }
     else
-      // TODO: if not big enough destroy first here
     {
       // create descriptor pool (keep at least one for each type)
       VkDescriptorPoolSize pool_sizes[] = {{
@@ -1660,12 +1637,12 @@ VkResult dt_graph_run(
           + graph->dset_cnt_buffer     + graph->dset_cnt_uniform),
       };
       if(graph->dset_pool)
-      {
-        // FIXME: PERF: avoid this total stall (see above)! we're waiting for the graphics pipe
-        QVKR(vkDeviceWaitIdle(qvk.device));
         vkDestroyDescriptorPool(qvk.device, graph->dset_pool, VK_NULL_HANDLE);
-      }
       QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
+      graph->dset_cnt_image_read_alloc = graph->dset_cnt_image_read;
+      graph->dset_cnt_image_write_alloc = graph->dset_cnt_image_write;
+      graph->dset_cnt_buffer_alloc = graph->dset_cnt_buffer;
+      graph->dset_cnt_uniform_alloc = graph->dset_cnt_uniform;
     }
 
     // uniform descriptor
@@ -1734,13 +1711,13 @@ VkResult dt_graph_run(
   // ==============================================
   int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
 #define TRAVERSE_POST\
-  if(run & s_graph_run_alloc_dset)     QVKR(alloc_outputs2(graph, arr+curr));\
+  if(run & s_graph_run_alloc)          QVKR(alloc_outputs2(graph, arr+curr));\
   if(run & s_graph_run_record_cmd_buf) QVKR(record_command_buffer(graph, arr+curr, &runflag));
 #include "graph-traverse.inc"
 
 } // end scope, done with nodes
 
-  if(run & s_graph_run_alloc_free)
+  if(run & s_graph_run_alloc)
   {
     dt_log(s_log_mem, "images : peak rss %g MB vmsize %g MB",
         graph->heap.peak_rss/(1024.0*1024.0),
@@ -1762,12 +1739,15 @@ VkResult dt_graph_run(
     .pCommandBuffers    = &graph->command_buffer,
   };
 
-  threads_mutex_lock(&qvk.queue_mutex);
-  vkResetFences(qvk.device, 1, &graph->command_fence);
-  QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
-  if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-    QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
-  threads_mutex_unlock(&qvk.queue_mutex);
+  if(run & s_graph_run_record_cmd_buf)
+  {
+    threads_mutex_lock(&qvk.queue_mutex);
+    vkResetFences(qvk.device, 1, &graph->command_fence);
+    QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
+    if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
+    threads_mutex_unlock(&qvk.queue_mutex);
+  }
   
   if(run & s_graph_run_download_sink)
   {

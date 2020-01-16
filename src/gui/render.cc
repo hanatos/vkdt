@@ -42,7 +42,8 @@ void widget_end()
     memcpy(v, g_state, size);
   }
   g_active_widget = -1;
-  vkdt.graph_dev.runflags = s_graph_run_all;
+  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+      s_graph_run_all &~s_graph_run_upload_source);
 }
 
 void draw_arrow(float p[8])
@@ -654,7 +655,10 @@ void render_darkroom_favourite()
             "%2.5f"))
         {
           // TODO: let module decide which flags are needed!
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all & ~s_graph_run_before_active);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                 s_graph_run_all
+              & ~s_graph_run_before_active
+              & ~s_graph_run_upload_source);
           vkdt.graph_dev.active_module = modid;
         }
         break;

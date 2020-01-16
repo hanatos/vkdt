@@ -6,16 +6,14 @@
 typedef enum dt_graph_run_t
 {
   s_graph_run_none           = 0,
-  s_graph_run_roi_out        = 1<<0, // pass 1: recompute output roi
-  s_graph_run_roi_in         = 1<<1, // pass 2: recompute input roi requests
-  s_graph_run_create_nodes   = 1<<2, // pass 2: create nodes from modules
-  s_graph_run_alloc_free     = 1<<3, // pass 3: alloc and free images
-  s_graph_run_alloc_dset     = 1<<4, // pass 4: alloc descriptor sets and imageviews
-  s_graph_run_record_cmd_buf = 1<<5, // pass 4: record command buffer
-  s_graph_run_upload_source  = 1<<6, // final : upload new source image
-  s_graph_run_download_sink  = 1<<7, // final : download sink images
-  s_graph_run_wait_done      = 1<<8, // wait for fence
-  s_graph_run_before_active  = 1<<9, // run all modules, even before active_module
+  s_graph_run_roi            = 1<<0, // pass 1: recompute regions of interest
+  s_graph_run_create_nodes   = 1<<1, // pass 2: create nodes from modules
+  s_graph_run_alloc          = 1<<2, // pass 3: alloc and free images
+  s_graph_run_record_cmd_buf = 1<<3, // pass 4: record command buffer
+  s_graph_run_upload_source  = 1<<4, // final : upload new source image
+  s_graph_run_download_sink  = 1<<5, // final : download sink images
+  s_graph_run_wait_done      = 1<<6, // wait for fence
+  s_graph_run_before_active  = 1<<7, // run all modules, even before active_module
   s_graph_run_all = -1u,
 }
 dt_graph_run_t;
@@ -88,10 +86,10 @@ typedef struct dt_graph_t
   dt_token_t           *query_name;
   dt_token_t           *query_kernel;
 
-  uint32_t              dset_cnt_image_read;
-  uint32_t              dset_cnt_image_write;
-  uint32_t              dset_cnt_buffer;
-  uint32_t              dset_cnt_uniform;
+  uint32_t              dset_cnt_image_read,  dset_cnt_image_read_alloc;
+  uint32_t              dset_cnt_image_write, dset_cnt_image_write_alloc;
+  uint32_t              dset_cnt_buffer,      dset_cnt_buffer_alloc;
+  uint32_t              dset_cnt_uniform,     dset_cnt_uniform_alloc;
 
   dt_graph_run_t        runflags;      // used to trigger next runflags/invalidate things
   int                   lod_scale;     // scale output down by this factor. default = 1.
@@ -104,6 +102,8 @@ typedef struct dt_graph_t
   int                   output_wd;
   int                   output_ht;
   void                 *io_mutex;      // if this is set to != 0 will be locked during read_source() calls
+
+  int                   gui_attached;  // can't free the output images while still used etc.
 }
 dt_graph_t;
 
