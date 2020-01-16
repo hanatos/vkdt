@@ -39,8 +39,9 @@ main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   float lum = clamp(luminance_rec2020(rgb), 0.0f, 1.0f);
-  float black = 0.001f; // ranges from 0..-6.9something
-  int zone = clamp(int(7+log((lum+black)/(1.0+black))), 0, 6);
+  const int nz = 7;
+  float b = 0.01f;
+  int zone = int(nz * -(log(b + lum*(1-b)) - log(b))/log(b));
   imageStore(img_out, ipos, vec4(vec3(zone), 1));
 }
 
