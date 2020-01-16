@@ -20,10 +20,11 @@ dt_graph_run_t;
 
 typedef struct dt_connector_image_t
 {
-  uint64_t    offset, size;
-  dt_vkmem_t *mem;
-  VkImage     image;
-  VkImageView image_view;
+  uint64_t      offset, size;   // actual memory position during the time it is valid
+  dt_vkmem_t   *mem;            // used for alloc/free during graph traversal
+  VkImage       image;          // vulkan image object
+  VkImageView   image_view;
+  VkImageLayout layout;         // not necessarily the current layout, but what is pushed to cmd buf
 }
 dt_connector_image_t;
 

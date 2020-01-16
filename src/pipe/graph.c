@@ -16,6 +16,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define IMG_LAYOUT(img, ol, nl) do {\
+if(img->layout != VK_IMAGE_LAYOUT_ ## nl)\
+  BARRIER_IMG_LAYOUT(img->image, ol, nl);\
+img->layout = VK_IMAGE_LAYOUT_ ## nl;\
+} while(0)
 
 void
 dt_graph_init(dt_graph_t *g)
@@ -506,6 +511,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
             node - graph->node, i, k, f);
         if(img->image) vkDestroyImage(qvk.device, img->image, VK_NULL_HANDLE);
         QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &img->image));
+#if 0 // nice debugging, but leaks memory
+        char *name = malloc(100); // leak this
+        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn, dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name));
+        VkDebugMarkerObjectNameInfoEXT name_info = {
+          .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+          .object = (uint64_t) img->image,
+          .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT,
+          .pObjectName = name,
+        };
+        qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
 
         VkMemoryRequirements mem_req;
         vkGetImageMemoryRequirements(qvk.device, img->image, &mem_req);
@@ -631,6 +647,10 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
           { // only actually backed by memory if we have all these frames.
             // else we'll just point to the same image for all frames:
             vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset);
+
+            // put all newly created images into right layout
+            VkCommandBuffer cmd_buf = graph->command_buffer;
+            IMG_LAYOUT(img, UNDEFINED, SHADER_READ_ONLY_OPTIMAL);
 
             VkImageViewCreateInfo images_view_create_info = {
               .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -925,12 +945,30 @@ void dt_token_print(dt_token_t t)
 static VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 {
+  VkCommandBuffer cmd_buf = graph->command_buffer;
+
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
   if((*runflag == 0) && dt_node_source(node))
+  {
+    for(int i=0;i<node->num_connectors;i++)
+    { // this is completely retarded and just to make the layout match what we expect below
+      if(dt_connector_output(node->connector+i))
+      {
+        if(node->type == s_node_graphics)
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+              SHADER_READ_ONLY_OPTIMAL,
+              COLOR_ATTACHMENT_OPTIMAL);
+        else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              SHADER_READ_ONLY_OPTIMAL,
+              GENERAL);
+      }
+    }
     return VK_SUCCESS;
+  }
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
-
-  VkCommandBuffer cmd_buf = graph->command_buffer;
 
   // special case for end of pipeline and thumbnail creation:
   if(graph->thumbnail_image &&
@@ -960,8 +998,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     };
     dt_connector_image_t *img = dt_graph_connector_image(graph,
         node-graph->node, 0, 0, 0);
-    BARRIER_IMG_LAYOUT(img->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    // IMG_LAYOUT(img, GENERAL, TRANSFER_SRC_OPTIMAL);
+    IMG_LAYOUT(img, UNDEFINED, TRANSFER_SRC_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, UNDEFINED, TRANSFER_DST_OPTIMAL);
     vkCmdCopyImage(cmd_buf,
         img->image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -969,36 +1008,40 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
         &cp);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, TRANSFER_DST_OPTIMAL, SHADER_READ_ONLY_OPTIMAL);
     return VK_SUCCESS;
   }
 
   // barriers and image layout transformations:
   // wait for our input images and transfer them to read only.
   // also wait for our output buffers to be transferred into general layout.
-  // TODO: is this wasteful on the output buffers because it swizzles data? it could just discard it
+  // output is moved from UNDEFINED in the hope that the content can be discarded for
+  // increased efficiency in this case.
   for(int i=0;i<node->num_connectors;i++)
   {
     if(dt_connector_input(node->connector+i))
     {
       if(!node->module->so->write_sink)
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
-          BARRIER_IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame)->image,
-              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              GENERAL,
+              SHADER_READ_ONLY_OPTIMAL);
       else
-        BARRIER_IMG_LAYOUT(
-            dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame)->image,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        IMG_LAYOUT(
+            dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+            GENERAL,
+            TRANSFER_SRC_OPTIMAL);
     }
     else if(dt_connector_output(node->connector+i))
     {
       // wait for layout transition on the output back to general:
       if(node->connector[i].flags & s_conn_clear)
       {
-        BARRIER_IMG_LAYOUT(
-            dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame)->image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        IMG_LAYOUT(
+            dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+            UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
+            TRANSFER_DST_OPTIMAL);
         // in case clearing is requested, zero out the image:
         VkClearColorValue col = {{0}};
         VkImageSubresourceRange range = {
@@ -1015,15 +1058,30 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
             &col,
             1,
             &range);
+        if(node->type == s_node_graphics)
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+              TRANSFER_DST_OPTIMAL,
+              COLOR_ATTACHMENT_OPTIMAL);
+        else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              TRANSFER_DST_OPTIMAL,
+              GENERAL);
       }
-      if(node->type == s_node_graphics)
-        BARRIER_IMG_LAYOUT(
-            dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame)->image,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-      else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
-        BARRIER_IMG_LAYOUT(
-            dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame)->image,
-            VK_IMAGE_LAYOUT_GENERAL);
+      else
+      {
+        if(node->type == s_node_graphics)
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+              UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
+              COLOR_ATTACHMENT_OPTIMAL);
+        else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+          IMG_LAYOUT(
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
+              GENERAL);
+      }
     }
   }
 
@@ -1066,18 +1124,20 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       graph->query_name  [graph->query_cnt  ] = node->name;
       graph->query_kernel[graph->query_cnt++] = node->kernel;
     }
-    BARRIER_IMG_LAYOUT(
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    IMG_LAYOUT(
+        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame),
+        UNDEFINED,
+        TRANSFER_DST_OPTIMAL);
     vkCmdCopyBufferToImage(
         cmd_buf,
         node->connector[0].staging,
         dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &regions);
-    // this will transfer into READ_ONLY_OPTIMAL
-    BARRIER_COMPUTE(
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image);
+    IMG_LAYOUT(
+        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame),
+        TRANSFER_DST_OPTIMAL,
+        SHADER_READ_ONLY_OPTIMAL);
     // get a profiler timestamp:
     if(graph->query_cnt < graph->query_max)
     {
@@ -1515,7 +1575,6 @@ VkResult dt_graph_run(
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);
     dt_vkalloc_nuke(&graph->heap_staging);
-    // XXX TODO: if we do this, we may want to alloc_dset, too?
     graph->dset_cnt_image_read = 0;
     graph->dset_cnt_image_write = 0;
     graph->dset_cnt_buffer = 0;

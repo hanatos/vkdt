@@ -53,9 +53,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
         1, &img_mem_barrier); \
   } while(0)
 
-// XXX FIXME: apparently i'm using it wrong. if the input layout is UNDEFINED
-// the data may be discarded (but it's not, lucky me)
-#define BARRIER_IMG_LAYOUT(img, layout) \
+#define BARRIER_IMG_LAYOUT(img, old_layout, new_layout) \
   do { \
     VkImageSubresourceRange subresource_range = { \
       .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, \
@@ -69,12 +67,10 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
         .subresourceRange = subresource_range, \
         .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT, \
         .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
-        .oldLayout        = VK_IMAGE_LAYOUT_UNDEFINED, \
-        .newLayout        = layout, \
+        .oldLayout        = VK_IMAGE_LAYOUT_ ## old_layout, \
+        .newLayout        = VK_IMAGE_LAYOUT_ ## new_layout, \
     ); \
   } while(0)
-
-#define BARRIER_COMPUTE(img) BARRIER_IMG_LAYOUT(img, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
 const char *qvk_result_to_string(VkResult result);
 const char *qvk_format_to_string(VkFormat format);
