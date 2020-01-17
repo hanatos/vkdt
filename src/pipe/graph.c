@@ -702,6 +702,9 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         {
           for(int k=0;k<MAX(1,c->array_length);k++)
           {
+            int frame = MIN(f, c->frames-1);
+            // if feedback connection cross the frame wires:
+            if(c->flags & s_conn_feedback) frame = 1-f;
             dt_connector_image_t *img  = dt_graph_connector_image(graph,
                 node - graph->node, i, k, MIN(f, c->frames-1));
             int iii = cur_dset++;
@@ -1341,6 +1344,10 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
       graph->node[mi].connector[mc].connected_mi++;
+      // feedback connectors need to persist until the next frame.
+      // up the reference counter out of line once to make sure:
+      if(graph->node[mi].connector[mc].flags & s_conn_feedback)
+        graph->node[mi].connector[mc].connected_mi++;
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     graph->node[mi].connector[mc].connected_mi,
       //     dt_token_str(graph->node[mi].name),
@@ -1421,7 +1428,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     {
       // TODO: also try to do this kind of =1 dance with array_length?
       if(graph->node[n].connector[i].frames == 0)
-        graph->node[n].connector[i].frames = 1;
+      {
+        if(graph->node[n].connector[i].flags & s_conn_feedback)
+          graph->node[n].connector[i].frames = 2;
+        else
+          graph->node[n].connector[i].frames = 1;
+      }
       if(dt_connector_output(graph->node[n].connector+i))
       { // only allocate memory for output connectors
         graph->node[n].conn_image[i] = graph->conn_image_end;
