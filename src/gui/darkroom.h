@@ -164,10 +164,12 @@ darkroom_enter()
   // XXX remove: super ugly hack
   dt_gui_set_lod(0);
 
-  if(dt_graph_run(&vkdt.graph_dev, s_graph_run_all) != VK_SUCCESS)
+  VkResult err = 0;
+  if((err = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
   {
     // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
-    dt_log(s_log_err|s_log_gui, "running the graph failed!");
+    dt_log(s_log_err|s_log_gui, "running the graph failed (%s)!",
+        qvk_result_to_string(err));
     dt_graph_cleanup(&vkdt.graph_dev);
     return 4;
   }
