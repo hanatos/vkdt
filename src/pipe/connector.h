@@ -98,7 +98,7 @@ typedef struct dt_connector_t
   // so drawing and computing can take place asynchronously.
   int frames;
   // a node's connector consumes array_length * frames buffers in the graph's
-  // conn_image[] pool. the location can be determined by dt_node_connector_image()
+  // conn_image[] pool. the location can be determined by dt_graph_connector_image()
   // and makes use of the node->conn_image index list.
 
   VkBuffer      staging;     // for sources and sinks

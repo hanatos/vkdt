@@ -696,17 +696,23 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       if(c->connected_mi >= 0)
       {
         int ii = cur_dset;
-        // this should be ensured during connection:
-        assert(c->frames == graph->node[c->connected_mi].connector[c->connected_mc].frames);
         for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
         {
           for(int k=0;k<MAX(1,c->array_length);k++)
           {
-            int frame = MIN(f, c->frames-1);
-            // if feedback connection cross the frame wires:
-            if(c->flags & s_conn_feedback) frame = 1-f;
+            int frame = MIN(f, 
+              graph->node[c->connected_mi].connector[c->connected_mc].frames-1);
+            if(c->flags & s_conn_feedback)
+            { // feedback connections cross the frame wires:
+              frame = 1-f;
+              // this should be ensured during connection:
+              assert(c->frames == 2); 
+              assert(graph->node[c->connected_mi].connector[c->connected_mc].frames == 2);
+            }
+            // the image struct is shared between in and out connectors, but we 
+            // acces the frame either straight or crossed, depending on feedback mode.
             dt_connector_image_t *img  = dt_graph_connector_image(graph,
-                node - graph->node, i, k, MIN(f, c->frames-1));
+                node - graph->node, i, k, frame);
             int iii = cur_dset++;
             img_info[iii].sampler     = (c->flags & s_conn_smooth) ? qvk.tex_sampler : qvk.tex_sampler_nearest;
             img_info[iii].imageView   = img->image_view;
@@ -725,8 +731,8 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       else
       { // else sorry not connected, buffer will not be bound.
         // unconnected inputs are a problem however:
-        dt_log(s_log_err | s_log_pipe, "kernel %"PRItkn"_%"PRItkn":%d is not connected!",
-            dt_token_str(node->name), dt_token_str(node->kernel), i);
+        dt_log(s_log_err | s_log_pipe, "kernel %"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
+            dt_token_str(node->name), dt_token_str(node->kernel), dt_token_str(node->connector[i].name));
       }
       if(c->type == dt_token("sink"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
@@ -972,6 +978,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     return VK_SUCCESS;
   }
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
+
+  // sanity check: are all input connectors bound?
+  for(int i=0;i<node->num_connectors;i++)
+    if(dt_connector_input(node->connector+i))
+      if(node->connector[i].connected_mi == -1)
+        return VK_INCOMPLETE;
 
   // special case for end of pipeline and thumbnail creation:
   if(graph->thumbnail_image &&
@@ -1282,7 +1294,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   // add our global uniforms:
   VkDescriptorSet desc_sets[] = {
     graph->uniform_dset,
-    node->dset[graph->frame],
+    node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
   };
 
   if(draw != -1)
@@ -1889,7 +1901,14 @@ dt_graph_connector_image(
 {
   if(graph->node[nid].conn_image[cid] == -1)
     dt_log(s_log_err, "requesting unconnected image buffer!");
-  uint32_t id = dt_node_connector_image(
-      graph->node + nid, cid, array, frame);
-  return graph->conn_image_pool + id;
+  int nid2 = nid, cid2 = cid;
+  if(graph->node[nid].connector[cid].type == dt_token("read") ||
+     graph->node[nid].connector[cid].type == dt_token("sink"))
+  {
+    cid2 = graph->node[nid].connector[cid].connected_mc;
+    nid2 = graph->node[nid].connector[cid].connected_mi;
+  }
+  frame %= graph->node[nid2].connector[cid2].frames;
+  return graph->conn_image_pool +
+    graph->node[nid].conn_image[cid] + graph->node[nid].connector[cid].array_length * frame + array;
 }

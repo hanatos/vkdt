@@ -94,6 +94,12 @@ read_connection_ascii(
   {
     graph->module[modid0].connector[conid0].flags |= extra_flags;
     graph->module[modid1].connector[conid1].flags |= extra_flags;
+    if(extra_flags & s_conn_feedback)
+    { // set this here because during dag traversal it would potentially
+      // update too many connectors (connected to multiple inputs w/o feedback?)
+      graph->module[modid0].connector[conid0].frames = 2;
+      graph->module[modid1].connector[conid1].frames = 2;
+    }
   }
   return 0;
 }

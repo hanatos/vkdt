@@ -43,13 +43,3 @@ typedef struct dt_node_t
 }
 dt_node_t;
 
-static inline uint32_t 
-dt_node_connector_image(
-    dt_node_t *node,
-    int cid,
-    int arr,
-    int frame)
-{
-  return node->conn_image[cid] + node->connector[cid].array_length * frame + arr;
-}
-

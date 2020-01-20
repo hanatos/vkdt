@@ -31,6 +31,7 @@
     // this is the sink. the connector has a format that has been previously negotiated with the
     // previous source. reset to the generic module->so version:
     cn1->format = graph->element[m1].so->connector[c1].format;
+    cn1->frames = graph->element[m1].so->connector[c1].frames;
 #endif
 
     // decrement previous source's reference counter
@@ -44,6 +45,7 @@
       { // this is the old source, now disconnected.
         // replace the format of this connector by the (potentially generic) module->so version
         graph->element[old_mod].connector[old_con].format = graph->element[old_mod].so->connector[old_con].format;
+        graph->element[old_mod].connector[old_con].frames = graph->element[old_mod].so->connector[old_con].frames;
       }
 #endif
     }
