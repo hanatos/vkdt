@@ -847,7 +847,7 @@ void render_darkroom()
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-      ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame];
+      ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
       float im0[2], im1[2];
       float v0[2] = {(float)vkdt.state.center_x, (float)vkdt.state.center_y};
       float v1[2] = {(float)vkdt.state.center_x+vkdt.state.center_wd,
@@ -937,7 +937,7 @@ void render_darkroom()
       int border = 0.01 * qvk.win_width;
       int wd = vkdt.state.panel_wd - border;
       int ht = wd * 2.0f/3.0f;
-      ImGui::Image(out_hist->dset[vkdt.graph_dev.frame],
+      ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
           ImVec2(wd, ht),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
@@ -948,6 +948,21 @@ void render_darkroom()
       dt_gui_set_lod(g_lod);
     }
 
+    // animation controls
+    // TODO: avoid jumps by ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
+    if(vkdt.state.anim_playing)
+    {
+      if(ImGui::Button("stop"))
+        vkdt.state.anim_playing = 0;
+    }
+    else if(ImGui::Button("play"))
+        vkdt.state.anim_playing = 1;
+    ImGui::SameLine();
+    ImGui::Text("%d", vkdt.state.anim_frame);
+    ImGui::SameLine();
+    ImGui::SliderInt("max frame", &vkdt.state.anim_max_frame, 0, 100);
+
+    // tabs for module/params controls:
     ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
     if(ImGui::BeginTabBar("layer", tab_bar_flags))
     {

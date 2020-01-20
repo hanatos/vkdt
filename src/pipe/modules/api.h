@@ -37,7 +37,6 @@ dt_connector_copy(
     int nid,   // node id
     int nc)    // connector id on node to copy to
 {
-  // XXX FIXME: we do not account correctly for the buffer counters here!
   // connect the node layer on the module:
   module->connector[mc].connected_ni = nid;
   module->connector[mc].connected_nc = nc;

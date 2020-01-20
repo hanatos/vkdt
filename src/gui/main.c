@@ -123,7 +123,10 @@ int main(int argc, char *argv[])
         dt_gui_recreate_swapchain();
       }
       else dt_view_handle_event(&event);
-      busy = 2;
+      if(vkdt.state.anim_playing)
+        busy = vkdt.state.anim_max_frame;
+      else
+        busy = 2;
     }
     while (SDL_PollEvent(&event));
     else busy--;
@@ -136,7 +139,15 @@ int main(int argc, char *argv[])
     dt_gui_render();
     dt_gui_present();
 
+    if(vkdt.state.anim_playing)
+    {
+      vkdt.graph_dev.frame = vkdt.state.anim_frame;
+      vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+    }
     dt_view_process();
+    if(vkdt.state.anim_playing)
+      vkdt.state.anim_frame = MIN(vkdt.state.anim_frame+1, vkdt.state.anim_max_frame);
+    else vkdt.state.anim_frame = 0;
 
     clock_t end  = clock();
     dt_log(s_log_perf, "total frame time %2.3fs", (end - beg)/(double)CLOCKS_PER_SEC);

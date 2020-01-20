@@ -49,6 +49,11 @@ typedef struct dt_gui_state_t
   int   center_wd, center_ht;
   int   panel_wd;
   int   panel_ht;
+
+  // animation state
+  int   anim_playing;
+  int   anim_max_frame;
+  int   anim_frame;
 }
 dt_gui_state_t;
 

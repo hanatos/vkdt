@@ -24,7 +24,7 @@ typedef struct dt_connector_image_t
   dt_vkmem_t   *mem;            // used for alloc/free during graph traversal
   VkImage       image;          // vulkan image object
   VkImageView   image_view;
-  VkImageLayout layout;         // not necessarily the current layout, but what is pushed to cmd buf
+  VkImageLayout layout;
 }
 dt_connector_image_t;
 

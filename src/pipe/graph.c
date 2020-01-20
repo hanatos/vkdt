@@ -513,7 +513,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &img->image));
 #if 0 // nice debugging, but leaks memory
         char *name = malloc(100); // leak this
-        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn, dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name));
+        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
         VkDebugMarkerObjectNameInfoEXT name_info = {
           .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
           .object = (uint64_t) img->image,
@@ -635,9 +635,9 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_output(c))
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
-      int ii = cur_dset;
       for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
       {
+        int ii = cur_dset;
         for(int k=0;k<MAX(1,c->array_length);k++)
         {
           dt_connector_image_t *img = dt_graph_connector_image(graph,
@@ -695,9 +695,9 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     { // point our inputs to their counterparts:
       if(c->connected_mi >= 0)
       {
-        int ii = cur_dset;
         for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
         {
+          int ii = cur_dset;
           for(int k=0;k<MAX(1,c->array_length);k++)
           {
             int frame = MIN(f, 
@@ -780,7 +780,8 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if(c->type == dt_token("read") && c->connected_mi >= 0)
+    if(c->type == dt_token("read") && c->connected_mi >= 0 &&
+     !(c->flags & s_conn_feedback))
     { // only free "read", not "sink" which we keep around for display
       // dt_log(s_log_pipe, "freeing input %"PRItkn"_%"PRItkn" %"PRItkn,
       //     dt_token_str(node->name),
@@ -1036,10 +1037,15 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   {
     if(dt_connector_input(node->connector+i))
     {
+      // this needs to prepare the frame we're actually reading.
+      // for feedback connections, this is crossed over.
       if(!node->module->so->write_sink)
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, k,
+                (node->connector[i].flags & s_conn_feedback) ?
+                1-(graph->frame & 1) :
+                graph->frame),
               GENERAL,
               SHADER_READ_ONLY_OPTIMAL);
       else
@@ -1356,10 +1362,13 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
       graph->node[mi].connector[mc].connected_mi++;
+#if 0
+      // XXX this is now explicitly not freed in free_inputs()
       // feedback connectors need to persist until the next frame.
       // up the reference counter out of line once to make sure:
-      if(graph->node[mi].connector[mc].flags & s_conn_feedback)
-        graph->node[mi].connector[mc].connected_mi++;
+      // if(graph->node[mi].connector[mc].flags & s_conn_feedback)
+        // graph->node[mi].connector[mc].connected_mi++;
+#endif
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     graph->node[mi].connector[mc].connected_mi,
       //     dt_token_str(graph->node[mi].name),
@@ -1433,7 +1442,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     for(int i=0;i<module->num_connectors;i++)
       dt_connector_copy(graph, module, i, nodeid, i);
   }
-  // now init defaults:
+  // now init frame count, and repoint connection image storage
   for(int n=nodes_begin;n<graph->num_nodes;n++)
   {
     for(int i=0;i<graph->node[n].num_connectors;i++)
@@ -1556,6 +1565,15 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
+    // these feedback connectors really cause a lot of trouble.
+    // we need to initialise the input connectors now after full graph traversal.
+    // this means we need the feedback connectors to go last in the connectors file
+    for(int m=0;m<graph->num_modules;m++)
+      for(int i=0;i<graph->module[m].num_connectors;i++)
+        if(graph->module[m].connector[i].flags & s_conn_feedback)
+          dt_connector_copy(graph, graph->module+m, i,
+              graph->module[m].connector[i].connected_ni,
+              graph->module[m].connector[i].connected_nc);
   }
 } // end scope, done with modules
 
@@ -1902,8 +1920,7 @@ dt_graph_connector_image(
   if(graph->node[nid].conn_image[cid] == -1)
     dt_log(s_log_err, "requesting unconnected image buffer!");
   int nid2 = nid, cid2 = cid;
-  if(graph->node[nid].connector[cid].type == dt_token("read") ||
-     graph->node[nid].connector[cid].type == dt_token("sink"))
+  if(dt_connector_input(graph->node[nid].connector+cid))
   {
     cid2 = graph->node[nid].connector[cid].connected_mc;
     nid2 = graph->node[nid].connector[cid].connected_mi;

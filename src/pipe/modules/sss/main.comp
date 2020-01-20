@@ -18,6 +18,8 @@ layout(std140, set = 0, binding = 0) uniform params_t
   float g;
 } params;
 
+// TODO: push constant with frame id? global uniform buffer?
+
 
 layout( // output f16 buffer rgb
     set = 1, binding = 0
