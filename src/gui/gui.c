@@ -342,8 +342,12 @@ dt_gui_read_ui_ascii(
         break;
       case dt_token("quad"):
         break;
+      case dt_token("axquad"):
+        break;
+      case dt_token("draw"):
+        break;
       default:
-        dt_log(s_log_err, "unknown widget type in %s!", filename);
+        dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
     }
     dt_gui_add_widget(mod, inst, parm, type, min, max);
   }
