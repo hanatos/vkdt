@@ -160,11 +160,10 @@ void image_to_view(
 
 inline ImVec4 gamma(ImVec4 in)
 {
+  // TODO: these values will be interpreted as rec2020 coordinates. do we want that?
   // theme colours are given as float sRGB values in imgui, while we will
-  // draw them in linear (depending on qvk config)
-  // return ImVec4(pow(in.x, 2.2), pow(in.y, 2.2), pow(in.z, 2.2), in.w);
-  // in the current configuration, we need no correction:
-  return in;
+  // draw them in linear:
+  return ImVec4(pow(in.x, 2.2), pow(in.y, 2.2), pow(in.z, 2.2), in.w);
 }
 
 inline void dark_corporate_style()
@@ -276,18 +275,36 @@ extern "C" int dt_gui_init_imgui()
   // Setup Platform/Renderer bindings
   ImGui_ImplSDL2_InitForVulkan(qvk.window);
   ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance = qvk.instance;
-  init_info.PhysicalDevice = qvk.physical_device;
-  init_info.Device = qvk.device;
-  init_info.QueueFamily = qvk.queue_idx_graphics;
-  init_info.Queue = qvk.queue_graphics;
-  init_info.PipelineCache = vkdt.pipeline_cache;
-  init_info.DescriptorPool = vkdt.descriptor_pool;
-  init_info.Allocator = 0;
-  init_info.MinImageCount = vkdt.min_image_count;
-  init_info.ImageCount = vkdt.image_count;
-  init_info.CheckVkResultFn = 0;//check_vk_result;
+  init_info.Instance         = qvk.instance;
+  init_info.PhysicalDevice   = qvk.physical_device;
+  init_info.Device           = qvk.device;
+  init_info.QueueFamily      = qvk.queue_idx_graphics;
+  init_info.Queue            = qvk.queue_graphics;
+  init_info.PipelineCache    = vkdt.pipeline_cache;
+  init_info.DescriptorPool   = vkdt.descriptor_pool;
+  init_info.Allocator        = 0;
+  init_info.MinImageCount    = vkdt.min_image_count;
+  init_info.ImageCount       = vkdt.image_count;
+  init_info.CheckVkResultFn  = 0;//check_vk_result;
   ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
+
+  {
+    float gamma[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float rec2020_to_dspy[] = { // to linear sRGB D65
+       1.66022709, -0.58754775, -0.07283832,
+      -0.12455356,  1.13292608, -0.0083496,
+      -0.01815511, -0.100603  ,  1.11899813 };
+    FILE *f = fopen("display.profile", "r");
+    if(f)
+    {
+      fscanf(f, "%f %f %f\n", gamma, gamma+1, gamma+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy+0, rec2020_to_dspy+1, rec2020_to_dspy+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy+3, rec2020_to_dspy+4, rec2020_to_dspy+5);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy+6, rec2020_to_dspy+7, rec2020_to_dspy+8);
+      fclose(f);
+    }
+    ImGui_ImplVulkan_SetDisplayProfile(gamma, rec2020_to_dspy);
+  }
 
   // Load Fonts
   // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.

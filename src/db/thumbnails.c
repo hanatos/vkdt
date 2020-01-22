@@ -60,7 +60,7 @@ dt_thumbnails_init(
   dt_log(s_log_db, "allocating %3.1f MB for thumbnails", heap_size/(1024.0*1024.0));
 
   // alloc dummy image to get memory type bits and something to display
-  VkFormat format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+  VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,
@@ -465,7 +465,7 @@ dt_thumbnails_load_one(
   const int wd = graph->module[modid].connector[0].roi.full_wd;
   const int ht = graph->module[modid].connector[0].roi.full_ht;
 
-  VkFormat format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+  VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,

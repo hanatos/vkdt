@@ -12,7 +12,15 @@ jpg for debugging. the gui profits from this scheme as well and can display
 textures while they are still on gpu and output the data to multiple
 targets, such as the main view and histograms.
 
-# build instructions
+## features
+
+* very fast GPU only processing
+* general DAG of processing operations, featuring multiple inputs and outputs and
+  feedback connectors for animation/iteration
+* [full window colour management](doc/colourmanagement.md)
+* minimal set of image operation modules
+
+## build instructions
 
 you should have checked out this repo recursively. if not, do
 ```
@@ -32,7 +40,7 @@ please see the 'bin/run.sh' shell scripts for notes on my current
 setup using the vulkan sdk instead of what your system ships, if
 you want to run that.
 
-# running
+## running
 
 the binaries are currently wired to run from the bin/ directory:
 ```
@@ -43,7 +51,7 @@ note that you have to edit the filename in the example cfg to point to a file
 that actually exists on your system. if you run the command line interface
 'vkdt-cli', it will replace all 'display' nodes by 'export' nodes.
 
-# licence
+## licence
 
 our code is licenced under the 2-clause bsd licence (if not clearly marked
 otherwise in the respective source files). there are parts from other libraries
@@ -55,7 +63,7 @@ imgui:        MIT
 
 and we may link to some others, too.
 
-# dependencies:
+## dependencies
 - clang to compile (for now, will restore gcc compat at some point)
 - vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
 - sdl2 (libsdl2-dev)
