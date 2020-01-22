@@ -8,12 +8,11 @@ shader code.
 
 ## installation
 you need to profile your display, apply the TRC with dispwin,
-and supply the matrix to ``vkdt``.
-
-*TODO: and i have no good plan how to do this without bloat.
-probably will supply a python script to convert icc to include
-file/text file for runtime reading.*
-``bin/read-icc.py``
+and supply the matrix to ``vkdt``. the latter is currently
+done by running the script ``bin/read-icc.py`` which will
+generate a ``display.profile`` file containing the extracted
+gamma and colour matrix. if this is found in the bin directory
+during run time, ``vkdt`` will pick it up and load it to the gpu.
 
 ## gui
 all gui colours need to be given in rec2020 tristimulus values.
