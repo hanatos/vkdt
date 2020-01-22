@@ -16,10 +16,18 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define IMG_LAYOUT(img, ol, nl) do {\
-if(img->layout != VK_IMAGE_LAYOUT_ ## nl)\
-  BARRIER_IMG_LAYOUT(img->image, ol, nl);\
-img->layout = VK_IMAGE_LAYOUT_ ## nl;\
+#define IMG_LAYOUT(img, oli, nli) do {\
+  VkImageLayout ol = VK_IMAGE_LAYOUT_ ## oli;\
+  VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
+  if(ol == VK_IMAGE_LAYOUT_UNDEFINED || \
+     ol == img->layout) {\
+    if(img->layout != nl)\
+      BARRIER_IMG_LAYOUT(img->image, ol, nl);\
+  } else {\
+    if(img->layout != nl)\
+      BARRIER_IMG_LAYOUT(img->image, img->layout, nl);\
+  }\
+  img->layout = nl;\
 } while(0)
 
 void
@@ -1016,7 +1024,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
         node-graph->node, 0, 0, 0);
     // IMG_LAYOUT(img, GENERAL, TRANSFER_SRC_OPTIMAL);
     IMG_LAYOUT(img, UNDEFINED, TRANSFER_SRC_OPTIMAL);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, UNDEFINED, TRANSFER_DST_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     vkCmdCopyImage(cmd_buf,
         img->image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -1024,7 +1032,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
         &cp);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, TRANSFER_DST_OPTIMAL, SHADER_READ_ONLY_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     return VK_SUCCESS;
   }
 

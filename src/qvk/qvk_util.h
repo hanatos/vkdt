@@ -67,8 +67,8 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
         .subresourceRange = subresource_range, \
         .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT, \
         .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
-        .oldLayout        = VK_IMAGE_LAYOUT_ ## old_layout, \
-        .newLayout        = VK_IMAGE_LAYOUT_ ## new_layout, \
+        .oldLayout        = old_layout, \
+        .newLayout        = new_layout, \
     ); \
   } while(0)
 
