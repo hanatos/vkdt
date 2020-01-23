@@ -1939,3 +1939,45 @@ dt_graph_connector_image(
   return graph->conn_image_pool +
     graph->node[nid].conn_image[cid] + graph->node[nid].connector[cid].array_length * frame + array;
 }
+
+void dt_graph_reset(dt_graph_t *g)
+{
+  g->gui_attached = 0;
+  g->num_modules = 0;
+  g->active_module = 0;
+  g->lod_scale = 0;
+  g->runflags = 0;
+  g->frame = 0;
+  g->output_wd = 0;
+  g->output_ht = 0;
+  g->thumbnail_image = 0;
+  g->query_cnt = 0;
+  g->params_end = 0;
+  g->history_end = 0;
+  for(int i=0;i<g->num_modules;i++)
+    if(g->module[i].so->cleanup)
+      g->module[i].so->cleanup(g->module+i);
+  for(int i=0;i<g->conn_image_end;i++)
+  {
+    if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+    g->conn_image_pool[i].image = 0;
+    g->conn_image_pool[i].image_view = 0;
+  }
+  for(int i=0;i<g->num_nodes;i++)
+  {
+    for(int j=0;j<g->node[i].num_connectors;j++)
+    {
+      dt_connector_t *c = g->node[i].connector+j;
+      if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
+    }
+    vkDestroyPipelineLayout     (qvk.device, g->node[i].pipeline_layout,  0);
+    vkDestroyPipeline           (qvk.device, g->node[i].pipeline,         0);
+    vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
+    vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
+    vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
+  }
+  g->conn_image_end = 0;
+  g->num_nodes = 0;
+  g->num_modules = 0;
+}

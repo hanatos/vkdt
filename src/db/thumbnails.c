@@ -40,6 +40,15 @@ dt_thumbnails_init(
   tn->thumb_ht = ht,
   tn->thumb_max = cnt;
 
+  dt_graph_init(tn->graph + 0);
+  dt_graph_init(tn->graph + 1);
+  tn->graph[0].queue     = qvk.queue_work0;
+  tn->graph[0].queue_idx = qvk.queue_idx_work0;
+  tn->graph[1].queue     = qvk.queue_work1;
+  tn->graph[1].queue_idx = qvk.queue_idx_work1;
+
+  // just creating bc1 files in the background, not actually used to serve
+  // any thumbnails:
   if(cnt == 0) return VK_SUCCESS;
 
   tn->thumb = malloc(sizeof(dt_thumbnail_t)*tn->thumb_max);
@@ -134,6 +143,7 @@ dt_thumbnails_init(
   };
   for(int i=0;i<tn->thumb_max;i++)
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &tn->thumb[i].dset));
+
   return VK_SUCCESS;
 }
 
@@ -141,6 +151,8 @@ void
 dt_thumbnails_cleanup(
     dt_thumbnails_t *tn)
 {
+  dt_graph_cleanup(tn->graph + 0);
+  dt_graph_cleanup(tn->graph + 1);
   for(int i=0;i<tn->thumb_max;i++)
   {
     if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, tn->thumb[i].image,      0);
@@ -192,18 +204,7 @@ dt_thumbnails_cache_one(
   }
 
   // load history stack
-  dt_graph_init(graph);
-  int i = graph - tn->graph;
-  if(i)
-  {
-    graph->queue     = qvk.queue_work0;
-    graph->queue_idx = qvk.queue_idx_work0;
-  }
-  else
-  {
-    graph->queue     = qvk.queue_work1;
-    graph->queue_idx = qvk.queue_idx_work1;
-  }
+  dt_graph_reset(graph);
   if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
@@ -241,7 +242,6 @@ dt_thumbnails_cache_one(
     if(dt_module_connect(graph, m0, c0, m1, c1))
     {
       dt_log(s_log_err, "[thm] config '%s' connecting bc1 output failed!", cfgfilename);
-      dt_graph_cleanup(graph);
       return 3;
     }
   }
@@ -251,7 +251,6 @@ dt_thumbnails_cache_one(
      dt_module_set_param_string(graph->module + modid, dt_token("filename"), bc1filename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no bc1 output module!", cfgfilename);
-    dt_graph_cleanup(graph);
     return 3;
   }
 
@@ -263,7 +262,6 @@ dt_thumbnails_cache_one(
   if(dt_graph_run(graph, s_graph_run_all) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
-    dt_graph_cleanup(graph);
     // mark as dead
     link("data/bomb.bc1", bc1filename);
     return 4;
@@ -271,7 +269,6 @@ dt_thumbnails_cache_one(
   clock_t end = clock();
   dt_log(s_log_pipe|s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
-  dt_graph_cleanup(graph);
   return VK_SUCCESS;
 }
 
@@ -421,23 +418,10 @@ dt_thumbnails_load_one(
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;
 
-  // TODO: move init to thumbnails_init!
-  dt_graph_init(graph);
-  int i = graph - tn->graph;
-  if(i)
-  {
-    graph->queue     = qvk.queue_work0;
-    graph->queue_idx = qvk.queue_idx_work0;
-  }
-  else
-  {
-    graph->queue     = qvk.queue_work1;
-    graph->queue_idx = qvk.queue_idx_work1;
-  }
+  dt_graph_reset(graph);
   if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
-    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
 
@@ -469,7 +453,6 @@ dt_thumbnails_load_one(
      dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
   {
     dt_log(s_log_err, "[thm] config '%s' has no bc1 input module!", cfgfilename);
-    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
 
@@ -479,7 +462,6 @@ dt_thumbnails_load_one(
   if(dt_graph_run(graph, run) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] failed to run first half of graph!");
-    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
 
@@ -574,12 +556,10 @@ dt_thumbnails_load_one(
   if(dt_graph_run(graph, ~run) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", imgfilename);
-    dt_graph_cleanup(graph);
     return VK_INCOMPLETE;
   }
   clock_t end = clock();
   dt_log(s_log_pipe|s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
-  dt_graph_cleanup(graph);
   return VK_SUCCESS;
 }

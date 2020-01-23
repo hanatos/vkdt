@@ -52,6 +52,9 @@ int main(int argc, char *argv[])
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, fname);
     dt_view_switch(s_view_lighttable);
 
+    // this is done so we can mess with the thumbnails struct in
+    // an asynchronous manner in a background thread. it will know
+    // it is not serving thumbnails but it only writes bc1 to disk.
     // also we have a temporary thumbnails struct and background threads
     // to create thumbnails, if necessary.
     // we'll elegantly leak all this memory:

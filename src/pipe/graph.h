@@ -110,8 +110,9 @@ typedef struct dt_graph_t
 }
 dt_graph_t;
 
-void dt_graph_init(dt_graph_t *g);
-void dt_graph_cleanup(dt_graph_t *g);
+void dt_graph_init(dt_graph_t *g);     // init
+void dt_graph_cleanup(dt_graph_t *g);  // cleanup, free memory
+void dt_graph_reset(dt_graph_t *g);    // lightweight reset, keep allocations
 
 dt_node_t *dt_graph_get_display(dt_graph_t *g, dt_token_t  which);
 
