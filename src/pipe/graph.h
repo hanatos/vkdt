@@ -68,6 +68,8 @@ typedef struct dt_graph_t
   VkCommandBuffer       command_buffer; // one thread per graph
   VkCommandPool         command_pool;
   VkFence               command_fence;  // one per command buffer
+  VkQueue               queue;
+  uint32_t              queue_idx;
 
   VkBuffer              uniform_buffer; // uniform buffer shared between all nodes
   VkDeviceMemory        vkmem_uniform;

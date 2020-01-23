@@ -83,6 +83,10 @@ dt_graph_init(dt_graph_t *g)
   g->query_name   = malloc(sizeof(dt_token_t)*g->query_max);
   g->query_kernel = malloc(sizeof(dt_token_t)*g->query_max);
 
+  // grab default queue:
+  g->queue = qvk.queue_compute;
+  g->queue_idx = qvk.queue_idx_compute;
+
   g->lod_scale = 1;
   g->active_module = -1;
 }

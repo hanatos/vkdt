@@ -317,7 +317,7 @@ dt_thumbnails_cache_directory(
   // for this threading to be effective, we need to
   //  OMP_NESTED=true
   //  OMP_MAX_ACTIVE_LEVELS=5
-  // note that we set this via the omp_* api in rawinput/main.cc
+  // note that we set this via the omp_* api in i-raw/main.cc
   // because in fact the processing inside rawspeed (parallel via omp)
   // seems to be a big chunk of the bottleneck (after io)
 #if 0 // single threaded variant

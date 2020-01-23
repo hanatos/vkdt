@@ -417,61 +417,31 @@ QVK_FEATURE_DO(inheritedQueries, 1)
 
   dt_log(s_log_qvk, "num queue families: %d", num_queue_families);
 
-  qvk.queue_idx_graphics = -1;
-  qvk.queue_idx_compute  = -1;
-  qvk.queue_idx_transfer = -1;
-
+  int queue_family_index = -1;
   for(int i = 0; i < num_queue_families; i++) {
-    if(!queue_families[i].queueCount)
+    if(queue_families[i].queueCount < 4)
       continue;
-    if((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == VK_QUEUE_GRAPHICS_BIT && qvk.queue_idx_graphics < 0) {
-      qvk.queue_idx_graphics = i;
-    }
-    if((queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) == VK_QUEUE_COMPUTE_BIT && qvk.queue_idx_compute < 0) {
-      qvk.queue_idx_compute = i;
-    }
-    if((queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT) == VK_QUEUE_TRANSFER_BIT && qvk.queue_idx_transfer < 0) {
-      qvk.queue_idx_transfer = i;
+    if((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+       (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) &&
+       (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
+    {
+      queue_family_index = i;
+      break;
     }
   }
 
-  if(qvk.queue_idx_graphics < 0 || qvk.queue_idx_compute < 0 || qvk.queue_idx_transfer < 0)
+  if(queue_family_index < 0)
   {
     dt_log(s_log_err|s_log_qvk, "could not find suitable queue family!");
     return 1;
   }
 
   float queue_priorities = 1.0f;
-  int num_create_queues = 0;
-  VkDeviceQueueCreateInfo queue_create_info[3];
-
-  {
-    VkDeviceQueueCreateInfo q = {
-      .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .queueCount       = 1,
-      .pQueuePriorities = &queue_priorities,
-      .queueFamilyIndex = qvk.queue_idx_graphics,
-    };
-
-    queue_create_info[num_create_queues++] = q;
-  };
-  if(qvk.queue_idx_compute != qvk.queue_idx_graphics) {
-    VkDeviceQueueCreateInfo q = {
-      .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .queueCount       = 1,
-      .pQueuePriorities = &queue_priorities,
-      .queueFamilyIndex = qvk.queue_idx_compute,
-    };
-    queue_create_info[num_create_queues++] = q;
-  };
-  if(qvk.queue_idx_transfer != qvk.queue_idx_graphics && qvk.queue_idx_transfer != qvk.queue_idx_compute) {
-    VkDeviceQueueCreateInfo q = {
-      .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .queueCount       = 1,
-      .pQueuePriorities = &queue_priorities,
-      .queueFamilyIndex = qvk.queue_idx_transfer,
-    };
-    queue_create_info[num_create_queues++] = q;
+  VkDeviceQueueCreateInfo queue_create_info = {
+    .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    .queueCount       = 3,
+    .pQueuePriorities = &queue_priorities,
+    .queueFamilyIndex = queue_family_index,
   };
 
   VkPhysicalDeviceDescriptorIndexingFeaturesEXT idx_features = {
@@ -497,8 +467,8 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pNext                   = &device_features,
-    .pQueueCreateInfos       = queue_create_info,
-    .queueCreateInfoCount    = num_create_queues,
+    .pQueueCreateInfos       = &queue_create_info,
+    .queueCreateInfoCount    = 1,
     .enabledExtensionCount   = len,
     .ppEnabledExtensionNames = vk_requested_device_extensions,
   };
@@ -508,7 +478,8 @@ QVK_FEATURE_DO(inheritedQueries, 1)
 
   vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics);
   vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_transfer, 0, &qvk.queue_transfer);
+  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work0,    1, &qvk.queue_work0);
+  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work1,    2, &qvk.queue_work1);
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \

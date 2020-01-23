@@ -58,10 +58,12 @@ typedef struct qvk_t
   threads_mutex_t             queue_mutex;
   VkQueue                     queue_graphics;
   VkQueue                     queue_compute;
-  VkQueue                     queue_transfer;
+  VkQueue                     queue_work0;
+  VkQueue                     queue_work1;
   int32_t                     queue_idx_graphics;
   int32_t                     queue_idx_compute;
-  int32_t                     queue_idx_transfer;
+  int32_t                     queue_idx_work0;
+  int32_t                     queue_idx_work1;
   VkSurfaceKHR                surface;
   VkSwapchainKHR              swap_chain;
   VkSurfaceFormatKHR          surf_format;
