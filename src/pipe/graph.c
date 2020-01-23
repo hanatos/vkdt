@@ -54,7 +54,7 @@ dt_graph_init(dt_graph_t *g)
 
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .queueFamilyIndex = qvk.queue_idx_compute,
+    .queueFamilyIndex = g->queue_idx,
     .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
   };
   QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &g->command_pool));
@@ -483,8 +483,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       // dt_log(s_log_pipe, "%d x %d %"PRItkn"_%"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name), dt_token_str(node->kernel));
-      // as it turns out our compute and graphics queues are identical, which simplifies things
-      // uint32_t queues[] = { qvk.queue_idx_compute, qvk.queue_idx_graphics };
       int bc1 = c->format == dt_token("bc1");
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -1856,7 +1854,7 @@ VkResult dt_graph_run(
   {
     threads_mutex_lock(&qvk.queue_mutex);
     vkResetFences(qvk.device, 1, &graph->command_fence);
-    QVKR(vkQueueSubmit(qvk.queue_compute, 1, &submit, graph->command_fence));
+    QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
     threads_mutex_unlock(&qvk.queue_mutex);
