@@ -193,6 +193,17 @@ dt_thumbnails_cache_one(
 
   // load history stack
   dt_graph_init(graph);
+  int i = graph - tn->graph;
+  if(i)
+  {
+    graph->queue     = qvk.queue_work0;
+    graph->queue_idx = qvk.queue_idx_work0;
+  }
+  else
+  {
+    graph->queue     = qvk.queue_work1;
+    graph->queue_idx = qvk.queue_idx_work1;
+  }
   if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
@@ -410,7 +421,19 @@ dt_thumbnails_load_one(
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;
 
+  // TODO: move init to thumbnails_init!
   dt_graph_init(graph);
+  int i = graph - tn->graph;
+  if(i)
+  {
+    graph->queue     = qvk.queue_work0;
+    graph->queue_idx = qvk.queue_idx_work0;
+  }
+  else
+  {
+    graph->queue     = qvk.queue_work1;
+    graph->queue_idx = qvk.queue_idx_work1;
+  }
   if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
