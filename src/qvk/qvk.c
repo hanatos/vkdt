@@ -365,6 +365,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
     qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
+    qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
 
     dt_log(s_log_qvk, "dev %d: vendorid 0x%x", i, dev_properties.vendorID);
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);

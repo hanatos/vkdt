@@ -6,11 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t ro;
   float white;
 } params;
 
@@ -34,7 +31,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec4 rgba;
   const float white = params.white;
@@ -80,7 +77,7 @@ main()
   }
   else
   {
-    vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(params.ri.full), 0);
+    vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(textureSize(img_in, 0)), 0);
     if(c.x >= white) c.x = c.z;
     if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);

@@ -7,10 +7,8 @@
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ro;
   float theta;  // angle of incidence: 0 normal; pi/2 tangent
   float spp;    // number of paths per pixel
   float albedo;
@@ -130,7 +128,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   float total = 0.0;
   uint spp = uint(params.spp);
@@ -142,7 +140,7 @@ main()
 
     // special cased pt/nee so we avoid the atomics a light tracer would bring
     // - sample direction under surface
-    vec3 pos = vec3(vec2(ipos.xy/vec2(params.ro.roi) - 0.5), 0.0f);
+    vec3 pos = vec3(vec2(ipos.xy/vec2(imageSize(img_out)) - 0.5), 0.0f);
     vec3 dir = sample_hemisphere(next_rand(seed));
     dir.z = - dir.z;
 

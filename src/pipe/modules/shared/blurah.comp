@@ -8,7 +8,7 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   int idx = int(gl_GlobalInvocationID.z);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out[idx])))) return;
 
 #if 1
   vec4 c0 = texelFetch(img_in[idx], ipos + ivec2(-2*push.step, 0), 0);
@@ -20,7 +20,7 @@ main()
   vec4 color = (1.0/5.0)*(c0+c1+c2+c3+c4);
 #else
   vec2 dir = vec2(0, 1);
-  vec2 res = vec2(params.ri.roi);
+  vec2 res = vec2(textureSize(img_in[idx], 0));
   vec2 uv = vec2(ipos * (dir+vec2(1,1))) / res;
   vec4 color = vec4(0.0);
   vec2 off1 = push.step * vec2(1.3333333333333333) * dir / res;

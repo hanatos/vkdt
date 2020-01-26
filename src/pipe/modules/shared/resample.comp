@@ -6,14 +6,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
-{
-  roi_t ri;
-  roi_t ro;
-} params;
-
-
 layout( // input f16 buffer rgb
     set = 1, binding = 0
 ) uniform sampler2D img_in;
@@ -28,9 +20,9 @@ void
 main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-  vec2 ipos = (opos + vec2(0.5))/ vec2(params.ro.roi);
+  vec2 ipos = (opos + vec2(0.5))/ vec2(imageSize(img_out));
   // vec4 rgba = sample_catmull_rom(img_in, ipos); // takes normalised coordinates
   vec4 rgba = sample_soft(img_in, ipos);
   // vec4 rgba = textureLod(img_in, ipos, 0);

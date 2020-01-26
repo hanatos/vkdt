@@ -5,13 +5,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
-{
-  roi_t ri;
-  roi_t ro;
-} params;
-
 layout( // input buffer array
     set = 1, binding = 0
 ) uniform sampler2D img_in[];
@@ -31,10 +24,10 @@ main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   int idx = int(gl_GlobalInvocationID.z);
-  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+  if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
 
 #if 0
-  vec2 res = vec2(params.ri.roi);
+  vec2 res = vec2(textureSize(img_in[idx], 0));
   vec2 uv = vec2(opos) / res;
   vec4 color = vec4(0.0);
 #endif
@@ -76,7 +69,7 @@ main()
 #endif
 
 #if 1
-  vec2 res = vec2(params.ri.roi);
+  vec2 res = vec2(textureSize(img_in[idx], 0));
   vec2 uv;
   vec4 color = vec4(0.0);
   if(push.idx > 0)

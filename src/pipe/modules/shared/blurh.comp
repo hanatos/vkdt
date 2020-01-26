@@ -7,7 +7,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec4 c0 = texelFetch(img_in, ipos + ivec2(-2*push.step, 0), 0);
   vec4 c1 = texelFetch(img_in, ipos + ivec2(-1*push.step, 0), 0);

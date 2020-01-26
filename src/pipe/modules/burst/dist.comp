@@ -6,15 +6,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
-{
-  roi_t ri0;    // roi of the reference image
-  roi_t ri1;    // roi of the warped image
-  roi_t roff;   // offset image from one layer coarser (res / push.scale)
-  roi_t ro;     // output buffer with warped distances | i0(x) - i1(x+off) |
-} params;
-
 layout(push_constant, std140) uniform push_t
 {
   int scale; // scale of the coarse input, or 0 if no coarse input
@@ -46,7 +37,7 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
   int offidx = int  (gl_GlobalInvocationID.z);
-  if(any(greaterThanEqual(ivec3(ipos, offidx), ivec3(params.ro.roi, 26)))) return;
+  if(any(greaterThanEqual(ivec3(ipos, offidx), ivec3(imageSize(img_out[offidx]), 26)))) return;
 
   int offy = offidx / 5;
   int offx = offidx - 5*offy;
@@ -57,7 +48,7 @@ main()
   float i1;
   if(push.scale > 0)
   {
-    ivec2 off = ivec2(ivec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*params.roff.roi)).rg * push.scale);
+    ivec2 off = ivec2(ivec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
     i1 = texelFetch(img_in1, ipos+off, 0).r;
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;

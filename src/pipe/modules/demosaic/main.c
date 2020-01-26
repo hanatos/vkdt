@@ -69,10 +69,10 @@ void modify_roi_out(
 }
 
 // TODO: is this really needed?
-void commit_params(dt_graph_t *graph, dt_node_t *node)
+void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
-  uint32_t *i = (uint32_t *)node->module->committed_param;
-  i[0] = node->module->img_param.filters;
+  uint32_t *i = (uint32_t *)module->committed_param;
+  i[0] = module->img_param.filters;
 }
 
 int init(dt_module_t *mod)

@@ -6,14 +6,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
-{
-  roi_t ri_dist;
-  roi_t ri_coff;
-  roi_t ro;
-} params;
-
 layout(push_constant, std140) uniform push_t
 {
   uint scale;
@@ -36,13 +28,13 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // merge all offsets to find minimum distance
   // only one special case: do we have coarse or not (detect using scale):
   vec2 coff = vec2(0);
   if(push.scale > 0)
-    coff = sample_soft(img_coff, (ipos+.5f)/vec2(push.scale*params.ri_coff.roi)).rg * push.scale;
+    coff = sample_soft(img_coff, (ipos+.5f)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
   vec4 res = vec4(0, 0, 6500000, 1);
 
   for(int idx=0;idx<25;idx++)
@@ -51,7 +43,7 @@ main()
     int offx = idx - offy * 5;
     offx -= 2; offy -= 2;
     // distance comes from a blurd output and we need to upsample it:
-    float dist = sample_soft(img_dist[idx], (ipos+.5f)/vec2(params.ro.roi)).r;
+    float dist = sample_soft(img_dist[idx], (ipos+.5f)/vec2(imageSize(img_out))).r;
     vec2 off = coff + ivec2(offx, offy);
     if(dist < res.z)
       res = vec4(off, dist, 1);

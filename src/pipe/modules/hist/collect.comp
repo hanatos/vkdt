@@ -6,10 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t ro;
   vec4  crop;
   float mode;
 } params;
@@ -27,12 +25,12 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ri.roi))) return;
+  if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  float scale = float(params.ro.roi.x)/float(params.ri.roi.x);
-  int opos = clamp(int(scale * ipos.x), 0, int(params.ro.roi.x)-1);
-  uvec3 y = clamp(uvec3((1.0-rgb) * params.ro.roi.y + 0.5), 0, params.ro.roi.y-1);
+  float scale = float(imageSize(img_out).x)/float(textureSize(img_in, 0).x);
+  int opos = clamp(int(scale * ipos.x), 0, int(imageSize(img_out).x)-1);
+  uvec3 y = clamp(uvec3((1.0-rgb) * imageSize(img_out).y + 0.5), 0, imageSize(img_out).y-1);
   // use 10-bit rgb
   imageAtomicAdd(img_out, ivec2(opos, y.r), 1);
   imageAtomicAdd(img_out, ivec2(opos, y.g), 1024);

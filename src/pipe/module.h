@@ -65,6 +65,9 @@ typedef struct dt_module_t
   uint8_t *committed_param;
   int      committed_param_size;
 
+  uint32_t              uniform_offset; // offset into global uniform buffer
+  uint32_t              uniform_size;   // size of module params padded to 16 byte multiples
+
   // this is useful for instance for a cpu caching of
   // input data decoded from disk inside a module:
   void *data; // if you indeed must store your own data.

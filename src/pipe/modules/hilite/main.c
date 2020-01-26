@@ -2,20 +2,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#if 0
-void
-commit_params(
-    dt_graph_t  *graph,
-    dt_node_t   *node)
-{
-  float *f = (float *)node->push_constant;
-  float *p = (float *)node->module->param;
-
-  if(node->kernel == dt_token("doub"))
-    f[1] = dt_module_param_float(node->module, 0)[0];
-}
-#endif
-
 void
 create_nodes(
     dt_graph_t  *graph,

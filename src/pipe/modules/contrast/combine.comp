@@ -7,11 +7,8 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 // global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t rc;
-  roi_t ro;
   float radius;
   float edges;
   float detail;
@@ -33,7 +30,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in,     ipos, 0).rgb;
   vec3 crs = texelFetch(img_coarse, ipos, 0).rgb;

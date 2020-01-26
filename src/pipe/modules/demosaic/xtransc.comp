@@ -6,12 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t rg;
-  roi_t ro;
   uint filters;
 } params;
 
@@ -33,7 +29,7 @@ main()
 {
   ivec2 opos = 3*ivec2(gl_GlobalInvocationID);
   // we are run on output res / 3, one thread works on a 3x3 block at a time
-  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
   // TODO: run a thread on a 6x3 block to avoid divergence on blue_top ?
 

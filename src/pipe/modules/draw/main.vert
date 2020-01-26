@@ -5,9 +5,8 @@
 
 layout(location = 0) out vec2 tex_coord_vs;
 
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ro;
   // float cnt;
   // vec2 draw[1002];//[2005]; // XXX TODO: max uniform size or so? now it's 1000 vertices
   vec4 draw[502];

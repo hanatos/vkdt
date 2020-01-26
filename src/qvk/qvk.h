@@ -96,6 +96,7 @@ typedef struct qvk_t
   uint32_t                    current_image_index;
 
   float                       ticks_to_nanoseconds;
+  uint64_t                    uniform_alignment;
 }
 qvk_t;
 

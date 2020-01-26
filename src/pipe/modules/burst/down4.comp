@@ -6,13 +6,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
-{
-  roi_t ri;
-  roi_t ro;
-} params;
-
 layout( // input buffer, grey scale
     set = 1, binding = 0
 ) uniform sampler2D img_in;
@@ -26,12 +19,12 @@ void
 main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-  vec4 c0 = textureGather(img_in, (4*opos+vec2(0.0, 0.0))/vec2(params.ri.roi), 0);
-  vec4 c1 = textureGather(img_in, (4*opos+vec2(0.0, 2.0))/vec2(params.ri.roi), 0);
-  vec4 c2 = textureGather(img_in, (4*opos+vec2(2.0, 0.0))/vec2(params.ri.roi), 0);
-  vec4 c3 = textureGather(img_in, (4*opos+vec2(2.0, 2.0))/vec2(params.ri.roi), 0);
+  vec4 c0 = textureGather(img_in, (4*opos+vec2(0.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
+  vec4 c1 = textureGather(img_in, (4*opos+vec2(0.0, 2.0))/vec2(textureSize(img_in, 0)), 0);
+  vec4 c2 = textureGather(img_in, (4*opos+vec2(2.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
+  vec4 c3 = textureGather(img_in, (4*opos+vec2(2.0, 2.0))/vec2(textureSize(img_in, 0)), 0);
 
   float c =
    (c0.x+c0.y+c0.z+c0.w+

@@ -29,6 +29,7 @@ typedef struct dt_node_t
 
   VkPipeline            pipeline;
   VkPipelineLayout      pipeline_layout;
+  VkDescriptorSet       uniform_dset;              // uniform data is const per frame
   VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
   VkDescriptorSetLayout dset_layout;               // they all share the same layout
 

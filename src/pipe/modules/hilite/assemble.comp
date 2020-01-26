@@ -6,12 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri; // fine scale
-  roi_t rc; // coarse scale
-  roi_t ro; // output
   float white;
 } params;
 
@@ -100,7 +96,7 @@ void
 main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, params.ri.roi))) return;
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
   // upsample img_coarse
   vec3 upsm = gauss_expand(img_coarse, opos);

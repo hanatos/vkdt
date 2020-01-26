@@ -71,12 +71,11 @@ typedef struct dt_graph_t
   VkQueue               queue;
   uint32_t              queue_idx;
 
-  VkBuffer              uniform_buffer; // uniform buffer shared between all nodes
+  VkBuffer              uniform_buffer;      // uniform buffer shared between all nodes
   VkDeviceMemory        vkmem_uniform;
-  uint32_t              uniform_size;
-  uint8_t              *uniform_mem;
-  VkDescriptorSetLayout uniform_dset_layout;
-  VkDescriptorSet       uniform_dset;
+  uint32_t              uniform_size;        // size of the total uniform buffer
+  uint32_t              uniform_global_size; // size of the global section
+  VkDescriptorSetLayout uniform_dset_layout; // same layout for all nodes
 
   size_t                vkmem_size;
   size_t                vkmem_staging_size;

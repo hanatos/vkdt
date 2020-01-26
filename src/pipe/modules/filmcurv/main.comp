@@ -6,11 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t ro;
   vec4 x;
   vec4 y;
   vec4 m;
@@ -78,7 +75,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
@@ -95,16 +92,16 @@ main()
   rgb *= l1/l0;
 
 #if 0 // DEBUG: visualise curve TODO: tie to parameter
-  float x = (ipos.x - 50)/ float(params.ro.roi.x-50);
+  float x = (ipos.x - 50)/ float(imageSize(img_out).x-50);
   float y = (log2(x+black)-black_ev)/(log2(white)-black_ev);
   y = hermite4(y);
   y = abs(y); // hack to show negative values on screen
-  if(abs((1.0-y) * params.ro.roi.y - ipos.y) < 5)
+  if(abs((1.0-y) * imageSize(img_out).y - ipos.y) < 5)
     rgb = vec3(1, 0, 1);
 #endif
 
   // want to see why 8-bit output sucks? try this:
-  // float l1 = hermite4(ipos.x / float(params.ro.roi.x));
+  // float l1 = hermite4(ipos.x / float(imageSize(img_out).x));
   // rgba.rgb = vec3(l1);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

@@ -7,10 +7,8 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 // global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t ro;
   float h00, h01, h02, h10, h11, h12, h20, h21, h22;
   float crop_x, crop_X;
   float crop_y, crop_Y;
@@ -29,10 +27,10 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec2 co = vec2(params.crop_x, params.crop_y);
-  vec2 xy = co * params.ri.full + vec2(ipos.xy);
+  vec2 xy = co * textureSize(img_in, 0) + vec2(ipos.xy);
   vec2 rd = vec2(
       (params.h00*xy.x + params.h01*xy.y + params.h02)/
       (params.h20*xy.x + params.h21*xy.y + params.h22),
@@ -44,7 +42,7 @@ main()
   // vec4 rgba = texture(img_in, rd/params.ri.roi);
   // catmull rom is a little slower (especially on intel) but results
   // in a bit more acuity:
-  vec4 rgba = sample_catmull_rom(img_in, rd/params.ri.roi);
+  vec4 rgba = sample_catmull_rom(img_in, rd/textureSize(img_in, 0));
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 

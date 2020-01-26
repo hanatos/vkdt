@@ -6,14 +6,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
-{
-  roi_t ri;
-  roi_t roff;
-  roi_t ro;
-} params;
-
 layout(push_constant, std140) uniform push_t
 {
   uint filters;
@@ -38,12 +30,12 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, params.ro.roi))) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   int block = push.scale;
   // offset is on coarse scale (/block):
   // vec2 off = block * textureLod(img_off, (ipos+.5f)/vec2(block*params.roff.roi), 0).rg;
-  vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*params.roff.roi)).rg;
+  vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0))).rg;
 
 #if 0
   float col = 0.1*abs(off.y);
@@ -84,7 +76,7 @@ main()
   else if(push.filters == 0)
   { // no mosaic: just grab pixel regardless of mosaic
     // col = texelFetch(img_in, ipos + ivec2(off.rg), 0).r;
-    col = textureLod(img_in, (vec2(ipos)+0.5 + off.rg)/vec2(params.ri.roi), 0).r;
+    col = textureLod(img_in, (vec2(ipos)+0.5 + off.rg)/vec2(textureSize(img_in, 0)), 0).r;
   }
   else
   { // bayer: stupid hack #1 to keep mosaic pattern: round off to block size:

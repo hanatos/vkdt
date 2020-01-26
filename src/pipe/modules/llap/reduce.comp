@@ -6,11 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
-layout(std140, set = 0, binding = 0) uniform params_t
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-  roi_t ri;
-  roi_t ro;
   float sigma;
   float shadows;
   float highlights;
@@ -31,7 +28,7 @@ main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   int idx = int(gl_GlobalInvocationID.z);
-  if(any(greaterThanEqual(opos, params.ro.roi))) return;
+  if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
 
   // blur, store only coarse res
 #if 0 // 100ms (on intel hd5500)
@@ -41,7 +38,7 @@ main()
     y += texelFetch(img_in[idx], 2*opos+ivec2(ii,jj), 0).r * w[ii+2] * w[jj+2];
   imageStore(img_out[idx], opos, vec4(y));
 #else
-  vec2 ipos = (2*opos + vec2(0.5))/vec2(params.ri.roi);
+  vec2 ipos = (2*opos + vec2(0.5))/vec2(textureSize(img_in[idx], 0));
   // imageStore(img_out[idx], opos, sample_soft(img_in[idx], ipos)); // 40ms
   imageStore(img_out[idx], opos, sample_semisoft(img_in[idx], ipos)); // 25ms
 #endif

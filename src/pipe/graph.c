@@ -42,8 +42,6 @@ dt_graph_init(dt_graph_t *g)
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
   dt_vkalloc_init(&g->heap, 100, 1ul<<40); // bytesize doesn't matter
   dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
-  g->uniform_size = 16384;
-  g->uniform_mem = calloc(sizeof(uint8_t), g->uniform_size);
   g->params_max = 16u<<20;
   g->params_end = 0;
   g->params_pool = calloc(sizeof(uint8_t), g->params_max);
@@ -95,7 +93,6 @@ void
 dt_graph_cleanup(dt_graph_t *g)
 {
   QVK(vkDeviceWaitIdle(qvk.device));
-  free(g->uniform_mem);
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -632,6 +629,42 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       .pSetLayouts = lo,
     };
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, node->dset));
+
+    // uniform descriptor
+    VkDescriptorSetAllocateInfo dset_info_u = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = graph->dset_pool,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &graph->uniform_dset_layout,
+    };
+    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info_u, &node->uniform_dset));
+    VkDescriptorBufferInfo uniform_info[] = {{
+      .buffer      = graph->uniform_buffer,
+      .offset      = 0,
+      .range       = graph->uniform_global_size,
+    },{
+      .buffer      = graph->uniform_buffer,
+      .offset      = node->module->uniform_size ? node->module->uniform_offset : 0,
+      .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
+    }};
+    VkWriteDescriptorSet buf_dset[] = {{
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = node->uniform_dset,
+      .dstBinding      = 0,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = uniform_info+0,
+    },{
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = node->uniform_dset,
+      .dstBinding      = 1,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = uniform_info+1,
+    }};
+    vkUpdateDescriptorSets(qvk.device, 2, buf_dset, 0, NULL);
   }
 
   VkDescriptorImageInfo img_info[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS*25] = {{0}};
@@ -1197,99 +1230,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     for(int k=0;k<node->num_connectors;k++)
       if(dt_connector_output(node->connector+k)) { draw = k; break; }
 
-  if(node->module->so->commit_params)
-    node->module->so->commit_params(graph, node);
-
-  // XXX TODO: avoid uniform_mem allocation by calling vkMapMemory on the
-  // uniform buffer. this also avoids the memory barriers pushed here (not
-  // written via incoherent memory access). unfortunately it's somehow broken
-  // XXX
-  uint8_t *uniform_mem = graph->uniform_mem;
-  // whooaeh, uniform mmap works for cli (??):
-#if 0
-  size_t size = node->num_connectors * ((sizeof(dt_roi_t)+15)/16)*16;
-  if(node->module->committed_param_size)
-    size += node->module->committed_param_size;
-  else if(node->module->param_size)
-    size += node->module->param_size;
-  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
-        VK_WHOLE_SIZE,
-        // size,
-        0, (void**)&uniform_mem));
-  // VkMappedMemoryRange rg = {
-  //   .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-  //   .memory = graph->vkmem_uniform,
-  //   .offset = 0,
-  //   .size = VK_WHOLE_SIZE,//size,
-  // };
-  // QVKR(vkInvalidateMappedMemoryRanges(qvk.device, 1, &rg));
-#endif
-
-  // can only be 65k or else we need to upload through staging etc
-  // offset and size have to be multiples of 4
-  size_t pos = 0;
-  for(int i=0;i<node->num_connectors;i++)
-  {
-    assert(pos + ((sizeof(dt_roi_t)+15)/16) * 16 < graph->uniform_size);
-    memcpy(uniform_mem + pos, &node->connector[i].roi, sizeof(dt_roi_t));
-    pos += ((sizeof(dt_roi_t)+15)/16) * 16; // needs vec4 alignment
-  }
-  // copy over module params, per node.
-  // we may want to skip this if the uniform buffer stays the same for all nodes of the module.
-  if(node->module->committed_param_size)
-  {
-    assert(pos + (node->module->committed_param_size + 15)/16 < graph->uniform_size);
-    memcpy(uniform_mem + pos, node->module->committed_param, node->module->committed_param_size);
-    pos += ((node->module->committed_param_size + 15)/16)*16;
-  }
-  else if(node->module->param_size)
-  {
-    assert(pos + node->module->param_size < graph->uniform_size);
-    memcpy(uniform_mem + pos, node->module->param, node->module->param_size);
-    pos += node->module->param_size;
-  }
-
-#if 0
-  // QVKR(vkFlushMappedMemoryRanges(qvk.device, 1, &rg));
-  vkUnmapMemory(qvk.device, graph->vkmem_uniform);
-#else
-  VkBufferMemoryBarrier ub_barrier = {
-    .sType         = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-    .srcAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
-    .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-    .buffer = graph->uniform_buffer,
-    .offset = 0,
-    .size = pos,
-  };
-  vkCmdPipelineBarrier(
-      cmd_buf,
-      // draw == -1 ?
-      // VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT :
-      // VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      0,
-      0, NULL,
-      1, &ub_barrier,
-      0, NULL);
-
-  vkCmdUpdateBuffer(cmd_buf, graph->uniform_buffer, 0, pos, graph->uniform_mem);
-
-  ub_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  ub_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-  vkCmdPipelineBarrier(
-      cmd_buf,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-      // draw == -1 ?
-      // VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT :
-      // VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-      0,
-      0, NULL,
-      1, &ub_barrier,
-      0, NULL);
-#endif
-
   if(draw != -1)
   {
     VkClearValue clear_color = { .color = { .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } };
@@ -1309,7 +1249,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 
   // add our global uniforms:
   VkDescriptorSet desc_sets[] = {
-    graph->uniform_dset,
+    node->uniform_dset,
     node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
   };
 
@@ -1402,8 +1342,14 @@ count_references(dt_graph_t *graph, dt_node_t *node)
 // default callback for create nodes: pretty much copy the module.
 // does no vulkan work, just graph connections. shall not fail.
 static void
-create_nodes(dt_graph_t *graph, dt_module_t *module)
+create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 {
+  const uint64_t u_offset = *uniform_offset;
+  uint64_t u_size = module->committed_param_size ?
+    module->committed_param_size :
+    module->param_size;
+  u_size = (u_size + qvk.uniform_alignment-1) & -qvk.uniform_alignment;
+  *uniform_offset += u_size;
   const int nodes_begin = graph->num_nodes;
   // TODO: if roi size/scale does not match, insert resample node!
   // TODO: where? inside create_nodes? or we fix it afterwards?
@@ -1452,7 +1398,10 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     for(int i=0;i<module->num_connectors;i++)
       dt_connector_copy(graph, module, i, nodeid, i);
   }
-  // now init frame count, and repoint connection image storage
+
+  module->uniform_offset = u_offset;
+  module->uniform_size   = u_size;
+  // now init frame count, repoint connection image storage
   for(int n=nodes_begin;n<graph->num_nodes;n++)
   {
     for(int i=0;i<graph->node[n].num_connectors;i++)
@@ -1491,20 +1440,23 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc)
   {
-    // XXX really modify here?
-    // run |= s_graph_run_upload_source; // destroying buffers means uploading again
     if(!graph->uniform_dset_layout)
     { // init layout of uniform descriptor set:
-      VkDescriptorSetLayoutBinding bindings = {
-        .binding = 0,
+      VkDescriptorSetLayoutBinding bindings[] = {{
+        .binding = 0, // global uniform, frame number etc
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_ALL,
-      };
+      },{
+        .binding = 1, // module local uniform, params struct
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_ALL,
+      }};
       VkDescriptorSetLayoutCreateInfo dset_layout_info = {
         .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 1,
-        .pBindings    = &bindings,
+        .bindingCount = 2,
+        .pBindings    = bindings,
       };
       QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
     }
@@ -1563,10 +1515,12 @@ VkResult dt_graph_run(
       vkDestroyFramebuffer        (qvk.device, graph->node[i].draw_framebuffer, 0);
       vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
     }
+    graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
+    uint64_t uniform_offset = graph->uniform_global_size;
 #define TRAVERSE_PRE\
     modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
-    create_nodes(graph, arr+curr);
+    create_nodes(graph, arr+curr, &uniform_offset);
     // TODO: in fact this should only be an error for default create nodes cases:
     // TODO: the others might break the cycle by pushing more nodes.
 #define TRAVERSE_CYCLE\
@@ -1575,6 +1529,8 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
+    graph->uniform_size = uniform_offset;
+
     // these feedback connectors really cause a lot of trouble.
     // we need to initialise the input connectors now after full graph traversal.
     // this means we need the feedback connectors to go last in the connectors file
@@ -1694,8 +1650,8 @@ VkResult dt_graph_run(
       .size = graph->uniform_size,
       .usage = // VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT|
-        // trying to map uniform directly:
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
@@ -1703,9 +1659,10 @@ VkResult dt_graph_run(
     vkGetBufferMemoryRequirements(qvk.device, graph->uniform_buffer, &mem_req);
     VkMemoryAllocateInfo mem_alloc_info_uniform = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .allocationSize  = graph->uniform_size,
+      .allocationSize  = mem_req.size,//graph->uniform_size,
       .memoryTypeIndex = qvk_get_memory_type(mem_req.memoryTypeBits,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+          VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
     graph->vkmem_uniform_size = graph->uniform_size;
@@ -1736,7 +1693,7 @@ VkResult dt_graph_run(
         .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_uniform,
+        .descriptorCount = 1+2*graph->num_nodes+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_uniform,
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
@@ -1755,29 +1712,6 @@ VkResult dt_graph_run(
       graph->dset_cnt_buffer_alloc = graph->dset_cnt_buffer;
       graph->dset_cnt_uniform_alloc = graph->dset_cnt_uniform;
     }
-
-    // uniform descriptor
-    VkDescriptorSetAllocateInfo dset_info = {
-      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-      .descriptorPool = graph->dset_pool,
-      .descriptorSetCount = 1,
-      .pSetLayouts = &graph->uniform_dset_layout,
-    };
-    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &graph->uniform_dset));
-    VkDescriptorBufferInfo uniform_info = {
-      .buffer      = graph->uniform_buffer,
-      .range       = VK_WHOLE_SIZE,
-    };
-    VkWriteDescriptorSet buf_dset = {
-      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = graph->uniform_dset,
-      .dstBinding      = 0,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo     = &uniform_info,
-    };
-    vkUpdateDescriptorSets(qvk.device, 1, &buf_dset, 0, NULL);
   }
 
   // not really needed, vkBeginCommandBuffer will reset our cmd buf
@@ -1794,7 +1728,7 @@ VkResult dt_graph_run(
   vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
 
   // upload all source data to staging memory
-  threads_mutex_t *mutex = graph->io_mutex;
+  threads_mutex_t *mutex = 0;// graph->io_mutex; // no speed impact, maybe not needed
   if(mutex) threads_mutex_lock(mutex);
   if(run & s_graph_run_upload_source)
   {
@@ -1841,6 +1775,25 @@ VkResult dt_graph_run(
 
   QVKR(vkEndCommandBuffer(graph->command_buffer));
 
+  // now upload uniform data before submitting command buffer
+{ // module traversal
+  dt_module_t *const arr = graph->module;
+  const int arr_cnt = graph->num_modules;
+  uint8_t *uniform_mem = 0;
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
+        graph->uniform_size, 0, (void**)&uniform_mem));
+#define TRAVERSE_POST \
+  dt_module_t *mod = arr+curr;\
+  if(mod->so->commit_params)\
+    mod->so->commit_params(graph, mod);\
+  if(mod->committed_param_size)\
+    memcpy(uniform_mem + mod->uniform_offset, mod->committed_param, mod->committed_param_size);\
+  else if(mod->param_size)\
+    memcpy(uniform_mem + mod->uniform_offset, mod->param, mod->param_size);
+#include "graph-traverse.inc"
+  vkUnmapMemory(qvk.device, graph->vkmem_uniform);
+}
+
   clock_t clock_end = clock();
   dt_log(s_log_perf, "record cmd buf:\t%8.3f ms", 1000.0*(clock_end - clock_beg)/(double)CLOCKS_PER_SEC);
 
@@ -1852,12 +1805,14 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_record_cmd_buf)
   {
-    threads_mutex_lock(&qvk.queue_mutex);
+    if(graph->queue == qvk.queue_graphics)
+      threads_mutex_lock(&qvk.queue_mutex);
     vkResetFences(qvk.device, 1, &graph->command_fence);
     QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
-    threads_mutex_unlock(&qvk.queue_mutex);
+    if(graph->queue == qvk.queue_graphics)
+      threads_mutex_unlock(&qvk.queue_mutex);
   }
   
   if(run & s_graph_run_download_sink)
@@ -1943,7 +1898,6 @@ dt_graph_connector_image(
 void dt_graph_reset(dt_graph_t *g)
 {
   g->gui_attached = 0;
-  g->num_modules = 0;
   g->active_module = 0;
   g->lod_scale = 0;
   g->runflags = 0;

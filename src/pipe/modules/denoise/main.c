@@ -22,16 +22,16 @@ void modify_roi_out(
   module->connector[1].roi.full_ht = b[3] - b[1];
 }
 
-void commit_params(dt_graph_t *graph, dt_node_t *node)
+void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
-  uint32_t *i = (uint32_t *)node->module->committed_param;
-  const uint32_t *b = node->module->img_param.crop_aabb;
+  uint32_t *i = (uint32_t *)module->committed_param;
+  const uint32_t *b = module->img_param.crop_aabb;
   for(int k=0;k<4;k++) i[k] = b[k];
-  float *f = (float *)node->module->committed_param;
+  float *f = (float *)module->committed_param;
   for(int k=0;k<4;k++)
-    f[k+4] = node->module->img_param.black[k]/65535.0f;
+    f[k+4] = module->img_param.black[k]/65535.0f;
   for(int k=0;k<4;k++)
-    f[k+8] = node->module->img_param.white[k]/65535.0f;
+    f[k+8] = module->img_param.white[k]/65535.0f;
 }
 
 int init(dt_module_t *mod)
