@@ -184,7 +184,7 @@ darkroom_enter()
   }
 
   // rebuild gui specific to this image
-  dt_gui_read_ui_ascii("darkroom.ui");
+  dt_gui_read_favs("darkroom.ui");
   return 0;
 }
 

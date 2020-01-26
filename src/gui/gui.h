@@ -8,17 +8,6 @@
 // max images in flight in vulkan pipeline/swap chain
 #define DT_GUI_MAX_IMAGES 8
 
-// darkroom mode widgets to change module parameters
-typedef struct dt_widget_t
-{
-  int        modid;
-  int        parid;
-  dt_token_t type;
-  float      min;      // min slider value
-  float      max;
-}
-dt_widget_t;
-
 // view modes, lighttable, darkroom, ..
 typedef enum dt_gui_view_t
 {
@@ -86,9 +75,10 @@ typedef struct dt_gui_t
   dt_thumbnails_t  thumbnails;  // for light table mode
   dt_gui_view_t    view_mode;   // current view mode
 
-  // current gui module/parameter configuration
-  int num_widgets;
-  dt_widget_t widget[20];
+  // favourite gui module/parameter list
+  int fav_cnt;
+  int fav_modid[20];
+  int fav_parid[20];
 }
 dt_gui_t;
 
@@ -115,4 +105,4 @@ void dt_gui_add_widget(
     float min, float max);
 
 // read a gui configuration from ascii config file
-int dt_gui_read_ui_ascii(const char *filename);
+int dt_gui_read_favs(const char *filename);

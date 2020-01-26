@@ -290,15 +290,12 @@ void dt_gui_present()
 }
 
 void
-dt_gui_add_widget(
+dt_gui_add_fav(
     dt_token_t module,
     dt_token_t inst,
-    dt_token_t param,
-    dt_token_t type,
-    float min,
-    float max)
+    dt_token_t param)
 {
-  if(vkdt.num_widgets >= sizeof(vkdt.widget)/sizeof(vkdt.widget[0]))
+  if(vkdt.fav_cnt >= sizeof(vkdt.fav_modid)/sizeof(vkdt.fav_modid[0]))
     return;
 
   int modid = dt_module_get(&vkdt.graph_dev, module, inst);
@@ -306,21 +303,16 @@ dt_gui_add_widget(
   int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
   if(parid < 0) return;
 
-  int i = vkdt.num_widgets++;
-  vkdt.widget[i].modid = modid;
-  vkdt.widget[i].parid = parid;
-  vkdt.widget[i].type  = type;
-  vkdt.widget[i].min   = min;
-  vkdt.widget[i].max   = max;
+  int i = vkdt.fav_cnt++;
+  vkdt.fav_modid[i] = modid;
+  vkdt.fav_parid[i] = parid;
 }
 
-// TODO: also read descriptive text from here
-// TODO: maybe some more notes on precision or widget type, too?
 int
-dt_gui_read_ui_ascii(
+dt_gui_read_favs(
     const char *filename)
 {
-  vkdt.num_widgets = 0;
+  vkdt.fav_cnt = 0;
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
   char buf[2048];
@@ -332,24 +324,7 @@ dt_gui_read_ui_ascii(
     dt_token_t mod  = dt_read_token(line, &line);
     dt_token_t inst = dt_read_token(line, &line);
     dt_token_t parm = dt_read_token(line, &line);
-    dt_token_t type = dt_read_token(line, &line);
-    float min = 0.0f, max = 0.0f;
-    switch(type)
-    {
-      case dt_token("slider"):
-        min = dt_read_float(line, &line);
-        max = dt_read_float(line, &line);
-        break;
-      case dt_token("quad"):
-        break;
-      case dt_token("axquad"):
-        break;
-      case dt_token("draw"):
-        break;
-      default:
-        dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
-    }
-    dt_gui_add_widget(mod, inst, parm, type, min, max);
+    dt_gui_add_fav(mod, inst, parm);
   }
   fclose(f);
   return 0;

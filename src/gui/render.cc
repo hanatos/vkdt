@@ -18,7 +18,8 @@ extern "C" {
 
 // some ui state (probably clean up and put in a struct or so
 namespace { // anonymous gui state namespace
-static int g_active_widget = -1;
+static int g_active_widget_modid = -1;
+static int g_active_widget_parid = -1;
 static float g_state[2100] = {0.0f};
 static float *g_mapped = 0;
 static int g_lod = 0;
@@ -26,22 +27,21 @@ static float g_connector[100][30][2];
 
 void widget_end()
 {
-  if(g_active_widget < 0) return; // all good already
-  int i = g_active_widget;
+  if(g_active_widget_modid < 0) return; // all good already
+  int modid = g_active_widget_modid;
+  int parid = g_active_widget_parid;
   if(g_mapped)
   {
     g_mapped = 0;
   }
   else
   {
-    int modid = vkdt.widget[i].modid;
-    int parid = vkdt.widget[i].parid;
     const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
     float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset);
     size_t size = dt_ui_param_size(p->type, p->cnt);
     memcpy(v, g_state, size);
   }
-  g_active_widget = -1;
+  g_active_widget_modid = -1;
   vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
       s_graph_run_all &~s_graph_run_upload_source);
 }
@@ -365,10 +365,11 @@ extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
   // TODO: probably move to darkroom.h and talk to the c++ gui via these g_* buffers
   const float px_dist = 20;
 
-  if(g_active_widget >= 0)
+  if(g_active_widget_modid >= 0)
   {
-    const int i = g_active_widget;
-    switch(vkdt.widget[i].type)
+    switch(vkdt.graph_dev.module[
+        g_active_widget_modid].so->param[
+        g_active_widget_parid]->widget.type)
     {
       case dt_token("quad"):
       {
@@ -650,13 +651,13 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
 void render_darkroom_favourite()
 {
   // streamlined "favourite" ui
-  for(int i=0;i<vkdt.num_widgets;i++)
+  for(int i=0;i<vkdt.fav_cnt;i++)
   {
-    int modid = vkdt.widget[i].modid;
-    int parid = vkdt.widget[i].parid;
+    int modid = vkdt.fav_modid[i];
+    int parid = vkdt.fav_parid[i];
     char string[256];
     // distinguish by type:
-    switch(vkdt.widget[i].type)
+    switch(vkdt.graph_dev.module[modid].so->param[parid]->widget.type)
     {
       case dt_token("slider"):
       {
@@ -667,9 +668,9 @@ void render_darkroom_favourite()
         memcpy(str,
             &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
         if(ImGui::SliderFloat(str, val,
-            vkdt.widget[i].min,
-            vkdt.widget[i].max,
-            "%2.5f"))
+              vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
+              vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
+              "%2.5f"))
         {
           // TODO: let module decide which flags are needed!
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
@@ -684,7 +685,7 @@ void render_darkroom_favourite()
       {
         float *v = (float*)(vkdt.graph_dev.module[modid].param + 
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        if(g_active_widget == i)
+        if(g_active_widget_modid == modid && g_active_widget_parid == parid)
         {
           snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
               dt_token_str(vkdt.graph_dev.module[modid].name),
@@ -699,7 +700,8 @@ void render_darkroom_favourite()
           if(ImGui::Button(string))
           {
             widget_end(); // if another one is still in progress, end that now
-            g_active_widget = i;
+            g_active_widget_modid = modid;
+            g_active_widget_parid = parid;
             // copy to quad state
             memcpy(g_state, v, sizeof(float)*8);
             // reset module params so the image will not appear distorted:
@@ -713,7 +715,7 @@ void render_darkroom_favourite()
       {
         float *v = (float*)(vkdt.graph_dev.module[modid].param + 
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        if(g_active_widget == i)
+        if(g_active_widget_modid == modid && g_active_widget_parid == parid)
         {
           snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
               dt_token_str(vkdt.graph_dev.module[modid].name),
@@ -728,7 +730,8 @@ void render_darkroom_favourite()
           if(ImGui::Button(string))
           {
             widget_end(); // if another one is still in progress, end that now
-            g_active_widget = i;
+            g_active_widget_modid = modid;
+            g_active_widget_parid = parid;
             // copy to quad state
             memcpy(g_state, v, sizeof(float)*4);
             // reset module params so the image will not appear distorted:
@@ -742,7 +745,7 @@ void render_darkroom_favourite()
       {
         float *v = (float*)(vkdt.graph_dev.module[modid].param + 
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        if(g_active_widget == i)
+        if(g_active_widget_modid == modid && g_active_widget_parid == parid)
         {
           snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
               dt_token_str(vkdt.graph_dev.module[modid].name),
@@ -757,7 +760,8 @@ void render_darkroom_favourite()
           if(ImGui::Button(string))
           {
             widget_end(); // if another one is still in progress, end that now
-            g_active_widget = i;
+            g_active_widget_modid = modid;
+            g_active_widget_parid = parid;
             g_mapped = v; // map state
           }
         }
@@ -882,11 +886,12 @@ void render_darkroom()
           ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
     }
     // center view has on-canvas widgets:
-    if(g_active_widget >= 0)
+    if(g_active_widget_modid >= 0)
     {
-      const int i = g_active_widget;
       // distinguish by type:
-      switch(vkdt.widget[i].type)
+      switch(vkdt.graph_dev.module[
+          g_active_widget_modid].so->param[
+          g_active_widget_parid]->widget.type)
       {
         case dt_token("quad"):
         {
