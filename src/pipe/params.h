@@ -1,5 +1,7 @@
 #pragma once
 
+#include "gui/widget_descriptor.h"
+
 // parameters to go along with every module
 typedef struct dt_ui_param_t
 {
@@ -10,6 +12,7 @@ typedef struct dt_ui_param_t
   dt_token_t type;  // type of param: "float" ..
   int32_t cnt;      // number of elements
   int32_t offset;   // offset into uniform buffer
+  dt_widget_descriptor_t widget; // for interoperability with gui
   union
   {
     float val[1]; // let's assume we at least have one argument

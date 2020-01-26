@@ -30,14 +30,13 @@ read_connector_ascii(
 }
 
 // read param config and default values and gui annotations
-// TODO: put min and max values into gui definition instead?
 static inline dt_ui_param_t*
 read_param_config_ascii(
     char *line)
 {
   // params come in this format:
-  // tkn:tkn:int:float:float:float
-  // name:type:cnt:defval:min:max
+  // tkn:tkn:int:float
+  // name:type:cnt:defval
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t type = dt_read_token(line, &line);
   // dt_log(s_log_pipe, "param %"PRItkn" %"PRItkn, dt_token_str(name), dt_token_str(type));
@@ -73,7 +72,8 @@ dt_module_so_load(
     dt_module_so_t *mod,
     const char *dirname)
 {
-  if(!strcmp(dirname, ".") || !strcmp(dirname, "..")) return 1;
+  if(!strcmp(dirname, ".") || !strcmp(dirname, "..") || !strcmp(dirname, "shared"))
+    return 1;
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
   char filename[2048], line[2048];
@@ -126,12 +126,58 @@ dt_module_so_load(
         dt_ui_param_type_size(mod->param[i-1]->type)*mod->param[i-1]->cnt;
   }
 
+  // read ui widget connection:
+  snprintf(filename, sizeof(filename), "modules/%s/params.ui", dirname);
+  f = fopen(filename, "rb");
+  if(!f)
+  { // init as [0,1] sliders as fallback
+    for(int i=0;i<mod->num_params;i++)
+      mod->param[i]->widget = (dt_widget_descriptor_t) {
+        .type = dt_token("slider"),
+        .min  = 0.0f,
+        .max  = 1.0f
+      };
+  }
+  else
+  {
+    while(!feof(f))
+    {
+      fscanf(f, "%[^\n]", line);
+      char *b = line;
+      if(fgetc(f) == EOF) break; // read \n
+      dt_token_t parm = dt_read_token(b, &b);
+      dt_token_t type = dt_read_token(b, &b);
+      float min = 0.0f, max = 0.0f;
+      switch(type)
+      {
+        case dt_token("slider"):
+          min = dt_read_float(b, &b);
+          max = dt_read_float(b, &b);
+          break;
+        case dt_token("quad"):
+          break;
+        case dt_token("axquad"):
+          break;
+        case dt_token("draw"):
+          break;
+        default:
+          dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
+      }
+      int pid = dt_module_get_param(mod, parm);
+      mod->param[pid]->widget = (dt_widget_descriptor_t) {
+        .type = type,
+        .min  = min,
+        .max  = max,
+      };
+    }
+    fclose(f);
+  }
+
   // read connector info
   snprintf(filename, sizeof(filename), "modules/%s/connectors", dirname);
   f = fopen(filename, "rb");
   if(!f)
   {
-    // TODO: clean up!
     dt_log(s_log_pipe|s_log_err, "module %s has no connectors!", dirname);
     return 1; // error, can't have zero connectors.
   }
