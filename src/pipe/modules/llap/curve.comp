@@ -27,6 +27,12 @@ layout(push_constant, std140) uniform push_t
   uint num_gamma;
 } push;
 
+
+// shit this turns ugly for clarity >= 5. try this:
+// gnuplot> plot for [i=0:10] (5*i/10.0)*(x-g)*exp(-(x-g)*(x-g)/(2*s*s/3.0)) + g + s*2.0*(1-(x-g)/(2*s))*(x-g)/(2*s) + ((x-g)/(2*s))**2*(s+s*b) lw 5
+// the above looks monotonic for up to i < 5, i.e. clarity < 2.5
+// maybe we should instead try that for up to i=5?
+// plot for [i=0:10] (x-g) - (5*i/10.0)*(x-g)/(s*s) * 1.0/(sqrt(2*3.141592)*s)*0.001*exp(-(x-g)**2/(2*s*s)) lw 5
 float
 curve(
     float x,
