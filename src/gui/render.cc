@@ -648,133 +648,145 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
   return err;
 }
 
-void render_darkroom_favourite()
+namespace {
+inline void draw_widget(int modid, int parid)
 {
-  // streamlined "favourite" ui
-  for(int i=0;i<vkdt.fav_cnt;i++)
+  char string[256];
+  // distinguish by type:
+  switch(vkdt.graph_dev.module[modid].so->param[parid]->widget.type)
   {
-    int modid = vkdt.fav_modid[i];
-    int parid = vkdt.fav_parid[i];
-    char string[256];
-    // distinguish by type:
-    switch(vkdt.graph_dev.module[modid].so->param[parid]->widget.type)
+    case dt_token("slider"):
     {
-      case dt_token("slider"):
+      // TODO: distinguish by count:
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + 
+        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      char str[10] = {0};
+      memcpy(str,
+          &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+      if(ImGui::SliderFloat(str, val,
+            vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
+            vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
+            "%2.5f"))
       {
-        // TODO: distinguish by count:
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + 
-          vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        char str[10] = {0};
-        memcpy(str,
-            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
-        if(ImGui::SliderFloat(str, val,
-              vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
-              vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
-              "%2.5f"))
-        {
-          // TODO: let module decide which flags are needed!
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                 s_graph_run_all
-              & ~s_graph_run_before_active
-              & ~s_graph_run_upload_source);
-          vkdt.graph_dev.active_module = modid;
-        }
-        break;
+        // TODO: let module decide which flags are needed!
+        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+               s_graph_run_all
+            & ~s_graph_run_before_active
+            & ~s_graph_run_upload_source);
+        vkdt.graph_dev.active_module = modid;
       }
-      case dt_token("quad"):
-      {
-        float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-          vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        if(g_active_widget_modid == modid && g_active_widget_parid == parid)
-        {
-          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-          if(ImGui::Button(string)) widget_end();
-        }
-        else
-        {
-          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-          if(ImGui::Button(string))
-          {
-            widget_end(); // if another one is still in progress, end that now
-            g_active_widget_modid = modid;
-            g_active_widget_parid = parid;
-            // copy to quad state
-            memcpy(g_state, v, sizeof(float)*8);
-            // reset module params so the image will not appear distorted:
-            float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
-            memcpy(v, def, sizeof(float)*8);
-          }
-        }
-        break;
-      }
-      case dt_token("axquad"):
-      {
-        float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-          vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        if(g_active_widget_modid == modid && g_active_widget_parid == parid)
-        {
-          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-          if(ImGui::Button(string)) widget_end();
-        }
-        else
-        {
-          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-          if(ImGui::Button(string))
-          {
-            widget_end(); // if another one is still in progress, end that now
-            g_active_widget_modid = modid;
-            g_active_widget_parid = parid;
-            // copy to quad state
-            memcpy(g_state, v, sizeof(float)*4);
-            // reset module params so the image will not appear distorted:
-            float def[] = {0.f, 1.f, 0.f, 1.f};
-            memcpy(v, def, sizeof(float)*4);
-          }
-        }
-        break;
-      }
-      case dt_token("draw"):
-      {
-        float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-          vkdt.graph_dev.module[modid].so->param[parid]->offset);
-        if(g_active_widget_modid == modid && g_active_widget_parid == parid)
-        {
-          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-          if(ImGui::Button(string)) widget_end();
-        }
-        else
-        {
-          snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-          if(ImGui::Button(string))
-          {
-            widget_end(); // if another one is still in progress, end that now
-            g_active_widget_modid = modid;
-            g_active_widget_parid = parid;
-            g_mapped = v; // map state
-          }
-        }
-        break;
-      }
-      default:;
+      break;
     }
+    case dt_token("quad"):
+    {
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      if(g_active_widget_modid == modid && g_active_widget_parid == parid)
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string)) widget_end();
+      }
+      else
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          g_active_widget_modid = modid;
+          g_active_widget_parid = parid;
+          // copy to quad state
+          memcpy(g_state, v, sizeof(float)*8);
+          // reset module params so the image will not appear distorted:
+          float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
+          memcpy(v, def, sizeof(float)*8);
+        }
+      }
+      break;
+    }
+    case dt_token("axquad"):
+    {
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      if(g_active_widget_modid == modid && g_active_widget_parid == parid)
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string)) widget_end();
+      }
+      else
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          g_active_widget_modid = modid;
+          g_active_widget_parid = parid;
+          // copy to quad state
+          memcpy(g_state, v, sizeof(float)*4);
+          // reset module params so the image will not appear distorted:
+          float def[] = {0.f, 1.f, 0.f, 1.f};
+          memcpy(v, def, sizeof(float)*4);
+        }
+      }
+      break;
+    }
+    case dt_token("draw"):
+    {
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      if(g_active_widget_modid == modid && g_active_widget_parid == parid)
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string)) widget_end();
+      }
+      else
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          g_active_widget_modid = modid;
+          g_active_widget_parid = parid;
+          g_mapped = v; // map state
+        }
+      }
+      break;
+    }
+    default:;
   }
+}
+} // anonymous namespace
+
+void render_darkroom_favourite()
+{ // streamlined "favourite" ui
+  for(int i=0;i<vkdt.fav_cnt;i++)
+    draw_widget(vkdt.fav_modid[i], vkdt.fav_parid[i]);
 }
 
 void render_darkroom_full()
 {
-  ImGui::Text("unimplemented");
+  char name[30];
+  dt_graph_t *graph = &vkdt.graph_dev;
+  dt_module_t *const arr = graph->module;
+  const int arr_cnt = graph->num_modules;
+#define TRAVERSE_PRE \
+  snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,\
+      dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));\
+  if(ImGui::CollapsingHeader(name))\
+    for(int i=0;i<arr[curr].so->num_params;i++)\
+      draw_widget(curr, i);
+#include "pipe/graph-traverse.inc"
 }
 
 void render_darkroom_pipeline()
@@ -988,7 +1000,7 @@ void render_darkroom()
     ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
     if(ImGui::BeginTabBar("layer", tab_bar_flags))
     {
-      if(ImGui::BeginTabItem("favourite"))
+      if(ImGui::BeginTabItem("favourites"))
       {
         render_darkroom_favourite();
         ImGui::EndTabItem();
