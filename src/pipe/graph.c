@@ -1631,7 +1631,8 @@ VkResult dt_graph_run(
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .allocationSize  = graph->heap_staging.vmsize,
       .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits_staging,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+          VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
     graph->vkmem_staging_size = graph->heap_staging.vmsize;
