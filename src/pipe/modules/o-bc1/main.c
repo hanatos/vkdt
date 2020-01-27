@@ -46,6 +46,7 @@ void write_sink(
   const int bx = wd/4, by = ht/4;
   size_t num_blocks = bx * by;
   uint8_t *out = (uint8_t *)malloc(sizeof(uint8_t)*8*num_blocks);
+// #pragma omp parallel for collapse(2) schedule(static)
   for(int j=0;j<4*by;j+=4)
   {
     for(int i=0;i<4*bx;i+=4)

@@ -1,1 +1,2 @@
 MOD_LDFLAGS=-lz
+MOD_CFLAGS=-fopenmp
