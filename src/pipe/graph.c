@@ -1783,6 +1783,7 @@ VkResult dt_graph_run(
   uint8_t *uniform_mem = 0;
   QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
         graph->uniform_size, 0, (void**)&uniform_mem));
+  ((uint32_t *)uniform_mem)[0] = graph->frame;
 #define TRAVERSE_POST \
   dt_module_t *mod = arr+curr;\
   if(mod->so->commit_params)\
