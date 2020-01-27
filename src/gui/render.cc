@@ -781,11 +781,13 @@ void render_darkroom_full()
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
 #define TRAVERSE_PRE \
+  if(arr[curr].so->num_params) {\
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,\
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));\
   if(ImGui::CollapsingHeader(name))\
     for(int i=0;i<arr[curr].so->num_params;i++)\
-      draw_widget(curr, i);
+      draw_widget(curr, i);\
+  }
 #include "pipe/graph-traverse.inc"
 }
 

@@ -129,16 +129,14 @@ dt_module_so_load(
   // read ui widget connection:
   snprintf(filename, sizeof(filename), "modules/%s/params.ui", dirname);
   f = fopen(filename, "rb");
-  if(!f)
-  { // init as [0,1] sliders as fallback
-    for(int i=0;i<mod->num_params;i++)
-      mod->param[i]->widget = (dt_widget_descriptor_t) {
-        .type = dt_token("slider"),
-        .min  = 0.0f,
-        .max  = 1.0f
-      };
-  }
-  else
+  // init as [0,1] sliders as fallback
+  for(int i=0;i<mod->num_params;i++)
+    mod->param[i]->widget = (dt_widget_descriptor_t) {
+      .type = dt_token("slider"),
+      .min  = 0.0f,
+      .max  = 1.0f
+    };
+  if(f)
   {
     while(!feof(f))
     {
@@ -159,6 +157,8 @@ dt_module_so_load(
         case dt_token("axquad"):
           break;
         case dt_token("draw"):
+          break;
+        case dt_token("hidden"):
           break;
         default:
           dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
