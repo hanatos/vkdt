@@ -26,7 +26,7 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  const int block = module->img_param.filters == 9u ? 3 : 2;
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
   module->connector[2].roi = module->connector[0].roi;
   for(int i=0;i<NUM_LEVELS;i++)
   {
@@ -46,13 +46,17 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  // TODO: if filters start with half and resample transparently in the end (warp uses textureLod()/sample_soft() on img_off).
+  // TODO: if no filters, jump right in! (half will not downsize, i.e. scale=1) we'll get full size warp offsets in the end, that's all
+  // TODO: roi madness
+
   // connect each mosaic input to half, generate grey lum map for both input images
   // by a sequence of half, down4, down4, down4 kernels.
   // then compute distance (dist kernel) coarse to fine, merge best offsets (merge kernel),
   // input best coarse offsets to next finer level, and finally output offsets on finest scale.
   //
   dt_roi_t roi[NUM_LEVELS+1] = {module->connector[0].roi};
-  const int block = module->img_param.filters == 9u ? 3 : 2;
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
   for(int i=1;i<=NUM_LEVELS;i++)
   {
     int scale = i == 1 ? block : DOWN;
@@ -81,7 +85,7 @@ create_nodes(
       .connector = {{
         .name   = dt_token("input"),
         .type   = dt_token("read"),
-        .chan   = dt_token("rggb"),
+        .chan   = block == 1 ? dt_token("rgba") : dt_token("rggb"),
         .format = module->connector[k].format,
         .roi    = roi[0],
         .connected_mi = -1,
@@ -128,6 +132,7 @@ create_nodes(
           .roi    = roi[i+1],
         }},
       };
+      // TODO: if(rgba && i==0) connector_copy as above
       CONN(dt_node_connect(graph, id_down[k][i-1], 1, id_down[k][i], 0));
     }
   }
@@ -337,7 +342,7 @@ create_nodes(
     },{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
-      .chan   = dt_token("rggb"),
+      .chan   = block == 1 ? dt_token("rgba") : dt_token("rggb"),
       .format = dt_token("f16"),
       .roi    = roi[0],
     }},

@@ -1,6 +1,6 @@
-input:read:rggb:*
-warp:read:rggb:*
-output:write:rggb:f16
+input:read:*:*
+warp:read:*:*
+output:write:*:f16
 debugi0:write:y:f16
 debugi1:write:y:f16
 debugi2:write:y:f16

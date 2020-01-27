@@ -32,6 +32,7 @@
     // previous source. reset to the generic module->so version:
     cn1->format = graph->element[m1].so->connector[c1].format;
     cn1->frames = graph->element[m1].so->connector[c1].frames;
+    cn1->chan   = graph->element[m1].so->connector[c1].chan;
 #endif
 
     // decrement previous source's reference counter
@@ -46,6 +47,7 @@
         // replace the format of this connector by the (potentially generic) module->so version
         graph->element[old_mod].connector[old_con].format = graph->element[old_mod].so->connector[old_con].format;
         graph->element[old_mod].connector[old_con].frames = graph->element[old_mod].so->connector[old_con].frames;
+        graph->element[old_mod].connector[old_con].chan   = graph->element[old_mod].so->connector[old_con].chan;
       }
 #endif
     }
@@ -74,11 +76,15 @@
   if(cn0->type != dt_token("write") && cn0->type != dt_token("source")) return 9;
 
   // check buffer config for compatibility
-  if(cn1->chan != cn0->chan) return 10;
   // if output is already connected to another input, use this format as mandatory (can't be "*" any more)
   // if any one is "*" use the other
   // if both are "*" fall back to default "f16"
   // this should mostly happen on the module level
+  if(cn1->chan == dt_token("*")) cn1->chan = cn0->chan;
+  if(cn0->chan == dt_token("*")) cn0->chan = cn1->chan;
+  if(cn1->chan == dt_token("*")) cn1->chan = dt_token("rgba");
+  if(cn0->chan == dt_token("*")) cn0->chan = dt_token("rgba");
+  if(cn1->chan != cn0->chan) return 10;
   if(cn1->format == dt_token("*")) cn1->format = cn0->format;
   if(cn0->format == dt_token("*")) cn0->format = cn1->format;
   if(cn1->format == dt_token("*")) cn1->format = dt_token("f16");

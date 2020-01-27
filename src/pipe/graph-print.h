@@ -106,6 +106,8 @@ dt_graph_print_nodes(
             c);
         if(graph->node[m].connector[c].array_length > 1)
           fprintf(stdout, "[style=bold]\n");
+        if(graph->node[m].connector[c].flags & s_conn_feedback)
+          fprintf(stdout, "[style=dashed]\n");
         else
           fprintf(stdout, "\n");
       }

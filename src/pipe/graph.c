@@ -750,6 +750,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
               frame = 1-f;
               // this should be ensured during connection:
               assert(c->frames == 2); 
+              // XXX this fails if the feedback target is not the last connector on the target module:
               assert(graph->node[c->connected_mi].connector[c->connected_mc].frames == 2);
             }
             // the image struct is shared between in and out connectors, but we 
@@ -774,8 +775,9 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
       else
       { // else sorry not connected, buffer will not be bound.
         // unconnected inputs are a problem however:
-        dt_log(s_log_err | s_log_pipe, "kernel %"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
-            dt_token_str(node->name), dt_token_str(node->kernel), dt_token_str(node->connector[i].name));
+        dt_log(s_log_err | s_log_pipe, "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
+            dt_token_str(node->name), dt_token_str(node->module->inst),
+            dt_token_str(node->kernel), dt_token_str(node->connector[i].name));
       }
       if(c->type == dt_token("sink"))
         vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
