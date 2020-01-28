@@ -212,13 +212,7 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 4: return VK_FORMAT_R8G8B8A8_UNORM;
     }
     case dt_token("bc1") : return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
-                           // XXX FIXME: display format for intel is
-                           // VK_FORMAT_B8G8R8A8_UNORM
-                           // which is not supported as a storage format :(
-                           // TODO: need to detect 10 bit and explicitly set
-                           // to yet another surface format stored somewhere
-    // case dt_token("dspy"): return qvk.surf_format.format;
-    case dt_token("dspy"): return VK_FORMAT_R8G8B8A8_UNORM;
+    case dt_token("dspy"): return qvk.surf_format.format;
   }
   return VK_FORMAT_UNDEFINED;
 }
