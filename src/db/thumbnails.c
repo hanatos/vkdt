@@ -229,17 +229,22 @@ dt_thumbnails_cache_one(
   {
     int cid = dt_module_get_connector(graph->module+modid, dt_token("input"));
     int m0 = graph->module[modid].connector[cid].connected_mi;
-    int c0 = graph->module[modid].connector[cid].connected_mc;
+    int o0 = graph->module[modid].connector[cid].connected_mc;
     if(m0 < 0)
     {
       dt_log(s_log_err, "[thm] config '%s' has no connected display module!", cfgfilename);
       dt_graph_cleanup(graph);
       return 3; // display input not connected
     }
-    const int m1 = dt_module_add(graph, dt_token("o-bc1"), dt_token("main"));
-    const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-    graph->module[m0].connector[c0].format = graph->module[m1].connector[c1].format;
-    if(dt_module_connect(graph, m0, c0, m1, c1))
+    // TODO: implement and set rec2020 param on f2srgb!
+    const int m1 = dt_module_add(graph, dt_token("f2srgb"), dt_token("main"));
+    const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+    const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
+    const int m2 = dt_module_add(graph, dt_token("o-bc1"), dt_token("main"));
+    const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
+    graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
+    if(dt_module_connect(graph, m0, o0, m1, i1) ||
+       dt_module_connect(graph, m1, o1, m2, i2))
     {
       dt_log(s_log_err, "[thm] config '%s' connecting bc1 output failed!", cfgfilename);
       return 3;
