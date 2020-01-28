@@ -145,7 +145,8 @@ int main(int argc, char *argv[])
     if(vkdt.state.anim_playing)
     {
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
-      vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+      if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
     dt_view_process();
     if(vkdt.state.anim_playing)
