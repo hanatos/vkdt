@@ -23,17 +23,29 @@ replace_display(
   // get module the display is connected to:
   int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
   int m0 = graph->module[mid].connector[cid].connected_mi;
-  int c0 = graph->module[mid].connector[cid].connected_mc;
+  int o0 = graph->module[mid].connector[cid].connected_mc;
 
   if(m0 < 0) return 2; // display input not connected
 
   // new module export with same inst
   // maybe new module 8-bit in between here
   dt_token_t export = ldr ? dt_token("o-jpg") : dt_token("o-pfm");
-  const int m1 = dt_module_add(graph, export, inst);
-  const int c1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-  graph->module[m0].connector[c0].format = graph->module[m1].connector[c1].format;
-  CONN(dt_module_connect(graph, m0, c0, m1, c1));
+  const int m1 = dt_module_add(graph, dt_token("f2srgb"), inst);
+  const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+  const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
+  const int m2 = dt_module_add(graph, export, inst);
+  const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
+  if(ldr)
+  {
+    graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
+    CONN(dt_module_connect(graph, m0, o0, m1, i1));
+    CONN(dt_module_connect(graph, m1, o1, m2, i2));
+  }
+  else
+  {
+    graph->module[m0].connector[o0].format = graph->module[m2].connector[i2].format;
+    CONN(dt_module_connect(graph, m0, o0, m2, i2));
+  }
 
   // TODO: set output filename parameter on export module
   return 0;
