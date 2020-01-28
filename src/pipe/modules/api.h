@@ -4,7 +4,6 @@
 #include "pipe/module.h"
 
 // some module specific helpers
-// TODO: is this the best place? what to add here?
 
 // convenience function to detect inputs
 static inline int
@@ -28,7 +27,6 @@ dt_node_sink(dt_node_t *n)
   return n->connector[0].type == dt_token("sink");
 }
 
-// TODO: also need _copy_ctx() version for the context buffer!
 static inline void
 dt_connector_copy(
     dt_graph_t  *graph,
@@ -41,18 +39,45 @@ dt_connector_copy(
   module->connector[mc].connected_ni = nid;
   module->connector[mc].connected_nc = nc;
   // connect the node:
-  graph->node[nid].connector[nc] = module->connector[mc];
+  dt_connector_t *c0 = module->connector + mc;
+  dt_connector_t *c1 = graph->node[nid].connector + nc;
+  // copy defaults if the node hasn't been inited at all:
+  if(c1->name == 0)
+    *c1 = *c0;
+  else
+  {
+    c1->frames = c0->frames;
+    c1->flags  = c0->flags;
+    c1->format = c0->format; // modules may be rigged from the outside, for export etc
+    c1->roi    = c0->roi;
+    c1->connected_mi = c0->connected_mi;
+    c1->connected_mc = c0->connected_mc;
+    c1->connected_ni = 0;
+    c1->connected_nc = 0;
+  }
+
   // input connectors have a unique source. connect their node layer:
   if(dt_connector_input(module->connector+mc) &&
       module->connector[mc].connected_mi >= 0)
   {
-    // connect our node to the nodeid stored on the module
-    graph->node[nid].connector[nc].connected_mi = graph->module[
-      module->connector[mc].connected_mi].connector[
-        module->connector[mc].connected_mc].connected_ni;
-    graph->node[nid].connector[nc].connected_mc = graph->module[
-      module->connector[mc].connected_mi].connector[
-        module->connector[mc].connected_mc].connected_nc;
+    if(module->connector[mc].flags & s_conn_feedback)
+    {
+      // feedback connectors usually go back/form cycles in the dag.
+      // this means that the module we're referring to here is often
+      // not initialised. in particular we don't know which node
+      // it'll be associated with. thus, we remember the module reference
+      // on the node, too, and have to remember to do a repointing pass
+      // before we go to the next stage after node creation.
+    }
+    else
+    { // connect our node to the nodeid stored on the module
+      graph->node[nid].connector[nc].connected_mi = graph->module[
+        module->connector[mc].connected_mi].connector[
+          module->connector[mc].connected_mc].connected_ni;
+      graph->node[nid].connector[nc].connected_mc = graph->module[
+        module->connector[mc].connected_mi].connector[
+          module->connector[mc].connected_mc].connected_nc;
+    }
   }
 }
 
