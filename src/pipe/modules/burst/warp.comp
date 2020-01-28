@@ -38,9 +38,9 @@ main()
   vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0))).rg;
 
 #if 0
-  float col = 0.1*abs(off.y);
+  vec3 col = vec3(0.1*abs(off.y));
 #else
-  float col;
+  vec3 col;
   if(push.filters == 9)
   { // xtrans: stupid hack #2: get block coordinate and select closest pixel of same colour
     ivec2 pos = ipos - (ipos/3)*3;          // position inside src 3x3 block
@@ -71,20 +71,22 @@ main()
       }
       rd = dst + idst;
     }
-    col = texelFetch(img_in, rd, 0).r;
+    col = texelFetch(img_in, rd, 0).rrr;
   }
   else if(push.filters == 0)
   { // no mosaic: just grab pixel regardless of mosaic
-    // col = texelFetch(img_in, ipos + ivec2(off.rg), 0).r;
-    col = textureLod(img_in, (vec2(ipos)+0.5 + off.rg)/vec2(textureSize(img_in, 0)), 0).r;
+    // col = texelFetch(img_in, ipos + ivec2(off.rg), 0).rgb;
+    // col = vec3(ipos/vec2(textureSize(img_in, 0)), 1);//texelFetch(img_in, ipos, 0).rgb;
+    // col = vec3(off.rg*0.01, 1);
+    col = textureLod(img_in, (vec2(ipos)+0.5 + off.rg)/vec2(textureSize(img_in, 0)), 0).rgb;
   }
   else
   { // bayer: stupid hack #1 to keep mosaic pattern: round off to block size:
     ivec2 offi = ivec2(off.rg / (block));
     offi = block * offi;
-    col = texelFetch(img_in, ipos + offi, 0).r;
+    col = texelFetch(img_in, ipos + offi, 0).rrr;
   }
 #endif
 
-  imageStore(img_out, ipos, vec4(vec3(col), 1));
+  imageStore(img_out, ipos, vec4(col, 1));
 }

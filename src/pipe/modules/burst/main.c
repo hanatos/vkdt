@@ -46,10 +46,6 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // TODO: if filters start with half and resample transparently in the end (warp uses textureLod()/sample_soft() on img_off).
-  // TODO: if no filters, jump right in! (half will not downsize, i.e. scale=1) we'll get full size warp offsets in the end, that's all
-  // TODO: roi madness
-
   // connect each mosaic input to half, generate grey lum map for both input images
   // by a sequence of half, down4, down4, down4 kernels.
   // then compute distance (dist kernel) coarse to fine, merge best offsets (merge kernel),
@@ -327,7 +323,7 @@ create_nodes(
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
-      .chan   = dt_token("y"),
+      .chan   = block == 1 ? dt_token("rgba") : dt_token("rggb"),
       .format = dt_token("f16"),
       .roi    = roi[0],
       .connected_mi = -1,
@@ -349,7 +345,7 @@ create_nodes(
     .push_constant_size = 2*sizeof(uint32_t),
     .push_constant = {
       module->img_param.filters,
-      module->img_param.filters == 9 ? 3 : 2,
+      block,
     },
   };
   dt_connector_copy(graph, module, 1, id_warp, 0);
