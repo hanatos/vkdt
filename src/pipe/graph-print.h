@@ -42,10 +42,10 @@ dt_graph_print_modules(
     for(int c=0;c<graph->module[m].num_connectors;c++)
     {
       if((graph->module[m].connector[c].type == dt_token("read") ||
-            graph->module[m].connector[c].type == dt_token("sink")) &&
+          graph->module[m].connector[c].type == dt_token("sink")) &&
           graph->module[m].connector[c].connected_mi >= 0)
       {
-        fprintf(stdout, "n%d_%s:%d -> n%d_%s:%d\n",
+        fprintf(stdout, "n%d_%s:%d -> n%d_%s:%d",
             graph->module[m].connector[c].connected_mi,
             _pr(graph->module[
               graph->module[m].connector[c].connected_mi
@@ -54,6 +54,9 @@ dt_graph_print_modules(
             m,
             _pr(graph->module[m].name),
             c);
+        if(graph->module[m].connector[c].flags & s_conn_feedback)
+          fprintf(stdout, "[style=dashed]\n");
+        else fprintf(stdout, "\n");
       }
     }
   }
@@ -88,7 +91,7 @@ dt_graph_print_nodes(
     for(int c=0;c<graph->node[m].num_connectors;c++)
     {
       if((graph->node[m].connector[c].type == dt_token("read") ||
-            graph->node[m].connector[c].type == dt_token("sink")) &&
+          graph->node[m].connector[c].type == dt_token("sink")) &&
           graph->node[m].connector[c].connected_mi >= 0)
       {
         fprintf(stdout, "n%d_%s_%s:%d -> n%d_%s_%s:%d",
@@ -106,7 +109,7 @@ dt_graph_print_nodes(
             c);
         if(graph->node[m].connector[c].array_length > 1)
           fprintf(stdout, "[style=bold]\n");
-        if(graph->node[m].connector[c].flags & s_conn_feedback)
+        else if(graph->node[m].connector[c].flags & s_conn_feedback)
           fprintf(stdout, "[style=dashed]\n");
         else
           fprintf(stdout, "\n");
