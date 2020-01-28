@@ -613,10 +613,52 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   return VK_SUCCESS;
 }
 
+
 // 2nd pass, now we have images and vkDeviceMemory, let's bind images and buffers
 // to memory and create descriptor sets
 static inline VkResult
 alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
+{
+  for(int i=0;i<node->num_connectors;i++) if(dt_connector_output(node->connector+i))
+  { // allocate our output buffers
+    dt_connector_t *c = node->connector+i;
+    VkFormat format = dt_connector_vkformat(c);
+    for(int f=0;f<c->frames;f++) for(int k=0;k<MAX(1,c->array_length);k++)
+    {
+      dt_connector_image_t *img = dt_graph_connector_image(graph,
+          node - graph->node, i, k, f);
+
+      // only actually backed by memory if we have all these frames.
+      // else we'll just point to the same image for all frames:
+      vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset);
+
+      // put all newly created images into right layout
+      VkCommandBuffer cmd_buf = graph->command_buffer;
+      IMG_LAYOUT(img, UNDEFINED, SHADER_READ_ONLY_OPTIMAL);
+
+      VkImageViewCreateInfo images_view_create_info = {
+        .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .viewType   = VK_IMAGE_VIEW_TYPE_2D,
+        .format     = format,
+        .image      = img->image,
+        .subresourceRange = {
+          .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+          .baseMipLevel   = 0,
+          .levelCount     = 1,
+          .baseArrayLayer = 0,
+          .layerCount     = 1
+        },
+      };
+      if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
+      QVKR(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &img->image_view));
+    }
+  }
+  return VK_SUCCESS;
+}
+
+// initialise descriptor sets, bind staging buffer memory
+static inline VkResult
+alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
 {
   if(node->dset_layout)
   { // this is not set for source nodes. create descriptor set(s) for other nodes:
@@ -677,7 +719,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+i;
     if(dt_connector_output(c))
     { // allocate our output buffers
-      VkFormat format = dt_connector_vkformat(c);
       for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
       {
         int ii = cur_dset;
@@ -685,32 +726,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         {
           dt_connector_image_t *img = dt_graph_connector_image(graph,
               node - graph->node, i, k, MIN(f, c->frames-1));
-
-          if(c->frames > f)
-          { // only actually backed by memory if we have all these frames.
-            // else we'll just point to the same image for all frames:
-            vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset);
-
-            // put all newly created images into right layout
-            VkCommandBuffer cmd_buf = graph->command_buffer;
-            IMG_LAYOUT(img, UNDEFINED, SHADER_READ_ONLY_OPTIMAL);
-
-            VkImageViewCreateInfo images_view_create_info = {
-              .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-              .viewType   = VK_IMAGE_VIEW_TYPE_2D,
-              .format     = format,
-              .image      = img->image,
-              .subresourceRange = {
-                .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-                .baseMipLevel   = 0,
-                .levelCount     = 1,
-                .baseArrayLayer = 0,
-                .layerCount     = 1
-              },
-            };
-            if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
-            QVKR(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &img->image_view));
-          }
 
           int iii = cur_dset++;
           assert(iii < sizeof(img_info)/sizeof(img_info[0]));
@@ -750,7 +765,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
               frame = 1-f;
               // this should be ensured during connection:
               assert(c->frames == 2); 
-              // XXX this fails if the feedback target is not the last connector on the target module:
               assert(graph->node[c->connected_mi].connector[c->connected_mc].frames == 2);
             }
             // the image struct is shared between in and out connectors, but we 
@@ -1314,13 +1328,6 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
       graph->node[mi].connector[mc].connected_mi++;
-#if 0
-      // XXX this is now explicitly not freed in free_inputs()
-      // feedback connectors need to persist until the next frame.
-      // up the reference counter out of line once to make sure:
-      // if(graph->node[mi].connector[mc].flags & s_conn_feedback)
-        // graph->node[mi].connector[mc].connected_mi++;
-#endif
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     graph->node[mi].connector[mc].connected_mi,
       //     dt_token_str(graph->node[mi].name),
@@ -1481,7 +1488,8 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 
-  // TODO: if the roi out is 0, probably reading some sources went wrong and we need to abort right here!
+  // if the roi out is 0, probably reading some sources went wrong and we need
+  // to abort right here!
   if(graph->module[graph->num_modules-1].connector[0].roi.full_wd == 0)
     return VK_INCOMPLETE;
 
@@ -1532,16 +1540,6 @@ VkResult dt_graph_run(
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
     graph->uniform_size = uniform_offset;
-
-    // these feedback connectors really cause a lot of trouble.
-    // we need to initialise the input connectors now after full graph traversal.
-    // this means we need the feedback connectors to go last in the connectors file
-    for(int m=0;m<graph->num_modules;m++)
-      for(int i=0;i<graph->module[m].num_connectors;i++)
-        if(graph->module[m].connector[i].flags & s_conn_feedback)
-          dt_connector_copy(graph, graph->module+m, i,
-              graph->module[m].connector[i].connected_ni,
-              graph->module[m].connector[i].connected_nc);
   }
 } // end scope, done with modules
 
@@ -1552,20 +1550,28 @@ VkResult dt_graph_run(
   dt_node_t *const arr = graph->node;
   const int arr_cnt = graph->num_nodes;
 
-  // ==============================================
-  // TODO: tiling:
-  // ==============================================
-#if 0
-  // TODO: while(not happy) {
-  // TODO: 3rd pass: compute memory requirements
-  // TODO: if not happy: cut input roi in half or what
+  if(run & (s_graph_run_roi | s_graph_run_create_nodes))
+  { // these feedback connectors really cause a lot of trouble.
+    // we need to initialise the input connectors now after full graph traversal.
+    // or else the connection performed during node creation will copy some node id
+    // from the connected module that has not yet been initialised.
+    // we work around this by storing the *module* id and connector in
+    // dt_connector_copy() for feedback connectors, and repoint it here.
+    // i suppose we could always do that, not only for feedback connectors, to
+    // simplify control logic.
 #define TRAVERSE_POST\
-    alloc_outputs(allocator, arr+curr);\
-    free_inputs (allocator, arr+curr);
+    for(int i=0;i<arr[curr].num_connectors;i++)\
+    if(arr[curr].connector[i].flags & s_conn_feedback) { \
+      if(dt_connector_input(arr[curr].connector+i)) {\
+        int mid = arr[curr].connector[i].connected_mi;\
+        int cid = arr[curr].connector[i].connected_mc;\
+        arr[curr].connector[i].connected_mi =\
+          graph->module[mid].connector[cid].connected_ni;\
+        arr[curr].connector[i].connected_mc =\
+          graph->module[mid].connector[cid].connected_nc;\
+      }}
 #include "graph-traverse.inc"
-  // }
-  // TODO: do that one after the other for all chopped roi
-#endif
+  }
 
   // ==============================================
   // 1st pass alloc and free, detect cycles
@@ -1602,7 +1608,6 @@ VkResult dt_graph_run(
 #include "graph-traverse.inc"
   }
 
-  // TODO: should all this allocation be put behind a runflag?
   if(graph->heap.vmsize > graph->vkmem_size)
   {
     if(graph->vkmem)
@@ -1757,9 +1762,13 @@ VkResult dt_graph_run(
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
   // ==============================================
+#define TRAVERSE_POST\
+  if(run & s_graph_run_alloc)          QVKR(alloc_outputs2(graph, arr+curr));
+#include "graph-traverse.inc"
+
   int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
 #define TRAVERSE_POST\
-  if(run & s_graph_run_alloc)          QVKR(alloc_outputs2(graph, arr+curr));\
+  if(run & s_graph_run_alloc)          QVKR(alloc_outputs3(graph, arr+curr));\
   if(run & s_graph_run_record_cmd_buf) QVKR(record_command_buffer(graph, arr+curr, &runflag));
 #include "graph-traverse.inc"
 
