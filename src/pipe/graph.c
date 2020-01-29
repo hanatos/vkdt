@@ -1043,7 +1043,11 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   for(int i=0;i<node->num_connectors;i++)
     if(dt_connector_input(node->connector+i))
       if(node->connector[i].connected_mi == -1)
+      {
+        dt_log(s_log_err, "input %"PRItkn":%"PRItkn" not connected!",
+            dt_token_str(node->name), dt_token_str(node->connector[i].name));
         return VK_INCOMPLETE;
+      }
 
   // special case for end of pipeline and thumbnail creation:
   if(graph->thumbnail_image &&
@@ -1473,8 +1477,17 @@ VkResult dt_graph_run(
   graph->query_cnt = 0;
 
 { // module scope
+  // find list of modules in post order
+  uint32_t modid[100];
+  assert(sizeof(modid)/sizeof(modid[0]) >= graph->num_modules);
+
+  int cnt = 0;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
+#define TRAVERSE_POST \
+  modid[cnt++] = curr;
+#include "graph-traverse.inc"
+
   // ==============================================
   // first pass: find output rois
   // ==============================================
@@ -1482,16 +1495,17 @@ VkResult dt_graph_run(
   // "int curr" will be the current node
   // walk all inputs and determine roi on all outputs
   if(run & s_graph_run_roi)
-  {
-#define TRAVERSE_POST \
-    modify_roi_out(graph, arr+curr);
-#include "graph-traverse.inc"
-  }
+    for(int i=0;i<cnt;i++)
+      modify_roi_out(graph, graph->module + modid[i]);
 
   // if the roi out is 0, probably reading some sources went wrong and we need
   // to abort right here!
   if(graph->module[graph->num_modules-1].connector[0].roi.full_wd == 0)
+  {
+    dt_log(s_log_err, "roi of last module %"PRItkn" did not get initialised!",
+        dt_token_str(graph->module[graph->num_modules-1].name));
     return VK_INCOMPLETE;
+  }
 
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
@@ -1527,11 +1541,10 @@ VkResult dt_graph_run(
     }
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
-#define TRAVERSE_PRE\
-    modify_roi_in(graph, arr+curr);
-#define TRAVERSE_POST\
-    create_nodes(graph, arr+curr, &uniform_offset);
-#include "graph-traverse.inc"
+    for(int i=cnt-1;i>=0;i--)
+      modify_roi_in(graph, graph->module+modid[i]);
+    for(int i=0;i<cnt;i++)
+      create_nodes(graph, graph->module+modid[i], &uniform_offset);
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
     graph->uniform_size = uniform_offset;
@@ -1542,8 +1555,14 @@ VkResult dt_graph_run(
   if(run < s_graph_run_create_nodes<<1) return VK_SUCCESS;
 
 { // node scope
+  int cnt = 0;
   dt_node_t *const arr = graph->node;
   const int arr_cnt = graph->num_nodes;
+  uint32_t nodeid[200];
+  assert(sizeof(nodeid)/sizeof(nodeid[0]) >= graph->num_nodes);
+#define TRAVERSE_POST \
+  nodeid[cnt++] = curr;
+#include "graph-traverse.inc"
 
   if(run & (s_graph_run_roi | s_graph_run_create_nodes))
   { // these feedback connectors really cause a lot of trouble.
@@ -1554,18 +1573,23 @@ VkResult dt_graph_run(
     // dt_connector_copy() for feedback connectors, and repoint it here.
     // i suppose we could always do that, not only for feedback connectors, to
     // simplify control logic.
-#define TRAVERSE_POST\
-    for(int i=0;i<arr[curr].num_connectors;i++)\
-    if(arr[curr].connector[i].flags & s_conn_feedback) { \
-      if(dt_connector_input(arr[curr].connector+i)) {\
-        int mid = arr[curr].connector[i].connected_mi;\
-        int cid = arr[curr].connector[i].connected_mc;\
-        arr[curr].connector[i].connected_mi =\
-          graph->module[mid].connector[cid].connected_ni;\
-        arr[curr].connector[i].connected_mc =\
-          graph->module[mid].connector[cid].connected_nc;\
-      }}
-#include "graph-traverse.inc"
+    for(int ni=0;ni<cnt;ni++)
+    {
+      dt_node_t *n = graph->node + nodeid[ni];
+      for(int i=0;i<n->num_connectors;i++)
+      {
+        if((n->connector[i].flags & s_conn_feedback) &&
+            dt_connector_input(n->connector+i))
+        {
+          int mid = n->connector[i].connected_mi;
+          int cid = n->connector[i].connected_mc;
+          n->connector[i].connected_mi =
+            graph->module[mid].connector[cid].connected_ni;
+          n->connector[i].connected_mc =
+            graph->module[mid].connector[cid].connected_nc;
+        }
+      }
+    }
   }
 
   // ==============================================
@@ -1580,9 +1604,8 @@ VkResult dt_graph_run(
           graph->node[n].connector[c].connected_mi = 0;
     // perform reference counting on the final connected node graph.
     // this is needed for memory allocation later:
-#define TRAVERSE_PRE\
-    count_references(graph, arr+curr);
-#include "graph-traverse.inc"
+    for(int i=cnt-1;i>=0;i--)
+      count_references(graph, graph->node+nodeid[i]);
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);
     dt_vkalloc_nuke(&graph->heap_staging);
@@ -1592,10 +1615,11 @@ VkResult dt_graph_run(
     graph->dset_cnt_uniform = 1; // we have one global uniform for roi + params
     graph->memory_type_bits = ~0u;
     graph->memory_type_bits_staging = ~0u;
-#define TRAVERSE_POST\
-    QVKR(alloc_outputs(graph, arr+curr));\
-    free_inputs       (graph, arr+curr);
-#include "graph-traverse.inc"
+    for(int i=0;i<cnt;i++)
+    {
+      QVKR(alloc_outputs(graph, graph->node+nodeid[i]));
+      free_inputs       (graph, graph->node+nodeid[i]);
+    }
   }
 
   if(graph->heap.vmsize > graph->vkmem_size)
@@ -1752,16 +1776,17 @@ VkResult dt_graph_run(
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
   // ==============================================
-#define TRAVERSE_POST\
-  if(run & s_graph_run_alloc)          QVKR(alloc_outputs2(graph, arr+curr));
-#include "graph-traverse.inc"
+  if(run & s_graph_run_alloc)
+    for(int i=0;i<cnt;i++)
+      QVKR(alloc_outputs2(graph, graph->node+nodeid[i]));
 
+  if(run & s_graph_run_alloc)
+    for(int i=0;i<cnt;i++)
+      QVKR(alloc_outputs3(graph, graph->node+nodeid[i]));
   int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
-#define TRAVERSE_POST\
-  if(run & s_graph_run_alloc)          QVKR(alloc_outputs3(graph, arr+curr));\
-  if(run & s_graph_run_record_cmd_buf) QVKR(record_command_buffer(graph, arr+curr, &runflag));
-#include "graph-traverse.inc"
-
+  if(run & s_graph_run_record_cmd_buf)
+    for(int i=0;i<cnt;i++)
+      QVKR(record_command_buffer(graph, graph->node+nodeid[i], &runflag));
 } // end scope, done with nodes
 
   if(run & s_graph_run_alloc)
