@@ -1531,11 +1531,6 @@ VkResult dt_graph_run(
     modify_roi_in(graph, arr+curr);
 #define TRAVERSE_POST\
     create_nodes(graph, arr+curr, &uniform_offset);
-    // TODO: in fact this should only be an error for default create nodes cases:
-    // TODO: the others might break the cycle by pushing more nodes.
-#define TRAVERSE_CYCLE\
-    dt_log(s_log_pipe, "module cycle %"PRItkn"->%"PRItkn"!", dt_token_str(arr[curr].name), dt_token_str(arr[el].name));\
-    dt_module_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
@@ -1600,11 +1595,6 @@ VkResult dt_graph_run(
 #define TRAVERSE_POST\
     QVKR(alloc_outputs(graph, arr+curr));\
     free_inputs       (graph, arr+curr);
-#define TRAVERSE_CYCLE\
-    dt_log(s_log_pipe, "cycle %"PRItkn"_%"PRItkn"->%"PRItkn"_%"PRItkn"!", \
-        dt_token_str(arr[curr].name), dt_token_str(arr[curr].kernel), \
-        dt_token_str(arr[el].name), dt_token_str(arr[el].kernel)); \
-    dt_node_connect(graph, -1,-1, curr, i);
 #include "graph-traverse.inc"
   }
 

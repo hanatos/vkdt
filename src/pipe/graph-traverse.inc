@@ -11,9 +11,6 @@
 #ifndef TRAVERSE_PRE
 #define TRAVERSE_PRE
 #endif
-#ifndef TRAVERSE_CYCLE
-#define TRAVERSE_CYCLE
-#endif
 #ifndef TRAVERSE_UNCONNECTED
 #define TRAVERSE_UNCONNECTED
 #endif
@@ -84,5 +81,4 @@
 // clean up
 #undef TRAVERSE_POST
 #undef TRAVERSE_PRE
-#undef TRAVERSE_CYCLE
 #undef TRAVERSE_UNCONNECTED
