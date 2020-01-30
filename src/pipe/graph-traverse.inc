@@ -8,12 +8,6 @@
 #ifndef TRAVERSE_POST
 #define TRAVERSE_POST
 #endif
-#ifndef TRAVERSE_PRE
-#define TRAVERSE_PRE
-#endif
-#ifndef TRAVERSE_UNCONNECTED
-#define TRAVERSE_UNCONNECTED
-#endif
 
 { // scope
   uint32_t stack[1000];         // node ids to work on
@@ -59,24 +53,21 @@
       // but do not remove the node yet. we still need it for the post traversal callback.
       // exec pre traversal callback before pushing children:
       if(mark[curr] < 2)
-      {
-        TRAVERSE_PRE
         mark[curr] = 2; // mark this node such that we only traverse the children once
-      }
       done[sp] = 1; // once we'll come back to this stack entry, deps will be done
       for(int i=0;i<arr[curr].num_connectors;i++)
       {
         const int el = arr[curr].connector[i].connected_mi;
         if(el < 0)
         {
-          TRAVERSE_UNCONNECTED
+          // not connected
         }
         else if(arr[curr].connector[i].type == dt_token("read") ||
                 arr[curr].connector[i].type == dt_token("sink"))
         { // need to recurse all inputs
           if((mark[el] != 3) && // only if not completely finished (ran post callback)
             // feedback connectors only push their deps if not pushed before:
-            !((arr[curr].connector[i].flags & s_conn_feedback)))// && (mark[el])))
+            !(arr[curr].connector[i].flags & s_conn_feedback))
           { // push to stack only unmarked
             assert((int64_t)sp < (int64_t)sizeof(stack)/sizeof(stack[0])-1);
             stack[++sp] = el;
@@ -105,5 +96,3 @@
 } // end scope
 // clean up
 #undef TRAVERSE_POST
-#undef TRAVERSE_PRE
-#undef TRAVERSE_UNCONNECTED

@@ -780,15 +780,22 @@ void render_darkroom_full()
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
-#define TRAVERSE_PRE \
-  if(arr[curr].so->num_params) {\
-  snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,\
-      dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));\
-  if(ImGui::CollapsingHeader(name))\
-    for(int i=0;i<arr[curr].so->num_params;i++)\
-      draw_widget(curr, i);\
-  }
+  uint32_t modid[100], cnt = 0;
+#define TRAVERSE_POST \
+  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+  modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
+  for(int m=cnt-1;m>=0;m--)
+  {
+    int curr = modid[m];
+    if(arr[curr].so->num_params) {
+      snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
+          dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
+      if(ImGui::CollapsingHeader(name))
+        for(int i=0;i<arr[curr].so->num_params;i++)
+          draw_widget(curr, i);
+    }
+  }
 }
 
 void render_darkroom_pipeline()
@@ -803,16 +810,21 @@ void render_darkroom_pipeline()
   const int arr_cnt = graph->num_modules;
   int err = 0;
   int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
-#define TRAVERSE_PRE \
-  {\
-    pos2 = curr;\
-    while(mod_id[pos2] != curr) pos2 = mod_id[pos2];\
-    int tmp = mod_id[pos];\
-    mod_id[pos++] = mod_id[pos2];\
-    mod_id[pos2] = tmp;\
-    err = render_module(graph, arr+curr);\
-  }
+  uint32_t modid[100], cnt = 0;
+#define TRAVERSE_POST \
+  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+  modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
+  for(int m=cnt-1;m>=0;m--)
+  {
+    int curr = modid[m];
+    pos2 = curr;
+    while(mod_id[pos2] != curr) pos2 = mod_id[pos2];
+    int tmp = mod_id[pos];
+    mod_id[pos++] = mod_id[pos2];
+    mod_id[pos2] = tmp;
+    err = render_module(graph, arr+curr);
+  }
 
   if(graph->num_modules > pos) ImGui::Text("disconnected:");
   // now draw the disconnected modules
