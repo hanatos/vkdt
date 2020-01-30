@@ -34,25 +34,25 @@ clean: Makefile
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 LDFLAGS=
 
-qvk/%.o: qvk/%.c Makefile $(QVK_H)
+qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
 
-core/%.o: core/%.c Makefile $(CORE_H)
+core/%.o: core/%.c Makefile $(CORE_H) core/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
 
-pipe/%.o: pipe/%.c Makefile $(PIPE_H)
+pipe/%.o: pipe/%.c Makefile $(PIPE_H) pipe/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
-db/%.o: db/%.c Makefile $(DB_H)
+db/%.o: db/%.c Makefile $(DB_H) db/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(DB_CFLAGS) -c $< -o $@
 
-cli/%.o: cli/%.c Makefile $(CLI_H)
+cli/%.o: cli/%.c Makefile $(CLI_H) cli/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
-gui/%.o: gui/%.c Makefile $(GUI_H)
+gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
-gui/%.o: gui/%.cc Makefile $(GUI_H)
+gui/%.o: gui/%.cc Makefile $(GUI_H) gui/flat.mk
 	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile

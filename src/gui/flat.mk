@@ -10,6 +10,7 @@ GUI_O=gui/gui.o\
 GUI_H=gui/gui.h\
       gui/render.h\
       gui/view.h\
-      gui/darkroom.h
+      gui/darkroom.h\
+      pipe/graph-traverse.inc
 GUI_CFLAGS=$(shell pkg-config --cflags sdl2) -I../ext/imgui -I../ext/imgui/examples/
 GUI_LDFLAGS=-ldl $(shell pkg-config --libs sdl2) -lm -lstdc++
