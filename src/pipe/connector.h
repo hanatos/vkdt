@@ -74,9 +74,8 @@ typedef struct dt_connector_t
   int connected_mi;  // pointing to connected module or node (or -1). is a reference count for write buffers.
   int connected_mc;  // index of the connector on the module
 
-  // module only:
-  int connected_ni;  // pointing to connected node after create_nodes has been called
-  int connected_nc;  // index of the connector on the node
+  int associated_i; // for nodes, points back to module if repointing is needed
+  int associated_c; 
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;

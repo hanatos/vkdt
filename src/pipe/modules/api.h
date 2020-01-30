@@ -35,9 +35,10 @@ dt_connector_copy(
     int nid,   // node id
     int nc)    // connector id on node to copy to
 {
-  // connect the node layer on the module:
-  module->connector[mc].connected_ni = nid;
-  module->connector[mc].connected_nc = nc;
+  // connect the node layer on the module. these are only meaningful
+  // for output connectors (others might be ambiguous):
+  module->connector[mc].associated_i = nid;
+  module->connector[mc].associated_c = nc;
   // connect the node:
   dt_connector_t *c0 = module->connector + mc;
   dt_connector_t *c1 = graph->node[nid].connector + nc;
@@ -52,33 +53,13 @@ dt_connector_copy(
     c1->roi    = c0->roi;
     c1->connected_mi = c0->connected_mi;
     c1->connected_mc = c0->connected_mc;
-    c1->connected_ni = 0;
-    c1->connected_nc = 0;
   }
 
-  // input connectors have a unique source. connect their node layer:
-  if(dt_connector_input(module->connector+mc) &&
-      module->connector[mc].connected_mi >= 0)
-  {
-    if(module->connector[mc].flags & s_conn_feedback)
-    {
-      // feedback connectors usually go back/form cycles in the dag.
-      // this means that the module we're referring to here is often
-      // not initialised. in particular we don't know which node
-      // it'll be associated with. thus, we remember the module reference
-      // on the node, too, and have to remember to do a repointing pass
-      // before we go to the next stage after node creation.
-    }
-    else
-    { // connect our node to the nodeid stored on the module
-      graph->node[nid].connector[nc].connected_mi = graph->module[
-        module->connector[mc].connected_mi].connector[
-          module->connector[mc].connected_mc].connected_ni;
-      graph->node[nid].connector[nc].connected_mc = graph->module[
-        module->connector[mc].connected_mi].connector[
-          module->connector[mc].connected_mc].connected_nc;
-    }
-  }
+  // node connectors need to know their counterparts.
+  // unfortunately at this point not all nodes are inited.
+  // thus, every node needs to remember the module id and connector
+  c1->associated_i = module - graph->module;
+  c1->associated_c = mc;
 }
 
 static inline int

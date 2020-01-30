@@ -519,6 +519,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         if(img->image) vkDestroyImage(qvk.device, img->image, VK_NULL_HANDLE);
         QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &img->image));
 #if 0 // nice debugging, but leaks memory
+#ifdef QVK_ENABLE_VALIDATION
         char *name = malloc(100); // leak this
         snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
         VkDebugMarkerObjectNameInfoEXT name_info = {
@@ -528,6 +529,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           .pObjectName = name,
         };
         qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
 #endif
 
         VkMemoryRequirements mem_req;
@@ -731,6 +733,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
           assert(iii < sizeof(img_info)/sizeof(img_info[0]));
           img_info[iii].sampler     = VK_NULL_HANDLE;
           img_info[iii].imageView   = img->image_view;
+          assert(img->image_view);
           img_info[iii].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         }
         int dset = node_dset++;
@@ -774,6 +777,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
             int iii = cur_dset++;
             img_info[iii].sampler     = (c->flags & s_conn_smooth) ? qvk.tex_sampler : qvk.tex_sampler_nearest;
             img_info[iii].imageView   = img->image_view;
+            assert(img->image_view);
             img_info[iii].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
           }
           int dset = node_dset++;
@@ -1548,6 +1552,43 @@ VkResult dt_graph_run(
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
     graph->uniform_size = uniform_offset;
+
+    // these feedback connectors really cause a lot of trouble.
+    // we need to initialise the input connectors now after full graph traversal.
+    // or else the connection performed during node creation will copy some node id
+    // from the connected module that has not yet been initialised.
+    // we work around this by storing the *module* id and connector in
+    // dt_connector_copy() for feedback connectors, and repoint it here.
+    // i suppose we could always do that, not only for feedback connectors, to
+    // simplify control logic.
+    for(int ni=0;ni<graph->num_nodes;ni++)
+    {
+      dt_node_t *n = graph->node + ni;
+      for(int i=0;i<n->num_connectors;i++)
+      {
+        // if(// (n->connector[i].flags & s_conn_feedback) &&
+        if(n->connector[i].associated_i >= 0) // needs repointing
+        {
+          int n0, c0;
+          int mi0 = n->connector[i].associated_i;
+          int mc0 = n->connector[i].associated_c;
+          if(dt_connector_input(n->connector+i))
+          { // walk node->module->module->node
+            int mi1 = graph->module[mi0].connector[mc0].connected_mi;
+            int mc1 = graph->module[mi0].connector[mc0].connected_mc;
+            n0 = graph->module[mi1].connector[mc1].associated_i;
+            c0 = graph->module[mi1].connector[mc1].associated_c;
+          }
+          else // if(dt_connector_output(n->connector+i))
+          { // walk node->module->node
+            n0 = graph->module[mi0].connector[mc0].associated_i;
+            c0 = graph->module[mi0].connector[mc0].associated_c;
+          }
+          n->connector[i].connected_mi = n0;
+          n->connector[i].connected_mc = c0;
+        }
+      }
+    }
   }
 } // end scope, done with modules
 
@@ -1564,36 +1605,8 @@ VkResult dt_graph_run(
   nodeid[cnt++] = curr;
 #include "graph-traverse.inc"
 
-  if(run & (s_graph_run_roi | s_graph_run_create_nodes))
-  { // these feedback connectors really cause a lot of trouble.
-    // we need to initialise the input connectors now after full graph traversal.
-    // or else the connection performed during node creation will copy some node id
-    // from the connected module that has not yet been initialised.
-    // we work around this by storing the *module* id and connector in
-    // dt_connector_copy() for feedback connectors, and repoint it here.
-    // i suppose we could always do that, not only for feedback connectors, to
-    // simplify control logic.
-    for(int ni=0;ni<cnt;ni++)
-    {
-      dt_node_t *n = graph->node + nodeid[ni];
-      for(int i=0;i<n->num_connectors;i++)
-      {
-        if((n->connector[i].flags & s_conn_feedback) &&
-            dt_connector_input(n->connector+i))
-        {
-          int mid = n->connector[i].connected_mi;
-          int cid = n->connector[i].connected_mc;
-          n->connector[i].connected_mi =
-            graph->module[mid].connector[cid].connected_ni;
-          n->connector[i].connected_mc =
-            graph->module[mid].connector[cid].connected_nc;
-        }
-      }
-    }
-  }
-
   // ==============================================
-  // 1st pass alloc and free, detect cycles
+  // 1st pass alloc and free
   // ==============================================
   if(run & s_graph_run_alloc)
   {
@@ -1920,7 +1933,7 @@ dt_graph_connector_image(
   }
   frame %= graph->node[nid2].connector[cid2].frames;
   return graph->conn_image_pool +
-    graph->node[nid].conn_image[cid] + graph->node[nid].connector[cid].array_length * frame + array;
+    graph->node[nid].conn_image[cid] + MAX(1,graph->node[nid].connector[cid].array_length) * frame + array;
 }
 
 void dt_graph_reset(dt_graph_t *g)
