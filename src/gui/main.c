@@ -149,9 +149,10 @@ int main(int argc, char *argv[])
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
     dt_view_process();
-    if(vkdt.state.anim_playing)
-      vkdt.state.anim_frame = MIN(vkdt.state.anim_frame+1, vkdt.state.anim_max_frame);
-    else vkdt.state.anim_frame = 0;
+    if(!vkdt.state.anim_playing)
+      vkdt.state.anim_frame = 0;
+    else if(vkdt.state.anim_frame < vkdt.state.anim_max_frame-1)
+      vkdt.state.anim_frame++;
 
     clock_t end  = clock();
     dt_log(s_log_perf, "total frame time %2.3fs", (end - beg)/(double)CLOCKS_PER_SEC);

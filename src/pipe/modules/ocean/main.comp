@@ -220,6 +220,5 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = getPixel(vec2(ipos), global.frame*0.01 + params.time);
-
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

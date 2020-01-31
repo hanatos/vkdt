@@ -238,7 +238,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       attachment_desc[i] = (VkAttachmentDescription) {
         .format         = dt_connector_vkformat(node->connector+k),
         .samples        = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR, // VK_ATTACHMENT_LOAD_OP_DONT_CARE, // XXX select on s_conn_clear flag?
+        .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR, // VK_ATTACHMENT_LOAD_OP_DONT_CARE, // select on s_conn_clear flag?
         .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
         .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -775,7 +775,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
             dt_connector_image_t *img  = dt_graph_connector_image(graph,
                 node - graph->node, i, k, frame);
             int iii = cur_dset++;
-            img_info[iii].sampler     = (c->flags & s_conn_smooth) ? qvk.tex_sampler : qvk.tex_sampler_nearest;
+            img_info[iii].sampler     = qvk.tex_sampler;
             img_info[iii].imageView   = img->image_view;
             assert(img->image_view);
             img_info[iii].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1566,7 +1566,6 @@ VkResult dt_graph_run(
       dt_node_t *n = graph->node + ni;
       for(int i=0;i<n->num_connectors;i++)
       {
-        // if(// (n->connector[i].flags & s_conn_feedback) &&
         if(n->connector[i].associated_i >= 0) // needs repointing
         {
           int n0, c0;
@@ -1728,7 +1727,7 @@ VkResult dt_graph_run(
         .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1+2*graph->num_nodes+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_uniform,
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*(graph->num_nodes+graph->dset_cnt_uniform),
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
@@ -1737,6 +1736,7 @@ VkResult dt_graph_run(
         .pPoolSizes    = pool_sizes,
         .maxSets       = DT_GRAPH_MAX_FRAMES*(
             graph->dset_cnt_image_read + graph->dset_cnt_image_write
+          + graph->num_nodes
           + graph->dset_cnt_buffer     + graph->dset_cnt_uniform),
       };
       if(graph->dset_pool)

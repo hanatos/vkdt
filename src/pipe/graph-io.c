@@ -84,7 +84,7 @@ read_connection_ascii(
   if(err)
   {
     dt_log(s_log_pipe, "[read connect] "
-        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
+        "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn,
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
     dt_log(s_log_pipe, "[read connect] connection failed: error %d: %s", err, dt_connector_error_str(err));
@@ -92,7 +92,7 @@ read_connection_ascii(
   }
   else
   {
-    graph->module[modid0].connector[conid0].flags |= extra_flags;
+    // graph->module[modid0].connector[conid0].flags |= extra_flags;
     graph->module[modid1].connector[conid1].flags |= extra_flags;
     if(extra_flags & s_conn_feedback)
     { // set this here because during dag traversal it would potentially
