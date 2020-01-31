@@ -98,6 +98,7 @@ typedef struct dt_graph_t
   int                   active_module; // currently active module, relevant for runflags
 
   int                   frame;
+  int                   frame_cnt;     // number of frames to compute
 
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;

@@ -3,6 +3,7 @@
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
 #include "pipe/global.h"
+#include "pipe/modules/api.h"
 #include "db/thumbnails.h"
 #include "core/log.h"
 
@@ -104,7 +105,11 @@ int main(int argc, char *argv[])
 
   if(!graphcfg)
   {
-    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg> [-d verbosity] [--dump-modules|--dump-nodes] [--thumbnails <dir>]");
+    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg> "
+        "[-d verbosity] "
+        "[--dump-modules|--dump-nodes] "
+        "[--thumbnails <dir>] "
+        );
     qvk_cleanup();
     exit(1);
   }
@@ -144,7 +149,43 @@ int main(int argc, char *argv[])
   // make sure all remaining display nodes are removed:
   disconnect_display_modules(&graph);
 
-  dt_graph_run(&graph, s_graph_run_all);
+  graph.frame = 0;
+  if(graph.frame_cnt > 1)
+  {
+    dt_module_t *mod_out = 0;
+    for(int m=0;m<graph.num_modules;m++)
+    {
+      if(graph.module[m].inst == dt_token("main") &&
+          (graph.module[m].name == dt_token("o-jpg") ||
+           graph.module[m].name == dt_token("o-pfm")))
+      {
+        mod_out = graph.module+m;
+        break;
+      }
+    }
+    char filename[256];
+    snprintf(filename, sizeof(filename), "output_%04d", 0);
+    dt_module_set_param_string(
+        mod_out, dt_token("filename"),
+        filename);
+    dt_graph_run(&graph, s_graph_run_all);
+    for(int f=1;f<graph.frame_cnt;f++)
+    {
+      graph.frame = f;
+      snprintf(filename, sizeof(filename), "output_%04d", f);
+      dt_module_set_param_string(
+          mod_out, dt_token("filename"),
+          filename);
+      dt_graph_run(&graph,
+          s_graph_run_record_cmd_buf | 
+          s_graph_run_download_sink  |
+          s_graph_run_wait_done);
+    }
+  }
+  else
+  {
+    dt_graph_run(&graph, s_graph_run_all);
+  }
 
   // nodes we can only print after run() has been called:
   if(dump_graph == 2)

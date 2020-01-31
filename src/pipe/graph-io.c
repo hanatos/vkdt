@@ -141,6 +141,7 @@ int dt_graph_read_config_ascii(
     else if(cmd == dt_token("param"))    { if(read_param_ascii(graph, c))         goto error;}
     else if(cmd == dt_token("connect"))  { if(read_connection_ascii(graph, c, 0)) goto error;}
     else if(cmd == dt_token("feedback")) { if(read_connection_ascii(graph, c, s_conn_feedback)) goto error;}
+    else if(cmd == dt_token("frames"))   { graph->frame_cnt = atol(c); }
     else goto error;
   }
   fclose(f);
@@ -229,6 +230,16 @@ dt_graph_write_param_ascii(
   }
   return line;
 }
+
+char *
+dt_graph_write_global_ascii(
+    const dt_graph_t *graph,
+    char             *line,
+    size_t            size)
+{
+  WRITE("frames:%d\n", graph->frame_cnt);
+  return line;
+}
 #undef WRITE
 
 // use individual functions above and write whole configuration in flat:
@@ -241,6 +252,9 @@ int dt_graph_write_config_ascii(
   char *org = malloc(size);
   char *buf = org;
   char *end = buf + size;
+
+  if(!(buf = dt_graph_write_global_ascii(graph, buf, end-buf)))
+    goto error;
 
   // write all modules
   for(int m=0;m<graph->num_modules;m++)

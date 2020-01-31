@@ -35,6 +35,8 @@ dt_graph_init(dt_graph_t *g)
 {
   memset(g, 0, sizeof(*g));
 
+  g->frame_cnt = 1;
+
   // allocate module and node buffers:
   g->max_modules = 100;
   g->module = calloc(sizeof(dt_module_t), g->max_modules);
