@@ -40,6 +40,75 @@ dt_vkalloc_nuke(dt_vkalloc_t *a)
   a->peak_rss = a->rss = a->vmsize = 0ul;
 }
 
+// feedback version of allocation:
+// these buffers will be persistent for the next frame, i.e. can't be freed
+// need memory that has no dual use (i.e. used before and then freed)
+// - use last entry in free list
+// - split potentially into three
+// - memory offset is vmsize + alignment
+dt_vkmem_t*
+dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
+{
+  assert(!dt_vkalloc_check(a));
+  // linear scan through free list O(n)
+  dt_vkmem_t *l = a->free;
+  while(l)
+  { // TODO: store last element so we can access it in fast?
+    if(!l->next) break;
+    l = l->next;
+  }
+
+  dt_vkmem_t *mem = 0, *mem2 = 0;
+  // determine our split setting. two/front (off_orig == vmsize+align)
+  // or three: [ vmsize+align-1] [ vmsize+align.. size] [rest]
+  int three = l->offset_orig < a->vmsize;
+  size_t offset = ((a->vmsize + (alignment-1)) & ~(alignment-1));
+  assert(l->offset_orig <= a->vmsize);
+  assert(l->offset_orig + l->size >= offset + size);
+  // grab new mem entry from unused list
+  assert(a->unused && "vkalloc: no more free slots!");
+  if(!a->unused) return 0;
+  mem = a->unused;
+  a->unused = DLIST_REMOVE(a->unused, mem); // remove first is O(1)
+  if(three)
+  {
+    assert(a->unused && "vkalloc: no more free slots!");
+    if(!a->unused) return 0;
+    mem2 = a->unused;
+    a->unused = DLIST_REMOVE(a->unused, mem2); // remove first is O(1)
+  }
+
+  // split [mem2, mem, l] by l->[mem2, l] and then l->[mem,l]
+  if(three)
+  { // optional initial split
+    size_t end = l->offset_orig + l->size;
+    mem2->offset_orig = mem2->offset = l->offset_orig;
+    mem2->size = a->vmsize - l->offset_orig;
+    l->offset = l->offset_orig = a->vmsize;
+    l->size = end - a->vmsize;
+
+    dt_vkmem_t *t = DLIST_PREPEND(l, mem2);
+    if(l == a->free) a->free = t; // keep consistent
+  }
+  // this is the second split which always takes place
+  size_t end = l->offset_orig + l->size;
+  mem->offset_orig = l->offset_orig;
+  mem->offset = offset;
+  mem->size = size;
+  l->offset = l->offset_orig = mem->offset + mem->size;
+  assert(end >= l->offset_orig);
+  l->size = end - l->offset_orig;
+
+  a->rss += mem->size;
+  a->peak_rss = MAX(a->peak_rss, a->rss);
+  a->vmsize = MAX(a->vmsize, mem->offset + mem->size);
+  a->used = DLIST_PREPEND(a->used, mem);
+  mem->ref = 1;
+
+  assert(!dt_vkalloc_check(a));
+  return mem;
+}
+
 dt_vkmem_t*
 dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {

@@ -39,6 +39,7 @@ void dt_vkalloc_cleanup(dt_vkalloc_t *a);
 
 // allocate memory
 dt_vkmem_t* dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment);
+dt_vkmem_t* dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment);
 
 // free memory
 void dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem);

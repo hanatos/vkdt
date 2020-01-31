@@ -40,7 +40,7 @@ dt_graph_init(dt_graph_t *g)
   g->module = calloc(sizeof(dt_module_t), g->max_modules);
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
-  dt_vkalloc_init(&g->heap, 100, 1ul<<40); // bytesize doesn't matter
+  dt_vkalloc_init(&g->heap, 1000, 1ul<<40); // bytesize doesn't matter
   dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
   g->params_max = 16u<<20;
   g->params_end = 0;
@@ -541,7 +541,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         assert(!(mem_req.alignment & (mem_req.alignment - 1)));
 
         const size_t size = dt_connector_bufsize(c);
-        img->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
+        if(c->frames == 2)
+          img->mem = dt_vkalloc_feedback(&graph->heap, mem_req.size, mem_req.alignment);
+        else
+          img->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
         // dt_log(s_log_pipe, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
         //     "%"PRItkn" %"PRItkn,
         //     mem_req.size/(1024.0*1024.0), size/(1024.0*1024.0), dt_token_str(node->name), dt_token_str(c->name),
