@@ -72,6 +72,7 @@ void write_sink(
   gzwrite(f, header, sizeof(uint32_t)*4);
   gzwrite(f, out, sizeof(uint8_t)*8*num_blocks);
   gzclose(f);
+  free(out);
   // atomically create filename only when we're quite done writing:
   unlink(filename); // just to be sure the link will work
   link(tmpfile, filename);
