@@ -419,13 +419,14 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   dt_log(s_log_qvk, "num queue families: %d", num_queue_families);
 
   int queue_family_index = -1;
-  for(int i = 0; i < num_queue_families; i++) {
-    if(queue_families[i].queueCount < 4)
-      continue;
+  int queue_cnt = 0;
+  for(int i = 0; i < num_queue_families; i++)
+  {
     if((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
        (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) &&
        (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
     {
+      queue_cnt = queue_families[i].queueCount;
       queue_family_index = i;
       break;
     }
@@ -440,7 +441,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   float queue_priorities = 1.0f;
   VkDeviceQueueCreateInfo queue_create_info = {
     .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-    .queueCount       = 3,
+    .queueCount       = MIN(queue_cnt, 3),
     .pQueuePriorities = &queue_priorities,
     .queueFamilyIndex = queue_family_index,
   };
@@ -479,8 +480,8 @@ QVK_FEATURE_DO(inheritedQueries, 1)
 
   vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics);
   vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work0,    1, &qvk.queue_work0);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work1,    2, &qvk.queue_work1);
+  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work0,    MIN(queue_cnt-1, 1), &qvk.queue_work0);
+  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work1,    MIN(queue_cnt-1, 2), &qvk.queue_work1);
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
