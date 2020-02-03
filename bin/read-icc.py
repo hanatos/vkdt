@@ -6,7 +6,7 @@ import numpy
 
 if len(sys.argv) != 2:
   print('please supply icc profile as command line argument')
-  print('usage: ./col.py your-display.icc')
+  print('usage: ./read-icc.py your-display.icc')
   sys.exit(1)
 
 profile=sys.argv[1]
