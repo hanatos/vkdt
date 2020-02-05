@@ -258,6 +258,7 @@ dt_thumbnails_cache_one(
       dt_log(s_log_err, "[thm] config '%s' connecting bc1 output failed!", cfgfilename);
       return 3;
     }
+    dt_module_remove(graph, modid);
   }
 
   modid = dt_module_get(graph, dt_token("o-bc1"), dt_token("main"));

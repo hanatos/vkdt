@@ -898,17 +898,17 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     c = module->connector + input;
     module->img_param = graph->module[c->connected_mi].img_param;
   }
-  if(module->so->modify_roi_out)
+  for(int i=0;i<module->num_connectors;i++)
   { // keep incoming roi in sync:
-    for(int i=0;i<module->num_connectors;i++)
+    dt_connector_t *c = module->connector+i;
+    if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
     {
-      dt_connector_t *c = module->connector+i;
-      if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
-      {
-        dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
-        c->roi = *roi;
-      }
+      dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
+      c->roi = *roi;
     }
+  }
+  if(module->so->modify_roi_out)
+  {
     module->so->modify_roi_out(graph, module);
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
@@ -964,12 +964,15 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       r->scale = 1.0f;
       // this is the performance/LOD switch for faster processing
       // on low end computers. needs to be wired somehow in gui/config.
-      if(module->inst == dt_token("main"))
+      if(module->connector[0].type == dt_token("sink") &&
+         module->inst == dt_token("main"))
       { // scale to fit into requested roi
         if(graph->output_wd > 0 || graph->output_ht > 0)
+        {
           r->scale = MAX(
               r->full_wd / (float) graph->output_wd,
               r->full_ht / (float) graph->output_ht);
+        }
       }
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;
