@@ -192,8 +192,8 @@ dt_api_blur(
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
-  dt_token_t blurh = dt_token("blurah");
-  dt_token_t blurv = dt_token("blurav");
+  dt_token_t blurh = dt_token("blurh");
+  dt_token_t blurv = dt_token("blurv");
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
