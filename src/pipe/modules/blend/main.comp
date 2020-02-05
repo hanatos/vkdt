@@ -6,6 +6,11 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+
 // global uniform stuff about image and roi
 layout(std140, set = 0, binding = 1) uniform params_t
 {
@@ -13,20 +18,19 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float opacity;
 } params;
 
-
-layout( // input f16 buffer rgb
+layout( // input back buffer
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // top layer f16 buffer rgb
+layout( // new top layer
     set = 1, binding = 1
 ) uniform sampler2D img_top;
 
-layout( // mask f16 buffer single channel
+layout( // mask (single channel)
     set = 1, binding = 2
 ) uniform sampler2D img_mask;
 
-layout( // output f16 buffer rgba
+layout( // output
     set = 1, binding = 3
 ) uniform writeonly image2D img_out;
 
@@ -36,11 +40,11 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb   = texelFetch(img_in,   ipos, 0).rgb;
-  vec3 top   = texelFetch(img_top,  ipos, 0).rgb;
+  vec3 bck   = texelFetch(img_in,   ipos, 0).rgb;
+  vec3 rgb   = texelFetch(img_top,  ipos, 0).rgb;
   float mask = texelFetch(img_mask, ipos, 0).r;
   // TODO: switch based on mode, implement blend modes
-  rgb = mix(rgb, mix(rgb, top, mask), params.opacity);
+  if(global.frame > 0) rgb = mix(rgb, mix(rgb, bck, mask), params.opacity);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 

@@ -1,1 +1,1 @@
-input:sink:rgba:f16
+input:sink:*:f16
