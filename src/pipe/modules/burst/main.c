@@ -197,7 +197,7 @@ create_nodes(
     if(i>=2) blur = 8;
     if(i>=3) blur = 8;
     // const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
-    const int id_blur = dt_api_blur_flat(graph, module, id_dist, 3, 0, 0, blur);
+    const int id_blur = dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur);
 
     // merge output of blur node using "merge" (<off0, <off1, >merged)
     assert(graph->num_nodes < graph->max_nodes);

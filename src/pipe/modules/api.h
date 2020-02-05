@@ -62,8 +62,10 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+// blur by radius, but using a cascade of sub-sampled dispatches.
+// faster than the non-sub version, but approximate.
 static inline int
-dt_api_blur_flat(
+dt_api_blur_sub(
     dt_graph_t  *graph,
     dt_module_t *module,
     int          nodeid_input,
@@ -305,7 +307,7 @@ dt_api_guided_filter_full(
   // corr_I  = blur(I*I)
   // corr_Ip = blur(I*p)
   // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius);
-  const int id_blur1 = dt_api_blur_flat(graph, module, id_guided1, 2, 0, 0, radius);
+  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius);
 
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
@@ -342,7 +344,7 @@ dt_api_guided_filter_full(
   // mean_a = blur(a)
   // mean_b = blur(b)
   // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
-  const int id_blur = dt_api_blur_flat(graph, module, id_guided2, 1, 0, 0, radius);
+  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius);
   // final kernel:
   // output = mean_a * I + mean_b
   assert(graph->num_nodes < graph->max_nodes);
