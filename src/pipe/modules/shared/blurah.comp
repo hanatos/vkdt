@@ -10,6 +10,16 @@ main()
   int idx = int(gl_GlobalInvocationID.z);
   if(any(greaterThanEqual(ipos, imageSize(img_out[idx])))) return;
 
+  vec4 color = vec4(0);
+  float wgt = 0.0f;
+  for(int i=-push.step;i<=push.step;i++)
+  {
+    float w = exp(-i*i/(2.0*(push.step/2.0*push.step/2.0)));
+    wgt += w;
+    color += w * texelFetch(img_in[idx], ipos + ivec2(i, 0), 0);
+  }
+  color *= 1.0/wgt;
+#if 0
 #if 1
   vec4 c0 = texelFetch(img_in[idx], ipos + ivec2(-2*push.step, 0), 0);
   vec4 c1 = texelFetch(img_in[idx], ipos + ivec2(-1*push.step, 0), 0);
@@ -27,6 +37,7 @@ main()
   color += textureLod(img_in[idx], uv, 0) * 0.29411764705882354;
   color += textureLod(img_in[idx], uv + off1, 0) * 0.35294117647058826;
   color += textureLod(img_in[idx], uv - off1, 0) * 0.35294117647058826;
+#endif
 #endif
   imageStore(img_out[idx], ipos, color);
 }

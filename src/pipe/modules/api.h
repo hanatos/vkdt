@@ -192,14 +192,13 @@ dt_api_blur(
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
-  // TODO: is this necessary? or could we always go for [0]?
-  dt_token_t blurh = dp > 1 ? dt_token("blurah") : dt_token("blurh");
-  dt_token_t blurv = dp > 1 ? dt_token("blurav") : dt_token("blurv");
+  dt_token_t blurh = dt_token("blurah");
+  dt_token_t blurv = dt_token("blurav");
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = conn_input->chan,
-    .format = dt_token("f16"),
+    .format = conn_input->format,
     .roi    = conn_input->roi,
     .connected_mi = -1,
     .array_length = conn_input->array_length,
@@ -208,55 +207,43 @@ dt_api_blur(
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = conn_input->chan,
-    .format = dt_token("f16"),
+    .format = conn_input->format,
     .roi    = conn_input->roi,
     .array_length = conn_input->array_length,
   };
-  // push and interconnect a-trous gauss blur nodes
-  // perf: could make faster by using a decimated scheme, see llap reduce for instance.
-  // TODO: iterate until radius is matched, use smaller steps to achieve sub-power-of-two radii
-  int it = 1;
-  while(2*(1u<<it) < radius) it++;
-  int nid_input = nodeid_input;
-  int cid_input = connid_input;
-  for(int i=0;i<it;i++)
-  {
-    // add nodes blurh and blurv
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_blurh = graph->num_nodes++;
-    graph->node[id_blurh] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = blurh,
-      .module = module,
-      .wd     = wd,
-      .ht     = ht,
-      .dp     = dp,
-      .num_connectors = 2,
-      .connector = { ci, co },
-      .push_constant_size = 4,
-      .push_constant = {1u<<i},
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_blurv = graph->num_nodes++;
-    graph->node[id_blurv] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = blurv,
-      .module = module,
-      .wd     = wd,
-      .ht     = ht,
-      .dp     = dp,
-      .num_connectors = 2,
-      .connector = { ci, co },
-      .push_constant_size = 4,
-      .push_constant = {1u<<i},
-    };
-    // interconnect nodes:
-    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blurh, 0));
-    CONN(dt_node_connect(graph, id_blurh,   1,         id_blurv, 0));
-    nid_input = id_blurv;
-    cid_input = 1;
-  }
-  return nid_input;
+  // add nodes blurh and blurv
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_blurh = graph->num_nodes++;
+  graph->node[id_blurh] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = blurh,
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = { ci, co },
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = {radius},
+  };
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_blurv = graph->num_nodes++;
+  graph->node[id_blurv] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = blurv,
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = { ci, co },
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = {radius},
+  };
+  // interconnect nodes:
+  CONN(dt_node_connect(graph, nodeid_input,  connid_input, id_blurh, 0));
+  CONN(dt_node_connect(graph, id_blurh,      1,            id_blurv, 0));
+  return id_blurv;
 }
 
 // full guided filter:
