@@ -171,6 +171,7 @@ darkroom_enter()
     }
   }
 
+  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
   // XXX remove: super ugly hack
   dt_gui_set_lod(0);
 
