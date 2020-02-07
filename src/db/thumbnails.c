@@ -172,18 +172,25 @@ static VkResult
 dt_thumbnails_cache_one(
     dt_graph_t      *graph,
     dt_thumbnails_t *tn,
-    const char      *filename) 
+    const char      *filename)  // only accepting .cfg files here (can be non-existent and will be replaced in such case)
 {
-  if(!dt_db_accept_filename(filename)) return VK_INCOMPLETE;
+  int len = strnlen(filename, 2048); // sizeof thumbnail filename
+  if(len <= 4) return VK_INCOMPLETE;
+  const char *f2 = filename + len - 4;
+  if(strcasecmp(f2, ".cfg")) return VK_INCOMPLETE;
 
   // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
   // if that already exists with a newer timestamp than the cfg, bail out
 
   char cfgfilename[1024];
+  char imgfilename[1024];
   char bc1filename[1024];
-  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+  uint32_t hash = murmur_hash3(filename, len, 1337);
   snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
-  snprintf(cfgfilename, sizeof(cfgfilename), "%s.cfg", filename);
+  snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
+  snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
+  imgfilename[len-4] = 0; // cut away ".cfg"
+  int load_default = 0;
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
@@ -191,6 +198,7 @@ dt_thumbnails_cache_one(
     tcfg = statbuf.st_mtim.tv_sec;
   else
   {
+    load_default = 1;
     snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
     if(!stat(cfgfilename, &statbuf))
       tcfg = statbuf.st_mtim.tv_sec;
@@ -212,19 +220,20 @@ dt_thumbnails_cache_one(
     return 2;
   }
 
-  // set param for rawinput
-  // get module
-  int modid = dt_module_get(graph, dt_token("i-raw"), dt_token("01"));
-  if(modid < 0 ||
-     dt_module_set_param_string(graph->module + modid, dt_token("filename"), filename))
-  {
-    dt_log(s_log_err, "[thm] config '%s' has no raw input module!", cfgfilename);
-    dt_graph_cleanup(graph);
-    return 3;
+  if(load_default)
+  { // set param for rawinput
+    int modid = dt_module_get(graph, dt_token("i-raw"), dt_token("01"));
+    if(modid < 0 ||
+        dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
+    {
+      dt_log(s_log_err, "[thm] config '%s' has no raw input module!", cfgfilename);
+      dt_graph_cleanup(graph);
+      return 3;
+    }
   }
 
   // replace display by o-bc1 in case it's not default.cfg:
-  modid = dt_module_get(graph, dt_token("display"), dt_token("main"));
+  int modid = dt_module_get(graph, dt_token("display"), dt_token("main"));
   if(modid >= 0)
   {
     int cid = dt_module_get_connector(graph->module+modid, dt_token("input"));
@@ -266,7 +275,7 @@ dt_thumbnails_cache_one(
   clock_t beg = clock();
   if(dt_graph_run(graph, s_graph_run_all) != VK_SUCCESS)
   {
-    dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
+    dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", imgfilename);
     // mark as dead
     link("data/bomb.bc1", bc1filename);
     return 4;
@@ -304,6 +313,24 @@ static void *thread_work(void *arg)
       if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue;
       if(!dt_db_accept_filename(ep->d_name)) continue;
       snprintf(filename, sizeof(filename), "%s/%s", j->dirname, ep->d_name);
+      // TODO: deduplicate with db.c:
+      // now reject non-cfg files that have a cfg already:
+      char cfgfile[256];
+      snprintf(cfgfile, sizeof(cfgfile), "%s", filename);
+      int len = strnlen(cfgfile, sizeof(cfgfile));
+      if(len <= 4) continue;
+      char *f2 = cfgfile + len - 4;
+      if(strcasecmp(f2, ".cfg"))
+      { // not a cfg itself
+        sprintf(f2+4, ".cfg"); // this would be the corresponding default cfg
+        struct stat statbuf = {0};
+        if(!stat(cfgfile, &statbuf))
+        { // skip this image, it already has a cfg associated with it, we'll load that:
+          continue;
+        }
+        // no config associated with this image yet, let's use the default:
+        snprintf(filename, sizeof(filename), "%s", cfgfile);
+      }
       (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn, filename);
     }
     if(threads_shutting_down()) break;
@@ -415,7 +442,7 @@ dt_thumbnails_load_one(
   if(strncmp(filename, "data/", 5))
   { // only hash images that aren't straight from our resource directory:
     // TODO: make sure ./dir/file and dir//file etc turn out to be the same
-    uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+    uint32_t hash = murmur_hash3(filename, strnlen(filename, 2048), 1337);
     snprintf(imgfilename, sizeof(imgfilename), "%s/%x.bc1", tn->cachedir, hash);
   }
   else snprintf(imgfilename, sizeof(imgfilename), "%s", filename);

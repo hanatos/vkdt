@@ -129,15 +129,17 @@ darkroom_enter()
   uint32_t imgid = vkdt.db.current_image;
   if(imgid == -1u) return 1;
   char graph_cfg[2048];
-  snprintf(graph_cfg, sizeof(graph_cfg), "%s.cfg", vkdt.db.image[imgid].filename);
+  snprintf(graph_cfg, sizeof(graph_cfg), "%s", vkdt.db.image[imgid].filename);
 
   // stat, if doesn't exist, load default
   // always set filename param? (definitely do that for default cfg)
+  int load_default = 0;
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
   {
     dt_log(s_log_err|s_log_gui, "individual config %s not found, loading default!", graph_cfg);
     snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
+    load_default = 1;
   }
 
   dt_graph_init(&vkdt.graph_dev);
@@ -151,14 +153,22 @@ darkroom_enter()
   }
 
   // TODO: support other file formats instead of just raw?
-  int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
-  if(modid < 0 ||
-     dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
-       vkdt.db.image[imgid].filename))
+  if(load_default)
   {
-    dt_log(s_log_err|s_log_gui, "config '%s' has no raw input module!", graph_cfg);
-    dt_graph_cleanup(&vkdt.graph_dev);
-    return 3;
+    char imgfilename[256];
+    snprintf(imgfilename, sizeof(imgfilename), "%s", vkdt.db.image[imgid].filename);
+    int len = strlen(imgfilename);
+    assert(len > 4);
+    imgfilename[len-4] = 0; // cut away ".cfg"
+    int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
+    if(modid < 0 ||
+       dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
+         imgfilename))
+    {
+      dt_log(s_log_err|s_log_gui, "config '%s' has no raw input module!", graph_cfg);
+      dt_graph_cleanup(&vkdt.graph_dev);
+      return 3;
+    }
   }
 
   // XXX remove: super ugly hack

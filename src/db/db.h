@@ -70,5 +70,6 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".orf") ||
          !strcasecmp(f2, ".arw") ||
          !strcasecmp(f2, ".dng") ||
-         !strcasecmp(f2, ".raf");
+         !strcasecmp(f2, ".raf") ||
+         !strcasecmp(f2, ".cfg");   // also accept config files directly (preferrably so)
 }
