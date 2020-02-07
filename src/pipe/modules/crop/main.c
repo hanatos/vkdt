@@ -82,16 +82,18 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   double r[] = {p[0], p[2], p[4], p[6], p[1], p[3], p[5], p[7], 1.0};
   gauss_solve(M, r, 8);
 
-  // XXX padding + column major!
-  for(int i=0;i<9;i++)
-    ((float*)module->committed_param)[i] = r[i];
+  // padding + column major:
+  float *f = (float*)module->committed_param;
+  f[ 0] = r[0]; f[ 1] = r[3]; f[ 2] = r[6]; f[ 3] = 0.0f;
+  f[ 4] = r[1]; f[ 5] = r[4]; f[ 6] = r[7]; f[ 7] = 0.0f;
+  f[ 8] = r[2]; f[ 9] = r[5]; f[10] = r[8]; f[11] = 0.0f;
   const float *p_crop = dt_module_param_float(module, 1);
   for(int i=0;i<4;i++)
-    ((float*)module->committed_param)[9+i] = p_crop[i];
+    f[12+i] = p_crop[i];
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*13;
+  mod->committed_param_size = sizeof(float)*16;
   return 0;
 }

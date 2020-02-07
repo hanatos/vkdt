@@ -9,7 +9,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 // global uniform stuff about image and roi
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float h00, h01, h02, h10, h11, h12, h20, h21, h22;
+  mat3 H;
   float crop_x, crop_X;
   float crop_y, crop_Y;
 } params;
@@ -31,11 +31,8 @@ main()
 
   vec2 co = vec2(params.crop_x, params.crop_y);
   vec2 xy = co * textureSize(img_in, 0) + vec2(ipos.xy);
-  vec2 rd = vec2(
-      (params.h00*xy.x + params.h01*xy.y + params.h02)/
-      (params.h20*xy.x + params.h21*xy.y + params.h22),
-      (params.h10*xy.x + params.h11*xy.y + params.h12)/
-      (params.h20*xy.x + params.h21*xy.y + params.h22));
+  vec3 rdh = (params.H * vec3(xy.xy, 1.0)).xyz;
+  vec2 rd = rdh.xy / rdh.z;
   // rounding texture access:
   // vec4 rgba = texelFetch(img_in, ivec2(rd+0.5), 0);
   // bilinear:
