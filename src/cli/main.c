@@ -15,8 +15,7 @@ static int
 replace_display(
     dt_graph_t *graph,
     dt_token_t  inst,
-    int         ldr,   // TODO: output format and params of all sorts
-    const char *filename)
+    int         ldr)   // TODO: output format and params of all sorts
 {
   const int mid = dt_module_get(graph, dt_token("display"), inst);
   if(mid < 0) return 1; // no display node by that name
@@ -49,8 +48,6 @@ replace_display(
     graph->module[m0].connector[o0].format = graph->module[m2].connector[i2].format;
     CONN(dt_module_connect(graph, m0, o0, m2, i2));
   }
-
-  // TODO: set output filename parameter on export module
   return 0;
 }
 
@@ -75,8 +72,9 @@ int main(int argc, char *argv[])
   const char *graphcfg = 0;
   int dump_graph = 0;
   const char *thumbnails = 0;
-  dt_token_t output = dt_token("main");
-  const char *filename = "output";
+  int output_cnt = 1;
+  int user_output_cnt = 0;
+  dt_token_t output[10] = { dt_token("main"), dt_token("hist") };
   int ldr = 1;
   for(int i=0;i<argc;i++)
   {
@@ -88,8 +86,12 @@ int main(int argc, char *argv[])
       dump_graph = 2;
     else if(!strcmp(argv[i], "--thumbnails") && i < argc-1)
       thumbnails = argv[++i];
-    // TODO: parse more output: filename, format related things etc
+    else if(!strcmp(argv[i], "--output") && i < argc-1 && ++i)
+      output[user_output_cnt++] = dt_token(argv[i]);
+
+    // TODO: parse more options: filename, format related things etc
   }
+  if(user_output_cnt) output_cnt = user_output_cnt;
 
   if(qvk_init()) exit(1);
 
@@ -107,10 +109,11 @@ int main(int argc, char *argv[])
 
   if(!graphcfg)
   {
-    dt_log(s_log_cli, "usage: vkdt-cli -g <graph.cfg> "
-        "[-d verbosity] "
-        "[--dump-modules|--dump-nodes] "
-        "[--thumbnails <dir>] "
+    fprintf(stderr, "usage: vkdt-cli -g <graph.cfg>\n"
+    "    [-d verbosity]                set log verbosity (mem,perf,pipe,cli,err,all)\n"
+    "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
+    "    [--thumbnails <dir>]          create thumbnails for directory\n"
+    "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
         );
     qvk_cleanup();
     exit(1);
@@ -143,10 +146,17 @@ int main(int argc, char *argv[])
   }
 
   // replace requested display node by export node:
-  if(!found_main && replace_display(&graph, output, ldr, filename))
+  if(!found_main)
   {
-    dt_log(s_log_err, "graph does not contain suitable display node %"PRItkn"!", dt_token_str(output));
-    exit(2);
+    int cnt = 0;
+    for(;cnt<output_cnt;cnt++)
+      if(replace_display(&graph, output[cnt], ldr))
+        break;
+    if(cnt == 0)
+    {
+      dt_log(s_log_err, "graph does not contain suitable display node %"PRItkn"!", dt_token_str(output));
+      exit(2);
+    }
   }
   // make sure all remaining display nodes are removed:
   disconnect_display_modules(&graph);
@@ -154,30 +164,33 @@ int main(int argc, char *argv[])
   graph.frame = 0;
   if(graph.frame_cnt > 1)
   {
-    dt_module_t *mod_out = 0;
-    for(int m=0;m<graph.num_modules;m++)
+    dt_module_t *mod_out[10] = {0};
+    char filename[256];
+    for(int i=0;i<output_cnt;i++) for(int m=0;m<graph.num_modules;m++)
     {
-      if(graph.module[m].inst == dt_token("main") &&
+      if(graph.module[m].inst == output[i] &&
           (graph.module[m].name == dt_token("o-jpg") ||
            graph.module[m].name == dt_token("o-pfm")))
       {
-        mod_out = graph.module+m;
+        mod_out[i] = graph.module+m;
+        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(output[i]), 0);
+        dt_module_set_param_string(
+            mod_out[i], dt_token("filename"),
+            filename);
         break;
       }
     }
-    char filename[256];
-    snprintf(filename, sizeof(filename), "output_%04d", 0);
-    dt_module_set_param_string(
-        mod_out, dt_token("filename"),
-        filename);
     dt_graph_run(&graph, s_graph_run_all);
     for(int f=1;f<graph.frame_cnt;f++)
     {
       graph.frame = f;
-      snprintf(filename, sizeof(filename), "output_%04d", f);
-      dt_module_set_param_string(
-          mod_out, dt_token("filename"),
-          filename);
+      for(int i=0;i<output_cnt;i++)
+      {
+        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(output[i]), f);
+        dt_module_set_param_string(
+            mod_out[i], dt_token("filename"),
+            filename);
+      }
       dt_graph_run(&graph,
           s_graph_run_record_cmd_buf | 
           s_graph_run_download_sink  |
