@@ -321,7 +321,7 @@ create_nodes(
   for(int i=0;i<NUM_LEVELS;i++)
   { // visualise offsets
     dt_connector_copy(graph, module, 4+i, id_down[0][i], 1);
-#if 0
+#if 1
     assert(graph->num_nodes < graph->max_nodes);
     const int id_visn = graph->num_nodes++;
     graph->node[id_visn] = (dt_node_t) {
@@ -348,8 +348,10 @@ create_nodes(
       }},
     };
     CONN(dt_node_connect(graph, id_off[i], 2, id_visn, 0));
-#endif
+    dt_connector_copy(graph, module, 8+i, id_visn, 1);
+#else
     dt_connector_copy(graph, module, 8+i, id_off[i], 3);
+#endif
   }
 #endif
 #endif
