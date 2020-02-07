@@ -216,7 +216,6 @@ dt_thumbnails_cache_one(
   if(dt_graph_read_config_ascii(graph, cfgfilename))
   {
     dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
-    dt_graph_cleanup(graph);
     return 2;
   }
 
@@ -227,7 +226,6 @@ dt_thumbnails_cache_one(
         dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
     {
       dt_log(s_log_err, "[thm] config '%s' has no raw input module!", cfgfilename);
-      dt_graph_cleanup(graph);
       return 3;
     }
   }
@@ -242,7 +240,6 @@ dt_thumbnails_cache_one(
     if(m0 < 0)
     {
       dt_log(s_log_err, "[thm] config '%s' has no connected display module!", cfgfilename);
-      dt_graph_cleanup(graph);
       return 3; // display input not connected
     }
     // TODO: implement and set rec2020 param on f2srgb!

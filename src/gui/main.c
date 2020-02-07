@@ -166,8 +166,9 @@ int main(int argc, char *argv[])
 
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
-  dt_db_cleanup(&vkdt.db);
-  threads_global_cleanup();
   if(tmp_tn) dt_thumbnails_cleanup(tmp_tn);
+  dt_db_cleanup(&vkdt.db);
+  dt_pipe_global_cleanup();
+  threads_global_cleanup();
   exit(0);
 }

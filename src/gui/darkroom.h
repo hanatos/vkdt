@@ -91,6 +91,10 @@ darkroom_handle_event(SDL_Event *event)
     {
       dt_view_switch(s_view_cnt);
       dt_pipe_global_cleanup();
+      // this will crash on shutdown.
+      // actually we'd have to shutdown and re-init thumbnails, too
+      // because they hold a graph which holds pointers to global modules.
+      // this would mean to re-init the db, too ..
       system("make debug"); // build shaders
       dt_pipe_global_init();
       dt_view_switch(s_view_darkroom);
