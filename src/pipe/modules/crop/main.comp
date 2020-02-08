@@ -10,6 +10,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   mat3 H;
+  float r0, r1, r2, r3;
   float crop_x, crop_X;
   float crop_y, crop_Y;
 } params;
@@ -29,17 +30,39 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
+  // go through output pixels and determine input pixel.
+  // this means we go through the operations in reverse order:
+  // crop, rotate, perspective correction.
+  vec2 ts_in  = textureSize(img_in, 0);
+  // vec2 ts_out = imageSize(img_out);
+
+  vec2 xy = vec2(ipos.xy);
+
+  // 1) crop: adjust output coordinates by top left corner:
   vec2 co = vec2(params.crop_x, params.crop_y);
-  vec2 xy = co * textureSize(img_in, 0) + vec2(ipos.xy);
+  xy += co * ts_in;
+
+  // 2) rotate: center of the rotation is the center of the output image
+  mat2 T = mat2(params.r0, params.r1, params.r2, params.r3);
+  xy = T * (xy - ts_in*.5) + ts_in*.5;
+
+  // 3) perspective correction
   vec3 rdh = (params.H * vec3(xy.xy, 1.0)).xyz;
   vec2 rd = rdh.xy / rdh.z;
+  rd = xy;
+
   // rounding texture access:
   // vec4 rgba = texelFetch(img_in, ivec2(rd+0.5), 0);
   // bilinear:
-  // vec4 rgba = texture(img_in, rd/params.ri.roi);
+  // vec4 rgba = texture(img_in, rd/textureSize(img_in, 0));
   // catmull rom is a little slower (especially on intel) but results
   // in a bit more acuity:
-  vec4 rgba = sample_catmull_rom(img_in, rd/textureSize(img_in, 0));
+  rd /= ts_in;
+  vec4 rgba;
+  if(any(lessThan(rd, vec2(0.))) || any(greaterThanEqual(rd, vec2(1.))))
+    rgba = vec4(0.);
+  else
+    rgba = sample_catmull_rom(img_in, rd);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 

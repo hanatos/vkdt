@@ -27,6 +27,14 @@ static float g_connector[100][30][2];
 
 void widget_end()
 {
+  // rerun all (roi could have changed, buttons are drastic)
+  // TODO: let module decide this!
+  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+      s_graph_run_all &~s_graph_run_upload_source);
+  // reset view:
+  vkdt.state.look_at_x = FLT_MAX;
+  vkdt.state.look_at_y = FLT_MAX;
+  vkdt.state.scale = -1;
   if(g_active_widget_modid < 0) return; // all good already
   int modid = g_active_widget_modid;
   int parid = g_active_widget_parid;
@@ -42,8 +50,6 @@ void widget_end()
     memcpy(v, g_state, size);
   }
   g_active_widget_modid = -1;
-  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-      s_graph_run_all &~s_graph_run_upload_source);
 }
 
 void draw_arrow(float p[8])
@@ -716,7 +722,14 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
-        if(ImGui::Button(string)) widget_end();
+        if(ImGui::Button(string))
+        {
+          // TODO: find actual aspect ratio:
+          const float aspect = 3.f/2.f;
+          g_state[2] = .5f + aspect * (g_state[2] - .5f);
+          g_state[3] = .5f + aspect * (g_state[3] - .5f);
+          widget_end();
+        }
       }
       else
       {
@@ -730,8 +743,13 @@ inline void draw_widget(int modid, int parid)
           g_active_widget_parid = parid;
           // copy to quad state
           memcpy(g_state, v, sizeof(float)*4);
-          // reset module params so the image will not appear distorted:
-          float def[] = {0.f, 1.f, 0.f, 1.f};
+          // reset module params so the image will not appear cropped:
+          // float def[] = {0.f, 1.f, 0.f, 1.f};
+          // TODO: find actual image aspect:
+          const float aspect = 3.f/2.f;
+          float def[] = {0.f, 1.f,
+            .5f + aspect * (0.0f - .5f),
+            .5f + aspect * (1.0f - .5f)};
           memcpy(v, def, sizeof(float)*4);
         }
       }

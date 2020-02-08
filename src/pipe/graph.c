@@ -126,6 +126,7 @@ dt_graph_cleanup(dt_graph_t *g)
   vkFreeMemory(qvk.device, g->vkmem, 0);
   vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
+  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
   vkDestroyFence(qvk.device, g->command_fence, 0);
   vkDestroyQueryPool(qvk.device, g->query_pool, 0);
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
@@ -1644,6 +1645,7 @@ VkResult dt_graph_run(
 
   if(graph->heap.vmsize > graph->vkmem_size)
   {
+    run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem)
     {
       QVKR(vkDeviceWaitIdle(qvk.device));
@@ -1662,6 +1664,7 @@ VkResult dt_graph_run(
 
   if(graph->heap_staging.vmsize > graph->vkmem_staging_size)
   {
+    run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem_staging)
     {
       QVKR(vkDeviceWaitIdle(qvk.device));

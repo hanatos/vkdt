@@ -1,6 +1,8 @@
 #include "modules/api.h"
 #include "gaussian_elimination.h"
 
+#include <math.h>
+
 // TODO ROI
 void modify_roi_in(
     dt_graph_t *graph,
@@ -39,11 +41,25 @@ void modify_roi_out(
     dt_module_t *module)
 {
   const float *p_crop = dt_module_param_float(module, 1);
+  // const float *p_rot  = dt_module_param_float(module, 2);
   // copy to output
   // TODO: consider distortion!
   module->connector[1].roi = module->connector[0].roi;
-  module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * (p_crop[1] - p_crop[0]);
-  module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * (p_crop[3] - p_crop[2]);
+
+  // return; // XXX fuck this:
+  float wd = p_crop[1] - p_crop[0];
+  float ht = p_crop[3] - p_crop[2];
+  // if((p_rot[0] >  45 && p_rot[0] < 135) ||
+  //    (p_rot[0] > 225 && p_rot[0] < 315))
+  // {
+  //   module->connector[1].roi.full_wd = module->connector[0].roi.full_ht * wd;
+  //   module->connector[1].roi.full_ht = module->connector[0].roi.full_wd * ht;
+  // }
+  // else
+  {
+    module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * wd;//(p_crop[1] - p_crop[0]);
+    module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * ht;//(p_crop[3] - p_crop[2]);
+  }
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
@@ -87,13 +103,22 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[ 0] = r[0]; f[ 1] = r[3]; f[ 2] = r[6]; f[ 3] = 0.0f;
   f[ 4] = r[1]; f[ 5] = r[4]; f[ 6] = r[7]; f[ 7] = 0.0f;
   f[ 8] = r[2]; f[ 9] = r[5]; f[10] = r[8]; f[11] = 0.0f;
+  const float *p_rot = dt_module_param_float(module, 2);
+  f += 12;
+  float rad = p_rot[0] * 3.1415629 / 180.0f;
+  f[0] =  cosf(rad); f[1] = sinf(rad);
+  f[2] = -sinf(rad); f[3] = cosf(rad);
+  f += 4;
   const float *p_crop = dt_module_param_float(module, 1);
-  for(int i=0;i<4;i++)
-    f[12+i] = p_crop[i];
+  int flip = 0;
+  // if(p_rot[0] >  45 && p_rot[0] < 135) flip = 1;
+  // if(p_rot[0] > 225 && p_rot[0] < 315) flip = 1;
+  if(flip) for(int i=0;i<2;i++) f[2*i] = p_crop[2*(1-i)];
+  else     for(int i=0;i<2;i++) f[2*i] = p_crop[2*i];
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*16;
+  mod->committed_param_size = sizeof(float)*20;
   return 0;
 }
