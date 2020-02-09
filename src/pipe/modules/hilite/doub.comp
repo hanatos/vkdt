@@ -80,11 +80,11 @@ main()
 
     // determine by blurry image, without wb:
     if     (upsm.r < upsm.g && upsm.r < upsm.b)
-      scale = minr/upsm.r;
+      scale = minr/max(0.001, upsm.r);
     else if(upsm.b < upsm.g && upsm.b < upsm.r)
-      scale = minb/upsm.b;
+      scale = minb/max(0.001, upsm.b);
     else if(upsm.g < upsm.r && upsm.g < upsm.b)
-      scale = ming / upsm.g;
+      scale = ming /max(0.001,  upsm.g);
     // if(ming < 0.6)
       // scale = ming/upsm.g; // no use taking green, this clips first
 #if 0 // XXX DEBUG
@@ -230,31 +230,12 @@ main()
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(textureSize(img_in, 0)), 0);
     float ming = min(c.x, c.z);
     float scale;
-#if 0 // find by wb coeffs
-    // find out by wb coeffs which one we assume to clip last:
-    if     (push.wb.r > push.wb.g && push.wb.r > push.wb.b)
-      scale = c.w/upsm.r; // good for skies
-    else if(push.wb.b > push.wb.g && push.wb.b > push.wb.r)
-      scale = c.y/upsm.b; // good for fire
-    else
-      scale = ming/upsm.g;
-#endif
+
     // find by blurry image
-    if     (upsm.r < upsm.g && upsm.r < upsm.b) scale = c.w/upsm.r;
-    else if(upsm.g < upsm.r && upsm.g < upsm.b) scale = ming/upsm.g;
-    else if(upsm.b < upsm.g && upsm.b < upsm.r) scale = c.y/upsm.b;
-#if 0 // XXX DEBUG
-    if(c.w < ming)
-    {
-      if(c.y < c.w) scale = c.y/upsm.b;
-      else          scale = c.w/upsm.r;
-    }
-    else
-    {
-      if(c.y < ming) scale = c.y /upsm.b;
-      else           scale = ming/upsm.g;
-    }
-#endif
+    if     (upsm.r < upsm.g && upsm.r < upsm.b)  scale = c.w /max(0.0001, upsm.r);
+    else if(upsm.g < upsm.r && upsm.g < upsm.b)  scale = ming/max(0.0001, upsm.g);
+    else /*(upsm.b < upsm.g && upsm.b < upsm.r)*/scale = c.y /max(0.0001, upsm.b);
+
     if(c.x >= white ||
        c.y >= white ||
        c.z >= white ||

@@ -1,1 +1,3 @@
 white:float:1:0.99
+desat:float:1:0.8
+soft:float:1:1

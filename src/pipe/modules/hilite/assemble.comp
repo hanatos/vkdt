@@ -9,6 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float white;
+  float desat;
+  float soft;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -108,57 +110,24 @@ main()
   float scale = 1.0f;
   // rescale upsampled values to match unclipped values in fine buffer
   // this is risky because min might be close to black/0 so it may be unstable:
-#if 0
-  if     (push.wb.r > push.wb.g && push.wb.r > push.wb.b)
-    scale = fine.r/upsm.r; // red seems to work well on skies for most cameras
-  else if(push.wb.b > push.wb.g && push.wb.b > push.wb.r)
-    scale = fine.b/upsm.b; // blue is good for fires
-  else scale = fine.g/upsm.g; // i don't think this ever happens, but who knows.
-#endif
-  // guess by darkest blurry version
-  if     (upsm.r < upsm.g && upsm.r < upsm.b) scale = fine.r/max(0.0001, upsm.r);
-  else if(upsm.g < upsm.r && upsm.g < upsm.b) scale = fine.g/max(0.0001, upsm.g);
-  else if(upsm.b < upsm.g && upsm.b < upsm.r) scale = fine.b/max(0.0001, upsm.b);
+  // guess channel by darkest blurry version
+  if     (upsm.r < upsm.g && upsm.r < upsm.b)  scale = fine.r/max(0.0001, upsm.r);
+  else if(upsm.g < upsm.r && upsm.g < upsm.b)  scale = fine.g/max(0.0001, upsm.g);
+  else /*(upsm.b < upsm.g && upsm.b < upsm.r)*/scale = fine.b/max(0.0001, upsm.b);
 
   vec3 rec = upsm * scale;
 
-  // starting at > 6 this makes gradients nice and smooth
-  if(false)//push.level > 6)
-  {
-    // XXX using this reconstruction on all levels looks great and smooth!
-    // XXX unfortunately it's not fine scale enough to blend in if the highlight has a gradient
-    if(all(lessThan(upsm, vec3(white))))
-      fine = upsm;
-  }
-  else
-  {
-    // XXX this condition unfortunately leads to poisson reconstruction blotches near edges
-    // XXX if used on all levels.
-    // if(any(greaterThanEqual(fine, vec3(white))))
-    //   if(all(lessThan(upsm, vec3(white))))
-    //     fine = upsm;
-    //
-    // try and only apply if we are reasonably sure it's not an edge but a gradient:
-    // (i think this goes the right direction but maybe t needs to be more
-    // aggressive, i.e. degenerate to the above smooth with t=1 sooner)
-    float t = 0.0f;
-    if(any(greaterThanEqual(fine, vec3(white)))) t = 1.0f;
-    else t = clamp(1.0-0.4*length(fine-upsm), 0, 1);
+  // try and only apply if we are reasonably sure it's not an edge but a gradient:
+  // (i think this goes the right direction but maybe t needs to be more
+  // aggressive, i.e. degenerate to the above smooth with t=1 sooner)
+  float t = 0.0f;
+  if(any(greaterThanEqual(fine, vec3(white)))) t = 1.0f;
+  // else t = clamp(1.0-0.3*length(fine-upsm), 0, 1);
+  else t = clamp(params.soft-0.3*length(fine-upsm), 0, 1);
 
-    if(all(lessThan(upsm, vec3(white))))
-      fine = mix(fine, upsm, t);
-  }
+  if(all(lessThan(upsm, vec3(white))))
+    fine = mix(fine, upsm, t);
 
-#if 0
-  // only overwrite clipped in fine
-  if(push.level <= 1)
-  {
-    if(any(greaterThanEqual(fine, vec3(white)))
-      )// && all(lessThan(upsm, vec3(white))))
-    fine = rec;
-  }
-  else fine = upsm;
-#endif
   // fine = upsm; // XXX DEBUG
   imageStore(img_out, opos, vec4(fine, 1));
 }

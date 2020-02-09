@@ -9,6 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float white;
+  float desat;
+  float soft;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -44,9 +46,13 @@ main()
     float cmax = max(rgb.r*push.wb.r, max(rgb.g*push.wb.g, rgb.b*push.wb.b));
     float cmin = min(rgb.r*push.wb.r, min(rgb.g*push.wb.g, rgb.b*push.wb.b));
     float sat = (cmax-cmin)/cmax;
-    if(// sat < 0.2 && all(greaterThan(rgb, vec3(0.1))) &&
-        all(lessThan(rgb, vec3(white))))
+    if(all(lessThan(rgb, vec3(white))))
     {
+      float s = smoothstep(0.2, 1.0, max(rgb.r, max(rgb.g, rgb.b))/white);
+      u *= smoothstep(0.0, 1.0, 1.0 - sat);
+      float t = smoothstep(0.15, 0.9, sat);
+      t = clamp(s*t, 0.0, params.desat);
+      rgb = mix(rgb, vec3(cmax+cmin)/push.wb.rgb*.5, t);
       col += rgb * u;
       wgt += u;
     }
