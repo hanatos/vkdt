@@ -6,6 +6,11 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float usemat;
+} params;
+
 layout( // input buffer rgba
     set = 1, binding = 0
 ) uniform sampler2D img_in;
@@ -21,12 +26,14 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  // convert linear rec2020 to linear rec709
-  mat3 M = mat3(
-       1.66022677, -0.58754761, -0.07283825,
-      -0.12455334,  1.13292605, -0.00834963,
-      -0.01815514, -0.10060303,  1.11899817);
-  rgb *= M;
+  if(params.usemat > 0.0)
+  { // convert linear rec2020 to linear rec709
+    mat3 M = mat3(
+         1.66022677, -0.58754761, -0.07283825,
+        -0.12455334,  1.13292605, -0.00834963,
+        -0.01815514, -0.10060303,  1.11899817);
+    rgb *= M;
+  }
   // apply srgb tone curve
   rgb.r = rgb.r <= 0.0031308 ? rgb.r * 12.92 : pow(rgb.r, 1.0/2.4)*(1+0.055)-0.055;
   rgb.g = rgb.g <= 0.0031308 ? rgb.g * 12.92 : pow(rgb.g, 1.0/2.4)*(1+0.055)-0.055;
