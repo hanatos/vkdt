@@ -52,7 +52,8 @@ main()
     i1 = texelFetch(img_in1, ipos+off, 0).r;
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
-  float dist = abs(i0 - i1);
+  // float dist = abs(i0 - i1);     // L1
+  float dist = (i0 - i1)*(i0 - i1); // L2
 
   imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
 }
