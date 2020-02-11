@@ -42,7 +42,8 @@ main()
 
   vec3 bck   = texelFetch(img_in,   ipos, 0).rgb;
   vec3 rgb   = texelFetch(img_top,  ipos, 0).rgb;
-  float mask = texelFetch(img_mask, ipos, 0).r;
+  // float mask = texelFetch(img_mask, ipos, 0).r;
+  float mask = texture(img_mask, ipos/vec2(imageSize(img_out))).r;
   // TODO: switch based on mode, implement blend modes
   // if(global.frame > 0) rgb = mix(rgb, mix(rgb, bck, mask), params.opacity);
   // if(global.frame > 0) rgb = mix(rgb, bck, 1.0 - mask*params.opacity);
@@ -50,15 +51,40 @@ main()
   // TODO: opacity as a sliding average, is this a good idea?
   // TODO: put noise sigma in here?
 #if 1
-  float t = clamp(1.3*params.opacity - 2000*mask*mask, 0, 1);
+  float m = max(0.0, mask - 0.001);
+  // m = pow(8*m, 3);
+  float t = clamp(params.opacity-mask, 0, 1);//clamp(params.opacity - m, 0, 1);
+  // if(mask > 0.1) t = 0;
   // float t = clamp(params.opacity - 20*mask, 0, 1);
+#if 0
   // this should only be a last resort thing to suppress rgb artifacts.
   const float sigma_noise = 0.3;
   float d = length(bck - rgb)/sigma_noise;
   t *= 1.-smoothstep(0.2, 3.0, d);
-  // sliding average / full accumulation is:
-  float N = global.frame + 1.0;
-  bck = (N-1.) / N * bck + rgb / N;
+#endif
+
+#if 0 // use TAA style box clamping
+  vec3 mom1 = vec3(0.0f);
+  vec3 mom2 = vec3(0.0f);
+  const int r = 1;
+  for(int yy = -r; yy <= r; yy++) {
+    for(int xx = -r; xx <= r; xx++) {
+      vec3 c = texelFetch(img_top, ipos + ivec2(xx, yy), 0).rgb;
+      mom1 += c;
+      mom2 += c * c;
+    }
+  }
+  mom1 /= (2.0 * r + 1) * (2.0 * r + 1);
+  mom2 /= (2.0 * r + 1) * (2.0 * r + 1);
+
+  vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
+  const float thresh = 1.0;
+  bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+#endif
+#if 0  // sliding average / full accumulation is:
+  // float N = global.frame + 1.0;
+  // bck = (N-1.) / N * bck + rgb / N;
+#endif
   if(global.frame > 0) rgb = mix(rgb, bck, t);
 #endif
 
