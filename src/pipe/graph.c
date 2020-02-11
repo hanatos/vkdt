@@ -1894,6 +1894,7 @@ VkResult dt_graph_run(
         sizeof(graph->query_pool_results[0]),
         VK_QUERY_RESULT_64_BIT));
 
+  uint64_t accum_time = 0;
   for(int i=0;i<graph->query_cnt;i+=2)
   {
     dt_log(s_log_perf, "%"PRItkn"_%"PRItkn":\t%8.3f ms",
@@ -1901,7 +1902,11 @@ VkResult dt_graph_run(
         dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
+    if(graph->query_name[i] == dt_token("shared") || graph->query_name[i] == dt_token("burst"))
+      accum_time += graph->query_pool_results[i+1]- graph->query_pool_results[i];
   }
+  dt_log(s_log_perf, "total burst:\t%8.3f ms",
+      accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
   if(graph->query_cnt)
     dt_log(s_log_perf, "total time:\t%8.3f ms",
         (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds);
