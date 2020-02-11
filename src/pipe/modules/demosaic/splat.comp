@@ -36,8 +36,9 @@ eval_gauss(
   // too big eigenvalue runs into numeric limits,
   // too small eigenvalues make no sense (will show CFA pattern)
   cov.z = clamp(cov.z, 5, 20);
-  mat2 E = mat2(10./cov.z * cov.x, -10.*cov.y,
-                10./cov.z * cov.y,  10.*cov.x);
+  float s = 1; // increasing this will make the image sharper and more prone to false colour
+  mat2 E = mat2(s/cov.z * cov.x, -s*cov.y,
+                s/cov.z * cov.y,  s*cov.x);
   vec2 of = E * vec2(o);
   weight = exp(-0.5*dot(of, of));
 #if 0 // DEBUG: visualise gaussian splats
