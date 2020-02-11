@@ -397,6 +397,7 @@ create_nodes(
   dt_connector_copy(graph, module, 1, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 2, id_warp, 1));
   dt_connector_copy(graph, module, 2, id_warp, 2);
-  dt_connector_copy(graph, module, 3, id_off[0], 3);
+  dt_connector_copy(graph, module, 3, id_off[1], 3); // XXX
+  graph->node[id_off[1]].connector[3].roi = roi[2]; // XXX FIXME: this is shit
 #undef NUM_LEVELS
 }
