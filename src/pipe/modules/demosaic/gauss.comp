@@ -101,6 +101,7 @@ main()
   // 00 10 20
   // 01 11 21
   // 02 12 22
+#if 1
   // XXX only good for max voting: (abs will always distort direction)
   float vote = 0.0, vote2;
   vec2 var = vec2(-1, 1);
@@ -131,7 +132,11 @@ main()
     var = vec2(0, 1);
     vote = vote2;
   }
-#if 0
+  float vlen = length(var);
+  imageStore(img_out, ipos, vec4(var/vlen, 10*vlen, 1.0));
+  // imageStore(img_out, ipos, vec4(65535*(evec0+1.0), 10.0*eval.x, 1.0));
+  // imageStore(img_out, ipos, vec4(evec1, eval.y/eval.x, 1.0));
+#else
   vec2 var = (g00-m)*vec2( 1, 1)+//vec2(-1,-1)*vec2(-1,-1) +
              (g01-m)*vec2( 1, 0)+//vec2(-1, 0)*vec2(-1, 0) +
              (g02-m)*vec2( 1,-1)+//vec2(-1, 1)*vec2(-1, 1) +
@@ -153,13 +158,6 @@ main()
   mat2 M = mat2(var.x, cov, cov, var.y);
   vec2 eval, evec0, evec1;
   evd2x2(eval, evec0, evec1, M);
-  // DEBUG:
-  eval = vec2(1.0, 0.0);
-  // evec0 = vec2(0.0, 1.0);
+  imageStore(img_out, ipos, vec4(evec0, 100000*eval.x, 1.0));
 #endif
-  float vlen = length(var);
-  imageStore(img_out, ipos, vec4(vec2(var.y, -var.x)/vlen,
-        0.1*vlen, 1.0));
-  // imageStore(img_out, ipos, vec4(65535*(evec0+1.0), 10.0*eval.x, 1.0));
-  // imageStore(img_out, ipos, vec4(evec1, eval.y/eval.x, 1.0));
 }
