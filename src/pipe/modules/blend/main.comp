@@ -51,11 +51,7 @@ main()
   // TODO: opacity as a sliding average, is this a good idea?
   // TODO: put noise sigma in here?
 #if 1
-  float m = max(0.0, mask - 0.001);
-  // m = pow(8*m, 3);
   float t = clamp(params.opacity-mask, 0, 1);//clamp(params.opacity - m, 0, 1);
-  // if(mask > 0.1) t = 0;
-  // float t = clamp(params.opacity - 20*mask, 0, 1);
 #if 0
   // this should only be a last resort thing to suppress rgb artifacts.
   const float sigma_noise = 0.3;
@@ -63,7 +59,7 @@ main()
   t *= 1.-smoothstep(0.2, 3.0, d);
 #endif
 
-#if 0 // use TAA style box clamping
+#if 1 // use TAA style box clamping
   vec3 mom1 = vec3(0.0f);
   vec3 mom2 = vec3(0.0f);
   const int r = 1;

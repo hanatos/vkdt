@@ -70,7 +70,8 @@ main()
   // if(len > 10.00) res.z = 0;
   // TODO: parameter?
   // res.z = clamp(100*res.z, 0.0, 1.0); // mtest
-  res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
+  // res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
+  res.z = clamp(5*res.z, 0.0, 1.0);  // anti aliasing on ocean
   // res.z = pow(res.z, 5)+0.01;
   // res.z *= len;
   // res.z += 0.01*len;

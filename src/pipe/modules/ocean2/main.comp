@@ -31,7 +31,7 @@ layout( // output buffer rgb
 
 // some variables to change :)
 
-#define SPEED 0.2
+#define SPEED 0.03
 #define RENDER_GODRAYS    1    // set this to 1 to enable god-rays
 //#define RENDER_GODRAYS    0    // disable god-rays
 
