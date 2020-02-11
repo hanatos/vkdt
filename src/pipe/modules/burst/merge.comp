@@ -63,12 +63,15 @@ main()
       res = vec4(off, dist, 1);
   }
   imageStore(img_out, ipos, res);
-  res.z *= 0.2;
-  float len = length(res.xy);
+  // res.z *= 0.2;
+  // float len = length(res.xy);
   // if(res.z < 0.13) res.z = 0;
-  if(res.z > 0.13) res.z = 0;
-  if(len > 10.00) res.z = 0;
-  res.z = clamp(10*res.z, 0.0, 1.0);
+  // if(res.z > 0.13) res.z = 0;
+  // if(len > 10.00) res.z = 0;
+  // TODO: parameter?
+  // res.z = clamp(100*res.z, 0.0, 1.0); // mtest
+  res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
+  // res.z = pow(res.z, 5)+0.01;
   // res.z *= len;
   // res.z += 0.01*len;
   imageStore(img_resid, ipos, vec4(res.z));
