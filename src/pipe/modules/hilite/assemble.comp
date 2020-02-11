@@ -107,6 +107,7 @@ main()
 
   const float white = params.white;
 
+#if 1
   float scale = 1.0f;
   // rescale upsampled values to match unclipped values in fine buffer
   // this is risky because min might be close to black/0 so it may be unstable:
@@ -127,8 +128,10 @@ main()
 
   if(all(lessThan(upsm, vec3(white))))
     fine = mix(fine, upsm, t);
-
-  // fine = upsm; // XXX DEBUG
+#else
+  if(any(greaterThanEqual(fine, vec3(white))))
+    fine = upsm; // XXX DEBUG
+#endif
   imageStore(img_out, opos, vec4(fine, 1));
 }
 

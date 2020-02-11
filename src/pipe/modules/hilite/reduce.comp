@@ -19,11 +19,11 @@ layout(push_constant, std140) uniform push_t
   uint filters;
 } push;
 
-layout( // input f16 buffer y
+layout( // input buffer y
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output f16 buffer y blurred/downsized
+layout( // output buffer y blurred/downsized
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
@@ -43,15 +43,16 @@ main()
   {
     vec3 rgb = texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).rgb;
     float u = w[ii+2]*w[jj+2];
-    float cmax = max(rgb.r*push.wb.r, max(rgb.g*push.wb.g, rgb.b*push.wb.b));
-    float cmin = min(rgb.r*push.wb.r, min(rgb.g*push.wb.g, rgb.b*push.wb.b));
+    vec3 rgbw = rgb.rgb * push.wb.rgb;
+    float cmax = max(rgbw.r, max(rgbw.g, rgbw.b));
+    float cmin = min(rgbw.r, min(rgbw.g, rgbw.b));
     float sat = (cmax-cmin)/cmax;
     if(all(lessThan(rgb, vec3(white))))
     {
+      // desaturate colours, if close to white (s)
       float s = smoothstep(0.2, 1.0, max(rgb.r, max(rgb.g, rgb.b))/white);
-      u *= smoothstep(0.0, 1.0, 1.0 - sat);
-      float t = smoothstep(0.15, 0.9, sat);
-      t = clamp(s*t, 0.0, params.desat);
+      float t = smoothstep(0.15, 0.9, sat); // and desaturate more saturated colours more
+      t = clamp(5.0*params.desat*params.desat*s*t, 0.0, 1.0);
       rgb = mix(rgb, vec3(cmax+cmin)/push.wb.rgb*.5, t);
       col += rgb * u;
       wgt += u;
