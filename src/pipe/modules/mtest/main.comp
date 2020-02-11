@@ -50,6 +50,31 @@ float fbm(vec2 n)
   return total;
 }
 
+// tiny encryption algorithm random numbers
+vec2
+encrypt_tea(uvec2 arg)
+{
+  const uint key[] = {
+    0xa341316c, 0xc8013ea4, 0xad90777d, 0x7e95761e
+  };
+  uint v0 = arg[0], v1 = arg[1];
+  uint sum = 0;
+  uint delta = 0x9e3779b9;
+
+  #pragma unroll
+  for(int i = 0; i < 16; i++) {
+    sum += delta;
+    v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+    v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+  }
+  return vec2(v0/(0xffffffffu+1.0), v1/(0xffffffffu+1.0));
+}
+
+vec2 next_rand(inout uvec2 seed)
+{
+  seed.y++;
+  return encrypt_tea(seed);
+}
 
 void
 main()
@@ -66,7 +91,7 @@ main()
   rgb = vec3(0.2, 0.2, 1.0) * (1.+fbm(ipos * 0.005))/2.0;
 
   vec2 c = vec2(sz/2);
-  const float speed = 0.03;
+  const float speed = 1.0/360.0 * 2.0 * 3.1415926;
   c += sz/4 * vec2(
       sin(global.frame * speed),
       cos(global.frame * speed + 0.3));
@@ -82,6 +107,17 @@ main()
     // else
     //   rgb = vec3(0.0);
   }
+  // add some noise:
+  vec2 ru = encrypt_tea(
+      ipos.yx + ipos.yx * uvec2(global.frame, 37)
+      );
+  // box mueller transform to get std normal
+  vec2 rg = sqrt(-2.0f*log(ru.x)) * vec2(
+      cos(2.0f*3.1415962f * ru.y),
+      sin(2.0f*3.1415962f * ru.y));
+  rgb.g += 0.06 * rg.x; // sigma * Z: additive white gaussian noise
+  rgb.r += 0.06 * rg.y; // sigma * Z: additive white gaussian noise
+  // rgb.b += 0.04 * (rg.x + rg.y);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
