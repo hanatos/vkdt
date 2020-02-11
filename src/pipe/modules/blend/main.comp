@@ -44,7 +44,39 @@ main()
   vec3 rgb   = texelFetch(img_top,  ipos, 0).rgb;
   float mask = texelFetch(img_mask, ipos, 0).r;
   // TODO: switch based on mode, implement blend modes
-  if(global.frame > 0) rgb = mix(rgb, mix(rgb, bck, mask), params.opacity);
+  // if(global.frame > 0) rgb = mix(rgb, mix(rgb, bck, mask), params.opacity);
+  // if(global.frame > 0) rgb = mix(rgb, bck, 1.0 - mask*params.opacity);
+  // so now we need to talk about a noise model:
+  // TODO: opacity as a sliding average, is this a good idea?
+  // TODO: put noise sigma in here?
+#if 1
+  float t = clamp(1.3*params.opacity - 2000*mask*mask, 0, 1);
+  // float t = clamp(params.opacity - 20*mask, 0, 1);
+  // this should only be a last resort thing to suppress rgb artifacts.
+  const float sigma_noise = 0.3;
+  float d = length(bck - rgb)/sigma_noise;
+  t *= 1.-smoothstep(0.2, 3.0, d);
+  // sliding average / full accumulation is:
+  float N = global.frame + 1.0;
+  bck = (N-1.) / N * bck + rgb / N;
+  if(global.frame > 0) rgb = mix(rgb, bck, t);
+#endif
+
+
+
+#if 0 // somehow the theory doesn't fit? mask as sqrt looks terrible indeed
+  // bayesian risk for wavelet thresholding is minimised by
+  // T = sigma^2 / sigma_noise   where sigma^2 = sigma_signal^2 + sigma_noise^2
+  // mask is the L2 distance (of the whole patch) our image vs warped back buffer
+  const float sigma_noise = 0.08; // i know that, it's been added synthetically
+  const float T = 0.0001*params.opacity / sigma_noise;
+  // const float d = length(bck - rgb);
+  const float d = mask*mask;//sqrt(mask);
+  // const float t = smoothstep(0.0, T, d);
+  const float t = clamp((T-d)/T, 0.0, 1.0);
+  if(global.frame > 0) rgb = mix(bck, rgb, t);
+#endif
+
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
