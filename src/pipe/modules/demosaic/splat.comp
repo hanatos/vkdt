@@ -36,7 +36,7 @@ eval_gauss(
   // too big eigenvalue runs into numeric limits,
   // too small eigenvalues make no sense (will show CFA pattern)
   cov.z = clamp(cov.z, 5, 20);
-  float s = 1; // increasing this will make the image sharper and more prone to false colour
+  float s = 5; // decreasing this will make the image sharper and more prone to zippering
   mat2 E = mat2(s/cov.z * cov.x, -s*cov.y,
                 s/cov.z * cov.y,  s*cov.x);
   vec2 of = E * vec2(o);
