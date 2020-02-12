@@ -25,6 +25,8 @@ style_to_state()
     .center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - pwd,
     .center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width,
     .panel_ht = qvk.win_height,
+    .anim_frame = vkdt.state.anim_frame,
+    .anim_max_frame = vkdt.state.anim_max_frame,
   };
 }
   
