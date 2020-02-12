@@ -1,0 +1,57 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+#include "himalaya/common.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 0) uniform global_t
+// { } global;
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+layout( // output
+    set = 1, binding = 0
+) uniform writeonly image2D img_out;
+
+// Himalayas. Created by Reinder Nijhoff 2018
+// @reindernijhoff
+//
+// https://www.shadertoy.com/view/MdGfzh
+//
+// This is my first attempt to render volumetric clouds in a fragment shader.
+//
+// Buffer A: The main look-up texture for the cloud shapes. 
+// Buffer B: A 3D (32x32x32) look-up texture with Worley Noise used to add small details 
+//           to the shapes of the clouds. I have packed this 3D texture into a 2D buffer.
+// 
+// bool resolutionChanged() {
+//   return floor(texelFetch(iChannel1, ivec2(0), 0).r) != floor(iResolution.x);
+// }
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  // vec2 vUV = ivec2(ipos.x, imageSize(img_out).y-ipos.y-1)/vec2(imageSize(img_out));
+  vec2 vUV = ipos/vec2(imageSize(img_out));
+  vec3 coord = fract(vec3(vUV + vec2(.2,0.62), .5));
+
+  vec4 col = vec4(1);
+
+  float mfbm = 0.9;
+  float mvor = 0.7;
+
+  col.r = mix(1., tilableFbm( coord, 7, 4. ), mfbm) * 
+    mix(1., tilableVoronoi( coord, 8, 9. ), mvor);
+  col.g = 0.625 * tilableVoronoi( coord + 0., 3, 15. ) +
+    0.250 * tilableVoronoi(  coord + 0., 3, 19. ) +
+    0.125 * tilableVoronoi( coord + 0., 3, 23. ) 
+    -1.;
+  col.b = 1. - tilableVoronoi( coord + 0.5, 6, 9. );
+
+  imageStore(img_out, ipos, col);
+}

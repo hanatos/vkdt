@@ -1,0 +1,285 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+#include "himalaya/common.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+layout( // input 2d coverage noise texture
+    set = 1, binding = 0
+) uniform sampler2D img_noise0;
+
+layout( // input 3d worley noise
+    set = 1, binding = 1
+) uniform sampler2D img_noise1;
+
+layout( // output
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+#include "clouds.glsl"
+#include "image.glsl"
+
+// Himalayas. Created by Reinder Nijhoff 2018
+// @reindernijhoff
+//
+// https://www.shadertoy.com/view/MdGfzh
+//
+// This is my first attempt to render volumetric clouds in a fragment shader.
+//
+//
+// To create an interesting scene and to add some scale to the clouds, I render a 
+// terrain using a simple heightmap, based on the work by Íñigo Quílez on value noise and its 
+// analytical derivatives.[3]
+//
+// In fact, the heightmap of this shader is almost exactly the same as the heightmap that 
+// is used in Íñigo Quílez' shader Elevated:
+//
+// https://www.shadertoy.com/view/MdX3Rr
+//
+// To reduce noise I use temporal reprojection (both for clouds (Buffer D) and the terrain 
+// (Buffer C)) separatly. The temporal reprojection code is based on code from the shader
+// "Rain Forest" (again by Íñigo Quílez):
+//
+// https://www.shadertoy.com/view/4ttSWf
+// 
+
+vec3 noised( in vec2 x ) {
+    vec2 f = fract(x);
+    vec2 u = f*f*(3.0-2.0*f);
+    
+    vec2 p = vec2(floor(x));
+    float a = hash12( (p+vec2(0,0)) );
+	float b = hash12( (p+vec2(1,0)) );
+	float c = hash12( (p+vec2(0,1)) );
+	float d = hash12( (p+vec2(1,1)) );
+    
+	return vec3(a+(b-a)*u.x+(c-a)*u.y+(a-b-c+d)*u.x*u.y,
+				6.0*f*(1.0-f)*(vec2(b-a,c-a)+(a-b-c+d)*u.yx));
+}
+
+const mat2 m2 = mat2(1.6,-1.2,1.2,1.6);
+
+float terrainMap( in vec2 x, const int OCTAVES ) {
+	vec2 p = x*(MOUNTAIN_HW_RATIO*SCENE_SCALE);
+    float s = mix(1., smoothstep(.0,.4, abs(p.y)), .75);
+    
+    float a = 0.;
+    float b = 1.;
+	vec2  d = vec2(0.0);
+    for( int i=0; i<OCTAVES; i++ ) {
+        vec3 n = noised(p);
+        d += n.yz;
+        a += b*n.x/(1.0+dot(d,d));
+		b *= 0.5;
+        p = m2*p;
+    }
+	return s*a*(MOUNTAIN_HEIGHT*INV_SCENE_SCALE*.5);
+}
+
+float terrainMapB( in vec2 x, const int OCTAVES ) {
+	vec2 p = x*(MOUNTAIN_HW_RATIO*SCENE_SCALE);
+    float s = mix(1., smoothstep(.0,.4, abs(p.y)), .75);
+    
+    float a = 0.;
+    float b = 1.;
+	vec2  d = vec2(0.0);
+    for( int i=0; i<OCTAVES; i++ ) {
+        vec3 n = noised(p);
+        d += n.yz;
+        a += b*n.x/(1.0+dot(d,d));
+		b *= 0.5;
+        p = m2*p;
+    }
+	return s*a*(MOUNTAIN_HEIGHT*INV_SCENE_SCALE*.5);
+}
+vec3 calcNormal(in vec3 pos, float t, const int OCTAVES) {
+    vec2  eps = vec2( (0.0015)*t, 0.0 );
+    return normalize( vec3( terrainMap(pos.xz-eps.xy, OCTAVES) - terrainMap(pos.xz+eps.xy, OCTAVES),
+                            2.0*eps.x,
+                            terrainMap(pos.xz-eps.yx, OCTAVES) - terrainMap(pos.xz+eps.yx, OCTAVES) ) );
+}
+
+vec4 render( in vec3 ro, in vec3 rd ) {
+	vec3 col, bgcol;
+    
+    float tmax = 10000.;
+    // bouding top plane
+    float topd = ((MOUNTAIN_HEIGHT*INV_SCENE_SCALE)-ro.y)/rd.y;
+    if( rd.y > 0.0 && topd > 0.0 ) {
+        tmax = min(tmax, topd);
+    }
+    
+    // intersect with heightmap
+    float t = 1.;
+	for( int i=0; i<128; i++ ) {
+        vec3 pos = ro + t*rd;
+		float h = pos.y - terrainMap( pos.xz, 7 );
+        if(abs(h)<(0.003*t) || t>tmax ) break; // use abs(h) to bounce back if under terrain
+	    t += .9 * h;
+	}
+   	
+    bgcol = col = getSkyColor(rd);
+	if( t<tmax) {
+		vec3 pos = ro + t*rd;
+        vec3 nor = calcNormal( pos, t, 15);
+           
+        // terrain color - just back and white
+        float s = smoothstep(0.5,0.9,dot(nor, vec3(.3,1.,0.05)));
+        col = mix( vec3(.01), vec3(0.5,0.52,0.6), smoothstep(.1,.7,s ));
+		
+        // lighting	
+        // shadow is calculated based on the slope of a low frequency version of the heightmap
+        float shadow = .5 + clamp( -8.+ 16.*dot(SUN_DIR, calcNormal(pos, t, 5)), 0.0, .5 );
+        shadow *= smoothstep(20.,80.,pos.y);
+        
+        float ao = terrainMap(pos.xz, 10)-terrainMap(pos.xz,7);
+        ao = clamp(.25 + ao / (MOUNTAIN_HEIGHT*INV_SCENE_SCALE) * 200., 0., 1.);
+
+        float ambient  = max(0.5+0.5*nor.y,0.0);
+		float diffuse  = max(dot(SUN_DIR, nor), 0.0);
+		float backlight = max(0.5 + 0.5*dot( normalize( vec3(-SUN_DIR.x, 0., SUN_DIR.z)), nor), 0.0);
+	 	
+        //
+        // use a 3-light setup as described by Íñigo Quílez
+        // http://iquilezles.org/www/articles/outdoorslighting/outdoorslighting.htm
+        //
+		vec3 lin = (diffuse*shadow*3.) * SUN_COLOR;
+		lin += (ao*ambient)*vec3(0.40,0.60,1.00);
+        lin += (backlight)*vec3(0.40,0.50,0.60);
+		col *= lin;
+        col *= (.6+.4*smoothstep(400.,100.,abs(pos.z))); // dark in the distance
+    
+        // height based fog, see http://iquilezles.org/www/articles/fog/fog.htm
+        float fogAmount = HEIGHT_BASED_FOG_C * (1.-exp( -t*rd.y*HEIGHT_BASED_FOG_B))/rd.y;
+        col = mix( col, bgcol, fogAmount);
+    } else {
+        t = 10000.;
+    }
+
+	return vec4( col, t );
+}
+
+
+#if 0
+bool resolutionChanged() {
+    return floor(texelFetch(iChannel1, ivec2(0), 0).r) != floor(iResolution.x);
+}
+
+bool mouseChanged() {
+    return iMouse.z * texelFetch(iChannel1, ivec2(1,0), 1).w < 0.;
+}
+#endif
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 ro, rd, ta;
+  vec3 o = hash33( vec3(ipos, global.frame) ) - 0.5; // dither
+  ivec2 co = ivec2(ipos.x, imageSize(img_out).y-ipos.y-1);
+  float time = 0.05 * global.frame;
+  getRay( time, (co+o.xy), imageSize(img_out),
+      // iMouse/iResolution.xyxy,
+      vec4(0.0),
+      ro, rd);
+
+  vec4 col = render( ro + rd*o.z, rd );
+
+  vec4 clouds = vec4(0,0,0,1);
+  float dist;
+#if 1 // add in clouds
+  // float dist = texelFetch(iChannel2, ivec2(fragCoord),0).w * SCENE_SCALE;
+  // XXX this seems to cause black fringes if too short. done it wrong?
+  dist = 100*col.w * SCENE_SCALE;
+  getRay( time, co, imageSize(img_out),
+      // iMouse/iResolution.xyxy,
+      vec4(0.0),
+      ro, rd);
+
+    if( rd.y > 0. ) {
+#if 1
+      // clouds
+      clouds = renderClouds(ro, rd, dist);
+      float fogAmount = 1.-(.1 + exp(-dist*0.0001));
+      clouds.rgb = mix(clouds.rgb, getSkyColor(rd)*(1.-clouds.a), fogAmount);
+#endif
+    } else {
+#if 1
+      // cloud layer below horizon
+      clouds = renderCloudLayer(ro, rd, dist);
+      // height based fog, see http://iquilezles.org/www/articles/fog/fog.htm
+      float fogAmount = HEIGHT_BASED_FOG_C * 
+        (1.-exp( -dist*rd.y*(INV_SCENE_SCALE*HEIGHT_BASED_FOG_B)))/rd.y;
+      clouds.rgb = mix(clouds.rgb, getSkyColor(rd)*(1.-clouds.a), clamp(fogAmount,0.,1.));
+#endif
+    }
+    clouds.a = clamp(clouds.a, 0., 1.);
+#endif
+
+#if 1 // image.glsl:
+  // vec4 col = texelFetch(iChannel0, ivec2(fragCoord), 0);
+  // vec4 clouds = texelFetch(iChannel1, ivec2(fragCoord), 0);
+  col.rgb = clouds.rgb + col.rgb * clouds.a;
+
+  // mat3 cam = getCamera( iTime, iMouse/iResolution.xyxy, ro, ta );
+  mat3 cam = getCamera( time, vec4(0.0), ro, ta );
+  vec4 tcol = vec4(0.);
+  // vec2 p = (-iResolution.xy + 2.0*(fragCoord))/iResolution.y;
+  vec2 p = (-imageSize(img_out) + 2.0*(co))/imageSize(img_out).y;
+  rd = cam * normalize(vec3(p,CAMERA_FL)); 
+
+  if (intersectSphere(ro,rd,vec4(FLAG_POSITION,HUMANOID_SCALE*INV_SCENE_SCALE*2.))) {
+    for(int x=0; x<AA; x++) {
+      for(int y=0; y<AA; y++) {
+        // vec2 p = (-iResolution.xy + 2.0*(fragCoord + vec2(x,y)/float(AA) - .5))/iResolution.y;
+        vec2 p = (-imageSize(img_out) + 2.0*(co + vec2(x,y)/float(AA) - .5))/imageSize(img_out).y;
+        rd = cam * normalize(vec3(p,CAMERA_FL)); 
+
+        if (intersectPlane(ro, rd, vec3(0,0,1), FLAG_POSITION, dist) && dist < col.w) {
+          vec3 pos = ro + rd * dist;
+          vec2 uv = (pos.xy - FLAG_POSITION.xy)*(SCENE_SCALE/HUMANOID_SCALE);
+          uv.x = -uv.x + uv.y*0.05;
+          float sdf = Humanoid( uv, 3. );
+          float a = smoothstep(.4,.6,.5-.5*sdf/(abs(sdf)+.002));
+          float sdf2 = Humanoid( uv+vec2(.025,0.05), 3. );
+          float a2 = smoothstep(.4,.6,.5-.5*sdf2/(abs(sdf2)+.002));
+          float c = (a-a2)*2.;
+          c = clamp(c+uv.x*.2+.6,0.,1.); c*=c; c*=c;
+          tcol += vec4(mix(vec3(.04,0.05,0.06),SUN_COLOR,c),a);
+        }
+      }
+    }
+    tcol /= float(AA*AA);
+  }
+
+  col.rgb = mix(col.rgb, tcol.rgb, tcol.w);    
+
+  // lens flare
+  col.rgb += SUN_COLOR*lensflare(co)*smoothstep(-.3,.5,dot(rd,SUN_DIR));       
+  col.rgb = clamp(col.rgb, vec3(0), vec3(1));
+
+  // gamma and contrast
+  col.rgb = mix(col.rgb, pow(col.rgb, vec3(1./2.2)), .85);
+  col.rgb = mix( col.rgb, col.bbb, 0.2 ); 
+
+  // vignette
+  vec2 uv = co / imageSize(img_out); // fragCoord / iResolution.xy;
+  col.rgb = mix(col.rgb*col.rgb, col.rgb, pow( 16.0*uv.x*uv.y*(1.0-uv.x)*(1.0-uv.y), 0.1 ));
+
+  // noise
+  col.rgb -= hash12(co)*.025;
+#endif
+
+  imageStore(img_out, ipos, vec4(col.rgb, 1.));
+}
