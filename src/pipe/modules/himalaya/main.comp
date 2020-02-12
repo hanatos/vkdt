@@ -200,8 +200,7 @@ void main()
   float dist;
 #if 1 // add in clouds
   // float dist = texelFetch(iChannel2, ivec2(fragCoord),0).w * SCENE_SCALE;
-  // XXX this seems to cause black fringes if too short. done it wrong?
-  dist = 100*col.w * SCENE_SCALE;
+  dist = col.w * SCENE_SCALE;
   getRay( time, co, imageSize(img_out),
       // iMouse/iResolution.xyxy,
       vec4(0.0),
@@ -224,7 +223,8 @@ void main()
       clouds.rgb = mix(clouds.rgb, getSkyColor(rd)*(1.-clouds.a), clamp(fogAmount,0.,1.));
 #endif
     }
-    clouds.a = clamp(clouds.a, 0., 1.);
+    // clouds.a = clamp(clouds.a, 0., 1.);
+    if(clouds.w > 1.) clouds = vec4(0,0,0,1);
 #endif
 
 #if 1 // image.glsl:

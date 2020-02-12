@@ -42,8 +42,10 @@
 #define CLOUDS_LAYER_BOTTOM   (-150.)
 #define CLOUDS_LAYER_TOP      (-70.)
 
-#define CLOUDS_COVERAGE (.52)
-#define CLOUDS_LAYER_COVERAGE (.41)
+// #define CLOUDS_COVERAGE (.52)
+// #define CLOUDS_LAYER_COVERAGE (.41)
+#define CLOUDS_COVERAGE (.72)
+#define CLOUDS_LAYER_COVERAGE (.61)
 
 #define CLOUDS_DETAIL_STRENGTH (.2)
 #define CLOUDS_BASE_EDGE_SOFTNESS (.1)
@@ -91,6 +93,7 @@ float remap(float v, float s, float e) {
 
 float cloudMapBase(vec3 p, float norY) {
   vec3 uv = p * (0.00005 * CLOUDS_BASE_SCALE);
+  // uv *= vec3(1024.0/1000.0, 1, 1024.0/2350.0);
 
   vec3 cloud = texture(img_noise0, uv.xz).rgb;
 
@@ -119,23 +122,26 @@ float cloudGradient( float norY ) {
     return linearstep( 0., .05, norY ) - linearstep( .8, 1.2, norY);
 }
 
-float cloudMap(vec3 pos, vec3 rd, float norY) {
-    vec3 ps = pos;
-    
-    float m = cloudMapBase(ps, norY);
-	m *= cloudGradient( norY );
+float cloudMap(vec3 pos, vec3 rd, float norY)
+{
+  vec3 ps = pos;
 
-	float dstrength = smoothstep(1., 0.5, m);
-    
-    // erode with detail
-    if(dstrength > 0.) {
-		m -= cloudMapDetail( ps ) * dstrength * CLOUDS_DETAIL_STRENGTH;
-    }
+  vec3 speed = vec3(5, 190, 0);
+  // float m = cloudMapBase(ps, norY);
+  float m = cloudMapBase(ps+speed*global.frame, norY);
+  m *= cloudGradient( norY );
 
-	m = smoothstep( 0., CLOUDS_BASE_EDGE_SOFTNESS, m+(CLOUDS_COVERAGE-1.) );
-    m *= linearstep0(CLOUDS_BOTTOM_SOFTNESS, norY);
+  float dstrength = smoothstep(1., 0.5, m);
 
-    return clamp(m * CLOUDS_DENSITY * (1.+max((ps.x-7000.)*0.005,0.)), 0., 1.);
+  // erode with detail
+  if(dstrength > 0.) {
+    m -= cloudMapDetail( ps + speed*0.*global.frame) * dstrength * CLOUDS_DETAIL_STRENGTH;
+  }
+
+  m = smoothstep( 0., CLOUDS_BASE_EDGE_SOFTNESS, m+(CLOUDS_COVERAGE-1.) );
+  m *= linearstep0(CLOUDS_BOTTOM_SOFTNESS, norY);
+
+  return clamp(m * CLOUDS_DENSITY * (1.+max((ps.x-7000.)*0.005,0.)), 0., 1.);
 }
 
 float volumetricShadow(in vec3 from, in float sundotrd ) {
@@ -226,7 +232,7 @@ vec4 renderClouds( vec3 ro, vec3 rd, inout float dist ) {
 //
 
 float cloudMapLayer(vec3 pos, vec3 rd, float norY) {
-    vec3 ps = pos;
+    vec3 ps = pos + vec3(100, 0, 1500);
 
     float m = cloudMapBase(ps, norY);
 	// m *= cloudGradient( norY );
@@ -308,7 +314,8 @@ vec4 renderCloudLayer( vec3 ro, vec3 rd, inout float dist ) {
             dist = min( dist, d);
             vec3 ambientLight = mix( CLOUDS_AMBIENT_COLOR_BOTTOM, CLOUDS_AMBIENT_COLOR_TOP, norY );
 
-            vec3 S = .7 * (ambientLight +  SUN_COLOR * (scattering * volumetricShadowLayer(p, sundotrd))) * alpha;
+            vec3 S = .7 * (ambientLight +  SUN_COLOR * (scattering *
+                  volumetricShadowLayer(p, sundotrd))) * alpha;
             float dTrans = exp(-alpha * dD);
             vec3 Sint = (S - S * dTrans) * (1. / alpha);
             scatteredLight += transmittance * Sint; 
