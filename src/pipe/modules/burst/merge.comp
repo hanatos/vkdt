@@ -40,7 +40,8 @@ main()
   vec2 coff = vec2(0);
   if(push.scale > 0)
     coff = sample_soft(img_coff, (ipos+.5f)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
-  vec4 res = vec4(0, 0, 6500000, 1);
+  vec4 res1 = vec4(0, 0, 6500000, 1);
+  vec4 res2 = vec4(0, 0, 6500000, 1);
 
   for(int idx=0;idx<25;idx++)
   {
@@ -52,17 +53,27 @@ main()
     // float dist = textureLod(img_dist[idx], (ipos+.5f)/vec2(imageSize(img_out)), 0).r;
     vec2 off = coff + ivec2(offx, offy);
 #if 0
-    vec2 off;
     // it == 0 is finest, it == 3 is coarsest
-    if(push.it < 0)
-      off = coff;// + ivec2(offx, offy); // XXX
+    if(push.it == 1)
+      off = ivec2(offx, offy); // XXX
     else
-      off = coff + ivec2(offx, offy); // XXX
+      off = coff;// + ivec2(offx, offy); // XXX
 #endif
-    if(dist < res.z)
-      res = vec4(off, dist, 1);
+    if(dist < res1.z)
+    {
+      res2 = res1;
+      res1 = vec4(off, dist, 1);
+    }
+    else if(dist < res2.z)
+    {
+      res2 = vec4(off, dist, 1);
+    }
   }
-  imageStore(img_out, ipos, res);
+  // XXX FIXME: this doesn't work very well. use the sub-pixel smoothing from the paper instead!
+  if(push.it == 0)
+    res1 = (res1 / res1.z + res2 / res2.z) / (1./res1.z + 1./res2.z);
+
+  imageStore(img_out, ipos, res1);
   // res.z *= 0.2;
   // float len = length(res.xy);
   // if(res.z < 0.13) res.z = 0;
@@ -70,13 +81,13 @@ main()
   // if(len > 10.00) res.z = 0;
   // TODO: parameter?
   // res.z = clamp(100*res.z, 0.0, 1.0); // mtest
-  res.z = clamp(10*res.z, 0.0, 1.0); // himalaya
+  res1.z = clamp(10*res1.z, 0.0, 1.0); // himalaya
   // res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
   // res.z = 0;
   // res.z = clamp(5*res.z, 0.0, 1.0);  // anti aliasing on ocean
   // res.z = pow(res.z, 5)+0.01;
   // res.z *= len;
   // res.z += 0.01*len;
-  imageStore(img_resid, ipos, vec4(res.z));
+  imageStore(img_resid, ipos, vec4(res1.z));
 }
 
