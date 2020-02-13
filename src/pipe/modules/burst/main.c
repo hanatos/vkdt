@@ -399,5 +399,6 @@ create_nodes(
   dt_connector_copy(graph, module, 2, id_warp, 2);
   dt_connector_copy(graph, module, 3, id_off[1], 3); // XXX
   graph->node[id_off[1]].connector[3].roi = roi[2]; // XXX FIXME: this is shit
+  // dt_connector_copy(graph, module, 3, id_off[0], 3);  // full res mask
 #undef NUM_LEVELS
 }
