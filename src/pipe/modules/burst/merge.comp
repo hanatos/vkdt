@@ -80,11 +80,11 @@ main()
   // if(res.z > 0.13) res.z = 0;
   // if(len > 10.00) res.z = 0;
   // TODO: parameter?
-  // res.z = clamp(100*res.z, 0.0, 1.0); // mtest
-  res1.z = clamp(10*res1.z, 0.0, 1.0); // himalaya
+  // res.z = clamp(100*res.z, 0.0, 1.0);     // mtest
+  res1.z = clamp(10*res1.z, 0.0, 1.0);       // himalaya
   // res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
-  // res.z = 0;
-  // res.z = clamp(5*res.z, 0.0, 1.0);  // anti aliasing on ocean
+  // res1.z = 0;
+  // res.z = clamp(5*res.z, 0.0, 1.0);       // anti aliasing on ocean
   // res.z = pow(res.z, 5)+0.01;
   // res.z *= len;
   // res.z += 0.01*len;

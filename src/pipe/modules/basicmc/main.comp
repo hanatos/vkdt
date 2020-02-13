@@ -18,6 +18,32 @@ layout( // output
     set = 1, binding = 0
 ) uniform writeonly image2D img_out;
 
+// tiny encryption algorithm random numbers
+vec2
+encrypt_tea(uvec2 arg)
+{
+  const uint key[] = {
+    0xa341316c, 0xc8013ea4, 0xad90777d, 0x7e95761e
+  };
+  uint v0 = arg[0], v1 = arg[1];
+  uint sum = 0;
+  uint delta = 0x9e3779b9;
+
+  #pragma unroll
+  for(int i = 0; i < 16; i++) {
+    sum += delta;
+    v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+    v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+  }
+  return vec2(v0/(0xffffffffu+1.0), v1/(0xffffffffu+1.0));
+}
+
+vec2 next_rand(inout uvec2 seed)
+{
+  seed.y++;
+  return encrypt_tea(seed);
+}
+
 // Created by inigo quilez - iq/2016
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0
 
@@ -34,11 +60,16 @@ float hash(float seed)
     return fract(sin(seed)*43758.5453 );
 }
 
-vec3 cosineDirection( in float seed, in vec3 nor)
+vec3 cosineDirection( in int seed, in vec3 nor)
 {
-    float u = hash( 78.233 + seed);
-    float v = hash( 10.873 + seed);
-
+  // float u = hash( 78.233 + seed);
+  // float v = hash( 10.873 + seed);
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  // uvec2 iseed = uvec2(133700, 18700) * ipos + uvec2(seed, global.frame);
+  uvec2 iseed = uvec2(ipos.y*1337+ipos.x, 37*seed + 13370*global.frame);
+  vec2 rand = encrypt_tea(iseed);
+  float u = rand.x;
+  float v = rand.y;
     
     // Method 1 and 2 first generate a frame of reference to use with an arbitrary
     // distribution, cosine in this case. Method 3 (invented by fizzer) specializes 
@@ -219,7 +250,8 @@ vec3 calculateColor(vec3 ro, vec3 rd, float sa )
         // todo - add back direct specular
 
         // light 2
-        vec3 skyPoint = cosineDirection( sa + 7.1*float(global.frame) + 5681.123 + float(bounce)*92.13, nor);
+        // vec3 skyPoint = cosineDirection( sa + 7.1*float(global.frame) + 5681.123 + float(bounce)*92.13, nor);
+        vec3 skyPoint = cosineDirection( 2*bounce, nor);
         float skySha = shadow( pos + nor*epsilon, skyPoint);
         iColor += skyCol * skySha;
 
@@ -232,7 +264,8 @@ vec3 calculateColor(vec3 ro, vec3 rd, float sa )
         //float isDif = 0.8;
         //if( hash(sa + 1.123 + 7.7*float(bounce)) < isDif )
         {
-           rd = cosineDirection(76.2 + 73.1*float(bounce) + sa + 17.7*float(global.frame), nor);
+           // rd = cosineDirection(76.2 + 73.1*float(bounce) + sa + 17.7*float(global.frame), nor);
+           rd = cosineDirection(2*bounce + 1, nor);
         }
         //else
         {
