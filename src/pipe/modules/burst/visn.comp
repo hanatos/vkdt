@@ -26,7 +26,7 @@ main()
 
   vec3 rgb = vec3(0, 0, 0);
   // rgb.rg = sample_soft(img_in, (ipos+.5f)/vec2(textureSize(img_in, 0))).rg / 32;//256.0;//128.0;
-  rgb.rg = sample_soft(img_in, (ipos+.5f)/vec2(textureSize(img_in, 0))).rg * 0.05f;
+  rgb.rg = sample_soft(img_in, (ipos+.5f)/vec2(textureSize(img_in, 0))).rg * 0.05;//5f;
   // vec3 rgb = texelFetch(img_in, ipos, 0).rg * 1;///2.0;// * 0.05;
   rgb = clamp((vec3(1.0f) + rgb)*.5f, vec3(0.0f), vec3(1.0f));
   // rgb = clamp(abs(rgb), vec3(0.0f), vec3(1.0f));
