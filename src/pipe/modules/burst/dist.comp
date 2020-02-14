@@ -48,8 +48,13 @@ main()
   float i1;
   if(push.scale > 0)
   {
+#if 0 // hard
     ivec2 off = ivec2(ivec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
     i1 = texelFetch(img_in1, ipos+off, 0).r;
+#else // soft
+    vec2 off = vec2(vec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
+    i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
+#endif
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
   // float dist = abs(i0 - i1);     // L1
