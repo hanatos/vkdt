@@ -32,7 +32,7 @@ main()
   const float var = mean_corr.z - mean_corr.x * mean_corr.x;
   const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
   // XXX what's the valid range here?
-  const float a = clamp(cov / (var + params.epsilon), 0.0f, 1.0f);
+  const float a = clamp(cov / (var + 100*cov*params.epsilon), 0.0f, 1.0f);
   const float b = mean_corr.y - a * mean_corr.x;
   imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
 }
