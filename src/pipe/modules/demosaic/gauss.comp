@@ -82,16 +82,18 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  // float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
   float g01 = texelFetch(img_in, ipos+ivec2(-1, 0), 0).r;
-  // float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
   float g10 = texelFetch(img_in, ipos+ivec2( 0,-1), 0).r;
-  // float g11 = texelFetch(img_in, ipos+ivec2( 0, 0), 0).r;
   float g12 = texelFetch(img_in, ipos+ivec2( 0, 1), 0).r;
-  // float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
   float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).r;
-  // float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
-  // float m = g11;//(g00 + g01 + g02 + g10 + g11 + g12 + g20 + g21 + g22)/9.0;
+#if 0
+  float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
+  float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
+  float g11 = texelFetch(img_in, ipos+ivec2( 0, 0), 0).r;
+  float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
+  float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
+  float m = g11;//(g00 + g01 + g02 + g10 + g11 + g12 + g20 + g21 + g22)/9.0;
+#endif
   // gradient points to largest differences
   // 00 10 20
   // 01 11 21
