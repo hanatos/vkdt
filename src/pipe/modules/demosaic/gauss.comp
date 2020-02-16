@@ -82,26 +82,21 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  // XXX
-  // float col = texelFetch(img_in, ipos, 0).r;
-  // imageStore(img_out, ipos, vec4(vec3(col), 1.0));
-  // return;// XXX
-
-  float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
+  // float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
   float g01 = texelFetch(img_in, ipos+ivec2(-1, 0), 0).r;
-  float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
+  // float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
   float g10 = texelFetch(img_in, ipos+ivec2( 0,-1), 0).r;
-  float g11 = texelFetch(img_in, ipos+ivec2( 0, 0), 0).r;
+  // float g11 = texelFetch(img_in, ipos+ivec2( 0, 0), 0).r;
   float g12 = texelFetch(img_in, ipos+ivec2( 0, 1), 0).r;
-  float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
+  // float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
   float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).r;
-  float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
-  float m = g11;//(g00 + g01 + g02 + g10 + g11 + g12 + g20 + g21 + g22)/9.0;
+  // float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
+  // float m = g11;//(g00 + g01 + g02 + g10 + g11 + g12 + g20 + g21 + g22)/9.0;
   // gradient points to largest differences
   // 00 10 20
   // 01 11 21
   // 02 12 22
-#if 1
+#if 0
   // XXX only good for max voting: (abs will always distort direction)
   float vote = 0.0, vote2;
   vec2 var = vec2(-1, 1);
@@ -134,7 +129,7 @@ main()
   }
   float vlen = length(var);
   imageStore(img_out, ipos, vec4(var/vlen, 10.0, 1.0));
-#else
+#elif 0
   vec2 var = (g00-m)*vec2( 1, 1)+//vec2(-1,-1)*vec2(-1,-1) +
              (g01-m)*vec2( 1, 0)+//vec2(-1, 0)*vec2(-1, 0) +
              (g02-m)*vec2( 1,-1)+//vec2(-1, 1)*vec2(-1, 1) +
@@ -157,5 +152,16 @@ main()
   vec2 eval, evec0, evec1;
   evd2x2(eval, evec0, evec1, M);
   imageStore(img_out, ipos, vec4(evec0, 100000*eval.x, 1.0));
+#else // try stuff they have in the paper [Wronsky 2019]
+  // they claim they have 4 gradient estimates, not sure if total or for each of x,y.
+  // anyways i don't see it since g21 - g11 + g10 + g11 is just one sample.
+  // if at all we can try 3 for each of x,y.
+  float Ix =   (g12 - g10);
+  float Iy = - (g21 - g01);
+
+  mat2 M = mat2(Ix*Ix, Ix*Iy, Ix*Iy, Iy*Iy);
+  vec2 eval, evec0, evec1;
+  evd2x2(eval, evec0, evec1, M);
+  imageStore(img_out, ipos, vec4(evec0, eval));
 #endif
 }

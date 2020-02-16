@@ -25,7 +25,7 @@ layout( // output buffer rgb
 
 void
 eval_gauss(
-    vec3 cov, ivec2 o,
+    vec4 cov, ivec2 o,
     out float col,
     out float weight)
 {
@@ -33,17 +33,22 @@ eval_gauss(
   ivec2 pos = opos+o;
   col = texelFetch(img_in, pos, 0).r;
 
+  // there's a ton of heuristic in the supplemental material to [Wronski 2019],
+  // might experiment with that.
   // too big eigenvalue runs into numeric limits,
   // too small eigenvalues make no sense (will show CFA pattern)
+  // larger: more directional
+  // smaller: larger blur
+  float s = 2;//clamp(4.0 + 1000.0*sqrt(cov.z), 1, 20);
   cov.z = clamp(cov.z, 5, 20);
-  float s = 5; // decreasing this will make the image sharper and more prone to zippering
-  mat2 E = mat2(s/cov.z * cov.x, -s*cov.y,
-                s/cov.z * cov.y,  s*cov.x);
+  cov.w = 1;//clamp(cov.w, 5, 20);
+  mat2 E = mat2(s/cov.z * cov.x, -s/cov.w*cov.y,
+                s/cov.z * cov.y,  s/cov.w*cov.x);
   vec2 of = E * vec2(o);
   weight = exp(-0.5*dot(of, of));
 #if 0 // DEBUG: visualise gaussian splats
   if(pos.x % 10 == 0 && pos.y % 10 == 0)
-    col = 10000*weight;
+    col = 1000*weight;
 #endif
 }
 
@@ -133,7 +138,7 @@ main()
   { // x-trans
     // pulling this one out of the loop goes down from 2ms -> 1.6ms on intel and
     // doesn't look much worse :/
-    vec3 cov = texelFetch(img_gauss, opos/3, 0).rgb;
+    vec4 cov = texelFetch(img_gauss, opos/3, 0);
     // vec3 cov = textureLod(img_gauss, vec2(opos/3.0/textureSize(img_gauss, 0)), 0).rgb;
     // unrolling this loop manually results in a perf drop 1.6ms -> 3.3ms
     for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
@@ -161,7 +166,7 @@ main()
   { // bayer
 #if 1
     // vec3 cov = textureLod(img_gauss, vec2(opos/2.0/textureSize(img_gauss, 0)), 0).rgb;
-    vec3 cov = texelFetch(img_gauss, (opos+1)/2, 0).rgb;
+    vec4 cov = texelFetch(img_gauss, (opos+1)/2, 0);
     for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
     {
       float col, weight;
