@@ -39,9 +39,9 @@ eval_gauss(
   // too small eigenvalues make no sense (will show CFA pattern)
   // larger: more directional
   // smaller: larger blur
-  float s = 3;//clamp(4.0 + 1000.0*sqrt(cov.z), 1, 20);
+  float s = 2;//clamp(4.0 + 1000.0*sqrt(cov.z), 1, 20);
   // cov.z = clamp(cov.z, 2, 5);
-  cov.z = clamp(cov.z/cov.w, 2, 20);
+  cov.z = clamp(cov.z/cov.w, 1, 20);
   cov.w = 1;//clamp(cov.w, 1, 50);
   mat2 E = mat2(s/cov.z * cov.x, -s/cov.w*cov.y,
                 s/cov.z * cov.y,  s/cov.w*cov.x);
@@ -61,24 +61,22 @@ void write_xtrans(
     inout vec3 w)
 {
   ivec2 pos = ivec2(gl_GlobalInvocationID)+o;
-  // if(o == ivec2(0)) weight += 1.0;//*= 2;
-  col *= weight;
   // rgb from pattern:
   bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
   pos = pos - (pos/3)*3;
   if(((pos.x + pos.y) & 1) == 0)
   {
-    rgb.g += col;
+    rgb.g += col * weight;
     w.g += weight;
   }
   else if(blue_top ^^ (pos.y == 1))
   {
-    rgb.b += col;
+    rgb.b += col * weight;
     w.b += weight;
   }
   else
   {
-    rgb.r += col;
+    rgb.r += col * weight;
     w.r += weight;
   }
 }
@@ -131,10 +129,6 @@ main()
   vec3 rgb = vec3(0.0);
   vec3 w   = vec3(0.0);
 
-  // TODO: this filter is insanely slow. i guess unroll the loop etc would help,
-  // TODO: or just consider a few selected nb for blurring (instead the full 25)
-
-
   if(params.filters == 9)
   { // x-trans
     // pulling this one out of the loop goes down from 2ms -> 1.6ms on intel and
@@ -150,27 +144,14 @@ main()
       eval_gauss(cov, ivec2(i, j), col, weight);
       write_xtrans(ivec2(i, j), col, weight, rgb, w);
     }
-    // TODO: instead of the general slow loop above, use known stencils:
-    // rb:
-    // 1) center of X cross, require only 4 nb top/down left/right
-    // 2) center of square block, require four X with 8 nb
-    // g:
-    // 1) v block: 3nb top or bottom V A (maybe four?
-    // 2) h block: 3nb left or right < >
-    // since this has a shitton of branches, try to run the kernel on /3 size
-    // and compute the output for the whole block one by one
-    // this would of course make super resolution harder.
-
-    // also try:
-    // collapse each X to one quad (weight the center with 1/20 vs 1/5 to each corner)
-    // use this green only 2/3 downsized buffer instead of the /3 buffer to detect edge orientation
   }
   else
   { // bayer
 #if 1
     // vec3 cov = textureLod(img_gauss, vec2(opos/2.0/textureSize(img_gauss, 0)), 0).rgb;
     vec4 cov = texelFetch(img_gauss, (opos+1)/2, 0);
-    for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
+    // for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
     {
       float col, weight;
       eval_gauss(cov, ivec2(i, j), col, weight);
@@ -183,36 +164,10 @@ main()
 #endif
   }
 
-#if 0
-  eval_gauss(cov, ivec2(-2, -2), rgb, w);
-  eval_gauss(cov, ivec2(-1, -2), rgb, w);
-  eval_gauss(cov, ivec2( 0, -2), rgb, w);
-  eval_gauss(cov, ivec2( 1, -2), rgb, w);
-  eval_gauss(cov, ivec2( 2, -2), rgb, w);
-  eval_gauss(cov, ivec2(-2, -1), rgb, w);
-  eval_gauss(cov, ivec2(-1, -1), rgb, w);
-  eval_gauss(cov, ivec2( 0, -1), rgb, w);
-  eval_gauss(cov, ivec2( 1, -1), rgb, w);
-  eval_gauss(cov, ivec2( 2, -1), rgb, w);
-  eval_gauss(cov, ivec2(-2,  0), rgb, w);
-  eval_gauss(cov, ivec2(-1,  0), rgb, w);
-
-  eval_gauss(cov, ivec2( 0,  0), rgb, w);
-
-  eval_gauss(cov, ivec2( 1,  0), rgb, w);
-  eval_gauss(cov, ivec2( 2,  0), rgb, w);
-  eval_gauss(cov, ivec2(-2,  1), rgb, w);
-  eval_gauss(cov, ivec2(-1,  1), rgb, w);
-  eval_gauss(cov, ivec2( 0,  1), rgb, w);
-  eval_gauss(cov, ivec2( 1,  1), rgb, w);
-  eval_gauss(cov, ivec2( 2,  1), rgb, w);
-  eval_gauss(cov, ivec2(-2,  2), rgb, w);
-  eval_gauss(cov, ivec2(-1,  2), rgb, w);
-  eval_gauss(cov, ivec2( 0,  2), rgb, w);
-  eval_gauss(cov, ivec2( 1,  2), rgb, w);
-  eval_gauss(cov, ivec2( 2,  2), rgb, w);
-#endif
   rgb /= w;
+
+  // rgb.rgb = rgb.ggg; // XXX
+  // rgb *= vec3(1.0/2.0, 1.0, 1.0/1.8);
 
   // TODO: the radius should be specific to colour/green and bayer/xtrans!
   // TODO: get uint16 bayer pixel in certain environment
