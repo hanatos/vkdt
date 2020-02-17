@@ -326,31 +326,6 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_down,  0);
   // XXX DEBUG see output of gaussian params
   // dt_connector_copy(graph, module, 1 id_gauss, 1);
-#if 1
-  const int id_splat2 = graph->num_nodes++;
-  graph->node[id_splat2] = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("splat2"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 4,
-    .connector = {
-      ci, {
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roi_full,
-        .connected_mi = -1,
-      }, cg, co,
-    },
-  };
-  dt_connector_copy(graph, module, 0, id_splat2, 0);
-  CONN(dt_node_connect(graph, id_splat, 2, id_splat2, 1));
-  CONN(dt_node_connect(graph, id_gauss, 1, id_splat2, 2));
-#endif
 
   if(module->connector[1].roi.scale != 1.0)
   { // add resample node to graph, copy its output instead:
@@ -376,13 +351,11 @@ create_nodes(
         ci, co,
       },
     };
-    // CONN(dt_node_connect(graph, id_splat, 2, id_resample, 0));
-    CONN(dt_node_connect(graph, id_splat2, 3, id_resample, 0));
+    CONN(dt_node_connect(graph, id_splat, 2, id_resample, 0));
     dt_connector_copy(graph, module, 1, id_resample, 1);
   }
   else
   { // directly output demosaicing result:
-    // dt_connector_copy(graph, module, 1, id_splat, 2);
-    dt_connector_copy(graph, module, 1, id_splat2, 3);
+    dt_connector_copy(graph, module, 1, id_splat, 2);
   }
 }
