@@ -56,7 +56,7 @@ curve(
   }
   // midtone local contrast
   val += clarity * c * exp(-c*c/(2.0f*sigma*sigma/3.0f));
-  return max(0.0f, val);
+  return val;
 }
 
 void
