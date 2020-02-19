@@ -198,11 +198,16 @@ create_nodes(
     if(i>=1) blur = 128;//32;//16;
     if(i>=2) blur = 64;//16;//8;
     if(i>=3) blur = 32;//8;
-#else // the rest can do smaller window sizes, even smaller just gets sharper (and faster)
+#elif 0 // the rest can do smaller window sizes, even smaller just gets sharper (and faster)
     int blur = 32;
-    if(i>=1) blur = 32;//16;
+    if(i>=1) blur = 16;
     if(i>=2) blur = 8;
     if(i>=3) blur = 8;
+#else // this works for the super low res sintel
+    int blur = 2;
+    if(i>=1) blur = 2;
+    if(i>=2) blur = 2;
+    if(i>=3) blur = 2;
 #endif
     // const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
     const int id_blur = dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur);
