@@ -19,6 +19,9 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec4 px = texelFetch(img_in, ipos, 0);
+  imageStore(img_out, ipos, px);
+  return; // XXX output motion vectors because they lie about their buffer
 
   float lum = texelFetch(img_in, ipos, 0).r;
   // apply srgb tone curve
