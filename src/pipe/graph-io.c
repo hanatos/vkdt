@@ -185,9 +185,10 @@ dt_graph_write_connection_ascii(
 {
   dt_connector_t *c = graph->module[m].connector+i;
   if(!dt_connector_input(c)) return line; // refuse to serialise outgoing connections
-  WRITE("connect:"
+  WRITE("%s:"
       "%"PRItkn":%"PRItkn":%"PRItkn":"
       "%"PRItkn":%"PRItkn":%"PRItkn"\n",
+      c->flags & s_conn_feedback ? "feedback" : "connect",
       dt_token_str(graph->module[c->connected_mi].name),
       dt_token_str(graph->module[c->connected_mi].inst),
       dt_token_str(graph->module[c->connected_mi].connector[c->connected_mc].name),
