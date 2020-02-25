@@ -192,23 +192,9 @@ create_nodes(
     else // need to connect a dummy
       CONN(dt_node_connect(graph, id_down[0][i], 1, id_dist, 2));
 
-    // blur output of dist node by tile size (depending on noise 16x16, 32x32 or 64x64?)
-#if 0 // basicmc requires a lot of resilience against noise..
-    int blur = 128;//32;
-    if(i>=1) blur = 128;//32;//16;
-    if(i>=2) blur = 64;//16;//8;
-    if(i>=3) blur = 32;//8;
-#elif 0 // the rest can do smaller window sizes, even smaller just gets sharper (and faster)
-    int blur = 32;
-    if(i>=1) blur = 16;
-    if(i>=2) blur = 8;
-    if(i>=3) blur = 8;
-#else // this works for the super low res sintel
-    int blur = 2;
-    if(i>=1) blur = 2;
-    if(i>=2) blur = 2;
-    if(i>=3) blur = 2;
-#endif
+    // blur output of dist node by tile size (depending on noise radius 16x16, 32x32 or 64x64?)
+    // grab module parameters, would need to trigger re-create_nodes on change:
+    const int blur = ((float*)module->param)[2+i];
     // const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
     const int id_blur = dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur);
 

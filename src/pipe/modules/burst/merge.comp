@@ -6,6 +6,13 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float merge_k;
+  float merge_n;
+  // blur0--3 to follow here but we don't care
+} params;
+
 layout(push_constant, std140) uniform push_t
 {
   uint scale;
@@ -202,9 +209,9 @@ main()
   // if(res.z < 0.13) res.z = 0;
   // if(res.z > 0.13) res.z = 0;
   // if(len > 10.00) res.z = 0;
-  // TODO: parameter?
   // res.z = clamp(100*res.z, 0.0, 1.0);     // mtest
-  res1.z = clamp(10*res1.z, 0.0, 1.0);       // himalaya
+  // res1.z = clamp(10*res1.z, 0.0, 1.0);       // himalaya
+  res1.z = clamp(params.merge_k*res1.z - params.merge_n, 0.0, 1.0);
   // res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
   // res1.z = 0;
   // res.z = clamp(5*res.z, 0.0, 1.0);       // anti aliasing on ocean
