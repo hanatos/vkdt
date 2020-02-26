@@ -8,6 +8,10 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 // layout(std140, set = 0, binding = 1) uniform params_t
 // { } params;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 
 
 // layout( // input f16 buffer rgb
@@ -17,6 +21,32 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(
     set = 1, binding = 0
 ) uniform writeonly image2D img_out;
+
+// tiny encryption algorithm random numbers
+vec2
+encrypt_tea(uvec2 arg)
+{
+  const uint key[] = {
+    0xa341316c, 0xc8013ea4, 0xad90777d, 0x7e95761e
+  };
+  uint v0 = arg[0], v1 = arg[1];
+  uint sum = 0;
+  uint delta = 0x9e3779b9;
+
+  #pragma unroll
+  for(int i = 0; i < 16; i++) {
+    sum += delta;
+    v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+    v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+  }
+  return vec2(v0/(0xffffffffu+1.0), v1/(0xffffffffu+1.0));
+}
+
+vec2 next_rand(inout uvec2 seed)
+{
+  seed.y++;
+  return encrypt_tea(seed);
+}
 
 // https://www.shadertoy.com/view/4lSSRW by ddsol
 //
@@ -146,7 +176,8 @@ vec4 map2( vec3 p )
 {
     float v = 2.0;
     
-    float wiggle = iTime * 0.05;
+    float time = global.frame;
+    float wiggle = time * 0.05;
     
     //wiggle -= floor(p.z*5.3)*0.1;
     
@@ -172,7 +203,7 @@ vec4 map2( vec3 p )
 
     
     
-    float d1 = length(p) - 1.0*smoothstep(0.0,2.0,iTime);;
+    float d1 = length(p) - 1.0*smoothstep(0.0,2.0,time);
     d1 *= 0.02;	
 
     return vec4( d1, p );
@@ -261,92 +292,168 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   // XXX
   vec2 fragCoord = vec2(ipos.x, imageSize(img_out).y-ipos.y-1);
-	vec2 q = fragCoord.xy / vec2(imageSize(img_out));
-    vec2 p = -1.0 + 2.0 * q;
-    p.x *= imageSize(img_out).x/float(imageSize(img_out).y);
-    vec2 m = vec2(0.5);
-	// if( iMouse.z>0.0 ) m = iMouse.xy/vec2(imageSize(img_out));
+  vec2 q = fragCoord.xy / vec2(imageSize(img_out));
+  vec2 p = -1.0 + 2.0 * q;
+  p.x *= imageSize(img_out).x/float(imageSize(img_out).y);
+  vec2 m = vec2(0.5);
+  // if( iMouse.z>0.0 ) m = iMouse.xy/vec2(imageSize(img_out));
 
-	
-    //-----------------------------------------------------
-    // camera
-    //-----------------------------------------------------
-	
-	float an = 0.005*iTime + 7.5 - 5.0*m.x;
 
-	vec3 ro = vec3(4.5*sin(an),0.5,4.5*cos(an));
-    vec3 ta = vec3(0.0,0.5,0.0);
+  //-----------------------------------------------------
+  // camera
+  //-----------------------------------------------------
 
-    // camera matrix
-    vec3 ww = normalize( ta - ro );
-    vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
-    vec3 vv = normalize( cross(uu,ww));
+  float time = global.frame;
+  float an = 0.005*time + 7.5 - 5.0*m.x;
 
-	// create view ray
-	vec3 rd = normalize( p.x*uu + p.y*vv + 2.0*ww );
+  vec3 ro = vec3(4.5*sin(an),0.5,4.5*cos(an));
+  vec3 ta = vec3(0.0,0.5,0.0);
 
-    //-----------------------------------------------------
-	// render
-    //-----------------------------------------------------
+  // camera matrix
+  vec3 ww = normalize( ta - ro );
+  vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
+  vec3 vv = normalize( cross(uu,ww));
 
-	vec3 col = vec3(0.0);
-	// raymarch
-    const float maxd = 9.0;
+  // create view ray
+  vec3 rd = normalize( p.x*uu + p.y*vv + 2.0*ww );
+
+  //-----------------------------------------------------
+  // render
+  //-----------------------------------------------------
+
+  uvec2 seed = uvec2(1000*p.x*3007 + 1000*p.y + 101337*global.frame, 0);
+
+  const float L_exp = 5.0;
+  const float L_rad = 0.9;
+  vec3 col = vec3(0.0);
+  // raymarch
+  const float maxd = 100.0;
+  vec3 contrib = vec3(1.0f);
+  int inside = 0;
+  for(int b=0;b<10;b++)
+  {
     vec4  inn = intersect(ro,rd,maxd);
     float t = inn.x;
-    if( t<maxd )
+    if(t > maxd)
+    { // exit to envmap
+      float L = pow(-rd.z*.5 + .5, L_exp);
+      if(rd.z < -L_rad) // we're looking to z, so -z is our ring flash
+        col += L * contrib;
+      break;
+    }
+
+    vec3 tra = inn.yzw;
+
+    // geometry
+    vec3 pos = ro + t*rd;
+    vec3 nor = calcNormal(pos);
+    float occ = calcOcc( pos, nor );
+    if(inside == 1)
     {
-        vec3 tra = inn.yzw;
+      // vec3 T = exp(-t * 100.*vec3(0.08, 0.04, 0.01));
+      vec3 T = exp(-t * 100.*vec3(1.08, 0.4, 0.01));
+      // "diffuse inscattering"
+      // col += contrib * occ * 0.03;//*mix(vec3(0.0, 0.03, 0.2), vec3(.2, .8, 0.9), smoothstep(-0.5, 0.5, pos.y));
+      // col += contrib * occ * 0.03*mix(vec3(0.0, 0.02, 0.2), vec3(.2, .8, 0.9), T);
+      // col += contrib * occ * 0.03*mix(vec3(0.0, 0.01, 0.1), T*vec3(1,1,1), T);
+      // col += contrib * occ * 0.03*(vec3(0.0, 0.01, 0.1) + T*vec3(1,1,1));
+      col += contrib * occ * 0.03*((1-T)*vec3(0.0,0.01,0.1));
+      contrib *= T;
+    }
+    vec3 te = vec3(1.); // texture
+    const float r0 = 0.01;
+    float F = r0 + (1.0-r0)*pow(max(0., 1.-dot(-rd,nor)), 5.0);
+#if 0
+    // TODO: loop over a few light sources!
+    int N = 3;
+    if(inside == 0)
+    for(int i=0;i<N;i++)
+    {
+      // vec3 light = normalize(vec3(0.8, 0.3, 0.7-1.2*i));
+      vec2 rand = next_rand(seed);
+      // XXX this is not the correct spherical cap
+      vec3 light = normalize(L_rad * vec3(sqrt(rand.x) * vec2(sin(2*3.1415*rand.y), cos(2*3.1415*rand.y)), -1.0));
+      float cos_o = clamp( dot(nor, light), 0.0, 1.0 );
+      float cos_i = clamp( dot(nor, -rd), 0.0, 1.0 );
+      if(cos_o > 0 && cos_i > 0)
+      {
+        // beckmann roughness
+        const float alpha = 0.01;
+        // masking/shadowing:
+        // G(wo, wm) = xi_cos / (1 + Lambda(wo))
+        // and we use walter's rational fit:
+        const float tano = sqrt(1.0 - cos_o*cos_o);
+        const float tani = sqrt(1.0 - cos_i*cos_i);
+        const float ao = 1.0/ (alpha * tano);
+        const float Lo = ao < 1.6 ? (1.0 - 1.259*ao + 0.396*ao*ao)/(3.535*ao + 2.81*ao*ao) : 0.0;
+        const float Go = 1.0/(1.0 + Lo);
+        const float ai = 1.0/ (alpha * tani);
+        const float Li = ai < 1.6 ? (1.0 - 1.259*ai + 0.396*ai*ai)/(3.535*ai + 2.81*ai*ai) : 0.0;
+        const float Gi = 1.0/(1.0 + Li);
+        vec3 h = normalize(light - rd);
+        float hp2 = 1.0 - dot(h, nor);
+        float D = 1.0/(alpha*alpha * 3.1415926 * pow(dot(h,nor),4)) * exp(-hp2/(alpha*alpha));
+        // vec3 L = vec3(1.2, 1.0, 0.9);
+        float L = pow(-rd.z*5 + .5, L_exp);
+        float sha = softshadow( pos+0.001*nor, light, 20.0, time );
+        col += 1./N * contrib * sha * L * te * D * Go * Gi / (4.0* cos_i * cos_o);
+        // col += (1.0-F) * 1./N * contrib * sha * occ * 0.5*mix(vec3(0.0, 0.03, 0.2), vec3(.2, .8, 0.9), smoothstep(-0.5, 0.5, pos.y));
+      }
+    }
+#endif
+    // sample new outgoing direction
+    vec2 rand = next_rand(seed);
+    if(rand.x > F) rd = refract(rd, nor, 1.33);
+    else           { rd = reflect(rd, nor); inside = 1-inside; }
+    ro = pos;
+  }
 
-        // geometry
-        vec3 pos = ro + t*rd;
-        vec3 nor = calcNormal(pos);
-		vec3 ref = reflect( rd, nor );
 
-        // material
-        col = vec3(0.3,0.3,0.3);
-        if(true ||  pos.y>-0.99) {
-            col += 0.2*tra;
-        }
-        // vec3 pat = texCube( iChannel0, 0.5*pos, nor, 4.0 ).xyz;
-        // col *= pat;
-        col *= 0.5;
-        
-		// lighting
-		float occ = calcOcc( pos, nor );
+#if 0
+    // material
+    col = vec3(0.3,0.3,0.3);
+    if(true ||  pos.y>-0.99) {
+      col += 0.2*tra;
+    }
+    vec3 pat = vec3(1);//texCube( iChannel0, 0.5*pos, nor, 4.0 ).xyz;
+    col *= pat;
+    col *= 0.5;
 
-        float amb = 0.5 + 0.5*nor.y;
-		float dif = max(dot(nor,lig),0.0);
-		float bou = max(0.0,-nor.y);
-        float bac = max(0.2 + 0.8*dot(nor,-lig),0.0);
-		float sha = 0.0; if( dif>0.01 ) sha=softshadow( pos+0.01*nor, lig, 0.0005, 128.0 );
-        float fre = pow( clamp( 1.0 + dot(nor,rd), 0.0, 1.0 ), 3.0 );
-        float spe = 15.0*pat.x*max( 0.0, pow( clamp( dot(lig,reflect(rd,nor)), 0.0, 1.0), 16.0 ) )*dif*sha*(0.04+0.96*fre);
-		
-		// lights
-		vec3 lin = vec3(0.0);
+    // lighting
+    float occ = calcOcc( pos, nor );
 
-        lin += 3.5*dif*vec3(6.00,4.00,3.00)*pow(vec3(sha),vec3(1.0,1.2,1.5));
-		lin += 1.0*amb*vec3(0.30,0.30,0.30)*occ;
-		lin += 1.0*bac*vec3(0.80,0.50,0.20)*occ;
-		lin += 1.0*bou*vec3(1.00,0.30,0.20)*occ;
-        lin += 4.0*fre*vec3(1.00,0.80,0.70)*(0.3+0.7*dif*sha)*occ;
-        lin += spe*2.0;
+    float amb = 0.5 + 0.5*nor.y;
+    float dif = max(dot(nor,lig),0.0);
+    float bou = max(0.0,-nor.y);
+    float bac = max(0.2 + 0.8*dot(nor,-lig),0.0);
+    float sha = 0.0; if( dif>0.01 ) sha=softshadow( pos+0.01*nor, lig, 0.0005, 128.0 );
+    float fre = pow( clamp( 1.0 + dot(nor,rd), 0.0, 1.0 ), 3.0 );
+    float spe = 15.0*pat.x*max( 0.0, pow( clamp( dot(lig,reflect(rd,nor)), 0.0, 1.0), 16.0 ) )*dif*sha*(0.04+0.96*fre);
 
-        // surface-light interacion
-		col = col*lin + spe;
+    // lights
+    vec3 lin = vec3(0.0);
 
-        col *= min(200.0*exp(-1.5*t),1.0);
-        col *= 1.0-smoothstep( 1.0,6.0,length(pos.xz) );
-	}
+    lin += 3.5*dif*vec3(6.00,4.00,3.00)*pow(vec3(sha),vec3(1.0,1.2,1.5));
+    lin += 1.0*amb*vec3(0.30,0.30,0.30)*occ;
+    lin += 1.0*bac*vec3(0.80,0.50,0.20)*occ;
+    lin += 1.0*bou*vec3(1.00,0.30,0.20)*occ;
+    lin += 4.0*fre*vec3(1.00,0.80,0.70)*(0.3+0.7*dif*sha)*occ;
+    lin += spe*2.0;
 
-    // gamma
-	col = pow( clamp(col,0.0,1.0), vec3(0.4545) );
+    // surface-light interacion
+    col = col*lin + spe;
 
-    // grading
-    col = pow( col, vec3(0.6,1.0,1.0) );
-    // vignetting
-    col *= pow( 16.0*q.x*q.y*(1.0-q.x)*(1.0-q.y), 0.1 );
-	   
+    col *= min(200.0*exp(-1.5*t),1.0);
+    col *= 1.0-smoothstep( 1.0,6.0,length(pos.xz) );
+#endif
+
+  // gamma
+  // col = pow( clamp(col,0.0,1.0), vec3(0.4545) );
+
+  // grading
+  // col = pow( col, vec3(0.6,1.0,1.0) );
+  // vignetting
+  // col *= pow( 16.0*q.x*q.y*(1.0-q.x)*(1.0-q.y), 0.1 );
+
   imageStore(img_out, ipos, vec4(col, 1));
 }
