@@ -306,66 +306,77 @@ void main()
   float time = global.frame;
   float an = 0.005*time + 7.5 - 5.0*m.x;
 
-  vec3 ro = vec3(4.5*sin(an),0.5,4.5*cos(an));
-  vec3 ta = vec3(0.0,0.5,0.0);
-
-  // camera matrix
-  vec3 ww = normalize( ta - ro );
-  vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
-  vec3 vv = normalize( cross(uu,ww));
-
-  // create view ray
-  vec3 rd = normalize( p.x*uu + p.y*vv + 2.0*ww );
-
   //-----------------------------------------------------
   // render
   //-----------------------------------------------------
 
-  uvec2 seed = uvec2(1000*p.x*3007 + 1000*p.y + 101337*global.frame, 0);
+  uvec2 seed = uvec2(
+      (ipos.x + 1024*ipos.y)*500 + global.frame, 0);
+      // ((p.x*1024 + p.y)*1024 + global.frame)*500, 0);
+      // 2000*p.x*3007 + 2000*p.y + 101000337*global.frame, 0);
 
   const float L_exp = 5.0;
   const float L_rad = 0.9;
   vec3 col = vec3(0.0);
+
+  for(int s=0;s<100;s++)
+  {
+  vec3 ro = vec3(4.5*sin(an),0.5,4.5*cos(an));
+  vec3 ta = vec3(0.0,0.5,0.0);
+
+  // camera matrix
+  const vec3 ww = normalize( ta - ro );
+  const vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
+  const vec3 vv = normalize( cross(uu,ww));
+
+  // create view ray
+  const vec2 aa = next_rand(seed);
+  vec3 rd = normalize( (p.x+aa.x/1024.0)*uu + (p.y+aa.y/1024.0)*vv + 2.0*ww );
   // raymarch
   const float maxd = 100.0;
   vec3 contrib = vec3(1.0f);
   int inside = 0;
-  for(int b=0;b<10;b++)
+
+  for(int b=0;b<4;b++)
   {
     vec4  inn = intersect(ro,rd,maxd);
     float t = inn.x;
     if(t > maxd)
     { // exit to envmap
-      float L = pow(-rd.z*.5 + .5, L_exp);
+      vec3 L = vec3(1.2, 1.0, 0.8)*pow(-rd.z*.5 + .5, L_exp);
       if(rd.z < -L_rad) // we're looking to z, so -z is our ring flash
         col += L * contrib;
       break;
     }
 
-    vec3 tra = inn.yzw;
+    const vec3 tra = inn.yzw;
 
     // geometry
-    vec3 pos = ro + t*rd;
+    const vec3 pos = ro + t*rd;
     vec3 nor = calcNormal(pos);
-    float occ = calcOcc( pos, nor );
+    if(inside == 1)
+      nor = -nor;
     if(inside == 1)
     {
       // vec3 T = exp(-t * 100.*vec3(0.08, 0.04, 0.01));
-      vec3 T = exp(-t * 100.*vec3(1.08, 0.4, 0.01));
+      vec3 T = exp(-t * 20.*vec3(0.08, 0.04, 0.01));
       // "diffuse inscattering"
       // col += contrib * occ * 0.03;//*mix(vec3(0.0, 0.03, 0.2), vec3(.2, .8, 0.9), smoothstep(-0.5, 0.5, pos.y));
       // col += contrib * occ * 0.03*mix(vec3(0.0, 0.02, 0.2), vec3(.2, .8, 0.9), T);
       // col += contrib * occ * 0.03*mix(vec3(0.0, 0.01, 0.1), T*vec3(1,1,1), T);
       // col += contrib * occ * 0.03*(vec3(0.0, 0.01, 0.1) + T*vec3(1,1,1));
-      col += contrib * occ * 0.03*((1-T)*vec3(0.0,0.01,0.1));
+      // float occ = calcOcc( .5*(ro + pos), rd );
+      // vec3 scat = mix(vec3(0.0, 0.03, 0.2), vec3(.2, .8, 0.9), smoothstep(-0.5, 0.5, pos.y));
+      // col += contrib * (1.0-occ) * 0.03*scat;
       contrib *= T;
     }
-    vec3 te = vec3(1.); // texture
-    const float r0 = 0.01;
+    float r0 = 0.01;
+    if(inside == 1) r0 = 0.2; // super poor fresnel :(
     float F = r0 + (1.0-r0)*pow(max(0., 1.-dot(-rd,nor)), 5.0);
 #if 0
+    vec3 te = vec3(1.); // texture
     // TODO: loop over a few light sources!
-    int N = 3;
+    const int N = 3;
     if(inside == 0)
     for(int i=0;i<N;i++)
     {
@@ -393,8 +404,7 @@ void main()
         vec3 h = normalize(light - rd);
         float hp2 = 1.0 - dot(h, nor);
         float D = 1.0/(alpha*alpha * 3.1415926 * pow(dot(h,nor),4)) * exp(-hp2/(alpha*alpha));
-        // vec3 L = vec3(1.2, 1.0, 0.9);
-        float L = pow(-rd.z*5 + .5, L_exp);
+        vec3 L = vec3(1.2, 1.0, 0.8)*pow(-rd.z*.5 + .5, L_exp);
         float sha = softshadow( pos+0.001*nor, light, 20.0, time );
         col += 1./N * contrib * sha * L * te * D * Go * Gi / (4.0* cos_i * cos_o);
         // col += (1.0-F) * 1./N * contrib * sha * occ * 0.5*mix(vec3(0.0, 0.03, 0.2), vec3(.2, .8, 0.9), smoothstep(-0.5, 0.5, pos.y));
@@ -402,11 +412,26 @@ void main()
     }
 #endif
     // sample new outgoing direction
-    vec2 rand = next_rand(seed);
-    if(rand.x > F) rd = refract(rd, nor, 1.33);
-    else           { rd = reflect(rd, nor); inside = 1-inside; }
+    const vec2 rand = next_rand(seed);
+    const float R = F;
+    if(rand.y > R)
+    {
+      if(inside == 1)
+        rd = refract(rd, nor, 1.0/1.33);
+      else
+        rd = refract(rd, nor, 1.33);
+      inside = 1-inside;
+      contrib *= (1-F)/(1-R);
+    }
+    else
+    {
+      rd = reflect(rd, nor);
+      contrib *= F/R;
+    }
     ro = pos;
   }
+  }
+  col /= 10.0;
 
 
 #if 0
