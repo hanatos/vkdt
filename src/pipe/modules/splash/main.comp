@@ -14,10 +14,6 @@ layout(std140, set = 0, binding = 0) uniform global_t
 } global;
 
 
-// layout( // input f16 buffer rgb
-//     set = 1, binding = 0
-// ) uniform sampler2D img_in;
-
 layout(
     set = 1, binding = 0
 ) uniform writeonly image2D img_out;
@@ -185,7 +181,7 @@ vec4 map2( vec3 p )
     float wiggle2 = wiggle * 3.0;
     float wiggle3 = wiggle * 5.0;
     
-    //p.z += cnoise(p*2.0)*0.1;
+    // p.z += cnoise(p*2.0)*0.1;
     
     p.x += 0.5*sin( v*p.y + wiggle1 );
     p.y += 0.5*sin( v*p.z + wiggle2 );
@@ -193,6 +189,7 @@ vec4 map2( vec3 p )
     p.x += 0.5*sin( v*p.y + wiggle );
     p.y += 0.5*sin( v*p.z + wiggle );
     p.z += pow(cnoise(p*10.0),3.0)*4.0;
+    p.z += pow(cnoise(p*20.0),2.0)*.60;
     p.z += 0.5*sin( v*p.x + wiggle );
     p.x += 0.5*sin( v*p.y + wiggle );
     p.y += 0.5*sin( v*p.z + wiggle );
@@ -295,7 +292,7 @@ void main()
   vec2 q = fragCoord.xy / vec2(imageSize(img_out));
   vec2 p = -1.0 + 2.0 * q;
   p.x *= imageSize(img_out).x/float(imageSize(img_out).y);
-  vec2 m = vec2(0.5);
+  // vec2 m = vec2(0.5);
   // if( iMouse.z>0.0 ) m = iMouse.xy/vec2(imageSize(img_out));
 
 
@@ -304,7 +301,7 @@ void main()
   //-----------------------------------------------------
 
   float time = global.frame;
-  float an = 0.005*time + 7.5 - 5.0*m.x;
+  float an = 0.005*(time+80) + 7.5 - 5*0.5;// - 5.0*m.x;
 
   //-----------------------------------------------------
   // render
@@ -312,14 +309,13 @@ void main()
 
   uvec2 seed = uvec2(
       (ipos.x + 1024*ipos.y)*500 + global.frame, 0);
-      // ((p.x*1024 + p.y)*1024 + global.frame)*500, 0);
-      // 2000*p.x*3007 + 2000*p.y + 101000337*global.frame, 0);
 
-  const float L_exp = 5.0;
+  const float L_exp = 20.0;
   const float L_rad = 0.9;
   vec3 col = vec3(0.0);
 
-  for(int s=0;s<100;s++)
+  int num_samples = 1;
+  for(int s=0;s<num_samples;s++)
   {
   vec3 ro = vec3(4.5*sin(an),0.5,4.5*cos(an));
   vec3 ta = vec3(0.0,0.5,0.0);
@@ -344,7 +340,7 @@ void main()
     if(t > maxd)
     { // exit to envmap
       vec3 L = vec3(1.2, 1.0, 0.8)*pow(-rd.z*.5 + .5, L_exp);
-      if(rd.z < -L_rad) // we're looking to z, so -z is our ring flash
+      if(-rd.z > L_rad) // we're looking to z, so -z is our ring flash
         col += L * contrib;
       break;
     }
@@ -404,7 +400,7 @@ void main()
         vec3 h = normalize(light - rd);
         float hp2 = 1.0 - dot(h, nor);
         float D = 1.0/(alpha*alpha * 3.1415926 * pow(dot(h,nor),4)) * exp(-hp2/(alpha*alpha));
-        vec3 L = vec3(1.2, 1.0, 0.8)*pow(-rd.z*.5 + .5, L_exp);
+        vec3 L = vec3(1.2, 1.0, 0.8)*pow(rd.x*.5 + .5, L_exp);
         float sha = softshadow( pos+0.001*nor, light, 20.0, time );
         col += 1./N * contrib * sha * L * te * D * Go * Gi / (4.0* cos_i * cos_o);
         // col += (1.0-F) * 1./N * contrib * sha * occ * 0.5*mix(vec3(0.0, 0.03, 0.2), vec3(.2, .8, 0.9), smoothstep(-0.5, 0.5, pos.y));
@@ -431,7 +427,7 @@ void main()
     ro = pos;
   }
   }
-  col /= 10.0;
+  col /= num_samples;
 
 
 #if 0
