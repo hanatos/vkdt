@@ -66,6 +66,9 @@ create_nodes(
     roi[i].y  /= scale;
   }
 
+  dt_token_t fmt_img = dt_token("f16");//ui8"); // or f16
+  dt_token_t fmt_dst = dt_token("f16");//ui8");//ui8"); // or f16
+
   int id_down[2][NUM_LEVELS] = {0};
   for(int k=0;k<2;k++)
   {
@@ -90,7 +93,7 @@ create_nodes(
         .name   = dt_token("output"),
         .type   = dt_token("write"),
         .chan   = dt_token("y"),
-        .format = dt_token("f16"),
+        .format = fmt_img,
         .roi    = roi[1],
       }},
       .push_constant_size = sizeof(uint32_t),
@@ -118,14 +121,14 @@ create_nodes(
           .name   = dt_token("input"),
           .type   = dt_token("read"),
           .chan   = dt_token("y"),
-          .format = dt_token("f16"),
+          .format = fmt_img,
           .roi    = roi[i],
           .connected_mi = -1,
         },{
           .name   = dt_token("output"),
           .type   = dt_token("write"),
           .chan   = dt_token("y"),
-          .format = dt_token("f16"),
+          .format = fmt_img,
           .roi    = roi[i+1],
         }},
       };
@@ -156,21 +159,21 @@ create_nodes(
         .name   = dt_token("input"),
         .type   = dt_token("read"),
         .chan   = dt_token("y"),
-        .format = dt_token("f16"),
+        .format = fmt_img,
         .roi    = roi[i+1],
         .connected_mi = -1,
       },{
         .name   = dt_token("warped"),
         .type   = dt_token("read"),
         .chan   = dt_token("y"),
-        .format = dt_token("f16"),
+        .format = fmt_img,
         .roi    = roi[i+1],
         .connected_mi = -1,
       },{
         .name   = dt_token("offset"),
         .type   = dt_token("read"),
-        .chan   = id_offset >= 0 ? dt_token("rg") : dt_token("y"),
-        .format = dt_token("f16"),
+        .chan   = id_offset >= 0 ? dt_token("rg")  : dt_token("y"),
+        .format = id_offset >= 0 ? dt_token("f16") : fmt_img,
         .roi    = id_offset >= 0 ? roi[i+2] : roi[i+1],
         .flags  = s_conn_smooth,
         .connected_mi = -1,
@@ -178,7 +181,7 @@ create_nodes(
         .name   = dt_token("output"),
         .type   = dt_token("write"),
         .chan   = dt_token("y"),
-        .format = dt_token("f16"),
+        .format = fmt_dst,
         .roi    = roi[i+1],
         .array_length = 25,
       }},
@@ -213,7 +216,7 @@ create_nodes(
         .name   = dt_token("dist"),
         .type   = dt_token("read"),
         .chan   = dt_token("y"),
-        .format = dt_token("f16"),
+        .format = fmt_dst,
         .roi    = roi[i+1],
         .flags  = s_conn_smooth,
         .connected_mi = -1,
@@ -221,8 +224,8 @@ create_nodes(
       },{
         .name   = dt_token("coff"),
         .type   = dt_token("read"),
-        .chan   = id_offset >= 0 ? dt_token("rg") : dt_token("y"),
-        .format = dt_token("f16"),
+        .chan   = id_offset >= 0 ? dt_token("rg")  : dt_token("y"),
+        .format = id_offset >= 0 ? dt_token("f16") : fmt_img,
         .roi    = id_offset >= 0 ? roi[i+2] : roi[i+1],
         .flags  = s_conn_smooth,
         .connected_mi = -1,
