@@ -92,7 +92,8 @@ main()
   // rgb = vec3(0);
 
   vec2 c = vec2(sz/2);
-  const float speed = 0.04 * 1.0/360.0 * 2.0 * 3.1415926;
+  // const float speed = 0.04 * 1.0/360.0 * 2.0 * 3.1415926;
+  const float speed = 1.0/360.0 * 2.0 * 3.1415926;
   c += sz/4 * vec2(
       sin(global.frame * speed),
       cos(global.frame * speed + 0.3));
@@ -108,17 +109,16 @@ main()
     // else
     //   rgb = vec3(0.0);
   }
-#if 0
+#if 1
   // add some noise:
   vec2 ru = encrypt_tea(
-      ipos.yx + ipos.yx * uvec2(global.frame, 37)
-      );
+      uvec2(1024*(1024*ipos.y + ipos.x) + global.frame, 37));
   // box mueller transform to get std normal
   vec2 rg = sqrt(-2.0f*log(ru.x)) * vec2(
       cos(2.0f*3.1415962f * ru.y),
       sin(2.0f*3.1415962f * ru.y));
-  rgb.g += 0.06 * rg.x; // sigma * Z: additive white gaussian noise
-  rgb.r += 0.06 * rg.y; // sigma * Z: additive white gaussian noise
+  rgb.g += 0.1 * rg.x; // sigma * Z: additive white gaussian noise
+  rgb.r += 0.1 * rg.y; // sigma * Z: additive white gaussian noise
   // rgb.b += 0.04 * (rg.x + rg.y);
 #endif
   imageStore(img_out, ipos, vec4(rgb, 1));
