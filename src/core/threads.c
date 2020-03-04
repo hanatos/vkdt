@@ -15,12 +15,6 @@
 threads_t thr;
 _Thread_local threads_tls_t thr_tls;
 
-#define threads_mutex_t          pthread_mutex_t
-#define threads_mutex_lock(m)    pthread_mutex_lock(m)
-#define threads_mutex_unlock(m)  pthread_mutex_unlock(m)
-#define threads_mutex_destroy(m) pthread_mutex_destroy(m)
-#define threads_mutex_init(m, p) pthread_mutex_init(m, p)
-
 typedef struct threads_t
 {
   uint32_t               num_threads;
@@ -36,12 +30,6 @@ typedef struct threads_t
   int shutdown;
 }
 threads_t;
-
-typedef struct threads_tls_t
-{
-  uint32_t tid; // thread id from 0..num_threads-1
-}
-threads_tls_t;
 
 // per-worker initialisation
 static void *threads_tls_init_one(void *arg)
@@ -182,11 +170,6 @@ void threads_wait()
   pthread_pool_wait(&thr.pool);
 }
 
-int threads_num()
-{
-  return thr.num_threads;
-}
-
 void threads_shutdown()
 {
   thr.shutdown = 1;
@@ -195,4 +178,9 @@ void threads_shutdown()
 int threads_shutting_down()
 {
   return thr.shutdown;
+}
+
+int threads_num()
+{
+  return thr.num_threads;
 }
