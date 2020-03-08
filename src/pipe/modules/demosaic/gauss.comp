@@ -164,6 +164,10 @@ main()
   mat2 M = mat2(Ix*Ix, Ix*Iy, Ix*Iy, Iy*Iy);
   vec2 eval, evec0, evec1;
   evd2x2(eval, evec0, evec1, M);
+  // XXX limit anisotropy of reconstruction. we probably only want
+  // XXX to do this in case there is a lot of noise (so we don't trust the estimation)
+  // TODO: figure out uncertainty here if there's known variance on g**).
+  eval.y = max(eval.y, eval.x*0.6);
   imageStore(img_out, ipos, vec4(evec0, eval));
 #endif
 }

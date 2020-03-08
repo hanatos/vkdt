@@ -56,7 +56,7 @@ rawspeed_load_meta()
     lock.lock();
     if(meta == NULL)
     {
-      omp_set_nested(1);
+      // omp_set_nested(1); // deprecated
       omp_set_max_active_levels(5);
       // char datadir[PATH_MAX] = { 0 };
       char camfile[PATH_MAX] = { 0 };

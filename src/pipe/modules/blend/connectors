@@ -1,4 +1,4 @@
-back:read:rgba:f16
-input:read:rgba:f16
+back:read:*:*
+input:read:*:*
 mask:read:y:f16
-output:write:rgba:f16
+output:write:*:f16

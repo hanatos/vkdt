@@ -1607,7 +1607,7 @@ VkResult dt_graph_run(
   int cnt = 0;
   dt_node_t *const arr = graph->node;
   const int arr_cnt = graph->num_nodes;
-  uint32_t nodeid[200];
+  uint32_t nodeid[2000];
   assert(sizeof(nodeid)/sizeof(nodeid[0]) >= graph->num_nodes);
 #define TRAVERSE_POST \
   nodeid[cnt++] = curr;

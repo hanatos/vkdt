@@ -16,6 +16,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float mode;
   float opacity;
+  float black;
+  float white;
 } params;
 
 layout( // input back buffer
@@ -33,6 +35,32 @@ layout( // mask (single channel)
 layout( // output
     set = 1, binding = 3
 ) uniform writeonly image2D img_out;
+
+// return (mu, sigma2) of local x-trans environment
+vec2 gauss_xtrans(ivec2 pos)
+{
+  // rgb from pattern:
+  bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
+  pos = (pos/3)*3; // start of block pattern
+
+  float mom1 = 0.0f, mom2 = 0.0f;
+#define ADD(x, y)\
+  {\
+    float g = texelFetch(img_top, pos + ivec2(x, y), 0).r;\
+    mom1 += g;\
+    mom2 += g * g;\
+  }
+  ADD(0,0)
+  ADD(2,0)
+  ADD(1,1)
+  ADD(0,2)
+  ADD(2,2)
+#undef ADD
+  mom1 /= 5.0;
+  mom2 /= 5.0;
+
+  return vec2(mom1, max(0, mom2 - mom2*mom1));
+}
 
 void
 main()
@@ -60,13 +88,21 @@ main()
   t *= 1.-smoothstep(0.2, 3.0, d);
 #endif
 
-#if 1 // use TAA style box clamping
+#if 0 // use TAA style box clamping
+  // estimate variance from spatial neighbours.
+  // this works best for real time anti aliasing, since it will increase
+  // the threshold near edges and thus blur more there. for photography,
+  // arguably we want the opposite behaviour.
   vec3 mom1 = vec3(0.0f);
   vec3 mom2 = vec3(0.0f);
   const int r = 1;
   for(int yy = -r; yy <= r; yy++) {
     for(int xx = -r; xx <= r; xx++) {
+      // FIXME: for xtrans or bayer, need to find nb of same colour channel here!
       vec3 c = texelFetch(img_top, ipos + ivec2(xx, yy), 0).rgb;
+      // TODO: use something like this to detect relatively smooth
+      // regions that we can smooth over carelessly:
+      // vec3 c = texelFetch(img_top, ipos + ivec2(3*xx, 3*yy), 0).rgb;
       mom1 += c;
       mom2 += c * c;
     }
@@ -77,12 +113,48 @@ main()
   vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
   const float thresh = 1.0;
   bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+#else
+  // photography version. magically know our noise variance (measurements):
+  // darktable's json:
+  // 0.0001291937229155835, 4.607888768089825e-05, 8.72921132754699e-05], "b": [2.45962729009841e-07, 1.42262459226602e-07, 2.2271465553342102e-07]}
+
+  // how flat is the area we're looking at?
+  vec2 dist = gauss_xtrans(ipos);
+
+  // this gives weird colour cast
+  // const float a = 1.0e-5, b = 2.0e-7; // guessed iso3200 fuji X100T
+  const float a = 1.3e-6, b = 1.0e-7; // guessed iso3200 fuji X100T
+  float sigma2 = a + max(0, rgb.r - params.black)*b;
+#if 1 // helps
+  // increase for flat areas:
+  // detect flat by comparing sigma2 (noise model) and dist.y (local surroundings)
+  float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
+#if 0
+  // envelope to mid tones:
+  float g0 = pow((rgb.r - params.black)/(params.white-params.black), 1.0);//1.0/2.2);
+  float g1 = pow((bck.r - params.black)/(params.white-params.black), 1.0);//1.0/2.2);
+  float env = 1;//smoothstep(0.5, 0.0, g0) * smoothstep(0.5, 0.0, g1);
+  f = mix(1.0, f, env);
+#endif
+  // float f = clamp(10.0*(1.0-smoothstep(sqrt(dist.y), 0.0, 0.006)), 1.0, 10.0);
+  sigma2 *= f; // *f;
+#endif
+  t *= clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / sigma2), 0, 1);
+
+  // dunno:
+  // t *= 2.0*(1.2-smoothstep(sqrt(dist.y), 0.0, 0.03));
+  // this looks good but overall a little more noisy:
+  // t *= 1-0.7*clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / dist.y), 0, 1);
+  // const float thresh = 1.0;
+  // bck.r = clamp(bck.r, max(0.0, dist.x - thresh * sqrt(dist.y)), dist.x + thresh * dist.y);
 #endif
 #if 0  // sliding average / full accumulation is:
   // float N = global.frame + 1.0;
   // bck = (N-1.) / N * bck + rgb / N;
 #endif
-  if(global.frame > 0) rgb = mix(rgb, bck, t);
+  // XXX need this for animations!
+  // if(global.frame > 0)
+    rgb = mix(rgb, bck, t);
 #endif
 
 
