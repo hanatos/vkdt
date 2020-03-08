@@ -80,7 +80,9 @@ main()
   // TODO: put noise sigma in here?
 #if 1
   // float t = clamp(params.opacity-mask, 0, 1);//clamp(params.opacity - m, 0, 1);
-  float t = clamp(min(params.opacity, 1-mask), 0, 1);//clamp(params.opacity - m, 0, 1);
+  // float t = clamp(min(params.opacity, 1-mask), 0, 1);//clamp(params.opacity - m, 0, 1);
+  // float t = clamp(params.opacity*smoothstep(0.0, 1.0, 1.0-mask), 0, 1);
+  float t = clamp(params.opacity*(1.0-mask), 0, 1);
 #if 0
   // this should only be a last resort thing to suppress rgb artifacts.
   const float sigma_noise = 0.3;
@@ -118,18 +120,16 @@ main()
   // darktable's json:
   // 0.0001291937229155835, 4.607888768089825e-05, 8.72921132754699e-05], "b": [2.45962729009841e-07, 1.42262459226602e-07, 2.2271465553342102e-07]}
 
-  // how flat is the area we're looking at?
-  vec2 dist = gauss_xtrans(ipos);
-
-  // this gives weird colour cast
+  // too high values (allow too much input) gives weird colour cast
   // const float a = 1.0e-5, b = 2.0e-7; // guessed iso3200 fuji X100T
   const float a = 1.3e-6, b = 1.0e-7; // guessed iso3200 fuji X100T
   float sigma2 = a + max(0, rgb.r - params.black)*b;
 #if 1 // helps
   // increase for flat areas:
+  vec2 dist = gauss_xtrans(ipos); // how flat is the area we're looking at?
   // detect flat by comparing sigma2 (noise model) and dist.y (local surroundings)
   float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
-#if 0
+#if 0 // does not help
   // envelope to mid tones:
   float g0 = pow((rgb.r - params.black)/(params.white-params.black), 1.0);//1.0/2.2);
   float g1 = pow((bck.r - params.black)/(params.white-params.black), 1.0);//1.0/2.2);
