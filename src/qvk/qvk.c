@@ -137,7 +137,7 @@ qvk_create_swapchain()
     for(int i = 0; i < qvk.num_swap_chain_images; i++)
       vkDestroyImageView(qvk.device, qvk.swap_chain_image_views[i], 0);
 
-  /* create swapchain (query details and ignore them afterwards :-) )*/
+  /* create swapchain */
   VkSurfaceCapabilitiesKHR surf_capabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(qvk.physical_device, qvk.surface, &surf_capabilities);
 
@@ -182,13 +182,20 @@ out:;
   {
     qvk.extent = surf_capabilities.currentExtent;
   }
-  else {
+  else
+  {
     qvk.extent.width  = MIN(surf_capabilities.maxImageExtent.width,  qvk.win_width);
     qvk.extent.height = MIN(surf_capabilities.maxImageExtent.height, qvk.win_height);
 
     qvk.extent.width  = MAX(surf_capabilities.minImageExtent.width,  qvk.extent.width);
     qvk.extent.height = MAX(surf_capabilities.minImageExtent.height, qvk.extent.height);
   }
+
+  // this is stupid, but it seems if the window manager does not allow going fullscreen
+  // it crashes otherwise. sometimes you need to first make the window floating in dwm
+  // before going F11 -> fullscreen works. sigh.
+  qvk.win_width  = qvk.extent.width;
+  qvk.win_height = qvk.extent.height;
 
   uint32_t num_images = surf_capabilities.minImageCount;
   if(surf_capabilities.maxImageCount > 0)
