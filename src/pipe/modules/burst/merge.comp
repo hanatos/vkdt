@@ -211,7 +211,9 @@ main()
   // if(len > 10.00) res.z = 0;
   // res.z = clamp(100*res.z, 0.0, 1.0);     // mtest
   // res1.z = clamp(10*res1.z, 0.0, 1.0);       // himalaya
-  res1.z = clamp(params.merge_k*res1.z - params.merge_n, 0.0, 1.0);
+  // res1.z = clamp(params.merge_k*res1.z - params.merge_n, 0.0, 1.0);
+  res1.z = max(params.merge_k*res1.z - params.merge_n, 0.0);
+  res1.z = res1.z/(1.0+res1.z); // fade out smoothly
   // res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
   // res1.z = 0;
   // res.z = clamp(5*res.z, 0.0, 1.0);       // anti aliasing on ocean
