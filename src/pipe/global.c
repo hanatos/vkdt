@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <stdio.h>
+#include <locale.h>
 
 dt_pipe_global_t dt_pipe;
 
@@ -223,6 +224,7 @@ dt_module_so_unload(dt_module_so_t *mod)
 int dt_pipe_global_init()
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
+  (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
   // TODO: setup search directory
   struct dirent *dp;
   DIR *fd = opendir("modules");
