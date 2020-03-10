@@ -52,6 +52,12 @@ read_param_config_ascii(
     for(int i=0;i<p->cnt;i++)
       *(val++) = dt_read_float(line, &line); // default value
   }
+  else if(type == dt_token("int"))
+  {
+    int32_t *val = p->vali;
+    for(int i=0;i<p->cnt;i++)
+      *(val++) = dt_read_int(line, &line); // default value
+  }
   else if(type == dt_token("string"))
   {
     char *str = p->str;

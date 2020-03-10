@@ -10,7 +10,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float theta;  // angle of incidence: 0 normal; pi/2 tangent
-  float spp;    // number of paths per pixel
+  int   spp;    // number of paths per pixel
   float albedo;
   float mu_t;
   float g;

@@ -664,22 +664,45 @@ inline void draw_widget(int modid, int parid)
     case dt_token("slider"):
     {
       // TODO: distinguish by count:
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + 
-        vkdt.graph_dev.module[modid].so->param[parid]->offset);
-      char str[10] = {0};
-      memcpy(str,
-          &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
-      if(ImGui::SliderFloat(str, val,
-            vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
-            vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
-            "%2.5f"))
+      if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("float"))
       {
-        // TODO: let module decide which flags are needed!
-        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-               s_graph_run_all
-            & ~s_graph_run_before_active
-            & ~s_graph_run_upload_source);
-        vkdt.graph_dev.active_module = modid;
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + 
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        char str[10] = {0};
+        memcpy(str,
+            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        if(ImGui::SliderFloat(str, val,
+              vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
+              vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
+              "%2.5f"))
+        {
+          // TODO: let module decide which flags are needed!
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                 s_graph_run_all
+              & ~s_graph_run_before_active
+              & ~s_graph_run_upload_source);
+          vkdt.graph_dev.active_module = modid;
+        }
+      }
+      else if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
+      {
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + 
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        char str[10] = {0};
+        memcpy(str,
+            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        if(ImGui::SliderInt(str, val,
+              vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
+              vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
+              "%d"))
+        {
+          // TODO: let module decide which flags are needed!
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                 s_graph_run_all
+              & ~s_graph_run_before_active
+              & ~s_graph_run_upload_source);
+          vkdt.graph_dev.active_module = modid;
+        }
       }
       break;
     }

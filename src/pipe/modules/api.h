@@ -518,6 +518,15 @@ static inline const float *dt_module_param_float(
   return 0;
 }
 
+static inline const int32_t *dt_module_param_int(
+    const dt_module_t *module,
+    int paramid)
+{
+  if(paramid >= 0 && paramid < module->so->num_params)
+    return (int32_t *)(module->param + module->so->param[paramid]->offset);
+  return 0;
+}
+
 static inline const char *dt_module_param_string(
     const dt_module_t *module,
     int paramid)

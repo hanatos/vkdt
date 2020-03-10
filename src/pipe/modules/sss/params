@@ -1,5 +1,5 @@
 theta:float:1:0.0
-spp:float:1:1
+spp:int:1:1
 albedo:float:1:0.01
 mu_t:float:1:15
 g:float:1:0.8
