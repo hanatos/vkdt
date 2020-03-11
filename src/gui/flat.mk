@@ -14,3 +14,8 @@ GUI_H=gui/gui.h\
       pipe/graph-traverse.inc
 GUI_CFLAGS=$(shell pkg-config --cflags sdl2) -I../ext/imgui -I../ext/imgui/examples/
 GUI_LDFLAGS=-ldl $(shell pkg-config --libs sdl2) -lm -lstdc++
+
+ifeq ($(VKDT_USE_FREETYPE),1)
+GUI_CFLAGS+=$(shell pkg-config --cflags freetype2) -DVKDT_USE_FREETYPE=1
+GUI_LDFLAGS+=$(shell pkg-config --libs freetype2)
+endif

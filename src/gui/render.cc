@@ -7,6 +7,10 @@ extern "C" {
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_sdl.h"
+#if VKDT_USE_FREETYPE == 1
+#include "misc/freetype/imgui_freetype.h"
+#include "misc/freetype/imgui_freetype.cpp"
+#endif
 #include <SDL.h>
 
 #include <stdio.h>
@@ -328,6 +332,17 @@ extern "C" int dt_gui_init_imgui()
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
   //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
   //IM_ASSERT(font != NULL);
+#if VKDT_USE_FREETYPE == 1
+  io.Fonts->TexGlyphPadding = 1;
+  uint32_t flags = 0; // ImGuiFreeType::{NoHinting NoAutoHint ForceAutoHint LightHinting MonoHinting Bold Oblique Monochrome}
+  for (int n = 0; n < io.Fonts->ConfigData.Size; n++)
+  {
+    ImFontConfig* font_config = (ImFontConfig*)&io.Fonts->ConfigData[n];
+    font_config->RasterizerMultiply = 1.0f;
+    font_config->RasterizerFlags = flags; // extra flags hinting etc
+  }
+  ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
+#endif
 
   // XXX TODO: move this out to gui.c so we don't need to use dt_log in cpp!
   // XXX maybe just remove the QVK() :/

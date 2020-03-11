@@ -1,16 +1,18 @@
 .PHONY: all debug sanitize clean run
 
-all:
+include config.mk
+
+all: config.mk
 	$(MAKE) -C ..
 
-debug:
+debug: config.mk
 	$(MAKE) -C .. debug
 
-sanitize:
+sanitize: config.mk
 	$(MAKE) -C .. sanitize
 
 clean:
 	$(MAKE) -C .. clean
 
-run:
-	./run.sh
+config.mk: config.mk.example
+	cp config.mk.example config.mk
