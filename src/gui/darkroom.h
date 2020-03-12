@@ -8,50 +8,178 @@
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
 
-#include <SDL.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-// some static helper functions for the gui
-static inline void
-darkroom_handle_event(SDL_Event *event)
+// TODO: need state struct
+
+#if 0
+extern "C" int dt_gui_poll_event_imgui()
 {
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-  assert(out);
-  float wd = (float)out->connector[0].roi.wd;
-  float ht = (float)out->connector[0].roi.ht;
-  static int m_x = -1, m_y = -1;
-  static float old_look_x = -1.0f, old_look_y = -1.0f;
-  if(event->type == SDL_MOUSEMOTION)
+  // TODO: this is darkroom stuff
+  // TODO: probably move to darkroom.h and talk to the c++ gui via these g_* buffers
+  const float px_dist = 20;
+
+  if(g_active_widget_modid >= 0)
   {
-    if(m_x >= 0 && vkdt.state.scale > 0.0f)
+    switch(vkdt.graph_dev.module[
+        g_active_widget_modid].so->param[
+        g_active_widget_parid]->widget.type)
     {
-      int dx = event->button.x - m_x;
-      int dy = event->button.y - m_y;
-      vkdt.state.look_at_x = old_look_x - dx / vkdt.state.scale;
-      vkdt.state.look_at_y = old_look_y - dy / vkdt.state.scale;
-      vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, wd);
-      vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, ht);
+      case dt_token("quad"):
+      {
+        static int c = -1;
+        if(c >= 0 && event->type == SDL_MOUSEMOTION)
+        {
+          float n[] = {0, 0};
+          float v[] = {(float)event->button.x, (float)event->button.y};
+          view_to_image(v, n);
+          // convert view space mouse coordinate to normalised image
+          // copy to quad state at corner c
+          g_state[2*c+0] = n[0];
+          g_state[2*c+1] = n[1];
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONUP)
+        {
+          c = -1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        {
+          // find active corner if close enough
+          float m[] = {(float)event->button.x, (float)event->button.y};
+          float max_dist = FLT_MAX;
+          for(int cc=0;cc<4;cc++)
+          {
+            float n[] = {g_state[2*cc+0], g_state[2*cc+1]}, v[2];
+            image_to_view(n, v);
+            float dist2 =
+              (v[0]-m[0])*(v[0]-m[0])+
+              (v[1]-m[1])*(v[1]-m[1]);
+            if(dist2 < px_dist*px_dist)
+            {
+              if(dist2 < max_dist)
+              {
+                max_dist = dist2;
+                c = cc;
+              }
+            }
+          }
+          return max_dist < FLT_MAX;
+        }
+        break;
+      }
+      case dt_token("axquad"):
+      {
+        static int e = -1;
+        if(e >= 0 && event->type == SDL_MOUSEMOTION)
+        {
+          float n[] = {0, 0};
+          float v[] = {(float)event->button.x, (float)event->button.y};
+          view_to_image(v, n);
+          float edge = e < 2 ? n[0] : n[1];
+          g_state[e] = edge;
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONUP)
+        {
+          e = -1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        {
+          // find active corner if close enough
+          float m[2] = {(float)event->button.x, (float)event->button.y};
+          float max_dist = FLT_MAX;
+          for(int ee=0;ee<4;ee++)
+          {
+            float n[] = {ee < 2 ? g_state[ee] : 0, ee >= 2 ? g_state[ee] : 0}, v[2];
+            image_to_view(n, v);
+            float dist2 =
+              ee < 2 ?
+              (v[0]-m[0])*(v[0]-m[0]) :
+              (v[1]-m[1])*(v[1]-m[1]);
+            if(dist2 < px_dist*px_dist)
+            {
+              if(dist2 < max_dist)
+              {
+                max_dist = dist2;
+                e = ee;
+              }
+            }
+          }
+          return max_dist < FLT_MAX;
+        }
+        break;
+      }
+      case dt_token("draw"):
+      {
+        // record mouse position relative to image
+        // append to state until 1000 lines
+        static int c = -1;
+        static int pressed = 0;
+        if(c >= 0 && event->type == SDL_MOUSEMOTION &&
+            pressed &&
+            c < 2004)
+        {
+          float n[] = {0, 0};
+          float v[] = {(float)event->button.x, (float)event->button.y};
+          view_to_image(v, n);
+          // convert view space mouse coordinate to normalised image
+          // copy to quad state at corner c
+          g_mapped[1+2*c+0] = n[0];
+          g_mapped[1+2*c+1] = n[1];
+          if(c == 0 || (c > 0 &&
+              fabsf(n[0] - g_mapped[1+2*(c-1)+0]) > 0.004 &&
+              fabsf(n[1] - g_mapped[1+2*(c-1)+1]) > 0.004))
+            g_mapped[0] = c++;
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONUP)
+        {
+          pressed = 0;
+          c = -1;
+          return 1;
+        }
+        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        {
+          pressed = 1;
+          if(c < 0) c = 0;
+          // right click: remove stroke
+          if(event->button.button == SDL_BUTTON_RIGHT) c = -1;
+          return 1;
+        }
+        break;
+      }
+      default:;
     }
   }
-  else if(event->type == SDL_MOUSEBUTTONUP)
+  return 0;
+}
+#endif
+
+static inline void
+darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
+{
+  double x, y;
+  glfwGetCursorPos(qvk.window, &xpos, &ypos);
+
+  if(action == GLFW_RELEASE)
   {
     m_x = m_y = -1;
   }
-  else if(event->type == SDL_MOUSEBUTTONDOWN &&
-      event->button.x < vkdt.state.center_x + vkdt.state.center_wd)
+  else if(action == GLFW_PRESS &&
+      x < vkdt.state.center_x + vkdt.state.center_wd)
   {
-    if(event->button.button == SDL_BUTTON_LEFT)
+    if(button == GLFW_MOUSE_BUTTON_LEFT)
     {
-      m_x = event->button.x;
-      m_y = event->button.y;
+      m_x = x;
+      m_y = y;
       old_look_x = vkdt.state.look_at_x;
       old_look_y = vkdt.state.look_at_y;
     }
-    else if(event->button.button == SDL_BUTTON_MIDDLE)
+    else if(button == GLFW_MOUSE_BUTTON_MIDDLE)
     {
       // TODO: zoom 1:1
       // TODO: two things: one is the display node which has
@@ -85,24 +213,49 @@ darkroom_handle_event(SDL_Event *event)
       }
     }
   }
-  else if (event->type == SDL_KEYDOWN)
+}
+
+static inline void
+darkroom_mouse_position(GLFWwindow* window, double x, double y)
+{
+  // TODO: share this state with the mouse button callback!
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(!out) return; // should never happen
+  assert(out);
+  float wd = (float)out->connector[0].roi.wd;
+  float ht = (float)out->connector[0].roi.ht;
+  static int m_x = -1, m_y = -1;
+  static float old_look_x = -1.0f, old_look_y = -1.0f;
+  if(m_x >= 0 && vkdt.state.scale > 0.0f)
   {
-    if(event->key.keysym.sym == SDLK_r)
-    {
-      dt_view_switch(s_view_cnt);
-      dt_pipe_global_cleanup();
-      // this will crash on shutdown.
-      // actually we'd have to shutdown and re-init thumbnails, too
-      // because they hold a graph which holds pointers to global modules.
-      // this would mean to re-init the db, too ..
-      system("make debug"); // build shaders
-      dt_pipe_global_init();
-      dt_view_switch(s_view_darkroom);
-    }
-    else if(event->key.keysym.sym == SDLK_PERIOD)
-    {
-      dt_view_switch(s_view_lighttable);
-    }
+    int dx = x - m_x;
+    int dy = y - m_y;
+    vkdt.state.look_at_x = old_look_x - dx / vkdt.state.scale;
+    vkdt.state.look_at_y = old_look_y - dy / vkdt.state.scale;
+    vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, wd);
+    vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, ht);
+  }
+}
+
+// some static helper functions for the gui
+static inline void
+darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  if(key == GLFW_KEY_R)
+  {
+    dt_view_switch(s_view_cnt);
+    dt_pipe_global_cleanup();
+    // this will crash on shutdown.
+    // actually we'd have to shutdown and re-init thumbnails, too
+    // because they hold a graph which holds pointers to global modules.
+    // this would mean to re-init the db, too ..
+    system("make debug"); // build shaders
+    dt_pipe_global_init();
+    dt_view_switch(s_view_darkroom);
+  }
+  else if(key == GLFW_KEY_PERIOD)
+  {
+    dt_view_switch(s_view_lighttable);
   }
 }
 

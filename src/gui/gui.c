@@ -5,11 +5,11 @@
 #include "render.h"
 #include "pipe/io.h"
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <float.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_vulkan.h>
 
 static void
 style_to_state()
@@ -33,33 +33,35 @@ style_to_state()
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
+  if(!glfwVulkanSupported())
+  {
+    dt_log(s_log_gui|s_log_err, "no vulkan support found!");
+    return 1;
+  }
+
   vkdt.style.panel_width_frac = 0.2f;
   vkdt.style.border_frac = 0.02f;
   qvk.win_width  = 1920;
   qvk.win_height = 1080;
-  qvk.window = SDL_CreateWindow("vkdt", 20, 50,
-      qvk.win_width, qvk.win_height,
-      SDL_WINDOW_VULKAN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE);
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  qvk.window = glfwCreateWindow(qvk.wind_width, qvk.wid_height, "vkdt", NULL, NULL);
+
   if(!qvk.window)
   {
-    dt_log(s_log_gui|s_log_err, "could not create SDL window `%s'", SDL_GetError());
+    dt_log(s_log_gui|s_log_err, "could not create GLFW window");
     return 1;
   }
 
-  if(!SDL_Vulkan_GetInstanceExtensions(qvk.window, &qvk.num_sdl2_extensions, NULL))
+  qvk.glfw_extensions = glfwGetRequiredInstanceExtensions(&qvk.num_glfw_extensions);
+  if(!qvk.glfw_extensions)
   {
-    dt_log(s_log_gui|s_log_err, "couldn't get SDL extension count");
-    return 1;
-  }
-  qvk.sdl2_extensions = malloc(sizeof(char*) * qvk.num_sdl2_extensions);
-  if(!SDL_Vulkan_GetInstanceExtensions(qvk.window, &qvk.num_sdl2_extensions, qvk.sdl2_extensions)) {
-    dt_log(s_log_err|s_log_gui, "couldn't get SDL extensions");
+    dt_log(s_log_gui|s_log_err, "couldn't get GLFW instance extensions");
     return 1;
   }
 
-  dt_log(s_log_gui, "vk extension required by SDL2:");
-  for(int i = 0; i < qvk.num_sdl2_extensions; i++)
-    dt_log(s_log_gui, "  %s", qvk.sdl2_extensions[i]);
+  dt_log(s_log_gui, "vk extension required by GLFW:");
+  for(int i = 0; i < qvk.num_glfw_extensions; i++)
+    dt_log(s_log_gui, "  %s", qvk.glfw_extensions[i]);
 
   if(qvk_init())
   {
@@ -68,7 +70,7 @@ int dt_gui_init()
   }
 
   /* create surface */
-  if(!SDL_Vulkan_CreateSurface(qvk.window, qvk.instance, &qvk.surface))
+  if(glfwCreateWindowSurface(qvk.instance, qvk.window, NULL, &qvk.surface))
   {
     dt_log(s_log_qvk|s_log_err, "could not create surface!");
     return 1;
@@ -156,7 +158,7 @@ dt_gui_recreate_swapchain()
     vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
   if(vkdt.render_pass)
     vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
-  SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
+  glfwGetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
   style_to_state();
   QVKR(qvk_create_swapchain());
 
@@ -224,8 +226,8 @@ dt_gui_recreate_swapchain()
 void dt_gui_cleanup()
 {
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
-  SDL_DestroyWindow(qvk.window);
-  SDL_Quit();
+  glfwDestroyWindow(qvk.window);
+  glfwTerminate();
 }
 
 void dt_gui_render()

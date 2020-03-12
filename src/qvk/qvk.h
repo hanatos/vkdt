@@ -47,7 +47,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define QVK_MAX_SWAPCHAIN_IMAGES 4
 
 // forward declare
-typedef struct SDL_Window SDL_Window;
+typedef struct GLFWwindow GLFWwindow;
 
 typedef struct qvk_t
 {
@@ -89,9 +89,9 @@ typedef struct qvk_t
   int                         win_height;
   uint64_t                    frame_counter;
 
-  SDL_Window                  *window;
-  uint32_t                    num_sdl2_extensions;
-  const char                  **sdl2_extensions;
+  GLFWwindow                  *window;
+  uint32_t                    num_glfw_extensions;
+  const char                  **glfw_extensions;
 
   uint32_t                    current_image_index;
 

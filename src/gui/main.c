@@ -10,8 +10,8 @@
 #include "gui/view.h"
 #include "db/db.h"
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
@@ -20,6 +20,56 @@
 
 dt_gui_t vkdt;
 
+static void
+key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+  static int busy = 3;
+  if(dt_gui_poll_event_imgui(window, key, scancode, action, mods))
+    ;
+  else if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+  {
+    running = 0;
+  }
+  else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
+  {
+#if 0
+        GLFWmonitor* glfwGetPrimaryMonitor 	( 	void  		)
+        const GLFWvidmode* glfwGetVideoMode 	( 	GLFWmonitor *  	monitor	)
+        int height = return_struct.height;
+        or wd ht / 4*3 or so
+          glfwSetWindowSize(qvk.window, 1600, 800);
+#endif
+    if(fullscreen)
+    {
+      // XXX
+      fullscreen = 0;
+    }
+    else
+    {
+      // XXX
+      fullscreen = 1;
+    }
+    dt_gui_recreate_swapchain();
+  }
+  else dt_view_handle_event(window, key, scancode, action, mods);
+
+  // busy/should redraw?
+  if(vkdt.state.anim_playing)
+    busy = vkdt.state.anim_max_frame;
+  else
+    busy = 2;
+
+  // infinite loop here now? maybe have to move outside
+  if(busy-- > 0) glfwPostEmptyEvent();
+}
+
+static void
+window_size_callback(GLFWwindow* window, int width, int height)
+{
+  // window resized, need to rebuild our swapchain:
+  dt_gui_recreate_swapchain();
+}
+
 int main(int argc, char *argv[])
 {
   // init global things, log and pipeline:
@@ -27,6 +77,17 @@ int main(int argc, char *argv[])
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
   threads_global_init();
+
+  glfwSetKeyCallback(qvk.window, key_callback);
+  glfwSetWindowSizeCallback(qvk.window, window_size_callback);
+  glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
+  glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
+  // TODO: scroll callback
+  // TODO: call
+ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+IMGUI_IMPL_API void     ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+IMGUI_IMPL_API void     ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+IMGUI_IMPL_API void     ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c);
 
   const char *fname = 0;
   if(argc > 1) fname = argv[argc-1];
@@ -79,60 +140,10 @@ int main(int argc, char *argv[])
   clock_t beg = clock();
   while(running)
   {
-    SDL_Event event;
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
-    // do that via SDL_PushEvent().
-    int have_event = 1;
-    if(busy >= 0)
-      have_event = SDL_PollEvent(&event);
-    else           SDL_WaitEvent(&event);
-    if(have_event) do
-    {
-      if(dt_gui_poll_event_imgui(&event))
-        ;
-      else if(event.type == SDL_QUIT)
-        running = 0;
-      else if(event.type == SDL_KEYDOWN &&
-           event.key.keysym.sym == SDLK_ESCAPE)
-      {
-        running = 0;
-      }
-      else if(event.type == SDL_KEYDOWN &&
-              event.key.keysym.sym == SDLK_F11)
-      {
-        if(fullscreen)
-        {
-          SDL_SetWindowSize(qvk.window, 1600, 800);
-          SDL_SetWindowPosition(qvk.window, 30, 40);
-          fullscreen = 0;
-        }
-        else
-        {
-          SDL_DisplayMode mode;
-          SDL_GetCurrentDisplayMode(0, &mode); // TODO get current screen
-          dt_log(s_log_gui, "display mode %d %d\n", mode.w, mode.h);
-          SDL_RestoreWindow(qvk.window);
-          SDL_SetWindowSize(qvk.window, mode.w, mode.h);
-          SDL_SetWindowPosition(qvk.window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-          fullscreen = 1;
-        }
-        dt_gui_recreate_swapchain();
-      }
-      else if(event.type == SDL_WINDOWEVENT &&
-          event.window.event == SDL_WINDOWEVENT_RESIZED &&
-          event.window.windowID == SDL_GetWindowID(qvk.window))
-      { // window resized, need to rebuild our swapchain:
-        dt_gui_recreate_swapchain();
-      }
-      else dt_view_handle_event(&event);
-      if(vkdt.state.anim_playing)
-        busy = vkdt.state.anim_max_frame;
-      else
-        busy = 2;
-    }
-    while (SDL_PollEvent(&event));
-    else busy--;
+    // do that via glfwPostEmptyEvent()
+    glfwWaitEvents();
 
     clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();

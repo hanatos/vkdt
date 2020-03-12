@@ -6,12 +6,13 @@ extern "C" {
 }
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
-#include "imgui_impl_sdl.h"
+#include "imgui_impl_glfw.h"
 #if VKDT_USE_FREETYPE == 1
 #include "misc/freetype/imgui_freetype.h"
 #include "misc/freetype/imgui_freetype.cpp"
 #endif
-#include <SDL.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -283,7 +284,7 @@ extern "C" int dt_gui_init_imgui()
   dark_corporate_style();
 
   // Setup Platform/Renderer bindings
-  ImGui_ImplSDL2_InitForVulkan(qvk.window);
+  ImGui_ImplGlfw_InitForVulkan(qvk.window, false);
   ImGui_ImplVulkan_InitInfo init_info = {};
   init_info.Instance         = qvk.instance;
   init_info.PhysicalDevice   = qvk.physical_device;
@@ -369,155 +370,6 @@ extern "C" int dt_gui_init_imgui()
 
     QVK(vkDeviceWaitIdle(qvk.device));
     ImGui_ImplVulkan_DestroyFontUploadObjects();
-  }
-  return 0;
-}
-
-extern "C" int dt_gui_poll_event_imgui(SDL_Event *event)
-{
-  // Poll and handle events (inputs, window resize, etc.)
-  // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-  // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-  // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-  // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-  ImGui_ImplSDL2_ProcessEvent(event);
-
-  // TODO: this is darkroom stuff
-  // TODO: probably move to darkroom.h and talk to the c++ gui via these g_* buffers
-  const float px_dist = 20;
-
-  if(g_active_widget_modid >= 0)
-  {
-    switch(vkdt.graph_dev.module[
-        g_active_widget_modid].so->param[
-        g_active_widget_parid]->widget.type)
-    {
-      case dt_token("quad"):
-      {
-        static int c = -1;
-        if(c >= 0 && event->type == SDL_MOUSEMOTION)
-        {
-          float n[] = {0, 0};
-          float v[] = {(float)event->button.x, (float)event->button.y};
-          view_to_image(v, n);
-          // convert view space mouse coordinate to normalised image
-          // copy to quad state at corner c
-          g_state[2*c+0] = n[0];
-          g_state[2*c+1] = n[1];
-          return 1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONUP)
-        {
-          c = -1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONDOWN)
-        {
-          // find active corner if close enough
-          float m[] = {(float)event->button.x, (float)event->button.y};
-          float max_dist = FLT_MAX;
-          for(int cc=0;cc<4;cc++)
-          {
-            float n[] = {g_state[2*cc+0], g_state[2*cc+1]}, v[2];
-            image_to_view(n, v);
-            float dist2 =
-              (v[0]-m[0])*(v[0]-m[0])+
-              (v[1]-m[1])*(v[1]-m[1]);
-            if(dist2 < px_dist*px_dist)
-            {
-              if(dist2 < max_dist)
-              {
-                max_dist = dist2;
-                c = cc;
-              }
-            }
-          }
-          return max_dist < FLT_MAX;
-        }
-        break;
-      }
-      case dt_token("axquad"):
-      {
-        static int e = -1;
-        if(e >= 0 && event->type == SDL_MOUSEMOTION)
-        {
-          float n[] = {0, 0};
-          float v[] = {(float)event->button.x, (float)event->button.y};
-          view_to_image(v, n);
-          float edge = e < 2 ? n[0] : n[1];
-          g_state[e] = edge;
-          return 1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONUP)
-        {
-          e = -1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONDOWN)
-        {
-          // find active corner if close enough
-          float m[2] = {(float)event->button.x, (float)event->button.y};
-          float max_dist = FLT_MAX;
-          for(int ee=0;ee<4;ee++)
-          {
-            float n[] = {ee < 2 ? g_state[ee] : 0, ee >= 2 ? g_state[ee] : 0}, v[2];
-            image_to_view(n, v);
-            float dist2 =
-              ee < 2 ?
-              (v[0]-m[0])*(v[0]-m[0]) :
-              (v[1]-m[1])*(v[1]-m[1]);
-            if(dist2 < px_dist*px_dist)
-            {
-              if(dist2 < max_dist)
-              {
-                max_dist = dist2;
-                e = ee;
-              }
-            }
-          }
-          return max_dist < FLT_MAX;
-        }
-        break;
-      }
-      case dt_token("draw"):
-      {
-        // record mouse position relative to image
-        // append to state until 1000 lines
-        static int c = -1;
-        static int pressed = 0;
-        if(c >= 0 && event->type == SDL_MOUSEMOTION &&
-            pressed &&
-            c < 2004)
-        {
-          float n[] = {0, 0};
-          float v[] = {(float)event->button.x, (float)event->button.y};
-          view_to_image(v, n);
-          // convert view space mouse coordinate to normalised image
-          // copy to quad state at corner c
-          g_mapped[1+2*c+0] = n[0];
-          g_mapped[1+2*c+1] = n[1];
-          if(c == 0 || (c > 0 &&
-              fabsf(n[0] - g_mapped[1+2*(c-1)+0]) > 0.004 &&
-              fabsf(n[1] - g_mapped[1+2*(c-1)+1]) > 0.004))
-            g_mapped[0] = c++;
-          return 1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONUP)
-        {
-          pressed = 0;
-          c = -1;
-          return 1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONDOWN)
-        {
-          pressed = 1;
-          if(c < 0) c = 0;
-          // right click: remove stroke
-          if(event->button.button == SDL_BUTTON_RIGHT) c = -1;
-          return 1;
-        }
-        break;
-      }
-      default:;
-    }
   }
   return 0;
 }
@@ -1099,7 +951,7 @@ extern "C" void dt_gui_render_frame_imgui()
 {
   // Start the Dear ImGui frame
   ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplSDL2_NewFrame(qvk.window);
+  ImGui_ImplGlfw_NewFrame(qvk.window);
   ImGui::NewFrame();
 
   switch(vkdt.view_mode)
@@ -1124,17 +976,8 @@ extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 extern "C" void dt_gui_cleanup_imgui()
 {
   widget_end(); // commit params if still ongoing
-#if 0
-    // Cleanup
-    QVK(vkDeviceWaitIdle(g_Device));
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
-
-    CleanupVulkanWindow();
-    CleanupVulkan();
-
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-#endif
+  QVK(vkDeviceWaitIdle(qvk.device);
+  ImGui_ImplVulkan_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
 }

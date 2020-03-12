@@ -33,15 +33,45 @@ dt_view_switch(dt_gui_view_t view)
 }
 
 void
-dt_view_handle_event(SDL_Event *event)
+dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
-    darkroom_handle_event(event);
+    darkroom_handle_mouse_button(window, button, action, mods);
     break;
   case s_view_lighttable:
-    lighttable_handle_event(event);
+    lighttable_handle_mouse_button(window, button, action, mods);
+    break;
+  default:;
+  }
+}
+
+void
+dt_view_mouse_position(GLFWwindow *window, double x, double y)
+{
+  switch(vkdt.view_mode)
+  {
+  case s_view_darkroom:
+    darkroom_handle_mouse_position(window, x, y);
+    break;
+  case s_view_lighttable:
+    lighttable_handle_mouse_position(window, x, y);
+    break;
+  default:;
+  }
+}
+
+void
+dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  switch(vkdt.view_mode)
+  {
+  case s_view_darkroom:
+    darkroom_handle_keyboard(window, key, scancode, action, mods);
+    break;
+  case s_view_lighttable:
+    lighttable_handle_event(window, key, scancode, action, mods);
     break;
   default:;
   }

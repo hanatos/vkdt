@@ -252,7 +252,7 @@ out:;
   return VK_SUCCESS;
 }
 
-// this function works without gui and consequently does not init SDL
+// this function works without gui and consequently does not init glfw
 VkResult
 qvk_init()
 {
@@ -261,10 +261,10 @@ qvk_init()
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
   /* instance extensions */
-  int num_inst_ext_combined = qvk.num_sdl2_extensions + LENGTH(vk_requested_instance_extensions);
+  int num_inst_ext_combined = qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions);
   char **ext = alloca(sizeof(char *) * num_inst_ext_combined);
-  memcpy(ext, qvk.sdl2_extensions, qvk.num_sdl2_extensions * sizeof(*qvk.sdl2_extensions));
-  memcpy(ext + qvk.num_sdl2_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
+  memcpy(ext, qvk.glfw_extensions, qvk.num_glfw_extensions * sizeof(*qvk.glfw_extensions));
+  memcpy(ext + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
 
