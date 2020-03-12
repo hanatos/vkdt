@@ -8,52 +8,49 @@
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <float.h>
+#include <math.h>
 
-// TODO: need state struct
-
-#if 0
-extern "C" int dt_gui_poll_event_imgui()
+static inline void
+darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
-  // TODO: this is darkroom stuff
-  // TODO: probably move to darkroom.h and talk to the c++ gui via these g_* buffers
+  double x, y;
+  glfwGetCursorPos(qvk.window, &x, &y);
   const float px_dist = 20;
 
-  if(g_active_widget_modid >= 0)
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(!out) return; // should never happen
+  assert(out);
+  vkdt.wstate.wd = (float)out->connector[0].roi.wd;
+  vkdt.wstate.ht = (float)out->connector[0].roi.ht;
+
+  if(vkdt.wstate.active_widget_modid >= 0)
   {
     switch(vkdt.graph_dev.module[
-        g_active_widget_modid].so->param[
-        g_active_widget_parid]->widget.type)
+        vkdt.wstate.active_widget_modid].so->param[
+        vkdt.wstate.active_widget_parid]->widget.type)
     {
       case dt_token("quad"):
       {
-        static int c = -1;
-        if(c >= 0 && event->type == SDL_MOUSEMOTION)
+        if(action == GLFW_RELEASE)
         {
-          float n[] = {0, 0};
-          float v[] = {(float)event->button.x, (float)event->button.y};
-          view_to_image(v, n);
-          // convert view space mouse coordinate to normalised image
-          // copy to quad state at corner c
-          g_state[2*c+0] = n[0];
-          g_state[2*c+1] = n[1];
-          return 1;
+          vkdt.wstate.selected = -1;
         }
-        else if(event->type == SDL_MOUSEBUTTONUP)
-        {
-          c = -1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        else if(action == GLFW_PRESS)
         {
           // find active corner if close enough
-          float m[] = {(float)event->button.x, (float)event->button.y};
+          float m[] = {(float)x, (float)y};
           float max_dist = FLT_MAX;
           for(int cc=0;cc<4;cc++)
           {
-            float n[] = {g_state[2*cc+0], g_state[2*cc+1]}, v[2];
+            float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
             image_to_view(n, v);
             float dist2 =
               (v[0]-m[0])*(v[0]-m[0])+
@@ -63,38 +60,28 @@ extern "C" int dt_gui_poll_event_imgui()
               if(dist2 < max_dist)
               {
                 max_dist = dist2;
-                c = cc;
+                vkdt.wstate.selected = cc;
               }
             }
           }
-          return max_dist < FLT_MAX;
+          if(max_dist < FLT_MAX) return;
         }
         break;
       }
       case dt_token("axquad"):
       {
-        static int e = -1;
-        if(e >= 0 && event->type == SDL_MOUSEMOTION)
+        if(action == GLFW_RELEASE)
         {
-          float n[] = {0, 0};
-          float v[] = {(float)event->button.x, (float)event->button.y};
-          view_to_image(v, n);
-          float edge = e < 2 ? n[0] : n[1];
-          g_state[e] = edge;
-          return 1;
+          vkdt.wstate.selected = -1;
         }
-        else if(event->type == SDL_MOUSEBUTTONUP)
-        {
-          e = -1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONDOWN)
+        else if(action == GLFW_PRESS)
         {
           // find active corner if close enough
-          float m[2] = {(float)event->button.x, (float)event->button.y};
+          float m[2] = {(float)x, (float)y};
           float max_dist = FLT_MAX;
           for(int ee=0;ee<4;ee++)
           {
-            float n[] = {ee < 2 ? g_state[ee] : 0, ee >= 2 ? g_state[ee] : 0}, v[2];
+            float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
             image_to_view(n, v);
             float dist2 =
               ee < 2 ?
@@ -105,11 +92,11 @@ extern "C" int dt_gui_poll_event_imgui()
               if(dist2 < max_dist)
               {
                 max_dist = dist2;
-                e = ee;
+                vkdt.wstate.selected = ee;
               }
             }
           }
-          return max_dist < FLT_MAX;
+          if(max_dist < FLT_MAX) return;
         }
         break;
       }
@@ -117,67 +104,37 @@ extern "C" int dt_gui_poll_event_imgui()
       {
         // record mouse position relative to image
         // append to state until 1000 lines
-        static int c = -1;
-        static int pressed = 0;
-        if(c >= 0 && event->type == SDL_MOUSEMOTION &&
-            pressed &&
-            c < 2004)
+        if(action == GLFW_RELEASE)
         {
-          float n[] = {0, 0};
-          float v[] = {(float)event->button.x, (float)event->button.y};
-          view_to_image(v, n);
-          // convert view space mouse coordinate to normalised image
-          // copy to quad state at corner c
-          g_mapped[1+2*c+0] = n[0];
-          g_mapped[1+2*c+1] = n[1];
-          if(c == 0 || (c > 0 &&
-              fabsf(n[0] - g_mapped[1+2*(c-1)+0]) > 0.004 &&
-              fabsf(n[1] - g_mapped[1+2*(c-1)+1]) > 0.004))
-            g_mapped[0] = c++;
-          return 1;
+          vkdt.wstate.selected = -1;
+          return;
         }
-        else if(event->type == SDL_MOUSEBUTTONUP)
+        if(action == GLFW_PRESS)
         {
-          pressed = 0;
-          c = -1;
-          return 1;
-        }
-        else if(event->type == SDL_MOUSEBUTTONDOWN)
-        {
-          pressed = 1;
-          if(c < 0) c = 0;
+          if(vkdt.wstate.selected < 0) vkdt.wstate.selected = 0;
           // right click: remove stroke
-          if(event->button.button == SDL_BUTTON_RIGHT) c = -1;
-          return 1;
+          if(button == GLFW_MOUSE_BUTTON_RIGHT) vkdt.wstate.selected = -1;
+          return;
         }
         break;
       }
       default:;
     }
   }
-  return 0;
-}
-#endif
-
-static inline void
-darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
-{
-  double x, y;
-  glfwGetCursorPos(qvk.window, &xpos, &ypos);
 
   if(action == GLFW_RELEASE)
   {
-    m_x = m_y = -1;
+    vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
   }
   else if(action == GLFW_PRESS &&
       x < vkdt.state.center_x + vkdt.state.center_wd)
   {
     if(button == GLFW_MOUSE_BUTTON_LEFT)
     {
-      m_x = x;
-      m_y = y;
-      old_look_x = vkdt.state.look_at_x;
-      old_look_y = vkdt.state.look_at_y;
+      vkdt.wstate.m_x = x;
+      vkdt.wstate.m_y = y;
+      vkdt.wstate.old_look_x = vkdt.state.look_at_x;
+      vkdt.wstate.old_look_y = vkdt.state.look_at_y;
     }
     else if(button == GLFW_MOUSE_BUTTON_MIDDLE)
     {
@@ -188,9 +145,9 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       // TODO: move the image smoothly
       // where does the mouse look in the current image?
       float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
-      float scale = vkdt.state.scale <= 0.0f ? MIN(imwd/wd, imht/ht) : vkdt.state.scale;
-      float im_x = (event->button.x - (vkdt.state.center_x + imwd)/2.0f) / scale;
-      float im_y = (event->button.y - (vkdt.state.center_y + imht)/2.0f) / scale;
+      float scale = vkdt.state.scale <= 0.0f ? MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht) : vkdt.state.scale;
+      float im_x = (x - (vkdt.state.center_x + imwd)/2.0f) / scale;
+      float im_y = (y - (vkdt.state.center_y + imht)/2.0f) / scale;
       im_x += vkdt.state.look_at_x;
       im_y += vkdt.state.look_at_y;
       if(vkdt.state.scale <= 0.0f)
@@ -202,8 +159,8 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       else if(vkdt.state.scale >= 8.0f)
       {
         vkdt.state.scale = -1.0f;
-        vkdt.state.look_at_x = wd/2.0f;
-        vkdt.state.look_at_y = ht/2.0f;
+        vkdt.state.look_at_x = vkdt.wstate.wd/2.0f;
+        vkdt.state.look_at_y = vkdt.wstate.ht/2.0f;
       }
       else if(vkdt.state.scale >= 1.0f)
       {
@@ -218,22 +175,54 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 static inline void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
-  // TODO: share this state with the mouse button callback!
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-  assert(out);
-  float wd = (float)out->connector[0].roi.wd;
-  float ht = (float)out->connector[0].roi.ht;
-  static int m_x = -1, m_y = -1;
-  static float old_look_x = -1.0f, old_look_y = -1.0f;
-  if(m_x >= 0 && vkdt.state.scale > 0.0f)
+  if(vkdt.wstate.active_widget_modid >= 0)
   {
-    int dx = x - m_x;
-    int dy = y - m_y;
-    vkdt.state.look_at_x = old_look_x - dx / vkdt.state.scale;
-    vkdt.state.look_at_y = old_look_y - dy / vkdt.state.scale;
-    vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, wd);
-    vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, ht);
+    vkdt.wstate.m_x = -1;
+    // convert view space mouse coordinate to normalised image
+    float v[] = {(float)x, (float)y}, n[2] = {0};
+    view_to_image(v, n);
+    switch(vkdt.graph_dev.module[
+        vkdt.wstate.active_widget_modid].so->param[
+        vkdt.wstate.active_widget_parid]->widget.type)
+    {
+      case dt_token("quad"):
+        if(vkdt.wstate.selected >= 0)
+        {
+          // copy to quad state at corner c
+          vkdt.wstate.state[2*vkdt.wstate.selected+0] = n[0];
+          vkdt.wstate.state[2*vkdt.wstate.selected+1] = n[1];
+        }
+        return;
+      case dt_token("axquad"):
+        if(vkdt.wstate.selected >= 0)
+        {
+          float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
+          vkdt.wstate.state[vkdt.wstate.selected] = edge;
+        }
+        return;
+      case dt_token("draw"):
+        if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS &&
+            vkdt.wstate.selected >= 0 && vkdt.wstate.selected < 2004)
+        {
+          // copy to quad state at corner vkdt.wstate.selected
+          vkdt.wstate.mapped[1+2*vkdt.wstate.selected+0] = n[0];
+          vkdt.wstate.mapped[1+2*vkdt.wstate.selected+1] = n[1];
+          if(vkdt.wstate.selected == 0 || (vkdt.wstate.selected > 0 &&
+              fabsf(n[0] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+0]) > 0.004 &&
+              fabsf(n[1] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+1]) > 0.004))
+            vkdt.wstate.mapped[0] = vkdt.wstate.selected++;
+        }
+        return;
+    }
+  }
+  else if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
+  {
+    int dx = x - vkdt.wstate.m_x;
+    int dy = y - vkdt.wstate.m_y;
+    vkdt.state.look_at_x = vkdt.wstate.old_look_x - dx / vkdt.state.scale;
+    vkdt.state.look_at_y = vkdt.wstate.old_look_y - dy / vkdt.state.scale;
+    vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, vkdt.wstate.wd);
+    vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, vkdt.wstate.ht);
   }
 }
 

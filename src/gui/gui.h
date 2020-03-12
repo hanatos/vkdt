@@ -46,6 +46,22 @@ typedef struct dt_gui_state_t
 }
 dt_gui_state_t;
 
+// a few local things to exchange data between core and ui and c and c++
+typedef struct dt_gui_wstate_t
+{
+  int    m_x, m_y;
+  float  old_look_x, old_look_y;
+  float  wd, ht;
+  int    active_widget_modid;
+  int    active_widget_parid;
+  int    selected;
+  float  state[2100];
+  float *mapped;
+  int    lod;
+  float  connector[100][30][2];
+}
+dt_gui_wstate_t;
+
 typedef struct dt_graph_t dt_graph_t;
 typedef struct dt_gui_t
 {
@@ -58,6 +74,7 @@ typedef struct dt_gui_t
   VkClearValue     clear_value;   // TODO: more colours
   dt_gui_style_t   style;
   dt_gui_state_t   state;
+  dt_gui_wstate_t  wstate;
 
   uint32_t         frame_index;
   VkFence          fence         [DT_GUI_MAX_IMAGES];

@@ -17,18 +17,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 
-// XXX argh, what a terrible hack
-#define dt_log fprintf
-#define s_log_qvk stderr
-
-// some ui state (probably clean up and put in a struct or so
 namespace { // anonymous gui state namespace
-static int g_active_widget_modid = -1;
-static int g_active_widget_parid = -1;
-static float g_state[2100] = {0.0f};
-static float *g_mapped = 0;
-static int g_lod = 0;
-static float g_connector[100][30][2];
 
 void widget_end()
 {
@@ -40,21 +29,23 @@ void widget_end()
   vkdt.state.look_at_x = FLT_MAX;
   vkdt.state.look_at_y = FLT_MAX;
   vkdt.state.scale = -1;
-  if(g_active_widget_modid < 0) return; // all good already
-  int modid = g_active_widget_modid;
-  int parid = g_active_widget_parid;
-  if(g_mapped)
+  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
+  int modid = vkdt.wstate.active_widget_modid;
+  int parid = vkdt.wstate.active_widget_parid;
+  if(vkdt.wstate.mapped)
   {
-    g_mapped = 0;
+    vkdt.wstate.mapped = 0;
   }
   else
   {
     const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
     float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset);
     size_t size = dt_ui_param_size(p->type, p->cnt);
-    memcpy(v, g_state, size);
+    memcpy(v, vkdt.wstate.state, size);
   }
-  g_active_widget_modid = -1;
+  vkdt.wstate.active_widget_modid = -1;
+  vkdt.wstate.selected = -1;
+  vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
 }
 
 void draw_arrow(float p[8])
@@ -102,10 +93,10 @@ extern "C" void dt_gui_set_lod(int lod)
 {
   // set graph output scale factor and
   // trigger complete pipeline rebuild
-  if(g_lod > 1)
+  if(lod > 1)
   {
-    vkdt.graph_dev.output_wd = vkdt.state.center_wd / (g_lod-1);
-    vkdt.graph_dev.output_ht = vkdt.state.center_ht / (g_lod-1);
+    vkdt.graph_dev.output_wd = vkdt.state.center_wd / (lod-1);
+    vkdt.graph_dev.output_ht = vkdt.state.center_ht / (lod-1);
   }
   else
   {
@@ -120,6 +111,9 @@ extern "C" void dt_gui_set_lod(int lod)
 }
 
 namespace {
+
+#if 1
+  // XXX TODO: these are needed in darkroom.h too, need to move them to a header!
 void view_to_image(
     const float v[2],
     float       img[2])
@@ -168,6 +162,7 @@ void image_to_view(
   v[0] = x + scale * img[0] * fwd;
   v[1] = y + scale * img[1] * fht;
 }
+#endif
 
 inline ImVec4 gamma(ImVec4 in)
 {
@@ -345,19 +340,17 @@ extern "C" int dt_gui_init_imgui()
   ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
 #endif
 
-  // XXX TODO: move this out to gui.c so we don't need to use dt_log in cpp!
-  // XXX maybe just remove the QVK() :/
   // upload Fonts
   {
     // use any command queue
     VkCommandPool command_pool = vkdt.command_pool[0];
     VkCommandBuffer command_buffer = vkdt.command_buffer[0];
 
-    QVK(vkResetCommandPool(qvk.device, command_pool, 0));
+    vkResetCommandPool(qvk.device, command_pool, 0);
     VkCommandBufferBeginInfo begin_info = {};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    QVK(vkBeginCommandBuffer(command_buffer, &begin_info));
+    vkBeginCommandBuffer(command_buffer, &begin_info);
 
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 
@@ -365,10 +358,10 @@ extern "C" int dt_gui_init_imgui()
     end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     end_info.commandBufferCount = 1;
     end_info.pCommandBuffers = &command_buffer;
-    QVK(vkEndCommandBuffer(command_buffer));
-    QVK(vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE));
+    vkEndCommandBuffer(command_buffer);
+    vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
 
-    QVK(vkDeviceWaitIdle(qvk.device));
+    vkDeviceWaitIdle(qvk.device);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
   }
   return 0;
@@ -454,11 +447,11 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
   {
     for(int k=0;k<module->num_connectors;k++)
     {
-      g_connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
-      g_connector[module - graph->module][k][1] = hp.y + 0.5f*lineht;
+      vkdt.wstate.connector[module - graph->module][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
+      vkdt.wstate.connector[module - graph->module][k][1] = hp.y + 0.5f*lineht;
       // this switches off connections of collapsed modules
-      // g_connector[module - graph->module][k][0] = -1;
-      // g_connector[module - graph->module][k][1] = -1;
+      // vkdt.wstate.connector[module - graph->module][k][0] = -1;
+      // vkdt.wstate.connector[module - graph->module][k][1] = -1;
     }
     return err;
   }
@@ -481,8 +474,8 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
     {
       const int selected = (mod[j] == mid) && (con[j] == k);
       ImVec2 p = ImGui::GetCursorScreenPos();
-      g_connector[mid][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
-      g_connector[mid][k][1] = p.y + 0.8f*lineht;
+      vkdt.wstate.connector[mid][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
+      vkdt.wstate.connector[mid][k][1] = p.y + 0.8f*lineht;
 
       if(selected)
       {
@@ -577,7 +570,7 @@ inline void draw_widget(int modid, int parid)
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
-      if(g_active_widget_modid == modid && g_active_widget_parid == parid)
+      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
@@ -592,10 +585,10 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
-          g_active_widget_modid = modid;
-          g_active_widget_parid = parid;
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
           // copy to quad state
-          memcpy(g_state, v, sizeof(float)*8);
+          memcpy(vkdt.wstate.state, v, sizeof(float)*8);
           // reset module params so the image will not appear distorted:
           float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
           memcpy(v, def, sizeof(float)*8);
@@ -607,7 +600,7 @@ inline void draw_widget(int modid, int parid)
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
-      if(g_active_widget_modid == modid && g_active_widget_parid == parid)
+      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
@@ -616,8 +609,8 @@ inline void draw_widget(int modid, int parid)
         {
           // TODO: find actual aspect ratio:
           const float aspect = 3.f/2.f;
-          g_state[2] = .5f + aspect * (g_state[2] - .5f);
-          g_state[3] = .5f + aspect * (g_state[3] - .5f);
+          vkdt.wstate.state[2] = .5f + aspect * (vkdt.wstate.state[2] - .5f);
+          vkdt.wstate.state[3] = .5f + aspect * (vkdt.wstate.state[3] - .5f);
           widget_end();
         }
       }
@@ -629,10 +622,10 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
-          g_active_widget_modid = modid;
-          g_active_widget_parid = parid;
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
           // copy to quad state
-          memcpy(g_state, v, sizeof(float)*4);
+          memcpy(vkdt.wstate.state, v, sizeof(float)*4);
           // reset module params so the image will not appear cropped:
           // float def[] = {0.f, 1.f, 0.f, 1.f};
           // TODO: find actual image aspect:
@@ -649,7 +642,7 @@ inline void draw_widget(int modid, int parid)
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
-      if(g_active_widget_modid == modid && g_active_widget_parid == parid)
+      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
@@ -664,9 +657,9 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
-          g_active_widget_modid = modid;
-          g_active_widget_parid = parid;
-          g_mapped = v; // map state
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.mapped = v; // map state
         }
       }
       break;
@@ -752,11 +745,11 @@ void render_darkroom_pipeline()
     {
       if(dt_connector_input(graph->module[m].connector+k))
       {
-        const float *p = g_connector[m][k];
+        const float *p = vkdt.wstate.connector[m][k];
         int nid = graph->module[m].connector[k].connected_mi;
         int cid = graph->module[m].connector[k].connected_mc;
         if(nid < 0) continue; // disconnected
-        const float *q = g_connector[nid][cid];
+        const float *q = vkdt.wstate.connector[nid][cid];
         float b = vkdt.state.panel_wd * 0.03;
         int rev = nid; // TODO: store reverse list?
         if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
@@ -820,16 +813,16 @@ void render_darkroom()
           ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
     }
     // center view has on-canvas widgets:
-    if(g_active_widget_modid >= 0)
+    if(vkdt.wstate.active_widget_modid >= 0)
     {
       // distinguish by type:
       switch(vkdt.graph_dev.module[
-          g_active_widget_modid].so->param[
-          g_active_widget_parid]->widget.type)
+          vkdt.wstate.active_widget_modid].so->param[
+          vkdt.wstate.active_widget_parid]->widget.type)
       {
         case dt_token("quad"):
         {
-          float *v = g_state;
+          float *v = vkdt.wstate.state;
           float p[8];
           for(int k=0;k<4;k++)
             image_to_view(v+2*k, p+2*k);
@@ -840,8 +833,8 @@ void render_darkroom()
         case dt_token("axquad"):
         {
           float v[8] = {
-            g_state[0], g_state[2], g_state[1], g_state[2], 
-            g_state[1], g_state[3], g_state[0], g_state[3]
+            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 
+            vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
           for(int k=0;k<4;k++)
@@ -854,11 +847,11 @@ void render_darkroom()
         { // this is not really needed. draw line on top of stroke.
           // we map the buffer and get instant feedback on the image.
           float p[2004];
-          int cnt = g_mapped[0];
+          int cnt = vkdt.wstate.mapped[0];
           for(int k=0;k<cnt;k++)
           {
-            p[2*k+0] = g_mapped[1+2*k+0];
-            p[2*k+1] = g_mapped[1+2*k+1];
+            p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
+            p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
             image_to_view(p+2*k, p+2*k);
           }
           ImGui::GetWindowDrawList()->AddPolyline(
@@ -899,9 +892,9 @@ void render_darkroom()
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
 
-    if(ImGui::SliderInt("LOD", &g_lod, 1, 16, "%d"))
+    if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
     { // LOD switcher
-      dt_gui_set_lod(g_lod);
+      dt_gui_set_lod(vkdt.wstate.lod);
     }
 
     // animation controls
@@ -951,7 +944,7 @@ extern "C" void dt_gui_render_frame_imgui()
 {
   // Start the Dear ImGui frame
   ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplGlfw_NewFrame(qvk.window);
+  ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
   switch(vkdt.view_mode)
@@ -976,8 +969,27 @@ extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 extern "C" void dt_gui_cleanup_imgui()
 {
   widget_end(); // commit params if still ongoing
-  QVK(vkDeviceWaitIdle(qvk.device);
+  vkDeviceWaitIdle(qvk.device);
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
+}
+
+extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+}
+extern "C" void dt_gui_imgui_mouse_button(GLFWwindow *window, int button, int action, int mods)
+{
+  ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+}
+extern "C" void dt_gui_imgui_mouse_position(GLFWwindow *window, double x, double y)
+{ }
+extern "C" void dt_gui_imgui_character(GLFWwindow *window, int c)
+{
+  ImGui_ImplGlfw_CharCallback(window, c);
+}
+extern "C" void dt_gui_imgui_scrolled(GLFWwindow *window, double xoff, double yoff)
+{
+  ImGui_ImplGlfw_ScrollCallback(window, xoff, yoff);
 }

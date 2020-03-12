@@ -17,16 +17,21 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 dt_gui_t vkdt;
+
+static int running = 1;
 
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+  dt_view_keyboard(window, key, scancode, action, mods);
+  dt_gui_imgui_keyboard(window, key, scancode, action, mods);
+
+  static int fullscreen = 0;
   static int busy = 3;
-  if(dt_gui_poll_event_imgui(window, key, scancode, action, mods))
-    ;
-  else if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+  if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
   {
     running = 0;
   }
@@ -51,7 +56,6 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
     }
     dt_gui_recreate_swapchain();
   }
-  else dt_view_handle_event(window, key, scancode, action, mods);
 
   // busy/should redraw?
   if(vkdt.state.anim_playing)
@@ -64,10 +68,35 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 }
 
 static void
+mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+  dt_view_mouse_button(window, button, action, mods);
+  dt_gui_imgui_mouse_button(window, button, action, mods);
+}
+
+static void
+mouse_position_callback(GLFWwindow* window, double x, double y)
+{
+  dt_view_mouse_position(window, x, y);
+}
+
+static void
 window_size_callback(GLFWwindow* window, int width, int height)
 {
   // window resized, need to rebuild our swapchain:
   dt_gui_recreate_swapchain();
+}
+
+static void
+char_callback(GLFWwindow* window, unsigned int c)
+{
+  dt_gui_imgui_character(window, c);
+}
+
+static void
+scroll_callback(GLFWwindow *window, double xoff, double yoff)
+{
+  dt_gui_imgui_scrolled(window, xoff, yoff);
 }
 
 int main(int argc, char *argv[])
@@ -82,12 +111,8 @@ int main(int argc, char *argv[])
   glfwSetWindowSizeCallback(qvk.window, window_size_callback);
   glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
-  // TODO: scroll callback
-  // TODO: call
-ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-IMGUI_IMPL_API void     ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-IMGUI_IMPL_API void     ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-IMGUI_IMPL_API void     ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c);
+  glfwSetCharCallback(qvk.window, char_callback);
+  glfwSetScrollCallback(qvk.window, scroll_callback);
 
   const char *fname = 0;
   if(argc > 1) fname = argv[argc-1];
@@ -134,9 +159,6 @@ IMGUI_IMPL_API void     ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned
   }
 
   // main loop
-  int running = 1;
-  int fullscreen = 0;
-  int busy = 1;   // go to idle only after a few frames have passed since interaction
   clock_t beg = clock();
   while(running)
   {
