@@ -4,6 +4,7 @@
 #include "core/core.h"
 #include "gui/gui.h"
 #include "gui/render.h" // for set_lod
+#include "gui/darkroom-util.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
@@ -51,7 +52,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
           for(int cc=0;cc<4;cc++)
           {
             float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
-            image_to_view(n, v);
+            dt_image_to_view(n, v);
             float dist2 =
               (v[0]-m[0])*(v[0]-m[0])+
               (v[1]-m[1])*(v[1]-m[1]);
@@ -82,7 +83,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
           for(int ee=0;ee<4;ee++)
           {
             float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
-            image_to_view(n, v);
+            dt_image_to_view(n, v);
             float dist2 =
               ee < 2 ?
               (v[0]-m[0])*(v[0]-m[0]) :
@@ -180,7 +181,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     vkdt.wstate.m_x = -1;
     // convert view space mouse coordinate to normalised image
     float v[] = {(float)x, (float)y}, n[2] = {0};
-    view_to_image(v, n);
+    dt_view_to_image(v, n);
     switch(vkdt.graph_dev.module[
         vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type)
@@ -272,6 +273,11 @@ darkroom_process()
 static inline int
 darkroom_enter()
 {
+  vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
+  vkdt.wstate.active_widget_modid = -1;
+  vkdt.wstate.active_widget_parid = -1;
+  vkdt.wstate.mapped = 0;
+  vkdt.wstate.selected = -1;
   uint32_t imgid = vkdt.db.current_image;
   if(imgid == -1u) return 1;
   char graph_cfg[2048];

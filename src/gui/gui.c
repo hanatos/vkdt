@@ -33,6 +33,7 @@ style_to_state()
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
+  glfwInit();
   if(!glfwVulkanSupported())
   {
     dt_log(s_log_gui|s_log_err, "no vulkan support found!");

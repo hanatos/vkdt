@@ -21,7 +21,9 @@
 
 dt_gui_t vkdt;
 
-static int running = 1;
+static int g_running = 1;
+static int g_busy = 3;
+static int g_fullscreen = 0;
 
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -29,11 +31,9 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   dt_view_keyboard(window, key, scancode, action, mods);
   dt_gui_imgui_keyboard(window, key, scancode, action, mods);
 
-  static int fullscreen = 0;
-  static int busy = 3;
   if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
   {
-    running = 0;
+    g_running = 0;
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
@@ -44,27 +44,22 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
         or wd ht / 4*3 or so
           glfwSetWindowSize(qvk.window, 1600, 800);
 #endif
-    if(fullscreen)
+    if(g_fullscreen)
     {
       // XXX
-      fullscreen = 0;
+      g_fullscreen = 0;
     }
     else
     {
       // XXX
-      fullscreen = 1;
+      g_fullscreen = 1;
     }
     dt_gui_recreate_swapchain();
   }
 
   // busy/should redraw?
   if(vkdt.state.anim_playing)
-    busy = vkdt.state.anim_max_frame;
-  else
-    busy = 2;
-
-  // infinite loop here now? maybe have to move outside
-  if(busy-- > 0) glfwPostEmptyEvent();
+    g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame;
 }
 
 static void
@@ -72,12 +67,20 @@ mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
   dt_view_mouse_button(window, button, action, mods);
   dt_gui_imgui_mouse_button(window, button, action, mods);
+
+  // busy/should redraw?
+  if(vkdt.state.anim_playing)
+    g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame;
 }
 
 static void
 mouse_position_callback(GLFWwindow* window, double x, double y)
 {
   dt_view_mouse_position(window, x, y);
+
+  // busy/should redraw?
+  if(vkdt.state.anim_playing)
+    g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame;
 }
 
 static void
@@ -107,13 +110,6 @@ int main(int argc, char *argv[])
   dt_pipe_global_init();
   threads_global_init();
 
-  glfwSetKeyCallback(qvk.window, key_callback);
-  glfwSetWindowSizeCallback(qvk.window, window_size_callback);
-  glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
-  glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
-  glfwSetCharCallback(qvk.window, char_callback);
-  glfwSetScrollCallback(qvk.window, scroll_callback);
-
   const char *fname = 0;
   if(argc > 1) fname = argv[argc-1];
   struct stat statbuf;
@@ -127,6 +123,13 @@ int main(int argc, char *argv[])
     dt_log(s_log_gui|s_log_err, "failed to init gui/swapchain");
     exit(1);
   }
+
+  glfwSetKeyCallback(qvk.window, key_callback);
+  glfwSetWindowSizeCallback(qvk.window, window_size_callback);
+  glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
+  glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
+  glfwSetCharCallback(qvk.window, char_callback);
+  glfwSetScrollCallback(qvk.window, scroll_callback);
 
   dt_thumbnails_t *tmp_tn = 0;
   vkdt.view_mode = s_view_cnt;
@@ -160,11 +163,13 @@ int main(int argc, char *argv[])
 
   // main loop
   clock_t beg = clock();
-  while(running)
+  while(g_running)
   {
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
     // do that via glfwPostEmptyEvent()
+    if(g_busy > 0) g_busy--;
+    if(g_busy > 0) glfwPostEmptyEvent();
     glfwWaitEvents();
 
     clock_t beg_rf = clock();

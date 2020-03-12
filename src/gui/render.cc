@@ -3,6 +3,7 @@ extern "C" {
 #include "view.h"
 #include "qvk/qvk.h"
 #include "pipe/modules/api.h"
+#include "gui/darkroom-util.h"
 }
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
@@ -111,58 +112,6 @@ extern "C" void dt_gui_set_lod(int lod)
 }
 
 namespace {
-
-#if 1
-  // XXX TODO: these are needed in darkroom.h too, need to move them to a header!
-void view_to_image(
-    const float v[2],
-    float       img[2])
-{
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  assert(out);
-  float wd  = (float)out->connector[0].roi.wd;
-  float ht  = (float)out->connector[0].roi.ht;
-  float fwd = (float)out->connector[0].roi.full_wd/out->connector[0].roi.scale;
-  float fht = (float)out->connector[0].roi.full_ht/out->connector[0].roi.scale;
-  float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
-  float scale = MIN(imwd/wd, imht/ht);
-  if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
-  float cvx = vkdt.state.center_wd *.5f;
-  float cvy = vkdt.state.center_ht *.5f;
-  if(vkdt.state.look_at_x == FLT_MAX) vkdt.state.look_at_x = wd/2.0f;
-  if(vkdt.state.look_at_y == FLT_MAX) vkdt.state.look_at_y = ht/2.0f;
-  float ox = cvx - scale * vkdt.state.look_at_x;
-  float oy = cvy - scale * vkdt.state.look_at_y;
-  float x = ox + vkdt.state.center_x, y = oy + vkdt.state.center_y;
-  img[0] = (v[0] - x) / (scale * fwd);
-  img[1] = (v[1] - y) / (scale * fht);
-}
-
-// convert normalised image coordinates to pixel coord on screen
-void image_to_view(
-    const float img[2], // image pixel coordinate in [0,1]^2
-    float       v[2])   // window pixel coordinate
-{
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  assert(out);
-  float wd  = (float)out->connector[0].roi.wd;
-  float ht  = (float)out->connector[0].roi.ht;
-  float fwd = (float)out->connector[0].roi.full_wd/out->connector[0].roi.scale;
-  float fht = (float)out->connector[0].roi.full_ht/out->connector[0].roi.scale;
-  float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
-  float scale = MIN(imwd/wd, imht/ht);
-  if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
-  float cvx = vkdt.state.center_wd *.5f;
-  float cvy = vkdt.state.center_ht *.5f;
-  if(vkdt.state.look_at_x == FLT_MAX) vkdt.state.look_at_x = wd/2.0f;
-  if(vkdt.state.look_at_y == FLT_MAX) vkdt.state.look_at_y = ht/2.0f;
-  float ox = cvx - scale * vkdt.state.look_at_x;
-  float oy = cvy - scale * vkdt.state.look_at_y;
-  float x = ox + vkdt.state.center_x, y = oy + vkdt.state.center_y;
-  v[0] = x + scale * img[0] * fwd;
-  v[1] = y + scale * img[1] * fht;
-}
-#endif
 
 inline ImVec4 gamma(ImVec4 in)
 {
@@ -800,14 +749,14 @@ void render_darkroom()
       float v0[2] = {(float)vkdt.state.center_x, (float)vkdt.state.center_y};
       float v1[2] = {(float)vkdt.state.center_x+vkdt.state.center_wd,
         (float)vkdt.state.center_y+vkdt.state.center_ht};
-      view_to_image(v0, im0);
-      view_to_image(v1, im1);
+      dt_view_to_image(v0, im0);
+      dt_view_to_image(v1, im1);
       im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
       im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
       im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
       im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
-      image_to_view(im0, v0);
-      image_to_view(im1, v1);
+      dt_image_to_view(im0, v0);
+      dt_image_to_view(im1, v1);
       ImGui::GetWindowDrawList()->AddImage(
           imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
           ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
@@ -825,7 +774,7 @@ void render_darkroom()
           float *v = vkdt.wstate.state;
           float p[8];
           for(int k=0;k<4;k++)
-            image_to_view(v+2*k, p+2*k);
+            dt_image_to_view(v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
@@ -838,7 +787,7 @@ void render_darkroom()
           };
           float p[8];
           for(int k=0;k<4;k++)
-            image_to_view(v+2*k, p+2*k);
+            dt_image_to_view(v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
@@ -852,7 +801,7 @@ void render_darkroom()
           {
             p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
             p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
-            image_to_view(p+2*k, p+2*k);
+            dt_image_to_view(p+2*k, p+2*k);
           }
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
