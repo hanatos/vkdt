@@ -37,29 +37,22 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
-#if 0
-        GLFWmonitor* glfwGetPrimaryMonitor 	( 	void  		)
-        const GLFWvidmode* glfwGetVideoMode 	( 	GLFWmonitor *  	monitor	)
-        int height = return_struct.height;
-        or wd ht / 4*3 or so
-          glfwSetWindowSize(qvk.window, 1600, 800);
-#endif
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     if(g_fullscreen)
     {
-      // XXX
+      glfwSetWindowPos(qvk.window, mode->width/8, mode->height/8);
+      glfwSetWindowSize(qvk.window, mode->width/4 * 3, mode->height/4 * 3);
       g_fullscreen = 0;
     }
     else
     {
-      // XXX
+      glfwSetWindowPos(qvk.window, 0, 0);
+      glfwSetWindowSize(qvk.window, mode->width, mode->height);
       g_fullscreen = 1;
     }
     dt_gui_recreate_swapchain();
   }
-
-  // busy/should redraw?
-  if(vkdt.state.anim_playing)
-    g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame;
 }
 
 static void
@@ -67,20 +60,12 @@ mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
   dt_view_mouse_button(window, button, action, mods);
   dt_gui_imgui_mouse_button(window, button, action, mods);
-
-  // busy/should redraw?
-  if(vkdt.state.anim_playing)
-    g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame;
 }
 
 static void
 mouse_position_callback(GLFWwindow* window, double x, double y)
 {
   dt_view_mouse_position(window, x, y);
-
-  // busy/should redraw?
-  if(vkdt.state.anim_playing)
-    g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame;
 }
 
 static void
@@ -169,6 +154,8 @@ int main(int argc, char *argv[])
     // gpu workload. might need an interrupt for "render finished" etc. we might
     // do that via glfwPostEmptyEvent()
     if(g_busy > 0) g_busy--;
+    if(vkdt.state.anim_playing) // should redraw because animation is playing?
+      g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame - 1;
     if(g_busy > 0) glfwPostEmptyEvent();
     glfwWaitEvents();
 

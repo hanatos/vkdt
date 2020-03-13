@@ -854,7 +854,7 @@ void render_darkroom()
         vkdt.state.anim_playing = 0;
     }
     else if(ImGui::Button("play"))
-        vkdt.state.anim_playing = 1;
+      vkdt.state.anim_playing = 1;
     ImGui::SameLine();
     ImGui::Text("%d", vkdt.state.anim_frame);
     ImGui::SameLine();
