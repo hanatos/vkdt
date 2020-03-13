@@ -2,6 +2,7 @@
 
 # modules which need a dso have flat.mk, collect all these.
 # generate list of all modules (the * in pipe/modules/*/flat.mk)
+FLATMK=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/flat.mk))))
 MODULES=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
 MODULESXX=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
@@ -88,7 +89,7 @@ MOD_GLOBAL_DEPS=\
 MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC
 
 # expand all cflags/ldflags/deps/extra-c from flat.mk:
-$(foreach MOD,$(MODULES) $(MODULESXX),\
+$(foreach MOD,$(FLATMK),\
   $(eval MOD_CFLAGS=)\
   $(eval MOD_LDFLAGS=)\
   $(eval MOD_DEPS=)\
