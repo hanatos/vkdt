@@ -231,7 +231,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
 static inline void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  if(key == GLFW_KEY_R)
+  if(action == GLFW_PRESS && key == GLFW_KEY_R)
   {
     dt_view_switch(s_view_cnt);
     dt_pipe_global_cleanup();
@@ -243,7 +243,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     dt_pipe_global_init();
     dt_view_switch(s_view_darkroom);
   }
-  else if(key == GLFW_KEY_PERIOD)
+  else if(action == GLFW_PRESS && key == GLFW_KEY_E)
   {
     dt_view_switch(s_view_lighttable);
   }
