@@ -76,6 +76,14 @@ VkResult dt_thumbnails_cache_directory(dt_thumbnails_t *tn, const char *dirname)
 // create bc1 thumbnails for the current collection in given db
 VkResult dt_thumbnails_cache_collection(dt_thumbnails_t *tn, dt_db_t *db);
 
+// create bc1 thumbnail only for given image
+// runs in this thread.
+// only accepting .cfg files here (can be non-existent and will be replaced in such case)
+VkResult dt_thumbnails_cache_one(
+    dt_graph_t      *graph,
+    dt_thumbnails_t *tn,
+    const char      *filename);
+
 // load one bc1 thumbnail for a given filename. fills thumb_index and returns
 // VK_SUCCESS if all went well.
 VkResult dt_thumbnails_load_one(dt_thumbnails_t *tn, const char *filename, uint32_t *thumb_index);

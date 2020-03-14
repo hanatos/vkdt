@@ -192,6 +192,7 @@ dt_graph_write_connection_ascii(
 {
   dt_connector_t *c = graph->module[m].connector+i;
   if(!dt_connector_input(c)) return line; // refuse to serialise outgoing connections
+  if(c->connected_mi == -1)  return line; // not connected
   WRITE("%s:"
       "%"PRItkn":%"PRItkn":%"PRItkn":"
       "%"PRItkn":%"PRItkn":%"PRItkn"\n",

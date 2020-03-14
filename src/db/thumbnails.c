@@ -168,7 +168,7 @@ dt_thumbnails_cleanup(
 
 // process one image and write a .bc1 thumbnail
 // return 0 on success
-static VkResult
+VkResult
 dt_thumbnails_cache_one(
     dt_graph_t      *graph,
     dt_thumbnails_t *tn,
@@ -488,7 +488,6 @@ dt_thumbnails_load_one(
     const char      *filename,
     uint32_t        *thumb_index)
 {
-  *thumb_index = -1u;
   dt_graph_t *graph = tn->graph;
   char cfgfilename[1024] = {0};
   char imgfilename[1024] = {0};
@@ -511,14 +510,19 @@ dt_thumbnails_load_one(
     return VK_INCOMPLETE;
   }
 
-  // allocate thumbnail from lru list
-  // threads_mutex_lock(&tn->lru_lock);
-  dt_thumbnail_t *th = tn->lru;
-  tn->lru = tn->lru->next;             // move head
-  DLIST_RM_ELEMENT(th);                // disconnect old head
-  tn->mru = DLIST_APPEND(tn->mru, th); // append to end and move tail
-  *thumb_index = th - tn->thumb;
-  // threads_mutex_unlock(&tn->lru_lock);
+  dt_thumbnail_t *th = 0;
+  if(*thumb_index < 2 || *thumb_index == -1u)
+  {
+    // allocate thumbnail from lru list
+    // threads_mutex_lock(&tn->lru_lock);
+    th = tn->lru;
+    tn->lru = tn->lru->next;             // move head
+    DLIST_RM_ELEMENT(th);                // disconnect old head
+    tn->mru = DLIST_APPEND(tn->mru, th); // append to end and move tail
+    *thumb_index = th - tn->thumb;
+    // threads_mutex_unlock(&tn->lru_lock);
+  }
+  else th = tn->thumb + *thumb_index;
   
   // cache eviction:
   // clean up memory in case there was something here:

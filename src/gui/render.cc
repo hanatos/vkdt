@@ -324,6 +324,12 @@ void render_lighttable()
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
   { // center image view
+    if(ImGui::IsMouseDoubleClicked(0) && vkdt.db.current_image != -1u)
+    { // is false if button returns true, so just abort before we redraw anything at all
+      dt_view_switch(s_view_darkroom);
+      return;
+    }
+
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
     window_flags |= ImGuiWindowFlags_NoMove;
@@ -362,16 +368,23 @@ void render_lighttable()
         {
           uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
           if(tid == -1u) tid = 0;
+          if(vkdt.db.collection[i] == vkdt.db.current_image)
+          {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
+          }
           bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
               ImVec2(wd, ht),
               ImVec2(0,0), ImVec2(1,1),
               border,
-              ImVec4(0.5f,0.5f,0.5f,1.0f), ImVec4(1.0f,1.0f,1.0f,1.0f));
+              ImVec4(0.5f,0.5f,0.5f,1.0f),
+              ImVec4(1.0f,1.0f,1.0f,1.0f));
+          if(vkdt.db.collection[i] == vkdt.db.current_image)
+            ImGui::PopStyleColor(2);
+
           if(ret)
-          {
             vkdt.db.current_image = vkdt.db.collection[i];
-            dt_view_switch(s_view_darkroom);
-          }
+
           if(k < ipl-1) ImGui::SameLine();
           // else NextColumn()
           if(++i >= cnt) break;

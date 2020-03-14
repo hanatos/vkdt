@@ -33,6 +33,14 @@ layout(push_constant, std140) uniform push_t
 // the above looks monotonic for up to i < 5, i.e. clarity < 2.5
 // maybe we should instead try that for up to i=5?
 // plot for [i=0:10] (x-g) - (5*i/10.0)*(x-g)/(s*s) * 1.0/(sqrt(2*3.141592)*s)*0.001*exp(-(x-g)**2/(2*s*s)) lw 5
+//
+// another attempt:
+// use f(x) = x / (x+c)  and the inverse -cx / (x-1)
+// where slope at 0 is 1/c (or c for the inverse)
+// c is the clarity
+// TODO: normalise out c by multiplying 1/f(1), which is (1+c)
+// so final functions are: (1+c)*(x)/(x+c),-c*x/(1+c)/(x/(1+c)-1)
+// shadows is behaviour at f(1)
 float
 curve(
     float x,

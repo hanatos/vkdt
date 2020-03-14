@@ -3,10 +3,10 @@
 static inline void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 {
-  if(action == GLFW_PRESS && key == GLFW_KEY_PERIOD)
+  if(action == GLFW_PRESS && key == GLFW_KEY_E)
   {
-    // TODO get selected image from hover?
-    // dt_view_switch(s_view_darkroom);
+    if(vkdt.db.current_image >= 0)
+      dt_view_switch(s_view_darkroom);
   }
 }
 

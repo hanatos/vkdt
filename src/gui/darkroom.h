@@ -354,8 +354,17 @@ darkroom_enter()
 static inline int
 darkroom_leave()
 {
+  dt_image_t *img = vkdt.db.image + vkdt.db.current_image;
   dt_graph_write_config_ascii(&vkdt.graph_dev, 
-      vkdt.db.image[vkdt.db.current_image].filename);
+      img->filename);
+  // TODO: start from already loaded/inited graph instead of from scratch!
+  QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
+  (void)dt_thumbnails_cache_one(
+      &vkdt.graph_dev,
+      &vkdt.thumbnails,
+      img->filename);
+  dt_thumbnails_load_one(&vkdt.thumbnails, img->filename, &img->thumbnail);
+  // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   return 0;
 }

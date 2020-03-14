@@ -36,8 +36,9 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
-  uint32_t id;
+  uint32_t id = -1u;
   dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id);
+  id = -1u;
   dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id);
 
   DIR *dp = opendir(dirname);
