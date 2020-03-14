@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     tmp_tn = malloc(sizeof(dt_thumbnails_t));
     // only width/height will matter here
     dt_thumbnails_init(tmp_tn, 400, 400, 0, 0);
-    dt_thumbnails_cache_directory(tmp_tn, fname);
+    dt_thumbnails_cache_collection(tmp_tn, &vkdt.db);
   }
   else
   {
@@ -189,6 +189,7 @@ int main(int argc, char *argv[])
   // leave whatever view we're still in:
   dt_view_switch(s_view_cnt);
 
+  threads_shutdown();
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   if(tmp_tn) dt_thumbnails_cleanup(tmp_tn);

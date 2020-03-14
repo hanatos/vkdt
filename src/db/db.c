@@ -20,6 +20,15 @@ dt_db_init(dt_db_t *db)
 void
 dt_db_cleanup(dt_db_t *db)
 {
+  memset(db, 0, sizeof(*db));
+}
+
+static int
+compare_filename(const void *a, const void *b, void *arg)
+{
+  dt_db_t *db = arg;
+  const uint32_t *ia = a, *ib = b;
+  return strcmp(db->image[ia[0]].filename, db->image[ib[0]].filename);
 }
 
 void dt_db_load_directory(
@@ -88,10 +97,13 @@ void dt_db_load_directory(
   clock_t end = clock();
   dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
+  // TODO: use db/tests/parallel radix sort
   // collect all images: // TODO: abstract more
   db->collection_cnt = db->image_cnt;
   for(int k=0;k<db->collection_cnt;k++)
     db->collection[k] = k;
+  // sort by filename:
+  qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filename, db);
 }
 
 void dt_db_load_image(
