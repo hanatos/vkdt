@@ -354,7 +354,8 @@ darkroom_enter()
 static inline int
 darkroom_leave()
 {
-  dt_graph_write_config_ascii(&vkdt.graph_dev, "shutdown.cfg");
+  dt_graph_write_config_ascii(&vkdt.graph_dev, 
+      vkdt.db.image[vkdt.db.current_image].filename);
   dt_graph_cleanup(&vkdt.graph_dev);
   return 0;
 }
