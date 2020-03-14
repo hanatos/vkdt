@@ -25,11 +25,7 @@ create_nodes(
   //
   //      assemble  on all levels, with inputs all buffers from corresponding level
 
-#ifdef LLAP_HQ
-  const int num_gamma = 10;
-#else
-  const int num_gamma = 6;
-#endif
+  const int num_gamma = NUM_GAMMA;
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_curve = graph->num_nodes++;
