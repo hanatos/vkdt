@@ -49,7 +49,6 @@ main()
   // 3) perspective correction
   vec3 rdh = (params.H * vec3(xy.xy, 1.0)).xyz;
   vec2 rd = rdh.xy / rdh.z;
-  rd = xy;
 
   // rounding texture access:
   // vec4 rgba = texelFetch(img_in, ivec2(rd+0.5), 0);
