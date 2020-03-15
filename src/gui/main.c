@@ -31,7 +31,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   dt_view_keyboard(window, key, scancode, action, mods);
   dt_gui_imgui_keyboard(window, key, scancode, action, mods);
 
-  if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+  if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
     g_running = 0;
   }

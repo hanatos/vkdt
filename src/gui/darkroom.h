@@ -246,7 +246,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     dt_pipe_global_init();
     dt_view_switch(s_view_darkroom);
   }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_E)
+  else if(action == GLFW_PRESS && (key == GLFW_KEY_E || key == GLFW_KEY_ESCAPE))
   {
     dt_view_switch(s_view_lighttable);
   }

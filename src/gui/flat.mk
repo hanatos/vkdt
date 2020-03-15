@@ -11,6 +11,8 @@ GUI_H=gui/gui.h\
       gui/render.h\
       gui/view.h\
       gui/darkroom.h\
+      gui/darkroom-util.h\
+      gui/lighttable.h\
       pipe/graph-traverse.inc
 GUI_CFLAGS=$(shell pkg-config --cflags glfw3) -I../ext/imgui -I../ext/imgui/examples/
 GUI_LDFLAGS=-ldl $(shell pkg-config --libs glfw3) -lm -lstdc++
