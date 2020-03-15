@@ -24,13 +24,14 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
-  const float px_dist = 20;
+  const float px_dist = 0.1*qvk.win_height;
 
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   if(!out) return; // should never happen
   assert(out);
   vkdt.wstate.wd = (float)out->connector[0].roi.wd;
   vkdt.wstate.ht = (float)out->connector[0].roi.ht;
+  vkdt.wstate.selected = -1;
 
   if(vkdt.wstate.active_widget_modid >= 0)
   {
@@ -178,7 +179,6 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
   if(vkdt.wstate.active_widget_modid >= 0)
   {
-    vkdt.wstate.m_x = -1;
     // convert view space mouse coordinate to normalised image
     float v[] = {(float)x, (float)y}, n[2] = {0};
     dt_view_to_image(v, n);
@@ -192,15 +192,17 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
           // copy to quad state at corner c
           vkdt.wstate.state[2*vkdt.wstate.selected+0] = n[0];
           vkdt.wstate.state[2*vkdt.wstate.selected+1] = n[1];
+          return;
         }
-        return;
+        break;
       case dt_token("axquad"):
         if(vkdt.wstate.selected >= 0)
         {
           float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
           vkdt.wstate.state[vkdt.wstate.selected] = edge;
+          return;
         }
-        return;
+        break;
       case dt_token("draw"):
         if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS &&
             vkdt.wstate.selected >= 0 && vkdt.wstate.selected < 2004)
@@ -212,11 +214,12 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
               fabsf(n[0] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+0]) > 0.004 &&
               fabsf(n[1] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+1]) > 0.004))
             vkdt.wstate.mapped[0] = vkdt.wstate.selected++;
+          return;
         }
-        return;
+        break;
     }
   }
-  else if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
+  if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
   {
     int dx = x - vkdt.wstate.m_x;
     int dy = y - vkdt.wstate.m_y;

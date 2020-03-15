@@ -3,37 +3,20 @@
 
 #include <math.h>
 
-// TODO ROI
 void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  // TODO: set smooth flag on input connector only if we have any distortion parameter set
-  module->connector[0].flags = s_conn_smooth;
   const float *p_crop = dt_module_param_float(module, 1);
 
-  // TODO: consider crop/distortion
   // copy to input
-  // module->connector[0].roi = module->connector[1].roi;
-
-  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
-  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  float wd = p_crop[1] - p_crop[0];
+  float ht = p_crop[3] - p_crop[2];
+  module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
+  module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
   module->connector[0].roi.x = 0.0f;
   module->connector[0].roi.y = 0.0f;
-  return; // XXX
-
-  // TODO: need full roi support or else rounding kills the scanline
-  // float x = module->connector[1].roi.full_wd * p_crop[0];
-  // float y = module->connector[1].roi.full_ht * p_crop[2];
-  float w = module->connector[1].roi.full_wd / (p_crop[1] - p_crop[0]);
-  float h = module->connector[1].roi.full_ht / (p_crop[3] - p_crop[2]);
-  float s = module->connector[1].roi.scale;
-  // XXX TODO: the pipeline does not currently really support this
-  module->connector[0].roi.x = 0;//module->connector[1].roi.x + x / s;
-  module->connector[0].roi.y = 0;//module->connector[1].roi.y + y / s;
-  module->connector[0].roi.wd = w / s;
-  module->connector[0].roi.ht = h / s;
-  module->connector[0].roi.scale = s;
+  module->connector[0].roi.scale = module->connector[1].roi.scale;
 }
 
 void modify_roi_out(
@@ -41,25 +24,13 @@ void modify_roi_out(
     dt_module_t *module)
 {
   const float *p_crop = dt_module_param_float(module, 1);
-  // const float *p_rot  = dt_module_param_float(module, 2);
   // copy to output
-  // TODO: consider distortion!
   module->connector[1].roi = module->connector[0].roi;
 
-  // return; // XXX fuck this:
   float wd = p_crop[1] - p_crop[0];
   float ht = p_crop[3] - p_crop[2];
-  // if((p_rot[0] >  45 && p_rot[0] < 135) ||
-  //    (p_rot[0] > 225 && p_rot[0] < 315))
-  // {
-  //   module->connector[1].roi.full_wd = module->connector[0].roi.full_ht * wd;
-  //   module->connector[1].roi.full_ht = module->connector[0].roi.full_wd * ht;
-  // }
-  // else
-  {
-    module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * wd;//(p_crop[1] - p_crop[0]);
-    module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * ht;//(p_crop[3] - p_crop[2]);
-  }
+  module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * wd;
+  module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * ht;
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
