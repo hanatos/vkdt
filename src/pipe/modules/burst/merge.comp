@@ -57,27 +57,6 @@ main()
 
   vec4 res1 = vec4(0, 0, 6500000, 1);
 
-#if 0 // select largest
-  for(int idx=0;idx<25;idx++)
-  {
-    int offy = idx / 5;
-    int offx = idx - offy * 5;
-    offx -= 2; offy -= 2;
-    // distance comes from a blurd output and we need to upsample it:
-    float dist = sample_soft(img_dist[idx], (ipos+.5f)/vec2(imageSize(img_out))).r;
-    // float dist = textureLod(img_dist[idx], (ipos+.5f)/vec2(imageSize(img_out)), 0).r;
-    vec2 off = coff + vec2(offx, offy);
-#if 0
-    // it == 0 is finest, it == 3 is coarsest
-    if(push.it == 1)
-      off = ivec2(offx, offy); // XXX
-    else
-      off = coff;// + ivec2(offx, offy); // XXX
-#endif
-    if(dist < res1.z)
-      res1 = vec4(off, dist, 1);
-  }
-#else
   float dist[25];
   int bi = 0;
   for(int i=0;i<25;i++)
@@ -90,11 +69,23 @@ main()
   int offx = bi - offy * 5;
   offx -= 2; offy -= 2;
 
+#if 0 // XXX visualise only this level
+  if(push.it == 3) // <==
+    res1 = vec4(vec2(offx, offy), dist[bi], 1);
+  else
+    res1 = vec4(coff, dist[bi], 1);
+#else
   res1 = vec4(coff + vec2(offx, offy), dist[bi], 1);
+#endif
 
   // corner and edge cases don't get interpolated, sorry:
   if((offx > -2 || offx < 2 || offy > -2 || offy < 2) &&
-     (push.it <= 1)) // only refine finesh two levels, others not stable enough
+#if 0 // XXX all levels
+    false)
+    // true)
+#else
+     (push.it <= 1)) // only refine finest two levels, others not stable enough
+#endif
   { // internal coordinate, we have a surrounding set of points
     // find sub-pixel minimum by fitting a presumably positive semi definite
     // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
@@ -201,7 +192,6 @@ main()
     }
     // TODO: also interpolate dist? not sure we really need it though
   }
-#endif
 
   imageStore(img_out, ipos, res1);
   // res.z *= 0.2;

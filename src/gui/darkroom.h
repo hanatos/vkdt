@@ -230,13 +230,19 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
   }
 }
 
+// fwd declare
+static inline int darkroom_enter();
+
 // some static helper functions for the gui
 static inline void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
   if(action == GLFW_PRESS && key == GLFW_KEY_R)
   {
-    dt_view_switch(s_view_cnt);
+    // dt_view_switch(s_view_cnt);
+    // view switching will not work because we're doing really wacky things here.
+    // hence we call cleanup and below darkroom_enter() instead.
+    dt_graph_cleanup(&vkdt.graph_dev);
     dt_pipe_global_cleanup();
     // this will crash on shutdown.
     // actually we'd have to shutdown and re-init thumbnails, too
@@ -244,7 +250,8 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     // this would mean to re-init the db, too ..
     system("make debug"); // build shaders
     dt_pipe_global_init();
-    dt_view_switch(s_view_darkroom);
+    darkroom_enter();
+    // dt_view_switch(s_view_darkroom);
   }
   else if(action == GLFW_PRESS && (key == GLFW_KEY_E || key == GLFW_KEY_ESCAPE))
   {
@@ -358,8 +365,8 @@ static inline int
 darkroom_leave()
 {
   dt_image_t *img = vkdt.db.image + vkdt.db.current_image;
-  dt_graph_write_config_ascii(&vkdt.graph_dev, 
-      img->filename);
+  if(!strstr(img->filename, "examples"))
+    dt_graph_write_config_ascii(&vkdt.graph_dev, img->filename);
   // TODO: start from already loaded/inited graph instead of from scratch!
   QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
   (void)dt_thumbnails_cache_one(

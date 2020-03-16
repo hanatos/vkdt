@@ -111,14 +111,15 @@ main()
   }
 #if 1
   // add some noise:
+  const float amp = 0.02;
   vec2 ru = encrypt_tea(
       uvec2(1024*(1024*ipos.y + ipos.x) + global.frame, 37));
   // box mueller transform to get std normal
   vec2 rg = sqrt(-2.0f*log(ru.x)) * vec2(
       cos(2.0f*3.1415962f * ru.y),
       sin(2.0f*3.1415962f * ru.y));
-  rgb.g += 0.1 * rg.x; // sigma * Z: additive white gaussian noise
-  rgb.r += 0.1 * rg.y; // sigma * Z: additive white gaussian noise
+  rgb.g += amp * rg.x; // sigma * Z: additive white gaussian noise
+  rgb.r += amp * rg.y; // sigma * Z: additive white gaussian noise
   // rgb.b += 0.04 * (rg.x + rg.y);
 #endif
   imageStore(img_out, ipos, vec4(rgb, 1));
