@@ -14,6 +14,7 @@ pipe/global.h\
 pipe/graph.h\
 pipe/graph-io.h\
 pipe/graph-print.h\
+pipe/graph-export.h\
 pipe/graph-traverse.inc\
 pipe/modules/api.h\
 pipe/io.h\
