@@ -870,8 +870,7 @@ void render_darkroom()
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
     if(out_hist)
     {
-      int border = 0.01 * qvk.win_width;
-      int wd = vkdt.state.panel_wd - border;
+      int wd = vkdt.state.panel_wd;
       int ht = wd * 2.0f/3.0f;
       ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
           ImVec2(wd, ht),
