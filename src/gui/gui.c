@@ -42,12 +42,16 @@ int dt_gui_init()
 
   vkdt.style.panel_width_frac = 0.2f;
   vkdt.style.border_frac = 0.02f;
-  qvk.win_width  = 1920;
-  qvk.win_height = 1080;
+  GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+  // start "full screen"
+  qvk.win_width  = mode->width;  //1920;
+  qvk.win_height = mode->height; //1080;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
   glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
   qvk.window = glfwCreateWindow(qvk.win_width, qvk.win_height, "vkdt", NULL, NULL);
+  glfwSetWindowPos(qvk.window, 0, 0);
 
   if(!qvk.window)
   {
