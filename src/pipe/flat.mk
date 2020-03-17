@@ -4,6 +4,7 @@ pipe/connector.o\
 pipe/global.o\
 pipe/graph.o\
 pipe/graph-io.o\
+pipe/graph-export.o\
 pipe/module.o
 PIPE_H=\
 pipe/alloc.h\

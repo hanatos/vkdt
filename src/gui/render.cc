@@ -3,6 +3,7 @@ extern "C" {
 #include "view.h"
 #include "qvk/qvk.h"
 #include "pipe/modules/api.h"
+#include "pipe/graph-export.h"
 #include "gui/darkroom-util.h"
 }
 #include "imgui.h"
@@ -390,6 +391,30 @@ void render_lighttable()
           if(++i >= cnt) break;
         }
       }
+    }
+    ImGui::End(); // lt center window
+  }
+  { // right panel
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= ImGuiWindowFlags_NoTitleBar;
+    // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
+    // window_flags |= ImGuiWindowFlags_MenuBar;
+    window_flags |= ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoResize;
+    // if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
+    // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
+    // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
+    // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::Begin("panel-right", 0, window_flags);
+    
+    float lineht = ImGui::GetTextLineHeight();
+    float bwd = 0.5f;
+    ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
+    if(vkdt.db.current_image != -1u && ImGui::Button("export selected", size))
+    {
+      dt_graph_export_quick(vkdt.db.image[vkdt.db.current_image].filename);
     }
     ImGui::End(); // lt center window
   }

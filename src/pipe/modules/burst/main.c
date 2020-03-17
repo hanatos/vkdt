@@ -322,7 +322,7 @@ create_nodes(
   for(int i=0;i<NUM_LEVELS;i++)
   { // visualise offsets
     dt_connector_copy(graph, module, 4+i, id_down[0][i], 1);
-#if 1 // motion vectors:
+#if 0 // motion vectors:
     assert(graph->num_nodes < graph->max_nodes);
     const int id_visn = graph->num_nodes++;
     graph->node[id_visn] = (dt_node_t) {
