@@ -5,7 +5,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
   float *f = (float *)module->committed_param;
   float *g = (float*)module->param;
-  f[0] = g[0];
+  f[0] = g[0]; // in fact this is an int32_t
   f[1] = g[1];
   f[2] = module->img_param.black[0]/(float)0xffff;
   f[3] = module->img_param.white[0]/(float)0xffff;
