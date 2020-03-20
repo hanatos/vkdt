@@ -9,6 +9,7 @@ GUI_O=gui/gui.o\
       ../ext/imgui/examples/imgui_impl_glfw.o
 GUI_H=gui/gui.h\
       gui/render.h\
+      gui/widget_thumbnail.hh\
       gui/view.h\
       gui/darkroom.h\
       gui/darkroom-util.h\

@@ -6,6 +6,7 @@ extern "C" {
 #include "pipe/graph-export.h"
 #include "gui/darkroom-util.h"
 }
+#include "gui/widget_thumbnail.hh"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
@@ -345,6 +346,7 @@ void render_lighttable()
     const int wd = vkdt.state.center_wd / ipl - border*2 - style.ItemSpacing.x*2;
     const int ht = wd;
     const int cnt = vkdt.db.collection_cnt;
+    // XXX TODO: how to get the number of lines if we don't know the aspect ratios?
     const int lines = (cnt+ipl-1)/ipl;
     ImGuiListClipper clipper;
     clipper.Begin(lines);
@@ -374,9 +376,14 @@ void render_lighttable()
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
           }
-          float w = ht * vkdt.thumbnails.thumb[tid].wd/(float)vkdt.thumbnails.thumb[tid].ht;
-          bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
-              ImVec2(w, ht),
+          float scale = MIN(
+              wd/(float)vkdt.thumbnails.thumb[tid].wd,
+              ht/(float)vkdt.thumbnails.thumb[tid].ht);
+          // float w = ht * vkdt.thumbnails.thumb[tid].wd/(float)vkdt.thumbnails.thumb[tid].ht;
+          float w = vkdt.thumbnails.thumb[tid].wd * scale;
+          float h = vkdt.thumbnails.thumb[tid].ht * scale;
+          bool ret = ImGui::ThumbnailImage(vkdt.thumbnails.thumb[tid].dset,
+              ImVec2(w, h),
               ImVec2(0,0), ImVec2(1,1),
               border,
               ImVec4(0.5f,0.5f,0.5f,1.0f),
