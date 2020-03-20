@@ -242,13 +242,14 @@ dt_thumbnails_cache_one(
       dt_log(s_log_err, "[thm] config '%s' has no connected display module!", cfgfilename);
       return 3; // display input not connected
     }
-    // TODO: implement and set rec2020 param on f2srgb!
     const int m1 = dt_module_add(graph, dt_token("f2srgb"), dt_token("main"));
     const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
     const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
     const int m2 = dt_module_add(graph, dt_token("o-bc1"), dt_token("main"));
     const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
     graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
+    int32_t *usemat = (int32_t *)dt_module_param_int(graph->module+m1, 0);
+    usemat[0] = 0; // write as rec2020
     if(dt_module_connect(graph, m0, o0, m1, i1) ||
        dt_module_connect(graph, m1, o1, m2, i2))
     {

@@ -8,7 +8,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float usemat;
+  int usemat;
 } params;
 
 layout( // input buffer rgba
@@ -26,7 +26,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  if(params.usemat > 0.0)
+  if(params.usemat > 0)
   { // convert linear rec2020 to linear rec709
     mat3 M = mat3(
          1.66022677, -0.58754761, -0.07283825,
