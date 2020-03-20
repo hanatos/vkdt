@@ -558,8 +558,8 @@ dt_thumbnails_load_one(
 
   // now grab roi size from graph's main output node
   modid = dt_module_get(graph, dt_token("thumb"), dt_token("main"));
-  const int wd = graph->module[modid].connector[0].roi.full_wd;
-  const int ht = graph->module[modid].connector[0].roi.full_ht;
+  th->wd = graph->module[modid].connector[0].roi.full_wd;
+  th->ht = graph->module[modid].connector[0].roi.full_ht;
 
   VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   VkImageCreateInfo images_create_info = {
@@ -567,8 +567,8 @@ dt_thumbnails_load_one(
     .imageType = VK_IMAGE_TYPE_2D,
     .format = format,
     .extent = {
-      .width  = wd,
-      .height = ht,
+      .width  = th->wd,
+      .height = th->ht,
       .depth  = 1
     },
     .mipLevels             = 1,
@@ -614,7 +614,7 @@ dt_thumbnails_load_one(
     },
   };
   VkDescriptorImageInfo img_info = {
-    .sampler       = wd > 32 ? qvk.tex_sampler : qvk.tex_sampler_nearest,
+    .sampler       = th->wd > 32 ? qvk.tex_sampler : qvk.tex_sampler_nearest,
     .imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
   };
   VkWriteDescriptorSet img_dset = {
@@ -639,8 +639,8 @@ dt_thumbnails_load_one(
   // let graph render into our thumbnail:
   graph->thumbnail_image = tn->thumb[*thumb_index].image;
   // these should already match, let's not mess with rounding errors:
-  // tn->graph.output_wd = wd;
-  // tn->graph.output_ht = ht;
+  // tn->graph.output_wd = th->wd;
+  // tn->graph.output_ht = th->ht;
 
   clock_t beg = clock();
   // run all the rest we didn't run above

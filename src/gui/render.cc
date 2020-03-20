@@ -341,9 +341,9 @@ void render_lighttable()
     ImGui::Begin("lighttable center", 0, window_flags);
 
     const int ipl = 6;
-    const int border = 0.01 * qvk.win_width;
+    const int border = 0.004 * qvk.win_width;
     const int wd = vkdt.state.center_wd / ipl - border*2 - style.ItemSpacing.x*2;
-    const int ht = 0.6 * wd; // XXX probably do square in the future?
+    const int ht = wd;
     const int cnt = vkdt.db.collection_cnt;
     const int lines = (cnt+ipl-1)/ipl;
     ImGuiListClipper clipper;
@@ -374,8 +374,9 @@ void render_lighttable()
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
           }
+          float w = ht * vkdt.thumbnails.thumb[tid].wd/(float)vkdt.thumbnails.thumb[tid].ht;
           bool ret = ImGui::ImageButton(vkdt.thumbnails.thumb[tid].dset,
-              ImVec2(wd, ht),
+              ImVec2(w, ht),
               ImVec2(0,0), ImVec2(1,1),
               border,
               ImVec4(0.5f,0.5f,0.5f,1.0f),

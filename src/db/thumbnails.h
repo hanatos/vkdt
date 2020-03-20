@@ -29,6 +29,8 @@ typedef struct dt_thumbnail_t
   struct dt_thumbnail_t *prev;    // dlist for lru cache
   struct dt_thumbnail_t *next;
   uint32_t               imgid;   // index into images->image[] or -1u
+  uint32_t               wd;
+  uint32_t               ht;
 }
 dt_thumbnail_t;
 
