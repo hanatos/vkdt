@@ -543,7 +543,7 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
             for(int k=0;k<cnt;k++)
               if(!cerr)
                 cerr = dt_module_connect(graph, m_prev, c_prev, m_after[k], c_after[k]);
-            err = -1u;
+            err = -1ul;
             if(cerr) err = (1ul<<32) | cerr;
             else vkdt.graph_dev.runflags = s_graph_run_all;
           }
@@ -559,10 +559,12 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
       int cnt = dt_module_get_module_after(graph, module, m_after, c_after, max_after);
       if(m_prev != -1 && cnt > 0)
       {
+        int c_our = dt_module_get_connector(module, dt_token("input"));
+        cerr = dt_module_connect(graph, -1, -1, m_our, c_our);
         for(int k=0;k<cnt;k++)
           if(!cerr)
             cerr = dt_module_connect(graph, m_prev, c_prev, m_after[k], c_after[k]);
-        err = -1u;
+        err = -1ul;
         if(cerr) err = (1ul<<32) | cerr;
         else vkdt.graph_dev.runflags = s_graph_run_all;
       }
@@ -793,8 +795,25 @@ inline void draw_widget(int modid, int parid)
 
 void render_darkroom_favourite()
 { // streamlined "favourite" ui
+  dt_graph_t *graph = &vkdt.graph_dev;
+  dt_module_t *const arr = graph->module;
+  const int arr_cnt = graph->num_modules;
+  uint32_t modid[100], cnt = 0;
+#define TRAVERSE_POST \
+  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+  modid[cnt++] = curr;
+#include "pipe/graph-traverse.inc"
   for(int i=0;i<vkdt.fav_cnt;i++)
-    draw_widget(vkdt.fav_modid[i], vkdt.fav_parid[i]);
+  { // arg. can we please do that without n^2 every redraw?
+    for(int m=0;m<cnt;m++)
+    {
+      if(modid[m] == vkdt.fav_modid[i])
+      {
+        draw_widget(vkdt.fav_modid[i], vkdt.fav_parid[i]);
+        break;
+      }
+    }
+  }
 }
 
 void render_darkroom_full()
@@ -846,7 +865,7 @@ void render_darkroom_pipeline()
     else if(e == 3)
       ImGui::Text("no unique module after");
     else
-      ImGui::Text("unknown error");
+      ImGui::Text("unknown error %lu %lu", last_err >> 32, last_err & -1u);
   }
   else ImGui::Text("no error");
 
