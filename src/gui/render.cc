@@ -845,6 +845,8 @@ void render_darkroom_pipeline()
       ImGui::Text("no input/output chain");
     else if(e == 3)
       ImGui::Text("no unique module after");
+    else
+      ImGui::Text("unknown error");
   }
   else ImGui::Text("no error");
 
@@ -1030,25 +1032,6 @@ void render_darkroom()
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
 
-    if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
-    { // LOD switcher
-      dt_gui_set_lod(vkdt.wstate.lod);
-    }
-
-    // animation controls
-    // TODO: avoid jumps by ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
-    if(vkdt.state.anim_playing)
-    {
-      if(ImGui::Button("stop"))
-        vkdt.state.anim_playing = 0;
-    }
-    else if(ImGui::Button("play"))
-      vkdt.state.anim_playing = 1;
-    ImGui::SameLine();
-    ImGui::Text("%d", vkdt.state.anim_frame);
-    ImGui::SameLine();
-    ImGui::SliderInt("max frame", &vkdt.state.anim_max_frame, 0, 100);
-
     // tabs for module/params controls:
     ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
     if(ImGui::BeginTabBar("layer", tab_bar_flags))
@@ -1066,6 +1049,28 @@ void render_darkroom()
       if(ImGui::BeginTabItem("pipeline config"))
       {
         render_darkroom_pipeline();
+        ImGui::EndTabItem();
+      }
+      if(ImGui::BeginTabItem("esoteric"))
+      {
+        if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
+        { // LOD switcher
+          dt_gui_set_lod(vkdt.wstate.lod);
+        }
+
+        // animation controls
+        // TODO: avoid jumps by ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
+        if(vkdt.state.anim_playing)
+        {
+          if(ImGui::Button("stop"))
+            vkdt.state.anim_playing = 0;
+        }
+        else if(ImGui::Button("play"))
+          vkdt.state.anim_playing = 1;
+        ImGui::SameLine();
+        ImGui::Text("%d", vkdt.state.anim_frame);
+        ImGui::SameLine();
+        ImGui::SliderInt("max frame", &vkdt.state.anim_max_frame, 0, 100);
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();
