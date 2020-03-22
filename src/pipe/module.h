@@ -86,3 +86,18 @@ int dt_module_get_connector(const dt_module_t *m, dt_token_t conn);
 
 // remove module from the graph
 int dt_module_remove(dt_graph_t *graph, const int modid);
+
+// convenience functions for simple cases where the graph degenerates to
+// a simple linear chain of "output" being plugged into "input" connectors.
+// will return -1 if that's not the case or there's no such connection.
+int dt_module_get_module_before(const dt_graph_t *graph, const dt_module_t *us, int *conn);
+
+// note that the get_module_after() case is much more expensive, as it needs to exhaustively
+// search the list of modules and will return all connected modules.
+// returns the count of filled elements in the given m_out and c_out arrays.
+int dt_module_get_module_after(
+    const dt_graph_t  *graph,      // the associated graph
+    const dt_module_t *us,         // your module
+    int               *m_out,      // buffer to store module ids
+    int               *c_out,      // buffer to store input connector ids
+    int                max_cnt);   // size of the argument buffers

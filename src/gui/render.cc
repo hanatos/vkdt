@@ -428,16 +428,23 @@ void render_lighttable()
   }
 }
 
-int render_module(dt_graph_t *graph, dt_module_t *module)
+uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
 {
   static int mod[2] = {-1,-1}, con[2] = {-1,-1};
-  static int err = 0;
+  uint64_t err = 0;
+  static int insert_modid_before = -1;
   char name[30];
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(module->name), dt_token_str(module->inst));
   float lineht = ImGui::GetTextLineHeight();
   float wd = 0.6f, bwd = 0.16f;
+  // buttons are unimpressed by this, they take a size argument:
+  // ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
+  ImVec2 csize(bwd*vkdt.state.panel_wd, 1.6*lineht); // size of the connector buttons
+  ImVec2 fsize(0.3*vkdt.state.panel_wd, 1.6*lineht); // size of the function buttons
   ImVec2 hp = ImGui::GetCursorScreenPos();
+  int m_our = module - graph->module;
+  ImGui::PushID(m_our);
   if(!ImGui::CollapsingHeader(name))
   {
     for(int k=0;k<module->num_connectors;k++)
@@ -448,29 +455,149 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
       // vkdt.wstate.connector[module - graph->module][k][0] = -1;
       // vkdt.wstate.connector[module - graph->module][k][1] = -1;
     }
-    return err;
+    ImGui::PopID();
+    return 0ul;
   }
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn "_col",
       dt_token_str(module->name), dt_token_str(module->inst));
   ImGui::Columns(2, name, false);
   ImGui::SetColumnWidth(0,       wd  * vkdt.state.panel_wd);
   ImGui::SetColumnWidth(1, (1.0f-wd) * vkdt.state.panel_wd);
-  ImGui::Text("TODO: menu to add/move modules");
+  int m_after[5], c_after[5], max_after = 5, cerr = 0;
+  if(insert_modid_before >= 0 && insert_modid_before != m_our)
+  {
+    if(connected && ImGui::Button("before this", fsize))
+    {
+      int m_new = insert_modid_before;
+      int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
+      if(m_prev != -1)
+      {
+        int c_our_in  = dt_module_get_connector(module, dt_token("input"));
+        int c_new_out = dt_module_get_connector(graph->module+m_new, dt_token("output"));
+        int c_new_in  = dt_module_get_connector(graph->module+m_new, dt_token("input"));
+        if(c_our_in != -1 && c_new_out != -1 && c_new_in != -1)
+        {
+          cerr = dt_module_connect(graph, m_prev, c_prev, m_new, c_new_in);
+          if(!cerr)
+            cerr = dt_module_connect(graph, m_new, c_new_out, m_our, c_our_in);
+          err = -1ul;
+          if(cerr) err = (1ul<<32) | cerr;
+          else vkdt.graph_dev.runflags = s_graph_run_all;
+        }
+        else err = 2ul<<32; // no input/output chain
+      }
+      else err = 2ul<<32; // no input/output chain
+      insert_modid_before = -1;
+    }
+  }
+  else if(connected)
+  {
+    if(ImGui::Button("move up", fsize))
+    {
+      int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
+      int cnt = dt_module_get_module_after(graph, module, m_after, c_after, max_after);
+      if(m_prev != -1 && cnt == 1)
+      {
+        int c_sscc, m_sscc;
+        int c2 = dt_module_get_module_after(graph, graph->module+m_after[0], &m_sscc, &c_sscc, 1);
+        if(c2 == 1)
+        {
+          int c_our_out  = dt_module_get_connector(module, dt_token("output"));
+          int c_our_in   = dt_module_get_connector(module, dt_token("input"));
+          if(c_our_out != -1 && c_our_in != -1)
+          {
+            cerr = dt_module_connect(graph, m_prev, c_prev, m_after[0], c_after[0]);
+            if(!cerr)
+              cerr = dt_module_connect(graph, m_after[0], c_after[0], m_our, c_our_in);
+            if(!cerr)
+              cerr = dt_module_connect(graph, m_our, c_our_out, m_sscc, c_sscc);
+            err = -1ul;
+            if(cerr) err = (1ul<<32) | cerr;
+            else vkdt.graph_dev.runflags = s_graph_run_all;
+          }
+          else err = 2ul<<32; // no input/output
+        }
+        else err = 3ul<<32; // no unique after
+      }
+      else if(m_prev == -1) err = 2ul<<32;
+      else if(cnt != 1) err = 3ul<<32;
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("move down", fsize))
+    {
+      int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
+      int cnt = dt_module_get_module_after (graph, module, m_after, c_after, max_after);
+      if(m_prev != -1 && cnt > 0)
+      {
+        int c_pprv, m_pprv = dt_module_get_module_before(graph, graph->module+m_prev, &c_pprv);
+        if(m_pprv != -1)
+        {
+          int c_our_out = dt_module_get_connector(module, dt_token("output"));
+          int c_our_in  = dt_module_get_connector(module, dt_token("input"));
+          int c_prev_in = dt_module_get_connector(graph->module+m_prev, dt_token("input"));
+          if(c_our_out != -1 && c_our_in != -1 && c_prev_in != -1)
+          {
+            cerr = dt_module_connect(graph, m_pprv, c_pprv, m_our, c_our_in);
+            if(!cerr)
+              cerr = dt_module_connect(graph, m_our, c_our_out, m_prev, c_prev_in);
+            for(int k=0;k<cnt;k++)
+              if(!cerr)
+                cerr = dt_module_connect(graph, m_prev, c_prev, m_after[k], c_after[k]);
+            err = -1u;
+            if(cerr) err = (1ul<<32) | cerr;
+            else vkdt.graph_dev.runflags = s_graph_run_all;
+          }
+          else err = 2ul<<32; // no input/output chain
+        }
+        else err = 2ul<<32;
+      }
+      else err = 2ul<<32;
+    }
+    if(ImGui::Button("disconnect", fsize))
+    {
+      int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
+      int cnt = dt_module_get_module_after(graph, module, m_after, c_after, max_after);
+      if(m_prev != -1 && cnt > 0)
+      {
+        for(int k=0;k<cnt;k++)
+          if(!cerr)
+            cerr = dt_module_connect(graph, m_prev, c_prev, m_after[k], c_after[k]);
+        err = -1u;
+        if(cerr) err = (1ul<<32) | cerr;
+        else vkdt.graph_dev.runflags = s_graph_run_all;
+      }
+      else err = 2ul<<32; // no unique input/output chain
+    }
+  }
+  else if(!connected)
+  {
+    const int red = insert_modid_before == m_our;
+    if(red)
+    {
+      ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.8f, 0.8f, 1.0f));
+      ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+    }
+    if(ImGui::Button("insert before", fsize))
+    {
+      if(red) insert_modid_before = -1;
+      else    insert_modid_before = m_our;
+    }
+    if(ImGui::IsItemHovered())
+      ImGui::SetTooltip("click and then select a module before which to insert this one");
+    if(red) ImGui::PopStyleColor(3);
+  }
   ImGui::NextColumn();
 
-  // buttons are unimpressed by this, they take a size argument:
-  // ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
-  ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
-  const int mid = module - graph->module;
   for(int j=0;j<2;j++) for(int k=0;k<module->num_connectors;k++)
   {
     if((j == 0 && dt_connector_output(module->connector+k)) ||
        (j == 1 && dt_connector_input (module->connector+k)))
     {
-      const int selected = (mod[j] == mid) && (con[j] == k);
+      const int selected = (mod[j] == m_our) && (con[j] == k);
       ImVec2 p = ImGui::GetCursorScreenPos();
-      vkdt.wstate.connector[mid][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
-      vkdt.wstate.connector[mid][k][1] = p.y + 0.8f*lineht;
+      vkdt.wstate.connector[m_our][k][0] = hp.x + vkdt.state.panel_wd * (wd + bwd);
+      vkdt.wstate.connector[m_our][k][1] = p.y + 0.8f*lineht;
 
       if(selected)
       {
@@ -479,26 +606,25 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
       }
       snprintf(name, sizeof(name), "%" PRItkn, dt_token_str(module->connector[k].name));
-      ImGui::PushID(1337*mid + k);
-      if(ImGui::Button(name, size))
+      if(ImGui::Button(name, csize))
       {
-        if(mod[j] == mid && con[j] == k)
+        if(mod[j] == m_our && con[j] == k)
         { // deselect
           mod[j] = con[j] = -1;
         }
         else
         { // select
-          mod[j] = mid;
+          mod[j] = m_our;
           con[j] = k;
           if(mod[1-j] >= 0 && con[1-j] >= 0)
           {
-            err = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
-            vkdt.graph_dev.runflags = s_graph_run_all;
+            cerr = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
+            if(cerr) err = (1ul<<32) | cerr;
+            else vkdt.graph_dev.runflags = s_graph_run_all;
             con[0] = con[1] = mod[0] = mod[1] = -1;
           }
         }
       }
-      ImGui::PopID();
       if(ImGui::IsItemHovered())
         ImGui::SetTooltip("click to connect");
       if(selected)
@@ -506,6 +632,7 @@ int render_module(dt_graph_t *graph, dt_module_t *module)
     }
   }
   ImGui::Columns(1);
+  ImGui::PopID();
   return err;
 }
 
@@ -704,9 +831,23 @@ void render_darkroom_pipeline()
   for(int k=0;k<graph->num_modules;k++) mod_id[k] = k;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
-  int err = 0;
+  static uint64_t last_err = 0;
+  uint64_t err = 0;
   int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
   uint32_t modid[100], cnt = 0;
+
+  if(last_err)
+  {
+    uint32_t e = last_err >> 32;
+    if(e == 1)
+      ImGui::Text("connection failed: %s", dt_connector_error_str(last_err & 0xffffffffu));
+    else if(e == 2)
+      ImGui::Text("no input/output chain");
+    else if(e == 3)
+      ImGui::Text("no unique module after");
+  }
+  else ImGui::Text("no error");
+
 #define TRAVERSE_POST \
   assert(cnt < sizeof(modid)/sizeof(modid[0]));\
   modid[cnt++] = curr;
@@ -719,16 +860,19 @@ void render_darkroom_pipeline()
     int tmp = mod_id[pos];
     mod_id[pos++] = mod_id[pos2];
     mod_id[pos2] = tmp;
-    err = render_module(graph, arr+curr);
+    err = render_module(graph, arr+curr, 1);
+    if(err == -1ul) last_err = 0;
+    else if(err) last_err = err;
   }
 
   if(graph->num_modules > pos) ImGui::Text("disconnected:");
   // now draw the disconnected modules
   for(int m=pos;m<graph->num_modules;m++)
-    err = render_module(graph, arr+mod_id[m]);
-
-  if(err)
-    ImGui::Text("connection failed: %s", dt_connector_error_str(err));
+  {
+    err = render_module(graph, arr+mod_id[m], 0);
+    if(err == -1ul) last_err = 0;
+    else if(err) last_err = err;
+  }
 
   // draw connectors outside of clipping region of individual widgets, on top.
   // also go through list in reverse order such that the first connector will

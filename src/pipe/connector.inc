@@ -22,7 +22,7 @@
     int old_con = cn1->connected_mc;
     if(old_mod >= graph->num_elements) { assert(0 && "sink inconsistent!"); return 4; }
     if(graph->element[old_mod].connector[old_con].type != dt_token("write") &&
-       graph->element[old_mod].connector[old_con].type == dt_token("source"))
+       graph->element[old_mod].connector[old_con].type != dt_token("source"))
     { assert(0 && "sink inconsistent!"); return 5; }
 
     // disconnect cn1

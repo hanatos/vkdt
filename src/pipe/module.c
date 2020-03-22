@@ -1,6 +1,7 @@
 #include "module.h"
 #include "graph.h"
 #include "core/log.h"
+#include "modules/api.h"
 
 // this is a public api function
 int dt_module_add(
@@ -128,4 +129,40 @@ int dt_module_get(
        graph->module[i].inst == inst)
       return i;
   return -1;
+}
+
+// returns count of connected modules
+int dt_module_get_module_after(
+    const dt_graph_t  *graph,
+    const dt_module_t *us,
+    int               *m_out,
+    int               *c_out,
+    int                max_cnt)
+{
+  int cnt = 0;
+  int conn = dt_module_get_connector(us, dt_token("output"));
+  int modi = us - graph->module;
+  for(int m=0;m<graph->num_modules;m++)
+  {
+    for(int c=0;c<graph->module[m].num_connectors;c++)
+    {
+      if(dt_connector_input(graph->module[m].connector+c) &&
+         graph->module[m].connector[c].connected_mi == modi &&
+         graph->module[m].connector[c].connected_mc == conn)
+      {
+        m_out[cnt] = m;
+        c_out[cnt] = c;
+        if(++cnt >= max_cnt) return cnt;
+      }
+    }
+  }
+  return cnt;
+}
+
+int dt_module_get_module_before(const dt_graph_t *graph, const dt_module_t *us, int *cout)
+{
+  int conn = dt_module_get_connector(us, dt_token("input"));
+  if(conn == -1) return -1;
+  if(cout) *cout = us->connector[conn].connected_mc;
+  return us->connector[conn].connected_mi;
 }
