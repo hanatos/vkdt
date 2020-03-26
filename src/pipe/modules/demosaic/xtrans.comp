@@ -14,11 +14,11 @@ layout(std140, set = 0, binding = 1) uniform params_t
 
 layout( // input uint16 buffer rggb
     set = 1, binding = 0
-) uniform usampler2D img_in;
+) uniform sampler2D img_in;
 
 layout( // output f16 buffer green channel only
-    set = 1, binding = 1, r16f
-) uniform image2D img_out;
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
 
 void
 main()
@@ -36,6 +36,154 @@ main()
   // . b . . r .
 
   // 1) find out which direction to blur predominantly
+
+  // TODO: use the 2x2 blocks surrounding our 3x3 block at the corners to
+  // determine interpolated gaussian moments
+  // then use these to interpolate surrounding greens for the remaining four
+
+#if 0
+  vec2 eval0, eval1, eval2, eval3;
+  vec2 evec0, evec1, evec2, evec3;
+    // mat2 M = mat2(Ix*Ix, Ix*Iy, Ix*Iy, Iy*Iy);
+    // vec2 evecb;
+    // evd2x2(eval, evec, evecb, M);
+#define MAT(eval,evec,O,D)\
+  {\
+    float g0 = texelFetch(img_in, opos+O+ivec2(0,0), 0).r;\
+    float g1 = texelFetch(img_in, opos+O+ivec2(0,D.y), 0).r;\
+    float g2 = texelFetch(img_in, opos+O+ivec2(D.x,0), 0).r;\
+    float Ix =   D.x*(g2 - g0);\
+    float Iy = - D.y*(g1 - g0);\
+    eval.x = clamp(length(50*vec2(Ix, Iy)), 1.0, 5.0);\
+    evec = vec2(Ix, Iy);\
+    eval.y = 1;\
+  }
+  MAT(eval0,evec0,ivec2(0,0),ivec2(-1,-1))
+  MAT(eval1,evec1,ivec2(2,0),ivec2( 1,-1))
+  MAT(eval2,evec2,ivec2(0,2),ivec2(-1, 1))
+  MAT(eval3,evec3,ivec2(2,2),ivec2( 1, 1))
+#undef MAT
+  // now we have four covariance matrices expressing the shape of the green channels
+  // in every corner of our pattern. we'll use this to interpolate the four missing edge values.
+#endif
+
+  imageStore(img_out, opos+ivec2(0, 0), vec4(vec3(texelFetch(img_in, opos+ivec2(0, 0), 0).r), 1.0));
+  imageStore(img_out, opos+ivec2(2, 0), vec4(vec3(texelFetch(img_in, opos+ivec2(2, 0), 0).r), 1.0));
+  imageStore(img_out, opos+ivec2(1, 1), vec4(vec3(texelFetch(img_in, opos+ivec2(1, 1), 0).r), 1.0));
+  imageStore(img_out, opos+ivec2(0, 2), vec4(vec3(texelFetch(img_in, opos+ivec2(0, 2), 0).r), 1.0));
+  imageStore(img_out, opos+ivec2(2, 2), vec4(vec3(texelFetch(img_in, opos+ivec2(2, 2), 0).r), 1.0));
+
+  // interpolate covariance matrix (should really interpolate the 2nd moment)
+  // iterate over all Y neighbours, for instance for c1:
+  // [.]  .  [.]
+  // [0]  1  [2]
+  //  3  [4]  5
+  // mat2 M = mat2(10, 0, 0, 1);
+    // float wt = 1e-8+exp(-.5*dot(O, inverse(M) * O));
+  // vec2 eval = vec2(0, 100000);
+  // mat2 E = mat2(1, 0, 0, 1);
+  // vec2 ev = normalize(eveca + evecb);
+  // mat2 E = mat2(ev.x,  ev.y, ev.y,  -ev.x);
+  // vec2 eval = .5*(evala + evalb);
+#define INTER_Y(P,E,O)\
+  {\
+  const ivec2 off[] = {ivec2(0, 1), ivec2(-1, 0), ivec2(-1, -1), ivec2(1, 0), ivec2(1, -1)};\
+  float C = 0.0;\
+  float w = 0.0;\
+  for(int i=0;i<5;i++) {\
+    vec2 o = E*O;\
+    float wt = 1e-8 + exp(-.5*dot(o, o));\
+    C += wt * texelFetch(img_in, opos+P+O, 0).r;\
+    w += wt;\
+  }\
+  C /= w;\
+  imageStore(img_out, opos+P, vec4(vec3(C), 1.0));\
+  }
+
+#define MAT(P,E,O)\
+  {\
+    const ivec2 off[] = {ivec2(0, 1), ivec2(-1, 0), ivec2(-1, -1), ivec2(1, 0), ivec2(1, -1)};\
+    int i;\
+    i = 1; float g0 = texelFetch(img_in, opos+P+O, 0).r;\
+    i = 2; float g1 = texelFetch(img_in, opos+P+O, 0).r;\
+    i = 3; float g2 = texelFetch(img_in, opos+P+O, 0).r;\
+    i = 4; float g3 = texelFetch(img_in, opos+P+O, 0).r;\
+    float dx0 = .5*(g3-g1), dx1 = .5*(g2-g0);\
+    float dy0 = g3-g2, dy1 = g1-g0;\
+    float Ix  = dx0*dx0 + dx1*dx1;\
+    float Iy  = dy0*dy0 + dy1*dy1;\
+    float Ixy = dx0*dy0 + dx1*dy1;\
+    Ixy = 0.0;\
+    E = mat2(Ix, Ixy, Ixy, Iy);\
+    E = mat2(1000*Ix/Iy, 0, 0, 1);\
+  }
+    // E = mat2(10000, 0, 0, 1);
+
+  const float sharpness = 10000.0;
+  mat2 E = mat2(1, 0, 0, 1);
+  // MAT    (ivec2(1,0),E,ivec2( off[i].x, off[i].y))
+
+  {
+    float g0 = texelFetch(img_in, opos+ivec2(0, 0), 0).r;
+    float g1 = texelFetch(img_in, opos+ivec2(0,-1), 0).r;
+    float g2 = texelFetch(img_in, opos+ivec2(2, 0), 0).r;
+    float g3 = texelFetch(img_in, opos+ivec2(2,-1), 0).r;
+    vec2 grad = vec2((g2-g0)*(g2-g0), (g1-g0)*(g1-g0) + (g3-g2)*(g3-g2));
+    grad.y = - grad.y;
+    // grad = vec2(10000, 0);
+    float el = length(grad);
+    vec2 ev = grad / el;
+    el *= sharpness;
+    E = mat2(el * ev.x, -ev.y, el * ev.y, ev.x);
+  }
+  INTER_Y(ivec2(1,0),E,ivec2( off[i].x, off[i].y))
+  {
+    float g0 = texelFetch(img_in, opos+ivec2( 0, 0), 0).r;
+    float g1 = texelFetch(img_in, opos+ivec2(-1, 0), 0).r;
+    float g2 = texelFetch(img_in, opos+ivec2( 0, 2), 0).r;
+    float g3 = texelFetch(img_in, opos+ivec2(-1, 2), 0).r;
+    vec2 grad = vec2((g1-g0)*(g1-g0) + (g3-g2)*(g3-g2), (g2-g0)*(g2-g0));
+    grad.y = - grad.y;
+    // grad = vec2(10000, 0);
+    float el = length(grad);
+    vec2 ev = grad / el;
+    el *= sharpness;
+    E = mat2(el * ev.x, -ev.y, el * ev.y, ev.x);
+  }
+  INTER_Y(ivec2(0,1),E,ivec2( off[i].y, off[i].x))
+  {
+    float g0 = texelFetch(img_in, opos+ivec2( 2, 0), 0).r;
+    float g1 = texelFetch(img_in, opos+ivec2( 3, 0), 0).r;
+    float g2 = texelFetch(img_in, opos+ivec2( 2, 2), 0).r;
+    float g3 = texelFetch(img_in, opos+ivec2( 3, 2), 0).r;
+    vec2 grad = vec2((g1-g0)*(g1-g0) + (g3-g2)*(g3-g2), (g2-g0)*(g2-g0));
+    grad.y = - grad.y;
+    // grad = vec2(10000, 0);
+    float el = length(grad);
+    vec2 ev = grad / el;
+    el *= sharpness;
+    E = mat2(el * ev.x, -ev.y, el * ev.y, ev.x);
+  }
+  INTER_Y(ivec2(2,1),E,ivec2(-off[i].y, off[i].x))
+  {
+    float g0 = texelFetch(img_in, opos+ivec2(0, 2), 0).r;
+    float g1 = texelFetch(img_in, opos+ivec2(0, 3), 0).r;
+    float g2 = texelFetch(img_in, opos+ivec2(2, 2), 0).r;
+    float g3 = texelFetch(img_in, opos+ivec2(2, 3), 0).r;
+    vec2 grad = vec2((g2-g0)*(g2-g0), (g1-g0)*(g1-g0) + (g3-g2)*(g3-g2));
+    grad.y = - grad.y;
+    // grad = vec2(10000, 0);
+    float el = length(grad);
+    vec2 ev = grad / el;
+    el *= sharpness;
+    E = mat2(el * ev.x, -ev.y, el * ev.y, ev.x);
+  }
+  INTER_Y(ivec2(1,2),E,ivec2( off[i].x,-off[i].y))
+#undef INTER_Y
+#undef MAT
+
+
+#if 0
 
   float c0, c1, c2, c3, c4, c5, c6, c7, c8;
   c0 = texelFetch(img_in, opos, 0).r;
@@ -175,4 +323,5 @@ main()
   imageStore(img_out, opos+ivec2(0, 2), vec4(vec3(c6), 1.0));
   imageStore(img_out, opos+ivec2(1, 2), vec4(vec3(c7), 1.0));
   imageStore(img_out, opos+ivec2(2, 2), vec4(vec3(c8), 1.0));
+#endif
 }

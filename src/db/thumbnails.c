@@ -298,6 +298,7 @@ cache_coll_job_t;
 static void *thread_work_coll(void *arg)
 {
   cache_coll_job_t *j = arg;
+  assert(j->tn);
 
   threads_mutex_t mutex;
   threads_mutex_init(&mutex, 0);

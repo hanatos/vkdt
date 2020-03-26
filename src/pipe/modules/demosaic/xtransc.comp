@@ -14,15 +14,15 @@ layout(std140, set = 0, binding = 1) uniform params_t
 
 layout( // input uint16 buffer rggb
     set = 1, binding = 0
-) uniform usampler2D img_in;
+) uniform sampler2D img_in;
 
 layout( // input float buffer g
     set = 1, binding = 1
 ) uniform sampler2D img_green;
 
 layout( // output f16 buffer rgb
-    set = 1, binding = 2, rgba16f
-) uniform image2D img_out;
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
 
 void
 main()
@@ -34,7 +34,8 @@ main()
   // TODO: run a thread on a 6x3 block to avoid divergence on blue_top ?
 
   vec3 c0, c1, c2, c3, c4, c5, c6, c7, c8;
-  // DEBUG
+
+  // fill green channel:
   c0.g = texelFetch(img_green, opos+ivec2(0, 0), 0).r;
   c1.g = texelFetch(img_green, opos+ivec2(1, 0), 0).r;
   c2.g = texelFetch(img_green, opos+ivec2(2, 0), 0).r;
@@ -45,18 +46,20 @@ main()
   c7.g = texelFetch(img_green, opos+ivec2(1, 2), 0).r;
   c8.g = texelFetch(img_green, opos+ivec2(2, 2), 0).r;
 
-  // DEBUG switch off to see green:
-  c0.rb = vec2(c0.g);
-  c1.rb = vec2(c1.g);
-  c2.rb = vec2(c2.g);
-  c3.rb = vec2(c3.g);
-  c4.rb = vec2(c4.g);
-  c5.rb = vec2(c5.g);
-  c6.rb = vec2(c6.g);
-  c7.rb = vec2(c7.g);
-  c8.rb = vec2(c8.g);
 #if 0
-#else
+  // DEBUG visualise flat green channel (and do some approx wb for the eyes)
+  c0.rb = vec2(c0.g) * vec2(0.5, 0.6);
+  c1.rb = vec2(c1.g) * vec2(0.5, 0.6);
+  c2.rb = vec2(c2.g) * vec2(0.5, 0.6);
+  c3.rb = vec2(c3.g) * vec2(0.5, 0.6);
+  c4.rb = vec2(c4.g) * vec2(0.5, 0.6);
+  c5.rb = vec2(c5.g) * vec2(0.5, 0.6);
+  c6.rb = vec2(c6.g) * vec2(0.5, 0.6);
+  c7.rb = vec2(c7.g) * vec2(0.5, 0.6);
+  c8.rb = vec2(c8.g) * vec2(0.5, 0.6);
+#endif
+
+#if 1
   // interpolate r-g and b-g
   float t = texelFetch(img_in, opos+ivec2(1, 0), 0).r;
   float b = texelFetch(img_in, opos+ivec2(1, 2), 0).r;
@@ -207,7 +210,7 @@ main()
 #endif
 #endif
 
-#if 1
+#if 0
   // XXX DEBUG
   c0.rgb = vec3(c0.r);
   c1.rgb = vec3(c1.r);

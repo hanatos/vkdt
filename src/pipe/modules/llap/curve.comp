@@ -28,6 +28,47 @@ layout(push_constant, std140) uniform push_t
 } push;
 
 
+#if 0
+// sigmoid in -0.5..0.5: f(x) = x/(2*sqrt(1+x*x)), f'(x) = sqrt(1+x*x)/(2*(x*x+1)**2)
+// f(x) = s*x/(2*sqrt(1+s*x*s*x)),
+// f'(x) = s*sqrt(1+s*x*s*x)/(2*(s*x*s*x+1)**2)
+// slope at f'(0) = s/2, i.e. std should be s=2
+// find x such that f'(x) = c for constant slope of tangent:
+// x = +- sqrt(s^2/3 - 2^2/3 c^2/3) / (cbrt(2c) s)
+// and then scale such that c is at sigma parameter?
+// 
+// ranges:
+// clarity (0, infty)
+// shadows (0, infty)
+// highlights (0, infty)
+//
+// no clear correspondence for sigma/width
+// TODO: rolloff near zero
+float sigmoid(float x)
+{
+  return x / (2.0 * sqrt(1.0+x*x));
+}
+
+float
+curve(
+    float x,
+    float g,
+    float sigma,
+    float shadows,
+    float highlights,
+    float clarity)
+{
+  const float c = x-g;
+  float s = clarity * 2.0;
+  float c1 = shadows, c0 = highlights;
+  float x0 = - sqrt(max(0, pow(s, 2./3.) - pow(2.0*c0,2./3.)))/(s*pow(2.0*c0,1./3.));
+  float x1 =   sqrt(max(0, pow(s, 2./3.) - pow(2.0*c1,2./3.)))/(s*pow(2.0*c1,1./3.));
+  if(c < x0) return g + sigmoid(s*x0) + c0 * (c-x0);
+  if(c > x1) return g + sigmoid(s*x1) + c1 * (c-x1);
+  return g + sigmoid(s*c);
+}
+
+#else
 // shit this turns ugly for clarity >= 5. try this:
 // gnuplot> plot for [i=0:10] (5*i/10.0)*(x-g)*exp(-(x-g)*(x-g)/(2*s*s/3.0)) + g + s*2.0*(1-(x-g)/(2*s))*(x-g)/(2*s) + ((x-g)/(2*s))**2*(s+s*b) lw 5
 // the above looks monotonic for up to i < 5, i.e. clarity < 2.5
@@ -66,6 +107,7 @@ curve(
   val += clarity * c * exp(-c*c/(2.0f*sigma*sigma/3.0f));
   return val;
 }
+#endif
 
 void
 main()

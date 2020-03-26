@@ -122,3 +122,56 @@ float luminance_rec2020(vec3 rec2020)
   vec3 w = vec3(0.2126729, 0.7151522, 0.0721750);
   return dot(w, rec2020);
 }
+
+// (c) christoph peters:
+void evd2x2(
+    out vec2 eval,
+    out vec2 evec0,
+    out vec2 evec1,
+    mat2 M)
+{
+	// Define some short hands for the matrix entries
+	float a = M[0][0];
+	float b = M[1][0];
+	float c = M[1][1];
+	// Compute coefficients of the characteristic polynomial
+	float pHalf = -0.5 * (a + c);
+	float q = a*c - b*b;
+	// Solve the quadratic
+	float discriminant_root = sqrt(pHalf * pHalf - q);
+	eval.x = -pHalf + discriminant_root;
+	eval.y = -pHalf - discriminant_root;
+	// Subtract a scaled identity matrix to obtain a rank one matrix
+	float a0 = a - eval.x;
+	float b0 = b;
+	float c0 = c - eval.x;
+	// The column space of this matrix is orthogonal to the first eigenvector 
+	// and since the eigenvectors are orthogonal themselves, it agrees with the 
+	// second eigenvector. Pick the longer column to avoid cancellation.
+	float squaredLength0 = a0*a0 + b0*b0;
+	float squaredLength1 = b0*b0 + c0*c0;
+	float squaredLength;
+	if (squaredLength0 > squaredLength1)
+  {
+		evec1.x = a0;
+		evec1.y = b0;
+		squaredLength = squaredLength0;
+	}
+	else {
+		evec1.x = b0;
+		evec1.y = c0;
+		squaredLength = squaredLength1;
+	}
+	// If the eigenvector is exactly zero, both eigenvalues are the same and the 
+	// choice of orthogonal eigenvectors is arbitrary
+	evec1.x = (squaredLength == 0.0) ? 1.0 : evec1.x;
+	squaredLength = (squaredLength == 0.0) ? 1.0 : squaredLength;
+	// Now normalize
+	float invLength = 1.0 / sqrt(squaredLength);
+	evec1.x *= invLength;
+	evec1.y *= invLength;
+	// And rotate to get the other eigenvector
+	evec0.x =  evec1.y;
+	evec0.y = -evec1.x;
+}
+
