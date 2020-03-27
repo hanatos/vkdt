@@ -287,6 +287,7 @@ dt_thumbnails_cache_one(
 
 typedef struct cache_coll_job_t
 {
+  threads_mutex_t *mutex;
   dt_thumbnails_t *tn;
   dt_db_t *db;
   uint32_t *coll;
@@ -300,19 +301,16 @@ static void *thread_work_coll(void *arg)
   cache_coll_job_t *j = arg;
   assert(j->tn);
 
-  threads_mutex_t mutex;
-  threads_mutex_init(&mutex, 0);
-  j->tn->graph[j->k].io_mutex = &mutex;
+  j->tn->graph[j->k].io_mutex = &j->mutex;
   for(int i=0;i<j->num;i++)
   {
     if((i % DT_THUMBNAILS_THREADS) == j->k)
       (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn,
-          j->db->image[j->db->collection[i]].filename);
+          j->db->image[j->coll[i]].filename);
     if(threads_shutting_down()) break;
   }
   // cleanup mutex and job here
   j->tn->graph[j->k].io_mutex = 0;
-  threads_mutex_destroy(&mutex);
   free(j);
   return 0;
 }
@@ -328,16 +326,21 @@ dt_thumbnails_cache_collection(
     return VK_INCOMPLETE;
   }
 
+  uint32_t *collection = db->collection; // TODO: take copy once this thing changes
+  threads_mutex_t mutex;
+  threads_mutex_init(&mutex, 0);
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
     cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t));
+    job->mutex = &mutex;
     job->num  = db->collection_cnt;
-    job->coll = db->collection; // TODO: take copy once this thing changes
+    job->coll = collection;
     job->k = k;
     job->tn = tn;
     job->db = db;
     threads_task(k, &thread_work_coll, job);
   }
+  threads_mutex_destroy(&mutex);
   return VK_SUCCESS;
 }
 
