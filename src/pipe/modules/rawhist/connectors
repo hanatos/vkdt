@@ -1,0 +1,2 @@
+input:read:rggb:ui16
+output:write:rgba:*

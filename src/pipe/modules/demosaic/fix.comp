@@ -1,0 +1,101 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  uint filters;
+} params;
+
+layout( // input rgba
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f16 buffer rgba
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+float arr[9];
+void bubble_sort()
+{
+  bool swapped = true;
+  int j = 0;
+  float tmp;
+  for (int c = 0; c < 3; c--)
+  {
+    if (!swapped)
+      break;
+    swapped = false;
+    j++;
+    for (int i = 0; i < 3; i++)
+    {
+      if (i >= 3 - j)
+        break;
+      if (arr[i] > arr[i + 1])
+      {
+        tmp = arr[i];
+        arr[i] = arr[i + 1];
+        arr[i + 1] = tmp;
+        swapped = true;
+      }
+    }
+  }
+}
+
+// clamp excess colour saturation
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+#if 1
+  vec3 mom1 = vec3(0.0), mom2 = vec3(0.0);
+  int r = 2;
+  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
+  {
+    vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
+    vec3 g = max(vec3(1e-8), rgb.ggg);
+    rgb /= g;
+    mom1 += rgb;
+    mom2 += rgb * rgb;
+  }
+  mom1 /= (2*r+1)*(2*r+1);
+  mom2 /= (2*r+1)*(2*r+1);
+  vec3 sigma = sqrt(max(vec3(0), mom2 - mom1*mom1));
+
+  // keep brightness (i.e. green channel), clamp r and b to average saturation
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  sigma *= 0.1;
+  // rgb.rb = clamp(rgb.rb, max(vec2(0), mom1.rb - sigma.rb), mom1.rb + sigma.rb);
+  // rgb = clamp(rgb, max(vec3(0), mom1 - sigma), mom1 + sigma);
+  rgb.rb = clamp(rgb.rb, max(vec2(0), rgb.gg * (mom1.rb - sigma.rb)), rgb.gg * (mom1.rb + sigma.rb));
+  imageStore(img_out, ipos, vec4(rgb, 1.0));
+#else // median
+  int k=0;
+  vec3 mid = texelFetch(img_in, ipos, 0).rgb;
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+  {
+    vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
+    arr[k++] = rgb.r - rgb.g;
+  }
+  bubble_sort();
+  float red = mid.g + arr[4];//clamp(mid.r-mid.g, 0, arr[4]);
+  // stupid:
+  k = 0;
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+  {
+    vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
+    arr[k++] = rgb.b - rgb.g;
+  }
+  bubble_sort();
+  float blue = mid.g + arr[4];//clamp(mid.b-mid.g, 0, arr[4]);
+
+  mid = vec3(red, mid.g, blue);
+  imageStore(img_out, ipos, vec4(mid, 1.0));
+#endif
+}

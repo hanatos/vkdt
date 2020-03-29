@@ -1,0 +1,53 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  uint filters;
+  uint black;
+  uint white;
+} params;
+
+layout( // input ui16 buffer rggb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output ui32 buffer rgb
+    set = 1, binding = 1, r32ui
+) uniform uimage2D img_out;
+
+// histogram counter. this runs on the input dimensions/block size
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
+
+  // TODO: if filters==9
+  { // x-trans
+    // look at cross of green channels
+    float val0 = 65536.0*texelFetch(img_in, ipos+ivec2(0,0), 0).r;
+    float val1 = 65536.0*texelFetch(img_in, ipos+ivec2(2,0), 0).r;
+    float val2 = 65536.0*texelFetch(img_in, ipos+ivec2(1,1), 0).r;
+    float val3 = 65536.0*texelFetch(img_in, ipos+ivec2(0,2), 0).r;
+    float val4 = 65536.0*texelFetch(img_in, ipos+ivec2(2,2), 0).r;
+    float mean = (val0 + val1 + val2 + val3 + val4)/5.0;
+    float mom2 = (val0*val0 + val1*val1 + val2*val2 + val3*val3 + val4*val4)/5.0;
+    float var = mom2 - mean*mean;
+    // mean = 1100;
+    // float x = imageSize(img_out).x * log2(max(1,65536.0*(mean - params.black)/(params.white - params.black))) /16.0f;
+    // float x = imageSize(img_out).x * log2(max(1,(mean - params.black))) /16.0f;
+    // XXX ???
+    float white = log2(0.5*params.white)/16.0f;
+    float black = log2(2.5*params.black)/16.0f;
+    float x = imageSize(img_out).x * ((log2(mean)/16.0f - black) / (white - black));
+    imageAtomicAdd(img_out, ivec2(x, 0), 1);
+    imageAtomicAdd(img_out, ivec2(x, 1), uint(var));
+  }
+}
+

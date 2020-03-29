@@ -1,0 +1,43 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+layout( // input ui32 buffer r
+    set = 1, binding = 0
+) uniform usampler2D img_in;
+
+layout( // output f16 buffer rgba
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// display histogram, runs on output dimensions==output
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  // grab x position and find corresponding in input buffer
+  float x = float(textureSize(img_in, 0).x) * float(ipos.x) / float(imageSize(img_out).x);
+  float cnt  = texelFetch(img_in, ivec2(x, 0), 0).r;
+  float mom1 = texelFetch(img_in, ivec2(x, 1), 0).r;
+  mom1 /= cnt;
+
+  vec3 rgb = vec3(0);
+  float y = float(imageSize(img_out).y - ipos.y - 1) / float(imageSize(img_out).y);
+  const float c1 = 0.02;
+  const float c2 = 0.05;
+  if(y < log2(mom1) * c1)
+    rgb.r = 1.0;
+  if(y < log2(cnt) * c2)
+    rgb.g = 1.0;
+  imageStore(img_out, ipos, vec4(rgb, 1.0));
+}
+
