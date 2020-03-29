@@ -346,7 +346,6 @@ void render_lighttable()
     const int wd = vkdt.state.center_wd / ipl - border*2 - style.ItemSpacing.x*2;
     const int ht = wd;
     const int cnt = vkdt.db.collection_cnt;
-    // XXX TODO: how to get the number of lines if we don't know the aspect ratios?
     const int lines = (cnt+ipl-1)/ipl;
     ImGuiListClipper clipper;
     clipper.Begin(lines);
@@ -724,6 +723,9 @@ inline void draw_widget(int modid, int parid)
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
+      const float aspect = iwd/iht;
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
@@ -731,10 +733,10 @@ inline void draw_widget(int modid, int parid)
             dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
         if(ImGui::Button(string))
         {
-          // TODO: find actual aspect ratio:
-          const float aspect = 3.f/2.f;
-          vkdt.wstate.state[2] = .5f + aspect * (vkdt.wstate.state[2] - .5f);
-          vkdt.wstate.state[3] = .5f + aspect * (vkdt.wstate.state[3] - .5f);
+          vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
+          vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
+          vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
+          vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
           widget_end();
         }
       }
@@ -750,13 +752,28 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parid = parid;
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sizeof(float)*4);
+
+          // the values we draw are relative to output of the whole pipeline,
+          // but the coordinates of crop are relative to the *input*
+          // coordinates of the module!
+          // the output is the anticipated output while we switched off crop, i.e
+          // using the default values to result in a square of max(iwd, iht)^2
+          // first convert these v[] from input w/h to output w/h of the module:
+          const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
+          const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
+          const float owd = MAX(iwd, iht);
+          const float oht = MAX(iwd, iht);
+          vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
+          vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
+          vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);
+          vkdt.wstate.state[3] = .5f +  iht/oht * (vkdt.wstate.state[3] - .5f);
+
           // reset module params so the image will not appear cropped:
-          // float def[] = {0.f, 1.f, 0.f, 1.f};
-          // TODO: find actual image aspect:
-          const float aspect = 3.f/2.f;
-          float def[] = {0.f, 1.f,
-            .5f + aspect * (0.0f - .5f),
-            .5f + aspect * (1.0f - .5f)};
+          float def[] = {
+            .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
+            .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
+            .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
+            .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
           memcpy(v, def, sizeof(float)*4);
         }
       }
