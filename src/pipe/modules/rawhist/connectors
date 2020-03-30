@@ -1,2 +1,3 @@
 input:read:rggb:ui16
 output:write:rgba:*
+data:write:r:ui32

@@ -7,8 +7,10 @@ void modify_roi_out(
   // always request constant histogram size:
   module->connector[1].roi = module->connector[0].roi;
   // smaller sizes are slower (at least on intel), probably more atomic contention:
-  module->connector[1].roi.full_wd = 1000;//490;
-  module->connector[1].roi.full_ht =  600;//300;
+  module->connector[1].roi.full_wd = 1000;
+  module->connector[1].roi.full_ht =  600;
+  module->connector[2].roi.full_wd = 1000;
+  module->connector[2].roi.full_ht =    2;
 }
 
 // XXX why do we need this and the other histogram doesn't??
@@ -19,6 +21,9 @@ void modify_roi_in(
   module->connector[0].roi.wd = module->connector[0].roi.full_wd;
   module->connector[0].roi.ht = module->connector[0].roi.full_ht;
   module->connector[0].roi.scale = 1.0f;
+  module->connector[2].roi.wd = module->connector[2].roi.full_wd;
+  module->connector[2].roi.ht = module->connector[2].roi.full_ht;
+  module->connector[2].roi.scale = 1.0f;
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
@@ -48,9 +53,7 @@ create_nodes(
 
   // input -> collect -> map -> output
 
-  dt_roi_t roi_buf = module->connector[1].roi;
-  roi_buf.ht = 2;
-  roi_buf.full_ht = 2;
+  dt_roi_t roi_buf = module->connector[2].roi;
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_collect = graph->num_nodes++;
@@ -108,5 +111,6 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_collect, 0);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
   dt_connector_copy(graph, module, 1, id_map, 1);
+  dt_connector_copy(graph, module, 2, id_collect, 1);
 }
 
