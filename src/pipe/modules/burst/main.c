@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "config.h"
 
 // TODO: redo timing. but it seems down4 is a lot more precise (less pyramid approx?)
 #define DOWN 4
@@ -26,7 +27,11 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
+#ifdef DT_BURST_HALFRES_FIT // 2x2 downsampling
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 2 : 2);
+#else // full res
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
+#endif
   module->connector[2].roi = module->connector[0].roi;
   module->connector[3].roi = module->connector[0].roi;
   for(int i=0;i<NUM_LEVELS;i++)
@@ -53,7 +58,11 @@ create_nodes(
   // input best coarse offsets to next finer level, and finally output offsets on finest scale.
   //
   dt_roi_t roi[NUM_LEVELS+1] = {module->connector[0].roi};
+#ifdef DT_BURST_HALFRES_FIT // 2x2 down
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 2 : 2);
+#else // full res
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
+#endif
   for(int i=1;i<=NUM_LEVELS;i++)
   {
     int scale = i == 1 ? block : DOWN;
@@ -85,7 +94,7 @@ create_nodes(
       .connector = {{
         .name   = dt_token("input"),
         .type   = dt_token("read"),
-        .chan   = block == 1 ? dt_token("rgba") : dt_token("rggb"),
+        .chan   = module->img_param.filters == 0 ? dt_token("rgba") : dt_token("rggb"),
         .format = module->connector[k].format,
         .roi    = roi[0],
         .connected_mi = -1,
@@ -370,7 +379,7 @@ create_nodes(
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
-      .chan   = block == 1 ? dt_token("rgba") : dt_token("rggb"),
+      .chan   = module->img_param.filters == 0 ? dt_token("rgba") : dt_token("rggb"),
       .format = dt_token("f16"),
       .roi    = roi[0],
       .connected_mi = -1,
@@ -385,7 +394,7 @@ create_nodes(
     },{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
-      .chan   = block == 1 ? dt_token("rgba") : dt_token("rggb"),
+      .chan   = module->img_param.filters == 0 ? dt_token("rgba") : dt_token("rggb"),
       .format = dt_token("f16"),
       .roi    = roi[0],
     }},

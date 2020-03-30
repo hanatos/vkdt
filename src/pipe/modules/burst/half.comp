@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "config.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -30,7 +31,14 @@ main()
   vec3 rgb;
   if(push.filters == 0) // no CFA
   {
+#ifdef DT_BURST_HALFRES_FIT // 2x2 downsampling
+    rgb  = texelFetch(img_in, 2*ipos+ivec2(0,0), 0).rgb * .25;
+    rgb += texelFetch(img_in, 2*ipos+ivec2(0,1), 0).rgb * .25;
+    rgb += texelFetch(img_in, 2*ipos+ivec2(1,0), 0).rgb * .25;
+    rgb += texelFetch(img_in, 2*ipos+ivec2(1,1), 0).rgb * .25;
+#else // full res
     rgb = texelFetch(img_in, ipos, 0).rgb;
+#endif
   }
   else if(push.filters == 9) // x-trans
   {
