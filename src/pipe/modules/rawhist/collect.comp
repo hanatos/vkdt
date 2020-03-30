@@ -8,6 +8,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  float c;
+  float dx;
   uint filters;
   uint black;
   uint white;
@@ -43,9 +45,11 @@ main()
     // float x = imageSize(img_out).x * log2(max(1,65536.0*(mean - params.black)/(params.white - params.black))) /16.0f;
     // float x = imageSize(img_out).x * log2(max(1,(mean - params.black))) /16.0f;
     // XXX ???
-    float white = log2(0.5*params.white)/16.0f;
-    float black = log2(2.5*params.black)/16.0f;
-    float x = imageSize(img_out).x * ((log2(mean)/16.0f - black) / (white - black));
+    // float white = log2(0.5*params.white)/16.0f;
+    // float black = log2(2.5*params.black)/16.0f;
+    // float x = imageSize(img_out).x * ((log2(mean)/16.0f - black) / (white - black));
+    float white = params.white;// / 2.0;
+    float x = imageSize(img_out).x * (mean - params.black) / (white - params.black);
     imageAtomicAdd(img_out, ivec2(x, 0), 1);
     imageAtomicAdd(img_out, ivec2(x, 1), uint(var));
   }

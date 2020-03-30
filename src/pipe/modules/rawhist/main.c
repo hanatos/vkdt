@@ -23,7 +23,10 @@ void modify_roi_in(
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
-  uint32_t *i = (uint32_t *)module->committed_param;
+  float *f = (float *)module->committed_param;
+  f[0] = ((float *)(module->param))[0];
+  f[1] = ((float *)(module->param))[1];
+  uint32_t *i = (uint32_t *)(f+2);
   i[0] = module->img_param.filters;
   i[1] = module->img_param.black[1];
   i[2] = module->img_param.white[1];
@@ -31,7 +34,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = 3*sizeof(uint32_t);
+  mod->committed_param_size = 2*sizeof(float) + 3*sizeof(uint32_t);
   return 0;
 }
 
