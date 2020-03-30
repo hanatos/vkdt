@@ -1,3 +1,3 @@
 MOD_C=pipe/connector.c
-half.comp.spv:half.comp config.h
-libburst.so:main.c config.h
+pipe/modules/burst/half.comp.spv:pipe/modules/burst/config.h
+pipe/modules/burst/libburst.so  :pipe/modules/burst/config.h
