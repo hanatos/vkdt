@@ -641,6 +641,7 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
 namespace {
 inline void draw_widget(int modid, int parid)
 {
+  ImGui::PushID(100*modid + parid);
   char string[256];
   // distinguish by type:
   switch(vkdt.graph_dev.module[modid].so->param[parid]->widget.type)
@@ -808,6 +809,7 @@ inline void draw_widget(int modid, int parid)
     }
     default:;
   }
+  ImGui::PopID();
 }
 } // anonymous namespace
 
