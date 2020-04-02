@@ -18,6 +18,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float opacity;
   float black;
   float white;
+  float noise_a;
+  float noise_b;
 } params;
 
 layout( // input back buffer
@@ -123,10 +125,7 @@ main()
     // 0.0001291937229155835, 4.607888768089825e-05, 8.72921132754699e-05], "b": [2.45962729009841e-07, 1.42262459226602e-07, 2.2271465553342102e-07]}
 
     // too high values (allow too much input) gives weird colour cast
-    // const float a = 1.0e-5, b = 2.0e-7; // guessed iso3200 fuji X100T
-    // TODO: load from external resource/measurement:
-    const float a = 1.3e-6, b = 1.0e-7; // guessed iso3200 fuji X100T
-    float sigma2 = a + max(0, rgb.r - params.black)*b;
+    float sigma2 = params.noise_a + max(0, rgb.r - params.black)*params.noise_b;
 #if 1 // helps
     // increase for flat areas:
     // TODO: fix for bayer:
