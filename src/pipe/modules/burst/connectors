@@ -1,6 +1,6 @@
 input:read:*:*
 warp:read:*:*
-output:write:*:f16
+output:write:&input:f16
 mask:write:y:f16
 debugi0:write:y:f16
 debugi1:write:y:f16
