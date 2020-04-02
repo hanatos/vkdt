@@ -225,6 +225,23 @@ void modify_roi_out(
   // adaptation here.
 #ifdef VKDT_USE_EXIV2
   dt_exif_read(&mod->img_param, filename);
+  char fname[512];
+  snprintf(fname, sizeof(fname), "data/nprof/%s-%s-%d.nprof",
+      mod->img_param.maker,
+      mod->img_param.model,
+      (int)mod->img_param.iso);
+  FILE *f = fopen(fname, "rb");
+  if(f)
+  {
+    float a = 0.0f, b = 0.0f;
+    int num = fscanf(f, "%g %g", &a, &b);
+    if(num == 2)
+    {
+      mod->img_param.noise_a = a;
+      mod->img_param.noise_b = b;
+    }
+    fclose(f);
+  }
 #endif
 
   // dimensions of cropped image (cut away black borders for noise estimation)

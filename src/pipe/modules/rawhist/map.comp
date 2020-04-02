@@ -10,6 +10,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float c;
   float dx;
+  uint filters;
+  uint black;
+  uint white;
 } params;
 
 layout( // input ui32 buffer r
@@ -33,7 +36,7 @@ main()
 
   // grab x position and find corresponding in input buffer
   float x = float(x_min) + float(x_max - x_min) * float(ipos.x) / float(imageSize(img_out).x);
-  float cnt = texelFetch(img_in, ivec2(x, 0), 0).r;
+  float cnt  = texelFetch(img_in, ivec2(x, 0), 0).r;
   float mean = texelFetch(img_in, ivec2(x, 1), 0).r;
   float mom2 = texelFetch(img_in, ivec2(x, 2), 0).r;
   float var = mom2/cnt - mean/cnt*mean/cnt;
@@ -44,16 +47,21 @@ main()
   float y = float(imageSize(img_out).y - ipos.y - 1) / float(imageSize(img_out).y);
   const float c1 = 0.04;
   const float c2 = 0.05;
-  // TODO: adjust params to reflect v_max scaling
-  float fit = params.c + params.dx * x/float(textureSize(img_in, 0).x);
+
+  float white = log2(params.white)/16.0;
+  float black = log2(params.black)/16.0;
+  // XXX FIXME: linear_x without the black subtraction is exactly the linear mean we've been writing to.
+  // XXX or is it?
+  float linear_x = mean/cnt - params.black;//exp2(x / float(textureSize(img_in, 0).x * (white - black) + black) * 16.0) - params.black;
+  float fit = params.c + params.dx * linear_x;
   // float v_max = 2000000.0;//params.c + params.dx * x_max;
   if(abs(y - log2(var) * c1) < 0.015)
   // if(y < var / v_max)
     rgb = .5*(rgb + col_var);
   if(y < log2(cnt) * c2)
     rgb += col_cnt;
-  if(abs(y - fit) < 0.005)
-    rgb += smoothstep(0.0, 1.0, 1.0-abs(y - fit)/0.005);
+  if(abs(y - log2(fit) * c1) < 0.005)
+    rgb += smoothstep(0.0, 1.0, 1.0-abs(y - log2(fit) * c1)/0.005);
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
 
