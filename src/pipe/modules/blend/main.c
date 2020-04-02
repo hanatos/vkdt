@@ -4,13 +4,20 @@
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
   float *f = (float *)module->committed_param;
+  uint32_t *i = (uint32_t *)module->committed_param;
   float *g = (float*)module->param;
-  f[0] = g[0]; // in fact this is an int32_t
-  f[1] = g[1];
+  i[0] = module->img_param.filters;
+  f[1] = g[0];
   f[2] = module->img_param.black[0]/(float)0xffff;
   f[3] = module->img_param.white[0]/(float)0xffff;
   f[4] = module->img_param.noise_a;
   f[5] = module->img_param.noise_b;
+  fprintf(stderr, "blend found noise params %g %g\n", f[4], f[5]);
+  // if(f[4] == 0.0f && f[5] == 0.0f)
+  {
+    f[4] = 837.0f;
+    f[5] = 1.96f; // XXX track where this fails to propagate to us!
+  }
 }
 
 int init(dt_module_t *mod)

@@ -14,7 +14,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
 // global uniform stuff about image and roi
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  int mode;
+  int filters;
   float opacity;
   float black;
   float white;
@@ -92,7 +92,7 @@ main()
   t *= 1.-smoothstep(0.2, 3.0, d);
 #endif
 
-  if(params.mode < 1)
+  if(params.filters == 0)
   {
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
@@ -125,11 +125,13 @@ main()
     // 0.0001291937229155835, 4.607888768089825e-05, 8.72921132754699e-05], "b": [2.45962729009841e-07, 1.42262459226602e-07, 2.2271465553342102e-07]}
 
     // too high values (allow too much input) gives weird colour cast
-    float sigma2 = params.noise_a + max(0, rgb.r - params.black)*params.noise_b;
+    float sigma2 = 800 + 1.96 * 65535.0*(rgb.r - params.black);//params.noise_a + max(0, rgb.r - params.black)*params.noise_b;
 #if 1 // helps
     // increase for flat areas:
     // TODO: fix for bayer:
-    vec2 dist = gauss_xtrans(ipos); // how flat is the area we're looking at?
+    vec2 dist = vec2(1.0);
+    if(params.filters == 9)
+      dist = gauss_xtrans(ipos); // how flat is the area we're looking at?
     // detect flat by comparing sigma2 (noise model) and dist.y (local surroundings)
     float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
 #if 0 // does not help
@@ -157,8 +159,6 @@ main()
   // bck = (N-1.) / N * bck + rgb / N;
 #endif
 #endif
-
-
 
 #if 0 // somehow the theory doesn't fit? mask as sqrt looks terrible indeed
   // bayesian risk for wavelet thresholding is minimised by
