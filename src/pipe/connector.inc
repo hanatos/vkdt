@@ -88,6 +88,23 @@
   // if any one is "*" use the other
   // if both are "*" fall back to default "f16"
   // this should mostly happen on the module level
+#ifdef connect_module
+  // set output channel and format to same as an already connected input channel, prefix token by &:
+  if(dt_token_str(cn0->chan)[0] == '&')
+  {
+    dt_token_t tmp = cn0->chan >> 8;
+    for(int c=0;c<graph->element[m0].num_connectors;c++)
+      if(graph->element[m0].connector[c].name == tmp)
+      { cn0->chan = graph->element[m0].connector[c].chan; break; }
+  }
+  if(dt_token_str(cn0->format)[0] == '&')
+  {
+    dt_token_t tmp = cn0->chan >> 8;
+    for(int c=0;c<graph->element[m0].num_connectors;c++)
+      if(graph->element[m0].connector[c].name == tmp)
+      { cn0->format = graph->element[m0].connector[c].format; break; }
+  }
+#endif
   if(cn1->chan == dt_token("*")) cn1->chan = cn0->chan;
   if(cn0->chan == dt_token("*")) cn0->chan = cn1->chan;
   if(cn1->chan == dt_token("*")) cn1->chan = dt_token("rgba");
