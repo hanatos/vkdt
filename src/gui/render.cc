@@ -1052,7 +1052,7 @@ void render_darkroom()
     // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
     // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
     // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, window_flags);
 
@@ -1066,6 +1066,36 @@ void render_darkroom()
           ImVec2(wd, ht),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+    }
+
+
+    { // print some basic exif if we have
+      const dt_image_params_t *ip = &vkdt.graph_dev.module[0].img_param;
+      if(ip->exposure != 0.0f)
+      {
+        if(ip->exposure >= 1.0f)
+          if(nearbyintf(ip->exposure) == ip->exposure)
+            ImGui::Text("%.0f″ f/%.1f %dmm ISO %d", ip->exposure, ip->aperture,
+                (int)ip->focal_length, (int)ip->iso);
+          else
+            ImGui::Text("%.1f″ f/%.1f %dmm ISO %d", ip->exposure, ip->aperture,
+                (int)ip->focal_length, (int)ip->iso);
+        /* want to catch everything below 0.3 seconds */
+        else if(ip->exposure < 0.29f)
+          ImGui::Text("1/%.0f f/%.1f %dmm ISO %d", 1.0 / ip->exposure, ip->aperture,
+              (int)ip->focal_length, (int)ip->iso);
+        /* catch 1/2, 1/3 */
+        else if(nearbyintf(1.0f / ip->exposure) == 1.0f / ip->exposure)
+          ImGui::Text("1/%.0f f/%.1f %dmm ISO %d", 1.0 / ip->exposure, ip->aperture,
+              (int)ip->focal_length, (int)ip->iso);
+        /* catch 1/1.3, 1/1.6, etc. */
+        else if(10 * nearbyintf(10.0f / ip->exposure) == nearbyintf(100.0f / ip->exposure))
+          ImGui::Text("1/%.1f f/%.1f %dmm ISO %d", 1.0 / ip->exposure, ip->aperture,
+              (int)ip->focal_length, (int)ip->iso);
+        else
+          ImGui::Text("%.1f″ f/%.1f %dmm ISO %d", ip->exposure, ip->aperture,
+              (int)ip->focal_length, (int)ip->iso);
+      }
     }
 
     // tabs for module/params controls:

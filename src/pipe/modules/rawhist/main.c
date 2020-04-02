@@ -10,7 +10,7 @@ void modify_roi_out(
   module->connector[1].roi.full_wd = 1000;
   module->connector[1].roi.full_ht =  600;
   module->connector[2].roi.full_wd = 1000;
-  module->connector[2].roi.full_ht =    2;
+  module->connector[2].roi.full_ht =    4;
 }
 
 // XXX why do we need this and the other histogram doesn't??
@@ -112,5 +112,6 @@ create_nodes(
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
   dt_connector_copy(graph, module, 1, id_map, 1);
   dt_connector_copy(graph, module, 2, id_collect, 1);
+  graph->node[id_collect].connector[1].flags  = s_conn_clear;
 }
 

@@ -27,24 +27,33 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  // grab x position and find corresponding in input buffer
-  float x = float(textureSize(img_in, 0).x) * float(ipos.x) / float(imageSize(img_out).x);
-  float cnt = texelFetch(img_in, ivec2(x, 0), 0).r;
-  float var = texelFetch(img_in, ivec2(x, 1), 0).r;
-  var /= cnt;
+  uint x_min = texelFetch(img_in, ivec2(0, 3), 0).r;
+  uint x_max = texelFetch(img_in, ivec2(1, 3), 0).r;
+  // float v_max = texelFetch(img_in, ivec2(2, 3), 0).r;
 
+  // grab x position and find corresponding in input buffer
+  float x = float(x_min) + float(x_max - x_min) * float(ipos.x) / float(imageSize(img_out).x);
+  float cnt = texelFetch(img_in, ivec2(x, 0), 0).r;
+  float mean = texelFetch(img_in, ivec2(x, 1), 0).r;
+  float mom2 = texelFetch(img_in, ivec2(x, 2), 0).r;
+  float var = mom2/cnt - mean/cnt*mean/cnt;
+
+  const vec3 col_cnt = vec3(0.5, 0.5, 0.5);
+  const vec3 col_var = vec3(1.0, 0.2, 0.2);
   vec3 rgb = vec3(0);
   float y = float(imageSize(img_out).y - ipos.y - 1) / float(imageSize(img_out).y);
-  const float c1 = 0.0000005;//0.02;
+  const float c1 = 0.04;
   const float c2 = 0.05;
+  // TODO: adjust params to reflect v_max scaling
   float fit = params.c + params.dx * x/float(textureSize(img_in, 0).x);
-  // if(y < log2(var) * c1)
-  if(y < var * c1)
-    rgb.r = 1.0;
+  // float v_max = 2000000.0;//params.c + params.dx * x_max;
+  if(abs(y - log2(var) * c1) < 0.015)
+  // if(y < var / v_max)
+    rgb = .5*(rgb + col_var);
   if(y < log2(cnt) * c2)
-    rgb.g = 1.0;
+    rgb += col_cnt;
   if(abs(y - fit) < 0.005)
-    rgb.b = 1.0;
+    rgb += smoothstep(0.0, 1.0, 1.0-abs(y - fit)/0.005);
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
 

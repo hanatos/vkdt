@@ -81,8 +81,8 @@ main()
   // corner and edge cases don't get interpolated, sorry:
   if((offx > -2 || offx < 2 || offy > -2 || offy < 2) &&
 #if 0 // XXX all levels
-    false)
-    // true)
+    false)   // always off
+    // true) // always on
 #else
      (push.it <= 1)) // only refine finest two levels, others not stable enough
 #endif

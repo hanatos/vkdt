@@ -112,6 +112,7 @@ main()
 
     vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
     const float thresh = 1.0;
+    // switch this line off to see unshielded warping:
     bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
     if(global.frame > 0) rgb = mix(rgb, bck, t);
   }

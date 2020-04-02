@@ -5,6 +5,9 @@
 #include <mutex>
 #include <ctime>
 #include <math.h>
+#ifdef VKDT_USE_EXIV2
+#include "exif.h"
+#endif
 
 extern "C" {
 #include "modules/api.h"
@@ -215,6 +218,14 @@ void modify_roi_out(
   mod->connector[0].roi.full_ht = dim_uncropped.y;
 
   // TODO: data type, channels, bpp
+
+  // TODO: put all the metadata nonsense in one csv ascii/binary file so we can
+  // parse it more quickly.
+  // put the real matrix in there directly, so we don't have to juggle bradford
+  // adaptation here.
+#ifdef VKDT_USE_EXIV2
+  dt_exif_read(&mod->img_param, filename);
+#endif
 
   // dimensions of cropped image (cut away black borders for noise estimation)
   rawspeed::iPoint2D dimCropped = mod_data->d->mRaw->dim;
