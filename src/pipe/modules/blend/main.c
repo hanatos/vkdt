@@ -12,12 +12,14 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[3] = module->img_param.white[0]/(float)0xffff;
   f[4] = module->img_param.noise_a;
   f[5] = module->img_param.noise_b;
+#if 0
   fprintf(stderr, "blend found noise params %g %g\n", f[4], f[5]);
-  // if(f[4] == 0.0f && f[5] == 0.0f)
+  if(f[4] == 0.0f && f[5] == 0.0f)
   {
-    f[4] = 837.0f;
-    f[5] = 1.96f; // XXX track where this fails to propagate to us!
+    f[4] = 800.0f;
+    f[5] = 2.0f;
   }
+#endif
 }
 
 int init(dt_module_t *mod)
