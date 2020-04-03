@@ -934,9 +934,11 @@ void render_darkroom_pipeline()
         const float *q = vkdt.wstate.connector[nid][cid];
         float b = vkdt.state.panel_wd * 0.03;
         int rev = nid; // TODO: store reverse list?
-        if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
-        else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
-        if(mod_id[rev] != nid) continue;
+        // this works mostly but seems to have edge cases where it doesn't:
+        // if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
+        // else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
+        for(rev=0;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
+        if(rev == graph->num_modules+1 || mod_id[rev] != nid) continue;
         // traverse mod_id list between mi and rev nid and get indentation level
         int ident = 0;
         if(mi < rev) for(int i=mi+1;i<rev;i++)
