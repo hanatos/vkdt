@@ -544,7 +544,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         assert(!(mem_req.alignment & (mem_req.alignment - 1)));
 
         const size_t size = dt_connector_bufsize(c);
-        if(c->frames == 2)
+        if(c->frames == 2 || c->type == dt_token("source")) // allocate protected memory
           img->mem = dt_vkalloc_feedback(&graph->heap, mem_req.size, mem_req.alignment);
         else
           img->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
@@ -1344,7 +1344,7 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       // up reference counter of the connector that owns the output
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
-      graph->node[mi].connector[mc].connected_mi++;
+      if(mi != -1) graph->node[mi].connector[mc].connected_mi++;
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     graph->node[mi].connector[mc].connected_mi,
       //     dt_token_str(graph->node[mi].name),
@@ -1355,6 +1355,7 @@ count_references(dt_graph_t *graph, dt_node_t *node)
     {
       // output cannot know all modules connected to it, so
       // it stores the reference counter instead.
+      // we increase it here because every node needs its own outputs for processing.
       node->connector[c].connected_mi++;
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     node->connector[c].connected_mi,
@@ -1625,7 +1626,7 @@ VkResult dt_graph_run(
           graph->node[n].connector[c].connected_mi = 0;
     // perform reference counting on the final connected node graph.
     // this is needed for memory allocation later:
-    for(int i=cnt-1;i>=0;i--)
+    for(int i=0;i<cnt;i++)
       count_references(graph, graph->node+nodeid[i]);
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);

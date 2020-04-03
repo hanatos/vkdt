@@ -27,7 +27,7 @@ void widget_end()
   // rerun all (roi could have changed, buttons are drastic)
   // TODO: let module decide this!
   vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-      s_graph_run_all &~s_graph_run_upload_source);
+      s_graph_run_all);// &~s_graph_run_upload_source);
   // reset view:
   vkdt.state.look_at_x = FLT_MAX;
   vkdt.state.look_at_y = FLT_MAX;
@@ -665,9 +665,7 @@ inline void draw_widget(int modid, int parid)
         {
           // TODO: let module decide which flags are needed!
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                 s_graph_run_all
-              & ~s_graph_run_before_active
-              & ~s_graph_run_upload_source);
+                 s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
         }
       }
@@ -685,9 +683,7 @@ inline void draw_widget(int modid, int parid)
         {
           // TODO: let module decide which flags are needed!
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                 s_graph_run_all
-              & ~s_graph_run_before_active
-              & ~s_graph_run_upload_source);
+                 s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
         }
       }
