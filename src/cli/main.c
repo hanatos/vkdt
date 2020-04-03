@@ -5,7 +5,6 @@
 #include "pipe/graph-export.h"
 #include "pipe/global.h"
 #include "pipe/modules/api.h"
-#include "db/thumbnails.h"
 #include "core/log.h"
 
 #include <stdlib.h>
@@ -20,7 +19,6 @@ int main(int argc, char *argv[])
 
   const char *graphcfg = 0;
   int dump_graph = 0;
-  const char *thumbnails = 0;
   int output_cnt = 1;
   int user_output_cnt = 0;
   dt_token_t output[10] = { dt_token("main"), dt_token("hist") };
@@ -33,8 +31,6 @@ int main(int argc, char *argv[])
       dump_graph = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
       dump_graph = 2;
-    else if(!strcmp(argv[i], "--thumbnails") && i < argc-1)
-      thumbnails = argv[++i];
     else if(!strcmp(argv[i], "--output") && i < argc-1 && ++i)
       output[user_output_cnt++] = dt_token(argv[i]);
 
@@ -44,24 +40,11 @@ int main(int argc, char *argv[])
 
   if(qvk_init()) exit(1);
 
-  if(thumbnails)
-  {
-    dt_thumbnails_t tn;
-    // only width/height will matter here
-    dt_thumbnails_init(&tn, 400, 400, 1000, 1ul<<30);
-    dt_thumbnails_cache_directory(&tn, thumbnails);
-    threads_wait(); // wait for bg threads to finish
-    dt_thumbnails_cleanup(&tn);
-    qvk_cleanup();
-    exit(0);
-  }
-
   if(!graphcfg)
   {
     fprintf(stderr, "usage: vkdt-cli -g <graph.cfg>\n"
     "    [-d verbosity]                set log verbosity (mem,perf,pipe,cli,err,all)\n"
     "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
-    "    [--thumbnails <dir>]          create thumbnails for directory\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
         );
     qvk_cleanup();

@@ -292,6 +292,7 @@ typedef struct cache_coll_job_t
   dt_db_t *db;
   uint32_t *coll;
   uint32_t num;
+  uint32_t idx;
   int k;
 }
 cache_coll_job_t;
@@ -299,15 +300,17 @@ cache_coll_job_t;
 static void *thread_work_coll(void *arg)
 {
   cache_coll_job_t *j = arg;
-  // fprintf(stderr, "thread %d working on %d!\n", threads_id(), j->k);
+  // already done this before? for whatever buggy reason the scheduler picks up stale jobs twice.
+  if(j->idx >= j->num) return 0;
+  // fprintf(stderr, "[thmb] thread %d working on %d!\n", threads_id(), j->k);
   assert(j->tn);
 
   j->tn->graph[j->k].io_mutex = &j->mutex;
-  for(int i=0;i<j->num;i++)
+  for(;j->idx<j->num;j->idx++)
   {
-    if((i % DT_THUMBNAILS_THREADS) == j->k)
+    if((j->idx % DT_THUMBNAILS_THREADS) == j->k)
       (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn,
-          j->db->image[j->coll[i]].filename);
+          j->db->image[j->coll[j->idx]].filename);
     if(threads_shutting_down()) break;
   }
   // cleanup mutex and job here
@@ -346,108 +349,6 @@ dt_thumbnails_cache_collection(
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
     threads_task(k, &thread_work_coll, job[k]);
   return VK_SUCCESS;
-}
-
-
-typedef struct cache_job_t
-{
-  dt_thumbnails_t *tn;
-  char dirname[1024];
-  int k;
-}
-cache_job_t;
-
-static void *thread_work(void *arg)
-{
-  cache_job_t *j = arg;
-  DIR *dp = opendir(j->dirname);
-  if(!dp) return 0;
-
-  struct dirent *ep;
-  char filename[2048];
-  int i = 0;
-  threads_mutex_t mutex;
-  threads_mutex_init(&mutex, 0);
-  j->tn->graph[j->k].io_mutex = &mutex;
-  while((ep = readdir(dp)))
-  {
-    if((i++ % DT_THUMBNAILS_THREADS) == j->k)
-    {
-      if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue;
-      if(!dt_db_accept_filename(ep->d_name)) continue;
-      snprintf(filename, sizeof(filename), "%s/%s", j->dirname, ep->d_name);
-      // TODO: deduplicate with db.c:
-      // now reject non-cfg files that have a cfg already:
-      char cfgfile[256];
-      snprintf(cfgfile, sizeof(cfgfile), "%s", filename);
-      int len = strnlen(cfgfile, sizeof(cfgfile));
-      if(len <= 4) continue;
-      char *f2 = cfgfile + len - 4;
-      if(strcasecmp(f2, ".cfg"))
-      { // not a cfg itself
-        sprintf(f2+4, ".cfg"); // this would be the corresponding default cfg
-        struct stat statbuf = {0};
-        if(!stat(cfgfile, &statbuf))
-        { // skip this image, it already has a cfg associated with it, we'll load that:
-          continue;
-        }
-        // no config associated with this image yet, let's use the default:
-        snprintf(filename, sizeof(filename), "%s", cfgfile);
-      }
-      (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn, filename);
-    }
-    if(threads_shutting_down()) break;
-  }
-  closedir(dp);
-  // cleanup mutex and job here
-  j->tn->graph[j->k].io_mutex = 0;
-  threads_mutex_destroy(&mutex);
-  free(j);
-  return 0;
-}
-
-VkResult
-dt_thumbnails_cache_directory(
-    dt_thumbnails_t *tn,
-    const char      *dirname) 
-{
-  DIR *dp = opendir(dirname);
-  if(!dp)
-  {
-    dt_log(s_log_err, "[thm] could not open directory '%s'!", dirname);
-    return VK_INCOMPLETE;
-  }
-  // for this threading to be effective, we need to
-  //  OMP_NESTED=true
-  //  OMP_MAX_ACTIVE_LEVELS=5
-  // note that we set this via the omp_* api in i-raw/main.cc
-  // because in fact the processing inside rawspeed (parallel via omp)
-  // seems to be a big chunk of the bottleneck (after io)
-#if 0 // single threaded variant
-  struct dirent *ep;
-  char filename[2048];
-  while((ep = readdir(dp)))
-  {
-      if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue; // accept DT_LNK, too?
-      if(!dt_db_accept_filename(ep->d_name)) continue;
-      snprintf(filename, sizeof(filename), "%s/%s", dirname, ep->d_name);
-      (void) dt_thumbnails_cache_one(tn->graph, tn, filename);
-  }
-  closedir(dp);
-  return VK_SUCCESS;
-#else
-  closedir(dp);
-
-  for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
-  {
-    cache_job_t *job = malloc(sizeof(cache_job_t));
-    snprintf(job->dirname, sizeof(job->dirname), "%s", dirname);
-    job->k = k;
-    job->tn = tn;
-    threads_task(k, &thread_work, job);
-  }
-  return VK_SUCCESS;
-#endif
 }
 
 // 1) if db loads a directory, kick off thumbnail creation of directory in bg
