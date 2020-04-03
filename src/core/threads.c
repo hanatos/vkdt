@@ -122,6 +122,8 @@ static inline void threads_tls_init(threads_t *t)
     pthread_pool_task_init(t->task + k, &t->pool, threads_tls_init_one, tid+k);
   }
   pthread_pool_wait(&t->pool);
+  for(uint64_t k=0;k<t->num_threads;k++)
+    pthread_pool_task_destroy(t->task + k);
 }
 
 void threads_global_init()
@@ -141,6 +143,8 @@ static inline void threads_tls_cleanup(threads_t *t)
     pthread_pool_task_init(t->task + k, &t->pool, threads_tls_cleanup_one, tid+k);
   }
   pthread_pool_wait(&t->pool);
+  for(uint64_t k=0;k<t->num_threads;k++)
+    pthread_pool_task_destroy(t->task + k);
 }
 
 static inline void threads_cleanup(threads_t *t)
@@ -168,6 +172,8 @@ void threads_task(int task, void *(*func)(void *arg), void *arg)
 void threads_wait()
 {
   pthread_pool_wait(&thr.pool);
+  for(uint64_t k=0;k<thr.num_threads;k++)
+    pthread_pool_task_destroy(thr.task + k);
 }
 
 void threads_shutdown()

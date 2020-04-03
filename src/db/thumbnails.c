@@ -299,6 +299,7 @@ cache_coll_job_t;
 static void *thread_work_coll(void *arg)
 {
   cache_coll_job_t *j = arg;
+  // fprintf(stderr, "thread %d working on %d!\n", threads_id(), j->k);
   assert(j->tn);
 
   j->tn->graph[j->k].io_mutex = &j->mutex;
@@ -328,19 +329,22 @@ dt_thumbnails_cache_collection(
 
   uint32_t *collection = db->collection; // TODO: take copy once this thing changes
   threads_mutex_t mutex;
-  threads_mutex_init(&mutex, 0);
+  threads_mutex_init(&mutex, 0); // we'll leak this, too, because we're not waiting for the threads
+  cache_coll_job_t *job[DT_THUMBNAILS_THREADS];
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
-    cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t));
-    job->mutex = &mutex;
-    job->num  = db->collection_cnt;
-    job->coll = collection;
-    job->k = k;
-    job->tn = tn;
-    job->db = db;
-    threads_task(k, &thread_work_coll, job);
+    job[k] = malloc(sizeof(cache_coll_job_t));
+    *(job[k]) = (cache_coll_job_t) {
+      .mutex = &mutex,
+      .num   = db->collection_cnt,
+      .coll  = collection,
+      .k     = k,
+      .tn    = tn,
+      .db    = db,
+    };
   }
-  threads_mutex_destroy(&mutex);
+  for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
+    threads_task(k, &thread_work_coll, job[k]);
   return VK_SUCCESS;
 }
 
