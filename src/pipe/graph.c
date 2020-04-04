@@ -1005,10 +1005,18 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       if(c->connected_mi >= 0 && c->connected_mc >= 0)
       {
         dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
+        if(graph->module[c->connected_mi].connector[c->connected_mc].type == dt_token("source"))
+        { // sources don't negotiate their size, they just give what they have
+          roi->wd = roi->full_wd;
+          roi->ht = roi->full_ht;
+          c->roi = *roi; // TODO: this may mean that we need a resample node if the module can't handle it!
+          // TODO: insert manually here
+        }
         // if roi->scale > 0 it has been inited before and we're late to the party!
         // in this case, reverse the process:
-        if(roi->scale > 0.0f)
+        else if(roi->scale > 0.0f)
           c->roi = *roi; // TODO: this may mean that we need a resample node if the module can't handle it!
+          // TODO: insert manually here
         else
           *roi = c->roi;
         // propagate flags:
