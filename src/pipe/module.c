@@ -21,6 +21,7 @@ int dt_module_add(
   dt_module_t *mod = graph->module + modid;
   mod->name = name;
   mod->inst = inst;
+  mod->graph = graph;
   mod->data = 0;
   mod->committed_param_size = 0;
   mod->committed_param = 0;

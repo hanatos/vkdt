@@ -1,5 +1,6 @@
 #pragma once
 #include "graph.h"
+#include <stdio.h>
 
 int dt_graph_read_config_ascii(
     dt_graph_t *graph,

@@ -23,7 +23,7 @@ read_header(
     return 0; // already loaded
   assert(pfm); // this should be inited in init()
 
-  pfm->f = fopen(filename, "rb");
+  pfm->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!pfm->f) return 1;
 
   int wd, ht;

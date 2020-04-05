@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
+#include <libgen.h>
 
 static inline void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
@@ -319,13 +320,16 @@ darkroom_enter()
   {
     char imgfilename[256];
     snprintf(imgfilename, sizeof(imgfilename), "%s", vkdt.db.image[imgid].filename);
+    snprintf(vkdt.graph_dev.searchpath, sizeof(vkdt.graph_dev.searchpath), "%s", dirname(imgfilename));
+    snprintf(imgfilename, sizeof(imgfilename), "%s", vkdt.db.image[imgid].filename);
     int len = strlen(imgfilename);
     assert(len > 4);
     imgfilename[len-4] = 0; // cut away ".cfg"
+    char *basen = basename(imgfilename); // cut away path o we can relocate more easily
     int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
     if(modid < 0 ||
        dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
-         imgfilename))
+         basen))
     {
       dt_log(s_log_err|s_log_gui, "config '%s' has no raw input module!", graph_cfg);
       dt_graph_cleanup(&vkdt.graph_dev);

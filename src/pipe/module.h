@@ -54,6 +54,7 @@ typedef struct dt_module_t
   dt_module_so_t *so; // class of module
   dt_token_t name;    // mirrored class name
   dt_token_t inst;    // instance name
+  dt_graph_t *graph;  // pointing back to containing graph
 
 
   // TODO: has a list of publicly visible connectors
@@ -79,8 +80,8 @@ typedef struct dt_module_t
   uint8_t *committed_param;
   int      committed_param_size;
 
-  uint32_t              uniform_offset; // offset into global uniform buffer
-  uint32_t              uniform_size;   // size of module params padded to 16 byte multiples
+  uint32_t uniform_offset; // offset into global uniform buffer
+  uint32_t uniform_size;   // size of module params padded to 16 byte multiples
 
   // this is useful for instance for a cpu caching of
   // input data decoded from disk inside a module:

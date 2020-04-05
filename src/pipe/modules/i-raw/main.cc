@@ -209,7 +209,15 @@ void modify_roi_out(
     dt_module_t *mod)
 {
   // load image if not happened yet
-  const char *filename = dt_module_param_string(mod, 0);
+  const char *fname = dt_module_param_string(mod, 0);
+  const char *filename = fname;
+  char tmpfn[512];
+  if(filename[0] != '/') // relative paths
+  {
+    snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
+    filename = tmpfn;
+  }
+
   if(load_raw(mod, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
@@ -225,12 +233,12 @@ void modify_roi_out(
   // adaptation here.
 #ifdef VKDT_USE_EXIV2
   dt_exif_read(&mod->img_param, filename);
-  char fname[512];
-  snprintf(fname, sizeof(fname), "data/nprof/%s-%s-%d.nprof",
+  char pname[512];
+  snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
       mod->img_param.maker,
       mod->img_param.model,
       (int)mod->img_param.iso);
-  FILE *f = fopen(fname, "rb");
+  FILE *f = fopen(pname, "rb");
   if(f)
   {
     float a = 0.0f, b = 0.0f;
@@ -426,7 +434,14 @@ int read_source(
     dt_module_t *mod,
     void *mapped)
 {
-  const char *filename = dt_module_param_string(mod, 0);
+  const char *fname = dt_module_param_string(mod, 0);
+  const char *filename = fname;
+  char tmpfn[512];
+  if(filename[0] != '/') // relative paths
+  {
+    snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
+    filename = tmpfn;
+  }
   int err = load_raw(mod, filename);
   if(err) return 1;
   uint16_t *buf = (uint16_t *)mapped;

@@ -109,6 +109,7 @@ typedef struct dt_graph_t
   void                 *io_mutex;      // if this is set to != 0 will be locked during read_source() calls
 
   int                   gui_attached;  // can't free the output images while still used etc.
+  char                  searchpath[512];
 }
 dt_graph_t;
 

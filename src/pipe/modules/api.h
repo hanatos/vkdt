@@ -557,3 +557,17 @@ dt_module_set_param_string(
   snprintf(param_str, param_len, "%s", val);
   return 0;
 }
+
+// open a file pointer, consider search paths specific to this graph
+static inline FILE*
+dt_graph_open_resource(
+    dt_graph_t *graph,
+    const char *fname,
+    const char *mode)
+{
+  if(fname[0] == '/')
+    return fopen(fname, mode); // absolute path
+  char filename[1024]; // for relative paths, add search path
+  snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
+  return fopen(filename, mode);
+}

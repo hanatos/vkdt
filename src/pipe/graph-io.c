@@ -2,6 +2,7 @@
 #include "modules/api.h"
 #include "pipe/io.h"
 #include "core/log.h"
+#include <libgen.h>
 
 // helper to read parameters from config file
 static inline int
@@ -132,6 +133,8 @@ int dt_graph_read_config_ascii(
     const char *filename)
 {
   FILE *f = fopen(filename, "rb");
+  if(snprintf(graph->searchpath, sizeof(graph->searchpath), "%s", filename) < 0) graph->searchpath[0] = 0;
+  else dirname(graph->searchpath);
   if(!f) return 1;
   // needs to be large enough to hold 1000 vertices of drawn masks:
   char line[30000];

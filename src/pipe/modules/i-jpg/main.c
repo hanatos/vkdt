@@ -40,7 +40,7 @@ read_header(
     return 0; // already loaded
   assert(jpg); // this should be inited in init()
 
-  jpg->f = fopen(filename, "rb");
+  jpg->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!jpg->f) return 1;
 
   jpgerr_t err;
