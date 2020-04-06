@@ -64,7 +64,8 @@ dt_graph_export(
     dt_graph_t *graph,         // graph to run, will overwrite filename param
     int         output_cnt,    // number of outputs to export
     dt_token_t  output[],      // instance of output module i (o-jpg or o-pfm)
-    const char *fname[])       // filename i to go with the output module i
+    const char *fname[],       // filename i to go with the output module i
+    float       quality)       // overwrite output quality
 {
   graph->frame = 0;
   dt_module_t *mod_out[20] = {0};
@@ -97,6 +98,8 @@ dt_graph_export(
     dt_module_set_param_string(
         mod_out[i], dt_token("filename"),
         filename);
+    if(mod_out[i]->name == dt_token("o-jpg"))
+      dt_module_set_param_float(mod_out[i], dt_token("quality"), quality);
   }
 
   if(graph->frame_cnt > 1)
@@ -175,7 +178,7 @@ dt_graph_export_quick(
   // make sure all remaining display nodes are removed:
   dt_graph_disconnect_display_modules(&graph);
 
-  dt_graph_export(&graph, output_cnt, output, &filename);
+  dt_graph_export(&graph, output_cnt, output, &filename, 95);
   return VK_SUCCESS;
 }
 

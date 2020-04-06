@@ -21,12 +21,15 @@ int main(int argc, char *argv[])
   int dump_graph = 0;
   int output_cnt = 1;
   int user_output_cnt = 0;
+  float quality = 95.0f;
   dt_token_t output[10] = { dt_token("main"), dt_token("hist") };
   int ldr = 1;
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-g") && i < argc-1)
       graphcfg = argv[++i];
+    else if(!strcmp(argv[i], "--quality") && i < argc-1)
+      quality = atof(argv[++i]);
     else if(!strcmp(argv[i], "--dump-modules"))
       dump_graph = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
@@ -46,6 +49,7 @@ int main(int argc, char *argv[])
     "    [-d verbosity]                set log verbosity (mem,perf,pipe,cli,err,all)\n"
     "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
+    "    [--quality <0-100>]           jpg output quality\n"
         );
     qvk_cleanup();
     exit(1);
@@ -93,7 +97,7 @@ int main(int argc, char *argv[])
   // make sure all remaining display nodes are removed:
   dt_graph_disconnect_display_modules(&graph);
 
-  dt_graph_export(&graph, output_cnt, output, 0);
+  dt_graph_export(&graph, output_cnt, output, 0, quality);
 
   // nodes we can only print after run() has been called:
   if(dump_graph == 2)
