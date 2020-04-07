@@ -125,6 +125,21 @@ read_module_ascii(
   return dt_module_add(graph, name, inst) < 0;
 }
 
+int dt_graph_read_config_line(
+    dt_graph_t *graph,
+    char *c)
+{
+  if(c[0] == '#') return 0;
+  dt_token_t cmd = dt_read_token(c, &c);
+  if     (cmd == dt_token("module"))   return read_module_ascii(graph, c);
+  else if(cmd == dt_token("param"))    return read_param_ascii(graph, c);
+  else if(cmd == dt_token("connect"))  return read_connection_ascii(graph, c, 0);
+  else if(cmd == dt_token("feedback")) return read_connection_ascii(graph, c, s_conn_feedback);
+  else if(cmd == dt_token("frames"))   graph->frame_cnt = atol(c); // does not fail
+  else return 1;
+  return 0;
+}
+
 // TODO: rewrite this to work on a uint8_t * data pointer (same for write below)
 // TODO: also insert line start pointers (for history stack)
 // this is a public api function on the graph, it reads the full stack
@@ -143,16 +158,8 @@ int dt_graph_read_config_ascii(
   {
     fscanf(f, "%[^\n]", line);
     if(fgetc(f) == EOF) break; // read \n
-    char *c = line;
     lno++;
-    if(line[0] == '#') continue;
-    dt_token_t cmd = dt_read_token(c, &c);
-    if     (cmd == dt_token("module"))   { if(read_module_ascii(graph, c))        goto error;}
-    else if(cmd == dt_token("param"))    { if(read_param_ascii(graph, c))         goto error;}
-    else if(cmd == dt_token("connect"))  { if(read_connection_ascii(graph, c, 0)) goto error;}
-    else if(cmd == dt_token("feedback")) { if(read_connection_ascii(graph, c, s_conn_feedback)) goto error;}
-    else if(cmd == dt_token("frames"))   { graph->frame_cnt = atol(c); }
-    else goto error;
+    if(dt_graph_read_config_line(graph, line)) goto error;
   }
   fclose(f);
   return 0;

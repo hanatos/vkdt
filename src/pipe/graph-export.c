@@ -73,18 +73,20 @@ dt_graph_export(
   char filename[256];
   for(int i=0;i<output_cnt;i++) for(int m=0;m<graph->num_modules;m++)
   {
-    if(graph->module[m].inst == output[i] &&
-        (graph->module[m].name == dt_token("o-jpg") ||
-         graph->module[m].name == dt_token("o-pfm")))
+    if(graph->module[m].inst == output[i])
     {
       mod_out[i] = graph->module+m;
-      if(fname)
-        snprintf(filename, sizeof(filename), "%s_%04d", fname[i], 0);
-      else
-        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(output[i]), 0);
-      dt_module_set_param_string(
-          mod_out[i], dt_token("filename"),
-          filename);
+      if(graph->module[m].name == dt_token("o-jpg") ||
+         graph->module[m].name == dt_token("o-pfm"))
+      {
+        if(fname)
+          snprintf(filename, sizeof(filename), "%s_%04d", fname[i], 0);
+        else
+          snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(output[i]), 0);
+        dt_module_set_param_string(
+            mod_out[i], dt_token("filename"),
+            filename);
+      }
       break;
     }
   }

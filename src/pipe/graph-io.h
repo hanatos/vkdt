@@ -12,3 +12,7 @@ int dt_graph_write_config_ascii(
 
 // TODO: expose individual write to char* functions from io.c file!
 // TODO: then in render.cpp, write to graph->history_pool
+
+int dt_graph_read_config_line(
+    dt_graph_t *graph,
+    char *line);
