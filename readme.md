@@ -14,11 +14,12 @@ targets, such as the main view and histograms.
 
 ## features
 
-* very fast GPU only processing
-* general DAG of processing operations, featuring multiple inputs and outputs and
+* very fast [GPU only](src/qvk/readme.md) processing
+* [general DAG of processing operations](src/pipe/readme.md), featuring multiple inputs and outputs and
   feedback connectors for animation/iteration
 * [full window colour management](doc/colourmanagement.md)
-* minimal set of image operation modules
+* [minimal set of image operation modules](src/pipe/modules/readme.md)
+* [noise profiling](doc/noiseprofiling.md)
 
 ## build instructions
 
