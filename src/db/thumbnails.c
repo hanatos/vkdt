@@ -300,7 +300,8 @@ cache_coll_job_t;
 static void *thread_work_coll(void *arg)
 {
   cache_coll_job_t *j = arg;
-  // already done this before? for whatever buggy reason the scheduler picks up stale jobs twice.
+  // FIXME: already done this before? for whatever buggy reason the scheduler picks up stale jobs twice.
+  // so we assert we don't run twice here. this keeps us from freeing the job below, unfortunately.
   if(j->idx >= j->num) return 0;
   // fprintf(stderr, "[thmb] thread %d working on %d!\n", threads_id(), j->k);
   assert(j->tn);
@@ -313,9 +314,10 @@ static void *thread_work_coll(void *arg)
           j->db->image[j->coll[j->idx]].filename);
     if(threads_shutting_down()) break;
   }
-  // cleanup mutex and job here
   j->tn->graph[j->k].io_mutex = 0;
-  free(j);
+  // TODO: cleanup mutex and job here
+  // TODO: unfortunately, due to the scheduler bug, we'll potentially need the job memory again (see above)
+  // free(j);
   return 0;
 }
 
