@@ -29,8 +29,8 @@ void modify_roi_in(
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
   float *f = (float *)module->committed_param;
-  f[0] = ((float *)(module->param))[0];
-  f[1] = ((float *)(module->param))[1];
+  f[0] = module->img_param.noise_a;
+  f[1] = module->img_param.noise_b;
   uint32_t *i = (uint32_t *)(f+2);
   i[0] = module->img_param.filters;
   i[1] = module->img_param.black[1];
