@@ -153,23 +153,16 @@ dt_module_so_load(
       dt_token_t parm = dt_read_token(b, &b);
       dt_token_t type = dt_read_token(b, &b);
       float min = 0.0f, max = 0.0f;
-      switch(type)
+      if(type == dt_token("slider"))
       {
-        case dt_token("slider"):
-          min = dt_read_float(b, &b);
-          max = dt_read_float(b, &b);
-          break;
-        case dt_token("quad"):
-          break;
-        case dt_token("axquad"):
-          break;
-        case dt_token("draw"):
-          break;
-        case dt_token("hidden"):
-          break;
-        default:
-          dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
+        min = dt_read_float(b, &b);
+        max = dt_read_float(b, &b);
       }
+      else if(type == dt_token("quad"))   {}
+      else if(type == dt_token("axquad")) {}
+      else if(type == dt_token("draw"))   {}
+      else if(type == dt_token("hidden")) {}
+      else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
       mod->param[pid]->widget = (dt_widget_descriptor_t) {
         .type = type,

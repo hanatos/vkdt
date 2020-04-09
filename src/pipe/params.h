@@ -26,13 +26,10 @@ dt_ui_param_t;
 static inline size_t
 dt_ui_param_type_size(const dt_token_t type)
 {
-  switch(type)
-  {
-  case dt_token("float"):  return sizeof(float);
-  case dt_token("int"):    return sizeof(int32_t);
-  case dt_token("string"): return sizeof(char);
-  default: return 0;
-  }
+  if(type == dt_token("float"))  return sizeof(float);
+  if(type == dt_token("int"))    return sizeof(int32_t);
+  if(type == dt_token("string")) return sizeof(char);
+  return 0;
 }
 
 static inline size_t

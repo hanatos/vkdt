@@ -18,7 +18,11 @@ threads_tls_t;
 
 
 extern threads_t thr;
+#ifdef __cplusplus
+extern thread_local threads_tls_t thr_tls;
+#else
 extern _Thread_local threads_tls_t thr_tls;
+#endif
 
 void threads_global_init();
 void threads_global_cleanup();

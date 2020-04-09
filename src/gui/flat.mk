@@ -1,5 +1,6 @@
 GUI_O=gui/gui.o\
       gui/render.o\
+      gui/darkroom.o\
       gui/main.o\
       gui/view.o\
       ../ext/imgui/imgui.o\

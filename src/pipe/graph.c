@@ -446,8 +446,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 
       // TODO: keep cached for others
       vkDestroyShaderModule(qvk.device, shader_module_vert, 0);
-      vkDestroyShaderModule(qvk.device, shader_module_geom, 0);
       vkDestroyShaderModule(qvk.device, shader_module_frag, 0);
+      if(geom == VK_SUCCESS) vkDestroyShaderModule(qvk.device, shader_module_geom, 0);
     }
     else
     { // create the compute shader stage

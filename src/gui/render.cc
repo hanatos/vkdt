@@ -872,6 +872,8 @@ void render_darkroom_pipeline()
   uint64_t err = 0;
   int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
   uint32_t modid[100], cnt = 0;
+  for(int m=0;m<graph->num_modules;m++)
+    modid[m] = m; // init as identity mapping
 
   if(last_err)
   {
@@ -929,7 +931,7 @@ void render_darkroom_pipeline()
         if(nid < 0) continue; // disconnected
         const float *q = vkdt.wstate.connector[nid][cid];
         float b = vkdt.state.panel_wd * 0.03;
-        int rev = nid; // TODO: store reverse list?
+        int rev;// = nid; // TODO: store reverse list?
         // this works mostly but seems to have edge cases where it doesn't:
         // if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
         // else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;

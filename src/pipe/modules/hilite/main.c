@@ -187,7 +187,6 @@ create_nodes(
     rc.full_ht = (rc.full_ht-1)/2+1;
     if(rc.wd <= 1 || rc.ht <= 1 || l+1 == max_nl)
     { // make sure we have enough resolution
-      nl = l+1;
       // connect last reduce to last assemble:
       CONN(dt_node_connect(graph, id_reduce, 1, id_assemble, 1));
       break;

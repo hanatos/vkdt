@@ -30,34 +30,27 @@ read_param_ascii(
   }
   const dt_ui_param_t *p = graph->module[modid].so->param[parid];
   int cnt = p->cnt;
-  switch(p->type)
+  if(p->type == dt_token("float"))
   {
-    case dt_token("float"):
-    {
-      float *block = (float *)(graph->module[modid].param + p->offset);
-      for(int i=0;i<cnt;i++)
-        *(block++) = dt_read_float(line, &line);
-    }
-    break;
-    case dt_token("int"):
-    {
-      int32_t *block = (int32_t *)(graph->module[modid].param + p->offset);
-      for(int i=0;i<cnt;i++)
-        *(block++) = dt_read_int(line, &line);
-    }
-    break;
-    case dt_token("string"):
-    {
-      char *str = (char *)(graph->module[modid].param + p->offset);
-      int i = 0;
-      do str[i++] = *(line++);
-      while(line[0] && (i < cnt-1));
-      str[i] = 0;
-    }
-    break;
-    default:
-    dt_log(s_log_err|s_log_pipe, "unknown param type %"PRItkn, dt_token_str(p->type));
+    float *block = (float *)(graph->module[modid].param + p->offset);
+    for(int i=0;i<cnt;i++)
+      *(block++) = dt_read_float(line, &line);
   }
+  else if(p->type == dt_token("int"))
+  {
+    int32_t *block = (int32_t *)(graph->module[modid].param + p->offset);
+    for(int i=0;i<cnt;i++)
+      *(block++) = dt_read_int(line, &line);
+  }
+  else if(p->type == dt_token("string"))
+  {
+    char *str = (char *)(graph->module[modid].param + p->offset);
+    int i = 0;
+    do str[i++] = *(line++);
+    while(line[0] && (i < cnt-1));
+    str[i] = 0;
+  }
+  else dt_log(s_log_err|s_log_pipe, "unknown param type %"PRItkn, dt_token_str(p->type));
   return 0;
 }
 
@@ -230,30 +223,23 @@ dt_graph_write_param_ascii(
       dt_token_str(mod->name),
       dt_token_str(mod->inst),
       dt_token_str(mod->so->param[p]->name));
-  switch(mod->so->param[p]->type)
+  if(mod->so->param[p]->type == dt_token("float"))
   {
-    case dt_token("float"):
-    {
-      const float *v = dt_module_param_float(mod, p);
-      for(int i=0;i<mod->so->param[p]->cnt-1;i++)
-        WRITE("%g:", v[i]);
-      WRITE("%g\n", v[mod->so->param[p]->cnt-1]);
-      break;
-    }
-    case dt_token("int"):
-    {
-      const int32_t *v = dt_module_param_int(mod, p);
-      for(int i=0;i<mod->so->param[p]->cnt-1;i++)
-        WRITE("%d:", v[i]);
-      WRITE("%d\n", v[mod->so->param[p]->cnt-1]);
-      break;
-    }
-    case dt_token("string"):
-    {
-      WRITE("%s\n", dt_module_param_string(mod, p));
-      break;
-    }
-    default:;
+    const float *v = dt_module_param_float(mod, p);
+    for(int i=0;i<mod->so->param[p]->cnt-1;i++)
+      WRITE("%g:", v[i]);
+    WRITE("%g\n", v[mod->so->param[p]->cnt-1]);
+  }
+  else if(mod->so->param[p]->type == dt_token("int"))
+  {
+    const int32_t *v = dt_module_param_int(mod, p);
+    for(int i=0;i<mod->so->param[p]->cnt-1;i++)
+      WRITE("%d:", v[i]);
+    WRITE("%d\n", v[mod->so->param[p]->cnt-1]);
+  }
+  else if(mod->so->param[p]->type == dt_token("string"))
+  {
+    WRITE("%s\n", dt_module_param_string(mod, p));
   }
   return line;
 }

@@ -65,9 +65,9 @@ create_nodes(
 
   const int max_nl = 12;
   int nl = max_nl;
-  int id_reduce[max_nl] = {-1};
+  int id_reduce[12] = {-1};
   id_reduce[0] = id_curve;
-  int id_assemble[max_nl] = {-1};
+  int id_assemble[12] = {-1};
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
     assert(graph->num_nodes < graph->max_nodes);

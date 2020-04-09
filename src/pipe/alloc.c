@@ -52,6 +52,7 @@ dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
   assert(!dt_vkalloc_check(a));
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
+  assert(l && "vkalloc: no more free slots!");
   while(l)
   { // TODO: store last element so we can access it in fast?
     if(!l->next) break;
@@ -203,7 +204,6 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
           if(a->free == mem) a->free = mem->next;
           DLIST_RM_ELEMENT(mem);
           a->unused = DLIST_PREPEND(a->unused, mem);
-          mem = t;
         }
       }
       return; // done

@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "../core/core.h" // for MIN
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,4 +113,5 @@ void write_sink(
     fprintf(f, "%g %g\n", a, b);
     fclose(f);
   }
+  free(valid);
 }

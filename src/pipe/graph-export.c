@@ -90,6 +90,10 @@ dt_graph_export(
       break;
     }
   }
+  // did not find output module by that instance name
+  for(int i=0;i<output_cnt;i++)
+    if(mod_out[i] == 0)
+      return VK_INCOMPLETE;
 
   for(int i=0;i<output_cnt;i++)
   {

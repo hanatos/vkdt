@@ -2,7 +2,6 @@
 
 #include "token.h"
 #include "alloc.h"
-#include "qvk/qvk.h"
 
 #include <stdint.h>
 #include <vulkan/vulkan.h>
@@ -143,18 +142,12 @@ do { \
 static inline size_t
 dt_connector_bytes_per_pixel(const dt_connector_t *c)
 {
-  switch(c->format)
-  {
-    case dt_token("ui32"):
-    case dt_token("f32") :
-    case dt_token("dspy"):
-      return 4;
-    case dt_token("ui16"):
-    case dt_token("f16") :
-      return 2;
-    case dt_token("ui8") :
-      return 1;
-  }
+  if(c->format == dt_token("ui32")) return 4;
+  if(c->format == dt_token("f32"))  return 4;
+  if(c->format == dt_token("dspy")) return 4;
+  if(c->format == dt_token("ui16")) return 2;
+  if(c->format == dt_token("f16"))  return 2;
+  if(c->format == dt_token("ui8"))  return 1;
   return 0;
 }
 
@@ -173,46 +166,57 @@ static inline VkFormat
 dt_connector_vkformat(const dt_connector_t *c)
 {
   const int len = dt_connector_channels(c);
-  switch(c->format)
+  if(c->format == dt_token("ui32"))
   {
-    case dt_token("ui32"): switch(len)
+    switch(len)
     { // int32 does not have UNORM equivalents (use SFLOAT instead i guess)
       case 1: return VK_FORMAT_R32_UINT;
       case 2: return VK_FORMAT_R32G32_UINT;
       case 3: // return VK_FORMAT_R32G32B32_UINT;
       case 4: return VK_FORMAT_R32G32B32A32_UINT;
     }
-    case dt_token("f32") : switch(len)
+  }
+  if(c->format == dt_token("f32"))
+  {
+    switch(len)
     {
       case 1: return VK_FORMAT_R32_SFLOAT;          // r32f
       case 2: return VK_FORMAT_R32G32_SFLOAT;       // rg32f
       case 3: // return VK_FORMAT_R32G32B32_SFLOAT; // glsl does not support this
       case 4: return VK_FORMAT_R32G32B32A32_SFLOAT; // rgba32f
     }
-    case dt_token("f16") : switch(len)
+  }
+  if(c->format == dt_token("f16"))
+  {
+    switch(len)
     {
       case 1: return VK_FORMAT_R16_SFLOAT;          // r16f
       case 2: return VK_FORMAT_R16G16_SFLOAT;       // rg16f
       case 3: // return VK_FORMAT_R16G16B16_SFLOAT; // glsl does not support this
       case 4: return VK_FORMAT_R16G16B16A16_SFLOAT; // rgba16f
     }
-    case dt_token("ui16"): switch(len)
+  }
+  if(c->format == dt_token("ui16"))
+  {
+    switch(len)
     {
       case 1: return VK_FORMAT_R16_UNORM;
       case 2: return VK_FORMAT_R16G16_UNORM;
       case 3: // return VK_FORMAT_R16G16B16_UNORM;
       case 4: return VK_FORMAT_R16G16B16A16_UNORM;
     }
-    case dt_token("ui8") : switch(len)
+  }
+  if(c->format == dt_token("ui8"))
+  {
+    switch(len)
     {
       case 1: return VK_FORMAT_R8_UNORM;
       case 2: return VK_FORMAT_R8G8_UNORM;
       case 3: // return VK_FORMAT_R8G8B8_UNORM;
       case 4: return VK_FORMAT_R8G8B8A8_UNORM;
     }
-    case dt_token("bc1") : return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
-    case dt_token("dspy"): return qvk.surf_format.format;
   }
+  if(c->format == dt_token("bc1"))  return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
   return VK_FORMAT_UNDEFINED;
 }
 

@@ -2,7 +2,6 @@
 
 #include "pipe/graph.h"
 #include "pipe/alloc.h"
-#include "core/threads.h"
 
 #include <vulkan/vulkan.h>
 

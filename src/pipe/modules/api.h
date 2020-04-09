@@ -27,6 +27,7 @@ dt_node_sink(dt_node_t *n)
   return n->connector[0].type == dt_token("sink");
 }
 
+#ifndef __cplusplus
 static inline void
 dt_connector_copy(
     dt_graph_t  *graph,
@@ -499,6 +500,8 @@ dt_api_guided_filter(
   CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
   *exit_nodeid = id_guided3;
 }
+
+#endif // not defined cplusplus
 
 static inline const uint32_t *dt_module_param_uint32(
     const dt_module_t *module,
