@@ -31,8 +31,9 @@ clean: Makefile
 	rm -f $(MOD_DSOS) $(MOD_DSOSXX)
 	rm -f pipe/modules/*/*.spv
 
-# for sched_affinity
-CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
+# GNU_SOURCE for sched_affinity
+CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
+CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 LDFLAGS=
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
@@ -54,13 +55,13 @@ gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.cc Makefile $(GUI_H) gui/flat.mk
-	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
-	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
-	$(CXX) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # main application
 # ======================

@@ -17,3 +17,7 @@ export VKDT_USE_RAWSPEED
 # don't need to disable this.
 # VKDT_USE_EXIV2=1
 # export VKDT_USE_EXIV2
+
+CC=clang
+CXX=clang++
+export CC CXX

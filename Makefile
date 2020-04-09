@@ -6,8 +6,6 @@
 
 OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
 OPT_LDFLAGS=
-CC=clang -std=c11
-CXX=clang++
 GLSLC=glslangValidator
 AR=ar
 # dr dobb's idea about makefile debugging:
