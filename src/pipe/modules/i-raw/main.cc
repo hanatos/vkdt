@@ -283,7 +283,7 @@ void modify_roi_out(
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-#if 0
+#if 1 // at least this version keeps blue blue
   // now white balance such that (1,1,1) maps to d65 in xyz:
   // (we assume the previous wb coeffs did this for us)
   for(int j=0;j<3;j++)
@@ -328,6 +328,23 @@ void modify_roi_out(
   for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
     cam_to_xyz[3*j+i] +=
       tmp2[3*j+k] * tmp3[3*k+i];
+#endif
+
+#if 0 // XXX FIXME: matrix is wrong
+  fprintf(stderr, "matrix cam -> xyz: \n");
+  fprintf(stderr, "%g %g %g\n", cam_to_xyz[0], cam_to_xyz[1], cam_to_xyz[2]);
+  fprintf(stderr, "%g %g %g\n", cam_to_xyz[3], cam_to_xyz[4], cam_to_xyz[5]);
+  fprintf(stderr, "%g %g %g\n", cam_to_xyz[6], cam_to_xyz[7], cam_to_xyz[8]);
+  // and should be this
+  cam_to_xyz[0] = 0.534607;
+  cam_to_xyz[1] = 0.492371;
+  cam_to_xyz[2] = -0.0627789;
+  cam_to_xyz[3] = 0.165862;
+  cam_to_xyz[4] =  1.14835;
+  cam_to_xyz[5] =  -0.314217;
+  cam_to_xyz[6] =0.013223;
+  cam_to_xyz[7] =-0.214747;
+  cam_to_xyz[8] =1.02642;
 #endif
 
   const float xyz_to_rec2020[] = {
