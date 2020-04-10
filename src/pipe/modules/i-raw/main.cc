@@ -149,7 +149,6 @@ load_raw(
 int init(dt_module_t *mod)
 {
   rawinput_buf_t *dat = new rawinput_buf_t();
-  memset(dat, 0, sizeof(*dat));
   mod->data = dat;
   return 0;
 }

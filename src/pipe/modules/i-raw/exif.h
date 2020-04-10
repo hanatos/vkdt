@@ -716,12 +716,12 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
     if(FIND_EXIF_TAG("Exif.Image.Make"))
     {
       std::string str = pos->print(&exifData);
-      strncpy(ip->maker, str.c_str(), sizeof(ip->maker));
+      strncpy(ip->maker, str.c_str(), sizeof(ip->maker)-1);
     }
     else if(FIND_EXIF_TAG("Exif.PanasonicRaw.Make"))
     {
       std::string str = pos->print(&exifData);
-      strncpy(ip->maker, str.c_str(), sizeof(ip->maker));
+      strncpy(ip->maker, str.c_str(), sizeof(ip->maker)-1);
     }
 
     for(char *c = ip->maker + sizeof(ip->maker) - 1; c > ip->maker; c--)
@@ -734,12 +734,12 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
     if(FIND_EXIF_TAG("Exif.Image.Model"))
     {
       std::string str = pos->print(&exifData);
-      strncpy(ip->model, str.c_str(), sizeof(ip->model));
+      strncpy(ip->model, str.c_str(), sizeof(ip->model)-1);
     }
     else if(FIND_EXIF_TAG("Exif.PanasonicRaw.Model"))
     {
       std::string str = pos->print(&exifData);
-      strncpy(ip->model, str.c_str(), sizeof(ip->model));
+      strncpy(ip->model, str.c_str(), sizeof(ip->model)-1);
     }
 
     for(char *c = ip->model + sizeof(ip->model) - 1; c > ip->model; c--)
@@ -1023,12 +1023,12 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
     if(FIND_EXIF_TAG("Exif.Image.DateTimeOriginal"))
     {
       std::string str = pos->print(&exifData);
-      strncpy(ip->datetime, str.c_str(), sizeof(ip->datetime));
+      strncpy(ip->datetime, str.c_str(), sizeof(ip->datetime)-1);
     }
     else if(FIND_EXIF_TAG("Exif.Photo.DateTimeOriginal"))
     {
       std::string str = pos->print(&exifData);
-      strncpy(ip->datetime, str.c_str(), sizeof(ip->datetime));
+      strncpy(ip->datetime, str.c_str(), sizeof(ip->datetime)-1);
     }
     else
     {
