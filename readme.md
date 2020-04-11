@@ -65,13 +65,15 @@ imgui:        MIT
 and we may link to some others, too.
 
 ## dependencies
-- clang to compile (for now, will restore gcc compat at some point)
 - vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
 - glfw (libglfw3-dev)
 - submodule imgui
 - submodule rawspeed (pulls in pugixml, stdc++, zlib, jpeg, libomp-dev)
 - libjpeg
 - build: make
+optional (configure in `bin/config.mk`):
+- freetype (libfreetype-dev)
+- exiv2 (libexiv2-dev)
 
 
 ## faq

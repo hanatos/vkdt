@@ -31,6 +31,15 @@ compare_filename(const void *a, const void *b, void *arg)
   return strcmp(db->image[ia[0]].filename, db->image[ib[0]].filename);
 }
 
+static inline void
+image_init(dt_image_t *img)
+{
+  img->thumbnail = 0; // loading icon
+  img->filename[0] = 0;
+  img->rating = 0;
+  img->labels = 0;
+}
+
 void dt_db_load_directory(
     dt_db_t         *db,
     dt_thumbnails_t *thumbnails,
@@ -62,6 +71,9 @@ void dt_db_load_directory(
   db->collection_max = db->image_max;
   db->collection = malloc(sizeof(uint32_t)*db->collection_max);
 
+  db->selection_max = db->image_max;
+  db->selection = malloc(sizeof(uint32_t)*db->selection_max);
+
   // the gui thread in main.c starts two background threads creating thumbnails, if needed.
   // thumbnails_load_list() will load the created bc1, triggered in render.cc
   rewinddir(dp);
@@ -72,7 +84,7 @@ void dt_db_load_directory(
     if(!dt_db_accept_filename(ep->d_name)) continue;
 
     const uint32_t imgid = db->image_cnt++;
-    db->image[imgid].thumbnail = 0; // loading icon
+    image_init(db->image + imgid);
     snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
       "%s/%s", dirname, ep->d_name);
 
@@ -124,8 +136,12 @@ void dt_db_load_image(
   db->collection_max = db->image_max;
   db->collection = malloc(sizeof(uint32_t)*db->collection_max);
 
+  db->selection_max = db->image_max;
+  db->selection = malloc(sizeof(uint32_t)*db->selection_max);
+
   db->image_cnt = 1;
   const uint32_t imgid = 0;
+  image_init(db->image + imgid);
   db->image[imgid].thumbnail = -1u;
   if(no_cfg)
     snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
@@ -145,4 +161,30 @@ void dt_db_load_image(
   db->collection_cnt = db->image_cnt;
   for(int k=0;k<db->collection_cnt;k++)
     db->collection[k] = k;
+}
+
+void dt_db_selection_add(dt_db_t *db, uint32_t imgid)
+{
+  if(db->selection_cnt >= db->selection_max) return;
+  int i = db->selection_cnt++;
+  db->selection[i] = imgid;
+}
+
+void dt_db_selection_remove(dt_db_t *db, uint32_t imgid)
+{
+  for(int i=0;i<db->selection_cnt;i++)
+  {
+    if(db->selection[i] == imgid)
+    {
+      db->selection[i] = db->selection[--db->selection_cnt];
+      return;
+    }
+  }
+}
+
+const uint32_t *dt_db_selection_get(dt_db_t *db)
+{
+  // TODO: sync sorting criterion with collection
+  qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filename, db);
+  return db->selection;
 }

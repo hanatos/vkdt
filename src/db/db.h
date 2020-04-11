@@ -20,8 +20,11 @@
 
 typedef struct dt_image_t
 {
-  char filename[2048];
+  char filename[256];  // TODO: allocate from pool in db, to save memory and for locality
+  // char *filename;   // point into db->filename_pool
   uint32_t thumbnail;  // index into thumbnails->thumb[] or -1u
+  uint16_t rating;     // -1u reject 0 1 2 3 4 5 stars
+  uint16_t labels;     // each bit is one colour label flag, 1<<15 is selected bit
 }
 dt_image_t;
 
@@ -32,12 +35,21 @@ typedef struct dt_db_t
   uint32_t image_cnt;
   uint32_t image_max;
 
+  // char    *filename_pool;
+  // uint32_t filename_pool_cnt;
+  // uint32_t filename_pool_max;
+
   // TODO: some sort criterion next to collection (or hidden in upper bits)
 
   // current query
   uint32_t *collection;
   uint32_t  collection_cnt;
   uint32_t  collection_max;
+
+  // selection
+  uint32_t *selection;
+  uint32_t  selection_cnt;
+  uint32_t  selection_max;
 
   // currently selected image (when switching to darkroom mode, e.g.)
   uint32_t current_image;
@@ -74,3 +86,10 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".rw2") ||
          !strcasecmp(f2, ".cfg");   // also accept config files directly (preferrably so)
 }
+
+// add image to the list of selected images, O(1).
+void dt_db_selection_add   (dt_db_t *db, uint32_t imgid);
+// remove image from the list of selected images, O(N).
+void dt_db_selection_remove(dt_db_t *db, uint32_t imgid);
+// return sorted list of selected images
+const uint32_t *dt_db_selection_get(dt_db_t *db);
