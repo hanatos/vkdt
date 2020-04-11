@@ -1,4 +1,4 @@
-# pipeline design
+# processing graph
 
 we want to support arbitrary numbers of input and output channels. this means
 under the hood have a full blown node graph, and modules need to describe
@@ -51,41 +51,8 @@ we setup the processing pipeline/node graph from
 scratch from a simple description format:
 
 ```
-connectors
-params
 project.cfg
 ```
-
-
-# image operation (iop) interface
-
-we'd like to be able to set and get parameters in both an efficient and human
-readable manner.
-
-modules and params should have a name as string (8-chars or 8-byte int)
-to facilitate both readable interaction as well as efficient comparison:
-
-```
-typedef union
-{
-  char str[8];
-  uint64_t id;
-}
-token_t;
-```
-
-the initialisation
-```
-token_t tkn = {.id = 0xfffful };
-```
-is simple, the other way around requires us to pad up the string to exactly 8
-chars, so we'll need an api function that takes care of this.  hopefully this
-code path should never be triggered in performance critical steps (either hard
-coded/compile time or when reading human readable input which should be rare).
-
-this is used extensively for ascii and binary io of connector configuration,
-parameter input, and gui config.
-
 
 # pipeline configuration/parametrs
 
