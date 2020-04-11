@@ -18,6 +18,18 @@
 // for 1) we need metadata as 20-bit index. needs a string pool/hashtable? look
 // into concurrencykit?
 
+typedef enum dt_image_label_t
+{
+  s_image_label_none   = 0,
+  s_image_label_red    = 1<<0,
+  s_image_label_green  = 1<<1,
+  s_image_label_blue   = 1<<2,
+  s_image_label_yellow = 1<<3,
+  s_image_label_purple = 1<<4,
+  s_image_label_selected = 1<<15,
+}
+dt_image_label_t;
+
 typedef struct dt_image_t
 {
   char filename[256];  // TODO: allocate from pool in db, to save memory and for locality

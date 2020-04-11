@@ -168,6 +168,7 @@ void dt_db_selection_add(dt_db_t *db, uint32_t imgid)
   if(db->selection_cnt >= db->selection_max) return;
   int i = db->selection_cnt++;
   db->selection[i] = imgid;
+  db->image[imgid].labels |= s_image_label_selected;
 }
 
 void dt_db_selection_remove(dt_db_t *db, uint32_t imgid)
@@ -177,6 +178,7 @@ void dt_db_selection_remove(dt_db_t *db, uint32_t imgid)
     if(db->selection[i] == imgid)
     {
       db->selection[i] = db->selection[--db->selection_cnt];
+      db->image[imgid].labels &= ~s_image_label_selected;
       return;
     }
   }

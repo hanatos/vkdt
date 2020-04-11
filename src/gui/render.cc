@@ -376,6 +376,11 @@ void render_lighttable()
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
           }
+          else if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
+          {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6, 0.6, 0.6, 1.0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
+          }
           float scale = MIN(
               wd/(float)vkdt.thumbnails.thumb[tid].wd,
               ht/(float)vkdt.thumbnails.thumb[tid].ht);
@@ -388,11 +393,23 @@ void render_lighttable()
               border,
               ImVec4(0.5f,0.5f,0.5f,1.0f),
               ImVec4(1.0f,1.0f,1.0f,1.0f));
-          if(vkdt.db.collection[i] == vkdt.db.current_image)
+          if(vkdt.db.collection[i] == vkdt.db.current_image ||
+            (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
             ImGui::PopStyleColor(2);
 
           if(ret)
-            vkdt.db.current_image = vkdt.db.collection[i];
+          {
+            if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
+            {
+              dt_db_selection_remove(&vkdt.db, vkdt.db.collection[i]);
+              vkdt.db.current_image = -1u;
+            }
+            else
+            {
+              dt_db_selection_add(&vkdt.db, vkdt.db.collection[i]);
+              vkdt.db.current_image = vkdt.db.collection[i];
+            }
+          }
 
           if(k < ipl-1) ImGui::SameLine();
           // else NextColumn()
@@ -422,7 +439,14 @@ void render_lighttable()
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
     if(vkdt.db.current_image != -1u && ImGui::Button("export selected", size))
     {
-      dt_graph_export_quick(vkdt.db.image[vkdt.db.current_image].filename);
+      // TODO: put in background job, implement job scheduler
+      const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+      char filename[256];
+      for(int i=0;i<vkdt.db.selection_cnt;i++)
+      {
+        snprintf(filename, sizeof(filename), "/tmp/img_%04d", i);
+        dt_graph_export_quick(vkdt.db.image[sel[i]].filename, filename);
+      }
     }
     ImGui::End(); // lt center window
   }

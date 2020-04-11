@@ -26,5 +26,7 @@ dt_graph_export(
     float       quality);      // overwrite output quality
 
 // quick interface:
-VkResult dt_graph_export_quick(const char *graphcfg);
+VkResult dt_graph_export_quick(
+    const char *graphcfg,      // cfg filename of graph to export
+    const char *filename);     // output filename "main" display will be rendered to
 
