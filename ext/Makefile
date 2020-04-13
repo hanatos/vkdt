@@ -1,7 +1,7 @@
-.PHONY:all clean rawspeed pthread-pool
+.PHONY:all clean rawspeed
 BUILT=../built/ext
 
-all: rawspeed pthread-pool
+all: rawspeed
 
 rawspeed: Makefile $(BUILT)/rawspeed/librawspeed.a
 
@@ -17,12 +17,5 @@ $(BUILT)/rawspeed/librawspeed.a: Makefile $(BUILT)/rawspeed/Makefile
 	$(MAKE) -C $(BUILT)/rawspeed
 	strip -S $(BUILT)/rawspeed/librawspeed.a
 
-pthread-pool: Makefile
-	mkdir -p $(BUILT)/pthread-pool
-	$(MAKE) -C pthread-pool
-	cp pthread-pool/libpthreadpool.a $(BUILT)/pthread-pool/
-	strip -S $(BUILT)/pthread-pool/libpthreadpool.a
-
 clean: Makefile
-	$(MAKE) -C pthread-pool clean
 

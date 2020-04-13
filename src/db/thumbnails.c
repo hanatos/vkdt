@@ -1,5 +1,4 @@
 #include "core/log.h"
-#include "../ext/pthread-pool/pthread_pool.h"
 #include "db/db.h"
 #include "db/thumbnails.h"
 #include "db/murmur3.h"
@@ -287,38 +286,35 @@ dt_thumbnails_cache_one(
 
 typedef struct cache_coll_job_t
 {
+  threads_mutex_t mutex_storage;
+  uint32_t idx_storage;
+  uint32_t gid;
   threads_mutex_t *mutex;
   dt_thumbnails_t *tn;
   dt_db_t *db;
   uint32_t *coll;
-  uint32_t num;
-  uint32_t idx;
-  int k;
 }
 cache_coll_job_t;
 
-static void *thread_work_coll(void *arg)
+static void thread_free_coll(void *arg)
+{
+  // task is done, every thread will call this
+  cache_coll_job_t *j = arg;
+  // only first thread frees 
+  if(j->gid == 0)
+  {
+    pthread_mutex_destroy(&j->mutex_storage);
+    free(j);
+  }
+}
+
+static void thread_work_coll(uint32_t item, void *arg)
 {
   cache_coll_job_t *j = arg;
-  // FIXME: already done this before? for whatever buggy reason the scheduler picks up stale jobs twice.
-  // so we assert we don't run twice here. this keeps us from freeing the job below, unfortunately.
-  if(j->idx >= j->num) return 0;
-  // fprintf(stderr, "[thmb] thread %d working on %d!\n", threads_id(), j->k);
-  assert(j->tn);
-
-  j->tn->graph[j->k].io_mutex = &j->mutex;
-  for(;j->idx<j->num;j->idx++)
-  {
-    if((j->idx % DT_THUMBNAILS_THREADS) == j->k)
-      (void) dt_thumbnails_cache_one(j->tn->graph + j->k, j->tn,
-          j->db->image[j->coll[j->idx]].filename);
-    if(threads_shutting_down()) break;
-  }
-  j->tn->graph[j->k].io_mutex = 0;
-  // TODO: cleanup mutex and job here
-  // TODO: unfortunately, due to the scheduler bug, we'll potentially need the job memory again (see above)
-  // free(j);
-  return 0;
+  j->tn->graph[j->gid].io_mutex = j->mutex;
+  (void) dt_thumbnails_cache_one(j->tn->graph + j->gid, j->tn,
+      j->db->image[j->coll[item]].filename);
+  j->tn->graph[j->gid].io_mutex = 0;
 }
 
 VkResult
@@ -333,23 +329,28 @@ dt_thumbnails_cache_collection(
   }
 
   uint32_t *collection = db->collection; // TODO: take copy once this thing changes
-  threads_mutex_t mutex;
-  threads_mutex_init(&mutex, 0); // we'll leak this, too, because we're not waiting for the threads
-  cache_coll_job_t *job[DT_THUMBNAILS_THREADS];
+  cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t)*DT_THUMBNAILS_THREADS);
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
-    job[k] = malloc(sizeof(cache_coll_job_t));
-    *(job[k]) = (cache_coll_job_t) {
-      .mutex = &mutex,
-      .num   = db->collection_cnt,
+    if(k == 0)
+    {
+      threads_mutex_init(&job[0].mutex_storage, 0);
+      job[0].idx_storage = 0;
+    }
+    job[k] = (cache_coll_job_t) {
+      .mutex = &job[0].mutex_storage,
       .coll  = collection,
-      .k     = k,
+      .gid   = k,
       .tn    = tn,
       .db    = db,
     };
+    assert(0 == threads_task(
+        db->collection_cnt,
+        &job[0].idx_storage,
+        job+k,
+        thread_work_coll,
+        thread_free_coll));
   }
-  for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
-    threads_task(k, &thread_work_coll, job[k]);
   return VK_SUCCESS;
 }
 

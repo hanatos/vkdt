@@ -59,7 +59,6 @@ otherwise in the respective source files). there are parts from other libraries
 that are licenced differently. in particular:
 
 rawspeed:     LGPLv2
-pthread-pool: LGPLv2
 imgui:        MIT
 
 and we may link to some others, too.
