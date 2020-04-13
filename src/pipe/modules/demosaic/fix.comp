@@ -59,8 +59,13 @@ main()
   for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
   {
     vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
-    vec3 g = max(vec3(1e-8), rgb.ggg);
+    vec3 g = max(vec3(1e-4), rgb.ggg);
     rgb /= g;
+    // we are demosaicing, the range of the camera is black..white in 0,1 by
+    // now. highlights above 1 can occur due to reconstruction + white balance,
+    // but above 5 i would be hard pressed to believe makes much sense.
+    // the below 0 values should have been handled pre-demosaic in denoising.
+    rgb = clamp(rgb, vec3(0.0), vec3(5.0));
     mom1 += rgb;
     mom2 += rgb * rgb;
   }
