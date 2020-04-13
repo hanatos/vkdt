@@ -1104,25 +1104,25 @@ void render_darkroom()
       {
         if(ip->exposure >= 1.0f)
           if(nearbyintf(ip->exposure) == ip->exposure)
-            ImGui::Text("%.0f″ f/%.1f %dmm ISO %d", ip->exposure, ip->aperture,
+            ImGui::Text("%s %.0f″ f/%.1f %dmm ISO %d", ip->model, ip->exposure, ip->aperture,
                 (int)ip->focal_length, (int)ip->iso);
           else
-            ImGui::Text("%.1f″ f/%.1f %dmm ISO %d", ip->exposure, ip->aperture,
+            ImGui::Text("%s %.1f″ f/%.1f %dmm ISO %d", ip->model, ip->exposure, ip->aperture,
                 (int)ip->focal_length, (int)ip->iso);
         /* want to catch everything below 0.3 seconds */
         else if(ip->exposure < 0.29f)
-          ImGui::Text("1/%.0f f/%.1f %dmm ISO %d", 1.0 / ip->exposure, ip->aperture,
+          ImGui::Text("%s 1/%.0f f/%.1f %dmm ISO %d", ip->model, 1.0 / ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
         /* catch 1/2, 1/3 */
         else if(nearbyintf(1.0f / ip->exposure) == 1.0f / ip->exposure)
-          ImGui::Text("1/%.0f f/%.1f %dmm ISO %d", 1.0 / ip->exposure, ip->aperture,
+          ImGui::Text("%s 1/%.0f f/%.1f %dmm ISO %d", ip->model, 1.0 / ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
         /* catch 1/1.3, 1/1.6, etc. */
         else if(10 * nearbyintf(10.0f / ip->exposure) == nearbyintf(100.0f / ip->exposure))
-          ImGui::Text("1/%.1f f/%.1f %dmm ISO %d", 1.0 / ip->exposure, ip->aperture,
+          ImGui::Text("%s 1/%.1f f/%.1f %dmm ISO %d", ip->model, 1.0 / ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
         else
-          ImGui::Text("%.1f″ f/%.1f %dmm ISO %d", ip->exposure, ip->aperture,
+          ImGui::Text("%s %.1f″ f/%.1f %dmm ISO %d", ip->model, ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
       }
     }
