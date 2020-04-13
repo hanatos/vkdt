@@ -237,21 +237,22 @@ void dt_gui_cleanup()
   glfwTerminate();
 }
 
-void dt_gui_render()
+VkResult dt_gui_render()
 {
   VkSemaphore image_acquired_semaphore  = vkdt.sem_image_acquired [vkdt.sem_index];
   VkSemaphore render_complete_semaphore = vkdt.sem_render_complete[vkdt.sem_index];
-  QVK(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index));
+  // timeout is in nanoseconds
+  QVKR(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 1ul<<20, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index));
 
   const int i = vkdt.frame_index;
-  QVK(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
-  QVK(vkResetFences(qvk.device, 1, vkdt.fence+i));
-  QVK(vkResetCommandPool(qvk.device, vkdt.command_pool[i], 0));
+  QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
+  QVKR(vkResetFences(qvk.device, 1, vkdt.fence+i));
+  QVKR(vkResetCommandPool(qvk.device, vkdt.command_pool[i], 0));
   VkCommandBufferBeginInfo info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
   };
-  QVK(vkBeginCommandBuffer(vkdt.command_buffer[i], &info));
+  QVKR(vkBeginCommandBuffer(vkdt.command_buffer[i], &info));
   VkRenderPassBeginInfo rp_info = {
     .sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .renderPass               = vkdt.render_pass,
@@ -279,13 +280,14 @@ void dt_gui_render()
     .pSignalSemaphores    = &render_complete_semaphore,
   };
 
-  QVK(vkEndCommandBuffer(vkdt.command_buffer[i]));
+  QVKR(vkEndCommandBuffer(vkdt.command_buffer[i]));
   threads_mutex_lock(&qvk.queue_mutex);
-  QVK(vkQueueSubmit(qvk.queue_graphics, 1, &sub_info, vkdt.fence[i]));
+  VkResult res = vkQueueSubmit(qvk.queue_graphics, 1, &sub_info, vkdt.fence[i]);
   threads_mutex_unlock(&qvk.queue_mutex);
+  return res;
 }
 
-void dt_gui_present()
+VkResult dt_gui_present()
 {
   VkSemaphore render_complete_semaphore = vkdt.sem_render_complete[vkdt.sem_index];
   VkPresentInfoKHR info = {
@@ -296,8 +298,9 @@ void dt_gui_present()
     .pSwapchains        = &qvk.swap_chain,
     .pImageIndices      = &vkdt.frame_index,
   };
-  QVK(vkQueuePresentKHR(qvk.queue_graphics, &info));
+  QVKR(vkQueuePresentKHR(qvk.queue_graphics, &info));
   vkdt.sem_index = (vkdt.sem_index + 1) % vkdt.image_count;
+  return VK_SUCCESS;
 }
 
 void

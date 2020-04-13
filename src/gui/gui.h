@@ -111,10 +111,10 @@ VkResult dt_gui_recreate_swapchain();
 void dt_gui_render_frame_imgui();
 
 // records and submits command buffer
-void dt_gui_render();
+VkResult dt_gui_render();
 
 // waits for semaphore and presents framebuffer
-void dt_gui_present();
+VkResult dt_gui_present();
 
 // add a widget for the given module instance and parameter name
 void dt_gui_add_widget(
