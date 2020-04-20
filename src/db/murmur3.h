@@ -33,7 +33,8 @@ fmix32(uint32_t h)
 
 //-----------------------------------------------------------------------------
 // MurmurHash3_x86_32
-uint32_t murmur_hash3(
+static inline uint32_t
+murmur_hash3(
     const void * key, int len,
     uint32_t seed)
 {
