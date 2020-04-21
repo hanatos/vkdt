@@ -21,6 +21,7 @@ dt_db_init(dt_db_t *db)
 void
 dt_db_cleanup(dt_db_t *db)
 {
+  dt_stringpool_cleanup(&db->sp_filename);
   memset(db, 0, sizeof(*db));
 }
 
@@ -75,6 +76,8 @@ void dt_db_load_directory(
   db->selection_max = db->image_max;
   db->selection = malloc(sizeof(uint32_t)*db->selection_max);
 
+  dt_stringpool_init(&db->sp_filename, db->collection_max, 20);
+
   // the gui thread in main.c starts two background threads creating thumbnails, if needed.
   // thumbnails_load_list() will load the created bc1, triggered in render.cc
   rewinddir(dp);
@@ -85,31 +88,50 @@ void dt_db_load_directory(
     if(!dt_db_accept_filename(ep->d_name)) continue;
 
     const uint32_t imgid = db->image_cnt++;
+    // TODO: init filename = 0
     image_init(db->image + imgid);
+    // TODO: this cannot be done, remove
     snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
       "%s/%s", dirname, ep->d_name);
 
     // now reject non-cfg files that have a cfg already:
     char cfgfile[256];
-    snprintf(cfgfile, sizeof(cfgfile), "%s", db->image[imgid].filename);
-    int len = strlen(cfgfile);
-    if(len <= 4) continue;
-    char *f2 = cfgfile + len - 4;
-    if(strcasecmp(f2, ".cfg"))
-    { // not a cfg itself
-      sprintf(f2+4, ".cfg"); // this would be the corresponding default cfg
-      struct stat statbuf = {0};
-      if(!stat(cfgfile, &statbuf))
-      { // skip this image, it already has a cfg associated with it, we'll load that:
-        db->image_cnt--;
-        continue;
+    int ep_len = strlen(ep->d_name);
+    if(ep_len > 4)
+    {
+      snprintf(cfgfile, sizeof(cfgfile), "%s/%s", dirname, ep->d_name);
+      int len = strlen(cfgfile);
+      char *f2 = cfgfile + len - 4;
+      if(strcasecmp(f2, ".cfg"))
+      { // not a cfg itself
+        sprintf(f2+4, ".cfg"); // this would be the corresponding default cfg
+        struct stat statbuf = {0};
+        if(!stat(cfgfile, &statbuf))
+        { // skip this image, it already has a cfg associated with it, we'll load that:
+          db->image_cnt--;
+          continue;
+        }
+        // XXX i think we need to remove this, if it ends in .cfg, we'll remove via stringpool:
+        // no config associated with this image yet, let's use the default:
+        snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename), "%s", cfgfile);
       }
-      // no config associated with this image yet, let's use the default:
-      snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename), "%s", cfgfile);
+      else ep_len -= 4; // remove '.cfg' suffix
+    }
+
+    // add base filename to string pool
+    // XXX TODO: fill filename with pointer to string pool:
+    // if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, &db->image[imgid].filename) == -1u)
+    if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, 0) == -1u)
+    {
+      dt_log(s_log_err|s_log_db, "failed to add filename to index! aborting import.");
+      db->image_cnt--;
+      break; // no use trying again
     }
   }
   clock_t end = clock();
   dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
+
+  snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
 
   // TODO: use db/tests/parallel radix sort
   // collect all images: // TODO: abstract more
@@ -210,8 +232,8 @@ int dt_db_read(dt_db_t *db, const char *filename)
 
     // scan filename:rating|labels:number
     sscanf(line, "%s:%s:%d", imgn, what, &num);
-    // get image id or -1u, never insert:
-    uint32_t imgid = dt_stringpool_get(db->sp_filename, imgn, strlen(imgn), -1u);
+    // get image id or -1u, never insert, not interested in the string pointer:
+    uint32_t imgid = dt_stringpool_get(&db->sp_filename, imgn, strlen(imgn), -1u, 0);
     if(imgid != -1u && imgid < db->image_cnt)
     {
       if     (!strcasecmp(what, "rating"))
@@ -239,4 +261,9 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
   }
   fclose(f);
   return 0;
+}
+
+int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t maxlen)
+{
+  return snprintf(fn, maxlen, "%s/%s.cfg", db->dirname, db->image[imgid].filename) >= maxlen;
 }

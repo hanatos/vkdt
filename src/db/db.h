@@ -33,6 +33,8 @@ dt_image_label_t;
 typedef struct dt_image_t
 {
   // TODO: also don't encode directory name here again
+  // XXX if we do the switch, need to edit render.cc:448 and darkroom.c:287,314 to get file name via interface call
+  // XXX also look into thumbnails
   char filename[256];  // TODO: allocate from pool in db, to save memory and for locality
   // char *filename;   // point into db.sp_filename.buf
   uint32_t thumbnail;  // index into thumbnails->thumb[] or -1u
@@ -56,13 +58,15 @@ dt_stringpool_t;
 
 typedef struct dt_db_t
 {
+  char dirname[1024];           // full path of currently opened directory
+
   // list of images in database
   dt_image_t *image;
   uint32_t image_cnt;
   uint32_t image_max;
 
   // string pool for image file names
-  dt_stringpool_t *sp_filename;
+  dt_stringpool_t sp_filename;
 
   // TODO: light table edit history
 
@@ -130,3 +134,7 @@ int dt_db_read (dt_db_t *db, const char *filename);
 // TODO: make sure we only write to this file if we opened the *complete* directory.
 // TODO: single photo/subset sessions should append to the db file in this directory.
 int dt_db_write(const dt_db_t *db, const char *filename, int append);
+
+// fill full file name with directory and extension.
+// return 0 on success, else the buffer was too small.
+int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t maxlen);

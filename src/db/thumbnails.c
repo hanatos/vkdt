@@ -344,7 +344,9 @@ dt_thumbnails_cache_collection(
       .tn    = tn,
       .db    = db,
     };
-    assert(0 == threads_task(
+    // we only care about internal errors. if we call with stupid values,
+    // it just does nothing and returns:
+    assert(-1 != threads_task(
         db->collection_cnt,
         &job[0].idx_storage,
         job+k,

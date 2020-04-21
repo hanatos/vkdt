@@ -29,8 +29,8 @@ dt_stringpool_init(
   size_t buf_size = num_entries * avg_len;
   memset(sp, 0, sizeof(*sp));
   sp->entry_max = num_entries;
-  sp->entry     = malloc(sizeof(dt_stringpool_entry_t)*num_entries);
-  sp->buf       = malloc(buf_size);
+  sp->entry     = calloc(sizeof(dt_stringpool_entry_t), num_entries);
+  sp->buf       = calloc(buf_size, 1);
   sp->buf_max   = buf_size;
   sp->buf_cnt   = 0;
 }
@@ -48,7 +48,8 @@ dt_stringpool_get(
     dt_stringpool_t *sp,    // string pool
     const char      *str,   // string
     uint32_t         sl,    // string length (you can cut it short to compute the hash only on the leading chars)
-    uint32_t         val)   // primary key to associate with the string, in case it's not been inserted before. pass -1u if you don't want to insert.
+    uint32_t         val,   // primary key to associate with the string, in case it's not been inserted before. pass -1u if you don't want to insert.
+    const char     **dedup) // deduplicated string from pool, or 0
 {
   const uint32_t seed = 1337;
   uint32_t j = murmur_hash3(str, sl, seed);
@@ -60,10 +61,14 @@ dt_stringpool_get(
     if(entry->buf)
     { // entry already taken
       if(!strncmp(entry->buf, str, sl))
+      {
+        if(dedup) *dedup = entry->buf;
         return entry->val; // this is us, we have been inserted before
+      }
       // else jump to next candidate
       if(entry->next == -1u)
       {
+        if(val == -1u) return -1u; // no modifying entries if no insertion planned
         entry->next = j + step;
         step *= 2;
       }
@@ -83,6 +88,7 @@ dt_stringpool_get(
       entry->val   = val;
       strncpy(entry->buf, str, sl);
       entry->buf[sl] = 0; // explicitly null-terminate (potentially again, can't hurt)
+      if(dedup) *dedup = entry->buf;
       return entry->val;
     }
   }
