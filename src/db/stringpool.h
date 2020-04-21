@@ -1,31 +1,27 @@
 #pragma once
 
+#include "murmur3.h"
+
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+
 // string pool. this serves two purposes:
 // store hashtable string -> id (e.g. for database to associate file names with imageid)
 // store null-terminated strings themselves in a compact memory layout (locality of reference)
 
-typedef db_stringpool_entry_t
+typedef struct dt_stringpool_entry_t
 {
   uint32_t next; // -1u no next, else: next index
   uint32_t val;
   char    *buf;  // null terminated
 }
-db_stringpool_entry_t;
-
-typedef db_stringpool_t
-{
-  uint32_t entry_max;
-  db_stringpool_entry_t *entry;
-
-  uint32_t buf_max;
-  uint32_t buf_cnt;
-  char *buf;
-}
-db_stringpool_t;
+dt_stringpool_entry_t;
 
 static inline void
-db_stringpool_init(
-    db_stringpool_t *sp,
+dt_stringpool_init(
+    dt_stringpool_t *sp,
     uint32_t num_entries, // number of entries. will add 20% extra.
     uint32_t avg_len)     // assume average string length. filenames straight from cam are 12.
 {
@@ -33,14 +29,14 @@ db_stringpool_init(
   size_t buf_size = num_entries * avg_len;
   memset(sp, 0, sizeof(*sp));
   sp->entry_max = num_entries;
-  sp->entry     = malloc(sizeof(db_stringpool_entry_t)*num_entries);
+  sp->entry     = malloc(sizeof(dt_stringpool_entry_t)*num_entries);
   sp->buf       = malloc(buf_size);
   sp->buf_max   = buf_size;
   sp->buf_cnt   = 0;
 }
 
 static inline void
-db_stringpool_cleanup(db_stringpool_t *sp)
+dt_stringpool_cleanup(dt_stringpool_t *sp)
 {
   free(sp->entry);
   free(sp->buf);
@@ -48,11 +44,11 @@ db_stringpool_cleanup(db_stringpool_t *sp)
 
 // return primary key (may be different to what was passed in case it was already there)
 static inline uint32_t
-db_stringpool_get(
-    db_stringpool_t *sp,    // string pool
+dt_stringpool_get(
+    dt_stringpool_t *sp,    // string pool
     const char      *str,   // string
-    uint32_t         sl     // string length (you can cut it short to compute the hash only on the leading chars)
-    uint32_t         val)   // primary key to associate with the string, in case it's not been inserted before
+    uint32_t         sl,    // string length (you can cut it short to compute the hash only on the leading chars)
+    uint32_t         val)   // primary key to associate with the string, in case it's not been inserted before. pass -1u if you don't want to insert.
 {
   const uint32_t seed = 1337;
   uint32_t j = murmur_hash3(str, sl, seed);
@@ -60,7 +56,7 @@ db_stringpool_get(
   while(1)
   {
     j = j % sp->entry_max;
-    db_stringpool_entry_t *entry = sp->entry + j;
+    dt_stringpool_entry_t *entry = sp->entry + j;
     if(entry->buf)
     { // entry already taken
       if(!strncmp(entry->buf, str, sl))
@@ -75,6 +71,7 @@ db_stringpool_get(
     }
     else
     { // free entry found, allocate string:
+      if(val == -1u) return -1u; // no insert requested
       if(sp->buf_cnt + sl >= sp->buf_max)
       {
         fprintf(stderr, "[stringpool] ran out of memory!\n");

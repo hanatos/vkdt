@@ -1,6 +1,7 @@
 #include "db.h"
 #include "thumbnails.h"
 #include "core/log.h"
+#include "stringpool.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -189,4 +190,53 @@ const uint32_t *dt_db_selection_get(dt_db_t *db)
   // TODO: sync sorting criterion with collection
   qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filename, db);
   return db->selection;
+}
+
+int dt_db_read(dt_db_t *db, const char *filename)
+{
+  FILE *f = fopen(filename, "rb");
+  if(!f) return 1;
+  char line[256];
+  char imgn[256];
+  char what[256];
+  uint32_t num;
+
+  uint32_t lno = 0;
+  while(!feof(f))
+  {
+    fscanf(f, "%[^\n]", line);
+    if(fgetc(f) == EOF) break; // read endline
+    lno++;
+
+    // scan filename:rating|labels:number
+    sscanf(line, "%s:%s:%d", imgn, what, &num);
+    // get image id or -1u, never insert:
+    uint32_t imgid = dt_stringpool_get(db->sp_filename, imgn, strlen(imgn), -1u);
+    if(imgid != -1u && imgid < db->image_cnt)
+    {
+      if     (!strcasecmp(what, "rating"))
+        db->image[imgid].rating = num;
+      else if(!strcasecmp(what, "labels"))
+        db->image[imgid].labels = num;
+      else
+        dt_log(s_log_db|s_log_err, "no such property in line %u: '%s'", lno, line);
+    }
+    else
+      dt_log(s_log_db|s_log_err, "no such image in line %u: '%s'", lno, line);
+  }
+  fclose(f);
+  return 0;
+}
+
+int dt_db_write(const dt_db_t *db, const char *filename, int append)
+{
+  FILE *f = append ? fopen(filename, "a+b") : fopen(filename, "wb");
+  if(!f) return 1;
+  for(int i=0;db->image_cnt;i++)
+  {
+    fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);
+    fprintf(f, "%s:labels:%u\n", db->image[i].filename, db->image[i].labels);
+  }
+  fclose(f);
+  return 0;
 }

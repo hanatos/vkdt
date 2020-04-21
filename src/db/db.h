@@ -32,13 +32,27 @@ dt_image_label_t;
 
 typedef struct dt_image_t
 {
+  // TODO: also don't encode directory name here again
   char filename[256];  // TODO: allocate from pool in db, to save memory and for locality
-  // char *filename;   // point into db->filename_pool
+  // char *filename;   // point into db.sp_filename.buf
   uint32_t thumbnail;  // index into thumbnails->thumb[] or -1u
   uint16_t rating;     // -1u reject 0 1 2 3 4 5 stars
   uint16_t labels;     // each bit is one colour label flag, 1<<15 is selected bit
 }
 dt_image_t;
+
+// forward declare for stringpool.h so we don't have to include it here.
+typedef struct dt_stringpool_entry_t dt_stringpool_entry_t;
+typedef struct dt_stringpool_t
+{
+  uint32_t entry_max;
+  dt_stringpool_entry_t *entry;
+
+  uint32_t buf_max;
+  uint32_t buf_cnt;
+  char *buf;
+}
+dt_stringpool_t;
 
 typedef struct dt_db_t
 {
@@ -47,11 +61,12 @@ typedef struct dt_db_t
   uint32_t image_cnt;
   uint32_t image_max;
 
-  // char    *filename_pool;
-  // uint32_t filename_pool_cnt;
-  // uint32_t filename_pool_max;
+  // string pool for image file names
+  dt_stringpool_t *sp_filename;
 
-  // TODO: some sort criterion next to collection (or hidden in upper bits)
+  // TODO: light table edit history
+
+  // TODO: current sort criterion for current collection
 
   // current query
   uint32_t *collection;
@@ -107,9 +122,11 @@ void dt_db_selection_remove(dt_db_t *db, uint32_t imgid);
 const uint32_t *dt_db_selection_get(dt_db_t *db);
 
 // work with lighttable history
-// TODO: modify image rating
-// TODO: modify image labels
-// TODO: read line of config in binary or ascii
+// TODO: modify image rating w/ adding history
+// TODO: modify image labels w/ adding history
 
-// TODO: db to have uint8_t *history and history_max
-//       and line pointers to begin of next entry
+// read and write db config in ascii
+int dt_db_read (dt_db_t *db, const char *filename);
+// TODO: make sure we only write to this file if we opened the *complete* directory.
+// TODO: single photo/subset sessions should append to the db file in this directory.
+int dt_db_write(const dt_db_t *db, const char *filename, int append);
