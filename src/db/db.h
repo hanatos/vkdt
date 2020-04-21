@@ -105,3 +105,11 @@ void dt_db_selection_add   (dt_db_t *db, uint32_t imgid);
 void dt_db_selection_remove(dt_db_t *db, uint32_t imgid);
 // return sorted list of selected images
 const uint32_t *dt_db_selection_get(dt_db_t *db);
+
+// work with lighttable history
+// TODO: modify image rating
+// TODO: modify image labels
+// TODO: read line of config in binary or ascii
+
+// TODO: db to have uint8_t *history and history_max
+//       and line pointers to begin of next entry
