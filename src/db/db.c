@@ -154,11 +154,15 @@ void dt_db_load_image(
   db->selection_max = db->image_max;
   db->selection = malloc(sizeof(uint32_t)*db->selection_max);
 
+  dt_stringpool_init(&db->sp_filename, db->collection_max, 256);
+
   db->image_cnt = 1;
   const uint32_t imgid = 0;
   image_init(db->image + imgid);
   db->image[imgid].thumbnail = -1u;
   db->dirname[0] = 0;
+
+  fprintf(stderr, "dir %s filename %s len %u\n", db->dirname, filename, len);
 
   if(dt_stringpool_get(&db->sp_filename, filename, len, imgid, &db->image[imgid].filename) == -1u)
   { // should never happen for a single image:

@@ -387,12 +387,14 @@ void render_lighttable()
           // float w = ht * vkdt.thumbnails.thumb[tid].wd/(float)vkdt.thumbnails.thumb[tid].ht;
           float w = vkdt.thumbnails.thumb[tid].wd * scale;
           float h = vkdt.thumbnails.thumb[tid].ht * scale;
-          bool ret = ImGui::ThumbnailImage(vkdt.thumbnails.thumb[tid].dset,
+          uint32_t ret = ImGui::ThumbnailImage(vkdt.thumbnails.thumb[tid].dset,
               ImVec2(w, h),
               ImVec2(0,0), ImVec2(1,1),
               border,
               ImVec4(0.5f,0.5f,0.5f,1.0f),
-              ImVec4(1.0f,1.0f,1.0f,1.0f));
+              ImVec4(1.0f,1.0f,1.0f,1.0f),
+              vkdt.db.image[vkdt.db.collection[i]].rating,
+              vkdt.db.image[vkdt.db.collection[i]].labels);
           if(vkdt.db.collection[i] == vkdt.db.current_image ||
             (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
             ImGui::PopStyleColor(2);

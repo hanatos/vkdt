@@ -48,5 +48,22 @@ uint32_t ImGui::ImageThumbnail(
     window->DrawList->AddRectFilled(image_bb.Min, image_bb.Max, GetColorU32(bg_col));
   window->DrawList->AddImage(user_texture_id, image_bb.Min, image_bb.Max, uv0, uv1, GetColorU32(tint_col));
 
+  // render decorations (colour labels/stars/etc?)
+  float c[] = {0, 1,
+    0.951057, 0.309017,
+    0.587785, -0.809017,
+    -0.587785, -0.809017,
+    -0.951057, 0.309017};
+  float x[20];
+  for(int i=0;i<5;i++)
+  {
+    x[4*i+0] = 0.1*size * c[2*i+0]
+    x[4*i+1] = 0.1*size * c[2*i+1]
+    x[4*i+2] = 0.05*size * c[2*i+4+0]
+    x[4*i+3] = 0.05*size * c[2*i+4+1]
+  }
+  ImGui::GetWindowDrawList()->AddPolyline(
+      (ImVec2 *)x, 10, IM_COL32_WHITE, true, vkdt.state.center_ht/500.0f);
+
   return pressed;
 }
