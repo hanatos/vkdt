@@ -21,6 +21,10 @@ dt_db_init(dt_db_t *db)
 void
 dt_db_cleanup(dt_db_t *db)
 {
+  char dbname[256];
+  snprintf(dbname, sizeof(dbname), "%s/vkdt.db", db->dirname);
+  // do not write if opened single image:
+  if(db->image_cnt > 1) dt_db_write(db, dbname, 0);
   dt_stringpool_cleanup(&db->sp_filename);
   memset(db, 0, sizeof(*db));
 }
@@ -123,6 +127,10 @@ void dt_db_load_directory(
   dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
   snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
+  
+  char dbname[256];
+  snprintf(dbname, sizeof(dbname), "%s/vkdt.db", dirname);
+  dt_db_read(db, dbname);
 
   // TODO: use db/tests/parallel radix sort
   // collect all images: // TODO: abstract more
@@ -231,7 +239,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
     lno++;
 
     // scan filename:rating|labels:number
-    sscanf(line, "%s:%s:%d", imgn, what, &num);
+    sscanf(line, "%[^:]:%[^:]:%d", imgn, what, &num);
     // get image id or -1u, never insert, not interested in the string pointer:
     uint32_t imgid = dt_stringpool_get(&db->sp_filename, imgn, strlen(imgn), -1u, 0);
     if(imgid != -1u && imgid < db->image_cnt)
@@ -254,10 +262,10 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
 {
   FILE *f = append ? fopen(filename, "a+b") : fopen(filename, "wb");
   if(!f) return 1;
-  for(int i=0;db->image_cnt;i++)
+  for(int i=0;i<db->image_cnt;i++)
   {
     fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);
-    fprintf(f, "%s:labels:%u\n", db->image[i].filename, db->image[i].labels);
+    fprintf(f, "%s:labels:%u\n", db->image[i].filename, db->image[i].labels & 0x7fffu); // mask selection bit
   }
   fclose(f);
   return 0;

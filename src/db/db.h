@@ -127,8 +127,6 @@ const uint32_t *dt_db_selection_get(dt_db_t *db);
 
 // read and write db config in ascii
 int dt_db_read (dt_db_t *db, const char *filename);
-// TODO: make sure we only write to this file if we opened the *complete* directory.
-// TODO: single photo/subset sessions should append to the db file in this directory.
 int dt_db_write(const dt_db_t *db, const char *filename, int append);
 
 // fill full file name with directory and extension.
