@@ -441,11 +441,12 @@ void render_lighttable()
     {
       // TODO: put in background job, implement job scheduler
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      char filename[256];
+      char filename[256], infilename[256];
       for(int i=0;i<vkdt.db.selection_cnt;i++)
       {
         snprintf(filename, sizeof(filename), "/tmp/img_%04d", i);
-        dt_graph_export_quick(vkdt.db.image[sel[i]].filename, filename);
+        dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
+        dt_graph_export_quick(infilename, filename);
       }
     }
     ImGui::End(); // lt center window

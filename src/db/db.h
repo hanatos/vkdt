@@ -32,14 +32,10 @@ dt_image_label_t;
 
 typedef struct dt_image_t
 {
-  // TODO: also don't encode directory name here again
-  // XXX if we do the switch, need to edit render.cc:448 and darkroom.c:287,314 to get file name via interface call
-  // XXX also look into thumbnails
-  char filename[256];  // TODO: allocate from pool in db, to save memory and for locality
-  // char *filename;   // point into db.sp_filename.buf
-  uint32_t thumbnail;  // index into thumbnails->thumb[] or -1u
-  uint16_t rating;     // -1u reject 0 1 2 3 4 5 stars
-  uint16_t labels;     // each bit is one colour label flag, 1<<15 is selected bit
+  const char *filename;  // point into db.sp_filename.buf stringpool
+  uint32_t    thumbnail; // index into thumbnails->thumb[] or -1u
+  uint16_t    rating;    // -1u reject 0 1 2 3 4 5 stars
+  uint16_t    labels;    // each bit is one colour label flag, 1<<15 is selected bit
 }
 dt_image_t;
 

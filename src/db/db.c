@@ -37,7 +37,7 @@ static inline void
 image_init(dt_image_t *img)
 {
   img->thumbnail = 0; // loading icon
-  img->filename[0] = 0;
+  img->filename = 0;
   img->rating = 0;
   img->labels = 0;
 }
@@ -88,11 +88,7 @@ void dt_db_load_directory(
     if(!dt_db_accept_filename(ep->d_name)) continue;
 
     const uint32_t imgid = db->image_cnt++;
-    // TODO: init filename = 0
     image_init(db->image + imgid);
-    // TODO: this cannot be done, remove
-    snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
-      "%s/%s", dirname, ep->d_name);
 
     // now reject non-cfg files that have a cfg already:
     char cfgfile[256];
@@ -111,17 +107,12 @@ void dt_db_load_directory(
           db->image_cnt--;
           continue;
         }
-        // XXX i think we need to remove this, if it ends in .cfg, we'll remove via stringpool:
-        // no config associated with this image yet, let's use the default:
-        snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename), "%s", cfgfile);
       }
       else ep_len -= 4; // remove '.cfg' suffix
     }
 
     // add base filename to string pool
-    // XXX TODO: fill filename with pointer to string pool:
-    // if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, &db->image[imgid].filename) == -1u)
-    if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, 0) == -1u)
+    if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, &db->image[imgid].filename) == -1u)
     {
       dt_log(s_log_err|s_log_db, "failed to add filename to index! aborting import.");
       db->image_cnt--;
@@ -152,6 +143,7 @@ void dt_db_load_image(
   int len = strnlen(filename, 2048);
   int no_cfg = 0;
   if(len <= 4 || strcasecmp(filename+len-4, ".cfg")) no_cfg = 1;
+  else len -= 4; // remove .cfg suffix
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);
@@ -166,16 +158,20 @@ void dt_db_load_image(
   const uint32_t imgid = 0;
   image_init(db->image + imgid);
   db->image[imgid].thumbnail = -1u;
-  if(no_cfg)
-    snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
-        "%s.cfg", filename);
-  else
-    snprintf(db->image[imgid].filename, sizeof(db->image[imgid].filename),
-        "%s", filename);
+  db->dirname[0] = 0;
+
+  if(dt_stringpool_get(&db->sp_filename, filename, len, imgid, &db->image[imgid].filename) == -1u)
+  { // should never happen for a single image:
+    dt_log(s_log_err|s_log_db, "failed to add filename to index! aborting import.");
+    db->image_cnt--;
+    return;
+  }
+  char fullfn[1024];
+  dt_db_image_path(db, 0, fullfn, sizeof(fullfn));
   uint32_t thumbid = -1u;
   if(dt_thumbnails_load_one(
         thumbnails,
-        db->image[imgid].filename,
+        fullfn,
         &thumbid) != VK_SUCCESS) return;
 
   db->image[imgid].thumbnail = thumbid;

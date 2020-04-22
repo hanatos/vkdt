@@ -284,7 +284,7 @@ darkroom_enter()
   uint32_t imgid = vkdt.db.current_image;
   if(imgid == -1u) return 1;
   char graph_cfg[2048];
-  snprintf(graph_cfg, sizeof(graph_cfg), "%s", vkdt.db.image[imgid].filename);
+  dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
 
   // stat, if doesn't exist, load default
   // always set filename param? (definitely do that for default cfg)
@@ -311,9 +311,9 @@ darkroom_enter()
   if(load_default)
   {
     char imgfilename[256];
-    snprintf(imgfilename, sizeof(imgfilename), "%s", vkdt.db.image[imgid].filename);
+    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
     snprintf(vkdt.graph_dev.searchpath, sizeof(vkdt.graph_dev.searchpath), "%s", dirname(imgfilename));
-    snprintf(imgfilename, sizeof(imgfilename), "%s", vkdt.db.image[imgid].filename);
+    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
     int len = strlen(imgfilename);
     assert(len > 4);
     imgfilename[len-4] = 0; // cut away ".cfg"
@@ -361,15 +361,17 @@ int
 darkroom_leave()
 {
   dt_image_t *img = vkdt.db.image + vkdt.db.current_image;
-  if(!strstr(img->filename, "examples"))
-    dt_graph_write_config_ascii(&vkdt.graph_dev, img->filename);
+  char filename[1024];
+  dt_db_image_path(&vkdt.db, vkdt.db.current_image, filename, sizeof(filename));
+  if(!strstr(vkdt.db.dirname, "examples"))
+    dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
   // TODO: start from already loaded/inited graph instead of from scratch!
   QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
   (void)dt_thumbnails_cache_one(
       &vkdt.graph_dev,
       &vkdt.thumbnails,
-      img->filename);
-  dt_thumbnails_load_one(&vkdt.thumbnails, img->filename, &img->thumbnail);
+      filename);
+  dt_thumbnails_load_one(&vkdt.thumbnails, filename, &img->thumbnail);
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   return 0;

@@ -312,8 +312,9 @@ static void thread_work_coll(uint32_t item, void *arg)
 {
   cache_coll_job_t *j = arg;
   j->tn->graph[j->gid].io_mutex = j->mutex;
-  (void) dt_thumbnails_cache_one(j->tn->graph + j->gid, j->tn,
-      j->db->image[j->coll[item]].filename);
+  char filename[1024];
+  dt_db_image_path(j->db, j->coll[item], filename, sizeof(filename));
+  (void) dt_thumbnails_cache_one(j->tn->graph + j->gid, j->tn, filename);
   j->tn->graph[j->gid].io_mutex = 0;
 }
 
@@ -380,7 +381,9 @@ dt_thumbnails_load_list(
     if(img->thumbnail == 1) continue; // known broken
     if(img->thumbnail == 0)
     { // not loaded
-      if(dt_thumbnails_load_one(tn, img->filename, &img->thumbnail))
+      char filename[1024];
+      dt_db_image_path(db, imgid, filename, sizeof(filename));  
+      if(dt_thumbnails_load_one(tn, filename, &img->thumbnail))
         img->thumbnail = 0;
     }
     else if(img->thumbnail > 0 && img->thumbnail < tn->thumb_max)
