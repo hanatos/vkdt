@@ -93,6 +93,18 @@ uint32_t ThumbnailImage(
   for(int i=0;i<rating;i++)
     draw_star(bb.Min[0] + 0.1*wd*(i+1), bb.Min[1] + 0.1*wd, 0.03*wd, starcol);
 
+  uint32_t label_col[] = {
+    0xff3333ccu, // red
+    0xff33cc33u, // green
+    0xffcc3333u, // blue
+    0xff33ccccu, // yellow
+    0xffcc33ccu, // magenta
+  };
+  for(int i=0;i<5;i++)
+    if(labels & (1<<i))
+      window->DrawList->AddCircleFilled(ImVec2(bb.Min[0] + 0.1*wd*(i+1), bb.Min[1] + 0.9*wd), 0.04*wd, label_col[i]);
+
+  // TODO: return stars or labels if they have been clicked
   return pressed ? 1 : 0;
 }
 

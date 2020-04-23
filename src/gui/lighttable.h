@@ -10,36 +10,32 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
       if(vkdt.db.current_image != -1u)
         dt_view_switch(s_view_darkroom);
     }
-    else if(key == GLFW_KEY_1)
-    { // TODO: or work on selection?
-      if(vkdt.db.current_image != -1u)
-        vkdt.db.image[vkdt.db.current_image].rating = 1;
+    // TODO: work on selection instead of current_image?
+#define RATE(X)\
+    else if(key == GLFW_KEY_ ## X )\
+    {\
+      if(vkdt.db.current_image != -1u)\
+        vkdt.db.image[vkdt.db.current_image].rating = X;\
     }
-    else if(key == GLFW_KEY_2)
-    { // TODO: or work on selection?
-      if(vkdt.db.current_image != -1u)
-        vkdt.db.image[vkdt.db.current_image].rating = 2;
+    RATE(1)
+    RATE(2)
+    RATE(3)
+    RATE(4)
+    RATE(5)
+    RATE(0)
+#undef RATE
+#define LABEL(X)\
+    else if(key == GLFW_KEY_F ## X)\
+    {\
+      if(vkdt.db.current_image != -1u)\
+        vkdt.db.image[vkdt.db.current_image].labels ^= 1<<(X-1);\
     }
-    else if(key == GLFW_KEY_3)
-    { // TODO: or work on selection?
-      if(vkdt.db.current_image != -1u)
-        vkdt.db.image[vkdt.db.current_image].rating = 3;
-    }
-    else if(key == GLFW_KEY_4)
-    { // TODO: or work on selection?
-      if(vkdt.db.current_image != -1u)
-        vkdt.db.image[vkdt.db.current_image].rating = 4;
-    }
-    else if(key == GLFW_KEY_5)
-    { // TODO: or work on selection?
-      if(vkdt.db.current_image != -1u)
-        vkdt.db.image[vkdt.db.current_image].rating = 5;
-    }
-    else if(key == GLFW_KEY_0)
-    { // TODO: or work on selection?
-      if(vkdt.db.current_image != -1u)
-        vkdt.db.image[vkdt.db.current_image].rating = 0;
-    }
+    LABEL(1)
+    LABEL(2)
+    LABEL(3)
+    LABEL(4)
+    LABEL(5)
+#undef LABEL
   }
 }
 
