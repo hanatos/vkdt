@@ -21,9 +21,9 @@
 
 dt_gui_t vkdt;
 
-static int g_running = 1;
-static int g_busy = 3;
-static int g_fullscreen = 0;
+int g_running = 1;
+int g_busy = 3;
+int g_fullscreen = 0;
 
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
