@@ -22,10 +22,10 @@ dt_stringpool_entry_t;
 static inline void
 dt_stringpool_init(
     dt_stringpool_t *sp,
-    uint32_t num_entries, // number of entries. will add 20% extra.
+    uint32_t num_entries, // number of entries. will add some extra.
     uint32_t avg_len)     // assume average string length. filenames straight from cam are 12.
 {
-  num_entries += num_entries / 5; // add 20% slack
+  num_entries += num_entries; // add slack
   size_t buf_size = num_entries * avg_len;
   memset(sp, 0, sizeof(*sp));
   sp->entry_max = num_entries;
@@ -53,7 +53,7 @@ dt_stringpool_get(
 {
   const uint32_t seed = 1337;
   uint32_t j = murmur_hash3(str, sl, seed);
-  int step = 1;
+  const int step = 7919; // large prime number. up to entry_max < this we will always step through all entries in the list then.
   while(1)
   {
     j = j % sp->entry_max;
@@ -70,7 +70,6 @@ dt_stringpool_get(
       {
         if(val == -1u) return -1u; // no modifying entries if no insertion planned
         entry->next = j + step;
-        step *= 2;
       }
       j = entry->next;
     }
