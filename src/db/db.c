@@ -275,3 +275,8 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
 {
   return snprintf(fn, maxlen, "%s/%s.cfg", db->dirname, db->image[imgid].filename) >= maxlen;
 }
+
+// TODO: add image to collection
+// TODO: get image_path, get murmur3 hash
+// TODO: create directory ~/.config/vkdt/tags/<tag>/ and link <hash> to our image path
+// TODO: use relative path names in link? still useful if ~/.config top level?

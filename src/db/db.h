@@ -132,3 +132,5 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append);
 // fill full file name with directory and extension.
 // return 0 on success, else the buffer was too small.
 int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t maxlen);
+
+// TODO: add image to collection

@@ -1,6 +1,7 @@
 #include "core/log.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
+#include "pipe/graph-export.h"
 #include "pipe/modules/api.h"
 
 #include <libgen.h>
@@ -63,19 +64,16 @@ dt_graph_disconnect_display_modules(
 
 VkResult
 dt_graph_export(
-    dt_graph_t *graph,         // graph to run, will overwrite filename param
-    int         output_cnt,    // number of outputs to export
-    dt_token_t  output[],      // instance of output module i (o-jpg or o-pfm)
-    const char *fname[],       // filename i to go with the output module i
-    float       quality)       // overwrite output quality
+    dt_graph_t        *graph,  // graph to run, will overwrite filename param
+    dt_graph_export_t *param)
 {
   graph->frame = 0;
   dt_module_t *mod_out[20] = {0};
-  assert(output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));
+  assert(param->output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));
   char filename[256];
-  for(int i=0;i<output_cnt;i++) for(int m=0;m<graph->num_modules;m++)
+  for(int i=0;i<param->output_cnt;i++) for(int m=0;m<graph->num_modules;m++)
   {
-    if(graph->module[m].inst == output[i] &&
+    if(graph->module[m].inst == param->p_output[i] &&
         dt_token_str(graph->module[m].name)[0] == 'o' &&
         dt_token_str(graph->module[m].name)[1] == '-')
     {
@@ -84,31 +82,31 @@ dt_graph_export(
     }
   }
   // did not find output module by that instance name
-  for(int i=0;i<output_cnt;i++)
+  for(int i=0;i<param->output_cnt;i++)
     if(mod_out[i] == 0)
       return VK_INCOMPLETE;
 
-  for(int i=0;i<output_cnt;i++)
+  for(int i=0;i<param->output_cnt;i++)
   {
     if(graph->frame_cnt > 1)
     {
-      if(fname)
-        snprintf(filename, sizeof(filename), "%s_%04d", fname[i], 0);
+      if(param->p_filename)
+        snprintf(filename, sizeof(filename), "%s_%04d", param->p_filename[i], 0);
       else
-        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(output[i]), 0);
+        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->p_output[i]), 0);
     }
     else
     {
-      if(fname)
-        snprintf(filename, sizeof(filename), "%s", fname[i]);
+      if(param->p_filename)
+        snprintf(filename, sizeof(filename), "%s", param->p_filename[i]);
       else
-        snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(output[i]));
+        snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(param->p_output[i]));
     }
     dt_module_set_param_string(
         mod_out[i], dt_token("filename"),
         filename);
     if(mod_out[i]->name == dt_token("o-jpg"))
-      dt_module_set_param_float(mod_out[i], dt_token("quality"), quality);
+      dt_module_set_param_float(mod_out[i], dt_token("quality"), param->quality);
   }
 
   if(graph->frame_cnt > 1)
@@ -117,12 +115,12 @@ dt_graph_export(
     for(int f=1;f<graph->frame_cnt;f++)
     {
       graph->frame = f;
-      for(int i=0;i<output_cnt;i++)
+      for(int i=0;i<param->output_cnt;i++)
       {
-        if(fname)
-          snprintf(filename, sizeof(filename), "%s_%04d", fname[i], f);
+        if(param->p_filename)
+          snprintf(filename, sizeof(filename), "%s_%04d", param->p_filename[i], f);
         else
-          snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(output[i]), f);
+          snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->p_output[i]), f);
         dt_module_set_param_string(
             mod_out[i], dt_token("filename"),
             filename);
@@ -205,7 +203,13 @@ dt_graph_export_quick(
   // make sure all remaining display nodes are removed:
   dt_graph_disconnect_display_modules(&graph);
 
-  dt_graph_export(&graph, output_cnt, output, &filename, 95);
+  dt_graph_export_t param = {
+    .output_cnt = output_cnt,
+    .p_output   = output,
+    .p_filename = &filename,
+    .quality = 95,
+  };
+  dt_graph_export(&graph, &param);
   dt_graph_cleanup(&graph);
   return VK_SUCCESS;
 }

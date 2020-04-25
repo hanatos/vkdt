@@ -104,7 +104,12 @@ int main(int argc, char *argv[])
   // make sure all remaining display nodes are removed:
   dt_graph_disconnect_display_modules(&graph);
 
-  dt_graph_export(&graph, output_cnt, output, 0, quality);
+  dt_graph_export_t param = {
+    .output_cnt = output_cnt,
+    .p_output   = output,
+    .quality    = quality,
+  };
+  dt_graph_export(&graph, &param);
 
   // nodes we can only print after run() has been called:
   if(dump_graph == 2)
