@@ -9,9 +9,11 @@ static void get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, c
   // flip by exif orientation if we have it and it's requested:
   float rotation = p_rot[0];
   // at least do nothing 
-  rot[0] = 0.0f;
-  crop[0] = crop[2] = 0.0f;
-  crop[1] = crop[3] = 1.0f;
+  rot[0] = rotation;
+  crop[0] = p_crop[0];
+  crop[1] = p_crop[1];
+  crop[2] = p_crop[2];
+  crop[3] = p_crop[3];
   if(rotation == 1337.0f)
   { // auto rotation magic number
     if(or == 3)
@@ -35,6 +37,12 @@ static void get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, c
       crop[2] = 0.5f - .5f * wd / ht;
       crop[1] = 0.5f + .5f * ht / wd;
       crop[3] = 0.5f + .5f * wd / ht;
+    }
+    else
+    { // at least do nothing 
+      rot[0] = 0.0f;
+      crop[0] = crop[2] = 0.0f;
+      crop[1] = crop[3] = 1.0f;
     }
   }
 }
