@@ -170,8 +170,6 @@ void dt_db_load_image(
   db->image[imgid].thumbnail = -1u;
   db->dirname[0] = 0;
 
-  fprintf(stderr, "dir %s filename %s len %u\n", db->dirname, filename, len);
-
   if(dt_stringpool_get(&db->sp_filename, filename, len, imgid, &db->image[imgid].filename) == -1u)
   { // should never happen for a single image:
     dt_log(s_log_err|s_log_db, "failed to add filename to index! aborting import.");
