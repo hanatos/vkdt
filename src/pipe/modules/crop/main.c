@@ -3,15 +3,59 @@
 
 #include <math.h>
 
+// fill crop and rotation if auto-rotate by exif data has been requested
+static void get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, const float *p_rot, float *crop, float *rot)
+{
+  // flip by exif orientation if we have it and it's requested:
+  float rotation = p_rot[0];
+  if(rotation == 1337.0f)
+  { // auto rotation magic number
+    if(or == 3)
+    { // rotate 180
+      rot[0] = 180.0f;
+      crop[0] = crop[2] = 0.0f;
+      crop[1] = crop[3] = 1.0f;
+    }
+    else if(or == 8)
+    { // rotate 270
+      rot[0] = 90.0f;
+      crop[0] = 0.5f - .5f * ht / wd;
+      crop[2] = 0.5f - .5f * wd / ht;
+      crop[1] = 0.5f + .5f * ht / wd;
+      crop[3] = 0.5f + .5f * wd / ht;
+    }
+    else if(or == 6)
+    { // rotate 90
+      rot[0] = 270.0f;
+      crop[0] = 0.5f - .5f * ht / wd;
+      crop[2] = 0.5f - .5f * wd / ht;
+      crop[1] = 0.5f + .5f * ht / wd;
+      crop[3] = 0.5f + .5f * wd / ht;
+    }
+    else
+    { // at least do nothing 
+      rot[0] = 0.0f;
+      crop[0] = crop[2] = 0.0f;
+      crop[1] = crop[3] = 1.0f;
+    }
+  }
+}
+
 void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
 {
+  float crop[4], rot;
   const float *p_crop = dt_module_param_float(module, 1);
+  const float *p_rot  = dt_module_param_float(module, 2);
+  float w = module->connector[0].roi.full_wd;
+  float h = module->connector[0].roi.full_ht;
+  uint32_t or = module->img_param.orientation;
+  get_crop_rot(or, w, h, p_crop, p_rot, crop, &rot);
 
   // copy to input
-  float wd = p_crop[1] - p_crop[0];
-  float ht = p_crop[3] - p_crop[2];
+  float wd = crop[1] - crop[0];
+  float ht = crop[3] - crop[2];
   module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
   module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
   module->connector[0].roi.x = 0.0f;
@@ -23,19 +67,25 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
+  float crop[4], rot;
   const float *p_crop = dt_module_param_float(module, 1);
+  const float *p_rot  = dt_module_param_float(module, 2);
+  float w = module->connector[0].roi.full_wd;
+  float h = module->connector[0].roi.full_ht;
+  uint32_t or = module->img_param.orientation;
+  get_crop_rot(or, w, h, p_crop, p_rot, crop, &rot);
   // copy to output
   module->connector[1].roi = module->connector[0].roi;
 
-  float wd = p_crop[1] - p_crop[0];
-  float ht = p_crop[3] - p_crop[2];
+  float wd = crop[1] - crop[0];
+  float ht = crop[3] - crop[2];
   module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * wd;
   module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * ht;
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
-  // see:
+  // perspective correction. see:
   // pages 17-21 of Fundamentals of Texture Mapping and Image Warping, Paul Heckbert,
   // Master’s thesis, UCB/CSD 89/516, CS Division, U.C. Berkeley, June 1989
   // we have given:
@@ -74,18 +124,26 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[ 0] = r[0]; f[ 1] = r[3]; f[ 2] = r[6]; f[ 3] = 0.0f;
   f[ 4] = r[1]; f[ 5] = r[4]; f[ 6] = r[7]; f[ 7] = 0.0f;
   f[ 8] = r[2]; f[ 9] = r[5]; f[10] = r[8]; f[11] = 0.0f;
-  const float *p_rot = dt_module_param_float(module, 2);
   f += 12;
-  float rad = p_rot[0] * 3.1415629 / 180.0f;
+
+  float crop[4], rot;
+  const float *p_crop = dt_module_param_float(module, 1);
+  const float *p_rot  = dt_module_param_float(module, 2);
+  float wd = module->connector[0].roi.full_wd;
+  float ht = module->connector[0].roi.full_ht;
+  uint32_t or = module->img_param.orientation;
+  get_crop_rot(or, wd, ht, p_crop, p_rot, crop, &rot);
+
+  // rotation angle
+  float rad = rot * 3.1415629 / 180.0f;
   f[0] =  cosf(rad); f[1] = sinf(rad);
   f[2] = -sinf(rad); f[3] = cosf(rad);
   f += 4;
-  const float *p_crop = dt_module_param_float(module, 1);
-  int flip = 0;
-  // if(p_rot[0] >  45 && p_rot[0] < 135) flip = 1;
-  // if(p_rot[0] > 225 && p_rot[0] < 315) flip = 1;
-  if(flip) for(int i=0;i<2;i++) f[2*i] = p_crop[2*(1-i)];
-  else     for(int i=0;i<2;i++) f[2*i] = p_crop[2*i];
+  // crop window
+  f[0] = crop[0];
+  f[1] = crop[1];
+  f[2] = crop[2];
+  f[3] = crop[3];
 }
 
 int init(dt_module_t *mod)

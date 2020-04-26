@@ -48,6 +48,7 @@ typedef enum dt_exif_image_orientation_t
 }
 dt_exif_image_orientation_t;
 
+#if 0
 typedef enum dt_image_orientation_t
 {
   ORIENTATION_NULL    = -1,     //-1, or autodetect
@@ -92,6 +93,7 @@ dt_image_orientation_t dt_image_orientation_to_flip_bits(const int orient)
       return ORIENTATION_NONE;
   }
 }
+#endif
 
 } // anonymous namespace
 
@@ -875,7 +877,7 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
             img->exif_focus_distance /= 2.0;
           }
         }
-      }
+      ;
     }
     else if(FIND_EXIF_TAG("Exif.CanonSi.SubjectDistance"))
     {
@@ -903,11 +905,11 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
      */
     if(FIND_EXIF_TAG("Exif.Image.Orientation"))
     {
-      ip->orientation = dt_image_orientation_to_flip_bits(pos->toLong());
+      ip->orientation = pos->toLong();
     }
     else if(FIND_EXIF_TAG("Exif.PanasonicRaw.Orientation"))
     {
-      ip->orientation = dt_image_orientation_to_flip_bits(pos->toLong());
+      ip->orientation = pos->toLong();
     }
 
 #if 0
