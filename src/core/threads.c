@@ -77,12 +77,7 @@ void *threads_work(void *arg)
   while(1)
   {
     pthread_mutex_lock(&mutex);
-    // pthread_cond_wait(&thr.cond_task_push, &mutex);
-    struct timespec dt = {
-      .tv_sec = 0,
-      .tv_nsec = 5000,
-    };
-    pthread_cond_timedwait(&thr.cond_task_push, &mutex, &dt);
+    pthread_cond_wait(&thr.cond_task_push, &mutex);
     pthread_mutex_unlock(&mutex);
     if(thr.shutdown) break;
     threads_task_t *task = 0;
