@@ -68,9 +68,10 @@ int main(int argc, char *argv[])
     qvk_cleanup();
     exit(1);
   }
-  for(int i=config_start;i<argc;i++)
-    if(dt_graph_read_config_line(&graph, argv[i]))
-      dt_log(s_log_pipe|s_log_err, "failed in command line %d: '%s'", i - config_start + 1, argv[i]);
+  if(config_start)
+    for(int i=config_start;i<argc;i++)
+      if(dt_graph_read_config_line(&graph, argv[i]))
+        dt_log(s_log_pipe|s_log_err, "failed in command line %d: '%s'", i - config_start + 1, argv[i]);
 
   // dump original modules, i.e. with display modules
   if(dump_graph == 1)
