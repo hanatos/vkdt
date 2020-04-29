@@ -99,11 +99,6 @@ dt_graph_export(
     }
   }
 
-  // read extra arguments
-  for(int i=0;i<param->extra_param_cnt;i++)
-    if(dt_graph_read_config_line(graph, param->p_extra_param[i]))
-      dt_log(s_log_pipe|s_log_err, "failed to read extra params %d: '%s'", i + 1, param->p_extra_param[i]);
-
   // dump original modules, i.e. with display modules
   if(param->dump_modules)
     dt_graph_print_modules(graph);
@@ -139,6 +134,19 @@ dt_graph_export(
   // make sure all remaining display nodes are removed:
   dt_graph_disconnect_display_modules(graph);
 
+  // read extra arguments after replacing display, so we can access the additional f2srgb
+  for(int i=0;i<param->extra_param_cnt;i++)
+    if(dt_graph_read_config_line(graph, param->p_extra_param[i]))
+      dt_log(s_log_pipe|s_log_err, "failed to read extra params %d: '%s'", i + 1, param->p_extra_param[i]);
+
+  // can this be generalised some more?
+  // we assume that the "main" output is the last display in the config (driving the main roi)
+  // which will also be confined by the user supplied max dimensions. we can explicitly introduce
+  // resampling nodes. this may be useful for more high quality resampling in the future.
+  if(param->output[0].max_width > 0)
+    graph->output_wd = param->output[0].max_width;
+  if(param->output[0].max_height > 0)
+    graph->output_ht = param->output[0].max_height;
   graph->frame = 0;
   dt_module_t *mod_out[20] = {0};
   assert(param->output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));

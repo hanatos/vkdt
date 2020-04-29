@@ -4,6 +4,7 @@
 #include "db/murmur3.h"
 #include "qvk/qvk.h"
 #include "pipe/graph-io.h"
+#include "pipe/graph-export.h"
 #include "pipe/modules/api.h"
 #include "pipe/dlist.h"
 #include <sys/types.h>
@@ -189,7 +190,6 @@ dt_thumbnails_cache_one(
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
   snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
   imgfilename[len-4] = 0; // cut away ".cfg"
-  int load_default = 0;
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
@@ -197,9 +197,7 @@ dt_thumbnails_cache_one(
     tcfg = statbuf.st_mtim.tv_sec;
   else
   {
-    load_default = 1;
-    snprintf(cfgfilename, sizeof(cfgfilename), "default.cfg");
-    if(!stat(cfgfilename, &statbuf))
+    if(!stat("default.cfg", &statbuf))
       tcfg = statbuf.st_mtim.tv_sec;
     else return VK_INCOMPLETE;
   }
@@ -210,68 +208,26 @@ dt_thumbnails_cache_one(
     if(tcfg && (tbc1 >= tcfg)) return VK_SUCCESS; // already up to date
   }
 
-  // load history stack
   dt_graph_reset(graph);
-  if(dt_graph_read_config_ascii(graph, cfgfilename))
-  {
-    dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
-    return 2;
-  }
 
-  if(load_default)
-  { // set param for rawinput
-    int modid = dt_module_get(graph, dt_token("i-raw"), dt_token("01"));
-    if(modid < 0 ||
-        dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
-    {
-      dt_log(s_log_err, "[thm] config '%s' has no raw input module!", cfgfilename);
-      return 3;
-    }
-  }
-
-  // replace display by o-bc1 in case it's not default.cfg:
-  int modid = dt_module_get(graph, dt_token("display"), dt_token("main"));
-  if(modid >= 0)
-  {
-    int cid = dt_module_get_connector(graph->module+modid, dt_token("input"));
-    int m0 = graph->module[modid].connector[cid].connected_mi;
-    int o0 = graph->module[modid].connector[cid].connected_mc;
-    if(m0 < 0)
-    {
-      dt_log(s_log_err, "[thm] config '%s' has no connected display module!", cfgfilename);
-      return 3; // display input not connected
-    }
-    const int m1 = dt_module_add(graph, dt_token("f2srgb"), dt_token("main"));
-    const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-    const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
-    const int m2 = dt_module_add(graph, dt_token("o-bc1"), dt_token("main"));
-    const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
-    graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
-    int32_t *usemat = (int32_t *)dt_module_param_int(graph->module+m1, 0);
-    usemat[0] = 0; // write as rec2020
-    if(dt_module_connect(graph, m0, o0, m1, i1) ||
-       dt_module_connect(graph, m1, o1, m2, i2))
-    {
-      dt_log(s_log_err, "[thm] config '%s' connecting bc1 output failed!", cfgfilename);
-      return 3;
-    }
-    dt_module_remove(graph, modid);
-  }
-
-  modid = dt_module_get(graph, dt_token("o-bc1"), dt_token("main"));
-  if(modid < 0 ||
-     dt_module_set_param_string(graph->module + modid, dt_token("filename"), bc1filename))
-  {
-    dt_log(s_log_err, "[thm] config '%s' has no bc1 output module!", cfgfilename);
-    return 3;
-  }
-
-  // ask for reduced resolution in the graph:
-  graph->output_wd = tn->thumb_wd;
-  graph->output_ht = tn->thumb_ht;
+  char *usemat = "param:f2srgb:main:usemat:0"; // write thumbnails as rec2020 with gamma
+  dt_graph_export_t param = {
+    .extra_param_cnt = 1,
+    .p_extra_param   = &usemat,
+    .p_cfgfile       = cfgfilename,
+    .p_defcfg        = "default.cfg",
+    .output_cnt      = 1,
+    .output = {{
+      .max_width  = tn->thumb_wd,
+      .max_height = tn->thumb_ht,
+      .mod        = dt_token("o-bc1"),
+      .inst       = dt_token("main"),
+      .p_filename = bc1filename,
+    }},
+  };
 
   clock_t beg = clock();
-  if(dt_graph_run(graph, s_graph_run_all) != VK_SUCCESS)
+  if(dt_graph_export(graph, &param) != VK_SUCCESS)
   {
     dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", imgfilename);
     // mark as dead

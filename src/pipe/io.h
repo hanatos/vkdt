@@ -5,14 +5,14 @@
 
 static inline dt_token_t
 dt_read_token(
-    char *line, // will be destroyed in the process, we'll insert 0 as end point
+    char  *line,
     char **out)
 {
-  char *c = line;
-  while(*c != ':' && *c != '\n' && *c != 0 && c < line+8) c++;
-  *c = 0;
   dt_token_t t = dt_token(line);
-  *out = c+1;
+  char *cc = dt_token_str(t), *c = cc;
+  while(*c != ':' && *c != '\n' && *c != 0 && c < cc+8) c++;
+  *out = line + (c-cc) + 1;
+  for(;c < cc+8;c++) *c = 0;
   return t;
 }
 

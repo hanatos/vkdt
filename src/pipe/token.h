@@ -26,7 +26,7 @@ typedef uint64_t dt_token_t;
 // }
 
 // reinterpret a token as a string
-#define dt_token_str(A) ((const char *const)&(A))
+#define dt_token_str(A) ((char *const)&(A))
 
 // reinterpret string as a token. this is butt-ugly, does the same as the
 // dt_token() constructor above, but can be used in const expressions.
