@@ -35,14 +35,15 @@ void write_sink(
     void *buf)
 {
   const char *filename = dt_module_param_string(module, 0);
-  fprintf(stderr, "[o-bc1] writing '%s'\n", filename);
+  // fprintf(stderr, "[o-bc1] writing '%s'\n", filename);
 
   const uint32_t wd = module->connector[0].roi.wd;
   const uint32_t ht = module->connector[0].roi.ht;
   const uint8_t *in = (const uint8_t *)buf;
 
   // go through all 4x4 blocks
-  // TODO: parallelise via our thread pool or openmp or what?
+  // parallelise via our thread pool or openmp or what?
+  // probably usually bc1 thumbnails are too small to warrant a good speedup.
   const int bx = wd/4, by = ht/4;
   size_t num_blocks = bx * by;
   uint8_t *out = (uint8_t *)malloc(sizeof(uint8_t)*8*num_blocks);
