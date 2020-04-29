@@ -443,42 +443,57 @@ void render_lighttable()
 
     if(vkdt.db.selection_cnt > 0)
     {
-      ImGui::Text("selected images:");
-      // assign to collection modal popup:
-      int open = ImGui::Button("assign to collection..", size);
-      if (open)
+      if(ImGui::CollapsingHeader("selected images"))
       {
-        ImGui::OpenPopup("assign to collection");
-        g_busy += 5;
-      }
-
-      static char name[32] = "all time best";
-      if (ImGui::BeginPopupModal("assign to collection", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-      {
+        // assign to collection modal popup:
+        int open = ImGui::Button("assign to collection..", size);
         if (open)
-          ImGui::SetKeyboardFocusHere();
-        if(ImGui::InputText("##edit", name, IM_ARRAYSIZE(name), ImGuiInputTextFlags_EnterReturnsTrue))
-          ImGui::CloseCurrentPopup(); // accept
-        if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
-          ImGui::CloseCurrentPopup(); // discard
-        // ImGui::SetItemDefaultFocus();
-        if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-        ImGui::SameLine();
-        if (ImGui::Button("ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-        ImGui::EndPopup();
-      }
-
-      // export selection
-      if(ImGui::Button("export", size))
-      {
-        // TODO: put in background job, implement job scheduler
-        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-        char filename[256], infilename[256];
-        for(int i=0;i<vkdt.db.selection_cnt;i++)
         {
-          snprintf(filename, sizeof(filename), "/tmp/img_%04d", i);
-          dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
-          dt_graph_export_quick(infilename, filename);
+          ImGui::OpenPopup("assign to collection");
+          g_busy += 5;
+        }
+
+        static char name[32] = "all time best";
+        if (ImGui::BeginPopupModal("assign to collection", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+          if (open)
+            ImGui::SetKeyboardFocusHere();
+          if(ImGui::InputText("##edit", name, IM_ARRAYSIZE(name), ImGuiInputTextFlags_EnterReturnsTrue))
+            ImGui::CloseCurrentPopup(); // accept
+          if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+            ImGui::CloseCurrentPopup(); // discard
+          // ImGui::SetItemDefaultFocus();
+          if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+          ImGui::SameLine();
+          if (ImGui::Button("ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+          ImGui::EndPopup();
+        }
+
+        // export selection
+        if(ImGui::Button("export", size))
+        {
+          // TODO: put in background job, implement job scheduler
+          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+          char filename[256], infilename[256];
+          dt_graph_t graph;
+          dt_graph_init(&graph);
+          for(int i=0;i<vkdt.db.selection_cnt;i++)
+          {
+            snprintf(filename, sizeof(filename), "/tmp/img_%04d", i);
+            dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
+            dt_graph_export_t param = {0};
+            param.output_cnt = 1;
+            param.output[0].p_filename = filename;
+            param.p_cfgfile = infilename;
+            param.dump_modules = 1;
+            if(dt_graph_export(&graph, &param))
+            {
+              // TODO: some feedback in gui instead:
+              fprintf(stderr, "export %s failed!\n", infilename);
+            }
+            dt_graph_reset(&graph);
+          }
+          dt_graph_cleanup(&graph);
         }
       }
     }

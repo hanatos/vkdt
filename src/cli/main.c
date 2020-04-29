@@ -17,42 +17,48 @@ int main(int argc, char *argv[])
   dt_pipe_global_init();
   threads_global_init();
 
-  const char *graphcfg = 0;
-  int dump_graph = 0;
-  int output_cnt = 1;
-  int user_output_cnt = 0;
-  float quality = 95.0f;
-  dt_token_t output[10] = { dt_token("main"), dt_token("hist") };
-  int ldr = 1;
+  int dump_nodes = 0;
+  int output_cnt = 0;
   int config_start = 0; // start of arguments which are interpreted as additional config lines
+  dt_graph_export_t param = {0};
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-g") && i < argc-1)
-      graphcfg = argv[++i];
+      param.p_cfgfile = argv[++i];
     else if(!strcmp(argv[i], "--quality") && i < argc-1)
-      quality = atof(argv[++i]);
+      param.output[output_cnt].quality = atof(argv[++i]);
+    else if(!strcmp(argv[i], "--width") && i < argc-1)
+      param.output[output_cnt].max_width = atof(argv[++i]);
+    else if(!strcmp(argv[i], "--height") && i < argc-1)
+      param.output[output_cnt].max_height = atof(argv[++i]);
+    else if(!strcmp(argv[i], "--filename") && i < argc-1)
+      param.output[output_cnt].p_filename = argv[++i];
     else if(!strcmp(argv[i], "--dump-modules"))
-      dump_graph = 1;
+      param.dump_modules = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
-      dump_graph = 2;
+      dump_nodes = 1;
     else if(!strcmp(argv[i], "--output") && i < argc-1 && ++i)
-      output[user_output_cnt++] = dt_token(argv[i]);
+      param.output[output_cnt++].inst = dt_token(argv[i]);
     else if(!strcmp(argv[i], "--config"))
     { config_start = i+1; break; }
 
     // TODO: parse more options: filename, format related things etc
   }
-  if(user_output_cnt) output_cnt = user_output_cnt;
+  param.output_cnt = MAX(1, output_cnt);
 
   if(qvk_init()) exit(1);
 
-  if(!graphcfg)
+  if(!param.p_cfgfile)
   {
     fprintf(stderr, "usage: vkdt-cli -g <graph.cfg>\n"
     "    [-d verbosity]                set log verbosity (mem,perf,pipe,cli,err,all)\n"
     "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
-    "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "    [--quality <0-100>]           jpg output quality\n"
+    "    [--width <x>]                 max output width\n"
+    "    [--height <y>]                max output height\n"
+    "    [--filename <f>]              output filename (without extension or frame number)\n"
+    "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
+    "                                  this resets output specific options: quality, width, height\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
         );
     qvk_cleanup();
@@ -61,63 +67,18 @@ int main(int argc, char *argv[])
 
   dt_graph_t graph;
   dt_graph_init(&graph);
-  int err = dt_graph_read_config_ascii(&graph, graphcfg);
-  if(err)
-  {
-    dt_log(s_log_err, "could not load graph configuration from '%s'!", graphcfg);
-    qvk_cleanup();
-    exit(1);
-  }
-  if(config_start)
-    for(int i=config_start;i<argc;i++)
-      if(dt_graph_read_config_line(&graph, argv[i]))
-        dt_log(s_log_pipe|s_log_err, "failed in command line %d: '%s'", i - config_start + 1, argv[i]);
 
-  // dump original modules, i.e. with display modules
-  if(dump_graph == 1)
-    dt_graph_print_modules(&graph);
+  param.extra_param_cnt = config_start ? argc - config_start : 0;
+  param.p_extra_param   = argv + config_start;
 
-  // find non-display "main" module
-  int found_main = 0;
-  for(int m=0;m<graph.num_modules;m++)
-  {
-    if(graph.module[m].inst == dt_token("main") &&
-       graph.module[m].name != dt_token("display"))
-    {
-      found_main = 1;
-      break;
-    }
-  }
-
-  // replace requested display node by export node:
-  if(!found_main)
-  {
-    int cnt = 0;
-    for(;cnt<output_cnt;cnt++)
-      if(dt_graph_replace_display(&graph, output[cnt], ldr))
-        break;
-    if(cnt == 0)
-    {
-      dt_log(s_log_err, "graph does not contain suitable display node %"PRItkn"!", dt_token_str(output));
-      exit(2);
-    }
-  }
-  // make sure all remaining display nodes are removed:
-  dt_graph_disconnect_display_modules(&graph);
-
-  dt_graph_export_t param = {
-    .output_cnt = output_cnt,
-    .p_output   = output,
-    .quality    = quality,
-  };
-  dt_graph_export(&graph, &param);
+  VkResult res = dt_graph_export(&graph, &param);
 
   // nodes we can only print after run() has been called:
-  if(dump_graph == 2)
+  if(dump_nodes)
     dt_graph_print_nodes(&graph);
 
   dt_graph_cleanup(&graph);
   threads_global_cleanup();
   qvk_cleanup();
-  exit(0);
+  exit(res);
 }

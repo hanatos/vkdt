@@ -1,6 +1,7 @@
 #include "core/log.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
+#include "pipe/graph-print.h"
 #include "pipe/graph-export.h"
 #include "pipe/modules/api.h"
 
@@ -16,8 +17,9 @@ int
 dt_graph_replace_display(
     dt_graph_t *graph,
     dt_token_t  inst,
-    int         ldr)   // TODO: output format and params of all sorts
+    dt_token_t  mod)
 {
+  if(inst == 0) inst = dt_token("main"); // default to "main" instance
   const int mid = dt_module_get(graph, dt_token("display"), inst);
   if(mid < 0) return 1; // no display node by that name
 
@@ -28,15 +30,16 @@ dt_graph_replace_display(
 
   if(m0 < 0) return 2; // display input not connected
 
+  if(mod == 0) mod = dt_token("o-jpg"); // default to jpg output
+
   // new module export with same inst
   // maybe new module 8-bit in between here
-  dt_token_t exprt = ldr ? dt_token("o-jpg") : dt_token("o-pfm");
   const int m1 = dt_module_add(graph, dt_token("f2srgb"), inst);
   const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
-  const int m2 = dt_module_add(graph, exprt, inst);
+  const int m2 = dt_module_add(graph, mod, inst);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
-  if(ldr)
+  if(graph->module[m2].connector[0].format == dt_token("ui8"))
   {
     // output buffer reading is inflexible about buffer configuration. texture units can handle it, so just push further:
     graph->module[m1].connector[o1].format = graph->module[m0].connector[o0].format = graph->module[m2].connector[i2].format;
@@ -67,13 +70,82 @@ dt_graph_export(
     dt_graph_t        *graph,  // graph to run, will overwrite filename param
     dt_graph_export_t *param)
 {
+  if(param->p_cfgfile)
+  {
+    int err = dt_graph_read_config_ascii(graph, param->p_cfgfile);
+    if(err)
+    {
+      char graph_cfg[256];
+      if(param->p_defcfg)
+        snprintf(graph_cfg, sizeof(graph_cfg), "%s", param->p_defcfg);
+      else
+        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
+      err = dt_graph_read_config_ascii(graph, graph_cfg);
+      char imgfilename[256];
+      snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
+      snprintf(graph->searchpath, sizeof(graph->searchpath), "%s", dirname(imgfilename));
+      snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
+      int len = strlen(imgfilename);
+      assert(len > 4);
+      imgfilename[len-4] = 0; // cut away ".cfg"
+      char *basen = basename(imgfilename); // cut away path o we can relocate more easily
+      int modid = dt_module_get(graph, dt_token("i-raw"), dt_token("01"));
+      if(modid < 0 ||
+          dt_module_set_param_string(graph->module + modid, dt_token("filename"), basen))
+      {
+        dt_log(s_log_err, "config '%s' has no raw input module!", graph_cfg);
+        return VK_INCOMPLETE;
+      }
+    }
+  }
+
+  // read extra arguments
+  for(int i=0;i<param->extra_param_cnt;i++)
+    if(dt_graph_read_config_line(graph, param->p_extra_param[i]))
+      dt_log(s_log_pipe|s_log_err, "failed to read extra params %d: '%s'", i + 1, param->p_extra_param[i]);
+
+  // dump original modules, i.e. with display modules
+  if(param->dump_modules)
+    dt_graph_print_modules(graph);
+
+  // find non-display "main" module
+  int found_main = 0;
+  for(int m=0;m<graph->num_modules;m++)
+  {
+    if(graph->module[m].inst == dt_token("main") &&
+       graph->module[m].name != dt_token("display"))
+    {
+      found_main = 1;
+      break;
+    }
+  }
+
+  // insert default:
+  if(!param->output[0].inst) param->output[0].inst = dt_token("main");
+
+  // replace requested display node by export node:
+  if(!found_main)
+  {
+    int cnt = 0;
+    for(;cnt<param->output_cnt;cnt++)
+      if(dt_graph_replace_display(graph, param->output[cnt].inst, param->output[cnt].mod))
+        break;
+    if(cnt != param->output_cnt)
+    {
+      dt_log(s_log_err, "graph does not contain suitable display node %"PRItkn"!", dt_token_str(param->output[cnt].inst));
+      return VK_INCOMPLETE;
+    }
+  }
+  // make sure all remaining display nodes are removed:
+  dt_graph_disconnect_display_modules(graph);
+
   graph->frame = 0;
   dt_module_t *mod_out[20] = {0};
   assert(param->output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));
   char filename[256];
   for(int i=0;i<param->output_cnt;i++) for(int m=0;m<graph->num_modules;m++)
   {
-    if(graph->module[m].inst == param->p_output[i] &&
+    if(graph->module[m].inst == param->output[i].inst &&
         dt_token_str(graph->module[m].name)[0] == 'o' &&
         dt_token_str(graph->module[m].name)[1] == '-')
     {
@@ -82,31 +154,34 @@ dt_graph_export(
     }
   }
   // did not find output module by that instance name
-  for(int i=0;i<param->output_cnt;i++)
-    if(mod_out[i] == 0)
-      return VK_INCOMPLETE;
+  for(int i=0;i<param->output_cnt;i++) if(mod_out[i] == 0)
+  {
+    dt_log(s_log_err, "output module %d could not be replaced!", i);
+    return VK_INCOMPLETE;
+  }
 
   for(int i=0;i<param->output_cnt;i++)
   {
     if(graph->frame_cnt > 1)
     {
-      if(param->p_filename)
-        snprintf(filename, sizeof(filename), "%s_%04d", param->p_filename[i], 0);
+      if(param->output[i].p_filename)
+        snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, 0);
       else
-        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->p_output[i]), 0);
+        snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->output[i].inst), 0);
     }
     else
     {
-      if(param->p_filename)
-        snprintf(filename, sizeof(filename), "%s", param->p_filename[i]);
+      if(param->output[i].p_filename)
+        snprintf(filename, sizeof(filename), "%s", param->output[i].p_filename);
       else
-        snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(param->p_output[i]));
+        snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(param->output[i].inst));
     }
     dt_module_set_param_string(
         mod_out[i], dt_token("filename"),
         filename);
-    if(mod_out[i]->name == dt_token("o-jpg"))
-      dt_module_set_param_float(mod_out[i], dt_token("quality"), param->quality);
+    if(param->output[i].quality > 0)
+      if(mod_out[i]->name == dt_token("o-jpg"))
+        dt_module_set_param_float(mod_out[i], dt_token("quality"), param->output[i].quality);
   }
 
   if(graph->frame_cnt > 1)
@@ -117,10 +192,10 @@ dt_graph_export(
       graph->frame = f;
       for(int i=0;i<param->output_cnt;i++)
       {
-        if(param->p_filename)
-          snprintf(filename, sizeof(filename), "%s_%04d", param->p_filename[i], f);
+        if(param->output[i].p_filename)
+          snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, f);
         else
-          snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->p_output[i]), f);
+          snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->output[i].inst), f);
         dt_module_set_param_string(
             mod_out[i], dt_token("filename"),
             filename);
@@ -137,80 +212,5 @@ dt_graph_export(
   {
     return dt_graph_run(graph, s_graph_run_all);
   }
-}
-
-
-VkResult
-dt_graph_export_quick(
-    const char *graphcfg,
-    const char *filename)
-{
-  dt_graph_t graph;
-  dt_graph_init(&graph);
-  int err = dt_graph_read_config_ascii(&graph, graphcfg);
-  if(err)
-  {
-    char graph_cfg[256];
-    snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
-    err = dt_graph_read_config_ascii(&graph, graph_cfg);
-    char imgfilename[256];
-    snprintf(imgfilename, sizeof(imgfilename), "%s", graphcfg);
-    snprintf(graph.searchpath, sizeof(graph.searchpath), "%s", dirname(imgfilename));
-    snprintf(imgfilename, sizeof(imgfilename), "%s", graphcfg);
-    int len = strlen(imgfilename);
-    assert(len > 4);
-    imgfilename[len-4] = 0; // cut away ".cfg"
-    char *basen = basename(imgfilename); // cut away path o we can relocate more easily
-    int modid = dt_module_get(&graph, dt_token("i-raw"), dt_token("01"));
-    if(modid < 0 ||
-       dt_module_set_param_string(graph.module + modid, dt_token("filename"),
-         basen))
-    {
-      dt_log(s_log_err, "config '%s' has no raw input module!", graph_cfg);
-      dt_graph_cleanup(&graph);
-      return VK_INCOMPLETE;
-    }
-  }
-
-  // find non-display "main" module
-  int found_main = 0;
-  for(int m=0;m<graph.num_modules;m++)
-  {
-    if(graph.module[m].inst == dt_token("main") &&
-       graph.module[m].name != dt_token("display"))
-    {
-      found_main = 1;
-      break;
-    }
-  }
-
-  int output_cnt = 1;
-  dt_token_t output[] = {dt_token("main")};
-
-  // replace requested display node by export node:
-  if(!found_main)
-  {
-    int cnt = 0;
-    for(;cnt<output_cnt;cnt++)
-      if(dt_graph_replace_display(&graph, output[cnt], 1))
-        break;
-    if(cnt == 0)
-    {
-      dt_log(s_log_err, "graph does not contain suitable display node %"PRItkn"!", dt_token_str(output));
-      return VK_INCOMPLETE;
-    }
-  }
-  // make sure all remaining display nodes are removed:
-  dt_graph_disconnect_display_modules(&graph);
-
-  dt_graph_export_t param = {
-    .output_cnt = output_cnt,
-    .p_output   = output,
-    .p_filename = &filename,
-    .quality = 95,
-  };
-  dt_graph_export(&graph, &param);
-  dt_graph_cleanup(&graph);
-  return VK_SUCCESS;
 }
 
