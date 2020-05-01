@@ -968,12 +968,9 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       if(module->connector[0].type == dt_token("sink") &&
          module->inst == dt_token("main"))
       { // scale to fit into requested roi
-        if(graph->output_wd > 0 || graph->output_ht > 0)
-        {
-          r->scale = MAX(
-              r->full_wd / (float) graph->output_wd,
-              r->full_ht / (float) graph->output_ht);
-        }
+        float scalex = graph->output_wd > 0 ? r->full_wd / (float) graph->output_wd : 1.0f;
+        float scaley = graph->output_ht > 0 ? r->full_ht / (float) graph->output_ht : 1.0f;
+        r->scale = MAX(scalex, scaley);
       }
       r->wd = r->full_wd/r->scale;
       r->ht = r->full_ht/r->scale;

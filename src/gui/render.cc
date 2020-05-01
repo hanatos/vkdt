@@ -469,6 +469,9 @@ void render_lighttable()
           ImGui::EndPopup();
         }
 
+        static int wd = 0, ht = 0;
+        ImGui::InputInt("width", &wd, 1, 100, 0);
+        ImGui::InputInt("height", &ht, 1, 100, 0);
         // export selection
         if(ImGui::Button("export", size))
         {
@@ -484,8 +487,9 @@ void render_lighttable()
             dt_graph_export_t param = {0};
             param.output_cnt = 1;
             param.output[0].p_filename = filename;
+            param.output[0].max_width  = wd;
+            param.output[0].max_height = ht;
             param.p_cfgfile = infilename;
-            param.dump_modules = 1;
             if(dt_graph_export(&graph, &param))
             {
               // TODO: some feedback in gui instead:

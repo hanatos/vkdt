@@ -6,19 +6,6 @@
 #include <setjmp.h>
 #include <jpeglib.h>
 
-void modify_roi_in(
-    dt_graph_t *graph,
-    dt_module_t *module)
-{
-  // TODO: scale to our needs
-  dt_roi_t *r = &module->connector[0].roi;
-  r->wd = r->full_wd;
-  r->ht = r->full_ht;
-  r->x = 0;
-  r->y = 0;
-  r->scale = 1.0f;
-}
-
 typedef struct jpgerr_t
 {
   struct jpeg_error_mgr pub;
