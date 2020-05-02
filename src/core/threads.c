@@ -92,7 +92,7 @@ void *threads_work(void *arg)
     while(1)
     { // work on this task
       uint32_t item = __sync_fetch_and_add(task->work_item, 1);
-      if(item > task->work_item_cnt) break;
+      if(item >= task->work_item_cnt) break;
       task->run(item, task->data);
       if(thr.shutdown) break;
     }
