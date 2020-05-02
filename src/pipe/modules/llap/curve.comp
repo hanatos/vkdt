@@ -27,6 +27,44 @@ layout(push_constant, std140) uniform push_t
   uint num_gamma;
 } push;
 
+#if 0
+// simple non C2 version (shows severe banding)
+float
+curve(
+    float x,
+    float g,
+    float sigma,
+    float shadows,
+    float highlights,
+    float clarity)
+{
+  const float c = x - g;
+  const float c2 = sigma * pow(abs(c / sigma), 1.0/clarity);
+  if(c > sigma)
+    return g + sigma + shadows * (c-sigma);
+  if(c > 0)
+    return g+c2;
+  if(c > -sigma)
+    return g-c2;
+  return g - sigma + highlights * (c+sigma);
+}
+
+#if 0
+float
+curve(
+    float x,
+    float g,
+    float sigma,
+    float shadows,
+    float highlights,
+    float clarity)
+{
+  const float f = curve2(x, g, sigma, shadows, highlights, clarity);
+  return exp(f/g-1)*g;
+}
+#endif
+#endif
+
 
 #if 0
 // sigmoid in -0.5..0.5: f(x) = x/(2*sqrt(1+x*x)), f'(x) = sqrt(1+x*x)/(2*(x*x+1)**2)
@@ -67,8 +105,9 @@ curve(
   if(c > x1) return g + sigmoid(s*x1) + c1 * (c-x1);
   return g + sigmoid(s*c);
 }
+#endif
 
-#else
+#if 1
 // shit this turns ugly for clarity >= 5. try this:
 // gnuplot> plot for [i=0:10] (5*i/10.0)*(x-g)*exp(-(x-g)*(x-g)/(2*s*s/3.0)) + g + s*2.0*(1-(x-g)/(2*s))*(x-g)/(2*s) + ((x-g)/(2*s))**2*(s+s*b) lw 5
 // the above looks monotonic for up to i < 5, i.e. clarity < 2.5
