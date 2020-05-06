@@ -328,7 +328,7 @@ void render_lighttable()
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
   { // center image view
-    if(ImGui::IsMouseDoubleClicked(0) && vkdt.db.current_image != -1u)
+    if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u)
     { // is false if button returns true, so just abort before we redraw anything at all
       dt_view_switch(s_view_darkroom);
       return;
@@ -372,7 +372,7 @@ void render_lighttable()
         {
           uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
           if(tid == -1u) tid = 0;
-          if(vkdt.db.collection[i] == vkdt.db.current_image)
+          if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
           {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
@@ -396,33 +396,36 @@ void render_lighttable()
               ImVec4(1.0f,1.0f,1.0f,1.0f),
               vkdt.db.image[vkdt.db.collection[i]].rating,
               vkdt.db.image[vkdt.db.collection[i]].labels);
-          if(vkdt.db.collection[i] == vkdt.db.current_image ||
+          if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db) ||
             (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
             ImGui::PopStyleColor(2);
 
           if(ret)
           {
+            g_busy += 2;
             if(ImGui::GetIO().KeyCtrl)
             {
               if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
-              {
-                dt_db_selection_remove(&vkdt.db, vkdt.db.collection[i]);
-                vkdt.db.current_image = -1u;
-              }
+                dt_db_selection_remove(&vkdt.db, i);
               else
-              {
-                dt_db_selection_add(&vkdt.db, vkdt.db.collection[i]);
-                vkdt.db.current_image = vkdt.db.collection[i];
-              }
+                dt_db_selection_add(&vkdt.db, i);
             }
             else if(ImGui::GetIO().KeyShift)
-            { // TODO: shift selects ranges
+            { // shift selects ranges
+              uint32_t colid = dt_db_current_colid(&vkdt.db);
+              if(colid != -1u)
+              {
+                int a = MIN(colid, i);
+                int b = MAX(colid, i);
+                dt_db_selection_clear(&vkdt.db);
+                for(int i=a;i<=b;i++)
+                  dt_db_selection_add(&vkdt.db, i);
+              }
             }
             else
             { // no modifier, select exactly this image:
               dt_db_selection_clear(&vkdt.db);
-              dt_db_selection_add(&vkdt.db, vkdt.db.collection[i]);
-              vkdt.db.current_image = vkdt.db.collection[i];
+              dt_db_selection_add(&vkdt.db, i);
             }
           }
 

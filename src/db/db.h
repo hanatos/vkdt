@@ -79,7 +79,8 @@ typedef struct dt_db_t
   uint32_t  selection_max;
 
   // currently selected image (when switching to darkroom mode, e.g.)
-  uint32_t current_image;
+  uint32_t current_imgid;
+  uint32_t current_colid;
 }
 dt_db_t;
 
@@ -121,6 +122,9 @@ void dt_db_selection_remove(dt_db_t *db, uint32_t imgid);
 void dt_db_selection_clear(dt_db_t *db);
 // return sorted list of selected images
 const uint32_t *dt_db_selection_get(dt_db_t *db);
+
+uint32_t dt_db_current_imgid(dt_db_t *db);
+uint32_t dt_db_current_colid(dt_db_t *db);
 
 // work with lighttable history
 // TODO: modify image rating w/ adding history

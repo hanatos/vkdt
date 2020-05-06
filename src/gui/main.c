@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3, 1ul<<20);
     dt_db_init(&vkdt.db);
     dt_db_load_image(&vkdt.db, &vkdt.thumbnails, fname);
-    vkdt.db.current_image = 0;
+    dt_db_selection_add(&vkdt.db, 0);
     dt_view_switch(s_view_darkroom);
   }
 

@@ -281,7 +281,7 @@ darkroom_enter()
   vkdt.wstate.active_widget_parid = -1;
   vkdt.wstate.mapped = 0;
   vkdt.wstate.selected = -1;
-  uint32_t imgid = vkdt.db.current_image;
+  uint32_t imgid = dt_db_current_imgid(&vkdt.db);
   if(imgid == -1u) return 1;
   char graph_cfg[2048];
   dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
@@ -360,9 +360,9 @@ darkroom_enter()
 int
 darkroom_leave()
 {
-  dt_image_t *img = vkdt.db.image + vkdt.db.current_image;
+  dt_image_t *img = vkdt.db.image + dt_db_current_imgid(&vkdt.db);
   char filename[1024];
-  dt_db_image_path(&vkdt.db, vkdt.db.current_image, filename, sizeof(filename));
+  dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
   if(!strstr(vkdt.db.dirname, "examples"))
     dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
   // TODO: start from already loaded/inited graph instead of from scratch!

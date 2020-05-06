@@ -7,15 +7,15 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   {
     if(key == GLFW_KEY_E)
     {
-      if(vkdt.db.current_image != -1u)
+      if(dt_db_current_imgid(&vkdt.db) != -1u)
         dt_view_switch(s_view_darkroom);
     }
     // TODO: work on selection instead of current_image?
 #define RATE(X)\
     else if(key == GLFW_KEY_ ## X )\
     {\
-      if(vkdt.db.current_image != -1u)\
-        vkdt.db.image[vkdt.db.current_image].rating = X;\
+      if(dt_db_current_imgid(&vkdt.db) != -1u)\
+        vkdt.db.image[dt_db_current_imgid(&vkdt.db)].rating = X;\
     }
     RATE(1)
     RATE(2)
@@ -27,8 +27,8 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 #define LABEL(X)\
     else if(key == GLFW_KEY_F ## X)\
     {\
-      if(vkdt.db.current_image != -1u)\
-        vkdt.db.image[vkdt.db.current_image].labels ^= 1<<(X-1);\
+      if(dt_db_current_imgid(&vkdt.db) != -1u)\
+        vkdt.db.image[dt_db_current_imgid(&vkdt.db)].labels ^= 1<<(X-1);\
     }
     LABEL(1)
     LABEL(2)

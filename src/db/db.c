@@ -15,7 +15,8 @@ void
 dt_db_init(dt_db_t *db)
 {
   memset(db, 0, sizeof(*db));
-  db->current_image = -1u;
+  db->current_imgid = -1u;
+  db->current_colid = -1u;
 }
 
 void
@@ -192,16 +193,35 @@ void dt_db_load_image(
     db->collection[k] = k;
 }
 
-void dt_db_selection_add(dt_db_t *db, uint32_t imgid)
+uint32_t dt_db_current_imgid(dt_db_t *db)
 {
+  return db->current_imgid;
+}
+
+uint32_t dt_db_current_colid(dt_db_t *db)
+{
+  return db->current_colid;
+}
+
+void dt_db_selection_add(dt_db_t *db, uint32_t colid)
+{
+  const uint32_t imgid = db->collection[colid];
   if(db->selection_cnt >= db->selection_max) return;
   int i = db->selection_cnt++;
   db->selection[i] = imgid;
   db->image[imgid].labels |= s_image_label_selected;
+  db->current_imgid = imgid;
+  db->current_colid = colid;
 }
 
-void dt_db_selection_remove(dt_db_t *db, uint32_t imgid)
+void dt_db_selection_remove(dt_db_t *db, uint32_t colid)
 {
+  if(db->current_colid == colid)
+  {
+    db->current_imgid = -1u;
+    db->current_colid = -1u;
+  }
+  const uint32_t imgid = db->collection[colid];
   for(int i=0;i<db->selection_cnt;i++)
   {
     if(db->selection[i] == imgid)
@@ -222,6 +242,8 @@ void dt_db_selection_clear(dt_db_t *db)
     // db->selection[i] = -1u; maybe less memory access is faster
   }
   db->selection_cnt = 0;
+  db->current_imgid = -1u;
+  db->current_colid = -1u;
 }
 
 const uint32_t *dt_db_selection_get(dt_db_t *db)
