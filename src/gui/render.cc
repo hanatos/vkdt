@@ -402,13 +402,25 @@ void render_lighttable()
 
           if(ret)
           {
-            if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
+            if(ImGui::GetIO().KeyCtrl)
             {
-              dt_db_selection_remove(&vkdt.db, vkdt.db.collection[i]);
-              vkdt.db.current_image = -1u;
+              if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
+              {
+                dt_db_selection_remove(&vkdt.db, vkdt.db.collection[i]);
+                vkdt.db.current_image = -1u;
+              }
+              else
+              {
+                dt_db_selection_add(&vkdt.db, vkdt.db.collection[i]);
+                vkdt.db.current_image = vkdt.db.collection[i];
+              }
+            }
+            else if(ImGui::GetIO().KeyShift)
+            { // TODO: shift selects ranges
             }
             else
-            {
+            { // no modifier, select exactly this image:
+              dt_db_selection_clear(&vkdt.db);
               dt_db_selection_add(&vkdt.db, vkdt.db.collection[i]);
               vkdt.db.current_image = vkdt.db.collection[i];
             }

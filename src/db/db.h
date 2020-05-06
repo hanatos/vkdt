@@ -118,6 +118,7 @@ dt_db_accept_filename(
 void dt_db_selection_add   (dt_db_t *db, uint32_t imgid);
 // remove image from the list of selected images, O(N).
 void dt_db_selection_remove(dt_db_t *db, uint32_t imgid);
+void dt_db_selection_clear(dt_db_t *db);
 // return sorted list of selected images
 const uint32_t *dt_db_selection_get(dt_db_t *db);
 

@@ -213,6 +213,17 @@ void dt_db_selection_remove(dt_db_t *db, uint32_t imgid)
   }
 }
 
+void dt_db_selection_clear(dt_db_t *db)
+{
+  for(int i=0;i<db->selection_cnt;i++)
+  {
+    const uint32_t imgid = db->selection[i];
+    db->image[imgid].labels &= ~s_image_label_selected;
+    // db->selection[i] = -1u; maybe less memory access is faster
+  }
+  db->selection_cnt = 0;
+}
+
 const uint32_t *dt_db_selection_get(dt_db_t *db)
 {
   // TODO: sync sorting criterion with collection
