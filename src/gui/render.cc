@@ -1,5 +1,6 @@
 extern "C" {
 #include "gui.h"
+#include "render.h"
 #include "view.h"
 #include "qvk/qvk.h"
 #include "pipe/modules/api.h"
@@ -328,7 +329,7 @@ void render_lighttable()
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
   { // center image view
-    if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u)
+    if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().WantCaptureKeyboard)
     { // is false if button returns true, so just abort before we redraw anything at all
       dt_view_switch(s_view_darkroom);
       return;
@@ -1298,4 +1299,17 @@ extern "C" void dt_gui_imgui_character(GLFWwindow *window, int c)
 extern "C" void dt_gui_imgui_scrolled(GLFWwindow *window, double xoff, double yoff)
 {
   ImGui_ImplGlfw_ScrollCallback(window, xoff, yoff);
+}
+
+extern "C" int dt_gui_imgui_want_mouse()
+{
+  return ImGui::GetIO().WantCaptureMouse;
+}
+extern "C" int dt_gui_imgui_want_keyboard()
+{
+  return ImGui::GetIO().WantCaptureKeyboard;
+}
+extern "C" int dt_gui_imgui_want_text()
+{
+  return ImGui::GetIO().WantTextInput;
 }

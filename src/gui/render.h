@@ -24,6 +24,11 @@ void dt_gui_imgui_mouse_position(GLFWwindow *w, double x, double y);
 void dt_gui_imgui_character(GLFWwindow *w, int c);
 void dt_gui_imgui_scrolled(GLFWwindow *w, double xoff, double yoff);
 
+int dt_gui_imgui_want_mouse();
+int dt_gui_imgui_want_keyboard();
+int dt_gui_imgui_want_text();
+
+
 void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
 
 void dt_gui_set_lod(int lod);

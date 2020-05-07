@@ -1,6 +1,7 @@
 #include "gui/view.h"
 #include "gui/darkroom.h"
 #include "gui/lighttable.h"
+#include "gui/render.h"
 
 int
 dt_view_switch(dt_gui_view_t view)
@@ -35,6 +36,7 @@ dt_view_switch(dt_gui_view_t view)
 void
 dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
+  if(dt_gui_imgui_want_mouse()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
@@ -50,6 +52,7 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 void
 dt_view_mouse_position(GLFWwindow *window, double x, double y)
 {
+  if(dt_gui_imgui_want_mouse()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
@@ -65,6 +68,7 @@ dt_view_mouse_position(GLFWwindow *window, double x, double y)
 void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(dt_gui_imgui_want_keyboard()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
