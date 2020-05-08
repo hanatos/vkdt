@@ -36,7 +36,8 @@ dt_view_switch(dt_gui_view_t view)
 void
 dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
-  if(dt_gui_imgui_want_mouse()) return;
+  // unfortunately this is always true:
+  // if(dt_gui_imgui_want_mouse()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
@@ -52,7 +53,8 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 void
 dt_view_mouse_position(GLFWwindow *window, double x, double y)
 {
-  if(dt_gui_imgui_want_mouse()) return;
+  // unfortunately this is always true:
+  // if(dt_gui_imgui_want_mouse()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
