@@ -1061,9 +1061,11 @@ void render_darkroom()
     window_flags |= ImGuiWindowFlags_NoTitleBar;
     window_flags |= ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoResize;
-    window_flags |= ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
+    // draw background over the full thing:
+    ImVec2 border = ImVec2(2*vkdt.state.center_x, 2*vkdt.state.center_y);
+    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd+border.x, vkdt.state.center_ht+border.y), ImGuiCond_Always);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("darkroom center", 0, window_flags);
 
     // draw center view image:
@@ -1137,6 +1139,7 @@ void render_darkroom()
       }
     }
     ImGui::End();
+    ImGui::PopStyleColor();
   }
 
   { // right panel
