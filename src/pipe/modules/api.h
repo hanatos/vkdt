@@ -577,6 +577,24 @@ static inline int dt_module_set_param_float(
   return 1;
 }
 
+static inline int dt_module_set_param_float_n(
+    const dt_module_t *module,
+    dt_token_t         param,
+    const float       *val,
+    int                cnt)
+{
+  for(int p=0;p<module->so->num_params;p++)
+  {
+    if(module->so->param[p]->name == param)
+    {
+      for(int i=0;i<cnt;i++)
+        ((float *)(module->param + module->so->param[p]->offset))[i] = val[i];
+      return 0;
+    }
+  }
+  return 1;
+}
+
 // open a file pointer, consider search paths specific to this graph
 static inline FILE*
 dt_graph_open_resource(

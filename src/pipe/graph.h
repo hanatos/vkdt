@@ -3,7 +3,6 @@
 #include "module.h"
 #include "alloc.h"
 
-// TODO: sanitise flags before run()!
 // create nodes requires roi requires alloc requires upload source
 typedef enum dt_graph_run_t
 {
