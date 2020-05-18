@@ -47,7 +47,7 @@ dt_log_init_arg(int argc, char *argv[])
     "all",
   };
   int num = sizeof(id)/sizeof(id[0]);
-  uint64_t verbose = 0ul;
+  uint64_t verbose = 1<<7; // error only by default
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-d") && i < argc-1)
