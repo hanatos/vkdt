@@ -180,10 +180,10 @@ void dt_db_load_image(
   char fullfn[1024];
   dt_db_image_path(db, 0, fullfn, sizeof(fullfn));
   uint32_t thumbid = -1u;
-  if(dt_thumbnails_load_one(
+  dt_thumbnails_load_one(
         thumbnails,
         fullfn,
-        &thumbid) != VK_SUCCESS) return;
+        &thumbid); // nothing we can do if this fails
 
   db->image[imgid].thumbnail = thumbid;
 
