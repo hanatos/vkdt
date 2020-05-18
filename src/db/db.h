@@ -109,6 +109,7 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".nef") ||
          !strcasecmp(f2, ".orf") ||
          !strcasecmp(f2, ".arw") ||
+         !strcasecmp(f2, ".srw") ||
          !strcasecmp(f2, ".dng") ||
          !strcasecmp(f2, ".raf") ||
          !strcasecmp(f2, ".rw2") ||
