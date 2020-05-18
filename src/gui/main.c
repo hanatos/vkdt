@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
       g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame - 1;
     if(g_busy > 0) glfwPostEmptyEvent();
     glfwWaitEvents();
+    if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
     clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();
