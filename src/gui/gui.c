@@ -48,8 +48,8 @@ int dt_gui_init()
   qvk.win_width  = mode->width;  //1920;
   qvk.win_height = mode->height; //1080;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-  glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+  // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+  // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
   qvk.window = glfwCreateWindow(qvk.win_width, qvk.win_height, "vkdt", NULL, NULL);
   glfwSetWindowPos(qvk.window, 0, 0);
 
