@@ -305,7 +305,10 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
 
 int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t maxlen)
 {
-  return snprintf(fn, maxlen, "%s/%s.cfg", db->dirname, db->image[imgid].filename) >= maxlen;
+  if(db->dirname[0])
+    return snprintf(fn, maxlen, "%s/%s.cfg", db->dirname, db->image[imgid].filename) >= maxlen;
+  else
+    return snprintf(fn, maxlen, "%s.cfg", db->image[imgid].filename) >= maxlen;
 }
 
 // TODO: add image to collection
