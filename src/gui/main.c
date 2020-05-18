@@ -141,7 +141,11 @@ int main(int argc, char *argv[])
   {
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3, 1ul<<20);
     dt_db_init(&vkdt.db);
-    dt_db_load_image(&vkdt.db, &vkdt.thumbnails, fname);
+    if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, fname))
+    {
+      dt_log(s_log_err, "image could not be loaded!");
+      goto out;
+    }
     dt_db_selection_add(&vkdt.db, 0);
     dt_view_switch(s_view_darkroom);
   }
@@ -188,6 +192,7 @@ int main(int argc, char *argv[])
 
   vkDeviceWaitIdle(qvk.device);
 
+out:
   // leave whatever view we're still in:
   dt_view_switch(s_view_cnt);
 

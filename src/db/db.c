@@ -142,12 +142,12 @@ void dt_db_load_directory(
   qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filename, db);
 }
 
-void dt_db_load_image(
+int dt_db_load_image(
     dt_db_t         *db,
     dt_thumbnails_t *thumbnails,
     const char      *filename)
 {
-  if(!dt_db_accept_filename(filename)) return;
+  if(!dt_db_accept_filename(filename)) return 1;
   db->image_max = 1;
   int len = strnlen(filename, 2048);
   int no_cfg = 0;
@@ -175,7 +175,7 @@ void dt_db_load_image(
   { // should never happen for a single image:
     dt_log(s_log_err|s_log_db, "failed to add filename to index! aborting import.");
     db->image_cnt--;
-    return;
+    return 1;
   }
   char fullfn[1024];
   dt_db_image_path(db, 0, fullfn, sizeof(fullfn));
@@ -191,6 +191,7 @@ void dt_db_load_image(
   db->collection_cnt = db->image_cnt;
   for(int k=0;k<db->collection_cnt;k++)
     db->collection[k] = k;
+  return 0;
 }
 
 uint32_t dt_db_current_imgid(dt_db_t *db)
