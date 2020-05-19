@@ -3,6 +3,7 @@
 #include "pipe/io.h"
 #include "core/log.h"
 #include <libgen.h>
+#include <unistd.h>
 
 // helper to read parameters from config file
 static inline int
@@ -133,6 +134,25 @@ int dt_graph_read_config_line(
   return 0;
 }
 
+int dt_graph_set_searchpath(
+    dt_graph_t *graph,
+    const char *filename)
+{
+  char target[256] = {0};
+  const char *f = target;
+  ssize_t err = readlink(filename, target, sizeof(target));
+  if(err == -1) // mostly not a link. might be a different error but we don't want to use target.
+    f = filename;
+
+  if(snprintf(graph->searchpath, sizeof(graph->searchpath), "%s", f) < 0)
+  {
+    graph->searchpath[0] = 0;
+    return 1;
+  }
+  else dirname(graph->searchpath);
+  return 0;
+}
+
 // TODO: rewrite this to work on a uint8_t * data pointer (same for write below)
 // TODO: also insert line start pointers (for history stack)
 // this is a public api function on the graph, it reads the full stack
@@ -141,8 +161,7 @@ int dt_graph_read_config_ascii(
     const char *filename)
 {
   FILE *f = fopen(filename, "rb");
-  if(snprintf(graph->searchpath, sizeof(graph->searchpath), "%s", filename) < 0) graph->searchpath[0] = 0;
-  else dirname(graph->searchpath);
+  dt_graph_set_searchpath(graph, filename);
   if(!f) return 1;
   // needs to be large enough to hold 1000 vertices of drawn masks:
   char line[30000];

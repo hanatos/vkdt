@@ -16,3 +16,7 @@ int dt_graph_write_config_ascii(
 int dt_graph_read_config_line(
     dt_graph_t *graph,
     char *line);
+
+int dt_graph_set_searchpath(
+    dt_graph_t *graph,
+    const char *filename);

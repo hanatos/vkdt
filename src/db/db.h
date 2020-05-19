@@ -55,6 +55,7 @@ dt_stringpool_t;
 typedef struct dt_db_t
 {
   char dirname[1024];           // full path of currently opened directory
+  char basedir[1024];           // db base dir, where are tags etc
 
   // list of images in database
   dt_image_t *image;
@@ -139,4 +140,6 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append);
 // return 0 on success, else the buffer was too small.
 int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t maxlen);
 
-// TODO: add image to collection
+// add image to named collection
+int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname);
+

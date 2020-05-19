@@ -472,17 +472,31 @@ void render_lighttable()
         static char name[32] = "all time best";
         if (ImGui::BeginPopupModal("assign to collection", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
+          int ok = 0;
           if (open)
             ImGui::SetKeyboardFocusHere();
           if(ImGui::InputText("##edit", name, IM_ARRAYSIZE(name), ImGuiInputTextFlags_EnterReturnsTrue))
+          {
+            ok = 1;
             ImGui::CloseCurrentPopup(); // accept
+          }
           if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
             ImGui::CloseCurrentPopup(); // discard
           // ImGui::SetItemDefaultFocus();
           if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
           ImGui::SameLine();
-          if (ImGui::Button("ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+          if (ImGui::Button("ok", ImVec2(120, 0)))
+          {
+            ok = 1;
+            ImGui::CloseCurrentPopup();
+          }
           ImGui::EndPopup();
+          if(ok)
+          {
+            const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+            for(int i=0;i<vkdt.db.selection_cnt;i++)
+              dt_db_add_to_collection(&vkdt.db, sel[i], name);
+          }
         }
 
         static int wd = 0, ht = 0;

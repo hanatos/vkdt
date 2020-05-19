@@ -83,8 +83,9 @@ dt_graph_export(
       err = dt_graph_read_config_ascii(graph, graph_cfg);
       char imgfilename[256];
       snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
-      snprintf(graph->searchpath, sizeof(graph->searchpath), "%s", dirname(imgfilename));
-      snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
+      // reading the config will reset the search path. we'll repoint it to the
+      // actual image file, not the default cfg:
+      dt_graph_set_searchpath(graph, imgfilename);
       int len = strlen(imgfilename);
       assert(len > 4);
       imgfilename[len-4] = 0; // cut away ".cfg"

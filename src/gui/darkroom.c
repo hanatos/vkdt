@@ -312,8 +312,7 @@ darkroom_enter()
   {
     char imgfilename[256];
     dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
-    snprintf(vkdt.graph_dev.searchpath, sizeof(vkdt.graph_dev.searchpath), "%s", dirname(imgfilename));
-    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
+    dt_graph_set_searchpath(&vkdt.graph_dev, imgfilename);
     int len = strlen(imgfilename);
     assert(len > 4);
     imgfilename[len-4] = 0; // cut away ".cfg"

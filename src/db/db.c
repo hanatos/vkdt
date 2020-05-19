@@ -17,6 +17,8 @@ dt_db_init(dt_db_t *db)
   memset(db, 0, sizeof(*db));
   db->current_imgid = -1u;
   db->current_colid = -1u;
+  snprintf(db->basedir, sizeof(db->basedir), "%s/.config/vkdt", getenv("HOME"));
+  mkdir(db->basedir, 0755);
 }
 
 void
@@ -83,6 +85,10 @@ void dt_db_load_directory(
 
   dt_stringpool_init(&db->sp_filename, db->collection_max, 20);
 
+  snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
+  char *c = db->dirname + strlen(db->dirname) - 1;
+  if(*c == '/') *c = 0; // remove trailing '/'
+
   // the gui thread in main.c starts two background threads creating thumbnails, if needed.
   // thumbnails_load_list() will load the created bc1, triggered in render.cc
   rewinddir(dp);
@@ -100,7 +106,7 @@ void dt_db_load_directory(
     int ep_len = strlen(ep->d_name);
     if(ep_len > 4)
     {
-      snprintf(cfgfile, sizeof(cfgfile), "%s/%s", dirname, ep->d_name);
+      snprintf(cfgfile, sizeof(cfgfile), "%s/%s", db->dirname, ep->d_name);
       int len = strlen(cfgfile);
       char *f2 = cfgfile + len - 4;
       if(strcasecmp(f2, ".cfg"))
@@ -127,8 +133,6 @@ void dt_db_load_directory(
   clock_t end = clock();
   dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
-  snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
-  
   char dbname[256];
   snprintf(dbname, sizeof(dbname), "%s/vkdt.db", dirname);
   dt_db_read(db, dbname);
@@ -311,7 +315,24 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
     return snprintf(fn, maxlen, "%s.cfg", db->image[imgid].filename) >= maxlen;
 }
 
-// TODO: add image to collection
-// TODO: get image_path, get murmur3 hash
-// TODO: create directory ~/.config/vkdt/tags/<tag>/ and link <hash> to our image path
-// TODO: use relative path names in link? still useful if ~/.config top level?
+// add image to named collection/tag
+// get image_path, get murmur3 hash
+// create directory ~/.config/vkdt/tags/<tag>/ and link <hash> to our image path
+// use relative path names in link? still useful if ~/.config top level?
+int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname)
+{
+  char filename[256];
+  dt_db_image_path(db, imgid, filename, sizeof(filename));
+
+  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+  char dirname[256];
+  snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
+  mkdir(dirname, 0755);
+  snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
+  mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
+  char linkname[256];
+  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%x.cfg", db->basedir, cname, hash);
+  int err = symlink(filename, linkname);
+  if(err) return 1;
+  return 0;
+}

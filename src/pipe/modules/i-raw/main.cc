@@ -117,7 +117,7 @@ load_raw(
     mod_data->d->decodeMetaData(meta);
 
     const auto errors = mod_data->d->mRaw->getErrors();
-    for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", mod_data->filename, error.c_str());
+    for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", filename, error.c_str());
 
     // TODO: do some corruption detection and support for esoteric formats/fails here
     // the data type doesn't seem to be inited on hdrmerge raws:
@@ -130,7 +130,7 @@ load_raw(
   }
   catch(const std::exception &exc)
   {
-    printf("[rawspeed] (%s) %s\n", mod_data->filename, exc.what());
+    printf("[rawspeed] (%s) %s\n", filename, exc.what());
     return 1;
   }
   catch(...)
