@@ -68,6 +68,21 @@ dt_view_mouse_position(GLFWwindow *window, double x, double y)
 }
 
 void
+dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
+{
+  switch(vkdt.view_mode)
+  {
+  case s_view_darkroom:
+    darkroom_mouse_scrolled(window, xoff, yoff);
+    break;
+  case s_view_lighttable:
+    lighttable_mouse_scrolled(window, xoff, yoff);
+    break;
+  default:;
+  }
+}
+
+void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
   if(dt_gui_imgui_want_keyboard()) return;

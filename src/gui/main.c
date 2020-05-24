@@ -84,6 +84,7 @@ char_callback(GLFWwindow* window, unsigned int c)
 static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
+  dt_view_mouse_scrolled(window, xoff, yoff);
   dt_gui_imgui_scrolled(window, xoff, yoff);
 }
 
