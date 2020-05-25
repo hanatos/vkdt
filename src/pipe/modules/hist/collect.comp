@@ -16,9 +16,18 @@ layout( // input f16 buffer rgb
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output ui32 buffer rgb
+layout( // output ui32 buffer r
     set = 1, binding = 1, r32ui
-) uniform uimage2D img_out;
+) uniform uimage2D img_out_r;
+
+layout( // output ui32 buffer r
+   set = 1, binding = 2, r32ui
+) uniform uimage2D img_out_g;
+
+layout( // output ui32 buffer r
+   set = 1, binding = 3, r32ui
+) uniform uimage2D img_out_b;
+
 
 // histogram counter. this runs on the input dimensions
 void
@@ -28,12 +37,15 @@ main()
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  float scale = float(imageSize(img_out).x)/float(textureSize(img_in, 0).x);
-  int opos = clamp(int(scale * ipos.x), 0, int(imageSize(img_out).x)-1);
-  uvec3 y = clamp(uvec3((1.0-rgb) * imageSize(img_out).y + 0.5), 0, imageSize(img_out).y-1);
-  // use 10-bit rgb
-  imageAtomicAdd(img_out, ivec2(opos, y.r), 1);
-  imageAtomicAdd(img_out, ivec2(opos, y.g), 1024);
-  imageAtomicAdd(img_out, ivec2(opos, y.b), 1048576);
-}
+  float scale = float(imageSize(img_out_r).x)/float(textureSize(img_in, 0).x);
+  // should be replaced by a checkbox or combox on UI
+  int split = params.mode < 0.1 ? 1 : 3;
+  int opos = clamp(int(scale * ipos.x), 0, int(imageSize(img_out_r).x)-1)/split;
+  vec3 y = clamp(vec3((1.0-rgb) * imageSize(img_out_r).y), 1, imageSize(img_out_r).y-1);
 
+  imageAtomicAdd(img_out_r, ivec2(opos, y.r), 1);
+  uint g_max = imageAtomicAdd(img_out_g, ivec2(opos, y.g), 1);
+  imageAtomicAdd(img_out_b, ivec2(opos, y.b), 1);
+  // ugly - just to pass the max count to map
+  imageAtomicMax(img_out_b, ivec2(0, 0), g_max+1);
+}

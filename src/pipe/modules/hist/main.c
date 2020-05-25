@@ -26,7 +26,23 @@ create_nodes(
     .roi    = module->connector[0].roi,
     .connected_mi = -1,
   };
-  dt_connector_t co = {
+  dt_connector_t co_r = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("r"),
+    .format = dt_token("ui32"),
+    .roi    = module->connector[1].roi,
+    .flags  = s_conn_clear,
+  };
+  dt_connector_t co_g = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("r"),
+    .format = dt_token("ui32"),
+    .roi    = module->connector[1].roi,
+    .flags  = s_conn_clear,
+  };
+  dt_connector_t co_b = {
     .name   = dt_token("output"),
     .type   = dt_token("write"),
     .chan   = dt_token("r"),
@@ -45,18 +61,46 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 2,
+    .num_connectors = 4,
     .connector = {
-      ci, co,
+      ci, co_r, co_g, co_b,
     },
   };
-  ci.roi    = co.roi;
-  ci.chan   = dt_token("r");
-  ci.format = dt_token("ui32");
-  ci.roi    = co.roi;
-  co.chan   = dt_token("rgba");
-  co.format = dt_token("f16");
-  co.flags  = 0;
+  dt_connector_t ci_r = {
+    .name   = dt_token("input"),
+    .type   = dt_token("read"),
+    .chan   = dt_token("r"),
+    .format = dt_token("ui32"),
+    .roi    = co_r.roi,
+    .flags  = s_conn_clear,
+    .connected_mi = -1,
+  };
+  dt_connector_t ci_g = {
+    .name   = dt_token("input"),
+    .type   = dt_token("read"),
+    .chan   = dt_token("r"),
+    .format = dt_token("ui32"),
+    .roi    = co_g.roi,
+    .flags  = s_conn_clear,
+    .connected_mi = -1,
+  };
+  dt_connector_t ci_b = {
+    .name   = dt_token("input"),
+    .type   = dt_token("read"),
+    .chan   = dt_token("r"),
+    .format = dt_token("ui32"),
+    .roi    = co_b.roi,
+    .flags  = s_conn_clear,
+    .connected_mi = -1,
+  };
+  dt_connector_t co = {
+    .name   = dt_token("output"),
+    .type   = dt_token("write"),
+    .chan   = dt_token("rgba"),
+    .format = dt_token("f16"),
+    .roi    = module->connector[1].roi,
+    .flags  = 0,
+  };
   assert(graph->num_nodes < graph->max_nodes);
   const int id_map = graph->num_nodes++;
   dt_node_t *node_map = graph->node + id_map;
@@ -67,15 +111,16 @@ create_nodes(
     .wd     = module->connector[1].roi.wd,
     .ht     = module->connector[1].roi.ht,
     .dp     = 1,
-    .num_connectors = 2,
+    .num_connectors = 4,
     .connector = {
-      ci, co,
+      ci_r, ci_g, ci_b, co,
     },
   };
 
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_collect, 0);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
-  dt_connector_copy(graph, module, 1, id_map, 1);
+  dt_node_connect  (graph, id_collect, 2, id_map, 1);
+  dt_node_connect  (graph, id_collect, 3, id_map, 2);
+  dt_connector_copy(graph, module, 1, id_map, 3);
 }
-
