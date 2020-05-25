@@ -41,7 +41,7 @@ _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
 const char *vk_requested_layers[] = {
-  "VK_LAYER_LUNARG_standard_validation",
+  "VK_LAYER_KHRONOS_validation",
 };
 
 const char *vk_requested_instance_extensions[] = {
