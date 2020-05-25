@@ -210,7 +210,7 @@ void modify_roi_out(
   // load image if not happened yet
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;
-  char tmpfn[512];
+  char tmpfn[1024];
   if(filename[0] != '/') // relative paths
   {
     snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
@@ -452,7 +452,7 @@ int read_source(
 {
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;
-  char tmpfn[512];
+  char tmpfn[1024];
   if(filename[0] != '/') // relative paths
   {
     snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
