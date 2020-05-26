@@ -49,6 +49,19 @@ image_init(dt_image_t *img)
   img->labels = 0;
 }
 
+static void
+dt_db_update_collection(dt_db_t *db)
+{
+  // TODO: abstract more
+  // TODO: consider sort order and filters
+  db->collection_cnt = db->image_cnt;
+  for(int k=0;k<db->collection_cnt;k++)
+    db->collection[k] = k;
+  // sort by filename:
+  // TODO: use db/tests/parallel radix sort
+  qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filename, db);
+}
+
 void dt_db_load_directory(
     dt_db_t         *db,
     dt_thumbnails_t *thumbnails,
@@ -137,13 +150,7 @@ void dt_db_load_directory(
   snprintf(dbname, sizeof(dbname), "%s/vkdt.db", dirname);
   dt_db_read(db, dbname);
 
-  // TODO: use db/tests/parallel radix sort
-  // collect all images: // TODO: abstract more
-  db->collection_cnt = db->image_cnt;
-  for(int k=0;k<db->collection_cnt;k++)
-    db->collection[k] = k;
-  // sort by filename:
-  qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filename, db);
+  dt_db_update_collection(db);
 }
 
 int dt_db_load_image(
@@ -335,4 +342,19 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   int err = symlink(filename, linkname);
   if(err) return 1;
   return 0;
+}
+
+void dt_db_remove_selected_images(dt_db_t *db)
+{
+  for(int i=0;i<db->selection_cnt;i++)
+  {
+  // TODO: swap last image to imgid
+    // TODO: this does not work (because the selection will be invalidated the first time around):
+    db->image[db->image_cnt--] = db->image[db->selection[i]];
+  }
+
+  // select none:
+  db->selection_cnt = 0;
+  // freshly sort collection
+  dt_db_update_collection(db);
 }

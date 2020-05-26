@@ -68,7 +68,7 @@ create_nodes(
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
-      .chan   = dt_token("rgga"),
+      .chan   = dt_token("rggb"),
       .format = dt_token("ui16"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
