@@ -142,17 +142,16 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       // where does the mouse look in the current image?
       float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
       float scale = vkdt.state.scale <= 0.0f ? MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht) : vkdt.state.scale;
-      float im_x = (x - (vkdt.state.center_x + imwd)/2.0f) / scale;
-      float im_y = (y - (vkdt.state.center_y + imht)/2.0f) / scale;
-      im_x += vkdt.state.look_at_x;
-      im_y += vkdt.state.look_at_y;
+      float im_x = (x - (vkdt.state.center_x + imwd)/2.0f);
+      float im_y = (y - (vkdt.state.center_y + imht)/2.0f);
       if(vkdt.state.scale <= 0.0f)
       {
         vkdt.state.scale = 1.0f;
-        vkdt.state.look_at_x = im_x;
-        vkdt.state.look_at_y = im_y;
+        const float dscale = 1.0f/scale - 1.0f/vkdt.state.scale;
+        vkdt.state.look_at_x += im_x  * dscale;
+        vkdt.state.look_at_y += im_y  * dscale;
       }
-      else if(vkdt.state.scale >= 8.0f)
+      else if(vkdt.state.scale >= 8.0f || vkdt.state.scale < 1.0f)
       {
         vkdt.state.scale = -1.0f;
         vkdt.state.look_at_x = vkdt.wstate.wd/2.0f;
@@ -161,9 +160,45 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       else if(vkdt.state.scale >= 1.0f)
       {
         vkdt.state.scale *= 2.0f;
-        vkdt.state.look_at_x = im_x;
-        vkdt.state.look_at_y = im_y;
+        const float dscale = 1.0f/scale - 1.0f/vkdt.state.scale;
+        vkdt.state.look_at_x += im_x  * dscale;
+        vkdt.state.look_at_y += im_y  * dscale;
       }
+    }
+  }
+}
+
+void
+darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
+{
+  double x, y;
+  glfwGetCursorPos(qvk.window, &x, &y);
+
+  if(x < vkdt.state.center_x + vkdt.state.center_wd)
+  {
+    dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+    if(!out) return; // should never happen
+    assert(out);
+    vkdt.wstate.wd = (float)out->connector[0].roi.wd;
+    vkdt.wstate.ht = (float)out->connector[0].roi.ht;
+
+    const float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
+    const float fit_scale = MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht);
+    const float scale = vkdt.state.scale <= 0.0f ? fit_scale : vkdt.state.scale;
+    const float im_x = (x - (vkdt.state.center_x + imwd)/2.0f);
+    const float im_y = (y - (vkdt.state.center_y + imht)/2.0f);
+    vkdt.state.scale = scale * (yoff > 0.0f ? 1.1f : 0.9f);
+    vkdt.state.scale = CLAMP(vkdt.state.scale , 0.1f, 8.0f);
+    if(vkdt.state.scale >= fit_scale)
+    {
+      const float dscale = 1.0f/scale - 1.0f/vkdt.state.scale;
+      vkdt.state.look_at_x += im_x  * dscale;
+      vkdt.state.look_at_y += im_y  * dscale;
+    }
+    else
+    {
+      vkdt.state.look_at_x = vkdt.wstate.wd/2.0f;
+      vkdt.state.look_at_y = vkdt.wstate.ht/2.0f;
     }
   }
 }
@@ -176,7 +211,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     // convert view space mouse coordinate to normalised image
     float v[] = {(float)x, (float)y}, n[2] = {0};
     dt_view_to_image(v, n);
-    dt_token_t type = 
+    dt_token_t type =
       vkdt.graph_dev.module[
       vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type;
