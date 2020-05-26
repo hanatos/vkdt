@@ -1,0 +1,3 @@
+nspots:int:1:0
+spots:float:80:0
+picked:float:60:0

@@ -1,0 +1,11 @@
+write_sink()
+write to module params? so we can visualise in gui controls
+
+output to buffer? so we can plug it into another module, such as colour lut/matching
+
+both? check whether graph will produce compute shaders for sinks
+else have separate sink node to update module params + output node with collect rgb shader
+params:
+- number of spots
+- spots/area
+- "output" rgb
