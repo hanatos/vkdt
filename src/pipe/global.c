@@ -141,7 +141,8 @@ dt_module_so_load(
     mod->param[i]->widget = (dt_widget_descriptor_t) {
       .type = dt_token("slider"),
       .min  = 0.0f,
-      .max  = 1.0f
+      .max  = 1.0f,
+      .str  = NULL
     };
   if(f)
   {
@@ -158,17 +159,29 @@ dt_module_so_load(
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
       }
-      else if(type == dt_token("quad"))   {}
-      else if(type == dt_token("axquad")) {}
-      else if(type == dt_token("draw"))   {}
-      else if(type == dt_token("hidden")) {}
+      else if(type == dt_token("checkbox")) {}
+      else if(type == dt_token("checkbxf")) {}
+      else if(type == dt_token("combobox")) {}
+      else if(type == dt_token("quad"))     {}
+      else if(type == dt_token("axquad"))   {}
+      else if(type == dt_token("draw"))     {}
+      else if(type == dt_token("hidden"))   {}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
+      if(pid == -1)
+        dt_log(s_log_err, "unknown widget param %"PRItkn" in %s!", dt_token_str(parm), filename);
       mod->param[pid]->widget = (dt_widget_descriptor_t) {
         .type = type,
         .min  = min,
         .max  = max,
+        .str  = NULL
       };
+      if(type == dt_token("combobox") || type == dt_token("checkbxf"))
+      {
+        const int wds = strlen(b);
+        mod->param[pid]->widget.str = malloc(wds+1);
+        strcpy(mod->param[pid]->widget.str, b);
+      }
     }
     fclose(f);
   }

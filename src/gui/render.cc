@@ -452,7 +452,7 @@ void render_lighttable()
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, window_flags);
-    
+
     float lineht = ImGui::GetTextLineHeight();
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
@@ -760,7 +760,7 @@ inline void draw_widget(int modid, int parid)
       // TODO: distinguish by count:
       if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("float"))
       {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + 
+        float *val = (float*)(vkdt.graph_dev.module[modid].param +
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
         char str[10] = {0};
         memcpy(str,
@@ -778,7 +778,7 @@ inline void draw_widget(int modid, int parid)
       }
       else if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
       {
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + 
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param +
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
         char str[10] = {0};
         memcpy(str,
@@ -796,9 +796,88 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("checkbox"):
+    {
+      if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
+      {
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param +
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        char str[10] = {0};
+        memcpy(str,
+            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        if(ImGui::Checkbox(str, (bool *)val))
+        {
+          // TODO: let module decide which flags are needed!
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                 s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+          vkdt.graph_dev.active_module = modid;
+        }
+      }
+      break;
+    }
+    case dt_token("checkbxf"):
+    {
+      if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
+      {
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param +
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        char str[10] = {0};
+        memcpy(str,
+            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        char str2[256];
+        strcpy(str2,
+            vkdt.graph_dev.module[modid].so->param[parid]->widget.str);
+        char *cbx = strtok(str2, ":");
+        int32_t mask = 1 << 0;
+        while(cbx)
+        {
+          if(ImGui::CheckboxFlags(cbx, (unsigned int*)val, mask))
+          {
+            // TODO: let module decide which flags are needed!
+            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                   s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+            vkdt.graph_dev.active_module = modid;
+          }
+          mask = mask << 1;
+          cbx = strtok(NULL, ":");
+        }
+      }
+      break;
+    }
+    case dt_token("combobox"):
+    {
+      if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
+      {
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param +
+          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        char str[10] = {0};
+        memcpy(str,
+            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        char list[256];
+        strcpy(list,
+            vkdt.graph_dev.module[modid].so->param[parid]->widget.str);
+        list[strlen(list)+1] = '\0';
+        char *e = list;
+        e = strstr(e, ":");
+        while(e)
+        {
+          e[0] = '\0';
+          e++;
+          e = strstr(e, ":");
+        }
+        if(ImGui::Combo(str, val, list))
+        {
+          // TODO: let module decide which flags are needed!
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                 s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+          vkdt.graph_dev.active_module = modid;
+        }
+      }
+      break;
+    }
     case dt_token("quad"):
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+      float *v = (float*)(vkdt.graph_dev.module[modid].param +
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
@@ -828,7 +907,7 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("axquad"):
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+      float *v = (float*)(vkdt.graph_dev.module[modid].param +
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
@@ -888,7 +967,7 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("draw"):
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+      float *v = (float*)(vkdt.graph_dev.module[modid].param +
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
@@ -1124,7 +1203,7 @@ void render_darkroom()
         case dt_token("axquad"):
         {
           float v[8] = {
-            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 
+            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2],
             vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
