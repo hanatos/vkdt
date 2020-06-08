@@ -16,7 +16,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float g;
 } params;
 
-// TODO: push constant with frame id? global uniform buffer?
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 
 
 layout( // output f16 buffer rgb
@@ -136,7 +139,7 @@ main()
   const vec3 lin = vec3(sin(params.theta), 0.0, cos(params.theta));
   for(int s=0;s<spp;s++)
   {
-    uvec2 seed = uvec2(ipos.x + 1337*ipos.y, 0 + 1000*s);
+    uvec2 seed = uvec2(30000*global.frame + ipos.x + 1337*ipos.y, 0 + 1000*s);
 
     // special cased pt/nee so we avoid the atomics a light tracer would bring
     // - sample direction under surface
