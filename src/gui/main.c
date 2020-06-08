@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-dt_gui_t vkdt;
+dt_gui_t vkdt = {0};
 
 int g_running = 1;
 int g_busy = 3;
