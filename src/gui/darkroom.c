@@ -397,7 +397,7 @@ darkroom_leave()
   dt_image_t *img = vkdt.db.image + dt_db_current_imgid(&vkdt.db);
   char filename[1024];
   dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
-  if(!strstr(vkdt.db.dirname, "examples"))
+  if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
     dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
   // TODO: start from already loaded/inited graph instead of from scratch!
   QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
