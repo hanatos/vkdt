@@ -445,11 +445,11 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     return 1;
   }
 
-  float queue_priorities = 1.0f;
+  float queue_priorities[3] = {1.0f};
   VkDeviceQueueCreateInfo queue_create_info = {
     .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
     .queueCount       = MIN(queue_cnt, 3),
-    .pQueuePriorities = &queue_priorities,
+    .pQueuePriorities = queue_priorities,
     .queueFamilyIndex = queue_family_index,
   };
 
