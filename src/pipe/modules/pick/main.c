@@ -48,7 +48,7 @@ create_nodes(
       .name   = dt_token("picked"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
+      .format = dt_token("f32"),
       .roi    = module->connector[1].roi,
       .flags  = s_conn_clear,
     }},
@@ -76,9 +76,8 @@ create_nodes(
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_collect, 0);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
-  dt_connector_copy(graph, module, 1, id_map, 1);
-  dt_connector_copy(graph, module, 2, id_collect, 1);
-  graph->node[id_collect].connector[1].flags  = s_conn_clear;
+  dt_connector_copy(graph, module, 1, id_collect, 1);
+  graph->node[id_collect].connector[1].flags = s_conn_clear;
 }
 
 // called after pipeline finished up to here.
