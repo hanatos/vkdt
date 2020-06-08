@@ -70,6 +70,7 @@ and we may link to some others, too.
 - submodule rawspeed (pulls in pugixml, stdc++, zlib, jpeg, libomp-dev)
 - libjpeg
 - build: make
+
 optional (configure in `bin/config.mk`):
 - freetype (libfreetype-dev)
 - exiv2 (libexiv2-dev)
