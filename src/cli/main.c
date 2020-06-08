@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
       param.output[output_cnt].max_height = atof(argv[++i]);
     else if(!strcmp(argv[i], "--filename") && i < argc-1)
       param.output[output_cnt].p_filename = argv[++i];
+    else if(!strcmp(argv[i], "--format") && i < argc-1)
+      {i++; param.output[output_cnt].mod = dt_token(argv[i]);}
     else if(!strcmp(argv[i], "--dump-modules"))
       param.dump_modules = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
@@ -57,6 +59,7 @@ int main(int argc, char *argv[])
     "    [--width <x>]                 max output width\n"
     "    [--height <y>]                max output height\n"
     "    [--filename <f>]              output filename (without extension or frame number)\n"
+    "    [--format <fm>]               output format (o-jpg, o-bc1, o-pfm, ..)\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "                                  this resets output specific options: quality, width, height\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
