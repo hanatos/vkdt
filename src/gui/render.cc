@@ -833,7 +833,7 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::SliderFloat(str, val,
+        if(ImGui::dt_SliderFloat(str, val,
               param->widget.min, param->widget.max, "%2.5f"))
         {
           dt_graph_run_t flags = s_graph_run_none;
@@ -850,7 +850,7 @@ inline void draw_widget(int modid, int parid)
         int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::SliderInt(str, val,
+        if(ImGui::dt_SliderInt(str, val,
               param->widget.min, param->widget.max, "%d"))
         {
           dt_graph_run_t flags = s_graph_run_none;
@@ -1263,7 +1263,7 @@ void render_darkroom()
         case dt_token("crop"):
         {
           float v[8] = {
-            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 
+            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2],
             vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
@@ -1276,7 +1276,7 @@ void render_darkroom()
         case dt_token("pick"):
         {
           float v[8] = {
-            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 
+            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2],
             vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
