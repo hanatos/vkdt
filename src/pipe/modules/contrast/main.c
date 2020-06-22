@@ -30,7 +30,7 @@ create_nodes(
   dt_connector_t cg = {
     .name   = dt_token("coarse"),
     .type   = dt_token("read"),
-    .chan   = dt_token("rgba"),
+    .chan   = dt_token("y"),
     .format = dt_token("f16"),
     .roi    = module->connector[0].roi,
     .connected_mi = -1,

@@ -474,7 +474,7 @@ dt_api_guided_filter(
   const int id_guided3 = graph->num_nodes++;
   dt_node_t *node_guided3 = graph->node + id_guided3;
   ci.chan = dt_token("rgba");
-  co.chan = dt_token("rgba");
+  co.chan = dt_token("y");
   dt_connector_t cm = {
     .name   = dt_token("ab"),
     .type   = dt_token("read"),
