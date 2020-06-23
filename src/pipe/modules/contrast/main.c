@@ -7,7 +7,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // TODO: streamline the api needed to do things like this!
+  const float radius = dt_module_param_float(module, 0)[0]; // radius is the first parameter in our params file
 
   int guided_entry = -1, guided_exit = -1;
   dt_api_guided_filter(
@@ -15,10 +15,9 @@ create_nodes(
       &module->connector[0].roi,
       &guided_entry,
       &guided_exit,
-      20,  // TODO: not used! put in push constants?
+      radius,
       1e-2f);
 
-  // TODO: could put that into shared/guided3 in one dispatch:
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
