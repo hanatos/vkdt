@@ -4,20 +4,7 @@
 #include "alloc.h"
 
 // create nodes requires roi requires alloc requires upload source
-typedef enum dt_graph_run_t
-{
-  s_graph_run_none           = 0,
-  s_graph_run_roi            = 1<<0, // pass 1: recompute regions of interest
-  s_graph_run_create_nodes   = 1<<1, // pass 2: create nodes from modules
-  s_graph_run_alloc          = 1<<2, // pass 3: alloc and free images
-  s_graph_run_record_cmd_buf = 1<<3, // pass 4: record command buffer
-  s_graph_run_upload_source  = 1<<4, // final : upload new source image
-  s_graph_run_download_sink  = 1<<5, // final : download sink images
-  s_graph_run_wait_done      = 1<<6, // wait for fence
-  s_graph_run_before_active  = 1<<7, // run all modules, even before active_module
-  s_graph_run_all = -1u,
-}
-dt_graph_run_t;
+typedef uint32_t dt_graph_run_t;
 
 typedef struct dt_connector_image_t
 {

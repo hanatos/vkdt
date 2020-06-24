@@ -3,6 +3,7 @@
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/global.h"
+#include "pipe/modules/api.h"
 #include "db/thumbnails.h"
 #include "core/log.h"
 #include "gui/gui.h"

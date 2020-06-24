@@ -8,7 +8,8 @@
 // this queries the modules on startup, does the dlopen and expensive
 // parsing once, and holds a list for modules to quickly access run time.
 
-typedef struct dt_graph_t dt_graph_t; // fwd declare
+typedef uint32_t dt_graph_run_t;            // fwd declare
+typedef struct dt_graph_t dt_graph_t;       // fwd declare
 typedef struct dt_module_t dt_module_t;
 typedef struct dt_node_t dt_node_t;
 typedef void (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
@@ -19,6 +20,7 @@ typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
+typedef dt_graph_run_t (*dt_module_check_params_t)(dt_module_t *module, uint32_t parid, void *oldval);
 
 // this is all the "class" info that is not bound to an instance and can be
 // read once on startup
@@ -45,6 +47,9 @@ typedef struct dt_module_so_t
 
   // commit new parameters from module's gui params to binary float blob
   dt_module_commit_params_t commit_params;
+
+  // check whether a parameter update would cause a graph update or just a parameter update
+  dt_module_check_params_t check_params;
 
   // for source nodes, will be called before processing starts
   dt_module_read_source_t read_source;

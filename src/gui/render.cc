@@ -762,6 +762,7 @@ inline void draw_widget(int modid, int parid)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + 
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        float oldval = *val;
         char str[10] = {0};
         memcpy(str,
             &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
@@ -770,9 +771,11 @@ inline void draw_widget(int modid, int parid)
               vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
               "%2.5f"))
         {
-          // TODO: let module decide which flags are needed!
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                 s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+                 s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
         }
       }
@@ -780,6 +783,7 @@ inline void draw_widget(int modid, int parid)
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + 
           vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str,
             &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
@@ -788,7 +792,9 @@ inline void draw_widget(int modid, int parid)
               vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
               "%d"))
         {
-          // TODO: let module decide which flags are needed!
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
                  s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;

@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float radius;
   float edges;
   float detail;
+  float thrs;
 } params;
 
 layout( // input f16 buffer rgba
@@ -39,7 +40,9 @@ main()
   float l0 = luminance_rec2020(rgb);
   float l1 = crs;
 
-  float lum = l1 + params.detail * (l0 - l1);
+  float d = l1 - l0;
+  float lum = l1 + sign(d) * (params.detail * max(0.0, abs(d) - params.thrs) + min(abs(d), params.thrs));
+  // float lum = l1 + params.detail * (l0 - l1);
   // colour reconstruction: keep rgb saturation ratio same as before
   rgb *= lum/max(l0, 0.0001);
   // want to see why 8-bit output sucks? try this:
