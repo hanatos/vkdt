@@ -210,10 +210,13 @@ dt_thumbnails_cache_one(
 
   dt_graph_reset(graph);
 
-  char *usemat = "param:f2srgb:main:usemat:0"; // write thumbnails as rec2020 with gamma
+  char *extrap[] = {
+    "param:f2srgb:main:usemat:0", // write thumbnails as rec2020 with gamma
+    "frames:1",                   // only render first frame of animation
+  };
   dt_graph_export_t param = {
-    .extra_param_cnt = 1,
-    .p_extra_param   = &usemat,
+    .extra_param_cnt = 2,
+    .p_extra_param   = extrap,
     .p_cfgfile       = cfgfilename,
     .p_defcfg        = "default.cfg",
     .output_cnt      = 1,
