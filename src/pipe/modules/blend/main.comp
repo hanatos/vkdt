@@ -120,10 +120,7 @@ main()
   }
   else
   {
-    // photography version. magically know our noise variance (measurements):
-    // darktable's json:
-    // 0.0001291937229155835, 4.607888768089825e-05, 8.72921132754699e-05], "b": [2.45962729009841e-07, 1.42262459226602e-07, 2.2271465553342102e-07]}
-
+    // photography version.
     // too high values (allow too much input) gives weird colour cast
     float sigma2 = params.noise_a + 65535.0*max(0, rgb.r - params.black)*params.noise_b;
 #if 1 // helps
@@ -145,6 +142,9 @@ main()
     sigma2 *= f; // *f;
 #endif
     t *= clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / sigma2), 0, 1);
+
+    // XXX DEBUG: only use opacity directly, no mask
+    // t = clamp(params.opacity, 0, 1);
 
     // dunno:
     // t *= 2.0*(1.2-smoothstep(sqrt(dist.y), 0.0, 0.03));

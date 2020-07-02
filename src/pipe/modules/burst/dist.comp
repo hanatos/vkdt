@@ -57,8 +57,11 @@ main()
 #endif
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
-  // float dist = abs(i0 - i1);     // L1
-  float dist = (i0 - i1)*(i0 - i1); // L2
+  // float dist = log(1+abs(i0 - i1));     // log L1
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.0001)) * log(2+abs(i0 - i1));     // L1 center weighted
+  // float dist = abs(i0 - i1);
+  // float dist = (i0 - i1)*(i0 - i1); // L2
+  float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
 
   imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
 }
