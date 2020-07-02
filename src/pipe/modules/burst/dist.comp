@@ -37,7 +37,7 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
   int offidx = int  (gl_GlobalInvocationID.z);
-  if(any(greaterThanEqual(ivec3(ipos, offidx), ivec3(imageSize(img_out[offidx]), 26)))) return;
+  if(any(greaterThanEqual(ivec3(ipos, offidx), ivec3(imageSize(img_out[offidx]), 25)))) return;
 
   int offy = offidx / 5;
   int offx = offidx - 5*offy;
