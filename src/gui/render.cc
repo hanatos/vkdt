@@ -53,7 +53,7 @@ void widget_end()
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
 }
 
-void draw_arrow(float p[8])
+void draw_arrow(float p[8], int feedback)
 {
   float mark = vkdt.state.panel_wd * 0.02f;
   // begin and end markers
@@ -89,7 +89,11 @@ void draw_arrow(float p[8])
     x[2*i+1] = p[1] * tc3 + p[3] * 3.0f*tc2*t + p[5] * 3.0f*t2*tc + p[7] * t3;
   }
   ImGui::GetWindowDrawList()->AddPolyline(
-      (ImVec2 *)x, 30, IM_COL32_WHITE, false, vkdt.state.center_ht/500.0f);
+      (ImVec2 *)x, 30,
+      feedback ?
+      0xffff8833:
+      IM_COL32_WHITE,
+      false, vkdt.state.center_ht/500.0f);
 }
 } // end anonymous gui state space
 
@@ -1068,7 +1072,7 @@ void render_darkroom_pipeline()
           q[0]+b , q[1], q[0]+b2, q[1],
           p[0]+b2, p[1], p[0]+b , p[1],
         };
-        draw_arrow(x);
+        draw_arrow(x, graph->module[m].connector[k].flags & s_conn_feedback);
       }
     }
   }
