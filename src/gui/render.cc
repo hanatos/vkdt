@@ -456,7 +456,7 @@ void render_lighttable()
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, window_flags);
-    
+
     float lineht = ImGui::GetTextLineHeight();
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
@@ -465,6 +465,7 @@ void render_lighttable()
     {
       if(ImGui::CollapsingHeader("selected images"))
       {
+        // ==============================================================
         // assign to collection modal popup:
         int open = ImGui::Button("assign to collection..", size);
         if (open)
@@ -502,11 +503,61 @@ void render_lighttable()
               dt_db_add_to_collection(&vkdt.db, sel[i], name);
           }
         }
+        // ==============================================================
+        // copy/paste history stack
+        static uint32_t copied_imgid = -1u;
+        if(ImGui::Button("copy history stack", size))
+          copied_imgid = dt_db_current_imgid(&vkdt.db);
 
+        if(copied_imgid != -1u)
+        {
+          ImGui::SameLine();
+          if(ImGui::Button("paste history stack", size))
+          {
+            // TODO: background job
+            char filename[1024];
+            dt_db_image_path(&vkdt.db, copied_imgid, filename, sizeof(filename));
+            FILE *fin = fopen(filename, "rb");
+            if(fin)
+            {
+              fseek(fin, 0, SEEK_END);
+              size_t fsize = ftell(fin);
+              fseek(fin, 0, SEEK_SET);
+              uint8_t *buf = (uint8_t*)malloc(fsize);
+              fread(buf, fsize, 1, fin);
+              fclose(fin);
+              // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
+              // one input raw file that is appearing under param:i-raw:01:filename.
+              // it then copies the history to the selected images, replacing their filenames in the config.
+              const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+              for(int i=0;i<vkdt.db.selection_cnt;i++)
+              {
+                if(sel[i] == copied_imgid) continue; // don't copy to self
+                dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+                FILE *fout = fopen(filename, "wb");
+                fwrite(buf, fsize, 1, fout);
+                fprintf(stderr, "%s", buf);
+                // replace (relative) image file name
+                fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
+                fclose(fout);
+                // TODO: recompute thumbnail
+
+              }
+              free(buf);
+            }
+            else
+            {
+              // TODO: error message
+            }
+          }
+        }
+
+
+        // ==============================================================
+        // export selection
         static int wd = 0, ht = 0;
         ImGui::InputInt("width", &wd, 1, 100, 0);
         ImGui::InputInt("height", &ht, 1, 100, 0);
-        // export selection
         if(ImGui::Button("export", size))
         {
           // TODO: put in background job, implement job scheduler
@@ -765,7 +816,7 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("float"))
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + 
-          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+            vkdt.graph_dev.module[modid].so->param[parid]->offset);
         float oldval = *val;
         char str[10] = {0};
         memcpy(str,
@@ -779,14 +830,14 @@ inline void draw_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                 s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
         }
       }
       else if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + 
-          vkdt.graph_dev.module[modid].so->param[parid]->offset);
+            vkdt.graph_dev.module[modid].so->param[parid]->offset);
         int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str,
@@ -800,7 +851,7 @@ inline void draw_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                 s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+              s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
         }
       }
@@ -809,8 +860,8 @@ inline void draw_widget(int modid, int parid)
     case dt_token("quad"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-        vkdt.graph_dev.module[modid].so->param[parid]->offset);
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+              vkdt.graph_dev.module[modid].so->param[parid]->offset);
+          if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
