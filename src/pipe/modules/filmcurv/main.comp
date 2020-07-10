@@ -79,17 +79,22 @@ main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  // avoid negative luma due to noise or extreme colour saturation:
-  const float l0 = max(luminance_rec2020(rgb), 1e-10);
-  // float l0 = acescc(l1);
 
   const float black_ev = params.black;
   const float black = exp2(black_ev);
   float white = 1.0f+black;
-  float l1 = (log2(l0+black)-black_ev)/(log2(white)-black_ev);
-  l1 = hermite4(l1);
+#if 0 // luminance
+  // avoid negative luma due to noise or extreme colour saturation:
+  const float l0 = max(luminance_rec2020(rgb), 1e-10);
+  // float l0 = acescc(l1);
+  float l1 = hermite4((log2(l0+black)-black_ev)/(log2(white)-black_ev));
   // colour reconstruction: keep rgb saturation ratio same as before
   rgb *= l1/l0;
+#else // rgb
+  rgb.r = hermite4((log2(rgb.r+black)-black_ev)/(log2(white)-black_ev));
+  rgb.g = hermite4((log2(rgb.g+black)-black_ev)/(log2(white)-black_ev));
+  rgb.b = hermite4((log2(rgb.b+black)-black_ev)/(log2(white)-black_ev));
+#endif
 
 #if 0 // DEBUG: visualise curve TODO: tie to parameter
   float x = (ipos.x - 50)/ float(imageSize(img_out).x-50);
