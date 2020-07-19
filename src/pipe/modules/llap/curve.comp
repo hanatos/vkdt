@@ -148,6 +148,21 @@ curve(
 }
 #endif
 
+float logcurve(
+    float x,
+    float g,
+    float sigma,
+    float shadows,
+    float highlights,
+    float clarity)
+{
+  return exp(curve(
+        log(max(1e-8, x)),
+        // log(max(1e-6, g)),
+        log(g),
+        sigma, shadows, highlights, clarity));
+}
+
 void
 main()
 {
@@ -158,7 +173,7 @@ main()
 
   for(uint i=0;i<push.num_gamma;i++)
     imageStore(img_out[i], ipos,
-        vec4(curve(y, gamma_from_i(i),
+        vec4(logcurve(y, gamma_from_i(i),
             params.sigma, params.shadows, params.highlights, params.clarity)));
   imageStore(img_out[push.num_gamma], ipos, vec4(y));
 }
