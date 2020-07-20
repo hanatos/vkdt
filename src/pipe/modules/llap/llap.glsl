@@ -4,7 +4,7 @@ float gamma_from_i(uint i)
 {
   // linear, next to no samples in blacks
   // return (i)/(NUM_GAMMA - 1.0f); // have one sample at exactly 0 and exactly 1
-  return (i+.5)/NUM_GAMMA;  // start at the center of the bin have one sample at exactly 0 and exactly 1
+  return log(1e-6 + (i+.5)/NUM_GAMMA);  // start at the center of the bin have one sample at exactly 0 and exactly 1
   // bias everything to more samples near the blacks. this means we'll keep
   // blacks from completely drowning for high values of clarity
   float linear = i/(NUM_GAMMA-1.0f);
