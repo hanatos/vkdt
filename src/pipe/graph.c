@@ -1875,6 +1875,7 @@ VkResult dt_graph_run(
   
   if(run & s_graph_run_download_sink)
   {
+    // TODO: probably want to map once here, but avoid completely in case no node needs it!
     for(int n=0;n<graph->num_nodes;n++)
     { // for all sink nodes:
       dt_node_t *node = graph->node + n;

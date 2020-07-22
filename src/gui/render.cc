@@ -947,6 +947,37 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("aabb"):  // simple aabb for selection, no distortion transform
+    {
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
+        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
+      const float aspect = iwd/iht;
+      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string))
+          widget_end();
+      }
+      else
+      {
+        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
+            dt_token_str(vkdt.graph_dev.module[modid].name),
+            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+        if(ImGui::Button(string))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          // copy to quad state
+          memcpy(vkdt.wstate.state, v, sizeof(float)*4);
+        }
+      }
+      break;
+    }
     case dt_token("draw"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
@@ -1183,6 +1214,19 @@ void render_darkroom()
           break;
         }
         case dt_token("axquad"):
+        {
+          float v[8] = {
+            vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 
+            vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
+          };
+          float p[8];
+          for(int k=0;k<4;k++)
+            dt_image_to_view(v+2*k, p+2*k);
+          ImGui::GetWindowDrawList()->AddPolyline(
+              (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          break;
+        }
+        case dt_token("aabb"):
         {
           float v[8] = {
             vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 

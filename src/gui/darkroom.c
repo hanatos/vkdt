@@ -99,6 +99,38 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         if(max_dist < FLT_MAX) return;
       }
     }
+    else if(type == dt_token("aabb"))
+    {
+      // TODO: easier one click + drag
+      if(action == GLFW_RELEASE)
+      {
+        vkdt.wstate.selected = -1;
+      }
+      else if(action == GLFW_PRESS)
+      {
+        // find active corner if close enough
+        float m[2] = {(float)x, (float)y};
+        float max_dist = FLT_MAX;
+        for(int ee=0;ee<4;ee++)
+        {
+          float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
+          dt_image_to_view(n, v);
+          float dist2 =
+            ee < 2 ?
+            (v[0]-m[0])*(v[0]-m[0]) :
+            (v[1]-m[1])*(v[1]-m[1]);
+          if(dist2 < px_dist*px_dist)
+          {
+            if(dist2 < max_dist)
+            {
+              max_dist = dist2;
+              vkdt.wstate.selected = ee;
+            }
+          }
+        }
+        if(max_dist < FLT_MAX) return;
+      }
+    }
     else if(type == dt_token("draw"))
     {
       // record mouse position relative to image
@@ -227,6 +259,16 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     }
     else if(type == dt_token("axquad"))
     {
+      if(vkdt.wstate.selected >= 0)
+      {
+        float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
+        vkdt.wstate.state[vkdt.wstate.selected] = edge;
+        return;
+      }
+    }
+    else if(type == dt_token("aabb"))
+    {
+      // TODO: maybe not needed?
       if(vkdt.wstate.selected >= 0)
       {
         float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];

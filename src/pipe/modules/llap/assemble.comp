@@ -28,8 +28,8 @@ float gauss_expand(sampler2D img_in, ivec2 opos)
 {
 #if 1
   vec2 ipos = (opos*0.5 + 0.5)/vec2(textureSize(img_in, 0));
-  // return sample_soft(img_in, ipos).r; // 121ms
-  return textureLod(img_in, ipos, 0).r;  // 26ms
+  return sample_soft(img_in, ipos).r; // 121ms
+  // return textureLod(img_in, ipos, 0).r;  // 26ms
 #else // 82ms (timings on intel hd5500)
   float c = 0.0f;
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
