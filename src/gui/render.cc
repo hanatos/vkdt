@@ -857,7 +857,7 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
-    case dt_token("quad"):
+    case dt_token("pers"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
               vkdt.graph_dev.module[modid].so->param[parid]->offset);
@@ -887,7 +887,7 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
-    case dt_token("axquad"):
+    case dt_token("crop"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
@@ -947,13 +947,10 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
-    case dt_token("aabb"):  // simple aabb for selection, no distortion transform
+    case dt_token("pick"):  // simple aabb for selection, no distortion transform
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + 
         vkdt.graph_dev.module[modid].so->param[parid]->offset);
-      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-      const float aspect = iwd/iht;
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
@@ -1203,7 +1200,7 @@ void render_darkroom()
           vkdt.wstate.active_widget_modid].so->param[
           vkdt.wstate.active_widget_parid]->widget.type)
       {
-        case dt_token("quad"):
+        case dt_token("pers"):
         {
           float *v = vkdt.wstate.state;
           float p[8];
@@ -1213,7 +1210,7 @@ void render_darkroom()
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
         }
-        case dt_token("axquad"):
+        case dt_token("crop"):
         {
           float v[8] = {
             vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 
@@ -1226,7 +1223,7 @@ void render_darkroom()
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
         }
-        case dt_token("aabb"):
+        case dt_token("pick"):
         {
           float v[8] = {
             vkdt.wstate.state[0], vkdt.wstate.state[2], vkdt.wstate.state[1], vkdt.wstate.state[2], 

@@ -159,9 +159,9 @@ dt_module_so_load(
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
       }
-      else if(type == dt_token("quad"))   {}
-      else if(type == dt_token("axquad")) {}
-      else if(type == dt_token("aabb"))   {}
+      else if(type == dt_token("pers"))   {}
+      else if(type == dt_token("crop"))   {}
+      else if(type == dt_token("pick"))   {}
       else if(type == dt_token("draw"))   {}
       else if(type == dt_token("hidden")) {}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);

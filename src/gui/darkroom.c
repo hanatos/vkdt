@@ -38,7 +38,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     dt_token_t type = vkdt.graph_dev.module[
         vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("quad"))
+    if(type == dt_token("pers"))
     {
       if(action == GLFW_RELEASE)
       {
@@ -68,7 +68,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         if(max_dist < FLT_MAX) return;
       }
     }
-    else if(type == dt_token("axquad"))
+    else if(type == dt_token("crop"))
     {
       if(action == GLFW_RELEASE)
       {
@@ -99,7 +99,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         if(max_dist < FLT_MAX) return;
       }
     }
-    else if(type == dt_token("aabb"))
+    else if(type == dt_token("pick"))
     {
       // TODO: easier one click + drag
       if(action == GLFW_RELEASE)
@@ -247,7 +247,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       vkdt.graph_dev.module[
       vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("quad"))
+    if(type == dt_token("pers"))
     {
       if(vkdt.wstate.selected >= 0)
       {
@@ -257,7 +257,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         return;
       }
     }
-    else if(type == dt_token("axquad"))
+    else if(type == dt_token("crop"))
     {
       if(vkdt.wstate.selected >= 0)
       {
@@ -266,7 +266,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         return;
       }
     }
-    else if(type == dt_token("aabb"))
+    else if(type == dt_token("pick"))
     {
       // TODO: maybe not needed?
       if(vkdt.wstate.selected >= 0)
