@@ -1560,10 +1560,13 @@ VkResult dt_graph_run(
     }
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
+    // skip modules with uninited roi! (these are disconnected/dead code elimination cases)
     for(int i=cnt-1;i>=0;i--)
-      modify_roi_in(graph, graph->module+modid[i]);
+      if(graph->module[modid[i]].connector[0].roi.full_wd > 0)
+        modify_roi_in(graph, graph->module+modid[i]);
     for(int i=0;i<cnt;i++)
-      create_nodes(graph, graph->module+modid[i], &uniform_offset);
+      if(graph->module[modid[i]].connector[0].roi.full_wd > 0)
+        create_nodes(graph, graph->module+modid[i], &uniform_offset);
     // make sure connectors are zero inited:
     memset(graph->conn_image_pool, 0, sizeof(dt_connector_image_t)*graph->conn_image_end);
     graph->uniform_size = uniform_offset;
