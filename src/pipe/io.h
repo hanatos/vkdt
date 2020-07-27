@@ -20,7 +20,7 @@ static inline int
 dt_read_int(char *line, char **out)
 {
   const int res = strtol(line, out, 10);
-  *out = *out + 1; // eat : or \n
+  if(*out != line) *out = *out + 1; // eat : or \n
   return res;
 }
 
@@ -28,6 +28,6 @@ static inline float
 dt_read_float(char *line, char **out)
 {
   const float res = strtof(line, out);
-  *out = *out + 1; // eat : or \n
+  if(*out != line) *out = *out + 1; // eat : or \n
   return res;
 }
