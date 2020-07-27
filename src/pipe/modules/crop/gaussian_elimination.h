@@ -32,12 +32,12 @@
 #include <math.h>
 #include <stdlib.h>
 
-// Gaussian elimination with partial vivoting
+// Gaussian elimination with partial pivoting
 // after function call the square matrix A is triangular
 // vector p keeps track of row swaps
 // returns 0 if matrix A is singular
 // matrix elements are stored in row-major order
-static int gauss_make_triangular(double *A, int *p, int n)
+static inline int gauss_make_triangular(double *A, int *p, int n)
 {
   p[n - 1] = n - 1; // we never swap from the last row
   for(int k = 0; k < n; ++k)
@@ -72,8 +72,8 @@ static int gauss_make_triangular(double *A, int *p, int n)
   return 1;
 }
 
-// backward substritution after Gaussian elimination
-static void gauss_solve_triangular(const double *A, const int *p, double *b, int n)
+// backward substitution after Gaussian elimination
+static inline void gauss_solve_triangular(const double *A, const int *p, double *b, int n)
 {
   // permute and rescale elements of right-hand-side
   for(int k = 0; k < n - 1; ++k)
@@ -94,7 +94,7 @@ static void gauss_solve_triangular(const double *A, const int *p, double *b, int
   b[0] /= A[0 + 0 * n];
 }
 
-static int gauss_solve(double *A, double *b, int n)
+static inline int gauss_solve(double *A, double *b, int n)
 {
   int *p = alloca(n * sizeof(*p));
   int err_code = 1;
