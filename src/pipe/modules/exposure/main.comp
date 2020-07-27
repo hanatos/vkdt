@@ -23,40 +23,6 @@ layout( // output f16 buffer rgb
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-float
-kernel(vec3 ci, vec3 p)
-{
-  float r2 = dot(ci-p, ci-p);
-  return r2 * log(max(1e-8, r2));
-}
-
-vec3
-apply_lut(vec3 ci)
-{
-  // TODO: get from uniforms:
-  // polynomial/matrix part of the lut
-  // this would be xyz to ap1:
-  // mat3 XYZ_2_AP1_MAT = mat3(
-  //    1.6410233797, -0.3248032942, -0.2364246952,
-  //   -0.6636628587,  1.6153315917,  0.0167563477,
-  //    0.0117218943, -0.0082844420,  0.9883948585
-  // );
-  mat3 M = mat3(
-      1141, -205,   88,
-       -52, 1229, -154,
-        70, -225, 1179
-      )*1.0/1024.0;
-  int cnt = 49; // TODO: get from uniform
-  vec3 co = M * ci;
-  for(int i=0;i<cnt;i++)
-  {
-    vec3 node_w = vec3(i, i+1, i+2); // TODO: get from uniform
-    vec3 node_col = vec3(2*i, 3*i, 7*i);
-    co += node_w * kernel(ci, node_col);
-  }
-  return co;
-}
-
 // exposure
 void
 main()
