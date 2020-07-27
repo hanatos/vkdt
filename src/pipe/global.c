@@ -47,6 +47,8 @@ read_param_config_ascii(
   p->name = name;
   p->type = type;
   p->cnt = cnt;
+  if(p->cnt < 1)
+    dt_log(s_log_err|s_log_pipe, "param %"PRItkn" %"PRItkn" has zero count!", dt_token_str(name), dt_token_str(type));
   if(type == dt_token("float"))
   {
     float *val = p->val;
