@@ -1,0 +1,6 @@
+exposure:float:1:0.0
+cnt:int:1:0
+wb:float:4:1.0
+mat:float:9:-1.0
+source:float:40:0.0
+target:float:40:0.0

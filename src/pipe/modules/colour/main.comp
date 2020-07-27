@@ -1,0 +1,144 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4  mul;               // camera white balance
+  mat3  cam_to_rec2020;    // camera matrix
+  uvec4 N;                 // number of patches < 20
+  vec4  coef[22];          // xy RBF positions, zw coefs
+} params;
+
+
+layout( // input
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+float
+kernel(vec2 ci, vec2 p)
+{
+  float r2 = dot(ci-p, ci-p);
+  return r2 * log(max(1e-8, r2));
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  // white balance + cmatrix:
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * params.mul.rgb;
+  rgb = rgb * params.cam_to_rec2020;
+
+  const float b = dot(rgb, vec3(1));
+  vec2 ci = rgb.xz/b;
+  // now lut part:
+  vec2 co = mat2(params.coef[params.N.x+0].zw, params.coef[params.N.x+1].zw) * ci;
+  for(int i=0;i<params.N.x;i++)
+    co += params.coef[i].zw * kernel(ci, params.coef[i].xy);
+
+  rgb.xz = co * b;
+  // const float b2 = dot(rgb, vec3(1));
+  // rgb *= b/b2; // keep brightness constant
+
+  // it seems demosaic outputs negitave numbers and filmcurv++ kills the picture then
+  rgb = max(vec3(0), rgb);
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+
+#if 0 // broken colour spaces follow:
+  vec2 p = ipos / vec2(textureSize(img_in, 0));
+
+#if 1
+  // our coordinate system is (log(y/u'), log(y/v'))
+  vec2 loguv = params.scale*(-1.0 + 2.0*p);
+  const float u = params.green / exp(loguv.x);
+  const float v = params.green / exp(loguv.y);
+  // convert u' and v' to xy
+  vec3 xyz = vec3(
+  9.0*u / (6*u - 16*v + 12.0),
+  4.0*v / (6*u - 16*v + 12.0),
+  0.0);
+  xyz.z = 1.0-xyz.x-xyz.y;
+  vec2 tc = xyz.xy / dot(xyz, vec3(1.0));
+  vec3 mac = texture(img_in, tc, 0).rgb;
+  float mul = mac.x;
+  const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+      -0.35567078,  1.61648124, -0.04277061,
+      -0.25336628,  0.01576855,  0.94210312);
+  // vec3 XYZ = xyz / xyz.y;
+  vec3 rgb = xyz_to_rec2020 * xyz;//XYZ;
+  if(any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) mul *= 0.2;
+#endif
+
+#if 0
+  // our coordinate system is (log(y/x), log(y/z))
+  vec2 logxz = params.scale*(-1.0 + 2.0*p);
+  vec3 xyz = vec3(
+      params.green / exp(logxz.x),
+      params.green,
+      params.green / exp(logxz.y));
+  vec2 tc = xyz.xy / dot(xyz, vec3(1.0));
+  vec3 mac = texture(img_in, tc, 0).rgb;
+  float mul = mac.x;
+  const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+      -0.35567078,  1.61648124, -0.04277061,
+      -0.25336628,  0.01576855,  0.94210312);
+  // vec3 XYZ = xyz / xyz.y;
+  vec3 rgb = xyz_to_rec2020 * xyz;//XYZ;
+  if(any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) mul *= 0.2;
+#endif
+
+#if 0
+  // our coordinate system is (log(g/r), log(g/b))
+  vec2 logrb = params.scale*(-1.0 + 2.0*p);
+  // extract rec2020 rgb:
+  vec3 rgb = vec3(
+      params.green / exp(logrb.x),
+      params.green,
+      params.green / exp(logrb.y));
+  const mat3 rec2020_to_xyz = mat3(
+      6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+      1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+      1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+
+  vec3 xyz = rec2020_to_xyz * rgb;
+  vec2 tc = xyz.xy / dot(xyz, vec3(1.0));
+
+  vec3 mac = texture(img_in, tc, 0).rgb;
+
+  float mul = 1.0;
+  // if(any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) mul = 0.1;
+  if(mac.x <= 0.0) mul *= mac.x;
+
+  // tonemap
+  // rgb /= dot(rgb, vec3(.10));
+
+#if 1 // DEBUG: in fact the gamut and xyz matrix do what we expect:
+  const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+      -0.35567078,  1.61648124, -0.04277061,
+      -0.25336628,  0.01576855,  0.94210312);
+  // rgb = vec3(p, 1);
+  // vec3 XYZ = vec3(p.xy, 1.0-p.x-p.y);
+  // vec3 XYZ = vec3(tc.xy, 1.0-tc.x-tc.y);
+  vec3 XYZ = xyz / xyz.y;
+  rgb = xyz_to_rec2020 * XYZ;
+#endif
+#endif
+
+  imageStore(img_out, ivec2(ipos.x, imageSize(img_out).y-ipos.y-1), vec4(rgb * mul, 1));
+#endif
+}
+
