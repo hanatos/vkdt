@@ -25,8 +25,8 @@ layout( // output
 float
 kernel(vec2 ci, vec2 p)
 {
-  float r2 = dot(ci-p, ci-p);
-  return r2 * log(max(1e-8, r2));
+  float r2 = dot(ci-p, ci-p) + 1e-3;
+  return r2 * log(r2);
 }
 
 void
@@ -39,18 +39,22 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb * params.mul.rgb;
   rgb = rgb * params.cam_to_rec2020;
 
-  const float b = dot(rgb, vec3(1));
-  vec2 ci = rgb.xz/b;
-  // now lut part:
-  vec2 co = mat2(params.coef[params.N.x+0].zw, params.coef[params.N.x+1].zw) * ci;
-  for(int i=0;i<params.N.x;i++)
-    co += params.coef[i].zw * kernel(ci, params.coef[i].xy);
+  if(params.N.x > 0)
+  {
+    const float b = dot(rgb, vec3(1));
+    rgb /= b;
+    vec2 ci = rgb.xz;
+    // now lut part:
+    vec2 co = mat2(params.coef[params.N.x+0].zw, params.coef[params.N.x+1].zw) * ci;
+    for(int i=0;i<params.N.x;i++)
+      co += params.coef[i].zw * kernel(ci, params.coef[i].xy);
 
-  rgb.xz = co * b;
-  // const float b2 = dot(rgb, vec3(1));
-  // rgb *= b/b2; // keep brightness constant
+    rgb.xz = co;
+    rgb.y = 1.0 - rgb.x - rgb.z;
+    rgb *= b; // keep brightness constant
+  }
 
-  // it seems demosaic outputs negitave numbers and filmcurv++ kills the picture then
+  // it seems demosaic outputs negative numbers and filmcurv++ kills the picture then
   rgb = max(vec3(0), rgb);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
