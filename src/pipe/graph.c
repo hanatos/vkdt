@@ -781,6 +781,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
             dt_connector_image_t *img  = dt_graph_connector_image(graph,
                 node - graph->node, i, k, frame);
             int iii = cur_dset++;
+            // FIXME: R32 textures should not be filtered
             img_info[iii].sampler     = c->type == dt_token("sink") ? qvk.tex_sampler_nearest : qvk.tex_sampler;
             img_info[iii].imageView   = img->image_view;
             assert(img->image_view);
