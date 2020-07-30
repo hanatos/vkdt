@@ -805,26 +805,36 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
 namespace {
 inline void draw_widget(int modid, int parid)
 {
-  ImGui::PushID(100*modid + parid);
+  const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
+
+  // skip if group mode does not match:
+  if(param->widget.grpid != -1)
+    if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
+      return;
+
+  // distinguish by count:
+  // get count by param cnt or explicit multiplicity from ui file
+  int count = 1;
+  if(param->widget.cntid == -1) count = param->cnt; // if we know nothing else, we use all elements
+  else
+    count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
+  for(int num=0;num<count;num++)
+  {
+  ImGui::PushID(2000*modid + 200*parid + num);
   char string[256];
   // distinguish by type:
-  switch(vkdt.graph_dev.module[modid].so->param[parid]->widget.type)
+  switch(param->widget.type)
   {
     case dt_token("slider"):
     {
-      // TODO: distinguish by count:
-      if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("float"))
+      if(param->type == dt_token("float"))
       {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + 
-            vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float oldval = *val;
         char str[10] = {0};
-        memcpy(str,
-            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        memcpy(str, &param->name, 8);
         if(ImGui::SliderFloat(str, val,
-              vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
-              vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
-              "%2.5f"))
+              param->widget.min, param->widget.max, "%2.5f"))
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
@@ -834,18 +844,14 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.active_module = modid;
         }
       }
-      else if(vkdt.graph_dev.module[modid].so->param[parid]->type == dt_token("int"))
+      else if(param->type == dt_token("int"))
       {
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + 
-            vkdt.graph_dev.module[modid].so->param[parid]->offset);
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
         char str[10] = {0};
-        memcpy(str,
-            &vkdt.graph_dev.module[modid].so->param[parid]->name, 8);
+        memcpy(str, &param->name, 8);
         if(ImGui::SliderInt(str, val,
-              vkdt.graph_dev.module[modid].so->param[parid]->widget.min,
-              vkdt.graph_dev.module[modid].so->param[parid]->widget.max,
-              "%d"))
+              param->widget.min, param->widget.max, "%d"))
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
@@ -859,20 +865,19 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("pers"):
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-              vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
           if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string)) widget_end();
       }
       else
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -889,8 +894,7 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("crop"):
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
       const float aspect = iwd/iht;
@@ -898,7 +902,7 @@ inline void draw_widget(int modid, int parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string))
         {
           vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
@@ -912,7 +916,7 @@ inline void draw_widget(int modid, int parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -949,13 +953,12 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("pick"):  // simple aabb for selection, no distortion transform
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 4*num;
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string))
           widget_end();
       }
@@ -963,7 +966,7 @@ inline void draw_widget(int modid, int parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -977,20 +980,19 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("draw"):
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + 
-        vkdt.graph_dev.module[modid].so->param[parid]->offset);
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string)) widget_end();
       }
       else
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
             dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(vkdt.graph_dev.module[modid].so->param[parid]->name));
+            dt_token_str(param->name));
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -1004,6 +1006,7 @@ inline void draw_widget(int modid, int parid)
     default:;
   }
   ImGui::PopID();
+  } // end for multiple widgets
 }
 } // anonymous namespace
 

@@ -3,6 +3,7 @@
 #include "module.h"
 #include "graph.h"
 #include "core/log.h"
+#include "modules/api.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -148,6 +149,19 @@ dt_module_so_load(
     };
   if(f)
   {
+    // these files consist of lines such as:
+    //  tkn:tkn:[float:float:]tkn
+    //  param-name:widget-type:[min:max:]count
+    // for every widget. the count specifies the param name of the number of
+    // elements this widget should replicate (like white balance might have 4
+    // channels, but a drawn mask might have N elements where N is specified by
+    // another parameter).
+    // additionally, widgets can be grouped. this is achieved by special lines:
+    //  group:tkn:int
+    //  group:param-name:mode
+    // where param-name refers to an integer parameter which sets the mode.
+    int grpid = -1;
+    int mode = 0;
     while(!feof(f))
     {
       fscanf(f, "%[^\n]", line);
@@ -156,7 +170,13 @@ dt_module_so_load(
       dt_token_t parm = dt_read_token(b, &b);
       dt_token_t type = dt_read_token(b, &b);
       float min = 0.0f, max = 0.0f;
-      if(type == dt_token("slider"))
+      if(parm == dt_token("group"))
+      {
+        grpid = dt_module_get_param(mod, type);
+        mode = dt_read_int(b, &b);
+        continue;
+      }
+      else if(type == dt_token("slider"))
       {
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
@@ -168,10 +188,22 @@ dt_module_so_load(
       else if(type == dt_token("hidden")) {}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
+      int cntid = -1;
+      if(b[-1] == ':')
+      {
+        dt_token_t count = dt_read_token(b, &b);
+        cntid = dt_module_get_param(mod, count);
+        if(cntid == -1)
+          dt_log(s_log_err, "unknown count ref %"PRItkn" for param %"PRItkn" in %s!",
+              dt_token_str(count), dt_token_str(parm), filename);
+      }
       mod->param[pid]->widget = (dt_widget_descriptor_t) {
-        .type = type,
-        .min  = min,
-        .max  = max,
+        .type  = type,
+        .min   = min,
+        .max   = max,
+        .grpid = grpid,
+        .mode  = mode,
+        .cntid = cntid,
       };
     }
     fclose(f);
@@ -256,11 +288,4 @@ void dt_pipe_global_cleanup()
     dt_module_so_unload(dt_pipe.module + i);
   free(dt_pipe.module);
   memset(&dt_pipe, 0, sizeof(dt_pipe));
-}
-
-int dt_module_get_param(dt_module_so_t *so, dt_token_t param)
-{
-  for(int i=0;i<so->num_params;i++)
-    if(so->param[i]->name == param) return i;
-  return -1;
 }

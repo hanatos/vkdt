@@ -4,6 +4,7 @@
 #include "core/threads.h"
 #include "render.h"
 #include "pipe/io.h"
+#include "pipe/modules/api.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

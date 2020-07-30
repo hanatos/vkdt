@@ -591,6 +591,13 @@ static inline int dt_module_set_param_float(
   return 1;
 }
 
+static inline int dt_module_get_param(dt_module_so_t *so, dt_token_t param)
+{
+  for(int i=0;i<so->num_params;i++)
+    if(so->param[i]->name == param) return i;
+  return -1;
+}
+
 static inline int dt_module_set_param_float_n(
     const dt_module_t *module,
     dt_token_t         param,

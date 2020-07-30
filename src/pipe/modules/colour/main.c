@@ -283,13 +283,6 @@ static inline void compute_coefficients(
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
-  // params:
-  // exposure:float:1:0.0
-  // cnt:int:0
-  // wb:float:4:1.0
-  // mat:float:9:-1.0
-  // source:float:40:0.0
-  // target:float:40:0.0
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
   if(module->img_param.whitebalance[0] > 0)
@@ -312,6 +305,11 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   { // identity
     f[4+0] = f[4+5] = f[4+10] = 1.0f;
   }
+  // grab params by name:
+  const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("wb")));
+  const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
+  const float *p_src = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("source")));
+  const float *p_tgt = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("target")));
 #if 1 // DEBUG
   const float xyz_to_rec2020[] = {
      1.7166511880, -0.3556707838, -0.2533662814,
@@ -322,12 +320,12 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   float wb[] = {1, 1, 1};
   // TODO: bind some param to white and saturations!
   float white[] = //{0.33333, 0.33333};
-  { ((float*)module->param)[15], ((float*)module->param)[55]};
+  { p_wb[0], p_wb[1] };
   float source[26];
   float target[26];
   create_ring(wb, xyz_to_rec2020,
       // 0.0,
-      ((float*)module->param)[2],
+      p_wb[2],
       white, source, target);
   // for(int k=0;k<13;k++)
   //   fprintf(stdout, "%g %g %g %g\n",
