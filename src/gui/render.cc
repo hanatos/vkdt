@@ -960,7 +960,9 @@ inline void draw_widget(int modid, int parid)
     {
       int sz = dt_ui_param_size(param->type, 4);
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+      if(vkdt.wstate.active_widget_modid == modid &&
+         vkdt.wstate.active_widget_parid == parid &&
+         vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
