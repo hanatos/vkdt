@@ -1,2 +1,3 @@
 nspots:slider:0:20
-spots:pick
+spots:pick:nspots
+picked:slider:0:1:nspots

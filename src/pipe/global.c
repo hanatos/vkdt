@@ -245,6 +245,8 @@ dt_module_so_load(
 static inline void
 dt_module_so_unload(dt_module_so_t *mod)
 {
+  for(int i=0;i<mod->num_params;i++)
+    free(mod->param[i]);
   // decrements ref count and unloads the dso if it drops to 0
   if(mod->dlhandle)
     dlclose(mod->dlhandle);

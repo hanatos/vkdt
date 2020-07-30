@@ -52,8 +52,10 @@ typedef struct dt_gui_wstate_t
   int    m_x, m_y;
   float  old_look_x, old_look_y;
   float  wd, ht;
-  int    active_widget_modid;
-  int    active_widget_parid;
+  int    active_widget_modid; // module id
+  int    active_widget_parid; // parameter id
+  int    active_widget_parnm; // number of parameter (if multi count)
+  int    active_widget_parsz; // size of parameter to copy
   int    selected;
   float  state[2100];
   float *mapped;

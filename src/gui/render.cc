@@ -37,6 +37,8 @@ void widget_end()
   if(vkdt.wstate.active_widget_modid < 0) return; // all good already
   int modid = vkdt.wstate.active_widget_modid;
   int parid = vkdt.wstate.active_widget_parid;
+  int parnm = vkdt.wstate.active_widget_parnm;
+  int parsz = vkdt.wstate.active_widget_parsz;
   if(vkdt.wstate.mapped)
   {
     vkdt.wstate.mapped = 0;
@@ -44,9 +46,8 @@ void widget_end()
   else
   {
     const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
-    float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset);
-    size_t size = dt_ui_param_size(p->type, p->cnt);
-    memcpy(v, vkdt.wstate.state, size);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
+    memcpy(v, vkdt.wstate.state, parsz);
   }
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
@@ -883,6 +884,8 @@ inline void draw_widget(int modid, int parid)
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = 0;
+          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sizeof(float)*8);
           // reset module params so the image will not appear distorted:
@@ -922,6 +925,8 @@ inline void draw_widget(int modid, int parid)
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = 0;
+          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sizeof(float)*4);
 
@@ -953,7 +958,8 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("pick"):  // simple aabb for selection, no distortion transform
     {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 4*num;
+      int sz = dt_ui_param_size(param->type, 4);
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
@@ -972,8 +978,10 @@ inline void draw_widget(int modid, int parid)
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = num;
+          vkdt.wstate.active_widget_parsz = sz;
           // copy to quad state
-          memcpy(vkdt.wstate.state, v, sizeof(float)*4);
+          memcpy(vkdt.wstate.state, v, sz);
         }
       }
       break;
@@ -998,6 +1006,9 @@ inline void draw_widget(int modid, int parid)
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = 0;
+          // TODO: how to crop this to smaller size in case it's not required?
+          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
           vkdt.wstate.mapped = v; // map state
         }
       }

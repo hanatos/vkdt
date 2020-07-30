@@ -1121,7 +1121,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
     {
       // this needs to prepare the frame we're actually reading.
       // for feedback connections, this is crossed over.
-      if(!node->module->so->write_sink)
+      if(!((node->connector[i].type == dt_token("sink")) && node->module->so->write_sink))
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k,
