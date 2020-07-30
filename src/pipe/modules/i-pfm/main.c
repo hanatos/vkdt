@@ -9,6 +9,7 @@ typedef struct pfminput_buf_t
 {
   char filename[PATH_MAX];
   uint32_t width, height;
+  size_t data_begin;
   FILE *f;
 }
 pfminput_buf_t;
@@ -36,6 +37,7 @@ read_header(
 
   pfm->width  = wd;
   pfm->height = ht;
+  pfm->data_begin = ftell(pfm->f);
 
   for(int k=0;k<4;k++)
   {
@@ -53,12 +55,14 @@ static int
 read_plain(
     pfminput_buf_t *pfm, uint16_t *out)
 {
+  fseek(pfm->f, pfm->data_begin, SEEK_SET);
+  uint16_t one = float_to_half(1.0f);
   for(int64_t k=0;k<pfm->width*pfm->height;k++)
   {
     float in[3];
     fread(in, 3, sizeof(float), pfm->f);
     for(int i=0;i<3;i++) out[4*k+i] = float_to_half(in[i]);
-    out[4*k+3] = float_to_half(1.0f);
+    out[4*k+3] = one;
   }
   return 0;
 }
