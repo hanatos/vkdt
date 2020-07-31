@@ -1,62 +1,23 @@
-# iop API
+# modules for the image processing graph
 
-we want these to be as independent of anything as we can. the idea would be to
-arrive at a completely reusable pipeline with modules that can easily be linked
-into the core as well as reused by other projects if they decide to do so. one
-of our immediate use cases is gui frontend and cli which both want to use the
-modular pipeline.
+image processing is done in a DAG with potentially multiple sources and multiple sinks.
 
-thus, we want to limit the calls from here back into the core, ideally avoiding
-to link back into a core dso.
+## list of modules
+TODO: reference all the readme.md in the lower levels:
 
-one idea, if needed, is that we'll provide an explicit subset of helper functions
-as function pointers in a struct that is available to the module.
-
-since modules do their core work in compute shaders, most simple technical helpers
-will likely be short functions in glsl headers to be included and inlined.
-
-
-# note on size negotiations:
-
-preliminaries, to be defined in initialisation phase:
-* need to look at raw/input file to get input pixel dimensions
-* need to know output roi
-* walk over source and sink nodes only
-
-for each output (if many): pull data through graph:
-* given output roi, compute input roi + size of
-  required scratch pad memory
-* topological sort, do depth first graph expansion?
-* run through whole graph, keep track of mem requirements:
-  * scratch pad mem
-  * intermediate inputs at bifurcations
-* iterate the above if mem exceeded: split output roi in two, keep
-  track of other roi that need to be processed in the end
-
-given all roi and max mem requirements met:
-* memory management: reuse scratch pad mem and multiple input buffers
-* construct command buffer by running through graph again
-* modules may push back varying number of kernel calls depending
-  on size
-* for tiling and small roi we need a preview buffer run to be 
-  interleaved with the regular roi processing. (cache these or just
-  reprocess for every tile? usually in dr mode it'll be one tile/roi
-  only)
+* [alignment](./burst/readme.md)
+* [bc1 input](./i-bc1/readme.md)
+* [bc1 output](./o-bc1/readme.md)
+* [blend](./blend/readme.md)
+* [colour](./colour/readme.md)
+* [highlight reconstruction](./hilite/readme.md)
+* [test 10bit display](./test10b/readme.md)
+* [thumbnails](./thumb/readme.md)
+* [zone system](./zones/readme.md)
 
 
-modules can have multiple inputs, but only one output to pull on for roi
-computations (scratchmem buffers may change sizes as a side effect).
+## files to describe a module
 
-TODO: though for debugging we can assign scratchmem buffers to a sink node.
-
-TODO: maybe the colour picker and histogram are sink nodes, too? do
-we then compute these as side effects or do they actively pull?
-this would complicate memory management somewhat.
-in dt, these are driven by preview pipe buffers only.
-
-we don't want cycles obviously.
-
-# files to describe a module
 * `flat.mk` is used to express compile time dependencies (if you're including glsl files or if you have a main.c to be compiled)
 * `connectors` defines the io connectors, for instance
 ```
@@ -116,13 +77,3 @@ express the parameters and corresponding history stacks in a binary format,
 which is useful for larger parameter sets such as used for the vertices
 in the `draw` module.
 
-# list of modules
-TODO: reference all the readme.md in the lower levels:
-
-[bc1 input](./i-bc1/readme.md)
-[thumbnails](./thumb/readme.md)
-[highlight reconstruction](./hilite/readme.md)
-[zone system](./zones/readme.md)
-[blend](./blend/readme.md)
-[bc1 output](./o-bc1/readme.md)
-[alignment](./burst/readme.md)
