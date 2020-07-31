@@ -32,7 +32,7 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-  float y = exp(texelFetch(img_in, opos, 0).r) - 1e-6;
+  float y = texelFetch(img_in, opos, 0).r;
   vec3 rgb = texelFetch(img_org, opos, 0).rgb;
   float yo = max(luminance_rec2020(rgb), 0.01f);
   float ratio = y/yo;

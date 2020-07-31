@@ -158,8 +158,8 @@ main()
 
   for(uint i=0;i<push.num_gamma;i++)
     imageStore(img_out[i], ipos,
-        vec4(curve(log(1e-6+y), gamma_from_i(i),
+        vec4(curve(y, gamma_from_i(i),
             params.sigma, params.shadows, params.highlights, params.clarity)));
-  imageStore(img_out[push.num_gamma], ipos, vec4(log(1e-6+y)));
+  imageStore(img_out[push.num_gamma], ipos, vec4(y));
 }
 
