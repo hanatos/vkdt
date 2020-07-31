@@ -1,3 +1,4 @@
 nspots:slider:0:20
+pad:hidden
 spots:pick:nspots
-picked:slider:0:1:nspots
+picked:colour:nspots

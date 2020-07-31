@@ -102,7 +102,6 @@ void write_sink(
     if(module->so->param[p]->name == dt_token("picked"))
       picked = (float *)(module->param + module->so->param[p]->offset);
   }
-  cnt = 1; // XXX DEBUG
   if(!picked) return;
   if(cnt > 20) cnt = 20; // sanitize, we don't have more memory than this
   if(cnt > wd) cnt = wd;
@@ -115,7 +114,6 @@ void write_sink(
     // unfortunately this fixed point thing leads to a bit of numeric jitter.
     // let's hope the vulkan 1.2 extension with floating point atomics makes
     // it to amd at some point, too.
-    fprintf(stderr, "read %d: %g %g %g\n", k,
-        picked[3*k+0], picked[3*k+1], picked[3*k+2]);
+    // fprintf(stderr, "read %d: %g %g %g\n", k, picked[3*k+0], picked[3*k+1], picked[3*k+2]);
   }
 }

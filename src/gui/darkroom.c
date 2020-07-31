@@ -273,6 +273,11 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       {
         float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
         vkdt.wstate.state[vkdt.wstate.selected] = edge;
+        // preserve order such that min < max:
+        if(vkdt.wstate.selected == 0) if(vkdt.wstate.state[1] < edge) vkdt.wstate.state[1] = edge;
+        if(vkdt.wstate.selected == 1) if(vkdt.wstate.state[0] > edge) vkdt.wstate.state[0] = edge;
+        if(vkdt.wstate.selected == 2) if(vkdt.wstate.state[3] < edge) vkdt.wstate.state[3] = edge;
+        if(vkdt.wstate.selected == 3) if(vkdt.wstate.state[2] > edge) vkdt.wstate.state[2] = edge;
         return;
       }
     }

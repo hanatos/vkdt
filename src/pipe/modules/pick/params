@@ -1,3 +1,4 @@
-nspots:int:4:0
+nspots:int:1:0
+pad:int:3:0
 spots:float:80:0
 picked:float:60:0

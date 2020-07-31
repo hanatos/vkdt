@@ -28,14 +28,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
-  // TODO:
-  // for all spots i < params.nspots:
-  // aabb == params.spot[i]
-  // for(int i=0;i<params.nspots;i++)
+  for(int i=0;i<params.nspots.x;i++)
   {
-    int i = 0;
-    // uvec4 aabb = uvec4(vec4(0.4, 0.6, 0.4, 0.6) * textureSize(img_in, 0).xxyy);
-    // uvec4 aabb = uvec4(vec4(0.012055,0.992427,0.169783,0.586387) * textureSize(img_in, 0).xxyy);
     uvec4 aabb = uvec4(params.spot[i] * textureSize(img_in, 0).xxyy);
 
     float cnt = (aabb.y - aabb.x)*(aabb.w - aabb.z);
