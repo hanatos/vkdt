@@ -145,7 +145,10 @@ dt_module_so_load(
     mod->param[i]->widget = (dt_widget_descriptor_t) {
       .type = dt_token("slider"),
       .min  = 0.0f,
-      .max  = 1.0f
+      .max  = 1.0f,
+      .grpid = -1,
+      .mode  = 0,
+      .cntid = -1,
     };
   if(f)
   {
