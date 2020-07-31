@@ -904,6 +904,7 @@ inline void draw_widget(int modid, int parid)
           memcpy(v, def, sizeof(float)*8);
         }
       }
+      num = count;
       break;
     }
     case dt_token("crop"):
@@ -965,6 +966,7 @@ inline void draw_widget(int modid, int parid)
           memcpy(v, def, sizeof(float)*4);
         }
       }
+      num = count;
       break;
     }
     case dt_token("pick"):  // simple aabb for selection, no distortion transform
@@ -1025,6 +1027,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.mapped = v; // map state
         }
       }
+      num = count;
       break;
     }
     default:;
