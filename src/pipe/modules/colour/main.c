@@ -162,8 +162,8 @@ create_ring(
   // move white
   // target[2*12+0] = white[0];
   // target[2*12+1] = white[1];
-  source[2*12+0] = white[0];
-  source[2*12+1] = white[1];
+  // source[2*12+0] = white[0];
+  // source[2*12+1] = white[1];
   // TODO: further parametric manipulations?
   // rotate chroma?
   // move individual colours
@@ -345,13 +345,12 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   { // mode == 0 (or default): "parametric" mode
     float wb[] = {1, 1, 1};
     // TODO: bind some param to white and saturations!
-    float white[] = //{0.33333, 0.33333};
-    { p_wb[0], p_wb[1] };
+    float white[] = {0.33333, 0.33333};
+    // { p_wb[0], p_wb[1] };
     float source[26];
     float target[26];
     create_ring(wb, f+4,
-        // 0.0,
-        p_wb[2],
+        1.0f, // p_wb[2],
         white, source, target, p_gam);
     const int N = 13;
     i[16] = N;
