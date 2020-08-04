@@ -858,7 +858,27 @@ inline void draw_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+          vkdt.graph_dev.active_module = modid;
+        }
+      }
+      break;
+    }
+    case dt_token("combo"):
+    {
+      if(param->type == dt_token("int"))
+      {
+        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+        int32_t oldval = *val;
+        char str[10] = {0};
+        memcpy(str, &param->name, 8);
+        if(ImGui::Combo(str, val, (const char *)param->widget.data))
+        {
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
         }
       }

@@ -1,5 +1,5 @@
 exposure:slider:-5:5
-mode:slider:0:1
+mode:combo:parametric:data driven
 wb:slider:0:1
 mat:hidden
 group:mode:1

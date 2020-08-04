@@ -173,6 +173,7 @@ dt_module_so_load(
       dt_token_t parm = dt_read_token(b, &b);
       dt_token_t type = dt_read_token(b, &b);
       float min = 0.0f, max = 0.0f;
+      void *data = 0;
       if(parm == dt_token("group"))
       {
         grpid = dt_module_get_param(mod, type);
@@ -180,9 +181,23 @@ dt_module_so_load(
         continue;
       }
       else if(type == dt_token("slider"))
-      {
+      { // read range of slider
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
+      }
+      else if(type == dt_token("combo"))
+      { // read list of names of all entries
+        size_t len = 0;
+        for(len=0;len<sizeof(line) - (b-line);len++)
+        { // we replace all ':' by 0 terminated strings.
+          // this means combo boxes don't support multi-count widgets.
+          if(b[len] == 0) break;
+          if(b[len] == ':') b[len] = 0;
+        }
+        data = malloc(len+2);
+        memcpy(data, b, len);
+        ((char*)data)[len] = ((char*)data)[len+1] = 0;
+        b += len; // set pointer to the end
       }
       else if(type == dt_token("colour")) {}
       else if(type == dt_token("pers"))   {}
@@ -208,6 +223,7 @@ dt_module_so_load(
         .grpid = grpid,
         .mode  = mode,
         .cntid = cntid,
+        .data  = data,
       };
     }
     fclose(f);
@@ -250,7 +266,10 @@ static inline void
 dt_module_so_unload(dt_module_so_t *mod)
 {
   for(int i=0;i<mod->num_params;i++)
+  {
+    free(mod->param[i]->widget.data);
     free(mod->param[i]);
+  }
   // decrements ref count and unloads the dso if it drops to 0
   if(mod->dlhandle)
     dlclose(mod->dlhandle);
