@@ -26,9 +26,9 @@ clip_poly(
   }
 }
 
-
 // clamp to spectral locus:
-static inline void clip_spectral_locus(float *v)
+static inline void
+clip_spectral_locus(float *v, const float *white)
 {
   // manually picked subset of points on the spectral locus transformed to
   // rec2020 r/(r+g+b), b/(r+g+b). the points have been picked by walking the
@@ -49,25 +49,26 @@ static inline void clip_spectral_locus(float *v)
     0.119264, 1.0047,        // wrap around point
   };
   const int cnt = sizeof(gamut_rec2020_rb) / sizeof(gamut_rec2020_rb[0]) / 2 - 1;
-
-  const float white[] = {0.33333f, 0.33333f};
   clip_poly(gamut_rec2020_rb, cnt, white, v);
-
-#if 0 // DEBUG
-  srand48(666);
-  for(int k=0;k<20;k++)
-  {
-    float v[] = {drand48() * 1.6 - 0.4, -0.2 + 1.4*drand48()};
-    fprintf(stdout, "%g %g\n", v[0], v[1]);
-    clip_poly(gamut_rec2020_rb, cnt, white, v);
-    fprintf(stdout, "%g %g\n%g %g\n", v[0], v[1], white[0], white[1]);
-  }
-#endif
-
 }
 
-// clamp to gamut:
-static inline void clip_rgb(float *v)
+// clamp to rec2020 gamut:
+static inline void
+clip_rec2020(float *v, const float *white)
+{
+  const float gamut_rec2020_rb[] = {
+    1.0f, 0.0f, // red
+    0.0f, 1.0f, // blue
+    0.0f, 0.0f, // green
+    1.0f, 0.0f, // red again
+  };
+  const int cnt = sizeof(gamut_rec2020_rb) / sizeof(gamut_rec2020_rb[0]) / 2 - 1;
+  clip_poly(gamut_rec2020_rb, cnt, white, v);
+}
+
+// clamp to rec709 gamut:
+static inline void
+clip_rec709(float *v, const float *white)
 {
   const float gamut_rec709_rb[] = {
     0.88008f, 0.02299f,   // red
@@ -81,20 +82,7 @@ static inline void clip_rgb(float *v)
   // 0.62750375, 0.32927542, 0.04330267,
   // 0.06910828, 0.91951917, 0.0113596,
   // 0.01639406, 0.08801128, 0.89538036
-
-  const float white[] = {0.33333f, 0.33333f};
   clip_poly(gamut_rec709_rb, cnt, white, v);
-
-#if 0 // DEBUG
-  srand48(666);
-  for(int k=0;k<100;k++)
-  {
-    float v[] = {drand48() * 1.6 - 0.4, -0.2 + 1.4*drand48()};
-    fprintf(stdout, "%g %g\n", v[0], v[1]);
-    clip_poly(gamut_rec709_rb, cnt, white, v);
-    fprintf(stdout, "%g %g\n%g %g\n", v[0], v[1], white[0], white[1]);
-  }
-#endif
 }
 
 // create 2d pattern of points:
@@ -103,14 +91,16 @@ static inline void clip_rgb(float *v)
 static inline void
 create_ring(
     const float *wb,          // camera white balance coefs
-    const float *M,           // camera to rec2020 matrix
+    const float *M,           // camera to rec2020 matrix, 4-strided (same as passed to glsl)
     const float  saturation,  // saturate the inner ring
     const float *white,       // adjust white point
     float       *source,      // generated list of source points
-    float       *target)      // generated list of target points
+    float       *target,      // generated list of target points
+    int          gamut)       // gamut mapping mode: 0 none, 1 spectral locus, 2 rec2020, 3 rec709
 {
   // 6+6+1 points in 2D RBF: outer, inner, white.
   const int N = 13;
+  const float S = 1.5f; // larger S means less white means more saturated
   float in[39] = {
     1, 0, 0,  // red
     1, 1, 0,  // yellow
@@ -118,19 +108,24 @@ create_ring(
     0, 1, 1,  // cyan
     0, 0, 1,  // blue
     1, 0, 1,  // magenta
-    3, 1, 1,  // dim red
-    3, 3, 1,  // dim yellow
-    1, 3, 1,  // dim green
-    1, 3, 3,  // dim cyan
-    1, 1, 3,  // dim blue
-    3, 1, 3,  // dim magenta
+    S, 1, 1,  // dim red
+    S, S, 1,  // dim yellow
+    1, S, 1,  // dim green
+    1, S, S,  // dim cyan
+    1, 1, S,  // dim blue
+    S, 1, S,  // dim magenta
     1, 1, 1   // white
   };
   float out[39] = {0};
   for(int k=0;k<N;k++)
     for(int j=0;j<3;j++)
       for(int i=0;i<3;i++)
-        out[3*k+j] += M[3*j+i] * in[3*k+i] * wb[i];
+        out[3*k+j] += M[4*j+i] * in[3*k+i] * wb[i];
+
+  const float w2[2] = {
+    out[12*3+0]/(out[12*3+0] + out[12*3+1] + out[12*3+2]),
+    out[12*3+2]/(out[12*3+0] + out[12*3+1] + out[12*3+2]),
+  };
   for(int k=0;k<N;k++)
   {
     const float b = out[3*k+0] + out[3*k+1] + out[3*k+2];
@@ -139,7 +134,13 @@ create_ring(
     source[2*k+1] = out[3*k+2];
     target[2*k+0] = out[3*k+0];
     target[2*k+1] = out[3*k+2];
-    clip_spectral_locus(target + 2*k);
+    if     (gamut == 1) clip_spectral_locus(target + 2*k, w2);
+    else if(gamut == 2) clip_rec2020(target + 2*k, w2);
+    else if(gamut == 3) clip_rec709(target + 2*k, w2);
+
+    // fprintf(stdout, "%g %g %g %g\n",
+    //     source[2*k], source[2*k+1],
+    //     target[2*k], target[2*k+1]);
   }
   for(int k=0;k<6;k++)
   { // saturation:
@@ -177,14 +178,16 @@ create_ring(
 // interesting curves that do not pass through the control points. this is true
 // at least in my tests with 5 control points, maybe the effect evens out for more
 // points which do not happen to reach exactly 0 and 1 as distance.
-static inline double kernel(const float *x, const float *y)
+static inline double
+kernel(const float *x, const float *y)
 {
   const double r2 = 1e-3 +
-      (x[0] - y[0]) * (x[0] - y[0]) + (x[1] - y[1]) * (x[1] - y[1]);
+      .99*((x[0] - y[0]) * (x[0] - y[0]) + (x[1] - y[1]) * (x[1] - y[1]));
   return r2 * logf(r2);
 }
 
-static inline void compute_coefficients(
+static inline void
+compute_coefficients(
   const int    N,        // number of patches
   const float *source,   // N 2d source coordinates
   const float *target,   // N 2d target coordinates
@@ -294,60 +297,74 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   else
     for(int k=0;k<4;k++)
       f[k] = powf(2.0f, ((float*)module->param)[0]);
-  for(int k=0;k<12;k++) f[4+k] = 0.0f;
-  if(module->img_param.cam_to_rec2020[0] > 0.0f)
-  { // camera to rec2020 matrix
-    // mat3 in glsl is an array of 3 vec4 column vectors:
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      f[4+4*j+i] = module->img_param.cam_to_rec2020[3*j+i];
-  }
-  else
-  { // identity
-    f[4+0] = f[4+5] = f[4+10] = 1.0f;
-  }
+
   // grab params by name:
   const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("wb")));
   const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
   const float *p_src = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("source")));
   const float *p_tgt = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("target")));
-#if 1 // DEBUG
-  const float xyz_to_rec2020[] = {
-     1.7166511880, -0.3556707838, -0.2533662814,
-    -0.6666843518,  1.6164812366,  0.0157685458,
-     0.0176398574, -0.0427706133,  0.9421031212};
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-    f[4+4*j+i] = xyz_to_rec2020[3*j+i];
-  float wb[] = {1, 1, 1};
-  // TODO: bind some param to white and saturations!
-  float white[] = //{0.33333, 0.33333};
-  { p_wb[0], p_wb[1] };
-  float source[26];
-  float target[26];
-  create_ring(wb, xyz_to_rec2020,
-      // 0.0,
-      p_wb[2],
-      white, source, target);
-  // for(int k=0;k<13;k++)
-  //   fprintf(stdout, "%g %g %g %g\n",
-  //       source[2*k], source[2*k+1],
-  //       target[2*k], target[2*k+1]);
-  // exit(43);
-#endif
-  // init i[16]..i[17] (uvec2 num patches + pad)
-  const int N = 13;//((uint32_t*)module->param)[1];
-  i[16] = N;
-  i[18] = i[19] = i[17] = 0;
-  // init f[20]..
-  memset(f + 20, 0, sizeof(float)*44);
-  for(int k=0;k<N;k++)
-  { // source points
-    f[20 + 4*k + 0] = source[2*k+0];//((float*)module->param + 15)[2*k+0];
-    f[20 + 4*k + 1] = source[2*k+1];//((float*)module->param + 15)[2*k+1];
+  const int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
+  const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
+  const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
+  if(p_mat == 1)
+  { // the one that comes with the image from the source node:
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      f[4+4*j+i] = module->img_param.cam_to_rec2020[3*j+i];
   }
-  compute_coefficients(N,
-      source, // ((float*)module->param) + 15, // source
-      target, // ((float*)module->param) + 55, // target
-      f + 20); //coefs
+  else if(p_mat == 2)
+  { // CIE XYZ
+    const float xyz_to_rec2020[] = {
+      1.7166511880, -0.3556707838, -0.2533662814,
+     -0.6666843518,  1.6164812366,  0.0157685458,
+      0.0176398574, -0.0427706133,  0.9421031212};
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      f[4+4*j+i] = xyz_to_rec2020[3*j+i];
+  }
+  else
+  { // p_mat == 0 (or default) rec2020, identity matrix
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      f[4+4*j+i] = i==j ? 1.0f : 0.0f;
+  }
+  
+  if(p_mod == 1)
+  { // mode is set to "data driven", means we have explicit src/tgt points
+    const int N = p_cnt;
+    i[16] = N;
+    i[18] = i[19] = i[17] = 0;
+    // init f[20]..
+    memset(f + 20, 0, sizeof(float)*44);
+    for(int k=0;k<N;k++)
+    { // source points
+      f[20 + 4*k + 0] = p_src[2*k+0];
+      f[20 + 4*k + 1] = p_src[2*k+1];
+    }
+    // TODO: go through target and map to gamut!
+    compute_coefficients(N, p_src, p_tgt, f + 20);
+  }
+  else
+  { // mode == 0 (or default): "parametric" mode
+    float wb[] = {1, 1, 1};
+    // TODO: bind some param to white and saturations!
+    float white[] = //{0.33333, 0.33333};
+    { p_wb[0], p_wb[1] };
+    float source[26];
+    float target[26];
+    create_ring(wb, f+4,
+        // 0.0,
+        p_wb[2],
+        white, source, target, p_gam);
+    const int N = 13;
+    i[16] = N;
+    i[18] = i[19] = i[17] = 0;
+    // init f[20]..
+    memset(f + 20, 0, sizeof(float)*44);
+    for(int k=0;k<N;k++)
+    { // source points
+      f[20 + 4*k + 0] = source[2*k+0];
+      f[20 + 4*k + 1] = source[2*k+1];
+    }
+    compute_coefficients(N, source, target, f + 20);
+  }
 }
 
 int init(dt_module_t *mod)

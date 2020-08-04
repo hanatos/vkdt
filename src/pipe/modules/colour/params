@@ -1,5 +1,7 @@
 exposure:float:1:0.0
 mode:int:1:0
+matrix:int:1:1
+gamut:int:1:0
 wb:float:4:1.0
 mat:float:9:-1.0
 cnt:int:1:0
