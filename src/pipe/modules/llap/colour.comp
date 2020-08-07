@@ -26,6 +26,46 @@ layout( // output f16 buffer local contrast + colour
     set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
+// use the colour reconstruction proposed in Mantiuk et al. "Color correction
+// for tone mapping" (EG 2009):
+// instead of simple RGB scaling or Lab magic, they propose a sigmoid function
+// that saturates colour saturation near black and white on the output.
+// TODO: factor out into shared.glsl such that filmcurv can do it too
+#if 0
+  RGBout = (RGBin/Lin)^s Lout               (2)
+  RGBout = ((RGBin/Lin - 1)*s + 1) Lout     (3)
+  pick one of (2) or (3), (3) is better for exact brightness, but introduces
+  more severe hue shifts.
+  assume tone curve would be something like
+  Lout = (Lin * b)^c                        (4)
+  find s(c) as
+  s(c) = (1+k1) c^k2 / (1 + k1 c^k2)        (5)
+  they find c for non contrast curves as in (4) by using log/log space:
+  c(Lin) = d/dlogLin f(logLin)              (6)
+  what if we instead approximate the local surroundings of Lin/Lout by
+  a contrast curve of shape (4)?
+  i.e.
+  c = log(Lout)/log(b*Lin)                  (O1)
+  probably assuming exposure correction b = 1.
+  so:
+  a) compute Lout from Lin as we do
+  b) compute c by eq (O1)
+  c) compute s(c) by eq (5)
+  d) compute RGB by eq (2) or (3), to taste
+#endif
+
+vec3 adjust_colour(vec3 rgb, float yo, float y)
+{
+  float eps = 1e-8;
+  float c = log(max(y, eps))/(log(max(yo, eps)) + eps);
+  float k1 = 1.6774, k2 = .9925; // eq (2)
+  // float k1 = 2.3892, k2 = 0.8552; // eq (3)
+  float s = (1.0+k1) * pow(c, k2) / (1.0 + k1*pow(c, k2));
+  // eq (2) preserving colours, not brightness:
+  // XXX becomes negative as hell in the highlights!
+  return pow(rgb/(yo+eps), vec3(max(0.0, s))) * y;
+}
+
 void
 main()
 {
@@ -34,9 +74,16 @@ main()
 
   float y = texelFetch(img_in, opos, 0).r;
   vec3 rgb = texelFetch(img_org, opos, 0).rgb;
-  float yo = max(luminance_rec2020(rgb), 0.01f);
-  float ratio = y/yo;
+  float yo = max(luminance_rec2020(rgb), 1e-3);
+  // black rolloff:
+  // XXX this also adjusts toned down highlights now!
+  // XXX make sure it doesn't change things too much if y >> 0!
+  const float c = 1.0f;
+  if(y < yo) y = yo * exp(c*(y-yo));
+  // colour adjustment
+  // rgb *= y/yo;
+  rgb = adjust_colour(rgb, yo, y);
   // imageStore(img_out, opos, vec4(vec3(y), 1));
-  imageStore(img_out, opos, vec4(max(vec3(0), ratio * rgb), 1));
+  imageStore(img_out, opos, vec4(max(vec3(0), rgb), 1));
 }
 
