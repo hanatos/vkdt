@@ -1,7 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-// #extension GL_AMD_gpu_shader_half_float   : enable
 
 #include "shared.glsl"
 
@@ -9,9 +8,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4 mul;    // multiplier = pow(2.0f, ev) * wb
-  // float m[9];
-  mat3 cam_to_rec2020;
+  float ev;
 } params;
 
 
@@ -30,13 +27,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * params.mul.rgb;
-  // f16vec4 rgba = (f16vec4(texelFetch(img_in, ipos, 0)) - float16_t(params.black)) * float16_t(params.mul);
-  // transform to rec2020
-  rgb = rgb * params.cam_to_rec2020;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * pow(2.0, params.ev);
 
-  // clip away negative numbers (not strictly needed, denoise clips negative noise)
-  rgb = max(vec3(0.0), rgb);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
