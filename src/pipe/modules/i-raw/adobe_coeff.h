@@ -683,8 +683,10 @@ static void dt_dcraw_adobe_coeff(const char *name, float cam_xyz[1][12])
     if (!strcmp(name, table[i].cameraid)) {
       for (int j=0; j < 12; j++)
         cam_xyz[0][j] = table[i].trans[j] / 10000.0;
-      break;
+      return;
     }
   }
+  // de-init
+  for (int j=0; j < 12; j++) cam_xyz[0][j] = -1.0f;
 }
 

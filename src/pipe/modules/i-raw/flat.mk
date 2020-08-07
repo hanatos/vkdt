@@ -8,7 +8,7 @@ endif
 ifeq ($(CXX),g++)
 MOD_LDFLAGS+=-lgomp
 endif
-MOD_DEPS=$(RAWSPEED_L)/librawspeed.a
+MOD_DEPS=$(RAWSPEED_L)/librawspeed.a pipe/modules/i-raw/adobe_coeff.h
 ifeq ($(VKDT_USE_EXIV2),1)
 MOD_CFLAGS+=$(shell pkg-config --cflags exiv2) -DVKDT_USE_EXIV2=1
 MOD_LDFLAGS+=$(shell pkg-config --libs exiv2)
