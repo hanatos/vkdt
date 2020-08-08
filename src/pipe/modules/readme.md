@@ -10,10 +10,34 @@ TODO: reference all the readme.md in the lower levels:
 * [bc1 output](./o-bc1/readme.md)
 * [blend](./blend/readme.md)
 * [colour](./colour/readme.md)
+* [crop and rotate](./crop/readme.md)
+* [denoise](./denoise/readme.md)
+* [film curve](./filmcurv/readme.md)
 * [highlight reconstruction](./hilite/readme.md)
+* [histogram (waveform)](./hist/readme.md)
+* [histogram (raw)](./rawhist/readme.md)
+* [local contrast, shadows, and highlights](./llap/readme.md)
+* [pick colours](./pick/readme.md)
+* [saturation](./saturate/readme.md)
 * [test 10bit display](./test10b/readme.md)
 * [thumbnails](./thumb/readme.md)
 * [zone system](./zones/readme.md)
+
+
+## default pipeline
+
+by default, a raw image is passed through the following pipeline:
+
+* denoise (dummy module which essentially just subtracts the black point and removes black borders which are otherwise used for noise estimation)
+* hilite: reconstruct highlights on raw data
+* demosaic: interpolate three colour channels for every pixel
+* crop: grab exif orientation and allow crop/perspective correction
+* colour: apply white balance, colour matrix, and gamut corrections. optionally apply fully profiled RBF for colour correction.
+* filmcurv: film style tone curve
+* llap: local contrast, shadows, and highlights
+
+you can change the default pipeline by hacking `bin/default-darkroom.cfg` for darkroom mode
+and `bin/default.cfg` for thumbnails.
 
 
 ## files to describe a module
