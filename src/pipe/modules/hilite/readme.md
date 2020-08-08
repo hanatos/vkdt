@@ -25,7 +25,7 @@ trying to keep colour ratios smoothly varying.
 
 ## technical
 
-recunstruction runs in two steps: blur and combine.
+reconstruction runs in two steps: blur and combine.
 
 the blur is clipping aware, i.e. it disregards clipped pixels and renormalises
 results to include only unclipped pixel values.

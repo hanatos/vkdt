@@ -56,14 +56,28 @@ layout( // output f16 buffer local contrast + colour
 
 vec3 adjust_colour(vec3 rgb, float yo, float y)
 {
+#define EQ2
   float eps = 1e-8;
-  float c = log(max(y, eps))/(log(max(yo, eps)) + eps);
-  float k1 = 1.6774, k2 = .9925; // eq (2)
-  // float k1 = 2.3892, k2 = 0.8552; // eq (3)
+  // we have to deal with the contrast curve changing sign > 1.0.
+  // this can be done various ways. just clamping or evaluating the logarithm of 1+x.
+  // log(1+x) looks really very good on landscapes, log(clamp(x)) looks better on
+  // much increased blacks for portraits. possibly might tweak this in the future
+  // and potentially need to expose control over this in params :(
+  float c = clamp(log(1.0+max(y, 0.0))/(log(1.0+max(yo, 0.0)) + eps), 0, 4.0);
+  // float c = clamp(log(clamp(y, eps, 1.0))/(log(clamp(yo, eps, 1.0)) + eps), 0, 4.0);
+#ifdef EQ2
+  float k1 = 1.6774, k2 = .9925;  // params for eq (2)
+#else
+  float k1 = 2.3892, k2 = 0.8552; // params for eq (3)
+#endif
   float s = (1.0+k1) * pow(c, k2) / (1.0 + k1*pow(c, k2));
+  s = clamp(s, eps, 1.0-eps);
+#ifdef EQ2
   // eq (2) preserving colours, not brightness:
-  // XXX becomes negative as hell in the highlights!
-  return pow(rgb/(yo+eps), vec3(max(0.0, s))) * y;
+  return pow(rgb/(yo+eps), vec3(s)) * y; // eq (2)
+#else
+  return ((rgb / yo - 1.0)*s + 1.0) * y;  // eq (3)
+#endif
 }
 
 void
@@ -74,10 +88,8 @@ main()
 
   float y = texelFetch(img_in, opos, 0).r;
   vec3 rgb = texelFetch(img_org, opos, 0).rgb;
-  float yo = max(luminance_rec2020(rgb), 1e-3);
+  float yo = max(luminance_rec2020(rgb), 1e-8);
   // black rolloff:
-  // XXX this also adjusts toned down highlights now!
-  // XXX make sure it doesn't change things too much if y >> 0!
   const float c = 1.0f;
   if(y < yo) y = yo * exp(c*(y-yo));
   // colour adjustment
