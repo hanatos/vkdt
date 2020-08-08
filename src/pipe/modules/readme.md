@@ -13,6 +13,7 @@ TODO: reference all the readme.md in the lower levels:
 * [crop and rotate](./crop/readme.md)
 * [denoise](./denoise/readme.md)
 * [film curve](./filmcurv/readme.md)
+* [gradient density filter](./grad/readme.md)
 * [highlight reconstruction](./hilite/readme.md)
 * [histogram (waveform)](./hist/readme.md)
 * [histogram (raw)](./rawhist/readme.md)
