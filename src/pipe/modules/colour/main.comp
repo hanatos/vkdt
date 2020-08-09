@@ -18,8 +18,12 @@ layout( // input
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output
+layout( // gamut map
     set = 1, binding = 1
+) uniform sampler2D img_gamut_map;
+
+layout( // output
+    set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
 float
@@ -53,6 +57,12 @@ main()
     rgb.y = 1.0 - rgb.x - rgb.z;
     rgb *= b; // keep brightness constant
   }
+
+  vec4 box = vec4(-0.35, -0.05, 1.1, 1.05);
+  float b = dot(rgb,vec3(1));
+  rgb.xz = texture(img_gamut_map, (rgb.xz/b-box.xy)/(box.zw-box.xy)).rb;
+  rgb.y = 1.0 - rgb.x - rgb.z;
+  rgb *= b;
 
   // it seems demosaic outputs negative numbers and filmcurv++ kills the picture then
   rgb = max(vec3(0), rgb);
