@@ -163,6 +163,7 @@ int main(int argc, char *argv[])
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
       g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame - 1;
     if(g_busy > 0) glfwPostEmptyEvent();
+    else g_busy = 3;
     glfwWaitEvents();
     if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
