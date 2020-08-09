@@ -25,13 +25,13 @@ read_header(
   assert(pfm); // this should be inited in init()
 
   pfm->f = dt_graph_open_resource(mod->graph, filename, "rb");
-  if(!pfm->f) return 1;
+  if(!pfm->f) goto error;
 
   int wd, ht;
   if(fscanf(pfm->f, "PF\n%d %d\n%*[^\n]", &wd, &ht) != 2)
   {
     fclose(pfm->f);
-    return 1;
+    goto error;
   }
   fgetc(pfm->f);
 
@@ -49,6 +49,9 @@ read_header(
 
   snprintf(pfm->filename, sizeof(pfm->filename), "%s", filename);
   return 0;
+error:
+  fprintf(stderr, "[i-pfm] could not load file `%s'!\n", filename);
+  return 1;
 }
 
 static int
