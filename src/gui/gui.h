@@ -61,6 +61,8 @@ typedef struct dt_gui_wstate_t
   float *mapped;
   int    lod;
   float  connector[100][30][2];
+
+  int    modules_reloaded; // for fast module reloading: safeguard this debug option and disable a few things that would otherwise crash.
 }
 dt_gui_wstate_t;
 
