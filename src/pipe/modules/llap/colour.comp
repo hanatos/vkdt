@@ -56,15 +56,18 @@ layout( // output f16 buffer local contrast + colour
 
 vec3 adjust_colour(vec3 rgb, float yo, float y)
 {
-#define EQ2
+#define EQ2 // this makes very tiny differences in my tests
   float eps = 1e-8;
   // we have to deal with the contrast curve changing sign > 1.0.
   // this can be done various ways. just clamping or evaluating the logarithm of 1+x.
   // log(1+x) looks really very good on landscapes, log(clamp(x)) looks better on
   // much increased blacks for portraits. possibly might tweak this in the future
   // and potentially need to expose control over this in params :(
-  float c = clamp(log(1.0+max(y, 0.0))/(log(1.0+max(yo, 0.0)) + eps), 0, 4.0);
-  // float c = clamp(log(clamp(y, eps, 1.0))/(log(clamp(yo, eps, 1.0)) + eps), 0, 4.0);
+  // this one desaturates deep shadows unacceptably for portraits
+  // float c = clamp(log(1.0+max(y, 0.0))/(log(1.0+max(yo, 0.0)) + eps), 0, 4.0); // excellent for landsc
+  // those two work great on portraits (i see no diff):
+  // the 0.6 safeguards the sharp transition to complete desaturation when the two logs change sign.
+  float c = clamp(log(clamp(y*0.6, eps, 1.0))/(log(clamp(yo*0.6, eps, 1.0)) + eps), 0, 4.0);
 #ifdef EQ2
   float k1 = 1.6774, k2 = .9925;  // params for eq (2)
 #else
