@@ -365,6 +365,10 @@ dt_thumbnails_load_one(
     const char      *filename,
     uint32_t        *thumb_index)
 {
+  // this will crash if the modules have been reloaded during debugging and i'm too lazy
+  // to devise a proper fix. so we just bail out if this is the case:
+  if(dt_pipe.modules_reloaded) return VK_INCOMPLETE;
+
   dt_graph_t *graph = tn->graph;
   char cfgfilename[1024] = {0};
   char imgfilename[1024] = {0};

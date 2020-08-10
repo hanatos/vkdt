@@ -73,6 +73,8 @@ typedef struct dt_pipe_global_t
   char module_dir[2048];
   dt_module_so_t *module;
   uint32_t num_modules;
+
+  int modules_reloaded;
 }
 dt_pipe_global_t;
 

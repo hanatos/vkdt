@@ -314,7 +314,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 {
   if(action == GLFW_PRESS && key == GLFW_KEY_R)
   {
-    vkdt.wstate.modules_reloaded = 1;
     // dt_view_switch(s_view_cnt);
     // view switching will not work because we're doing really wacky things here.
     // hence we call cleanup and below darkroom_enter() instead.
@@ -326,6 +325,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     // this would mean to re-init the db, too ..
     system("make debug"); // build shaders
     dt_pipe_global_init();
+    dt_pipe.modules_reloaded = 1;
     darkroom_enter();
     // dt_view_switch(s_view_darkroom);
   }
@@ -442,21 +442,20 @@ darkroom_enter()
 int
 darkroom_leave()
 {
-  if(!vkdt.wstate.modules_reloaded)
-  { // only write thumbnails if the global module state is not corrupted by reloading
-    dt_image_t *img = vkdt.db.image + dt_db_current_imgid(&vkdt.db);
-    char filename[1024];
-    dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
-    if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
-      dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
-    // TODO: start from already loaded/inited graph instead of from scratch!
-    QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
-    (void)dt_thumbnails_cache_one(
-        &vkdt.graph_dev,
-        &vkdt.thumbnails,
-        filename);
-    dt_thumbnails_load_one(&vkdt.thumbnails, filename, &img->thumbnail);
-  }
+  dt_image_t *img = vkdt.db.image + dt_db_current_imgid(&vkdt.db);
+  char filename[1024];
+  dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
+  if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
+    dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
+
+  // TODO: start from already loaded/inited graph instead of from scratch!
+  QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
+  (void)dt_thumbnails_cache_one(
+      &vkdt.graph_dev,
+      &vkdt.thumbnails,
+      filename);
+  dt_thumbnails_load_one(&vkdt.thumbnails, filename, &img->thumbnail);
+
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   return 0;
