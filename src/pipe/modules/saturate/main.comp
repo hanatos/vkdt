@@ -30,7 +30,7 @@ main()
 
   float lum = luminance_rec2020(rgb);
   vec3 x = rgb - lum;
-  // TODO: push towards 0.0 or 1.0
+  // push towards 0.0 or 1.0
   x *= params.sat;
   rgb = lum + x;
 
