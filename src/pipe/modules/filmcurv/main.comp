@@ -98,6 +98,9 @@ main()
       1.0/(log(2) * den * (black+1.0)) // slope at 1.0
       * (rgb - 1.0) + 1.0,
       greaterThanEqual(rgb, vec3(1.0)));
+  rgb.r = hermite4(rgb.r);
+  rgb.g = hermite4(rgb.g);
+  rgb.b = hermite4(rgb.b);
 #endif
 
 #if 0 // DEBUG: visualise curve TODO: tie to parameter
