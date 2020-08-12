@@ -55,7 +55,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_1,
+  .apiVersion         = VK_API_VERSION_1_2,
 };
 
 static void
@@ -393,20 +393,27 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-    // dt_log(s_log_qvk, "supported extensions:");
-    // for(int j = 0; j < num_ext; j++) {
-      // dt_log(s_log_qvk, ext_properties[j].extensionName);
-      // no ray tracing needed:
-      // if(!strcmp(ext_properties[j].extensionName, VK_NV_RAY_TRACING_EXTENSION_NAME)) {
+    if(0)
+    {
+      VkPhysicalDeviceRayTracingPropertiesKHR ray_tracing_properties = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_KHR
+      };
+      VkPhysicalDeviceProperties2 device_properties_2 = {
+        .pNext = &ray_tracing_properties,
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2
+      };
+      vkGetPhysicalDeviceProperties2(devices[i], &device_properties_2);
+      dt_log(s_log_qvk, "number of accel structs %d", ray_tracing_properties.maxDescriptorSetAccelerationStructures > 0);
+    }
+
     // vendor ids are: nvidia 0x10de, intel 0x8086
     if(picked_device < 0 || dev_properties.vendorID == 0x10de)
       picked_device = i;
-      // }
-    // }
   }
 
-  if(picked_device < 0) {
-    dt_log(s_log_qvk, "could not find any suitable device supporting " VK_NV_RAY_TRACING_EXTENSION_NAME"!");
+  if(picked_device < 0)
+  {
+    dt_log(s_log_qvk|s_log_err, "could not find any suitable device!");
     return 1;
   }
 
