@@ -307,8 +307,8 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
   if(!f) return 1;
   for(int i=0;i<db->image_cnt;i++)
   {
-    if(db->image[i].rating         > 0) fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);
-    if(db->image[i].labels&0x7fffu > 0) fprintf(f, "%s:labels:%u\n", db->image[i].filename, db->image[i].labels & 0x7fffu); // mask selection bit
+    if( db->image[i].rating          > 0) fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);
+    if((db->image[i].labels&0x7fffu) > 0) fprintf(f, "%s:labels:%u\n", db->image[i].filename, db->image[i].labels & 0x7fffu); // mask selection bit
   }
   fclose(f);
   return 0;
