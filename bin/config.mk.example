@@ -20,4 +20,5 @@ export VKDT_USE_RAWSPEED
 
 CC=clang
 CXX=clang++
-export CC CXX
+GLSLC=glslangValidator
+export CC CXX GLSLC

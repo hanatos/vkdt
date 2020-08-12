@@ -6,7 +6,6 @@
 
 OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
 OPT_LDFLAGS=
-GLSLC=glslangValidator
 AR=ar
 # dr dobb's idea about makefile debugging:
 OLD_SHELL := $(SHELL)

@@ -32,7 +32,7 @@ clean: Makefile
 	rm -f pipe/modules/*/*.spv
 
 # GNU_SOURCE for sched_affinity
-CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
+CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 LDFLAGS=
 
@@ -115,7 +115,7 @@ $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
 define SPV_RULE
 %.$(1).spv: %.$(1)
-	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.1 \
+	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.2 \
     -V $$< -o $$@
 endef
 $(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))
