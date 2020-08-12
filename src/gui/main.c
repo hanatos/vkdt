@@ -201,11 +201,11 @@ out:
   dt_view_switch(s_view_cnt);
 
   threads_shutdown();
+  threads_global_cleanup(); // join worker threads before killing their resources
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   if(tmp_tn) dt_thumbnails_cleanup(tmp_tn);
   dt_db_cleanup(&vkdt.db);
   dt_pipe_global_cleanup();
-  threads_global_cleanup();
   exit(0);
 }
