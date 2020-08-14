@@ -833,8 +833,8 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::dt_SliderFloat(str, val,
-              param->widget.min, param->widget.max, "%2.5f"))
+        if(ImGui::DtSliderFloat(str, val,
+              param->widget.min, param->widget.max, param->val[0], "%2.5f"))
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
@@ -850,8 +850,8 @@ inline void draw_widget(int modid, int parid)
         int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::dt_SliderInt(str, val,
-              param->widget.min, param->widget.max, "%d"))
+        if(ImGui::DtSliderInt(str, val,
+              param->widget.min, param->widget.max, param->vali[0], "%d"))
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)

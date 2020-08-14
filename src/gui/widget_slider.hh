@@ -1,6 +1,8 @@
 #pragma once
 #include "imgui.h"
 
+// this is copied from much ImGui::SliderFloat with a few added features:
+
 namespace ImGui {
 
   // Those MIN/MAX values are not define because we need to point to them
@@ -43,11 +45,11 @@ namespace ImGui {
   }
 
   template<typename TYPE, typename SIGNEDTYPE, typename FLOATTYPE>
-  bool SliderBehaviorT2(const ImRect& bb, ImGuiID id, ImGuiDataType data_type, TYPE* v, const TYPE v_min, const TYPE v_max, const char* format, ImGuiSliderFlags flags, ImRect* out_grab_bb)
+  bool SliderBehaviorT2(const ImRect& bb, ImGuiID id, ImGuiDataType data_type, TYPE* v, const TYPE v_min, const TYPE v_max, const TYPE v_def, const char* format, ImRect* out_grab_bb)
   {
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
-    const ImGuiAxis axis = (flags & ImGuiSliderFlags_Vertical) ? ImGuiAxis_Y : ImGuiAxis_X;
+    const ImGuiAxis axis = ImGuiAxis_X;
     const bool is_decimal = (data_type == ImGuiDataType_Float) || (data_type == ImGuiDataType_Double);
     const float grab_padding = 2.0f;
     const float slider_sz = (bb.Max[axis] - bb.Min[axis]) - grab_padding * 2.0f;
@@ -59,14 +61,18 @@ namespace ImGui {
     const float slider_usable_sz = slider_sz - grab_sz;
     const float slider_usable_pos_min = bb.Min[axis] + grab_padding + grab_sz * 0.5f;
     const float slider_usable_pos_max = bb.Max[axis] - grab_padding - grab_sz * 0.5f;
-
     // Process interacting with the slider
     bool value_changed = false;
     if (g.ActiveId == id || g.HoveredId == id)
     {
       bool set_new_value = false;
+      bool set_def_value = false;
       float clicked_t = 0.0f;
-      if (g.ActiveId == id && g.ActiveIdSource == ImGuiInputSource_Mouse)
+      if (g.HoveredId == id && g.IO.MouseDoubleClicked[0])
+      {
+        set_def_value = true;
+      }
+      else if (g.ActiveId == id && g.ActiveIdSource == ImGuiInputSource_Mouse)
       {
         if (!g.IO.MouseDown[0])
         {
@@ -168,6 +174,14 @@ namespace ImGui {
           value_changed = true;
         }
       }
+      else  if (set_def_value)
+      {
+        if (v_def != NAN)
+        {
+          *v = v_def;
+          value_changed = true;
+        }
+      }
     }
     if (slider_sz < 1.0f)
     {
@@ -191,16 +205,16 @@ namespace ImGui {
   // For 32-bit and larger types, slider bounds are limited to half the natural type range.
   // So e.g. an integer Slider between INT_MAX-10 and INT_MAX will fail, but an integer Slider between INT_MAX/2-10 and INT_MAX/2 will be ok.
   // It would be possible to lift that limitation with some work but it doesn't seem to be worth it for sliders.
-  bool dtSliderBehavior(const ImRect& bb, ImGuiID id, ImGuiDataType data_type, void* p_v, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags, ImRect* out_grab_bb)
+  bool DtSliderBehavior(const ImRect& bb, ImGuiID id, ImGuiDataType data_type, void* p_v, const void* p_min, const void* p_max, const void* p_def, const char* format, ImRect* out_grab_bb)
   {
     switch (data_type)
     {
     case ImGuiDataType_S32:
       IM_ASSERT(*(const ImS32*)p_min >= IM_S32_MIN/2 && *(const ImS32*)p_max <= IM_S32_MAX/2);
-      return SliderBehaviorT2<ImS32, ImS32, float >(bb, id, data_type, (ImS32*)p_v,  *(const ImS32*)p_min,  *(const ImS32*)p_max,  format, flags, out_grab_bb);
+      return SliderBehaviorT2<ImS32, ImS32, float >(bb, id, data_type, (ImS32*)p_v, *(const ImS32*)p_min, *(const ImS32*)p_max, *(const ImS32*)p_def, format, out_grab_bb);
     case ImGuiDataType_Float:
       IM_ASSERT(*(const float*)p_min >= -FLT_MAX/2.0f && *(const float*)p_max <= FLT_MAX/2.0f);
-      return SliderBehaviorT2<float, float, float >(bb, id, data_type, (float*)p_v,  *(const float*)p_min,  *(const float*)p_max,  format, flags, out_grab_bb);
+      return SliderBehaviorT2<float, float, float >(bb, id, data_type, (float*)p_v, *(const float*)p_min, *(const float*)p_max, *(const float*)p_def, format, out_grab_bb);
     case ImGuiDataType_COUNT: break;
     }
     IM_ASSERT(0);
@@ -209,11 +223,11 @@ namespace ImGui {
 
   // Note: p_data, p_min and p_max are _pointers_ to a memory address holding the data. For a slider, they are all required.
   // Read code of e.g. SliderFloat(), SliderInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
-  bool dtSliderScalar(const char* label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const char* format)
+  bool DtSliderScalar(const char* label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const void* p_def, const char* format)
   {
     ImGuiWindow* window = GetCurrentWindow();
     if (window->SkipItems)
-        return false;
+      return false;
 
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
@@ -226,13 +240,13 @@ namespace ImGui {
 
     ItemSize(total_bb, style.FramePadding.y);
     if (!ItemAdd(total_bb, id, &frame_bb))
-        return false;
+      return false;
 
     // Default format string when passing NULL
     if (format == NULL)
-        format = DataTypeGetInfo(data_type)->PrintFmt;
+      format = DataTypeGetInfo(data_type)->PrintFmt;
     else if (data_type == ImGuiDataType_S32 && strcmp(format, "%d") != 0) // (FIXME-LEGACY: Patch old "%.0f" format string to use "%d", read function more details.)
-        format = PatchFormatStringFloatToInt(format);
+      format = PatchFormatStringFloatToInt(format);
 
     // Tabbing or CTRL-clicking on Slider turns it into an input box
     const bool hovered = ItemHoverable(frame_bb, id);
@@ -256,7 +270,7 @@ namespace ImGui {
       }
     }
     if (temp_input_is_active || temp_input_start)
-        return TempInputScalar(frame_bb, id, label, data_type, p_data, format);
+      return TempInputScalar(frame_bb, id, label, data_type, p_data, format);
 
     // Draw frame
     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : g.HoveredId == id ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
@@ -265,13 +279,13 @@ namespace ImGui {
 
     // Slider behavior
     ImRect grab_bb;
-    const bool value_changed = dtSliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, format, ImGuiSliderFlags_None, &grab_bb);
+    const bool value_changed = DtSliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, p_def, format, &grab_bb);
     if (value_changed)
-        MarkItemEdited(id);
+      MarkItemEdited(id);
 
     // Render grab
     if (grab_bb.Max.x > grab_bb.Min.x)
-        window->DrawList->AddRectFilled(grab_bb.Min, grab_bb.Max, GetColorU32(g.ActiveId == id ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab), style.GrabRounding);
+      window->DrawList->AddRectFilled(grab_bb.Min, grab_bb.Max, GetColorU32(g.ActiveId == id ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab), style.GrabRounding);
 
     // Display value using user-provided display format so user can add prefix/suffix/decorations to the value.
     char value_buf[64];
@@ -279,20 +293,20 @@ namespace ImGui {
     RenderTextClipped(frame_bb.Min, frame_bb.Max, value_buf, value_buf_end, NULL, ImVec2(0.5f,0.5f));
 
     if (label_size.x > 0.0f)
-        RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
+      RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window->DC.ItemFlags);
     return value_changed;
   }
 
-  bool dt_SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format)
+  bool DtSliderFloat(const char* label, float* v, const float v_min, const float v_max, const float v_def, const char* format)
   {
-    return dtSliderScalar(label, ImGuiDataType_Float, v, &v_min, &v_max, format);
+    return DtSliderScalar(label, ImGuiDataType_Float, v, &v_min, &v_max, &v_def, format);
   }
 
-  bool dt_SliderInt(const char* label, int* v, int v_min, int v_max, const char* format)
+  bool DtSliderInt(const char* label, int* v, const int v_min, const int v_max, const int v_def, const char* format)
   {
-    return dtSliderScalar(label, ImGuiDataType_S32, v, &v_min, &v_max, format);
+    return DtSliderScalar(label, ImGuiDataType_S32, v, &v_min, &v_max, &v_def, format);
   }
 
 
