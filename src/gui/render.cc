@@ -833,7 +833,7 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::DtSliderFloat(str, val,
+        if(DtSliderFloat(str, val,
               param->widget.min, param->widget.max, param->val[0], "%2.5f"))
         {
           dt_graph_run_t flags = s_graph_run_none;
@@ -850,7 +850,7 @@ inline void draw_widget(int modid, int parid)
         int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::DtSliderInt(str, val,
+        if(DtSliderInt(str, val,
               param->widget.min, param->widget.max, param->vali[0], "%d"))
         {
           dt_graph_run_t flags = s_graph_run_none;

@@ -1,9 +1,8 @@
 #pragma once
-#include "imgui.h"
 
 // this is copied from much ImGui::SliderFloat with a few added features:
 
-namespace ImGui {
+// namespace ImGui {
 
   // Those MIN/MAX values are not define because we need to point to them
   static const ImS32          IM_S32_MIN = INT_MIN;    // (-2147483647 - 1), (0x80000000);
@@ -76,7 +75,7 @@ namespace ImGui {
       {
         if (!g.IO.MouseDown[0])
         {
-          ClearActiveID();
+          ImGui::ClearActiveID();
         }
         else
         {
@@ -89,11 +88,11 @@ namespace ImGui {
       }
       else if (g.ActiveId == id && g.ActiveIdSource == ImGuiInputSource_Nav)
       {
-        const ImVec2 delta2 = GetNavInputAmount2d(ImGuiNavDirSourceFlags_Keyboard | ImGuiNavDirSourceFlags_PadDPad, ImGuiInputReadMode_RepeatFast, 0.0f, 0.0f);
+        const ImVec2 delta2 = ImGui::GetNavInputAmount2d(ImGuiNavDirSourceFlags_Keyboard | ImGuiNavDirSourceFlags_PadDPad, ImGuiInputReadMode_RepeatFast, 0.0f, 0.0f);
         float delta = (axis == ImGuiAxis_X) ? delta2.x : -delta2.y;
         if (g.NavActivatePressedId == id && !g.ActiveIdIsJustActivated)
         {
-          ClearActiveID();
+          ImGui::ClearActiveID();
         }
         else if (delta != 0.0f)
         {
@@ -102,17 +101,17 @@ namespace ImGui {
           if ((decimal_precision > 0))
           {
             delta /= 100.0f;    // Gamepad/keyboard tweak speeds in % of slider bounds
-            if (IsNavInputDown(ImGuiNavInput_TweakSlow))
+            if (ImGui::IsNavInputDown(ImGuiNavInput_TweakSlow))
               delta /= 10.0f;
           }
           else
           {
-            if ((v_range >= -100.0f && v_range <= 100.0f) || IsNavInputDown(ImGuiNavInput_TweakSlow))
+            if ((v_range >= -100.0f && v_range <= 100.0f) || ImGui::IsNavInputDown(ImGuiNavInput_TweakSlow))
               delta = ((delta < 0.0f) ? -1.0f : +1.0f) / (float)v_range; // Gamepad/keyboard tweak speeds in integer steps
             else
               delta /= 100.0f;
           }
-          if (IsNavInputDown(ImGuiNavInput_TweakFast))
+          if (ImGui::IsNavInputDown(ImGuiNavInput_TweakFast))
             delta *= 10.0f;
           set_new_value = true;
           if ((clicked_t >= 1.0f && delta > 0.0f) || (clicked_t <= 0.0f && delta < 0.0f)) // This is to avoid applying the saturation when already past the limits
@@ -166,7 +165,7 @@ namespace ImGui {
             v_new = v_min + v_new_off_floor;
         }
         // Round to user desired precision based on format string
-        v_new = RoundScalarWithFormatT<TYPE,SIGNEDTYPE>(format, data_type, v_new);
+        v_new = ImGui::RoundScalarWithFormatT<TYPE,SIGNEDTYPE>(format, data_type, v_new);
         // Apply result
         if (*v != v_new)
         {
@@ -225,75 +224,75 @@ namespace ImGui {
   // Read code of e.g. SliderFloat(), SliderInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
   bool DtSliderScalar(const char* label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const void* p_def, const char* format)
   {
-    ImGuiWindow* window = GetCurrentWindow();
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
       return false;
 
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
     const ImGuiID id = window->GetID(label);
-    const float w = CalcItemWidth();
+    const float w = ImGui::CalcItemWidth();
 
-    const ImVec2 label_size = CalcTextSize(label, NULL, true);
+    const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
     const ImRect frame_bb(window->DC.CursorPos, ImVec2(window->DC.CursorPos[0] + w, window->DC.CursorPos[1] + label_size.y + style.FramePadding.y*2.0f));
     const ImRect total_bb(frame_bb.Min, ImVec2(frame_bb.Max[0] + ((label_size.x > 0.0f) ? style.ItemInnerSpacing.x + label_size.x : 0.0f), frame_bb.Max[1]));
 
-    ItemSize(total_bb, style.FramePadding.y);
-    if (!ItemAdd(total_bb, id, &frame_bb))
+    ImGui::ItemSize(total_bb, style.FramePadding.y);
+    if (!ImGui::ItemAdd(total_bb, id, &frame_bb))
       return false;
 
     // Default format string when passing NULL
     if (format == NULL)
-      format = DataTypeGetInfo(data_type)->PrintFmt;
+      format = ImGui::DataTypeGetInfo(data_type)->PrintFmt;
     else if (data_type == ImGuiDataType_S32 && strcmp(format, "%d") != 0) // (FIXME-LEGACY: Patch old "%.0f" format string to use "%d", read function more details.)
       format = PatchFormatStringFloatToInt(format);
 
     // Tabbing or CTRL-clicking on Slider turns it into an input box
-    const bool hovered = ItemHoverable(frame_bb, id);
-    bool temp_input_is_active = TempInputIsActive(id);
+    const bool hovered = ImGui::ItemHoverable(frame_bb, id);
+    bool temp_input_is_active = ImGui::TempInputIsActive(id);
     bool temp_input_start = false;
     if (!temp_input_is_active)
     {
-      const bool focus_requested = FocusableItemRegister(window, id);
+      const bool focus_requested = ImGui::FocusableItemRegister(window, id);
       const bool clicked = (hovered && g.IO.MouseClicked[0]);
       if (focus_requested || clicked || g.NavActivateId == id || g.NavInputId == id)
       {
-        SetActiveID(id, window);
-        SetFocusID(id, window);
-        FocusWindow(window);
+        ImGui::SetActiveID(id, window);
+        ImGui::SetFocusID(id, window);
+        ImGui::FocusWindow(window);
         g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir_Left) | (1 << ImGuiDir_Right);
         if (focus_requested || (clicked && g.IO.KeyCtrl) || g.NavInputId == id)
         {
           temp_input_start = true;
-          FocusableItemUnregister(window);
+          ImGui::FocusableItemUnregister(window);
         }
       }
     }
     if (temp_input_is_active || temp_input_start)
-      return TempInputScalar(frame_bb, id, label, data_type, p_data, format);
+      return ImGui::TempInputScalar(frame_bb, id, label, data_type, p_data, format);
 
     // Draw frame
-    const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : g.HoveredId == id ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
-    RenderNavHighlight(frame_bb, id);
-    RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, g.Style.FrameRounding);
+    const ImU32 frame_col = ImGui::GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : g.HoveredId == id ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+    ImGui::RenderNavHighlight(frame_bb, id);
+    ImGui::RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, g.Style.FrameRounding);
 
     // Slider behavior
     ImRect grab_bb;
     const bool value_changed = DtSliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, p_def, format, &grab_bb);
     if (value_changed)
-      MarkItemEdited(id);
+      ImGui::MarkItemEdited(id);
 
     // Render grab
     if (grab_bb.Max.x > grab_bb.Min.x)
-      window->DrawList->AddRectFilled(grab_bb.Min, grab_bb.Max, GetColorU32(g.ActiveId == id ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab), style.GrabRounding);
+      window->DrawList->AddRectFilled(grab_bb.Min, grab_bb.Max, ImGui::GetColorU32(g.ActiveId == id ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab), style.GrabRounding);
 
     // Display value using user-provided display format so user can add prefix/suffix/decorations to the value.
     char value_buf[64];
-    const char* value_buf_end = value_buf + DataTypeFormatString(value_buf, IM_ARRAYSIZE(value_buf), data_type, p_data, format);
-    RenderTextClipped(frame_bb.Min, frame_bb.Max, value_buf, value_buf_end, NULL, ImVec2(0.5f,0.5f));
+    const char* value_buf_end = value_buf + ImGui::DataTypeFormatString(value_buf, IM_ARRAYSIZE(value_buf), data_type, p_data, format);
+    ImGui::RenderTextClipped(frame_bb.Min, frame_bb.Max, value_buf, value_buf_end, NULL, ImVec2(0.5f,0.5f));
 
     if (label_size.x > 0.0f)
-      RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
+      ImGui::RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window->DC.ItemFlags);
     return value_changed;
@@ -310,4 +309,4 @@ namespace ImGui {
   }
 
 
-} // namespace ImGui
+// } // namespace ImGui
