@@ -8,7 +8,6 @@ extern "C" {
 #include "gui/darkroom-util.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
-#include "gui/widget_thumbnail.hh"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"

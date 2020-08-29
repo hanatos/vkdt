@@ -10,13 +10,14 @@ GUI_O=gui/gui.o\
       ../ext/imgui/examples/imgui_impl_glfw.o
 GUI_H=gui/gui.h\
       gui/render.h\
-      gui/widget_thumbnail.hh\
       gui/view.h\
       gui/darkroom.h\
       gui/darkroom-util.h\
       gui/lighttable.h\
+      gui/widgets/imgui_user.h\
+      gui/widgets/thumbnail.hh\
       pipe/graph-traverse.inc
-GUI_CFLAGS=$(shell pkg-config --cflags glfw3) -I../ext/imgui -I../ext/imgui/examples/
+GUI_CFLAGS=$(shell pkg-config --cflags glfw3) -DIMGUI_INCLUDE_IMGUI_USER_H -Igui/widgets/ -I../ext/imgui -I../ext/imgui/examples/
 GUI_LDFLAGS=-ldl $(shell pkg-config --libs glfw3) -lm -lstdc++
 
 ifeq ($(VKDT_USE_FREETYPE),1)
