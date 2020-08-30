@@ -11,6 +11,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float chroma;
   float luma;
+  float black;
+  float noise_a;
+  float noise_b;
 } params;
 
 // layout(push_constant, std140) uniform push_t
@@ -56,24 +59,29 @@ main()
     down4 = texelFetch(img_s4, esi, 0).rgb;
 
     // compute wavelet coefficients for this pixel
-    // TODO: normalise these by dividing out expected noise std dev:
-    float sigma = 0.01; // TODO: insert noise model/mask after merging here
+    // normalise these by dividing out expected noise std dev:
+    // XXX this is probably completely off!!
+    float sigma = sqrt(params.noise_a + 65535.0*max(down2.g - params.black, 0.0)*params.noise_b)/65535.0;
     down0 = (down0 - down1)/sigma;
     down1 = (down1 - down2)/sigma*2.0;
     down2 = (down2 - down3)/sigma*4.0;
     down3 = (down3 - down4)/sigma*8.0;
 
     // xi-squared statistic for iid unit variance:
-    vec3 xi2 = down0*down0 + down1*down1 + down2*down2 + down3*down3;
-    // compute probability that these are indeed iid wrt some p value
+    // vec3 xi2 = down0*down0 + down1*down1 + down2*down2 + down3*down3;
+    // TODO: compute probability that these are indeed iid wrt some p value
+    // TODO: compute wavelet transform completely in yuv and only protect y edges?
+    vec3 xi2 = abs(down0) + abs(down1) + abs(down2) + abs(down3);
 
     // wavelet shrinkage and re-assembly:
-    vec3 test = exp(- 0.01*xi2);
-    float thrs = params.strength * dot(test, vec3(1.0));
+    vec3 test = exp(- 0.1*xi2);
+    float thrs = params.strength * 10.0 * dot(test, vec3(1.0));
     down4 += sigma/8.0 * sign(down3) * max(abs(down3) - thrs, vec3(0.0));
     down4 += sigma/4.0 * sign(down2) * max(abs(down2) - thrs, vec3(0.0));
     down4 += sigma/2.0 * sign(down1) * max(abs(down1) - thrs, vec3(0.0));
     down4 += sigma/1.0 * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
+
+    // down4 = test; // XXX
   }
 
   // this is for srgb not rec2020, but whatever
