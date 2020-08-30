@@ -1,0 +1,45 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float ev;
+} params;
+
+
+layout( // input
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  ivec2 sz = textureSize(img_in, 0).xy;
+
+  // 5 tap flower filter
+  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * t;
+  rgb += texture(img_in, (ipos + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz), 0).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz), 0).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + vec2(0.5 + 0.4, 0.5 - 1.2))/vec2(sz), 0).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz), 0).rgb / 4.0 * (1.0-t);
+
+  // sort image to write positions so we can iterate the filter
+  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * sz/2;
+  ipos = ipos / 2 + off;
+  // TODO: consider 2px padding radius for next iteration and mirror repeat!
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+

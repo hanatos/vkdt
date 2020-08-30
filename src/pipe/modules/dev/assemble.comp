@@ -1,0 +1,83 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float strength;
+} params;
+
+// layout(push_constant, std140) uniform push_t
+// {
+//   int level;
+// } push;
+
+// 5 input scales
+layout( set = 1, binding = 0) uniform sampler2D img_s0; // original image
+layout( set = 1, binding = 1) uniform sampler2D img_s1; // one downsampling step
+layout( set = 1, binding = 2) uniform sampler2D img_s2; // ..
+layout( set = 1, binding = 3) uniform sampler2D img_s3;
+layout( set = 1, binding = 4) uniform sampler2D img_s4; // four downsampling steps
+
+layout( // output
+    set = 1, binding = 5
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  ivec2 sz = textureSize(img_s0, 0).xy;
+
+  // go through all levels same as downsampling would, swizzling coordinates
+  // on the go as done in down.comp. then pick up the scales accordingly.
+  vec3 down4;
+  { // scope for registers
+    vec3 down0, down1, down2, down3;
+    down0 = texelFetch(img_s0, ipos, 0).rgb;
+    ivec2 esi = ipos;
+
+    // TODO: consider 2px padding radius for next iteration and mirror repeat!
+    esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+    down1 = texelFetch(img_s1, esi, 0).rgb;
+    esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+    down2 = texelFetch(img_s2, esi, 0).rgb;
+    esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+    down3 = texelFetch(img_s3, esi, 0).rgb;
+    esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+    down4 = texelFetch(img_s4, esi, 0).rgb;
+
+    // compute wavelet coefficients for this pixel
+    // TODO: normalise these by dividing out expected noise std dev:
+    float sigma = 0.01; // TODO: insert noise model/mask after merging here
+    down0 = (down0 - down1)/sigma;
+    down1 = (down1 - down2)/sigma;
+    down2 = (down2 - down3)/sigma;
+    down3 = (down3 - down4)/sigma;
+
+    // xi-squared statistic for iid unit variance:
+    vec3 xi2 = down0*down0 + down1*down1 + down2*down2 + down3*down3;
+    // compute probability that these are indeed iid wrt some p value
+
+    // wavelet shrinkage and re-assembly:
+    vec3 test = max(1.0 - xi2, vec3(0.0));
+    float thrs = params.strength * sigma * dot(test, vec3(1.0));
+    down4 += sigma * sign(down3) * max(abs(down3) - thrs/8.0, vec3(0.0));
+    down4 += sigma * sign(down2) * max(abs(down2) - thrs/4.0, vec3(0.0));
+    down4 += sigma * sign(down1) * max(abs(down1) - thrs/2.0, vec3(0.0));
+    down4 += sigma * sign(down0) * max(abs(down0) - thrs/1.0, vec3(0.0));
+
+    // down4 = test; // XXX
+  }
+
+  vec3 rgb = down4;//mix(down0, down4, params.strength);
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+
