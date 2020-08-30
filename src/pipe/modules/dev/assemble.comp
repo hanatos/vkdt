@@ -9,6 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float strength;
+  float chroma;
+  float luma;
 } params;
 
 // layout(push_constant, std140) uniform push_t
@@ -38,9 +40,9 @@ main()
   // go through all levels same as downsampling would, swizzling coordinates
   // on the go as done in down.comp. then pick up the scales accordingly.
   vec3 down4;
+  vec3 orig = texelFetch(img_s0, ipos, 0).rgb;
   { // scope for registers
-    vec3 down0, down1, down2, down3;
-    down0 = texelFetch(img_s0, ipos, 0).rgb;
+    vec3 down0 = orig, down1, down2, down3;
     ivec2 esi = ipos;
 
     // TODO: consider 2px padding radius for next iteration and mirror repeat!
@@ -57,26 +59,32 @@ main()
     // TODO: normalise these by dividing out expected noise std dev:
     float sigma = 0.01; // TODO: insert noise model/mask after merging here
     down0 = (down0 - down1)/sigma;
-    down1 = (down1 - down2)/sigma;
-    down2 = (down2 - down3)/sigma;
-    down3 = (down3 - down4)/sigma;
+    down1 = (down1 - down2)/sigma*2.0;
+    down2 = (down2 - down3)/sigma*4.0;
+    down3 = (down3 - down4)/sigma*8.0;
 
     // xi-squared statistic for iid unit variance:
     vec3 xi2 = down0*down0 + down1*down1 + down2*down2 + down3*down3;
     // compute probability that these are indeed iid wrt some p value
 
     // wavelet shrinkage and re-assembly:
-    vec3 test = max(1.0 - xi2, vec3(0.0));
-    float thrs = params.strength * sigma * dot(test, vec3(1.0));
-    down4 += sigma * sign(down3) * max(abs(down3) - thrs/8.0, vec3(0.0));
-    down4 += sigma * sign(down2) * max(abs(down2) - thrs/4.0, vec3(0.0));
-    down4 += sigma * sign(down1) * max(abs(down1) - thrs/2.0, vec3(0.0));
-    down4 += sigma * sign(down0) * max(abs(down0) - thrs/1.0, vec3(0.0));
-
-    // down4 = test; // XXX
+    vec3 test = exp(- 0.01*xi2);
+    float thrs = params.strength * dot(test, vec3(1.0));
+    down4 += sigma/8.0 * sign(down3) * max(abs(down3) - thrs, vec3(0.0));
+    down4 += sigma/4.0 * sign(down2) * max(abs(down2) - thrs, vec3(0.0));
+    down4 += sigma/2.0 * sign(down1) * max(abs(down1) - thrs, vec3(0.0));
+    down4 += sigma/1.0 * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
   }
 
-  vec3 rgb = down4;//mix(down0, down4, params.strength);
+  // this is for srgb not rec2020, but whatever
+  mat3 rgb_to_yuv = mat3(
+      0.299, -0.147, 0.615,
+      0.587, -0.289, -0.515,
+      0.114, 0.436, -0.100);
+
+  vec3 yuv1 = rgb_to_yuv * down4;
+  vec3 yuv0 = rgb_to_yuv * orig;
+  vec3 rgb = inverse(rgb_to_yuv) * vec3(mix(yuv0.x, yuv1.x, params.luma), mix(yuv0.yz, yuv1.yz, params.chroma));
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
