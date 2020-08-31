@@ -95,9 +95,10 @@ void
 dt_graph_cleanup(dt_graph_t *g)
 {
   QVK(vkDeviceWaitIdle(qvk.device));
-  for(int i=0;i<g->num_modules;i++)
-    if(g->module[i].so->cleanup)
-      g->module[i].so->cleanup(g->module+i);
+  if(!dt_pipe.modules_reloaded)
+    for(int i=0;i<g->num_modules;i++)
+      if(g->module[i].so->cleanup)
+        g->module[i].so->cleanup(g->module+i);
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_staging);
   for(int i=0;i<g->conn_image_end;i++)

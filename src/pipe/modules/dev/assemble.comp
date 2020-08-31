@@ -11,11 +11,17 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float chroma;
   float luma;
+  // TODO: vec4 black and vec4 white
+  // TODO: filters for raw vs rgb (which has no black/white)
   float black;
   float noise_a;
   float noise_b;
 } params;
 
+// TODO: implement half/doub kernels for raw (one level of decimated wavelets, steal from hilite)
+// TODO: use wb + yuv matrix for preconditioning, shrink colour separately (and more aggressively)
+
+// TODO: maybe use vanilla params + push constants for black/white/filters/wb/noise_*?
 // layout(push_constant, std140) uniform push_t
 // {
 //   int level;
@@ -45,45 +51,59 @@ main()
   vec3 down4;
   vec3 orig = texelFetch(img_s0, ipos, 0).rgb;
   { // scope for registers
-    vec3 down0 = orig, down1, down2, down3;
     ivec2 esi = ipos;
 
+    vec3 down0 = orig;
     // TODO: consider 2px padding radius for next iteration and mirror repeat!
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
-    down1 = texelFetch(img_s1, esi, 0).rgb;
+    vec3 down1 = texelFetch(img_s1, esi, 0).rgb;
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
-    down2 = texelFetch(img_s2, esi, 0).rgb;
+    vec3 down2 = texelFetch(img_s2, esi, 0).rgb;
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
-    down3 = texelFetch(img_s3, esi, 0).rgb;
+    vec3 down3 = texelFetch(img_s3, esi, 0).rgb;
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
     down4 = texelFetch(img_s4, esi, 0).rgb;
 
     // compute wavelet coefficients for this pixel
     // normalise these by dividing out expected noise std dev:
-    // XXX this is probably completely off!!
     float sigma = sqrt(params.noise_a + 65535.0*max(down2.g - params.black, 0.0)*params.noise_b)/65535.0;
-    down0 = (down0 - down1)/sigma;
-    down1 = (down1 - down2)/sigma*2.0;
-    down2 = (down2 - down3)/sigma*4.0;
-    down3 = (down3 - down4)/sigma*8.0;
+    // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
+    // var band = 
+    //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
+    //  0.2*0.4*0.2*0.4 + 0.2*0.6*0.2*0.6 + 0.8*0.4*0.8*0.4 + 0.8*0.6*0.8*0.6)) * base var
+    // => sigma' ~= 0.29165 * base sigma
+    const float b1 = 0.291652;
+    const float b2 = 0.085061;
+    const float b3 = 0.024808;
+    down0 = (down0 - down1)/(sigma);
+    down1 = (down1 - down2)/(sigma*b1);
+    down2 = (down2 - down3)/(sigma*b2);
+    down3 = (down3 - down4)/(sigma*b3);
 
     // xi-squared statistic for iid unit variance:
-    // vec3 xi2 = down0*down0 + down1*down1 + down2*down2 + down3*down3;
+    vec3 xi2 = down0*down0 + down1*down1 + down2*down2 + down3*down3 - 4.0; // * (n-1) = 3 really
     // TODO: compute probability that these are indeed iid wrt some p value
     // TODO: compute wavelet transform completely in yuv and only protect y edges?
-    vec3 xi2 = abs(down0) + abs(down1) + abs(down2) + abs(down3);
+    // vec3 xi2 = abs(down0) + abs(down1) + abs(down2) + abs(down3);
 
     // wavelet shrinkage and re-assembly:
-    vec3 test = exp(- 0.1*xi2);
-    float thrs = params.strength * 10.0 * dot(test, vec3(1.0));
-    down4 += sigma/8.0 * sign(down3) * max(abs(down3) - thrs, vec3(0.0));
-    down4 += sigma/4.0 * sign(down2) * max(abs(down2) - thrs, vec3(0.0));
-    down4 += sigma/2.0 * sign(down1) * max(abs(down1) - thrs, vec3(0.0));
-    down4 += sigma/1.0 * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
-
-    // down4 = test; // XXX
+    // vec3 test = exp(- 0.002*xi2); // L1
+    vec3 test = exp(- 0.004*sqrt(xi2)); // Xi2
+    // bayes shrink would be T = sigma_noise^2 / sigma_signal
+    // ?// consider that sigma_channel^2 scales as 1/f^2 with frequency f for natural images
+    // ?// we calibrate for black..white expected contrast (rest up to strength param)
+    // ?// and are left with sig_noise * f
+    // we assume sigma_noise = frac * sigma_signal and cancel the two.
+    // since we rescaled the bands to unit noise variance, the threshold is
+    // just a (user) constant and the edge shielding term:
+    float thrs = params.strength * 3.0 * dot(test, vec3(1.0));
+    down4 += sigma * b3 * sign(down3) * max(abs(down3) - thrs, vec3(0.0));
+    down4 += sigma * b2 * sign(down2) * max(abs(down2) - thrs, vec3(0.0));
+    down4 += sigma * b1 * sign(down1) * max(abs(down1) - thrs, vec3(0.0));
+    down4 += sigma      * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
   }
 
+  // TODO: maybe transform this before wavelets and then double the colour threshold or so
   // this is for srgb not rec2020, but whatever
   mat3 rgb_to_yuv = mat3(
       0.299, -0.147, 0.615,
