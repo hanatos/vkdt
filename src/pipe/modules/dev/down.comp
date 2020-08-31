@@ -11,6 +11,11 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
 } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  int level;
+} push;
+
 
 layout( // input
     set = 1, binding = 0
@@ -39,6 +44,18 @@ main()
   // sort image to write positions so we can iterate the filter
   ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * sz/2;
   ipos = ipos / 2 + off;
+
+  if(push.level == 0)
+  {
+    // this is for srgb not rec2020, but whatever
+    const mat3 rgb_to_yuv = mat3(
+        0.299, -0.147, 0.615,
+        0.587, -0.289, -0.515,
+        0.114, 0.436, -0.100);
+    vec3 wb = vec3(1.0); // TODO: get from push constants also
+    rgb = rgb_to_yuv * rgb * wb;
+  }
+
   // TODO: consider 2px padding radius for next iteration and mirror repeat!
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
