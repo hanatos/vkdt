@@ -47,26 +47,18 @@ main()
     float c6 = texelFetch(img_in, 3*ipos+ivec2(2,0), 0).r;
     float c7 = texelFetch(img_in, 3*ipos+ivec2(2,1), 0).r;
     float c8 = texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
-    // this tries to ignore clipped pixels in the average
-#if 1
+
+    // this ignores clipped pixels in the average
     if(c1 >= white) c1 = c7;
     if(c7 >= white) c7 = c1;
     if(c3 >= white) c3 = c5;
     if(c5 >= white) c5 = c3;
     float ming = min(min(min(c0, c2), c4), min(c6, c8));
     float maxg = max(max(max(c0, c2), c4), max(c6, c8));
-    // if(ming < .5*white)
-    // {
-    // if(c0 >= white) c0 = ming;
-    // if(c2 >= white) c2 = ming;
-    // if(c4 >= white) c4 = ming;
-    // if(c6 >= white) c6 = ming;
-    // if(c8 >= white) c8 = ming;
-    // }
     // at least make sure we don't blur bogus colours
     if(maxg >= white)
-      c0 = c2 = c4 = c6 = c8 = 1.0;//2*push.white;
-#endif
+      c0 = c2 = c4 = c6 = c8 = 1.0;
+
     vec2 col = vec2((c1 + c7)*0.5, (c3 + c5)*.5);
     if(((ipos.x + ipos.y) & 1) > 0)
       rgba.rb = col;
@@ -78,18 +70,10 @@ main()
   else
   {
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(textureSize(img_in, 0)), 0);
+    // ignore clipped pixels:
     if(c.x >= white) c.x = c.z;
     if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
-#if 0 // fire is more saturated than this it seems
-    if(all(lessThan(rgba.rgb, vec3(white))))
-    {
-      float max = max(rgba.r*push.wb.r, max(rgba.g*push.wb.g, rgba.b*push.wb.b));
-      float min = min(rgba.r*push.wb.r, min(rgba.g*push.wb.g, rgba.b*push.wb.b));
-      float sat = (max-min)/max;
-      if(sat > 0.5) rgba = vec4(vec3(white), 1); 
-    }
-#endif
   }
   imageStore(img_out, ipos, rgba);
 }

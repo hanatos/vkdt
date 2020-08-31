@@ -38,12 +38,10 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 upsm = texelFetch(img_coarse, ipos, 0).rgb;
-  // XXX using honest white goes bonkers
   const float white = params.white;
 
   if(push.filters == 9)
   {
-    // upsm.r = upsm.b = 1.2*upsm.b;// = upsm.g;
     // swap red and blue channels according to sensor layout
     if(((ipos.x + ipos.y) & 1) == 0)
       upsm.rgb = upsm.bgr;
@@ -61,22 +59,6 @@ main()
     float minb = min(c3, c5);
     float ming = min(min(min(c0, c2), c4), min(c6, c8));
     float scale = 1.0f;
-#if 0
-    if(push.wb.r > push.wb.g && push.wb.r > push.wb.b)
-    { // determine scale by real red channel:
-      if(((ipos.x + ipos.y) & 1) == 0) scale = minb/upsm.b;
-      else scale = minr/upsm.r;
-    }
-    else if(push.wb.b > push.wb.g && push.wb.b > push.wb.r)
-    { // determine scale by real blue channel:
-      if(((ipos.x + ipos.y) & 1) == 0) scale = minr/upsm.r;
-      else scale = minb/upsm.b;
-    }
-    else
-    { // use green
-      scale = ming / upsm.g;
-    }
-#endif
 
     // determine by blurry image, without wb:
     if     (upsm.r < upsm.g && upsm.r < upsm.b)
@@ -85,134 +67,24 @@ main()
       scale = minb/max(0.001, upsm.b);
     else if(upsm.g < upsm.r && upsm.g < upsm.b)
       scale = ming /max(0.001,  upsm.g);
-    // if(ming < 0.6)
-      // scale = ming/upsm.g; // no use taking green, this clips first
-#if 0 // XXX DEBUG
-    if(minr < ming)
-    {
-      if(minb < minr) scale = minb/upsm.b;
-      else            scale = minr/upsm.r;
-    }
-    else
-    {
-      if(minb < ming) scale = minb/upsm.b;
-      else            scale = ming/upsm.g;
-    }
-#endif
-#if 0
-    // DEBUG: visualise upsampling result
-    c1 = upsm.r;// * scale;
-    c7 = upsm.r;// * scale;
-    c3 = upsm.b;// * scale;
-    c5 = upsm.b;// * scale;
-    c0 = upsm.g;// * scale;
-    c2 = upsm.g;// * scale;
-    c4 = upsm.g;// * scale;
-    c6 = upsm.g;// * scale;
-    c8 = upsm.g;// * scale;
-#endif
-#if 0
-    // replace clipped pixels by scaled counterparts
-    // makes all the cloud slightly purple but has better edges
-    if(c1 >= white) c1 = upsm.r * scale;
-    if(c7 >= white) c7 = upsm.r * scale;
-    if(c3 >= white) c3 = upsm.b * scale;
-    if(c5 >= white) c5 = upsm.b * scale;
-    if(c0 >= white) c0 = upsm.g * scale;
-    if(c2 >= white) c2 = upsm.g * scale;
-    if(c4 >= white) c4 = upsm.g * scale;
-    if(c6 >= white) c6 = upsm.g * scale;
-    if(c8 >= white) c8 = upsm.g * scale;
-#endif
-#if 1
-    // this and the next block result only in marginal differences
+
     float maxr = max(c1, c7);
     float maxb = max(c3, c5);
     float maxg = max(max(max(c0, c2), c4), max(c6, c8));
-    if(maxr >= white || maxb >= white
-     || maxg >= white)
+    if(maxr >= white || maxb >= white || maxg >= white)
     {
       c1 = upsm.r * scale;
       c7 = upsm.r * scale;
       c3 = upsm.b * scale;
       c5 = upsm.b * scale;
-    // } // separating this results in visible colour cast:
-    // if(maxg >= white)
-    // {
+
       c0 = upsm.g * scale;
       c2 = upsm.g * scale;
       c4 = upsm.g * scale;
       c6 = upsm.g * scale;
       c8 = upsm.g * scale;
     }
-#endif
-#if 0
-    // TODO: there has to be a more clever way to do this.
-    // 
-    float scale_t = scale, scale_b = scale, scale_l = scale, scale_r = scale;
-    if(c0 < white && c2 < white)
-      scale_t = .5*(c0+c2)/upsm.g;
-    if(c6 < white && c8 < white)
-      scale_b = .5*(c6+c8)/upsm.g;
-    if(c0 < white && c6 < white)
-      scale_l = .5*(c0+c6)/upsm.g;
-    if(c2 < white && c8 < white)
-      scale_r = .5*(c2+c8)/upsm.g;
 
-    float maxr = max(c1, c7);
-    float maxb = max(c3, c5);
-    float maxg = max(max(max(c0, c2), c4), max(c6, c8));
-    if(maxr >= white || maxb >= white
-     ||
-     maxg >= white)
-    {
-    /*if(c4 >= white)*/ c4 = upsm.g * .25*(scale_t+scale_b+scale_l+scale_r);
-    /*if(c1 >= white)*/ c1 = upsm.r * scale_t;
-    /*if(c7 >= white)*/ c7 = upsm.r * scale_b;
-    /*if(c3 >= white)*/ c3 = upsm.b * scale_l;
-    /*if(c5 >= white)*/ c5 = upsm.b * scale_r;
-
-    /*if(c0 >= white)*/ c0 = upsm.g * .5*(scale_l+scale_t);
-    /*if(c2 >= white)*/ c2 = upsm.g * .5*(scale_r+scale_t);
-    /*if(c6 >= white)*/ c6 = upsm.g * .5*(scale_l+scale_b);
-    /*if(c8 >= white)*/ c8 = upsm.g * .5*(scale_r+scale_b);
-    }
-#endif
-#if 0
-    if(c0 < white && c2 < white)
-      c1 = upsm.r * .5*(c0+c2)/upsm.g;
-    else
-    {
-      c0 = upsm.g * scale;
-      c1 = upsm.r * scale;
-      c2 = upsm.g * scale;
-    }
-    if(c6 < white && c8 < white)
-      c7 = upsm.r * .5*(c6+c8)/upsm.g;
-    else
-    {
-      c6 = upsm.g * scale;
-      c7 = upsm.r * scale;
-      c8 = upsm.g * scale;
-    }
-    if(c0 < white && c6 < white)
-      c3 = upsm.b * .5*(c0+c6)/upsm.g;
-    else
-    {
-      c0 = upsm.g * scale;
-      c3 = upsm.b * scale;
-      c6 = upsm.g * scale;
-    }
-    if(c2 < white && c8 < white)
-      c5 = upsm.b * .5*(c2+c8)/upsm.g;
-    else
-    {
-      c2 = upsm.g * scale;
-      c5 = upsm.b * scale;
-      c8 = upsm.g * scale;
-    }
-    if(c4 >= white) c4 = upsm.g * scale;
-#endif
     imageStore(img_out, 3*ipos,            vec4(vec3(c0), 1));
     imageStore(img_out, 3*ipos+ivec2(0,1), vec4(vec3(c1), 1));
     imageStore(img_out, 3*ipos+ivec2(0,2), vec4(vec3(c2), 1));
@@ -241,8 +113,6 @@ main()
        c.z >= white ||
        c.w >= white)
       c = scale * upsm.gbgr;
-    // XXX DEBUG:
-    // c = upsm.gbgr; // XXX
     imageStore(img_out, 2*ipos,            vec4(c.w));
     imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
     imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
