@@ -6,7 +6,7 @@ void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  // request the full thing, we want the borders
+  // request the full uncropped thing, we want the borders
   module->connector[0].roi.wd = module->connector[0].roi.full_wd;
   module->connector[0].roi.ht = module->connector[0].roi.full_ht;
   module->connector[0].roi.x = 0.0f;
@@ -34,30 +34,6 @@ void modify_roi_out(
 }
 
 void
-commit_params(
-    dt_graph_t  *graph,
-    dt_module_t *module)
-{
-  float *f = (float *)module->committed_param;
-  float *g = (float*)module->param;
-  f[0] = g[0];
-  f[1] = g[1];
-  f[2] = g[2];
-  f[3] = 0.0f;// module->img_param.black[1]; // XXX TODO: set this to zero after removing black level!
-  // TODO: how to do this? we can't overwrite img_param in denoise since we need it next time
-  // TODO: and we can't access the (potentially multiple) modules connected to our output
-  f[4] = module->img_param.noise_a;
-  f[5] = module->img_param.noise_b;
-}
-
-int
-init(dt_module_t *mod)
-{
-  mod->committed_param_size = sizeof(float)*6;
-  return 0;
-}
-
-void
 create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -72,6 +48,18 @@ create_nodes(
   roi_half.ht /= block;
   roi_half.x  /= block;
   roi_half.y  /= block;
+
+  const uint32_t *wbi = (uint32_t *)module->img_param.whitebalance;
+  float black[4], white[4];
+  uint32_t *blacki = (uint32_t *)black;
+  uint32_t *whitei = (uint32_t *)white;
+  const uint32_t *crop_aabb = module->img_param.crop_aabb;
+  for(int k=0;k<4;k++)
+    black[k] = module->img_param.black[k]/65535.0f;
+  for(int k=0;k<4;k++)
+    white[k] = module->img_param.white[k]/65535.0f;
+  const float noise[2] = { module->img_param.noise_a, module->img_param.noise_b };
+  uint32_t *noisei = (uint32_t *)noise;
 
   const int wd = roi_half.full_wd;
   const int ht = roi_half.full_ht;
@@ -105,8 +93,8 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi_half,
       }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { i },
+      .push_constant_size = 5*sizeof(uint32_t),
+      .push_constant = { wbi[0], wbi[1], wbi[2], wbi[3], i },
     };
   }
   // wire inputs:
@@ -166,6 +154,8 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roi_half,
     }},
+    .push_constant_size = 6*sizeof(uint32_t),
+    .push_constant = { wbi[0], wbi[1], wbi[2], wbi[3], noisei[0], noisei[1] },
   };
 
   // wire downsampled to assembly stage:
@@ -201,8 +191,13 @@ create_nodes(
         .roi    = roi_half, // cropped lo res
       }},
       // XXX noise levels, white and black points, crop window!
-      .push_constant_size = 5*sizeof(uint32_t),
-      .push_constant = { 0, 0, 0, 0, module->img_param.filters },
+      .push_constant_size = 17*sizeof(uint32_t),
+      .push_constant = {
+        wbi[0], wbi[1], wbi[2], wbi[3],
+        blacki[0], blacki[1], blacki[2], blacki[3],
+        whitei[0], whitei[1], whitei[2], whitei[3],
+        crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
+        module->img_param.filters },
     };
     assert(graph->num_nodes < graph->max_nodes);
     const uint32_t id_doub = graph->num_nodes++;
@@ -213,9 +208,16 @@ create_nodes(
       .wd     = roi_half.full_wd, // cropped lo res
       .ht     = roi_half.full_ht,
       .dp     = 1,
-      .num_connectors = 2,
+      .num_connectors = 3,
       .connector = {{
-        .name   = dt_token("input"),
+        .name   = dt_token("orig"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("rggb"),
+        .format = dt_token("ui16"),
+        .roi    = module->connector[0].roi, // original rggb input
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("coarse"),
         .type   = dt_token("read"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
@@ -228,14 +230,20 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = module->connector[1].roi, // cropped hi res
       }},
-      .push_constant_size = 5*sizeof(uint32_t),
-      .push_constant = { 0, 0, 0, 0, module->img_param.filters },
+      // TODO: needs crop window too!
+      .push_constant_size = 17*sizeof(uint32_t),
+      .push_constant = {
+        wbi[0], wbi[1], wbi[2], wbi[3],
+        blacki[0], blacki[1], blacki[2], blacki[3],
+        whitei[0], whitei[1], whitei[2], whitei[3],
+        crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
+        module->img_param.filters },
     };
     CONN(dt_node_connect(graph, id_half,     1, id_down[0],  0));
     CONN(dt_node_connect(graph, id_half,     1, id_assemble, 0));
-    CONN(dt_node_connect(graph, id_assemble, 5, id_doub,     0));
+    CONN(dt_node_connect(graph, id_assemble, 5, id_doub,     1));
     dt_connector_copy(graph, module, 0, id_half, 0);
-    dt_connector_copy(graph, module, 0, id_doub, 1);
+    dt_connector_copy(graph, module, 0, id_doub, 0);
     dt_connector_copy(graph, module, 1, id_doub, 2);
   }
   else

@@ -11,21 +11,14 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float chroma;
   float luma;
-  // TODO: vec4 black and vec4 white
-  // TODO: filters for raw vs rgb (which has no black/white)
-  float black;
-  float noise_a;
-  float noise_b;
 } params;
 
-// TODO: implement half/doub kernels for raw (one level of decimated wavelets, steal from hilite)
-// TODO: use wb + yuv matrix for preconditioning, shrink colour separately (and more aggressively)
-
-// TODO: maybe use vanilla params + push constants for black/white/filters/wb/noise_*?
-// layout(push_constant, std140) uniform push_t
-// {
-//   int level;
-// } push;
+layout(push_constant, std140) uniform push_t
+{
+  vec4 wb;
+  float noise_a;
+  float noise_b;
+} push;
 
 // 5 input scales
 layout( set = 1, binding = 0) uniform sampler2D img_s0; // original image
@@ -54,8 +47,7 @@ main()
       0.299, -0.147, 0.615,
       0.587, -0.289, -0.515,
       0.114, 0.436, -0.100);
-  vec3 wb = vec3(1.0); // TODO: get from push constants
-  vec3 orig = rgb_to_yuv * texelFetch(img_s0, ipos, 0).rgb * wb;
+  vec3 orig = rgb_to_yuv * (texelFetch(img_s0, ipos, 0).rgb * push.wb.rgb);
   { // scope for registers
     ivec2 esi = ipos;
 
@@ -72,16 +64,21 @@ main()
 
     // compute wavelet coefficients for this pixel
     // normalise these by dividing out expected noise std dev:
-    float sigma = sqrt(params.noise_a + 65535.0*max(down2.g - params.black, 0.0)*params.noise_b)/65535.0;
+    // XXX our data is now normalised to [0, 1] already:
+    // TODO: check whether the noise model applies to raw (white max) or 1 max
+    // float sigma = sqrt(push.noise_a + 65535.0*max(down2.g - params.black, 0.0)*params.noise_b)/65535.0;
+    float sigma = sqrt(push.noise_a + 65535.0*max(down2.x, 0.0)*push.noise_b)/65535.0;
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
     //  0.2*0.4*0.2*0.4 + 0.2*0.6*0.2*0.6 + 0.8*0.4*0.8*0.4 + 0.8*0.6*0.8*0.6)) * base var
     // => sigma' ~= 0.29165 * base sigma
-    const float b1 = 0.291652;
-    const float b2 = 0.085061;
-    const float b3 = 0.024808;
-    down0 = (down0 - down1)/(sigma);
+    // TODO: 1/9 should depend on filters and block size! this is for xtrans:
+    const float b0 = 1.0/9.0;
+    const float b1 = 0.291652/9.0;
+    const float b2 = 0.085061/9.0;
+    const float b3 = 0.024808/9.0;
+    down0 = (down0 - down1)/(sigma*b0);
     down1 = (down1 - down2)/(sigma*b1);
     down2 = (down2 - down3)/(sigma*b2);
     down3 = (down3 - down4)/(sigma*b3);
@@ -102,12 +99,12 @@ main()
     down4 += sigma * b3 * sign(down3) * max(abs(down3) - thrs, vec3(0.0));
     down4 += sigma * b2 * sign(down2) * max(abs(down2) - thrs, vec3(0.0));
     down4 += sigma * b1 * sign(down1) * max(abs(down1) - thrs, vec3(0.0));
-    down4 += sigma      * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
+    down4 += sigma * b0 * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
     // down4 = vec3(test, 0.0, 0.0); // visualise edge stopping
   }
 
   down4.x = mix(orig.x, down4.x, params.luma);
-  vec3 rgb = (inverse(rgb_to_yuv) * down4) / wb;
+  vec3 rgb = (inverse(rgb_to_yuv) * down4) / push.wb.rgb;
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
