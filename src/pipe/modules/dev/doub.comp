@@ -9,6 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float strength;
+  float chroma;
+  float luma;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -18,6 +20,8 @@ layout(push_constant, std140) uniform push_t
   vec4 white;
   ivec4 crop;
   uint filters;
+  float noise_a;
+  float noise_b;
 } push;
 
 layout( // input uint16 buffer rggb
@@ -66,32 +70,34 @@ main()
 #define SHRINK(A, B) {\
       A = max(0, (A - push.black.x)/(push.white.x - push.black.x));\
       if(A <= 1000.0) { \
-        float wav = A - B;\
-        A = B + sign(wav) * max(0.0, abs(wav) - T);\
+        float wav = (A - B)/sigma;\
+        A = max(0, B + sigma * sign(wav) * max(0.0, abs(wav) - T));\
+      }\
+    }
+#define SHRINKG(A) {\
+      A = max(0, (A - push.black.g)/(push.white.g - push.black.g));\
+      if(A <= 1.0) { \
+        float wav = (A - upsm.g)/sigma;\
+        A = mix(A, max(0, upsm.g + sigma * sign(wav) * max(0.0, abs(wav) - T)), params.luma);\
       }\
     }
 
-    // TODO: push constant: noise_ab
-    // TODO: evaluate noise model here, too
-    // TODO: use chroma slider to derive colour threshold by taste
-    // TODO: use luma slider to blend in original greens
     // TODO: need explicit routing of raw -> assemble?
 
-    // TODO: colour channel threshold
-    float T = 0.01;// XXX
+    const float sigma = sqrt(push.noise_a + 65535.0*max(upsm.g, 0.0)*push.noise_b)/65535.0;
+
+    float T = params.chroma * params.strength * 2.0;
     SHRINK(c1, upsm.r)
     SHRINK(c7, upsm.r)
     SHRINK(c3, upsm.b)
     SHRINK(c5, upsm.b)
 
-    // TODO: T = green threshold
-    T = 0.001; // XXX
-    SHRINK(c0, upsm.g)
-    SHRINK(c2, upsm.g)
-    SHRINK(c4, upsm.g)
-    SHRINK(c6, upsm.g)
-    SHRINK(c8, upsm.g)
-    // TODO: plus blend in original greens by luma weight
+    T = params.strength;
+    SHRINKG(c0)
+    SHRINKG(c2)
+    SHRINKG(c4)
+    SHRINKG(c6)
+    SHRINKG(c8)
 #undef SHRINK
     // TODO: noise model needs adjustment for filters
 

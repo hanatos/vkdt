@@ -15,9 +15,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
 
 layout(push_constant, std140) uniform push_t
 {
-  vec4 wb;
+  vec4  wb;
   float noise_a;
   float noise_b;
+  uint  filters;
 } push;
 
 // 5 input scales
@@ -73,11 +74,13 @@ main()
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
     //  0.2*0.4*0.2*0.4 + 0.2*0.6*0.2*0.6 + 0.8*0.4*0.8*0.4 + 0.8*0.6*0.8*0.6)) * base var
     // => sigma' ~= 0.29165 * base sigma
-    // TODO: 1/9 should depend on filters and block size! this is for xtrans:
-    const float b0 = 1.0/9.0;
-    const float b1 = 0.291652/9.0;
-    const float b2 = 0.085061/9.0;
-    const float b3 = 0.024808/9.0;
+    // mosaiced images are preprocessed by averaging a block of greens.
+    // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2):
+    float block = push.filters == 0u ? 1.0 : (push.filters == 9u ? 2.23607 : 1.414213);
+    const float b0 = 1.0/block;
+    const float b1 = 0.291652/block;
+    const float b2 = 0.085061/block;
+    const float b3 = 0.024808/block;
     down0 = (down0 - down1)/(sigma*b0);
     down1 = (down1 - down2)/(sigma*b1);
     down2 = (down2 - down3)/(sigma*b2);
@@ -89,7 +92,8 @@ main()
     // (we are currently using same fake gaussian instead of a xi^2 statistic)
 
     // wavelet shrinkage and re-assembly:
-    float test = exp(- 0.001*sqrt(xi2)); // fake Xi2
+    // float test = exp(- 0.001*sqrt(xi2)); // fake Xi2
+    float test = exp(- 0.008*sqrt(xi2)); // fake Xi2
     // bayes shrink would be T = sigma_noise^2 / sigma_signal
     // maybe consider that sigma_channel^2 scales as 1/f^2 with frequency f for natural images?
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
