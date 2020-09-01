@@ -25,6 +25,13 @@ layout( // output f16 buffer rgb
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
+// TODO:
+// 1) quick way of integration:
+//    - half/doub without shrinkage, prepend if rggb in main.c
+// 2) uninformed shrinkage:
+//    - pick some heuristic threshold
+// 3) derive better formulas. need explicit routing of raw -> assemble?
+
 // demosaic reduced size. run on output dimensions, gather all colours from
 // input buffer (this might be 3x3 for xtrans).
 void
