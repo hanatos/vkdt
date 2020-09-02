@@ -71,7 +71,7 @@ and we may link to some others, too.
 * submodule imgui
 * submodule rawspeed (deponds on pugixml, stdc++, zlib, jpeg, libomp-dev)
 * libjpeg
-* build: make
+* build: make, pkg-config
 
 optional (configure in `bin/config.mk`):
 * freetype (libfreetype-dev)

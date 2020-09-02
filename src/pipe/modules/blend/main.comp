@@ -92,7 +92,11 @@ main()
   t *= 1.-smoothstep(0.2, 3.0, d);
 #endif
 
-  if(params.filters == 0)
+  if(params.filters == 1)
+  {
+    rgb = mix(rgb, bck, t);
+  }
+  else if(params.filters == 0)
   {
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
@@ -114,8 +118,9 @@ main()
 
     vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
     const float thresh = 1.0;
+    // XXX TODO: introduce mode parameter that gives us animation vs still!
     // switch this line off to see unshielded warping:
-    bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+    // bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
     if(global.frame > 0) rgb = mix(rgb, bck, t);
   }
   else
