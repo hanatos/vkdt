@@ -115,7 +115,7 @@ $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
 define SPV_RULE
 %.$(1).spv: %.$(1)
-	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.2 \
+	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.1 \
     -V $$< -o $$@
 endef
 $(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))
