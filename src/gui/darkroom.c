@@ -293,6 +293,8 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
               fabsf(n[0] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+0]) > 0.004 &&
               fabsf(n[1] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+1]) > 0.004))
           vkdt.wstate.mapped[0] = vkdt.wstate.selected++;
+        // trigger recomputation:
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
         return;
       }
     }
