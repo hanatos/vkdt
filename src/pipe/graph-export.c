@@ -162,15 +162,10 @@ dt_graph_export(
       break;
     }
   }
-  // did not find output module by that instance name
-  for(int i=0;i<param->output_cnt;i++) if(mod_out[i] == 0)
-  {
-    dt_log(s_log_err, "output module %d could not be replaced!", i);
-    return VK_INCOMPLETE;
-  }
 
   for(int i=0;i<param->output_cnt;i++)
   {
+    if(mod_out[i] == 0) continue; // not a known output module
     if(graph->frame_cnt > 1)
     {
       if(param->output[i].p_filename)
@@ -201,6 +196,7 @@ dt_graph_export(
       graph->frame = f;
       for(int i=0;i<param->output_cnt;i++)
       {
+        if(mod_out[i] == 0) continue; // not a known output module
         if(param->output[i].p_filename)
           snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, f);
         else

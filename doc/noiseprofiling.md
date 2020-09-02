@@ -12,7 +12,7 @@ examples/noisecheck.cfg
 ```
 
 to wire these to your specific raw file, there is a convenience wrapper bash
-script, ```bin/noiseprofile.sh```. it takes a single argument, the raw file
+script, ```bin/noise-profile.sh```. it takes a single argument, the raw file
 you'd like to measure. it will output an nprof file, copy it to the
 ```data/nprof``` directory, and run the noisecheck graph, resulting in an
 output histogram such as the following:
