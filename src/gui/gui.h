@@ -12,19 +12,17 @@
 typedef enum dt_gui_view_t
 {
   s_view_lighttable = 0,
-  s_view_darkroom   = 1,
+  s_view_darkroom = 1,
   s_view_cnt,
-}
-dt_gui_view_t;
+} dt_gui_view_t;
 
 // some global gui config options. this is a minimal
 // set of static user input
 typedef struct dt_gui_style_t
 {
-  float panel_width_frac;   // width of the side panel as fraction of the total window width
-  float border_frac;        // width of border between image and panel
-}
-dt_gui_style_t;
+  float panel_width_frac; // width of the side panel as fraction of the total window width
+  float border_frac;      // width of border between image and panel
+} dt_gui_style_t;
 
 // this is also gui style related, but has to be recomputed every time the
 // window is resized and may contain user input.
@@ -34,76 +32,73 @@ typedef struct dt_gui_state_t
   float look_at_x;
   float look_at_y;
   float scale;
-  int   center_x, center_y;
-  int   center_wd, center_ht;
-  int   panel_wd;
-  int   panel_ht;
+  int center_x, center_y;
+  int center_wd, center_ht;
+  int panel_wd;
+  int panel_ht;
 
   // animation state
-  int   anim_playing;
-  int   anim_max_frame;
-  int   anim_frame;
-}
-dt_gui_state_t;
+  int anim_playing;
+  int anim_max_frame;
+  int anim_frame;
+} dt_gui_state_t;
 
 // a few local things to exchange data between core and ui and c and c++
 typedef struct dt_gui_wstate_t
 {
-  int    m_x, m_y;
-  float  old_look_x, old_look_y;
-  float  wd, ht;
-  int    active_widget_modid; // module id
-  int    active_widget_parid; // parameter id
-  int    active_widget_parnm; // number of parameter (if multi count)
-  int    active_widget_parsz; // size of parameter to copy
-  int    selected;
-  float  state[2100];
+  int m_x, m_y;
+  float old_look_x, old_look_y;
+  float wd, ht;
+  int active_widget_modid; // module id
+  int active_widget_parid; // parameter id
+  int active_widget_parnm; // number of parameter (if multi count)
+  int active_widget_parsz; // size of parameter to copy
+  int selected;
+  float state[2100];
   float *mapped;
-  int    lod;
-  float  connector[100][30][2];
-}
-dt_gui_wstate_t;
+  int lod;
+  float connector[100][30][2];
+} dt_gui_wstate_t;
 
 typedef struct dt_graph_t dt_graph_t;
 typedef struct dt_gui_t
 {
-  VkRenderPass     render_pass;
-  VkPipelineCache  pipeline_cache;
+  VkRenderPass render_pass;
+  VkPipelineCache pipeline_cache;
   VkDescriptorPool descriptor_pool;
-  uint32_t         min_image_count;
-  uint32_t         image_count;
+  uint32_t min_image_count;
+  uint32_t image_count;
 
-  VkClearValue     clear_value;   // TODO: more colours
-  dt_gui_style_t   style;
-  dt_gui_state_t   state;
-  dt_gui_wstate_t  wstate;
+  VkClearValue clear_value; // TODO: more colours
+  dt_gui_style_t style;
+  dt_gui_state_t state;
+  dt_gui_wstate_t wstate;
 
-  uint32_t         frame_index;
-  VkFence          fence         [DT_GUI_MAX_IMAGES];
-  VkCommandPool    command_pool  [DT_GUI_MAX_IMAGES];
-  VkCommandBuffer  command_buffer[DT_GUI_MAX_IMAGES];
-  VkFramebuffer    framebuffer   [DT_GUI_MAX_IMAGES];
+  uint32_t frame_index;
+  VkFence fence[DT_GUI_MAX_IMAGES];
+  VkCommandPool command_pool[DT_GUI_MAX_IMAGES];
+  VkCommandBuffer command_buffer[DT_GUI_MAX_IMAGES];
+  VkFramebuffer framebuffer[DT_GUI_MAX_IMAGES];
 
-  uint32_t         sem_index;
-  VkSemaphore      sem_image_acquired [DT_GUI_MAX_IMAGES];
-  VkSemaphore      sem_render_complete[DT_GUI_MAX_IMAGES];
+  uint32_t sem_index;
+  VkSemaphore sem_image_acquired[DT_GUI_MAX_IMAGES];
+  VkSemaphore sem_render_complete[DT_GUI_MAX_IMAGES];
 
-  dt_graph_t       graph_dev;
+  dt_graph_t graph_dev;
 
-  dt_db_t          db;          // image list and current query
-  dt_thumbnails_t  thumbnails;  // for light table mode
-  dt_gui_view_t    view_mode;   // current view mode
+  dt_db_t db;                 // image list and current query
+  dt_thumbnails_t thumbnails; // for light table mode
+  dt_gui_view_t view_mode;    // current view mode
 
   // favourite gui module/parameter list
   int fav_cnt;
   int fav_modid[20];
   int fav_parid[20];
-}
-dt_gui_t;
+} dt_gui_t;
 
 extern dt_gui_t vkdt;
 
-int  dt_gui_init();
+int dt_gui_init();
 void dt_gui_cleanup();
 
 // create or resize swapchain
