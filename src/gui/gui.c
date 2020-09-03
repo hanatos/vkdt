@@ -1,32 +1,31 @@
 #include "gui.h"
-#include "qvk/qvk.h"
 #include "core/log.h"
 #include "core/threads.h"
-#include "render.h"
 #include "pipe/io.h"
 #include "pipe/modules/api.h"
+#include "qvk/qvk.h"
+#include "render.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <float.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-static void
-style_to_state()
+static void style_to_state()
 {
   const float pwd = vkdt.style.panel_width_frac * (16.0 / 9.0) * qvk.win_height;
   vkdt.state = (dt_gui_state_t){
-      .look_at_x = FLT_MAX,
-      .look_at_y = FLT_MAX,
-      .scale = -1.0f,
-      .center_x = vkdt.style.border_frac * qvk.win_width,
-      .center_y = vkdt.style.border_frac * qvk.win_width,
-      .panel_wd = pwd,
-      .center_wd = qvk.win_width * (1.0f - 2.0f * vkdt.style.border_frac) - pwd,
-      .center_ht = qvk.win_height - 2 * vkdt.style.border_frac * qvk.win_width,
-      .panel_ht = qvk.win_height,
-      .anim_frame = vkdt.state.anim_frame,
+      .look_at_x      = FLT_MAX,
+      .look_at_y      = FLT_MAX,
+      .scale          = -1.0f,
+      .center_x       = vkdt.style.border_frac * qvk.win_width,
+      .center_y       = vkdt.style.border_frac * qvk.win_width,
+      .panel_wd       = pwd,
+      .center_wd      = qvk.win_width * (1.0f - 2.0f * vkdt.style.border_frac) - pwd,
+      .center_ht      = qvk.win_height - 2 * vkdt.style.border_frac * qvk.win_width,
+      .panel_ht       = qvk.win_height,
+      .anim_frame     = vkdt.state.anim_frame,
       .anim_max_frame = vkdt.state.anim_max_frame,
   };
 }
@@ -46,8 +45,8 @@ int dt_gui_init()
   GLFWmonitor *monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode *mode = glfwGetVideoMode(monitor);
   // start "full screen"
-  qvk.win_width = mode->width;   //1920;
-  qvk.win_height = mode->height; //1080;
+  qvk.win_width = mode->width;   // 1920;
+  qvk.win_height = mode->height; // 1080;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
   // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
@@ -85,7 +84,8 @@ int dt_gui_init()
   }
 
   VkBool32 res;
-  vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, qvk.queue_idx_graphics, qvk.surface, &res);
+  vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, qvk.queue_idx_graphics, qvk.surface,
+                                       &res);
   if (res != VK_TRUE)
   {
     dt_log(s_log_qvk | s_log_err, "no WSI support on physical device");
@@ -99,16 +99,16 @@ int dt_gui_init()
   for (int i = 0; i < vkdt.image_count; i++)
   {
     VkCommandPoolCreateInfo cmd_pool_create_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .queueFamilyIndex = qvk.queue_idx_graphics,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
     };
     QVKR(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, vkdt.command_pool + i));
 
     VkCommandBufferAllocateInfo cmd_buf_alloc_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = vkdt.command_pool[i],
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool        = vkdt.command_pool[i],
+        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     };
     QVKR(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, vkdt.command_buffer + i));
@@ -119,7 +119,8 @@ int dt_gui_init()
 
     VkFenceCreateInfo fence_info = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .flags = VK_FENCE_CREATE_SIGNALED_BIT, /* fence's initial state set to be signaled to make program not hang */
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT, /* fence's initial state set to be signaled to make
+                                                  program not hang */
     };
     QVKR(vkCreateFence(qvk.device, &fence_info, NULL, vkdt.fence + i));
   }
@@ -129,19 +130,17 @@ int dt_gui_init()
   vkdt.clear_value = (VkClearValue){{.float32 = {0.18f, 0.18f, 0.18f, 1.0f}}};
 
   vkdt.pipeline_cache = VK_NULL_HANDLE;
-  VkDescriptorPoolSize pool_sizes[] =
-      {
-          {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-          {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-          {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-          {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-          {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-          {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-          {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+  VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+                                       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+                                       {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+                                       {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+                                       {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+                                       {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+                                       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+                                       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+                                       {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
   VkDescriptorPoolCreateInfo pool_info = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
       .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
@@ -157,68 +156,66 @@ int dt_gui_init()
 }
 
 // the following needs to be rerun on resize:
-VkResult
-dt_gui_recreate_swapchain()
+VkResult dt_gui_recreate_swapchain()
 {
   QVKR(vkDeviceWaitIdle(qvk.device));
   for (int i = 0; i < vkdt.image_count; i++)
     vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
-  if (vkdt.render_pass)
-    vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
+  if (vkdt.render_pass) vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
   glfwGetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
   style_to_state();
   QVKR(qvk_create_swapchain());
 
   // create the render pass
   VkAttachmentDescription attachment_desc = {
-      .format = qvk.surf_format.format,
-      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .format         = qvk.surf_format.format,
+      .samples        = VK_SAMPLE_COUNT_1_BIT,
       // clear enable?
-      .loadOp = 1 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      .loadOp         = 1 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+      .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
       .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-      .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+      .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+      .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
   };
   VkAttachmentReference color_attachment = {
       .attachment = 0,
-      .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
   };
   VkSubpassDescription subpass = {
-      .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+      .pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS,
       .colorAttachmentCount = 1,
-      .pColorAttachments = &color_attachment,
+      .pColorAttachments    = &color_attachment,
   };
   VkSubpassDependency dependency = {
-      .srcSubpass = VK_SUBPASS_EXTERNAL,
-      .dstSubpass = 0,
-      .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .srcSubpass    = VK_SUBPASS_EXTERNAL,
+      .dstSubpass    = 0,
+      .srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
       .srcAccessMask = 0,
       .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
   };
   VkRenderPassCreateInfo info = {
-      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+      .sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
       .attachmentCount = 1,
-      .pAttachments = &attachment_desc,
-      .subpassCount = 1,
-      .pSubpasses = &subpass,
+      .pAttachments    = &attachment_desc,
+      .subpassCount    = 1,
+      .pSubpasses      = &subpass,
       .dependencyCount = 1,
-      .pDependencies = &dependency,
+      .pDependencies   = &dependency,
   };
   QVKR(vkCreateRenderPass(qvk.device, &info, 0, &vkdt.render_pass));
 
   // create framebuffers
-  VkImageView attachment[1] = {};
+  VkImageView             attachment[1]  = {};
   VkFramebufferCreateInfo fb_create_info = {
-      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-      .renderPass = vkdt.render_pass,
+      .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass      = vkdt.render_pass,
       .attachmentCount = 1,
-      .pAttachments = attachment,
-      .width = qvk.extent.width,
-      .height = qvk.extent.height,
-      .layers = 1,
+      .pAttachments    = attachment,
+      .width           = qvk.extent.width,
+      .height          = qvk.extent.height,
+      .layers          = 1,
   };
   vkdt.min_image_count = 2;
   vkdt.image_count = qvk.num_swap_chain_images;
@@ -242,15 +239,16 @@ VkResult dt_gui_render()
   VkSemaphore image_acquired_semaphore = vkdt.sem_image_acquired[vkdt.sem_index];
   VkSemaphore render_complete_semaphore = vkdt.sem_render_complete[vkdt.sem_index];
   // timeout is in nanoseconds
-  QVKR(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 1ul << 20, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index));
+  QVKR(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 1ul << 20, image_acquired_semaphore,
+                             VK_NULL_HANDLE, &vkdt.frame_index));
 
   const int i = vkdt.frame_index;
-  QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence + i, VK_TRUE, UINT64_MAX)); // wait indefinitely instead of periodically checking
+  QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence + i, VK_TRUE,
+                       UINT64_MAX)); // wait indefinitely instead of periodically checking
   QVKR(vkResetFences(qvk.device, 1, vkdt.fence + i));
   QVKR(vkResetCommandPool(qvk.device, vkdt.command_pool[i], 0));
-  VkCommandBufferBeginInfo info = {
-      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
+  VkCommandBufferBeginInfo info = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                                   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
   QVKR(vkBeginCommandBuffer(vkdt.command_buffer[i], &info));
   VkRenderPassBeginInfo rp_info = {
       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -302,40 +300,31 @@ VkResult dt_gui_present()
   return VK_SUCCESS;
 }
 
-void dt_gui_add_fav(
-    dt_token_t module,
-    dt_token_t inst,
-    dt_token_t param)
+void dt_gui_add_fav(dt_token_t module, dt_token_t inst, dt_token_t param)
 {
-  if (vkdt.fav_cnt >= sizeof(vkdt.fav_modid) / sizeof(vkdt.fav_modid[0]))
-    return;
+  if (vkdt.fav_cnt >= sizeof(vkdt.fav_modid) / sizeof(vkdt.fav_modid[0])) return;
 
   int modid = dt_module_get(&vkdt.graph_dev, module, inst);
-  if (modid < 0)
-    return;
+  if (modid < 0) return;
   int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
-  if (parid < 0)
-    return;
+  if (parid < 0) return;
 
   int i = vkdt.fav_cnt++;
   vkdt.fav_modid[i] = modid;
   vkdt.fav_parid[i] = parid;
 }
 
-int dt_gui_read_favs(
-    const char *filename)
+int dt_gui_read_favs(const char *filename)
 {
   vkdt.fav_cnt = 0;
   FILE *f = fopen(filename, "rb");
-  if (!f)
-    return 1;
+  if (!f) return 1;
   char buf[2048];
   while (!feof(f))
   {
     char *line = buf;
     fscanf(f, "%[^\n]", line);
-    if (fgetc(f) == EOF)
-      break; // read \n
+    if (fgetc(f) == EOF) break; // read \n
     dt_token_t mod = dt_read_token(line, &line);
     dt_token_t inst = dt_read_token(line, &line);
     dt_token_t parm = dt_read_token(line, &line);
