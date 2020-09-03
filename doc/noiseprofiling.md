@@ -25,3 +25,11 @@ mechanism in place that tries to separate signal from noise variance, so the
 white line should not blindly match the red bars but take a consistent path
 around the minimum of the observed variance (observed is the sum of noise and
 signal variance).
+
+note that the same considerations with regard to good profiling shots hold as
+they did for darktable previously (cover all dynamic range, out of focus). on
+the other hand the new outlier rejection scheme seems to be a lot more robust,
+and profiling the raw raw data has the advantage that *black stripes* outside
+the crop window contribute to a good estimate of the gaussian portion. as a
+result i could pretty much use any shot i wanted to denoise out of the box for
+single-shot noise profiling, without the need for dedicated profiling shots.
