@@ -1201,6 +1201,8 @@ void render_darkroom_pipeline()
       ImGui::Text("no input/output chain");
     else if(e == 3)
       ImGui::Text("no unique module after");
+    else if(e == 16)
+      ImGui::Text("module could not be added");
     else
       ImGui::Text("unknown error %lu %lu", last_err >> 32, last_err & -1u);
   }
@@ -1275,6 +1277,17 @@ void render_darkroom_pipeline()
         draw_arrow(x, graph->module[m].connector[k].flags & s_conn_feedback);
       }
     }
+  }
+
+  // add new module to the graph (unconnected)
+  static char mod_name[10] = {0};
+  static char mod_inst[10] = {0};
+  ImGui::InputText("module", mod_name, 8);
+  ImGui::InputText("instance", mod_inst, 8);
+  if(ImGui::Button("add module"))
+  {
+    if(dt_module_add(graph, dt_token(mod_name), dt_token(mod_inst)) == -1u)
+      last_err = 16ul<<32;
   }
 }
 
