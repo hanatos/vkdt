@@ -9,6 +9,11 @@ int dt_module_add(
     dt_token_t name,
     dt_token_t inst)
 {
+  // dedup if existing:
+  for(int i=0;i<graph->num_modules;i++)
+    if(graph->module[i].name == name && graph->module[i].inst == inst)
+      return i;
+
   // add to graph's list
   // make sure we have enough memory, realloc if not
   if(graph->num_modules >= graph->max_modules-1)

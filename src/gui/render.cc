@@ -553,6 +553,76 @@ void render_lighttable()
           }
         }
 
+        // ==============================================================
+        // merge/align images
+        if(vkdt.db.selection_cnt > 1)
+        if(ImGui::Button("merge into current", size))
+        {
+          // overwrite .cfg for this image file:
+          uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+          char filename[1024] = {0};
+          dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
+          FILE *f = fopen(filename, "wb");
+          fprintf(f, "frames:1\n");
+          for(int i=0;i<vkdt.db.selection_cnt;i++)
+          {
+            fprintf(f, "module:i-raw:%02d\n", i);
+            if(i > 0)
+            {
+              fprintf(f, "module:burst:%02d\n", i);
+              fprintf(f, "module:blend:%02d\n", i);
+            }
+          }
+          fprintf(f,
+              "module:denoise:01\n"
+              "module:hilite:01\n"
+              "module:demosaic:01\n"
+              "module:colour:01\n"
+              "module:filmcurv:01\n"
+              "module:hist:01\n"
+              "module:display:hist\n"
+              "module:display:main\n");
+          fprintf(f, "param:i-raw:00:filename:%s\n", vkdt.db.image[main_imgid].filename);
+          int ii = 1;
+          for(int i=0;i<vkdt.db.selection_cnt;i++)
+          {
+            if(sel[i] == main_imgid) continue;
+            fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
+            fprintf(f,
+                "connect:i-raw:%02d:output:burst:%02d:warp\n"
+                "connect:burst:%02d:output:blend:%02d:back\n"
+                "connect:burst:%02d:mask:blend:%02d:mask\n"
+                "connect:%s:%02d:output:blend:%02d:input\n"
+                "connect:i-raw:00:output:burst:%02d:input\n",
+                ii, ii, ii, ii, ii, ii,
+                ii > 1 ? "blend" : "i-raw",
+                ii-1, ii, ii);
+            fprintf(f,
+                "param:blend:%02d:opacity:%g\n"
+                "param:burst:%02d:merge_n:0.0\n"
+                "param:burst:%02d:merge_k:4000000\n"
+                "param:burst:%02d:blur0:1\n"
+                "param:burst:%02d:blur1:1\n"
+                "param:burst:%02d:blur2:1\n"
+                "param:burst:%02d:blur3:1\n",
+                ii, pow(0.5, ii), // ??
+                ii, ii, ii, ii, ii, ii);
+            ii++;
+          }
+          // TODO: grab from default darkroom cfg?
+          fprintf(f,
+              "connect:blend:%02d:output:denoise:01:input\n"
+              "connect:denoise:01:output:hilite:01:input\n"
+              "connect:hilite:01:output:demosaic:01:input\n"
+              "connect:demosaic:01:output:colour:01:input\n"
+              "connect:colour:01:output:filmcurv:01:input\n"
+              "connect:filmcurv:01:output:display:main:input\n"
+              "connect:filmcurv:01:output:hist:01:input\n"
+              "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
+          fclose(f);
+          // TODO: now redo/delete thumbnail of main_imgid
+        }
 
         // ==============================================================
         // export selection
@@ -1131,6 +1201,8 @@ void render_darkroom_pipeline()
       ImGui::Text("no input/output chain");
     else if(e == 3)
       ImGui::Text("no unique module after");
+    else if(e == 16)
+      ImGui::Text("module could not be added");
     else
       ImGui::Text("unknown error %lu %lu", last_err >> 32, last_err & -1u);
   }
@@ -1205,6 +1277,17 @@ void render_darkroom_pipeline()
         draw_arrow(x, graph->module[m].connector[k].flags & s_conn_feedback);
       }
     }
+  }
+
+  // add new module to the graph (unconnected)
+  static char mod_name[10] = {0};
+  static char mod_inst[10] = {0};
+  ImGui::InputText("module", mod_name, 8);
+  ImGui::InputText("instance", mod_inst, 8);
+  if(ImGui::Button("add module"))
+  {
+    if(dt_module_add(graph, dt_token(mod_name), dt_token(mod_inst)) == -1u)
+      last_err = 16ul<<32;
   }
 }
 
