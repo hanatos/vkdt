@@ -1519,6 +1519,9 @@ VkResult dt_graph_run(
     for(int i=0;i<cnt;i++)
       modify_roi_out(graph, graph->module + modid[i]);
 
+
+  // XXX this test is broken. we want to make sure the last output/display is initialised
+  // XXX but we don't want to penalise just added modules that aren't yet connected:
   // if the roi out is 0, probably reading some sources went wrong and we need
   // to abort right here!
   if(graph->module[graph->num_modules-1].connector[0].roi.full_wd == 0)

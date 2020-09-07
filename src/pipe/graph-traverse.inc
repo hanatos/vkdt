@@ -28,6 +28,7 @@
   for(int i=arr_cnt-1;i>=0;i--) if(arr[i].connector[0].type == dt_token("sink"))
   {
     mark[i] = 1;
+    // XXX why start at sp = 1 ? is this a potential bug?
     stack[++sp] = i;
     done[sp] = 0;
   }

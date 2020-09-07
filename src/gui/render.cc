@@ -1280,15 +1280,11 @@ void render_darkroom_pipeline()
   }
 
   // add new module to the graph (unconnected)
-  static char mod_name[10] = {0};
-  static char mod_inst[10] = {0};
-  ImGui::InputText("module", mod_name, 8);
-  ImGui::InputText("instance", mod_inst, 8);
+  static char mod_name[10] = {0}; ImGui::InputText("module", mod_name, 8);
+  static char mod_inst[10] = {0}; ImGui::InputText("instance", mod_inst, 8);
   if(ImGui::Button("add module"))
-  {
     if(dt_module_add(graph, dt_token(mod_name), dt_token(mod_inst)) == -1u)
       last_err = 16ul<<32;
-  }
 }
 
 void render_darkroom()
