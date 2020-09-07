@@ -180,6 +180,7 @@ create_ring(
     else if(gamut == 2) clip_rec2020(target + 2*k, w2);
     else if(gamut == 3) clip_rec709(target + 2*k, w2);
 #else
+#if 0
     if(gamut)
     {
       clip_spectral_locus(target + 2*k, w2);
@@ -199,6 +200,7 @@ create_ring(
         target[2*k+1] = map[3*(j*1024+i)+2];
       }
     }
+#endif
 #endif
 
     // fprintf(stdout, "%g %g %g %g\n",

@@ -314,8 +314,9 @@ int main(int argc, char *argv[])
         // if(sc) p = gauss_spectrum(lambda, width, slope, lambda2);
         // else
         // p = trapezoid_spectrum(lambda, width, slope, lambda2);
-        p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
-        // p = macadam_spectrum(lambda, width, slope, lambda2);
+        // p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
+        p = macadam_spectrum(lambda, width, slope, lambda2);
+        // p = sigmoid_spectrum(lambda, width, slope, lambda2);
         spectrum_p_to_xyz(lambda2, p, add);
         for(int k=0;k<3;k++) xyz[k] += add[k];
       }
@@ -410,8 +411,9 @@ int main(int argc, char *argv[])
         const float lambda2 = 400.0f + 300.0f * ll/(ll_cnt-1.0f);
         float add[3] = {0.0f};
         // float p = trapezoid_spectrum(lambda, width, slope, lambda2);
-        float p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
-        // float p = macadam_spectrum(lambda, width, slope, lambda2);
+        // float p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
+        float p = macadam_spectrum(lambda, width, slope, lambda2);
+        // float p = sigmoid_spectrum(lambda, width, slope, lambda2);
         spectrum_p_to_xyz(lambda2, p, add);
         for(int k=0;k<3;k++) xyz[k] += add[k];
       }
