@@ -345,7 +345,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
         int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
   const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
-  if(!(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity
+  if(p_mat == 1 && !(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
