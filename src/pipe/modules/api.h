@@ -125,45 +125,26 @@ dt_api_blur_sub(
   {
     // add nodes blurh and blurv
     assert(graph->num_nodes < graph->max_nodes);
-    const int id_blurh = graph->num_nodes++;
-    graph->node[id_blurh] = (dt_node_t) {
+    const int id_blur = graph->num_nodes++;
+    graph->node[id_blur] = (dt_node_t) {
       .name   = dt_token("shared"),
-      .kernel = dt_token("blurd"),
+      .kernel = dt_token("blur"),
       .module = module,
-      .wd     = i ? roi.wd : roi.wd/2,
-      .ht     = roi.ht,
+      .wd     = roi.wd/2,
+      .ht     = roi.ht/2,
       .dp     = dp,
       .num_connectors = 2,
       .connector = { ci, co },
-      .push_constant_size = 3*sizeof(uint32_t),
-      .push_constant = { 1, 0, i },
     };
-    if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blurh;
-    graph->node[id_blurh].connector[0].roi = roi;
-    if(i == 0) roi.wd /= 2;
-    graph->node[id_blurh].connector[1].roi = roi;
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_blurv = graph->num_nodes++;
-    graph->node[id_blurv] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = dt_token("blurd"),
-      .module = module,
-      .wd     = roi.wd,
-      .ht     = i ? roi.ht : roi.ht/2,
-      .dp     = dp,
-      .num_connectors = 2,
-      .connector = { ci, co },
-      .push_constant_size = 3*sizeof(uint32_t),
-      .push_constant = { 0, 1, i },
-    };
-    if(id_blur_out && i == it-1) *id_blur_out = id_blurv;
-    graph->node[id_blurv].connector[0].roi = roi;
-    if(i == 0) roi.ht /= 2;
-    graph->node[id_blurv].connector[1].roi = roi;
+    if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blur;
+    graph->node[id_blur].connector[0].roi = roi;
+    roi.wd /= 2;
+    roi.ht /= 2;
+    graph->node[id_blur].connector[1].roi = roi;
+    if(id_blur_out && i == it-1) *id_blur_out = id_blur;
     // interconnect nodes:
-    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blurh, 0));
-    CONN(dt_node_connect(graph, id_blurh,   1,         id_blurv, 0));
-    nid_input = id_blurv;
+    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blur, 0));
+    nid_input = id_blur;
     cid_input = 1;
   }
 #if 0

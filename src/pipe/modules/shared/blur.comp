@@ -1,0 +1,34 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout( // input buffer array
+    set = 1, binding = 0
+) uniform sampler2D img_in[];
+
+layout( // output buffer array
+    set = 1, binding = 1
+) uniform writeonly image2D img_out[];
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  int idx = int(gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
+
+  ivec2 ipos = 2*opos;
+  // 5 tap flower filter
+  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+  vec4 rgb = texelFetch(img_in[idx], ipos, 0) * t;
+  vec2 sz = vec2(textureSize(img_in[idx], 0));
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 + 1.2, 0.5 + 0.4))/sz) / 4.0 * (1.0-t);
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 - 1.2, 0.5 - 0.4))/sz) / 4.0 * (1.0-t);
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 + 0.4, 0.5 - 1.2))/sz) / 4.0 * (1.0-t);
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 - 0.4, 0.5 + 1.2))/sz) / 4.0 * (1.0-t);
+  imageStore(img_out[idx], opos, rgb);
+}
+
