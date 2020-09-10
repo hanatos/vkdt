@@ -267,7 +267,11 @@ extern "C" int dt_gui_init_imgui()
       fscanf(f, "%f %f %f\n", rec2020_to_dspy+6, rec2020_to_dspy+7, rec2020_to_dspy+8);
       fclose(f);
     }
-    ImGui_ImplVulkan_SetDisplayProfile(gamma, rec2020_to_dspy);
+    int bitdepth = 8; // the display output will be dithered according to this
+    if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+       qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+      bitdepth = 10;
+    ImGui_ImplVulkan_SetDisplayProfile(gamma, rec2020_to_dspy, bitdepth);
   }
 
   // Load Fonts
