@@ -51,7 +51,7 @@ check_params(
     float newstr = dt_module_param_float(module, 0)[0];
     if((oldstr <= 0.0f && newstr >  0.0f) ||
        (oldstr >  0.0f && newstr <= 0.0f))
-    return s_graph_run_all;// create_nodes; // we need to update the graph topology
+    return s_graph_run_all;// we need to update the graph topology
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
@@ -62,6 +62,7 @@ create_nodes(
     dt_module_t *module)
 {
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  assert(img_param);
   for(int k=0;k<4;k++)
   { // we will take care of this:
     module->img_param.black[k] = 0.0;
@@ -114,8 +115,8 @@ create_nodes(
       .push_constant_size = 16*sizeof(uint32_t),
       .push_constant = {
         crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
-        black[0], black[1], black[2], black[3],
-        white[0], white[1], white[2], white[3],
+        blacki[0], blacki[1], blacki[2], blacki[3],
+        whitei[0], whitei[1], whitei[2], whitei[3],
       },
     };
     dt_connector_copy(graph, module, 0, id_noop, 0);
@@ -166,8 +167,12 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi_half,
       }},
-      .push_constant_size = 5*sizeof(uint32_t),
-      .push_constant = { wbi[0], wbi[1], wbi[2], wbi[3], i },
+      .push_constant_size = 13*sizeof(uint32_t),
+      .push_constant = {
+        wbi[0], wbi[1], wbi[2], wbi[3],
+        blacki[0], blacki[1], blacki[2], blacki[3],
+        whitei[0], whitei[1], whitei[2], whitei[3],
+        i },
     };
   }
   // wire inputs:
@@ -227,9 +232,12 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roi_half,
     }},
-    .push_constant_size = 7*sizeof(uint32_t),
-    .push_constant = { wbi[0], wbi[1], wbi[2], wbi[3], noisei[0], noisei[1],
-      (module->connector[0].chan != dt_token("rggb")) ? 1 :
+    .push_constant_size = 15*sizeof(uint32_t),
+    .push_constant = {
+      wbi[0], wbi[1], wbi[2], wbi[3],
+      blacki[0], blacki[1], blacki[2], blacki[3],
+      whitei[0], whitei[1], whitei[2], whitei[3],
+      noisei[0], noisei[1],
       img_param->filters },
   };
 

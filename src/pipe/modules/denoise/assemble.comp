@@ -16,6 +16,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(push_constant, std140) uniform push_t
 {
   vec4  wb;
+  vec4  black;
+  vec4  white;
   float noise_a;
   float noise_b;
   uint  filters;
@@ -48,7 +50,9 @@ main()
       0.299, -0.147, 0.615,
       0.587, -0.289, -0.515,
       0.114, 0.436, -0.100);
-  vec3 orig = rgb_to_yuv * (texelFetch(img_s0, ipos, 0).rgb * push.wb.rgb);
+  vec3 orig = texelFetch(img_s0, ipos, 0).rgb;
+  orig = (orig - push.black.rgb)/(push.white.rgb - push.black.rgb);
+  orig = rgb_to_yuv * (orig * push.wb.rgb);
   { // scope for registers
     ivec2 esi = ipos;
 
@@ -108,7 +112,7 @@ main()
   }
 
   down4.x = mix(orig.x, down4.x, params.luma);
-  vec3 rgb = (inverse(rgb_to_yuv) * down4) / push.wb.rgb;
+  vec3 rgb = max(vec3(0), (inverse(rgb_to_yuv) * down4) / push.wb.rgb);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

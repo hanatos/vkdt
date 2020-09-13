@@ -34,8 +34,8 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // written to work on bayer or rgb, assuming that black and white are monochrome for bayer images.
-  vec3 col = texelFetch(img_in, ipos+ivec2(params.crop_x, params.crop_y), 0).rgb;
-  col = max(vec3(0), (col - params.black.rgb)/(params.white.rgb - params.black.rgb));
+  vec3 col = texelFetch(img_in, ipos+ivec2(push.crop_x, push.crop_y), 0).rgb;
+  col = max(vec3(0), (col - push.black.rgb)/(push.white.rgb - push.black.rgb));
   imageStore(img_out, ipos, vec4(col, 1));
 }
 

@@ -80,7 +80,5 @@ main()
     if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
   }
-  // rescale so lower levels can do yuv from it. keep negative so we can average the values:
-  rgba.rgb = (rgba.rgb - push.black.rgb)/(push.white.rgb - push.black.rgb);
   imageStore(img_out, ipos, rgba);
 }

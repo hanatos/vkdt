@@ -4,6 +4,6 @@ if [ "$#" -ne 1 ]; then
     exit -1
 fi
 fname=$(./vkdt-cli -g examples/noiseprofile.cfg --config param:i-raw:01:filename:$1 2>&1| grep nprof | cut -d\' -f2)
-mv $fname data/nprof/
-./vkdt-cli -g examples/noisecheck.cfg --filename $fname --config param:i-raw:01:filename:$1
+mv "$fname" data/nprof/
+./vkdt-cli -g examples/noisecheck.cfg --filename "$fname" --config param:i-raw:01:filename:$1
 

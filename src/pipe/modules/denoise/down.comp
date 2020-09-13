@@ -14,6 +14,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(push_constant, std140) uniform push_t
 {
   vec4 wb;
+  vec4 black;
+  vec4 white;
   int level;
 } push;
 
@@ -53,6 +55,7 @@ main()
         0.299, -0.147, 0.615,
         0.587, -0.289, -0.515,
         0.114, 0.436, -0.100);
+    rgb = (rgb - push.black.rgb)/(push.white.rgb - push.black.rgb);
     rgb = rgb_to_yuv * (rgb * push.wb.rgb);
   }
 
