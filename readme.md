@@ -50,9 +50,12 @@ the binaries are currently wired to run from the `bin/` directory:
 cd bin/
 ./vkdt -d all /path/to/your/rawfile.raw
 ```
-note that you have to edit the filename in the example cfg to point to a file
-that actually exists on your system. if you run the command line interface
-'vkdt-cli', it will replace all 'display' nodes by 'export' nodes.
+raw files will be assigned the `bin/default-darkroom.cfg` processing graph.
+if you run the command line interface 'vkdt-cli', it will replace all 'display'
+nodes by 'export' nodes.
+there are also a few example config files in `bin/examples/`. note that you
+have to edit the filename in the example cfg to point to a file that actually
+exists on your system.
 
 ## licence
 
@@ -69,7 +72,7 @@ and we may link to some others, too.
 * vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
 * glfw (libglfw3-dev)
 * submodule imgui
-* submodule rawspeed (deponds on pugixml, stdc++, zlib, jpeg, libomp-dev)
+* submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp-dev)
 * libjpeg
 * build: make, pkg-config
 

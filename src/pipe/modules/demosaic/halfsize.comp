@@ -6,10 +6,10 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 1) uniform params_t
+layout(push_constant, std140) uniform push_t
 {
   uint filters;
-} params;
+} push;
 
 
 layout( // input uint16 buffer rggb
@@ -30,7 +30,7 @@ main()
 
   vec4 rgba;
 
-  if(params.filters == 9)
+  if(push.filters == 9)
   {
     float c0 = texelFetch(img_in, 3*ipos, 0).r;
     float c1 = texelFetch(img_in, 3*ipos+ivec2(0,1), 0).r;

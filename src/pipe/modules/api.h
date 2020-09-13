@@ -597,6 +597,28 @@ static inline int dt_module_set_param_float_n(
   return 1;
 }
 
+// returns a pointer to the metadata parameters of the raw image
+// coming to our module from the given input connector name.
+// if you don't mess with the metadata (such as replacing black point
+// after subtraction), this will yield equivalent data to mod->img_param.
+static inline const dt_image_params_t*
+dt_module_get_input_img_param(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    dt_token_t   input)
+{
+  for(int c=0;c<module->num_connectors;c++)
+  {
+    if(module->connector[c].name == input)
+    {
+      int mid = module->connector[c].connected_mi;
+      if(mid < 0) return 0;
+      return &graph->module[mid].img_param;
+    }
+  }
+  return 0;
+}
+
 // open a file pointer, consider search paths specific to this graph
 static inline FILE*
 dt_graph_open_resource(

@@ -6,10 +6,10 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 1) uniform params_t
+layout(push_constant, std140) uniform push_t
 {
   uint filters;
-} params;
+} push;
 
 
 layout( // input f16 buffer y

@@ -6,10 +6,11 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 1) uniform params_t
+layout(push_constant, std140) uniform push_t
 {
   uint filters;
-} params;
+} push;
+
 
 layout( // input buffer rggb
     set = 1, binding = 0
@@ -129,7 +130,7 @@ main()
   vec3 rgb = vec3(0.0);
   vec3 w   = vec3(0.0);
 
-  if(params.filters == 9)
+  if(push.filters == 9)
   { // x-trans
     // pulling this one out of the loop goes down from 2ms -> 1.6ms on intel and
     // doesn't look much worse :/

@@ -62,6 +62,16 @@ typedef struct dt_module_t
   dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
+  // this block of data identifies a few metadata properties of the input
+  // image, see above for the definition. strictly speaking we'd need one of
+  // these per connector. only most connectors aren't in fact related to input
+  // image files any more. one important use case, however, is that we'd like
+  // to be able to merge multiple raw input files, and change the metadata
+  // (such as clipping threshold or black level) on the way. this is why this
+  // block here is valid for the *output* of the module, i.e. if the module
+  // changes things, it'll write here. to grab the input for a connector, there
+  // is an api call to follow the connection and grab the params from the
+  // earlier module: dt_module_get_input_img_param()
   dt_image_params_t img_param;
 
   // TODO: parameters:

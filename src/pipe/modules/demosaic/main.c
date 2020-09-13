@@ -9,40 +9,13 @@ void modify_roi_in(
     dt_module_t *module)
 {
   dt_roi_t *ri = &module->connector[0].roi;
-  dt_roi_t *ro = &module->connector[1].roi;
+  // dt_roi_t *ro = &module->connector[1].roi;
 
-  // round input to block size
-  // const int block = module->img_param.filters == 9u ? 3 : 2;
-  // TODO: this truncates, not sure if we should round and be careful not to run over full dimensions instead?
-  // float scale = ro->scale;
-  // scale /= block;
-  ri->wd = ri->full_wd;//block*(int)(scale * ro->wd);
-  ri->ht = ri->full_ht;//block*(int)(scale * ro->ht);
-  ri->x  = 0;//block*(int)(scale * ro->x);
-  ri->y  = 0;//block*(int)(scale * ro->y);
+  ri->wd = ri->full_wd;
+  ri->ht = ri->full_ht;
+  ri->x  = 0;
+  ri->y  = 0;
   ri->scale = 1.0f;
-
-  assert(ro->x == 0 && "TODO: move to block boundary");
-  assert(ro->y == 0 && "TODO: move to block boundary");
-#if 0
-  // TODO: fix for x trans once there are roi!
-  // also move to beginning of demosaic rggb block boundary
-  uint32_t f = module->img_param.filters;
-  int ox = 0, oy = 0;
-  if(FC(ry,rx,f) == 1)
-  {
-    if(FC(ry,rx+1,f) == 0) ox = 1;
-    if(FC(ry,rx+1,f) == 2) oy = 1;
-  }
-  else if(FC(ry,rx,f) == 2)
-  {
-    ox = oy = 1;
-  }
-  ri->roi_ox += ox;
-  ri->roi_oy += oy;
-  ri->roi_wd -= ox;
-  ri->roi_ht -= oy;
-#endif
 }
 
 void modify_roi_out(
@@ -57,19 +30,6 @@ void modify_roi_out(
   // // this division is rounding down to full bayer block size, which is good:
   ro->full_wd = ri->full_wd;// /block;
   ro->full_ht = ri->full_ht;// /block;
-}
-
-// TODO: is this really needed?
-void commit_params(dt_graph_t *graph, dt_module_t *module)
-{
-  uint32_t *i = (uint32_t *)module->committed_param;
-  i[0] = module->img_param.filters;
-}
-
-int init(dt_module_t *mod)
-{
-  mod->committed_param_size = sizeof(uint32_t);
-  return 0;
 }
 
 void
@@ -145,7 +105,8 @@ create_nodes(
   }
 #endif
 
-  const int block = module->img_param.filters == 9u ? 3 : 2;
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  const int block = img_param->filters == 9u ? 3 : 2;
   dt_roi_t roi_full = module->connector[0].roi;
   dt_roi_t roi_half = module->connector[0].roi;
   roi_half.full_wd /= block;
@@ -186,6 +147,8 @@ create_nodes(
       .connector = {
         ci, co,
       },
+      .push_constant_size = sizeof(uint32_t),
+      .push_constant = { img_param->filters },
     };
     // resample to get to the rest of the resolution, only if block != scale!
     dt_connector_copy(graph, module, 0, id_half, 0);
@@ -265,6 +228,8 @@ create_nodes(
     .connector = {
       ci, co,
     },
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = { img_param->filters },
   };
   ci.chan   = dt_token("y");
   ci.format = dt_token("f16");
@@ -312,6 +277,8 @@ create_nodes(
     .connector = {
       ci, cg, co,
     },
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = { img_param->filters },
   };
   dt_connector_copy(graph, module, 0, id_splat, 0);
   CONN(dt_node_connect(graph, id_gauss, 1, id_splat, 1));

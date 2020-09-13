@@ -44,9 +44,15 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  for(int k=0;k<4;k++)
+  { // we will take care of this:
+    module->img_param.black[k] = 0.0;
+    module->img_param.white[k] = 1.0;
+  }
   const int block =
     (module->connector[0].chan != dt_token("rggb")) ? 1 :
-    (module->img_param.filters == 9u ? 3 : 2);
+    (img_param->filters == 9u ? 3 : 2);
   dt_roi_t roi_half = module->connector[1].roi;
   roi_half.full_wd /= block;
   roi_half.full_ht /= block;
@@ -58,16 +64,16 @@ create_nodes(
   const float nowb[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   const uint32_t *wbi = 
     (module->connector[0].chan != dt_token("rggb")) ? (uint32_t *)nowb :
-    (uint32_t *)module->img_param.whitebalance;
+    (uint32_t *)img_param->whitebalance;
   float black[4], white[4];
   uint32_t *blacki = (uint32_t *)black;
   uint32_t *whitei = (uint32_t *)white;
-  const uint32_t *crop_aabb = module->img_param.crop_aabb;
+  const uint32_t *crop_aabb = img_param->crop_aabb;
   for(int k=0;k<4;k++)
-    black[k] = module->img_param.black[k]/65535.0f;
+    black[k] = img_param->black[k]/65535.0f;
   for(int k=0;k<4;k++)
-    white[k] = module->img_param.white[k]/65535.0f;
-  const float noise[2] = { module->img_param.noise_a, module->img_param.noise_b };
+    white[k] = img_param->white[k]/65535.0f;
+  const float noise[2] = { img_param->noise_a, img_param->noise_b };
   uint32_t *noisei = (uint32_t *)noise;
 
   const int wd = roi_half.full_wd;
@@ -166,7 +172,7 @@ create_nodes(
     .push_constant_size = 7*sizeof(uint32_t),
     .push_constant = { wbi[0], wbi[1], wbi[2], wbi[3], noisei[0], noisei[1],
       (module->connector[0].chan != dt_token("rggb")) ? 1 :
-      module->img_param.filters },
+      img_param->filters },
   };
 
   // wire downsampled to assembly stage:
@@ -208,7 +214,7 @@ create_nodes(
         blacki[0], blacki[1], blacki[2], blacki[3],
         whitei[0], whitei[1], whitei[2], whitei[3],
         crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
-        module->img_param.filters },
+        img_param->filters },
     };
     assert(graph->num_nodes < graph->max_nodes);
     const uint32_t id_doub = graph->num_nodes++;
@@ -247,7 +253,7 @@ create_nodes(
         blacki[0], blacki[1], blacki[2], blacki[3],
         whitei[0], whitei[1], whitei[2], whitei[3],
         crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
-        module->img_param.filters, noisei[0], noisei[1]
+        img_param->filters, noisei[0], noisei[1]
       },
     };
     CONN(dt_node_connect(graph, id_half,     1, id_down[0],  0));
