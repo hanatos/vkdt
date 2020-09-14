@@ -52,7 +52,7 @@ void write_sink(
         double y1 = m2/c - m1/c*m1/c;
 
         c  = p32[j + 0*wd];
-        if(c < fk*10) continue;
+        if(c < fk*50) continue;
         m1 = p32[j + 1*wd];
         m2 = p32[j + 2*wd];
         double x2 = m1/c - module->img_param.black[1];
