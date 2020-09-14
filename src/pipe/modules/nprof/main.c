@@ -35,40 +35,49 @@ void write_sink(
   // an outlier or not.
   int valid_cnt = 0;
   int *valid = malloc(wd * sizeof(int));
-  for(int i=0;i<wd;i++)
+  for(int f=0;f<5;f++)
   {
-    int score = 0;
-    for(int j=i+1;j<MIN(i+50, wd);j++)
+    double fk = 1.0 / (f+1.0);
+    for(int i=0;i<wd;i++)
     {
-      // make sure a and b are positive, reject sample otherwise
-      double c  = p32[i + 0*wd];
-      if(c < 50) continue;
-      double m1 = p32[i + 1*wd];
-      double m2 = p32[i + 2*wd];
-      double x1 = m1/c - module->img_param.black[1];
-      double y1 = m2/c - m1/c*m1/c;
-
-      c  = p32[j + 0*wd];
-      if(c < 50) continue;
-      m1 = p32[j + 1*wd];
-      m2 = p32[j + 2*wd];
-      double x2 = m1/c - module->img_param.black[1];
-      double y2 = m2/c - m1/c*m1/c;
-
-      if(y1 <= 0 || y2 <= 0) continue;
-      double b = (y2-y1)/(x2-x1);
-      if(!(b > 0.0)) continue;
-      double a  = y1 - x1 * b;
-      if(!(a > 0.0)) continue;
-      if(!(a < 35000.0)) continue; // half the range noise? that would be extraordinary
-
-      if(++score > 25) // count a valid sample for this i
+      int score = 0;
+      for(int j=i+1;j<MIN(i+fk*50, wd);j++)
       {
-        valid[valid_cnt++] = i;
-        break; // no more j loop needed
+        // make sure a and b are positive, reject sample otherwise
+        double c  = p32[i + 0*wd];
+        if(c < fk*50) continue;
+        double m1 = p32[i + 1*wd];
+        double m2 = p32[i + 2*wd];
+        double x1 = m1/c - module->img_param.black[1];
+        double y1 = m2/c - m1/c*m1/c;
+
+        c  = p32[j + 0*wd];
+        if(c < fk*10) continue;
+        m1 = p32[j + 1*wd];
+        m2 = p32[j + 2*wd];
+        double x2 = m1/c - module->img_param.black[1];
+        double y2 = m2/c - m1/c*m1/c;
+
+        if(y1 <= 0 || y2 <= 0) continue;
+        double b = (y2-y1)/(x2-x1);
+        if(!(b > 0.0)) continue;
+        double a  = y1 - x1 * b;
+        if(!(a > 0.0)) continue;
+        if(!(a < 35000.0)) continue; // half the range noise? that would be extraordinary
+
+        if(++score > fk*25) // count a valid sample for this i
+        {
+          valid[valid_cnt++] = i;
+          break; // no more j loop needed
+        }
       }
     }
+    if(valid_cnt) break; // yay, no need to lower quality standards
+    fprintf(stderr, "[nprof] WARN: reducing expectations %dx because we collected very few valid samples!\n", f+1);
   }
+  
+  if(valid_cnt <= 0)
+    fprintf(stderr, "[nprof] ERR: could not find a single valid sample!\n");
 
   // incredibly simplistic linear regression from stack overflow.
   // compute covariance matrix and from that the parameters a, b:
@@ -106,7 +115,7 @@ void write_sink(
       module->img_param.maker,
       module->img_param.model,
       (int)module->img_param.iso);
-  fprintf(stderr, "[nprof] writing '%s'\n", filename);
+  fprintf(stdout, "[nprof] writing '%s'\n", filename);
   FILE* f = fopen(filename, "wb");
   if(f)
   {
