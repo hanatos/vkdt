@@ -247,7 +247,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout    = VK_IMAGE_LAYOUT_GENERAL,
+        .finalLayout    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       };
       color_attachment[i] = (VkAttachmentReference) {
         .attachment = i,
