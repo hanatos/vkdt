@@ -8,12 +8,11 @@ check_params(
     uint32_t     parid,
     void        *oldval)
 {
-  if(parid == 0)
+  if(parid >= 2 && parid <= 5)
   { // radius
     float oldrad = *(float*)oldval;
-    float newrad = dt_module_param_float(module, 0)[0];
-    // TODO: ask api: blur_flags or so
-    return s_graph_run_all;// create_nodes; // we need to update the graph topology
+    float newrad = dt_module_param_float(module, parid)[0];
+    return dt_api_blur_check_params(oldrad, newrad);
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }

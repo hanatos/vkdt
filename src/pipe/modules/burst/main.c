@@ -9,6 +9,21 @@
 #define NUM_LEVELS 6
 #endif
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 0)
+  { // radius
+    float oldrad = *(float*)oldval;
+    float newrad = dt_module_param_float(module, 0)[0];
+    return dt_api_blur_check_params(oldrad, newrad);
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+}
+
 // the roi callbacks are only needed for the debug outputs. other than that
 // the default implementation would work fine for us.
 void modify_roi_in(

@@ -77,6 +77,16 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+static inline uint32_t
+dt_api_blur_check_params(
+    float oldrad,
+    float newrad)
+{
+  // TODO: only return flags if this in fact needs a different number of passes
+  if(oldrad != newrad) return s_graph_run_all; // for now just nuke it
+  return s_graph_run_record_cmd_buf; // needs that anyways
+}
+
 // blur by radius, but using a cascade of sub-sampled dispatches.
 // faster than the non-sub version, but approximate.
 static inline int
