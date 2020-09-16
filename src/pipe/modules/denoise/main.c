@@ -26,17 +26,12 @@ void modify_roi_out(
     dt_module_t *module)
 {
   // copy to output
-  if(module->connector[0].chan == dt_token("rggb"))
-  {
-    const uint32_t *b = module->img_param.crop_aabb;
-    module->connector[1].roi = module->connector[0].roi;
-    module->connector[1].roi.full_wd = b[2] - b[0];
-    module->connector[1].roi.full_ht = b[3] - b[1];
-  }
-  else
-  {
-    module->connector[1].roi = module->connector[0].roi;
-  }
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  assert(img_param);
+  const uint32_t *b = img_param->crop_aabb;
+  module->connector[1].roi = module->connector[0].roi;
+  module->connector[1].roi.full_wd = b[2] - b[0];
+  module->connector[1].roi.full_ht = b[3] - b[1];
 }
 
 dt_graph_run_t
@@ -67,6 +62,10 @@ create_nodes(
   { // we will take care of this:
     module->img_param.black[k] = 0.0;
     module->img_param.white[k] = 1.0;
+    module->img_param.crop_aabb[0] = 0;
+    module->img_param.crop_aabb[1] = 0;
+    module->img_param.crop_aabb[2] = module->connector[1].roi.full_wd;
+    module->img_param.crop_aabb[3] = module->connector[1].roi.full_ht;
   }
 
   const float nowb[4] = {1.0f, 1.0f, 1.0f, 1.0f};
