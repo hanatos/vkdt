@@ -80,8 +80,10 @@ main()
     //  0.2*0.4*0.2*0.4 + 0.2*0.6*0.2*0.6 + 0.8*0.4*0.8*0.4 + 0.8*0.6*0.8*0.6)) * base var
     // => sigma' ~= 0.29165 * base sigma
     // mosaiced images are preprocessed by averaging a block of greens.
-    // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2):
-    float block = push.filters == 0u ? 1.0 : (push.filters == 9u ? 2.23607 : 1.414213);
+    // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2).
+    // demosaiced images have way less noise to begin with, so we should tune down variance, too!
+    // the current factor of 10 is purely heuristic and probably also there's something else wrong.
+    float block = push.filters == 0u ? 10.0 : (push.filters == 9u ? 2.23607 : 1.414213);
     const float b0 = 1.0/block;
     const float b1 = 0.291652/block;
     const float b2 = 0.085061/block;
