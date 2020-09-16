@@ -43,6 +43,12 @@ void write_sink(
       int score = 0;
       for(int j=i+1;j<MIN(i+fk*50, wd);j++)
       {
+        // fit: sigma^2 = y = a + b*x
+        // to the data (x,y) by looking at pairs of (x,y) from the input. x is
+        // the first moment of the observed raw histogram - black level. in
+        // particular this means that the noise model is to be applied to
+        // uint16_t range x that have the black level subtracted, but have not
+        // been rescaled to white in any way.
         // make sure a and b are positive, reject sample otherwise
         double c  = p32[i + 0*wd];
         if(c < fk*50) continue;

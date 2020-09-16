@@ -49,7 +49,8 @@ create_nodes(
     dt_module_t *module)
 {
 
-  const int block = 3; // TODO distinguish by bayer/xtrans!
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  const int block = img_param->filters == 9u ? 3 : 2;
 
   // input -> collect -> map -> output
 

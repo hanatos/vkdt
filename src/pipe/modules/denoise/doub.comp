@@ -84,7 +84,8 @@ main()
 
     // TODO: need explicit routing of raw -> assemble?
 
-    const float sigma = sqrt(push.noise_a + 65535.0*max(upsm.g, 0.0)*push.noise_b)/65535.0;
+    const float scale = 65535.0*(push.white.g-push.black.g);
+    const float sigma = sqrt(push.noise_a + scale*max(upsm.g, 0.0)*push.noise_b)/scale;
     float T = params.chroma * params.strength * 2.0;
     SHRINK(c1, upsm.r)
     SHRINK(c7, upsm.r)

@@ -29,7 +29,7 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
 
-  // TODO: if filters==9
+  if(params.filters == 9)
   { // x-trans
     ipos *= 3;
     if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
@@ -41,17 +41,12 @@ main()
     float val4 = 65536.0*texelFetch(img_in, 3*ipos+ivec2(2,2), 0).r;
     float mean = (val0 + val1 + val2 + val3 + val4)/5.0;
     float mom2 = (val0*val0 + val1*val1 + val2*val2 + val3*val3 + val4*val4)/5.0;
-    // float var = mom2 - mean*mean;
-    // mean = 1100;
-    // float x = imageSize(img_out).x * log2(max(1,65536.0*(mean - params.black)/(params.white - params.black))) /16.0f;
-    // float x = imageSize(img_out).x * log2(max(1,(mean - params.black))) /16.0f;
-    // XXX ???
 #if 1 // log space
     float white = log2(params.white)/16.0f;
     float black = log2(params.black)/16.0f;
     float x = imageSize(img_out).x * ((log2(mean)/16.0f - black) / (white - black));
 #else // linear
-    float white = params.white;// / 2.0;
+    float white = params.white;
     float x = imageSize(img_out).x * (mean - params.black) / (white - params.black);
 #endif
     float mc = imageAtomicAdd(img_out, ivec2(x, 0), 1);
@@ -59,7 +54,29 @@ main()
     float m2 = imageAtomicAdd(img_out, ivec2(x, 2), uint(mom2));
     imageAtomicMin(img_out, ivec2(0, 3), uint(x));
     imageAtomicMax(img_out, ivec2(1, 3), uint(x));
-    imageAtomicMax(img_out, ivec2(2, 3), uint(0));// XXX?
+  }
+  else if(params.filters != 0)
+  { // bayer, not sure if this will work with only 2x2
+    ipos *= 2;
+    if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
+    // look at cross of green channels
+    float val0 = 65536.0*texelFetch(img_in, 2*ipos+ivec2(1,0), 0).r;
+    float val1 = 65536.0*texelFetch(img_in, 2*ipos+ivec2(0,1), 0).r;
+    float mean = (val0 + val1)/2.0;
+    float mom2 = (val0*val0 + val1*val1)/2.0;
+#if 1 // log space
+    float white = log2(params.white)/16.0f;
+    float black = log2(params.black)/16.0f;
+    float x = imageSize(img_out).x * ((log2(mean)/16.0f - black) / (white - black));
+#else // linear
+    float white = params.white;
+    float x = imageSize(img_out).x * (mean - params.black) / (white - params.black);
+#endif
+    float mc = imageAtomicAdd(img_out, ivec2(x, 0), 1);
+    float m1 = imageAtomicAdd(img_out, ivec2(x, 1), uint(mean));
+    float m2 = imageAtomicAdd(img_out, ivec2(x, 2), uint(mom2));
+    imageAtomicMin(img_out, ivec2(0, 3), uint(x));
+    imageAtomicMax(img_out, ivec2(1, 3), uint(x));
   }
 }
 

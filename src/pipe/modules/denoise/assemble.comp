@@ -69,10 +69,11 @@ main()
 
     // compute wavelet coefficients for this pixel
     // normalise these by dividing out expected noise std dev:
-    // XXX our data is now normalised to [0, 1] already:
-    // TODO: check whether the noise model applies to raw (white max) or 1 max
-    // float sigma = sqrt(push.noise_a + 65535.0*max(down2.g - params.black, 0.0)*params.noise_b)/65535.0;
-    float sigma = sqrt(push.noise_a + 65535.0*max(down2.x, 0.0)*push.noise_b)/65535.0;
+    // our data is now normalised to [0, 1] already:
+    // the noise model is  sigma^2 = a + x*b  where x is the uint16_t scale raw value minus the raw black level.
+    // this meas we have to re-scale our normalised value to the previous white level.
+    const float scale = 65535.0*(push.white.g-push.black.g);
+    const float sigma = sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale;
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
@@ -90,6 +91,7 @@ main()
     down2 = (down2 - down3)/(sigma*b2);
     down3 = (down3 - down4)/(sigma*b3);
 
+    // TODO: downweight coarser scales:
     // xi-squared statistic for iid unit variance:
     float xi2 = abs(down0.x*down0.x + down1.x*down1.x + down2.x*down2.x + down3.x*down3.x - 4.0); // * (n-1) = 3 really
     // TODO: compute true probability that these are indeed iid wrt some p value
