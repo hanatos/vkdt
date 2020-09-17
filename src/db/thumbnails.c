@@ -263,6 +263,7 @@ static void thread_free_coll(void *arg)
   if(j->gid == 0)
   {
     pthread_mutex_destroy(&j->mutex_storage);
+    free(j->coll);
     free(j);
   }
 }
@@ -274,21 +275,26 @@ static void thread_work_coll(uint32_t item, void *arg)
   char filename[1024];
   dt_db_image_path(j->db, j->coll[item], filename, sizeof(filename));
   (void) dt_thumbnails_cache_one(j->tn->graph + j->gid, j->tn, filename);
+  // invalidate what we have in memory to trigger a reload:
+  j->db->image[j->coll[item]].thumbnail = 0;
   j->tn->graph[j->gid].io_mutex = 0;
 }
 
 VkResult
-dt_thumbnails_cache_collection(
+dt_thumbnails_cache_list(
     dt_thumbnails_t *tn,
-    dt_db_t         *db)
+    dt_db_t         *db,
+    uint32_t        *imgid,
+    uint32_t         imgid_cnt)
 {
-  if(db->collection_cnt <= 0)
+  if(imgid_cnt <= 0)
   {
-    dt_log(s_log_err, "[thm] no images in collection!");
+    dt_log(s_log_err, "[thm] no images in list!");
     return VK_INCOMPLETE;
   }
 
-  uint32_t *collection = db->collection; // TODO: take copy once this thing changes
+  uint32_t *collection = malloc(sizeof(uint32_t) * imgid_cnt);
+  memcpy(collection, imgid, sizeof(uint32_t) * imgid_cnt); // take copy because this thing changes
   cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t)*DT_THUMBNAILS_THREADS);
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
@@ -307,13 +313,21 @@ dt_thumbnails_cache_collection(
     // we only care about internal errors. if we call with stupid values,
     // it just does nothing and returns:
     assert(-1 != threads_task(
-        db->collection_cnt,
+        imgid_cnt,
         &job[0].idx_storage,
         job+k,
         thread_work_coll,
         thread_free_coll));
   }
   return VK_SUCCESS;
+}
+
+VkResult
+dt_thumbnails_cache_collection(
+    dt_thumbnails_t *tn,
+    dt_db_t         *db)
+{
+  return dt_thumbnails_cache_list(tn, db, db->collection, db->collection_cnt);
 }
 
 // 1) if db loads a directory, kick off thumbnail creation of directory in bg
