@@ -2,13 +2,23 @@
 
 // this is an initial implementation of some simplistic iterative, non-blind R/L deconvolution.
 // it has a lot of problems because i didn't spend time on it:
-// - hardcoded radius
 // - hardcoded iteration count
-// - radius is not really precisely respected because the blur just approximately blurs
-//   as much as it thinks is necessary. for this use case we'll probably want something more precise.
-// - the division kernel has an epsilon safeguard num/(den+eps) which i'm not sure about.
+// - the division kernel has an epsilon safeguard num/max(den, eps) which i'm not sure about.
 
-// TODO: check params based on radius
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  // yea sorry we're stupid and need push constants which we diligently don't update
+  // until we recreate the nodes. should change that i suppose.
+  // options:
+  // - secretly pick up parameter in the api blur call
+  // - make blurs a custom node without api wrapping and access params
+  // - implement commit_params() to alter the push constant
+  return s_graph_run_all;
+}
 
 void
 create_nodes(
@@ -19,10 +29,9 @@ create_nodes(
   // we assume a ~gaussian blur kernel K (with the adjoint K=K')
   // one iteration computes:
   // I(i+1) = I(i) * ( K' x (input / (I(i) x K)) )
-  const int it_cnt = 2;
+  const int it_cnt = 20;
   const dt_roi_t *roi = &module->connector[0].roi;
-
-  const float radius = 2;
+  const float radius = dt_module_param_float(module, 0)[0];
 
   uint32_t I_i_id = -1u; // first iteration we'll copy the module connector
   uint32_t I_i_cn =  0u;
@@ -30,7 +39,8 @@ create_nodes(
   {
     // take input and blur it
     int32_t id_blur_in = -1;
-    const uint32_t IxK_id = dt_api_blur_sub(graph, module, I_i_id, I_i_cn, &id_blur_in, 0, radius);
+    // const uint32_t IxK_id = dt_api_blur_sub(graph, module, I_i_id, I_i_cn, &id_blur_in, 0, radius);
+    const uint32_t IxK_id = dt_api_blur_small(graph, module, I_i_id, I_i_cn, &id_blur_in, 0, radius);
     if(i==0) dt_connector_copy(graph, module, 0, id_blur_in, 0);
     // divide original image by IxK
     assert(graph->num_nodes < graph->max_nodes);
@@ -69,7 +79,8 @@ create_nodes(
     dt_connector_copy(graph, module, 0, id_div, 0);
     CONN(dt_node_connect(graph, IxK_id, 1, id_div, 1));
     // convolve resulting fraction by adjoint kernel
-    const uint32_t KpxF_id = dt_api_blur_sub(graph, module, id_div, 2, 0, 0, radius);
+    // const uint32_t KpxF_id = dt_api_blur_sub(graph, module, id_div, 2, 0, 0, radius);
+    const uint32_t KpxF_id = dt_api_blur_small(graph, module, id_div, 2, 0, 0, radius);
     // multiply last iteration by this result
     assert(graph->num_nodes < graph->max_nodes);
     const uint32_t id_mul = graph->num_nodes++;

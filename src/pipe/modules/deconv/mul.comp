@@ -24,8 +24,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec4 f0 = texture(img_f0, ipos/vec2(imageSize(img_out)));
-  vec4 f1 = texture(img_f1, ipos/vec2(imageSize(img_out)));
+  vec4 f0 = texture(img_f0, (ipos+vec2(0.5))/vec2(imageSize(img_out)));
+  vec4 f1 = texture(img_f1, (ipos+vec2(0.5))/vec2(imageSize(img_out)));
   imageStore(img_out, ipos, f0*f1);
 }
 

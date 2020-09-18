@@ -87,6 +87,61 @@ dt_api_blur_check_params(
   return s_graph_run_record_cmd_buf; // needs that anyways
 }
 
+// approximate gaussian blur by small sigma.
+// this has a 3x3 kernel support and works up until sigma=0.85.
+// use blur or blur_sub instead for larger blur radii.
+static inline int
+dt_api_blur_small(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int          nodeid_input,
+    int          connid_input,
+    int         *id_blur_in,
+    int         *id_blur_out,
+    float        sigma)
+{
+  // detect pixel format on input
+  const dt_connector_t *conn_input = nodeid_input >= 0 ?
+    graph->node[nodeid_input].connector + connid_input :
+    module->connector + connid_input;
+  const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
+  const int *sigmai = (int*)&sigma;
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_blur = graph->num_nodes++;
+  graph->node[id_blur] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("blurs"),
+    .module = module,
+    .wd     = conn_input->roi.wd,
+    .ht     = conn_input->roi.ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = conn_input->chan,
+      .format = conn_input->format,
+      .roi    = conn_input->roi,
+      .flags  = s_conn_smooth,
+      .connected_mi = -1,
+      .array_length = conn_input->array_length,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = conn_input->chan,
+      .format = conn_input->format,
+      .roi    = conn_input->roi,
+      .array_length = conn_input->array_length,
+    }},
+    .push_constant_size = sizeof(float),
+    .push_constant = { sigmai[0] },
+  };
+  if(id_blur_in)  *id_blur_in  = id_blur;
+  if(id_blur_out) *id_blur_out = id_blur;
+  CONN(dt_node_connect(graph, nodeid_input, connid_input, id_blur, 0));
+  return id_blur;
+}
+
 // blur by radius, but using a cascade of sub-sampled dispatches.
 // faster than the non-sub version, but approximate.
 static inline int
@@ -95,11 +150,11 @@ dt_api_blur_sub(
     dt_module_t *module,
     int          nodeid_input,
     int          connid_input,
-    int          *id_blur_in,
-    int          *id_blur_out,
+    int         *id_blur_in,
+    int         *id_blur_out,
     uint32_t     radius)
 {
-  // detect pixel format on input and blur the whole thing in separable kernels
+  // detect pixel format on input
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
     graph->node[nodeid_input].connector + connid_input :
     module->connector + connid_input;
@@ -133,7 +188,6 @@ dt_api_blur_sub(
   while(2*(1u<<it) < radius) it++;
   for(uint32_t i=0;i<it;i++)
   {
-    // add nodes blurh and blurv
     assert(graph->num_nodes < graph->max_nodes);
     const int id_blur = graph->num_nodes++;
     graph->node[id_blur] = (dt_node_t) {

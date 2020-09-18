@@ -1,0 +1,41 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+
+// blur "small" for tiny sigma.
+// does not downsample for this very reason.
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(push_constant, std140) uniform push_t
+{
+  float sigma;
+} push;
+
+layout( // input buffer array
+    set = 1, binding = 0
+) uniform sampler2D img_in[];
+
+layout( // output buffer array
+    set = 1, binding = 1
+) uniform writeonly image2D img_out[];
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  int idx = int(gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(ipos, imageSize(img_out[idx])))) return;
+
+  const float off = exp(-1.0/(2.0*push.sigma*push.sigma));
+  const vec2 sz = vec2(textureSize(img_in[idx], 0));
+  // 4 tap filter spanning 3x3 support.
+  vec4 rgb;
+  rgb  = texture(img_in[idx], (ipos + vec2(0.5 - off, 0.5 - off))/sz) / 4.0;
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 - off, 0.5 + off))/sz) / 4.0;
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 + off, 0.5 - off))/sz) / 4.0;
+  rgb += texture(img_in[idx], (ipos + vec2(0.5 + off, 0.5 + off))/sz) / 4.0;
+  imageStore(img_out[idx], ipos, rgb);
+}
+
