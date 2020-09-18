@@ -1,0 +1,31 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout( // input numerator
+    set = 1, binding = 0
+) uniform sampler2D img_num;
+
+layout( // input denominator
+    set = 1, binding = 1
+) uniform sampler2D img_den;
+
+layout( // output
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec4 num = texture(img_num, ipos/vec2(imageSize(img_out)));
+  vec4 den = texture(img_den, ipos/vec2(imageSize(img_out)));
+  imageStore(img_out, ipos, num/(den+vec4(0.0001)));
+}
+
