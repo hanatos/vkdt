@@ -11,6 +11,7 @@ TODO: reference all the readme.md in the lower levels:
 * [blend](./blend/readme.md)
 * [colour](./colour/readme.md)
 * [crop and rotate](./crop/readme.md)
+* [deconvolution/sharpen](./deconv/readme.md)
 * [denoise](./denoise/readme.md)
 * [film curve](./filmcurv/readme.md)
 * [gradient density filter](./grad/readme.md)
