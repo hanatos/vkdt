@@ -25,17 +25,11 @@ layout( // output buffer
 #define B 2 // boundary padding
 shared vec3 curr[DT_DECONV_TILE_WD*DT_DECONV_TILE_HT];
 
-// TODO: what's our indexing scheme? tiles on input or tiles on output?
-// TODO: where is the overlap cosidered?
-// 1) we are running on output tiles:
-//    * someone needs to fetch more than one pixel in the overlap region to fill the boundary
-//    * ipos == opos == invocation_id
-// ^^^^^^^^^^^^^ going with this because lazy
-// 2) we are running on input tiles + border:
-//    * someone needs to remember not to write to output
-//    * ipos == opos == complicated(invocation_id)
-//    * need to mask out all blur loops for borders
-//    * need to run more threads (but we have plenty)
+// we are running on input tiles + border:
+// * someone needs to remember not to write to output
+// * ipos == opos == complicated(invocation_id)
+// * need to mask out all blur loops for borders
+// * need to run more threads (but we have plenty)
 void
 main()
 {
@@ -49,62 +43,65 @@ main()
 
   // everybody get their texels:
   const uint idx = gl_LocalInvocationID.x + gl_WorkGroupSize.x * gl_LocalInvocationID.y;
-  curr[idx] = texelFetch(img_in, ipos, 0).rgb;
-  // memoryBarrierShared(); // does not do the trick :(
-  barrier();
+  vec3 orig; // remember original pixel colour
+  curr[idx] = orig = texelFetch(img_in, ipos, 0).rgb;
 
   // now let's work:
 
-  // remember original pixel colour:
-  const vec3 orig = curr[idx];
-
   const float w = exp(-1/(2.0*params.sigma*params.sigma));
-  const float w2 = w*w;
 
   // do the iterations
   for(int i=0;i<params.iter_cnt;i++)
   {
     // I(i+1) = I(i) * ( K' x (input / (I(i) x K)) )
     // remember I(i) locally
+    barrier();
     const vec3 I_i = curr[idx];
     // compute the gaussian blur of the input, I(i) x K and store the result locally
     vec3 res;
-#define BLUR {\
+    // going from blur to separable two pass blur means 9.5 -> 8.5ms
+#define BLURH {\
     const uint x0 = max(int(gl_LocalInvocationID.x) - 1, 0);\
     const uint x1 = gl_LocalInvocationID.x;\
     const uint x2 = min(gl_LocalInvocationID.x + 1, gl_WorkGroupSize.x-1);\
     res = vec3(0.0);\
-    {\
-      const uint y = gl_WorkGroupSize.x * max(int(gl_LocalInvocationID.y)-1, 0);\
-      res += curr[x0 + y] * w2;\
-      res += curr[x1 + y] * w;\
-      res += curr[x2 + y] * w2;\
-    }{\
-      const uint y = gl_WorkGroupSize.x * gl_LocalInvocationID.y;\
-      res += curr[x0 + y] * w;\
-      res += curr[x1 + y];\
-      res += curr[x2 + y] * w;\
-    }{\
-      const uint y = gl_WorkGroupSize.x * min(gl_LocalInvocationID.y+1, gl_WorkGroupSize.y-1);\
-      res += curr[x0 + y] * w2;\
-      res += curr[x1 + y] * w;\
-      res += curr[x2 + y] * w2;\
-    }}
-    BLUR
+    const uint y = gl_WorkGroupSize.x * gl_LocalInvocationID.y;\
+    res += curr[x0 + y] * w;\
+    res += curr[x1 + y];\
+    res += curr[x2 + y] * w;\
+    barrier();\
+    }
+#define BLURV {\
+    const uint y0 = gl_WorkGroupSize.x * max(int(gl_LocalInvocationID.y) - 1, 0);\
+    const uint y1 = gl_WorkGroupSize.x * gl_LocalInvocationID.y;\
+    const uint y2 = gl_WorkGroupSize.x * min(gl_LocalInvocationID.y + 1, gl_WorkGroupSize.y-1);\
+    res = vec3(0.0);\
+    const uint x = gl_LocalInvocationID.x;\
+    res += curr[x + y0] * w;\
+    res += curr[x + y1];\
+    res += curr[x + y2] * w;\
+    barrier();\
+    }
+
+    BLURH
+    curr[idx] = res;
     barrier();
+    BLURV
 
     curr[idx] = orig / res;
     barrier();
 
     // compute convolution by adjoint
-    BLUR
+    BLURH
+    curr[idx] = res;
     barrier();
+    BLURV
 
     // multiply and write back
     curr[idx] = I_i * res;
-    barrier();
   }
 
+  barrier();
   // write back to output texture
   if(all(greaterThanEqual(gl_LocalInvocationID.xy, uvec2(DT_DECONV_BORDER))) &&
      all(lessThan(gl_LocalInvocationID.xy, uvec2(DT_DECONV_TILE_WD-DT_DECONV_BORDER, DT_DECONV_TILE_HT-DT_DECONV_BORDER))) &&

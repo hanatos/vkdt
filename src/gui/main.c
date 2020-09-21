@@ -160,6 +160,8 @@ int main(int argc, char *argv[])
     // gpu workload. might need an interrupt for "render finished" etc. we might
     // do that via glfwPostEmptyEvent()
     if(g_busy > 0) g_busy--;
+    // g_busy = 100; // do these two lines instead if profiling in nvidia gfx insight or so.
+    // vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
       g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame - 1;
     if(g_busy > 0) glfwPostEmptyEvent();
