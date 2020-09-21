@@ -1,0 +1,170 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+#include "config.h"
+
+// these are usually fixed at 8 (defined in localsize.h and included here and on cpu side)
+// we definitely want more than that now. ingo says he needs like 5px boundary in practice :(
+layout(local_size_x = DT_DECONV_TILE_WD, local_size_y = DT_DECONV_TILE_HT, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float sigma;
+  uint  iter_cnt;
+} params;
+
+layout( // input buffer
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output buffer
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+#define B 2 // boundary padding
+shared vec3 curr[DT_DECONV_TILE_WD*DT_DECONV_TILE_HT];
+
+// TODO: what's our indexing scheme? tiles on input or tiles on output?
+// TODO: where is the overlap cosidered?
+// 1) we are running on output tiles:
+//    * someone needs to fetch more than one pixel in the overlap region to fill the boundary
+//    * ipos == opos == invocation_id
+// ^^^^^^^^^^^^^ going with this because lazy
+// 2) we are running on input tiles + border:
+//    * someone needs to remember not to write to output
+//    * ipos == opos == complicated(invocation_id)
+//    * need to mask out all blur loops for borders
+//    * need to run more threads (but we have plenty)
+void
+main()
+{
+  ivec2 ipos =
+    ivec2(gl_WorkGroupID.xy * ivec2(
+        DT_DECONV_TILE_WD-2*DT_DECONV_BORDER,
+        DT_DECONV_TILE_HT-2*DT_DECONV_BORDER));
+  // if start of tile is out of image we have nothing to do:
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  ipos += ivec2(gl_LocalInvocationID.xy) - ivec2(-DT_DECONV_BORDER, -DT_DECONV_BORDER); // add offset within the tile
+
+  // everybody get their texels:
+  const uint idx = gl_LocalInvocationID.x + gl_WorkGroupSize.x * gl_LocalInvocationID.y;
+  curr[idx] = texelFetch(img_in, ipos, 0).rgb;
+  // memoryBarrierShared(); // does not do the trick :(
+  barrier();
+
+  // now let's work:
+
+  // remember original pixel colour:
+  const vec3 orig = curr[idx];
+
+  const float w = exp(-1/(2.0*params.sigma*params.sigma));
+  const float w2 = w*w;
+
+  // do the iterations
+  for(int i=0;i<params.iter_cnt;i++)
+  {
+    // I(i+1) = I(i) * ( K' x (input / (I(i) x K)) )
+    // remember I(i) locally
+    const vec3 I_i = curr[idx];
+    // compute the gaussian blur of the input, I(i) x K and store the result locally
+    vec3 res;
+#define BLUR {\
+    const uint x0 = max(int(gl_LocalInvocationID.x) - 1, 0);\
+    const uint x1 = gl_LocalInvocationID.x;\
+    const uint x2 = min(gl_LocalInvocationID.x + 1, gl_WorkGroupSize.x-1);\
+    res = vec3(0.0);\
+    {\
+      const uint y = gl_WorkGroupSize.x * max(int(gl_LocalInvocationID.y)-1, 0);\
+      res += curr[x0 + y] * w2;\
+      res += curr[x1 + y] * w;\
+      res += curr[x2 + y] * w2;\
+    }{\
+      const uint y = gl_WorkGroupSize.x * gl_LocalInvocationID.y;\
+      res += curr[x0 + y] * w;\
+      res += curr[x1 + y];\
+      res += curr[x2 + y] * w;\
+    }{\
+      const uint y = gl_WorkGroupSize.x * min(gl_LocalInvocationID.y+1, gl_WorkGroupSize.y-1);\
+      res += curr[x0 + y] * w2;\
+      res += curr[x1 + y] * w;\
+      res += curr[x2 + y] * w2;\
+    }}
+    BLUR
+    barrier();
+
+    curr[idx] = orig / res;
+    barrier();
+
+    // compute convolution by adjoint
+    BLUR
+    barrier();
+
+    // multiply and write back
+    curr[idx] = I_i * res;
+    barrier();
+  }
+
+  // write back to output texture
+  if(all(greaterThanEqual(gl_LocalInvocationID.xy, uvec2(DT_DECONV_BORDER))) &&
+     all(lessThan(gl_LocalInvocationID.xy, uvec2(DT_DECONV_TILE_WD-DT_DECONV_BORDER, DT_DECONV_TILE_HT-DT_DECONV_BORDER))) &&
+     all(lessThan(ipos, imageSize(img_out))))
+    imageStore(img_out, ipos, vec4(curr[idx], 1));
+
+#if 0
+  const uint wd = gl_WorkGroupSize.x;
+  const uint ht = gl_WorkGroupSize.y;
+
+  { // scope
+    // index into start of tile processed by this work group:
+    const ivec2 beg = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy) - ivec2(B);
+    const uint tidx = gl_LocalInvocationID.x + gl_WorkGroupSize.x * gl_LocalInvocationID.y;
+    // XXX probably better to unroll after all
+    for(int i=1;i<4;i++)
+    {
+      // XXX this is wrong, should be tidx + size
+      uint ii = i*tidx;
+      if(ii >= wd*ht) break;
+      uint yy = ii / wd;
+      uint xx = ii - yy*wd;
+      curr[ii] = texelFetch(img_in, ivec2(beg) + ivec2(xx, yy), 0).rgb;
+    }
+    memoryBarrierShared();
+  }
+
+  const uint x = B + gl_LocalInvocationID.x;
+  const uint y = B + gl_LocalInvocationID.y;
+  const uint idx = y*wd + x;
+#if 0
+  // remember original pixel colour:
+  const vec3 orig = curr[idx];
+
+  // now do the iterations
+  for(int i=0;i<params.iter_cnt;i++)
+  {
+    // I(i+1) = I(i) * ( K' x (input / (I(i) x K)) )
+    // remember I(i) locally
+    const vec3 I_i = curr[idx];
+    // compute the gaussian blur of the input, I(i) x K and store the result locally
+    vec3 res = vec3(0.0);
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+      res += curr[idx + i + wd*j] * exp(-(i*i+j*j)/(2.0*params.sigma*params.sigma));
+    curr[idx] = orig / res;
+    memoryBarrierShared();
+
+    // compute convolution by adjoint
+    res = vec3(0.0);
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+      res += curr[idx + i + wd*j] * exp(-(i*i+j*j)/(2.0*params.sigma*params.sigma));
+
+    // multiply and write back
+    curr[idx] = I_i * res;
+    memoryBarrierShared();
+  }
+#endif
+
+  // write back to output texture
+  imageStore(img_out, ipos, vec4(curr[idx], 1));
+#endif
+}
+

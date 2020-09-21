@@ -1,4 +1,6 @@
 #include "modules/api.h"
+#include "config.h"
+#include "modules/localsize.h"
 
 // this is an initial implementation of some simplistic iterative, non-blind R/L deconvolution.
 // it has a lot of problems because i didn't spend time on it:
@@ -25,6 +27,45 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  const dt_roi_t *roi = &module->connector[0].roi;
+  assert(graph->num_nodes < graph->max_nodes);
+  const uint32_t id_deconv = graph->num_nodes++;
+  // for dimensions, reverse
+  // (wd + DT_LOCAL_SIZE_X - 1) / DT_LOCAL_SIZE_X
+  // such that it'll result in
+  // (wd + DECONV_WD - 2B - 1) / (DECONV_WD-2B)
+  // this seems to be very wrong, at least the rounding is off by a fair bit:
+  const uint32_t wd = ((roi->wd - DT_DECONV_TILE_WD - 2*DT_DECONV_BORDER -1)/(DT_DECONV_TILE_WD-2*DT_DECONV_BORDER)
+    - DT_LOCAL_SIZE_X + 1) * DT_LOCAL_SIZE_X;
+  const uint32_t ht = ((roi->ht - DT_DECONV_TILE_HT - 2*DT_DECONV_BORDER -1)/(DT_DECONV_TILE_HT-2*DT_DECONV_BORDER)
+    - DT_LOCAL_SIZE_Y + 1) * DT_LOCAL_SIZE_Y;
+  graph->node[id_deconv] = (dt_node_t) {
+    .name   = dt_token("deconv"),
+    .kernel = dt_token("deconv"),
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = 1,
+    .num_connectors = 2,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = *roi,
+    }},
+  };
+  dt_connector_copy(graph, module, 0, id_deconv, 0);
+  dt_connector_copy(graph, module, 1, id_deconv, 1);
+
+#if 0 // multi-node slow version. every iteration is an extra kernel call and goes back to global memory :(
   // super simple non-blind richardson-lucy deconvolution.
   // we assume a ~gaussian blur kernel K (with the adjoint K=K')
   // one iteration computes:
@@ -126,4 +167,5 @@ create_nodes(
   }
   // copy last I(i) to module output
   dt_connector_copy(graph, module, 1, I_i_id, I_i_cn);
+#endif
 }
