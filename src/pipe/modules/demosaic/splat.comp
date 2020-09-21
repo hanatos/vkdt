@@ -90,7 +90,6 @@ void write_bayer(
     inout vec3 w)
 {
   ivec2 pos = ivec2(gl_GlobalInvocationID)+o;
-  if(o == ivec2(0)) weight = 100000.0;
   col *= weight;
   if((((pos.x & 1) == 0) && ((pos.y & 1) == 1)) ||
      (((pos.x & 1) == 1) && ((pos.y & 1) == 0)))
@@ -171,7 +170,6 @@ main()
   // rgb *= vec3(1.0/2.0, 1.0, 1.0/1.8);
 
   // TODO: the radius should be specific to colour/green and bayer/xtrans!
-  // TODO: get uint16 bayer pixel in certain environment
   // TODO: get downsampled gaussian covariance (use linear interpolation!)
   // splat
 
