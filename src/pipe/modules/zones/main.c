@@ -83,6 +83,7 @@ create_nodes(
     }},
   };
   CONN(dt_node_connect(graph, guided_exit, 2, id_apply, 1));
+  // CONN(dt_node_connect(graph, id_quant, 1, id_apply, 1)); // XXX DEBUG don't filter
   dt_connector_copy(graph, module, 0, id_apply, 0);
   dt_connector_copy(graph, module, 0, id_quant, 0);
   dt_connector_copy(graph, module, 0, guided_entry, 1);

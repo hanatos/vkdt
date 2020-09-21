@@ -28,11 +28,12 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // const vec4 mean_corr = texelFetch(img_in, ipos, 0);
-  const vec4 mean_corr = textureLod(img_in, vec2(ipos)/vec2(imageSize(img_out)), 0);
+  const vec4 mean_corr = texture(img_in, (ipos + vec2(0.5))/vec2(imageSize(img_out)));
   const float var = mean_corr.z - mean_corr.x * mean_corr.x;
   const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
   // XXX what's the valid range here?
-  const float a = clamp(cov / (var + 100*cov*params.epsilon), 0.0f, 1.0f);
+  // const float a = clamp(cov / (var + 100*cov*params.epsilon), 0.0f, 1.0f);
+  const float a = clamp(cov / (var + 100*params.epsilon), -10000.0, 10000.0); // some safety margin to avoid infty etc
   const float b = mean_corr.y - a * mean_corr.x;
   imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
 }
