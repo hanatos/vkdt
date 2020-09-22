@@ -1520,15 +1520,21 @@ VkResult dt_graph_run(
       modify_roi_out(graph, graph->module + modid[i]);
 
 
-  // XXX this test is broken. we want to make sure the last output/display is initialised
-  // XXX but we don't want to penalise just added modules that aren't yet connected:
+  // we want to make sure the last output/display is initialised.
   // if the roi out is 0, probably reading some sources went wrong and we need
   // to abort right here!
-  if(graph->module[graph->num_modules-1].connector[0].roi.full_wd == 0)
+  for(int i=cnt;i>=0;i--)
   {
-    dt_log(s_log_err, "roi of last module %"PRItkn" did not get initialised!",
-        dt_token_str(graph->module[graph->num_modules-1].name));
-    return VK_INCOMPLETE;
+    if(graph->module[modid[i]].connector[0].type == dt_token("sink"))
+    {
+      if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
+      {
+        dt_log(s_log_err, "roi of last connected sink module %"PRItkn" did not get initialised!",
+            dt_token_str(graph->module[modid[i]].name));
+        return VK_INCOMPLETE;
+      }
+      break; // we're good
+    }
   }
 
   // now we don't always want the full size buffer but are interested in a
