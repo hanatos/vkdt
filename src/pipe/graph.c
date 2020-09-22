@@ -1523,7 +1523,7 @@ VkResult dt_graph_run(
   // we want to make sure the last output/display is initialised.
   // if the roi out is 0, probably reading some sources went wrong and we need
   // to abort right here!
-  for(int i=cnt;i>=0;i--)
+  for(int i=cnt-1;i>=0;i--)
   {
     if(graph->module[modid[i]].connector[0].type == dt_token("sink"))
     {
