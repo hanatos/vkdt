@@ -32,13 +32,14 @@ create_nodes(
   const uint32_t id_deconv = graph->num_nodes++;
   // for dimensions, reverse
   // (wd + DT_LOCAL_SIZE_X - 1) / DT_LOCAL_SIZE_X
-  // such that it'll result in
-  // (wd + DECONV_WD - 2B - 1) / (DECONV_WD-2B)
-  // this seems to be very wrong, at least the rounding is off by a fair bit:
-  const uint32_t wd = ((roi->wd - DT_DECONV_TILE_WD - 2*DT_DECONV_BORDER -1)/(DT_DECONV_TILE_WD-2*DT_DECONV_BORDER)
-    - DT_LOCAL_SIZE_X + 1) * DT_LOCAL_SIZE_X;
-  const uint32_t ht = ((roi->ht - DT_DECONV_TILE_HT - 2*DT_DECONV_BORDER -1)/(DT_DECONV_TILE_HT-2*DT_DECONV_BORDER)
-    - DT_LOCAL_SIZE_Y + 1) * DT_LOCAL_SIZE_Y;
+  // such that it'll result in our required number of thread blocks.
+  const uint32_t tile_size_x = DT_DECONV_TILE_WD - 2*DT_DECONV_BORDER;
+  const uint32_t tile_size_y = DT_DECONV_TILE_HT - 2*DT_DECONV_BORDER;
+  // how many tiles will we process?
+  const uint32_t num_tiles_x = (roi->wd + tile_size_x - 1)/tile_size_x;
+  const uint32_t num_tiles_y = (roi->ht + tile_size_y - 1)/tile_size_y;
+  const uint32_t wd = num_tiles_x * DT_LOCAL_SIZE_X;
+  const uint32_t ht = num_tiles_y * DT_LOCAL_SIZE_Y;
   graph->node[id_deconv] = (dt_node_t) {
     .name   = dt_token("deconv"),
     .kernel = dt_token("deconv"),
