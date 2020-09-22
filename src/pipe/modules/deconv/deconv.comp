@@ -23,7 +23,9 @@ layout( // output buffer
 ) uniform writeonly image2D img_out;
 
 #define B 2 // boundary padding
-shared vec3 curr[DT_DECONV_TILE_WD*DT_DECONV_TILE_HT];
+// making this not square but off by one (to reduce bank conflicts in the y pass)
+// reduces run time from 8.5 to 8.3ms
+shared vec3 curr[(DT_DECONV_TILE_WD+1)*DT_DECONV_TILE_HT];
 
 // we are running on input tiles + border:
 // * someone needs to remember not to write to output
@@ -42,7 +44,7 @@ main()
   ipos += ivec2(gl_LocalInvocationID.xy) - ivec2(-DT_DECONV_BORDER, -DT_DECONV_BORDER); // add offset within the tile
 
   // everybody get their texels:
-  const uint idx = gl_LocalInvocationID.x + gl_WorkGroupSize.x * gl_LocalInvocationID.y;
+  const uint idx = gl_LocalInvocationID.x + (gl_WorkGroupSize.x+1) * gl_LocalInvocationID.y;
   vec3 orig; // remember original pixel colour
   curr[idx] = orig = texelFetch(img_in, ipos, 0).rgb;
 
@@ -52,6 +54,9 @@ main()
 
   // do the iterations
   for(int i=0;i<params.iter_cnt;i++)
+  // hardcoded 10 iterations does not reall give a conclusive speedup
+  // #pragma optionNV (unroll all)
+  // for(int i=0;i<10;i++)
   {
     // I(i+1) = I(i) * ( K' x (input / (I(i) x K)) )
     // remember I(i) locally
@@ -65,16 +70,16 @@ main()
     const uint x1 = gl_LocalInvocationID.x;\
     const uint x2 = min(gl_LocalInvocationID.x + 1, gl_WorkGroupSize.x-1);\
     res = vec3(0.0);\
-    const uint y = gl_WorkGroupSize.x * gl_LocalInvocationID.y;\
+    const uint y = (gl_WorkGroupSize.x+1) * gl_LocalInvocationID.y;\
     res += curr[x0 + y] * w;\
     res += curr[x1 + y];\
     res += curr[x2 + y] * w;\
     barrier();\
     }
 #define BLURV {\
-    const uint y0 = gl_WorkGroupSize.x * max(int(gl_LocalInvocationID.y) - 1, 0);\
-    const uint y1 = gl_WorkGroupSize.x * gl_LocalInvocationID.y;\
-    const uint y2 = gl_WorkGroupSize.x * min(gl_LocalInvocationID.y + 1, gl_WorkGroupSize.y-1);\
+    const uint y0 = (gl_WorkGroupSize.x+1) * max(int(gl_LocalInvocationID.y) - 1, 0);\
+    const uint y1 = (gl_WorkGroupSize.x+1) * gl_LocalInvocationID.y;\
+    const uint y2 = (gl_WorkGroupSize.x+1) * min(gl_LocalInvocationID.y + 1, gl_WorkGroupSize.y-1);\
     res = vec3(0.0);\
     const uint x = gl_LocalInvocationID.x;\
     res += curr[x + y0] * w;\
