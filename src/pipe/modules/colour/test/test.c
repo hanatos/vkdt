@@ -74,12 +74,21 @@ sigmoid_spectrum(
 {
 #if 1
   // alg. 1 in [koenig, jung, and dachsbacher 2020]
-  const float t = (fabsf(slope) * width +
-      sqrtf(slope*slope * width*width + 1./9.)) / (2.0f * fabsf(slope)*width);
+  // const float t = (fabsf(slope) * width +
+  //     sqrtf(slope*slope * width*width + 1./9.)) / (2.0f * fabsf(slope)*width);
+  // const float c0 = -slope * powf(t, 3.0f/2.0f) / width;
+  // const float c1 = -2.0 * c0 * dom_lambda;
+  // const float c2 = c0 * dom_lambda*dom_lambda - slope * width * (5.0f * powf(t, 3.0f/2.0f) - 6.0f * sqrtf(t));
+  // from alisa's jupyter notebook:
+    const float s = slope;
+    const float w = width;
+    const float z = dom_lambda;
 
-  const float c0 = -slope * powf(t, 3.0f/2.0f) / width;
-  const float c1 = -2.0 * c0 * dom_lambda;
-  const float c2 = c0 * dom_lambda*dom_lambda - slope * width * (5.0f * powf(t, 3.0f/2.0f) - 6.0f * sqrtf(t));
+    const float t = (fabsf(s) * w + sqrtf(s*s*w*w + 1.0/9.0) ) / (2.0*fabsf(s)*w);
+    const float sqrt_t = sqrtf(t);
+    const float c0 = s * sqrt_t*sqrt_t*sqrt_t / w;
+    const float c1 = -2.0 * c0 * z;
+    const float c2 = c0 * z*z + s*w*sqrt_t*(5.0*t - 6.0);
 #else
   // my simpler version (but forgot what the values mean)
   const float c0 = slope/width;//a;
@@ -168,11 +177,11 @@ int main(int argc, char *argv[])
   } // end width
 #endif
 
-#if 0 // smoother spectra
+#if 1 // smoother spectra
   const int w_cnt = 30;
   for(int w=0;w<w_cnt;w++)
   { // for a few widths
-    float width = w/(w_cnt-1.0f) * 400.0f;
+    float width = w/(w_cnt-1.0f) * 120.0f;
     int l_cnt = 60;
     for(int l=0;l<l_cnt;l++)
     { // sample a few fixed dominant wavelengths
@@ -180,11 +189,11 @@ int main(int argc, char *argv[])
       for(int i=0;i<2;i++)
       //   int i = 1;
       { // blow up a bit to the left and right
-        float slope = 2.0f/width; // spectral colours
+        float slope = 0.1;//2.0f/width; // spectral colours
         // float slope = -1.0f/80.0f;//-0.001; // spectral colours
         // if(i) slope = -0.01*width;//
         // if(i) slope = -slope;//-0.1;//-0.001*width;//-slope;  // magenta line
-        if(i) slope = - 1.0f/((1.0f - w/(w_cnt-1.0f))*400.0f); // steeper towards magenta line
+        if(i) slope = -0.1;//- 1.0f/((1.0f - w/(w_cnt-1.0f))*400.0f); // steeper towards magenta line
         // if(i)continue; // XXX
         // else continue;
         // if(w < 0.24*w_cnt) continue; // XXX
@@ -194,8 +203,8 @@ int main(int argc, char *argv[])
         { // compute XYZ
           const float lambda2 = 400.0f + 300.0f * ll/(ll_cnt-1.0f);
           float add[3] = {0.0f};
-          // const float p = sigmoid_spectrum(lambda, width, slope, lambda2);
-          const float p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
+          const float p = sigmoid_spectrum(lambda, width, slope, lambda2);
+          // const float p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
           // const float p = trapezoid_spectrum(lambda, width, slope, lambda2);
           spectrum_p_to_xyz(lambda2, p, add);
           for(int k=0;k<3;k++) xyz[k] += add[k];
@@ -260,7 +269,7 @@ int main(int argc, char *argv[])
   fclose(f);
 #endif
 
-#if 1 // construct gamut mapping lut
+#if 0 // construct gamut mapping lut
   const float xyz_to_rec2020[] = {
     1.7166511880, -0.3556707838, -0.2533662814,
    -0.6666843518,  1.6164812366,  0.0157685458,
@@ -315,8 +324,8 @@ int main(int argc, char *argv[])
         // else
         // p = trapezoid_spectrum(lambda, width, slope, lambda2);
         // p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
-        p = macadam_spectrum(lambda, width, slope, lambda2);
-        // p = sigmoid_spectrum(lambda, width, slope, lambda2);
+        // p = macadam_spectrum(lambda, width, slope, lambda2);
+        p = sigmoid_spectrum(lambda, width, slope, lambda2);
         spectrum_p_to_xyz(lambda2, p, add);
         for(int k=0;k<3;k++) xyz[k] += add[k];
       }
@@ -412,8 +421,8 @@ int main(int argc, char *argv[])
         float add[3] = {0.0f};
         // float p = trapezoid_spectrum(lambda, width, slope, lambda2);
         // float p = macadam_smooth_spectrum(lambda, width, slope, lambda2);
-        float p = macadam_spectrum(lambda, width, slope, lambda2);
-        // float p = sigmoid_spectrum(lambda, width, slope, lambda2);
+        // float p = macadam_spectrum(lambda, width, slope, lambda2);
+        float p = sigmoid_spectrum(lambda, width, slope, lambda2);
         spectrum_p_to_xyz(lambda2, p, add);
         for(int k=0;k<3;k++) xyz[k] += add[k];
       }
