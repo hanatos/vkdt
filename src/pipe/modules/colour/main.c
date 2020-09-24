@@ -2,7 +2,6 @@
 #include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>
-#include "../core/core.h"
 
 
 static inline void
@@ -130,8 +129,7 @@ create_ring(
     const float *white,       // adjust white point
     float       *source,      // generated list of source points
     float       *target,      // generated list of target points
-    int          gamut,       // gamut mapping mode: 0 none, 1 spectral locus, 2 rec2020, 3 rec709
-    float       *map)
+    int          gamut)       // gamut mapping mode: 0 none, 1 spectral locus, 2 rec2020, 3 rec709
 {
   // 6+6+1 points in 2D RBF: outer, inner, white.
   const int N = 13;
@@ -175,33 +173,9 @@ create_ring(
     source[2*k+1] = out[3*k+2];
     target[2*k+0] = out[3*k+0];
     target[2*k+1] = out[3*k+2];
-#if 0
     if     (gamut == 1) clip_spectral_locus(target + 2*k, w2);
     else if(gamut == 2) clip_rec2020(target + 2*k, w2);
     else if(gamut == 3) clip_rec709(target + 2*k, w2);
-#else
-#if 0
-    if(gamut)
-    {
-      clip_spectral_locus(target + 2*k, w2);
-      if((gamut == 3) && map)
-      {
-        const float box[] = {-0.35, -0.05, 1.1, 1.05};
-        const float x = (target[2*k+0] - box[0])/(box[2]-box[0]);
-        const float y = (target[2*k+1] - box[1])/(box[3]-box[1]);
-        const int i = CLAMP(1024 * x, 0, 1023);
-        const int j = CLAMP(1024 * y, 0, 1023);
-        fprintf(stderr, "mapping %g %g -- %g %g\n",
-        target[2*k+0],
-        target[2*k+1],
-        map[3*(j*1024+i)+0],
-        map[3*(j*1024+i)+2]);
-        target[2*k+0] = map[3*(j*1024+i)+0];
-        target[2*k+1] = map[3*(j*1024+i)+2];
-      }
-    }
-#endif
-#endif
 
     // fprintf(stdout, "%g %g %g %g\n",
     //     source[2*k], source[2*k+1],
@@ -417,7 +391,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     float target[26];
     create_ring(wb, f+4,
         1.0f, // p_wb[2],
-        white, source, target, p_gam, module->data);
+        white, source, target, p_gam);
     const int N = 13;
     i[16] = N;
     i[18] = i[19] = i[17] = 0;
@@ -436,26 +410,7 @@ int init(dt_module_t *mod)
 {
   // wb, matrix, cnt, source, coef
   mod->committed_param_size = sizeof(float)*(4+12+2+40+44);
-
-  FILE *f = fopen("modules/colour/test/mapped-rec709.pfm", "rb");
-  mod->data = 0;
-  if(f)
-  {
-    float *buf = malloc(sizeof(float)*3*1024*1024);
-    int wd, ht;
-    fscanf(f, "PF\n%d %d\n%*g", &wd, &ht);
-    fgetc(f); // only one '\n'
-    fread(buf, sizeof(float), 3*wd*ht, f);
-    fclose(f);
-    mod->data = buf;
-  }
   return 0;
-}
-
-void cleanup(dt_module_t *mod)
-{
-  free(mod->data);
-  mod->data = 0;
 }
 
 #if 0

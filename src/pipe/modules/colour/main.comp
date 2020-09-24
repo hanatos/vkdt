@@ -18,12 +18,8 @@ layout( // input
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // gamut map
-    set = 1, binding = 1
-) uniform sampler2D img_gamut_map;
-
 layout( // output
-    set = 1, binding = 2
+    set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
 float
@@ -43,7 +39,6 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb * params.mul.rgb;
   rgb = rgb * params.cam_to_rec2020;
 
-#if 0 // skip rbf:
   if(params.N.x > 0)
   {
     const float b = dot(rgb, vec3(1));
@@ -58,20 +53,9 @@ main()
     rgb.y = 1.0 - rgb.x - rgb.z;
     rgb *= b; // keep brightness constant
   }
-#endif
-
-#if 1 // gamut mapping via texture
-  vec4 box = vec4(-0.35, -0.05, 1.1, 1.05);
-  float b = dot(rgb,vec3(1));
-  // rgb.xz = texture(img_gamut_map, (rgb.xz/b-box.xy)/(box.zw-box.xy)).rb;
-  rgb.rgb = texture(img_gamut_map, (rgb.xz/b-box.xy)/(box.zw-box.xy)).rgb;
-  // rgb.g = 1.0 - rgb.r - rgb.b;
-  // rgb *= b;
-  rgb *= b/dot(rgb,vec3(1));
-#endif
 
   // it seems demosaic outputs negative numbers and filmcurv++ kills the picture then
-  // rgb = max(vec3(0), rgb);
+  rgb = max(vec3(0), rgb);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 
@@ -145,7 +129,7 @@ main()
   // tonemap
   // rgb /= dot(rgb, vec3(.10));
 
-#if 0 // DEBUG: in fact the gamut and xyz matrix do what we expect:
+#if 1 // DEBUG: in fact the gamut and xyz matrix do what we expect:
   const mat3 xyz_to_rec2020 = mat3(
       1.71665119, -0.66668435,  0.01763986,
       -0.35567078,  1.61648124, -0.04277061,
