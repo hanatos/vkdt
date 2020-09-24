@@ -26,6 +26,41 @@ int g_running = 1;
 int g_busy = 3;
 int g_fullscreen = 0;
 
+// from a stackoverflow answer. get the monitor that currently covers most of
+// the window area.
+static GLFWmonitor*
+get_current_monitor(GLFWwindow *window)
+{
+  int bestoverlap = 0;
+  GLFWmonitor *bestmonitor = NULL;
+
+  int wx, wy, ww, wh;
+  glfwGetWindowPos(window, &wx, &wy);
+  glfwGetWindowSize(window, &ww, &wh);
+  int nmonitors;
+  GLFWmonitor **monitors = glfwGetMonitors(&nmonitors);
+
+  for (int i = 0; i < nmonitors; i++)
+  {
+    const GLFWvidmode *mode = glfwGetVideoMode(monitors[i]);
+    int mx, my;
+    glfwGetMonitorPos(monitors[i], &mx, &my);
+    int mw = mode->width;
+    int mh = mode->height;
+
+    int overlap =
+      MAX(0, MIN(wx + ww, mx + mw) - MAX(wx, mx)) *
+      MAX(0, MIN(wy + wh, my + mh) - MAX(wy, my));
+
+    if (bestoverlap < overlap)
+    {
+      bestoverlap = overlap;
+      bestmonitor = monitors[i];
+    }
+  }
+  return bestmonitor;
+}
+
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -38,7 +73,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    GLFWmonitor* monitor = get_current_monitor(qvk.window);
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     if(g_fullscreen)
     {
