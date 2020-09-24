@@ -146,6 +146,10 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  // start fullscreen on current monitor, we only know which one is that after
+  // we created the window in dt_gui_init(). maybe should be a config option:
+  key_callback(qvk.window, GLFW_KEY_F11, 0, GLFW_PRESS, 0);
+
   glfwSetKeyCallback(qvk.window, key_callback);
   glfwSetWindowSizeCallback(qvk.window, window_size_callback);
   glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
