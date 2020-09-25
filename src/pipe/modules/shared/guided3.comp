@@ -37,6 +37,7 @@ main()
   float lum0 = luminance_rec2020(rgb);
   // vec2 ab = texelFetch(img_ab, ipos, 0).rg;
   vec2 ab = texture(img_ab, (ipos + vec2(0.5))/vec2(imageSize(img_out))).rg;
+  // vec2 ab = sample_semisoft(img_ab, (ipos + vec2(0.5))/vec2(imageSize(img_out))).rg;
   float lum1 = ab.r * lum0 + ab.g;
   imageStore(img_out, ipos, vec4(vec3(lum1), 1.0));
 }
