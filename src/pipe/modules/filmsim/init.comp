@@ -10,6 +10,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float radius;
   float strength;
+  // TODO: we want:
+  // 3 b/w mixture weights
+  // 2 toe slope/highlight rolloff
+  // 1 initial developer concentration
+  // 1 crystal radius distribution parameter
+  // 1 silver halide density distribution parameter
 } params;
 
 
@@ -17,7 +23,7 @@ layout( // input image
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output aux channels (developer concentration etc)
+layout( // output aux channels (developer concentration, active crystals, crystal radius, silver halide density)
     set = 1, binding = 1
 ) uniform writeonly image2D img_aux;
 
@@ -28,7 +34,16 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_aux)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  vec4 aux = vec4(rgb, 1); // TODO write something meaningful
+  vec4 aux;
+
+  // black and white for now:
+  vec3 colw = vec3(1, 1, 1)/3.0; // TODO: make parameter
+  float b = dot(colw, rgb);
+
+  aux.y = b; // active crystals per pixel (TODO: toe slope and highlight rolloff)
+  aux.x = 1.0; // developer concentration (TODO: get from parameter)
+  aux.z = 1.0; // initial crystal radius (TODO: generate from distribution and treat as average for this pixel)
+  aux.w = 1.0; // initial silver halide density (TODO: vary a bit with grain)
 
   imageStore(img_aux, ipos, aux);
 }

@@ -12,8 +12,7 @@ check_params(
   { // radius
     float oldrad = *(float*)oldval;
     float newrad = dt_module_param_float(module, 0)[0];
-    // TODO: ask api: blur_flags or so
-    return s_graph_run_all;// create_nodes; // we need to update the graph topology
+    return dt_api_blur_check_params(oldrad, newrad);
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
@@ -48,7 +47,7 @@ create_nodes(
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
     },{
-      .name   = dt_token("output"),
+      .name   = dt_token("aux"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
@@ -56,7 +55,9 @@ create_nodes(
     }},
   };
 
+  int id_dev = id_init;
   int id_last = id_init;
+  int cn_last = 1;
   for(int i=0;i<num_it;i++)
   {
     assert(graph->num_nodes < graph->max_nodes);
@@ -68,14 +69,21 @@ create_nodes(
       .wd     = module->connector[0].roi.wd,
       .ht     = module->connector[0].roi.ht,
       .dp     = 1,
-      .num_connectors = 2,
+      .num_connectors = 3,
       .connector = {{
-        .name   = dt_token("input"),
+        .name   = dt_token("aux"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = module->connector[0].roi,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("dev"),
         .type   = dt_token("read"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
         .flags  = s_conn_smooth,
-        .roi    = graph->node[id_last].connector[1].roi,
+        .roi    = graph->node[id_dev].connector[1].roi,
         .connected_mi = -1,
       },{
         .name   = dt_token("output"),
@@ -85,10 +93,13 @@ create_nodes(
         .roi    = module->connector[0].roi,
       }},
     };
-    CONN(dt_node_connect(graph, id_last, 1, id_proc, 0));
+    CONN(dt_node_connect(graph, id_last, cn_last, id_proc, 0));
+    CONN(dt_node_connect(graph, id_dev,  1,       id_proc, 1));
     // luckily the output connector of blur is also number 1,
     // so we only store the node id:
-    id_last = dt_api_blur_sub(graph, module, id_proc, 1, 0, 0, radius);
+    id_dev = dt_api_blur_sub(graph, module, id_proc, 2, 0, 0, radius);
+    id_last = id_proc;
+    cn_last = 2;
   }
 
   // output node to convert densities to colour
@@ -103,12 +114,11 @@ create_nodes(
     .dp     = 1,
     .num_connectors = 2,
     .connector = {{
-      .name   = dt_token("input"),
+      .name   = dt_token("aux"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
-      .flags  = s_conn_smooth,
-      .roi    = graph->node[id_last].connector[1].roi,
+      .roi    = graph->node[id_last].connector[cn_last].roi,
       .connected_mi = -1,
     },{
       .name   = dt_token("output"),
@@ -118,7 +128,7 @@ create_nodes(
       .roi    = module->connector[0].roi,
     }},
   };
-  CONN(dt_node_connect(graph, id_last, 1, id_final, 0));
+  CONN(dt_node_connect(graph, id_last, cn_last, id_final, 0));
   dt_connector_copy(graph, module, 0, id_init,  0); // rgb input
   dt_connector_copy(graph, module, 1, id_final, 1); // rgb output
 }

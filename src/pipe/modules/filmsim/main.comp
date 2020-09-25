@@ -13,12 +13,16 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 
-layout( // input aux
+layout( // input aux channels (dc, ac, cr, sh)
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output aux
+layout( // input blurred developer concentration
     set = 1, binding = 1
+) uniform sampler2D img_dev;
+
+layout( // output aux
+    set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
 void
@@ -28,9 +32,34 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // we'll read blurred input from a downsampled image, so we want to smooth it during upsampling:
-  vec4 aux = textureLod(img_in, (ipos+.5)/vec2(imageSize(img_out)), 0);
+  float dev = texture(img_dev, (ipos+.5)/vec2(imageSize(img_out))).r;
+  vec4 aux  = texelFetch(img_in, ipos, 0);
 
-  // TODO: do some compute on aux
+  // TODO: optionally (not every iteration)
+  // layer mix
+  // agitate
+
+  // develop
+  // differential crystal radius = developer concentration x silver halide density
+  const float crystal_growth = 1.0;
+  const float dt = 1.0;
+  const float dcrystalrad = dev * aux.w * crystal_growth * dt;
+
+  // change in crystal volume = change in radius x radius^2 * active crystals
+  // XXX why ^2 i.e. surface and not ^3 i.e. volume?
+  const float dcrystalvol = dcrystalrad * aux.z*aux.z * aux.y;
+
+  // grow crystal radius
+  aux.z += dcrystalrad;
+
+  // consume developer
+  // XXX also depends on layer thickness?  float dcc = 2.0*developerConsumptionConst / ( activeLayerThickness*3.0 );
+  const float dcc = 1.0; // developer consumption constant
+  dev = max(0.0, dev - dcc * dcrystalvol);
+
+  // consume silver halide
+  const float shcc = 1.0; // silver halide consumption constant 
+  aux.w = max(0.0, aux.w - shcc * dcrystalvol);
 
   imageStore(img_out, ipos, aux);
 }
