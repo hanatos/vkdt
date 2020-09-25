@@ -42,8 +42,8 @@ main()
 
   aux.y = b; // active crystals per pixel (TODO: toe slope and highlight rolloff)
   aux.x = 1.0; // developer concentration (TODO: get from parameter)
-  aux.z = 1.0; // initial crystal radius (TODO: generate from distribution and treat as average for this pixel)
-  aux.w = 1.0; // initial silver halide density (TODO: vary a bit with grain)
+  aux.z = .01; // initial crystal radius (TODO: generate from distribution and treat as average for this pixel)
+  aux.w = .10; // initial silver halide density (TODO: vary a bit with grain)
 
   imageStore(img_aux, ipos, aux);
 }

@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 
+// XXX TODO: we're never writing to aux.y (i.e. crystal count stays constant). leave away?
 layout( // input aux channels (dc, ac, cr, sh)
     set = 1, binding = 0
 ) uniform sampler2D img_in;
@@ -33,7 +34,7 @@ main()
 
   // we'll read blurred input from a downsampled image, so we want to smooth it during upsampling:
   float dev = texture(img_dev, (ipos+.5)/vec2(imageSize(img_out))).r;
-  vec4 aux  = texelFetch(img_in, ipos, 0);
+  vec4  aux = texelFetch(img_in, ipos, 0);
 
   // TODO: optionally (not every iteration)
   // layer mix
@@ -54,8 +55,8 @@ main()
 
   // consume developer
   // XXX also depends on layer thickness?  float dcc = 2.0*developerConsumptionConst / ( activeLayerThickness*3.0 );
-  const float dcc = 1.0; // developer consumption constant
-  dev = max(0.0, dev - dcc * dcrystalvol);
+  const float dcc = 8.0; // developer consumption constant
+  aux.x = max(0.0, dev - dcc * dcrystalvol);
 
   // consume silver halide
   const float shcc = 1.0; // silver halide consumption constant 

@@ -55,7 +55,7 @@ create_nodes(
     }},
   };
 
-  int id_dev = id_init;
+  int id_dev  = id_init;
   int id_last = id_init;
   int cn_last = 1;
   for(int i=0;i<num_it;i++)

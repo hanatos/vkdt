@@ -31,5 +31,8 @@ main()
   // output density is crystal radius^2 * active crystals
   vec3 rgb = vec3(aux.y * aux.y * aux.z);
 
+  // visualise remaining developer:
+  // rgb = vec3(aux.x);
+
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
