@@ -1,0 +1,43 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4  crop;
+  float mode;
+} params;
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output ui32 buffer rgb
+    set = 1, binding = 1, r32ui
+) uniform uimage2D img_out;
+
+// histogram counter. this runs on the input dimensions
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  const mat3 xyz_to_rec2020 = mat3(
+   1.71665119, -0.66668435,  0.01763986,
+   -0.35567078,  1.61648124, -0.04277061,
+   -0.25336628,  0.01576855,  0.94210312);
+  vec3 xyz = rgb * inverse(xyz_to_rec2020);
+  vec2 xy = xyz.xy / dot(vec3(1.0), xyz);
+  xy.y = 1.0 - xy.y;
+
+  vec2 scale = imageSize(img_out).xy;// * vec2(0.75, 0.85);
+  ivec2 opos = clamp(ivec2(scale * xy), ivec2(0), imageSize(img_out).xy-1);
+  imageAtomicAdd(img_out, opos, 1);
+}
+
