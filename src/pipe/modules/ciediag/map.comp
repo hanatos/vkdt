@@ -1,0 +1,59 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4  crop;
+  float mode;
+} params;
+
+layout( // input ui32 buffer r
+    set = 1, binding = 0
+) uniform usampler2D img_in;
+
+layout( // output f16 buffer rgba
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// display histogram, runs on output dimensions==input
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  uint cnt = texelFetch(img_in, ipos, 0).r;
+  vec3 rgb = vec3(cnt/100.0);
+  // rgb = pow(rgb, vec3(2.3));
+  vec2 xy = ipos.xy / vec2(imageSize(img_out));
+  xy.y = 1.0-xy.y;
+  // draw anti aliased lines through illum E and the tangent at the red/orange side for orientation
+  const float t = 0.004;
+  float d;
+
+  // illum E
+  if(all(lessThan(abs(xy - vec2(0.3333, 0.3333)), vec2(0.05))))
+  {
+    d = abs(xy.x - 0.3333);
+    rgb.r = max(rgb.r, 0.9 * smoothstep(t, 0.0, d));
+    d = abs(xy.y - 0.3333);
+    rgb.r = max(rgb.r, 0.9 * smoothstep(t, 0.0, d));
+  }
+
+  if(xy.x <= 0.75)
+  {
+    // orange tangent
+    d = abs(xy.x + xy.y - 1.0);
+    rgb = max(rgb, 0.2 * vec3(smoothstep(t, 0.0, d)));
+    // purple line (0.2, 0) -- (0.75, 0.25)
+    d = abs(xy.y - (xy.x - 0.2) * 0.25/(0.75-0.2));
+    rgb = max(rgb, 0.2 * vec3(smoothstep(t, 0.0, d)));
+  }
+  imageStore(img_out, ipos, vec4(rgb, 1.0));
+}
+
