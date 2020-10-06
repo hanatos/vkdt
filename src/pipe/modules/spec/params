@@ -1,2 +1,3 @@
 split:float:1:0.0
 temp:float:1:6500.0
+sat:float:1:1.0
