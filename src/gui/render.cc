@@ -1412,7 +1412,8 @@ void render_darkroom()
     if(out_hist)
     {
       int wd = vkdt.state.panel_wd;
-      int ht = wd * 2.0f/3.0f;
+      // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
+      int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
       ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
           ImVec2(wd, ht),
           ImVec2(0,0), ImVec2(1,1),
