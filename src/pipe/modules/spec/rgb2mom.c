@@ -282,7 +282,7 @@ void init_tables(Gamut gamut) {
     double norm = 0.0, n2[3] = {0.0};
     for (int i = 0; i < CIE_FINE_SAMPLES; ++i) {
 
-#if 0
+#if 1
         double lambda = CIE_LAMBDA_MIN + i * h;
         double xyz[3] = { cie_interp(cie_x, lambda),
                           cie_interp(cie_y, lambda),
