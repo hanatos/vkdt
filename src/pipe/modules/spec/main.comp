@@ -209,7 +209,7 @@ main()
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
    -0.25336628,  0.01576855,  0.94210312);
-#if 0 // moments
+#if 1 // moments
   float b;
   vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
@@ -220,10 +220,11 @@ main()
   vec2 exp_momc[3], eval_polyc[3];
   {
     float r = params.sat; // 1.0 + 5.0 * params.sat; // radius
-    vec3 cf2 = vec3(coeff.x, coeff.y * r, coeff.z * r);
+    // this is not poisson, coeff.y also has r^2 because then it looks good. (??)
+    vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
     prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
     if(!valid(exp_momc))
-      prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, coeff);
+      prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, vec3(0.1, 0, 0));//coeff);
   }
 
   const int num_l = 30;
@@ -251,7 +252,7 @@ main()
   rgb = xyz_to_rec2020*xyz;
   }
 #endif
-#if 1 // sigmoids
+#if 0 // sigmoids
   float b;
   vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
