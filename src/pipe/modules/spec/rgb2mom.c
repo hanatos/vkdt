@@ -9,7 +9,7 @@
 // make && ./rgb2mom 256 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
 
 // 2D sigmoid as comparison
-// #define SIGMOID
+#define SIGMOID
 // #define SIG_SWZ
 
 #include <math.h>

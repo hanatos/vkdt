@@ -209,7 +209,7 @@ main()
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
    -0.25336628,  0.01576855,  0.94210312);
-#if 1 // moments
+#if 0 // moments
   float b;
   vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
@@ -231,7 +231,6 @@ main()
   const vec3 norm = vec3(num_l);// * vec3(0.354678, 0.355529, 0.34371);
   vec2 exp_momw[3], eval_polyw[3];
   prepareReflectanceSpectrumReal3(exp_momw, eval_polyw, cwp);
-#if 1
   for(int l=0;l<num_l;l++)
   { // compute spectrum
     // float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);
@@ -250,22 +249,51 @@ main()
   float b2 = dot(vec3(1),xyz);
   xyz *= b/b2;
   rgb = xyz_to_rec2020*xyz;
-#endif
   }
 #endif
-#if 0 // sigmoids
-  const mat3 rec2020_to_xyz = mat3(
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
-  vec3 xyz = rec2020_to_xyz * rgb;
-  const float b = dot(vec3(1),xyz);
-  vec2 tc = xyz.xy/b;
-  tc.y = 1.0-tc.y; // FIXME: fix this when writing
-  vec3 coeff = texture(img_coeff, tc).rgb;
-  const int num_l = 10;
-  xyz = vec3(0);
-  const vec3 norm = num_l * vec3(0.354678, 0.355529, 0.34371);
+#if 1 // sigmoids
+  float b;
+  vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
+  vec3 coeff = fetch_coeff(rgb, b);
+
+  // saturation in various ways. none of which work, making me sad.
+#if 1
+  vec3 sig = vec3(
+      coeff.x,  // coefficient that goes with the square lambda
+      coeff.z - coeff.y*coeff.y / (4.0 * coeff.x), // height of extremum of parabola
+    - coeff.y / (2.0 * coeff.x)); // center wavelenegth
+
+  sig.x *= params.sat; // let's see what happens
+  sig.y *= params.sat; // let's see what happens
+
+  coeff = vec3(sig.x,
+      -2.0*sig.x*sig.z,
+      sig.y + sig.x*sig.z*sig.z);
+#endif
+#if 0
+  {
+    float disc = abs(4.0*coeff.x*coeff.z - coeff.y*coeff.y);
+    disc = sqrt(disc);
+    vec3 swz = vec3(
+      - disc /  2.0,
+      - disc / (2.0*coeff.x),
+      - coeff.y / (2.0 * coeff.x));
+
+    swz.y *= params.sat;
+
+    // convert back
+    coeff.x = swz.x / swz.y;  // surprisingly so does not cause trouble it seems
+    coeff.y = -2.0 * coeff.x * swz.z; // causes some black dots in the blacks
+    coeff.z = coeff.x * (swz.z*swz.z - swz.y*swz.y); // breaks like half the image
+    // catastrophic cancellation?
+    if(4.0*coeff.x*coeff.z > coeff.y*coeff.y)
+      coeff.z = coeff.x * (swz.z*swz.z + swz.y*swz.y); // this case is fine
+  }
+#endif
+
+  const int num_l = 30;
+  vec3 xyz = vec3(0);
+  const vec3 norm = vec3(num_l);// * vec3(0.354678, 0.355529, 0.34371);
   for(int l=0;l<num_l;l++)
   { // compute spectrum
     // float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);
@@ -273,6 +301,9 @@ main()
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
+    float xw  = (cwp.x * lambda + cwp.y) * lambda + cwp.z;
+    float yw  = 1. / sqrt(xw * xw + 1.);
+    float wht = 0.5 * xw * yw +  0.5;
 
     // compute colour again, in xyz:
     const int bin = l;
