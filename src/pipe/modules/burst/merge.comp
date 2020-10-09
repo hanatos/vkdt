@@ -90,43 +90,11 @@ main()
     // find sub-pixel minimum by fitting a presumably positive semi definite
     // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
     // in their supplemental material.
-#if 1
     // D_sub_2 (eq 14) from the paper, linearised into one vector
     float D_sub_2[9];
     for(int jj=-1;jj<=1;jj++)
       for(int ii=-1;ii<=1;ii++)
         D_sub_2[3*(jj+1)+ii+1] = dist[bi + jj*5+ii];
-
-#if 0 // remove outliers, seems not necessary:
-    float mom1 = 0.0f, mom2 = 0.0f;
-    for(int i=0;i<9;i++)
-    {
-      const float c = D_sub_2[i];
-      mom1 += c;
-      mom2 += c * c;
-    }
-    mom1 /= 9.;//(2.0 * r + 1) * (2.0 * r + 1);
-    mom2 /= 9.;//(2.0 * r + 1) * (2.0 * r + 1);
-
-    const float sigma = sqrt(max(0.0f, mom2 - mom1 * mom1));
-    const float thresh = 1.;
-    for(int i=0;i<9;i++)
-      // if(D_sub_2[i] < mom1 - thresh * sigma ||
-      //    D_sub_2[i] > mom1 + thresh * sigma)
-      //   D_sub_2[i] = mom1;
-      D_sub_2[i] = clamp(D_sub_2[i], mom1 - thresh * sigma, mom1 + thresh * sigma);
-#endif
-
-#else // XXX DEBUG
-    float D_sub_2[9] = float[](
-    8, 4, 4,
-    8, 4, 0,
-    8, 4, 4);
-    // top in this matrix: green => larger mu.y => smaller offy
-    // bottom: magenta
-    // right: blue smaller mu.y => larger offx
-    // left purple: larger mu.x => smaller offx
-#endif
 
     // filter banks:
     const float F_A11[] = float[](
@@ -190,26 +158,11 @@ main()
           (A[0] * b[1] - A[2]*b[0])/detA);
       res1.xy -= clamp(mu, vec2(-1), vec2(1));
     }
-    // TODO: also interpolate dist? not sure we really need it though
   }
 
   imageStore(img_out, ipos, res1);
-  // res.z *= 0.2;
-  // float len = length(res.xy);
-  // if(res.z < 0.13) res.z = 0;
-  // if(res.z > 0.13) res.z = 0;
-  // if(len > 10.00) res.z = 0;
-  // res.z = clamp(100*res.z, 0.0, 1.0);     // mtest
-  // res1.z = clamp(10*res1.z, 0.0, 1.0);       // himalaya
-  // res1.z = clamp(params.merge_k*res1.z - params.merge_n, 0.0, 1.0);
   res1.z = max(params.merge_k*res1.z - params.merge_n, 0.0);
   res1.z = res1.z/(1.0+res1.z); // fade out smoothly
-  // res.z = clamp(50*res.z-0.2, 0.0, 1.0);  // spheres
-  // res1.z = 0;
-  // res.z = clamp(5*res.z, 0.0, 1.0);       // anti aliasing on ocean
-  // res.z = pow(res.z, 5)+0.01;
-  // res.z *= len;
-  // res.z += 0.01*len;
   imageStore(img_resid, ipos, vec4(res1.z));
 }
 
