@@ -224,7 +224,26 @@ main()
     vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
     prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
     if(!valid(exp_momc))
-      prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, vec3(0.1, 0, 0));//coeff);
+    {
+      // just mark as broken:
+      // prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, vec3(0.1, 0, 0));//coeff);
+      // iterate back to last good r
+      float lo = 0.0;
+      float hi = r;
+      for(int k=0;k<10;k++)
+      {
+        float r = (lo+hi)*0.5;
+        vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
+        prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+        if(!valid(exp_momc))
+          hi = r;
+        else
+          lo = r;
+      }
+      r = lo;
+      vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
+      prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+    }
   }
 
   const int num_l = 30;
