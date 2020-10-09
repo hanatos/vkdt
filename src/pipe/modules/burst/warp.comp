@@ -39,12 +39,9 @@ main()
 
   int block = push.scale;
   // offset is on coarse scale (/block):
-  // vec2 off = block * textureLod(img_off, (ipos+.5f)/vec2(block*params.roff.roi), 0).rg;
+  // vec2 off = block * textureLod(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0)), 0).rg;
   vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0))).rg;
 
-#if 0
-  vec3 col = vec3(0.1*abs(off.y));
-#else
   vec3 col;
   if(push.filters == 9)
   { // xtrans: stupid hack #2: get block coordinate and select closest pixel of same colour
@@ -80,9 +77,6 @@ main()
   }
   else if(push.filters == 0)
   { // no mosaic: just grab pixel regardless of mosaic
-    // col = texelFetch(img_in, ipos + ivec2(off.rg), 0).rgb;
-    // col = vec3(ipos/vec2(textureSize(img_in, 0)), 1);//texelFetch(img_in, ipos, 0).rgb;
-    // col = vec3(off.rg*0.01, 1);
     col = textureLod(img_in, (vec2(ipos)+0.5 + off.rg)/vec2(textureSize(img_in, 0)), 0).rgb;
   }
   else
@@ -91,7 +85,6 @@ main()
     offi = block * offi;
     col = texelFetch(img_in, ipos + offi, 0).rrr;
   }
-#endif
 
   imageStore(img_out, ipos, vec4(col, 1));
 }

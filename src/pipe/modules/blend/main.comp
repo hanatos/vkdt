@@ -72,25 +72,8 @@ main()
 
   vec3 bck   = texelFetch(img_in,   ipos, 0).rgb;
   vec3 rgb   = texelFetch(img_top,  ipos, 0).rgb;
-  // float mask = texelFetch(img_mask, ipos, 0).r;
   float mask = texture(img_mask, ipos/vec2(imageSize(img_out))).r;
-  // TODO: switch based on mode, implement blend modes
-  // if(global.frame > 0) rgb = mix(rgb, mix(rgb, bck, mask), params.opacity);
-  // if(global.frame > 0) rgb = mix(rgb, bck, 1.0 - mask*params.opacity);
-  // so now we need to talk about a noise model:
-  // TODO: opacity as a sliding average, is this a good idea?
-  // TODO: put noise sigma in here?
-#if 1
-  // float t = clamp(params.opacity-mask, 0, 1);//clamp(params.opacity - m, 0, 1);
-  // float t = clamp(min(params.opacity, 1-mask), 0, 1);//clamp(params.opacity - m, 0, 1);
-  // float t = clamp(params.opacity*smoothstep(0.0, 1.0, 1.0-mask), 0, 1);
   float t = clamp(params.opacity*(1.0-mask), 0, 1);
-#if 0
-  // this should only be a last resort thing to suppress rgb artifacts.
-  const float sigma_noise = 0.3;
-  float d = length(bck - rgb)/sigma_noise;
-  t *= 1.-smoothstep(0.2, 3.0, d);
-#endif
 
   if(params.filters == 1)
   {
@@ -98,6 +81,7 @@ main()
   }
   else if(params.filters == 0)
   {
+#if 0 // switch this off to see unshielded warping:
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
     // this works best for real time anti aliasing, since it will increase
@@ -118,17 +102,14 @@ main()
 
     vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
     const float thresh = 1.0;
-    // XXX TODO: introduce mode parameter that gives us animation vs still!
-    // switch this line off to see unshielded warping:
-    // bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+    bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+#endif
     if(global.frame > 0) rgb = mix(rgb, bck, t);
   }
   else
-  {
-    // photography version.
+  { // photography version.
     // too high values (allow too much input) gives weird colour cast
     float sigma2 = params.noise_a + 65535.0*max(0, rgb.r - params.black)*params.noise_b;
-#if 1 // helps
     // increase for flat areas:
     // TODO: fix for bayer:
     vec2 dist = vec2(1.0);
@@ -136,47 +117,11 @@ main()
       dist = gauss_xtrans(ipos); // how flat is the area we're looking at?
     // detect flat by comparing sigma2 (noise model) and dist.y (local surroundings)
     float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
-#if 0 // does not help
-    // envelope to mid tones:
-    float g0 = pow((rgb.r - params.black)/(params.white-params.black), 1.0);//1.0/2.2);
-    float g1 = pow((bck.r - params.black)/(params.white-params.black), 1.0);//1.0/2.2);
-    float env = 1;//smoothstep(0.5, 0.0, g0) * smoothstep(0.5, 0.0, g1);
-    f = mix(1.0, f, env);
-#endif
-    // float f = clamp(10.0*(1.0-smoothstep(sqrt(dist.y), 0.0, 0.006)), 1.0, 10.0);
-    sigma2 *= f; // *f;
-#endif
+    sigma2 *= f;
     t *= clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / sigma2), 0, 1);
 
-    // XXX DEBUG: only use opacity directly, no mask
-    // t = clamp(params.opacity, 0, 1);
-
-    // dunno:
-    // t *= 2.0*(1.2-smoothstep(sqrt(dist.y), 0.0, 0.03));
-    // this looks good but overall a little more noisy:
-    // t *= 1-0.7*clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / dist.y), 0, 1);
-    // const float thresh = 1.0;
-    // bck.r = clamp(bck.r, max(0.0, dist.x - thresh * sqrt(dist.y)), dist.x + thresh * dist.y);
     rgb = mix(rgb, bck, t);
   }
-#if 0  // sliding average / full accumulation is:
-  // float N = global.frame + 1.0;
-  // bck = (N-1.) / N * bck + rgb / N;
-#endif
-#endif
-
-#if 0 // somehow the theory doesn't fit? mask as sqrt looks terrible indeed
-  // bayesian risk for wavelet thresholding is minimised by
-  // T = sigma^2 / sigma_noise   where sigma^2 = sigma_signal^2 + sigma_noise^2
-  // mask is the L2 distance (of the whole patch) our image vs warped back buffer
-  const float sigma_noise = 0.08; // i know that, it's been added synthetically
-  const float T = 0.0001*params.opacity / sigma_noise;
-  // const float d = length(bck - rgb);
-  const float d = mask*mask;//sqrt(mask);
-  // const float t = smoothstep(0.0, T, d);
-  const float t = clamp((T-d)/T, 0.0, 1.0);
-  if(global.frame > 0) rgb = mix(bck, rgb, t);
-#endif
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
