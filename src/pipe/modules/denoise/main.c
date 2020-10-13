@@ -157,7 +157,7 @@ create_nodes(
         .type   = dt_token("read"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
-        .roi    = roi_half,
+        .roi    = (i==0 && block==1) ? module->connector[0].roi : roi_half,
         .connected_mi = -1,
       },{
         .name   = dt_token("output"),
@@ -166,11 +166,15 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi_half,
       }},
-      .push_constant_size = 13*sizeof(uint32_t),
+      .push_constant_size = 17*sizeof(uint32_t),
       .push_constant = {
         wbi[0], wbi[1], wbi[2], wbi[3],
         blacki[0], blacki[1], blacki[2], blacki[3],
         whitei[0], whitei[1], whitei[2], whitei[3],
+        (i == 0 && block == 1) ? crop_aabb[0] : 0,
+        (i == 0 && block == 1) ? crop_aabb[1] : 0,
+        (i == 0 && block == 1) ? crop_aabb[2] : 0,
+        (i == 0 && block == 1) ? crop_aabb[3] : 0,
         i },
     };
   }
@@ -194,7 +198,7 @@ create_nodes(
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
-      .roi    = roi_half,
+      .roi    = block == 1 ? module->connector[0].roi : roi_half,
       .connected_mi = -1,
     },{
       .name   = dt_token("s1"),
@@ -231,11 +235,15 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roi_half,
     }},
-    .push_constant_size = 15*sizeof(uint32_t),
+    .push_constant_size = 19*sizeof(uint32_t),
     .push_constant = {
       wbi[0], wbi[1], wbi[2], wbi[3],
       blacki[0], blacki[1], blacki[2], blacki[3],
       whitei[0], whitei[1], whitei[2], whitei[3],
+      block == 1 ? crop_aabb[0] : 0,
+      block == 1 ? crop_aabb[1] : 0,
+      block == 1 ? crop_aabb[2] : 0,
+      block == 1 ? crop_aabb[3] : 0,
       noisei[0], noisei[1],
       img_param->filters },
   };
