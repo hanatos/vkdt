@@ -55,7 +55,7 @@ void modify_roi_out(
     int scale = i == 0 ? block : DOWN;
     module->connector[4+i].roi.full_wd /= scale;
     module->connector[4+i].roi.full_ht /= scale;
-    module->connector[8+i] = module->connector[4+i];
+    module->connector[8+i].roi = module->connector[4+i].roi;
   }
 }
 
@@ -422,12 +422,7 @@ create_nodes(
   dt_connector_copy(graph, module, 1, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 2, id_warp, 1));
   dt_connector_copy(graph, module, 2, id_warp, 2);
-#if 0
-  dt_connector_copy(graph, module, 3, id_off[1], 3); // XXX
-  graph->node[id_off[1]].connector[3].roi = roi[2]; // XXX FIXME: this is shit
-#else
   dt_connector_copy(graph, module, 3, id_off[0], 3);  // full res mask
-  graph->node[id_off[0]].connector[3].roi = roi[1]; // XXX FIXME: this is shit
-#endif
+  graph->node[id_off[0]].connector[3].roi = roi[1];   // XXX FIXME: connector_copy should probably respect ROI
 #undef NUM_LEVELS
 }
