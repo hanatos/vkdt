@@ -18,6 +18,7 @@ TODO: reference all the readme.md in the lower levels:
 * [highlight reconstruction](./hilite/readme.md)
 * [histogram (waveform)](./hist/readme.md)
 * [histogram (raw)](./rawhist/readme.md)
+* [colour vectorscope](./ciediag/readme.md)
 * [local contrast, shadows, and highlights](./llap/readme.md)
 * [pick colours](./pick/readme.md)
 * [saturation](./saturate/readme.md)
