@@ -580,6 +580,22 @@ void render_lighttable()
         }
 
         // ==============================================================
+        // delete images
+        static int really_delete = 0;
+        if(ImGui::Button("delete image[s]", size))
+          really_delete ^= 1;
+
+        if(really_delete)
+        {
+          ImGui::SameLine();
+          if(ImGui::Button("*really* delete image[s]", size))
+          {
+            dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+            really_delete = 0;
+          }
+        }
+
+        // ==============================================================
         // merge/align images
         if(vkdt.db.selection_cnt > 1)
         if(ImGui::Button("merge into current", size))

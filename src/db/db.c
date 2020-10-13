@@ -35,6 +35,13 @@ dt_db_cleanup(dt_db_t *db)
 }
 
 static int
+compare_id(const void *a, const void *b, void *arg)
+{
+  const uint32_t *ia = a, *ib = b;
+  return ia[0] - ib[0];
+}
+
+static int
 compare_filename(const void *a, const void *b, void *arg)
 {
   dt_db_t *db = arg;
@@ -244,10 +251,8 @@ int dt_db_load_image(
 
   db->image[imgid].thumbnail = thumbid;
 
-  // collect all images: // TODO: abstract more
-  db->collection_cnt = db->image_cnt;
-  for(int k=0;k<db->collection_cnt;k++)
-    db->collection[k] = k;
+  // collect images:
+  dt_db_update_collection(db);
   return 0;
 }
 
@@ -390,17 +395,48 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   return 0;
 }
 
-void dt_db_remove_selected_images(dt_db_t *db)
+void dt_db_remove_selected_images(
+    dt_db_t *db,
+    dt_thumbnails_t *thumbnails,
+    const int del)
 {
-  for(int i=0;i<db->selection_cnt;i++)
+  // sort selection array by id:
+  qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_id, db);
+
+  // go through sorted list of imgid, largest id first:
+  char fullfn[2048] = {0};
+  for(int i=db->selection_cnt-1;i>=0;i--)
   {
-  // TODO: swap last image to imgid
-    // TODO: this does not work (because the selection will be invalidated the first time around):
-    db->image[db->image_cnt--] = db->image[db->selection[i]];
+    if(del)
+    {
+      if(!dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)))
+      {
+        // delete the cfg if any
+        dt_log(s_log_db, "deleting `%s'", fullfn);
+        unlink(fullfn);
+        // delete the file without .cfg postfix
+        size_t len = strnlen(fullfn, sizeof(fullfn));
+        fullfn[len-4] = 0;
+        dt_log(s_log_db, "deleting `%s'", fullfn);
+        unlink(fullfn);
+      }
+    }
+    // swap this imgid with the last one in the db.
+    // this will keep the db img list untouched up to here, so we can keep on doing this.
+    const int gone = db->selection[i];
+    const int keep = --db->image_cnt;
+    const int gone_th = db->image[gone].thumbnail;
+    const int keep_th = db->image[keep].thumbnail;
+    db->image[gone].thumbnail = -1u;
+    if(gone_th != -1u) thumbnails->thumb[gone_th].imgid = -1u;
+    if(gone == keep) continue;
+    if(keep_th != -1u) thumbnails->thumb[keep_th].imgid = gone;
+    db->image[gone] = db->image[keep];
+    db->image[keep].thumbnail = keep_th;
   }
 
   // select none:
   db->selection_cnt = 0;
-  // freshly sort collection
+  // freshly filter and sort collection
   dt_db_update_collection(db);
 }

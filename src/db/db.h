@@ -152,4 +152,5 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
 int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname);
 // after changing filter and sort criteria, update the collection array
 void dt_db_update_collection(dt_db_t *db);
-
+// remove selection from database. pass del=1 to physically delete from disk
+void dt_db_remove_selected_images(dt_db_t *db, dt_thumbnails_t *th, const int del);
