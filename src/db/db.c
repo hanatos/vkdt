@@ -19,6 +19,8 @@ dt_db_init(dt_db_t *db)
   db->current_colid = -1u;
   snprintf(db->basedir, sizeof(db->basedir), "%s/.config/vkdt", getenv("HOME"));
   mkdir(db->basedir, 0755);
+  // probably read preferences here from config file instead:
+  db->collection_sort = s_prop_filename;
 }
 
 void
@@ -40,6 +42,23 @@ compare_filename(const void *a, const void *b, void *arg)
   return strcmp(db->image[ia[0]].filename, db->image[ib[0]].filename);
 }
 
+static int
+compare_rating(const void *a, const void *b, void *arg)
+{
+  dt_db_t *db = arg;
+  const uint32_t *ia = a, *ib = b;
+  // higher rating comes first:
+  return db->image[ib[0]].rating - db->image[ia[0]].rating;
+}
+
+static int
+compare_labels(const void *a, const void *b, void *arg)
+{
+  dt_db_t *db = arg;
+  const uint32_t *ia = a, *ib = b;
+  return db->image[ia[0]].labels - db->image[ib[0]].labels;
+}
+
 static inline void
 image_init(dt_image_t *img)
 {
@@ -49,17 +68,44 @@ image_init(dt_image_t *img)
   img->labels = 0;
 }
 
-static void
+void
 dt_db_update_collection(dt_db_t *db)
 {
-  // TODO: abstract more
-  // TODO: consider sort order and filters
-  db->collection_cnt = db->image_cnt;
-  for(int k=0;k<db->collection_cnt;k++)
-    db->collection[k] = k;
-  // sort by filename:
+  // filter
+  db->collection_cnt = 0;
+  for(int k=0;k<db->image_cnt;k++)
+  {
+    switch(db->collection_filter)
+    {
+    case s_prop_none:
+      break;
+    case s_prop_filename:
+      if(!strstr(db->image[k].filename, dt_token_str(db->collection_filter_val))) continue;
+      break;
+    case s_prop_rating:
+      if(!(db->image[k].rating >= db->collection_filter_val)) continue;
+      break;
+    case s_prop_labels:
+      if(!(db->image[k].labels & db->collection_filter_val)) continue;
+      break;
+    }
+    db->collection[db->collection_cnt++] = k;
+  }
   // TODO: use db/tests/parallel radix sort
-  qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filename, db);
+  switch(db->collection_sort)
+  {
+  case s_prop_none:
+    break;
+  case s_prop_filename:
+    qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filename, db);
+    break;
+  case s_prop_rating:
+    qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_rating, db);
+    break;
+  case s_prop_labels:
+    qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_labels, db);
+    break;
+  }
 }
 
 void dt_db_load_directory(

@@ -466,6 +466,28 @@ void render_lighttable()
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
+    if(ImGui::CollapsingHeader("collect"))
+    {
+      int32_t filter_prop = static_cast<int32_t>(vkdt.db.collection_filter);
+      int32_t sort_prop   = static_cast<int32_t>(vkdt.db.collection_sort);
+
+      if(ImGui::Combo("sort", &sort_prop, dt_db_property_text))
+      {
+        vkdt.db.collection_sort = static_cast<dt_db_property_t>(sort_prop);
+        dt_db_update_collection(&vkdt.db);
+      }
+      if(ImGui::Combo("filter", &filter_prop, dt_db_property_text))
+      {
+        vkdt.db.collection_filter = static_cast<dt_db_property_t>(filter_prop);
+        dt_db_update_collection(&vkdt.db);
+      }
+      int filter_val = static_cast<int>(vkdt.db.collection_filter_val);
+      if(ImGui::InputInt("filter value", &filter_val, 1, 100, 0))
+      {
+        vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
+        dt_db_update_collection(&vkdt.db);
+      }
+    }
     if(vkdt.db.selection_cnt > 0)
     {
       if(ImGui::CollapsingHeader("selected images"))

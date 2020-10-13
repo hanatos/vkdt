@@ -38,6 +38,25 @@ typedef struct dt_stringpool_t
 }
 dt_stringpool_t;
 
+typedef enum dt_db_property_t
+{
+  s_prop_none,       // select all
+  s_prop_filename,   // strstr
+  s_prop_rating,     // >=
+  s_prop_labels,     // &
+}
+dt_db_property_t;
+
+static const char*
+dt_db_property_text =
+{
+  "none\0"
+  "filename\0"
+  "rating\0"
+  "label\0"
+  "\0"
+};
+
 typedef struct dt_db_t
 {
   char dirname[1024];           // full path of currently opened directory
@@ -53,7 +72,10 @@ typedef struct dt_db_t
 
   // TODO: light table edit history
 
-  // TODO: current sort criterion for current collection
+  // current sort and filter criteria for collection
+  dt_db_property_t collection_sort;
+  dt_db_property_t collection_filter;
+  uint64_t         collection_filter_val;
 
   // current query
   uint32_t *collection;
@@ -128,4 +150,6 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
 
 // add image to named collection
 int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname);
+// after changing filter and sort criteria, update the collection array
+void dt_db_update_collection(dt_db_t *db);
 
