@@ -53,7 +53,7 @@ main()
   // only one special case: do we have coarse or not (detect using scale):
   vec2 coff = vec2(0);
   if(push.scale > 0)
-    coff = sample_soft(img_coff, (ipos+.5f)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
+    coff = sample_soft(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
 
   vec4 res1 = vec4(0, 0, 6500000, 1);
 
