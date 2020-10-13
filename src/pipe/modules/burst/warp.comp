@@ -39,8 +39,8 @@ main()
 
   int block = push.scale;
   // offset is on coarse scale (/block):
-  // vec2 off = block * textureLod(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0)), 0).rg;
-  vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0))).rg;
+  vec2 off = block * textureLod(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0)), 0).rg;
+  // vec2 off = block * sample_soft(img_off, (ipos+.5f)/vec2(block*textureSize(img_off, 0))).rg;
 
   vec3 col;
   if(push.filters == 9)
