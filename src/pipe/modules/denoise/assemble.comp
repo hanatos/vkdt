@@ -95,14 +95,15 @@ main()
     down3 = (down3 - down4)/(sigma*b3);
 
     // TODO: downweight coarser scales:
+    // TODO: absolutely needs softer falloff
     // xi-squared statistic for iid unit variance:
     float xi2 = abs(down0.x*down0.x + down1.x*down1.x + down2.x*down2.x + down3.x*down3.x - 4.0); // * (n-1) = 3 really
     // TODO: compute true probability that these are indeed iid wrt some p value
     // (we are currently using same fake gaussian instead of a xi^2 statistic)
 
     // wavelet shrinkage and re-assembly:
-    // float test = exp(- 0.001*sqrt(xi2)); // fake Xi2
-    float test = exp(- 0.008*sqrt(xi2)); // fake Xi2
+    float test = exp(- 0.01*xi2); // fake Xi2
+    // float test = exp(- 0.008*sqrt(xi2)); // fake Xi2
     // bayes shrink would be T = sigma_noise^2 / sigma_signal
     // maybe consider that sigma_channel^2 scales as 1/f^2 with frequency f for natural images?
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
