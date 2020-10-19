@@ -643,7 +643,7 @@ void render_lighttable()
             fprintf(f,
                 "param:blend:%02d:opacity:%g\n"
                 "param:burst:%02d:merge_n:0.0\n"
-                "param:burst:%02d:merge_k:4000000\n"
+                "param:burst:%02d:merge_k:4000\n"
                 "param:burst:%02d:blur0:1\n"
                 "param:burst:%02d:blur1:1\n"
                 "param:burst:%02d:blur2:1\n"
