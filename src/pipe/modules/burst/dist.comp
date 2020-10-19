@@ -50,18 +50,17 @@ main()
   {
 #if 0 // hard
     ivec2 off = ivec2(ivec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
-    i1 = texelFetch(img_in1, ipos+off, 0).r;
 #else // soft
     vec2 off = vec2(vec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
-    i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
 #endif
+    i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
-  // float dist = log(1+abs(i0 - i1));     // log L1
-  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.0001)) * log(2+abs(i0 - i1));     // L1 center weighted
-  // float dist = abs(i0 - i1);
-  // float dist = (i0 - i1)*(i0 - i1); // L2
-  float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
+  // float dist = log(2+abs(i0 - i1));     // log L1
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
+  float dist = abs(i0 - i1);
+  // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
 
   imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
 }
