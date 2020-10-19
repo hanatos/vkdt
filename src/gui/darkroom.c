@@ -335,6 +335,12 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   {
     dt_view_switch(s_view_lighttable);
   }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
+  {
+    if(vkdt.graph_dev.frame_cnt > 1)
+      vkdt.state.anim_playing ^= 1;
+    // TODO: else advance to next image in lighttable collection
+  }
 }
 
 void
