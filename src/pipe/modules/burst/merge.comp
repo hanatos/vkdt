@@ -60,8 +60,8 @@ main()
   float dist[25];
   int bi = 0;
   for(int i=0;i<25;i++)
-    // dist[i] = sample_soft(img_dist[i], (ipos+.5f)/vec2(imageSize(img_out))).r;
-    dist[i] = textureLod(img_dist[i], (ipos+.5f)/vec2(imageSize(img_out)), 0).r;
+    // dist[i] = sample_soft(img_dist[i], (ipos+.5)/vec2(imageSize(img_out))).r;
+    dist[i] = textureLod(img_dist[i], (ipos+.5)/vec2(imageSize(img_out)), 0).r;
   for(int i=0;i<25;i++)
     if(dist[i] < dist[bi]) bi = i;
 
