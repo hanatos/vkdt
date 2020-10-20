@@ -37,11 +37,11 @@ void write_sink(
   int *valid = malloc(wd * sizeof(int));
   for(int f=0;f<5;f++)
   {
-    double fk = 1.0 / (f+1.0);
+    double fk = 1.0 / pow(2, f);//(f+1.0);
     for(int i=0;i<wd;i++)
     {
       int score = 0;
-      for(int j=i+1;j<MIN(i+fk*50, wd);j++)
+      for(int j=i+1;j<wd*(0.8-fk);j++)
       {
         // fit: sigma^2 = y = a + b*x
         // to the data (x,y) by looking at pairs of (x,y) from the input. x is
