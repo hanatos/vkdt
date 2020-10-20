@@ -133,7 +133,9 @@ void dt_db_selection_clear(dt_db_t *db);
 // return sorted list of selected images
 const uint32_t *dt_db_selection_get(dt_db_t *db);
 
+// return current image id (i.e. index into the global database list in db->image[.])
 uint32_t dt_db_current_imgid(dt_db_t *db);
+// return current collection id (i.e. index into the collection list of imageids, db->collection[.])
 uint32_t dt_db_current_colid(dt_db_t *db);
 
 // work with lighttable history
