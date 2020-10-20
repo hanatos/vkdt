@@ -2,7 +2,6 @@
 #include "core/core.h"
 #include "qvk/qvk.h"
 #include "gui/gui.h"
-#include "gui/render.h" // for set_lod
 #include "gui/view.h"
 #include "gui/darkroom.h"
 #include "gui/darkroom-util.h"
@@ -446,8 +445,6 @@ darkroom_enter()
   }
 
   vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
-  // XXX remove: super ugly hack
-  // dt_gui_set_lod(0);
 
   VkResult err = 0;
   if((err = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "darkroom-util.h"
+
 static inline void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 {
@@ -8,7 +10,10 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     if(key == GLFW_KEY_E)
     {
       if(dt_db_current_imgid(&vkdt.db) != -1u)
+      {
+        darkroom_reset_zoom();
         dt_view_switch(s_view_darkroom);
+      }
     }
     // TODO: work on selection instead of current_image?
 #define RATE(X)\

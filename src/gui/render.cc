@@ -96,10 +96,8 @@ void draw_arrow(float p[8], int feedback)
       IM_COL32_WHITE,
       false, vkdt.state.center_ht/500.0f);
 }
-} // end anonymous gui state space
 
-// remove this once we have a gui struct!
-extern "C" void dt_gui_set_lod(int lod)
+void dt_gui_set_lod(int lod)
 {
   // set graph output scale factor and
   // trigger complete pipeline rebuild
@@ -115,12 +113,8 @@ extern "C" void dt_gui_set_lod(int lod)
   }
   vkdt.graph_dev.runflags = s_graph_run_all;
   // reset view? would need to set zoom, too
-  vkdt.state.look_at_x = FLT_MAX;
-  vkdt.state.look_at_y = FLT_MAX;
-  vkdt.state.scale = -1;
+  darkroom_reset_zoom();
 }
-
-namespace {
 
 inline ImVec4 gamma(ImVec4 in)
 {
@@ -340,6 +334,7 @@ void render_lighttable()
   { // center image view
     if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().WantCaptureKeyboard)
     { // is false if button returns true, so just abort before we redraw anything at all
+      darkroom_reset_zoom();
       dt_view_switch(s_view_darkroom);
       return;
     }
