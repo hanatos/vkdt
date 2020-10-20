@@ -32,6 +32,13 @@ eval_gauss(
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   ivec2 pos = opos+o;
+  // now unfortunately mirror repeat fucks up the pattern and results in visibly wrong colours
+  // in the last half block near the borders of the image. we'll manually adjust pos then :(
+  // this is way broken for bayer (3x the needed offset), and somewhat weird for xtrans.
+  if(pos.x < 0) pos.x += 6;
+  if(pos.y < 0) pos.y += 6;
+  if(pos.x >= textureSize(img_in, 0).x) pos.x -= 6;
+  if(pos.y >= textureSize(img_in, 0).y) pos.y -= 6;
   col = texelFetch(img_in, pos, 0).r;
 
   // there's a ton of heuristic in the supplemental material to [Wronski 2019],
@@ -61,7 +68,9 @@ void write_xtrans(
     inout vec3 rgb,
     inout vec3 w)
 {
-  ivec2 pos = ivec2(gl_GlobalInvocationID)+o;
+  // add safety margin that spans both 2x2 bayer and 6x6 xtrans blocks so
+  // modulo etc will always work on positive numbers:
+  ivec2 pos = ivec2(gl_GlobalInvocationID)+o+ivec2(6);
   // rgb from pattern:
   bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
   pos = pos - (pos/3)*3;
