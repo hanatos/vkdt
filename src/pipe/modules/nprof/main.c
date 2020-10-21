@@ -112,9 +112,13 @@ void write_sink(
   // fclose(d);
 
   float denom = cnt * sx2 - sx*sx;
-  // TODO: catch / 0 or overflows
   float b = (cnt * sxy - sx * sy) / denom;
   float a = (sy * sx2 - sx * sxy) / denom;
+  if(valid_cnt <= 0)
+  { // catch / 0 or overflows
+    a = 100.0f; // just put in some random default.
+    b = 1.0f;
+  }
 
   char filename[512];
   snprintf(filename, sizeof(filename), "%s-%s-%d.nprof",
