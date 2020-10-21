@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/core.h"
+
 #include <float.h>
 
 static inline void
