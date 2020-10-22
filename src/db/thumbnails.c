@@ -284,7 +284,7 @@ VkResult
 dt_thumbnails_cache_list(
     dt_thumbnails_t *tn,
     dt_db_t         *db,
-    uint32_t        *imgid,
+    const uint32_t  *imgid,
     uint32_t         imgid_cnt)
 {
   if(imgid_cnt <= 0)
@@ -342,7 +342,7 @@ void
 dt_thumbnails_load_list(
     dt_thumbnails_t *tn,
     dt_db_t         *db,
-    uint32_t        *collection,
+    const uint32_t  *collection,
     uint32_t         beg,
     uint32_t         end)
 {

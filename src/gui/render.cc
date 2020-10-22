@@ -6,6 +6,7 @@ extern "C" {
 #include "pipe/modules/api.h"
 #include "pipe/graph-export.h"
 #include "gui/darkroom-util.h"
+#include "db/thumbnails.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
 #include "gui/widget_thumbnail.hh"
@@ -557,15 +558,19 @@ void render_lighttable()
                 if(sel[i] == copied_imgid) continue; // don't copy to self
                 dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
                 FILE *fout = fopen(filename, "wb");
-                fwrite(buf, fsize, 1, fout);
-                fprintf(stderr, "%s", buf);
-                // replace (relative) image file name
-                fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
-                fclose(fout);
-                // TODO: recompute thumbnail
-
+                if(fout)
+                {
+                  fwrite(buf, fsize, 1, fout);
+                  // replace (relative) image file name
+                  fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
+                  fclose(fout);
+                }
               }
               free(buf);
+              dt_thumbnails_cache_list(
+                  &vkdt.thumbnail_gen,
+                  &vkdt.db,
+                  sel, vkdt.db.selection_cnt);
             }
             else
             {
@@ -658,7 +663,11 @@ void render_lighttable()
               "connect:filmcurv:01:output:hist:01:input\n"
               "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
           fclose(f);
-          // TODO: now redo/delete thumbnail of main_imgid
+          // now redo/delete thumbnail of main_imgid
+          dt_thumbnails_cache_list(
+              &vkdt.thumbnail_gen,
+              &vkdt.db,
+              &main_imgid, 1);
         }
 
         // ==============================================================
