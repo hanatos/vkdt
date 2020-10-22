@@ -157,8 +157,14 @@ int main(int argc, char *argv[])
   glfwSetCharCallback(qvk.window, char_callback);
   glfwSetScrollCallback(qvk.window, scroll_callback);
 
-  dt_thumbnails_t *tmp_tn = 0;
   vkdt.view_mode = s_view_cnt;
+  // this is done so we can mess with the thumbnails struct in
+  // an asynchronous manner in a background thread. it will know
+  // it is not serving thumbnails but it only writes bc1 to disk.
+  // also we have a temporary thumbnails struct and background threads
+  // to create thumbnails, if necessary.
+  // only width/height will matter here
+  dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
   if((statbuf.st_mode & S_IFMT) == S_IFDIR)
   {
     vkdt.view_mode = s_view_lighttable;
@@ -166,17 +172,7 @@ int main(int argc, char *argv[])
     dt_db_init(&vkdt.db);
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, fname);
     dt_view_switch(s_view_lighttable);
-
-    // this is done so we can mess with the thumbnails struct in
-    // an asynchronous manner in a background thread. it will know
-    // it is not serving thumbnails but it only writes bc1 to disk.
-    // also we have a temporary thumbnails struct and background threads
-    // to create thumbnails, if necessary.
-    // we'll elegantly leak all this memory:
-    tmp_tn = malloc(sizeof(dt_thumbnails_t));
-    // only width/height will matter here
-    dt_thumbnails_init(tmp_tn, 400, 400, 0, 0);
-    dt_thumbnails_cache_collection(tmp_tn, &vkdt.db);
+    dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
   }
   else
   {
@@ -245,7 +241,7 @@ out:
   threads_global_cleanup(); // join worker threads before killing their resources
   dt_gui_cleanup();
   dt_thumbnails_cleanup(&vkdt.thumbnails);
-  if(tmp_tn) dt_thumbnails_cleanup(tmp_tn);
+  dt_thumbnails_cleanup(&vkdt.thumbnail_gen);
   dt_db_cleanup(&vkdt.db);
   dt_pipe_global_cleanup();
   exit(0);

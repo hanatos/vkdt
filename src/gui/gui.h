@@ -90,9 +90,10 @@ typedef struct dt_gui_t
 
   dt_graph_t       graph_dev;
 
-  dt_db_t          db;          // image list and current query
-  dt_thumbnails_t  thumbnails;  // for light table mode
-  dt_gui_view_t    view_mode;   // current view mode
+  dt_db_t          db;            // image list and current query
+  dt_thumbnails_t  thumbnails;    // for light table mode
+  dt_thumbnails_t  thumbnail_gen; // to generate thumbnails asynchronously
+  dt_gui_view_t    view_mode;     // current view mode
 
   // favourite gui module/parameter list
   int fav_cnt;
