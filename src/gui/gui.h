@@ -61,6 +61,8 @@ typedef struct dt_gui_wstate_t
   float *mapped;
   int    lod;
   float  connector[100][30][2];
+  char  *module_names_buf;
+  const char **module_names;
 }
 dt_gui_wstate_t;
 

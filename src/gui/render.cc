@@ -22,6 +22,7 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace { // anonymous gui state namespace
 
@@ -321,6 +322,19 @@ extern "C" int dt_gui_init_imgui()
 
     vkDeviceWaitIdle(qvk.device);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
+  }
+
+  // prepare list of potential modules for ui selection:
+  vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);
+  vkdt.wstate.module_names     = (const char **)malloc(sizeof(char*)*dt_pipe.num_modules);
+  int pos = 0;
+  for(int i=0;i<dt_pipe.num_modules;i++)
+  {
+    const char *name = dt_token_str(dt_pipe.module[i].name);
+    const size_t len = strnlen(name, 8);
+    memcpy(vkdt.wstate.module_names_buf + pos, name, len);
+    vkdt.wstate.module_names[i] = vkdt.wstate.module_names_buf + pos;
+    pos += len+1;
   }
   return 0;
 }
@@ -1326,10 +1340,10 @@ void render_darkroom_pipeline()
   }
 
   // add new module to the graph (unconnected)
-  static char mod_name[10] = {0}; ImGui::InputText("module", mod_name, 8);
-  static char mod_inst[10] = {0}; ImGui::InputText("instance", mod_inst, 8);
+  static int add_modid = 0; ImGui::Combo("module", &add_modid, vkdt.wstate.module_names_buf);
+  static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
   if(ImGui::Button("add module"))
-    if(dt_module_add(graph, dt_token(mod_name), dt_token(mod_inst)) == -1u)
+    if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1u)
       last_err = 16ul<<32;
 }
 

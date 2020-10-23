@@ -275,6 +275,14 @@ dt_module_so_unload(dt_module_so_t *mod)
     dlclose(mod->dlhandle);
 }
 
+static inline int
+compare_module_name(const void *a, const void *b)
+{
+  const dt_module_so_t *ma = a;
+  const dt_module_so_t *mb = b;
+  return strncmp(dt_token_str(ma->name), dt_token_str(mb->name), 8);
+}
+
 int dt_pipe_global_init()
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
@@ -304,6 +312,8 @@ int dt_pipe_global_init()
   }
   dt_pipe.num_modules = i;
   closedir(fd);
+  // now sort modules alphabetically for convenience in gui later:
+  qsort(dt_pipe.module, dt_pipe.num_modules, sizeof(dt_pipe.module[0]), &compare_module_name);
   return 0;
 }
 
