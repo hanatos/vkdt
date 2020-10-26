@@ -11,7 +11,7 @@ void main(void)
   p[0] = vec2(gl_in[0].gl_Position);
   p[1] = vec2(gl_in[1].gl_Position);
 
-  const float thickness = 0.2;
+  const float thickness = 0.05;
   vec2 t = normalize(p[1] - p[0]);
   t *= thickness;
   vec2 e = vec2(t.y, -t.x);
