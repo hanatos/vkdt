@@ -190,20 +190,22 @@ dt_api_blur_sub(
   {
     assert(graph->num_nodes < graph->max_nodes);
     const int id_blur = graph->num_nodes++;
+    int hwd = (roi.wd + 1)/2;
+    int hht = (roi.ht + 1)/2;
     graph->node[id_blur] = (dt_node_t) {
       .name   = dt_token("shared"),
       .kernel = dt_token("blur"),
       .module = module,
-      .wd     = roi.wd/2,
-      .ht     = roi.ht/2,
+      .wd     = hwd,
+      .ht     = hht,
       .dp     = dp,
       .num_connectors = 2,
       .connector = { ci, co },
     };
     if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blur;
     graph->node[id_blur].connector[0].roi = roi;
-    roi.wd /= 2;
-    roi.ht /= 2;
+    roi.wd = hwd;
+    roi.ht = hht;
     graph->node[id_blur].connector[1].roi = roi;
     if(id_blur_out && i == it-1) *id_blur_out = id_blur;
     // interconnect nodes:
