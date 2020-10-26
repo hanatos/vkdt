@@ -61,8 +61,7 @@ create_nodes(
       graph, module, &module->connector[0].roi,
       &guided_entry, &guided_exit,
       radius, epsilon);
-  CONN(dt_node_connect(graph, id_quant, 1, guided_entry, 0));
-  CONN(dt_node_connect(graph, id_quant, 1, guided_exit, 0));
+  CONN(dt_node_connect(graph, id_quant, 1, guided_entry, 1));
 
   // process zone exposure correction:
   assert(graph->num_nodes < graph->max_nodes);
@@ -101,7 +100,8 @@ create_nodes(
   // CONN(dt_node_connect(graph, id_quant, 1, id_apply, 1)); // XXX DEBUG don't filter
   dt_connector_copy(graph, module, 0, id_apply, 0);
   dt_connector_copy(graph, module, 0, id_quant, 0);
-  dt_connector_copy(graph, module, 0, guided_entry, 1);
+  dt_connector_copy(graph, module, 0, guided_entry, 0);
+  dt_connector_copy(graph, module, 0, guided_exit,  0);
   dt_connector_copy(graph, module, 1, id_apply, 2);
 }
 
