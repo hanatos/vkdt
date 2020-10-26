@@ -8,7 +8,7 @@ check_params(
     uint32_t     parid,
     void        *oldval)
 {
-  if(parid >= 2 && parid <= 5)
+  if(parid == 0)
   { // radius
     float oldrad = *(float*)oldval;
     float newrad = dt_module_param_float(module, parid)[0];
