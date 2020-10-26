@@ -1,4 +1,4 @@
 back:read:*:*
 input:read:*:*
-mask:read:y:f16
+mask:read:*:*
 output:write:&input:f16
