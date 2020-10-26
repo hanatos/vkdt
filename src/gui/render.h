@@ -31,8 +31,6 @@ int dt_gui_imgui_want_text();
 
 void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
 
-void dt_gui_set_lod(int lod);
-
 #ifdef __cplusplus
 }
 #endif

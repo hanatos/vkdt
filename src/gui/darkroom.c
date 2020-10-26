@@ -2,7 +2,6 @@
 #include "core/core.h"
 #include "qvk/qvk.h"
 #include "gui/gui.h"
-#include "gui/render.h" // for set_lod
 #include "gui/view.h"
 #include "gui/darkroom.h"
 #include "gui/darkroom-util.h"
@@ -335,6 +334,38 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   {
     dt_view_switch(s_view_lighttable);
   }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
+  {
+    if(vkdt.graph_dev.frame_cnt > 1)
+      vkdt.state.anim_playing ^= 1; // start/stop playing animation
+    else
+    { // advance to next image in lighttable collection
+      uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
+      if(next <= vkdt.db.collection_cnt)
+      {
+        dt_db_selection_add(&vkdt.db, next);
+        // darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+        dt_graph_cleanup(&vkdt.graph_dev); // essential to free memory
+        darkroom_enter();
+      }
+    }
+  }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
+  {
+    if(vkdt.graph_dev.frame_cnt > 1)
+      vkdt.state.anim_playing ^= 1; // start/stop playing animation
+    else
+    { // backtrack to last image in lighttable collection
+      uint32_t next = dt_db_current_colid(&vkdt.db) - 1;
+      if(next >= 0)
+      {
+        dt_db_selection_add(&vkdt.db, next);
+        // darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+        dt_graph_cleanup(&vkdt.graph_dev);
+        darkroom_enter();
+      }
+    }
+  }
 }
 
 void
@@ -414,8 +445,6 @@ darkroom_enter()
   }
 
   vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
-  // XXX remove: super ugly hack
-  dt_gui_set_lod(0);
 
   VkResult err = 0;
   if((err = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
@@ -444,19 +473,17 @@ darkroom_enter()
 int
 darkroom_leave()
 {
-  dt_image_t *img = vkdt.db.image + dt_db_current_imgid(&vkdt.db);
   char filename[1024];
   dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
   if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
     dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
 
   // TODO: start from already loaded/inited graph instead of from scratch!
-  QVK(vkDeviceWaitIdle(qvk.device)); // we won't need this then (guards the reset call inside)
-  (void)dt_thumbnails_cache_one(
-      &vkdt.graph_dev,
-      &vkdt.thumbnails,
-      filename);
-  dt_thumbnails_load_one(&vkdt.thumbnails, filename, &img->thumbnail);
+  const uint32_t imgid = dt_db_current_imgid(&vkdt.db);
+  dt_thumbnails_cache_list(
+      &vkdt.thumbnail_gen,
+      &vkdt.db,
+      &imgid, 1);
 
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);

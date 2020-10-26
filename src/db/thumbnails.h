@@ -76,7 +76,7 @@ VkResult dt_thumbnails_cache_collection(dt_thumbnails_t *tn, dt_db_t *db);
 VkResult dt_thumbnails_cache_list(
     dt_thumbnails_t *tn,         // thumbnail struct used to create the thumbnails (will not load thumbs here)
     dt_db_t         *db,         // database to map imageid to filename.
-    uint32_t        *imgid,      // imageids to cache in the background (will be copied for thread safety)
+    const uint32_t  *imgid,      // imageids to cache in the background (will be copied for thread safety)
     uint32_t         imgid_cnt); // number of image ids in list
 
 // create bc1 thumbnail only for given image
@@ -99,6 +99,6 @@ void
 dt_thumbnails_load_list(
     dt_thumbnails_t *tn,           // thumbnails to write to
     struct dt_db_t  *db,           // database with image structs
-    uint32_t        *collection,   // array with image ids
-    uint32_t         beg,          // updating image[k] with k in [beg, end)
+    const uint32_t  *collection,   // array with image ids
+    uint32_t         beg,          // update collection[k] with k in [beg, end)
     uint32_t         end);         // 

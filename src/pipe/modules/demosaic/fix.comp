@@ -52,7 +52,10 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-
+#if 0 // switch off:
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  imageStore(img_out, ipos, vec4(rgb, 1.0));
+#else // std operation:
 #if 1
   vec3 mom1 = vec3(0.0), mom2 = vec3(0.0);
   int r = 2;
@@ -102,5 +105,6 @@ main()
 
   mid = vec3(red, mid.g, blue);
   imageStore(img_out, ipos, vec4(mid, 1.0));
+#endif
 #endif
 }

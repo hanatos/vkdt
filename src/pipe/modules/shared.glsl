@@ -1,16 +1,5 @@
 #include "localsize.h"
 
-struct roi_t
-{
-  uvec2 full;      // full input size
-  uvec2 roi;       // dimensions of region of interest
-  ivec2 off;       // offset in full image
-  float scale;     // wd * scale is on input scale
-  float pad0;      // alignment of structs will be a multiple of vec4 it seems :(
-  // so we pad explicitly for sanity of mind.
-  // alternatively we could specify layout(offset=48) etc below.
-};
-
 // http://vec3.ca/bicubic-filtering-in-fewer-taps/
 vec4 sample_catmull_rom(sampler2D tex, vec2 uv)
 {

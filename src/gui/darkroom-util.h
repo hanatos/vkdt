@@ -1,6 +1,16 @@
 #pragma once
 
+#include "core/core.h"
+
 #include <float.h>
+
+static inline void
+darkroom_reset_zoom()
+{
+  vkdt.state.look_at_x = FLT_MAX;
+  vkdt.state.look_at_y = FLT_MAX;
+  vkdt.state.scale = -1;
+}
 
 static inline void
 dt_view_to_image(

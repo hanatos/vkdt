@@ -35,13 +35,14 @@ void write_sink(
   // an outlier or not.
   int valid_cnt = 0;
   int *valid = malloc(wd * sizeof(int));
-  for(int f=0;f<5;f++)
+  float a = 0, b = 0;
+  for(int f=0;f<7;f++)
   {
-    double fk = 1.0 / (f+1.0);
+    double fk = 1.0 / pow(2, f);
     for(int i=0;i<wd;i++)
     {
       int score = 0;
-      for(int j=i+1;j<MIN(i+fk*50, wd);j++)
+      for(int j=i+1;j<wd*(0.8-fk);j++)
       {
         // fit: sigma^2 = y = a + b*x
         // to the data (x,y) by looking at pairs of (x,y) from the input. x is
@@ -51,28 +52,31 @@ void write_sink(
         // been rescaled to white in any way.
         // make sure a and b are positive, reject sample otherwise
         double c  = p32[i + 0*wd];
-        if(c < fk*50) continue;
+        if(c < fk*64) continue;
         double m1 = p32[i + 1*wd];
         double m2 = p32[i + 2*wd];
         double x1 = m1/c - module->img_param.black[1];
         double y1 = m2/c - m1/c*m1/c;
 
         c  = p32[j + 0*wd];
-        if(c < fk*50) continue;
+        if(c < fk*64) continue;
         m1 = p32[j + 1*wd];
         m2 = p32[j + 2*wd];
         double x2 = m1/c - module->img_param.black[1];
         double y2 = m2/c - m1/c*m1/c;
 
         if(y1 <= 0 || y2 <= 0) continue;
-        double b = (y2-y1)/(x2-x1);
-        if(!(b > 0.0)) continue;
-        double a  = y1 - x1 * b;
-        if(!(a > 0.0)) continue;
-        if(!(a < 35000.0)) continue; // half the range noise? that would be extraordinary
+        double eb = (y2-y1)/(x2-x1);
+        if(!(eb > 0.0)) continue;
+        double ea  = y1 - x1 * eb;
+        if(!(ea > 0.0)) continue;
+        if(!(ea < 35000.0)) continue; // half the range noise? that would be extraordinary
 
-        if(++score > fk*25) // count a valid sample for this i
+        if(++score > fk*32) // count a valid sample for this i
         {
+          // fprintf(stderr, "found valid a b %g %g\n", ea, eb);
+          a = ea; // backup for valid_cnt = 1
+          b = eb;
           valid[valid_cnt++] = i;
           break; // no more j loop needed
         }
@@ -90,15 +94,16 @@ void write_sink(
   // FILE *d = fopen("test.dat", "wb");
   double sx = 0.0, sx2 = 0.0, sy = 0.0, sy2 = 0.0, sxy = 0.0;
   double cnt = 0.0;
-  double white = log2(module->img_param.white[1])/16.0f;
-  double black = log2(module->img_param.black[1])/16.0f;
+  // double white = log2(module->img_param.white[1])/16.0f;
+  // double black = log2(module->img_param.black[1])/16.0f;
   for(int ii=0;ii<valid_cnt;ii++)
   {
     int i = valid[ii];
     double c  = p32[i + 0*wd];
-    double x = exp2((i / (double)wd * (white - black) + black) * 16.0) - module->img_param.black[1];
+    // brightness from bin index:
+    // double x = exp2((i / (double)wd * (white - black) + black) * 16.0) - module->img_param.black[1];
     double m1 = p32[i + 1*wd];
-    // double x = m1/c - module->img_param.black[1]; // agrees with x as above
+    double x = m1/c - module->img_param.black[1]; // brightness from mean, agrees with x as above
     double m2 = p32[i + 2*wd];
     double y = m2/c - m1/c*m1/c;
     cnt += c;
@@ -112,9 +117,16 @@ void write_sink(
   // fclose(d);
 
   float denom = cnt * sx2 - sx*sx;
-  // TODO: catch / 0 or overflows
-  float b = (cnt * sxy - sx * sy) / denom;
-  float a = (sy * sx2 - sx * sxy) / denom;
+  if(fabs(denom) > 1e-10f)
+  {
+    b = (cnt * sxy - sx * sy) / denom;
+    a = (sy * sx2 - sx * sxy) / denom;
+  }
+  if(valid_cnt <= 0)
+  { // catch / 0 or overflows
+    a = 100.0f; // just put in some random default.
+    b = 1.0f;
+  }
 
   char filename[512];
   snprintf(filename, sizeof(filename), "%s-%s-%d.nprof",

@@ -51,9 +51,9 @@ main()
   vec2 rd = rdh.xy / rdh.z;
 
   // rounding texture access:
-  // vec4 rgba = texelFetch(img_in, ivec2(rd+0.5), 0);
+  // vec4 rgba = texelFetch(img_in, ivec2(rd), 0);
   // bilinear:
-  // vec4 rgba = texture(img_in, rd/textureSize(img_in, 0));
+  // vec4 rgba = texture(img_in, (rd+0.5)/textureSize(img_in, 0));
   // catmull rom is a little slower (especially on intel) but results
   // in a bit more acuity:
   rd /= ts_in;

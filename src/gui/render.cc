@@ -6,6 +6,7 @@ extern "C" {
 #include "pipe/modules/api.h"
 #include "pipe/graph-export.h"
 #include "gui/darkroom-util.h"
+#include "db/thumbnails.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
 #include "gui/widget_thumbnail.hh"
@@ -21,6 +22,7 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace { // anonymous gui state namespace
 
@@ -96,10 +98,8 @@ void draw_arrow(float p[8], int feedback)
       IM_COL32_WHITE,
       false, vkdt.state.center_ht/500.0f);
 }
-} // end anonymous gui state space
 
-// remove this once we have a gui struct!
-extern "C" void dt_gui_set_lod(int lod)
+void dt_gui_set_lod(int lod)
 {
   // set graph output scale factor and
   // trigger complete pipeline rebuild
@@ -115,12 +115,8 @@ extern "C" void dt_gui_set_lod(int lod)
   }
   vkdt.graph_dev.runflags = s_graph_run_all;
   // reset view? would need to set zoom, too
-  vkdt.state.look_at_x = FLT_MAX;
-  vkdt.state.look_at_y = FLT_MAX;
-  vkdt.state.scale = -1;
+  darkroom_reset_zoom();
 }
-
-namespace {
 
 inline ImVec4 gamma(ImVec4 in)
 {
@@ -327,6 +323,19 @@ extern "C" int dt_gui_init_imgui()
     vkDeviceWaitIdle(qvk.device);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
   }
+
+  // prepare list of potential modules for ui selection:
+  vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);
+  vkdt.wstate.module_names     = (const char **)malloc(sizeof(char*)*dt_pipe.num_modules);
+  int pos = 0;
+  for(int i=0;i<dt_pipe.num_modules;i++)
+  {
+    const char *name = dt_token_str(dt_pipe.module[i].name);
+    const size_t len = strnlen(name, 8);
+    memcpy(vkdt.wstate.module_names_buf + pos, name, len);
+    vkdt.wstate.module_names[i] = vkdt.wstate.module_names_buf + pos;
+    pos += len+1;
+  }
   return 0;
 }
 
@@ -340,6 +349,7 @@ void render_lighttable()
   { // center image view
     if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().WantCaptureKeyboard)
     { // is false if button returns true, so just abort before we redraw anything at all
+      darkroom_reset_zoom();
       dt_view_switch(s_view_darkroom);
       return;
     }
@@ -466,6 +476,28 @@ void render_lighttable()
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
+    if(ImGui::CollapsingHeader("collect"))
+    {
+      int32_t filter_prop = static_cast<int32_t>(vkdt.db.collection_filter);
+      int32_t sort_prop   = static_cast<int32_t>(vkdt.db.collection_sort);
+
+      if(ImGui::Combo("sort", &sort_prop, dt_db_property_text))
+      {
+        vkdt.db.collection_sort = static_cast<dt_db_property_t>(sort_prop);
+        dt_db_update_collection(&vkdt.db);
+      }
+      if(ImGui::Combo("filter", &filter_prop, dt_db_property_text))
+      {
+        vkdt.db.collection_filter = static_cast<dt_db_property_t>(filter_prop);
+        dt_db_update_collection(&vkdt.db);
+      }
+      int filter_val = static_cast<int>(vkdt.db.collection_filter_val);
+      if(ImGui::InputInt("filter value", &filter_val, 1, 100, 0))
+      {
+        vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
+        dt_db_update_collection(&vkdt.db);
+      }
+    }
     if(vkdt.db.selection_cnt > 0)
     {
       if(ImGui::CollapsingHeader("selected images"))
@@ -540,20 +572,40 @@ void render_lighttable()
                 if(sel[i] == copied_imgid) continue; // don't copy to self
                 dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
                 FILE *fout = fopen(filename, "wb");
-                fwrite(buf, fsize, 1, fout);
-                fprintf(stderr, "%s", buf);
-                // replace (relative) image file name
-                fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
-                fclose(fout);
-                // TODO: recompute thumbnail
-
+                if(fout)
+                {
+                  fwrite(buf, fsize, 1, fout);
+                  // replace (relative) image file name
+                  fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
+                  fclose(fout);
+                }
               }
               free(buf);
+              dt_thumbnails_cache_list(
+                  &vkdt.thumbnail_gen,
+                  &vkdt.db,
+                  sel, vkdt.db.selection_cnt);
             }
             else
             {
               // TODO: error message
             }
+          }
+        }
+
+        // ==============================================================
+        // delete images
+        static int really_delete = 0;
+        if(ImGui::Button("delete image[s]", size))
+          really_delete ^= 1;
+
+        if(really_delete)
+        {
+          ImGui::SameLine();
+          if(ImGui::Button("*really* delete image[s]", size))
+          {
+            dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+            really_delete = 0;
           }
         }
 
@@ -605,7 +657,7 @@ void render_lighttable()
             fprintf(f,
                 "param:blend:%02d:opacity:%g\n"
                 "param:burst:%02d:merge_n:0.0\n"
-                "param:burst:%02d:merge_k:4000000\n"
+                "param:burst:%02d:merge_k:4000\n"
                 "param:burst:%02d:blur0:1\n"
                 "param:burst:%02d:blur1:1\n"
                 "param:burst:%02d:blur2:1\n"
@@ -625,7 +677,11 @@ void render_lighttable()
               "connect:filmcurv:01:output:hist:01:input\n"
               "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
           fclose(f);
-          // TODO: now redo/delete thumbnail of main_imgid
+          // now redo/delete thumbnail of main_imgid
+          dt_thumbnails_cache_list(
+              &vkdt.thumbnail_gen,
+              &vkdt.db,
+              &main_imgid, 1);
         }
 
         // ==============================================================
@@ -1284,10 +1340,10 @@ void render_darkroom_pipeline()
   }
 
   // add new module to the graph (unconnected)
-  static char mod_name[10] = {0}; ImGui::InputText("module", mod_name, 8);
-  static char mod_inst[10] = {0}; ImGui::InputText("instance", mod_inst, 8);
+  static int add_modid = 0; ImGui::Combo("module", &add_modid, vkdt.wstate.module_names_buf);
+  static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
   if(ImGui::Button("add module"))
-    if(dt_module_add(graph, dt_token(mod_name), dt_token(mod_inst)) == -1u)
+    if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1u)
       last_err = 16ul<<32;
 }
 

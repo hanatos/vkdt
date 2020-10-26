@@ -22,7 +22,6 @@ layout( // output buffer
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-#define B 2 // boundary padding
 // making this not square but off by one (to reduce bank conflicts in the y pass)
 // reduces run time from 8.5 to 8.3ms
 shared vec3 curr[(DT_DECONV_TILE_WD+1)*DT_DECONV_TILE_HT];
@@ -41,14 +40,12 @@ main()
         DT_DECONV_TILE_HT-2*DT_DECONV_BORDER));
   // if start of tile is out of image we have nothing to do:
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  ipos += ivec2(gl_LocalInvocationID.xy) - ivec2(-DT_DECONV_BORDER, -DT_DECONV_BORDER); // add offset within the tile
+  ipos += ivec2(gl_LocalInvocationID.xy) - ivec2(DT_DECONV_BORDER, DT_DECONV_BORDER); // add offset within the tile
 
   // everybody get their texels:
   const uint idx = gl_LocalInvocationID.x + (gl_WorkGroupSize.x+1) * gl_LocalInvocationID.y;
   vec3 orig; // remember original pixel colour
-  curr[idx] = orig = texelFetch(img_in, ipos, 0).rgb;
-
-  // now let's work:
+  curr[idx] = orig = texelFetch(img_in, clamp(ipos, ivec2(0), textureSize(img_in, 0)-1), 0).rgb;
 
   const float w = exp(-1/(2.0*params.sigma*params.sigma));
 
@@ -93,7 +90,7 @@ main()
     barrier();
     BLURV
 
-    curr[idx] = orig / res;
+    curr[idx] = orig / max(vec3(1e-6), res);
     barrier();
 
     // compute convolution by adjoint

@@ -16,6 +16,7 @@ layout(push_constant, std140) uniform push_t
   vec4 wb;
   vec4 black;
   vec4 white;
+  ivec4 crop;
   int level;
 } push;
 
@@ -38,11 +39,38 @@ main()
 
   // 5 tap flower filter
   const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+#if 0 // regular wavelet
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb * t;
-  rgb += texture(img_in, (ipos + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
-  rgb += texture(img_in, (ipos + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
-  rgb += texture(img_in, (ipos + vec2(0.5 + 0.4, 0.5 - 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
-  rgb += texture(img_in, (ipos + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 0.4, 0.5 - 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
+  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
+#else // half way edge aware
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 sum = t * rgb;
+  float wgt = t;
+  // weight according to yuv or rgb:
+  vec3 wc = 1000.*vec3(1.0, 2.0, 2.0); // as it turns out, colours are an important difference
+  // ??? it seems this should depend on the scale!
+  if(push.level == 0) wc = vec3(200.0/(push.white.rgb-push.black.rgb));
+
+#define lookup(O) \
+  do { \
+  vec3 col = texture(img_in, (ipos + push.crop.xy + O)/vec2(sz)).rgb; \
+  float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; \
+  sum += w * col; \
+  wgt += w; \
+  } while(false)
+
+  lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
+  lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
+  lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
+  lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
+
+  rgb = sum / wgt;
+#undef lookup
+
+#endif
 
   // sort image to write positions so we can iterate the filter
   ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * sz/2;
