@@ -99,7 +99,7 @@
   }
   if(dt_token_str(cn0->format)[0] == '&')
   {
-    dt_token_t tmp = cn0->chan >> 8;
+    dt_token_t tmp = cn0->format >> 8;
     for(int c=0;c<graph->element[m0].num_connectors;c++)
       if(graph->element[m0].connector[c].name == tmp)
       { cn0->format = graph->element[m0].connector[c].format; break; }
