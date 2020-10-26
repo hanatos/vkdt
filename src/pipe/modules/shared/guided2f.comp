@@ -28,8 +28,8 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // const vec4 mean_corr = texelFetch(img_in, ipos, 0);
-  const vec4 mean_corr = texture(img_in, (ipos + vec2(0.5))/vec2(imageSize(img_out)));
-  // TODO: to make this smooth, need to consider pixel size in subsampled input blur buffer!
+  const vec4 mean_corr = texture(img_in, (ipos + 0.5)/vec2(imageSize(img_out)));
+  // to make this really smooth, would need to consider pixel size in subsampled input blur buffer:
   // const vec4 mean_corr = sample_semisoft(img_in, (ipos + vec2(0.5))/vec2(imageSize(img_out)));
   const float var = mean_corr.z - mean_corr.x * mean_corr.x;
   const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
