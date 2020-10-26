@@ -2,6 +2,21 @@
 #include <math.h>
 #include <stdlib.h>
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 0)
+  { // radius
+    float oldrad = *(float*)oldval;
+    float newrad = dt_module_param_float(module, 0)[0];
+    return dt_api_blur_check_params(oldrad, newrad);
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+}
+
 void
 create_nodes(
     dt_graph_t  *graph,
