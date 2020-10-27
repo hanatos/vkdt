@@ -215,28 +215,24 @@ dt_api_blur_sub(
   }
 #if 0
   // now let's upsample at least a bit:
-  // for(int i=0;i<it;i++) { }
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_upsample = graph->num_nodes++;
-    roi = conn_input->roi;
-    roi.wd /= 2;
-    roi.ht /= 2;
-    graph->node[id_upsample] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = dt_token("resample"),
-      .module = module,
-      .wd     = roi.wd,
-      .ht     = roi.ht,
-      .dp     = dp,
-      .num_connectors = 2,
-      .connector = { ci, co },
-      .push_constant_size = 3*sizeof(uint32_t),
-      .push_constant = { 1, 0, 0 },
-    };
-    graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[1].roi;
-    graph->node[id_upsample].connector[1].roi = roi;
-    CONN(dt_node_connect(graph, nid_input,  cid_input, id_upsample, 0));
-    return id_upsample;
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_upsample = graph->num_nodes++;
+  roi = conn_input->roi;
+  co.roi = roi;
+  graph->node[id_upsample] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("resample"),
+    .module = module,
+    .wd     = roi.wd,
+    .ht     = roi.ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = { ci, co },
+  };
+  graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[1].roi;
+  graph->node[id_upsample].connector[1].roi = roi;
+  CONN(dt_node_connect(graph, nid_input,  cid_input, id_upsample, 0));
+  return id_upsample;
 #endif
   return nid_input;
 }
