@@ -23,9 +23,7 @@ main()
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
   vec2 ipos = (opos + vec2(0.5))/ vec2(imageSize(img_out));
-  // vec4 rgba = sample_catmull_rom(img_in, ipos); // takes normalised coordinates
-  vec4 rgba = sample_soft(img_in, ipos);
-  // vec4 rgba = textureLod(img_in, ipos, 0);
+  vec4 rgba = sample_semisoft(img_in, ipos); // 3x3 gauss lookup
   imageStore(img_out, opos, rgba);
 }
 
