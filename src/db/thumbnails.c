@@ -47,6 +47,9 @@ dt_thumbnails_init(
   tn->graph[1].queue     = qvk.queue_work1;
   tn->graph[1].queue_idx = qvk.queue_idx_work1;
 
+  threads_mutex_init(tn->graph_lock + 0, 0);
+  threads_mutex_init(tn->graph_lock + 1, 0);
+
   // just creating bc1 files in the background, not actually used to serve
   // any thumbnails:
   if(cnt == 0) return VK_SUCCESS;
@@ -151,8 +154,11 @@ void
 dt_thumbnails_cleanup(
     dt_thumbnails_t *tn)
 {
-  dt_graph_cleanup(tn->graph + 0);
-  dt_graph_cleanup(tn->graph + 1);
+  for(int i=0;i<DT_THUMBNAILS_THREADS;i++)
+  {
+    dt_graph_cleanup(tn->graph + i);
+    pthread_mutex_destroy(tn->graph_lock + i);
+  }
   for(int i=0;i<tn->thumb_max;i++)
   {
     if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, tn->thumb[i].image,      0);
@@ -273,6 +279,7 @@ static void thread_free_coll(void *arg)
 static void thread_work_coll(uint32_t item, void *arg)
 {
   cache_coll_job_t *j = arg;
+  threads_mutex_lock(j->tn->graph_lock+j->gid); // shield against potential overscheduling (call _cache_list() from the gui before the old one is done)
   j->tn->graph[j->gid].io_mutex = j->mutex;
   char filename[1024];
   dt_db_image_path(j->db, j->coll[item], filename, sizeof(filename));
@@ -280,6 +287,7 @@ static void thread_work_coll(uint32_t item, void *arg)
   // invalidate what we have in memory to trigger a reload:
   j->db->image[j->coll[item]].thumbnail = 0;
   j->tn->graph[j->gid].io_mutex = 0;
+  threads_mutex_unlock(j->tn->graph_lock+j->gid);
 }
 
 VkResult
