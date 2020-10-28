@@ -206,6 +206,7 @@ void threads_global_init()
   //  | sort -g | uniq
   // or numactl --hardware
   // and then edit it to your needs (this list will start with one thread per core, no hyperthreading used)
+  // TODO: add search path relative to binary?
   FILE *f = fopen(filename, "rb");
   if(f)
   {

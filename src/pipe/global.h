@@ -70,7 +70,11 @@ dt_module_so_t;
 
 typedef struct dt_pipe_global_t
 {
-  char module_dir[2048];
+  // this is the directory where the vkdt binary resides,
+  // i.e. if you build from git it would be the bin/ directory
+  // in the repository. it is used to find all sorts of resources
+  // relative to it, i.e. data/ and modules/.
+  char basedir[512];
   dt_module_so_t *module;
   uint32_t num_modules;
 

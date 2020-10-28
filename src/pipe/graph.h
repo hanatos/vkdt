@@ -96,6 +96,7 @@ typedef struct dt_graph_t
 
   int                   gui_attached;  // can't free the output images while still used etc.
   char                  searchpath[512];
+  char                  basedir[512];  // copy of the global search directory such that modules can access it
 }
 dt_graph_t;
 

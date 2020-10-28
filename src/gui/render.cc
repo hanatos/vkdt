@@ -248,13 +248,15 @@ extern "C" int dt_gui_init_imgui()
   init_info.CheckVkResultFn  = 0;//check_vk_result;
   ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
 
+  char tmp[1024] = {0};
   {
     float gamma[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
     float rec2020_to_dspy[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    FILE *f = fopen("display.profile", "r");
+    snprintf(tmp, sizeof(tmp), "%s/display.profile", dt_pipe.basedir);
+    FILE *f = fopen(tmp, "r");
     if(f)
     {
       fscanf(f, "%f %f %f\n", gamma, gamma+1, gamma+2);
@@ -280,7 +282,8 @@ extern "C" int dt_gui_init_imgui()
   //io.Fonts->AddFontDefault();
   float fontsize = qvk.win_height / 55.0f;
   // io.Fonts->AddFontFromFileTTF("data/OpenSans-Light.ttf", fontsize);
-  io.Fonts->AddFontFromFileTTF("data/Roboto-Regular.ttf", fontsize);
+  snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
+  io.Fonts->AddFontFromFileTTF(tmp, fontsize);
   // io.Fonts->AddFontFromFileTTF("../ext/imgui/misc/fonts/Roboto-Medium.ttf", fontsize);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
@@ -328,7 +331,7 @@ extern "C" int dt_gui_init_imgui()
   vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);
   vkdt.wstate.module_names     = (const char **)malloc(sizeof(char*)*dt_pipe.num_modules);
   int pos = 0;
-  for(int i=0;i<dt_pipe.num_modules;i++)
+  for(uint32_t i=0;i<dt_pipe.num_modules;i++)
   {
     const char *name = dt_token_str(dt_pipe.module[i].name);
     const size_t len = strnlen(name, 8);
@@ -1343,7 +1346,7 @@ void render_darkroom_pipeline()
   static int add_modid = 0; ImGui::Combo("module", &add_modid, vkdt.wstate.module_names_buf);
   static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
   if(ImGui::Button("add module"))
-    if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1u)
+    if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
       last_err = 16ul<<32;
 }
 

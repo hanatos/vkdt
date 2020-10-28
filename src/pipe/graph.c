@@ -178,8 +178,8 @@ dt_graph_create_shader_module(
 {
   // create the compute shader stage
   char filename[1024] = {0};
-  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".%s.spv",
-      dt_token_str(node), dt_token_str(kernel), type);
+  snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/%"PRItkn".%s.spv",
+      dt_pipe.basedir, dt_token_str(node), dt_token_str(kernel), type);
 
   size_t len;
   void *data = read_file(filename, &len);
@@ -1411,8 +1411,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 
     // compute shader or graphics pipeline?
     char filename[1024] = {0};
-    snprintf(filename, sizeof(filename), "modules/%"PRItkn"/main.vert.spv",
-        dt_token_str(module->name));
+    snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/main.vert.spv",
+        dt_pipe.basedir, dt_token_str(module->name));
     struct stat statbuf;
     if(stat(filename, &statbuf)) node->type = s_node_compute;
     else node->type = s_node_graphics;

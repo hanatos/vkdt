@@ -47,6 +47,7 @@ typedef enum dt_db_property_t
 }
 dt_db_property_t;
 
+__attribute__((unused))
 static const char*
 dt_db_property_text =
 {

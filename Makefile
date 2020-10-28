@@ -42,7 +42,9 @@ distclean:
 
 bin: src Makefile
 	mkdir -p bin/data
-	ln -sf ../src/vkdt-cli bin/
-	ln -sf ../src/vkdt bin/
+	# copy so we can take the executable path via /proc/self/exe:
+	cp -f src/vkdt-cli bin/
+	cp -f src/vkdt bin/
+	# should probably copy this for easier install, too:
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data

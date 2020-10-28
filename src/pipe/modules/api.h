@@ -695,6 +695,14 @@ dt_graph_open_resource(
   if(fname[0] == '/')
     return fopen(fname, mode); // absolute path
   char filename[1024]; // for relative paths, add search path
-  snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
-  return fopen(filename, mode);
+  if(graph)
+  {
+    snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
+    FILE *f = fopen(filename, mode);
+    if(f) return f;
+    // if we can't open it in the graph specific search path, try the global one:
+    snprintf(filename, sizeof(filename), "%s/%s", graph->basedir, fname);
+    return fopen(filename, mode);
+  }
+  return 0;
 }

@@ -182,12 +182,14 @@ dt_thumbnails_cache_one(
   // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
   // if that already exists with a newer timestamp than the cfg, bail out
 
-  char cfgfilename[1024];
-  char imgfilename[1024];
-  char bc1filename[1024];
+  char cfgfilename[1040];
+  char deffilename[1040];
+  char imgfilename[1040];
+  char bc1filename[1040];
   uint32_t hash = murmur_hash3(filename, len, 1337);
   snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
+  snprintf(deffilename, sizeof(imgfilename), "%s/default.cfg", dt_pipe.basedir);
   snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
   imgfilename[len-4] = 0; // cut away ".cfg"
   struct stat statbuf = {0};
@@ -197,7 +199,7 @@ dt_thumbnails_cache_one(
     tcfg = statbuf.st_mtim.tv_sec;
   else
   {
-    if(!stat("default.cfg", &statbuf))
+    if(!stat(deffilename, &statbuf))
       tcfg = statbuf.st_mtim.tv_sec;
     else return VK_INCOMPLETE;
   }
@@ -218,7 +220,7 @@ dt_thumbnails_cache_one(
     .extra_param_cnt = 2,
     .p_extra_param   = extrap,
     .p_cfgfile       = cfgfilename,
-    .p_defcfg        = "default.cfg",
+    .p_defcfg        = deffilename,
     .output_cnt      = 1,
     .output = {{
       .max_width  = tn->thumb_wd,
@@ -384,9 +386,9 @@ dt_thumbnails_load_one(
   if(dt_pipe.modules_reloaded) return VK_INCOMPLETE;
 
   dt_graph_t *graph = tn->graph;
-  char cfgfilename[1024] = {0};
-  char imgfilename[1024] = {0};
-  snprintf(cfgfilename, sizeof(cfgfilename), "thumb.cfg");
+  char cfgfilename[1040] = {0};
+  char imgfilename[1040] = {0};
+  snprintf(cfgfilename, sizeof(cfgfilename), "%s/thumb.cfg", dt_pipe.basedir);
   if(strncmp(filename, "data/", 5))
   { // only hash images that aren't straight from our resource directory:
     // TODO: make sure ./dir/file and dir//file etc turn out to be the same
