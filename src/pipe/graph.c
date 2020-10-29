@@ -899,7 +899,8 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   if(input >= 0)
   { // first copy image metadata if we have a unique "input" connector
     c = module->connector + input;
-    module->img_param = graph->module[c->connected_mi].img_param;
+    if(c->connected_mi != -1u)
+      module->img_param = graph->module[c->connected_mi].img_param;
   }
   for(int i=0;i<module->num_connectors;i++)
   { // keep incoming roi in sync:
@@ -935,8 +936,11 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   }
   else
   {
-    roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
-    c->roi = roi; // also keep incoming roi in sync
+    if(c->connected_mi != -1u)
+    {
+      roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
+      c->roi = roi; // also keep incoming roi in sync
+    }
   }
   for(int i=0;i<module->num_connectors;i++)
   {
@@ -1604,6 +1608,7 @@ VkResult dt_graph_run(
           { // walk node->module->module->node
             int mi1 = graph->module[mi0].connector[mc0].connected_mi;
             int mc1 = graph->module[mi0].connector[mc0].connected_mc;
+            if(mi1 == -1u) continue;
             n0 = graph->module[mi1].connector[mc1].associated_i;
             c0 = graph->module[mi1].connector[mc1].associated_c;
           }
