@@ -42,8 +42,8 @@ dt_graph_replace_display(
   if(graph->module[m2].connector[0].format == dt_token("ui8"))
   {
     // output buffer reading is inflexible about buffer configuration. texture units can handle it, so just push further:
-    graph->module[m1].connector[o1].format = graph->module[m0].connector[o0].format = graph->module[m2].connector[i2].format;
-    graph->module[m1].connector[o1].chan   = graph->module[m0].connector[o0].chan   = graph->module[m2].connector[i2].chan;
+    graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
+    graph->module[m1].connector[o1].chan   = graph->module[m2].connector[i2].chan;
     CONN(dt_module_connect(graph, m0, o0, m1, i1));
     CONN(dt_module_connect(graph, m1, o1, m2, i2));
   }
