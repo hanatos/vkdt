@@ -31,6 +31,9 @@ dt_db_cleanup(dt_db_t *db)
   // do not write if opened single image:
   if(db->image_cnt > 1) dt_db_write(db, dbname, 0);
   dt_stringpool_cleanup(&db->sp_filename);
+  free(db->collection);
+  free(db->selection);
+  free(db->image);
   memset(db, 0, sizeof(*db));
 }
 
