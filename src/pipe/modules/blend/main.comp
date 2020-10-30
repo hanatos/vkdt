@@ -73,6 +73,8 @@ main()
   vec3 bck   = texelFetch(img_in,   ipos, 0).rgb;
   vec3 rgb   = texelFetch(img_top,  ipos, 0).rgb;
   float mask = texture(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
+  // float mask = sample_semisoft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
+  // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
   float t = clamp(params.opacity*(1.0-mask), 0, 1);
 
   if(params.filters == 1)

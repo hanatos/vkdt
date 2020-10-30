@@ -328,7 +328,15 @@ dt_gui_read_favs(
     const char *filename)
 {
   vkdt.fav_cnt = 0;
-  FILE *f = fopen(filename, "rb");
+  FILE *f = 0;
+  char tmp[1024] = {0};
+  if(filename[0] == '/')
+    f = fopen(filename, "rb");
+  else
+  {
+    snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, filename);
+    f = fopen(tmp, "rb");
+  }
   if(!f) return 1;
   char buf[2048];
   while(!feof(f))

@@ -30,12 +30,13 @@ main()
   // const vec4 mean_corr = texelFetch(img_in, ipos, 0);
   const vec4 mean_corr = texture(img_in, (ipos + 0.5)/vec2(imageSize(img_out)));
   // to make this really smooth, would need to consider pixel size in subsampled input blur buffer:
-  // const vec4 mean_corr = sample_semisoft(img_in, (ipos + vec2(0.5))/vec2(imageSize(img_out)));
+  // const vec4 mean_corr = sample_semisoft(img_in, (ipos + 0.5)/vec2(imageSize(img_out)));
   const float var = mean_corr.z - mean_corr.x * mean_corr.x;
   const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
   // XXX what's the valid range here?
   // const float a = clamp(cov / (var + 100*cov*params.epsilon), 0.0f, 1.0f);
-  const float a = clamp(cov / (var + 100*params.epsilon), -10000.0, 10000.0); // some safety margin to avoid infty etc
+  // const float a = clamp(cov / (var + params.epsilon), -1e20, 1e20); // some safety margin to avoid infty etc
+  const float a = cov / (var + params.epsilon*params.epsilon);
   const float b = mean_corr.y - a * mean_corr.x;
   imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
 }

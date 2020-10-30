@@ -50,7 +50,7 @@ FCxtrans(
 }
 
 void
-rawspeed_load_meta()
+rawspeed_load_meta(const dt_module_t *mod)
 {
   static std::mutex lock;
   /* Load rawspeed cameras.xml meta file once */
@@ -61,11 +61,8 @@ rawspeed_load_meta()
     {
       // omp_set_nested(1); // deprecated
       omp_set_max_active_levels(5);
-      // char datadir[PATH_MAX] = { 0 };
       char camfile[PATH_MAX] = { 0 };
-      // dt_loc_get_datadir(datadir, sizeof(datadir));
-      const char *datadir = "./data"; // assume we run from installed bin/ directory
-      snprintf(camfile, sizeof(camfile), "%s/cameras.xml", datadir);
+      snprintf(camfile, sizeof(camfile), "%s/data/cameras.xml", mod->graph->basedir);
       // never cleaned up (only when dt closes)
       try
       {
@@ -101,7 +98,7 @@ load_raw(
 
   try
   {
-    rawspeed_load_meta();
+    rawspeed_load_meta(mod);
 
     mod_data->m = f.readFile();
 
@@ -210,11 +207,20 @@ void modify_roi_out(
   // load image if not happened yet
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;
-  char tmpfn[1024];
+  char tmpfn[1024]; // replicate api.h:dt_graph_open_resource because c++ is not using FILE*:
   if(filename[0] != '/') // relative paths
   {
     snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
     filename = tmpfn;
+    FILE *f = fopen(filename, "rb");
+    if(!f)
+    {
+      snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->basedir, fname);
+      filename = tmpfn;
+      f = fopen(filename, "rb");
+      if(!f) return; // damn that.
+    }
+    fclose(f);
   }
 
   if(load_raw(mod, filename)) return;
@@ -237,7 +243,7 @@ void modify_roi_out(
       mod->img_param.maker,
       mod->img_param.model,
       (int)mod->img_param.iso);
-  FILE *f = fopen(pname, "rb");
+  FILE *f = dt_graph_open_resource(graph, pname, "rb");
   if(f)
   {
     float a = 0.0f, b = 0.0f;

@@ -13,6 +13,7 @@ sanitize: config.mk
 
 clean:
 	$(MAKE) -C .. clean
+	rm -f vkdt vkdt-cli
 
 config.mk: config.mk.example
 	@echo "you don't have a config.mk file (or config.mk.example is newer)."

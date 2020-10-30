@@ -25,12 +25,12 @@ create_nodes(
   const float radius  = ((float*)module->param)[0];
   const float epsilon = ((float*)module->param)[1];
 
-#if 0
-  // XXX DEBUG blur kernel offsets
+#if 0 // XXX DEBUG blur kernel offsets
   int nin, nout;
-  const int id_blur = dt_api_blur_sub(graph, module, -1, 1, &nin, &nout, radius);
+  dt_api_blur_sub(graph, module, -1, 1, &nin, &nout, radius);
   dt_connector_copy(graph, module, 1, nin, 0);  // input
-  module->connector[2].roi = graph->node[nout].connector[1].roi; // XXX
+  // XXX necessary with sub-sampling (because we didn't properly overwrite the roi_out callback)
+  // module->connector[2].roi = graph->node[nout].connector[1].roi;
   dt_connector_copy(graph, module, 2, nout, 1);  // output
   return;
 #endif

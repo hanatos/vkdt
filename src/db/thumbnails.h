@@ -2,6 +2,7 @@
 
 #include "pipe/graph.h"
 #include "pipe/alloc.h"
+#include "core/threads.h"
 
 #include <vulkan/vulkan.h>
 
@@ -37,6 +38,7 @@ dt_thumbnail_t;
 typedef struct dt_thumbnails_t
 {
   dt_graph_t            graph[DT_THUMBNAILS_THREADS];
+  threads_mutex_t       graph_lock[DT_THUMBNAILS_THREADS]; // needed for overscheduling thumbnail creation
 
   int                   thumb_wd;
   int                   thumb_ht;

@@ -207,37 +207,37 @@ dt_api_blur_sub(
     roi.wd = hwd;
     roi.ht = hht;
     graph->node[id_blur].connector[1].roi = roi;
-    if(id_blur_out && i == it-1) *id_blur_out = id_blur;
     // interconnect nodes:
     CONN(dt_node_connect(graph, nid_input,  cid_input, id_blur, 0));
     nid_input = id_blur;
     cid_input = 1;
-  }
-#if 0
-  // now let's upsample at least a bit:
-  // for(int i=0;i<it;i++) { }
+#if 1 // upsample, too
     assert(graph->num_nodes < graph->max_nodes);
     const int id_upsample = graph->num_nodes++;
-    roi = conn_input->roi;
-    roi.wd /= 2;
-    roi.ht /= 2;
     graph->node[id_upsample] = (dt_node_t) {
       .name   = dt_token("shared"),
       .kernel = dt_token("resample"),
       .module = module,
-      .wd     = roi.wd,
-      .ht     = roi.ht,
+      .wd     = graph->node[id_blur].connector[0].roi.wd,
+      .ht     = graph->node[id_blur].connector[0].roi.ht,
       .dp     = dp,
       .num_connectors = 2,
       .connector = { ci, co },
-      .push_constant_size = 3*sizeof(uint32_t),
-      .push_constant = { 1, 0, 0 },
     };
-    graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[1].roi;
-    graph->node[id_upsample].connector[1].roi = roi;
-    CONN(dt_node_connect(graph, nid_input,  cid_input, id_upsample, 0));
-    return id_upsample;
+    graph->node[id_upsample].connector[0].roi = graph->node[id_blur].connector[1].roi;
+    graph->node[id_upsample].connector[1].roi = graph->node[id_blur].connector[0].roi;
+    if(i == it-1)
+    {
+      CONN(dt_node_connect(graph, id_blur, 1, id_upsample, 0));
+      nid_input = id_upsample;
+    }
+    if(i)
+      CONN(dt_node_connect(graph, id_upsample, 1, id_upsample-2, 0));
+    if(id_blur_out && i == 0) *id_blur_out = id_upsample;
+#else
+    if(id_blur_out && i == it-1) *id_blur_out = id_blur;
 #endif
+  }
   return nid_input;
 }
 
@@ -695,6 +695,14 @@ dt_graph_open_resource(
   if(fname[0] == '/')
     return fopen(fname, mode); // absolute path
   char filename[1024]; // for relative paths, add search path
-  snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
-  return fopen(filename, mode);
+  if(graph)
+  {
+    snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
+    FILE *f = fopen(filename, mode);
+    if(f) return f;
+    // if we can't open it in the graph specific search path, try the global one:
+    snprintf(filename, sizeof(filename), "%s/%s", graph->basedir, fname);
+    return fopen(filename, mode);
+  }
+  return 0;
 }

@@ -104,7 +104,6 @@ vec4 sample_semisoft(sampler2D tex, vec2 uv)
   return result / 4.0f;
 }
 
-
 float luminance_rec2020(vec3 rec2020)
 {
   // excerpt from the rec2020 to xyz matrix (y channel only)

@@ -178,8 +178,8 @@ dt_graph_create_shader_module(
 {
   // create the compute shader stage
   char filename[1024] = {0};
-  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".%s.spv",
-      dt_token_str(node), dt_token_str(kernel), type);
+  snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/%"PRItkn".%s.spv",
+      dt_pipe.basedir, dt_token_str(node), dt_token_str(kernel), type);
 
   size_t len;
   void *data = read_file(filename, &len);
@@ -899,7 +899,8 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   if(input >= 0)
   { // first copy image metadata if we have a unique "input" connector
     c = module->connector + input;
-    module->img_param = graph->module[c->connected_mi].img_param;
+    if(c->connected_mi != -1u)
+      module->img_param = graph->module[c->connected_mi].img_param;
   }
   for(int i=0;i<module->num_connectors;i++)
   { // keep incoming roi in sync:
@@ -935,8 +936,11 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   }
   else
   {
-    roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
-    c->roi = roi; // also keep incoming roi in sync
+    if(c->connected_mi != -1u)
+    {
+      roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
+      c->roi = roi; // also keep incoming roi in sync
+    }
   }
   for(int i=0;i<module->num_connectors;i++)
   {
@@ -1411,8 +1415,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 
     // compute shader or graphics pipeline?
     char filename[1024] = {0};
-    snprintf(filename, sizeof(filename), "modules/%"PRItkn"/main.vert.spv",
-        dt_token_str(module->name));
+    snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/main.vert.spv",
+        dt_pipe.basedir, dt_token_str(module->name));
     struct stat statbuf;
     if(stat(filename, &statbuf)) node->type = s_node_compute;
     else node->type = s_node_graphics;
@@ -1604,6 +1608,7 @@ VkResult dt_graph_run(
           { // walk node->module->module->node
             int mi1 = graph->module[mi0].connector[mc0].connected_mi;
             int mc1 = graph->module[mi0].connector[mc0].connected_mc;
+            if(mi1 == -1u) continue;
             n0 = graph->module[mi1].connector[mc1].associated_i;
             c0 = graph->module[mi1].connector[mc1].associated_c;
           }

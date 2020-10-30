@@ -3,15 +3,18 @@
 layout(location = 0) in vec2 tex_coord;
 layout(location = 0) out vec4 mask;
 
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float opacity;
+  float radius;
+  float pad0, pad1;
+  vec4 draw[502];
+} params;
+
 void main()
 {
   vec2 x = vec2(2.0*abs(tex_coord.x-.5), 1.0-tex_coord.y);
-  // float p = 0.1;
-  // x = abs(x-p);
-  // float sigma2 = 2.*2.;
-  // float zero = exp(-sigma2);
 
-	mask = vec4(
-      // clamp((exp(-dot(x,x)*sigma2)-zero)/(1.0-zero), 0.0, 1.0));
-      smoothstep(1.0, 0.4, length(x)));
+  mask = vec4(
+      params.opacity * smoothstep(1.0, 0.4, length(x)));
 }

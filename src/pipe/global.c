@@ -87,8 +87,7 @@ dt_module_so_load(
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
   char filename[2048], line[2048];
-  // TODO: prepend search path, also below in similar places
-  snprintf(filename, sizeof(filename), "modules/%s/lib%s.so", dirname, dirname);
+  snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   mod->dlhandle = 0;
   struct stat statbuf;
   if(!stat(filename, &statbuf))
@@ -113,7 +112,7 @@ dt_module_so_load(
   // read default params:
   // read param name, type, cnt, default value + bounds
   // allocate dynamically, this step here is not immediately perf critical
-  snprintf(filename, sizeof(filename), "modules/%s/params", dirname);
+  snprintf(filename, sizeof(filename), "%s/modules/%s/params", dt_pipe.basedir, dirname);
   FILE *f = fopen(filename, "rb");
   int i = 0;
   if(!f)
@@ -138,7 +137,7 @@ dt_module_so_load(
   }
 
   // read ui widget connection:
-  snprintf(filename, sizeof(filename), "modules/%s/params.ui", dirname);
+  snprintf(filename, sizeof(filename), "%s/modules/%s/params.ui", dt_pipe.basedir, dirname);
   f = fopen(filename, "rb");
   // init as [0,1] sliders as fallback
   for(int i=0;i<mod->num_params;i++)
@@ -230,7 +229,7 @@ dt_module_so_load(
   }
 
   // read connector info
-  snprintf(filename, sizeof(filename), "modules/%s/connectors", dirname);
+  snprintf(filename, sizeof(filename), "%s/modules/%s/connectors", dt_pipe.basedir, dirname);
   f = fopen(filename, "rb");
   if(!f)
   {
@@ -287,9 +286,15 @@ int dt_pipe_global_init()
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
   (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
-  // TODO: setup search directory
+  // setup search directory
+  readlink("/proc/self/exe", dt_pipe.basedir, sizeof(dt_pipe.basedir));
+  char *c = 0;
+  for(int i=0;dt_pipe.basedir[i]!=0;i++) if(dt_pipe.basedir[i] == '/') c = dt_pipe.basedir+i;
+  if(c) *c = 0; // get dirname, i.e. strip off executable name
+  char mod[2048];
+  snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
   struct dirent *dp;
-  DIR *fd = opendir("modules");
+  DIR *fd = opendir(mod);
   if (!fd)
   {
     dt_log(s_log_pipe, "[global init] cannot open modules directory!");

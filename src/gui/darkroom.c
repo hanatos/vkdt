@@ -409,7 +409,7 @@ darkroom_enter()
   if(stat(graph_cfg, &statbuf))
   {
     dt_log(s_log_err|s_log_gui, "individual config %s not found, loading default!", graph_cfg);
-    snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
+    snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.cfg", dt_pipe.basedir);
     load_default = 1;
   }
 

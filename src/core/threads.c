@@ -33,6 +33,7 @@ typedef struct threads_task_t
   uint32_t       work_item_storage; // optional data backing for work_item, if no sync is needed (to avoid further alloc)
   uint32_t      *work_item;         // pointing to an atomically increased synchronising work item counter
   uint32_t       work_item_cnt;     // global number of work items. externally set to 0 if abortion is triggered.
+  uint32_t       unfinished;        // counting how many tasks are not yet *done* (but could be *picked*), to coordinate cleanup.
   uint32_t       tid;               // id of thread working on this task, or -1u if not assigned yet
   threads_run_t  run;               // work function
   void          *data;              // user data to be passed to run function
@@ -94,13 +95,18 @@ void *threads_work(void *arg)
       uint32_t item = __sync_fetch_and_add(task->work_item, 1);
       if(item >= task->work_item_cnt) break;
       task->run(item, task->data);
+      __sync_fetch_and_add(&task->unfinished, -1);
       if(thr.shutdown) break;
     }
-    // clean up task
     // make sure work_item_cnt <= *work_item so it won't be taken up by others
     task->work_item_cnt = 0;
-    if(task->free) task->free(task->data);
-    if(thr.shutdown) break; // don't recycle task
+    if(thr.shutdown) break; // don't recycle task. in fact don't clean up and leak whatever we still have (better than lockup)
+    if(task->free)
+    { // only run cleanup once all tasks are finished:
+      while(!thr.shutdown && task->unfinished) sched_yield();
+      if(thr.shutdown) break; // don't clean up, we didn't wait for everybody!
+      task->free(task->data); // every thread gets the callback, they coordinate who cleans task->data
+    }
     // signal everybody that we're done with the task
     pthread_cond_broadcast(&thr.cond_task_done);
     // mark task as recyclable:
@@ -155,6 +161,7 @@ int threads_task(
   task->free = free;
   task->data = data;
   task->work_item_cnt = work_item_cnt;
+  task->unfinished = work_item_cnt;
   task->work_item_storage = 0;
   if(work_item) task->work_item = work_item;
   else task->work_item = &task->work_item_storage;
@@ -206,6 +213,7 @@ void threads_global_init()
   //  | sort -g | uniq
   // or numactl --hardware
   // and then edit it to your needs (this list will start with one thread per core, no hyperthreading used)
+  // TODO: add search path relative to binary?
   FILE *f = fopen(filename, "rb");
   if(f)
   {

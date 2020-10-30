@@ -138,6 +138,7 @@ int dt_graph_set_searchpath(
     dt_graph_t *graph,
     const char *filename)
 {
+  snprintf(graph->basedir, sizeof(graph->basedir), "%s", dt_pipe.basedir); // take copy for modules without global access
   char target[256] = {0};
   const char *f = target;
   ssize_t err = readlink(filename, target, sizeof(target));
@@ -149,8 +150,14 @@ int dt_graph_set_searchpath(
     graph->searchpath[0] = 0;
     return 1;
   }
-  else dirname(graph->searchpath);
-  return 0;
+  else
+  {
+    // don't use: dirname(graph->searchpath) since it may or may not alter graph->searchpath, implementation dependent.
+    char *c = 0;
+    for(int i=0;graph->searchpath[i]!=0;i++) if(graph->searchpath[i] == '/') c = graph->searchpath+i;
+    if(c) *c = 0; // get dirname, i.e. strip off executable name
+    return 0;
+  }
 }
 
 // TODO: rewrite this to work on a uint8_t * data pointer (same for write below)

@@ -26,11 +26,14 @@ dt_db_init(dt_db_t *db)
 void
 dt_db_cleanup(dt_db_t *db)
 {
-  char dbname[256];
+  char dbname[1040];
   snprintf(dbname, sizeof(dbname), "%s/vkdt.db", db->dirname);
   // do not write if opened single image:
   if(db->image_cnt > 1) dt_db_write(db, dbname, 0);
   dt_stringpool_cleanup(&db->sp_filename);
+  free(db->collection);
+  free(db->selection);
+  free(db->image);
   memset(db, 0, sizeof(*db));
 }
 
@@ -168,7 +171,7 @@ void dt_db_load_directory(
     image_init(db->image + imgid);
 
     // now reject non-cfg files that have a cfg already:
-    char cfgfile[256];
+    char cfgfile[1500];
     int ep_len = strlen(ep->d_name);
     if(ep_len > 4)
     {
@@ -214,9 +217,8 @@ int dt_db_load_image(
   if(!dt_db_accept_filename(filename)) return 1;
   db->image_max = 1;
   int len = strnlen(filename, 2048);
-  int no_cfg = 0;
-  if(len <= 4 || strcasecmp(filename+len-4, ".cfg")) no_cfg = 1;
-  else len -= 4; // remove .cfg suffix
+  if(len > 4 && !strcasecmp(filename+len-4, ".cfg"))
+    len -= 4; // remove .cfg suffix
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);
@@ -383,12 +385,12 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   dt_db_image_path(db, imgid, filename, sizeof(filename));
 
   uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
-  char dirname[256];
+  char dirname[1040];
   snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
   mkdir(dirname, 0755);
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
   mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
-  char linkname[256];
+  char linkname[1040];
   snprintf(linkname, sizeof(linkname), "%s/tags/%s/%x.cfg", db->basedir, cname, hash);
   int err = symlink(filename, linkname);
   if(err) return 1;
