@@ -9,7 +9,7 @@
 // make && ./rgb2mom 256 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
 
 // 2D sigmoid as comparison
-#define SIGMOID
+// #define SIGMOID
 // #define SIG_SWZ
 
 #include <math.h>
@@ -679,7 +679,7 @@ int main(int argc, char **argv) {
   }
 // #if 1 // smoothing passes. seems only moments require it
 #ifndef SIGMOID
-  for(int it=0;it<30;it++) // make sure this is < even
+  for(int it=0;it<10;it++) // make sure this is < even
   {
     float *in = 0;
     if(it & 1)

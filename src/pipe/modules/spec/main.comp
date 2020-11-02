@@ -143,7 +143,7 @@ vec3(0.011359160000,0.004102000000,0.000000000000), // 700nm
 };
 
 
-#if 0
+#if 1
 // Journal of Computer Graphics Techniques, Simple Analytic Approximations to
 // the CIE XYZ Color Matching Functions Vol. 2, No. 2, 2013 http://jcgt.org
 //Inputs:  Wavelength in nanometers
@@ -223,10 +223,12 @@ main()
     // this is not poisson, coeff.y also has r^2 because then it looks good. (??)
     vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
     prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+    // TODO: does not work yet!
     if(!valid(exp_momc))
     {
       // just mark as broken:
       // prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, vec3(0.1, 0, 0));//coeff);
+#if 1
       // iterate back to last good r
       float lo = 0.0;
       float hi = r;
@@ -243,12 +245,13 @@ main()
       r = lo;
       vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
       prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+#endif
     }
   }
 
   const int num_l = 30;
   vec3 xyz = vec3(0);
-  const vec3 norm = vec3(num_l);// * vec3(0.354678, 0.355529, 0.34371);
+  const vec3 norm = vec3(num_l); //* vec3(0.354678, 0.355529, 0.34371);
   vec2 exp_momw[3], eval_polyw[3];
   prepareReflectanceSpectrumReal3(exp_momw, eval_polyw, cwp);
   for(int l=0;l<num_l;l++)
@@ -261,8 +264,7 @@ main()
 
     // compute colour again, in xyz:
     const int bin = l;
-    xyz += val * wht *
-      cie_cmf[bin];
+    xyz += val * wht * cie_cmf[bin];
       // vec3(xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
   }
   xyz /= norm;
@@ -278,6 +280,20 @@ main()
 
   // saturation in various ways. none of which work, making me sad.
 #if 1
+    // dumb version
+    vec3 cyl;
+    cyl.x = coeff.x;
+    cyl.z = coeff.y / (-2.0 * coeff.x);      // dom lambda
+    cyl.y = coeff.z - coeff.x * cyl.z*cyl.z; // y
+
+    cyl.x *= params.sat;
+
+    // convert back
+    coeff.x = cyl.x;
+    coeff.y = -2.0 * cyl.x * cyl.z;
+    coeff.z = cyl.x * cyl.z*cyl.z + cyl.y;
+#endif
+#if 0
   vec3 sig = vec3(
       coeff.x,  // coefficient that goes with the square lambda
       coeff.z - coeff.y*coeff.y / (4.0 * coeff.x), // height of extremum of parabola
@@ -351,6 +367,7 @@ main()
 
   // convert to slope width domlambda
   {
+#if 0
     float disc = abs(4.0*coeff.x*coeff.z - coeff.y*coeff.y);
     disc = sqrt(disc);
     vec3 swz = vec3(
@@ -368,6 +385,7 @@ main()
     if(4.0*coeff.x*coeff.z > coeff.y*coeff.y)
       coeff.z = coeff.x * (swz.z*swz.z + swz.y*swz.y); // this case is fine
       // coeff.z = swz.x * swz.y + coeff.x * swz.z*swz.z;
+#endif
   }
 
   const int num_l = 10;
