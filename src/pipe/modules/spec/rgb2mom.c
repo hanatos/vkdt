@@ -69,6 +69,18 @@ void quantise_coeffs(double coeffs[3], float out[3])
   out[1] = (float)(B*c1 - 2*A*c0*(sqrd(c1)));
   out[2] = (float)(C - B*c0*c1 + A*(sqrd(c0*c1)));
 #if 0
+  // convert to c0 y dom-lambda:
+  A = out[0]; B = out[1]; C = out[2];
+  out[0] = A;                        // square slope stays
+  out[2] = B / (-2.0*A);             // dominant wavelength
+  out[1] = C - A * out[2] * out[2];  // y
+
+  // XXX visualise abs:
+  // out[0] = fabsf(out[0]); // goes from 1.0/256.0 (spectral locus) .. 0 (purple ridge through white)
+  // out[1] = fabsf(out[1]); // somewhat useful from 0..large purple ridge..spectral locus, but high-low-high for purple tones
+  // out[1] = -out[1];
+#endif
+#if 0
   // convert to shift width slope:
   A = out[0]; B = out[1]; C = out[2];
   // TODO: if 4ac - b^2 > 0:
@@ -572,12 +584,15 @@ int main(int argc, char **argv) {
     // TODO: only output 2D table for emission
     // TODO: scaling rgb to max <<1.0 blends over to burg entropy as used by unbounded mese
 
-    // TODO: parse settings that work out (64 or 256)
     const int res = atoi(argv[1]); // resolution of cube
+#if 0
+    // parse settings that work out (64 or 256)
+    // this constraint is for 3D
     if (res != 64 && res != 256) {
         printf("invalid resolution! currenly only supporting 64 and 256\n");
         exit(-1);
     }
+#endif
 
     printf("Optimizing ");
 
