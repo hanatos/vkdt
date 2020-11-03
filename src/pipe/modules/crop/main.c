@@ -106,8 +106,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   float p[8];
   for(int k=0;k<4;k++)
   {
-    p[2*k+0] = module->connector[0].roi.full_wd * inp[2*k+0];
-    p[2*k+1] = module->connector[0].roi.full_ht * inp[2*k+1];
+    p[2*k+0] = module->connector[0].roi.wd * inp[2*k+0];
+    p[2*k+1] = module->connector[0].roi.ht * inp[2*k+1];
   }
   // the approach taken here is that a 2D point is transformed by a matrix
   // H * (x, y, 1)^t
@@ -141,8 +141,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   float crop[4], rot;
   const float *p_crop = dt_module_param_float(module, 1);
   const float *p_rot  = dt_module_param_float(module, 2);
-  float wd = module->connector[0].roi.full_wd;
-  float ht = module->connector[0].roi.full_ht;
+  float wd = module->connector[0].roi.wd;
+  float ht = module->connector[0].roi.ht;
   uint32_t or = module->img_param.orientation;
   get_crop_rot(or, wd, ht, p_crop, p_rot, crop, &rot);
 
