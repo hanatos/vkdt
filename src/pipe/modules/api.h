@@ -152,7 +152,8 @@ dt_api_blur_sub(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    uint32_t     radius)
+    uint32_t     radius,
+    uint32_t     upsample)     // set this to != 0 if you want output on the same res as the input (high quality like)
 {
   // detect pixel format on input
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -211,32 +212,35 @@ dt_api_blur_sub(
     CONN(dt_node_connect(graph, nid_input,  cid_input, id_blur, 0));
     nid_input = id_blur;
     cid_input = 1;
-#if 1 // upsample, too
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_upsample = graph->num_nodes++;
-    graph->node[id_upsample] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = dt_token("resample"),
-      .module = module,
-      .wd     = graph->node[id_blur].connector[0].roi.wd,
-      .ht     = graph->node[id_blur].connector[0].roi.ht,
-      .dp     = dp,
-      .num_connectors = 2,
-      .connector = { ci, co },
-    };
-    graph->node[id_upsample].connector[0].roi = graph->node[id_blur].connector[1].roi;
-    graph->node[id_upsample].connector[1].roi = graph->node[id_blur].connector[0].roi;
-    if(i == it-1)
-    {
-      CONN(dt_node_connect(graph, id_blur, 1, id_upsample, 0));
-      nid_input = id_upsample;
+    if(upsample)
+    { // upsample, too
+      assert(graph->num_nodes < graph->max_nodes);
+      const int id_upsample = graph->num_nodes++;
+      graph->node[id_upsample] = (dt_node_t) {
+        .name   = dt_token("shared"),
+        .kernel = dt_token("resample"),
+        .module = module,
+        .wd     = graph->node[id_blur].connector[0].roi.wd,
+        .ht     = graph->node[id_blur].connector[0].roi.ht,
+        .dp     = dp,
+        .num_connectors = 2,
+        .connector = { ci, co },
+      };
+      graph->node[id_upsample].connector[0].roi = graph->node[id_blur].connector[1].roi;
+      graph->node[id_upsample].connector[1].roi = graph->node[id_blur].connector[0].roi;
+      if(i == it-1)
+      {
+        CONN(dt_node_connect(graph, id_blur, 1, id_upsample, 0));
+        nid_input = id_upsample;
+      }
+      if(i)
+        CONN(dt_node_connect(graph, id_upsample, 1, id_upsample-2, 0));
+      if(id_blur_out && i == 0) *id_blur_out = id_upsample;
     }
-    if(i)
-      CONN(dt_node_connect(graph, id_upsample, 1, id_upsample-2, 0));
-    if(id_blur_out && i == 0) *id_blur_out = id_upsample;
-#else
-    if(id_blur_out && i == it-1) *id_blur_out = id_blur;
-#endif
+    else
+    {
+      if(id_blur_out && i == it-1) *id_blur_out = id_blur;
+    }
   }
   return nid_input;
 }
@@ -369,7 +373,7 @@ dt_api_guided_filter_full(
   // corr_I  = blur(I*I)
   // corr_Ip = blur(I*p)
   // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius);
-  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius);
+  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius, 1);
 
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
@@ -406,7 +410,7 @@ dt_api_guided_filter_full(
   // mean_a = blur(a)
   // mean_b = blur(b)
   // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
-  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius);
+  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius, 1);
   // final kernel:
   // output = mean_a * I + mean_b
   assert(graph->num_nodes < graph->max_nodes);
