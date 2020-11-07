@@ -61,7 +61,7 @@ typedef struct dt_connector_t
 {
   dt_token_t name;   // connector name
   dt_token_t type;   // read write source sink
-  dt_token_t chan;   // rgb yuv..
+  dt_token_t chan;   // rgb yuv.. or ssbo for storage buffers instead of images
   dt_token_t format; // f32 ui16
 
   dt_connector_flags_t flags;
@@ -154,12 +154,13 @@ dt_connector_bytes_per_pixel(const dt_connector_t *c)
 static inline int
 dt_connector_channels(const dt_connector_t *c)
 {
+  if(c->chan == dt_token("ssbo")) return 1; // shader storage buffers have no channels
   // bayer or x-trans?
   if(c->chan == dt_token("rggb") || c->chan == dt_token("rgbx")) return 1;
   return c->chan <=     0xff ? 1 :
         (c->chan <=   0xffff ? 2 :
          4);
-        // (c->chan <= 0xffffff ? 3 : 4));
+        // (c->chan <= 0xffffff ? 3 : 4)); // this is mostly padded (intel)
 }
 
 static inline VkFormat
