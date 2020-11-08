@@ -30,6 +30,7 @@ int dt_module_add(
   mod->data = 0;
   mod->committed_param_size = 0;
   mod->committed_param = 0;
+  mod->flags = 0;
 
   // copy over initial info from module class:
   for(int i=0;i<dt_pipe.num_modules;i++)
@@ -106,7 +107,7 @@ int dt_module_remove(
     dt_graph_t *graph,
     const int modid)
 {
-  // TODO: mark as dead and increment dead counter. if we don't like it any
+  // only mark as dead. TODO: if we don't like it any
   // more, perform some form of garbage collection.
   assert(modid >= 0 && graph->num_modules > modid);
   if(graph->module[modid].so->cleanup)
@@ -118,6 +119,7 @@ int dt_module_remove(
   graph->module[modid].name = 0;
   graph->module[modid].inst = 0;
   graph->module[modid].connector[0].type = 0; // to avoid being detected as sink
+  graph->module[modid].flags = 0;
   return 0;
 }
 

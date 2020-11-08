@@ -1494,6 +1494,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   {
     const int pi = dt_module_get_param(node->module->so, dt_token("draw"));
     const float *p_draw = dt_module_param_float(node->module, pi);
+
     if(p_draw[0] > 0)
       vkCmdDraw(cmd_buf, (int)p_draw[0], 1, 0, 0);
     vkCmdEndRenderPass(cmd_buf);
@@ -1668,6 +1669,7 @@ VkResult dt_graph_run(
     }
   }
   graph->query_cnt = 0;
+  dt_module_flags_t module_flags = 0;
 
 { // module scope
   // find list of modules in post order
@@ -1680,6 +1682,10 @@ VkResult dt_graph_run(
 #define TRAVERSE_POST \
   modid[cnt++] = curr;
 #include "graph-traverse.inc"
+
+  // find extra module flags
+  for(int i=0;i<cnt;i++)
+    module_flags |= graph->module[modid[i]].flags;
 
   // ==============================================
   // first pass: find output rois
@@ -1969,7 +1975,8 @@ VkResult dt_graph_run(
   // upload all source data to staging memory
   threads_mutex_t *mutex = 0;// graph->io_mutex; // no speed impact, maybe not needed
   if(mutex) threads_mutex_lock(mutex);
-  if(run & s_graph_run_upload_source)
+  if((module_flags & s_module_request_read_source) ||
+     (run & s_graph_run_upload_source))
   {
     uint8_t *mapped = 0;
     QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
@@ -1979,9 +1986,12 @@ VkResult dt_graph_run(
       if(dt_node_source(node))
       {
         if(node->module->so->read_source)
-        { // TODO: detect error code!
-          node->module->so->read_source(node->module,
-              mapped + node->connector[0].offset_staging);
+        {
+          if((node->module->flags & s_module_request_read_source) ||
+             (run & s_graph_run_upload_source))
+            // TODO: detect error code!
+            node->module->so->read_source(node->module,
+                mapped + node->connector[0].offset_staging);
         }
         else
           dt_log(s_log_err|s_log_pipe, "source node '%"PRItkn"' has no read_source() callback!",

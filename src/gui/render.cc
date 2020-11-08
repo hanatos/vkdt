@@ -28,6 +28,7 @@ namespace { // anonymous gui state namespace
 
 void widget_end()
 {
+  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
   // rerun all (roi could have changed, buttons are drastic)
   // TODO: let module decide this!
   vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
@@ -36,7 +37,6 @@ void widget_end()
   vkdt.state.look_at_x = FLT_MAX;
   vkdt.state.look_at_y = FLT_MAX;
   vkdt.state.scale = -1;
-  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
   int modid = vkdt.wstate.active_widget_modid;
   int parid = vkdt.wstate.active_widget_parid;
   int parnm = vkdt.wstate.active_widget_parnm;
@@ -1432,16 +1432,16 @@ void render_darkroom()
         case dt_token("draw"):
         { // this is not really needed. draw line on top of stroke.
           // we map the buffer and get instant feedback on the image.
-          float p[2004];
-          int cnt = vkdt.wstate.mapped[0];
-          for(int k=0;k<cnt;k++)
-          {
-            p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
-            p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
-            dt_image_to_view(p+2*k, p+2*k);
-          }
-          ImGui::GetWindowDrawList()->AddPolyline(
-              (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
+          // float p[2004];
+          // int cnt = vkdt.wstate.mapped[0];
+          // for(int k=0;k<cnt;k++)
+          // {
+          //   p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
+          //   p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
+          //   dt_image_to_view(p+2*k, p+2*k);
+          // }
+          // ImGui::GetWindowDrawList()->AddPolyline(
+          //     (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
           break;
         }
         default:;
