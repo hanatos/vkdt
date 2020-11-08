@@ -9,11 +9,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float opacity;
   float radius;
-  float pad0, pad1;
-  // vec2 draw[1002];//[2005]; // XXX TODO: max uniform size or so? now it's 1000 vertices
-  vec4 draw[502];
 } params;
 
+layout(std430, set = 1, binding = 0) buffer ssbo_t
+{
+  vec2 v[]; // variable-length list of 2d vertices
+} ssbo;
 
 void main()
 {
@@ -45,13 +46,8 @@ void main()
     p = vec2(0.8, -0.8);
   gl_Position = vec4(p, 0.0, 1.0);
 #endif
-#if 1
-  // unfortunately uniform arrays need to be vec4 aligned, undo this:
-  int i0 = (1+2*gl_VertexIndex) / 4;
-  int j0 = (1+2*gl_VertexIndex) % 4;
-  int i1 = (2+2*gl_VertexIndex) / 4;
-  int j1 = (2+2*gl_VertexIndex) % 4;
-  vec2 p = vec2(params.draw[i0][j0], params.draw[i1][j1])*2.0 - 1.0;
+
+  // grab vertex position from ssbo:
+  vec2 p = ssbo.v[gl_VertexIndex]*2.0 - 1.0;
   gl_Position = vec4(p, 0, 1.0);
-#endif
 }

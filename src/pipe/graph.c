@@ -512,7 +512,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         if(c->type == dt_token("source"))
         { // source nodes are protected because we want to avoid re-transmit when possible.
           // also, they are allocated in host-visible staging memory
-          vkGetBufferMemoryRequirements(qvk.device, c->staging, &buf_mem_req);
+          vkGetBufferMemoryRequirements(qvk.device, img->buffer, &buf_mem_req);
           if(graph->memory_type_bits_staging != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits_staging)
             dt_log(s_log_qvk|s_log_err, "staging memory type bits don't match!");
           graph->memory_type_bits_staging = buf_mem_req.memoryTypeBits;
@@ -532,12 +532,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
             img->mem = dt_vkalloc(&graph->heap, buf_mem_req.size, buf_mem_req.alignment);
         }
         img->offset = img->mem->offset;
-        img->size   = img->mem->size;
+        img->size   = size; // for validation layers, this is the smaller of the two sizes.
         // set the staging offsets so it'll transparently work with read_source further down
         // when running the graph. this can couse trouble for multiple source ssbo in the
         // same node (as multiple places in the code e.g. using a single read_source call)
         c->offset_staging = img->mem->offset;
-        c->size_staging   = img->mem->size;
+        c->size_staging   = size;
         // reference counting. we can't just do a ref++ here because we will
         // free directly after and wouldn't know which node later on still relies
         // on this buffer. hence we ran a reference counting pass before this, and
