@@ -921,8 +921,9 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
               // the image struct is shared between in and out connectors, but we 
               // acces the frame either straight or crossed, depending on feedback mode.
               int iii = cur_img++;
-              // FIXME: R32 textures should not be filtered
-              img_info[iii].sampler     = c->type == dt_token("sink") ? qvk.tex_sampler_nearest : qvk.tex_sampler;
+              img_info[iii].sampler     = (c->type == dt_token("sink") ||
+                                           c->format == dt_token("ui32")) ?
+                                          qvk.tex_sampler_nearest : qvk.tex_sampler;
               img_info[iii].imageView   = img->image_view;
               assert(img->image_view);
               img_info[iii].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
