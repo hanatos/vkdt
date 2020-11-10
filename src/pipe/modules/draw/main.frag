@@ -7,8 +7,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float opacity;
   float radius;
-  float pad0, pad1;
-  vec4 draw[502];
 } params;
 
 void main()
