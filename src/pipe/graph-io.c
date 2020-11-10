@@ -78,7 +78,7 @@ read_connection_ascii(
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
     dt_log(s_log_pipe, "[read connect] no such modules %d %d", modid0, modid1);
-    return 1;
+    return -1;
   }
   int conid0 = dt_module_get_connector(graph->module+modid0, conn0);
   int conid1 = dt_module_get_connector(graph->module+modid1, conn1);
@@ -90,7 +90,7 @@ read_connection_ascii(
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
     dt_log(s_log_pipe, "[read connect] connection failed: error %d: %s", err, dt_connector_error_str(err));
-    return err;
+    return -err;
   }
   else
   {
@@ -178,7 +178,8 @@ int dt_graph_read_config_ascii(
     fscanf(f, "%[^\n]", line);
     if(fgetc(f) == EOF) break; // read \n
     lno++;
-    if(dt_graph_read_config_line(graph, line)) goto error;
+    // > 0 are warnings, < 0 are fatal, 0 is success
+    if(dt_graph_read_config_line(graph, line) < 0) goto error;
   }
   fclose(f);
   return 0;
@@ -249,19 +250,25 @@ dt_graph_write_param_ascii(
       dt_token_str(mod->name),
       dt_token_str(mod->inst),
       dt_token_str(mod->so->param[p]->name));
+  int cnt = mod->so->param[p]->cnt;
+  if(mod->so->param[p]->name == dt_token("draw"))
+  { // draw issues a lot of numbers, only output the needed ones:
+    const float *v = dt_module_param_float(mod, p);
+    cnt = 2*v[0]+1; // vertex count + list of 2d vertices
+  }
   if(mod->so->param[p]->type == dt_token("float"))
   {
     const float *v = dt_module_param_float(mod, p);
-    for(int i=0;i<mod->so->param[p]->cnt-1;i++)
+    for(int i=0;i<cnt-1;i++)
       WRITE("%g:", v[i]);
-    WRITE("%g\n", v[mod->so->param[p]->cnt-1]);
+    WRITE("%g\n", v[cnt-1]);
   }
   else if(mod->so->param[p]->type == dt_token("int"))
   {
     const int32_t *v = dt_module_param_int(mod, p);
-    for(int i=0;i<mod->so->param[p]->cnt-1;i++)
+    for(int i=0;i<cnt-1;i++)
       WRITE("%d:", v[i]);
-    WRITE("%d\n", v[mod->so->param[p]->cnt-1]);
+    WRITE("%d\n", v[cnt-1]);
   }
   else if(mod->so->param[p]->type == dt_token("string"))
   {
@@ -321,5 +328,35 @@ int dt_graph_write_config_ascii(
 error:
   dt_log(s_log_err, "failed to write config file %s", filename);
   free(org);
+  return 1;
+}
+
+int dt_graph_read_block(
+    dt_graph_t *graph,
+    const char *filename)
+  // TODO: parameters for input/output/instance name
+{
+  FILE *f = dt_graph_open_resource(graph, filename, "rb");
+  if(f)
+  { // read lines individually, we need to search/replace generic input/output/instance strings
+    // needs to be large enough to hold 1000 vertices of drawn masks:
+    char line[30000];
+    uint32_t lno = 0;
+    while(!feof(f))
+    {
+      fscanf(f, "%[^\n]", line);
+      if(fgetc(f) == EOF) break; // read \n
+      // TODO: search/replace input output and instance!
+      lno++;
+      if(dt_graph_read_config_line(graph, line)) goto error;
+    }
+    fclose(f);
+    return 0;
+error:
+    dt_log(s_log_pipe|s_log_err, "failed in line %u: '%s'", lno, line);
+    fclose(f);
+    return 1;
+  }
+  dt_log(s_log_pipe|s_log_err, "could not open '%s'", filename);
   return 1;
 }

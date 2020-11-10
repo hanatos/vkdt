@@ -20,3 +20,8 @@ int dt_graph_read_config_line(
 int dt_graph_set_searchpath(
     dt_graph_t *graph,
     const char *filename);
+
+// read an extra block of modules to append to the graph
+int dt_graph_read_block(
+    dt_graph_t *graph,
+    const char *filename);
