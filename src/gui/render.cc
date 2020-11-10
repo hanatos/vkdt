@@ -5,6 +5,7 @@ extern "C" {
 #include "qvk/qvk.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-export.h"
+#include "pipe/graph-io.h"
 #include "gui/darkroom-util.h"
 #include "db/thumbnails.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
@@ -1350,6 +1351,14 @@ void render_darkroom_pipeline()
   if(ImGui::Button("add module"))
     if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
       last_err = 16ul<<32;
+
+  // add new unconnected block (read cfg snipped)
+  if(ImGui::Button("add draw block"))
+  {
+    // TODO: open a browser with all data/blocks/*.cfg
+    // for now we only have the draw block
+    dt_graph_read_block(&vkdt.graph_dev, "data/blocks/draw.cfg");
+  }
 }
 
 void render_darkroom()
