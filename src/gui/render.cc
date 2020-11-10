@@ -1178,6 +1178,8 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parnm = 0;
           // TODO: how to crop this to smaller size in case it's not required?
           vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+          // for sanity also keep mapped_size to make clear that it belongs to the mapping, not the copy
+          vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
           vkdt.wstate.mapped = v; // map state
         }
       }

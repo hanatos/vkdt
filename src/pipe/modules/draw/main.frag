@@ -12,7 +12,5 @@ layout(std140, set = 0, binding = 1) uniform params_t
 void main()
 {
   vec2 x = vec2(2.0*abs(tex_coord.x-.5), 1.0-tex_coord.y);
-
-  mask = vec4(
-      params.opacity * smoothstep(1.0, 0.4, length(x)));
+  mask = vec4(params.opacity * smoothstep(1.0, 0.4, length(x)));
 }

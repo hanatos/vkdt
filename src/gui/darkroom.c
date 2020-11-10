@@ -132,12 +132,35 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     }
     else if(type == dt_token("draw"))
     {
-      // record mouse position relative to image
-      // append to state until 1000 lines
-      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT &&
+      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT &&
           x < vkdt.state.center_x + vkdt.state.center_wd)
-      {
-        vkdt.wstate.mapped[0] = 0; // reset vertex count to zero
+      { // right mouse click resets the last stroke
+        for(int i=vkdt.wstate.mapped[0];i>=0;i--)
+        {
+          if(i == 0 || vkdt.wstate.mapped[1+2*i] == -666.0)
+          {
+            vkdt.wstate.mapped[0] = i;
+            break;
+          }
+        }
+        // trigger recomputation:
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+        return;
+      }
+      else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT &&
+          x < vkdt.state.center_x + vkdt.state.center_wd)
+      { // left mouse click starts new stroke by appending an end marker
+        int vcnt = vkdt.wstate.mapped[0];
+        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(float)))
+        {
+          vkdt.wstate.mapped[1+2*vcnt+0] = -666.0;
+          vkdt.wstate.mapped[1+2*vcnt+1] = -666.0;
+          vkdt.wstate.mapped[0]++;
+        }
+        // trigger recomputation:
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
     }
@@ -274,11 +297,12 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     {
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
-        if(vkdt.wstate.mapped[0] >= 2004) return;
-        // add vertex
-        int v = vkdt.wstate.mapped[0]++;
-        vkdt.wstate.mapped[1+2*v+0] = n[0];
-        vkdt.wstate.mapped[1+2*v+1] = n[1];
+        if(2*vkdt.wstate.mapped[0]+2 < vkdt.wstate.mapped_size/sizeof(float))
+        { // add vertex
+          int v = vkdt.wstate.mapped[0]++;
+          vkdt.wstate.mapped[1+2*v+0] = n[0];
+          vkdt.wstate.mapped[1+2*v+1] = n[1];
+        }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
