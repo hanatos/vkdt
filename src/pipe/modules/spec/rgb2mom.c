@@ -620,7 +620,7 @@ int main(int argc, char **argv) {
     float *pong = (float*)calloc(sizeof(float), bufsize);
     float *out = ping;
 #if defined(_OPENMP)
-#pragma omp parallel for default(none) schedule(dynamic) shared(stdout,out,max_b,max_w,max_h)
+#pragma omp parallel for schedule(dynamic) shared(stdout,out,max_b,max_w,max_h)
 #endif
   for (int j = 0; j < res; ++j)
   {
@@ -665,14 +665,25 @@ int main(int argc, char **argv) {
 #endif
       int ii = (int)fmin(max_w - 1, fmax(0, i * (max_w / (double)res)));
       int jj = max_h - 1 - (int)fmin(max_h - 1, fmax(0, j * (max_h / (double)res)));
-      double m = 0.5*max_b[ii + max_w * jj];
+      double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
       double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
       double resid = gauss_newton(rgbm, coeffs);
       int idx = j*res + i;
 
-      out[5*idx + 0] = coeffs[0];
-      out[5*idx + 1] = coeffs[1];
-      out[5*idx + 2] = coeffs[2];
+      if(coeffs[0] < m)
+      {
+        out[5*idx + 0] = coeffs[0];
+        out[5*idx + 1] = coeffs[1];
+        out[5*idx + 2] = coeffs[2];
+      }
+      else
+      {
+        out[5*idx + 0] = 0.0;
+        out[5*idx + 1] = 0.0;
+        out[5*idx + 2] = 0.0;
+      }
+      if(out[5*idx + 0] == 0.0)
+        out[5*idx + 1] = out[5*idx + 2] = 0.0;
       out[5*idx + 3] = m;
       out[5*idx + 4] = resid;
     }
@@ -694,7 +705,7 @@ int main(int argc, char **argv) {
     }
     memcpy(out, in, sizeof(float)*bufsize);
 #if defined(_OPENMP)
-#pragma omp parallel for default(none) schedule(dynamic) shared(stdout,out,in)
+#pragma omp parallel for schedule(dynamic) shared(stdout,out,in)
 #endif
   for (int j = 0; j < res; ++j)
   {
@@ -734,7 +745,7 @@ int main(int argc, char **argv) {
 
         double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
         double resid = gauss_newton(rgbm, coeffs);
-        if(resid < out[5*idx+4])
+        if(resid < out[5*idx+4] && coeffs[0] < m)
         {
           out[5*idx + 0] = coeffs[0];
           out[5*idx + 1] = coeffs[1];
@@ -774,7 +785,7 @@ int main(int argc, char **argv) {
     float *out = new float[bufsize];
 
 #if defined(_OPENMP)
-#pragma omp parallel for default(none) schedule(dynamic) shared(stdout,out)
+#pragma omp parallel for schedule(dynamic) shared(stdout,out)
 #endif
   for (int j = 0; j < res; ++j)
   {

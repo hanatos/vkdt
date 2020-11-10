@@ -112,7 +112,7 @@ spectrum_outside(float x, float y)
     const float edge1[2] = {curr[0]-prev[0], curr[1]-prev[1]};
     const float edge2[2] = {x-prev[0], y-prev[1]};
     const float det = edge1[0]*edge2[1] - edge1[1]*edge2[0];
-    if(det > 0.0f) return 1;
+    if(det >= 0.0f) return 1;
     prev = curr;
   }
   return 0;
