@@ -135,7 +135,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT &&
           x < vkdt.state.center_x + vkdt.state.center_wd)
       { // right mouse click resets the last stroke
-        for(int i=vkdt.wstate.mapped[0];i>=0;i--)
+        for(int i=vkdt.wstate.mapped[0]-1;i>=0;i--)
         {
           if(i == 0 || vkdt.wstate.mapped[1+2*i] == -666.0)
           {
