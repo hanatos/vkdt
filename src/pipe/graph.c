@@ -842,7 +842,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
                 node - graph->node, i, k, MIN(f, c->frames-1));
             int iii = cur_buf++;
             buf_info[iii].buffer = img->buffer;
-            buf_info[iii].offset = img->offset;
+            buf_info[iii].offset = 0;
             buf_info[iii].range  = img->size;
           }
           int dset = cur_dset++;
@@ -913,7 +913,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
             { // storage buffer
               int iii = cur_buf++;
               buf_info[iii].buffer = img->buffer;
-              buf_info[iii].offset = img->offset;
+              buf_info[iii].offset = 0;
               buf_info[iii].range  = img->size;
             }
             else
