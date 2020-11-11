@@ -893,9 +893,9 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
     { // point our inputs to their counterparts:
       if(c->connected_mi >= 0)
       {
-        int ii = dt_connector_ssbo(c) ? cur_buf : cur_img;
         for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
         {
+          int ii = dt_connector_ssbo(c) ? cur_buf : cur_img;
           for(int k=0;k<MAX(1,c->array_length);k++)
           {
             int frame = MIN(f, 
