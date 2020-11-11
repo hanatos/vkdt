@@ -7,11 +7,12 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   float *g = (float *)module->param;
   f[0] = g[0]; // opacity
   f[1] = g[1]; // radius
+  f[2] = g[2]; // hardness
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*2;
+  mod->committed_param_size = sizeof(float)*3;
   return 0;
 }
 
@@ -27,8 +28,6 @@ check_params(
     module->flags |= s_module_request_read_source;
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
-
-// TODO: insert 0 0 vertices to end line strip (fix into geo shader)
 
 // TODO: check_params to support incremental updates (store on struct here and
 // memcpy only what's needed in read_source)
