@@ -2,6 +2,11 @@
 src/pipe/doc/readme.html
 *.o
 *.a
+*.jpg
+*.mp4
+*.png
+*.pfm
+*.pdf
 built/
 src/vkdt
 src/vkdt-cli

@@ -4,3 +4,5 @@ blur0:float:1:32
 blur1:float:1:16
 blur2:float:1:8
 blur3:float:1:8
+distance:int:1:1
+mv_scale:float:1:1.0

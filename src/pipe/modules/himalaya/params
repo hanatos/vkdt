@@ -1,0 +1,3 @@
+cmarchs:int:1:12 # cloud march steps
+cshadows:int:1:6 # cloud self shadow steps
+msamples:int:1:1 # mountain AA

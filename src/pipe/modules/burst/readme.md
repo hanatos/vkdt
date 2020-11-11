@@ -1,26 +1,40 @@
-# image alignment
+# fast temporal reprojection without motion vectors
 
-## connectors
+this is the source code as described in the corresponding paper.
 
-* `input`  the fixed input image to align to
-* `warp`   the image to be warped
-* `output` the warped output image
-* `mask`   the error mask (output)
+to reproduce the subsampled figures, there is a place in the code
+that needs adjustment and recompilation:
 
-plus debug channels
+* `modules/burst/config.h` this define controls the 2x2 downsampling
 
-## parameters
+these settings can be changed run-time as module parameters:
 
-TODO: describe these
+* `blend boxclamp`: enable or disable TAA-style box clamping
 
-* `merge_k`
-* `merge_n`
-* `blur0`
-* `blur1`
-* `blur2`
-* `blur3`
+* `blend opacity`: if you set this to 0, you will see the single-frame input
+
+* `burst mv_scale`: scale the motion vectors before converting to a colour
+
+* `burst distance`: different distance formulas. from 0 to 4: log L1, log L1 center weighted, L1, L2, L2 center weighted
 
 
-## technical
+## run
 
-TODO
+from within the `bin/` directory:
+
+`./vkdt examples/penumbra-anim.cfg`
+
+`./vkdt examples/spheres-anim.cfg`
+
+`./vkdt examples/sss-anim.cfg`
+
+
+create helper noise textures:
+
+`./vkdt-cli -g examples/himalaya-noise2.cfg --filename examples/hnoise2 --output main`
+
+`./vkdt-cli -g examples/himalaya-noise3.cfg --filename examples/hnoise3 --output main`
+
+run the himalaya scene:
+
+`./vkdt examples/himalaya-anim.cfg`

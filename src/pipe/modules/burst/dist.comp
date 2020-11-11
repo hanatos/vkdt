@@ -6,6 +6,20 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  // unused params block
+  float merge_k;
+  float merge_n;
+  float blur0;
+  float blur1;
+  float blur2;
+  float blur3;
+  // ---
+  int dist_type;
+  // unused float vis_mult
+} params;
+
 layout(push_constant, std140) uniform push_t
 {
   int scale; // scale of the coarse input, or 0 if no coarse input
@@ -56,11 +70,27 @@ main()
     i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
-  // float dist = log(2+abs(i0 - i1));     // log L1
-  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
-  float dist = abs(i0 - i1);
-  // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
-  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
+
+  float dist = 0;
+  switch(params.dist_type)
+  {
+    case 0:
+        dist = log(2+abs(i0 - i1));     // log L1
+        break;
+    case 1:
+        dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for penumbra
+        break;
+    case 2:
+        dist = abs(i0 - i1); // L1 good for photography and MC noise
+        break;
+    case 3:
+        dist = (i0 - i1)*(i0 - i1); // L2
+        break;
+    case 4:
+        dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * (i0 - i1)*(i0 - i1); // L2 center weighted
+        break;
+    default: break;
+  }
 
   imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
 }

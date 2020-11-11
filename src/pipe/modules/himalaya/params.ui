@@ -1,0 +1,3 @@
+cmarchs:slider:0:512  # cloud march steps
+cshadows:slider:0:512 # cloud self shadow steps
+msamples:slider:0:12 # mountain AA

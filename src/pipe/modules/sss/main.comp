@@ -116,15 +116,6 @@ vec2 next_rand(inout uvec2 seed)
   return encrypt_tea(seed);
 }
 
-// TODO:
-// pdf(t) = D/((theta_b - theta_a)*(D*D - t*t))
-// sample_equiangular()
-// {
-//   // a, b: ray segment. theta_a, theta_b: angles that go with it
-     // D: shortest distance point/line
-//   return D * tan((1-x)*theta_a + x*theta_b);
-// }
-
 // some 2D output of a 3D searchlight problem, laser incidence to semi-infinite half space filled
 // with homogeneous medium.
 void
@@ -133,13 +124,30 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  float total = 0.0;
-  uint spp = uint(params.spp);
+  vec3 total = vec3(0.0);
+  const uint spp = uint(params.spp);
   // pointing up, towards light 
-  const vec3 lin = vec3(sin(params.theta), 0.0, cos(params.theta));
+  const vec3 lin = vec3(sin(params.theta * global.frame / 240.0), 0.0, cos(params.theta * global.frame / 240.0));
   for(int s=0;s<spp;s++)
   {
     uvec2 seed = uvec2(30000*global.frame + ipos.x + 1337*ipos.y, 0 + 1000*s);
+
+    // fake spectral rendering:
+    float mu_t = params.mu_t;
+    vec3 col = vec3(0, 1, 0);
+    {
+      float r = next_rand(seed).x;
+      if(r < 0.3333)
+      {
+        col = vec3(1, 0, 0);
+        mu_t *= 1.2;
+      }
+      else if(r > 0.6666)
+      {
+        col = vec3(0, 0, 1);
+        mu_t /= 1.2;
+      }
+    }
 
     // special cased pt/nee so we avoid the atomics a light tracer would bring
     // - sample direction under surface
@@ -147,8 +155,7 @@ main()
     vec3 dir = sample_hemisphere(next_rand(seed));
     dir.z = - dir.z;
 
-    const float mu_t = params.mu_t;
-    const float mu_s = params.albedo * params.mu_t;
+    const float mu_s = params.albedo * mu_t;
     const float mean_cos = params.g;
 
     float contrib = 1.0;
@@ -172,14 +179,13 @@ main()
       float hg0 = mu_s * eval_hg(mean_cos, dir, con);
       float hg1 = mu_s * eval_hg(mean_cos, con, lin);
       float nee_contrib = contrib * hg0 * hg1 / (r*r) * exp(-r*mu_t);
-      total += nee_contrib;
+      // total += nee_contrib;
+      total += col * clamp(nee_contrib, 0, 1);
 
       // rr with nee weight to kill paths far from home
       vec2 rr = next_rand(seed);
       if(rr.x > nee_contrib) break;
       contrib *= 1./min(1.0, nee_contrib);
-
-      // TODO: rr with albedo?
 
       // scatter
       mat3 M = get_onb(dir);
@@ -188,7 +194,7 @@ main()
     }
   }
 
-  const float res = clamp(total*1000.0/spp, 0.0, 65000.0);
-  imageStore(img_out, ipos, vec4(vec3(res), 1));
+  const vec3 res = clamp(total*1000.0/spp, 0.0, 65000.0);
+  imageStore(img_out, ipos, vec4(res, 1));
 }
 

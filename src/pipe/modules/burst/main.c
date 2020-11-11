@@ -90,8 +90,8 @@ create_nodes(
     roi[i].y  /= scale;
   }
 
-  dt_token_t fmt_img = dt_token("f16");//ui8"); // or f16
-  dt_token_t fmt_dst = dt_token("f16");//ui8");//ui8"); // or f16
+  dt_token_t fmt_img = dt_token("f16");//ui8");
+  dt_token_t fmt_dst = dt_token("f16");//ui8");
 
   int id_down[2][NUM_LEVELS] = {0};
   for(int k=0;k<2;k++)
@@ -422,6 +422,8 @@ create_nodes(
   dt_connector_copy(graph, module, 1, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 2, id_warp, 1));
   dt_connector_copy(graph, module, 2, id_warp, 2);
+  // dt_connector_copy(graph, module, 3, id_off[1], 3);  // 1/4 res mask
+  // graph->node[id_off[1]].connector[3].roi = roi[2];
   dt_connector_copy(graph, module, 3, id_off[0], 3);  // full res mask
   graph->node[id_off[0]].connector[3].roi = roi[1];   // XXX FIXME: connector_copy should probably respect ROI
 #undef NUM_LEVELS

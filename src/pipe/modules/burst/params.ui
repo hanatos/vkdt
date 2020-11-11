@@ -1,0 +1,8 @@
+merge_k:slider:0:10
+merge_n:slider:0:50
+blur0:slider:0:32
+blur1:slider:0:16
+blur2:slider:0:8
+blur3:slider:0:8
+distance:combo:log L1:log L1 center weight:L1:L2:L2 center weight
+mv_scale:slider:0:30
