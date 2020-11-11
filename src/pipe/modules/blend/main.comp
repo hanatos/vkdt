@@ -78,7 +78,7 @@ main()
   float t = clamp(params.opacity*(1.0-mask), 0, 1);
 
   if(params.filters == 1)
-  {
+  { // actually does not have a mosaic/bayer pattern and is no multi-frame
     rgb = mix(rgb, bck, t);
   }
   else if(params.filters == 0)
