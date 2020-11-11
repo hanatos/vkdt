@@ -15,10 +15,10 @@ check_params(
     uint32_t     parid,
     void        *oldval)
 {
-  if(parid == 0)
-  { // radius
+  if(parid >= 2 && parid <= 5)
+  { // radii
     float oldrad = *(float*)oldval;
-    float newrad = dt_module_param_float(module, 0)[0];
+    float newrad = dt_module_param_float(module, parid)[0];
     return dt_api_blur_check_params(oldrad, newrad);
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
