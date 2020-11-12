@@ -24,4 +24,11 @@ int dt_graph_set_searchpath(
 // read an extra block of modules to append to the graph
 int dt_graph_read_block(
     dt_graph_t *graph,
-    const char *filename);
+    const char *filename,  // block cfg to load
+    dt_token_t inst,       // instance to drop into new modules
+    dt_token_t out_mod,    // output of graph, to be connected to input of block
+    dt_token_t out_inst,
+    dt_token_t out_conn,
+    dt_token_t in_mod,     // output of block to be connected to this input
+    dt_token_t in_inst,
+    dt_token_t in_conn);

@@ -27,6 +27,19 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 
 namespace { // anonymous gui state namespace
 
+// used to communictate between the gui helper functions
+static struct gui_state_data_t
+{
+  enum gui_state_t
+  {
+    s_gui_state_regular      = 0,
+    s_gui_state_insert_block = 1,
+    s_gui_state_insert_mod   = 2,
+  } state;
+  char       block_filename[2048];
+  dt_token_t block_token[20];
+} gui = {gui_state_data_t::s_gui_state_regular};
+
 void widget_end()
 {
   if(vkdt.wstate.active_widget_modid < 0) return; // all good already
@@ -761,7 +774,38 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
   ImGui::SetColumnWidth(0,       wd  * vkdt.state.panel_wd);
   ImGui::SetColumnWidth(1, (1.0f-wd) * vkdt.state.panel_wd);
   int m_after[5], c_after[5], max_after = 5, cerr = 0;
-  if(insert_modid_before >= 0 && insert_modid_before != m_our)
+  if(gui.state == gui_state_data_t::s_gui_state_insert_block)
+  {
+    if(connected && ImGui::Button("before this", fsize))
+    {
+      int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
+      if(m_prev != -1)
+      {
+        int c_our_in = dt_module_get_connector(module, dt_token("input"));
+        if(c_our_in != -1)
+        {
+          gui.block_token[1] = graph->module[m_prev].name; // output
+          gui.block_token[2] = graph->module[m_prev].inst;
+          gui.block_token[3] = graph->module[m_prev].connector[c_prev].name;
+          gui.block_token[4] = module->name; // input
+          gui.block_token[5] = module->inst;
+          gui.block_token[6] = module->connector[c_our_in].name;
+          cerr = dt_graph_read_block(graph, gui.block_filename,
+              gui.block_token[0],
+              gui.block_token[1], gui.block_token[2], gui.block_token[3],
+              gui.block_token[4], gui.block_token[5], gui.block_token[6]);
+          gui.state = gui_state_data_t::s_gui_state_regular;
+          err = -1ul;
+          if(cerr) err = (1ul<<32) | cerr;
+          else vkdt.graph_dev.runflags = s_graph_run_all;
+        }
+        else err = 2ul<<32; // no input/output chain
+      }
+      else err = 2ul<<32; // no input/output chain
+      insert_modid_before = -1;
+    }
+  }
+  else if(insert_modid_before >= 0 && insert_modid_before != m_our)
   {
     if(connected && ImGui::Button("before this", fsize))
     {
@@ -1352,12 +1396,23 @@ void render_darkroom_pipeline()
     if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
       last_err = 16ul<<32;
 
-  // add new unconnected block (read cfg snipped)
-  if(ImGui::Button("add draw block"))
+  // add block (read cfg snipped)
+  if((gui.state == gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert disconnected"))
   {
+    dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
+        dt_token(mod_inst),
+        dt_token(""), dt_token(""), dt_token(""),
+        dt_token(""), dt_token(""), dt_token(""));
+    gui.state = gui_state_data_t::s_gui_state_regular;
+  }
+  if((gui.state != gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert draw block.."))
+  {
+    gui.state = gui_state_data_t::s_gui_state_insert_block;
+    gui.block_token[0] = dt_token(mod_inst);
     // TODO: open a browser with all data/blocks/*.cfg
     // for now we only have the draw block
-    dt_graph_read_block(&vkdt.graph_dev, "data/blocks/draw.cfg");
+    strncpy(gui.block_filename, "data/blocks/draw.cfg", sizeof(gui.block_filename));
+    // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
   }
 }
 

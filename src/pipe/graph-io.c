@@ -175,7 +175,7 @@ int dt_graph_read_config_ascii(
   uint32_t lno = 0;
   while(!feof(f))
   {
-    fscanf(f, "%[^\n]", line);
+    fscanf(f, "%29999[^\n]", line);
     if(fgetc(f) == EOF) break; // read \n
     lno++;
     // > 0 are warnings, < 0 are fatal, 0 is success
@@ -331,31 +331,80 @@ error:
   return 1;
 }
 
-int dt_graph_read_block(
+// helper to read and replace
+static inline int
+scanline_replace(
+    FILE *f,
+    char *line,
+    const int num_rules,
+    dt_token_t *search,
+    dt_token_t *replace)
+{
+  char buf[30000];
+  fscanf(f, "%29999[^\n]", buf);
+  if(fgetc(f) == EOF) return 1; // read \n // TODO: check if this is in fact '\n'?
+  int slen[num_rules];
+  int dlen[num_rules];
+  for(int r=0;r<num_rules;r++)
+  {
+    slen[r] = strnlen(dt_token_str(search [r]), 8);
+    dlen[r] = strnlen(dt_token_str(replace[r]), 8);
+  }
+  char *esi = buf, *edi = line;
+  while(*esi != '\n' && *esi != 0)
+  {
+    for(int r=0;r<=num_rules;r++)
+    {
+      if(r == num_rules)
+      {
+        *edi = *esi;
+        edi++; esi++;
+      }
+      else if(!strncmp(esi, dt_token_str(search[r]), slen[r]))
+      {
+        memcpy(edi, dt_token_str(replace[r]), dlen[r]);
+        esi += slen[r];
+        edi += dlen[r];
+      }
+    }
+  }
+  *edi = 0;
+  return 0;
+}
+
+int
+dt_graph_read_block(
     dt_graph_t *graph,
-    const char *filename)
-  // TODO: parameters for input/output/instance name
+    const char *filename,
+    dt_token_t inst,
+    dt_token_t out_mod,
+    dt_token_t out_inst,
+    dt_token_t out_conn,
+    dt_token_t in_mod,
+    dt_token_t in_inst,
+    dt_token_t in_conn)
 {
   FILE *f = dt_graph_open_resource(graph, filename, "rb");
   if(f)
   { // read lines individually, we need to search/replace generic input/output/instance strings
     // needs to be large enough to hold 1000 vertices of drawn masks:
     char line[30000];
+    dt_token_t search [] = {
+      dt_token("INSTANCE"),
+      dt_token("OUTMOD"), dt_token("OUTINST"), dt_token("OUTCONN"),
+      dt_token("INMOD"),  dt_token("ININST"),  dt_token("INCONN")};
+    dt_token_t replace[] = {inst, out_mod, out_inst, out_conn, in_mod, in_inst, in_conn};
     uint32_t lno = 0;
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
-      if(fgetc(f) == EOF) break; // read \n
-      // TODO: search/replace input output and instance!
+      if(scanline_replace(f, line, 7, search, replace)) break;
       lno++;
-      if(dt_graph_read_config_line(graph, line)) goto error;
+      // just ignore whatever goes wrong:
+      if(dt_graph_read_config_line(graph, line))
+        dt_log(s_log_pipe, "failed in line %u: '%s'", lno, line);
     }
     fclose(f);
     return 0;
-error:
-    dt_log(s_log_pipe|s_log_err, "failed in line %u: '%s'", lno, line);
-    fclose(f);
-    return 1;
   }
   dt_log(s_log_pipe|s_log_err, "could not open '%s'", filename);
   return 1;
