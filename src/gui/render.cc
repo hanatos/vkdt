@@ -264,26 +264,52 @@ extern "C" int dt_gui_init_imgui()
 
   char tmp[1024] = {0};
   {
-    float gamma[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
-    float rec2020_to_dspy[] = { // to linear sRGB D65
+    int monitors_cnt;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+    if(monitors_cnt > 2)
+      fprintf(stderr, "[gui] you have more than 2 monitors attached! only the first two will be colour managed!\n");
+    const char *name0 = glfwGetMonitorName(monitors[0]);
+    const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
+    int xpos0, xpos1, ypos;
+    glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
+    glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
+    float gamma0[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float rec2020_to_dspy0[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    snprintf(tmp, sizeof(tmp), "%s/display.profile", dt_pipe.basedir);
+    float gamma1[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float rec2020_to_dspy1[] = { // to linear sRGB D65
+       1.66022709, -0.58754775, -0.07283832,
+      -0.12455356,  1.13292608, -0.0083496,
+      -0.01815511, -0.100603  ,  1.11899813 };
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
     FILE *f = fopen(tmp, "r");
     if(f)
     {
-      fscanf(f, "%f %f %f\n", gamma, gamma+1, gamma+2);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy+0, rec2020_to_dspy+1, rec2020_to_dspy+2);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy+3, rec2020_to_dspy+4, rec2020_to_dspy+5);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy+6, rec2020_to_dspy+7, rec2020_to_dspy+8);
+      fscanf(f, "%f %f %f\n", gamma0, gamma0+1, gamma0+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy0+0, rec2020_to_dspy0+1, rec2020_to_dspy0+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy0+3, rec2020_to_dspy0+4, rec2020_to_dspy0+5);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy0+6, rec2020_to_dspy0+7, rec2020_to_dspy0+8);
       fclose(f);
     }
+    else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name0);
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+    f = fopen(tmp, "r");
+    if(f)
+    {
+      fscanf(f, "%f %f %f\n", gamma1, gamma1+1, gamma1+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+0, rec2020_to_dspy1+1, rec2020_to_dspy1+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+3, rec2020_to_dspy1+4, rec2020_to_dspy1+5);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+6, rec2020_to_dspy1+7, rec2020_to_dspy1+8);
+      fclose(f);
+    }
+    else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name1);
     int bitdepth = 8; // the display output will be dithered according to this
     if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
-    ImGui_ImplVulkan_SetDisplayProfile(gamma, rec2020_to_dspy, bitdepth);
+    ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 
   // Load Fonts
@@ -1659,6 +1685,11 @@ extern "C" void dt_gui_cleanup_imgui()
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
+}
+
+extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y)
+{
+  ImGui_ImplVulkan_SetWindowPos(x);
 }
 
 extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
