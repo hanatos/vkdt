@@ -340,7 +340,7 @@ QVK_FEATURE_DO(shaderTessellationAndGeometryPointSize, 1)\
 QVK_FEATURE_DO(shaderImageGatherExtended, 1)\
 QVK_FEATURE_DO(shaderStorageImageExtendedFormats, 1)\
 QVK_FEATURE_DO(shaderStorageImageMultisample, 0)\
-QVK_FEATURE_DO(shaderStorageImageReadWithoutFormat, 1)\
+QVK_FEATURE_DO(shaderStorageImageReadWithoutFormat, 0)\
 QVK_FEATURE_DO(shaderStorageImageWriteWithoutFormat, 1)\
 QVK_FEATURE_DO(shaderUniformBufferArrayDynamicIndexing, 1)\
 QVK_FEATURE_DO(shaderSampledImageArrayDynamicIndexing, 1)\
