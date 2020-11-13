@@ -13,6 +13,7 @@ typedef struct dt_connector_image_t
   VkImage       image;          // vulkan image object
   VkImageView   image_view;
   VkImageLayout layout;
+  VkBuffer      buffer;         // in case this is a storage buffer
 }
 dt_connector_image_t;
 

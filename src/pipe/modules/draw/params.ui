@@ -1,4 +1,4 @@
 opacity:slider:0:1
 radius:slider:0.001:1.0
-pad:hidden
+hardness:slider:0:1
 draw:draw

@@ -112,6 +112,12 @@ window_size_callback(GLFWwindow* window, int width, int height)
 }
 
 static void
+window_pos_callback(GLFWwindow* window, int xpos, int ypos)
+{
+  dt_gui_imgui_window_position(window, xpos, ypos);
+}
+
+static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
   dt_gui_imgui_character(window, c);
@@ -152,6 +158,7 @@ int main(int argc, char *argv[])
 
   glfwSetKeyCallback(qvk.window, key_callback);
   glfwSetWindowSizeCallback(qvk.window, window_size_callback);
+  glfwSetWindowPosCallback(qvk.window, window_pos_callback);
   glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
   glfwSetCharCallback(qvk.window, char_callback);

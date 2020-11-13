@@ -132,18 +132,35 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     }
     else if(type == dt_token("draw"))
     {
-      // record mouse position relative to image
-      // append to state until 1000 lines
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = -1;
+      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT &&
+          x < vkdt.state.center_x + vkdt.state.center_wd)
+      { // right mouse click resets the last stroke
+        for(int i=vkdt.wstate.mapped[0]-1;i>=0;i--)
+        {
+          if(i == 0 || vkdt.wstate.mapped[1+2*i] == -666.0)
+          {
+            vkdt.wstate.mapped[0] = i;
+            break;
+          }
+        }
+        // trigger recomputation:
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
-      if(action == GLFW_PRESS)
-      {
-        if(vkdt.wstate.selected < 0) vkdt.wstate.selected = 0;
-        // right click: remove stroke
-        if(button == GLFW_MOUSE_BUTTON_RIGHT) vkdt.wstate.selected = -1;
+      else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT &&
+          x < vkdt.state.center_x + vkdt.state.center_wd)
+      { // left mouse click starts new stroke by appending an end marker
+        int vcnt = vkdt.wstate.mapped[0];
+        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(float)))
+        {
+          vkdt.wstate.mapped[1+2*vcnt+0] = -666.0;
+          vkdt.wstate.mapped[1+2*vcnt+1] = -666.0;
+          vkdt.wstate.mapped[0]++;
+        }
+        // trigger recomputation:
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
     }
@@ -165,11 +182,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     }
     else if(button == GLFW_MOUSE_BUTTON_MIDDLE)
     {
-      // TODO: zoom 1:1
-      // TODO: two things: one is the display node which has
-      // TODO: parameters to be set to zoom and wd/ht so it'll affect the ROI.
-      // TODO: the other is zoom/pan in the gui for 200% or more and to
-      // TODO: move the image smoothly
+      // zoom 1:1
       // where does the mouse look in the current image?
       float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
       float scale = vkdt.state.scale <= 0.0f ? MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht) : vkdt.state.scale;
@@ -282,18 +295,17 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     }
     else if(type == dt_token("draw"))
     {
-      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS &&
-          vkdt.wstate.selected >= 0 && vkdt.wstate.selected < 2004)
+      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
-        // copy to quad state at corner vkdt.wstate.selected
-        vkdt.wstate.mapped[1+2*vkdt.wstate.selected+0] = n[0];
-        vkdt.wstate.mapped[1+2*vkdt.wstate.selected+1] = n[1];
-        if(vkdt.wstate.selected == 0 || (vkdt.wstate.selected > 0 &&
-              fabsf(n[0] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+0]) > 0.004 &&
-              fabsf(n[1] - vkdt.wstate.mapped[1+2*(vkdt.wstate.selected-1)+1]) > 0.004))
-          vkdt.wstate.mapped[0] = vkdt.wstate.selected++;
+        if(2*vkdt.wstate.mapped[0]+2 < vkdt.wstate.mapped_size/sizeof(float))
+        { // add vertex
+          int v = vkdt.wstate.mapped[0]++;
+          vkdt.wstate.mapped[1+2*v+0] = n[0];
+          vkdt.wstate.mapped[1+2*v+1] = n[1];
+        }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
     }

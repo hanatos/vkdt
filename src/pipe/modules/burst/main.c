@@ -15,10 +15,10 @@ check_params(
     uint32_t     parid,
     void        *oldval)
 {
-  if(parid == 0)
-  { // radius
+  if(parid >= 2 && parid <= 5)
+  { // radii
     float oldrad = *(float*)oldval;
-    float newrad = dt_module_param_float(module, 0)[0];
+    float newrad = dt_module_param_float(module, parid)[0];
     return dt_api_blur_check_params(oldrad, newrad);
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
@@ -223,7 +223,7 @@ create_nodes(
     // grab module parameters, would need to trigger re-create_nodes on change:
     const int blur = ((float*)module->param)[2+i];
     // const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
-    const int id_blur = dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur);
+    const int id_blur = dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur, 0);
 
     // merge output of blur node using "merge" (<off0, <off1, >merged)
     assert(graph->num_nodes < graph->max_nodes);

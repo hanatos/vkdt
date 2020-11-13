@@ -8,11 +8,21 @@ shader code.
 
 ## installation
 you need to profile your display, apply the TRC with dispwin,
-and supply the matrix to ``vkdt``. the latter is currently
-done by running the script ``bin/read-icc.py`` which will
-generate a ``display.profile`` file containing the extracted
-gamma and colour matrix. if this is found in the bin directory
-during run time, ``vkdt`` will pick it up and load it to the gpu.
+and supply the matrix to `vkdt`. the latter is currently
+done by running the script `bin/read-icc.py` which will
+generate a `display.profile` file containing the extracted
+gamma and colour matrix.
+
+such a file, if found in the bin directory
+during run time, `vkdt` will pick it up and load it to the gpu.
+to support dual monitor setups, `vkdt` will look for names such as
+`bin/display.HDMI-0` for instance. to see the names of your monitors,
+run `vkdt` once with `-d gui` (the default) to list available
+monitors. also the loading will complain with the precise file
+name it is looking for if it's not found.
+
+currently only single or dual monitors (left/right of another)
+are supported.
 
 ## gui
 all gui colours need to be given in rec2020 tristimulus values.

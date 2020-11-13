@@ -289,52 +289,55 @@ void modify_roi_out(
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-#if 1 // at least this version keeps blue blue
-  // now white balance such that (1,1,1) maps to d65 in xyz:
-  // (we assume the previous wb coeffs did this for us)
-  for(int j=0;j<3;j++)
-  {
-    double norm = 0.0;
-    for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
-    for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= D65[j] / norm;
+  if(!strncmp(mod->img_param.maker, "FUJI", 4))
+  { // at least this version keeps blue blue for fuji
+    // now white balance such that (1,1,1) maps to d65 in xyz:
+    // (we assume the previous wb coeffs did this for us)
+    for(int j=0;j<3;j++)
+    {
+      double norm = 0.0;
+      for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
+      for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= D65[j] / norm;
+    }
   }
-#else
-  // bradford adapt 1 1 1 -> d65
-  double wh[3] = {0.0};
-  for(int j=0;j<3;j++)
-    for(int i=0;i<3;i++) wh[j] += cam_to_xyz[3*j+i];
-  double Bf[] = {
-    0.8951000,  0.2664000, -0.1614000,
-    -0.7502000,  1.7135000,  0.0367000,
-    0.0389000, -0.0685000,  1.0296000,
-  };
-  double Bb[] = {
-    0.9869929, -0.1470543,  0.1599627,
-    0.4323053,  0.5183603,  0.0492912,
-    -0.0085287,  0.0400428,  0.9684867,
-  };
-  double wh_b[3] = {0.0};
-  double d65_b[3] = {0.0};
-  for(int j=0;j<3;j++)
-    for(int i=0;i<3;i++)
-      wh_b[j] += Bf[3*j+i] * wh[i];
-  for(int j=0;j<3;j++)
-    for(int i=0;i<3;i++)
-      d65_b[j] += Bf[3*j+i] * D65[i];
-  double tmp[9] = {0.0};
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      tmp[3*j+i] = d65_b[j] / wh_b[j] * Bf[3*j+i];
-  double tmp2[9] = {0.0};
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-    tmp2[3*j+i] +=
-      Bb[3*j+k] * tmp[3*k+i];
-  double tmp3[9];
-  memcpy(tmp3, cam_to_xyz, sizeof(tmp3));
-  memset(cam_to_xyz, 0, sizeof(cam_to_xyz));
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-    cam_to_xyz[3*j+i] +=
-      tmp2[3*j+k] * tmp3[3*k+i];
-#endif
+  else
+  { // looks a lot better for canon (keeps red red)
+    // bradford adapt 1 1 1 -> d65
+    double wh[3] = {0.0};
+    for(int j=0;j<3;j++)
+      for(int i=0;i<3;i++) wh[j] += cam_to_xyz[3*j+i];
+    double Bf[] = {
+      0.8951000,  0.2664000, -0.1614000,
+      -0.7502000,  1.7135000,  0.0367000,
+      0.0389000, -0.0685000,  1.0296000,
+    };
+    double Bb[] = {
+      0.9869929, -0.1470543,  0.1599627,
+      0.4323053,  0.5183603,  0.0492912,
+      -0.0085287,  0.0400428,  0.9684867,
+    };
+    double wh_b[3] = {0.0};
+    double d65_b[3] = {0.0};
+    for(int j=0;j<3;j++)
+      for(int i=0;i<3;i++)
+        wh_b[j] += Bf[3*j+i] * wh[i];
+    for(int j=0;j<3;j++)
+      for(int i=0;i<3;i++)
+        d65_b[j] += Bf[3*j+i] * D65[i];
+    double tmp[9] = {0.0};
+      for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+        tmp[3*j+i] = d65_b[j] / wh_b[j] * Bf[3*j+i];
+    double tmp2[9] = {0.0};
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+      tmp2[3*j+i] +=
+        Bb[3*j+k] * tmp[3*k+i];
+    double tmp3[9];
+    memcpy(tmp3, cam_to_xyz, sizeof(tmp3));
+    memset(cam_to_xyz, 0, sizeof(cam_to_xyz));
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+      cam_to_xyz[3*j+i] +=
+        tmp2[3*j+k] * tmp3[3*k+i];
+  }
 
 #if 0 // XXX FIXME: matrix is wrong
   fprintf(stderr, "matrix cam -> xyz: \n");

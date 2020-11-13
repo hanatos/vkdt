@@ -206,6 +206,11 @@ dt_module_so_load(
       else if(type == dt_token("hidden")) {}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
+      if(pid == -1)
+      {
+        dt_log(s_log_pipe, "unknown param `%"PRItkn"' in %s!", dt_token_str(parm), filename);
+        continue;
+      }
       int cntid = -1;
       if(b[-1] == ':')
       {

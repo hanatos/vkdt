@@ -23,6 +23,7 @@ void dt_gui_imgui_mouse_button(GLFWwindow *w, int button, int action, int mods);
 void dt_gui_imgui_mouse_position(GLFWwindow *w, double x, double y);
 void dt_gui_imgui_character(GLFWwindow *w, int c);
 void dt_gui_imgui_scrolled(GLFWwindow *w, double xoff, double yoff);
+void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y);
 
 int dt_gui_imgui_want_mouse();
 int dt_gui_imgui_want_keyboard();

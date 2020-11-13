@@ -48,6 +48,14 @@ typedef struct dt_image_params_t
 }
 dt_image_params_t;
 
+typedef enum dt_module_flags_t
+{
+  s_module_request_none        = 0,
+  s_module_request_read_source = 1,
+  s_module_request_write_sink  = 2,
+}
+dt_module_flags_t;
+
 // this is an instance of a module.
 typedef struct dt_module_t
 {
@@ -56,9 +64,7 @@ typedef struct dt_module_t
   dt_token_t inst;    // instance name
   dt_graph_t *graph;  // pointing back to containing graph
 
-
-  // TODO: has a list of publicly visible connectors
-  // TODO: actually two list so we can store the context pipeline independently?
+  // a list of publicly visible connectors
   dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
@@ -74,11 +80,10 @@ typedef struct dt_module_t
   // earlier module: dt_module_get_input_img_param()
   dt_image_params_t img_param;
 
-  // TODO: parameters:
+  // parameters:
   // human facing parameters for gui + serialisation
   // compute facing parameters for uniform upload
   // simple code path for when both are equivalent
-  // TODO: pointer or index for realloc?
   uint32_t version;     // module version affects param semantics
   uint8_t *param;       // points into pool stored with graph
   int      param_size;
@@ -92,6 +97,8 @@ typedef struct dt_module_t
 
   uint32_t uniform_offset; // offset into global uniform buffer
   uint32_t uniform_size;   // size of module params padded to 16 byte multiples
+
+  dt_module_flags_t flags; // flags to signal special requests during graph processing
 
   // this is useful for instance for a cpu caching of
   // input data decoded from disk inside a module:

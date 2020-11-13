@@ -58,6 +58,7 @@ typedef struct dt_gui_wstate_t
   int    active_widget_parsz; // size of parameter to copy
   int    selected;
   float  state[2100];
+  size_t mapped_size;
   float *mapped;
   int    lod;
   float  connector[100][30][2];

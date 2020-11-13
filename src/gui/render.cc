@@ -5,6 +5,7 @@ extern "C" {
 #include "qvk/qvk.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-export.h"
+#include "pipe/graph-io.h"
 #include "gui/darkroom-util.h"
 #include "db/thumbnails.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
@@ -26,8 +27,22 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 
 namespace { // anonymous gui state namespace
 
+// used to communictate between the gui helper functions
+static struct gui_state_data_t
+{
+  enum gui_state_t
+  {
+    s_gui_state_regular      = 0,
+    s_gui_state_insert_block = 1,
+    s_gui_state_insert_mod   = 2,
+  } state;
+  char       block_filename[2048];
+  dt_token_t block_token[20];
+} gui = {gui_state_data_t::s_gui_state_regular};
+
 void widget_end()
 {
+  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
   // rerun all (roi could have changed, buttons are drastic)
   // TODO: let module decide this!
   vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
@@ -36,7 +51,6 @@ void widget_end()
   vkdt.state.look_at_x = FLT_MAX;
   vkdt.state.look_at_y = FLT_MAX;
   vkdt.state.scale = -1;
-  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
   int modid = vkdt.wstate.active_widget_modid;
   int parid = vkdt.wstate.active_widget_parid;
   int parnm = vkdt.wstate.active_widget_parnm;
@@ -250,26 +264,52 @@ extern "C" int dt_gui_init_imgui()
 
   char tmp[1024] = {0};
   {
-    float gamma[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
-    float rec2020_to_dspy[] = { // to linear sRGB D65
+    int monitors_cnt;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+    if(monitors_cnt > 2)
+      fprintf(stderr, "[gui] you have more than 2 monitors attached! only the first two will be colour managed!\n");
+    const char *name0 = glfwGetMonitorName(monitors[0]);
+    const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
+    int xpos0, xpos1, ypos;
+    glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
+    glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
+    float gamma0[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float rec2020_to_dspy0[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    snprintf(tmp, sizeof(tmp), "%s/display.profile", dt_pipe.basedir);
+    float gamma1[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float rec2020_to_dspy1[] = { // to linear sRGB D65
+       1.66022709, -0.58754775, -0.07283832,
+      -0.12455356,  1.13292608, -0.0083496,
+      -0.01815511, -0.100603  ,  1.11899813 };
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
     FILE *f = fopen(tmp, "r");
     if(f)
     {
-      fscanf(f, "%f %f %f\n", gamma, gamma+1, gamma+2);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy+0, rec2020_to_dspy+1, rec2020_to_dspy+2);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy+3, rec2020_to_dspy+4, rec2020_to_dspy+5);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy+6, rec2020_to_dspy+7, rec2020_to_dspy+8);
+      fscanf(f, "%f %f %f\n", gamma0, gamma0+1, gamma0+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy0+0, rec2020_to_dspy0+1, rec2020_to_dspy0+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy0+3, rec2020_to_dspy0+4, rec2020_to_dspy0+5);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy0+6, rec2020_to_dspy0+7, rec2020_to_dspy0+8);
       fclose(f);
     }
+    else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name0);
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+    f = fopen(tmp, "r");
+    if(f)
+    {
+      fscanf(f, "%f %f %f\n", gamma1, gamma1+1, gamma1+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+0, rec2020_to_dspy1+1, rec2020_to_dspy1+2);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+3, rec2020_to_dspy1+4, rec2020_to_dspy1+5);
+      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+6, rec2020_to_dspy1+7, rec2020_to_dspy1+8);
+      fclose(f);
+    }
+    else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name1);
     int bitdepth = 8; // the display output will be dithered according to this
     if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
-    ImGui_ImplVulkan_SetDisplayProfile(gamma, rec2020_to_dspy, bitdepth);
+    ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 
   // Load Fonts
@@ -760,7 +800,38 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
   ImGui::SetColumnWidth(0,       wd  * vkdt.state.panel_wd);
   ImGui::SetColumnWidth(1, (1.0f-wd) * vkdt.state.panel_wd);
   int m_after[5], c_after[5], max_after = 5, cerr = 0;
-  if(insert_modid_before >= 0 && insert_modid_before != m_our)
+  if(gui.state == gui_state_data_t::s_gui_state_insert_block)
+  {
+    if(connected && ImGui::Button("before this", fsize))
+    {
+      int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
+      if(m_prev != -1)
+      {
+        int c_our_in = dt_module_get_connector(module, dt_token("input"));
+        if(c_our_in != -1)
+        {
+          gui.block_token[1] = graph->module[m_prev].name; // output
+          gui.block_token[2] = graph->module[m_prev].inst;
+          gui.block_token[3] = graph->module[m_prev].connector[c_prev].name;
+          gui.block_token[4] = module->name; // input
+          gui.block_token[5] = module->inst;
+          gui.block_token[6] = module->connector[c_our_in].name;
+          cerr = dt_graph_read_block(graph, gui.block_filename,
+              gui.block_token[0],
+              gui.block_token[1], gui.block_token[2], gui.block_token[3],
+              gui.block_token[4], gui.block_token[5], gui.block_token[6]);
+          gui.state = gui_state_data_t::s_gui_state_regular;
+          err = -1ul;
+          if(cerr) err = (1ul<<32) | cerr;
+          else vkdt.graph_dev.runflags = s_graph_run_all;
+        }
+        else err = 2ul<<32; // no input/output chain
+      }
+      else err = 2ul<<32; // no input/output chain
+      insert_modid_before = -1;
+    }
+  }
+  else if(insert_modid_before >= 0 && insert_modid_before != m_our)
   {
     if(connected && ImGui::Button("before this", fsize))
     {
@@ -1178,6 +1249,8 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parnm = 0;
           // TODO: how to crop this to smaller size in case it's not required?
           vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+          // for sanity also keep mapped_size to make clear that it belongs to the mapping, not the copy
+          vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
           vkdt.wstate.mapped = v; // map state
         }
       }
@@ -1348,6 +1421,25 @@ void render_darkroom_pipeline()
   if(ImGui::Button("add module"))
     if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
       last_err = 16ul<<32;
+
+  // add block (read cfg snipped)
+  if((gui.state == gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert disconnected"))
+  {
+    dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
+        dt_token(mod_inst),
+        dt_token(""), dt_token(""), dt_token(""),
+        dt_token(""), dt_token(""), dt_token(""));
+    gui.state = gui_state_data_t::s_gui_state_regular;
+  }
+  if((gui.state != gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert draw block.."))
+  {
+    gui.state = gui_state_data_t::s_gui_state_insert_block;
+    gui.block_token[0] = dt_token(mod_inst);
+    // TODO: open a browser with all data/blocks/*.cfg
+    // for now we only have the draw block
+    strncpy(gui.block_filename, "data/blocks/draw.cfg", sizeof(gui.block_filename));
+    // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+  }
 }
 
 void render_darkroom()
@@ -1432,16 +1524,16 @@ void render_darkroom()
         case dt_token("draw"):
         { // this is not really needed. draw line on top of stroke.
           // we map the buffer and get instant feedback on the image.
-          float p[2004];
-          int cnt = vkdt.wstate.mapped[0];
-          for(int k=0;k<cnt;k++)
-          {
-            p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
-            p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
-            dt_image_to_view(p+2*k, p+2*k);
-          }
-          ImGui::GetWindowDrawList()->AddPolyline(
-              (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
+          // float p[2004];
+          // int cnt = vkdt.wstate.mapped[0];
+          // for(int k=0;k<cnt;k++)
+          // {
+          //   p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
+          //   p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
+          //   dt_image_to_view(p+2*k, p+2*k);
+          // }
+          // ImGui::GetWindowDrawList()->AddPolyline(
+          //     (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
           break;
         }
         default:;
@@ -1593,6 +1685,11 @@ extern "C" void dt_gui_cleanup_imgui()
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
+}
+
+extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y)
+{
+  ImGui_ImplVulkan_SetWindowPos(x);
 }
 
 extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)

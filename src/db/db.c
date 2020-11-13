@@ -270,6 +270,7 @@ uint32_t dt_db_current_colid(dt_db_t *db)
 
 void dt_db_selection_add(dt_db_t *db, uint32_t colid)
 {
+  if(colid >= db->collection_cnt) return;
   const uint32_t imgid = db->collection[colid];
   if(db->selection_cnt >= db->selection_max) return;
   int i = db->selection_cnt++;

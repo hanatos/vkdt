@@ -9,8 +9,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float opacity;
   float radius;
-  float pad0, pad1;
-  vec4 draw[502];
 } params;
 
 void main(void)
@@ -18,6 +16,8 @@ void main(void)
   vec2 p[2];
   p[0] = vec2(gl_in[0].gl_Position);
   p[1] = vec2(gl_in[1].gl_Position);
+
+  if(p[0].x == -1333.0 || p[1].x == -1333.0) return; // special magic number for end of stroke
 
   const float thickness = params.radius;
   vec2 t = normalize(p[1] - p[0]);
