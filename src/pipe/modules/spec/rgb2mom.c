@@ -9,7 +9,7 @@
 // make && ./rgb2mom 256 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
 
 // 2D sigmoid as comparison
-// #define SIGMOID
+#define SIGMOID
 // #define SIG_SWZ
 
 #include <math.h>
@@ -55,6 +55,33 @@ typedef enum Gamut {
     ERGB,
     XYZ,
 } Gamut;
+
+// gauss blur a spectrum explicitly:
+static inline void gauss_blur(
+    const double  sigma_nm,         // in nanometers
+    const double *spectrum,
+    double       *spectrum_blur,
+    const int     cnt)
+{
+  const double sigma = sigma_nm * cnt / (double)CIE_FINE_SAMPLES; // in bin widths
+  const int r = 3*sigma;
+  double max = 0.0;
+  for(int i=0;i<cnt;i++) spectrum_blur[i] = 0.0;
+  for(int i=0;i<cnt;i++)
+  {
+    double w = 0.0;
+    for(int j=-r;j<=r;j++)
+    {
+      if(i+j < 0 || i+j >= cnt) continue;
+      double wg = exp(-j*j / (2.0*sigma*sigma));
+      spectrum_blur[i] += spectrum[i+j] * wg;
+      w += wg;
+    }
+    spectrum_blur[i] /= w;
+    max = fmax(max, spectrum_blur[i]);
+  } // end gauss blur the spectrum loop
+  for(int i=0;i<cnt;i++) spectrum_blur[i] /= max;
+}
 
 double sqrd(double x) { return x * x; }
 
@@ -668,8 +695,57 @@ int main(int argc, char **argv) {
       double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
       double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
       double resid = gauss_newton(rgbm, coeffs);
-      int idx = j*res + i;
 
+#if 1
+      // TODO: now that we have a good spectrum:
+      // explicitly instantiate it
+      // explicitly gauss blur it
+      // convert back to xy
+      // store pointer to this other pixel
+      const int cnt = CIE_FINE_SAMPLES;
+      double spectrum[cnt];
+      double spectrum_blur[cnt];
+      for (int l = 0; l < cnt; l++)
+      {
+        double lambda = l/(cnt-1.0);
+        // double lambda = (lambda_tbl[l] - CIE_LAMBDA_MIN) / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN); /* Scale lambda to 0..1 range */
+        double x = 0.0;
+        for (int i = 0; i < 3; ++i)
+          x = x * lambda + coeffs[i];
+        spectrum[l] = sigmoid(x);
+      }
+      const double sigma = 9.0; // FIXME: < 9 results in banding, > 12 results in second attractor
+      gauss_blur(sigma, spectrum, spectrum_blur, cnt);
+      double col[3] = {0.0};
+#if 1 // cnt = CIE_FINE_SAMPLES
+      for (int l = 0; l < cnt; l++)
+        for (int j = 0; j < 3; ++j)
+          col[j] += rgb_tbl[j][l] * spectrum_blur[l];
+#else // otherwise
+      for (int l = 0; l < cnt; l++)
+      {
+        double lambda = CIE_LAMBDA_MIN + l/(cnt-1.0) * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+        double xyz[3] = { cie_interp(cie_x, lambda),
+                          cie_interp(cie_y, lambda),
+                          cie_interp(cie_z, lambda) };
+        col[0] += xyz[0] * spectrum_blur[l];
+        col[1] += xyz[1] * spectrum_blur[l];
+        col[2] += xyz[2] * spectrum_blur[l];
+      }
+#endif
+      // col is in XYZ, we want the chromaticity coordinates:
+      double b = col[0]+col[1]+col[2];
+      // velocity vector:
+      double velx = col[0] / b - x;
+      double vely = col[1] / b - y;
+      double speed = sqrt(velx*velx + vely*vely);
+      velx /= speed;
+      vely /= speed;
+      velx = 0.5 + 0.5*velx;
+      vely = 0.5 + 0.5*vely;
+#endif
+
+      int idx = j*res + i;
       if(coeffs[0] < m)
       {
         out[5*idx + 0] = coeffs[0];
@@ -684,8 +760,9 @@ int main(int argc, char **argv) {
       }
       if(out[5*idx + 0] == 0.0)
         out[5*idx + 1] = out[5*idx + 2] = 0.0;
-      out[5*idx + 3] = m;
-      out[5*idx + 4] = resid;
+      out[5*idx + 0] = speed;
+      out[5*idx + 3] = velx;//m;
+      out[5*idx + 4] = vely;//resid;
     }
   }
 // #if 1 // smoothing passes. seems only moments require it
@@ -767,10 +844,10 @@ int main(int argc, char **argv) {
       double coeffs[3] = {ping[5*k+0], ping[5*k+1], ping[5*k+2]};
       float q[3];
       quantise_coeffs(coeffs, q);
-#if 1 // data
+#if 0 // data
       fwrite(q, sizeof(float), 3, f);
 #else // debug
-      fwrite(q+2, sizeof(float), 1, f);
+      fwrite(ping+5*k+0, sizeof(float), 1, f);
       fwrite(ping+5*k+3, sizeof(float), 2, f);
 #endif
     }
