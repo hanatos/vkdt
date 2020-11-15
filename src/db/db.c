@@ -2,6 +2,7 @@
 #include "thumbnails.h"
 #include "core/log.h"
 #include "stringpool.h"
+#include "exif.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -69,6 +70,35 @@ compare_labels(const void *a, const void *b, void *arg)
   return db->image[ia[0]].labels - db->image[ib[0]].labels;
 }
 
+static int
+compare_createdate(const void *a, const void *b, void *arg)
+{ // slow and stupid.
+  dt_db_t *db = arg;
+  const uint32_t *ia = a, *ib = b;
+  char cda[20] = {0}, cdb[20] = {0};
+  char fna[1024], fnb[1024], *aa = fna, *bb = fnb;
+  char fna2[1024], fnb2[1024];
+  dt_db_image_path(db, ia[0], fna, sizeof(fna));
+  dt_db_image_path(db, ib[0], fnb, sizeof(fnb));
+  size_t off;
+  off = readlink(fna, fna2, sizeof(fna2));
+  if(off != -1) aa = fna2;
+  else off = strnlen(fna, sizeof(fna));
+  if(off > 4) aa[off - 4] = 0;
+  else aa[off] = 0;
+
+  off = readlink(fnb, fnb2, sizeof(fnb2));
+  if(off != -1) bb = fnb2;
+  else off = strnlen(fnb, sizeof(fnb));
+  if(off > 4) bb[off - 4] = 0;
+  else bb[off] = 0;
+
+  dt_db_exif_createdate(aa, cda);
+  dt_db_exif_createdate(bb, cdb);
+
+  return strcmp(cda, cdb);
+}
+
 static inline void
 image_init(dt_image_t *img)
 {
@@ -98,6 +128,9 @@ dt_db_update_collection(dt_db_t *db)
     case s_prop_labels:
       if(!(db->image[k].labels & db->collection_filter_val)) continue;
       break;
+    case s_prop_createdate:
+      // TODO: match beginning of filter val string
+      break;
     }
     db->collection[db->collection_cnt++] = k;
   }
@@ -114,6 +147,9 @@ dt_db_update_collection(dt_db_t *db)
     break;
   case s_prop_labels:
     qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_labels, db);
+    break;
+  case s_prop_createdate:
+    qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_createdate, db);
     break;
   }
 }
