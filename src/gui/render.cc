@@ -1127,6 +1127,8 @@ inline void draw_widget(int modid, int parid)
           // reset module params so the image will not appear distorted:
           float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
           memcpy(v, def, sizeof(float)*8);
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          darkroom_reset_zoom();
         }
       }
       num = count;
