@@ -44,6 +44,7 @@ typedef enum dt_db_property_t
   s_prop_filename,   // strstr
   s_prop_rating,     // >=
   s_prop_labels,     // &
+  s_prop_createdate,
 }
 dt_db_property_t;
 
@@ -55,6 +56,7 @@ dt_db_property_text =
   "filename\0"
   "rating\0"
   "label\0"
+  "create date\0"
   "\0"
 };
 

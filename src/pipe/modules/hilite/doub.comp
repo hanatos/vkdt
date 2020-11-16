@@ -73,16 +73,18 @@ main()
     float maxg = max(max(max(c0, c2), c4), max(c6, c8));
     if(maxr >= white || maxb >= white || maxg >= white)
     {
-      c1 = upsm.r * scale;
-      c7 = upsm.r * scale;
-      c3 = upsm.b * scale;
-      c5 = upsm.b * scale;
+      const float softw = 1.04*white;
+      const float t = smoothstep(white, softw, max(maxr, max(maxg, maxb)));
+      c1 = mix(c1, upsm.r * scale, t);
+      c7 = mix(c7, upsm.r * scale, t);
+      c3 = mix(c3, upsm.b * scale, t);
+      c5 = mix(c5, upsm.b * scale, t);
 
-      c0 = upsm.g * scale;
-      c2 = upsm.g * scale;
-      c4 = upsm.g * scale;
-      c6 = upsm.g * scale;
-      c8 = upsm.g * scale;
+      c0 = mix(c0, upsm.g * scale, t);
+      c2 = mix(c2, upsm.g * scale, t);
+      c4 = mix(c4, upsm.g * scale, t);
+      c6 = mix(c6, upsm.g * scale, t);
+      c8 = mix(c8, upsm.g * scale, t);
     }
 
     imageStore(img_out, 3*ipos,            vec4(vec3(c0), 1));
@@ -112,7 +114,11 @@ main()
        c.y >= white ||
        c.z >= white ||
        c.w >= white)
-      c = scale * upsm.gbgr;
+    {
+      const float softw = 1.04*white;
+      const float t = smoothstep(white, softw, max(max(c.x, c.y), max(c.z, c.w)));
+      c = mix(c, scale * upsm.gbgr, t);
+    }
     imageStore(img_out, 2*ipos,            vec4(c.w));
     imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
     imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
