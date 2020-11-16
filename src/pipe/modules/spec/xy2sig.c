@@ -94,20 +94,26 @@ static inline void gauss_blur(
   for(int i=0;i<cnt;i++) spectrum_blur[i] /= max;
 }
 
-// TODO: bilinear 2d lookup and linear 1d lookup!
-float *lookup2d(float *map, int w, int h, int stride, double *xy)
+void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
 {
   double x[] = {xy[0] * w, (1.0-xy[1]) * h};
-  x[0] = fmax(0.0, fmin(x[0], w-1));
-  x[1] = fmax(0.0, fmin(x[1], h-1));
-  return map + (w * (int)x[1] + (int)x[0])*stride;
+  x[0] = fmax(0.0, fmin(x[0], w-2));
+  x[1] = fmax(0.0, fmin(x[1], h-2));
+  double u[2] = {x[0] - (int)x[0], x[1] - (int)x[1]};
+  for(int i=0;i<stride;i++)
+    res[i] = (1.0-u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0]    ) + i]
+           + (    u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0] + 1) + i]
+           + (    u[0]) * (    u[1]) * map[stride * (w*((int)x[1]+1) + (int)x[0] + 1) + i]
+           + (1.0-u[0]) * (    u[1]) * map[stride * (w*((int)x[1]+1) + (int)x[0]    ) + i];
 }
 
-float *lookup1d(float *map, int w, int stride, double x)
+void lookup1d(float *map, int w, int stride, double x, float *res)
 {
   x = x * w;
-  x = fmax(0.0, fmin(x, w-1));
-  return map + stride * (int)x;
+  x = fmax(0.0, fmin(x, w-2));
+  double u = x - (int)x;
+  for(int i=0;i<stride;i++)
+    res[i] = (1.0-u) * map[stride * (int)x + i] + u * map[stride * ((int)x+1) + i];
 }
 
 double sqrd(double x) { return x * x; }
@@ -681,8 +687,8 @@ int main(int argc, char **argv) {
   // as a second step, using this 2D (c0 y lambda vx vy) map
   // create another 2D (s, lambda) map as say 512x1024:
   const int lambda_cnt = 128;//512;
-  const int sat_cnt = 512;
-  float *map = calloc(sizeof(float)*2, lambda_cnt*2*sat_cnt);
+  const int sat_cnt = 64;
+  float *map = calloc(sizeof(float)*3, lambda_cnt*2*sat_cnt);
 
   const int stripe_size = 2048;
   float *stripe = calloc(sizeof(float)*3, stripe_size);
@@ -697,6 +703,7 @@ int main(int argc, char **argv) {
       // walk velocity field both directions towards white (s=0) and spectral (s=1)
       for(int dir=-1;dir<=1;dir+=2)
       {
+        // TODO: could start from a rasterised 2d circle in xy around 1/3 1/3, radius < 0.1 instead!
         double lambda = CIE_LAMBDA_MIN + l/(lambda_cnt-1.0) * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
         // create spectrum for c0 = +/- 0.01? y=? lambda
         double c0 = un ? -0.0005 : 0.0001; // n case is negative
@@ -709,12 +716,12 @@ int main(int argc, char **argv) {
         {
           // determine xy
            // XXX DEBUG
-          // if(it==0)
+          if(it==0) // only step xy + vel, don't convert to spectrum in between
           {
           double col[3] = {0};
           for (int ll = 0; ll < CIE_FINE_SAMPLES; ll++)
           {
-            double l2 = CIE_LAMBDA_MIN + ll/(CIE_FINE_SAMPLES-1.0) * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+            double l2 = CIE_LAMBDA_MIN + ll/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
             double x = 0.0;
             for (int i = 0; i < 3; ++i)
               x = x * l2 + coeffs[i];
@@ -723,15 +730,23 @@ int main(int argc, char **argv) {
             for(int j=0;j<3;j++)
               col[j] += rgb_tbl[j][ll] * s;
           }
-          // XXX FIXME: col seems to stay the same while xy moves along
-          if(it) fprintf(stderr, "%g %g -- %g %g %d\n", xy[0], xy[1],
-              col[0] / (col[0]+col[1]+col[2]),
-              col[1] / (col[0]+col[1]+col[2]),
-              it);
+          // XXX FIXME: col seems to stay the same while xy moves along, something is broken here
+          // if(it) fprintf(stderr, "%g %g -- %g %g %d\n", xy[0], xy[1],
+          //     col[0] / (col[0]+col[1]+col[2]),
+          //     col[1] / (col[0]+col[1]+col[2]),
+          //     it);
           xy[0] = col[0] / (col[0]+col[1]+col[2]);
           xy[1] = col[1] / (col[0]+col[1]+col[2]);
           }
           fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
+
+          // read velocity field at xy and walk a single pixel step:
+          float px[5];
+          lookup2d(out, res, res, 5, xy, px);
+          xy[0] -= dir * px[3] * 1.0/res;
+          xy[1] -= dir * px[4] * 1.0/res;
+          double cf[3] = {px[0], px[1], px[2]};
+          cvt_c012_c0yl(cf, c0yl);
 
           // store result in largeish array
           const int si = dir < 0 ? dir_lower-- : dir_upper++;
@@ -740,13 +755,11 @@ int main(int argc, char **argv) {
             fprintf(stdout, "array full\n");
             break;
           }
+          // fprintf(stdout, "filling %d %g\n", si, c0yl[0]);
           stripe[3*si + 0] = c0yl[0];
           stripe[3*si + 1] = c0yl[1];
-
-          // read velocity field at xy and walk a single pixel step:
-          const float *px = lookup2d(out, res, res, 5, xy);
-          xy[0] -= dir * px[3] * 1.0/res;
-          xy[1] -= dir * px[4] * 1.0/res;
+          stripe[3*si + 2] = c0yl[2];
+          // stripe[3*si + 2] = CIE_LAMBDA_MIN + l/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
 
           // terminate if xy close to white
           if(fabs(xy[0] - 1.0/3.0) < 1e-3 &&
@@ -765,7 +778,7 @@ int main(int argc, char **argv) {
           // FIXME: walking only xy + vel is different to round tripping through spectrum!!
           
           // read c0 c1 c2 and convert to c0 y lambda. update c0 and y, keep lambda.
-          px = lookup2d(out, res, res, 5, xy);
+          lookup2d(out, res, res, 5, xy, px);
           double new_c[] = {px[0], px[1], px[2]};
           double new_c0yl[3];
           cvt_c012_c0yl(new_c, new_c0yl);
@@ -774,28 +787,35 @@ int main(int argc, char **argv) {
           c0yl[1] = new_c0yl[1];
           // c0yl[2] = new_c0yl[2];
           cvt_c0yl_c012(c0yl, coeffs);
-        }
-      }
+        } // end iterations along direction
+      } // end direction forward/back
       // normalise range of stripe (dir_lower, dir_upper) to resolution of 2D map, resample into row of texture
       // row will have: s=-1..0..1 and is filled in two parts (c0 > 0 and c0 < 0)
+      // fprintf(stdout, "%d begin end %d %d\n", l, dir_lower, dir_upper);
       for(int i=0;i<sat_cnt;i++)
       {
         // convert to index in stripe
         double f = i/(double)sat_cnt;
-        float *c0yl = lookup1d(stripe + dir_lower+1, dir_upper-dir_lower-1, 3, f);
+        float c0yl[3];
+        lookup1d(stripe + 3*(dir_lower+1), dir_upper-dir_lower-1, 3, f, c0yl);
+        // if(fabsf(c0yl[0]) > 0.0f)
+        // fprintf(stdout, "val %d %d [%g]= %g\n", l, i, f * (dir_upper-dir_lower-1), c0yl[0]);
         if(un)
         { // n shapes (spectral colours)
-          map[2*(2*sat_cnt * l + sat_cnt + i) + 0] = c0yl[0];
-          map[2*(2*sat_cnt * l + sat_cnt + i) + 1] = c0yl[1];
+          map[3*(2*sat_cnt * l + sat_cnt + i) + 0] = c0yl[0];
+          map[3*(2*sat_cnt * l + sat_cnt + i) + 1] = c0yl[1];
+          map[3*(2*sat_cnt * l + sat_cnt + i) + 2] = c0yl[2];
         }
         else
         { // u shapes (purple line)
-          map[2*(2*sat_cnt * l + sat_cnt - i - 1) + 0] = c0yl[0];
-          map[2*(2*sat_cnt * l + sat_cnt - i - 1) + 1] = c0yl[1];
+          map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 0] = c0yl[0];
+          map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 1] = c0yl[1];
+          map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 2] = c0yl[2];
         }
-      }
-    }
-  }
+      } // end saturation row for const l
+
+    } // end lambda l
+  } // end u-shape n-shape un
 
   FILE *f = fopen("map.pfm", "wb");
   if(f)
@@ -803,7 +823,7 @@ int main(int argc, char **argv) {
     fprintf(f, "PF\n%d %d\n-1.0\n", 2*sat_cnt, lambda_cnt);
     for(int k=0;k<sat_cnt*2*lambda_cnt;k++)
     {
-      float coeffs[3] = {map[2*k+0], map[2*k+1], 0};
+      float coeffs[3] = {map[3*k+0], map[3*k+1], map[3*k+2]};
       fwrite(coeffs, sizeof(float), 3, f);
     }
     fclose(f);
