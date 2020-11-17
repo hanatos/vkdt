@@ -100,11 +100,16 @@ void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
   x[0] = fmax(0.0, fmin(x[0], w-2));
   x[1] = fmax(0.0, fmin(x[1], h-2));
   double u[2] = {x[0] - (int)x[0], x[1] - (int)x[1]};
+#if 0 // bilin
   for(int i=0;i<stride;i++)
     res[i] = (1.0-u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0]    ) + i]
            + (    u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0] + 1) + i]
            + (    u[0]) * (    u[1]) * map[stride * (w*((int)x[1]+1) + (int)x[0] + 1) + i]
            + (1.0-u[0]) * (    u[1]) * map[stride * (w*((int)x[1]+1) + (int)x[0]    ) + i];
+#else // box
+  for(int i=0;i<stride;i++)
+    res[i] = map[stride * (w*(int)x[1] + (int)x[0]) +i];
+#endif
 }
 
 void lookup1d(float *map, int w, int stride, double x, float *res)
@@ -143,7 +148,7 @@ void cvt_c012_c0yl(const double *coeffs, double *c0yl)
   // convert to c0 y dom-lambda:
   c0yl[0] = A2;                           // square slope stays
   c0yl[2] = B2 / (-2.0*A2);               // dominant wavelength
-  c0yl[1] = C2 - A2 * c0yl[2] * c0yl[2];  // y
+  c0yl[1] = C2 - B2*B2 / (4.0 * A2);      // y
 
 #if 0
   double tmp[3];
@@ -409,7 +414,7 @@ void eval_residual(const double *coeff, const double *rgb, double *residual)
       // the optimiser doesn't like nanometers.
       // we'll do the normalised lambda thing and later convert when we write out.
 #ifndef SIG_SWZ
-      double lambda = (lambda_tbl[i] - CIE_LAMBDA_MIN) / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN); /* Scale lambda to 0..1 range */
+      double lambda = i/(double)CIE_FINE_SAMPLES;//(lambda_tbl[i] - CIE_LAMBDA_MIN) / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN); /* Scale lambda to 0..1 range */
       double cf[3] = {coeff[0], coeff[1], coeff[2]};
 #else
       double lambda = lambda_tbl[i];
@@ -591,12 +596,14 @@ int main(int argc, char **argv) {
 #endif
   for (int j = 0; j < res; ++j)
   {
-    const double y = (res - 1 - (j+0.5)) / (double)res;
+    // const double y = (res - 1 - (j+0.5)) / (double)res;
+    const double y = (res - 1 - (j)) / (double)res;
     printf(".");
     fflush(stdout);
     for (int i = 0; i < res; ++i)
     {
-      const double x = (i+0.5) / (double)res;
+      // const double x = (i+0.5) / (double)res;
+      const double x = (i) / (double)res;
       double rgb[3];
       // range of fourier moments is [0,1]x[-1/pi,+1/pi]^2
       double coeffs[3];
@@ -695,9 +702,10 @@ int main(int argc, char **argv) {
 
   // for n and u spectra and lambda in [360, 830], do:
   for(int un=0;un<2;un++)
-  //   const int un = 1;
+  // const int un = 1;
   {
     for(int l=0;l<lambda_cnt;l++)
+    // const int l = lambda_cnt / 2;
     {
       int dir_lower = stripe_size/2, dir_upper = stripe_size/2;
       // walk velocity field both directions towards white (s=0) and spectral (s=1)
@@ -709,10 +717,15 @@ int main(int argc, char **argv) {
         double c0 = un ? -0.0005 : 0.0001; // n case is negative
         double y  = un ? 3 : -2;
         double c0yl[3] = {c0, y, lambda};
-        double coeffs[3];
-        cvt_c0yl_c012(c0yl, coeffs);
-        double xy[2];
+        double xy[2] = {0.4, 0.4};
+        float px[5];
+        // lookup2d(out, res, res, 5, xy, px);
+        // double coeffs[3] = {px[0], px[1], px[2]};
+        // cvt_c0yl_c012(c0yl, coeffs);
+        // cvt_c012_c0yl(coeffs, c0yl);
+
         for(int it=0;it<250;it++) // TODO: put sane maximum number of steps
+        // for(int it=0;it<5;it++) // TODO: put sane maximum number of steps
         {
           // determine xy
            // XXX DEBUG
@@ -721,17 +734,33 @@ int main(int argc, char **argv) {
           double col[3] = {0};
           for (int ll = 0; ll < CIE_FINE_SAMPLES; ll++)
           {
+#if 0
             double l2 = CIE_LAMBDA_MIN + ll/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+            double c0 = 360.0, c1 = 1.0 / (830.0 - 360.0);
+            double A = coeffs[0], B = coeffs[1], C = coeffs[2];
+
+            double A2 = (float)(A*(sqrd(c1)));
+            double B2 = (float)(B*c1 - 2*A*c0*(sqrd(c1)));
+            double C2 = (float)(C - B*c0*c1 + A*(sqrd(c0*c1)));
+            double x = A2*l2*l2 + B2*l2 + C2;
+#endif
+#if 0
+            double l3 = ll/(double)CIE_FINE_SAMPLES;
             double x = 0.0;
-            for (int i = 0; i < 3; ++i)
-              x = x * l2 + coeffs[i];
+            for (int i = 0; i < 3; ++i) x = x * l3 + coeffs[i];
+#endif
+#if 1
+            double l2 = CIE_LAMBDA_MIN + ll/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+            double x = c0yl[0] * (l2 - c0yl[2])*(l2 - c0yl[2]) + c0yl[1];
+#endif
             double s = sigmoid(x);
             // fprintf(stdout, "%g %g\n", l2, s);
             for(int j=0;j<3;j++)
               col[j] += rgb_tbl[j][ll] * s;
           }
           // XXX FIXME: col seems to stay the same while xy moves along, something is broken here
-          // if(it) fprintf(stderr, "%g %g -- %g %g %d\n", xy[0], xy[1],
+          // if(it)
+          //   fprintf(stderr, "%g %g -- %g %g %d\n", xy[0], xy[1],
           //     col[0] / (col[0]+col[1]+col[2]),
           //     col[1] / (col[0]+col[1]+col[2]),
           //     it);
@@ -743,10 +772,13 @@ int main(int argc, char **argv) {
           // read velocity field at xy and walk a single pixel step:
           float px[5];
           lookup2d(out, res, res, 5, xy, px);
-          xy[0] -= dir * px[3] * 1.0/res;
-          xy[1] -= dir * px[4] * 1.0/res;
-          double cf[3] = {px[0], px[1], px[2]};
-          cvt_c012_c0yl(cf, c0yl);
+          xy[0] -= dir * px[3] * 4.0/res; // should be something resolution/iterations or so
+          xy[1] -= dir * px[4] * 4.0/res;
+          // double cf[3] = {px[0], px[1], px[2]};
+          // fprintf(stderr, "c0yl %g %g %g -- ", c0yl[0], c0yl[1], c0yl[2]);
+          // cvt_c012_c0yl(cf, c0yl);
+          // fprintf(stderr, "cf %g %g %g  ", cf[0], cf[1], cf[2]);
+          // fprintf(stderr, "%g %g %g\n", c0yl[0], c0yl[1], c0yl[2]);
 
           // store result in largeish array
           const int si = dir < 0 ? dir_lower-- : dir_upper++;
@@ -756,8 +788,8 @@ int main(int argc, char **argv) {
             break;
           }
           // fprintf(stdout, "filling %d %g\n", si, c0yl[0]);
-          stripe[3*si + 0] = c0yl[0];
-          stripe[3*si + 1] = c0yl[1];
+          stripe[3*si + 0] = fabs(c0yl[0]);
+          stripe[3*si + 1] = fabs(c0yl[1]);
           stripe[3*si + 2] = c0yl[2];
           // stripe[3*si + 2] = CIE_LAMBDA_MIN + l/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
 
@@ -779,14 +811,15 @@ int main(int argc, char **argv) {
           
           // read c0 c1 c2 and convert to c0 y lambda. update c0 and y, keep lambda.
           lookup2d(out, res, res, 5, xy, px);
+          // coeffs[0] = px[0]; coeffs[1] = px[1]; coeffs[2] = px[2];
           double new_c[] = {px[0], px[1], px[2]};
           double new_c0yl[3];
           cvt_c012_c0yl(new_c, new_c0yl);
           // TODO: avoid sign change in c0!
           c0yl[0] = new_c0yl[0];
           c0yl[1] = new_c0yl[1];
-          // c0yl[2] = new_c0yl[2];
-          cvt_c0yl_c012(c0yl, coeffs);
+          // c0yl[2] = new_c0yl[2]; // keep lambda
+          // cvt_c0yl_c012(c0yl, coeffs);
         } // end iterations along direction
       } // end direction forward/back
       // normalise range of stripe (dir_lower, dir_upper) to resolution of 2D map, resample into row of texture
