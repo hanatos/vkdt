@@ -190,14 +190,11 @@ dt_thumbnails_cache_one(
 
   char cfgfilename[1040];
   char deffilename[1040];
-  char imgfilename[1040];
   char bc1filename[1040];
   uint32_t hash = murmur_hash3(filename, len, 1337);
   snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
-  snprintf(deffilename, sizeof(imgfilename), "%s/default.cfg", dt_pipe.basedir);
-  snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
-  imgfilename[len-4] = 0; // cut away ".cfg"
+  snprintf(deffilename, sizeof(deffilename), "%s/default.cfg", dt_pipe.basedir);
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
@@ -240,7 +237,7 @@ dt_thumbnails_cache_one(
   clock_t beg = clock();
   if(dt_graph_export(graph, &param) != VK_SUCCESS)
   {
-    dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", imgfilename);
+    dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
     // mark as dead
     snprintf(cfgfilename, sizeof(cfgfilename), "%s/data/bomb.bc1", dt_pipe.basedir);
     link(cfgfilename, bc1filename);
@@ -254,6 +251,7 @@ dt_thumbnails_cache_one(
 
 typedef struct cache_coll_job_t
 {
+  uint64_t stamp;
   threads_mutex_t mutex_storage;
   uint32_t idx_storage;
   uint32_t gid;
@@ -277,10 +275,26 @@ static void thread_free_coll(void *arg)
   }
 }
 
-static void thread_work_coll(uint32_t item, void *arg)
+void
+dt_thumbnails_cache_abort(
+    dt_thumbnails_t *tn)
+{
+  tn->job_timestamp++;
+  for(int i=0;i<DT_THUMBNAILS_THREADS;i++)
+    threads_mutex_lock(tn->graph_lock+i);
+  // now we hold all the locks at the same time. anyone picking up a lock after we return from here
+  // will definitely see the new timestamp and abort immediately.
+  for(int i=0;i<DT_THUMBNAILS_THREADS;i++)
+    threads_mutex_unlock(tn->graph_lock+i);
+}
+
+static void
+thread_work_coll(
+    uint32_t item, void *arg)
 {
   cache_coll_job_t *j = arg;
   threads_mutex_lock(j->tn->graph_lock+j->gid); // shield against potential overscheduling (call _cache_list() from the gui before the old one is done)
+  if(j->stamp != j->tn->job_timestamp) goto abort; // job invalid/stale, will not be able to access db any more!
   j->tn->graph[j->gid].io_mutex = j->mutex;
   char filename[1024];
   dt_db_image_path(j->db, j->coll[item], filename, sizeof(filename));
@@ -288,6 +302,7 @@ static void thread_work_coll(uint32_t item, void *arg)
   // invalidate what we have in memory to trigger a reload:
   j->db->image[j->coll[item]].thumbnail = 0;
   j->tn->graph[j->gid].io_mutex = 0;
+abort:
   threads_mutex_unlock(j->tn->graph_lock+j->gid);
 }
 
@@ -315,6 +330,7 @@ dt_thumbnails_cache_list(
       job[0].idx_storage = 0;
     }
     job[k] = (cache_coll_job_t) {
+      .stamp = tn->job_timestamp,
       .mutex = &job[0].mutex_storage,
       .coll  = collection,
       .gid   = k,
@@ -361,6 +377,7 @@ dt_thumbnails_load_list(
   for(int k=beg;k<end;k++)
   {
     const uint32_t imgid = collection[k];
+    if(imgid >= db->image_cnt) break; // safety first. this probably means this job is stale! big danger!
     dt_image_t *img = db->image + imgid;
     if(img->thumbnail == 1) continue; // known broken
     if(img->thumbnail == 0)

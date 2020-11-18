@@ -581,6 +581,7 @@ void render_lighttable()
             const uint32_t *sel = dt_db_selection_get(&vkdt.db);
             for(int i=0;i<vkdt.db.selection_cnt;i++)
               dt_db_add_to_collection(&vkdt.db, sel[i], name);
+            dt_gui_read_tags();
           }
         }
         // ==============================================================
@@ -764,8 +765,21 @@ void render_lighttable()
     if(ImGui::CollapsingHeader("recent tags"))
     {
       for(int i=0;i<vkdt.tag_cnt;i++)
-        ImGui::Text("%s", vkdt.tag[i]);
-    }
+      {
+        if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
+        { // load tag collection:
+          dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
+          dt_db_cleanup(&vkdt.db);
+          dt_db_init(&vkdt.db);
+          char filename[1024];
+          snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
+          dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
+          dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
+        }
+        if((i & 3) != 3) ImGui::SameLine();
+      }
+      // TODO: button to jump to original folder of selected image if it is a symlink
+    } // end collapsing header "recent tags"
 
     ImGui::End(); // lt center window
   }

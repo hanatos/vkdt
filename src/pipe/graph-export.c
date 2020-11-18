@@ -6,6 +6,7 @@
 #include "pipe/modules/api.h"
 
 #include <libgen.h>
+#include <unistd.h>
 
 // export convenience functions, see cli/main.c
 
@@ -82,7 +83,10 @@ dt_graph_export(
         snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
       err = dt_graph_read_config_ascii(graph, graph_cfg);
       char imgfilename[256];
-      snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
+      // follow link if this is a cfg in a tag collection:
+      ssize_t linklen = readlink(param->p_cfgfile, imgfilename, sizeof(imgfilename));
+      if(linklen == -1) snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
+      else imgfilename[linklen] = 0;
       // reading the config will reset the search path. we'll repoint it to the
       // actual image file, not the default cfg:
       dt_graph_set_searchpath(graph, imgfilename);
