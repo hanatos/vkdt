@@ -72,7 +72,8 @@ static inline void gauss_blur(
     const double  sigma_nm,         // in nanometers
     const double *spectrum,
     double       *spectrum_blur,
-    const int     cnt)
+    const int     cnt,
+    const int     u_shape)          // for u-shapes, 1-blur(1-spec)
 {
   const double sigma = sigma_nm * cnt / (double)CIE_FINE_SAMPLES; // in bin widths
   const int r = 3*sigma;
@@ -85,13 +86,15 @@ static inline void gauss_blur(
     {
       if(i+j < 0 || i+j >= cnt) continue;
       double wg = exp(-j*j / (2.0*sigma*sigma));
-      spectrum_blur[i] += spectrum[i+j] * wg;
+      if(u_shape) spectrum_blur[i] += (1.0 - spectrum[i+j]) * wg;
+      else        spectrum_blur[i] += spectrum[i+j] * wg;
       w += wg;
     }
     spectrum_blur[i] /= w;
     max = fmax(max, spectrum_blur[i]);
   } // end gauss blur the spectrum loop
-  for(int i=0;i<cnt;i++) spectrum_blur[i] /= max;
+  if(u_shape) for(int i=0;i<cnt;i++) spectrum_blur[i] = 1.0 - spectrum_blur[i] / max;
+  else        for(int i=0;i<cnt;i++) spectrum_blur[i] /= max;
 }
 
 void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
@@ -99,8 +102,8 @@ void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
   double x[] = {xy[0] * w, (1.0-xy[1]) * h};
   x[0] = fmax(0.0, fmin(x[0], w-2));
   x[1] = fmax(0.0, fmin(x[1], h-2));
+#if 1 // bilin
   double u[2] = {x[0] - (int)x[0], x[1] - (int)x[1]};
-#if 0 // bilin
   for(int i=0;i<stride;i++)
     res[i] = (1.0-u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0]    ) + i]
            + (    u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0] + 1) + i]
@@ -640,7 +643,7 @@ int main(int argc, char **argv) {
         spectrum[l] = sigmoid(x);
       }
       const double sigma = 9.0; // FIXME: < 9 results in banding, > 12 results in second attractor
-      gauss_blur(sigma, spectrum, spectrum_blur, cnt);
+      gauss_blur(sigma, spectrum, spectrum_blur, cnt, coeffs[0] > 0.0);
       double col[3] = {0.0};
 #if 1 // cnt = CIE_FINE_SAMPLES
       for (int l = 0; l < cnt; l++)
@@ -669,27 +672,141 @@ int main(int argc, char **argv) {
 #endif
 
       int idx = j*res + i;
-      if(coeffs[0] < m)
-      {
-        out[5*idx + 0] = coeffs[0];
-        out[5*idx + 1] = coeffs[1];
-        out[5*idx + 2] = coeffs[2];
-      }
-      else
-      {
-        out[5*idx + 0] = 0.0;
-        out[5*idx + 1] = 0.0;
-        out[5*idx + 2] = 0.0;
-      }
-      if(out[5*idx + 0] == 0.0)
-        out[5*idx + 1] = out[5*idx + 2] = 0.0;
-      // out[5*idx + 0] = speed;
+      out[5*idx + 0] = coeffs[0];
+      out[5*idx + 1] = coeffs[1];
+      out[5*idx + 2] = coeffs[2];
       out[5*idx + 3] = velx;//m;
       out[5*idx + 4] = vely;//resid;
     }
   }
 
+#if 0
+  {
+  // TODO: another sanity check: plot all points of some lambda with analytic curves of what we think
+  // would be good values for c0 and y!
+    // FIXME: for red lambda and n, large s turn around towards white!
+    // FIXME: pretty much all turn around for u
+    // FIXME: gaps can only be filled on the way back!
+  const int lambda_cnt = 32;//512;
+  const int sat_cnt = 256;
+  // for(int un=0;un<2;un++)
+    const int un = 1;
+  {
+    for(int l=0;l<lambda_cnt;l++)
+    {
+      for(int s=0;s<sat_cnt;s++)
+      {
+        double lambda = CIE_LAMBDA_MIN + l/(lambda_cnt-1.0) * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+        // create spectrum for c0 = +/- 0.01? y=? lambda
+        double c0, y;
+        if(un) c0 = -pow(s/(sat_cnt-1.0), 3.) * 1./100.; // |c0| in 0..1/256
+        // FIXME: want softer progression of c0 to get less extreme blue-white-red ridges
+        else   c0 = 0.0000 + 0.0015 * pow(s/(sat_cnt-1.0), 0.8); // c < 0.0015 or 0.002 to go to border
+        // else   c0 = 0.0000 + 0.0015 * pow(s/(sat_cnt-1.0), 1./2.); // c < 0.0015 or 0.002 to go to border
+        if(un) y = s/(sat_cnt-1.0);
+        else y = -0 - 20.0 * s/(sat_cnt-1.0); // want to reach -20 at the border
+        double c0yl[3] = {c0, y, lambda};
 
+        double col[3] = {0};
+        for (int ll = 0; ll < CIE_FINE_SAMPLES; ll++)
+        {
+          double l2 = CIE_LAMBDA_MIN + ll/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+          double x = c0yl[0] * (l2 - c0yl[2])*(l2 - c0yl[2]) + c0yl[1];
+          double p = sigmoid(x);
+          for(int j=0;j<3;j++)
+            col[j] += rgb_tbl[j][ll] * p;
+        }
+        double xy[] = {
+          col[0] / (col[0]+col[1]+col[2]),
+          col[1] / (col[0]+col[1]+col[2])};
+        fprintf(stderr, "%g %g %d\n", xy[0], xy[1], s);
+      }
+    }
+  }
+  }
+#endif
+
+#if 1 // circular version
+  {
+  // now we have a c0 c1 c2 vx vy map.
+  // as a second step, using this 2D (c0 y lambda vx vy) map
+  // create another 2D (s, lambda) map as say 512x1024:
+  const int lambda_cnt = 128;//1024;//512;
+  const int sat_cnt = 512;
+  float *map = calloc(sizeof(float)*3, lambda_cnt*2*sat_cnt);
+
+  const int stripe_size = 2048;
+  float *stripe = calloc(sizeof(float)*3, stripe_size);
+
+  for(int d=-1;d<=1;d+=2)
+  // this isn't in fact a wavelength but an angle
+  for(int l=0;l<lambda_cnt;l++)
+  {
+    memset(stripe, 0, sizeof(float)*3*stripe_size);
+    // weird offset hand tuned such that the separation n-shape/u-shape goes through y=0 coordinate in the output map:
+    double phi = 2.0*M_PI*l/(lambda_cnt-1.0) + 0.455;
+    const double radius = 0.10;
+    double xy[2] = {1.0/3.0 + radius * cos(phi), 1.0/3.0 + radius * sin(phi)};
+    double c0yl[3];
+    float px[5];
+    lookup2d(out, res, res, 5, xy, px);
+    double coeffs[3] = {px[0], px[1], px[2]};
+        // cvt_c0yl_c012(c0yl, coeffs);
+    cvt_c012_c0yl(coeffs, c0yl);
+
+    const int it_cnt = sat_cnt;//150;// TODO: put sane maximum number of steps
+    for(int it=0;it<it_cnt;it++) 
+    {
+      fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
+
+      // read velocity field at xy and walk a single pixel step:
+      lookup2d(out, res, res, 5, xy, px);
+      double dir = c0yl[0] > 0.0 ? 1.0 : - 1.0;
+      xy[0] += d*dir * px[3] * .5/it_cnt;
+      xy[1] += d*dir * px[4] * .5/it_cnt;
+
+      lookup2d(out, res, res, 5, xy, px);
+      double new_c[] = {px[0], px[1], px[2]};
+      double new_c0yl[3];
+      cvt_c012_c0yl(new_c, new_c0yl);
+
+      stripe[3*it + 0] = c0yl[0];
+      stripe[3*it + 1] = c0yl[1];
+      stripe[3*it + 2] = c0yl[2];
+
+      if(c0yl[0] * new_c0yl[0] <= 0.0) break;
+      if(fabs(xy[0] - 1.0/3.0) < 1e-4 && fabs(xy[1] - 1.0/3.0) < 1e-4) break;
+      // ??
+      c0yl[0] = new_c0yl[0];
+      c0yl[1] = new_c0yl[1];
+      c0yl[2] = new_c0yl[2]; // keep lambda
+    // }
+
+    // for(int i=0;i<it_cnt;i++)
+    // {
+      map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 0] = fabs(c0yl[0]);
+      map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 1] = fabs(c0yl[1]);
+      map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 2] = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+    }
+  }
+
+  FILE *f = fopen("map.pfm", "wb");
+  if(f)
+  {
+    fprintf(f, "PF\n%d %d\n-1.0\n", 2*sat_cnt, lambda_cnt);
+    for(int k=0;k<sat_cnt*2*lambda_cnt;k++)
+    {
+      float coeffs[3] = {map[3*k+0], map[3*k+1], map[3*k+2]};
+      fwrite(coeffs, sizeof(float), 3, f);
+    }
+    fclose(f);
+  }
+  } // end scope
+#endif
+
+
+#if 0
+  {
   // now we have a c0 c1 c2 vx vy map.
   // as a second step, using this 2D (c0 y lambda vx vy) map
   // create another 2D (s, lambda) map as say 512x1024:
@@ -701,13 +818,14 @@ int main(int argc, char **argv) {
   float *stripe = calloc(sizeof(float)*3, stripe_size);
 
   // for n and u spectra and lambda in [360, 830], do:
-  for(int un=0;un<2;un++)
-  // const int un = 1;
+  // for(int un=0;un<2;un++)
+  const int un = 0;
   {
     for(int l=0;l<lambda_cnt;l++)
     // const int l = lambda_cnt / 2;
     {
       int dir_lower = stripe_size/2, dir_upper = stripe_size/2;
+      memset(stripe, 0, sizeof(float)*3*stripe_size);
       // walk velocity field both directions towards white (s=0) and spectral (s=1)
       for(int dir=-1;dir<=1;dir+=2)
       {
@@ -724,7 +842,8 @@ int main(int argc, char **argv) {
         // cvt_c0yl_c012(c0yl, coeffs);
         // cvt_c012_c0yl(coeffs, c0yl);
 
-        for(int it=0;it<250;it++) // TODO: put sane maximum number of steps
+        const int it_cnt = 150;// TODO: put sane maximum number of steps
+        for(int it=0;it<it_cnt;it++) 
         // for(int it=0;it<5;it++) // TODO: put sane maximum number of steps
         {
           // determine xy
@@ -772,8 +891,8 @@ int main(int argc, char **argv) {
           // read velocity field at xy and walk a single pixel step:
           float px[5];
           lookup2d(out, res, res, 5, xy, px);
-          xy[0] -= dir * px[3] * 4.0/res; // should be something resolution/iterations or so
-          xy[1] -= dir * px[4] * 4.0/res;
+          xy[0] += (c0yl[0] > 0.0 ? 1.0 : -1.0) * dir * px[3] * .5/it_cnt;
+          xy[1] += (c0yl[0] > 0.0 ? 1.0 : -1.0) * dir * px[4] * .5/it_cnt;
           // double cf[3] = {px[0], px[1], px[2]};
           // fprintf(stderr, "c0yl %g %g %g -- ", c0yl[0], c0yl[1], c0yl[2]);
           // cvt_c012_c0yl(cf, c0yl);
@@ -816,6 +935,9 @@ int main(int argc, char **argv) {
           double new_c0yl[3];
           cvt_c012_c0yl(new_c, new_c0yl);
           // TODO: avoid sign change in c0!
+          // TODO: n-shaped should not have y < 0 (or so?)
+          // TODO: u-shaped should not have y > 1
+          // fprintf(stdout, "c0 %g %g y: %g %g\n", c0yl[0], new_c0yl[0], c0yl[1], new_c0yl[1]);
           c0yl[0] = new_c0yl[0];
           c0yl[1] = new_c0yl[1];
           // c0yl[2] = new_c0yl[2]; // keep lambda
@@ -825,6 +947,8 @@ int main(int argc, char **argv) {
       // normalise range of stripe (dir_lower, dir_upper) to resolution of 2D map, resample into row of texture
       // row will have: s=-1..0..1 and is filled in two parts (c0 > 0 and c0 < 0)
       // fprintf(stdout, "%d begin end %d %d\n", l, dir_lower, dir_upper);
+      // dir_upper = stripe_size/2; // XXX DEBUG
+      // dir_lower = 0; // all scanlines for n seem to agree on this quite well
       for(int i=0;i<sat_cnt;i++)
       {
         // convert to index in stripe
@@ -837,13 +961,13 @@ int main(int argc, char **argv) {
         { // n shapes (spectral colours)
           map[3*(2*sat_cnt * l + sat_cnt + i) + 0] = c0yl[0];
           map[3*(2*sat_cnt * l + sat_cnt + i) + 1] = c0yl[1];
-          map[3*(2*sat_cnt * l + sat_cnt + i) + 2] = c0yl[2];
+          map[3*(2*sat_cnt * l + sat_cnt + i) + 2] = 0;//c0yl[2];
         }
         else
         { // u shapes (purple line)
           map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 0] = c0yl[0];
           map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 1] = c0yl[1];
-          map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 2] = c0yl[2];
+          map[3*(2*sat_cnt * l + sat_cnt - i - 1) + 2] = 0;//c0yl[2];
         }
       } // end saturation row for const l
 
@@ -861,8 +985,10 @@ int main(int argc, char **argv) {
     }
     fclose(f);
   }
+  } // end scope
+#endif
 
-  f = fopen(argv[2], "wb");
+  FILE *f = fopen(argv[2], "wb");
   if(f)
   {
     fprintf(f, "PF\n%d %d\n-1.0\n", res, res);
@@ -870,10 +996,10 @@ int main(int argc, char **argv) {
     {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       float q[3];
-      // quantise_coeffs(coeffs, q);
-#if 0 // data
+      quantise_coeffs(coeffs, q);
+#if 0 // coeff data
       fwrite(q, sizeof(float), 3, f);
-#else // debug
+#else // velocity field
       float vel[3] = {
           out[5*k+3],
           out[5*k+4],
