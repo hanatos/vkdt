@@ -546,16 +546,16 @@ void render_lighttable()
       if(ImGui::CollapsingHeader("selected images"))
       {
         // ==============================================================
-        // assign to collection modal popup:
-        int open = ImGui::Button("assign to collection..", size);
+        // assign tag modal popup:
+        int open = ImGui::Button("assign tag..", size);
         if (open)
         {
-          ImGui::OpenPopup("assign to collection");
+          ImGui::OpenPopup("assign tag");
           g_busy += 5;
         }
 
         static char name[32] = "all time best";
-        if (ImGui::BeginPopupModal("assign to collection", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        if (ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
           int ok = 0;
           if (open)
@@ -759,7 +759,14 @@ void render_lighttable()
           dt_graph_cleanup(&graph);
         }
       }
+    } // end collapsing header "selected"
+
+    if(ImGui::CollapsingHeader("recent tags"))
+    {
+      for(int i=0;i<vkdt.tag_cnt;i++)
+        ImGui::Text("%s", vkdt.tag[i]);
     }
+
     ImGui::End(); // lt center window
   }
 }

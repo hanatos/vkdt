@@ -193,6 +193,7 @@ int main(int argc, char *argv[])
     dt_db_selection_add(&vkdt.db, 0);
     dt_view_switch(s_view_darkroom);
   }
+  dt_gui_read_tags();
 
   // main loop
   clock_t beg = clock();
