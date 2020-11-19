@@ -24,6 +24,9 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace { // anonymous gui state namespace
 
@@ -764,21 +767,36 @@ void render_lighttable()
 
     if(ImGui::CollapsingHeader("recent tags"))
     {
+      char filename[1024];
       for(int i=0;i<vkdt.tag_cnt;i++)
       {
         if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
         { // load tag collection:
-          dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
-          dt_db_cleanup(&vkdt.db);
-          dt_db_init(&vkdt.db);
-          char filename[1024];
           snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
-          dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
-          dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
+          dt_gui_switch_collection(filename);
         }
         if((i & 3) != 3) ImGui::SameLine();
       }
-      // TODO: button to jump to original folder of selected image if it is a symlink
+      // button to jump to original folder of selected image if it is a symlink
+      uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+      if(main_imgid != -1u)
+      {
+        dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
+        struct stat buf;
+        lstat(filename, &buf);
+        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection"))
+        {
+          char *resolved = realpath(filename, 0);
+          if(resolved)
+          {
+            char *c = 0;
+            for(int i=0;resolved[i];i++) if(resolved[i] == '/') c = resolved+i;
+            if(c) *c = 0; // get dirname, i.e. strip off image file name
+            dt_gui_switch_collection(resolved);
+            free(resolved);
+          }
+        }
+      }
     } // end collapsing header "recent tags"
 
     ImGui::End(); // lt center window

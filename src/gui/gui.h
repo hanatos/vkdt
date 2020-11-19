@@ -136,3 +136,6 @@ int dt_gui_read_favs(const char *filename);
 
 // read list of tags (i.e. the directories in ~/.config/vkdt/tags/)
 void dt_gui_read_tags();
+
+// close current db, load given folder instead
+void dt_gui_switch_collection(const char *dir);

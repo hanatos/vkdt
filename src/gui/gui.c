@@ -408,3 +408,12 @@ dt_gui_read_tags()
   // sort tags alphabetically, in ugly and slow:
   qsort(vkdt.tag, vkdt.tag_cnt, sizeof(vkdt.tag[0]), (__compar_fn_t)strcmp);
 }
+
+void dt_gui_switch_collection(const char *dir)
+{
+  dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
+  dt_db_cleanup(&vkdt.db);
+  dt_db_init(&vkdt.db);
+  dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
+  dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
+}
