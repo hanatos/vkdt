@@ -168,7 +168,7 @@ create_ring(
   for(int k=0;k<N;k++)
   {
     const float b = out[3*k+0] + out[3*k+1] + out[3*k+2];
-    for(int i=0;i<3;i++) out[3*k+i] /= b;
+    if(b > 1e-8f) for(int i=0;i<3;i++) out[3*k+i] /= b;
     source[2*k+0] = out[3*k+0];
     source[2*k+1] = out[3*k+2];
     target[2*k+0] = out[3*k+0];
@@ -177,7 +177,7 @@ create_ring(
     else if(gamut == 2) clip_rec2020(target + 2*k, w2);
     else if(gamut == 3) clip_rec709(target + 2*k, w2);
 
-    // fprintf(stdout, "%g %g %g %g\n",
+    // fprintf(stdout, "ring %d: %g %g %g %g\n", k,
     //     source[2*k], source[2*k+1],
     //     target[2*k], target[2*k+1]);
   }
