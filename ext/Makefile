@@ -6,8 +6,13 @@ all: rawspeed
 rawspeed: Makefile $(BUILT)/rawspeed/librawspeed.a
 
 $(BUILT)/rawspeed/Makefile: Makefile
+ifeq ($(RAWSPEED_PACKAGE_BUILD),0)
 	mkdir -p $(BUILT)/rawspeed
 	cd $(BUILT)/rawspeed; cmake ../../../ext/rawspeed -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release -DRAWSPEED_ENABLE_LTO=off -DRAWSPEED_ENABLE_DEBUG_INFO=off
+else
+	mkdir -p $(BUILT)/rawspeed
+	cd $(BUILT)/rawspeed; cmake ../../../ext/rawspeed -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release -DRAWSPEED_ENABLE_LTO=off -DRAWSPEED_ENABLE_DEBUG_INFO=off -DBINARY_PACKAGE_BUILD=on
+endif
 
 # for some reason this is challenging for older? cmake
 # cmake -S rawspeed/ -B $(BUILT)/rawspeed/ -DBUILD_TESTING=0 -DCMAKE_BUILD_TYPE=release

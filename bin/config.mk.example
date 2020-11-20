@@ -28,4 +28,8 @@ OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
 OPT_LDFLAGS=
 AR=ar
 
-export CC CXX GLSLC OPT_CFLAGS OPT_LDFLAGS AR
+# set this to 1 to signal rawspeed to build without processor specific extensions.
+# again, this is important for building packages for distros.
+RAWSPEED_PACKAGE_BUILD=0
+
+export CC CXX GLSLC OPT_CFLAGS OPT_LDFLAGS AR RAWSPEED_PACKAGE_BUILD
