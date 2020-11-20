@@ -393,6 +393,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
+#if 0
     if(0)
     {
       VkPhysicalDeviceRayTracingPropertiesKHR ray_tracing_properties = {
@@ -405,6 +406,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
       vkGetPhysicalDeviceProperties2(devices[i], &device_properties_2);
       dt_log(s_log_qvk, "number of accel structs %d", ray_tracing_properties.maxDescriptorSetAccelerationStructures > 0);
     }
+#endif
 
     // vendor ids are: nvidia 0x10de, intel 0x8086
     if(picked_device < 0 || dev_properties.vendorID == 0x10de)
