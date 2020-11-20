@@ -4,9 +4,6 @@
 
 .PHONY:all ext src clean distclean bin
 
-OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
-OPT_LDFLAGS=
-AR=ar
 # dr dobb's idea about makefile debugging:
 OLD_SHELL := $(SHELL)
 # SHELL = $(warning [$@ ($^) ($?)])$(OLD_SHELL)

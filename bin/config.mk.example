@@ -18,7 +18,14 @@ export VKDT_USE_RAWSPEED
 # VKDT_USE_EXIV2=1
 # export VKDT_USE_EXIV2
 
+# compiler config
 CC=clang
 CXX=clang++
 GLSLC=glslangValidator
-export CC CXX GLSLC
+
+# optimised flags, you may want to use -march=generic for distro builds:
+OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
+OPT_LDFLAGS=
+AR=ar
+
+export CC CXX GLSLC OPT_CFLAGS OPT_LDFLAGS AR
