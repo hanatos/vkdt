@@ -160,9 +160,17 @@ void dt_db_load_directory(
     const char      *dirname)
 {
   uint32_t id = -1u;
-  dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id);
+  if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
+  {
+    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
+    return;
+  }
   id = -1u;
-  dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id);
+  if(dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id) != VK_SUCCESS)
+  {
+    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
+    return;
+  }
 
   DIR *dp = opendir(dirname);
   if(!dp)

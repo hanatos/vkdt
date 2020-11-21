@@ -421,7 +421,7 @@ dt_thumbnails_load_one(
     uint32_t hash = murmur_hash3(filename, strnlen(filename, 2048), 1337);
     snprintf(imgfilename, sizeof(imgfilename), "%s/%x.bc1", tn->cachedir, hash);
   }
-  else snprintf(imgfilename, sizeof(imgfilename), "%s", filename);
+  else snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename);
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
   if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;

@@ -138,10 +138,11 @@ int main(int argc, char *argv[])
   dt_pipe_global_init();
   threads_global_init();
 
-  const char *fname = 0;
-  if(argc > 1) fname = argv[argc-1];
+  char *filename = 0;
+  if(argc > 1)
+    filename = realpath(argv[argc-1], 0);
   struct stat statbuf;
-  if(!fname || stat(fname, &statbuf))
+  if(!filename || stat(filename, &statbuf))
   {
     dt_log(s_log_gui, "usage: vkdt [-d verbosity] directory|rawfile");
     exit(1);
@@ -177,7 +178,7 @@ int main(int argc, char *argv[])
     vkdt.view_mode = s_view_lighttable;
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
     dt_db_init(&vkdt.db);
-    dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, fname);
+    dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
     dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
   }
@@ -185,7 +186,7 @@ int main(int argc, char *argv[])
   {
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3, 1ul<<20);
     dt_db_init(&vkdt.db);
-    if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, fname))
+    if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, filename))
     {
       dt_log(s_log_err, "image could not be loaded!");
       goto out;
