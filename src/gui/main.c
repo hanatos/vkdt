@@ -139,14 +139,8 @@ int main(int argc, char *argv[])
   threads_global_init();
 
   char *filename = 0;
-  if(argc > 1)
-    filename = realpath(argv[argc-1], 0);
-  struct stat statbuf;
-  if(!filename || stat(filename, &statbuf))
-  {
-    dt_log(s_log_gui, "usage: vkdt [-d verbosity] directory|rawfile");
-    exit(1);
-  }
+  if(argc > 1) filename = realpath(argv[argc-1], 0);
+  else         filename = realpath("~/Pictures", 0);
   if(dt_gui_init())
   {
     dt_log(s_log_gui|s_log_err, "failed to init gui/swapchain");
@@ -173,7 +167,9 @@ int main(int argc, char *argv[])
   // to create thumbnails, if necessary.
   // only width/height will matter here
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
-  if((statbuf.st_mode & S_IFMT) == S_IFDIR)
+  struct stat statbuf = {0};
+  if(filename) stat(filename, &statbuf);
+  if(!filename || ((statbuf.st_mode & S_IFMT) == S_IFDIR))
   {
     vkdt.view_mode = s_view_lighttable;
     dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
@@ -253,5 +249,6 @@ out:
   dt_thumbnails_cleanup(&vkdt.thumbnail_gen);
   dt_db_cleanup(&vkdt.db);
   dt_pipe_global_cleanup();
+  free(filename);
   exit(0);
 }

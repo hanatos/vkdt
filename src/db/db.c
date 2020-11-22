@@ -159,6 +159,8 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
+  // TODO: only do this the first time?
+  // TODO: check what happens with lru thumbnails
   uint32_t id = -1u;
   if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
   {
@@ -172,7 +174,7 @@ void dt_db_load_directory(
     return;
   }
 
-  DIR *dp = opendir(dirname);
+  DIR *dp = dirname ? opendir(dirname) : 0;
   if(!dp)
   {
     dt_log(s_log_err|s_log_db, "could not open directory '%s'!", dirname);

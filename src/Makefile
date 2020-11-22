@@ -36,7 +36,7 @@ clean: Makefile
 
 # GNU_SOURCE for sched_affinity
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
-CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
+CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c++17
 LDFLAGS=
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
