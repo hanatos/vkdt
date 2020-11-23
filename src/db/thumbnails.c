@@ -254,6 +254,7 @@ typedef struct cache_coll_job_t
   uint64_t stamp;
   threads_mutex_t mutex_storage;
   uint32_t idx_storage;
+  uint32_t done;
   uint32_t gid;
   threads_mutex_t *mutex;
   dt_thumbnails_t *tn;
@@ -342,6 +343,7 @@ dt_thumbnails_cache_list(
     assert(-1 != threads_task(
         imgid_cnt,
         &job[0].idx_storage,
+        &job[0].done,
         job+k,
         thread_work_coll,
         thread_free_coll));

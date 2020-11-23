@@ -31,6 +31,7 @@ void threads_global_cleanup();
 int threads_task(
     uint32_t       work_item_cnt,
     uint32_t      *work_item,
+    uint32_t      *done,
     void          *data,
     void         (*run)(uint32_t item, void *data),
     void         (*free)(void*));
