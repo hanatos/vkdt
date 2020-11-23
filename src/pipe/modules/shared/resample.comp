@@ -23,7 +23,7 @@ main()
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
   vec2 ipos = (opos + vec2(0.5))/ vec2(imageSize(img_out));
-  vec4 rgba = sample_semisoft(img_in, ipos); // 3x3 gauss lookup
+  vec4 rgba = sample_flower(img_in, ipos); // fake 5x5 lookup
   imageStore(img_out, opos, rgba);
 }
 
