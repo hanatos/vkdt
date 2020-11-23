@@ -14,10 +14,9 @@
 // - compute xy position and store velocity field from source to the gauss blurred instance
 // TODO:
 // as a second step, using this 2D (c0 y lambda vx vy) map
-// - create another 2D (s, lambda) map as say 512x1024
-// for lambda in [360, 830], do:
-// - create spectrum for c0 = +/- 0.01? y=? lambda
-// - determine xy
+// - create another 2D (s, lambda) map as say 1024x1024 s=0..1 lambda=360..830
+// for phi in circle around white point:
+// - create spectrum for xy
 // - walk velocity field both directions towards white (s=0) and spectral (s=1)
 // - store result in largeish array
 // - normalise range to resolution of 2D map, resample into row of texture
@@ -731,20 +730,29 @@ int main(int argc, char **argv) {
   // now we have a c0 c1 c2 vx vy map.
   // as a second step, using this 2D (c0 y lambda vx vy) map
   // create another 2D (s, lambda) map as say 512x1024:
-  const int lambda_cnt = 128;//1024;//512;
+  const int lambda_cnt = 1024;//512;
   const int sat_cnt = 512;
   float *map = calloc(sizeof(float)*3, lambda_cnt*2*sat_cnt);
 
   const int stripe_size = 2048;
-  float *stripe = calloc(sizeof(float)*3, stripe_size);
+  float *stripe = calloc(sizeof(float)*3*lambda_cnt, stripe_size);
+
+  int *right = calloc(sizeof(int), lambda_cnt);
+  int *left  = calloc(sizeof(int), lambda_cnt);
+
+  for(int l=0;l<lambda_cnt;l++) for(int i=0;i<2*sat_cnt;i++)
+  {
+    map[3*(2*sat_cnt * l + i) + 0] = 1.0;
+    map[3*(2*sat_cnt * l + i) + 1] = 0.0;
+    map[3*(2*sat_cnt * l + i) + 2] = 0.0;
+  }
 
   for(int d=-1;d<=1;d+=2)
   // this isn't in fact a wavelength but an angle
   for(int l=0;l<lambda_cnt;l++)
   {
-    memset(stripe, 0, sizeof(float)*3*stripe_size);
     // weird offset hand tuned such that the separation n-shape/u-shape goes through y=0 coordinate in the output map:
-    double phi = 2.0*M_PI*l/(lambda_cnt-1.0) + 0.455;
+    double phi = 2.0*M_PI*l/(lambda_cnt-1.0) + 0.48;
     const double radius = 0.10;
     double xy[2] = {1.0/3.0 + radius * cos(phi), 1.0/3.0 + radius * sin(phi)};
     double c0yl[3];
@@ -754,7 +762,7 @@ int main(int argc, char **argv) {
         // cvt_c0yl_c012(c0yl, coeffs);
     cvt_c012_c0yl(coeffs, c0yl);
 
-    const int it_cnt = sat_cnt;//150;// TODO: put sane maximum number of steps
+    const int it_cnt = stripe_size/2;
     for(int it=0;it<it_cnt;it++) 
     {
       fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
@@ -770,25 +778,74 @@ int main(int argc, char **argv) {
       double new_c0yl[3];
       cvt_c012_c0yl(new_c, new_c0yl);
 
-      stripe[3*it + 0] = c0yl[0];
-      stripe[3*it + 1] = c0yl[1];
-      stripe[3*it + 2] = c0yl[2];
+      stripe[3*(stripe_size*l + stripe_size/2 + (d> 0 ? it : -it-1)) + 0] = c0yl[0];
+      stripe[3*(stripe_size*l + stripe_size/2 + (d> 0 ? it : -it-1)) + 1] = c0yl[1];
+      stripe[3*(stripe_size*l + stripe_size/2 + (d> 0 ? it : -it-1)) + 2] = c0yl[2];
 
-      if(c0yl[0] * new_c0yl[0] <= 0.0) break;
-      if(fabs(xy[0] - 1.0/3.0) < 1e-4 && fabs(xy[1] - 1.0/3.0) < 1e-4) break;
+      if(d > 0) right[l] = it; // expand right boundary
+      else      left[l]  = it; // expand left boundary (doesn't really work)
+      if(c0yl[0] * new_c0yl[0] <= 0.0) break; // n vs u mismatch, streamline borken :(
+      // if(fabs(xy[0] - 1.0/3.0) < 1e-4 && fabs(xy[1] - 1.0/3.0) < 1e-4) break;
+      if(spectrum_outside(xy[0], xy[1])) break; // outside spectral locus
       // ??
       c0yl[0] = new_c0yl[0];
       c0yl[1] = new_c0yl[1];
-      c0yl[2] = new_c0yl[2]; // keep lambda
+      // c0yl[2] = new_c0yl[2]; // keep lambda
     // }
 
     // for(int i=0;i<it_cnt;i++)
     // {
-      map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 0] = fabs(c0yl[0]);
-      map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 1] = fabs(c0yl[1]);
-      map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 2] = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+      // map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 0] = fabs(c0yl[0]);
+      // map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 1] = fabs(c0yl[1]);
+      // map[3*(2*sat_cnt * l + sat_cnt + (d>0 ? it : -it-1)) + 2] = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
     }
   }
+
+  // smooth right boundary:
+  for(int i=1;i<lambda_cnt-1;i++)
+  {
+    int crop = (right[i-1] + right[i+1])/2;
+    if(right[i] > crop) right[i] = crop;
+  }
+  for(int i=1;i<lambda_cnt-1;i++)
+  {
+    int crop = (left[i-1] + left[i+1])/2;
+    if(left[i] > crop) left[i] = crop;
+  }
+  // resample lines from stripe_size [ss/2..right] to sat_cnt
+  for(int l=0;l<lambda_cnt;l++)
+  {
+    for(int i=0;i<sat_cnt;i++)
+    {
+      float res[3];
+      float f = i/(float)sat_cnt * right[l]/(float)(stripe_size);
+      lookup1d(stripe + 3*(stripe_size*l + stripe_size/2), stripe_size, 3, f, res);
+      map[3*(2*sat_cnt * l + sat_cnt + i) + 0] = fabsf(res[0]);
+      map[3*(2*sat_cnt * l + sat_cnt + i) + 1] = fabsf(res[1]);
+      map[3*(2*sat_cnt * l + sat_cnt + i) + 2] = (res[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+    }
+    for(int i=0;i<sat_cnt;i++)
+    {
+      float res[3];
+      float f = 0.5 - i/(float)sat_cnt * left[l]/(float)(stripe_size);
+      lookup1d(stripe + 3*(stripe_size*l), stripe_size, 3, f, res);
+      map[3*(2*sat_cnt * l + sat_cnt - i-1) + 0] = fabsf(res[0]);
+      map[3*(2*sat_cnt * l + sat_cnt - i-1) + 1] = fabsf(res[1]);
+      map[3*(2*sat_cnt * l + sat_cnt - i-1) + 2] = (res[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+    }
+  }
+#if 0
+  // invalidate samples outside
+  for(int l=0;l<lambda_cnt;l++)
+  {
+    for(int i=right[l];i<sat_cnt;i++)
+    {
+      map[3*(2*sat_cnt * l + sat_cnt + i) + 0] = 1.0;
+      map[3*(2*sat_cnt * l + sat_cnt + i) + 1] = 0.0;
+      map[3*(2*sat_cnt * l + sat_cnt + i) + 2] = 0.0;
+    }
+  }
+#endif
 
   FILE *f = fopen("map.pfm", "wb");
   if(f)
