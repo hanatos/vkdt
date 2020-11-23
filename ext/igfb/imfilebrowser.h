@@ -262,13 +262,13 @@ inline void ImGui::FileBrowser::Display()
     if(openFlag_ && (flags_ & ImGuiFileBrowserFlags_NoModal))
     {
         SetNextWindowSize(
-            ImVec2(static_cast<float>(width_), static_cast<float>(height_)));
+            ImVec2(static_cast<float>(width_), static_cast<float>(height_)), ImGuiCond_Always);
     }
     else
     {
         SetNextWindowSize(
             ImVec2(static_cast<float>(width_), static_cast<float>(height_)),
-            ImGuiCond_FirstUseEver);
+            ImGuiCond_Always);
     }
     if(flags_ & ImGuiFileBrowserFlags_NoModal)
     {
