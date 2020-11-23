@@ -114,14 +114,13 @@ vec4 sample_flower(sampler2D tex, vec2 uv)
   vec2 off1 = vec2(-0.4, 1.2);
 
   const float t = 36.0/256.0;
-  vec4 result = vec4(0.0);
+  vec4 result = textureLod(tex, uv, 0) * t;
   result += textureLod(tex, (tc + off0)/texSize, 0) * (1.0-t)/4.0;
   result += textureLod(tex, (tc - off0)/texSize, 0) * (1.0-t)/4.0;
   result += textureLod(tex, (tc + off1)/texSize, 0) * (1.0-t)/4.0;
   result += textureLod(tex, (tc - off1)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, uv, 0) * t;
 
-  return result / 4.0f;
+  return result;
 }
 
 float luminance_rec2020(vec3 rec2020)
