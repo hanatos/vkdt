@@ -1195,6 +1195,7 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("crop"):
     {
+      ImGui::InputFloat("aspect ratio", &vkdt.wstate.aspect, 0.0f, 4.0f, "%.3f");
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
