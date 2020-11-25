@@ -1,7 +1,7 @@
-# darktable which sucks less
+# vkdt: darktable which sucks less
 
-this is an experimental complete rewrite of darktable, naturally at this point
-with a heavily reduced feature set.
+this is an experimental complete rewrite of [darktable](https://darktable.org),
+naturally at this point with a heavily reduced feature set.
 
 the processing pipeline has been rewritten as a generic node graph (dag) which
 supports multiple inputs and multiple outputs. all processing is done in glsl
@@ -21,21 +21,22 @@ targets, such as the main view and histograms.
 * [minimal set of image operation modules](src/pipe/modules/readme.md)
 * [noise profiling](doc/noiseprofiling.md)
 * [minimally invasive image database](src/db/readme.md)
+* [command line utility](src/cli/readme.md)
 
 ## build instructions
 
 you should have checked out this repo recursively. if not, do
 ```
-git submodule init
-git submodule update
+  git submodule init
+  git submodule update
 ```
+
 to grab the dependencies in the `ext/` folder. you should then be able to
 simply run 'make' from the bin/ folder. for debug builds (which enable the
 vulkan validation layers, so you need to have them installed), try
-
 ```
-cd bin/
-make debug -j12
+  cd bin/
+  make debug -j12
 ```
 
 simply run `make` without the `debug` for a release build. `make sanitize` is
@@ -47,8 +48,8 @@ be set in `config.mk`. if you don't have that file yet, copy it from
 
 the binaries are currently wired to run from the `bin/` directory:
 ```
-cd bin/
-./vkdt -d all /path/to/your/rawfile.raw
+  cd bin/
+  ./vkdt -d all /path/to/your/rawfile.raw
 ```
 raw files will be assigned the `bin/default-darkroom.cfg` processing graph.
 if you run the command line interface 'vkdt-cli', it will replace all 'display'
