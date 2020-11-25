@@ -176,7 +176,14 @@ void quantise_coeffs(double coeffs[3], float out[3])
   A = out[0]; B = out[1]; C = out[2];
   out[0] = A;                        // square slope stays
   out[2] = B / (-2.0*A);             // dominant wavelength
-  out[1] = C - A * out[2] * out[2];  // y
+  // out[1] = C - A * out[2] * out[2];  // y
+  out[1] = C - B*B / (4.0 * A);      // y
+
+  // these are good bounds:
+  if(out[0] > 0.0 && out[1] >  0.85) fprintf(stdout, "!!!\n");
+  // else fprintf(stdout, "yay, good!\n");
+  if(out[0] < 0.0 && out[1] < -1.85) fprintf(stdout, "!!!??? %g %g %g\n", out[0], out[1], out[2]);
+  // else fprintf(stdout, "yay, good!\n");
 
   // XXX visualise abs:
   // out[0] = fabsf(out[0]); // goes from 1.0/256.0 (spectral locus) .. 0 (purple ridge through white)
