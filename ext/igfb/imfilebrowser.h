@@ -1,6 +1,7 @@
 ﻿// from
-// https://raw.githubusercontent.com/AirGuanZ/imgui-filebrowser/master/imfilebrowser.hI
+// https://raw.githubusercontent.com/AirGuanZ/imgui-filebrowser/master/imfilebrowser.h
 // MIT licence
+// this adds a whole megabyte to the vkdt binary. TODO: rewrite using libc/unistd
 #pragma once
 
 #include <algorithm>

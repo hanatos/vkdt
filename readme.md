@@ -77,18 +77,19 @@ and we may link to some others, too.
 * build: make, pkg-config
 
 optional (configure in `bin/config.mk`):
+
 * freetype (libfreetype-dev)
 * exiv2 (libexiv2-dev)
 
 
 ## faq
-* can i run my super long running kernel without timeout?  
+* **can i run my super long running kernel without timeout?**  
 if you're using your only gpu in the system, you'll need to run without xorg,
 straight from a tty console. this means you'll only be able to use the
 command line interface `vkdt-cli`. we force a timeout, too, but it's
 something like 16 minutes. let us know if you run into this..
 
-* how do i build a binary package?  
+* **how do i build a binary package?**  
 you mostly need the `bin/` directory for this. after running `make` inside
 `bin/`, a straight copy of `bin/` to say `/opt/vkdt/` would work (you can put a
 symlink to the binaries `vkdt` and `vkdt-cli` in `/usr/bin`).
