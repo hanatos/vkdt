@@ -209,7 +209,7 @@ main()
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
    -0.25336628,  0.01576855,  0.94210312);
-#if 1 // moments
+#if 0 // moments
   float b;
   vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
@@ -273,13 +273,38 @@ main()
   rgb = xyz_to_rec2020*xyz;
   }
 #endif
-#if 0 // sigmoids
+
+#if 1 // sigmoids
   float b;
   vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
 
   // saturation in various ways. none of which work, making me sad.
-#if 1
+#if 1 // convert to lwd: dom lambda, width, slope
+  // convert
+  double c0   = coeff.x;
+  double ldom = coeff.y/(-2.0*coeff.x);
+  double y    = coeff.z- coeff.y*coeff.y/(4.0 * coeff.x);
+
+  double y0 = c0 > 0.0 ? 1.0 : -2.0;
+  double c = pow(y0*y0+1, -3./2.);
+
+  double w = 2.0 * sqrt((y0 - y)/c0);
+  double d = sign(c0) * sqrt(c0*(y0-y)) * c;
+
+  // saturate
+  // width --; abs(slope) ++
+
+
+  // back
+  y  = y0 - 0.5 * w * abs(d) / c;
+  c0 = 2*d/w / c;
+
+  coeff.x = c0;
+  coeff.y = -2.0 * c0 * ldom;
+  coeff.z = c0 * ldom*ldom + y;
+#endif
+#if 0
     // dumb version
     vec3 cyl;
     cyl.x = coeff.x;

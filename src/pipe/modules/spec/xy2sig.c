@@ -161,6 +161,23 @@ void cvt_c012_c0yl(const double *coeffs, double *c0yl)
 #endif
 }
 
+void cvt_c0yl_lwd(const double *c0yl, double *lwd)
+{
+  const double A = c0yl[0], B = c0yl[1], C = c0yl[2];
+  const double c0   = A;                        // square slope stays
+  const double ldom = B / (-2.0*A);             // dominant wavelength
+  const double y    = C - B*B / (4.0 * A);      // y
+
+  const double y0 = c0 > 0.0 ? 1.0 : -2.0;
+
+  const double w = 2.0 * sqrt((y0 - y)/c0);
+  const double d = copysign(sqrt(c0*(y0-y)) * pow(y0*y0+1, -3./2.), c0);
+
+  lwd[0] = ldom;
+  lwd[1] = w;
+  lwd[2] = d;
+}
+
 void quantise_coeffs(double coeffs[3], float out[3])
 {
 #if 1 // def SIGMOID
@@ -168,9 +185,28 @@ void quantise_coeffs(double coeffs[3], float out[3])
   double c0 = 360.0, c1 = 1.0 / (830.0 - 360.0);
   double A = coeffs[0], B = coeffs[1], C = coeffs[2];
 
-  out[0] = (float)(A*(sqrd(c1)));
-  out[1] = (float)(B*c1 - 2*A*c0*(sqrd(c1)));
-  out[2] = (float)(C - B*c0*c1 + A*(sqrd(c0*c1)));
+  const double A2 = (A*(sqrd(c1)));
+  const double B2 = (B*c1 - 2*A*c0*(sqrd(c1)));
+  const double C2 = (C - B*c0*c1 + A*(sqrd(c0*c1)));
+  out[0] = (float)A2;
+  out[1] = (float)B2;
+  out[2] = (float)C2;
+#if 1
+  {
+  const double c0   = A2;                        // square slope stays
+  const double ldom = B2 / (-2.0*A2);            // dominant wavelength
+  const double y    = C2 - B2*B2 / (4.0 * A2);   // y
+
+  const double y0 = c0 > 0.0 ? 1.0 : -2.0;
+
+  const double w = 2.0 * sqrt((y0 - y)/c0);
+  const double d = copysign(sqrt(c0*(y0-y)) * pow(y0*y0+1, -3./2.), c0);
+
+  out[0] = ldom;
+  out[1] = w;
+  out[2] = fabs(d); /// XXX DEBUG abs to see the output
+  }
+#endif
 #if 0
   // convert to c0 y dom-lambda:
   A = out[0]; B = out[1]; C = out[2];
@@ -179,11 +215,11 @@ void quantise_coeffs(double coeffs[3], float out[3])
   // out[1] = C - A * out[2] * out[2];  // y
   out[1] = C - B*B / (4.0 * A);      // y
 
-  // these are good bounds:
-  if(out[0] > 0.0 && out[1] >  0.85) fprintf(stdout, "!!!\n");
-  // else fprintf(stdout, "yay, good!\n");
-  if(out[0] < 0.0 && out[1] < -1.85) fprintf(stdout, "!!!??? %g %g %g\n", out[0], out[1], out[2]);
-  // else fprintf(stdout, "yay, good!\n");
+  // // these are good bounds:
+  // if(out[0] > 0.0 && out[1] >  0.85) fprintf(stdout, "!!!\n");
+  // // else fprintf(stdout, "yay, good!\n");
+  // if(out[0] < 0.0 && out[1] < -1.85) fprintf(stdout, "!!!??? %g %g %g\n", out[0], out[1], out[2]);
+  // // else fprintf(stdout, "yay, good!\n");
 
   // XXX visualise abs:
   // out[0] = fabsf(out[0]); // goes from 1.0/256.0 (spectral locus) .. 0 (purple ridge through white)
@@ -1061,7 +1097,7 @@ int main(int argc, char **argv) {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       float q[3];
       quantise_coeffs(coeffs, q);
-#if 0 // coeff data
+#if 1 // coeff data
       fwrite(q, sizeof(float), 3, f);
 #else // velocity field
       float vel[3] = {
