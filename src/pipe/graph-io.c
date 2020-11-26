@@ -168,8 +168,8 @@ int dt_graph_read_config_ascii(
     const char *filename)
 {
   FILE *f = fopen(filename, "rb");
-  dt_graph_set_searchpath(graph, filename);
   if(!f) return 1;
+  dt_graph_set_searchpath(graph, filename);
   // needs to be large enough to hold 1000 vertices of drawn masks:
   char line[30000];
   uint32_t lno = 0;

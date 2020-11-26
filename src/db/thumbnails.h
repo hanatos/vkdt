@@ -39,6 +39,7 @@ typedef struct dt_thumbnails_t
 {
   dt_graph_t            graph[DT_THUMBNAILS_THREADS];
   threads_mutex_t       graph_lock[DT_THUMBNAILS_THREADS]; // needed for overscheduling thumbnail creation
+  uint64_t              job_timestamp;
 
   int                   thumb_wd;
   int                   thumb_ht;
@@ -88,6 +89,10 @@ VkResult dt_thumbnails_cache_one(
     dt_graph_t      *graph,
     dt_thumbnails_t *tn,
     const char      *filename);
+
+// abort the caching in background threads. blocks until we're sure we're safe
+// (may have to wait for a thumbnail or two to finish rendering).
+void dt_thumbnails_cache_abort( dt_thumbnails_t *tn);
 
 // load one bc1 thumbnail for a given filename. fills thumb_index and returns
 // VK_SUCCESS if all went well.

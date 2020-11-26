@@ -14,6 +14,7 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "../igfb/imfilebrowser.h"
 #if VKDT_USE_FREETYPE == 1
 #include "misc/freetype/imgui_freetype.h"
 #include "misc/freetype/imgui_freetype.cpp"
@@ -24,8 +25,16 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace { // anonymous gui state namespace
+
+ImGui::FileBrowser file_dialog(
+    ImGuiFileBrowserFlags_SelectDirectory |
+    ImGuiFileBrowserFlags_EnterNewFilename |
+    ImGuiFileBrowserFlags_CloseOnEsc);
 
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
@@ -235,6 +244,8 @@ inline void dark_corporate_style()
 
 extern "C" int dt_gui_init_imgui()
 {
+  file_dialog.SetTitle("select directory");
+  // file_dialog.SetPwd("~/Pictures"); // does not work
   // Setup Dear ImGui context
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -540,22 +551,25 @@ void render_lighttable()
         vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
         dt_db_update_collection(&vkdt.db);
       }
+
+      if(ImGui::Button("open directory", size))
+        file_dialog.Open();
     }
     if(vkdt.db.selection_cnt > 0)
     {
       if(ImGui::CollapsingHeader("selected images"))
       {
         // ==============================================================
-        // assign to collection modal popup:
-        int open = ImGui::Button("assign to collection..", size);
+        // assign tag modal popup:
+        int open = ImGui::Button("assign tag..", size);
         if (open)
         {
-          ImGui::OpenPopup("assign to collection");
+          ImGui::OpenPopup("assign tag");
           g_busy += 5;
         }
 
         static char name[32] = "all time best";
-        if (ImGui::BeginPopupModal("assign to collection", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        if (ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
           int ok = 0;
           if (open)
@@ -581,6 +595,7 @@ void render_lighttable()
             const uint32_t *sel = dt_db_selection_get(&vkdt.db);
             for(int i=0;i<vkdt.db.selection_cnt;i++)
               dt_db_add_to_collection(&vkdt.db, sel[i], name);
+            dt_gui_read_tags();
           }
         }
         // ==============================================================
@@ -759,8 +774,52 @@ void render_lighttable()
           dt_graph_cleanup(&graph);
         }
       }
-    }
+    } // end collapsing header "selected"
+
+    if(ImGui::CollapsingHeader("recent tags"))
+    {
+      char filename[1024];
+      for(int i=0;i<vkdt.tag_cnt;i++)
+      {
+        if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
+        { // load tag collection:
+          snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
+          dt_gui_switch_collection(filename);
+        }
+        if((i & 3) != 3) ImGui::SameLine();
+      }
+      // button to jump to original folder of selected image if it is a symlink
+      uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+      if(main_imgid != -1u)
+      {
+        dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
+        struct stat buf;
+        lstat(filename, &buf);
+        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection"))
+        {
+          char *resolved = realpath(filename, 0);
+          if(resolved)
+          {
+            char *c = 0;
+            for(int i=0;resolved[i];i++) if(resolved[i] == '/') c = resolved+i;
+            if(c) *c = 0; // get dirname, i.e. strip off image file name
+            dt_gui_switch_collection(resolved);
+            free(resolved);
+          }
+        }
+      }
+    } // end collapsing header "recent tags"
+
     ImGui::End(); // lt center window
+
+    // file picker
+    file_dialog.Display();
+
+    if(file_dialog.HasSelected())
+    {
+      dt_gui_switch_collection(file_dialog.GetSelected().string().c_str());
+      file_dialog.ClearSelected();
+    }
   }
 }
 
@@ -1136,6 +1195,7 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("crop"):
     {
+      ImGui::InputFloat("aspect ratio", &vkdt.wstate.aspect, 0.0f, 4.0f, "%.3f");
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;

@@ -40,11 +40,11 @@ dt_stringpool_t;
 
 typedef enum dt_db_property_t
 {
-  s_prop_none,       // select all
-  s_prop_filename,   // strstr
-  s_prop_rating,     // >=
-  s_prop_labels,     // &
-  s_prop_createdate,
+  s_prop_none        = 0, // select all
+  s_prop_filename    = 1, // strstr
+  s_prop_rating      = 2, // >=
+  s_prop_labels      = 3, // &
+  s_prop_createdate  = 4,
 }
 dt_db_property_t;
 

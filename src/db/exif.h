@@ -13,6 +13,7 @@ dt_db_exif_createdate(
   char buf[512];
 
   fread(buf, sizeof(buf), 1, f);
+  fclose(f);
 
   for(int i=0;i<sizeof(buf)-20;i++)
   {

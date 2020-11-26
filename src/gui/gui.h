@@ -57,6 +57,7 @@ typedef struct dt_gui_wstate_t
   int    active_widget_parnm; // number of parameter (if multi count)
   int    active_widget_parsz; // size of parameter to copy
   int    selected;
+  float  aspect;
   float  state[2100];
   size_t mapped_size;
   float *mapped;
@@ -102,6 +103,10 @@ typedef struct dt_gui_t
   int fav_cnt;
   int fav_modid[20];
   int fav_parid[20];
+
+  // list of recently used tags
+  int  tag_cnt;
+  char tag[10][30];
 }
 dt_gui_t;
 
@@ -129,3 +134,9 @@ void dt_gui_add_widget(
 
 // read a gui configuration from ascii config file
 int dt_gui_read_favs(const char *filename);
+
+// read list of tags (i.e. the directories in ~/.config/vkdt/tags/)
+void dt_gui_read_tags();
+
+// close current db, load given folder instead
+void dt_gui_switch_collection(const char *dir);

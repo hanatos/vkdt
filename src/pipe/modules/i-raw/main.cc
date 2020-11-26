@@ -278,10 +278,17 @@ void modify_roi_out(
   mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
+  // darktable uses canonical_make + " " + canonical_model instead and falls back to exif.
+  // we hacked adobe_coeff to use strcasecmp that seems to be the same.
   const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
-  float xyz_to_cam[12], mat[9];
-  dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam);
-  mat3inv(mat, xyz_to_cam);
+  float xyz_to_cam[12], mat[9] = {0};
+  if(dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam))
+  {
+    mat[0] = 1.0/mod->img_param.whitebalance[0];
+    mat[4] = 1.0/mod->img_param.whitebalance[1];
+    mat[8] = 1.0/mod->img_param.whitebalance[2];
+  }
+  else mat3inv(mat, xyz_to_cam);
 
   // adjust matrix for camrgb -> rec2020 d65
   const double D65[] = {0.95045471, 1.00000000, 1.08905029};
@@ -289,7 +296,7 @@ void modify_roi_out(
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-  if(!strncmp(mod->img_param.maker, "FUJI", 4))
+  if(!strncasecmp(mod->img_param.maker, "FUJI", 4))
   { // at least this version keeps blue blue for fuji
     // now white balance such that (1,1,1) maps to d65 in xyz:
     // (we assume the previous wb coeffs did this for us)
@@ -307,13 +314,13 @@ void modify_roi_out(
     for(int j=0;j<3;j++)
       for(int i=0;i<3;i++) wh[j] += cam_to_xyz[3*j+i];
     double Bf[] = {
-      0.8951000,  0.2664000, -0.1614000,
+       0.8951000,  0.2664000, -0.1614000,
       -0.7502000,  1.7135000,  0.0367000,
-      0.0389000, -0.0685000,  1.0296000,
+       0.0389000, -0.0685000,  1.0296000,
     };
     double Bb[] = {
-      0.9869929, -0.1470543,  0.1599627,
-      0.4323053,  0.5183603,  0.0492912,
+       0.9869929, -0.1470543,  0.1599627,
+       0.4323053,  0.5183603,  0.0492912,
       -0.0085287,  0.0400428,  0.9684867,
     };
     double wh_b[3] = {0.0};

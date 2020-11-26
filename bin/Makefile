@@ -16,5 +16,4 @@ clean:
 	rm -f vkdt vkdt-cli
 
 config.mk: config.mk.example
-	@echo "you don't have a config.mk file (or config.mk.example is newer)."
-	@echo "please manually 'cp config.mk.example config.mk' and edit to taste."
+	$(error config.mk does not exist or config.mk.example is newer. please update your config.mk!)

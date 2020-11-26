@@ -159,12 +159,22 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
+  // TODO: only do this the first time?
+  // TODO: check what happens with lru thumbnails
   uint32_t id = -1u;
-  dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id);
+  if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
+  {
+    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
+    return;
+  }
   id = -1u;
-  dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id);
+  if(dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id) != VK_SUCCESS)
+  {
+    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
+    return;
+  }
 
-  DIR *dp = opendir(dirname);
+  DIR *dp = dirname ? opendir(dirname) : 0;
   if(!dp)
   {
     dt_log(s_log_err|s_log_db, "could not open directory '%s'!", dirname);
@@ -362,7 +372,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
   char line[256];
   char imgn[256];
   char what[256];
-  uint32_t num;
+  uint64_t num;
 
   uint32_t lno = 0;
   while(!feof(f))
@@ -372,7 +382,26 @@ int dt_db_read(dt_db_t *db, const char *filename)
     lno++;
 
     // scan filename:rating|labels:number
-    sscanf(line, "%[^:]:%[^:]:%d", imgn, what, &num);
+    sscanf(line, "%[^:]:%[^:]:%lu", imgn, what, &num);
+
+    if(!strcmp(imgn, "sort"))
+    {
+      if(!strcmp(what, "filename"))    db->collection_sort = s_prop_filename;
+      if(!strcmp(what, "rating"))      db->collection_sort = s_prop_rating;
+      if(!strcmp(what, "label"))       db->collection_sort = s_prop_labels;
+      if(!strcmp(what, "create date")) db->collection_sort = s_prop_createdate;
+      continue;
+    }
+    if(!strcmp(imgn, "filter"))
+    {
+      if(!strcmp(what, "filename"))    db->collection_filter = s_prop_filename;
+      if(!strcmp(what, "rating"))      db->collection_filter = s_prop_rating;
+      if(!strcmp(what, "label"))       db->collection_filter = s_prop_labels;
+      if(!strcmp(what, "create date")) db->collection_filter = s_prop_createdate;
+      db->collection_filter_val = num;
+      continue;
+    }
+
     // get image id or -1u, never insert, not interested in the string pointer:
     uint32_t imgid = dt_stringpool_get(&db->sp_filename, imgn, strlen(imgn), -1u, 0);
     if(imgid != -1u && imgid < db->image_cnt)
@@ -395,6 +424,12 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
 {
   FILE *f = append ? fopen(filename, "a+b") : fopen(filename, "wb");
   if(!f) return 1;
+  const char *c = dt_db_property_text;
+  for(int i=0;i<db->collection_sort;i++,c++) while(*c) c++;
+  fprintf(f, "sort:%s:\n", c);
+  c = dt_db_property_text;
+  for(int i=0;i<db->collection_filter;i++,c++) while(*c) c++;
+  fprintf(f, "filter:%s:%lu\n", c, db->collection_filter_val);
   for(int i=0;i<db->image_cnt;i++)
   {
     if( db->image[i].rating          > 0) fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);

@@ -4,14 +4,11 @@
 
 .PHONY:all ext src clean distclean bin
 
-OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
-OPT_LDFLAGS=
-AR=ar
 # dr dobb's idea about makefile debugging:
 OLD_SHELL := $(SHELL)
 # SHELL = $(warning [$@ ($^) ($?)])$(OLD_SHELL)
 SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
-export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL
+export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL RAWSPEED_PACKAGE_BUILD
 
 all: ext src bin
 

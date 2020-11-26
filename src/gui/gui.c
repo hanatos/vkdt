@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <float.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 static void
 style_to_state()
@@ -363,4 +366,54 @@ dt_gui_read_favs(
   }
   fclose(f);
   return 0;
+}
+
+void
+dt_gui_read_tags()
+{
+  vkdt.tag_cnt = 0;
+  uint64_t time[sizeof(vkdt.tag)/sizeof(vkdt.tag[0])];
+  char filename[1024];
+  snprintf(filename, sizeof(filename), "%s/tags", vkdt.db.basedir);
+  DIR *dir = opendir(filename);
+  if(!dir) return; // could not open tags directory, possibly we have none.
+  struct dirent *ep;
+  while((ep = readdir(dir)))
+  {
+    if(ep->d_type == DT_DIR)
+    {
+      if(!strcmp(ep->d_name, "." )) continue;
+      if(!strcmp(ep->d_name, "..")) continue;
+      struct stat buf;
+      snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, ep->d_name);
+      stat(filename, &buf);
+      uint64_t t = buf.st_mtim.tv_sec;
+      if(vkdt.tag_cnt < sizeof(vkdt.tag)/sizeof(vkdt.tag[0]))
+      { // add
+        int i = vkdt.tag_cnt++;
+        memcpy(vkdt.tag[i], ep->d_name, sizeof(vkdt.tag[0]));
+        time[i] = t;
+      }
+      else
+      { // lru replace:
+        int ii = 0;
+        for(int i=1;i<vkdt.tag_cnt;i++)
+          if(time[i] < time[ii]) ii = i;
+        memcpy(vkdt.tag[ii], ep->d_name, sizeof(vkdt.tag[0]));
+        time[ii] = t;
+      }
+    }
+  }
+  closedir(dir);
+  // sort tags alphabetically, in ugly and slow:
+  qsort(vkdt.tag, vkdt.tag_cnt, sizeof(vkdt.tag[0]), (__compar_fn_t)strcmp);
+}
+
+void dt_gui_switch_collection(const char *dir)
+{
+  dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
+  dt_db_cleanup(&vkdt.db);
+  dt_db_init(&vkdt.db);
+  dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
+  dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
 }

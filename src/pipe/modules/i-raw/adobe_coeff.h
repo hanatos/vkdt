@@ -11,7 +11,7 @@
 
 #include <string.h>
 
-static void dt_dcraw_adobe_coeff(const char *name, float cam_xyz[1][12])
+static int dt_dcraw_adobe_coeff(const char *name, float cam_xyz[1][12])
 {
   typedef struct
   {
@@ -680,13 +680,14 @@ static void dt_dcraw_adobe_coeff(const char *name, float cam_xyz[1][12])
   };
 
   for (size_t i = 0; i < sizeof(table)/sizeof(table_data); i++) {
-    if (!strcmp(name, table[i].cameraid)) {
+    if (!strcasecmp(name, table[i].cameraid)) {
       for (int j=0; j < 12; j++)
         cam_xyz[0][j] = table[i].trans[j] / 10000.0;
-      return;
+      return 0;
     }
   }
   // de-init
   for (int j=0; j < 12; j++) cam_xyz[0][j] = -1.0f;
+  return 1;
 }
 
