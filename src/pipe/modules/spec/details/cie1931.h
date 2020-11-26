@@ -14,11 +14,11 @@
 }
  */
 #pragma once
-#define CIE_LAMBDA_MIN 360.0
-#define CIE_LAMBDA_MAX 830.0
-#define CIE_SAMPLES    95
+#define CIE2_LAMBDA_MIN 360.0
+#define CIE2_LAMBDA_MAX 830.0
+#define CIE2_SAMPLES    95
 
-const double cie_x[CIE_SAMPLES] = {
+const double cie_x[CIE2_SAMPLES] = {
     0.000129900000, 0.000232100000, 0.000414900000, 0.000741600000,
     0.001368000000, 0.002236000000, 0.004243000000, 0.007650000000,
     0.014310000000, 0.023190000000, 0.043510000000, 0.077630000000,
@@ -44,7 +44,7 @@ const double cie_x[CIE_SAMPLES] = {
     0.000010253980, 0.000007221456, 0.000005085868, 0.000003581652,
     0.000002522525, 0.000001776509, 0.000001251141 };
 
-const double cie_y[CIE_SAMPLES] = {
+const double cie_y[CIE2_SAMPLES] = {
     0.000003917000, 0.000006965000, 0.000012390000, 0.000022020000,
     0.000039000000, 0.000064000000, 0.000120000000, 0.000217000000,
     0.000396000000, 0.000640000000, 0.001210000000, 0.002180000000,
@@ -71,7 +71,7 @@ const double cie_y[CIE_SAMPLES] = {
     0.000000910930, 0.000000641530, 0.000000451810
 };
 
-const double cie_z[CIE_SAMPLES] = {
+const double cie_z[CIE2_SAMPLES] = {
     0.000606100000, 0.001086000000, 0.001946000000, 0.003486000000,
     0.006450001000, 0.010549990000, 0.020050010000, 0.036210000000,
     0.067850010000, 0.110200000000, 0.207400000000, 0.371300000000,
@@ -100,7 +100,7 @@ const double cie_z[CIE_SAMPLES] = {
 
 #define N(x) (x / 10566.864005283874576)
 
-const double cie_d65[CIE_SAMPLES] = {
+const double cie_d65[CIE2_SAMPLES] = {
     N(46.6383),  N(49.3637),  N(52.0891),  N(51.0323),  N(49.9755),  N(52.3118),  N(54.6482),  N(68.7015),
     N(82.7549),  N(87.1204),  N(91.486),   N(92.4589),  N(93.4318),  N(90.057),   N(86.6823),  N(95.7736),
     N(104.865),  N(110.936),  N(117.008),  N(117.41),   N(117.812),  N(116.336),  N(114.861),  N(115.392),
@@ -118,7 +118,7 @@ const double cie_d65[CIE_SAMPLES] = {
 #undef N
 
 #define N(x) (x / 106.8)
-const double cie_e[CIE_SAMPLES] = {
+const double cie_e[CIE2_SAMPLES] = {
     N(1.0), N(1.0), N(1.0), N(1.0), N(1.0), N(1.0), N(1.0),  N(1.0),
     N(1.0), N(1.0), N(1.0), N(1.0), N(1.0), N(1.0), N(1.0),  N(1.0),
     N(1.0), N(1.0), N(1.0), N(1.0), N(1.0), N(1.0), N(1.0),  N(1.0),
@@ -136,7 +136,7 @@ const double cie_e[CIE_SAMPLES] = {
 
 #define N(x) (x / 10503.2)
 
-const double cie_d50[CIE_SAMPLES] = {
+const double cie_d50[CIE2_SAMPLES] = {
     N(23.942000),  N(25.451000),  N(26.961000),  N(25.724000),  N(24.488000),
     N(27.179000),  N(29.871000),  N(39.589000),  N(49.308000),  N(52.910000),
     N(56.513000),  N(58.273000),  N(60.034000),  N(58.926000),  N(57.818000),
@@ -162,7 +162,7 @@ const double cie_d50[CIE_SAMPLES] = {
 
 #define N(x) (x / 10536.3)
 
-const double cie_d60[CIE_SAMPLES] = {
+const double cie_d60[CIE2_SAMPLES] = {
     N(38.683115),  N(41.014457),  N(42.717548),  N(42.264182),  N(41.454941),
     N(41.763698),  N(46.605319),  N(59.226938),  N(72.278594),  N(78.231500),
     N(80.440600),  N(82.739580),  N(82.915027),  N(79.009168),  N(77.676264),
@@ -186,13 +186,13 @@ const double cie_d60[CIE_SAMPLES] = {
 
 #undef N
 double cie_interp(const double *data, double x) {
-    x -= CIE_LAMBDA_MIN;
-    x *= (CIE_SAMPLES - 1) / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+    x -= CIE2_LAMBDA_MIN;
+    x *= (CIE2_SAMPLES - 1) / (CIE2_LAMBDA_MAX - CIE2_LAMBDA_MIN);
     int offset = (int) x;
     if (offset < 0)
         offset = 0;
-    if (offset > CIE_SAMPLES - 2)
-        offset = CIE_SAMPLES - 2;
+    if (offset > CIE2_SAMPLES - 2)
+        offset = CIE2_SAMPLES - 2;
     double weight = x - offset;
     return (1.0 - weight) * data[offset] + weight * data[offset + 1];
 }

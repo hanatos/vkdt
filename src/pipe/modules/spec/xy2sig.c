@@ -32,20 +32,21 @@
 #include "mom.h"
 #include "clip.h"
 
-#if 0
+#define BAD_CMF
+#ifdef BAD_CMF
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
-#define CIE_SAMPLES 10
-#define CIE_FINE_SAMPLES 10
+#define CIE_SAMPLES 30
+#define CIE_FINE_SAMPLES 30
 #define CIE_LAMBDA_MIN 400.0
 #define CIE_LAMBDA_MAX 700.0
 #else
-
-#include "details/cie1931.h"
 /// Discretization of quadrature scheme
 #define CIE_FINE_SAMPLES ((CIE_SAMPLES - 1) * 3 + 1)
 #endif
 #define RGB2SPEC_EPSILON 1e-4
 #define MOM_EPS 1e-3
+
+#include "details/cie1931.h"
 
 /// Precomputed tables for fast spectral -> RGB conversion
 double lambda_tbl[CIE_FINE_SAMPLES],
@@ -135,7 +136,7 @@ void cvt_c0yl_c012(const double *c0yl, double *coeffs)
 void cvt_c012_c0yl(const double *coeffs, double *c0yl)
 {
   // account for normalising lambda:
-  double c0 = 360.0, c1 = 1.0 / (830.0 - 360.0);
+  double c0 = CIE_LAMBDA_MIN, c1 = 1.0 / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
   double A = coeffs[0], B = coeffs[1], C = coeffs[2];
 
   double A2 = (float)(A*(sqrd(c1)));
@@ -182,7 +183,7 @@ void quantise_coeffs(double coeffs[3], float out[3])
 {
 #if 1 // def SIGMOID
   // account for normalising lambda:
-  double c0 = 360.0, c1 = 1.0 / (830.0 - 360.0);
+  double c0 = CIE_LAMBDA_MIN, c1 = 1.0 / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
   double A = coeffs[0], B = coeffs[1], C = coeffs[2];
 
   const double A2 = (A*(sqrd(c1)));
@@ -191,7 +192,7 @@ void quantise_coeffs(double coeffs[3], float out[3])
   out[0] = (float)A2;
   out[1] = (float)B2;
   out[2] = (float)C2;
-#if 1
+#if 0
   {
   const double c0   = A2;                        // square slope stays
   const double ldom = B2 / (-2.0*A2);            // dominant wavelength
@@ -353,8 +354,6 @@ void init_tables(Gamut gamut) {
     memset(rgb_tbl, 0, sizeof(rgb_tbl));
     memset(xyz_whitepoint, 0, sizeof(xyz_whitepoint));
 
-    double h = (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (CIE_FINE_SAMPLES - 1);
-
     const double *illuminant = 0;
 
     switch (gamut) {
@@ -404,15 +403,18 @@ void init_tables(Gamut gamut) {
     double norm = 0.0, n2[3] = {0.0};
     for (int i = 0; i < CIE_FINE_SAMPLES; ++i) {
 
-#if 1
+#ifndef BAD_CMF
+      double h = (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (CIE_FINE_SAMPLES - 1.0);
+
         double lambda = CIE_LAMBDA_MIN + i * h;
         double xyz[3] = { cie_interp(cie_x, lambda),
                           cie_interp(cie_y, lambda),
                           cie_interp(cie_z, lambda) },
                I = cie_interp(illuminant, lambda);
 #else
-        // double lambda = CIE_LAMBDA_MIN + (i+0.5) * h;
-        double lambda = CIE_LAMBDA_MIN + i * h;
+      double h = (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (double)CIE_FINE_SAMPLES;
+        double lambda = CIE_LAMBDA_MIN + (i+0.5) * h;
+        // double lambda = CIE_LAMBDA_MIN + i * h;
         double xyz[3] = {
             xFit_1931(lambda),
             yFit_1931(lambda),
@@ -422,7 +424,7 @@ void init_tables(Gamut gamut) {
 #endif
         norm += I;
 
-#if 1
+#ifndef BAD_CMF
         double weight = 3.0 / 8.0 * h;
         if (i == 0 || i == CIE_FINE_SAMPLES - 1)
             ;

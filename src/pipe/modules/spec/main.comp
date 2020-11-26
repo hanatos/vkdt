@@ -284,7 +284,7 @@ main()
   // convert
   float c0   = coeff.x;
   float ldom = coeff.y/(-2.0*coeff.x);
-  float y    = coeff.z- coeff.y*coeff.y/(4.0 * coeff.x);
+  float y    = coeff.z - coeff.y*coeff.y/(4.0 * coeff.x);
 
   float y0 = c0 > 0.0 ? 1.0 : -2.0;
   float c = pow(y0*y0+1, -3./2.);
@@ -297,8 +297,9 @@ main()
   d *= exp(5*params.sat)/exp(5);
 
   // back
-  y  = y0 - 0.5 * w * abs(d) / c;
-  c0 = 2*d/w / c;
+  // y  = y0 - 0.5 * w * abs(d) / c;
+  y  = y0 - 0.5 * w * (d) / c;
+  c0 = 2.0*d/(w * c);
 
   coeff.x = c0;
   coeff.y = -2.0 * c0 * ldom;
@@ -367,9 +368,10 @@ main()
     float wht = 0.5 * xw * yw +  0.5;
 
     // compute colour again, in xyz:
-    const int bin = l;
-    xyz += val * wht * cie_cmf[bin];
-      // vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
+    // const int bin = l;
+    xyz += val * //wht *
+      // cie_cmf[l];
+      vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
   }
   xyz /= norm;
   float b2 = dot(vec3(1),xyz);
