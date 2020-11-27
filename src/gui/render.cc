@@ -786,7 +786,7 @@ void render_lighttable()
           snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
           dt_gui_switch_collection(filename);
         }
-        if((i & 3) != 3) ImGui::SameLine();
+        if(((i & 3) != 3) && (i != vkdt.tag_cnt-1)) ImGui::SameLine();
       }
       // button to jump to original folder of selected image if it is a symlink
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
@@ -795,7 +795,7 @@ void render_lighttable()
         dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
         struct stat buf;
         lstat(filename, &buf);
-        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection"))
+        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", size))
         {
           char *resolved = realpath(filename, 0);
           if(resolved)
