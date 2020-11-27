@@ -277,23 +277,29 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         vkdt.wstate.state[vkdt.wstate.selected] = edge;
         if(vkdt.wstate.aspect > 0.0f)
         { // fix up aspect ratio
-          float v4[4];
-          dt_image_to_view(vkdt.wstate.state+0, v4+0);
-          dt_image_to_view(vkdt.wstate.state+2, v4+2);
-          float current_aspect = (v4[1]-v4[0])/(v4[3]-v4[2]);
-          float target_aspect  = vkdt.wstate.aspect;
-          if(vkdt.wstate.selected < 2)
-          { // change y coordinates v4[3,2]
-            float c = current_aspect / target_aspect;
-            v4[3] = v4[2] + c * (v4[3] - v4[2]);
+          float target_aspect = vkdt.wstate.aspect;
+          if(vkdt.wstate.selected == 0)
+          { // left, move right side along:
+            vkdt.wstate.state[1] = vkdt.wstate.state[0] + target_aspect * (vkdt.wstate.state[3]-vkdt.wstate.state[2]);
           }
-          else
-          { // change x coordinates
-            float c = target_aspect / current_aspect;
-            v4[1] = v4[0] + c * (v4[1] - v4[0]);
+          else if(vkdt.wstate.selected == 2)
+          { // bottom, move top side along:
+            vkdt.wstate.state[3] = vkdt.wstate.state[2] + 1.0f/target_aspect * (vkdt.wstate.state[1]-vkdt.wstate.state[0]);
           }
-          dt_view_to_image(v4+0, vkdt.wstate.state+0);
-          dt_view_to_image(v4+2, vkdt.wstate.state+2);
+          else if(vkdt.wstate.selected == 1)
+          { // right, move top and bottom simultaneously to keep center:
+            float c = (vkdt.wstate.state[3] + vkdt.wstate.state[2])*0.5f;
+            float w =  vkdt.wstate.state[1] - vkdt.wstate.state[0];
+            vkdt.wstate.state[3] = c + 0.5f / target_aspect * w;
+            vkdt.wstate.state[2] = c - 0.5f / target_aspect * w;
+          }
+          else if(vkdt.wstate.selected == 3)
+          { // top, move left and right simultaneously to keep center:
+            float c = (vkdt.wstate.state[1] + vkdt.wstate.state[0])*0.5f;
+            float w =  vkdt.wstate.state[3] - vkdt.wstate.state[2];
+            vkdt.wstate.state[1] = c + 0.5f * target_aspect * w;
+            vkdt.wstate.state[0] = c - 0.5f * target_aspect * w;
+          }
         }
         return;
       }
