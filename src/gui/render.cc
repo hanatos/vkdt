@@ -14,7 +14,7 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
-#include "../igfb/imfilebrowser.h"
+#include "widget_filebrowser.hh"
 #if VKDT_USE_FREETYPE == 1
 #include "misc/freetype/imgui_freetype.h"
 #include "misc/freetype/imgui_freetype.cpp"
@@ -30,11 +30,6 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include <unistd.h>
 
 namespace { // anonymous gui state namespace
-
-ImGui::FileBrowser file_dialog(
-    ImGuiFileBrowserFlags_SelectDirectory |
-    ImGuiFileBrowserFlags_EnterNewFilename |
-    ImGuiFileBrowserFlags_CloseOnEsc);
 
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
@@ -244,8 +239,6 @@ inline void dark_corporate_style()
 
 extern "C" int dt_gui_init_imgui()
 {
-  file_dialog.SetTitle("select directory");
-  // file_dialog.SetPwd("~/Pictures"); // does not work
   // Setup Dear ImGui context
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -511,6 +504,7 @@ void render_lighttable()
     }
     ImGui::End(); // lt center window
   }
+  static dt_filebrowser_widget_t filebrowser = {0};
   { // right panel
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -553,7 +547,13 @@ void render_lighttable()
       }
 
       if(ImGui::Button("open directory", size))
-        file_dialog.Open();
+        dt_filebrowser_open(&filebrowser);
+
+      if(dt_filebrowser_display(&filebrowser))
+      { // "ok" pressed
+        dt_gui_switch_collection(filebrowser.cwd);
+        dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
+      }
     }
     if(vkdt.db.selection_cnt > 0)
     {
@@ -811,15 +811,6 @@ void render_lighttable()
     } // end collapsing header "recent tags"
 
     ImGui::End(); // lt center window
-
-    // file picker
-    file_dialog.Display();
-
-    if(file_dialog.HasSelected())
-    {
-      dt_gui_switch_collection(file_dialog.GetSelected().string().c_str());
-      file_dialog.ClearSelected();
-    }
   }
 }
 
