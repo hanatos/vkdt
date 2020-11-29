@@ -15,6 +15,13 @@ by a contrast-s curve.
   dynamic range images. a large value of black (say 1.0) will result in a more
   contrasty image.
 
+## connectors
+
+* `input`
+* `output`
+* `curve` a plot of the curve that corresponds to the current parameters.
+  connect this to say `display:hist:input` to see the curve update interactively.
+
 ## technical
 
 probably worth looking into a graphical widget for the curve.
