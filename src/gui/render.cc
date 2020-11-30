@@ -504,7 +504,7 @@ void render_lighttable()
     }
     ImGui::End(); // lt center window
   }
-  static dt_filebrowser_widget_t filebrowser = {0};
+  static dt_filebrowser_widget_t filebrowser = {{0}};
   { // right panel
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
