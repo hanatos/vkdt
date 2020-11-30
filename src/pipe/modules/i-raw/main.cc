@@ -290,83 +290,22 @@ void modify_roi_out(
   }
   else mat3inv(mat, xyz_to_cam);
 
-  // adjust matrix for camrgb -> rec2020 d65
-  const double D65[] = {0.95045471, 1.00000000, 1.08905029};
+  // compute matrix camrgb -> rec2020 d65
   double cam_to_xyz[] = {
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-  if(!strncasecmp(mod->img_param.maker, "FUJI", 4))
-  { // at least this version keeps blue blue for fuji
-    // now white balance such that (1,1,1) maps to d65 in xyz:
-    // (we assume the previous wb coeffs did this for us)
-    for(int j=0;j<3;j++)
-    {
-      double norm = 0.0;
-      for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
-      for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= D65[j] / norm;
-    }
+  for(int j=0;j<3;j++)
+  { // just normalise channels, don't white balance
+    double norm = 0.0;
+    for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
+    for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= 1.0f / norm;
   }
-  else
-  { // looks a lot better for canon (keeps red red)
-    // bradford adapt 1 1 1 -> d65
-    double wh[3] = {0.0};
-    for(int j=0;j<3;j++)
-      for(int i=0;i<3;i++) wh[j] += cam_to_xyz[3*j+i];
-    double Bf[] = {
-       0.8951000,  0.2664000, -0.1614000,
-      -0.7502000,  1.7135000,  0.0367000,
-       0.0389000, -0.0685000,  1.0296000,
-    };
-    double Bb[] = {
-       0.9869929, -0.1470543,  0.1599627,
-       0.4323053,  0.5183603,  0.0492912,
-      -0.0085287,  0.0400428,  0.9684867,
-    };
-    double wh_b[3] = {0.0};
-    double d65_b[3] = {0.0};
-    for(int j=0;j<3;j++)
-      for(int i=0;i<3;i++)
-        wh_b[j] += Bf[3*j+i] * wh[i];
-    for(int j=0;j<3;j++)
-      for(int i=0;i<3;i++)
-        d65_b[j] += Bf[3*j+i] * D65[i];
-    double tmp[9] = {0.0};
-      for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-        tmp[3*j+i] = d65_b[j] / wh_b[j] * Bf[3*j+i];
-    double tmp2[9] = {0.0};
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-      tmp2[3*j+i] +=
-        Bb[3*j+k] * tmp[3*k+i];
-    double tmp3[9];
-    memcpy(tmp3, cam_to_xyz, sizeof(tmp3));
-    memset(cam_to_xyz, 0, sizeof(cam_to_xyz));
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-      cam_to_xyz[3*j+i] +=
-        tmp2[3*j+k] * tmp3[3*k+i];
-  }
-
-#if 0 // XXX FIXME: matrix is wrong
-  fprintf(stderr, "matrix cam -> xyz: \n");
-  fprintf(stderr, "%g %g %g\n", cam_to_xyz[0], cam_to_xyz[1], cam_to_xyz[2]);
-  fprintf(stderr, "%g %g %g\n", cam_to_xyz[3], cam_to_xyz[4], cam_to_xyz[5]);
-  fprintf(stderr, "%g %g %g\n", cam_to_xyz[6], cam_to_xyz[7], cam_to_xyz[8]);
-  // and should be this
-  cam_to_xyz[0] = 0.534607;
-  cam_to_xyz[1] = 0.492371;
-  cam_to_xyz[2] = -0.0627789;
-  cam_to_xyz[3] = 0.165862;
-  cam_to_xyz[4] =  1.14835;
-  cam_to_xyz[5] =  -0.314217;
-  cam_to_xyz[6] =0.013223;
-  cam_to_xyz[7] =-0.214747;
-  cam_to_xyz[8] =1.02642;
-#endif
 
   const float xyz_to_rec2020[] = {
-    1.7166511880, -0.3556707838, -0.2533662814,
+     1.7166511880, -0.3556707838, -0.2533662814,
     -0.6666843518,  1.6164812366,  0.0157685458,
-    0.0176398574, -0.0427706133,  0.9421031212
+     0.0176398574, -0.0427706133,  0.9421031212
   };
   float cam_to_rec2020[9] = {0.0f};
   for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)

@@ -14,7 +14,7 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
-#include "../igfb/imfilebrowser.h"
+#include "widget_filebrowser.hh"
 #if VKDT_USE_FREETYPE == 1
 #include "misc/freetype/imgui_freetype.h"
 #include "misc/freetype/imgui_freetype.cpp"
@@ -30,11 +30,6 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include <unistd.h>
 
 namespace { // anonymous gui state namespace
-
-ImGui::FileBrowser file_dialog(
-    ImGuiFileBrowserFlags_SelectDirectory |
-    ImGuiFileBrowserFlags_EnterNewFilename |
-    ImGuiFileBrowserFlags_CloseOnEsc);
 
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
@@ -244,8 +239,6 @@ inline void dark_corporate_style()
 
 extern "C" int dt_gui_init_imgui()
 {
-  file_dialog.SetTitle("select directory");
-  // file_dialog.SetPwd("~/Pictures"); // does not work
   // Setup Dear ImGui context
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -511,6 +504,7 @@ void render_lighttable()
     }
     ImGui::End(); // lt center window
   }
+  static dt_filebrowser_widget_t filebrowser = {0};
   { // right panel
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -553,7 +547,13 @@ void render_lighttable()
       }
 
       if(ImGui::Button("open directory", size))
-        file_dialog.Open();
+        dt_filebrowser_open(&filebrowser);
+
+      if(dt_filebrowser_display(&filebrowser))
+      { // "ok" pressed
+        dt_gui_switch_collection(filebrowser.cwd);
+        dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
+      }
     }
     if(vkdt.db.selection_cnt > 0)
     {
@@ -786,7 +786,7 @@ void render_lighttable()
           snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
           dt_gui_switch_collection(filename);
         }
-        if((i & 3) != 3) ImGui::SameLine();
+        if(((i & 3) != 3) && (i != vkdt.tag_cnt-1)) ImGui::SameLine();
       }
       // button to jump to original folder of selected image if it is a symlink
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
@@ -795,7 +795,7 @@ void render_lighttable()
         dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
         struct stat buf;
         lstat(filename, &buf);
-        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection"))
+        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", size))
         {
           char *resolved = realpath(filename, 0);
           if(resolved)
@@ -811,15 +811,6 @@ void render_lighttable()
     } // end collapsing header "recent tags"
 
     ImGui::End(); // lt center window
-
-    // file picker
-    file_dialog.Display();
-
-    if(file_dialog.HasSelected())
-    {
-      dt_gui_switch_collection(file_dialog.GetSelected().string().c_str());
-      file_dialog.ClearSelected();
-    }
   }
 }
 

@@ -22,6 +22,10 @@ layout( // output f16 buffer rgba
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
+layout( // output f16 buffer rgba
+    set = 1, binding = 2
+) uniform writeonly image2D img_crv;
+
 // TODO: move to header?
 // cubic hermite for four nodes
 float
@@ -103,16 +107,20 @@ main()
   rgb.b = hermite4(rgb.b);
 #endif
 
-#if 0 // DEBUG: visualise curve TODO: tie to parameter
-  float off = 0.1 * imageSize(img_out).x;
-  float x = (ipos.x - off)/ float(imageSize(img_out).x - 2*off);
-  float y = (log2(x+black)-black_ev)/den;
-  float s = 1.0/(log(2) * den * (black+1.0)); // slope of extension at 1.0
-  y = mix(y, s * (x-1.0) + 1.0, y >= 1.0); // extend past 1.0
-  y = hermite4(y);
-  if(abs((1.1-y) * (0.8) * imageSize(img_out).y - ipos.y) < 10)
-    rgb = vec3(1, 0, 1);
-#endif
+  if(all(lessThan(ipos, imageSize(img_crv))))
+  {
+    vec4 col_crv = vec4(0, 0, 0, 1);
+    float off = 0.1 * imageSize(img_crv).x;
+    float x = ipos.x/float(imageSize(img_crv).x - off);
+    float y = (log2(x+black)-black_ev)/den;
+    float s = 1.0/(log(2) * den * (black+1.0)); // slope of extension at 1.0
+    y = mix(y, s * (x-1.0) + 1.0, y >= 1.0); // extend past 1.0
+    y = hermite4(y);
+    const float t = 4.0; // stroke width, approximately. 
+    float d = abs((1.1-y) * 0.9 * imageSize(img_crv).y - ipos.y);
+    col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+    imageStore(img_crv, ipos, col_crv);
+  }
 
   // want to see why 8-bit output sucks? try this:
   // float l1 = hermite4(ipos.x / float(imageSize(img_out).x));
