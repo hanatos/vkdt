@@ -9,8 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  vec4  white;
   float split;
-  float temp;
   float sat;
 } params;
 
@@ -203,15 +203,60 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  if(ipos.x > params.split * imageSize(img_out).x)
-  {
+  if(ipos.x < params.split * imageSize(img_out).x)
+  { // comparison
+#if 0 // do something at all?
+    vec3 cwp = vec3(params.white);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49); // white
+    // multiply saturation in rgb?
+    float c = (rgb.r + rgb.g + rgb.b)/3.0;
+    rgb.r = (rgb.r - c)*params.sat + c;
+    rgb.g = (rgb.g - c)*params.sat + c;
+    rgb.b = (rgb.b - c)*params.sat + c;
+#if 0 // straight multiplication:
+    // this sticks to the rec2020 boundary because it doesn't go < 0
+    rgb /= cwp; 
+#else // bradford adaptation:
+    const mat3 rec2020_to_xyz = mat3(
+      6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+      1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+      1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+    const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+     -0.35567078,  1.61648124, -0.04277061,
+     -0.25336628,  0.01576855,  0.94210312);
+#if 0
+    const mat3 xyz_to_bradford = mat3(
+       0.8951000, -0.7502000,  0.0389000,
+       0.2664000,  1.7135000, -0.0685000,
+      -0.1614000,  0.0367000,  1.0296000);
+    const mat3 bradford_to_xyz = mat3(
+       0.9869929, 0.4323053, -0.0085287,
+      -0.1470543, 0.5183603,  0.0400428,
+       0.1599627, 0.0492912,  0.9684867);
+    // convert white and rgb to xyz to bradford:
+    cwp = xyz_to_bradford * (rec2020_to_xyz * cwp);
+    rgb = xyz_to_bradford * (rec2020_to_xyz * rgb);
+    rgb /= cwp;
+    rgb = clamp(rgb, vec3(0.), vec3(1.));
+    rgb = xyz_to_rec2020 * (bradford_to_xyz * rgb);
+#else // divide in XYZ
+    cwp = rec2020_to_xyz * cwp;
+    rgb = rec2020_to_xyz * rgb;
+    rgb /= cwp;
+    rgb = xyz_to_rec2020 * rgb;
+#endif
+#endif
+#endif
+  }
+  else
+  { // spectral
   const mat3 xyz_to_rec2020 = mat3(
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
    -0.25336628,  0.01576855,  0.94210312);
 #if 0 // moments
   float b;
-  vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
+  vec3 cwp   = fetch_coeff(vec3(params.white));//vec3(params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
 
   // apply saturation by blurring the spectrum. in fourier space this means
@@ -276,7 +321,7 @@ main()
 
 #if 1 // sigmoids
   float b;
-  vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49), b);
+  vec3 cwp   = fetch_coeff(vec3(params.white), b);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, b);
 
   // saturation in various ways. none of which work, making me sad.
@@ -305,53 +350,6 @@ main()
   coeff.y = -2.0 * c0 * ldom;
   coeff.z = c0 * ldom*ldom + y;
 #endif
-#if 0
-    // dumb version
-    vec3 cyl;
-    cyl.x = coeff.x;
-    cyl.z = coeff.y / (-2.0 * coeff.x);      // dom lambda
-    cyl.y = coeff.z - coeff.x * cyl.z*cyl.z; // y
-
-    cyl.x *= params.sat;
-
-    // convert back
-    coeff.x = cyl.x;
-    coeff.y = -2.0 * cyl.x * cyl.z;
-    coeff.z = cyl.x * cyl.z*cyl.z + cyl.y;
-#endif
-#if 0
-  vec3 sig = vec3(
-      coeff.x,  // coefficient that goes with the square lambda
-      coeff.z - coeff.y*coeff.y / (4.0 * coeff.x), // height of extremum of parabola
-    - coeff.y / (2.0 * coeff.x)); // center wavelenegth
-
-  sig.x *= params.sat; // let's see what happens
-  sig.y *= params.sat; // let's see what happens
-
-  coeff = vec3(sig.x,
-      -2.0*sig.x*sig.z,
-      sig.y + sig.x*sig.z*sig.z);
-#endif
-#if 0
-  {
-    float disc = abs(4.0*coeff.x*coeff.z - coeff.y*coeff.y);
-    disc = sqrt(disc);
-    vec3 swz = vec3(
-      - disc /  2.0,
-      - disc / (2.0*coeff.x),
-      - coeff.y / (2.0 * coeff.x));
-
-    swz.y *= params.sat;
-
-    // convert back
-    coeff.x = swz.x / swz.y;  // surprisingly so does not cause trouble it seems
-    coeff.y = -2.0 * coeff.x * swz.z; // causes some black dots in the blacks
-    coeff.z = coeff.x * (swz.z*swz.z - swz.y*swz.y); // breaks like half the image
-    // catastrophic cancellation?
-    if(4.0*coeff.x*coeff.z > coeff.y*coeff.y)
-      coeff.z = coeff.x * (swz.z*swz.z + swz.y*swz.y); // this case is fine
-  }
-#endif
 
   const int num_l = 30;
   vec3 xyz = vec3(0);
@@ -369,81 +367,15 @@ main()
 
     // compute colour again, in xyz:
     // const int bin = l;
-    xyz += val * //wht *
-      // cie_cmf[l];
-      vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
+    xyz += val * wht *
+      cie_cmf[l];
+      // vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
   }
   xyz /= norm;
   float b2 = dot(vec3(1),xyz);
   xyz *= b/b2;
   rgb = xyz_to_rec2020*xyz;
-  }
-#endif
-#if 0 // old tiled 3D map
-  const float scale = max(max(1.0, rgb.r), max(rgb.g, rgb.b));
-  rgb /= scale;
-
-  // if lut is in xyz, first go there:
-  // rgb = inverse(xyz_to_rec2020) * rgb;
-  // TODO: fix cube lookup at boundaries!
-  rgb = clamp(rgb, vec3(0.001), vec3(0.999));
-
-  vec3 coeff = fetch_coeff(rgb);
-  // const vec3 cwp   = fetch_coeff(vec3(0.8, 0.5, 0.5));
-  const vec3 cwp   = fetch_coeff(vec3(params.temp*0.49 + 0.5, 0.5, 0.5 - params.temp*0.49));
-
-  // convert to slope width domlambda
-  {
-#if 0
-    float disc = abs(4.0*coeff.x*coeff.z - coeff.y*coeff.y);
-    disc = sqrt(disc);
-    vec3 swz = vec3(
-      - disc /  2.0,
-      - disc / (2.0*coeff.x),
-      - coeff.y / (2.0 * coeff.x));
-
-    swz.y *= params.sat;
-
-    // convert back
-    coeff.x = swz.x / swz.y;  // surprisingly so does not cause trouble it seems
-    coeff.y = -2.0 * coeff.x * swz.z; // causes some black dots in the blacks
-    coeff.z = coeff.x * (swz.z*swz.z - swz.y*swz.y); // breaks like half the image
-    // catastrophic cancellation?
-    if(4.0*coeff.x*coeff.z > coeff.y*coeff.y)
-      coeff.z = coeff.x * (swz.z*swz.z + swz.y*swz.y); // this case is fine
-      // coeff.z = swz.x * swz.y + coeff.x * swz.z*swz.z;
-#endif
-  }
-
-  const int num_l = 10;
-  vec3 xyz = vec3(0);
-  const vec3 norm = num_l * vec3(0.354678, 0.355529, 0.34371);
-  for(int l=0;l<num_l;l++)
-  { // compute spectrum
-    // float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);
-    float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0);
-    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
-    float y = 1. / sqrt(x * x + 1.);
-    float val = 0.5 * x * y +  0.5;
-    float x2 = (cwp.x * lambda + cwp.y) * lambda + cwp.z;
-    float y2 = 1. / sqrt(x2 * x2 + 1.);
-    float vwp = 0.5 * x2 * y2 +  0.5;
-
-    // compute colour again, in xyz:
-    xyz +=
-      // float(1.0/0.0093498 * blackbody_radiation(lambda, params.temp)) * //6504.0) * 
-      vwp *
-      // 0.001/ float(blackbody_radiation(lambda, params.temp)) * //6504.0) * 
-      // 1.0/106.8 *
-      val *
-      // 0.1*
-      vec3(
-        xFit_1931(lambda),
-        yFit_1931(lambda),
-        zFit_1931(lambda));
-  }
-  rgb = scale * ((xyz_to_rec2020)*(xyz/norm));
-  }
+  } // end if split
 #endif
 
   imageStore(img_out, ipos, vec4(rgb, 1));

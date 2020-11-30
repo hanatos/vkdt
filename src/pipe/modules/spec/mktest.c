@@ -76,6 +76,7 @@ int main(int argc, char *argv[])
       qmc_ri(2, index),
       qmc_ri(3, index)};
 
+#if 0 // blue tests
     // if(ii == 15)
     {
       rgb[0] = (jj+.5)/16.0;
@@ -88,6 +89,7 @@ int main(int argc, char *argv[])
       rgb[1] = (0+.5)/16.0 - 0.07;
       rgb[2] = 1.0;
     }
+#endif
 
     for(int k=0;k<3;k++) for(int r=0;r<3;r++)
       rgb[k] += 0.009*(0.5 - drand48());
