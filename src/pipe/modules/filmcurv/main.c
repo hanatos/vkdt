@@ -7,8 +7,8 @@ void modify_roi_out(
     dt_module_t *module)
 {
   module->connector[1].roi = module->connector[0].roi;
-  module->connector[2].roi.full_wd = 512;
-  module->connector[2].roi.full_ht = 512;
+  module->connector[2].roi.full_wd = 300;
+  module->connector[2].roi.full_ht = 300;
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
