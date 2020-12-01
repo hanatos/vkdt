@@ -1,3 +1,4 @@
 input:read:rgba:f16
 lut:read:rgba:f16
 output:write:rgba:f16
+grad:read:rgba:f16

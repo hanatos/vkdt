@@ -27,6 +27,10 @@ layout( // output f16 buffer rgb
     set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
+layout( // input spec coeff lut
+    set = 1, binding = 3
+) uniform sampler2D img_grad;
+
 // this is sufficiently different to D65, can't use it:
 double blackbody_radiation(
     double lambda,      // in [nm]
@@ -170,20 +174,6 @@ float zFit_1931( float wave )
 
 vec3 fetch_coeff(vec3 rgb, out float b)
 {
-#if 0 // tiled 3D
-  // TODO: trilinear interpolation!
-  const uvec2 wd = textureSize(img_coeff, 0).xy;
-  const uint tiles = 16;//uint(pow(wd.x, 1.0/3.0)); // cbrt(512) = 8
-  const uint tilew = 256;//wd.x / tiles;             // 512 / 8 = 64
-
-  const uvec2 x = uvec2(rgb.rg * tilew);
-  const uint tile = uint(rgb.b * tilew);
-  const uvec2 t = uvec2(tile % tiles, tile / tiles);
-
-  // TODO: try gamma!
-  return texelFetch(img_coeff, ivec2( t*tilew + x), 0).rgb;
-#endif
-
   // xy chromaticity diagram
   const mat3 rec2020_to_xyz = mat3(
     6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
@@ -325,7 +315,7 @@ main()
   vec3 coeff = fetch_coeff(rgb, b);
 
   // saturation in various ways. none of which work, making me sad.
-#if 1 // convert to lwd: dom lambda, width, slope
+#if 0 // convert to lwd: dom lambda, width, slope
   // convert
   float c0   = coeff.x;
   float ldom = coeff.y/(-2.0*coeff.x);
@@ -349,6 +339,27 @@ main()
   coeff.x = c0;
   coeff.y = -2.0 * c0 * ldom;
   coeff.z = c0 * ldom*ldom + y;
+#endif
+
+#if 1 // walk gradients
+  {
+  int it = int(abs(40*(params.sat-1.0)));
+  float dir = (params.sat > 1.0)^^(coeff.x > 0) ? -1.0 : 1.0;
+  const mat3 rec2020_to_xyz = mat3(
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+  vec3 xyz = rec2020_to_xyz * rgb;
+  float b = dot(vec3(1),xyz);
+  vec2 tc = xyz.xy/b;
+  tc.y = 1.0-tc.y; // FIXME: fix this when writing
+  for(int i=0;i<it;i++)
+  {
+    vec3 grad = texture(img_grad, tc).rgb;
+    tc += .01 * dir * vec2(grad.x, -grad.y);
+  }
+  coeff = texture(img_coeff, tc).rgb;
+  }
 #endif
 
   const int num_l = 30;

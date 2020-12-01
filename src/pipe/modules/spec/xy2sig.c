@@ -1099,7 +1099,7 @@ int main(int argc, char **argv) {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       float q[3];
       quantise_coeffs(coeffs, q);
-#if 1 // coeff data
+#if 0 // coeff data
       fwrite(q, sizeof(float), 3, f);
 #else // velocity field
       float vel[3] = {
@@ -1107,9 +1107,9 @@ int main(int argc, char **argv) {
           out[5*k+4],
           // 1.0};
           (1.0- out[5*k+3]*out[5*k+3]- out[5*k+4]*out[5*k+4])};
-      vel[0] = 0.5 + 0.5*vel[0];
-      vel[1] = 0.5 + 0.5*vel[1];
-      vel[2] = 0.5 + 0.5*vel[2];
+      // vel[0] = 0.5 + 0.5*vel[0];
+      // vel[1] = 0.5 + 0.5*vel[1];
+      // vel[2] = 0.5 + 0.5*vel[2];
       fwrite(vel, sizeof(float), 3, f);
 
       // fwrite(out+5*k+0, sizeof(float), 1, f);
