@@ -71,10 +71,24 @@ int main(int argc, char *argv[])
 
     uint32_t index = jj*16 + ii;
 
+#if 1 // yuv
+    const float Y = 0.5;
+    float u = -1.0 + 2.0*(ii+.5)/16.0;
+    float v = -1.0 + 2.0*(jj+.5)/16.0;
+    float scale = 0.1f;
+    u *= scale; v *= scale;
+    float rgb[] = {
+      Y + 1.280*v,
+      Y - 0.214*u - 0.381*v,
+      Y + 2.128*u};
+#endif
+
+#if 0 // hammersley points:
     float rgb[] = {
       index / 256.0,
       qmc_ri(2, index),
       qmc_ri(3, index)};
+#endif
 
 #if 0 // blue tests
     // if(ii == 15)
