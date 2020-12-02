@@ -192,7 +192,7 @@ void quantise_coeffs(double coeffs[3], float out[3])
   out[0] = (float)A2;
   out[1] = (float)B2;
   out[2] = (float)C2;
-#if 0
+#if 1
   {
   const double c0   = A2;                        // square slope stays
   const double ldom = B2 / (-2.0*A2);            // dominant wavelength
@@ -205,7 +205,7 @@ void quantise_coeffs(double coeffs[3], float out[3])
 
   out[0] = ldom;
   out[1] = w;
-  out[2] = fabs(d); /// XXX DEBUG abs to see the output
+  out[2] = d;//fabs(d); /// XXX DEBUG abs to see the output
   }
 #endif
 #if 0
@@ -810,7 +810,7 @@ int main(int argc, char **argv) {
     const int it_cnt = stripe_size/2;
     for(int it=0;it<it_cnt;it++) 
     {
-      fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
+      // fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
 
       // read velocity field at xy and walk a single pixel step:
       lookup2d(out, res, res, 5, xy, px);
@@ -988,7 +988,7 @@ int main(int argc, char **argv) {
           xy[0] = col[0] / (col[0]+col[1]+col[2]);
           xy[1] = col[1] / (col[0]+col[1]+col[2]);
           }
-          fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
+          // fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
 
           // read velocity field at xy and walk a single pixel step:
           float px[5];
@@ -1099,6 +1099,7 @@ int main(int argc, char **argv) {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       float q[3];
       quantise_coeffs(coeffs, q);
+      fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
 #if 0 // coeff data
       fwrite(q, sizeof(float), 3, f);
 #else // velocity field

@@ -195,14 +195,14 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   if(ipos.x < params.split * imageSize(img_out).x)
   { // comparison
-#if 0 // do something at all?
+#if 1 // do something at all?
     vec3 cwp = vec3(params.white);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49); // white
     // multiply saturation in rgb?
     float c = (rgb.r + rgb.g + rgb.b)/3.0;
     rgb.r = (rgb.r - c)*params.sat + c;
     rgb.g = (rgb.g - c)*params.sat + c;
     rgb.b = (rgb.b - c)*params.sat + c;
-#if 0 // straight multiplication:
+#if 1 // straight multiplication:
     // this sticks to the rec2020 boundary because it doesn't go < 0
     rgb /= cwp; 
 #else // bradford adaptation:
@@ -315,7 +315,8 @@ main()
   vec3 coeff = fetch_coeff(rgb, b);
 
   // saturation in various ways. none of which work, making me sad.
-#if 0 // convert to lwd: dom lambda, width, slope
+  // TODO: desaturation goes to illum E, should be D65!
+#if 1 // convert to lwd: dom lambda, width, slope
   // convert
   float c0   = coeff.x;
   float ldom = coeff.y/(-2.0*coeff.x);
@@ -331,6 +332,10 @@ main()
   w *= 1./params.sat;
   d *= exp(5*params.sat)/exp(5);
 
+  // width looks linear after some grace period
+  // d looks to progress as
+  // .5 + .5*log(x*.8)/sqrt(log(x*.8)**2 + .9)
+
   // back
   // y  = y0 - 0.5 * w * abs(d) / c;
   y  = y0 - 0.5 * w * (d) / c;
@@ -341,7 +346,7 @@ main()
   coeff.z = c0 * ldom*ldom + y;
 #endif
 
-#if 1 // walk gradients
+#if 0 // walk gradients
   {
   int it = int(abs(40*(params.sat-1.0)));
   float dir = (params.sat > 1.0)^^(coeff.x > 0) ? -1.0 : 1.0;
@@ -378,9 +383,9 @@ main()
 
     // compute colour again, in xyz:
     // const int bin = l;
-    xyz += val * wht *
-      cie_cmf[l];
-      // vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
+    xyz += val / wht *
+      // cie_cmf[l];
+      vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
   }
   xyz /= norm;
   float b2 = dot(vec3(1),xyz);
