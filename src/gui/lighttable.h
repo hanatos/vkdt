@@ -15,12 +15,12 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
         dt_view_switch(s_view_darkroom);
       }
     }
-    // TODO: work on selection instead of current_image?
 #define RATE(X)\
     else if(key == GLFW_KEY_ ## X )\
     {\
-      if(dt_db_current_imgid(&vkdt.db) != -1u)\
-        vkdt.db.image[dt_db_current_imgid(&vkdt.db)].rating = X;\
+      const uint32_t *sel = dt_db_selection_get(&vkdt.db);\
+      for(int i=0;i<vkdt.db.selection_cnt;i++)\
+        vkdt.db.image[sel[i]].rating = X;\
     }
     RATE(1)
     RATE(2)
@@ -32,8 +32,9 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 #define LABEL(X)\
     else if(key == GLFW_KEY_F ## X)\
     {\
-      if(dt_db_current_imgid(&vkdt.db) != -1u)\
-        vkdt.db.image[dt_db_current_imgid(&vkdt.db)].labels ^= 1<<(X-1);\
+      const uint32_t *sel = dt_db_selection_get(&vkdt.db);\
+      for(int i=0;i<vkdt.db.selection_cnt;i++)\
+        vkdt.db.image[sel[i]].labels ^= 1<<(X-1);\
     }
     LABEL(1)
     LABEL(2)

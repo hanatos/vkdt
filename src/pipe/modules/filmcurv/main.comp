@@ -75,6 +75,20 @@ acescc(float v)
     return (log2(v) + 9.72)/17.52;
 }
 
+float
+curve(float x)
+{
+  const float black_ev = params.black;
+  const float black = exp2(black_ev);
+  float white = 1.0f+black;
+  float den = log2(white)-black_ev;
+  float y = (log2(x+black)-black_ev)/den;
+  float s = 1.0/(log(2) * den * (black+1.0)); // slope of extension at 1.0
+  y = mix(y, s * (x-1.0) + 1.0, y >= 1.0); // extend past 1.0
+  y = hermite4(y);
+  return y;
+}
+
 void
 main()
 {
@@ -112,11 +126,12 @@ main()
     vec4 col_crv = vec4(0, 0, 0, 1);
     float off = 0.1 * imageSize(img_crv).x;
     float x = ipos.x/float(imageSize(img_crv).x - off);
-    float y = (log2(x+black)-black_ev)/den;
-    float s = 1.0/(log(2) * den * (black+1.0)); // slope of extension at 1.0
-    y = mix(y, s * (x-1.0) + 1.0, y >= 1.0); // extend past 1.0
-    y = hermite4(y);
-    const float t = 4.0; // stroke width, approximately. 
+    float y = curve(x);
+    float y2 = curve(x+1.0/float(imageSize(img_crv).x));
+    float ddx = abs(y2-y);
+    const float w = 2.0; // stroke width
+    const float t = w*(1.0 + imageSize(img_crv).x*ddx);
+
     float d = abs((1.1-y) * 0.9 * imageSize(img_crv).y - ipos.y);
     col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
     imageStore(img_crv, ipos, col_crv);
