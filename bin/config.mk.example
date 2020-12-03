@@ -24,8 +24,8 @@ CXX=clang++
 GLSLC=glslangValidator
 
 # optimised flags, you may want to use -march=generic for distro builds:
-OPT_CFLAGS=-Wall -pipe -O3 -march=native -g
-OPT_LDFLAGS=
+OPT_CFLAGS=-Wall -pipe -O3 -march=native
+OPT_LDFLAGS=-s
 AR=ar
 
 # set this to 1 to signal rawspeed to build without processor specific extensions.
