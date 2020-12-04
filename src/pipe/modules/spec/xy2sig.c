@@ -164,10 +164,14 @@ void cvt_c012_c0yl(const double *coeffs, double *c0yl)
 
 void cvt_c0yl_lwd(const double *c0yl, double *lwd)
 {
-  const double A = c0yl[0], B = c0yl[1], C = c0yl[2];
-  const double c0   = A;                        // square slope stays
-  const double ldom = B / (-2.0*A);             // dominant wavelength
-  const double y    = C - B*B / (4.0 * A);      // y
+  // const double A = c0yl[0], B = c0yl[1], C = c0yl[2];
+  // const double c0   = A;                        // square slope stays
+  // const double ldom = B / (-2.0*A);             // dominant wavelength
+  // const double y    = C - B*B / (4.0 * A);      // y
+
+  const double c0   = c0yl[0];
+  const double y    = c0yl[1];
+  const double ldom = c0yl[2];
 
   const double y0 = c0 > 0.0 ? 1.0 : -2.0;
 
@@ -687,7 +691,7 @@ int main(int argc, char **argv) {
         spectrum[l] = sigmoid(x);
       }
       const double sigma = 9.0; // FIXME: < 9 results in banding, > 12 results in second attractor
-      gauss_blur(sigma, spectrum, spectrum_blur, cnt, coeffs[0] > 0.0);
+      gauss_blur(sigma, spectrum, spectrum_blur, cnt, 0);//coeffs[0] > 0.0);
       double col[3] = {0.0};
 #if 1 // cnt = CIE_FINE_SAMPLES
       for (int l = 0; l < cnt; l++)
@@ -775,11 +779,11 @@ int main(int argc, char **argv) {
   // now we have a c0 c1 c2 vx vy map.
   // as a second step, using this 2D (c0 y lambda vx vy) map
   // create another 2D (s, lambda) map as say 512x1024:
-  const int lambda_cnt = 1024;//512;
+  const int lambda_cnt = 40;//1024;//512;
   const int sat_cnt = 512;
   float *map = calloc(sizeof(float)*3, lambda_cnt*2*sat_cnt);
 
-  const int stripe_size = 2048;
+  const int stripe_size = 256;//2048;
   float *stripe = calloc(sizeof(float)*3*lambda_cnt, stripe_size);
 
   int *right = calloc(sizeof(int), lambda_cnt);
@@ -792,7 +796,8 @@ int main(int argc, char **argv) {
     map[3*(2*sat_cnt * l + i) + 2] = 0.0;
   }
 
-  for(int d=-1;d<=1;d+=2)
+  // for(int d=-1;d<=1;d+=2)
+    const int d = 1;
   // this isn't in fact a wavelength but an angle
   for(int l=0;l<lambda_cnt;l++)
   {
@@ -810,11 +815,26 @@ int main(int argc, char **argv) {
     const int it_cnt = stripe_size/2;
     for(int it=0;it<it_cnt;it++) 
     {
-      // fprintf(stderr, "%g %g %d\n", xy[0], xy[1], it);
+      double lwd[3];
+      cvt_c0yl_lwd(c0yl, lwd);
+      fprintf(stderr, "%g %g %g %d %d %g %g\n", xy[0], xy[1], c0yl[2], l, it, lwd[1], lwd[2]);
+      {
+        double col[3] = {0};
+        for (int ll = 0; ll < CIE_FINE_SAMPLES; ll++)
+        {
+          double l2 = CIE_LAMBDA_MIN + ll/(double)CIE_FINE_SAMPLES * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN);
+          double x = c0yl[0] * (l2 - c0yl[2])*(l2 - c0yl[2]) + c0yl[1];
+          double s = sigmoid(x);
+          for(int j=0;j<3;j++)
+            col[j] += rgb_tbl[j][ll] * s;
+        }
+        xy[0] = col[0] / (col[0]+col[1]+col[2]);
+        xy[1] = col[1] / (col[0]+col[1]+col[2]);
+      }
 
       // read velocity field at xy and walk a single pixel step:
       lookup2d(out, res, res, 5, xy, px);
-      double dir = c0yl[0] > 0.0 ? 1.0 : - 1.0;
+      double dir = -1.0;//c0yl[0] > 0.0 ? 1.0 : - 1.0;
       xy[0] += d*dir * px[3] * .5/it_cnt;
       xy[1] += d*dir * px[4] * .5/it_cnt;
 
@@ -1099,8 +1119,8 @@ int main(int argc, char **argv) {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       float q[3];
       quantise_coeffs(coeffs, q);
-      fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
-#if 0 // coeff data
+      // fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
+#if 1 // coeff data
       fwrite(q, sizeof(float), 3, f);
 #else // velocity field
       float vel[3] = {

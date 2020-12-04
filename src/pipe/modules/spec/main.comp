@@ -316,7 +316,7 @@ main()
 
   // saturation in various ways. none of which work, making me sad.
   // TODO: desaturation goes to illum E, should be D65!
-#if 1 // convert to lwd: dom lambda, width, slope
+#if 0 // convert to lwd: dom lambda, width, slope
   // convert
   float c0   = coeff.x;
   float ldom = coeff.y/(-2.0*coeff.x);
@@ -346,7 +346,7 @@ main()
   coeff.z = c0 * ldom*ldom + y;
 #endif
 
-#if 0 // walk gradients
+#if 1 // walk gradients
   {
   int it = int(abs(40*(params.sat-1.0)));
   float dir = (params.sat > 1.0)^^(coeff.x > 0) ? -1.0 : 1.0;
