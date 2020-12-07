@@ -44,6 +44,11 @@ int dt_gui_init()
     return 1;
   }
 
+  char configfile[512];
+  snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
+  dt_rc_init(&vkdt.rc);
+  dt_rc_read(&vkdt.rc, configfile);
+
   vkdt.style.panel_width_frac = 0.2f;
   vkdt.style.border_frac = 0.02f;
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -248,6 +253,10 @@ dt_gui_recreate_swapchain()
 
 void dt_gui_cleanup()
 {
+  char configfile[512];
+  snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
+  dt_rc_write(&vkdt.rc, configfile);
+  dt_rc_cleanup(&vkdt.rc);
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
   glfwDestroyWindow(qvk.window);
   glfwTerminate();

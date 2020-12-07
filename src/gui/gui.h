@@ -2,6 +2,7 @@
 #include "pipe/graph.h"
 #include "db/thumbnails.h"
 #include "db/db.h"
+#include "db/rc.h"
 
 #include <vulkan/vulkan.h>
 
@@ -107,6 +108,8 @@ typedef struct dt_gui_t
   // list of recently used tags
   int  tag_cnt;
   char tag[10][30];
+
+  dt_rc_t          rc; // config file
 }
 dt_gui_t;
 
