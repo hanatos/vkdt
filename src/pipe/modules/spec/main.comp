@@ -316,7 +316,7 @@ main()
 
   // saturation in various ways. none of which work, making me sad.
   // TODO: desaturation goes to illum E, should be D65!
-#if 0 // convert to lwd: dom lambda, width, slope
+#if 1 // convert to lwd: dom lambda, width, slope
   // convert
   float c0   = coeff.x;
   float ldom = coeff.y/(-2.0*coeff.x);
@@ -329,12 +329,28 @@ main()
   float d = sign(c0) * sqrt(c0*(y0-y)) * c;
 
   // saturate
-  w *= 1./params.sat;
-  d *= exp(5*params.sat)/exp(5);
+
+  // simple heuristic, looks wonky:
+  // w *= 1./params.sat;
+  // d *= exp(5*params.sat)/exp(5);
 
   // width looks linear after some grace period
   // d looks to progress as
   // .5 + .5*log(x*.8)/sqrt(log(x*.8)**2 + .9)
+
+  // fit to data (does not actually depend on input slope d)
+  w /= params.sat * params.sat; // spectral width is reciprocal to saturation
+  // blend params of reciprocal fits:
+  const vec4 fit_n  = vec4(0.0,   0.15,  20.0, 1.00); // n-shaped (spectral)
+  const vec4 fit_u0 = vec4(0.0,   0.80, 310.0, 1.00); // u-shaped extremes
+  const vec4 fit_u1 = vec4(0.003, 8.00, 210.0, 1.65); // u-shaped near ldom
+  const vec4 fit = mix(
+      fit_n,
+      mix(fit_u1, fit_u0, pow((ldom - 500.0)/200.0, 4)),
+      // XXX TODO use d? d < 0 should be fit_n, d > 0 the others
+      d < 0.0 ? 0.0 : 1.0);
+  d = fit.x + fit.y / pow(w - fit.z, fit.w);
+  d = sign(c0) * d;
 
   // back
   // y  = y0 - 0.5 * w * abs(d) / c;
@@ -346,7 +362,7 @@ main()
   coeff.z = c0 * ldom*ldom + y;
 #endif
 
-#if 1 // walk gradients
+#if 0 // walk gradients
   {
   int it = int(abs(40*(params.sat-1.0)));
   float dir = (params.sat > 1.0)^^(coeff.x > 0) ? -1.0 : 1.0;
