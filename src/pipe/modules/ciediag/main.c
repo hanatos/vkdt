@@ -5,7 +5,6 @@ void modify_roi_out(
     dt_module_t *module)
 {
   // always request constant histogram size:
-  module->connector[1].roi = module->connector[0].roi;
   module->connector[2].roi = module->connector[0].roi;
   module->connector[2].roi.full_wd = 1000;
   module->connector[2].roi.full_ht = 1000;
