@@ -92,10 +92,14 @@ main()
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
+    float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*lambda + coeff.y));
+    val *= b;
+    ddx *= b;
 
-    float t = 4.;
+    const float w = 4.0; // stroke width
+    const float t = w*(1.0 + imageSize(img_out).y*ddx);
     float d = abs((1.0-val) * imageSize(img_out).y - ipos.y);
-    rgb = max(rgb, picked_rgb * vec3(smoothstep(t, 0.0, d)));
+    rgb = max(rgb, picked_rgb * vec3(pow(smoothstep(t, 0.0, d), 3)));
   }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

@@ -24,8 +24,8 @@ void modify_roi_out(
   module->connector[3].roi.full_wd = 20; // max 20 areas picked with mean rgb
   module->connector[3].roi.full_ht = 4;  // and variances etc in different lines
   // rasterise spectra at this resolution
-  module->connector[2].roi.full_wd = 500;
-  module->connector[2].roi.full_ht = 250;
+  module->connector[2].roi.full_wd = 700;
+  module->connector[2].roi.full_ht = 350;
 }
 
 void
