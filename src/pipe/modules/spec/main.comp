@@ -183,7 +183,33 @@ vec3 fetch_coeff(vec3 rgb, out float b)
   b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
   tc.y = 1.0-tc.y; // FIXME: fix this when writing
+
+  // bilinear interpolation, fails at blue-white-red ridge
+#if 0
   return texture(img_coeff, tc).rgb;
+#else
+  vec2 tci = tc * textureSize(img_coeff, 0);
+  vec2 uv = fract(tci);
+  vec3 c0 = texelFetch(img_coeff, ivec2(tci), 0).rgb;
+  vec3 c1 = texelFetch(img_coeff, ivec2(tci)+ivec2(0,1), 0).rgb;
+  vec3 c2 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,0), 0).rgb;
+  vec3 c3 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,1), 0).rgb;
+  int nshaped = 0;
+  vec2 w = vec2(0.0);
+  vec3 r0 = vec3(0.0);
+  vec3 r1 = vec3(0.0);
+  if(c0.x < 0) { w.x += (1.0-uv.x)*(1.0-uv.y); r0 += (1.0-uv.x)*(1.0-uv.y)*c0; nshaped++;}
+  else { w.y += (1.0-uv.x)*(1.0-uv.y); r1 += (1.0-uv.x)*(1.0-uv.y)*c0; }
+  if(c1.x < 0) { w.x += uv.x*(1.0-uv.y); r0 += uv.x*(1.0-uv.y)*c1; nshaped++;}
+  else w.y += uv.x*(1.0-uv.y); r1 += uv.x*(1.0-uv.y)*c1;
+  if(c2.x < 0) { w.x += (1.0-uv.x)*uv.y; r0 += (1.0-uv.x)*uv.y*c2; nshaped++;}
+  else w.y += (1.0-uv.x)*uv.y; r1 += (1.0-uv.x)*uv.y*c2;
+  if(c3.x < 0) { w.x += uv.x*uv.y; r0 += uv.x*uv.y*c3; nshaped++;}
+  else { w.y += uv.x*uv.y; r1 += uv.x*uv.y*c3;}
+  if(nshaped >= 2) 
+    return r0 / w.x;
+  return r1 / w.y;
+#endif
 }
 
 void
@@ -322,8 +348,8 @@ main()
   float ldom = coeff.y/(-2.0*coeff.x);
   float y    = coeff.z - coeff.y*coeff.y/(4.0 * coeff.x);
 
-  float y0 = c0 > 0.0 ? 1.0 : -2.0;
-  float c = pow(y0*y0+1, -3./2.);
+  const float y0 = c0 > 0.0 ? 1.0 : -2.0;
+  const float c = pow(y0*y0+1, -3./2.);
 
   float w = 2.0 * sqrt((y0 - y)/c0);
   float d = sign(c0) * sqrt(c0*(y0-y)) * c;
@@ -340,20 +366,21 @@ main()
 
   // fit to data (does not actually depend on input slope d)
   w /= params.sat * params.sat; // spectral width is reciprocal to saturation
+#if 1
   // blend params of reciprocal fits:
   const vec4 fit_n  = vec4(0.0,   0.15,  20.0, 1.00); // n-shaped (spectral)
   const vec4 fit_u0 = vec4(0.0,   0.80, 310.0, 1.00); // u-shaped extremes
   const vec4 fit_u1 = vec4(0.003, 8.00, 210.0, 1.65); // u-shaped near ldom
   const vec4 fit = mix(
       fit_n,
-      mix(fit_u1, fit_u0, pow((ldom - 500.0)/200.0, 4)),
+      mix(fit_u1, fit_u0, 0),// XXX fit_u0 doesn't look good and the weight neither: pow(0.1*abs(ldom - 500.0)/200.0, 4)),
       // XXX TODO use d? d < 0 should be fit_n, d > 0 the others
       d < 0.0 ? 0.0 : 1.0);
   d = fit.x + fit.y / pow(w - fit.z, fit.w);
   d = sign(c0) * d;
+#endif
 
   // back
-  // y  = y0 - 0.5 * w * abs(d) / c;
   y  = y0 - 0.5 * w * (d) / c;
   c0 = 2.0*d/(w * c);
 
