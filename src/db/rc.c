@@ -1,3 +1,4 @@
+#include "db.h"
 #include "stringpool.h"
 #include "rc.h"
 
