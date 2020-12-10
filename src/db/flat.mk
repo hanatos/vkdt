@@ -1,5 +1,6 @@
 DB_O=\
 db/db.o\
+db/rc.o\
 db/thumbnails.o
 DB_H=\
 db/db.h\
