@@ -32,7 +32,7 @@
 #include "mom.h"
 #include "clip.h"
 
-#define BAD_CMF
+// #define BAD_CMF
 #ifdef BAD_CMF
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
 #define CIE_SAMPLES 30
@@ -41,6 +41,9 @@
 #define CIE_LAMBDA_MAX 700.0
 #else
 /// Discretization of quadrature scheme
+#define CIE_SAMPLES 95
+#define CIE_LAMBDA_MIN 360.0
+#define CIE_LAMBDA_MAX 830.0
 #define CIE_FINE_SAMPLES ((CIE_SAMPLES - 1) * 3 + 1)
 #endif
 #define RGB2SPEC_EPSILON 1e-4
@@ -196,7 +199,7 @@ void quantise_coeffs(double coeffs[3], float out[3])
   out[0] = (float)A2;
   out[1] = (float)B2;
   out[2] = (float)C2;
-#if 1
+#if 0
   {
   const double c0   = A2;                        // square slope stays
   const double ldom = B2 / (-2.0*A2);            // dominant wavelength
@@ -419,10 +422,13 @@ void init_tables(Gamut gamut) {
       double h = (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (double)CIE_FINE_SAMPLES;
         double lambda = CIE_LAMBDA_MIN + (i+0.5) * h;
         // double lambda = CIE_LAMBDA_MIN + i * h;
-        double xyz[3] = {
-            xFit_1931(lambda),
-            yFit_1931(lambda),
-            zFit_1931(lambda), },
+        double xyz[3] = { cie_interp(cie_x, lambda),
+                          cie_interp(cie_y, lambda),
+                          cie_interp(cie_z, lambda) },
+        // double xyz[3] = {
+        //     xFit_1931(lambda),
+        //     yFit_1931(lambda),
+        //     zFit_1931(lambda), },
                I = cie_interp(illuminant, lambda);
              // I = blackbody_radiation(lambda, 6504.0);
 #endif
@@ -440,6 +446,11 @@ void init_tables(Gamut gamut) {
         double weight = h;
 #endif
 
+        double out[3] = {0.0};
+        for (int k = 0; k < 3; ++k)
+            for (int j = 0; j < 3; ++j)
+                out[k] += xyz_to_rgb[k][j] * xyz[j];
+        fprintf(stderr, "vec3(%g, %g, %g), // %g nm\n", out[0], out[1], out[2], lambda);
         lambda_tbl[i] = lambda;
         phase_tbl[i] = mom_warp_lambda(lambda);
         for (int k = 0; k < 3; ++k)

@@ -48,6 +48,74 @@ double blackbody_radiation(
   return 2.21566e-16 * c1 / (exp(c2)-1.0);
 }
 
+// these are dumped from the lut matching utility and contain
+// xyz cmf * xyz to rec2020 matrix * illuminant D65
+const vec3 rgb_cmf[] = { // 30 entries, centered in 10nm bins:
+// these contain no illuminant, we'll multiply ours
+vec3(0.0116605, -0.0126882, 0.104201), // 405 nm
+vec3(0.0384134, -0.0423759, 0.351079), // 415 nm
+vec3(0.102829, -0.114999, 0.982369), // 425 nm
+vec3(0.146727, -0.166193, 1.53407), // 435 nm
+vec3(0.135248, -0.155766, 1.68426), // 445 nm
+vec3(0.0881284, -0.107379, 1.64669), // 455 nm
+vec3(0.017598, -0.0238506, 1.4409), // 465 nm
+vec3(-0.0600947, 0.103709, 0.979268), // 475 nm
+vec3(-0.116859, 0.244752, 0.574305), // 485 nm
+vec3(-0.156256, 0.413793, 0.322044), // 495 nm
+vec3(-0.194534, 0.66014, 0.18263), // 505 nm
+vec3(-0.194665, 0.965505, 0.0797332), // 515 nm
+vec3(-0.108478, 1.21003, 0.0219431), // 525 nm
+vec3(0.0545879, 1.3288, -0.00703415), // 535 nm
+vec3(0.26542, 1.34504, -0.0229588), // 545 nm
+vec3(0.521884, 1.2752, -0.028321), // 555 nm
+vec3(0.81582, 1.12965, -0.0272977), // 565 nm
+vec3(1.12024, 0.918074, -0.0225949), // 575 nm
+vec3(1.38923, 0.667138, -0.0163323), // 585 nm
+vec3(1.56658, 0.418823, -0.0101392), // 595 nm
+vec3(1.59318, 0.219146, -0.00523289), // 605 nm
+vec3(1.45392, 0.0875787, -0.00209105), // 615 nm
+vec3(1.1757, 0.0179454, -0.000380568), // 625 nm
+vec3(0.853065, -0.0104993, 0.000306079), // 635 nm
+vec3(0.570212, -0.0171418, 0.000462983), // 645 nm
+vec3(0.346409, -0.013899, 0.000367755), // 655 nm
+vec3(0.192202, -0.00873941, 0.000231237), // 665 nm
+vec3(0.100927, -0.00489876, 0.000129617), // 675 nm
+vec3(0.0522382, -0.00266546, 7.05256e-05), // 685 nm
+vec3(0.0251563, -0.00130916, 3.46391e-05), // 695 nm
+// these contain illuminant D65
+// vec3(9.61375e-05, -0.00010461, 0.000859108), // 405 nm
+// vec3(0.000336113, -0.000370785, 0.0030719), // 415 nm
+// vec3(0.000876365, -0.00098009, 0.00837232), // 425 nm
+// vec3(0.00132987, -0.0015063, 0.0139042), // 435 nm
+// vec3(0.0014199, -0.00163531, 0.0176821), // 445 nm
+// vec3(0.000979208, -0.00119311, 0.0182966), // 455 nm
+// vec3(0.000193746, -0.000262583, 0.0158636), // 465 nm
+// vec3(-0.000656245, 0.00113252, 0.0106938), // 475 nm
+// vec3(-0.00124267, 0.00260267, 0.0061071), // 485 nm
+// vec3(-0.00161303, 0.00427159, 0.00332447), // 495 nm
+// vec3(-0.0019989, 0.00678316, 0.00187659), // 505 nm
+// vec3(-0.00195821, 0.00971237, 0.000802065), // 515 nm
+// vec3(-0.00109064, 0.0121656, 0.000220615), // 525 nm
+// vec3(0.000547834, 0.0133356, -7.05933e-05), // 535 nm
+// vec3(0.00261794, 0.0132667, -0.000226451), // 545 nm
+// vec3(0.00503878, 0.012312, -0.000273439), // 555 nm
+// vec3(0.00757904, 0.0104946, -0.000253598), // 565 nm
+// vec3(0.0101839, 0.00834601, -0.000205405), // 575 nm
+// vec3(0.0121264, 0.00582337, -0.000142563), // 585 nm
+// vec3(0.0132459, 0.00354127, -8.57295e-05), // 595 nm
+// vec3(0.0135397, 0.00186241, -4.44717e-05), // 605 nm
+// vec3(0.0121974, 0.000734727, -1.75425e-05), // 615 nm
+// vec3(0.00951223, 0.000145192, -3.07907e-06), // 625 nm
+// vec3(0.00674048, -8.29604e-05, 2.41848e-06), // 635 nm
+// vec3(0.00441751, -0.0001328, 3.58679e-06), // 645 nm
+// vec3(0.00262656, -0.000105386, 2.78841e-06), // 655 nm
+// vec3(0.0014778, -6.71953e-05, 1.77793e-06), // 665 nm
+// vec3(0.000766789, -3.7218e-05, 9.84754e-07), // 675 nm
+// vec3(0.000365839, -1.8667e-05, 4.9391e-07), // 685 nm
+// vec3(0.000168231, -8.75491e-06, 2.31647e-07), // 695 nm
+};
+
+#if 0
 const vec3 cie_cmf[] = { // 95 entries for full list, 60 for 400..700@5 and 30 for 400..700@10
 // vec3(0.000129900000,0.000003917000,0.000606100000), // 360nm
 // vec3(0.000232100000,0.000006965000,0.001086000000),
@@ -145,9 +213,10 @@ vec3(0.011359160000,0.004102000000,0.000000000000), // 700nm
 // vec3(0.000001776509,0.000000641530,0.000000000000),
 // vec3(0.000001251141,0.000000451810,0.000000000000), // 830nm
 };
+#endif
 
 
-#if 1
+#if 0
 // Journal of Computer Graphics Techniques, Simple Analytic Approximations to
 // the CIE XYZ Color Matching Functions Vol. 2, No. 2, 2013 http://jcgt.org
 //Inputs:  Wavelength in nanometers
@@ -172,7 +241,7 @@ float zFit_1931( float wave )
 }
 #endif
 
-vec3 fetch_coeff(vec3 rgb, out float b)
+vec3 fetch_coeff(vec3 rgb, out float Y)
 {
   // xy chromaticity diagram
   const mat3 rec2020_to_xyz = mat3(
@@ -180,7 +249,8 @@ vec3 fetch_coeff(vec3 rgb, out float b)
     1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
     1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
   vec3 xyz = rec2020_to_xyz * rgb;
-  b = dot(vec3(1),xyz);
+  Y = xyz.y;
+  float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
   tc.y = 1.0-tc.y; // FIXME: fix this when writing
 
@@ -223,6 +293,7 @@ main()
   { // comparison
 #if 1 // do something at all?
     vec3 cwp = vec3(params.white);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49); // white
+    float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
     // multiply saturation in rgb?
     float c = (rgb.r + rgb.g + rgb.b)/3.0;
     rgb.r = (rgb.r - c)*params.sat + c;
@@ -230,7 +301,7 @@ main()
     rgb.b = (rgb.b - c)*params.sat + c;
 #if 1 // straight multiplication:
     // this sticks to the rec2020 boundary because it doesn't go < 0
-    rgb /= cwp; 
+    rgb *= cwp; 
 #else // bradford adaptation:
     const mat3 rec2020_to_xyz = mat3(
       6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
@@ -252,17 +323,19 @@ main()
     // convert white and rgb to xyz to bradford:
     cwp = xyz_to_bradford * (rec2020_to_xyz * cwp);
     rgb = xyz_to_bradford * (rec2020_to_xyz * rgb);
-    rgb /= cwp;
+    rgb *= cwp;
     rgb = clamp(rgb, vec3(0.), vec3(1.));
     rgb = xyz_to_rec2020 * (bradford_to_xyz * rgb);
 #else // divide in XYZ
     cwp = rec2020_to_xyz * cwp;
     rgb = rec2020_to_xyz * rgb;
-    rgb /= cwp;
+    rgb *= cwp;
     rgb = xyz_to_rec2020 * rgb;
 #endif
 #endif
 #endif
+    float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    rgb *= Y/Y2;
   }
   else
   { // spectral
@@ -270,75 +343,11 @@ main()
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
    -0.25336628,  0.01576855,  0.94210312);
-#if 0 // moments
-  float b;
-  vec3 cwp   = fetch_coeff(vec3(params.white));//vec3(params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
-  vec3 coeff = fetch_coeff(rgb, b);
-
-  // apply saturation by blurring the spectrum. in fourier space this means
-  // we multiply the coefficients by the fourier transform of the kernel.
-  // this is a poisson kernel (right..?):
-  vec2 exp_momc[3], eval_polyc[3];
-  {
-    float r = params.sat; // 1.0 + 5.0 * params.sat; // radius
-    // this is not poisson, coeff.y also has r^2 because then it looks good. (??)
-    vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
-    prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
-    // TODO: does not work yet!
-    if(!valid(exp_momc))
-    {
-      // just mark as broken:
-      // prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, vec3(0.1, 0, 0));//coeff);
-#if 1
-      // iterate back to last good r
-      float lo = 0.0;
-      float hi = r;
-      for(int k=0;k<10;k++)
-      {
-        float r = (lo+hi)*0.5;
-        vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
-        prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
-        if(!valid(exp_momc))
-          hi = r;
-        else
-          lo = r;
-      }
-      r = lo;
-      vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
-      prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
-#endif
-    }
-  }
-
-  const int num_l = 30;
-  vec3 xyz = vec3(0);
-  const vec3 norm = vec3(num_l); //* vec3(0.354678, 0.355529, 0.34371);
-  vec2 exp_momw[3], eval_polyw[3];
-  prepareReflectanceSpectrumReal3(exp_momw, eval_polyw, cwp);
-  for(int l=0;l<num_l;l++)
-  { // compute spectrum
-    // float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);
-    const float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0);
-    const float phase = lambda_to_phase(lambda);
-    const float val = evaluateReflectanceSpectrum3(phase, exp_momc, eval_polyc);
-    const float wht = evaluateReflectanceSpectrum3(phase, exp_momw, eval_polyw);
-
-    // compute colour again, in xyz:
-    const int bin = l;
-    xyz += val * wht * cie_cmf[bin];
-      // vec3(xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
-  }
-  xyz /= norm;
-  float b2 = dot(vec3(1),xyz);
-  xyz *= b/b2;
-  rgb = xyz_to_rec2020*xyz;
-  }
-#endif
 
 #if 1 // sigmoids
-  float b;
-  vec3 cwp   = fetch_coeff(vec3(params.white), b);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
-  vec3 coeff = fetch_coeff(rgb, b);
+  float Y;
+  vec3 cwp   = fetch_coeff(vec3(params.white), Y);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
+  vec3 coeff = fetch_coeff(rgb, Y);
 
   // saturation in various ways. none of which work, making me sad.
   // TODO: desaturation goes to illum E, should be D65!
@@ -410,33 +419,97 @@ main()
   }
 #endif
 
+  // TODO: need to multiply 1 1 1 -> spec (D65)
   const int num_l = 30;
-  vec3 xyz = vec3(0);
-  const vec3 norm = vec3(num_l);// * vec3(0.354678, 0.355529, 0.34371);
+  rgb = vec3(0);
   for(int l=0;l<num_l;l++)
   { // compute spectrum
-    // float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);
-    float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0);
+    const float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0);
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
+    // TODO: how to upsample white such that 1 1 1 is illum E?
     float xw  = (cwp.x * lambda + cwp.y) * lambda + cwp.z;
     float yw  = 1. / sqrt(xw * xw + 1.);
     float wht = 0.5 * xw * yw +  0.5;
 
-    // compute colour again, in xyz:
-    // const int bin = l;
-    xyz += val / wht *
-      // cie_cmf[l];
-      vec3( xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
+    rgb += val * wht * rgb_cmf[l];
   }
-  xyz /= norm;
-  float b2 = dot(vec3(1),xyz);
-  xyz *= b/b2;
-  rgb = xyz_to_rec2020*xyz;
+  // keep perceived brightness Y the same, evaluate new Y by row in rec2020_to_xyz
+  float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+  rgb *= Y/Y2;
   } // end if split
 #endif
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
+
+
+
+
+//====================================================================
+#if 0 // moments
+  float b;
+  vec3 cwp   = fetch_coeff(vec3(params.white));//vec3(params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
+  vec3 coeff = fetch_coeff(rgb, b);
+
+  // apply saturation by blurring the spectrum. in fourier space this means
+  // we multiply the coefficients by the fourier transform of the kernel.
+  // this is a poisson kernel (right..?):
+  vec2 exp_momc[3], eval_polyc[3];
+  {
+    float r = params.sat; // 1.0 + 5.0 * params.sat; // radius
+    // this is not poisson, coeff.y also has r^2 because then it looks good. (??)
+    vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
+    prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+    // TODO: does not work yet!
+    if(!valid(exp_momc))
+    {
+      // just mark as broken:
+      // prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, vec3(0.1, 0, 0));//coeff);
+#if 1
+      // iterate back to last good r
+      float lo = 0.0;
+      float hi = r;
+      for(int k=0;k<10;k++)
+      {
+        float r = (lo+hi)*0.5;
+        vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
+        prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+        if(!valid(exp_momc))
+          hi = r;
+        else
+          lo = r;
+      }
+      r = lo;
+      vec3 cf2 = vec3(coeff.x, coeff.y * r*r, coeff.z * r*r);
+      prepareReflectanceSpectrumReal3(exp_momc, eval_polyc, cf2);
+#endif
+    }
+  }
+
+  const int num_l = 30;
+  vec3 xyz = vec3(0);
+  const vec3 norm = vec3(num_l); //* vec3(0.354678, 0.355529, 0.34371);
+  vec2 exp_momw[3], eval_polyw[3];
+  prepareReflectanceSpectrumReal3(exp_momw, eval_polyw, cwp);
+  for(int l=0;l<num_l;l++)
+  { // compute spectrum
+    // float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);
+    const float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0);
+    const float phase = lambda_to_phase(lambda);
+    const float val = evaluateReflectanceSpectrum3(phase, exp_momc, eval_polyc);
+    const float wht = evaluateReflectanceSpectrum3(phase, exp_momw, eval_polyw);
+
+    // compute colour again, in xyz:
+    const int bin = l;
+    xyz += val * wht * cie_cmf[bin];
+      // vec3(xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
+  }
+  xyz /= norm;
+  float b2 = dot(vec3(1),xyz);
+  xyz *= b/b2;
+  rgb = xyz_to_rec2020*xyz;
+  }
+#endif
