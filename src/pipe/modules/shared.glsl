@@ -126,8 +126,7 @@ vec4 sample_flower(sampler2D tex, vec2 uv)
 float luminance_rec2020(vec3 rec2020)
 {
   // excerpt from the rec2020 to xyz matrix (y channel only)
-  vec3 w = vec3(0.2126729, 0.7151522, 0.0721750);
-  return dot(w, rec2020);
+  return dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rec2020);
 }
 
 // (c) christoph peters:
