@@ -32,7 +32,7 @@
 #include "mom.h"
 #include "clip.h"
 
-// #define BAD_CMF
+#define BAD_CMF
 #ifdef BAD_CMF
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
 #define CIE_SAMPLES 30
@@ -69,6 +69,10 @@ typedef enum Gamut {
     ERGB,
     XYZ,
 } Gamut;
+
+double sigmoid(double x) {
+    return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
+}
 
 // gauss blur a spectrum explicitly:
 static inline void gauss_blur(
@@ -424,13 +428,27 @@ void init_tables(Gamut gamut) {
         // double lambda = CIE_LAMBDA_MIN + i * h;
         double xyz[3] = { cie_interp(cie_x, lambda),
                           cie_interp(cie_y, lambda),
-                          cie_interp(cie_z, lambda) },
+                          cie_interp(cie_z, lambda) };
         // double xyz[3] = {
         //     xFit_1931(lambda),
         //     yFit_1931(lambda),
         //     zFit_1931(lambda), },
-               I = cie_interp(illuminant, lambda);
+        const double Iw = cie_interp(illuminant, lambda);
              // I = blackbody_radiation(lambda, 6504.0);
+  const double cw[3] = {
+     -9.16167e-06, 0.00870653, -2.35259 // d65 / 3
+     // 0.00014479, -0.189595, 62.5251 // d65 / 1.1
+    // 0, 0, 10000 // illum E
+      //  -14.1899, 13622.4, -3.26377e+06
+    // -8.2609e-05, 0.0823704, -25.0921
+    // 0.00395809, -4.02143, 1021.5
+    // -9.12318e-05, 0.0924729, -27.9558
+    // 0.0691431, -74.2713, 19943.2 // says rec2020
+    //  0.0871685, -94.3229, 25511.3 // says xyz
+  };
+  const double Is = 1.0/106.8 * sigmoid(cw[2] + lambda*(cw[1] + cw[0]*lambda));
+  fprintf(stderr, "%g %g %g\n", Is, Iw, lambda);
+  const double I = Iw;
 #endif
         norm += I;
 
@@ -446,11 +464,13 @@ void init_tables(Gamut gamut) {
         double weight = h;
 #endif
 
+#if 0 // output table for shader code
         double out[3] = {0.0};
         for (int k = 0; k < 3; ++k)
             for (int j = 0; j < 3; ++j)
                 out[k] += xyz_to_rgb[k][j] * xyz[j];
         fprintf(stderr, "vec3(%g, %g, %g), // %g nm\n", out[0], out[1], out[2], lambda);
+#endif
         lambda_tbl[i] = lambda;
         phase_tbl[i] = mom_warp_lambda(lambda);
         for (int k = 0; k < 3; ++k)
@@ -464,9 +484,6 @@ void init_tables(Gamut gamut) {
     }
 }
 
-double sigmoid(double x) {
-    return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
-}
 void eval_residual(const double *coeff, const double *rgb, double *residual)
 {
     double out[3] = { 0.0, 0.0, 0.0 };
@@ -476,7 +493,11 @@ void eval_residual(const double *coeff, const double *rgb, double *residual)
       // the optimiser doesn't like nanometers.
       // we'll do the normalised lambda thing and later convert when we write out.
 #ifndef SIG_SWZ
+#ifdef BAD_CMF
+      double lambda = (i+.5)/(double)CIE_FINE_SAMPLES;//(lambda_tbl[i] - CIE_LAMBDA_MIN) / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN); /* Scale lambda to 0..1 range */
+#else
       double lambda = i/(double)CIE_FINE_SAMPLES;//(lambda_tbl[i] - CIE_LAMBDA_MIN) / (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN); /* Scale lambda to 0..1 range */
+#endif
       double cf[3] = {coeff[0], coeff[1], coeff[2]};
 #else
       double lambda = lambda_tbl[i];
@@ -553,7 +574,7 @@ void eval_jacobian(const double *coeffs, const double *rgb, double **jac) {
 
 double gauss_newton(const double rgb[3], double coeffs[3])
 {
-  int it = 15;
+  int it = 40;//15;
     double r = 0;
     for (int i = 0; i < it; ++i) {
         double J0[3], J1[3], J2[3], *J[3] = { J0, J1, J2 };
@@ -632,6 +653,20 @@ int main(int argc, char **argv) {
     const int res = atoi(argv[1]); // resolution of 2d lut
 
     printf("Optimizing ");
+    { // determine white coefficients so we can replace D65 by something faster to evaluate than the array data:
+      double coeffs[3] = {0, 0, 1000};//{0.0691431, -74.2713, 19943.2};
+      init_coeffs(coeffs);
+      // double rgb[3] = {0.95047, 1.0, 1.08883}; // xyz d65
+      double rgb[3] = {1, 1, 1}; // illum E
+      double b = rgb[0] + rgb[1] + rgb[2];
+      rgb[0] /= b;
+      rgb[1] /= b;
+      rgb[2] /= b;
+      double resid = gauss_newton(rgb, coeffs);
+      float out[3];
+      quantise_coeffs(coeffs, out);
+      fprintf(stderr, "white: %g, %g, %g resid %g\n", out[0], out[1], out[2], resid);
+    }
 
     // read grey map from macadam:
     int max_w, max_h;
@@ -785,7 +820,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
-#if 1 // circular version
+#if 0 // circular version
   {
   // now we have a c0 c1 c2 vx vy map.
   // as a second step, using this 2D (c0 y lambda vx vy) map
