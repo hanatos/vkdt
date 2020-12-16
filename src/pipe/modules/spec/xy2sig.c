@@ -665,7 +665,7 @@ int main(int argc, char **argv) {
       double resid = gauss_newton(rgb, coeffs);
       float out[3];
       quantise_coeffs(coeffs, out);
-      fprintf(stderr, "white: %g, %g, %g resid %g\n", out[0], out[1], out[2], resid);
+      // fprintf(stderr, "white: %g, %g, %g resid %g\n", out[0], out[1], out[2], resid);
     }
 
     // read grey map from macadam:
@@ -718,7 +718,12 @@ int main(int argc, char **argv) {
       double resid = gauss_newton(rgbm, coeffs);
       (void)resid;
 
-#if 1
+      double c0yl[3], lwd[3];
+      cvt_c012_c0yl(coeffs, c0yl);
+      cvt_c0yl_lwd(c0yl, lwd);
+      fprintf(stderr, "%g %g %g %g %g\n", lwd[0], lwd[1], lwd[2], x, y);
+      double velx = 0.0, vely = 0.0;
+#if 0
       // TODO: now that we have a good spectrum:
       // explicitly instantiate it
       // explicitly gauss blur it
@@ -758,8 +763,8 @@ int main(int argc, char **argv) {
       // col is in XYZ, we want the chromaticity coordinates:
       double b = col[0]+col[1]+col[2];
       // velocity vector:
-      double velx = col[0] / b - x;
-      double vely = col[1] / b - y;
+      velx = col[0] / b - x;
+      vely = col[1] / b - y;
       double speed = sqrt(velx*velx + vely*vely);
       velx /= speed; // normalise
       vely /= speed;
