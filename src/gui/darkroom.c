@@ -17,6 +17,7 @@
 #include <float.h>
 #include <math.h>
 #include <libgen.h>
+#include <limits.h>
 
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
@@ -464,13 +465,14 @@ darkroom_enter()
   // TODO: support other file formats instead of just raw?
   if(load_default)
   {
-    char imgfilename[256];
+    char imgfilename[256], realimg[PATH_MAX];
     dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
-    dt_graph_set_searchpath(&vkdt.graph_dev, imgfilename);
-    int len = strlen(imgfilename);
+    realpath(imgfilename, realimg);
+    dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
+    int len = strlen(realimg);
     assert(len > 4);
-    imgfilename[len-4] = 0; // cut away ".cfg"
-    char *basen = basename(imgfilename); // cut away path o we can relocate more easily
+    realimg[len-4] = 0; // cut away ".cfg"
+    char *basen = basename(realimg); // cut away path so we can relocate more easily
     int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
     if(modid < 0 ||
        dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
