@@ -1493,10 +1493,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
   else
   {
     const int pi = dt_module_get_param(node->module->so, dt_token("draw"));
-    const float *p_draw = dt_module_param_float(node->module, pi);
+    const int32_t *p_draw = dt_module_param_int(node->module, pi);
 
     if(p_draw[0] > 0)
-      vkCmdDraw(cmd_buf, (int)p_draw[0], 1, 0, 0);
+      vkCmdDraw(cmd_buf, p_draw[0], 1, 0, 0);
     vkCmdEndRenderPass(cmd_buf);
   }
 

@@ -1299,6 +1299,9 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
+          vkdt.wstate.state[0] = 1.0f; // abuse for radius
+          vkdt.wstate.state[1] = 1.0f; // abuse for opacity
+          vkdt.wstate.state[2] = 1.0f; // abuse for hardness
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
           vkdt.wstate.active_widget_parnm = 0;
@@ -1577,18 +1580,36 @@ void render_darkroom()
           break;
         }
         case dt_token("draw"):
-        { // this is not really needed. draw line on top of stroke.
-          // we map the buffer and get instant feedback on the image.
-          // float p[2004];
-          // int cnt = vkdt.wstate.mapped[0];
-          // for(int k=0;k<cnt;k++)
-          // {
-          //   p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
-          //   p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
-          //   dt_image_to_view(p+2*k, p+2*k);
-          // }
-          // ImGui::GetWindowDrawList()->AddPolyline(
-          //     (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
+        { // draw indicators for opacity/hardness/radius for each stroke
+          ImVec2 pos = ImGui::GetMousePos();
+          float radius   = vkdt.wstate.state[0];
+          float opacity  = vkdt.wstate.state[1];
+          float hardness = vkdt.wstate.state[2];
+          float p[100];
+          int cnt = sizeof(p)/sizeof(p[0])/2;
+          for(int i=0;i<2;i++)
+          {
+            float r = 100*radius; // FIXME XXX * params radius! (hide in last element somewhere?)
+            if(i >= 1) r *= hardness;
+            for(int k=0;k<cnt;k++)
+            {
+              const float scale = vkdt.state.scale;
+              p[2*k+0] = pos.x + scale * r*sin(k/(cnt-1.0)*M_PI*2.0);
+              p[2*k+1] = pos.y + scale * r*cos(k/(cnt-1.0)*M_PI*2.0);
+            }
+            ImGui::GetWindowDrawList()->AddPolyline(
+                (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 4.0f/(i+1.0f));
+          }
+          // opacity is a quad
+          float sz = 30.0f;
+          p[0] = pos.x; p[1] = pos.y;
+          p[4] = pos.x+sz; p[5] = pos.y+sz;
+          p[2] = opacity * (pos.x+sz) + (1.0f-opacity)*(pos.x+sz/2.0f);
+          p[3] = opacity *  pos.y     + (1.0f-opacity)*(pos.y+sz/2.0f);
+          p[6] = opacity *  pos.x     + (1.0f-opacity)*(pos.x+sz/2.0f);
+          p[7] = opacity * (pos.y+sz) + (1.0f-opacity)*(pos.y+sz/2.0f);
+          ImGui::GetWindowDrawList()->AddPolyline(
+              (ImVec2 *)p, 4, IM_COL32_WHITE, true, 3.0);
           break;
         }
         default:;

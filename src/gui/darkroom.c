@@ -133,14 +133,15 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     }
     else if(type == dt_token("draw"))
     {
+      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
       if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT &&
           x < vkdt.state.center_x + vkdt.state.center_wd)
       { // right mouse click resets the last stroke
-        for(int i=vkdt.wstate.mapped[0]-1;i>=0;i--)
+        for(int i=dat[0]-1;i>=0;i--)
         {
-          if(i == 0 || vkdt.wstate.mapped[1+2*i] == -666.0)
+          if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
           {
-            vkdt.wstate.mapped[0] = i;
+            dat[0] = i; // reset count
             break;
           }
         }
@@ -152,12 +153,12 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT &&
           x < vkdt.state.center_x + vkdt.state.center_wd)
       { // left mouse click starts new stroke by appending an end marker
-        int vcnt = vkdt.wstate.mapped[0];
-        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(float)))
+        int vcnt = dat[0];
+        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(uint32_t)))
         {
-          vkdt.wstate.mapped[1+2*vcnt+0] = -666.0;
-          vkdt.wstate.mapped[1+2*vcnt+1] = -666.0;
-          vkdt.wstate.mapped[0]++;
+          dat[1+2*vcnt+0] = 0; // vertex coordinate 16+16
+          dat[1+2*vcnt+1] = 0; // radius 16 + opacity 8 + hardness 8, all 0 is the end marker
+          dat[0]++;
         }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
@@ -219,7 +220,29 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
 
-  if(x < vkdt.state.center_x + vkdt.state.center_wd)
+  if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
+
+  // active widgets grabbed input?
+  if(vkdt.wstate.active_widget_modid >= 0)
+  {
+    dt_token_t type =
+      vkdt.graph_dev.module[
+      vkdt.wstate.active_widget_modid].so->param[
+        vkdt.wstate.active_widget_parid]->widget.type;
+    if(type == dt_token("draw"))
+    {
+      const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
+      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) // opacity
+        vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
+      else if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) // hardness
+        vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
+      else // radius
+        vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
+      return; // don't zoom, we processed the input
+    }
+  }
+  
+  // zoom:
   {
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(!out) return; // should never happen
@@ -324,11 +347,15 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     {
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
-        if(2*vkdt.wstate.mapped[0]+2 < vkdt.wstate.mapped_size/sizeof(float))
+        float radius   = vkdt.wstate.state[0];
+        float opacity  = vkdt.wstate.state[1];
+        float hardness = vkdt.wstate.state[2];
+        uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+        if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
         { // add vertex
-          int v = vkdt.wstate.mapped[0]++;
-          vkdt.wstate.mapped[1+2*v+0] = n[0];
-          vkdt.wstate.mapped[1+2*v+1] = n[1];
+          int v = dat[0]++;
+          dat[1+2*v+0] = (CLAMP((int32_t)(n[1]*0xffff), 0, 0xffff) << 16) | CLAMP((int32_t)(n[0]*0xffff), 0, 0xffff);
+          dat[1+2*v+1] = CLAMP((int32_t)(0.5*radius*0xffff), 0, 0xffff) | (CLAMP((int32_t)(opacity*0xff), 0, 0xff) << 16) | (CLAMP((int32_t)(hardness*0xff), 0, 0xff) << 24);
         }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;

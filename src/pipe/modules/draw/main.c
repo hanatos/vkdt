@@ -37,9 +37,9 @@ int read_source(
     void *mapped)
 {
   const int pi = dt_module_get_param(mod->so, dt_token("draw"));
-  const float *p_draw = dt_module_param_float(mod, pi);
+  const uint32_t *p_draw = dt_module_param_uint32(mod, pi);
   const int num_verts = p_draw[0];
-  memcpy(mapped, p_draw+1, sizeof(float)*2*num_verts);
+  memcpy(mapped, p_draw+1, sizeof(uint32_t)*2*num_verts);
   mod->flags = 0; // yay, we uploaded.
   return 0;
 }
@@ -73,6 +73,9 @@ create_nodes(
     .scale   = 1.0,
   };
 
+  float aspect = ht/(float)wd;
+  uint32_t aspecti = *(uint32_t *)&aspect;
+
   assert(graph->num_nodes < graph->max_nodes);
   const int id_source = graph->num_nodes++;
   graph->node[id_source] = (dt_node_t) {
@@ -84,7 +87,7 @@ create_nodes(
       .name   = dt_token("source"),
       .type   = dt_token("source"),
       .chan   = dt_token("ssbo"),
-      .format = dt_token("f32"),
+      .format = dt_token("ui32"),
       .roi    = roi_ssbo,
     }},
   };
@@ -103,7 +106,7 @@ create_nodes(
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("ssbo"),
-      .format = dt_token("f32"),
+      .format = dt_token("ui32"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
     },{
@@ -113,6 +116,8 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
     }},
+    .push_constant_size = sizeof(float),
+    .push_constant = { aspecti },
   };
   CONN(dt_node_connect(graph, id_source, 0, id_draw, 0));
   dt_connector_copy(graph, module, 0, id_draw, 1);
