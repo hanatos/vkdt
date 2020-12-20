@@ -631,8 +631,38 @@ main()
   //   1.71665119, -0.66668435,  0.01763986,
   //  -0.35567078,  1.61648124, -0.04277061,
   //  -0.25336628,  0.01576855,  0.94210312);
+#if 1
+  const mat3 xyz_to_rec2020 = mat3(
+    1.71665119, -0.66668435,  0.01763986,
+   -0.35567078,  1.61648124, -0.04277061,
+   -0.25336628,  0.01576855,  0.94210312);
+  const mat3 rec2020_to_xyz = mat3(
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
 
-#if 1 // sigmoids
+  // use lambda/saturation lut to walk saturation:
+  // lookup lambda and saturation from one lut by xy
+  vec3 xyz = rec2020_to_xyz * rgb;
+  const float Y = xyz.y;
+  float b = xyz.x+xyz.y+xyz.z;
+  vec2 tc = xyz.xy/b;
+  tc.y = 1.0-tc.y; // FIXME: fix this when writing
+  vec2 lsat = texture(img_coeff, tc, 0).rg;
+  // change saturation:
+  // lsat.y = clamp(params.sat * lsat.y, 0.0, 1.0);
+  lsat.y = 0.5 * params.sat; // 1.0 means center then
+  // use lambda/sat lut to get new xy chroma values
+  lsat = vec2(lsat.y, lsat.x);
+  vec2 xy = texture(img_grad, lsat, 0).rg;
+  // vec2 xy = texture(img_grad, ipos/vec2(textureSize(img_grad, 0)), 0).rg;
+  // go back to colour
+  xyz = vec3(xy, 1.0-xy.x-xy.y);
+  xyz *= Y / xyz.y; //dot(vec3(1), xyz);
+  rgb = xyz_to_rec2020 * xyz;
+#endif
+
+#if 0 // sigmoids
   float Y;
   vec3 cwp   = fetch_coeff(vec3(params.white), Y);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, Y);
@@ -640,7 +670,7 @@ main()
   // saturation in various ways. none of which work, making me sad.
   // FIXME: this desaturation goes towards illuminant E, not D65!
   // FIXME: on the blue/white/red ridge this causes some instabilities even for sat==1!
-#if 1 // convert to lwd: dom lambda, width, slope
+#if 0 // convert to lwd: dom lambda, width, slope
   // convert
   float c0   = coeff.x;
   float ldom = coeff.y/(-2.0*coeff.x);
@@ -742,8 +772,8 @@ main()
   // keep perceived brightness Y the same, evaluate new Y by row in rec2020_to_xyz
   float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
   rgb *= Y/Y2;
-  } // end if split
 #endif
+  } // end if split
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
