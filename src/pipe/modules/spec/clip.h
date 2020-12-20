@@ -117,3 +117,53 @@ spectrum_outside(float x, float y)
   }
   return 0;
 }
+
+// clip the given point v to the polygon p by projecting towards white w
+static inline void
+spectrum_clip_poly(
+    const float *p,        // pointer to polygon points
+    uint32_t     p_cnt,    // number of corners
+    const float *w,        // constant white
+    float       *v)        // point potentially outside, will clip this to p
+{
+  for(int i=0;i<p_cnt-1;i++)
+  {
+    float vp0 [] = {v[0]-p[2*i+0], v[1]-p[2*i+1]};
+    float p1p0[] = {p[2*i+2+0]-p[2*i+0], p[2*i+2+1]-p[2*i+1]};
+    float n[] = {p1p0[1], -p1p0[0]};
+    float dotv = n[0]*vp0[0] + n[1]*vp0[1];
+    if(dotv >= 0) continue; // inside
+
+    // intersect the straight line with the polygon:
+    float dotvw = n[0]*(v[0]-w[0]) + n[1]*(v[1]-w[1]);
+    float dotpw = n[0]*(p[2*i]-w[0]) + n[1]*(p[2*i+1]-w[1]);
+    float t = dotpw/dotvw;
+    if(t > 0.0f && t < 1.0f)
+    { // only clip if in front of us and shorter distance than current
+      v[0] = w[0] + t * (v[0] - w[0]);
+      v[1] = w[1] + t * (v[1] - w[1]);
+    }
+  }
+}
+
+// compute a fake saturation value, 0.0 means white and 1.0 means spectral
+static inline float
+spectrum_saturation(
+    const float *xy,   // the cie xy chromaticity value pair
+    const float *w)    // white e.g. D65: {.3127266, .32902313}
+{
+  // extrude xy coords to far out
+  float out[2] = {xy[0] - w[0], xy[1] - w[1]};
+  float scale = 1.0f/sqrtf(out[0]*out[0] + out[1]*out[1]);
+  out[0] = out[0] * scale + w[0];
+  out[1] = out[1] * scale + w[1];
+  const int cnt = sizeof(spectrum_clip)/2/sizeof(spectrum_clip[0]);
+  spectrum_clip_poly(spectrum_clip, cnt, w, out);
+  // now "out" is on the spectral locus
+  // compute saturation by comparing distance to white:
+  out[0] -= w[0];
+  out[1] -= w[1];
+  float dist = sqrtf(out[0]*out[0] + out[1]*out[1]);
+  return 1.0f/(dist * scale);
+}
+

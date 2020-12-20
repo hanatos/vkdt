@@ -447,7 +447,7 @@ void init_tables(Gamut gamut) {
     //  0.0871685, -94.3229, 25511.3 // says xyz
   };
   const double Is = 1.0/106.8 * sigmoid(cw[2] + lambda*(cw[1] + cw[0]*lambda));
-  fprintf(stderr, "%g %g %g\n", Is, Iw, lambda);
+  // fprintf(stderr, "%g %g %g\n", Is, Iw, lambda);
   const double I = Iw;
 #endif
         norm += I;
@@ -720,8 +720,8 @@ int main(int argc, char **argv) {
 
       double c0yl[3], lwd[3];
       cvt_c012_c0yl(coeffs, c0yl);
-      cvt_c0yl_lwd(c0yl, lwd);
-      fprintf(stderr, "%g %g %g %g %g\n", lwd[0], lwd[1], lwd[2], x, y);
+      // cvt_c0yl_lwd(c0yl, lwd);
+      // fprintf(stderr, "%g %g %g %g %g\n", lwd[0], lwd[1], lwd[2], x, y);
       double velx = 0.0, vely = 0.0;
 #if 0
       // TODO: now that we have a good spectrum:
@@ -774,8 +774,9 @@ int main(int argc, char **argv) {
       out[5*idx + 0] = coeffs[0];
       out[5*idx + 1] = coeffs[1];
       out[5*idx + 2] = coeffs[2];
-      out[5*idx + 3] = velx;//m;
-      out[5*idx + 4] = vely;//resid;
+      out[5*idx + 3] = c0yl[2];//velx;//m;
+      float xy[2] = {x, y}, white[2] = {.3127266, .32902313};
+      out[5*idx + 4] = spectrum_saturation(xy, white);//vely;//resid;
     }
   }
 
@@ -1171,6 +1172,8 @@ int main(int argc, char **argv) {
       float q[3];
       quantise_coeffs(coeffs, q);
       // fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
+      q[0] = out[5*k+3]; // DEBUG lambda
+      q[1] = out[5*k+4]; // DEBUG saturation
 #if 1 // coeff data
       fwrite(q, sizeof(float), 3, f);
 #else // velocity field
