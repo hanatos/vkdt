@@ -640,6 +640,8 @@ main()
     6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
     1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
     1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+  // TODO: work on rgb/rb space instead?
+  // TODO: fix the hole filling, it's braindead (not in the good way)
 
   // use lambda/saturation lut to walk saturation:
   // lookup lambda and saturation from one lut by xy
@@ -651,14 +653,17 @@ main()
   vec2 lsat = texture(img_coeff, tc, 0).rg;
   // change saturation:
   // lsat.y = clamp(params.sat * lsat.y, 0.0, 1.0);
-  lsat.y = 0.5 * params.sat; // 1.0 means center then
+  // probably not the best way to do this:
+  if(params.sat < 1)
+    lsat.y = mix(0, lsat.y, params.sat);
+  else
+    lsat.y = mix(lsat.y, 1.0, params.sat-1.0);
+  // lsat.y = 0.5 * params.sat; // 1.0 means center then
   // use lambda/sat lut to get new xy chroma values
-  lsat = vec2(lsat.y, lsat.x);
-  vec2 xy = texture(img_grad, lsat, 0).rg;
-  // vec2 xy = texture(img_grad, ipos/vec2(textureSize(img_grad, 0)), 0).rg;
+  vec2 xy = texture(img_grad, lsat.yx, 0).rg;
   // go back to colour
   xyz = vec3(xy, 1.0-xy.x-xy.y);
-  xyz *= Y / xyz.y; //dot(vec3(1), xyz);
+  xyz *= Y / xyz.y;
   rgb = xyz_to_rec2020 * xyz;
 #endif
 
