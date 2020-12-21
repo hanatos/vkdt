@@ -32,7 +32,7 @@
 #include "mom.h"
 #include "clip.h"
 
-#define BAD_CMF
+// #define BAD_CMF
 #ifdef BAD_CMF
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
 #define CIE_SAMPLES 30
@@ -687,7 +687,7 @@ int main(int argc, char **argv) {
     }
 
     int lsres = res/4; // allocate enough for mip maps too
-    float *lsbuf = calloc(sizeof(float), 2* 3*lsres*lsres);
+    float *lsbuf = calloc(sizeof(float), 2* 5*lsres*lsres);
 
     size_t bufsize = 5*res*res;
     float *out = calloc(sizeof(float), bufsize);
@@ -783,17 +783,31 @@ int main(int argc, char **argv) {
       out[5*idx + 4] = sat;
 
       // bin into lambda/saturation buffer
-      int sati = lsres * sat;
-      int lami = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) * lsres / 2;
-      lami = fmaxf(0, fminf(lsres/2-1, lami));
+      float satc = lsres * sat;
+      float lamc = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) * lsres / 2;
+      int lami = fmaxf(0, fminf(lsres/2-1, lamc));
+      int sati = satc;
       if(c0yl[0] > 0) lami += lsres/2;
       lami = fmaxf(0, fminf(lsres-1, lami));
       sati = fmaxf(0, fminf(lsres-1, sati));
-      lsbuf[3*(lami*lsres + sati)+0] = x;
-      lsbuf[3*(lami*lsres + sati)+1] = y;
-      lsbuf[3*(lami*lsres + sati)+2] = 1.0-x-y;
-      out[5*idx + 3] = lami / (float)lsres;
-      out[5*idx + 4] = sati / (float)lsres;
+      float olamc = lsbuf[5*(lami*lsres + sati)+3];
+      float osatc = lsbuf[5*(lami*lsres + sati)+4];
+      float odist = 
+        (olamc - lami - 0.5f)*(olamc - lami - 0.5f)+
+        (osatc - sati - 0.5f)*(osatc - sati - 0.5f);
+      float  dist = 
+        ( lamc - lami - 0.5f)*( lamc - lami - 0.5f)+
+        ( satc - sati - 0.5f)*( satc - sati - 0.5f);
+      if(dist < odist)
+      {
+        lsbuf[5*(lami*lsres + sati)+0] = x;
+        lsbuf[5*(lami*lsres + sati)+1] = y;
+        lsbuf[5*(lami*lsres + sati)+2] = 1.0-x-y;
+        lsbuf[5*(lami*lsres + sati)+3] = lamc;
+        lsbuf[5*(lami*lsres + sati)+4] = satc;
+      }
+      out[5*idx + 3] = (lami+0.5f) / (float)lsres;
+      out[5*idx + 4] = (sati+0.5f) / (float)lsres;
     }
   }
 
@@ -1179,9 +1193,9 @@ int main(int argc, char **argv) {
   } // end scope
 #endif
 
-#if 0
+#if 1
   { // scope write lsbuf
-#if 1 // superbasic push/pull hole filling
+#if 0 // superbasic push/pull hole filling. better use gmic's morphological hole filling.
   // allocate mipmap memory:
   int num_mips = 0;
   for(int r=lsres;r;r>>=1) num_mips++;
@@ -1191,25 +1205,25 @@ int main(int argc, char **argv) {
   for(int l=1;l<num_mips;l++)
   {
     int r0 = r;
-    float *b1 = b0 + r0 * r0 * 3;
+    float *b1 = b0 + r0 * r0 * 5;
     r >>= 1;
     for(int j=0;j<r;j++) for(int i=0;i<r;i++)
     {
-      if(b1[3*(j*r+i)+0] == 0.0f)
+      if(b1[5*(j*r+i)+0] == 0.0f)
       { // average finer res, if inited
         int cnt = 0;
-        float avg[3] = {0.0f};
+        float avg[5] = {0.0f};
 #define PIX(II,JJ) \
-        if(b0[3*((2*j+JJ)*r0 + 2*i+II)+0] != 0.0f) { \
+        if(b0[5*((2*j+JJ)*r0 + 2*i+II)+0] != 0.0f) { \
           cnt ++;\
-          for(int k=0;k<3;k++) avg[k] += b0[3*((2*j+JJ)*r0 + 2*i+II)+k];\
+          for(int k=0;k<5;k++) avg[k] += b0[5*((2*j+JJ)*r0 + 2*i+II)+k];\
         }
         PIX(0,0);
         PIX(0,1);
         PIX(1,0);
         PIX(1,1);
 #undef PIX
-        if(cnt) for(int k=0;k<3;k++) b1[3*(j*r+i)+k] = avg[k] / cnt;
+        if(cnt) for(int k=0;k<5;k++) b1[5*(j*r+i)+k] = avg[k] / cnt;
       }
     }
     b0 = b1;
@@ -1217,29 +1231,32 @@ int main(int argc, char **argv) {
   // pull up to uninited hi res
   for(int j=0;j<lsres;j++) for(int i=0;i<lsres;i++)
   {
-    if(lsbuf[3*(j*lsres+i)] == 0.0f)
+    if(lsbuf[5*(j*lsres+i)] == 0.0f)
     {
       int ii = i, jj = j, r = lsres;
       float *b1 = lsbuf;
       for(int l=0;l<num_mips;l++)
       {
-        b1 += 3*r*r;
+        b1 += 5*r*r;
         r >>= 1; ii >>= 1; jj >>= 1;
-        if(b1[3*(jj*r+ii)] != 0.0f)
+        if(b1[5*(jj*r+ii)] != 0.0f)
         {
-          for(int k=0;k<3;k++)
-            lsbuf[3*(j*lsres+i)+k] = b1[3*(jj*r+ii)+k];
+          for(int k=0;k<5;k++)
+            lsbuf[5*(j*lsres+i)+k] = b1[5*(jj*r+ii)+k];
           break;
         }
       }
     }
   }
 #endif
+#if 1 // interpolate 0. 0.08 linearly from white to first meaningful values:
+#endif
   FILE *f = fopen("lsbuf.pfm", "wb");
   if(f)
   {
     fprintf(f, "PF\n%d %d\n-1.0\n", lsres, lsres);
-    fwrite(lsbuf, 3*sizeof(float), lsres*lsres, f);
+    for(int j=0;j<lsres;j++) for(int i=0;i<lsres;i++)
+      fwrite(lsbuf + j*5*lsres + i*5, sizeof(float), 3, f);
     fclose(f);
   }
 #if 0 // DEBUG plot a couple of grid points

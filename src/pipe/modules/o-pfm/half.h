@@ -106,7 +106,7 @@ static inline uint16_t float_to_half(float fi)
 }
 
 // round-half-up (same as ISPC)
-static inline __m128i float_to_half_SSE2(__m128 f)
+static inline __m128i float_to_half_sse(__m128 f)
 {
 #define CONSTF(name) _mm_castsi128_ps(name)
   __m128i mask_sign       = _mm_set1_epi32(0x80000000u);
