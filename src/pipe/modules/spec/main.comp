@@ -653,16 +653,17 @@ main()
   vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
   vec2 sl = lut.wz; // grab saturation and lambda
   // normalise wavelength
-  // lsat.x = clamp((lsat.x - 400.0)/600.0, 0.0, 0.5);
+  // sl.y = clamp((sl.y - 400.0)/600.0, 0.0, 0.5);
   sl.y = clamp(0.5 * (sl.y - 360.0)/(830.0-360.0), 0.0, 0.5);
   if(lut.x > 0.0) sl.y += 0.5;
-  // change saturation:
+#if 0 // change saturation:
   // lsat.y = clamp(params.sat * lsat.y, 0.0, 1.0);
   // probably not the best way to do this:
   if(params.sat < 1)
     sl.x = mix(0, sl.x, params.sat);
   else
     sl.x = mix(sl.x, 1.0, params.sat-1.0);
+#endif
   // use lambda/sat lut to get new xy chroma values
   vec2 xy = texture(img_ls, sl, 0).rg;
   // go back to colour
@@ -672,14 +673,16 @@ main()
   // xyz.xy = texture(img_ls, ipos/vec2(imageSize(img_out)), 0).xy;
   // xyz.z = 1.0-xyz.x-xyz.y;
   // DEBUG visualise lut texture:
-  // rgb.xy = texture(img_coeff, ipos/vec2(imageSize(img_out)), 0).xy * 10;
+  // rgb.xyz = texture(img_coeff, ipos/vec2(imageSize(img_out)), 0).www;
   // rgb.z = 1.0-rgb.x-rgb.y;
   // DEBUG find purple line region:
   // if(rgb.x >= 0.0) rgb = vec3(0.0);
-  rgb = xyz_to_rec2020 * xyz;
+  // DEBUG visualise lambda/saturation:
+  rgb = sl.yyy;
+  // rgb = xyz_to_rec2020 * xyz;
 #endif
 
-#if 1 // sigmoids
+#if 0 // sigmoids
   vec3 cwp   = fetch_coeff(vec3(params.white), Y);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, Y);
 
