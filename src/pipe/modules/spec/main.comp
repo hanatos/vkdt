@@ -29,7 +29,7 @@ layout( // output f16 buffer rgb
 
 layout( // input spec coeff lut
     set = 1, binding = 3
-) uniform sampler2D img_grad;
+) uniform sampler2D img_ls;
 
 // this is sufficiently different to D65, can't use it:
 double blackbody_radiation(
@@ -544,9 +544,10 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
 
   // bilinear interpolation, fails at blue-white-red ridge
 #if 0
-  return texture(img_coeff, tc).rgb;
+  return vec3(1e-5, 1, 1) * texture(img_coeff, tc).rgb;
 #else
   vec2 tci = tc * textureSize(img_coeff, 0);
+  // TODO: determine n/u based on uv coords!
   vec2 uv = fract(tci);
   vec3 c0 = texelFetch(img_coeff, ivec2(tci), 0).rgb;
   vec3 c1 = texelFetch(img_coeff, ivec2(tci)+ivec2(0,1), 0).rgb;
@@ -565,8 +566,8 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   if(c3.x < 0) { w.x += uv.x*uv.y; r0 += uv.x*uv.y*c3; nshaped++;}
   else { w.y += uv.x*uv.y; r1 += uv.x*uv.y*c3;}
   if(nshaped >= 2) 
-    return r0 / w.x;
-  return r1 / w.y;
+    return vec3(1e-5, 1, 1) * r0 / w.x;
+  return vec3(1e-5, 1, 1) * r1 / w.y;
 #endif
 }
 
@@ -640,35 +641,45 @@ main()
     6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
     1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
     1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
-  // TODO: work on rgb/rb space instead?
-  // TODO: fix the hole filling, it's braindead (not in the good way)
+  // TODO: work on rec2020/rb space instead?
 
   // use lambda/saturation lut to walk saturation:
   // lookup lambda and saturation from one lut by xy
   vec3 xyz = rec2020_to_xyz * rgb;
-  const float Y = xyz.y;
+  float Y = xyz.y;
   float b = xyz.x+xyz.y+xyz.z;
   vec2 tc = xyz.xy/b;
   tc.y = 1.0-tc.y; // FIXME: fix this when writing
-  vec2 lsat = texture(img_coeff, tc, 0).rg;
+  vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
+  vec2 sl = lut.wz; // grab saturation and lambda
+  // normalise wavelength
+  // lsat.x = clamp((lsat.x - 400.0)/600.0, 0.0, 0.5);
+  sl.y = clamp(0.5 * (sl.y - 360.0)/(830.0-360.0), 0.0, 0.5);
+  if(lut.x > 0.0) sl.y += 0.5;
   // change saturation:
   // lsat.y = clamp(params.sat * lsat.y, 0.0, 1.0);
   // probably not the best way to do this:
   if(params.sat < 1)
-    lsat.y = mix(0, lsat.y, params.sat);
+    sl.x = mix(0, sl.x, params.sat);
   else
-    lsat.y = mix(lsat.y, 1.0, params.sat-1.0);
-  // lsat.y = 0.5 * params.sat; // 1.0 means center then
+    sl.x = mix(sl.x, 1.0, params.sat-1.0);
   // use lambda/sat lut to get new xy chroma values
-  vec2 xy = texture(img_grad, lsat.yx, 0).rg;
+  vec2 xy = texture(img_ls, sl, 0).rg;
   // go back to colour
   xyz = vec3(xy, 1.0-xy.x-xy.y);
   xyz *= Y / xyz.y;
+  // DEBUG visualise lut texture:
+  // xyz.xy = texture(img_ls, ipos/vec2(imageSize(img_out)), 0).xy;
+  // xyz.z = 1.0-xyz.x-xyz.y;
+  // DEBUG visualise lut texture:
+  // rgb.xy = texture(img_coeff, ipos/vec2(imageSize(img_out)), 0).xy * 10;
+  // rgb.z = 1.0-rgb.x-rgb.y;
+  // DEBUG find purple line region:
+  // if(rgb.x >= 0.0) rgb = vec3(0.0);
   rgb = xyz_to_rec2020 * xyz;
 #endif
 
-#if 0 // sigmoids
-  float Y;
+#if 1 // sigmoids
   vec3 cwp   = fetch_coeff(vec3(params.white), Y);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, Y);
 
@@ -765,10 +776,10 @@ main()
   { // compute spectrum
     const float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0); // abridged 10nm center version (30 entries)
     // const float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);  // full version (283 entries)
-    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    float x = coeff.x * (lambda - coeff.z)*(lambda - coeff.z) + coeff.y;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
-    float xw  = (cwp.x * lambda + cwp.y) * lambda + cwp.z;
+    float xw  = cwp.x * (lambda - cwp.z)*(lambda - cwp.z) + cwp.y;
     float yw  = 1. / sqrt(xw * xw + 1.);
     float wht = 0.5 * xw * yw +  0.5;
 

@@ -31,8 +31,9 @@
 #include "details/matrices.h"
 #include "mom.h"
 #include "clip.h"
+#include "../o-pfm/half.h"
 
-// #define BAD_CMF
+#define BAD_CMF
 #ifdef BAD_CMF
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
 #define CIE_SAMPLES 30
@@ -150,7 +151,7 @@ void cvt_c012_c0yl(const double *coeffs, double *c0yl)
   double B2 = (float)(B*c1 - 2*A*c0*(sqrd(c1)));
   double C2 = (float)(C - B*c0*c1 + A*(sqrd(c0*c1)));
 
-  if(fabs(A2) < 1e-8)
+  if(fabs(A2) < 1e-12)
   {
     c0yl[0] = c0yl[1] = c0yl[2] = 0.0;
     return;
@@ -1196,6 +1197,7 @@ int main(int argc, char **argv) {
 #if 1
   { // scope write lsbuf
 #if 0 // superbasic push/pull hole filling. better use gmic's morphological hole filling.
+    // gmic lsbuf.pfm  --mul 256 --select_color 0,0,0,0 -inpaint_morpho[0] [1] -rm[1] -o lsbuf2.pfm (only that this doesn't work :( )
   // allocate mipmap memory:
   int num_mips = 0;
   for(int r=lsres;r;r>>=1) num_mips++;
@@ -1268,6 +1270,47 @@ int main(int argc, char **argv) {
 #endif
   }
 #endif
+#if 1 // write four channel half lut
+  {
+  // convert to half
+  uint32_t size = 4*sizeof(uint16_t)*res*res;
+  uint16_t *b16 = malloc(size);
+  for(int k=0;k<res*res;k++)
+  {
+    double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
+    double c0yl[3];
+    cvt_c012_c0yl(coeffs, c0yl);
+    float q[4] = {c0yl[0], c0yl[1], c0yl[2], out[5*k+4]};
+    b16[4*k+0] = float_to_half(1e5f*q[0]);
+    b16[4*k+1] = float_to_half(q[1]);
+    b16[4*k+2] = float_to_half(q[2]);
+    b16[4*k+3] = float_to_half(q[3]);
+  }
+  typedef struct header_t
+  {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t channels;
+    uint32_t wd;
+    uint32_t ht;
+  }
+  header_t;
+  header_t head = (header_t) {
+    .magic    = 1234,
+    .version  = 1,
+    .channels = 4,
+    .wd       = res,
+    .ht       = res,
+  };
+  FILE *f = fopen("sig.lut", "wb");
+  if(f)
+  {
+    fwrite(&head, sizeof(head), 1, f);
+    fwrite(b16, size, 1, f);
+  }
+  fclose(f);
+  }
+#endif
 
   FILE *f = fopen(argv[2], "wb");
   if(f)
@@ -1279,6 +1322,7 @@ int main(int argc, char **argv) {
       float q[3];
       quantise_coeffs(coeffs, q);
       // fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
+      q[2] = q[0];
       q[0] = out[5*k+3]; // DEBUG lambda tc
       q[1] = out[5*k+4]; // DEBUG saturation tc
 #if 1 // coeff data
