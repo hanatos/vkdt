@@ -20,6 +20,7 @@
 #include "details/matrices.h"
 #include "clip.h"
 #include "../o-pfm/half.h"
+#include "../../../core/core.h"
 
 #define BAD_CMF
 #ifdef BAD_CMF
@@ -136,7 +137,7 @@ void quantise_coeffs(double coeffs[3], float out[3])
 void init_coeffs(double coeffs[3])
 {
   coeffs[0] = 0.0;
-  coeffs[1] = 0.0;
+  coeffs[1] = 1.0;
   coeffs[2] = 0.0;
 }
 
@@ -147,6 +148,22 @@ void clamp_coeffs(double coeffs[3])
     for (int j = 0; j < 3; ++j)
       coeffs[j] *= 1000 / max;
   }
+#if 0
+  // clamp dom lambda to visible range:
+  // this will cause the fitter to diverge on the ridge.
+  double c0yl[3];
+  c0yl[0] = coeffs[0];
+  if(fabs(coeffs[0]) < 1e-12) return;
+
+  c0yl[2] = coeffs[1] / (-2.0*coeffs[0]);
+  c0yl[1] = coeffs[2] - coeffs[1]*coeffs[1] / (4.0 * coeffs[0]);
+
+  c0yl[2] = CLAMP(c0yl[2], 0.0, 1.0);
+
+  coeffs[0] = c0yl[0];
+  coeffs[1] = c0yl[2] * -2.0 * c0yl[0];
+  coeffs[2] = c0yl[1] + c0yl[0] * c0yl[2] * c0yl[2];
+#endif
 }
 
 int check_gamut(double rgb[3])
@@ -459,7 +476,6 @@ int main(int argc, char **argv) {
       double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
       double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
       double resid = gauss_newton(rgbm, coeffs);
-      (void)resid;
 
       double c0yl[3];
       cvt_c012_c0yl(coeffs, c0yl);
@@ -468,10 +484,8 @@ int main(int argc, char **argv) {
       out[5*idx + 0] = coeffs[0];
       out[5*idx + 1] = coeffs[1];
       out[5*idx + 2] = coeffs[2];
-      out[5*idx + 3] = c0yl[2];
       float xy[2] = {x, y}, white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E //{.3127266, .32902313}; // D65
       float sat = spectrum_saturation(xy, white);
-      out[5*idx + 4] = sat;
 
       // bin into lambda/saturation buffer
       float satc = lsres * sat;
@@ -497,8 +511,8 @@ int main(int argc, char **argv) {
         lsbuf[5*(lami*lsres + sati)+3] = lamc;
         lsbuf[5*(lami*lsres + sati)+4] = satc;
       }
-      out[5*idx + 3] = (lami+0.5f) / (float)lsres;
-      out[5*idx + 4] = (sati+0.5f) / (float)lsres;
+      out[5*idx + 3] = resid;//(lami+0.5f) / (float)lsres;
+      out[5*idx + 4] = 0;//(sati+0.5f) / (float)lsres;
     }
   }
 
@@ -660,11 +674,15 @@ int main(int argc, char **argv) {
     {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       float q[3];
+      double c0yl[3];
+      cvt_c012_c0yl(coeffs, c0yl);
       quantise_coeffs(coeffs, q);
       // fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
-      q[2] = q[0];
-      q[0] = out[5*k+3]; // DEBUG lambda tc
-      q[1] = out[5*k+4]; // DEBUG saturation tc
+      q[0] = c0yl[2] < CIE_LAMBDA_MIN ? 1.0 : 0.0;
+      q[1] = c0yl[2] > CIE_LAMBDA_MAX ? 1.0 : 0.0;
+      q[2] = out[5*k+3];//q[0];
+      // q[0] = out[5*k+3]; // DEBUG lambda tc
+      // q[1] = out[5*k+4]; // DEBUG saturation tc
 #if 1 // coeff data
       fwrite(q, sizeof(float), 3, f);
 #else // velocity field
