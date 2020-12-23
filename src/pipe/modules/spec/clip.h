@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 static const float spectrum_clip[] =
 { // these are straight x y chromaticities from the CIE 2deg 5nm 1932 cmf.
   // for reasons of increased accuracy when clipping against this polygon in 2d, we remove a few very similar points:
