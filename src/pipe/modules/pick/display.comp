@@ -40,7 +40,7 @@ vec3 fetch_coeff(vec3 rgb, out float b)
 
   // bilinear interpolation, fails at blue-white-red ridge
 #if 0
-  return texture(img_coeff, tc).rgb;
+  return vec3(1e-5, 1, 1)*texture(img_coeff, tc).rgb;
 #else
   vec2 tci = tc * textureSize(img_coeff, 0);
   vec2 uv = fract(tci);
@@ -61,8 +61,8 @@ vec3 fetch_coeff(vec3 rgb, out float b)
   if(c3.x < 0) { w.x += uv.x*uv.y; r0 += uv.x*uv.y*c3; nshaped++;}
   else { w.y += uv.x*uv.y; r1 += uv.x*uv.y*c3;}
   if(nshaped >= 2) 
-    return r0 / w.x;
-  return r1 / w.y;
+    return vec3(1e-5, 1, 1)*r0 / w.x;
+  return vec3(1e-5, 1, 1)*r1 / w.y;
 #endif
 }
 
@@ -89,10 +89,10 @@ main()
     vec3 coeff = fetch_coeff(picked_rgb, b);
 
     float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
-    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    float x = coeff.x * (lambda-coeff.z)*(lambda-coeff.z) + coeff.y;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
-    float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*lambda + coeff.y));
+    float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-coeff.z)));
     val *= b;
     ddx *= b;
 
