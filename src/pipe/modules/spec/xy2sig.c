@@ -32,7 +32,6 @@
 #include "mom.h"
 #include "clip.h"
 #include "../o-pfm/half.h"
-#include "../../../core/core.h"
 
 #define BAD_CMF
 #ifdef BAD_CMF
@@ -690,12 +689,11 @@ int main(int argc, char **argv) {
       fclose(f);
     }
 
-    int lsres = res; // allocate enough for mip maps too
+    int lsres = res/4; // allocate enough for mip maps too
     float *lsbuf = calloc(sizeof(float), 2* 5*lsres*lsres);
 
     size_t bufsize = 5*res*res;
     float *out = calloc(sizeof(float), bufsize);
-    // first loop: create spectra.lut:
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(dynamic) shared(stdout,out,max_b,max_w,max_h)
 #endif
@@ -726,11 +724,11 @@ int main(int argc, char **argv) {
       double resid = gauss_newton(rgbm, coeffs);
       (void)resid;
 
-      double c0yl[3];
+      double c0yl[3], lwd[3];
       cvt_c012_c0yl(coeffs, c0yl);
       // cvt_c0yl_lwd(c0yl, lwd);
       // fprintf(stderr, "%g %g %g %g %g\n", lwd[0], lwd[1], lwd[2], x, y);
-      // double velx = 0.0, vely = 0.0;
+      double velx = 0.0, vely = 0.0;
 #if 0
       // TODO: now that we have a good spectrum:
       // explicitly instantiate it
@@ -787,7 +785,6 @@ int main(int argc, char **argv) {
       float sat = spectrum_saturation(xy, white);
       out[5*idx + 4] = sat;
 
-#if 0
       // bin into lambda/saturation buffer
       float satc = lsres * sat;
       float lamc = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) * lsres / 2;
@@ -814,95 +811,6 @@ int main(int argc, char **argv) {
       }
       out[5*idx + 3] = (lami+0.5f) / (float)lsres;
       out[5*idx + 4] = (sati+0.5f) / (float)lsres;
-#endif
-    }
-  }
-
-  // second loop: create abney.lut:
-  for (int j = 0; j < res; ++j)
-  {
-    const double y = (j+0.5) / (double)res;
-    printf(".");
-    fflush(stdout);
-    for (int i = 0; i < res; ++i)
-    {
-      const double x = (i+0.5) / (double)res;
-
-      const double lambda = CIE_LAMBDA_MIN + (CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) *
-        ((y >= 0.5) ? 2.0*(y-0.5) : 2.0*y);
-      const double saturation = x;
-
-      double xyz[3];
-      int nshaped = y < 0.5;
-      // this is the spectral colour associated with lambda: 
-      if(nshaped)
-      { // spectral
-        xyz[0] = cie_interp(cie_x, lambda);
-        xyz[1] = cie_interp(cie_y, lambda);
-        xyz[2] = cie_interp(cie_z, lambda);
-      }
-      else
-      { // u-shaped, purple
-        // interpolate straight between deep blue and deep red:
-        double t = 2.0*(y-0.5);
-        xyz[0] = t * cie_interp(cie_x, 365.0) + (1.0-t) * cie_interp(cie_x, 825.0);
-        xyz[1] = t * cie_interp(cie_y, 365.0) + (1.0-t) * cie_interp(cie_y, 825.0);
-        xyz[2] = t * cie_interp(cie_z, 365.0) + (1.0-t) * cie_interp(cie_z, 825.0);
-      }
-      // scale inwards by saturation
-      const float white[2] = {1.0/3.0, 1.0/3.0}; // illum E
-      float xy[2] = {
-        xyz[0]/(xyz[0]+xyz[1]+xyz[2]),
-        xyz[1]/(xyz[0]+xyz[1]+xyz[2])};
-      xy[0] = saturation * xy[0] + (1.0-saturation) * white[0];
-      xy[1] = saturation * xy[1] + (1.0-saturation) * white[1];
-
-#if 1
-      // now we have xy chromaticities that don't quite correspond to
-      // the wavelength and saturation we selected, we did not account for
-      // the abney effect. to fix that, we'll now fit a spectrum to what we have,
-      // and then deposit the value in our buffer where it should be.
-      // we'll need to fill some holes later on.
-      // we'd hope that at least our prediction of "saturation" was accurate.
-
-      double rgb[3];
-      double coeffs[3];
-      init_coeffs(coeffs); // TODO: could init with lambda
-      // normalise to max(rgb)=1
-      rgb[0] = xy[0];
-      rgb[1] = xy[1];
-      rgb[2] = 1.0-xy[0]-xy[1];
-      // if(check_gamut(rgb)) continue; // should never fail
-
-      int ii = CLAMP((int)(xy[0] * max_w + 0.5), 0, max_w-1);
-      int jj = CLAMP(max_h - 1 - (int)(xy[1] * max_h + 0.5), 0, max_h-1);
-      double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
-      double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
-      double resid = gauss_newton(rgbm, coeffs);
-      (void)resid;
-
-      // convert to c0 y and dominant wavelength
-      double c0yl[3];
-      cvt_c012_c0yl(coeffs, c0yl);
-
-      // find coordinates where to put this into our buffer:
-      float sat = spectrum_saturation(xy, white); // is a bit > in practice
-      // fprintf(stderr, "sat %g %g\n", sat, saturation); // should match about
-      double lambda2 = c0yl[2];
-      nshaped = c0yl[0] < 0.0;
-#else
-      double sat = saturation;
-      double lambda2 = lambda;
-#endif
-
-      int i = CLAMP((int)(sat * res + 0.5), 0, res-1); // ~= x;
-      int j = CLAMP((int)(res/2 * (lambda2 - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) + 0.5), 0, res/2-1);
-      if(!nshaped) j += res/2;
-
-      const int idx = j*res + i;
-      lsbuf[5*idx+0] = xy[0];
-      lsbuf[5*idx+1] = xy[1];
-      lsbuf[5*idx+2] = 1.0-xy[0]-xy[1];
     }
   }
 
