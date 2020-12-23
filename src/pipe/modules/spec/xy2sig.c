@@ -75,6 +75,7 @@ double sigmoid(double x) {
     return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
 }
 
+#if 0
 // gauss blur a spectrum explicitly:
 static inline void gauss_blur(
     const double  sigma_nm,         // in nanometers
@@ -104,6 +105,7 @@ static inline void gauss_blur(
   if(u_shape) for(int i=0;i<cnt;i++) spectrum_blur[i] = 1.0 - spectrum_blur[i] / max;
   else        for(int i=0;i<cnt;i++) spectrum_blur[i] /= max;
 }
+#endif
 
 void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
 {
@@ -779,7 +781,7 @@ int main(int argc, char **argv) {
       out[5*idx + 1] = coeffs[1];
       out[5*idx + 2] = coeffs[2];
       out[5*idx + 3] = c0yl[2];//velx;//m;
-      float xy[2] = {x, y}, white[2] = {.3127266, .32902313};
+      float xy[2] = {x, y}, white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E //{.3127266, .32902313}; // D65
       float sat = spectrum_saturation(xy, white);
       out[5*idx + 4] = sat;
 

@@ -7,7 +7,8 @@
 
 int main(int argc, char *argv[])
 {
-  float white[2] = {.3127266, .32902313}; // D65
+  // float white[2] = {.3127266, .32902313}; // D65
+  float white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E
   float endf = 0.078125;
   int wd, ht;
   float *buf;
