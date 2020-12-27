@@ -774,8 +774,37 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
             node - graph->node, i, k, f);
 
         // only actually backed by memory if we have all these frames.
-        // else we'll just point to the same image for all frames:
-        QVKR(vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset));
+        // else we'll just point to the same image for all frames.
+        if(c->format == dt_token("yuv"))
+        { // two-plane yuv:
+          //Plane 0
+          VkBindImagePlaneMemoryInfo bind_image_plane0_info = {
+            .sType       = VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO,
+            .planeAspect = VK_IMAGE_ASPECT_PLANE_0_BIT,
+          };
+          VkBindImagePlaneMemoryInfo bind_image_plane1_info = {
+            .sType       = VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO,
+            .planeAspect = VK_IMAGE_ASPECT_PLANE_1_BIT,
+          };
+          VkBindImageMemoryInfo bind_image_memory_infos[] = {{
+            .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+            .pNext        = &bind_image_plane0_info,
+            .image        = img->image,
+            .memory       = graph->vkmem,
+            .memoryOffset = img->offset,
+          },{
+            .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+            .pNext        = &bind_image_plane1_info,
+            .image        = img->image,
+            .memory       = graph->vkmem,
+            .memoryOffset = img->offset + img->size / 3 * 2, // risky
+          }};
+          QVKR(vkBindImageMemory2(qvk.device, 2, bind_image_memory_infos));
+        }
+        else
+        { // plain:
+          QVKR(vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset));
+        }
 
         // put all newly created images into right layout
         VkCommandBuffer cmd_buf = graph->command_buffer;
