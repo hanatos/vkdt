@@ -539,6 +539,48 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   QVKR(vkCreateSampler(qvk.device, &sampler_nearest_info, NULL, &qvk.tex_sampler_nearest));
   ATTACH_LABEL_VARIABLE(qvk.tex_sampler_nearest, SAMPLER);
 
+  // also one for webcams/yuv:
+  VkFormatProperties format_properties;
+  vkGetPhysicalDeviceFormatProperties(qvk.physical_device, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, &format_properties);
+  int cosited = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT) != 0;
+  int midpoint = !cosited && ((format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT) != 0);
+  if (!cosited && !midpoint)
+  {
+    dt_log(s_log_err|s_log_qvk, "yuv (G8_B8R8_2PLANE_420) not supported!");
+    return 1;
+  }
+  VkSamplerYcbcrConversionCreateInfo conversion_info = {
+    .sType         = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
+    .format        = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
+    .ycbcrModel    = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
+    .ycbcrRange    = VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
+    .xChromaOffset = cosited ? VK_CHROMA_LOCATION_COSITED_EVEN : VK_CHROMA_LOCATION_MIDPOINT,
+    .yChromaOffset = cosited ? VK_CHROMA_LOCATION_COSITED_EVEN : VK_CHROMA_LOCATION_MIDPOINT,
+    .chromaFilter  = VK_FILTER_LINEAR,
+    .forceExplicitReconstruction = VK_FALSE,
+  };
+  VkSamplerYcbcrConversion ycbcr_sampler_conversion;
+  QVKR(vkCreateSamplerYcbcrConversion(qvk.device, &conversion_info, 0, &ycbcr_sampler_conversion));
+  VkSamplerYcbcrConversionInfo ycbcr_info = {
+    .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+    .conversion = ycbcr_sampler_conversion,
+  };
+  VkSamplerCreateInfo sampler_yuv_info = {
+    .sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext        = &ycbcr_info,
+    .magFilter    = VK_FILTER_LINEAR,
+    .minFilter    = VK_FILTER_LINEAR,
+    .mipmapMode   = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .minLod       = 0.0f,
+    .maxLod       = 1.0f,
+    .borderColor  = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+  };
+  QVKR(vkCreateSampler(qvk.device, &sampler_yuv_info, NULL, &qvk.tex_sampler_yuv));
+
   // initialise a safe fallback for cli mode ("dspy" format is going to look here):
   qvk.surf_format.format = VK_FORMAT_R8G8B8A8_UNORM;
 

@@ -76,6 +76,7 @@ typedef struct qvk_t
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_nearest;
+  VkSampler                   tex_sampler_yuv;
 
   uint32_t                    num_extensions;
   VkExtensionProperties       *extensions;
