@@ -231,7 +231,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     }
     bindings[i].descriptorCount = MAX(1, node->connector[i].array_length);
     bindings[i].stageFlags = VK_SHADER_STAGE_ALL;//COMPUTE_BIT;
-    bindings[i].pImmutableSamplers = 0;
+    bindings[i].pImmutableSamplers = node->connector[i].format == dt_token("yuv") ?
+      &qvk.tex_sampler_yuv : 0;
   }
 
   // create render pass in case we need rasterised output:
@@ -566,9 +567,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     { // allocate our output buffers
       VkFormat format = dt_connector_vkformat(c);
       // dt_log(s_log_pipe, "%d x %d %"PRItkn"_%"PRItkn, c->roi.wd, c->roi.ht, dt_token_str(node->name), dt_token_str(node->kernel));
-      int bc1 = c->format == dt_token("bc1");
       VkImageCreateInfo images_create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .flags = c->format == dt_token("yuv") ? VK_IMAGE_CREATE_DISJOINT_BIT : 0,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
         .extent = {
@@ -581,7 +582,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .samples               = VK_SAMPLE_COUNT_1_BIT,
         .tiling                = VK_IMAGE_TILING_OPTIMAL,
         .usage                 = 
-          bc1 ?
+          c->format == dt_token("bc1") ?
           VK_IMAGE_ASPECT_COLOR_BIT
           | VK_IMAGE_USAGE_TRANSFER_DST_BIT
           | VK_IMAGE_USAGE_SAMPLED_BIT :
@@ -622,7 +623,41 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 #endif
 
         VkMemoryRequirements mem_req;
-        vkGetImageMemoryRequirements(qvk.device, img->image, &mem_req);
+        if(c->format == dt_token("yuv"))
+        { // get memory requirements for each plane and combine
+          // plane 0
+          VkImagePlaneMemoryRequirementsInfo image_plane_info = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO,
+            .planeAspect = VK_IMAGE_ASPECT_PLANE_0_BIT,
+          };
+          VkImageMemoryRequirementsInfo2 image_info2 = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+            .pNext = &image_plane_info,
+            .image = img->image,
+          };
+          VkImagePlaneMemoryRequirementsInfo memory_plane_requirements = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO,
+            .planeAspect = VK_IMAGE_ASPECT_PLANE_0_BIT,
+          };
+          VkMemoryRequirements2 memory_requirements2 = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
+            .pNext = &memory_plane_requirements,
+          };
+          vkGetImageMemoryRequirements2(qvk.device, &image_info2, &memory_requirements2);
+          mem_req = memory_requirements2.memoryRequirements;
+          // plane 1
+          image_plane_info.planeAspect = VK_IMAGE_ASPECT_PLANE_1_BIT;
+          memory_plane_requirements.planeAspect = VK_IMAGE_ASPECT_PLANE_1_BIT;
+          vkGetImageMemoryRequirements2(qvk.device, &image_info2, &memory_requirements2);
+          // TODO: plus alignment gaps?
+          mem_req.size += memory_requirements2.memoryRequirements.size;
+          mem_req.memoryTypeBits |= memory_requirements2.memoryRequirements.memoryTypeBits;
+
+        }
+        else
+        {
+          vkGetImageMemoryRequirements(qvk.device, img->image, &mem_req);
+        }
         if(graph->memory_type_bits != ~0 && mem_req.memoryTypeBits != graph->memory_type_bits)
           dt_log(s_log_qvk|s_log_err, "memory type bits don't match!");
         graph->memory_type_bits = mem_req.memoryTypeBits;
