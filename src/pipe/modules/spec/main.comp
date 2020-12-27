@@ -653,16 +653,21 @@ main()
   vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
   vec2 sl = lut.wz; // grab saturation and lambda
   // normalise wavelength
-  sl.y = clamp((sl.y - 400.0)/600.0, 0.0, 0.5);
-  // sl.y = clamp(0.5 * (sl.y - 360.0)/(830.0-360.0), 0.0, 0.5);
+  // sl.y = clamp((sl.y - 400.0)/600.0, 0.0, 0.5); // abbridged
+  // sl.y = clamp(0.5 * (sl.y - 200.0)/(1000.0-200.0), 0.0, 0.5); // extended
+  // sl.y = clamp(0.5 * (sl.y - 360.0)/(830.0-360.0), 0.0, 0.5); // cie
+  // logistically compressed:
+  float norm = (sl.y - 400.0)/(700.0-400.0);
+  sl.y = clamp(0.5/(1.0+exp(-(-4.0 + 8.0*norm))), 0.0, 0.5);
   if(lut.x > 0.0) sl.y += 0.5;
 #if 1 // change saturation:
-  // lsat.y = clamp(params.sat * lsat.y, 0.0, 1.0);
+  sl.x = clamp(params.sat * sl.x, 0.0, 1.0);
   // probably not the best way to do this:
-  if(params.sat < 1)
-    sl.x = mix(0, sl.x, params.sat);
-  else
-    sl.x = mix(sl.x, 1.0, params.sat-1.0);
+  // if(params.sat < 1)
+  //   sl.x = mix(0, sl.x, params.sat);
+  // else
+  //   sl.x = mix(sl.x, 1.0, params.sat-1.0);
+  // sl.x = pow(sl.x, 2.0-params.sat);
 #endif
   // use lambda/sat lut to get new xy chroma values
   vec2 xy = texture(img_ls, sl, 0).rg;

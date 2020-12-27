@@ -489,7 +489,12 @@ int main(int argc, char **argv) {
 
       // bin into lambda/saturation buffer
       float satc = lsres * sat;
-      float lamc = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) * lsres / 2;
+      // normalise to extended range:
+      float norm = (c0yl[2] - 400.0)/(700.0-400.0);
+      float lamc = 1.0/(1.0+exp(-1.0*(-4.0 + 8.0*norm))) * lsres / 2;
+      // float lamc = (c0yl[2] - 300.0)/(900.0-300.0) * lsres / 2;
+      // cie range
+      // float lamc = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) * lsres / 2;
       int lami = fmaxf(0, fminf(lsres/2-1, lamc));
       int sati = satc;
       if(c0yl[0] > 0) lami += lsres/2;
