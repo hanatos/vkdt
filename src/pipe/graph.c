@@ -781,8 +781,13 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         VkCommandBuffer cmd_buf = graph->command_buffer;
         IMG_LAYOUT(img, UNDEFINED, SHADER_READ_ONLY_OPTIMAL);
 
+        VkSamplerYcbcrConversionInfo ycbcr_info = {
+          .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+          .conversion = qvk.yuv_conversion,
+        };
         VkImageViewCreateInfo images_view_create_info = {
           .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+          .pNext      = c->format == dt_token("yuv") ? &ycbcr_info : 0,
           .viewType   = VK_IMAGE_VIEW_TYPE_2D,
           .format     = format,
           .image      = img->image,

@@ -559,11 +559,10 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     .chromaFilter  = VK_FILTER_LINEAR,
     .forceExplicitReconstruction = VK_FALSE,
   };
-  VkSamplerYcbcrConversion ycbcr_sampler_conversion;
-  QVKR(vkCreateSamplerYcbcrConversion(qvk.device, &conversion_info, 0, &ycbcr_sampler_conversion));
+  QVKR(vkCreateSamplerYcbcrConversion(qvk.device, &conversion_info, 0, &qvk.yuv_conversion));
   VkSamplerYcbcrConversionInfo ycbcr_info = {
     .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
-    .conversion = ycbcr_sampler_conversion,
+    .conversion = qvk.yuv_conversion,
   };
   VkSamplerCreateInfo sampler_yuv_info = {
     .sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
