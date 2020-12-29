@@ -55,7 +55,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_1,
+  .apiVersion         = VK_API_VERSION_1_2,
 };
 
 static void
@@ -371,6 +371,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkPhysicalDeviceProperties dev_properties;
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
+
     qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
     qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
 
@@ -468,11 +469,18 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     .shaderSampledImageArrayNonUniformIndexing = 1,
     // .descriptorBindingPartiallyBound = 1, // might need this for variably sized texture arrays
   };
-  VkPhysicalDeviceFeatures2 device_features = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
+  VkPhysicalDeviceVulkan11Features v11f = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .pNext = &idx_features,
+  };
+  VkPhysicalDeviceFeatures2 device_features = {
+    .pNext    = &v11f,
+    .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
   };
+  vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
+  v11f.samplerYcbcrConversion = 1;
+
 
   const char *vk_requested_device_extensions[] = {
     // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)

@@ -58,8 +58,8 @@ open_device(
 
   dat->format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   dat->format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-  dat->format.fmt.pix.width = 1280;
-  dat->format.fmt.pix.height = 720;
+  dat->format.fmt.pix.width = 640;//1280;
+  dat->format.fmt.pix.height = 480;//720;
 
   if(ioctl(dat->fd, VIDIOC_S_FMT, &dat->format) < 0)
   {

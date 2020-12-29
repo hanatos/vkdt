@@ -524,7 +524,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         { // other buffers are device only, i.e. use the default heap:
           vkGetBufferMemoryRequirements(qvk.device, img->buffer, &buf_mem_req);
           if(graph->memory_type_bits != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits)
-            dt_log(s_log_qvk|s_log_err, "memory type bits don't match!");
+            dt_log(s_log_qvk|s_log_err, "buffer memory type bits don't match!");
           graph->memory_type_bits = buf_mem_req.memoryTypeBits;
 
           if(c->frames == 2) // allocate protected memory for feedback connectors
@@ -572,17 +572,19 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .flags = c->format == dt_token("yuv") ? VK_IMAGE_CREATE_DISJOINT_BIT : 0,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
-        .extent = {
-          .width  = c->roi.wd,
-          .height = c->roi.ht,
+        .extent = { // safeguard against disconnected 0-size extents
+          .width  = MAX(c->roi.wd, 1),
+          .height = MAX(c->roi.ht, 1),
           .depth  = 1
         },
         .mipLevels             = 1,
         .arrayLayers           = 1,
         .samples               = VK_SAMPLE_COUNT_1_BIT,
-        .tiling                = VK_IMAGE_TILING_OPTIMAL,
+        .tiling                = c->format == dt_token("yuv") ?
+          VK_IMAGE_TILING_LINEAR:
+          VK_IMAGE_TILING_OPTIMAL,
         .usage                 = 
-          c->format == dt_token("bc1") ?
+          c->format == dt_token("bc1") || c->format == dt_token("yuv") ?
           VK_IMAGE_ASPECT_COLOR_BIT
           | VK_IMAGE_USAGE_TRANSFER_DST_BIT
           | VK_IMAGE_USAGE_SAMPLED_BIT :
@@ -625,41 +627,34 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         VkMemoryRequirements mem_req;
         if(c->format == dt_token("yuv"))
         { // get memory requirements for each plane and combine
-          // plane 0
-          VkImagePlaneMemoryRequirementsInfo image_plane_info = {
+          VkImagePlaneMemoryRequirementsInfo plane_info = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO,
             .planeAspect = VK_IMAGE_ASPECT_PLANE_0_BIT,
           };
-          VkImageMemoryRequirementsInfo2 image_info2 = {
+          VkImageMemoryRequirementsInfo2 image_info = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
-            .pNext = &image_plane_info,
+            .pNext = &plane_info,
             .image = img->image,
-          };
-          VkImagePlaneMemoryRequirementsInfo memory_plane_requirements = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO,
-            .planeAspect = VK_IMAGE_ASPECT_PLANE_0_BIT,
           };
           VkMemoryRequirements2 memory_requirements2 = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
-            .pNext = &memory_plane_requirements,
           };
-          vkGetImageMemoryRequirements2(qvk.device, &image_info2, &memory_requirements2);
+          vkGetImageMemoryRequirements2(qvk.device, &image_info, &memory_requirements2);
           mem_req = memory_requirements2.memoryRequirements;
           // plane 1
-          image_plane_info.planeAspect = VK_IMAGE_ASPECT_PLANE_1_BIT;
-          memory_plane_requirements.planeAspect = VK_IMAGE_ASPECT_PLANE_1_BIT;
-          vkGetImageMemoryRequirements2(qvk.device, &image_info2, &memory_requirements2);
+          plane_info.planeAspect = VK_IMAGE_ASPECT_PLANE_1_BIT;
+          vkGetImageMemoryRequirements2(qvk.device, &image_info, &memory_requirements2);
           // TODO: plus alignment gaps?
+          img->plane1_offset = mem_req.size;
           mem_req.size += memory_requirements2.memoryRequirements.size;
           mem_req.memoryTypeBits |= memory_requirements2.memoryRequirements.memoryTypeBits;
-
         }
         else
         {
           vkGetImageMemoryRequirements(qvk.device, img->image, &mem_req);
         }
         if(graph->memory_type_bits != ~0 && mem_req.memoryTypeBits != graph->memory_type_bits)
-          dt_log(s_log_qvk|s_log_err, "memory type bits don't match!");
+          dt_log(s_log_qvk|s_log_err, "image memory type bits don't match! %d %d", mem_req.memoryTypeBits, graph->memory_type_bits);
         graph->memory_type_bits = mem_req.memoryTypeBits;
 
         assert(!(mem_req.alignment & (mem_req.alignment - 1)));
@@ -777,7 +772,6 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
         // else we'll just point to the same image for all frames.
         if(c->format == dt_token("yuv"))
         { // two-plane yuv:
-          //Plane 0
           VkBindImagePlaneMemoryInfo bind_image_plane0_info = {
             .sType       = VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO,
             .planeAspect = VK_IMAGE_ASPECT_PLANE_0_BIT,
@@ -797,7 +791,7 @@ alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
             .pNext        = &bind_image_plane1_info,
             .image        = img->image,
             .memory       = graph->vkmem,
-            .memoryOffset = img->offset + img->size / 3 * 2, // risky
+            .memoryOffset = img->offset + img->plane1_offset,
           }};
           QVKR(vkBindImageMemory2(qvk.device, 2, bind_image_memory_infos));
         }
@@ -990,9 +984,12 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
               // the image struct is shared between in and out connectors, but we 
               // acces the frame either straight or crossed, depending on feedback mode.
               int iii = cur_img++;
-              img_info[iii].sampler     = (c->type == dt_token("sink") ||
-                                           c->format == dt_token("ui32")) ?
-                                          qvk.tex_sampler_nearest : qvk.tex_sampler;
+              if(c->format == dt_token("yuv"))
+                img_info[iii].sampler   = 0; // needs immutable sampler
+              else if(c->type == dt_token("sink") || c->format == dt_token("ui32"))
+                img_info[iii].sampler   = qvk.tex_sampler_nearest;
+              else
+                img_info[iii].sampler   = qvk.tex_sampler;
               img_info[iii].imageView   = img->image_view;
               assert(img->image_view);
               img_info[iii].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1423,7 +1420,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
 
   const uint32_t wd = node->connector[0].roi.wd;
   const uint32_t ht = node->connector[0].roi.ht;
-  VkBufferImageCopy regions = {
+  VkBufferImageCopy regions[] = {{
     .bufferOffset      = 0,
     .bufferRowLength   = 0,
     .bufferImageHeight = 0,
@@ -1438,8 +1435,29 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
       .width  = wd,
       .height = ht,
       .depth  = 1,
-    },
-  };
+    }},{
+      .bufferOffset = 0,
+      .bufferRowLength = 0,
+      .bufferImageHeight = 0,
+      .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+      .imageSubresource.mipLevel = 0,
+      .imageSubresource.baseArrayLayer = 0,
+      .imageSubresource.layerCount = 1,
+      .imageOffset = { 0, 0, 0 },
+      .imageExtent = { wd, ht, 1 },
+    },{
+      .bufferOffset =
+        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->plane1_offset,
+      .bufferRowLength = 0,
+      .bufferImageHeight = 0,
+      .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
+      .imageSubresource.mipLevel = 0,
+      .imageSubresource.baseArrayLayer = 0,
+      .imageSubresource.layerCount = 1,
+      .imageOffset = { 0, 0, 0 },
+      .imageExtent = { wd / 2, ht / 2, 1 },
+  }};
+  const int yuv = node->connector[0].format == dt_token("yuv");
   if(dt_node_sink(node) && node->module->so->write_sink)
   { // only schedule copy back if the node actually asks for it
     if(dt_connector_ssbo(node->connector+0))
@@ -1454,7 +1472,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image,
           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
           node->connector[0].staging,
-          1, &regions);
+          yuv ? 2 : 1, yuv ? regions+1 : regions);
       BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
     }
   }
@@ -1478,7 +1496,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
         node->connector[0].staging,
         dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &regions);
+        yuv ? 2 : 1, yuv ? regions+1 : regions);
     IMG_LAYOUT(
         dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame),
         TRANSFER_DST_OPTIMAL,

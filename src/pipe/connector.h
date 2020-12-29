@@ -226,7 +226,7 @@ static inline size_t
 dt_connector_bufsize(const dt_connector_t *c)
 {
   if(c->format == dt_token("bc1")) return c->roi.wd/4*c->roi.ht/4 * 8;
-  if(c->format == dt_token("yuv")) return c->roi.wd*c->roi.ht/2 * 3;
+  if(c->format == dt_token("yuv")) return c->roi.wd*c->roi.ht * 2; // XXX ??? * 2/3 is not enough here.
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
   return numc * bpp * c->roi.wd * c->roi.ht;
