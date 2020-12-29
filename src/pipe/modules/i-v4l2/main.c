@@ -162,6 +162,7 @@ int init(dt_module_t *mod)
   memset(dat, 0, sizeof(*dat));
   dat->fd = -1;
   mod->data = dat;
+  mod->flags = s_module_request_read_source;
   return 0;
 }
 
@@ -199,4 +200,58 @@ int read_source(
   const char *device = dt_module_param_string(mod, 0);
   if(open_device(mod, device)) return 1;
   return read_frame(mod, mapped);
+}
+
+void
+create_nodes(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_in = graph->num_nodes++;
+  graph->node[id_in] = (dt_node_t) {
+    .name   = dt_token("i-v4l2"),
+    .kernel = dt_token("source"),
+    .module = module,
+    .wd     = module->connector[0].roi.wd,
+    .ht     = module->connector[0].roi.ht,
+    .dp     = 1,
+    .num_connectors = 1,
+    .connector = {{
+      .name   = dt_token("source"),
+      .type   = dt_token("source"),
+      .chan   = dt_token("rg"),
+      .format = dt_token("ui8"),
+      .roi    = module->connector[0].roi,
+    }},
+  };
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_conv = graph->num_nodes++;
+  graph->node[id_conv] = (dt_node_t) {
+    .name   = dt_token("i-v4l2"),
+    .kernel = dt_token("conv"),
+    .module = module,
+    .wd     = module->connector[0].roi.wd,
+    .ht     = module->connector[0].roi.ht,
+    .dp     = 1,
+    .num_connectors = 2,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rg"),
+      .format = dt_token("ui8"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+    }},
+  };
+
+  // interconnect nodes:
+  dt_connector_copy(graph, module, 0, id_conv, 1);
+  dt_node_connect  (graph, id_in, 0, id_conv, 0);
 }

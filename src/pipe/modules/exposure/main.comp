@@ -27,8 +27,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  // vec3 rgb = texelFetch(img_in, ipos, 0).rgb * pow(2.0, params.ev);
-  vec3 rgb = texelFetch(img_in, ipos, 0).ggg * pow(2.0, params.ev);
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * pow(2.0, params.ev);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
