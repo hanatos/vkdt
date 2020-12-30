@@ -57,8 +57,8 @@ main()
   }
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
   // float dist = log(2+abs(i0 - i1));     // log L1
-  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
-  float dist = abs(i0 - i1);
+  float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
+  // float dist = abs(i0 - i1);
   // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
 
