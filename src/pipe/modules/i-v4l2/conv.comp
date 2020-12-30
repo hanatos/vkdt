@@ -27,10 +27,7 @@ main()
   vec4 tex = texelFetch(img_in, ivec2(ipos.x/2, ipos.y), 0).rgba;
   float Y = ((ipos.x & 1) != 0) ? tex.b : tex.r;
   float u = 2.0*tex.g-1.0;
-  float u = 2.0*tex.a-1.0;
-  // float Y = texelFetch(img_in, ipos, 0).r;
-  // float u = -1.0+2.0*texelFetch(img_in, (ipos/2)*2, 0).g;
-  // float v = -1.0+2.0*texelFetch(img_in, (ipos/2)*2+1, 0).g;
+  float v = 2.0*tex.a-1.0;
 
   // YCbCr with limited quantization range:
   // Y = (256.0*Y - 16.0)/(235.0-16.0);
