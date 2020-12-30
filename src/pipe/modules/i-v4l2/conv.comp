@@ -24,9 +24,18 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // decode YUYV: two bytes per pixel for every other pixel it means u or v
-  float Y = texelFetch(img_in, ipos, 0).r;
-  float u = -1.0+2.0*texelFetch(img_in, (ipos/2)*2, 0).g;
-  float v = -1.0+2.0*texelFetch(img_in, (ipos/2)*2+1, 0).g;
+  vec4 tex = texelFetch(img_in, ivec2(ipos.x/2, ipos.y), 0).rgba;
+  float Y = ((ipos.x & 1) != 0) ? tex.b : tex.r;
+  float u = 2.0*tex.g-1.0;
+  float u = 2.0*tex.a-1.0;
+  // float Y = texelFetch(img_in, ipos, 0).r;
+  // float u = -1.0+2.0*texelFetch(img_in, (ipos/2)*2, 0).g;
+  // float v = -1.0+2.0*texelFetch(img_in, (ipos/2)*2+1, 0).g;
+
+  // YCbCr with limited quantization range:
+  // Y = (256.0*Y - 16.0)/(235.0-16.0);
+  // u = ((u+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
+  // v = ((v+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
 
   // BT.601 (HDTV)
   vec3 rgb = vec3(

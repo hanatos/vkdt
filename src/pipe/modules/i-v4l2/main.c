@@ -207,6 +207,9 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  dt_roi_t roi2 = module->connector[0].roi;
+  roi2.full_wd /= 2;
+  roi2.wd /= 2;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_in = graph->num_nodes++;
   graph->node[id_in] = (dt_node_t) {
@@ -220,9 +223,9 @@ create_nodes(
     .connector = {{
       .name   = dt_token("source"),
       .type   = dt_token("source"),
-      .chan   = dt_token("rg"),
+      .chan   = dt_token("rgba"),
       .format = dt_token("ui8"),
-      .roi    = module->connector[0].roi,
+      .roi    = roi2,
     }},
   };
   assert(graph->num_nodes < graph->max_nodes);
@@ -238,9 +241,9 @@ create_nodes(
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
-      .chan   = dt_token("rg"),
+      .chan   = dt_token("rgba"),
       .format = dt_token("ui8"),
-      .roi    = module->connector[0].roi,
+      .roi    = roi2,
       .connected_mi = -1,
     },{
       .name   = dt_token("output"),
