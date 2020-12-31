@@ -14,11 +14,21 @@
 
 #include <linux/videodev2.h>
 
+typedef enum io_method_t
+{
+  s_io_method_mmap,
+  s_io_method_userptr,
+}
+io_method_t;
+
 typedef struct buf_t
 {
-  char device[256];
-  int fd;
-  struct v4l2_format format;
+  char               device[256]; // opened device if any
+  int                fd;
+  struct v4l2_format format;      // pixel format and buffer dimensions
+  io_method_t        io_method;   // userptr or mmap
+  void              *buffer;      // memory mapped buffer or 0
+  size_t             buffer_len;
 }
 buf_t;
 
@@ -58,14 +68,23 @@ open_device(
 
   dat->format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   dat->format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-  dat->format.fmt.pix.width  = 1280;
-  dat->format.fmt.pix.height = 720;
+  // request away, we'll get the next supported res anyways:
+  dat->format.fmt.pix.width  = 1920;
+  dat->format.fmt.pix.height = 1080;
 
   if(ioctl(dat->fd, VIDIOC_S_FMT, &dat->format) < 0)
-  {
-    perror("[i-v4l2] VIDIOC_S_FMT");
-    goto error;
+  { // does not support YUYV, try YUV420
+    dat->format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    dat->format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
+    dat->format.fmt.pix.width  = 1920;
+    dat->format.fmt.pix.height = 1080;
+    if(ioctl(dat->fd, VIDIOC_S_FMT, &dat->format) < 0)
+    {
+      perror("[i-v4l2] VIDIOC_S_FMT");
+      goto error;
+    }
   }
+
   // kernel doc suggests to use outside settings intstead, as an option:
   // if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
   // errno_exit("VIDIOC_G_FMT");
@@ -77,15 +96,25 @@ open_device(
     .memory = V4L2_MEMORY_USERPTR,
     .count  = 1,
   };
+  dat->io_method = s_io_method_userptr;
   if(ioctl(dat->fd, VIDIOC_REQBUFS, &bufrequest) < 0)
-  {
-    perror("[i-v4l2] VIDIOC_REQBUFS");
-    goto error;
+  { // failed userptr, try mmap
+    struct v4l2_requestbuffers bufrequest = {
+      .type   = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+      .memory = V4L2_MEMORY_MMAP,
+      .count  = 1,
+    };
+    if(ioctl(dat->fd, VIDIOC_REQBUFS, &bufrequest) < 0)
+    {
+      perror("[i-v4l2] VIDIOC_REQBUFS");
+      goto error;
+    }
+    dat->io_method = s_io_method_mmap;
   }
 
   struct v4l2_buffer bufferinfo = {
     .type   = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-    .memory = V4L2_MEMORY_USERPTR,
+    .memory = dat->io_method == s_io_method_mmap ? V4L2_MEMORY_MMAP : V4L2_MEMORY_USERPTR,
     .index  = 0,
   };
   if(ioctl(dat->fd, VIDIOC_QUERYBUF, &bufferinfo) < 0)
@@ -93,6 +122,17 @@ open_device(
     perror("[i-v4l2] VIDIOC_QUERYBUF");
     goto error;
   }
+
+  if(dat->io_method == s_io_method_mmap)
+  {
+    dat->buffer = mmap(0, bufferinfo.length, PROT_READ | PROT_WRITE, MAP_SHARED, dat->fd, bufferinfo.m.offset);
+    if(dat->buffer == MAP_FAILED)
+    {
+      perror("[i-v4l2] memory mapping failed");
+      goto error;
+    }
+  }
+  else dat->buffer = 0;
 
   // linux docs say to do QBUF before STREAMON
 
@@ -119,15 +159,25 @@ read_frame(
   buf_t *dat = mod->data;
 
   // enqueue buffer:
-  struct v4l2_buffer buf = {
-    .type      = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-    .memory    = V4L2_MEMORY_USERPTR,
-    .index     = 0,
-    .m = {
-      .userptr = (unsigned long)mapped,
-    },
-    .length    = dt_connector_bufsize(mod->connector),
-  };
+  struct v4l2_buffer buf;
+  if(dat->io_method == s_io_method_mmap)
+  {
+    buf = (struct v4l2_buffer) {
+      .type      = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+      .memory    = V4L2_MEMORY_MMAP,
+      .index     = 0,
+    };
+  }
+  else
+  { // userptr
+    buf = (struct v4l2_buffer) {
+      .type      = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+      .memory    = V4L2_MEMORY_USERPTR,
+      .index     = 0,
+      .m         = { .userptr = (unsigned long)mapped },
+      .length    = dt_connector_bufsize(mod->connector),
+    };
+  }
   if(ioctl(dat->fd, VIDIOC_QBUF, &buf) < 0)
   {
     fprintf(stderr, "[i-v4l2] could not enqueue buffer!\n");
@@ -141,6 +191,9 @@ read_frame(
     return 1;
   }
 
+  if(dat->io_method == s_io_method_mmap)
+    memcpy(mapped, dat->buffer, buf.bytesused);
+
   return 0;
 }
 
@@ -151,6 +204,8 @@ close_device(
   buf_t *dat = mod->data;
   enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   ioctl(dat->fd, VIDIOC_STREAMOFF, &type);
+  if(dat->buffer) munmap(dat->buffer, dat->buffer_len);
+  dat->buffer = 0;
   if(dat->fd != -1) close(dat->fd);
   dat->fd = -1;
   dat->device[0] = 0;
@@ -207,54 +262,166 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  dt_roi_t roi2 = module->connector[0].roi;
-  roi2.full_wd /= 2;
-  roi2.wd /= 2;
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_in = graph->num_nodes++;
-  graph->node[id_in] = (dt_node_t) {
-    .name   = dt_token("i-v4l2"),
-    .kernel = dt_token("source"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("source"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("ui8"),
-      .roi    = roi2,
-    }},
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_conv = graph->num_nodes++;
-  graph->node[id_conv] = (dt_node_t) {
-    .name   = dt_token("i-v4l2"),
-    .kernel = dt_token("conv"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 2,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("ui8"),
-      .roi    = roi2,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
+  buf_t *dat = module->data;
+  if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
+  {
+    dt_roi_t roi2 = module->connector[0].roi;
+    roi2.full_wd /= 2;
+    roi2.wd /= 2;
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_in = graph->num_nodes++;
+    graph->node[id_in] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("source"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 1,
+      .connector = {{
+        .name   = dt_token("source"),
+        .type   = dt_token("source"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("ui8"),
+        .roi    = roi2,
+      }},
+    };
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_conv = graph->num_nodes++;
+    graph->node[id_conv] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("conv"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 2,
+      .connector = {{
+        .name   = dt_token("input"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("ui8"),
+        .roi    = roi2,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("output"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = module->connector[0].roi,
+      }},
+      .push_constant_size = sizeof(uint32_t),
+      .push_constant = { 0 },
+    };
 
-  // interconnect nodes:
-  dt_connector_copy(graph, module, 0, id_conv, 1);
-  dt_node_connect  (graph, id_in, 0, id_conv, 0);
+    // interconnect nodes:
+    dt_connector_copy(graph, module, 0, id_conv, 1);
+    dt_node_connect  (graph, id_in, 0, id_conv, 0);
+  }
+  else if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV420)
+  {
+    dt_roi_t roi2 = module->connector[0].roi;
+    roi2.full_ht = roi2.full_ht * 3 / 2;
+    roi2.ht      = roi2.ht * 3 / 2;
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_in = graph->num_nodes++;
+    graph->node[id_in] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("source"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 1,
+      .connector = {{
+        .name   = dt_token("source"),
+        .type   = dt_token("source"),
+        .chan   = dt_token("r"),
+        .format = dt_token("ui8"),
+        .roi    = roi2,
+      }},
+    };
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_conv = graph->num_nodes++;
+    graph->node[id_conv] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("conv"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 2,
+      .connector = {{
+        .name   = dt_token("input"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("r"),
+        .format = dt_token("ui8"),
+        .roi    = roi2,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("output"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = module->connector[0].roi,
+      }},
+      .push_constant_size = sizeof(uint32_t),
+      .push_constant = { 1 },
+    };
+    // interconnect nodes:
+    dt_connector_copy(graph, module, 0, id_conv, 1);
+    dt_node_connect  (graph, id_in, 0, id_conv, 0);
+  }
+  else if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
+  {
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_in = graph->num_nodes++;
+    graph->node[id_in] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("source"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 1,
+      .connector = {{
+        .name   = dt_token("source"),
+        .type   = dt_token("source"),
+        .chan   = dt_token("yuv"),
+        .format = dt_token("yuv"),
+        .roi    = module->connector[0].roi,
+      }},
+    };
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_conv = graph->num_nodes++;
+    graph->node[id_conv] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("conv"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 2,
+      .connector = {{
+        .name   = dt_token("input"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("yuv"),
+        .format = dt_token("yuv"),
+        .roi    = module->connector[0].roi,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("output"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = module->connector[0].roi,
+      }},
+      .push_constant_size = sizeof(uint32_t),
+      .push_constant = { 2 },
+    };
+
+    // interconnect nodes:
+    dt_connector_copy(graph, module, 0, id_conv, 1);
+    dt_node_connect  (graph, id_in, 0, id_conv, 0);
+  }
 }

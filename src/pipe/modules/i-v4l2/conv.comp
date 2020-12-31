@@ -9,6 +9,11 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 //layout(std140, set = 0, binding = 1) uniform params_t
 // { } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  uint format;
+} push;
+
 layout( // input buffer rg ui8
     set = 1, binding = 0
 ) uniform sampler2D img_in;
@@ -23,22 +28,44 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  // decode YUYV: two bytes per pixel for every other pixel it means u or v
-  vec4 tex = texelFetch(img_in, ivec2(ipos.x/2, ipos.y), 0).rgba;
-  float Y = ((ipos.x & 1) != 0) ? tex.b : tex.r;
-  float u = 2.0*tex.g-1.0;
-  float v = 2.0*tex.a-1.0;
+  vec3 rgb;
+  if(push.format == 0)
+  { // decode YUYV: two bytes per pixel for every other pixel it means u or v
+    vec4 tex = texelFetch(img_in, ivec2(ipos.x/2, ipos.y), 0).rgba;
+    float Y = ((ipos.x & 1) != 0) ? tex.b : tex.r;
+    float u = 2.0*tex.g-1.0;
+    float v = 2.0*tex.a-1.0;
 
-  // YCbCr with limited quantization range:
-  // Y = (256.0*Y - 16.0)/(235.0-16.0);
-  // u = ((u+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
-  // v = ((v+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
+    // YCbCr with limited quantization range:
+    // Y = (256.0*Y - 16.0)/(235.0-16.0);
+    // u = ((u+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
+    // v = ((v+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
 
-  // BT.601 (HDTV)
-  vec3 rgb = vec3(
-      Y               + 1.13983 * v,
-      Y - 0.39465 * u - 0.58060 * v,
-      Y + 2.03211 * u);
+    // BT.601 (HDTV)
+    rgb = vec3(
+        Y               + 1.13983 * v,
+        Y - 0.39465 * u - 0.58060 * v,
+        Y + 2.03211 * u);
+  }
+  else if(push.format == 1)
+  { // yuv YU12
+    float Y = texelFetch(img_in, ipos, 0).r;
+    ivec2 rd = ipos/2;
+    // TODO: interpolate these uvs linearly at least, looks very blocky like this:
+    float u = texelFetch(img_in, ivec2(rd.x + ((rd.y/2 & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 +   imageSize(img_out).y),   0).r;
+    float v = texelFetch(img_in, ivec2(rd.x + ((rd.y/2 & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 + 5*imageSize(img_out).y/4), 0).r;
+    u = 2.0*u - 1.0;
+    v = 2.0*v - 1.0;
+    // BT.601 (HDTV)
+    rgb = vec3(
+        Y               + 1.13983 * v,
+        Y - 0.39465 * u - 0.58060 * v,
+        Y + 2.03211 * u);
+  }
+  else if(push.format == 2)
+  { // yuv NV12
+    rgb = textureLod(img_in, (ipos+0.5)/vec2(imageSize(img_out)), 0).rgb;
+  }
   // undo srgb tone curve
   rgb.r = rgb.r <= 0.04045 ? rgb.r/12.92 : pow((rgb.r+0.055)/(1+0.055), 2.4);
   rgb.g = rgb.g <= 0.04045 ? rgb.g/12.92 : pow((rgb.g+0.055)/(1+0.055), 2.4);
