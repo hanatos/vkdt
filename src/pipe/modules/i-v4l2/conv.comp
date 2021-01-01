@@ -33,19 +33,13 @@ main()
   { // decode YUYV: two bytes per pixel for every other pixel it means u or v
     vec4 tex = texelFetch(img_in, ivec2(ipos.x/2, ipos.y), 0).rgba;
     float Y = ((ipos.x & 1) != 0) ? tex.b : tex.r;
-    float u = 2.0*tex.g-1.0;
-    float v = 2.0*tex.a-1.0;
-
-    // YCbCr with limited quantization range:
-    // Y = (256.0*Y - 16.0)/(235.0-16.0);
-    // u = ((u+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
-    // v = ((v+1.0)*0.5 * 256 - 16.0)/(240.0-16.0)*2.0-1.0;
-
+    float u = tex.g;
+    float v = tex.a;
     // BT.601 (HDTV)
     rgb = vec3(
-        Y               + 1.13983 * v,
-        Y - 0.39465 * u - 0.58060 * v,
-        Y + 2.03211 * u);
+        298.082 * Y               + 408.583 * v - 222.921,
+        298.082 * Y - 100.291 * u - 208.120 * v + 135.576,
+        298.082 * Y + 516.412 * u               - 276.836)/256.0;
   }
   else if(push.format == 1)
   { // yuv YU12
@@ -54,28 +48,27 @@ main()
     // TODO: interpolate these uvs linearly at least, looks very blocky like this:
     float u = texelFetch(img_in, ivec2(rd.x + ((rd.y/2 & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 +   imageSize(img_out).y),   0).r;
     float v = texelFetch(img_in, ivec2(rd.x + ((rd.y/2 & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 + 5*imageSize(img_out).y/4), 0).r;
-    u = 2.0*u - 1.0;
-    v = 2.0*v - 1.0;
     // BT.601 (HDTV)
     rgb = vec3(
-        Y               + 1.13983 * v,
-        Y - 0.39465 * u - 0.58060 * v,
-        Y + 2.03211 * u);
+        298.082 * Y               + 408.583 * v - 222.921,
+        298.082 * Y - 100.291 * u - 208.120 * v + 135.576,
+        298.082 * Y + 516.412 * u               - 276.836)/256.0;
   }
   else if(push.format == 2)
   { // yuv NV12
     rgb = textureLod(img_in, (ipos+0.5)/vec2(imageSize(img_out)), 0).rgb;
   }
   // undo srgb tone curve
-  rgb.r = rgb.r <= 0.04045 ? rgb.r/12.92 : pow((rgb.r+0.055)/(1+0.055), 2.4);
-  rgb.g = rgb.g <= 0.04045 ? rgb.g/12.92 : pow((rgb.g+0.055)/(1+0.055), 2.4);
-  rgb.b = rgb.b <= 0.04045 ? rgb.b/12.92 : pow((rgb.b+0.055)/(1+0.055), 2.4);
+  // rgb.r = rgb.r <= 0.04045 ? rgb.r/12.92 : pow((rgb.r+0.055)/(1+0.055), 2.4);
+  // rgb.g = rgb.g <= 0.04045 ? rgb.g/12.92 : pow((rgb.g+0.055)/(1+0.055), 2.4);
+  // rgb.b = rgb.b <= 0.04045 ? rgb.b/12.92 : pow((rgb.b+0.055)/(1+0.055), 2.4);
+  // undo tone curve that we'd be applying in the end for srgb (straight gamma 2.2)
+  rgb = pow(clamp(rgb, 0, 1), vec3(2.2));
   mat3 rec709_to_rec2020 = mat3(
       0.62750375, 0.32927542, 0.04330267,
       0.06910828, 0.91951917, 0.0113596 ,
       0.01639406, 0.08801128, 0.89538036);
   rgb *= rec709_to_rec2020;
-
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
