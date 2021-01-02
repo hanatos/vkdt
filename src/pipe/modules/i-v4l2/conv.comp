@@ -46,8 +46,8 @@ main()
     float Y = texelFetch(img_in, ipos, 0).r;
     ivec2 rd = ipos/2;
     // TODO: interpolate these uvs linearly at least, looks very blocky like this:
-    float u = texelFetch(img_in, ivec2(rd.x + ((rd.y/2 & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 +   imageSize(img_out).y),   0).r;
-    float v = texelFetch(img_in, ivec2(rd.x + ((rd.y/2 & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 + 5*imageSize(img_out).y/4), 0).r;
+    float u = texelFetch(img_in, ivec2(rd.x + ((rd.y & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 +   imageSize(img_out).y),   0).r;
+    float v = texelFetch(img_in, ivec2(rd.x + ((rd.y & 1) == 0 ? 0 : imageSize(img_out).x/2), rd.y/2 + 5*imageSize(img_out).y/4), 0).r;
     // BT.601 (HDTV)
     rgb = vec3(
         298.082 * Y               + 408.583 * v - 222.921,
