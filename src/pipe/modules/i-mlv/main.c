@@ -127,6 +127,12 @@ void modify_roi_out(
   // memcpy(.cam_to_rec2020 , )
   mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   mod->graph->frame_rate = dat->video.frame_rate;
+  // TODO: re-init alsa to support this, need to talk to gui core about these settings!
+  fprintf(stderr, "[i-mlv] audio info: sampling rate %d, channels %d, bytes per second %d, bits per sample %d\n",
+      dat->video.WAVI.samplingRate,
+      dat->video.WAVI.channels,
+      dat->video.WAVI.bytesPerSecond,
+      dat->video.WAVI.bitsPerSample);
 }
 
 int read_source(
@@ -136,4 +142,22 @@ int read_source(
   const char *filename = dt_module_param_string(mod, 0);
   if(open_file(mod, filename)) return 1;
   return read_frame(mod, mapped);
+}
+
+int audio(
+    dt_module_t  *mod,
+    const int     frame,
+    uint8_t     **samples)
+{
+  buf_t *dat = mod->data;
+  if(!dat || !dat->filename[0] || !dat->video.audio_data || !dat->video.audio_size)
+    return 0;
+  uint64_t bytes_per_frame = dat->video.WAVI.bytesPerSecond / dat->video.frame_rate;
+  *samples = dat->video.audio_data + frame * bytes_per_frame;
+
+  bytes_per_frame = MIN(bytes_per_frame, 
+    MAX(0, dat->video.audio_data + dat->video.audio_size - *samples));
+
+  // samples: stereo and 2 bytes/channel => /4
+  return bytes_per_frame/4;
 }

@@ -255,9 +255,23 @@ int main(int argc, char *argv[])
     else if(vkdt.graph_dev.runflags)
     { // for animations
       dt_view_process();
+#if 1 // audio
+      if(vkdt.view_mode == s_view_darkroom)
+      { // find audio modules, if any
+        dt_graph_t *g = &vkdt.graph_dev;
+        for(int i=0;i<g->num_modules;i++)
+        {
+          if(g->module[i].so->audio)
+          {
+            uint16_t *samples;
+            int cnt = g->module[i].so->audio(g->module+i, g->frame, &samples);
+            if(cnt > 0) dt_snd_alsa_play(&vkdt.snd, samples, cnt);
+            break;
+          }
+        }
+      }
+#endif
     }
-    
-    // TODO: insert audio loop
 
     clock_gettime(CLOCK_REALTIME, &end);
     double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
