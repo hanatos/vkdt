@@ -241,8 +241,6 @@ int main(int argc, char *argv[])
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
         if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
-        // XXX DEBUG: replace by graph->runflags_on_framechange or so!
-        vkdt.graph_dev.runflags |= s_graph_run_upload_source;
       }
     }
 

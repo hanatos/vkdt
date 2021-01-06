@@ -1258,12 +1258,12 @@ void dt_token_print(dt_token_t t)
 }
 
 static VkResult
-record_command_buffer(dt_graph_t *graph, dt_node_t *node, int *runflag)
+record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
   VkCommandBuffer cmd_buf = graph->command_buffer;
 
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
-  if((*runflag == 0) && dt_node_source(node))
+  if((runflag == 0) && dt_node_source(node))
   {
     for(int i=0;i<node->num_connectors;i++)
     { // this is completely retarded and just to make the layout match what we expect below
@@ -2102,7 +2102,8 @@ VkResult dt_graph_run(
   int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
   if(run & s_graph_run_record_cmd_buf)
     for(int i=0;i<cnt;i++)
-      QVKR(record_command_buffer(graph, graph->node+nodeid[i], &runflag));
+      QVKR(record_command_buffer(graph, graph->node+nodeid[i], runflag ||
+          (graph->node[nodeid[i]].module->flags & s_module_request_read_source)));
 } // end scope, done with nodes
 
   if(run & s_graph_run_alloc)
