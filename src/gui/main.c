@@ -221,6 +221,7 @@ int main(int argc, char *argv[])
     else
       dt_gui_recreate_swapchain();
 
+    // this logic probably mostly belongs into darkroom_process()
     if(vkdt.view_mode == s_view_darkroom && vkdt.state.anim_playing)
     {
       int advance = 0;
@@ -238,6 +239,8 @@ int main(int argc, char *argv[])
       }
       if(advance)
       {
+        if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
+          dt_log(s_log_snd, "frame drop warning, audio may stutter!");
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
         if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
@@ -253,7 +256,7 @@ int main(int argc, char *argv[])
     else if(vkdt.graph_dev.runflags)
     { // for animations
       dt_view_process();
-#if 1 // audio
+      // audio
       if(vkdt.view_mode == s_view_darkroom)
       { // find audio modules, if any
         dt_graph_t *g = &vkdt.graph_dev;
@@ -268,7 +271,6 @@ int main(int argc, char *argv[])
           }
         }
       }
-#endif
     }
 
     clock_gettime(CLOCK_REALTIME, &end);
