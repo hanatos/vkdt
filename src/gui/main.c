@@ -223,14 +223,20 @@ int main(int argc, char *argv[])
 
     if(vkdt.state.anim_playing)
     {
-      // just started replay, record timestamp:
-      if(anim_start_time.tv_nsec == 0) clock_gettime(CLOCK_REALTIME, &anim_start_time);
-      // compute current animation frame by time:
-      double dt = (double)(beg.tv_sec - anim_start_time.tv_sec) + 1e-9*(beg.tv_nsec - anim_start_time.tv_nsec);
-      vkdt.state.anim_frame = MAX(0, vkdt.graph_dev.frame_rate * dt);
-      if(vkdt.graph_dev.frame > 0 && vkdt.graph_dev.frame == vkdt.state.anim_frame)
-        vkdt.graph_dev.runflags = 0; // no need to re-render
+      int advance = 0;
+      if(vkdt.graph_dev.frame_rate == 0.0)
+        advance = 1; // no frame rate set, run as fast as we can
       else
+      { // just started replay, record timestamp:
+        if(anim_start_time.tv_nsec == 0) clock_gettime(CLOCK_REALTIME, &anim_start_time);
+        // compute current animation frame by time:
+        double dt = (double)(beg.tv_sec - anim_start_time.tv_sec) + 1e-9*(beg.tv_nsec - anim_start_time.tv_nsec);
+        vkdt.state.anim_frame = MAX(0, vkdt.graph_dev.frame_rate * dt);
+        if(vkdt.graph_dev.frame > 0 && vkdt.graph_dev.frame == vkdt.state.anim_frame)
+          vkdt.graph_dev.runflags = 0; // no need to re-render
+        else advance = 1;
+      }
+      if(advance)
       {
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
         if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
