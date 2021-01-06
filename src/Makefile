@@ -22,12 +22,13 @@ include qvk/flat.mk
 include core/flat.mk
 include pipe/flat.mk
 include db/flat.mk
+include snd/flat.mk
 include gui/flat.mk
 include cli/flat.mk
 
 clean: Makefile
 	rm -f vkdt vkdt-cli 
-	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O) $(DB_O)
+	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(QVK_O) $(DB_O)
 	# we delete *all* modules, not just the one in MOD_DSOS* because they may be from another branch.
 	# such stale libraries can still cause segfaults because they would be loaded.
 	# at some point we probably need to harden the api such that this still works. maybe.
@@ -44,6 +45,9 @@ qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
 
 core/%.o: core/%.c Makefile $(CORE_H) core/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
+
+snd/%.o: snd/%.c Makefile $(SND_H) snd/flat.mk
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(SND_CFLAGS) -c $< -o $@
 
 pipe/%.o: pipe/%.c Makefile $(PIPE_H) pipe/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
@@ -68,9 +72,9 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 
 # main application
 # ======================
-vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt \
-    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
+vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) -o vkdt \
+    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(SND_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # command line interface
 # ======================
