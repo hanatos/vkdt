@@ -3,6 +3,7 @@
 #include "db/thumbnails.h"
 #include "db/db.h"
 #include "db/rc.h"
+#include "snd/snd.h"
 
 #include <vulkan/vulkan.h>
 
@@ -99,6 +100,8 @@ typedef struct dt_gui_t
   dt_thumbnails_t  thumbnails;    // for light table mode
   dt_thumbnails_t  thumbnail_gen; // to generate thumbnails asynchronously
   dt_gui_view_t    view_mode;     // current view mode
+
+  dt_snd_t         snd;           // connection to audio device
 
   // favourite gui module/parameter list
   int fav_cnt;
