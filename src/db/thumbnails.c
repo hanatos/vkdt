@@ -327,10 +327,17 @@ dt_thumbnails_cache_list(
   {
     if(k == 0)
     {
+      job[0] = (cache_coll_job_t) {
+        .stamp = tn->job_timestamp,
+        .coll  = collection,
+        .gid   = k,
+        .tn    = tn,
+        .db    = db,
+      };
       threads_mutex_init(&job[0].mutex_storage, 0);
-      job[0].idx_storage = 0;
+      job[0].mutex = &job[0].mutex_storage;
     }
-    job[k] = (cache_coll_job_t) {
+    else job[k] = (cache_coll_job_t) {
       .stamp = tn->job_timestamp,
       .mutex = &job[0].mutex_storage,
       .coll  = collection,
