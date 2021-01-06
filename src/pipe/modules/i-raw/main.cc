@@ -174,8 +174,8 @@ int mat3inv(float *const dst, const float *const src)
 #define B(y, x) dst[(y - 1) * 3 + (x - 1)]
 
   const float det = A(1, 1) * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3))
-                    - A(2, 1) * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3))
-                    + A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+                  - A(2, 1) * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3))
+                  + A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
 
   const float epsilon = 1e-7f;
   if(fabsf(det) < epsilon) return 1;

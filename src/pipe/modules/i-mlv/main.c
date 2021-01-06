@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "connector.h"
 #include "core/core.h"
+#include "../i-raw/adobe_coeff.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,36 @@ typedef struct buf_t
   mlv_header_t video;
 }
 buf_t;
+
+int mat3inv(float *const dst, const float *const src)
+{
+#define A(y, x) src[(y - 1) * 3 + (x - 1)]
+#define B(y, x) dst[(y - 1) * 3 + (x - 1)]
+
+  const float det = A(1, 1) * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3))
+                  - A(2, 1) * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3))
+                  + A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+
+  const float epsilon = 1e-7f;
+  if(fabsf(det) < epsilon) return 1;
+
+  const float invDet = 1.f / det;
+
+  B(1, 1) = invDet * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3));
+  B(1, 2) = -invDet * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3));
+  B(1, 3) = invDet * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+
+  B(2, 1) = -invDet * (A(3, 3) * A(2, 1) - A(3, 1) * A(2, 3));
+  B(2, 2) = invDet * (A(3, 3) * A(1, 1) - A(3, 1) * A(1, 3));
+  B(2, 3) = -invDet * (A(2, 3) * A(1, 1) - A(2, 1) * A(1, 3));
+
+  B(3, 1) = invDet * (A(3, 2) * A(2, 1) - A(3, 1) * A(2, 2));
+  B(3, 2) = -invDet * (A(3, 2) * A(1, 1) - A(3, 1) * A(1, 2));
+  B(3, 3) = invDet * (A(2, 2) * A(1, 1) - A(2, 1) * A(1, 2));
+#undef A
+#undef B
+  return 0;
+}
 
 static inline int
 open_file(
@@ -133,6 +164,55 @@ void modify_roi_out(
       dat->video.WAVI.channels,
       dat->video.WAVI.bytesPerSecond,
       dat->video.WAVI.bitsPerSample);
+
+  // load noise profile:
+  char pname[512];
+  snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
+      mod->img_param.maker,
+      mod->img_param.model,
+      (int)mod->img_param.iso);
+  FILE *f = dt_graph_open_resource(graph, pname, "rb");
+  if(f)
+  {
+    float a = 0.0f, b = 0.0f;
+    int num = fscanf(f, "%g %g", &a, &b);
+    if(num == 2)
+    {
+      mod->img_param.noise_a = a;
+      mod->img_param.noise_b = b;
+    }
+    fclose(f);
+  }
+  
+  // load colour matrix
+  float xyz_to_cam[12], mat[9] = {0};
+  if(dt_dcraw_adobe_coeff(mod->img_param.model, (float(*)[12]) xyz_to_cam))
+    mat[0] = mat[4] = mat[8] = 1.0;
+  else mat3inv(mat, xyz_to_cam);
+
+  // compute matrix camrgb -> rec2020 d65
+  double cam_to_xyz[] = {
+    mat[0], mat[1], mat[2],
+    mat[3], mat[4], mat[5],
+    mat[6], mat[7], mat[8]};
+  // for(int j=0;j<3;j++)
+  // { // just normalise channels, don't white balance
+  //   double norm = 0.0;
+  //   for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
+  //   for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= 1.0f / norm;
+  // }
+
+  const float xyz_to_rec2020[] = {
+     1.7166511880, -0.3556707838, -0.2533662814,
+    -0.6666843518,  1.6164812366,  0.0157685458,
+     0.0176398574, -0.0427706133,  0.9421031212
+  };
+  float cam_to_rec2020[9] = {0.0f};
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+    cam_to_rec2020[3*j+i] +=
+      xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
+  for(int k=0;k<9;k++)
+    mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
 }
 
 int read_source(
