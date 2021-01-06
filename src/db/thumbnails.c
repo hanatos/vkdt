@@ -188,13 +188,16 @@ dt_thumbnails_cache_one(
   // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
   // if that already exists with a newer timestamp than the cfg, bail out
 
+  dt_token_t input_module = dt_token("i-raw");
+  if(len >= 9 && strcasecmp(f2-4, ".mlv"))
+    input_module = dt_token("i-mlv");
   char cfgfilename[1040];
   char deffilename[1040];
   char bc1filename[1040];
   uint32_t hash = murmur_hash3(filename, len, 1337);
   snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
-  snprintf(deffilename, sizeof(deffilename), "%s/default.cfg", dt_pipe.basedir);
+  snprintf(deffilename, sizeof(deffilename), "%s/default.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
@@ -224,6 +227,7 @@ dt_thumbnails_cache_one(
     .p_extra_param   = extrap,
     .p_cfgfile       = cfgfilename,
     .p_defcfg        = deffilename,
+    .input_module    = input_module,
     .output_cnt      = 1,
     .output = {{
       .max_width  = tn->thumb_wd,

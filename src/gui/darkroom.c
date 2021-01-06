@@ -471,11 +471,20 @@ darkroom_enter()
   // stat, if doesn't exist, load default
   // always set filename param? (definitely do that for default cfg)
   int load_default = 0;
+  char imgfilename[256], realimg[PATH_MAX];
+  dt_token_t input_module = dt_token("i-raw");
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
   {
     dt_log(s_log_err|s_log_gui, "individual config %s not found, loading default!", graph_cfg);
-    snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.cfg", dt_pipe.basedir);
+    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
+    realpath(imgfilename, realimg);
+    int len = strlen(realimg);
+    assert(len > 4);
+    realimg[len-4] = 0; // cut away ".cfg"
+    if(!strcasecmp(realimg+len-8, ".mlv"))
+      input_module = dt_token("i-mlv");
+    snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
     load_default = 1;
   }
 
@@ -489,23 +498,16 @@ darkroom_enter()
     return 2;
   }
 
-  // TODO: support other file formats instead of just raw?
   if(load_default)
   {
-    char imgfilename[256], realimg[PATH_MAX];
-    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
-    realpath(imgfilename, realimg);
     dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
-    int len = strlen(realimg);
-    assert(len > 4);
-    realimg[len-4] = 0; // cut away ".cfg"
     char *basen = basename(realimg); // cut away path so we can relocate more easily
-    int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
+    int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("01"));
     if(modid < 0 ||
        dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
          basen))
     {
-      dt_log(s_log_err|s_log_gui, "config '%s' has no raw input module!", graph_cfg);
+      dt_log(s_log_err|s_log_gui, "config '%s' has no valid input module!", graph_cfg);
       dt_graph_cleanup(&vkdt.graph_dev);
       return 3;
     }

@@ -38,6 +38,7 @@ typedef struct dt_graph_export_t
   const char  *p_defcfg;       // if not NULL and p_cfgfile is no cfg, read this (else read default-darkroom.cfg)
                                // the mechanics are that cfgfile is interpreted as a raw input and the params
                                // in defcfg will be wired to read this file
+  dt_token_t   input_module;   // if other than i-raw for default configs
   int          extra_param_cnt;// number of extra parameters
   char       **p_extra_param;  // extra parameter lines
 
