@@ -142,7 +142,6 @@ void modify_roi_out(
     .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
 
     .orientation    = 0,
-    .datetime       = "20200101",// TODO: use  video->RTCI.tm_mday video->RTCI.tm_mon video->RTCI.tm_year (hour min sec)
     .exposure       = dat->video.EXPO.shutterValue * 1e-6f,
     .aperture       = dat->video.LENS.aperture * 0.01f,
     .iso            = dat->video.EXPO.isoValue,
@@ -151,11 +150,12 @@ void modify_roi_out(
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
   };
+  snprintf(mod->img_param.datetime, sizeof(mod->img_param.datetime), "%4d%2d%2d %2d:%2d%2d",
+      dat->video.RTCI.tm_year, dat->video.RTCI.tm_mon, dat->video.RTCI.tm_mday,
+      dat->video.RTCI.tm_hour, dat->video.RTCI.tm_min, dat->video.RTCI.tm_sec);
   snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
-  // TODO: compute and write: (see ../i-raw-main.cc)
-  // memcpy(.cam_to_rec2020 , )
   mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   mod->graph->frame_rate = dat->video.frame_rate;
   // TODO: re-init alsa to support this, need to talk to gui core about these settings!
