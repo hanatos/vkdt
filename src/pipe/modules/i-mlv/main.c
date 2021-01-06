@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "connector.h"
+#include "core/core.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,8 +61,9 @@ read_frame(
     void        *mapped)
 {
   buf_t *dat = mod->data;
+  int frame = MIN(mod->graph->frame, dat->video.MLVI.videoFrameCount-1);
   return mlv_get_frame(
-    &dat->video, mod->graph->frame, mapped);
+    &dat->video, frame, mapped);
 }
 
 int init(dt_module_t *mod)
@@ -110,18 +112,21 @@ void modify_roi_out(
 
     .orientation    = 0,
     .datetime       = "20200101",// TODO: use  video->RTCI.tm_mday video->RTCI.tm_mon video->RTCI.tm_year (hour min sec)
-    .maker          = "Canon", // TODO: copy IDNT.cameraName
-    .model          = "5D Mark II",
     .exposure       = dat->video.EXPO.shutterValue * 1e-6f,
-    .aperture       = dat->video.LENS.aperture,
+    .aperture       = dat->video.LENS.aperture * 0.01f,
     .iso            = dat->video.EXPO.isoValue,
     .focal_length   = dat->video.LENS.focalLength,
 
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
   };
+  snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
+  snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
+  for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   // TODO: compute and write: (see ../i-raw-main.cc)
   // memcpy(.cam_to_rec2020 , )
+  mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
+  mod->graph->frame_rate = dat->video.frame_rate;
 }
 
 int read_source(
