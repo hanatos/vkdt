@@ -68,7 +68,7 @@ typedef struct dt_module_t
   dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
-  // this block of data identifies a few metadata properties of the input
+  // this block of data identifies a few metadata properties of the
   // image, see above for the definition. strictly speaking we'd need one of
   // these per connector. only most connectors aren't in fact related to input
   // image files any more. one important use case, however, is that we'd like
