@@ -8,13 +8,83 @@
 #include <stdint.h>
 
 #include "video_mlv.h"
-// #include "audio_mlv.h"
 
 /* Lossless decompression */
 #include "liblj92/lj92.h"
 #include "liblj92/lj92.c"
 
 #define ROR32(v,a) ((v) >> (a) | (v) << (32-(a)))
+
+static void
+mlv_read_audio(mlv_header_t *video)
+{
+  if(!((video->MLVI.audioClass) && video->audios && (video->WAVI.channels != 0)))
+    return;
+
+  int fread_err = 1;
+  uint64_t mlv_audio_buffer_offset = 0;
+  uint64_t mlv_audio_size = 0;
+  for (uint32_t i = 0; i < video->audios; ++i)
+    mlv_audio_size += video->audio_index[i].frame_size;
+  uint8_t *mlv_audio_buffer = malloc(mlv_audio_size);
+
+  for (uint32_t i = 0; i < video->audios; ++i)
+  {
+    /* Go to audio block position */
+    fseek(video->file[video->audio_index[i].chunk_num], video->audio_index[i].frame_offset, SEEK_SET);
+    /* Read to location of audio */
+    fread_err &= fread(mlv_audio_buffer + mlv_audio_buffer_offset, video->audio_index[i].frame_size, 1, video->file[video->audio_index[i].chunk_num]);
+    /* New audio position */
+    mlv_audio_buffer_offset += video->audio_index[i].frame_size;
+  }
+
+  if(!fread_err)
+  {
+    free(mlv_audio_buffer);
+    return;
+  }
+
+  /* Calculate the sum of audio sample sizes for all audio channels */
+  uint64_t audio_sample_size = (video)->WAVI.channels * (video)->WAVI.bitsPerSample / 8;
+  /* Calculate the audio alignement block size in bytes */
+  uint16_t block_align = audio_sample_size * 1024;
+
+  /* Get time difference of first video and audio frames and calculate the sync offset */
+  uint64_t negative_offset = 0;
+  uint64_t positive_offset = 0;
+  int64_t sync_offset = (int64_t)( ( (double)video->video_index[0].frame_time - (double)video->audio_index[0].frame_time ) * (double)(
+        video->WAVI.samplingRate * audio_sample_size / 1000000.0 ) );
+  if(sync_offset >= 0) negative_offset = (uint64_t)sync_offset - ((uint64_t)sync_offset % audio_sample_size); // Make sure value is multiple of sum of all channel sample sizes
+  else positive_offset = (uint64_t)(-sync_offset) - ((uint64_t)(-sync_offset) % audio_sample_size);
+
+  /* Calculate synced audio size */
+  uint64_t synced_audio_size = mlv_audio_size - negative_offset + positive_offset;
+  /* Check if synced_audio_size is multiple of 'block_align' bytes and add one more block */
+  uint64_t synced_audio_size_aligned = synced_audio_size - (synced_audio_size % block_align) + block_align;
+
+  /* Allocate synced audio buffer */
+  video->audio_data = calloc( synced_audio_size_aligned, 1 );
+
+  /* Copy cut/shifted audio data to the synced audio buffer */
+  memcpy(video->audio_data + positive_offset, mlv_audio_buffer + negative_offset, mlv_audio_size - negative_offset);
+  free(mlv_audio_buffer);
+
+  /* Calculate theoretical audio size according to fps */
+  uint64_t theoretic_size = (uint64_t)( (double)(
+        video->WAVI.samplingRate
+        * audio_sample_size *
+        video->frames
+        ) /
+      ((double)(video->MLVI.sourceFpsNom / (double)video->MLVI.sourceFpsDenom))
+      );
+  /* Check if theoretic_size is multiple of 'block_align' bytes and add one more block */
+  uint64_t theoretic_size_aligned = theoretic_size - (theoretic_size % block_align) + block_align;
+  /* Check calculated synced_audio_size_aligned against theoretic_size_aligned */
+  uint64_t final_audio_size_aligned = MIN(theoretic_size_aligned, synced_audio_size_aligned);
+
+  video->audio_buffer_size = synced_audio_size_aligned;
+  video->audio_size = final_audio_size_aligned;
+}
 
 static int seek_to_next_known_block(FILE * in_file)
 {
@@ -520,7 +590,6 @@ int mlv_open_clip(
 
       /* Move to next block */
       fseek(video->file[i], next_block, SEEK_SET);
-
       block_num++;
     }
   }
@@ -553,7 +622,7 @@ int mlv_open_clip(
   /* Reads MLV audio into buffer (video->audio_data) and sync it,
    * set full audio buffer size (video->audio_buffer_size) and
    * aligned usable audio data size (video->audio_size) */
-  // readMlvAudioData(video);
+  mlv_read_audio(video);
 
 preview_out:
 
@@ -563,31 +632,3 @@ preview_out:
 
   return MLV_ERR_NONE;
 }
-
-#if 0
-void printMlvInfo(mlv_header_t *video)
-{
-  printf("\nMLV Info\n\n");
-  printf("      MLV Version: %s\n", video->MLVI.versionString);
-  printf("      File Blocks: %lu\n", video->block_num);
-  printf("\nLens Info\n\n");
-  printf("       Lens Model: %s\n", video->LENS.lensName);
-  printf("    Serial Number: %s\n", video->LENS.lensSerial);
-  printf("\nCamera Info\n\n");
-  printf("     Camera Model: %s\n", video->IDNT.cameraName);
-  printf("    Serial Number: %s\n", video->IDNT.cameraSerial);
-  printf("\nVideo Info\n\n");
-  printf("     X Resolution: %i\n", video->RAWI.xRes);
-  printf("     Y Resolution: %i\n", video->RAWI.yRes);
-  printf("     Total Frames: %i\n", video->frames);
-  printf("       Frame Rate: %.3f\n", video->frame_rate);
-  printf("\nExposure Info\n\n");
-  printf("          Shutter: 1/%.1f\n", (float)1000000 / (float)video->EXPO.shutterValue);
-  printf("      ISO Setting: %i\n", video->EXPO.isoValue);
-  printf("     Digital Gain: %i\n", video->EXPO.digitalGain);
-  printf("\nRAW Info\n\n");
-  printf("      Black Level: %i\n", video->RAWI.raw_info.black_level);
-  printf("      White Level: %i\n", video->RAWI.raw_info.white_level);
-  printf("     Bits / Pixel: %i\n\n", video->RAWI.raw_info.bits_per_pixel);
-}
-#endif
