@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
     else
       dt_gui_recreate_swapchain();
 
-    if(vkdt.state.anim_playing)
+    if(vkdt.view_mode == s_view_darkroom && vkdt.state.anim_playing)
     {
       int advance = 0;
       if(vkdt.graph_dev.frame_rate == 0.0)
