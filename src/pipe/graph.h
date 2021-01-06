@@ -89,6 +89,7 @@ typedef struct dt_graph_t
 
   int                   frame;
   int                   frame_cnt;     // number of frames to compute
+  double                frame_rate;    // frame rate (frames per second)
 
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;
