@@ -65,6 +65,7 @@ int dt_snd_alsa_play(
     int            sample_cnt)
 {
   snd_pcm_t *pcm = snd->handle;
+  if(!pcm) return 0;
   int err = snd_pcm_writei(pcm, samples, sample_cnt);
   if(err == -EAGAIN) return 0;
   if(err < 0) snd_pcm_prepare(pcm);
