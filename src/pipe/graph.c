@@ -1834,6 +1834,7 @@ VkResult dt_graph_run(
       vkDestroyFramebuffer        (qvk.device, graph->node[i].draw_framebuffer, 0);
       vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
     }
+    // we need two uint32, alignment is 64 bytes
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
     // skip modules with uninited roi! (these are disconnected/dead code elimination cases)
@@ -2127,6 +2128,7 @@ VkResult dt_graph_run(
   QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
         graph->uniform_size, 0, (void**)&uniform_mem));
   ((uint32_t *)uniform_mem)[0] = graph->frame;
+  ((uint32_t *)uniform_mem)[1] = graph->frame_cnt;
 #define TRAVERSE_POST \
   dt_module_t *mod = arr+curr;\
   if(mod->so->commit_params)\
