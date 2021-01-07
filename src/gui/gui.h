@@ -102,6 +102,7 @@ typedef struct dt_gui_t
   dt_gui_view_t    view_mode;     // current view mode
 
   dt_snd_t         snd;           // connection to audio device
+  dt_rc_t          rc;            // config file
 
   // favourite gui module/parameter list
   int fav_cnt;
@@ -111,8 +112,6 @@ typedef struct dt_gui_t
   // list of recently used tags
   int  tag_cnt;
   char tag[10][30];
-
-  dt_rc_t          rc; // config file
 }
 dt_gui_t;
 
