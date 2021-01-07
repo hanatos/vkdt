@@ -549,7 +549,7 @@ void render_lighttable()
       if(ImGui::Button("open directory", size))
         dt_filebrowser_open(&filebrowser);
 
-      if(dt_filebrowser_display(&filebrowser))
+      if(dt_filebrowser_display(&filebrowser, 'd'))
       { // "ok" pressed
         dt_gui_switch_collection(filebrowser.cwd);
         dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
@@ -1480,23 +1480,40 @@ void render_darkroom_pipeline()
     if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
       last_err = 16ul<<32;
 
+  static dt_filebrowser_widget_t filebrowser = {{0}};
   // add block (read cfg snipped)
-  if((gui.state == gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert disconnected"))
+  if(gui.state == gui_state_data_t::s_gui_state_insert_block)
   {
-    dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
-        dt_token(mod_inst),
-        dt_token(""), dt_token(""), dt_token(""),
-        dt_token(""), dt_token(""), dt_token(""));
-    gui.state = gui_state_data_t::s_gui_state_regular;
+    if(ImGui::Button("insert disconnected"))
+    {
+      dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
+          dt_token(mod_inst),
+          dt_token(""), dt_token(""), dt_token(""),
+          dt_token(""), dt_token(""), dt_token(""));
+      gui.state = gui_state_data_t::s_gui_state_regular;
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("abort"))
+      gui.state = gui_state_data_t::s_gui_state_regular;
   }
-  if((gui.state != gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert draw block.."))
+  else
   {
-    gui.state = gui_state_data_t::s_gui_state_insert_block;
-    gui.block_token[0] = dt_token(mod_inst);
-    // TODO: open a browser with all data/blocks/*.cfg
-    // for now we only have the draw block
-    strncpy(gui.block_filename, "data/blocks/draw.cfg", sizeof(gui.block_filename));
-    // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+    if(dt_filebrowser_display(&filebrowser, 'f'))
+    { // "ok" pressed
+      fprintf(stderr, "read file: %s/%s\n", filebrowser.cwd, filebrowser.selected);
+      snprintf(gui.block_filename, sizeof(gui.block_filename), "%s/%s", filebrowser.cwd, filebrowser.selected);
+      dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
+      gui.state = gui_state_data_t::s_gui_state_insert_block;
+      // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+    }
+    if(ImGui::Button("insert block.."))
+    {
+      // gui.state = gui_state_data_t::s_gui_state_insert_block;
+      gui.block_token[0] = dt_token(mod_inst);
+      // TODO: open a browser with all data/blocks/*.cfg
+      snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s/data/blocks", dt_pipe.basedir);
+      dt_filebrowser_open(&filebrowser);
+    }
   }
 }
 
