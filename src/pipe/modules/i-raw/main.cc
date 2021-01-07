@@ -271,7 +271,7 @@ void modify_roi_out(
   {
     mod->img_param.black[k]        = mod_data->d->mRaw->blackLevelSeparate[k];
     mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint;
-    mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k];
+    mod->img_param.whitebalance[k] = 1.0;//mod_data->d->mRaw->metadata.wbCoeffs[k];
   }
   // normalise wb
   mod->img_param.whitebalance[0] /= mod->img_param.whitebalance[1];
@@ -283,11 +283,7 @@ void modify_roi_out(
   const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
   float xyz_to_cam[12], mat[9] = {0};
   if(dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam))
-  {
-    mat[0] = 1.0/mod->img_param.whitebalance[0];
-    mat[4] = 1.0/mod->img_param.whitebalance[1];
-    mat[8] = 1.0/mod->img_param.whitebalance[2];
-  }
+    mat[0] = mat[4] = mat[8] = 1.0;
   else mat3inv(mat, xyz_to_cam);
 
   // compute matrix camrgb -> rec2020 d65
@@ -295,12 +291,6 @@ void modify_roi_out(
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-  for(int j=0;j<3;j++)
-  { // just normalise channels, don't white balance
-    double norm = 0.0;
-    for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
-    for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= 1.0f / norm;
-  }
 
   const float xyz_to_rec2020[] = {
      1.7166511880, -0.3556707838, -0.2533662814,
