@@ -189,7 +189,7 @@ dt_thumbnails_cache_one(
   // if that already exists with a newer timestamp than the cfg, bail out
 
   dt_token_t input_module = dt_token("i-raw");
-  if(len >= 9 && strcasecmp(f2-4, ".mlv"))
+  if(len >= 9 && !strncasecmp(f2-4, ".mlv", 4))
     input_module = dt_token("i-mlv");
   char cfgfilename[1040];
   char deffilename[1040];
