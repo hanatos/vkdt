@@ -634,6 +634,7 @@ void render_lighttable()
                 {
                   fwrite(buf, fsize, 1, fout);
                   // replace (relative) image file name
+                  // TODO: replace i-mlv and the likes too!
                   fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
                   fclose(fout);
                 }

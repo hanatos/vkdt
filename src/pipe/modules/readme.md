@@ -25,6 +25,7 @@ TODO: reference all the readme.md in the lower levels:
 * [saturation](./saturate/readme.md)
 * [test 10bit display](./test10b/readme.md)
 * [thumbnails](./thumb/readme.md)
+* [video output](.o-ffmpeg/readme.md)
 * [webcam input](./i-v4l2/readme.md)
 * [zone system](./zones/readme.md)
 
