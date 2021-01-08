@@ -56,7 +56,7 @@ void modify_roi_out(
     // "-an /tmp/out_tempData.h264 "
     "%s",
     width, height, rate, filename);
-  fprintf(stderr, "running `%s'\n", cmdline);
+  fprintf(stderr, "[o-ffmpeg] running `%s'\n", cmdline);
 
   buf_t *buf = mod->data;
   if(buf->f) pclose(buf->f);

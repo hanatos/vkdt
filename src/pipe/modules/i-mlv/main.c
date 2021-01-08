@@ -159,11 +159,11 @@ void modify_roi_out(
   mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   mod->graph->frame_rate = dat->video.frame_rate;
   // TODO: re-init alsa to support this, need to talk to gui core about these settings!
-  fprintf(stderr, "[i-mlv] audio info: sampling rate %d, channels %d, bytes per second %d, bits per sample %d\n",
-      dat->video.WAVI.samplingRate,
-      dat->video.WAVI.channels,
-      dat->video.WAVI.bytesPerSecond,
-      dat->video.WAVI.bitsPerSample);
+  // fprintf(stderr, "[i-mlv] audio info: sampling rate %d, channels %d, bytes per second %d, bits per sample %d\n",
+  //     dat->video.WAVI.samplingRate,
+  //     dat->video.WAVI.channels,
+  //     dat->video.WAVI.bytesPerSecond,
+  //     dat->video.WAVI.bitsPerSample);
 
   // load noise profile:
   char pname[512];
