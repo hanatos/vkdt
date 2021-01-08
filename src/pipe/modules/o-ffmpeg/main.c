@@ -40,7 +40,7 @@ void modify_roi_out(
   if(graph->frame_cnt <= 1) return;
   const char *basename = dt_module_param_string(mod, 0);
   char filename[512];
-  snprintf(filename, sizeof(filename), "%s.mp4", basename);
+  snprintf(filename, sizeof(filename), "%s.h264", basename);
 
   const int width  = mod->connector[0].roi.full_wd & ~1;
   const int height = mod->connector[0].roi.full_ht & ~1;
@@ -76,7 +76,7 @@ void write_sink(
     dat->f = 0;
     return;
   }
-  const char *basename = dt_module_param_string(module, 0);
+  // const char *basename = dt_module_param_string(module, 0);
   // fprintf(stderr, "[o-ffmpeg] writing '%s' frame %d\n", basename, module->graph->frame);
   uint16_t *p16 = buf;
 

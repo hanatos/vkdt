@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
 
   int dump_nodes = 0;
   int output_cnt = 0;
+  char *audio = 0;
   int config_start = 0; // start of arguments which are interpreted as additional config lines
   dt_graph_export_t param = {0};
   for(int i=0;i<argc;i++)
@@ -35,6 +36,8 @@ int main(int argc, char *argv[])
       param.output[output_cnt].p_filename = argv[++i];
     else if(!strcmp(argv[i], "--format") && i < argc-1)
       {i++; param.output[output_cnt].mod = dt_token(argv[i]);}
+    else if(!strcmp(argv[i], "--audio") && i < argc-1)
+      {i++; audio = argv[i];}
     else if(!strcmp(argv[i], "--dump-modules"))
       param.dump_modules = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
@@ -43,8 +46,6 @@ int main(int argc, char *argv[])
       param.output[output_cnt++].inst = dt_token(argv[i]);
     else if(!strcmp(argv[i], "--config"))
     { config_start = i+1; break; }
-
-    // TODO: parse more options: filename, format related things etc
   }
   param.output_cnt = MAX(1, output_cnt);
 
@@ -62,6 +63,7 @@ int main(int argc, char *argv[])
     "    [--format <fm>]               output format (o-jpg, o-bc1, o-pfm, ..)\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "                                  this resets output specific options: quality, width, height\n"
+    "    [--audio <file>]              dump audio stream to this file, if any\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
         );
     qvk_cleanup();
@@ -75,6 +77,28 @@ int main(int argc, char *argv[])
   param.p_extra_param   = argv + config_start;
 
   VkResult res = dt_graph_export(&graph, &param);
+
+  if(audio)
+  {
+    for(int i=0;i<graph.num_modules;i++)
+    {
+      if(graph.module[i].so->audio)
+      {
+        uint16_t *samples;
+        int cnt = graph.module[i].so->audio(graph.module+i, 0, &samples);
+        if(cnt > 0)
+        {
+          FILE *f = fopen(audio, "wb");
+          if(f)
+          { // 2*sizeof(uint16_t) bytes per sample
+            fwrite(samples, 2*sizeof(uint16_t), graph.frame_cnt*cnt, f);
+            fclose(f);
+          }
+        }
+        break;
+      }
+    }
+  }
 
   // nodes we can only print after run() has been called:
   if(dump_nodes)
