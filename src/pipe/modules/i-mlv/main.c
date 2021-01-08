@@ -62,6 +62,8 @@ open_file(
   if(dat && !strcmp(dat->filename, fname))
     return 0; // already open
 
+  fprintf(stderr, "[o-mlv] opening `%s'\n", fname);
+
   const char *filename = fname;
   char tmpfn[1024]; // replicate api.h:dt_graph_open_resource
   if(filename[0] != '/') // relative paths

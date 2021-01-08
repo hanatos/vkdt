@@ -1,8 +1,8 @@
 #include "modules/api.h"
 #include "core/core.h"
-#include "../o-pfm/half.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct buf_t
@@ -51,8 +51,9 @@ void modify_roi_out(
   char cmdline[1024];
   snprintf(cmdline, sizeof(cmdline),
     "ffmpeg "
-    "-y -f rawvideo -pix_fmt rgb24 -s %dx%d -r %g -i - "
+    "-y -f rawvideo -pix_fmt rgba -s %dx%d -r %g -i - "
     "-c:v libx264 -profile:v baseline -pix_fmt yuv420p " // -level:v 3 " // -b:v 2500 "
+    "-v error "
     // "-an /tmp/out_tempData.h264 "
     "%s",
     width, height, rate, filename);
@@ -63,39 +64,19 @@ void modify_roi_out(
   buf->f = popen(cmdline, "w");
 }
 
-// called after pipeline finished up to here.
-// our input buffer will come in memory mapped.
 void write_sink(
     dt_module_t *module,
     void        *buf)
 {
   buf_t *dat = module->data;
   if(!dat->f) return;
-  if(feof(dat->f))
-  {
-    dat->f = 0;
-    return;
-  }
-  // const char *basename = dt_module_param_string(module, 0);
-  // fprintf(stderr, "[o-ffmpeg] writing '%s' frame %d\n", basename, module->graph->frame);
-  uint16_t *p16 = buf;
+  uint32_t *p32 = buf; // our input buf is rgba ui8
 
+  // h264 requires width and height to be divisible by 2:
   const int width  = module->connector[0].roi.wd & ~1;
   const int height = module->connector[0].roi.ht & ~1;
   const int stride = module->connector[0].roi.wd;
 
-  // could probably ask for ui8 input so gpu will convert for us
-  for(int j=0;j<height;j++) for(int i=0;i<width;i++)
-  {
-    uint64_t k = stride * j + i;
-    float p32[3] = {
-      half_to_float(p16[4*k+0]),
-      half_to_float(p16[4*k+1]),
-      half_to_float(p16[4*k+2])};
-    uint8_t rgb[3] = {
-      CLAMP(p32[0] * 256.0, 0, 255),
-      CLAMP(p32[1] * 256.0, 0, 255),
-      CLAMP(p32[2] * 256.0, 0, 255)};
-    fwrite(rgb, sizeof(uint8_t), 3, dat->f);
-  }
+  for(int j=0;j<height;j++)
+    fwrite(p32 + j*stride, sizeof(uint32_t), width, dat->f);
 }
