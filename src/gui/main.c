@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
           {
             uint16_t *samples;
             int cnt = g->module[i].so->audio(g->module+i, g->frame, &samples);
-            if(cnt > 0) dt_snd_alsa_play(&vkdt.snd, samples, cnt);
+            if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
             break;
           }
         }

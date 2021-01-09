@@ -5,6 +5,17 @@
 FLATMK=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/flat.mk))))
 MODULES=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
 MODULESXX=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
+# kill some modules based on config flags:
+ifneq ($(VKDT_USE_RAWSPEED), 1)
+  MODULESXX:=$(filter-out i-raw,$(MODULESXX))
+endif
+ifneq ($(VKDT_USE_V4L2), 1)
+  MODULES:=$(filter-out i-v4l2,$(MODULES))
+endif
+ifneq ($(VKDT_USE_MLV), 1)
+  MODULES:=$(filter-out i-mlv,$(MODULES))
+endif
+
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
 MOD_DSOS=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
 MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)

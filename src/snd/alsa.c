@@ -6,17 +6,19 @@
 #include <stdint.h>
 #include <alsa/asoundlib.h>
 
-void dt_snd_alsa_cleanup(dt_snd_alsa_t *snd)
+static void
+dt_snd_alsa_cleanup(dt_snd_t *snd)
 {
   snd_pcm_t *pcm = snd->handle;
   if(pcm) snd_pcm_close(pcm);
   snd->handle = 0;
 }
 
-int dt_snd_alsa_init(
-    dt_snd_alsa_t *snd,
-    int            sample_rate,
-    int            channels)
+static int
+dt_snd_alsa_init(
+    dt_snd_t *snd,
+    int       sample_rate,
+    int       channels)
 {
   memset(snd, 0, sizeof(*snd));
   snd->sample_rate = sample_rate;
@@ -62,10 +64,11 @@ error:
   return err;
 }
 
-int dt_snd_alsa_play(
-    dt_snd_alsa_t *snd,
-    uint16_t      *samples,
-    int            sample_cnt)
+static int
+dt_snd_alsa_play(
+    dt_snd_t *snd,
+    uint16_t *samples,
+    int       sample_cnt)
 {
   snd_pcm_t *pcm = snd->handle;
   if(!pcm) return 0;
@@ -73,4 +76,25 @@ int dt_snd_alsa_play(
   if(err == -EAGAIN) return 0;
   if(err < 0) snd_pcm_prepare(pcm);
   return err > 0 ? err : 0;
+}
+
+void dt_snd_cleanup(dt_snd_t *snd)
+{
+  dt_snd_alsa_cleanup(snd);
+}
+
+int dt_snd_init(
+    dt_snd_t *snd,
+    int       sample_rate,
+    int       channels)
+{
+  return dt_snd_alsa_init(snd, sample_rate, channels);
+}
+
+int dt_snd_play(
+    dt_snd_t *snd,
+    uint16_t *samples,
+    int       sample_cnt)
+{
+  return dt_snd_alsa_play(snd, samples, sample_cnt);
 }
