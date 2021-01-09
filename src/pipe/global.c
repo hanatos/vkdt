@@ -180,7 +180,7 @@ dt_module_so_load(
         mode = dt_read_int(b, &b);
         continue;
       }
-      else if(type == dt_token("slider"))
+      else if(type == dt_token("slider") || type == dt_token("vslider"))
       { // read range of slider
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
