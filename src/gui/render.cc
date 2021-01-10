@@ -555,12 +555,13 @@ void render_lighttable()
         dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
       }
     }
-    if(vkdt.db.selection_cnt > 0)
+
+    if(ImGui::CollapsingHeader("tags"))
     {
-      if(ImGui::CollapsingHeader("selected images"))
+      // ==============================================================
+      // assign tag modal popup:
+      if(vkdt.db.selection_cnt)
       {
-        // ==============================================================
-        // assign tag modal popup:
         int open = ImGui::Button("assign tag..", size);
         if (open)
         {
@@ -598,6 +599,46 @@ void render_lighttable()
             dt_gui_read_tags();
           }
         }
+      }
+
+      // ==============================================================
+      // recently used tags:
+      char filename[1024];
+      for(int i=0;i<vkdt.tag_cnt;i++)
+      {
+        if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
+        { // load tag collection:
+          snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
+          dt_gui_switch_collection(filename);
+        }
+        if(((i & 3) != 3) && (i != vkdt.tag_cnt-1)) ImGui::SameLine();
+      }
+      // button to jump to original folder of selected image if it is a symlink
+      uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+      if(main_imgid != -1u)
+      {
+        dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
+        struct stat buf;
+        lstat(filename, &buf);
+        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", size))
+        {
+          char *resolved = realpath(filename, 0);
+          if(resolved)
+          {
+            char *c = 0;
+            for(int i=0;resolved[i];i++) if(resolved[i] == '/') c = resolved+i;
+            if(c) *c = 0; // get dirname, i.e. strip off image file name
+            dt_gui_switch_collection(resolved);
+            free(resolved);
+          }
+        }
+      }
+    } // end collapsing header "recent tags"
+
+    if(vkdt.db.selection_cnt > 0)
+    {
+      if(ImGui::CollapsingHeader("selected images"))
+      {
         // ==============================================================
         // copy/paste history stack
         static uint32_t copied_imgid = -1u;
@@ -742,74 +783,52 @@ void render_lighttable()
               &vkdt.db,
               &main_imgid, 1);
         }
-
-        // ==============================================================
-        // export selection
-        static int wd = 0, ht = 0;
-        ImGui::InputInt("width", &wd, 1, 100, 0);
-        ImGui::InputInt("height", &ht, 1, 100, 0);
-        if(ImGui::Button("export", size))
-        {
-          // TODO: put in background job, implement job scheduler
-          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-          char filename[256], infilename[256];
-          dt_graph_t graph;
-          dt_graph_init(&graph);
-          for(int i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            snprintf(filename, sizeof(filename), "/tmp/img_%04d", i);
-            dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
-            dt_graph_export_t param = {0};
-            param.output_cnt = 1;
-            param.output[0].p_filename = filename;
-            param.output[0].max_width  = wd;
-            param.output[0].max_height = ht;
-            param.p_cfgfile = infilename;
-            if(dt_graph_export(&graph, &param))
-            {
-              // TODO: some feedback in gui instead:
-              fprintf(stderr, "export %s failed!\n", infilename);
-            }
-            dt_graph_reset(&graph);
-          }
-          dt_graph_cleanup(&graph);
-        }
       }
     } // end collapsing header "selected"
 
-    if(ImGui::CollapsingHeader("recent tags"))
+    // ==============================================================
+    // export selection
+    if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export"))
     {
-      char filename[1024];
-      for(int i=0;i<vkdt.tag_cnt;i++)
+      static int wd = 0, ht = 0, format = 0;
+      static float quality = 90;
+      static char basename[240] = "/tmp/img";
+      const char format_data[] = "jpg\0pfm\0ffmpeg\0\0";
+      const dt_token_t format_mod[] = {dt_token("o-jpg"), dt_token("o-pfm"), dt_token("o-ffmpeg")};
+      ImGui::InputInt("width", &wd, 1, 100, 0);
+      ImGui::InputInt("height", &ht, 1, 100, 0);
+      ImGui::InputText("filename", basename, sizeof(basename));
+      ImGui::InputFloat("quality", &quality, 1, 100, 0);
+      ImGui::Combo("format", &format, format_data);
+      if(ImGui::Button("export", size))
       {
-        if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
-        { // load tag collection:
-          snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
-          dt_gui_switch_collection(filename);
-        }
-        if(((i & 3) != 3) && (i != vkdt.tag_cnt-1)) ImGui::SameLine();
-      }
-      // button to jump to original folder of selected image if it is a symlink
-      uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
-      if(main_imgid != -1u)
-      {
-        dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
-        struct stat buf;
-        lstat(filename, &buf);
-        if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", size))
+        // TODO: put in background job, implement job scheduler
+        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+        char filename[256], infilename[256];
+        dt_graph_t graph;
+        dt_graph_init(&graph);
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
         {
-          char *resolved = realpath(filename, 0);
-          if(resolved)
+          snprintf(filename, sizeof(filename), "%s_%04d", basename, i);
+          dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
+          dt_graph_export_t param = {0};
+          param.output_cnt = 1;
+          param.output[0].p_filename = filename;
+          param.output[0].max_width  = wd;
+          param.output[0].max_height = ht;
+          param.output[0].quality    = quality;
+          param.output[0].mod        = format_mod[format];
+          param.p_cfgfile = infilename;
+          if(dt_graph_export(&graph, &param))
           {
-            char *c = 0;
-            for(int i=0;resolved[i];i++) if(resolved[i] == '/') c = resolved+i;
-            if(c) *c = 0; // get dirname, i.e. strip off image file name
-            dt_gui_switch_collection(resolved);
-            free(resolved);
+            // TODO: some feedback in gui instead:
+            fprintf(stderr, "export %s failed!\n", infilename);
           }
+          dt_graph_reset(&graph);
         }
+        dt_graph_cleanup(&graph);
       }
-    } // end collapsing header "recent tags"
+    } // end collapsing header "export"
 
     ImGui::End(); // lt center window
   }
