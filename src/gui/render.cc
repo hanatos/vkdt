@@ -1773,18 +1773,20 @@ void render_darkroom()
         }
 
         // animation controls
-        // TODO: avoid jumps by ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
+        float lineht = 1.2*ImGui::GetTextLineHeight(); // ??
+        float bwd = 0.12f;
+        ImVec2 size(bwd*vkdt.state.panel_wd, lineht);
         if(vkdt.state.anim_playing)
         {
-          if(ImGui::Button("stop"))
+          if(ImGui::Button("stop", size))
             vkdt.state.anim_playing = 0;
         }
-        else if(ImGui::Button("play"))
+        else if(ImGui::Button("play", size))
           vkdt.state.anim_playing = 1;
         ImGui::SameLine();
-        ImGui::Text("%d", vkdt.state.anim_frame);
+        ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame);
         ImGui::SameLine();
-        ImGui::SliderInt("max frame", &vkdt.state.anim_max_frame, 0, 100);
+        ImGui::Text("%d", vkdt.state.anim_max_frame);
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();

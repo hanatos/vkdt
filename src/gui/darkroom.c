@@ -457,7 +457,9 @@ darkroom_process()
       }
       // compute current animation frame by time:
       double dt = (double)(beg.tv_sec - start_time.tv_sec) + 1e-9*(beg.tv_nsec - start_time.tv_nsec);
-      vkdt.state.anim_frame = start_frame + MAX(0, vkdt.graph_dev.frame_rate * dt);
+      vkdt.state.anim_frame = CLAMP(
+          start_frame + MAX(0, vkdt.graph_dev.frame_rate * dt),
+          0, vkdt.graph_dev.frame_cnt-1);
       if(vkdt.graph_dev.frame > start_frame &&
          vkdt.graph_dev.frame == vkdt.state.anim_frame)
         vkdt.graph_dev.runflags = 0; // no need to re-render
