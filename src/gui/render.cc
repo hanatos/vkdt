@@ -199,9 +199,12 @@ inline void dark_corporate_style()
 
 	style.PopupRounding = 3;
 
-	style.WindowPadding = ImVec2(4, 4);
-	style.FramePadding  = ImVec2(6, 4);
-	style.ItemSpacing   = ImVec2(6, 2);
+  // TODO: make these relative to window size!
+  // TODO: in particular it needs to be reset when the window is resized!
+  // maybe look at ImGuiStyle::ScaleAllSizes?
+	style.WindowPadding = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.01);//ImVec2(4, 4);
+	style.FramePadding  = ImVec2(vkdt.state.panel_wd*0.02, vkdt.state.panel_wd*0.01);//ImVec2(6, 4);
+	style.ItemSpacing   = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.005);//ImVec2(6, 2);
 
 	style.ScrollbarSize = 18;
 
@@ -524,8 +527,11 @@ void render_lighttable()
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
-    if(ImGui::CollapsingHeader("collect"))
+    // if(ImGui::CollapsingHeader("collect"))
+    if(ImGui::CollapsingHeader("collect", ImGuiTreeNodeFlags_FramePadding))
+    // if(ImGui::TreeNodeEx("collect", ImGuiTreeNodeFlags_CollapsingHeader & ~ImGuiTreeNodeFlags_NoTreePushOnOpen))
     {
+      ImGui::Indent();
       int32_t filter_prop = static_cast<int32_t>(vkdt.db.collection_filter);
       int32_t sort_prop   = static_cast<int32_t>(vkdt.db.collection_sort);
 
@@ -554,10 +560,12 @@ void render_lighttable()
         dt_gui_switch_collection(filebrowser.cwd);
         dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
       }
+      ImGui::Unindent();
     }
 
     if(ImGui::CollapsingHeader("tags"))
     {
+      ImGui::Indent();
       // ==============================================================
       // assign tag modal popup:
       if(vkdt.db.selection_cnt)
@@ -633,170 +641,171 @@ void render_lighttable()
           }
         }
       }
+      ImGui::Unindent();
     } // end collapsing header "recent tags"
 
-    if(vkdt.db.selection_cnt > 0)
+    if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("selected images"))
     {
-      if(ImGui::CollapsingHeader("selected images"))
+      ImGui::Indent();
+      // ==============================================================
+      // copy/paste history stack
+      static uint32_t copied_imgid = -1u;
+      if(ImGui::Button("copy history stack", size))
+        copied_imgid = dt_db_current_imgid(&vkdt.db);
+
+      if(copied_imgid != -1u)
       {
-        // ==============================================================
-        // copy/paste history stack
-        static uint32_t copied_imgid = -1u;
-        if(ImGui::Button("copy history stack", size))
-          copied_imgid = dt_db_current_imgid(&vkdt.db);
-
-        if(copied_imgid != -1u)
+        ImGui::SameLine();
+        if(ImGui::Button("paste history stack", size))
         {
-          ImGui::SameLine();
-          if(ImGui::Button("paste history stack", size))
+          // TODO: background job
+          char filename[1024];
+          dt_db_image_path(&vkdt.db, copied_imgid, filename, sizeof(filename));
+          FILE *fin = fopen(filename, "rb");
+          if(fin)
           {
-            // TODO: background job
-            char filename[1024];
-            dt_db_image_path(&vkdt.db, copied_imgid, filename, sizeof(filename));
-            FILE *fin = fopen(filename, "rb");
-            if(fin)
+            fseek(fin, 0, SEEK_END);
+            size_t fsize = ftell(fin);
+            fseek(fin, 0, SEEK_SET);
+            uint8_t *buf = (uint8_t*)malloc(fsize);
+            fread(buf, fsize, 1, fin);
+            fclose(fin);
+            // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
+            // one input raw file that is appearing under param:i-raw:01:filename.
+            // it then copies the history to the selected images, replacing their filenames in the config.
+            const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+            for(int i=0;i<vkdt.db.selection_cnt;i++)
             {
-              fseek(fin, 0, SEEK_END);
-              size_t fsize = ftell(fin);
-              fseek(fin, 0, SEEK_SET);
-              uint8_t *buf = (uint8_t*)malloc(fsize);
-              fread(buf, fsize, 1, fin);
-              fclose(fin);
-              // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
-              // one input raw file that is appearing under param:i-raw:01:filename.
-              // it then copies the history to the selected images, replacing their filenames in the config.
-              const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-              for(int i=0;i<vkdt.db.selection_cnt;i++)
+              if(sel[i] == copied_imgid) continue; // don't copy to self
+              dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+              FILE *fout = fopen(filename, "wb");
+              if(fout)
               {
-                if(sel[i] == copied_imgid) continue; // don't copy to self
-                dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-                FILE *fout = fopen(filename, "wb");
-                if(fout)
-                {
-                  fwrite(buf, fsize, 1, fout);
-                  // replace (relative) image file name
-                  const char *fn = vkdt.db.image[sel[i]].filename;
-                  size_t len = strlen(fn);
-                  if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
-                    fprintf(fout, "param:i-mlv:01:filename:%s\n", fn);
-                  else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
-                    fprintf(fout, "param:i-pfm:01:filename:%s\n", fn);
-                  else
+                fwrite(buf, fsize, 1, fout);
+                // replace (relative) image file name
+                const char *fn = vkdt.db.image[sel[i]].filename;
+                size_t len = strlen(fn);
+                if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
+                  fprintf(fout, "param:i-mlv:01:filename:%s\n", fn);
+                else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
+                  fprintf(fout, "param:i-pfm:01:filename:%s\n", fn);
+                else
 
-                    fprintf(fout, "param:i-raw:01:filename:%s\n", fn);
-                  fclose(fout);
-                }
+                  fprintf(fout, "param:i-raw:01:filename:%s\n", fn);
+                fclose(fout);
               }
-              free(buf);
-              dt_thumbnails_cache_list(
-                  &vkdt.thumbnail_gen,
-                  &vkdt.db,
-                  sel, vkdt.db.selection_cnt);
             }
-            else
-            {
-              // TODO: error message
-            }
+            free(buf);
+            dt_thumbnails_cache_list(
+                &vkdt.thumbnail_gen,
+                &vkdt.db,
+                sel, vkdt.db.selection_cnt);
           }
-        }
-
-        // ==============================================================
-        // delete images
-        static int really_delete = 0;
-        if(ImGui::Button("delete image[s]", size))
-          really_delete ^= 1;
-
-        if(really_delete)
-        {
-          ImGui::SameLine();
-          if(ImGui::Button("*really* delete image[s]", size))
+          else
           {
-            dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
-            really_delete = 0;
+            // TODO: error message
           }
-        }
-
-        // ==============================================================
-        // merge/align images
-        if(vkdt.db.selection_cnt > 1)
-        if(ImGui::Button("merge into current", size))
-        {
-          // overwrite .cfg for this image file:
-          uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
-          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-          char filename[1024] = {0};
-          dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
-          FILE *f = fopen(filename, "wb");
-          fprintf(f, "frames:1\n");
-          for(int i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            fprintf(f, "module:i-raw:%02d\n", i);
-            if(i > 0)
-            {
-              fprintf(f, "module:burst:%02d\n", i);
-              fprintf(f, "module:blend:%02d\n", i);
-            }
-          }
-          fprintf(f,
-              "module:denoise:01\n"
-              "module:hilite:01\n"
-              "module:demosaic:01\n"
-              "module:colour:01\n"
-              "module:filmcurv:01\n"
-              "module:hist:01\n"
-              "module:display:hist\n"
-              "module:display:main\n");
-          fprintf(f, "param:i-raw:00:filename:%s\n", vkdt.db.image[main_imgid].filename);
-          int ii = 1;
-          for(int i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            if(sel[i] == main_imgid) continue;
-            fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
-            fprintf(f,
-                "connect:i-raw:%02d:output:burst:%02d:warp\n"
-                "connect:burst:%02d:output:blend:%02d:back\n"
-                "connect:burst:%02d:mask:blend:%02d:mask\n"
-                "connect:%s:%02d:output:blend:%02d:input\n"
-                "connect:i-raw:00:output:burst:%02d:input\n",
-                ii, ii, ii, ii, ii, ii,
-                ii > 1 ? "blend" : "i-raw",
-                ii-1, ii, ii);
-            fprintf(f,
-                "param:blend:%02d:opacity:%g\n"
-                "param:burst:%02d:merge_n:0.0\n"
-                "param:burst:%02d:merge_k:4000\n"
-                "param:burst:%02d:blur0:1\n"
-                "param:burst:%02d:blur1:1\n"
-                "param:burst:%02d:blur2:1\n"
-                "param:burst:%02d:blur3:1\n",
-                ii, pow(0.5, ii), // ??
-                ii, ii, ii, ii, ii, ii);
-            ii++;
-          }
-          // TODO: grab from default darkroom cfg?
-          fprintf(f,
-              "connect:blend:%02d:output:denoise:01:input\n"
-              "connect:denoise:01:output:hilite:01:input\n"
-              "connect:hilite:01:output:demosaic:01:input\n"
-              "connect:demosaic:01:output:colour:01:input\n"
-              "connect:colour:01:output:filmcurv:01:input\n"
-              "connect:filmcurv:01:output:display:main:input\n"
-              "connect:filmcurv:01:output:hist:01:input\n"
-              "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
-          fclose(f);
-          // now redo/delete thumbnail of main_imgid
-          dt_thumbnails_cache_list(
-              &vkdt.thumbnail_gen,
-              &vkdt.db,
-              &main_imgid, 1);
         }
       }
+
+      // ==============================================================
+      // delete images
+      static int really_delete = 0;
+      if(ImGui::Button("delete image[s]", size))
+        really_delete ^= 1;
+
+      if(really_delete)
+      {
+        ImGui::SameLine();
+        if(ImGui::Button("*really* delete image[s]", size))
+        {
+          dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+          really_delete = 0;
+        }
+      }
+
+      // ==============================================================
+      // merge/align images
+      if(vkdt.db.selection_cnt > 1)
+      if(ImGui::Button("merge into current", size))
+      {
+        // overwrite .cfg for this image file:
+        uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+        char filename[1024] = {0};
+        dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
+        FILE *f = fopen(filename, "wb");
+        fprintf(f, "frames:1\n");
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        {
+          fprintf(f, "module:i-raw:%02d\n", i);
+          if(i > 0)
+          {
+            fprintf(f, "module:burst:%02d\n", i);
+            fprintf(f, "module:blend:%02d\n", i);
+          }
+        }
+        fprintf(f,
+            "module:denoise:01\n"
+            "module:hilite:01\n"
+            "module:demosaic:01\n"
+            "module:colour:01\n"
+            "module:filmcurv:01\n"
+            "module:hist:01\n"
+            "module:display:hist\n"
+            "module:display:main\n");
+        fprintf(f, "param:i-raw:00:filename:%s\n", vkdt.db.image[main_imgid].filename);
+        int ii = 1;
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        {
+          if(sel[i] == main_imgid) continue;
+          fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
+          fprintf(f,
+              "connect:i-raw:%02d:output:burst:%02d:warp\n"
+              "connect:burst:%02d:output:blend:%02d:back\n"
+              "connect:burst:%02d:mask:blend:%02d:mask\n"
+              "connect:%s:%02d:output:blend:%02d:input\n"
+              "connect:i-raw:00:output:burst:%02d:input\n",
+              ii, ii, ii, ii, ii, ii,
+              ii > 1 ? "blend" : "i-raw",
+              ii-1, ii, ii);
+          fprintf(f,
+              "param:blend:%02d:opacity:%g\n"
+              "param:burst:%02d:merge_n:0.0\n"
+              "param:burst:%02d:merge_k:4000\n"
+              "param:burst:%02d:blur0:1\n"
+              "param:burst:%02d:blur1:1\n"
+              "param:burst:%02d:blur2:1\n"
+              "param:burst:%02d:blur3:1\n",
+              ii, pow(0.5, ii), // ??
+              ii, ii, ii, ii, ii, ii);
+          ii++;
+        }
+        // TODO: grab from default darkroom cfg?
+        fprintf(f,
+            "connect:blend:%02d:output:denoise:01:input\n"
+            "connect:denoise:01:output:hilite:01:input\n"
+            "connect:hilite:01:output:demosaic:01:input\n"
+            "connect:demosaic:01:output:colour:01:input\n"
+            "connect:colour:01:output:filmcurv:01:input\n"
+            "connect:filmcurv:01:output:display:main:input\n"
+            "connect:filmcurv:01:output:hist:01:input\n"
+            "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
+        fclose(f);
+        // now redo/delete thumbnail of main_imgid
+        dt_thumbnails_cache_list(
+            &vkdt.thumbnail_gen,
+            &vkdt.db,
+            &main_imgid, 1);
+      }
+      ImGui::Unindent();
     } // end collapsing header "selected"
 
     // ==============================================================
     // export selection
     if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export"))
     {
+      ImGui::Indent();
       static int wd = 0, ht = 0, format = 0;
       static float quality = 90;
       static char basename[240] = "/tmp/img";
@@ -835,6 +844,7 @@ void render_lighttable()
         }
         dt_graph_cleanup(&graph);
       }
+      ImGui::Unindent();
     } // end collapsing header "export"
 
     ImGui::End(); // lt center window
