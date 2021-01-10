@@ -42,9 +42,9 @@ typedef struct dt_gui_state_t
   int   panel_ht;
 
   // animation state
-  int   anim_playing;              // playing yes/no
-  int   anim_max_frame;            // last frame in animation
-  int   anim_frame;                // current frame in animation
+  int   anim_playing;        // playing yes/no
+  int   anim_max_frame;      // last frame in animation
+  int   anim_frame;          // current frame in animation
 }
 dt_gui_state_t;
 

@@ -505,6 +505,8 @@ darkroom_process()
 int
 darkroom_enter()
 {
+  vkdt.state.anim_frame = 0;
+  vkdt.state.anim_playing = 0;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
@@ -560,7 +562,6 @@ darkroom_enter()
     }
   }
 
-  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
 
   VkResult err = 0;
   if((err = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
@@ -580,6 +581,10 @@ darkroom_enter()
     dt_graph_cleanup(&vkdt.graph_dev);
     return 5;
   }
+
+  // do this after running the graph, it may only know
+  // after initing say the output roi, after loading an input file
+  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
