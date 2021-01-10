@@ -419,7 +419,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
   {
     if(vkdt.graph_dev.frame_cnt > 1)
-      vkdt.state.anim_playing ^= 1; // start/stop playing animation
+      vkdt.state.anim_frame = 0; // reset to beginning
     else
     { // backtrack to last image in lighttable collection
       uint32_t next = dt_db_current_colid(&vkdt.db) - 1;
@@ -437,22 +437,69 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 void
 darkroom_process()
 {
-  // intel says:
-  // ==
-  // The pipeline is flushed when switching between 3D graphics rendering and
-  // compute functions. Asynchronous compute functions are not supported at
-  // this time. Batch the compute kernels into groups whenever possible.
-  // ==
-  // which is unfortunate for us :/
+  static int    start_frame = 0;           // frame we were when play was issued
+  static struct timespec start_time = {0}; // start time of the same event
 
-  // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
-  // if(fence == VK_SUCCESS)
+  struct timespec beg;
+  clock_gettime(CLOCK_REALTIME, &beg);
+
+  int advance = 0;
+  if(vkdt.state.anim_playing)
+  {
+    if(vkdt.graph_dev.frame_rate == 0.0)
+      advance = 1; // no frame rate set, run as fast as we can
+    else
+    { // just started replay, record timestamp:
+      if(start_time.tv_nsec == 0)
+      {
+        start_time  = beg;
+        start_frame = vkdt.state.anim_frame;
+      }
+      // compute current animation frame by time:
+      double dt = (double)(beg.tv_sec - start_time.tv_sec) + 1e-9*(beg.tv_nsec - start_time.tv_nsec);
+      vkdt.state.anim_frame = start_frame + MAX(0, vkdt.graph_dev.frame_rate * dt);
+      if(vkdt.graph_dev.frame > start_frame &&
+         vkdt.graph_dev.frame == vkdt.state.anim_frame)
+        vkdt.graph_dev.runflags = 0; // no need to re-render
+      else advance = 1;
+    }
+    if(advance)
+    {
+      if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
+        dt_log(s_log_snd, "frame drop warning, audio may stutter!");
+      vkdt.graph_dev.frame = vkdt.state.anim_frame;
+      if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+    }
+  }
+  else
+  { // if no animation, reset time stamp
+    start_time = (struct timespec){0};
+  }
+
   if(vkdt.graph_dev.runflags)
-    // VkResult err =
     dt_graph_run(&vkdt.graph_dev,
-        vkdt.graph_dev.runflags
-        | s_graph_run_wait_done);    // if we don't wait we can't resubmit because the fence would be used twice.
-  // if(err != VK_SUCCESS) break;
+        vkdt.graph_dev.runflags | s_graph_run_wait_done);
+
+  if(vkdt.state.anim_playing && advance)
+  { // new frame for animations need new audio, too
+    dt_graph_t *g = &vkdt.graph_dev;
+    for(int i=0;i<g->num_modules;i++)
+    { // find first audio module, if any
+      if(g->module[i].so->audio)
+      {
+        uint16_t *samples;
+        int cnt = g->module[i].so->audio(g->module+i, g->frame, &samples);
+        if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
+        break;
+      }
+    }
+  }
+
+  struct timespec end;
+  clock_gettime(CLOCK_REALTIME, &end);
+  double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
+  dt_log(s_log_perf, "frame time %2.3fs", dt);
 }
 
 int

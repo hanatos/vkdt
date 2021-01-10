@@ -193,8 +193,6 @@ int main(int argc, char *argv[])
   dt_gui_read_tags();
 
   // main loop
-  struct timespec beg, end, anim_start_time = {0};
-  clock_gettime(CLOCK_REALTIME, &beg);
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   while(g_running)
   {
@@ -221,62 +219,7 @@ int main(int argc, char *argv[])
     else
       dt_gui_recreate_swapchain();
 
-    // this logic probably mostly belongs into darkroom_process()
-    if(vkdt.view_mode == s_view_darkroom && vkdt.state.anim_playing)
-    {
-      int advance = 0;
-      if(vkdt.graph_dev.frame_rate == 0.0)
-        advance = 1; // no frame rate set, run as fast as we can
-      else
-      { // just started replay, record timestamp:
-        if(anim_start_time.tv_nsec == 0) clock_gettime(CLOCK_REALTIME, &anim_start_time);
-        // compute current animation frame by time:
-        double dt = (double)(beg.tv_sec - anim_start_time.tv_sec) + 1e-9*(beg.tv_nsec - anim_start_time.tv_nsec);
-        vkdt.state.anim_frame = MAX(0, vkdt.graph_dev.frame_rate * dt);
-        if(vkdt.graph_dev.frame > 0 && vkdt.graph_dev.frame == vkdt.state.anim_frame)
-          vkdt.graph_dev.runflags = 0; // no need to re-render
-        else advance = 1;
-      }
-      if(advance)
-      {
-        if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
-          dt_log(s_log_snd, "frame drop warning, audio may stutter!");
-        vkdt.graph_dev.frame = vkdt.state.anim_frame;
-        if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
-      }
-    }
-
-    if(!vkdt.state.anim_playing)
-    { // if no animation, always process
-      vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
-      anim_start_time = (struct timespec){0};
-      dt_view_process();
-    }
-    else if(vkdt.graph_dev.runflags)
-    { // for animations
-      dt_view_process();
-      // audio
-      if(vkdt.view_mode == s_view_darkroom)
-      { // find audio modules, if any
-        dt_graph_t *g = &vkdt.graph_dev;
-        for(int i=0;i<g->num_modules;i++)
-        {
-          if(g->module[i].so->audio)
-          {
-            uint16_t *samples;
-            int cnt = g->module[i].so->audio(g->module+i, g->frame, &samples);
-            if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
-            break;
-          }
-        }
-      }
-    }
-
-    clock_gettime(CLOCK_REALTIME, &end);
-    double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
-    dt_log(s_log_perf, "total frame time %2.3fs", dt);
-    beg = end;
+    dt_view_process();
   }
 
   vkDeviceWaitIdle(qvk.device);
