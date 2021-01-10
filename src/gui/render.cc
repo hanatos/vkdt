@@ -675,8 +675,15 @@ void render_lighttable()
                 {
                   fwrite(buf, fsize, 1, fout);
                   // replace (relative) image file name
-                  // TODO: replace i-mlv and the likes too!
-                  fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
+                  const char *fn = vkdt.db.image[sel[i]].filename;
+                  size_t len = strlen(fn);
+                  if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
+                    fprintf(fout, "param:i-mlv:01:filename:%s\n", fn);
+                  else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
+                    fprintf(fout, "param:i-pfm:01:filename:%s\n", fn);
+                  else
+
+                    fprintf(fout, "param:i-raw:01:filename:%s\n", fn);
                   fclose(fout);
                 }
               }
