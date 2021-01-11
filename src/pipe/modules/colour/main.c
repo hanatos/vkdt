@@ -19,7 +19,7 @@ clip_poly(
     float dotv = n[0]*vp0[0] + n[1]*vp0[1];
     if(dotv <= 0) continue; // inside
 
-#if 1 // project along line in rb space
+    // project along line in rb space
     float dotvw = n[0]*(v[0]-w[0]) + n[1]*(v[1]-w[1]);
     float dotpw = n[0]*(p[2*i]-w[0]) + n[1]*(p[2*i+1]-w[1]);
     float t = dotpw/dotvw;
@@ -28,7 +28,6 @@ clip_poly(
       v[0] = w[0] + t * (v[0] - w[0]);
       v[1] = w[1] + t * (v[1] - w[1]);
     }
-#endif
   }
 }
 
@@ -92,12 +91,11 @@ clip_rec709(float *v, const float *white)
 }
 
 // create 2d pattern of points:
-// outer ring: [01]^3 in rgb transformed by wb + cmatrix
-// inner ring: [1/4 3/4]^3 transformed by the same
+// outer ring: to push back into gamut
+// inner ring: to protect inner values
 static inline void
 create_ring(
     const float *wb,          // camera white balance coefs
-    const float *M,           // camera to rec2020 matrix, 4-strided (same as passed to glsl)
     const float  saturation,  // saturate the inner ring
     const float *white,       // adjust white point
     float       *source,      // generated list of source points
@@ -106,14 +104,8 @@ create_ring(
 {
   // 6+6+1 points in 2D RBF: outer, inner, white.
   const int N = 13;
-  const float S = 1.5f; // larger S means less white means more saturated
-  float in[39] = {
-    1, 0, 0,  // red
-    1, 1, 0,  // yellow
-    0, 1, 0,  // green
-    0, 1, 1,  // cyan
-    0, 0, 1,  // blue
-    1, 0, 1,  // magenta
+  const float S = 0.20f; // larger S means more white means less saturated
+  float out[21] = {
     S, 1, 1,  // dim red
     S, S, 1,  // dim yellow
     1, S, 1,  // dim green
@@ -122,37 +114,23 @@ create_ring(
     S, 1, S,  // dim magenta
     1, 1, 1   // white
   };
-  float out[39] = {0};
-  for(int k=0;k<N;k++)
-    for(int j=0;j<3;j++)
-      for(int i=0;i<3;i++)
-        out[3*k+j] += M[4*j+i] * in[3*k+i] * wb[i];
 
-  // fprintf(stderr, "[colour] wb coeffs: %g %g %g\n", wb[0], wb[1], wb[2]);
-  // fprintf(stderr, "[colour] matrix: %g %g %g - %g %g %g - %g %g %g\n",
-  //     M[0], M[1], M[2],
-  //     M[4], M[5], M[6],
-  //     M[8], M[9], M[10]);
-
-  const float w2[2] = {
-    out[12*3+0]/(out[12*3+0] + out[12*3+1] + out[12*3+2]),
-    out[12*3+2]/(out[12*3+0] + out[12*3+1] + out[12*3+2]),
-  };
-  for(int k=0;k<N;k++)
+  for(int k=0;k<7;k++)
   {
     const float b = out[3*k+0] + out[3*k+1] + out[3*k+2];
-    if(b > 1e-8f) for(int i=0;i<3;i++) out[3*k+i] /= b;
-    source[2*k+0] = out[3*k+0];
-    source[2*k+1] = out[3*k+2];
-    target[2*k+0] = out[3*k+0];
-    target[2*k+1] = out[3*k+2];
+    out[k*3+0] /= b;
+    out[k*3+2] /= b;
+  }
+  const float w2[] = {1.0/3.0, 1.0/3.0};
+  for(int k=0;k<N;k++)
+  {
+    float x = k > 6 ? 4.0*(out[3*(k-7)+0]-w2[0])+w2[0] : out[3*k+0];
+    float y = k > 6 ? 4.0*(out[3*(k-7)+2]-w2[1])+w2[1] : out[3*k+2];
+    source[2*k+0] = target[2*k+0] = x;
+    source[2*k+1] = target[2*k+1] = y;
     if     (gamut == 1) clip_spectral_locus(target + 2*k, w2);
     else if(gamut == 2) clip_rec2020(target + 2*k, w2);
     else if(gamut == 3) clip_rec709(target + 2*k, w2);
-
-    // fprintf(stdout, "ring %d: %g %g %g %g\n", k,
-    //     source[2*k], source[2*k+1],
-    //     target[2*k], target[2*k+1]);
   }
   for(int k=0;k<6;k++)
   { // saturation:
@@ -362,8 +340,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     // { p_wb[0], p_wb[1] };
     float source[26];
     float target[26];
-    create_ring(wb, f+4,
-        1.0f, // p_wb[2],
+    create_ring(wb, 1.0f, // p_wb[2],
         white, source, target, p_gam);
     const int N = 13;
     i[16] = N;
