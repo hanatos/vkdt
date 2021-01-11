@@ -19,10 +19,11 @@
 #include "details/lu.h"
 #include "details/matrices.h"
 #include "clip.h"
+#include "inpaint.h"
 #include "../o-pfm/half.h"
 #include "../../../core/core.h"
 
-#define BAD_CMF
+// #define BAD_CMF
 #ifdef BAD_CMF
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
 #define CIE_SAMPLES 30
@@ -476,6 +477,7 @@ int main(int argc, char **argv) {
       double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
       double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
       double resid = gauss_newton(rgbm, coeffs);
+      (void)resid;
 
       double c0yl[3];
       cvt_c012_c0yl(coeffs, c0yl);
@@ -516,14 +518,21 @@ int main(int argc, char **argv) {
         lsbuf[5*(lami*lsres + sati)+3] = lamc;
         lsbuf[5*(lami*lsres + sati)+4] = satc;
       }
-      out[5*idx + 3] = resid;//(lami+0.5f) / (float)lsres;
-      out[5*idx + 4] = 0;//(sati+0.5f) / (float)lsres;
+      out[5*idx + 3] = (lami+0.5f) / (float)lsres;
+      out[5*idx + 4] = (sati+0.5f) / (float)lsres;
     }
   }
 
 #if 1
   { // scope write lsbuf
-#if 1 // superbasic push/pull hole filling. better use gmic's morphological hole filling.
+    buf_t inpaint_buf = {
+      .dat = lsbuf,
+      .wd  = lsres,
+      .ht  = lsres,
+      .cpp = 5,
+    };
+    inpaint(&inpaint_buf);
+#if 0 // superbasic push/pull hole filling. better use gmic's morphological hole filling.
     // gmic lsbuf.pfm  --mul 256 --select_color 0,0,0,0 -inpaint_morpho[0] [1] -rm[1] -o lsbuf2.pfm (only that this doesn't work :( )
   // allocate mipmap memory:
   int num_mips = 0;
@@ -594,6 +603,7 @@ int main(int argc, char **argv) {
         lsbuf[3*(j*lsres+i)+1]);
 #endif
 #if 1 // only useful with hole filling above:
+#ifndef BAD_CMF // don't overwrite for simplified cmf
   // write 2 channel half lut:
   uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
   uint16_t *b16 = malloc(size);
@@ -625,6 +635,7 @@ int main(int argc, char **argv) {
     fwrite(b16, size, 1, f);
   }
   fclose(f);
+#endif
 #endif
   }
 #endif
