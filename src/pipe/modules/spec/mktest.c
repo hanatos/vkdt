@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 #endif
 
     for(int k=0;k<3;k++) for(int r=0;r<3;r++)
-      rgb[k] += 0.009*(0.5 - drand48());
+      rgb[k] += 0.003*(0.5 - drand48());
 
     // for(int k=0;k<3;k++) rgb[k] = fminf(fmaxf(0.0f, rgb[k]), 1.0f);
 

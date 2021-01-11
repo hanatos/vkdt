@@ -570,6 +570,14 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
 #endif
 }
 
+float rand(inout uint x)
+{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  return x * 1.0 / 4294967296.0;
+}
+
 void
 main()
 {
@@ -648,7 +656,18 @@ main()
   float Y = xyz.y;
   float b = xyz.x+xyz.y+xyz.z;
   vec2 tc = xyz.xy/b;
-  vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
+  // this given interpolation artifacts across the blue/white/red ridge:
+  // vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
+  // this quantises heavily:
+  // vec4 lut = texelFetch(img_coeff, ivec2(tc*textureSize(img_coeff, 0)), 0); // lut.x *= 1e-5;
+  // dither the lookup at least:
+  ivec2 tci = ivec2(tc*textureSize(img_coeff, 0));
+  uint state = 1337*666*uint(1+dot(tci, ivec2(1, 13)));
+  vec2 rnd = vec2(rand(state), rand(state));
+  tci = ivec2(tc*textureSize(img_coeff, 0)+rnd);
+  vec4 lut = texelFetch(img_coeff, tci, 0); // lut.x *= 1e-5;
+  // TODO: do bilateral/bilinear interpolation (see fetch_coeff but do it correctly)
+
   vec2 sl = lut.wz; // grab saturation and lambda
   // normalise wavelength
   // sl.y = clamp((sl.y - 400.0)/600.0, 0.0, 0.5); // abbridged
@@ -656,7 +675,8 @@ main()
   // sl.y = clamp(0.5 * (sl.y - 360.0)/(830.0-360.0), 0.0, 0.5); // cie
   // logistically compressed:
   float norm = (sl.y - 400.0)/(700.0-400.0);
-  sl.y = clamp(0.5/(1.0+exp(-(-4.0 + 8.0*norm))), 0.0, 0.5);
+  // sl.y = clamp(0.5/(1.0+exp(-(-4.0 + 8.0*norm))), 0.0, 0.5);
+  sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
   if(lut.x > 0.0) sl.y += 0.5;
 #if 1 // change saturation:
   sl.x = clamp(params.sat * sl.x, 0.0, 1.0);

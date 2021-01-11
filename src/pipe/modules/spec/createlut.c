@@ -514,7 +514,9 @@ mac_error:
       float satc = lsres * sat;
       // normalise to extended range:
       float norm = (c0yl[2] - 400.0)/(700.0-400.0);
-      float lamc = 1.0/(1.0+exp(-1.0*(-4.0 + 8.0*norm))) * lsres / 2;
+      // float lamc = 1.0/(1.0+exp(-1.0*(-4.0 + 8.0*norm))) * lsres / 2;
+      // float lamc = 1.0/(1.0+exp(-1.0*(2.0*norm-1.0))) * lsres / 2; // this is good for the tails, but bad for the resolution of regular colours
+      float lamc = 1.0/(1.0+exp(-2.0*(2.0*norm-1.0))) * lsres / 2; // center deriv=1
       // float lamc = (c0yl[2] - 300.0)/(900.0-300.0) * lsres / 2;
       // cie range
       // float lamc = (c0yl[2] - CIE_LAMBDA_MIN)/(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) * lsres / 2;
