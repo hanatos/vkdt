@@ -54,9 +54,6 @@ main()
     rgb *= b; // keep brightness constant
   }
 
-  // it seems demosaic outputs negative numbers and filmcurv++ kills the picture then
-  rgb = max(vec3(0), rgb);
-
   imageStore(img_out, ipos, vec4(rgb, 1));
 
 #if 0 // broken colour spaces follow:
