@@ -9,6 +9,8 @@ void modify_roi_out(
   module->connector[1].roi = module->connector[0].roi;
   module->connector[2].roi.full_wd = 300;
   module->connector[2].roi.full_ht = 300;
+  module->connector[2].roi.wd = 300; // for the unconnected case, init something
+  module->connector[2].roi.ht = 300;
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)

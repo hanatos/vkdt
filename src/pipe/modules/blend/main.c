@@ -7,7 +7,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   uint32_t *i = (uint32_t *)module->committed_param;
   float *g = (float*)module->param;
   i[0] = module->connector[0].chan == dt_token("rggb") ? module->img_param.filters : (graph->frame_cnt > 1 ? 0u : 1u);
-  f[1] = g[0];
+  f[1] = graph->frame == 0 && graph->frame_cnt > 1 ? 0.0f : g[0];
   f[2] = module->img_param.black[0]/(float)0xffff;
   f[3] = module->img_param.white[0]/(float)0xffff;
   f[4] = module->img_param.noise_a;

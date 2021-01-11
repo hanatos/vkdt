@@ -20,6 +20,7 @@ typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
+typedef int  (*dt_module_audio_t)(dt_module_t *module, const int frame, uint16_t **samples);
 typedef dt_graph_run_t (*dt_module_check_params_t)(dt_module_t *module, uint32_t parid, void *oldval);
 
 // this is all the "class" info that is not bound to an instance and can be
@@ -50,6 +51,9 @@ typedef struct dt_module_so_t
 
   // check whether a parameter update would cause a graph update or just a parameter update
   dt_module_check_params_t check_params;
+
+  // returns a pointer to audio sample data (optional)
+  dt_module_audio_t audio;
 
   // for source nodes, will be called before processing starts
   dt_module_read_source_t read_source;

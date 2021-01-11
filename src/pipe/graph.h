@@ -9,6 +9,7 @@ typedef uint32_t dt_graph_run_t;
 typedef struct dt_connector_image_t
 {
   uint64_t      offset, size;   // actual memory position during the time it is valid
+  uint64_t      plane1_offset;  // yuv buffers need the offset to the chroma plane
   dt_vkmem_t   *mem;            // used for alloc/free during graph traversal
   VkImage       image;          // vulkan image object
   VkImageView   image_view;
@@ -88,6 +89,7 @@ typedef struct dt_graph_t
 
   int                   frame;
   int                   frame_cnt;     // number of frames to compute
+  double                frame_rate;    // frame rate (frames per second)
 
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;

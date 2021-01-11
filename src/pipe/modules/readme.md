@@ -21,9 +21,12 @@ TODO: reference all the readme.md in the lower levels:
 * [colour vectorscope](./ciediag/readme.md)
 * [local contrast, shadows, and highlights](./llap/readme.md)
 * [pick colours](./pick/readme.md)
+* [raw video (mlv)](./i-mlv/readme.md)
 * [saturation](./saturate/readme.md)
 * [test 10bit display](./test10b/readme.md)
 * [thumbnails](./thumb/readme.md)
+* [video output](./o-ffmpeg/readme.md)
+* [webcam input](./i-v4l2/readme.md)
 * [zone system](./zones/readme.md)
 
 

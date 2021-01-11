@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
   dt_gui_read_tags();
 
   // main loop
-  clock_t beg = clock();
+  vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   while(g_running)
   {
     // block and wait for one event instead of polling all the time to save on
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
     // g_busy = 100; // do these two lines instead if profiling in nvidia gfx insight or so.
     // vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
-      g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame - 1;
+      g_busy = vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
     if(g_busy > 0) glfwPostEmptyEvent();
     else g_busy = 3;
     glfwWaitEvents();
@@ -219,21 +219,7 @@ int main(int argc, char *argv[])
     else
       dt_gui_recreate_swapchain();
 
-    if(vkdt.state.anim_playing)
-    {
-      vkdt.graph_dev.frame = vkdt.state.anim_frame;
-      if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
-    }
     dt_view_process();
-    if(!vkdt.state.anim_playing)
-      vkdt.state.anim_frame = 0;
-    else if(vkdt.state.anim_frame < vkdt.state.anim_max_frame-1)
-      vkdt.state.anim_frame++;
-
-    clock_t end  = clock();
-    dt_log(s_log_perf, "total frame time %2.3fs", (end - beg)/(double)CLOCKS_PER_SEC);
-    beg = end;
   }
 
   vkDeviceWaitIdle(qvk.device);

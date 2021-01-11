@@ -22,6 +22,7 @@ targets, such as the main view and histograms.
 * [noise profiling](doc/noiseprofiling.md)
 * [minimally invasive image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
+* [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
 
 ## build instructions
 

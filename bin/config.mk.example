@@ -12,11 +12,27 @@
 VKDT_USE_RAWSPEED=1
 export VKDT_USE_RAWSPEED
 
-# exiv2 can optionally be used to load some super basic metadata (iso speed,
-# shutter time etc) inside the i-raw module. that is, you don't have that you
-# don't need to disable this.
+# exiv2 can optionally be used to load some super basic metadata (iso
+# speed, shutter time etc) inside the i-raw module. that is, you don't
+# have that you don't need to disable this.
 # VKDT_USE_EXIV2=1
 # export VKDT_USE_EXIV2
+
+# v4l2 is used to read real-time webcam input in the i-v4l2 module.
+# enable this feature here:
+# VKDT_USE_V4L2=1
+# export VKDT_USE_V4L2
+
+# we use GPL3 code in the i-mlv magic lantern raw video input
+# module. if you don't want it, leave it disabled here. if
+# you want video, you probably also want VKDT_USE_ALSA=1, see below.
+# VKDT_USE_MLV=1
+# export VKDT_USE_MLV
+
+# to play the audio that comes with the mlv video, vkdt uses
+# alsa. this introduces an asound dependency. disable here:
+# VKDT_USE_ALSA=1
+# export VKDT_USE_ALSA
 
 # compiler config
 CC=clang

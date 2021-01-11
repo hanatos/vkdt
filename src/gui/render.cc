@@ -199,9 +199,12 @@ inline void dark_corporate_style()
 
 	style.PopupRounding = 3;
 
-	style.WindowPadding = ImVec2(4, 4);
-	style.FramePadding  = ImVec2(6, 4);
-	style.ItemSpacing   = ImVec2(6, 2);
+  // TODO: make these relative to window size!
+  // TODO: in particular it needs to be reset when the window is resized!
+  // maybe look at ImGuiStyle::ScaleAllSizes?
+	style.WindowPadding = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.01);//ImVec2(4, 4);
+	style.FramePadding  = ImVec2(vkdt.state.panel_wd*0.02, vkdt.state.panel_wd*0.01);//ImVec2(6, 4);
+	style.ItemSpacing   = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.005);//ImVec2(6, 2);
 
 	style.ScrollbarSize = 18;
 
@@ -524,8 +527,11 @@ void render_lighttable()
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
-    if(ImGui::CollapsingHeader("collect"))
+    // if(ImGui::CollapsingHeader("collect"))
+    if(ImGui::CollapsingHeader("collect", ImGuiTreeNodeFlags_FramePadding))
+    // if(ImGui::TreeNodeEx("collect", ImGuiTreeNodeFlags_CollapsingHeader & ~ImGuiTreeNodeFlags_NoTreePushOnOpen))
     {
+      ImGui::Indent();
       int32_t filter_prop = static_cast<int32_t>(vkdt.db.collection_filter);
       int32_t sort_prop   = static_cast<int32_t>(vkdt.db.collection_sort);
 
@@ -549,18 +555,21 @@ void render_lighttable()
       if(ImGui::Button("open directory", size))
         dt_filebrowser_open(&filebrowser);
 
-      if(dt_filebrowser_display(&filebrowser))
+      if(dt_filebrowser_display(&filebrowser, 'd'))
       { // "ok" pressed
         dt_gui_switch_collection(filebrowser.cwd);
         dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
       }
+      ImGui::Unindent();
     }
-    if(vkdt.db.selection_cnt > 0)
+
+    if(ImGui::CollapsingHeader("tags"))
     {
-      if(ImGui::CollapsingHeader("selected images"))
+      ImGui::Indent();
+      // ==============================================================
+      // assign tag modal popup:
+      if(vkdt.db.selection_cnt)
       {
-        // ==============================================================
-        // assign tag modal popup:
         int open = ImGui::Button("assign tag..", size);
         if (open)
         {
@@ -598,186 +607,10 @@ void render_lighttable()
             dt_gui_read_tags();
           }
         }
-        // ==============================================================
-        // copy/paste history stack
-        static uint32_t copied_imgid = -1u;
-        if(ImGui::Button("copy history stack", size))
-          copied_imgid = dt_db_current_imgid(&vkdt.db);
-
-        if(copied_imgid != -1u)
-        {
-          ImGui::SameLine();
-          if(ImGui::Button("paste history stack", size))
-          {
-            // TODO: background job
-            char filename[1024];
-            dt_db_image_path(&vkdt.db, copied_imgid, filename, sizeof(filename));
-            FILE *fin = fopen(filename, "rb");
-            if(fin)
-            {
-              fseek(fin, 0, SEEK_END);
-              size_t fsize = ftell(fin);
-              fseek(fin, 0, SEEK_SET);
-              uint8_t *buf = (uint8_t*)malloc(fsize);
-              fread(buf, fsize, 1, fin);
-              fclose(fin);
-              // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
-              // one input raw file that is appearing under param:i-raw:01:filename.
-              // it then copies the history to the selected images, replacing their filenames in the config.
-              const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-              for(int i=0;i<vkdt.db.selection_cnt;i++)
-              {
-                if(sel[i] == copied_imgid) continue; // don't copy to self
-                dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-                FILE *fout = fopen(filename, "wb");
-                if(fout)
-                {
-                  fwrite(buf, fsize, 1, fout);
-                  // replace (relative) image file name
-                  fprintf(fout, "param:i-raw:01:filename:%s\n", vkdt.db.image[sel[i]].filename);
-                  fclose(fout);
-                }
-              }
-              free(buf);
-              dt_thumbnails_cache_list(
-                  &vkdt.thumbnail_gen,
-                  &vkdt.db,
-                  sel, vkdt.db.selection_cnt);
-            }
-            else
-            {
-              // TODO: error message
-            }
-          }
-        }
-
-        // ==============================================================
-        // delete images
-        static int really_delete = 0;
-        if(ImGui::Button("delete image[s]", size))
-          really_delete ^= 1;
-
-        if(really_delete)
-        {
-          ImGui::SameLine();
-          if(ImGui::Button("*really* delete image[s]", size))
-          {
-            dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
-            really_delete = 0;
-          }
-        }
-
-        // ==============================================================
-        // merge/align images
-        if(vkdt.db.selection_cnt > 1)
-        if(ImGui::Button("merge into current", size))
-        {
-          // overwrite .cfg for this image file:
-          uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
-          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-          char filename[1024] = {0};
-          dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
-          FILE *f = fopen(filename, "wb");
-          fprintf(f, "frames:1\n");
-          for(int i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            fprintf(f, "module:i-raw:%02d\n", i);
-            if(i > 0)
-            {
-              fprintf(f, "module:burst:%02d\n", i);
-              fprintf(f, "module:blend:%02d\n", i);
-            }
-          }
-          fprintf(f,
-              "module:denoise:01\n"
-              "module:hilite:01\n"
-              "module:demosaic:01\n"
-              "module:colour:01\n"
-              "module:filmcurv:01\n"
-              "module:hist:01\n"
-              "module:display:hist\n"
-              "module:display:main\n");
-          fprintf(f, "param:i-raw:00:filename:%s\n", vkdt.db.image[main_imgid].filename);
-          int ii = 1;
-          for(int i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            if(sel[i] == main_imgid) continue;
-            fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
-            fprintf(f,
-                "connect:i-raw:%02d:output:burst:%02d:warp\n"
-                "connect:burst:%02d:output:blend:%02d:back\n"
-                "connect:burst:%02d:mask:blend:%02d:mask\n"
-                "connect:%s:%02d:output:blend:%02d:input\n"
-                "connect:i-raw:00:output:burst:%02d:input\n",
-                ii, ii, ii, ii, ii, ii,
-                ii > 1 ? "blend" : "i-raw",
-                ii-1, ii, ii);
-            fprintf(f,
-                "param:blend:%02d:opacity:%g\n"
-                "param:burst:%02d:merge_n:0.0\n"
-                "param:burst:%02d:merge_k:4000\n"
-                "param:burst:%02d:blur0:1\n"
-                "param:burst:%02d:blur1:1\n"
-                "param:burst:%02d:blur2:1\n"
-                "param:burst:%02d:blur3:1\n",
-                ii, pow(0.5, ii), // ??
-                ii, ii, ii, ii, ii, ii);
-            ii++;
-          }
-          // TODO: grab from default darkroom cfg?
-          fprintf(f,
-              "connect:blend:%02d:output:denoise:01:input\n"
-              "connect:denoise:01:output:hilite:01:input\n"
-              "connect:hilite:01:output:demosaic:01:input\n"
-              "connect:demosaic:01:output:colour:01:input\n"
-              "connect:colour:01:output:filmcurv:01:input\n"
-              "connect:filmcurv:01:output:display:main:input\n"
-              "connect:filmcurv:01:output:hist:01:input\n"
-              "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
-          fclose(f);
-          // now redo/delete thumbnail of main_imgid
-          dt_thumbnails_cache_list(
-              &vkdt.thumbnail_gen,
-              &vkdt.db,
-              &main_imgid, 1);
-        }
-
-        // ==============================================================
-        // export selection
-        static int wd = 0, ht = 0;
-        ImGui::InputInt("width", &wd, 1, 100, 0);
-        ImGui::InputInt("height", &ht, 1, 100, 0);
-        if(ImGui::Button("export", size))
-        {
-          // TODO: put in background job, implement job scheduler
-          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-          char filename[256], infilename[256];
-          dt_graph_t graph;
-          dt_graph_init(&graph);
-          for(int i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            snprintf(filename, sizeof(filename), "/tmp/img_%04d", i);
-            dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
-            dt_graph_export_t param = {0};
-            param.output_cnt = 1;
-            param.output[0].p_filename = filename;
-            param.output[0].max_width  = wd;
-            param.output[0].max_height = ht;
-            param.p_cfgfile = infilename;
-            if(dt_graph_export(&graph, &param))
-            {
-              // TODO: some feedback in gui instead:
-              fprintf(stderr, "export %s failed!\n", infilename);
-            }
-            dt_graph_reset(&graph);
-          }
-          dt_graph_cleanup(&graph);
-        }
       }
-    } // end collapsing header "selected"
 
-    if(ImGui::CollapsingHeader("recent tags"))
-    {
+      // ==============================================================
+      // recently used tags:
       char filename[1024];
       for(int i=0;i<vkdt.tag_cnt;i++)
       {
@@ -808,7 +641,211 @@ void render_lighttable()
           }
         }
       }
+      ImGui::Unindent();
     } // end collapsing header "recent tags"
+
+    if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("selected images"))
+    {
+      ImGui::Indent();
+      // ==============================================================
+      // copy/paste history stack
+      static uint32_t copied_imgid = -1u;
+      if(ImGui::Button("copy history stack", size))
+        copied_imgid = dt_db_current_imgid(&vkdt.db);
+
+      if(copied_imgid != -1u)
+      {
+        ImGui::SameLine();
+        if(ImGui::Button("paste history stack", size))
+        {
+          // TODO: background job
+          char filename[1024];
+          dt_db_image_path(&vkdt.db, copied_imgid, filename, sizeof(filename));
+          FILE *fin = fopen(filename, "rb");
+          if(fin)
+          {
+            fseek(fin, 0, SEEK_END);
+            size_t fsize = ftell(fin);
+            fseek(fin, 0, SEEK_SET);
+            uint8_t *buf = (uint8_t*)malloc(fsize);
+            fread(buf, fsize, 1, fin);
+            fclose(fin);
+            // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
+            // one input raw file that is appearing under param:i-raw:01:filename.
+            // it then copies the history to the selected images, replacing their filenames in the config.
+            const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+            for(int i=0;i<vkdt.db.selection_cnt;i++)
+            {
+              if(sel[i] == copied_imgid) continue; // don't copy to self
+              dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+              FILE *fout = fopen(filename, "wb");
+              if(fout)
+              {
+                fwrite(buf, fsize, 1, fout);
+                // replace (relative) image file name
+                const char *fn = vkdt.db.image[sel[i]].filename;
+                size_t len = strlen(fn);
+                if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
+                  fprintf(fout, "param:i-mlv:01:filename:%s\n", fn);
+                else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
+                  fprintf(fout, "param:i-pfm:01:filename:%s\n", fn);
+                else
+
+                  fprintf(fout, "param:i-raw:01:filename:%s\n", fn);
+                fclose(fout);
+              }
+            }
+            free(buf);
+            dt_thumbnails_cache_list(
+                &vkdt.thumbnail_gen,
+                &vkdt.db,
+                sel, vkdt.db.selection_cnt);
+          }
+          else
+          {
+            // TODO: error message
+          }
+        }
+      }
+
+      // ==============================================================
+      // delete images
+      static int really_delete = 0;
+      if(ImGui::Button("delete image[s]", size))
+        really_delete ^= 1;
+
+      if(really_delete)
+      {
+        ImGui::SameLine();
+        if(ImGui::Button("*really* delete image[s]", size))
+        {
+          dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+          really_delete = 0;
+        }
+      }
+
+      // ==============================================================
+      // merge/align images
+      if(vkdt.db.selection_cnt > 1)
+      if(ImGui::Button("merge into current", size))
+      {
+        // overwrite .cfg for this image file:
+        uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+        char filename[1024] = {0};
+        dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
+        FILE *f = fopen(filename, "wb");
+        fprintf(f, "frames:1\n");
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        {
+          fprintf(f, "module:i-raw:%02d\n", i);
+          if(i > 0)
+          {
+            fprintf(f, "module:burst:%02d\n", i);
+            fprintf(f, "module:blend:%02d\n", i);
+          }
+        }
+        fprintf(f,
+            "module:denoise:01\n"
+            "module:hilite:01\n"
+            "module:demosaic:01\n"
+            "module:colour:01\n"
+            "module:filmcurv:01\n"
+            "module:hist:01\n"
+            "module:display:hist\n"
+            "module:display:main\n");
+        fprintf(f, "param:i-raw:00:filename:%s\n", vkdt.db.image[main_imgid].filename);
+        int ii = 1;
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        {
+          if(sel[i] == main_imgid) continue;
+          fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
+          fprintf(f,
+              "connect:i-raw:%02d:output:burst:%02d:warp\n"
+              "connect:burst:%02d:output:blend:%02d:back\n"
+              "connect:burst:%02d:mask:blend:%02d:mask\n"
+              "connect:%s:%02d:output:blend:%02d:input\n"
+              "connect:i-raw:00:output:burst:%02d:input\n",
+              ii, ii, ii, ii, ii, ii,
+              ii > 1 ? "blend" : "i-raw",
+              ii-1, ii, ii);
+          fprintf(f,
+              "param:blend:%02d:opacity:%g\n"
+              "param:burst:%02d:merge_n:0.0\n"
+              "param:burst:%02d:merge_k:4000\n"
+              "param:burst:%02d:blur0:1\n"
+              "param:burst:%02d:blur1:1\n"
+              "param:burst:%02d:blur2:1\n"
+              "param:burst:%02d:blur3:1\n",
+              ii, pow(0.5, ii), // ??
+              ii, ii, ii, ii, ii, ii);
+          ii++;
+        }
+        // TODO: grab from default darkroom cfg?
+        fprintf(f,
+            "connect:blend:%02d:output:denoise:01:input\n"
+            "connect:denoise:01:output:hilite:01:input\n"
+            "connect:hilite:01:output:demosaic:01:input\n"
+            "connect:demosaic:01:output:colour:01:input\n"
+            "connect:colour:01:output:filmcurv:01:input\n"
+            "connect:filmcurv:01:output:display:main:input\n"
+            "connect:filmcurv:01:output:hist:01:input\n"
+            "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
+        fclose(f);
+        // now redo/delete thumbnail of main_imgid
+        dt_thumbnails_cache_list(
+            &vkdt.thumbnail_gen,
+            &vkdt.db,
+            &main_imgid, 1);
+      }
+      ImGui::Unindent();
+    } // end collapsing header "selected"
+
+    // ==============================================================
+    // export selection
+    if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export"))
+    {
+      ImGui::Indent();
+      static int wd = 0, ht = 0, format = 0;
+      static float quality = 90;
+      static char basename[240] = "/tmp/img";
+      const char format_data[] = "jpg\0pfm\0ffmpeg\0\0";
+      const dt_token_t format_mod[] = {dt_token("o-jpg"), dt_token("o-pfm"), dt_token("o-ffmpeg")};
+      ImGui::InputInt("width", &wd, 1, 100, 0);
+      ImGui::InputInt("height", &ht, 1, 100, 0);
+      ImGui::InputText("filename", basename, sizeof(basename));
+      ImGui::InputFloat("quality", &quality, 1, 100, 0);
+      ImGui::Combo("format", &format, format_data);
+      if(ImGui::Button("export", size))
+      {
+        // TODO: put in background job, implement job scheduler
+        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+        char filename[256], infilename[256];
+        dt_graph_t graph;
+        dt_graph_init(&graph);
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        {
+          snprintf(filename, sizeof(filename), "%s_%04d", basename, i);
+          dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
+          dt_graph_export_t param = {0};
+          param.output_cnt = 1;
+          param.output[0].p_filename = filename;
+          param.output[0].max_width  = wd;
+          param.output[0].max_height = ht;
+          param.output[0].quality    = quality;
+          param.output[0].mod        = format_mod[format];
+          param.p_cfgfile = infilename;
+          if(dt_graph_export(&graph, &param))
+          {
+            // TODO: some feedback in gui instead:
+            fprintf(stderr, "export %s failed!\n", infilename);
+          }
+          dt_graph_reset(&graph);
+        }
+        dt_graph_cleanup(&graph);
+      }
+      ImGui::Unindent();
+    } // end collapsing header "export"
 
     ImGui::End(); // lt center window
   }
@@ -1118,6 +1155,38 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("vslider"):
+    {
+      if(param->type == dt_token("float"))
+      {
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+        float oldval = *val;
+        char str[10] = {0};
+        memcpy(str, &param->name, 8);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
+        if(ImGui::VSliderFloat("##v",
+              ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
+              param->widget.min, param->widget.max, ""))
+        {
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+          vkdt.graph_dev.active_module = modid;
+        }
+        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+          ImGui::SetTooltip("%s %.3f", str, val[0]);
+
+        ImGui::PopStyleColor(4);
+        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+            num < count - 1) ImGui::SameLine();
+      }
+      break;
+    }
     case dt_token("combo"):
     {
       if(param->type == dt_token("int"))
@@ -1299,6 +1368,9 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
+          vkdt.wstate.state[0] = 1.0f; // abuse for radius
+          vkdt.wstate.state[1] = 1.0f; // abuse for opacity
+          vkdt.wstate.state[2] = 1.0f; // abuse for hardness
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
           vkdt.wstate.active_widget_parnm = 0;
@@ -1477,23 +1549,40 @@ void render_darkroom_pipeline()
     if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
       last_err = 16ul<<32;
 
+  static dt_filebrowser_widget_t filebrowser = {{0}};
   // add block (read cfg snipped)
-  if((gui.state == gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert disconnected"))
+  if(gui.state == gui_state_data_t::s_gui_state_insert_block)
   {
-    dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
-        dt_token(mod_inst),
-        dt_token(""), dt_token(""), dt_token(""),
-        dt_token(""), dt_token(""), dt_token(""));
-    gui.state = gui_state_data_t::s_gui_state_regular;
+    if(ImGui::Button("insert disconnected"))
+    {
+      dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
+          dt_token(mod_inst),
+          dt_token(""), dt_token(""), dt_token(""),
+          dt_token(""), dt_token(""), dt_token(""));
+      gui.state = gui_state_data_t::s_gui_state_regular;
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("abort"))
+      gui.state = gui_state_data_t::s_gui_state_regular;
   }
-  if((gui.state != gui_state_data_t::s_gui_state_insert_block) && ImGui::Button("insert draw block.."))
+  else
   {
-    gui.state = gui_state_data_t::s_gui_state_insert_block;
-    gui.block_token[0] = dt_token(mod_inst);
-    // TODO: open a browser with all data/blocks/*.cfg
-    // for now we only have the draw block
-    strncpy(gui.block_filename, "data/blocks/draw.cfg", sizeof(gui.block_filename));
-    // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+    if(dt_filebrowser_display(&filebrowser, 'f'))
+    { // "ok" pressed
+      fprintf(stderr, "read file: %s/%s\n", filebrowser.cwd, filebrowser.selected);
+      snprintf(gui.block_filename, sizeof(gui.block_filename), "%s/%s", filebrowser.cwd, filebrowser.selected);
+      dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
+      gui.state = gui_state_data_t::s_gui_state_insert_block;
+      // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+    }
+    if(ImGui::Button("insert block.."))
+    {
+      // gui.state = gui_state_data_t::s_gui_state_insert_block;
+      gui.block_token[0] = dt_token(mod_inst);
+      // TODO: open a browser with all data/blocks/*.cfg
+      snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s/data/blocks", dt_pipe.basedir);
+      dt_filebrowser_open(&filebrowser);
+    }
   }
 }
 
@@ -1577,18 +1666,36 @@ void render_darkroom()
           break;
         }
         case dt_token("draw"):
-        { // this is not really needed. draw line on top of stroke.
-          // we map the buffer and get instant feedback on the image.
-          // float p[2004];
-          // int cnt = vkdt.wstate.mapped[0];
-          // for(int k=0;k<cnt;k++)
-          // {
-          //   p[2*k+0] = vkdt.wstate.mapped[1+2*k+0];
-          //   p[2*k+1] = vkdt.wstate.mapped[1+2*k+1];
-          //   dt_image_to_view(p+2*k, p+2*k);
-          // }
-          // ImGui::GetWindowDrawList()->AddPolyline(
-          //     (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 1.0);
+        { // draw indicators for opacity/hardness/radius for each stroke
+          ImVec2 pos = ImGui::GetMousePos();
+          float radius   = vkdt.wstate.state[0];
+          float opacity  = vkdt.wstate.state[1];
+          float hardness = vkdt.wstate.state[2];
+          float p[100];
+          int cnt = sizeof(p)/sizeof(p[0])/2;
+          for(int i=0;i<2;i++)
+          {
+            float r = 100*radius; // FIXME XXX * params radius! (hide in last element somewhere?)
+            if(i >= 1) r *= hardness;
+            for(int k=0;k<cnt;k++)
+            {
+              const float scale = vkdt.state.scale;
+              p[2*k+0] = pos.x + scale * r*sin(k/(cnt-1.0)*M_PI*2.0);
+              p[2*k+1] = pos.y + scale * r*cos(k/(cnt-1.0)*M_PI*2.0);
+            }
+            ImGui::GetWindowDrawList()->AddPolyline(
+                (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 4.0f/(i+1.0f));
+          }
+          // opacity is a quad
+          float sz = 30.0f;
+          p[0] = pos.x; p[1] = pos.y;
+          p[4] = pos.x+sz; p[5] = pos.y+sz;
+          p[2] = opacity * (pos.x+sz) + (1.0f-opacity)*(pos.x+sz/2.0f);
+          p[3] = opacity *  pos.y     + (1.0f-opacity)*(pos.y+sz/2.0f);
+          p[6] = opacity *  pos.x     + (1.0f-opacity)*(pos.x+sz/2.0f);
+          p[7] = opacity * (pos.y+sz) + (1.0f-opacity)*(pos.y+sz/2.0f);
+          ImGui::GetWindowDrawList()->AddPolyline(
+              (ImVec2 *)p, 4, IM_COL32_WHITE, true, 3.0);
           break;
         }
         default:;
@@ -1683,18 +1790,20 @@ void render_darkroom()
         }
 
         // animation controls
-        // TODO: avoid jumps by ImGui::PushItemWidth(0.15f * vkdt.state.panel_wd);
+        float lineht = 1.2*ImGui::GetTextLineHeight(); // ??
+        float bwd = 0.12f;
+        ImVec2 size(bwd*vkdt.state.panel_wd, lineht);
         if(vkdt.state.anim_playing)
         {
-          if(ImGui::Button("stop"))
+          if(ImGui::Button("stop", size))
             vkdt.state.anim_playing = 0;
         }
-        else if(ImGui::Button("play"))
+        else if(ImGui::Button("play", size))
           vkdt.state.anim_playing = 1;
         ImGui::SameLine();
-        ImGui::Text("%d", vkdt.state.anim_frame);
+        ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame);
         ImGui::SameLine();
-        ImGui::SliderInt("max frame", &vkdt.state.anim_max_frame, 0, 100);
+        ImGui::Text("%d", vkdt.state.anim_max_frame);
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();

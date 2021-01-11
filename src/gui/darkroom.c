@@ -133,14 +133,15 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     }
     else if(type == dt_token("draw"))
     {
+      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
       if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT &&
           x < vkdt.state.center_x + vkdt.state.center_wd)
       { // right mouse click resets the last stroke
-        for(int i=vkdt.wstate.mapped[0]-1;i>=0;i--)
+        for(int i=dat[0]-1;i>=0;i--)
         {
-          if(i == 0 || vkdt.wstate.mapped[1+2*i] == -666.0)
+          if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
           {
-            vkdt.wstate.mapped[0] = i;
+            dat[0] = i; // reset count
             break;
           }
         }
@@ -152,12 +153,12 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT &&
           x < vkdt.state.center_x + vkdt.state.center_wd)
       { // left mouse click starts new stroke by appending an end marker
-        int vcnt = vkdt.wstate.mapped[0];
-        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(float)))
+        int vcnt = dat[0];
+        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(uint32_t)))
         {
-          vkdt.wstate.mapped[1+2*vcnt+0] = -666.0;
-          vkdt.wstate.mapped[1+2*vcnt+1] = -666.0;
-          vkdt.wstate.mapped[0]++;
+          dat[1+2*vcnt+0] = 0; // vertex coordinate 16+16
+          dat[1+2*vcnt+1] = 0; // radius 16 + opacity 8 + hardness 8, all 0 is the end marker
+          dat[0]++;
         }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
@@ -219,7 +220,29 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
 
-  if(x < vkdt.state.center_x + vkdt.state.center_wd)
+  if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
+
+  // active widgets grabbed input?
+  if(vkdt.wstate.active_widget_modid >= 0)
+  {
+    dt_token_t type =
+      vkdt.graph_dev.module[
+      vkdt.wstate.active_widget_modid].so->param[
+        vkdt.wstate.active_widget_parid]->widget.type;
+    if(type == dt_token("draw"))
+    {
+      const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
+      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) // opacity
+        vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
+      else if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) // hardness
+        vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
+      else // radius
+        vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
+      return; // don't zoom, we processed the input
+    }
+  }
+  
+  // zoom:
   {
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(!out) return; // should never happen
@@ -324,11 +347,15 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     {
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
-        if(2*vkdt.wstate.mapped[0]+2 < vkdt.wstate.mapped_size/sizeof(float))
+        float radius   = vkdt.wstate.state[0];
+        float opacity  = vkdt.wstate.state[1];
+        float hardness = vkdt.wstate.state[2];
+        uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+        if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
         { // add vertex
-          int v = vkdt.wstate.mapped[0]++;
-          vkdt.wstate.mapped[1+2*v+0] = n[0];
-          vkdt.wstate.mapped[1+2*v+1] = n[1];
+          int v = dat[0]++;
+          dat[1+2*v+0] = (CLAMP((int32_t)(n[1]*0xffff), 0, 0xffff) << 16) | CLAMP((int32_t)(n[0]*0xffff), 0, 0xffff);
+          dat[1+2*v+1] = CLAMP((int32_t)(0.5*radius*0xffff), 0, 0xffff) | (CLAMP((int32_t)(opacity*0xff), 0, 0xff) << 16) | (CLAMP((int32_t)(hardness*0xff), 0, 0xff) << 24);
         }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
@@ -392,7 +419,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
   {
     if(vkdt.graph_dev.frame_cnt > 1)
-      vkdt.state.anim_playing ^= 1; // start/stop playing animation
+      vkdt.state.anim_frame = 0; // reset to beginning
     else
     { // backtrack to last image in lighttable collection
       uint32_t next = dt_db_current_colid(&vkdt.db) - 1;
@@ -410,27 +437,78 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 void
 darkroom_process()
 {
-  // intel says:
-  // ==
-  // The pipeline is flushed when switching between 3D graphics rendering and
-  // compute functions. Asynchronous compute functions are not supported at
-  // this time. Batch the compute kernels into groups whenever possible.
-  // ==
-  // which is unfortunate for us :/
+  static int    start_frame = 0;           // frame we were when play was issued
+  static struct timespec start_time = {0}; // start time of the same event
 
-  // VkResult fence = vkGetFenceStatus(qvk.device, vkdt.graph_dev.command_fence);
-  // if(fence == VK_SUCCESS)
+  struct timespec beg;
+  clock_gettime(CLOCK_REALTIME, &beg);
+
+  int advance = 0;
+  if(vkdt.state.anim_playing)
+  {
+    if(vkdt.graph_dev.frame_rate == 0.0)
+      advance = 1; // no frame rate set, run as fast as we can
+    else
+    { // just started replay, record timestamp:
+      if(start_time.tv_nsec == 0)
+      {
+        start_time  = beg;
+        start_frame = vkdt.state.anim_frame;
+      }
+      // compute current animation frame by time:
+      double dt = (double)(beg.tv_sec - start_time.tv_sec) + 1e-9*(beg.tv_nsec - start_time.tv_nsec);
+      vkdt.state.anim_frame = CLAMP(
+          start_frame + MAX(0, vkdt.graph_dev.frame_rate * dt),
+          0, vkdt.graph_dev.frame_cnt-1);
+      if(vkdt.graph_dev.frame > start_frame &&
+         vkdt.graph_dev.frame == vkdt.state.anim_frame)
+        vkdt.graph_dev.runflags = 0; // no need to re-render
+      else advance = 1;
+    }
+    if(advance)
+    {
+      if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
+        dt_log(s_log_snd, "frame drop warning, audio may stutter!");
+      vkdt.graph_dev.frame = vkdt.state.anim_frame;
+      if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+    }
+  }
+  else
+  { // if no animation, reset time stamp
+    start_time = (struct timespec){0};
+  }
+
   if(vkdt.graph_dev.runflags)
-    // VkResult err =
     dt_graph_run(&vkdt.graph_dev,
-        vkdt.graph_dev.runflags
-        | s_graph_run_wait_done);    // if we don't wait we can't resubmit because the fence would be used twice.
-  // if(err != VK_SUCCESS) break;
+        vkdt.graph_dev.runflags | s_graph_run_wait_done);
+
+  if(vkdt.state.anim_playing && advance)
+  { // new frame for animations need new audio, too
+    dt_graph_t *g = &vkdt.graph_dev;
+    for(int i=0;i<g->num_modules;i++)
+    { // find first audio module, if any
+      if(g->module[i].so->audio)
+      {
+        uint16_t *samples;
+        int cnt = g->module[i].so->audio(g->module+i, g->frame, &samples);
+        if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
+        break;
+      }
+    }
+  }
+
+  struct timespec end;
+  clock_gettime(CLOCK_REALTIME, &end);
+  double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
+  dt_log(s_log_perf, "frame time %2.3fs", dt);
 }
 
 int
 darkroom_enter()
 {
+  vkdt.state.anim_frame = 0;
+  vkdt.state.anim_playing = 0;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
@@ -444,11 +522,20 @@ darkroom_enter()
   // stat, if doesn't exist, load default
   // always set filename param? (definitely do that for default cfg)
   int load_default = 0;
+  char imgfilename[256], realimg[PATH_MAX];
+  dt_token_t input_module = dt_token("i-raw");
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
   {
     dt_log(s_log_err|s_log_gui, "individual config %s not found, loading default!", graph_cfg);
-    snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.cfg", dt_pipe.basedir);
+    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
+    realpath(imgfilename, realimg);
+    int len = strlen(realimg);
+    assert(len > 4);
+    realimg[len-4] = 0; // cut away ".cfg"
+    if(!strcasecmp(realimg+len-8, ".mlv"))
+      input_module = dt_token("i-mlv");
+    snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
     load_default = 1;
   }
 
@@ -462,29 +549,21 @@ darkroom_enter()
     return 2;
   }
 
-  // TODO: support other file formats instead of just raw?
   if(load_default)
   {
-    char imgfilename[256], realimg[PATH_MAX];
-    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
-    realpath(imgfilename, realimg);
     dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
-    int len = strlen(realimg);
-    assert(len > 4);
-    realimg[len-4] = 0; // cut away ".cfg"
     char *basen = basename(realimg); // cut away path so we can relocate more easily
-    int modid = dt_module_get(&vkdt.graph_dev, dt_token("i-raw"), dt_token("01"));
+    int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("01"));
     if(modid < 0 ||
        dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
          basen))
     {
-      dt_log(s_log_err|s_log_gui, "config '%s' has no raw input module!", graph_cfg);
+      dt_log(s_log_err|s_log_gui, "config '%s' has no valid input module!", graph_cfg);
       dt_graph_cleanup(&vkdt.graph_dev);
       return 3;
     }
   }
 
-  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
 
   VkResult err = 0;
   if((err = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
@@ -504,6 +583,10 @@ darkroom_enter()
     dt_graph_cleanup(&vkdt.graph_dev);
     return 5;
   }
+
+  // do this after running the graph, it may only know
+  // after initing say the output roi, after loading an input file
+  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");

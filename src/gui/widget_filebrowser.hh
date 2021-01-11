@@ -35,10 +35,16 @@ dt_filebrowser_cleanup(
 // TODO: make one that sorts dirs first:
 // int alphasort(const struct dirent **a, const struct dirent **b);
 
-int dt_filebrowser_filter(const struct dirent *d)
+int dt_filebrowser_filter_dir(const struct dirent *d)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
   if(d->d_type != DT_DIR) return 0; // filter out non-dirs too
+  return 1;
+}
+
+int dt_filebrowser_filter_file(const struct dirent *d)
+{
+  if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
   return 1;
 }
 
@@ -53,7 +59,8 @@ dt_filebrowser_open(
 // returns 0 if cancelled, or 1 if "ok" has been pressed
 inline int
 dt_filebrowser_display(
-    dt_filebrowser_widget_t *w) // TODO: mode dir/file? currently only using dir.
+    dt_filebrowser_widget_t *w,
+    const char               mode) // 'f' or 'd'
 {
   if(w->cwd[0] == 0) w->cwd[0] = '/';
   int ret = 0;
@@ -67,7 +74,11 @@ dt_filebrowser_display(
 
     if(!w->ent)
     { // no cached entries, scan directory:
-      w->ent_cnt = scandir(w->cwd, &w->ent, &dt_filebrowser_filter, alphasort);
+      w->ent_cnt = scandir(w->cwd, &w->ent,
+          mode == 'd' ?
+          &dt_filebrowser_filter_dir :
+          &dt_filebrowser_filter_file,
+          alphasort);
       if(w->ent_cnt == -1)
       {
         w->ent = 0;

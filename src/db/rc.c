@@ -47,8 +47,15 @@ dt_rc_get(
 {
   char tkey[30] = "str";
   snprintf(tkey+3, 26, "%s", key);
-  uint32_t pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
+  uint32_t pos = rc->data_cnt;
+  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), pos, 0);
   if(pos == -1u || pos >= rc->data_max) return defval;
+  if(pos == rc->data_cnt)
+  { // we inserted the entry, copy default value
+    rc->data[pos] = calloc(strlen(defval)+1, 1);
+    rc->data_cnt++;
+    memcpy(rc->data[pos], defval, strlen(defval));
+  }
   return rc->data[pos];
 }
 
@@ -77,8 +84,14 @@ dt_rc_get_int(
 {
   char tkey[30] = "int";
   snprintf(tkey+3, 26, "%s", key);
-  uint32_t pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
+  uint32_t pos = rc->data_cnt;
+  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
   if(pos == -1u || pos >= rc->data_max) return defval;
+  if(pos == rc->data_cnt)
+  {
+    *(int *)(rc->data+pos) = defval;
+    rc->data_cnt++;
+  }
   return *(int *)(rc->data+pos);
 }
 
@@ -105,8 +118,14 @@ dt_rc_get_float(
 {
   char tkey[30] = "flt";
   snprintf(tkey+3, 26, "%s", key);
-  uint32_t pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
+  uint32_t pos = rc->data_cnt;
+  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
   if(pos == -1u || pos >= rc->data_max) return defval;
+  if(pos == rc->data_cnt)
+  {
+    *(float *)(rc->data + pos) = defval;
+    rc->data_cnt++;
+  }
   return *(float *)(rc->data + pos);
 }
 
@@ -173,16 +192,18 @@ dt_rc_write(
   for(int i=0;i<rc->sp.buf_max;)
   {
     int len = strlen(rc->sp.buf+i);
-    // query value of this string:
-    uint32_t pos = dt_stringpool_get(&rc->sp, rc->sp.buf+i, len, -1u, 0);
-    if(pos != -1u && pos < rc->data_max)
-    {
-      if(!strncmp(rc->sp.buf+i, "flt", 3))
-        fprintf(f, "%s:%g\n", rc->sp.buf+i, *(float *)(rc->data+pos));
-      else if(!strncmp(rc->sp.buf+i, "int", 3))
-        fprintf(f, "%s:%d\n", rc->sp.buf+i, *(int *)(rc->data+pos));
-      else if(!strncmp(rc->sp.buf+i, "str", 3))
-        fprintf(f, "%s:%s\n", rc->sp.buf+i, rc->data[pos]);
+    if(len)
+    { // query value of this string:
+      uint32_t pos = dt_stringpool_get(&rc->sp, rc->sp.buf+i, len, -1u, 0);
+      if(pos != -1u && pos < rc->data_max)
+      {
+        if(!strncmp(rc->sp.buf+i, "flt", 3))
+          fprintf(f, "%s:%g\n", rc->sp.buf+i, *(float *)(rc->data+pos));
+        else if(!strncmp(rc->sp.buf+i, "int", 3))
+          fprintf(f, "%s:%d\n", rc->sp.buf+i, *(int *)(rc->data+pos));
+        else if(!strncmp(rc->sp.buf+i, "str", 3))
+          fprintf(f, "%s:%s\n", rc->sp.buf+i, rc->data[pos]);
+      }
     }
     i += len+1; // eat terminating 0, too
   }

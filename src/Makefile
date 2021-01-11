@@ -5,6 +5,17 @@
 FLATMK=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/flat.mk))))
 MODULES=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
 MODULESXX=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
+# kill some modules based on config flags:
+ifneq ($(VKDT_USE_RAWSPEED), 1)
+  MODULESXX:=$(filter-out i-raw,$(MODULESXX))
+endif
+ifneq ($(VKDT_USE_V4L2), 1)
+  MODULES:=$(filter-out i-v4l2,$(MODULES))
+endif
+ifneq ($(VKDT_USE_MLV), 1)
+  MODULES:=$(filter-out i-mlv,$(MODULES))
+endif
+
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
 MOD_DSOS=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
 MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
@@ -22,12 +33,13 @@ include qvk/flat.mk
 include core/flat.mk
 include pipe/flat.mk
 include db/flat.mk
+include snd/flat.mk
 include gui/flat.mk
 include cli/flat.mk
 
 clean: Makefile
 	rm -f vkdt vkdt-cli 
-	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(CLI_O) $(QVK_O) $(DB_O)
+	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(QVK_O) $(DB_O)
 	# we delete *all* modules, not just the one in MOD_DSOS* because they may be from another branch.
 	# such stale libraries can still cause segfaults because they would be loaded.
 	# at some point we probably need to harden the api such that this still works. maybe.
@@ -44,6 +56,9 @@ qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
 
 core/%.o: core/%.c Makefile $(CORE_H) core/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
+
+snd/%.o: snd/%.c Makefile $(SND_H) snd/flat.mk
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(SND_CFLAGS) -c $< -o $@
 
 pipe/%.o: pipe/%.c Makefile $(PIPE_H) pipe/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
@@ -68,9 +83,9 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 
 # main application
 # ======================
-vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt \
-    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
+vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) -o vkdt \
+    $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(SND_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # command line interface
 # ======================
@@ -118,7 +133,7 @@ $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
 define SPV_RULE
 %.$(1).spv: %.$(1)
-	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.1 \
+	$(GLSLC) -Ipipe/modules -I$(dir $$<) --target-env vulkan1.2 \
     -V $$< -o $$@
 endef
 $(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))

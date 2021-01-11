@@ -107,6 +107,7 @@ dt_module_so_load(
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
     mod->commit_params  = dlsym(mod->dlhandle, "commit_params");
     mod->check_params   = dlsym(mod->dlhandle, "check_params");
+    mod->audio          = dlsym(mod->dlhandle, "audio");
   }
 
   // read default params:
@@ -179,7 +180,7 @@ dt_module_so_load(
         mode = dt_read_int(b, &b);
         continue;
       }
-      else if(type == dt_token("slider"))
+      else if(type == dt_token("slider") || type == dt_token("vslider"))
       { // read range of slider
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);

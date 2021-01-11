@@ -76,11 +76,13 @@ dt_graph_export(
     int err = dt_graph_read_config_ascii(graph, param->p_cfgfile);
     if(err)
     {
+      dt_token_t input_module = param->input_module;
+      if(param->input_module == 0) input_module = dt_token("i-raw");
       char graph_cfg[256];
       if(param->p_defcfg)
         snprintf(graph_cfg, sizeof(graph_cfg), "%s", param->p_defcfg);
       else
-        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.cfg");
+        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%"PRItkn, dt_token_str(input_module));
       err = dt_graph_read_config_ascii(graph, graph_cfg);
       char imgfilename[256];
       // follow link if this is a cfg in a tag collection:
@@ -94,11 +96,11 @@ dt_graph_export(
       assert(len > 4);
       imgfilename[len-4] = 0; // cut away ".cfg"
       char *basen = basename(imgfilename); // cut away path o we can relocate more easily
-      int modid = dt_module_get(graph, dt_token("i-raw"), dt_token("01"));
+      int modid = dt_module_get(graph, input_module, dt_token("01"));
       if(modid < 0 ||
           dt_module_set_param_string(graph->module + modid, dt_token("filename"), basen))
       {
-        dt_log(s_log_err, "config '%s' has no raw input module!", graph_cfg);
+        dt_log(s_log_err, "config '%s' has no valid %"PRItkn" input module!", graph_cfg, dt_token_str(input_module));
         return VK_INCOMPLETE;
       }
     }

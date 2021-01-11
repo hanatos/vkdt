@@ -253,7 +253,7 @@ dt_graph_write_param_ascii(
   int cnt = mod->so->param[p]->cnt;
   if(mod->so->param[p]->name == dt_token("draw"))
   { // draw issues a lot of numbers, only output the needed ones:
-    const float *v = dt_module_param_float(mod, p);
+    const int32_t *v = dt_module_param_int(mod, p);
     cnt = 2*v[0]+1; // vertex count + list of 2d vertices
   }
   if(mod->so->param[p]->type == dt_token("float"))

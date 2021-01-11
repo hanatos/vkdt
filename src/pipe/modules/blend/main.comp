@@ -106,7 +106,7 @@ main()
     const float thresh = 1.0;
     bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
 #endif
-    if(global.frame > 0) rgb = mix(rgb, bck, t);
+    rgb = mix(rgb, bck, t);
   }
   else
   { // photography version.

@@ -3,6 +3,7 @@
 #include "db/thumbnails.h"
 #include "db/db.h"
 #include "db/rc.h"
+#include "snd/snd.h"
 
 #include <vulkan/vulkan.h>
 
@@ -41,9 +42,9 @@ typedef struct dt_gui_state_t
   int   panel_ht;
 
   // animation state
-  int   anim_playing;
-  int   anim_max_frame;
-  int   anim_frame;
+  int   anim_playing;        // playing yes/no
+  int   anim_max_frame;      // last frame in animation
+  int   anim_frame;          // current frame in animation
 }
 dt_gui_state_t;
 
@@ -100,6 +101,9 @@ typedef struct dt_gui_t
   dt_thumbnails_t  thumbnail_gen; // to generate thumbnails asynchronously
   dt_gui_view_t    view_mode;     // current view mode
 
+  dt_snd_t         snd;           // connection to audio device
+  dt_rc_t          rc;            // config file
+
   // favourite gui module/parameter list
   int fav_cnt;
   int fav_modid[20];
@@ -108,8 +112,6 @@ typedef struct dt_gui_t
   // list of recently used tags
   int  tag_cnt;
   char tag[10][30];
-
-  dt_rc_t          rc; // config file
 }
 dt_gui_t;
 
