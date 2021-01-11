@@ -1,28 +1,32 @@
 # vkdt: darktable which sucks less
 
 this is an experimental complete rewrite of [darktable](https://darktable.org),
-naturally at this point with a heavily reduced feature set.
+at this point with a reduced feature set. `vkdt` is designed with high performance
+in mind. there are already some new features, too: support for animations, raw video,
+and heavy lifting algorithms like image alignment and better highlight inpainting.
+this is made possible by faster processing, allowing more complex operations.
 
-the processing pipeline has been rewritten as a generic node graph (dag) which
+the processing pipeline has been rewritten as a generic node graph (DAG) which
 supports multiple inputs and multiple outputs. all processing is done in glsl
 shaders/vulkan. this facilitates potentially heavy duty computational
 photography tasks, for instance aligning multiple raw files and merging them
-before further processing, as well as outputting many intermediate results as
-jpg for debugging. the gui profits from this scheme as well and can display
-textures while they are still on gpu and output the data to multiple
+before further processing, as well as outputting intermediate results for
+debugging. the gui profits from this scheme as well and can display
+textures while they are still on GPU and output the data to multiple
 targets, such as the main view and histograms.
 
 ## features
 
-* very fast [GPU only](src/qvk/readme.md) processing
+* [set of essential image operation modules](src/pipe/modules/readme.md)
+* [very fast GPU only processing](src/qvk/readme.md)
 * [general DAG of processing operations](src/pipe/readme.md), featuring multiple inputs and outputs and
   feedback connectors for animation/iteration
 * [full window colour management](doc/colourmanagement.md)
-* [minimal set of image operation modules](src/pipe/modules/readme.md)
 * [noise profiling](doc/noiseprofiling.md)
 * [minimally invasive image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
+* [10-bit display output](src/pipe/modules/test10b/readme.md)
 
 ## build instructions
 
@@ -47,14 +51,15 @@ be set in `config.mk`. if you don't have that file yet, copy it from
 
 ## running
 
-the binaries are currently wired to run from the `bin/` directory:
+the binaries are put into the `bin/` directory. if you want to run `vkdt` from
+anywhere, create a symlink such as `/usr/local/bin/vkdt -> ~/vc/vkdt/bin/vkdt`.
 ```
   cd bin/
   ./vkdt -d all /path/to/your/rawfile.raw
 ```
-raw files will be assigned the `bin/default-darkroom.cfg` processing graph.
-if you run the command line interface 'vkdt-cli', it will replace all 'display'
-nodes by 'export' nodes.
+raw files will be assigned the `bin/default-darkroom.i-raw` processing graph.
+if you run the command line interface `vkdt-cli`, it will replace all `display`
+nodes by `export` nodes.
 there are also a few example config files in `bin/examples/`. note that you
 have to edit the filename in the example cfg to point to a file that actually
 exists on your system.
@@ -72,7 +77,7 @@ and we may link to some others, too.
 
 ## dependencies
 * vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
-* glfw (libglfw3-dev)
+* glfw (libglfw3-dev and libglfw3, only use libglfw3-wayland if you're on wayland)
 * submodule imgui
 * submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp-dev)
 * libjpeg
@@ -80,8 +85,11 @@ and we may link to some others, too.
 
 optional (configure in `bin/config.mk`):
 
-* freetype (libfreetype-dev)
-* exiv2 (libexiv2-dev)
+* freetype (libfreetype-dev) for nicer font rendering
+* exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles
+* asound (libasound2) for audio support in mlv raw video
+
+you can also build without rawspeed if that is useful for you.
 
 
 ## faq
