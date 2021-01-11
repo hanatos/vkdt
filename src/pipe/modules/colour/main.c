@@ -19,42 +19,15 @@ clip_poly(
     float dotv = n[0]*vp0[0] + n[1]*vp0[1];
     if(dotv <= 0) continue; // inside
 
-#if 0 // TODO: use abney data instead of straight line here
-    // not inside, need to project there. can't go on a stright line,
-    // so do some bisection
-    // float l[3] = {1.0f, 1.0f, 1.0f};           // start lower bound as white
-    float l[3] = { 1.10761, 0.965565, 0.916972 };
-    float u[3] = {v[0], 1.0f-v[0]-v[1], v[1]}; // upper bound is initially our colour
-
-    // fprintf(stderr, "testing poly line %d\n", i);
-    for(int k=0;k<10;k++)
-    {
-      // TODO: need to test all places? non linear means we can potentially push it out of the other constraint again.
-      float m[3] = {
-        (l[0]+u[0])*.5f,
-        (l[1]+u[1])*.5f,
-        (l[2]+u[2])*.5f,
-      };
-      float c[2] = {m[0] / (m[0]+m[1]+m[2]), m[2] / (m[0]+m[1]+m[2]) };
-      float cp0 [] = {c[0]-p[2*i+0], c[1]-p[2*i+1]};
-      float dotc = n[0]*cp0[0] + n[1]*cp0[1];
-      if(dotc <= 0) // inside
-        for(int j=0;j<3;j++) l[j] = m[j];
-      else // outside
-        for(int j=0;j<3;j++) u[j] = m[j];
-      // TODO: distance < something then converged?
-      // fprintf(stderr, "it %d inside %d\n", k, dotc <= 0);
-      v[0] = c[0];
-      v[1] = c[1];
-    }
-#endif
-
 #if 1 // project along line in rb space
     float dotvw = n[0]*(v[0]-w[0]) + n[1]*(v[1]-w[1]);
     float dotpw = n[0]*(p[2*i]-w[0]) + n[1]*(p[2*i+1]-w[1]);
     float t = dotpw/dotvw;
-    v[0] = w[0] + t * (v[0] - w[0]);
-    v[1] = w[1] + t * (v[1] - w[1]);
+    if(t > 0.0f && t < 1.0f)
+    {
+      v[0] = w[0] + t * (v[0] - w[0]);
+      v[1] = w[1] + t * (v[1] - w[1]);
+    }
 #endif
   }
 }
