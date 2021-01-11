@@ -165,11 +165,11 @@ dt_rc_read(
     (val++)[0] = 0;
 
     if(!strncmp(line, "flt", 3))
-      dt_rc_set_float(rc, line, atof(val));
+      dt_rc_set_float(rc, line+3, atof(val));
     else if(!strncmp(line, "int", 3))
-      dt_rc_set_float(rc, line, atol(val));
+      dt_rc_set_float(rc, line+3, atol(val));
     else if(!strncmp(line, "str", 3))
-      dt_rc_set(rc, line, val);
+      dt_rc_set(rc, line+3, val);
     else goto error;
   }
 
