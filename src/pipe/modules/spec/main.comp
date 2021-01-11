@@ -540,7 +540,6 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   Y = xyz.y;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
-  tc.y = 1.0-tc.y; // FIXME: fix this when writing
 
   // bilinear interpolation, fails at blue-white-red ridge
 #if 0
@@ -649,7 +648,6 @@ main()
   float Y = xyz.y;
   float b = xyz.x+xyz.y+xyz.z;
   vec2 tc = xyz.xy/b;
-  tc.y = 1.0-tc.y; // FIXME: fix this when writing
   vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
   vec2 sl = lut.wz; // grab saturation and lambda
   // normalise wavelength
@@ -754,7 +752,6 @@ main()
   vec3 xyz = rec2020_to_xyz * rgb;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
-  tc.y = 1.0-tc.y; // FIXME: fix this when writing
   for(int i=0;i<it;i++)
   {
     vec3 grad = texture(img_grad, tc).rgb;

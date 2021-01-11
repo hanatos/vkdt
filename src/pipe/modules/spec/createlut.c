@@ -66,7 +66,7 @@ double sigmoid(double x) {
 
 void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
 {
-  double x[] = {xy[0] * w, (1.0-xy[1]) * h};
+  double x[] = {xy[0] * w, xy[1] * h};
   x[0] = fmax(0.0, fmin(x[0], w-2));
   x[1] = fmax(0.0, fmin(x[1], h-2));
 #if 1 // bilin
@@ -413,50 +413,71 @@ static Gamut parse_gamut(const char *str)
   return SRGB;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 3) {
-        printf("Syntax: createlut <resolution> <output> [<gamut>]\n"
-               "where <gamut> is one of sRGB,eRGB,XYZ,ProPhotoRGB,ACES2065_1,ACES_AP1,REC2020\n");
-        exit(-1);
-    }
-    Gamut gamut = SRGB;
-    if(argc > 3) gamut = parse_gamut(argv[3]);
-    init_tables(gamut);
+int main(int argc, char **argv)
+{
+  if (argc < 3)
+  {
+    printf("syntax: createlut <resolution> <output> [<gamut>]\n"
+        "where <gamut> is one of sRGB,eRGB,XYZ,ProPhotoRGB,ACES2065_1,ACES_AP1,REC2020\n");
+    exit(-1);
+  }
+  Gamut gamut = XYZ;
+  if(argc > 3) gamut = parse_gamut(argv[3]);
+  init_tables(gamut);
 
-    const int res = atoi(argv[1]); // resolution of 2d lut
+  const int res = atoi(argv[1]); // resolution of 2d lut
 
-    printf("Optimizing ");
+  printf("optimizing ");
 
-    // read grey map from macadam:
-    int max_w, max_h;
-    float *max_b = 0;
+  typedef struct header_t
+  {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t channels;
+    uint32_t wd;
+    uint32_t ht;
+  }
+  header_t;
+
+  // read max macadam brightness lut
+  int max_w, max_h;
+  float *max_b = 0;
+  {
+    FILE *f = fopen("macadam.lut", "rb");
+    header_t header;
+    if(!f) goto mac_error;
+    if(fread(&header, sizeof(header_t), 1, f) != 1) goto mac_error;
+    max_w = header.wd;
+    max_h = header.ht;
+    if(header.channels != 1) goto mac_error;
+    max_b = calloc(sizeof(float), max_w*max_h);
+    uint16_t *half = calloc(sizeof(float), max_w*max_h);
+    fread(half, header.wd*header.ht, sizeof(uint16_t), f);
+    fclose(f);
+    for(int k=0;k<header.wd*header.ht;k++)
+      max_b[k] = half_to_float(half[k]);
+    free(half);
+    if(0)
     {
-      // convert macad.pfm -fx 'r' -colorspace Gray -blur 15x15 brightness.pfm
-      FILE *f = fopen("brightness.pfm", "rb");
-      if(!f)
-      {
-        fprintf(stderr, "could not read macadam.pfm!!\n");
-        exit(2);
-      }
-      fscanf(f, "Pf\n%d %d\n%*[^\n]", &max_w, &max_h);
-      max_b = calloc(sizeof(float), max_w*max_h);
-      fgetc(f); // \n
-      fread(max_b, sizeof(float), max_w*max_h, f);
-      fclose(f);
+mac_error:
+      if(f) fclose(f);
+      fprintf(stderr, "could not read macadam.lut!\n");
+      exit(2);
     }
+  }
 
-    int lsres = res/4; // allocate enough for mip maps too
-    float *lsbuf = calloc(sizeof(float), 2* 5*lsres*lsres);
+  int lsres = res/4;
+  float *lsbuf = calloc(sizeof(float), 5*lsres*lsres);
 
-    size_t bufsize = 5*res*res;
-    float *out = calloc(sizeof(float), bufsize);
+  size_t bufsize = 5*res*res;
+  float *out = calloc(sizeof(float), bufsize);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(dynamic) shared(stdout,out,max_b,max_w,max_h)
 #endif
   for (int j = 0; j < res; ++j)
   {
-    // const double y = (res - 1 - (j+0.5)) / (double)res;
-    const double y = (res - 1 - (j)) / (double)res;
+    // const double y = (j+0.5) / (double)res;
+    const double y = (j) / (double)res;
     printf(".");
     fflush(stdout);
     for (int i = 0; i < res; ++i)
@@ -473,7 +494,7 @@ int main(int argc, char **argv) {
       if(check_gamut(rgb)) continue;
 
       int ii = (int)fmin(max_w - 1, fmax(0, i * (max_w / (double)res)));
-      int jj = max_h - 1 - (int)fmin(max_h - 1, fmax(0, j * (max_h / (double)res)));
+      int jj = (int)fmin(max_h - 1, fmax(0, j * (max_h / (double)res)));
       double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
       double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
       double resid = gauss_newton(rgbm, coeffs);
@@ -523,7 +544,7 @@ int main(int argc, char **argv) {
     }
   }
 
-#if 1
+#ifndef BAD_CMF // don't overwrite for simplified cmf
   { // scope write lsbuf
     buf_t inpaint_buf = {
       .dat = lsbuf,
@@ -532,193 +553,63 @@ int main(int argc, char **argv) {
       .cpp = 5,
     };
     inpaint(&inpaint_buf);
-#if 0 // superbasic push/pull hole filling. better use gmic's morphological hole filling.
-    // gmic lsbuf.pfm  --mul 256 --select_color 0,0,0,0 -inpaint_morpho[0] [1] -rm[1] -o lsbuf2.pfm (only that this doesn't work :( )
-  // allocate mipmap memory:
-  int num_mips = 0;
-  for(int r=lsres;r;r>>=1) num_mips++;
-  // push down inited avg to mipmaps:
-  int r = lsres;
-  float *b0 = lsbuf;
-  for(int l=1;l<num_mips;l++)
-  {
-    int r0 = r;
-    float *b1 = b0 + r0 * r0 * 5;
-    r >>= 1;
-    for(int j=0;j<r;j++) for(int i=0;i<r;i++)
+    // write 2 channel half lut:
+    uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
+    uint16_t *b16 = malloc(size);
+    for(int k=0;k<lsres*lsres;k++)
     {
-      if(b1[5*(j*r+i)+0] == 0.0f)
-      { // average finer res, if inited
-        int cnt = 0;
-        float avg[5] = {0.0f};
-#define PIX(II,JJ) \
-        if(b0[5*((2*j+JJ)*r0 + 2*i+II)+0] != 0.0f) { \
-          cnt ++;\
-          for(int k=0;k<5;k++) avg[k] += b0[5*((2*j+JJ)*r0 + 2*i+II)+k];\
-        }
-        PIX(0,0);
-        PIX(0,1);
-        PIX(1,0);
-        PIX(1,1);
-#undef PIX
-        if(cnt) for(int k=0;k<5;k++) b1[5*(j*r+i)+k] = avg[k] / cnt;
-      }
+      b16[2*k+0] = float_to_half(lsbuf[5*k+0]);
+      b16[2*k+1] = float_to_half(lsbuf[5*k+1]);
     }
-    b0 = b1;
-  }
-  // pull up to uninited hi res
-  for(int j=0;j<lsres;j++) for(int i=0;i<lsres;i++)
-  {
-    if(lsbuf[5*(j*lsres+i)] == 0.0f)
+    header_t head = (header_t) {
+      .magic    = 1234,
+        .version  = 1,
+        .channels = 2,
+        .wd       = lsres,
+        .ht       = lsres,
+    };
+    FILE *f = fopen("abney.lut", "wb");
+    if(f)
     {
-      int ii = i, jj = j, r = lsres;
-      float *b1 = lsbuf;
-      for(int l=0;l<num_mips;l++)
-      {
-        b1 += 5*r*r;
-        r >>= 1; ii >>= 1; jj >>= 1;
-        if(b1[5*(jj*r+ii)] != 0.0f)
-        {
-          for(int k=0;k<5;k++)
-            lsbuf[5*(j*lsres+i)+k] = b1[5*(jj*r+ii)+k];
-          break;
-        }
-      }
+      fwrite(&head, sizeof(head), 1, f);
+      fwrite(b16, size, 1, f);
     }
-  }
-#endif
-  FILE *f = fopen("lsbuf.pfm", "wb");
-  if(f)
-  {
-    fprintf(f, "PF\n%d %d\n-1.0\n", lsres, lsres);
-    for(int j=0;j<lsres;j++) for(int i=0;i<lsres;i++)
-      fwrite(lsbuf + j*5*lsres + i*5, sizeof(float), 3, f);
     fclose(f);
   }
-#if 0 // DEBUG plot a couple of grid points
-  for(int j=0;j<lsres;j+=1)
-  for(int i=0;i<lsres;i+=10)
-    fprintf(stderr, "%g %g\n",
-        lsbuf[3*(j*lsres+i)+0],
-        lsbuf[3*(j*lsres+i)+1]);
-#endif
-#if 1 // only useful with hole filling above:
-#ifndef BAD_CMF // don't overwrite for simplified cmf
-  // write 2 channel half lut:
-  uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
-  uint16_t *b16 = malloc(size);
-  for(int k=0;k<lsres*lsres;k++)
-  {
-    b16[2*k+0] = float_to_half(lsbuf[5*k+0]);
-    b16[2*k+1] = float_to_half(lsbuf[5*k+1]);
-  }
-  typedef struct header_t
-  {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t channels;
-    uint32_t wd;
-    uint32_t ht;
-  }
-  header_t;
-  header_t head = (header_t) {
-    .magic    = 1234,
-    .version  = 1,
-    .channels = 2,
-    .wd       = lsres,
-    .ht       = lsres,
-  };
-  f = fopen("abney.lut", "wb");
-  if(f)
-  {
-    fwrite(&head, sizeof(head), 1, f);
-    fwrite(b16, size, 1, f);
-  }
-  fclose(f);
-#endif
-#endif
-  }
 #endif
 
-#if 1 // write four channel half lut
+#ifdef BAD_CMF // write four channel half lut only for abridged cmf
   {
-  // convert to half
-  uint32_t size = 4*sizeof(uint16_t)*res*res;
-  uint16_t *b16 = malloc(size);
-  for(int k=0;k<res*res;k++)
-  {
-    double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
-    double c0yl[3];
-    cvt_c012_c0yl(coeffs, c0yl);
-    float q[4] = {c0yl[0], c0yl[1], c0yl[2], out[5*k+4]};
-    b16[4*k+0] = float_to_half(1e5f*q[0]);
-    b16[4*k+1] = float_to_half(q[1]);
-    b16[4*k+2] = float_to_half(q[2]);
-    b16[4*k+3] = float_to_half(q[3]);
-  }
-  typedef struct header_t
-  {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t channels;
-    uint32_t wd;
-    uint32_t ht;
-  }
-  header_t;
-  header_t head = (header_t) {
-    .magic    = 1234,
-    .version  = 1,
-    .channels = 4,
-    .wd       = res,
-    .ht       = res,
-  };
-  FILE *f = fopen("spectra.lut", "wb");
-  if(f)
-  {
-    fwrite(&head, sizeof(head), 1, f);
-    fwrite(b16, size, 1, f);
-  }
-  fclose(f);
-  }
-#endif
-
-  FILE *f = fopen(argv[2], "wb");
-  if(f)
-  {
-    fprintf(f, "PF\n%d %d\n-1.0\n", res, res);
+    // convert to half
+    uint32_t size = 4*sizeof(uint16_t)*res*res;
+    uint16_t *b16 = malloc(size);
     for(int k=0;k<res*res;k++)
     {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
-      float q[3];
       double c0yl[3];
       cvt_c012_c0yl(coeffs, c0yl);
-      quantise_coeffs(coeffs, q);
-      // fprintf(stdout, "%g %g %g\n", q[0], q[1], q[2]);
-      q[0] = c0yl[2] < CIE_LAMBDA_MIN ? 1.0 : 0.0;
-      q[1] = c0yl[2] > CIE_LAMBDA_MAX ? 1.0 : 0.0;
-      q[2] = out[5*k+3];//q[0];
-      // q[0] = out[5*k+3]; // DEBUG lambda tc
-      // q[1] = out[5*k+4]; // DEBUG saturation tc
-#if 1 // coeff data
-      fwrite(q, sizeof(float), 3, f);
-#else // velocity field
-      float vel[3] = {
-          out[5*k+3],
-          out[5*k+4],
-          // 1.0};
-          (1.0- out[5*k+3]*out[5*k+3]- out[5*k+4]*out[5*k+4])};
-      // vel[0] = 0.5 + 0.5*vel[0];
-      // vel[1] = 0.5 + 0.5*vel[1];
-      // vel[2] = 0.5 + 0.5*vel[2];
-      fwrite(vel, sizeof(float), 3, f);
-
-      // fwrite(out+5*k+0, sizeof(float), 1, f);
-      // fwrite(out+5*k+3, sizeof(float), 2, f);
-      // fwrite(&one, sizeof(float), 1, f);
-#endif
+      float q[4] = {c0yl[0], c0yl[1], c0yl[2], out[5*k+4]};
+      b16[4*k+0] = float_to_half(1e5f*q[0]);
+      b16[4*k+1] = float_to_half(q[1]);
+      b16[4*k+2] = float_to_half(q[2]);
+      b16[4*k+3] = float_to_half(q[3]);
+    }
+    header_t head = (header_t) {
+      .magic    = 1234,
+        .version  = 1,
+        .channels = 4,
+        .wd       = res,
+        .ht       = res,
+    };
+    FILE *f = fopen("spectra.lut", "wb");
+    if(f)
+    {
+      fwrite(&head, sizeof(head), 1, f);
+      fwrite(b16, size, 1, f);
     }
     fclose(f);
   }
+#endif
   free(out);
   printf("\n");
 }

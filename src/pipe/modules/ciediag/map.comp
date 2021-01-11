@@ -109,7 +109,9 @@ main()
   }
 
   // bg image
-  vec3 bg = texture(img_bg, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  vec2 tc = (ipos+0.5)/vec2(imageSize(img_out));
+  tc.y = 1.0-tc.y;
+  vec3 bg = texture(img_bg, tc).rgb;
   if(any(greaterThan(bg,vec3(0.0)))) rgb += 0.05;
   // rgb = bg;
   if(bg.b > 0.1) rgb += 0.05;
