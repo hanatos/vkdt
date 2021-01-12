@@ -1,2 +1,3 @@
 split:slider:0:1
-sat:slider:0:2
+sat:slider:0:20
+gamut:combo:no correction:limit to spectral locus:limit to rec2020:limit to rec709

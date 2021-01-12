@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4  white;
   float split;
   float sat;
+  int   gamut_mode;
 } params;
 
 
@@ -679,19 +680,23 @@ main()
   sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
   if(lut.x > 0.0) sl.y += 0.5;
 #if 1 // change saturation:
-  vec2 max_sat = texelFetch(img_ls, ivec2(textureSize(img_ls, 0).x-1, sl.y*textureSize(img_ls, 0).y), 0).rg;
-  sl.x = clamp(params.sat * sl.x * max_sat.y, 0.0, 1.0); // rec709 boundary
-  // TODO: do x/(x+a) style saturated curve (deriv = a / (x+a)^2 at x=0 it's 1/a)
-  // i want 0..1 to map to white..current
-  // and 1..infty to current..gamut boundary
-  // so if > 1, x = sat-1 and use x/(x+1)
-  // sl.x = clamp(params.sat * sl.x, 0.0, 1.0);
-  // probably not the best way to do this:
-  // if(params.sat < 1)
-  //   sl.x = mix(0, sl.x, params.sat);
-  // else
-  //   sl.x = mix(sl.x, 1.0, params.sat-1.0);
-  // sl.x = pow(sl.x, 2.0-params.sat);
+  // this is where we would be at (unbounded params.sat)
+  float m = params.sat * sl.x;
+  // but we want to compress input in [sl.x.. infty) into
+  // the interval [sl.x .. max_sat.x]
+  if(params.gamut_mode > 0)
+  {
+    float bound = 1.0; // spectral locus
+    if(params.gamut_mode > 1)
+    {
+      vec2 max_sat = texelFetch(img_ls, ivec2(textureSize(img_ls, 0).x-1, sl.y*textureSize(img_ls, 0).y), 0).rg;
+      if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
+      if(params.gamut_mode == 3) bound = max_sat.x; // rec709
+    }
+    if(params.sat > 1.0)
+      m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
+  }
+  sl.x = m;
 #endif
   // use lambda/sat lut to get new xy chroma values
   vec2 xy = texture(img_ls, sl, 0).rg;
