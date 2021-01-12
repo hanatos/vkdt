@@ -271,7 +271,7 @@ void modify_roi_out(
   {
     mod->img_param.black[k]        = mod_data->d->mRaw->blackLevelSeparate[k];
     mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint;
-    mod->img_param.whitebalance[k] = 1.0;//mod_data->d->mRaw->metadata.wbCoeffs[k];
+    mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k];
   }
   // normalise wb
   mod->img_param.whitebalance[0] /= mod->img_param.whitebalance[1];

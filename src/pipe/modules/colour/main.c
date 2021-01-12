@@ -278,15 +278,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
-  if(module->img_param.whitebalance[0] > 0)
-  {
-    for(int k=0;k<4;k++)
-      f[k] = powf(2.0f, ((float*)module->param)[0]) *
-        module->img_param.whitebalance[k];
-  }
-  else
-    for(int k=0;k<4;k++)
-      f[k] = powf(2.0f, ((float*)module->param)[0]);
+  for(int k=0;k<4;k++)
+    f[k] = powf(2.0f, ((float*)module->param)[0]);
 
   // grab params by name:
   // const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("wb")));
