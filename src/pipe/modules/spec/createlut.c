@@ -6,9 +6,9 @@
 //
 
 // run like
-// make && ./xy2sig 512 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
+// make && ./createlut 512 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
 
-// creates spectra.lut (c0 y l s)/(x y) and abney.lut (x y)/(s l)
+// creates spectra.lut (c0*1e5 y l s)/(x y) and abney.lut (x y)/(s l)
 #include <math.h>
 #include <string.h>
 #include <strings.h>
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
 
   const int res = atoi(argv[1]); // resolution of 2d lut
 
-  printf("optimizing ");
+  printf("optimising ");
 
   typedef struct header_t
   {
@@ -558,25 +558,32 @@ mac_error:
     // write 2 channel half lut:
     uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
     uint16_t *b16 = malloc(size);
+    // also write pfm for debugging purposes
+    FILE *pfm = fopen(argv[2], "wb");
+    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", lsres, lsres);
     for(int k=0;k<lsres*lsres;k++)
     {
       b16[2*k+0] = float_to_half(lsbuf[5*k+0]);
       b16[2*k+1] = float_to_half(lsbuf[5*k+1]);
+      float q[] = {lsbuf[5*k], lsbuf[5*k+1], 1.0f-lsbuf[5*k]-lsbuf[5*k+1]};
+      if(pfm) fwrite(q, sizeof(float), 3, pfm);
     }
     header_t head = (header_t) {
       .magic    = 1234,
-        .version  = 1,
-        .channels = 2,
-        .wd       = lsres,
-        .ht       = lsres,
+      .version  = 1,
+      .channels = 2,
+      .wd       = lsres,
+      .ht       = lsres,
     };
     FILE *f = fopen("abney.lut", "wb");
     if(f)
     {
       fwrite(&head, sizeof(head), 1, f);
       fwrite(b16, size, 1, f);
+      fclose(f);
     }
-    fclose(f);
+    free(b16);
+    if(pfm) fclose(pfm);
   }
 #endif
 
@@ -585,31 +592,37 @@ mac_error:
     // convert to half
     uint32_t size = 4*sizeof(uint16_t)*res*res;
     uint16_t *b16 = malloc(size);
+    // also write pfm for debugging purposes
+    FILE *pfm = fopen(argv[2], "wb");
+    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
     for(int k=0;k<res*res;k++)
     {
       double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
       double c0yl[3];
       cvt_c012_c0yl(coeffs, c0yl);
-      float q[4] = {c0yl[0], c0yl[1], c0yl[2], out[5*k+4]};
-      b16[4*k+0] = float_to_half(1e5f*q[0]);
+      float q[4] = {1e5f*c0yl[0], c0yl[1], c0yl[2], out[5*k+4]};
+      if(pfm) fwrite(q, sizeof(float), 3, pfm);
+      b16[4*k+0] = float_to_half(q[0]);
       b16[4*k+1] = float_to_half(q[1]);
       b16[4*k+2] = float_to_half(q[2]);
       b16[4*k+3] = float_to_half(q[3]);
     }
     header_t head = (header_t) {
       .magic    = 1234,
-        .version  = 1,
-        .channels = 4,
-        .wd       = res,
-        .ht       = res,
+      .version  = 1,
+      .channels = 4,
+      .wd       = res,
+      .ht       = res,
     };
     FILE *f = fopen("spectra.lut", "wb");
     if(f)
     {
       fwrite(&head, sizeof(head), 1, f);
       fwrite(b16, size, 1, f);
+      fclose(f);
     }
-    fclose(f);
+    free(b16);
+    if(pfm) fclose(pfm);
   }
 #endif
   free(out);

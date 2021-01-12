@@ -106,11 +106,31 @@ int main(int argc, char *argv[])
         for(int c=0;c<3;c++)
           buf[4*(j*res+i)+c] = 0.0f;
 
+  // blur 5x5 to smooth over cmf resolution
+  float *smooth = calloc(sizeof(float), res*res);
+  for(int j=0;j<res;j++) for(int i=0;i<res;i++)
+  {
+    const float wg[] = {1.0f, 4.0f, 6.0f, 4.0f, 1.0f};
+    float weight = 0.0f;
+    // for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
+    for(int jj=-4;jj<=4;jj+=2) for(int ii=-4;ii<=4;ii+=2) // even smoother
+    {
+      if(j+jj >= 0 && j+jj < res && i+ii >= 0 && i+ii < res)
+      {
+        // float w = wg[jj+2]*wg[ii+2];
+        float w = wg[jj/2+2]*wg[ii/2+2];
+        smooth[j*res+i] += w * buf[4*((j+jj)*res+i+ii)];
+        weight += w;
+      }
+    }
+    if(weight > 0.0f) smooth[j*res+i] /= weight;
+  }
+
   // write 1 channel half lut:
   uint32_t size = sizeof(uint16_t)*res*res;
   uint16_t *b16 = malloc(size);
   for(int k=0;k<res*res;k++)
-    b16[k] = float_to_half(buf[4*k+0]);
+    b16[k] = float_to_half(smooth[k]);
   typedef struct header_t
   {
     uint32_t magic;
@@ -132,8 +152,20 @@ int main(int argc, char *argv[])
   {
     fwrite(&head, sizeof(head), 1, f);
     fwrite(b16, size, 1, f);
+    fclose(f);
   }
-  fclose(f);
+#if 0 // debug, can look at this with eu:
+  FILE *pfm = fopen("macadam.pfm", "wb");
+  if(pfm)
+  {
+    fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
+    for(int k=0;k<res*res;k++) for(int c=0;c<3;c++)
+      fwrite(smooth+k, sizeof(float), 1, pfm);
+    fclose(pfm);
+  }
+#endif
+  free(b16);
+  free(smooth);
 
   exit(0);
 }
