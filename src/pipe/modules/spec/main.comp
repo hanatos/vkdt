@@ -695,8 +695,9 @@ main()
     }
     if(params.sat > 1.0)
       m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
+    sl.x = m;
   }
-  sl.x = m;
+  else sl.x = clamp(m, 0.0, 0.99); // XXX make sure we don't hit the last column (gamut limits stored there)
 #endif
   // use lambda/sat lut to get new xy chroma values
   vec2 xy = texture(img_ls, sl, 0).rg;
