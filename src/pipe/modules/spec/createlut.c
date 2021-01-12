@@ -547,7 +547,7 @@ mac_error:
   }
 
 #ifndef BAD_CMF // don't overwrite for simplified cmf
-  { // scope write lsbuf
+  { // scope write abney map on (lambda, saturation)
     buf_t inpaint_buf = {
       .dat = lsbuf,
       .wd  = lsres,
@@ -555,24 +555,67 @@ mac_error:
       .cpp = 5,
     };
     inpaint(&inpaint_buf);
+
+    // determine gamut boundaries for rec709 and rec2020:
+    // walk each row and find first time it goes outside.
+    // record this in special 1d tables
+    float *bound_rec709  = calloc(sizeof(float), lsres);
+    float *bound_rec2020 = calloc(sizeof(float), lsres);
+    for(int j=0;j<lsres;j++)
+    {
+      int active = 3;
+      for(int i=0;i<lsres;i++)
+      {
+        int idx = j*lsres + i;
+        double xyz[] = {lsbuf[5*idx], lsbuf[5*idx+1], 1.0-lsbuf[5*idx]-lsbuf[5*idx+1]};
+        double rec709 [3] = {0.0};
+        double rec2020[3] = {0.0};
+        for (int k = 0; k < 3; ++k)
+          for (int l = 0; l < 3; ++l)
+            rec709[k] += xyz_to_srgb[k][l] * xyz[l];
+        for (int k = 0; k < 3; ++k)
+          for (int l = 0; l < 3; ++l)
+            rec2020[k] += xyz_to_rec2020[k][l] * xyz[l];
+        if((active & 1) && (rec709 [0] < 0 || rec709 [1] < 0 || rec709 [2] < 0))
+        {
+          bound_rec709[j] = (i-.5f)/(float)lsres;
+          active &= ~1;
+        }
+        if((active & 2) && (rec2020[0] < 0 || rec2020[1] < 0 || rec2020[2] < 0))
+        {
+          bound_rec2020[j] = (i-.5f)/(float)lsres;
+          active &= ~2;
+        }
+        if(!active) break;
+      }
+    }
+
     // write 2 channel half lut:
-    uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
+    uint32_t size = 2*sizeof(uint16_t)*lsres*(lsres+1);
     uint16_t *b16 = malloc(size);
     // also write pfm for debugging purposes
     FILE *pfm = fopen(argv[2], "wb");
-    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", lsres, lsres);
-    for(int k=0;k<lsres*lsres;k++)
+    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", lsres+1, lsres);
+    for(int j=0;j<lsres;j++)
     {
-      b16[2*k+0] = float_to_half(lsbuf[5*k+0]);
-      b16[2*k+1] = float_to_half(lsbuf[5*k+1]);
-      float q[] = {lsbuf[5*k], lsbuf[5*k+1], 1.0f-lsbuf[5*k]-lsbuf[5*k+1]};
+      for(int i=0;i<lsres;i++)
+      {
+        int ki = j*lsres + i, ko = j*(lsres+1) + i;
+        b16[2*ko+0] = float_to_half(lsbuf[5*ki+0]);
+        b16[2*ko+1] = float_to_half(lsbuf[5*ki+1]);
+        float q[] = {lsbuf[5*ki], lsbuf[5*ki+1], 1.0f-lsbuf[5*ki]-lsbuf[5*ki+1]};
+        if(pfm) fwrite(q, sizeof(float), 3, pfm);
+      }
+      b16[2*(j*(lsres+1)+lsres)+0] = float_to_half(bound_rec709 [j]);
+      b16[2*(j*(lsres+1)+lsres)+1] = float_to_half(bound_rec2020[j]);
+      float q[] = {bound_rec709[j], bound_rec2020[j], 0.0f};
       if(pfm) fwrite(q, sizeof(float), 3, pfm);
     }
     header_t head = (header_t) {
       .magic    = 1234,
       .version  = 1,
       .channels = 2,
-      .wd       = lsres,
+      .wd       = lsres+1,
       .ht       = lsres,
     };
     FILE *f = fopen("abney.lut", "wb");
@@ -583,13 +626,14 @@ mac_error:
       fclose(f);
     }
     free(b16);
+    free(bound_rec709);
+    free(bound_rec2020);
     if(pfm) fclose(pfm);
   }
 #endif
 
 #ifdef BAD_CMF // write four channel half lut only for abridged cmf
-  {
-    // convert to half
+  { // write spectra map: (x,y) |--> sigmoid coeffs + saturation
     uint32_t size = 4*sizeof(uint16_t)*res*res;
     uint16_t *b16 = malloc(size);
     // also write pfm for debugging purposes
