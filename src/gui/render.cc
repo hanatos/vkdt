@@ -803,7 +803,7 @@ void render_lighttable()
 
     // ==============================================================
     // export selection
-    if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export"))
+    if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export selection"))
     {
       ImGui::Indent();
       static int wd = 0, ht = 0, format = 0;
