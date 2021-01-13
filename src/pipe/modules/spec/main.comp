@@ -530,9 +530,30 @@ float zFit_1931( float wave )
 }
 #endif
 
+vec4 bilateral_texture(vec2 tc)
+{ // perform an almost bilinearly filtered lookup, only consider n- or u-shaped spectra:
+  vec2 tci = tc * vec2(textureSize(img_coeff, 0).x-1, textureSize(img_coeff, 0).y);
+  vec2 uv = fract(tci);
+  vec4 c0 = texelFetch(img_coeff, ivec2(tci), 0);
+  vec4 c1 = texelFetch(img_coeff, ivec2(tci)+ivec2(0,1), 0);
+  vec4 c2 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,0), 0);
+  vec4 c3 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,1), 0);
+
+  // some bogus criterion to tell n from u shape:
+  bool nshaped = true;
+  if(c0.x + c1.x + c2.x + c3.x > 0.0) nshaped = false;
+
+  vec4 res = vec4(0.0);
+  float w = 0.0;
+  if((c0.x > 0) ^^ nshaped) { float w2 = (1.0-uv.x)*(1.0-uv.y); w += w2; res += w2 * c0; }
+  if((c1.x > 0) ^^ nshaped) { float w2 = (1.0-uv.x)*(    uv.y); w += w2; res += w2 * c1; }
+  if((c2.x > 0) ^^ nshaped) { float w2 = (    uv.x)*(1.0-uv.y); w += w2; res += w2 * c2; }
+  if((c3.x > 0) ^^ nshaped) { float w2 = (    uv.x)*(    uv.y); w += w2; res += w2 * c3; }
+  return res / w;
+}
+
 vec3 fetch_coeff(vec3 rgb, out float Y)
-{
-  // xy chromaticity diagram
+{ // convert to cie xy chromaticity coordinates
   const mat3 rec2020_to_xyz = mat3(
     6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
     1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
@@ -541,35 +562,9 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   Y = xyz.y;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
-
-  // bilinear interpolation, fails at blue-white-red ridge
-#if 0
-  return vec3(1e-5, 1, 1) * texture(img_coeff, tc).rgb;
-#else
-  vec2 tci = tc * textureSize(img_coeff, 0);
-  // TODO: determine n/u based on uv coords!
-  vec2 uv = fract(tci);
-  vec3 c0 = texelFetch(img_coeff, ivec2(tci), 0).rgb;
-  vec3 c1 = texelFetch(img_coeff, ivec2(tci)+ivec2(0,1), 0).rgb;
-  vec3 c2 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,0), 0).rgb;
-  vec3 c3 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,1), 0).rgb;
-  int nshaped = 0;
-  vec2 w = vec2(0.0);
-  vec3 r0 = vec3(0.0);
-  vec3 r1 = vec3(0.0);
-  if(c0.x < 0) { w.x += (1.0-uv.x)*(1.0-uv.y); r0 += (1.0-uv.x)*(1.0-uv.y)*c0; nshaped++;}
-  else { w.y += (1.0-uv.x)*(1.0-uv.y); r1 += (1.0-uv.x)*(1.0-uv.y)*c0; }
-  if(c1.x < 0) { w.x += uv.x*(1.0-uv.y); r0 += uv.x*(1.0-uv.y)*c1; nshaped++;}
-  else w.y += uv.x*(1.0-uv.y); r1 += uv.x*(1.0-uv.y)*c1;
-  if(c2.x < 0) { w.x += (1.0-uv.x)*uv.y; r0 += (1.0-uv.x)*uv.y*c2; nshaped++;}
-  else w.y += (1.0-uv.x)*uv.y; r1 += (1.0-uv.x)*uv.y*c2;
-  if(c3.x < 0) { w.x += uv.x*uv.y; r0 += uv.x*uv.y*c3; nshaped++;}
-  else { w.y += uv.x*uv.y; r1 += uv.x*uv.y*c3;}
-  if(nshaped >= 2) 
-    return vec3(1e-5, 1, 1) * r0 / w.x;
-  return vec3(1e-5, 1, 1) * r1 / w.y;
-#endif
+  return bilateral_texture(tc) *  vec3(1e-5, 1.0, 1.0);
 }
+
 
 float rand(inout uint x)
 { // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
@@ -661,13 +656,16 @@ main()
   // vec4 lut = texture(img_coeff, tc, 0); // lut.x *= 1e-5;
   // this quantises heavily:
   // vec4 lut = texelFetch(img_coeff, ivec2(tc*textureSize(img_coeff, 0)), 0); // lut.x *= 1e-5;
+
   // dither the lookup at least:
-  ivec2 tci = ivec2(tc*textureSize(img_coeff, 0));
-  uint state = 1337*666*uint(1+dot(tci, ivec2(1, 13)));
-  vec2 rnd = vec2(rand(state), rand(state));
-  tci = ivec2(tc*textureSize(img_coeff, 0)+rnd);
-  vec4 lut = texelFetch(img_coeff, tci, 0); // lut.x *= 1e-5;
-  // TODO: do bilateral/bilinear interpolation (see fetch_coeff but do it correctly)
+  // ivec2 tci = ivec2(tc*textureSize(img_coeff, 0));
+  // uint state = 1337*666*uint(1+dot(tci, ivec2(1, 13)));
+  // vec2 rnd = vec2(rand(state), rand(state));
+  // tci = ivec2(tc*textureSize(img_coeff, 0)+rnd);
+  // vec4 lut = texelFetch(img_coeff, tci, 0); // lut.x *= 1e-5;
+
+  // do bilateral/bilinear interpolation (see fetch_coeff but do it correctly)
+  vec4 lut = bilateral_texture(tc);
 
   vec2 sl = lut.wz; // grab saturation and lambda
   // normalise wavelength
