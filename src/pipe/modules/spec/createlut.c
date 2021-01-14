@@ -64,33 +64,6 @@ double sigmoid(double x) {
     return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
 }
 
-void lookup2d(float *map, int w, int h, int stride, double *xy, float *res)
-{
-  double x[] = {xy[0] * w, xy[1] * h};
-  x[0] = fmax(0.0, fmin(x[0], w-2));
-  x[1] = fmax(0.0, fmin(x[1], h-2));
-#if 1 // bilin
-  double u[2] = {x[0] - (int)x[0], x[1] - (int)x[1]};
-  for(int i=0;i<stride;i++)
-    res[i] = (1.0-u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0]    ) + i]
-           + (    u[0]) * (1.0-u[1]) * map[stride * (w* (int)x[1]    + (int)x[0] + 1) + i]
-           + (    u[0]) * (    u[1]) * map[stride * (w*((int)x[1]+1) + (int)x[0] + 1) + i]
-           + (1.0-u[0]) * (    u[1]) * map[stride * (w*((int)x[1]+1) + (int)x[0]    ) + i];
-#else // box
-  for(int i=0;i<stride;i++)
-    res[i] = map[stride * (w*(int)x[1] + (int)x[0]) +i];
-#endif
-}
-
-void lookup1d(float *map, int w, int stride, double x, float *res)
-{
-  x = x * w;
-  x = fmax(0.0, fmin(x, w-2));
-  double u = x - (int)x;
-  for(int i=0;i<stride;i++)
-    res[i] = (1.0-u) * map[stride * (int)x + i] + u * map[stride * ((int)x+1) + i];
-}
-
 double sqrd(double x) { return x * x; }
 
 void cvt_c0yl_c012(const double *c0yl, double *coeffs)
@@ -478,14 +451,12 @@ mac_error:
 #endif
   for (int j = 0; j < res; ++j)
   {
-    // const double y = (j+0.5) / (double)res;
-    const double y = (j) / (double)res;
+    const double y = (j+0.5) / (double)res;
     printf(".");
     fflush(stdout);
     for (int i = 0; i < res; ++i)
     {
-      // const double x = (i+0.5) / (double)res;
-      const double x = (i) / (double)res;
+      const double x = (i+0.5) / (double)res;
       double rgb[3];
       double coeffs[3];
       init_coeffs(coeffs);
@@ -504,59 +475,11 @@ mac_error:
       double c0yl[3];
       cvt_c012_c0yl(coeffs, c0yl);
 
-#if 0
-      // now compute round trip error, to be sure:
-      // consider *1e5 -> half -> float -> *1e-5
-      float unq[3] = {
-        1e-5*half_to_float(float_to_half(c0yl[0] * 1e5)),
-        half_to_float(float_to_half(c0yl[1])),
-        half_to_float(float_to_half(c0yl[2]))};
-      // float unq[3] = { c0yl[0], c0yl[1], c0yl[2]};
-#if 0
-      double rgb_out[3] = { 0.0, 0.0, 0.0 };
-      for (int k = 0; k < CIE_FINE_SAMPLES; ++k)
-      {
-        double lambda = (k+.5)/(double)CIE_FINE_SAMPLES*(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) + CIE_LAMBDA_MIN;
-        // double x = c0yl[0] * (lambda - c0yl[2])*(lambda - c0yl[2]) + c0yl[1];
-        double x = unq[0] * (lambda - unq[2])*(lambda - unq[2]) + unq[1];
-        double s = sigmoid(x);
-        for (int c = 0; c < 3; ++c)
-          rgb_out[c] += rgb_tbl[c][k] * s;
-      }
-#else
-      float rgb_out[3] = { 0.0, 0.0, 0.0 };
-      for (int k = 0; k < CIE_FINE_SAMPLES; ++k)
-      {
-        float lambda = (k+.5f)/(float)CIE_FINE_SAMPLES*(CIE_LAMBDA_MAX-CIE_LAMBDA_MIN) + CIE_LAMBDA_MIN;
-        // double x = c0yl[0] * (lambda - c0yl[2])*(lambda - c0yl[2]) + c0yl[1];
-        float x = unq[0] * (lambda - unq[2])*(lambda - unq[2]) + unq[1];
-        float s = sigmoid(x);
-        for (int c = 0; c < 3; ++c)
-          rgb_out[c] += rgb_tbl[c][k] * s;
-      }
-#endif
-      double resid2 = sqrt(
-          pow(rgb_out[0]-rgbm[0], 2)+
-          pow(rgb_out[1]-rgbm[1], 2)+
-          pow(rgb_out[2]-rgbm[2], 2));
-      // TODO output resid and resid2 and go all alarm!!
-      if(resid2 > resid && resid2 > 0.1)
-        fprintf(stderr, "\nerrors %g %g -- rgb %g %g %g -- coeffs %g %g %g -- %g %g %g\n", resid, resid2,
-            rgb_out[0], rgb_out[1], rgb_out[2],
-            c0yl[0], c0yl[1], c0yl[2],
-            unq[0], unq[1], unq[2]);
-
-      int idx = j*res + i;
-      out[5*idx + 0] = resid;//coeffs[0];
-      out[5*idx + 1] = resid2;//coeffs[1];
-      out[5*idx + 2] = coeffs[2];
-#else
       (void)resid;
       int idx = j*res + i;
       out[5*idx + 0] = coeffs[0];
       out[5*idx + 1] = coeffs[1];
       out[5*idx + 2] = coeffs[2];
-#endif
 
       float xy[2] = {x, y}, white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E //{.3127266, .32902313}; // D65
       float sat = spectrum_saturation(xy, white);
@@ -684,30 +607,8 @@ mac_error:
   }
 #endif
 
-#ifdef BAD_CMF // write four channel half lut only for abridged cmf
+#ifdef BAD_CMF // write four channel lut only for abridged cmf
   { // write spectra map: (x,y) |--> sigmoid coeffs + saturation
-    uint32_t size = 4*sizeof(uint16_t)*res*res;
-    uint16_t *b16 = malloc(size);
-    // also write pfm for debugging purposes
-    FILE *pfm = fopen(argv[2], "wb");
-    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
-    for(int k=0;k<res*res;k++)
-    {
-      double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
-      // double c0yl[3]; // this is okay in half float
-      // cvt_c012_c0yl(coeffs, c0yl);
-      // float q[4] = {1e5f*c0yl[0], c0yl[1], c0yl[2], out[5*k+4]};
-      // q[0] is okay in half float, saturation too. the rest not so much :(
-      float q[4] = {coeffs[0], coeffs[1], coeffs[2], out[5*k+4]};
-      quantise_coeffs(coeffs, q);
-      // q[0] *= 1e5; q[1] *= 1e-1; q[2] *= 1e1;
-      // if(fabsf(q[0]) > 0) fprintf(stderr, "%g %g %g\n", q[0], q[1], q[2]); // XXX DEBUG
-      if(pfm) fwrite(q, sizeof(float), 3, pfm);
-      b16[4*k+0] = float_to_half(q[0]);
-      b16[4*k+1] = float_to_half(q[1]);
-      b16[4*k+2] = float_to_half(q[2]);
-      b16[4*k+3] = float_to_half(q[3]);
-    }
     header_t head = (header_t) {
       .magic    = 1234,
       .version  = 2,
@@ -716,21 +617,19 @@ mac_error:
       .wd       = res,
       .ht       = res,
     };
+    FILE *pfm = fopen(argv[2], "wb"); // also write pfm for debugging purposes
+    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
     FILE *f = fopen("spectra.lut", "wb");
-    if(f)
+    if(f) fwrite(&head, sizeof(head), 1, f);
+    for(int k=0;k<res*res;k++)
     {
-      fwrite(&head, sizeof(head), 1, f);
-      for(int k=0;k<res*res;k++)
-      {
-        double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
-        float q[] = {0, 0, 0, out[5*k+4]};
-        quantise_coeffs(coeffs, q);
-        fwrite(q, sizeof(float), 4, f);
-      }
-      // fwrite(b16, size, 1, f);
-      fclose(f);
+      double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
+      float q[] = {0, 0, 0, out[5*k+4]}; // c0yl works in half, but doesn't interpolate upon lookup :(
+      quantise_coeffs(coeffs, q);
+      if(f)   fwrite(q, sizeof(float), 4, f);
+      if(pfm) fwrite(q, sizeof(float), 3, pfm);
     }
-    free(b16);
+    if(f) fclose(f);
     if(pfm) fclose(pfm);
   }
 #endif
