@@ -135,15 +135,17 @@ int main(int argc, char *argv[])
   {
     uint32_t magic;
     uint16_t version;
-    uint16_t channels;
+    uint8_t  channels;
+    uint8_t  datatype;
     uint32_t wd;
     uint32_t ht;
   }
   header_t;
   header_t head = (header_t) {
     .magic    = 1234,
-    .version  = 1,
+    .version  = 2,
     .channels = 1,
+    .datatype = 0,
     .wd       = res,
     .ht       = res,
   };

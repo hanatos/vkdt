@@ -532,16 +532,64 @@ float zFit_1931( float wave )
 
 vec4 bilateral_texture(vec2 tc)
 { // perform an almost bilinearly filtered lookup, only consider n- or u-shaped spectra:
-  vec2 tci = tc * textureSize(img_coeff, 0).xy;
+  vec2 tci = tc * textureSize(img_coeff, 0).xy + 0.5;
   vec2 uv = fract(tci);
   vec4 c0 = texelFetch(img_coeff, ivec2(tci), 0);
   vec4 c1 = texelFetch(img_coeff, ivec2(tci)+ivec2(0,1), 0);
   vec4 c2 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,0), 0);
   vec4 c3 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,1), 0);
 
+#if 1 // interpolate in vanilla format
+  {
+    c0.x *= 1e-5;
+    c1.x *= 1e-5;
+    c2.x *= 1e-5;
+    c3.x *= 1e-5;
+  vec4 v0 = vec4(c0.x, c0.z * -2.0 * c0.x,
+      c0.y + c0.x * c0.z * c0.z, c0.w);
+  vec4 v1 = vec4(c1.x, c1.z * -2.0 * c1.x,
+      c1.y + c1.x * c1.z * c1.z, c1.w);
+  vec4 v2 = vec4(c2.x, c2.z * -2.0 * c2.x,
+      c2.y + c2.x * c2.z * c2.z, c2.w);
+  vec4 v3 = vec4(c3.x, c3.z * -2.0 * c3.x,
+      c3.y + c3.x * c3.z * c3.z, c3.w);
+
+vec4 res = 
+  (1.0-uv.x)*(1.0-uv.y) * v0
++ (1.0-uv.x)*(    uv.y) * v1
++ (    uv.x)*(1.0-uv.y) * v2
++ (    uv.x)*(    uv.y) * v3;
+
+// convert back
+return vec4(res.x,
+    res.z - res.y*res.y / (4.0 * res.x),
+    - res.y / (2.0 * res.x),
+    res.w);
+  }
+#endif
+
   // some bogus criterion to tell n from u shape:
   bool nshaped = true;
   if(c0.x + c1.x + c2.x + c3.x > 0.0) nshaped = false;
+  // if(nshaped) return vec4(0);
+  vec4 cc = vec4(c0.x, c1.x, c2.x, c3.x);
+  vec4 ll = vec4(c0.z, c1.z, c2.z, c3.z);
+  // if(!all(greaterThan(cc, vec4(.1))) && !all(lessThan(cc, vec4(-.1)))) return c0;
+  if(any(greaterThan(ll, vec4(900.0))) || any(lessThan(ll, vec4(200.0))))
+    // return c0;
+    return vec4(1);
+
+  // return c3;
+  // return c2;
+  // XXX the !nshaped case still has black dots near the boundary. looks like most are nshaped => out
+  // and a few are not quite nshaped and go black
+  // XXX c1 has black dots
+  // XXX c3 has black dots
+
+  // c0 has black dots for nshaped
+  // c2 has black dots for nshaped
+  //if(c0.x == 0.0) return vec4(0);
+  //return c0;
 
   vec4 res = vec4(0.0);
   float w = 0.0;
@@ -562,7 +610,8 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   Y = xyz.y;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
-  return bilateral_texture(tc).rgb *  vec3(1e-5, 1.0, 1.0);
+  // return bilateral_texture(tc).rgb;//  *  vec3(1e-5, 1.0, 1.0);
+  return texture(img_coeff, tc, 0).rgb *  vec3(1e-5, 1e-3, 1e-1);
 }
 
 #if 0
@@ -632,7 +681,7 @@ main()
   }
   else
   { // spectral
-#if 1 // change saturation:
+#if 0 // change saturation:
   const mat3 xyz_to_rec2020 = mat3(
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
@@ -650,10 +699,15 @@ main()
   float b = xyz.x+xyz.y+xyz.z;
   vec2 tc = xyz.xy/b;
 
-  // do bilateral/bilinear interpolation (see fetch_coeff but do it correctly)
-  vec4 lut = bilateral_texture(tc);
+  // do bilateral/bilinear interpolation
+  // c0 y lambda
+  // vec4 lut = bilateral_texture(tc);
+  // vec2 sl = lut.wz; // grab saturation and lambda
 
-  vec2 sl = lut.wz; // grab saturation and lambda
+  // c0 c1 c2
+  vec4 lut = texture(img_coeff, tc);
+  vec2 sl = vec2(lut.w, -lut.y / (2.0 * lut.x));
+
   // normalised wavelength, logistically compressed:
   float norm = (sl.y - 400.0)/(700.0-400.0);
   sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
@@ -682,24 +736,30 @@ main()
   xyz = vec3(xy, 1.0-xy.x-xy.y);
   xyz *= Y / xyz.y;
   rgb = xyz_to_rec2020 * xyz;
+#else
+  float Y;
 #endif
 
 #if 1 // wb using sigmoids
   vec3 cwp   = fetch_coeff(vec3(params.white), Y);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49), b);
   vec3 coeff = fetch_coeff(rgb, Y);
 
+  // XXX test roundtrips
+  // coeff = bilateral_texture(vec2(ipos+0.5)/imageSize(img_out)).rgb * vec3(1e-5, 1.0, 1.0);
+  // coeff = texture(img_coeff, vec2(ipos+0.5)/imageSize(img_out)).rgb * vec3(1e-5, 1e-3, 1e-1);
+  coeff = texture(img_coeff, vec2(ipos+0.5)/imageSize(img_out)).rgb;// * vec3(1e-5, 1e1, 1e-1);
+  Y = 0.4;
+
   // FIXME:
   // * desaturation goes to D65 for rgb and to E for spectral
   // * spectral white balance * (1 1 1) means * D65 (so you can desaturate and wb 1 1 1 to yield a D65 spectrum and 1 1 1 rgb)
   // * rgb wb * (1 1 1) means passthrough, i.e. * E (so desat and wb 1 1 1 yields D65 too, but for different reasons)
   // * rgb vs spectral at sat==1 shows some slight jumps in the spectra near the borders (??) though i can't see the diff in the img
-  // * spectral sat is numerically unstable on the blue/white/red ridge
-  // * spectral sat seems to shift the center wavelength (orange patch) even though it should not.
 
   // DEBUG
   // cwp = vec3(0.00014479, -0.189595, 62.5251); // d65 / 1.1
   // cwp = vec3(-9.16167e-06, 0.00870653, -2.35259); // d65 / 3
-  // cwp = vec3(0, 0, 100000); // E / 2.0
+  cwp = vec3(0, 0, 100000); // E / 2.0, this matches the rgb version if applied to the spectra
   // 4.47548e-07, -0.000481296, -0.22512 would be E / 3.0
 
   const int num_l = 30;
@@ -708,10 +768,13 @@ main()
   { // compute spectrum
     const float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0); // abridged 10nm center version (30 entries)
     // const float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);  // full version (283 entries)
-    float x = coeff.x * (lambda - coeff.z)*(lambda - coeff.z) + coeff.y;
+    // float x = coeff.x * (lambda - coeff.z)*(lambda - coeff.z) + coeff.y;
+    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
-    float xw  = cwp.x * (lambda - cwp.z)*(lambda - cwp.z) + cwp.y;
+    // float xw  = cwp.x * (lambda - cwp.z)*(lambda - cwp.z) + cwp.y;
+    // float xw  = cwp.x * lambda*lambda + cwp.y * lambda + cwp.z;
+    float xw  = (cwp.x * lambda + cwp.y) * lambda + cwp.z;
     float yw  = 1. / sqrt(xw * xw + 1.);
     float wht = 0.5 * xw * yw +  0.5;
 
@@ -719,7 +782,8 @@ main()
   }
   // keep perceived brightness Y the same, evaluate new Y by row in rec2020_to_xyz
   float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
-  rgb *= Y/Y2;
+  // XXX TODO: what about the brightness jitter in the c0 c1 c2 case???
+  // rgb *= Y/Y2;
 #endif
   } // end if split
 

@@ -8,7 +8,8 @@ typedef struct header_t
 {
   uint32_t magic;
   uint16_t version;
-  uint16_t channels;
+  uint8_t  channels;
+  uint8_t  datatype;
   uint32_t wd;
   uint32_t ht;
 }
@@ -36,7 +37,7 @@ read_header(
   lut->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!lut->f) goto error;
 
-  if(fread(&lut->header, sizeof(header_t), 1, lut->f) != 1)
+  if(fread(&lut->header, sizeof(header_t), 1, lut->f) != 1 || lut->header.version != 2)
   {
     fclose(lut->f);
     goto error;
@@ -64,7 +65,8 @@ read_plain(
     lutinput_buf_t *lut, uint16_t *out)
 {
   fseek(lut->f, lut->data_begin, SEEK_SET);
-  fread(out, lut->header.wd*lut->header.ht*lut->header.channels, sizeof(uint16_t), lut->f);
+  size_t sz = lut->header.datatype == 0 ? sizeof(uint16_t) : sizeof(float);
+  fread(out, lut->header.wd*lut->header.ht*lut->header.channels, sz, lut->f);
   return 0;
 }
 
@@ -102,6 +104,8 @@ void modify_roi_out(
   // adjust output connector channels:
   if(lut->header.channels == 2) mod->connector[0].chan = dt_token("rg");
   if(lut->header.channels == 4) mod->connector[0].chan = dt_token("rgba");
+  if(lut->header.datatype == 0) mod->connector[0].format = dt_token("f16");
+  if(lut->header.datatype == 1) mod->connector[0].format = dt_token("f32");
   mod->connector[0].roi.full_wd = lut->header.wd;
   mod->connector[0].roi.full_ht = lut->header.ht;
 }
