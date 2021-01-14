@@ -50,9 +50,9 @@ main()
   {
     // read colour from texture
     vec3 picked_rgb = vec3(
-      texelFetch(img_in, ivec2(i, 0), 0).r/pow(2.0, 30.0),
-      texelFetch(img_in, ivec2(i, 1), 0).r/pow(2.0, 30.0),
-      texelFetch(img_in, ivec2(i, 2), 0).r/pow(2.0, 30.0));
+      2.0*texelFetch(img_in, ivec2(i, 0), 0).r/pow(2.0, 30.0) - 0.5,
+      2.0*texelFetch(img_in, ivec2(i, 1), 0).r/pow(2.0, 30.0) - 0.5,
+      2.0*texelFetch(img_in, ivec2(i, 2), 0).r/pow(2.0, 30.0) - 0.5);
 
     // or else read colour from params (requires round trip to cpu)?
     // params.pick[]

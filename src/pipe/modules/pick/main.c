@@ -148,9 +148,9 @@ void write_sink(
   if(ht < 4) return;
   for(int k=0;k<cnt;k++)
   {
-    picked[3*k+0] = u32[k+0*wd]/(float)(1ul<<30);
-    picked[3*k+1] = u32[k+1*wd]/(float)(1ul<<30);
-    picked[3*k+2] = u32[k+2*wd]/(float)(1ul<<30);
+    picked[3*k+0] = 2.0*u32[k+0*wd]/(float)(1ul<<30) - 0.5;
+    picked[3*k+1] = 2.0*u32[k+1*wd]/(float)(1ul<<30) - 0.5;
+    picked[3*k+2] = 2.0*u32[k+2*wd]/(float)(1ul<<30) - 0.5;
     // unfortunately this fixed point thing leads to a bit of numeric jitter.
     // let's hope the vulkan 1.2 extension with floating point atomics makes
     // it to amd at some point, too.
