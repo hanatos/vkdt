@@ -451,12 +451,12 @@ mac_error:
 #endif
   for (int j = 0; j < res; ++j)
   {
-    const double y = (j+0.5) / (double)res;
+    const double y = (j) / (double)res;
     printf(".");
     fflush(stdout);
     for (int i = 0; i < res; ++i)
     {
-      const double x = (i+0.5) / (double)res;
+      const double x = (i) / (double)res;
       double rgb[3];
       double coeffs[3];
       init_coeffs(coeffs);
