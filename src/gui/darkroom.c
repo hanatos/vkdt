@@ -24,6 +24,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
+  if(x >= vkdt.state.center_x + vkdt.state.center_wd) return; // over panel
   const float px_dist = 0.1*qvk.win_height;
 
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
@@ -101,41 +102,31 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     }
     else if(type == dt_token("pick"))
     {
-      // TODO: easier one click + drag
-      if(action == GLFW_RELEASE)
+      if(button == GLFW_MOUSE_BUTTON_LEFT)
       {
-        vkdt.wstate.selected = -1;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        // find active corner if close enough
-        float m[2] = {(float)x, (float)y};
-        float max_dist = FLT_MAX;
-        for(int ee=0;ee<4;ee++)
+        float v[] = {(float)x, (float)y}, n[2] = {0};
+        dt_view_to_image(v, n);
+        if(action == GLFW_RELEASE)
         {
-          float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
-          dt_image_to_view(n, v);
-          float dist2 =
-            ee < 2 ?
-            (v[0]-m[0])*(v[0]-m[0]) :
-            (v[1]-m[1])*(v[1]-m[1]);
-          if(dist2 < px_dist*px_dist)
-          {
-            if(dist2 < max_dist)
-            {
-              max_dist = dist2;
-              vkdt.wstate.selected = ee;
-            }
-          }
+          vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
+          vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
+          vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
+          vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
         }
-        if(max_dist < FLT_MAX) return;
+        else if(action == GLFW_PRESS)
+        {
+          vkdt.wstate.state[0] = n[0];
+          vkdt.wstate.state[1] = n[0];
+          vkdt.wstate.state[2] = n[1];
+          vkdt.wstate.state[3] = n[1];
+        }
+        return;
       }
     }
     else if(type == dt_token("draw"))
     {
       uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT &&
-          x < vkdt.state.center_x + vkdt.state.center_wd)
+      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT)
       { // right mouse click resets the last stroke
         for(int i=dat[0]-1;i>=0;i--)
         {
@@ -219,7 +210,6 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 {
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
-
   if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
 
   // active widgets grabbed input?
@@ -330,17 +320,13 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     }
     else if(type == dt_token("pick"))
     {
-      // TODO: maybe not needed?
-      if(vkdt.wstate.selected >= 0)
+      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
-        float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
-        vkdt.wstate.state[vkdt.wstate.selected] = edge;
-        // preserve order such that min < max:
-        if(vkdt.wstate.selected == 0) if(vkdt.wstate.state[1] < edge) vkdt.wstate.state[1] = edge;
-        if(vkdt.wstate.selected == 1) if(vkdt.wstate.state[0] > edge) vkdt.wstate.state[0] = edge;
-        if(vkdt.wstate.selected == 2) if(vkdt.wstate.state[3] < edge) vkdt.wstate.state[3] = edge;
-        if(vkdt.wstate.selected == 3) if(vkdt.wstate.state[2] > edge) vkdt.wstate.state[2] = edge;
-        return;
+        vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
+        vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
+        vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
+        vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
+        return; // we got this
       }
     }
     else if(type == dt_token("draw"))
