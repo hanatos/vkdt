@@ -38,6 +38,7 @@ it follows the current list of available modules.
 
 **processing modules**
 
+* [ab: a/b images in split screen](./ab/readme.md)
 * [accum: accumulate frames](./accum/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
 * [burst: align animation frames or burst photographs](./burst/readme.md)
