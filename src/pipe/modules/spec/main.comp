@@ -21,7 +21,7 @@ layout( // input f16 buffer rgb
 
 layout( // input spec coeff lut
     set = 1, binding = 1
-) uniform sampler2D img_coeff;
+) uniform sampler2D img_spectra;
 
 layout( // output f16 buffer rgb
     set = 1, binding = 2
@@ -29,7 +29,7 @@ layout( // output f16 buffer rgb
 
 layout( // input spec coeff lut
     set = 1, binding = 3
-) uniform sampler2D img_ls;
+) uniform sampler2D img_abney;
 
 // these are dumped from the lut matching utility and contain
 // xyz cmf * xyz to rec2020 matrix
@@ -76,7 +76,7 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   Y = xyz.y;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
-  return texture(img_coeff, tc, 0).rgb;
+  return texture(img_spectra, tc, 0).rgb;
 }
 
 void
@@ -89,13 +89,12 @@ main()
   if(ipos.x < params.split * imageSize(img_out).x)
   { // comparison
 #if 1 // do something at all?
-    vec3 cwp = vec3(params.white);//params.temp*0.49 + 0.5, 1.0, 0.5 - params.temp*0.49); // white
+    // this is illuminant E (xyz=1 1 1) in rec2020:
+    const vec3 E = vec3(1.10761412, 0.96556543, 0.91697237);
+    vec3 cwp = vec3(params.white);// / E;
     float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
     // multiply saturation in rgb?
-    float c = (rgb.r + rgb.g + rgb.b)/3.0;
-    rgb.r = (rgb.r - c)*params.sat + c;
-    rgb.g = (rgb.g - c)*params.sat + c;
-    rgb.b = (rgb.b - c)*params.sat + c;
+    rgb = (rgb - E/3.0)*params.sat + E/3.0;
 #if 0 // straight multiplication:
     // this sticks to the rec2020 boundary because it doesn't go < 0
     rgb *= cwp; 
@@ -155,7 +154,7 @@ main()
   vec2 tc = xyz.xy/b;
 
   // c0 c1 c2 and convert to saturation and lambda
-  vec4 lut = texture(img_coeff, tc);
+  vec4 lut = texture(img_spectra, tc);
   vec2 sl = vec2(lut.w, -lut.y / (2.0 * lut.x));
 
   // normalised wavelength, logistically compressed:
@@ -171,7 +170,7 @@ main()
     float bound = 1.0; // spectral locus
     if(params.gamut_mode > 1)
     {
-      vec2 max_sat = texelFetch(img_ls, ivec2(textureSize(img_ls, 0).x-1, sl.y*textureSize(img_ls, 0).y), 0).rg;
+      vec2 max_sat = texelFetch(img_abney, ivec2(textureSize(img_abney, 0).x-1, sl.y*textureSize(img_abney, 0).y), 0).rg;
       if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
       if(params.gamut_mode == 3) bound = max_sat.x; // rec709
     }
@@ -181,7 +180,7 @@ main()
   }
   else sl.x = clamp(m, 0.0, 0.99); // XXX make sure we don't hit the last column (gamut limits stored there)
   // use lambda/sat lut to get new xy chroma values
-  vec2 xy = texture(img_ls, sl, 0).rg;
+  vec2 xy = texture(img_abney, sl, 0).rg;
   // go back to colour
   xyz = vec3(xy, 1.0-xy.x-xy.y);
   xyz *= Y / xyz.y;

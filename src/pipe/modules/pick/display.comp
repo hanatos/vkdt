@@ -28,7 +28,6 @@ layout( // output buffer
 // TODO: put in shared.glsl?
 vec3 fetch_coeff(vec3 rgb, out float b)
 {
-  // xy chromaticity diagram
   const mat3 rec2020_to_xyz = mat3(
     6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
     1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
@@ -36,34 +35,7 @@ vec3 fetch_coeff(vec3 rgb, out float b)
   vec3 xyz = rec2020_to_xyz * rgb;
   b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
-  tc.y = 1.0-tc.y; // FIXME: fix this when writing
-
-  // bilinear interpolation, fails at blue-white-red ridge
-#if 0
-  return vec3(1e-5, 1, 1)*texture(img_coeff, tc).rgb;
-#else
-  vec2 tci = tc * textureSize(img_coeff, 0);
-  vec2 uv = fract(tci);
-  vec3 c0 = texelFetch(img_coeff, ivec2(tci), 0).rgb;
-  vec3 c1 = texelFetch(img_coeff, ivec2(tci)+ivec2(0,1), 0).rgb;
-  vec3 c2 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,0), 0).rgb;
-  vec3 c3 = texelFetch(img_coeff, ivec2(tci)+ivec2(1,1), 0).rgb;
-  int nshaped = 0;
-  vec2 w = vec2(0.0);
-  vec3 r0 = vec3(0.0);
-  vec3 r1 = vec3(0.0);
-  if(c0.x < 0) { w.x += (1.0-uv.x)*(1.0-uv.y); r0 += (1.0-uv.x)*(1.0-uv.y)*c0; nshaped++;}
-  else { w.y += (1.0-uv.x)*(1.0-uv.y); r1 += (1.0-uv.x)*(1.0-uv.y)*c0; }
-  if(c1.x < 0) { w.x += uv.x*(1.0-uv.y); r0 += uv.x*(1.0-uv.y)*c1; nshaped++;}
-  else w.y += uv.x*(1.0-uv.y); r1 += uv.x*(1.0-uv.y)*c1;
-  if(c2.x < 0) { w.x += (1.0-uv.x)*uv.y; r0 += (1.0-uv.x)*uv.y*c2; nshaped++;}
-  else w.y += (1.0-uv.x)*uv.y; r1 += (1.0-uv.x)*uv.y*c2;
-  if(c3.x < 0) { w.x += uv.x*uv.y; r0 += uv.x*uv.y*c3; nshaped++;}
-  else { w.y += uv.x*uv.y; r1 += uv.x*uv.y*c3;}
-  if(nshaped >= 2) 
-    return vec3(1e-5, 1, 1)*r0 / w.x;
-  return vec3(1e-5, 1, 1)*r1 / w.y;
-#endif
+  return texture(img_coeff, tc).rgb;
 }
 
 void
@@ -87,12 +59,13 @@ main()
 
     float b;
     vec3 coeff = fetch_coeff(picked_rgb, b);
+    vec3 cyl = vec3(coeff.x, coeff.z - coeff.y*coeff.y /(4.0 * coeff.x), -coeff.y / (2.0*coeff.x));
 
     float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
-    float x = coeff.x * (lambda-coeff.z)*(lambda-coeff.z) + coeff.y;
+    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
-    float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-coeff.z)));
+    float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-cyl.z)));
     val *= b;
     ddx *= b;
 
