@@ -600,7 +600,7 @@ main()
   }
   else
   { // spectral
-#if 0 // change saturation:
+#if 1 // change saturation:
   const mat3 xyz_to_rec2020 = mat3(
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
@@ -667,7 +667,7 @@ main()
   // DEBUG
   // cwp = vec3(0.00014479, -0.189595, 62.5251); // d65 / 1.1
   // cwp = vec3(-9.16167e-06, 0.00870653, -2.35259); // d65 / 3
-  cwp = vec3(0, 0, 100000); // E / 2.0, this matches the rgb version if applied to the spectra
+  // cwp = vec3(0, 0, 100000); // E / 2.0, this matches the rgb version if applied to the spectra
   // 4.47548e-07, -0.000481296, -0.22512 would be E / 3.0
 
   const int num_l = 30;
