@@ -5,9 +5,9 @@ void modify_roi_out(
     dt_module_t *module)
 {
   // always request constant histogram size:
-  module->connector[2].roi = module->connector[0].roi;
-  module->connector[2].roi.full_wd = 1000;
-  module->connector[2].roi.full_ht = 1000;
+  module->connector[1].roi = module->connector[0].roi;
+  module->connector[1].roi.full_wd = 1000;
+  module->connector[1].roi.full_ht = 1000;
 }
 
 void
@@ -30,7 +30,7 @@ create_nodes(
     .type   = dt_token("write"),
     .chan   = dt_token("r"),
     .format = dt_token("ui32"),
-    .roi    = module->connector[2].roi,
+    .roi    = module->connector[1].roi,
     .flags  = s_conn_clear,
   };
 
@@ -63,25 +63,16 @@ create_nodes(
     .name   = dt_token("ciediag"),
     .kernel = dt_token("map"),
     .module = module,
-    .wd     = module->connector[2].roi.wd,
-    .ht     = module->connector[2].roi.ht,
+    .wd     = module->connector[1].roi.wd,
+    .ht     = module->connector[1].roi.ht,
     .dp     = 1,
-    .num_connectors = 3,
-    .connector = {
-      ci, co, {
-      .name   = dt_token("bgimg"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = module->connector[1].format,
-      .roi    = module->connector[1].roi,
-      .connected_mi = -1,
-    }},
+    .num_connectors = 2,
+    .connector = { ci, co, },
   };
 
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_collect, 0);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
-  dt_connector_copy(graph, module, 1, id_map, 2);
-  dt_connector_copy(graph, module, 2, id_map, 1);
+  dt_connector_copy(graph, module, 1, id_map, 1);
 }
 
