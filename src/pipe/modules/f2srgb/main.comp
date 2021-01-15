@@ -28,7 +28,7 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   if(params.usemat > 0)
   { // convert linear rec2020 to linear rec709
-    mat3 M = mat3(
+    const mat3 M = mat3(
          1.66022677, -0.58754761, -0.07283825,
         -0.12455334,  1.13292605, -0.00834963,
         -0.01815514, -0.10060303,  1.11899817);
