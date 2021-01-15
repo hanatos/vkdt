@@ -24,12 +24,16 @@ it follows the current list of available modules.
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
 
-**visualisation modules**
+**visualisation and inspection modules**
 
+* [ab: a/b images in split screen](./ab/readme.md)
+* [check: mark out of gamut and under- and overexposure](./check/readme.md)
+* [ciediag: vectorscope diagram in cie chromaticity space](./ciediag/readme.md)
 * [display: generic display sink node](./display/readme.md)
-* [pick: colour picker and visualisation tool](./pick/readme.md)
 * [hist: waveform histogram](./hist/readme.md)
+* [pick: colour picker and visualisation tool](./pick/readme.md)
 * [rawhist: raw histogram with estimated noise levels](./rawhist/readme.md)
+* [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
 
 **internal use**
 
@@ -38,11 +42,9 @@ it follows the current list of available modules.
 
 **processing modules**
 
-* [ab: a/b images in split screen](./ab/readme.md)
 * [accum: accumulate frames](./accum/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
 * [burst: align animation frames or burst photographs](./burst/readme.md)
-* [ciediag: vectorscope diagram in cie chromaticity space](./ciediag/readme.md)
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
@@ -61,7 +63,6 @@ it follows the current list of available modules.
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
 * [saturate: simple rgb saturation](./saturate/readme.md)
 * [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
-* [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
 
