@@ -57,7 +57,7 @@ it follows the current list of available modules.
 * [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
 * [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)
 * [grad: linear gradient density filter](./grad/readme.md)
-* [grade: simple lift/gamma/gain grading tool](./grade/readme.md)
+* [grade: simple ACES CDL grading tool](./grade/readme.md)
 * [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
 * [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
