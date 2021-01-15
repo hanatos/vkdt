@@ -1,49 +1,87 @@
-# modules for the image processing graph
+# modules in the image processing graph
 
 image processing is done in a DAG with potentially multiple sources and multiple sinks.
+the graph does in fact not strictly have to be acyclic, we allow `feedback` connectors
+for iterative/multi-frame execution.
 
 ## list of modules
-TODO: reference all the readme.md in the lower levels:
+it follows the current list of available modules.
 
-* [alignment](./burst/readme.md)
-* [bc1 input](./i-bc1/readme.md)
-* [bc1 output](./o-bc1/readme.md)
-* [blend](./blend/readme.md)
-* [colour](./colour/readme.md)
-* [crop and rotate](./crop/readme.md)
-* [deconvolution/sharpen](./deconv/readme.md)
-* [denoise](./denoise/readme.md)
-* [film curve](./filmcurv/readme.md)
-* [gradient density filter](./grad/readme.md)
-* [highlight reconstruction](./hilite/readme.md)
-* [histogram (waveform)](./hist/readme.md)
-* [histogram (raw)](./rawhist/readme.md)
-* [colour vectorscope](./ciediag/readme.md)
-* [local contrast, shadows, and highlights](./llap/readme.md)
-* [pick colours](./pick/readme.md)
-* [raw video (mlv)](./i-mlv/readme.md)
-* [saturation](./saturate/readme.md)
-* [test 10bit display](./test10b/readme.md)
-* [thumbnails](./thumb/readme.md)
-* [video output](./o-ffmpeg/readme.md)
-* [webcam input](./i-v4l2/readme.md)
-* [zone system](./zones/readme.md)
+**input modules**
+
+* [i-bc1: input module for bc1-compressed thumbnails](./i-bc1/readme.md)
+* [i-jpg: jpg input module](./i-jpg/readme.md)
+* [i-lut: half float lut input module](./i-lut/readme.md)
+* [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
+* [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
+* [i-raw: rawspeed input module for photographic stills](./i-raw/readme.md)
+* [i-v4l2: webcam input module](./i-v4l2/readme.md)
+
+**output modules**
+
+* [o-bc1: write bc1 compressed thumbnail files](./o-bc1/readme.md)
+* [o-ffmpeg: write h264 compressed video stream for multi-frame input](./o-ffmpeg/readme.md)
+* [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
+* [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
+
+**visualisation and inspection modules**
+
+* [ab: a/b images in split screen](./ab/readme.md)
+* [check: mark out of gamut and under- and overexposure](./check/readme.md)
+* [ciediag: vectorscope diagram in cie chromaticity space](./ciediag/readme.md)
+* [display: generic display sink node](./display/readme.md)
+* [hist: waveform histogram](./hist/readme.md)
+* [pick: colour picker and visualisation tool](./pick/readme.md)
+* [rawhist: raw histogram with estimated noise levels](./rawhist/readme.md)
+* [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
+
+**internal use**
+
+* [nprof: create noise profile](./nprof/readme.md)
+* [thumb: special display for bc1 thumbnails](./thumb/readme.md)
+
+**processing modules**
+
+* [accum: accumulate frames](./accum/readme.md)
+* [blend: masked frame blending](./blend/readme.md)
+* [burst: align animation frames or burst photographs](./burst/readme.md)
+* [colour: generic colour manipulation/input transform](./colour/readme.md)
+* [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
+* [crop: crop/rotate/perspective correction](./crop/readme.md)
+* [deconv: deconvolution sharpening](./deconv/readme.md)
+* [demosaic: demosaic bayer or x-trans raw files](./demosaic/readme.md)
+* [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
+* [draw: draw raster masks via brush strokes (e.g. for dodging and burning)](./draw/readme.md)
+* [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
+* [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
+* [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
+* [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)
+* [grad: linear gradient density filter](./grad/readme.md)
+* [grade: simple lift/gamma/gain grading tool](./grade/readme.md)
+* [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
+* [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
+* [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
+* [saturate: simple rgb saturation](./saturate/readme.md)
+* [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
+* [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
 
 ## default pipeline
 
 by default, a raw image is passed through the following pipeline:
 
-* denoise (dummy module which essentially just subtracts the black point and removes black borders which are otherwise used for noise estimation)
-* hilite: reconstruct highlights on raw data
-* demosaic: interpolate three colour channels for every pixel
-* crop: grab exif orientation and allow crop/perspective correction
-* colour: apply white balance, colour matrix, and gamut corrections. optionally apply fully profiled RBF for colour correction.
-* filmcurv: film style tone curve
-* llap: local contrast, shadows, and highlights
+* `denoise`: (this module also subtracts the black point and removes black borders which are otherwise used for noise estimation)
+* `hilite`: reconstruct highlights on raw data
+* `demosaic`: interpolate three colour channels for every pixel
+* `crop`: grab exif orientation and allow crop/perspective correction
+* `colour`: apply white balance, colour matrix, and gamut corrections. optionally apply fully profiled RBF for colour correction.
+* `filmcurv`: film style tone curve
+* `llap`: local contrast, shadows, and highlights
 
-you can change the default pipeline by hacking `bin/default-darkroom.cfg` for darkroom mode
-and `bin/default.cfg` for thumbnails.
+you can change the default pipeline by hacking `bin/default-darkroom.i-raw` for
+darkroom mode and `bin/default.i-raw` for thumbnails. the `i-raw` suffix
+indicates that the file will be used for raw input, there is also the
+equivalent `i-mlv` version for raw video.
 
 
 ## files to describe a module
