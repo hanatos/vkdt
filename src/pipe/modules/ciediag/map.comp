@@ -20,10 +20,6 @@ layout( // output f16 buffer rgba
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-layout( // background image
-    set = 1, binding = 2
-) uniform sampler2D img_bg;
-
 // display histogram, runs on output dimensions==input
 void
 main()
@@ -49,15 +45,9 @@ main()
     rgb.r = max(rgb.r, 0.9 * smoothstep(t, 0.0, d));
   }
 
-  if(xy.x <= 0.75)
-  {
-    // orange tangent
-    d = abs(xy.x + xy.y - 1.0);
-    rgb = max(rgb, 0.2 * vec3(smoothstep(t, 0.0, d)));
-    // purple line (0.2, 0) -- (0.75, 0.25)
-    d = abs(xy.y - (xy.x - 0.2) * 0.25/(0.75-0.2));
-    rgb = max(rgb, 0.2 * vec3(smoothstep(t, 0.0, d)));
-  }
+  // draw approximate spectral locus bounds:
+  if(outside_spectral_locus(xy))
+    rgb = max(rgb, vec3(.1, .1, .1));
 
 #if 0
   { // planckian locus 3000 - 50000
@@ -108,11 +98,6 @@ main()
     rgb.g = max(rgb.g, 0.9 * smoothstep(t, 0.0, d));
   }
 
-  // bg image
-  vec3 bg = texture(img_bg, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
-  if(any(greaterThan(bg,vec3(0.0)))) rgb += 0.05;
-  // rgb = bg;
-  if(bg.b > 0.1) rgb += 0.05;
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
 

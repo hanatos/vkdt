@@ -181,3 +181,17 @@ void evd2x2(
 	evec0.y = -evec1.x;
 }
 
+// returns true if the chromaticity coordinates given here
+// lie outside an analytic approximation to the spectral locus
+bool outside_spectral_locus(vec2 xy)
+{
+  if(xy.x + xy.y > 1) return true;
+  if(xy.y < (xy.x-0.17)*0.47) return true;
+  float f = 0.0509773/(xy.x+0.0563933) - 0.218247;
+  if(xy.x < 0.18 && xy.y < f) return true;
+  float g = 0.833 -3.83085*pow(xy.x-0.07,2.0) + 32.7412*pow(xy.x-0.07,4.0) -185.68*pow(xy.x-0.07,6.0);
+  if(xy.x < 0.34 && xy.y > g) return true;
+  float h = 0.833 -2.12221*pow(xy.x-0.07,2.0) -8601.78*pow(xy.x-0.07,4.0);
+  if(xy.x < 0.07 && xy.y > h) return true;
+  return false;
+}

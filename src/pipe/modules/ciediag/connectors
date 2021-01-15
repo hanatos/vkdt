@@ -1,3 +1,2 @@
 input:read:rgba:f16
-bgimg:read:rgba:*
 output:write:rgba:*
