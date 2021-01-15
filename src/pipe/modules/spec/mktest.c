@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
+#include "details/matrices.h"
+#include "details/cie1931.h"
 
 #if 0
 static const uint32_t qmc_prime[] = {
@@ -71,7 +73,7 @@ int main(int argc, char *argv[])
 
     uint32_t index = jj*16 + ii;
 
-#if 1 // yuv
+#if 0 // yuv
     const float Y = 0.5;
     float u = -1.0 + 2.0*(ii+.5)/16.0;
     float v = -1.0 + 2.0*(jj+.5)/16.0;
@@ -103,6 +105,21 @@ int main(int argc, char *argv[])
       rgb[1] = (0+.5)/16.0 - 0.07;
       rgb[2] = 1.0;
     }
+#endif
+
+#if 1 // monochromatic stripes
+    jj = j/(float)h * 8;
+    int l = 10 + jj * 9;
+    float xyz[] = {cie_x[l], cie_y[l], cie_z[l]};
+    float t = 0.9;
+    xyz[0] = t*xyz[0] + (1.0f-t) * 1.0/3.0f;
+    xyz[1] = t*xyz[1] + (1.0f-t) * 1.0/3.0f;
+    xyz[2] = t*xyz[2] + (1.0f-t) * 1.0/3.0f;
+    float rgb[] = {.5*xyz[0]/xyz[1], 0.5, .5*xyz[2]/xyz[1]};
+    // float rgb[] = {0.0};
+    // for (int k = 0; k < 3; ++k)
+    //   for (int n = 0; n < 3; ++n)
+    //     rgb[k] += xyz_to_rec2020[k][n] * xyz[n];
 #endif
 
     for(int k=0;k<3;k++) for(int r=0;r<3;r++)
