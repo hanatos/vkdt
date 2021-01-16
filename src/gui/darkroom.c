@@ -264,6 +264,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
+  if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
   if(vkdt.wstate.active_widget_modid >= 0)
   {
     // convert view space mouse coordinate to normalised image
