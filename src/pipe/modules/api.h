@@ -331,12 +331,13 @@ dt_api_guided_filter_full(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    float        radius,       // size of blur
+    float        radius,       // size of blur as percentage of input width
     float        epsilon)      // tell edges from noise
 {
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
+  const float radius_px = radius * wd / 100.0f;
 
   // compute (I,p,I*I,I*p)
   assert(graph->num_nodes < graph->max_nodes);
@@ -377,8 +378,8 @@ dt_api_guided_filter_full(
   // mean_p  = blur(p)
   // corr_I  = blur(I*I)
   // corr_Ip = blur(I*p)
-  // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius);
-  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius, 1);
+  // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius_px);
+  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius_px, 1);
 
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
@@ -414,8 +415,8 @@ dt_api_guided_filter_full(
   // this is the same as in the p=I case below:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
-  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius, 1);
+  // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius_px);
+  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius_px, 1);
   // final kernel:
   // output = mean_a * I + mean_b
   assert(graph->num_nodes < graph->max_nodes);
@@ -464,13 +465,14 @@ dt_api_guided_filter(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    int          radius,       // size of blur
+    int          radius,       // size of blur as percentage of input width
     float        epsilon)      // tell edges from noise
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
+  const float radius_px = wd * wd / 100.0;
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
@@ -508,7 +510,7 @@ dt_api_guided_filter(
   // then connect 1x blur:
   // mean_I = blur(I)
   // corr_I = blur(I*I)
-  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 1, radius);
+  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 1, radius_px);
 
   // connect to this node:
   // a = var_I / (var_I + eps)
@@ -536,7 +538,7 @@ dt_api_guided_filter(
   // and blur once more:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius);
+  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius_px);
 
   // final kernel:
   // output = mean_a * I + mean_b
