@@ -141,8 +141,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
-      else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT &&
-          x < vkdt.state.center_x + vkdt.state.center_wd)
+      else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
       { // left mouse click starts new stroke by appending an end marker
         int vcnt = dat[0];
         if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(uint32_t)))

@@ -1,4 +1,4 @@
-radius:slider:1:100
+radius:slider:0.001:1.0
 epsilon:slider:0.001:1.0
 zone0:slider:-2:2
 zone1:slider:-2:2

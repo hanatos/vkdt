@@ -331,13 +331,13 @@ dt_api_guided_filter_full(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    float        radius,       // size of blur as percentage of input width
+    float        radius,       // size of blur as fraction of input width
     float        epsilon)      // tell edges from noise
 {
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
-  const float radius_px = radius * wd / 100.0f;
+  const float radius_px = radius * wd;
 
   // compute (I,p,I*I,I*p)
   assert(graph->num_nodes < graph->max_nodes);
@@ -465,14 +465,14 @@ dt_api_guided_filter(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    int          radius,       // size of blur as percentage of input width
+    int          radius,       // size of blur as fraction of input width
     float        epsilon)      // tell edges from noise
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
-  const float radius_px = wd * wd / 100.0;
+  const float radius_px = radius * wd;
   dt_connector_t ci = {
     .name   = dt_token("input"),
     .type   = dt_token("read"),
