@@ -1392,6 +1392,11 @@ inline void draw_widget(int modid, int parid)
               "shift scroll - fine tune hardness\n"
               "ctrl scroll - fine tune opacity");
       }
+      if(vkdt.wstate.mapped)
+      {
+        ImGui::SameLine();
+        ImGui::Text("%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
+      }
       num = count;
       break;
     }
