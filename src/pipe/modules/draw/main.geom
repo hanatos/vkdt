@@ -39,10 +39,11 @@ void main(void)
   vec2 t1 = normalize(p[1] - p[0]);
   t1 *= params.radius * vs[1].radius;
   vec2 e1 = vec2(t1.y, -t1.x);
-  t0 *= vec2(push.aspect, 1.0);
-  t1 *= vec2(push.aspect, 1.0);
-  e0 *= vec2(push.aspect, 1.0);
-  e1 *= vec2(push.aspect, 1.0);
+  // account for viewport from -1 to 1, radius is relative to width (i.e. 0 to 1).
+  t0 *= 2.0*vec2(1.0, push.aspect);
+  t1 *= 2.0*vec2(1.0, push.aspect);
+  e0 *= 2.0*vec2(1.0, push.aspect);
+  e1 *= 2.0*vec2(1.0, push.aspect);
 
   gl_Position = vec4(p[0] - e0 - t0, 0, 1);
   tex_coord = vec4(0, 0, vs0);

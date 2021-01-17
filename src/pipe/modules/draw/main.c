@@ -73,7 +73,7 @@ create_nodes(
     .scale   = 1.0,
   };
 
-  float aspect = ht/(float)wd;
+  float aspect = wd/(float)ht;
   uint32_t aspecti = *(uint32_t *)&aspect;
 
   assert(graph->num_nodes < graph->max_nodes);
@@ -116,8 +116,8 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
     }},
-    .push_constant_size = sizeof(float),
-    .push_constant = { aspecti },
+    .push_constant_size = 2*sizeof(float),
+    .push_constant = { aspecti, wd },
   };
   CONN(dt_node_connect(graph, id_source, 0, id_draw, 0));
   dt_connector_copy(graph, module, 0, id_draw, 1);

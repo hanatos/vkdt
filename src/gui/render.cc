@@ -1371,6 +1371,12 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.state[0] = 1.0f; // abuse for radius
           vkdt.wstate.state[1] = 1.0f; // abuse for opacity
           vkdt.wstate.state[2] = 1.0f; // abuse for hardness
+          // get base radius from other param
+          int pid = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("radius"));
+          if(pid >= 0) vkdt.wstate.state[3] = dt_module_param_float(
+              vkdt.graph_dev.module+modid, pid)[0];
+          else vkdt.wstate.state[3] = 1.0;
+          vkdt.wstate.state[4] = vkdt.graph_dev.module[modid].connector[0].roi.wd;
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
           vkdt.wstate.active_widget_parnm = 0;
@@ -1380,6 +1386,11 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
           vkdt.wstate.mapped = v; // map state
         }
+        if(ImGui::IsItemHovered())
+          ImGui::SetTooltip("start drawing brush strokes with the mouse\n"
+              "scroll - fine tune radius\n"
+              "shift scroll - fine tune hardness\n"
+              "ctrl scroll - fine tune opacity");
       }
       num = count;
       break;
@@ -1673,13 +1684,22 @@ void render_darkroom()
           float hardness = vkdt.wstate.state[2];
           float p[100];
           int cnt = sizeof(p)/sizeof(p[0])/2;
+
+          const int modid = vkdt.wstate.active_widget_modid;
+          const float scale = vkdt.state.scale <= 0.0f ?
+            MIN(
+                vkdt.state.center_wd / (float)
+                vkdt.graph_dev.module[modid].connector[0].roi.wd,
+                vkdt.state.center_ht / (float)
+                vkdt.graph_dev.module[modid].connector[0].roi.ht) :
+            vkdt.state.scale;
           for(int i=0;i<2;i++)
           {
-            float r = 100*radius; // FIXME XXX * params radius! (hide in last element somewhere?)
+            // ui scaled roi wd * radius * stroke radius
+            float r = vkdt.wstate.state[4] * vkdt.wstate.state[3] * radius;
             if(i >= 1) r *= hardness;
             for(int k=0;k<cnt;k++)
             {
-              const float scale = vkdt.state.scale;
               p[2*k+0] = pos.x + scale * r*sin(k/(cnt-1.0)*M_PI*2.0);
               p[2*k+1] = pos.y + scale * r*cos(k/(cnt-1.0)*M_PI*2.0);
             }

@@ -22,6 +22,12 @@ layout(std430, set = 1, binding = 0) buffer ssbo_t
   uint v[]; // variable-length list of bytes encoding position, radius, opacity, and hardness
 } ssbo;
 
+layout(push_constant, std140) uniform push_t
+{
+  float aspect;
+  uint  wd;
+} push;
+
 void main()
 {
   // or use vec2 p = unpackHalf2x16 to support out of image viewing frustum?
