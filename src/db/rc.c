@@ -85,7 +85,7 @@ dt_rc_get_int(
   char tkey[30] = "int";
   snprintf(tkey+3, 26, "%s", key);
   uint32_t pos = rc->data_cnt;
-  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
+  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), pos, 0);
   if(pos == -1u || pos >= rc->data_max) return defval;
   if(pos == rc->data_cnt)
   {
@@ -119,7 +119,7 @@ dt_rc_get_float(
   char tkey[30] = "flt";
   snprintf(tkey+3, 26, "%s", key);
   uint32_t pos = rc->data_cnt;
-  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), -1u, 0);
+  pos = dt_stringpool_get(&rc->sp, tkey, strlen(tkey), pos, 0);
   if(pos == -1u || pos >= rc->data_max) return defval;
   if(pos == rc->data_cnt)
   {

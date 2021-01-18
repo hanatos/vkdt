@@ -8,6 +8,7 @@ extern "C" {
 #include "pipe/graph-io.h"
 #include "gui/darkroom-util.h"
 #include "db/thumbnails.h"
+#include "db/rc.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
 #include "gui/widget_thumbnail.hh"
@@ -242,6 +243,7 @@ inline void dark_corporate_style()
 
 extern "C" int dt_gui_init_imgui()
 {
+  vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod
   // Setup Dear ImGui context
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
