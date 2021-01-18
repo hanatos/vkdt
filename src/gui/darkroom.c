@@ -344,7 +344,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
           uint16_t xo = dat[1+2*(dat[0]-1)+0]&0xffff;
           uint16_t yo = dat[1+2*(dat[0]-1)+0]>>16;
           // this cuts off at steps < ~0.005 of the image width
-          if(xo != 0 && yo != 0 && xo - xi < 32 && yo - xi < 32) return;
+          if(xo != 0 && yo != 0 && abs(xo - xi) < 32 && abs(yo - yi) < 32) return;
         }
         if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
         { // add vertex
