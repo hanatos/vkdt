@@ -88,7 +88,56 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   if(ipos.x < params.split * imageSize(img_out).x)
   { // comparison
-#if 1 // do something at all?
+#if 1 // oklab
+    // convert linear rec2020 to linear rec709
+    float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    const mat3 M = mat3(
+         1.66022677, -0.58754761, -0.07283825,
+        -0.12455334,  1.13292605, -0.00834963,
+        -0.01815514, -0.10060303,  1.11899817);
+    rgb *= M;
+    vec3 oklab;
+    {
+    // linear srgb to oklab
+    float l = 0.4121656120f * rgb.r + 0.5362752080f * rgb.g + 0.0514575653f * rgb.b;
+    float m = 0.2118591070f * rgb.r + 0.6807189584f * rgb.g + 0.1074065790f * rgb.b;
+    float s = 0.0883097947f * rgb.r + 0.2818474174f * rgb.g + 0.6302613616f * rgb.b;
+
+    float l_ = pow(l, 1.0/3.0);
+    float m_ = pow(m, 1.0/3.0);
+    float s_ = pow(s, 1.0/3.0);
+
+    oklab = vec3(
+        0.2104542553f*l_ + 0.7936177850f*m_ - 0.0040720468f*s_,
+        1.9779984951f*l_ - 2.4285922050f*m_ + 0.4505937099f*s_,
+        0.0259040371f*l_ + 0.7827717662f*m_ - 0.8086757660f*s_);
+    }
+
+    // apply saturation
+    oklab.gb *= params.sat;
+
+    {
+    // oklab to linear srgb
+    float l_ = oklab.r + 0.3963377774f * oklab.g + 0.2158037573f * oklab.b;
+    float m_ = oklab.r - 0.1055613458f * oklab.g - 0.0638541728f * oklab.b;
+    float s_ = oklab.r - 0.0894841775f * oklab.g - 1.2914855480f * oklab.b;
+
+    float l = l_*l_*l_;
+    float m = m_*m_*m_;
+    float s = s_*s_*s_;
+
+    rgb = vec3(
+        + 4.0767245293f*l - 3.3072168827f*m + 0.2307590544f*s,
+        - 1.2681437731f*l + 2.6093323231f*m - 0.3411344290f*s,
+        - 0.0041119885f*l - 0.7034763098f*m + 1.7068625689f*s);
+    }
+
+    // back to rec2020
+    rgb *= inverse(M);
+    float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    rgb *= Y/Y2;
+#endif
+#if 0 // rgb
     // this is illuminant E (xyz=1 1 1) in rec2020:
     const vec3 E = vec3(1.10761412, 0.96556543, 0.91697237);
     vec3 cwp = vec3(params.white);// / E;
