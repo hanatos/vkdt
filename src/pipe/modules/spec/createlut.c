@@ -106,6 +106,18 @@ void quantise_coeffs(double coeffs[3], float out[3])
   out[0] = (float)A2;
   out[1] = (float)B2;
   out[2] = (float)C2;
+#if 0 // DEBUG vis
+  if(fabs(A2) < 1e-12)
+  {
+    out[0] = out[1] = out[2] = 0.0;
+    return;
+  }
+  // convert to c0 y dom-lambda:
+  out[0] = A2;                           // square slope stays
+  out[1] = C2 - B2*B2 / (4.0 * A2);      // y
+  out[2] = B2 / (-2.0*A2);               // dominant wavelength
+  out[2] = (out[2] - c0)*c1;             // normalise to [0,1] range for vis
+#endif
 }
 
 void init_coeffs(double coeffs[3])
