@@ -44,7 +44,10 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
+  // on black
   vec3 rgb = vec3(0.0);
+  // on white
+  // vec3 rgb = vec3(1.0);
 
   for(int i=0;i<params.nspots.x;i++)
   {
@@ -66,13 +69,16 @@ main()
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
     float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-cyl.z)));
-    val *= b;
-    ddx *= b;
+    // val *= b;
+    // ddx *= b;
 
     const float w = 4.0; // stroke width
-    const float t = w*(1.0 + imageSize(img_out).y*ddx);
+    const float t = w*max(1.0, imageSize(img_out).y*ddx);
     float d = abs((1.0-val) * imageSize(img_out).y - ipos.y);
+    // on black:
     rgb = max(rgb, picked_rgb * vec3(pow(smoothstep(t, 0.0, d), 3)));
+    // on white:
+    // rgb = mix(rgb, picked_rgb, vec3(pow(smoothstep(t, 0.0, d), 3)));
   }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
