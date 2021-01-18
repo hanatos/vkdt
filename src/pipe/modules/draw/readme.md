@@ -19,8 +19,8 @@ to vary the individual strokes, you can change the properties per vertex using
 the scroll wheel:
 
 * scrolling changes the radius per vertex
-* shift-scrolling changes the hardness per vertex
-* ctrl-scrolling changes the opacity per vertex.
+* ctrl-scrolling changes the hardness per vertex
+* shift-scrolling changes the opacity per vertex.
 
 these properties are then multiplied to the global settings changed via the sliders
 for the final result. the per-vertex properties are indicated in the ui as two circles:
