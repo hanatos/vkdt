@@ -170,12 +170,12 @@ int dt_graph_read_config_ascii(
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
   dt_graph_set_searchpath(graph, filename);
-  // needs to be large enough to hold 1000 vertices of drawn masks:
-  char line[30000];
+  // needs to be large enough to hold 10000 vertices of drawn masks:
+  char line[300000];
   uint32_t lno = 0;
   while(!feof(f))
   {
-    fscanf(f, "%29999[^\n]", line);
+    fscanf(f, "%299999[^\n]", line);
     if(fgetc(f) == EOF) break; // read \n
     lno++;
     // > 0 are warnings, < 0 are fatal, 0 is success
@@ -340,8 +340,8 @@ scanline_replace(
     dt_token_t *search,
     dt_token_t *replace)
 {
-  char buf[30000];
-  fscanf(f, "%29999[^\n]", buf);
+  char buf[300000];
+  fscanf(f, "%299999[^\n]", buf);
   if(fgetc(f) == EOF) return 1; // read \n // TODO: check if this is in fact '\n'?
   int slen[num_rules];
   int dlen[num_rules];
@@ -388,7 +388,7 @@ dt_graph_read_block(
   if(f)
   { // read lines individually, we need to search/replace generic input/output/instance strings
     // needs to be large enough to hold 1000 vertices of drawn masks:
-    char line[30000];
+    char line[300000];
     dt_token_t search [] = {
       dt_token("INSTANCE"),
       dt_token("OUTMOD"), dt_token("OUTINST"), dt_token("OUTCONN"),

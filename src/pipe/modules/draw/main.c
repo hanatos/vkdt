@@ -60,10 +60,10 @@ create_nodes(
   // unfortunately doing that requires re-running buffer allocations
   // and the full thing, which is potentially slow. and what's a couple
   // megabytes among friends, right?
-  // const int pi = dt_module_get_param(module->so, dt_token("draw"));
+  const int pi = dt_module_get_param(module->so, dt_token("draw"));
   // const float *p_draw = dt_module_param_float(module, pi);
   // const int num_verts = p_draw[0];
-  const int num_verts = 2000;
+  const int num_verts = module->so->param[pi]->cnt;
 
   dt_roi_t roi_ssbo = {
     .full_wd = 2+num_verts,  // safety margin for zero verts

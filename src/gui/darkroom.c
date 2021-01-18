@@ -333,6 +333,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     {
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
+        static struct timespec beg = {0};
         float radius   = vkdt.wstate.state[0];
         float opacity  = vkdt.wstate.state[1];
         float hardness = vkdt.wstate.state[2];
@@ -341,6 +342,16 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         uint16_t yi = CLAMP((int32_t)(n[1]*0xffff), 0, 0xffff);
         if(dat[0])
         { // avoid spam
+          if(beg.tv_sec)
+          {
+            struct timespec end;
+            clock_gettime(CLOCK_REALTIME, &end);
+            double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
+            if(dt < 1.0/60.0) // draw low frame rates
+              return;
+            beg = end;
+          }
+          else clock_gettime(CLOCK_REALTIME, &beg);
           uint16_t xo = dat[1+2*(dat[0]-1)+0]&0xffff;
           uint16_t yo = dat[1+2*(dat[0]-1)+0]>>16;
           // this cuts off at steps < ~0.005 of the image width
