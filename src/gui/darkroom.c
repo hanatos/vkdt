@@ -337,10 +337,19 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         float opacity  = vkdt.wstate.state[1];
         float hardness = vkdt.wstate.state[2];
         uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+        uint16_t xi = CLAMP((int32_t)(n[0]*0xffff), 0, 0xffff);
+        uint16_t yi = CLAMP((int32_t)(n[1]*0xffff), 0, 0xffff);
+        if(dat[0])
+        { // avoid spam
+          uint16_t xo = dat[1+2*(dat[0]-1)+0]&0xffff;
+          uint16_t yo = dat[1+2*(dat[0]-1)+0]>>16;
+          // this cuts off at steps < ~0.005 of the image width
+          if(xo != 0 && yo != 0 && abs(xo - xi) < 32 && abs(yo - yi) < 32) return;
+        }
         if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
         { // add vertex
           int v = dat[0]++;
-          dat[1+2*v+0] = (CLAMP((int32_t)(n[1]*0xffff), 0, 0xffff) << 16) | CLAMP((int32_t)(n[0]*0xffff), 0, 0xffff);
+          dat[1+2*v+0] = (yi << 16) | xi;
           dat[1+2*v+1] = CLAMP((int32_t)(0.5*radius*0xffff), 0, 0xffff) | (CLAMP((int32_t)(opacity*0xff), 0, 0xff) << 16) | (CLAMP((int32_t)(hardness*0xff), 0, 0xff) << 24);
         }
         // trigger recomputation:

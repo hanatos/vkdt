@@ -1389,8 +1389,13 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::IsItemHovered())
           ImGui::SetTooltip("start drawing brush strokes with the mouse\n"
               "scroll - fine tune radius\n"
-              "shift scroll - fine tune hardness\n"
-              "ctrl scroll - fine tune opacity");
+              "ctrl scroll - fine tune hardness\n"
+              "shift scroll - fine tune opacity");
+      }
+      if(vkdt.wstate.mapped)
+      {
+        ImGui::SameLine();
+        ImGui::Text("%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
       }
       num = count;
       break;
