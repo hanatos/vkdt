@@ -31,6 +31,10 @@ layout( // input spec coeff lut
     set = 1, binding = 3
 ) uniform sampler2D img_abney;
 
+layout( // input chroma lut rb->xy, if any
+    set = 1, binding = 4
+) uniform sampler2D img_chroma;
+
 // these are dumped from the lut matching utility and contain
 // xyz cmf * xyz to rec2020 matrix
 const vec3 rgb_cmf[] = { // 30 entries, centered in 10nm bins:
@@ -86,9 +90,20 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  // convert camera rgb to xyz:
+  {
+    float b = rgb.r+rgb.g+rgb.b;
+    vec2 tt = rgb.rb/b;
+    vec2 tc = vec2((1.0-tt.x)*(1.0-tt.x), tt.y / (1.0-tt.x));
+    vec2 rb = texture(img_chroma, tc, 0).rg;
+    rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
+    rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
+  }
+
   if(ipos.x < params.split * imageSize(img_out).x)
   { // comparison
-#if 1 // oklab
+#if 0 // oklab
     // convert linear rec2020 to linear rec709
     float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
     const mat3 M = mat3(
@@ -137,7 +152,7 @@ main()
     float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
     rgb *= Y/Y2;
 #endif
-#if 0 // rgb
+#if 1 // rgb
     // this is illuminant E (xyz=1 1 1) in rec2020:
     const vec3 E = vec3(1.10761412, 0.96556543, 0.91697237);
     vec3 cwp = vec3(params.white);// / E;
