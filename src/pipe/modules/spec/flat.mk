@@ -7,7 +7,7 @@ pipe/modules/spec/mkabney: pipe/modules/spec/createlut.c
 	$(CC) $(CFLAGS) $(OPTFLAGS) -fopenmp $< -o $@ -lm
 
 pipe/modules/spec/mkspectra: pipe/modules/spec/createlut.c
-	$(CC) $(CFLAGS) $(OPTFLAGS) -DBAD_CMF=1 -fopenmp $< -o $@ -lm
+	$(CC) $(CFLAGS) $(OPTFLAGS) -DMKSPECTRA -DBAD_CMF=1 -fopenmp $< -o $@ -lm
 
 pipe/modules/spec/macadam: pipe/modules/spec/macadam.c
 	$(CC) $(CFLAGS) $(OPTFLAGS) -fopenmp $< -o $@ -lm

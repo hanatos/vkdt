@@ -66,12 +66,30 @@ fill(buf_t *f, const buf_t *c)
 {
   for(int j=0;j<f->ht;j++) for(int i=0;i<f->wd;i++)
   {
+#if 1
+    if(unset(f, i, j))
+    {
+      for(int k=0;k<f->cpp;k++) f->dat[f->cpp*(f->wd*j + i)+k] = 0.0f;
+      float w = 0.0f;
+      for(int jj=-1;jj<=1;jj++) for(int ii=-1;ii<=1;ii++)
+      {
+        if(!unset(c, (i+ii)/2, (j+jj)/2))
+        {
+          for(int k=0;k<f->cpp;k++)
+            f->dat[f->cpp*(f->wd*j + i)+k] += c->dat[c->cpp*(c->wd*((j+jj)/2)+(i+ii)/2)+k];
+          w ++;
+        }
+      }
+      for(int k=0;k<f->cpp;k++) f->dat[f->cpp*(f->wd*j + i)+k] /= w;
+    }
+#else // straight upsampling
     int jo = j/2, io = i/2;
     if(unset(f, i, j) && !unset(c, io, jo))
     { // could blur here too, but it seems kinda smooth already.
       for(int k=0;k<f->cpp;k++)
         f->dat[f->cpp*(f->wd*j + i)+k] = c->dat[c->cpp*(c->wd*jo+io)+k];
     }
+#endif
   }
 }
 

@@ -532,7 +532,7 @@ mac_error:
     }
   }
 
-#ifndef BAD_CMF // don't overwrite for simplified cmf
+#ifndef MKSPECTRA // don't write spectra.lut
   { // scope write abney map on (lambda, saturation)
     buf_t inpaint_buf = {
       .dat = lsbuf,
@@ -619,7 +619,7 @@ mac_error:
   }
 #endif
 
-#ifdef BAD_CMF // write four channel lut only for abridged cmf
+#ifdef MKSPECTRA // write four channel lut only for abridged cmf
   { // write spectra map: (x,y) |--> sigmoid coeffs + saturation
     header_t head = (header_t) {
       .magic    = 1234,

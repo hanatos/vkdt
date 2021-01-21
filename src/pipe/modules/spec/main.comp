@@ -12,6 +12,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float split;
   float sat;
   int   gamut_mode;
+  int   matrix_mode;    // TODO: use matrix below or img_chroma lut or nothing at all
+  mat3  cam_to_rec2020; // camera matrix // TODO: wire in a new main.c file
 } params;
 
 
@@ -31,7 +33,7 @@ layout( // input spec coeff lut
     set = 1, binding = 3
 ) uniform sampler2D img_abney;
 
-layout( // input chroma lut rb->xy, if any
+layout( // input chroma rb lut camera -> rec2020, if any
     set = 1, binding = 4
 ) uniform sampler2D img_chroma;
 
@@ -100,6 +102,9 @@ main()
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
     rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
   }
+
+  // apply exposure correction (TODO wire better)
+  rgb *= pow(2, params.white.w);
 
   if(ipos.x < params.split * imageSize(img_out).x)
   { // comparison
