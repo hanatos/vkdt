@@ -7,7 +7,7 @@ pipe/modules/spec/mkabney: pipe/modules/spec/createlut.c
 	$(CC) $(CFLAGS) $(OPTFLAGS) -fopenmp $< -o $@ -lm
 
 pipe/modules/spec/mkspectra: pipe/modules/spec/createlut.c
-	$(CC) $(CFLAGS) $(OPTFLAGS) -DMKSPECTRA -DBAD_CMF=1 -fopenmp $< -o $@ -lm
+	$(CC) $(CFLAGS) $(OPTFLAGS) -DMKSPECTRA -fopenmp $< -o $@ -lm
 
 pipe/modules/spec/macadam: pipe/modules/spec/macadam.c
 	$(CC) $(CFLAGS) $(OPTFLAGS) -fopenmp $< -o $@ -lm
@@ -21,7 +21,7 @@ macadam.lut: pipe/modules/spec/macadam
 
 ../bin/data/spectra.lut: pipe/modules/spec/mkspectra macadam.lut
 	@echo "[spectral lut] precomputing rgb to spectrum upsampling table.."
-	pipe/modules/spec/mkspectra 512 /dev/null XYZ
+	pipe/modules/spec/mkspectra 512 /dev/null XYZ -b
 	mv spectra.lut ../bin/data/
 
 ../bin/data/abney.lut: pipe/modules/spec/mkabney macadam.lut
