@@ -72,6 +72,12 @@ vec3(0.0522382, -0.00266546, 7.05256e-05), // 685 nm
 vec3(0.0251563, -0.00130916, 3.46391e-05), // 695 nm
 };
 
+void tri2quad(inout vec2 tc)
+{
+  tc.y = tc.y / (1.0-tc.x);
+  tc.x = (1.0-tc.x)*(1.0-tc.x);
+}
+
 vec3 fetch_coeff(vec3 rgb, out float Y)
 { // convert to cie xy chromaticity coordinates
   const mat3 rec2020_to_xyz = mat3(
@@ -82,6 +88,7 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   Y = xyz.y;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
+  tri2quad(tc);
   return texture(img_spectra, tc, 0).rgb;
 }
 
@@ -224,6 +231,7 @@ main()
   vec2 tc = xyz.xy/b;
 
   // c0 c1 c2 and convert to saturation and lambda
+  tri2quad(tc);
   vec4 lut = texture(img_spectra, tc);
   vec2 sl = vec2(lut.w, -lut.y / (2.0 * lut.x));
 
