@@ -103,8 +103,8 @@ main()
   // convert camera rgb to xyz:
   {
     float b = rgb.r+rgb.g+rgb.b;
-    vec2 tt = rgb.rb/b;
-    vec2 tc = vec2((1.0-tt.x)*(1.0-tt.x), tt.y / (1.0-tt.x));
+    vec2 tc = rgb.rb/b;
+    tri2quad(tc);
     vec2 rb = texture(img_chroma, tc, 0).rg;
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
     rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
