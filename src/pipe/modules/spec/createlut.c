@@ -3,7 +3,6 @@
 // Wenzel Jakob and Johannes Hanika. A low-dimensional function space for
 // efficient spectral upsampling. Computer Graphics Forum (Proceedings of
 // Eurographics), 38(2), March 2019. 
-//
 
 // run like
 // make && ./createlut 512 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
@@ -20,6 +19,7 @@
 #include "details/matrices.h"
 #include "clip.h"
 #include "inpaint.h"
+#include "q2t.h"
 #include "../o-pfm/half.h"
 #include "../../../core/core.h"
 
@@ -443,12 +443,13 @@ mac_error:
 #endif
   for (int j = 0; j < res; ++j)
   {
-    const double y = (j) / (double)res;
     printf(".");
     fflush(stdout);
     for (int i = 0; i < res; ++i)
     {
-      const double x = (i) / (double)res;
+      double x = (i) / (double)res;
+      double y = (j) / (double)res;
+      quad2tri(&x, &y);
       double rgb[3];
       double coeffs[3];
       init_coeffs(coeffs);
@@ -458,8 +459,8 @@ mac_error:
       rgb[2] = 1.0-x-y;
       if(check_gamut(rgb)) continue;
 
-      int ii = (int)fmin(max_w - 1, fmax(0, i * (max_w / (double)res)));
-      int jj = (int)fmin(max_h - 1, fmax(0, j * (max_h / (double)res)));
+      int ii = (int)fmin(max_w - 1, fmax(0, x * max_w + 0.5));
+      int jj = (int)fmin(max_h - 1, fmax(0, y * max_h + 0.5));
       double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
       double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
       double resid = gauss_newton(rgbm, coeffs);
