@@ -118,10 +118,14 @@ dt_db_accept_filename(
   const char *f2 = f + strlen(f);
   while(f2 > f && *f2 != '.') f2--;
   return !strcasecmp(f2, ".cr2") ||
+         !strcasecmp(f2, ".crw") ||
          !strcasecmp(f2, ".nef") ||
+         !strcasecmp(f2, ".raw") ||
+         !strcasecmp(f2, ".tif") ||
          !strcasecmp(f2, ".orf") ||
          !strcasecmp(f2, ".arw") ||
          !strcasecmp(f2, ".srw") ||
+         !strcasecmp(f2, ".kc2") ||
          !strcasecmp(f2, ".dng") ||
          !strcasecmp(f2, ".raf") ||
          !strcasecmp(f2, ".rw2") ||
