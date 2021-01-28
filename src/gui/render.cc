@@ -692,7 +692,6 @@ void render_lighttable()
                 else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
                   fprintf(fout, "param:i-pfm:01:filename:%s\n", fn);
                 else
-
                   fprintf(fout, "param:i-raw:01:filename:%s\n", fn);
                 fclose(fout);
               }
