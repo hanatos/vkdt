@@ -530,6 +530,8 @@ darkroom_enter()
     realimg[len-4] = 0; // cut away ".cfg"
     if(!strcasecmp(realimg+len-8, ".mlv"))
       input_module = dt_token("i-mlv");
+    if(!strcasecmp(realimg+len-8, ".pfm"))
+      input_module = dt_token("i-pfm");
     snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
     load_default = 1;
   }
