@@ -1,12 +1,12 @@
 module:i-pfm:01
 module:colour:01
-module:crop:01
+module:resize:01
 module:filmcurv:01
 module:llap:01
 module:f2srgb:main
 module:o-bc1:main
-connect:i-pfm:01:output:crop:01:input
-connect:crop:01:output:colour:01:input
+connect:i-pfm:01:output:resize:01:input
+connect:resize:01:output:colour:01:input
 connect:colour:01:output:filmcurv:01:input
 connect:filmcurv:01:output:llap:01:input
 connect:llap:01:output:f2srgb:main:input
