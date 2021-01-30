@@ -1638,6 +1638,9 @@ count_references(dt_graph_t *graph, dt_node_t *node)
 static void
 create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 {
+  for(int i=0;i<module->num_connectors;i++)
+    module->connector[i].bypass_mi =
+      module->connector[i].bypass_mc = -1;
   const uint64_t u_offset = *uniform_offset;
   uint64_t u_size = module->committed_param_size ?
     module->committed_param_size :
@@ -1871,8 +1874,24 @@ VkResult dt_graph_run(
             int mi1 = graph->module[mi0].connector[mc0].connected_mi;
             int mc1 = graph->module[mi0].connector[mc0].connected_mc;
             if(mi1 == -1u) continue;
-            n0 = graph->module[mi1].connector[mc1].associated_i;
-            c0 = graph->module[mi1].connector[mc1].associated_c;
+            // check for a bypass chain
+            // m3(out) -> m2(in) -> bypass m1(out) -> m0(in)
+            if(graph->module[mi1].connector[mc1].bypass_mi >= 0)
+            { // now go from mi1/mc1(out) -> m2 = bypass(in) -> m3 = conn(out)
+              int mi2 = graph->module[mi1].connector[mc1].bypass_mi;
+              int mc2 = graph->module[mi1].connector[mc1].bypass_mc;
+              if(mi2 == -1u) continue;
+              int mi3 = graph->module[mi2].connector[mc2].connected_mi;
+              int mc3 = graph->module[mi2].connector[mc2].connected_mc;
+              if(mi3 == -1u) continue;
+              n0 = graph->module[mi3].connector[mc3].associated_i;
+              c0 = graph->module[mi3].connector[mc3].associated_c;
+            }
+            else
+            {
+              n0 = graph->module[mi1].connector[mc1].associated_i;
+              c0 = graph->module[mi1].connector[mc1].associated_c;
+            }
           }
           else // if(dt_connector_output(n->connector+i))
           { // walk node->module->node
