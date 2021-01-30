@@ -76,6 +76,9 @@ typedef struct dt_connector_t
   int associated_i; // for nodes, points back to module if repointing is needed
   int associated_c; 
 
+  int bypass_mi;    // if set on an output, point to module input connector
+  int bypass_mc;    // which should be used as a bypass directly.
+
   // information about buffer dimensions transported here:
   dt_roi_t roi;
 

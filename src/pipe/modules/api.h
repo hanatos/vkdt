@@ -82,6 +82,27 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+// bypass a module: instead of linking the module connectors to their
+// counterparts on the node level, directly link to the node level of the next
+// module.
+static inline void
+dt_connector_bypass(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int          mc_in,
+    int          mc_out)
+{
+  // we want to make sure the node layer of our input connector
+  // is directly routed to the node layer on the output.
+  dt_connector_t *c_in  = module->connector + mc_in;
+  dt_connector_t *c_out = module->connector + mc_out;
+
+  c_out->bypass_mi = module - graph->module;
+  c_out->bypass_mc = mc_in;
+  c_in->bypass_mi  = module - graph->module;
+  c_in->bypass_mc  = mc_out;
+}
+
 static inline uint32_t
 dt_api_blur_check_params(
     float oldrad,
