@@ -1,7 +1,8 @@
 all: ../bin/data/spectra.lut
 all: ../bin/data/abney.lut
 
-clean: clean_spec_luts
+# i'm annoyed that these keep regenerating:
+# clean: clean_spec_luts
 
 pipe/modules/spec/mkabney: pipe/modules/spec/createlut.c
 	$(CC) $(CFLAGS) $(OPTFLAGS) -fopenmp $< -o $@ -lm
