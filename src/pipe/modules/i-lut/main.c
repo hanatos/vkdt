@@ -28,16 +28,17 @@ lutinput_buf_t;
 static int 
 read_header(
     dt_module_t *mod,
-    const char *filename)
+    const char  *pattern)
 {
   lutinput_buf_t *lut = mod->data;
 
-  char expanded[PATH_MAX];
+  char filename[PATH_MAX];
   char *key[] = {
     "model", 0};
   char *val[] = {
     mod->graph->main_img_param.model, 0};
-  dt_strexpand(filename, strlen(filename), expanded, sizeof(expanded), key, val);
+  dt_strexpand(pattern, strlen(pattern), filename, sizeof(filename), key, val);
+  // fprintf(stderr, "[i-lut] loading %s\n", filename);
 
   if(lut && !strcmp(lut->filename, filename))
     return 0; // already loaded
@@ -109,7 +110,12 @@ void modify_roi_out(
 {
   // load image if not happened yet
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename)) return;
+  if(read_header(mod, filename))
+  {
+    mod->connector[0].roi.full_wd = 32;
+    mod->connector[0].roi.full_ht = 32;
+    return;
+  }
   lutinput_buf_t *lut = mod->data;
   // adjust output connector channels:
   if(lut->header.channels == 2) mod->connector[0].chan = dt_token("rg");
