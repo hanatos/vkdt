@@ -1401,6 +1401,15 @@ inline void draw_widget(int modid, int parid)
       num = count;
       break;
     }
+    case dt_token("filename"):
+    { // TODO: rig file browser:
+      if(num == 0)
+      { // only show first, cnt refers to length of string
+        const char *v = (const char *)(vkdt.graph_dev.module[modid].param + param->offset);
+        ImGui::Text("%s", v);
+      }
+      break;
+    }
     default:;
   }
   ImGui::PopID();
