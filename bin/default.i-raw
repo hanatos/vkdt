@@ -1,4 +1,4 @@
-module:i-raw:01
+module:i-raw:main
 module:denoise:01
 module:hilite:01
 module:demosaic:01
@@ -8,7 +8,7 @@ module:crop:01
 module:llap:01
 module:f2srgb:main
 module:o-bc1:main
-connect:i-raw:01:output:denoise:01:input
+connect:i-raw:main:output:denoise:01:input
 connect:denoise:01:output:hilite:01:input
 connect:hilite:01:output:demosaic:01:input
 connect:demosaic:01:output:crop:01:input

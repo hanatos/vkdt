@@ -1,4 +1,4 @@
-module:i-mlv:01
+module:i-mlv:main
 module:denoise:01
 module:hilite:01
 module:demosaic:01
@@ -14,7 +14,7 @@ module:pick:01
 module:display:hist
 # last display is the one determining the ROI:
 module:display:main
-connect:i-mlv:01:output:denoise:01:input
+connect:i-mlv:main:output:denoise:01:input
 connect:denoise:01:output:hilite:01:input
 connect:hilite:01:output:demosaic:01:input
 connect:demosaic:01:output:crop:01:input
