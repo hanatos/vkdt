@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "core/strexpand.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,14 @@ read_header(
     const char *filename)
 {
   lutinput_buf_t *lut = mod->data;
+
+  char expanded[PATH_MAX];
+  char *key[] = {
+    "model", 0};
+  char *val[] = {
+    mod->graph->main_img_param.model, 0};
+  dt_strexpand(filename, strlen(filename), expanded, sizeof(expanded), key, val);
+
   if(lut && !strcmp(lut->filename, filename))
     return 0; // already loaded
   assert(lut); // this should be inited in init()
@@ -62,7 +71,8 @@ error:
 
 static int
 read_plain(
-    lutinput_buf_t *lut, uint16_t *out)
+    lutinput_buf_t *lut,
+    uint16_t       *out)
 {
   fseek(lut->f, lut->data_begin, SEEK_SET);
   size_t sz = lut->header.datatype == 0 ? sizeof(uint16_t) : sizeof(float);

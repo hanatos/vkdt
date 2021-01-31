@@ -1140,6 +1140,12 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_output(module->connector+i))
         module->connector[i].roi.scale = -1.0f;
+
+    // if this is the main input of the graph, remember the img_param
+    // globally, so others can pick up maker/model:
+    if(module->inst == dt_token("main") && !strncmp(dt_token_str(module->name), "i-", 2))
+      graph->main_img_param = module->img_param;
+
     return;
   }
   // default implementation:

@@ -72,40 +72,17 @@ compare_labels(const void *a, const void *b, void *arg)
 
 static int
 compare_createdate(const void *a, const void *b, void *arg)
-{ // slow and stupid.
+{
   dt_db_t *db = arg;
   const uint32_t *ia = a, *ib = b;
-  char cda[20] = {0}, cdb[20] = {0};
-  char fna[1024], fnb[1024], *aa = fna, *bb = fnb;
-  char fna2[1024], fnb2[1024];
-  dt_db_image_path(db, ia[0], fna, sizeof(fna));
-  dt_db_image_path(db, ib[0], fnb, sizeof(fnb));
-  size_t off;
-  off = readlink(fna, fna2, sizeof(fna2));
-  if(off != -1) aa = fna2;
-  else off = strnlen(fna, sizeof(fna));
-  if(off > 4) aa[off - 4] = 0;
-  else aa[off] = 0;
-
-  off = readlink(fnb, fnb2, sizeof(fnb2));
-  if(off != -1) bb = fnb2;
-  else off = strnlen(fnb, sizeof(fnb));
-  if(off > 4) bb[off - 4] = 0;
-  else bb[off] = 0;
-
-  dt_db_exif_createdate(aa, cda);
-  dt_db_exif_createdate(bb, cdb);
-
-  return strcmp(cda, cdb);
+  return strcmp(db->image[ia[0]].date, db->image[ib[0]].date);
 }
 
 static inline void
 image_init(dt_image_t *img)
 {
-  img->thumbnail = 0; // loading icon
-  img->filename = 0;
-  img->rating = 0;
-  img->labels = 0;
+  // img->thumbnail = 0; // loading icon
+  memset(img, 0, sizeof(*img));
 }
 
 void
@@ -207,6 +184,7 @@ void dt_db_load_directory(
   // the gui thread in main.c starts two background threads creating thumbnails, if needed.
   // thumbnails_load_list() will load the created bc1, triggered in render.cc
   rewinddir(dp);
+  char cfgfile[1500];
   clock_t beg = clock();
   while((ep = readdir(dp)))
   {
@@ -217,7 +195,6 @@ void dt_db_load_directory(
     image_init(db->image + imgid);
 
     // now reject non-cfg files that have a cfg already:
-    char cfgfile[1500];
     int ep_len = strlen(ep->d_name);
     if(ep_len > 4)
     {
@@ -236,6 +213,12 @@ void dt_db_load_directory(
       }
       else ep_len -= 4; // remove '.cfg' suffix
     }
+
+    // load minimal fake exif data here
+    snprintf(cfgfile, sizeof(cfgfile), "%s/%.*s", db->dirname, ep_len, ep->d_name);
+    dt_db_exif_mini(cfgfile,
+        db->image[imgid].date, db->image[imgid].model,
+        sizeof(db->image[imgid].model));
 
     // add base filename to string pool
     if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, &db->image[imgid].filename) == -1u)
@@ -298,6 +281,12 @@ int dt_db_load_image(
         &thumbid); // nothing we can do if this fails
 
   db->image[imgid].thumbnail = thumbid;
+
+  // load minimal fake exif data here
+  fullfn[len] = 0;
+  dt_db_exif_mini(fullfn,
+      db->image[imgid].date, db->image[imgid].model,
+      sizeof(db->image[imgid].model));
 
   // collect images:
   dt_db_update_collection(db);

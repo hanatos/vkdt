@@ -100,6 +100,8 @@ typedef struct dt_graph_t
   int                   gui_attached;  // can't free the output images while still used etc.
   char                  searchpath[512];
   char                  basedir[512];  // copy of the global search directory such that modules can access it
+
+  dt_image_params_t     main_img_param;// will be copied over from the i-*:main module after modify_roi_out
 }
 dt_graph_t;
 
