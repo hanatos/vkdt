@@ -96,7 +96,7 @@ dt_graph_export(
       assert(len > 4);
       imgfilename[len-4] = 0; // cut away ".cfg"
       char *basen = basename(imgfilename); // cut away path o we can relocate more easily
-      int modid = dt_module_get(graph, input_module, dt_token("01"));
+      int modid = dt_module_get(graph, input_module, dt_token("main"));
       if(modid < 0 ||
           dt_module_set_param_string(graph->module + modid, dt_token("filename"), basen))
       {
@@ -115,7 +115,8 @@ dt_graph_export(
   for(int m=0;m<graph->num_modules;m++)
   {
     if(graph->module[m].inst == dt_token("main") &&
-       graph->module[m].name != dt_token("display"))
+       graph->module[m].name != dt_token("display") &&
+       strncmp(dt_token_str(graph->module[m].name), "i-", 2))
     {
       found_main = 1;
       break;

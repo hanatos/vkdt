@@ -673,7 +673,7 @@ void render_lighttable()
             fread(buf, fsize, 1, fin);
             fclose(fin);
             // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
-            // one input raw file that is appearing under param:i-raw:01:filename.
+            // one input raw file that is appearing under param:i-raw:main:filename.
             // it then copies the history to the selected images, replacing their filenames in the config.
             const uint32_t *sel = dt_db_selection_get(&vkdt.db);
             for(int i=0;i<vkdt.db.selection_cnt;i++)
@@ -688,11 +688,11 @@ void render_lighttable()
                 const char *fn = vkdt.db.image[sel[i]].filename;
                 size_t len = strlen(fn);
                 if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
-                  fprintf(fout, "param:i-mlv:01:filename:%s\n", fn);
+                  fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
                 else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
-                  fprintf(fout, "param:i-pfm:01:filename:%s\n", fn);
+                  fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
                 else
-                  fprintf(fout, "param:i-raw:01:filename:%s\n", fn);
+                  fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
                 fclose(fout);
               }
             }
@@ -755,7 +755,7 @@ void render_lighttable()
             "module:hist:01\n"
             "module:display:hist\n"
             "module:display:main\n");
-        fprintf(f, "param:i-raw:00:filename:%s\n", vkdt.db.image[main_imgid].filename);
+        fprintf(f, "param:i-raw:main:filename:%s\n", vkdt.db.image[main_imgid].filename);
         int ii = 1;
         for(int i=0;i<vkdt.db.selection_cnt;i++)
         {
@@ -766,7 +766,7 @@ void render_lighttable()
               "connect:burst:%02d:output:blend:%02d:back\n"
               "connect:burst:%02d:mask:blend:%02d:mask\n"
               "connect:%s:%02d:output:blend:%02d:input\n"
-              "connect:i-raw:00:output:burst:%02d:input\n",
+              "connect:i-raw:main:output:burst:%02d:input\n",
               ii, ii, ii, ii, ii, ii,
               ii > 1 ? "blend" : "i-raw",
               ii-1, ii, ii);

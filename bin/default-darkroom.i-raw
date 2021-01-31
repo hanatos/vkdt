@@ -1,4 +1,4 @@
-module:i-raw:01
+module:i-raw:main
 module:denoise:01
 module:hilite:01
 module:demosaic:01
@@ -14,7 +14,7 @@ module:pick:01
 module:display:hist
 # last display is the one determining the ROI:
 module:display:main
-connect:i-raw:01:output:denoise:01:input
+connect:i-raw:main:output:denoise:01:input
 connect:denoise:01:output:hilite:01:input
 connect:hilite:01:output:demosaic:01:input
 connect:demosaic:01:output:crop:01:input
@@ -39,4 +39,4 @@ param:llap:01:sigma:0.12
 param:llap:01:shadows:1
 param:llap:01:hilights:1
 param:llap:01:clarity:0.2
-param:i-raw:01:filename:none.raw
+param:i-raw:main:filename:none.raw

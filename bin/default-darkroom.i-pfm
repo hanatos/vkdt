@@ -1,4 +1,4 @@
-module:i-pfm:01
+module:i-pfm:main
 module:colour:01
 module:filmcurv:01
 module:llap:01
@@ -8,7 +8,7 @@ module:pick:01
 module:display:hist
 # last display is the one determining the ROI:
 module:display:main
-connect:i-pfm:01:output:resize:01:input
+connect:i-pfm:main:output:resize:01:input
 connect:resize:01:output:colour:01:input
 connect:colour:01:output:filmcurv:01:input
 # apply llap after curve
