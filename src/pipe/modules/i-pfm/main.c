@@ -99,7 +99,12 @@ void modify_roi_out(
 {
   // load image if not happened yet
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename)) return;
+  if(read_header(mod, filename))
+  {
+    mod->connector[0].roi.full_wd = 32;
+    mod->connector[0].roi.full_ht = 32;
+    return;
+  }
   pfminput_buf_t *pfm = mod->data;
   mod->connector[0].roi.full_wd = pfm->width;
   mod->connector[0].roi.full_ht = pfm->height;
