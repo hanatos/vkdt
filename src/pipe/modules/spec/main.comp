@@ -113,6 +113,9 @@ main()
   // apply exposure correction (TODO wire better)
   rgb *= pow(2, params.white.w);
 
+  // imageStore(img_out, ipos, vec4(rgb, 1));
+  // return; // XXX rule out quantisation issues from later
+
   if(ipos.x < params.split * imageSize(img_out).x)
   { // comparison
 #if 0 // oklab
@@ -212,6 +215,9 @@ main()
   }
   else
   { // spectral
+    float Y;
+    if(params.sat != 1.0)
+    {
 #if 1 // change saturation:
   const mat3 xyz_to_rec2020 = mat3(
     1.71665119, -0.66668435,  0.01763986,
@@ -263,9 +269,8 @@ main()
   xyz = vec3(xy, 1.0-xy.x-xy.y);
   xyz *= Y / xyz.y;
   rgb = xyz_to_rec2020 * xyz;
-#else
-  float Y;
 #endif
+    }
 
 #if 1 // wb using sigmoids
   vec3 cwp   = fetch_coeff(vec3(params.white), Y);
