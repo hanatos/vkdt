@@ -110,7 +110,7 @@ dt_graph_export(
   if(param->dump_modules)
     dt_graph_print_modules(graph);
 
-  // find non-display "main" module
+  // find non-display non-input "main" module
   int found_main = 0;
   for(int m=0;m<graph->num_modules;m++)
   {
