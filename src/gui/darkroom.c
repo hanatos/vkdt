@@ -550,7 +550,7 @@ darkroom_enter()
   {
     dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
     char *basen = basename(realimg); // cut away path so we can relocate more easily
-    int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("01"));
+    int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("main"));
     if(modid < 0 ||
        dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
          basen))
