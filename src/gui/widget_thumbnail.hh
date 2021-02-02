@@ -46,7 +46,8 @@ uint32_t ThumbnailImage(
     const ImVec4& bg_col,
     const ImVec4& tint_col,
     uint16_t rating,
-    uint16_t labels)
+    uint16_t labels,
+    const char *text)
 {
   ImGuiWindow* window = GetCurrentWindow();
   if (window->SkipItems)
@@ -103,6 +104,9 @@ uint32_t ThumbnailImage(
   for(int i=0;i<5;i++)
     if(labels & (1<<i))
       window->DrawList->AddCircleFilled(ImVec2(bb.Min[0] + 0.1*wd*(i+1), bb.Min[1] + 0.9*wd), 0.04*wd, label_col[i]);
+
+  if(text) // optionally render text
+    window->DrawList->AddText(0, 0.0f, ImVec2(bb.Min[0]+padding, bb.Min[1]+padding), 0xff111111u, text, text+strlen(text), wd, 0);
 
   // TODO: return stars or labels if they have been clicked
   return pressed ? 1 : 0;

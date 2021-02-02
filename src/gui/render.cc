@@ -467,7 +467,9 @@ void render_lighttable()
               ImVec4(0.5f,0.5f,0.5f,1.0f),
               ImVec4(1.0f,1.0f,1.0f,1.0f),
               vkdt.db.image[vkdt.db.collection[i]].rating,
-              vkdt.db.image[vkdt.db.collection[i]].labels);
+              vkdt.db.image[vkdt.db.collection[i]].labels,
+              (vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db)) ?
+              vkdt.db.image[vkdt.db.collection[i]].filename : 0);
           if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db) ||
             (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
             ImGui::PopStyleColor(2);
