@@ -72,10 +72,35 @@ compare_labels(const void *a, const void *b, void *arg)
 
 static int
 compare_createdate(const void *a, const void *b, void *arg)
-{
+{ // you ask for complicated sort, you get slow and stupid.
+  // we don't store the date in the db, since there is in general no clear 1:1 mapping
+  // between images and cfg file/graph. also, loading a directory becomes painfully slow
+  // when initialising metadata during ingestion.
   dt_db_t *db = arg;
   const uint32_t *ia = a, *ib = b;
-  return strcmp(db->image[ia[0]].date, db->image[ib[0]].date);
+  char cda[20] = {0}, cdb[20] = {0};
+  char fna[1024], fnb[1024], *aa = fna, *bb = fnb;
+  char fna2[1024], fnb2[1024];
+  dt_db_image_path(db, ia[0], fna, sizeof(fna));
+  dt_db_image_path(db, ib[0], fnb, sizeof(fnb));
+  size_t off;
+  off = readlink(fna, fna2, sizeof(fna2));
+  if(off != -1) aa = fna2;
+  else off = strnlen(fna, sizeof(fna));
+  if(off > 4) aa[off - 4] = 0;
+  else aa[off] = 0;
+
+  off = readlink(fnb, fnb2, sizeof(fnb2));
+  if(off != -1) bb = fnb2;
+  else off = strnlen(fnb, sizeof(fnb));
+  if(off > 4) bb[off - 4] = 0;
+  else bb[off] = 0;
+
+  char model[32];
+  dt_db_exif_mini(aa, cda, model, sizeof(model));
+  dt_db_exif_mini(bb, cdb, model, sizeof(model));
+
+  return strcmp(cda, cdb);
 }
 
 static inline void
@@ -214,12 +239,6 @@ void dt_db_load_directory(
       else ep_len -= 4; // remove '.cfg' suffix
     }
 
-    // load minimal fake exif data here
-    snprintf(cfgfile, sizeof(cfgfile), "%s/%.*s", db->dirname, ep_len, ep->d_name);
-    dt_db_exif_mini(cfgfile,
-        db->image[imgid].date, db->image[imgid].model,
-        sizeof(db->image[imgid].model));
-
     // add base filename to string pool
     if(dt_stringpool_get(&db->sp_filename, ep->d_name, ep_len, imgid, &db->image[imgid].filename) == -1u)
     {
@@ -281,12 +300,6 @@ int dt_db_load_image(
         &thumbid); // nothing we can do if this fails
 
   db->image[imgid].thumbnail = thumbid;
-
-  // load minimal fake exif data here
-  fullfn[len] = 0;
-  dt_db_exif_mini(fullfn,
-      db->image[imgid].date, db->image[imgid].model,
-      sizeof(db->image[imgid].model));
 
   // collect images:
   dt_db_update_collection(db);
