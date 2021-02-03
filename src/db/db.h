@@ -22,9 +22,6 @@ typedef struct dt_image_t
   uint32_t    thumbnail; // index into thumbnails->thumb[] or -1u
   uint16_t    rating;    // -1u reject 0 1 2 3 4 5 stars
   uint16_t    labels;    // each bit is one colour label flag, 1<<15 is selected bit
-  // the following fake exif data is only valid for image.raw.cfg, and loaded from image.raw:
-  char        date [20]; // create date, "2021:01:01 13:37:00" kinda string
-  char        model[24]; // canonical maker/model string
 }
 dt_image_t;
 
