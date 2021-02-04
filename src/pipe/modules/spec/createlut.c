@@ -481,7 +481,11 @@ mac_error:
       float satc = lsres * sat;
       // normalise to extended range:
       float norm = (c0yl[2] - 400.0)/(700.0-400.0);
-      float lamc = 1.0/(1.0+exp(-2.0*(2.0*norm-1.0))) * lsres / 2; // center deriv=1
+      // float lamc = 1.0/(1.0+exp(-2.0*(2.0*norm-1.0))) * lsres / 2; // center deriv=1
+      // float fx = norm*norm*norm+norm;
+      float fx = norm-0.5;
+      // fx = fx*fx*fx+fx; // worse
+      float lamc = (0.5 + 0.5 * fx / sqrt(fx*fx+0.25)) * lsres / 2;
       int lami = fmaxf(0, fminf(lsres/2-1, lamc));
       int sati = satc;
       if(c0yl[0] > 0) lami += lsres/2;

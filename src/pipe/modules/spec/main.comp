@@ -243,7 +243,11 @@ main()
 
   // normalised wavelength, logistically compressed:
   float norm = (sl.y - 400.0)/(700.0-400.0);
-  sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
+  // sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
+
+  norm -= 0.5; // new sigmoid fit:
+  sl.y = 0.5*(0.5 + 0.5 * norm / sqrt(norm*norm+0.25));
+
   if(lut.x > 0.0) sl.y += 0.5;
   // this is where we would be at (unbounded params.sat)
   float m = params.sat * sl.x;
