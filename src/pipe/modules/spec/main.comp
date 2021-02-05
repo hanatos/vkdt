@@ -8,12 +8,12 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  mat3  cam_to_rec2020; // camera matrix // TODO: wire in a new main.c file
   vec4  white;
   float split;
   float sat;
   int   gamut_mode;
-  int   matrix_mode;    // TODO: use matrix below or img_chroma lut or nothing at all
-  mat3  cam_to_rec2020; // camera matrix // TODO: wire in a new main.c file
+  int   matrix_mode;
 } params;
 
 
@@ -101,7 +101,12 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   // convert camera rgb to xyz:
-  {
+  if(ipos.x < params.split * imageSize(img_out).x)
+  { // matrix
+    rgb = params.cam_to_rec2020 * rgb;
+  }
+  else
+  { // spectral lut
     float b = rgb.r+rgb.g+rgb.b;
     vec2 tc = rgb.rb/b;
     tri2quad(tc);
@@ -110,7 +115,7 @@ main()
     rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
   }
 
-  // apply exposure correction (TODO wire better)
+  // apply exposure correction
   rgb *= pow(2, params.white.w);
 
   // imageStore(img_out, ipos, vec4(rgb, 1));
