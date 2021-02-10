@@ -103,7 +103,9 @@ main()
   // convert camera rgb to xyz:
   if(ipos.x < params.split * imageSize(img_out).x)
   { // matrix
+    float b = rgb.r+rgb.g+rgb.b;
     rgb = params.cam_to_rec2020 * rgb;
+    rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
   }
   else
   { // spectral lut
