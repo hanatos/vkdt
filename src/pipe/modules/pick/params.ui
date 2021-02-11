@@ -1,4 +1,7 @@
-nspots:slider:0:20
+nspots:slider:0:24
 pad:hidden
 spots:pick:nspots
 picked:colour:nspots
+ref:hidden
+show:combo:picked:reference:difference
+grab:combo:only on change:live

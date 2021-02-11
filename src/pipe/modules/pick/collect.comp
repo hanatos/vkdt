@@ -9,8 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   uvec4 nspots;
-  vec4 spot[20];
-  float picked[60]; // actually 3-strided colours
+  vec4 spot[24];
+  float picked[72]; // actually 3-strided colours
 } params;
 
 

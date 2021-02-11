@@ -2187,14 +2187,17 @@ VkResult dt_graph_run(
       threads_mutex_unlock(&qvk.queue_mutex);
   }
   
-  if(run & s_graph_run_download_sink)
+  if((module_flags & s_module_request_write_sink) ||
+     (run & s_graph_run_download_sink))
   {
     for(int n=0;n<graph->num_nodes;n++)
     { // for all sink nodes:
       dt_node_t *node = graph->node + n;
       if(dt_node_sink(node))
       {
-        if(node->module->so->write_sink)
+        if(node->module->so->write_sink &&
+          ((node->module->flags & s_module_request_write_sink) ||
+           (run & s_graph_run_download_sink)))
         {
           uint8_t *mapped = 0;
           QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE,

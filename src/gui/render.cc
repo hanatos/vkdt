@@ -1217,7 +1217,8 @@ inline void draw_widget(int modid, int parid)
       ImVec4 col(val[0], val[1], val[2], 1.0f);
       ImVec2 size(0.1*vkdt.state.panel_wd, 0.1*vkdt.state.panel_wd);
       ImGui::ColorButton(str, col, ImGuiColorEditFlags_HDR, size);
-      if(num < count - 1) ImGui::SameLine();
+      if((num < count - 1) && ((num % 6) != 5))
+        ImGui::SameLine();
       break;
     }
     case dt_token("pers"):
@@ -1327,17 +1328,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parid == parid &&
          vkdt.wstate.active_widget_parnm == num)
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" %d done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name), num);
+        snprintf(string, sizeof(string), "%02d done", num);
         if(ImGui::Button(string))
           widget_end();
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" %d start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name), num);
+        snprintf(string, sizeof(string), "%02d start", num);
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -1349,6 +1346,8 @@ inline void draw_widget(int modid, int parid)
           memcpy(vkdt.wstate.state, v, sz);
         }
       }
+      if((num < count - 1) && ((num % 6) != 5))
+        ImGui::SameLine();
       break;
     }
     case dt_token("draw"):

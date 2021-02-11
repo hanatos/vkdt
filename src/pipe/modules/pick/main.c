@@ -21,7 +21,7 @@ void modify_roi_out(
     dt_module_t *module)
 {
   // always request constant size for picked colours:
-  module->connector[3].roi.full_wd = 20; // max 20 areas picked with mean rgb
+  module->connector[3].roi.full_wd = 24; // max 24 areas picked with mean rgb
   module->connector[3].roi.full_ht = 4;  // and variances etc in different lines
   // rasterise spectra at this resolution
   module->connector[2].roi.full_wd = 700;
@@ -120,6 +120,26 @@ create_nodes(
   dt_connector_copy(graph, module, 2, id_dspy, 2);
   // dt_connector_copy(graph, module, 1, id_collect, 1);
   graph->node[id_collect].connector[1].flags = s_conn_clear; // restore after connect
+  if(dt_module_param_int(module, dt_module_get_param(module->so, dt_token("grab")))[0] == 1)
+    module->flags |= s_module_request_write_sink;
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if((parid >= 0 && parid < module->so->num_params) &&
+      module->so->param[parid]->name == dt_token("grab"))
+  {
+    int grab = dt_module_param_int(module, parid)[0];
+    if(grab == 1) // live grabbing
+      module->flags |= s_module_request_write_sink;
+    else
+      module->flags = 0;
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
 // called after pipeline finished up to here.
@@ -133,17 +153,21 @@ void write_sink(
   const int ht = module->connector[3].roi.ht; // we only read the first moment
 
   // now read back what we averaged and write into param "picked"
-  float *picked = 0;
-  int cnt = 0;
+  float *picked = 0, *ref = 0;
+  int cnt = 0, show = 0;
   for(int p=0;p<module->so->num_params;p++)
   {
     if(module->so->param[p]->name == dt_token("nspots"))
       cnt = dt_module_param_int(module, p)[0];
     if(module->so->param[p]->name == dt_token("picked"))
       picked = (float *)(module->param + module->so->param[p]->offset);
+    if(module->so->param[p]->name == dt_token("ref"))
+      ref = (float *)(module->param + module->so->param[p]->offset);
+    if(module->so->param[p]->name == dt_token("show"))
+      show = dt_module_param_int(module, p)[0];
   }
-  if(!picked) return;
-  if(cnt > 20) cnt = 20; // sanitize, we don't have more memory than this
+  if(!picked || !ref) return;
+  if(cnt > 24) cnt = 24; // sanitize, we don't have more memory than this
   if(cnt > wd) cnt = wd;
   if(ht < 4) return;
   for(int k=0;k<cnt;k++)
@@ -151,6 +175,18 @@ void write_sink(
     picked[3*k+0] = 2.0*u32[k+0*wd]/(float)(1ul<<30) - 0.5;
     picked[3*k+1] = 2.0*u32[k+1*wd]/(float)(1ul<<30) - 0.5;
     picked[3*k+2] = 2.0*u32[k+2*wd]/(float)(1ul<<30) - 0.5;
+    if(show == 2)
+    {
+      picked[3*k+0] -= ref[3*k+0];
+      picked[3*k+1] -= ref[3*k+1];
+      picked[3*k+2] -= ref[3*k+2];
+    }
+    else if(show == 1)
+    {
+      picked[3*k+0] = ref[3*k+0];
+      picked[3*k+1] = ref[3*k+1];
+      picked[3*k+2] = ref[3*k+2];
+    }
     // unfortunately this fixed point thing leads to a bit of numeric jitter.
     // let's hope the vulkan 1.2 extension with floating point atomics makes
     // it to amd at some point, too.
