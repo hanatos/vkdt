@@ -197,12 +197,13 @@ void modify_roi_out(
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-  // for(int j=0;j<3;j++)
-  // { // just normalise channels, don't white balance
-  //   double norm = 0.0;
-  //   for(int i=0;i<3;i++) norm += cam_to_xyz[3*j+i];
-  //   for(int i=0;i<3;i++) cam_to_xyz[3*j+i] *= 1.0f / norm;
-  // }
+  // find white balance baked into matrix:
+  mod->img_param.whitebalance[0] = (cam_to_xyz[0]+cam_to_xyz[1]+cam_to_xyz[2]);
+  mod->img_param.whitebalance[1] = (cam_to_xyz[3]+cam_to_xyz[4]+cam_to_xyz[5]);
+  mod->img_param.whitebalance[2] = (cam_to_xyz[6]+cam_to_xyz[7]+cam_to_xyz[8]);
+  mod->img_param.whitebalance[0] /= mod->img_param.whitebalance[1];
+  mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
+  mod->img_param.whitebalance[1]  = 1.0f;
 
   const float xyz_to_rec2020[] = {
      1.7166511880, -0.3556707838, -0.2533662814,
