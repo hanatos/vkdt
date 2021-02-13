@@ -1779,9 +1779,15 @@ VkResult dt_graph_run(
   modid[cnt++] = curr;
 #include "graph-traverse.inc"
 
+  int main_input_module = -1;
   // find extra module flags
   for(int i=0;i<cnt;i++)
+  {
+    if(!strncmp(dt_token_str(graph->module[modid[i]].name), "i-", 2) &&
+        graph->module[modid[i]].inst == dt_token("main"))
+      main_input_module = modid[i];
     module_flags |= graph->module[modid[i]].flags;
+  }
 
   // ==============================================
   // first pass: find output rois
@@ -1790,8 +1796,12 @@ VkResult dt_graph_run(
   // "int curr" will be the current node
   // walk all inputs and determine roi on all outputs
   if(run & s_graph_run_roi)
+  {
+    if(main_input_module >= 0) // may set metadata required by others (such as find the right lut)
+      modify_roi_out(graph, graph->module + main_input_module);
     for(int i=0;i<cnt;i++)
       modify_roi_out(graph, graph->module + modid[i]);
+  }
 
 
   // we want to make sure the last output/display is initialised.
