@@ -394,20 +394,9 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-#if 0
-    if(0)
-    {
-      VkPhysicalDeviceRayTracingPropertiesKHR ray_tracing_properties = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_KHR
-      };
-      VkPhysicalDeviceProperties2 device_properties_2 = {
-        .pNext = &ray_tracing_properties,
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2
-      };
-      vkGetPhysicalDeviceProperties2(devices[i], &device_properties_2);
-      dt_log(s_log_qvk, "number of accel structs %d", ray_tracing_properties.maxDescriptorSetAccelerationStructures > 0);
-    }
-#endif
+    for(int k=0;k<num_ext;k++)
+      if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
+        dt_log(s_log_qvk, "ray tracing support found!");
 
     // vendor ids are: nvidia 0x10de, intel 0x8086
     if(picked_device < 0 || dev_properties.vendorID == 0x10de)
@@ -463,15 +452,29 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     .queueFamilyIndex = queue_family_index,
   };
 
-  VkPhysicalDeviceDescriptorIndexingFeaturesEXT idx_features = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT,
-    .runtimeDescriptorArray = 1,
-    .shaderSampledImageArrayNonUniformIndexing = 1,
-    // .descriptorBindingPartiallyBound = 1, // might need this for variably sized texture arrays
+#if 1 // ray tracing
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+    .accelerationStructure = VK_TRUE,
   };
+  VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {
+    .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
+    .pNext    = &acceleration_structure_features,
+    .rayQuery = VK_TRUE,
+  };
+  VkPhysicalDeviceVulkan12Features v12f = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+    .pNext                                     = &ray_query_features,
+    .descriptorIndexing                        = VK_TRUE,
+    .uniformAndStorageBuffer8BitAccess         = VK_TRUE,
+    .runtimeDescriptorArray                    = VK_TRUE,
+    .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+    .bufferDeviceAddress                       = VK_TRUE,
+  };
+#endif
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-    .pNext = &idx_features,
+    .pNext = &v12f,
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .pNext    = &v11f,
@@ -481,14 +484,22 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   v11f.samplerYcbcrConversion = 1;
 
-
   const char *vk_requested_device_extensions[] = {
-    // VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
+#if 1 // ray tracing
+    VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+    VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
+    VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+    VK_KHR_RAY_QUERY_EXTENSION_NAME,
+#endif
 #ifdef QVK_ENABLE_VALIDATION
     VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
 #endif
     VK_KHR_SWAPCHAIN_EXTENSION_NAME, // goes last because we might not want it without gui
   };
+
   const int len = LENGTH(vk_requested_device_extensions) - (qvk.window ? 0 : 1);
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
