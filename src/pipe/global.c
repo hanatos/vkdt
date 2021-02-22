@@ -205,6 +205,7 @@ dt_module_so_load(
       else if(type == dt_token("pers"))    {}
       else if(type == dt_token("crop"))    {}
       else if(type == dt_token("pick"))    {}
+      else if(type == dt_token("print"))   {}
       else if(type == dt_token("draw"))    {}
       else if(type == dt_token("filename")){}
       else if(type == dt_token("hidden"))  {}

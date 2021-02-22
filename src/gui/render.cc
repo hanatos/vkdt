@@ -1430,6 +1430,13 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("print"):
+    {
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+      ImGui::Text("%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
+      num = count; // we've done it all at once
+      break;
+    }
     default:;
   }
   ImGui::PopID();

@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include <math.h>
 
 void modify_roi_in(
     dt_graph_t *graph,
@@ -142,6 +143,46 @@ check_params(
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
+
+static inline void
+_rec2020_to_lab(
+    float *rgb,
+    float *Lab)
+{
+  const float rec2020_to_xyz[] = {
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00};
+  float xyz[3] = {0.0f};
+  for(int j=0;j<3;j++)
+    for(int i=0;i<3;i++)
+      xyz[j] += rec2020_to_xyz[3*j+i] * rgb[i];
+
+  const float epsilon = 216.0f / 24389.0f;
+  const float kappa = 24389.0f / 27.0f;
+#define labf(x) ((x > epsilon) ? cbrtf(x) : (kappa * x + 16.0f) / 116.0f)
+  float f[3] = { 0.0f };
+  for(int i = 0; i < 3; i++) f[i] = labf(xyz[i]);
+  Lab[0] = 116.0f * f[1] - 16.0f;
+  Lab[1] = 500.0f * (f[0] - f[1]);
+  Lab[2] = 200.0f * (f[1] - f[2]);
+#undef labf
+}
+
+static inline float
+_cie_de76(
+    float *rgb0,
+    float *rgb1)
+{
+  float Lab0[3], Lab1[3];
+  _rec2020_to_lab(rgb0, Lab0);
+  _rec2020_to_lab(rgb1, Lab1);
+  return sqrtf(
+      (Lab0[0] - Lab1[0])*(Lab0[0] - Lab1[0])+
+      (Lab0[1] - Lab1[1])*(Lab0[1] - Lab1[1])+
+      (Lab0[2] - Lab1[2])*(Lab0[2] - Lab1[2]));
+}
+
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
 void write_sink(
@@ -153,7 +194,7 @@ void write_sink(
   const int ht = module->connector[3].roi.ht; // we only read the first moment
 
   // now read back what we averaged and write into param "picked"
-  float *picked = 0, *ref = 0;
+  float *picked = 0, *ref = 0, *de76 = 0;
   int cnt = 0, show = 0;
   for(int p=0;p<module->so->num_params;p++)
   {
@@ -163,6 +204,8 @@ void write_sink(
       picked = (float *)(module->param + module->so->param[p]->offset);
     if(module->so->param[p]->name == dt_token("ref"))
       ref = (float *)(module->param + module->so->param[p]->offset);
+    if(module->so->param[p]->name == dt_token("de76"))
+      de76 = (float *)(module->param + module->so->param[p]->offset);
     if(module->so->param[p]->name == dt_token("show"))
       show = dt_module_param_int(module, p)[0];
   }
@@ -170,6 +213,8 @@ void write_sink(
   if(cnt > 24) cnt = 24; // sanitize, we don't have more memory than this
   if(cnt > wd) cnt = wd;
   if(ht < 4) return;
+  de76[0] = 1e38f; de76[1] = 0.0f, de76[2] = 0.0f;
+  int mi = -1, Mi = -1;
   for(int k=0;k<cnt;k++)
   {
     picked[3*k+0] = 2.0*u32[k+0*wd]/(float)(1ul<<30) - 0.5;
@@ -177,9 +222,21 @@ void write_sink(
     picked[3*k+2] = 2.0*u32[k+2*wd]/(float)(1ul<<30) - 0.5;
     if(show == 2)
     {
+      const float d = _cie_de76(picked+3*k, ref+3*k);
       picked[3*k+0] -= ref[3*k+0];
       picked[3*k+1] -= ref[3*k+1];
       picked[3*k+2] -= ref[3*k+2];
+      if(d < de76[0])
+      {
+        mi = k;
+        de76[0] = d;
+      }
+      else if(d > de76[2])
+      {
+        Mi = k;
+        de76[2] = d;
+      }
+      de76[1] += d/cnt;
     }
     else if(show == 1)
     {
@@ -192,4 +249,5 @@ void write_sink(
     // it to amd at some point, too.
     // fprintf(stderr, "read %d: %g %g %g\n", k, picked[3*k+0], picked[3*k+1], picked[3*k+2]);
   }
+  // fprintf(stderr, "[pick] colour difference %g (%d) - %g - %g (%d)\n", de76[0], mi, de76[1], de76[2], Mi);
 }
