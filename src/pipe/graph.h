@@ -67,6 +67,12 @@ typedef struct dt_graph_t
   uint32_t              uniform_global_size; // size of the global section
   VkDescriptorSetLayout uniform_dset_layout; // same layout for all nodes
 
+  VkAccelerationStructureKHR                  rt_accel;         // for ray tracing: top level for all nodes that may hold bottom level
+  VkBuffer                                    rt_scratch;       // scratch memory for accel build
+  VkAccelerationStructureInstanceKHR         *rt_instance;      // instances to point to nodes providing rt geo
+  int                        rt_instance_end, rt_instance_max;  // currently inited/allocated instances
+  VkAccelerationStructureBuildGeometryInfoKHR rt_build_info;
+
   size_t                vkmem_size;
   size_t                vkmem_staging_size;
   size_t                vkmem_uniform_size;

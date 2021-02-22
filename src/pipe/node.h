@@ -11,8 +11,10 @@ typedef struct dt_module_t dt_module_t;
 
 typedef enum dt_node_type_t
 {
-  s_node_compute  = 0,
-  s_node_graphics = 1,
+  s_node_compute    = 0,  // compute shaders
+  s_node_graphics   = 1,  // draw call/render pass
+  s_node_geometry   = 2,  // generates geometry for ray tracing
+  s_node_raytracing = 4,  // ray traces
 }
 dt_node_type_t;
 
@@ -35,6 +37,14 @@ typedef struct dt_node_t
 
   VkRenderPass          draw_render_pass; // needed for raster kernels
   VkFramebuffer         draw_framebuffer; // 
+
+  VkAccelerationStructureKHR                  rt_accel;      // needed for ray tracing kernels: bottom level structure
+  VkAccelerationStructureBuildGeometryInfoKHR rt_build_info; // geometry info
+  VkBuffer                                    rt_scratch;    // scratch memory for accel build
+  VkBuffer                                    rt_vtx;        // vertex buffer
+  VkBuffer                                    rt_idx;        // index buffer
+  uint32_t                                    rt_tri_cnt;    // number of triangles provided by this node
+
   dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer
 
   uint32_t wd, ht, dp;  // dimensions of kernel to be run
