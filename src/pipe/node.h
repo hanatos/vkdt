@@ -38,12 +38,7 @@ typedef struct dt_node_t
   VkRenderPass          draw_render_pass; // needed for raster kernels
   VkFramebuffer         draw_framebuffer; // 
 
-  VkAccelerationStructureKHR                  rt_accel;      // needed for ray tracing kernels: bottom level structure
-  VkAccelerationStructureBuildGeometryInfoKHR rt_build_info; // geometry info
-  VkBuffer                                    rt_scratch;    // scratch memory for accel build
-  VkBuffer                                    rt_vtx;        // vertex buffer
-  VkBuffer                                    rt_idx;        // index buffer
-  uint32_t                                    rt_tri_cnt;    // number of triangles provided by this node
+  dt_raytrace_node_t    rt;
 
   dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer
 
