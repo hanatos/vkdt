@@ -2,10 +2,9 @@
 #include "qvk/qvk.h"
 #include "graph.h"
 #include "core/log.h"
-/// XXX TODO: cleanup
+/// XXX TODO: _cleanup() functions for graph and node stuff
 /// XXX TODO: bind descriptor sets in create_nodes or so! for all nodes with raytrace flag
 /// * TODO: { .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR
-
 
 VkResult
 dt_raytrace_graph_init(
