@@ -5,7 +5,8 @@ pipe/global.o\
 pipe/graph.o\
 pipe/graph-io.o\
 pipe/graph-export.o\
-pipe/module.o
+pipe/module.o\
+pipe/raytrace.o
 PIPE_H=\
 pipe/alloc.h\
 pipe/connector.h\
@@ -23,6 +24,7 @@ pipe/module.h\
 pipe/node.h\
 pipe/params.h\
 pipe/pipe.h\
+pipe/raytrace.h\
 pipe/token.h
 PIPE_CFLAGS=
 PIPE_LDFLAGS=-ldl

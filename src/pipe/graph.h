@@ -2,6 +2,7 @@
 #include "node.h"
 #include "module.h"
 #include "alloc.h"
+#include "raytrace.h"
 
 // create nodes requires roi requires alloc requires upload source
 typedef uint32_t dt_graph_run_t;

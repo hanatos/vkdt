@@ -1,6 +1,7 @@
 #pragma once
 #include "token.h"
 #include "connector.h"
+#include "raytrace.h"
 
 #include <vulkan/vulkan.h>
 
