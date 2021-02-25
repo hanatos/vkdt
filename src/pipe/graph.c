@@ -95,6 +95,7 @@ void
 dt_graph_cleanup(dt_graph_t *g)
 {
   QVK(vkDeviceWaitIdle(qvk.device));
+  dt_raytrace_graph_cleanup(g);
   if(!dt_pipe.modules_reloaded)
     for(int i=0;i<g->num_modules;i++)
       if(g->module[i].so->cleanup)
@@ -120,6 +121,7 @@ dt_graph_cleanup(dt_graph_t *g)
     vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
     vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
     vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
+    dt_raytrace_node_cleanup(g->node + i);
   }
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
@@ -1791,8 +1793,6 @@ VkResult dt_graph_run(
     module_flags |= graph->module[modid[i]].flags;
   }
 
-  QVKR(dt_raytrace_graph_init(graph, modid, cnt)); // init ray tracing on graph
-
   // ==============================================
   // first pass: find output rois
   // ==============================================
@@ -1805,6 +1805,7 @@ VkResult dt_graph_run(
       modify_roi_out(graph, graph->module + main_input_module);
     for(int i=0;i<cnt;i++)
       modify_roi_out(graph, graph->module + modid[i]);
+    QVKR(dt_raytrace_graph_init(graph, modid, cnt)); // init ray tracing on graph, after output roi has been inited.
   }
 
 
@@ -1824,6 +1825,7 @@ VkResult dt_graph_run(
       break; // we're good
     }
   }
+
 
   // now we don't always want the full size buffer but are interested in a
   // scaled or cropped sub-region. actually this step is performed
@@ -2088,13 +2090,9 @@ VkResult dt_graph_run(
       graph->dset_cnt_buffer_alloc = graph->dset_cnt_buffer;
       graph->dset_cnt_uniform_alloc = graph->dset_cnt_uniform;
     }
+    // allocate memory and create descriptor sets for ray tracing
+    QVKR(dt_raytrace_graph_alloc(graph));
   }
-
-  // allocate memory and create descriptor sets for ray tracing
-  QVKR(dt_raytrace_graph_alloc(graph));
-
-  // not really needed, vkBeginCommandBuffer will reset our cmd buf
-  // vkResetCommandPool(qvk.device, graph->command_pool, 0);
 
   // begin command buffer
   VkCommandBufferBeginInfo begin_info = {

@@ -2,40 +2,9 @@
 #include "qvk/qvk.h"
 #include "graph.h"
 #include "core/log.h"
-/// TODO: call all required functions from graph.c
 /// TODO: make ray tracing optional globally
-/// TODO: for iterations, clean up before re-initing stuff!
-
-static inline VkResult dt_raytrace_node_init(dt_graph_t *graph, dt_node_t  *node);
-
-VkResult
-dt_raytrace_graph_init(
-    dt_graph_t *graph,
-    uint32_t   *nid,
-    uint32_t    nid_cnt)
-{
-  graph->rt.nid_cnt = 0;
-  for(int i=0;i<nid_cnt;i++)
-    if(graph->node[nid[i]].type & s_node_geometry)
-      graph->rt.nid[graph->rt.nid_cnt++] = nid[i];
-
-  VkDescriptorSetLayoutBinding bindings[] = {{
-    .binding         = 0,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-    .descriptorCount = 1,
-    .stageFlags      = VK_SHADER_STAGE_ALL,
-  }};
-  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 1,
-    .pBindings    = bindings,
-  };
-  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt.dset_layout));
-  for(int i=0;i<graph->rt.nid_cnt;i++)
-    dt_raytrace_node_init(graph, graph->node + graph->rt.nid[i]);
-
-  return VK_SUCCESS;
-}
+/// TODO: set module flag s_geometry if read_geo callback exists
+/// TODO: wire read_geo callback through global
 
 void
 dt_raytrace_node_cleanup(
@@ -50,29 +19,25 @@ dt_raytrace_node_cleanup(
   memset(&node->rt, 0, sizeof(node->rt));
 }
 
-VkResult
+void
 dt_raytrace_graph_cleanup(
     dt_graph_t *graph)
 {
   QVK_LOAD(vkDestroyAccelerationStructureKHR);
   if(graph->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, graph->rt.accel, VK_NULL_HANDLE);
-  if(graph->rt.buf_accel)   vkDestroyBuffer(qvk.device, graph->rt.buf_accel,   VK_NULL_HANDLE);
-  if(graph->rt.buf_scratch) vkDestroyBuffer(qvk.device, graph->rt.buf_scratch, VK_NULL_HANDLE);
-  if(graph->rt.buf_staging) vkDestroyBuffer(qvk.device, graph->rt.buf_staging, VK_NULL_HANDLE);
-  if(graph->rt.vkmem_scratch || graph->rt.vkmem_staging || graph->rt.vkmem_accel)
-  {
-    QVKR(vkDeviceWaitIdle(qvk.device));
-    if(graph->rt.vkmem_scratch) vkFreeMemory(qvk.device, graph->rt.vkmem_scratch, 0);
-    if(graph->rt.vkmem_staging) vkFreeMemory(qvk.device, graph->rt.vkmem_staging, 0);
-    if(graph->rt.vkmem_accel)   vkFreeMemory(qvk.device, graph->rt.vkmem_accel,   0);
-  }
+  if(graph->rt.buf_accel)     vkDestroyBuffer(qvk.device, graph->rt.buf_accel,   VK_NULL_HANDLE);
+  if(graph->rt.buf_scratch)   vkDestroyBuffer(qvk.device, graph->rt.buf_scratch, VK_NULL_HANDLE);
+  if(graph->rt.buf_staging)   vkDestroyBuffer(qvk.device, graph->rt.buf_staging, VK_NULL_HANDLE);
+  if(graph->rt.vkmem_scratch) vkFreeMemory   (qvk.device, graph->rt.vkmem_scratch, 0);
+  if(graph->rt.vkmem_staging) vkFreeMemory   (qvk.device, graph->rt.vkmem_staging, 0);
+  if(graph->rt.vkmem_accel)   vkFreeMemory   (qvk.device, graph->rt.vkmem_accel,   0);
   // dset itself goes down with the pool
-  vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
+  if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
   memset(&graph->rt, 0, sizeof(graph->rt));
-  return VK_SUCCESS;
 }
 
 #define CREATE_BUF_R(TYPE, SZ, BUF, BITS) do { \
+  if(BUF) vkDestroyBuffer(qvk.device, BUF, 0);\
   VkBufferCreateInfo buf_info = {\
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,\
     .size  = (SZ),\
@@ -116,7 +81,15 @@ dt_raytrace_node_init(
     dt_graph_t *graph,
     dt_node_t  *node)
 {
-  // on node, get size for bottom level accel struct, allocate buffer for mesh
+  // find connector with geo:
+  node->rt.vtx_cnt = 3, node->rt.idx_cnt = 3;
+  for(int c=0;c<node->num_connectors;c++) if(node->connector[c].chan == dt_token("geo"))
+  {
+    node->rt.vtx_cnt = node->connector[c].roi.full_wd;
+    node->rt.idx_cnt = node->connector[c].roi.full_ht;
+    break;
+  }
+  node->rt.tri_cnt = node->rt.idx_cnt/3;
   CREATE_STAGING_BUF_R(node->rt.vtx_cnt * sizeof(float) * 3, node->rt.buf_vtx);
   CREATE_STAGING_BUF_R(node->rt.idx_cnt * sizeof(int),       node->rt.buf_idx);
 
@@ -129,7 +102,7 @@ dt_raytrace_node_init(
       .triangles       = {
         .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
         .maxVertex     = node->rt.vtx_cnt - 1,
-        .vertexStride  = 3 * sizeof(float), // XXX set to 4 if we have the normal in between
+        .vertexStride  = 4 * sizeof(float),
         .transformData = {0},
         .indexType     = VK_INDEX_TYPE_UINT32,
         .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
@@ -155,6 +128,8 @@ dt_raytrace_node_init(
 
   // create acceleration struct
   QVK_LOAD(vkCreateAccelerationStructureKHR);
+  QVK_LOAD(vkDestroyAccelerationStructureKHR);
+  if(node->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, node->rt.accel, VK_NULL_HANDLE);
   VkAccelerationStructureCreateInfoKHR create_info = {
     .sType  = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
     .buffer = node->rt.buf_accel,
@@ -163,12 +138,39 @@ dt_raytrace_node_init(
     .type   = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
   };
   QVKR(qvkCreateAccelerationStructureKHR(qvk.device, &create_info, NULL, &node->rt.accel));
+  return VK_SUCCESS;
+}
 
+VkResult
+dt_raytrace_graph_init(
+    dt_graph_t *graph,
+    uint32_t   *nid,
+    uint32_t    nid_cnt)
+{
+  graph->rt.nid_cnt = 0;
+  for(int i=0;i<nid_cnt;i++)
+    if(graph->node[nid[i]].type & s_node_geometry)
+      graph->rt.nid[graph->rt.nid_cnt++] = nid[i];
+
+  VkDescriptorSetLayoutBinding bindings[] = {{
+    .binding         = 0,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+    .descriptorCount = 1,
+    .stageFlags      = VK_SHADER_STAGE_ALL,
+  }};
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings    = bindings,
+  };
+  if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt.dset_layout));
+  for(int i=0;i<graph->rt.nid_cnt;i++)
+    dt_raytrace_node_init(graph, graph->node + graph->rt.nid[i]);
   return VK_SUCCESS;
 }
 
 // allocates memory, creates and binds rtgeo node buffers too
-// TODO do this in graph_run() if a rebuild is needed (and only then, see module flags!)
 VkResult
 dt_raytrace_graph_alloc(
     dt_graph_t *graph)
@@ -230,6 +232,8 @@ dt_raytrace_graph_alloc(
 
   // now create the top-level acceleration structure
   QVK_LOAD(vkCreateAccelerationStructureKHR);
+  QVK_LOAD(vkDestroyAccelerationStructureKHR);
+  if(graph->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, graph->rt.accel, VK_NULL_HANDLE);
   VkAccelerationStructureCreateInfoKHR create_info = {
     .sType  = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
     .buffer = graph->rt.buf_accel,
@@ -287,6 +291,7 @@ dt_raytrace_record_command_buffer_accel_build(
     dt_node_t *node = graph->node + graph->rt.nid[i];
 
 #if 0
+    // TODO: make sure this is called if module flags have upload_source requests!
     // TODO: how to pass out extra things? also have a source channel for ssbo geo? use the general read_source() callback for this?
     // TODO: if callback exists and if globally required to upload stuff or module requested in specifically
     void *vtx = mapped_staging + node->rt.buf_vtx_offset;
@@ -324,7 +329,7 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt.geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
       .maxVertex     = node->rt.vtx_cnt - 1,
-      .vertexStride  = 3 * sizeof(float), // XXX set to 4 if we have the normal in between
+      .vertexStride  = 4 * sizeof(float),
       .transformData = {0},
       .indexType     = VK_INDEX_TYPE_UINT32,
       .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,

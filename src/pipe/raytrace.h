@@ -51,7 +51,7 @@ typedef struct dt_raytrace_node_t
 }
 dt_raytrace_node_t;
 
-// run this on the graph for first initialisation
+// run this on the graph for first initialisation, after roi_out (read the header of the geo files)
 VkResult dt_raytrace_graph_init(
     dt_graph_t *graph,         // the graph to init ray tracing for
     uint32_t   *nid,           // dead-code eliminated list of nodes to scan for rtgeo
@@ -60,8 +60,12 @@ VkResult dt_raytrace_graph_init(
 // run this after the nodes have run alloc_outputs, i.e. the dset pool is inited
 VkResult dt_raytrace_graph_alloc(dt_graph_t *graph);
 
-// finally run this to add the rt acceleration structure build to the cammand buffer
+// finally run this to add the rt acceleration structure build to the command buffer.
+// this also calls the read_geo() callback on the geo input nodes.
 VkResult dt_raytrace_record_command_buffer_accel_build(dt_graph_t *graph);
 
-void     dt_raytrace_node_cleanup(dt_node_t *node);
-VkResult dt_raytrace_graph_cleanup(dt_graph_t *graph);
+// cleans up node resources.
+void dt_raytrace_node_cleanup(dt_node_t *node);
+
+// also frees memory, thus the caller needs to make sure the device is idle first!
+void dt_raytrace_graph_cleanup(dt_graph_t *graph);
