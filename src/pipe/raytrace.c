@@ -1,21 +1,17 @@
 #include "raytrace.h"
-#include "qvk/qvk.h"
 #include "graph.h"
 #include "core/log.h"
 /// TODO: wire geo interface in i-geo
 
-int
-dt_raytrace_present(dt_graph_t *graph)
+int dt_raytrace_present(dt_graph_t *graph)
 {
-  if(qvk.raytracing_supported && (graph->rt.nid_cnt > 0)) return 1;
-  return 0;
+  return qvk.raytracing_supported && (graph->rt.nid_cnt > 0);
 }
 
 void
 dt_raytrace_node_cleanup(
     dt_node_t *node)
 {
-  // if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
   if(node->rt.accel)
   {
     QVK_LOAD(vkDestroyAccelerationStructureKHR);
@@ -32,7 +28,6 @@ void
 dt_raytrace_graph_cleanup(
     dt_graph_t *graph)
 {
-  // if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
   if(graph->rt.accel)
   {
     QVK_LOAD(vkDestroyAccelerationStructureKHR);
@@ -44,8 +39,7 @@ dt_raytrace_graph_cleanup(
   if(graph->rt.vkmem_scratch) vkFreeMemory   (qvk.device, graph->rt.vkmem_scratch, 0);
   if(graph->rt.vkmem_staging) vkFreeMemory   (qvk.device, graph->rt.vkmem_staging, 0);
   if(graph->rt.vkmem_accel)   vkFreeMemory   (qvk.device, graph->rt.vkmem_accel,   0);
-  // dset itself goes down with the pool
-  if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
+  if(graph->rt.dset_layout)   vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
   memset(&graph->rt, 0, sizeof(graph->rt));
 }
 
@@ -96,10 +90,9 @@ dt_raytrace_node_init(
     dt_node_t  *node)
 {
   if(!qvk.raytracing_supported) return VK_SUCCESS;
-  // find connector with geo:
   node->rt.vtx_cnt = 3, node->rt.idx_cnt = 3;
   for(int c=0;c<node->num_connectors;c++) if(node->connector[c].chan == dt_token("geo"))
-  {
+  { // find connector with geo:
     node->rt.vtx_cnt = node->connector[c].roi.full_wd;
     node->rt.idx_cnt = node->connector[c].roi.full_ht;
     break;
@@ -265,7 +258,7 @@ dt_raytrace_graph_alloc(
   VkDescriptorSetAllocateInfo dset_info = {
     .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool     = graph->dset_pool,
-    .descriptorSetCount = 2, // DT_GRAPH_MAX_FRAMES,
+    .descriptorSetCount = DT_GRAPH_MAX_FRAMES,
     .pSetLayouts        = &graph->rt.dset_layout,
   };
   QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, graph->rt.dset));
@@ -281,7 +274,7 @@ dt_raytrace_graph_alloc(
     .dstBinding = 0,
     .pNext      = &acceleration_structure_info  // TODO: have ping pong accel struct
   }};
-  vkUpdateDescriptorSets(qvk.device, 2, dset_write, 0, NULL);
+  vkUpdateDescriptorSets(qvk.device, DT_GRAPH_MAX_FRAMES, dset_write, 0, NULL);
   return VK_SUCCESS;
 }
 #undef CREATE_SCRATCH_BUF_R
@@ -307,12 +300,9 @@ dt_raytrace_record_command_buffer_accel_build(
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt.nid[i];
 
-    // TODO: make sure this is called if module flags have upload_source requests!
-    // TODO: how to pass out extra things? also have a source channel for ssbo geo? use the general read_source() callback for this?
-    // TODO: if callback exists and if globally required to upload stuff or module requested in specifically
     void *vtx = mapped_staging + node->rt.buf_vtx_offset;
     void *idx = mapped_staging + node->rt.buf_idx_offset;
-    node->module->so->read_geo(node->module, vtx, idx);
+    if(node->module->so->read_geo) node->module->so->read_geo(node->module, vtx, idx);
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -338,7 +328,6 @@ dt_raytrace_record_command_buffer_accel_build(
       .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
       .buffer = node->rt.buf_idx,
     }};
-    // could batch up the build_info and build_ranges and call vkBuildAccelerationStructuresKHR only once:
     node->rt.build_info.dstAccelerationStructure                     = node->rt.accel;
     node->rt.build_info.scratchData.deviceAddress                    = vkGetBufferDeviceAddress(qvk.device, address_info+0);
     node->rt.geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
@@ -351,8 +340,7 @@ dt_raytrace_record_command_buffer_accel_build(
       .vertexData    = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+1)},
       .indexData     = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+2)},
     };
-    VkAccelerationStructureBuildRangeInfoKHR build_range = {
-      .primitiveCount = node->rt.tri_cnt };
+    VkAccelerationStructureBuildRangeInfoKHR build_range = { .primitiveCount = node->rt.tri_cnt };
     const VkAccelerationStructureBuildRangeInfoKHR *p_build_range = &build_range;
     qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, 1, &node->rt.build_info, &p_build_range);
   }
@@ -387,8 +375,7 @@ dt_raytrace_record_command_buffer_accel_build(
     .arrayOfPointers = VK_FALSE,
     .data            = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, &index_address) },
   };
-  VkAccelerationStructureBuildRangeInfoKHR build_range = {
-    .primitiveCount = graph->rt.nid_cnt };
+  VkAccelerationStructureBuildRangeInfoKHR build_range = { .primitiveCount = graph->rt.nid_cnt };
   const VkAccelerationStructureBuildRangeInfoKHR *p_build_range = &build_range;
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, 1, &graph->rt.build_info, &p_build_range);
 
