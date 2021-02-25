@@ -2,13 +2,9 @@
 #include "token.h"
 #include "connector.h"
 #include "raytrace.h"
+#include "graph-fwd.h"
 
 #include <vulkan/vulkan.h>
-
-#define DT_GRAPH_MAX_FRAMES 2
-
-// fwd declare
-typedef struct dt_module_t dt_module_t;
 
 typedef enum dt_node_type_t
 {

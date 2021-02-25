@@ -1,5 +1,6 @@
 #pragma once
 #include "qvk/qvk.h"
+#include "graph-fwd.h"
 #include <stdlib.h>
 
 // extra storage on graph
@@ -23,9 +24,10 @@ typedef struct dt_raytrace_graph_t
   size_t                                      scratch_end, scratch_max;
   size_t                                      staging_end, staging_max;
   size_t                                      accel_end,   accel_max;
-  VkDescriptorSetLayout                       dset_layout;
   uint32_t                                   *nid;
   uint32_t                                    nid_cnt;
+  VkDescriptorSet                             dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
+  VkDescriptorSetLayout                       dset_layout;               // they all share the same layout
 }
 dt_raytrace_graph_t;
 
@@ -49,18 +51,17 @@ typedef struct dt_raytrace_node_t
 }
 dt_raytrace_node_t;
 
-// fwd declare
-typedef struct dt_graph_t dt_graph_t;
-typedef struct dt_node_t dt_node_t;
-
-// TODO: remove node functions and call from graph version?
-VkResult dt_raytrace_node_init(dt_graph_t *graph, dt_node_t  *node);
+// run this on the graph for first initialisation
 VkResult dt_raytrace_graph_init(
-    dt_graph_t *graph,
-    int        *nid,
-    int         nid_cnt);
+    dt_graph_t *graph,         // the graph to init ray tracing for
+    uint32_t   *nid,           // dead-code eliminated list of nodes to scan for rtgeo
+    uint32_t    nid_cnt);
+
+// run this after the nodes have run alloc_outputs, i.e. the dset pool is inited
 VkResult dt_raytrace_graph_alloc(dt_graph_t *graph);
+
+// finally run this to add the rt acceleration structure build to the cammand buffer
 VkResult dt_raytrace_record_command_buffer_accel_build(dt_graph_t *graph);
-void dt_raytrace_bind(); // TODO
-void dt_raytrace_node_cleanup(dt_node_t *node);
-void dt_raytrace_graph_cleanup(dt_graph_t *graph);
+
+void     dt_raytrace_node_cleanup(dt_node_t *node);
+VkResult dt_raytrace_graph_cleanup(dt_graph_t *graph);

@@ -294,6 +294,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     VkDescriptorSetLayout dset_layout[] = {
       graph->uniform_dset_layout,
       node->dset_layout,
+      // XXX ray tracing graph->rt.dset_layout,
     };
     VkPushConstantRange pcrange = {
       .stageFlags = VK_SHADER_STAGE_ALL,
@@ -1556,6 +1557,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   VkDescriptorSet desc_sets[] = {
     node->uniform_dset,
     node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
+    // TODO: graph->rt.dset,
   };
 
   if(draw != -1)
@@ -1789,6 +1791,8 @@ VkResult dt_graph_run(
     module_flags |= graph->module[modid[i]].flags;
   }
 
+  QVKR(dt_raytrace_graph_init(graph, modid, cnt)); // init ray tracing on graph
+
   // ==============================================
   // first pass: find output rois
   // ==============================================
@@ -1852,6 +1856,7 @@ VkResult dt_graph_run(
       vkDestroyDescriptorSetLayout(qvk.device, graph->node[i].dset_layout,      0);
       vkDestroyFramebuffer        (qvk.device, graph->node[i].draw_framebuffer, 0);
       vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
+      dt_raytrace_node_cleanup    (graph->node + i);
     }
     // we need two uint32, alignment is 64 bytes
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
@@ -2061,6 +2066,9 @@ VkResult dt_graph_run(
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*(graph->num_nodes+graph->dset_cnt_uniform),
+      }, {
+        .type            = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+        .descriptorCount = DT_GRAPH_MAX_FRAMES,
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
@@ -2081,6 +2089,9 @@ VkResult dt_graph_run(
       graph->dset_cnt_uniform_alloc = graph->dset_cnt_uniform;
     }
   }
+
+  // allocate memory and create descriptor sets for ray tracing
+  QVKR(dt_raytrace_graph_alloc(graph));
 
   // not really needed, vkBeginCommandBuffer will reset our cmd buf
   // vkResetCommandPool(qvk.device, graph->command_pool, 0);
@@ -2137,9 +2148,12 @@ VkResult dt_graph_run(
       QVKR(alloc_outputs3(graph, graph->node+nodeid[i]));
   int runflag = (run & s_graph_run_upload_source) ? 1 : 0;
   if(run & s_graph_run_record_cmd_buf)
+  {
+    if(runflag) QVKR(dt_raytrace_record_command_buffer_accel_build(graph));
     for(int i=0;i<cnt;i++)
       QVKR(record_command_buffer(graph, graph->node+nodeid[i], runflag ||
           (graph->node[nodeid[i]].module->flags & s_module_request_read_source)));
+  }
 } // end scope, done with nodes
 
   if(run & s_graph_run_alloc)

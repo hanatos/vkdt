@@ -2,82 +2,74 @@
 #include "qvk/qvk.h"
 #include "graph.h"
 #include "core/log.h"
-/// XXX TODO: _cleanup() functions for graph and node stuff
-/// XXX TODO: bind descriptor sets in create_nodes or so! for all nodes with raytrace flag
-/// * TODO: { .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR
+/// TODO: call all required functions from graph.c
+/// TODO: make ray tracing optional globally
+/// TODO: for iterations, clean up before re-initing stuff!
+
+static inline VkResult dt_raytrace_node_init(dt_graph_t *graph, dt_node_t  *node);
 
 VkResult
 dt_raytrace_graph_init(
     dt_graph_t *graph,
-    int        *nid,
-    int         nid_cnt)
+    uint32_t   *nid,
+    uint32_t    nid_cnt)
 {
   graph->rt.nid_cnt = 0;
   for(int i=0;i<nid_cnt;i++)
     if(graph->node[nid[i]].type & s_node_geometry)
       graph->rt.nid[graph->rt.nid_cnt++] = nid[i];
 
-#if 0
-  // TODO create descriptor set 
-      VkDescriptorSetLayoutBinding bindings[] = {{
-        .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_ALL,
-      },{
-        .binding = 1, // module local uniform, params struct
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_ALL,
-      }};
-      VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-        .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 2,
-        .pBindings    = bindings,
-      };
-      QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
-      // XXX===
-#endif
-
-  // TODO: go through nodes and request their sizes
+  VkDescriptorSetLayoutBinding bindings[] = {{
+    .binding         = 0,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+    .descriptorCount = 1,
+    .stageFlags      = VK_SHADER_STAGE_ALL,
+  }};
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings    = bindings,
+  };
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt.dset_layout));
   for(int i=0;i<graph->rt.nid_cnt;i++)
     dt_raytrace_node_init(graph, graph->node + graph->rt.nid[i]);
 
   return VK_SUCCESS;
 }
 
-// TODO: call in record_command_buffer for each node?
-void
-dt_raytrace_bind( // .. ?
-    )
-{
-  // if node->type & s_node_raytrace
-  // TODO: bind extra descriptor set
-}
-
 void
 dt_raytrace_node_cleanup(
     dt_node_t *node)
 {
-  // TODO: do this separately?
+  QVK_LOAD(vkDestroyAccelerationStructureKHR);
+  if(node->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, node->rt.accel, VK_NULL_HANDLE);
+  if(node->rt.buf_accel)   vkDestroyBuffer(qvk.device, node->rt.buf_accel,   VK_NULL_HANDLE);
+  if(node->rt.buf_scratch) vkDestroyBuffer(qvk.device, node->rt.buf_scratch, VK_NULL_HANDLE);
+  if(node->rt.buf_vtx)     vkDestroyBuffer(qvk.device, node->rt.buf_vtx,     VK_NULL_HANDLE);
+  if(node->rt.buf_idx)     vkDestroyBuffer(qvk.device, node->rt.buf_idx,     VK_NULL_HANDLE);
+  memset(&node->rt, 0, sizeof(node->rt));
 }
 
-// cleanup all ray tracing resources
-void
+VkResult
 dt_raytrace_graph_cleanup(
     dt_graph_t *graph)
 {
-//QVK_LOAD(vkDestroyAccelerationStructureKHR)
-// TODO: destroy stuff:
-    // top level on graph
-    // bottom level on all nodes that have it
-    // destroy buffers and deallocate the 3x vkmem we have reserved
-
-    // TODO: destroy descriptor set layout
-
-    // if (structure->top_level) qvkDestroyAccelerationStructureKHR(device->device, structure->top_level, NULL);
-    // if (structure->bottom_level) qvkDestroyAccelerationStructureKHR(device->device, structure->bottom_level, NULL);
-    // destroy_buffers(&structure->buffers, device);
+  QVK_LOAD(vkDestroyAccelerationStructureKHR);
+  if(graph->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, graph->rt.accel, VK_NULL_HANDLE);
+  if(graph->rt.buf_accel)   vkDestroyBuffer(qvk.device, graph->rt.buf_accel,   VK_NULL_HANDLE);
+  if(graph->rt.buf_scratch) vkDestroyBuffer(qvk.device, graph->rt.buf_scratch, VK_NULL_HANDLE);
+  if(graph->rt.buf_staging) vkDestroyBuffer(qvk.device, graph->rt.buf_staging, VK_NULL_HANDLE);
+  if(graph->rt.vkmem_scratch || graph->rt.vkmem_staging || graph->rt.vkmem_accel)
+  {
+    QVKR(vkDeviceWaitIdle(qvk.device));
+    if(graph->rt.vkmem_scratch) vkFreeMemory(qvk.device, graph->rt.vkmem_scratch, 0);
+    if(graph->rt.vkmem_staging) vkFreeMemory(qvk.device, graph->rt.vkmem_staging, 0);
+    if(graph->rt.vkmem_accel)   vkFreeMemory(qvk.device, graph->rt.vkmem_accel,   0);
+  }
+  // dset itself goes down with the pool
+  vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
+  memset(&graph->rt, 0, sizeof(graph->rt));
+  return VK_SUCCESS;
 }
 
 #define CREATE_BUF_R(TYPE, SZ, BUF, BITS) do { \
@@ -119,7 +111,7 @@ dt_raytrace_graph_cleanup(
 }} while(0)
 
 // called per node to determine the resource requirements of the rtgeo related buffers
-VkResult
+static inline VkResult
 dt_raytrace_node_init(
     dt_graph_t *graph,
     dt_node_t  *node)
@@ -194,7 +186,6 @@ dt_raytrace_graph_alloc(
   }
 
   // get top-level acceleration structure size + scratch mem requirements.
-  // create scratch buffer for graph and allocation, bind scratch buffers of graph and nodes.
   VkAccelerationStructureBuildSizesInfoKHR accel_size = {
     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
   graph->rt.geometry = (VkAccelerationStructureGeometryKHR) {
@@ -248,6 +239,28 @@ dt_raytrace_graph_alloc(
   };
   QVKR(qvkCreateAccelerationStructureKHR(qvk.device, &create_info, NULL, &graph->rt.accel));
 
+  // allocate descriptor sets and point to our new accel struct
+  VkDescriptorSetAllocateInfo dset_info = {
+    .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool     = graph->dset_pool,
+    .descriptorSetCount = 2, // DT_GRAPH_MAX_FRAMES,
+    .pSetLayouts        = &graph->rt.dset_layout,
+  };
+  QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, graph->rt.dset));
+  VkWriteDescriptorSetAccelerationStructureKHR acceleration_structure_info = {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+    .accelerationStructureCount = 1,
+    .pAccelerationStructures    = &graph->rt.accel,
+  };
+  VkWriteDescriptorSet dset_write[] = {{
+    .dstBinding = 0,
+    .pNext      = &acceleration_structure_info
+  },{
+    .dstBinding = 0,
+    .pNext      = &acceleration_structure_info  // TODO: have ping pong accel struct
+  }};
+  vkUpdateDescriptorSets(qvk.device, 2, dset_write, 0, NULL);
+
   return VK_SUCCESS;
 }
 #undef CREATE_SCRATCH_BUF_R
@@ -260,12 +273,10 @@ VkResult
 dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
+  // TODO: early out if !qvk.raytracing_support
   // XXX TODO: do not build bottom if not needed (see flags on module)
-
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
-
-  // XXX TODO: also create vkCreateDescriptorSetLayout for the accel bindings (set 2 or 3 so?)
 
   uint8_t *mapped_staging = 0;
   QVKR(vkMapMemory(qvk.device, graph->rt.vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void **)&mapped_staging));
@@ -276,6 +287,7 @@ dt_raytrace_record_command_buffer_accel_build(
     dt_node_t *node = graph->node + graph->rt.nid[i];
 
 #if 0
+    // TODO: how to pass out extra things? also have a source channel for ssbo geo? use the general read_source() callback for this?
     // TODO: if callback exists and if globally required to upload stuff or module requested in specifically
     void *vtx = mapped_staging + node->rt.buf_vtx_offset;
     void *idx = mapped_staging + node->rt.buf_idx_offset;
@@ -326,7 +338,6 @@ dt_raytrace_record_command_buffer_accel_build(
   }
   vkUnmapMemory(qvk.device, graph->rt.vkmem_staging);
 
-  // barrier before top level is starting to build:
 #define ACCEL_BARRIER do {\
   VkMemoryBarrier barrier = { \
     .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER, \
@@ -338,7 +349,7 @@ dt_raytrace_record_command_buffer_accel_build(
       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, \
       0, 1, &barrier, 0, NULL, 0, NULL); \
   } while(0)
-  ACCEL_BARRIER;
+  ACCEL_BARRIER; // barrier before top level is starting to build
 
   // build top level accel
   VkBufferDeviceAddressInfo scratch_adress_info = {
@@ -363,6 +374,5 @@ dt_raytrace_record_command_buffer_accel_build(
 
   ACCEL_BARRIER; // push another barrier
 #undef ACCEL_BARRIER
-  // TODO: i suppose we could now destroy the staging buffers
   return VK_SUCCESS;
 }
