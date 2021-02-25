@@ -453,7 +453,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     .queueFamilyIndex = queue_family_index,
   };
 
-#if 1 // ray tracing
+  // ray tracing
   VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
     .accelerationStructure = VK_TRUE,
@@ -465,14 +465,13 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   };
   VkPhysicalDeviceVulkan12Features v12f = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-    .pNext                                     = &ray_query_features,
+    .pNext                                     = qvk.raytracing_supported ? &ray_query_features : 0,
     .descriptorIndexing                        = VK_TRUE,
     .uniformAndStorageBuffer8BitAccess         = VK_TRUE,
     .runtimeDescriptorArray                    = VK_TRUE,
     .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
     .bufferDeviceAddress                       = VK_TRUE,
   };
-#endif
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .pNext = &v12f,
@@ -501,14 +500,14 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VK_KHR_SWAPCHAIN_EXTENSION_NAME, // goes last because we might not want it without gui
   };
 
-  const int len = LENGTH(vk_requested_device_extensions) - (qvk.window ? 0 : 1);
+  const int len = LENGTH(vk_requested_device_extensions) - (qvk.window ? 0 : 1) - (qvk.raytracing_supported ? 0 : 7);
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pNext                   = &device_features,
     .pQueueCreateInfos       = &queue_create_info,
     .queueCreateInfoCount    = 1,
     .enabledExtensionCount   = len,
-    .ppEnabledExtensionNames = vk_requested_device_extensions,
+    .ppEnabledExtensionNames = vk_requested_device_extensions + (qvk.raytracing_supported ? 0 : 7),
   };
 
   /* create device and queue */
