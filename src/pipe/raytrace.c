@@ -2,16 +2,25 @@
 #include "qvk/qvk.h"
 #include "graph.h"
 #include "core/log.h"
-/// TODO: make ray tracing optional globally
-/// TODO: set module flag s_geometry if read_geo callback exists
-/// TODO: wire read_geo callback through global
+/// TODO: wire geo interface in i-geo
+
+int
+dt_raytrace_present(dt_graph_t *graph)
+{
+  if(qvk.raytracing_supported && (graph->rt.nid_cnt > 0)) return 1;
+  return 0;
+}
 
 void
 dt_raytrace_node_cleanup(
     dt_node_t *node)
 {
-  QVK_LOAD(vkDestroyAccelerationStructureKHR);
-  if(node->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, node->rt.accel, VK_NULL_HANDLE);
+  // if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
+  if(node->rt.accel)
+  {
+    QVK_LOAD(vkDestroyAccelerationStructureKHR);
+    qvkDestroyAccelerationStructureKHR(qvk.device, node->rt.accel, VK_NULL_HANDLE);
+  }
   if(node->rt.buf_accel)   vkDestroyBuffer(qvk.device, node->rt.buf_accel,   VK_NULL_HANDLE);
   if(node->rt.buf_scratch) vkDestroyBuffer(qvk.device, node->rt.buf_scratch, VK_NULL_HANDLE);
   if(node->rt.buf_vtx)     vkDestroyBuffer(qvk.device, node->rt.buf_vtx,     VK_NULL_HANDLE);
@@ -23,8 +32,12 @@ void
 dt_raytrace_graph_cleanup(
     dt_graph_t *graph)
 {
-  QVK_LOAD(vkDestroyAccelerationStructureKHR);
-  if(graph->rt.accel) qvkDestroyAccelerationStructureKHR(qvk.device, graph->rt.accel, VK_NULL_HANDLE);
+  // if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
+  if(graph->rt.accel)
+  {
+    QVK_LOAD(vkDestroyAccelerationStructureKHR);
+    qvkDestroyAccelerationStructureKHR(qvk.device, graph->rt.accel, VK_NULL_HANDLE);
+  }
   if(graph->rt.buf_accel)     vkDestroyBuffer(qvk.device, graph->rt.buf_accel,   VK_NULL_HANDLE);
   if(graph->rt.buf_scratch)   vkDestroyBuffer(qvk.device, graph->rt.buf_scratch, VK_NULL_HANDLE);
   if(graph->rt.buf_staging)   vkDestroyBuffer(qvk.device, graph->rt.buf_staging, VK_NULL_HANDLE);
@@ -38,6 +51,7 @@ dt_raytrace_graph_cleanup(
 
 #define CREATE_BUF_R(TYPE, SZ, BUF, BITS) do { \
   if(BUF) vkDestroyBuffer(qvk.device, BUF, 0);\
+  assert(SZ > 0);\
   VkBufferCreateInfo buf_info = {\
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,\
     .size  = (SZ),\
@@ -81,6 +95,7 @@ dt_raytrace_node_init(
     dt_graph_t *graph,
     dt_node_t  *node)
 {
+  if(!qvk.raytracing_supported) return VK_SUCCESS;
   // find connector with geo:
   node->rt.vtx_cnt = 3, node->rt.idx_cnt = 3;
   for(int c=0;c<node->num_connectors;c++) if(node->connector[c].chan == dt_token("geo"))
@@ -147,10 +162,12 @@ dt_raytrace_graph_init(
     uint32_t   *nid,
     uint32_t    nid_cnt)
 {
+  if(!qvk.raytracing_supported) return VK_SUCCESS;
   graph->rt.nid_cnt = 0;
   for(int i=0;i<nid_cnt;i++)
     if(graph->node[nid[i]].type & s_node_geometry)
       graph->rt.nid[graph->rt.nid_cnt++] = nid[i];
+  if(graph->rt.nid_cnt == 0) return VK_SUCCESS;
 
   VkDescriptorSetLayoutBinding bindings[] = {{
     .binding         = 0,
@@ -175,6 +192,7 @@ VkResult
 dt_raytrace_graph_alloc(
     dt_graph_t *graph)
 {
+  if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
   // create staging buffer for graph, allocate staging memory, bind graph + node staging:
   CREATE_STAGING_BUF_R(graph->rt.nid_cnt * sizeof(VkAccelerationStructureInstanceKHR), graph->rt.buf_staging);
   ALLOC_MEM_R(staging, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT); // allocate for all staging bufs
@@ -264,7 +282,6 @@ dt_raytrace_graph_alloc(
     .pNext      = &acceleration_structure_info  // TODO: have ping pong accel struct
   }};
   vkUpdateDescriptorSets(qvk.device, 2, dset_write, 0, NULL);
-
   return VK_SUCCESS;
 }
 #undef CREATE_SCRATCH_BUF_R
@@ -277,7 +294,7 @@ VkResult
 dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
-  // TODO: early out if !qvk.raytracing_support
+  if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
   // XXX TODO: do not build bottom if not needed (see flags on module)
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
@@ -290,14 +307,12 @@ dt_raytrace_record_command_buffer_accel_build(
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt.nid[i];
 
-#if 0
     // TODO: make sure this is called if module flags have upload_source requests!
     // TODO: how to pass out extra things? also have a source channel for ssbo geo? use the general read_source() callback for this?
     // TODO: if callback exists and if globally required to upload stuff or module requested in specifically
     void *vtx = mapped_staging + node->rt.buf_vtx_offset;
     void *idx = mapped_staging + node->rt.buf_idx_offset;
     node->module->so->read_geo(node->module, vtx, idx);
-#endif
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,

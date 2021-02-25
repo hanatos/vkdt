@@ -105,6 +105,7 @@ dt_module_so_load(
     mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
     mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
+    mod->read_geo       = dlsym(mod->dlhandle, "read_geo");
     mod->commit_params  = dlsym(mod->dlhandle, "commit_params");
     mod->check_params   = dlsym(mod->dlhandle, "check_params");
     mod->audio          = dlsym(mod->dlhandle, "audio");

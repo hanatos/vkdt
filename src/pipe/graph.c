@@ -296,7 +296,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     VkDescriptorSetLayout dset_layout[] = {
       graph->uniform_dset_layout,
       node->dset_layout,
-      // XXX ray tracing graph->rt.dset_layout,
+      graph->rt.dset_layout, // goes last, is optional
     };
     VkPushConstantRange pcrange = {
       .stageFlags = VK_SHADER_STAGE_ALL,
@@ -305,7 +305,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     };
     VkPipelineLayoutCreateInfo layout_info = {
       .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-      .setLayoutCount         = LENGTH(dset_layout),
+      .setLayoutCount         = LENGTH(dset_layout) - 1 + dt_raytrace_present(graph),
       .pSetLayouts            = dset_layout,
       .pushConstantRangeCount = node->push_constant_size ? 1 : 0,
       .pPushConstantRanges    = node->push_constant_size ? &pcrange : 0,
@@ -1555,24 +1555,25 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
   }
 
-  // add our global uniforms:
+  // combine all descriptor sets:
   VkDescriptorSet desc_sets[] = {
     node->uniform_dset,
     node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
-    // TODO: graph->rt.dset,
+    graph->rt.dset[graph->frame % DT_GRAPH_MAX_FRAMES],
   };
+  const int desc_sets_cnt = LENGTH(desc_sets) - 1 + dt_raytrace_present(graph);
 
   if(draw != -1)
   {
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, node->pipeline);
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
+      node->pipeline_layout, 0, desc_sets_cnt, desc_sets, 0, 0);
   }
   else
   {
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, node->pipeline);
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-      node->pipeline_layout, 0, LENGTH(desc_sets), desc_sets, 0, 0);
+      node->pipeline_layout, 0, desc_sets_cnt, desc_sets, 0, 0);
   }
 
   // update some buffers:
@@ -1689,6 +1690,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     struct stat statbuf;
     if(stat(filename, &statbuf)) node->type = s_node_compute;
     else node->type = s_node_graphics;
+
+    // provides ray tracing geometry?
+    if(node->module->so->read_geo) node->type |= s_node_geometry;
 
     // determine kernel dimensions:
     int output = dt_module_get_connector(module, dt_token("output"));

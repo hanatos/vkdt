@@ -69,3 +69,6 @@ void dt_raytrace_node_cleanup(dt_node_t *node);
 
 // also frees memory, thus the caller needs to make sure the device is idle first!
 void dt_raytrace_graph_cleanup(dt_graph_t *graph);
+
+// return 1 if there is ray tracing on the graph, 0 otherwise
+int dt_raytrace_present(dt_graph_t *graph);

@@ -17,6 +17,7 @@ typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *modul
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
 typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
+typedef void (*dt_module_read_geo_t)(dt_module_t *module, void *vtx, void *idx);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
@@ -54,6 +55,9 @@ typedef struct dt_module_so_t
 
   // returns a pointer to audio sample data (optional)
   dt_module_audio_t audio;
+
+  // read geo for constructing ray tracing acceleration structures (optional)
+  dt_module_read_geo_t read_geo;
 
   // for source nodes, will be called before processing starts
   dt_module_read_source_t read_source;
