@@ -14,6 +14,7 @@ all: ext src bin
 
 # overwrites the above optimised build flags:
 debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION
+debug:OPT_LDFLAGS=
 debug:all
 
 sanitize:OPT_CFLAGS=-fno-omit-frame-pointer -fsanitize=address -g -O0
