@@ -365,15 +365,13 @@ QVK_FEATURE_DO(sparseResidencyAliased, 0)\
 QVK_FEATURE_DO(variableMultisampleRate, 0)\
 QVK_FEATURE_DO(inheritedQueries, 1)
 
+  qvk.raytracing_supported = 0;
   int picked_device = -1;
   VkPhysicalDeviceFeatures dev_features;
   for(int i = 0; i < num_devices; i++) {
     VkPhysicalDeviceProperties dev_properties;
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
-
-    qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
-    qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
 
     dt_log(s_log_qvk, "dev %d: vendorid 0x%x", i, dev_properties.vendorID);
     dt_log(s_log_qvk, "dev %d: %s", i, dev_properties.deviceName);
@@ -394,13 +392,16 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-    for(int k=0;k<num_ext;k++)
-      if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
-        dt_log(s_log_qvk, "ray tracing support found!");
-
     // vendor ids are: nvidia 0x10de, intel 0x8086
     if(picked_device < 0 || dev_properties.vendorID == 0x10de)
+    {
+      qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
+      qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
+      for(int k=0;k<num_ext;k++)
+        if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
+          qvk.raytracing_supported = 1;
       picked_device = i;
+    }
   }
 
   if(picked_device < 0)
@@ -409,7 +410,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     return 1;
   }
 
-  dt_log(s_log_qvk, "picked device %d", picked_device);
+  dt_log(s_log_qvk, "picked device %d %s ray tracing support", picked_device, qvk.raytracing_supported ? "with" : "without");
 
   qvk.physical_device = devices[picked_device];
 

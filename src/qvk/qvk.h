@@ -101,6 +101,8 @@ typedef struct qvk_t
 
   float                       ticks_to_nanoseconds;
   uint64_t                    uniform_alignment;
+
+  int                         raytracing_supported;
 }
 qvk_t;
 
