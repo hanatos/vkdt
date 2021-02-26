@@ -538,7 +538,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         img->offset = img->mem->offset;
         img->size   = size; // for validation layers, this is the smaller of the two sizes.
         // set the staging offsets so it'll transparently work with read_source further down
-        // when running the graph. this can couse trouble for multiple source ssbo in the
+        // when running the graph. this can cause trouble for multiple source ssbo in the
         // same node (as multiple places in the code e.g. using a single read_source call)
         c->offset_staging = img->mem->offset;
         c->size_staging   = size;
@@ -1559,7 +1559,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   VkDescriptorSet desc_sets[] = {
     node->uniform_dset,
     node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
-    graph->rt.dset[graph->frame % DT_GRAPH_MAX_FRAMES],
+    graph->rt.dset[0], // XXX graph->frame % DT_GRAPH_MAX_FRAMES],
   };
   const int desc_sets_cnt = LENGTH(desc_sets) - 1 + dt_raytrace_present(graph);
 
@@ -1691,9 +1691,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     if(stat(filename, &statbuf)) node->type = s_node_compute;
     else node->type = s_node_graphics;
 
-    // provides ray tracing geometry?
-    if(node->module->so->read_geo) node->type |= s_node_geometry;
-
     // determine kernel dimensions:
     int output = dt_module_get_connector(module, dt_token("output"));
     // output == -1 means we must be a sink, anyways there won't be any more glsl
@@ -1809,7 +1806,6 @@ VkResult dt_graph_run(
       modify_roi_out(graph, graph->module + main_input_module);
     for(int i=0;i<cnt;i++)
       modify_roi_out(graph, graph->module + modid[i]);
-    QVKR(dt_raytrace_graph_init(graph, modid, cnt)); // init ray tracing on graph, after output roi has been inited.
   }
 
 
@@ -1946,11 +1942,18 @@ VkResult dt_graph_run(
   nodeid[cnt++] = curr;
 #include "graph-traverse.inc"
 
+  if(cnt == 0)
+  {
+    dt_log(s_log_pipe|s_log_err, "no nodes created!");
+    return VK_INCOMPLETE;
+  }
+
   // ==============================================
   // 1st pass alloc and free
   // ==============================================
   if(run & s_graph_run_alloc)
   {
+    QVKR(dt_raytrace_graph_init(graph, nodeid, cnt)); // init ray tracing on graph, after output roi and nodes have been inited.
     // nuke reference counters:
     for(int n=0;n<graph->num_nodes;n++)
       for(int c=0;c<graph->node[n].num_connectors;c++)
@@ -2303,6 +2306,7 @@ dt_graph_connector_image(
 
 void dt_graph_reset(dt_graph_t *g)
 {
+  dt_raytrace_graph_reset(g);
   g->gui_attached = 0;
   g->active_module = 0;
   g->lod_scale = 0;

@@ -25,7 +25,7 @@ typedef struct dt_raytrace_graph_t
   size_t                                      staging_end, staging_max;
   size_t                                      accel_end,   accel_max;
   uint32_t                                   *nid;
-  uint32_t                                    nid_cnt;
+  uint32_t                                    nid_cnt, nid_max;
   VkDescriptorSet                             dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
   VkDescriptorSetLayout                       dset_layout;               // they all share the same layout
 }
@@ -72,3 +72,4 @@ void dt_raytrace_graph_cleanup(dt_graph_t *graph);
 
 // return 1 if there is ray tracing on the graph, 0 otherwise
 int dt_raytrace_present(dt_graph_t *graph);
+void dt_raytrace_graph_reset(dt_graph_t *graph);

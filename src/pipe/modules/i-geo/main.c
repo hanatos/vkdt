@@ -28,23 +28,12 @@ read_header(
 
   // XXX if f close it and deallocate prims
 
-  geo->f = dt_graph_open_resource(mod->graph, filename, "rb");
-  if(!geo->f) goto error;
-
-  // XXX
+  // geo->f = dt_graph_open_resource(mod->graph, filename, "rb");
+  // if(!geo->f) goto error;
 
   prims_allocate(&geo->prims, 1);
-  if(prims_load_with_flags(&geo->prims, filename, "none", 0, 'r', mod->graph->basedir))
+  if(prims_load_with_flags(&geo->prims, filename, "none", 0, 'r', mod->graph->searchpath))
     goto error;
-
-  // read primitive from
-  // prims.shape[0].primid[p].vi  (and check that vcnt == 3)
-  // read vertex index from
-  // prims.shape[0].vtxidx[vi].v;
-  // write that to our index array
-  // write vertex array
-  // prims.shape[0].vtx[v]
-
 
   snprintf(geo->filename, sizeof(geo->filename), "%s", filename);
   return 0;
@@ -86,7 +75,7 @@ void cleanup(dt_module_t *mod)
   geo_t *geo = mod->data;
   if(geo->filename[0])
   {
-    if(geo->f) fclose(geo->f);
+    // if(geo->f) fclose(geo->f);
     geo->filename[0] = 0;
   }
   prims_cleanup(&geo->prims);
@@ -110,8 +99,10 @@ void modify_roi_out(
   uint32_t vtx_cnt = prims_get_shape_vtx_cnt(&geo->prims, 0);
   uint32_t tri_cnt = geo->prims.shape[0].num_prims;
   uint32_t idx_cnt = tri_cnt * 3;
-  mod->connector[0].roi.full_wd = vtx_cnt;
-  mod->connector[0].roi.full_ht = idx_cnt;
+  mod->connector[0].roi.scale = 1;
+  mod->connector[0].roi.wd = mod->connector[0].roi.full_wd = vtx_cnt;
+  mod->connector[0].roi.ht = mod->connector[0].roi.full_ht = idx_cnt;
+  fprintf(stderr, "[i-geo] got %u vtx %u idx\n", vtx_cnt, idx_cnt);
 }
 
 // extra callback for rt accel struct build
@@ -120,6 +111,19 @@ int read_geo(
     float       *vtx,
     uint32_t    *idx)
 {
+#if 1 // XXX DEBUG
+  float mvtx[] = {
+    0, 1, 0,
+    0, 0, 0,
+    1, 0, 0,
+    1, 1, 0};
+  uint32_t midx[] = {
+    0, 2, 1,
+    0, 3, 1};
+  memcpy(idx, midx, sizeof(midx));
+  memcpy(vtx, mvtx, sizeof(mvtx));
+  return 0;
+#endif
   geo_t *geo = mod->data;
   uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
   uint32_t idx_cnt = mod->connector[0].roi.full_ht;
@@ -133,7 +137,7 @@ int read_geo(
     idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
   }
   memcpy(vtx, geo->prims.shape[0].vtx, sizeof(float)*4*vtx_cnt);
-  return 1;
+  return 0;
 }
 
 // callback for geometry in our format to access in glsl
@@ -141,7 +145,7 @@ int read_source(
     dt_module_t *mod,
     void        *mapped)
 {
-  // connector has chan = "geo", format = "ssbo"
+  // connector has format = "geo", chan = "ssbo"
   const char *filename = dt_module_param_string(mod, 0);
   if(read_header(mod, filename)) return 1;
   return read_plain(mod, mapped);
