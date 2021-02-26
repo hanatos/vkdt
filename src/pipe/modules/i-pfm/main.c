@@ -24,6 +24,7 @@ read_header(
     return 0; // already loaded
   assert(pfm); // this should be inited in init()
 
+  if(pfm->f) fclose(pfm->f);
   pfm->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!pfm->f) goto error;
 
