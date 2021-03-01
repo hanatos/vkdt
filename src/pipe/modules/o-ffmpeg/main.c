@@ -44,7 +44,7 @@ void modify_roi_out(
 
   const int width  = mod->connector[0].roi.full_wd & ~1;
   const int height = mod->connector[0].roi.full_ht & ~1;
-  const float rate = mod->graph->frame_rate;
+  const float rate = mod->graph->frame_rate > 0.0f ? mod->graph->frame_rate : 24;
   if(width <= 0 || height <= 0) return;
 
   // establish pipe to ffmpeg binary
