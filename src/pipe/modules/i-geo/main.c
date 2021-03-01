@@ -111,19 +111,6 @@ int read_geo(
     float       *vtx,
     uint32_t    *idx)
 {
-#if 0 // XXX DEBUG
-  float mvtx[] = {
-    0, 1, 0,
-    0, 0, 0,
-    1, 0, 0,
-    1, 1, 0};
-  uint32_t midx[] = {
-    0, 2, 1,
-    0, 3, 1};
-  memcpy(idx, midx, sizeof(midx));
-  memcpy(vtx, mvtx, sizeof(mvtx));
-  return 0;
-#endif
   geo_t *geo = mod->data;
   uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
   uint32_t idx_cnt = mod->connector[0].roi.full_ht;

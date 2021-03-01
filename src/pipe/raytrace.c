@@ -110,12 +110,7 @@ dt_raytrace_node_init(
     node->rt.idx_cnt = node->connector[c].roi.full_ht;
     break;
   }
-#if 0 // XXX DEBUG
-  node->rt.tri_cnt = 2; // XXX DEBUG node->rt.idx_cnt/3;
-  node->rt.vtx_cnt = 4, node->rt.idx_cnt = 6; // XXX DEBUG
-#else
   node->rt.tri_cnt = node->rt.idx_cnt/3;
-#endif
   CREATE_STAGING_BUF_R(node->rt.vtx_cnt * sizeof(float) * 3, node->rt.buf_vtx);
   CREATE_STAGING_BUF_R(node->rt.idx_cnt * sizeof(uint32_t),  node->rt.buf_idx);
 
@@ -127,8 +122,8 @@ dt_raytrace_node_init(
     .geometry          = {
       .triangles       = {
         .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-        .maxVertex     = node->rt.vtx_cnt, // ??? - 1,
-        .vertexStride  = 3 * sizeof(float), /// 4 * sizeof(float), // XXX DEBUG
+        .maxVertex     = node->rt.vtx_cnt,
+        .vertexStride  = 3 * sizeof(float),
         .transformData = {0},
         .indexType     = VK_INDEX_TYPE_UINT32,
         .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
@@ -147,10 +142,6 @@ dt_raytrace_node_init(
   qvkGetAccelerationStructureBuildSizesKHR(
       qvk.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
       &node->rt.build_info, &node->rt.tri_cnt, &accel_size);
-
-  fprintf(stderr, "XXX accel sizes %zu %zu\n",
-      accel_size.accelerationStructureSize,
-      accel_size.buildScratchSize);
 
   // create scratch buffer and accel struct backing buffer
   CREATE_SCRATCH_BUF_R(accel_size.buildScratchSize, node->rt.buf_scratch);
@@ -298,8 +289,6 @@ dt_raytrace_graph_alloc(
   };
   QVKR(qvkCreateAccelerationStructureKHR(qvk.device, &create_info, NULL, &graph->rt.accel));
 
-  // XXX
-  fprintf(stderr, "XXX allocating descriptor sets for rt!!\n");
   // allocate descriptor sets and point to our new accel struct
   VkDescriptorSetAllocateInfo dset_info = {
     .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -385,8 +374,8 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt.build_info.scratchData.deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+0);
     node->rt.geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-      .maxVertex     = node->rt.vtx_cnt, // ??? - 1,
-      .vertexStride  = 3* sizeof(float), // XXX DEBUG // 4 * sizeof(float),
+      .maxVertex     = node->rt.vtx_cnt,
+      .vertexStride  = 3* sizeof(float),
       .transformData = {0},
       .indexType     = VK_INDEX_TYPE_UINT32,
       .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
