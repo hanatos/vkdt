@@ -111,7 +111,7 @@ int read_geo(
     float       *vtx,
     uint32_t    *idx)
 {
-#if 1 // XXX DEBUG
+#if 0 // XXX DEBUG
   float mvtx[] = {
     0, 1, 0,
     0, 0, 0,
@@ -136,7 +136,13 @@ int read_geo(
     idx[i++] = geo->prims.shape[0].vtxidx[vi+1].v;
     idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
   }
-  memcpy(vtx, geo->prims.shape[0].vtx, sizeof(float)*4*vtx_cnt);
+  for(uint32_t v=0;v<vtx_cnt;v++)
+  {
+    vtx[3*v+0] = geo->prims.shape[0].vtx[v].v[0];
+    vtx[3*v+1] = geo->prims.shape[0].vtx[v].v[1];
+    vtx[3*v+2] = geo->prims.shape[0].vtx[v].v[2];
+  }
+  // memcpy(vtx, geo->prims.shape[0].vtx, sizeof(float)*3*vtx_cnt);
   return 0;
 }
 
