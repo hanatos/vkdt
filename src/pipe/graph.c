@@ -866,13 +866,6 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
       .offset      = node->module->uniform_size ? node->module->uniform_offset : 0,
       .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
     }};
-    // XXX
-  VkWriteDescriptorSetAccelerationStructureKHR acceleration_structure_info = {
-    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
-    .accelerationStructureCount = 1,
-    .pAccelerationStructures    = &graph->rt.accel,
-  };
-    // XXX
     VkWriteDescriptorSet buf_dset[] = {{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet          = node->uniform_dset,
@@ -889,17 +882,8 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
       .descriptorCount = 1,
       .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo     = uniform_info+1,
-    },{ // XXX
-    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-    .descriptorCount = 1,
-    // .dstSet          = graph->rt.dset[0],
-      .dstSet          = node->uniform_dset,
-    .dstBinding      = 2,
-    .pNext           = &acceleration_structure_info
-      // XXX
     }};
-    vkUpdateDescriptorSets(qvk.device, 3-1 + dt_raytrace_present(graph), buf_dset, 0, NULL); // XXX 3 -- 2
+    vkUpdateDescriptorSets(qvk.device, 2, buf_dset, 0, NULL);
   }
 
   VkDescriptorImageInfo  img_info[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS*25] = {{0}};
@@ -1778,17 +1762,10 @@ VkResult dt_graph_run(
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_ALL,
-        // XXX
-      },{
-        .binding = 2, // module local uniform, params struct
-        .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_ALL,
-        // XXX
       }};
       VkDescriptorSetLayoutCreateInfo dset_layout_info = {
         .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 3,// XXX 2,
+        .bindingCount = 2,
         .pBindings    = bindings,
       };
       QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
