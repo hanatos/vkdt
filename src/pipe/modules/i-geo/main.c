@@ -45,18 +45,43 @@ error:
 static int
 read_plain(dt_module_t *mod, void *mapped)
 {
-  // TODO: implement this
-#if 0
+  typedef struct idx_t
+  {
+    // uint32_t mat :  8; // XXX possibly the order was wrong
+    uint32_t vi;//  : 24;
+    uint32_t st;
+  }
+  idx_t;
   geo_t *geo = mod->data;
   uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
   uint32_t idx_cnt = mod->connector[0].roi.full_ht;
-  float    *vtx = mapped;
-  uint32_t *idx = mapped; idx += 4*vtx_cnt;
-  // .. uv =, mat = 
-
-  // XXX
-#endif
-
+  idx_t *idx = mapped;
+  uint32_t prm_cnt = geo->prims.shape[0].num_prims;
+  // align to sizeof vertex:
+  uint32_t vtx_off = (idx_cnt+1)/2;
+  uint32_t i = 0;
+  for(uint32_t p=0;i<idx_cnt&&p<prm_cnt;p++)
+  {
+    // TODO: should check mb!
+    uint32_t vi   = geo->prims.shape[0].primid[p].vi;
+    uint32_t vcnt = geo->prims.shape[0].primid[p].vcnt;
+    const prims_vtxidx_t *vix = geo->prims.shape[0].vtxidx + vi;
+    const int mat = geo->prims.shape[0].primid[p].shapeid; // TODO: translate to shader/material index
+    if(vcnt >= 3)
+    {
+      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
+      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[1].v, .st = vix[1].uv };
+      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
+    }
+    if(vcnt == 4)
+    {
+      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
+      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
+      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[3].v, .st = vix[3].uv };
+    }
+  }
+  // write all vertices and normals:
+  memcpy(idx + 2*vtx_off, geo->prims.shape[0].vtx, sizeof(float)*4*vtx_cnt);
   return 0;
 }
 
@@ -108,7 +133,7 @@ void modify_roi_out(
   mod->connector[0].roi.scale = 1;
   mod->connector[0].roi.wd = mod->connector[0].roi.full_wd = vtx_cnt;
   mod->connector[0].roi.ht = mod->connector[0].roi.full_ht = idx_cnt;
-  fprintf(stderr, "[i-geo] got %u vtx %u idx\n", vtx_cnt, idx_cnt);
+  // fprintf(stderr, "[i-geo] got %u vtx %u idx\n", vtx_cnt, idx_cnt);
 }
 
 // extra callback for rt accel struct build

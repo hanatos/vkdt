@@ -442,7 +442,10 @@ darkroom_process()
   if(vkdt.state.anim_playing)
   {
     if(vkdt.graph_dev.frame_rate == 0.0)
+    {
       advance = 1; // no frame rate set, run as fast as we can
+      vkdt.state.anim_frame = vkdt.graph_dev.frame + 1;
+    }
     else
     { // just started replay, record timestamp:
       if(start_time.tv_nsec == 0)
