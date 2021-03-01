@@ -86,6 +86,7 @@ vk_debug_callback(
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void *user_data)
 {
+  if(strncmp(callback_data->pMessage, "Device Extension", sizeof(*"Device Extension"))) // avoid excessive spam
   dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
 #ifndef NDEBUG
   if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)

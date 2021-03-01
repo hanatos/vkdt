@@ -18,9 +18,9 @@ typedef struct dt_raytrace_graph_t
   VkDeviceMemory                              vkmem_scratch;
   VkDeviceMemory                              vkmem_staging;  // memory for our instance array + all nodes vtx, idx data
   VkDeviceMemory                              vkmem_accel;    // memory for our top level accel + all nodes bottom level accel
-  int                                         staging_memory_type_bits;
-  int                                         scratch_memory_type_bits;
-  int                                         accel_memory_type_bits;
+  uint32_t                                    staging_memory_type_bits;
+  uint32_t                                    scratch_memory_type_bits;
+  uint32_t                                    accel_memory_type_bits;
   size_t                                      scratch_end, scratch_max;
   size_t                                      staging_end, staging_max;
   size_t                                      accel_end,   accel_max;
