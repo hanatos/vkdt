@@ -97,7 +97,13 @@ void modify_roi_out(
   }
   geo_t *geo = mod->data;
   uint32_t vtx_cnt = prims_get_shape_vtx_cnt(&geo->prims, 0);
-  uint32_t tri_cnt = geo->prims.shape[0].num_prims;
+  uint32_t prm_cnt = geo->prims.shape[0].num_prims;
+  uint32_t tri_cnt = 0;
+  for(int p=0;p<prm_cnt;p++)
+  {
+    if(geo->prims.shape[0].primid[p].vcnt == 4) tri_cnt += 2;
+    if(geo->prims.shape[0].primid[p].vcnt == 3) tri_cnt += 1;
+  }
   uint32_t idx_cnt = tri_cnt * 3;
   mod->connector[0].roi.scale = 1;
   mod->connector[0].roi.wd = mod->connector[0].roi.full_wd = vtx_cnt;
@@ -115,13 +121,24 @@ int read_geo(
   uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
   uint32_t idx_cnt = mod->connector[0].roi.full_ht;
   uint32_t prm_cnt = geo->prims.shape[0].num_prims;
-  for(uint32_t i=0,p=0;i<idx_cnt&&p<prm_cnt;p++)
+  uint32_t i = 0;
+  for(uint32_t p=0;i<idx_cnt&&p<prm_cnt;p++)
   {
-    // TODO: should check mb and vcnt on this primitive.
-    uint32_t vi = geo->prims.shape[0].primid[p].vi;
-    idx[i++] = geo->prims.shape[0].vtxidx[vi+0].v;
-    idx[i++] = geo->prims.shape[0].vtxidx[vi+1].v;
-    idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
+    // TODO: should check mb!
+    uint32_t vi   = geo->prims.shape[0].primid[p].vi;
+    uint32_t vcnt = geo->prims.shape[0].primid[p].vcnt;
+    if(vcnt >= 3)
+    {
+      idx[i++] = geo->prims.shape[0].vtxidx[vi+0].v;
+      idx[i++] = geo->prims.shape[0].vtxidx[vi+1].v;
+      idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
+    }
+    if(vcnt == 4)
+    {
+      idx[i++] = geo->prims.shape[0].vtxidx[vi+0].v;
+      idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
+      idx[i++] = geo->prims.shape[0].vtxidx[vi+3].v;
+    }
   }
   for(uint32_t v=0;v<vtx_cnt;v++)
   {
