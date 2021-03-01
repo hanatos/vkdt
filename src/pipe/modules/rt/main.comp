@@ -1,0 +1,65 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_ray_tracing             : enable
+#extension GL_EXT_ray_query               : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+
+// TODO: wolud this be faster using a textureBuffer instead of an ssbo?
+layout(std430, set = 1, binding = 0) buffer ssbo_t
+{
+  uint v[]; // variable-length list of bytes encoding vertices and indices
+} ssbo;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+layout(
+    set = 2, binding = 0
+) uniform accelerationStructureEXT rt_accel;
+
+// exposure
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  // TODO: cast rays
+  vec3 rgb = vec3(0);
+
+  // XXX DEBUG
+  // camera at (4 4 4) -> (0 0 0)
+  vec3 up = vec3(0, 1, 0);
+  vec3 x = vec3(4, 4, 4), to = vec3(0);
+  vec3 f = normalize(to-x);
+  vec3 r = normalize(cross(f, up));
+  vec3 t = normalize(cross(f, r));
+
+  vec2 uv = (ipos+0.5)/imageSize(img_out) - 0.5;
+  vec3 w = normalize(f + r*uv.x + t*uv.y);
+
+  float max_t = 100.0;
+  float min_t = 1.0e-3;
+  rayQueryEXT rq;
+  rayQueryInitializeEXT(rq, rt_accel,
+      gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
+      0xFF, x, min_t, w, max_t);
+  while(rayQueryProceedEXT(rq)) {
+    // if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+      // rayQueryConfirmIntersectionEXT(rq);
+  }
+  if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT)
+  // if(rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+    rgb = vec3(1.0);
+  else rgb = w;
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+
