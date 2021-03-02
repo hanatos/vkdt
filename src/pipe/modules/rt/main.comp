@@ -90,8 +90,8 @@ float xrand(inout uint seed)
 vec3 geo_decode_normal(const uint enc)
 {
   vec2 projected = 2.0*unpackSnorm2x16(enc);
-  vec3 vec = vec3(projected, 1.0-projected.x-projected.y);
-  if (vec.z < 0.0)
+  vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
+  if(vec.z < 0.0)
   {
     float oldX = vec.x;
     vec.x = (1.0 - abs(vec.y)) * ((oldX  < 0.0) ? -1.0 : 1.0);
@@ -129,47 +129,49 @@ void prepare_intersection(
   vec3 b;
   b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, true);
   b.x = 1.0-b.z-b.y;
-  // float t = rayQueryGetIntersectionTEXT(rq, true);
-  // x += t*w;
+#if 0
+  float t = rayQueryGetIntersectionTEXT(rq, true);
+  x += t*w;
+#else
   x = b.x * v0 + b.y * v1 + b.z * v2;
+#endif
   // x.x = pi / 1000.0;
   n = b.x * n0 + b.y * n1 + b.z * n2;
   n = normalize(n);
   st = unpackSnorm2x16(p0.y); // TODO: interpolate too
 }
 
-// exposure
 void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb = vec3(1.0); // background colour
+  vec3 rgb = vec3(10.0); // init to constant background colour
   uint seed = 133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
 
+  float frame = global.frame + 0.5*xrand(seed); // 180 degree shutter
   vec3 x, w, n; // ray position, direction, hit normal
   vec2 st;      // texture coordinates
   { // camera setup:
-    float angle = params.angle + global.frame * 0.01;
-    x = 5.0 * vec3(sin(angle * 6.28), 1, cos(angle * 6.28));
-    vec3 to = vec3(0);
+    float angle = params.angle + frame * 0.002;
+    x = 2.7 * vec3(sin(angle * 6.28), 0.3, cos(angle * 6.28));
+    vec3 to = vec3(0, 0.5, 0);
     vec3 up = vec3(0, 1, 0);
     vec3 f = normalize(to-x);
     vec3 r = normalize(cross(f, up));
     vec3 t = normalize(cross(f, r));
 
     vec2 uv = (ipos+0.5)/imageSize(img_out) - 0.5;
-    w = normalize(0.7*f + r*uv.x + t*uv.y);
+    w = normalize(0.45*f + r*uv.x + t*uv.y);
   }
 
-  float max_t = 100.0, min_t = 1.0e-3;
   for(int i=0;i<3;i++)
   {
     rayQueryEXT rq;
     rayQueryInitializeEXT(rq, rt_accel,
         gl_RayFlagsNoneEXT, //gl_RayFlagsTerminateOnFirstHitEXT,// | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
-        0xFF, x, min_t, w, max_t);
+        0xFF, x, 1e-3, w, 1000.0);
     while(rayQueryProceedEXT(rq)) {
       // if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
       // rayQueryConfirmIntersectionEXT(rq);
@@ -190,7 +192,7 @@ main()
       vec3 dv = normalize(cross(du, n));
       w = ws.x * du + ws.y * dv + ws.z * n;
       x += 0.001 * (n + w);
-      rgb *= 0.4;
+      rgb *= 0.2;
 #else 
       x += t*w;
 #endif

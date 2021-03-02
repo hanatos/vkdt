@@ -131,7 +131,8 @@ read_plain(dt_module_t *mod, void *mapped)
       }
     }
     // write all vertices and normals:
-    memcpy(idx + 2*(vtx_off+vc), geo->prims.shape[s].vtx, sizeof(float)*4*vc);
+    memcpy(idx + 2*vtx_off, geo->prims.shape[s].vtx, sizeof(float)*4*vc);
+    vtx_off += vc;
   }
   return 0;
 }
