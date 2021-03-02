@@ -3,20 +3,24 @@
 #include "token.h"
 #include "params.h"
 #include "connector.h"
+#include "graph-fwd.h"
 
 // static global structs to keep around for all instances of pipelines.
 // this queries the modules on startup, does the dlopen and expensive
 // parsing once, and holds a list for modules to quickly access run time.
 
-typedef uint32_t dt_graph_run_t;            // fwd declare
-typedef struct dt_graph_t dt_graph_t;       // fwd declare
-typedef struct dt_module_t dt_module_t;
-typedef struct dt_node_t dt_node_t;
+typedef struct dt_read_source_params_t
+{ // future proof arguments
+  int c;  // connector
+  int a;  // array index
+}
+dt_read_source_params_t;
+
 typedef void (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
-typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf);
+typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf, dt_read_source_params_t *p);
 typedef void (*dt_module_read_geo_t)(dt_module_t *module, void *vtx, void *idx);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);

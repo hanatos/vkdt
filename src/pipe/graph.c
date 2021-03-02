@@ -683,7 +683,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 
         if(c->type == dt_token("source"))
         {
-          assert(c->array_length <= 1);
           // allocate staging buffer for uploading to the just allocated image
           VkBufferCreateInfo buffer_info = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -1430,41 +1429,18 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   const uint32_t wd = node->connector[0].roi.wd;
   const uint32_t ht = node->connector[0].roi.ht;
   VkBufferImageCopy regions[] = {{
-    .bufferOffset      = 0,
-    .bufferRowLength   = 0,
-    .bufferImageHeight = 0,
-    .imageSubresource  = {
-      .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
-      .mipLevel        = 0,
-      .baseArrayLayer  = 0,
-      .layerCount      = 1
-    },
-    .imageOffset = {0},
-    .imageExtent = {
-      .width  = wd,
-      .height = ht,
-      .depth  = 1,
-    }},{
-      .bufferOffset = 0,
-      .bufferRowLength = 0,
-      .bufferImageHeight = 0,
-      .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
-      .imageSubresource.mipLevel = 0,
-      .imageSubresource.baseArrayLayer = 0,
-      .imageSubresource.layerCount = 1,
-      .imageOffset = { 0, 0, 0 },
-      .imageExtent = { wd, ht, 1 },
-    },{
-      .bufferOffset =
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->plane1_offset,
-      .bufferRowLength = 0,
-      .bufferImageHeight = 0,
-      .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
-      .imageSubresource.mipLevel = 0,
-      .imageSubresource.baseArrayLayer = 0,
-      .imageSubresource.layerCount = 1,
-      .imageOffset = { 0, 0, 0 },
-      .imageExtent = { wd / 2, ht / 2, 1 },
+    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+    .imageSubresource.layerCount = 1,
+    .imageExtent = { wd, ht, 1 },
+  },{
+    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+    .imageSubresource.layerCount = 1,
+    .imageExtent = { wd, ht, 1 },
+  },{
+    .bufferOffset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->plane1_offset,
+    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
+    .imageSubresource.layerCount = 1,
+    .imageExtent = { wd / 2, ht / 2, 1 },
   }};
   const int yuv = node->connector[0].format == dt_token("yuv");
   if(dt_node_sink(node) && node->module->so->write_sink)
@@ -1486,7 +1462,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     }
   }
   else if(dt_node_source(node) &&
-         !dt_connector_ssbo(node->connector+0)) // ssbo source nodes use staging memory and thus don't need a copy.
+         !dt_connector_ssbo(node->connector+0) && // ssbo source nodes use staging memory and thus don't need a copy.
+         (node->connector[0].array_length <= 1))  // arrays share the staging buffer, are handled by iterating read_source()
   {
     // push profiler start
     if(graph->query_cnt < graph->query_max)
@@ -2130,9 +2107,58 @@ VkResult dt_graph_run(
         {
           if((node->module->flags & s_module_request_read_source) ||
              (run & s_graph_run_upload_source))
-            // TODO: detect error code!
-            node->module->so->read_source(node->module,
-                mapped + node->connector[0].offset_staging);
+          {
+            const int c = 0;
+            for(int a=0;a<MAX(1,node->connector[0].array_length);a++)
+            {
+              dt_read_source_params_t p = { .c = c, .a = a };
+              // TODO: detect error code!
+              node->module->so->read_source(node->module,
+                  mapped + node->connector[c].offset_staging, &p);
+#if 1
+              if(node->connector[c].array_length > 1)
+              {
+                vkUnmapMemory(qvk.device, graph->vkmem_staging);
+                VkCommandBuffer cmd_buf = graph->command_buffer;
+                const uint32_t wd = node->connector[c].roi.wd;
+                const uint32_t ht = node->connector[c].roi.ht;
+                VkBufferImageCopy regions[] = {{
+                  .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+                  .imageSubresource.layerCount = 1,
+                  .imageExtent = { wd, ht, 1 },
+                },{
+                  .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+                  .imageSubresource.layerCount = 1,
+                  .imageExtent = { wd, ht, 1 },
+                },{
+                  .bufferOffset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->plane1_offset,
+                  .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
+                  .imageSubresource.layerCount = 1,
+                  .imageExtent = { wd / 2, ht / 2, 1 },
+                }};
+                const int yuv = node->connector[c].format == dt_token("yuv");
+                IMG_LAYOUT(
+                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
+                    UNDEFINED,
+                    TRANSFER_DST_OPTIMAL);
+                vkCmdCopyBufferToImage(
+                    cmd_buf,
+                    node->connector[c].staging,
+                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    yuv ? 2 : 1, yuv ? regions+1 : regions);
+                IMG_LAYOUT(
+                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
+                    TRANSFER_DST_OPTIMAL,
+                    SHADER_READ_ONLY_OPTIMAL);
+                QVKR(vkEndCommandBuffer(graph->command_buffer));
+                QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
+                vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
+                QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
+              }
+#endif
+            }
+          }
         }
         else
           dt_log(s_log_err|s_log_pipe, "source node '%"PRItkn"' has no read_source() callback!",
