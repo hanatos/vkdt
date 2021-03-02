@@ -414,7 +414,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
   {
     if(vkdt.graph_dev.frame_cnt > 1)
-      vkdt.state.anim_frame = 0; // reset to beginning
+      vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
     else
     { // backtrack to last image in lighttable collection
       uint32_t next = dt_db_current_colid(&vkdt.db) - 1;
@@ -444,7 +444,7 @@ darkroom_process()
     if(vkdt.graph_dev.frame_rate == 0.0)
     {
       advance = 1; // no frame rate set, run as fast as we can
-      vkdt.state.anim_frame = vkdt.graph_dev.frame + 1;
+      vkdt.state.anim_frame = CLAMP(vkdt.graph_dev.frame + 1, 0, vkdt.graph_dev.frame_cnt-1);
     }
     else
     { // just started replay, record timestamp:

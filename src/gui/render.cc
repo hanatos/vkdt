@@ -1863,7 +1863,8 @@ void render_darkroom()
         else if(ImGui::Button("play", size))
           vkdt.state.anim_playing = 1;
         ImGui::SameLine();
-        ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame);
+        if(ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+          vkdt.graph_dev.frame = vkdt.state.anim_frame;
         ImGui::SameLine();
         ImGui::Text("%d", vkdt.state.anim_max_frame);
         ImGui::EndTabItem();
