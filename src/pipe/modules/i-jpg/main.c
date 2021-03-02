@@ -172,8 +172,9 @@ void modify_roi_out(
 }
 
 int read_source(
-    dt_module_t *mod,
-    void *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   const char *filename = dt_module_param_string(mod, 0);
   if(read_header(mod, filename)) return 1;

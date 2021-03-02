@@ -1429,7 +1429,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   const uint32_t wd = node->connector[0].roi.wd;
   const uint32_t ht = node->connector[0].roi.ht;
   VkBufferImageCopy regions[] = {{
-    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
     .imageSubresource.layerCount = 1,
     .imageExtent = { wd, ht, 1 },
   },{
@@ -1437,7 +1437,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     .imageSubresource.layerCount = 1,
     .imageExtent = { wd, ht, 1 },
   },{
-    .bufferOffset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->plane1_offset,
+    .bufferOffset = dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->plane1_offset,
     .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
     .imageSubresource.layerCount = 1,
     .imageExtent = { wd / 2, ht / 2, 1 },
@@ -2123,7 +2123,7 @@ VkResult dt_graph_run(
                 const uint32_t wd = node->connector[c].roi.wd;
                 const uint32_t ht = node->connector[c].roi.ht;
                 VkBufferImageCopy regions[] = {{
-                  .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_0_BIT,
+                  .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                   .imageSubresource.layerCount = 1,
                   .imageExtent = { wd, ht, 1 },
                 },{

@@ -249,8 +249,9 @@ void modify_roi_out(
 }
 
 int read_source(
-    dt_module_t *mod,
-    void *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   const char *device = dt_module_param_string(mod, 0);
   if(open_device(mod, device)) return 1;

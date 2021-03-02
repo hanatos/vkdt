@@ -242,8 +242,9 @@ int read_geo(
 
 // callback for geometry in our format to access in glsl
 int read_source(
-    dt_module_t *mod,
-    void        *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   // connector has format = "geo", chan = "ssbo"
   const char *filename = dt_module_param_string(mod, 0);
