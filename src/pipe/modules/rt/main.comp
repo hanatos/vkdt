@@ -146,7 +146,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = vec3(1.0); // background colour
-  uint seed = 133700000 * ipos.x + ipos.y * 70000;
+  uint seed = 133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
 
   vec3 x, w, n; // ray position, direction, hit normal
   vec2 st;      // texture coordinates
