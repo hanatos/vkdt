@@ -14,8 +14,59 @@ typedef struct geo_t
   uint32_t idx_cnt;
 
   prims_t prims;
+  int num_shaders;
 }
 geo_t;
+
+static int
+load_scene(dt_module_t *mod, FILE *f)
+{
+  char line[BUFSIZ];
+  geo_t *geo = mod->data;
+  // strip shader definitions:
+  fscanf(f, "%[^\n]\n", line); // envmap/background
+  fscanf(f, "%d\n", &geo->num_shaders);
+  for(int i=0;i<geo->num_shaders;i++)
+    fscanf(f, "%[^\n]\n", line); // shader definition
+
+  int num_shapes = 0;
+  if(!fscanf(f, "%d\n", &num_shapes))
+  {
+    fprintf(stderr, "[i-geo] corrupt model file: could not read number of shapes!\n");
+    return 1;
+  }
+  if(num_shapes == 0) return 0;
+
+  int shader;
+  char filename[512];
+  char texture[512];
+
+  prims_allocate(&geo->prims, num_shapes);
+  for(int shape=0;shape<num_shapes;shape++)
+  {
+    int items_read = fscanf(f, "%[^\n]\n", line);
+    if(items_read == -1) fprintf(stderr, "\n");
+    snprintf(texture, 512, "none");
+    if(sscanf(line, "%d %s %s\n", &shader, filename, texture) < 2)
+    {
+      fprintf(stderr, "[i-geo] WARN: malformed line (%d): %s\n", shape + geo->num_shaders + 1, line);
+      continue;
+    }
+    if(shader >= geo->num_shaders)
+      fprintf(stderr, "[i-geo] WARN: shader %d in line %d (%s) out of bounds!\n", shader, shape, filename);
+    if(shader < 0 || shader >= geo->num_shaders) shader = 0;
+    prims_load_with_flags(&geo->prims, filename, "none", 0, 'r', mod->graph->searchpath);
+#if 0
+    // load uv/normals etc:
+    int discard = shader_shape_init(shape, rt.shader->shader + shader);
+    if(discard)
+      prims_discard_shape(rt.prims, shape);
+#endif
+  }
+  // prims_allocate_index(&geo->prims); // we don't need it
+  return 0;
+}
+
 
 static int 
 read_header(
@@ -26,14 +77,10 @@ read_header(
   if(geo && !strcmp(geo->filename, filename))
     return 0; // already loaded
 
-  // XXX if f close it and deallocate prims
-
-  // geo->f = dt_graph_open_resource(mod->graph, filename, "rb");
-  // if(!geo->f) goto error;
-
-  prims_allocate(&geo->prims, 1);
-  if(prims_load_with_flags(&geo->prims, filename, "none", 0, 'r', mod->graph->searchpath))
-    goto error;
+  FILE *f = dt_graph_open_resource(mod->graph, filename, "rb");
+  if(!f) goto error;
+  if(load_scene(mod, f)) goto error;
+  fclose(f);
 
   snprintf(geo->filename, sizeof(geo->filename), "%s", filename);
   return 0;
@@ -53,35 +100,39 @@ read_plain(dt_module_t *mod, void *mapped)
   }
   idx_t;
   geo_t *geo = mod->data;
-  uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
+  // uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
   uint32_t idx_cnt = mod->connector[0].roi.full_ht;
   idx_t *idx = mapped;
-  uint32_t prm_cnt = geo->prims.shape[0].num_prims;
   // align to sizeof vertex:
   uint32_t vtx_off = (idx_cnt+1)/2;
   uint32_t i = 0;
-  for(uint32_t p=0;i<idx_cnt&&p<prm_cnt;p++)
+  for(int s=0;s<geo->prims.num_shapes;s++)
   {
-    // TODO: should check mb!
-    uint32_t vi   = geo->prims.shape[0].primid[p].vi;
-    uint32_t vcnt = geo->prims.shape[0].primid[p].vcnt;
-    const prims_vtxidx_t *vix = geo->prims.shape[0].vtxidx + vi;
-    const int mat = geo->prims.shape[0].primid[p].shapeid; // TODO: translate to shader/material index
-    if(vcnt >= 3)
+    uint32_t vc = prims_get_shape_vtx_cnt(&geo->prims, s);
+    uint32_t pc = geo->prims.shape[s].num_prims;
+    for(uint32_t p=0;i<idx_cnt&&p<pc;p++)
     {
-      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
-      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[1].v, .st = vix[1].uv };
-      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
+      // TODO: should check mb!
+      uint32_t vi   = geo->prims.shape[s].primid[p].vi;
+      uint32_t vcnt = geo->prims.shape[s].primid[p].vcnt;
+      const prims_vtxidx_t *vix = geo->prims.shape[s].vtxidx + vi;
+      const int mat = geo->prims.shape[s].primid[p].shapeid; // TODO: translate to shader/material index
+      if(vcnt >= 3)
+      {
+        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
+        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[1].v, .st = vix[1].uv };
+        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
+      }
+      if(vcnt == 4)
+      {
+        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
+        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
+        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[3].v, .st = vix[3].uv };
+      }
     }
-    if(vcnt == 4)
-    {
-      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
-      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
-      idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[3].v, .st = vix[3].uv };
-    }
+    // write all vertices and normals:
+    memcpy(idx + 2*(vtx_off+vc), geo->prims.shape[s].vtx, sizeof(float)*4*vc);
   }
-  // write all vertices and normals:
-  memcpy(idx + 2*vtx_off, geo->prims.shape[0].vtx, sizeof(float)*4*vtx_cnt);
   return 0;
 }
 
@@ -121,13 +172,16 @@ void modify_roi_out(
     return;
   }
   geo_t *geo = mod->data;
-  uint32_t vtx_cnt = prims_get_shape_vtx_cnt(&geo->prims, 0);
-  uint32_t prm_cnt = geo->prims.shape[0].num_prims;
-  uint32_t tri_cnt = 0;
-  for(int p=0;p<prm_cnt;p++)
+  uint32_t vtx_cnt = 0, tri_cnt = 0;
+  for(int s=0;s<geo->prims.num_shapes;s++)
   {
-    if(geo->prims.shape[0].primid[p].vcnt == 4) tri_cnt += 2;
-    if(geo->prims.shape[0].primid[p].vcnt == 3) tri_cnt += 1;
+    vtx_cnt += prims_get_shape_vtx_cnt(&geo->prims, s);
+    uint32_t prm_cnt = geo->prims.shape[s].num_prims;
+    for(int p=0;p<prm_cnt;p++)
+    {
+      if(geo->prims.shape[s].primid[p].vcnt == 4) tri_cnt += 2;
+      if(geo->prims.shape[s].primid[p].vcnt == 3) tri_cnt += 1;
+    }
   }
   uint32_t idx_cnt = tri_cnt * 3;
   mod->connector[0].roi.scale = 1;
@@ -143,35 +197,45 @@ int read_geo(
     uint32_t    *idx)
 {
   geo_t *geo = mod->data;
-  uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
-  uint32_t idx_cnt = mod->connector[0].roi.full_ht;
-  uint32_t prm_cnt = geo->prims.shape[0].num_prims;
-  uint32_t i = 0;
-  for(uint32_t p=0;i<idx_cnt&&p<prm_cnt;p++)
+  // const uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
+  const uint32_t idx_cnt = mod->connector[0].roi.full_ht;
+  uint32_t vtx_off = 0, i = 0;
+  for(int s=0;s<geo->prims.num_shapes;s++)
   {
-    // TODO: should check mb!
-    uint32_t vi   = geo->prims.shape[0].primid[p].vi;
-    uint32_t vcnt = geo->prims.shape[0].primid[p].vcnt;
-    if(vcnt >= 3)
+    const uint32_t prm_cnt = geo->prims.shape[s].num_prims;
+    for(uint32_t p=0;i<idx_cnt&&p<prm_cnt;p++)
     {
-      idx[i++] = geo->prims.shape[0].vtxidx[vi+0].v;
-      idx[i++] = geo->prims.shape[0].vtxidx[vi+1].v;
-      idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
+      // TODO: should check mb!
+      uint32_t vi   = geo->prims.shape[s].primid[p].vi;
+      uint32_t vcnt = geo->prims.shape[s].primid[p].vcnt;
+      if(vcnt >= 3)
+      {
+        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+0].v;
+        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+1].v;
+        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+2].v;
+      }
+      if(vcnt == 4)
+      {
+        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+0].v;
+        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+2].v;
+        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+3].v;
+      }
     }
-    if(vcnt == 4)
-    {
-      idx[i++] = geo->prims.shape[0].vtxidx[vi+0].v;
-      idx[i++] = geo->prims.shape[0].vtxidx[vi+2].v;
-      idx[i++] = geo->prims.shape[0].vtxidx[vi+3].v;
-    }
+    vtx_off += prims_get_shape_vtx_cnt(&geo->prims, s);
   }
-  for(uint32_t v=0;v<vtx_cnt;v++)
+  vtx_off = 0;
+  for(int s=0;s<geo->prims.num_shapes;s++)
   {
-    vtx[3*v+0] = geo->prims.shape[0].vtx[v].v[0];
-    vtx[3*v+1] = geo->prims.shape[0].vtx[v].v[1];
-    vtx[3*v+2] = geo->prims.shape[0].vtx[v].v[2];
+    uint32_t vc = prims_get_shape_vtx_cnt(&geo->prims, s);
+    for(uint32_t v=0;v<vc;v++)
+    {
+      vtx[3*(vtx_off+v)+0] = geo->prims.shape[s].vtx[v].v[0];
+      vtx[3*(vtx_off+v)+1] = geo->prims.shape[s].vtx[v].v[1];
+      vtx[3*(vtx_off+v)+2] = geo->prims.shape[s].vtx[v].v[2];
+    }
+    // memcpy(vtx, geo->prims.shape[s].vtx, sizeof(float)*3*vtx_cnt);
+    vtx_off += vc;
   }
-  // memcpy(vtx, geo->prims.shape[0].vtx, sizeof(float)*3*vtx_cnt);
   return 0;
 }
 
