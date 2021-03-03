@@ -1,5 +1,10 @@
 # build time configuration.
 # select your favourite bloat here.
+# this is the default file which is always loaded. please don't edit it
+# directly, it will be overwritten by a new version that may come with a git
+# pull or so. if 'config.mk' exists, it will be loaded after this, so you can
+# overwrite the settings in here by copying the file over and making changes
+# there.
 
 # if you have freetype2 and png16, you can uncomment this:
 # VKDT_USE_FREETYPE=1
