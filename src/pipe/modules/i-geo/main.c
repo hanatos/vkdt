@@ -94,8 +94,8 @@ read_plain(dt_module_t *mod, void *mapped)
 {
   typedef struct idx_t
   {
-    // uint32_t mat :  8; // XXX possibly the order was wrong
-    uint32_t vi;//  : 24;
+    uint32_t vi  : 24;
+    uint32_t mat :  8;
     uint32_t st;
   }
   idx_t;
@@ -116,18 +116,18 @@ read_plain(dt_module_t *mod, void *mapped)
       uint32_t vi   = geo->prims.shape[s].primid[p].vi;
       uint32_t vcnt = geo->prims.shape[s].primid[p].vcnt;
       const prims_vtxidx_t *vix = geo->prims.shape[s].vtxidx + vi;
-      const int mat = geo->prims.shape[s].primid[p].shapeid; // TODO: translate to shader/material index
+      const int mat = s; // TODO: translate to shader/material index
       if(vcnt >= 3)
       {
-        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
-        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[1].v, .st = vix[1].uv };
-        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
+        idx[i++] = (idx_t) { .mat = mat, .vi = vtx_off + vix[0].v, .st = vix[0].uv };
+        idx[i++] = (idx_t) { .mat = mat, .vi = vtx_off + vix[1].v, .st = vix[1].uv };
+        idx[i++] = (idx_t) { .mat = mat, .vi = vtx_off + vix[2].v, .st = vix[2].uv };
       }
       if(vcnt == 4)
       {
-        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[0].v, .st = vix[0].uv };
-        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[2].v, .st = vix[2].uv };
-        idx[i++] = (idx_t) { /*.mat = mat, */vi = vtx_off + vix[3].v, .st = vix[3].uv };
+        idx[i++] = (idx_t) { .mat = mat, .vi = vtx_off + vix[0].v, .st = vix[0].uv };
+        idx[i++] = (idx_t) { .mat = mat, .vi = vtx_off + vix[2].v, .st = vix[2].uv };
+        idx[i++] = (idx_t) { .mat = mat, .vi = vtx_off + vix[3].v, .st = vix[3].uv };
       }
     }
     // write all vertices and normals:
