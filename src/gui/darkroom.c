@@ -318,8 +318,17 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         return;
       }
     }
+    else if(type == dt_token("cam"))
+    {
+      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+      {
+        float *cam = vkdt.wstate.mapped;
+        return; // we got this
+      }
+    }
     else if(type == dt_token("pick"))
     {
+      // TODO: capture mouse position when button is pressed somewhere above!
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
         vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);

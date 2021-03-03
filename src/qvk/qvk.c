@@ -146,7 +146,6 @@ qvk_create_swapchain()
   vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, NULL);
   VkSurfaceFormatKHR *avail_surface_formats = alloca(sizeof(VkSurfaceFormatKHR) * num_formats);
   vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, avail_surface_formats);
-  dt_log(s_log_qvk, "num surface formats: %d", num_formats);
 
   dt_log(s_log_qvk, "available surface formats:");
   for(int i = 0; i < num_formats; i++)
@@ -154,9 +153,6 @@ qvk_create_swapchain()
 
 
   VkFormat acceptable_formats[] = {
-    // XXX when using srgb buffers, we don't need to apply the curve in f2srgb,
-    // XXX but can probably let fixed function hardware do the job. faster?
-    // XXX would need to double check that export does the right thing then.
     // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
     VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_FORMAT_A2B10G10R10_UNORM_PACK32,
     VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM,

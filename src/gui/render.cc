@@ -1350,6 +1350,31 @@ inline void draw_widget(int modid, int parid)
         ImGui::SameLine();
       break;
     }
+    case dt_token("cam"):  // 3D camera movement
+    {
+      if(num != 0) break;
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+      if(vkdt.wstate.active_widget_modid == modid &&
+         vkdt.wstate.active_widget_parid == parid &&
+         vkdt.wstate.active_widget_parnm == num)
+      {
+        if(ImGui::Button("stop")) widget_end();
+      }
+      else
+      {
+        if(ImGui::Button("move"))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = num;
+          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+          vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
+          vkdt.wstate.mapped = v; // map state
+        }
+      }
+      break;
+    }
     case dt_token("draw"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);

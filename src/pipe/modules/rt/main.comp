@@ -15,6 +15,8 @@ layout(std140, set = 0, binding = 0) uniform global_t
 
 layout(std140, set = 0, binding = 1) uniform params_t
 { 
+  vec4 camx;
+  vec4 camw;
   float angle;
 } params;
 
@@ -209,9 +211,9 @@ main()
   vec2 st;      // texture coordinates
   { // camera setup:
     float angle = params.angle + frame * 0.002;
-    x = 2.7 * vec3(sin(angle * 6.28), 0.3, cos(angle * 6.28));
+    x = 2.7 * vec3(sin(angle * 6.28), cos(angle * 6.28), 0.9);
     vec3 to = vec3(0, 0.5, 0);
-    vec3 up = vec3(0, 1, 0);
+    vec3 up = vec3(0, 0, 1);
     vec3 f = normalize(to-x);
     vec3 r = normalize(cross(f, up));
     vec3 t = normalize(cross(f, r));
@@ -263,7 +265,7 @@ main()
     }
     else
     {
-      L = vec3(120.0, 100.0, 90.0); // escaped to light source
+      L = 1000.0 * vec3(1.2, 1.0, 0.9); // escaped to light source
       break;
     }
   }
