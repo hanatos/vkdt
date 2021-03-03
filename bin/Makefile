@@ -3,13 +3,13 @@
 include config.mk.defaults
 sinclude config.mk
 
-all: config.mk
+all:
 	$(MAKE) -C ..
 
-debug: config.mk
+debug:
 	$(MAKE) -C .. debug
 
-sanitize: config.mk
+sanitize:
 	$(MAKE) -C .. sanitize
 
 clean:
