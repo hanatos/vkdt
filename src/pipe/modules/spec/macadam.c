@@ -27,17 +27,17 @@ int main(int argc, char *argv[])
   int res = 1024;
   float *buf = calloc(sizeof(float), 4*res*res);
 
-  float incres = 8.0f;//64.0f;
+  int incres = 8.0;//64.0;
 
   // enumerate all possible box spectra in the sense of [MacAdam 1935],
   // all wavelengths l: l0 <= l <= l1 are s(l) = 1, 0 else:
-#pragma omp parallel for schedule(dynamic) collapse(2) default(shared)
+#pragma omp parallel for schedule(dynamic) default(shared)
   for(int iw0=0;iw0<=incres*(max_l/2-1);iw0++)
   {
     for(int iw1=iw0+1;iw1<=incres*(max_l-2);iw1++)
     {
-      const float w0 = iw0/incres;
-      const float w1 = iw1/incres;
+      const float w0 = iw0/(float)incres;
+      const float w1 = iw1/(float)incres;
       // compute xy chromaticities:
       // const int l0 = w0, l1 = w1;
       // const float f0 = w0-l0, f1 = w1-l1;
