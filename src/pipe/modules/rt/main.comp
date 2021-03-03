@@ -28,9 +28,55 @@ layout( // output f16 buffer rgb
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
+// TODO: input texture array!
+// layout(
+//     set = 1, binding = 2
+// ) uniform sampler2D img_tex[];
+
 layout(
     set = 2, binding = 0
 ) uniform accelerationStructureEXT rt_accel;
+
+#if 1
+float rand3(vec3 v) {
+    return fract(sin(dot(v + vec3(-8.5123, 23.2156, 0.0), vec3(12.9898, 6.233, 0.84261))) * 47583.5453123);
+}
+float noise3lin(in vec3 uvx) {
+    vec3 f = fract(uvx);
+    vec3 i = floor(uvx);
+
+    float a1 = rand3(i);
+    float b1 = rand3(i + vec3(0.0, 1.0, 0.0));
+    float c1 = rand3(i + vec3(1.0, 0.0, 0.0));
+    float d1 = rand3(i + vec3(1.0, 1.0, 0.0));
+    float a2 = rand3(i + vec3(0.0, 0.0, 1.0));
+    float b2 = rand3(i + vec3(0.0, 1.0, 1.0));
+    float c2 = rand3(i + vec3(1.0, 0.0, 1.0));
+    float d2 = rand3(i + vec3(1.0, 1.0, 1.0));
+
+    vec3 u = -2. * f * f * f + 3. * f * f;
+
+    float a = mix(a1, a2, f.z);
+    float b = mix(b1, b2, f.z);
+    float c = mix(c1, c2, f.z);
+    float d = mix(d1, d2, f.z);
+
+    return mix(mix(a, b, u.y), mix(c, d, u.y), u.x);
+}
+float fbm3(in vec3 uvx) {
+    float sum = 0.0;
+    float amp = 0.0;
+    float persistence = 0.7;
+    vec3 stz = uvx;
+
+    for (int i = 0; i < 8; ++i) {
+        amp = amp / persistence + noise3lin(stz);
+        sum = sum / persistence + 1.;
+        stz *= 2.;
+    }
+    return amp / sum;
+}
+#endif
 
 #if 1 // TODO: put stuff like this in montecarlo.glsl or so
 #if 0
@@ -92,14 +138,11 @@ vec3 geo_decode_normal(const uint enc)
   vec2 projected = 2.0*unpackSnorm2x16(enc);
   vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
   if(vec.z < 0.0)
-  {
-    float oldX = vec.x;
-    vec.x = (1.0 - abs(vec.y)) * ((oldX  < 0.0) ? -1.0 : 1.0);
-    vec.y = (1.0 - abs(oldX))  * ((vec.y < 0.0) ? -1.0 : 1.0);
-  }
+    vec.xy = vec2(
+        (1.0 - abs(vec.y)) * (vec.x < 0.0 ? -1.0 : 1.0),
+        (1.0 - abs(vec.x)) * (vec.y < 0.0 ? -1.0 : 1.0));
   return normalize(vec);
 }
-
 
 void prepare_intersection(
     rayQueryEXT rq,
@@ -135,10 +178,20 @@ void prepare_intersection(
 #else
   x = b.x * v0 + b.y * v1 + b.z * v2;
 #endif
-  // x.x = pi / 1000.0;
   n = b.x * n0 + b.y * n1 + b.z * n2;
   n = normalize(n);
-  st = unpackSnorm2x16(p0.y); // TODO: interpolate too
+  n = normalize(cross(v1-v0, v2-v0));
+  vec2 st0 = unpackSnorm2x16(p0.y);
+  vec2 st1 = unpackSnorm2x16(p1.y);
+  vec2 st2 = unpackSnorm2x16(p2.y);
+  st = b.x * st0 + b.y * st1 + b.z * st2;
+}
+
+vec3 colourtex(vec2 st)
+{
+  if((fract(st.x * 200) < 0.5) ^^ (fract(st.y * 200) < 0.5))
+    return vec3(0.3);
+  return vec3(0.4);
 }
 
 void
@@ -147,7 +200,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb = vec3(10.0); // init to constant background colour
+  vec3 L = vec3(0.0);
+  vec3 rgb = vec3(1.0);
   uint seed = 133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
 
   float frame = global.frame + 0.5*xrand(seed); // 180 degree shutter
@@ -166,7 +220,7 @@ main()
     w = normalize(0.45*f + r*uv.x + t*uv.y);
   }
 
-  for(int i=0;i<3;i++)
+  for(int i=0;i<4;i++)
   {
     rayQueryEXT rq;
     rayQueryInitializeEXT(rq, rt_accel,
@@ -188,20 +242,32 @@ main()
 #if 1
       prepare_intersection(rq, w, x, n, st);
       vec3 ws = sample_cos(vec2(xrand(seed), xrand(seed)));
-      vec3 du = normalize(cross(vec3(1, 2, 3), n));
-      vec3 dv = normalize(cross(du, n));
+      if(dot(n,w) > 0) n = -n;
+      vec3 du, dv, up = vec3(1,0,0);
+      if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
+      du = normalize(cross(up, n));
+      dv = normalize(cross(du, n));
       w = ws.x * du + ws.y * dv + ws.z * n;
       x += 0.001 * (n + w);
-      rgb *= 0.2;
+      // rgb *= colourtex(st);//0.2;
+      float tx = fbm3(1000.0+x);
+      tx *= tx;
+      rgb *= clamp(tx*0.4, 0.0, 1.0);
 #else 
       x += t*w;
 #endif
       // rgb = x;
       // rgb = (n + 1.0)/2.0;
+      // L = vec3(1.0);
       // break;
     }
-    else break;
+    else
+    {
+      L = vec3(120.0, 100.0, 90.0); // escaped to light source
+      break;
+    }
   }
+  rgb *= L;
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
