@@ -46,29 +46,34 @@ static struct gui_state_data_t
 
 void widget_end()
 {
-  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
-  // rerun all (roi could have changed, buttons are drastic)
-  // TODO: let module decide this!
-  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-      s_graph_run_all);// &~s_graph_run_upload_source);
-  // reset view:
-  vkdt.state.look_at_x = FLT_MAX;
-  vkdt.state.look_at_y = FLT_MAX;
-  vkdt.state.scale = -1;
-  int modid = vkdt.wstate.active_widget_modid;
-  int parid = vkdt.wstate.active_widget_parid;
-  int parnm = vkdt.wstate.active_widget_parnm;
-  int parsz = vkdt.wstate.active_widget_parsz;
-  if(vkdt.wstate.mapped)
+  if(!vkdt.wstate.grabbed)
   {
-    vkdt.wstate.mapped = 0;
+    if(vkdt.wstate.active_widget_modid < 0) return; // all good already
+    // rerun all (roi could have changed, buttons are drastic)
+    // TODO: let module decide this!
+    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+        s_graph_run_all);// &~s_graph_run_upload_source);
+    // reset view:
+    vkdt.state.look_at_x = FLT_MAX;
+    vkdt.state.look_at_y = FLT_MAX;
+    vkdt.state.scale = -1;
+    int modid = vkdt.wstate.active_widget_modid;
+    int parid = vkdt.wstate.active_widget_parid;
+    int parnm = vkdt.wstate.active_widget_parnm;
+    int parsz = vkdt.wstate.active_widget_parsz;
+    if(vkdt.wstate.mapped)
+    {
+      vkdt.wstate.mapped = 0;
+    }
+    else
+    {
+      const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
+      memcpy(v, vkdt.wstate.state, parsz);
+    }
   }
-  else
-  {
-    const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
-    float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
-    memcpy(v, vkdt.wstate.state, parsz);
-  }
+  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  vkdt.wstate.grabbed = 0;
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
@@ -1350,27 +1355,27 @@ inline void draw_widget(int modid, int parid)
         ImGui::SameLine();
       break;
     }
-    case dt_token("cam"):  // 3D camera movement
+    case dt_token("grab"):  // grab all input
     {
       if(num != 0) break;
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       if(vkdt.wstate.active_widget_modid == modid &&
-         vkdt.wstate.active_widget_parid == parid &&
-         vkdt.wstate.active_widget_parnm == num)
+         vkdt.wstate.active_widget_parid == parid)
       {
-        if(ImGui::Button("stop")) widget_end();
+        if(ImGui::Button("stop [esc]")) widget_end();
       }
       else
       {
-        if(ImGui::Button("move"))
+        if(ImGui::Button("grab input"))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = num;
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
-          vkdt.wstate.mapped = v; // map state
+          vkdt.wstate.grabbed = 1;
+          dt_module_input_event_t p = { 0 };
+          dt_module_t *mod = vkdt.graph_dev.module + modid;
+          if(modid >= 0)
+            if(mod->so->input) mod->so->input(mod, &p);
+          glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
       }
       break;

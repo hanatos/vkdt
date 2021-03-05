@@ -63,6 +63,7 @@ typedef struct dt_gui_wstate_t
   float  state[2100];
   size_t mapped_size;
   float *mapped;
+  int    grabbed;
   int    lod;
   float  connector[100][30][2];
   char  *module_names_buf;

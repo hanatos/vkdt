@@ -596,8 +596,8 @@ dt_api_guided_filter(
 
 #endif // not defined cplusplus
 
-static inline const uint32_t *dt_module_param_uint32(
-    const dt_module_t *module,
+static inline uint32_t *dt_module_param_uint32(
+    dt_module_t *module,
     int paramid)
 {
   if(paramid >= 0 && paramid < module->so->num_params)
@@ -605,8 +605,8 @@ static inline const uint32_t *dt_module_param_uint32(
   return 0;
 }
 
-static inline const float *dt_module_param_float(
-    const dt_module_t *module,
+static inline float *dt_module_param_float(
+    dt_module_t *module,
     int paramid)
 {
   if(paramid >= 0 && paramid < module->so->num_params)
@@ -614,8 +614,8 @@ static inline const float *dt_module_param_float(
   return 0;
 }
 
-static inline const int32_t *dt_module_param_int(
-    const dt_module_t *module,
+static inline int32_t *dt_module_param_int(
+    dt_module_t *module,
     int paramid)
 {
   if(paramid >= 0 && paramid < module->so->num_params)
@@ -623,12 +623,12 @@ static inline const int32_t *dt_module_param_int(
   return 0;
 }
 
-static inline const char *dt_module_param_string(
-    const dt_module_t *module,
+static inline char *dt_module_param_string(
+    dt_module_t *module,
     int paramid)
 {
   if(paramid >= 0 && paramid < module->so->num_params)
-    return (const char *)(module->param + module->so->param[paramid]->offset);
+    return (char *)(module->param + module->so->param[paramid]->offset);
   return 0;
 }
 

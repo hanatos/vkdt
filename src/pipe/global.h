@@ -16,6 +16,19 @@ typedef struct dt_read_source_params_t
 }
 dt_read_source_params_t;
 
+typedef struct dt_module_input_event_t
+{ // glfw events for modules without linking glfw
+  int type;       // activate 0 mouse button 1 mouse position 2 mouse scrolled 3 keyboard 4
+  double x, y;    // mouse cursor pos
+  double dx, dy;  // scrolled offsets
+  int mbutton;    // mouse button int
+  int action;     // press 1 release 0 repeat 2
+  int mods;       // shift 1 ctrl 2 alt 4 super 8 caps 0x10 num lock 0x20
+  int key;        // ascii character 'a' etc works. for the rest, see /usr/include/GLFW/glfw3.h
+  int scancode;
+}
+dt_module_input_event_t;
+
 typedef void (*dt_module_create_nodes_t)  (dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
@@ -26,6 +39,7 @@ typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
 typedef int  (*dt_module_audio_t)(dt_module_t *module, const int frame, uint16_t **samples);
+typedef void (*dt_module_input_t)(dt_module_t *module, dt_module_input_event_t *e);
 typedef dt_graph_run_t (*dt_module_check_params_t)(dt_module_t *module, uint32_t parid, void *oldval);
 
 // this is all the "class" info that is not bound to an instance and can be
@@ -59,6 +73,9 @@ typedef struct dt_module_so_t
 
   // returns a pointer to audio sample data (optional)
   dt_module_audio_t audio;
+
+  // enables input grabbing for modules
+  dt_module_input_t input;
 
   // read geo for constructing ray tracing acceleration structures (optional)
   dt_module_read_geo_t read_geo;

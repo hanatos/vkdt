@@ -109,6 +109,7 @@ dt_module_so_load(
     mod->commit_params  = dlsym(mod->dlhandle, "commit_params");
     mod->check_params   = dlsym(mod->dlhandle, "check_params");
     mod->audio          = dlsym(mod->dlhandle, "audio");
+    mod->input          = dlsym(mod->dlhandle, "input");
   }
 
   // read default params:
@@ -202,11 +203,11 @@ dt_module_so_load(
         ((char*)data)[len] = ((char*)data)[len+1] = 0;
         b += len; // set pointer to the end
       }
-      else if(type == dt_token("cam"))     {}
       else if(type == dt_token("colour"))  {}
       else if(type == dt_token("crop"))    {}
       else if(type == dt_token("draw"))    {}
       else if(type == dt_token("filename")){}
+      else if(type == dt_token("grab"))    {}
       else if(type == dt_token("hidden"))  {}
       else if(type == dt_token("pers"))    {}
       else if(type == dt_token("pick"))    {}
