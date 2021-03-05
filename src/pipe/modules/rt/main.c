@@ -4,8 +4,6 @@
 
 typedef struct rt_t
 {
-  quat_t   cam_o;
-  float    cam_x[3];
   uint32_t move;
 }
 rt_t;
@@ -21,12 +19,6 @@ input(
   if(p->type == 0)
   { // activate event? store mouse zero and clear all movement flags we might still have
     rt->move = 0;
-    float xd[] = {1, 0, 0};
-    cross(p_cam+4, xd, rt->cam_o.x);
-    rt->cam_o.w = dot(p_cam+4, xd);
-    rt->cam_o.w += quat_magnitude(&rt->cam_o);
-    quat_normalise(&rt->cam_o);
-    for(int k=0;k<3;k++) rt->cam_x[k] = p_cam[k];
     mx = my = -666.0;
     return;
   }
@@ -35,12 +27,13 @@ input(
   { // rotate camera based on mouse coordinate
     if(mx == -666.0 && my == -666.0) { mx = p->x; my = p->y; }
     const float avel = 0.001f; // angular velocity
-    quat_t rot, tmp = rt->cam_o;
-    quat_init_angle(&rot, (p->x-mx)*avel, 0, 0, -1);
-    quat_mul(&tmp, &rot, &rt->cam_o);
-    tmp = rt->cam_o;
-    quat_init_angle(&rot, (p->y-my)*avel, 0, 1, 0);
-    quat_mul(&tmp, &rot, &rt->cam_o);
+    quat_t rotx, roty, tmp;
+    float rgt[3], top[] = {0,0,1};
+    cross(top, p_cam+4, rgt);
+    quat_init_angle(&rotx, (p->x-mx)*avel, 0, 0, -1);
+    quat_init_angle(&roty, (p->y-my)*avel, rgt[0], rgt[1], rgt[2]);
+    quat_mul(&rotx, &roty, &tmp);
+    quat_transform(&tmp, p_cam+4);
     mx = p->x;
     my = p->y;
   }
@@ -76,14 +69,10 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
   rt_t *rt = mod->data;
   float *p_cam = dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cam")));
   // put back to params:
-  float fwd[] = {1, 0, 0};
-  float rgt[] = {0, 1, 0};
+  float fwd[] = {p_cam[4], p_cam[5], p_cam[6]};
   float top[] = {0, 0, 1};
-  quat_transform(&rt->cam_o, fwd);
-  quat_transform(&rt->cam_o, rgt);
-  quat_transform(&rt->cam_o, top);
+  float rgt[3]; cross(top, fwd, rgt);
   float vel = 0.1f;
-  for(int k=0;k<3;k++) p_cam[4+k] = fwd[k];
   if(rt->move & (1<<0)) for(int k=0;k<3;k++) p_cam[k] += vel * fwd[k];
   if(rt->move & (1<<1)) for(int k=0;k<3;k++) p_cam[k] -= vel * fwd[k];
   if(rt->move & (1<<2)) for(int k=0;k<3;k++) p_cam[k] += vel * rgt[k];
