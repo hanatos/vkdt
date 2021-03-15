@@ -89,7 +89,7 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
   tri2quad(tc);
-  return texture(img_spectra, tc, 0).rgb;
+  return texture(img_spectra, tc).rgb;
 }
 
 void
@@ -112,7 +112,7 @@ main()
     float b = rgb.r+rgb.g+rgb.b;
     vec2 tc = rgb.rb/b;
     tri2quad(tc);
-    vec2 rb = texture(img_chroma, tc, 0).rg;
+    vec2 rb = texture(img_chroma, tc).rg;
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
     rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
   }
@@ -275,7 +275,7 @@ main()
   }
   else sl.x = clamp(m, 0.0, 0.99); // XXX make sure we don't hit the last column (gamut limits stored there)
   // use lambda/sat lut to get new xy chroma values
-  vec2 xy = texture(img_abney, sl, 0).rg;
+  vec2 xy = texture(img_abney, sl).rg;
   // go back to colour
   xyz = vec3(xy, 1.0-xy.x-xy.y);
   xyz *= Y / xyz.y;
