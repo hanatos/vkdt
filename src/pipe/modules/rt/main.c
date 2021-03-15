@@ -14,7 +14,7 @@ input(
     dt_module_input_event_t *p)
 {
   static double mx = 0.0, my = 0.0;
-  float *p_cam = dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cam")));
+  float *p_cam = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cam")));
   rt_t *rt = mod->data;
   if(p->type == 0)
   { // activate event? store mouse zero and clear all movement flags we might still have
@@ -67,7 +67,7 @@ input(
 void commit_params(dt_graph_t *graph, dt_module_t *mod)
 {
   rt_t *rt = mod->data;
-  float *p_cam = dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cam")));
+  float *p_cam = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cam")));
   // put back to params:
   float fwd[] = {p_cam[4], p_cam[5], p_cam[6]};
   float top[] = {0, 0, 1};

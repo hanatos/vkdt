@@ -175,7 +175,7 @@ read_frame(
       .memory    = V4L2_MEMORY_USERPTR,
       .index     = 0,
       .m         = { .userptr = (unsigned long)mapped },
-      .length    = dt_connector_bufsize(mod->connector),
+      .length    = dt_connector_bufsize(mod->connector, mod->connector[0].roi.wd, mod->connector[0].roi.ht),
     };
   }
   if(ioctl(dat->fd, VIDIOC_QBUF, &buf) < 0)

@@ -8,8 +8,6 @@ void modify_roi_in(
   dt_roi_t *r = &module->connector[0].roi;
   r->wd = r->full_wd;
   r->ht = r->full_ht;
-  r->x = 0;
-  r->y = 0;
   r->scale = 1.0f;
   module->connector[3].roi.wd = module->connector[3].roi.full_wd;
   module->connector[3].roi.ht = module->connector[3].roi.full_ht;

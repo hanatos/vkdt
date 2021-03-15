@@ -11,8 +11,6 @@ void modify_roi_in(
     // request the full uncropped thing, we want the borders
     module->connector[0].roi.wd = module->connector[0].roi.full_wd;
     module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-    module->connector[0].roi.x = 0.0f;
-    module->connector[0].roi.y = 0.0f;
     module->connector[0].roi.scale = 1.0f;
   }
   else
@@ -131,8 +129,6 @@ create_nodes(
   roi_half.full_ht /= block;
   roi_half.wd /= block;
   roi_half.ht /= block;
-  roi_half.x  /= block;
-  roi_half.y  /= block;
 
   const int wd = roi_half.full_wd;
   const int ht = roi_half.full_ht;

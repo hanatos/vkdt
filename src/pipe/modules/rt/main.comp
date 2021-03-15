@@ -31,9 +31,9 @@ layout( // output f16 buffer rgb
 ) uniform writeonly image2D img_out;
 
 // TODO: input texture array!
-// layout(
-//     set = 1, binding = 2
-// ) uniform sampler2D img_tex[];
+layout(
+    set = 1, binding = 2
+) uniform sampler2D img_tex[];
 
 layout(
     set = 2, binding = 0
@@ -151,14 +151,15 @@ void prepare_intersection(
     vec3 w,
     inout vec3 x,
     out vec3 n,
-    out vec2 st)
+    out vec2 st,
+    out uint mat)
 {
   // access and unpack geometry data
   uint pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
   uvec2 p0 = ssbo.v[pi+0];
   uvec2 p1 = ssbo.v[pi+1];
   uvec2 p2 = ssbo.v[pi+2];
-  uint mat = p0.x >> 24;
+  mat = p0.x >> 24;
   uint vi0 = p0.x & 0xffffffu;
   uint vi1 = p1.x & 0xffffffu;
   uint vi2 = p2.x & 0xffffffu;
@@ -250,7 +251,8 @@ main()
       // rayQueryGetIntersectionInstanceIdEXT
       // rayQueryGetIntersectionInstanceCustomIndexEXT
 #if 1
-      prepare_intersection(rq, w, x, n, st);
+      uint mat;
+      prepare_intersection(rq, w, x, n, st, mat);
       vec3 ws = sample_cos(vec2(xrand(seed), xrand(seed)));
       if(dot(n,w) > 0) n = -n;
       vec3 du, dv, up = vec3(1,0,0);
@@ -262,7 +264,8 @@ main()
       // rgb *= colourtex(st);//0.2;
       float tx = fbm3(1000.0+x);
       tx *= tx;
-      rgb *= clamp(tx*0.4, 0.0, 1.0);
+      // rgb *= clamp(tx*0.4, 0.0, 1.0);
+      rgb *= texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
 #else 
       x += t*w;
 #endif

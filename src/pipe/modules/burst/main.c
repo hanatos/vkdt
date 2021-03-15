@@ -86,8 +86,6 @@ create_nodes(
     roi[i].full_ht /= scale;
     roi[i].wd /= scale;
     roi[i].ht /= scale;
-    roi[i].x  /= scale;
-    roi[i].y  /= scale;
   }
 
   dt_token_t fmt_img = dt_token("f16");//ui8"); // or f16
@@ -358,14 +356,14 @@ create_nodes(
       .dp     = 1,
       .num_connectors = 2,
       .connector = {{
-        .name   = dt_token("offset"),
+        .name   = dt_token("offset")+((48ul+i)<<48),
         .type   = dt_token("read"),
         .chan   = dt_token("rg"),
         .format = dt_token("f16"),
         .roi    = roi[i+1],
         .connected_mi = -1,
       },{
-        .name   = dt_token("output"),
+        .name   = dt_token("output")+((48ul+i)<<48),
         .type   = dt_token("write"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
