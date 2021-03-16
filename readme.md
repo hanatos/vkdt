@@ -45,9 +45,9 @@ vulkan validation layers, so you need to have them installed), try
 ```
 
 simply run `make` without the `debug` for a release build. `make sanitize` is
-supported to switch on the address sanitizer. changes to the compiled used can
-be set in `config.mk`. if you don't have that file yet, copy it from
-`config.mk.example`.
+supported to switch on the address sanitizer. changes to the compile time
+configuration as well as the compiler toolchain can be set in `config.mk`. if
+you don't have that file yet, you can copy it from `config.mk.defaults`.
 
 ## running
 
