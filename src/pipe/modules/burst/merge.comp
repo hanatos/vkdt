@@ -161,7 +161,7 @@ main()
   }
 
   imageStore(img_out, ipos, res1);
-  res1.z = max(params.merge_k*res1.z - params.merge_n, 0.0);
+  res1.z = max(params.merge_k*(res1.z - params.merge_n), 0.0);
   res1.z = res1.z/(1.0+res1.z); // fade out smoothly
   imageStore(img_resid, ipos, vec4(res1.z));
 }
