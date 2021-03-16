@@ -21,6 +21,16 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
+#if 1
+  vec2 sz = vec2(textureSize(img_in, 0).xy);
+  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+  ivec2 ipos = 4*opos;
+  float c = texelFetch(img_in, ipos, 0).r * t;
+  c += texture(img_in, (ipos + vec2(0.5 + 1.2, 0.5 + 0.4))/sz).r / 4.0 * (1.0-t);
+  c += texture(img_in, (ipos + vec2(0.5 - 1.2, 0.5 - 0.4))/sz).r / 4.0 * (1.0-t);
+  c += texture(img_in, (ipos + vec2(0.5 + 0.4, 0.5 - 1.2))/sz).r / 4.0 * (1.0-t);
+  c += texture(img_in, (ipos + vec2(0.5 - 0.4, 0.5 + 1.2))/sz).r / 4.0 * (1.0-t);
+#else
   vec4 c0 = textureGather(img_in, (4*opos+vec2(0.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c1 = textureGather(img_in, (4*opos+vec2(0.0, 2.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c2 = textureGather(img_in, (4*opos+vec2(2.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
@@ -31,6 +41,7 @@ main()
     c1.x+c1.y+c1.z+c1.w+
     c2.x+c2.y+c2.z+c2.w+
     c3.x+c3.y+c3.z+c3.w) / 16.0;
+#endif
 
   imageStore(img_out, opos, vec4(vec3(c), 1));
 }

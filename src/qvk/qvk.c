@@ -619,6 +619,8 @@ qvk_cleanup()
   threads_mutex_destroy(&qvk.queue_mutex);
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
+  vkDestroySampler(qvk.device, qvk.tex_sampler_yuv, 0);
+  vkDestroySamplerYcbcrConversion(qvk.device, qvk.yuv_conversion, 0);
 
   if(qvk.window)  destroy_swapchain();
   if(qvk.surface) vkDestroySurfaceKHR(qvk.instance, qvk.surface, NULL);

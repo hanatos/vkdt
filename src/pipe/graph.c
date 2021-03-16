@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+//#define LEAKY_DEBUGGING
 #define IMG_LAYOUT(img, oli, nli) do {\
   VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
   if(nl != img->layout)\
@@ -88,7 +89,6 @@ void
 dt_graph_cleanup(dt_graph_t *g)
 {
   QVK(vkDeviceWaitIdle(qvk.device));
-  dt_raytrace_graph_cleanup(g);
   if(!dt_pipe.modules_reloaded)
     for(int i=0;i<g->num_modules;i++)
       if(g->module[i].so->cleanup)
@@ -97,7 +97,8 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_vkalloc_cleanup(&g->heap_staging);
   for(int i=0;i<g->conn_image_end;i++)
   {
-    if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image,  VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     g->conn_image_pool[i].image = 0;
     g->conn_image_pool[i].image_view = 0;
@@ -116,6 +117,7 @@ dt_graph_cleanup(dt_graph_t *g)
     vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
     dt_raytrace_node_cleanup(g->node + i);
   }
+  dt_raytrace_graph_cleanup(g);
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
   vkDestroyBuffer(qvk.device, g->uniform_buffer, 0);
@@ -504,6 +506,19 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
         QVKR(vkCreateBuffer(qvk.device, &create_info, 0, &img->buffer));
+#ifdef LEAKY_DEBUGGING
+#ifdef QVK_ENABLE_VALIDATION
+        char *name = malloc(100); // leak this
+        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
+        VkDebugMarkerObjectNameInfoEXT name_info = {
+          .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+          .object = (uint64_t) img->buffer,
+          .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
+          .pObjectName = name,
+        };
+        qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
+#endif
         VkMemoryRequirements buf_mem_req;
 
         if(c->type == dt_token("source"))
@@ -614,7 +629,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         img->image  = 0;
         img->buffer = 0;
         QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &img->image));
-#if 0 // nice debugging, but leaks memory
+#ifdef LEAKY_DEBUGGING
 #ifdef QVK_ENABLE_VALIDATION
         char *name = malloc(100); // leak this
         snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
@@ -697,7 +712,19 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
         QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
-
+#ifdef LEAKY_DEBUGGING
+#ifdef QVK_ENABLE_VALIDATION
+        char *name = malloc(100); // leak this
+        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), 0);
+        VkDebugMarkerObjectNameInfoEXT name_info = {
+          .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+          .object      = (uint64_t) c->staging,
+          .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
+          .pObjectName = name,
+        };
+        qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
+#endif
         VkMemoryRequirements buf_mem_req;
         vkGetBufferMemoryRequirements(qvk.device, c->staging, &buf_mem_req);
         if(graph->memory_type_bits_staging != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits_staging)
@@ -725,6 +752,19 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
           };
           QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
+#ifdef LEAKY_DEBUGGING
+#ifdef QVK_ENABLE_VALIDATION
+          char *name = malloc(100); // leak this
+          snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), 0);
+          VkDebugMarkerObjectNameInfoEXT name_info = {
+            .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+            .object      = (uint64_t)c->staging,
+            .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
+            .pObjectName = name,
+          };
+        qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
+#endif
 
           VkMemoryRequirements buf_mem_req;
           vkGetBufferMemoryRequirements(qvk.device, c->staging, &buf_mem_req);
@@ -2017,6 +2057,19 @@ VkResult dt_graph_run(
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
+#ifdef LEAKY_DEBUGGING
+#ifdef QVK_ENABLE_VALIDATION
+    char *name = malloc(100); // leak this
+    snprintf(name, 100, "uniform buffer");
+    VkDebugMarkerObjectNameInfoEXT name_info = {
+      .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+      .object      = (uint64_t)graph->uniform_buffer,
+      .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
+      .pObjectName = name,
+    };
+    qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
+#endif
     VkMemoryRequirements mem_req;
     vkGetBufferMemoryRequirements(qvk.device, graph->uniform_buffer, &mem_req);
     VkMemoryAllocateInfo mem_alloc_info_uniform = {
