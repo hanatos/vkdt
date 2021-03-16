@@ -184,9 +184,9 @@ void prepare_intersection(
   n = b.x * n0 + b.y * n1 + b.z * n2;
   n = normalize(n);
   n = normalize(cross(v1-v0, v2-v0));
-  vec2 st0 = unpackSnorm2x16(p0.y);
-  vec2 st1 = unpackSnorm2x16(p1.y);
-  vec2 st2 = unpackSnorm2x16(p2.y);
+  vec2 st0 = unpackHalf2x16(p0.y);
+  vec2 st1 = unpackHalf2x16(p1.y);
+  vec2 st2 = unpackHalf2x16(p2.y);
   st = b.x * st0 + b.y * st1 + b.z * st2;
 }
 
