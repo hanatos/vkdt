@@ -928,8 +928,9 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
     vkUpdateDescriptorSets(qvk.device, 2, buf_dset, 0, NULL);
   }
 
-  VkDescriptorImageInfo  img_info[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS*25] = {{0}};
-  VkDescriptorBufferInfo buf_info[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS*25] = {{0}};
+  // FIXME: this needs to be scaled up with the number of textures in an array! (250 max below:)
+  VkDescriptorImageInfo  img_info[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS*250] = {{0}};
+  VkDescriptorBufferInfo buf_info[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS*250] = {{0}};
   VkWriteDescriptorSet   img_dset[DT_GRAPH_MAX_FRAMES*DT_MAX_CONNECTORS] = {{0}};
   int cur_img = 0, cur_dset = 0, cur_buf = 0;
   uint32_t drawn_connector_cnt = 0;
@@ -1039,22 +1040,22 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
               assert(img->image_view);
               img_info[iii].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
-            int dset = cur_dset++;
-            img_dset[dset].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            img_dset[dset].dstSet          = node->dset[f];
-            img_dset[dset].dstBinding      = i;
-            img_dset[dset].dstArrayElement = 0;
-            img_dset[dset].descriptorCount = MAX(c->array_length, 1);
-            if(dt_connector_ssbo(c))
-            {
-              img_dset[dset].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-              img_dset[dset].pBufferInfo     = buf_info + ii;
-            }
-            else
-            {
-              img_dset[dset].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-              img_dset[dset].pImageInfo      = img_info + ii;
-            }
+          }
+          int dset = cur_dset++;
+          img_dset[dset].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+          img_dset[dset].dstSet          = node->dset[f];
+          img_dset[dset].dstBinding      = i;
+          img_dset[dset].dstArrayElement = 0;
+          img_dset[dset].descriptorCount = MAX(c->array_length, 1);
+          if(dt_connector_ssbo(c))
+          {
+            img_dset[dset].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            img_dset[dset].pBufferInfo     = buf_info + ii;
+          }
+          else
+          {
+            img_dset[dset].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            img_dset[dset].pImageInfo      = img_info + ii;
           }
         }
       }
