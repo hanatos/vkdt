@@ -118,7 +118,7 @@ main()
   }
 
   // apply exposure correction
-  rgb *= pow(2, params.white.w);
+  rgb *= pow(2.0, params.white.w);
 
   // imageStore(img_out, ipos, vec4(rgb, 1));
   // return; // XXX rule out quantisation issues from later
@@ -136,18 +136,18 @@ main()
     vec3 oklab;
     {
     // linear srgb to oklab
-    float l = 0.4121656120f * rgb.r + 0.5362752080f * rgb.g + 0.0514575653f * rgb.b;
-    float m = 0.2118591070f * rgb.r + 0.6807189584f * rgb.g + 0.1074065790f * rgb.b;
-    float s = 0.0883097947f * rgb.r + 0.2818474174f * rgb.g + 0.6302613616f * rgb.b;
+    float l = 0.4121656120 * rgb.r + 0.5362752080 * rgb.g + 0.0514575653 * rgb.b;
+    float m = 0.2118591070 * rgb.r + 0.6807189584 * rgb.g + 0.1074065790 * rgb.b;
+    float s = 0.0883097947 * rgb.r + 0.2818474174 * rgb.g + 0.6302613616 * rgb.b;
 
     float l_ = pow(l, 1.0/3.0);
     float m_ = pow(m, 1.0/3.0);
     float s_ = pow(s, 1.0/3.0);
 
     oklab = vec3(
-        0.2104542553f*l_ + 0.7936177850f*m_ - 0.0040720468f*s_,
-        1.9779984951f*l_ - 2.4285922050f*m_ + 0.4505937099f*s_,
-        0.0259040371f*l_ + 0.7827717662f*m_ - 0.8086757660f*s_);
+        0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_,
+        1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_,
+        0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_);
     }
 
     // apply saturation
@@ -155,18 +155,18 @@ main()
 
     {
     // oklab to linear srgb
-    float l_ = oklab.r + 0.3963377774f * oklab.g + 0.2158037573f * oklab.b;
-    float m_ = oklab.r - 0.1055613458f * oklab.g - 0.0638541728f * oklab.b;
-    float s_ = oklab.r - 0.0894841775f * oklab.g - 1.2914855480f * oklab.b;
+    float l_ = oklab.r + 0.3963377774 * oklab.g + 0.2158037573 * oklab.b;
+    float m_ = oklab.r - 0.1055613458 * oklab.g - 0.0638541728 * oklab.b;
+    float s_ = oklab.r - 0.0894841775 * oklab.g - 1.2914855480 * oklab.b;
 
     float l = l_*l_*l_;
     float m = m_*m_*m_;
     float s = s_*s_*s_;
 
     rgb = vec3(
-        + 4.0767245293f*l - 3.3072168827f*m + 0.2307590544f*s,
-        - 1.2681437731f*l + 2.6093323231f*m - 0.3411344290f*s,
-        - 0.0041119885f*l - 0.7034763098f*m + 1.7068625689f*s);
+        + 4.0767245293*l - 3.3072168827*m + 0.2307590544*s,
+        - 1.2681437731*l + 2.6093323231*m - 0.3411344290*s,
+        - 0.0041119885*l - 0.7034763098*m + 1.7068625689*s);
     }
 
     // back to rec2020
@@ -221,67 +221,65 @@ main()
 #endif
   }
   else
-  { // spectral
-    float Y;
-    if(params.sat != 1.0)
+  { // split: spectral
+  float Y;
+  if(params.sat != 1.0)
+  { // change saturation:
+    const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+     -0.35567078,  1.61648124, -0.04277061,
+     -0.25336628,  0.01576855,  0.94210312);
+    const mat3 rec2020_to_xyz = mat3(
+      6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+      1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+      1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+    // TODO: work on rec2020/rb space instead?
+
+    // use lambda/saturation lut to walk saturation:
+    // lookup lambda and saturation from one lut by xy
+    vec3 xyz = rec2020_to_xyz * rgb;
+    float Y = xyz.y;
+    float b = xyz.x+xyz.y+xyz.z;
+    vec2 tc = xyz.xy/b;
+
+    // c0 c1 c2 and convert to saturation and lambda
+    tri2quad(tc);
+    vec4 lut = texture(img_spectra, tc);
+    vec2 sl = vec2(lut.w, -lut.y / (2.0 * lut.x));
+
+    // normalised wavelength, logistically compressed:
+    float norm = (sl.y - 400.0)/(700.0-400.0);
+    // sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
+
+    norm -= 0.5; // new sigmoid fit:
+    sl.y = 0.5*(0.5 + 0.5 * norm / sqrt(norm*norm+0.25));
+
+    if(lut.x > 0.0) sl.y += 0.5;
+    // this is where we would be at (unbounded params.sat)
+    float m = params.sat * sl.x;
+    // but we want to compress input in [sl.x.. infty) into
+    // the interval [sl.x .. max_sat.x]
+    if(params.gamut_mode > 0)
     {
-#if 1 // change saturation:
-  const mat3 xyz_to_rec2020 = mat3(
-    1.71665119, -0.66668435,  0.01763986,
-   -0.35567078,  1.61648124, -0.04277061,
-   -0.25336628,  0.01576855,  0.94210312);
-  const mat3 rec2020_to_xyz = mat3(
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
-  // TODO: work on rec2020/rb space instead?
-
-  // use lambda/saturation lut to walk saturation:
-  // lookup lambda and saturation from one lut by xy
-  vec3 xyz = rec2020_to_xyz * rgb;
-  float Y = xyz.y;
-  float b = xyz.x+xyz.y+xyz.z;
-  vec2 tc = xyz.xy/b;
-
-  // c0 c1 c2 and convert to saturation and lambda
-  tri2quad(tc);
-  vec4 lut = texture(img_spectra, tc);
-  vec2 sl = vec2(lut.w, -lut.y / (2.0 * lut.x));
-
-  // normalised wavelength, logistically compressed:
-  float norm = (sl.y - 400.0)/(700.0-400.0);
-  // sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
-
-  norm -= 0.5; // new sigmoid fit:
-  sl.y = 0.5*(0.5 + 0.5 * norm / sqrt(norm*norm+0.25));
-
-  if(lut.x > 0.0) sl.y += 0.5;
-  // this is where we would be at (unbounded params.sat)
-  float m = params.sat * sl.x;
-  // but we want to compress input in [sl.x.. infty) into
-  // the interval [sl.x .. max_sat.x]
-  if(params.gamut_mode > 0)
-  {
-    float bound = 1.0; // spectral locus
-    if(params.gamut_mode > 1)
-    {
-      vec2 max_sat = texelFetch(img_abney, ivec2(textureSize(img_abney, 0).x-1, sl.y*textureSize(img_abney, 0).y), 0).rg;
-      if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
-      if(params.gamut_mode == 3) bound = max_sat.x; // rec709
+      float bound = 1.0; // spectral locus
+      if(params.gamut_mode > 1)
+      {
+        vec2 max_sat = texelFetch(img_abney, ivec2(textureSize(img_abney, 0).x-1, sl.y*textureSize(img_abney, 0).y), 0).rg;
+        if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
+        if(params.gamut_mode == 3) bound = max_sat.x; // rec709
+      }
+      if(params.sat > 1.0)
+        m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
+      sl.x = m;
     }
-    if(params.sat > 1.0)
-      m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
-    sl.x = m;
+    else sl.x = clamp(m, 0.0, 0.99); // XXX make sure we don't hit the last column (gamut limits stored there)
+    // use lambda/sat lut to get new xy chroma values
+    vec2 xy = texture(img_abney, sl).rg;
+    // go back to colour
+    xyz = vec3(xy, 1.0-xy.x-xy.y);
+    xyz *= Y / xyz.y;
+    rgb = xyz_to_rec2020 * xyz;
   }
-  else sl.x = clamp(m, 0.0, 0.99); // XXX make sure we don't hit the last column (gamut limits stored there)
-  // use lambda/sat lut to get new xy chroma values
-  vec2 xy = texture(img_abney, sl).rg;
-  // go back to colour
-  xyz = vec3(xy, 1.0-xy.x-xy.y);
-  xyz *= Y / xyz.y;
-  rgb = xyz_to_rec2020 * xyz;
-#endif
-    }
 
 #if 1 // wb using sigmoids
   vec3 cwp   = fetch_coeff(vec3(params.white), Y);
@@ -318,7 +316,7 @@ main()
   float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
   rgb *= Y/Y2;
 #endif
-  } // end if split
+  } // end if split (into rgb | spec)
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
