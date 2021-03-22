@@ -122,7 +122,7 @@ create_nodes(
       .push_constant = { module->img_param.filters },
     };
     // these are the "alignsrc" and "aligndst" channels:
-    dt_connector_copy(graph, module, 2+k, id_down[k][0], 0);
+    dt_connector_copy(graph, module, 3-k, id_down[k][0], 0);
 
     for(int i=1;i<NUM_LEVELS;i++)
     {
