@@ -54,6 +54,7 @@ main()
   vec2 coff = vec2(0);
   if(push.scale > 0)
     coff = sample_soft(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
+    // coff = texture(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
 
   vec4 res1 = vec4(0, 0, 6500000, 1);
 
@@ -64,6 +65,8 @@ main()
     dist[i] = textureLod(img_dist[i], (ipos+.5)/vec2(imageSize(img_out)), 0).r;
   for(int i=0;i<25;i++)
     if(dist[i] < dist[bi]) bi = i;
+
+  // if(dist[12] <= dist[bi]) bi = 12; // XXX DEBUG: prefer 0 offset if equal
 
   int offy = bi / 5;
   int offx = bi - offy * 5;
@@ -77,6 +80,10 @@ main()
 #else
   res1 = vec4(coff + vec2(offx, offy), dist[bi], 1);
 #endif
+
+  // FIXME: the mechanics here are intricate.
+  // the coarsest levels are not stable because the motion there is not "local" enough
+  // the finer levels tend to become unstable because the motion is too noisy/incoherent.
 
   // corner and edge cases don't get interpolated, sorry:
   if((offx > -2 || offx < 2 || offy > -2 || offy < 2) &&
@@ -159,6 +166,9 @@ main()
       res1.xy -= clamp(mu, vec2(-1), vec2(1));
     }
   }
+
+  // XXX DEBUG switch off finest offsets
+  // if(push.it == 0) res1.xy = vec2(0);
 
   imageStore(img_out, ipos, res1);
   res1.z = max(params.merge_k*(res1.z - params.merge_n), 0.0);

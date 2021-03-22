@@ -220,8 +220,9 @@ create_nodes(
     // blur output of dist node by tile size (depending on noise radius 16x16, 32x32 or 64x64?)
     // grab module parameters, would need to trigger re-create_nodes on change:
     const int blur = ((float*)module->param)[2+i];
-    // const int id_blur = dt_api_blur(graph, module, id_dist, 3, blur);
-    const int id_blur = dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur, 0);
+    // const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_dist, 3, 0, 0, blur) : id_dist;
+    const int id_blur = blur > 0 ? dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur, 0) : id_dist;
+    const int cn_blur = blur > 0 ? 1 : 3;
 
     // merge output of blur node using "merge" (<off0, <off1, >merged)
     assert(graph->num_nodes < graph->max_nodes);
@@ -269,8 +270,8 @@ create_nodes(
     };
     id_off[i] = id_merge;
 
-    CONN(dt_node_connect(graph, id_blur, 1, id_merge, 0));
-    // dt_connector_copy(graph, module, 8+i, id_blur, 1); // XXX DEBUG see distances
+    CONN(dt_node_connect(graph, id_blur, cn_blur, id_merge, 0));
+    // dt_connector_copy(graph, module, 8+i, id_blur, cn_blur); // XXX DEBUG see distances
     // connect coarse offset buffer from previous level:
     if(id_offset >= 0)
       CONN(dt_node_connect(graph, id_offset, 2, id_merge, 1));

@@ -17,7 +17,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 { 
   vec4 cam_x;
   vec4 cam_w;
-  float angle;
+  int spp;
 } params;
 
 // TODO: would this be faster using a textureBuffer instead of an ssbo?
@@ -137,6 +137,7 @@ float xrand(inout uint seed)
 // this also enables us to precisely encode (1 0 0) vectors.
 vec3 geo_decode_normal(const uint enc)
 {
+  // XXX FIXME: the unpack thing does already encode 1.0 as 0xffff and is thus different to the CPU version!
   vec2 projected = 2.0*unpackSnorm2x16(enc);
   vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
   if(vec.z < 0.0)
@@ -203,29 +204,24 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 L = vec3(0.0);
-  vec3 rgb = vec3(1.0);
   uint seed = 133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
 
   float frame = global.frame + 0.5*xrand(seed); // 180 degree shutter
+  vec3 acc = vec3(0.0);
+
+  for(int s=0;s<params.spp;s++)
+  {
+  vec3 aov = vec3(0.0);
+  vec3 L = vec3(0.0);
+  vec3 rgb = vec3(1.0);
   vec3 x, w, n; // ray position, direction, hit normal
   vec2 st;      // texture coordinates
   { // camera setup:
-#if 0
-    float angle = params.angle + frame * 0.002;
-    x = 2.7 * vec3(sin(angle * 6.28), cos(angle * 6.28), 0.9);
-    vec3 to = vec3(0, 0.5, 0);
-    vec3 up = vec3(0, 0, 1);
-    vec3 f = normalize(to-x);
-    vec3 r = normalize(cross(f, up));
-    vec3 t = normalize(cross(f, r));
-#else
     x = params.cam_x.xyz;
     vec3 f = params.cam_w.xyz;
     vec3 up = vec3(0, 0, 1);
     vec3 r = normalize(cross(f, up));
     vec3 t = normalize(cross(f, r));
-#endif
 
     vec2 uv = (ipos+0.5)/imageSize(img_out) - 0.5;
     w = normalize(0.45*f + r*uv.x + t*uv.y);
@@ -263,9 +259,11 @@ main()
       x += 0.001 * (n + w);
       // rgb *= colourtex(st);//0.2;
       float tx = fbm3(1000.0+x);
-      tx *= tx;
+      tx = sqrt(tx);
       // rgb *= clamp(tx*0.4, 0.0, 1.0);
-      rgb *= texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
+      vec3 diffcol = texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
+      rgb *= diffcol * tx;
+      if(i == 0) aov = tx*diffcol;
 #else 
       x += t*w;
 #endif
@@ -281,7 +279,10 @@ main()
     }
   }
   rgb *= L;
+  acc += rgb / float(10.0*params.spp);
+  // rgb += 10*aov; // XXX something noise free for debugging
+  }
 
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  imageStore(img_out, ipos, vec4(acc, 1));
 }
 

@@ -6,6 +6,11 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+
 layout(push_constant, std140) uniform push_t
 {
   int scale; // scale of the coarse input, or 0 if no coarse input
@@ -49,9 +54,9 @@ main()
   if(push.scale > 0)
   {
 #if 0 // hard
-    ivec2 off = ivec2(ivec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
+    vec2 off = vec2(offx, offy) + texture(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
 #else // soft
-    vec2 off = vec2(vec2(offx, offy) + sample_soft(img_off, (ipos+.5f)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale);
+    vec2 off = vec2(offx, offy) + sample_soft(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
 #endif
     i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
   }
@@ -59,10 +64,24 @@ main()
   // float dist = log(2+abs(i0 - i1));     // log L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
   // float dist = abs(i0 - i1); // L1
-  float dist = abs(i0 - i1)/max(i0,i1); // relative L1
+  float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.5)) * abs(i0 - i1)/max(1e-3,max(abs(i0),abs(i1))); // relative L1, center weighted
+  // dist = 1.0;
+  // if(offidx == 12) dist = 0.0;
+  // else dist = 1.0;
+  // if(dist == 0.0) dist = 10.0; // XXX
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1)/max(i0, i1));     // log L1 center weighted relative
   // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
+  // float dist = (i0-i1)*(i0-i1) / max(1e-3, max(i0*i0, i1*i1));
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
+
+  if(dist == 0.0 && offidx != 12) dist = 10.0; // XXX DEBUG if only black pixels are matched, prefer the no-offset one!
+  // XXX DEBUG try to start from clean slate on first frame:
+  if(global.frame == 0)
+  {
+    dist = 1.0;
+    if(offidx == 12) dist = 0.0;
+  }
 
   imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
 }
