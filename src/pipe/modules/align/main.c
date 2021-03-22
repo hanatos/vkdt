@@ -30,7 +30,7 @@ void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  for(int i=0;i<4+NUM_LEVELS*2;i++)
+  for(int i=0;i<5+NUM_LEVELS*2;i++)
   {
     module->connector[i].roi.wd = module->connector[i].roi.full_wd;
     module->connector[i].roi.ht = module->connector[i].roi.full_ht;
@@ -47,15 +47,15 @@ void modify_roi_out(
 #else // full res
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
 #endif
-  module->connector[2].roi = module->connector[0].roi;
-  module->connector[3].roi = module->connector[0].roi;
+  module->connector[1].roi = module->connector[0].roi;
+  module->connector[4].roi = module->connector[0].roi;
   for(int i=0;i<NUM_LEVELS;i++)
   {
-    module->connector[4+i].roi = module->connector[4+i-1].roi;
+    module->connector[5+i].roi = module->connector[5+i-1].roi;
     int scale = i == 0 ? block : DOWN;
-    module->connector[4+i].roi.full_wd /= scale;
-    module->connector[4+i].roi.full_ht /= scale;
-    module->connector[8+i].roi = module->connector[4+i].roi;
+    module->connector[5+i].roi.full_wd /= scale;
+    module->connector[5+i].roi.full_ht /= scale;
+    module->connector[9+i].roi = module->connector[5+i].roi;
   }
 }
 
@@ -97,7 +97,7 @@ create_nodes(
     assert(graph->num_nodes < graph->max_nodes);
     id_down[k][0] = graph->num_nodes++;
     graph->node[id_down[k][0]] = (dt_node_t) {
-      .name   = dt_token("burst"),
+      .name   = dt_token("align"),
       .kernel = dt_token("half"),
       .module = module,
       .wd     = roi[1].wd,
@@ -121,14 +121,15 @@ create_nodes(
       .push_constant_size = sizeof(uint32_t),
       .push_constant = { module->img_param.filters },
     };
-    dt_connector_copy(graph, module, k, id_down[k][0], 0);
+    // these are the "alignsrc" and "aligndst" channels:
+    dt_connector_copy(graph, module, 2+k, id_down[k][0], 0);
 
     for(int i=1;i<NUM_LEVELS;i++)
     {
       assert(graph->num_nodes < graph->max_nodes);
       id_down[k][i] = graph->num_nodes++;
       graph->node[id_down[k][i]] = (dt_node_t) {
-        .name   = dt_token("burst"),
+        .name   = dt_token("align"),
 #if DOWN==4
         .kernel = dt_token("down4"),
 #else
@@ -170,7 +171,7 @@ create_nodes(
     assert(graph->num_nodes < graph->max_nodes);
     int id_dist = graph->num_nodes++;
     graph->node[id_dist] = (dt_node_t) {
-      .name   = dt_token("burst"),
+      .name   = dt_token("align"),
       .kernel = dt_token("dist"),
       .module = module,
       .wd     = roi[i+1].wd,
@@ -228,7 +229,7 @@ create_nodes(
     assert(graph->num_nodes < graph->max_nodes);
     const int id_merge = graph->num_nodes++;
     graph->node[id_merge] = (dt_node_t) {
-      .name   = dt_token("burst"),
+      .name   = dt_token("align"),
       .kernel = dt_token("merge"),
       .module = module,
       .wd     = roi[i+1].wd,
@@ -271,7 +272,7 @@ create_nodes(
     id_off[i] = id_merge;
 
     CONN(dt_node_connect(graph, id_blur, cn_blur, id_merge, 0));
-    // dt_connector_copy(graph, module, 8+i, id_blur, cn_blur); // XXX DEBUG see distances
+    // dt_connector_copy(graph, module, 9+i, id_blur, cn_blur); // XXX DEBUG see distances
     // connect coarse offset buffer from previous level:
     if(id_offset >= 0)
       CONN(dt_node_connect(graph, id_offset, 2, id_merge, 1));
@@ -293,18 +294,18 @@ create_nodes(
   for(int i=0;i<NUM_LEVELS;i++)
   {
     // connect unwarped input buffer, downscaled:
-    dt_connector_copy(graph, module, 4+i, id_down[0][i], 1);
+    dt_connector_copy(graph, module, 5+i, id_down[0][i], 1);
     const int coff = 0;
     if(coff && (i==NUM_LEVELS-1))
     {
-      dt_connector_copy(graph, module, 8+i, id_down[1][i], 1);
+      dt_connector_copy(graph, module, 9+i, id_down[1][i], 1);
       continue;
     }
     // connect warp node and warp downscaled buffer:
     assert(graph->num_nodes < graph->max_nodes);
     const int id_warp = graph->num_nodes++;
     graph->node[id_warp] = (dt_node_t) {
-      .name   = dt_token("burst"),
+      .name   = dt_token("align"),
       .kernel = dt_token("warp"),
       .module = module,
       .wd     = roi[i+1].wd,
@@ -338,18 +339,18 @@ create_nodes(
     };
     CONN(dt_node_connect(graph, id_down[1][i],  1, id_warp, 0));
     CONN(dt_node_connect(graph, id_off[i+coff], 2, id_warp, 1));
-    dt_connector_copy(graph, module, 8+i, id_warp, 2);
+    dt_connector_copy(graph, module, 9+i, id_warp, 2);
   }
 #else
 #if 1
   for(int i=0;i<NUM_LEVELS;i++)
   { // visualise offsets
-    dt_connector_copy(graph, module, 4+i, id_down[0][i], 1);
+    dt_connector_copy(graph, module, 5+i, id_down[0][i], 1);
 #if 1 // motion vectors:
     assert(graph->num_nodes < graph->max_nodes);
     const int id_visn = graph->num_nodes++;
     graph->node[id_visn] = (dt_node_t) {
-      .name   = dt_token("burst"),
+      .name   = dt_token("align"),
       .kernel = dt_token("visn"),
       .module = module,
       .wd     = roi[i+1].wd,
@@ -372,9 +373,9 @@ create_nodes(
       }},
     };
     CONN(dt_node_connect(graph, id_off[i], 2, id_visn, 0));
-    dt_connector_copy(graph, module, 8+i, id_visn, 1);
+    dt_connector_copy(graph, module, 9+i, id_visn, 1);
 #else // plain distance residual:
-    dt_connector_copy(graph, module, 8+i, id_off[i], 3);
+    dt_connector_copy(graph, module, 9+i, id_off[i], 3);
 #endif
   }
 #endif
@@ -383,7 +384,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const int id_warp = graph->num_nodes++;
   graph->node[id_warp] = (dt_node_t) {
-    .name   = dt_token("burst"),
+    .name   = dt_token("align"),
     .kernel = dt_token("warp"),
     .module = module,
     .wd     = roi[0].wd,
@@ -418,14 +419,14 @@ create_nodes(
       block,
     },
   };
-  dt_connector_copy(graph, module, 1, id_warp, 0);
+  dt_connector_copy(graph, module, 0, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 2, id_warp, 1));
-  dt_connector_copy(graph, module, 2, id_warp, 2);
+  dt_connector_copy(graph, module, 1, id_warp, 2);
 #if 0
-  dt_connector_copy(graph, module, 3, id_off[1], 3);  // lo res mask
+  dt_connector_copy(graph, module, 4, id_off[1], 3);  // lo res mask
   graph->node[id_off[1]].connector[3].roi = roi[2];   // XXX FIXME: connector_copy should probably respect ROI
 #else
-  dt_connector_copy(graph, module, 3, id_off[0], 3);  // full res mask
+  dt_connector_copy(graph, module, 4, id_off[0], 3);  // full res mask
   graph->node[id_off[0]].connector[3].roi = roi[1];   // XXX FIXME: connector_copy should probably respect ROI
 #endif
 #undef NUM_LEVELS

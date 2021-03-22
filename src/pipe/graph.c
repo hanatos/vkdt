@@ -1830,6 +1830,9 @@ VkResult dt_graph_run(
       modify_roi_out(graph, graph->module + main_input_module);
     for(int i=0;i<cnt;i++)
       modify_roi_out(graph, graph->module + modid[i]);
+    for(int i=0;i<cnt;i++) // potentially init remaining feedback rois:
+      if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
+        modify_roi_out(graph, graph->module + modid[i]);
   }
 
 
@@ -2352,10 +2355,10 @@ VkResult dt_graph_run(
         dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
-    if(graph->query_name[i] == dt_token("shared") || graph->query_name[i] == dt_token("burst"))
+    if(graph->query_name[i] == dt_token("shared") || graph->query_name[i] == dt_token("align"))
       accum_time += graph->query_pool_results[i+1]- graph->query_pool_results[i];
   }
-  dt_log(s_log_perf, "total burst:\t%8.3f ms",
+  dt_log(s_log_perf, "total align:\t%8.3f ms",
       accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
   if(graph->query_cnt)
     dt_log(s_log_perf, "total time:\t%8.3f ms",

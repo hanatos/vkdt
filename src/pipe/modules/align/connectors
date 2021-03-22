@@ -1,6 +1,7 @@
 input:read:*:*
-warp:read:*:*
 output:write:&input:f16
+alignsrc:read:*:*
+aligndst:read:*:*
 mask:write:y:f16
 debugi0:write:rgba:f16
 debugi1:write:rgba:f16
