@@ -22,8 +22,9 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-  vec2 ipos = (opos + vec2(0.5))/ vec2(imageSize(img_out));
-  vec4 rgba = sample_flower(img_in, ipos); // fake 5x5 lookup
+  // XXX attention the additional +0.5 have been tweaked such that blur_sub is exactly centered!!
+  vec2 ipos = (opos + vec2(1.0))/ vec2(imageSize(img_out));
+  vec4 rgba = sample_flower_adj(img_in, ipos); // fake 5x5 lookup
   imageStore(img_out, opos, rgba);
 }
 

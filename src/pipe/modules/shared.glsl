@@ -110,8 +110,27 @@ vec4 sample_flower(sampler2D tex, vec2 uv)
   vec2 texSize = textureSize(tex, 0);
   vec2 tc = uv * texSize;
 
-  vec2 off0 = vec2(1.2,  0.4);
+  vec2 off0 = vec2( 1.2, 0.4);
   vec2 off1 = vec2(-0.4, 1.2);
+
+  const float t = 36.0/256.0;
+  vec4 result = textureLod(tex, uv, 0) * t;
+  result += textureLod(tex, (tc + off0)/texSize, 0) * (1.0-t)/4.0;
+  result += textureLod(tex, (tc - off0)/texSize, 0) * (1.0-t)/4.0;
+  result += textureLod(tex, (tc + off1)/texSize, 0) * (1.0-t)/4.0;
+  result += textureLod(tex, (tc - off1)/texSize, 0) * (1.0-t)/4.0;
+
+  return result;
+}
+
+// flower rotated the other way around to even out anisotropic looks:
+vec4 sample_flower_adj(sampler2D tex, vec2 uv)
+{
+  vec2 texSize = textureSize(tex, 0);
+  vec2 tc = uv * texSize;
+
+  vec2 off0 = vec2( 1.2, -0.4);
+  vec2 off1 = vec2( 0.4,  1.2);
 
   const float t = 36.0/256.0;
   vec4 result = textureLod(tex, uv, 0) * t;
