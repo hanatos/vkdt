@@ -92,6 +92,8 @@ create_nodes(
   dt_token_t fmt_dst = dt_token("f16");//ui8");//ui8"); // or f16
 
   int id_down[2][NUM_LEVELS] = {0};
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  uint32_t *blacki = (uint32_t *)img_param->black;
   for(int k=0;k<2;k++)
   {
     assert(graph->num_nodes < graph->max_nodes);
@@ -118,8 +120,8 @@ create_nodes(
         .format = fmt_img,
         .roi    = roi[1],
       }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { module->img_param.filters },
+      .push_constant_size = 5*sizeof(uint32_t),
+      .push_constant = { blacki[0], blacki[1], blacki[2], blacki[3], img_param->filters },
     };
     // these are the "alignsrc" and "aligndst" channels:
     dt_connector_copy(graph, module, 3-k, id_down[k][0], 0);
