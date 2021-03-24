@@ -8,7 +8,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  mat3  cam_to_rec2020; // camera matrix // TODO: wire in a new main.c file
+  mat3  cam_to_rec2020; // camera matrix
   vec4  white;
   float split;
   float sat;
@@ -105,7 +105,7 @@ main()
   { // matrix
     float b = rgb.r+rgb.g+rgb.b;
     rgb = params.cam_to_rec2020 * rgb;
-    rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
+    rgb *= b / (rgb.r+rgb.g+rgb.b); // could have normalised the matrix, but now it's guaranteed to match up with the spectral lut below
   }
   else
   { // spectral lut
@@ -114,17 +114,14 @@ main()
     tri2quad(tc);
     vec2 rb = texture(img_chroma, tc).rg;
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
-    rgb *= b / (rgb.r+rgb.g+rgb.b); // XXX probably broken
+    rgb *= b / (rgb.r+rgb.g+rgb.b); // see above.
   }
 
   // apply exposure correction
   rgb *= pow(2.0, params.white.w);
 
-  // imageStore(img_out, ipos, vec4(rgb, 1));
-  // return; // XXX rule out quantisation issues from later
-
   if(ipos.x < params.split * imageSize(img_out).x)
-  { // comparison
+  { // comparison to rgb 3x3 base line
 #if 0 // oklab
     // convert linear rec2020 to linear rec709
     float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
@@ -240,6 +237,7 @@ main()
     vec3 xyz = rec2020_to_xyz * rgb;
     float Y = xyz.y;
     float b = xyz.x+xyz.y+xyz.z;
+#if 1
     vec2 tc = xyz.xy/b;
 
     // c0 c1 c2 and convert to saturation and lambda
@@ -249,8 +247,6 @@ main()
 
     // normalised wavelength, logistically compressed:
     float norm = (sl.y - 400.0)/(700.0-400.0);
-    // sl.y = clamp(0.5/(1.0+exp(-2.0*(2.0*norm-1.0))), 0.0, 0.5);
-
     norm -= 0.5; // new sigmoid fit:
     sl.y = 0.5*(0.5 + 0.5 * norm / sqrt(norm*norm+0.25));
 
@@ -259,12 +255,13 @@ main()
     float m = params.sat * sl.x;
     // but we want to compress input in [sl.x.. infty) into
     // the interval [sl.x .. max_sat.x]
+    const ivec2 size = textureSize(img_abney, 0).xy;
     if(params.gamut_mode > 0)
     {
       float bound = 1.0; // spectral locus
       if(params.gamut_mode > 1)
       {
-        vec2 max_sat = texelFetch(img_abney, ivec2(textureSize(img_abney, 0).x-1, sl.y*textureSize(img_abney, 0).y), 0).rg;
+        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).rg;
         if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
         if(params.gamut_mode == 3) bound = max_sat.x; // rec709
       }
@@ -272,9 +269,12 @@ main()
         m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
       sl.x = m;
     }
-    else sl.x = clamp(m, 0.0, 0.99); // XXX make sure we don't hit the last column (gamut limits stored there)
+    else sl.x = clamp(m, 0.0, (size.x-2.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
     // use lambda/sat lut to get new xy chroma values
     vec2 xy = texture(img_abney, sl).rg;
+#else
+    vec2 xy = vec2(1./3., 1./3.) + (xyz.xy/b - vec2(1./3.,1./3.))*params.sat;
+#endif
     // go back to colour
     xyz = vec3(xy, 1.0-xy.x-xy.y);
     xyz *= Y / xyz.y;
