@@ -75,13 +75,14 @@ main()
   // float dist = (i0-i1)*(i0-i1) / max(1e-3, max(i0*i0, i1*i1));
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
 
-  if(dist == 0.0 && offidx != 12) dist = 10.0; // XXX DEBUG if only black pixels are matched, prefer the no-offset one!
-  // XXX DEBUG try to start from clean slate on first frame:
+  // if(dist == 0.0 && offidx != 12) dist = 10.0; // XXX DEBUG if only black pixels are matched, prefer the no-offset one!
+#if 0 // XXX DEBUG try to start from clean slate on first frame:
   if(global.frame == 0)
   {
     dist = 1.0;
     if(offidx == 12) dist = 0.0;
   }
+#endif
 
   imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
 }

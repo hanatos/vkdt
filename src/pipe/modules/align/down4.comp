@@ -41,6 +41,15 @@ main()
     c1.x+c1.y+c1.z+c1.w+
     c2.x+c2.y+c2.z+c2.w+
     c3.x+c3.y+c3.z+c3.w) / 16.0;
+
+#if 1 // min or max pooling to make sure extreme features do propagate up. sometimes better, sometimes worse.
+  vec4 cm = min(min(c0, c1), min(c2, c3));
+  float m = min(min(cm.x, cm.y), min(cm.z, cm.w));
+  vec4 cM = max(max(c0, c1), max(c2, c3));
+  float M = max(max(cM.x, cM.y), max(cM.z, cM.w));
+  if(abs(c-M) < abs(c-m)) c = M;
+  else c = m;
+#endif
 #endif
 
   imageStore(img_out, opos, vec4(vec3(c), 1));
