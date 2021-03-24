@@ -148,14 +148,6 @@ dt_graph_export(
     if(dt_graph_read_config_line(graph, param->p_extra_param[i]))
       dt_log(s_log_pipe|s_log_err, "failed to read extra params %d: '%s'", i + 1, param->p_extra_param[i]);
 
-  // can this be generalised some more?
-  // we assume that the "main" output is the last display in the config (driving the main roi)
-  // which will also be confined by the user supplied max dimensions. we can explicitly introduce
-  // resampling nodes. this may be useful for more high quality resampling in the future.
-  if(param->output[0].max_width > 0)
-    graph->output_wd = param->output[0].max_width;
-  if(param->output[0].max_height > 0)
-    graph->output_ht = param->output[0].max_height;
   graph->frame = 0;
   dt_module_t *mod_out[20] = {0};
   assert(param->output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));
@@ -174,6 +166,15 @@ dt_graph_export(
   for(int i=0;i<param->output_cnt;i++)
   {
     if(mod_out[i] == 0) continue; // not a known output module
+    if(param->output[i].inst == dt_token("main"))
+    { // set bounds to drive roi computation to main output if we find one
+      // can this be generalised some more?
+      // we assume that the "main" output is the last display in the config (driving the main roi)
+      // which will also be confined by the user supplied max dimensions. we can explicitly introduce
+      // resampling nodes. this may be useful for more high quality resampling in the future.
+      if(param->output[i].max_width  > 0) graph->output_wd = param->output[i].max_width;
+      if(param->output[i].max_height > 0) graph->output_ht = param->output[i].max_height;
+    }
     if(graph->frame_cnt > 1)
     {
       if(param->output[i].p_filename)
