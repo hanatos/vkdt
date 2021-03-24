@@ -742,14 +742,12 @@ void render_lighttable()
         dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
         FILE *f = fopen(filename, "wb");
         fprintf(f, "frames:1\n");
-        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        fprintf(f, "module:i-raw:main\n");
+        for(int i=1;i<vkdt.db.selection_cnt;i++)
         {
           fprintf(f, "module:i-raw:%02d\n", i);
-          if(i > 0)
-          {
-            fprintf(f, "module:burst:%02d\n", i);
-            fprintf(f, "module:blend:%02d\n", i);
-          }
+          fprintf(f, "module:align:%02d\n", i);
+          fprintf(f, "module:blend:%02d\n", i);
         }
         fprintf(f,
             "module:denoise:01\n"
@@ -767,23 +765,23 @@ void render_lighttable()
           if(sel[i] == main_imgid) continue;
           fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
           fprintf(f,
-              "connect:i-raw:%02d:output:burst:%02d:warp\n"
-              "connect:burst:%02d:output:blend:%02d:back\n"
-              "connect:burst:%02d:mask:blend:%02d:mask\n"
-              "connect:%s:%02d:output:blend:%02d:input\n"
-              "connect:i-raw:main:output:burst:%02d:input\n",
-              ii, ii, ii, ii, ii, ii,
-              ii > 1 ? "blend" : "i-raw",
-              ii-1, ii, ii);
+              "connect:i-raw:%02d:output:align:%02d:alignsrc\n"
+              "connect:i-raw:%02d:output:align:%02d:input\n"
+              "connect:align:%02d:output:blend:%02d:back\n"
+              "connect:align:%02d:mask:blend:%02d:mask\n",
+              ii, ii, ii, ii, ii, ii, ii, ii);
+          if(ii == 1) fprintf(f, "connect:i-raw:main:output:blend:%02d:input\n", ii);
+          else        fprintf(f, "connect:blend:%02d:output:blend:%02d:input\n", ii-1, ii);
+          fprintf(f, "connect:i-raw:main:output:align:%02d:aligndst\n", ii);
           fprintf(f,
               "param:blend:%02d:opacity:%g\n"
-              "param:burst:%02d:merge_n:0.0\n"
-              "param:burst:%02d:merge_k:4000\n"
-              "param:burst:%02d:blur0:1\n"
-              "param:burst:%02d:blur1:1\n"
-              "param:burst:%02d:blur2:1\n"
-              "param:burst:%02d:blur3:1\n",
-              ii, pow(0.5, ii), // ??
+              "param:align:%02d:merge_n:0.0\n"
+              "param:align:%02d:merge_k:4000\n"
+              "param:align:%02d:blur0:1\n"
+              "param:align:%02d:blur1:1\n"
+              "param:align:%02d:blur2:1\n"
+              "param:align:%02d:blur3:1\n",
+              ii, pow(0.5, ii),
               ii, ii, ii, ii, ii, ii);
           ii++;
         }
