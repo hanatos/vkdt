@@ -349,7 +349,6 @@ extern "C" int dt_gui_init_imgui()
   {
     ImFontConfig* font_config = (ImFontConfig*)&io.Fonts->ConfigData[n];
     font_config->RasterizerMultiply = 1.0f;
-    font_config->RasterizerFlags = flags; // extra flags hinting etc
   }
   ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
 #endif
