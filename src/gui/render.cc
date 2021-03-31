@@ -1107,9 +1107,27 @@ inline void draw_widget(int modid, int parid)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
+  // some state for double click detection for reset functionality
+  static int doubleclick = 0;
+  static double doubleclick_time = 0;
+#define RESETBLOCK \
+  {\
+    if(ImGui::GetTime() - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
+    if(doubleclick) memcpy(val, param->val+num, sizeof(float));\
+    change = 1;\
+  }\
+  if(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))\
+  {\
+    doubleclick_time = ImGui::GetTime();\
+    doubleclick = 1;\
+    memcpy(val, param->val+num, sizeof(float));\
+    change = 1;\
+  }\
+  if(change)
+
   // distinguish by count:
   // get count by param cnt or explicit multiplicity from ui file
-  int count = 1;
+  int count = 1, change = 0;
   if(param->widget.cntid == -1) count = param->cnt; // if we know nothing else, we use all elements
   else
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
@@ -1128,9 +1146,8 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::SliderFloat(str, val,
-              param->widget.min, param->widget.max, "%2.5f"))
-        {
+        if(ImGui::SliderFloat(str, val, param->widget.min, param->widget.max, "%2.5f"))
+        RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1145,9 +1162,8 @@ inline void draw_widget(int modid, int parid)
         int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::SliderInt(str, val,
-              param->widget.min, param->widget.max, "%d"))
-        {
+        if(ImGui::SliderInt(str, val, param->widget.min, param->widget.max, "%d"))
+        RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1173,7 +1189,7 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::VSliderFloat("##v",
               ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
               param->widget.min, param->widget.max, ""))
-        {
+        RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1468,6 +1484,7 @@ inline void draw_widget(int modid, int parid)
   }
   ImGui::PopID();
   } // end for multiple widgets
+#undef RESETBLOCK
 }
 } // anonymous namespace
 
