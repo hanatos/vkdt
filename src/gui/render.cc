@@ -1544,12 +1544,12 @@ void render_darkroom_pipeline()
   assert(graph->num_modules < sizeof(mod_id)/sizeof(mod_id[0]));
   for(int k=0;k<graph->num_modules;k++) mod_id[k] = k;
   dt_module_t *const arr = graph->module;
-  const int arr_cnt = graph->num_modules;
+  const int arr_cnt = graph->num_modules; // use this because buttons may add modules
   static uint64_t last_err = 0;
   uint64_t err = 0;
   int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
   uint32_t modid[100], cnt = 0;
-  for(int m=0;m<graph->num_modules;m++)
+  for(int m=0;m<arr_cnt;m++)
     modid[m] = m; // init as identity mapping
 
   if(last_err)
@@ -1585,9 +1585,9 @@ void render_darkroom_pipeline()
     else if(err) last_err = err;
   }
 
-  if(graph->num_modules > pos) ImGui::Text("disconnected:");
+  if(arr_cnt > pos) ImGui::Text("disconnected:");
   // now draw the disconnected modules
-  for(int m=pos;m<graph->num_modules;m++)
+  for(int m=pos;m<arr_cnt;m++)
   {
     err = render_module(graph, arr+mod_id[m], 0);
     if(err == -1ul) last_err = 0;
@@ -1597,7 +1597,7 @@ void render_darkroom_pipeline()
   // draw connectors outside of clipping region of individual widgets, on top.
   // also go through list in reverse order such that the first connector will
   // pick up the largest indentation to avoid most crossovers
-  for(int mi=graph->num_modules-1;mi>=0;mi--)
+  for(int mi=arr_cnt-1;mi>=0;mi--)
   {
     int m = mod_id[mi];
     for(int k=graph->module[m].num_connectors-1;k>=0;k--)
@@ -1613,9 +1613,9 @@ void render_darkroom_pipeline()
         int rev;// = nid; // TODO: store reverse list?
         // this works mostly but seems to have edge cases where it doesn't:
         // if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
-        // else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
-        for(rev=0;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
-        if(rev == graph->num_modules+1 || mod_id[rev] != nid) continue;
+        // else for(rev=pos;rev<arr_cnt;rev++) if(mod_id[rev] == nid) break;
+        for(rev=0;rev<arr_cnt;rev++) if(mod_id[rev] == nid) break;
+        if(rev == arr_cnt+1 || mod_id[rev] != nid) continue;
         // traverse mod_id list between mi and rev nid and get indentation level
         int ident = 0;
         if(mi < rev) for(int i=mi+1;i<rev;i++)
