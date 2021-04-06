@@ -21,7 +21,35 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-#if 1
+#if 1 // fake edge aware
+  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+  vec2 sz = vec2(textureSize(img_in, 0).xy);
+  ivec2 ipos = 4*opos;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 sum = t * rgb;
+  float wgt = t;
+  vec3 wc = 1000.*vec3(1.0, 1.0, 1.0);
+
+#define lookup(O) \
+  do { \
+  vec3 col = texture(img_in, (ipos + O)/vec2(sz)).rgb; \
+  float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; \
+  sum += w * col; \
+  wgt += w; \
+  } while(false)
+
+  lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
+  lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
+  lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
+  lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
+
+  rgb = sum / wgt;
+  float c = rgb.r;
+#undef lookup
+#else
+
+#if 1 // wavelet style flower filter
   vec2 sz = vec2(textureSize(img_in, 0).xy);
   const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
   ivec2 ipos = 4*opos;
@@ -30,7 +58,7 @@ main()
   c += texture(img_in, (ipos + vec2(0.5 - 1.2, 0.5 - 0.4))/sz).r / 4.0 * (1.0-t);
   c += texture(img_in, (ipos + vec2(0.5 + 0.4, 0.5 - 1.2))/sz).r / 4.0 * (1.0-t);
   c += texture(img_in, (ipos + vec2(0.5 - 0.4, 0.5 + 1.2))/sz).r / 4.0 * (1.0-t);
-#else
+#else // box filter equal weight
   vec4 c0 = textureGather(img_in, (4*opos+vec2(0.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c1 = textureGather(img_in, (4*opos+vec2(0.0, 2.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c2 = textureGather(img_in, (4*opos+vec2(2.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
@@ -49,6 +77,7 @@ main()
   float M = max(max(cM.x, cM.y), max(cM.z, cM.w));
   if(abs(c-M) < abs(c-m)) c = M;
   else c = m;
+#endif
 #endif
 #endif
 
