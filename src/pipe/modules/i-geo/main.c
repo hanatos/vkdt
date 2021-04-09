@@ -57,7 +57,6 @@ load_scene(dt_module_t *mod, FILE *f)
     if(shader < 0 || shader >= geo->num_shaders) shader = 0;
     prims_load_with_flags(&geo->prims, filename, "none", 0, 'r', mod->graph->searchpath);
 #if 0
-    // load uv/normals etc:
     int discard = shader_shape_init(shape, rt.shader->shader + shader);
     if(discard)
       prims_discard_shape(rt.prims, shape);
@@ -94,8 +93,10 @@ read_plain(dt_module_t *mod, void *mapped)
 {
   typedef struct idx_t
   {
-    uint32_t vi  : 24;
+    uint32_t vi;
+    uint32_t ex0 : 24;
     uint32_t mat :  8;
+    uint32_t ex1;
     uint32_t st;
   }
   idx_t;
@@ -103,8 +104,7 @@ read_plain(dt_module_t *mod, void *mapped)
   // uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
   uint32_t idx_cnt = mod->connector[0].roi.full_ht;
   idx_t *idx = mapped;
-  // align to sizeof vertex:
-  uint32_t vtx_off = (idx_cnt+1)/2;
+  uint32_t vtx_off = idx_cnt; // index and vertex have same size
   uint32_t i = 0;
   for(int s=0;s<geo->prims.num_shapes;s++)
   {
@@ -131,7 +131,7 @@ read_plain(dt_module_t *mod, void *mapped)
       }
     }
     // write all vertices and normals:
-    memcpy(idx + 2*vtx_off, geo->prims.shape[s].vtx, sizeof(float)*4*vc);
+    memcpy(idx + vtx_off, geo->prims.shape[s].vtx, sizeof(float)*4*vc);
     vtx_off += vc;
   }
   return 0;

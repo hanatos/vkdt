@@ -23,7 +23,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 // TODO: would this be faster using a textureBuffer instead of an ssbo?
 layout(std430, set = 1, binding = 0) buffer ssbo_t
 {
-  uvec2 v[]; // variable-length list of bytes encoding vertices and indices
+  uvec4 v[]; // variable-length list of bytes encoding vertices and indices
 } ssbo;
 
 layout( // output f16 buffer rgb
@@ -157,16 +157,16 @@ void prepare_intersection(
 {
   // access and unpack geometry data
   uint pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
-  uvec2 p0 = ssbo.v[pi+0];
-  uvec2 p1 = ssbo.v[pi+1];
-  uvec2 p2 = ssbo.v[pi+2];
-  mat = p0.x >> 24;
-  uint vi0 = p0.x & 0xffffffu;
-  uint vi1 = p1.x & 0xffffffu;
-  uint vi2 = p2.x & 0xffffffu;
-  uvec4 u0 = uvec4(ssbo.v[2*vi0+0], ssbo.v[2*vi0+1]);
-  uvec4 u1 = uvec4(ssbo.v[2*vi1+0], ssbo.v[2*vi1+1]);
-  uvec4 u2 = uvec4(ssbo.v[2*vi2+0], ssbo.v[2*vi2+1]);
+  uvec4 p0 = ssbo.v[pi+0];
+  uvec4 p1 = ssbo.v[pi+1];
+  uvec4 p2 = ssbo.v[pi+2];
+  mat = p0.y >> 24;
+  uint vi0 = p0.x;
+  uint vi1 = p1.x;
+  uint vi2 = p2.x;
+  uvec4 u0 = ssbo.v[vi0];
+  uvec4 u1 = ssbo.v[vi1];
+  uvec4 u2 = ssbo.v[vi2];
   vec3 n0 = geo_decode_normal(u0.w);
   vec3 n1 = geo_decode_normal(u1.w);
   vec3 n2 = geo_decode_normal(u2.w);
@@ -182,12 +182,12 @@ void prepare_intersection(
 #else
   x = b.x * v0 + b.y * v1 + b.z * v2;
 #endif
-  n = b.x * n0 + b.y * n1 + b.z * n2;
-  n = normalize(n);
+  // n = normalize(b.x * n0 + b.y * n1 + b.z * n2);
   n = normalize(cross(v1-v0, v2-v0));
-  vec2 st0 = unpackHalf2x16(p0.y);
-  vec2 st1 = unpackHalf2x16(p1.y);
-  vec2 st2 = unpackHalf2x16(p2.y);
+  // if(dot(w, n) < 0) n = -n;
+  vec2 st0 = unpackHalf2x16(p0.w);
+  vec2 st1 = unpackHalf2x16(p1.w);
+  vec2 st2 = unpackHalf2x16(p2.w);
   st = b.x * st0 + b.y * st1 + b.z * st2;
 }
 
@@ -211,7 +211,7 @@ main()
 
   for(int s=0;s<params.spp;s++)
   {
-  vec3 aov = vec3(0.0);
+  vec3 aov = vec3(1.0);
   vec3 L = vec3(0.0);
   vec3 rgb = vec3(1.0);
   vec3 x, w, n; // ray position, direction, hit normal
@@ -227,12 +227,12 @@ main()
     w = normalize(0.45*f + r*uv.x + t*uv.y);
   }
 
-  for(int i=0;i<4;i++)
+  for(int i=0;i<2;i++)
   {
     rayQueryEXT rq;
     rayQueryInitializeEXT(rq, rt_accel,
         gl_RayFlagsNoneEXT, //gl_RayFlagsTerminateOnFirstHitEXT,// | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
-        0xFF, x, 1e-3, w, 1000.0);
+        0xFF, x, 1e-3, w, 100.0);
     while(rayQueryProceedEXT(rq)) {
       // if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
       // rayQueryConfirmIntersectionEXT(rq);
@@ -256,31 +256,39 @@ main()
       du = normalize(cross(up, n));
       dv = normalize(cross(du, n));
       w = ws.x * du + ws.y * dv + ws.z * n;
+      w = normalize(vec3(1, 0, 1));
       x += 0.001 * (n + w);
       // rgb *= colourtex(st);//0.2;
-      float tx = fbm3(1000.0+x);
-      tx = sqrt(tx);
+      float tx = 1;//fbm3(1000.0+x);
+      // tx = sqrt(tx);
       // rgb *= clamp(tx*0.4, 0.0, 1.0);
       vec3 diffcol = texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
       rgb *= diffcol * tx;
-      if(i == 0) aov = tx*diffcol;
+      // if(i == 0) aov = tx*diffcol;
+      aov = (1.0+n)/2.0;
+      // aov = x / (1.0 + x);
+      // aov = vec3(mat); // seems to work
+      if(i == 0)
+        acc += (0.1 + abs(dot(normalize(vec3(1)), n))) * diffcol * vec3(500.0) / float(params.spp); // noise free fake ambient something
 #else 
       x += t*w;
 #endif
-      // rgb = x;
+#if 0
+      // rgb = diffcol;
       // rgb = (n + 1.0)/2.0;
       // L = vec3(1.0);
-      // break;
+      break;
+#endif
     }
     else
     {
-      L = 1000.0 * vec3(1.2, 1.0, 0.9); // escaped to light source
+      L = 1000.0 * vec3(0.2, 1.0, 2.0); // escaped to light source
       break;
     }
   }
   rgb *= L;
   acc += rgb / float(10.0*params.spp);
-  // rgb += 10*aov; // XXX something noise free for debugging
+  // acc = aov / float(params.spp); // XXX something noise free for debugging
   }
 
   imageStore(img_out, ipos, vec4(acc, 1));

@@ -232,7 +232,7 @@ dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
 {
   if(c->format == dt_token("bc1")) return wd/4*ht/4 * 8;
   if(c->format == dt_token("yuv")) return wd*ht * 2; // XXX ??? * 2/3 is not enough here.
-  if(c->format == dt_token("geo")) return sizeof(float)*4*wd + 2*sizeof(uint32_t)*(ht+1); // (vtx+n)*#v + (uv+i)*#i + alignment
+  if(c->format == dt_token("geo")) return sizeof(float)*4*wd + 4*sizeof(uint32_t)*ht; // (vtx+n)*#v + (uv+i)*#i
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
   return numc * bpp * wd * ht;
