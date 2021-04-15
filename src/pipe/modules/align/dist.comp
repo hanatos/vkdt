@@ -66,10 +66,6 @@ main()
   // float dist = abs(i0 - i1); // L1
   float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.5)) * abs(i0 - i1)/max(1e-3,max(abs(i0),abs(i1))); // relative L1, center weighted
-  // dist = 1.0;
-  // if(offidx == 12) dist = 0.0;
-  // else dist = 1.0;
-  // if(dist == 0.0) dist = 10.0; // XXX
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1)/max(i0, i1));     // log L1 center weighted relative
   // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
   // float dist = (i0-i1)*(i0-i1) / max(1e-3, max(i0*i0, i1*i1));

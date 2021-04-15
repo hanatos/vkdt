@@ -66,8 +66,6 @@ main()
   for(int i=0;i<25;i++)
     if(dist[i] < dist[bi]) bi = i;
 
-  // if(dist[12] <= dist[bi]) bi = 12; // XXX DEBUG: prefer 0 offset if equal
-
   int offy = bi / 5;
   int offx = bi - offy * 5;
   offx -= 2; offy -= 2;
@@ -166,9 +164,6 @@ main()
       res1.xy -= clamp(mu, vec2(-1), vec2(1));
     }
   }
-
-  // XXX DEBUG switch off finest offsets
-  // if(push.it == 0) res1.xy = vec2(0);
 
   imageStore(img_out, ipos, res1);
   res1.z = max(params.merge_k*(res1.z - params.merge_n), 0.0);
