@@ -28,8 +28,8 @@ layout( // output
 // based on: http://www.iquilezles.org/www/articles/simplepathtracing/simplepathtracing.htm
 //
 
-#define MOTIONBLUR
-#define DEPTHOFFIELD
+// #define MOTIONBLUR
+// #define DEPTHOFFIELD
 
 #define CUBEMAPSIZE 256
 
