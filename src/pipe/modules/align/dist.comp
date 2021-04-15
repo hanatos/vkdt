@@ -63,14 +63,15 @@ main()
   else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
   // float dist = log(2+abs(i0 - i1));     // log L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
-  // float dist = abs(i0 - i1); // L1
-  float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
+  float dist = abs(i0 - i1); // L1
+  // float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.5)) * abs(i0 - i1)/max(1e-3,max(abs(i0),abs(i1))); // relative L1, center weighted
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1)/max(i0, i1));     // log L1 center weighted relative
   // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
   // float dist = (i0-i1)*(i0-i1) / max(1e-3, max(i0*i0, i1*i1));
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
 
+  // dist = max(dist - 0.2, 0.0); // subtract noise floor XXX DEBUG
   // if(dist == 0.0 && offidx != 12) dist = 10.0; // XXX DEBUG if only black pixels are matched, prefer the no-offset one!
 #if 0 // XXX DEBUG try to start from clean slate on first frame:
   if(global.frame == 0)

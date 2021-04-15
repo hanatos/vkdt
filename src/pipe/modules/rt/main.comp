@@ -30,10 +30,17 @@ layout( // output f16 buffer rgb
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-// TODO: input texture array!
 layout(
     set = 1, binding = 2
+) uniform sampler2D img_blue;
+
+layout(
+    set = 1, binding = 3
 ) uniform sampler2D img_tex[];
+
+layout(
+    set = 1, binding = 4
+) uniform writeonly image2D img_aov;
 
 layout(
     set = 2, binding = 0
@@ -121,13 +128,20 @@ vec3 sample_cos(vec2 x)
   return vec3(su*cos(2.0*3.1415*x.y), su*sin(2.0*3.1415*x.y), sqrt(1.0 - x.x));
 }
 
-float xrand(inout uint seed)
+float mrand(inout uint seed)
 { // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
   seed ^= seed << 13;
   seed ^= seed >> 17;
   seed ^= seed << 5;
   return seed / 4294967296.0;
 }
+
+vec4 xrand(inout uint seed, ivec2 p)
+{
+  // cp shift based on seed
+  return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
+}
+
 #endif
 
 // 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
@@ -204,28 +218,31 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  uint seed = 133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
+  uint seed = 19937 * global.frame;//133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
+  const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
 
-  float frame = global.frame + 0.5*xrand(seed); // 180 degree shutter
   vec3 acc = vec3(0.0);
+  vec4 aov = vec4(1.0);
 
   for(int s=0;s<params.spp;s++)
   {
-  vec3 aov = vec3(1.0);
-  vec3 L = vec3(0.0);
-  vec3 rgb = vec3(1.0);
-  vec3 x, w, n; // ray position, direction, hit normal
-  vec2 st;      // texture coordinates
-  { // camera setup:
-    x = params.cam_x.xyz;
-    vec3 f = params.cam_w.xyz;
-    vec3 up = vec3(0, 0, 1);
-    vec3 r = normalize(cross(f, up));
-    vec3 t = normalize(cross(f, r));
+    vec4 rand = xrand(seed, rp);
+    seed = uint(70000 * rand.x);
+    float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
+    vec3 L = vec3(0.0);
+    vec3 rgb = vec3(1.0);
+    vec3 x, w, n; // ray position, direction, hit normal
+    vec2 st;      // texture coordinates
+    { // camera setup:
+      x = params.cam_x.xyz;
+      vec3 f = params.cam_w.xyz;
+      vec3 up = vec3(0, 0, 1);
+      vec3 r = normalize(cross(f, up));
+      vec3 t = normalize(cross(f, r));
 
-    vec2 uv = (ipos+vec2(xrand(seed),xrand(seed)))/imageSize(img_out) - 0.5;
-    w = normalize(0.45*f + r*uv.x + t*uv.y);
-  }
+      vec2 uv = (ipos+rand.yz)/imageSize(img_out) - 0.5;
+      w = normalize(0.45*f + r*uv.x + t*uv.y);
+    }
 #if 1
   {
     rayQueryEXT rq;
@@ -236,7 +253,7 @@ main()
       const float t = rayQueryGetIntersectionTEXT(rq, true);
       uint mat;
       prepare_intersection(rq, w, x, n, st, mat);
-      vec3 ws = sample_cos(vec2(xrand(seed), xrand(seed)));
+      vec3 ws = sample_cos(rand.xy);
       if(dot(n,w) > 0) n = -n;
       vec3 du, dv, up = vec3(1,0,0);
       if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
@@ -245,27 +262,33 @@ main()
       w = ws.x * du + ws.y * dv + ws.z * n;
       x += 0.001 * (n + w);
       vec3 diffcol = texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
-      float occ = 0.0;
+      float ao = 0.0;
       const int samples = 3;
       for(int i=0;i<samples;i++)
       {
+        rand = xrand(seed, rp);
         w = normalize(vec3(1, 0, 1));
-        w.xy += vec2(xrand(seed),xrand(seed))*0.2;
+        w.xy += rand.xy * 0.2;
         rayQueryInitializeEXT(rq, rt_accel,
             gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
             0xFF, x, 1e-3, w, 10.0);
         while(rayQueryProceedEXT(rq)) { }
-        if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) occ++;
+        if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) ao ++;
       }
-      float ao = 0.5 + 0.5*(1.0-occ/samples);
-      rgb = ao * (0.1 + abs(dot(normalize(vec3(1)), n))) * diffcol * vec3(500.0); // fake ambient something
-      const float T = exp(-t * .10);
+      ao += 0.5*(rand.z + rand.w)-0.5; // dither
+      ao = clamp(ao/samples, 0.0, 1.0);
+      ao = mix(1.0, 1.0-ao, 0.9);
+      rgb = ao * (0.1 + abs(dot(w, n))) * diffcol * vec3(500.0); // fake ambient something
+      aov = vec4((1.0+n)/2.0 * diffcol, 1);
+      const float T = exp(-t * .05);
       L = mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
     }
     else
-    { // TODO envmap
+    { // envmap
       rgb = vec3(1.0);
-      L = texture(img_tex[0], w.xy).rgb * 1000.0 * vec3(0.2, 0.4, 0.9);
+      vec3 diffcol = texture(img_tex[0], w.xy).rgb;
+      L = diffcol * 1000.0 * vec3(0.2, 0.4, 0.9);
+      aov = vec4(diffcol, 1);
     }
   }
 #endif
@@ -293,7 +316,7 @@ main()
 #if 1
       uint mat;
       prepare_intersection(rq, w, x, n, st, mat);
-      vec3 ws = sample_cos(vec2(xrand(seed), xrand(seed)));
+      vec3 ws = sample_cos(vec2(xrand(seed, rp), xrand(seed, rp)));
       if(dot(n,w) > 0) n = -n;
       vec3 du, dv, up = vec3(1,0,0);
       if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
@@ -337,5 +360,6 @@ main()
   }
 
   imageStore(img_out, ipos, vec4(acc, 1));
+  imageStore(img_aov, ipos, aov);
 }
 
