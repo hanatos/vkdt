@@ -10,6 +10,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(push_constant, std140) uniform push_t
 {
   vec4 black;
+  vec4 white;
   uint filters;
 } push;
 
@@ -58,14 +59,14 @@ main()
       rgb.rb = col;
     else
       rgb.br = col;
+    rgb = max(vec3(0), (rgb*65535.0 - push.black.rgb)/(push.white.rgb-push.black.rgb));
   }
   else // bayer
   {
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(textureSize(img_in, 0)), 0);
     rgb = vec3(c.w, (c.x+c.z)/2.0, c.y);
+    rgb = max(vec3(0), (rgb*65535.0 - push.black.rgb)/(push.white.rgb-push.black.rgb));
   }
-
-  rgb = max(vec3(0), rgb - push.black.rgb/65535.0);
 
   // rgb is probably not rec2020, so this weighting could be 1 1 1 or anything really instead:
   // float lum = luminance_rec2020(rgb);

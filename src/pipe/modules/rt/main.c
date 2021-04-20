@@ -8,6 +8,14 @@ typedef struct rt_t
 }
 rt_t;
 
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  module->connector[1].roi.full_wd = module->connector[4].roi.full_wd = 2048;
+  module->connector[1].roi.full_ht = module->connector[4].roi.full_ht = 1152;
+}
+
 void
 input(
     dt_module_t             *mod,

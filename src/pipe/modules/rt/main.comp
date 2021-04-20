@@ -238,9 +238,10 @@ main()
       vec3 f = params.cam_w.xyz;
       vec3 up = vec3(0, 0, 1);
       vec3 r = normalize(cross(f, up));
-      vec3 t = normalize(cross(f, r));
+      vec3 t = normalize(cross(f, r)) * float(imageSize(img_out).y)/float(imageSize(img_out).x);
 
       vec2 uv = (ipos+rand.yz)/imageSize(img_out) - 0.5;
+      // vec2 uv = (ipos+0.5)/imageSize(img_out) - 0.5;
       w = normalize(0.45*f + r*uv.x + t*uv.y);
     }
 #if 1
