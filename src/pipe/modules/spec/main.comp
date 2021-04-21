@@ -265,7 +265,10 @@ main()
         if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
         if(params.gamut_mode == 3) bound = max_sat.x; // rec709
       }
-      if(params.sat > 1.0)
+      // quite harsh global restriction to bounds:
+      // float f = m / bound;
+      // sl.x = bound * f / pow(pow(f, 4.0) + 1.0, 1.0/4.0);
+      if(params.sat > 1.0) // only limit artificially increased saturation:
         m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
       sl.x = m;
     }
