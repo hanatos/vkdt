@@ -2,3 +2,5 @@ center:float:2:0.0:0.0
 scale:float:2:1.0:1.0
 squish0:float:1:0.0
 squish1:float:1:0.0
+ca red:float:1:1.0
+ca blue:float:1:1.0
