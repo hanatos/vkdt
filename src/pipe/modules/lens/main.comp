@@ -38,13 +38,15 @@ main()
   // vec2 pp = params.f * p / (params.r.x * d.y + (1.0-params.r.x)*(params.r.y*d.x + z)) + params.c;
 
   // unproject to world space xyz:
-  vec2 m = (p - params.c)/params.f;
+  // vec2 m = (p - params.c)/params.f;
+  vec2 m = p/params.f;
   float r2 = dot(m, m);
   float mz = (1.0 - params.r.x*params.r.x * r2) / (params.r.x * sqrt(1.0-(2.0*params.r.x-1.0)*r2) + 1.0 - params.r.x);
   vec3 xyz = (mz*params.r.y + sqrt(mz*mz + (1.0-params.r.y*params.r.y))) / (mz*mz + r2) * vec3(m, mz) - vec3(0, 0, params.r.y);
 
   // backproject to pinhole:
-  vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5;
+  // vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5;
+  vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5 + params.c; // i don't think this is what the paper intended but it looks great (makes me dizzy)
 
   vec3 rgb;
   if(params.ca == vec2(1.0))
