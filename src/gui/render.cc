@@ -505,9 +505,9 @@ void render_lighttable()
             }
           }
 
+          if(++i >= cnt) break;
           if(k < ipl-1) ImGui::SameLine();
           // else NextColumn()
-          if(++i >= cnt) break;
         }
       }
     }
