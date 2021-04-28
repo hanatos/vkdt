@@ -445,7 +445,7 @@ void render_lighttable()
         for(int k=0;k<ipl;k++)
         {
           uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
-          if(tid == -1u) tid = 0;
+          if(tid == -1u) tid = 0; // busybee
           if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
           {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
@@ -459,7 +459,6 @@ void render_lighttable()
           float scale = MIN(
               wd/(float)vkdt.thumbnails.thumb[tid].wd,
               ht/(float)vkdt.thumbnails.thumb[tid].ht);
-          // float w = ht * vkdt.thumbnails.thumb[tid].wd/(float)vkdt.thumbnails.thumb[tid].ht;
           float w = vkdt.thumbnails.thumb[tid].wd * scale;
           float h = vkdt.thumbnails.thumb[tid].ht * scale;
           uint32_t ret = ImGui::ThumbnailImage(vkdt.thumbnails.thumb[tid].dset,
@@ -507,7 +506,6 @@ void render_lighttable()
 
           if(++i >= cnt) break;
           if(k < ipl-1) ImGui::SameLine();
-          // else NextColumn()
         }
       }
     }

@@ -1176,10 +1176,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   { // keep incoming roi in sync:
     dt_connector_t *c = module->connector+i;
     if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
-    {
-      dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
-      c->roi = *roi;
-    }
+      c->roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
   }
   if(module->so->modify_roi_out)
   {
@@ -1193,37 +1190,37 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     // globally, so others can pick up maker/model:
     if(module->inst == dt_token("main") && !strncmp(dt_token_str(module->name), "i-", 2))
       graph->main_img_param = module->img_param;
-
-    return;
-  }
-  // default implementation:
-  // mark roi in of all outputs as uninitialised:
-  for(int i=0;i<module->num_connectors;i++)
-    if(dt_connector_output(module->connector+i))
-      module->connector[i].roi.scale = -1.0f;
-  // copy over roi from connector named "input" to all outputs ("write")
-  dt_roi_t roi = {0};
-  if(input < 0)
-  {
-    // minimal default output size (for generator nodes with no callback)
-    // might warn about this.
-    roi.full_wd = 1024;
-    roi.full_ht = 1024;
   }
   else
-  {
-    if(c->connected_mi != -1u)
+  { // default implementation:
+    // mark roi in of all outputs as uninitialised:
+    for(int i=0;i<module->num_connectors;i++)
+      if(dt_connector_output(module->connector+i))
+        module->connector[i].roi.scale = -1.0f;
+    // copy over roi from connector named "input" to all outputs ("write")
+    dt_roi_t roi = {0};
+    if(input < 0)
     {
-      roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
-      c->roi = roi; // also keep incoming roi in sync
+      // minimal default output size (for generator nodes with no callback)
+      // might warn about this.
+      roi.full_wd = 1024;
+      roi.full_ht = 1024;
     }
-  }
-  for(int i=0;i<module->num_connectors;i++)
-  {
-    if(module->connector[i].type == dt_token("write"))
+    else
     {
-      module->connector[i].roi.full_wd = roi.full_wd;
-      module->connector[i].roi.full_ht = roi.full_ht;
+      if(c->connected_mi != -1u)
+      {
+        roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
+        c->roi = roi; // also keep incoming roi in sync
+      }
+    }
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      if(module->connector[i].type == dt_token("write"))
+      {
+        module->connector[i].roi.full_wd = roi.full_wd;
+        module->connector[i].roi.full_ht = roi.full_ht;
+      }
     }
   }
 }

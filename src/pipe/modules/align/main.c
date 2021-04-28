@@ -36,6 +36,10 @@ void modify_roi_in(
     module->connector[i].roi.ht = module->connector[i].roi.full_ht;
     module->connector[i].roi.scale = 1.0f;
   }
+  module->connector[0].roi = module->connector[1].roi;
+  module->connector[2].roi = module->connector[1].roi;
+  module->connector[3].roi = module->connector[1].roi;
+  module->connector[4].roi = module->connector[1].roi;
 }
 
 void modify_roi_out(

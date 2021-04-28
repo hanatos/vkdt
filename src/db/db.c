@@ -268,6 +268,13 @@ int dt_db_load_image(
   if(len > 4 && !strcasecmp(filename+len-4, ".cfg"))
     len -= 4; // remove .cfg suffix
 
+  uint32_t id = -1u;
+  if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
+  {
+    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
+    return 1;
+  }
+
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);
 
