@@ -102,7 +102,7 @@ main()
     // (we are currently using same fake gaussian instead of a xi^2 statistic)
 
     // wavelet shrinkage and re-assembly:
-    float test = exp(- 0.01*xi2); // fake Xi2
+    float test = exp(- .5*xi2); // fake Xi2
     // float test = exp(- 0.008*sqrt(xi2)); // fake Xi2
     // bayes shrink would be T = sigma_noise^2 / sigma_signal
     // maybe consider that sigma_channel^2 scales as 1/f^2 with frequency f for natural images?
@@ -110,10 +110,16 @@ main()
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
     vec3 thrs = vec3(1.0, 10.0*params.chroma, 10.0*params.chroma) * (params.strength * 3.0) * test;
-    down4 += sigma * b3 * sign(down3) * max(abs(down3) - thrs, vec3(0.0));
-    down4 += sigma * b2 * sign(down2) * max(abs(down2) - thrs, vec3(0.0));
-    down4 += sigma * b1 * sign(down1) * max(abs(down1) - thrs, vec3(0.0));
-    down4 += sigma * b0 * sign(down0) * max(abs(down0) - thrs, vec3(0.0));
+    // sgn(x) * (abs(x) * (thr(x,0.2)) + (1-thr(x,0.2)) * max(0, abs(x) - 0.1))
+    vec3 tt = vec3(0.0);
+    tt = min(vec3(1.0), abs(down3)/(2*thrs));
+    down4 += sigma * b3 * sign(down3) * (abs(down3) * tt + (1.0-tt) * max(abs(down3) - thrs, vec3(0.0)));
+    tt = min(vec3(1.0), abs(down2)/(2*thrs));
+    down4 += sigma * b2 * sign(down2) * (abs(down2) * tt + (1.0-tt) * max(abs(down2) - thrs, vec3(0.0)));
+    tt = min(vec3(1.0), abs(down1)/(2*thrs));
+    down4 += sigma * b1 * sign(down1) * (abs(down1) * tt + (1.0-tt) * max(abs(down1) - thrs, vec3(0.0)));
+    tt = min(vec3(1.0), abs(down0)/(2*thrs));
+    down4 += sigma * b0 * sign(down0) * (abs(down0) * tt + (1.0-tt) * max(abs(down0) - thrs, vec3(0.0)));
     // down4 = vec3(test, 0.0, 0.0); // visualise edge stopping
   }
 

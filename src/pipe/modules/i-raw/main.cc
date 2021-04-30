@@ -204,7 +204,7 @@ check_params(
     uint32_t     parid,
     void        *oldval)
 {
-  if(parid == 1) // noise model
+  if(parid == 1 || parid == 2) // noise model
   {
     const float noise_a = dt_module_param_float(module, 1)[0];
     const float noise_b = dt_module_param_float(module, 2)[0];
@@ -255,10 +255,10 @@ void modify_roi_out(
   // adaptation here.
   float *noise_a = (float*)dt_module_param_float(mod, 1);
   float *noise_b = (float*)dt_module_param_float(mod, 2);
+#ifdef VKDT_USE_EXIV2
+  dt_exif_read(&mod->img_param, filename);
   if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
   {
-#ifdef VKDT_USE_EXIV2
-    dt_exif_read(&mod->img_param, filename);
     char pname[512];
     snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
         mod->img_param.maker,
@@ -276,9 +276,9 @@ void modify_roi_out(
       }
       fclose(f);
     }
-#endif
   }
   else
+#endif
   {
     mod->img_param.noise_a = noise_a[0];
     mod->img_param.noise_b = noise_b[0];

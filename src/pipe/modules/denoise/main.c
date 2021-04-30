@@ -162,7 +162,7 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi_half,
       }},
-      .push_constant_size = 17*sizeof(uint32_t),
+      .push_constant_size = 19*sizeof(uint32_t),
       .push_constant = {
         wbi[0], wbi[1], wbi[2], wbi[3],
         blacki[0], blacki[1], blacki[2], blacki[3],
@@ -171,6 +171,7 @@ create_nodes(
         (i == 0 && block == 1) ? crop_aabb[1] : 0,
         (i == 0 && block == 1) ? crop_aabb[2] : 0,
         (i == 0 && block == 1) ? crop_aabb[3] : 0,
+        noisei[0], noisei[1],
         i },
     };
   }
