@@ -1,1 +1,3 @@
 filename:string:256:test.cr2
+noise a:float:1:0.0
+noise b:float:1:0.0
