@@ -102,7 +102,7 @@ main()
     // (we are currently using same fake gaussian instead of a xi^2 statistic)
 
     // wavelet shrinkage and re-assembly:
-    float test = exp(- .5*xi2); // fake Xi2
+    float test = 1;// XXX exp(- .5*xi2); // fake Xi2
     // float test = exp(- 0.008*sqrt(xi2)); // fake Xi2
     // bayes shrink would be T = sigma_noise^2 / sigma_signal
     // maybe consider that sigma_channel^2 scales as 1/f^2 with frequency f for natural images?

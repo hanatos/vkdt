@@ -30,41 +30,60 @@ layout( // output
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-#if 0
-// TODO: set of edge response filters
+#if 1
+// set of edge response filters
 //      c1
 // c2
 //     c
 //        c4
 //   c3
-int response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
+//              detect      blur
+// spot    : c0 vs c1234    c01234    x1
+// lines   : c013 vs c24    c013      x2
+// corners : c012 vs c34    c012      x4
+vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
 {
   // detect lines, corners, spots
   // TODO: what's a good set of filters? what's the difference between a line and a corner with only 5 taps?
-  const float w[][5] = {
+  const float dw[][5] = { // detection weights
+    { 1., -1./4., -1./4., -1./4., -1./4.},   // spot
     { 1./3., 1./3., -1./2., 1./3., -1./2. }, // line bottom left -- top right
     { 1./3., -1./2., 1./3., -1./2., 1./3. }, // line top left -- bottom right
-    { 0, 1, 1, -1, -1 },               // edge bottom left -- top right
-    { 0, -1, 1, 1, -1 },               // edge top left -- bottom right
     { 1./3., 1./3., 1./3., -.5, -.5 }, // corner top left
     { 1./3., -.5, 1./3., 1./3., -.5 }, // corner bottom left
     { 1./3., -.5, -.5, 1./3., 1./3. }, // corner bottom right
-    { 1./3., 1./3., -.5, -.5, 1./3. }, // corner top right
-    { 4, -1, -1, -1, -1}};             // spot
+    { 1./3., 1./3., -.5, -.5, 1./3. }  // corner top right
+  };
+
+  // TODO: these are too harsh, don't set them all the way to zero!
+  // TODO: also the edge detected weights need some more centered envelope
+  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+  const float bw[][5] = { // blur weights
+    {t, (1.0-t)/4.0, (1.0-t)/4.0, (1.0-t)/4.0, (1.0-t)/4.0},
+    {1./3., 1./3., 0.0, 1./3., 0.0},
+    {1./3., 0.0, 1./3., 0.0, 1./3.},
+    {1./3., 1./3., 1./3., 0.0, 0.0},
+    {1./3., 0.0, 1./3., 1./3., 0.0},
+    {1./3., 0.0, 0.0, 1./3., 1./3.},
+    {1./3., 1./3., 0.0, 0.0, 1./3.}
+  };
 
   float maxres = 0.0;
-  int idx = -1;
+  int idx = 0;
 
-  for(int i=0;i<9;i++)
+#if 1
+  for(int i=0;i<7;i++)
   {
-    float res = fabs(w[i][0] * c0 + w[i][1] * c1 + w[i][2] * c2 + w[i][3] * c3 + w[i][4] * c4);
+    float res = length(dw[i][0] * c0 + dw[i][1] * c1 + dw[i][2] * c2 + dw[i][3] * c3 + dw[i][4] * c4);
     if(res > maxres)
     {
       maxres = res;
       idx = i;
     }
   }
-  return idx;
+#endif
+  // return bw[nonuniformEXT(idx)][0] * c0 + bw[nonuniformEXT(idx)][1] * c1 + bw[nonuniformEXT(idx)][2] * c2 + bw[nonuniformEXT(idx)][3] * c3 + bw[nonuniformEXT(idx)][4] * c4;
+  return bw[idx][0] * c0 + bw[idx][1] * c1 + bw[idx][2] * c2 + bw[idx][3] * c3 + bw[idx][4] * c4;
 }
 #endif
 
@@ -78,6 +97,14 @@ main()
 
   // 5 tap flower filter
   const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+#if 0 // feature detection wavelet
+  vec3 c0 = texelFetch(img_in, ipos, 0).rgb;// * t;
+  vec3 c1 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb;//  / 4.0 * (1.0-t);
+  vec3 c2 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz)).rgb;//  / 4.0 * (1.0-t);
+  vec3 c3 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 0.4, 0.5 - 1.2))/vec2(sz)).rgb;//  / 4.0 * (1.0-t);
+  vec3 c4 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz)).rgb;//  / 4.0 * (1.0-t);
+  vec3 rgb = response(c0, c1, c2, c3, c4);
+#else
 #if 0 // regular wavelet
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb * t;
   rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
@@ -110,6 +137,7 @@ main()
   rgb = sum / wgt;
 #undef lookup
 
+#endif
 #endif
 
   // sort image to write positions so we can iterate the filter
