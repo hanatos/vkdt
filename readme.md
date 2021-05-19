@@ -93,6 +93,11 @@ you can also build without rawspeed if that is useful for you.
 
 
 ## faq
+* **does it work with wayland**
+so far i have not seen it running on wayland, unfortunately. the cli
+still works (headless mode) but the few times we tried to run the gui
+were unsuccessful.
+
 * **can i run my super long running kernel without timeout?**  
 if you're using your only gpu in the system, you'll need to run without xorg,
 straight from a tty console. this means you'll only be able to use the
