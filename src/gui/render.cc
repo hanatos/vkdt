@@ -1344,13 +1344,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parid == parid &&
          vkdt.wstate.active_widget_parnm == num)
       {
-        snprintf(string, sizeof(string), "%02d done", num);
+        snprintf(string, sizeof(string), "done");
         if(ImGui::Button(string))
           widget_end();
       }
       else
       {
-        snprintf(string, sizeof(string), "%02d start", num);
+        snprintf(string, sizeof(string), "%02d", num);
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
