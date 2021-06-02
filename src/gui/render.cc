@@ -1837,6 +1837,18 @@ void render_darkroom()
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
 
+    dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
+    if(out_view0)
+    {
+      int wd = vkdt.state.panel_wd;
+      // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
+      int ht = wd * out_view0->connector[0].roi.full_ht / (float)out_view0->connector[0].roi.full_wd; // image aspect
+      ImGui::Image(out_view0->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
+          ImVec2(wd, ht),
+          ImVec2(0,0), ImVec2(1,1),
+          ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+    }
+
 
     { // print some basic exif if we have
       const dt_image_params_t *ip = &vkdt.graph_dev.module[0].img_param;
