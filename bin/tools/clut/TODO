@@ -1,0 +1,3 @@
+- replace adobe_coeff with something camera specific in data/
+- move half.h to core/
+- what about clip, solve? should go to core too. q2t not so sure
