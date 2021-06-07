@@ -17,11 +17,11 @@
 
 #include "details/lu.h"
 #include "details/matrices.h"
-#include "clip.h"
-#include "inpaint.h"
+#include "core/clip.h"
+#include "core/inpaint.h"
 #include "q2t.h"
-#include "../o-pfm/half.h"
-#include "../../../core/core.h"
+#include "core/half.h"
+#include "core/core.h"
 
 int use_bad_cmf = 0;
 // okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
@@ -29,7 +29,7 @@ int use_bad_cmf = 0;
 #define BAD_FINE_SAMPLES 30
 #define BAD_LAMBDA_MIN 400.0
 #define BAD_LAMBDA_MAX 700.0
-/// Discretization of quadrature scheme
+// discretisation of quadrature scheme
 #define CIE_SAMPLES 95
 #define CIE_LAMBDA_MIN 360.0
 #define CIE_LAMBDA_MAX 830.0

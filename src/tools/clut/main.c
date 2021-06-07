@@ -1,11 +1,11 @@
 // #define USE_LEVMAR
-#include "inpaint.h"
-#include "../../modules/o-pfm/half.h"
+#include "core/inpaint.h"
+#include "core/half.h"
+#include "core/clip.h"
+#include "core/solve.h"
 #include "q2t.h"
-#include "clip.h"
-#include "solve.h"
 #include <strings.h>
-#include "../../modules/i-raw/adobe_coeff.h"
+#include "../../pipe/modules/i-raw/adobe_coeff.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>

@@ -11,9 +11,9 @@
 #define CIE_LAMBDA_MAX 830.0
 #define CIE_FINE_SAMPLES ((CIE_SAMPLES - 1) * 3 + 1)
 #include "details/cie1931.h"
-#include "clip.h"
-#include "inpaint.h"
-#include "../o-pfm/half.h"
+#include "core/inpaint.h"
+#include "core/clip.h"
+#include "core/half.h"
 
 #include <stdio.h>
 #include <stdint.h>
