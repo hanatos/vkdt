@@ -26,6 +26,12 @@ layout( // output buffer
 ) uniform writeonly image2D img_out;
 
 // TODO: put in shared.glsl?
+void tri2quad(inout vec2 tc)
+{
+  tc.y = tc.y / (1.0-tc.x);
+  tc.x = (1.0-tc.x)*(1.0-tc.x);
+}
+
 vec3 fetch_coeff(vec3 rgb, out float b)
 {
   const mat3 rec2020_to_xyz = mat3(
@@ -35,6 +41,7 @@ vec3 fetch_coeff(vec3 rgb, out float b)
   vec3 xyz = rec2020_to_xyz * rgb;
   b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
+  tri2quad(tc);
   return texture(img_coeff, tc).rgb;
 }
 
