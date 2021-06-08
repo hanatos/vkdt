@@ -95,9 +95,9 @@ you can also build without rawspeed if that is useful for you.
 
 ## faq
 * **does it work with wayland**
-so far i have not seen it running on wayland, unfortunately. the cli
-still works (headless mode) but the few times we tried to run the gui
-were unsuccessful.
+`vkdt` has been confirmed to run on wayland, using amd hardware.
+there are a few known quirks, such as fullscreen mode (f11) does not
+work and there were refresh issues when window focus is lost.
 
 * **can i run my super long running kernel without timeout?**  
 if you're using your only gpu in the system, you'll need to run without xorg,
