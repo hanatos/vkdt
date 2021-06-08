@@ -1,10 +1,11 @@
 # vkdt: darktable which sucks less
 
-this is an experimental complete rewrite of [darktable](https://darktable.org),
-at this point with a reduced feature set. `vkdt` is designed with high performance
-in mind. there are already some new features, too: support for animations, raw video,
-and heavy lifting algorithms like image alignment and better highlight inpainting.
-this is made possible by faster processing, allowing more complex operations.
+[this](https://jo.dreggn.org/vkdt) is an experimental complete rewrite of
+[darktable](https://darktable.org), at this point with a reduced feature set.
+`vkdt` is designed with high performance in mind. there are already some new
+features, too: support for animations, raw video, and heavy lifting algorithms
+like image alignment and better highlight inpainting. this is made possible by
+faster processing, allowing more complex operations.
 
 the processing pipeline has been rewritten as a generic node graph (DAG) which
 supports multiple inputs and multiple outputs. all processing is done in glsl
