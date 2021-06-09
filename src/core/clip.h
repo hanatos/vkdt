@@ -1,7 +1,8 @@
 #pragma once
 #include <stdint.h>
 #include <math.h>
-static const float spectrum_clip[] =
+
+static const float dt_spectrum_clip[] =
 { // these are straight x y chromaticities from the CIE 2deg 5nm 1932 cmf.
   // for reasons of increased accuracy when clipping against this polygon in 2d, we remove a few very similar points:
 0.17556022, 0.0052938368,
@@ -103,14 +104,14 @@ static const float spectrum_clip[] =
 };
 
 static inline int
-spectrum_outside(float x, float y)
+dt_spectrum_outside(float x, float y)
 {
   if(x+y > 1.0f) return 1;
-  const int num_bins = sizeof(spectrum_clip)/2/sizeof(spectrum_clip[0]);
-  const float *prev = spectrum_clip;
+  const int num_bins = sizeof(dt_spectrum_clip)/2/sizeof(dt_spectrum_clip[0]);
+  const float *prev = dt_spectrum_clip;
   for(int l=1;l<num_bins;l++)
   {
-    const float *curr = spectrum_clip + 2*l;
+    const float *curr = dt_spectrum_clip + 2*l;
     const float edge1[2] = {curr[0]-prev[0], curr[1]-prev[1]};
     const float edge2[2] = {x-prev[0], y-prev[1]};
     const float det = edge1[0]*edge2[1] - edge1[1]*edge2[0];
@@ -122,7 +123,7 @@ spectrum_outside(float x, float y)
 
 // clip the given point v to the polygon p by projecting towards white w
 static inline void
-spectrum_clip_poly(
+dt_spectrum_clip_poly(
     const float *p,        // pointer to polygon points
     uint32_t     p_cnt,    // number of corners
     const float *w,        // constant white
@@ -150,7 +151,7 @@ spectrum_clip_poly(
 
 // compute a fake saturation value, 0.0 means white and 1.0 means spectral
 static inline float
-spectrum_saturation(
+dt_spectrum_saturation(
     const float *xy,   // the cie xy chromaticity value pair
     const float *w)    // white e.g. D65: {.3127266, .32902313}
 {
@@ -159,8 +160,8 @@ spectrum_saturation(
   float scale = 1.0f/sqrtf(out[0]*out[0] + out[1]*out[1]);
   out[0] = out[0] * scale + w[0];
   out[1] = out[1] * scale + w[1];
-  const int cnt = sizeof(spectrum_clip)/2/sizeof(spectrum_clip[0]);
-  spectrum_clip_poly(spectrum_clip, cnt, w, out);
+  const int cnt = sizeof(dt_spectrum_clip)/2/sizeof(dt_spectrum_clip[0]);
+  dt_spectrum_clip_poly(dt_spectrum_clip, cnt, w, out);
   // now "out" is on the spectral locus
   // compute saturation by comparing distance to white:
   out[0] -= w[0];
@@ -168,4 +169,3 @@ spectrum_saturation(
   float dist = sqrtf(out[0]*out[0] + out[1]*out[1]);
   return 1.0f/(dist * scale);
 }
-

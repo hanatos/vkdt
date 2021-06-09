@@ -7,7 +7,7 @@
 
 // conjugate gradient solve:
 static inline double
-conj_grad(const double *A, const double *b, double *x, const int m)
+dt_conj_grad(const double *A, const double *b, double *x, const int m)
 {
   for(int j=0;j<m;j++) x[j] = 0.0;
   double *r = alloca(sizeof(double)*m);
@@ -47,7 +47,7 @@ conj_grad(const double *A, const double *b, double *x, const int m)
 }
 
 static inline double
-gauss_newton_cg_step(
+dt_gauss_newton_cg_step(
     const int     m,      // number of parameters m < n
     double       *p,      // n parameters, will be updated
     const int     n,      // number of function and target values
@@ -80,7 +80,7 @@ gauss_newton_cg_step(
   //   A    x     = b
 
   double *delta = alloca(sizeof(double)*m);
-  double resid = conj_grad(A, b, delta, m);
+  double resid = dt_conj_grad(A, b, delta, m);
   assert(resid == resid);
   for(int i=0;i<m;i++) p[i] += delta[i];
   return resid;
@@ -88,7 +88,7 @@ gauss_newton_cg_step(
 
 // TODO: could use only one callback for f and J, would be more efficient
 static inline double
-gauss_newton_cg(
+dt_gauss_newton_cg(
     void (*f_callback)(double *p, double *f, int m, int n, void *data),
     void (*J_callback)(double *p, double *J, int m, int n, void *data),
     double       *p,      // initial paramters, will be overwritten
@@ -107,7 +107,7 @@ gauss_newton_cg(
   {
     f_callback(p, f, m, n, data);
     J_callback(p, J, m, n, data);
-    resid = gauss_newton_cg_step(m, p, n, f, J, t);
+    resid = dt_gauss_newton_cg_step(m, p, n, f, J, t);
     if(resid < 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);

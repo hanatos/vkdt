@@ -157,7 +157,7 @@ int check_gamut(double rgb[3])
       xyz[i] += rgb_to_xyz[i][j] * rgb[j];
   double x = xyz[0] / (xyz[0] + xyz[1] + xyz[2]);
   double y = xyz[1] / (xyz[0] + xyz[1] + xyz[2]);
-  return spectrum_outside(x, y);
+  return dt_spectrum_outside(x, y);
 }
 
 /**
@@ -475,7 +475,7 @@ mac_error:
       out[5*idx + 2] = coeffs[2];
 
       float xy[2] = {x, y}, white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E //{.3127266, .32902313}; // D65
-      float sat = spectrum_saturation(xy, white);
+      float sat = dt_spectrum_saturation(xy, white);
 
       // bin into lambda/saturation buffer
       float satc = lsres * sat;
@@ -514,13 +514,13 @@ mac_error:
 
 #ifndef MKSPECTRA // don't write spectra.lut
   { // scope write abney map on (lambda, saturation)
-    buf_t inpaint_buf = {
+    dt_inpaint_buf_t inpaint_buf = {
       .dat = lsbuf,
       .wd  = lsres,
       .ht  = lsres,
       .cpp = 5,
     };
-    inpaint(&inpaint_buf);
+    dt_inpaint(&inpaint_buf);
 
     // determine gamut boundaries for rec709 and rec2020:
     // walk each row and find first time it goes outside.

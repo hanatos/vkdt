@@ -643,7 +643,7 @@ create_chroma_lut(
     double u0 = cam_rgb_spec[0], u1 = cam_rgb_spec[2];
     tri2quad(&u0, &u1);
     float fxy[] = {xy[0], xy[1]}, white[] = {1.0f/3.0f, 1.0f/3.0f};
-    float sat = spectrum_saturation(fxy, white);
+    float sat = dt_spectrum_saturation(fxy, white);
     // find angular max dist + sat
     int bin = CLAMP(180.0/M_PI * (M_PI + atan2(u1-white_cam_rgb[2], u0-white_cam_rgb[0])), 0, 359);
     double dist2 =
@@ -687,7 +687,7 @@ create_chroma_lut(
     double norm = normalise1(cam_rgb_spec);
 
     float fxy[] = {xy[0], xy[1]}, white[2] = {1.0f/3.0f, 1.0f/3.0f};
-    float sat = spectrum_saturation(fxy, white);
+    float sat = dt_spectrum_saturation(fxy, white);
 
     // convert tri t to quad u:
     double u0 = cam_rgb_spec[0], u1 = cam_rgb_spec[2];
@@ -953,7 +953,7 @@ error:
     fprintf(stdout, "%g ", resid);
     // resid = minimize_nelder_mead(
         // cfa, num_it, &nm_objective, target, 2*num, data);
-    resid = gauss_newton_cg(
+    resid = dt_gauss_newton_cg(
         lm_callback,
         // lm_jacobian, // does not like our analytic jacobian
         lm_jacobian_dif,
@@ -977,13 +977,13 @@ error:
   float *buf = create_chroma_lut(&wd, &ht, spectra, &header, cfa, cfa_spec, cfa_spec_cnt, xyz_to_cam, cam_to_xyz);
 
 #if 1 // then hole fill it
-  buf_t inpaint_buf = {
+  dt_inpaint_buf_t inpaint_buf = {
     .dat = buf,
     .wd  = wd,
     .ht  = ht,
     .cpp = 4,
   };
-  inpaint(&inpaint_buf);
+  dt_inpaint(&inpaint_buf);
 #endif
 
   char basename[256] = {0}; // get sanitised basename
