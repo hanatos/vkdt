@@ -129,7 +129,8 @@ int dt_graph_read_config_line(
   else if(cmd == dt_token("param"))    return read_param_ascii(graph, c);
   else if(cmd == dt_token("connect"))  return read_connection_ascii(graph, c, 0);
   else if(cmd == dt_token("feedback")) return read_connection_ascii(graph, c, s_conn_feedback);
-  else if(cmd == dt_token("frames"))   graph->frame_cnt = atol(c); // does not fail
+  else if(cmd == dt_token("frames"))   graph->frame_cnt  = atol(c); // does not fail
+  else if(cmd == dt_token("fps"))      graph->frame_rate = atof(c); // does not fail
   else return 1;
   return 0;
 }
@@ -284,6 +285,7 @@ dt_graph_write_global_ascii(
     size_t            size)
 {
   WRITE("frames:%d\n", graph->frame_cnt);
+  WRITE("fps:%g\n",    graph->frame_rate);
   return line;
 }
 #undef WRITE

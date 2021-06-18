@@ -2,6 +2,7 @@
 #include "node.h"
 #include "module.h"
 #include "alloc.h"
+#include "raytrace.h"
 
 // create nodes requires roi requires alloc requires upload source
 typedef uint32_t dt_graph_run_t;
@@ -10,6 +11,7 @@ typedef struct dt_connector_image_t
 {
   uint64_t      offset, size;   // actual memory position during the time it is valid
   uint64_t      plane1_offset;  // yuv buffers need the offset to the chroma plane
+  uint32_t      wd, ht;         // if non zero, these are the varying dimensions of image arrays
   dt_vkmem_t   *mem;            // used for alloc/free during graph traversal
   VkImage       image;          // vulkan image object
   VkImageView   image_view;
@@ -66,6 +68,8 @@ typedef struct dt_graph_t
   uint32_t              uniform_size;        // size of the total uniform buffer
   uint32_t              uniform_global_size; // size of the global section
   VkDescriptorSetLayout uniform_dset_layout; // same layout for all nodes
+
+  dt_raytrace_graph_t   rt;
 
   size_t                vkmem_size;
   size_t                vkmem_staging_size;

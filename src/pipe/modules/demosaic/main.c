@@ -13,8 +13,6 @@ void modify_roi_in(
 
   ri->wd = ri->full_wd;
   ri->ht = ri->full_ht;
-  ri->x  = 0;
-  ri->y  = 0;
   ri->scale = 1.0f;
 }
 
@@ -114,8 +112,6 @@ create_nodes(
   roi_half.full_ht /= block;
   roi_half.wd /= block;
   roi_half.ht /= block;
-  roi_half.x  /= block;
-  roi_half.y  /= block;
   if(module->connector[1].roi.scale >= block)
   { // half size
     // we do whatever the default implementation would have done, too:

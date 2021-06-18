@@ -40,6 +40,11 @@ read_header(
     return 0; // already loaded
   assert(jpg); // this should be inited in init()
 
+  if(jpg->f)
+  {
+    fclose(jpg->f);
+    jpeg_destroy_decompress(&(jpg->dinfo));
+  }
   jpg->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!jpg->f) return 1;
 
@@ -167,8 +172,9 @@ void modify_roi_out(
 }
 
 int read_source(
-    dt_module_t *mod,
-    void *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   const char *filename = dt_module_param_string(mod, 0);
   if(read_header(mod, filename)) return 1;

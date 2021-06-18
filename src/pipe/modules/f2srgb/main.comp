@@ -8,7 +8,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  int usemat;
+  int usemat; // 0 - for thumbnails, stay in rec2020 but apply sRGB TRC
+              // 1 - regular sRGB primaries + TRC
+              // 2 - convert to XYZ
 } params;
 
 layout( // input buffer rgba
@@ -26,7 +28,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  if(params.usemat > 0)
+  if(params.usemat == 1)
   { // convert linear rec2020 to linear rec709
     const mat3 M = mat3(
          1.66022677, -0.58754761, -0.07283825,
@@ -34,9 +36,20 @@ main()
         -0.01815514, -0.10060303,  1.11899817);
     rgb *= M;
   }
-  // apply srgb tone curve
-  rgb.r = rgb.r <= 0.0031308 ? rgb.r * 12.92 : pow(rgb.r, 1.0/2.4)*(1+0.055)-0.055;
-  rgb.g = rgb.g <= 0.0031308 ? rgb.g * 12.92 : pow(rgb.g, 1.0/2.4)*(1+0.055)-0.055;
-  rgb.b = rgb.b <= 0.0031308 ? rgb.b * 12.92 : pow(rgb.b, 1.0/2.4)*(1+0.055)-0.055;
+  else if(params.usemat == 2)
+  {
+    const mat3 rec2020_to_xyz = mat3(
+        6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+        1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+        1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+    rgb = rec2020_to_xyz * rgb;
+  }
+
+  if(params.usemat <= 1)
+  { // apply srgb tone curve
+    rgb.r = rgb.r <= 0.0031308 ? rgb.r * 12.92 : pow(rgb.r, 1.0/2.4)*(1+0.055)-0.055;
+    rgb.g = rgb.g <= 0.0031308 ? rgb.g * 12.92 : pow(rgb.g, 1.0/2.4)*(1+0.055)-0.055;
+    rgb.b = rgb.b <= 0.0031308 ? rgb.b * 12.92 : pow(rgb.b, 1.0/2.4)*(1+0.055)-0.055;
+  }
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }

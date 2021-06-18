@@ -1,4 +1,8 @@
 nspots:int:1:0
 pad:int:3:0
-spots:float:80:0
-picked:float:60:0
+spots:float:96:0
+picked:float:72:0
+ref:float:72:0
+show:int:1:0
+grab:int:1:0
+de76:float:3:0

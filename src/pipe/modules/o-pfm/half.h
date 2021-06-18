@@ -15,23 +15,23 @@ static inline float half_to_float(uint16_t hi)
 {
   typedef union FP32
   {
-    uint u;
+    uint32_t u;
     float f;
     struct
     {
-      uint Mantissa : 23;
-      uint Exponent : 8;
-      uint Sign : 1;
+      uint32_t Mantissa : 23;
+      uint32_t Exponent : 8;
+      uint32_t Sign : 1;
     };
   } FP32;
   typedef union FP16
   {
-    unsigned short u;
+    uint16_t u;
     struct
     {
-      uint Mantissa : 10;
-      uint Exponent : 5;
-      uint Sign : 1;
+      uint16_t Mantissa : 10;
+      uint16_t Exponent : 5;
+      uint16_t Sign : 1;
     };
   } FP16;
   FP16 h = { hi };
@@ -39,9 +39,9 @@ static inline float half_to_float(uint16_t hi)
   static const uint32_t shifted_exp = 0x7c00 << 13; // exponent mask after shift
   FP32 o;
 
-  o.u = (h.u & 0x7fff) << 13;     // exponent/mantissa bits
-  uint exp = shifted_exp & o.u;   // just the exponent
-  o.u += (127 - 15) << 23;        // exponent adjust
+  o.u = (h.u & 0x7fff) << 13;       // exponent/mantissa bits
+  uint32_t exp = shifted_exp & o.u; // just the exponent
+  o.u += (127 - 15) << 23;          // exponent adjust
 
   // handle exponent special cases
   if (exp == shifted_exp) // Inf/NaN?
@@ -62,23 +62,23 @@ static inline uint16_t float_to_half(float fi)
 {
   typedef union FP32
   {
-    uint u;
+    uint32_t u;
     float f;
     struct
     {
-      uint Mantissa : 23;
-      uint Exponent : 8;
-      uint Sign : 1;
+      uint32_t Mantissa : 23;
+      uint32_t Exponent : 8;
+      uint32_t Sign : 1;
     };
   } FP32;
   typedef union FP16
   {
-    unsigned short u;
+    uint16_t u;
     struct
     {
-      uint Mantissa : 10;
-      uint Exponent : 5;
-      uint Sign : 1;
+      uint16_t Mantissa : 10;
+      uint16_t Exponent : 5;
+      uint16_t Sign : 1;
     };
   } FP16;
   FP32 f = { .f = fi };
@@ -86,10 +86,10 @@ static inline uint16_t float_to_half(float fi)
   FP32 f16max = { (127 + 16) << 23 };
   FP32 magic = { 15 << 23 };
   FP32 expinf = { (255 ^ 31) << 23 };
-  uint sign_mask = 0x80000000u;
+  uint32_t sign_mask = 0x80000000u;
   FP16 o = { 0 };
 
-  uint sign = f.u & sign_mask;
+  uint32_t sign = f.u & sign_mask;
   f.u ^= sign;
 
   if (!(f.f < f32infty.u)) // Inf or NaN
@@ -106,7 +106,7 @@ static inline uint16_t float_to_half(float fi)
 }
 
 // round-half-up (same as ISPC)
-static inline __m128i float_to_half_SSE2(__m128 f)
+static inline __m128i float_to_half_sse(__m128 f)
 {
 #define CONSTF(name) _mm_castsi128_ps(name)
   __m128i mask_sign       = _mm_set1_epi32(0x80000000u);

@@ -11,8 +11,6 @@ void modify_roi_in(
     // request the full uncropped thing, we want the borders
     module->connector[0].roi.wd = module->connector[0].roi.full_wd;
     module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-    module->connector[0].roi.x = 0.0f;
-    module->connector[0].roi.y = 0.0f;
     module->connector[0].roi.scale = 1.0f;
   }
   else
@@ -131,8 +129,6 @@ create_nodes(
   roi_half.full_ht /= block;
   roi_half.wd /= block;
   roi_half.ht /= block;
-  roi_half.x  /= block;
-  roi_half.y  /= block;
 
   const int wd = roi_half.full_wd;
   const int ht = roi_half.full_ht;
@@ -166,7 +162,7 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi_half,
       }},
-      .push_constant_size = 17*sizeof(uint32_t),
+      .push_constant_size = 19*sizeof(uint32_t),
       .push_constant = {
         wbi[0], wbi[1], wbi[2], wbi[3],
         blacki[0], blacki[1], blacki[2], blacki[3],
@@ -175,6 +171,7 @@ create_nodes(
         (i == 0 && block == 1) ? crop_aabb[1] : 0,
         (i == 0 && block == 1) ? crop_aabb[2] : 0,
         (i == 0 && block == 1) ? crop_aabb[3] : 0,
+        noisei[0], noisei[1],
         i },
     };
   }

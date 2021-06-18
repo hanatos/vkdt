@@ -11,8 +11,7 @@
 typedef struct dt_roi_t
 {
   uint32_t full_wd, full_ht; // full input size
-  uint32_t wd, ht;           // dimensions of region of interest
-  uint32_t x, y;             // offset in full image
+  uint32_t wd, ht;           // dimensions of scaled region
   float scale;               // scale: wd * scale is on input scale
 }
 dt_roi_t;
@@ -81,6 +80,9 @@ typedef struct dt_connector_t
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;
+
+  // if the output/write connector holds an array and the entries have different size:
+  uint32_t *array_dim; // or 0 if all have the same size of the roi
 
   // buffer associated with this in case it connects nodes:
   uint64_t offset_staging, size_staging;
@@ -226,11 +228,12 @@ dt_connector_vkformat(const dt_connector_t *c)
 }
 
 static inline size_t
-dt_connector_bufsize(const dt_connector_t *c)
+dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
 {
-  if(c->format == dt_token("bc1")) return c->roi.wd/4*c->roi.ht/4 * 8;
-  if(c->format == dt_token("yuv")) return c->roi.wd*c->roi.ht * 2; // XXX ??? * 2/3 is not enough here.
+  if(c->format == dt_token("bc1")) return wd/4*ht/4 * 8;
+  if(c->format == dt_token("yuv")) return wd*ht * 2; // XXX ??? * 2/3 is not enough here.
+  if(c->format == dt_token("geo")) return sizeof(float)*4*wd + 4*sizeof(uint32_t)*ht; // (vtx+n)*#v + (uv+i)*#i
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
-  return numc * bpp * c->roi.wd * c->roi.ht;
+  return numc * bpp * wd * ht;
 }

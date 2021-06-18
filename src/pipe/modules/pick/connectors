@@ -1,1 +1,3 @@
 input:sink:*:*
+spectra:read:rgba:*
+dspy:write:rgba:f16

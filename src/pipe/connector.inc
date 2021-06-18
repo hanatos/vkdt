@@ -122,6 +122,7 @@
   // connect input id
   cn1->connected_mi = m0;
   cn1->connected_mc = c0;
+  cn1->array_length = cn0->array_length; // copy from what is written to output
 
   // back connections are not unique, so we're just using this
   // as a reference counter, so we know there is /some/ connection.

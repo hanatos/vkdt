@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
     "    [--audio <file>]              dump audio stream to this file, if any\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
         );
+    threads_global_cleanup();
     qvk_cleanup();
     exit(1);
   }

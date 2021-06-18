@@ -1,0 +1,325 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  mat3  cam_to_rec2020; // camera matrix
+  vec4  white;
+  float split;
+  float sat;
+  int   gamut_mode;
+  int   matrix_mode;
+} params;
+
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // input spec coeff lut
+    set = 1, binding = 1
+) uniform sampler2D img_spectra;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+layout( // input spec coeff lut
+    set = 1, binding = 3
+) uniform sampler2D img_abney;
+
+layout( // input chroma rb lut camera -> rec2020, if any
+    set = 1, binding = 4
+) uniform sampler2D img_chroma;
+
+// these are dumped from the lut matching utility and contain
+// xyz cmf * xyz to rec2020 matrix
+const vec3 rgb_cmf[] = { // 30 entries, centered in 10nm bins:
+vec3(0.0116605, -0.0126882, 0.104201), // 405 nm
+vec3(0.0384134, -0.0423759, 0.351079), // 415 nm
+vec3(0.102829, -0.114999, 0.982369), // 425 nm
+vec3(0.146727, -0.166193, 1.53407), // 435 nm
+vec3(0.135248, -0.155766, 1.68426), // 445 nm
+vec3(0.0881284, -0.107379, 1.64669), // 455 nm
+vec3(0.017598, -0.0238506, 1.4409), // 465 nm
+vec3(-0.0600947, 0.103709, 0.979268), // 475 nm
+vec3(-0.116859, 0.244752, 0.574305), // 485 nm
+vec3(-0.156256, 0.413793, 0.322044), // 495 nm
+vec3(-0.194534, 0.66014, 0.18263), // 505 nm
+vec3(-0.194665, 0.965505, 0.0797332), // 515 nm
+vec3(-0.108478, 1.21003, 0.0219431), // 525 nm
+vec3(0.0545879, 1.3288, -0.00703415), // 535 nm
+vec3(0.26542, 1.34504, -0.0229588), // 545 nm
+vec3(0.521884, 1.2752, -0.028321), // 555 nm
+vec3(0.81582, 1.12965, -0.0272977), // 565 nm
+vec3(1.12024, 0.918074, -0.0225949), // 575 nm
+vec3(1.38923, 0.667138, -0.0163323), // 585 nm
+vec3(1.56658, 0.418823, -0.0101392), // 595 nm
+vec3(1.59318, 0.219146, -0.00523289), // 605 nm
+vec3(1.45392, 0.0875787, -0.00209105), // 615 nm
+vec3(1.1757, 0.0179454, -0.000380568), // 625 nm
+vec3(0.853065, -0.0104993, 0.000306079), // 635 nm
+vec3(0.570212, -0.0171418, 0.000462983), // 645 nm
+vec3(0.346409, -0.013899, 0.000367755), // 655 nm
+vec3(0.192202, -0.00873941, 0.000231237), // 665 nm
+vec3(0.100927, -0.00489876, 0.000129617), // 675 nm
+vec3(0.0522382, -0.00266546, 7.05256e-05), // 685 nm
+vec3(0.0251563, -0.00130916, 3.46391e-05), // 695 nm
+};
+
+void tri2quad(inout vec2 tc)
+{
+  tc.y = tc.y / (1.0-tc.x);
+  tc.x = (1.0-tc.x)*(1.0-tc.x);
+}
+
+vec3 fetch_coeff(vec3 rgb, out float Y)
+{ // convert to cie xy chromaticity coordinates
+  const mat3 rec2020_to_xyz = mat3(
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+  vec3 xyz = rec2020_to_xyz * rgb;
+  Y = xyz.y;
+  float b = dot(vec3(1),xyz);
+  vec2 tc = xyz.xy/b;
+  tri2quad(tc);
+  return texture(img_spectra, tc).rgb;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  // convert camera rgb to xyz:
+  if(ipos.x < params.split * imageSize(img_out).x)
+  { // matrix
+    float b = rgb.r+rgb.g+rgb.b;
+    rgb = params.cam_to_rec2020 * rgb;
+    rgb *= b / (rgb.r+rgb.g+rgb.b); // could have normalised the matrix, but now it's guaranteed to match up with the spectral lut below
+  }
+  else
+  { // spectral lut
+    float b = rgb.r+rgb.g+rgb.b;
+    vec2 tc = rgb.rb/b;
+    tri2quad(tc);
+    vec2 rb = texture(img_chroma, tc).rg;
+    rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
+    rgb *= b / (rgb.r+rgb.g+rgb.b); // see above.
+  }
+
+  // apply exposure correction
+  rgb *= pow(2.0, params.white.w);
+
+  if(ipos.x < params.split * imageSize(img_out).x)
+  { // comparison to rgb 3x3 base line
+#if 0 // oklab
+    // convert linear rec2020 to linear rec709
+    float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    const mat3 M = mat3(
+         1.66022677, -0.58754761, -0.07283825,
+        -0.12455334,  1.13292605, -0.00834963,
+        -0.01815514, -0.10060303,  1.11899817);
+    rgb *= M;
+    vec3 oklab;
+    {
+    // linear srgb to oklab
+    float l = 0.4121656120 * rgb.r + 0.5362752080 * rgb.g + 0.0514575653 * rgb.b;
+    float m = 0.2118591070 * rgb.r + 0.6807189584 * rgb.g + 0.1074065790 * rgb.b;
+    float s = 0.0883097947 * rgb.r + 0.2818474174 * rgb.g + 0.6302613616 * rgb.b;
+
+    float l_ = pow(l, 1.0/3.0);
+    float m_ = pow(m, 1.0/3.0);
+    float s_ = pow(s, 1.0/3.0);
+
+    oklab = vec3(
+        0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_,
+        1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_,
+        0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_);
+    }
+
+    // apply saturation
+    oklab.gb *= params.sat;
+
+    {
+    // oklab to linear srgb
+    float l_ = oklab.r + 0.3963377774 * oklab.g + 0.2158037573 * oklab.b;
+    float m_ = oklab.r - 0.1055613458 * oklab.g - 0.0638541728 * oklab.b;
+    float s_ = oklab.r - 0.0894841775 * oklab.g - 1.2914855480 * oklab.b;
+
+    float l = l_*l_*l_;
+    float m = m_*m_*m_;
+    float s = s_*s_*s_;
+
+    rgb = vec3(
+        + 4.0767245293*l - 3.3072168827*m + 0.2307590544*s,
+        - 1.2681437731*l + 2.6093323231*m - 0.3411344290*s,
+        - 0.0041119885*l - 0.7034763098*m + 1.7068625689*s);
+    }
+
+    // back to rec2020
+    rgb *= inverse(M);
+    float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    rgb *= Y/Y2;
+#endif
+#if 1 // rgb
+    // this is illuminant E (xyz=1 1 1) in rec2020:
+    const vec3 E = vec3(1.10761412, 0.96556543, 0.91697237);
+    vec3 cwp = vec3(params.white);// / E;
+    float Y = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    // multiply saturation in rgb?
+    float c = (rgb.r + rgb.g + rgb.b)/3.0;
+    rgb = (rgb - E*c)*params.sat + E*c;
+#if 0 // straight multiplication:
+    // this sticks to the rec2020 boundary because it doesn't go < 0
+    rgb *= cwp; 
+#else // bradford adaptation:
+    const mat3 rec2020_to_xyz = mat3(
+      6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+      1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+      1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+    const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+     -0.35567078,  1.61648124, -0.04277061,
+     -0.25336628,  0.01576855,  0.94210312);
+#if 1
+    const mat3 xyz_to_bradford = mat3(
+       0.8951000, -0.7502000,  0.0389000,
+       0.2664000,  1.7135000, -0.0685000,
+      -0.1614000,  0.0367000,  1.0296000);
+    const mat3 bradford_to_xyz = mat3(
+       0.9869929, 0.4323053, -0.0085287,
+      -0.1470543, 0.5183603,  0.0400428,
+       0.1599627, 0.0492912,  0.9684867);
+    // convert white and rgb to xyz to bradford:
+    cwp = xyz_to_bradford * (rec2020_to_xyz * cwp);
+    rgb = xyz_to_bradford * (rec2020_to_xyz * rgb);
+    rgb *= cwp;
+    rgb = xyz_to_rec2020 * (bradford_to_xyz * rgb);
+    // rgb = clamp(rgb, vec3(0.), vec3(1.));
+#else // divide in XYZ
+    cwp = rec2020_to_xyz * cwp;
+    rgb = rec2020_to_xyz * rgb;
+    rgb *= cwp;
+    rgb = xyz_to_rec2020 * rgb;
+#endif
+#endif
+    float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+    rgb *= Y/Y2;
+#endif
+  }
+  else
+  { // split: spectral
+  float Y;
+  if(params.sat != 1.0)
+  { // change saturation:
+    const mat3 xyz_to_rec2020 = mat3(
+      1.71665119, -0.66668435,  0.01763986,
+     -0.35567078,  1.61648124, -0.04277061,
+     -0.25336628,  0.01576855,  0.94210312);
+    const mat3 rec2020_to_xyz = mat3(
+      6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+      1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+      1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+    // TODO: work on rec2020/rb space instead?
+
+    // use lambda/saturation lut to walk saturation:
+    // lookup lambda and saturation from one lut by xy
+    vec3 xyz = rec2020_to_xyz * rgb;
+    float Y = xyz.y;
+    float b = xyz.x+xyz.y+xyz.z;
+#if 1
+    vec2 tc = xyz.xy/b;
+
+    // c0 c1 c2 and convert to saturation and lambda
+    tri2quad(tc);
+    vec4 lut = texture(img_spectra, tc);
+    vec2 sl = vec2(lut.w, -lut.y / (2.0 * lut.x));
+
+    // normalised wavelength, logistically compressed:
+    float norm = (sl.y - 400.0)/(700.0-400.0);
+    norm -= 0.5; // new sigmoid fit:
+    sl.y = 0.5*(0.5 + 0.5 * norm / sqrt(norm*norm+0.25));
+
+    if(lut.x > 0.0) sl.y += 0.5;
+    // this is where we would be at (unbounded params.sat)
+    float m = params.sat * sl.x;
+    // but we want to compress input in [sl.x.. infty) into
+    // the interval [sl.x .. max_sat.x]
+    const ivec2 size = textureSize(img_abney, 0).xy;
+    if(params.gamut_mode > 0)
+    {
+      float bound = 1.0; // spectral locus
+      if(params.gamut_mode > 1)
+      {
+        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).rg;
+        if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
+        if(params.gamut_mode == 3) bound = max_sat.x; // rec709
+      }
+      // quite harsh global restriction to bounds:
+      // float f = m / bound;
+      // sl.x = bound * f / pow(pow(f, 4.0) + 1.0, 1.0/4.0);
+      if(params.sat > 1.0) // only limit artificially increased saturation:
+        m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
+      sl.x = m;
+    }
+    else sl.x = clamp(m, 0.0, (size.x-2.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
+    // use lambda/sat lut to get new xy chroma values
+    vec2 xy = texture(img_abney, sl).rg;
+#else
+    vec2 xy = vec2(1./3., 1./3.) + (xyz.xy/b - vec2(1./3.,1./3.))*params.sat;
+#endif
+    // go back to colour
+    xyz = vec3(xy, 1.0-xy.x-xy.y);
+    xyz *= Y / xyz.y;
+    rgb = xyz_to_rec2020 * xyz;
+  }
+
+#if 1 // wb using sigmoids
+  vec3 cwp   = fetch_coeff(vec3(params.white), Y);
+  vec3 coeff = fetch_coeff(rgb, Y);
+
+  // FIXME:
+  // * desaturation goes to D65 for rgb and to E for spectral
+  // * spectral white balance * (1 1 1) means * D65 (so you can desaturate and wb 1 1 1 to yield a D65 spectrum and 1 1 1 rgb)
+  // * rgb wb * (1 1 1) means passthrough, i.e. * E (so desat and wb 1 1 1 yields D65 too, but for different reasons)
+  // * rgb vs spectral at sat==1 shows some slight jumps in the spectra near the borders (??) though i can't see the diff in the img
+
+  // DEBUG
+  // cwp = vec3(0.00014479, -0.189595, 62.5251); // d65 / 1.1
+  // cwp = vec3(-9.16167e-06, 0.00870653, -2.35259); // d65 / 3
+  // cwp = vec3(0, 0, 100000); // E / 2.0, this matches the rgb version if applied to the spectra
+  // 4.47548e-07, -0.000481296, -0.22512 would be E / 3.0
+
+  const int num_l = 30;
+  rgb = vec3(0);
+  for(int l=0;l<num_l;l++)
+  { // compute spectrum
+    const float lambda = 400.0 + (l+0.5)/float(num_l) * (700.0 - 400.0); // abridged 10nm center version (30 entries)
+    // const float lambda = 360.0 + l/(num_l-1.0) * (830.0 - 360.0);  // full version (283 entries)
+    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    float y = 1. / sqrt(x * x + 1.);
+    float val = 0.5 * x * y +  0.5;
+    float xw  = (cwp.x * lambda + cwp.y) * lambda + cwp.z;
+    float yw  = 1. / sqrt(xw * xw + 1.);
+    float wht = 0.5 * xw * yw +  0.5;
+
+    rgb += val * wht * rgb_cmf[l];
+  }
+  // keep perceived brightness Y the same, evaluate new Y by row in rec2020_to_xyz
+  float Y2 = dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rgb);
+  rgb *= Y/Y2;
+#endif
+  } // end if split (into rgb | spec)
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}

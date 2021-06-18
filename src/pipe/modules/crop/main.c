@@ -70,8 +70,6 @@ void modify_roi_in(
   float ht = crop[3] - crop[2];
   module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
   module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
-  module->connector[0].roi.x = 0.0f;
-  module->connector[0].roi.y = 0.0f;
   module->connector[0].roi.scale = module->connector[1].roi.scale;
 }
 

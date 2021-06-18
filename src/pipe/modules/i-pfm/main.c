@@ -24,6 +24,7 @@ read_header(
     return 0; // already loaded
   assert(pfm); // this should be inited in init()
 
+  if(pfm->f) fclose(pfm->f);
   pfm->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!pfm->f) goto error;
 
@@ -111,8 +112,9 @@ void modify_roi_out(
 }
 
 int read_source(
-    dt_module_t *mod,
-    void *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   const char *filename = dt_module_param_string(mod, 0);
   if(read_header(mod, filename)) return 1;

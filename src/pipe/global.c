@@ -105,9 +105,11 @@ dt_module_so_load(
     mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
     mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
+    mod->read_geo       = dlsym(mod->dlhandle, "read_geo");
     mod->commit_params  = dlsym(mod->dlhandle, "commit_params");
     mod->check_params   = dlsym(mod->dlhandle, "check_params");
     mod->audio          = dlsym(mod->dlhandle, "audio");
+    mod->input          = dlsym(mod->dlhandle, "input");
   }
 
   // read default params:
@@ -180,7 +182,9 @@ dt_module_so_load(
         mode = dt_read_int(b, &b);
         continue;
       }
-      else if(type == dt_token("slider") || type == dt_token("vslider"))
+      else if(type == dt_token("slider")
+           || type == dt_token("vslider")
+           || type == dt_token("rgb"))
       { // read range of slider
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
@@ -200,12 +204,14 @@ dt_module_so_load(
         b += len; // set pointer to the end
       }
       else if(type == dt_token("colour"))  {}
-      else if(type == dt_token("pers"))    {}
       else if(type == dt_token("crop"))    {}
-      else if(type == dt_token("pick"))    {}
       else if(type == dt_token("draw"))    {}
       else if(type == dt_token("filename")){}
+      else if(type == dt_token("grab"))    {}
       else if(type == dt_token("hidden"))  {}
+      else if(type == dt_token("pers"))    {}
+      else if(type == dt_token("pick"))    {}
+      else if(type == dt_token("print"))   {}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
       if(pid == -1)

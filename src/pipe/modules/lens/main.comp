@@ -1,0 +1,62 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec2 c;  // center
+  vec2 f;  // scale
+  vec2 r;  // constants defining two spheres
+  vec2 ca; // chromatic aberration coefficients
+} params;
+
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// lens correction after https://arxiv.org/pdf/1807.08957.pdf
+// The Double Sphere Camera Model Vladyslav Usenko, Nikolaus Demmel and Daniel Cremers
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec2 aspect = vec2(imageSize(img_out).x/float(imageSize(img_out).y), 1.0);
+  vec2 p = ((ipos+0.5)/vec2(imageSize(img_out)) - 0.5) * aspect;
+
+  // project world space xyz to lens:
+  // vec2 pp = params.f * p / (params.r.x * d.y + (1.0-params.r.x)*(params.r.y*d.x + z)) + params.c;
+
+  // unproject to world space xyz:
+  // vec2 m = (p - params.c)/params.f;
+  vec2 m = p/params.f;
+  float r2 = dot(m, m);
+  float mz = (1.0 - params.r.x*params.r.x * r2) / (params.r.x * sqrt(1.0-(2.0*params.r.x-1.0)*r2) + 1.0 - params.r.x);
+  vec3 xyz = (mz*params.r.y + sqrt(mz*mz + (1.0-params.r.y*params.r.y))) / (mz*mz + r2) * vec3(m, mz) - vec3(0, 0, params.r.y);
+
+  // backproject to pinhole:
+  // vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5;
+  vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5 + params.c; // i don't think this is what the paper intended but it looks great (makes me dizzy)
+
+  vec3 rgb;
+  if(params.ca == vec2(1.0))
+    rgb = sample_catmull_rom(img_in, pp).rgb;
+  else
+    rgb = vec3(
+        sample_catmull_rom(img_in, (pp-0.5)*params.ca.x+0.5).r,
+        sample_catmull_rom(img_in, pp).g,
+        sample_catmull_rom(img_in, (pp-0.5)*params.ca.y+0.5).b);
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+

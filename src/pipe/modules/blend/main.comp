@@ -77,13 +77,16 @@ main()
   // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
   float t = clamp(params.opacity*(1.0-mask), 0, 1);
 
+#if 0
   if(params.filters == 1)
   { // actually does not have a mosaic/bayer pattern and is no multi-frame
     rgb = mix(rgb, bck, t);
   }
   else if(params.filters == 0)
+#endif
+  if(params.filters < 2)
   {
-#if 0 // switch this off to see unshielded warping:
+#if 1 // switch this off to see unshielded warping:
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
     // this works best for real time anti aliasing, since it will increase
@@ -103,7 +106,7 @@ main()
     mom2 /= (2.0 * r + 1) * (2.0 * r + 1);
 
     vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
-    const float thresh = 1.0;
+    const float thresh = 2.0;
     bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
 #endif
     rgb = mix(rgb, bck, t);

@@ -1,0 +1,92 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  uvec4 nspots;
+  vec4 spot[20];
+  float picked[60]; // actually 3-strided colours
+} params;
+
+layout( // input picked colour buffer
+    set = 1, binding = 0
+) uniform usampler2D img_in;
+
+layout( // rgb to sigmoid lut
+    set = 1, binding = 1
+) uniform sampler2D img_coeff;
+
+layout( // output buffer
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+// TODO: put in shared.glsl?
+void tri2quad(inout vec2 tc)
+{
+  tc.y = tc.y / (1.0-tc.x);
+  tc.x = (1.0-tc.x)*(1.0-tc.x);
+}
+
+vec3 fetch_coeff(vec3 rgb, out float b)
+{
+  const mat3 rec2020_to_xyz = mat3(
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+  vec3 xyz = rec2020_to_xyz * rgb;
+  b = dot(vec3(1),xyz);
+  vec2 tc = xyz.xy/b;
+  tri2quad(tc);
+  return texture(img_coeff, tc).rgb;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  // on black
+  vec3 rgb = vec3(0.0);
+  // on white
+  // vec3 rgb = vec3(1.0);
+
+  for(int i=0;i<params.nspots.x;i++)
+  {
+    // read colour from texture
+    vec3 picked_rgb = vec3(
+      2.0*texelFetch(img_in, ivec2(i, 0), 0).r/pow(2.0, 30.0) - 0.5,
+      2.0*texelFetch(img_in, ivec2(i, 1), 0).r/pow(2.0, 30.0) - 0.5,
+      2.0*texelFetch(img_in, ivec2(i, 2), 0).r/pow(2.0, 30.0) - 0.5);
+
+    // or else read colour from params (requires round trip to cpu)?
+    // params.pick[]
+
+    float b;
+    vec3 coeff = fetch_coeff(picked_rgb, b);
+    vec3 cyl = vec3(coeff.x, coeff.z - coeff.y*coeff.y /(4.0 * coeff.x), -coeff.y / (2.0*coeff.x));
+
+    float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
+    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    float y = 1. / sqrt(x * x + 1.);
+    float val = 0.5 * x * y +  0.5;
+    float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-cyl.z)));
+    // val *= b;
+    // ddx *= b;
+
+    const float w = 4.0; // stroke width
+    const float t = w*max(1.0, imageSize(img_out).y*ddx);
+    float d = abs((1.0-val) * imageSize(img_out).y - ipos.y);
+    // on black:
+    rgb = max(rgb, picked_rgb * vec3(pow(smoothstep(t, 0.0, d), 3)));
+    // on white:
+    // rgb = mix(rgb, picked_rgb, vec3(pow(smoothstep(t, 0.0, d), 3)));
+  }
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+

@@ -9,8 +9,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   uvec4 nspots;
-  vec4 spot[20];
-  float picked[60]; // actually 3-strided colours
+  vec4 spot[24];
+  float picked[72]; // actually 3-strided colours
 } params;
 
 
@@ -40,9 +40,9 @@ main()
        ipos.y >= aabb.z && ipos.y < aabb.w)
     {
       vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-      imageAtomicAdd(img_out, ivec2(i, 0), uint(scale * clamp(rgb.r, 0.0, 1.0) + 0.5));
-      imageAtomicAdd(img_out, ivec2(i, 1), uint(scale * clamp(rgb.g, 0.0, 1.0) + 0.5));
-      imageAtomicAdd(img_out, ivec2(i, 2), uint(scale * clamp(rgb.b, 0.0, 1.0) + 0.5));
+      imageAtomicAdd(img_out, ivec2(i, 0), uint(scale * (rgb.r + 0.5) * 0.5 + 0.5));
+      imageAtomicAdd(img_out, ivec2(i, 1), uint(scale * (rgb.g + 0.5) * 0.5 + 0.5));
+      imageAtomicAdd(img_out, ivec2(i, 2), uint(scale * (rgb.b + 0.5) * 0.5 + 0.5));
     }
   }
 }

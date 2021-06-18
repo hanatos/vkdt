@@ -73,6 +73,8 @@ dt_connector_copy(
     c1->roi    = c0->roi;
     c1->connected_mi = c0->connected_mi;
     c1->connected_mc = c0->connected_mc;
+    c1->array_length = c0->array_length;
+    c1->array_dim    = c0->array_dim;
   }
 
   // node connectors need to know their counterparts.
@@ -279,10 +281,14 @@ dt_api_blur(
     dt_module_t *module,
     int          nodeid_input,
     int          connid_input,
+    int         *id_blur_in,
+    int         *id_blur_out,
     uint32_t     radius)
 {
   // detect pixel format on input and blur the whole thing in separable kernels
-  const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
+  const dt_connector_t *conn_input = nodeid_input >= 0 ?
+    graph->node[nodeid_input].connector + connid_input :
+    module->connector + connid_input;
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
@@ -337,6 +343,8 @@ dt_api_blur(
   // interconnect nodes:
   CONN(dt_node_connect(graph, nodeid_input,  connid_input, id_blurh, 0));
   CONN(dt_node_connect(graph, id_blurh,      1,            id_blurv, 0));
+  if(id_blur_in ) *id_blur_in  = id_blurh;
+  if(id_blur_out) *id_blur_out = id_blurv;
   return id_blurv;
 }
 
@@ -399,7 +407,7 @@ dt_api_guided_filter_full(
   // mean_p  = blur(p)
   // corr_I  = blur(I*I)
   // corr_Ip = blur(I*p)
-  // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, radius_px);
+  // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, 0, 0, radius_px);
   const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius_px, 1);
 
   // var_I   = corr_I - mean_I*mean_I
@@ -436,7 +444,7 @@ dt_api_guided_filter_full(
   // this is the same as in the p=I case below:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius_px);
+  // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
   const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius_px, 1);
   // final kernel:
   // output = mean_a * I + mean_b
@@ -531,7 +539,7 @@ dt_api_guided_filter(
   // then connect 1x blur:
   // mean_I = blur(I)
   // corr_I = blur(I*I)
-  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 1, radius_px);
+  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 1, 0, 0, radius_px);
 
   // connect to this node:
   // a = var_I / (var_I + eps)
@@ -559,7 +567,7 @@ dt_api_guided_filter(
   // and blur once more:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, radius_px);
+  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
 
   // final kernel:
   // output = mean_a * I + mean_b
@@ -610,7 +618,7 @@ static inline const float *dt_module_param_float(
     int paramid)
 {
   if(paramid >= 0 && paramid < module->so->num_params)
-    return (float *)(module->param + module->so->param[paramid]->offset);
+    return (const float *)(module->param + module->so->param[paramid]->offset);
   return 0;
 }
 
@@ -619,7 +627,7 @@ static inline const int32_t *dt_module_param_int(
     int paramid)
 {
   if(paramid >= 0 && paramid < module->so->num_params)
-    return (int32_t *)(module->param + module->so->param[paramid]->offset);
+    return (const int32_t *)(module->param + module->so->param[paramid]->offset);
   return 0;
 }
 

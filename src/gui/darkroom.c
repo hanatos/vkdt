@@ -24,6 +24,23 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
+
+  if(vkdt.wstate.grabbed)
+  {
+    dt_module_input_event_t p = {
+      .type = 1,
+      .x = x,
+      .y = y,
+      .mbutton = button,
+      .action  = action,
+      .mods    = mods,
+    };
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+    if(vkdt.wstate.active_widget_modid >= 0)
+      if(mod->so->input) mod->so->input(mod, &p);
+    return;
+  }
+
   if(x >= vkdt.state.center_x + vkdt.state.center_wd) return; // over panel
   const float px_dist = 0.1*qvk.win_height;
 
@@ -209,6 +226,20 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 {
   double x, y;
   glfwGetCursorPos(qvk.window, &x, &y);
+
+  if(vkdt.wstate.grabbed)
+  {
+    dt_module_input_event_t p = {
+      .type = 3,
+      .dx = xoff,
+      .dy = yoff,
+    };
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+    if(vkdt.wstate.active_widget_modid >= 0)
+      if(mod->so->input) mod->so->input(mod, &p);
+    return;
+  }
+
   if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
 
   // active widgets grabbed input?
@@ -263,6 +294,19 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
+  if(vkdt.wstate.grabbed)
+  {
+    dt_module_input_event_t p = {
+      .type = 2,
+      .x = x,
+      .y = y,
+    };
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+    if(vkdt.wstate.active_widget_modid >= 0)
+      if(mod->so->input) mod->so->input(mod, &p);
+    return;
+  }
+
   if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
   if(vkdt.wstate.active_widget_modid >= 0)
   {
@@ -320,6 +364,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     }
     else if(type == dt_token("pick"))
     {
+      // TODO: capture mouse position when button is pressed somewhere above!
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
         vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
@@ -385,6 +430,27 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(vkdt.wstate.grabbed)
+  {
+    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
+    {
+      glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      vkdt.wstate.grabbed = 0;
+      vkdt.wstate.active_widget_modid = -1;
+      return;
+    }
+    dt_module_input_event_t p = {
+      .type     = 4,
+      .key      = key,
+      .scancode = scancode,
+      .action   = action,
+      .mods     = mods,
+    };
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+    if(vkdt.wstate.active_widget_modid >= 0)
+      if(mod->so->input) mod->so->input(mod, &p);
+    return;
+  }
   if(action == GLFW_PRESS && key == GLFW_KEY_R)
   {
     // dt_view_switch(s_view_cnt);
@@ -408,7 +474,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
   {
-    if(vkdt.graph_dev.frame_cnt > 1)
+    if(vkdt.graph_dev.frame_cnt != 1)
       vkdt.state.anim_playing ^= 1; // start/stop playing animation
     else
     { // advance to next image in lighttable collection
@@ -424,8 +490,8 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
   {
-    if(vkdt.graph_dev.frame_cnt > 1)
-      vkdt.state.anim_frame = 0; // reset to beginning
+    if(vkdt.graph_dev.frame_cnt != 1)
+      vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
     else
     { // backtrack to last image in lighttable collection
       uint32_t next = dt_db_current_colid(&vkdt.db) - 1;
@@ -453,7 +519,10 @@ darkroom_process()
   if(vkdt.state.anim_playing)
   {
     if(vkdt.graph_dev.frame_rate == 0.0)
+    {
       advance = 1; // no frame rate set, run as fast as we can
+      vkdt.state.anim_frame = CLAMP(vkdt.graph_dev.frame + 1, 0, (uint32_t)vkdt.graph_dev.frame_cnt-1);
+    }
     else
     { // just started replay, record timestamp:
       if(start_time.tv_nsec == 0)
@@ -465,7 +534,7 @@ darkroom_process()
       double dt = (double)(beg.tv_sec - start_time.tv_sec) + 1e-9*(beg.tv_nsec - start_time.tv_nsec);
       vkdt.state.anim_frame = CLAMP(
           start_frame + MAX(0, vkdt.graph_dev.frame_rate * dt),
-          0, vkdt.graph_dev.frame_cnt-1);
+          0, (uint32_t)vkdt.graph_dev.frame_cnt-1);
       if(vkdt.graph_dev.frame > start_frame &&
          vkdt.graph_dev.frame == vkdt.state.anim_frame)
         vkdt.graph_dev.runflags = 0; // no need to re-render
@@ -476,7 +545,7 @@ darkroom_process()
       if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
         dt_log(s_log_snd, "frame drop warning, audio may stutter!");
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
-      if(vkdt.state.anim_frame < vkdt.state.anim_max_frame)
+      if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
   }

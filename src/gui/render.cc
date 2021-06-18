@@ -47,29 +47,34 @@ static struct gui_state_data_t
 
 void widget_end()
 {
-  if(vkdt.wstate.active_widget_modid < 0) return; // all good already
-  // rerun all (roi could have changed, buttons are drastic)
-  // TODO: let module decide this!
-  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-      s_graph_run_all);// &~s_graph_run_upload_source);
-  // reset view:
-  vkdt.state.look_at_x = FLT_MAX;
-  vkdt.state.look_at_y = FLT_MAX;
-  vkdt.state.scale = -1;
-  int modid = vkdt.wstate.active_widget_modid;
-  int parid = vkdt.wstate.active_widget_parid;
-  int parnm = vkdt.wstate.active_widget_parnm;
-  int parsz = vkdt.wstate.active_widget_parsz;
-  if(vkdt.wstate.mapped)
+  if(!vkdt.wstate.grabbed)
   {
-    vkdt.wstate.mapped = 0;
+    if(vkdt.wstate.active_widget_modid < 0) return; // all good already
+    // rerun all (roi could have changed, buttons are drastic)
+    // TODO: let module decide this!
+    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+        s_graph_run_all);// &~s_graph_run_upload_source);
+    // reset view:
+    vkdt.state.look_at_x = FLT_MAX;
+    vkdt.state.look_at_y = FLT_MAX;
+    vkdt.state.scale = -1;
+    int modid = vkdt.wstate.active_widget_modid;
+    int parid = vkdt.wstate.active_widget_parid;
+    int parnm = vkdt.wstate.active_widget_parnm;
+    int parsz = vkdt.wstate.active_widget_parsz;
+    if(vkdt.wstate.mapped)
+    {
+      vkdt.wstate.mapped = 0;
+    }
+    else
+    {
+      const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
+      memcpy(v, vkdt.wstate.state, parsz);
+    }
   }
-  else
-  {
-    const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
-    float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
-    memcpy(v, vkdt.wstate.state, parsz);
-  }
+  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  vkdt.wstate.grabbed = 0;
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
@@ -346,7 +351,6 @@ extern "C" int dt_gui_init_imgui()
   {
     ImFontConfig* font_config = (ImFontConfig*)&io.Fonts->ConfigData[n];
     font_config->RasterizerMultiply = 1.0f;
-    font_config->RasterizerFlags = flags; // extra flags hinting etc
   }
   ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
 #endif
@@ -443,7 +447,7 @@ void render_lighttable()
         for(int k=0;k<ipl;k++)
         {
           uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
-          if(tid == -1u) tid = 0;
+          if(tid == -1u) tid = 0; // busybee
           if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
           {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
@@ -457,7 +461,6 @@ void render_lighttable()
           float scale = MIN(
               wd/(float)vkdt.thumbnails.thumb[tid].wd,
               ht/(float)vkdt.thumbnails.thumb[tid].ht);
-          // float w = ht * vkdt.thumbnails.thumb[tid].wd/(float)vkdt.thumbnails.thumb[tid].ht;
           float w = vkdt.thumbnails.thumb[tid].wd * scale;
           float h = vkdt.thumbnails.thumb[tid].ht * scale;
           uint32_t ret = ImGui::ThumbnailImage(vkdt.thumbnails.thumb[tid].dset,
@@ -503,9 +506,8 @@ void render_lighttable()
             }
           }
 
-          if(k < ipl-1) ImGui::SameLine();
-          // else NextColumn()
           if(++i >= cnt) break;
+          if(k < ipl-1) ImGui::SameLine();
         }
       }
     }
@@ -739,14 +741,12 @@ void render_lighttable()
         dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
         FILE *f = fopen(filename, "wb");
         fprintf(f, "frames:1\n");
-        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        fprintf(f, "module:i-raw:main\n");
+        for(int i=1;i<vkdt.db.selection_cnt;i++)
         {
           fprintf(f, "module:i-raw:%02d\n", i);
-          if(i > 0)
-          {
-            fprintf(f, "module:burst:%02d\n", i);
-            fprintf(f, "module:blend:%02d\n", i);
-          }
+          fprintf(f, "module:align:%02d\n", i);
+          fprintf(f, "module:blend:%02d\n", i);
         }
         fprintf(f,
             "module:denoise:01\n"
@@ -764,23 +764,23 @@ void render_lighttable()
           if(sel[i] == main_imgid) continue;
           fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
           fprintf(f,
-              "connect:i-raw:%02d:output:burst:%02d:warp\n"
-              "connect:burst:%02d:output:blend:%02d:back\n"
-              "connect:burst:%02d:mask:blend:%02d:mask\n"
-              "connect:%s:%02d:output:blend:%02d:input\n"
-              "connect:i-raw:main:output:burst:%02d:input\n",
-              ii, ii, ii, ii, ii, ii,
-              ii > 1 ? "blend" : "i-raw",
-              ii-1, ii, ii);
+              "connect:i-raw:%02d:output:align:%02d:alignsrc\n"
+              "connect:i-raw:%02d:output:align:%02d:input\n"
+              "connect:align:%02d:output:blend:%02d:back\n"
+              "connect:align:%02d:mask:blend:%02d:mask\n",
+              ii, ii, ii, ii, ii, ii, ii, ii);
+          if(ii == 1) fprintf(f, "connect:i-raw:main:output:blend:%02d:input\n", ii);
+          else        fprintf(f, "connect:blend:%02d:output:blend:%02d:input\n", ii-1, ii);
+          fprintf(f, "connect:i-raw:main:output:align:%02d:aligndst\n", ii);
           fprintf(f,
               "param:blend:%02d:opacity:%g\n"
-              "param:burst:%02d:merge_n:0.0\n"
-              "param:burst:%02d:merge_k:4000\n"
-              "param:burst:%02d:blur0:1\n"
-              "param:burst:%02d:blur1:1\n"
-              "param:burst:%02d:blur2:1\n"
-              "param:burst:%02d:blur3:1\n",
-              ii, pow(0.5, ii), // ??
+              "param:align:%02d:merge_n:0.0\n"
+              "param:align:%02d:merge_k:4000\n"
+              "param:align:%02d:blur0:1\n"
+              "param:align:%02d:blur1:1\n"
+              "param:align:%02d:blur2:1\n"
+              "param:align:%02d:blur3:1\n",
+              ii, pow(0.5, ii),
               ii, ii, ii, ii, ii, ii);
           ii++;
         }
@@ -1107,9 +1107,27 @@ inline void draw_widget(int modid, int parid)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
+  // some state for double click detection for reset functionality
+  static int doubleclick = 0;
+  static double doubleclick_time = 0;
+#define RESETBLOCK \
+  {\
+    if(ImGui::GetTime() - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
+    if(doubleclick) memcpy(val, param->val+num, sizeof(float));\
+    change = 1;\
+  }\
+  if(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))\
+  {\
+    doubleclick_time = ImGui::GetTime();\
+    doubleclick = 1;\
+    memcpy(val, param->val+num, sizeof(float));\
+    change = 1;\
+  }\
+  if(change)
+
   // distinguish by count:
   // get count by param cnt or explicit multiplicity from ui file
-  int count = 1;
+  int count = 1, change = 0;
   if(param->widget.cntid == -1) count = param->cnt; // if we know nothing else, we use all elements
   else
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
@@ -1128,9 +1146,8 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::SliderFloat(str, val,
-              param->widget.min, param->widget.max, "%2.5f"))
-        {
+        if(ImGui::SliderFloat(str, val, param->widget.min, param->widget.max, "%2.5f"))
+        RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1145,9 +1162,8 @@ inline void draw_widget(int modid, int parid)
         int32_t oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        if(ImGui::SliderInt(str, val,
-              param->widget.min, param->widget.max, "%d"))
-        {
+        if(ImGui::SliderInt(str, val, param->widget.min, param->widget.max, "%d"))
+        RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1173,7 +1189,7 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::VSliderFloat("##v",
               ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
               param->widget.min, param->widget.max, ""))
-        {
+        RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1219,7 +1235,8 @@ inline void draw_widget(int modid, int parid)
       ImVec4 col(val[0], val[1], val[2], 1.0f);
       ImVec2 size(0.1*vkdt.state.panel_wd, 0.1*vkdt.state.panel_wd);
       ImGui::ColorButton(str, col, ImGuiColorEditFlags_HDR, size);
-      if(num < count - 1) ImGui::SameLine();
+      if((num < count - 1) && ((num % 6) != 5))
+        ImGui::SameLine();
       break;
     }
     case dt_token("pers"):
@@ -1329,17 +1346,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parid == parid &&
          vkdt.wstate.active_widget_parnm == num)
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" %d done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name), num);
+        snprintf(string, sizeof(string), "done");
         if(ImGui::Button(string))
           widget_end();
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" %d start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name), num);
+        snprintf(string, sizeof(string), "%02d", num);
         if(ImGui::Button(string))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -1349,6 +1362,33 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parsz = sz;
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sz);
+        }
+      }
+      if((num < count - 1) && ((num % 6) != 5))
+        ImGui::SameLine();
+      break;
+    }
+    case dt_token("grab"):  // grab all input
+    {
+      if(num != 0) break;
+      if(vkdt.wstate.active_widget_modid == modid &&
+         vkdt.wstate.active_widget_parid == parid)
+      {
+        if(ImGui::Button("stop [esc]")) widget_end();
+      }
+      else
+      {
+        if(ImGui::Button("grab input"))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.grabbed = 1;
+          dt_module_input_event_t p = { 0 };
+          dt_module_t *mod = vkdt.graph_dev.module + modid;
+          if(modid >= 0)
+            if(mod->so->input) mod->so->input(mod, &p);
+          glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
       }
       break;
@@ -1412,10 +1452,39 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("rgb"):
+    {
+      if(num > 2) break; // only red green blue components
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      float oldval = *val;
+      char str[32] = {0};
+      snprintf(str, sizeof(str), "%" PRItkn " %s",
+          dt_token_str(param->name),
+          num == 0 ? "red" : (num == 1 ? "green" : "blue"));
+      if(ImGui::SliderFloat(str, val,
+            param->widget.min, param->widget.max, "%2.5f"))
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+            s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+        vkdt.graph_dev.active_module = modid;
+      }
+      break;
+    }
+    case dt_token("print"):
+    {
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+      ImGui::Text("%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
+      num = count; // we've done it all at once
+      break;
+    }
     default:;
   }
   ImGui::PopID();
   } // end for multiple widgets
+#undef RESETBLOCK
 }
 } // anonymous namespace
 
@@ -1475,12 +1544,12 @@ void render_darkroom_pipeline()
   assert(graph->num_modules < sizeof(mod_id)/sizeof(mod_id[0]));
   for(int k=0;k<graph->num_modules;k++) mod_id[k] = k;
   dt_module_t *const arr = graph->module;
-  const int arr_cnt = graph->num_modules;
+  const int arr_cnt = graph->num_modules; // use this because buttons may add modules
   static uint64_t last_err = 0;
   uint64_t err = 0;
   int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
   uint32_t modid[100], cnt = 0;
-  for(int m=0;m<graph->num_modules;m++)
+  for(int m=0;m<arr_cnt;m++)
     modid[m] = m; // init as identity mapping
 
   if(last_err)
@@ -1516,9 +1585,9 @@ void render_darkroom_pipeline()
     else if(err) last_err = err;
   }
 
-  if(graph->num_modules > pos) ImGui::Text("disconnected:");
+  if(arr_cnt > pos) ImGui::Text("disconnected:");
   // now draw the disconnected modules
-  for(int m=pos;m<graph->num_modules;m++)
+  for(int m=pos;m<arr_cnt;m++)
   {
     err = render_module(graph, arr+mod_id[m], 0);
     if(err == -1ul) last_err = 0;
@@ -1528,7 +1597,7 @@ void render_darkroom_pipeline()
   // draw connectors outside of clipping region of individual widgets, on top.
   // also go through list in reverse order such that the first connector will
   // pick up the largest indentation to avoid most crossovers
-  for(int mi=graph->num_modules-1;mi>=0;mi--)
+  for(int mi=arr_cnt-1;mi>=0;mi--)
   {
     int m = mod_id[mi];
     for(int k=graph->module[m].num_connectors-1;k>=0;k--)
@@ -1544,9 +1613,9 @@ void render_darkroom_pipeline()
         int rev;// = nid; // TODO: store reverse list?
         // this works mostly but seems to have edge cases where it doesn't:
         // if(nid < pos) while(mod_id[rev] != nid) rev = mod_id[rev];
-        // else for(rev=pos;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
-        for(rev=0;rev<graph->num_modules;rev++) if(mod_id[rev] == nid) break;
-        if(rev == graph->num_modules+1 || mod_id[rev] != nid) continue;
+        // else for(rev=pos;rev<arr_cnt;rev++) if(mod_id[rev] == nid) break;
+        for(rev=0;rev<arr_cnt;rev++) if(mod_id[rev] == nid) break;
+        if(rev == arr_cnt+1 || mod_id[rev] != nid) continue;
         // traverse mod_id list between mi and rev nid and get indentation level
         int ident = 0;
         if(mi < rev) for(int i=mi+1;i<rev;i++)
@@ -1770,6 +1839,18 @@ void render_darkroom()
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
 
+    dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
+    if(out_view0)
+    {
+      int wd = vkdt.state.panel_wd;
+      // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
+      int ht = wd * out_view0->connector[0].roi.full_ht / (float)out_view0->connector[0].roi.full_wd; // image aspect
+      ImGui::Image(out_view0->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
+          ImVec2(wd, ht),
+          ImVec2(0,0), ImVec2(1,1),
+          ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+    }
+
 
     { // print some basic exif if we have
       const dt_image_params_t *ip = &vkdt.graph_dev.module[0].img_param;
@@ -1838,7 +1919,8 @@ void render_darkroom()
         else if(ImGui::Button("play", size))
           vkdt.state.anim_playing = 1;
         ImGui::SameLine();
-        ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame);
+        if(ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+          vkdt.graph_dev.frame = vkdt.state.anim_frame;
         ImGui::SameLine();
         ImGui::Text("%d", vkdt.state.anim_max_frame);
         ImGui::EndTabItem();

@@ -1,0 +1,72 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec2 center;
+  vec2 mata;
+  vec2 matb;
+  vec2 cxa;
+  vec2 cxb;
+  vec2 cya;
+  vec2 cyb;
+} params;
+
+
+layout( // input
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+float
+poly(vec2 ca, vec2 cb, float x)
+{
+  float r =   ca.x;
+  r = r * x + ca.y;
+  r = r * x + cb.x;
+  r = r * x + cb.y;
+  return r;
+}
+
+float
+sigmoid(float x)
+{
+  return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
+}
+
+// evaluates the vignetting function at a point x
+// given the parameters p
+float
+vignette(vec2 x)
+{
+  x -= params.center; // subtract center
+  x = vec2( // apply 2x2 matrix distortion
+      dot(x, params.mata),
+      dot(x, params.matb));
+  // separable sigmoid of polynomial/attenuation factor in both dimensions
+  float ax = sigmoid(poly(params.cxa, params.cxb, x.x));
+  float ay = sigmoid(poly(params.cya, params.cyb, x.y));
+  return ax * ay;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec2 tc = 2.0 * (ipos + 0.5)/imageSize(img_out) - 1.0;
+  float att = vignette(tc);
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * 0.1 / att;
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+

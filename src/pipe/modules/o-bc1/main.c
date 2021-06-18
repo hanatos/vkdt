@@ -25,7 +25,6 @@ void modify_roi_in(
   r->ht = r->full_ht/r->scale;
   r->wd = (r->wd/4)*4; // make sure we have bc1 blocks aligned
   r->ht = (r->ht/4)*4;
-  r->x = r->y = 0;
 }
 
 // called after pipeline finished up to here.

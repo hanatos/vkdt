@@ -46,6 +46,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define QVK_MAX_FRAMES_IN_FLIGHT 2
 #define QVK_MAX_SWAPCHAIN_IMAGES 4
 
+#define QVK_LOAD(FUNCTION_NAME) PFN_##FUNCTION_NAME q##FUNCTION_NAME = (PFN_##FUNCTION_NAME) vkGetInstanceProcAddr(qvk.instance, #FUNCTION_NAME)
+
 // forward declare
 typedef struct GLFWwindow GLFWwindow;
 
@@ -99,6 +101,8 @@ typedef struct qvk_t
 
   float                       ticks_to_nanoseconds;
   uint64_t                    uniform_alignment;
+
+  int                         raytracing_supported;
 }
 qvk_t;
 

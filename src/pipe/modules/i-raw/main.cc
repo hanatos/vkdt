@@ -198,6 +198,23 @@ int mat3inv(float *const dst, const float *const src)
   return 0;
 }
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 1 || parid == 2) // noise model
+  {
+    const float noise_a = dt_module_param_float(module, 1)[0];
+    const float noise_b = dt_module_param_float(module, 2)[0];
+    module->img_param.noise_a = noise_a;
+    module->img_param.noise_b = noise_b;
+    return s_graph_run_all; // need no do modify_roi_out again to read noise model from file
+  }
+  return s_graph_run_record_cmd_buf;
+}
+
 // this callback is responsible to set the full_{wd,ht} dimensions on the
 // regions of interest on all "write"|"source" channels
 void modify_roi_out(
@@ -236,26 +253,36 @@ void modify_roi_out(
   // parse it more quickly.
   // put the real matrix in there directly, so we don't have to juggle bradford
   // adaptation here.
+  float *noise_a = (float*)dt_module_param_float(mod, 1);
+  float *noise_b = (float*)dt_module_param_float(mod, 2);
 #ifdef VKDT_USE_EXIV2
   dt_exif_read(&mod->img_param, filename);
-  char pname[512];
-  snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
-      mod->img_param.maker,
-      mod->img_param.model,
-      (int)mod->img_param.iso);
-  FILE *f = dt_graph_open_resource(graph, pname, "rb");
-  if(f)
+  if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
   {
-    float a = 0.0f, b = 0.0f;
-    int num = fscanf(f, "%g %g", &a, &b);
-    if(num == 2)
+    char pname[512];
+    snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
+        mod->img_param.maker,
+        mod->img_param.model,
+        (int)mod->img_param.iso);
+    FILE *f = dt_graph_open_resource(graph, pname, "rb");
+    if(f)
     {
-      mod->img_param.noise_a = a;
-      mod->img_param.noise_b = b;
+      float a = 0.0f, b = 0.0f;
+      int num = fscanf(f, "%g %g", &a, &b);
+      if(num == 2)
+      {
+        noise_a[0] = mod->img_param.noise_a = a;
+        noise_b[0] = mod->img_param.noise_b = b;
+      }
+      fclose(f);
     }
-    fclose(f);
   }
+  else
 #endif
+  {
+    mod->img_param.noise_a = noise_a[0];
+    mod->img_param.noise_b = noise_b[0];
+  }
 
   // dimensions of cropped image (cut away black borders for noise estimation)
   rawspeed::iPoint2D dimCropped = mod_data->d->mRaw->dim;
@@ -392,8 +419,9 @@ void modify_roi_out(
 }
 
 int read_source(
-    dt_module_t *mod,
-    void *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;

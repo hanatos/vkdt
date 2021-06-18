@@ -1,0 +1,86 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+
+layout(push_constant, std140) uniform push_t
+{
+  int scale; // scale of the coarse input, or 0 if no coarse input
+} push;
+
+layout( // input buffer grey scale
+    set = 1, binding = 0
+) uniform sampler2D img_in0;
+
+layout( // input buffer grey scale
+    set = 1, binding = 1
+) uniform sampler2D img_in1;
+
+layout( // input buffer rgb coarse offset (dx dy dist)
+    set = 1, binding = 2
+) uniform sampler2D img_off;
+
+layout( // output buffer grey distance
+    set = 1, binding = 3
+) uniform writeonly image2D img_out[25];
+
+// write to offset image the abs distance between the two images,
+// where i1 is shifted by an offset (as in push constants) plus
+// the offset of any previous coarse buffers.
+// note that we're doing it wrong, and evaluating patches on top
+// of coarsely warped images (they aren't square any more).
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+  int offidx = int  (gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(ivec3(ipos, offidx), ivec3(imageSize(img_out[offidx]), 25)))) return;
+
+  int offy = offidx / 5;
+  int offx = offidx - 5*offy;
+  offx -= 2;
+  offy -= 2;
+
+  float i0 = texelFetch(img_in0, ipos, 0).r;
+  float i1;
+  if(push.scale > 0)
+  {
+#if 0 // hard
+    vec2 off = vec2(offx, offy) + texture(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
+#else // soft
+    vec2 off = vec2(offx, offy) + sample_soft(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
+#endif
+    i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
+  }
+  else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
+  // float dist = log(2+abs(i0 - i1));     // log L1
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
+  float dist = abs(i0 - i1); // L1
+  // float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.5)) * abs(i0 - i1)/max(1e-3,max(abs(i0),abs(i1))); // relative L1, center weighted
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1)/max(i0, i1));     // log L1 center weighted relative
+  // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
+  // float dist = (i0-i1)*(i0-i1) / max(1e-3, max(i0*i0, i1*i1));
+  // float dist = (2.0-exp(-(offx*offx+offy*offy)*.001)) * (i0 - i1)*(i0 - i1); // L2 center weighted
+
+  // dist = max(dist - 0.2, 0.0); // subtract noise floor XXX DEBUG
+  // if(dist == 0.0 && offidx != 12) dist = 10.0; // XXX DEBUG if only black pixels are matched, prefer the no-offset one!
+#if 0 // XXX DEBUG try to start from clean slate on first frame:
+  if(global.frame == 0)
+  {
+    dist = 1.0;
+    if(offidx == 12) dist = 0.0;
+  }
+#endif
+
+  imageStore(img_out[offidx], ipos, vec4(vec3(dist), 1));
+}
+

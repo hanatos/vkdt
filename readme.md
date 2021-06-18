@@ -1,10 +1,11 @@
 # vkdt: darktable which sucks less
 
-this is an experimental complete rewrite of [darktable](https://darktable.org),
-at this point with a reduced feature set. `vkdt` is designed with high performance
-in mind. there are already some new features, too: support for animations, raw video,
-and heavy lifting algorithms like image alignment and better highlight inpainting.
-this is made possible by faster processing, allowing more complex operations.
+[this](https://jo.dreggn.org/vkdt) is an experimental complete rewrite of
+[darktable](https://darktable.org), at this point with a reduced feature set.
+`vkdt` is designed with high performance in mind. there are already some new
+features, too: support for animations, raw video, and heavy lifting algorithms
+like image alignment and better highlight inpainting. this is made possible by
+faster processing, allowing more complex operations.
 
 the processing pipeline has been rewritten as a generic node graph (DAG) which
 supports multiple inputs and multiple outputs. all processing is done in glsl
@@ -45,9 +46,9 @@ vulkan validation layers, so you need to have them installed), try
 ```
 
 simply run `make` without the `debug` for a release build. `make sanitize` is
-supported to switch on the address sanitizer. changes to the compiled used can
-be set in `config.mk`. if you don't have that file yet, copy it from
-`config.mk.example`.
+supported to switch on the address sanitizer. changes to the compile time
+configuration as well as the compiler toolchain can be set in `config.mk`. if
+you don't have that file yet, you can copy it from `config.mk.defaults`.
 
 ## running
 
@@ -93,6 +94,11 @@ you can also build without rawspeed if that is useful for you.
 
 
 ## faq
+* **does it work with wayland**
+`vkdt` has been confirmed to run on wayland, using amd hardware.
+there are a few known quirks, such as fullscreen mode (f11) does not
+work and there were refresh issues when window focus is lost.
+
 * **can i run my super long running kernel without timeout?**  
 if you're using your only gpu in the system, you'll need to run without xorg,
 straight from a tty console. this means you'll only be able to use the
