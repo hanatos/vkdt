@@ -86,8 +86,8 @@ open_device(
   }
 
   // kernel doc suggests to use outside settings intstead, as an option:
-  // if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
-  // errno_exit("VIDIOC_G_FMT");
+  if (-1 == ioctl(dat->fd, VIDIOC_G_FMT, &dat->format))
+    perror("[i-v4l2] VIDIOC_G_FMT");
 
   // now wd and ht may have changed
 
