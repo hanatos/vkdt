@@ -152,7 +152,13 @@ vec4 xrand(inout uint seed, ivec2 p)
 vec3 geo_decode_normal(const uint enc)
 {
   // XXX FIXME: the unpack thing does already encode 1.0 as 0xffff and is thus different to the CPU version!
-  vec2 projected = 2.0*unpackSnorm2x16(enc);
+  // vec2 projected = 2.0*unpackSnorm2x16(enc); // <= we want this!
+  vec2 projected = 2.0*vec2(
+      uintBitsToFloat(0x3f800000u | (( enc      & 0x7fff)<<8)),
+      uintBitsToFloat(0x3f800000u | (((enc>>16) & 0x7fff)<<8))
+      ) - 2.0;
+  if(((enc>>16)&0x8000u) != 0) projected.y = -projected.y;
+  if(( enc     &0x8000u) != 0) projected.x = -projected.x;
   vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
   if(vec.z < 0.0)
     vec.xy = vec2(
@@ -196,8 +202,8 @@ void prepare_intersection(
 #else
   x = b.x * v0 + b.y * v1 + b.z * v2;
 #endif
-  // n = normalize(b.x * n0 + b.y * n1 + b.z * n2);
-  n = normalize(cross(v1-v0, v2-v0));
+  n = normalize(b.x * n0 + b.y * n1 + b.z * n2);
+  // n = normalize(cross(v1-v0, v2-v0));
   // if(dot(w, n) < 0) n = -n;
   vec2 st0 = unpackHalf2x16(p0.w);
   vec2 st1 = unpackHalf2x16(p1.w);
@@ -281,6 +287,7 @@ main()
       ao = mix(1.0, 1.0-ao, 0.9);
       rgb = ao * (0.1 + abs(dot(w, n))) * diffcol * vec3(500.0); // fake ambient something
       aov = vec4((1.0+n)/2.0 * diffcol, 1);
+      // aov = vec4((1.0+n)/2.0 * (t/(t+1.0)), 1);
       const float T = exp(-t * .05);
       L = mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
     }

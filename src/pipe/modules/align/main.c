@@ -438,5 +438,51 @@ create_nodes(
   dt_connector_copy(graph, module, 4, id_off[0], 3);  // full res mask
   graph->node[id_off[0]].connector[3].roi = roi[1];   // XXX FIXME: connector_copy should probably respect ROI
 #endif
+#if 1
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_mask = graph->num_nodes++;
+  graph->node[id_mask] = (dt_node_t) {
+    .name   = dt_token("align"),
+    .kernel = dt_token("mask"),
+    .module = module,
+    .wd     = roi[0].wd,
+    .ht     = roi[0].ht,
+    .dp     = 1,
+    .num_connectors = 4,
+    .connector = {{
+      .name   = dt_token("src"),
+      .type   = dt_token("read"),
+      .chan   = module->img_param.filters == 0 ? dt_token("rgba") : dt_token("rggb"),
+      .format = dt_token("f16"),
+      .roi    = roi[0],
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("dst"),
+      .type   = dt_token("read"),
+      .chan   = module->img_param.filters == 0 ? dt_token("rgba") : dt_token("rggb"),
+      .format = dt_token("f16"),
+      .roi    = roi[0],
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("offset"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rg"),
+      .format = dt_token("f16"),
+      .roi    = roi[1],
+      .flags  = s_conn_smooth,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("r"),
+      .format = dt_token("f16"),
+      .roi    = roi[0],
+    }},
+  };
+  dt_connector_copy(graph, module, 2, id_mask, 0);
+  dt_connector_copy(graph, module, 3, id_mask, 1);
+  CONN(dt_node_connect(graph, id_offset, 2, id_mask, 2));
+  dt_connector_copy(graph, module, 4, id_mask, 3);
+#endif
 #undef NUM_LEVELS
 }
