@@ -89,18 +89,18 @@ int main(int argc, char *argv[])
   }
 
   // inpaint/hole filling
-  buf_t inpaint_buf = {
+  dt_inpaint_buf_t inpaint_buf = {
     .dat = buf,
     .wd  = res,
     .ht  = res,
     .cpp = 4,
   };
-  inpaint(&inpaint_buf);
+  dt_inpaint(&inpaint_buf);
 
   // clear out of gamut values again
   for(int j=0;j<res;j++)
     for(int i=0;i<res;i++)
-      if(spectrum_outside(
+      if(dt_spectrum_outside(
             (i+.5) / (float)res,
             (j+.5) / (float)res))
         for(int c=0;c<3;c++)

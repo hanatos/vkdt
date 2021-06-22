@@ -4,6 +4,7 @@
 #include <alloca.h>
 #include <assert.h>
 #include <string.h>
+#include <math.h>
 
 // conjugate gradient solve:
 static inline double

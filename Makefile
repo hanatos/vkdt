@@ -42,6 +42,7 @@ bin: src Makefile
 	mkdir -p bin/data
 	# copy so we can take the executable path via /proc/self/exe:
 	cp -f src/vkdt-cli bin/
+	cp -f src/vkdt-fit bin/
 	cp -f src/vkdt bin/
 	# should probably copy this for easier install, too:
 	ln -sf ../src/pipe/modules bin/

@@ -27,7 +27,7 @@ $(patsubst %.$(shd),%.$(shd).spv,$(shell ls -1 pipe/modules/*/*.$(shd))))
 
 .PHONY: all clean modules
 
-all: vkdt-cli vkdt modules Makefile
+all: vkdt-cli vkdt-fit vkdt modules Makefile
 
 include qvk/flat.mk
 include core/flat.mk
@@ -36,10 +36,11 @@ include db/flat.mk
 include snd/flat.mk
 include gui/flat.mk
 include cli/flat.mk
+include fit/flat.mk
 
 clean: Makefile
-	rm -f vkdt vkdt-cli 
-	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(QVK_O) $(DB_O)
+	rm -f vkdt vkdt-cli vkdt-fit
+	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(FIT_O) $(QVK_O) $(DB_O)
 	# we delete *all* modules, not just the one in MOD_DSOS* because they may be from another branch.
 	# such stale libraries can still cause segfaults because they would be loaded.
 	# at some point we probably need to harden the api such that this still works. maybe.
@@ -69,6 +70,9 @@ db/%.o: db/%.c Makefile $(DB_H) db/flat.mk
 cli/%.o: cli/%.c Makefile $(CLI_H) cli/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
+fit/%.o: fit/%.c Makefile $(FIT_H) fit/flat.mk
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(FIT_CFLAGS) -c $< -o $@
+
 gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
@@ -92,6 +96,12 @@ vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) Makefile
 vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt-cli \
     $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
+
+# parameter optimiser
+# ======================
+vkdt-fit: $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o vkdt-fit \
+    $(LDFLAGS) $(FIT_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # modules
 # ======================
