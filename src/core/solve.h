@@ -32,7 +32,8 @@ dt_conj_grad(const double *A, const double *b, double *x, const int m)
     for(int j=0;j<m;j++)
       pAp += p[j] * Ap[j];
     double alpha = rsold / pAp;
-    assert(alpha == alpha);
+    // assert(alpha == alpha);
+    if(!(alpha == alpha)) return -1.0;//0.0;
     for(int j=0;j<m;j++)
       x[j] += alpha * p[j];
     for(int j=0;j<m;j++)
@@ -109,7 +110,7 @@ dt_gauss_newton_cg(
     f_callback(p, f, m, n, data);
     J_callback(p, J, m, n, data);
     resid = dt_gauss_newton_cg_step(m, p, n, f, J, t);
-    if(resid < 0.0) return resid;
+    if(resid <= 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
   }
