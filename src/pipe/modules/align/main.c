@@ -438,7 +438,7 @@ create_nodes(
   dt_connector_copy(graph, module, 4, id_off[0], 3);  // full res mask
   graph->node[id_off[0]].connector[3].roi = roi[1];   // XXX FIXME: connector_copy should probably respect ROI
 #endif
-#if 1
+#if 0 // connect extra mask creation kernel based on aovs:
   assert(graph->num_nodes < graph->max_nodes);
   const int id_mask = graph->num_nodes++;
   graph->node[id_mask] = (dt_node_t) {

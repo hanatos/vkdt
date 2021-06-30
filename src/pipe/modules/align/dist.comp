@@ -53,7 +53,7 @@ main()
   float i1;
   if(push.scale > 0)
   {
-#if 0 // hard
+#if 1 // hard
     vec2 off = vec2(offx, offy) + texture(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
 #else // soft
     vec2 off = vec2(offx, offy) + sample_soft(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;

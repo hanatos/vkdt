@@ -114,6 +114,7 @@ main()
   }
   else
   { // photography version.
+#if 0
     // too high values (allow too much input) gives weird colour cast
     float sigma2 = params.noise_a + 65535.0*max(0, rgb.r - params.black)*params.noise_b;
     // increase for flat areas:
@@ -125,6 +126,7 @@ main()
     float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
     sigma2 *= f;
     t *= clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / sigma2), 0, 1);
+#endif
 
     rgb = mix(rgb, bck, t);
   }
