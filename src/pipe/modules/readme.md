@@ -10,7 +10,9 @@ it follows the current list of available modules.
 **input modules**
 
 * [i-bc1: input module for bc1-compressed thumbnails](./i-bc1/readme.md)
+* [i-geo: input binary 3d geometry as ssbo connector](./i-geo/readme.md)
 * [i-jpg: jpg input module](./i-jpg/readme.md)
+* [i-jpglst: input a longer list of jpg as an array connector](./i-jpglst/readme.md)
 * [i-lut: half float lut input module](./i-lut/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
 * [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
