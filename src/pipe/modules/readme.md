@@ -62,6 +62,7 @@ it follows the current list of available modules.
 * [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
 * [saturate: simple rgb saturation](./saturate/readme.md)
+* [spec: spectral colour manipulation/input transform](./spec/readme.md)
 * [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
