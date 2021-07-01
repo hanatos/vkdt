@@ -66,6 +66,11 @@ it follows the current list of available modules.
 * [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
+**3d rendering**
+
+* [rt: real-time ray tracing](./rt/readme.md)
+* [spheres: shadertoy demo ported for testing](./spheres/readme.md)
+
 
 ## default pipeline
 
