@@ -114,6 +114,7 @@ dt_gauss_newton_cg(
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
     fprintf(stderr, "[solve] residual %g\n", resid);
+    if(resid < 1e-30) return resid;
   }
   return resid;
 }
@@ -158,12 +159,15 @@ dt_adam(
 
     for(int k=0;k<m;k++)
       p[k] -= mt[k]*corr_m * alpha / (corr_v + eps);
-    if(f[0] <= 0.0) return f[0];
     // for(int i=0;i<m;i++) p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
     fprintf(stderr, "[solve] adam: p: ");
-    for(int i=0;i<m;i++) fprintf(stderr, "%g ", p[i]);
+    for(int i=0;i<m;i++) fprintf(stderr, "%g\t", p[i]);
     fprintf(stderr, "\n");
+    // fprintf(stderr, "[solve] adam: m: ");
+    // for(int i=0;i<m;i++) fprintf(stderr, "%g ", mt[i]);
+    // fprintf(stderr, "\n");
     fprintf(stderr, "[solve] adam: loss %g %a\n", f[0], f[0]);
+    // if(f[0] <= 0.0) return f[0];
   }
   return f[0];
 }

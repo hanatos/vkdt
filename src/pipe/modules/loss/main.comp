@@ -37,17 +37,21 @@ main()
   for(int i=0;i<sz;i++) for(int j=0;j<sz;j++)
   {
     vec3 v = texelFetch(img_in,   sz*opos + ivec2(i, j), 0).rgb;
-    vec3 o = texelFetch(img_orig, sz*opos + ivec2(i, j), 0).rgb;
+    // vec3 o = texelFetch(img_orig, sz*opos + ivec2(i, j), 0).rgb;
 
-    float M = max(max(o.r, o.g), o.b);
-    float m = min(min(o.r, o.g), o.b);
-    if(o.r+o.g+o.b > params.bound_x &&
-       o.r+o.g+o.b < params.bound_y &&
-       M-m > params.bound_z)
+    // float M = max(max(o.r, o.g), o.b);
+    // float m = min(min(o.r, o.g), o.b);
+    // if(o.r+o.g+o.b > params.bound_x &&
+    //    o.r+o.g+o.b < params.bound_y &&
+    //    M-m > params.bound_z)
+    // XXX somehow never triggers even for crazy bounds??
     {
       w++;
-      v -= vec3(1,1,1);
-      mse += dot(v,v);
+      v -= vec3(1,1,1);   // ratio
+      // v -= vec3(0,0,0);   // difference
+      // mse += dot(v,v);     // L2
+      mse += dot(abs(v),vec3(1,1,1)); // L1
+      // mse = max(max(mse, v.r), max(v.g, v.b));  // max
     }
   }
 

@@ -35,6 +35,7 @@ main()
     vec2 v = texelFetch(img_in, sz*opos + ivec2(i, j), 0).rg;
     w += v.y;
     mse += v.y * v.x;
+    // mse = max(mse, v.x);
   }
 
   if(w == 0.0) mse = -1.0;

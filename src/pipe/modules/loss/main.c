@@ -135,6 +135,8 @@ create_nodes(
   };
   CONN(dt_node_connect(graph, node, conn, id_sink, 0));
 
+  // dt_connector_copy(graph, module, 2, node, conn);
+
   module->flags |= s_module_request_write_sink;
 }
 

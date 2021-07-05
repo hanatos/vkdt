@@ -64,7 +64,7 @@ void evaluate_J(double *p, double *J, int m, int n, void *data)
   double p2[m], f1[n], f2[n];
   for(int j=0;j<m;j++)
   {
-    const double h = 1e-10 + xrand()*1e-3;//1e-3;//1e-10;
+    const double h = 1e-10 + xrand()*1e-4;//1e-3;//1e-10;
     memcpy(p2, p, sizeof(p2));
     p2[j] = p[j] + h;
     evaluate_f(p2, f1, m, n, data);
@@ -209,15 +209,18 @@ int main(int argc, char *argv[])
   fprintf(stderr, "\n");
   // for(int i=7;i<num_params;i++) p[i] += 1e-5*(1.0-2.0*xrand()); // randomly perturb the initial guess
 
-  const int num_it = 500;
-  // dt_gauss_newton_cg(evaluate_f, evaluate_J,
-  //   p, t, num_params, num_target,
-  //   lb, ub, num_it, &dat);
+#if 0
+  const int num_it = 5000;
+  dt_gauss_newton_cg(evaluate_f, evaluate_J,
+    p, t, num_params, num_target,
+    lb, ub, num_it, &dat);
+#else
+  const int num_it = 50000;
   dt_adam(evaluate_f, evaluate_J,
     p, t, num_params, num_target,
     lb, ub, num_it, &dat,
-    // 1e-8, 0.9, 0.99, 0.1);
-    1e-8, 0.9, 0.99, 0.7);
+    1e-8, 0.9, 0.999, 0.001); // defaults as in the paper
+#endif
 
   fprintf(stderr, "post-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
