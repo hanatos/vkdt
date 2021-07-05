@@ -33,7 +33,7 @@ dt_conj_grad(const double *A, const double *b, double *x, const int m)
       pAp += p[j] * Ap[j];
     double alpha = rsold / pAp;
     // assert(alpha == alpha);
-    if(!(alpha == alpha)) return -1.0;//0.0;
+    if(!(alpha == alpha)) return 0.1;//0.0;
     for(int j=0;j<m;j++)
       x[j] += alpha * p[j];
     for(int j=0;j<m;j++)
@@ -113,6 +113,57 @@ dt_gauss_newton_cg(
     if(resid <= 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
+    fprintf(stderr, "[solve] residual %g\n", resid);
   }
   return resid;
+}
+
+static inline double
+dt_adam(
+    void (*f_callback)(double *p, double *f, int m, int n, void *data),
+    void (*J_callback)(double *p, double *J, int m, int n, void *data),
+    double       *p,      // initial paramters, will be overwritten
+    const double *t,      // target values
+    const int     m,      // number of parameters
+    const int     n,      // number of data points
+    const double *lb,     // m lower bound constraints
+    const double *ub,     // m upper bound constraints
+    const int     num_it, // number of iterations
+    void         *data,
+    double        eps,    // 10e-8 to avoid squared gradient estimation to drop to zero
+    double        beta1,  // 0.9 decay rate of gradient
+    double        beta2,  // 0.99 decay rate of squared gradient
+    double        alpha)  // 0.001 learning rate
+{
+  double *f  = alloca(sizeof(double)*n);
+  double *J  = alloca(sizeof(double)*n*m);
+  double *mt = alloca(sizeof(double)*n*m); // averaged gradient
+  double vt = 0.0; // sum of squared past gradients
+  memset(mt, 0, sizeof(double)*m*n);
+
+  for(int it=1;it<num_it+1;it++)
+  {
+    f_callback(p, f, m, n, data);
+    J_callback(p, J, m, n, data);
+    double sumJ2 = 0.0;
+    for(int k=0;k<n*m;k++) sumJ2 += J[k]*J[k];
+    vt = beta2 * vt + (1.0-beta2) * sumJ2;
+    for(int k=0;k<n*m;k++)
+      mt[k] = beta1 * mt[k] + (1.0-beta1) * J[k];
+
+    double corr_m = 1.0/(1.0-pow(beta1, it));
+    double corr_v = sqrt(vt / (1.0-pow(beta2, it)));
+    if(!(corr_v > 0.0)) corr_v = 1.0;
+    if(!(corr_m > 0.0)) corr_m = 1.0;
+
+    for(int k=0;k<m;k++)
+      p[k] -= mt[k]*corr_m * alpha / (corr_v + eps);
+    if(f[0] <= 0.0) return f[0];
+    // for(int i=0;i<m;i++) p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
+    fprintf(stderr, "[solve] adam: p: ");
+    for(int i=0;i<m;i++) fprintf(stderr, "%g ", p[i]);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "[solve] adam: loss %g %a\n", f[0], f[0]);
+  }
+  return f[0];
 }

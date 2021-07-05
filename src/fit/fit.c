@@ -49,20 +49,30 @@ void evaluate_f(double *p, double *f, int m, int n, void *data)
   // for(int i=0;i<n;i++) fprintf(stderr, "f[%d] = %g\n", i, f[i]);
 }
 
+static uint64_t seed = 90011; // random prime number
+static inline double
+xrand()
+{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  seed ^= seed << 13;
+  seed ^= seed >> 17;
+  seed ^= seed << 5;
+  return seed / 4294967296.0;
+}
+
 void evaluate_J(double *p, double *J, int m, int n, void *data)
 {
   double p2[m], f1[n], f2[n];
-  const double h = 1e-7;//1e-10;
   for(int j=0;j<m;j++)
   {
+    const double h = 1e-10 + xrand()*1e-3;//1e-3;//1e-10;
     memcpy(p2, p, sizeof(p2));
     p2[j] = p[j] + h;
     evaluate_f(p2, f1, m, n, data);
     memcpy(p2, p, sizeof(p2));
     p2[j] = p[j] - h;
     evaluate_f(p2, f2, m, n, data);
-    for(int k=0;k<n;k++) J[m*k + j] = (f1[k] - f2[k]) / (2.0*h);
-    // for(int k=0;k<n;k++) J[m*k + j] += 1e-3; // XXX DEBUG
+    for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f1[k] - f2[k]) / (2.0*h), -1e10, 1e10);
+    // for(int k=0;k<n;k++) J[m*k + j] += (1.0-2.0*xrand())*1e-8; // XXX DEBUG
     // for(int k=0;k<n;k++) fprintf(stderr, "J[%d][%d] = %g\n", j, k, J[m*k+j]);
   }
 }
@@ -197,15 +207,26 @@ int main(int argc, char *argv[])
   fprintf(stderr, "pre-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
   fprintf(stderr, "\n");
+  // for(int i=7;i<num_params;i++) p[i] += 1e-5*(1.0-2.0*xrand()); // randomly perturb the initial guess
 
-  const int num_it = 50;
-  dt_gauss_newton_cg(evaluate_f, evaluate_J,
+  const int num_it = 500;
+  // dt_gauss_newton_cg(evaluate_f, evaluate_J,
+  //   p, t, num_params, num_target,
+  //   lb, ub, num_it, &dat);
+  dt_adam(evaluate_f, evaluate_J,
     p, t, num_params, num_target,
-    lb, ub, num_it, &dat);
+    lb, ub, num_it, &dat,
+    // 1e-8, 0.9, 0.99, 0.1);
+    1e-8, 0.9, 0.99, 0.7);
 
   fprintf(stderr, "post-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
   fprintf(stderr, "\n");
+
+  pp = p;
+  for(int i=1;i<dat.param_cnt;i++) // [0] is the target parameter array
+    for(int j=0;j<dat.cnt[i];j++)
+      dat.par[i][j] = *(pp++);
 
   // output full cfg to stdout
   dt_graph_write_config_ascii(&dat.graph, "/dev/stdout");

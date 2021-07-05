@@ -1,0 +1,59 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float bound_x, bound_y, bound_z;
+  float loss;
+} params;
+
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 1
+) uniform sampler2D img_orig;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  float mse = 0.0;
+  const int sz = 2;
+  float w = 0.0;
+  for(int i=0;i<sz;i++) for(int j=0;j<sz;j++)
+  {
+    vec3 v = texelFetch(img_in,   sz*opos + ivec2(i, j), 0).rgb;
+    vec3 o = texelFetch(img_orig, sz*opos + ivec2(i, j), 0).rgb;
+
+    float M = max(max(o.r, o.g), o.b);
+    float m = min(min(o.r, o.g), o.b);
+    if(o.r+o.g+o.b > params.bound_x &&
+       o.r+o.g+o.b < params.bound_y &&
+       M-m > params.bound_z)
+    {
+      w++;
+      v -= vec3(1,1,1);
+      mse += dot(v,v);
+    }
+  }
+
+  if(w == 0.0) mse = -1.0;
+  else mse /= w;
+
+  imageStore(img_out, opos, vec4(mse, w / (sz*sz), 0, 0));
+}
+

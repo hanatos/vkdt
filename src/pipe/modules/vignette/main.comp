@@ -66,6 +66,8 @@ main()
   vec2 tc = 2.0 * (ipos + 0.5)/imageSize(img_out) - 1.0;
   float att = vignette(tc);
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb * 0.1 / att;
+  // vec3 rgb = texelFetch(img_in, ipos, 0).rgb - att;
+  // vec3 rgb = vec3(att);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

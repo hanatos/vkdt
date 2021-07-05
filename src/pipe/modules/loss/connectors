@@ -1,0 +1,3 @@
+input:sink:*:*
+orig:read:*:*
+dspy:write:rg:f32
