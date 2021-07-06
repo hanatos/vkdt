@@ -222,6 +222,7 @@ main()
   float Y;
   if(params.sat != 1.0)
   { // change saturation:
+#if 0 // XXX DEBUG commented out
     const mat3 xyz_to_rec2020 = mat3(
       1.71665119, -0.66668435,  0.01763986,
      -0.35567078,  1.61648124, -0.04277061,
@@ -282,6 +283,7 @@ main()
     xyz = vec3(xy, 1.0-xy.x-xy.y);
     xyz *= Y / xyz.y;
     rgb = xyz_to_rec2020 * xyz;
+#endif
   }
 
 #if 1 // wb using sigmoids
@@ -300,6 +302,17 @@ main()
   // cwp = vec3(0, 0, 100000); // E / 2.0, this matches the rgb version if applied to the spectra
   // 4.47548e-07, -0.000481296, -0.22512 would be E / 3.0
 
+  float domlam = -coeff.y / (2.0 * coeff.x);
+  float xx = (coeff.x * domlam + coeff.y) * domlam + coeff.z;
+  float yy = 1. / sqrt(xx * xx + 1.);
+  float vv = 0.5 * xx * yy +  0.5;
+  xx = (coeff.x * 300.0 + coeff.y) * 300.0 + coeff.z;
+  yy = 1. / sqrt(xx * xx + 1.);
+  vv = max(vv, 0.5 * xx * yy +  0.5);
+  xx = (coeff.x * 800.0 + coeff.y) * 800.0 + coeff.z;
+  yy = 1. / sqrt(xx * xx + 1.);
+  vv = max(vv, 0.5 * xx * yy +  0.5);
+
   const int num_l = 30;
   rgb = vec3(0);
   for(int l=0;l<num_l;l++)
@@ -313,6 +326,14 @@ main()
     float yw  = 1. / sqrt(xw * xw + 1.);
     float wht = 0.5 * xw * yw +  0.5;
 
+#if 1
+    float v = val/vv - 0.5;
+    // v = 0.5 + 0.5 * v / sqrt(v*v + pow(0.25, params.sat));
+    // v = clamp(v, -0.5, 0.5);
+    // v = 0.5 + sign(v) * 0.5*pow(2.0*abs(v), 1.0/params.sat);
+    v = 0.5 + sign(v) * 0.5*pow(2.0*abs(v), pow(2.0, 1.0/params.sat)-1.0);
+    val = v * vv;
+#endif
     rgb += val * wht * rgb_cmf[l];
   }
   // keep perceived brightness Y the same, evaluate new Y by row in rec2020_to_xyz
