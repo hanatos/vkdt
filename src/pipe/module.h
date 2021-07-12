@@ -56,6 +56,16 @@ typedef enum dt_module_flags_t
 }
 dt_module_flags_t;
 
+// a keyframe param change
+typedef struct dt_keyframe_t
+{
+  dt_token_t param;     // the parameter name
+  uint64_t   frame;     // the frame to apply this
+  uint32_t   beg, end;  // the begin and end byte offsets in the params array
+  uint8_t   *data;      // the data to slap over. points into the graph's param pool.
+}
+dt_keyframe_t;
+
 // this is an instance of a module.
 typedef struct dt_module_t
 {
@@ -87,6 +97,10 @@ typedef struct dt_module_t
   uint32_t version;     // module version affects param semantics
   uint8_t *param;       // points into pool stored with graph
   int      param_size;
+
+  uint32_t       keyframe_cnt;  // number of keyframes
+  uint64_t       keyframe_size; // allocation size
+  dt_keyframe_t *keyframe;      // dynamically allocated keyframe array
 
   // these stay 0 unless inited by the module in init().
   // if the module implements commit_params(), it shall be used

@@ -31,6 +31,7 @@ int dt_module_add(
   mod->committed_param_size = 0;
   mod->committed_param = 0;
   mod->flags = 0;
+  mod->keyframe_cnt = 0;
 
   // copy over initial info from module class:
   for(int i=0;i<dt_pipe.num_modules;i++)

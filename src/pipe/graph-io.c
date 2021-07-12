@@ -5,17 +5,19 @@
 #include <libgen.h>
 #include <unistd.h>
 
-// helper to read parameters from config file
+
+// helper to the helpers reading parameters in full, subsets, or for keyframes.
 static inline int
-read_param_ascii(
+read_param_values_ascii(
     dt_graph_t *graph,
-    char       *line)
+    char       *line,
+    dt_token_t  name,
+    dt_token_t  inst,
+    dt_token_t  parm,
+    int         beg,
+    int         end,
+    int         frame)
 {
-  // read module:instance:param:value x cnt
-  dt_token_t name = dt_read_token(line, &line);
-  dt_token_t inst = dt_read_token(line, &line);
-  dt_token_t parm = dt_read_token(line, &line);
-  // grab count from declaration in module_so_t:
   int modid = dt_module_get(graph, name, inst);
   if(modid < 0 || modid > graph->num_modules)
   {
@@ -31,28 +33,100 @@ read_param_ascii(
   }
   const dt_ui_param_t *p = graph->module[modid].so->param[parid];
   int cnt = p->cnt;
+  uint8_t *data = graph->module[modid].param + p->offset;
+  if(frame >= 0)
+  {
+    int ki = -1;
+    for(int i=0;ki<0&&i<graph->module[modid].keyframe_cnt;i++)
+      if(graph->module[modid].keyframe[i].param == parm && 
+         graph->module[modid].keyframe[i].frame == frame)
+        ki = i;
+    if(ki < 0)
+    {
+      ki = graph->module[modid].keyframe_cnt;
+      graph->module[modid].keyframe = dt_realloc(graph->module[modid].keyframe, &graph->module[modid].keyframe_size, ki);
+    }
+    graph->module[modid].keyframe[ki].frame = frame;
+    graph->module[modid].keyframe[ki].param = parm;
+    graph->module[modid].keyframe[ki].beg   = beg;
+    graph->module[modid].keyframe[ki].end   = end;
+    graph->module[modid].keyframe[ki].data  = graph->params_pool + graph->params_end;
+    graph->params_end += dt_ui_param_size(p->type, p->cnt);
+    assert(graph->params_end <= graph->params_max);
+    data = graph->module[modid].keyframe[ki].data;
+  }
+  if(beg < 0 || beg >= cnt || end < 0 || end > cnt)
+  {
+    dt_log(s_log_err|s_log_pipe, "parameter bounds exceeded %"PRItkn" %d,%d > %d", dt_token_str(parm), beg, end, cnt);
+    return 4;
+  }
+  if(end == 0) end = cnt;
   if(p->type == dt_token("float"))
   {
-    float *block = (float *)(graph->module[modid].param + p->offset);
-    for(int i=0;i<cnt;i++)
+    float *block = (float *)data + beg;
+    for(int i=beg;i<end;i++)
       *(block++) = dt_read_float(line, &line);
   }
   else if(p->type == dt_token("int"))
   {
-    int32_t *block = (int32_t *)(graph->module[modid].param + p->offset);
-    for(int i=0;i<cnt;i++)
+    int32_t *block = (int32_t *)data + beg;
+    for(int i=beg;i<end;i++)
       *(block++) = dt_read_int(line, &line);
   }
   else if(p->type == dt_token("string"))
   {
-    char *str = (char *)(graph->module[modid].param + p->offset);
-    int i = 0;
+    char *str = (char *)data;
+    int i = beg;
     do str[i++] = *(line++);
-    while(line[0] && (i < cnt-1));
+    while(line[0] && (i < end-1));
     str[i] = 0;
   }
   else dt_log(s_log_err|s_log_pipe, "unknown param type %"PRItkn, dt_token_str(p->type));
   return 0;
+}
+
+// helper to read parameters from config file
+static inline int
+read_param_ascii(
+    dt_graph_t *graph,
+    char       *line)
+{
+  // read module:instance:param:value x cnt
+  dt_token_t name = dt_read_token(line, &line);
+  dt_token_t inst = dt_read_token(line, &line);
+  dt_token_t parm = dt_read_token(line, &line);
+  return read_param_values_ascii(graph, line, name, inst, parm, 0, 0, -1);
+}
+
+// read only a subset of the parameters, given explicit indices for begin and end.
+static inline int
+read_paramsub_ascii(
+    dt_graph_t *graph,
+    char       *line)
+{
+  // read module:instance:param:beg:end:value x cnt
+  dt_token_t name = dt_read_token(line, &line);
+  dt_token_t inst = dt_read_token(line, &line);
+  dt_token_t parm = dt_read_token(line, &line);
+  int beg = dt_read_int(line, &line);
+  int end = dt_read_int(line, &line);
+  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, -1);
+}
+
+// helper to keyframe from config file
+static inline int
+read_keyframe_ascii(
+    dt_graph_t *graph,
+    char       *line)
+{
+  // read frame:module:instance:param:beg:end:value x cnt
+  int frame = dt_read_int(line, &line);
+  dt_token_t name = dt_read_token(line, &line);
+  dt_token_t inst = dt_read_token(line, &line);
+  dt_token_t parm = dt_read_token(line, &line);
+  uint32_t beg = dt_read_int(line, &line);
+  uint32_t end = dt_read_int(line, &line);
+  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, frame);
 }
 
 // helper to read a connection information from config file
@@ -127,6 +201,8 @@ int dt_graph_read_config_line(
   dt_token_t cmd = dt_read_token(c, &c);
   if     (cmd == dt_token("module"))   return read_module_ascii(graph, c);
   else if(cmd == dt_token("param"))    return read_param_ascii(graph, c);
+  else if(cmd == dt_token("paramsub")) return read_paramsub_ascii(graph, c);
+  else if(cmd == dt_token("keyframe")) return read_keyframe_ascii(graph, c);
   else if(cmd == dt_token("connect"))  return read_connection_ascii(graph, c, 0);
   else if(cmd == dt_token("feedback")) return read_connection_ascii(graph, c, s_conn_feedback);
   else if(cmd == dt_token("frames"))   graph->frame_cnt  = atol(c); // does not fail

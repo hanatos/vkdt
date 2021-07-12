@@ -93,6 +93,11 @@ dt_graph_cleanup(dt_graph_t *g)
     for(int i=0;i<g->num_modules;i++)
       if(g->module[i].so->cleanup)
         g->module[i].so->cleanup(g->module+i);
+  for(int i=0;i<g->num_modules;i++)
+  {
+    free(g->module[i].keyframe);
+    g->module[i].keyframe_size = 0;
+  }
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_staging);
   for(int i=0;i<g->conn_image_end;i++)
