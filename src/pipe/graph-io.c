@@ -34,6 +34,12 @@ read_param_values_ascii(
   const dt_ui_param_t *p = graph->module[modid].so->param[parid];
   int cnt = p->cnt;
   uint8_t *data = graph->module[modid].param + p->offset;
+  if(beg < 0 || beg >= cnt || end < 0 || end > cnt)
+  {
+    dt_log(s_log_err|s_log_pipe, "parameter bounds exceeded %"PRItkn" %d,%d > %d", dt_token_str(parm), beg, end, cnt);
+    return 4;
+  }
+  if(end == 0) end = cnt;
   if(frame >= 0)
   {
     int ki = -1;
@@ -43,8 +49,8 @@ read_param_values_ascii(
         ki = i;
     if(ki < 0)
     {
-      ki = graph->module[modid].keyframe_cnt;
-      graph->module[modid].keyframe = dt_realloc(graph->module[modid].keyframe, &graph->module[modid].keyframe_size, ki);
+      ki = graph->module[modid].keyframe_cnt++;
+      graph->module[modid].keyframe = dt_realloc(graph->module[modid].keyframe, &graph->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));
     }
     graph->module[modid].keyframe[ki].frame = frame;
     graph->module[modid].keyframe[ki].param = parm;
@@ -55,12 +61,6 @@ read_param_values_ascii(
     assert(graph->params_end <= graph->params_max);
     data = graph->module[modid].keyframe[ki].data;
   }
-  if(beg < 0 || beg >= cnt || end < 0 || end > cnt)
-  {
-    dt_log(s_log_err|s_log_pipe, "parameter bounds exceeded %"PRItkn" %d,%d > %d", dt_token_str(parm), beg, end, cnt);
-    return 4;
-  }
-  if(end == 0) end = cnt;
   if(p->type == dt_token("float"))
   {
     float *block = (float *)data + beg;

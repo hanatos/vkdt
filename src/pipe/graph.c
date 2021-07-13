@@ -1770,6 +1770,8 @@ VkResult dt_graph_run(
     (run & (s_graph_run_alloc | s_graph_run_create_nodes)))
     QVKR(vkDeviceWaitIdle(qvk.device));
 
+  dt_graph_apply_keyframes(graph);
+
   if(run & s_graph_run_alloc)
   {
       vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
@@ -2447,4 +2449,48 @@ void dt_graph_reset(dt_graph_t *g)
   g->conn_image_end = 0;
   g->num_nodes = 0;
   g->num_modules = 0;
+}
+
+void
+dt_graph_apply_keyframes(
+    dt_graph_t *g)
+{
+  for(int m=0;m<g->num_modules;m++)
+  {
+    dt_keyframe_t *kf = g->module[m].keyframe;
+    for(int ki=0;ki<g->module[m].keyframe_cnt;ki++)
+    {
+      int kiM = -1; // find ki.f <= f < kiM.f
+      for(int i=ki+1;i<g->module[m].keyframe_cnt;i++)
+      { // search for max frame smaller than current frame with same param
+        if(kf[i].param == kf[ki].param && 
+           kf[i].frame >  kf[ki].frame && kf[i].frame <= g->frame) ki = i;
+      }
+      // discard frames in the future:
+      if(kf[ki].frame > g->frame) continue;
+
+      for(int i=ki+1;i<g->module[m].keyframe_cnt;i++)
+      { // now search for later frame to interpolate
+        if(kf[ki].param == kf[i].param &&
+           kf[ki].beg == kf[i].beg && kf[ki].end == kf[i].end)
+          if((kiM == -1 || kf[i].frame < kf[i].frame) && kf[i].frame > g->frame) kiM = i;
+      }
+      int parid = dt_module_get_param(g->module[m].so, kf[ki].param);
+      const dt_ui_param_t *p = g->module[m].so->param[parid];
+      uint8_t *pdat = g->module[m].param + p->offset;
+      uint8_t *fdat = kf[ki].data;
+      size_t els = dt_ui_param_size(p->type, 1);
+      if(kiM == -1)
+      { // apply directly
+        memcpy(pdat, fdat + els*kf[ki].beg, els*(kf[ki].end-kf[ki].beg));
+      }
+      else if(p->type == dt_token("float")) // TODO: don't search for kiM above in the other cases
+      { // interpolate
+        float *dst = (float *)pdat, *src0 = (float *)fdat, *src1 = (float *)kf[kiM].data;
+        const float t = (g->frame - kf[ki].frame)/(float)(kf[kiM].frame - kf[ki].frame);
+        for(int i=kf[ki].beg;i<kf[ki].end;i++)
+          dst[i] = t * src1[i-kf[ki].beg] + (1.0f-t) * src0[i-kf[ki].beg];
+      }
+    }
+  }
 }

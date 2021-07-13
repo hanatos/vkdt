@@ -135,3 +135,9 @@ dt_graph_connector_image(
     int         cid,    // connector id
     int         array,  // array index
     int         frame); // frame number
+
+// apply all keyframes found in the module list and write to the modules parameters according to
+// the current frame in the graph (g->frame). floating point parameters will be interpolated.
+void
+dt_graph_apply_keyframes(
+    dt_graph_t *g);

@@ -61,7 +61,7 @@ core/%.o: core/%.c Makefile $(CORE_H) core/flat.mk
 snd/%.o: snd/%.c Makefile $(SND_H) snd/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(SND_CFLAGS) -c $< -o $@
 
-pipe/%.o: pipe/%.c Makefile $(PIPE_H) pipe/flat.mk
+pipe/%.o: pipe/%.c Makefile $(PIPE_H) $(CORE_H) pipe/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
 db/%.o: db/%.c Makefile $(DB_H) db/flat.mk

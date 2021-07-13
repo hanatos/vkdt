@@ -15,13 +15,13 @@
 #define CLAMP(a,m,M) (MIN(MAX((a), (m)), (M)))
 
 // allocates aligned, also copies the old data, frees the old buffer p.
-// does nothing if idx is within current size.
+// does nothing if addr is within current size.
 // returns new allocation.
 static inline void*
-dt_realloc(void *p, uint64_t *size, uint64_t idx)
+dt_realloc(void *p, uint64_t *size, uint64_t addr)
 {
-  if(*size > idx) return p;
-  uint64_t nsize = 1+2*idx;
+  if(*size > addr) return p;
+  uint64_t nsize = 16+2*addr;
   void *n = aligned_alloc(32, nsize);
   if(*size) memcpy(n, p, *size);
   *size = nsize;
