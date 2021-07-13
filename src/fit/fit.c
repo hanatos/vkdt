@@ -77,6 +77,64 @@ void evaluate_J(double *p, double *J, int m, int n, void *data)
   }
 }
 
+// init optimisation target as keyframe
+static inline int
+init_keyframe(
+    opt_dat_t  *dat,
+    char       *line,
+    const int   p)
+{
+  dt_graph_t *graph = &dat->graph;
+  dat->param_cnt = MAX(dat->param_cnt, p+1);
+
+  int frame = dt_read_int(line, &line);
+  dt_token_t name = dt_read_token(line, &line);
+  dt_token_t inst = dt_read_token(line, &line);
+  dt_token_t parm = dt_read_token(line, &line);
+  // grab count from declaration in module_so_t:
+  int modid = dt_module_get(graph, name, inst);
+  if(modid < 0 || modid > graph->num_modules)
+  {
+    dt_log(s_log_err|s_log_pipe, "no such module:instance %"PRItkn":%"PRItkn,
+        dt_token_str(name), dt_token_str(inst));
+    return 1;
+  }
+  int parid = dt_module_get_param(graph->module[modid].so, parm);
+  if(parid < 0)
+  {
+    dt_log(s_log_err|s_log_pipe, "no such parameter name %"PRItkn, dt_token_str(parm));
+    return 2;
+  }
+  const dt_ui_param_t *pui = graph->module[modid].so->param[parid];
+  if(pui->type != dt_token("float"))
+  {
+    dt_log(s_log_err|s_log_pipe, "only supporting float params now %"PRItkn, dt_token_str(parm));
+    return 3;
+  }
+  // TODO: find keyframe by stupidly iterating
+  int ki = -1;
+  for(int i=0;ki<0&&i<graph->module[modid].keyframe_cnt;i++)
+    if(graph->module[modid].keyframe[i].frame == frame &&
+       graph->module[modid].keyframe[i].param == parm) ki = i;
+  if(ki < 0)
+  {
+    dt_log(s_log_err|s_log_pipe, "no such keyframe %d %"PRItkn, frame, dt_token_str(parm));
+    return 4;
+  }
+  int beg = graph->module[modid].keyframe[ki].beg;
+  int end = graph->module[modid].keyframe[ki].end;
+  dat->par[p] = (float *)(graph->module[modid].keyframe[ki].data + dt_ui_param_size(pui->type, 1) * beg);
+  dat->cnt[p] = end - beg;
+    dt_log(s_log_cli, "initing param[%d] keyframe %d module:instance:param %"PRItkn":%"PRItkn":%"PRItkn,
+        p,
+        frame,
+        dt_token_str(name),
+        dt_token_str(inst),
+        dt_token_str(parm)
+        );
+  return 0;
+}
+
 static inline int
 init_param(
     opt_dat_t  *dat,
@@ -134,6 +192,7 @@ int main(int argc, char *argv[])
   int config_start = 0; // start of arguments which are interpreted as additional config lines
   char *graph_cfg = 0;
   char *parstr[OPT_MAX_PAR] = {0};
+  int keyframe[OPT_MAX_PAR] = {0};
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-g") && i < argc-1)
@@ -142,6 +201,8 @@ int main(int argc, char *argv[])
       parstr[0] = argv[++i];
     else if(!strcmp(argv[i], "--param"))
       parstr[dat.param_cnt++] = argv[++i];
+    else if(!strcmp(argv[i], "--keyframe"))
+    { keyframe[dat.param_cnt] = 1; parstr[dat.param_cnt++] = argv[++i]; }
     else if(!strcmp(argv[i], "--config"))
     { config_start = i+1; break; }
   }
@@ -153,6 +214,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "usage: vkdt-fit -g <graph.cfg>\n"
     "    [-d verbosity]                set log verbosity (mem,perf,pipe,cli,err,all)\n"
     "    [--param m:i:p]               add a parameter line to optimise. has to be float, need at least one\n"
+    "    [--keyframe f:m:i:p]          add a keyframe to optimise, which is already present in the input cfg\n"
     "    [--target m:i:p]              set the given module:inst:param as target for optimisation\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
         );
@@ -181,8 +243,8 @@ int main(int argc, char *argv[])
 
   // cache data pointers for target and parameters:
   for(int i=0;i<dat.param_cnt;i++)
-    if(init_param(&dat, parstr[i], i))
-      exit(1);
+    if     ( keyframe[i] && init_keyframe(&dat, parstr[i], i)) exit(1);
+    else if(!keyframe[i] && init_param   (&dat, parstr[i], i)) exit(1);
 
   int num_params = 0;
   for(int i=1;i<dat.param_cnt;i++) num_params += dat.cnt[i];
