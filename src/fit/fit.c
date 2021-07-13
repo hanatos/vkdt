@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
   if(!graph_cfg || !dat.param_cnt)
   {
     fprintf(stderr, "usage: vkdt-fit -g <graph.cfg>\n"
-    "    [-d verbosity]                set log verbosity (mem,perf,pipe,cli,err,all)\n"
+    "    [-d verbosity]                set log verbosity (none,mem,perf,pipe,cli,err,all)\n"
     "    [--param m:i:p]               add a parameter line to optimise. has to be float, need at least one\n"
     "    [--keyframe f:m:i:p]          add a keyframe to optimise, which is already present in the input cfg\n"
     "    [--target m:i:p]              set the given module:inst:param as target for optimisation\n"
