@@ -106,8 +106,8 @@ create_nodes(
         .roi    = roi,
       }},
     };
-    roi.wd = (roi.wd + sz - 1)/sz;
-    roi.ht = (roi.ht + sz - 1)/sz;
+    roi.wd = cwd;
+    roi.ht = cht;
     graph->node[id_down].connector[1].roi = roi;
     CONN(dt_node_connect(graph, node, conn, id_down, 0));
     node = id_down;

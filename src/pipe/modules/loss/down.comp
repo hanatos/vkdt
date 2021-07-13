@@ -32,7 +32,10 @@ main()
   float w = 0.0;
   for(int i=0;i<sz;i++) for(int j=0;j<sz;j++)
   {
-    vec2 v = texelFetch(img_in, sz*opos + ivec2(i, j), 0).rg;
+    ivec2 rd = sz*opos + ivec2(i,j);
+    if(any(greaterThanEqual(rd, textureSize(img_in, 0)))) continue;
+    if(any(lessThan(rd, ivec2(0)))) continue;
+    vec2 v = texelFetch(img_in, rd, 0).rg;
     w += v.y;
     mse += v.y * v.x;
     // mse = max(mse, v.x);
