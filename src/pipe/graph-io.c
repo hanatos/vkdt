@@ -354,6 +354,48 @@ dt_graph_write_param_ascii(
   return line;
 }
 
+// write keyframe
+char *
+dt_graph_write_keyframe_ascii(
+    const dt_graph_t *graph,
+    const int         m,
+    const int         k,
+    char             *line,
+    size_t            size)
+{
+  const dt_module_t *mod = graph->module + m;
+  WRITE("keyframe:%lu:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
+      mod->keyframe[k].frame,
+      dt_token_str(mod->name),
+      dt_token_str(mod->inst),
+      dt_token_str(mod->keyframe[k].param),
+      mod->keyframe[k].beg,
+      mod->keyframe[k].end);
+  int beg = mod->keyframe[k].beg;
+  int end = mod->keyframe[k].end;
+  int p = dt_module_get_param(graph->module[m].so, mod->keyframe[k].param);
+  if(mod->so->param[p]->type == dt_token("float"))
+  {
+    const float *v = (float *)mod->keyframe[k].data;
+    for(int i=beg;i<end-1;i++)
+      WRITE("%g:", v[i-beg]);
+    WRITE("%g\n", v[end-beg-1]);
+  }
+  else if(mod->so->param[p]->type == dt_token("int"))
+  {
+    const int32_t *v =  (int32_t *)mod->keyframe[k].data;
+    for(int i=beg;i<end-1;i++)
+      WRITE("%d:", v[i-beg]);
+    WRITE("%d\n", v[end-beg-1]);
+  }
+  else if(mod->so->param[p]->type == dt_token("string"))
+  {
+    WRITE("%s\n", (char *)mod->keyframe[k].data);
+  }
+  return line;
+}
+
+
 char *
 dt_graph_write_global_ascii(
     const dt_graph_t *graph,
@@ -395,6 +437,12 @@ int dt_graph_write_config_ascii(
   for(int m=0;m<graph->num_modules;m++)
     for(int p=0;p<graph->module[m].so->num_params;p++)
       if(!(buf = dt_graph_write_param_ascii(graph, m, p, buf, end-buf)))
+        goto error;
+
+  // write all keyframes
+  for(int m=0;m<graph->num_modules;m++)
+    for(int k=0;k<graph->module[m].keyframe_cnt;k++)
+      if(!(buf = dt_graph_write_keyframe_ascii(graph, m, k, buf, end-buf)))
         goto error;
 
   FILE *f = fopen(filename, "wb");
