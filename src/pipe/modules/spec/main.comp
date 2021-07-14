@@ -222,7 +222,7 @@ main()
   float Y;
   if(params.sat != 1.0)
   { // change saturation:
-#if 0 // XXX DEBUG commented out
+#if 1 // XXX DEBUG commented out for experiments below
     const mat3 xyz_to_rec2020 = mat3(
       1.71665119, -0.66668435,  0.01763986,
      -0.35567078,  1.61648124, -0.04277061,
@@ -326,7 +326,7 @@ main()
     float yw  = 1. / sqrt(xw * xw + 1.);
     float wht = 0.5 * xw * yw +  0.5;
 
-#if 1
+#if 0
     float v = val/vv;// - 0.5;
     // v = 0.5 + 0.5 * v / sqrt(v*v + pow(0.25, params.sat));
     // v = clamp(v, -0.5, 0.5);
