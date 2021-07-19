@@ -165,3 +165,5 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
 void dt_db_update_collection(dt_db_t *db);
 // remove selection from database. pass del=1 to physically delete from disk
 void dt_db_remove_selected_images(dt_db_t *db, dt_thumbnails_t *th, const int del);
+// sets the current image to given collection id. pass -1u to clear.
+void dt_db_current_set(dt_db_t *db, uint32_t colid);

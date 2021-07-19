@@ -478,7 +478,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       vkdt.state.anim_playing ^= 1; // start/stop playing animation
     else
     { // advance to next image in lighttable collection
-      uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
+      int32_t next = dt_db_current_colid(&vkdt.db) + 1;
       if(next <= vkdt.db.collection_cnt)
       {
         dt_db_selection_add(&vkdt.db, next);
@@ -494,7 +494,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
     else
     { // backtrack to last image in lighttable collection
-      uint32_t next = dt_db_current_colid(&vkdt.db) - 1;
+      int32_t next = dt_db_current_colid(&vkdt.db) - 1;
       if(next >= 0)
       {
         dt_db_selection_add(&vkdt.db, next);

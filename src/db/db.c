@@ -323,16 +323,30 @@ uint32_t dt_db_current_colid(dt_db_t *db)
   return db->current_colid;
 }
 
+void dt_db_current_set(dt_db_t *db, uint32_t colid)
+{
+  if(colid == -1u)
+  { // clear
+    db->current_imgid = -1u;
+    db->current_colid = -1u;
+    return;
+  }
+  if(colid >= db->collection_cnt) return;
+  const uint32_t imgid = db->collection[colid];
+  db->current_imgid = imgid;
+  db->current_colid = colid;
+}
+
 void dt_db_selection_add(dt_db_t *db, uint32_t colid)
 {
   if(colid >= db->collection_cnt) return;
   const uint32_t imgid = db->collection[colid];
+  db->current_imgid = imgid; // always make current, even if selection is full
+  db->current_colid = colid;
   if(db->selection_cnt >= db->selection_max) return;
   int i = db->selection_cnt++;
   db->selection[i] = imgid;
   db->image[imgid].labels |= s_image_label_selected;
-  db->current_imgid = imgid;
-  db->current_colid = colid;
 }
 
 void dt_db_selection_remove(dt_db_t *db, uint32_t colid)
