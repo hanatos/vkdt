@@ -39,6 +39,7 @@ main()
     ivec2 rd = sz*opos + ivec2(i,j);
     if(any(greaterThanEqual(rd, textureSize(img_in, 0)))) continue;
     if(any(lessThan(rd, ivec2(0)))) continue;
+#if 0
     vec3 v = texelFetch(img_in, rd, 0).rgb;
     // vec3 o = texelFetch(img_orig, sz*opos + ivec2(i, j), 0).rgb;
 
@@ -48,6 +49,12 @@ main()
     //    o.r+o.g+o.b < params.bound_y &&
     //    M-m > params.bound_z)
     // XXX somehow never triggers even for crazy bounds??
+#else
+
+    vec3 v0 = texelFetch(img_in,   rd, 0).rgb;
+    vec3 v1 = texelFetch(img_orig, rd, 0).rgb;
+    vec3 v = 100.0*(v0 - v1);
+#endif
     {
       w++;
       v -= vec3(1,1,1);   // ratio
