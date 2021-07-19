@@ -62,16 +62,19 @@ xrand()
 void evaluate_J(double *p, double *J, int m, int n, void *data)
 {
   double p2[m], f1[n], f2[n];
+  memcpy(p2, p, sizeof(p2));
+  evaluate_f(p2, f1, m, n, data);
   for(int j=0;j<m;j++)
   {
     const double h = 1e-10 + xrand()*1e-4;//1e-3;//1e-10;
-    memcpy(p2, p, sizeof(p2));
-    p2[j] = p[j] + h;
-    evaluate_f(p2, f1, m, n, data);
+    // memcpy(p2, p, sizeof(p2));
+    // p2[j] = p[j] + h;
+    // evaluate_f(p2, f1, m, n, data);
     memcpy(p2, p, sizeof(p2));
     p2[j] = p[j] - h;
     evaluate_f(p2, f2, m, n, data);
-    for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f1[k] - f2[k]) / (2.0*h), -1e10, 1e10);
+    // for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f1[k] - f2[k]) / (2.0*h), -1e10, 1e10);
+    for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f1[k] - f2[k]) / h, -1e10, 1e10);
     // for(int k=0;k<n;k++) J[m*k + j] += (1.0-2.0*xrand())*1e-8; // XXX DEBUG
     // for(int k=0;k<n;k++) fprintf(stderr, "J[%d][%d] = %g\n", j, k, J[m*k+j]);
   }
@@ -277,11 +280,12 @@ int main(int argc, char *argv[])
     p, t, num_params, num_target,
     lb, ub, num_it, &dat);
 #else
-  const int num_it = 50000;
+  const int num_it = 100;
   dt_adam(evaluate_f, evaluate_J,
     p, t, num_params, num_target,
     lb, ub, num_it, &dat,
-    1e-8, 0.9, 0.999, 0.001); // defaults as in the paper
+    // 1e-8, 0.9, 0.999, 0.001); // defaults as in the paper
+    1e-6, 0.9, 0.999, 10.0);
 #endif
 
   fprintf(stderr, "post-opt params: ");
