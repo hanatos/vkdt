@@ -113,7 +113,7 @@ dt_gauss_newton_cg(
     if(resid <= 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
-    fprintf(stderr, "[solve] residual %g\n", resid);
+    // fprintf(stderr, "[solve] residual %g\n", resid);
     if(resid < 1e-30) return resid;
   }
   return resid;
@@ -141,6 +141,7 @@ dt_adam(
   double *mt = alloca(sizeof(double)*n*m); // averaged gradient
   double vt = 0.0; // sum of squared past gradients
   memset(mt, 0, sizeof(double)*m*n);
+  assert(n == 1); // this only works for a single loss value
 
   for(int it=1;it<num_it+1;it++)
   {
@@ -159,10 +160,12 @@ dt_adam(
 
     for(int k=0;k<m;k++)
       p[k] -= mt[k]*corr_m * alpha / (corr_v + eps);
+    for(int i=0;i<m;i++)
+      p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
     // for(int i=0;i<m;i++) p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
-    fprintf(stderr, "[solve] adam: p: ");
-    for(int i=0;i<m;i++) fprintf(stderr, "%g\t", p[i]);
-    fprintf(stderr, "\n");
+    // fprintf(stderr, "[solve] adam: p: ");
+    // for(int i=0;i<m;i++) fprintf(stderr, "%g\t", p[i]);
+    // fprintf(stderr, "\n");
     // fprintf(stderr, "[solve] adam: m: ");
     // for(int i=0;i<m;i++) fprintf(stderr, "%g ", mt[i]);
     // fprintf(stderr, "\n");

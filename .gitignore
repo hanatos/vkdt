@@ -5,8 +5,10 @@ src/pipe/doc/readme.html
 built/
 src/vkdt
 src/vkdt-cli
+src/vkdt-fit
 bin/vkdt
 bin/vkdt-cli
+bin/vkdt-fit
 bin/data/cameras.xml
 bin/modules
 bin/imgui.ini

@@ -117,10 +117,6 @@ fetch_coeffi(
 static inline void
 sample_rgb(double *rgb, double delta, int clamp)
 {
-#if 0 // just straight simple full cube
-  for(int k=0;k<3;k++)
-    rgb[k] = xrand();
-#else
   for(int k=0;k<3;k++)
   {
     rgb[k] = 0.5;
@@ -128,7 +124,6 @@ sample_rgb(double *rgb, double delta, int clamp)
       rgb[k] += delta*(2.0*xrand()-1.0);
     if(clamp) rgb[k] = CLAMP(rgb[k], 0.0, 1.0);
   }
-#endif
 }
 
 static inline double
@@ -236,28 +231,6 @@ ddp_eval(
   // apply final scale:
   for(int j=0;j<np;j++) jac[j] *= (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (double)CIE_FINE_SAMPLES;
 
-#if 0 // debug by taking finite differences to vanilla eval(): this matches very well
-  const double eps = 1e-8;
-  double jac2[20] = {0.0};
-  for(int j=0;j<np;j++)
-  {
-    double p[20];
-    memcpy(p, cp, sizeof(double)*np);
-    p[j] += eps;
-    double x2 = eval(p, cf, np, nf);
-    memcpy(p, cp, sizeof(double)*np);
-    p[j] -= eps;
-    double x1 = eval(p, cf, np, nf);
-    jac2[j] = (x2-x1)/(2.0*eps);
-    // XXX
-    // if(fabs(jac[j]) < 1e-4) jac[j] = 0.0;
-  }
-  for(int j=0;j<np;j++)
-    if(fabs((jac[j] - jac2[j])/fmax(1e-3, fmax(fabs(jac[j]),fabs(jac2[j])))) > 2e-2)
-      fprintf(stderr, "XXX[%d]  (%g %g) err %g\n", j, jac[j], jac2[j],
-    fabs((jac[j] - jac2[j])/fmax(1e-3, fmax(fabs(jac[j]),fabs(jac2[j])))));
-  for(int j=0;j<np;j++) jac[j] = jac2[j]; // XXX replace parts with differences!
-#endif
   // also return regular value, we need it for the chain rule
   return out * (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (double)CIE_FINE_SAMPLES;
 }
@@ -306,28 +279,6 @@ mat3_mulv(
       res[j] += a[3*j+i] * v[i];
 }
 
-// objective function for nelder-mead optimiser:
-double nm_objective(
-    double *p,
-    double *target,
-    int     n,
-    void   *data)
-{
-  double *cf = data;
-  int num = n/2;
-  double resid = 0.0;
-  for(int i=0;i<num;i++)
-  {
-    double x[3] = {
-      eval(p+0*num_coeff, cf + 3*i, num_coeff, 3),
-      eval(p+1*num_coeff, cf + 3*i, num_coeff, 3),
-      eval(p+2*num_coeff, cf + 3*i, num_coeff, 3)};
-    normalise1(x);
-    for(int k=0;k<2;k++) resid += (x[k]-target[2*i+k])*(x[k]-target[2*i+k]);
-  }
-  return resid;
-}
-
 // jacobian for levmar:
 void lm_jacobian(
     double *p,   // parameters: num_coeff * 3 for camera cfa spectra
@@ -365,12 +316,6 @@ void lm_jacobian(
     // ddp n(rgb) = ddx n(rgb) * ddp rgb
     //                Jn         `-----' =Je see above
     //                3x3        (3*num_coeff)x3
-
-    // fprintf(stderr, "Je = ");
-    // for(int jj=0;jj<3;jj++)
-    //   for(int ii=0;ii<3*num_coeff;ii++) fprintf(stderr, "%g %c", Je[3*num_coeff*jj + ii], (ii==3*num_coeff-1) ? '\n': ' ');
-    // matches very well it seems:
-    // TODO: use non-zero padded Je and adjust loop accordingly!
     for(int j=0;j<m;j++) // parameter number
       for(int k=0;k<2;k++) // rgb colour channel
         for(int l=0;l<3;l++)
@@ -422,49 +367,7 @@ void lm_jacobian_dif(
     for(int k=0;k<n;k++)
       jac[m*k + j] = (X1[k] - X2[k]) / (2.0*h);
   }
-#if 0 // DEBUG
-  double J2[m*n];
-  lm_jacobian(p, J2, m, n, data);
-  for(int j=0;j<n;j++) for(int i=0;i<m;i++)
-  {
-    int k = m*j + i;
-    if(fabs((J2[k] - jac[k])/fmax(1e-4, fmax(fabs(J2[k]),fabs(jac[k])))) > 1e-2)
-      fprintf(stderr, "[p %d d %d] %g %g\n", i, j, J2[k], jac[k]);
-  }
-  memcpy(jac, J2, sizeof(double)*m*n);
-#endif
 }
-
-#if 0// debug the lm_jacobian callback as compared to the lm_callback.
-static inline void
-debug_jacobian(
-    double *cfa,  // 3 * num_coeff cfa sigmoid polynomial coefficients
-    double *data, // data points (two chroma value per index)
-    int     num)  // number of data points (sizeof data = 2*num)
-{
-  double J1[3*num_coeff * 2*num];
-  double J2[3*num_coeff * 2*num];
-  lm_jacobian(cfa, J1, 3*num_coeff, 2*num, data);
-  for(int j=0;j<3*num_coeff;j++)
-  {
-    double X1[2*num];
-    double X2[2*num];
-    double cfa2[3*num_coeff];
-    const double h = 1e-10;
-    memcpy(cfa2, cfa, sizeof(cfa2));
-    cfa2[j] += h;
-    lm_callback(cfa2, X1, 3*num_coeff, 2*num, data);
-    memcpy(cfa2, cfa, sizeof(cfa2));
-    cfa2[j] -= h;
-    lm_callback(cfa2, X2, 3*num_coeff, 2*num, data);
-    for(int k=0;k<2*num;k++)
-      J2[3*num_coeff*k + j] = (X1[k] - X2[k]) / (2.0*h);
-  }
-  // now compare J1 and J2
-  for(int k=0;k<3*num_coeff*2*num;k++)
-    fprintf(stderr, "(%g %g)\n", J1[k], J2[k]); // seems to match well
-}
-#endif
 
 static inline int
 load_reference_cfa_spectra(
@@ -489,7 +392,7 @@ load_reference_cfa_spectra(
     }
     fclose(fr);
   }
-  else fprintf(stderr, "[fit] can't open reference response curves! `%s'\n", filename);
+  else fprintf(stderr, "[vkdt-mkidt] can't open reference response curves! `%s'\n", filename);
   return cfa_spec_cnt;
 }
 
@@ -544,12 +447,10 @@ write_sample_points(
     double tc[2] = {cam_rgb_spec[0], cam_rgb_spec[2]}; // normalised already
     double rec2020[4] = {0.0}, xyz_spec[3] = {0.0};
     fetch_coeff(tc, chroma, cwd, cht, rec2020); // fetch rb
-    // double norm = rec2020[2];
     rec2020[2] = rec2020[1]; // convert to rgb
     rec2020[1] = 1.0-rec2020[0]-rec2020[2];
     mat3_mulv(rec2020_to_xyz, rec2020, xyz_spec);
     normalise1(rec2020_from_mat);
-    // for(int k=0;k<3;k++) rec2020[k] *= norm;
     normalise1(rec2020);
     normalise1(xyz_spec);
 
@@ -558,7 +459,6 @@ write_sample_points(
         cam_rgb[0], cam_rgb[1], cam_rgb[2],
         cam_rgb_spec[0], cam_rgb_spec[1], cam_rgb_spec[2],
         cam_rgb_rspec[0], cam_rgb_rspec[1], cam_rgb_rspec[2],
-        // rec2020[0], rec2020[2], rec2020_from_mat[0], rec2020_from_mat[2]);
         xyz_spec[0], xyz_spec[1], xyz2[0], xyz2[1]);
   }
   fclose(f0);
@@ -720,6 +620,7 @@ create_chroma_lut(
   return buf;
 }
 
+// write look up table based on hue and chroma:
 static inline void
 write_chroma_lut(
     const char  *basename,
@@ -762,11 +663,11 @@ write_chroma_lut(
 static inline void
 print_cfa_coeffs(double *cfa)
 {
-  fprintf(stderr, "[fit] red   cfa coeffs ");
+  fprintf(stderr, "[vkdt-mkidt] red   cfa coeffs ");
   for(int k=0;k<num_coeff;k++) fprintf(stderr, "%2.8g ", cfa[k]);
-  fprintf(stderr, "\n[fit] green cfa coeffs ");
+  fprintf(stderr, "\n[vkdt-mkidt] green cfa coeffs ");
   for(int k=0;k<num_coeff;k++) fprintf(stderr, "%2.8g ", cfa[num_coeff+k]);
-  fprintf(stderr, "\n[fit] blue  cfa coeffs ");
+  fprintf(stderr, "\n[vkdt-mkidt] blue  cfa coeffs ");
   for(int k=0;k<num_coeff;k++) fprintf(stderr, "%2.8g ", cfa[2*num_coeff+k]);
   fprintf(stderr, "\n");
 }
@@ -800,7 +701,8 @@ int main(int argc, char *argv[])
   header_t header;
   float *spectra = 0;
   {
-    FILE *f = fopen("../../data/spectra.lut", "rb");
+    // FILE *f = fopen("data/spectra.lut", "rb");
+    FILE *f = fopen("/home/jo/vc/papers/gamut/comp/cfa/spectra.lut", "rb");
     if(!f) goto error;
     if(fread(&header, sizeof(header_t), 1, f) != 1) goto error;
     if(header.channels != 4) goto error;
@@ -812,7 +714,7 @@ int main(int argc, char *argv[])
     {
 error:
       if(f) fclose(f);
-      fprintf(stderr, "could not read spectra.lut!\n");
+      fprintf(stderr, "[vkdt-mkidt] could not read spectra.lut!\n");
       exit(2);
     }
   }
@@ -828,7 +730,7 @@ error:
   // converged yet, but indeed it seems more data serves the process.
 
   int der = 0, hq = 0;
-  const char *model = "identity";
+  const char *model = "Canon EOS 5D Mark II";
   for(int k=1;k<argc;k++)
   {
     if     (!strcmp(argv[k], "--hq" )) hq  = 1; // high quality mode
@@ -838,7 +740,7 @@ error:
 
   if(hq && !der)
   {
-    fprintf(stderr, "[fit] setting high quality mode, this can be slow..\n");
+    fprintf(stderr, "[vkdt-mkidt] setting high quality mode, this can be slow..\n");
     num_coeff = 6;
     num_it    = 1000; // 100k unfortunately it does improve from 10k, not by much but notably. this is 10x the cost :(
     batch_cnt = 100;
@@ -846,7 +748,7 @@ error:
   }
   else if(hq && der)
   { // these need way more iterations because they often bail out early
-    fprintf(stderr, "[fit] setting high quality mode and analytic jacobian. this can be slow..\n");
+    fprintf(stderr, "[vkdt-mkidt] setting high quality mode and analytic jacobian. this can be slow..\n");
     num_coeff = 6;
     num_it    = 1000;
     batch_cnt = 100;
@@ -855,10 +757,10 @@ error:
 
   double xyz_to_cam[9];
   float adobe_mat[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  fprintf(stderr, "[fit] using matrix for `%s'\n", model);
+  fprintf(stderr, "[vkdt-mkidt] using matrix for `%s'\n", model);
   if(strcmp(model, "identity") && dt_dcraw_adobe_coeff(model, &adobe_mat))
   {
-    fprintf(stderr, "[fit] could not find this camera model (%s)! check your spelling?\n", model);
+    fprintf(stderr, "[vkdt-mkidt] could not find this camera model (%s)! check your spelling?\n", model);
     exit(3);
   }
   for(int i=0;i<9;i++) xyz_to_cam[i] = adobe_mat[i];
@@ -866,7 +768,7 @@ error:
   double cam_to_xyz[9] = {0.0};
   mat3_inv(xyz_to_cam, cam_to_xyz);
   // xyz -> camera rgb matrix. does it contain white balancing stuff?
-  fprintf(stderr, "[fit] M = %g	%g	%g\n"
+  fprintf(stderr, "[vkdt-mkidt] M = %g	%g	%g\n"
                   "          %g	%g	%g\n"
                   "          %g	%g	%g\n",
                   xyz_to_cam[0], xyz_to_cam[1], xyz_to_cam[2],
@@ -876,8 +778,8 @@ error:
   double white[3] = {0.0}, one[3] = {1.0, 1.0, 1.0};
   mat3_mulv(xyz_to_cam, one, white);
   double wbcoeff[3] = {1.0/white[0], 1.0/white[1], 1.0/white[2]};
-  fprintf(stderr, "[fit] white = %g %g %g\n", white[0], white[1], white[2]);
-  fprintf(stderr, "[fit] wb coeff = %g %g %g\n", wbcoeff[0], wbcoeff[1], wbcoeff[2]);
+  fprintf(stderr, "[vkdt-mkidt] white = %g %g %g\n", white[0], white[1], white[2]);
+  fprintf(stderr, "[vkdt-mkidt] wb coeff = %g %g %g\n", wbcoeff[0], wbcoeff[1], wbcoeff[2]);
 
   // init initial cfa params and lower/upper bounds:
   double cfa[30] = {0.0};
@@ -897,7 +799,7 @@ error:
   double *data   = calloc(num, sizeof(double) * 3); // data point: spectral coeff for input
   double *target = calloc(num, sizeof(double) * 2); // target chroma
 
-  fprintf(stderr, "[fit] starting optimiser..");
+  fprintf(stderr, "[vkdt-mkidt] starting optimiser..");
   double resid = 1.0;
 
   // run optimisation in mini-batches
@@ -946,22 +848,20 @@ error:
     }
     // fprintf(stderr, "    ||e||_2, ||J^T e||_inf,  ||Dp||_2, mu/max[J^T J]_ii\n");
     // fprintf(stderr, "info %g %g %g %g\n", info[1], info[2], info[3], info[4]);
-    fprintf(stderr, "\r[fit] batch %d/%d it %04d/%d reason %g resid %g -> %g                ",
+    fprintf(stderr, "\r[vkdt-mkidt] batch %d/%d it %04d/%d reason %g resid %g -> %g                ",
         batch+1, batch_cnt, (int)info[5], num_it, info[6], info[0], info[1]);
     fprintf(stdout, "%g %g\n", info[0], info[1]);
 #else
     fprintf(stdout, "%g ", resid);
-    // resid = minimize_nelder_mead(
-        // cfa, num_it, &nm_objective, target, 2*num, data);
     resid = dt_gauss_newton_cg(
         lm_callback,
         // lm_jacobian, // does not like our analytic jacobian
         lm_jacobian_dif,
         cfa, target, 3*num_coeff, 2*num,
         lb, ub, num_it, data);
-    fprintf(stderr, "\r[fit] batch %d/%d resid %g               ",
+    fprintf(stderr, "\r[vkdt-mkidt] batch %d/%d resid %g               ",
         batch+1, batch_cnt, resid);
-    fprintf(stdout, "%g\n", resid); // write convergence history
+    // fprintf(stdout, "%g\n", resid); // write convergence history
 #endif
   } // end mini batches
   fprintf(stderr, "\n");

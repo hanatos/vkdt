@@ -8,14 +8,17 @@ LDFLAGS=-lm
 # CFLAGS+=-fno-omit-frame-pointer -fsanitize=address
 # LDFLAGS+=-fsanitize=address
 
-all: fit
+all: vkdt-mkidt
 
 DEPS=../../core/inpaint.h \
      ../../core/solve.h \
      ../../core/clip.h
 
-fit: main.c q2t.h ${DEPS} Makefile
+vkdt-mkidt: main.c q2t.h ${DEPS} Makefile
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
+install: vkdt-mkidt
+	cp vkdt-mkidt ../../../bin/
+
 clean:
-	rm -rf fit
+	rm -rf vkdt-mkidt
