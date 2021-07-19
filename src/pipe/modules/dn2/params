@@ -1,0 +1,7 @@
+strength:float:1:0.0
+chroma:float:1:1.0
+luma:float:1:0.5
+envl:float:1:0.001
+edge:float:36:0.0
+blur:float:36:0.0
+blck:float:4:1.0
