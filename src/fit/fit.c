@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <float.h>
+#include <signal.h>
 
 #define OPT_MAX_PAR 20
 
@@ -25,6 +26,13 @@ typedef struct opt_dat_t
   dt_graph_t graph;
 }
 opt_dat_t;
+
+static int user_abort = 0;
+
+void print_state(int signal)
+{
+  user_abort = 1; // flag so we can do async signal unsave things
+}
 
 void evaluate_f(double *p, double *f, int m, int n, void *data)
 {
@@ -66,15 +74,16 @@ void evaluate_J(double *p, double *J, int m, int n, void *data)
   evaluate_f(p2, f1, m, n, data);
   for(int j=0;j<m;j++)
   {
-    const double h = 1e-10 + xrand()*1e-4;//1e-3;//1e-10;
+    const double s = xrand() >= 0.5 ? 1.0 : -1.0;
+    const double h = s * (1e-10 + xrand()*1e-4);
     // memcpy(p2, p, sizeof(p2));
     // p2[j] = p[j] + h;
     // evaluate_f(p2, f1, m, n, data);
     memcpy(p2, p, sizeof(p2));
-    p2[j] = p[j] - h;
+    p2[j] = p[j] + h;
     evaluate_f(p2, f2, m, n, data);
     // for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f1[k] - f2[k]) / (2.0*h), -1e10, 1e10);
-    for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f1[k] - f2[k]) / h, -1e10, 1e10);
+    for(int k=0;k<n;k++) J[m*k + j] = CLAMP((f2[k] - f1[k]) / h, -1e10, 1e10);
     // for(int k=0;k<n;k++) J[m*k + j] += (1.0-2.0*xrand())*1e-8; // XXX DEBUG
     // for(int k=0;k<n;k++) fprintf(stderr, "J[%d][%d] = %g\n", j, k, J[m*k+j]);
   }
@@ -262,6 +271,8 @@ int main(int argc, char *argv[])
   for(int j=0;j<dat.cnt[0];j++)
     *(pp++) = dat.par[0][j];
 
+  signal(SIGINT, print_state); // ctrl-c
+
   dt_graph_run(&dat.graph, s_graph_run_all); // run once to init nodes
 
   // init lower and upper bounds
@@ -275,22 +286,24 @@ int main(int argc, char *argv[])
   // for(int i=7;i<num_params;i++) p[i] += 1e-5*(1.0-2.0*xrand()); // randomly perturb the initial guess
 
 #if 0
-  const int num_it = 5000;
-  dt_gauss_newton_cg(evaluate_f, evaluate_J,
+  const int num_it = 400;
+  double resid = dt_gauss_newton_cg(evaluate_f, evaluate_J,
     p, t, num_params, num_target,
     lb, ub, num_it, &dat);
 #else
-  const int num_it = 100;
-  dt_adam(evaluate_f, evaluate_J,
+  const int num_it = 2000;
+  double resid = dt_adam(evaluate_f, evaluate_J,
     p, t, num_params, num_target,
     lb, ub, num_it, &dat,
     // 1e-8, 0.9, 0.999, 0.001); // defaults as in the paper
-    1e-6, 0.9, 0.999, 10.0);
+    1e-8, 0.9, 0.999, .5,
+    &user_abort);
 #endif
 
   fprintf(stderr, "post-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
   fprintf(stderr, "\n");
+  fprintf(stderr, "post-opt loss: %g", resid);
 
   pp = p;
   for(int i=1;i<dat.param_cnt;i++) // [0] is the target parameter array

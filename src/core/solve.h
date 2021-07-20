@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 
 // conjugate gradient solve:
 static inline double
@@ -134,12 +135,15 @@ dt_adam(
     double        eps,    // 10e-8 to avoid squared gradient estimation to drop to zero
     double        beta1,  // 0.9 decay rate of gradient
     double        beta2,  // 0.99 decay rate of squared gradient
-    double        alpha)  // 0.001 learning rate
+    double        alpha,  // 0.001 learning rate
+    int          *abort)  // external user flag to abort asynchronously. can be 0.
 {
   double *f  = alloca(sizeof(double)*n);
+  double *bp = alloca(sizeof(double)*m);   // best p seen so far
   double *J  = alloca(sizeof(double)*n*m);
   double *mt = alloca(sizeof(double)*n*m); // averaged gradient
-  double vt = 0.0; // sum of squared past gradients
+  double vt   = 0.0;     // sum of squared past gradients
+  double best = DBL_MAX; // best loss seen so far
   memset(mt, 0, sizeof(double)*m*n);
   assert(n == 1); // this only works for a single loss value
 
@@ -147,6 +151,11 @@ dt_adam(
   {
     f_callback(p, f, m, n, data);
     J_callback(p, J, m, n, data);
+    if(f[0] < best)
+    {
+      best = f[0];
+      memcpy(bp, p, sizeof(double)*m);
+    }
     double sumJ2 = 0.0;
     for(int k=0;k<n*m;k++) sumJ2 += J[k]*J[k];
     vt = beta2 * vt + (1.0-beta2) * sumJ2;
@@ -169,8 +178,14 @@ dt_adam(
     // fprintf(stderr, "[solve] adam: m: ");
     // for(int i=0;i<m;i++) fprintf(stderr, "%g ", mt[i]);
     // fprintf(stderr, "\n");
-    fprintf(stderr, "[solve] adam: loss %g %a\n", f[0], f[0]);
+    fprintf(stderr, "[solve %d/%d] adam: loss %g %a best %g\n", it, num_it, f[0], f[0], best);
     // if(f[0] <= 0.0) return f[0];
+    if(abort && *abort) break;
+  }
+  if(best < f[0])
+  {
+    memcpy(p, bp, sizeof(double)*m);
+    return best;
   }
   return f[0];
 }
