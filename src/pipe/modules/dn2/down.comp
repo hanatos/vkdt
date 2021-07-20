@@ -62,14 +62,6 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
     {params.edge[ 0].x, params.edge[ 0].y, params.edge[ 0].z, params.edge[ 0].w, params.edge[ 1].x},
     {params.edge[ 1].y, params.edge[ 1].z, params.edge[ 1].w, params.edge[ 2].x, params.edge[ 2].y},
     {params.edge[ 2].z, params.edge[ 2].w, params.edge[ 2].x, params.edge[ 3].y, params.edge[ 3].z}
-    // { 1., -1./4., -1./4., -1./4., -1./4.},   // spot
-    // { 4*sigma, -sigma, -sigma, -sigma, -sigma},
-    // { 1./3., 1./3., -1./2., 1./3., -1./2. }, // line bottom left -- top right
-    // { 1./3., -1./2., 1./3., -1./2., 1./3. }, // line top left -- bottom right
-    // { 1./3., 1./3., 1./3., -.5, -.5 }, // corner top left
-    // { 1./3., -.5, 1./3., 1./3., -.5 }, // corner bottom left
-    // { 1./3., -.5, -.5, 1./3., 1./3. }, // corner bottom right
-    // { 1./3., 1./3., -.5, -.5, 1./3. }  // corner top right
   };
 
   // TODO: these are too harsh, don't set them all the way to zero!
@@ -77,13 +69,6 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
   const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
   const float t2 = (1.0-t)/4.0;
   const float bw[][5] = { // blur weights
-    // {t, t2, t2, t2, t2},
-    // {1./3., 1./3., 0.0,   1./3., 0.0},
-    // {1./3., 0.0,   1./3., 0.0,   1./3.},
-    // {1./3., 1./3., 1./3., 0.0,   0.0},
-    // {1./3., 0.0,   1./3., 1./3., 0.0},
-    // {1./3., 0.0,   0.0,   1./3., 1./3.},
-    // {1./3., 1./3., 0.0,   0.0,   1./3.}
     {params.blur[ 0].x, params.blur[ 0].y, params.blur[ 0].z, params.blur[ 0].w, params.blur[ 1].x},
     {params.blur[ 1].y, params.blur[ 1].z, params.blur[ 1].w, params.blur[ 2].x, params.blur[ 2].y},
     {params.blur[ 2].z, params.blur[ 2].w, params.blur[ 3].x, params.blur[ 3].y, params.blur[ 3].z},
@@ -93,10 +78,10 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
     {params.blur[ 2].z, params.blur[ 2].w, params.blur[ 2].x, params.blur[ 3].y, params.blur[ 3].z}
   };
 
-  float maxres = 1.0;
+  float maxres = 1e-8;
   int idx = 0;
 
-#if 0
+#if 1
   for(int i=0;i<7;i++)
   {
     // normalise edge weights to sum to 0:
@@ -111,11 +96,11 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
 #endif
   // TODO: final filter: center envelope * (1/detection strength + edge weighted kernel) and normalise
   float w[5] = {
-    t  * (params.envl / maxres + 1.0), // bw[idx][0]),
-    t2 * (params.envl / maxres + 1.0), // bw[idx][1]),
-    t2 * (params.envl / maxres + 1.0), // bw[idx][2]),
-    t2 * (params.envl / maxres + 1.0), // bw[idx][3]),
-    t2 * (params.envl / maxres + 1.0)};// bw[idx][4])};
+    t  * (params.envl / maxres + bw[idx][0]),
+    t2 * (params.envl / maxres + bw[idx][1]),
+    t2 * (params.envl / maxres + bw[idx][2]),
+    t2 * (params.envl / maxres + bw[idx][3]),
+    t2 * (params.envl / maxres + bw[idx][4])};
   // return bw[nonuniformEXT(idx)][0] * c0 + bw[nonuniformEXT(idx)][1] * c1 + bw[nonuniformEXT(idx)][2] * c2 + bw[nonuniformEXT(idx)][3] * c3 + bw[nonuniformEXT(idx)][4] * c4;
   // return (bw[idx][0] * c0 + bw[idx][1] * c1 + bw[idx][2] * c2 + bw[idx][3] * c3 + bw[idx][4] * c4)/
     // (bw[idx][0] + bw[idx][1] + bw[idx][2] + bw[idx][3] + bw[idx][4]);
