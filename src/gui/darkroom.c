@@ -547,6 +547,7 @@ darkroom_process()
       if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
         dt_log(s_log_snd, "frame drop warning, audio may stutter!");
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
+      dt_graph_apply_keyframes(&vkdt.graph_dev);
       if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }

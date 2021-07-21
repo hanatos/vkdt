@@ -199,6 +199,7 @@ dt_graph_export(
 
   if(graph->frame_cnt > 1)
   {
+    dt_graph_apply_keyframes(graph);
     dt_graph_run(graph, s_graph_run_all);
     for(int f=1;f<graph->frame_cnt;f++)
     {
@@ -214,6 +215,7 @@ dt_graph_export(
             mod_out[i], dt_token("filename"),
             filename);
       }
+      dt_graph_apply_keyframes(graph);
       VkResult res = dt_graph_run(graph,
           s_graph_run_record_cmd_buf | 
           s_graph_run_download_sink  |

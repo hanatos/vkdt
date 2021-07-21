@@ -1770,8 +1770,6 @@ VkResult dt_graph_run(
     (run & (s_graph_run_alloc | s_graph_run_create_nodes)))
     QVKR(vkDeviceWaitIdle(qvk.device));
 
-  dt_graph_apply_keyframes(graph);
-
   if(run & s_graph_run_alloc)
   {
       vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
