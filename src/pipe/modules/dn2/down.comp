@@ -43,15 +43,9 @@ layout( // output
 //     c
 //        c4
 //   c3
-//              detect      blur
-// spot    : c0 vs c1234    c01234    x1
-// lines   : c013 vs c24    c013      x2
-// corners : c012 vs c34    c012      x4
 vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
 {
   // detect lines, corners, spots
-  // TODO: what's a good set of filters? what's the difference between a line and a corner with only 5 taps?
-  // TODO: use noise level to scale edge detection!
   const float scale = push.level == 0 ? 1.0 : 65535.0*(push.white.g-push.black.g);
   const float sigma = 0.05 * pow(0.29, push.level) * sqrt(push.noise_a + scale*max(c0.x, 0.0)*push.noise_b);// /scale;
   const float dw[][5] = { // detection weights
@@ -64,8 +58,6 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
     {params.edge[ 2].z, params.edge[ 2].w, params.edge[ 2].x, params.edge[ 3].y, params.edge[ 3].z}
   };
 
-  // TODO: these are too harsh, don't set them all the way to zero!
-  // TODO: also the edge detected weights need some more centered envelope
   const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
   const float t2 = (1.0-t)/4.0;
   const float bw[][5] = { // blur weights
@@ -94,7 +86,7 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
     }
   }
 #endif
-  // TODO: final filter: center envelope * (1/detection strength + edge weighted kernel) and normalise
+  // final filter: center envelope * (1/detection strength + edge weighted kernel) and normalise
   float w[5] = {
     t  * (params.envl / maxres + bw[idx][0]),
     t2 * (params.envl / maxres + bw[idx][1]),
