@@ -1125,6 +1125,34 @@ inline void draw_widget(int modid, int parid)
   }\
   if(change)
 
+  // common code block to insert a keyframe. currently only supports float (for interpolation)
+#define KEYFRAME\
+  if(ImGui::IsItemHovered())\
+  {\
+    if(glfwGetKey(qvk.window, GLFW_KEY_K) == GLFW_PRESS)\
+    {\
+      dt_graph_t *g = &vkdt.graph_dev;\
+      int ki = -1;\
+      for(int i=0;ki<0&&i<g->module[modid].keyframe_cnt;i++)\
+        if(g->module[modid].keyframe[i].param == param->name && \
+           g->module[modid].keyframe[i].frame == g->frame)\
+          ki = i;\
+      if(ki < 0)\
+      {\
+        ki = g->module[modid].keyframe_cnt++;\
+        g->module[modid].keyframe = (dt_keyframe_t *)dt_realloc(g->module[modid].keyframe, &g->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));\
+        g->module[modid].keyframe[ki].beg   = 0;\
+        g->module[modid].keyframe[ki].end   = param->cnt;\
+        g->module[modid].keyframe[ki].frame = g->frame;\
+        g->module[modid].keyframe[ki].param = param->name;\
+        g->module[modid].keyframe[ki].data  = g->params_pool + g->params_end;\
+        g->params_end += dt_ui_param_size(param->type, count);\
+        assert(g->params_end <= g->params_max);\
+      }\
+      memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
+    }\
+  }
+
   // distinguish by count:
   // get count by param cnt or explicit multiplicity from ui file
   int count = 1, change = 0;
@@ -1155,6 +1183,7 @@ inline void draw_widget(int modid, int parid)
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
         }
+        KEYFRAME
       }
       else if(param->type == dt_token("int"))
       {
@@ -1197,6 +1226,7 @@ inline void draw_widget(int modid, int parid)
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
         }
+        KEYFRAME
         if (ImGui::IsItemActive() || ImGui::IsItemHovered())
           ImGui::SetTooltip("%s %.3f", str, val[0]);
 
@@ -1334,6 +1364,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = s_graph_run_all;
           darkroom_reset_zoom();
         }
+        KEYFRAME
       }
       num = count;
       break;
