@@ -94,7 +94,6 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       }
       else if(action == GLFW_PRESS)
       {
-        // find active corner if close enough
         float m[2] = {(float)x, (float)y};
         float max_dist = FLT_MAX;
         for(int ee=0;ee<4;ee++)
@@ -341,7 +340,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
             vkdt.wstate.state[1] = vkdt.wstate.state[0] + target_aspect * (vkdt.wstate.state[3]-vkdt.wstate.state[2]);
           }
           else if(vkdt.wstate.selected == 2)
-          { // bottom, move top side along:
+          { // top, move bottom side along:
             vkdt.wstate.state[3] = vkdt.wstate.state[2] + 1.0f/target_aspect * (vkdt.wstate.state[1]-vkdt.wstate.state[0]);
           }
           else if(vkdt.wstate.selected == 1)
@@ -352,13 +351,16 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
             vkdt.wstate.state[2] = c - 0.5f / target_aspect * w;
           }
           else if(vkdt.wstate.selected == 3)
-          { // top, move left and right simultaneously to keep center:
+          { // bottom, move left and right simultaneously to keep center:
             float c = (vkdt.wstate.state[1] + vkdt.wstate.state[0])*0.5f;
             float w =  vkdt.wstate.state[3] - vkdt.wstate.state[2];
             vkdt.wstate.state[1] = c + 0.5f * target_aspect * w;
             vkdt.wstate.state[0] = c - 0.5f * target_aspect * w;
           }
         }
+        // make sure min <= max
+        if(vkdt.wstate.state[1] < vkdt.wstate.state[0]) { float tmp = vkdt.wstate.state[1]; vkdt.wstate.state[1] = vkdt.wstate.state[0]; vkdt.wstate.state[0] = tmp; }
+        if(vkdt.wstate.state[3] < vkdt.wstate.state[2]) { float tmp = vkdt.wstate.state[3]; vkdt.wstate.state[3] = vkdt.wstate.state[2]; vkdt.wstate.state[2] = tmp; }
         return;
       }
     }
