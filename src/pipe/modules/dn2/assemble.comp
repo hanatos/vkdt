@@ -113,7 +113,7 @@ main()
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
-    vec3 thrs = vec3(1.0, 10.0*params.chroma, 10.0*params.chroma) * (params.strength * 3.0) * test;
+    vec3 thrs = vec3(1.0, params.chroma, params.chroma) * (params.strength * 3.0) * test;
     // sgn(x) * (abs(x) * (thr(x,0.2)) + (1-thr(x,0.2)) * max(0, abs(x) - 0.1))
     vec3 tt = vec3(0.0);
     tt = min(vec3(1.0), abs(down3)/(2*thrs));
