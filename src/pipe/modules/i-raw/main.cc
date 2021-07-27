@@ -1,5 +1,6 @@
 // unfortunately we'll link to rawspeed, so we need c++ here.
 #include "RawSpeed-API.h"
+#include "mat3.h"
 #include <omp.h>
 #include <unistd.h>
 #include <mutex>
@@ -168,36 +169,6 @@ void cleanup(dt_module_t *mod)
   mod->data = 0;
 }
 
-int mat3inv(float *const dst, const float *const src)
-{
-#define A(y, x) src[(y - 1) * 3 + (x - 1)]
-#define B(y, x) dst[(y - 1) * 3 + (x - 1)]
-
-  const float det = A(1, 1) * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3))
-                  - A(2, 1) * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3))
-                  + A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
-
-  const float epsilon = 1e-7f;
-  if(fabsf(det) < epsilon) return 1;
-
-  const float invDet = 1.f / det;
-
-  B(1, 1) = invDet * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3));
-  B(1, 2) = -invDet * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3));
-  B(1, 3) = invDet * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
-
-  B(2, 1) = -invDet * (A(3, 3) * A(2, 1) - A(3, 1) * A(2, 3));
-  B(2, 2) = invDet * (A(3, 3) * A(1, 1) - A(3, 1) * A(1, 3));
-  B(2, 3) = -invDet * (A(2, 3) * A(1, 1) - A(2, 1) * A(1, 3));
-
-  B(3, 1) = invDet * (A(3, 2) * A(2, 1) - A(3, 1) * A(2, 2));
-  B(3, 2) = -invDet * (A(3, 2) * A(1, 1) - A(3, 1) * A(1, 2));
-  B(3, 3) = invDet * (A(2, 2) * A(1, 1) - A(2, 1) * A(1, 2));
-#undef A
-#undef B
-  return 0;
-}
-
 dt_graph_run_t
 check_params(
     dt_module_t *module,
@@ -251,10 +222,12 @@ void modify_roi_out(
 
   // TODO: put all the metadata nonsense in one csv ascii/binary file so we can
   // parse it more quickly.
-  // put the real matrix in there directly, so we don't have to juggle bradford
-  // adaptation here.
+  // put the real matrix in there directly, so we don't have to juggle
+  // chromatic adaptation here.
   float *noise_a = (float*)dt_module_param_float(mod, 1);
   float *noise_b = (float*)dt_module_param_float(mod, 2);
+  for(int k=0;k<9;k++)
+  mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
 #ifdef VKDT_USE_EXIV2
   dt_exif_read(&mod->img_param, filename);
   if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
@@ -305,31 +278,35 @@ void modify_roi_out(
   mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
-  // darktable uses canonical_make + " " + canonical_model instead and falls back to exif.
-  // we hacked adobe_coeff to use strcasecmp that seems to be the same.
-  const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
-  float xyz_to_cam[12], mat[9] = {0};
-  if(dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam))
-    mat[0] = mat[4] = mat[8] = 1.0;
-  else mat3inv(mat, xyz_to_cam);
 
-  // compute matrix camrgb -> rec2020 d65
-  double cam_to_xyz[] = {
-    mat[0], mat[1], mat[2],
-    mat[3], mat[4], mat[5],
-    mat[6], mat[7], mat[8]};
+  if(isnanf(mod->img_param.cam_to_rec2020[0]))
+  { // camera matrix not found in exif or compiled without exiv2
+    // darktable uses canonical_make + " " + canonical_model instead and falls back to exif.
+    // we hacked adobe_coeff to use strcasecmp that seems to be the same.
+    const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
+    float xyz_to_cam[12], mat[9] = {0};
+    if(dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam))
+      mat[0] = mat[4] = mat[8] = 1.0;
+    else mat3inv(mat, xyz_to_cam);
 
-  const float xyz_to_rec2020[] = {
-     1.7166511880, -0.3556707838, -0.2533662814,
-    -0.6666843518,  1.6164812366,  0.0157685458,
-     0.0176398574, -0.0427706133,  0.9421031212
-  };
-  float cam_to_rec2020[9] = {0.0f};
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-    cam_to_rec2020[3*j+i] +=
-      xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
-  for(int k=0;k<9;k++)
-    mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
+    // compute matrix camrgb -> rec2020 d65
+    double cam_to_xyz[] = {
+      mat[0], mat[1], mat[2],
+      mat[3], mat[4], mat[5],
+      mat[6], mat[7], mat[8]};
+
+    const float xyz_to_rec2020[] = {
+       1.7166511880, -0.3556707838, -0.2533662814,
+      -0.6666843518,  1.6164812366,  0.0157685458,
+       0.0176398574, -0.0427706133,  0.9421031212
+    };
+    float cam_to_rec2020[9] = {0.0f};
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+      cam_to_rec2020[3*j+i] +=
+        xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
+    for(int k=0;k<9;k++)
+      mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
+  }
 
   // uncrop bayer sensor filter
   mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();

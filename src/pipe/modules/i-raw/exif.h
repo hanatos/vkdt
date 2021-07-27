@@ -690,19 +690,6 @@ static void _find_datetime_taken(Exiv2::ExifData &exifData, Exiv2::ExifData::con
     *exif_datetime_taken = '\0';
   }
 }
-
-static void mat3mul(float *dst, const float *const m1, const float *const m2)
-{
-  for(int k = 0; k < 3; k++)
-  {
-    for(int i = 0; i < 3; i++)
-    {
-      float x = 0.0f;
-      for(int j = 0; j < 3; j++) x += m1[3 * k + j] * m2[3 * j + i];
-      dst[3 * k + i] = x;
-    }
-  }
-}
 #endif
 
 namespace {
@@ -1092,12 +1079,12 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
     }
 #endif
 
-#if 0
+#if 1
     // read embedded color matrix as used in DNGs
     {
       int illu1 = -1, illu2 = -1, illu = -1; // -1: not found, otherwise the detected CalibrationIlluminant
       float colmatrix[12];
-      img->d65_color_matrix[0] = NAN; // make sure for later testing
+      ip->cam_to_rec2020[0] = 0.0f/0.0f; // mark as uninitialised
       // The correction matrices are taken from
       // http://www.brucelindbloom.com - chromatic Adaption.
       // using Bradford method: found Illuminant -> D65
@@ -1148,54 +1135,63 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
         illu = 0;
       }
 
-
       // Take the found CalibrationIlluminant / ColorMatrix pair.
       // D65 or default: just copy. Otherwise multiply by the specific correction matrix.
       if(illu != -1)
       {
+        float d65_colour_matrix[9];
        // If no supported Illuminant is found it's better NOT to use the found matrix.
        // The colorin module will write an error message and use a fallback matrix
        // instead of showing wrong colors.
         switch(illu)
         {
           case 23:
-            mat3mul(img->d65_color_matrix, correctmat[0], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[0], colmatrix);
             break;
           case 20:
-            mat3mul(img->d65_color_matrix, correctmat[1], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[1], colmatrix);
             break;
           case 22:
-            mat3mul(img->d65_color_matrix, correctmat[2], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[2], colmatrix);
             break;
           case 17:
-            mat3mul(img->d65_color_matrix, correctmat[3], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[3], colmatrix);
             break;
           case 18:
-            mat3mul(img->d65_color_matrix, correctmat[4], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[4], colmatrix);
             break;
           case 19:
-            mat3mul(img->d65_color_matrix, correctmat[5], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[5], colmatrix);
             break;
           case 3:
-            mat3mul(img->d65_color_matrix, correctmat[3], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[3], colmatrix);
             break;
           case 14:
-            mat3mul(img->d65_color_matrix, correctmat[6], colmatrix);
+            mat3mul(d65_colour_matrix, correctmat[6], colmatrix);
             break;
           default:
-            for(int i = 0; i < 9; i++) img->d65_color_matrix[i] = colmatrix[i];
+            for(int i = 0; i < 9; i++) d65_colour_matrix[i] = colmatrix[i];
             break;
         }
-        // Maybe there is a predefined camera matrix in adobe_coeff?
-        // This is tested to possibly override the matrix.
-        colmatrix[0] = NAN;
-        dt_dcraw_adobe_coeff(img->camera_model, (float(*)[12])colmatrix);
-        if(!isnan(colmatrix[0]))
-          for(int i = 0; i < 9; i++) img->d65_color_matrix[i] = colmatrix[i];
+        // now convert to rec2020
+        const float xyz_to_rec2020[] = {
+           1.7166511880, -0.3556707838, -0.2533662814,
+          -0.6666843518,  1.6164812366,  0.0157685458,
+           0.0176398574, -0.0427706133,  0.9421031212
+        };
+        float cam_to_xyz[9];
+        mat3inv(cam_to_xyz, d65_colour_matrix);
+        float cam_to_rec2020[9] = {0.0f};
+        for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+          cam_to_rec2020[3*j+i] +=
+            xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
+        for(int k=0;k<9;k++)
+          ip->cam_to_rec2020[k] = cam_to_rec2020[k];
       }
     }
+#endif
 
-
+#if 0
     // some files have the colorspace explicitly set. try to read that.
     // is_ldr -> none
     // 0x01   -> sRGB
