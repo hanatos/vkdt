@@ -68,17 +68,19 @@ main()
     // make sure to keep clipped (>= white)!
     // TODO: use black and white according to correct channel!
 #define SHRINK(A, B) {\
-      A = max(0, (A - push.black.x)/(push.white.x - push.black.x));\
-      if(A < 1.0) { \
+      A = (A - push.black.x)/(push.white.x - push.black.x);\
+      if(A < 1.0) {\
         float wav = (A - B)/sigma;\
-        A = max(0, B + sigma * sign(wav) * max(0.0, abs(wav) - T));\
+        float tt = min(1.0, wav/(2.0*T));\
+        A = max(0, B + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt));\
       }\
     }
 #define SHRINKG(A) {\
       A = max(0, (A - push.black.g)/(push.white.g - push.black.g));\
       if(A < 1.0) { \
         float wav = (A - upsm.g)/sigma;\
-        A = mix(A, max(0, upsm.g + sigma * sign(wav) * max(0.0, abs(wav) - T)), params.luma);\
+        float tt = min(1.0, wav/(2.0*T));\
+        A = mix(A, max(0, upsm.g + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), params.luma);\
       }\
     }
 
@@ -116,7 +118,7 @@ main()
     vec4 c = textureGather(img_in, (push.crop.xy + 2*(ipos+.5))/vec2(textureSize(img_in, 0)), 0);
 
     const float sigma = sqrt(push.noise_a + 65535.0*max(upsm.g, 0.0)*push.noise_b)/65535.0;
-    float T = params.chroma * params.strength * 2.0;
+    float T = params.chroma * params.strength;
     SHRINK(c.y, upsm.b);
     SHRINK(c.w, upsm.r);
 
