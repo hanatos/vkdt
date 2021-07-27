@@ -88,7 +88,7 @@ main()
     // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2).
     // demosaiced images have way less noise to begin with, so we should tune down variance, too!
     // the current factor of 10 is purely heuristic and probably also there's something else wrong.
-    float block = push.filters == 0u ? 10.0 : (push.filters == 9u ? 2.23607 : 1.414213);
+    float block = push.filters == 0u ? 1.0 : (push.filters == 9u ? 2.23607 : 1.414213);
     const float b0 = params.blck.x/block;
     const float b1 = params.blck.y/block;
     const float b2 = params.blck.z/block;
