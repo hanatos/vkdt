@@ -11,6 +11,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float chroma;
   float luma;
+  float envl;
+  vec4  edge[9];
+  vec4  blur[9];
+  vec4  blck;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -71,7 +75,7 @@ main()
       A = (A - push.black.x)/(push.white.x - push.black.x);\
       if(A < 1.0) {\
         float wav = (A - B)/sigma;\
-        float tt = min(1.0, wav/(2.0*T));\
+        float tt = min(1.0, wav/(2.0*T*params.edge[2].z));\
         A = max(0, B + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt));\
       }\
     }
@@ -79,7 +83,7 @@ main()
       A = max(0, (A - push.black.g)/(push.white.g - push.black.g));\
       if(A < 1.0) { \
         float wav = (A - upsm.g)/sigma;\
-        float tt = min(1.0, wav/(2.0*T));\
+        float tt = min(1.0, wav/(2.0*T*params.edge[2].w));\
         A = mix(A, max(0, upsm.g + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), params.luma);\
       }\
     }
@@ -88,13 +92,13 @@ main()
 
     const float scale = 65535.0*(push.white.g-push.black.g);
     const float sigma = sqrt(push.noise_a + scale*max(upsm.g, 0.0)*push.noise_b)/scale;
-    float T = params.chroma * params.strength;
+    float T = params.chroma * params.strength * params.edge[2].x;
     SHRINK(c1, upsm.r)
     SHRINK(c7, upsm.r)
     SHRINK(c3, upsm.b)
     SHRINK(c5, upsm.b)
 
-    T = params.strength;
+    T = params.strength * params.edge[2].y;
     SHRINKG(c0)
     SHRINKG(c2)
     SHRINKG(c4)
@@ -118,11 +122,11 @@ main()
     vec4 c = textureGather(img_in, (push.crop.xy + 2*(ipos+.5))/vec2(textureSize(img_in, 0)), 0);
 
     const float sigma = sqrt(push.noise_a + 65535.0*max(upsm.g, 0.0)*push.noise_b)/65535.0;
-    float T = params.chroma * params.strength;
+    float T = params.chroma * params.strength * params.edge[2].x;
     SHRINK(c.y, upsm.b);
     SHRINK(c.w, upsm.r);
 
-    T = params.strength;
+    T = params.strength * params.edge[2].y;
     SHRINKG(c.x);
     SHRINKG(c.z);
 #undef SHRINK

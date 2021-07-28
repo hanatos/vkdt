@@ -182,10 +182,12 @@ dt_adam(
     // if(f[0] <= 0.0) return f[0];
     if(abort && *abort) break;
   }
+#if 0 // for stochastic gradient descent this is questionable. may only return whatever happened to be good for the subset seen at the time:
   if(best < f[0])
   {
     memcpy(p, bp, sizeof(double)*m);
     return best;
   }
+#endif
   return f[0];
 }
