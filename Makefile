@@ -1,4 +1,4 @@
-# entry point makefile.
+# don't call into this directly, use the makefile in bin/ instead.
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
@@ -20,6 +20,11 @@ debug:all
 sanitize:OPT_CFLAGS=-fno-omit-frame-pointer -fsanitize=address -g -O0
 sanitize:OPT_LDFLAGS=-fsanitize=address
 sanitize:all
+
+# check for the most esoterically named variable from bin/config.mk
+ifndef RAWSPEED_PACKAGE_BUILD
+  $(error please don't call this makefile directly, but build from bin/ instead)
+endif
 
 
 ext: Makefile
