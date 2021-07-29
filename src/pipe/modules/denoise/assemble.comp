@@ -114,19 +114,15 @@ main()
     // + dot((1.0-down2),vec3(1)) + dot((1.0-down3),vec3(1));
     // this detects (inversely) where edge stopping took place (black at some other edges)
     // also: edge stopping seems to fire just fine on the writing on the signs for noise (400,0) or so
-    test = length(down0) + length(down1) + length(down2) + length(down3);
+    // test = length(down0) + length(down1) + length(down2) + length(down3);
     // test = test/(test+1.0);
     // test = 0.0;
     float d0 = length(down0), d1 = length(down1), d2 = length(down2), d3 = length(down3);
     float slope = ((d3 - d0)/3.0 + (d2 - d1)/1.0 + (d1 - d0)/1.0 + (d3-d2)/1.0 + (d2-d0)/2.0 + (d3-d1)/2.0)/6.0;
-    // test = 1.0-50.0*max(0, -0.1-slope);
     test = max(0, -slope);
 #if 1 // worked for xtrans
-    test = 1.0-test;
-    test *= test;
-    test *= test;
-    test *= test;
-    test *= test;
+    test = max(0.0, 1.0-test);
+    test = pow(test, 16.0);
 #endif
 #if 0 // for canon?
     test = 1.0/test;
