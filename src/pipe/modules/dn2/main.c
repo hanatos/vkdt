@@ -130,8 +130,8 @@ create_nodes(
   roi_half.wd /= block;
   roi_half.ht /= block;
 
-  const int wd = roi_half.full_wd;
-  const int ht = roi_half.full_ht;
+  const int wd = roi_half.wd;
+  const int ht = roi_half.ht;
 
   // wire 4 scales of downsample + assembly node
   int id_down[4] = {0};

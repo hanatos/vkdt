@@ -50,13 +50,10 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 upsm = texelFetch(img_coarse, ipos, 0).rgb;
+  vec4 upsm = texelFetch(img_coarse, ipos, 0);
 
   if(push.filters == 9)
   {
-    // swap red and blue channels according to sensor layout
-    if(((ipos.x + ipos.y + push.crop.x + push.crop.y) & 1) == 0)
-      upsm.rgb = upsm.bgr;
     // get original input texels
     float c0 = texelFetch(img_in, push.crop.xy + 3*ipos, 0).r;
     float c1 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(0,1), 0).r;
@@ -68,22 +65,39 @@ main()
     float c7 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(2,1), 0).r;
     float c8 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(2,2), 0).r;
 
+    vec3 crs = vec3(
+        (c1+c7)/2.0,
+        (c0+c2+c4+c6+c8)/5.0,
+        (c3+c5)/2.0);
+
+    // swap red and blue channels according to sensor layout
+    if(((ipos.x + ipos.y + push.crop.x + push.crop.y) & 1) == 0)
+    {
+      upsm.rgb = upsm.bgr;
+      crs.rgb = crs.bgr;
+    }
+    // crs.rgb = upsm.rgb;
+
     // do wavelet shrinkage with these channels.
     // make sure to keep clipped (>= white)!
     // TODO: use black and white according to correct channel!
-#define SHRINK(A, B) {\
+      // float D = (B - push.black.x)/(push.white.x - push.black.x);
+#define SHRINK(A, B, C) {\
       A = (A - push.black.x)/(push.white.x - push.black.x);\
+      float D = C;\
       if(A < 1.0) {\
-        float wav = (A - B)/sigma;\
-        float tt = min(1.0, wav/(2.0*T*params.edge[2].z));\
-        A = max(0, B + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt));\
+        float wav = (A - D)/sigma;\
+        float tt = min(1.0, wav/(2.0*T));\
+        A = max(0, C + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt));\
       }\
     }
+ // max(0, (crs.g - push.black.g)/(push.white.g - push.black.g));
 #define SHRINKG(A) {\
       A = max(0, (A - push.black.g)/(push.white.g - push.black.g));\
+      float D = upsm.g;\
       if(A < 1.0) { \
-        float wav = (A - upsm.g)/sigma;\
-        float tt = min(1.0, wav/(2.0*T*params.edge[2].w));\
+        float wav = (A - D)/sigma;\
+        float tt = min(1.0, wav/(2.0*T));\
         A = mix(A, max(0, upsm.g + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), params.luma);\
       }\
     }
@@ -92,18 +106,20 @@ main()
 
     const float scale = 65535.0*(push.white.g-push.black.g);
     const float sigma = sqrt(push.noise_a + scale*max(upsm.g, 0.0)*push.noise_b)/scale;
-    float T = params.chroma * params.strength * params.edge[2].x;
-    SHRINK(c1, upsm.r)
-    SHRINK(c7, upsm.r)
-    SHRINK(c3, upsm.b)
-    SHRINK(c5, upsm.b)
+    float T = params.chroma * params.strength * upsm.w;
+    SHRINK(c1, crs.r, upsm.r)
+    SHRINK(c7, crs.r, upsm.r)
+    SHRINK(c3, crs.b, upsm.b)
+    SHRINK(c5, crs.b, upsm.b)
 
-    T = params.strength * params.edge[2].y;
+    T = params.strength * upsm.w;
     SHRINKG(c0)
     SHRINKG(c2)
     SHRINKG(c4)
     SHRINKG(c6)
     SHRINKG(c8)
+
+    // c0 = c1 = c2 = c3 = c4 = c5 = c6 = c7 = c8 = upsm.w;
 
     imageStore(img_out, 3*ipos,            vec4(vec3(c0), 1));
     imageStore(img_out, 3*ipos+ivec2(0,1), vec4(vec3(c1), 1));
@@ -120,13 +136,14 @@ main()
     // reads : w z -> r g
     //         x y    g b
     vec4 c = textureGather(img_in, (push.crop.xy + 2*(ipos+.5))/vec2(textureSize(img_in, 0)), 0);
+    vec3 crs = vec3(upsm.r, 0.5*(c.z+c.x), upsm.b);
 
     const float sigma = sqrt(push.noise_a + 65535.0*max(upsm.g, 0.0)*push.noise_b)/65535.0;
-    float T = params.chroma * params.strength * params.edge[2].x;
-    SHRINK(c.y, upsm.b);
-    SHRINK(c.w, upsm.r);
+    float T = params.chroma * params.strength * upsm.w;
+    SHRINK(c.y, crs.b, upsm.b);
+    SHRINK(c.w, crs.r, upsm.r);
 
-    T = params.strength * params.edge[2].y;
+    T = params.strength * upsm.w;
     SHRINKG(c.x);
     SHRINKG(c.z);
 #undef SHRINK

@@ -45,7 +45,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  ivec2 sz = textureSize(img_s0, 0).xy;//  - push.crop.xy;
+  ivec2 sz = textureSize(img_s1, 0).xy;
 
   // go through all levels same as downsampling would, swizzling coordinates
   // on the go as done in down.comp. then pick up the scales accordingly.
@@ -58,6 +58,7 @@ main()
   vec3 orig = texelFetch(img_s0, ipos+push.crop.xy, 0).rgb;
   orig = (orig - push.black.rgb)/(push.white.rgb - push.black.rgb);
   orig = rgb_to_yuv * (orig * push.wb.rgb);
+  float test = 1.0;
   { // scope for registers
     ivec2 esi = ipos;
 
@@ -87,7 +88,6 @@ main()
     // mosaiced images are preprocessed by averaging a block of greens.
     // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2).
     // demosaiced images have way less noise to begin with, so we should tune down variance, too!
-    // the current factor of 10 is purely heuristic and probably also there's something else wrong.
     float block = push.filters == 0u ? 1.0 : (push.filters == 9u ? 2.23607 : 1.414213);
     const float b0 = params.blck.x/block;
     const float b1 = params.blck.y/block;
@@ -101,34 +101,60 @@ main()
     // TODO: downweight coarser scales:
     // TODO: absolutely needs softer falloff
     // xi-squared statistic for iid unit variance:
-    // float xi2 = abs(down0.x*down0.x + down1.x*down1.x + down2.x*down2.x + down3.x*down3.x - 4.0); // * (n-1) = 3 really
+    // float xi2 = 10.0*(down0.x*down0.x + down1.x*down1.x + down2.x*down2.x + down3.x*down3.x - 4.0); // * (n-1) = 3 really
     // TODO: compute true probability that these are indeed iid wrt some p value
     // (we are currently using same fake gaussian instead of a xi^2 statistic)
 
+    // detects some high contrast edges by just thresholding the total energy in all channels.
+    // apparently good for the writing on the signposts:
+    // float xi2 = (down0.x*down0.x + down1.x*down1.x + down2.x*down2.x + down3.x*down3.x);
+    // test = max(0.0, xi2 - 2.0);
+
+    // we know pure noise should be gaussian with sigma = 1.0 on all bands.
+    // a signal (not represented by our edge stopping yet) should have larger magnitude for finer scales, and possibly lower for
+    // coarser scales.
+    // float score = dot((down0 - 1.0),vec3(1)) + dot((down1 - 1.0),vec3(1));//
+    // + dot((1.0-down2),vec3(1)) + dot((1.0-down3),vec3(1));
+    // this detects (inversely) where edge stopping took place (black at some other edges)
+    // also: edge stopping seems to fire just fine on the writing on the signs for noise (400,0) or so
+    test = length(down0) + length(down1) + length(down2) + length(down3);
+    test = test/(test+1.0);
+    // test = 0.0;
+
+
+
+    // test = 0.5 + 0.5*xi2/sqrt(xi2*xi2+1.0);
     // wavelet shrinkage and re-assembly:
-    // float test = 1;// XXX exp(- .5*xi2); // fake Xi2
+    // test = xi2/(xi2+10.);//.07*xi2;//exp(- 4.0*xi2); // fake Xi2
     // float test = exp(- 0.008*sqrt(xi2)); // fake Xi2
     // bayes shrink would be T = sigma_noise^2 / sigma_signal
     // maybe consider that sigma_channel^2 scales as 1/f^2 with frequency f for natural images?
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
-    // vec3 thrs = vec3(1.0, params.chroma, params.chroma) * (params.strength * 3.0) * test;
-    vec3 thrs = vec3(1.0, params.chroma, params.chroma) * params.strength;
+    vec3 thrs = vec3(1.0, params.chroma, params.chroma) * params.strength;// * test;
     vec3 tt = vec3(0.0);
-    tt = min(vec3(1.0), abs(down3)/(2*thrs * params.edge[0].x));
-    down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs * params.edge[1].x, vec3(0.0)), abs(down3), tt);
-    tt = min(vec3(1.0), abs(down2)/(2*thrs * params.edge[0].y));
-    down4 += sigma * b2 * sign(down2) * mix(max(abs(down2) - thrs * params.edge[1].y, vec3(0.0)), abs(down2), tt);
-    tt = min(vec3(1.0), abs(down1)/(2*thrs * params.edge[0].z));
-    down4 += sigma * b1 * sign(down1) * mix(max(abs(down1) - thrs * params.edge[1].z, vec3(0.0)), abs(down1), tt);
-    tt = min(vec3(1.0), abs(down0)/(2*thrs * params.edge[0].w));
-    down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs * params.edge[1].w, vec3(0.0)), abs(down0), tt);
+    tt = min(vec3(1.0), abs(down3)/(2*thrs));
+    down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs, vec3(0.0)), abs(down3), tt);
+    tt = min(vec3(1.0), abs(down2)/(2*thrs));
+    down4 += sigma * b2 * sign(down2) * mix(max(abs(down2) - thrs, vec3(0.0)), abs(down2), tt);
+    tt = min(vec3(1.0), abs(down1)/(2*thrs));
+    down4 += sigma * b1 * sign(down1) * mix(max(abs(down1) - thrs, vec3(0.0)), abs(down1), tt);
+    tt = min(vec3(1.0), abs(down0)/(2*thrs));
+    down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs, vec3(0.0)), abs(down0), tt);
+    // tt = min(vec3(1.0), abs(down3)/(2*thrs * params.edge[0].x));
+    // down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs * params.edge[1].x, vec3(0.0)), abs(down3), tt);
+    // tt = min(vec3(1.0), abs(down2)/(2*thrs * params.edge[0].y));
+    // down4 += sigma * b2 * sign(down2) * mix(max(abs(down2) - thrs * params.edge[1].y, vec3(0.0)), abs(down2), tt);
+    // tt = min(vec3(1.0), abs(down1)/(2*thrs * params.edge[0].z));
+    // down4 += sigma * b1 * sign(down1) * mix(max(abs(down1) - thrs * params.edge[1].z, vec3(0.0)), abs(down1), tt);
+    // tt = min(vec3(1.0), abs(down0)/(2*thrs * params.edge[0].w));
+    // down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs * params.edge[1].w, vec3(0.0)), abs(down0), tt);
   }
 
   down4.x = mix(orig.x, down4.x, params.luma);
   vec3 rgb = max(vec3(0), (inverse(rgb_to_yuv) * down4) / push.wb.rgb);
 
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  imageStore(img_out, ipos, vec4(rgb, test));
 }
 

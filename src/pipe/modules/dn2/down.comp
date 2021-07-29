@@ -59,7 +59,7 @@ vec3 response(vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
     {params.edge[ 7].z, params.edge[ 7].w, params.edge[ 8].x, params.edge[ 8].y, params.edge[ 8].z}
   };
 
-  const float t = 0.3;
+  const float t = 0.2;
   // const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
   const float t2 = (1.0-t)/4.0;
   const float bw[][5] = { // blur weights
@@ -118,9 +118,10 @@ main()
   // 5 tap flower filter
   // const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
   // const float t = 0.3; // a bit sharper
-  const float t = push.level == 0 ? params.edge[3].x : (push.level == 1 ? params.edge[3].y : (push.level == 2 ? params.edge[3].z : params.edge[3].w));
+  const float t = 0.2;
+  // const float t = push.level == 0 ? params.edge[3].x : (push.level == 1 ? params.edge[3].y : (push.level == 2 ? params.edge[3].z : params.edge[3].w));
 #if 0 // feature detection wavelet
-  vec3 c0 = texelFetch(img_in, ipos, 0).rgb;
+  vec3 c0 = texelFetch(img_in, ipos + push.crop.xy, 0).rgb;
   vec3 c1 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb;
   vec3 c2 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz)).rgb;
   vec3 c3 = texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz)).rgb;
@@ -128,13 +129,13 @@ main()
   vec3 rgb = response(c0, c1, c2, c3, c4);
 #else
 #if 0 // regular wavelet
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * t;
+  vec3 rgb = texelFetch(img_in, ipos + push.crop.xy, 0).rgb * t;
   rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
   rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
   rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 0.4, 0.5 - 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
   rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
 #else // half way edge aware
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 rgb = texelFetch(img_in, ipos + push.crop.xy, 0).rgb;
   vec3 sum = t * rgb;
   float wgt = t;
   // scale based on noise model and wavelet level:
@@ -146,7 +147,7 @@ main()
   const float sigma = lvl * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
   // weight according to yuv or rgb:
   // vec3 wc = 2./sigma *(push.level == 0 ? vec3(1.0) : vec3(1.0, 0.4, 0.4));
-  vec3 wc = 1./sigma * params.edge[4+push.level].xyz;
+  vec3 wc = vec3(1./sigma);// * params.edge[4+push.level].xyz;
 
 #define lookup(O) \
   do { \
@@ -156,15 +157,15 @@ main()
   wgt += w; \
   } while(false)
 
-  vec2 uv = params.blur[0].xy;
-  lookup(vec2(0.5 + uv.x, 0.5 + uv.y));
-  lookup(vec2(0.5 - uv.x, 0.5 - uv.y));
-  lookup(vec2(0.5 + uv.y, 0.5 - uv.x));
-  lookup(vec2(0.5 - uv.y, 0.5 + uv.x));
-  // lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
-  // lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
-  // lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
-  // lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
+  // vec2 uv = params.blur[0].xy;
+  // lookup(vec2(0.5 + uv.x, 0.5 + uv.y));
+  // lookup(vec2(0.5 - uv.x, 0.5 - uv.y));
+  // lookup(vec2(0.5 + uv.y, 0.5 - uv.x));
+  // lookup(vec2(0.5 - uv.y, 0.5 + uv.x));
+  lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
+  lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
+  lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
+  lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
 
   rgb = sum / wgt;
 #undef lookup
@@ -173,7 +174,7 @@ main()
 #endif
 
   // sort image to write positions so we can iterate the filter
-  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * sz/2;
+  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * imageSize(img_out)/2;
   ipos = ipos / 2 + off;
 
   if(push.level == 0)
