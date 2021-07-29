@@ -130,8 +130,8 @@ create_nodes(
   roi_half.wd /= block;
   roi_half.ht /= block;
 
-  const int wd = roi_half.full_wd;
-  const int ht = roi_half.full_ht;
+  const int wd = roi_half.wd;
+  const int ht = roi_half.ht;
 
   // wire 4 scales of downsample + assembly node
   int id_down[4] = {0};
@@ -162,7 +162,7 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = roi_half,
       }},
-      .push_constant_size = 19*sizeof(uint32_t),
+      .push_constant_size = 20*sizeof(uint32_t),
       .push_constant = {
         wbi[0], wbi[1], wbi[2], wbi[3],
         blacki[0], blacki[1], blacki[2], blacki[3],
@@ -172,7 +172,7 @@ create_nodes(
         (i == 0 && block == 1) ? crop_aabb[2] : 0,
         (i == 0 && block == 1) ? crop_aabb[3] : 0,
         noisei[0], noisei[1],
-        i },
+        i, block },
     };
   }
   // wire inputs:
