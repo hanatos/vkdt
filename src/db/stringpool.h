@@ -60,7 +60,7 @@ dt_stringpool_get(
     dt_stringpool_entry_t *entry = sp->entry + j;
     if(entry->buf)
     { // entry already taken
-      if(!strncmp(entry->buf, str, sl))
+      if(!strncmp(entry->buf, str, sl) && (entry->buf[sl] == 0))
       {
         if(dedup) *dedup = entry->buf;
         return entry->val; // this is us, we have been inserted before
