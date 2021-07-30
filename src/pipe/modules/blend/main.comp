@@ -77,7 +77,7 @@ main()
   // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
   float t = clamp(params.opacity*(1.0-mask), 0, 1);
 
-#if 0
+#if 1
   if(params.filters == 1)
   { // actually does not have a mosaic/bayer pattern and is no multi-frame
     rgb = mix(rgb, bck, t);
