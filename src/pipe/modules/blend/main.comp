@@ -84,7 +84,7 @@ main()
   }
   else if(params.filters == 0)
 #endif
-  if(params.filters < 2)
+  // if(params.filters < 2)
   {
 #if 1 // switch this off to see unshielded warping:
     // use TAA style box clamping

@@ -737,7 +737,7 @@ void render_lighttable()
         // overwrite .cfg for this image file:
         uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
         const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-        char filename[1024] = {0};
+        char filename[1024] = {0}, realname[1024] = {0};
         dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
         FILE *f = fopen(filename, "wb");
         fprintf(f, "frames:1\n");
@@ -757,12 +757,19 @@ void render_lighttable()
             "module:hist:01\n"
             "module:display:hist\n"
             "module:display:main\n");
-        fprintf(f, "param:i-raw:main:filename:%s\n", vkdt.db.image[main_imgid].filename);
+        realpath(filename, realname);
+        char *base = basename(realname);
+        base[strlen(base)-4] = 0;
+        fprintf(f, "param:i-raw:main:filename:%s\n", base);
         int ii = 1;
         for(int i=0;i<vkdt.db.selection_cnt;i++)
         {
           if(sel[i] == main_imgid) continue;
-          fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, vkdt.db.image[sel[i]].filename);
+          dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+          realpath(filename, realname);
+          char *base = basename(realname);
+          base[strlen(base)-4] = 0;
+          fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, base);
           fprintf(f,
               "connect:i-raw:%02d:output:align:%02d:alignsrc\n"
               "connect:i-raw:%02d:output:align:%02d:input\n"
