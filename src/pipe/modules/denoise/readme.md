@@ -17,6 +17,9 @@ this module is usually fast and denoises a full resolution 24
 megapixel raw image in around 20ms on a lower end nvidia gtk
 1650 max-q.
 
+for extreme low-light cases if you have a chance to take burst photographs,
+you can use the [align](../align/readme.md) module for further noise reduction.
+
 ## connectors
 
 * `input` the input image can be `rggb` or `rgba`
