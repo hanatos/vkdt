@@ -5,5 +5,9 @@ this module uses the rawspeed library to decode raw photographs.
 ## params
 
 * `filename` the input file name
-* `noise a` the first parameter of the gaussian/poissonian noise model
-* `noise b` the second parameter of the same. set both to `0.0` to load the noise profiles from `data/nprof/*`.
+* `noise a` the gaussian part of the gaussian/poissonian noise model
+* `noise b` the poissonian parameter of the same
+
+if both noise parameters are set to `0.0`, `vkdt` will load the noise profiles
+from `data/nprof/*`. see [noise profiling](../../../../doc/noiseprofiling.md)
+for how to create a profile.

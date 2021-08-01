@@ -4,11 +4,11 @@ for various things it is useful to know how much noise we can expect from a
 pixel in the raw image file. we fit a gaussian/poissonian mixture to the
 observed variance in an image.
 
-to derive the values, there are two processing graphs in the ```examples/``` directory:
+to derive the values, there are two processing graphs in the `bin/data/` directory:
 
 ```
-examples/noiseprofile.cfg
-examples/noisecheck.cfg
+bin/data/noiseprofile.cfg
+bin/data/noisecheck.cfg
 ```
 
 to wire these to your specific raw file, there is a convenience wrapper bash
