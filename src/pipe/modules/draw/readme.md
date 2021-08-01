@@ -5,6 +5,10 @@ has to be combined with blending. quick access is possible by adding the `draw`
 block template to the graph (see `data/blocks/draw.cfg` and the *insert block..*
 button in the pipeline configuration tab in darkroom mode).
 
+for the impatient, there are also two examples in the repository:
+`examples/draw.cfg` and `examples/draw-guided.cfg`. be sure to copy a
+`test.cr2` file into the `examples/` directory before testing.
+
 this block also contains a guided filter blur for edge-adaptive smoothing of
 the resulting mask.
 
