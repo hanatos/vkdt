@@ -2,7 +2,7 @@
 
 this module uses the rawspeed library to decode raw photographs.
 
-## params
+## parameters
 
 * `filename` the input file name
 * `noise a` the gaussian part of the gaussian/poissonian noise model

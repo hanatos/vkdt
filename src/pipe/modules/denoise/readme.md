@@ -7,13 +7,23 @@ you can manually dial in the gaussian and poissonian part of the noise model
 in the [raw input](../i-raw/readme.md) module.
 you can run `denoise` pre- and post-demosaicing.
 
+the `denoise` module also takes care to crop off the black borders (noise and
+black point calibration pixels) and removes the black point and scales to
+the white point of the raw image file. it is thus an essential part of every
+raw pipeline. set `strength` to `0.0` if you only want to crop/scale and no
+denoising. it will employ a specialised `noop` kernel in this case.
+
+this module is usually fast and denoises a full resolution 24
+megapixel raw image in around 20ms on a lower end nvidia gtk
+1650 max-q.
+
 ## connectors
 
 * `input` the input image can be `rggb` or `rgba`
 * `output` the output image will be the same format as the input
 
 
-## params
+## parameters
 
 * `strength` the overall strength of the wavelet thresholding. this directly scales the unbiased soft shrinkage threshold.
 * `chroma` this affects the threshold only for the `yuv` colour channels
@@ -21,3 +31,17 @@ you can run `denoise` pre- and post-demosaicing.
 
 
 ## examples
+
+a bayer image after lens corrections, demosaicing after denoising (slide
+the little right corner down for comparison):  
+<div class="compare_box">
+<textarea readonly style="background:url(denoise-off.jpg)"></textarea>
+<textarea readonly style="background:url(denoise-on.jpg)" ></textarea>
+</div>
+
+an xtrans image:  
+<div class="compare_box">
+<textarea readonly style="background:url(xtrans-off.jpg)"></textarea>
+<textarea readonly style="background:url(xtrans-on.jpg)" ></textarea>
+</div>
+
