@@ -76,3 +76,9 @@ the triangle at the bottom of the white line to compare):
 <textarea readonly style="background:url(guided-on.jpg)" ></textarea>
 </div>
 
+in this setup, the guided filter and the draw module are wired the following way:
+
+![wiring](wiring.jpg)
+
+and the masked area has an additional `exposure` module applied before blending
+back, in the spirit of dodging/burning. you can insert any other modules here, of course.
