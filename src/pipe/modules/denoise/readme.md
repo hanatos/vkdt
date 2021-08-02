@@ -36,7 +36,7 @@ you can use the [align](../align/readme.md) module for further noise reduction.
 ## examples
 
 a bayer image after lens corrections, demosaicing after denoising (slide
-the little right corner down for comparison):  
+the little right corner for comparison):  
 <div class="compare_box">
 <textarea readonly style="background:url(denoise-off.jpg)"></textarea>
 <textarea readonly style="background:url(denoise-on.jpg)" ></textarea>

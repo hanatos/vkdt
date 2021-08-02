@@ -68,8 +68,11 @@ to 100%.
 
 the [guided filter](../guided/readme.md) module can be used to make the brush stroke
 adapt to edges in the image, and is present in the default draw block as mentioned
-above. as an example, consider this brush stroke:  
-![guided off](guided-off.jpg)
+above. as an example, consider this brush stroke,
+which is transformed by the guided filter to look like the left overlay (drag
+the triangle at the bottom of the white line to compare):  
+<div class="compare_box">
+<textarea readonly style="background:url(guided-off.jpg)"></textarea>
+<textarea readonly style="background:url(guided-on.jpg)" ></textarea>
+</div>
 
-which is transformed by the guided filter to look like this:  
-![guided on](guided-on.jpg)
