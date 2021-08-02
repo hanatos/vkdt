@@ -164,6 +164,11 @@ read_connection_ascii(
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
     dt_log(s_log_pipe, "[read connect] connection failed: error %d: %s", err, dt_connector_error_str(err));
+    dt_log(s_log_pipe, "[read connect] %"PRItkn":%"PRItkn" -> %"PRItkn":%"PRItkn,
+        dt_token_str(graph->module[modid0].connector[conid0].chan),
+        dt_token_str(graph->module[modid0].connector[conid0].format),
+        dt_token_str(graph->module[modid1].connector[conid1].chan),
+        dt_token_str(graph->module[modid1].connector[conid1].format));
     return -err;
   }
   else
