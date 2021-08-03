@@ -172,6 +172,18 @@ dt_thumbnails_cleanup(
   dt_vkalloc_cleanup(&tn->alloc);
 }
 
+void
+dt_thumbnails_invalidate(
+    dt_thumbnails_t *tn,
+    const char      *filename)
+{
+  int len = strnlen(filename, 2048);
+  uint32_t hash = murmur_hash3(filename, len, 1337);
+  char bc1filename[1040];
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
+  unlink(bc1filename);
+}
+
 // process one image and write a .bc1 thumbnail
 // return 0 on success
 VkResult

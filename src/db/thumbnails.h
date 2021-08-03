@@ -109,3 +109,9 @@ dt_thumbnails_load_list(
     const uint32_t  *collection,   // array with image ids
     uint32_t         beg,          // update collection[k] with k in [beg, end)
     uint32_t         end);         // 
+
+// explitly delete the cached bc1 thumbnail in ~/.cache/vkdt/
+void
+dt_thumbnails_invalidate(
+    dt_thumbnails_t *tn,
+    const char      *filename);

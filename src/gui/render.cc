@@ -732,6 +732,25 @@ void render_lighttable()
       }
 
       // ==============================================================
+      // reset history stack
+      if(ImGui::Button("reset history stack", size))
+      {
+        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+        char filename[1024], realname[1024];
+        for(int i=0;i<vkdt.db.selection_cnt;i++)
+        {
+          dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+          realpath(filename, realname);
+          unlink(realname);
+          dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
+        }
+        dt_thumbnails_cache_list(
+            &vkdt.thumbnail_gen,
+            &vkdt.db,
+            sel, vkdt.db.selection_cnt);
+      }
+
+      // ==============================================================
       // merge/align images
       if(vkdt.db.selection_cnt > 1)
       if(ImGui::Button("merge into current", size))
