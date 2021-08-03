@@ -72,8 +72,8 @@ above. as an example, consider this brush stroke,
 which is transformed by the guided filter to look like the left overlay (drag
 the triangle at the bottom of the white line to compare):  
 <div class="compare_box">
-<textarea readonly style="background:url(guided-off.jpg)"></textarea>
-<textarea readonly style="background:url(guided-on.jpg)" ></textarea>
+<textarea readonly style="background-image:url(guided-off.jpg)"></textarea>
+<textarea readonly style="background-image:url(guided-on.jpg)" ></textarea>
 </div>
 
 in this setup, the guided filter and the draw module are wired the following way:
