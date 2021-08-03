@@ -38,13 +38,13 @@ you can use the [align](../align/readme.md) module for further noise reduction.
 a bayer image after lens corrections, demosaicing after denoising (slide
 the little right corner for comparison):  
 <div class="compare_box">
-<textarea readonly style="background:url(denoise-off.jpg)"></textarea>
-<textarea readonly style="background:url(denoise-on.jpg)" ></textarea>
+<textarea readonly style="background-image:url(denoise-off.jpg)"></textarea>
+<textarea readonly style="background-image:url(denoise-on.jpg)" ></textarea>
 </div>
 
 an xtrans image:  
 <div class="compare_box">
-<textarea readonly style="background:url(xtrans-off.jpg)"></textarea>
-<textarea readonly style="background:url(xtrans-on.jpg)" ></textarea>
+<textarea readonly style="background-image:url(xtrans-off.jpg)"></textarea>
+<textarea readonly style="background-image:url(xtrans-on.jpg)" ></textarea>
 </div>
 

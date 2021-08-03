@@ -28,7 +28,47 @@ the parameters are as described in the paper.
 * `blur3`
 
 
-## technical
+## examples
 
-please see the paper for details. in short, pixel correspondence detection is
-based on a hierarchical application of non-local means.
+noisy input vs. aligned and denoised:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0000.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0003.jpg)"></textarea>
+</div>
+
+denoise pre-demosaic without alignment:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0001.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0003.jpg)"></textarea>
+</div>
+
+denoise post-demosaic without alignment:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0002.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0003.jpg)"></textarea>
+</div>
+
+align and denoise post-demosaic:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0004.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0003.jpg)"></textarea>
+</div>
+
+denoise individual inputs and align then:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0005.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0003.jpg)"></textarea>
+</div>
+
+denoise individual inputs and align then vs. single-image pre-demosaic denoise:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0001.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0005.jpg)"></textarea>
+</div>
+
+align and denoise post-demosaic vs. single-image post-demosaic denoise:  
+<div class="compare_box">
+<textarea readonly style="background-image:url(img_0002.jpg)"></textarea>
+<textarea readonly style="background-image:url(img_0004.jpg)"></textarea>
+</div>
+
