@@ -783,12 +783,12 @@ void render_lighttable()
           fprintf(f, "connect:i-raw:main:output:align:%02d:aligndst\n", ii);
           fprintf(f,
               "param:blend:%02d:opacity:%g\n"
-              "param:align:%02d:merge_n:0.005\n"
-              "param:align:%02d:merge_k:4000\n"
-              "param:align:%02d:blur0:8\n"
-              "param:align:%02d:blur1:8\n"
-              "param:align:%02d:blur2:8\n"
-              "param:align:%02d:blur3:8\n",
+              "param:align:%02d:merge_n:0.05\n"
+              "param:align:%02d:merge_k:30\n"
+              "param:align:%02d:blur0:2\n"
+              "param:align:%02d:blur1:16\n"
+              "param:align:%02d:blur2:32\n"
+              "param:align:%02d:blur3:64\n",
               ii, pow(0.5, ii),
               ii, ii, ii, ii, ii, ii);
           ii++;

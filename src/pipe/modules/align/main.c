@@ -57,7 +57,9 @@ void modify_roi_out(
   {
     module->connector[5+i].roi = module->connector[5+i-1].roi;
     int scale = i == 0 ? block : DOWN;
+    module->connector[5+i].roi.full_wd += scale-1;
     module->connector[5+i].roi.full_wd /= scale;
+    module->connector[5+i].roi.full_ht += scale-1;
     module->connector[5+i].roi.full_ht /= scale;
     module->connector[9+i].roi = module->connector[5+i].roi;
   }
@@ -86,9 +88,13 @@ create_nodes(
   {
     int scale = i == 1 ? block : DOWN;
     roi[i] = roi[i-1];
+    roi[i].full_wd += scale-1;
     roi[i].full_wd /= scale;
+    roi[i].full_ht += scale-1;
     roi[i].full_ht /= scale;
+    roi[i].wd += scale-1;
     roi[i].wd /= scale;
+    roi[i].ht += scale-1;
     roi[i].ht /= scale;
   }
 
@@ -230,8 +236,9 @@ create_nodes(
     // blur output of dist node by tile size (depending on noise radius 16x16, 32x32 or 64x64?)
     // grab module parameters, would need to trigger re-create_nodes on change:
     const int blur = ((float*)module->param)[2+i];
-    // const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_dist, 3, 0, 0, blur) : id_dist;
-    const int id_blur = blur > 0 ? dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur, 0) : id_dist;
+    const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_dist, 3, 0, 0, blur) : id_dist;
+    // const int id_blur = blur > 0 ? dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur, 0) : id_dist;
+    // const int id_blur = blur > 0 ? dt_api_blur_small(graph, module, id_dist, 3, 0, 0, blur) : id_dist;
     const int cn_blur = blur > 0 ? 1 : 3;
 
     // merge output of blur node using "merge" (<off0, <off1, >merged)

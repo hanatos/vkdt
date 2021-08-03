@@ -49,22 +49,26 @@ main()
   offx -= 2;
   offy -= 2;
 
-  float i0 = texelFetch(img_in0, ipos, 0).r;
+  // float i0 = texelFetch(img_in0, ipos, 0).r;
+  float i0 = texture(img_in0, (ipos+.5)/textureSize(img_in0, 0), 0).r;
   float i1;
   if(push.scale > 0)
   {
 #if 1 // hard
     vec2 off = vec2(offx, offy) + texture(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
+    // vec2 off = vec2(offx, offy) + texelFetch(img_off, ivec2((ipos+.5)/push.scale), 0).rg * push.scale;
 #else // soft
     vec2 off = vec2(offx, offy) + sample_soft(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
 #endif
-    i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
+    // i1 = textureLod(img_in1, (ipos+.5+off)/textureSize(img_in1, 0), 0).r;
+    i1 = texture(img_in1, vec2(ivec2(ipos+off)+.5)/textureSize(img_in1, 0)).r;
   }
-  else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
+  // else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
+  else i1 = texture(img_in1, (ipos+0.5+ivec2(offx, offy))/vec2(textureSize(img_in1, 0))).r;
   // float dist = log(2+abs(i0 - i1));     // log L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
-  float dist = abs(i0 - i1); // L1
-  // float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
+  // float dist = abs(i0 - i1); // L1
+  float dist = abs(i0 - i1)/max(1e-8,max(abs(i0),abs(i1))); // relative L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.5)) * abs(i0 - i1)/max(1e-3,max(abs(i0),abs(i1))); // relative L1, center weighted
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1)/max(i0, i1));     // log L1 center weighted relative
   // float dist = (i0 - i1)*(i0 - i1); // L2, good for photography and MC noise
