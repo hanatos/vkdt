@@ -166,7 +166,10 @@ dt_api_blur_small(
   };
   if(id_blur_in)  *id_blur_in  = id_blur;
   if(id_blur_out) *id_blur_out = id_blur;
-  CONN(dt_node_connect(graph, nodeid_input, connid_input, id_blur, 0));
+  if(nodeid_input >= 0)
+    CONN(dt_node_connect(graph, nodeid_input, connid_input, id_blur, 0));
+  else
+    dt_connector_copy(graph, module, connid_input, id_blur, 0);
   return id_blur;
 }
 
