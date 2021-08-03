@@ -19,7 +19,7 @@ connect:llap:01:output:display:main:input
 connect:llap:01:output:hist:01:input
 connect:hist:01:output:display:hist:input
 param:colour:01:exposure:0
-param:colour:01:matrix:2
+param:colour:01:matrix:1
 param:filmcurv:01:x0:0
 param:filmcurv:01:x1:0.1
 param:filmcurv:01:x2:0.9

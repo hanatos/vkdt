@@ -15,8 +15,7 @@ connect:filmcurv:01:output:llap:01:input
 connect:llap:01:output:f2srgb:main:input
 connect:f2srgb:main:output:o-bc1:main:input
 param:colour:01:exposure:0
-# default to XYZ input (0 would be rec2020)
-param:colour:01:matrix:2
+param:colour:01:matrix:1
 param:filmcurv:01:x0:0
 param:filmcurv:01:x1:0.1
 param:filmcurv:01:x2:0.9
