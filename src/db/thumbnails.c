@@ -195,6 +195,8 @@ dt_thumbnails_cache_one(
       input_module = dt_token("i-mlv");
     else if(!strncasecmp(f2-4, ".pfm", 4))
       input_module = dt_token("i-pfm");
+    else if(!strncasecmp(f2-4, ".jpg", 4))
+      input_module = dt_token("i-jpg");
   }
   char cfgfilename[1040];
   char deffilename[1040];

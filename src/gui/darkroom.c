@@ -615,6 +615,8 @@ darkroom_enter()
       input_module = dt_token("i-mlv");
     if(!strcasecmp(realimg+len-8, ".pfm"))
       input_module = dt_token("i-pfm");
+    if(!strcasecmp(realimg+len-8, ".jpg"))
+      input_module = dt_token("i-jpg");
     snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
     load_default = 1;
   }

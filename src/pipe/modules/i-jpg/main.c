@@ -44,6 +44,7 @@ read_header(
   {
     fclose(jpg->f);
     jpeg_destroy_decompress(&(jpg->dinfo));
+    jpg->f = 0;
   }
   jpg->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!jpg->f) return 1;
@@ -55,6 +56,7 @@ read_header(
   {
     jpeg_destroy_decompress(&(jpg->dinfo));
     fclose(jpg->f);
+    jpg->f = 0;
     jpg->filename[0] = 0;
     return 1;
   }
@@ -95,6 +97,7 @@ read_plain(
       jpeg_destroy_decompress(&(jpg->dinfo));
       free(row_pointer[0]);
       fclose(jpg->f);
+      jpg->f = 0;
       jpg->filename[0] = 0;
       return 1;
     }
@@ -120,6 +123,7 @@ jpeg_read(
   {
     jpeg_destroy_decompress(&(jpg->dinfo));
     fclose(jpg->f);
+    jpg->f = 0;
     jpg->filename[0] = 0;
     return 1;
   }
@@ -131,6 +135,7 @@ jpeg_read(
   // by splitting here. so we'll just clean it all up:
   jpeg_destroy_decompress(&(jpg->dinfo));
   fclose(jpg->f);
+  jpg->f = 0;
   jpg->filename[0] = 0;
   return 0;
 }
