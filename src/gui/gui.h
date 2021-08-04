@@ -45,6 +45,7 @@ typedef struct dt_gui_state_t
   int   anim_playing;        // playing yes/no
   int   anim_max_frame;      // last frame in animation
   int   anim_frame;          // current frame in animation
+  int   anim_no_keyframes;   // used to temporarily switch off keyframes (during grabbed input for instance)
 }
 dt_gui_state_t;
 
@@ -68,6 +69,9 @@ typedef struct dt_gui_wstate_t
   float  connector[100][30][2];
   char  *module_names_buf;
   const char **module_names;
+
+  double notification_time;     // time the message appeared
+  char   notification_msg[256]; // message to display
 }
 dt_gui_wstate_t;
 
@@ -146,3 +150,6 @@ void dt_gui_read_tags();
 
 // close current db, load given folder instead
 void dt_gui_switch_collection(const char *dir);
+
+// display a notification message overlay in the gui for some seconds
+void dt_gui_notification(const char *msg, ...);

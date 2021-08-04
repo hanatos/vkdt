@@ -1154,10 +1154,12 @@ inline void draw_widget(int modid, int parid)
   if(change)
 
   // common code block to insert a keyframe. currently only supports float (for interpolation)
+  static double keyframe_time = glfwGetTime();
 #define KEYFRAME\
   if(ImGui::IsItemHovered())\
   {\
-    if(glfwGetKey(qvk.window, GLFW_KEY_K) == GLFW_PRESS)\
+    double now = glfwGetTime(); \
+    if(glfwGetKey(qvk.window, GLFW_KEY_K) == GLFW_PRESS && now - keyframe_time > 1.0)\
     {\
       dt_graph_t *g = &vkdt.graph_dev;\
       int ki = -1;\
@@ -1178,6 +1180,9 @@ inline void draw_widget(int modid, int parid)
         assert(g->params_end <= g->params_max);\
       }\
       memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
+      dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
+          g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
+      keyframe_time = now; \
     }\
   }
 
@@ -1440,6 +1445,7 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button("grab input"))
         {
           widget_end(); // if another one is still in progress, end that now
+          vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
           vkdt.wstate.grabbed = 1;
@@ -1449,6 +1455,7 @@ inline void draw_widget(int modid, int parid)
             if(mod->so->input) mod->so->input(mod, &p);
           glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
+        KEYFRAME
       }
       break;
     }
@@ -1488,6 +1495,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
           vkdt.wstate.mapped = v; // map state
         }
+        KEYFRAME
         if(ImGui::IsItemHovered())
           ImGui::SetTooltip("start drawing brush strokes with the mouse\n"
               "scroll - fine tune radius\n"
@@ -2011,6 +2019,24 @@ extern "C" void dt_gui_render_frame_imgui()
       break;
     default:;
   }
+
+  // draw notification message
+  double now = glfwGetTime();
+  if(vkdt.wstate.notification_msg[0] &&
+     now - vkdt.wstate.notification_time < 4.0)
+  {
+    ImGuiWindowFlags window_flags = 
+        ImGuiWindowFlags_NoTitleBar
+      | ImGuiWindowFlags_NoMove
+      | ImGuiWindowFlags_NoResize
+      | ImGuiWindowFlags_NoBackground;
+    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, 0.05 * vkdt.state.center_ht), ImGuiCond_Always);
+    ImGui::Begin("notification message", 0, window_flags);
+    ImGui::Text("%s", vkdt.wstate.notification_msg);
+    ImGui::End();
+  }
+
   ImGui::Render();
 }
 

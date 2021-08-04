@@ -493,7 +493,10 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
   {
     if(vkdt.graph_dev.frame_cnt != 1)
+    {
       vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
+      vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
+    }
     else
     { // backtrack to last image in lighttable collection
       int32_t next = dt_db_current_colid(&vkdt.db) - 1;
@@ -547,7 +550,8 @@ darkroom_process()
       if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
         dt_log(s_log_snd, "frame drop warning, audio may stutter!");
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
-      dt_graph_apply_keyframes(&vkdt.graph_dev);
+      if(!vkdt.state.anim_no_keyframes)
+        dt_graph_apply_keyframes(&vkdt.graph_dev);
       if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }

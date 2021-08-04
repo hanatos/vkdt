@@ -429,3 +429,13 @@ void dt_gui_switch_collection(const char *dir)
   dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
   dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
 }
+
+void dt_gui_notification(const char *msg, ...)
+{
+  va_list args;
+  va_start(args, msg);
+  vsnprintf(vkdt.wstate.notification_msg, sizeof(vkdt.wstate.notification_msg), msg, args);
+  vkdt.wstate.notification_time = glfwGetTime();
+  va_end(args);
+}
+
