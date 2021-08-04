@@ -21,7 +21,8 @@ static inline void*
 dt_realloc(void *p, uint64_t *size, uint64_t addr)
 {
   if(*size > addr) return p;
-  uint64_t nsize = 16+2*addr;
+  const uint64_t align = 32;
+  uint64_t nsize = ((16+2*addr + align-1)/align)*align;
   void *n = aligned_alloc(32, nsize);
   if(*size) memcpy(n, p, *size);
   *size = nsize;
