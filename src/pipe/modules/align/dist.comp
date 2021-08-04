@@ -50,7 +50,7 @@ main()
   offy -= 2;
 
   // float i0 = texelFetch(img_in0, ipos, 0).r;
-  float i0 = texture(img_in0, (ipos+.5)/textureSize(img_in0, 0), 0).r;
+  float i0 = texture(img_in0, (ipos+.5)/textureSize(img_in0, 0)).r;
   float i1;
   if(push.scale > 0)
   {
