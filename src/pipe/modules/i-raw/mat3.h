@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef VKDT_USE_EXIV2
 static void
 mat3mul(float *dst, const float *const m1, const float *const m2)
 {
@@ -13,6 +14,7 @@ mat3mul(float *dst, const float *const m1, const float *const m2)
     }
   }
 }
+#endif // VKDT_USE_EXIV2
 
 static inline int
 mat3inv(float *const dst, const float *const src)
