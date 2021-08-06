@@ -419,7 +419,7 @@ int dt_graph_write_config_ascii(
     dt_graph_t *graph,
     const char *filename)
 {
-  size_t size = 64000;
+  size_t size = 4<<20;
   char *org = malloc(size);
   char *buf = org;
   char *end = buf + size;

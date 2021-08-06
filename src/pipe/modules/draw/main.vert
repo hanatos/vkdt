@@ -30,12 +30,12 @@ layout(push_constant, std140) uniform push_t
 
 void main()
 {
-  // or use vec2 p = unpackHalf2x16 to support out of image viewing frustum?
   vs.radius = 2.0 * unpackUnorm2x16(ssbo.v[2*gl_VertexIndex+1]).x;
   vec2 u = unpackUnorm4x8(ssbo.v[2*gl_VertexIndex+1]).zw;
   vs.opacity  = u.x;
   vs.hardness = u.y;
   // grab vertex position from ssbo:
-  vec2 p = unpackUnorm2x16(ssbo.v[2*gl_VertexIndex]) * 2.0 - 1.0;
+  // vec2 p = unpackUnorm2x16(ssbo.v[2*gl_VertexIndex]) * 2.0 - 1.0;
+  vec2 p = unpackUnorm2x16(ssbo.v[2*gl_VertexIndex]) * 4.0 - 2.0;
   gl_Position = vec4(p, 0, 1.0);
 }

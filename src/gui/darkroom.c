@@ -8,6 +8,7 @@
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
+#include "pipe/draw.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -162,8 +163,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         int vcnt = dat[0];
         if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(uint32_t)))
         {
-          dat[1+2*vcnt+0] = 0; // vertex coordinate 16+16
-          dat[1+2*vcnt+1] = 0; // radius 16 + opacity 8 + hardness 8, all 0 is the end marker
+          ((dt_draw_vert_t *)(dat+1))[vcnt] = dt_draw_endmarker();
           dat[0]++;
         }
         // trigger recomputation:
@@ -385,8 +385,8 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         float opacity  = vkdt.wstate.state[1];
         float hardness = vkdt.wstate.state[2];
         uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-        uint16_t xi = CLAMP((int32_t)(n[0]*0xffff), 0, 0xffff);
-        uint16_t yi = CLAMP((int32_t)(n[1]*0xffff), 0, 0xffff);
+        dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
+        float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
         if(dat[0])
         { // avoid spam
           if(beg.tv_sec)
@@ -399,16 +399,15 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
             beg = end;
           }
           else clock_gettime(CLOCK_REALTIME, &beg);
-          uint16_t xo = dat[1+2*(dat[0]-1)+0]&0xffff;
-          uint16_t yo = dat[1+2*(dat[0]-1)+0]>>16;
+          dt_draw_vert_t vo = vx[dat[0]-1];
           // this cuts off at steps < ~0.005 of the image width
-          if(xo != 0 && yo != 0 && abs(xo - xi) < 32 && abs(yo - yi) < 32) return;
+          if(vo.x != 0 && vo.y != 0 && fabsf(vo.x - xi) < 0.005 && fabsf(vo.y - yi) < 0.005) return;
         }
         if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
         { // add vertex
           int v = dat[0]++;
-          dat[1+2*v+0] = (yi << 16) | xi;
-          dat[1+2*v+1] = CLAMP((int32_t)(0.5*radius*0xffff), 0, 0xffff) | (CLAMP((int32_t)(opacity*0xff), 0, 0xff) << 16) | (CLAMP((int32_t)(hardness*0xff), 0, 0xff) << 24);
+          ((dt_draw_vert_t *)(dat+1))[v] = dt_draw_vertex(
+            xi, yi, radius, opacity, hardness);
         }
         // trigger recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;

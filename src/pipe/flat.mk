@@ -12,6 +12,7 @@ pipe/alloc.h\
 pipe/connector.h\
 pipe/connector.inc\
 pipe/dlist.h\
+pipe/draw.h\
 pipe/global.h\
 pipe/graph.h\
 pipe/graph-io.h\

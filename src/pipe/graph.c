@@ -2478,16 +2478,48 @@ dt_graph_apply_keyframes(
       uint8_t *pdat = g->module[m].param + p->offset;
       uint8_t *fdat = kf[ki].data;
       size_t els = dt_ui_param_size(p->type, 1);
-      if(kiM == -1)
-      { // apply directly
-        memcpy(pdat, fdat + els*kf[ki].beg, els*(kf[ki].end-kf[ki].beg));
-      }
-      else if(p->type == dt_token("float")) // TODO: don't search for kiM above in the other cases
-      { // interpolate
+      const float t = (g->frame - kf[ki].frame)/(float)(kf[kiM].frame - kf[ki].frame);
+      if(kiM >= 0 && p->type == dt_token("float")) // TODO: don't search for kiM above in the other cases?
+      { // interpolate generic floating point parameters
         float *dst = (float *)pdat, *src0 = (float *)fdat, *src1 = (float *)kf[kiM].data;
-        const float t = (g->frame - kf[ki].frame)/(float)(kf[kiM].frame - kf[ki].frame);
         for(int i=kf[ki].beg;i<kf[ki].end;i++)
           dst[i] = t * src1[i-kf[ki].beg] + (1.0f-t) * src0[i-kf[ki].beg];
+      }
+      else if(kiM >= 0 && p->name == dt_token("draw"))
+      { // interpolate drawn list of vertices
+        uint32_t *dst = (uint32_t *)pdat, *src0 = (uint32_t *)fdat, *src1 = (uint32_t *)kf[kiM].data;
+        int vcnt = MIN(src0[0], src1[0]); // can only interpolate what we have on both ends
+        dst[0] = vcnt;
+        typedef struct {
+          uint16_t x, y; // position
+          uint16_t r;    // radius
+          uint8_t o;     // opacity
+          uint8_t h;     // hardness
+        }
+        draw_vert_t;
+        for(int i=0;i<vcnt;i++)
+        {
+          if((src0[1+2*i] == 0 && src0[1+2*i+1] == 0) ||
+             (src1[1+2*i] == 0 && src1[1+2*i+1] == 0))
+          { // use symmetric end markers
+            dst[1+2*i] = dst[1+2*i+1] = 0;
+          }
+          else
+          { // interpolate properties
+            draw_vert_t *dv = (draw_vert_t *)(dst +1+2*i);
+            draw_vert_t *s0 = (draw_vert_t *)(src0+1+2*(i - kf[ki].beg));
+            draw_vert_t *s1 = (draw_vert_t *)(src1+1+2*(i - kf[ki].beg));
+            dv->x = t * s1->x + (1.0f-t) * s0->x;
+            dv->y = t * s1->y + (1.0f-t) * s0->y;
+            dv->r = t * s1->r + (1.0f-t) * s0->r;
+            dv->o = t * s1->o + (1.0f-t) * s0->o;
+            dv->h = t * s1->h + (1.0f-t) * s0->h;
+          }
+        }
+      }
+      else
+      { // apply directly
+        memcpy(pdat, fdat + els*kf[ki].beg, els*(kf[ki].end-kf[ki].beg));
       }
     }
   }

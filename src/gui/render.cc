@@ -1172,7 +1172,7 @@ inline void draw_widget(int modid, int parid)
         ki = g->module[modid].keyframe_cnt++;\
         g->module[modid].keyframe = (dt_keyframe_t *)dt_realloc(g->module[modid].keyframe, &g->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));\
         g->module[modid].keyframe[ki].beg   = 0;\
-        g->module[modid].keyframe[ki].end   = param->cnt;\
+        g->module[modid].keyframe[ki].end   = count;\
         g->module[modid].keyframe[ki].frame = g->frame;\
         g->module[modid].keyframe[ki].param = param->name;\
         g->module[modid].keyframe[ki].data  = g->params_pool + g->params_end;\
@@ -1189,7 +1189,10 @@ inline void draw_widget(int modid, int parid)
   // distinguish by count:
   // get count by param cnt or explicit multiplicity from ui file
   int count = 1, change = 0;
-  if(param->widget.cntid == -1) count = param->cnt; // if we know nothing else, we use all elements
+  if(param->name == dt_token("draw")) // TODO: wire through named count too?
+    count = 2*dt_module_param_int(vkdt.graph_dev.module + modid, parid)[0]+1; // vertex count + list of 2d vertices
+  else if(param->widget.cntid == -1)
+    count = param->cnt; // if we know nothing else, we use all elements
   else
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
   for(int num=0;num<count;num++)
@@ -1500,7 +1503,8 @@ inline void draw_widget(int modid, int parid)
           ImGui::SetTooltip("start drawing brush strokes with the mouse\n"
               "scroll - fine tune radius\n"
               "ctrl scroll - fine tune hardness\n"
-              "shift scroll - fine tune opacity");
+              "shift scroll - fine tune opacity\n"
+              "right click - discard last stroke");
       }
       if(vkdt.wstate.mapped)
       {
@@ -1986,10 +1990,13 @@ void render_darkroom()
         else if(ImGui::Button("play", size))
           vkdt.state.anim_playing = 1;
         ImGui::SameLine();
-        if(ImGui::SliderInt("frame /", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+        if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+        {
           vkdt.graph_dev.frame = vkdt.state.anim_frame;
-        ImGui::SameLine();
-        ImGui::Text("%d", vkdt.state.anim_max_frame);
+          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        }
+        if(ImGui::SliderInt("frame count", &vkdt.state.anim_max_frame, 0, 10000))
+          vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();
