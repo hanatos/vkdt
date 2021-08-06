@@ -378,15 +378,15 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     }
     else if(type == dt_token("draw"))
     {
+      float radius   = vkdt.wstate.state[0];
+      float opacity  = vkdt.wstate.state[1];
+      float hardness = vkdt.wstate.state[2];
+      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+      dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
+      float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
       {
         static struct timespec beg = {0};
-        float radius   = vkdt.wstate.state[0];
-        float opacity  = vkdt.wstate.state[1];
-        float hardness = vkdt.wstate.state[2];
-        uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-        dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
-        float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
         if(dat[0])
         { // avoid spam
           if(beg.tv_sec)
@@ -406,14 +406,26 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
         { // add vertex
           int v = dat[0]++;
-          ((dt_draw_vert_t *)(dat+1))[v] = dt_draw_vertex(
-            xi, yi, radius, opacity, hardness);
+          vx[v] = dt_draw_vertex(xi, yi, radius, opacity, hardness);
         }
-        // trigger recomputation:
+        // trigger draw list upload and recomputation:
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
+#if 0 // TODO: draw straight line to mouse cursor. needs _keyboard support on press and on release
+      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+      {
+        if(dat[0] > 2 && 2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
+        {
+          vx[dat[0]-2] = dt_draw_vertex(xi, yi, radius, opacity, hardness);
+          vx[dat[0]-1] = dt_draw_endmarker();
+        }
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+        return;
+      }
+#endif
     }
   }
   if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
