@@ -90,7 +90,7 @@ main()
     barrier();
     BLURV
 
-    curr[idx] = orig / max(vec3(1e-6), res);
+    curr[idx] = orig / max(vec3(1e-4), res);
     barrier();
 
     // compute convolution by adjoint
