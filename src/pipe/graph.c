@@ -1,5 +1,6 @@
 #include "graph.h"
 #include "graph-io.h"
+#include "draw.h"
 #include "module.h"
 #include "modules/api.h"
 #include "modules/localsize.h"
@@ -2469,8 +2470,8 @@ dt_graph_apply_keyframes(
 
       for(int i=ki+1;i<g->module[m].keyframe_cnt;i++)
       { // now search for later frame to interpolate
-        if(kf[ki].param == kf[i].param &&
-           kf[ki].beg == kf[i].beg && kf[ki].end == kf[i].end)
+        if(kf[ki].param == kf[i].param )//&&
+           // kf[ki].beg == kf[i].beg && kf[ki].end == kf[i].end)
           if((kiM == -1 || kf[i].frame < kf[i].frame) && kf[i].frame > g->frame) kiM = i;
       }
       int parid = dt_module_get_param(g->module[m].so, kf[ki].param);
@@ -2490,32 +2491,25 @@ dt_graph_apply_keyframes(
         uint32_t *dst = (uint32_t *)pdat, *src0 = (uint32_t *)fdat, *src1 = (uint32_t *)kf[kiM].data;
         int vcnt = MIN(src0[0], src1[0]); // can only interpolate what we have on both ends
         dst[0] = vcnt;
-        typedef struct {
-          uint16_t x, y; // position
-          uint16_t r;    // radius
-          uint8_t o;     // opacity
-          uint8_t h;     // hardness
-        }
-        draw_vert_t;
+        dt_draw_vert_t *vd = (dt_draw_vert_t *)(dst +1);
+        dt_draw_vert_t *v0 = (dt_draw_vert_t *)(src0+1);
+        dt_draw_vert_t *v1 = (dt_draw_vert_t *)(src1+1);
         for(int i=0;i<vcnt;i++)
         {
-          if((src0[1+2*i] == 0 && src0[1+2*i+1] == 0) ||
-             (src1[1+2*i] == 0 && src1[1+2*i+1] == 0))
+          if(dt_draw_eq(v0[i], dt_draw_endmarker()) ||
+             dt_draw_eq(v1[i], dt_draw_endmarker()))
           { // use symmetric end markers
-            dst[1+2*i] = dst[1+2*i+1] = 0;
+            vd[i] = dt_draw_endmarker();
           }
           else
           { // interpolate properties
-            draw_vert_t *dv = (draw_vert_t *)(dst +1+2*i);
-            draw_vert_t *s0 = (draw_vert_t *)(src0+1+2*(i - kf[ki].beg));
-            draw_vert_t *s1 = (draw_vert_t *)(src1+1+2*(i - kf[ki].beg));
-            dv->x = t * s1->x + (1.0f-t) * s0->x;
-            dv->y = t * s1->y + (1.0f-t) * s0->y;
-            dv->r = t * s1->r + (1.0f-t) * s0->r;
-            dv->o = t * s1->o + (1.0f-t) * s0->o;
-            dv->h = t * s1->h + (1.0f-t) * s0->h;
+            // XXX FIXME: beg and end are currently not supported. once we have a "draw" type they should mean
+            // XXX FIXME: vertex indices, i.e. this here would need to be v0[i - kf[ki].beg] and the loop above
+            // XXX FIXME: would need to be MIN(vcnt, kf[ki].end-kf[ki].beg)
+            vd[i] = dt_draw_mix(v0[i], v1[i], t);
           }
         }
+        g->module[m].flags = s_module_request_read_source; // make sure the draw list is updated
       }
       else
       { // apply directly

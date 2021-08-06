@@ -37,6 +37,33 @@ dt_draw_endmarker()
 }
 
 // interpolate two vertices
-// static inline
+static inline dt_draw_vert_t
+dt_draw_mix(
+    dt_draw_vert_t v0,
+    dt_draw_vert_t v1,
+    float t)
+{
+  return (dt_draw_vert_t){
+    .x = CLAMP((int32_t)((1.0f-t)*v0.x + t*v1.x), 0, 0xffff),
+    .y = CLAMP((int32_t)((1.0f-t)*v0.y + t*v1.y), 0, 0xffff),
+    .r = CLAMP((int32_t)((1.0f-t)*v0.r + t*v1.r), 0, 0xffff),
+    .o = CLAMP((int32_t)((1.0f-t)*v0.o + t*v1.o), 0, 0xff),
+    .h = CLAMP((int32_t)((1.0f-t)*v0.h + t*v1.h), 0, 0xff),
+  };
+}
+
+static inline int
+dt_draw_eq(
+    dt_draw_vert_t v0,
+    dt_draw_vert_t v1)
+{
+  return v0.x == v1.x &&
+         v0.y == v1.y &&
+         v0.r == v1.r &&
+         v0.o == v1.o &&
+         v0.h == v1.h;
+}
+
+
 
 // length of array vs number of vertices, write paramsub style stuff?
