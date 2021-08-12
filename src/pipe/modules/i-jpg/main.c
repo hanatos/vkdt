@@ -3,7 +3,7 @@
 #include <jpeglib.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <setjmp.h>
 
 typedef struct jpginput_buf_t
