@@ -2,6 +2,7 @@
 #include "qvk/qvk.h"
 #include "graph-fwd.h"
 #include <stdlib.h>
+#include <sys/types.h>
 
 // extra storage on graph
 typedef struct dt_raytrace_graph_t
