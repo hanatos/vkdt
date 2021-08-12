@@ -1,7 +1,7 @@
 RAWSPEED_I=../ext/rawspeed
 RAWSPEED_L=../built/ext/rawspeed
-MOD_CFLAGS=-Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/
-MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lpugixml -lz -ljpeg
+MOD_CFLAGS=-Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(shell pkg-config --cflags pugixml libjpeg)
+MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(shell pkg-config --libs pugixml libjpeg)
 ifeq ($(CXX),clang++)
 MOD_LDFLAGS+=-lomp
 endif
