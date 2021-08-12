@@ -3,4 +3,4 @@ QVK_O=qvk/qvk.o\
 QVK_H=qvk/qvk.h\
       qvk/qvk_util.h
 QVK_CFLAGS=
-QVK_LDFLAGS=-lvulkan
+QVK_LDFLAGS=$(shell pkg-config --libs vulkan)

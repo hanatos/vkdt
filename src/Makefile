@@ -51,9 +51,10 @@ clean: Makefile
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 LDFLAGS=
+VK_CFLAGS=$(shell pkg-config --cflags vulkan)
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
 
 core/%.o: core/%.c Makefile $(CORE_H) core/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
@@ -62,22 +63,22 @@ snd/%.o: snd/%.c Makefile $(SND_H) snd/flat.mk
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(SND_CFLAGS) -c $< -o $@
 
 pipe/%.o: pipe/%.c Makefile $(PIPE_H) $(CORE_H) pipe/flat.mk
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
 db/%.o: db/%.c Makefile $(DB_H) db/flat.mk
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(DB_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(DB_CFLAGS) -c $< -o $@
 
 cli/%.o: cli/%.c Makefile $(CLI_H) cli/flat.mk
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
 fit/%.o: fit/%.c Makefile $(FIT_H) fit/flat.mk
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(FIT_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(FIT_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.cc Makefile $(GUI_H) gui/flat.mk
-	$(CXX) $(CXXFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
 	$(CXX) $(CXXFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
@@ -131,13 +132,13 @@ $(foreach MOD,$(FLATMK),\
 
 define MOD_RULE
 pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
+	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
 endef
 $(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 
 define MOD_RULEXX
 pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
 endef
 $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
