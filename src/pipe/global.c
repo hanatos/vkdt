@@ -13,6 +13,10 @@
 #include <stdio.h>
 #include <locale.h>
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
+
 dt_pipe_global_t dt_pipe;
 
 // reads one line of a connector configuration file.
@@ -300,7 +304,15 @@ int dt_pipe_global_init()
   memset(&dt_pipe, 0, sizeof(dt_pipe));
   (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
   // setup search directory
+#ifdef __linux__
   readlink("/proc/self/exe", dt_pipe.basedir, sizeof(dt_pipe.basedir));
+#elif defined(__FreeBSD__)
+  int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+  size_t len_procpath = sizeof(dt_pipe.basedir);
+  sysctl(mib_procpath, 4, dt_pipe.basedir, &len_procpath, NULL, 0);
+#else
+#error port me
+#endif
   char *c = 0;
   for(int i=0;dt_pipe.basedir[i]!=0;i++) if(dt_pipe.basedir[i] == '/') c = dt_pipe.basedir+i;
   if(c) *c = 0; // get dirname, i.e. strip off executable name
