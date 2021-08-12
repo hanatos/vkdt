@@ -418,7 +418,7 @@ dt_gui_read_tags()
   }
   closedir(dir);
   // sort tags alphabetically, in ugly and slow:
-  qsort(vkdt.tag, vkdt.tag_cnt, sizeof(vkdt.tag[0]), (__compar_fn_t)strcmp);
+  qsort(vkdt.tag, vkdt.tag_cnt, sizeof(vkdt.tag[0]), (int(*)(const void*,const void*))strcmp);
 }
 
 void dt_gui_switch_collection(const char *dir)
