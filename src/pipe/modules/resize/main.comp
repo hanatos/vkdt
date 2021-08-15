@@ -24,10 +24,12 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec4 rgb;
-  if(imageSize(img_out).x == textureSize(img_in, 0).x)
+  if(imageSize(img_out).x == textureSize(img_in, 0).x) // 1:1
     rgb = texelFetch(img_in, ipos, 0);
-  else
+  else if(imageSize(img_out).x > textureSize(img_in, 0).x) // magnify
     rgb = sample_flower(img_in, (ipos+0.5)/vec2(imageSize(img_out)));
+  else // minify
+    rgb = sample_catmull_rom(img_in, (ipos+0.5)/vec2(imageSize(img_out)));
   imageStore(img_out, ipos, rgb);
 }
 
