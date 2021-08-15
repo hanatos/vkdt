@@ -339,6 +339,7 @@ create_nodes(
   }
   else
   { // directly output demosaicing result:
-    dt_connector_copy(graph, module, 1, id_fix, 1);
+    // dt_connector_copy(graph, module, 1, id_fix, 1);
+    dt_connector_copy(graph, module, 1, id_splat, 2); // XXX no colour fixing
   }
 }
