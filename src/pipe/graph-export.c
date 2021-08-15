@@ -17,8 +17,9 @@
 int
 dt_graph_replace_display(
     dt_graph_t *graph,
-    dt_token_t  inst,
-    dt_token_t  mod)
+    dt_token_t  inst,   // instance name of the display module to replace. leave 0 for default (main)
+    dt_token_t  mod,    // module type of the output module to drop into place instead, e.g. "o-jpg". leave 0 for default (o-jpg)
+    int         resize) // pass 1 to insert a resize module before output
 {
   if(inst == 0) inst = dt_token("main"); // default to "main" instance
   const int mid = dt_module_get(graph, dt_token("display"), inst);
@@ -33,8 +34,16 @@ dt_graph_replace_display(
 
   if(mod == 0) mod = dt_token("o-jpg"); // default to jpg output
 
+  if(resize)
+  {
+    const int m1 = dt_module_add(graph, dt_token("resize"), inst);
+    const int i1 = 0, o1 = 1;
+    CONN(dt_module_connect(graph, m0, o0, m1, i1));
+    m0 = m1;
+    o0 = o1;
+  }
+
   // new module export with same inst
-  // maybe new module 8-bit in between here
   const int m1 = dt_module_add(graph, dt_token("f2srgb"), inst);
   const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
@@ -42,7 +51,8 @@ dt_graph_replace_display(
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
   if(graph->module[m2].connector[0].format == dt_token("ui8"))
   {
-    // output buffer reading is inflexible about buffer configuration. texture units can handle it, so just push further:
+    // output buffer reading is inflexible about buffer configuration. texture
+    // units can handle it, so just push further:
     graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
     graph->module[m1].connector[o1].chan   = graph->module[m2].connector[i2].chan;
     CONN(dt_module_connect(graph, m0, o0, m1, i1));
@@ -132,7 +142,9 @@ dt_graph_export(
   {
     int cnt = 0;
     for(;cnt<param->output_cnt;cnt++)
-      if(dt_graph_replace_display(graph, param->output[cnt].inst, param->output[cnt].mod))
+      if(dt_graph_replace_display(
+            graph, param->output[cnt].inst, param->output[cnt].mod,
+            (param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0)))
         break;
     if(cnt != param->output_cnt)
     {

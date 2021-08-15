@@ -9,8 +9,9 @@
 int
 dt_graph_replace_display(
     dt_graph_t *graph,
-    dt_token_t  inst,
-    dt_token_t  mod);
+    dt_token_t  inst,    // instance of display module, 0 -> "main"
+    dt_token_t  mod,     // export module to insert, 0 -> "o-jpg"
+    int         resize); // if this is non-zero, insert an explicit resize node
 
 // disconnect all (remaining) display modules
 void
