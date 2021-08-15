@@ -278,17 +278,19 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
-  for(int k=0;k<4;k++)
-    f[k] = powf(2.0f, ((float*)module->param)[0]);
 
   // grab params by name:
-  // const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("wb")));
+  const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("white")));
   const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
   const float *p_src = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("source")));
   const float *p_tgt = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("target")));
         int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
   const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
+
+  for(int k=0;k<4;k++) // exposure
+    f[k] = powf(2.0f, ((float*)module->param)[0]) * p_wb[k] / p_wb[1];
+
   if(p_mat == 1 && !(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
