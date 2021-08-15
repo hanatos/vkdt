@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <setjmp.h>
 
 typedef struct lst_t

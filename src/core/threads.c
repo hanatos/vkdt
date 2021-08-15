@@ -64,7 +64,7 @@ void *threads_work(void *arg)
   // global init: set tls storage thread id
   const uint64_t tid = (uint64_t)arg;
   thr_tls.tid = tid;
-#ifndef __APPLE__
+#ifdef __linux__
   // pin ourselves to a cpu:
   cpu_set_t set;
   CPU_ZERO(&set);

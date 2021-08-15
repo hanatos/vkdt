@@ -23,6 +23,7 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

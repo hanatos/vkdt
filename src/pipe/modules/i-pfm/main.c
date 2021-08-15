@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <linux/limits.h>
+#include <limits.h>
 
 typedef struct pfminput_buf_t
 {
