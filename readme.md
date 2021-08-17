@@ -29,6 +29,13 @@ targets, such as the main view and histograms.
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
 
+## packages
+
+so far i only know these experimental opensuse tumbleweed binary packages, let
+me know if you try them and whether this actually works:
+
+[https://build.opensuse.org/package/show/home:darix:pixls.us/vkdt](https://build.opensuse.org/package/show/home:darix:pixls.us/vkdt)
+
 ## build instructions
 
 you should have checked out this repo recursively. if not, do
