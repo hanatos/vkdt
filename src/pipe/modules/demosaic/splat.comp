@@ -6,6 +6,11 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  float minsize;
+} params;
+
 layout(push_constant, std140) uniform push_t
 {
   uint filters;
@@ -20,7 +25,7 @@ layout( // input buffer rgb gaussian covariance
     set = 1, binding = 1
 ) uniform sampler2D img_gauss;
 
-layout( // output buffer rgb
+layout( // output buffer green channel
     set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
@@ -47,14 +52,26 @@ eval_gauss(
   // too small eigenvalues make no sense (will show CFA pattern)
   // larger: more directional
   // smaller: larger blur
-  float s = 2;//clamp(4.0 + 1000.0*sqrt(cov.z), 1, 20);
-  // cov.z = clamp(cov.z, 2, 5);
-  cov.z = clamp(cov.z/cov.w, 1, 20);
-  cov.w = 1;//clamp(cov.w, 1, 50);
-  mat2 E = mat2(s/cov.z * cov.x, -s/cov.w*cov.y,
-                s/cov.z * cov.y,  s/cov.w*cov.x);
+#if 0
+  float s = 2;
+  cov.x = clamp(cov.x/cov.y, 1, 20);
+  cov.y = 1;
+  mat2 E = mat2(s/cov.x * cov.z, -s/cov.y*cov.w,
+                s/cov.x * cov.w,  s/cov.y*cov.z);
+  // cov.z = clamp(cov.z/cov.w, 1, 20);
+  // cov.w = 1;
+  // mat2 E = mat2(s/cov.z * cov.x, -s/cov.w*cov.y,
+  //               s/cov.z * cov.y,  s/cov.w*cov.x);
   vec2 of = E * vec2(o);
   weight = exp(-0.5*dot(of, of));
+#else
+  vec2 eval = clamp(cov.xy, params.minsize, 25); // the lower bound has direct impact on sharpness
+  mat2 E = mat2(cov.z, -cov.w,
+                cov.w,  cov.z);
+  vec2 of = E * o;
+  weight = exp(-0.5*dot(of/eval, of));
+  // if(o.x == 0 && o.y == 0) weight = 666.0; // more sharpness, but zippering
+#endif
 #if 0 // DEBUG: visualise gaussian splats
   if(pos.x % 10 == 0 && pos.y % 10 == 0)
     col = 1000*weight;
@@ -174,13 +191,5 @@ main()
   }
 
   rgb /= w;
-
-  // rgb.rgb = rgb.ggg; // XXX
-  // rgb *= vec3(1.0/2.0, 1.0, 1.0/1.8);
-
-  // TODO: the radius should be specific to colour/green and bayer/xtrans!
-  // TODO: get downsampled gaussian covariance (use linear interpolation!)
-  // splat
-
-  imageStore(img_out, opos, vec4(rgb, 1.0));
+  imageStore(img_out, opos, vec4(rgb.ggg, 1.0));
 }

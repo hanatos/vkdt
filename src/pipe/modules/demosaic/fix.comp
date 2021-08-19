@@ -8,103 +8,137 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  uint filters;
+  float minsize;
 } params;
 
-layout( // input rgba
+layout(push_constant, std140) uniform push_t
+{
+  uint filters;
+} push;
+
+layout( // input original
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // output f16 buffer rgba
+layout( // input green
     set = 1, binding = 1
+) uniform sampler2D img_g;
+
+layout( // input buffer rgb gaussian covariance
+    set = 1, binding = 2
+) uniform sampler2D img_cov;
+
+layout( // output f16 buffer rgba
+    set = 1, binding = 3
 ) uniform writeonly image2D img_out;
 
-float arr[9];
-void bubble_sort()
+float
+eval_gauss(vec4 cov, vec2 o)
 {
-  bool swapped = true;
-  int j = 0;
-  float tmp;
-  for (int c = 0; c < 3; c--)
+  vec2 eval = cov.xy;
+  mat2 E = mat2(cov.z, -cov.w,
+                cov.w,  cov.z);
+  vec2 of = E * o;
+  return exp(-0.5*dot(of/eval, of));
+}
+
+void write_xtrans2(
+    float gc,
+    float gh,
+    ivec2 pos,
+    float col,
+    vec4  cov,
+    ivec2 x,
+    inout vec3 rgb,
+    inout vec3 w)
+{
+  bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
+  pos = pos - (pos/3)*3;
+  if(((pos.x + pos.y) & 1) == 0)
   {
-    if (!swapped)
-      break;
-    swapped = false;
-    j++;
-    for (int i = 0; i < 3; i++)
-    {
-      if (i >= 3 - j)
-        break;
-      if (arr[i] > arr[i + 1])
-      {
-        tmp = arr[i];
-        arr[i] = arr[i + 1];
-        arr[i + 1] = tmp;
-        swapped = true;
-      }
-    }
+    rgb.g = gc;
+    w.g   = 1;
+  }
+  else if(blue_top ^^ (pos.y == 1))
+  {
+    float weight = eval_gauss(vec4(5*cov.xy, cov.zw), x);
+    rgb.b += col * gc/max(1e-8, gh) * weight;
+    w.b += weight;
+  }
+  else
+  {
+    float weight = eval_gauss(vec4(5*cov.xy, cov.zw), x);
+    rgb.r += col * gc/max(1e-8, gh) * weight;
+    w.r += weight;
   }
 }
 
-// clamp excess colour saturation
+void write_bayer2(
+    float gc,
+    float gh,
+    ivec2 o,
+    float col,
+    vec4  cov,
+    ivec2 x,
+    inout vec3 rgb,
+    inout vec3 w)
+{
+  if((((o.x & 1) == 0) && ((o.y & 1) == 1)) ||
+     (((o.x & 1) == 1) && ((o.y & 1) == 0)))
+  { // green
+    rgb.g = gc;
+    w.g   = 1;
+  }
+  else if(((o.x & 1) == 0) && ((o.y & 1) == 0))
+  { // red
+    float weight = eval_gauss(vec4(2*cov.xy, cov.zw), x);
+    rgb.r += col * gc/max(1e-8, gh) * weight;
+    w.r += weight;
+  }
+  else if(((o.x & 1) == 1) && ((o.y & 1) == 1))
+  { // blue
+    float weight = eval_gauss(vec4(2*cov.xy, cov.zw), x);
+    rgb.b += col * gc/max(1e-8, gh) * weight;
+    w.b += weight;
+  }
+}
+
+// old dcraw-style trick to interpolate only the ratio (or difference) of red
+// vs green and blue vs green. based on first interpolating green (which we
+// have done in a previous pass)
 void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-#if 0 // switch off:
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  imageStore(img_out, ipos, vec4(rgb, 1.0));
-#else // std operation:
-#if 1
-  vec3 mom1 = vec3(0.0), mom2 = vec3(0.0);
-  int r = 2;
-  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
-  {
-    vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
-    vec3 g = max(vec3(1e-4), rgb.ggg);
-    rgb /= g;
-    // we are demosaicing, the range of the camera is black..white in 0,1 by
-    // now. highlights above 1 can occur due to reconstruction + white balance,
-    // but above 5 i would be hard pressed to believe makes much sense.
-    // the below 0 values should have been handled pre-demosaic in denoising.
-    rgb = clamp(rgb, vec3(0.0), vec3(5.0));
-    mom1 += rgb;
-    mom2 += rgb * rgb;
-  }
-  mom1 /= (2*r+1)*(2*r+1);
-  mom2 /= (2*r+1)*(2*r+1);
-  vec3 sigma = sqrt(max(vec3(0), mom2 - mom1*mom1));
+  vec3 rgb = vec3(0.0);
+  vec3 w   = vec3(0.0);
+  float gc = texture(img_g, (ipos+0.5)/vec2(textureSize(img_g, 0))).r;
 
-  // keep brightness (i.e. green channel), clamp r and b to average saturation
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  sigma *= 0.1;
-  // rgb.rb = clamp(rgb.rb, max(vec2(0), mom1.rb - sigma.rb), mom1.rb + sigma.rb);
-  // rgb = clamp(rgb, max(vec3(0), mom1 - sigma), mom1 + sigma);
-  rgb.rb = clamp(rgb.rb, max(vec2(0), rgb.gg * (mom1.rb - sigma.rb)), rgb.gg * (mom1.rb + sigma.rb));
+  if(push.filters == 9)
+  { // x-trans
+    vec4 cov = texelFetch(img_cov, ipos/3, 0);
+    cov.xy = clamp(cov.xy, params.minsize, 25); // smooth out a bit, loose sharpness
+    for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
+      write_xtrans2(gc,
+          texture(img_g, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_g, 0))).r,
+          ipos+ivec2(i, j),
+          texture(img_in, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_in, 0))).r,
+          cov, ivec2(i, j),
+          rgb, w);
+  }
+  else
+  { // bayer
+    vec4 cov = texelFetch(img_cov, (ipos+1)/2, 0);
+    cov.xy = clamp(cov.xy, params.minsize, 25); // smooth out a bit, loose sharpness
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+        write_bayer2(gc,
+            texture(img_g, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_g, 0))).r,
+            ipos+ivec2(i, j),
+            texture(img_in, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_in, 0))).r,
+            cov, ivec2(i, j),
+            rgb, w);
+  }
+  rgb /= max(vec3(1e-8), w);
   imageStore(img_out, ipos, vec4(rgb, 1.0));
-#else // median
-  int k=0;
-  vec3 mid = texelFetch(img_in, ipos, 0).rgb;
-  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
-  {
-    vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
-    arr[k++] = rgb.r - rgb.g;
-  }
-  bubble_sort();
-  float red = mid.g + arr[4];//clamp(mid.r-mid.g, 0, arr[4]);
-  // stupid:
-  k = 0;
-  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
-  {
-    vec3 rgb = texelFetch(img_in, ipos+ivec2(i, j), 0).rgb;
-    arr[k++] = rgb.b - rgb.g;
-  }
-  bubble_sort();
-  float blue = mid.g + arr[4];//clamp(mid.b-mid.g, 0, arr[4]);
-
-  mid = vec3(red, mid.g, blue);
-  imageStore(img_out, ipos, vec4(mid, 1.0));
-#endif
-#endif
 }

@@ -34,75 +34,7 @@ main()
   float g10 = texelFetch(img_in, ipos+ivec2( 0,-1), 0).r;
   float g12 = texelFetch(img_in, ipos+ivec2( 0, 1), 0).r;
   float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).r;
-#if 0
-  float g00 = texelFetch(img_in, ipos+ivec2(-1,-1), 0).r;
-  float g02 = texelFetch(img_in, ipos+ivec2(-1, 1), 0).r;
-  float g11 = texelFetch(img_in, ipos+ivec2( 0, 0), 0).r;
-  float g20 = texelFetch(img_in, ipos+ivec2( 1,-1), 0).r;
-  float g22 = texelFetch(img_in, ipos+ivec2( 1, 1), 0).r;
-  float m = g11;//(g00 + g01 + g02 + g10 + g11 + g12 + g20 + g21 + g22)/9.0;
-#endif
-  // gradient points to largest differences
-  // 00 10 20
-  // 01 11 21
-  // 02 12 22
-#if 0
-  // XXX only good for max voting: (abs will always distort direction)
-  float vote = 0.0, vote2;
-  vec2 var = vec2(-1, 1);
-  // main diagonal
-  vote  = abs(g00-m)+abs(g22-m) + .5*abs(g21-g12) + .5*abs(g12-g01);
-  // opposing diagonal:
-  vote2 = abs(g20-m)+abs(g02-m) + .5*abs(g01-g10) + .5*abs(g12-g21);
-  if(vote2 > vote)
-  {
-    var = vec2(1, 1);
-    vote = vote2;
-  }
-  // top down gradient:
-  vote2 = .5*(abs(g00-m)+abs(g02-m)) +
-             (abs(g10-m)+abs(g12-m)) +
-          .5*(abs(g20-m)+abs(g22-m));
-  if(vote2 > vote)
-  {
-    var = vec2(1, 0);
-    vote = vote2;
-  }
-  // left right gradient:
-  vote2 = .5*(abs(g00-m)+abs(g20-m)) +
-             (abs(g01-m)+abs(g21-m)) +
-          .5*(abs(g02-m)+abs(g22-m));
-  if(vote2 > vote)
-  {
-    var = vec2(0, 1);
-    vote = vote2;
-  }
-  float vlen = length(var);
-  imageStore(img_out, ipos, vec4(var/vlen, 10.0, 1.0));
-#elif 0
-  vec2 var = (g00-m)*vec2( 1, 1)+//vec2(-1,-1)*vec2(-1,-1) +
-             (g01-m)*vec2( 1, 0)+//vec2(-1, 0)*vec2(-1, 0) +
-             (g02-m)*vec2( 1,-1)+//vec2(-1, 1)*vec2(-1, 1) +
-             (g10-m)*vec2( 0, 1)+//vec2( 0,-1)*vec2( 0,-1) +
-             // (g11-m)*vec2( 0, 0)+//vec2( 0, 0)*vec2( 0, 0) +
-             (g12-m)*vec2( 0, 1)+//vec2( 0, 1)*vec2( 0, 1) +
-             (g20-m)*vec2( 1,-1)+//vec2( 1,-1)*vec2( 1,-1) +
-             (g21-m)*vec2( 1, 0)+//vec2( 1, 0)*vec2( 1, 0) +
-             (g22-m)*vec2( 1, 1);//vec2( 1, 1)*vec2( 1, 1);
-  float cov= (g00-m)*-1*-1 +
-             (g01-m)*-1* 0 +
-             (g02-m)*-1* 1 +
-             (g10-m)* 0*-1 +
-             (g11-m)* 0* 0 +
-             (g12-m)* 0* 1 +
-             (g20-m)* 1*-1 +
-             (g21-m)* 1* 0 +
-             (g22-m)* 1* 1;
-  mat2 M = mat2(var.x, cov, cov, var.y);
-  vec2 eval, evec0, evec1;
-  evd2x2(eval, evec0, evec1, M);
-  imageStore(img_out, ipos, vec4(evec0, 100000*eval.x, 1.0));
-#else // try stuff they have in the paper [Wronsky 2019]
+  // [Wronsky 2019]
   // they claim they have 4 gradient estimates, not sure if total or for each of x,y.
   // anyways i don't see it since g21 - g11 + g10 + g11 is just one sample.
   // if at all we can try 3 for each of x,y.
@@ -115,7 +47,6 @@ main()
   // XXX limit anisotropy of reconstruction. we probably only want
   // XXX to do this in case there is a lot of noise (so we don't trust the estimation)
   // TODO: figure out uncertainty here if there's known variance on g**).
-  eval.y = max(eval.y, eval.x*0.6);
-  imageStore(img_out, ipos, vec4(evec0, eval));
-#endif
+  // eval.y = max(eval.y, eval.x*0.6);
+  imageStore(img_out, ipos, vec4(eval, evec0));
 }

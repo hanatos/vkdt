@@ -254,8 +254,8 @@ create_nodes(
   ci.chan   = dt_token("rggb");
   ci.format = dt_token("ui16");
   ci.roi    = roi_full;
-  co.chan   = dt_token("rgba");
-  co.format = dt_token("f16");
+  co.chan   = dt_token("g");
+  co.format = dt_token("ui16");
   co.roi    = roi_full;
   cg.chan   = dt_token("rgba");
   cg.format = dt_token("f16");
@@ -293,13 +293,27 @@ create_nodes(
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 2,
+    .num_connectors = 4,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
+      .chan   = dt_token("rggb"),
+      .format = dt_token("ui16"),
+      .roi    = roi_full,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("green"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("g"),
+      .format = dt_token("ui16"),
+      .roi    = roi_full,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("cov"),
+      .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
-      .roi    = roi_full,
+      .roi    = roi_half,
       .connected_mi = -1,
     },{
       .name   = dt_token("output"),
@@ -308,8 +322,12 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roi_full,
     }},
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = { img_param->filters },
   };
-  CONN(dt_node_connect(graph, id_splat, 2, id_fix, 0));
+  dt_connector_copy(graph, module, 0, id_fix, 0);
+  CONN(dt_node_connect(graph, id_splat, 2, id_fix, 1));
+  CONN(dt_node_connect(graph, id_gauss, 1, id_fix, 2));
 
   if(module->connector[1].roi.scale != 1.0)
   { // add resample node to graph, copy its output instead:
@@ -334,12 +352,12 @@ create_nodes(
         ci, co,
       },
     };
-    CONN(dt_node_connect(graph, id_fix, 1, id_resample, 0));
+    CONN(dt_node_connect(graph, id_fix, 3, id_resample, 0));
     dt_connector_copy(graph, module, 1, id_resample, 1);
   }
   else
   { // directly output demosaicing result:
-    // dt_connector_copy(graph, module, 1, id_fix, 1);
-    dt_connector_copy(graph, module, 1, id_splat, 2); // XXX no colour fixing
+    dt_connector_copy(graph, module, 1, id_fix, 3);
+    // dt_connector_copy(graph, module, 1, id_splat, 2); // XXX no colour fixing
   }
 }
