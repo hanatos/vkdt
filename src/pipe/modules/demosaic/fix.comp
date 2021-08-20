@@ -39,7 +39,7 @@ eval_gauss(vec4 cov, vec2 o)
   mat2 E = mat2(cov.z, -cov.w,
                 cov.w,  cov.z);
   vec2 of = E * o;
-  return exp(-0.5*dot(of/eval, of));
+  return clamp(exp(-0.5*dot(of/eval, of)), 1e-3, 1.0);
 }
 
 void write_xtrans2(
@@ -52,6 +52,7 @@ void write_xtrans2(
     inout vec3 rgb,
     inout vec3 w)
 {
+  float corr = (1e-4+gc)/(1e-4+gh);
   bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
   pos = pos - (pos/3)*3;
   if(((pos.x + pos.y) & 1) == 0)
@@ -62,13 +63,13 @@ void write_xtrans2(
   else if(blue_top ^^ (pos.y == 1))
   {
     float weight = eval_gauss(vec4(5*cov.xy, cov.zw), x);
-    rgb.b += col * gc/max(1e-8, gh) * weight;
+    rgb.b += col * corr * weight;
     w.b += weight;
   }
   else
   {
     float weight = eval_gauss(vec4(5*cov.xy, cov.zw), x);
-    rgb.r += col * gc/max(1e-8, gh) * weight;
+    rgb.r += col * corr * weight;
     w.r += weight;
   }
 }
@@ -92,13 +93,13 @@ void write_bayer2(
   else if(((o.x & 1) == 0) && ((o.y & 1) == 0))
   { // red
     float weight = eval_gauss(vec4(2*cov.xy, cov.zw), x);
-    rgb.r += col * gc/max(1e-8, gh) * weight;
+    rgb.r += col * (1e-4+gc)/(1e-4+gh) * weight;
     w.r += weight;
   }
   else if(((o.x & 1) == 1) && ((o.y & 1) == 1))
   { // blue
     float weight = eval_gauss(vec4(2*cov.xy, cov.zw), x);
-    rgb.b += col * gc/max(1e-8, gh) * weight;
+    rgb.b += col * (1e-4+gc)/(1e-4+gh) * weight;
     w.b += weight;
   }
 }
@@ -118,7 +119,7 @@ main()
   if(push.filters == 9)
   { // x-trans
     vec4 cov = texelFetch(img_cov, ipos/3, 0);
-    cov.xy = clamp(cov.xy, params.minsize, 25); // smooth out a bit, loose sharpness
+    cov.xy = clamp(cov.xy, max(2.0, params.minsize), 49); // smooth out a bit, loose sharpness
     for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
       write_xtrans2(gc,
           texture(img_g, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_g, 0))).r,
@@ -130,7 +131,7 @@ main()
   else
   { // bayer
     vec4 cov = texelFetch(img_cov, (ipos+1)/2, 0);
-    cov.xy = clamp(cov.xy, params.minsize, 25); // smooth out a bit, loose sharpness
+    cov.xy = clamp(cov.xy, max(1.0, params.minsize), 49); // smooth out a bit, loose sharpness
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
         write_bayer2(gc,
             texture(img_g, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_g, 0))).r,

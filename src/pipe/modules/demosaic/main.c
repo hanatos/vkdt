@@ -119,7 +119,7 @@ create_nodes(
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
+      .format = dt_token("*"),
       .roi    = roi_full,
       .connected_mi = -1,
     };
@@ -192,7 +192,7 @@ create_nodes(
     .name   = dt_token("input"),
     .type   = dt_token("read"),
     .chan   = dt_token("rggb"),
-    .format = dt_token("ui16"),
+    .format = dt_token("*"),
     .roi    = roi_full,
     .connected_mi = -1,
   };
@@ -244,18 +244,37 @@ create_nodes(
     .wd     = wd/block,
     .ht     = ht/block,
     .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
+    .num_connectors = 3,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("y"),
+      .format = dt_token("f16"),
+      .roi    = roi_half,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("orig"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rggb"),
+      .format = dt_token("*"),
+      .roi    = roi_half,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = roi_half,
+    }},
   };
   CONN(dt_node_connect(graph, id_down, 1, id_gauss, 0));
+  dt_connector_copy(graph, module, 0, id_gauss, 1);
 
   ci.chan   = dt_token("rggb");
-  ci.format = dt_token("ui16");
+  ci.format = dt_token("*");
   ci.roi    = roi_full;
   co.chan   = dt_token("g");
-  co.format = dt_token("ui16");
+  co.format = dt_token("f16");
   co.roi    = roi_full;
   cg.chan   = dt_token("rgba");
   cg.format = dt_token("f16");
@@ -278,10 +297,11 @@ create_nodes(
     .push_constant = { img_param->filters },
   };
   dt_connector_copy(graph, module, 0, id_splat, 0);
-  CONN(dt_node_connect(graph, id_gauss, 1, id_splat, 1));
+  CONN(dt_node_connect(graph, id_gauss, 2, id_splat, 1));
   dt_connector_copy(graph, module, 0, id_down,  0);
   // XXX DEBUG see output of gaussian params
-  // dt_connector_copy(graph, module, 1 id_gauss, 1);
+  // dt_connector_copy(graph, module, 1, id_gauss, 2);
+  // return;
 
   // fix colour casts
   assert(graph->num_nodes < graph->max_nodes);
@@ -298,14 +318,14 @@ create_nodes(
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
+      .format = dt_token("*"),
       .roi    = roi_full,
       .connected_mi = -1,
     },{
       .name   = dt_token("green"),
       .type   = dt_token("read"),
       .chan   = dt_token("g"),
-      .format = dt_token("ui16"),
+      .format = dt_token("*"),
       .roi    = roi_full,
       .connected_mi = -1,
     },{
@@ -327,7 +347,7 @@ create_nodes(
   };
   dt_connector_copy(graph, module, 0, id_fix, 0);
   CONN(dt_node_connect(graph, id_splat, 2, id_fix, 1));
-  CONN(dt_node_connect(graph, id_gauss, 1, id_fix, 2));
+  CONN(dt_node_connect(graph, id_gauss, 2, id_fix, 2));
 
   if(module->connector[1].roi.scale != 1.0)
   { // add resample node to graph, copy its output instead:

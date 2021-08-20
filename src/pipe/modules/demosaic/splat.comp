@@ -46,31 +46,24 @@ eval_gauss(
   if(pos.y >= textureSize(img_in, 0).y) pos.y -= 6;
   col = texelFetch(img_in, pos, 0).r;
 
+#if 1 // gaussian
   // there's a ton of heuristic in the supplemental material to [Wronski 2019],
   // might experiment with that.
   // too big eigenvalue runs into numeric limits,
   // too small eigenvalues make no sense (will show CFA pattern)
   // larger: more directional
-  // smaller: larger blur
-#if 0
-  float s = 2;
-  cov.x = clamp(cov.x/cov.y, 1, 20);
-  cov.y = 1;
-  mat2 E = mat2(s/cov.x * cov.z, -s/cov.y*cov.w,
-                s/cov.x * cov.w,  s/cov.y*cov.z);
-  // cov.z = clamp(cov.z/cov.w, 1, 20);
-  // cov.w = 1;
-  // mat2 E = mat2(s/cov.z * cov.x, -s/cov.w*cov.y,
-  //               s/cov.z * cov.y,  s/cov.w*cov.x);
-  vec2 of = E * vec2(o);
-  weight = exp(-0.5*dot(of, of));
-#else
-  vec2 eval = clamp(cov.xy, params.minsize, 25); // the lower bound has direct impact on sharpness
+  vec2 eval = clamp(cov.xy, max(0.01, params.minsize), 25); // the lower bound has direct impact on sharpness
   mat2 E = mat2(cov.z, -cov.w,
                 cov.w,  cov.z);
   vec2 of = E * o;
-  weight = exp(-0.5*dot(of/eval, of));
-  // if(o.x == 0 && o.y == 0) weight = 666.0; // more sharpness, but zippering
+  weight = clamp(exp(-0.5*dot(of/eval, of)), 1e-4, 1.0);
+  if(o.x == 0 && o.y == 0) weight = 666.0; // more sharpness, but prone to zippering
+#elif 0 // shephard, not great (but should interpolate instead of approximate)
+  vec2 eval = clamp(cov.xy, max(0.01, params.minsize), 25); // the lower bound has direct impact on sharpness
+  mat2 E = mat2(cov.z, -cov.w,
+                cov.w,  cov.z);
+  vec2 of = (E * vec2(o)) / (eval);
+  weight = 1.0/max(1e-5,pow(of.x, 4.0)) * 1.0/max(1e-5,pow(of.y, 4.0));
 #endif
 #if 0 // DEBUG: visualise gaussian splats
   if(pos.x % 10 == 0 && pos.y % 10 == 0)
@@ -190,6 +183,6 @@ main()
 #endif
   }
 
-  rgb /= w;
+  rgb /= max(vec3(1e-8), w);
   imageStore(img_out, opos, vec4(rgb.ggg, 1.0));
 }
