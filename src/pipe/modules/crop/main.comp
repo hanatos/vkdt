@@ -54,14 +54,15 @@ main()
   vec4 rgba;
   if(any(lessThan(rd, vec2(0.))) || any(greaterThanEqual(rd, vec2(1.))))
     rgba = vec4(0.);
+  else if(params.r0 != 1.0)
+    // catmull rom is a little slower (especially on intel) but results
+    // in a bit more acuity:
+    rgba = sample_catmull_rom(img_in, rd);
   else
     // rounding texture access:
     // rgba = texelFetch(img_in, ivec2(rd*ts_in), 0);
     // bilinear or pixel center for identity transform (identical to texelFetch above):
     rgba = texture(img_in, rd);
-    // catmull rom is a little slower (especially on intel) but results
-    // in a bit more acuity:
-    // rgba = sample_catmull_rom(img_in, rd);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 
