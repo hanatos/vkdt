@@ -33,118 +33,75 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-#if 0
-  float g01 = texelFetch(img_in, ipos+ivec2(-1, 0), 0).g;
-  float g10 = texelFetch(img_in, ipos+ivec2( 0,-1), 0).g;
-  float g12 = texelFetch(img_in, ipos+ivec2( 0, 1), 0).g;
-  float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).g;
-  // [Wronsky 2019]
-  // they claim they have 4 gradient estimates, not sure if total or for each of x,y.
-  // anyways i don't see it since g21 - g11 + g10 + g11 is just one sample.
-  // if at all we can try 3 for each of x,y.
-  float Ix =   (g12 - g10);
-  float Iy = - (g21 - g01);
+  if(push.filters != 9)
+  { // bayer
+    float g01 = texelFetch(img_in, ipos+ivec2(-1, 0), 0).g;
+    float g10 = texelFetch(img_in, ipos+ivec2( 0,-1), 0).g;
+    float g12 = texelFetch(img_in, ipos+ivec2( 0, 1), 0).g;
+    float g21 = texelFetch(img_in, ipos+ivec2( 1, 0), 0).g;
+    // [Wronsky 2019]
+    // they claim they have 4 gradient estimates, not sure if total or for each of x,y.
+    // anyways i don't see it since g21 - g11 + g10 + g11 is just one sample.
+    // if at all we can try 3 for each of x,y.
+    float Ix =   (g12 - g10);
+    float Iy = - (g21 - g01);
 
-  mat2 M = mat2(Ix*Ix, Ix*Iy, Ix*Iy, Iy*Iy);
-  vec2 eval, evec0, evec1;
-  evd2x2(eval, evec0, evec1, M);
-  // XXX limit anisotropy of reconstruction. we probably only want
-  // XXX to do this in case there is a lot of noise (so we don't trust the estimation)
-  // TODO: figure out uncertainty here if there's known variance on g**).
-  // eval.y = max(eval.y, eval.x*0.6);
-#elif 0
-  const int r = 2;
-  mat2 Sw = mat2(0,0,0,0);
-  mat2 Sb = mat2(0,0,0,0);
-  float sw = 0.0, sb = 0.0;
-  vec2 mw = vec2(0.0), mb = vec2(0.0);
-  float smw = 0.0, smb = 0.0, mean_b = 0.0;
-  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
-  {
-    float px = luminance_rec2020(texture(img_in, (ipos + 0.5 + vec2(i,j))/vec2(textureSize(img_in, 0))).rgb);
-    vec2 p = vec2(i, j);
-    mw += p*px;
-    smw += px;
-    mb += p/px;
-    smb += 1.0/px;
+    mat2 M = mat2(Ix*Ix, Ix*Iy, Ix*Iy, Iy*Iy);
+    vec2 eval, evec0, evec1;
+    evd2x2(eval, evec0, evec1, M);
+    // XXX limit anisotropy of reconstruction. we probably only want
+    // XXX to do this in case there is a lot of noise (so we don't trust the estimation)
+    // TODO: figure out uncertainty here if there's known variance on g**).
+    // eval.y = max(eval.y, eval.x*0.6);
+    imageStore(img_out, ipos, vec4(eval, evec0));
   }
-  mw /= smw;
-  mb /= smb;
+  else
+  { // xtrans
+    // TODO: this looks excellent, do the same for bayer
+    mat2 Sw = mat2(0,0,0,0);
+    mat2 Sb = mat2(0,0,0,0);
+    float sw = 0.0, sb = 0.0;
+    vec2 mw = vec2(0.0), mb = vec2(0.0);
+    float smw = 0.0, smb = 0.0, mean_b = 0.0;
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+    {
+      if(((j+i) & 1) == 1) continue;
+      float px = texture(img_orig, (3*ipos + 0.5 + vec2(i,j))/vec2(textureSize(img_orig, 0))).r;
+      vec2 p = vec2(i, j);
+      mw += p*px;
+      smw += px;
+      mb += p/px;
+      smb += 1.0/px;
+    }
+    mw /= smw;
+    mb /= smb;
 
-  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
-  {
-    float px = luminance_rec2020(texture(img_in, (ipos + 0.5 + vec2(i,j))/vec2(textureSize(img_in, 0))).rgb);
-    mean_b += px/25.0;
-    float p2 = px * px;
-    vec2 p = vec2(i, j) - mw;
-    Sw[0][0] += p2 * p.x * p.x;
-    Sw[0][1] += p2 * p.x * p.y;
-    Sw[1][0] += p2 * p.y * p.x;
-    Sw[1][1] += p2 * p.y * p.y;
-    sw += p2;
-    p = vec2(i, j) - mb;
-    p2 = 1.0/p2;
-    Sb[0][0] += p2 * p.x * p.x;
-    Sb[0][1] += p2 * p.x * p.y;
-    Sb[1][0] += p2 * p.y * p.x;
-    Sb[1][1] += p2 * p.y * p.y;
-    sb += p2;
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+    {
+      if(((j+i) & 1) == 1) continue;
+      float px = texture(img_orig, (3*ipos + 0.5 + vec2(i,j))/vec2(textureSize(img_orig, 0))).r;
+      float p2 = px * px;
+      vec2 p = vec2(i, j) - mw;
+      Sw[0][0] += p2 * p.x * p.x;
+      Sw[0][1] += p2 * p.x * p.y;
+      Sw[1][0] += p2 * p.y * p.x;
+      Sw[1][1] += p2 * p.y * p.y;
+      sw += p2;
+      p = vec2(i, j) - mb;
+      p2 = 1.0/p2;
+      Sb[0][0] += p2 * p.x * p.x;
+      Sb[0][1] += p2 * p.x * p.y;
+      Sb[1][0] += p2 * p.y * p.x;
+      Sb[1][1] += p2 * p.y * p.y;
+      sb += p2;
+    }
+    Sw /= sw;
+    Sb /= sb;
+    mat2 S = determinant(Sw) < determinant(Sb) ? Sw : Sb;
+    vec2 eval, evec0, evec1;
+    evd2x2(eval, evec0, evec1, S);
+    eval *= 0.3;
+    // eval = clamp(eval, 0.15, 49.0);
+    imageStore(img_out, ipos, vec4(eval, evec0));
   }
-  Sw /= sw;
-  Sb /= sb;
-  mat2 S = determinant(Sw) < determinant(Sb) ? Sw : Sb;
-  vec2 eval, evec0, evec1;
-  evd2x2(eval, evec0, evec1, S);
-  eval *= 0.3;
-  // eval *= vec2(1.0, 0.05);
-  eval = clamp(eval, 0.01, 49.0);
-  // eval = vec2(1.0, 0.1);
-#else // sub-coarse pixel on mosaic, for xtrans
-  // XXX TODO: this looks excellent, do the same for bayer
-  mat2 Sw = mat2(0,0,0,0);
-  mat2 Sb = mat2(0,0,0,0);
-  float sw = 0.0, sb = 0.0;
-  vec2 mw = vec2(0.0), mb = vec2(0.0);
-  float smw = 0.0, smb = 0.0, mean_b = 0.0;
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-  {
-    if(((j+i) & 1) == 1) continue;
-    float px = texture(img_orig, (3*ipos + 0.5 + vec2(i,j))/vec2(textureSize(img_orig, 0))).r;
-    vec2 p = vec2(i, j);
-    mw += p*px;
-    smw += px;
-    mb += p/px;
-    smb += 1.0/px;
-  }
-  mw /= smw;
-  mb /= smb;
-
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-  {
-    if(((j+i) & 1) == 1) continue;
-    float px = texture(img_orig, (3*ipos + 0.5 + vec2(i,j))/vec2(textureSize(img_orig, 0))).r;
-    float p2 = px * px;
-    vec2 p = vec2(i, j) - mw;
-    Sw[0][0] += p2 * p.x * p.x;
-    Sw[0][1] += p2 * p.x * p.y;
-    Sw[1][0] += p2 * p.y * p.x;
-    Sw[1][1] += p2 * p.y * p.y;
-    sw += p2;
-    p = vec2(i, j) - mb;
-    p2 = 1.0/p2;
-    Sb[0][0] += p2 * p.x * p.x;
-    Sb[0][1] += p2 * p.x * p.y;
-    Sb[1][0] += p2 * p.y * p.x;
-    Sb[1][1] += p2 * p.y * p.y;
-    sb += p2;
-  }
-  Sw /= sw;
-  Sb /= sb;
-  mat2 S = determinant(Sw) < determinant(Sb) ? Sw : Sb;
-  vec2 eval, evec0, evec1;
-  evd2x2(eval, evec0, evec1, S);
-  eval *= 0.3;
-  // eval = clamp(eval, 0.15, 49.0);
-#endif
-  imageStore(img_out, ipos, vec4(eval, evec0));
 }
