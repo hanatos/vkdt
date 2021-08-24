@@ -25,8 +25,8 @@ layout( // output f16 buffer rgb
 ) uniform writeonly image2D img_out;
 
 
-// demosaic reduced size. run on output dimensions, gather all colours from
-// input buffer (this might be 3x3 for xtrans).
+// compute some anisotropic gaussian approximation to
+// the local structure of the green channel
 void
 main()
 {
@@ -78,7 +78,6 @@ main()
     vec2 eval, evec0, evec1;
     evd2x2(eval, evec0, evec1, S);
     eval *= 0.1;
-    // eval = clamp(eval, 0.15, 49.0);
     imageStore(img_out, ipos, vec4(eval, evec0));
   }
   else
@@ -126,7 +125,6 @@ main()
     vec2 eval, evec0, evec1;
     evd2x2(eval, evec0, evec1, S);
     eval *= 0.3;
-    // eval = clamp(eval, 0.15, 49.0);
     imageStore(img_out, ipos, vec4(eval, evec0));
   }
 }

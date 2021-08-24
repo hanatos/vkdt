@@ -9,7 +9,6 @@ void modify_roi_in(
     dt_module_t *module)
 {
   dt_roi_t *ri = &module->connector[0].roi;
-  // dt_roi_t *ro = &module->connector[1].roi;
 
   ri->wd = ri->full_wd;
   ri->ht = ri->full_ht;
@@ -24,10 +23,8 @@ void modify_roi_out(
   dt_roi_t *ro = &module->connector[1].roi;
 
   // always give full size and negotiate half or not in modify_roi_in
-  // const int block = module->img_param.filters == 9u ? 3 : 2;
-  // // this division is rounding down to full bayer block size, which is good:
-  ro->full_wd = ri->full_wd;// /block;
-  ro->full_ht = ri->full_ht;// /block;
+  ro->full_wd = ri->full_wd;
+  ro->full_ht = ri->full_ht;
 }
 
 void
@@ -35,74 +32,6 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-#if 0 // experimental xtrans special case code. not any faster and quality not any better it seems now:
-  {
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_xtrans = graph->num_nodes++;
-  graph->node[id_xtrans] = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("xtrans"),
-    .module = module,
-    .wd     = module->connector[1].roi.wd/3,
-    .ht     = module->connector[1].roi.ht/3,
-    .dp     = 1,
-    .num_connectors = 2,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("green"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("g"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_col = graph->num_nodes++;
-  graph->node[id_col] = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("xtransc"),
-    .module = module,
-    .wd     = module->connector[1].roi.wd/3,
-    .ht     = module->connector[1].roi.ht/3,
-    .dp     = 1,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("green"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("g"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[1].roi,
-    }},
-  };
-  // TODO: check connector config before!
-  dt_connector_copy(graph, module, 0, id_xtrans, 0);
-  dt_connector_copy(graph, module, 0, id_col,    0);
-  dt_connector_copy(graph, module, 1, id_col,    2);
-  CONN(dt_node_connect(graph, id_xtrans, 1, id_col, 1));
-  return;
-  }
-#endif
-
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
   const int block = img_param->filters == 9u ? 3 : 2;
   module->img_param.filters = 0u; // after we're done there won't be any more mosaic
@@ -378,6 +307,6 @@ create_nodes(
   else
   { // directly output demosaicing result:
     dt_connector_copy(graph, module, 1, id_fix, 3);
-    // dt_connector_copy(graph, module, 1, id_splat, 2); // XXX no colour fixing
+    // dt_connector_copy(graph, module, 1, id_splat, 2); // DEBUG: no colour fixing
   }
 }

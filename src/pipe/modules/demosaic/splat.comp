@@ -44,29 +44,12 @@ eval_gauss(
   if(pos.y >= textureSize(img_in, 0).y) pos.y -= 6;
   col = texelFetch(img_in, pos, 0).r;
 
-#if 1 // gaussian
-  // there's a ton of heuristic in the supplemental material to [Wronski 2019],
-  // might experiment with that.
-  // too big eigenvalue runs into numeric limits,
-  // too small eigenvalues make no sense (will show CFA pattern)
-  // larger: more directional
   vec2 eval = clamp(cov.xy, 0.01, 25); // the lower bound has direct impact on sharpness
   mat2 E = mat2(cov.z, -cov.w,
                 cov.w,  cov.z);
   vec2 of = E * o;
   weight = clamp(exp(-0.5*dot(of/eval, of)), 1e-4, 1.0);
   if(o.x == 0 && o.y == 0) weight = 666.0; // more sharpness, but prone to zippering
-#elif 0 // shephard, not great (but should interpolate instead of approximate)
-  vec2 eval = clamp(cov.xy, 0.01, 25); // the lower bound has direct impact on sharpness
-  mat2 E = mat2(cov.z, -cov.w,
-                cov.w,  cov.z);
-  vec2 of = (E * vec2(o)) / (eval);
-  weight = 1.0/max(1e-5,pow(of.x, 4.0)) * 1.0/max(1e-5,pow(of.y, 4.0));
-#endif
-#if 0 // DEBUG: visualise gaussian splats
-  if(pos.x % 10 == 0 && pos.y % 10 == 0)
-    col = 1000*weight;
-#endif
 }
 
 void write_xtrans(
@@ -148,15 +131,9 @@ main()
 
   if(push.filters == 9)
   { // x-trans
-    // pulling this one out of the loop goes down from 2ms -> 1.6ms on intel and
-    // doesn't look much worse :/
     vec4 cov = texelFetch(img_gauss, opos/3, 0);
-    // unrolling this loop manually results in a perf drop 1.6ms -> 3.3ms
-    // using a larger stencil cuts perf in half..
     for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
-    // for(int j=-3;j<=3;j++) for(int i=-3;i<=3;i++)
     {
-      // vec4 cov = textureLod(img_gauss, vec2((opos+vec2(i,j))/3.0/textureSize(img_gauss, 0)), 0);
       float col, weight;
       eval_gauss(cov, ivec2(i, j), col, weight);
       write_xtrans(ivec2(i, j), col, weight, rgb, w);
@@ -164,21 +141,13 @@ main()
   }
   else
   { // bayer
-#if 1
-    // vec3 cov = textureLod(img_gauss, vec2(opos/2.0/textureSize(img_gauss, 0)), 0).rgb;
     vec4 cov = texelFetch(img_gauss, (opos+1)/2, 0);
-    // for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
     {
       float col, weight;
       eval_gauss(cov, ivec2(i, j), col, weight);
       write_bayer(ivec2(i, j), col, weight, rgb, w);
     }
-#else // DEBUG see bayer pattern
-    float col = texelFetch(img_in, opos, 0).r;
-    imageStore(img_out, opos, vec4(vec3(col), 1.0));
-    return;
-#endif
   }
 
   rgb /= max(vec3(1e-8), w);
