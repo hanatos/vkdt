@@ -44,7 +44,7 @@ CC=clang
 CXX=clang++
 GLSLC=glslangValidator
 
-# optimised flags, you may want to use -march=generic for distro builds:
+# optimised flags, you may want to use -march=x86-64 for distro builds:
 OPT_CFLAGS=-Wall -pipe -O3 -march=native
 OPT_LDFLAGS=-s
 AR=ar

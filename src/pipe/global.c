@@ -305,7 +305,7 @@ int dt_pipe_global_init()
   (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
   // setup search directory
 #ifdef __linux__
-  readlink("/proc/self/exe", dt_pipe.basedir, sizeof(dt_pipe.basedir));
+  realpath("/proc/self/exe", dt_pipe.basedir);
 #elif defined(__FreeBSD__)
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = sizeof(dt_pipe.basedir);

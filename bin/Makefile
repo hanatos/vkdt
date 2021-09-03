@@ -4,7 +4,7 @@ include config.mk.defaults
 sinclude config.mk
 
 all:
-	$(MAKE) -C ..
+	$(MAKE) -C .. all
 
 debug:
 	$(MAKE) -C .. debug
