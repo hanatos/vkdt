@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <assert.h>
 #include <string.h>
 #include <math.h>
@@ -67,8 +68,6 @@ dt_gauss_newton_cg_step(
 
   // compute dense square matrix Jt J
   double *A = alloca(sizeof(double)*m*m);
-  double **Ar = alloca(sizeof(double*)*m);
-  for(int i=0;i<m;i++) Ar[i] = A+i*m;
   memset(A, 0, sizeof(double)*m*m);
   // TODO: exploit symmetry
   // TODO: don't compute but pass to CG
@@ -111,10 +110,10 @@ dt_gauss_newton_cg(
     f_callback(p, f, m, n, data);
     J_callback(p, J, m, n, data);
     resid = dt_gauss_newton_cg_step(m, p, n, f, J, t);
-    if(resid <= 0.0) return resid;
+    // if(resid <= 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
-    // fprintf(stderr, "[solve] residual %g\n", resid);
+    fprintf(stderr, "[solve] residual %g\n", resid);
     if(resid < 1e-30) return resid;
   }
   return resid;
@@ -132,7 +131,7 @@ dt_adam(
     const double *ub,     // m upper bound constraints
     const int     num_it, // number of iterations
     void         *data,
-    double        eps,    // 10e-8 to avoid squared gradient estimation to drop to zero
+    double        eps,    // 1e-8 to avoid squared gradient estimation to drop to zero
     double        beta1,  // 0.9 decay rate of gradient
     double        beta2,  // 0.99 decay rate of squared gradient
     double        alpha,  // 0.001 learning rate
