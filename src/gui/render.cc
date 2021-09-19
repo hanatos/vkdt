@@ -11,6 +11,7 @@ extern "C" {
 #include "db/rc.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
+#include "gui/imhotkey.hh"
 #include "gui/widget_thumbnail.hh"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
@@ -32,6 +33,11 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include <unistd.h>
 
 namespace { // anonymous gui state namespace
+
+// TODO: also init from .config/vkdt/hotkeys
+static ImHotKey::HotKey hk_lighttable[] = {
+  {"tag", "assign a tag to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
+};
 
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
@@ -206,12 +212,9 @@ inline void dark_corporate_style()
 
 	style.PopupRounding = 3;
 
-  // TODO: make these relative to window size!
-  // TODO: in particular it needs to be reset when the window is resized!
-  // maybe look at ImGuiStyle::ScaleAllSizes?
-	style.WindowPadding = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.01);//ImVec2(4, 4);
-	style.FramePadding  = ImVec2(vkdt.state.panel_wd*0.02, vkdt.state.panel_wd*0.01);//ImVec2(6, 4);
-	style.ItemSpacing   = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.005);//ImVec2(6, 2);
+	style.WindowPadding = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.01);
+	style.FramePadding  = ImVec2(vkdt.state.panel_wd*0.02, vkdt.state.panel_wd*0.01);
+	style.ItemSpacing   = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.005);
 
 	style.ScrollbarSize = 18;
 
@@ -533,6 +536,13 @@ void render_lighttable()
     float lineht = ImGui::GetTextLineHeight();
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
+
+    if(ImGui::CollapsingHeader("settings"))
+    {
+      if(ImGui::Button("hotkeys"))
+        ImGui::OpenPopup("edit hotkeys");
+      ImHotKey::Edit(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]), "edit hotkeys");
+    }
 
     // if(ImGui::CollapsingHeader("collect"))
     if(ImGui::CollapsingHeader("collect", ImGuiTreeNodeFlags_FramePadding))
@@ -2093,6 +2103,13 @@ extern "C" int dt_gui_imgui_want_mouse()
 }
 extern "C" int dt_gui_imgui_want_keyboard()
 {
+  // XXX determine based on view mode
+  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+  if (hotkey != -1)
+  {
+    // XXX returned is the id in the list, put function pointers next to it?
+    fprintf(stderr, "hotkey pressed: %u\n", hotkey);
+  }
   return ImGui::GetIO().WantCaptureKeyboard;
 }
 extern "C" int dt_gui_imgui_want_text()
