@@ -35,7 +35,8 @@ vkdt-0.0.1.tar.gz:
 all: ext src bin
 
 # overwrites the above optimised build flags:
-debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION
+# debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION
+debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0
 debug:OPT_LDFLAGS=
 debug:all
 
