@@ -11,7 +11,7 @@ extern "C" {
 #include "db/rc.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
-#include "gui/imhotkey.hh"
+#include "gui/hotkey.hh"
 #include "gui/widget_thumbnail.hh"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
