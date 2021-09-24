@@ -230,7 +230,7 @@ namespace ImHotKey
     }
     ImGui::InvisibleButton("space", ImVec2(10*s, 55*s));
     ImGui::BeginChildFrame(18, ImVec2(540*s, 40*s));
-    ImGui::Text("%s :", hotkey[editingHotkey].functionName);
+    ImGui::Text("%s:", hotkey[editingHotkey].functionName);
     ImGui::SameLine();
     ImGui::TextWrapped("%s", hotkey[editingHotkey].functionLib);
     ImGui::EndChildFrame();

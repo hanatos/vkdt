@@ -37,7 +37,8 @@ namespace { // anonymous gui state namespace
 
 // TODO: also init from .config/vkdt/hotkeys
 static ImHotKey::HotKey hk_lighttable[] = {
-  {"tag", "assign a tag to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
+  {"tag",         "assign a tag to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
+  {"select all ", "toggle select all/none",          GLFW_KEY_LEFT_CONTROL, GLFW_KEY_A},
 };
 
 // used to communictate between the gui helper functions
@@ -540,13 +541,21 @@ void render_lighttable()
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
     // lt hotkeys in same scope as buttons as modals (right panel)
-    int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
-    switch(hotkey)
+    static double hotkey_time = 0;
+    if(ImGui::GetTime() - hotkey_time > 0.1)
     {
-      case 0: // assign tag
-        dt_gui_lt_assign_tag();
-        break;
-      default:;
+      int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+      switch(hotkey)
+      {
+        case 0: // assign tag
+          dt_gui_lt_assign_tag();
+          break;
+        case 1: // toggle select all
+          dt_gui_lt_toggle_select_all();
+          break;
+        default:;
+      }
+      hotkey_time = ImGui::GetTime();
     }
 
     if(ImGui::CollapsingHeader("settings"))

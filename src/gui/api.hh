@@ -54,3 +54,13 @@ dt_gui_lt_assign_tag()
   ImGui::OpenPopup("assign tag");
   g_busy += 5;
 }
+
+void
+dt_gui_lt_toggle_select_all()
+{
+  if(vkdt.db.selection_cnt > 0) // select none
+    dt_db_selection_clear(&vkdt.db);
+  else // select all
+    for(uint32_t i=0;i<vkdt.db.collection_cnt;i++)
+      dt_db_selection_add(&vkdt.db, i);
+}
