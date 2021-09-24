@@ -167,7 +167,7 @@ dt_rc_read(
     if(!strncmp(line, "flt", 3))
       dt_rc_set_float(rc, line+3, atof(val));
     else if(!strncmp(line, "int", 3))
-      dt_rc_set_float(rc, line+3, atol(val));
+      dt_rc_set_int(rc, line+3, atol(val));
     else if(!strncmp(line, "str", 3))
       dt_rc_set(rc, line+3, val);
     else goto error;
