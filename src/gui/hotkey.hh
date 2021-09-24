@@ -172,8 +172,8 @@ namespace ImHotKey
     if (!hotkeyCount) return;
     static bool keyDown[512] = {};
 
-    // XXX TODO: derive this from screen res or window size
-    float s = 3.0;
+    // scale with width of lt center view
+    float s = vkdt.state.center_wd / 1000.0;
 
     ImGui::SetNextWindowSize(ImVec2(1060*s, 400*s));
     if (!ImGui::BeginPopupModal(popupModal, NULL, ImGuiWindowFlags_NoResize))
