@@ -11,6 +11,7 @@ extern "C" {
 #include "db/rc.h"
 extern int g_busy;  // when does gui go idle. this is terrible, should put it in vkdt.gui_busy properly.
 }
+#include "gui/api.hh"
 #include "gui/hotkey.hh"
 #include "gui/widget_thumbnail.hh"
 #include "imgui.h"
@@ -517,6 +518,7 @@ void render_lighttable()
     }
     ImGui::End(); // lt center window
   }
+
   static dt_filebrowser_widget_t filebrowser = {{0}};
   { // right panel
     ImGuiWindowFlags window_flags = 0;
@@ -536,6 +538,16 @@ void render_lighttable()
     float lineht = ImGui::GetTextLineHeight();
     float bwd = 0.5f;
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
+
+    // lt hotkeys in same scope as buttons as modals (right panel)
+    int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+    switch(hotkey)
+    {
+      case 0: // assign tag
+        dt_gui_lt_assign_tag();
+        break;
+      default:;
+    }
 
     if(ImGui::CollapsingHeader("settings"))
     {
@@ -586,45 +598,8 @@ void render_lighttable()
       // ==============================================================
       // assign tag modal popup:
       if(vkdt.db.selection_cnt)
-      {
-        int open = ImGui::Button("assign tag..", size);
-        if (open)
-        {
-          ImGui::OpenPopup("assign tag");
-          g_busy += 5;
-        }
-
-        static char name[32] = "all time best";
-        if (ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-          int ok = 0;
-          if (open)
-            ImGui::SetKeyboardFocusHere();
-          if(ImGui::InputText("##edit", name, IM_ARRAYSIZE(name), ImGuiInputTextFlags_EnterReturnsTrue))
-          {
-            ok = 1;
-            ImGui::CloseCurrentPopup(); // accept
-          }
-          if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
-            ImGui::CloseCurrentPopup(); // discard
-          // ImGui::SetItemDefaultFocus();
-          if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-          ImGui::SameLine();
-          if (ImGui::Button("ok", ImVec2(120, 0)))
-          {
-            ok = 1;
-            ImGui::CloseCurrentPopup();
-          }
-          ImGui::EndPopup();
-          if(ok)
-          {
-            const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-            for(int i=0;i<vkdt.db.selection_cnt;i++)
-              dt_db_add_to_collection(&vkdt.db, sel[i], name);
-            dt_gui_read_tags();
-          }
-        }
-      }
+        if(ImGui::Button("assign tag..", size))
+          dt_gui_lt_assign_tag();
 
       // ==============================================================
       // recently used tags:
@@ -889,7 +864,9 @@ void render_lighttable()
       ImGui::Unindent();
     } // end collapsing header "export"
 
-    ImGui::End(); // lt center window
+    dt_gui_lt_modals(); // draw modal windows from buttons/hotkeys
+
+    ImGui::End(); // lt right panel
   }
 }
 
@@ -2103,13 +2080,6 @@ extern "C" int dt_gui_imgui_want_mouse()
 }
 extern "C" int dt_gui_imgui_want_keyboard()
 {
-  // XXX determine based on view mode
-  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
-  if (hotkey != -1)
-  {
-    // XXX returned is the id in the list, put function pointers next to it?
-    fprintf(stderr, "hotkey pressed: %u\n", hotkey);
-  }
   return ImGui::GetIO().WantCaptureKeyboard;
 }
 extern "C" int dt_gui_imgui_want_text()
