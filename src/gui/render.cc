@@ -37,8 +37,9 @@ namespace { // anonymous gui state namespace
 
 // TODO: also init from .config/vkdt/hotkeys
 static ImHotKey::HotKey hk_lighttable[] = {
-  {"tag",         "assign a tag to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
-  {"select all ", "toggle select all/none",          GLFW_KEY_LEFT_CONTROL, GLFW_KEY_A},
+  {"tag",        "assign a tag to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
+  {"select all", "toggle select all/none",          GLFW_KEY_LEFT_CONTROL, GLFW_KEY_A},
+  {"export",     "export selected images",          GLFW_KEY_LEFT_CONTROL, GLFW_KEY_S},
 };
 
 // used to communictate between the gui helper functions
@@ -553,6 +554,9 @@ void render_lighttable()
         case 1: // toggle select all
           dt_gui_lt_toggle_select_all();
           break;
+        case 2:
+          dt_gui_lt_export();
+          break;
         default:;
       }
       hotkey_time = ImGui::GetTime();
@@ -560,14 +564,14 @@ void render_lighttable()
 
     if(ImGui::CollapsingHeader("settings"))
     {
+      ImGui::Indent();
       if(ImGui::Button("hotkeys"))
         ImGui::OpenPopup("edit hotkeys");
       ImHotKey::Edit(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]), "edit hotkeys");
+      ImGui::Unindent();
     }
 
-    // if(ImGui::CollapsingHeader("collect"))
-    if(ImGui::CollapsingHeader("collect", ImGuiTreeNodeFlags_FramePadding))
-    // if(ImGui::TreeNodeEx("collect", ImGuiTreeNodeFlags_CollapsingHeader & ~ImGuiTreeNodeFlags_NoTreePushOnOpen))
+    if(ImGui::CollapsingHeader("collect"))
     {
       ImGui::Indent();
       int32_t filter_prop = static_cast<int32_t>(vkdt.db.collection_filter);
@@ -832,44 +836,27 @@ void render_lighttable()
     if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export selection"))
     {
       ImGui::Indent();
-      static int wd = 0, ht = 0, format = 0;
-      static float quality = 90;
-      static char basename[240] = "/tmp/img";
+      static int wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
+      static int ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
+      static int format = dt_rc_get_int(&vkdt.rc, "gui/export/format", 0);
+      static float quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
+      static char basename[240] = "";
+      if(basename[0] == 0) strncpy(basename,
+          dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img"),
+          sizeof(basename));
       const char format_data[] = "jpg\0pfm\0ffmpeg\0\0";
-      const dt_token_t format_mod[] = {dt_token("o-jpg"), dt_token("o-pfm"), dt_token("o-ffmpeg")};
-      ImGui::InputInt("width", &wd, 1, 100, 0);
-      ImGui::InputInt("height", &ht, 1, 100, 0);
-      ImGui::InputText("filename", basename, sizeof(basename));
-      ImGui::InputFloat("quality", &quality, 1, 100, 0);
-      ImGui::Combo("format", &format, format_data);
+      if(ImGui::InputInt("width", &wd, 1, 100, 0))
+        dt_rc_set_int(&vkdt.rc, "gui/export/wd", wd);
+      if(ImGui::InputInt("height", &ht, 1, 100, 0))
+        dt_rc_set_int(&vkdt.rc, "gui/export/ht", ht);
+      if(ImGui::InputText("filename", basename, sizeof(basename)))
+        dt_rc_set(&vkdt.rc, "gui/export/basename", basename);
+      if(ImGui::InputFloat("quality", &quality, 1, 100, 0))
+        dt_rc_set_float(&vkdt.rc, "gui/export/quality", quality);
+      if(ImGui::Combo("format", &format, format_data))
+        dt_rc_set_int(&vkdt.rc, "gui/export/format", format);
       if(ImGui::Button("export", size))
-      {
-        // TODO: put in background job, implement job scheduler
-        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-        char filename[256], infilename[256];
-        dt_graph_t graph;
-        dt_graph_init(&graph);
-        for(int i=0;i<vkdt.db.selection_cnt;i++)
-        {
-          snprintf(filename, sizeof(filename), "%s_%04d", basename, i);
-          dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
-          dt_graph_export_t param = {0};
-          param.output_cnt = 1;
-          param.output[0].p_filename = filename;
-          param.output[0].max_width  = wd;
-          param.output[0].max_height = ht;
-          param.output[0].quality    = quality;
-          param.output[0].mod        = format_mod[format];
-          param.p_cfgfile = infilename;
-          if(dt_graph_export(&graph, &param))
-          {
-            // TODO: some feedback in gui instead:
-            fprintf(stderr, "export %s failed!\n", infilename);
-          }
-          dt_graph_reset(&graph);
-        }
-        dt_graph_cleanup(&graph);
-      }
+        dt_gui_lt_export();
       ImGui::Unindent();
     } // end collapsing header "export"
 
