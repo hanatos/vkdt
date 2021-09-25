@@ -52,22 +52,23 @@ dt_gui_state_t;
 // a few local things to exchange data between core and ui and c and c++
 typedef struct dt_gui_wstate_t
 {
-  int    m_x, m_y;
-  float  old_look_x, old_look_y;
-  float  wd, ht;
-  int    active_widget_modid; // module id
-  int    active_widget_parid; // parameter id
-  int    active_widget_parnm; // number of parameter (if multi count)
-  int    active_widget_parsz; // size of parameter to copy
-  int    selected;
-  float  aspect;
-  float  state[2100];
-  size_t mapped_size;
-  float *mapped;
-  int    grabbed;
-  int    lod;
-  float  connector[100][30][2];
-  char  *module_names_buf;
+  int      m_x, m_y;
+  float    old_look_x, old_look_y;
+  float    wd, ht;
+  int      active_widget_modid; // module id
+  int      active_widget_parid; // parameter id
+  int      active_widget_parnm; // number of parameter (if multi count)
+  int      active_widget_parsz; // size of parameter to copy
+  int      selected;
+  float    aspect;
+  float    state[2100];
+  size_t   mapped_size;
+  float   *mapped;
+  int      grabbed;
+  int      lod;
+  uint32_t copied_imgid;       // imgid copied for copy/paste
+  float    connector[100][30][2];
+  char    *module_names_buf;
   const char **module_names;
 
   double notification_time;     // time the message appeared

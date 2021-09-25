@@ -37,9 +37,11 @@ namespace { // anonymous gui state namespace
 
 // TODO: also init from .config/vkdt/hotkeys
 static ImHotKey::HotKey hk_lighttable[] = {
-  {"tag",        "assign a tag to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
-  {"select all", "toggle select all/none",          GLFW_KEY_LEFT_CONTROL, GLFW_KEY_A},
-  {"export",     "export selected images",          GLFW_KEY_LEFT_CONTROL, GLFW_KEY_S},
+  {"tag",           "assign a tag to selected images",  GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
+  {"select all",    "toggle select all/none",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_A},
+  {"export",        "export selected images",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_S},
+  {"copy",          "copy from selected image",         GLFW_KEY_LEFT_CONTROL, GLFW_KEY_C},
+  {"paste history", "paste history to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_V},
 };
 
 // used to communictate between the gui helper functions
@@ -557,6 +559,12 @@ void render_lighttable()
         case 2:
           dt_gui_lt_export();
           break;
+        case 3:
+          dt_gui_lt_copy();
+          break;
+        case 4:
+          dt_gui_lt_paste_history();
+          break;
         default:;
       }
       hotkey_time = ImGui::GetTime();
@@ -654,64 +662,14 @@ void render_lighttable()
       ImGui::Indent();
       // ==============================================================
       // copy/paste history stack
-      static uint32_t copied_imgid = -1u;
       if(ImGui::Button("copy history stack", size))
-        copied_imgid = dt_db_current_imgid(&vkdt.db);
+        dt_gui_lt_copy();
 
-      if(copied_imgid != -1u)
+      if(vkdt.wstate.copied_imgid != -1u)
       {
         ImGui::SameLine();
         if(ImGui::Button("paste history stack", size))
-        {
-          // TODO: background job
-          char filename[1024];
-          dt_db_image_path(&vkdt.db, copied_imgid, filename, sizeof(filename));
-          FILE *fin = fopen(filename, "rb");
-          if(fin)
-          {
-            fseek(fin, 0, SEEK_END);
-            size_t fsize = ftell(fin);
-            fseek(fin, 0, SEEK_SET);
-            uint8_t *buf = (uint8_t*)malloc(fsize);
-            fread(buf, fsize, 1, fin);
-            fclose(fin);
-            // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
-            // one input raw file that is appearing under param:i-raw:main:filename.
-            // it then copies the history to the selected images, replacing their filenames in the config.
-            const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-            for(int i=0;i<vkdt.db.selection_cnt;i++)
-            {
-              if(sel[i] == copied_imgid) continue; // don't copy to self
-              dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-              FILE *fout = fopen(filename, "wb");
-              if(fout)
-              {
-                fwrite(buf, fsize, 1, fout);
-                // replace (relative) image file name
-                const char *fn = vkdt.db.image[sel[i]].filename;
-                size_t len = strlen(fn);
-                if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
-                  fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
-                else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
-                  fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
-                else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
-                  fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
-                else
-                  fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
-                fclose(fout);
-              }
-            }
-            free(buf);
-            dt_thumbnails_cache_list(
-                &vkdt.thumbnail_gen,
-                &vkdt.db,
-                sel, vkdt.db.selection_cnt);
-          }
-          else
-          {
-            // TODO: error message
-          }
-        }
+          dt_gui_lt_paste_history();
       }
 
       // ==============================================================

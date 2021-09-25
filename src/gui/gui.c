@@ -49,6 +49,8 @@ int dt_gui_init()
   dt_rc_init(&vkdt.rc);
   dt_rc_read(&vkdt.rc, configfile);
 
+  vkdt.wstate.copied_imgid = -1u; // none copied at startup
+
   vkdt.style.panel_width_frac = 0.2f;
   vkdt.style.border_frac = 0.02f;
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();

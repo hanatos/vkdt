@@ -66,6 +66,69 @@ dt_gui_lt_toggle_select_all()
 }
 
 void
+dt_gui_lt_copy()
+{
+  vkdt.wstate.copied_imgid = dt_db_current_imgid(&vkdt.db);
+}
+
+void
+dt_gui_lt_paste_history()
+{
+  if(vkdt.wstate.copied_imgid == -1u)
+  {
+    dt_gui_notification("need to copy first!");
+    return;
+  }
+  // TODO: background job
+  char filename[1024];
+  uint32_t cid = vkdt.wstate.copied_imgid;
+  dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+  FILE *fin = fopen(filename, "rb");
+  if(!fin)
+  {
+    dt_gui_notification("could not open %s!", filename);
+    return;
+  }
+  fseek(fin, 0, SEEK_END);
+  size_t fsize = ftell(fin);
+  fseek(fin, 0, SEEK_SET);
+  uint8_t *buf = (uint8_t*)malloc(fsize);
+  fread(buf, fsize, 1, fin);
+  fclose(fin);
+  // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
+  // one input raw file that is appearing under param:i-raw:main:filename.
+  // it then copies the history to the selected images, replacing their filenames in the config.
+  const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+  for(int i=0;i<vkdt.db.selection_cnt;i++)
+  {
+    if(sel[i] == cid) continue; // don't copy to self
+    dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+    FILE *fout = fopen(filename, "wb");
+    if(fout)
+    {
+      fwrite(buf, fsize, 1, fout);
+      // replace (relative) image file name
+      const char *fn = vkdt.db.image[sel[i]].filename;
+      size_t len = strlen(fn);
+      if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
+        fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
+      else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
+        fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
+      else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
+        fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
+      else
+        fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
+      fclose(fout);
+    }
+  }
+  free(buf);
+  dt_thumbnails_cache_list(
+      &vkdt.thumbnail_gen,
+      &vkdt.db,
+      sel, vkdt.db.selection_cnt);
+}
+
+void
 dt_gui_lt_export()
 {
   if(vkdt.db.selection_cnt <= 0)
