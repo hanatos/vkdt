@@ -13,6 +13,8 @@ OLD_SHELL := $(SHELL)
 SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
 export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL RAWSPEED_PACKAGE_BUILD
 
+all: ext src bin
+
 prefix?=/usr
 DESTDIR?=
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
@@ -31,8 +33,6 @@ install: all
 release: vkdt-0.0.1.tar.gz
 vkdt-0.0.1.tar.gz:
 	$(shell git ls-files --recurse-submodules | tar caf $@ --xform s:^:vkdt-0.0.1/: --verbatim-files-from -T-)
-
-all: ext src bin
 
 # overwrites the above optimised build flags:
 # debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION
