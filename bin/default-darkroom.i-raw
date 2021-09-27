@@ -9,7 +9,7 @@ module:hist:01
 module:zones:01
 module:saturate:01
 module:crop:01
-module:contrast:01
+module:lens:01
 module:pick:01
 module:display:hist
 # last display is the one determining the ROI:
