@@ -167,12 +167,12 @@ int main(int argc, char *argv[])
   // to create thumbnails, if necessary.
   // only width/height will matter here
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
+  dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
   struct stat statbuf = {0};
   if(filename) stat(filename, &statbuf);
   if(!filename || ((statbuf.st_mode & S_IFMT) == S_IFDIR))
   {
     vkdt.view_mode = s_view_lighttable;
-    dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
     dt_db_init(&vkdt.db);
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
@@ -180,7 +180,6 @@ int main(int argc, char *argv[])
   }
   else
   {
-    dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3, 1ul<<20);
     dt_db_init(&vkdt.db);
     if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, filename))
     {
