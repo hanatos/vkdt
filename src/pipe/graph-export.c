@@ -144,7 +144,8 @@ dt_graph_export(
     for(;cnt<param->output_cnt;cnt++)
       if(dt_graph_replace_display(
             graph, param->output[cnt].inst, param->output[cnt].mod,
-            (param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0)))
+            ( param->output[cnt].mod != dt_token("o-bc1")) && // no hq thumbnails
+            ((param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0))))
         break;
     if(cnt != param->output_cnt)
     {
