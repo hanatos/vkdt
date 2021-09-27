@@ -3,7 +3,6 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
-#include "noise.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -29,125 +28,86 @@ layout( // input uint16 buffer rggb
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // input f16 buffer rgb
+layout( // denoised coarse buffer
     set = 1, binding = 1
-) uniform sampler2D img_coarse;
+) uniform sampler2D img_crs0;
 
-layout( // output f16 buffer rggb
+layout( // noisy coarse buffer from input
     set = 1, binding = 2
+) uniform sampler2D img_crs1;
+
+layout( // output f16 buffer
+    set = 1, binding = 3
 ) uniform writeonly image2D img_out;
 
-// upsample back to mosaic. this is either 3x3 or 2x2, depending on filters.
-// runs on coarse resolution.
-// our goal is to do one scale of decimated wavelet denoising, while keeping
-// clipped pixels clipped (these will be copied straight to the output)
+// do one scale of decimated wavelet denoising on full res mosaic
 void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec4 upsm = texelFetch(img_coarse, ipos, 0);
+  // get denoised and noisy coarse buffer by bilinear interpolation
+  vec4 upsm = texture(img_crs0, (ipos+0.5)/vec2(imageSize(img_out)));
+  vec4 down = texture(img_crs1, (ipos+0.5)/vec2(imageSize(img_out)));
 
+#if 0
+  if(push.filters == 9) // swap red and blue channels according to sensor layout
+    if(((ipos.x + ipos.y) & 1) == 0)
+      upsm.rgb = upsm.bgr; // upsm is now in wrong colour but in sync with the canonical pattern
+#endif
+
+  // find colour channel for this pixel and init some variables for that:
+  float black = push.black.g, white = push.white.g, crs = upsm.g, crs1 = down.g,
+        T = params.strength*upsm.w, blendw = params.luma;
   if(push.filters == 9)
-  {
-    // swap red and blue channels according to sensor layout
-    if(((ipos.x + ipos.y + push.crop.x + push.crop.y) & 1) == 0)
-      upsm.rgb = upsm.bgr;
-    // get original input texels
-    float c0 = texelFetch(img_in, push.crop.xy + 3*ipos, 0).r;
-    float c1 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(0,1), 0).r;
-    float c2 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(0,2), 0).r;
-    float c3 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(1,0), 0).r;
-    float c4 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(1,1), 0).r;
-    float c5 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(1,2), 0).r;
-    float c6 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(2,0), 0).r;
-    float c7 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(2,1), 0).r;
-    float c8 = texelFetch(img_in, push.crop.xy + 3*ipos+ivec2(2,2), 0).r;
-
-    vec3 crs = vec3(
-        (c1 + c7)*0.5,
-        (c0 + c2 + c4 + c6 + c8)/5.0,
-        (c3 + c5)*0.5);
-    if(((ipos.x + ipos.y + push.crop.x + push.crop.y) & 1) == 0)
-      crs.br = crs.rb;
-    crs = (crs - push.black.rgb)/(push.white.rgb - push.black.rgb);
-
-    // do wavelet shrinkage with these channels.
-    // make sure to keep clipped (>= white)!
-    // TODO: use black and white according to correct channel!
-#define SHRINK(A, B, C) {\
-      A = (A - push.black.x)/(push.white.x - push.black.x);\
-      if(A < 1.0) {\
-        float wav = (A - B)/sigma;\
-        float tt = min(1.0, wav/(2.0*T + 1e-8));\
-        A = max(0, C + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt));\
-      }\
+  { // xtrans
+    bool blue_top = ((ipos.x/3 + ipos.y/3) & 1) > 0;
+    ivec2 pos = ipos - (ipos/3)*3;
+    if(((pos.x + pos.y) & 1) == 0)
+    { }
+    else if(blue_top ^^ (pos.y == 1))
+    {
+      black = push.black.b; white = push.white.b;
+      crs = upsm.b; crs1 = down.b; blendw = 1.0;
+      T *= params.chroma/upsm.w;
     }
-#define SHRINKG(A) {\
-      A = max(0, (A - push.black.g)/(push.white.g - push.black.g));\
-      if(A < 1.0) { \
-        float wav = (A - crs.g)/sigma;\
-        float tt = min(1.0, wav/(2.0*T + 1e-8));\
-        A = mix(A, max(0, upsm.g + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), params.luma);\
-      }\
+    else
+    {
+      black = push.black.r; white = push.white.r;
+      crs = upsm.r; crs1 = down.r; blendw = 1.0;
+      T *= params.chroma/upsm.w;
     }
-
-    const float scale = 65535.0*(push.white.g-push.black.g);
-    const float sigma = noise_sigma(push.noise_a, push.noise_b, scale * max(upsm.g, 0.0)) / scale;
-    float T = params.chroma * params.strength;// * upsm.w;
-    SHRINK(c1, upsm.r, upsm.r)
-    SHRINK(c7, upsm.r, upsm.r)
-    SHRINK(c3, upsm.b, upsm.b)
-    SHRINK(c5, upsm.b, upsm.b)
-
-    T = params.strength * upsm.w;
-    SHRINKG(c0)
-    SHRINKG(c2)
-    SHRINKG(c4)
-    SHRINKG(c6)
-    SHRINKG(c8)
-
-    // c0 = c1 = c2 = c3 = c4 = c5 = c6 = c7 = c8 = upsm.w;
-
-    imageStore(img_out, 3*ipos,            vec4(vec3(c0), 1));
-    imageStore(img_out, 3*ipos+ivec2(0,1), vec4(vec3(c1), 1));
-    imageStore(img_out, 3*ipos+ivec2(0,2), vec4(vec3(c2), 1));
-    imageStore(img_out, 3*ipos+ivec2(1,0), vec4(vec3(c3), 1));
-    imageStore(img_out, 3*ipos+ivec2(1,1), vec4(vec3(c4), 1));
-    imageStore(img_out, 3*ipos+ivec2(1,2), vec4(vec3(c5), 1));
-    imageStore(img_out, 3*ipos+ivec2(2,0), vec4(vec3(c6), 1));
-    imageStore(img_out, 3*ipos+ivec2(2,1), vec4(vec3(c7), 1));
-    imageStore(img_out, 3*ipos+ivec2(2,2), vec4(vec3(c8), 1));
   }
   else
-  {
-    // reads : w z -> r g
-    //         x y    g b
-    vec4 c = textureGather(img_in, (push.crop.xy + 2*(ipos+.5))/vec2(textureSize(img_in, 0)), 0);
-    vec4 crs = c;
-    if(crs.x >= push.white.g) crs.x = crs.z;
-    if(crs.z >= push.white.g) crs.z = crs.x;
-    crs = vec4(crs.w, (crs.x+crs.z)/2.0, crs.y, 1.0);
-    crs.rgb = (crs.rgb - push.black.rgb)/(push.white.rgb - push.black.rgb);
-    // crs.rgb = upsm.rgb;
-
-    const float sigma = noise_sigma(push.noise_a, push.noise_b, 65535.0 * max(upsm.g, 0.0)) / 65535.0;
-    float T = params.chroma * params.strength;// * upsm.w;
-    SHRINK(c.y, crs.b, upsm.b);
-    SHRINK(c.w, crs.r, upsm.r);
-
-    T = params.strength;// * upsm.w;
-    SHRINKG(c.x);
-    SHRINKG(c.z);
-#undef SHRINK
-#undef SHRINKG
-
-    // c = vec4(upsm.w);
-
-    imageStore(img_out, 2*ipos,            vec4(c.w));
-    imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
-    imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
-    imageStore(img_out, 2*ipos+ivec2(1,1), vec4(c.y));
+  { // bayer
+    if((((ipos.x & 1) == 0) && ((ipos.y & 1) == 1)) ||
+       (((ipos.x & 1) == 1) && ((ipos.y & 1) == 0)))
+    { }
+    else if(((ipos.x & 1) == 0) && ((ipos.y & 1) == 0))
+    { // red
+      black = push.black.r; white = push.white.r;
+      crs = upsm.r; crs1 = down.r; blendw = 1.0;
+      T *= params.chroma/upsm.w;
+    }
+    else if(((ipos.x & 1) == 1) && ((ipos.y & 1) == 1))
+    { // blue
+      black = push.black.b; white = push.white.b;
+      crs = upsm.b; crs1 = down.b; blendw = 1.0;
+      T *= params.chroma/upsm.w;
+    }
   }
+  const float scale = 65535.0*(white-black);
+  const float sigma = 5.0*sqrt(push.noise_a + scale*max(crs, 0.0)*push.noise_b)/scale;
+  float val = texture(img_in, (ipos+push.crop.xy+.5)/vec2(textureSize(img_in, 0))).r;
+  val  = max(0, (val  - black)/(white - black));
+  crs1 = max(0, (crs1 - black)/(white - black));
+  if(val < 1.0) // XXX TODO: highlight reconstruct in pyramid!
+  {
+    float wav = (val - crs1)/sigma;
+    float tt = min(1.0, wav/max(2.0*T,1e-8));
+    val = mix(val, max(0, crs + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
+  }
+  // val = upsm.w; // XXX DEBUG see detail shielding
+  imageStore(img_out, ipos, vec4(vec3(val), 1.0));
 }

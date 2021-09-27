@@ -28,8 +28,11 @@ void modify_roi_out(
   assert(img_param);
   const uint32_t *b = img_param->crop_aabb;
   module->connector[1].roi = module->connector[0].roi;
-  module->connector[1].roi.full_wd = b[2] - b[0];
-  module->connector[1].roi.full_ht = b[3] - b[1];
+  if(module->connector[0].chan == dt_token("rggb"))
+  { // only crop mosaiced/raw data
+    module->connector[1].roi.full_wd = b[2] - b[0];
+    module->connector[1].roi.full_ht = b[3] - b[1];
+  }
 }
 
 dt_graph_run_t
@@ -81,6 +84,7 @@ create_nodes(
   const float noise[2] = { img_param->noise_a, img_param->noise_b };
   uint32_t *noisei = (uint32_t *)noise;
 
+#if 1
   // shortcut if no denoising is requested:
   const float strength = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("strength")))[0];
   if(strength <= 0.0f)
@@ -120,6 +124,7 @@ create_nodes(
     dt_connector_copy(graph, module, 1, id_noop, 1);
     return;
   }
+#endif
 
   const int block =
     (module->connector[0].chan != dt_token("rggb")) ? 1 :
@@ -138,16 +143,19 @@ create_nodes(
 
   for(int i=0;i<4;i++)
   {
+    int cov = (module->connector[0].chan == dt_token("rggb")) && (i==0);
     assert(graph->num_nodes < graph->max_nodes);
     id_down[i] = graph->num_nodes++;
     graph->node[id_down[i]] = (dt_node_t) {
       .name   = dt_token("denoise"),
-      .kernel = dt_token("down"),
+      .kernel = cov ?
+        dt_token("downcov") :
+        dt_token("down"),
       .module = module,
       .wd     = wd,
       .ht     = ht,
       .dp     = 1,
-      .num_connectors = 2,
+      .num_connectors = cov ? 3 : 2,
       .connector = {{
         .name   = dt_token("input"),
         .type   = dt_token("read"),
@@ -157,6 +165,12 @@ create_nodes(
         .connected_mi = -1,
       },{
         .name   = dt_token("output"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = roi_half,
+      },{
+        .name   = dt_token("cov"),
         .type   = dt_token("write"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
@@ -286,28 +300,36 @@ create_nodes(
         img_param->filters },
     };
     assert(graph->num_nodes < graph->max_nodes);
-    const uint32_t id_doub = graph->num_nodes++;
+    const int id_doub = graph->num_nodes++;
     graph->node[id_doub] = (dt_node_t) {
       .name   = dt_token("denoise"),
       .kernel = dt_token("doub"),
       .module = module,
-      .wd     = roi_half.full_wd, // cropped lo res
-      .ht     = roi_half.full_ht,
+      .wd     = module->connector[1].roi.wd,
+      .ht     = module->connector[1].roi.ht,
       .dp     = 1,
-      .num_connectors = 3,
+      .num_connectors = 4,
       .connector = {{
         .name   = dt_token("orig"),
         .type   = dt_token("read"),
         .chan   = dt_token("rggb"),
-        .format = dt_token("ui16"),
+        .format = dt_token("f16"),
         .roi    = module->connector[0].roi, // original rggb input
         .connected_mi = -1,
       },{
-        .name   = dt_token("coarse"),
+        .name   = dt_token("crs0"),
         .type   = dt_token("read"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
         .roi    = roi_half, // cropped lo res
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("crs1"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = roi_half, // cropped lo res
+        .flags  = s_conn_smooth,
         .connected_mi = -1,
       },{
         .name   = dt_token("output"),
@@ -325,12 +347,14 @@ create_nodes(
         img_param->filters, noisei[0], noisei[1]
       },
     };
+    CONN(dt_node_connect(graph, id_assemble, 5, id_doub, 1));
+    CONN(dt_node_connect(graph, id_half,     1, id_doub, 2));
+    dt_connector_copy(graph, module, 0, id_doub,  0);
+    dt_connector_copy(graph, module, 1, id_doub, 3);
+
     CONN(dt_node_connect(graph, id_half,     1, id_down[0],  0));
     CONN(dt_node_connect(graph, id_half,     1, id_assemble, 0));
-    CONN(dt_node_connect(graph, id_assemble, 5, id_doub,     1));
     dt_connector_copy(graph, module, 0, id_half, 0);
-    dt_connector_copy(graph, module, 0, id_doub, 0);
-    dt_connector_copy(graph, module, 1, id_doub, 2);
   }
   else
   { // wire module i/o connectors to nodes:

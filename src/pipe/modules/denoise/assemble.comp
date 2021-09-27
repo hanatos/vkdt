@@ -3,7 +3,6 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
-#include "noise.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -62,7 +61,9 @@ main()
     vec3 down0 = orig;
     // TODO: consider 2px padding radius for next iteration and mirror repeat!
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
-    vec3 down1 = texelFetch(img_s1, esi, 0).rgb;
+    vec4 down1rgba = texelFetch(img_s1, esi, 0);
+    vec3 down1 = down1rgba.rgb;
+    test = down1rgba.w;
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
     vec3 down2 = texelFetch(img_s2, esi, 0).rgb;
     esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
@@ -76,7 +77,7 @@ main()
     // the noise model is  sigma^2 = a + x*b  where x is the uint16_t scale raw value minus the raw black level.
     // this meas we have to re-scale our normalised value to the previous white level.
     const float scale = 65535.0*(push.white.g-push.black.g);
-    const float sigma = noise_sigma(push.noise_a, push.noise_b, scale * max(down2.x, 0.0)) / scale;
+    const float sigma = 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale;
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
@@ -85,10 +86,10 @@ main()
     // mosaiced images are preprocessed by averaging a block of greens.
     // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2).
     // demosaiced images have way less noise to begin with, so we should tune down variance, too!
-    float block = push.filters == 0u ? 0.5 : (push.filters == 9u ? 2.23607 : 1.414213);
-    const float b0 = 1.000/block;
-    const float b1 = 0.500/block;
-    const float b2 = 0.250/block;
+    float block = push.filters == 0u ? 1.0 : (push.filters == 9u ? 2.23607 : 1.414213);
+    const float b0 = 1.0/block;
+    const float b1 = 0.5/block;
+    const float b2 = 0.25/block;
     const float b3 = 0.125/block;
     down0 = (down0 - down1)/(sigma*b0);
     down1 = (down1 - down2)/(sigma*b1);
@@ -117,23 +118,31 @@ main()
     // test = length(down0) + length(down1) + length(down2) + length(down3);
     // test = test/(test+1.0);
     // test = 0.0;
+    if(push.filters == 9)
+    {
     float d0 = length(down0), d1 = length(down1), d2 = length(down2), d3 = length(down3);
     float slope = ((d3 - d0)/3.0 + (d2 - d1)/1.0 + (d1 - d0)/1.0 + (d3-d2)/1.0 + (d2-d0)/2.0 + (d3-d1)/2.0)/6.0;
-    test = max(0, -slope);
 #if 1 // worked for xtrans
+    test = max(0, -slope);
     test = max(0.0, 1.0-test);
     test = pow(test, 16.0);
-#endif
-#if 0 // for canon?
-    test = 1.0/test;
-    test = test/(test+1.0);
+    test = clamp(1.5*test, 0.05, 1.0);
+#elif 1 // for canon?
+    // test = max(0.0, 1.0-test);
+    // test = pow(test, 16.0);
+    // test = 1.0/test;
+    // test = test/(test+1.0);
     // test = pow(test, 0.01);
 #endif
-    test = clamp(1.5*test, 0.05, 1.0);
-
-    // test = test/(test+1.0);
-    // test = - slope;
-
+    }
+    else // if(push.filters != 9)
+    {
+      // XXX this is important for sharpness!
+      // test = abs(slope);
+      // test = max(0, 1.0-4.0*test);
+      // test -= 0.05;
+      // test = 1.0; // switch off for bayer now
+    }
 
     // test = 0.5 + 0.5*xi2/sqrt(xi2*xi2+1.0);
     // wavelet shrinkage and re-assembly:
@@ -144,15 +153,15 @@ main()
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
-    vec3 thrs = vec3(1.0, params.chroma, params.chroma) * params.strength * 3.0;// * test;
+    vec3 thrs = vec3(1.0, params.chroma, params.chroma) * params.strength;// * test;
     vec3 tt = vec3(0.0);
-    tt = min(vec3(1.0), abs(down3)/(2*thrs+1e-8));
+    tt = min(vec3(1.0), abs(down3)/(2*thrs));
     down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs, vec3(0.0)), abs(down3), tt);
-    tt = min(vec3(1.0), abs(down2)/(2*thrs+1e-8));
+    tt = min(vec3(1.0), abs(down2)/(2*thrs));
     down4 += sigma * b2 * sign(down2) * mix(max(abs(down2) - thrs, vec3(0.0)), abs(down2), tt);
-    tt = min(vec3(1.0), abs(down1)/(2*thrs+1e-8));
+    tt = min(vec3(1.0), abs(down1)/(2*thrs));
     down4 += sigma * b1 * sign(down1) * mix(max(abs(down1) - thrs, vec3(0.0)), abs(down1), tt);
-    tt = min(vec3(1.0), abs(down0)/(2*thrs+1e-8));
+    tt = min(vec3(1.0), abs(down0)/(2*thrs));
     down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs, vec3(0.0)), abs(down0), tt);
   }
 

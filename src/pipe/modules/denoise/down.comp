@@ -3,7 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
-#include "noise.glsl"
+#include "cov.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -43,41 +43,39 @@ main()
   ivec2 sz = textureSize(img_in, 0).xy;
 
   // 5 tap flower filter
+  // const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
+  // const float t = 0.3; // a bit sharper
   const float t = 0.2;
-#if 0 // regular wavelet
-  vec3 rgb = texelFetch(img_in, ipos + push.crop.xy, 0).rgb * t;
-  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 1.2, 0.5 + 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
-  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 1.2, 0.5 - 0.4))/vec2(sz)).rgb / 4.0 * (1.0-t);
-  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 + 0.4, 0.5 - 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
-  rgb += texture(img_in, (ipos + push.crop.xy + vec2(0.5 - 0.4, 0.5 + 1.2))/vec2(sz)).rgb / 4.0 * (1.0-t);
-#else // half way edge aware
-  vec3 rgb = texelFetch(img_in, ipos + push.crop.xy, 0).rgb;
-  vec3 sum = t * rgb;
-  float wgt = t;
-  // scale based on noise model and wavelet level:
-  const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
-  const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
-  const float sigma = pow(0.5, push.level) * noise_sigma(push.noise_a, push.noise_b, scale * max(rgb.x, 0.0)) / (scale * block);
-  // weight according to yuv or rgb:
-  // vec3 wc = vec3(2, 0.4, 0.4)/sigma;
-  vec3 wc = vec3(2)/sigma;
+  vec3 rgb;
+  if(push.level < 2) // TODO: detect based on xtrans/bayer and noise level
+  {
+    vec4 cov; // ignore
+    rgb = response(img_in, ipos + push.crop.xy, cov, push.level);
+  }
+  else
+  {
+    rgb = texture(img_in, (ipos + 0.5 + push.crop.xy)/vec2(sz)).rgb;
+    vec3 sum = t * rgb;
+    float wgt = t;
+    const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
+    const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
+    const float sigma = pow(0.5, push.level) * 5.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
+    vec3 wc = vec3(1./sigma);
 #define lookup(O) \
-  do { \
-  vec3 col = texture(img_in, (ipos + push.crop.xy + O)/vec2(sz)).rgb; \
-  float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; \
-  sum += w * col; \
-  wgt += w; \
-  } while(false)
-
-  lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
-  lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
-  lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
-  lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
-
-  rgb = sum / wgt;
+    do { \
+    vec3 col = texture(img_in, (ipos + push.crop.xy + O)/vec2(sz)).rgb; \
+    float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; \
+    sum += w * col; \
+    wgt += w; \
+    } while(false)
+    lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
+    lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
+    lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
+    lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
+    rgb = sum / wgt;
 #undef lookup
-#endif
+  }
 
   // sort image to write positions so we can iterate the filter
   ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * imageSize(img_out)/2;
@@ -97,4 +95,3 @@ main()
   // TODO: consider 2px padding radius for next iteration and mirror repeat!
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
-
