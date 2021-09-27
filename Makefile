@@ -27,6 +27,7 @@ install: all
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/default* ${VKDTDIR}
 	cp -rfL bin/darkroom.ui ${VKDTDIR}
+	cp -rfL bin/thumb.cfg ${VKDTDIR}
 	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 
