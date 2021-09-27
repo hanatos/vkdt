@@ -15,6 +15,26 @@
 #include <time.h>
 #include <errno.h>
 
+#if 0
+void
+debug_test_list(
+    dt_thumbnails_t *t)
+{
+  dt_thumbnail_t *l = t->lru;
+  assert(!l->prev);
+  assert(l->next);
+  int len = 1;
+  while(l->next)
+  {
+    dt_thumbnail_t *n = l->next;
+    assert(n->prev == l);
+    l = n;
+    len++;
+  }
+  assert(t->thumb_max == len);
+  assert(t->mru == l);
+}
+#endif
 
 VkResult
 dt_thumbnails_init(
@@ -63,6 +83,7 @@ dt_thumbnails_init(
   tn->lru = tn->thumb;
   tn->mru = tn->thumb + tn->thumb_max-1;
   tn->thumb[0].next = tn->thumb+1;
+  tn->thumb[tn->thumb_max-1].prev = tn->thumb+tn->thumb_max-2;
   for(int k=1;k<tn->thumb_max-1;k++)
   {
     tn->thumb[k].next = tn->thumb+k+1;
@@ -424,6 +445,8 @@ dt_thumbnails_load_list(
       // threads_mutex_lock(&tn->lru_lock);
       dt_thumbnail_t *th = tn->thumb + img->thumbnail;
       if(th == tn->lru) tn->lru = tn->lru->next; // move head
+      tn->lru->prev = 0;
+      if(tn->mru == th) tn->mru = th->prev;      // going to remove mru, need to move
       DLIST_RM_ELEMENT(th);                      // disconnect old head
       tn->mru = DLIST_APPEND(tn->mru, th);       // append to end and move tail
       // threads_mutex_unlock(&tn->lru_lock);
@@ -472,6 +495,7 @@ dt_thumbnails_load_one(
     // threads_mutex_lock(&tn->lru_lock);
     th = tn->lru;
     tn->lru = tn->lru->next;             // move head
+    if(tn->mru == th) tn->mru = th->prev;// going to remove mru, need to move
     DLIST_RM_ELEMENT(th);                // disconnect old head
     tn->mru = DLIST_APPEND(tn->mru, th); // append to end and move tail
     *thumb_index = th - tn->thumb;
