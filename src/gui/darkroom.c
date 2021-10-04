@@ -492,11 +492,11 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     else
     { // advance to next image in lighttable collection
       int32_t next = dt_db_current_colid(&vkdt.db) + 1;
-      if(next <= vkdt.db.collection_cnt)
+      if(next < vkdt.db.collection_cnt)
       {
+        darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+        dt_db_selection_clear(&vkdt.db);
         dt_db_selection_add(&vkdt.db, next);
-        // darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
-        dt_graph_cleanup(&vkdt.graph_dev); // essential to free memory
         darkroom_enter();
       }
     }
@@ -513,9 +513,9 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       int32_t next = dt_db_current_colid(&vkdt.db) - 1;
       if(next >= 0)
       {
+        darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+        dt_db_selection_clear(&vkdt.db);
         dt_db_selection_add(&vkdt.db, next);
-        // darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
-        dt_graph_cleanup(&vkdt.graph_dev);
         darkroom_enter();
       }
     }
