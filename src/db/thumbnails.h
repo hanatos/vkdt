@@ -76,6 +76,7 @@ void dt_thumbnails_cleanup(dt_thumbnails_t *tn);
 // this is a convenience wrapper around dt_thumbnails_cache_list().
 VkResult dt_thumbnails_cache_collection(dt_thumbnails_t *tn, dt_db_t *db);
 
+// create bc1 thumbnails for the given list, in background threads.
 VkResult dt_thumbnails_cache_list(
     dt_thumbnails_t *tn,         // thumbnail struct used to create the thumbnails (will not load thumbs here)
     dt_db_t         *db,         // database to map imageid to filename.
