@@ -89,7 +89,7 @@ and we may link to some others, too.
 * submodule imgui
 * submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp)
 * libjpeg
-* build: make, pkg-config, clang
+* build: make, pkg-config, clang, rsync
 * build rawspeed: cmake, libomp-dev
 
 optional (configure in `bin/config.mk`):

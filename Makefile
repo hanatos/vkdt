@@ -1,5 +1,5 @@
 # for debugging, don't call into this directly, use the makefile in bin/ instead.
-# you can, however, call 'make install' here to install to PREFIX
+# you can, however, call 'make install' here to install to `prefix`.
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
@@ -20,9 +20,10 @@ DESTDIR?=
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
 install: all
 	mkdir -p $(VKDTDIR)
+	mkdir -p $(VKDTDIR)/modules
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	cp -rfL bin/data ${VKDTDIR}
-	cp -rfL bin/modules ${VKDTDIR}
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/default* ${VKDTDIR}
