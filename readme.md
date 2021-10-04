@@ -87,9 +87,10 @@ and we may link to some others, too.
 * vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
 * glfw (libglfw3-dev and libglfw3, only use libglfw3-wayland if you're on wayland)
 * submodule imgui
-* submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp-dev)
+* submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp)
 * libjpeg
-* build: make, pkg-config
+* build: make, pkg-config, clang
+* build rawspeed: cmake, libomp-dev
 
 optional (configure in `bin/config.mk`):
 
