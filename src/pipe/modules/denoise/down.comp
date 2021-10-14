@@ -34,6 +34,14 @@ layout( // output
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
+vec3 gamma(vec3 f)
+{
+  return vec3(
+      f.x < 0.0 ? f.x : pow(f.x, 0.8),
+      f.y < 0.0 ? f.y : pow(f.y, 0.8),
+      f.z < 0.0 ? f.z : pow(f.z, 0.8));
+}
+
 void
 main()
 {
@@ -65,7 +73,9 @@ main()
 #define lookup(O) \
     do { \
     vec3 col = texture(img_in, (ipos + push.crop.xy + O)/vec2(sz)).rgb; \
-    float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; \
+    /* float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; */ \
+    /* float w = exp(-dot(wc*abs(col-rgb),vec3(1.0))) * (1.0-t)/4.0; */ \
+    float w = exp(-dot(wc*abs(gamma(col)-gamma(rgb)),vec3(1.0))) * (1.0-t)/4.0; \
     sum += w * col; \
     wgt += w; \
     } while(false)
