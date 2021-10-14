@@ -167,3 +167,28 @@ dt_gui_lt_export()
   }
   dt_graph_cleanup(&graph);
 }
+
+// scroll to top of collection
+void
+dt_gui_lt_scroll_top()
+{
+  ImGui::SetScrollY(0.0f);
+}
+
+// scroll to show current image
+void
+dt_gui_lt_scroll_current()
+{
+  uint32_t colid = dt_db_current_colid(&vkdt.db);
+  if(colid == -1u) return;
+  const int ipl = 6; // hardcoded images per line :(
+  const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * ImGui::GetScrollMaxY();
+  ImGui::SetScrollY(p);
+}
+
+// scroll to end of collection
+void
+dt_gui_lt_scroll_bottom()
+{
+  ImGui::SetScrollY(ImGui::GetScrollMaxY());
+}

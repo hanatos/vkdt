@@ -42,6 +42,9 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"export",        "export selected images",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_S},
   {"copy",          "copy from selected image",         GLFW_KEY_LEFT_CONTROL, GLFW_KEY_C},
   {"paste history", "paste history to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_V},
+  {"scroll cur",    "scroll to current image",          GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_C},
+  {"scroll end",    "scroll to end of collection",      GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_G},
+  {"scroll top",    "scroll to top of collection",      GLFW_KEY_G},
 };
 
 // used to communictate between the gui helper functions
@@ -409,6 +412,7 @@ namespace {
 void render_lighttable()
 {
   ImGuiStyle &style = ImGui::GetStyle();
+  static double hotkey_time = 0;
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
   { // center image view
@@ -520,6 +524,25 @@ void render_lighttable()
         }
       }
     }
+    // lt hotkeys in same scope as center window (scroll)
+    if(ImGui::GetTime() - hotkey_time > 0.1)
+    {
+      int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+      switch(hotkey)
+      {
+        case 5:
+          dt_gui_lt_scroll_current();
+          break;
+        case 6:
+          dt_gui_lt_scroll_bottom();
+          break;
+        case 7:
+          dt_gui_lt_scroll_top();
+          break;
+        default:;
+      }
+      hotkey_time = ImGui::GetTime();
+    }
     ImGui::End(); // lt center window
   }
 
@@ -544,7 +567,6 @@ void render_lighttable()
     ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
     // lt hotkeys in same scope as buttons as modals (right panel)
-    static double hotkey_time = 0;
     if(ImGui::GetTime() - hotkey_time > 0.1)
     {
       int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
