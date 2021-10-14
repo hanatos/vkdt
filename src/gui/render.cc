@@ -541,7 +541,6 @@ void render_lighttable()
           break;
         default:;
       }
-      hotkey_time = ImGui::GetTime();
     }
     ImGui::End(); // lt center window
   }
