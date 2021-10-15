@@ -28,11 +28,8 @@ void modify_roi_out(
   assert(img_param);
   const uint32_t *b = img_param->crop_aabb;
   module->connector[1].roi = module->connector[0].roi;
-  if(module->connector[0].chan == dt_token("rggb"))
-  { // only crop mosaiced/raw data
-    module->connector[1].roi.full_wd = b[2] - b[0];
-    module->connector[1].roi.full_ht = b[3] - b[1];
-  }
+  module->connector[1].roi.full_wd = b[2] - b[0];
+  module->connector[1].roi.full_ht = b[3] - b[1];
 }
 
 dt_graph_run_t
@@ -76,7 +73,13 @@ create_nodes(
   float black[4], white[4];
   uint32_t *blacki = (uint32_t *)black;
   uint32_t *whitei = (uint32_t *)white;
-  const uint32_t *crop_aabb = img_param->crop_aabb;
+  const uint32_t *crop_aabb_full = img_param->crop_aabb;
+  const float cs = module->connector[0].roi.wd / (float) module->connector[0].roi.full_wd;
+  const uint32_t crop_aabb[] = {
+    crop_aabb_full[0] *cs,
+    crop_aabb_full[1] *cs,
+    crop_aabb_full[2] *cs,
+    crop_aabb_full[3] *cs};
   for(int k=0;k<4;k++)
     black[k] = img_param->black[k]/65535.0f;
   for(int k=0;k<4;k++)

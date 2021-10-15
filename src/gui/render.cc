@@ -70,9 +70,7 @@ void widget_end()
     vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
         s_graph_run_all);// &~s_graph_run_upload_source);
     // reset view:
-    vkdt.state.look_at_x = FLT_MAX;
-    vkdt.state.look_at_y = FLT_MAX;
-    vkdt.state.scale = -1;
+    darkroom_reset_zoom();
     int modid = vkdt.wstate.active_widget_modid;
     int parid = vkdt.wstate.active_widget_parid;
     int parnm = vkdt.wstate.active_widget_parnm;
