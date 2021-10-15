@@ -31,10 +31,9 @@ targets, such as the main view and histograms.
 
 ## packages
 
-so far i only know these experimental opensuse tumbleweed binary packages, let
-me know if you try them and whether this actually works:
+there are up-to-date packages (deb/rpm) in the
 
-[https://build.opensuse.org/package/show/home:darix:pixls.us/vkdt](https://build.opensuse.org/package/show/home:darix:pixls.us/vkdt)
+[opensuse build system](https://software.opensuse.org/download.html?project=graphics%3Adarktable%3Amaster&package=vkdt)
 
 ## build instructions
 
