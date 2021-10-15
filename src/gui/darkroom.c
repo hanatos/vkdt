@@ -600,6 +600,7 @@ darkroom_process()
 int
 darkroom_enter()
 {
+  if(vkdt.state.scale < 0.0f) darkroom_reset_zoom();
   vkdt.state.anim_frame = 0;
   vkdt.state.anim_playing = 0;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
