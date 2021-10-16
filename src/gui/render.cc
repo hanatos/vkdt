@@ -1960,6 +1960,15 @@ void render_darkroom()
           vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
         ImGui::EndTabItem();
       }
+      if(ImGui::BeginTabItem("presets"))
+      {
+        if(ImGui::Button("create preset"))
+          dt_gui_dr_preset_create();
+
+        dt_gui_dr_modals(); // draw modal window for presets
+
+        ImGui::EndTabItem();
+      }
       ImGui::EndTabBar();
     }
 

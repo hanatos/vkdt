@@ -1,5 +1,7 @@
 #pragma once
 #include "imgui.h"
+#include <sys/types.h>
+#include <sys/stat.h>
 
 // api functions for gui interactions. these can be
 // triggered by pressing buttons or by issuing hotkey combinations.
@@ -192,3 +194,141 @@ dt_gui_lt_scroll_bottom()
 {
   ImGui::SetScrollY(ImGui::GetScrollMaxY());
 }
+
+
+
+
+
+// darkroom mode accessors
+// XXX these modals should likely go into render.cc or something else!
+// XXX they cannot be called from anywhere else and context still depends on them!
+void
+dt_gui_dr_modals()
+{
+  if(ImGui::BeginPopupModal("create preset", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    static char  preset[32] = "default";
+    static char  filter[32] = "";
+    static int   line_cnt = 0;
+    static char *line[1024] = {0};
+    static char  sel[1024];
+    static char *buf = 0;
+    static int   ok = 0;
+    if(!buf)
+    {
+      ok = 0;
+      char filename[1024] = {0};
+      uint32_t cid = dt_db_current_imgid(&vkdt.db);
+      if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+      FILE *f = fopen(filename, "rb");
+      size_t s = 0;
+      if(f)
+      {
+        fseek(f, 0, SEEK_END);
+        s = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        buf = (char *)malloc(s);
+        fread(buf, s, 1, f);
+        fclose(f);
+      }
+      line_cnt = 1;
+      line[0] = buf;
+      for(int i=0;i<s-1 && line_cnt < 1024;i++)
+        if(buf[i] == '\n') { line[line_cnt++] = buf+i+1; buf[i] = 0; }
+    }
+    
+    if(ok == 0)
+    {
+      if (g_busy >= 4) // WindowIsOpening or so?
+        ImGui::SetKeyboardFocusHere();
+      if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
+        ok = 1;
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("type to filter the list\n"
+                          "press enter to accept\n"
+                          "press escape to close");
+      if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+        ok = 3;
+
+      for(int i=0;i<line_cnt;i++)
+      {
+        if(filter[0] == 0 || strstr(line[i], filter))
+        {
+          const int selected = sel[i];
+          if(selected)
+          {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8, 0.2, 0.1, 1.0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0, 0.4, 0.2, 1.0));
+          }
+          if(ImGui::Button(line[i])) sel[i] = 1;
+          if(ImGui::IsItemHovered())
+          {
+            if(selected) ImGui::SetTooltip("click to drop from preset");
+            else         ImGui::SetTooltip("click to include in preset");
+          }
+          if(selected) ImGui::PopStyleColor(2);
+        }
+      }
+
+      if (ImGui::Button("cancel", ImVec2(120, 0))) ok = 3;
+      ImGui::SameLine();
+      if (ImGui::Button("ok", ImVec2(120, 0))) ok = 1;
+    }
+    else if(ok == 1)
+    {
+      ImGui::Text("enter preset name");
+      if(ImGui::InputText("##preset", preset, IM_ARRAYSIZE(preset), ImGuiInputTextFlags_EnterReturnsTrue))
+        ok = 2;
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("presets will be stored as\n"
+                          "~/.config/vkdt/presets/<this>.pst");
+      if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+        ok = 3;
+      if (ImGui::Button("cancel##2", ImVec2(120, 0))) ok = 3;
+      ImGui::SameLine();
+      if (ImGui::Button("ok##2", ImVec2(120, 0))) ok = 2;
+    }
+
+    if(ok == 2)
+    {
+      char filename[512];
+      snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
+      mkdir(filename, 0755);
+      snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
+      FILE *f = fopen(filename, "wb");
+      if(f)
+      {
+        for(int i=0;i<line_cnt;i++)
+          if(sel[i]) fprintf(f, "%s\n", line[i]);
+        fclose(f);
+      }
+      else dt_gui_notification("failed to write %s!", filename);
+    }
+
+    if(ok > 1)
+    {
+      free(buf);
+      buf = 0;
+      line_cnt = 0;
+      ok = 0;
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
+}
+
+void
+dt_gui_dr_preset_create()
+{
+  ImGui::OpenPopup("create preset");
+  g_busy += 5;
+}
+
+#if 0 // XXX this or buttons for each preset directly in the tab?
+void
+dt_gui_dr_preset_apply()
+{
+  ImGui::OpenPopup("apply preset");
+
+}
+#endif
