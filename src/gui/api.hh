@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 // api functions for gui interactions. these can be
 // triggered by pressing buttons or by issuing hotkey combinations.
@@ -200,6 +201,14 @@ dt_gui_lt_scroll_bottom()
 
 
 // darkroom mode accessors
+int dt_presets_filter_pst(const struct dirent *d)
+{
+  if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
+  size_t len = strlen(d->d_name);
+  if(len < 4) return 0;
+  if(strcmp(d->d_name + len-4, ".pst")) return 0; // .pst extension
+  return 1;
+}
 // XXX these modals should likely go into render.cc or something else!
 // XXX they cannot be called from anywhere else and context still depends on them!
 void
@@ -235,6 +244,7 @@ dt_gui_dr_modals()
       line[0] = buf;
       for(int i=0;i<s-1 && line_cnt < 1024;i++)
         if(buf[i] == '\n') { line[line_cnt++] = buf+i+1; buf[i] = 0; }
+      if(buf[s-1] == '\n') buf[s-1] = 0;
     }
     
     if(ok == 0)
@@ -315,6 +325,80 @@ dt_gui_dr_modals()
     }
     ImGui::EndPopup();
   }
+  if(ImGui::BeginPopupModal("apply preset", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    int ok = 0;
+    int pick = -1;
+    static struct dirent **ent = 0;
+    static int ent_cnt = 0;
+    static char filter[256] = "";
+    if (g_busy >= 4) // WindowIsOpening or so?
+      ImGui::SetKeyboardFocusHere();
+    if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
+      ok = 1;
+    if(ImGui::IsItemHovered())
+      ImGui::SetTooltip(
+          "type to filter the list of presets\n"
+          "press enter to apply top item\n"
+          "press escape to close");
+    if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+      ImGui::CloseCurrentPopup();
+
+    if(!ent_cnt)
+    { // open preset directory
+      // XXX what if there are no presets yet? busy loop!!
+      char dirname[512];
+      snprintf(dirname, sizeof(dirname), "%s/presets", vkdt.db.basedir);
+      ent_cnt = scandir(dirname, &ent, 0, alphasort);
+    }
+    for(int i=0;i<ent_cnt;i++)
+    {
+      if(strstr(ent[i]->d_name, filter))
+      if(strstr(ent[i]->d_name, ".pst"))
+      {
+        if(pick < 0) pick = i; // for the "press enter" case
+        if(ImGui::Button(ent[i]->d_name))
+        {
+          ok = 1;
+          pick = i;
+        }
+      }
+    }
+
+    if (ImGui::Button("cancel", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
+    ImGui::SameLine();
+    if (ImGui::Button("ok", ImVec2(120, 0))) ok = 1;
+    if(ok)
+    {
+      char filename[512];
+      snprintf(filename, sizeof(filename), "%s/presets/%s", vkdt.db.basedir, ent[pick]->d_name);
+      FILE *f = fopen(filename, "rb");
+      uint32_t lno = 0;
+      if(f)
+      {
+        char line[300000];
+        while(!feof(f))
+        {
+          fscanf(f, "%299999[^\n]", line);
+          if(fgetc(f) == EOF) break; // read \n
+          lno++;
+          // > 0 are warnings, < 0 are fatal, 0 is success
+          if(dt_graph_read_config_line(&vkdt.graph_dev, line) < 0) goto error;
+        }
+        fclose(f);
+        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+        darkroom_reset_zoom();
+      }
+      else
+      {
+error:
+        if(f) fclose(f);
+        dt_gui_notification("failed to read %s line %d", filename, lno);
+      }
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
 }
 
 void
@@ -324,11 +408,9 @@ dt_gui_dr_preset_create()
   g_busy += 5;
 }
 
-#if 0 // XXX this or buttons for each preset directly in the tab?
 void
 dt_gui_dr_preset_apply()
 {
   ImGui::OpenPopup("apply preset");
-
+  g_busy += 5;
 }
-#endif

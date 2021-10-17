@@ -1964,6 +1964,8 @@ void render_darkroom()
       {
         if(ImGui::Button("create preset"))
           dt_gui_dr_preset_create();
+        if(ImGui::Button("apply preset"))
+          dt_gui_dr_preset_apply();
 
         dt_gui_dr_modals(); // draw modal window for presets
 
