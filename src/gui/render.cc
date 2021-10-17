@@ -46,6 +46,10 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"scroll end",    "scroll to end of collection",      GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_G},
   {"scroll top",    "scroll to top of collection",      GLFW_KEY_G},
 };
+static ImHotKey::HotKey hk_darkroom[] = {
+  {"create preset", "create new preset from image",     GLFW_KEY_LEFT_CONTROL, GLFW_KEY_O},
+  {"apply preset",  "choose preset to apply",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_P},
+};
 
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
@@ -1844,6 +1848,13 @@ void render_darkroom()
   }
 
   { // right panel
+    int hotkey = -1;
+    static double hotkey_time = 0;
+    if(ImGui::GetTime() - hotkey_time > 0.02)
+    {
+      hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+      hotkey_time = ImGui::GetTime();
+    }
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
     // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
@@ -1934,44 +1945,63 @@ void render_darkroom()
       }
       if(ImGui::BeginTabItem("esoteric"))
       {
-        if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
-        { // LOD switcher
-          dt_gui_set_lod(vkdt.wstate.lod);
+        if(ImGui::CollapsingHeader("settings"))
+        {
+          if(ImGui::Button("hotkeys"))
+            ImGui::OpenPopup("edit hotkeys");
+          ImHotKey::Edit(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]), "edit hotkeys");
+
+          if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
+          { // LOD switcher
+            dt_gui_set_lod(vkdt.wstate.lod);
+          }
         }
 
-        // animation controls
-        float lineht = 1.2*ImGui::GetTextLineHeight(); // ??
-        float bwd = 0.12f;
-        ImVec2 size(bwd*vkdt.state.panel_wd, lineht);
-        if(vkdt.state.anim_playing)
-        {
-          if(ImGui::Button("stop", size))
-            vkdt.state.anim_playing = 0;
+        if(ImGui::CollapsingHeader("animation"))
+        { // animation controls
+          float bwd = 0.12f;
+          ImVec2 size(bwd*vkdt.state.panel_wd, 0);
+          if(vkdt.state.anim_playing)
+          {
+            if(ImGui::Button("stop", size))
+              vkdt.state.anim_playing = 0;
+          }
+          else if(ImGui::Button("play", size))
+            vkdt.state.anim_playing = 1;
+          ImGui::SameLine();
+          if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+          {
+            vkdt.graph_dev.frame = vkdt.state.anim_frame;
+            vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+          }
+          if(ImGui::SliderInt("frame count", &vkdt.state.anim_max_frame, 0, 10000))
+            vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
         }
-        else if(ImGui::Button("play", size))
-          vkdt.state.anim_playing = 1;
-        ImGui::SameLine();
-        if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
-        {
-          vkdt.graph_dev.frame = vkdt.state.anim_frame;
-          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        }
-        if(ImGui::SliderInt("frame count", &vkdt.state.anim_max_frame, 0, 10000))
-          vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
-        ImGui::EndTabItem();
-      }
-      if(ImGui::BeginTabItem("presets"))
-      {
-        if(ImGui::Button("create preset"))
-          dt_gui_dr_preset_create();
-        if(ImGui::Button("apply preset"))
-          dt_gui_dr_preset_apply();
 
-        dt_gui_dr_modals(); // draw modal window for presets
+        if(ImGui::CollapsingHeader("presets"))
+        {
+          ImVec2 size((vkdt.state.panel_wd-4)/2, 0);
+          if(ImGui::Button("create preset", size))
+            hotkey = 0;
+          ImGui::SameLine();
+          if(ImGui::Button("apply preset", size))
+            hotkey = 1;
+        }
 
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();
+
+      switch(hotkey)
+      {
+        case 0:
+          dt_gui_dr_preset_create();
+          break;
+        case 1:
+          dt_gui_dr_preset_apply();
+        default:;
+      }
+      dt_gui_dr_modals(); // draw modal window for presets
     }
 
     ImGui::End();
