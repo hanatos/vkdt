@@ -201,14 +201,6 @@ dt_gui_lt_scroll_bottom()
 
 
 // darkroom mode accessors
-int dt_presets_filter_pst(const struct dirent *d)
-{
-  if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
-  size_t len = strlen(d->d_name);
-  if(len < 4) return 0;
-  if(strcmp(d->d_name + len-4, ".pst")) return 0; // .pst extension
-  return 1;
-}
 // XXX these modals should likely go into render.cc or something else!
 // XXX they cannot be called from anywhere else and context still depends on them!
 void
@@ -229,6 +221,8 @@ dt_gui_dr_modals()
       char filename[1024] = {0};
       uint32_t cid = dt_db_current_imgid(&vkdt.db);
       if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+      if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
+        dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
       FILE *f = fopen(filename, "rb");
       size_t s = 0;
       if(f)
@@ -346,7 +340,6 @@ dt_gui_dr_modals()
 
     if(!ent_cnt)
     { // open preset directory
-      // XXX what if there are no presets yet? busy loop!!
       char dirname[512];
       snprintf(dirname, sizeof(dirname), "%s/presets", vkdt.db.basedir);
       ent_cnt = scandir(dirname, &ent, 0, alphasort);
