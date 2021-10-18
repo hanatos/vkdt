@@ -108,13 +108,16 @@ main()
   const float white = params.white;
 
 #if 1
-  float scale = 1.0f;
   // rescale upsampled values to match unclipped values in fine buffer
   // this is risky because min might be close to black/0 so it may be unstable:
   // guess channel by darkest blurry version
-  if     (upsm.r < upsm.g && upsm.r < upsm.b)  scale = fine.r/max(0.0001, upsm.r);
-  else if(upsm.g < upsm.r && upsm.g < upsm.b)  scale = fine.g/max(0.0001, upsm.g);
-  else /*(upsm.b < upsm.g && upsm.b < upsm.r)*/scale = fine.b/max(0.0001, upsm.b);
+  float sr = fine.r/max(0.001, upsm.r);
+  float sg = fine.g/max(0.001, upsm.g);
+  float sb = fine.b/max(0.001, upsm.b);
+  float wr = exp(upsm.r - max(upsm.g, upsm.b));
+  float wg = exp(upsm.g - max(upsm.r, upsm.b));
+  float wb = exp(upsm.b - max(upsm.r, upsm.g));
+  float scale = (sr * wr + sg * wg + sb * wb) / (wr + wg + wb);
 
   vec3 rec = upsm * scale;
 

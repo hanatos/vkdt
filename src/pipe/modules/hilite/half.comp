@@ -64,7 +64,7 @@ main()
       rgba.rb = col;
     else
       rgba.br = col;
-    rgba.g = (c0 + c2 + c4 + c6 + c8)*1.0/5.0;
+    rgba.g = (c0 + c2 + c4 + c6 + c8)/5.0;
     rgba.a = 1.0;
   }
   else

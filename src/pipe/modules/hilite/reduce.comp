@@ -47,7 +47,7 @@ main()
     float cmax = max(rgbw.r, max(rgbw.g, rgbw.b));
     float cmin = min(rgbw.r, min(rgbw.g, rgbw.b));
     float sat = (cmax-cmin)/cmax;
-    if(all(lessThan(rgb, vec3(white))))
+    if(all(lessThanEqual(rgb, vec3(white))))
     {
       // desaturate colours, if close to white (s)
       float s = smoothstep(0.2, 1.0, max(rgb.r, max(rgb.g, rgb.b))/white);
