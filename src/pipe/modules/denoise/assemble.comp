@@ -77,7 +77,7 @@ main()
     // the noise model is  sigma^2 = a + x*b  where x is the uint16_t scale raw value minus the raw black level.
     // this meas we have to re-scale our normalised value to the previous white level.
     const float scale = 65535.0*(push.white.g-push.black.g);
-    const float sigma = 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale;
+    const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(

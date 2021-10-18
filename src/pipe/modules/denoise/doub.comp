@@ -59,7 +59,7 @@ main()
 
   // find colour channel for this pixel and init some variables for that:
   float black = push.black.g, white = push.white.g, crs = upsm.g, crs1 = down.g,
-        T = params.strength*upsm.w, blendw = params.luma;
+        T = 0.5 * params.strength*upsm.w, blendw = params.luma;
   if(push.filters == 9)
   { // xtrans
     bool blue_top = ((ipos.x/3 + ipos.y/3) & 1) > 0;
@@ -104,7 +104,7 @@ main()
   crs1 = max(0, (crs1 - black)/(white - black));
   if(val < 1.0) // XXX TODO: highlight reconstruct in pyramid!
   {
-    float wav = (val - crs1)/sigma;
+    float wav = (val - crs1)/max(sigma, 1e-8);
     float tt = min(1.0, wav/max(2.0*T,1e-8));
     val = mix(val, max(0, crs + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
   }
