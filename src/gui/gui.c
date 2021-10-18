@@ -37,10 +37,20 @@ style_to_state()
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
-  glfwInit();
+  if(!glfwInit())
+  {
+    const char* description;
+    glfwGetError(&description);
+    dt_log(s_log_gui|s_log_err, "glfwInit() failed: %s", description);
+    return 1;
+  }
+  dt_log(s_log_gui, "glfwGetVersionString() : %s", glfwGetVersionString() );
   if(!glfwVulkanSupported())
   {
-    dt_log(s_log_gui|s_log_err, "no vulkan support found!");
+    const char* description;
+    glfwGetError(&description);
+    dt_log(s_log_gui|s_log_err, "glfwVulkanSupported(): no vulkan support found: %s", description);
+    glfwTerminate(); // for correctness, if in future we don't just exit(1)
     return 1;
   }
 
