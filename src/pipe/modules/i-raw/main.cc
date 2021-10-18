@@ -103,7 +103,7 @@ load_raw(
 
     mod_data->m = f.readFile();
 
-    rawspeed::RawParser t(mod_data->m.get());
+    rawspeed::RawParser t(*mod_data->m);
     mod_data->d = t.getDecoder(meta);
 
     if(!mod_data->d.get()) return 1;
@@ -331,7 +331,7 @@ void modify_roi_out(
     // (currently) aligned with the top left of the raw data.
     for(int i = 0; i < 6; ++i)
       for(int j = 0; j < 6; ++j)
-        f[j][i] = mod_data->d->mRaw->cfa.getColorAt(i, j);
+        f[j][i] = static_cast<uint8_t>(mod_data->d->mRaw->cfa.getColorAt(i, j));
 
     // find first green in same row
     for(ox=0;ox<6&&FCxtrans(0,ox,f)!=1;ox++)
