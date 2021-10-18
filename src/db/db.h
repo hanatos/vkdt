@@ -125,6 +125,7 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".orf") ||
          !strcasecmp(f2, ".arw") ||
          !strcasecmp(f2, ".srw") ||
+         !strcasecmp(f2, ".nrw") ||
          !strcasecmp(f2, ".kc2") ||
          !strcasecmp(f2, ".dng") ||
          !strcasecmp(f2, ".raf") ||
