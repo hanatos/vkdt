@@ -153,14 +153,20 @@ main()
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
-    vec3 thrs = vec3(1.0, params.chroma, params.chroma) * params.strength;// * test;
+    vec3 thrs0 = vec3(1.0, params.chroma, params.chroma) * params.strength;// * test;
+    vec3 thrs;
     vec3 tt = vec3(0.0);
+    const float ht = 2.0;
+    thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down3.x) > ht));
     tt = min(vec3(1.0), abs(down3)/(2*thrs));
     down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs, vec3(0.0)), abs(down3), tt);
+    thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down2.x) > ht));
     tt = min(vec3(1.0), abs(down2)/(2*thrs));
     down4 += sigma * b2 * sign(down2) * mix(max(abs(down2) - thrs, vec3(0.0)), abs(down2), tt);
+    thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down1.x) > ht));
     tt = min(vec3(1.0), abs(down1)/(2*thrs));
     down4 += sigma * b1 * sign(down1) * mix(max(abs(down1) - thrs, vec3(0.0)), abs(down1), tt);
+    thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down0.x) > ht));
     tt = min(vec3(1.0), abs(down0)/(2*thrs));
     down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs, vec3(0.0)), abs(down0), tt);
   }

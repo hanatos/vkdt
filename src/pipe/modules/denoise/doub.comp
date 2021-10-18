@@ -105,6 +105,8 @@ main()
   if(val < 1.0) // XXX TODO: highlight reconstruct in pyramid!
   {
     float wav = (val - crs1)/max(sigma, 1e-8);
+    const float ht = 2.0;
+    if(abs(wav) > ht) T = 10000.0;
     float tt = min(1.0, wav/max(2.0*T,1e-8));
     val = mix(val, max(0, crs + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
   }

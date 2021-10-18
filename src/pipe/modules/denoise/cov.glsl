@@ -126,7 +126,8 @@ vec3 response(sampler2D img, ivec2 p, out vec4 cov, int level)
   for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
   {
     vec3 px = texture(img, (p + 0.5 + ivec2(i, j))*isz).rgb;
-    if(px.r > 3.0 * mean_b) continue; // detect hot pixels
+    const float ht = 2.0;
+    if(px.r > ht * mean_b) continue; // detect hot pixels
     vec2 x = vec2(i, j);
     x = vec2(dot(x, evec0), dot(x, evec1));
     float w = max(1e-9, exp(-0.5*dot(x/eval, x)));
