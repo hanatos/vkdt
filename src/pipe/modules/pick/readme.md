@@ -10,3 +10,16 @@ to copy/paste it from the `.cfg` file afterwards.
 
 note that the gui will only instant-update the picked colour if the runflags
 for the graph contain *download sink*.
+
+# parameters
+
+* `nspots` number of picked spots
+* `spots` geometric coordinates of the picked spots in the image
+* `picked` actually picked colour values (3x `nspots` floats, rec2020)
+* `ref` reference values, to be set by the user in the `.cfg` file (rec2020)
+* `show` 0 - picked, 1 - ref, 2 - diff
+* `grab` indicates whether the results will be grabbed all the time (not only during regular pipeline reruns)
+* `de76` a dummy parameter that gets filled with the CIE DE76 error metric between `picked` and `ref`
+
+note that the format of `nspots` and `ref` is the same as for
+the display of reference values in the [CIE xy diagram plot](../ciediag/readme.md).

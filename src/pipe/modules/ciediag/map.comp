@@ -8,8 +8,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4  crop;
-  float mode;
+  int nspots;
+  int pad0, pad1, pad2;
+  vec4 ref[18];
 } params;
 
 layout( // input ui32 buffer r
@@ -109,6 +110,18 @@ main()
     const float y = cf.x*xy.x*xy.x*xy.x + cf.y*xy.x*xy.x + cf.z*xy.x + cf.w;
     d = abs(xy.y - y);
     rgb.g = max(rgb.g, 0.9 * smoothstep(t, 0.0, d));
+  }
+
+  for(int i=0;i<params.nspots;i++)
+  { // reference spots, same format as colour picker
+    vec3 pp = inverse(xyz_to_rec2020)*vec3(
+          params.ref[(3*i+0)/4][(3*i+0)%4],
+          params.ref[(3*i+1)/4][(3*i+1)%4],
+          params.ref[(3*i+2)/4][(3*i+2)%4]);
+    vec2 p = pp.xy / dot(pp, vec3(1));
+    d = distance(xy, p);
+    rgb.r = max(rgb.r, 0.9 * smoothstep(3*t, 0.0, d));
+    rgb.g = max(rgb.g, 0.9 * smoothstep(3*t, 0.0, d));
   }
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));

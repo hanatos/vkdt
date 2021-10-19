@@ -8,8 +8,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4  crop;
-  float mode;
+  int nspots;
+  int pad0, pad1, pad2;
+  vec4 ref[18];
 } params;
 
 layout( // input f16 buffer rgb
