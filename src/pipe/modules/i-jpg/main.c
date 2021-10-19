@@ -88,7 +88,8 @@ read_plain(
     jpginput_buf_t *jpg, uint8_t *out)
 {
   JSAMPROW row_pointer[1];
-  row_pointer[0] = malloc(jpg->dinfo.output_width * jpg->dinfo.num_components);
+  int nc = jpg->dinfo.num_components;
+  row_pointer[0] = malloc(jpg->dinfo.output_width * nc);
   uint8_t *tmp = out;
   while(jpg->dinfo.output_scanline < jpg->dinfo.image_height)
   {
@@ -103,7 +104,7 @@ read_plain(
     }
     for(unsigned int i = 0; i < jpg->dinfo.image_width; i++)
     {
-      for(int k = 0; k < 3; k++) tmp[4 * i + k] = row_pointer[0][3 * i + k];
+      for(int k = 0; k < 3; k++) tmp[4 * i + k] = row_pointer[0][nc * i + MIN(k,nc-1)];
       tmp[4*i+3] = 255;
     }
     tmp += 4 * jpg->width;
