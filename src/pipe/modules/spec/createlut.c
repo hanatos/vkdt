@@ -24,7 +24,7 @@
 #include "core/core.h"
 
 int use_bad_cmf = 0;
-// okay let's also hack the cie functions to our taste (or the gpu approximations we'll do)
+// for fast gpu conversion, we use the abbridged versions of the cie functions:
 #define BAD_SAMPLES 30
 #define BAD_FINE_SAMPLES 30
 #define BAD_LAMBDA_MIN 400.0

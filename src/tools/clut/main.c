@@ -1,3 +1,7 @@
+// this creates an input device transform (idt) lookup table for a given camera
+// based on spectral sensitivity functions (ssf). works best with a high-res
+// high-quality spectral upsampling table, create via
+// `mkspectra 1024 /dev/null XYZ`. (note the lack of `-b`)
 // #define USE_LEVMAR
 #include "core/inpaint.h"
 #include "core/half.h"
@@ -701,8 +705,7 @@ int main(int argc, char *argv[])
   header_t header;
   float *spectra = 0;
   {
-    // FILE *f = fopen("data/spectra.lut", "rb");
-    FILE *f = fopen("/home/jo/vc/papers/gamut/comp/cfa/spectra.lut", "rb");
+    FILE *f = fopen("spectra.lut", "rb");
     if(!f) goto error;
     if(fread(&header, sizeof(header_t), 1, f) != 1) goto error;
     if(header.channels != 4) goto error;
