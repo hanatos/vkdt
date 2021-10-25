@@ -1,5 +1,6 @@
 #pragma once
 
+#include <alloca.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
