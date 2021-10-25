@@ -418,7 +418,8 @@ void render_lighttable()
   // if thumbnails are initialised, draw a couple of them on screen to prove
   // that we've done something:
   { // center image view
-    if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().WantCaptureKeyboard)
+    if(ImGui::IsMouseDoubleClicked(0) && dt_db_current_imgid(&vkdt.db) != -1u && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().WantCaptureKeyboard &&
+        ImGui::GetMousePos().x < vkdt.state.center_x + vkdt.state.center_wd)
     { // is false if button returns true, so just abort before we redraw anything at all
       darkroom_reset_zoom();
       dt_view_switch(s_view_darkroom);
