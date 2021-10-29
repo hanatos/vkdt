@@ -2040,7 +2040,7 @@ extern "C" void dt_gui_render_frame_imgui()
       | ImGuiWindowFlags_NoMove
       | ImGuiWindowFlags_NoResize
       | ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y/2),  ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, 0.05 * vkdt.state.center_ht), ImGuiCond_Always);
     ImGui::Begin("notification message", 0, window_flags);
     ImGui::Text("%s", vkdt.wstate.notification_msg);
