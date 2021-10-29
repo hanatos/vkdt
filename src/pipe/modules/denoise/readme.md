@@ -29,7 +29,6 @@ you can use the [align](../align/readme.md) module for further noise reduction.
 ## parameters
 
 * `strength` the overall strength of the wavelet thresholding. this directly scales the unbiased soft shrinkage threshold.
-* `chroma` this affects the threshold only for the `yuv` colour channels
 * `luma` this blends back a portion of the original `y` channel after denoising
 
 
