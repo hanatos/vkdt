@@ -9,7 +9,6 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float strength;
-  float chroma;
   float luma;
 } params;
 
@@ -70,13 +69,13 @@ main()
     {
       black = push.black.b; white = push.white.b;
       crs = upsm.b; crs1 = down.b; blendw = 1.0;
-      T *= params.chroma/upsm.w;
+      T /= upsm.w;
     }
     else
     {
       black = push.black.r; white = push.white.r;
       crs = upsm.r; crs1 = down.r; blendw = 1.0;
-      T *= params.chroma/upsm.w;
+      T /= upsm.w;
     }
   }
   else
@@ -88,13 +87,13 @@ main()
     { // red
       black = push.black.r; white = push.white.r;
       crs = upsm.r; crs1 = down.r; blendw = 1.0;
-      T *= params.chroma/upsm.w;
+      T /= upsm.w;
     }
     else if(((ipos.x & 1) == 1) && ((ipos.y & 1) == 1))
     { // blue
       black = push.black.b; white = push.white.b;
       crs = upsm.b; crs1 = down.b; blendw = 1.0;
-      T *= params.chroma/upsm.w;
+      T /= upsm.w;
     }
   }
   // crs = (crs - black)/(white-black); // XXX
