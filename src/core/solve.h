@@ -114,7 +114,7 @@ dt_gauss_newton_cg(
     // if(resid <= 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
-    fprintf(stderr, "[solve] residual %g\n", resid);
+    // fprintf(stderr, "[solve] residual %g\n", resid);
     if(resid < 1e-30) return resid;
   }
   return resid;
