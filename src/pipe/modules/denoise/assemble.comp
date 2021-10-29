@@ -52,8 +52,6 @@ main()
       0.587, -0.289, -0.515,
       0.114, 0.436, -0.100);
   vec3 orig = texelFetch(img_s0, ipos+push.crop.xy, 0).rgb;
-  orig = (orig - push.black.rgb)/(push.white.rgb - push.black.rgb);
-  orig = rgb_to_yuv * (orig * push.wb.rgb);
   float test = 1.0;
   { // scope for registers
     ivec2 esi = ipos;
@@ -76,8 +74,10 @@ main()
     // our data is now normalised to [0, 1] already:
     // the noise model is  sigma^2 = a + x*b  where x is the uint16_t scale raw value minus the raw black level.
     // this meas we have to re-scale our normalised value to the previous white level.
-    const float scale = 65535.0*(push.white.g-push.black.g);
-    const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
+    // const float scale = 65535.0*(push.white.g-push.black.g);
+    // const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
+    const float scale = 65535.0;
+    const float sigma = max(1e-8, 10.0 * sqrt(push.noise_a + scale*max(down2.g, 0.0)*push.noise_b)/scale);
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
@@ -137,6 +137,7 @@ main()
     }
     else // if(push.filters != 9)
     {
+      test = 1.0; // XXX switch off
       // XXX this is important for sharpness!
       // test = abs(slope);
       // test = max(0, 1.0-4.0*test);
@@ -153,7 +154,7 @@ main()
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
-    vec3 thrs0 = vec3(1.0, params.chroma, params.chroma) * params.strength;// * test;
+    vec3 thrs0 = vec3(params.strength);
     vec3 thrs;
     vec3 tt = vec3(0.0);
     const float ht = 2.0;
@@ -171,8 +172,10 @@ main()
     down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs, vec3(0.0)), abs(down0), tt);
   }
 
-  down4.x = mix(orig.x, down4.x, params.luma);
-  vec3 rgb = max(vec3(0), (inverse(rgb_to_yuv) * down4) / push.wb.rgb);
+  vec3 yuv  = rgb_to_yuv * ((down4 - push.black.rgb) / (push.white.rgb - push.black.rgb) * push.wb.rgb);
+  vec3 yuvo = rgb_to_yuv * ((orig  - push.black.rgb) / (push.white.rgb - push.black.rgb) * push.wb.rgb);
+  yuv.x = mix(yuvo.x, yuv.x, params.luma);
+  vec3 rgb = (inverse(rgb_to_yuv) * yuv) / push.wb.rgb * (push.white.rgb - push.black.rgb) + push.black.rgb;
 
   imageStore(img_out, ipos, vec4(rgb, test));
 }

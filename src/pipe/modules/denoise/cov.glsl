@@ -37,10 +37,10 @@ vec3 response(sampler2D img, ivec2 p, out vec4 cov, int level)
   for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
   {
     float px;
-    if(level == 0)
+    // if(level == 0)
       px = luminance_rec2020(texture(img, (p + 0.5 + ivec2(i, j))*isz).rgb);
-    else
-      px = texture(img, (p + 0.5 + ivec2(i, j))*isz).r; // yuv
+    // else
+    //   px = texture(img, (p + 0.5 + ivec2(i, j))*isz).r; // yuv
     float w = pc[j+2]*pc[i+2];
     vec2 p = vec2(i, j);
     mw += p*px*w;
@@ -56,10 +56,10 @@ vec3 response(sampler2D img, ivec2 p, out vec4 cov, int level)
   for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
   {
     float px;
-    if(level == 0)
+    // if(level == 0)
       px = luminance_rec2020(texture(img, (p + 0.5 + ivec2(i, j))*isz).rgb);
-    else
-      px = texture(img, (p + 0.5 + ivec2(i, j))*isz).r; // yuv
+    // else
+      // px = texture(img, (p + 0.5 + ivec2(i, j))*isz).r; // yuv
     float w = pc[j+2]*pc[i+2];
     mean_b += px/25.0;
     float p2 = px * px * w;

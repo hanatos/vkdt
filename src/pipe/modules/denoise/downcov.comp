@@ -53,16 +53,6 @@ main()
   ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * imageSize(img_out)/2;
   ipos = ipos / 2 + off;
 
-  if(push.level == 0)
-  { // this is for srgb not rec2020 or camera raw, but whatever
-    const mat3 rgb_to_yuv = mat3(
-        0.299, -0.147, 0.615,
-        0.587, -0.289, -0.515,
-        0.114, 0.436, -0.100);
-    rgb = (rgb - push.black.rgb)/(push.white.rgb - push.black.rgb);
-    rgb = rgb_to_yuv * (rgb * push.wb.rgb);
-  }
-
   // float edge = clamp(0.03+pow(100.0*max(0.0,min(cov.x, cov.y)-0.09), 2.0), 0.0, 1.0);
   // float edge = clamp(pow(100.0*max(0.0,min(cov.x, cov.y)-0.09), 2.0), 0.0, 1.0);
   float edge = clamp(75.0*max(0.0, cov.y-0.09), 0.0, 1.0);

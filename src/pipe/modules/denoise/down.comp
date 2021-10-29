@@ -55,7 +55,7 @@ main()
   // const float t = 0.3; // a bit sharper
   const float t = 0.2;
   vec3 rgb;
-  if(push.level < 2) // TODO: detect based on xtrans/bayer and noise level
+  if(push.level < 1) // TODO: detect based on xtrans/bayer and noise level
   {
     vec4 cov; // ignore
     rgb = response(img_in, ipos + push.crop.xy, cov, push.level);
@@ -65,10 +65,11 @@ main()
     rgb = texture(img_in, (ipos + 0.5 + push.crop.xy)/vec2(sz)).rgb;
     vec3 sum = t * rgb;
     float wgt = t;
-    const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
+    // const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
+    const float scale = 65535.0;
     const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
-    const float sigma = pow(0.5, push.level) * 5.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
+    const float sigma = pow(0.5, push.level) * 10.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
     vec3 wc = vec3(1./sigma);
 #define lookup(O) \
     do { \
@@ -90,17 +91,6 @@ main()
   // sort image to write positions so we can iterate the filter
   ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * imageSize(img_out)/2;
   ipos = ipos / 2 + off;
-
-  if(push.level == 0)
-  {
-    // this is for srgb not rec2020, but whatever
-    const mat3 rgb_to_yuv = mat3(
-        0.299, -0.147, 0.615,
-        0.587, -0.289, -0.515,
-        0.114, 0.436, -0.100);
-    rgb = (rgb - push.black.rgb)/(push.white.rgb - push.black.rgb);
-    rgb = rgb_to_yuv * (rgb * push.wb.rgb);
-  }
 
   // TODO: consider 2px padding radius for next iteration and mirror repeat!
   imageStore(img_out, ipos, vec4(rgb, 1));
