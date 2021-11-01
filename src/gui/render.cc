@@ -1254,8 +1254,8 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
+          g_busy += 2;
         }
-        g_busy += 2;
       }
       break;
     }
