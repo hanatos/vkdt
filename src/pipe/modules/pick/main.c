@@ -211,7 +211,7 @@ void write_sink(
   if(cnt > 24) cnt = 24; // sanitize, we don't have more memory than this
   if(cnt > wd) cnt = wd;
   if(ht < 4) return;
-  de76[0] = 1e38f; de76[1] = 0.0f, de76[2] = 0.0f;
+  de76[1] = 1e38f; de76[0] = 0.0f, de76[2] = 0.0f;
   int mi = -1, Mi = -1;
   for(int k=0;k<cnt;k++)
   {
@@ -224,17 +224,17 @@ void write_sink(
       picked[3*k+0] -= ref[3*k+0];
       picked[3*k+1] -= ref[3*k+1];
       picked[3*k+2] -= ref[3*k+2];
-      if(d < de76[0])
+      if(d < de76[1])
       {
         mi = k;
-        de76[0] = d;
+        de76[1] = d;
       }
       else if(d > de76[2])
       {
         Mi = k;
         de76[2] = d;
       }
-      de76[1] += d/cnt;
+      de76[0] += d/cnt;
     }
     else if(show == 1)
     {
