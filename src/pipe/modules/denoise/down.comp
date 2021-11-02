@@ -88,7 +88,7 @@ main()
   }
 
   // sort image to write positions so we can iterate the filter
-  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * imageSize(img_out)/2;
+  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
   ipos = ipos / 2 + off;
 
   // TODO: consider 2px padding radius for next iteration and mirror repeat!

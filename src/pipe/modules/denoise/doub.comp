@@ -96,16 +96,14 @@ main()
       T /= upsm.w;
     }
   }
-  // crs = (crs - black)/(white-black); // XXX
-  const float scale = 65535.0;// *(white-black);
+  const float scale = 65535.0;
   const float sigma = 10.0*sqrt(push.noise_a + scale*max(crs, 0.0)*push.noise_b)/scale;
   float val = texture(img_in, (ipos+push.crop.xy+.5)/vec2(textureSize(img_in, 0))).r;
 
   blendw = 0.5 * (blendw + 1.0);
   // T = 0.0;// * upsm.w; // XXX
-  // val  = max(0, (val  - black)/(white - black));
-  // crs1 = max(0, (crs1 - black)/(white - black));
-  if(val < 1.0) // XXX TODO: highlight reconstruct in pyramid!
+  // if(val < 1.0) // XXX TODO: highlight reconstruct in pyramid!
+  if(val < white)
   {
     float wav = (val - crs1)/max(sigma, 1e-8);
     // const float ht = 2.0;
@@ -113,9 +111,9 @@ main()
     // T = 0; // XXX
     float tt = min(1.0, wav/max(2.0*T,1e-8));
     val = mix(val, max(0, crs + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
-    // val = mix(val, max(0, crs + sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
+    // val = crs + sigma * sign(wav) * abs(wav) * 20;
   }
-  val  = max(0, (val  - black)/(white - black)); // XXX
+  val  = max(0, (val  - black)/(white - black));
   // val = upsm.w; // XXX DEBUG see detail shielding
   imageStore(img_out, ipos, vec4(vec3(val), 1.0));
 }
