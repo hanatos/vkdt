@@ -40,8 +40,6 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  ivec2 sz = textureSize(img_s1, 0).xy + ivec2(1);
-
   // go through all levels same as downsampling would, swizzling coordinates
   // on the go as done in down.comp. then pick up the scales accordingly.
   vec3 down4;
@@ -54,6 +52,7 @@ main()
   float test = 1.0;
   { // scope for registers
     ivec2 esi = ipos;
+    ivec2 sz = textureSize(img_s1, 0).xy + ivec2(1);
 
     vec3 down0 = orig;
     // TODO: consider 2px padding radius for next iteration and mirror repeat!
