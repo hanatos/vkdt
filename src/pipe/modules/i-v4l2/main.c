@@ -79,9 +79,14 @@ open_device(
     dat->format.fmt.pix.width  = 1920;
     dat->format.fmt.pix.height = 1080;
     if(ioctl(dat->fd, VIDIOC_S_FMT, &dat->format) < 0)
-    {
-      perror("[i-v4l2] VIDIOC_S_FMT");
-      goto error;
+    { // last try GREY
+      dat->format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+      dat->format.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
+      if(ioctl(dat->fd, VIDIOC_S_FMT, &dat->format) < 0)
+      {
+        perror("[i-v4l2] VIDIOC_S_FMT");
+        goto error;
+      }
     }
   }
 
@@ -246,6 +251,11 @@ void modify_roi_out(
   buf_t *dat = mod->data;
   mod->connector[0].roi.full_wd = dat->format.fmt.pix.width;
   mod->connector[0].roi.full_ht = dat->format.fmt.pix.height;
+  if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_GREY)
+  {
+    mod->connector[0].chan   = dt_token("r");
+    mod->connector[0].format = dt_token("ui8");
+  }
 }
 
 int read_source(
@@ -424,5 +434,27 @@ create_nodes(
     // interconnect nodes:
     dt_connector_copy(graph, module, 0, id_conv, 1);
     dt_node_connect  (graph, id_in, 0, id_conv, 0);
+  }
+  else if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_GREY)
+  {
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_in = graph->num_nodes++;
+    graph->node[id_in] = (dt_node_t) {
+      .name   = dt_token("i-v4l2"),
+      .kernel = dt_token("source"),
+      .module = module,
+      .wd     = module->connector[0].roi.wd,
+      .ht     = module->connector[0].roi.ht,
+      .dp     = 1,
+      .num_connectors = 1,
+      .connector = {{
+        .name   = dt_token("output"),
+        .type   = dt_token("source"),
+        .chan   = dt_token("r"),
+        .format = dt_token("ui8"),
+        .roi    = module->connector[0].roi,
+      }},
+    };
+    dt_connector_copy(graph, module, 0, id_in, 0);
   }
 }
