@@ -322,6 +322,11 @@ dt_gui_dr_modals()
   if(ImGui::BeginPopupModal("apply preset", NULL, ImGuiWindowFlags_AlwaysAutoResize))
   {
     int ok = 0;
+    char filename[1024] = {0};
+    uint32_t cid = dt_db_current_imgid(&vkdt.db);
+    if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+    if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
+      dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
     int pick = -1;
     static struct dirent **ent = 0;
     static int ent_cnt = 0;
