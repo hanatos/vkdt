@@ -206,11 +206,11 @@ bool outside_spectral_locus(vec2 xy)
 {
   if(xy.x + xy.y > 1) return true;
   if(xy.y < (xy.x-0.17)*0.47) return true;
-  float f = 0.0509773/(xy.x+0.0563933) - 0.218247;
-  if(xy.x < 0.18 && xy.y < f) return true;
-  float g = 0.833 -3.83085*pow(xy.x-0.07,2.0) + 32.7412*pow(xy.x-0.07,4.0) -185.68*pow(xy.x-0.07,6.0);
-  if(xy.x < 0.34 && xy.y > g) return true;
-  float h = 0.833 -2.12221*pow(xy.x-0.07,2.0) -8601.78*pow(xy.x-0.07,4.0);
-  if(xy.x < 0.07 && xy.y > h) return true;
+  // turingbot ftw!
+  if(xy.y > pow(tanh(5.73314*xy.x),0.10809)-xy.x) return true;
+  // if(xy.y > 1.02942-((0.00585019/(0.014045+0.508182*xy.x))+1.01853*xy.x)) return true;
+  if(xy.x < 0.18 && 
+     xy.y < (1.14195-((6.57178+(-5.63051*xy.x))*xy.x))*(0.443525-2.58406*xy.x+(0.000566481/xy.x))+0.00587683) return true;
+
   return false;
 }
