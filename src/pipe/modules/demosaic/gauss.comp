@@ -129,7 +129,10 @@ main()
     mat2 S = determinant(Sw) < determinant(Sb) ? Sw : Sb;
     vec2 eval, evec0, evec1;
     evd2x2(eval, evec0, evec1, S);
-    eval *= 0.3;
+    eval *= 0.4;
+    if     (abs(evec0.x) > 2.*abs(evec0.y)) evec0 = vec2(1, 0);
+    else if(abs(evec0.y) > 2.*abs(evec0.x)) evec0 = vec2(0, 1);
+    else eval = vec2(.1, .1);
     imageStore(img_out, ipos, vec4(eval, evec0));
   }
 }

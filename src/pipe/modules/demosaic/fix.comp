@@ -60,13 +60,13 @@ void write_xtrans2(
   }
   else if(blue_top ^^ (pos.y == 1))
   {
-    float weight = eval_gauss(vec4(5*cov.xy, cov.zw), x);
+    float weight = eval_gauss(vec4(3*cov.xy, cov.zw), x);
     rgb.b += col * corr * weight;
     w.b += weight;
   }
   else
   {
-    float weight = eval_gauss(vec4(5*cov.xy, cov.zw), x);
+    float weight = eval_gauss(vec4(3*cov.xy, cov.zw), x);
     rgb.r += col * corr * weight;
     w.r += weight;
   }
@@ -116,9 +116,9 @@ main()
 
   if(push.filters == 9)
   { // x-trans
-    vec4 cov = texelFetch(img_cov, ipos/3, 0);
-    cov.xy = clamp(cov.xy, 2.0, 49); // smooth out a bit, loose sharpness
-    for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
+    vec4 cov = texelFetch(img_cov, (ipos+1)/3, 0);
+    cov.xy = clamp(cov.xy, 1., 10.); // smooth out a bit, loose sharpness
+    for(int j=-3;j<=3;j++) for(int i=-3;i<=3;i++)
       write_xtrans2(gc,
           texture(img_g, (ipos+ivec2(i,j)+0.5)/vec2(textureSize(img_g, 0))).r,
           ipos+ivec2(i, j),
