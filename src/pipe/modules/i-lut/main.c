@@ -47,7 +47,7 @@ read_header(
   lut->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!lut->f) goto error;
 
-  if(fread(&lut->header, sizeof(header_t), 1, lut->f) != 1 || lut->header.version != 2)
+  if(fread(&lut->header, sizeof(dt_lut_header_t), 1, lut->f) != 1 || lut->header.version != 2)
   {
     fclose(lut->f);
     goto error;
