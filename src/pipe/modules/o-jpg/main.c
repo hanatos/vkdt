@@ -5,6 +5,9 @@
 #include <string.h>
 #include <setjmp.h>
 #include <jpeglib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <libgen.h>
 
 typedef struct jpgerr_t
 {
@@ -34,9 +37,13 @@ void write_sink(
   const int height = module->connector[0].roi.ht;
   const uint8_t *in = buf;
 
+  char dir[512];
+  snprintf(dir, sizeof(dir), "%s", basename);
+  dirname(dir);
+  mkdir(dir, 0755);
+
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.jpg", basename);
-
 
   jpgerr_t jerr;
   struct jpeg_compress_struct cinfo;
