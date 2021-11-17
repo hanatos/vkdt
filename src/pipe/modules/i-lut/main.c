@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/strexpand.h"
+#include "core/lut.h"
 
 #include <stdio.h>
 #include <stdlib.h>
