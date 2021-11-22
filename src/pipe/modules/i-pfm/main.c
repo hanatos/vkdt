@@ -11,6 +11,7 @@ typedef struct pfminput_buf_t
   uint32_t width, height;
   size_t data_begin;
   FILE *f;
+  int channels;
 }
 pfminput_buf_t;
 
@@ -24,6 +25,7 @@ read_header(
     return 0; // already loaded
   assert(pfm); // this should be inited in init()
 
+  pfm->channels = 3;
   if(pfm->f) fclose(pfm->f);
   pfm->f = dt_graph_open_resource(mod->graph, filename, "rb");
   if(!pfm->f) goto error;
@@ -31,8 +33,12 @@ read_header(
   int wd, ht;
   if(fscanf(pfm->f, "PF\n%d %d\n%*[^\n]", &wd, &ht) != 2)
   {
-    fclose(pfm->f);
-    goto error;
+    if(fscanf(pfm->f, "f\n%d %d\n%*[^\n]", &wd, &ht) != 2)
+    {
+      fclose(pfm->f);
+      goto error;
+    }
+    pfm->channels = 1;
   }
   fgetc(pfm->f);
 
@@ -61,12 +67,13 @@ read_plain(
 {
   fseek(pfm->f, pfm->data_begin, SEEK_SET);
   uint16_t one = float_to_half(1.0f);
+  const int stride = pfm->channels == 1 ? 1 : 4;
   for(int64_t k=0;k<pfm->width*pfm->height;k++)
   {
     float in[3];
-    fread(in, 3, sizeof(float), pfm->f);
-    for(int i=0;i<3;i++) out[4*k+i] = float_to_half(in[i]);
-    out[4*k+3] = one;
+    fread(in, pfm->channels, sizeof(float), pfm->f);
+    for(int i=0;i<pfm->channels;i++) out[stride*k+i] = float_to_half(in[i]);
+    if(stride == 4) out[stride*k+3] = one;
   }
   return 0;
 }
@@ -102,11 +109,13 @@ void modify_roi_out(
   const char *filename = dt_module_param_string(mod, 0);
   if(read_header(mod, filename))
   {
+    mod->connector[0].chan = dt_token("rgba");
     mod->connector[0].roi.full_wd = 32;
     mod->connector[0].roi.full_ht = 32;
     return;
   }
   pfminput_buf_t *pfm = mod->data;
+  mod->connector[0].chan = pfm->channels == 1 ? dt_token("y") : dt_token("rgba");
   mod->connector[0].roi.full_wd = pfm->width;
   mod->connector[0].roi.full_ht = pfm->height;
 }
