@@ -1,0 +1,74 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+layout(push_constant, std140) uniform push_t
+{
+  int   cin;     // number of channels on input
+  int   cout;    // number of channels on output
+  int   off;     // y offset in weight image
+  float relu;    // leaky or not
+} push;
+
+layout(
+    set = 1, binding = 0
+) uniform sampler2D img_in[];
+
+// the convolution weights texture. it is arranged as a big atlas
+// with width as large as necessary for the largest layer.
+// an offset defines the start of the currently relevant texture (y coord).
+// each output channel has one row.
+// the rows are organised as follows:
+// input-ch0-3: 4x9w, input-ch4-7: 4x9w, .. , 4 bias (replicated for 4 output channels)
+layout(
+    set = 1, binding = 1
+) uniform sampler2D weights;
+
+layout(
+    set = 1, binding = 2
+) uniform writeonly image2D img_out[];
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  uint op = gl_GlobalInvocationID.z;
+  if(4*op > push.cout) return;
+  if(any(greaterThanEqual(ipos, imageSize(img_out[op])))) return;
+  // TODO: ssbo and tensor cores?
+  // https://developer.nvidia.com/blog/machine-learning-acceleration-vulkan-cooperative-matrices/
+  // https://github.com/KhronosGroup/Vulkan-Docs/issues/923
+  // specialise compute shader during pipeline creation!
+  // https://github.com/jeffbolznv/vk_cooperative_matrix_perf/blob/master/src/vk_cooperative_matrix_perf.cpp#L899
+  const uint y0 = push.off + op;
+
+  vec4 rgba = texelFetch(weights, ivec2(9*((push.cin+3)/4), y0), 0);
+  for(int j=-1;j<=1;j++)
+  for(int i=-1;i<=1;i++)
+  for(int ip=0;ip<push.cin/4;ip++)
+  {
+    vec4 tex = texture(img_in[ip], (ipos+0.5+ivec2(i,j))/textureSize(img_in[ip], 0));
+    // TODO: get mat4 from params.w
+    // y-coord: output channel
+    // x-coord: input channel + bias
+    // TODO: pre-swizzle into uint16 on cpu side during load
+    ivec2 tc = ivec2(4*(9*ip+(3*(j+1)+i+1)), y0); 
+    vec4 c0 = texelFetch(weights, tc+ivec2(0, 0), 0);
+    vec4 c1 = texelFetch(weights, tc+ivec2(0, 1), 0);
+    vec4 c2 = texelFetch(weights, tc+ivec2(0, 2), 0);
+    vec4 c3 = texelFetch(weights, tc+ivec2(0, 3), 0);
+    mat4 M = mat4(c0, c1, c2, c3);
+    rgba += M * tex;
+  }
+  // apply (leaky) relu or not:
+  rgba *= mix(vec4(1.0), vec4(push.relu), lessThan(rgba, vec4(0.0)));
+
+  imageStore(img_out[op], ipos, rgba);
+}
