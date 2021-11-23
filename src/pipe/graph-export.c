@@ -49,7 +49,7 @@ dt_graph_replace_display(
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
   const int m2 = dt_module_add(graph, mod, inst);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
-  if(graph->module[m2].connector[0].format == dt_token("ui8"))
+  if(graph->module[m2].connector[i2].format == dt_token("ui8"))
   {
     // output buffer reading is inflexible about buffer configuration. texture
     // units can handle it, so just push further:
@@ -61,6 +61,7 @@ dt_graph_replace_display(
   else
   {
     graph->module[m0].connector[o0].format = graph->module[m2].connector[i2].format;
+    graph->module[m0].connector[o0].chan   = graph->module[m2].connector[i2].chan;
     CONN(dt_module_connect(graph, m0, o0, m2, i2));
   }
   return 0;

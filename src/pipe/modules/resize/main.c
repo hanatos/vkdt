@@ -13,22 +13,6 @@ void modify_roi_in(
   module->connector[0].roi.scale = 1.0f;
 }
 
-#if 0
-// XXX do we need this? i think only for magnification
-void modify_roi_out(
-    dt_graph_t *graph,
-    dt_module_t *module)
-{
-  // copy to output
-  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
-  assert(img_param);
-  const uint32_t *b = img_param->crop_aabb;
-  module->connector[1].roi = module->connector[0].roi;
-  module->connector[1].roi.full_wd = b[2] - b[0];
-  module->connector[1].roi.full_ht = b[3] - b[1];
-}
-#endif
-
 void
 create_nodes(
     dt_graph_t  *graph,

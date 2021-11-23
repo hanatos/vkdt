@@ -4,17 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-void modify_roi_in(
-    dt_graph_t *graph,
-    dt_module_t *module)
-{
-  // TODO: scale to our needs
-  dt_roi_t *r = &module->connector[0].roi;
-  r->wd = r->full_wd;
-  r->ht = r->full_ht;
-  r->scale = 1.0f;
-}
-
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
 void write_sink(
