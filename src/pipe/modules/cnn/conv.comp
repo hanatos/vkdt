@@ -46,22 +46,25 @@ main()
   // https://github.com/jeffbolznv/vk_cooperative_matrix_perf/blob/master/src/vk_cooperative_matrix_perf.cpp#L899
   const uint y0 = push.off + op;
 
-  vec4 rgba = texelFetch(weights, ivec2(9*((push.cin+3)/4), y0), 0);
+  vec4 rgba = texelFetch(weights, ivec2(9*push.cin, y0), 0);
   for(int j=-1;j<=1;j++)
   for(int i=-1;i<=1;i++)
-  for(int ip=0;ip<push.cin/4;ip++)
+  for(int ip=0;ip<(push.cin+3)/4;ip++)
   {
     vec4 tex = texture(img_in[ip], (ipos+0.5+ivec2(i,j))/textureSize(img_in[ip], 0));
-    ivec2 tc = ivec2(4*(9*ip+(3*(j+1)+i+1)), y0); 
-    vec4 c0 = texelFetch(weights, tc+ivec2(0, 0), 0);
-    vec4 c1 = texelFetch(weights, tc+ivec2(0, 1), 0);
-    vec4 c2 = texelFetch(weights, tc+ivec2(0, 2), 0);
-    vec4 c3 = texelFetch(weights, tc+ivec2(0, 3), 0);
+    int k = 3*(j+1)+i+1;
+    k += 9*4*ip;
+    vec4 c0 = texelFetch(weights, ivec2(k+ 0, y0), 0);
+    vec4 c1 = (push.cin > 4*ip + 1) ? texelFetch(weights, ivec2(k+ 9, y0), 0) : vec4(0.0);
+    vec4 c2 = (push.cin > 4*ip + 2) ? texelFetch(weights, ivec2(k+18, y0), 0) : vec4(0.0);
+    vec4 c3 = (push.cin > 4*ip + 3) ? texelFetch(weights, ivec2(k+27, y0), 0) : vec4(0.0);
     mat4 M = mat4(c0, c1, c2, c3);
     rgba += M * tex;
   }
   // apply (leaky) relu or not:
   rgba *= mix(vec4(1.0), vec4(push.relu), lessThan(rgba, vec4(0.0)));
+  // remove unused channels
+  rgba = mix(rgba, vec4(0.0), lessThan(vec4(push.cout - 4*op), vec4(1, 2, 3, 4)));
 
   imageStore(img_out[op], ipos, rgba);
 }

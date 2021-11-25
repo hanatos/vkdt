@@ -47,16 +47,19 @@ create_nodes(
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
+      .array_length = 2,
     }},
   };
 
   uint32_t id_C16 = id_blur;
-  int cin = 3, cout = 3;
+  int cin = 3, cout = 6;
+  cin = cout;
 
+  int off = 1; // y coordinate in weights buffer for current layer
   for(int l=0;l<numl;l++)
   {
     cout = 16;
-    int off = 1 + 4*numl; // y coordinate for current weights
+    if(l == numl-1) cout = 3;
     assert(graph->num_nodes < graph->max_nodes);
     const uint32_t id_conv = graph->num_nodes++;
     graph->node[id_conv] = (dt_node_t) {
@@ -96,6 +99,7 @@ create_nodes(
     dt_node_connect(graph, id_C16, 2, id_conv, 0);
     dt_connector_copy(graph, module, 1, id_conv, 1);
     id_C16 = id_conv;
+    off += (cout+3)/4;
     cin = cout;
   }
   assert(graph->num_nodes < graph->max_nodes);
@@ -135,5 +139,6 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_sum, 0);
   dt_node_connect(graph, id_C16, 2, id_sum, 1);
   dt_connector_copy(graph, module, 2, id_sum, 2);
+  // dt_connector_copy(graph, module, 2, id_blur, 2); // XXX DEBUG
 }
 

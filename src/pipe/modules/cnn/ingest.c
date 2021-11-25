@@ -9,6 +9,14 @@
 #include <stdint.h>
 #include <assert.h>
 
+static inline float
+tolittle(float f)
+{
+  uint32_t i = *(uint32_t *)&f;
+  i = (i>>24) | ((i>>8) & 0xff00) | ((i<<8)&0xff0000) | (i<<24);
+  return *(float *)&i;
+}
+
 int main(int argc, char *argv[])
 {
   const char *fn[] = {
@@ -53,8 +61,10 @@ int main(int argc, char *argv[])
       // or 145x3 -> 145x1
       for(int i=0;i<wd;i++)
         for(int j=0;j<3;j++)
-          output[4*i+j] = float_to_half(input[wd*j + i]);
+          output[4*i+j] = float_to_half(tolittle(input[wd*(ht-1-j) + i]));
       noc = 3;
+      if(fi == 0) // blurred + appended
+        noc = 6;
       output += maxwd * 4;
     }
     else
@@ -67,12 +77,14 @@ int main(int argc, char *argv[])
       for(int j=0;j<noc;j++) // output channel
       {
         const int oy = j/4, or = j - 4*oy;
-        output[str*(4*(wd*oy+i)+or)+k] = float_to_half(input[nic*str*j + str*i + k]);
+        output[str*(4*(wd*oy+i)+or)+k] = float_to_half(
+            tolittle(input[nic*str*(ht-1-j) + str*i + k]));
       }
       for(int j=0;j<noc/4;j++) // bias at end of each line
         for(int c=0;c<4;c++)
-          output[4*(wd*j + wd - 1) + c] = float_to_half(input[wd*(4*j+c)+wd-1]);
-      output += maxwd * noc;
+          output[4*(wd*j + wd - 1) + c] = float_to_half(
+              tolittle(input[wd*(4*(ht-1-j-c))+wd-1]));
+      output += maxwd * ((noc+3)/4)*4;
     }
     nic = noc;
     free(input);
