@@ -36,8 +36,8 @@ main()
     float scale = (1<<30)/cnt;
 
     // check whether we're inside the 2D AABB
-    if(ipos.x >= aabb.x && ipos.x < aabb.y &&
-       ipos.y >= aabb.z && ipos.y < aabb.w)
+    if(ipos.x >= aabb.x && ipos.x <= aabb.y &&
+       ipos.y >= aabb.z && ipos.y <= aabb.w)
     {
       vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
       imageAtomicAdd(img_out, ivec2(i, 0), uint(scale * (rgb.r + 0.5) * 0.5 + 0.5));
