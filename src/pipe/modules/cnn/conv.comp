@@ -47,22 +47,23 @@ main()
   const uint y0 = push.off + op;
 
   vec4 rgba = texelFetch(weights, ivec2(9*push.cin, y0), 0);
+  for(int ip=0;ip<(push.cin+3)/4;ip++)
   for(int j=-1;j<=1;j++)
   for(int i=-1;i<=1;i++)
-  for(int ip=0;ip<(push.cin+3)/4;ip++)
   {
-    vec4 tex = texture(img_in[ip], (ipos+0.5+ivec2(i,j))/textureSize(img_in[ip], 0));
+    vec4 tex = texture(img_in[ip], (ipos+0.5-vec2(i,j))/vec2(textureSize(img_in[ip], 0)));
     int k = 3*(j+1)+i+1;
     k += 9*4*ip;
     vec4 c0 = texelFetch(weights, ivec2(k+ 0, y0), 0);
-    vec4 c1 = (push.cin > 4*ip + 1) ? texelFetch(weights, ivec2(k+ 9, y0), 0) : vec4(0.0);
-    vec4 c2 = (push.cin > 4*ip + 2) ? texelFetch(weights, ivec2(k+18, y0), 0) : vec4(0.0);
-    vec4 c3 = (push.cin > 4*ip + 3) ? texelFetch(weights, ivec2(k+27, y0), 0) : vec4(0.0);
+    vec4 c1 = (push.cin>4*ip+1) ? texelFetch(weights, ivec2(k+ 9, y0), 0) : vec4(0.0);
+    vec4 c2 = (push.cin>4*ip+2) ? texelFetch(weights, ivec2(k+18, y0), 0) : vec4(0.0);
+    vec4 c3 = (push.cin>4*ip+3) ? texelFetch(weights, ivec2(k+27, y0), 0) : vec4(0.0);
     mat4 M = mat4(c0, c1, c2, c3);
     rgba += M * tex;
   }
   // apply (leaky) relu or not:
   rgba *= mix(vec4(1.0), vec4(push.relu), lessThan(rgba, vec4(0.0)));
+  // rgba += texelFetch(weights, ivec2(9*push.cin, y0), 0);
   // remove unused channels
   rgba = mix(rgba, vec4(0.0), lessThan(vec4(push.cout - 4*op), vec4(1, 2, 3, 4)));
 

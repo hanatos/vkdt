@@ -6,15 +6,12 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // TODO: network configuration:
-  // optional 5x5(?) blur, = 76 coeffs per output channel
+  // network configuration:
+  // 5x5 blur appended to input
   // sum input back to result of network
   // last layer witouth relu
-  const uint32_t oc[] = { // output channels of the convolutional layers
-   16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
-  };
-  const uint32_t numl = sizeof(oc)/sizeof(oc[0]); // number of layers
-  float push[] = { 0.01, 1.0 };
+  const int numl = 16;
+  float push[] = { 0.05, 1.0 };
   uint32_t *pushi = (uint32_t *)push;
 
   assert(graph->num_nodes < graph->max_nodes);
@@ -94,7 +91,7 @@ create_nodes(
         .array_length = (cout+3)/4,
       }},
       .push_constant_size = 4*sizeof(uint32_t),
-      .push_constant = { cin, cout, off, l == numl-1 ? pushi[1] : pushi[0] },
+      .push_constant = { cin, cout, off, l == 15 ? pushi[1] : pushi[0] },
     };
     dt_node_connect(graph, id_C16, 2, id_conv, 0);
     dt_connector_copy(graph, module, 1, id_conv, 1);
@@ -126,6 +123,7 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
+      .array_length = 1,
     },{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
@@ -137,8 +135,10 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_blur, 0);
   dt_connector_copy(graph, module, 1, id_blur, 1);
   dt_connector_copy(graph, module, 0, id_sum, 0);
+  // dt_connector_copy(graph, module, 0, id_sum, 1); // XXX
   dt_node_connect(graph, id_C16, 2, id_sum, 1);
   dt_connector_copy(graph, module, 2, id_sum, 2);
   // dt_connector_copy(graph, module, 2, id_blur, 2); // XXX DEBUG
+  // dt_node_connect(graph, id_blur, 2, id_sum, 1); // XXX DEBUG
 }
 
