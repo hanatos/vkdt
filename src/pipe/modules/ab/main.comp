@@ -32,7 +32,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec4 rgb;
-  if(ipos.x/float(imageSize(img_out).x) > params.split)
+  if(ipos.x/float(imageSize(img_out).x) < params.split)
     rgb = texelFetch(img_a, ipos, 0);
   else
     rgb = texelFetch(img_b, ipos, 0);
