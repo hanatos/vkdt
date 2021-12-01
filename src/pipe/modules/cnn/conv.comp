@@ -47,6 +47,28 @@ main()
   const uint y0 = push.off + op;
 
   vec4 rgba = texelFetch(weights, ivec2(9*push.cin, y0), 0);
+  if(push.cin == 6) // XXX stupid hack to swap blur outputs!
+  {
+  for(int j=-1;j<=1;j++)
+  for(int i=-1;i<=1;i++)
+  {
+    int k = 3*(j+1)+i+1;
+    vec4 c0 = texelFetch(weights, ivec2(k+9*0, y0), 0);
+    vec4 c1 = texelFetch(weights, ivec2(k+9*1, y0), 0);
+    vec4 c2 = texelFetch(weights, ivec2(k+9*2, y0), 0);
+
+    vec4 c3 = texelFetch(weights, ivec2(k+9*3, y0), 0);
+    vec4 c4 = texelFetch(weights, ivec2(k+9*4, y0), 0);
+    vec4 c5 = texelFetch(weights, ivec2(k+9*5, y0), 0);
+    vec4 tex0 = texture(img_in[0], (ipos+0.5-vec2(i,j))/vec2(textureSize(img_in[0], 0)));
+    vec4 tex1 = texture(img_in[1], (ipos+0.5-vec2(i,j))/vec2(textureSize(img_in[1], 0)));
+    // rgba += mat3x4(c0, c1, c2) * vec3(tex0.a, tex1.rg);
+    // rgba += mat3x4(c3, c4, c5) * tex0.rgb;
+    rgba += mat2x4(c1, c2) * tex1.rg;
+    rgba += mat4(c3, c4, c5, c0) * tex0;
+  }}
+  else
+  {
   for(int ip=0;ip<(push.cin+3)/4;ip++)
   for(int j=-1;j<=1;j++)
   for(int i=-1;i<=1;i++)
@@ -60,7 +82,7 @@ main()
     vec4 c3 = (push.cin>4*ip+3) ? texelFetch(weights, ivec2(k+27, y0), 0) : vec4(0.0);
     mat4 M = mat4(c0, c1, c2, c3);
     rgba += M * tex;
-  }
+  }}
   // apply (leaky) relu or not:
   rgba *= mix(vec4(1.0), vec4(push.relu), lessThan(rgba, vec4(0.0)));
   // rgba += texelFetch(weights, ivec2(9*push.cin, y0), 0);

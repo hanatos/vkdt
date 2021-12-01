@@ -48,12 +48,11 @@ main()
     mat3 M = mat3(c0, c1, c2);
     rgb += M * tex;
   }}
-  // apply (leaky) relu or not?
-  // rgb *= mix(vec3(1.0), vec3(0.01), lessThan(rgb, vec3(0.0)));
 
-  // output two images in array: original + blurred appended:
-  imageStore(img_out[0], ipos, vec4(orig, rgb.r));
-  imageStore(img_out[1], ipos, vec4(rgb.gb, vec2(0.0)));
-
-  // imageStore(img_out[0], ipos, vec4(rgb, 1.0));
+  // output two images in array: original + blurred appended.
+  // note that we put the blurred first, so we can read it in one piece
+  // in the sum node at the end. i think we're wasting the two extra channels
+  // anyways so we might as well put each one in their texture *shrugs*
+  imageStore(img_out[0], ipos, vec4(rgb, orig.r));
+  imageStore(img_out[1], ipos, vec4(orig.gb, vec2(0.0)));
 }

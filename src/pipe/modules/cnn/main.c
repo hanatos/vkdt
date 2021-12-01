@@ -116,6 +116,7 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
+      .array_length = 2,
     },{
       .name   = dt_token("in1"),
       .type   = dt_token("read"),
@@ -134,10 +135,9 @@ create_nodes(
   };
   dt_connector_copy(graph, module, 0, id_blur, 0);
   dt_connector_copy(graph, module, 1, id_blur, 1);
-  dt_connector_copy(graph, module, 0, id_sum, 0);
-  // dt_connector_copy(graph, module, 0, id_sum, 1); // XXX
-  dt_node_connect(graph, id_C16, 2, id_sum, 1);
-  dt_connector_copy(graph, module, 2, id_sum, 2);
+  dt_node_connect(graph,   id_blur, 2, id_sum, 0);
+  dt_node_connect(graph,   id_C16,  2, id_sum, 1);
+  dt_connector_copy(graph, module,  2, id_sum, 2);
   // dt_connector_copy(graph, module, 2, id_blur, 2); // XXX DEBUG
   // dt_node_connect(graph, id_blur, 2, id_sum, 1); // XXX DEBUG
 }
