@@ -11,6 +11,7 @@ GUI_O=gui/gui.o\
       ../ext/imgui/backends/imgui_impl_glfw.o
 GUI_H=gui/gui.h\
       gui/render.h\
+      gui/api.h\
       gui/api.hh\
       gui/hotkey.hh\
       gui/widget_filebrowser.hh\

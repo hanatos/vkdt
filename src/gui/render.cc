@@ -1757,10 +1757,30 @@ void render_darkroom()
       return;
     }
 
+    int axes_cnt = 0, butt_cnt = 0;
+    const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
+    const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+    if(butt && butt[11]) // left stick pressed
+      darkroom_reset_zoom();
+
     // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
+      if(axes)
+      {
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+        float wd  = (float)out_main->connector[0].roi.wd;
+        float ht  = (float)out_main->connector[0].roi.ht;
+        float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
+        float scale = MIN(imwd/wd, imht/ht);
+        if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
+        scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
+        vkdt.state.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
+        vkdt.state.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
+        vkdt.state.scale = scale;
+#undef SMOOTH
+      }
       ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
       float im0[2], im1[2];
       float v0[2] = {(float)vkdt.state.center_x, (float)vkdt.state.center_y};
