@@ -62,29 +62,44 @@ get_current_monitor(GLFWwindow *window)
   return bestmonitor;
 }
 
-static int
-joystick_active()
+// since in glfw, joysticks can only be polled and have no event interface
+// (see this pull request: https://github.com/glfw/glfw/pull/1590)
+// we need to look for changes in a busy loop in this dedicated thread.
+// once we find activity, we'll step outside the glfwWaitEvents call by
+// posting an empty event from here.
+static void*
+joystick_active(void *unused)
 {
-  return glfwJoystickPresent(GLFW_JOYSTICK_1); // TODO
-  // none of this works reliably because during a sleep of the event loop
-  // we cannot get joystick information. we'd need an extra polling thread
-  // and now i'm too lazy to implement that. i'd rather glfw treated joysticks
-  // as events: https://github.com/glfw/glfw/pull/1590
-  int res = 0;
-  static uint8_t prev_butt[100] = {0};
-  static float   prev_axes[100] = {0};
-  int axes_cnt = 0, butt_cnt = 0;
-  const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
-  const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
-  assert(butt_cnt < 100);
-  assert(axes_cnt < 100);
-  for(int i=0;i<butt_cnt;i++)
-    if(butt[i] != prev_butt[i]) { res = 1; break; }
-  for(int i=0;i<axes_cnt;i++)
-    if(fabsf(axes[i] - prev_axes[i]) > 0.01) { res = 1; break; }
-  memcpy(prev_axes, axes, sizeof(float)  *axes_cnt);
-  memcpy(prev_butt, butt, sizeof(uint8_t)*butt_cnt);
-  return res;
+  uint8_t prev_butt[100] = {0};
+  float   prev_axes[100] = {0};
+  while(g_running)
+  {
+    int res = 0;
+    int axes_cnt = 0, butt_cnt = 0;
+    const float   *axes = glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt);
+    const uint8_t *butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
+    assert(butt_cnt < 100);
+    assert(axes_cnt < 100);
+    for(int i=0;i<butt_cnt;i++) if(butt[i] != prev_butt[i])
+    {
+      prev_butt[i] = butt[i];
+      res = 1;
+      break;
+    }
+    for(int i=0;i<axes_cnt;i++) if(fabsf(axes[i] - prev_axes[i]) > 0.04)
+    {
+      prev_axes[i] = axes[i];
+      res = 1;
+      break;
+    }
+    if(res)
+    {
+      g_busy = 20; // make sure we'll stay awake for a few frames
+      glfwPostEmptyEvent();
+    }
+    sched_yield();
+  }
+  return 0;
 }
 
 static void
@@ -217,6 +232,12 @@ int main(int argc, char *argv[])
   }
   dt_gui_read_tags();
 
+  // joystick
+  pthread_t joystick_thread;
+  const int joystick_present = glfwJoystickPresent(GLFW_JOYSTICK_1);
+  if(joystick_present)
+    pthread_create(&joystick_thread, 0, joystick_active, 0);
+
   // main loop
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   while(g_running)
@@ -229,12 +250,10 @@ int main(int argc, char *argv[])
     // vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
       g_busy = vkdt.state.anim_max_frame == 0 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
-    if(joystick_active()) g_busy = 3;
     if(g_busy > 0) glfwPostEmptyEvent();
     else g_busy = 3;
     // should probably consider this instead:
     // https://github.com/bvgastel/imgui/commits/imgui-2749
-    //glfwWaitEventsTimeout(0.5);
     glfwWaitEvents();
     if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
@@ -250,6 +269,7 @@ int main(int argc, char *argv[])
 
     dt_view_process();
   }
+  if(joystick_present) pthread_join(joystick_thread, 0);
 
   vkDeviceWaitIdle(qvk.device);
 
