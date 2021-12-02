@@ -417,6 +417,32 @@ namespace {
 
 void render_lighttable_center(double &hotkey_time)
 { // center image view
+  { // assign star rating/colour labels via gamepad:
+    int /*axes_cnt = 0,*/ butt_cnt = 0;
+    const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
+    // const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+    static double gamepad_time = ImGui::GetTime();
+    if(butt && butt[2]) // triangle
+      if(ImGui::GetTime() - gamepad_time > 0.1)
+    {
+      const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+      int rtdir = 0, lbdir = 0;
+      if(butt[4]) rtdir = -1; // l1
+      if(butt[5]) rtdir =  1; // r1
+      if(butt[6]) lbdir = -1; // l2
+      if(butt[7]) lbdir =  1; // r2
+      for(int i=0;i<vkdt.db.selection_cnt;i++)
+      {
+        vkdt.db.image[sel[i]].rating = CLAMP(vkdt.db.image[sel[i]].rating + rtdir, 0, 5);
+        if(lbdir)
+        vkdt.db.image[sel[i]].labels =
+          vkdt.db.image[sel[i]].labels ?
+          CLAMP(lbdir > 0 ? (vkdt.db.image[sel[i]].labels << 1) :
+                            (vkdt.db.image[sel[i]].labels >> 1), 0, 8) : 1;
+      }
+      gamepad_time = ImGui::GetTime();
+    }
+  }
   ImGuiStyle &style = ImGui::GetStyle();
   ImGuiWindowFlags window_flags = 0;
   window_flags |= ImGuiWindowFlags_NoTitleBar;
