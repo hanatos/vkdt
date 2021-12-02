@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <math.h>
 
 dt_gui_t vkdt = {0};
 
@@ -64,17 +65,26 @@ get_current_monitor(GLFWwindow *window)
 static int
 joystick_active()
 {
-  int axes_count = 0, buttons_count = 0;
-  const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_count);
-  const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons_count);
-  for(int i=0;i<buttons_count;i++)
-    if(buttons[i] == GLFW_PRESS) return 1;
-  // XXX TODO: 0 is not the rest position! need to diff to avoid busy loops :(
-  // XXX TODO: also glfwWaitEvents can't be used or else we'd need a thread
-  // to send the interruption events when polling for joysticks :(
-  for(int i=0;i<axes_count;i++)
-    if(axes[i] != 0.0f) return 1;
-  return 0;
+  return glfwJoystickPresent(GLFW_JOYSTICK_1); // TODO
+  // none of this works reliably because during a sleep of the event loop
+  // we cannot get joystick information. we'd need an extra polling thread
+  // and now i'm too lazy to implement that. i'd rather glfw treated joysticks
+  // as events: https://github.com/glfw/glfw/pull/1590
+  int res = 0;
+  static uint8_t prev_butt[100] = {0};
+  static float   prev_axes[100] = {0};
+  int axes_cnt = 0, butt_cnt = 0;
+  const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+  const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
+  assert(butt_cnt < 100);
+  assert(axes_cnt < 100);
+  for(int i=0;i<butt_cnt;i++)
+    if(butt[i] != prev_butt[i]) { res = 1; break; }
+  for(int i=0;i<axes_cnt;i++)
+    if(fabsf(axes[i] - prev_axes[i]) > 0.01) { res = 1; break; }
+  memcpy(prev_axes, axes, sizeof(float)  *axes_cnt);
+  memcpy(prev_butt, butt, sizeof(uint8_t)*butt_cnt);
+  return res;
 }
 
 static void
@@ -222,6 +232,9 @@ int main(int argc, char *argv[])
     if(joystick_active()) g_busy = 3;
     if(g_busy > 0) glfwPostEmptyEvent();
     else g_busy = 3;
+    // should probably consider this instead:
+    // https://github.com/bvgastel/imgui/commits/imgui-2749
+    //glfwWaitEventsTimeout(0.5);
     glfwWaitEvents();
     if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
