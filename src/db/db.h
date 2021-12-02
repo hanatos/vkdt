@@ -137,10 +137,12 @@ dt_db_accept_filename(
 }
 
 // add image to the list of selected images, O(1).
-void dt_db_selection_add   (dt_db_t *db, uint32_t imgid);
+void dt_db_selection_add   (dt_db_t *db, uint32_t coid);
 // remove image from the list of selected images, O(N).
-void dt_db_selection_remove(dt_db_t *db, uint32_t imgid);
+void dt_db_selection_remove(dt_db_t *db, uint32_t colid);
 void dt_db_selection_clear(dt_db_t *db);
+// returns 1 if image is selected, 0 if not
+int  dt_db_selection_contains(dt_db_t *db, uint32_t colid);
 // return sorted list of selected images
 const uint32_t *dt_db_selection_get(dt_db_t *db);
 

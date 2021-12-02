@@ -61,6 +61,22 @@ get_current_monitor(GLFWwindow *window)
   return bestmonitor;
 }
 
+static int
+joystick_active()
+{
+  int axes_count = 0, buttons_count = 0;
+  const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_count);
+  const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons_count);
+  for(int i=0;i<buttons_count;i++)
+    if(buttons[i] == GLFW_PRESS) return 1;
+  // XXX TODO: 0 is not the rest position! need to diff to avoid busy loops :(
+  // XXX TODO: also glfwWaitEvents can't be used or else we'd need a thread
+  // to send the interruption events when polling for joysticks :(
+  for(int i=0;i<axes_count;i++)
+    if(axes[i] != 0.0f) return 1;
+  return 0;
+}
+
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -203,6 +219,7 @@ int main(int argc, char *argv[])
     // vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
       g_busy = vkdt.state.anim_max_frame == 0 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
+    if(joystick_active()) g_busy = 3;
     if(g_busy > 0) glfwPostEmptyEvent();
     else g_busy = 3;
     glfwWaitEvents();

@@ -349,6 +349,14 @@ void dt_db_selection_add(dt_db_t *db, uint32_t colid)
   db->image[imgid].labels |= s_image_label_selected;
 }
 
+int dt_db_selection_contains(dt_db_t *db, uint32_t colid)
+{
+  if(colid > db->collection_cnt) return 0;
+  const uint32_t imgid = db->collection[colid];
+  if(imgid > db->image_cnt) return 0;
+  return (db->image[imgid].labels & s_image_label_selected) ? 1 : 0;
+}
+
 void dt_db_selection_remove(dt_db_t *db, uint32_t colid)
 {
   if(db->current_colid == colid)

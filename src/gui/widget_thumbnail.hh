@@ -47,7 +47,8 @@ uint32_t ThumbnailImage(
     const ImVec4& tint_col,
     uint16_t rating,
     uint16_t labels,
-    const char *text)
+    const char *text,
+    int set_nav_focus)
 {
   ImGuiWindow* window = GetCurrentWindow();
   if (window->SkipItems)
@@ -77,7 +78,10 @@ uint32_t ThumbnailImage(
   if (!ItemAdd(bb, id))
     return 0;
 
-  // TODO: double click? stars clicked?
+  if(set_nav_focus)
+    SetFocusID(id, window);
+
+  // stars clicked?
   bool hovered, held;
   bool pressed = ButtonBehavior(bb, id, &hovered, &held);
 
