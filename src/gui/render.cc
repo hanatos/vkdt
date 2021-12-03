@@ -497,7 +497,9 @@ void render_lighttable_center(double &hotkey_time)
             ht/(float)vkdt.thumbnails.thumb[tid].ht);
         float w = vkdt.thumbnails.thumb[tid].wd * scale;
         float h = vkdt.thumbnails.thumb[tid].ht * scale;
-        uint32_t ret = ImGui::ThumbnailImage(vkdt.thumbnails.thumb[tid].dset,
+        uint32_t ret = ImGui::ThumbnailImage(
+            vkdt.db.collection[i],
+            vkdt.thumbnails.thumb[tid].dset,
             ImVec2(w, h),
             ImVec2(0,0), ImVec2(1,1),
             border,

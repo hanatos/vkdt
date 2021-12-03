@@ -38,6 +38,7 @@ void draw_star(float u, float v, float size, uint32_t col)
 
 // this is pretty much ImGui::ImageButton with a few custom hacks:
 uint32_t ThumbnailImage(
+    uint32_t imgid,
     ImTextureID user_texture_id,
     const ImVec2& size,
     const ImVec2& uv0,
@@ -57,9 +58,8 @@ uint32_t ThumbnailImage(
   ImGuiContext& g = *GImGui;
   const ImGuiStyle& style = g.Style;
 
-  // Default to using texture ID as ID. User can still push string/integer prefixes.
-  // We could hash the size/uv to create a unique ID but that would prevent the user from animating UV.
-  PushID((void*)(intptr_t)user_texture_id);
+  // use image id as imgui id
+  PushID(imgid);
   const ImGuiID id = window->GetID("#image");
   PopID();
 

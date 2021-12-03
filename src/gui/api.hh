@@ -21,16 +21,15 @@ dt_gui_lt_modals()
   {
     static char name[32] = "all time best";
     int ok = 0;
-    if (g_busy >= 4)
-      ImGui::SetKeyboardFocusHere();
+    if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     if(ImGui::InputText("##edit", name, IM_ARRAYSIZE(name), ImGuiInputTextFlags_EnterReturnsTrue))
     {
       ok = 1;
       ImGui::CloseCurrentPopup(); // accept
     }
+    // ImGui::SetItemDefaultFocus();
     if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
       ImGui::CloseCurrentPopup(); // discard
-    // ImGui::SetItemDefaultFocus();
     if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
     ImGui::SameLine();
     if (ImGui::Button("ok", ImVec2(120, 0)))
@@ -246,8 +245,7 @@ dt_gui_dr_modals()
     
     if(ok == 0)
     {
-      if (g_busy >= 4) // WindowIsOpening or so?
-        ImGui::SetKeyboardFocusHere();
+      if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
       if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
         ok = 1;
       if(ImGui::IsItemHovered())
@@ -334,8 +332,7 @@ dt_gui_dr_modals()
     static struct dirent **ent = 0;
     static int ent_cnt = 0;
     static char filter[256] = "";
-    if (g_busy >= 4) // WindowIsOpening or so?
-      ImGui::SetKeyboardFocusHere();
+    if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
       ok = 1;
     if(ImGui::IsItemHovered())
