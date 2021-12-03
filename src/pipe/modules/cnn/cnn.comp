@@ -10,7 +10,7 @@
 // a workgroup of threads is created, one for each
 // because then a 4x4x4 matrix muladd (tensor cores) can read a 4x4 matrix (4 adjacent pixels x 4 input channels) and multiply by 4x4 weights (input channels x output channels for given conv pos) and add to result (4 adjacent pixels x 4 output channels)
 
-// we have max 16 output channels
+// we have max 16 output channels, each thread processes 4 at a time
 layout(local_size_x = DT_CNN_TILE_WD, local_size_y = DT_CNN_TILE_HT, local_size_z = 4) in;
 
 // layout(std140, set = 0, binding = 1) uniform params_t
@@ -29,6 +29,7 @@ layout( // output buffer
 ) uniform writeonly image2D img_out;
 
 // intermediate layers, allocated for the maximum number of outputs
+// TODO: reduce bank conflicts by increasing stride a bit
 shared f16vec4 layer[4*DT_CNN_TILE_WD*DT_CNN_TILE_HT];
 
 
@@ -50,18 +51,17 @@ f16mat4 read_mat(
     uint k,   // the 3x3 convolution mask index < 9
     uint y0)  // the offset in the weights texture for this layer
 {
-  // k += 9*i
-  // ir = i - ip/4;
-  // y = y0 + o/4
-  // now read texture rgba at (k, y0), (k+9, y0), (k+18, y0), (k+27, y0)
   // pack into matrix where column vectors are rgba (for output channels)
-  // return that
-  return f16mat4(1.0);
+  // TODO: pre-swizzle input such that this is adjacent in memory:
+  // TODO: for textures in a 2x2 block, for ssbo next to each other.
+  return f16mat4(
+      f16vec4(texelFetch(img_wgt, ivec2(9*(i+0)+k, y0+o/4), 0)),
+      f16vec4(texelFetch(img_wgt, ivec2(9*(i+1)+k, y0+o/4), 0)),
+      f16vec4(texelFetch(img_wgt, ivec2(9*(i+2)+k, y0+o/4), 0)),
+      f16vec4(texelFetch(img_wgt, ivec2(9*(i+3)+k, y0+o/4), 0)));
 }
 
-// TODO: first implement "scalar" version reading/writing one channel at a time
-// TODO: then implement 4x4 version reading/writing by weight matrix
-// TODO: then use tensor cores
+// TODO: use tensor cores
 // TODO: try ssbo instead of texture, reading f16 directly
 void
 main()
@@ -88,7 +88,7 @@ main()
     for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
     {
       const float16_t wgt[5] = {float16_t(2./16.), float16_t(4./16.), float16_t(6./16.), float16_t(4./16.), float16_t(2./16.)};
-      f16vec4 tex = f16vec4(texture(img_in, (ipos+0.5)/vec2(textureSize(img_in, 0))));
+      f16vec4 tex = f16vec4(texture(img_in, (ipos+vec2(i,j)+0.5)/vec2(textureSize(img_in, 0))));
       res += wgt[j+2]*wgt[i+2] * tex;
     }
     layer[idx] = res;
@@ -98,34 +98,52 @@ main()
   int co_cnt = 16; // number of output channels
   int off = 1;     // current y coordinate in weights texture
 
-  // XXX TODO: special case for first time with padding for weights?
   // XXX TODO: write the texture padded already?
+  { // special case: C1
+    uint idx = (co_cnt+3)/4 * tidx + cout;
+    f16vec4 res = read_bias(ci_cnt, 4*cout, off);
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+    {
+      f16mat4 m0 = read_mat(3*(j+1)+i+1, 0, 4*cout, off);
+      f16mat4 m1 = read_mat(3*(j+1)+i+1, 4, 4*cout, off);
+      uint p = clamp(gl_LocalInvocationID.x-i,0,DT_CNN_TILE_WD-1)+gl_WorkGroupSize.x*
+               clamp(gl_LocalInvocationID.y-j,0,DT_CNN_TILE_HT-1);
+      f16vec4 v0 = layer[0 + 2*p];
+      f16vec4 v1 = layer[1 + 2*p];
+      res += m0 * f16vec4(v0.xyz, v1.x);
+      res += m1 * f16vec4(v1.yz, 0.0, 0.0);
+    }
+    res *= mix(f16vec4(1.0), f16vec4(0.05), lessThan(res, f16vec4(0.0)));
+    barrier();
+    layer[idx] = res;
+    barrier();
+    ci_cnt = co_cnt;
+    co_cnt = 16;
+    off += 4;
+  }
 
-  for(int l=0;l<15;l++)
-  { // inner 3x3 scope: C1..C15
+  // ci/co_cnt = 16 for this block
+  for(int l=1;l<15;l++)
+  { // inner 3x3 scope: C2..C15
     uint idx = (co_cnt+3)/4 * tidx + cout;
     f16vec4 res = read_bias(ci_cnt, 4*cout, off);
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++) for(int ip=0;ip<(ci_cnt+3)/4;ip++)
     {
       f16mat4 m = read_mat(3*(j+1)+i+1, ip, 4*cout, off);
       res += m * layer[
-        ip + ci_cnt * (
-        clamp(gl_LocalInvocationID.x+i,0,DT_CNN_TILE_WD-1) + gl_WorkGroupSize.x *
-        clamp(gl_LocalInvocationID.y+j,0,DT_CNN_TILE_HT-1))];
+        ip + ci_cnt/4 * (
+        clamp(gl_LocalInvocationID.x-i,0,DT_CNN_TILE_WD-1) + gl_WorkGroupSize.x *
+        clamp(gl_LocalInvocationID.y-j,0,DT_CNN_TILE_HT-1))];
     }
     // apply leaky relu
     res *= mix(f16vec4(1.0), f16vec4(0.05), lessThan(res, f16vec4(0.0)));
     barrier(); // wait until everybody has their result ready
     layer[idx] = res;
-    // update ci_cnt and co_cnt
     barrier(); // now all results are in place, carry on.
-    ci_cnt = co_cnt;
-    co_cnt = 16;
     off += 4;
   }
 
-#if 0
-  { // TODO: last layer C16 with three outputs and no relu
+  { // last layer C16 with three outputs and no relu
     co_cnt = 3;
     uint idx = (co_cnt+3)/4 * tidx + cout;
     f16vec4 res = f16vec4(0.0);
@@ -142,7 +160,7 @@ main()
     else if(cout == 1) for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
     { // regenerate above 5x5 blur for summing it back
       const float16_t wgt[5] = {float16_t(2./16.), float16_t(4./16.), float16_t(6./16.), float16_t(4./16.), float16_t(2./16.)};
-      f16vec4 tex = f16vec4(texture(img_in, (ipos+0.5)/vec2(textureSize(img_in, 0))));
+      f16vec4 tex = f16vec4(texture(img_in, (ipos+vec2(i,j)+0.5)/vec2(textureSize(img_in, 0))));
       res += wgt[j+2]*wgt[i+2] * tex;
     }
     barrier();
@@ -150,7 +168,6 @@ main()
     layer[idx] = res;
     barrier();
   }
-#endif
 
   if(cout == 0)
   {
