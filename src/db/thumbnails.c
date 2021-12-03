@@ -630,5 +630,9 @@ dt_thumbnails_load_one(
   clock_t end = clock();
   dt_log(s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
+  // reset here too to make sure cleanup() is called on all modules.
+  // this releases file descriptors and webcams etc.
+  dt_graph_reset(graph);
+
   return VK_SUCCESS;
 }
