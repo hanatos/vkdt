@@ -195,7 +195,9 @@ read_module_ascii(
   dt_token_t inst = dt_read_token(line, &line);
   // in case of failure:
   // discard module id, but remember error state (returns modid=-1)
-  return dt_module_add(graph, name, inst) < 0;
+  int modid = dt_module_add(graph, name, inst);
+  if(modid < 0) return -1; // this is a fatal error
+  return 0;
 }
 
 int dt_graph_read_config_line(
