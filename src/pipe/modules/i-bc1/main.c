@@ -29,6 +29,7 @@ void modify_roi_out(
   const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
+  gzclose(f);
 }
 
 int read_source(
