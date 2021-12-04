@@ -568,10 +568,10 @@ darkroom_process()
     }
   }
 
-  struct timespec end;
-  clock_gettime(CLOCK_REALTIME, &end);
-  double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
-  dt_log(s_log_perf, "frame time %2.3fs", dt);
+  // struct timespec end;
+  // clock_gettime(CLOCK_REALTIME, &end);
+  // double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
+  // dt_log(s_log_perf, "frame time %2.3fs", dt);
 }
 
 int

@@ -257,10 +257,10 @@ int main(int argc, char *argv[])
     glfwWaitEvents();
     if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
-    clock_t beg_rf = clock();
+    // clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();
-    clock_t end_rf  = clock();
-    dt_log(s_log_perf, "ui time %2.3fs", (end_rf - beg_rf)/(double)CLOCKS_PER_SEC);
+    // clock_t end_rf  = clock();
+    // dt_log(s_log_perf, "ui time %2.3fs", (end_rf - beg_rf)/(double)CLOCKS_PER_SEC);
 
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
