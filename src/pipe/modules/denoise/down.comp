@@ -41,6 +41,15 @@ vec3 gamma(vec3 f)
       f.z < 0.0 ? f.z : pow(f.z, 0.8));
 }
 
+
+float edge(vec3 s, vec3 c0, vec3 c1)
+{
+    /* float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; */ \
+    /* float w = exp(-dot(wc*abs(col-rgb),vec3(1.0))) * (1.0-t)/4.0; */ \
+  // return exp(-dot(s*abs(gamma(c0)-gamma(c1)),vec3(1.0)));
+  return clamp(1.0-0.5*dot(s*abs(gamma(c0)-gamma(c1)), vec3(1.0)), 0.0, 1.0);
+}
+
 void
 main()
 {
@@ -54,7 +63,7 @@ main()
   // const float t = 0.3; // a bit sharper
   const float t = 0.2;
   vec3 rgb;
-  if(push.level < 1) // TODO: detect based on xtrans/bayer and noise level
+  if(push.level < 0) // TODO: detect based on xtrans/bayer and noise level
   {
     vec4 cov; // ignore
     rgb = response(img_in, ipos + push.crop.xy, cov, push.level);
@@ -68,14 +77,12 @@ main()
     const float scale = 65535.0;
     const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
-    const float sigma = pow(0.5, push.level) * 10.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
+    const float sigma = pow(0.7, push.level) * 4.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
     vec3 wc = vec3(1./sigma);
 #define lookup(O) \
     do { \
     vec3 col = texture(img_in, (ipos + push.crop.xy + O)/vec2(sz)).rgb; \
-    /* float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; */ \
-    /* float w = exp(-dot(wc*abs(col-rgb),vec3(1.0))) * (1.0-t)/4.0; */ \
-    float w = exp(-dot(wc*abs(gamma(col)-gamma(rgb)),vec3(1.0))) * (1.0-t)/4.0; \
+    float w = edge(wc, col, rgb) * (1.0-t)/4.0; \
     sum += w * col; \
     wgt += w; \
     } while(false)
