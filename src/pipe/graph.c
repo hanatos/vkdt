@@ -2300,7 +2300,7 @@ VkResult dt_graph_run(
 }
 
   clock_t clock_end = clock();
-  dt_log(s_log_perf, "record cmd buf:\t%8.3f ms", 1000.0*(clock_end - clock_beg)/(double)CLOCKS_PER_SEC);
+  dt_log(s_log_perf, "record cmd buffer:\t%8.3f ms", 1000.0*(clock_end - clock_beg)/(double)CLOCKS_PER_SEC);
 
   VkSubmitInfo submit = {
     .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -2360,15 +2360,16 @@ VkResult dt_graph_run(
     else
     {
       if(accum_time > 0)
-        dt_log(s_log_perf, "[+] subtotal %"PRItkn":\t\t%8.3f ms",
+        dt_log(s_log_perf, "sum %"PRItkn":\t%8.3f ms",
             dt_token_str(last_name),
             accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
       accum_time = 0;
       last_name = graph->query_name[i];
     }
-    dt_log(s_log_perf, "%"PRItkn"_%"PRItkn":\t%8.3f ms",
-        dt_token_str(graph->query_name  [i]),
-        dt_token_str(graph->query_kernel[i]),
+    // i think this is the most horrible line of printf i've ever written:
+    dt_log(s_log_perf, "%-*.*s %-*.*s:\t%8.3f ms",
+        8, 8, dt_token_str(graph->query_name  [i]),
+        8, 8, dt_token_str(graph->query_kernel[i]),
         (graph->query_pool_results[i+1]-
         graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
   }
