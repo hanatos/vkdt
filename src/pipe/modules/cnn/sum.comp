@@ -31,7 +31,6 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb0 = texelFetch(img_in0[0], ipos, 0).rgb;
   vec3 rgb1 = texelFetch(img_in1[0], ipos, 0).rgb;
-  // imageStore(img_out, ipos, vec4(0*rgb0+(rgb1), 1.0)); // XXX DEBUG
-  // imageStore(img_out, ipos, vec4((rgb0+rgb1)/256.0, 1.0));
+  // imageStore(img_out, ipos, vec4(rgb1/256.0, 1.0)); // XXX DEBUG
   imageStore(img_out, ipos, vec4((rgb0+rgb1)/256.0, 1.0));
 }

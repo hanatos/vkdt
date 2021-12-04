@@ -8,7 +8,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-#if 1 // shared memory
+#if 0 // shared memory
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_cnn = graph->num_nodes++;
   const uint32_t tile_size_x = DT_CNN_TILE_WD - 2*DT_CNN_BORDER;
@@ -23,7 +23,7 @@ create_nodes(
     .module = module,
     .wd     = wd,
     .ht     = ht,
-    .dp     = 4,
+    .dp     = 1,
     .num_connectors = 3,
     .connector = {{
       .name   = dt_token("input"),
