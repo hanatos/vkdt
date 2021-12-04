@@ -20,7 +20,7 @@ layout( // input texture
     set = 1, binding = 0
 ) uniform sampler2D img_in;
 
-layout( // weights
+layout( // network weights
     set = 1, binding = 1
 ) uniform sampler2D img_wgt;
 
@@ -81,7 +81,6 @@ main()
   const uint tidx = gl_LocalInvocationID.x + gl_WorkGroupSize.x * gl_LocalInvocationID.y;
   // XXX TODO: try different order in shared memory (tile first, then output)
   { // 5x5 scope
-    uint idx = 2*tidx + cout;
     f16vec4 res = f16vec4(0.0);
     if(cout == 0) res = f16vec4(texture(img_in, (ipos+0.5)/vec2(textureSize(img_in, 0))));
     if(cout == 1)
@@ -91,6 +90,7 @@ main()
       f16vec4 tex = f16vec4(texture(img_in, (ipos+vec2(i,j)+0.5)/vec2(textureSize(img_in, 0))));
       res += wgt[j+2]*wgt[i+2] * tex;
     }
+    const uint idx = 2*tidx + cout;
     layer[idx] = res;
   }
 
@@ -100,7 +100,6 @@ main()
 
   // XXX TODO: write the texture padded already?
   { // special case: C1
-    uint idx = (co_cnt+3)/4 * tidx + cout;
     f16vec4 res = read_bias(ci_cnt, 4*cout, off);
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
     {
@@ -115,6 +114,7 @@ main()
     }
     res *= mix(f16vec4(1.0), f16vec4(0.05), lessThan(res, f16vec4(0.0)));
     barrier();
+    const uint idx = (co_cnt+3)/4 * tidx + cout;
     layer[idx] = res;
     barrier();
     ci_cnt = co_cnt;
@@ -125,7 +125,6 @@ main()
   // ci/co_cnt = 16 for this block
   for(int l=1;l<15;l++)
   { // inner 3x3 scope: C2..C15
-    uint idx = (co_cnt+3)/4 * tidx + cout;
     f16vec4 res = read_bias(ci_cnt, 4*cout, off);
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++) for(int ip=0;ip<(ci_cnt+3)/4;ip++)
     {
@@ -138,6 +137,7 @@ main()
     // apply leaky relu
     res *= mix(f16vec4(1.0), f16vec4(0.05), lessThan(res, f16vec4(0.0)));
     barrier(); // wait until everybody has their result ready
+    const uint idx = (co_cnt+3)/4 * tidx + cout;
     layer[idx] = res;
     barrier(); // now all results are in place, carry on.
     off += 4;
@@ -145,7 +145,6 @@ main()
 
   { // last layer C16 with three outputs and no relu
     co_cnt = 3;
-    uint idx = (co_cnt+3)/4 * tidx + cout;
     f16vec4 res = f16vec4(0.0);
     if(cout <= co_cnt/4) res = read_bias(ci_cnt, 4*cout, off);
     if(cout <= co_cnt/4)
@@ -164,14 +163,14 @@ main()
       res += wgt[j+2]*wgt[i+2] * tex;
     }
     barrier();
-    idx = (co_cnt+3)/4 * tidx + cout; // write index
+    const uint idx = (co_cnt+3)/4 * tidx + cout;
     layer[idx] = res;
     barrier();
   }
 
   if(cout == 0)
   {
-    uint idx = 2 * tidx;
+    const uint idx = 2 * tidx;
     // sum back to blurred input
     vec3 rgb = vec3(layer[idx].rgb) + vec3(layer[idx+1].rgb);
     // write back to output texture
