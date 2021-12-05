@@ -464,38 +464,11 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
   {
-    if(vkdt.graph_dev.frame_cnt != 1)
-      vkdt.state.anim_playing ^= 1; // start/stop playing animation
-    else
-    { // advance to next image in lighttable collection
-      int32_t next = dt_db_current_colid(&vkdt.db) + 1;
-      if(next < vkdt.db.collection_cnt)
-      {
-        darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
-        dt_db_selection_clear(&vkdt.db);
-        dt_db_selection_add(&vkdt.db, next);
-        darkroom_enter();
-      }
-    }
+    dt_gui_dr_next();
   }
   else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
   {
-    if(vkdt.graph_dev.frame_cnt != 1)
-    {
-      vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
-      vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
-    }
-    else
-    { // backtrack to last image in lighttable collection
-      int32_t next = dt_db_current_colid(&vkdt.db) - 1;
-      if(next >= 0)
-      {
-        darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
-        dt_db_selection_clear(&vkdt.db);
-        dt_db_selection_add(&vkdt.db, next);
-        darkroom_enter();
-      }
-    }
+    dt_gui_dr_prev();
   }
 }
 

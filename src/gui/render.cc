@@ -1775,14 +1775,27 @@ void render_darkroom()
     ImGui::Begin("darkroom center", 0, window_flags);
 
     ImGuiIO& io = ImGui::GetIO();
-    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
-       io.NavInputs[ImGuiNavInput_Cancel] > 0.0f)
+    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
     {
-      dt_view_switch(s_view_lighttable);
-      gui.set_nav_focus = 2; // introduce some delay because imgui nav has it too
-      ImGui::End();
-      ImGui::PopStyleColor();
-      return;
+      if(io.NavInputs[ImGuiNavInput_Cancel] > 0.0f)
+      {
+        dt_view_switch(s_view_lighttable);
+        gui.set_nav_focus = 2; // introduce some delay because imgui nav has it too
+        goto abort;
+      }
+      else if(io.NavInputs[ImGuiNavInput_Menu] == 0.0f &&
+              io.NavInputs[ImGuiNavInput_TweakSlow] > 0.0f)
+        dt_gui_dr_prev();
+      else if(io.NavInputs[ImGuiNavInput_Menu] == 0.0f &&
+              io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
+        dt_gui_dr_next();
+      else if(0)
+      {
+abort:
+        ImGui::End();
+        ImGui::PopStyleColor();
+        return;
+      }
     }
 
     int axes_cnt = 0, butt_cnt = 0;
