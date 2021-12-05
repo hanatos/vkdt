@@ -75,16 +75,22 @@ main()
     const float maxrgb = max(maxr, max(maxg, maxb));
     if(maxrgb > softw)
     {
-      const float t = smoothstep(softw, white, maxrgb);
+      float mg = (ming+maxg)*.5;
+      float t = smoothstep(softw, white, maxrgb);
       c1 = mix(c1, upsm.r * scale, t);
       c7 = mix(c7, upsm.r * scale, t);
       c3 = mix(c3, upsm.b * scale, t);
       c5 = mix(c5, upsm.b * scale, t);
 
+      t = smoothstep(softw, white, ming);
       c0 = mix(c0, upsm.g * scale, t);
+      t = smoothstep(softw, white, ming);
       c2 = mix(c2, upsm.g * scale, t);
+      t = smoothstep(softw, white, ming);
       c4 = mix(c4, upsm.g * scale, t);
+      t = smoothstep(softw, white, ming);
       c6 = mix(c6, upsm.g * scale, t);
+      t = smoothstep(softw, white, ming);
       c8 = mix(c8, upsm.g * scale, t);
     }
 
