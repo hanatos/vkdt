@@ -1,10 +1,11 @@
 # cnn denoise
 
-this reads the weights of gmic's resnet from a texture and evaluates
+this reads the weights of [gmic's resnet](https://gmic.eu/reference/denoise_cnn.html) from a texture and evaluates
 the network.
 
-the current implementation is an unoptimised super slow baseline version,
-and it will run out of gpu memory all the time.
+the current implementation runs in small tiles (24x24) and has only
+been tested on a slow nvidia 1650 GTX. a future implementation
+should probably focus on the turing architecture or more recent ones.
 
 to generate the required weights `data/cnn.lut`, you need `gmic-3.0.0` and
 dump the network weights like so (all in this directory):
