@@ -25,6 +25,7 @@ it follows the current list of available modules.
 * [o-ffmpeg: write h264 compressed video stream for multi-frame input](./o-ffmpeg/readme.md)
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
+* [loss: compute loss for optimisation](./loss/readme.md)
 
 **visualisation and inspection modules**
 
@@ -36,6 +37,7 @@ it follows the current list of available modules.
 * [pick: colour picker and visualisation tool](./pick/readme.md)
 * [rawhist: raw histogram with estimated noise levels](./rawhist/readme.md)
 * [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
+* [y2srgb: visualise first channel in grey scale](./y2srgb/readme.md)
 
 **internal use**
 
@@ -50,6 +52,7 @@ it follows the current list of available modules.
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
+* [cnn: convolutional neural network](./cnn/readme.md)
 * [deconv: deconvolution sharpening](./deconv/readme.md)
 * [demosaic: demosaic bayer or x-trans raw files](./demosaic/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
@@ -64,15 +67,18 @@ it follows the current list of available modules.
 * [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
+* [resize: add ability to resize buffers](./resize/readme.md)
 * [saturate: simple rgb saturation](./saturate/readme.md)
 * [spec: spectral colour manipulation/input transform](./spec/readme.md)
 * [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
+* [vignette: add/remove parametric vignette](./vignette/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
 **3d rendering**
 
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)
+* [sss: sub surface scattering testbed](./sss/readme.md)
 
 
 ## default pipeline
