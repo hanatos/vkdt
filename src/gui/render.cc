@@ -1316,12 +1316,38 @@ inline void draw_widget(int modid, int parid)
     case dt_token("pers"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-          if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
+        int accept = 0;
+        if(ImGui::GetTime() - gamepad_time > 0.1)
+        {
+          if(io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
+          {
+            vkdt.wstate.selected ++;
+            if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
+          }
+          if(io.NavInputs[ImGuiNavInput_Activate] > 0.0f)
+          {
+            accept = 1;
+          }
+          gamepad_time = ImGui::GetTime();
+        }
+        int axes_cnt = 0;
+        const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+        const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
+        if(vkdt.wstate.selected >= 0 && axes)
+        {
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+          float inc[2] = {
+              0.002f/scale * SMOOTH(axes[3]),
+              0.002f/scale * SMOOTH(axes[4])};
+#undef SMOOTH
+          dt_gui_dr_pers_adjust(inc, 1);
+        }
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(ImGui::Button(string)) widget_end();
+        if(ImGui::Button(string) || accept) widget_end();
       }
       else
       {
@@ -1881,6 +1907,15 @@ abort:
             dt_image_to_view(v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          if(vkdt.wstate.selected >= 0)
+          {
+            float q[2] = {
+              p[2*vkdt.wstate.selected],
+              p[2*vkdt.wstate.selected+1]};
+            ImGui::GetWindowDrawList()->AddCircleFilled(
+                ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
+                0x77777777u, 20);
+          }
           break;
         }
         case dt_token("crop"):

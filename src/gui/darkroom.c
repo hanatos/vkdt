@@ -297,9 +297,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     {
       if(vkdt.wstate.selected >= 0)
       {
-        // copy to quad state at corner c
-        vkdt.wstate.state[2*vkdt.wstate.selected+0] = n[0];
-        vkdt.wstate.state[2*vkdt.wstate.selected+1] = n[1];
+        dt_gui_dr_pers_adjust(n, 0);
         return;
       }
     }

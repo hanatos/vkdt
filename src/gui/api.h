@@ -129,3 +129,21 @@ dt_gui_dr_crop_adjust(
   }
 }
 
+static inline void
+dt_gui_dr_pers_adjust(
+    float *n,   // corner coordinates in image space
+    int    inc) // if set increment instead of set
+{
+  if(vkdt.wstate.selected < 0 || vkdt.wstate.selected >= 4) return;
+  // copy to quad state at corner c
+  if(inc)
+  {
+    vkdt.wstate.state[2*vkdt.wstate.selected+0] += n[0];
+    vkdt.wstate.state[2*vkdt.wstate.selected+1] += n[1];
+  }
+  else
+  {
+    vkdt.wstate.state[2*vkdt.wstate.selected+0] = n[0];
+    vkdt.wstate.state[2*vkdt.wstate.selected+1] = n[1];
+  }
+}
