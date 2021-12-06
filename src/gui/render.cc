@@ -1816,7 +1816,9 @@ abort:
         float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
         float scale = MIN(imwd/wd, imht/ht);
         if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
-        scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
+        if(axes[2] > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(axes[2]+1.0f)); 
+        if(axes[5] > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(axes[5]+1.0f)); 
+        // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
         vkdt.state.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
         vkdt.state.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
         vkdt.state.scale = scale;
