@@ -86,3 +86,46 @@ dt_gui_dr_prev()
     }
   }
 }
+
+// assumes the crop start button has been pressed and we're in crop mode in the ui
+static inline void
+dt_gui_dr_crop_adjust(
+    float edge,   // value to set vkdt.wtstate.selected edge to
+    int   inc)    // if nonzero, increment edge instead of setting
+{
+  if(vkdt.wstate.selected >= 0 && vkdt.wstate.selected < 4)
+  {
+    if(inc) vkdt.wstate.state[vkdt.wstate.selected] += edge;
+    else    vkdt.wstate.state[vkdt.wstate.selected]  = edge;
+    if(vkdt.wstate.aspect > 0.0f)
+    { // fix up aspect ratio
+      float target_aspect = vkdt.wstate.aspect;
+      if(vkdt.wstate.selected == 0)
+      { // left, move right side along:
+        vkdt.wstate.state[1] = vkdt.wstate.state[0] + target_aspect * (vkdt.wstate.state[3]-vkdt.wstate.state[2]);
+      }
+      else if(vkdt.wstate.selected == 2)
+      { // top, move bottom side along:
+        vkdt.wstate.state[3] = vkdt.wstate.state[2] + 1.0f/target_aspect * (vkdt.wstate.state[1]-vkdt.wstate.state[0]);
+      }
+      else if(vkdt.wstate.selected == 1)
+      { // right, move top and bottom simultaneously to keep center:
+        float c = (vkdt.wstate.state[3] + vkdt.wstate.state[2])*0.5f;
+        float w =  vkdt.wstate.state[1] - vkdt.wstate.state[0];
+        vkdt.wstate.state[3] = c + 0.5f / target_aspect * w;
+        vkdt.wstate.state[2] = c - 0.5f / target_aspect * w;
+      }
+      else if(vkdt.wstate.selected == 3)
+      { // bottom, move left and right simultaneously to keep center:
+        float c = (vkdt.wstate.state[1] + vkdt.wstate.state[0])*0.5f;
+        float w =  vkdt.wstate.state[3] - vkdt.wstate.state[2];
+        vkdt.wstate.state[1] = c + 0.5f * target_aspect * w;
+        vkdt.wstate.state[0] = c - 0.5f * target_aspect * w;
+      }
+    }
+    // make sure min <= max
+    if(vkdt.wstate.state[1] < vkdt.wstate.state[0]) { float tmp = vkdt.wstate.state[1]; vkdt.wstate.state[1] = vkdt.wstate.state[0]; vkdt.wstate.state[0] = tmp; }
+    if(vkdt.wstate.state[3] < vkdt.wstate.state[2]) { float tmp = vkdt.wstate.state[3]; vkdt.wstate.state[3] = vkdt.wstate.state[2]; vkdt.wstate.state[2] = tmp; }
+  }
+}
+

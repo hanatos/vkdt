@@ -1135,12 +1135,14 @@ namespace {
 inline void draw_widget(int modid, int parid)
 {
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
+  ImGuiIO& io = ImGui::GetIO();
 
   // skip if group mode does not match:
   if(param->widget.grpid != -1)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
+  static double gamepad_time = ImGui::GetTime();
   // some state for double click detection for reset functionality
   static int doubleclick = 0;
   static double doubleclick_time = 0;
@@ -1354,10 +1356,32 @@ inline void draw_widget(int modid, int parid)
       const float aspect = iwd/iht;
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
+        int accept = 0;
+        if(ImGui::GetTime() - gamepad_time > 0.1)
+        {
+          if(io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
+          {
+            vkdt.wstate.selected ++;
+            if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
+          }
+          if(io.NavInputs[ImGuiNavInput_Activate] > 0.0f)
+          {
+            accept = 1;
+          }
+          gamepad_time = ImGui::GetTime();
+        }
+        int axes_cnt = 0;
+        const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+        const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+        if(vkdt.wstate.selected >= 0 && axes)
+          dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
+#undef SMOOTH
+
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(ImGui::Button(string))
+        if(ImGui::Button(string) || accept)
         {
           vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
@@ -1866,10 +1890,25 @@ abort:
             vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
-          for(int k=0;k<4;k++)
-            dt_image_to_view(v+2*k, p+2*k);
+          for(int k=0;k<4;k++) dt_image_to_view(v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          if(vkdt.wstate.selected >= 0)
+          {
+            float o = vkdt.state.center_wd * 0.02;
+            float q0[8] = { p[0], p[1], p[2], p[3], p[2],   p[3]-o, p[0],   p[1]-o};
+            float q1[8] = { p[2], p[3], p[4], p[5], p[4]+o, p[5],   p[2]+o, p[3]};
+            float q2[8] = { p[4], p[5], p[6], p[7], p[6],   p[7]+o, p[4],   p[5]+o};
+            float q3[8] = { p[6], p[7], p[0], p[1], p[0]-o, p[1],   p[6]-o, p[7]};
+            float *q = q0;
+            if(vkdt.wstate.selected == 0) q = q3;
+            if(vkdt.wstate.selected == 1) q = q1;
+            if(vkdt.wstate.selected == 2) q = q0;
+            if(vkdt.wstate.selected == 3) q = q2;
+            ImGui::GetWindowDrawList()->AddQuadFilled(
+                ImVec2(q[0],q[1]), ImVec2(q[2],q[3]),
+                ImVec2(q[4],q[5]), ImVec2(q[6],q[7]), 0x77777777u);
+          }
           break;
         }
         case dt_token("pick"):
