@@ -1142,21 +1142,33 @@ inline void draw_widget(int modid, int parid)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
+  double time_now = ImGui::GetTime();
   static double gamepad_time = ImGui::GetTime();
+  int axes_cnt = 0, butt_cnt = 0;
+  const uint8_t *butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
+  const float   *axes = glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt);
+  static int gamepad_reset = 0;
+  if(time_now - gamepad_time > 0.1 && butt[12])
+  {
+    gamepad_reset = 1;
+    gamepad_time = time_now;
+  }
   // some state for double click detection for reset functionality
   static int doubleclick = 0;
   static double doubleclick_time = 0;
 #define RESETBLOCK \
   {\
-    if(ImGui::GetTime() - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
-    if(doubleclick) memcpy(val, param->val+num, sizeof(float));\
+    if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
+    if(doubleclick) memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
     change = 1;\
   }\
-  if(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))\
+  if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) || \
+     (ImGui::IsItemFocused() && gamepad_reset))\
   {\
-    doubleclick_time = ImGui::GetTime();\
+    doubleclick_time = time_now;\
+    gamepad_reset = 0;\
     doubleclick = 1;\
-    memcpy(val, param->val+num, sizeof(float));\
+    memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
     change = 1;\
   }\
   if(change)
@@ -1319,21 +1331,20 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
-        if(ImGui::GetTime() - gamepad_time > 0.1)
+        if(time_now - gamepad_time > 0.1)
         {
           if(io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
           {
             vkdt.wstate.selected ++;
             if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
+            gamepad_time = time_now;
           }
           if(io.NavInputs[ImGuiNavInput_Activate] > 0.0f)
           {
             accept = 1;
+            gamepad_time = time_now;
           }
-          gamepad_time = ImGui::GetTime();
         }
-        int axes_cnt = 0;
-        const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
         const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
         if(vkdt.wstate.selected >= 0 && axes)
         {
@@ -1369,6 +1380,10 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = s_graph_run_all;
           darkroom_reset_zoom();
         }
+        if(0) RESETBLOCK {
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          darkroom_reset_zoom();
+        }
       }
       num = count;
       break;
@@ -1383,18 +1398,19 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
-        if(ImGui::GetTime() - gamepad_time > 0.1)
+        if(time_now - gamepad_time > 0.1)
         {
           if(io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
           {
             vkdt.wstate.selected ++;
             if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
+            gamepad_time = time_now;
           }
           if(io.NavInputs[ImGuiNavInput_Activate] > 0.0f)
           {
             accept = 1;
+            gamepad_time = time_now;
           }
-          gamepad_time = ImGui::GetTime();
         }
         int axes_cnt = 0;
         const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
@@ -1453,6 +1469,10 @@ inline void draw_widget(int modid, int parid)
             .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
             .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
           memcpy(v, def, sizeof(float)*4);
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          darkroom_reset_zoom();
+        }
+        if(0) RESETBLOCK {
           vkdt.graph_dev.runflags = s_graph_run_all;
           darkroom_reset_zoom();
         }

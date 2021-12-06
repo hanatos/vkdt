@@ -4,7 +4,8 @@
 #include <math.h>
 
 // fill crop and rotation if auto-rotate by exif data has been requested
-static void get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, const float *p_rot, float *crop, float *rot)
+static inline void
+get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, const float *p_rot, float *crop, float *rot)
 {
   // flip by exif orientation if we have it and it's requested:
   float rotation = p_rot[0];
@@ -16,35 +17,37 @@ static void get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, c
   crop[3] = p_crop[3];
   if(rotation == 1337.0f)
   { // auto rotation magic number
-    // microcrop by pixel safety margin for resampling:
+    if(or == 3)      rot[0] = 180.0f;
+    else if(or == 8) rot[0] = 90.0f;
+    else if(or == 6) rot[0] = 270.0f;
+    else             rot[0] = 0.0f;
+  }
+  if(crop[0] == 1.0 && crop[1] == 3.0 && crop[2] == 3.0 && crop[3] == 7.0)
+  { // more magic: microcrop by pixel safety margin for resampling:
     float crw = 3.0 / wd, crh = 3.0 / ht;
-    if(or == 3)
-    { // rotate 180
-      rot[0] = 180.0f;
-      crop[0] = crw;
-      crop[2] = crh;
-      crop[1] = 1.0f-crw;
-      crop[3] = 1.0f-crh;
-    }
-    else if(or == 8)
-    { // rotate 270
-      rot[0] = 90.0f;
+    if(rot[0] >= 45 && rot[0] < 135)
+    { // almost 90
       crop[0] = 0.5f - (.5f - crh) * ht / wd;
       crop[2] = 0.5f - (.5f - crw) * wd / ht;
       crop[1] = 0.5f + (.5f - crh) * ht / wd;
       crop[3] = 0.5f + (.5f - crw) * wd / ht;
     }
-    else if(or == 6)
-    { // rotate 90
-      rot[0] = 270.0f;
+    else if(rot[0] < 225)
+    { // almost 180
+      crop[0] = crw;
+      crop[2] = crh;
+      crop[1] = 1.0f-crw;
+      crop[3] = 1.0f-crh;
+    }
+    else if(rot[0] < 315)
+    { // almost 270
       crop[0] = 0.5f - (.5f - crh) * ht / wd;
       crop[2] = 0.5f - (.5f - crw) * wd / ht;
       crop[1] = 0.5f + (.5f - crh) * ht / wd;
       crop[3] = 0.5f + (.5f - crw) * wd / ht;
     }
     else
-    { // at least do nothing 
-      rot[0] = 0.0f;
+    { // almost 0
       crop[0] = crw;
       crop[2] = crh;
       crop[1] = 1.0f-crw;
