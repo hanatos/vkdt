@@ -1661,6 +1661,8 @@ void render_darkroom_favourite()
 void render_darkroom_full()
 {
   char name[30];
+  static char open[100] = {0};
+  static uint32_t active_module = -1u;
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
@@ -1672,12 +1674,47 @@ void render_darkroom_full()
   for(int m=cnt-1;m>=0;m--)
   {
     int curr = modid[m];
-    if(arr[curr].so->num_params) {
+    if(arr[curr].so->num_params)
+    {
       snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
           dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
       if(ImGui::CollapsingHeader(name))
+      {
+        if(!open[m])
+        { // just opened, now this is the 'active module'.
+          // fprintf(stderr, "module %" PRItkn " got focus!\n", dt_token_str(arr[curr].name));
+          active_module = curr;
+          int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
+          if(cid >= 0)
+          { // if 'dspy' output exists, connect to 'dspy' display
+            int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
+            if(graph->module[mid].connector[0].connected_mi != curr ||
+               graph->module[mid].connector[0].connected_mc != cid)
+            { // only if not connected yet
+              CONN(dt_module_connect(graph, curr, cid, mid, 0));
+              vkdt.graph_dev.runflags = s_graph_run_all;
+            }
+          }
+          open[m] = 1;
+        }
+        if(active_module == curr)
+        {
+          dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
+          if(out_dspy)
+          {
+            int wd = vkdt.state.panel_wd;
+            int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
+            // int ht = wd * out_dspy->connector[0].roi.full_ht / (float)out_dspy->connector[0].roi.full_wd; // image aspect
+            ImGui::Image(out_dspy->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
+                ImVec2(wd, ht),
+                ImVec2(0,0), ImVec2(1,1),
+                ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+          }
+        }
         for(int i=0;i<arr[curr].so->num_params;i++)
           draw_widget(curr, i);
+      }
+      else open[m] = 0;
     }
   }
 }

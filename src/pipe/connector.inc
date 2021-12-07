@@ -14,6 +14,7 @@
 
   // find node that m1 is currently connected to via c1 (where is the data currently coming from?)
   dt_connector_t *cn1 = graph->element[m1].connector+c1;
+  if(cn1->connected_mi == m0 && cn1->connected_mc == c0) return 0; // already connected
   if(cn1->type != dt_token("read") && cn1->type != dt_token("sink")) return 3;
 
   int old_mod = cn1->connected_mi;
