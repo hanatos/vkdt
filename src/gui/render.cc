@@ -1148,7 +1148,7 @@ inline void draw_widget(int modid, int parid)
   const uint8_t *butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
   const float   *axes = glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt);
   static int gamepad_reset = 0;
-  if(time_now - gamepad_time > 0.1 && butt[12])
+  if(time_now - gamepad_time > 0.1 && butt && butt[12])
   {
     gamepad_reset = 1;
     gamepad_time = time_now;
