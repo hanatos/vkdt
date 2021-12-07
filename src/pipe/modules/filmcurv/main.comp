@@ -124,7 +124,8 @@ main()
   if(all(lessThan(ipos, imageSize(img_crv))))
   {
     vec4 col_crv = vec4(0, 0, 0, 1);
-    float off = 0.1 * imageSize(img_crv).x;
+    float of0 = 0;//0.1; // extend range outside [0,1]?
+    float off = of0 * imageSize(img_crv).x;
     float x = ipos.x/float(imageSize(img_crv).x - off);
     float y = curve(x);
     float y2 = curve(x+1.0/float(imageSize(img_crv).x));
@@ -132,7 +133,7 @@ main()
     const float w = 2.0; // stroke width
     const float t = w*(1.0 + imageSize(img_crv).x*ddx);
 
-    float d = abs((1.1-y) * 0.9 * imageSize(img_crv).y - ipos.y);
+    float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_crv).y - ipos.y);
     col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
     imageStore(img_crv, ipos, col_crv);
   }
