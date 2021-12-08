@@ -25,7 +25,23 @@
   // init this with all sink nodes/modules. invert order so the one last
   // in the list will be the last in post-order traversal and the first in
   // pre-order traversal. this is important for ROI computations.
-  for(int i=arr_cnt-1;i>=0;i--) if(arr[i].connector[0].type == dt_token("sink"))
+  // also, put ones in module instances named "main" first:
+#define get_instance(X) _Generic(X, \
+    dt_node_t*   : dt_node_get_instance,\
+    dt_module_t* : dt_module_get_instance)
+
+  for(int i=0;i<arr_cnt;i++)
+    if(arr[i].connector[0].type == dt_token("sink") &&
+        get_instance(arr+i)(arr+i) == dt_token("main"))
+  {
+    mark[i] = 1;
+    stack[++sp] = i;
+    done[sp] = 0;
+  }
+#undef get_instance
+  for(int i=arr_cnt-1;i>=0;i--)
+    if(arr[i].connector[0].type == dt_token("sink") &&
+       !mark[i])
   {
     mark[i] = 1;
     stack[++sp] = i;

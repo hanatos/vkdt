@@ -141,3 +141,17 @@ dt_graph_connector_image(
 void
 dt_graph_apply_keyframes(
     dt_graph_t *g);
+
+static inline dt_token_t
+dt_node_get_instance(
+    dt_node_t *node)
+{
+  return node->module->inst;
+}
+
+static inline dt_token_t
+dt_module_get_instance(
+    dt_module_t *module)
+{
+  return module->inst;
+}

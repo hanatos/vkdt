@@ -78,45 +78,59 @@ create_nodes(
       .connected_mi = -1,
     }},
   };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_dspy = graph->num_nodes++;
-  graph->node[id_dspy] = (dt_node_t) {
-    .name   = dt_token("pick"),
-    .kernel = dt_token("display"),
-    .module = module,
-    .wd     = module->connector[2].roi.wd,
-    .ht     = module->connector[2].roi.ht,
-    .dp     = 1,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("r"),
-      .format = dt_token("ui32"),
-      .roi    = module->connector[3].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("lut"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[1].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("dspy"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[2].roi,
-    }},
-  };
 
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_collect, 0);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
-  dt_node_connect  (graph, id_collect, 1, id_dspy, 0);
-  dt_connector_copy(graph, module, 1, id_dspy, 1);
-  dt_connector_copy(graph, module, 2, id_dspy, 2);
+
+  // now detect whether we have an input spectra lut connected
+  // or not. if not, we'll just not connect the display node
+  // and let outside connections to the dspy channel fail as well:
+  if(module->connector[1].connected_mi >= 0 &&
+     module->connector[1].connected_mc >= 0)
+  {
+    fprintf(stderr, "found connection on spectra channel!\n");
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_dspy = graph->num_nodes++;
+    graph->node[id_dspy] = (dt_node_t) {
+      .name   = dt_token("pick"),
+      .kernel = dt_token("display"),
+      .module = module,
+      .wd     = module->connector[2].roi.wd,
+      .ht     = module->connector[2].roi.ht,
+      .dp     = 1,
+      .num_connectors = 3,
+      .connector = {{
+        .name   = dt_token("input"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("r"),
+        .format = dt_token("ui32"),
+        .roi    = module->connector[3].roi,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("lut"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = module->connector[1].roi,
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("dspy"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("rgba"),
+        .format = dt_token("f16"),
+        .roi    = module->connector[2].roi,
+      }},
+    };
+    dt_node_connect  (graph, id_collect, 1, id_dspy, 0);
+    dt_connector_copy(graph, module, 1, id_dspy, 1);
+    dt_connector_copy(graph, module, 2, id_dspy, 2);
+  }
+  else
+  {
+    dt_connector_copy(graph, module, 2, id_collect, 1);
+  }
+
   // dt_connector_copy(graph, module, 1, id_collect, 1);
   graph->node[id_collect].connector[1].flags = s_conn_clear; // restore after connect
   if(dt_module_param_int(module, dt_module_get_param(module->so, dt_token("grab")))[0] == 1)
