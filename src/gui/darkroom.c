@@ -44,7 +44,10 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
   }
 
   if(action == GLFW_PRESS && x >= vkdt.state.center_x + vkdt.state.center_wd)
-    return; // ignore only press over panel
+    return; // ignore only press over panel for pan
+  if(vkdt.wstate.active_widget_modid >= 0 &&
+     x >= vkdt.state.center_x + vkdt.state.center_wd)
+    return; // and all events on panel for on-canvas module interaction
   const float px_dist = 0.1*qvk.win_height;
 
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
