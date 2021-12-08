@@ -1697,7 +1697,8 @@ void render_darkroom_full()
           }
           open[m] = 1;
         }
-        if(active_module == curr)
+        if(active_module == curr &&
+          dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
         {
           dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
           if(out_dspy)

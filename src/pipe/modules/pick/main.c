@@ -55,7 +55,7 @@ create_nodes(
       .type   = dt_token("write"),
       .chan   = dt_token("r"),
       .format = dt_token("ui32"),
-      .roi    = module->connector[1].roi,
+      .roi    = module->connector[3].roi,
       .flags  = s_conn_clear,
     }},
   };
@@ -89,7 +89,6 @@ create_nodes(
   if(module->connector[1].connected_mi >= 0 &&
      module->connector[1].connected_mc >= 0)
   {
-    fprintf(stderr, "found connection on spectra channel!\n");
     assert(graph->num_nodes < graph->max_nodes);
     const int id_dspy = graph->num_nodes++;
     graph->node[id_dspy] = (dt_node_t) {
@@ -125,13 +124,14 @@ create_nodes(
     dt_node_connect  (graph, id_collect, 1, id_dspy, 0);
     dt_connector_copy(graph, module, 1, id_dspy, 1);
     dt_connector_copy(graph, module, 2, id_dspy, 2);
+    module->connector[2].name = dt_token("dspy");
   }
   else
   {
     dt_connector_copy(graph, module, 2, id_collect, 1);
+    module->connector[2].name = dt_token("dsp_"); // disable temp display output
   }
 
-  // dt_connector_copy(graph, module, 1, id_collect, 1);
   graph->node[id_collect].connector[1].flags = s_conn_clear; // restore after connect
   if(dt_module_param_int(module, dt_module_get_param(module->so, dt_token("grab")))[0] == 1)
     module->flags |= s_module_request_write_sink;

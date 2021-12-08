@@ -114,6 +114,12 @@ typedef struct dt_graph_t dt_graph_t; // fwd declare
 int dt_module_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
 int dt_node_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
 
+static inline int
+dt_connected(const dt_connector_t *c)
+{
+  return c->connected_mi >= 0 && c->connected_mc >= 0;
+}
+
 static inline const char*
 dt_connector_error_str(const int err)
 {
