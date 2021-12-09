@@ -33,21 +33,21 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3  rgb = texelFetch(img_in,     ipos, 0).rgb;
-  float crs = texelFetch(img_coarse, ipos, 0).r;
+  vec3  rgb = texelFetch(img_in, ipos, 0).rgb;
+  float crs = texture(img_coarse, (ipos+0.5)/vec2(imageSize(img_out)), 0).r;
 
   // xyz luma
   float l0 = luminance_rec2020(rgb);
   float l1 = crs;
 
-  float d = l1 - l0;
-  float lum = l1 + sign(d) * (params.detail * max(0.0, abs(d) - params.thrs) + min(abs(d), params.thrs));
+  float d = l0 - l1;
+  float lum = l1 + sign(d) * (params.detail * max(0.0, abs(d) - params.thrs));// + min(abs(d), params.thrs));
   // float lum = l1 + params.detail * (l0 - l1);
   // colour reconstruction: keep rgb saturation ratio same as before
   rgb *= lum/max(l0, 0.0001);
   // want to see why 8-bit output sucks? try this:
   // float l1 = hermite4(ipos.x / float(params.ro.roi.x));
-  // rgba.rgb = vec3(l1);
+  // rgb = vec3(crs);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 

@@ -1,4 +1,4 @@
-radius:float:1:0.05
-edges:float:1:0.5
+radius:float:1:0.01
+edges:float:1:0.03
 detail:float:1:1.0
-thrs:float:1:0.01
+thrs:float:1:0.0

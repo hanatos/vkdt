@@ -542,7 +542,7 @@ dt_api_guided_filter(
   // then connect 1x blur:
   // mean_I = blur(I)
   // corr_I = blur(I*I)
-  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 1, 0, 0, radius_px);
+  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 1, 0, 0, radius_px, 1);
 
   // connect to this node:
   // a = var_I / (var_I + eps)
@@ -570,7 +570,7 @@ dt_api_guided_filter(
   // and blur once more:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
+  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius_px, 1);
 
   // final kernel:
   // output = mean_a * I + mean_b
