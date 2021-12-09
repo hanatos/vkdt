@@ -42,7 +42,7 @@ main()
   float zone = 7.0 * texelFetch(img_zone, ipos, 0).r;
   float i = floor(zone);
   float f = fract(zone);
-  float ev;
+  float ev = 0.0;
   if     (i < 1) ev = mix(params.zone0, params.zone1, smoothstep(0.0, 1.0, f));
   else if(i < 2) ev = mix(params.zone1, params.zone2, smoothstep(0.0, 1.0, f));
   else if(i < 3) ev = mix(params.zone2, params.zone3, smoothstep(0.0, 1.0, f));

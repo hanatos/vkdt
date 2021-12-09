@@ -243,7 +243,7 @@ bool outside_spectral_locus(vec2 xy)
 */
 vec3 adjust_colour(vec3 rgb, float yo, float y)
 {
-#define EQ2 // this makes very tiny differences in my tests
+// #define EQ2 // this makes very tiny differences in my tests, but it can result in quite disturbing brightness changes even for yo == y
   float eps = 1e-8;
   // we have to deal with the contrast curve changing sign > 1.0.
   // this can be done various ways. just clamping or evaluating the logarithm of 1+x.

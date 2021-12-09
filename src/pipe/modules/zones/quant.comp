@@ -36,7 +36,7 @@ main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   float lum = clamp(luminance_rec2020(rgb), 0.0f, 1.0);
-  const float nz = 7;
+  const float nz = 7.0;
   // our guided filter somehow normalises/clamps at 1.0, so we provide our data in that range.
   // i suspect it's the clamp in guided2f.comp.
   float zone = floor(lum * nz + 0.5)/nz;
