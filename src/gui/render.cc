@@ -1703,9 +1703,13 @@ void render_darkroom_full()
           dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
           if(out_dspy)
           {
-            int wd = vkdt.state.panel_wd;
-            int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
-            // int ht = wd * out_dspy->connector[0].roi.full_ht / (float)out_dspy->connector[0].roi.full_wd; // image aspect
+            float iwd = out_dspy->connector[0].roi.full_wd;
+            float iht = out_dspy->connector[0].roi.full_ht;
+            float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
+            int ht = scale * iht;
+            int wd = scale * iwd;
+            ImGui::NewLine(); // end expander
+            ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
             ImGui::Image(out_dspy->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
                 ImVec2(wd, ht),
                 ImVec2(0,0), ImVec2(1,1),
