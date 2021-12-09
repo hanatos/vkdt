@@ -26,64 +26,6 @@ layout( // output f16 buffer local contrast + colour
     set = 1, binding = 2
 ) uniform writeonly image2D img_out;
 
-// use the colour reconstruction proposed in Mantiuk et al. "Color correction
-// for tone mapping" (EG 2009):
-// instead of simple RGB scaling or Lab magic, they propose a sigmoid function
-// that saturates colour saturation near black and white on the output.
-// TODO: factor out into shared.glsl such that filmcurv can do it too
-#if 0
-  RGBout = (RGBin/Lin)^s Lout               (2)
-  RGBout = ((RGBin/Lin - 1)*s + 1) Lout     (3)
-  pick one of (2) or (3), (3) is better for exact brightness, but introduces
-  more severe hue shifts.
-  assume tone curve would be something like
-  Lout = (Lin * b)^c                        (4)
-  find s(c) as
-  s(c) = (1+k1) c^k2 / (1 + k1 c^k2)        (5)
-  they find c for non contrast curves as in (4) by using log/log space:
-  c(Lin) = d/dlogLin f(logLin)              (6)
-  what if we instead approximate the local surroundings of Lin/Lout by
-  a contrast curve of shape (4)?
-  i.e.
-  c = log(Lout)/log(b*Lin)                  (O1)
-  probably assuming exposure correction b = 1.
-  so:
-  a) compute Lout from Lin as we do
-  b) compute c by eq (O1)
-  c) compute s(c) by eq (5)
-  d) compute RGB by eq (2) or (3), to taste
-#endif
-
-vec3 adjust_colour(vec3 rgb, float yo, float y)
-{
-#define EQ2 // this makes very tiny differences in my tests
-  float eps = 1e-8;
-  // we have to deal with the contrast curve changing sign > 1.0.
-  // this can be done various ways. just clamping or evaluating the logarithm of 1+x.
-  // log(1+x) looks really very good on landscapes, log(clamp(x)) looks better on
-  // much increased blacks for portraits. possibly might tweak this in the future
-  // and potentially need to expose control over this in params :(
-  // this one desaturates deep shadows unacceptably for portraits
-  // float c = clamp(log(1.0+max(y, 0.0))/(log(1.0+max(yo, 0.0)) + eps), 0, 4.0); // excellent for landsc
-  // those two work great on portraits (i see no diff):
-  // the 0.6 safeguards the sharp transition to complete desaturation when the two logs change sign.
-  float c = clamp(log(clamp(y*0.6, eps, 1.0))/(log(clamp(yo*0.6, eps, 1.0)) + eps), 0, 4.0);
-#ifdef EQ2
-  float k1 = 1.6774, k2 = .9925;  // params for eq (2)
-#else
-  float k1 = 2.3892, k2 = 0.8552; // params for eq (3)
-#endif
-  float s = (1.0+k1) * pow(c, k2) / (1.0 + k1*pow(c, k2));
-  s = clamp(s, eps, 1.0-eps);
-#ifdef EQ2
-  // eq (2) preserving colours, not brightness:
-  // want to avoid saturating dark noise, hence fairly big epsilon 1e-2 here
-  return pow(rgb/(yo+1e-2), vec3(s)) * y; // eq (2)
-#else
-  return ((rgb / yo - 1.0)*s + 1.0) * y;  // eq (3)
-#endif
-}
-
 void
 main()
 {
