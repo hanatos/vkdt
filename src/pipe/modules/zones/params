@@ -1,5 +1,5 @@
-radius:float:1:0.05
-epsilon:float:1:0.1
+radius:float:1:0.01
+epsilon:float:1:0.001
 zone0:float:1:0.0
 zone1:float:1:0.0
 zone2:float:1:0.0

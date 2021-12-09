@@ -103,5 +103,7 @@ create_nodes(
   dt_connector_copy(graph, module, 0, guided_entry, 0);
   dt_connector_copy(graph, module, 0, guided_exit,  0);
   dt_connector_copy(graph, module, 1, id_apply, 2);
+  dt_connector_copy(graph, module, 2, guided_exit, 2); // dspy output
+  // dt_connector_copy(graph, module, 2, id_quant, 1);
 }
 

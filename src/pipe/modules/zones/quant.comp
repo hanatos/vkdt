@@ -35,13 +35,11 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  float lum = clamp(luminance_rec2020(rgb), 0.0f, 1.0f);
+  float lum = clamp(luminance_rec2020(rgb), 0.0f, 1.0);
   const float nz = 7;
   // our guided filter somehow normalises/clamps at 1.0, so we provide our data in that range.
   // i suspect it's the clamp in guided2f.comp.
-  float zone = floor(lum * nz)/nz;
-  // float b = 0.01f;
-  // int zone = int(nz * -(log(b + lum*(1-b)) - log(b))/log(b));
+  float zone = floor(lum * nz + 0.5)/nz;
   imageStore(img_out, ipos, vec4(vec3(zone), 1));
 }
 
