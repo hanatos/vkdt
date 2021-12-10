@@ -1875,14 +1875,16 @@ void render_darkroom_pipeline()
 void render_darkroom()
 {
   { // center image view
+    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoTitleBar;
     window_flags |= ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoResize;
     // draw background over the full thing:
-    ImVec2 border = ImVec2(2*vkdt.state.center_x, 2*vkdt.state.center_y);
+    ImVec2 border = ImVec2(2*win_x, 2*win_y);
     ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd+border.x, vkdt.state.center_ht+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("darkroom center", 0, window_flags);
 
@@ -1925,7 +1927,7 @@ abort:
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
         float wd  = (float)out_main->connector[0].roi.wd;
         float ht  = (float)out_main->connector[0].roi.ht;
-        float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
+        float imwd = win_w, imht = win_h;
         float scale = MIN(imwd/wd, imht/ht);
         if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
         if(axes[2] > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(axes[2]+1.0f)); 
@@ -1938,9 +1940,8 @@ abort:
       }
       ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
       float im0[2], im1[2];
-      float v0[2] = {(float)vkdt.state.center_x, (float)vkdt.state.center_y};
-      float v1[2] = {(float)vkdt.state.center_x+vkdt.state.center_wd,
-        (float)vkdt.state.center_y+vkdt.state.center_ht};
+      float v0[2] = {(float)win_x, (float)win_y};
+      float v1[2] = {(float)win_x+win_w, (float)win_y+win_h};
       dt_view_to_image(v0, im0);
       dt_view_to_image(v1, im1);
       im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
@@ -1952,6 +1953,7 @@ abort:
       ImGui::GetWindowDrawList()->AddImage(
           imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
           ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+      if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
     // center view has on-canvas widgets:
     if(vkdt.wstate.active_widget_modid >= 0)

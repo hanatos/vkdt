@@ -442,6 +442,25 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   {
     dt_gui_dr_prev();
   }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_TAB)
+  {
+    vkdt.wstate.fullscreen_view ^= 1;
+    if(vkdt.wstate.fullscreen_view)
+    {
+      vkdt.state.center_x = 0;
+      vkdt.state.center_y = 0;
+      vkdt.state.center_wd = qvk.win_width;
+      vkdt.state.center_ht = qvk.win_height;
+      darkroom_reset_zoom();
+    }
+    else
+    {
+      vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width;
+      vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
+      vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - vkdt.state.panel_wd;
+      vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
+    }
+  }
 }
 
 void

@@ -73,6 +73,8 @@ typedef struct dt_gui_wstate_t
 
   double notification_time;     // time the message appeared
   char   notification_msg[256]; // message to display
+
+  int fullscreen_view;          // darkroom mode without panels
 }
 dt_gui_wstate_t;
 
