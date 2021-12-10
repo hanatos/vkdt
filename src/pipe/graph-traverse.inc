@@ -26,9 +26,18 @@
   // in the list will be the last in post-order traversal and the first in
   // pre-order traversal. this is important for ROI computations.
   // also, put ones in module instances named "main" first:
+#ifndef __cplusplus
 #define get_instance(X) _Generic(X, \
     dt_node_t*   : dt_node_get_instance,\
     dt_module_t* : dt_module_get_instance)
+#else
+  typedef dt_token_t (*retfn)(dt_node_t*);
+  typedef dt_token_t (*retfm)(dt_module_t*);
+  struct cplusplussucks {
+    retfn operator()(dt_node_t* n)   { return &dt_node_get_instance; }
+    retfm operator()(dt_module_t* m) { return &dt_module_get_instance; }
+  } get_instance;
+#endif
 
   for(int i=0;i<arr_cnt;i++)
     if(arr[i].connector[0].type == dt_token("sink") &&
