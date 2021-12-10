@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/gui.h"
 #include "gui/darkroom.h"
+#include "gui/darkroom-util.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 // api functions for gui interactions, c portion.
@@ -145,5 +146,26 @@ dt_gui_dr_pers_adjust(
   {
     vkdt.wstate.state[2*vkdt.wstate.selected+0] = n[0];
     vkdt.wstate.state[2*vkdt.wstate.selected+1] = n[1];
+  }
+}
+
+static inline void
+dt_gui_dr_toggle_fullscreen_view()
+{
+  vkdt.wstate.fullscreen_view ^= 1;
+  if(vkdt.wstate.fullscreen_view)
+  {
+    vkdt.state.center_x = 0;
+    vkdt.state.center_y = 0;
+    vkdt.state.center_wd = qvk.win_width;
+    vkdt.state.center_ht = qvk.win_height;
+    darkroom_reset_zoom();
+  }
+  else
+  {
+    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - vkdt.state.panel_wd;
+    vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
   }
 }

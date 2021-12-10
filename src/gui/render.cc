@@ -1874,6 +1874,9 @@ void render_darkroom_pipeline()
 
 void render_darkroom()
 {
+  int axes_cnt = 0, butt_cnt = 0;
+  const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
+  const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
   { // center image view
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
@@ -1891,6 +1894,15 @@ void render_darkroom()
     ImGuiIO& io = ImGui::GetIO();
     if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
     {
+      static int fs_state = 0;
+      if(butt && !butt[6] && !butt[7]) fs_state = 0;
+      else if(fs_state == 0 && butt && butt[6]) fs_state = 1;
+      else if(fs_state == 1 && butt && butt[6] && butt[7])
+      {
+        fs_state = 2;
+        dt_gui_dr_toggle_fullscreen_view();
+      }
+
       if(io.NavInputs[ImGuiNavInput_Cancel] > 0.0f)
       {
         dt_view_switch(s_view_lighttable);
@@ -1912,16 +1924,12 @@ abort:
       }
     }
 
-    int axes_cnt = 0, butt_cnt = 0;
-    const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
-    const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
-    if(butt && butt[11]) // left stick pressed
-      darkroom_reset_zoom();
-
     // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
+      if(butt && butt[11]) // left stick pressed
+        darkroom_reset_zoom();
       if(axes)
       {
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
