@@ -1601,22 +1601,25 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("rgb"):
     {
-      if(num > 2) break; // only red green blue components
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-      float oldval = *val;
-      char str[32] = {0};
-      snprintf(str, sizeof(str), "%" PRItkn " %s",
-          dt_token_str(param->name),
-          num == 0 ? "red" : (num == 1 ? "green" : "blue"));
-      if(ImGui::SliderFloat(str, val,
-            param->widget.min, param->widget.max, "%2.5f"))
+      for(int comp=0;comp<3;comp++)
       {
-        dt_graph_run_t flags = s_graph_run_none;
-        if(vkdt.graph_dev.module[modid].so->check_params)
-          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-            s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-        vkdt.graph_dev.active_module = modid;
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
+        float oldval = *val;
+        char str[32] = {0};
+        snprintf(str, sizeof(str), "%" PRItkn " %s",
+            dt_token_str(param->name),
+            comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
+        if(ImGui::SliderFloat(str, val,
+              param->widget.min, param->widget.max, "%2.5f"))
+        {
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+          vkdt.graph_dev.active_module = modid;
+        }
+        if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       }
       break;
     }

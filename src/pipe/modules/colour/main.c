@@ -317,18 +317,30 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     const int N = p_cnt;
     i[16] = N;
     i[18] = i[19] = i[17] = 0;
+
+    float p2_src[40], p2_tgt[40];
+    for(int i=0;i<p_cnt;i++)
+    {
+      p2_src[2*i+0] = p_src[3*i+0]/(p_src[3*i+0]+p_src[3*i+1]+p_src[3*i+2]);
+      p2_src[2*i+1] = p_src[3*i+2]/(p_src[3*i+0]+p_src[3*i+1]+p_src[3*i+2]);
+      p2_tgt[2*i+0] = p_tgt[3*i+0]/(p_tgt[3*i+0]+p_tgt[3*i+1]+p_tgt[3*i+2]);
+      p2_tgt[2*i+1] = p_tgt[3*i+2]/(p_tgt[3*i+0]+p_tgt[3*i+1]+p_tgt[3*i+2]);
+    }
+
     // init f[20]..
     memset(f + 20, 0, sizeof(float)*44);
     for(int k=0;k<N;k++)
     { // source points
-      f[20 + 4*k + 0] = p_src[2*k+0];
-      f[20 + 4*k + 1] = p_src[2*k+1];
+      f[20 + 4*k + 0] = p2_src[2*k+0];
+      f[20 + 4*k + 1] = p2_src[2*k+1];
     }
     // TODO: go through target and map to gamut!
-    compute_coefficients(N, p_src, p_tgt, f + 20);
+    compute_coefficients(N, p2_src, p2_tgt, f + 20);
   }
   else
   { // mode == 0 (or default): "parametric" mode
+    i[16] = 0; // disable rbf
+#if 0
     float wb[] = {1, 1, 1};
     // TODO: bind some param to white and saturations!
     float white[] = {0.33333, 0.33333};
@@ -348,6 +360,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
       f[20 + 4*k + 1] = source[2*k+1];
     }
     compute_coefficients(N, source, target, f + 20);
+#endif
   }
 }
 

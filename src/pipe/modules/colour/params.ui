@@ -5,6 +5,6 @@ gamut:combo:no correction:limit to spectral locus:limit to rec2020:limit to rec7
 white:rgb:0:1
 mat:hidden
 group:mode:1
-source:slider:0:1:cnt
-target:slider:0:1:cnt
-cnt:slider:0:5
+cnt:slider:2:20
+source:rgb:0:1:cnt
+target:rgb:0:1:cnt
