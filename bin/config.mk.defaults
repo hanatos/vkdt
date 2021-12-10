@@ -5,14 +5,10 @@
 # pull or so. if 'config.mk' exists, it will be loaded after this, so you can
 # overwrite the settings in here by copying the file over and making changes
 # there.
-# i changed this so it builds with all the bells and whistles on
-# opensuse's build serivce because i can't figure out how to overwrite it
-# there easily. please feel free to remove all the bloat in your 'config.mk'
-# and also set the PACKAGE_BUILD=0 for more tailored compilation.
 
 # if you have freetype2 and png16, you can uncomment this:
-VKDT_USE_FREETYPE=1
-export VKDT_USE_FREETYPE
+# VKDT_USE_FREETYPE=1
+# export VKDT_USE_FREETYPE
 
 # if you disable this, the i-raw module will not be built
 # and you will be unable to load raw images.
@@ -24,28 +20,28 @@ export VKDT_USE_RAWSPEED
 # exiv2 can optionally be used to load some super basic metadata (iso
 # speed, shutter time etc) inside the i-raw module. that is, you don't
 # have that you don't need to disable this.
-VKDT_USE_EXIV2=1
-export VKDT_USE_EXIV2
+# VKDT_USE_EXIV2=1
+# export VKDT_USE_EXIV2
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
-VKDT_USE_V4L2=1
-export VKDT_USE_V4L2
+# VKDT_USE_V4L2=1
+# export VKDT_USE_V4L2
 
 # we use GPL3 code in the i-mlv magic lantern raw video input
 # module. if you don't want it, leave it disabled here. if
 # you want video, you probably also want VKDT_USE_ALSA=1, see below.
-VKDT_USE_MLV=1
-export VKDT_USE_MLV
+# VKDT_USE_MLV=1
+# export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-VKDT_USE_ALSA=1
-export VKDT_USE_ALSA
+# VKDT_USE_ALSA=1
+# export VKDT_USE_ALSA
 
 # compiler config
-CC=gcc
-CXX=g++
+CC=clang
+CXX=clang++
 GLSLC=glslangValidator
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
@@ -55,6 +51,6 @@ AR=ar
 
 # set this to 1 to signal rawspeed to build without processor specific extensions.
 # again, this is important for building packages for distros.
-RAWSPEED_PACKAGE_BUILD=1
+RAWSPEED_PACKAGE_BUILD=0
 
 export CC CXX GLSLC OPT_CFLAGS OPT_LDFLAGS AR RAWSPEED_PACKAGE_BUILD
