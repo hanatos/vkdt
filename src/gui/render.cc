@@ -1611,6 +1611,7 @@ inline void draw_widget(int modid, int parid)
             comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
         if(ImGui::SliderFloat(str, val,
               param->widget.min, param->widget.max, "%2.5f"))
+        RESETBLOCK
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
@@ -1619,8 +1620,8 @@ inline void draw_widget(int modid, int parid)
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
         }
-        if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       }
+      if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       break;
     }
     case dt_token("print"):
