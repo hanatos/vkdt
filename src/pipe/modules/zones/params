@@ -1,9 +1,5 @@
 radius:float:1:0.01
 epsilon:float:1:0.06
-zone0:float:1:0.0
-zone1:float:1:0.0
-zone2:float:1:0.0
-zone3:float:1:0.0
-zone4:float:1:0.0
-zone5:float:1:0.0
-zone6:float:1:0.0
+gamma:float:1:1.0
+nzones:int:1:7
+zone:float:7:0:0:0:0:0:0:0

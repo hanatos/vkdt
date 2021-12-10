@@ -10,6 +10,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float radius;
   float epsilon;
+  float gamma;
+  int   num_zones;
   float zone0;
   float zone1;
   float zone2;
@@ -39,7 +41,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3  rgb  = texelFetch(img_in, ipos, 0).rgb;
-  float zone = 7.0 * texelFetch(img_zone, ipos, 0).r;
+  float zone = clamp(params.num_zones, 2, 7) * texelFetch(img_zone, ipos, 0).r;
   float i = floor(zone);
   float f = fract(zone);
   float ev = 0.0;
