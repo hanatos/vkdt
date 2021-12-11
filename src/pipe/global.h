@@ -4,6 +4,7 @@
 #include "params.h"
 #include "connector.h"
 #include "graph-fwd.h"
+#include <limits.h>
 
 // static global structs to keep around for all instances of pipelines.
 // this queries the modules on startup, does the dlopen and expensive
@@ -103,7 +104,7 @@ typedef struct dt_pipe_global_t
   // i.e. if you build from git it would be the bin/ directory
   // in the repository. it is used to find all sorts of resources
   // relative to it, i.e. data/ and modules/.
-  char basedir[512];
+  char basedir[PATH_MAX];
   dt_module_so_t *module;
   uint32_t num_modules;
 

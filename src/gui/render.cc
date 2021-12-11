@@ -751,7 +751,7 @@ void render_lighttable_right_panel(double &hotkey_time)
     if(ImGui::Button("reset history stack", size))
     {
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      char filename[1024], realname[1024];
+      char filename[1024], realname[PATH_MAX];
       for(int i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
@@ -773,7 +773,7 @@ void render_lighttable_right_panel(double &hotkey_time)
       // overwrite .cfg for this image file:
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      char filename[1024] = {0}, realname[1024] = {0};
+      char filename[1024] = {0}, realname[PATH_MAX] = {0};
       dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
       FILE *f = fopen(filename, "wb");
       fprintf(f, "frames:1\n");
