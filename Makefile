@@ -33,8 +33,8 @@ install: all
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 
 VERSION=$(shell grep VERSION src/core/version.h | cut -d'"' -f2)
-release: Makefile
-	@echo version ${VERSION}
+release: Makefile src/core/version.h
+	@echo packing up version ${VERSION}
 	$(shell (echo src/core/version.h; git ls-files --recurse-submodules) | tar caf vkdt-${VERSION}.tar.xz --xform s:^:vkdt-${VERSION}/: --verbatim-files-from -T-)
 
 # overwrites the above optimised build flags:
