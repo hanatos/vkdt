@@ -28,3 +28,5 @@ ifeq ($(VKDT_USE_FREETYPE),1)
 GUI_CFLAGS+=$(shell pkg-config --cflags freetype2) -DVKDT_USE_FREETYPE=1
 GUI_LDFLAGS+=$(shell pkg-config --libs freetype2)
 endif
+
+gui/main.o:core/version.h

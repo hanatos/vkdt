@@ -6,6 +6,7 @@
 #include "pipe/modules/api.h"
 #include "db/thumbnails.h"
 #include "core/log.h"
+#include "core/version.h"
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/view.h"
@@ -173,6 +174,11 @@ scroll_callback(GLFWwindow *window, double xoff, double yoff)
 
 int main(int argc, char *argv[])
 {
+  for(int i=0;i<argc;i++) if(!strcmp(argv[i], "--version"))
+  {
+    printf("vkdt "VKDT_VERSION" (c) 2021 johannes hanika\n");
+    exit(0);
+  }
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui|s_log_pipe);
   dt_log_init_arg(argc, argv);

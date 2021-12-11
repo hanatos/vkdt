@@ -32,9 +32,10 @@ install: all
 	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 
-release: vkdt-0.0.1.tar.gz
-vkdt-0.0.1.tar.gz:
-	$(shell git ls-files --recurse-submodules | tar caf $@ --xform s:^:vkdt-0.0.1/: --verbatim-files-from -T-)
+VERSION=$(shell grep VERSION src/core/version.h | cut -d'"' -f2)
+release: Makefile
+	@echo version ${VERSION}
+	$(shell (echo src/core/version.h; git ls-files --recurse-submodules) | tar caf vkdt-${VERSION}.tar.xz --xform s:^:vkdt-${VERSION}/: --verbatim-files-from -T-)
 
 # overwrites the above optimised build flags:
 # debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION

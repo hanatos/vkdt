@@ -6,11 +6,17 @@
 #include "pipe/global.h"
 #include "pipe/modules/api.h"
 #include "core/log.h"
+#include "core/version.h"
 
 #include <stdlib.h>
 
 int main(int argc, char *argv[])
 {
+  for(int i=0;i<argc;i++) if(!strcmp(argv[i], "--version"))
+  {
+    printf("vkdt "VKDT_VERSION" (c) 2021 johannes hanika\n");
+    exit(0);
+  }
   // init global things, log and pipeline:
   dt_log_init(s_log_cli|s_log_pipe);
   dt_log_init_arg(argc, argv);
