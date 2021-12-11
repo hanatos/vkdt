@@ -180,8 +180,10 @@ int main(int argc, char *argv[])
   threads_global_init();
 
   char *filename = 0;
+  char defpath[1024];
+  snprintf(defpath, sizeof(defpath), "%s/Pictures", getenv("HOME"));
   if(argc > 1) filename = realpath(argv[argc-1], 0);
-  else         filename = realpath("~/Pictures", 0);
+  else         filename = realpath(defpath, 0);
   if(dt_gui_init())
   {
     dt_log(s_log_gui|s_log_err, "failed to init gui/swapchain");
