@@ -6,6 +6,7 @@
 #include "pipe/modules/api.h"
 #include "db/thumbnails.h"
 #include "core/log.h"
+#include "core/signal.h"
 #include "core/version.h"
 #include "gui/gui.h"
 #include "gui/render.h"
@@ -184,6 +185,7 @@ int main(int argc, char *argv[])
   dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
   threads_global_init();
+  dt_set_signal_handlers();
 
   char *filename = 0;
   char defpath[1024];
