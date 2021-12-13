@@ -42,13 +42,21 @@ dt_stringpool_cleanup(dt_stringpool_t *sp)
   free(sp->buf);
 }
 
+static inline void
+dt_stringpool_reset(dt_stringpool_t *sp)
+{
+  memset(sp->entry, 0, sizeof(dt_stringpool_entry_t)*sp->entry_max);
+  memset(sp->buf,   0, sp->buf_max);
+  sp->buf_cnt = 0;
+}
+
 // return primary key (may be different to what was passed in case it was already there)
 static inline uint32_t
 dt_stringpool_get(
     dt_stringpool_t *sp,    // string pool
     const char      *str,   // string
     uint32_t         sl,    // string length (you can cut it short to compute the hash only on the leading chars)
-    uint32_t         val,   // primary key to associate with the string, in case it's not been inserted before. pass -1u if you don't want to insert.
+    uint32_t         val,   // primary key to associate with the string, in case it's not been inserted before. pass -1u if you don't want to insert. will return old primary key if the string already exists.
     const char     **dedup) // deduplicated string from pool, or 0
 {
   const uint32_t seed = 1337;

@@ -7,6 +7,9 @@
 #include "core/log.h"
 #include "qvk/qvk.h"
 #include "graph-print.h"
+#ifdef DEBUG_MARKERS
+#include "db/stringpool.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +20,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-//#define LEAKY_DEBUGGING
 #define IMG_LAYOUT(img, oli, nli) do {\
   VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
   if(nl != img->layout)\
@@ -29,6 +31,9 @@ void
 dt_graph_init(dt_graph_t *g)
 {
   memset(g, 0, sizeof(*g));
+#ifdef DEBUG_MARKERS
+  dt_stringpool_init(&g->debug_markers, 100, 20);
+#endif
 
   g->frame_cnt = 1;
 
@@ -89,6 +94,9 @@ dt_graph_init(dt_graph_t *g)
 void
 dt_graph_cleanup(dt_graph_t *g)
 {
+#ifdef DEBUG_MARKERS
+  dt_stringpool_cleanup(&g->debug_markers);
+#endif
   QVK(vkDeviceWaitIdle(qvk.device));
   if(!dt_pipe.modules_reloaded)
     for(int i=0;i<g->num_modules;i++)
@@ -174,9 +182,10 @@ read_file(const char *filename, size_t *len)
 
 VkResult
 dt_graph_create_shader_module(
-    dt_token_t node,
-    dt_token_t kernel,
-    const char *type,
+    dt_graph_t     *graph,
+    dt_token_t      node,
+    dt_token_t      kernel,
+    const char     *type,
     VkShaderModule *shader_module)
 {
   // create the compute shader stage
@@ -195,6 +204,21 @@ dt_graph_create_shader_module(
   };
   QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, shader_module));
   free(data);
+#ifdef DEBUG_MARKERS
+#ifdef QVK_ENABLE_VALIDATION
+  char name[100];
+  const char *dedup;
+  snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn, dt_token_str(node), dt_token_str(kernel));
+  dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
+  VkDebugMarkerObjectNameInfoEXT name_info = {
+    .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+    .object = (uint64_t) shader_module,
+    .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT,
+    .pObjectName = dedup,
+  };
+  qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
+#endif
   return VK_SUCCESS;
 }
 
@@ -319,9 +343,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       const int wd = node->connector[drawn_connector[0]].roi.wd;
       const int ht = node->connector[drawn_connector[0]].roi.ht;
       VkShaderModule shader_module_vert, shader_module_geom, shader_module_frag;
-      QVKR(dt_graph_create_shader_module(node->name, node->kernel, "vert", &shader_module_vert));
-      QVKR(dt_graph_create_shader_module(node->name, node->kernel, "frag", &shader_module_frag));
-      VkResult geom = dt_graph_create_shader_module(node->name, node->kernel, "geom", &shader_module_geom);
+      QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "vert", &shader_module_vert));
+      QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "frag", &shader_module_frag));
+      VkResult geom = dt_graph_create_shader_module(graph, node->name, node->kernel, "geom", &shader_module_geom);
 
       // vertex shader, geometry shader, fragment shader
       VkPipelineShaderStageCreateInfo shader_info[] = {{
@@ -461,7 +485,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     else
     { // create the compute shader stage
       VkShaderModule shader_module;
-      QVKR(dt_graph_create_shader_module(node->name, node->kernel, "comp", &shader_module));
+      QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "comp", &shader_module));
 
       // TODO: cache pipelines on module->so ?
       VkPipelineShaderStageCreateInfo stage_info = {
@@ -512,15 +536,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
         QVKR(vkCreateBuffer(qvk.device, &create_info, 0, &img->buffer));
-#ifdef LEAKY_DEBUGGING
+#ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
-        char *name = malloc(100); // leak this
-        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
+        char name[100];
+        const char *dedup;
+        snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
+        dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
         VkDebugMarkerObjectNameInfoEXT name_info = {
           .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
           .object = (uint64_t) img->buffer,
           .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
-          .pObjectName = name,
+          .pObjectName = dedup,
         };
         qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
@@ -635,15 +661,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         img->image  = 0;
         img->buffer = 0;
         QVKR(vkCreateImage(qvk.device, &images_create_info, NULL, &img->image));
-#ifdef LEAKY_DEBUGGING
+#ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
-        char *name = malloc(100); // leak this
-        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
+        char name[100];
+        const char *dedup;
+        snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), f);
+        dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
         VkDebugMarkerObjectNameInfoEXT name_info = {
           .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
           .object = (uint64_t) img->image,
           .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT,
-          .pObjectName = name,
+          .pObjectName = dedup,
         };
         qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
@@ -718,15 +746,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
         QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
-#ifdef LEAKY_DEBUGGING
+#ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
-        char *name = malloc(100); // leak this
-        snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), 0);
+        char name[100];
+        const char *dedup;
+        snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), 0);
+        dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
         VkDebugMarkerObjectNameInfoEXT name_info = {
           .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
           .object      = (uint64_t) c->staging,
           .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
-          .pObjectName = name,
+          .pObjectName = dedup,
         };
         qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
@@ -758,15 +788,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
           };
           QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &c->staging));
-#ifdef LEAKY_DEBUGGING
+#ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
-          char *name = malloc(100); // leak this
-          snprintf(name, 100, "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), 0);
+          char name[100];
+          const char *dedup;
+          snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn"_%"PRItkn"@%d", dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name), 0);
+          dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
           VkDebugMarkerObjectNameInfoEXT name_info = {
             .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
             .object      = (uint64_t)c->staging,
             .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
-            .pObjectName = name,
+            .pObjectName = dedup,
           };
         qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
@@ -2066,15 +2098,17 @@ VkResult dt_graph_run(
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
-#ifdef LEAKY_DEBUGGING
+#ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
-    char *name = malloc(100); // leak this
-    snprintf(name, 100, "uniform buffer");
+    char name[100];
+    const char *dedup;
+    snprintf(name, sizeof(name), "uniform buffer");
+    dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
     VkDebugMarkerObjectNameInfoEXT name_info = {
       .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
       .object      = (uint64_t)graph->uniform_buffer,
       .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
-      .pObjectName = name,
+      .pObjectName = dedup,
     };
     qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
@@ -2420,6 +2454,9 @@ dt_graph_connector_image(
 
 void dt_graph_reset(dt_graph_t *g)
 {
+#ifdef DEBUG_MARKERS
+  dt_stringpool_reset(&g->debug_markers);
+#endif
   dt_raytrace_graph_reset(g);
   g->gui_attached = 0;
   g->active_module = 0;

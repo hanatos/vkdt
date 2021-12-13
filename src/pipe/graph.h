@@ -3,6 +3,9 @@
 #include "module.h"
 #include "alloc.h"
 #include "raytrace.h"
+#ifdef DEBUG_MARKERS
+#include "db/db.h"         // for string pool type
+#endif
 
 // create nodes requires roi requires alloc requires upload source
 typedef uint32_t dt_graph_run_t;
@@ -106,6 +109,9 @@ typedef struct dt_graph_t
   char                  basedir[512];  // copy of the global search directory such that modules can access it
 
   dt_image_params_t     main_img_param;// will be copied over from the i-*:main module after modify_roi_out
+#ifdef DEBUG_MARKERS
+  dt_stringpool_t       debug_markers; // store string names of vk objects here
+#endif
 }
 dt_graph_t;
 
@@ -122,9 +128,10 @@ VkResult dt_graph_run(
 void dt_token_print(dt_token_t t);
 
 VkResult dt_graph_create_shader_module(
-    dt_token_t node,
-    dt_token_t kernel,
-    const char *type,   // "comp" "vert" "tesc" "tese" "geom" "frag"
+    dt_graph_t     *graph,  // only needed for debugging purposes
+    dt_token_t      node,
+    dt_token_t      kernel,
+    const char     *type,   // "comp" "vert" "tesc" "tese" "geom" "frag"
     VkShaderModule *shader_module);
 
 // return the memory allocation and VkImage etc corresponding to a node's connector
