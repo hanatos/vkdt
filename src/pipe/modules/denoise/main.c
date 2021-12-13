@@ -116,7 +116,7 @@ create_nodes(
         .format = dt_token("f16"),
         .roi    = module->connector[1].roi,
       }},
-      .push_constant_size = 16*sizeof(uint32_t),
+      .push_constant_size = 12*sizeof(uint32_t),
       .push_constant = {
         crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
         blacki[0], blacki[1], blacki[2], blacki[3],
