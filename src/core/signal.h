@@ -75,4 +75,6 @@ dt_set_signal_handlers()
 {
   if(SIG_ERR == signal(SIGSEGV, &dt_sigsegv_handler))
     perror("[dt_set_signal_handler]");
+  if(SIG_ERR == signal(SIGABRT, &dt_sigsegv_handler))
+    perror("[dt_set_signal_handler]");
 }
