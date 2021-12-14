@@ -3,6 +3,8 @@
 #include "pipe/graph.h"
 #include "pipe/module.h"
 
+#include <math.h>
+
 // some module specific helpers and constants
 
 typedef enum
@@ -183,7 +185,7 @@ dt_api_blur_sub(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    uint32_t     radius,
+    uint32_t     iterations,   // number of iterations, affects radius
     uint32_t     upsample)     // set this to != 0 if you want output on the same res as the input (high quality like)
 {
   // detect pixel format on input
@@ -212,13 +214,9 @@ dt_api_blur_sub(
   dt_roi_t roi = conn_input->roi;
   int nid_input = nodeid_input;
   int cid_input = connid_input;
-  int it = 1;
   if(id_blur_in)  *id_blur_in  = -1;
   if(id_blur_out) *id_blur_out = -1;
-  // uint32_t rad = it;
-  // while(rad<radius) { it++; rad+=2*it; }
-  while(2*(1u<<it) < radius) it++;
-  for(uint32_t i=0;i<it;i++)
+  for(uint32_t i=0;i<iterations;i++)
   {
     assert(graph->num_nodes < graph->max_nodes);
     const int id_blur = graph->num_nodes++;
@@ -259,7 +257,7 @@ dt_api_blur_sub(
       };
       graph->node[id_upsample].connector[0].roi = graph->node[id_blur].connector[1].roi;
       graph->node[id_upsample].connector[1].roi = graph->node[id_blur].connector[0].roi;
-      if(i == it-1)
+      if(i == iterations-1)
       {
         CONN(dt_node_connect(graph, id_blur, 1, id_upsample, 0));
         nid_input = id_upsample;
@@ -270,7 +268,7 @@ dt_api_blur_sub(
     }
     else
     {
-      if(id_blur_out && i == it-1) *id_blur_out = id_blur;
+      if(id_blur_out && i == iterations-1) *id_blur_out = id_blur;
     }
   }
   return nid_input;
@@ -278,15 +276,16 @@ dt_api_blur_sub(
 
 // create new nodes, connect to given input node + connector id, perform blur
 // of given pixel radius, return nodeid (output connector will be #1).
+// this uses separated h/v passes.
 static inline int
-dt_api_blur(
+dt_api_blur_sep(
     dt_graph_t  *graph,
     dt_module_t *module,
     int          nodeid_input,
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    uint32_t     radius)
+    uint32_t     radius)        // blur radius in pixels
 {
   // detect pixel format on input and blur the whole thing in separable kernels
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -349,6 +348,46 @@ dt_api_blur(
   if(id_blur_in ) *id_blur_in  = id_blurh;
   if(id_blur_out) *id_blur_out = id_blurv;
   return id_blurv;
+}
+
+// generic blur, selecting some mix of separable/small/subsampled blur
+// to best reach the given radius goal
+static inline int
+dt_api_blur(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int          nodeid_input,
+    int          connid_input,
+    int         *id_blur_in,
+    int         *id_blur_out,
+    float        radius)        // 2 sigma of the requsted blur, in pixels
+{
+  // let's separate the blur in several passes.
+  // we'll do as many steps of subsampled blur as we can, because
+  // these are fast.
+  // subsampling does 5x5 blurs, i.e. radius=2 on powers of two
+  // i.e. 5x5, 9x9, 17x17, .. (radii 2 4 8 ..)
+  float sig2_req = radius*radius*0.25; // requested sigma^2
+  float sig2 = 0.0f;
+  int it = 0; // sub blur iterations needed
+  for(int i=0;i<10;i++)
+  {
+    float sig = 1<<i; // sigma of this iteration
+    // the combined sigma of two consecutively executed blurs does not quite sum up:
+    fprintf(stderr, "it %d sig2 %g sig*sig %g\n", i, sig2, sig*sig);
+    if(sig2 + sig*sig > sig2_req)
+    {
+      it = i;
+      break;
+    }
+    sig2 += sig*sig;  // combined sigma^2
+  }
+  // remaining sigma
+  float sig_rem = sqrtf(MAX(0, sig2_req - sig2));
+  fprintf(stderr, "radius: %g iterations: %d remaining sigma %g\n", radius, it, sig_rem);
+  // TODO: place blur_small or separable one just before
+  it = MAX(1, it); // XXX DEBUG
+  return dt_api_blur_sub(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out, it, 1);
 }
 
 // full guided filter:

@@ -20,8 +20,14 @@ main()
   int idx = int(gl_GlobalInvocationID.z);
   if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
 
-  ivec2 ipos = 2*opos;
-  vec4 rgb = sample_flower(img_in[idx], (ipos+0.5)/textureSize(img_in[idx], 0));
+#if 0 // use texture unit/interpolation:
+  vec4 rgb = sample_flower(img_in[idx], (opos+0.5)/imageSize(img_out[idx]));
+#else // plain a-trous access
+  vec4 rgb = vec4(0.0);
+  const float w[5] = {1./16., 4./16., 6./16., 4./16., 1./16.};
+  for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
+    rgb += w[j+2]*w[i+2]*texture(img_in[idx], (opos+0.5+vec2(j,i))/imageSize(img_out[idx]));
+#endif
   imageStore(img_out[idx], opos, rgb);
 }
 

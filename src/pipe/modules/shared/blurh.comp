@@ -16,7 +16,7 @@ main()
   {
     float w = exp(-i*i/(2.0*(push.step/2.0*push.step/2.0)));
     wgt += w;
-    color += w * texelFetch(img_in[idx], ipos + ivec2(i, 0), 0);
+    color += w * texture(img_in[idx], (ipos + 0.5 + vec2(i, 0))/vec2(textureSize(img_in[idx], 0)));
   }
   color *= 1.0/wgt;
 #if 0
