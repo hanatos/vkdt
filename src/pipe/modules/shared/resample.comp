@@ -14,7 +14,7 @@ layout( // output f16 buffer rgb
     set = 1, binding = 1
 ) uniform writeonly image2D img_out;
 
-float dot9(float a[9], float b[9])
+vec3 dot9(float a[9], vec3 b[9])
 {
   return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] +
          a[3]*b[3] + a[4]*b[4] + a[5]*b[5] +
@@ -28,6 +28,15 @@ main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+
+  //
+  //  .  .  .
+  //  
+  //  .  .  .
+  //
+  //  .  .  .
+  //
 
   // our pixel center position on the high-res output image:
   vec2 opx = vec2(opos) + 0.5;
@@ -44,11 +53,11 @@ main()
   // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
   // in their supplemental material.
   // D_sub_2 (eq 14) from the paper, linearised into one vector
-  float D_sub_2[9];
+  vec3 D_sub_2[9];
   for(int jj=-1;jj<=1;jj++)
     for(int ii=-1;ii<=1;ii++)
-      D_sub_2[3*(jj+1)+ii+1] = // XXX TODO fit to each channel now or what?
-        luminance_rec2020(texture(img_in, (ipxc+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb);
+      D_sub_2[3*(jj+1)+ii+1] =
+        texture(img_in, (ipxc+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb;
 
   // filter banks:
   const float F_A11[] = float[](
@@ -82,6 +91,24 @@ main()
      -1/16.0,  2/16.0, -1/16.0
       );
 
+  const vec3 A0 = dot9(F_A11, D_sub_2);
+  const vec3 A1 = dot9(F_A12, D_sub_2);
+  const vec3 A2 = dot9(F_A22, D_sub_2);
+  const vec3 b0 = dot9(F_b1,  D_sub_2);
+  const vec3 b1 = dot9(F_b2,  D_sub_2);
+  const vec3 c  = dot9(F_c, D_sub_2);
+  const mat2 Ar = mat2(A0.r, A1.r, A1.r, A2.r);
+  const mat2 Ag = mat2(A0.g, A1.g, A1.g, A2.g);
+  const mat2 Ab = mat2(A0.b, A1.b, A1.b, A2.b);
+  const vec2 br = vec2(b0.r, b1.r);
+  const vec2 bg = vec2(b0.g, b1.g);
+  const vec2 bb = vec2(b0.b, b1.b);
+  // evaluate 1/2xAx + bx + c:
+  vec3 rgb = vec3(
+      0.5 * dot(ff, Ar*ff) + dot(br, ff) + c.r,
+      0.5 * dot(ff, Ag*ff) + dot(bg, ff) + c.g,
+      0.5 * dot(ff, Ab*ff) + dot(bb, ff) + c.b);
+#if 0
   mat2 A = mat2(
       dot9(F_A11, D_sub_2), dot9(F_A12, D_sub_2), 
       dot9(F_A12, D_sub_2), dot9(F_A22, D_sub_2));
@@ -89,6 +116,7 @@ main()
       dot9(F_b1, D_sub_2),
       dot9(F_b2, D_sub_2));
   const float c = dot9(F_c, D_sub_2);
+#endif
 #if 0
   float detA;
   // make A positive semi definite if it's not yet:
@@ -99,7 +127,7 @@ main()
 #endif
 
   // evaluate 1/2xAx + bx + c:
-  vec3 rgb = vec3(0.5 * dot(ff, A*ff) + dot(b, ff) + c);
+  // vec3 rgb = vec3(0.5 * dot(ff, A*ff) + dot(b, ff) + c);
   imageStore(img_out, opos, vec4(rgb, 1.0));
 }
 
