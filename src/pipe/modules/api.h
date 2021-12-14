@@ -362,19 +362,21 @@ dt_api_blur(
     int         *id_blur_out,
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
+  // XXX TODO: rewrite in terms of radius?
   // let's separate the blur in several passes.
   // we'll do as many steps of subsampled blur as we can, because
   // these are fast.
   // subsampling does 5x5 blurs, i.e. radius=2 on powers of two
   // i.e. 5x5, 9x9, 17x17, .. (radii 2 4 8 ..)
+#if 1
   float sig2_req = radius*radius*0.25; // requested sigma^2
   float sig2 = 0.0f;
   int it = 0; // sub blur iterations needed
   for(int i=0;i<10;i++)
   {
-    float sig = 1<<i; // sigma of this iteration
+    float sig = 2.0*(1<<i); // sigma of this iteration
     // the combined sigma of two consecutively executed blurs does not quite sum up:
-    fprintf(stderr, "it %d sig2 %g sig*sig %g\n", i, sig2, sig*sig);
+    fprintf(stderr, "it %d sig2 %g sig*sig %g vs. req %g\n", i, sig2, sig*sig, sig2_req);
     if(sig2 + sig*sig > sig2_req)
     {
       it = i;
@@ -385,8 +387,22 @@ dt_api_blur(
   // remaining sigma
   float sig_rem = sqrtf(MAX(0, sig2_req - sig2));
   fprintf(stderr, "radius: %g iterations: %d remaining sigma %g\n", radius, it, sig_rem);
+#else
+  float rad = 0.0f;
+  int it = 0;
+  for(it=0;it<10;it++)
+  {
+    float r = 2<<it;
+    fprintf(stderr, "it %d rad %g + %g vs %g\n", it, rad, r, radius);
+    if(rad + r > radius)
+      break;
+    rad += r;
+  }
+  float rad_rem = radius - rad;
+  fprintf(stderr, "radius %g iterations %d remaining radius %g\n", radius, it, rad_rem);
+#endif
   // TODO: place blur_small or separable one just before
-  it = MAX(1, it); // XXX DEBUG
+  it = MAX(1, it); // XXX DEBUG avoid disconnected/zero kernels
   return dt_api_blur_sub(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out, it, 1);
 }
 

@@ -29,12 +29,6 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-  // XXX attention the additional +0.5 have been tweaked such that blur_sub is exactly centered!!
-  // vec2 ipos = (opos + vec2(1.0))/ vec2(imageSize(img_out));
-  // vec4 rgba = sample_flower_adj(img_in, ipos); // fake 5x5 lookup
-  // vec2 ipos = (opos + vec2(0.5))/ vec2(imageSize(img_out));
-  // vec4 rgba = sample_flower_adj(img_in, ipos); // fake 5x5 lookup
-#if 1
   // our pixel center position on the high-res output image:
   vec2 opx = vec2(opos) + 0.5;
   // the scale factor from input to output image, if it's not 2:
@@ -42,7 +36,7 @@ main()
   // the center of the 3x3 region on the low-res input image:
   vec2 ipxc = floor(opx / scale) + 0.5;
   // distance to 3x3 center on high-res output image, scaled down to input coordinate system:
-  vec2 ff = (opx - scale * ipxc)/scale;
+  vec2 ff = (opx - scale * ipxc + 0.5)/scale;
   // TODO: factor out in shared.glsl and use from align too?
   // fit and evaluate a quadric to the 3x3 environment:
   // we have a surrounding set of points
@@ -50,17 +44,11 @@ main()
   // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
   // in their supplemental material.
   // D_sub_2 (eq 14) from the paper, linearised into one vector
-  // XXX DEBUG
-  float D_sub_2[9] = {
-    .01, .16, .31,
-    .16, .56, .36,
-    .01, .16, .31};
-#if 1
+  float D_sub_2[9];
   for(int jj=-1;jj<=1;jj++)
     for(int ii=-1;ii<=1;ii++)
       D_sub_2[3*(jj+1)+ii+1] = // XXX TODO fit to each channel now or what?
         luminance_rec2020(texture(img_in, (ipxc+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb);
-#endif
 
   // filter banks:
   const float F_A11[] = float[](
@@ -94,15 +82,15 @@ main()
      -1/16.0,  2/16.0, -1/16.0
       );
 
-  float A[] = float[](
+  mat2 A = mat2(
       dot9(F_A11, D_sub_2), dot9(F_A12, D_sub_2), 
       dot9(F_A12, D_sub_2), dot9(F_A22, D_sub_2));
-  const float b[] = float[](
+  const vec2 b = vec2(
       dot9(F_b1, D_sub_2),
       dot9(F_b2, D_sub_2));
   const float c = dot9(F_c, D_sub_2);
-  float detA;
 #if 0
+  float detA;
   // make A positive semi definite if it's not yet:
   A[0] = max(0.0, A[0]);
   A[3] = max(0.0, A[3]);
@@ -110,40 +98,8 @@ main()
   if(detA < 0.0) A[1] = A[2] = 0.0;
 #endif
 
-  // now transform the 1/2xAx + bx + c form to
-  // 1/2(x-mu) A (x-mu) + s
-  // because we want to know mu.
-
-  // mu = - A^-1 b
-  //  s = c - muAmu/2
-
-  vec3 rgb = vec3(0.0);
-  mat2 MA = mat2(A[0], A[2], A[1], A[3]);
-  // detA = determinant(MA);
-  // float detA2 = A[0] * A[3] - A[1]*A[2]; // same
-  // if(abs(detA) > 1e-19)
-  if(true)
-  {
-     // vec2 mu = vec2(
-     //     (A[3] * b[0] - A[1]*b[1])/detA,
-     //     (A[0] * b[1] - A[2]*b[0])/detA);
-  //   res1.xy -= clamp(mu, vec2(-1), vec2(1));
-  // }
-  // vec2 mu = - inverse(MA)*vec2(b[0], b[1]);
-     // mu = mu-vec2(0.5);
-     // vec2 off = ff-mu;
-  ff += 0.25; // XXX FIXME: wtf, and also, shouldn't that depend on 'scale'?
-     rgb = vec3(0.5 * dot(ff, MA*ff) + dot(vec2(b[0], b[1]),ff) + c);
-// rgb = vec3(abs(.04*mu), 0);
-// rgb = vec3(ff, 0);
-// rgb = vec3(mu, 0);
-  }
-  else
-  {
-    rgb = vec3(D_sub_2[4]);
-    // for(int i=0;i<9;i++) rgb += vec3(D_sub_2[i]/9.0);
-  }
-#endif
+  // evaluate 1/2xAx + bx + c:
+  vec3 rgb = vec3(0.5 * dot(ff, A*ff) + dot(b, ff) + c);
   imageStore(img_out, opos, vec4(rgb, 1.0));
 }
 
