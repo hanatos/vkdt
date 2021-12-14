@@ -195,6 +195,8 @@ create_nodes(
       .format = dt_token("f16"),
       .roi    = roi_half,
     }},
+    .push_constant_size = sizeof(uint32_t),
+    .push_constant = { img_param->filters },
   };
   CONN(dt_node_connect(graph, id_down, 1, id_gauss, 0));
   dt_connector_copy(graph, module, 0, id_gauss, 1);
