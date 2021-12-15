@@ -226,7 +226,7 @@ void write_sink(
   if(cnt > wd) cnt = wd;
   if(ht < 4) return;
   de76[1] = 1e38f; de76[0] = 0.0f, de76[2] = 0.0f;
-  int mi = -1, Mi = -1;
+  // int mi = -1, Mi = -1;
   for(int k=0;k<cnt;k++)
   {
     picked[3*k+0] = 2.0*u32[k+0*wd]/(float)(1ul<<30) - 0.5;
@@ -240,12 +240,12 @@ void write_sink(
       picked[3*k+2] -= ref[3*k+2];
       if(d < de76[1])
       {
-        mi = k;
+        // mi = k;
         de76[1] = d;
       }
       else if(d > de76[2])
       {
-        Mi = k;
+        // Mi = k;
         de76[2] = d;
       }
       de76[0] += d/cnt;
