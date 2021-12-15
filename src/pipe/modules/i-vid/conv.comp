@@ -1,0 +1,60 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+layout(
+    set = 1, binding = 0
+) uniform sampler2D img_in[];
+
+layout(
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  float Y = texelFetch(img_in[0], ipos, 0).r;
+  float u = texture(img_in[1], (ipos+0.5)/vec2(imageSize(img_out))).r;
+  float v = texture(img_in[2], (ipos+0.5)/vec2(imageSize(img_out))).r;
+  // says this guy: https://www.silicondust.com/yuv-to-rgb-conversion-for-tv-video/
+  const mat3 YCbCrToRGBmatrix = mat3(
+      1.1643835616, 0.0000000000, 1.7927410714,
+      1.1643835616, -0.2132486143, -0.5329093286,
+      1.1643835616, 2.1124017857, 0.0000000000);
+  const vec3 YCbCrToRGBzero = vec3(-0.972945075, 0.301482665, -1.133402218);
+  vec3 YCbCr = vec3(Y,u,v);
+  vec3 RGBFullRange = YCbCr * YCbCrToRGBmatrix + YCbCrToRGBzero;
+  vec3 rgb = clamp(RGBFullRange, vec3(0.0), vec3(1.0));
+
+#if 0
+  vec3 rgb = vec3(
+        // 298.082 * Y               + 408.583 * v - 222.921,
+        // 298.082 * Y - 100.291 * u - 208.120 * v + 135.576,
+        // 298.082 * Y + 516.412 * u               - 276.836)/256.0;
+          1.164383 * Y                   + 1.596027 * v,
+          1.164383 * Y - (0.391762 * u) - (0.812968 * v),
+          1.164383 * Y +  2.017232 * u);
+#endif
+  rgb.r = rgb.r <= 0.04045 ? rgb.r/12.92 : pow((rgb.r+0.055)/(1+0.055), 2.4);
+  rgb.g = rgb.g <= 0.04045 ? rgb.g/12.92 : pow((rgb.g+0.055)/(1+0.055), 2.4);
+  rgb.b = rgb.b <= 0.04045 ? rgb.b/12.92 : pow((rgb.b+0.055)/(1+0.055), 2.4);
+  // undo tone curve that we'd be applying in the end for srgb (straight gamma 2.2)
+  // rgb = pow(clamp(rgb, 0, 1), vec3(2.2));
+  mat3 rec709_to_rec2020 = mat3(
+      0.62750375, 0.32927542, 0.04330267,
+      0.06910828, 0.91951917, 0.0113596 ,
+      0.01639406, 0.08801128, 0.89538036);
+  rgb *= rec709_to_rec2020;
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
+
