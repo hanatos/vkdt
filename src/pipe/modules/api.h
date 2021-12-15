@@ -215,10 +215,12 @@ dt_api_blur_sub(
   dt_roi_t roi = conn_input->roi;
   int nid_input = nodeid_input;
   int cid_input = connid_input;
+  // int id_up = -1; // for multi upsampling
   if(id_blur_in)  *id_blur_in  = -1;
   if(id_blur_out) *id_blur_out = -1;
   for(uint32_t i=0;i<levels;i++)
   {
+    // int owd = roi.wd, oht = roi.ht; // for multi upsampling
     for(int j=0;j<mul[i];j++)
     {
       assert(graph->num_nodes < graph->max_nodes);
@@ -237,6 +239,8 @@ dt_api_blur_sub(
       };
       if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blur;
       graph->node[id_blur].connector[0].roi = roi;
+      roi.full_wd = hwd;
+      roi.full_ht = hht;
       roi.wd = hwd;
       roi.ht = hht;
       graph->node[id_blur].connector[1].roi = roi;
@@ -245,8 +249,41 @@ dt_api_blur_sub(
       nid_input = id_blur;
       cid_input = 1;
     }
+#if 0 // multiple in-between upsampling steps
+    if(upsample)
+    {
+      assert(graph->num_nodes < graph->max_nodes);
+      const int id_upsample = graph->num_nodes++;
+      graph->node[id_upsample] = (dt_node_t) {
+        .name   = dt_token("shared"),
+          .kernel = dt_token("resample"),
+          .module = module,
+          .wd     = owd,
+          .ht     = oht,
+          .dp     = dp,
+          .num_connectors = 2,
+          .connector = { ci, co },
+      };
+      graph->node[id_upsample].connector[1].roi.wd = owd;
+      graph->node[id_upsample].connector[1].roi.ht = oht;
+      if(i == levels-1)
+      {
+        graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[cid_input].roi;
+        CONN(dt_node_connect(graph, nid_input, cid_input, id_upsample, 0));
+      }
+      if(i)
+      {
+        graph->node[id_up].connector[0].roi = graph->node[id_upsample].connector[1].roi;
+        CONN(dt_node_connect(graph, id_upsample, 1, id_up, 0));
+      }
+      if(i == 0 && id_blur_out) *id_blur_out = id_upsample;
+      id_up = id_upsample;
+    }
+#endif
   }
-  if(id_blur_out) *id_blur_out = nid_input;
+  if(!upsample)
+    if(id_blur_out) *id_blur_out = nid_input;
+#if 1 // single upsampling step at the end
   if(upsample)
   { // single upsampling kernel is enough, we're using quadric reconstruction
     assert(graph->num_nodes < graph->max_nodes);
@@ -266,6 +303,7 @@ dt_api_blur_sub(
     if(id_blur_out) *id_blur_out = id_upsample;
     nid_input = id_upsample;
   }
+#endif
   return nid_input;
 }
 
@@ -357,7 +395,7 @@ dt_api_blur(
     int         *id_blur_out,
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
-  // XXX DEBUG
+  // XXX DEBUG XXX frustratingly that is much faster even for relatively large blurs it seems
     // return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
         // id_blur_in, id_blur_out, radius);
   // let's separate the blur in several passes.
@@ -379,7 +417,8 @@ dt_api_blur(
     sig2 += sig*sig;  // combined sigma^2
     mul[it] = 1;
   }
-  for(int j=it;j>=0;j--)
+  // TODO: also avoid highres resampling
+  for(int j=it;j>=1;j--) // XXX this is only faster if the highest res level is avoided here
   {
     float sig = 1<<j;
     while(sig2 + sig*sig < sig2_req)
@@ -391,15 +430,15 @@ dt_api_blur(
   // remaining sigma
   float sig_rem = sqrtf(MAX(0, sig2_req - sig2));
   // fprintf(stderr, "radius: %g levels: %d remaining sigma %g\n", radius, it, sig_rem);
-  // fprintf(stderr, "multiplicity: %d %d %d %d %d %d %d %d\n",
-  //     mul[0], mul[1], mul[2], mul[3],
-  //     mul[4], mul[5], mul[6], mul[7]);
+  fprintf(stderr, "multiplicity: %d %d %d %d %d %d %d %d\n",
+      mul[0], mul[1], mul[2], mul[3],
+      mul[4], mul[5], mul[6], mul[7]);
 
 #if 1
   if(it && (sig_rem == 0 || it >= 2))
   { // for large blurs you'll not notice a little underblur anyways, leave the small kernel.
     return dt_api_blur_sub(graph, module, nodeid_input, connid_input,
-        id_blur_in, id_blur_out, it, mul, 1);
+        id_blur_in, id_blur_out, it, mul, 0);
   }
   else
 #endif
@@ -409,7 +448,7 @@ dt_api_blur(
     dt_api_blur_sep(graph, module, nodeid_input, connid_input,
         &id_blur_small_in, &id_blur_small_out, 2.0f*sig_rem);
     return dt_api_blur_sub(graph, module, id_blur_small_out, 1,
-        id_blur_in, id_blur_out, it, mul, 1);
+        id_blur_in, id_blur_out, it, mul, 0);
   }
   else
   {
