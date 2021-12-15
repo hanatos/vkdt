@@ -1,4 +1,4 @@
 radius:slider:0.001:0.1
-edges:slider:0.0:1.0
+edges:slider:0.001:10.0
 detail:slider:0.0:5.0
 thrs:slider:0.0:0.01

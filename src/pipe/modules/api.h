@@ -185,7 +185,8 @@ dt_api_blur_sub(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    uint32_t     iterations,   // number of iterations, affects radius
+    uint32_t     levels,       // number of iterations, affects radius
+    uint32_t    *mul,          // multiples of iterations on each scale
     uint32_t     upsample)     // set this to != 0 if you want output on the same res as the input (high quality like)
 {
   // detect pixel format on input
@@ -216,60 +217,54 @@ dt_api_blur_sub(
   int cid_input = connid_input;
   if(id_blur_in)  *id_blur_in  = -1;
   if(id_blur_out) *id_blur_out = -1;
-  for(uint32_t i=0;i<iterations;i++)
+  for(uint32_t i=0;i<levels;i++)
   {
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_blur = graph->num_nodes++;
-    int hwd = (roi.wd + 1)/2;
-    int hht = (roi.ht + 1)/2;
-    graph->node[id_blur] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = dt_token("blur"),
-      .module = module,
-      .wd     = hwd,
-      .ht     = hht,
-      .dp     = dp,
-      .num_connectors = 2,
-      .connector = { ci, co },
-    };
-    if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blur;
-    graph->node[id_blur].connector[0].roi = roi;
-    roi.wd = hwd;
-    roi.ht = hht;
-    graph->node[id_blur].connector[1].roi = roi;
-    // interconnect nodes:
-    CONN(dt_node_connect(graph, nid_input,  cid_input, id_blur, 0));
-    nid_input = id_blur;
-    cid_input = 1;
-    if(upsample)
-    { // upsample, too
+    for(int j=0;j<mul[i];j++)
+    {
       assert(graph->num_nodes < graph->max_nodes);
-      const int id_upsample = graph->num_nodes++;
-      graph->node[id_upsample] = (dt_node_t) {
+      const int id_blur = graph->num_nodes++;
+      int hwd = j == mul[i]-1 ? (roi.wd + 1)/2 : roi.wd;
+      int hht = j == mul[i]-1 ? (roi.ht + 1)/2 : roi.ht;
+      graph->node[id_blur] = (dt_node_t) {
         .name   = dt_token("shared"),
-        .kernel = dt_token("resample"),
+        .kernel = dt_token("blur"),
         .module = module,
-        .wd     = graph->node[id_blur].connector[0].roi.wd,
-        .ht     = graph->node[id_blur].connector[0].roi.ht,
+        .wd     = hwd,
+        .ht     = hht,
         .dp     = dp,
         .num_connectors = 2,
         .connector = { ci, co },
       };
-      graph->node[id_upsample].connector[0].roi = graph->node[id_blur].connector[1].roi;
-      graph->node[id_upsample].connector[1].roi = graph->node[id_blur].connector[0].roi;
-      if(i == iterations-1)
-      {
-        CONN(dt_node_connect(graph, id_blur, 1, id_upsample, 0));
-        nid_input = id_upsample;
-      }
-      if(i)
-        CONN(dt_node_connect(graph, id_upsample, 1, id_upsample-2, 0));
-      if(id_blur_out && i == 0) *id_blur_out = id_upsample;
+      if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blur;
+      graph->node[id_blur].connector[0].roi = roi;
+      roi.wd = hwd;
+      roi.ht = hht;
+      graph->node[id_blur].connector[1].roi = roi;
+      // interconnect nodes:
+      CONN(dt_node_connect(graph, nid_input, cid_input, id_blur, 0));
+      nid_input = id_blur;
+      cid_input = 1;
     }
-    else
-    {
-      if(id_blur_out && i == iterations-1) *id_blur_out = id_blur;
-    }
+  }
+  if(id_blur_out) *id_blur_out = nid_input;
+  if(upsample)
+  { // single upsampling kernel is enough, we're using quadric reconstruction
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_upsample = graph->num_nodes++;
+    graph->node[id_upsample] = (dt_node_t) {
+      .name   = dt_token("shared"),
+        .kernel = dt_token("resample"),
+        .module = module,
+        .wd     = conn_input->roi.wd,
+        .ht     = conn_input->roi.ht,
+        .dp     = dp,
+        .num_connectors = 2,
+        .connector = { ci, co },
+    };
+    graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[cid_input].roi;
+    CONN(dt_node_connect(graph, nid_input, cid_input, id_upsample, 0));
+    if(id_blur_out) *id_blur_out = id_upsample;
+    nid_input = id_upsample;
   }
   return nid_input;
 }
@@ -362,48 +357,65 @@ dt_api_blur(
     int         *id_blur_out,
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
-  // XXX TODO: rewrite in terms of radius?
+  // XXX DEBUG
+    // return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
+        // id_blur_in, id_blur_out, radius);
   // let's separate the blur in several passes.
   // we'll do as many steps of subsampled blur as we can, because
   // these are fast.
   // subsampling does 5x5 blurs, i.e. radius=2 on powers of two
   // i.e. 5x5, 9x9, 17x17, .. (radii 2 4 8 ..)
-#if 1
   float sig2_req = radius*radius*0.25; // requested sigma^2
   float sig2 = 0.0f;
   int it = 0; // sub blur iterations needed
-  for(int i=0;i<10;i++)
+  uint32_t mul[10] = {0};
+  for(;it<10;it++)
   {
-    float sig = 2.0*(1<<i); // sigma of this iteration
+    float sig = 1<<it; // sigma of this iteration
     // the combined sigma of two consecutively executed blurs does not quite sum up:
-    fprintf(stderr, "it %d sig2 %g sig*sig %g vs. req %g\n", i, sig2, sig*sig, sig2_req);
+    // fprintf(stderr, "it %d sig2 %g sig*sig %g vs. req %g\n", it, sig2, sig*sig, sig2_req);
     if(sig2 + sig*sig > sig2_req)
-    {
-      it = i;
       break;
-    }
     sig2 += sig*sig;  // combined sigma^2
+    mul[it] = 1;
+  }
+  for(int j=it;j>=0;j--)
+  {
+    float sig = 1<<j;
+    while(sig2 + sig*sig < sig2_req)
+    { // record iteration j as multiple
+      sig2 += sig*sig;
+      mul[j]++;
+    }
   }
   // remaining sigma
   float sig_rem = sqrtf(MAX(0, sig2_req - sig2));
-  fprintf(stderr, "radius: %g iterations: %d remaining sigma %g\n", radius, it, sig_rem);
-#else
-  float rad = 0.0f;
-  int it = 0;
-  for(it=0;it<10;it++)
-  {
-    float r = 2<<it;
-    fprintf(stderr, "it %d rad %g + %g vs %g\n", it, rad, r, radius);
-    if(rad + r > radius)
-      break;
-    rad += r;
+  // fprintf(stderr, "radius: %g levels: %d remaining sigma %g\n", radius, it, sig_rem);
+  // fprintf(stderr, "multiplicity: %d %d %d %d %d %d %d %d\n",
+  //     mul[0], mul[1], mul[2], mul[3],
+  //     mul[4], mul[5], mul[6], mul[7]);
+
+#if 1
+  if(it && (sig_rem == 0 || it >= 2))
+  { // for large blurs you'll not notice a little underblur anyways, leave the small kernel.
+    return dt_api_blur_sub(graph, module, nodeid_input, connid_input,
+        id_blur_in, id_blur_out, it, mul, 1);
   }
-  float rad_rem = radius - rad;
-  fprintf(stderr, "radius %g iterations %d remaining radius %g\n", radius, it, rad_rem);
+  else
 #endif
-  // TODO: place blur_small or separable one just before
-  it = MAX(1, it); // XXX DEBUG avoid disconnected/zero kernels
-  return dt_api_blur_sub(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out, it, 1);
+  if(it)
+  { // use both to get more precise correspondence
+    int id_blur_small_in = -1, id_blur_small_out = -1;
+    dt_api_blur_sep(graph, module, nodeid_input, connid_input,
+        &id_blur_small_in, &id_blur_small_out, 2.0f*sig_rem);
+    return dt_api_blur_sub(graph, module, id_blur_small_out, 1,
+        id_blur_in, id_blur_out, it, mul, 1);
+  }
+  else
+  {
+    return dt_api_blur_small(graph, module, nodeid_input, connid_input,
+        id_blur_in, id_blur_out, 0.5f*radius);
+  }
 }
 
 // full guided filter:
@@ -465,8 +477,7 @@ dt_api_guided_filter_full(
   // mean_p  = blur(p)
   // corr_I  = blur(I*I)
   // corr_Ip = blur(I*p)
-  // const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, 0, 0, radius_px);
-  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 2, 0, 0, radius_px, 1);
+  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 2, 0, 0, radius_px);
 
   // var_I   = corr_I - mean_I*mean_I
   // cov_Ip  = corr_Ip - mean_I*mean_p
@@ -502,8 +513,7 @@ dt_api_guided_filter_full(
   // this is the same as in the p=I case below:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  // const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
-  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius_px, 1);
+  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
   // final kernel:
   // output = mean_a * I + mean_b
   assert(graph->num_nodes < graph->max_nodes);
@@ -552,7 +562,7 @@ dt_api_guided_filter(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    int          radius,       // size of blur as fraction of input width
+    float        radius,       // size of blur as fraction of input width
     float        epsilon)      // tell edges from noise
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
@@ -597,7 +607,7 @@ dt_api_guided_filter(
   // then connect 1x blur:
   // mean_I = blur(I)
   // corr_I = blur(I*I)
-  const int id_blur1 = dt_api_blur_sub(graph, module, id_guided1, 1, 0, 0, radius_px, 1);
+  const int id_blur1 = dt_api_blur(graph, module, id_guided1, 1, 0, 0, radius_px);
 
   // connect to this node:
   // a = var_I / (var_I + eps)
@@ -625,7 +635,7 @@ dt_api_guided_filter(
   // and blur once more:
   // mean_a = blur(a)
   // mean_b = blur(b)
-  const int id_blur = dt_api_blur_sub(graph, module, id_guided2, 1, 0, 0, radius_px, 1);
+  const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
 
   // final kernel:
   // output = mean_a * I + mean_b

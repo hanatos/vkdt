@@ -27,7 +27,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  const vec2 mean_corr = texelFetch(img_in, ipos, 0).rg;
+  const vec2 mean_corr = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rg;
   const float var = mean_corr.y - mean_corr.x * mean_corr.x;
   const float a = var / (var + params.epsilon*1e-3);
   const float b = mean_corr.x - a * mean_corr.x;

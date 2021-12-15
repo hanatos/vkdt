@@ -29,23 +29,19 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-
-  //
-  //  .  .  .
-  //  
-  //  .  .  .
-  //
-  //  .  .  .
-  //
-
-  // our pixel center position on the high-res output image:
-  vec2 opx = vec2(opos) + 0.5;
   // the scale factor from input to output image, if it's not 2:
   vec2 scale = vec2(imageSize(img_out)) / vec2(textureSize(img_in, 0));
+// #define align
+#ifdef align // XXX try to get pixel centers in low res and upsample coherently
   // the center of the 3x3 region on the low-res input image:
-  vec2 ipxc = floor(opx / scale) + 0.5;
+  const vec2 ipxc = floor(opos / scale);
   // distance to 3x3 center on high-res output image, scaled down to input coordinate system:
-  vec2 ff = (opx - scale * ipxc + 0.5)/scale;
+  const vec2 ff = (opos + 0.5)/scale - (ipxc + 0.5);
+#else // grab whatever pixels are in a symmetric stencil and evaluate at zero
+  const vec2 ipxc = (opos + 0.5)/scale;
+  const vec2 ff = vec2(0.0);
+#endif
+
   // TODO: factor out in shared.glsl and use from align too?
   // fit and evaluate a quadric to the 3x3 environment:
   // we have a surrounding set of points
@@ -57,7 +53,11 @@ main()
   for(int jj=-1;jj<=1;jj++)
     for(int ii=-1;ii<=1;ii++)
       D_sub_2[3*(jj+1)+ii+1] =
+#ifdef align
+        texture(img_in, (ipxc+0.5+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb;
+#else
         texture(img_in, (ipxc+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb;
+#endif
 
   // filter banks:
   const float F_A11[] = float[](
@@ -108,26 +108,8 @@ main()
       0.5 * dot(ff, Ar*ff) + dot(br, ff) + c.r,
       0.5 * dot(ff, Ag*ff) + dot(bg, ff) + c.g,
       0.5 * dot(ff, Ab*ff) + dot(bb, ff) + c.b);
-#if 0
-  mat2 A = mat2(
-      dot9(F_A11, D_sub_2), dot9(F_A12, D_sub_2), 
-      dot9(F_A12, D_sub_2), dot9(F_A22, D_sub_2));
-  const vec2 b = vec2(
-      dot9(F_b1, D_sub_2),
-      dot9(F_b2, D_sub_2));
-  const float c = dot9(F_c, D_sub_2);
-#endif
-#if 0
-  float detA;
-  // make A positive semi definite if it's not yet:
-  A[0] = max(0.0, A[0]);
-  A[3] = max(0.0, A[3]);
-  detA = A[0] * A[3] - A[1]*A[2];
-  if(detA < 0.0) A[1] = A[2] = 0.0;
-#endif
 
-  // evaluate 1/2xAx + bx + c:
-  // vec3 rgb = vec3(0.5 * dot(ff, A*ff) + dot(b, ff) + c);
+  // rgb = D_sub_2[4];
   imageStore(img_out, opos, vec4(rgb, 1.0));
 }
 
