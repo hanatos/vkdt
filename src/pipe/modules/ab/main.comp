@@ -33,9 +33,9 @@ main()
 
   vec4 rgb;
   if(ipos.x/float(imageSize(img_out).x) < params.split)
-    rgb = texelFetch(img_a, ipos, 0);
+    rgb = texture(img_a, (ipos+0.5)/vec2(imageSize(img_out)));
   else
-    rgb = texelFetch(img_b, ipos, 0);
+    rgb = texture(img_b, (ipos+0.5)/vec2(imageSize(img_out)));
 
   imageStore(img_out, ipos, rgb);
 }
