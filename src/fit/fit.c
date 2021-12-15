@@ -12,6 +12,8 @@
 #include <float.h>
 #include <signal.h>
 
+// this limits the number of module parameters to optimise for.
+// each parameter may hold an array of values though.
 #define OPT_MAX_PAR 20
 
 typedef struct opt_dat_t
