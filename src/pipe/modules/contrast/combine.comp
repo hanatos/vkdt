@@ -34,7 +34,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3  rgb = texelFetch(img_in, ipos, 0).rgb;
-  float crs = texture(img_coarse, (ipos+0.5)/vec2(imageSize(img_out)), 0).r;
+  float crs = texture(img_coarse, (ipos+0.5)/vec2(imageSize(img_out))).r;
 
   // xyz luma
   float l0 = luminance_rec2020(rgb);
