@@ -109,10 +109,11 @@ main()
       0.5 * dot(ff, Ag*ff) + dot(bg, ff) + c.g,
       0.5 * dot(ff, Ab*ff) + dot(bb, ff) + c.b);
 
-  vec3 m = D_sub_2[0], M = D_sub_2[0];
+  vec3 m = D_sub_2[0];//, M = D_sub_2[0];
   for(int i=1;i<9;i++) m = min(m, D_sub_2[i]);
-  for(int i=1;i<9;i++) M = max(M, D_sub_2[i]);
-  rgb = clamp(rgb, m, M);
+  // for(int i=1;i<9;i++) M = max(M, D_sub_2[i]);
+  // rgb = clamp(rgb, m, M);
+  rgb = MAX(rgb, m); // make sure we don't get negative ringing, that really sucks. the max peak however we are actively looking for.
   // rgb = D_sub_2[4];
   imageStore(img_out, opos, vec4(rgb, 1.0));
 }
