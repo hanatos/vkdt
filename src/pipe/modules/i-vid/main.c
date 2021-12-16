@@ -25,6 +25,7 @@ typedef struct vid_data_t
   AVCodecContext       *actx, *vctx;
   // AVCodecParserContext *avparser;
   uint32_t              dim[6];
+  int64_t               frame;
   
 #if 0
   enum AVPixelFormat                 format;
@@ -214,7 +215,7 @@ open_stream(vid_data_t *d, const char *filename)
     avcodec_parameters_copy(d->vbsfc->par_in, d->fmtc->streams[d->video_idx]->codecpar);
     if((ret = av_bsf_init(d->vbsfc)) < 0) goto error;
 
-#if 0
+#if 1
     if(d->audio_idx >= 0)
     { // now the audio
       if (acodec == AV_CODEC_ID_AAC)
@@ -234,12 +235,14 @@ open_stream(vid_data_t *d, const char *filename)
   // av_dict_set(&opts, "b", "2.5M", 0); // ??
   const AVCodec *v_codec = avcodec_find_decoder(vcodec);
   d->vctx = avcodec_alloc_context3(v_codec);
+  if((ret = avcodec_parameters_to_context(d->vctx, d->fmtc->streams[d->video_idx]->codecpar)) < 0) goto error;
   if((ret = avcodec_open2(d->vctx, v_codec, &opts)) < 0) goto error;
   if(d->audio_idx >= 0)
   {
     const AVCodec *a_codec = avcodec_find_decoder(acodec);
     if(!a_codec) fprintf(stderr, "[i-vid] could not find audio codec!\n");
     d->actx = avcodec_alloc_context3(a_codec);
+    if((ret = avcodec_parameters_to_context(d->actx, d->fmtc->streams[d->audio_idx]->codecpar)) < 0) goto error;
     if((ret = avcodec_open2(d->actx, a_codec, &opts)) < 0) goto error;
   }
 
@@ -287,7 +290,7 @@ close_stream(vid_data_t *d)
   //   av_freep(&d->avioc);
   // }
   if(d->mp4) av_bsf_free(&d->vbsfc);
-  // if(d->mp4) av_bsf_free(&d->absfc);
+  if(d->mp4) av_bsf_free(&d->absfc);
   avcodec_close(d->vctx); // will clean up codec, not context
   avcodec_free_context(&d->vctx);
   avcodec_close(d->actx);
@@ -381,10 +384,116 @@ int read_source(
 
   if(p->a == 0)
   { // first channel, new frame. parse + decode + handle audio:
+    // TODO: grab these numbers from the codec!
+    int rate = 90000/24; // some obscure sampling rate vs frames per second number
+    // fprintf(stderr, "frames %d %ld %d %d\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
+    if(mod->graph->frame != d->frame)
+    // if(mod->graph->frame + 1 != d->vctx->frame_number) // zero vs 1 based
+    { // seek
+      // old api. passing -1 converts the timestamp to something even more obscure.
+      // passing video idx seeks to somewhere about the right place (+10 frames or so)
+      int64_t dts = mod->graph->frame * rate;
+      if((ret = av_seek_frame(d->fmtc, d->video_idx, dts, AVSEEK_FLAG_ANY)) < 0) goto error;
+#if 0 // new api does not seem to work yet:
+      if((ret = avformat_seek_file(d->fmtc, -1,
+              // mod->graph->frame - 2, mod->graph->frame, mod->graph->frame + 2,
+              0, mod->graph->frame, mod->graph->frame + 2,
+              AVSEEK_FLAG_ANY|AVSEEK_FLAG_FRAME)) < 0) goto error;
+#endif
+      fprintf(stderr, "SEEEEEEEKX\n");
+      avcodec_flush_buffers(d->vctx);
+      avcodec_flush_buffers(d->actx);
+    }
+    d->frame = mod->graph->frame+1; // this would be the next one we read
+    // if(d->audio_idx >= 0)
+    //   if((ret = avformat_seek_file(d->fmtc, d->audio_idx,
+    //           mod->graph->frame - 10, mod->graph->frame, mod->graph->frame + 10,
+    //           AVSEEK_FLAG_FRAME)) < 0) goto error;
+
+    // XXX TODO the ffplay loop goes like this:
+    // as long as you can do receive_frame() != EAGAIN, you should just do this
+    // after that, we need to fill the queue, like:
+    // avcodec_send_packet()
+    // if no packets to send, call av_read_frame() to get one first
+
+    // so:
+    AVPacket *curr = d->pkt0;
+    do {
+      if(d->pkt0->data) av_packet_unref(d->pkt0);
+      if(d->pkt1->data) av_packet_unref(d->pkt1);
+      if((ret = avcodec_receive_frame(d->vctx, d->vframe)) < 0)
+      {
+        if(ret == AVERROR(EAGAIN))
+        { // receive frame needs moar packets!
+          fprintf(stderr, "%d needs more packets\n", mod->graph->frame);
+          if((ret = av_read_frame(d->fmtc, curr)) < 0)
+          { // this would have to be EOF hopefully
+            if(ret == AVERROR_EOF)
+            {
+              fprintf(stderr, "%d thinks frame EOF\n", mod->graph->frame);
+              break;
+            }
+            goto error;
+          }
+          fprintf(stderr, "%d has packet\n", mod->graph->frame);
+          if(curr->stream_index == d->video_idx)
+          {
+            AVPacket *pk = curr;
+            if(d->mp4)
+            {
+              if(d->pktf->data) av_packet_unref(d->pktf);
+              if((ret = av_bsf_send_packet   (d->vbsfc, curr))    < 0) goto error;
+              if((ret = av_bsf_receive_packet(d->vbsfc, d->pktf)) < 0) goto error;
+              pk = d->pktf;
+            }
+            fprintf(stderr, "%d sending filtered video packet\n", mod->graph->frame);
+            if((ret = avcodec_send_packet(d->vctx, pk)) < 0)
+            {
+              if(ret == AVERROR(EAGAIN)) {} // internal buffer is full, stop sending! first pick it up.
+              goto error;
+            }
+          }
+          if(curr->stream_index == d->audio_idx)
+          {
+#if 0
+            AVPacket *pk = curr;
+            if(d->mp4)
+            {
+              if(d->pktf->data) av_packet_unref(d->pktf);
+              if((ret = av_bsf_send_packet   (d->absfc, curr))    < 0) goto error;
+              if((ret = av_bsf_receive_packet(d->absfc, d->pktf)) < 0) goto error;
+              pk = d->pktf;
+            }
+#endif
+            if((ret = avcodec_send_packet(d->actx, curr)) < 0)
+            {
+              if(ret == AVERROR(EAGAIN)) {} // all good, buffer full already
+              else goto error;
+            }
+          }
+          continue; // go on receive a frame now
+        }
+        else if(ret == AVERROR_EOF)
+        { // receive frame says EOF, flush empty packet
+          fprintf(stderr, "%d EOF really???\n", mod->graph->frame);
+          if((ret = avcodec_send_packet(d->vctx, 0)) < 0) goto error;
+          continue;
+        }
+        fprintf(stderr, "%d AAARGGHn", mod->graph->frame);
+        goto error; // seems to be broken indeed.
+      }
+      fprintf(stderr, "%d got frame\n", mod->graph->frame);
+      // got frame, exit loop
+      break;
+    } while(1);
+    //fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_number, d->vframe->pts);
+    int64_t vfidx = d->vframe->pts / rate;
+    fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
+
+#if 0
     if(d->pkt0->data) av_packet_unref(d->pkt0);
     if(d->pkt1->data) av_packet_unref(d->pkt1);
 
-    AVPacket *curr = d->pkt0;
     // TODO: could we point the packet data to our memory mapped block directly please?
     int vfound = 0, afound = d->audio_idx >= 0 ? 0 : 1;
     while(av_read_frame(d->fmtc, curr) >= 0)
@@ -450,6 +559,7 @@ int read_source(
       }
       if(vfound && afound) break;
     }
+#endif
   }
 
   // write the frame data to output file
@@ -485,7 +595,27 @@ int audio(
   // samples: stereo and 2 bytes/channel => /4
   return bytes_per_frame/4;
 #endif
-  return 0;
+  int ret = 0;
+  do {
+    if(d->pkt0->data) av_packet_unref(d->pkt0);
+    if(d->pkt1->data) av_packet_unref(d->pkt1);
+    if((ret = avcodec_receive_frame(d->actx, d->aframe)) < 0)
+    {
+      if(ret == AVERROR(EAGAIN))
+        // receive frame needs moar packets! but sorry the main loop is in read_source()
+        fprintf(stderr, "%d needs more audio packets\n", mod->graph->frame);
+      break;
+    }
+    fprintf(stderr, "%d got audio frame\n", mod->graph->frame);
+    // got frame, exit loop
+    break;
+  } while(1);
+
+  *samples = d->aframe->extended_data[0];
+  uint64_t data_size = av_samples_get_buffer_size(NULL, d->aframe->channels,
+      d->aframe->nb_samples,
+      d->aframe->format, 1);
+  return data_size/4;
 }
 
 void
