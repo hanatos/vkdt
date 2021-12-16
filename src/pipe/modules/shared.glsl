@@ -268,7 +268,7 @@ vec3 adjust_colour(vec3 rgb, float yo, float y)
   return pow(rgb/(yo+1e-2), vec3(s)) * y; // eq (2)
 #undef EQ2
 #else
-  return ((rgb / yo - 1.0)*s + 1.0) * y;  // eq (3)
+  return ((rgb / (yo+eps) - 1.0)*s + 1.0) * y;  // eq (3)
 #endif
 }
 
