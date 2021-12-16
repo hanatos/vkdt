@@ -8,13 +8,13 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout( // input f16 buffer rgb
     set = 1, binding = 0
-) uniform sampler2D img_in;
+) uniform sampler2D img_in[];
 
 layout( // output f16 buffer rgb
     set = 1, binding = 1
-) uniform writeonly image2D img_out;
+) uniform writeonly image2D img_out[];
 
-vec3 dot9(float a[9], vec3 b[9])
+vec4 dot9(float a[9], vec4 b[9])
 {
   return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] +
          a[3]*b[3] + a[4]*b[4] + a[5]*b[5] +
@@ -27,12 +27,13 @@ void
 main()
 {
   ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+  uint idx = gl_GlobalInvocationID.z;
+  if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
 
   // the scale factor from input to output image, if it's not 2:
-  vec2 scale = vec2(imageSize(img_out)) / vec2(textureSize(img_in, 0));
+  vec2 scale = vec2(imageSize(img_out[idx])) / vec2(textureSize(img_in[idx], 0));
 // #define align
-#ifdef align // XXX try to get pixel centers in low res and upsample coherently
+#ifdef align // get pixel centers in low res and upsample coherently
   // the center of the 3x3 region on the low-res input image:
   const vec2 ipxc = floor(opos / scale);
   // distance to 3x3 center on high-res output image, scaled down to input coordinate system:
@@ -49,14 +50,14 @@ main()
   // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
   // in their supplemental material.
   // D_sub_2 (eq 14) from the paper, linearised into one vector
-  vec3 D_sub_2[9];
+  vec4 D_sub_2[9];
   for(int jj=-1;jj<=1;jj++)
     for(int ii=-1;ii<=1;ii++)
       D_sub_2[3*(jj+1)+ii+1] =
 #ifdef align
-        texture(img_in, (ipxc+0.5+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb;
+        texture(img_in[idx], (ipxc+0.5+vec2(ii,jj))/vec2(textureSize(img_in[idx], 0)));
 #else
-        texture(img_in, (ipxc+vec2(ii,jj))/vec2(textureSize(img_in, 0))).rgb;
+        texture(img_in[idx], (ipxc+vec2(ii,jj))/vec2(textureSize(img_in[idx], 0)));
 #endif
 
   // filter banks:
@@ -91,30 +92,30 @@ main()
      -1/16.0,  2/16.0, -1/16.0
       );
 
-  const vec3 A0 = dot9(F_A11, D_sub_2);
-  const vec3 A1 = dot9(F_A12, D_sub_2);
-  const vec3 A2 = dot9(F_A22, D_sub_2);
-  const vec3 b0 = dot9(F_b1,  D_sub_2);
-  const vec3 b1 = dot9(F_b2,  D_sub_2);
-  const vec3 c  = dot9(F_c, D_sub_2);
+  const vec4 A0 = dot9(F_A11, D_sub_2);
+  const vec4 A1 = dot9(F_A12, D_sub_2);
+  const vec4 A2 = dot9(F_A22, D_sub_2);
+  const vec4 b0 = dot9(F_b1,  D_sub_2);
+  const vec4 b1 = dot9(F_b2,  D_sub_2);
+  const vec4 c  = dot9(F_c, D_sub_2);
   const mat2 Ar = mat2(A0.r, A1.r, A1.r, A2.r);
   const mat2 Ag = mat2(A0.g, A1.g, A1.g, A2.g);
   const mat2 Ab = mat2(A0.b, A1.b, A1.b, A2.b);
+  const mat2 Aa = mat2(A0.a, A1.a, A1.a, A2.a);
   const vec2 br = vec2(b0.r, b1.r);
   const vec2 bg = vec2(b0.g, b1.g);
   const vec2 bb = vec2(b0.b, b1.b);
+  const vec2 ba = vec2(b0.a, b1.a);
   // evaluate 1/2xAx + bx + c:
-  vec3 rgb = vec3(
+  vec4 rgba = vec4(
       0.5 * dot(ff, Ar*ff) + dot(br, ff) + c.r,
       0.5 * dot(ff, Ag*ff) + dot(bg, ff) + c.g,
-      0.5 * dot(ff, Ab*ff) + dot(bb, ff) + c.b);
+      0.5 * dot(ff, Ab*ff) + dot(bb, ff) + c.b,
+      0.5 * dot(ff, Aa*ff) + dot(ba, ff) + c.a);
 
-  vec3 m = D_sub_2[0];//, M = D_sub_2[0];
+  vec4 m = D_sub_2[0];
   for(int i=1;i<9;i++) m = min(m, D_sub_2[i]);
-  // for(int i=1;i<9;i++) M = max(M, D_sub_2[i]);
-  // rgb = clamp(rgb, m, M);
-  rgb = max(rgb, m); // make sure we don't get negative ringing, that really sucks. the max peak however we are actively looking for.
-  // rgb = D_sub_2[4];
-  imageStore(img_out, opos, vec4(rgb, 1.0));
+  rgba = max(rgba, m); // make sure we don't get negative ringing, that really sucks. the max peak however we are actively looking for.
+  imageStore(img_out[idx], opos, rgba);
 }
 
