@@ -15,6 +15,9 @@ endif
 ifneq ($(VKDT_USE_MLV), 1)
   MODULES:=$(filter-out i-mlv,$(MODULES))
 endif
+ifneq ($(VKDT_USE_FFMPEG), 1)
+  MODULES:=$(filter-out i-vid,$(MODULES))
+endif
 
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
 MOD_DSOS=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)

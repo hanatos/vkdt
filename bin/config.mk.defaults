@@ -39,6 +39,11 @@ export VKDT_USE_RAWSPEED
 # VKDT_USE_ALSA=1
 # export VKDT_USE_ALSA
 
+# for the i-vid module using libavformat/libavcodec to read
+# video streams, we depend on these libraries
+# VKDT_USE_FFMPEG=1
+# export VKDT_USE_FFMPEG
+
 # compiler config
 CC=clang
 CXX=clang++
