@@ -430,9 +430,9 @@ dt_api_blur(
   // remaining sigma
   float sig_rem = sqrtf(MAX(0, sig2_req - sig2));
   // fprintf(stderr, "radius: %g levels: %d remaining sigma %g\n", radius, it, sig_rem);
-  fprintf(stderr, "multiplicity: %d %d %d %d %d %d %d %d\n",
-      mul[0], mul[1], mul[2], mul[3],
-      mul[4], mul[5], mul[6], mul[7]);
+  // fprintf(stderr, "multiplicity: %d %d %d %d %d %d %d %d\n",
+  //     mul[0], mul[1], mul[2], mul[3],
+  //     mul[4], mul[5], mul[6], mul[7]);
 
 #if 1
   if(it && (sig_rem == 0 || it >= 2))
