@@ -25,16 +25,6 @@ create_nodes(
   const float radius  = ((float*)module->param)[0];
   const float epsilon = ((float*)module->param)[1];
 
-#if 0 // XXX DEBUG blur kernel offsets
-  int nin, nout;
-  dt_api_blur_sub(graph, module, -1, 1, &nin, &nout, radius);
-  dt_connector_copy(graph, module, 1, nin, 0);  // input
-  // XXX necessary with sub-sampling (because we didn't properly overwrite the roi_out callback)
-  // module->connector[2].roi = graph->node[nout].connector[1].roi;
-  dt_connector_copy(graph, module, 2, nout, 1);  // output
-  return;
-#endif
-
   // guided blur with I : zones, p : input image
   int guided_entry, guided_exit;
   dt_api_guided_filter_full(

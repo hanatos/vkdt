@@ -26,7 +26,9 @@ main()
   vec4 rgb = vec4(0.0);
   const float w[5] = {1./16., 4./16., 6./16., 4./16., 1./16.};
   for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
-    rgb += w[j+2]*w[i+2]*texture(img_in[idx], (opos+0.5+vec2(j,i))/imageSize(img_out[idx]));
+    // rgb += w[j+2]*w[i+2]*texture(img_in[idx], (opos+0.5+vec2(j,i))/imageSize(img_out[idx]));
+    rgb += w[j+2]*w[i+2]*texture(img_in[idx],
+        (opos+0.5)/vec2(imageSize(img_out[idx])) + vec2(i,j)/vec2(textureSize(img_in[idx], 0)));
 #endif
   imageStore(img_out[idx], opos, rgb);
 }
