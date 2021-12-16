@@ -396,8 +396,8 @@ dt_api_blur(
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
   // XXX DEBUG XXX frustratingly that is much faster even for relatively large blurs it seems
-    // return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
-        // id_blur_in, id_blur_out, radius);
+    return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
+        id_blur_in, id_blur_out, radius);
   // let's separate the blur in several passes.
   // we'll do as many steps of subsampled blur as we can, because
   // these are fast.
@@ -438,7 +438,7 @@ dt_api_blur(
   if(it && (sig_rem == 0 || it >= 2))
   { // for large blurs you'll not notice a little underblur anyways, leave the small kernel.
     return dt_api_blur_sub(graph, module, nodeid_input, connid_input,
-        id_blur_in, id_blur_out, it, mul, 0);
+        id_blur_in, id_blur_out, it, mul, 1);
   }
   else
 #endif
@@ -448,7 +448,7 @@ dt_api_blur(
     dt_api_blur_sep(graph, module, nodeid_input, connid_input,
         &id_blur_small_in, &id_blur_small_out, 2.0f*sig_rem);
     return dt_api_blur_sub(graph, module, id_blur_small_out, 1,
-        id_blur_in, id_blur_out, it, mul, 0);
+        id_blur_in, id_blur_out, it, mul, 1);
   }
   else
   {
