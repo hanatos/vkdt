@@ -12,5 +12,5 @@ layout( // output
 
 layout(push_constant, std140) uniform push_t
 {
-  int step;
+  float radius;
 } push;

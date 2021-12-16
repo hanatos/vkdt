@@ -12,9 +12,10 @@ main()
 
   vec4 color = vec4(0);
   float wgt = 0.0;
-  for(int i=-push.step;i<=push.step;i++)
+  int sp = int(floor(push.radius));
+  for(int i=-sp;i<=sp;i++)
   {
-    float w = exp(-i*i/(2.0*(push.step/2.0*push.step/2.0)));
+    float w = exp(-i*i/(2.0*(push.radius/2.0*push.radius/2.0)));
     wgt += w;
     color += w * texture(img_in[idx], (ipos + 0.5 + vec2(i, 0))/vec2(textureSize(img_in[idx], 0)));
   }

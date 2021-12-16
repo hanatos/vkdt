@@ -1300,7 +1300,7 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     }
     dt_roi_t *roi = &module->connector[output].roi;
 
-    // all input connectors get the same roi as our output:
+    // all input connectors get the same roi as our output.
     for(int i=0;i<module->num_connectors;i++)
     {
       dt_connector_t *c = module->connector+i;
@@ -2090,7 +2090,7 @@ VkResult dt_graph_run(
     // uniform data to pass parameters
     VkBufferCreateInfo buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .size = graph->uniform_size,
+      .size  = 2 * graph->uniform_size, // leave headroom for later
       .usage = // VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT|
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
@@ -2123,7 +2123,7 @@ VkResult dt_graph_run(
           VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
-    graph->vkmem_uniform_size = graph->uniform_size;
+    graph->vkmem_uniform_size = 2 * graph->uniform_size;
     vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
   }
 

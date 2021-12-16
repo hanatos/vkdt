@@ -318,7 +318,7 @@ dt_api_blur_sep(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    uint32_t     radius)        // blur radius in pixels
+    float        radius)        // blur radius in pixels
 {
   // detect pixel format on input and blur the whole thing in separable kernels
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -327,6 +327,7 @@ dt_api_blur_sep(
   const uint32_t wd = conn_input->roi.wd;
   const uint32_t ht = conn_input->roi.ht;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
+  uint32_t *irad = (uint32_t *)&radius;
   dt_token_t blurh = dt_token("blurh");
   dt_token_t blurv = dt_token("blurv");
   dt_connector_t ci = {
@@ -358,8 +359,8 @@ dt_api_blur_sep(
     .dp     = dp,
     .num_connectors = 2,
     .connector = { ci, co },
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = {radius},
+    .push_constant_size = sizeof(float),
+    .push_constant = {irad[0]},
   };
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blurv = graph->num_nodes++;
@@ -372,8 +373,8 @@ dt_api_blur_sep(
     .dp     = dp,
     .num_connectors = 2,
     .connector = { ci, co },
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = {radius},
+    .push_constant_size = sizeof(float),
+    .push_constant = {irad[0]},
   };
   // interconnect nodes:
   CONN(dt_node_connect(graph, nodeid_input,  connid_input, id_blurh, 0));
@@ -462,16 +463,26 @@ dt_api_blur(
 // input image      I (rgb) -> exit  node [0]
 // input edge image p (rgb) -> entry node [1]
 // output filtered    (rgb) <- exit  node [2]
-static inline void
+// as blurs do, this will connect the input node (or module if node==-1) as needed.
+// will return the output node id, the output connector is number 2.
+static inline int
 dt_api_guided_filter_full(
-    dt_graph_t  *graph,        // graph to add nodes to
+    dt_graph_t  *graph,
     dt_module_t *module,
-    dt_roi_t    *roi,
-    int         *entry_nodeid,
-    int         *exit_nodeid,
-    float        radius,       // size of blur as fraction of input width
-    float        epsilon)      // tell edges from noise
+    int          nodeid_input, // pass -1 if the connector only exists on the module so far
+    int          connid_input, // connector id to grab input and connect to all appropriate places
+    int          nodeid_guide,
+    int          connid_guide,
+    int         *id_in,        // can be 0, or will be set to the input node
+    int         *id_out,       // can be 0, or well be set to the output node
+    float        radius,
+    float        epsilon)
 {
+  // detect pixel format on input
+  const dt_connector_t *conn_input = nodeid_input >= 0 ?
+    graph->node[nodeid_input].connector + connid_input :
+    module->connector + connid_input;
+  const dt_roi_t *roi = &conn_input->roi;
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
@@ -480,7 +491,7 @@ dt_api_guided_filter_full(
   // compute (I,p,I*I,I*p)
   assert(graph->num_nodes < graph->max_nodes);
   const int id_guided1 = graph->num_nodes++;
-  *entry_nodeid = id_guided1;
+  if(id_in) *id_in = id_guided1;
   graph->node[id_guided1] = (dt_node_t) {
     .name   = dt_token("shared"),
     .kernel = dt_token("guided1f"),
@@ -589,7 +600,22 @@ dt_api_guided_filter_full(
     }},
   };
   CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
-  *exit_nodeid = id_guided3;
+  if(id_out) *id_out = id_guided3;
+  if(nodeid_guide >= 0)
+    CONN(dt_node_connect(graph, nodeid_guide, connid_guide, id_guided1, 1));
+  else
+    dt_connector_copy(graph, module, connid_guide, id_guided1, 1);
+  if(nodeid_input >= 0)
+  {
+    CONN(dt_node_connect(graph, nodeid_input, connid_input, id_guided1, 0));
+    CONN(dt_node_connect(graph, nodeid_input, connid_input, id_guided3, 0));
+  }
+  else
+  {
+    dt_connector_copy(graph, module, connid_input, id_guided1, 0);
+    dt_connector_copy(graph, module, connid_input, id_guided3, 0);
+  }
+  return id_guided3;
 }
 
 // implements a guided filter without guide image, i.e. p=I.

@@ -17,6 +17,33 @@ check_params(
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  dt_roi_t *ri = &module->connector[0].roi;
+  dt_roi_t *r1 = &module->connector[1].roi;
+  dt_roi_t *r2 = &module->connector[2].roi;
+  ri->wd = r1->wd;
+  ri->ht = r1->ht;
+  ri->scale = r1->scale;
+  // not listening to what the others say, this is just dspy
+  r2->wd = r1->wd;
+  r2->ht = r1->ht;
+  r2->scale = r1->scale;
+}
+
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  dt_roi_t *ri = &module->connector[0].roi;
+  dt_roi_t *r1 = &module->connector[1].roi;
+  dt_roi_t *r2 = &module->connector[2].roi;
+  *r1 = *ri;
+  *r2 = *ri;
+}
+
 void
 create_nodes(
     dt_graph_t  *graph,
@@ -56,12 +83,9 @@ create_nodes(
   };
   // output: float image [0.0,6.0]
   // guided blur with I : zones, p : input image
-  int guided_entry, guided_exit;
-  dt_api_guided_filter_full(
-      graph, module, &module->connector[0].roi,
-      &guided_entry, &guided_exit,
-      radius, epsilon);
-  CONN(dt_node_connect(graph, id_quant, 1, guided_entry, 1));
+  const int id_guided = dt_api_guided_filter_full(
+      graph, module, id_quant, 1, -1, 0,
+      0, 0, radius, epsilon);
 
   // process zone exposure correction:
   assert(graph->num_nodes < graph->max_nodes);
@@ -96,14 +120,15 @@ create_nodes(
       .roi    = module->connector[0].roi,
     }},
   };
-  CONN(dt_node_connect(graph, guided_exit, 2, id_apply, 1));
-  // CONN(dt_node_connect(graph, id_quant, 1, id_apply, 1)); // XXX DEBUG don't filter
+  CONN(dt_node_connect(graph, id_guided, 2, id_apply, 1));
   dt_connector_copy(graph, module, 0, id_apply, 0);
   dt_connector_copy(graph, module, 0, id_quant, 0);
-  dt_connector_copy(graph, module, 0, guided_entry, 0);
-  dt_connector_copy(graph, module, 0, guided_exit,  0);
+
+  // FIXME routing the guided output to dspy fails for thumbnails and for export:
+  // FIXME the size of the roi will be 0,0 and the connectors will hand this down
+  // FIXME or overwrite whatever reasonable sizes we had before!!
+  dt_connector_copy(graph, module, 2, id_guided, 2); // dspy output
+  // need to do this last to overwrite the empty roi again :(
   dt_connector_copy(graph, module, 1, id_apply, 2);
-  dt_connector_copy(graph, module, 2, guided_exit, 2); // dspy output
-  // dt_connector_copy(graph, module, 2, id_quant, 1);
 }
 

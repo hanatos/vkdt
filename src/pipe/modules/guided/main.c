@@ -26,13 +26,8 @@ create_nodes(
   const float epsilon = ((float*)module->param)[1];
 
   // guided blur with I : zones, p : input image
-  int guided_entry, guided_exit;
-  dt_api_guided_filter_full(
-      graph, module, &module->connector[0].roi,
-      &guided_entry, &guided_exit,
-      radius, epsilon);
-  dt_connector_copy(graph, module, 0, guided_entry, 0); // input
-  dt_connector_copy(graph, module, 1, guided_entry, 1); // guide
-  dt_connector_copy(graph, module, 0, guided_exit, 0);  // input again
-  dt_connector_copy(graph, module, 2, guided_exit, 2);  // output
+  const int id_guided = dt_api_guided_filter_full(
+      graph, module, -1, 0, -1, 1,
+      0, 0, radius, epsilon);
+  dt_connector_copy(graph, module, 2, id_guided, 2);  // output
 }
