@@ -41,7 +41,7 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3  rgb  = texelFetch(img_in, ipos, 0).rgb;
-  float zone = clamp(params.num_zones, 2, 7) * texelFetch(img_zone, ipos, 0).r;
+  float zone = clamp(params.num_zones, 2, 7) * texture(img_zone, (ipos+0.5)/imageSize(img_out)).r;
   float i = floor(zone);
   float f = fract(zone);
   float ev = 0.0;
