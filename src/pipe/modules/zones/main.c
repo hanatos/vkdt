@@ -84,7 +84,7 @@ create_nodes(
   // output: float image [0.0,6.0]
   // guided blur with I : zones, p : input image
   const int id_guided = dt_api_guided_filter_full(
-      graph, module, id_quant, 1, -1, 0,
+      graph, module, -1, 0, id_quant, 1,
       0, 0, radius, epsilon);
 
   // process zone exposure correction:
