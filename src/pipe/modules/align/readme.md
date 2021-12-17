@@ -6,6 +6,11 @@ of Computer Graphics Techniques, 2021](https://jo.dreggn.org/home/2021_motion.pd
 it can be useful to align consecutive frames in real-time renders, as well as
 to stack hand-held short exposure photography for low-light or hdr.
 
+please note that it only aligns images of same exposure, since it directly
+compares pixel values by difference. in particular it cannot be used to merge
+exposure bracketing stacks at this point. take several underexposed images at
+the same exposure level instead.
+
 ## connectors
 
 * `alignsrc`  a feature map of the to-be-aligned image
