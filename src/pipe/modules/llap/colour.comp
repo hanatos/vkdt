@@ -39,8 +39,10 @@ main()
   const float c = 1.0f;
   if(y < yo) y = yo * exp(c*(y-yo));
   // colour adjustment
-  // rgb *= y/yo;
-  rgb = adjust_colour(rgb, yo, y);
+  // rgb = adjust_colour(rgb, yo, y);
+  vec3 col = rgb * y/yo;
+  col = mix(col, vec3(dot(vec3(1.0/3.0), col)), smoothstep(0.02, 0.0, yo));
+  rgb = adjust_colour_dng(rgb, col);
   // imageStore(img_out, opos, vec4(vec3(y), 1));
   imageStore(img_out, opos, vec4(max(vec3(0), rgb), 1));
 }

@@ -89,27 +89,13 @@ curve(float x)
   return y;
 }
 
-void
-main()
+vec3
+curve(vec3 rgb)
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-
-
   const float black_ev = params.black;
   const float black = exp2(black_ev);
-  float white = 1.0f+black;
-  float den = log2(white)-black_ev;
-#if 0 // luminance
-  // avoid negative luma due to noise or extreme colour saturation:
-  const float l0 = max(luminance_rec2020(rgb), 1e-10);
-  // float l0 = acescc(l1);
-  float l1 = hermite4((log2(l0+black)-black_ev)/den);
-  // colour reconstruction: keep rgb saturation ratio same as before
-  rgb *= l1/l0;
-#else // rgb
+  const float white = 1.0f+black;
+  const float den = log2(white)-black_ev;
   rgb = max(vec3(0.0), rgb); // the log transform blows up for negative values
   rgb = mix( // positive will be extended if > 1.0:
       ((log2(rgb+black)-black_ev)/den),
@@ -119,6 +105,31 @@ main()
   rgb.r = hermite4(rgb.r);
   rgb.g = hermite4(rgb.g);
   rgb.b = hermite4(rgb.b);
+  return rgb;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
+
+  const float black_ev = params.black;
+  const float black = exp2(black_ev);
+  float white = 1.0f+black;
+  float den = log2(white)-black_ev;
+#if 0 // luminance:
+  // avoid negative luma due to noise or extreme colour saturation:
+  const float l0 = max(luminance_rec2020(rgb), 1e-10);
+  // float l0 = acescc(l1);
+  float l1 = hermite4((log2(l0+black)-black_ev)/den);
+  // colour reconstruction: keep rgb saturation ratio same as before
+  vec3 col1 = col0 * l1/l0;
+#else // per channel curve:
+  vec3 col1 = curve(col0);
+  col1 = adjust_colour_dng(col0, col1);
 #endif
 
   if(all(lessThan(ipos, imageSize(img_crv))))
@@ -141,6 +152,6 @@ main()
   // want to see why 8-bit output sucks? try this:
   // float l1 = hermite4(ipos.x / float(imageSize(img_out).x));
   // rgba.rgb = vec3(l1);
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  imageStore(img_out, ipos, vec4(col1, 1));
 }
 

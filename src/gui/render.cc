@@ -1047,6 +1047,8 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
     }
     if(ImGui::Button("disconnect", fsize))
     {
+      int id_dspy = dt_module_get(graph, dt_token("display"), dt_token("dspy"));
+      if(id_dspy >= 0) dt_module_connect(graph, -1, -1, id_dspy, 0); // disconnect dspy entry point
       int c_prev, m_prev = dt_module_get_module_before(graph, module, &c_prev);
       int cnt = dt_module_get_module_after(graph, module, m_after, c_after, max_after);
       if(m_prev != -1 && cnt > 0)
