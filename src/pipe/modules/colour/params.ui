@@ -6,5 +6,4 @@ white:rgb:0:1
 mat:hidden
 group:mode:1
 cnt:slider:2:20
-source:rgb:0:1:cnt
-target:rgb:0:1:cnt
+rbmap:rbmap:cnt

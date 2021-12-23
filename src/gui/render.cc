@@ -85,7 +85,7 @@ void widget_end()
     {
       vkdt.wstate.mapped = 0;
     }
-    else
+    else if(parsz)
     {
       const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
       float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
@@ -1512,6 +1512,84 @@ inline void draw_widget(int modid, int parid)
       }
       if((num < count - 1) && ((num % 6) != 5))
         ImGui::SameLine();
+      break;
+    }
+    case dt_token("rbmap"): // red/blue chromaticity mapping via src/target coordinates
+    {
+      if(num == 0) ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
+      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.14, 0);
+      int sz = dt_ui_param_size(param->type, 4); // src rb -> tgt rb is four floats
+      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
+      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], 1.0-v[0]-v[1], v[1], 1.0));
+      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[2], 1.0-v[2]-v[3], v[3], 1.0));
+      ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.state.panel_wd*0.02);
+      if(vkdt.wstate.active_widget_modid == modid &&
+         vkdt.wstate.active_widget_parid == parid &&
+         vkdt.wstate.active_widget_parnm == num)
+      {
+        snprintf(string, sizeof(string), "done");
+        if(ImGui::Button(string, size))
+          widget_end();
+      }
+      else
+      {
+        snprintf(string, sizeof(string), "%02d", num);
+        if(ImGui::Button(string, size))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = num;
+          vkdt.wstate.active_widget_parsz = 0;
+        }
+      }
+      ImGui::PopStyleVar(1);
+      ImGui::PopStyleColor(2);
+      if((num < count - 1) && ((num % 6) != 5))
+      {
+        ImGui::SameLine();
+        ImGui::Dummy(ImVec2(0.01*vkdt.state.panel_wd, 0));
+        ImGui::SameLine();
+      }
+      else if(num == count - 1)
+      { // edit specific colour patch below list of patches:
+        ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
+        if(vkdt.wstate.active_widget_modid == modid &&
+           vkdt.wstate.active_widget_parid == parid)
+        { // now add ability to change target colour coordinate
+          int active_num = vkdt.wstate.active_widget_parnm;
+          for(int i=0;i<2;i++)
+          {
+            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 2 + i;
+            float oldval = *val;
+            if(ImGui::SliderFloat(i ? "blue" : "red", val, 0.0, 1.0, "%2.5f"))
+            { // custom resetblock: set only this colour spot to identity mapping
+              if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;
+              if(doubleclick) memcpy(val-i, val-i-2, sizeof(float)*2);
+              change = 1;
+            }
+            if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) ||
+                (ImGui::IsItemFocused() && gamepad_reset))
+            {
+              doubleclick_time = time_now;
+              gamepad_reset = 0;
+              doubleclick = 1;
+              memcpy(val-i, val-i-2, sizeof(float)*2);
+              change = 1;
+            }
+            if(change)
+            {
+              dt_graph_run_t flags = s_graph_run_none;
+              if(vkdt.graph_dev.module[modid].so->check_params)
+                flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+              vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                  s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+              vkdt.graph_dev.active_module = modid;
+            }
+          }
+        }
+      }
+      else ImGui::Dummy(ImVec2(0, 0.02*vkdt.state.panel_wd));
       break;
     }
     case dt_token("grab"):  // grab all input

@@ -4,6 +4,5 @@ matrix:int:1:1
 gamut:int:1:0
 white:float:4:0.5:0.5:0.5:0.5
 mat:float:9:-1.0
-cnt:int:1:0
-source:float:60:0.0
-target:float:60:0.0
+cnt:int:1:4
+rbmap:float:80:0.3333:0.3333:0.3333:0.3333:0.5:0.25:0.5:0.25:0.25:0.25:0.25:0.25:0.25:0.5:0.25:0.5

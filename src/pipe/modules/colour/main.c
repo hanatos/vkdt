@@ -173,6 +173,7 @@ kernel(const float *x, const float *y)
 {
   const double r2 = 1e-3 +
       .99*((x[0] - y[0]) * (x[0] - y[0]) + (x[1] - y[1]) * (x[1] - y[1]));
+  // return expf(-0.5f*r2/0.0025f);
   return r2 * logf(r2);
 }
 
@@ -282,8 +283,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   // grab params by name:
   const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("white")));
   const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
-  const float *p_src = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("source")));
-  const float *p_tgt = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("target")));
+  const float *p_map = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("rbmap")));
         int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
   const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
@@ -321,10 +321,10 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     float p2_src[40], p2_tgt[40];
     for(int i=0;i<p_cnt;i++)
     {
-      p2_src[2*i+0] = p_src[3*i+0]/(p_src[3*i+0]+p_src[3*i+1]+p_src[3*i+2]);
-      p2_src[2*i+1] = p_src[3*i+2]/(p_src[3*i+0]+p_src[3*i+1]+p_src[3*i+2]);
-      p2_tgt[2*i+0] = p_tgt[3*i+0]/(p_tgt[3*i+0]+p_tgt[3*i+1]+p_tgt[3*i+2]);
-      p2_tgt[2*i+1] = p_tgt[3*i+2]/(p_tgt[3*i+0]+p_tgt[3*i+1]+p_tgt[3*i+2]);
+      p2_src[2*i+0] = p_map[4*i+0];
+      p2_src[2*i+1] = p_map[4*i+1];
+      p2_tgt[2*i+0] = p_map[4*i+2];
+      p2_tgt[2*i+1] = p_map[4*i+3];
     }
 
     // init f[20]..
