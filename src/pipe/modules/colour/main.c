@@ -174,6 +174,7 @@ kernel(const float *x, const float *y)
   const double r2 = 1e-3 +
       .99*((x[0] - y[0]) * (x[0] - y[0]) + (x[1] - y[1]) * (x[1] - y[1]));
   // return expf(-0.5f*r2/0.0025f);
+  // return expf(-0.5f*r2/0.002f);
   return r2 * logf(r2);
 }
 
@@ -321,10 +322,17 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     float p2_src[40], p2_tgt[40];
     for(int i=0;i<p_cnt;i++)
     {
+#if 0 // plain rgb
       p2_src[2*i+0] = p_map[4*i+0];
       p2_src[2*i+1] = p_map[4*i+1];
       p2_tgt[2*i+0] = p_map[4*i+2];
       p2_tgt[2*i+1] = p_map[4*i+3];
+#else // log space (cannot exceed rec2020)
+      p2_src[2*i+0] = log(MAX(1e-8, (1.0-p_map[4*i+0]-p_map[4*i+1])/(1e-8+p_map[4*i+0])));
+      p2_src[2*i+1] = log(MAX(1e-8, (1.0-p_map[4*i+0]-p_map[4*i+1])/(1e-8+p_map[4*i+1])));
+      p2_tgt[2*i+0] = log(MAX(1e-8, (1.0-p_map[4*i+2]-p_map[4*i+3])/(1e-8+p_map[4*i+2])));
+      p2_tgt[2*i+1] = log(MAX(1e-8, (1.0-p_map[4*i+2]-p_map[4*i+3])/(1e-8+p_map[4*i+3])));
+#endif
     }
 
     // init f[20]..

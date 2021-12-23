@@ -26,10 +26,10 @@ float
 kernel(vec2 ci, vec2 p)
 {
   // gaussian kernel
-  // float r2 = .99 * dot(ci-p, ci-p) + 1e-3;
-  // return exp(-0.5*r2/0.0025);
-  // thinplate spline kernel
   float r2 = .99 * dot(ci-p, ci-p) + 1e-3;
+  // return exp(-0.5*r2/0.0025);
+  // return exp(-0.5*r2/0.002);
+  // thinplate spline kernel
   return r2 * log(r2);
 }
 
@@ -47,14 +47,23 @@ main()
   {
     const float b = dot(rgb, vec3(1));
     rgb /= b;
+#if 0 // plain rb
     vec2 ci = rgb.xz;
+#else // log(g/r) log(g/b)
+    vec2 ci = log(rgb.g/(1e-8+rgb.rb));
+#endif
     // now lut part:
     vec2 co = mat2(params.coef[params.N.x+0].zw, params.coef[params.N.x+1].zw) * ci;
     for(int i=0;i<params.N.x;i++)
       co += params.coef[i].zw * kernel(ci, params.coef[i].xy);
 
+#if 0 // plain rb
     rgb.xz = co;
     rgb.y = 1.0 - rgb.x - rgb.z;
+#else // log
+    rgb.xz = rgb.y/exp(co)-1e-8;
+    rgb /= dot(rgb, vec3(1));
+#endif
     rgb *= b; // keep brightness constant
   }
 
