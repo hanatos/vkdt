@@ -115,16 +115,11 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
-
-  const float black_ev = params.black;
-  const float black = exp2(black_ev);
-  float white = 1.0f+black;
-  float den = log2(white)-black_ev;
 #if 0 // luminance:
   // avoid negative luma due to noise or extreme colour saturation:
   const float l0 = max(luminance_rec2020(rgb), 1e-10);
   // float l0 = acescc(l1);
-  float l1 = hermite4((log2(l0+black)-black_ev)/den);
+  float l1 = curve(l0);
   // colour reconstruction: keep rgb saturation ratio same as before
   vec3 col1 = col0 * l1/l0;
 #else // per channel curve:

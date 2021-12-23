@@ -322,7 +322,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     float p2_src[40], p2_tgt[40];
     for(int i=0;i<p_cnt;i++)
     {
-#if 0 // plain rgb
+#if 1 // plain rgb
       p2_src[2*i+0] = p_map[4*i+0];
       p2_src[2*i+1] = p_map[4*i+1];
       p2_tgt[2*i+0] = p_map[4*i+2];
@@ -374,8 +374,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
 int init(dt_module_t *mod)
 {
-  // wb, matrix, cnt, source, coef
-  mod->committed_param_size = sizeof(float)*(4+12+2+40+44);
+  // wb, matrix, uvec4 cnt, vec4 coef[22]
+  mod->committed_param_size = sizeof(float)*(4+12+4+88);
   return 0;
 }
 
