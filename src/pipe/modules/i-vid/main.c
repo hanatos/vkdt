@@ -15,7 +15,6 @@ typedef struct vid_data_t
 {
   char                  filename[PATH_MAX];
   AVFormatContext      *fmtc;
-  // AVIOContext          *avioc;
   AVPacket             *pkt0, *pkt1, *pktf;
   AVFrame              *aframe, *vframe;
   AVBSFContext         *vbsfc, *absfc;
@@ -23,22 +22,11 @@ typedef struct vid_data_t
   int                   mp4;
   int                   wd, ht;
   AVCodecContext       *actx, *vctx;
-  // AVCodecParserContext *avparser;
   uint32_t              dim[6];
   int64_t               frame;
-  
-#if 0
-  enum AVPixelFormat                 format;
-  AVCodecID                          vcodec;
-  int                                profile, level;
-  AVRational                         sample_aspect_ratio;
-  enum AVFieldOrder                  field_order;
-  enum AVColorRange                  color_range;
-  enum AVColorPrimaries              color_primaries;
-  enum AVColorTransferCharacteristic color_trc;
-  enum AVColorSpace                  color_space;
-  enum AVChromaLocation              chroma_location;
-#endif
+  float                *sndbuf;
+  size_t                sndbuf_size;
+  int64_t               snd_lag;
 }
 vid_data_t;
 
@@ -91,7 +79,6 @@ dump_parameters(
     "UNSPECIFIED",
     "RESERVED",
     "BT470M: also FCC Title 47 Code of Federal Regulations 73.682 (a)(20)",
-
     "BT470BG: also ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM",
     "SMPTE170M: also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC",
     "SMPTE240M: also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC",
@@ -198,14 +185,19 @@ open_stream(vid_data_t *d, const char *filename)
   enum AVCodecID acodec = d->audio_idx >= 0 ? d->fmtc->streams[d->audio_idx]->codecpar->codec_id : 0;
   enum AVCodecID vcodec = d->fmtc->streams[d->video_idx]->codecpar->codec_id;
 
+  const AVBitStreamFilter *bsf = 0;
   if(d->mp4)
   {
-    const AVBitStreamFilter *bsf = 0;
     if (vcodec == AV_CODEC_ID_H264)
       bsf = av_bsf_get_by_name("h264_mp4toannexb");
-    else if (vcodec == AV_CODEC_ID_HEVC)
+    else if(vcodec == AV_CODEC_ID_HEVC)
       bsf = av_bsf_get_by_name("hevc_mp4toannexb");
+    else if(vcodec == AV_CODEC_ID_VP9)
+      d->mp4 = 0;
+  }
 
+  if(d->mp4)
+  {
     if(!bsf)
     {
       fprintf(stderr, "[i-vid] av_bsf_get_by_name failed!\n");
@@ -284,11 +276,6 @@ close_stream(vid_data_t *d)
   av_packet_free(&d->pktf);
 
   avformat_close_input(&d->fmtc);
-  // if(d->avioc)
-  // {
-  //   av_freep(&d->avioc->buffer);
-  //   av_freep(&d->avioc);
-  // }
   if(d->mp4) av_bsf_free(&d->vbsfc);
   if(d->mp4) av_bsf_free(&d->absfc);
   avcodec_close(d->vctx); // will clean up codec, not context
@@ -301,6 +288,7 @@ close_stream(vid_data_t *d)
 void cleanup(dt_module_t *mod)
 {
   vid_data_t *d = mod->data;
+  free(d->sndbuf);
   close_stream(d);
 }
 
@@ -336,7 +324,7 @@ void modify_roi_out(
     .black          = {b, b, b, b},
     .white          = {w, w, w, w},
     .whitebalance   = {1.0, 1.0, 1.0, 1.0},
-    .filters        = 0x5d5d5d5d, // anything not 0 or 9 will be bayer starting at R
+    .filters        = 0, // anything not 0 or 9 will be bayer starting at R
     .crop_aabb      = {0, 0, d->wd, d->ht},
 
     .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
@@ -359,13 +347,6 @@ void modify_roi_out(
   // mod->graph->frame_rate = dat->video.frame_rate;
 }
 
-#if 0 // ???
-    int GetFrameSize() {
-        return nBitDepth == 8 ? nWidth * nHeight * 3 / 2: nWidth * nHeight * 3;
-    }
-#endif
-
-
 #if 0 // TODO
 int read_vid(
     dt_module_t          *mod,
@@ -384,8 +365,8 @@ int read_source(
 
   if(p->a == 0)
   { // first channel, new frame. parse + decode + handle audio:
-    // TODO: grab these numbers from the codec!
-    int rate = 90000/24; // some obscure sampling rate vs frames per second number
+    const double tbn = 1.0/av_q2d(d->fmtc->streams[d->video_idx]->time_base);
+    int rate = tbn/mod->graph->frame_rate; // some obscure sampling rate vs frames per second number
     // fprintf(stderr, "frames %d %ld %d %d\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
     if(mod->graph->frame != d->frame)
     // if(mod->graph->frame + 1 != d->vctx->frame_number) // zero vs 1 based
@@ -400,23 +381,13 @@ int read_source(
               0, mod->graph->frame, mod->graph->frame + 2,
               AVSEEK_FLAG_ANY|AVSEEK_FLAG_FRAME)) < 0) goto error;
 #endif
-      fprintf(stderr, "SEEEEEEEKX\n");
+      // fprintf(stderr, "SEEEEEEEKX\n");
       avcodec_flush_buffers(d->vctx);
       avcodec_flush_buffers(d->actx);
+      d->snd_lag = 0;
     }
     d->frame = mod->graph->frame+1; // this would be the next one we read
-    // if(d->audio_idx >= 0)
-    //   if((ret = avformat_seek_file(d->fmtc, d->audio_idx,
-    //           mod->graph->frame - 10, mod->graph->frame, mod->graph->frame + 10,
-    //           AVSEEK_FLAG_FRAME)) < 0) goto error;
 
-    // XXX TODO the ffplay loop goes like this:
-    // as long as you can do receive_frame() != EAGAIN, you should just do this
-    // after that, we need to fill the queue, like:
-    // avcodec_send_packet()
-    // if no packets to send, call av_read_frame() to get one first
-
-    // so:
     AVPacket *curr = d->pkt0;
     do {
       if(d->pkt0->data) av_packet_unref(d->pkt0);
@@ -425,17 +396,11 @@ int read_source(
       {
         if(ret == AVERROR(EAGAIN))
         { // receive frame needs moar packets!
-          fprintf(stderr, "%d needs more packets\n", mod->graph->frame);
           if((ret = av_read_frame(d->fmtc, curr)) < 0)
           { // this would have to be EOF hopefully
-            if(ret == AVERROR_EOF)
-            {
-              fprintf(stderr, "%d thinks frame EOF\n", mod->graph->frame);
-              break;
-            }
+            if(ret == AVERROR_EOF) break;
             goto error;
           }
-          fprintf(stderr, "%d has packet\n", mod->graph->frame);
           if(curr->stream_index == d->video_idx)
           {
             AVPacket *pk = curr;
@@ -446,7 +411,6 @@ int read_source(
               if((ret = av_bsf_receive_packet(d->vbsfc, d->pktf)) < 0) goto error;
               pk = d->pktf;
             }
-            fprintf(stderr, "%d sending filtered video packet\n", mod->graph->frame);
             if((ret = avcodec_send_packet(d->vctx, pk)) < 0)
             {
               if(ret == AVERROR(EAGAIN)) {} // internal buffer is full, stop sending! first pick it up.
@@ -475,91 +439,15 @@ int read_source(
         }
         else if(ret == AVERROR_EOF)
         { // receive frame says EOF, flush empty packet
-          fprintf(stderr, "%d EOF really???\n", mod->graph->frame);
           if((ret = avcodec_send_packet(d->vctx, 0)) < 0) goto error;
           continue;
         }
-        fprintf(stderr, "%d AAARGGHn", mod->graph->frame);
         goto error; // seems to be broken indeed.
       }
-      fprintf(stderr, "%d got frame\n", mod->graph->frame);
-      // got frame, exit loop
-      break;
+      break; // got frame, exit loop
     } while(1);
-    //fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_number, d->vframe->pts);
-    int64_t vfidx = d->vframe->pts / rate;
-    fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
-
-#if 0
-    if(d->pkt0->data) av_packet_unref(d->pkt0);
-    if(d->pkt1->data) av_packet_unref(d->pkt1);
-
-    // TODO: could we point the packet data to our memory mapped block directly please?
-    int vfound = 0, afound = d->audio_idx >= 0 ? 0 : 1;
-    while(av_read_frame(d->fmtc, curr) >= 0)
-    {
-      if(curr->stream_index == d->video_idx)
-      {
-        AVPacket *pk = curr;
-        if(d->mp4)
-        {
-          if(d->pktf->data) av_packet_unref(d->pktf);
-          if((ret = av_bsf_send_packet   (d->vbsfc, curr))    < 0) goto error;
-          if((ret = av_bsf_receive_packet(d->vbsfc, d->pktf)) < 0) goto error;
-          pk = d->pktf;
-        }
-
-        // it follows cpu decoding via ffmpeg:
-        if((ret = avcodec_send_packet(d->vctx, pk)) < 0) goto error;
-        do {
-          if((ret = avcodec_receive_frame(d->vctx, d->vframe)) < 0)
-          {
-            if(ret == AVERROR_EOF) // flush the decoder
-            { if((ret = avcodec_send_packet(d->vctx, 0)) < 0) goto error; }
-            else if(ret != AVERROR(EAGAIN)) goto error; // not an error either
-            continue;
-          }
-        } while(0);
-        vfound = 1;
-        if(curr == d->pkt0) curr = d->pkt1;
-        else                curr = d->pkt0;
-      }
-      else if(curr->stream_index == d->audio_idx)
-      {
-#if 0
-        AVPacket *pk = curr;
-        if(d->mp4)
-        {
-          if(d->pktf->data) av_packet_unref(d->pktf);
-          if((ret = av_bsf_send_packet   (d->absfc, curr))    < 0) goto error;
-          if((ret = av_bsf_receive_packet(d->absfc, d->pktf)) < 0) goto error;
-          pk = d->pktf;
-        }
-#endif
-#if 0
-        if((ret = avcodec_send_packet(d->actx, curr)) < 0)
-        {
-          fprintf(stderr, "aoeuaoeu\n");
-          goto error;
-        }
-        if(d->aframe->data[0]) av_frame_unref(d->aframe);
-        do {
-          if((ret = avcodec_receive_frame(d->actx, d->aframe)) < 0)
-          {
-            if(ret == AVERROR_EOF) // flush the decoder
-            { if((ret = avcodec_send_packet(d->actx, 0)) < 0) goto error; }
-            else if(ret != AVERROR(EAGAIN)) goto error;
-            continue;
-          }
-        } while(0);
-#endif
-        afound = 1;
-        if(curr == d->pkt0) curr = d->pkt1;
-        else                curr = d->pkt0;
-      }
-      if(vfound && afound) break;
-    }
-#endif
+    // int64_t vfidx = d->vframe->pts;//  / rate;
+    // fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
   }
 
   // write the frame data to output file
@@ -585,37 +473,53 @@ int audio(
   vid_data_t *d = mod->data;
   if(!d || !d->filename[0])
     return 0;
-#if 0
-  uint64_t bytes_per_frame = dat->video.WAVI.bytesPerSecond / dat->video.frame_rate;
-  *samples = dat->video.audio_data + frame * bytes_per_frame;
-
-  bytes_per_frame = MIN(bytes_per_frame, 
-    MAX(0, dat->video.audio_data + dat->video.audio_size - *samples));
-
-  // samples: stereo and 2 bytes/channel => /4
-  return bytes_per_frame/4;
-#endif
   int ret = 0;
+  int written = 0;
+  int num_samples = -1;
+  int need_samples = -1;
+  *samples = (uint8_t *)d->sndbuf;
   do {
-    if(d->pkt0->data) av_packet_unref(d->pkt0);
-    if(d->pkt1->data) av_packet_unref(d->pkt1);
     if((ret = avcodec_receive_frame(d->actx, d->aframe)) < 0)
     {
-      if(ret == AVERROR(EAGAIN))
-        // receive frame needs moar packets! but sorry the main loop is in read_source()
-        fprintf(stderr, "%d needs more audio packets\n", mod->graph->frame);
-      break;
+      if(ret == AVERROR(EAGAIN)) { } // receive frame needs moar packets! but sorry the main loop is in read_source()
+      return written; // got zero samples in the last round
     }
-    fprintf(stderr, "%d got audio frame\n", mod->graph->frame);
-    // got frame, exit loop
-    break;
-  } while(1);
+#if 0
+      fprintf(stderr, "frame %d, lag %ld got audio with %d channels, lay %lu, %d samples, %s format, rate %d\n",
+          // d->aframe->pts,
+          mod->graph->frame,
+          d->snd_lag,
+          d->aframe->channels, d->aframe->channel_layout, // layout 3 means front left | front right (= 1 | 2)
+          d->aframe->nb_samples,
+          av_get_sample_fmt_name(d->aframe->format), // fltp means floating point -1..1 in planes.
+          d->aframe->sample_rate);
+#endif
+    const float *input_l = (const float *)d->aframe->extended_data[0];
+    const float *input_r = (const float *)d->aframe->extended_data[1];
 
-  *samples = d->aframe->extended_data[0];
-  uint64_t data_size = av_samples_get_buffer_size(NULL, d->aframe->channels,
-      d->aframe->nb_samples,
-      d->aframe->format, 1);
-  return data_size/4;
+    if(num_samples == -1)
+    {
+      num_samples = d->aframe->sample_rate / mod->graph->frame_rate + 0.5; // how many per one video frame?
+      // num_samples = 44100 / mod->graph->frame_rate + 0.5; // how many per one video frame?
+      need_samples = num_samples - d->snd_lag; // how many do we need to also compensate the lag?
+      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * d->aframe->channels;
+      if(d->sndbuf_size < sizereq)
+      {
+        free(d->sndbuf);
+        d->sndbuf_size = sizereq;
+        d->sndbuf = malloc(d->sndbuf_size * sizeof(float));
+        *samples = (uint8_t *)d->sndbuf;
+      }
+    }
+    for(int i=0;i<d->aframe->nb_samples;i++)
+    {
+      d->sndbuf[2*(i+written)+0] = input_l[i];
+      d->sndbuf[2*(i+written)+1] = input_r[i];
+    }
+    written += d->aframe->nb_samples;
+    d->snd_lag = written - need_samples;
+  } while(d->snd_lag < 0);
+  return written;
 }
 
 void
