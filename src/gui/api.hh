@@ -6,6 +6,9 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // api functions for gui interactions. these can be
 // triggered by pressing buttons or by issuing hotkey combinations.
@@ -329,6 +332,9 @@ dt_gui_dr_modals()
     if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
       dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
     int pick = -1;
+#define FREE_ENT do {\
+    for(int i=0;i<ent_cnt;i++) free(ent[i]);\
+    free(ent); ent = 0; ent_cnt = 0; } while(0)
     static struct dirent **ent = 0;
     static int ent_cnt = 0;
     static char filter[256] = "";
@@ -341,13 +347,38 @@ dt_gui_dr_modals()
           "press enter to apply top item\n"
           "press escape to close");
     if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
-      ImGui::CloseCurrentPopup();
+    { FREE_ENT; ImGui::CloseCurrentPopup(); }
 
     if(!ent_cnt)
     { // open preset directory
-      char dirname[512];
+      char dirname[PATH_MAX];
       snprintf(dirname, sizeof(dirname), "%s/presets", vkdt.db.basedir);
       ent_cnt = scandir(dirname, &ent, 0, alphasort);
+      if(ent_cnt == -1)
+      { // assume the directory does not exist, copy over:
+        int ret = mkdir(dirname, 0755);
+        char srcname[PATH_MAX];
+        snprintf(srcname, sizeof(srcname), "%s/data/presets", dt_pipe.basedir);
+        ent_cnt = scandir(srcname, &ent, 0, alphasort);
+        for(int i=0;i<ent_cnt;i++) if(strstr(ent[i]->d_name, ".pst"))
+        {
+          char f0[PATH_MAX], f1[PATH_MAX];
+          snprintf(f0, sizeof(f0), "%s/data/presets/%s", dt_pipe.basedir, ent[i]->d_name);
+          snprintf(f1, sizeof(f1), "%s/presets/%s", vkdt.db.basedir, ent[i]->d_name);
+          struct stat stat;
+          int fd0 = open(f0, O_RDONLY), fd1 = open(f1, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+          if(fd0 == -1 || fd1 == -1)  goto copy_error;
+          if(fstat(fd0, &stat) == -1) goto copy_error;
+          { loff_t len = stat.st_size;
+          do {
+            ret = copy_file_range(fd0, 0, fd1, 0, len, 0);
+          } while((len-=ret) > 0 && ret > 0);}
+copy_error:
+          if(fd0 >= 0) close(fd0);
+          if(fd0 >= 0) close(fd1);
+        }
+        FREE_ENT;
+      }
     }
     for(int i=0;i<ent_cnt;i++)
     {
@@ -363,12 +394,12 @@ dt_gui_dr_modals()
       }
     }
 
-    if (ImGui::Button("cancel", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
+    if (ImGui::Button("cancel", ImVec2(120, 0))) {FREE_ENT; ImGui::CloseCurrentPopup();}
     ImGui::SameLine();
     if (ImGui::Button("ok", ImVec2(120, 0))) ok = 1;
     if(ok)
     {
-      char filename[512];
+      char filename[PATH_MAX];
       snprintf(filename, sizeof(filename), "%s/presets/%s", vkdt.db.basedir, ent[pick]->d_name);
       FILE *f = fopen(filename, "rb");
       uint32_t lno = 0;
@@ -393,6 +424,7 @@ error:
         if(f) fclose(f);
         dt_gui_notification("failed to read %s line %d", filename, lno);
       }
+      FREE_ENT;
       ImGui::CloseCurrentPopup();
     }
     ImGui::EndPopup();
