@@ -1179,7 +1179,7 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
           -0.6666843518,  1.6164812366,  0.0157685458,
            0.0176398574, -0.0427706133,  0.9421031212
         };
-        float cam_to_xyz[9];
+        float cam_to_xyz[9] = {0.0f};
         mat3inv(cam_to_xyz, d65_colour_matrix);
         float cam_to_rec2020[9] = {0.0f};
         for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)

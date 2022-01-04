@@ -484,7 +484,7 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
 // use relative path names in link? still useful if ~/.config top level?
 int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname)
 {
-  char filename[256];
+  char filename[PATH_MAX+100];
   dt_db_image_path(db, imgid, filename, sizeof(filename));
 
   uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);

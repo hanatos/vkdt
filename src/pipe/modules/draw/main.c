@@ -74,7 +74,7 @@ create_nodes(
   };
 
   float aspect = wd/(float)ht;
-  uint32_t aspecti = *(uint32_t *)&aspect;
+  uint32_t aspecti = dt_touint(aspect);
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_source = graph->num_nodes++;

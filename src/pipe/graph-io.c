@@ -371,7 +371,7 @@ dt_graph_write_keyframe_ascii(
     size_t            size)
 {
   const dt_module_t *mod = graph->module + m;
-  WRITE("keyframe:%lu:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
+  WRITE("keyframe:%d:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
       mod->keyframe[k].frame,
       dt_token_str(mod->name),
       dt_token_str(mod->inst),

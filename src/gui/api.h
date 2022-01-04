@@ -56,7 +56,7 @@ dt_gui_dr_next()
     vkdt.state.anim_playing ^= 1; // start/stop playing animation
   else
   { // advance to next image in lighttable collection
-    int32_t next = dt_db_current_colid(&vkdt.db) + 1;
+    uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
     if(next < vkdt.db.collection_cnt)
     {
       darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.

@@ -5,7 +5,7 @@
 // store some state
 struct dt_filebrowser_widget_t
 {
-  char cwd[1024];       // current working directory
+  char cwd[PATH_MAX+100];       // current working directory
   struct dirent **ent;  // cached directory entries
   int ent_cnt;          // number of cached directory entries
   const char *selected; // points to selected file name ent->d_name

@@ -286,7 +286,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
   const float *p_map = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("rbmap")));
         int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
-  const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
+  // const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
 
   for(int k=0;k<4;k++) // exposure

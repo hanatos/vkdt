@@ -368,7 +368,7 @@ dt_gui_read_favs(
 {
   vkdt.fav_cnt = 0;
   FILE *f = 0;
-  char tmp[1024] = {0};
+  char tmp[PATH_MAX+100] = {0};
   if(filename[0] == '/')
     f = fopen(filename, "rb");
   else
@@ -397,7 +397,7 @@ dt_gui_read_tags()
 {
   vkdt.tag_cnt = 0;
   uint64_t time[sizeof(vkdt.tag)/sizeof(vkdt.tag[0])];
-  char filename[1024];
+  char filename[PATH_MAX+10];
   snprintf(filename, sizeof(filename), "%s/tags", vkdt.db.basedir);
   DIR *dir = opendir(filename);
   if(!dir) return; // could not open tags directory, possibly we have none.

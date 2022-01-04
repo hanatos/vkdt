@@ -231,9 +231,9 @@ dt_thumbnails_cache_one(
     else if(!strncasecmp(f2-4, ".jpg", 4))
       input_module = dt_token("i-jpg");
   }
-  char cfgfilename[1040];
-  char deffilename[1040];
-  char bc1filename[1040];
+  char cfgfilename[PATH_MAX+100];
+  char deffilename[PATH_MAX+100];
+  char bc1filename[PATH_MAX+100];
   uint32_t hash = murmur_hash3(filename, len, 1337);
   snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
@@ -467,8 +467,8 @@ dt_thumbnails_load_one(
   if(dt_pipe.modules_reloaded) return VK_INCOMPLETE;
 
   dt_graph_t *graph = tn->graph;
-  char cfgfilename[1040] = {0};
-  char imgfilename[1040] = {0};
+  char cfgfilename[PATH_MAX+100] = {0};
+  char imgfilename[PATH_MAX+100] = {0};
   snprintf(cfgfilename, sizeof(cfgfilename), "%s/thumb.cfg", dt_pipe.basedir);
   if(strncmp(filename, "data/", 5))
   { // only hash images that aren't straight from our resource directory:

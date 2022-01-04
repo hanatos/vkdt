@@ -20,7 +20,10 @@ extern int g_busy;  // when does gui go idle. this is terrible, should put it in
 #include "widget_filebrowser.hh"
 #if VKDT_USE_FREETYPE == 1
 #include "misc/freetype/imgui_freetype.h"
-#include "misc/freetype/imgui_freetype.cpp"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsubobject-linkage"
+#include "misc/freetype/imgui_freetype.cpp" // come on gcc, this is clearly not a header!
+#pragma GCC diagnostic pop
 #endif
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -294,7 +297,7 @@ extern "C" int dt_gui_init_imgui()
   init_info.CheckVkResultFn  = 0;//check_vk_result;
   ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
 
-  char tmp[1024] = {0};
+  char tmp[PATH_MAX+100] = {0};
   {
     int monitors_cnt;
     GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
@@ -432,7 +435,7 @@ void render_lighttable_center(double &hotkey_time)
       if(butt[5]) rtdir =  1; // r1
       if(butt[6]) lbdir = -1; // l2
       if(butt[7]) lbdir =  1; // r2
-      for(int i=0;i<vkdt.db.selection_cnt;i++)
+      for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         vkdt.db.image[sel[i]].rating = CLAMP(vkdt.db.image[sel[i]].rating + rtdir, 0, 5);
         if(lbdir)
@@ -474,8 +477,8 @@ void render_lighttable_center(double &hotkey_time)
         &vkdt.thumbnails,
         &vkdt.db,
         vkdt.db.collection,
-        MIN(clipper.DisplayStart * ipl, vkdt.db.collection_cnt-1),
-        MIN(clipper.DisplayEnd   * ipl, vkdt.db.collection_cnt));
+        MIN(clipper.DisplayStart * ipl, (int)vkdt.db.collection_cnt-1),
+        MIN(clipper.DisplayEnd   * ipl, (int)vkdt.db.collection_cnt));
     for(int line=clipper.DisplayStart;line<clipper.DisplayEnd;line++)
     {
       int i = line * ipl;
@@ -533,8 +536,8 @@ void render_lighttable_center(double &hotkey_time)
             uint32_t colid = dt_db_current_colid(&vkdt.db);
             if(colid != -1u)
             {
-              int a = MIN(colid, i);
-              int b = MAX(colid, i);
+              int a = MIN(colid, (uint32_t)i);
+              int b = MAX(colid, (uint32_t)i);
               dt_db_selection_clear(&vkdt.db);
               for(int i=a;i<=b;i++)
                 dt_db_selection_add(&vkdt.db, i);
@@ -683,7 +686,7 @@ void render_lighttable_right_panel(double &hotkey_time)
 
     // ==============================================================
     // recently used tags:
-    char filename[1024];
+    char filename[PATH_MAX+100];
     for(int i=0;i<vkdt.tag_cnt;i++)
     {
       if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
@@ -753,7 +756,7 @@ void render_lighttable_right_panel(double &hotkey_time)
     {
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
       char filename[1024], realname[PATH_MAX];
-      for(int i=0;i<vkdt.db.selection_cnt;i++)
+      for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
         realpath(filename, realname);
@@ -779,7 +782,7 @@ void render_lighttable_right_panel(double &hotkey_time)
       FILE *f = fopen(filename, "wb");
       fprintf(f, "frames:1\n");
       fprintf(f, "module:i-raw:main\n");
-      for(int i=1;i<vkdt.db.selection_cnt;i++)
+      for(uint32_t i=1;i<vkdt.db.selection_cnt;i++)
       {
         fprintf(f, "module:i-raw:%02d\n", i);
         fprintf(f, "module:align:%02d\n", i);
@@ -799,7 +802,7 @@ void render_lighttable_right_panel(double &hotkey_time)
       base[strlen(base)-4] = 0;
       fprintf(f, "param:i-raw:main:filename:%s\n", base);
       int ii = 1;
-      for(int i=0;i<vkdt.db.selection_cnt;i++)
+      for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         if(sel[i] == main_imgid) continue;
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
@@ -860,7 +863,7 @@ void render_lighttable_right_panel(double &hotkey_time)
     static char basename[240] = "";
     if(basename[0] == 0) strncpy(basename,
         dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img"),
-        sizeof(basename));
+        sizeof(basename)-1);
     const char format_data[] = "jpg\0pfm\0ffmpeg\0\0";
     if(ImGui::InputInt("width", &wd, 1, 100, 0))
       dt_rc_set_int(&vkdt.rc, "gui/export/wd", wd);
@@ -1185,12 +1188,12 @@ inline void draw_widget(int modid, int parid)
     if(glfwGetKey(qvk.window, GLFW_KEY_K) == GLFW_PRESS && now - keyframe_time > 1.0)\
     {\
       dt_graph_t *g = &vkdt.graph_dev;\
-      int ki = -1;\
-      for(int i=0;ki<0&&i<g->module[modid].keyframe_cnt;i++)\
+      uint32_t ki = -1u;\
+      for(uint32_t i=0;ki<0&&i<g->module[modid].keyframe_cnt;i++)\
         if(g->module[modid].keyframe[i].param == param->name && \
            g->module[modid].keyframe[i].frame == g->frame)\
           ki = i;\
-      if(ki < 0)\
+      if(ki == -1u)\
       {\
         ki = g->module[modid].keyframe_cnt++;\
         g->module[modid].keyframe = (dt_keyframe_t *)dt_realloc(g->module[modid].keyframe, &g->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));\
@@ -1318,7 +1321,7 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("colour"):
     {
-      char str[20] = {0};
+      char str[21] = {0};
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
       snprintf(str, sizeof(str), "%" PRItkn " %d", dt_token_str(param->name), num);
       ImVec4 col(val[0], val[1], val[2], 1.0f);
@@ -1725,14 +1728,14 @@ void render_darkroom_favourite()
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
-  uint32_t modid[100], cnt = 0;
+  int32_t modid[100], cnt = 0;
 #define TRAVERSE_POST \
-  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+  assert(cnt < (int32_t)(sizeof(modid)/sizeof(modid[0])));\
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
   for(int i=0;i<vkdt.fav_cnt;i++)
   { // arg. can we please do that without n^2 every redraw?
-    for(int m=0;m<cnt;m++)
+    for(int32_t m=0;m<cnt;m++)
     {
       if(modid[m] == vkdt.fav_modid[i])
       {
@@ -1747,7 +1750,7 @@ void render_darkroom_full()
 {
   char name[30];
   static char open[100] = {0};
-  static uint32_t active_module = -1u;
+  static int32_t active_module = -1;
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
@@ -1816,7 +1819,7 @@ void render_darkroom_pipeline()
   uint32_t mod_in[100] = {0}; // module indentation level
   dt_graph_t *graph = &vkdt.graph_dev;
   assert(graph->num_modules < sizeof(mod_id)/sizeof(mod_id[0]));
-  for(int k=0;k<graph->num_modules;k++) mod_id[k] = k;
+  for(uint32_t k=0;k<graph->num_modules;k++) mod_id[k] = k;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules; // use this because buttons may add modules
   static uint64_t last_err = 0;
@@ -1848,10 +1851,10 @@ void render_darkroom_pipeline()
 #include "pipe/graph-traverse.inc"
   for(int m=cnt-1;m>=0;m--)
   {
-    int curr = modid[m];
+    uint32_t curr = modid[m];
     pos2 = curr;
     while(mod_id[pos2] != curr) pos2 = mod_id[pos2];
-    int tmp = mod_id[pos];
+    uint32_t tmp = mod_id[pos];
     mod_id[pos++] = mod_id[pos2];
     mod_id[pos2] = tmp;
     err = render_module(graph, arr+curr, 1);
@@ -1879,9 +1882,9 @@ void render_darkroom_pipeline()
       if(dt_connector_input(graph->module[m].connector+k))
       {
         const float *p = vkdt.wstate.connector[m][k];
-        int nid = graph->module[m].connector[k].connected_mi;
-        int cid = graph->module[m].connector[k].connected_mc;
-        if(nid < 0) continue; // disconnected
+        uint32_t nid = graph->module[m].connector[k].connected_mi;
+        uint32_t cid = graph->module[m].connector[k].connected_mc;
+        if(nid == -1u) continue; // disconnected
         const float *q = vkdt.wstate.connector[nid][cid];
         float b = vkdt.state.panel_wd * 0.03;
         int rev;// = nid; // TODO: store reverse list?
@@ -1891,7 +1894,7 @@ void render_darkroom_pipeline()
         for(rev=0;rev<arr_cnt;rev++) if(mod_id[rev] == nid) break;
         if(rev == arr_cnt+1 || mod_id[rev] != nid) continue;
         // traverse mod_id list between mi and rev nid and get indentation level
-        int ident = 0;
+        uint32_t ident = 0;
         if(mi < rev) for(int i=mi+1;i<rev;i++)
         {
           mod_in[i] ++;

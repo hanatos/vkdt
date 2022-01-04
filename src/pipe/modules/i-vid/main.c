@@ -243,7 +243,10 @@ open_stream(vid_data_t *d, const char *filename)
 
   fprintf(stderr, "[i-vid] successfully opened %s %dx%d\n", filename, d->wd, d->ht);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation" // yes i know it may truncate stfu
   strncpy(d->filename, filename, sizeof(d->filename));
+#pragma GCC diagnostic pop
   dump_parameters(d);
   return 0;
 error:
@@ -298,7 +301,7 @@ void modify_roi_out(
 {
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;
-  char tmpfn[PATH_MAX];
+  char tmpfn[2*PATH_MAX+10];
   if(filename[0] != '/') // relative paths
   {
     snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);

@@ -248,7 +248,7 @@ namespace ImHotKey
         int scanCodeCount = 0;
         hotkey[editingHotkey].key0 = 0;
         hotkey[editingHotkey].key1 = 0;
-        for (int i = 1; i < sizeof(keyDown); i++)
+        for(uint32_t i = 1; i < sizeof(keyDown); i++)
         {
           if (keyDown[i])
           {
@@ -278,7 +278,7 @@ namespace ImHotKey
   static int GetHotKey(HotKey *hotkey, size_t hotkeyCount)
   {
     if(ImGui::GetIO().WantCaptureKeyboard) return -1;
-    for(int i=0;i<hotkeyCount;i++)
+    for(uint32_t i=0;i<hotkeyCount;i++)
       if((hotkey[i].key0 && glfwGetKey(qvk.window, hotkey[i].key0) == GLFW_PRESS) &&
         (!hotkey[i].key1 || glfwGetKey(qvk.window, hotkey[i].key1) == GLFW_PRESS))
         return i;

@@ -90,7 +90,7 @@ dt_module_so_load(
     return 1;
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
-  char filename[2048], line[2048];
+  char filename[3*PATH_MAX], line[PATH_MAX];
   snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   mod->dlhandle = 0;
   struct stat statbuf;
@@ -317,7 +317,7 @@ int dt_pipe_global_init()
   char *c = 0;
   for(int i=0;dt_pipe.basedir[i]!=0;i++) if(dt_pipe.basedir[i] == '/') c = dt_pipe.basedir+i;
   if(c) *c = 0; // get dirname, i.e. strip off executable name
-  char mod[2048];
+  char mod[PATH_MAX+20];
   snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
   struct dirent *dp;
   DIR *fd = opendir(mod);

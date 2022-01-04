@@ -44,7 +44,7 @@ dt_gui_lt_modals()
     if(ok)
     {
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      for(int i=0;i<vkdt.db.selection_cnt;i++)
+      for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
         dt_db_add_to_collection(&vkdt.db, sel[i], name);
       dt_gui_read_tags();
     }
@@ -107,7 +107,7 @@ dt_gui_lt_paste_history()
   // one input raw file that is appearing under param:i-raw:main:filename.
   // it then copies the history to the selected images, replacing their filenames in the config.
   const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-  for(int i=0;i<vkdt.db.selection_cnt;i++)
+  for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
   {
     if(sel[i] == cid) continue; // don't copy to self
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
@@ -151,12 +151,12 @@ dt_gui_lt_export()
   const int wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
   const int ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
   const int fm = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/export/format", 0),
-          0, sizeof(format_mod)/sizeof(format_mod[0])-1);
+          (int)0, (int)(sizeof(format_mod)/sizeof(format_mod[0])-1));
   const float qy = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90.0f);
   char filename[256], infilename[256];
   dt_graph_t graph;
   dt_graph_init(&graph);
-  for(int i=0;i<vkdt.db.selection_cnt;i++)
+  for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
   {
     snprintf(filename, sizeof(filename), "%s_%04d", basename, i);
     dt_gui_notification("exporting to %s", filename); // <== will actually not show unless in bg job
@@ -241,7 +241,7 @@ dt_gui_dr_modals()
       }
       line_cnt = 1;
       line[0] = buf;
-      for(int i=0;i<s-1 && line_cnt < 1024;i++)
+      for(uint32_t i=0;i<s-1 && line_cnt < 1024;i++)
         if(buf[i] == '\n') { line[line_cnt++] = buf+i+1; buf[i] = 0; }
       if(buf[s-1] == '\n') buf[s-1] = 0;
     }
@@ -299,7 +299,7 @@ dt_gui_dr_modals()
 
     if(ok == 2)
     {
-      char filename[512];
+      char filename[PATH_MAX+100];
       snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
       mkdir(filename, 0755);
       snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
@@ -357,12 +357,12 @@ dt_gui_dr_modals()
       if(ent_cnt == -1)
       { // assume the directory does not exist, copy over:
         int ret = mkdir(dirname, 0755);
-        char srcname[PATH_MAX];
+        char srcname[PATH_MAX+100];
         snprintf(srcname, sizeof(srcname), "%s/data/presets", dt_pipe.basedir);
         ent_cnt = scandir(srcname, &ent, 0, alphasort);
         for(int i=0;i<ent_cnt;i++) if(strstr(ent[i]->d_name, ".pst"))
         {
-          char f0[PATH_MAX], f1[PATH_MAX];
+          char f0[2*PATH_MAX+100], f1[2*PATH_MAX+100];
           snprintf(f0, sizeof(f0), "%s/data/presets/%s", dt_pipe.basedir, ent[i]->d_name);
           snprintf(f1, sizeof(f1), "%s/presets/%s", vkdt.db.basedir, ent[i]->d_name);
           struct stat stat;

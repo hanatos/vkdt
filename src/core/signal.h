@@ -36,7 +36,7 @@ dt_sigsegv_handler(int param)
   fprintf(f, "this is vkdt " VKDT_VERSION " reporting a segfault:\n\n");
   fclose(f);
 
-  char pid_arg[100], com_arg[PATH_MAX], log_arg[100];
+  char pid_arg[100], com_arg[PATH_MAX+100], log_arg[PATH_MAX+100];
   snprintf(pid_arg, sizeof(pid_arg), "%d", (int)getpid());
   snprintf(com_arg, sizeof(com_arg), "%s/data/gdb_commands", dt_pipe.basedir);
   snprintf(log_arg, sizeof(log_arg), "set logging file %s", filename);

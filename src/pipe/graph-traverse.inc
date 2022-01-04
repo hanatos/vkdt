@@ -18,7 +18,7 @@
   // mark = 1: pushed to stack
   // mark = 2: ran pre
   // mark = 3: ran post
-  assert(arr_cnt < sizeof(mark));
+  assert((int64_t)arr_cnt < (int64_t)sizeof(mark));
   int sp = -1;
   int sp2 = -1;
 
@@ -94,7 +94,7 @@
             // feedback connectors only push their deps if not pushed before:
             !(arr[curr].connector[i].flags & s_conn_feedback))
           { // push to stack only unmarked
-            assert((int64_t)sp < (int64_t)sizeof(stack)/sizeof(stack[0])-1);
+            assert((int64_t)sp < (int64_t)(sizeof(stack)/sizeof(stack[0])-1));
             stack[++sp] = el;
             done[sp] = 0;
             if(mark[el] < 1) mark[el] = 1;

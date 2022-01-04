@@ -189,7 +189,7 @@ dt_graph_create_shader_module(
     VkShaderModule *shader_module)
 {
   // create the compute shader stage
-  char filename[1024] = {0};
+  char filename[PATH_MAX+100] = {0};
   snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/%"PRItkn".%s.spv",
       dt_pipe.basedir, dt_token_str(node), dt_token_str(kernel), type);
 
@@ -1742,7 +1742,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     };
 
     // compute shader or graphics pipeline?
-    char filename[1024] = {0};
+    char filename[PATH_MAX+100] = {0};
     snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/main.vert.spv",
         dt_pipe.basedir, dt_token_str(module->name));
     struct stat statbuf;
@@ -2519,7 +2519,7 @@ dt_graph_apply_keyframes(
       { // now search for later frame to interpolate
         if(kf[ki].param == kf[i].param )//&&
            // kf[ki].beg == kf[i].beg && kf[ki].end == kf[i].end)
-          if((kiM == -1 || kf[i].frame < kf[i].frame) && kf[i].frame > g->frame) kiM = i;
+          if(kiM == -1 && kf[i].frame > g->frame) kiM = i;
       }
       int parid = dt_module_get_param(g->module[m].so, kf[ki].param);
       const dt_ui_param_t *p = g->module[m].so->param[parid];

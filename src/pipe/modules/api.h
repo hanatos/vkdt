@@ -864,8 +864,8 @@ dt_graph_open_resource(
     const char *mode)
 {
   if(fname[0] == '/')
-    return fopen(fname, mode); // absolute path
-  char filename[1024]; // for relative paths, add search path
+    return fopen(fname, mode);  // absolute path
+  char filename[2*PATH_MAX+10]; // for relative paths, add search path
   if(graph)
   {
     snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);

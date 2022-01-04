@@ -62,7 +62,7 @@ rawspeed_load_meta(const dt_module_t *mod)
     {
       // omp_set_nested(1); // deprecated
       omp_set_max_active_levels(5);
-      char camfile[PATH_MAX] = { 0 };
+      char camfile[PATH_MAX+100];
       snprintf(camfile, sizeof(camfile), "%s/data/cameras.xml", mod->graph->basedir);
       // never cleaned up (only when dt closes)
       try
@@ -195,7 +195,7 @@ void modify_roi_out(
   // load image if not happened yet
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;
-  char tmpfn[1024]; // replicate api.h:dt_graph_open_resource because c++ is not using FILE*:
+  char tmpfn[2*PATH_MAX+10]; // replicate api.h:dt_graph_open_resource because c++ is not using FILE*:
   if(filename[0] != '/') // relative paths
   {
     snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
@@ -402,7 +402,7 @@ int read_source(
 {
   const char *fname = dt_module_param_string(mod, 0);
   const char *filename = fname;
-  char tmpfn[1024];
+  char tmpfn[2*PATH_MAX+10];
   if(filename[0] != '/') // relative paths
   {
     snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);

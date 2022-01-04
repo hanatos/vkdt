@@ -62,7 +62,7 @@ dt_db_property_text =
 
 typedef struct dt_db_t
 {
-  char dirname[1024];           // full path of currently opened directory
+  char dirname[1018];           // full path of currently opened directory
   char basedir[1024];           // db base dir, where are tags etc
 
   // list of images in database

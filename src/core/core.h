@@ -29,3 +29,15 @@ dt_realloc(void *p, uint64_t *size, uint64_t addr)
   free(p);
   return n;
 }
+
+static inline float dt_tofloat(uint32_t i)
+{
+  union { uint32_t i; float f; } u = {.i=i};
+  return u.f;
+}
+
+static inline uint32_t dt_touint(float f)
+{
+  union { float f; uint32_t i; } u = {.f=f};
+  return u.i;
+}

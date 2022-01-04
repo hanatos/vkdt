@@ -21,7 +21,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   for(int k=0;k<8;k++) f[k] = p[k];
   // init tangent
   const int n=4;
-  float m[5], d[5];
+  float m[5] = {0.0f}, d[5];
   for(int i=0;i<n-1;i++)
     d[i] = (p[i+5] - p[i+4])/(p[i+1] - p[i]);
   d[n-1] = d[n-2];

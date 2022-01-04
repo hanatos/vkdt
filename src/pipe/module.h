@@ -60,7 +60,7 @@ dt_module_flags_t;
 typedef struct dt_keyframe_t
 {
   dt_token_t param;     // the parameter name
-  uint64_t   frame;     // the frame to apply this
+  int        frame;     // the frame to apply this
   uint32_t   beg, end;  // the begin and end byte offsets in the params array
   uint8_t   *data;      // the data to slap over. points into the graph's param pool.
 }
