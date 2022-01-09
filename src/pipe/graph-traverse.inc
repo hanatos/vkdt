@@ -41,6 +41,7 @@
 
   for(int i=0;i<arr_cnt;i++)
     if(arr[i].connector[0].type == dt_token("sink") &&
+        dt_connected(arr[i].connector) &&
         get_instance(arr+i)(arr+i) == dt_token("main"))
   {
     mark[i] = 1;
@@ -50,6 +51,7 @@
 #undef get_instance
   for(int i=arr_cnt-1;i>=0;i--)
     if(arr[i].connector[0].type == dt_token("sink") &&
+       dt_connected(arr[i].connector) &&
        !mark[i])
   {
     mark[i] = 1;
