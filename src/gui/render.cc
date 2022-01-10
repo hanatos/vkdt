@@ -63,7 +63,7 @@ static struct gui_state_data_t
     s_gui_state_insert_block = 1,
     s_gui_state_insert_mod   = 2,
   } state;
-  char       block_filename[2048];
+  char       block_filename[2*PATH_MAX+10];
   dt_token_t block_token[20];
 
   int set_nav_focus;
