@@ -1704,6 +1704,7 @@ inline void draw_widget(int modid, int parid)
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
         }
+        KEYFRAME
       }
       if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       break;
