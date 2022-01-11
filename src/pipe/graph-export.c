@@ -128,6 +128,7 @@ dt_graph_export(
   {
     if(graph->module[m].inst == dt_token("main") &&
        graph->module[m].name != dt_token("display") &&
+       graph->module[m].connector[0].type == dt_token("sink") &&
        strncmp(dt_token_str(graph->module[m].name), "i-", 2))
     {
       found_main = 1;
