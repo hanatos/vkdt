@@ -191,3 +191,149 @@ dt_adam(
 #endif
   return f[0];
 }
+
+/*! A basic implementation of the method of Nelder and Mead for minimization of
+  an objective function. The implementation follows the description in their
+  paper exactly and uses the parameter values described there:
+  John A. Nelder and Roger Mead 1965, A Simplex Method for Function
+  Minimization, The Computer Journal 7:4, Oxford Academic, p. 308-313,
+https://doi.org/10.1093/comjnl/7.4.308
+returns the minimum objective function.
+implemented by christoph peters. */
+#define Float double
+static inline Float
+dt_nelder_mead(
+    Float         *param,        // initial parameter vector, will be overwritten with result
+    int            dim,          // dimensionality of the problem, i.e. number of parameters
+    const int      num_it,       // number of iterations
+    Float        (*objective)(Float *param, void *data),
+    void          *data,         // data pointer passed to objective function
+    int           *user_abort)   // check within iteration whether we should abort, if not null
+{
+  const Float reflection_coeff  = (Float)1.0; // The reflection coefficient alpha
+  const Float contraction_coeff = (Float)0.5; // The contraction coefficient beta
+  const Float expansion_coeff   = (Float)2.0; // The expansion coefficient gamma
+  const Float shrink_coeff      = (Float)0.5; // The shrinking coefficient (implicitly 0.5 in the paper)
+  Float *simplex_buf = malloc(sizeof(Float)*dim*(dim+1));
+  Float (*simplex)[dim] = (Float (*)[dim])simplex_buf; // Construct the initial simplex using fixed axis-aligned offsets
+  memcpy(simplex[0], param, sizeof(Float)*dim);
+  for(uint32_t j = 0; j != dim; j++)
+  {
+    memcpy(simplex[j + 1], param, sizeof(Float)*dim);
+    simplex[j + 1][j] += 0.05;
+  }
+  // Evaluate the objective at all simplex vertices:
+  Float *simplex_value = malloc(sizeof(Float)*(dim+1));
+  for(uint32_t j = 0; j < dim + 1; j++) simplex_value[j] = objective(simplex[j], data);
+
+  Float *centroid   = malloc(sizeof(Float)*dim);
+  Float *reflected  = malloc(sizeof(Float)*dim);
+  Float *expanded   = malloc(sizeof(Float)*dim);
+  Float *contracted = malloc(sizeof(Float)*dim);
+  // We also keep track of the best value ever seen in case it is not part of
+  // the simplex (which may be the case in presence of failed expansions)
+  Float *best = malloc(sizeof(Float)*dim);
+  memcpy(best, simplex[0], sizeof(Float)*dim);
+  Float best_value = simplex_value[0];
+  for(uint32_t i = 0; i < num_it; i++)
+  { // Find indices of minimal and maximal value
+    fprintf(stderr, "\r[nelder mead] %d/%d best value %g", i, num_it, best_value);
+    if(user_abort && *user_abort) break;
+    uint32_t min_index = 0, max_index = 0;
+    Float min = simplex_value[0], max = simplex_value[0];
+    for(uint32_t j = 1; j < dim + 1; j++)
+    {
+      min_index = (min > simplex_value[j]) ? j : min_index;
+      min = (min > simplex_value[j]) ? simplex_value[j] : min;
+      max_index = (max < simplex_value[j]) ? j : max_index;
+      max = (max < simplex_value[j]) ? simplex_value[j] : max;
+    }
+
+    memset(centroid, 0, sizeof(Float)*dim); // compute the centroid of the facet opposite to the worst vertex
+    for(uint32_t j = 0; j < dim+1; j++)
+      if (j != max_index)
+        for(uint32_t k = 0; k < dim; k++)
+          centroid[k] += simplex[j][k];
+    for(uint32_t k=0;k<dim;k++) centroid[k] *= 1.0 / dim;
+    // compute the reflected point
+    for(uint32_t k = 0; k < dim; k++) reflected[k] = (1.0 + reflection_coeff) * centroid[k] - reflection_coeff * simplex[max_index][k];
+    Float reflected_value = objective(reflected, data);
+
+    if (reflected_value < simplex_value[min_index])
+    { // If the reflected point is better than the best vertex, we expand further in that direction
+      for(uint32_t k=0;k<dim;k++) expanded[k] = expansion_coeff * reflected[k] + (1.0 - expansion_coeff) * centroid[k];
+      Float expanded_value = objective(expanded, data);
+      if(expanded_value < simplex_value[min_index])
+      { // if the expanded point is also better than the best vertex, we replace the worst vertex by it
+        memcpy(simplex[max_index], expanded, sizeof(Float)*dim);
+        simplex_value[max_index] = expanded_value;
+        if (reflected_value < best_value)
+        { // If the reflected value is the best yet, we should not lose it
+          memcpy(best, reflected, sizeof(Float)*dim);
+          best_value = reflected_value;
+        }
+      }
+      else
+      { // Otherwise, we have a failed expansion and use the reflected value instead
+        memcpy(simplex[max_index], reflected, sizeof(Float)*dim);
+        simplex_value[max_index] = reflected_value;
+      }
+    }
+    else
+    { // Check whether replacing the worst vertex by the reflected vertex makes some other vertex the worst
+      int reflected_still_worst = 1;
+      for(uint32_t j = 0; j < dim + 1; j++)
+        reflected_still_worst &= (j == max_index || simplex_value[j] < reflected_value);
+      if (reflected_still_worst)
+      { // If the reflected point is better than the worst vertex, use it anyway
+        if (reflected_value < simplex_value[max_index])
+        {
+          memcpy(simplex[max_index], reflected, sizeof(Float)*dim);
+          simplex_value[max_index] = reflected_value;
+        }
+        // Form a contracted point between worst vertex and centroid
+        for(int k=0;k<dim;k++) contracted[k] = contraction_coeff * simplex[max_index][k] + (1.0 - contraction_coeff) * centroid[k];
+        Float contracted_value = objective(contracted, data);
+        if(contracted_value < simplex_value[max_index])
+        { // ceplace the worst vertex by the contracted point if it makes an improvement
+          memcpy(simplex[max_index], contracted, sizeof(Float)*dim);
+          simplex_value[max_index] = contracted_value;
+        }
+        else
+        { // otherwise, we shrink all vertices towards the best vertex
+          for (uint32_t j = 0; j < dim + 1; ++j)
+          {
+            if (j != min_index)
+            {
+              for(int k=0;k<dim;k++) simplex[j][k] = shrink_coeff * simplex[j][k] + (1.0f - shrink_coeff) * simplex[min_index][k];
+              simplex_value[j] = objective(simplex[j], data);
+            }
+          }
+        }
+      }
+      else
+      { // At least two vertices are worse than the reflected point, so we replace the worst vertex by it
+        memcpy(simplex[max_index], reflected, sizeof(Float)*dim);
+        simplex_value[max_index] = reflected_value;
+      }
+    }
+  }
+  for(uint32_t j = 0; j < dim + 1; j++)
+  { // the best value ever observed is either a vertex of the simplex, or it has been stored in best_value
+    if (simplex_value[j] < best_value)
+    {
+      memcpy(best, simplex[j], sizeof(Float)*dim);
+      best_value = simplex_value[j];
+    }
+  }
+  memcpy(param, best, sizeof(Float)*dim);
+  free(simplex_buf);
+  free(simplex_value);
+  free(centroid);
+  free(reflected);
+  free(expanded);
+  free(contracted);
+  free(best);
+  return best_value;
+}
+#undef Float
