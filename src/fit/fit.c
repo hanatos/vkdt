@@ -298,12 +298,10 @@ int main(int argc, char *argv[])
 
   dt_graph_run(&dat.graph, s_graph_run_all); // run once to init nodes
 
-#if 0
   // init lower and upper bounds
   double lb[num_params], ub[num_params];
   for(int i=0;i<num_params;i++) lb[i] = -DBL_MAX;
   for(int i=0;i<num_params;i++) ub[i] =  DBL_MAX;
-#endif
 
   if(optimiser == 1)
     fprintf(stderr, "using the adam optimiser with eps %g beta1 %g beta2 %g alpha %g\n",
