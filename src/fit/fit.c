@@ -213,6 +213,7 @@ int main(int argc, char *argv[])
   char *graph_cfg = 0;
   char *parstr[OPT_MAX_PAR] = {0};
   int keyframe[OPT_MAX_PAR] = {0};
+  int optimiser = 0; // lu
   double adam_eps = 1e-8, adam_beta1 = 0.9, adam_beta2 = 0.999, adam_alpha = 0.01;
   for(int i=0;i<argc;i++)
   {
@@ -225,7 +226,9 @@ int main(int argc, char *argv[])
     else if(!strcmp(argv[i], "--keyframe"))
     { keyframe[dat.param_cnt] = 1; parstr[dat.param_cnt++] = argv[++i]; }
     else if(!strcmp(argv[i], "--adam") && i < argc-4)
-    { adam_eps = atof(argv[++i]); adam_beta1 = atof(argv[++i]); adam_beta2 = atof(argv[++i]); adam_alpha = atof(argv[++i]); }
+    { optimiser = 1; adam_eps = atof(argv[++i]); adam_beta1 = atof(argv[++i]); adam_beta2 = atof(argv[++i]); adam_alpha = atof(argv[++i]); }
+    else if(!strcmp(argv[i], "--nelder-mead"))
+      optimiser = 2;
     else if(!strcmp(argv[i], "--config"))
     { config_start = i+1; break; }
   }
@@ -240,6 +243,7 @@ int main(int argc, char *argv[])
     "    [--keyframe f:m:i:p]           add a keyframe to optimise, which is already present in the input cfg\n"
     "    [--target m:i:p]               set the given module:inst:param as target for optimisation\n"
     "    [--adam eps beta1 beta2 alpha] set the parameters of the adam optimiser\n"
+    "    [--nelder-mead]                use nelder mead optimiser\n"
     "    [--config]                     everything after this will be interpreted as additional cfg lines\n"
         );
     threads_global_cleanup();
@@ -292,26 +296,35 @@ int main(int argc, char *argv[])
   for(int i=0;i<num_params;i++) lb[i] = -DBL_MAX;
   for(int i=0;i<num_params;i++) ub[i] =  DBL_MAX;
 
-  fprintf(stderr, "using the adam optimiser with eps %g beta1 %g beta2 %g alpha %g\n",
-      adam_eps, adam_beta1, adam_beta2, adam_alpha);
+  if(optimiser == 1)
+    fprintf(stderr, "using the adam optimiser with eps %g beta1 %g beta2 %g alpha %g\n",
+        adam_eps, adam_beta1, adam_beta2, adam_alpha);
   fprintf(stderr, "pre-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
   fprintf(stderr, "\n");
   // for(int i=7;i<num_params;i++) p[i] += 1e-5*(1.0-2.0*xrand()); // randomly perturb the initial guess
 
-#if 0
-  const int num_it = 400;
-  double resid = dt_gauss_newton_cg(evaluate_f, evaluate_J,
-    p, t, num_params, num_target,
-    lb, ub, num_it, &dat);
-#else
-  const int num_it = 20000;
-  double resid = dt_adam(evaluate_f, evaluate_J,
-    p, t, num_params, num_target,
-    lb, ub, num_it, &dat,
-    adam_eps, adam_beta1, adam_beta2, adam_alpha,
-    &user_abort);
-#endif
+  double resid = DBL_MAX;
+  if(optimiser == 0)
+  {
+    const int num_it = 400;
+    resid = dt_gauss_newton_cg(evaluate_f, evaluate_J,
+        p, t, num_params, num_target,
+        lb, ub, num_it, &dat);
+  }
+  else if(optimiser == 1)
+  {
+    const int num_it = 20000;
+    resid = dt_adam(evaluate_f, evaluate_J,
+        p, t, num_params, num_target,
+        lb, ub, num_it, &dat,
+        adam_eps, adam_beta1, adam_beta2, adam_alpha,
+        &user_abort);
+  }
+  else if(optimiser == 2)
+  {
+    resid = dt_nelder_mead(p, num_params, 20000, loss, &dat, &user_abort);
+  }
 
   fprintf(stderr, "post-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
