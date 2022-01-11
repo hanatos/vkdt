@@ -396,7 +396,9 @@ extern "C" int dt_gui_init_imgui()
     end_info.commandBufferCount = 1;
     end_info.pCommandBuffers = &command_buffer;
     vkEndCommandBuffer(command_buffer);
+    threads_mutex_lock(&qvk.queue_mutex);
     vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
+    threads_mutex_unlock(&qvk.queue_mutex);
 
     vkDeviceWaitIdle(qvk.device);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
