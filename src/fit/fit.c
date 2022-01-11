@@ -63,6 +63,13 @@ void evaluate_f(double *p, double *f, int m, int n, void *data)
   // for(int i=0;i<n;i++) fprintf(stderr, "f[%d] = %g\n", i, f[i]);
 }
 
+double loss(double *p, void *data)
+{
+  double f;
+  evaluate_f(p, &f, 1, 1, data);
+  return f;
+}
+
 static uint64_t seed = 90011; // random prime number
 static inline double
 xrand()
@@ -291,10 +298,12 @@ int main(int argc, char *argv[])
 
   dt_graph_run(&dat.graph, s_graph_run_all); // run once to init nodes
 
+#if 0
   // init lower and upper bounds
   double lb[num_params], ub[num_params];
   for(int i=0;i<num_params;i++) lb[i] = -DBL_MAX;
   for(int i=0;i<num_params;i++) ub[i] =  DBL_MAX;
+#endif
 
   if(optimiser == 1)
     fprintf(stderr, "using the adam optimiser with eps %g beta1 %g beta2 %g alpha %g\n",
