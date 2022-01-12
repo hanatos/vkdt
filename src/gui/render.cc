@@ -1551,6 +1551,9 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parnm = num;
           vkdt.wstate.active_widget_parsz = 0;
         }
+        count *= 4; // keyframe needs to know it's 4 floats too
+        KEYFRAME
+        count /= 4;
       }
       ImGui::PopStyleVar(1);
       ImGui::PopStyleColor(2);
