@@ -581,8 +581,11 @@ void render_lighttable_center(double &hotkey_time)
       case 7:
         dt_gui_lt_scroll_top();
         break;
-      default:;
+      default:
+        goto dont_update_time;
     }
+    hotkey_time = ImGui::GetTime();
+dont_update_time:;
   }
   ImGui::End(); // lt center window
 }
@@ -629,9 +632,11 @@ void render_lighttable_right_panel(double &hotkey_time)
       case 4:
         dt_gui_lt_paste_history();
         break;
-      default:;
+      default:
+        goto dont_update_time;
     }
     hotkey_time = ImGui::GetTime();
+dont_update_time:;
   }
 
   if(ImGui::CollapsingHeader("settings"))
