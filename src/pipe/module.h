@@ -120,7 +120,7 @@ typedef struct dt_module_t
 }
 dt_module_t;
 
-typedef struct dt_graph_t dt_grap_t; // fwd declare
+typedef struct dt_graph_t dt_graph_t; // fwd declare
 
 // add a module to the graph, also init the dso class. returns the module id or -1.
 int dt_module_add(dt_graph_t *graph, dt_token_t name, dt_token_t inst);
