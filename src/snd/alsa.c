@@ -45,7 +45,7 @@ dt_snd_alsa_init(
 
   if(0 > (err = snd_pcm_sw_params_malloc(&swparams))) goto error;
   if(0 > (err = snd_pcm_sw_params_current(pcm, swparams))) goto error;
-  if(0 > (err = snd_pcm_sw_params_set_avail_min(pcm, swparams, 4096))) goto error;
+  if(0 > (err = snd_pcm_sw_params_set_avail_min(pcm, swparams, 1024))) goto error;
   if(0 > (err = snd_pcm_sw_params_set_start_threshold(pcm, swparams, 0u))) goto error;
   if(0 > (err = snd_pcm_sw_params(pcm, swparams))) goto error;
 
