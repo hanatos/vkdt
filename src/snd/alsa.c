@@ -29,7 +29,7 @@ dt_snd_alsa_init(
 
   snd_pcm_t *pcm;
 
-  const char *pcm_device = dt_rc_get(&vkdt.rc, "snd/alsa/pcm", "plughw:0,0");
+  const char *pcm_device = dt_rc_get(&vkdt.rc, "snd/alsa/pcm", "default");
   if(0 > (err = snd_pcm_open(&pcm, pcm_device, SND_PCM_STREAM_PLAYBACK, 0)))
     goto error;
 
