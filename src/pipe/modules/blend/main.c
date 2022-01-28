@@ -12,6 +12,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[3] = module->img_param.white[0]/(float)0xffff;
   f[4] = module->img_param.noise_a;
   f[5] = module->img_param.noise_b;
+  f[6] = g[1];
 #if 0
   fprintf(stderr, "blend found noise params %g %g\n", f[4], f[5]);
   if(f[4] == 0.0f && f[5] == 0.0f)
@@ -24,6 +25,6 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*6;
+  mod->committed_param_size = sizeof(float)*7;
   return 0;
 }

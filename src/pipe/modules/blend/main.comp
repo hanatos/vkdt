@@ -20,6 +20,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float white;
   float noise_a;
   float noise_b;
+  float taa_thrs;
 } params;
 
 layout( // input back buffer
@@ -77,14 +78,11 @@ main()
   // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
   float t = clamp(params.opacity*(1.0-mask), 0, 1);
 
-#if 1
-  if(params.filters == 1)
-  { // actually does not have a mosaic/bayer pattern and is no multi-frame
+  if(params.taa_thrs == 0.0)
+  { // explicitly don't want taa
     rgb = mix(rgb, bck, t);
   }
-  else if(params.filters == 0)
-#endif
-  // if(params.filters < 2)
+  else
   {
 #if 1 // switch this off to see unshielded warping:
     // use TAA style box clamping
@@ -105,16 +103,19 @@ main()
     mom1 /= (2.0 * r + 1) * (2.0 * r + 1);
     mom2 /= (2.0 * r + 1) * (2.0 * r + 1);
 
-    vec3 sigma = sqrt(max(vec3(0), mom2 - mom1 * mom1));
-    const float thresh = 2.0 * mask;
+    vec3 s2 = max(vec3(0), mom2 - mom1 * mom1);
+    vec3 sigma = sqrt(s2);
+    const float thresh = params.taa_thrs;// * mask;
     bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+    // s2 *= thresh*thresh;
+    // bck = mix(rgb, bck, exp(-dot((bck-rgb)/s2,(bck-rgb)/s2)));
     rgb = mix(rgb, bck, params.opacity);
 #endif
     // rgb = mix(rgb, bck, t);
   }
-  else
-  { // photography version.
 #if 0
+  if(false)//else
+  { // photography version.
     // too high values (allow too much input) gives weird colour cast
     float sigma2 = params.noise_a + 65535.0*max(0, rgb.r - params.black)*params.noise_b;
     // increase for flat areas:
@@ -126,10 +127,9 @@ main()
     float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
     sigma2 *= f;
     t *= clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / sigma2), 0, 1);
-#endif
-
     rgb = mix(rgb, bck, t);
   }
+#endif
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
