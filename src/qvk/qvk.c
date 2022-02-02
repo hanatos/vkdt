@@ -177,7 +177,7 @@ out:;
 
   if(surf_capabilities.currentExtent.width != ~0u)
   {
-    qvk.extent = surf_capabilities.currentExtent;
+    qvk.extent = surf_capabilities.minImageExtent;
   }
   else
   {
