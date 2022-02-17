@@ -2388,8 +2388,8 @@ VkResult dt_graph_run(
   dt_token_t last_name = 0;
   for(int i=0;i<graph->query_cnt;i+=2)
   {
-    if(graph->query_name[i] == last_name ||
-       graph->query_name[i] == dt_token("shared"))
+    if(graph->query_name[i] == last_name || !last_name ||
+       graph->query_name[i] == dt_token("shared") || last_name == dt_token("shared"))
       accum_time += graph->query_pool_results[i+1] - graph->query_pool_results[i];
     else
     {
@@ -2398,8 +2398,8 @@ VkResult dt_graph_run(
             dt_token_str(last_name),
             accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
       accum_time = 0;
-      last_name = graph->query_name[i];
     }
+    last_name = graph->query_name[i];
     // i think this is the most horrible line of printf i've ever written:
     dt_log(s_log_perf, "%-*.*s %-*.*s:\t%8.3f ms",
         8, 8, dt_token_str(graph->query_name  [i]),
