@@ -26,15 +26,15 @@ main()
   rgba.g = rgba.g <= 0.04045 ? rgba.g/12.92 : pow((rgba.g+0.055)/(1+0.055), 2.4);
   rgba.b = rgba.b <= 0.04045 ? rgba.b/12.92 : pow((rgba.b+0.055)/(1+0.055), 2.4);
   // convert linear rec709 to linear rec2020 (very similar to ACES ap1 indeed,
-  // except slight jitter in green + D65 instead of D60)
+  // except slight difference in green + D65 instead of D60)
   mat3 M = mat3(
-      0.62750375, 0.32927542, 0.04330267,
-      0.06910828, 0.91951917, 0.0113596 ,
-      0.01639406, 0.08801128, 0.89538036);
+      0.62750375, 0.06910828, 0.01639406,
+      0.32927542, 0.91951916, 0.08801125,
+      0.04330266, 0.0113596 , 0.89538035);
   // convert linear rec709 to ACES ap1
   // mat3 M = mat3(
   //     0.61319, 0.33951, 0.04737,
   //     0.07021, 0.91634, 0.01345,
   //     0.02062, 0.10957, 0.86961);
-  imageStore(img_out, ipos, vec4(rgba.rgb*M, 1.0));
+  imageStore(img_out, ipos, vec4(M * rgba.rgb, 1.0));
 }
