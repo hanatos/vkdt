@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
+#include <sys/time.h>
 // some random helpers
 
 #define MIN(a,b) \
@@ -40,4 +42,11 @@ static inline uint32_t dt_touint(float f)
 {
   union { float f; uint32_t i; } u = {.f=f};
   return u.i;
+}
+
+static inline double dt_time()
+{
+  struct timeval time;
+  gettimeofday(&time, NULL);
+  return time.tv_sec - 1290608000 + (1.0/1000000.0)*time.tv_usec;
 }
