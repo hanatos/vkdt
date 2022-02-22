@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 
   // joystick
   pthread_t joystick_thread;
-  const int joystick_present = glfwJoystickPresent(GLFW_JOYSTICK_1);
+  int joystick_present = glfwJoystickPresent(GLFW_JOYSTICK_1);
   if(joystick_present)
   {
     const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
     const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 0);
     if(disable)
     {
-      vkdt.wstate.have_joystick = 0;
+      joystick_present = vkdt.wstate.have_joystick = 0;
       dt_log(s_log_gui, "disabling joystick due to explicit config request");
     }
     else
