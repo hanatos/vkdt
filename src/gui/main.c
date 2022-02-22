@@ -246,7 +246,22 @@ int main(int argc, char *argv[])
   pthread_t joystick_thread;
   const int joystick_present = glfwJoystickPresent(GLFW_JOYSTICK_1);
   if(joystick_present)
-    pthread_create(&joystick_thread, 0, joystick_active, 0);
+  {
+    const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
+    dt_log(s_log_gui, "found joystick %s", name);
+    const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 0);
+    if(disable)
+    {
+      vkdt.wstate.have_joystick = 0;
+      dt_log(s_log_gui, "disabling joystick due to explicit config request");
+    }
+    else
+    {
+      vkdt.wstate.have_joystick = 1;
+      pthread_create(&joystick_thread, 0, joystick_active, 0);
+    }
+  }
+  else dt_log(s_log_gui, "no joysticks found");
 
   // main loop
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;

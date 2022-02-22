@@ -425,8 +425,8 @@ void render_lighttable_center(double &hotkey_time)
 { // center image view
   { // assign star rating/colour labels via gamepad:
     int /*axes_cnt = 0,*/ butt_cnt = 0;
-    const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
-    // const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+    const uint8_t* butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
+    // const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
     static double gamepad_time = ImGui::GetTime();
     if(butt && butt[2]) // triangle
       if(ImGui::GetTime() - gamepad_time > 0.1)
@@ -1162,8 +1162,8 @@ inline void draw_widget(int modid, int parid)
   double time_now = ImGui::GetTime();
   static double gamepad_time = ImGui::GetTime();
   int axes_cnt = 0, butt_cnt = 0;
-  const uint8_t *butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
-  const float   *axes = glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt);
+  const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
+  const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt) : 0;
   static int gamepad_reset = 0;
   if(time_now - gamepad_time > 0.1 && butt && butt[12])
   {
@@ -1430,7 +1430,7 @@ inline void draw_widget(int modid, int parid)
           }
         }
         int axes_cnt = 0;
-        const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+        const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
         const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
         if(vkdt.wstate.selected >= 0 && axes)
@@ -1978,8 +1978,8 @@ void render_darkroom_pipeline()
 void render_darkroom()
 {
   int axes_cnt = 0, butt_cnt = 0;
-  const uint8_t* butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
-  const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt);
+  const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
+  const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
