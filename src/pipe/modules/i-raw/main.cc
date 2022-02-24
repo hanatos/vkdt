@@ -1,4 +1,4 @@
-// unfortunately we'll link to rawspeed, so we need c++ here.
+// unfortunately, since we'll link to rawspeed, we need c++ here.
 #include "RawSpeed-API.h"
 #include "mat3.h"
 #include <omp.h>
@@ -12,12 +12,9 @@
 
 extern "C" {
 #include "modules/api.h"
-#include "adobe_coeff.h"
 
 static rawspeed::CameraMetaData *meta = 0;
 
-// way to define a clean api:
-// define this function, it is only declared in rawspeed:
 int rawspeed_get_number_of_processor_cores()
 {
   return sysconf(_SC_NPROCESSORS_ONLN);
@@ -54,19 +51,16 @@ void
 rawspeed_load_meta(const dt_module_t *mod)
 {
   static std::mutex lock;
-  /* Load rawspeed cameras.xml meta file once */
   if(meta == NULL)
-  {
+  { /* Load rawspeed cameras.xml meta file once */
     lock.lock();
     if(meta == NULL)
     {
-      // omp_set_nested(1); // deprecated
       omp_set_max_active_levels(5);
       char camfile[PATH_MAX+100];
       snprintf(camfile, sizeof(camfile), "%s/data/cameras.xml", mod->graph->basedir);
-      // never cleaned up (only when dt closes)
       try
-      {
+      { // never cleaned up (only when dt closes)
         meta = new rawspeed::CameraMetaData(camfile);
       }
       catch(...)
@@ -281,13 +275,14 @@ void modify_roi_out(
 
   if(isnanf(mod->img_param.cam_to_rec2020[0]))
   { // camera matrix not found in exif or compiled without exiv2
-    // darktable uses canonical_make + " " + canonical_model instead and falls back to exif.
-    // we hacked adobe_coeff to use strcasecmp that seems to be the same.
-    const char *id = mod_data->d->mRaw->metadata.canonical_id.c_str();
     float xyz_to_cam[12], mat[9] = {0};
-    if(dt_dcraw_adobe_coeff(id, (float(*)[12]) xyz_to_cam))
-      mat[0] = mat[4] = mat[8] = 1.0;
-    else mat3inv(mat, xyz_to_cam);
+    if(mod_data->d->mRaw->metadata.colorMatrix.size() > 0)
+    { // get d65 camera matrix from rawspeed
+      for(int k=0;k<9;k++)
+        xyz_to_cam[k] = mod_data->d->mRaw->metadata.colorMatrix[k] / 10000.0f;
+      mat3inv(mat, xyz_to_cam);
+    }
+    else mat[0] = mat[4] = mat[8] = 1.0;
 
     // compute matrix camrgb -> rec2020 d65
     double cam_to_xyz[] = {

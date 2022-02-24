@@ -1,7 +1,7 @@
 #include "modules/api.h"
 #include "connector.h"
 #include "core/core.h"
-#include "../i-raw/adobe_coeff.h"
+#include "adobe_coeff.h"
 
 #include <stdio.h>
 #include <stdlib.h>
