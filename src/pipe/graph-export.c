@@ -212,10 +212,25 @@ dt_graph_export(
         dt_module_set_param_float(mod_out[i], dt_token("quality"), param->output[i].quality);
   }
 
+  int audio_mod= -1, audio_cnt = 0;
+  uint16_t *audio_samples;
+  for(int i=0;i<graph->num_modules;i++)
+    if(graph->module[i].so->audio) { audio_mod = i; break; }
+  FILE *audio_f = 0;
+  if(param->output[0].p_audio && audio_mod >= 0) audio_f = fopen(param->output[0].p_audio, "wb");
+
   if(graph->frame_cnt > 1)
   {
+    VkResult res = VK_SUCCESS;
     dt_graph_apply_keyframes(graph);
     dt_graph_run(graph, s_graph_run_all);
+    if(audio_f)
+    {
+      do {
+        audio_cnt = graph->module[audio_mod].so->audio(graph->module+audio_mod, 0, &audio_samples);
+        if(audio_cnt) fwrite(audio_samples, 2*sizeof(uint16_t), audio_cnt, audio_f);
+      } while(audio_cnt);
+    }
     for(int f=1;f<graph->frame_cnt;f++)
     {
       graph->frame = f;
@@ -231,13 +246,22 @@ dt_graph_export(
             filename);
       }
       dt_graph_apply_keyframes(graph);
-      VkResult res = dt_graph_run(graph,
+      res = dt_graph_run(graph,
           s_graph_run_record_cmd_buf | 
           s_graph_run_download_sink  |
           s_graph_run_wait_done);
-      if(res != VK_SUCCESS) return res;
+      if(res != VK_SUCCESS) goto done;
+      if(audio_f)
+      {
+        do {
+          audio_cnt = graph->module[audio_mod].so->audio(graph->module+audio_mod, f, &audio_samples);
+          if(audio_cnt) fwrite(audio_samples, 2*sizeof(uint16_t), audio_cnt, audio_f);
+        } while(audio_cnt);
+      }
     }
-    return VK_SUCCESS;
+done:
+    if(audio_f) fclose(audio_f);
+    return res;
   }
   else
   {

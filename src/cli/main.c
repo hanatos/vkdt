@@ -25,7 +25,6 @@ int main(int argc, char *argv[])
 
   int dump_nodes = 0;
   int output_cnt = 0;
-  char *audio = 0;
   int config_start = 0; // start of arguments which are interpreted as additional config lines
   dt_graph_export_t param = {0};
   for(int i=0;i<argc;i++)
@@ -43,7 +42,7 @@ int main(int argc, char *argv[])
     else if(!strcmp(argv[i], "--format") && i < argc-1)
       {i++; param.output[output_cnt].mod = dt_token(argv[i]);}
     else if(!strcmp(argv[i], "--audio") && i < argc-1)
-      {i++; audio = argv[i];}
+      param.output[output_cnt].p_audio = argv[++i];
     else if(!strcmp(argv[i], "--dump-modules"))
       param.dump_modules = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
@@ -68,7 +67,7 @@ int main(int argc, char *argv[])
     "    [--filename <f>]              output filename (without extension or frame number)\n"
     "    [--format <fm>]               output format (o-jpg, o-bc1, o-pfm, ..)\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
-    "                                  this resets output specific options: quality, width, height\n"
+    "                                  this resets output specific options: quality, width, height, audio\n"
     "    [--audio <file>]              dump audio stream to this file, if any\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
         );
@@ -85,28 +84,10 @@ int main(int argc, char *argv[])
 
   VkResult res = dt_graph_export(&graph, &param);
 
-  if(audio)
+  if(param.output[0].p_audio)
   {
-    for(int i=0;i<graph.num_modules;i++)
-    {
-      if(graph.module[i].so->audio)
-      {
-        uint16_t *samples;
-        int cnt = graph.module[i].so->audio(graph.module+i, 0, &samples);
-        if(cnt > 0)
-        {
-          FILE *f = fopen(audio, "wb");
-          if(f)
-          { // 2*sizeof(uint16_t) bytes per sample
-            fwrite(samples, 2*sizeof(uint16_t), graph.frame_cnt*cnt, f);
-            fclose(f);
-            dt_log(s_log_cli, "wrote audio channel to %s. to combine the streams, use something like", audio);
-            dt_log(s_log_cli, "ffmpeg -i main_0000.h264 -f s16le -sample_rate 48000 -channels 2  -i %s -c:v copy combined.mp4", audio);
-          }
-        }
-        break;
-      }
-    }
+    dt_log(s_log_cli, "wrote audio channel to %s. to combine the streams, use something like", param.output[0].p_audio);
+    dt_log(s_log_cli, "ffmpeg -i main_0000.h264 -f s16le -sample_rate 48000 -channels 2  -i %s -c:v copy combined.mp4", param.output[0].p_audio);
   }
 
   // nodes we can only print after run() has been called:
