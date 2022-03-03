@@ -76,14 +76,7 @@ main()
   int offx = bi - offy * 5;
   offx -= 2; offy -= 2;
 
-#if 0 // XXX visualise only this level
-  if(push.it == 3) // <==
-    res1 = vec4(vec2(offx, offy), dist[bi], 1);
-  else
-    res1 = vec4(coff, dist[bi], 1);
-#else
   res1 = vec4(coff + vec2(offx, offy), dist[bi], 1);
-#endif
 
 #ifndef DT_ALIGN_NO_QUADRIC
   // the mechanics here are intricate.
