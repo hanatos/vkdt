@@ -33,11 +33,15 @@ main()
   vec3 rgb;
   if(push.filters == 0) // no CFA
   {
-#ifdef DT_BURST_HALFRES_FIT // 2x2 downsampling
+#ifdef DT_BURST_HRES_FIT // 2x2 downsampling
     rgb  = texelFetch(img_in, 2*ipos+ivec2(0,0), 0).rgb * .25;
     rgb += texelFetch(img_in, 2*ipos+ivec2(0,1), 0).rgb * .25;
     rgb += texelFetch(img_in, 2*ipos+ivec2(1,0), 0).rgb * .25;
     rgb += texelFetch(img_in, 2*ipos+ivec2(1,1), 0).rgb * .25;
+#elif defined(DT_BURST_QRES_FIT) // 4x4 downsampling
+    rgb = vec3(0.0); // could probably do some better/smooth downsampling
+    for(int j=0;j<4;j++) for(int i=0;i<4;i++)
+      rgb += texelFetch(img_in, 4*ipos+ivec2(i,j), 0).rgb * .125;
 #else // full res
     rgb = texelFetch(img_in, ipos, 0).rgb;
 #endif

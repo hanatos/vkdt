@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "config.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -21,7 +22,7 @@ layout(push_constant, std140) uniform push_t
 
 layout( // distance buffers
     set = 1, binding = 0
-) uniform sampler2D img_dist[25];
+) uniform sampler2D img_dist[];
 
 layout( // coarse offset buffer
     set = 1, binding = 1
@@ -55,6 +56,8 @@ main()
   if(push.scale > 0)
     // coff = sample_soft(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
     coff = texture(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
+    // coff = texelFetch(img_coff, ivec2(ipos*vec2(textureSize(img_coff, 0))/vec2(imageSize(img_out))+0.5), 0).rg * push.scale;
+    // coff = texelFetch(img_coff, ivec2(ipos/push.scale), 0).rg * push.scale;
 
   vec4 res1 = vec4(0, 0, 6500000, 1);
 
@@ -62,9 +65,12 @@ main()
   int bi = 0;
   for(int i=0;i<25;i++)
     // dist[i] = sample_soft(img_dist[i], (ipos+.5)/vec2(imageSize(img_out))).r;
-    dist[i] = textureLod(img_dist[i], (ipos+.5)/vec2(imageSize(img_out)), 0).r;
+    // dist[i] = textureLod(img_dist[i], (ipos+.5)/vec2(imageSize(img_out)), 0).r;
+    dist[i] = texelFetch(img_dist[i], ipos, 0).r;
   for(int i=0;i<25;i++)
     if(dist[i] < dist[bi]) bi = i;
+  // prefer center for completely constant input
+  if(dist[12] == dist[bi]) bi = 12;
 
   int offy = bi / 5;
   int offx = bi - offy * 5;
@@ -79,18 +85,15 @@ main()
   res1 = vec4(coff + vec2(offx, offy), dist[bi], 1);
 #endif
 
-  // FIXME: the mechanics here are intricate.
+#ifndef DT_ALIGN_NO_QUADRIC
+  // the mechanics here are intricate.
   // the coarsest levels are not stable because the motion there is not "local" enough
   // the finer levels tend to become unstable because the motion is too noisy/incoherent.
 
   // corner and edge cases don't get interpolated, sorry:
   if((offx > -2 || offx < 2 || offy > -2 || offy < 2) &&
-#ifdef DT_ALIGN_NO_QUADRIC
-    false) // always off
-    // true) // always on
-#else
-     (push.it <= 1)) // only refine finest two levels, others not stable enough
-#endif
+     // (push.it <= 1)) // only refine finest two levels, others not stable enough
+     (push.it == 0)) // only refine very las time
   { // internal coordinate, we have a surrounding set of points
     // find sub-pixel minimum by fitting a presumably positive semi definite
     // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
@@ -143,10 +146,10 @@ main()
     // unused because we just need the min
     // const float c = dot9(F_c, D_sub_2);
     // make A positive semi definite if it's not yet:
-    A[0] = max(0.0f, A[0]);
-    A[3] = max(0.0f, A[3]);
-    float detA = A[0] * A[3] - A[1]*A[2];
-    if(detA < 0.0f) A[1] = A[2] = 0.0f;
+    A[0] = max(0.0, A[0]);
+    A[3] = max(0.0, A[3]);
+    float detA = A[0]*A[3] - A[1]*A[2];
+    if(detA < 0.0) A[1] = A[2] = 0.0;
 
     // now transform the 1/2xAx + bx + c form to
     // 1/2(x-mu) A (x-mu) + s
@@ -155,8 +158,10 @@ main()
     // mu = - A^-1 b
     //  s = c - muAmu/2
 
-    detA = A[0] * A[3] - A[1]*A[2];
-    if(abs(detA) > 1e-9)
+    detA = A[0]*A[3] - A[1]*A[2];
+    // if D_sub is constant, A will be zero and thus the determinant "small" (for small values of "small")
+    // in this case we wat to switch off the refinement and stick to what was hopefully 0 already.
+    if(abs(detA) > 1e-3)
     {
       vec2 mu = vec2(
           (A[3] * b[0] - A[1]*b[1])/detA,
@@ -164,8 +169,9 @@ main()
       res1.xy -= clamp(mu, vec2(-1), vec2(1));
     }
   }
+#endif
 
-  imageStore(img_out, ipos, res1);
+  imageStore(img_out, ipos, vec4(res1.xy, 0, 0));
   res1.z = max(params.merge_k*(res1.z - params.merge_n), 0.0);
   res1.z = res1.z/(1.0+res1.z); // fade out smoothly
   imageStore(img_resid, ipos, vec4(res1.z));

@@ -46,8 +46,10 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-#ifdef DT_BURST_HALFRES_FIT // 2x2 downsampling
+#ifdef DT_BURST_HRES_FIT // 2x2 downsampling
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 2 : 2);
+#elif defined(DT_BURST_QRES_FIT) // 4x4 downsampling
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 4 : 2);
 #else // full res
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
 #endif
@@ -79,8 +81,10 @@ create_nodes(
   // input best coarse offsets to next finer level, and finally output offsets on finest scale.
   //
   dt_roi_t roi[NUM_LEVELS+1] = {module->connector[0].roi};
-#ifdef DT_BURST_HALFRES_FIT // 2x2 down
+#ifdef DT_BURST_HRES_FIT // 2x2 down
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 2 : 2);
+#elif defined(DT_BURST_QRES_FIT) // 4x4 down
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 4 : 2);
 #else // full res
   const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
 #endif
@@ -98,7 +102,7 @@ create_nodes(
     roi[i].ht /= scale;
   }
 
-  dt_token_t fmt_img = dt_token("f16");//ui8"); // or f16
+  dt_token_t fmt_img = dt_token("f16");//ui8");// or f16
   dt_token_t fmt_dst = dt_token("f16");//ui8");//ui8"); // or f16
 
   int id_down[2][NUM_LEVELS] = {0};
@@ -223,8 +227,8 @@ create_nodes(
         .roi    = roi[i+1],
         .array_length = 25,
       }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { id_offset >= 0 ? DOWN: 0 },
+      .push_constant_size = 2*sizeof(uint32_t),
+      .push_constant = { id_offset >= 0 ? DOWN: 0, i },
     };
     CONN(dt_node_connect(graph, id_down[0][i], 1, id_dist, 0));
     CONN(dt_node_connect(graph, id_down[1][i], 1, id_dist, 1));
