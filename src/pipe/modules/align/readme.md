@@ -18,6 +18,8 @@ the same exposure level instead.
 * `input`  the input image pixels which will be warped
 * `output` the warped output image
 * `mask`   the error mask (output)
+* `visn`   a debug visualisation of the motion vectors for display
+* `mv`     the 2d motion vectors (as input to other modules)
 
 plus debug channels
 

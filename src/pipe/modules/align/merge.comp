@@ -138,11 +138,13 @@ main()
       dot9(F_b2, D_sub_2));
     // unused because we just need the min
     // const float c = dot9(F_c, D_sub_2);
+#if 0 // i think this causes more trouble than it does good:
     // make A positive semi definite if it's not yet:
     A[0] = max(0.0, A[0]);
     A[3] = max(0.0, A[3]);
     float detA = A[0]*A[3] - A[1]*A[2];
     if(detA < 0.0) A[1] = A[2] = 0.0;
+#endif
 
     // now transform the 1/2xAx + bx + c form to
     // 1/2(x-mu) A (x-mu) + s
@@ -151,7 +153,7 @@ main()
     // mu = - A^-1 b
     //  s = c - muAmu/2
 
-    detA = A[0]*A[3] - A[1]*A[2];
+    float detA = A[0]*A[3] - A[1]*A[2];
     // if D_sub is constant, A will be zero and thus the determinant "small" (for small values of "small")
     // in this case we wat to switch off the refinement and stick to what was hopefully 0 already.
     if(abs(detA) > 1e-3)
