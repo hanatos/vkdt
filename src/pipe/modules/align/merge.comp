@@ -156,7 +156,7 @@ main()
     float detA = A[0]*A[3] - A[1]*A[2];
     // if D_sub is constant, A will be zero and thus the determinant "small" (for small values of "small")
     // in this case we wat to switch off the refinement and stick to what was hopefully 0 already.
-    if(abs(detA) > 1e-3)
+    if(detA > 1e-3)
     {
       vec2 mu = vec2(
           (A[3] * b[0] - A[1]*b[1])/detA,
