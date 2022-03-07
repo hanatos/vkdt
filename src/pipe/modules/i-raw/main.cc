@@ -47,6 +47,43 @@ FCxtrans(
   return xtrans[row][col];
 }
 
+
+// take file name param and start frame param and return located raw file name.
+// returns non-zero on failure.
+int
+get_filename(
+    dt_module_t *mod,
+    const char  *fname,
+    int          frame,
+    char        *ret,
+    size_t       ret_size)
+{
+  char tmp[2*PATH_MAX+10];
+  
+  if(fname[0] != '/') // relative paths
+  {
+    snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);
+    snprintf(ret, ret_size, tmp, frame);
+    FILE *f = fopen(ret, "rb");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->basedir, fname);
+      snprintf(ret, ret_size, tmp, frame);
+      f = fopen(tmp, "rb");
+      if(!f) return 1; // damn that.
+    }
+    fclose(f);
+  }
+  else
+  { // absolute path:
+    snprintf(ret, ret_size, fname, frame);
+    FILE *f = fopen(ret, "rb");
+    if(!f) return 1;
+    fclose(f);
+  }
+  return 0;
+}
+
 void
 rawspeed_load_meta(const dt_module_t *mod)
 {
@@ -72,6 +109,14 @@ rawspeed_load_meta(const dt_module_t *mod)
   }
 }
 
+void
+free_raw(dt_module_t *mod)
+{ // free auto pointers
+  rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  if(mod_data->d.get()) mod_data->d.reset();
+  if(mod_data->m.get()) mod_data->m.reset();
+}
+
 int
 load_raw(
     dt_module_t *mod,
@@ -83,6 +128,7 @@ load_raw(
   {
     if(!strcmp(mod_data->filename, filename))
       return 0; // already loaded
+    else free_raw(mod); // maybe loaded the wrong one
   }
   else
   {
@@ -156,9 +202,7 @@ void cleanup(dt_module_t *mod)
 
   if(!mod->data) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
-  /* free auto pointers */
-  if(mod_data->d.get()) mod_data->d.reset();
-  if(mod_data->m.get()) mod_data->m.reset();
+  free_raw(mod);
   delete mod_data;
   mod->data = 0;
 }
@@ -187,24 +231,16 @@ void modify_roi_out(
     dt_module_t *mod)
 {
   // load image if not happened yet
+  const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
-  const char *filename = fname;
-  char tmpfn[2*PATH_MAX+10]; // replicate api.h:dt_graph_open_resource because c++ is not using FILE*:
-  if(filename[0] != '/') // relative paths
-  {
-    snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
-    filename = tmpfn;
-    FILE *f = fopen(filename, "rb");
-    if(!f)
-    {
-      snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->basedir, fname);
-      filename = tmpfn;
-      f = fopen(filename, "rb");
-      if(!f) return; // damn that.
-    }
-    fclose(f);
-  }
+  char        filename[2*PATH_MAX+10];
+  if(get_filename(mod, fname, id, filename, sizeof(filename))) return;
 
+  if(strstr(fname, "%04d"))
+  { // reading a sequence of raws as a timelapse animation
+    mod->flags = s_module_request_read_source;
+  }
+  
   if(load_raw(mod, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
@@ -395,14 +431,11 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
+  const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
-  const char *filename = fname;
-  char tmpfn[2*PATH_MAX+10];
-  if(filename[0] != '/') // relative paths
-  {
-    snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
-    filename = tmpfn;
-  }
+  char        filename[2*PATH_MAX+10];
+  if(get_filename(mod, fname, id + mod->graph->frame, filename, sizeof(filename)))
+    return 1;
   int err = load_raw(mod, filename);
   if(err) return 1;
   uint16_t *buf = (uint16_t *)mapped;
