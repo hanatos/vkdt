@@ -194,6 +194,7 @@ vec3 getPixel(in vec2 coord, float time) {
   uv.y *= -1.0;
 
   // ray
+  time *= 0.1;
   vec3 ang = vec3(sin(time*3.0)*0.1,sin(time)*0.2+0.3,time);
   vec3 ori = vec3(0.0,3.5,time*5.0);
   vec3 dir = normalize(vec3(uv.xy,-2.0)); dir.z += length(uv) * 0.14;
