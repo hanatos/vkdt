@@ -55,7 +55,6 @@ main()
   float i1;
   if(push.scale > 0)
   {
-#if 1 // hard
     vec2 off = vec2(offx, offy) + texture(img_off, (ipos+.5)/vec2(push.scale*textureSize(img_off, 0))).rg * push.scale;
     // vec2 off = vec2(offx, offy) + texelFetch(img_off, ivec2((ipos+.5)/push.scale), 0).rg * push.scale;
     // vec2 off = vec2(offx, offy) + texelFetch(img_off, ivec2(ipos/push.scale), 0).rg * push.scale;
