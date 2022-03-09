@@ -516,7 +516,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     {
       // prepare allocation for storage buffer. this is easy, we do not
       // need to create an image, and computing the size is easy, too.
-      const size_t size  = dt_connector_bufsize(c, c->roi.wd, c->roi.ht);
+      const size_t size = dt_connector_bufsize(c, c->roi.wd, c->roi.ht);
       for(int f=0;f<c->frames;f++)
       for(int k=0;k<MAX(1,c->array_length);k++)
       {
