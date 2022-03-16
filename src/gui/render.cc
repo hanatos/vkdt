@@ -1689,11 +1689,12 @@ inline void draw_widget(int modid, int parid)
       break;
     }
     case dt_token("filename"):
-    { // TODO: rig file browser:
+    {
       if(num == 0)
-      { // only show first, cnt refers to length of string
-        const char *v = (const char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        ImGui::Text("%s", v);
+      { // only show first, cnt refers to allocation length of string param
+        char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
+        if(ImGui::InputText("filename", v, count))
+          vkdt.graph_dev.runflags = s_graph_run_all; // kinda grave change, rerun all
       }
       break;
     }
