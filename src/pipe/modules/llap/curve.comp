@@ -154,7 +154,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
-  float y = luminance_rec2020(texelFetch(img_in, ipos, 0).rgb);
+  // clamp away nans and infs, they would destroy our image:
+  float y = luminance_rec2020(clamp(texelFetch(img_in, ipos, 0).rgb, -1000.0, 1000.0));
 
   for(uint i=0;i<push.num_gamma;i++)
     imageStore(img_out[i], ipos,
