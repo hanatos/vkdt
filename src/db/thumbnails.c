@@ -391,13 +391,17 @@ dt_thumbnails_cache_list(
     };
     // we only care about internal errors. if we call with stupid values,
     // it just does nothing and returns:
-    assert(-1 != threads_task(
+    int res = threads_task(
         imgid_cnt,
         &job[0].idx_storage,
         &job[0].done,
         job+k,
         thread_work_coll,
-        thread_free_coll));
+        thread_free_coll);
+    assert(-1 != res);
+#ifdef NDEBUG
+    (void)res;
+#endif
   }
   return VK_SUCCESS;
 }

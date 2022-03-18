@@ -113,6 +113,9 @@ void *threads_work(void *arg)
     // mark task as recyclable:
     uint32_t oldval = __sync_val_compare_and_swap(&task->tid, tid, s_task_state_recycle);
     assert(oldval == tid); // this should never fail, people shall not mess with our task
+#ifdef NDEBUG
+    (void)oldval;
+#endif
   }
   // cleanup
   pthread_mutex_destroy(&mutex);
@@ -171,6 +174,9 @@ int threads_task(
   // mark as ready
   uint32_t oldval = __sync_val_compare_and_swap(&task->tid, s_task_state_initing, s_task_state_ready);
   assert(oldval == s_task_state_initing); // should never fail, nobody should write initing tasks
+#ifdef NDEBUG
+  (void)oldval;
+#endif
   // wake up one thread by signaling the condition
   pthread_cond_signal(&thr.cond_task_push);
   return 0;
