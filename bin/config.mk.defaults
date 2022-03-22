@@ -44,6 +44,10 @@ export VKDT_USE_RAWSPEED
 # VKDT_USE_FFMPEG=1
 # export VKDT_USE_FFMPEG
 
+# where to find glfw for the gui:
+VKDT_GLFW_CFLAGS=$(shell pkg-config --cflags glfw3)
+VKDT_GLFW_LDFLAGS=$(shell pkg-config --libs glfw3)
+
 # compiler config
 CC=clang
 CXX=clang++
@@ -58,4 +62,4 @@ AR=ar
 # again, this is important for building packages for distros.
 RAWSPEED_PACKAGE_BUILD=0
 
-export CC CXX GLSLC OPT_CFLAGS OPT_LDFLAGS AR RAWSPEED_PACKAGE_BUILD
+export CC CXX GLSLC OPT_CFLAGS OPT_LDFLAGS AR RAWSPEED_PACKAGE_BUILD VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS

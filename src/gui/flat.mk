@@ -21,8 +21,8 @@ GUI_H=gui/gui.h\
       gui/darkroom-util.h\
       gui/lighttable.h\
       pipe/graph-traverse.inc
-GUI_CFLAGS=$(shell pkg-config --cflags glfw3) -I../ext/imgui -I../ext/imgui/backends/
-GUI_LDFLAGS=-ldl $(shell pkg-config --libs glfw3) -lm -lstdc++
+GUI_CFLAGS=$(VKDT_GLFW_CFLAGS) -I../ext/imgui -I../ext/imgui/backends/
+GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++
 
 ifeq ($(VKDT_USE_FREETYPE),1)
 GUI_CFLAGS+=$(shell pkg-config --cflags freetype2) -DVKDT_USE_FREETYPE=1
