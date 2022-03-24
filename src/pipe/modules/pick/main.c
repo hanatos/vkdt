@@ -128,7 +128,7 @@ create_nodes(
   }
   else
   {
-    dt_connector_copy(graph, module, 2, id_collect, 1);
+    dt_connector_bypass(graph, module, 0, 2);     // just pass on input buffer as a dummy
     module->connector[2].name = dt_token("dsp_"); // disable temp display output
   }
 
