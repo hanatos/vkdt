@@ -21,6 +21,101 @@
 #include <libgen.h>
 #include <limits.h>
 
+#if 0 // TODO: factor out draw code so we can call it from mouse and pen callbacks
+static inline
+draw_position(
+    double pressure)
+{
+      float radius   = vkdt.wstate.state[0];
+      float opacity  = vkdt.wstate.state[1];
+      float hardness = vkdt.wstate.state[2];
+      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+      dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
+      float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
+      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+      {
+        static struct timespec beg = {0};
+        if(dat[0])
+        { // avoid spam
+          if(beg.tv_sec)
+          {
+            struct timespec end;
+            clock_gettime(CLOCK_REALTIME, &end);
+            double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
+            if(dt < 1.0/60.0) // draw low frame rates
+              return;
+            beg = end;
+          }
+          else clock_gettime(CLOCK_REALTIME, &beg);
+          dt_draw_vert_t vo = vx[dat[0]-1];
+          // this cuts off at steps < ~0.005 of the image width
+          if(vo.x != 0 && vo.y != 0 && fabsf(vo.x - xi) < 0.005 && fabsf(vo.y - yi) < 0.005) return;
+        }
+        if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
+        { // add vertex
+          int v = dat[0]++;
+          vx[v] = dt_draw_vertex(xi, yi, radius, opacity, hardness);
+        }
+        // trigger draw list upload and recomputation:
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+        return;
+      }
+#if 0 // TODO: draw straight line to mouse cursor. needs _keyboard support on press and on release
+      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+      {
+        if(dat[0] > 2 && 2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
+        {
+          vx[dat[0]-2] = dt_draw_vertex(xi, yi, radius, opacity, hardness);
+          vx[dat[0]-1] = dt_draw_endmarker();
+        }
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+        return;
+      }
+#endif
+}
+
+
+draw_button()
+{
+  // ====
+  uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+  // TODO: this is probably called for the button on the pen transparently, if we don't disable it explicitly
+#if 0 // so keep it in the mouse button callback as is:
+  if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT)
+  { // right mouse click resets the last stroke
+    for(int i=dat[0]-1;i>=0;i--)
+    {
+      if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
+      {
+        dat[0] = i; // reset count
+        break;
+      }
+    }
+    // trigger recomputation:
+    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+    vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+  }
+#endif
+  // XXX TODO: this functionality is needed for pen too
+  // TODO: remember last pressure value? switch on and off based on that and the current?
+  // TODO: can we replace this here and use a pressure argument instead?
+  else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
+  { // left mouse click starts new stroke by appending an end marker
+    int vcnt = dat[0];
+    if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(uint32_t)))
+    {
+      ((dt_draw_vert_t *)(dat+1))[vcnt] = dt_draw_endmarker();
+      dat[0]++;
+    }
+    // trigger recomputation:
+    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+    vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+  }
+}
+#endif
+
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
@@ -638,4 +733,22 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   return 0;
+}
+
+void
+darkroom_pentablet_proximity(int enter)
+{
+  vkdt.wstate.pentablet_enabled = enter;
+}
+
+void
+darkroom_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
+{
+  // TODO: similar to mouse_pos, especially for draw
+  // TODO: find out what events we get here, what is just moving around and what is pressing
+  // TODO: need to query mouse button events?
+  fprintf(stderr, "[XXX pentablet] event %g %g %g %g %g %g %g\n",
+      x, y, z, pressure, pitch, yaw, roll);
+  // TODO: use proximity to switch off regular mouse interaction!
+  // i think i get pressure and x y and none of the others
 }
