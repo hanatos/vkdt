@@ -181,7 +181,9 @@ pentablet_data_callback(double x, double y, double z, double pressure, double pi
 
 static void
 pentablet_proximity_callback(int entering)
-{ }
+{
+  dt_view_pentablet_proximity(entering);
+}
 
 static void
 pentablet_cursor_callback(unsigned int cursor)

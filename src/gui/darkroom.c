@@ -30,6 +30,7 @@ draw_position(
   float opacity  = vkdt.wstate.state[1];
   float hardness = vkdt.wstate.state[2];
   uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+  if(!dat) return; // paranoid segfault shield
   dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
   if(pressure > 0.0f)
   {
@@ -196,7 +197,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
       if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT)
       { // right mouse click resets the last stroke
-        for(int i=dat[0]-1;i>=0;i--)
+        for(int i=dat[0]-2;i>=0;i--)
         {
           if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
           {
@@ -209,12 +210,6 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
-      else if(!vkdt.wstate.pentablet_enabled && action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
-      { // left mouse click starts new stroke by appending an end marker
-        float n[2]; // unused for end markers, should be image space coordinates
-        draw_position(n, 0.0f); // end brush stroke
-        return;
-      }
     }
   }
 
@@ -225,14 +220,15 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
   else if(action == GLFW_PRESS &&
       x < vkdt.state.center_x + vkdt.state.center_wd)
   {
-    if(button == GLFW_MOUSE_BUTTON_LEFT)
+    if((!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_LEFT) ||
+       ( vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE))
     {
       vkdt.wstate.m_x = x;
       vkdt.wstate.m_y = y;
       vkdt.wstate.old_look_x = vkdt.state.look_at_x;
       vkdt.wstate.old_look_y = vkdt.state.look_at_y;
     }
-    else if(button == GLFW_MOUSE_BUTTON_MIDDLE)
+    else if(!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE)
     {
       dt_gui_dr_zoom();
     }
@@ -368,6 +364,8 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     {
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
         draw_position(n, 1.0f);
+      else
+        draw_position(n, 0.0f);
     }
   }
   if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
@@ -636,7 +634,17 @@ darkroom_leave()
 void
 darkroom_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
-  float v[] = {(float)x, (float)y}, n[2] = {0};
-  dt_view_to_image(v, n);
-  draw_position(n, pressure);
+  if(vkdt.wstate.active_widget_modid >= 0)
+  {
+    dt_token_t type = vkdt.graph_dev.module[
+        vkdt.wstate.active_widget_modid].so->param[
+        vkdt.wstate.active_widget_parid]->widget.type;
+    if(type == dt_token("draw"))
+    {
+      float v[] = {(float)x, (float)y}, n[2] = {0};
+      dt_view_to_image(v, n);
+      if(glfwGetMouseButton(qvk.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
+        draw_position(n, pressure);
+    }
+  }
 }
