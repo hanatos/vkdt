@@ -223,9 +223,11 @@ int main(int argc, char *argv[])
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
   glfwSetCharCallback(qvk.window, char_callback);
   glfwSetScrollCallback(qvk.window, scroll_callback);
+#if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
   glfwSetPenTabletProximityCallback(pentablet_proximity_callback);
+#endif
 
   vkdt.view_mode = s_view_cnt;
   // this is done so we can mess with the thumbnails struct in
