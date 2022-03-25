@@ -54,7 +54,7 @@ draw_position(
     if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
     { // add vertex
       int v = dat[0]++;
-      vx[v] = dt_draw_vertex(xi, yi, radius, pressure * opacity, hardness);
+      vx[v] = dt_draw_vertex(xi, yi, pressure * radius, opacity, hardness);
     }
     // trigger draw list upload and recomputation:
     vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
