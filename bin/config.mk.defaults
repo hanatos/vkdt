@@ -44,6 +44,17 @@ export VKDT_USE_RAWSPEED
 # VKDT_USE_FFMPEG=1
 # export VKDT_USE_FFMPEG
 
+# where to find glfw for the gui:
+VKDT_GLFW_CFLAGS=$(shell pkg-config --cflags glfw3)
+VKDT_GLFW_LDFLAGS=$(shell pkg-config --libs glfw3)
+export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
+
+# enable this if you have a custom build of glfw that supports the following
+# three functions: glfwSetPenTabletDataCallback,
+# glfwSetPenTabletCursorCallback, glfwSetPenTabletProximityCallback.
+# VKDT_USE_PENTABLET=1
+# export VKDT_USE_PENTABLET
+
 # compiler config
 CC=clang
 CXX=clang++

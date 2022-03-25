@@ -11,6 +11,13 @@ typedef struct dt_draw_vert_t
 }
 dt_draw_vert_t;
 
+static inline int
+dt_draw_vert_is_endmarker(
+    dt_draw_vert_t v)
+{
+  return *(uint64_t *)&v == 0u;
+}
+
 // create vertex
 static inline dt_draw_vert_t
 dt_draw_vertex(

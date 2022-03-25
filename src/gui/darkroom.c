@@ -21,6 +21,52 @@
 #include <libgen.h>
 #include <limits.h>
 
+static inline void
+draw_position(
+    float *n,          // image space coordinate
+    float  pressure)   // pressure in [0, 1]
+{
+  float radius   = vkdt.wstate.state[0];
+  float opacity  = vkdt.wstate.state[1];
+  float hardness = vkdt.wstate.state[2];
+  uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+  dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
+  if(pressure > 0.0f)
+  {
+    static struct timespec beg = {0};
+    float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
+    if(dat[0])
+    { // already have a vertex in the list
+      if(beg.tv_sec)
+      { // avoid spam
+        struct timespec end;
+        clock_gettime(CLOCK_REALTIME, &end);
+        double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
+        if(dt < 1.0/60.0) return; // draw at low frame rates
+        beg = end;
+      }
+      else clock_gettime(CLOCK_REALTIME, &beg);
+      // this cuts off at steps < ~0.005 of the image width
+      const dt_draw_vert_t vo = vx[dat[0]-1];
+      if(vo.x != 0 && vo.y != 0 && fabsf(vo.x - xi) < 0.005 && fabsf(vo.y - yi) < 0.005) return;
+    }
+    if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
+    { // add vertex
+      int v = dat[0]++;
+      vx[v] = dt_draw_vertex(xi, yi, radius, pressure * opacity, hardness);
+    }
+    // trigger draw list upload and recomputation:
+    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+    vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+  }
+  else
+  { // write endmarker
+    if(dat[0] && dt_draw_vert_is_endmarker(vx[dat[0]-1])) return; // already have an endmarker
+    if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
+      vx[dat[0]++] = dt_draw_endmarker();
+  }
+}
+
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
@@ -163,17 +209,10 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
-      else if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
+      else if(!vkdt.wstate.pentablet_enabled && action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
       { // left mouse click starts new stroke by appending an end marker
-        int vcnt = dat[0];
-        if(vcnt && (2*vcnt+2 < vkdt.wstate.mapped_size/sizeof(uint32_t)))
-        {
-          ((dt_draw_vert_t *)(dat+1))[vcnt] = dt_draw_endmarker();
-          dat[0]++;
-        }
-        // trigger recomputation:
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+        float n[2]; // unused for end markers, should be image space coordinates
+        draw_position(n, 0.0f); // end brush stroke
         return;
       }
     }
@@ -327,54 +366,8 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     }
     else if(type == dt_token("draw"))
     {
-      float radius   = vkdt.wstate.state[0];
-      float opacity  = vkdt.wstate.state[1];
-      float hardness = vkdt.wstate.state[2];
-      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-      dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
-      float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
       if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
-      {
-        static struct timespec beg = {0};
-        if(dat[0])
-        { // avoid spam
-          if(beg.tv_sec)
-          {
-            struct timespec end;
-            clock_gettime(CLOCK_REALTIME, &end);
-            double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
-            if(dt < 1.0/60.0) // draw low frame rates
-              return;
-            beg = end;
-          }
-          else clock_gettime(CLOCK_REALTIME, &beg);
-          dt_draw_vert_t vo = vx[dat[0]-1];
-          // this cuts off at steps < ~0.005 of the image width
-          if(vo.x != 0 && vo.y != 0 && fabsf(vo.x - xi) < 0.005 && fabsf(vo.y - yi) < 0.005) return;
-        }
-        if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
-        { // add vertex
-          int v = dat[0]++;
-          vx[v] = dt_draw_vertex(xi, yi, radius, opacity, hardness);
-        }
-        // trigger draw list upload and recomputation:
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
-        return;
-      }
-#if 0 // TODO: draw straight line to mouse cursor. needs _keyboard support on press and on release
-      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-      {
-        if(dat[0] > 2 && 2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
-        {
-          vx[dat[0]-2] = dt_draw_vertex(xi, yi, radius, opacity, hardness);
-          vx[dat[0]-1] = dt_draw_endmarker();
-        }
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
-        return;
-      }
-#endif
+        draw_position(n, 1.0f);
     }
   }
   if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
@@ -638,4 +631,12 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   return 0;
+}
+
+void
+darkroom_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
+{
+  float v[] = {(float)x, (float)y}, n[2] = {0};
+  dt_view_to_image(v, n);
+  draw_position(n, pressure);
 }

@@ -109,3 +109,21 @@ dt_view_process()
     default:;
   }
 }
+
+void
+dt_view_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
+{
+  switch(vkdt.view_mode)
+  {
+    case s_view_darkroom:
+      darkroom_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
+      break;
+    default:;
+  }
+}
+
+void
+dt_view_pentablet_proximity(int enter)
+{
+  vkdt.wstate.pentablet_enabled = enter; // do this in any case to stay consistent
+}

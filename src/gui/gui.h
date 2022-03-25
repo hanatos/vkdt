@@ -77,6 +77,7 @@ typedef struct dt_gui_wstate_t
   int fullscreen_view;          // darkroom mode without panels
 
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)
+  int pentablet_enabled;        // 1 if the stylus is in proxmity of the pen tablet
 }
 dt_gui_wstate_t;
 

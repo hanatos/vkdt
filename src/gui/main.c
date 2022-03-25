@@ -173,6 +173,20 @@ scroll_callback(GLFWwindow *window, double xoff, double yoff)
   dt_gui_imgui_scrolled(window, xoff, yoff);
 }
 
+static void
+pentablet_data_callback(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
+{
+  dt_view_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
+}
+
+static void
+pentablet_proximity_callback(int entering)
+{ }
+
+static void
+pentablet_cursor_callback(unsigned int cursor)
+{ }
+
 int main(int argc, char *argv[])
 {
   for(int i=0;i<argc;i++) if(!strcmp(argv[i], "--version"))
@@ -209,6 +223,11 @@ int main(int argc, char *argv[])
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
   glfwSetCharCallback(qvk.window, char_callback);
   glfwSetScrollCallback(qvk.window, scroll_callback);
+#if VKDT_USE_PENTABLET==1
+  glfwSetPenTabletDataCallback(pentablet_data_callback);
+  glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
+  glfwSetPenTabletProximityCallback(pentablet_proximity_callback);
+#endif
 
   vkdt.view_mode = s_view_cnt;
   // this is done so we can mess with the thumbnails struct in
