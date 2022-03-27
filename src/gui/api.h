@@ -169,3 +169,17 @@ dt_gui_dr_toggle_fullscreen_view()
     vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
   }
 }
+
+static inline void
+dt_gui_dr_enter_fullscreen_view()
+{
+  if(!vkdt.wstate.fullscreen_view)
+    dt_gui_dr_toggle_fullscreen_view();
+}
+
+static inline void
+dt_gui_dr_leave_fullscreen_view()
+{
+  if(vkdt.wstate.fullscreen_view)
+    dt_gui_dr_toggle_fullscreen_view();
+}
