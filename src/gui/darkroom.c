@@ -628,6 +628,7 @@ darkroom_leave()
 
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
+  dt_gui_dr_leave_fullscreen_view(); // make sure we're not in fullscreen mode
   return 0;
 }
 
