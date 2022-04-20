@@ -173,6 +173,7 @@ scroll_callback(GLFWwindow *window, double xoff, double yoff)
   dt_gui_imgui_scrolled(window, xoff, yoff);
 }
 
+#if VKDT_USE_PENTABLET==1
 static void
 pentablet_data_callback(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
@@ -188,6 +189,7 @@ pentablet_proximity_callback(int entering)
 static void
 pentablet_cursor_callback(unsigned int cursor)
 { }
+#endif
 
 int main(int argc, char *argv[])
 {
