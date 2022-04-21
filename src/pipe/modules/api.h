@@ -2,6 +2,7 @@
 #include "pipe/node.h"
 #include "pipe/graph.h"
 #include "pipe/module.h"
+#include "pipe/modules/localsize.h"
 
 #include <math.h>
 
@@ -121,7 +122,7 @@ dt_api_blur_check_params(
 // this has a 3x3 kernel support and works up until sigma=0.85.
 // use blur or blur_sub instead for larger blur radii.
 static inline int
-dt_api_blur_small(
+dt_api_blur_3x3(
     dt_graph_t  *graph,
     dt_module_t *module,
     int          nodeid_input,
@@ -174,6 +175,61 @@ dt_api_blur_small(
     dt_connector_copy(graph, module, connid_input, id_blur, 0);
   return id_blur;
 }
+
+// approximate gaussian blur by slightly larger sigma.
+// this has a 5x5 kernel support and does only sigma=1.
+// use blur or blur_sub instead for larger blur radii.
+static inline int
+dt_api_blur_5x5(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int          nodeid_input,
+    int          connid_input,
+    int         *id_blur_in,
+    int         *id_blur_out)
+{
+  // detect pixel format on input
+  const dt_connector_t *conn_input = nodeid_input >= 0 ?
+    graph->node[nodeid_input].connector + connid_input :
+    module->connector + connid_input;
+  const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_blur = graph->num_nodes++;
+  graph->node[id_blur] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("blur"),
+    .module = module,
+    .wd     = conn_input->roi.wd,
+    .ht     = conn_input->roi.ht,
+    .dp     = dp,
+    .num_connectors = 2,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = conn_input->chan,
+      .format = conn_input->format,
+      .roi    = conn_input->roi,
+      .flags  = s_conn_smooth,
+      .connected_mi = -1,
+      .array_length = conn_input->array_length,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = conn_input->chan,
+      .format = conn_input->format,
+      .roi    = conn_input->roi,
+      .array_length = conn_input->array_length,
+    }},
+  };
+  if(id_blur_in)  *id_blur_in  = id_blur;
+  if(id_blur_out) *id_blur_out = id_blur;
+  if(nodeid_input >= 0)
+    CONN(dt_node_connect(graph, nodeid_input, connid_input, id_blur, 0));
+  else
+    dt_connector_copy(graph, module, connid_input, id_blur, 0);
+  return id_blur;
+}
+
 
 // blur by radius, but using a cascade of sub-sampled dispatches.
 // faster than the non-sub version, but approximate.
@@ -396,6 +452,8 @@ dt_api_blur(
     int         *id_blur_out,
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
+  if(radius == 2)
+    return dt_api_blur_5x5(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out);
   // XXX DEBUG XXX frustratingly that is much faster even for relatively large blurs it seems
   // TODO: probably go straight here for smaller radii
     // return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
@@ -451,7 +509,7 @@ dt_api_blur(
   }
   else
   {
-    return dt_api_blur_small(graph, module, nodeid_input, connid_input,
+    return dt_api_blur_3x3(graph, module, nodeid_input, connid_input,
         id_blur_in, id_blur_out, 0.5f*radius);
   }
 }
@@ -877,3 +935,192 @@ dt_graph_open_resource(
   }
   return 0;
 }
+
+#ifndef __cplusplus
+// radix sort an array of integers.
+// this will output an offset table to be used by the following nodes.
+// input connector id on id_radix_in will be 0, output connector id on id_radix_out will be 3.
+static inline int
+dt_api_radix_sort(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int          nodeid_input,  // node and connector of an ssbo/ui32 list of elements
+    int          connid_input,
+    int         *id_radix_in,   // if !0, will be filled with input and output node ids of this operation
+    int         *id_radix_out,
+    uint32_t     stride,        // how many uints form one element in the input array? first one will be sorting key
+    uint32_t     max_count)     // this determines the number of iterations/bits we need
+{
+  int s = (32 - __builtin_clz(max_count))/4;
+  uint32_t count = max_count;
+  int id_in = nodeid_input;
+  int cn_in = connid_input;
+  for(int l=0;l<s;l++)
+  { // for a max of 8 x 4 bits, radix sort iteratively:
+    int ncnt = (count + 31)/32;
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_count = graph->num_nodes++;
+    graph->node[id_count] = (dt_node_t) {
+      .name   = dt_token("shared"),
+      .kernel = dt_token("count"),
+      .module = module,
+      .wd     = (count + 31)/32 * DT_LOCAL_SIZE_X,
+      .ht     = 1,
+      .dp     = 1,
+      .num_connectors = 3,
+      .connector = {{
+        .name   = dt_token("input"),
+        .type   = dt_token("read"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = count, .ht = stride, .full_wd = count, .full_ht = stride},
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("off0"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = ncnt, .ht = 16, .full_wd = ncnt, .full_ht = 16},
+      },{
+        .name   = dt_token("off1"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = count, .ht = 1, .full_wd = count, .full_ht = 1},
+      }},
+      .push_constant_size = 3*sizeof(uint32_t),
+      .push_constant = { count, l, stride },
+    };
+    CONN(dt_node_connect(graph, id_in, cn_in, id_count, 0));
+    if(!l && id_radix_in) *id_radix_in = id_count;
+
+    int id_scan_in = id_count;
+    int cn_scan_in = 1;
+    int id_add_out = id_count;
+    int cn_add_out = 1;
+    int id_add_in  = -1;
+
+    while(ncnt > 32)
+    { // create a prefix sum
+      int cnt = ncnt;
+      ncnt = (cnt+31)/32;
+      assert(graph->num_nodes < graph->max_nodes);
+      const int id_scan = graph->num_nodes++;
+      graph->node[id_scan] = (dt_node_t) {
+        .name   = dt_token("shared"),
+        .kernel = dt_token("scan"),
+        .module = module,
+        .wd     = (cnt + 31)/32 * DT_LOCAL_SIZE_X,
+        .ht     = 1,
+        .dp     = 1,
+        .num_connectors = 2,
+        .connector = {{
+          .name   = dt_token("input"),
+          .type   = dt_token("read"),
+          .chan   = dt_token("ssbo"),
+          .format = dt_token("ui32"),
+          .roi    = { .wd = cnt, .ht = 16, .full_wd = cnt, .full_ht = 16},
+          .connected_mi = -1,
+        },{
+          .name   = dt_token("output"),
+          .type   = dt_token("write"),
+          .chan   = dt_token("ssbo"),
+          .format = dt_token("ui32"),
+          .roi    = { .wd = ncnt, .ht = 16, .full_wd = ncnt, .full_ht = 16},
+        }},
+        .push_constant_size = sizeof(uint32_t),
+        .push_constant = { cnt },
+      };
+      assert(graph->num_nodes < graph->max_nodes);
+      const int id_add = graph->num_nodes++;
+      graph->node[id_add] = (dt_node_t) {
+        .name   = dt_token("shared"),
+        .kernel = dt_token("add"),
+        .module = module,
+        .wd     = (cnt + 31)/32 * DT_LOCAL_SIZE_X,
+        .ht     = 1,
+        .dp     = 1,
+        .num_connectors = 2,
+        .connector = {{
+          .name   = dt_token("input"),
+          .type   = dt_token("read"),
+          .chan   = dt_token("ssbo"),
+          .format = dt_token("ui32"),
+          .roi    = { .wd = ncnt, .ht = 16, .full_wd = ncnt, .full_ht = 16},
+          .connected_mi = -1,
+        },{
+          .name   = dt_token("output"),
+          .type   = dt_token("write"),
+          .chan   = dt_token("ssbo"),
+          .format = dt_token("ui32"),
+          .roi    = { .wd = cnt, .ht = 16, .full_wd = cnt, .full_ht = 16},
+        }},
+        .push_constant_size = sizeof(uint32_t),
+        .push_constant = { cnt },
+      };
+      // deal with output of our newly created adder. it either goes to the next coarser (previous) level:
+      if(id_add_in >= 0)
+        CONN(dt_node_connect(graph, id_add, 1, id_add_in, 0));
+      else
+      { // or, first iteration, it is remembered as output of this scan cascade
+        id_add_out = id_add;
+        cn_add_out = 1;
+      }
+      id_add_in = id_add;
+      CONN(dt_node_connect(graph, id_scan_in, cn_scan_in, id_scan, 0));
+      if(ncnt <= 32) // last iteration, connect scan and add cascades:
+        CONN(dt_node_connect(graph, id_scan, 1, id_add, 0));
+      id_scan_in = id_scan; cn_scan_in = 1;
+    }
+    ncnt = (count + 31)/32;
+    assert(graph->num_nodes < graph->max_nodes);
+    const int id_scatter = graph->num_nodes++;
+    graph->node[id_scatter] = (dt_node_t) {
+      .name   = dt_token("shared"),
+      .kernel = dt_token("scatter"),
+      .module = module,
+      .wd     = (count + 31)/32 * DT_LOCAL_SIZE_X,
+      .ht     = 1,
+      .dp     = 1,
+      .num_connectors = 4,
+      .connector = {{
+        .name   = dt_token("input"), // input element array
+        .type   = dt_token("read"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = count, .ht = 1, .full_wd = count, .full_ht = 1},
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("off0"),  // coarse offsets per radix
+        .type   = dt_token("read"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = ncnt, .ht = 16, .full_wd = ncnt, .full_ht = 16},
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("off1"),  // fine offsets for each element
+        .type   = dt_token("read"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = count, .ht = 1, .full_wd = count, .full_ht = 1},
+        .connected_mi = -1,
+      },{
+        .name   = dt_token("output"), // sorted output will be written here
+        .type   = dt_token("write"),
+        .chan   = dt_token("ssbo"),
+        .format = dt_token("ui32"),
+        .roi    = { .wd = count, .ht = stride, .full_wd = count, .full_ht = stride},
+      }},
+      .push_constant_size = 3*sizeof(uint32_t),
+      .push_constant = { count, l, stride },
+    };
+    CONN(dt_node_connect(graph, id_in, cn_in, id_scatter, 0)); // input elements
+    CONN(dt_node_connect(graph, id_add_out, cn_add_out, id_scatter, 1)); // coarse offsets
+    CONN(dt_node_connect(graph, id_count, 2, id_scatter, 2)); // fine offsets
+    id_in = id_scatter; // to be reconnected to next iteration
+    cn_in = 3;
+  }
+  if(id_radix_out) *id_radix_out = id_in;
+  return id_in;
+}
+#endif

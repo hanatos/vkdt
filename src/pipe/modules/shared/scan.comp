@@ -1,0 +1,44 @@
+#version 460
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+// configuration: how many bits do we sort in one pass:
+const int max_radix = 16;
+
+layout(
+    local_size_x = 32, // work group size == subgroup size (nv)
+    local_size_y = 16, // =max_radix, one thread for each bin
+    local_size_z = 1) in;
+
+layout(std430, set = 1, binding = 0) buffer input_t
+{ // input:
+  uint v[]; // partial memory offsets from finer level
+} i;
+
+layout(std430, set = 1, binding = 1) buffer output_t
+{ // output:
+  uint v[]; // partial memory offsets from coarser level
+} o;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint n; // number of cache ids (full buffer, we'll ignore unused slots later)
+} push;
+
+void main()
+{
+  const uint pid = gl_LocalInvocationID.x;
+  const uint rid = gl_LocalInvocationID.y;
+  uint id  = pid + gl_WorkGroupSize.x * gl_WorkGroupID.x; // sample we're working on
+
+  uint sum = 0;
+  if (id < push.n) sum = i.v[push.n * rid + pid];
+
+  subgroupBarrier();
+  sum = subgroupExclusiveAdd(sum);
+
+  // last subgroup thread writes the max offset/count to the coarser buffer
+  if (gl_SubgroupInvocationID == gl_SubgroupSize - 1)
+    o.v[rid * push.n + id/gl_SubgroupSize] = sum;
+}

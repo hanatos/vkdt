@@ -48,14 +48,6 @@ typedef struct dt_image_params_t
 }
 dt_image_params_t;
 
-typedef enum dt_module_flags_t
-{
-  s_module_request_none        = 0,
-  s_module_request_read_source = 1,
-  s_module_request_write_sink  = 2,
-}
-dt_module_flags_t;
-
 // a keyframe param change
 typedef struct dt_keyframe_t
 {

@@ -162,7 +162,7 @@ load_raw(
     // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
     if(sizeof(uint16_t) != mod_data->d->mRaw->getBpp())
     {
-      fprintf(stderr, "[rawinput] currently not handling floating point formats: %s\n", filename);
+      fprintf(stderr, "[i-raw] unhandled pixel format: %s\n", filename);
       return 1;
     }
   }

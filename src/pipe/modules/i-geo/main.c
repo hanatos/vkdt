@@ -193,9 +193,8 @@ void modify_roi_out(
 
 // extra callback for rt accel struct build
 int read_geo(
-    dt_module_t *mod,
-    float       *vtx,
-    uint32_t    *idx)
+    dt_module_t          *mod,
+    dt_read_geo_params_t *pm)
 {
   geo_t *geo = mod->data;
   // const uint32_t vtx_cnt = mod->connector[0].roi.full_wd;
@@ -211,15 +210,15 @@ int read_geo(
       uint32_t vcnt = geo->prims.shape[s].primid[p].vcnt;
       if(vcnt >= 3)
       {
-        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+0].v;
-        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+1].v;
-        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+2].v;
+        pm->idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+0].v;
+        pm->idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+1].v;
+        pm->idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+2].v;
       }
       if(vcnt == 4)
       {
-        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+0].v;
-        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+2].v;
-        idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+3].v;
+        pm->idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+0].v;
+        pm->idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+2].v;
+        pm->idx[i++] = vtx_off + geo->prims.shape[s].vtxidx[vi+3].v;
       }
     }
     vtx_off += prims_get_shape_vtx_cnt(&geo->prims, s);
@@ -230,9 +229,9 @@ int read_geo(
     uint32_t vc = prims_get_shape_vtx_cnt(&geo->prims, s);
     for(uint32_t v=0;v<vc;v++)
     {
-      vtx[3*(vtx_off+v)+0] = geo->prims.shape[s].vtx[v].v[0];
-      vtx[3*(vtx_off+v)+1] = geo->prims.shape[s].vtx[v].v[1];
-      vtx[3*(vtx_off+v)+2] = geo->prims.shape[s].vtx[v].v[2];
+      pm->vtx[3*(vtx_off+v)+0] = geo->prims.shape[s].vtx[v].v[0];
+      pm->vtx[3*(vtx_off+v)+1] = geo->prims.shape[s].vtx[v].v[1];
+      pm->vtx[3*(vtx_off+v)+2] = geo->prims.shape[s].vtx[v].v[2];
     }
     // memcpy(vtx, geo->prims.shape[s].vtx, sizeof(float)*3*vtx_cnt);
     vtx_off += vc;

@@ -293,6 +293,8 @@ void cleanup(dt_module_t *mod)
   vid_data_t *d = mod->data;
   free(d->sndbuf);
   close_stream(d);
+  free(d);
+  mod->data = 0;
 }
 
 void modify_roi_out(

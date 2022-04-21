@@ -1,0 +1,45 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+
+layout (local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform push_t
+{
+  int n;
+  int l;
+  int stride;
+} push;
+
+layout(std430, set = 1, binding = 0) buffer input_t
+{ // samples to reorder, input
+  uint v[];
+} i;
+
+layout(std430, set = 1, binding = 1) buffer off0_t
+{ // coarse buffer offsets
+  uint v[];
+} off0;
+
+layout(std430, set = 1, binding = 2) buffer off1_t
+{ // fine buffer offsets
+  uint v[];
+} off1;
+
+layout(std430, set = 1, binding = 3) buffer output_t
+{ // reordered samples
+  uint v[];
+} o;
+
+void main()
+{
+  uint id = gl_GlobalInvocationID.x;
+  if(id >= push.n) return;
+  uint s = i.v[push.stride * id];
+  uint radix = bitfieldExtract(s, int(4*push.l), 4);
+  uint pos = off0.v[push.n * radix + id/32] + off1.v[id];
+  o.v[push.stride * pos] = s;
+  for(int j=1;j<push.stride;j++) // drag along payload portion of element array
+    o.v[push.stride * pos + j] = i.v[push.stride * id + j];
+}
+
+

@@ -18,11 +18,11 @@ dt_roi_t;
 
 typedef enum dt_connector_flags_t
 {
-  s_conn_none     = 0,
-  s_conn_smooth   = 1,  // access this with a bilinear sampler during read // XXX TODO: always use smooth and texelFetch if not wanted
-  // TODO: don't promote flags?
-  s_conn_clear    = 2,  // clear this to zero before writing
-  s_conn_feedback = 4,  // this connection is only in between frames (written frame 1 and read frame 2)
+  s_conn_none          = 0,
+  s_conn_smooth        = 1,  // access this with a bilinear sampler during read
+  s_conn_clear         = 2,  // clear this to zero before writing
+  s_conn_feedback      = 4,  // this connection is only in between frames (written frame 1 and read frame 2)
+  s_conn_dynamic_array = 8,  // dynamically allocated array connector, contents can change during animation
 }
 dt_connector_flags_t;
 
@@ -82,7 +82,11 @@ typedef struct dt_connector_t
   dt_roi_t roi;
 
   // if the output/write connector holds an array and the entries have different size:
-  uint32_t *array_dim; // or 0 if all have the same size of the roi
+  uint32_t     *array_dim;        // or 0 if all have the same size of the roi
+  dt_vkalloc_t *array_alloc;      // or 0 if not needed. if the connector is flags & s_conn_dynamic_array use this.
+  size_t        array_alloc_size; // size of the pool allocated for this dynamic texture array
+  dt_vkmem_t   *array_mem;        // memory allocated in outer mem pool, will be split for array dynamically
+  uint8_t      *array_req;        // points to flags what do do: 0 - nothing, 1 - alloc, 2 - upload, 4 - free
 
   // buffer associated with this in case it connects nodes:
   uint64_t offset_staging, size_staging;
@@ -112,7 +116,8 @@ dt_connector_t;
 typedef struct dt_graph_t dt_graph_t; // fwd declare
 // connect source|write (m0,c0) -> sink|read (m1,c1)
 int dt_module_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
-int dt_node_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
+int dt_node_connect(dt_graph_t *graph, int n0, int c0, int n1, int c1);
+int dt_node_feedback(dt_graph_t *graph, int n0, int c0, int n1, int c1);
 
 static inline int
 dt_connected(const dt_connector_t *c)
@@ -238,7 +243,7 @@ dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
 {
   if(c->format == dt_token("bc1")) return wd/4*ht/4 * 8;
   if(c->format == dt_token("yuv")) return wd*ht * 2; // XXX ??? * 2/3 is not enough here.
-  if(c->format == dt_token("geo")) return sizeof(float)*4*wd + 4*sizeof(uint32_t)*ht; // (vtx+n)*#v + (uv+i)*#i
+  if(c->format == dt_token("geo")) return 14*sizeof(int16_t)*ht/3; // 14 values per triangle
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_pixel(c);
   return numc * bpp * wd * ht;

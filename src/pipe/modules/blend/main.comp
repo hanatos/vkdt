@@ -111,7 +111,7 @@ main()
     // bck = mix(rgb, bck, exp(-dot((bck-rgb)/s2,(bck-rgb)/s2)));
     rgb = mix(rgb, bck, params.opacity);
 #endif
-    // rgb = mix(rgb, bck, t);
+    // rgb = (global.frame * bck + rgb)/(global.frame+1);
   }
 #if 0
   if(false)//else

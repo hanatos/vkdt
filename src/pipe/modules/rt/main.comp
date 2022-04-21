@@ -156,7 +156,7 @@ vec3 geo_decode_normal(const uint enc)
   vec2 projected = 2.0*vec2(
       uintBitsToFloat(0x3f800000u | (( enc      & 0x7fff)<<8)),
       uintBitsToFloat(0x3f800000u | (((enc>>16) & 0x7fff)<<8))
-      ) - 2.0;
+      ) - 2.0; // XXX FIXME: do i mean -3.0 such that this will be -1..1?
   if(((enc>>16)&0x8000u) != 0) projected.y = -projected.y;
   if(( enc     &0x8000u) != 0) projected.x = -projected.x;
   vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
@@ -253,29 +253,37 @@ main()
 #if 1
   {
     rayQueryEXT rq;
-    rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, 1000.0);
+    rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, 10000.0);
     while(rayQueryProceedEXT(rq)) { }
     if(rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
     { // primary intersection
       const float t = rayQueryGetIntersectionTEXT(rq, true);
-      uint mat;
-      prepare_intersection(rq, w, x, n, st, mat);
-      vec3 ws = sample_cos(rand.xy);
-      if(dot(n,w) > 0) n = -n;
+      uint mat = 0;
+      // prepare_intersection(rq, w, x, n, st, mat);
+      // vec3 ws = sample_cos(rand.xy);
+      // if(dot(n,w) > 0) n = -n;
+      x += t*w; // XXX
+      n = -w; // XXX
       vec3 du, dv, up = vec3(1,0,0);
       if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
       du = normalize(cross(up, n));
       dv = normalize(cross(du, n));
-      w = ws.x * du + ws.y * dv + ws.z * n;
-      x += 0.001 * (n + w);
-      vec3 diffcol = texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
+      // w = ws.x * du + ws.y * dv + ws.z * n;
+      // x += 0.001 * (n + w);
+      x += 0.001 * n;
+      // vec3 diffcol = vec3(0.18);//texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
+      st = x.xy/255.0;
+      mat = rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
+      vec3 diffcol = 0.1 + texture(img_tex[nonuniformEXT(mat%1000)], st).rgb;
       float ao = 0.0;
       const int samples = 3;
       for(int i=0;i<samples;i++)
       {
         rand = xrand(seed, rp);
-        w = normalize(vec3(1, 0, 1));
-        w.xy += rand.xy * 0.2;
+        vec3 ws = sample_cos(rand.xy);
+        w = ws.x * du + ws.y * dv + ws.z * n;
+        // w = normalize(vec3(1, 0, 1));
+        // w.xy += rand.xy * 0.2;
         rayQueryInitializeEXT(rq, rt_accel,
             gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
             0xFF, x, 1e-3, w, 10.0);
@@ -288,7 +296,7 @@ main()
       rgb = ao * (0.1 + abs(dot(w, n))) * diffcol * vec3(500.0); // fake ambient something
       aov = vec4((1.0+n)/2.0 * diffcol, 1);
       // aov = vec4((1.0+n)/2.0 * (t/(t+1.0)), 1);
-      const float T = exp(-t * .05);
+      const float T = exp(-t * .002);
       L = mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
     }
     else

@@ -1,0 +1,79 @@
+#version 460
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+// configuration: how many bits do we sort in one pass:
+const int max_radix = 16; // 4 bits
+
+layout(
+    local_size_x = 32, // work group size == subgroup size (nv)
+    local_size_y = 1,
+    local_size_z = 1) in;
+
+layout(std430, set = 1, binding = 0) buffer samples_t
+{ // input:
+  uint v[]; // list of guiding cache ids
+} samples;
+
+layout(std430, set = 1, binding = 1) buffer offsets_t
+{ // output of coarse offsets separated by radix
+  uint v[]; // partial memory offsets, one for each work group
+} off0;
+
+layout(std430, set = 1, binding = 0) buffer off1_t
+{ // output of fine offsets for each element
+  uint v[];
+} off1;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint n; // number of cache ids (full buffer, we'll ignore unused slots later)
+  uint l; // level/iteration, will look at [4*l, 4*l+4) bits in sample for sort
+  uint stride; // how many uints is one element to sort? first one will be used as key
+} push;
+
+shared struct local_t
+{
+  uint pos[gl_WorkGroupSize.x][max_radix]; // memory offsets for each element
+} local;
+
+void main()
+{
+  uint pid = gl_LocalInvocationID.x; // thread id per pixel
+  // uint rid = gl_LocalInvocationID.y; // thread id per radix
+  // uint id  = pid + gl_WorkGroupSize.x * gl_WorkGroupID.x; // sample we're working on
+  uint id = gl_GlobalInvocationID.x;
+
+  for(int rid=0;rid<max_radix;rid++)
+    local.pos[pid][rid] = 0;           // zero out offsets
+
+  uint radix = -1u;
+  if(id < push.n)
+  {
+    radix = bitfieldExtract(samples.v[push.stride * id], int(4*push.l), 4);
+  // set memory requests for each element and the radix
+  // if(radix == rid) local.pos[pid][rid] = 1;
+    local.pos[pid][radix] = 1;
+  }
+
+  barrier();
+  memoryBarrierShared();
+
+  // create prefix sum of block in local memory
+  for(int rid=0;rid<max_radix;rid++)
+  {
+    uint pos = local.pos[rid][pid];
+    pos = subgroupInclusiveAdd(pos); // we have exactly one subgroup for the whole work group
+    local.pos[rid][pid] = pos;
+  }
+
+  barrier();
+  memoryBarrierShared();
+
+  // write largest offsets out for next block
+  if(pid == gl_WorkGroupSize.x-1) // = subgroupsize
+    for(int rid=0;rid<max_radix;rid++)
+      off0.v[push.n * rid + gl_WorkGroupID.x] = local.pos[rid][pid];
+  if(id < push.n) //  && rid == 0)
+    off1.v[id] = local.pos[radix][pid];
+}

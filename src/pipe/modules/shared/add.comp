@@ -1,0 +1,39 @@
+#version 460
+#extension GL_GOOGLE_include_directive   : enable
+#extension GL_KHR_shader_subgroup_basic  : enable
+#extension GL_KHR_shader_subgroup_ballot : enable
+
+layout (local_size_x = 32, local_size_y = 16, local_size_z = 1) in;
+
+layout(push_constant) uniform push_t
+{
+  int n;
+} push;
+
+layout(std430, set = 1, binding = 0) buffer input_t
+{ // coarse buffer offsets
+  uint v[];
+} i;
+
+layout(std430, set = 1, binding = 1) buffer output_t
+{ // finer buffer offsets
+  uint v[];
+} o;
+
+// distribute count (largest offset of previous chunk) to all following elements
+void main()
+{
+  uint pid = gl_LocalInvocationID.x;
+  uint rid = gl_LocalInvocationID.y;
+  uint id  = pid + gl_WorkGroupSize.x * gl_WorkGroupID.x;
+
+  if (gl_WorkGroupID.x > 0 && id < push.n)
+  {
+    uint sum = 0;
+    if (pid == 0) sum = i.v[push.n * rid + gl_WorkGroupID.x - 1];
+    subgroupBarrier();
+    sum = subgroupBroadcastFirst(sum);
+    o.v[push.n * rid + id] += sum;
+  }
+}
+

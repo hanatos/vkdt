@@ -50,8 +50,10 @@ main()
   offx -= 2;
   offy -= 2;
 
-  // float i0 = texelFetch(img_in0, ipos, 0).r;
-  float i0 = texture(img_in0, (ipos+.5)/textureSize(img_in0, 0)).r;
+  // interestingly using texture() to go outside [0,1] causes black borders because we'd need
+  // to do the texture repeat the same way during warp i suppose.
+  float i0 = texelFetch(img_in0, ipos, 0).r;
+  // float i0 = texture(img_in0, (ipos+.5)/textureSize(img_in0, 0)).r;
   float i1;
   if(push.scale > 0)
   {
@@ -62,8 +64,9 @@ main()
     // i1 = texture(img_in1, vec2(ivec2(ipos+off)+.5)/textureSize(img_in1, 0)).r;
     i1 = texelFetch(img_in1, ipos+ivec2(off), 0).r;
   }
-  // else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
-  else i1 = texture(img_in1, (ipos+0.5+ivec2(offx, offy))/vec2(textureSize(img_in1, 0))).r;
+  else i1 = texelFetch(img_in1, ipos+ivec2(offx, offy), 0).r;
+  // else i1 = texture(img_in1, (ipos+0.5+ivec2(offx, offy))/vec2(textureSize(img_in1, 0))).r;
+
   // float dist = log(2+abs(i0 - i1));     // log L1
   // float dist = (2.0-exp(-(offx*offx+offy*offy)*.02)) * log(2+abs(i0 - i1));     // log L1 center weighted, good for TAA
   // float dist = abs(i0 - i1); // L1

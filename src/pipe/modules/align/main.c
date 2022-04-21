@@ -220,7 +220,7 @@ create_nodes(
 
     // blur output of dist node by tile size (depending on noise radius 16x16, 32x32 or 64x64?)
     // grab module parameters, would need to trigger re-create_nodes on change:
-    const int blur = ((float*)module->param)[2+i];
+    const float blur = ((float*)module->param)[2+i];
     const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_dist, 3, 0, 0, blur) : id_dist;
     // const int id_blur = blur > 0 ? dt_api_blur_sub(graph, module, id_dist, 3, 0, 0, blur, 0) : id_dist;
     // const int id_blur = blur > 0 ? dt_api_blur_small(graph, module, id_dist, 3, 0, 0, blur) : id_dist;

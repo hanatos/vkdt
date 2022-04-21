@@ -1,6 +1,7 @@
 #include "raytrace.h"
 #include "graph.h"
 #include "core/log.h"
+#include "modules/api.h"
 
 int dt_raytrace_present(dt_graph_t *graph)
 {
@@ -128,7 +129,7 @@ dt_raytrace_node_init(
         .indexType     = VK_INDEX_TYPE_UINT32,
         .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
       }},
-    .flags             = VK_GEOMETRY_OPAQUE_BIT_KHR,
+    // .flags             = VK_GEOMETRY_OPAQUE_BIT_KHR,
   };
   node->rt.build_info = (VkAccelerationStructureBuildGeometryInfoKHR) {
     .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -173,8 +174,10 @@ dt_raytrace_graph_init(
   for(int i=0;i<nid_cnt;i++)
   {
     dt_node_t *node = graph->node + nid[i];
-    if(node->module->so->read_geo)
-    {
+    if(node->module->so->read_geo &&
+       node->connector[0].format == dt_token("geo") &&
+       dt_connector_output(node->connector))
+    { // geometry for ray tracing requires an output connector "geo" and the read_geo() callback
       node->type |= s_node_geometry;
       graph->rt.nid_cnt++;
     }
@@ -190,11 +193,8 @@ dt_raytrace_graph_init(
   for(int i=0;i<nid_cnt;i++)
   {
     dt_node_t *node = graph->node + nid[i];
-    if(node->module->so->read_geo)
-    {
-      node->type |= s_node_geometry;
+    if(node->type & s_node_geometry)
       graph->rt.nid[graph->rt.nid_cnt++] = nid[i];
-    }
   }
 
   VkDescriptorSetLayoutBinding bindings[] = {{
@@ -244,7 +244,7 @@ dt_raytrace_graph_alloc(
         .sType           = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
         .arrayOfPointers = VK_FALSE,
       }},
-    .flags               = VK_GEOMETRY_OPAQUE_BIT_KHR,
+    // .flags               = VK_GEOMETRY_OPAQUE_BIT_KHR,
   };
   graph->rt.build_info = (VkAccelerationStructureBuildGeometryInfoKHR) {
     .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -326,7 +326,7 @@ dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
   if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
-  // XXX TODO: do not build bottom if not needed (see flags on module)
+  // XXX TODO: do not build bottom if not needed (see flags on node)
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
 
@@ -338,26 +338,32 @@ dt_raytrace_record_command_buffer_accel_build(
   QVKR(vkMapMemory(qvk.device, graph->rt.vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void **)&mapped_staging));
   VkAccelerationStructureInstanceKHR *instance =
     (VkAccelerationStructureInstanceKHR *)(mapped_staging + graph->rt.buf_staging_offset);
+  int rebuild_cnt = 0;
   for(int i=0;i<graph->rt.nid_cnt;i++)
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt.nid[i];
-
-    void *vtx = mapped_staging + node->rt.buf_vtx_offset;
-    void *idx = mapped_staging + node->rt.buf_idx_offset;
-    if(node->module->so->read_geo) node->module->so->read_geo(node->module, vtx, idx);
+    if(!(node->flags & s_module_request_read_geo)) continue;
+    dt_read_geo_params_t p = (dt_read_geo_params_t) {
+      .node   = node,
+      .vtx    = (float    *)(mapped_staging + node->rt.buf_vtx_offset),
+      .idx    = (uint32_t *)(mapped_staging + node->rt.buf_idx_offset),
+    };
+    if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
       .accelerationStructure = node->rt.accel,
     };
-    instance[i] = (VkAccelerationStructureInstanceKHR) {
+    int ii = rebuild_cnt++;
+    instance[ii] = (VkAccelerationStructureInstanceKHR) {
       .transform = { .matrix = {
         {1.0f, 0.0f, 0.0f, 0.0f},
         {0.0f, 1.0f, 0.0f, 0.0f},
         {0.0f, 0.0f, 1.0f, 0.0f},
       }},
       .mask  = 0xFF,
-      .flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+      .flags = // VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR |
+        VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
       .accelerationStructureReference = qvkGetAccelerationStructureDeviceAddressKHR(qvk.device, &address_request),
     };
     VkBufferDeviceAddressInfo address_info[] = {{
@@ -375,19 +381,20 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt.geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
       .maxVertex     = node->rt.vtx_cnt,
-      .vertexStride  = 3* sizeof(float),
+      .vertexStride  = 3*sizeof(float),
       .transformData = {0},
       .indexType     = VK_INDEX_TYPE_UINT32,
       .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
       .vertexData    = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+1)},
       .indexData     = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+2)},
     };
-    build_range  [i] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = node->rt.tri_cnt };
-    p_build_range[i] = build_range + i;
-    build_info   [i] = node->rt.build_info;
+    build_range  [ii] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = node->rt.tri_cnt };
+    p_build_range[ii] = build_range + ii;
+    build_info   [ii] = node->rt.build_info;
   }
   vkUnmapMemory(qvk.device, graph->rt.vkmem_staging);
-  qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, graph->rt.nid_cnt, build_info, p_build_range);
+  if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
+  qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, rebuild_cnt, build_info, p_build_range);
 
 #define ACCEL_BARRIER do {\
   VkMemoryBarrier barrier = { \

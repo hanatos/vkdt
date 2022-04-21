@@ -12,10 +12,19 @@
 
 typedef struct dt_read_source_params_t
 { // future proof arguments
-  int c;  // connector
-  int a;  // array index
+  int c;              // connector index (on the node)
+  int a;              // array index
+  dt_node_t *node;    // the callback lives on the module and needs to identify the real source
 }
 dt_read_source_params_t;
+
+typedef struct dt_read_geo_params_t
+{
+  dt_node_t *node;    // the callback lives on the module and needs to identify the real source
+  uint32_t  *idx;     // mmapped index array
+  float     *vtx;     // mmapped vertex array
+}
+dt_read_geo_params_t;
 
 typedef struct dt_module_input_event_t
 { // glfw events for modules without linking glfw
@@ -35,7 +44,7 @@ typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *modul
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf);
 typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf, dt_read_source_params_t *p);
-typedef void (*dt_module_read_geo_t)(dt_module_t *module, void *vtx, void *idx);
+typedef void (*dt_module_read_geo_t)(dt_module_t *module, dt_read_geo_params_t *p);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);

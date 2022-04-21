@@ -27,3 +27,14 @@ dt_node_connect(
 #undef num_elements
 #undef element
 }
+
+int
+dt_node_feedback(dt_graph_t *graph, int n0, int c0, int n1, int c1)
+{
+  int ret = dt_node_connect(graph, n0, c0, n1, c1);
+  graph->node[n1].connector[c1].flags |= s_conn_feedback;
+  graph->node[n0].connector[c0].frames = 2;
+  graph->node[n1].connector[c1].frames = 2;
+  return ret;
+}
+

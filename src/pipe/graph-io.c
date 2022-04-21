@@ -240,6 +240,7 @@ int dt_graph_set_searchpath(
     char *c = 0;
     for(int i=0;graph->searchpath[i]!=0;i++) if(graph->searchpath[i] == '/') c = graph->searchpath+i;
     if(c) *c = 0; // get dirname, i.e. strip off executable name
+    else { c = graph->searchpath; c[0] = '.'; c[1] = '/'; c[2] = 0; } // found no '/', gotta use './'
     return 0;
   }
 }

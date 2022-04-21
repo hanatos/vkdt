@@ -11,14 +11,15 @@ typedef enum dt_node_type_t
   s_node_compute    = 0,  // compute shaders
   s_node_graphics   = 1,  // draw call/render pass
   s_node_geometry   = 2,  // generates geometry for ray tracing
-  s_node_raytracing = 4,  // ray traces
+//  s_node_raytracing = 4,  // ray traces
+//  s_node_animation  = 8,  // create/modify ray tracing geometry gpu side
 }
 dt_node_type_t;
 
 typedef struct dt_node_t
 {
   dt_token_t name;      // name of the node
-  dt_token_t kernel;    // modules/node/kernel.comp is the file name of the compute shader
+  dt_token_t kernel;    // modules/<name>/<kernel>.comp is the file name of the compute shader
 
   dt_module_t *module;  // reference back to module and class
 
@@ -38,6 +39,8 @@ typedef struct dt_node_t
   dt_raytrace_node_t    rt;
 
   dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer
+
+  dt_module_flags_t     flags;            // fine grained request for source/sink reading
 
   uint32_t wd, ht, dp;  // dimensions of kernel to be run
 
