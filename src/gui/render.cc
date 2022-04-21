@@ -95,8 +95,7 @@ void widget_end()
       memcpy(v, vkdt.wstate.state, parsz);
     }
   }
-  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-  vkdt.wstate.grabbed = 0;
+  dt_gui_ungrab_mouse();
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
@@ -1615,7 +1614,14 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid)
       {
-        if(ImGui::Button("stop [esc]")) widget_end();
+        if(ImGui::Button("stop [esc]"))
+        {
+          // dt_gui_dr_toggle_fullscreen_view();
+          dt_module_t *mod = vkdt.graph_dev.module + modid;
+          dt_module_input_event_t p = { .type = -1 };
+          if(modid >= 0 && mod->so->input) mod->so->input(mod, &p);
+          widget_end();
+        }
       }
       else
       {
@@ -1625,12 +1631,11 @@ inline void draw_widget(int modid, int parid)
           vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.grabbed = 1;
           dt_module_input_event_t p = { 0 };
           dt_module_t *mod = vkdt.graph_dev.module + modid;
+          dt_gui_grab_mouse();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
-          glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
         KEYFRAME
       }
@@ -2440,4 +2445,20 @@ extern "C" int dt_gui_imgui_want_keyboard()
 extern "C" int dt_gui_imgui_want_text()
 {
   return ImGui::GetIO().WantTextInput;
+}
+
+extern "C" void dt_gui_grab_mouse()
+{
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  vkdt.wstate.grabbed = 1;
+  // dt_gui_dr_toggle_fullscreen_view();
+}
+
+extern "C" void dt_gui_ungrab_mouse()
+{
+  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  vkdt.wstate.grabbed = 0;
+  // dt_gui_dr_toggle_fullscreen_view();
 }
