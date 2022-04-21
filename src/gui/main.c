@@ -108,7 +108,8 @@ static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   dt_view_keyboard(window, key, scancode, action, mods);
-  dt_gui_imgui_keyboard(window, key, scancode, action, mods);
+  if(!vkdt.wstate.grabbed)
+    dt_gui_imgui_keyboard(window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
@@ -138,7 +139,8 @@ static void
 mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
   dt_view_mouse_button(window, button, action, mods);
-  dt_gui_imgui_mouse_button(window, button, action, mods);
+  if(!vkdt.wstate.grabbed)
+    dt_gui_imgui_mouse_button(window, button, action, mods);
 }
 
 static void
@@ -163,14 +165,16 @@ window_pos_callback(GLFWwindow* window, int xpos, int ypos)
 static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
-  dt_gui_imgui_character(window, c);
+  if(!vkdt.wstate.grabbed)
+    dt_gui_imgui_character(window, c);
 }
 
 static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
   dt_view_mouse_scrolled(window, xoff, yoff);
-  dt_gui_imgui_scrolled(window, xoff, yoff);
+  if(!vkdt.wstate.grabbed)
+    dt_gui_imgui_scrolled(window, xoff, yoff);
 }
 
 #if VKDT_USE_PENTABLET==1
