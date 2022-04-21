@@ -186,7 +186,7 @@ int dt_gui_init()
 
   dt_gui_init_imgui();
 
-  dt_snd_init(&vkdt.snd, 48000, 2);
+  dt_snd_init(&vkdt.snd, 44100, 2);
 
   return 0;
 }
