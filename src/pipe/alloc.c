@@ -49,6 +49,7 @@ dt_vkalloc_nuke(dt_vkalloc_t *a)
 dt_vkmem_t*
 dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {
+  if(!alignment) alignment = 1;
   assert(!dt_vkalloc_check(a));
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
@@ -113,6 +114,7 @@ dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 dt_vkmem_t*
 dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {
+  if(!alignment) alignment = 1;
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
   while(l)
