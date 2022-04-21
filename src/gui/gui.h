@@ -159,3 +159,9 @@ void dt_gui_switch_collection(const char *dir);
 
 // display a notification message overlay in the gui for some seconds
 void dt_gui_notification(const char *msg, ...);
+
+// lets the current input module grab the mouse, i.e. hide it from the rest of the gui
+void dt_gui_grab_mouse();
+
+// ungrab the mouse, pass it on to imgui again
+void dt_gui_ungrab_mouse();
