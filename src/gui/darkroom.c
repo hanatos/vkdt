@@ -385,13 +385,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 {
   if(vkdt.wstate.grabbed)
   {
-    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
-    {
-      glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-      vkdt.wstate.grabbed = 0;
-      vkdt.wstate.active_widget_modid = -1;
-      return;
-    }
     dt_module_input_event_t p = {
       .type     = 4,
       .key      = key,
@@ -400,8 +393,17 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       .mods     = mods,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
+    {
+      dt_gui_ungrab_mouse();
+      p.type = -1; // disconnect event
+      // dt_gui_dr_toggle_fullscreen_view(); // bring panels back
+    }
     if(vkdt.wstate.active_widget_modid >= 0)
+    {
       if(mod->so->input) mod->so->input(mod, &p);
+      if(p.type == -1) vkdt.wstate.active_widget_modid = -1;
+    }
     return;
   }
 #ifdef QVK_ENABLE_VALIDATION // reload shaders only in a debug build
@@ -628,7 +630,6 @@ darkroom_leave()
 
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
-  dt_gui_dr_leave_fullscreen_view(); // make sure we're not in fullscreen mode
   return 0;
 }
 
