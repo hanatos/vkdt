@@ -445,7 +445,7 @@ main()
         }
         primary_bsdf = diffcol.rgb;
         rgb *= diffcol.rgb;   // multiply bsdf weight
-#if 0 // next event estimation to torch:
+#if 1 // next event estimation to torch:
         acc += nee_torch(lpos, x, rgb, n, seed, rp);
 #endif
         // sample new ray direction
