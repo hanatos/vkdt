@@ -55,6 +55,13 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 # VKDT_USE_PENTABLET=1
 # export VKDT_USE_PENTABLET
 
+# if this is enabled, it will build the i-quake module. it runs
+# the quakespasm variant of the id software code for the classic quake
+# game. it assumes you have the paks in /usr/share/games/quake.
+# this will download and compile GPL code.
+# VKDT_USE_QUAKE=1
+# export VKDT_USE_QUAKE
+
 # compiler config
 CC=clang
 CXX=clang++
