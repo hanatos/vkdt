@@ -3,6 +3,8 @@
 this input node cannibalises quakespasm to read quake input geometry and textures.
 the data is sent to vulkan ray tracing kernels.
 you can try `vkdt examples/quake.cfg` to test it. requires a bluenoise input texture, see below.
+also it assumes that you have the original game data installed in `/usr/share/games/quake/`.
+this module is optional, you need to have compiled with `VKDT_USE_QUAKE=1`, see `config.mk.defaults`.
 
 ## connectors
 
