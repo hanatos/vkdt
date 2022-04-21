@@ -67,6 +67,7 @@ int init(dt_module_t *mod)
 
   char *argv[] = {"quakespasm",
     "-basedir", "/usr/share/games/quake",
+    "+map", "start",
     "-game", "ad",
     "+map", "ad_azad",
     "-game", "SlayerTest",
@@ -78,7 +79,7 @@ int init(dt_module_t *mod)
     "+map", "st1m1",
     "+map", "start",
   };
-  int argc = 3; // 7;
+  int argc = 5; // 7;
 
   d->worldspawn = 0;
   d->parms.argc = argc;
