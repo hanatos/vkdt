@@ -85,7 +85,7 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  if(dt_gui_imgui_want_keyboard()) return;
+  if(!vkdt.wstate.grabbed && dt_gui_imgui_want_keyboard()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
