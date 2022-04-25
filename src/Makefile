@@ -30,6 +30,7 @@ SHD_EXT=comp vert tesc tese geom frag
 SPV=$(foreach shd,$(SHD_EXT),\
 $(patsubst %.$(shd),%.$(shd).spv,$(shell ls -1 pipe/modules/*/*.$(shd))))
 
+TOOLTIPS=$(patsubst %/readme.md,%/ptooltips,$(shell ls -1 pipe/modules/*/readme.md))
 
 .PHONY: all clean modules
 
@@ -52,6 +53,7 @@ clean: Makefile
 	# at some point we probably need to harden the api such that this still works. maybe.
 	rm -f pipe/modules/*/lib*.so
 	rm -f pipe/modules/*/*.spv
+	rm -f pipe/modules/*/{ctooltips,ptooltips}
 
 # GNU_SOURCE for sched_affinity
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
@@ -113,7 +115,7 @@ vkdt-fit: $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 
 # modules
 # ======================
-modules: $(MOD_DSOS) $(MOD_DSOSXX) $(SPV) Makefile
+modules: $(MOD_DSOS) $(MOD_DSOSXX) $(SPV) $(TOOLTIPS) Makefile
 
 MOD_GLOBAL_DEPS=\
   pipe/modules/api.h\
@@ -156,3 +158,7 @@ define SPV_RULE
 endef
 $(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))
 
+@%/ptooltips: %/readme.md Makefile
+  # generate tooltips for %
+	sed -n '/## parameters/,/## / p' $< | grep -E '^\*' | sed -e 's/* `//' -e 's/` */`/g' -e 's/`/:/' > $@
+	sed -n '/## connectors/,/## / p' $< | grep -E '^\*' | sed -e 's/* `//' -e 's/` */`/g' -e 's/`/:/' > $(patsubst %ptooltips, %ctooltips, $@)
