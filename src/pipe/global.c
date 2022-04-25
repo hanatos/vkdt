@@ -246,6 +246,34 @@ dt_module_so_load(
     fclose(f);
   }
 
+  // read extracted parameter tooltips
+  snprintf(filename, sizeof(filename), "%s/modules/%s/ptooltips", dt_pipe.basedir, dirname);
+  f = fopen(filename, "rb");
+  for(int i=0;i<mod->num_params;i++) mod->param[i]->tooltip = 0; // de-init
+  if(f)
+  {
+    while(!feof(f))
+    {
+      char *b = line;
+      fscanf(f, "%[^\n]", line);
+      if(fgetc(f) == EOF) break; // read \n
+      dt_token_t pn = dt_read_token(b, &b);
+      for(int i=0;i<mod->num_params;i++)
+      {
+        if(mod->param[i]->name == pn)
+        {
+          size_t len = strnlen(b, sizeof(line)-9); // remove max token + :
+          char *copy = malloc(sizeof(char) * len);
+          strncpy(copy, b, len);
+          copy[len-1] = 0; // make sure it's terminated even upon truncation
+          mod->param[i]->tooltip = copy;
+          break;
+        }
+      }
+    }
+    fclose(f);
+  }
+
   // read connector info
   snprintf(filename, sizeof(filename), "%s/modules/%s/connectors", dt_pipe.basedir, dirname);
   f = fopen(filename, "rb");
@@ -285,6 +313,7 @@ dt_module_so_unload(dt_module_so_t *mod)
   for(int i=0;i<mod->num_params;i++)
   {
     free(mod->param[i]->widget.data);
+    free((char *)mod->param[i]->tooltip);
     free(mod->param[i]);
   }
   // decrements ref count and unloads the dso if it drops to 0
