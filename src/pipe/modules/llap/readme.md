@@ -10,7 +10,7 @@
   to the corresponding sliders.
 * `shadows` this setting is used to control the shadows of the image. pulling shadows to 0 means
   shadows will disappear. increasing the shadow value will pull more pixels into the shadows.
-* `highlights` this is similar but for highlights. use it to control the sharpness of your
+* `hilights` this is similar but for highlights. use it to control the sharpness of your
   speculars.
 * `clarity` this controls the amount of local contrast. it can also be used to smooth the image
   if you dial in a negative number.

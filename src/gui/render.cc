@@ -1257,7 +1257,13 @@ inline void draw_widget(int modid, int parid)
         }
         KEYFRAME
         if(param->tooltip && ImGui::IsItemHovered())
-          ImGui::SetTooltip(param->tooltip);
+        {
+          ImGui::BeginTooltip();
+          ImGui::PushTextWrapPos(vkdt.state.panel_wd);
+          ImGui::TextUnformatted(param->tooltip);
+          ImGui::PopTextWrapPos();
+          ImGui::EndTooltip();
+        }
       }
       else if(param->type == dt_token("int"))
       {
