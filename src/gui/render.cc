@@ -1256,6 +1256,8 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.active_module = modid;
         }
         KEYFRAME
+        if(param->tooltip && ImGui::IsItemHovered())
+          ImGui::SetTooltip(param->tooltip);
       }
       else if(param->type == dt_token("int"))
       {
