@@ -158,7 +158,7 @@ define SPV_RULE
 endef
 $(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))
 
-%/ptooltips: %/readme.md Makefile
+@%/ptooltips: %/readme.md Makefile
   # generate tooltips for this module, both for parameters and connectors
 	sed -n '/## parameters/,/## / p' $< | sed -n -e '/^* / p' -e '/^  / p' | tr -d '\n' | sed -e 's/\* `/\n/g' -e 's/` */`/g' -e 's/`/:/g' | sed -e '1d' -e '$$a\' > $@
 	sed -n '/## connectors/,/## / p' $< | sed -n -e '/^* / p' -e '/^  / p' | tr -d '\n' | sed -e 's/\* `/\n/g' -e 's/` */`/g' -e 's/`/:/g' | sed -e '1d' -e '$$a\' > $(patsubst %ptooltips, %ctooltips, $@)
