@@ -34,7 +34,7 @@ targets, such as the main view and histograms.
 
 ## packages
 
-there are up-to-date packages (deb/rpm) in the
+there are up-to-date packages (deb/rpm/pkgbuild) in the
 
 [opensuse build system](https://software.opensuse.org/download.html?project=graphics%3Adarktable%3Amaster&package=vkdt)
 
@@ -91,14 +91,15 @@ and we may link to some others, too.
 * submodule imgui
 * submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp)
 * libjpeg
-* build: make, pkg-config, clang, rsync
+* build: make, pkg-config, clang, rsync, sed
 * build rawspeed: cmake, libomp-dev
 
 optional (configure in `bin/config.mk`):
 
-* freetype (libfreetype-dev) for nicer font rendering
+* freetype (libfreetype-dev libpng16-16) for nicer font rendering
 * exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles
 * asound (libasound2) for audio support in mlv raw video
+* ffmpeg (libavformat-dev libavcodec-dev) for the video input module `i-vid`
 
 you can also build without rawspeed if that is useful for you.
 
