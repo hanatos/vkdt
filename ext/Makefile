@@ -7,7 +7,7 @@ rawspeed: Makefile $(BUILT)/rawspeed/librawspeed.a
 
 $(BUILT)/rawspeed/Makefile: Makefile
 ifeq ($(VKDT_USE_RAWSPEED),0)
-  touch $(BUILT)/rawspeed/Makefile
+	touch $(BUILT)/rawspeed/Makefile
 else
 ifeq ($(RAWSPEED_PACKAGE_BUILD),0)
 	mkdir -p $(BUILT)/rawspeed

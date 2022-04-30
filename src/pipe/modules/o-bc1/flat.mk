@@ -1,2 +1,3 @@
 MOD_LDFLAGS=-lz
-MOD_CFLAGS=-fopenmp
+# actually unused currently:
+#MOD_CFLAGS=-fopenmp
