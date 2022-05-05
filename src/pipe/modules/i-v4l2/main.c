@@ -288,6 +288,7 @@ create_nodes(
       .wd     = module->connector[0].roi.wd,
       .ht     = module->connector[0].roi.ht,
       .dp     = 1,
+      .flags  = s_module_request_read_source,
       .num_connectors = 1,
       .connector = {{
         .name   = dt_token("source"),
@@ -343,6 +344,7 @@ create_nodes(
       .wd     = module->connector[0].roi.wd,
       .ht     = module->connector[0].roi.ht,
       .dp     = 1,
+      .flags  = s_module_request_read_source,
       .num_connectors = 1,
       .connector = {{
         .name   = dt_token("source"),
@@ -394,6 +396,7 @@ create_nodes(
       .wd     = module->connector[0].roi.wd,
       .ht     = module->connector[0].roi.ht,
       .dp     = 1,
+      .flags  = s_module_request_read_source,
       .num_connectors = 1,
       .connector = {{
         .name   = dt_token("source"),
@@ -446,6 +449,7 @@ create_nodes(
       .wd     = module->connector[0].roi.wd,
       .ht     = module->connector[0].roi.ht,
       .dp     = 1,
+      .flags  = s_module_request_read_source,
       .num_connectors = 1,
       .connector = {{
         .name   = dt_token("output"),
