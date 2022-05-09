@@ -1,9 +1,2 @@
-x0:float:1:0.0
-x1:float:1:0.1
-x2:float:1:0.9
-x3:float:1:1.0
-y0:float:1:0.0
-y1:float:1:0.1
-y2:float:1:0.9
-y3:float:1:1.0
-black:float:1:1.0
+scale:float:1:0.3
+shape:float:1:1.2

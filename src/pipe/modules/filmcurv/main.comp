@@ -8,10 +8,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4 x;
-  vec4 y;
-  vec4 m;
-  float black;
+  float scale;
+  float shape;
 } params;
 
 layout( // input f16 buffer rgba
@@ -26,86 +24,25 @@ layout( // output f16 buffer rgba
     set = 1, binding = 2
 ) uniform writeonly image2D img_crv;
 
-// TODO: move to header?
-// cubic hermite for four nodes
 float
-hermite4(float v)
+weibull_cdf(
+    float x,  // input value (0, infty)
+    float lm, // weibull lambda, scale parameter (0, infty)
+    float k)  // weibull k, shape parameter      (0, infty)
 {
-  vec2 x = params.x.xy;
-  vec2 y = params.y.xy;
-  vec2 m = params.m.xy;
-  // linear extension if outside [0,1]
-  if(v < params.x.x)
-    return params.y.x + (v - params.x.x) * params.m.x;
-  if(v > params.x.w)
-    return params.y.w + (v - params.x.w) * params.m.w;
-
-  if(v > params.x.z)
-  {
-    x = params.x.zw;
-    y = params.y.zw;
-    m = params.m.zw;
-  }
-  else if(v > params.x.y)
-  {
-    x = params.x.yz;
-    y = params.y.yz;
-    m = params.m.yz;
-  }
-  float h = x.y - x.x;
-  float t = (v - x.x)/h;
-  float t2 = t * t;
-  float t3 = t * t2;
-  float h00 =  2.0 * t3 - 3.0 * t2 + 1.0;
-  float h10 =  1.0 * t3 - 2.0 * t2 + t;
-  float h01 = -2.0 * t3 + 3.0 * t2;
-  float h11 =  1.0 * t3 - 1.0 * t2;
-  return h00 * y.x + h10 * h * m.x + h01 * y.y + h11 * h * m.y;
+  return 1.0 - exp(-pow(max(x, 1e-10)/lm, k));
 }
 
-// ACEScc as specified in S-2014-003
-float
-acescc(float v)
+float // derivative of cdf:
+weibull_pdf(float x, float lm, float k)
 {
-  if(v <= 0.0)
-    return (log2(.00001526) + 9.72)/17.52;
-  else if(v < .0000305175) // 2^-15
-    return (log2(.00001526 + .5*v) + 9.72)/17.52;
-  else
-    return (log2(v) + 9.72)/17.52;
+  x = max(x, 1e-10);
+  return k/lm * pow(x/lm, k-1.0) * exp(-pow(x/lm, k));
 }
-
-float
-curve(float x)
+vec3 // vector version
+weibull_cdf(vec3 x, float lm, float k)
 {
-  const float black_ev = params.black;
-  const float black = exp2(black_ev);
-  float white = 1.0f+black;
-  float den = log2(white)-black_ev;
-  float y = (log2(x+black)-black_ev)/den;
-  float s = 1.0/(log(2) * den * (black+1.0)); // slope of extension at 1.0
-  y = mix(y, s * (x-1.0) + 1.0, y >= 1.0); // extend past 1.0
-  y = hermite4(y);
-  return y;
-}
-
-vec3
-curve(vec3 rgb)
-{
-  const float black_ev = params.black;
-  const float black = exp2(black_ev);
-  const float white = 1.0f+black;
-  const float den = log2(white)-black_ev;
-  rgb = max(vec3(0.0), rgb); // the log transform blows up for negative values
-  rgb = mix( // positive will be extended if > 1.0:
-      ((log2(rgb+black)-black_ev)/den),
-      1.0/(log(2) * den * (black+1.0)) // slope at 1.0
-      * (rgb - 1.0) + 1.0,
-      greaterThanEqual(rgb, vec3(1.0)));
-  rgb.r = hermite4(rgb.r);
-  rgb.g = hermite4(rgb.g);
-  rgb.b = hermite4(rgb.b);
-  return rgb;
+  return 1.0 - exp(-pow(max(x, 1e-10)/lm, vec3(k)));
 }
 
 void
@@ -114,16 +51,17 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
+  float lm = max(1e-10, params.scale);
+  float k  = max(1e-10, params.shape);
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
 #if 0 // luminance:
   // avoid negative luma due to noise or extreme colour saturation:
   const float l0 = max(luminance_rec2020(rgb), 1e-10);
-  // float l0 = acescc(l1);
   float l1 = curve(l0);
   // colour reconstruction: keep rgb saturation ratio same as before
   vec3 col1 = col0 * l1/l0;
 #else // per channel curve:
-  vec3 col1 = curve(col0);
+  vec3 col1 = weibull_cdf(col0, lm, k);
   col1 = adjust_colour_dng(col0, col1);
 #endif
 
@@ -133,20 +71,15 @@ main()
     float of0 = 0;//0.1; // extend range outside [0,1]?
     float off = of0 * imageSize(img_crv).x;
     float x = ipos.x/float(imageSize(img_crv).x - off);
-    float y = curve(x);
-    float y2 = curve(x+1.0/float(imageSize(img_crv).x));
-    float ddx = abs(y2-y);
+    float y = weibull_cdf(x, lm, k);
+    float ddx = weibull_pdf(x, lm, k);
     const float w = 2.0; // stroke width
-    const float t = w*(1.0 + imageSize(img_crv).x*ddx);
-
+    float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
     float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_crv).y - ipos.y);
     col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
     imageStore(img_crv, ipos, col_crv);
   }
 
-  // want to see why 8-bit output sucks? try this:
-  // float l1 = hermite4(ipos.x / float(imageSize(img_out).x));
-  // rgba.rgb = vec3(l1);
   imageStore(img_out, ipos, vec4(col1, 1));
 }
 

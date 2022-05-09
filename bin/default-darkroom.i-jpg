@@ -20,15 +20,6 @@ connect:llap:01:output:hist:01:input
 connect:hist:01:output:display:hist:input
 param:colour:01:exposure:0
 param:colour:01:matrix:1
-param:filmcurv:01:x0:0
-param:filmcurv:01:x1:0.1
-param:filmcurv:01:x2:0.9
-param:filmcurv:01:x3:1
-param:filmcurv:01:y0:0
-param:filmcurv:01:y1:0.05
-param:filmcurv:01:y2:0.92
-param:filmcurv:01:y3:1
-param:filmcurv:01:black:-2.5
 param:llap:01:sigma:0.12
 param:llap:01:shadows:1
 param:llap:01:hilights:1
