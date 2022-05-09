@@ -281,8 +281,8 @@ VkResult dt_gui_render()
 {
   VkSemaphore image_acquired_semaphore  = vkdt.sem_image_acquired [vkdt.sem_index];
   VkSemaphore render_complete_semaphore = vkdt.sem_render_complete[vkdt.sem_index];
-  // timeout is in nanoseconds
-  QVKR(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 1ul<<20, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index));
+  // timeout is in nanoseconds (these are ~2sec)
+  QVKR(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index));
 
   const int i = vkdt.frame_index;
   QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
