@@ -60,8 +60,6 @@ main()
   vec3 col1 = weibull_cdf(col0, lm, k);
 #if 1 // colour using aurelien's patented ucs:
   if(ipos.x > imageSize(img_out).x*0.66) {
-    // convert to xyz
-    // completely ignore E/D65
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
         -0.3556707838, 1.6164812366, -0.0427706133, 
