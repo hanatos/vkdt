@@ -1,10 +1,12 @@
-/** The following is darktable Uniform Color Space 2022
+/* The following is darktable Uniform Color Space 2022
  * © Aurélien Pierre
  * https://eng.aurelienpierre.com/2022/02/color-saturation-control-for-the-21th-century/
  *
  * Use this space for color-grading in a perceptual framework.
  * The CAM terms have been removed for performance.
- **/
+ *
+ * stolen from darktable, GPLv3
+ */
 
 float Y_to_dt_UCS_L_star(const float Y)
 { // WARNING: L_star needs to be < 2.098883786377, meaning Y needs to be < 3.875766378407574e+19

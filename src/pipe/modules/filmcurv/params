@@ -1,2 +1,2 @@
-scale:float:1:0.3
-shape:float:1:1.2
+light:float:1:3
+contrast:float:1:1.2

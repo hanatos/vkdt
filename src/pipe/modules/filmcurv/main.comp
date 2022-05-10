@@ -11,8 +11,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float scale;
-  float shape;
+  float brightness;
+  float contrast;
 } params;
 
 layout( // input f16 buffer rgba
@@ -30,22 +30,22 @@ layout( // output f16 buffer rgba
 float
 weibull_cdf(
     float x,  // input value (0, infty)
-    float lm, // weibull lambda, scale parameter (0, infty)
-    float k)  // weibull k, shape parameter      (0, infty)
+    float il, // weibull 1.0/lambda, scale parameter (0, infty)
+    float k)  // weibull k, shape parameter          (0, infty)
 {
-  return 1.0 - exp(-pow(max(x, 1e-10)/lm, k));
+  return 1.0 - exp(-pow(max(x, 1e-7)*il, k));
 }
 
 float // derivative of cdf:
-weibull_pdf(float x, float lm, float k)
+weibull_pdf(float x, float il, float k)
 {
-  x = max(x, 1e-10);
-  return k/lm * pow(x/lm, k-1.0) * exp(-pow(x/lm, k));
+  x = max(x, 1e-7);
+  return k*il * pow(x*il, k-1.0) * exp(-pow(x*il, k));
 }
 vec3 // vector version
-weibull_cdf(vec3 x, float lm, float k)
+weibull_cdf(vec3 x, float il, float k)
 {
-  return 1.0 - exp(-pow(max(x, 1e-10)/lm, vec3(k)));
+  return 1.0 - exp(-pow(max(x, 1e-7)*il, vec3(k)));
 }
 
 void
@@ -54,12 +54,14 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  float lm = max(1e-6, params.scale);
-  float k  = max(1e-6, params.shape);
+  float il = max(5e-3, params.brightness);
+  float k  = max(1e-5, params.contrast);
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
-  vec3 col1 = weibull_cdf(col0, lm, k);
+  vec3 col1 = weibull_cdf(col0, il, k);
 #if 1 // colour using aurelien's patented ucs:
-  if(ipos.x > imageSize(img_out).x*0.66) {
+  // if(ipos.x > imageSize(img_out).x*0.66) {
+  if(dot(vec3(1),col0) > 1e-3)
+  {
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
         -0.3556707838, 1.6164812366, -0.0427706133, 
@@ -75,6 +77,8 @@ main()
     xyY1 = dt_UCS_JCH_to_xyY(dt_UCS_HCB_to_JCH(hcb1), L_white);
     xyz1 = vec3(xyY1.xy, 1.0-xyY1.x-xyY1.y) * xyz1.y / xyY1.y;
     col1 = xyz_to_rec2020 * xyz1;
+  }
+#elif 0
   }
   else if(ipos.x > imageSize(img_out).x*0.33)
   {
@@ -108,8 +112,8 @@ main()
     float of0 = 0;//0.1; // extend range outside [0,1]?
     float off = of0 * imageSize(img_crv).x;
     float x = ipos.x/float(imageSize(img_crv).x - off);
-    float y = weibull_cdf(x, lm, k);
-    float ddx = weibull_pdf(x, lm, k);
+    float y = weibull_cdf(x, il, k);
+    float ddx = weibull_pdf(x, il, k);
     const float w = 2.0; // stroke width
     float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
     float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_crv).y - ipos.y);
