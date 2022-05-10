@@ -251,7 +251,7 @@ out:;
 
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init()
+qvk_init(const char *preferred_device_name)
 {
   threads_mutex_init(&qvk.queue_mutex, 0);
   /* layers */
@@ -389,15 +389,17 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-    // vendor ids are: nvidia 0x10de, intel 0x8086
-    if(picked_device < 0 || dev_properties.vendorID == 0x10de)
-    {
+    if((preferred_device_name && !strcmp(preferred_device_name, dev_properties.deviceName)) ||
+       (picked_device < 0 || dev_properties.vendorID == 0x10de))
+    { // vendor ids are: nvidia 0x10de, intel 0x8086
       qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
       qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
       for(int k=0;k<num_ext;k++)
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
           qvk.raytracing_supported = 1;
       picked_device = i;
+      if(preferred_device_name)
+        dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);
     }
   }
 

@@ -103,7 +103,9 @@ int dt_gui_init()
   for(int i = 0; i < qvk.num_glfw_extensions; i++)
     dt_log(s_log_gui, "  %s", qvk.glfw_extensions[i]);
 
-  if(qvk_init())
+  const char *gpu_name = dt_rc_get(&vkdt.rc, "qvk/device_name", "null");
+  if(!strcmp(gpu_name, "null")) gpu_name = 0;
+  if(qvk_init(gpu_name))
   {
     dt_log(s_log_err|s_log_gui, "init vulkan failed");
     return 1;
