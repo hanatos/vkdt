@@ -74,7 +74,8 @@ munsell_from_xy(const vec2 xy)
   const vec2 illC = vec2(0.31006,	0.31616);
   const float theta = xy_to_monotone_hue_angle(xy);
   const float rad2  = dot(xy-illC,xy-illC);
-  while(true)
+  // while(true)
+  for(int i=0;i<6;i++)
   { // quad tree refinement step using midpoint
     int hidx = (hidxm + hidxM)/2;
     int cidx = (cidxm + cidxM)/2;
@@ -93,7 +94,8 @@ munsell_from_xy(const vec2 xy)
   // unfortunately the quad tree is just very approximate, so maybe
   // we'll be outside the quad. in this case, we'll walk the grid
   // a bit until we find a containing quad.
-  while(true)
+  // while(true)
+  for(int i=0;i<6;i++)
   {
     vec2 res0, res1, res2, res3;
     // this polygon winds ccw:
