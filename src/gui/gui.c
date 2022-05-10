@@ -184,6 +184,25 @@ int dt_gui_init()
   };
   QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &vkdt.descriptor_pool));
 
+  // joystick detection:
+  vkdt.wstate.have_joystick = glfwJoystickPresent(GLFW_JOYSTICK_1);
+  if(vkdt.wstate.have_joystick)
+  {
+    const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
+    dt_log(s_log_gui, "found joystick %s", name);
+    const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 0);
+    if(disable)
+    {
+      vkdt.wstate.have_joystick = 0;
+      dt_log(s_log_gui, "disabling joystick due to explicit config request");
+    }
+    else
+    {
+      vkdt.wstate.have_joystick = 1;
+    }
+  }
+  else dt_log(s_log_gui, "no joysticks found");
+
   dt_gui_init_imgui();
 
   dt_snd_init(&vkdt.snd, 44100, 2);

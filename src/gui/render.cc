@@ -272,7 +272,8 @@ extern "C" int dt_gui_init_imgui()
   ImGuiIO& io = ImGui::GetIO(); (void)io;
   // this works and looks really cool and useful (but collides with my own keys):
   // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
+  if(vkdt.wstate.have_joystick)
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos; //  | ImGuiBackendFlags_HasSetMousePos;
 
   // Setup Dear ImGui style
