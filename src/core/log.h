@@ -32,7 +32,8 @@ extern dt_log_t dt_log_global;
 
 // this can be done to parse "-d level" from
 // the command line to add more verbose output
-static inline void
+// returns the index to the last argument that has been used here.
+static inline int
 dt_log_init_arg(int argc, char *argv[])
 {
   const char *id[] = {
@@ -50,11 +51,12 @@ dt_log_init_arg(int argc, char *argv[])
   };
   int num = sizeof(id)/sizeof(id[0]);
   uint64_t verbose = s_log_err; // error only by default
+  int lastarg = 0; // will return the last index we used
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-d") && i < argc-1)
     {
-      i++;
+      lastarg = ++i;
       for(int j=0;j<num;j++)
       {
         if(!strcmp(argv[i], id[j]))
@@ -69,6 +71,7 @@ dt_log_init_arg(int argc, char *argv[])
   // user parameters add to the mask:
   dt_log_global.mask |= verbose;
   if(verbose == 0ul) dt_log_global.mask = verbose;
+  return lastarg;
 }
 
 // call this first once

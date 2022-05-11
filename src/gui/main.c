@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
   }
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui|s_log_pipe);
-  dt_log_init_arg(argc, argv);
+  int lastarg = dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
   threads_global_init();
   dt_set_signal_handlers();
@@ -212,8 +212,8 @@ int main(int argc, char *argv[])
   char *filename = 0;
   char defpath[1024];
   snprintf(defpath, sizeof(defpath), "%s/Pictures", getenv("HOME"));
-  if(argc > 1) filename = realpath(argv[argc-1], 0);
-  else         filename = realpath(defpath, 0);
+  if(argc > lastarg+1) filename = realpath(argv[lastarg+1], 0);
+  else                 filename = realpath(defpath, 0);
   if(dt_gui_init())
   {
     dt_log(s_log_gui|s_log_err, "failed to init gui/swapchain");
