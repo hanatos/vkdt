@@ -6,21 +6,10 @@
 #include <stdlib.h>
 #include <limits.h>
 
-typedef struct header_t
-{
-  uint32_t magic;
-  uint16_t version;
-  uint8_t  channels;
-  uint8_t  datatype;
-  uint32_t wd;
-  uint32_t ht;
-}
-header_t;
-
 typedef struct lutinput_buf_t
 {
   char filename[PATH_MAX];
-  header_t header;
+  dt_lut_header_t header;
   size_t data_begin;
   FILE *f;
 }
