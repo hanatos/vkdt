@@ -192,11 +192,12 @@ int dt_gui_init()
   {
     const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
     dt_log(s_log_gui, "found joystick %s", name);
-    const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 0);
+    const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
     if(disable)
     {
       vkdt.wstate.have_joystick = 0;
-      dt_log(s_log_gui, "disabling joystick due to explicit config request");
+      dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
+      dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
     }
     else
     {
