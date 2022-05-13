@@ -10,6 +10,7 @@
 */
 
 #include <string.h>
+#include <strings.h>
 
 static int dt_dcraw_adobe_coeff(const char *name, float cam_xyz[1][12])
 {

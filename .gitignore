@@ -2,6 +2,8 @@
 src/pipe/doc/readme.html
 *.o
 *.a
+*ctooltips
+*ptooltips
 built/
 src/vkdt
 src/vkdt-cli

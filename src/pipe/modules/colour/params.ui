@@ -1,9 +1,11 @@
 exposure:slider:-5:5
 mode:combo:parametric:data driven
-matrix:combo:rec2020:image:XYZ
+matrix:combo:rec2020:image:XYZ:clut
 gamut:combo:no correction:limit to spectral locus:limit to rec2020:limit to rec709
 white:rgb:0:1
 mat:hidden
 group:mode:1
 cnt:slider:2:20
 rbmap:rbmap:cnt
+group:matrix:3
+temp:slider:2856:6500

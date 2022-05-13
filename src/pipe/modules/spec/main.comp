@@ -101,7 +101,7 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   // convert camera rgb to xyz:
-  if(ipos.x < params.split * imageSize(img_out).x)
+  if(false)//ipos.x < params.split * imageSize(img_out).x)
   { // matrix
     float b = rgb.r+rgb.g+rgb.b;
     rgb = params.cam_to_rec2020 * rgb;
@@ -112,15 +112,16 @@ main()
     float b = rgb.r+rgb.g+rgb.b;
     vec2 tc = rgb.rb/b;
     tri2quad(tc);
-    vec2 rb = texture(img_chroma, tc).rg;
+    vec4 rbrb = texture(img_chroma, tc);
+    vec2 rb = mix(rbrb.xy, rbrb.zw, params.split);
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
     rgb *= b / (rgb.r+rgb.g+rgb.b); // see above.
   }
 
   // apply exposure correction
-  rgb *= pow(2.0, params.white.w);
+  rgb *= params.white.w;
 
-  if(ipos.x < params.split * imageSize(img_out).x)
+  if(false)//ipos.x < params.split * imageSize(img_out).x)
   { // comparison to rgb 3x3 base line
 #if 0 // oklab
     // convert linear rec2020 to linear rec709
@@ -272,6 +273,7 @@ main()
       if(params.sat > 1.0) // only limit artificially increased saturation:
         m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
       sl.x = m;
+      if(sl.x > bound) sl.x = bound; // clip to gamut
     }
     else sl.x = clamp(m, 0.0, (size.x-2.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
     // use lambda/sat lut to get new xy chroma values

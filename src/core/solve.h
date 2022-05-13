@@ -103,20 +103,34 @@ dt_gauss_newton_cg(
     const int     num_it, // number of iterations
     void         *data)
 {
+  double *bp = alloca(sizeof(double)*m);   // best p seen so far
   double *f = alloca(sizeof(double)*n);
   double *J = alloca(sizeof(double)*n*m);
   double resid = 0.0;
+  double best = DBL_MAX;
   for(int it=0;it<num_it;it++)
   {
     f_callback(p, f, m, n, data);
     J_callback(p, J, m, n, data);
+    if(f[0] < best)
+    {
+      best = f[0];
+      memcpy(bp, p, sizeof(double)*m);
+    }
     resid = dt_gauss_newton_cg_step(m, p, n, f, J, t);
     // if(resid <= 0.0) return resid;
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
-    // fprintf(stderr, "[solve] residual %g\n", resid);
+    fprintf(stderr, "[solve %d/%d] gauss: loss %g\r", it, num_it, f[0]);
     if(resid < 1e-30) return resid;
   }
+#if 1
+  if(best < f[0])
+  {
+    memcpy(p, bp, sizeof(double)*m);
+    return best;
+  }
+#endif
   return resid;
 }
 
@@ -147,6 +161,8 @@ dt_adam(
   memset(mt, 0, sizeof(double)*m*n);
   assert(n == 1); // this only works for a single loss value
 
+  // int bad = 0;
+
   for(int it=1;it<num_it+1;it++)
   {
     f_callback(p, f, m, n, data);
@@ -156,6 +172,12 @@ dt_adam(
       best = f[0];
       memcpy(bp, p, sizeof(double)*m);
     }
+#if 0
+    else if(bad++ > 200)
+    {
+      memcpy(p, bp, sizeof(double)*m);
+    }
+#endif
     double sumJ2 = 0.0;
     for(int k=0;k<n*m;k++) sumJ2 += J[k]*J[k];
     vt = beta2 * vt + (1.0-beta2) * sumJ2;
@@ -171,17 +193,19 @@ dt_adam(
       p[k] -= mt[k]*corr_m * alpha / (corr_v + eps);
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
+
     // for(int i=0;i<m;i++) p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
-    // fprintf(stderr, "[solve] adam: p: ");
+    // fprintf(stderr, "\n[solve] adam: p: ");
     // for(int i=0;i<m;i++) fprintf(stderr, "%g\t", p[i]);
     // fprintf(stderr, "\n");
     // fprintf(stderr, "[solve] adam: m: ");
     // for(int i=0;i<m;i++) fprintf(stderr, "%g ", mt[i]);
     // fprintf(stderr, "\n");
-    fprintf(stderr, "[solve %d/%d] adam: loss %g %a best %g\n", it, num_it, f[0], f[0], best);
+    fprintf(stderr, "[solve %d/%d] adam: loss %g best %g\r", it, num_it, f[0], best);
     // if(f[0] <= 0.0) return f[0];
     if(abort && *abort) break;
   }
+  fprintf(stderr, "\n");
 #if 1 // for stochastic gradient descent this is questionable. may only return whatever happened to be good for the subset seen at the time:
   if(best < f[0])
   {

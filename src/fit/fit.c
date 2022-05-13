@@ -285,13 +285,16 @@ int main(int argc, char *argv[])
   for(int i=1;i<dat.param_cnt;i++) num_params += dat.cnt[i];
   int num_target = dat.cnt[0];
 
+  if(adam_alpha > 0.0)
+    dat.cnt[0] = num_target = 1; // adam supports only a single scalar loss value
+
   double p[num_params], t[num_target];
   double *pp = p; // set initial parameters
   for(int i=1;i<dat.param_cnt;i++)
     for(int j=0;j<dat.cnt[i];j++)
       *(pp++) = dat.par[i][j];
   pp = t; // also set target from cfg file
-  for(int j=0;j<dat.cnt[0];j++)
+  for(int j=0;j<num_target;j++)
     *(pp++) = dat.par[0][j];
 
   signal(SIGINT, print_state); // ctrl-c
