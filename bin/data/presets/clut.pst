@@ -1,0 +1,7 @@
+# preset to use an input colour lookup table which has been generated
+# by vkdt-mkclut from spectral sensitivity curves. assumes the standard
+# `colour` module is on the graph.
+module:i-lut:clut
+connect:i-lut:clut:output:colour:01:clut
+param:colour:01:matrix:3
+param:i-lut:clut:filename:data/${model}.lut
