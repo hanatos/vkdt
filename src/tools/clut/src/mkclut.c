@@ -86,13 +86,15 @@ create_chroma_lut(
     const float           *spectra,          // sigmoid upsampling table
     const dt_lut_header_t *sh,               // lut header for spectra
     const double         (*cfa_spec)[4],     // tabulated cfa spectra
-    const int              cfa_spec_cnt)
+    const int              cfa_spec_cnt,
+    const double         (*cie_spec)[4],     // tabulated cie observer
+    const int              cie_spec_cnt)
 {
   // to avoid interpolation artifacts we only want to place straight pixel
   // center values of our spectra.lut in the output:
   int swd = sh->wd, sht = sh->ht; // sampling dimensions
   int wd  = swd, ht = sht; // output dimensions
-  float *buf = calloc(sizeof(float)*2, wd*ht+1);
+  float *buf = calloc(sizeof(float)*3, wd*ht+1);
 
   // do two passes over the data
   // get illum E white point (lowest saturation) in camera rgb and quad param:
@@ -101,8 +103,15 @@ create_chroma_lut(
     spectrum_integrate(cfa_spec, 0, cfa_spec_cnt, wcf, 3),
     spectrum_integrate(cfa_spec, 1, cfa_spec_cnt, wcf, 3),
     spectrum_integrate(cfa_spec, 2, cfa_spec_cnt, wcf, 3)};
-  normalise1(white_cam_rgb);
+  const double white_cam_rgb_L1 = normalise1(white_cam_rgb);
   tri2quad(white_cam_rgb, white_cam_rgb+2);
+  double xyz_spec[3] = {0.0};
+  for(int k=0;k<3;k++)
+    xyz_spec[k] = spectrum_integrate(cie_spec, k, cie_spec_cnt, wcf, 3);
+  double rec2020[3];
+  mat3_mulv(xyz_to_rec2020, xyz_spec, rec2020);
+  const double white_rec2020_L1 = normalise1(rec2020);
+  const double ref_L = white_cam_rgb_L1 / white_rec2020_L1;
 
   // first pass: get rough idea about max deviation from white and the saturation we got there
   double *angular_ds = calloc(sizeof(double), 360*2);
@@ -140,7 +149,6 @@ create_chroma_lut(
   {
     double xy[2] = {(i+0.5)/swd, (j+0.5)/sht};
     quad2tri(xy+0, xy+1);
-    const double xyz[3] = {xy[0], xy[1], 1.0-xy[0]-xy[1]};
 
     double cf[3]; // look up the coeffs for the sampled colour spectrum
     fetch_coeff(xy, spectra, sh->wd, sh->ht, cf); // interpolate
@@ -150,7 +158,13 @@ create_chroma_lut(
     double cam_rgb_spec[3] = {0.0}; // camera rgb by processing spectrum * cfa spectrum
     for(int k=0;k<3;k++)
       cam_rgb_spec[k] = spectrum_integrate(cfa_spec, k, cfa_spec_cnt, cf, 3);
-    normalise1(cam_rgb_spec);
+    const double cam_rgb_L1 = normalise1(cam_rgb_spec);
+    double xyz_spec[3] = {0.0}; // camera rgb by processing spectrum * cfa spectrum
+    for(int k=0;k<3;k++)
+      xyz_spec[k] = spectrum_integrate(cie_spec, k, cie_spec_cnt, cf, 3);
+    double rec2020[3];
+    mat3_mulv(xyz_to_rec2020, xyz_spec, rec2020);
+    const double rec2020_L1 = normalise1(rec2020) * ref_L;
 
     float fxy[] = {xy[0], xy[1]}, white[2] = {1.0f/3.0f, 1.0f/3.0f};
     float sat = dt_spectrum_saturation(fxy, white);
@@ -171,12 +185,10 @@ create_chroma_lut(
     // sort this into rb/sum(rgb) map in camera rgb
     int ii = CLAMP(u0 * wd + 0.5, 0, wd-1);
     int jj = CLAMP(u1 * ht + 0.5, 0, ht-1);
-    double rec2020[3];
-    mat3_mulv(xyz_to_rec2020, xyz, rec2020);
-    normalise1(rec2020);
 
-    buf[2*(jj*wd + ii)+0] = rec2020[0];
-    buf[2*(jj*wd + ii)+1] = rec2020[2];
+    buf[3*(jj*wd + ii)+0] = rec2020[0];
+    buf[3*(jj*wd + ii)+1] = rec2020[2];
+    buf[3*(jj*wd + ii)+2] = rec2020_L1 / cam_rgb_L1;
   }
   free(angular_ds);
 
@@ -200,30 +212,32 @@ write_chroma_lut(
   fprintf(f, "PF\n%d %d\n-1.0\n", wd, ht);
   for(int k=0;k<wd*ht;k++)
   {
-    float col[3] = {buf0[2*k], buf0[2*k+1], 1.0-buf0[2*k]-buf0[2*k+1]};
+    float col[3] = {buf0[3*k], buf0[3*k+1], 1.0-buf0[3*k]-buf0[3*k+1]};
     fwrite(col, sizeof(float), 3, f);
   }
   fclose(f);
   dt_lut_header_t hout = {
     .magic    = dt_lut_header_magic,
     .version  = dt_lut_header_version,
-    .channels = 4,
+    .channels = 2,
     .datatype = dt_lut_header_f16,
-    .wd       = wd,
+    .wd       = 3*wd,
     .ht       = ht,
   };
   snprintf(filename, sizeof(filename), "%s.lut", basename);
   f = fopen(filename, "wb");
   fwrite(&hout, sizeof(hout), 1, f);
-  uint16_t *b16 = calloc(sizeof(uint16_t), wd*ht*4);
-  for(int k=0;k<wd*ht;k++)
+  uint16_t *b16 = calloc(sizeof(uint16_t), wd*ht*6);
+  for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
   {
-    b16[4*k+0] = float_to_half(buf0[2*k+0]);
-    b16[4*k+1] = float_to_half(buf0[2*k+1]);
-    b16[4*k+2] = float_to_half(buf1[2*k+0]);
-    b16[4*k+3] = float_to_half(buf1[2*k+1]);
+    b16[2*(3*wd*j+i)+0]      = float_to_half(buf0[3*(wd*j+i)+0]);
+    b16[2*(3*wd*j+i)+1]      = float_to_half(buf0[3*(wd*j+i)+1]);
+    b16[2*(3*wd*j+i+wd)+0]   = float_to_half(buf0[3*(wd*j+i)+2]);
+    b16[2*(3*wd*j+i+wd)+1]   = float_to_half(buf1[3*(wd*j+i)+2]);
+    b16[2*(3*wd*j+i+2*wd)+0] = float_to_half(buf1[3*(wd*j+i)+0]);
+    b16[2*(3*wd*j+i+2*wd)+1] = float_to_half(buf1[3*(wd*j+i)+1]);
   }
-  fwrite(b16, sizeof(uint16_t), wd*ht*4, f);
+  fwrite(b16, sizeof(uint16_t), wd*ht*6, f);
   fclose(f);
   free(b16);
 }
@@ -255,30 +269,44 @@ int main(int argc, char *argv[])
   if(!sp_buf) exit(1);
 
   double cfa_spec[100][4];
+  double cie_spec[100][4];
 
   int clut_wd, clut_ht;
   float *clut0, *clut1;
   for(int ill=0;ill<2;ill++)
   {
     int cfa_spec_cnt = spectrum_load(model, cfa_spec);
-    if(!cfa_spec_cnt) exit(2);
+    int cie_spec_cnt = spectrum_load("data/cie_observer", cie_spec);
+    if(!cfa_spec_cnt || !cie_spec_cnt)
+    {
+      fprintf(stderr, "[mkclut] could not open %s.txt or data/cie_observer.txt!\n", model);
+      exit(2);
+    }
     double illum_spec[1000][4];
     int illum_cnt = spectrum_load(ill ? illum_file1 : illum_file0, illum_spec);
-    if(!illum_cnt) exit(3);
+    if(!illum_cnt) 
+    {
+      fprintf(stderr, "[mkclut] could not open illumination spectrum %s!\n", ill ? illum_file1 : illum_file0);
+      exit(3);
+    }
     spectrum_wb(cfa_spec_cnt, illum_cnt, cfa_spec, illum_spec);
+    // we explicitly *do not* want to white balance the reference here, so we can have spectral wb along
+    // the temperature line from A -- D65.
 
     float **clut = (ill ? &clut1 : &clut0);
     *clut = create_chroma_lut(
         &clut_wd, &clut_ht,
         sp_buf, &sp_header,
         cfa_spec,
-        cfa_spec_cnt);
+        cfa_spec_cnt,
+        cie_spec,
+        cie_spec_cnt);
 
     dt_inpaint_buf_t inpaint_buf = {
       .dat = (ill ? clut1 : clut0),
       .wd  = clut_wd,
       .ht  = clut_ht,
-      .cpp = 2,
+      .cpp = 3,
     };
     dt_inpaint(&inpaint_buf);
   }

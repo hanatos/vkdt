@@ -6,7 +6,7 @@ static inline double
 normalise1(double *col)
 {
   const double b = col[0] + col[1] + col[2];
-  if(fabs(b) < 1e-8) return 0.0;
+  if(fabs(b) < 1e-8) return b;
   for(int k=0;k<3;k++) col[k] /= b;
   return b;
 }

@@ -69,10 +69,13 @@ main()
     float b = rgb.r+rgb.g+rgb.b;
     vec2 tc = rgb.rb/b;
     tri2quad(tc);
-    vec4 rbrb = texture(img_clut, tc);
+    tc.x /= 3.0;
+    vec4 rbrb = vec4(texture(img_clut, tc).xy, texture(img_clut, tc+vec2(2.0/3.0, 0.0)).xy);
+    vec2 L2 = texture(img_clut, tc + vec2(1.0/3.0, 0.0)).xy;
+    float L = mix(L2.x, L2.y, params.temp);
     vec2 rb = mix(rbrb.xy, rbrb.zw, params.temp);
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
-    rgb *= b / dot(rgb, vec3(1));
+    rgb *= L * b;
 
     rgb *= params.mul.rgb; // post-mul whitebalance correction
   }
