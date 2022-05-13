@@ -5,7 +5,7 @@
  * Use this space for color-grading in a perceptual framework.
  * The CAM terms have been removed for performance.
  *
- * stolen from darktable, GPLv3
+ * stolen from darktable, MIT licence
  */
 
 float Y_to_dt_UCS_L_star(const float Y)
