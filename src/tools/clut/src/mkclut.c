@@ -270,6 +270,8 @@ int main(int argc, char *argv[])
 
   double cfa_spec[100][4];
   double cie_spec[100][4];
+  double d65_spec[1000][4];
+  int d65_cnt = spectrum_load("data/cie_d65", d65_spec);
 
   int clut_wd, clut_ht;
   float *clut0, *clut1;
@@ -290,8 +292,13 @@ int main(int argc, char *argv[])
       exit(3);
     }
     spectrum_wb(cfa_spec_cnt, illum_cnt, cfa_spec, illum_spec);
-    // we explicitly *do not* want to white balance the reference here, so we can have spectral wb along
-    // the temperature line from A -- D65.
+    // white balancing is complicated. looking at constant 100% white albedo
+    // under D65 (or A) illuminant, we want that to turn out as (1,1,1) in rec2020
+    // later, so the chromaticity coordinate in cie XYZ should be the D65 white.
+    // consider a unit test case where cfa=cie. cfa * D65 * 100% = xyD65 and this
+    // should be mapped to the same in the reference (i.e. the lut should not move
+    // anything). this only works if we also apply D65 when computing the reference:
+    spectrum_wb(cie_spec_cnt, d65_cnt, cie_spec, d65_spec);
 
     float **clut = (ill ? &clut1 : &clut0);
     *clut = create_chroma_lut(
