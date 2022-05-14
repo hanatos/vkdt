@@ -1,6 +1,6 @@
 // construct pca basis from a few measured camera cfa sensitivity functions
 // TODO: for non-negativity, try x=log(x) as a first step and then expand after
-#include "spectrum.h"
+#include "../src/spectrum.h"
 #include "svd.h"
 #include <assert.h>
 
@@ -8,18 +8,18 @@ int main(int argc, char *argv[])
 {
   // all 380..780 5nm we have:
   const char *spectrum_filename[] = {
-    "cie_observer",
-    "Arri_D21",
-    "Canon_EOS_5D_Mark_II",
-    "Canon_PowerShot_S90",
-    "Canon_XTi",
-    "Nikon_D200",
-    "Nikon_D5100",
-    "Nikon_D7000",
-    "Nikon_D700",
-    "Nikon_D70",
-    "Sony_ILCE-7RM2",
-    "Sony_ILCE-7SM2",
+    "../data/cie_observer",
+    "../data/Arri_D21",
+    "../data/Canon_EOS_5D_Mark_II",
+    "../data/Canon_PowerShot_S90",
+    "../data/Canon_XTi",
+    "../data/Nikon_D200",
+    "../data/Nikon_D5100",
+    "../data/Nikon_D7000",
+    "../data/Nikon_D700",
+    "../data/Nikon_D70",
+    "../data/Sony_ILCE-7RM2",
+    "../data/Sony_ILCE-7SM2",
   };
   const int cnt = sizeof(spectrum_filename)/sizeof(spectrum_filename[0]);
   assert(cnt == 12);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     exit(1);
 #endif
     // write out header for parametric model: first couple of vectors + s
-    const int maxd = 10;
+    const int maxd = 36;
     fprintf(f, "static const double cfa_evec_%s[%d][%d] = {{\n", channel[c], maxd, 81);
     for(int k=0;k<maxd;k++)
     {
