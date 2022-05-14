@@ -263,6 +263,7 @@ dng_process(
   // matrix mul xyz = cam_to_xyzd50 * cam_rgb
   mat3_mulv(cam_to_xyzd50, cam_rgb, xyz);
 
+  return; // XXX
   if(!p->hsm) return; // no hsv lut in this dng profile
   // hsv map dance:
   double rgb[3], hsv[3];
