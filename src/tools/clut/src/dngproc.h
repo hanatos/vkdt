@@ -3,6 +3,10 @@
 #pragma once
 
 #include "matrices.h"
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 // holds whatever we need to do the transform.
 // these values can be directly filled by exif data.
@@ -263,7 +267,6 @@ dng_process(
   // matrix mul xyz = cam_to_xyzd50 * cam_rgb
   mat3_mulv(cam_to_xyzd50, cam_rgb, xyz);
 
-  return; // XXX
   if(!p->hsm) return; // no hsv lut in this dng profile
   // hsv map dance:
   double rgb[3], hsv[3];
@@ -281,7 +284,12 @@ dng_process(
   if(hsv[1] > 1.0f) hsv[1] = 1.0f;
   // multiply value scale and clamp
   hsv[2] *= hsvmap[2];
-  if(hsv[2] > 1.0f) hsv[2] = 1.0f;
+  // this is in the spec but breaks highlights.
+  // i'm not sure how this should be clipped/scaled before, so i just don't.
+  // this is potentially a big problem because if the profile depends on V,
+  // a wrong scale will shift it in weird directions. i have yet to see
+  // one of these profiles though.
+  // if(hsv[2] > 1.0f) hsv[2] = 1.0f;
   // convert to rgb
   hsv_to_rgb(hsv, rgb);
   // convert to xyz

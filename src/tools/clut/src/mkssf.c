@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
   const char *model    = 0;
   const char *pick_a   = 0;
   const char *pick_d65 = 0;
-  int optimiser = 0;
+  int optimiser = 2; // default adam
   // const char *illuf = 0;
   for(int k=1;k<argc;k++)
   {
