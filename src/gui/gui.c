@@ -462,6 +462,23 @@ void dt_gui_switch_collection(const char *dir)
   dt_db_init(&vkdt.db);
   dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
   dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
+
+  // update recently used collection list:
+  int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
+  char entry[512], saved[2][1018];
+  int32_t j=0;
+  snprintf(saved[1], sizeof(saved[1]), "%s", vkdt.db.dirname);
+  for(int32_t i=0;i<=num;i++)
+  { // compact the list by deleting all duplicate entries
+    snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", i);
+    const char *read_dir = i == num ? 0 : dt_rc_get(&vkdt.rc, entry, "null");
+    if(read_dir && strcmp(read_dir, vkdt.db.dirname)) snprintf(saved[i&1], sizeof(saved[i&1]), "%s", read_dir); // take a copy
+    else saved[i&1][0] = 0;
+    snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", j);
+    if(saved[(i+1)&1][0]) { dt_rc_set(&vkdt.rc, entry, saved[(i+1)&1]); j++; }
+    saved[(i+1)&1][0] = 0;
+  }
+  dt_rc_set_int(&vkdt.rc, "gui/ruc_num", j);
 }
 
 void dt_gui_notification(const char *msg, ...)

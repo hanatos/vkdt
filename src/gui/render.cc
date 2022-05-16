@@ -726,6 +726,20 @@ dont_update_time:;
     ImGui::Unindent();
   } // end collapsing header "recent tags"
 
+  if(ImGui::CollapsingHeader("recent collections"))
+  { // recently used collections in ringbuffer:
+    int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
+    for(int i=0;i<num;i++)
+    {
+      char entry[512];
+      snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", i);
+      const char *dir = dt_rc_get(&vkdt.rc, entry, "null");
+      if(strcmp(dir, "null"))
+        if(ImGui::Button(dir, size))
+          dt_gui_switch_collection(dir);
+    }
+  } // end collapsing header "recent collections"
+
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("selected images"))
   {
     ImGui::Indent();
