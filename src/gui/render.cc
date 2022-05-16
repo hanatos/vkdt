@@ -672,7 +672,11 @@ dont_update_time:;
     }
 
     if(ImGui::Button("open directory", size))
+    {
+      const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
+      if(strcmp(mru, "null")) snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", mru);
       dt_filebrowser_open(&filebrowser);
+    }
 
     if(dt_filebrowser_display(&filebrowser, 'd'))
     { // "ok" pressed
@@ -735,7 +739,7 @@ dont_update_time:;
       snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", i);
       const char *dir = dt_rc_get(&vkdt.rc, entry, "null");
       if(strcmp(dir, "null"))
-        if(ImGui::Button(dir, size))
+        if(ImGui::Button(dir))
           dt_gui_switch_collection(dir);
     }
   } // end collapsing header "recent collections"
