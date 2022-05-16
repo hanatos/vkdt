@@ -33,8 +33,8 @@ spectrum_load(
 {
   char filename[256];
   snprintf(filename, sizeof(filename), "%s.txt", model);
-  int len = strlen(filename), cfa_spec_cnt = 0;
-  for(int i=0;i<len;i++) if(filename[i]==' ') filename[i] = '_';
+  int /*len = strlen(filename), */ cfa_spec_cnt = 0;
+  // for(int i=0;i<len;i++) if(filename[i]==' ') filename[i] = '_';
   FILE *fr = fopen(filename, "rb");
   char line[2048];
   if(fr)
