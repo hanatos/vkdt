@@ -2,6 +2,7 @@
 #include "cfa-gauss.h"
 #include "cfa-sigmoid.h"
 #include "cfa-plain.h"
+#include "cfa-ref.h"
 #include <strings.h>
 
 static inline void
@@ -16,6 +17,7 @@ cfa_init(
     case 2: cfa_gauss_init(num, p); break;
     case 3: cfa_sigmoid_init(num, p); break;
     case 4: cfa_plain_init(num, p); break;
+    case 5: cfa_ref_init(num, p); break;
   }
 }
 
@@ -31,6 +33,7 @@ cfa_smoothness(
     case 2: return cfa_gauss_smoothness(num, p);
     case 3: return cfa_sigmoid_smoothness(num, p);
     case 4: return cfa_plain_smoothness(num, p);
+    case 5: return cfa_ref_smoothness(num, p);
     default: return 0;
   }
 }
@@ -48,6 +51,7 @@ cfa_red(
     case 2: return cfa_gauss_red(num, p, wavelength);
     case 3: return cfa_sigmoid_red(num, p, wavelength);
     case 4: return cfa_plain_red(num, p, wavelength);
+    case 5: return cfa_ref_red(num, p, wavelength);
     default: return 0;
   }
 }
@@ -65,6 +69,7 @@ cfa_green(
     case 2: return cfa_gauss_green(num, p, wavelength);
     case 3: return cfa_sigmoid_green(num, p, wavelength);
     case 4: return cfa_plain_green(num, p, wavelength);
+    case 5: return cfa_ref_green(num, p, wavelength);
     default: return 0;
   }
 }
@@ -81,6 +86,7 @@ cfa_blue(
     case 2: return cfa_gauss_blue(num, p, wavelength);
     case 3: return cfa_sigmoid_blue(num, p, wavelength);
     case 4: return cfa_plain_blue(num, p, wavelength);
+    case 5: return cfa_ref_blue(num, p, wavelength);
     default: return 0;
   }
 }
@@ -92,6 +98,7 @@ cfa_model_parse(const char *c)
   if(!strcasecmp(c, "gauss"))   return 2;
   if(!strcasecmp(c, "sigmoid")) return 3;
   if(!strcasecmp(c, "plain"))   return 4;
+  if(!strcasecmp(c, "ref"))     return 5;
   return 1; // default pca
 }
 
@@ -104,6 +111,7 @@ cfa_model_str(model)
     case 2: return "gauss";
     case 3: return "sigmoid";
     case 4: return "plain";
+    case 5: return "ref";
     default: return "invalid";
   }
 }
