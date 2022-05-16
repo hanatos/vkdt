@@ -1,5 +1,14 @@
 #pragma once
 #include "sigmoid.h"
+#include "xrand.h"
+
+static inline void
+cfa_sigmoid_init(
+    int num,
+    double *p)
+{
+  for(int i=0;i<num;i++) p[i] = 1e-4 + 1e-3*xrand();
+}
 
 static inline double
 cfa_sigmoid_smoothness(

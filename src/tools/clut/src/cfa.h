@@ -4,6 +4,21 @@
 #include "cfa-plain.h"
 #include <strings.h>
 
+static inline void
+cfa_init(
+    int model,
+    int num,
+    double *p)
+{
+  switch(model)
+  {
+    case 1: cfa_pca_init(num, p); break;
+    case 2: cfa_gauss_init(num, p); break;
+    case 3: cfa_sigmoid_init(num, p); break;
+    case 4: cfa_plain_init(num, p); break;
+  }
+}
+
 static inline double
 cfa_smoothness(
     int model,

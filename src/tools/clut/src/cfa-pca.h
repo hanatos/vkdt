@@ -1,5 +1,14 @@
 #include "cfa_data.h"
 
+static inline void
+cfa_pca_init(
+    int num,
+    double *p)
+{
+  for(int k=0;k<num;k++)
+    p[k] = k <= 4 ? 0.1 : 0.0;
+}
+
 static inline double
 cfa_pca_smoothness(
     int num,

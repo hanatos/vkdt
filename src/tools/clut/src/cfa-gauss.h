@@ -1,5 +1,16 @@
 #pragma once
 
+static inline void
+cfa_gauss_init(
+    int num,
+    double *p)
+{
+  for(int k=0;k<num/2;k++)
+    p[k] = (k+0.5)*2.0/num;
+  for(int k=num/2;k<num;k++)
+    p[k] = 0.1;
+}
+
 static inline double
 cfa_gauss_smoothness(
     int num,
@@ -40,7 +51,8 @@ cfa_gauss_all(
   const double *y = p + num/2;
   for(int i=0;i<num/2;i++)
   {
-    double z = (wavelength-(380.0 + (780.0-380.0)*x[i]))/17.0 * 0.833;
+    const double sigma = 22.0 * 20.0 / num;
+    double z = (wavelength-(380.0 + (780.0-380.0)*x[i]))/sigma * 0.833;
     res += y[i] * y[i] * fakegaussian(z);
     // res += sqrt(p[i] * p[i]) * exp(-(wavelength-x[i])*(wavelength-x[i])/(20.0*20.0));
   }
