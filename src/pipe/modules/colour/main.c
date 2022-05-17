@@ -295,7 +295,10 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[1] = 1.0f;
   f[2] = p_wb[2] / p_wb[1];
   f[3] = powf(2.0f, ((float*)module->param)[0]);
-  f[4+12+4+88+0] = 1.0f - CLAMP((p_tmp - 2856.f)/(6500.f-2856.f), 0.0f, 1.0f);
+  // linear, as the dng spec says:
+  // f[4+12+4+88+0] = 1.0f - CLAMP((p_tmp - 2856.f)/(6504.f-2856.f), 0.0f, 1.0f);
+  // turingbot reverses this function to more accurately blend along CCT:
+  f[4+12+4+88+0] = 1.0f - CLAMP(tanf(asinhf(46.3407f+p_tmp))+(-0.0287128f*cosf(0.000798585f*(714.855f-p_tmp)))+0.942275f, 0.0f, 1.0f);
   i[4+12+4+88+1] = p_mat == 3 ? 1 : 0; // colour mode matrix or clut
 
   if(p_mat == 1 && !(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity

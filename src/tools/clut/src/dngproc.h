@@ -268,6 +268,15 @@ dng_process(
   mat3_mulv(cam_to_xyzd50, cam_rgb, xyz);
 
   if(!p->hsm) return; // no hsv lut in this dng profile
+  // FIXME i still think i'm doing this very wrong. i can fit a profile with 10x less error
+  // if i ignore this thing. it seems it's trying to do the right thing (adjust blues for fuji camera
+  // slightly) but then something's off. scaling factor on the input from the optimiser?
+  // probably read dng spec again and see if it assumes xyz to be normalised somehow.
+  // only found the reference that camera rgb should be black subtracted and scaled/clipped to 0, 1.
+  // since during optimisation we don't know how the intermediate CFA model will be normalised,
+  // we could compute a canonical exposure value and try to fit the working set into [0,1] each time
+  // we update CFA. or we assume the mapping here doesn't depend on V and normalise before entering here?
+  return; // XXX
   // hsv map dance:
   double rgb[3], hsv[3];
   // convert to prophotorgb

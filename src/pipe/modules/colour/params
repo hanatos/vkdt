@@ -2,7 +2,7 @@ exposure:float:1:0.0
 mode:int:1:0
 matrix:int:1:1
 gamut:int:1:0
-temp:float:1:6500
+temp:float:1:6504
 white:float:4:0.5:0.5:0.5:0.5
 mat:float:9:-1.0
 cnt:int:1:4
