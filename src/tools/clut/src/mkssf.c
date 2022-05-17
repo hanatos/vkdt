@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
         pick_a ? loss_pictures_dif : loss_dif,
         cfa_param, &target, 3*cfa_num_coeff, 1,
         lb, ub, num_it, 0,
-        1e-8, 0.9, 0.99, .01, 0);
+        1e-8, 0.9, 0.99, .001, 0);
   }
   else // optimiser == 3
   {

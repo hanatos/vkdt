@@ -33,6 +33,35 @@ layout( // if have_clut, the colour lookup table is here
     set = 1, binding = 2
 ) uniform sampler2D img_clut;
 
+vec3 // return adapted rec2020
+cat16(vec3 rec2020_d65, vec3 rec2020_w)
+{
+  // TODO: concat these with xyz/rec2020 in python and bring back the results? are constants folded enough anyways?
+  // these are the CAT16 M^{-1} and M matrices.
+  // we use the standalone adaptation as proposed in
+  // Smet and Ma, "Some concerns regarding the CAT16 chromatic adaptation transform",
+  // Color Res Appl. 2020;45:172–177.
+  // these are XYZ to cone-like
+  const mat3 M16i = transpose(mat3(
+       1.86206786, -1.01125463,  0.14918677,
+       0.38752654,  0.62144744, -0.00897398,
+      -0.01584150, -0.03412294,  1.04996444));
+  const mat3 M16 = transpose(mat3(
+       0.401288, 0.650173, -0.051461,
+      -0.250268, 1.204414,  0.045854,
+      -0.002079, 0.048952,  0.953127));
+  const mat3 rec2020_to_xyz = mat3(
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+
+  const vec3 cl_d65 = M16 * rec2020_to_xyz * vec3(1);
+  const vec3 cl_w   = M16 * rec2020_to_xyz * rec2020_w;
+  vec3 cl = M16 * rec2020_to_xyz * rec2020_d65;
+  cl *= cl_w / cl_d65;
+  return inverse(rec2020_to_xyz) * M16i * cl;
+}
+
 
 float
 kernel(vec2 ci, vec2 p)
@@ -77,7 +106,7 @@ main()
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
     rgb *= L * b;
 
-    rgb *= params.mul.rgb; // post-mul whitebalance correction
+    rgb = cat16(rgb, params.mul.rgb);
   }
 
   rgb *= params.mul.w; // exposure correction
