@@ -158,7 +158,7 @@ dt_rc_read(
 {
   FILE *f = fopen(filename, "rb");
   if(!f) return -1;
-  char line[100];
+  char line[4000];
   uint32_t lno = 0;
   while(!feof(f))
   {
