@@ -674,7 +674,17 @@ dont_update_time:;
     if(ImGui::Button("open directory", size))
     {
       const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
-      if(strcmp(mru, "null")) snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", mru);
+      if(strcmp(mru, "null"))
+      {
+        snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", mru);
+        char *c = filebrowser.cwd + strlen(filebrowser.cwd) - 1;
+        for(;*c!='/'&&c>filebrowser.cwd;c--);
+        if(c > filebrowser.cwd) strcpy(c, "/"); // truncate at last '/' to remove subdir
+        struct stat statbuf;
+        int ret = stat(filebrowser.cwd, &statbuf);
+        if(ret || (statbuf.st_mode & S_IFMT) != S_IFDIR) // don't point to non existing/non directory
+          strcpy(filebrowser.cwd, "/");
+      }
       dt_filebrowser_open(&filebrowser);
     }
 
