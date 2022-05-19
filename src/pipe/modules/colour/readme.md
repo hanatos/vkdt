@@ -1,13 +1,21 @@
 # colour processing
 
 this is a unified module to handle important things concerning colour.
+the input is in camera rgb and the output will be rec2020.
 
-it works on camera rgb data, applies camera white balance coefficients and if
-desired a 3x3 matrix. this kind of input transform is known to be imprecise
-especially for saturated colours and produce all kinds of artifacts (say way
-out of gamut dark blue tones). to alleviate this, this module comes with a
-corrective radial basis function (RBF) applied after white balance and matrix.
-it allows to map arbitrary source to target points in 2d chromaticity space.
+it supports two modes of operation: using 3x3 colour matrices and profiles
+created from spectral response curves of the cameras colour filter array (CFA).
+to use such a profile, first [create one for your camera using the profiling
+toolchain](../../../tools/clut/readme.md). then set the `matrix` parameter to `clut`.
+to route the profile data to the input here, there is a `clut.pst` preset.
+
+the second, more simplistic mode of operation applies camera white balance
+coefficients and a 3x3 matrix. this kind of input transform is known to be
+imprecise especially for saturated colours and produce all kinds of artifacts
+(say way out of gamut dark blue tones). to alleviate this, this module comes
+with a corrective radial basis function (RBF) applied after white balance and
+matrix (or clut). it allows to map arbitrary source to target points in 2d
+chromaticity space.
 
 this mechanism is used for gamut mapping: a few points are sampled on the
 input rgb cube, converted to output, and then projected onto a desired

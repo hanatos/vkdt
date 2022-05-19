@@ -1,5 +1,8 @@
 # utilities to create input device transforms
 
+this page is about characterising the colour of an input device. there is
+[a separate page for colour management on the display device](../../../doc/colourmanagement.md).
+
 to generate very accurate input colour transforms from camera rgb to profiled
 rec2020, `vkdt` supports colour lookup tables as a replacement for the often
 used 3x3 matrices.
@@ -30,7 +33,7 @@ target with known spectral reflectivity (the ColorChecker sold by
 xrite/calibrite).
 
 
-# mkssf
+## mkssf: estimating spectral response
 
 estimate the *spectral sensitivity functions (ssf)* of a camera.
 this tool has two modes of operation. it can output ssf
@@ -41,14 +44,14 @@ this tool has two modes of operation. it can output ssf
 it will create an html report along with the ssf data to check the accuracy of
 the results.
 
-## usage
+### usage
 
 ```
 mkssf <dng file>            dng file from adobe dng creator, containing profile data
       --picked <a> <d65>    work with images of the cc24 chart instead
 ```
 
-## examples
+### examples
 
 ```
 mkssf IMG_0001.dng
@@ -57,7 +60,7 @@ mkssf IMG_0001.dng
 will output `<camera model>.txt` the ssf, `<camera model>.html` the report, and
 `<camera model>.png` a plot of the ssf used in the report.
 
-## generating a dng
+### generating a dng
 
 if you don't have a native dng with the profile data, use the adobe dng creator
 to convert your raw files. it will fill the profile, in particular we read the
@@ -69,7 +72,7 @@ ReductionMatrix[123] ForwardMatrix[123] ProfilehueSatmapDims
 ProfileHueSatMapData[123]
 ```
 
-## taking pictures of a chart
+### taking pictures of a chart
 
 we require two images as input: one lit by D65 (daylight) and one by
 illuminant A (incandescent). the usual wisdom about avoiding glare and looking
@@ -82,7 +85,7 @@ preset to pick all spots at once. the resulting line in the `.cfg` file
 containing the picked data will be used as input to `mkssf`.
 
 
-# mkclut
+## mkclut: generating a colour lut profile
 
 create a lookup table to be used as an input device transform by `vkdt`. it
 will convert camera rgb values to rec2020 coordinates. takes as input the known
@@ -91,16 +94,16 @@ by default it will create a transform that is computed for illuminant A and for
 illuminant D65, such that these can be interpolated run time (similar to
 matrices in the dng pipeline).
 
-## usage:
+### usage:
 
 ```
-mkclut <model>            model.txt will be openend as cfa files. spaces will be replaced by '_'.
-                          model.lut will be written as output (no replacement).
+mkclut <model>            model.txt will be openend as cfa data,
+                          model.lut will be written as output.
        --illum0 <illum>   optional spectral illuminant description, txt extension will be added.
        --illum1 <illum>   spectral characterisation of second illuminant
 ```
 
-## examples:
+### examples:
 
 ```
 ./mkclut <camera model>.txt
@@ -110,4 +113,4 @@ will output `<camera model>.pfm` for visual inspection as well as `<camera model
 the actual colour lookup table to be used in `vkdt`.
 copy this to the `data/` directory of the `vkdt` install, so the program will pick it
 up when searching for `data/${model}.lut`. this can be conveniently routed into
-the `colour` module by applying the `clut.pst` preset.
+[the `colour` module](../../pipe/modules/colour/readme.md) by applying the `clut.pst` preset.

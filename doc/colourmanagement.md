@@ -1,4 +1,13 @@
-# colour management
+# display colour management
+
+the following writeup is about display colour management:
+how it works, how to install icc profiles for your screens
+and a few related details. for camera characterisation, i.e.
+input colour management, please see
+[the `colour` module](../src/pipe/modules/colour/readme.md)
+as well as
+[the input device transform creation tools](../src/tools/clut/readme.md).
+
 
 the whole window is colour managed, i.e. everything
 is rendered in linear rec2020 and alpha blended there.
