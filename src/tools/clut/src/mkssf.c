@@ -15,22 +15,23 @@
 // - cfa model: plain gauss sigmoid pca
 // - optimiser: gauss/newton adam nelder/mead
 // - parameter: number of iterations
-static int num_it = 20000;
-static int cfa_model = 1;
-static int cfa_num_coeff = 4;
+static int num_it        = 300;
+static int num_epochs    = 30;
+static int cfa_model     = 2;          // default to gauss
+static int cfa_num_coeff = 20;
 static double cfa_param[3*36] = {0.1}; // init to something. zero has zero derivatives and is thus bad.
 
 // reference data.
 // a) via two cc24 photographs, incandescent + daylight:
-static double ref_picked_a  [24][3];  // cc24 patches A-lit   reference photographed, colour picked, and loaded here, in camera rgb
-static double ref_picked_d65[24][3];  // cc24 patches D65-lit reference photographed, colour picked, and loaded here, in camera rgb
+static double ref_picked_a  [24][3];   // cc24 patches A-lit   reference photographed, colour picked, and loaded here, in camera rgb
+static double ref_picked_d65[24][3];   // cc24 patches D65-lit reference photographed, colour picked, and loaded here, in camera rgb
 // b) via an adobe dng profile containing two matrices (+luts etc):
 static double ref[240][3];             // cc24 patches reference integrated against the cie observer, in XYZ
 static dng_profile_t profile_a;
 static dng_profile_t profile_d65;
 
-static const int upsample_cnt = 60;
-static double upsample_xy[upsample_cnt][2];
+static const int upsample_cnt = 60;    // to silence warnings, we use fixed buffer sizes, so keep this < 240 please
+static double upsample_xy[240][2];
 static dt_lut_header_t lut_header = {0};
 static float *lut_buf = 0;
 
@@ -370,7 +371,6 @@ int main(int argc, char *argv[])
   const char *pick_a   = 0;
   const char *pick_d65 = 0;
   int optimiser = 2; // default adam
-  int num_epochs = 1;
   // const char *illuf = 0;
   for(int k=1;k<argc;k++)
   {
