@@ -11,8 +11,8 @@ xy_to_monotone_hue_angle(vec2 xy)
   // the colours in the chart go clockwise, the angle will go counter clockwise, hence the sign.
   // also we subtract the angle of hue index==0 so the output will start at zero and grow monotonically.
   // this is required for the binary search to work correctly.
-  const vec2 illC = vec2(0.31006,	0.31616);
-  return mod(2.0*M_PI-2.52-atan(xy.y-illC.y, xy.x-illC.x), 2.0*M_PI);
+  const vec2 ill = vec2(0.31271, 0.32902);// now adapted to D65, not C (0.31006, 0.31616);
+  return mod(2.0*M_PI-2.52-atan(xy.y-ill.y, xy.x-ill.x), 2.0*M_PI);
 }
 
 
@@ -71,9 +71,9 @@ munsell_from_xy(const vec2 xy)
 {
   int hidxm = 0, hidxM = munsell_hdim;
   int cidxm = 0, cidxM = munsell_cdim-1;
-  const vec2 illC = vec2(0.31006,	0.31616);
+  const vec2 ill = vec2(0.31271, 0.32902);// now adapted to D65, not C (0.31006, 0.31616);
   const float theta = xy_to_monotone_hue_angle(xy);
-  const float rad2  = dot(xy-illC,xy-illC);
+  const float rad2  = dot(xy-ill,xy-ill);
   // while(true)
   for(int i=0;i<6;i++)
   { // quad tree refinement step using midpoint
@@ -81,7 +81,7 @@ munsell_from_xy(const vec2 xy)
     int cidx = (cidxm + cidxM)/2;
     vec2 res = munsell_lookup(hidx, cidx);
     float th = xy_to_monotone_hue_angle(res);
-    float r2 = dot(res-illC,res-illC);
+    float r2 = dot(res-ill,res-ill);
     if(th <= theta) hidxm = hidx;
     else            hidxM = hidx;
     if(r2 <= rad2)  cidxm = cidx;
