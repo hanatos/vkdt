@@ -258,8 +258,13 @@ void modify_roi_out(
   float *noise_b = (float*)dt_module_param_float(mod, 2);
   for(int k=0;k<9;k++)
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
-#ifdef VKDT_USE_EXIV2
+#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
   dt_exif_read(&mod->img_param, filename);
+#endif
+  // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
+  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->d->mRaw->metadata.canonical_make.c_str());
+  snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", mod_data->d->mRaw->metadata.canonical_model.c_str());
+  mod->img_param.iso = mod_data->d->mRaw->metadata.isoSpeed;
   if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
   {
     char pname[512];
@@ -281,7 +286,6 @@ void modify_roi_out(
     }
   }
   else
-#endif
   {
     mod->img_param.noise_a = noise_a[0];
     mod->img_param.noise_b = noise_b[0];
