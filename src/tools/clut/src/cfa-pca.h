@@ -25,9 +25,9 @@ cfa_pca_red(
 {
   int l = (wavelength - 380.0)/5.0;
   if(l < 0 || l >= 81) return 0.0;
-  double res = cfa_avg_red[l];
-  for(int i=0;i<num;i++)
-    res += cfa_evec_red[i][l] * p[i];
+  double res = p[0] * cfa_avg_red[l];
+  for(int i=0;i<num-1;i++)
+    res += cfa_evec_red[i][l] * p[i+1];
   return fmax(0.0, res);
 }
 
@@ -39,9 +39,9 @@ cfa_pca_green(
 {
   int l = (wavelength - 380.0)/5.0;
   if(l < 0 || l >= 81) return 0.0;
-  double res = cfa_avg_green[l];
-  for(int i=0;i<num;i++)
-    res += cfa_evec_green[i][l] * p[i];
+  double res = p[0] * cfa_avg_green[l];
+  for(int i=0;i<num-1;i++)
+    res += cfa_evec_green[i][l] * p[i+1];
   return fmax(0.0, res);
 }
 
@@ -53,8 +53,8 @@ cfa_pca_blue(
 {
   int l = (wavelength - 380.0)/5.0;
   if(l < 0 || l >= 81) return 0.0;
-  double res = cfa_avg_blue[l];
-  for(int i=0;i<num;i++)
-    res += cfa_evec_blue[i][l] * p[i];
+  double res = p[0] * cfa_avg_blue[l];
+  for(int i=0;i<num-1;i++)
+    res += cfa_evec_blue[i][l] * p[i+1];
   return fmax(0.0, res);
 }

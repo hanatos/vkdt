@@ -26,8 +26,8 @@ cfa_sigmoid_all(
     double        wavelength)  // evaluate at this wavelength
 {
   if(wavelength < 380.0 || wavelength > 780.0) return 0.0;
-  double pl = poly(p, (wavelength-380.0)/(780.0-380.0), num);
-  return sigmoid(pl);
+  double pl = poly(p+1, (wavelength-380.0)/(780.0-380.0), num-1);
+  return p[0] * sigmoid(pl); // include one param for global scale/exposure
 }
 
 static inline double

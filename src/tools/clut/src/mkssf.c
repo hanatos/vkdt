@@ -41,7 +41,7 @@ double normalise_col(double *c)
   double M = fmax(fmax(c[0], c[1]), c[2]);
   for(int k=0;k<3;k++) c[k] /= M;
   return M;
-#elif 1
+#elif 0
   return normalise1(c);
 #else
   return 1.0;
@@ -519,16 +519,17 @@ int main(int argc, char *argv[])
   double res[240][3];
   double rgb_a[240][3], rgb_d65[240][3], rgb_cie[240][3];
   double xyz[3];
-  // integrate_cfa(res, cfa_param, cie_a);
-  integrate_cfa_upsample(res, cfa_param, cie_a);
+  integrate_ref(ref); // html output uses colour checker
+  integrate_cfa(res, cfa_param, cie_a);
+  // integrate_cfa_upsample(res, cfa_param, cie_a);
   for(int s=0;s<24;s++)
   {
     dng_process(&profile_a, res[s], xyz);
     normalise_col(xyz);
     mat3_mulv(xyz_to_srgb, xyz, rgb_a[s]); // really not d50 xyz but whatever for debug
   }
-  // integrate_cfa(res, cfa_param, cie_d65);
-  integrate_cfa_upsample(res, cfa_param, cie_d65);
+  integrate_cfa(res, cfa_param, cie_d65);
+  // integrate_cfa_upsample(res, cfa_param, cie_d65);
   for(int s=0;s<24;s++)
   {
     dng_process(&profile_d65, res[s], xyz);

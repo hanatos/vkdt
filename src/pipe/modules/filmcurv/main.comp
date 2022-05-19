@@ -4,7 +4,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
 
 #include "shared.glsl"
-#include "shared/munsell.glsl"
+// #include "shared/munsell.glsl" // not used currently
 #include "shared/dtucs.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
