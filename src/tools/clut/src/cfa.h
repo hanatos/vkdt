@@ -21,6 +21,19 @@ cfa_init(
   }
 }
 
+static inline void
+cfa_init_bounds(
+    int model,
+    int num,
+    double *lb,
+    double *ub)
+{
+  switch(model)
+  {
+    case 2: cfa_gauss_init_bounds(num, lb, ub); break;
+  }
+}
+
 static inline double
 cfa_smoothness(
     int model,

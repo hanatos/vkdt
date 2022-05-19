@@ -432,10 +432,14 @@ int main(int argc, char *argv[])
   double lb[3*cfa_num_coeff];
   double ub[3*cfa_num_coeff];
   if(cfa_model == 2 || cfa_model == 4)
-    for(int k=0;k<3*cfa_num_coeff;k++) lb[k] = 0; // set to 0 for gaussians and plain
+    for(int k=0;k<3*cfa_num_coeff;k++) lb[k] = 0; // set to 0 for plain
   else
     for(int k=0;k<3*cfa_num_coeff;k++) lb[k] = -1000;
   for(int k=0;k<3*cfa_num_coeff;k++) ub[k] =  1000;
+
+  cfa_init_bounds(cfa_model, cfa_num_coeff, lb, ub);
+  cfa_init_bounds(cfa_model, cfa_num_coeff, lb+  cfa_num_coeff, ub+  cfa_num_coeff);
+  cfa_init_bounds(cfa_model, cfa_num_coeff, lb+2*cfa_num_coeff, ub+2*cfa_num_coeff);
 
   fprintf(stderr, "[vkdt-mkssf] starting optimiser on model '%s' with %d coeffs..\n", cfa_model_str(cfa_model), cfa_num_coeff);
 
