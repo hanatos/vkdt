@@ -89,12 +89,13 @@ void refresh_upsample()
 {
   for(int s=0;s<upsample_cnt;s++)
   {
-    double x = 1.0/3.0, y = 1.0/3.0;
+    double x = 1.0/3.0, y = 1.0/3.0, z = 1.0/3.0;
     const double r = 0.18;
     for(int k=0;k<3;k++) x += r*(xrand() - 0.5);
     for(int k=0;k<3;k++) y += r*(xrand() - 0.5);
-    upsample_xy[s][0] = x;
-    upsample_xy[s][1] = y;
+    for(int k=0;k<3;k++) z += r*(xrand() - 0.5);
+    upsample_xy[s][0] = x / (x+y+z);
+    upsample_xy[s][1] = y / (x+y+z);
   }
   integrate_ref_upsample(ref);
 }
