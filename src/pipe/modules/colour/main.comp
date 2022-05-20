@@ -139,12 +139,14 @@ main()
 
   // dt ucs saturation last so we don't mess with the rbf which is potentially
   // used for cc24 calibration
-
-  vec3 xyY = rec2020_to_xyY(rgb);
-  vec3 JCH = xyY_to_dt_UCS_JCH(xyY, 1.0);
-  JCH.y = clamp(JCH.y * params.saturation, 0, 1.0);
-  xyY = dt_UCS_JCH_to_xyY(JCH, 1.0);
-  rgb = xyY_to_rec2020(xyY);
+  if(params.saturation != 1.0)
+  { // cut a few cycles if not needed
+    vec3 xyY = rec2020_to_xyY(rgb);
+    vec3 JCH = xyY_to_dt_UCS_JCH(xyY, 1.0);
+    JCH.y = clamp(JCH.y * params.saturation, 0, 1.0);
+    xyY = dt_UCS_JCH_to_xyY(JCH, 1.0);
+    rgb = xyY_to_rec2020(xyY);
+  }
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
