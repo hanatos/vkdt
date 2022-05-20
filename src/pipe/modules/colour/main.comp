@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive    : enable
 
 #include "shared.glsl"
+#include "shared/dtucs.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -13,6 +14,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4  coef[22];          // xy RBF positions, zw coefs
   float temp;              // colour temperature for wb 0:2856 1:6500
   uint  colour_mode;       // 0-matrix 1-clut
+  float saturation;        // multiplier on chroma
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -134,6 +136,15 @@ main()
 #endif
     rgb *= b; // keep brightness constant
   }
+
+  // dt ucs saturation last so we don't mess with the rbf which is potentially
+  // used for cc24 calibration
+
+  vec3 xyY = rec2020_to_xyY(rgb);
+  vec3 JCH = xyY_to_dt_UCS_JCH(xyY, 1.0);
+  JCH.y = clamp(JCH.y * params.saturation, 0, 1.0);
+  xyY = dt_UCS_JCH_to_xyY(JCH, 1.0);
+  rgb = xyY_to_rec2020(xyY);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

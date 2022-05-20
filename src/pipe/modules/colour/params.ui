@@ -1,4 +1,5 @@
 exposure:slider:-5:5
+sat:slider:0.0:3.0
 mode:combo:parametric:data driven
 matrix:combo:rec2020:image:XYZ:clut
 gamut:combo:no correction:limit to spectral locus:limit to rec2020:limit to rec709

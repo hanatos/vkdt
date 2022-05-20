@@ -289,6 +289,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
         int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
   // const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
+  const float  p_sat = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("sat")))[0];
 
   // wb and exposure mul:
   f[0] = p_wb[0] / p_wb[1];
@@ -300,6 +301,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   // turingbot reverses this function to more accurately blend along CCT:
   f[4+12+4+88+0] = 1.0f - CLAMP(tanf(asinhf(46.3407f+p_tmp))+(-0.0287128f*cosf(0.000798585f*(714.855f-p_tmp)))+0.942275f, 0.0f, 1.0f);
   i[4+12+4+88+1] = p_mat == 3 ? 1 : 0; // colour mode matrix or clut
+  f[4+12+4+88+2] = p_sat;
 
   if(p_mat == 1 && !(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
@@ -384,7 +386,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 int init(dt_module_t *mod)
 {
   // wb, matrix, uvec4 cnt, vec4 coef[22]
-  mod->committed_param_size = sizeof(float)*(4+12+4+88+2);
+  mod->committed_param_size = sizeof(float)*(4+12+4+88+2+1);
   return 0;
 }
 
