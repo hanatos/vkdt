@@ -1,3 +1,4 @@
 input:read:rgba:f16
 output:write:rgba:f16
 clut:read:rgba:f16
+picked:read:r:ui32

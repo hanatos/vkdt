@@ -395,6 +395,7 @@ void create_nodes(
     dt_module_t *module)
 {
   int have_clut = dt_connected(module->connector+2);
+  int have_pick = dt_connected(module->connector+3);
   assert(graph->num_nodes < graph->max_nodes);
   const int nodeid = graph->num_nodes++;
   graph->node[nodeid] = (dt_node_t){
@@ -404,7 +405,7 @@ void create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 3,
+    .num_connectors = 4,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
@@ -424,12 +425,21 @@ void create_nodes(
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .connected_mi = -1,
+    },{
+      .name   = dt_token("picked"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("r"),
+      .format = dt_token("ui32"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
     }},
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = { have_clut },
+    .push_constant_size = 2*sizeof(uint32_t),
+    .push_constant = { have_clut, have_pick },
   };
   dt_connector_copy(graph, module, 0, nodeid, 0);
   dt_connector_copy(graph, module, 1, nodeid, 1);
   if(have_clut) dt_connector_copy(graph, module, 2, nodeid, 2);
   else          dt_connector_copy(graph, module, 0, nodeid, 2); // dummy
+  if(have_pick) dt_connector_copy(graph, module, 3, nodeid, 3);
+  else          dt_connector_copy(graph, module, 0, nodeid, 3); // dummy
 }

@@ -20,6 +20,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(push_constant, std140) uniform push_t
 {
   int have_clut;
+  int have_pick;
 } push;
 
 
@@ -35,8 +36,12 @@ layout( // if have_clut, the colour lookup table is here
     set = 1, binding = 2
 ) uniform sampler2D img_clut;
 
+layout( // picked colour if any. comes in as ui32 texels with rgb encoded as r = 2.0*v/pow(2,30)-0.5
+    set = 1, binding = 3
+) uniform usampler2D img_pick;
+
 vec3 // return adapted rec2020
-cat16(vec3 rec2020_d65, vec3 rec2020_w)
+cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
 {
   // TODO: concat these with xyz/rec2020 in python and bring back the results? are constants folded enough anyways?
   // these are the CAT16 M^{-1} and M matrices.
@@ -57,10 +62,10 @@ cat16(vec3 rec2020_d65, vec3 rec2020_w)
     1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
     1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
 
-  const vec3 cl_d65 = M16 * rec2020_to_xyz * vec3(1);
-  const vec3 cl_w   = M16 * rec2020_to_xyz * rec2020_w;
+  const vec3 cl_src = M16 * rec2020_to_xyz * rec2020_src;
+  const vec3 cl_dst = M16 * rec2020_to_xyz * rec2020_dst;
   vec3 cl = M16 * rec2020_to_xyz * rec2020_d65;
-  cl *= cl_w / cl_d65;
+  cl *= cl_dst / cl_src;
   return inverse(rec2020_to_xyz) * M16i * cl;
 }
 
@@ -91,8 +96,7 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   if(params.colour_mode == 0 || push.have_clut == 0)
-  { // matrix + wb
-    rgb *= params.mul.rgb; 
+  { // matrix
     rgb  = params.cam_to_rec2020 * rgb;
   }
   else
@@ -107,9 +111,19 @@ main()
     vec2 rb = mix(rbrb.xy, rbrb.zw, params.temp);
     rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
     rgb *= L * b;
-
-    rgb = cat16(rgb, params.mul.rgb);
   }
+
+  // white balancing
+  if(push.have_pick == 1)
+  { // spot wb
+    const int i = 0; // which one of the colour pickers
+    vec3 picked_rgb = vec3(
+        2.0*texelFetch(img_pick, ivec2(i, 0), 0).r/pow(2.0, 30.0) - 0.5,
+        2.0*texelFetch(img_pick, ivec2(i, 1), 0).r/pow(2.0, 30.0) - 0.5,
+        2.0*texelFetch(img_pick, ivec2(i, 2), 0).r/pow(2.0, 30.0) - 0.5);
+    rgb = cat16(rgb, picked_rgb, params.mul.rgb);
+  }
+  else rgb = cat16(rgb, vec3(1.0), params.mul.rgb);
 
   rgb *= params.mul.w; // exposure correction
 
