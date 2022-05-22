@@ -1156,7 +1156,12 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
           con[j] = k;
           if(mod[1-j] >= 0 && con[1-j] >= 0)
           {
-            cerr = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
+            // if already connected disconnect
+            if(vkdt.graph_dev.module[mod[1]].connector[con[1]].connected_mc == con[0] &&
+               vkdt.graph_dev.module[mod[1]].connector[con[1]].connected_mi == mod[0])
+              cerr = dt_module_connect(graph, -1, -1, mod[1], con[1]);
+            else
+              cerr = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
             if(cerr) err = (1ul<<32) | cerr;
             else vkdt.graph_dev.runflags = s_graph_run_all;
             con[0] = con[1] = mod[0] = mod[1] = -1;
