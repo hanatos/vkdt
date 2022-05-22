@@ -109,6 +109,8 @@ typedef struct dt_connector_t
   // and makes use of the node->conn_image index list.
 
   VkBuffer      staging;     // for sources and sinks
+
+  const char   *tooltip;     // tooltip extracted from docs
 }
 dt_connector_t;
 
