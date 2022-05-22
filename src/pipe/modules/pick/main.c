@@ -81,6 +81,7 @@ create_nodes(
 
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_collect, 0);
+  dt_connector_copy(graph, module, 3, id_collect, 1);
   dt_node_connect  (graph, id_collect, 1, id_map, 0);
 
   // now detect whether we have an input spectra lut connected

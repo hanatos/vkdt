@@ -11,7 +11,7 @@ to copy/paste it from the `.cfg` file afterwards.
 note that the gui will only instant-update the picked colour if the runflags
 for the graph contain *download sink*.
 
-# parameters
+## parameters
 
 * `nspots` number of picked spots
 * `spots` geometric coordinates of the picked spots in the image
@@ -23,3 +23,11 @@ for the graph contain *download sink*.
 
 note that the format of `nspots` and `ref` is the same as for
 the display of reference values in the [CIE xy diagram plot](../ciediag/readme.md).
+
+## connectors
+
+* `input` input buffer to pick colour from
+* `spectra` (optional) connect spectra.lut for spectral upsampling
+* `dsp_` (optional) will be named 'dspy' once 'spectra' are connected
+* `dspy` (optional) outputs spectral reconstructions of picked colour
+* `picked` outputs the picked data for further use by other modules

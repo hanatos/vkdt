@@ -1,3 +1,4 @@
 input:sink:*:*
 spectra:read:rgba:*
 dsp_:write:rgba:f16
+picked:write:r:ui32
