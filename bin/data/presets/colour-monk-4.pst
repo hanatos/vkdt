@@ -1,0 +1,7 @@
+# spot white balance for skin tones.
+# assumes colour input comes directly from crop
+module:pick:01
+connect:crop:01:output:pick:01:input
+connect:pick:01:picked:colour:01:picked
+param:pick:01:nspots:1
+param:colour:01:white:0.601870:0.513837:0.326184:0.5
