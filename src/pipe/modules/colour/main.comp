@@ -87,6 +87,20 @@ void tri2quad(inout vec2 tc)
   tc.x = (1.0-tc.x)*(1.0-tc.x);
 }
 
+vec3 process_clut(vec3 rgb)
+{
+  float b = rgb.r+rgb.g+rgb.b;
+  vec2 tc = rgb.rb/b;
+  tri2quad(tc);
+  tc.x /= 3.0;
+  vec4 rbrb = vec4(texture(img_clut, tc).xy, texture(img_clut, tc+vec2(2.0/3.0, 0.0)).xy);
+  vec2 L2 = texture(img_clut, tc + vec2(1.0/3.0, 0.0)).xy;
+  float L = mix(L2.x, L2.y, params.temp);
+  vec2 rb = mix(rbrb.xy, rbrb.zw, params.temp);
+  rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
+  return rgb * L * b;
+}
+
 void
 main()
 {
@@ -96,24 +110,9 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   if(params.colour_mode == 0 || push.have_clut == 0)
-  { // matrix
     rgb  = params.cam_to_rec2020 * rgb;
-  }
-  else
-  { // clut
-    float b = rgb.r+rgb.g+rgb.b;
-    vec2 tc = rgb.rb/b;
-    tri2quad(tc);
-    tc.x /= 3.0;
-    vec4 rbrb = vec4(texture(img_clut, tc).xy, texture(img_clut, tc+vec2(2.0/3.0, 0.0)).xy);
-    vec2 L2 = texture(img_clut, tc + vec2(1.0/3.0, 0.0)).xy;
-    float L = mix(L2.x, L2.y, params.temp);
-    vec2 rb = mix(rbrb.xy, rbrb.zw, params.temp);
-    rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
-    rgb *= L * b;
-  }
+  else rgb = proces_clut(rgb);
 
-  // white balancing
   if(push.have_pick == 1)
   { // spot wb
     const int i = 0; // which one of the colour pickers
@@ -121,8 +120,13 @@ main()
         2.0*texelFetch(img_pick, ivec2(i, 0), 0).r/pow(2.0, 30.0) - 0.5,
         2.0*texelFetch(img_pick, ivec2(i, 1), 0).r/pow(2.0, 30.0) - 0.5,
         2.0*texelFetch(img_pick, ivec2(i, 2), 0).r/pow(2.0, 30.0) - 0.5);
+    if(params.colour_mode == 0 || push.have_clut == 0)
+      picked_rgb = params.cam_to_rec2020 * picked_rgb;
+    else
+      picked_rgb = process_clut(rgb);
+    picked_rgb /= picked_rgb.g;
     rgb = cat16(rgb, picked_rgb, params.mul.rgb);
-  }
+  } // regular white balancing
   else rgb = cat16(rgb, vec3(1.0), params.mul.rgb);
 
   rgb *= params.mul.w; // exposure correction

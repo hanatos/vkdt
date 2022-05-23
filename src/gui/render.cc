@@ -1755,6 +1755,8 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("rgb"):
     {
+      float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+      ImGui::PushStyleColor(ImGuiCol_FrameBg, gamma(ImVec4(col[0], col[1], col[2], 1.0)));
       for(int comp=0;comp<3;comp++)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
@@ -1776,6 +1778,7 @@ inline void draw_widget(int modid, int parid)
         }
         KEYFRAME
       }
+      ImGui::PopStyleColor();
       if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       break;
     }
