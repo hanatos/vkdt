@@ -15,6 +15,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float temp;              // colour temperature for wb 0:2856 1:6500
   uint  colour_mode;       // 0-matrix 1-clut
   float saturation;        // multiplier on chroma
+  uint  pick_mode;         // what do we do with the colour picked input?
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -107,19 +108,26 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-
-  if(params.colour_mode == 0 || push.have_clut == 0)
-    rgb  = params.cam_to_rec2020 * rgb;
-  else rgb = proces_clut(rgb);
-
-  if(push.have_pick == 1)
-  { // spot wb
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb; // read camera rgb
+  float cam_lum = 1.5;
+  vec3 picked_rgb = vec3(0.5);
+  if(push.have_pick == 1 && params.pick_mode > 0)
+  {
     const int i = 0; // which one of the colour pickers
-    vec3 picked_rgb = vec3(
+    picked_rgb = vec3(
         2.0*texelFetch(img_pick, ivec2(i, 0), 0).r/pow(2.0, 30.0) - 0.5,
         2.0*texelFetch(img_pick, ivec2(i, 1), 0).r/pow(2.0, 30.0) - 0.5,
         2.0*texelFetch(img_pick, ivec2(i, 2), 0).r/pow(2.0, 30.0) - 0.5);
+    cam_lum = dot(vec3(1), picked_rgb);
+  }
+
+  // process camera rgb to rec2020:
+  if(params.colour_mode == 0 || push.have_clut == 0)
+    rgb = params.cam_to_rec2020 * rgb;
+  else rgb = process_clut(rgb);
+
+  if(push.have_pick == 1 && (params.pick_mode & 1) != 0) // TODO: and params.pick_mode == wb
+  { // spot wb
     if(params.colour_mode == 0 || push.have_clut == 0)
       picked_rgb = params.cam_to_rec2020 * picked_rgb;
     else
@@ -129,6 +137,10 @@ main()
   } // regular white balancing
   else rgb = cat16(rgb, vec3(1.0), params.mul.rgb);
 
+  if(push.have_pick == 1 && (params.pick_mode & 2) != 0)
+  { // deflicker based on input patch
+    rgb *= 1.5/cam_lum;
+  }
   rgb *= params.mul.w; // exposure correction
 
   if(params.N.x > 0)

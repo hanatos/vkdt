@@ -1,6 +1,7 @@
 exposure:float:1:0.0
 sat:float:1:1.0
 mode:int:1:0
+picked:int:1:0
 matrix:int:1:1
 gamut:int:1:0
 temp:float:1:6504
