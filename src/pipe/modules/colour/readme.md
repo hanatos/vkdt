@@ -9,32 +9,26 @@ to use such a profile, first [create one for your camera using the profiling
 toolchain](../../../tools/clut/readme.md). then set the `matrix` parameter to `clut`.
 to route the profile data to the input here, there is a `clut.pst` preset.
 
-the second, more simplistic mode of operation applies camera white balance
-coefficients and a 3x3 matrix. this kind of input transform is known to be
-imprecise especially for saturated colours and produce all kinds of artifacts
-(say way out of gamut dark blue tones). to alleviate this, this module comes
-with a corrective radial basis function (RBF) applied after white balance and
-matrix (or clut). it allows to map arbitrary source to target points in 2d
-chromaticity space.
+the second, more simplistic mode of operation applies a 3x3 matrix. this kind
+of input transform is known to be imprecise especially for saturated colours
+and produce all kinds of artifacts (say way out of gamut dark blue tones). to
+alleviate this, this module comes with a corrective radial basis function (RBF)
+applied after white balance and matrix (or clut). it allows to map arbitrary
+source to target points in 2d chromaticity space.
 
-this mechanism is used for gamut mapping: a few points are sampled on the
-input rgb cube, converted to output, and then projected onto a desired
-gamut. this can be rec2020, rec709 or the full spectral locus (approximated by
-a 10-vertex polygon).
-
-it can also be used to calibrate the input colour against a measured
+this mechanism be used to calibrate the input colour against a measured
 test chart (for instance an IT8), or for artistic colour manipulation.
 
 the chromaticity RBF operates in rec2020, normalised to r/(r+g+b) and b/(r+g+b).
 
 white balancing (using CAT16) will adjust rec2020 D65 white to the colour
-represented by the three white sliders. to input alternative colours, connect
-the `picked` input from an instance of a [colour picker
+represented by the three white sliders. to input alternative source colours
+instead of D65, connect the `picked` input from an instance of a [colour picker
 module](../pick/readme.md), operating on the input to this colour module. the
 picked patch will be used as source colour and white balancing will be adjusted
 such that it will match the destination colour defined by the sliders. in
-conjunction with skin tone presets, this is useful to match skin rendition
-precisely in difficult lighting situations.
+conjunction with skin tone presets (cf. `colour-monk-[0-9].pst`), this is
+useful to match skin rendition precisely in difficult lighting situations.
 
 ## parameters
 
@@ -49,7 +43,7 @@ precisely in difficult lighting situations.
 * `gamut` the gamut can be left untouched, projected to spectral locus, rec2020, or rec709
 * `picked` what to do with the picked input colour, if it is connected to the `picked` connector.
   it can be used as source for white balancing and/or deflickering.
-* `matrix` IDT mode: use the image matrix or a selection of presets, or the colour lut.
+* `matrix` input device transform mode: use the image matrix or a selection of presets, or the colour lut.
 * `temp` if a clut is used, this allows to blend between the two illuminants. usually this
   is illuminant A and D65 and reflected in the values of the temperature here.
 * `white` the white balance destination colour
