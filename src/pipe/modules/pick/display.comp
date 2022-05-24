@@ -15,7 +15,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 
 layout( // input picked colour buffer
     set = 1, binding = 0
-) uniform usampler2D img_in;
+) uniform sampler2D img_in;
 
 layout( // rgb to sigmoid lut
     set = 1, binding = 1
@@ -60,9 +60,9 @@ main()
   {
     // read colour from texture
     vec3 picked_rgb = vec3(
-      2.0*texelFetch(img_in, ivec2(i, 0), 0).r/pow(2.0, 30.0) - 0.5,
-      2.0*texelFetch(img_in, ivec2(i, 1), 0).r/pow(2.0, 30.0) - 0.5,
-      2.0*texelFetch(img_in, ivec2(i, 2), 0).r/pow(2.0, 30.0) - 0.5);
+      texelFetch(img_in, ivec2(i, 0), 0).r,
+      texelFetch(img_in, ivec2(i, 1), 0).r,
+      texelFetch(img_in, ivec2(i, 2), 0).r);
 
     // or else read colour from params (requires round trip to cpu)?
     // params.pick[]

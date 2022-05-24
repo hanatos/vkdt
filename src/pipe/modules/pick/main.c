@@ -104,7 +104,7 @@ create_nodes(
         .name   = dt_token("input"),
         .type   = dt_token("read"),
         .chan   = dt_token("r"),
-        .format = dt_token("ui32"),
+        .format = dt_token("atom"),
         .roi    = module->connector[3].roi,
         .connected_mi = -1,
       },{
