@@ -411,8 +411,6 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     return 1;
   }
 
-  dt_log(s_log_qvk, "picked device %d %s ray tracing support", picked_device, qvk.raytracing_supported ? "with" : "without");
-
   qvk.physical_device = devices[picked_device];
 
 
@@ -471,6 +469,10 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     }
     tmp = tmp->pNext;
   }
+
+  dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics support", picked_device,
+      qvk.raytracing_supported ? "with" : "without",
+      qvk.float_atomics_supported ? "with" : "without");
 
   const char *requested_device_extensions[30] = {
     // ray tracing
