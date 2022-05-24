@@ -1,5 +1,5 @@
-// this is the 'fast' version of collect, using floating point atomics.
-// this is mostly only supported on nvidia devices.
+// this is the 'stupid' version of floating point atomics.
+// it's backward and hurts and necessary mostly for amd devices.
 #version 460
 #extension GL_GOOGLE_include_directive             : enable
 #extension GL_KHR_shader_subgroup_basic            : enable
@@ -9,7 +9,6 @@
 #extension GL_KHR_shader_subgroup_clustered        : enable
 #extension GL_KHR_shader_subgroup_vote             : enable
 #extension GL_KHR_shader_subgroup_shuffle_relative : enable
-#extension GL_EXT_shader_atomic_float              : enable
 
 #include "shared.glsl"
 
@@ -28,8 +27,20 @@ layout( // input buffer
 ) uniform sampler2D img_in;
 
 layout( // output picked colour buffer
-    set = 1, binding = 1, r32f
-) uniform image2D img_out;
+    set = 1, binding = 1, r32ui
+) uniform uimage2D img_out;
+
+void imgAtomicAdd(ivec2 tc, float a)
+{
+  bool done = false;
+  while(!done)
+  {
+    uint val = imageLoad(img_out, tc).r;
+    uint nvl = floatBitsToUint(uintBitsToFloat(val)+a);
+    uint ovl = imageAtomicCompSwap(img_out, tc, val, nvl);
+    done = (ovl == val);
+  }
+}
 
 void
 main()
@@ -56,9 +67,9 @@ main()
 
     if(gl_SubgroupInvocationID == 0 && !all(equal(vec3(0), rgb)))
     { // only one thread needs to do the atomics
-      imageAtomicAdd(img_out, ivec2(i, 0), rgb.r);
-      imageAtomicAdd(img_out, ivec2(i, 1), rgb.g);
-      imageAtomicAdd(img_out, ivec2(i, 2), rgb.b);
+      imgAtomicAdd(ivec2(i, 0), rgb.r);
+      imgAtomicAdd(ivec2(i, 1), rgb.g);
+      imgAtomicAdd(ivec2(i, 2), rgb.b);
     }
   }
 }

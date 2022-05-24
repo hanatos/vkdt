@@ -103,6 +103,7 @@ typedef struct qvk_t
   uint64_t                    uniform_alignment;
 
   int                         raytracing_supported;
+  int                         float_atomics_supported;
 }
 qvk_t;
 

@@ -162,6 +162,7 @@ dt_connector_bytes_per_pixel(const dt_connector_t *c)
 {
   if(c->format == dt_token("ui32")) return 4;
   if(c->format == dt_token("f32"))  return 4;
+  if(c->format == dt_token("atom")) return 4; // evaluates to ui32 if no float atomics are supported, f32 otherwise
   if(c->format == dt_token("dspy")) return 4;
   if(c->format == dt_token("ui16")) return 2;
   if(c->format == dt_token("f16"))  return 2;
@@ -179,65 +180,6 @@ dt_connector_channels(const dt_connector_t *c)
         (c->chan <=   0xffff ? 2 :
          4);
         // (c->chan <= 0xffffff ? 3 : 4)); // this is mostly padded (intel)
-}
-
-static inline VkFormat
-dt_connector_vkformat(const dt_connector_t *c)
-{
-  const int len = dt_connector_channels(c);
-  if(c->format == dt_token("ui32"))
-  {
-    switch(len)
-    { // int32 does not have UNORM equivalents (use SFLOAT instead i guess)
-      case 1: return VK_FORMAT_R32_UINT;
-      case 2: return VK_FORMAT_R32G32_UINT;
-      case 3: // return VK_FORMAT_R32G32B32_UINT;
-      case 4: return VK_FORMAT_R32G32B32A32_UINT;
-    }
-  }
-  if(c->format == dt_token("f32"))
-  {
-    switch(len)
-    {
-      case 1: return VK_FORMAT_R32_SFLOAT;          // r32f
-      case 2: return VK_FORMAT_R32G32_SFLOAT;       // rg32f
-      case 3: // return VK_FORMAT_R32G32B32_SFLOAT; // glsl does not support this
-      case 4: return VK_FORMAT_R32G32B32A32_SFLOAT; // rgba32f
-    }
-  }
-  if(c->format == dt_token("f16"))
-  {
-    switch(len)
-    {
-      case 1: return VK_FORMAT_R16_SFLOAT;          // r16f
-      case 2: return VK_FORMAT_R16G16_SFLOAT;       // rg16f
-      case 3: // return VK_FORMAT_R16G16B16_SFLOAT; // glsl does not support this
-      case 4: return VK_FORMAT_R16G16B16A16_SFLOAT; // rgba16f
-    }
-  }
-  if(c->format == dt_token("ui16"))
-  {
-    switch(len)
-    {
-      case 1: return VK_FORMAT_R16_UNORM;
-      case 2: return VK_FORMAT_R16G16_UNORM;
-      case 3: // return VK_FORMAT_R16G16B16_UNORM;
-      case 4: return VK_FORMAT_R16G16B16A16_UNORM;
-    }
-  }
-  if(c->format == dt_token("ui8"))
-  {
-    switch(len)
-    {
-      case 1: return VK_FORMAT_R8_UNORM;
-      case 2: return VK_FORMAT_R8G8_UNORM;
-      case 3: // return VK_FORMAT_R8G8B8_UNORM;
-      case 4: return VK_FORMAT_R8G8B8A8_UNORM;
-    }
-  }
-  if(c->format == dt_token("yuv")) return VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
-  if(c->format == dt_token("bc1")) return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
-  return VK_FORMAT_UNDEFINED;
 }
 
 static inline size_t

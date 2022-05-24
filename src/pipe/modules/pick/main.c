@@ -37,7 +37,7 @@ create_nodes(
   const int id_collect = graph->num_nodes++;
   graph->node[id_collect] = (dt_node_t) {
     .name   = dt_token("pick"),
-    .kernel = dt_token("collect"),
+    .kernel = graph->float_atomics_supported ? dt_token("collect") : dt_token("coldumb"),
     .module = module,
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
@@ -54,7 +54,7 @@ create_nodes(
       .name   = dt_token("picked"),
       .type   = dt_token("write"),
       .chan   = dt_token("r"),
-      .format = dt_token("ui32"),
+      .format = dt_token("atom"),
       .roi    = module->connector[3].roi,
       .flags  = s_conn_clear,
     }},
@@ -73,7 +73,7 @@ create_nodes(
       .name   = dt_token("input"),
       .type   = dt_token("sink"),
       .chan   = dt_token("r"),
-      .format = dt_token("ui32"),
+      .format = dt_token("atom"),
       .roi    = module->connector[3].roi,
       .connected_mi = -1,
     }},
@@ -202,7 +202,7 @@ void write_sink(
     dt_module_t *module,
     void *buf)
 {
-  uint32_t *u32 = buf;
+  float *f32 = buf;
   const int wd = module->connector[3].roi.wd;
   const int ht = module->connector[3].roi.ht; // we only read the first moment
 
@@ -230,9 +230,9 @@ void write_sink(
   // int mi = -1, Mi = -1;
   for(int k=0;k<cnt;k++)
   {
-    picked[3*k+0] = 2.0*u32[k+0*wd]/(float)(1ul<<30) - 0.5;
-    picked[3*k+1] = 2.0*u32[k+1*wd]/(float)(1ul<<30) - 0.5;
-    picked[3*k+2] = 2.0*u32[k+2*wd]/(float)(1ul<<30) - 0.5;
+    picked[3*k+0] = f32[k+0*wd];
+    picked[3*k+1] = f32[k+1*wd];
+    picked[3*k+2] = f32[k+2*wd];
     if(show == 2)
     {
       const float d = _cie_de76(picked+3*k, ref+3*k);
