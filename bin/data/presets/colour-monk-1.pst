@@ -5,3 +5,4 @@ connect:crop:01:output:pick:01:input
 connect:pick:01:picked:colour:01:picked
 param:pick:01:nspots:1
 param:colour:01:white:0.848651:0.797681:0.712965:0.5
+param:colour:01:picked:1
