@@ -1263,6 +1263,15 @@ inline void draw_widget(int modid, int parid)
       keyframe_time = now; \
     }\
   }
+#define TOOLTIP \
+  if(param->tooltip && ImGui::IsItemHovered())\
+  {\
+    ImGui::BeginTooltip();\
+    ImGui::PushTextWrapPos(vkdt.state.panel_wd);\
+    ImGui::TextUnformatted(param->tooltip);\
+    ImGui::PopTextWrapPos();\
+    ImGui::EndTooltip();\
+  }
 
   // distinguish by count:
   // get count by param cnt or explicit multiplicity from ui file
@@ -1298,14 +1307,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.active_module = modid;
         }
         KEYFRAME
-        if(param->tooltip && ImGui::IsItemHovered())
-        {
-          ImGui::BeginTooltip();
-          ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-          ImGui::TextUnformatted(param->tooltip);
-          ImGui::PopTextWrapPos();
-          ImGui::EndTooltip();
-        }
+        TOOLTIP
       }
       else if(param->type == dt_token("int"))
       {
@@ -1322,6 +1324,7 @@ inline void draw_widget(int modid, int parid)
               flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
         }
+        TOOLTIP
       }
       break;
     }
@@ -1376,6 +1379,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.active_module = modid;
           g_busy += 2;
         }
+        TOOLTIP
       }
       break;
     }
@@ -1387,6 +1391,7 @@ inline void draw_widget(int modid, int parid)
       ImVec4 col(val[0], val[1], val[2], 1.0f);
       ImVec2 size(0.1*vkdt.state.panel_wd, 0.1*vkdt.state.panel_wd);
       ImGui::ColorButton(str, col, ImGuiColorEditFlags_HDR, size);
+      TOOLTIP
       if((num < count - 1) && ((num % 6) != 5))
         ImGui::SameLine();
       break;
@@ -1450,6 +1455,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = s_graph_run_all;
           darkroom_reset_zoom();
         }
+        TOOLTIP
       }
       num = count;
       break;
@@ -1543,6 +1549,7 @@ inline void draw_widget(int modid, int parid)
           darkroom_reset_zoom();
         }
         KEYFRAME
+        TOOLTIP
       }
       num = count;
       break;
@@ -1572,6 +1579,7 @@ inline void draw_widget(int modid, int parid)
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sz);
         }
+        TOOLTIP
       }
       if((num < count - 1) && ((num % 6) != 5))
         ImGui::SameLine();
@@ -1688,6 +1696,7 @@ inline void draw_widget(int modid, int parid)
             if(mod->so->input) mod->so->input(mod, &p);
         }
         KEYFRAME
+        TOOLTIP
       }
       break;
     }
@@ -1777,6 +1786,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.active_module = modid;
         }
         KEYFRAME
+        TOOLTIP
       }
       ImGui::PopStyleColor();
       if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
@@ -1794,6 +1804,8 @@ inline void draw_widget(int modid, int parid)
   ImGui::PopID();
   } // end for multiple widgets
 #undef RESETBLOCK
+#undef KEYFRAME
+#undef TOOLTIP
 }
 } // anonymous namespace
 

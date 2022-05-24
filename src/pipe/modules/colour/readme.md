@@ -47,6 +47,8 @@ precisely in difficult lighting situations.
   can be given in the parameters as `source` and `target` list of points.
   this parameter runs a ui group, so it will show/hide a few other elements.
 * `gamut` the gamut can be left untouched, projected to spectral locus, rec2020, or rec709
+* `picked` what to do with the picked input colour, if it is connected to the `picked` connector.
+  it can be used as source for white balancing and/or deflickering.
 * `matrix` IDT mode: use the image matrix or a selection of presets, or the colour lut.
 * `temp` if a clut is used, this allows to blend between the two illuminants. usually this
   is illuminant A and D65 and reflected in the values of the temperature here.
