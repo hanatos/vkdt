@@ -454,46 +454,23 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     .queueFamilyIndex = queue_family_index,
   };
 
-  // ray tracing
-  VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
-    .sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
-    .accelerationStructure = VK_TRUE,
-  };
-  VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {
-    .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
-    .pNext    = &acceleration_structure_features,
-    .rayQuery = VK_TRUE,
-  };
-  VkPhysicalDeviceVulkan12Features v12f = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-    .pNext                                     = qvk.raytracing_supported ? &ray_query_features : 0,
-    .descriptorIndexing                        = VK_TRUE,
-    .uniformAndStorageBuffer8BitAccess         = VK_TRUE,
-    .runtimeDescriptorArray                    = VK_TRUE,
-    .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
-    .bufferDeviceAddress                       = VK_TRUE,
-  };
-  VkPhysicalDeviceVulkan11Features v11f = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-    .pNext = &v12f,
-  };
   VkPhysicalDeviceFeatures2 device_features = {
-    .pNext    = &v11f,
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
   };
-  VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_features = {
-    .sType                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
-    .shaderImageFloat32Atomics   = VK_TRUE,
-    .shaderImageFloat32AtomicAdd = VK_TRUE,
-  };
-  if(qvk.float_atomics_supported)
-  {
-    atomic_features.pNext = device_features.pNext;
-    device_features.pNext = &atomic_features;
-  }
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
-  v11f.samplerYcbcrConversion = 1;
+  VkPhysicalDeviceFeatures2 *tmp = &device_features;
+  while(tmp)
+  { // now find out whether we *really* support 32-bit floating point atomic adds:
+    if(tmp->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT)
+    {
+      VkPhysicalDeviceShaderAtomicFloatFeaturesEXT *af =
+        (VkPhysicalDeviceShaderAtomicFloatFeaturesEXT*)tmp;
+      if(af->shaderImageFloat32AtomicAdd == VK_FALSE)
+        qvk.float_atomics_supported = 0;
+    }
+    tmp = tmp->pNext;
+  }
 
   const char *requested_device_extensions[30] = {
     // ray tracing
