@@ -124,22 +124,6 @@ int dt_module_remove(
   return 0;
 }
 
-// return modid or -1
-int dt_module_get(
-    const dt_graph_t *graph,
-    dt_token_t name,
-    dt_token_t inst)
-{
-  // TODO: some smarter way? hash table? benchmark how much we lose
-  // through this stupid O(n) approach. after all the comparisons are
-  // fast and we don't have all that many modules.
-  for(int i=0;i<graph->num_modules;i++)
-    if(graph->module[i].name == name &&
-       graph->module[i].inst == inst)
-      return i;
-  return -1;
-}
-
 // returns count of connected modules
 int dt_module_get_module_after(
     const dt_graph_t  *graph,

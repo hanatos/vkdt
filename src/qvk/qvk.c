@@ -454,9 +454,39 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     .queueFamilyIndex = queue_family_index,
   };
 
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
+    .sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+    .accelerationStructure = VK_TRUE,
+  };
+  VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {
+    .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
+    .pNext    = &acceleration_structure_features,
+    .rayQuery = VK_TRUE,
+  };
+  VkPhysicalDeviceVulkan12Features v12f = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+    .pNext                                     = qvk.raytracing_supported ? &ray_query_features : 0,
+    .descriptorIndexing                        = VK_TRUE,
+    .uniformAndStorageBuffer8BitAccess         = VK_TRUE,
+    .runtimeDescriptorArray                    = VK_TRUE,
+    .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+    .bufferDeviceAddress                       = VK_TRUE,
+  };
+  VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_features = {
+    .sType                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
+    .shaderImageFloat32Atomics   = VK_TRUE,
+    .shaderImageFloat32AtomicAdd = VK_TRUE,
+    .pNext                       = &v12f,
+  };
+  VkPhysicalDeviceVulkan11Features v11f = {
+    .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    .samplerYcbcrConversion = 1,
+    .pNext                  = &atomic_features,
+  };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
+    .pNext    = &v11f,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   VkPhysicalDeviceFeatures2 *tmp = &device_features;

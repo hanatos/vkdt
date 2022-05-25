@@ -48,6 +48,7 @@ typedef void (*dt_module_read_geo_t)(dt_module_t *module, dt_read_geo_params_t *
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
+typedef void (*dt_module_ui_callback_t)(dt_module_t *module, dt_token_t param);
 typedef int  (*dt_module_audio_t)(dt_module_t *module, const int frame, uint16_t **samples);
 typedef void (*dt_module_input_t)(dt_module_t *module, dt_module_input_event_t *e);
 typedef dt_graph_run_t (*dt_module_check_params_t)(dt_module_t *module, uint32_t parid, void *oldval);
@@ -77,6 +78,9 @@ typedef struct dt_module_so_t
 
   // commit new parameters from module's gui params to binary float blob
   dt_module_commit_params_t commit_params;
+
+  // for the specific 'callback' ui widget that will trigger custom code execution
+  dt_module_ui_callback_t ui_callback;
 
   // check whether a parameter update would cause a graph update or just a parameter update
   dt_module_check_params_t check_params;

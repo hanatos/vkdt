@@ -3,6 +3,42 @@
 #include <math.h>
 #include <stdlib.h>
 
+void ui_callback(
+    dt_module_t *mod,
+    dt_token_t   param)
+{ // callback for import from cc24/colour picker button:
+  // retrieve instance token from our params and corresponding colour picker by that instance name:
+  const int   parid   = dt_module_get_param(mod->so, param);
+  const char *inst    = dt_module_param_string(mod, parid); if(!inst) return;
+  const int   pick_id = dt_module_get(mod->graph, dt_token("pick"), dt_token(inst));
+  if(pick_id < 0 || pick_id > mod->graph->num_modules) return;
+  const dt_module_t *mp = mod->graph->module+pick_id;
+  // retrieve rbmap data from colour picker
+  const int   pck_pid = dt_module_get_param(mp->so, dt_token("picked"));
+  const int   ref_pid = dt_module_get_param(mp->so, dt_token("ref"));
+  const int   cnt_pid = dt_module_get_param(mp->so, dt_token("nspots"));
+  // only take 18 colour patches + 1 white
+  const int   cnt = CLAMP(dt_module_param_int(mp, cnt_pid)[0], 0, 19);
+  const float *ref = dt_module_param_float(mp, ref_pid);
+  const float *pck = dt_module_param_float(mp, pck_pid);
+  const int   rbm_pid = dt_module_get_param(mod->so, dt_token("rbmap"));
+  const int   rbc_pid = dt_module_get_param(mod->so, dt_token("cnt"));
+  float *rbmap = (float *)dt_module_param_float(mod, rbm_pid);
+  int   *rbcnt = (int   *)dt_module_param_int  (mod, rbc_pid);
+  if(!rbmap || !rbcnt)     return;
+  if(!pck || !ref || !cnt) return;
+  for(int i=0;i<cnt;i++)
+  { // init source -> destination
+    const float pckb = pck[3*i+0] + pck[3*i+1] + pck[3*i+2];
+    const float refb = ref[3*i+0] + ref[3*i+1] + ref[3*i+2];
+    rbmap[4*i+0] = pck[3*i+0] / pckb;
+    rbmap[4*i+1] = pck[3*i+2] / pckb;
+    rbmap[4*i+2] = ref[3*i+0] / refb;
+    rbmap[4*i+3] = ref[3*i+2] / refb;
+  }
+  rbcnt[0] = cnt;
+}
+
 
 static inline void
 clip_poly(
@@ -431,7 +467,7 @@ void create_nodes(
       .name   = dt_token("picked"),
       .type   = dt_token("read"),
       .chan   = dt_token("r"),
-      .format = dt_token("ui32"),
+      .format = dt_token("atom"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
     }},

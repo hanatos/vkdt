@@ -1361,8 +1361,30 @@ inline void draw_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("callback"):
+    { // special callback button
+      if(num == 0)
+      {
+        char str[10] = {0};
+        memcpy(str, &param->name, 8);
+        ImVec2 size(0.5*vkdt.state.panel_wd, 0);
+        if(ImGui::Button(str, size))
+        {
+          dt_module_t *m = vkdt.graph_dev.module+modid;
+          if(m->so->ui_callback) m->so->ui_callback(m, param->name);
+        }
+        TOOLTIP
+        if(param->type == dt_token("string"))
+        {
+          ImGui::SameLine();
+          char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
+          ImGui::InputText("", v, count);
+        }
+      }
+      break;
+    }
     case dt_token("combo"):
-    {
+    { // combo box
       if(param->type == dt_token("int"))
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;

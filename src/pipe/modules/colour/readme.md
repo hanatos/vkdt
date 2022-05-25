@@ -48,8 +48,15 @@ useful to match skin rendition precisely in difficult lighting situations.
   is illuminant A and D65 and reflected in the values of the temperature here.
 * `white` the white balance destination colour
 * `mat` a hidden parameter containing the coefficients of the image matrix.
-* `cnt`
-* `rbmap`
+* `cnt` the number of patches to use in the rbf mapping
+* `rbmap` the patch source and destination colours
+* `import` press this button to import source and destination colours from a
+  colour picker by the instance name as entered to the right. the picker should
+  be attached to the output of this module and you have to keep the saturation
+  slider at 1.0 when doing this. also the rbf needs to be set to identity
+  (reduce number of patches, double click the sliders to reset to src).
+  reference numbers for the picker can be obtained by presets for your target (such as cc24).
+  
 
 ## connectors
 

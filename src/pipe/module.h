@@ -117,9 +117,6 @@ typedef struct dt_graph_t dt_graph_t; // fwd declare
 // add a module to the graph, also init the dso class. returns the module id or -1.
 int dt_module_add(dt_graph_t *graph, dt_token_t name, dt_token_t inst);
 
-// return the id or -1 of the module of given name and instance
-int dt_module_get(const dt_graph_t *graph, dt_token_t name, dt_token_t inst);
-
 int dt_module_get_connector(const dt_module_t *m, dt_token_t conn);
 
 // remove module from the graph

@@ -39,7 +39,7 @@ layout( // if have_clut, the colour lookup table is here
 
 layout( // picked colour if any.
     set = 1, binding = 3
-) uniform usampler2D img_pick; // does this need to be a usampler on amd?
+) uniform sampler2D img_pick; // does this need to be a usampler on amd?
 
 vec3 // return adapted rec2020
 cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
@@ -116,12 +116,12 @@ main()
     const int i = 0; // which one of the colour pickers
     picked_rgb = vec3(
         // do we need this on amd?
-        uintBitsToFloat(texelFetch(img_pick, ivec2(i, 0), 0).r),
-        uintBitsToFloat(texelFetch(img_pick, ivec2(i, 1), 0).r),
-        uintBitsToFloat(texelFetch(img_pick, ivec2(i, 2), 0).r));
-        // texelFetch(img_pick, ivec2(i, 0), 0).r,
-        // texelFetch(img_pick, ivec2(i, 1), 0).r,
-        // texelFetch(img_pick, ivec2(i, 2), 0).r);
+        // uintBitsToFloat(texelFetch(img_pick, ivec2(i, 0), 0).r),
+        // uintBitsToFloat(texelFetch(img_pick, ivec2(i, 1), 0).r),
+        // uintBitsToFloat(texelFetch(img_pick, ivec2(i, 2), 0).r));
+        texelFetch(img_pick, ivec2(i, 0), 0).r,
+        texelFetch(img_pick, ivec2(i, 1), 0).r,
+        texelFetch(img_pick, ivec2(i, 2), 0).r);
     cam_lum = dot(vec3(1), picked_rgb);
   }
 

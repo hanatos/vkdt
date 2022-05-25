@@ -793,6 +793,23 @@ dt_api_guided_filter(
 
 #endif // not defined cplusplus
 
+// return modid or -1
+static inline int
+dt_module_get(
+    const dt_graph_t *graph,
+    dt_token_t name,
+    dt_token_t inst)
+{
+  // TODO: some smarter way? hash table? benchmark how much we lose
+  // through this stupid O(n) approach. after all the comparisons are
+  // fast and we don't have all that many modules.
+  for(uint32_t i=0;i<graph->num_modules;i++)
+    if(graph->module[i].name == name &&
+       graph->module[i].inst == inst)
+      return i;
+  return -1;
+}
+
 static inline const uint32_t *dt_module_param_uint32(
     const dt_module_t *module,
     int paramid)
