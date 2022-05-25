@@ -135,7 +135,7 @@ main()
     if(params.colour_mode == 0 || push.have_clut == 0)
       picked_rgb = params.cam_to_rec2020 * picked_rgb;
     else
-      picked_rgb = process_clut(rgb);
+      picked_rgb = process_clut(picked_rgb);
     picked_rgb /= picked_rgb.g;
     rgb = cat16(rgb, picked_rgb, params.mul.rgb);
   } // regular white balancing

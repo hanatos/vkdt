@@ -24,8 +24,9 @@ read_header(
 
   char filename[PATH_MAX];
   char *key[] = {
-    "model", 0};
+    "maker", "model", 0};
   char *val[] = {
+    mod->graph->main_img_param.maker,
     mod->graph->main_img_param.model, 0};
   dt_strexpand(pattern, strlen(pattern), filename, sizeof(filename), key, val);
   // fprintf(stderr, "[i-lut] loading %s\n", filename);
