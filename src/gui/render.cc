@@ -603,7 +603,7 @@ void render_lighttable_right_panel(double &hotkey_time)
   // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
   // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
   // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-  ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),    ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
   ImGui::Begin("panel-right", 0, window_flags);
 

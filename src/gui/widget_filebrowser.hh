@@ -52,6 +52,7 @@ inline void
 dt_filebrowser_open(
     dt_filebrowser_widget_t *w)
 {
+  ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd*0.8, vkdt.state.center_ht*0.8), ImGuiCond_Always);
   ImGui::OpenPopup("select directory");
 }
 
@@ -64,8 +65,6 @@ dt_filebrowser_display(
 {
   if(w->cwd[0] == 0) w->cwd[0] = '/';
   int ret = 0;
-
-  ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd*0.8, vkdt.state.center_ht*0.8), ImGuiCond_Always);
 
   if(ImGui::BeginPopupModal("select directory", 0, 0))
       // ImGuiWindowFlags_NoTitleBar))
