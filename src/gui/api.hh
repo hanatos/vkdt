@@ -268,7 +268,7 @@ dt_gui_dr_modals()
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8, 0.2, 0.1, 1.0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0, 0.4, 0.2, 1.0));
           }
-          if(ImGui::Button(line[i])) sel[i] = 1;
+          if(ImGui::Button(line[i])) sel[i] ^= 1;
           if(ImGui::IsItemHovered())
           {
             if(selected) ImGui::SetTooltip("click to drop from preset");
