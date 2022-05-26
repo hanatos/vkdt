@@ -210,6 +210,9 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         return;
       }
+      else if(!vkdt.wstate.pentablet_enabled && 
+          action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
+        return; // don't pan when drawing with the mouse
     }
   }
 
