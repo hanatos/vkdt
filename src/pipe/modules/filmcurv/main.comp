@@ -60,7 +60,7 @@ main()
   vec3 col1 = weibull_cdf(col0, il, k);
 #if 1 // colour using aurelien's patented ucs:
   // if(ipos.x > imageSize(img_out).x*0.66) {
-  if(dot(vec3(1),col0) > 1e-3)
+  if(dot(vec3(1),col0) > 1e-5)
   {
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
@@ -70,7 +70,7 @@ main()
     vec3 xyz1 = inverse(xyz_to_rec2020) * col1;
     vec3 xyY0 = vec3(xyz0.xy / dot(vec3(1),xyz0), xyz0.y);
     vec3 xyY1 = vec3(xyz1.xy / dot(vec3(1),xyz1), xyz0.y);
-    const float L_white = 2.0; // ???
+    const float L_white = 1.0; // ???
     vec3 hcb0 = dt_UCS_JCH_to_HCB(xyY_to_dt_UCS_JCH(xyY0, L_white));
     vec3 hcb1 = dt_UCS_JCH_to_HCB(xyY_to_dt_UCS_JCH(xyY1, L_white));
     hcb1 = vec3(hcb0.x, hcb1.y, hcb1.z);
