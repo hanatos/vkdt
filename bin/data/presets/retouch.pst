@@ -1,0 +1,6 @@
+module:wavelet:retouch
+module:draw:retouch
+connect:draw:retouch:output:wavelet:retouch:mask
+# assume default pipeline:
+connect:colour:01:output:wavelet:retouch:input
+connect:wavelet:retouch:output:filmcurv:01:input
