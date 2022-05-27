@@ -1,6 +1,5 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
-#extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
 
@@ -65,8 +64,6 @@ main()
   // adjust brightness in coarsest level
   down4 *= exp2(mask * params.s4);
 
-  // TODO: come up with some meaningful blending with img_mask
-  // sliders only have effect there?
   vec3 tt = vec3(0.0);
   float ht = 2.0, thrs;
   thrs = mask * params.s0;
