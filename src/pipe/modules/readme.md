@@ -75,6 +75,7 @@ it follows the current list of available modules.
 * [spec: spectral colour manipulation/input transform](./spec/readme.md)
 * [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
 * [vignette: add/remove parametric vignette](./vignette/readme.md)
+* [wavelet: skin retouching](./wavelet/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
 **3d rendering**

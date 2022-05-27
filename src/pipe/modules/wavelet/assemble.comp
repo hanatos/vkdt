@@ -52,6 +52,7 @@ main()
   esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
   vec3 down4 = texelFetch(img_s4, esi, 0).rgb;
 
+  const float sigma = 1.0;
   const float b0 = 1.0;
   const float b1 = 0.5;
   const float b2 = 0.25;
@@ -61,23 +62,26 @@ main()
   down2 = (down2 - down3)/(sigma*b2);
   down3 = (down3 - down4)/(sigma*b3);
 
+  // adjust brightness in coarsest level
+  down4 *= exp2(mask * params.s4);
+
   // TODO: come up with some meaningful blending with img_mask
   // sliders only have effect there?
   vec3 tt = vec3(0.0);
-  const float ht = 2.0;
-  thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down3.x) > ht));
+  float ht = 2.0, thrs;
+  thrs = mask * params.s0;
   tt = min(vec3(1.0), abs(down3)/(2*thrs));
   down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs, vec3(0.0)), abs(down3), tt);
-  thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down2.x) > ht));
+  thrs = mask * params.s1;
   tt = min(vec3(1.0), abs(down2)/(2*thrs));
   down4 += sigma * b2 * sign(down2) * mix(max(abs(down2) - thrs, vec3(0.0)), abs(down2), tt);
-  thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down1.x) > ht));
+  thrs = mask * params.s2;
   tt = min(vec3(1.0), abs(down1)/(2*thrs));
   down4 += sigma * b1 * sign(down1) * mix(max(abs(down1) - thrs, vec3(0.0)), abs(down1), tt);
-  thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down0.x) > ht));
+  thrs = mask * params.s3;
   tt = min(vec3(1.0), abs(down0)/(2*thrs));
   down4 += sigma * b0 * sign(down0) * mix(max(abs(down0) - thrs, vec3(0.0)), abs(down0), tt);
 
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  imageStore(img_out, ipos, vec4(down4, 1));
 }
 
