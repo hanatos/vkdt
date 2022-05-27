@@ -331,12 +331,14 @@ dt_gui_dr_modals()
     if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
     if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
       dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
-    int pick = -1;
+    int pick = -1, local = 0;
 #define FREE_ENT do {\
     for(int i=0;i<ent_cnt;i++) free(ent[i]);\
+    for(int i=0;i<ent_local_cnt;i++) free(ent_local[i]);\
+    free(ent_local); ent_local = 0; ent_local_cnt = 0;\
     free(ent); ent = 0; ent_cnt = 0; } while(0)
-    static struct dirent **ent = 0;
-    static int ent_cnt = 0;
+    static struct dirent **ent = 0, **ent_local = 0;
+    static int ent_cnt = 0, ent_local_cnt = 0;
     static char filter[256] = "";
     if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
@@ -351,56 +353,32 @@ dt_gui_dr_modals()
 
     if(!ent_cnt)
     { // open preset directory
-      char dirname[PATH_MAX];
-      snprintf(dirname, sizeof(dirname), "%s/presets", vkdt.db.basedir);
+      char dirname[PATH_MAX+20];
+      snprintf(dirname, sizeof(dirname), "%s/data/presets", dt_pipe.basedir);
       ent_cnt = scandir(dirname, &ent, 0, alphasort);
-      if(ent_cnt == -1)
-      { // assume the directory does not exist, copy over:
-        int ret = mkdir(dirname, 0755);
-        char srcname[PATH_MAX+100];
-        snprintf(srcname, sizeof(srcname), "%s/data/presets", dt_pipe.basedir);
-        ent_cnt = scandir(srcname, &ent, 0, alphasort);
-        for(int i=0;i<ent_cnt;i++) if(strstr(ent[i]->d_name, ".pst"))
-        {
-          char f0[2*PATH_MAX+100], f1[2*PATH_MAX+100];
-          snprintf(f0, sizeof(f0), "%s/data/presets/%s", dt_pipe.basedir, ent[i]->d_name);
-          snprintf(f1, sizeof(f1), "%s/presets/%s", vkdt.db.basedir, ent[i]->d_name);
-          struct stat stat;
-          int fd0 = open(f0, O_RDONLY), fd1 = open(f1, O_CREAT | O_WRONLY | O_TRUNC, 0644);
-          if(fd0 == -1 || fd1 == -1)  goto copy_error;
-          if(fstat(fd0, &stat) == -1) goto copy_error;
-          { loff_t len = stat.st_size;
-          do {
-            ret = copy_file_range(fd0, 0, fd1, 0, len, 0);
-          } while((len-=ret) > 0 && ret > 0);}
-copy_error:
-          if(fd0 >= 0) close(fd0);
-          if(fd0 >= 0) close(fd1);
-        }
-        FREE_ENT;
-      }
+      snprintf(dirname, sizeof(dirname), "%s/presets", vkdt.db.basedir);
+      ent_local_cnt = scandir(dirname, &ent_local, 0, alphasort);
+      if(ent_local_cnt == -1) ent_local_cnt = 0; // fine, you don't have user presets
     }
-    for(int i=0;i<ent_cnt;i++)
-    {
-      if(strstr(ent[i]->d_name, filter))
-      if(strstr(ent[i]->d_name, ".pst"))
-      {
-        if(pick < 0) pick = i; // for the "press enter" case
-        if(ImGui::Button(ent[i]->d_name))
-        {
-          ok = 1;
-          pick = i;
-        }
-      }
-    }
+#define LIST(E, L) do { \
+    for(int i=0;i<E##_cnt;i++)\
+      if(strstr(E[i]->d_name, filter) && strstr(E[i]->d_name, ".pst")) {\
+        if(pick < 0) { local = L; pick = i; } \
+        if(ImGui::Button(E[i]->d_name)) {\
+          ok = 1; pick = i; local = L;\
+        } } } while(0)
+    LIST(ent_local, 1);
+    LIST(ent, 0);
+#undef LIST
 
     if (ImGui::Button("cancel", ImVec2(120, 0))) {FREE_ENT; ImGui::CloseCurrentPopup();}
     ImGui::SameLine();
     if (ImGui::Button("ok", ImVec2(120, 0))) ok = 1;
     if(ok)
     {
-      char filename[PATH_MAX];
-      snprintf(filename, sizeof(filename), "%s/presets/%s", vkdt.db.basedir, ent[pick]->d_name);
+      char filename[PATH_MAX+300];
+      if(local) snprintf(filename, sizeof(filename), "%s/presets/%s", vkdt.db.basedir, ent_local[pick]->d_name);
+      else      snprintf(filename, sizeof(filename), "%s/data/presets/%s", dt_pipe.basedir,  ent[pick]->d_name);
       FILE *f = fopen(filename, "rb");
       uint32_t lno = 0;
       if(f)
@@ -429,6 +407,7 @@ error:
     }
     ImGui::EndPopup();
   }
+#undef FREE_ENT
 }
 
 void
