@@ -38,7 +38,7 @@ xrite/calibrite).
 estimate the *spectral sensitivity functions (ssf)* of a camera.
 this tool has two modes of operation. it can output ssf
 
-* by reverse-fitting them to dng profiles
+* by reverse-fitting them to dng profiles (`.dcp`)
 * by matching two images of ColorChecker colour charts (under two illuminants).
 
 it will create an html report along with the ssf data to check the accuracy of
@@ -47,7 +47,7 @@ the results.
 ### usage
 
 ```
-mkssf <dng file>            dng file from adobe dng creator, containing profile data
+mkssf <dng|dcp file>        dng or dcp file containing profile data
       --picked <a> <d65>    work with images of the cc24 chart instead
 ```
 
@@ -60,17 +60,21 @@ mkssf IMG_0001.dng
 will output `<camera model>.txt` the ssf, `<camera model>.html` the report, and
 `<camera model>.png` a plot of the ssf used in the report.
 
-### generating a dng
+### getting a dng/dcp
 
-if you don't have a native dng with the profile data, use the adobe dng creator
-to convert your raw files. it will fill the profile, in particular we read the
-following tags:
+we read the following tags as input, using `exiftool`:
 
 ```
 UniqueCameraModel ColorMatrix[123] CameraCalibration[123] AnalogBalance
 ReductionMatrix[123] ForwardMatrix[123] ProfilehueSatmapDims
 ProfileHueSatMapData[123]
 ```
+
+you can use the adobe dng creator to convert your raw files to dng. it will
+fill the required tags into the exif fields. alternatively, if you have an
+installation of an adobe tool, the `.dcp` files are understood by `exiftool`
+as well. they can be found in a directory like `/ProgramData/Adobe/CameraRaw/CameraProfiles/Camera/`.
+
 
 ### taking pictures of a chart
 
