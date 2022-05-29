@@ -60,7 +60,7 @@ main()
   vec3 col1 = weibull_cdf(col0, il, k);
 #if 1 // colour using aurelien's patented ucs:
   // if(ipos.x > imageSize(img_out).x*0.66) {
-  if(dot(vec3(1),col0) > 1e-5)
+  if(all(greaterThan(col0, vec3(1e-3))))
   {
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 

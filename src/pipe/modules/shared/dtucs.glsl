@@ -36,14 +36,12 @@ vec2 xy_to_dt_UCS_UV(vec2 xy)
   return M2 * UV_star;
 }
 
-/*
-  input :
-    * xyY in normalized CIE XYZ for the 2° 1931 observer adapted for D65
-    * L_white the lightness of white as dt UCS L* lightness
-    * cz = 1 for standard pre-print proofing conditions with average surround and n = 20 %
-            (background = middle grey, white = perfect diffuse white)
-  range : xy in [0; 1], Y normalized for perfect diffuse white = 1
-*/
+//  input :
+//    * xyY in normalized CIE XYZ for the 2° 1931 observer adapted for D65
+//    * L_white the lightness of white as dt UCS L* lightness
+//    * cz = 1 for standard pre-print proofing conditions with average surround and n = 20 %
+//            (background = middle grey, white = perfect diffuse white)
+//  range : xy in [0; 1], Y normalized for perfect diffuse white = 1
 vec3 xyY_to_dt_UCS_JCH(const vec3 xyY, const float L_white)
 {
   vec2 UV_star_prime = xy_to_dt_UCS_UV(xyY.xy);
@@ -55,14 +53,12 @@ vec3 xyY_to_dt_UCS_JCH(const vec3 xyY, const float L_white)
       atan(UV_star_prime.y, UV_star_prime.x));
 }
 
-/*
-  input :
-    * xyY in normalized CIE XYZ for the 2° 1931 observer adapted for D65
-    * L_white the lightness of white as dt UCS L* lightness
-    * cz = 1 for standard pre-print proofing conditions with average surround and n = 20 %
-            (background = middle grey, white = perfect diffuse white)
-  range : xy in [0; 1], Y normalized for perfect diffuse white = 1
-*/
+//  input :
+//    * xyY in normalized CIE XYZ for the 2° 1931 observer adapted for D65
+//    * L_white the lightness of white as dt UCS L* lightness
+//    * cz = 1 for standard pre-print proofing conditions with average surround and n = 20 %
+//            (background = middle grey, white = perfect diffuse white)
+//  range : xy in [0; 1], Y normalized for perfect diffuse white = 1
 vec3 dt_UCS_JCH_to_xyY(const vec3 JCH, const float L_white)
 {
   const float L_star = JCH.x * L_white; // should be L_star = powf(JCH[0], 1.f / cz) * L_white but we treat only cz = 1
