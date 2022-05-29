@@ -57,7 +57,7 @@ draw_position(
       vx[v] = dt_draw_vertex(xi, yi, pressure * radius, opacity, hardness);
     }
     // trigger draw list upload and recomputation:
-    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_upload_source | s_graph_run_wait_done;
     vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
   }
   else
