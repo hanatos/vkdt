@@ -89,7 +89,7 @@ vec3 dt_UCS_JCH_to_HSB(const vec3 JCH)
 
 vec3 dt_UCS_HSB_to_JCH(const vec3 HSB)
 {
-  return vec3(HSB.z / (pow(HSB.x*HSB.z, 1.33654221029386) + 1.), HSB.y * HSB.z, HSB.x);
+  return vec3(HSB.z / (pow(HSB.y*HSB.z, 1.33654221029386) + 1.), HSB.y * HSB.z, HSB.x);
 }
 
 vec3 dt_UCS_JCH_to_HCB(const vec3 JCH)
