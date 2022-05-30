@@ -14,7 +14,7 @@ typedef enum
   s_graph_run_roi            = 1<<0, // pass 1: recompute regions of interest
   s_graph_run_create_nodes   = 1<<1, // pass 2: create nodes from modules
   s_graph_run_alloc          = 1<<2, // pass 3: alloc and free images
-  s_graph_run_record_cmd_buf = 1<<3, // pass 4: record command buffer
+  s_graph_run_record_cmd_buf = 1<<3, // pass 4: record command buffer (uploads uniforms/params)
   s_graph_run_upload_source  = 1<<4, // final : upload new source image
   s_graph_run_download_sink  = 1<<5, // final : download sink images
   s_graph_run_wait_done      = 1<<6, // wait for fence
