@@ -1,2 +1,2 @@
 input:read:*:*
-output:write:*:*
+output:write:&input:*
