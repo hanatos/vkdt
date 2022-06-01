@@ -172,3 +172,10 @@ void dt_db_update_collection(dt_db_t *db);
 void dt_db_remove_selected_images(dt_db_t *db, dt_thumbnails_t *th, const int del);
 // sets the current image to given collection id. pass -1u to clear.
 void dt_db_current_set(dt_db_t *db, uint32_t colid);
+// duplicate selected images:
+// this writes only new .cfg files next to the old ones, with _01 _02 etc suffixes added.
+// the reason why it doesn't update the db is because there may be thumbnailing processes
+// running that will need a restart and the collection management might need to resize the
+// internal storage anyways. this is all done at once by calling dt_gui_switch_collection,
+// which by separation of concerns also cares about the thumbnail creation (the db doesn't).
+void dt_db_duplicate_selected_images(dt_db_t *db);

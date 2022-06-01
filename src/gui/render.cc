@@ -48,6 +48,7 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"scroll cur",    "scroll to current image",          GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_C},
   {"scroll end",    "scroll to end of collection",      GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_G},
   {"scroll top",    "scroll to top of collection",      GLFW_KEY_G},
+  {"duplicate",     "duplicate selected images",        GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_D},
 };
 static ImHotKey::HotKey hk_darkroom[] = {
   {"create preset", "create new preset from image",     GLFW_KEY_LEFT_CONTROL, GLFW_KEY_O},
@@ -581,6 +582,8 @@ void render_lighttable_center(double &hotkey_time)
       case 7:
         dt_gui_lt_scroll_top();
         break;
+      case 8:
+        dt_gui_lt_duplicate();
       default:
         goto dont_update_time;
     }
