@@ -281,7 +281,7 @@ dt_thumbnails_cache_one(
   clock_t beg = clock();
   if(dt_graph_export(graph, &param) != VK_SUCCESS)
   {
-    dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
+    dt_log(s_log_db, "[thm] running the thumbnail graph failed on image '%s'!", filename);
     // mark as dead
     snprintf(cfgfilename, sizeof(cfgfilename), "%s/data/bomb.bc1", dt_pipe.basedir);
     link(cfgfilename, bc1filename);

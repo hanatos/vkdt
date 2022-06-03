@@ -2020,11 +2020,7 @@ VkResult dt_graph_run(
     if(graph->module[modid[i]].connector[0].type == dt_token("sink"))
     {
       if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
-      {
-        dt_log(s_log_err, "roi of last connected sink module %"PRItkn" did not get initialised!",
-            dt_token_str(graph->module[modid[i]].name));
         return VK_INCOMPLETE;
-      }
       break; // we're good
     }
   }

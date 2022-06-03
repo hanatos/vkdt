@@ -86,8 +86,8 @@ dt_graph_export(
   {
     int err = dt_graph_read_config_ascii(graph, param->p_cfgfile);
     if(err)
-    {
-      dt_log(s_log_pipe, "could not open config file '%s'.", param->p_cfgfile);
+    { // well yes, loading default then. not an interesting message:
+      // dt_log(s_log_pipe, "could not open config file '%s'.", param->p_cfgfile);
       dt_token_t input_module = param->input_module;
       if(param->input_module == 0) input_module = dt_token("i-raw");
       char graph_cfg[PATH_MAX+100];
