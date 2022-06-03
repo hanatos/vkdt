@@ -33,7 +33,7 @@ dt_sigsegv_handler(int param)
   snprintf(filename, sizeof(filename), "/tmp/vkdt-bt-%d.txt", (int)getpid());
   FILE *f = fopen(filename, "wb");
   if(!f) return; // none of the code below works otherwise :(
-  fprintf(f, "this is vkdt " VKDT_VERSION " reporting a segfault:\n\n");
+  fprintf(f, "this is vkdt " VKDT_VERSION " reporting a crash:\n\n");
   fclose(f);
 
   char pid_arg[100], com_arg[PATH_MAX+100], log_arg[PATH_MAX+100];
