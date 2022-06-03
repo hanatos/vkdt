@@ -91,6 +91,7 @@ create_nodes(
 
   int id_down[2][NUM_LEVELS] = {0};
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
   uint32_t *blacki = (uint32_t *)img_param->black;
   uint32_t *whitei = (uint32_t *)img_param->white;
   for(int k=0;k<2;k++)

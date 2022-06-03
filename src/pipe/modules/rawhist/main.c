@@ -50,6 +50,7 @@ create_nodes(
 {
 
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
   const int block = img_param->filters == 9u ? 3 : 2;
 
   // input -> collect -> map -> output

@@ -1900,7 +1900,7 @@ void render_darkroom_full()
           dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
         {
           dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
-          if(out_dspy)
+          if(out_dspy && vkdt.graph_res == VK_SUCCESS)
           {
             float iwd = out_dspy->connector[0].roi.wd;
             float iht = out_dspy->connector[0].roi.ht;
@@ -2145,21 +2145,24 @@ abort:
         vkdt.state.scale = scale;
 #undef SMOOTH
       }
-      ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
-      float im0[2], im1[2];
-      float v0[2] = {(float)win_x, (float)win_y};
-      float v1[2] = {(float)win_x+win_w, (float)win_y+win_h};
-      dt_view_to_image(v0, im0);
-      dt_view_to_image(v1, im1);
-      im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
-      im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
-      im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
-      im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
-      dt_image_to_view(im0, v0);
-      dt_image_to_view(im1, v1);
-      ImGui::GetWindowDrawList()->AddImage(
-          imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
-          ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+      if(vkdt.graph_res == VK_SUCCESS)
+      {
+        ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
+        float im0[2], im1[2];
+        float v0[2] = {(float)win_x, (float)win_y};
+        float v1[2] = {(float)win_x+win_w, (float)win_y+win_h};
+        dt_view_to_image(v0, im0);
+        dt_view_to_image(v1, im1);
+        im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
+        im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
+        im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
+        im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
+        dt_image_to_view(im0, v0);
+        dt_image_to_view(im1, v1);
+        ImGui::GetWindowDrawList()->AddImage(
+            imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
+            ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+      }
       if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
     // center view has on-canvas widgets:
@@ -2303,7 +2306,7 @@ abort:
 
     // draw histogram image:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-    if(out_hist)
+    if(out_hist && vkdt.graph_res == VK_SUCCESS)
     {
       int wd = vkdt.state.panel_wd;
       // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
@@ -2315,7 +2318,7 @@ abort:
     }
 
     dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
-    if(out_view0)
+    if(out_view0 && vkdt.graph_res == VK_SUCCESS)
     {
       float iwd = out_view0->connector[0].roi.wd;
       float iht = out_view0->connector[0].roi.ht;

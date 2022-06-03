@@ -25,6 +25,7 @@ void modify_roi_out(
 {
   // copy to output
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return; // input chain disconnected
   assert(img_param);
   const uint32_t *b = img_param->crop_aabb;
   module->connector[1].roi = module->connector[0].roi;
@@ -55,6 +56,7 @@ create_nodes(
     dt_module_t *module)
 {
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
   assert(img_param);
   for(int k=0;k<4;k++)
   { // we will take care of this:

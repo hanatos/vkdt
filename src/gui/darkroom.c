@@ -498,7 +498,7 @@ darkroom_process()
   }
 
   if(vkdt.graph_dev.runflags)
-    dt_graph_run(&vkdt.graph_dev,
+    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
 
   if(vkdt.state.anim_playing && advance)
@@ -588,12 +588,11 @@ darkroom_enter()
   }
 
 
-  VkResult err = 0;
-  if((err = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
+  if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
   {
     // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
     dt_log(s_log_err|s_log_gui, "running the graph failed (%s)!",
-        qvk_result_to_string(err));
+        qvk_result_to_string(vkdt.graph_res));
     dt_graph_cleanup(&vkdt.graph_dev);
     return 4;
   }
