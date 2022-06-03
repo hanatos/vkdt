@@ -379,7 +379,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
 #define QVK_FEATURE_DO(F, R)\
     if(dev_features.F == 0 && R == 1) {\
       dev_features.F = 1;\
-      dt_log(s_log_qvk|s_log_err, "device does not support requested feature " #F ", trying anyways");}
+      dt_log(s_log_qvk, "device %d does not support requested feature " #F ", trying anyways", i);}
     QVK_FEATURE_LIST
 #undef QVK_FEATURE_DO
 #undef QVK_FEATURE_LIST

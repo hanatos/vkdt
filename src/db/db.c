@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <fcntl.h>
+#include <ctype.h>
 
 void
 dt_db_init(dt_db_t *db)
@@ -161,16 +163,8 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
-  // TODO: only do this the first time?
-  // TODO: check what happens with lru thumbnails
-  uint32_t id = -1u;
+  uint32_t id = 0;
   if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
-  {
-    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
-    return;
-  }
-  id = -1u;
-  if(dt_thumbnails_load_one(thumbnails, "data/bomb.bc1", &id) != VK_SUCCESS)
   {
     dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
     return;
@@ -268,7 +262,7 @@ int dt_db_load_image(
   if(len > 4 && !strcasecmp(filename+len-4, ".cfg"))
     len -= 4; // remove .cfg suffix
 
-  uint32_t id = -1u;
+  uint32_t id = 0;
   if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
   {
     dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
@@ -512,19 +506,15 @@ void dt_db_remove_selected_images(
   char fullfn[2048] = {0};
   for(int i=db->selection_cnt-1;i>=0;i--)
   {
-    if(del)
-    {
-      if(!dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)))
-      {
-        // delete the cfg if any
-        dt_log(s_log_db, "deleting `%s'", fullfn);
-        unlink(fullfn);
-        // delete the file without .cfg postfix
-        size_t len = strnlen(fullfn, sizeof(fullfn));
-        fullfn[len-4] = 0;
-        dt_log(s_log_db, "deleting `%s'", fullfn);
-        unlink(fullfn);
-      }
+    if(del && !dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)))
+    { // delete the cfg if any
+      dt_log(s_log_db, "deleting `%s'", fullfn);
+      unlink(fullfn);
+      // delete the file without .cfg postfix
+      size_t len = strnlen(fullfn, sizeof(fullfn));
+      fullfn[len-4] = 0;
+      dt_log(s_log_db, "deleting `%s'", fullfn);
+      unlink(fullfn);
     }
     // swap this imgid with the last one in the db.
     // this will keep the db img list untouched up to here, so we can keep on doing this.
@@ -544,4 +534,45 @@ void dt_db_remove_selected_images(
   db->selection_cnt = 0;
   // freshly filter and sort collection
   dt_db_update_collection(db);
+}
+
+void dt_db_duplicate_selected_images(dt_db_t *db)
+{
+  char fn[PATH_MAX+200], fullfn[PATH_MAX];
+  for(int i=0;i<db->selection_cnt;i++)
+  {
+    struct stat sb;
+    const char *ifn = db->image[db->selection[i]].filename;
+    int len = strnlen(ifn, 2048);
+    if(len > 3 && ifn[len-3] == '_' && isdigit(ifn[len-2]) && isdigit(ifn[len-1]))
+      len -= 3; // remove _?? suffix
+
+    for(int k=1;k<100;k++)
+    { // now append new index and probe until that file doesn't exist
+      int err = 0;
+      if(db->dirname[0])
+        err = snprintf(fn, sizeof(fn), "%s/%.*s_%02d.cfg", db->dirname, len, ifn, k) >= sizeof(fn);
+      else
+        err = snprintf(fn, sizeof(fn), "%.*s_%02d.cfg", len, ifn, k) >= sizeof(fn);
+      if(err) goto next;
+      if(stat(fn, &sb) == -1) break; // found empty slot
+      if(k == 99) goto next; // give up
+    }
+    dt_log(s_log_db, "creating duplicate `%s'", fn);
+    if(!dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)))
+    { // copy cfg to new duplicate
+      ssize_t ret;
+      int fd0 = open(fullfn, O_RDONLY), fd1 = open(fn, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+      if(fd0 == -1 || fd1 == -1)  goto copy_error;
+      if(fstat(fd0, &sb) == -1) goto copy_error;
+      { loff_t len = sb.st_size;
+        do {
+          ret = copy_file_range(fd0, 0, fd1, 0, len, 0);
+        } while((len-=ret) > 0 && ret > 0);}
+copy_error:
+      if(fd0 >= 0) close(fd0);
+      if(fd0 >= 0) close(fd1);
+    }
+next:;
+  }
 }

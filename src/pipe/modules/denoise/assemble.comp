@@ -116,31 +116,14 @@ main()
     // test = length(down0) + length(down1) + length(down2) + length(down3);
     // test = test/(test+1.0);
     // test = 0.0;
-    if(push.filters == 9)
-    {
     float d0 = length(down0), d1 = length(down1), d2 = length(down2), d3 = length(down3);
     float slope = ((d3 - d0)/3.0 + (d2 - d1)/1.0 + (d1 - d0)/1.0 + (d3-d2)/1.0 + (d2-d0)/2.0 + (d3-d1)/2.0)/6.0;
-#if 1 // worked for xtrans
-    test = max(0, -slope);
-    test = max(0.0, 1.0-test);
-    test = pow(test, 16.0);
-    test = clamp(1.5*test, 0.05, 1.0);
-#elif 1 // for canon?
-    // test = max(0.0, 1.0-test);
-    // test = pow(test, 16.0);
-    // test = 1.0/test;
-    // test = test/(test+1.0);
-    // test = pow(test, 0.01);
-#endif
-    }
-    else // if(push.filters != 9)
+    // if(push.filters == 9)
     {
-      test = 1.0; // XXX switch off
-      // XXX this is important for sharpness!
-      // test = abs(slope);
-      // test = max(0, 1.0-4.0*test);
-      // test -= 0.05;
-      // test = 1.0; // switch off for bayer now
+      test = max(0, -slope);
+      test = max(0.0, 1.0-test);
+      test = pow(test, 16.0);
+      test = clamp(1.5*test, 0.0, 1.0);
     }
 
     // test = 0.5 + 0.5*xi2/sqrt(xi2*xi2+1.0);

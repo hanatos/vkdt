@@ -155,25 +155,25 @@ load_raw(
     mod_data->d->decodeMetaData(meta);
 
     const auto errors = mod_data->d->mRaw->getErrors();
-    for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", filename, error.c_str());
+    // for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", filename, error.c_str());
 
     // TODO: do some corruption detection and support for esoteric formats/fails here
     // the data type doesn't seem to be inited on hdrmerge raws:
     // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
     if(sizeof(uint16_t) != mod_data->d->mRaw->getBpp())
     {
-      fprintf(stderr, "[i-raw] unhandled pixel format: %s\n", filename);
+      // fprintf(stderr, "[i-raw] unhandled pixel format: %s\n", filename);
       return 1;
     }
   }
   catch(const std::exception &exc)
   {
-    printf("[rawspeed] (%s) %s\n", filename, exc.what());
+    // printf("[rawspeed] (%s) %s\n", filename, exc.what());
     return 1;
   }
   catch(...)
   {
-    printf("[rawspeed] unhandled exception in\n");
+    // printf("[rawspeed] unhandled exception in\n");
     return 1;
   }
   clock_t end = clock();

@@ -80,11 +80,11 @@ dt_thumbnails_init(
   dt_vkalloc_init(&tn->alloc, tn->thumb_max + 10, heap_size);
 
   // init lru list
-  tn->lru = tn->thumb;
+  tn->lru = tn->thumb + 1; // [0] is special: busy bee
   tn->mru = tn->thumb + tn->thumb_max-1;
-  tn->thumb[0].next = tn->thumb+1;
+  tn->thumb[1].next = tn->thumb+2;
   tn->thumb[tn->thumb_max-1].prev = tn->thumb+tn->thumb_max-2;
-  for(int k=1;k<tn->thumb_max-1;k++)
+  for(int k=2;k<tn->thumb_max-1;k++)
   {
     tn->thumb[k].next = tn->thumb+k+1;
     tn->thumb[k].prev = tn->thumb+k-1;
@@ -281,7 +281,7 @@ dt_thumbnails_cache_one(
   clock_t beg = clock();
   if(dt_graph_export(graph, &param) != VK_SUCCESS)
   {
-    dt_log(s_log_err, "[thm] running the thumbnail graph failed on image '%s'!", filename);
+    dt_log(s_log_db, "[thm] running the thumbnail graph failed on image '%s'!", filename);
     // mark as dead
     snprintf(cfgfilename, sizeof(cfgfilename), "%s/data/bomb.bc1", dt_pipe.basedir);
     link(cfgfilename, bc1filename);
@@ -436,11 +436,11 @@ dt_thumbnails_load_list(
     const uint32_t imgid = collection[k];
     if(imgid >= db->image_cnt) break; // safety first. this probably means this job is stale! big danger!
     dt_image_t *img = db->image + imgid;
-    if(img->thumbnail == 1) continue; // known broken
     if(img->thumbnail == 0)
     { // not loaded
       char filename[1024];
       dt_db_image_path(db, imgid, filename, sizeof(filename));  
+      img->thumbnail = -1u;
       if(dt_thumbnails_load_one(tn, filename, &img->thumbnail))
         img->thumbnail = 0;
     }
@@ -493,9 +493,8 @@ dt_thumbnails_load_one(
   }
 
   dt_thumbnail_t *th = 0;
-  if(*thumb_index < 2 || *thumb_index == -1u)
-  {
-    // allocate thumbnail from lru list
+  if(*thumb_index == -1u)
+  { // allocate thumbnail from lru list
     // threads_mutex_lock(&tn->lru_lock);
     th = tn->lru;
     tn->lru = tn->lru->next;             // move head

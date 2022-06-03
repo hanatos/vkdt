@@ -183,3 +183,13 @@ dt_gui_dr_leave_fullscreen_view()
   if(vkdt.wstate.fullscreen_view)
     dt_gui_dr_toggle_fullscreen_view();
 }
+
+static inline void
+dt_gui_lt_duplicate()
+{
+  if(!vkdt.db.selection_cnt) return; // no images selected
+  dt_db_duplicate_selected_images(&vkdt.db); // just create .cfg files, don't update db
+  char dir[PATH_MAX]; // reload directory:
+  snprintf(dir, sizeof(dir), "%s", vkdt.db.dirname);
+  dt_gui_switch_collection(dir);
+}

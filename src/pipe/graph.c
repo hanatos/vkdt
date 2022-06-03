@@ -2020,11 +2020,7 @@ VkResult dt_graph_run(
     if(graph->module[modid[i]].connector[0].type == dt_token("sink"))
     {
       if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
-      {
-        dt_log(s_log_err, "roi of last connected sink module %"PRItkn" did not get initialised!",
-            dt_token_str(graph->module[modid[i]].name));
         return VK_INCOMPLETE;
-      }
       break; // we're good
     }
   }
@@ -2603,11 +2599,12 @@ VkResult dt_graph_run(
       accum_time += graph->query_pool_results[i+1] - graph->query_pool_results[i];
     else
     {
-      if(accum_time > 0)
+      if(i && accum_time > graph->query_pool_results[i-1] - graph->query_pool_results[i-2])
         dt_log(s_log_perf, "sum %"PRItkn":\t%8.3f ms",
             dt_token_str(last_name),
             accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
-      accum_time = 0;
+      if(i < graph->query_cnt-2)
+        accum_time = graph->query_pool_results[i+1] - graph->query_pool_results[i];
     }
     last_name = graph->query_name[i];
     // i think this is the most horrible line of printf i've ever written:

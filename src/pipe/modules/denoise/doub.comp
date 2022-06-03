@@ -50,12 +50,6 @@ main()
   vec4 upsm = texture(img_crs0, (ipos+0.5)/vec2(imageSize(img_out)));
   vec4 down = texture(img_crs1, (ipos+0.5)/vec2(imageSize(img_out)));
 
-#if 0
-  if(push.filters == 9) // swap red and blue channels according to sensor layout
-    if(((ipos.x + ipos.y) & 1) == 0)
-      upsm.rgb = upsm.bgr; // upsm is now in wrong colour but in sync with the canonical pattern
-#endif
-
   // find colour channel for this pixel and init some variables for that:
   float black = push.black.g, white = push.white.g, crs = upsm.g, crs1 = down.g,
         T = 0.5 * params.strength*upsm.w, blendw = params.luma;
@@ -69,13 +63,13 @@ main()
     {
       black = push.black.b; white = push.white.b;
       crs = upsm.b; crs1 = down.b; blendw = 1.0;
-      T /= upsm.w;
+      T /= max(1e-4, upsm.w);
     }
     else
     {
       black = push.black.r; white = push.white.r;
       crs = upsm.r; crs1 = down.r; blendw = 1.0;
-      T /= upsm.w;
+      T /= max(1e-4, upsm.w);
     }
   }
   else
@@ -87,13 +81,13 @@ main()
     { // red
       black = push.black.r; white = push.white.r;
       crs = upsm.r; crs1 = down.r; blendw = 1.0;
-      T /= upsm.w;
+      // T /= upsm.w;
     }
     else if(((ipos.x & 1) == 1) && ((ipos.y & 1) == 1))
     { // blue
       black = push.black.b; white = push.white.b;
       crs = upsm.b; crs1 = down.b; blendw = 1.0;
-      T /= upsm.w;
+      // T /= upsm.w;
     }
   }
   const float scale = 65535.0;
@@ -102,16 +96,13 @@ main()
 
   blendw = 0.5 * (blendw + 1.0);
   // T = 0.0;// * upsm.w; // XXX
-  // if(val < 1.0) // XXX TODO: highlight reconstruct in pyramid!
   if(val < white)
   {
     float wav = (val - crs1)/max(sigma, 1e-8);
-    // const float ht = 2.0;
+    // const float ht = 2.0; // attempt to remove fireflies
     // if(abs(wav) > ht) T = 10000.0;
-    // T = 0; // XXX
     float tt = min(1.0, wav/max(2.0*T,1e-8));
-    val = mix(val, max(0, crs + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
-    // val = crs + sigma * sign(wav) * abs(wav) * 20;
+    val = mix(val, max(0, mix(crs1, crs, upsm.w) + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), blendw);
   }
   val  = max(0, (val  - black)/(white - black));
   // val = upsm.w; // XXX DEBUG see detail shielding
