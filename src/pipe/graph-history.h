@@ -1,8 +1,6 @@
 #pragma once
 
-// can also be called to compress the edit history
-// TODO: split out allocation?
-static inline int
+static inline void
 dt_graph_history_init(
     dt_graph_t *graph)
 {
@@ -11,6 +9,12 @@ dt_graph_history_init(
   graph->history_item_max = 1000;
   graph->history_item_end = 0;
   graph->history_item = malloc(sizeof(uint8_t*) * graph->history_item_max);
+}
+
+static inline int
+dt_graph_history_reset(
+    dt_graph_t *graph)
+{
   char *tmp, *max = graph->history_pool + graph->history_max;
   char **hi = graph->history_item;
   int i = 0;
@@ -50,10 +54,9 @@ static inline void
 dt_graph_history_cleanup(
     dt_graph_t *graph)
 {
-  graph->history_item_max = graph->history_item_end = 0;
-  free(graph->history_item);
-  graph->history_max = 0;
-  free(graph->history_pool);
+  graph->history_max = graph->history_item_max = graph->history_item_end = 0;
+  free(graph->history_item); graph->history_item = 0;
+  free(graph->history_pool); graph->history_pool = 0;
 }
 
 static inline int
@@ -62,13 +65,11 @@ _dt_graph_history_check_buf(
     size_t      size)
 {
   if(graph->history_item_end >= graph->history_item_max)
-  {
-    // TODO: resize and copy buffers
+  { // TODO: resize and copy buffers
     return 1;
   }
   if(graph->history_max - graph->history_item[graph->history_item_end] <= size)
-  {
-    // TODO: resize and copy buffer, repoint history_item*
+  { // TODO: resize and copy buffer, repoint history_item*
     return 1;
   }
   return 0;
@@ -128,8 +129,10 @@ void dt_graph_history_keyframe(
     int         modid,
     int         keyid)
 {
-  // FIXME: determine correct size here, looking at count + the low level writing code!
-  if(_dt_graph_history_check_buf(graph, 70)) return;
+  int beg = mod->keyframe[keyid].beg, end = mod->keyframe[keyid].end;
+  int p = dt_module_get_param(graph->module[modid].so, mod->keyframe[keyid].param);
+  size_t psz = dt_ui_param_size(graph->module[modid].so->param[p].type, end-beg);
+  if(_dt_graph_history_check_buf(graph, 70+psz)) return;
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
   if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, modid, keyid, hi[i], max - hi[i])))
@@ -139,8 +142,7 @@ void dt_graph_history_keyframe(
 void dt_graph_history_global(
     dt_graph_t *graph)
 {
-  // FIXME: estimaton of size!
-  if(_dt_graph_history_check_buf(graph, 70)) return;
+  if(_dt_graph_history_check_buf(graph, 40)) return;
   int i = graph->history_item_end;
   char *tmp, **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
   if(!(tmp = dt_graph_write_global_ascii(graph, hi[i], max-hi[i]))) return 1;
