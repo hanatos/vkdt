@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
   if(!param.p_cfgfile)
   {
     fprintf(stderr, "usage: vkdt-cli -g <graph.cfg>\n"
-    "    [-d verbosity]                set log verbosity (none,mem,perf,pipe,cli,err,all)\n"
+    "    [-d verbosity]                set log verbosity (none,qvk,pipe,gui,db,cli,snd,perf,mem,err,all)\n"
     "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
     "    [--quality <0-100>]           jpg output quality\n"
     "    [--width <x>]                 max output width\n"
