@@ -2675,7 +2675,6 @@ void dt_graph_reset(dt_graph_t *g)
   g->thumbnail_image = 0;
   g->query_cnt = 0;
   g->params_end = 0;
-  g->history_end = 0;
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
