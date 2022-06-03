@@ -296,7 +296,6 @@ dt_graph_write_module_ascii(
 }
 
 // write connection
-// serialises only incoming connections (others can't be resolved due to ambiguity)
 char *
 dt_graph_write_connection_ascii(
     const dt_graph_t *graph,
@@ -328,13 +327,15 @@ dt_graph_write_param_ascii(
     const int         m,
     const int         p,
     char             *line,
-    size_t            size)
+    size_t            size,
+    const char       *eop)
 {
   const dt_module_t *mod = graph->module + m;
   WRITE("param:%"PRItkn":%"PRItkn":%"PRItkn":",
       dt_token_str(mod->name),
       dt_token_str(mod->inst),
       dt_token_str(mod->so->param[p]->name));
+  if(eop) eop = line; // pass on end of prefix to the outside
   int cnt = mod->so->param[p]->cnt;
   if(mod->so->param[p]->name == dt_token("draw"))
   { // draw issues a lot of numbers, only output the needed ones:
@@ -444,7 +445,7 @@ int dt_graph_write_config_ascii(
   // write all params
   for(int m=0;m<graph->num_modules;m++)
     for(int p=0;p<graph->module[m].so->num_params;p++)
-      if(!(buf = dt_graph_write_param_ascii(graph, m, p, buf, end-buf)))
+      if(!(buf = dt_graph_write_param_ascii(graph, m, p, buf, end-buf, 0)))
         goto error;
 
   // write all keyframes

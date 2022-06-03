@@ -10,8 +10,41 @@ int dt_graph_write_config_ascii(
     dt_graph_t *graph,
     const char *filename);
 
-// TODO: expose individual write to char* functions from io.c file!
-// TODO: then in render.cpp, write to graph->history_pool
+// write module definition
+char *
+dt_graph_write_module_ascii(
+    const dt_graph_t *graph,
+    const int         m,
+    char             *line,
+    size_t            size);
+
+// serialises only incoming connections (others can't be resolved due to ambiguity)
+char *
+dt_graph_write_connection_ascii(
+    const dt_graph_t *graph,
+    const int         m,      // module index
+    const int         i,      // connector index on given module
+    char             *line,
+    size_t            size);
+
+// write param
+char *
+dt_graph_write_param_ascii(
+    const dt_graph_t *graph,
+    const int         m,
+    const int         p,
+    char             *line,
+    size_t            size,
+    const char       *eop);   // end of prefix: where does the data start after module:inst:param:
+
+// write keyframe
+char *
+dt_graph_write_keyframe_ascii(
+    const dt_graph_t *graph,
+    const int         m,      // module id
+    const int         k,      // keyframe id
+    char             *line,
+    size_t            size);
 
 int dt_graph_read_config_line(
     dt_graph_t *graph,
