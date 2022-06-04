@@ -53,10 +53,7 @@ main()
   else if(i < 6) ev = mix(params.zone5, params.zone6, smoothstep(0.0, 1.0, f));
   else           ev = mix(params.zone6, params.zone6, smoothstep(0.0, 1.0, f));
   float l = luminance_rec2020(rgb);
-  // rgb = adjust_colour(rgb, l, pow(2.0, ev)*l);
-  vec3 col = rgb * pow(2.0, ev);
-  col = mix(col, vec3(dot(vec3(1.0/3.0), col)), smoothstep(0.02, 0.0, l));
-  rgb = adjust_colour_dng(rgb, col);
+  rgb = adjust_colour_dng(rgb, rgb * pow(2.0, ev));
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
