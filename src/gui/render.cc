@@ -752,8 +752,16 @@ dont_update_time:;
       snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", i);
       const char *dir = dt_rc_get(&vkdt.rc, entry, "null");
       if(strcmp(dir, "null"))
-        if(ImGui::Button(dir))
+      {
+        const char *last = dir;
+        for(const char *c=dir;*c!=0;c++) if(*c=='/') last = c+1;
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f,0.5f));
+        if(ImGui::Button(last, ImVec2(vkdt.state.panel_wd*0.98, 0)))
           dt_gui_switch_collection(dir);
+        if(ImGui::IsItemHovered())
+          ImGui::SetTooltip("%s", dir);
+        ImGui::PopStyleVar(1);
+      }
     }
   } // end collapsing header "recent collections"
 
