@@ -162,7 +162,7 @@ dt_rc_read(
   uint32_t lno = 0;
   while(!feof(f))
   {
-    fscanf(f, "%99[^\n]", line);
+    fscanf(f, "%3999[^\n]", line);
     if(fgetc(f) == EOF) break; // read \n
     lno++;
 
