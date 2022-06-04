@@ -173,8 +173,9 @@ main()
 
   // dt ucs saturation last so we don't mess with the rbf which is potentially
   // used for cc24 calibration
-  if(params.saturation != 1.0 && all(greaterThan(rgb, vec3(1e-3))))
+  if(params.saturation != 1.0)
   { // cut a few cycles if not needed
+    rgb = max(rgb, vec3(0));
     vec3 xyY = rec2020_to_xyY(rgb);
     vec3 JCH = xyY_to_dt_UCS_JCH(xyY, 1.0);
     JCH.y = clamp(JCH.y * params.saturation, 0, 1.0);
