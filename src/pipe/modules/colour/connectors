@@ -1,4 +1,4 @@
 input:read:rgba:f16
 output:write:rgba:f16
-clut:read:rgba:f16
+clut:read:rg:f16
 picked:read:r:atom

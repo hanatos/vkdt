@@ -2,4 +2,4 @@ input:read:rgba:f16
 spectra:read:rgba:*
 output:write:rgba:f16
 abney:read:rg:f16
-chroma:read:rgba:f16
+chroma:read:rg:f16

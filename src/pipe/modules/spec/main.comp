@@ -33,9 +33,9 @@ layout( // input spec coeff lut
     set = 1, binding = 3
 ) uniform sampler2D img_abney;
 
-layout( // input chroma rb lut camera -> rec2020, if any
+layout(
     set = 1, binding = 4
-) uniform sampler2D img_chroma;
+) uniform sampler2D img_clut;
 
 // these are dumped from the lut matching utility and contain
 // xyz cmf * xyz to rec2020 matrix
@@ -92,6 +92,21 @@ vec3 fetch_coeff(vec3 rgb, out float Y)
   return texture(img_spectra, tc).rgb;
 }
 
+vec3 process_clut(vec3 rgb)
+{
+  float b = rgb.r+rgb.g+rgb.b;
+  vec2 tc = rgb.rb/b;
+  tri2quad(tc);
+  tc.x /= 3.0;
+  vec4 rbrb = vec4(texture(img_clut, tc).xy, texture(img_clut, tc+vec2(2.0/3.0, 0.0)).xy);
+  vec2 L2 = texture(img_clut, tc + vec2(1.0/3.0, 0.0)).xy;
+  float L = mix(L2.x, L2.y, params.split);
+  vec2 rb = mix(rbrb.xy, rbrb.zw, params.split);
+  rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
+  return rgb * L * b;
+}
+
+
 void
 main()
 {
@@ -109,13 +124,7 @@ main()
   }
   else
   { // spectral lut
-    float b = rgb.r+rgb.g+rgb.b;
-    vec2 tc = rgb.rb/b;
-    tri2quad(tc);
-    vec4 rbrb = texture(img_chroma, tc);
-    vec2 rb = mix(rbrb.xy, rbrb.zw, params.split);
-    rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
-    rgb *= b / (rgb.r+rgb.g+rgb.b); // see above.
+    rgb = process_clut(rgb);
   }
 
   // apply exposure correction
