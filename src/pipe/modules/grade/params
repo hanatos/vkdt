@@ -1,3 +1,3 @@
-lift:float:3:0.0
-gamma:float:3:1.0
-gain:float:3:1.0
+lift:float:3:0.0:0.0:0.0
+gamma:float:3:1.0:1.0:1.0
+gain:float:3:1.0:1.0:1.0
