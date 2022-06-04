@@ -463,6 +463,7 @@ dt_api_blur(
   // these are fast.
   // subsampling does 5x5 blurs, i.e. radius=2 on powers of two
   // i.e. 5x5, 9x9, 17x17, .. (radii 2 4 8 ..)
+  radius = CLAMP(radius, 1, graph->node[nodeid_input].connector[connid_input].roi.wd/2);
   float sig2_req = radius*radius*0.25; // requested sigma^2
   float sig2 = 0.0f;
   int it = 0; // sub blur iterations needed
@@ -481,10 +482,14 @@ dt_api_blur(
   for(int j=it;j>=1;j--) // XXX this is only faster if the highest res level is avoided here
   {
     float sig = 1<<j;
-    while(sig2 + sig*sig < sig2_req)
-    { // record iteration j as multiple
-      sig2 += sig*sig;
-      mul[j]++;
+    for(int k=0;k<10;k++)
+    {
+      if(sig2 + sig*sig < sig2_req)
+      { // record iteration j as multiple
+        sig2 += sig*sig;
+        mul[j]++;
+      }
+      else break;
     }
   }
   // remaining sigma
