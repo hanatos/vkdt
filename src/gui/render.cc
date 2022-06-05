@@ -91,8 +91,6 @@ void widget_end()
     // TODO: let module decide this!
     vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
         s_graph_run_all);// &~s_graph_run_upload_source);
-    // reset view:
-    darkroom_reset_zoom();
     int modid = vkdt.wstate.active_widget_modid;
     int parid = vkdt.wstate.active_widget_parid;
     int parnm = vkdt.wstate.active_widget_parnm;
@@ -1284,6 +1282,7 @@ inline void draw_widget(int modid, int parid)
       dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
           g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
       keyframe_time = now; \
+      dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
     }\
   }
 #define TOOLTIP \
@@ -1296,6 +1295,7 @@ inline void draw_widget(int modid, int parid)
     ImGui::EndTooltip();\
   }
 
+  const double throttle = 2.0; // min delay for same param in history, in seconds
   // distinguish by count:
   // get count by param cnt or explicit multiplicity from ui file
   int count = 1, change = 0;
@@ -1328,6 +1328,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
         KEYFRAME
         TOOLTIP
@@ -1346,6 +1347,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
         TOOLTIP
       }
@@ -1373,6 +1375,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
         KEYFRAME
         if (ImGui::IsItemActive() || ImGui::IsItemHovered())
@@ -1395,6 +1398,7 @@ inline void draw_widget(int modid, int parid)
         {
           dt_module_t *m = vkdt.graph_dev.module+modid;
           if(m->so->ui_callback) m->so->ui_callback(m, param->name);
+          // TODO: probably needs a history item appended. for all parameters?
         }
         TOOLTIP
         if(param->type == dt_token("string"))
@@ -1422,6 +1426,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
           vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           g_busy += 2;
         }
         TOOLTIP
@@ -1474,7 +1479,11 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(ImGui::Button(string) || accept) widget_end();
+        if(ImGui::Button(string) || accept)
+        {
+          widget_end();
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
       }
       else
       {
@@ -1547,6 +1556,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
           vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
           widget_end();
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
       }
       else
@@ -1609,7 +1619,10 @@ inline void draw_widget(int modid, int parid)
       {
         snprintf(string, sizeof(string), "done");
         if(ImGui::Button(string))
+        {
           widget_end();
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
       }
       else
       {
@@ -1645,7 +1658,10 @@ inline void draw_widget(int modid, int parid)
       {
         snprintf(string, sizeof(string), "done");
         if(ImGui::Button(string, size))
+        {
           widget_end();
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
       }
       else
       {
@@ -1704,6 +1720,7 @@ inline void draw_widget(int modid, int parid)
               vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
                   s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
               vkdt.graph_dev.active_module = modid;
+              dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
             }
           }
         }
@@ -1753,7 +1770,11 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(ImGui::Button(string)) widget_end();
+        if(ImGui::Button(string))
+        {
+          widget_end();
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
       }
       else
       {
@@ -1803,7 +1824,10 @@ inline void draw_widget(int modid, int parid)
       { // only show first, cnt refers to allocation length of string param
         char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
         if(ImGui::InputText("filename", v, count))
+        {
           vkdt.graph_dev.runflags = s_graph_run_all; // kinda grave change, rerun all
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
       }
       break;
     }
@@ -1829,6 +1853,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
           vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
         KEYFRAME
         TOOLTIP
@@ -2437,7 +2462,10 @@ abort:
             vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
           }
           if(ImGui::SliderInt("frame count", &vkdt.state.anim_max_frame, 0, 10000))
+          {
             vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
+            dt_graph_history_global(&vkdt.graph_dev);
+          }
         }
 
         if(ImGui::CollapsingHeader("presets"))
