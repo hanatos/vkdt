@@ -6,10 +6,10 @@ dt_graph_history_init(
     dt_graph_t *graph)
 {
   graph->history_max = 100<<10;
-  graph->history_pool = malloc(sizeof(uint8_t) * graph->history_max);
+  graph->history_pool = (char*)malloc(sizeof(char) * graph->history_max);
   graph->history_item_max = 1000;
   graph->history_item_end = 0;
-  graph->history_item = malloc(sizeof(uint8_t*) * graph->history_item_max);
+  graph->history_item = (char**)malloc(sizeof(char*) * graph->history_item_max);
 }
 
 static inline int
@@ -113,7 +113,8 @@ dt_graph_history_module(
     graph->history_item_end++;
 }
 
-void dt_graph_history_connection(
+static inline void
+dt_graph_history_connection(
     dt_graph_t *graph,
     int modid, int conid)
 {
@@ -124,7 +125,8 @@ void dt_graph_history_connection(
     graph->history_item_end++;
 }
 
-void dt_graph_history_keyframe(
+static inline void
+dt_graph_history_keyframe(
     dt_graph_t *graph,
     int         modid,
     int         keyid)
@@ -140,7 +142,8 @@ void dt_graph_history_keyframe(
     graph->history_item_end++;
 }
 
-void dt_graph_history_global(
+static inline void
+dt_graph_history_global(
     dt_graph_t *graph)
 {
   if(_dt_graph_history_check_buf(graph, 40)) return;

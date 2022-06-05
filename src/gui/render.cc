@@ -6,6 +6,7 @@ extern "C" {
 #include "pipe/modules/api.h"
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
+#include "pipe/graph-history.h"
 #include "gui/darkroom-util.h"
 #include "db/thumbnails.h"
 #include "db/rc.h"
@@ -69,6 +70,17 @@ static struct gui_state_data_t
 
   int set_nav_focus;
 } gui = {gui_state_data_t::s_gui_state_regular};
+
+
+int dt_module_connect_with_history(
+    dt_graph_t *graph,
+    int m0, int c0, int m1, int c1)
+{
+  int cerr = dt_module_connect(graph, m0, c0, m1, c1);
+  if(cerr) return cerr;
+  dt_graph_history_connection(graph, m1, c1); // history records only inputs
+  return cerr;
+}
 
 void widget_end()
 {
@@ -1018,9 +1030,9 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
         int c_new_in  = dt_module_get_connector(graph->module+m_new, dt_token("input"));
         if(c_our_in != -1 && c_new_out != -1 && c_new_in != -1)
         {
-          cerr = dt_module_connect(graph, m_prev, c_prev, m_new, c_new_in);
+          cerr = dt_module_connect_with_history(graph, m_prev, c_prev, m_new, c_new_in);
           if(!cerr)
-            cerr = dt_module_connect(graph, m_new, c_new_out, m_our, c_our_in);
+            cerr = dt_module_connect_with_history(graph, m_new, c_new_out, m_our, c_our_in);
           err = -1ul;
           if(cerr) err = (1ul<<32) | cerr;
           else vkdt.graph_dev.runflags = s_graph_run_all;
@@ -1047,11 +1059,11 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
           int c_our_in   = dt_module_get_connector(module, dt_token("input"));
           if(c_our_out != -1 && c_our_in != -1)
           {
-            cerr = dt_module_connect(graph, m_prev, c_prev, m_after[0], c_after[0]);
+            cerr = dt_module_connect_with_history(graph, m_prev, c_prev, m_after[0], c_after[0]);
             if(!cerr)
-              cerr = dt_module_connect(graph, m_after[0], c_after[0], m_our, c_our_in);
+              cerr = dt_module_connect_with_history(graph, m_after[0], c_after[0], m_our, c_our_in);
             if(!cerr)
-              cerr = dt_module_connect(graph, m_our, c_our_out, m_sscc, c_sscc);
+              cerr = dt_module_connect_with_history(graph, m_our, c_our_out, m_sscc, c_sscc);
             err = -1ul;
             if(cerr) err = (1ul<<32) | cerr;
             else vkdt.graph_dev.runflags = s_graph_run_all;
@@ -1078,12 +1090,12 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
           int c_prev_in = dt_module_get_connector(graph->module+m_prev, dt_token("input"));
           if(c_our_out != -1 && c_our_in != -1 && c_prev_in != -1)
           {
-            cerr = dt_module_connect(graph, m_pprv, c_pprv, m_our, c_our_in);
+            cerr = dt_module_connect_with_history(graph, m_pprv, c_pprv, m_our, c_our_in);
             if(!cerr)
-              cerr = dt_module_connect(graph, m_our, c_our_out, m_prev, c_prev_in);
+              cerr = dt_module_connect_with_history(graph, m_our, c_our_out, m_prev, c_prev_in);
             for(int k=0;k<cnt;k++)
               if(!cerr)
-                cerr = dt_module_connect(graph, m_prev, c_prev, m_after[k], c_after[k]);
+                cerr = dt_module_connect_with_history(graph, m_prev, c_prev, m_after[k], c_after[k]);
             err = -1ul;
             if(cerr) err = (1ul<<32) | cerr;
             else vkdt.graph_dev.runflags = s_graph_run_all;
@@ -1107,10 +1119,10 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
       if(m_prev != -1 && cnt > 0)
       {
         int c_our = dt_module_get_connector(module, dt_token("input"));
-        cerr = dt_module_connect(graph, -1, -1, m_our, c_our);
+        cerr = dt_module_connect_with_history(graph, -1, -1, m_our, c_our);
         for(int k=0;k<cnt;k++)
           if(!cerr)
-            cerr = dt_module_connect(graph, m_prev, c_prev, m_after[k], c_after[k]);
+            cerr = dt_module_connect_with_history(graph, m_prev, c_prev, m_after[k], c_after[k]);
         err = -1ul;
         if(cerr) err = (1ul<<32) | cerr;
         else vkdt.graph_dev.runflags = s_graph_run_all;
@@ -1170,9 +1182,9 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
             // if already connected disconnect
             if(vkdt.graph_dev.module[mod[1]].connector[con[1]].connected_mc == con[0] &&
                vkdt.graph_dev.module[mod[1]].connector[con[1]].connected_mi == mod[0])
-              cerr = dt_module_connect(graph, -1, -1, mod[1], con[1]);
+              cerr = dt_module_connect_with_history(graph, -1, -1, mod[1], con[1]);
             else
-              cerr = dt_module_connect(graph, mod[0], con[0], mod[1], con[1]);
+              cerr = dt_module_connect_with_history(graph, mod[0], con[0], mod[1], con[1]);
             if(cerr) err = (1ul<<32) | cerr;
             else vkdt.graph_dev.runflags = s_graph_run_all;
             con[0] = con[1] = mod[0] = mod[1] = -1;
@@ -1897,7 +1909,7 @@ void render_darkroom_full()
             int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
             if(graph->module[mid].connector[0].connected_mi != curr ||
                graph->module[mid].connector[0].connected_mc != cid)
-            { // only if not connected yet
+            { // only if not connected yet, don't record in history
               CONN(dt_module_connect(graph, curr, cid, mid, 0));
               vkdt.graph_dev.runflags = s_graph_run_all;
             }
@@ -2039,8 +2051,11 @@ void render_darkroom_pipeline()
   static int add_modid = 0; ImGui::Combo("module", &add_modid, vkdt.wstate.module_names_buf);
   static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
   if(ImGui::Button("add module"))
-    if(dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst)) == -1)
-      last_err = 16ul<<32;
+  {
+    int new_modid = dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst));
+    if(new_modid == -1) last_err = 16ul<<32;
+    else dt_graph_history_module(graph, new_modid);
+  }
 
   static dt_filebrowser_widget_t filebrowser = {{0}};
   // add block (read cfg snipped)
