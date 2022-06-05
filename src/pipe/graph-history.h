@@ -1,4 +1,5 @@
 #pragma once
+#include "pipe/graph-io.h"
 
 static inline void
 dt_graph_history_init(
@@ -37,7 +38,7 @@ dt_graph_history_reset(
   // write all params
   for(int m=0;m<graph->num_modules;m++)
     for(int p=0;p<graph->module[m].so->num_params;p++,i+=(hi[i+1]!=hi[i]))
-      if(!(hi[i+1] = dt_graph_write_param_ascii(graph, m, p, hi[i], max-hi[i])))
+      if(!(hi[i+1] = dt_graph_write_param_ascii(graph, m, p, hi[i], max-hi[i], 0)))
         return 1;
 
   // write all keyframes
@@ -68,7 +69,7 @@ _dt_graph_history_check_buf(
   { // TODO: resize and copy buffers
     return 1;
   }
-  if(graph->history_max - graph->history_item[graph->history_item_end] <= size)
+  if(graph->history_pool + graph->history_max - graph->history_item[graph->history_item_end] <= size)
   { // TODO: resize and copy buffer, repoint history_item*
     return 1;
   }
@@ -84,8 +85,8 @@ dt_graph_history_append(
     double      throttle)  // throttle same modid,parid to 1 item per `throttle` seconds. pass 0.0 for always record.
 {
   static double write_time = 0.0; // does not need to go on graph, throttling is a gui thing.
-  int cnt = graph->module[modid].so->param[parid].cnt // this is way conservative (for instance for draw)
-  size_t psz = dt_ui_param_size(graph->module[modid].so->param[parid].type, cnt);
+  int cnt = graph->module[modid].so->param[parid]->cnt; // this is way conservative (for instance for draw)
+  size_t psz = dt_ui_param_size(graph->module[modid].so->param[parid]->type, cnt);
   if(_dt_graph_history_check_buf(graph, 40+psz)) return;
   int i = graph->history_item_end;
   char *eop, **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
@@ -114,13 +115,12 @@ dt_graph_history_module(
 
 void dt_graph_history_connection(
     dt_graph_t *graph,
-    int m0, int c0,
-    int m1, int c1)
+    int modid, int conid)
 {
   if(_dt_graph_history_check_buf(graph, 70)) return;
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
-  if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, m0, c0, m1, c1, hi[i], max - hi[i])))
+  if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, modid, conid, hi[i], max - hi[i])))
     graph->history_item_end++;
 }
 
@@ -129,13 +129,14 @@ void dt_graph_history_keyframe(
     int         modid,
     int         keyid)
 {
+  dt_module_t *mod = graph->module+modid;
   int beg = mod->keyframe[keyid].beg, end = mod->keyframe[keyid].end;
-  int p = dt_module_get_param(graph->module[modid].so, mod->keyframe[keyid].param);
-  size_t psz = dt_ui_param_size(graph->module[modid].so->param[p].type, end-beg);
+  int p = dt_module_get_param(mod->so, mod->keyframe[keyid].param);
+  size_t psz = dt_ui_param_size(mod->so->param[p]->type, end-beg);
   if(_dt_graph_history_check_buf(graph, 70+psz)) return;
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
-  if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, modid, keyid, hi[i], max - hi[i])))
+  if(hi[i] < (hi[i+1] = dt_graph_write_keyframe_ascii(graph, modid, keyid, hi[i], max - hi[i])))
     graph->history_item_end++;
 }
 
@@ -145,7 +146,7 @@ void dt_graph_history_global(
   if(_dt_graph_history_check_buf(graph, 40)) return;
   int i = graph->history_item_end;
   char *tmp, **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
-  if(!(tmp = dt_graph_write_global_ascii(graph, hi[i], max-hi[i]))) return 1;
+  if(!(tmp = dt_graph_write_global_ascii(graph, hi[i], max-hi[i]))) return;
   for(char *c=hi[i];c<tmp;c++) if(*c == '\n') hi[++i] = c+1;
   graph->history_item_end = i;
 }

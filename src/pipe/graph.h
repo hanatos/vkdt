@@ -45,9 +45,9 @@ typedef struct dt_graph_t
   uint32_t              params_end, params_max;
 
   // store full history in this block:
-  uint8_t              *history_pool;
+  char                 *history_pool;
   uint32_t              history_max;
-  uint8_t             **history_item;
+  char                **history_item;
   uint32_t              history_item_end, history_item_max;
 
   // memory pool for connector allocations

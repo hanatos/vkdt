@@ -35,7 +35,7 @@ dt_graph_write_param_ascii(
     const int         p,
     char             *line,
     size_t            size,
-    const char       *eop);   // end of prefix: where does the data start after module:inst:param:
+    char            **eop);   // end of prefix: where does the data start after module:inst:param:
 
 // write keyframe
 char *
@@ -43,6 +43,13 @@ dt_graph_write_keyframe_ascii(
     const dt_graph_t *graph,
     const int         m,      // module id
     const int         k,      // keyframe id
+    char             *line,
+    size_t            size);
+
+// write globals (frame, fps)
+char *
+dt_graph_write_global_ascii(
+    const dt_graph_t *graph,
     char             *line,
     size_t            size);
 

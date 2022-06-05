@@ -10,6 +10,7 @@
 #include "pipe/graph-io.h"
 #include "pipe/modules/api.h"
 #include "pipe/draw.h"
+#include "pipe/graph-history.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -564,6 +565,7 @@ darkroom_enter()
 
   dt_graph_init(&vkdt.graph_dev);
   vkdt.graph_dev.gui_attached = 1;
+  dt_graph_history_init(&vkdt.graph_dev);
 
   if(dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg))
   {
@@ -586,7 +588,7 @@ darkroom_enter()
       return 3;
     }
   }
-
+  dt_graph_history_reset(&vkdt.graph_dev);
 
   if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
   {
@@ -632,6 +634,7 @@ darkroom_leave()
 
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
+  dt_graph_history_cleanup(&vkdt.graph_dev);
   return 0;
 }
 

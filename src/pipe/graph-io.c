@@ -328,14 +328,14 @@ dt_graph_write_param_ascii(
     const int         p,
     char             *line,
     size_t            size,
-    const char       *eop)
+    char            **eop)
 {
   const dt_module_t *mod = graph->module + m;
   WRITE("param:%"PRItkn":%"PRItkn":%"PRItkn":",
       dt_token_str(mod->name),
       dt_token_str(mod->inst),
       dt_token_str(mod->so->param[p]->name));
-  if(eop) eop = line; // pass on end of prefix to the outside
+  if(eop) *eop = line; // pass on end of prefix to the outside
   int cnt = mod->so->param[p]->cnt;
   if(mod->so->param[p]->name == dt_token("draw"))
   { // draw issues a lot of numbers, only output the needed ones:
