@@ -9,7 +9,7 @@ dt_graph_history_init(
   graph->history_pool = (char*)malloc(sizeof(char) * graph->history_max);
   graph->history_item_max = 1000;
   graph->history_item_end = 0;
-  graph->history_item = (char**)malloc(sizeof(char*) * graph->history_item_max);
+  graph->history_item = (char**)malloc(sizeof(char*) * (graph->history_item_max + 1));
 }
 
 static inline int

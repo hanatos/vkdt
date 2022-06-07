@@ -2124,6 +2124,9 @@ void render_darkroom()
   int axes_cnt = 0, butt_cnt = 0;
   const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
   const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
+  { // TODO: left panel
+    // TODO: hardcoded show history (or something with hotkey)
+  }
   { // center image view
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
