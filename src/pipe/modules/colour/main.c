@@ -337,7 +337,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   // f[4+12+4+88+0] = 1.0f - CLAMP((p_tmp - 2856.f)/(6504.f-2856.f), 0.0f, 1.0f);
   // turingbot reverses this function to more accurately blend along CCT:
   f[4+12+4+88+0] = 1.0f - CLAMP(tanf(asinhf(46.3407f+p_tmp))+(-0.0287128f*cosf(0.000798585f*(714.855f-p_tmp)))+0.942275f, 0.0f, 1.0f);
-  i[4+12+4+88+1] = p_mat == 3 ? 1 : 0; // colour mode matrix or clut
+  i[4+12+4+88+1] = p_mat == 4 ? 1 : 0; // colour mode matrix or clut
   f[4+12+4+88+2] = p_sat;
   i[4+12+4+88+3] = p_pck;
 
@@ -355,6 +355,15 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
       0.0176398574, -0.0427706133,  0.9421031212};
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*i+j] = xyz_to_rec2020[3*j+i];
+  }
+  else if(p_mat == 3)
+  { // rec709/linear srgb
+    const float rec709_to_rec2020[] = {
+      0.62750375, 0.32927542, 0.04330267,
+      0.06910828, 0.91951917, 0.0113596,
+      0.01639406, 0.08801128, 0.89538036};
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      f[4+4*i+j] = rec709_to_rec2020[3*j+i];
   }
   else
   { // p_mat == 0 (or default) rec2020, identity matrix
