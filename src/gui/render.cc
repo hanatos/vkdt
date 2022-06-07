@@ -2336,9 +2336,13 @@ abort:
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-left", 0, window_flags);
 
-    for(uint32_t i=0;i<vkdt.graph_dev.history_item_end;i++)
+    for(int i=vkdt.graph_dev.history_item_end-1;i>=0;i--)
     {
       ImGui::Button(vkdt.graph_dev.history_item[i]);
+      // TODO: if pressed, reset history to this state
+      // TODO: remember the pre-reset end pointer and update end
+      // TODO: draw buttons always to pre-reset end (never shrink that one during reset)
+      // TODO: highlight button with current history in red (or something)
     }
 
     ImGui::End();
