@@ -1,6 +1,7 @@
 exposure:slider:-5:5
 white:rgb:0:1
 split:slider:0:1
+desat:slider:0:1
 sat:slider:0:20
 gamut:combo:no correction:limit to spectral locus:limit to rec2020:limit to rec709
 matrix:combo:image:use spectral lut

@@ -11,6 +11,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   mat3  cam_to_rec2020; // camera matrix
   vec4  white;
   float split;
+  float desat;
   float sat;
   int   gamut_mode;
   int   matrix_mode;
@@ -263,7 +264,7 @@ main()
 
     if(lut.x > 0.0) sl.y += 0.5;
     // this is where we would be at (unbounded params.sat)
-    float m = params.sat * sl.x;
+    float m = params.desat * params.sat * sl.x;
     // but we want to compress input in [sl.x.. infty) into
     // the interval [sl.x .. max_sat.x]
     const ivec2 size = textureSize(img_abney, 0).xy;
