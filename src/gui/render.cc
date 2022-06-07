@@ -88,9 +88,7 @@ void widget_end()
   {
     if(vkdt.wstate.active_widget_modid < 0) return; // all good already
     // rerun all (roi could have changed, buttons are drastic)
-    // TODO: let module decide this!
-    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-        s_graph_run_all);// &~s_graph_run_upload_source);
+    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
     int modid = vkdt.wstate.active_widget_modid;
     int parid = vkdt.wstate.active_widget_parid;
     int parnm = vkdt.wstate.active_widget_parnm;
@@ -2112,7 +2110,6 @@ void render_darkroom_pipeline()
     {
       // gui.state = gui_state_data_t::s_gui_state_insert_block;
       gui.block_token[0] = dt_token(mod_inst);
-      // TODO: open a browser with all data/blocks/*.cfg
       snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s/data/blocks", dt_pipe.basedir);
       dt_filebrowser_open(&filebrowser);
     }
@@ -2124,9 +2121,6 @@ void render_darkroom()
   int axes_cnt = 0, butt_cnt = 0;
   const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
   const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
-  { // TODO: left panel
-    // TODO: hardcoded show history (or something with hotkey)
-  }
   { // center image view
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
@@ -2331,7 +2325,24 @@ abort:
     }
     ImGui::End();
     ImGui::PopStyleColor();
-  }
+  } // end center view
+
+  { // left panel
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= ImGuiWindowFlags_NoTitleBar;
+    window_flags |= ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoResize;
+    ImGui::SetNextWindowPos (ImVec2(0, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::Begin("panel-left", 0, window_flags);
+
+    for(uint32_t i=0;i<vkdt.graph_dev.history_item_end;i++)
+    {
+      ImGui::Button(vkdt.graph_dev.history_item[i]);
+    }
+
+    ImGui::End();
+  } // end left panel
 
   { // right panel
     int hotkey = -1;
