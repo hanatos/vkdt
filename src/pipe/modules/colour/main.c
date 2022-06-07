@@ -323,6 +323,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
   const float *p_map = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("rbmap")));
         int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
+  const float *p_mtx = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("mat")));
   // const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
   const float  p_sat = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("sat")))[0];
@@ -364,6 +365,11 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
       0.01639406, 0.08801128, 0.89538036};
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*i+j] = rec709_to_rec2020[3*j+i];
+  }
+  else if(p_mat == 5)
+  { // read what we have stored in params
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      f[4+4*i+j] = p_mtx[3*j+i];
   }
   else
   { // p_mat == 0 (or default) rec2020, identity matrix
