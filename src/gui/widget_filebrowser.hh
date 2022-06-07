@@ -35,6 +35,8 @@ dt_filebrowser_cleanup(
 // TODO: make one that sorts dirs first:
 // int alphasort(const struct dirent **a, const struct dirent **b);
 
+namespace {
+
 int dt_filebrowser_filter_dir(const struct dirent *d)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
@@ -46,6 +48,8 @@ int dt_filebrowser_filter_file(const struct dirent *d)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
   return 1;
+}
+
 }
 
 inline void
@@ -75,8 +79,6 @@ dt_filebrowser(
       w->ent_cnt = 0;
     }
   }
-
-  ImGui::BeginChild("dirlist", ImVec2(0, vkdt.state.center_ht*0.75), 0);
 
   // display list of file names
   for(int i=0;i<w->ent_cnt;i++)
@@ -113,7 +115,6 @@ dt_filebrowser(
       }
     }
   }
-  ImGui::EndChild();
 }
 
 // returns 0 if cancelled, or 1 if "ok" has been pressed
@@ -126,7 +127,9 @@ dt_filebrowser_display(
   if(ImGui::BeginPopupModal("select directory", 0, 0))
   {
     ImGui::PushID(w);
+    ImGui::BeginChild("dirlist", ImVec2(0, vkdt.state.center_ht*0.75), 0);
     dt_filebrowser(w, mode);
+    ImGui::EndChild();
     int wd = ImGui::GetWindowWidth()*0.496;
     int escidx = ImGui::GetIO().KeyMap[ImGuiKey_Escape];
     if(ImGui::Button("cancel", ImVec2(wd, 0)) || ImGui::IsKeyPressed(escidx))

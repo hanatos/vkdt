@@ -1,5 +1,8 @@
 GUI_O=gui/gui.o\
       gui/render.o\
+      gui/render_files.o\
+      gui/render_lighttable.o\
+      gui/render_darkroom.o\
       gui/darkroom.o\
       gui/main.o\
       gui/view.o\
@@ -11,6 +14,7 @@ GUI_O=gui/gui.o\
       ../ext/imgui/backends/imgui_impl_glfw.o
 GUI_H=gui/gui.h\
       gui/render.h\
+      gui/render_view.hh\
       gui/api.h\
       gui/api.hh\
       gui/hotkey.hh\

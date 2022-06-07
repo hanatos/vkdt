@@ -1,5 +1,6 @@
 #pragma once
 #include "pipe/graph-io.h"
+#include "pipe/modules/api.h"
 
 static inline void
 dt_graph_history_init(

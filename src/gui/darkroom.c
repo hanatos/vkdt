@@ -614,6 +614,7 @@ darkroom_enter()
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
+  darkroom_reset_zoom();
   return 0;
 }
 

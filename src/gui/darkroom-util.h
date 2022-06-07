@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/core.h"
+#include "gui/gui.h"
 
 #include <float.h>
 

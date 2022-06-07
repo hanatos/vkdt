@@ -13,8 +13,9 @@
 // view modes, lighttable, darkroom, ..
 typedef enum dt_gui_view_t
 {
-  s_view_lighttable = 0,
-  s_view_darkroom   = 1,
+  s_view_files      = 0,
+  s_view_lighttable = 1,
+  s_view_darkroom   = 2,
   s_view_cnt,
 }
 dt_gui_view_t;
@@ -78,6 +79,9 @@ typedef struct dt_gui_wstate_t
 
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)
   int pentablet_enabled;        // 1 if the stylus is in proxmity of the pen tablet
+
+  int set_nav_focus;            // gamepad navigation delay to communicate between lighttable and darkroom
+  int busy;                     // still busy for how many frames before stopping redraw?
 }
 dt_gui_wstate_t;
 

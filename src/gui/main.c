@@ -26,7 +26,6 @@
 dt_gui_t vkdt = {0};
 
 int g_running = 1;
-int g_busy = 3;
 int g_fullscreen = 0;
 
 // from a stackoverflow answer. get the monitor that currently covers most of
@@ -96,7 +95,7 @@ joystick_active(void *unused)
     }
     if(res)
     {
-      g_busy = 20; // make sure we'll stay awake for a few frames
+      vkdt.wstate.busy = 20; // make sure we'll stay awake for a few frames
       glfwPostEmptyEvent();
     }
     sched_yield();
@@ -275,19 +274,20 @@ int main(int argc, char *argv[])
   if(joystick_present) pthread_create(&joystick_thread, 0, joystick_active, 0);
 
   // main loop
+  vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   while(g_running)
   {
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
     // do that via glfwPostEmptyEvent()
-    if(g_busy > 0) g_busy--;
-    // g_busy = 100; // do these two lines instead if profiling in nvidia gfx insight or so.
+    if(vkdt.wstate.busy > 0) vkdt.wstate.busy--;
+    // vkdt.wstate.busy = 100; // do these two lines instead if profiling in nvidia gfx insight or so.
     // vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
-      g_busy = vkdt.state.anim_max_frame == 0 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
-    if(g_busy > 0) glfwPostEmptyEvent();
-    else g_busy = 3;
+      vkdt.wstate.busy = vkdt.state.anim_max_frame == 0 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
+    if(vkdt.wstate.busy > 0) glfwPostEmptyEvent();
+    else vkdt.wstate.busy = 3;
     // should probably consider this instead:
     // https://github.com/bvgastel/imgui/commits/imgui-2749
     glfwWaitEvents();
