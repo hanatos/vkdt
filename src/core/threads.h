@@ -27,14 +27,17 @@ extern _Thread_local threads_tls_t thr_tls;
 void threads_global_init();
 void threads_global_cleanup();
 
-// push a new task (task < threads_num()) with given function and argument
+// push a new task (task < threads_num()) with given function and argument.
+// one task is going to be worked on by one thread. if you want multiple threads
+// do the same job, call this multiple times and pass the same work_item
+// and done pointers.
 int threads_task(
-    uint32_t       work_item_cnt,
-    uint32_t      *work_item,
-    uint32_t      *done,
-    void          *data,
+    uint32_t       work_item_cnt,  // number of work items
+    uint32_t      *work_item,      // (optional, can be null) pointing to an index that will contain the last picked item id
+    uint32_t      *done,           // pointing to a number that will be incremented if an item is done (for progress)
+    void          *data,           // opaque user data that will be passed to the run function
     void         (*run)(uint32_t item, void *data),
-    void         (*free)(void*));
+    void         (*free)(void*));  // this is called only at the very end to clean up (for every thread working on a job)
 
 // abandon all work and prepare for shutdown
 void threads_shutdown();

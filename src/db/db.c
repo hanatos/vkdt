@@ -1,6 +1,7 @@
 #include "db.h"
 #include "thumbnails.h"
 #include "core/log.h"
+#include "core/fs.h"
 #include "stringpool.h"
 #include "exif.h"
 
@@ -560,19 +561,7 @@ void dt_db_duplicate_selected_images(dt_db_t *db)
     }
     dt_log(s_log_db, "creating duplicate `%s'", fn);
     if(!dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)))
-    { // copy cfg to new duplicate
-      ssize_t ret;
-      int fd0 = open(fullfn, O_RDONLY), fd1 = open(fn, O_CREAT | O_WRONLY | O_TRUNC, 0644);
-      if(fd0 == -1 || fd1 == -1)  goto copy_error;
-      if(fstat(fd0, &sb) == -1) goto copy_error;
-      { loff_t len = sb.st_size;
-        do {
-          ret = copy_file_range(fd0, 0, fd1, 0, len, 0);
-        } while((len-=ret) > 0 && ret > 0);}
-copy_error:
-      if(fd0 >= 0) close(fd0);
-      if(fd0 >= 0) close(fd1);
-    }
+      dt_file_copy(fn, fullfn);
 next:;
   }
 }

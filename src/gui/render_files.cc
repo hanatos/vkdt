@@ -2,6 +2,7 @@
 extern "C" {
 #include "gui.h"
 #include "view.h"
+#include "core/fs.h"
 }
 #include "gui/render_view.hh"
 #include "widget_filebrowser.hh"
@@ -72,6 +73,45 @@ void set_cwd(const char *dir, int up)
   dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
 }
 
+struct copy_job_t
+{ // copy contents of a folder
+  char src[1000], dst[1000];
+  struct dirent **ent;
+  uint32_t cnt;
+  uint32_t done;
+  uint32_t move;  // set to non-zero to remove src after copy
+  uint32_t abort;
+};
+void copy_job_cleanup(void *arg)
+{ // task is done, every thread will call this (but we put only one)
+  copy_job_t *j = (copy_job_t *)arg;
+  for(uint32_t i=0;i<j->cnt;i++) free(j->ent[i]);
+  if(j->ent) free(j->ent);
+}
+void copy_job_work(uint32_t item, void *arg)
+{
+  copy_job_t *j = (copy_job_t *)arg;
+  char src[1300], dst[1300];
+  snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item]->d_name);
+  snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item]->d_name);
+  if(!dt_file_copy(dst, src) && j->move) dt_file_delete(src);
+  else j->abort = 1;
+}
+int copy_job(
+    copy_job_t *j,
+    const char *dst,
+    const char *src)
+{
+  if(j->done < j->cnt) return 1;
+  memset(j, 0, sizeof(*j));
+  snprintf(j->src, sizeof(j->src), "%s", src);
+  snprintf(j->dst, sizeof(j->dst), "%s", dst);
+  dt_mkdir(j->dst, 0666); // try and potentially fail to create destination directory
+  j->cnt = scandir(src, &j->ent, 0, alphasort);
+  if(j->cnt < 0) return 2;
+  return threads_task(j->cnt, 0, &j->done, j, copy_job_work, copy_job_cleanup);
+}
+
 } // end anonymous namespace
 
 void render_files()
@@ -118,7 +158,21 @@ void render_files()
         just_entered = 1; // remember for next time we get here
         dt_view_switch(s_view_lighttable);
       }
-      // TODO: button to copy over a usb directory to some specific
+      static copy_job_t job;
+      // TODO: move button? copy_job to take move flag?
+      if(ImGui::Button("copy"))
+      {
+        const char *dst = "/tmp/test"; // TODO: get template from rc
+        // TODO: strexpand with a few variables (today's year or 20220701 kinda string)
+        // time_t t = time(0);
+        // struct tm *tm = localtime(&t);
+        // char s[10] = {0};
+        // strftime(s, sizeof(s), "%Y%m%d", tm);
+        copy_job(&job, dst, filebrowser.cwd);
+      }
+      ImGui::SameLine();
+      ImGui::ProgressBar((float)job.cnt/(float)job.done, ImVec2(-1, 0));
+
       // TODO: "quit" button?
       ImGui::Unindent();
     }
