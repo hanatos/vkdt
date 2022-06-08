@@ -3,6 +3,7 @@ extern "C" {
 #include "gui.h"
 #include "view.h"
 #include "core/fs.h"
+#include "core/strexpand.h"
 }
 #include "gui/render_view.hh"
 #include "widget_filebrowser.hh"
@@ -102,11 +103,11 @@ int copy_job(
     const char *dst,
     const char *src)
 {
-  if(j->done < j->cnt) return 1;
+  if(j->done < j->cnt) return 1; // old job still going
   memset(j, 0, sizeof(*j));
   snprintf(j->src, sizeof(j->src), "%s", src);
   snprintf(j->dst, sizeof(j->dst), "%s", dst);
-  dt_mkdir(j->dst, 0666); // try and potentially fail to create destination directory
+  dt_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
   if(j->cnt < 0) return 2;
   return threads_task(j->cnt, 0, &j->done, j, copy_job_work, copy_job_cleanup);
@@ -158,23 +159,9 @@ void render_files()
         just_entered = 1; // remember for next time we get here
         dt_view_switch(s_view_lighttable);
       }
-      static copy_job_t job;
-      // TODO: move button? copy_job to take move flag?
-      if(ImGui::Button("copy"))
-      {
-        const char *dst = "/tmp/test"; // TODO: get template from rc
-        // TODO: strexpand with a few variables (today's year or 20220701 kinda string)
-        // time_t t = time(0);
-        // struct tm *tm = localtime(&t);
-        // char s[10] = {0};
-        // strftime(s, sizeof(s), "%Y%m%d", tm);
-        copy_job(&job, dst, filebrowser.cwd);
-      }
-      ImGui::SameLine();
-      ImGui::ProgressBar((float)job.cnt/(float)job.done, ImVec2(-1, 0));
-
-      // TODO: "quit" button?
       ImGui::Unindent();
+      // TODO: show images/show only directories
+      // TODO: feature to show only raw/whatever?
     }
     if(ImGui::CollapsingHeader("drives"))
     {
@@ -215,11 +202,44 @@ void render_files()
       }
       ImGui::Unindent();
     }
+    if(ImGui::CollapsingHeader("import"))
+    {
+      ImGui::Indent();
+      ImGui::Text("destination");
+      ImGui::SameLine();
+      static char dest[20];
+      ImGui::InputText("", dest, 20);
+      if(ImGui::IsItemHovered())
+      {
+        const char *pattern = dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}");
+        ImGui::SetTooltip(
+            "enter a descriptive string to be used as the ${dest} variable when expanding\n"
+            "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
+            "`%s'", pattern);
+      }
+      // TODO: have a bunch of these for manual scheduling of multiple jobs
+      static copy_job_t job = {0};
+      // TODO: move button? copy_job to take move flag?
+      if(ImGui::Button("copy"))
+      {
+        char dst[1000];
+        const char *pattern = dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}");
+        time_t t = time(0);
+        struct tm *tm = localtime(&t);
+        char date[10] = {0};
+        strftime(date, sizeof(date), "%Y%m%d", tm);
+        const char *key[] = { "home", "date", "dest", 0};
+        const char *val[] = { getenv("HOME"), date, dest, 0};
+        dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
+        copy_job(&job, dst, filebrowser.cwd);
+      }
+      ImGui::SameLine();
+      ImGui::ProgressBar((float)job.cnt/(float)job.done, ImVec2(-1, 0));
+      ImGui::Unindent();
+    }
     // if(ImGui::CollapsingHeader("recently used collections")) here too?
     // TODO: keyboard nav in filebrowser?
     // if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK)) back to lt mode
-    // TODO: show images/show only directories
-    // TODO: feature to show only raw/whatever?
     ImGui::End();
   }
 }

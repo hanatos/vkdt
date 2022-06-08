@@ -10,19 +10,19 @@
 // be valid for every key[i].
 static inline void
 dt_strexpand(
-    const char *pattern,
-    size_t      pattern_size,
-    char       *output,
-    size_t      output_size,
-    char      **key,         // 0 terminated list
-    char      **val)
+    const char  *pattern,
+    size_t       pattern_size,
+    char        *output,
+    size_t       output_size,
+    const char **key,         // 0 terminated list
+    const char **val)
 {
-  int j = 0;
-  for(int i=0;i<pattern_size && j<output_size;i++)
+  uint32_t j = 0;
+  for(uint32_t i=0;i<pattern_size && j<output_size;i++)
   {
     if(pattern[i] == '$' && pattern[i+1] == '{')
     { // replace ${key} by val
-      int end = i+1;
+      uint32_t end = i+1;
       for(;end < pattern_size && pattern[end] != '}';end++);
       if(end < pattern_size)
       { // compare all keys and replace by value

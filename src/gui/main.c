@@ -307,7 +307,7 @@ int main(int argc, char *argv[])
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 
-  vkDeviceWaitIdle(qvk.device);
+  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
 
 out:
   // leave whatever view we're still in:

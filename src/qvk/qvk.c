@@ -132,7 +132,7 @@ VkResult
 qvk_create_swapchain()
 {
   VkSwapchainKHR old_swap_chain = qvk.swap_chain;
-  QVK(vkDeviceWaitIdle(qvk.device));
+  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
 
   if(old_swap_chain)
     for(int i = 0; i < qvk.num_swap_chain_images; i++)
@@ -642,7 +642,7 @@ destroy_swapchain()
 int
 qvk_cleanup()
 {
-  vkDeviceWaitIdle(qvk.device);
+  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   threads_mutex_destroy(&qvk.queue_mutex);
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);

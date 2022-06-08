@@ -99,7 +99,7 @@ dt_graph_cleanup(dt_graph_t *g)
 #ifdef DEBUG_MARKERS
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
-  QVK(vkDeviceWaitIdle(qvk.device));
+  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   if(!dt_pipe.modules_reloaded)
     for(int i=0;i<g->num_modules;i++)
       if(g->module[i].so->cleanup)
@@ -1965,7 +1965,7 @@ VkResult dt_graph_run(
   // if we intend to clean it up behind their back
   if(graph->gui_attached &&
     (run & (s_graph_run_alloc | s_graph_run_create_nodes)))
-    QVKR(vkDeviceWaitIdle(qvk.device));
+    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
 
   if(run & s_graph_run_alloc)
   {
@@ -2183,7 +2183,7 @@ VkResult dt_graph_run(
     run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem)
     {
-      QVKR(vkDeviceWaitIdle(qvk.device));
+      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem, 0);
     }
     // image data to pass between nodes
@@ -2202,7 +2202,7 @@ VkResult dt_graph_run(
     run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem_staging)
     {
-      QVKR(vkDeviceWaitIdle(qvk.device));
+      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
     }
     // staging memory to copy to and from device
@@ -2221,7 +2221,7 @@ VkResult dt_graph_run(
   {
     if(graph->vkmem_uniform)
     {
-      QVKR(vkDeviceWaitIdle(qvk.device));
+      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
     }
     // uniform data to pass parameters
@@ -2463,14 +2463,13 @@ VkResult dt_graph_run(
                   .commandBufferCount = 1,
                   .pCommandBuffers    = &graph->command_buffer,
                 };
-                if(graph->queue == qvk.queue_graphics)
-                  threads_mutex_lock(&qvk.queue_mutex);
                 vkResetFences(qvk.device, 1, &graph->command_fence);
-                QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+                if(graph->queue == qvk.queue_graphics)
+                  QVKLR(&qvk.queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+                else
+                  QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
                 if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
                   QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
-                if(graph->queue == qvk.queue_graphics)
-                  threads_mutex_unlock(&qvk.queue_mutex);
                 QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
                 vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
@@ -2549,14 +2548,13 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_record_cmd_buf)
   {
-    if(graph->queue == qvk.queue_graphics)
-      threads_mutex_lock(&qvk.queue_mutex);
     vkResetFences(qvk.device, 1, &graph->command_fence);
-    QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+    if(graph->queue == qvk.queue_graphics)
+      QVKLR(&qvk.queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+    else
+      QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
-    if(graph->queue == qvk.queue_graphics)
-      threads_mutex_unlock(&qvk.queue_mutex);
   }
   
   if((module_flags & s_module_request_write_sink) ||

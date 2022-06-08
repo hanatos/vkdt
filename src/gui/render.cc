@@ -258,7 +258,9 @@ extern "C" int dt_gui_init_imgui()
     vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
     threads_mutex_unlock(&qvk.queue_mutex);
 
+    threads_mutex_lock(&qvk.queue_mutex);
     vkDeviceWaitIdle(qvk.device);
+    threads_mutex_unlock(&qvk.queue_mutex);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
   }
 
@@ -327,7 +329,9 @@ extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 extern "C" void dt_gui_cleanup_imgui()
 {
   render_darkroom_cleanup();
+  threads_mutex_lock(&qvk.queue_mutex);
   vkDeviceWaitIdle(qvk.device);
+  threads_mutex_unlock(&qvk.queue_mutex);
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();

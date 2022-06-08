@@ -34,9 +34,32 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     } \
   } while(0)
 
+// check error and also return it if fail
 #define QVKR(...) \
   do { \
     VkResult _res = __VA_ARGS__; \
+    if(_res != VK_SUCCESS) { \
+      dt_log(s_log_qvk, "error %s executing %s!", qvk_result_to_string(_res), # __VA_ARGS__); \
+      return _res; \
+    } \
+  } while(0)
+
+#define QVKL(mutex, ...) \
+  do { \
+    threads_mutex_lock(mutex);\
+    VkResult _res = __VA_ARGS__; \
+    threads_mutex_unlock(mutex);\
+    if(_res != VK_SUCCESS) { \
+      dt_log(s_log_qvk, "error %s executing %s!", qvk_result_to_string(_res), # __VA_ARGS__); \
+    } \
+  } while(0)
+
+// lock mutex, check error, return if fail
+#define QVKLR(mutex, ...) \
+  do { \
+    threads_mutex_lock(mutex);\
+    VkResult _res = __VA_ARGS__; \
+    threads_mutex_unlock(mutex);\
     if(_res != VK_SUCCESS) { \
       dt_log(s_log_qvk, "error %s executing %s!", qvk_result_to_string(_res), # __VA_ARGS__); \
       return _res; \

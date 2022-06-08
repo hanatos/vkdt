@@ -23,11 +23,8 @@ read_header(
   lutinput_buf_t *lut = mod->data;
 
   char filename[PATH_MAX];
-  char *key[] = {
-    "maker", "model", 0};
-  char *val[] = {
-    mod->graph->main_img_param.maker,
-    mod->graph->main_img_param.model, 0};
+  const char *key[] = { "maker", "model", 0};
+  const char *val[] = { mod->graph->main_img_param.maker, mod->graph->main_img_param.model, 0};
   dt_strexpand(pattern, strlen(pattern), filename, sizeof(filename), key, val);
   // fprintf(stderr, "[i-lut] loading %s\n", filename);
 
