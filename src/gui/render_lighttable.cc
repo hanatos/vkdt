@@ -9,7 +9,6 @@ extern "C"
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
 #include "gui/widget_thumbnail.hh"
-#include "gui/widget_filebrowser.hh" // XXX remove me (replaced by files view)
 #include "gui/api.hh"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -204,20 +203,9 @@ dont_update_time:;
 
 void render_lighttable_right_panel(double &hotkey_time)
 { // right panel
-  static dt_filebrowser_widget_t filebrowser = {{0}};
-  ImGuiWindowFlags window_flags = 0;
-  window_flags |= ImGuiWindowFlags_NoTitleBar;
-  // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
-  // window_flags |= ImGuiWindowFlags_MenuBar;
-  window_flags |= ImGuiWindowFlags_NoMove;
-  window_flags |= ImGuiWindowFlags_NoResize;
-  // if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
-  // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
-  // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
-  // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
   ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-  ImGui::Begin("panel-right", 0, window_flags);
+  ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
   float lineht = ImGui::GetTextLineHeight();
   float bwd = 0.5f;
@@ -284,27 +272,8 @@ dont_update_time:;
     }
 
     if(ImGui::Button("open directory", size))
-    {
-      const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
-      if(strcmp(mru, "null"))
-      {
-        snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", mru);
-        char *c = filebrowser.cwd + strlen(filebrowser.cwd) - 1;
-        for(;*c!='/'&&c>filebrowser.cwd;c--);
-        if(c > filebrowser.cwd) strcpy(c, "/"); // truncate at last '/' to remove subdir
-        struct stat statbuf;
-        int ret = stat(filebrowser.cwd, &statbuf);
-        if(ret || (statbuf.st_mode & S_IFMT) != S_IFDIR) // don't point to non existing/non directory
-          strcpy(filebrowser.cwd, "/");
-      }
-      dt_filebrowser_open(&filebrowser);
-    }
+      dt_view_switch(s_view_files);
 
-    if(dt_filebrowser_display(&filebrowser, 'd'))
-    { // "ok" pressed
-      dt_gui_switch_collection(filebrowser.cwd);
-      dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
-    }
     ImGui::Unindent();
   }
 
@@ -354,6 +323,7 @@ dont_update_time:;
 
   if(ImGui::CollapsingHeader("recent collections"))
   { // recently used collections in ringbuffer:
+    ImGui::Indent();
     int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
     for(int i=0;i<num;i++)
     {
@@ -365,13 +335,14 @@ dont_update_time:;
         const char *last = dir;
         for(const char *c=dir;*c!=0;c++) if(*c=='/') last = c+1;
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f,0.5f));
-        if(ImGui::Button(last, ImVec2(vkdt.state.panel_wd*0.98, 0)))
+        if(ImGui::Button(last, ImVec2(-1, 0)))
           dt_gui_switch_collection(dir);
         if(ImGui::IsItemHovered())
           ImGui::SetTooltip("%s", dir);
         ImGui::PopStyleVar(1);
       }
     }
+    ImGui::Unindent();
   } // end collapsing header "recent collections"
 
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("selected images"))

@@ -7,11 +7,14 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 {
   if(action == GLFW_PRESS)
   {
-    if(key == GLFW_KEY_E)
+    if(key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK)
+    {
+      dt_view_switch(s_view_files);
+    }
+    else if(key == GLFW_KEY_E)
     {
       if(dt_db_current_imgid(&vkdt.db) != -1u)
       {
-        darkroom_reset_zoom();
         dt_view_switch(s_view_darkroom);
       }
     }

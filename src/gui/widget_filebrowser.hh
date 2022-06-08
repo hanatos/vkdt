@@ -19,7 +19,7 @@ dt_filebrowser_init(
   memset(w, 0, sizeof(*w));
 }
 
-// could just leak it, no need to call this:
+// this makes sure all memory is freed and also that the directory is re-read for new cwd.
 inline void
 dt_filebrowser_cleanup(
     dt_filebrowser_widget_t *w)

@@ -430,7 +430,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   else
 #endif
-  if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_E))
+  if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK || key == GLFW_KEY_E))
   {
     dt_view_switch(s_view_lighttable);
   }
