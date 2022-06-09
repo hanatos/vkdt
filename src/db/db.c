@@ -230,7 +230,23 @@ void dt_db_load_directory(
           continue;
         }
       }
-      else ep_len -= 4; // remove '.cfg' suffix
+      else
+      {
+        ep_len -= 4; // remove '.cfg' suffix
+        // workaround for deleted tag's images (tag's folder not cleaned up)
+        if (ep->d_type == DT_LNK)
+        {
+          char imgfile[1500];
+          realpath(cfgfile, imgfile);
+          if (strlen(imgfile)>4) imgfile[strlen(imgfile)-4] = '\0';
+          struct stat statbuf = {0};
+          if(stat(imgfile, &statbuf))
+          {
+            db->image_cnt--;
+            continue;
+          }
+        }
+      }
     }
 
     // add base filename to string pool

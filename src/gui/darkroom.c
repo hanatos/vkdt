@@ -536,6 +536,7 @@ darkroom_enter()
   uint32_t imgid = dt_db_current_imgid(&vkdt.db);
   if(imgid == -1u) return 1;
   char graph_cfg[PATH_MAX+100];
+  graph_cfg[0] = '\0';
   dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
 
   // stat, if doesn't exist, load default
