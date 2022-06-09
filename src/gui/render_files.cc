@@ -92,11 +92,12 @@ void copy_job_cleanup(void *arg)
 void copy_job_work(uint32_t item, void *arg)
 {
   copy_job_t *j = (copy_job_t *)arg;
+  if(j->abort) return;
   char src[1300], dst[1300];
   snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item]->d_name);
   snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item]->d_name);
-  if(!dt_file_copy(dst, src) && j->move) dt_file_delete(src);
-  else j->abort = 1;
+  if(dt_file_copy(dst, src)) j->abort = 1;
+  else if(j->move) dt_file_delete(src);
 }
 int copy_job(
     copy_job_t *j,
@@ -104,7 +105,8 @@ int copy_job(
     const char *src)
 {
   if(j->done < j->cnt) return 1; // old job still going
-  memset(j, 0, sizeof(*j));
+  j->abort = 0;
+  j->done  = 0;
   snprintf(j->src, sizeof(j->src), "%s", src);
   snprintf(j->dst, sizeof(j->dst), "%s", dst);
   dt_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
@@ -205,36 +207,61 @@ void render_files()
     if(ImGui::CollapsingHeader("import"))
     {
       ImGui::Indent();
-      ImGui::Text("destination");
+      static char pattern[100] = {0};
+      if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
+      if(ImGui::InputText("", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
       ImGui::SameLine();
+      ImGui::Text("pattern");
       static char dest[20];
-      ImGui::InputText("", dest, 20);
+      ImGui::InputText("", dest, sizeof(dest));
+      ImGui::SameLine();
+      ImGui::Text("dest");
       if(ImGui::IsItemHovered())
-      {
-        const char *pattern = dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}");
         ImGui::SetTooltip(
             "enter a descriptive string to be used as the ${dest} variable when expanding\n"
             "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
             "`%s'", pattern);
+      static copy_job_t job[4] = {{0}};
+      int32_t copy_mode = 0, num_idle = 0;
+      const char *copy_mode_str = "keep original\0delete original\0\0";
+      ImGui::Combo("copy mode", &copy_mode, copy_mode_str);
+      for(int k=0;k<4;k++)
+      { // list of four jobs to copy stuff simultaneously
+        if(job[k].cnt == 0)
+        { // idle job
+          if(num_idle++) break; // show at max one idle job
+          if(ImGui::Button("copy"))
+          {
+            // TODO: make sure we don't start a job that is already running in another job[.]
+            job[k].move = copy_mode;
+            char dst[1000];
+            time_t t = time(0);
+            struct tm *tm = localtime(&t);
+            char date[10] = {0};
+            strftime(date, sizeof(date), "%Y%m%d", tm);
+            const char *key[] = { "home", "date", "dest", 0};
+            const char *val[] = { getenv("HOME"), date, dest, 0};
+            dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
+            copy_job(job+k, dst, filebrowser.cwd);
+          }
+          if(ImGui::IsItemHovered())
+            ImGui::SetTooltip("copy contents of %s\nto %s,\n%s",
+                filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
+        }
+        else if(job[k].cnt > 0 && job[k].done < job[k].cnt)
+        { // running
+          if(ImGui::Button("abort")) job[k].abort = 1;
+          ImGui::SameLine();
+          ImGui::ProgressBar((float)job[k].cnt/(float)job[k].done, ImVec2(-1, 0));
+        }
+        else
+        { // done/aborted
+          if(ImGui::Button(job[k].abort ? "aborted" : "done"))
+          { // reset
+            memset(job+k, 0, sizeof(copy_job_t));
+          }
+        }
       }
-      // TODO: have a bunch of these for manual scheduling of multiple jobs
-      static copy_job_t job = {0};
-      // TODO: move button? copy_job to take move flag?
-      if(ImGui::Button("copy"))
-      {
-        char dst[1000];
-        const char *pattern = dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}");
-        time_t t = time(0);
-        struct tm *tm = localtime(&t);
-        char date[10] = {0};
-        strftime(date, sizeof(date), "%Y%m%d", tm);
-        const char *key[] = { "home", "date", "dest", 0};
-        const char *val[] = { getenv("HOME"), date, dest, 0};
-        dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
-        copy_job(&job, dst, filebrowser.cwd);
-      }
-      ImGui::SameLine();
-      ImGui::ProgressBar((float)job.cnt/(float)job.done, ImVec2(-1, 0));
       ImGui::Unindent();
     }
     // if(ImGui::CollapsingHeader("recently used collections")) here too?

@@ -24,6 +24,7 @@ GUI_H=gui/gui.h\
       gui/darkroom.h\
       gui/darkroom-util.h\
       gui/lighttable.h\
+      core/fs.h\
       pipe/graph-traverse.inc\
       pipe/graph-history.h
 GUI_CFLAGS=$(VKDT_GLFW_CFLAGS) -I../ext/imgui -I../ext/imgui/backends/
