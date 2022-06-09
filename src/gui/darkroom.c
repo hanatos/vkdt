@@ -91,10 +91,10 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     return;
   }
 
-  if(action == GLFW_PRESS && x >= vkdt.state.center_x + vkdt.state.center_wd)
+  if(action == GLFW_PRESS && (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
     return; // ignore only press over panel for pan
   if(vkdt.wstate.active_widget_modid >= 0 &&
-     x >= vkdt.state.center_x + vkdt.state.center_wd)
+     (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
     return; // and all events on panel for on-canvas module interaction
   const float px_dist = 0.1*qvk.win_height;
 
@@ -222,7 +222,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
   }
   else if(action == GLFW_PRESS &&
-      x < vkdt.state.center_x + vkdt.state.center_wd)
+      x > vkdt.state.center_x && x < vkdt.state.center_x + vkdt.state.center_wd)
   {
     if((!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_LEFT) ||
        ( vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE))
@@ -258,7 +258,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
     return;
   }
 
-  if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
+  if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
 
   // active widgets grabbed input?
   if(vkdt.wstate.active_widget_modid >= 0)
@@ -325,7 +325,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     return;
   }
 
-  if(x >= vkdt.state.center_x + vkdt.state.center_wd) return;
+  if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
   if(vkdt.wstate.active_widget_modid >= 0)
   {
     // convert view space mouse coordinate to normalised image

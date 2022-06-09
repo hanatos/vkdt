@@ -16,6 +16,7 @@ namespace { // anonymous namespace
 static ImHotKey::HotKey hk_darkroom[] = {
   {"create preset", "create new preset from image",     GLFW_KEY_LEFT_CONTROL, GLFW_KEY_O},
   {"apply preset",  "choose preset to apply",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_P},
+  {"show history",  "toggle visibility of left panel",  GLFW_KEY_LEFT_CONTROL, GLFW_KEY_H},
 };
 
 // used to communictate between the gui helper functions
@@ -1309,18 +1310,14 @@ void render_darkroom()
   const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
   const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
+    int border = vkdt.style.border_frac * qvk.win_width;
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= ImGuiWindowFlags_NoTitleBar;
-    window_flags |= ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoResize;
     // draw background over the full thing:
-    ImVec2 border = ImVec2(2*win_x, 2*win_y);
-    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(win_x-  border, win_y-  border), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-    ImGui::Begin("darkroom center", 0, window_flags);
+    ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     ImGuiIO& io = ImGui::GetIO();
     if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
@@ -1514,8 +1511,9 @@ abort:
     ImGui::PopStyleColor();
   } // end center view
 
+  if(vkdt.wstate.history_view)
   { // left panel
-    ImGui::SetNextWindowPos (ImVec2(0, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
@@ -1543,31 +1541,20 @@ abort:
       }
       if(pop) ImGui::PopStyleColor(pop);
     }
-
     ImGui::End();
   } // end left panel
 
   { // right panel
     int hotkey = -1;
     static double hotkey_time = 0;
-    if(ImGui::GetTime() - hotkey_time > 0.02)
+    if(ImGui::GetTime() - hotkey_time > 0.1)
     {
       hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
       hotkey_time = ImGui::GetTime();
     }
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= ImGuiWindowFlags_NoTitleBar;
-    // if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
-    // window_flags |= ImGuiWindowFlags_MenuBar;
-    window_flags |= ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoResize;
-    // if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
-    // if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
-    // if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
-    // if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-    ImGui::Begin("panel-right", 0, window_flags);
+    ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     // draw histogram image:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
@@ -1706,6 +1693,9 @@ abort:
           break;
         case 1:
           dt_gui_dr_preset_apply();
+          break;
+        case 2:
+          dt_gui_dr_toggle_history();
         default:;
       }
       dt_gui_dr_modals(); // draw modal window for presets

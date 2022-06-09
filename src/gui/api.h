@@ -171,6 +171,26 @@ dt_gui_dr_toggle_fullscreen_view()
 }
 
 static inline void
+dt_gui_dr_toggle_history()
+{
+  vkdt.wstate.history_view ^= 1;
+  if(vkdt.wstate.history_view)
+  {
+    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width + vkdt.state.panel_wd;
+    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - 2*vkdt.state.panel_wd;
+    vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
+  }
+  else
+  {
+    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - vkdt.state.panel_wd;
+    vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
+  }
+}
+
+static inline void
 dt_gui_dr_enter_fullscreen_view()
 {
   if(!vkdt.wstate.fullscreen_view)

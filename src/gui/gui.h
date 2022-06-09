@@ -76,6 +76,7 @@ typedef struct dt_gui_wstate_t
   char   notification_msg[256]; // message to display
 
   int fullscreen_view;          // darkroom mode without panels
+  int history_view;             // darkroom mode with left panel shown (history view)
 
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)
   int pentablet_enabled;        // 1 if the stylus is in proxmity of the pen tablet
