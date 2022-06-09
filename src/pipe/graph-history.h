@@ -9,6 +9,7 @@ dt_graph_history_init(
   graph->history_max = 100<<10;
   graph->history_pool = (char*)malloc(sizeof(char) * graph->history_max);
   graph->history_item_max = 1000;
+  graph->history_item_cur = 0;
   graph->history_item_end = 0;
   graph->history_item = (char**)malloc(sizeof(char*) * (graph->history_item_max + 1));
 }
@@ -48,7 +49,7 @@ dt_graph_history_reset(
       if(!(hi[i+1] = dt_graph_write_keyframe_ascii(graph, m, k, hi[i], max-hi[i])))
         return 1;
 
-  graph->history_item_end = i;
+  graph->history_item_cur = graph->history_item_end = i;
   for(char *c=graph->history_pool;c<graph->history_item[graph->history_item_end];c++)
     if(*c == '\n') *c = 0;
   return 0;
@@ -58,7 +59,7 @@ static inline void
 dt_graph_history_cleanup(
     dt_graph_t *graph)
 {
-  graph->history_max = graph->history_item_max = graph->history_item_end = 0;
+  graph->history_max = graph->history_item_max = graph->history_item_cur = graph->history_item_end = 0;
   free(graph->history_item); graph->history_item = 0;
   free(graph->history_pool); graph->history_pool = 0;
 }
@@ -68,6 +69,7 @@ _dt_graph_history_check_buf(
     dt_graph_t *graph,
     size_t      size)
 {
+  graph->history_item_end = graph->history_item_cur; // cut away the rest
   if(graph->history_item_end >= graph->history_item_max)
   { // TODO: resize and copy buffers
     return 1;
@@ -103,7 +105,7 @@ dt_graph_history_append(
       memmove(hi[i-1], hi[i], hi[i+1]-hi[i]);
       hi[i] = hi[i-1] + (hi[i+1]-hi[i]);
     }
-    else graph->history_item_end++; // now a valid new item
+    else graph->history_item_cur = ++graph->history_item_end; // now a valid new item
     write_time = time;
   }
 }
@@ -117,7 +119,7 @@ dt_graph_history_module(
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
   if(hi[i] < (hi[i+1] = dt_graph_write_module_ascii(graph, modid, hi[i], max - hi[i])))
-  { *(hi[i+1]-1) = 0; graph->history_item_end++; }
+  { *(hi[i+1]-1) = 0; graph->history_item_cur = ++graph->history_item_end; }
 }
 
 static inline void
@@ -129,7 +131,7 @@ dt_graph_history_connection(
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
   if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, modid, conid, hi[i], max - hi[i])))
-  { *(hi[i+1]-1) = 0; graph->history_item_end++; }
+  { *(hi[i+1]-1) = 0; graph->history_item_cur = ++graph->history_item_end; }
 }
 
 static inline void
@@ -146,7 +148,7 @@ dt_graph_history_keyframe(
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
   if(hi[i] < (hi[i+1] = dt_graph_write_keyframe_ascii(graph, modid, keyid, hi[i], max - hi[i])))
-  { *(hi[i+1]-1) = 0; graph->history_item_end++; }
+  { *(hi[i+1]-1) = 0; graph->history_item_cur = ++graph->history_item_end; }
 }
 
 static inline void
@@ -158,7 +160,7 @@ dt_graph_history_global(
   char *tmp, **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
   if(!(tmp = dt_graph_write_global_ascii(graph, hi[i], max-hi[i]))) return;
   for(char *c=hi[i];c<tmp;c++) if(*c == '\n') { hi[++i] = c+1; *c = 0; }
-  graph->history_item_end = i;
+  graph->history_item_cur = graph->history_item_end = i;
 }
 
 // reset graph configuration to a certain point in history
@@ -168,13 +170,14 @@ dt_graph_history_set(
     int         item)
 {
   if(item < 0 || (uint32_t)item >= graph->history_item_end) return 1;
+  graph->history_item_cur = item+1;
   // clean up all connections (they might potentially leave disconnected/broken
   // portions of graph otherwise).
   for(uint32_t m=0;m<graph->num_modules;m++)
     for(int c=0;c<graph->module[m].num_connectors;c++)
       if(dt_connector_input(graph->module[m].connector+c))
         dt_module_connect(graph, -1, -1, m, c);
-  for(int i=0;i<item;i++)
+  for(uint32_t i=0;i<graph->history_item_cur;i++)
     if(dt_graph_read_config_line(graph, graph->history_item[i]) < 0)
       return 1;
   return 0;

@@ -1515,21 +1515,33 @@ abort:
   } // end center view
 
   { // left panel
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= ImGuiWindowFlags_NoTitleBar;
-    window_flags |= ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowPos (ImVec2(0, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-    ImGui::Begin("panel-left", 0, window_flags);
+    ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     for(int i=vkdt.graph_dev.history_item_end-1;i>=0;i--)
     {
-      ImGui::Button(vkdt.graph_dev.history_item[i]);
-      // TODO: if pressed, reset history to this state
-      // TODO: remember the pre-reset end pointer and update end
-      // TODO: draw buttons always to pre-reset end (never shrink that one during reset)
-      // TODO: highlight button with current history in red (or something)
+      int pop = 0;
+      if(i >= (int)vkdt.graph_dev.history_item_cur)
+      { // inactive
+        pop = 3;
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(.01f, .01f, .01f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+      }
+      else if(i+1 == (int)vkdt.graph_dev.history_item_cur)
+      { // last active item
+        pop = 3;
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.8f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+      }
+      if(ImGui::Button(vkdt.graph_dev.history_item[i]))
+      {
+        dt_graph_history_set(&vkdt.graph_dev, i);
+        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+      }
+      if(pop) ImGui::PopStyleColor(pop);
     }
 
     ImGui::End();
