@@ -1,12 +1,13 @@
 // imgui rendering for the files view
 extern "C" {
-#include "gui.h"
-#include "view.h"
+#include "gui/gui.h"
+#include "gui/view.h"
 #include "core/fs.h"
 #include "core/strexpand.h"
 }
 #include "gui/render_view.hh"
-#include "widget_filebrowser.hh"
+#include "gui/widget_filebrowser.hh"
+#include "gui/widget_recentcollect.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -264,9 +265,17 @@ void render_files()
       }
       ImGui::Unindent();
     }
-    // if(ImGui::CollapsingHeader("recently used collections")) here too?
+    if(ImGui::CollapsingHeader("recent collections"))
+    { // recently used collections in ringbuffer:
+      ImGui::Indent();
+      if(recently_used_collections())
+      {
+        set_cwd(vkdt.db.dirname, 0);
+        dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
+      }
+      ImGui::Unindent();
+    } // end collapsing header "recent collections"
     // TODO: keyboard nav in filebrowser?
-    // if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK)) back to lt mode
     ImGui::End();
   }
 }

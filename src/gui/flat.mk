@@ -20,6 +20,7 @@ GUI_H=gui/gui.h\
       gui/hotkey.hh\
       gui/widget_filebrowser.hh\
       gui/widget_thumbnail.hh\
+      gui/widget_recentcollect.hh\
       gui/view.h\
       gui/darkroom.h\
       gui/darkroom-util.h\
