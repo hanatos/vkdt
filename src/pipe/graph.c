@@ -88,6 +88,8 @@ dt_graph_init(dt_graph_t *g)
   // grab default queue:
   g->queue = qvk.queue_compute;
   g->queue_idx = qvk.queue_idx_compute;
+  if(g->queue == qvk.queue_graphics)
+    g->queue_mutex = &qvk.queue_mutex;
 
   g->lod_scale = 1;
   g->active_module = -1;
@@ -2464,10 +2466,7 @@ VkResult dt_graph_run(
                   .pCommandBuffers    = &graph->command_buffer,
                 };
                 vkResetFences(qvk.device, 1, &graph->command_fence);
-                if(graph->queue == qvk.queue_graphics)
-                  QVKLR(&qvk.queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
-                else
-                  QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+                QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
                 if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
                   QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
                 QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
@@ -2549,10 +2548,7 @@ VkResult dt_graph_run(
   if(run & s_graph_run_record_cmd_buf)
   {
     vkResetFences(qvk.device, 1, &graph->command_fence);
-    if(graph->queue == qvk.queue_graphics)
-      QVKLR(&qvk.queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
-    else
-      QVKR(vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+    QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
   }

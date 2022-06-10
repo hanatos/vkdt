@@ -93,7 +93,7 @@ vk_debug_callback(
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
-    assert(0);
+    // assert(0);
   }
 #endif
   return VK_FALSE;
@@ -254,6 +254,8 @@ VkResult
 qvk_init(const char *preferred_device_name)
 {
   threads_mutex_init(&qvk.queue_mutex, 0);
+  threads_mutex_init(&qvk.queue_work0_mutex, 0);
+  threads_mutex_init(&qvk.queue_work1_mutex, 0);
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
@@ -644,6 +646,8 @@ qvk_cleanup()
 {
   QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   threads_mutex_destroy(&qvk.queue_mutex);
+  threads_mutex_destroy(&qvk.queue_work0_mutex);
+  threads_mutex_destroy(&qvk.queue_work1_mutex);
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_yuv, 0);

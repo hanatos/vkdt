@@ -462,6 +462,7 @@ void dt_gui_switch_collection(const char *dir)
   dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
   dt_db_cleanup(&vkdt.db);
   dt_db_init(&vkdt.db);
+  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
   dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
 

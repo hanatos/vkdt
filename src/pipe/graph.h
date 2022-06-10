@@ -66,6 +66,7 @@ typedef struct dt_graph_t
   VkCommandPool         command_pool;
   VkFence               command_fence;  // one per command buffer
   VkQueue               queue;
+  void                 *queue_mutex;    // if this is set to != 0 will be locked when the queue is used
   uint32_t              queue_idx;
   int                   float_atomics_supported; // copy from qvk to pass down to modules
 
