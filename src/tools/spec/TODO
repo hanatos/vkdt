@@ -1,0 +1,10 @@
+- create both spectra.lut and abney.lut at once
+- make sure low res abney is fine?
+- linear desat + squished sat for gamut mapping?
+- use turingbot's idea for hue angle/wavelength mapping?
+- abney to go to D65: adapt to d65 globally instead?
+- write rec2020 instead of xyz? can we do *Y/y then?
+- saturation:
+  - fit ellipses to abney data?
+  - some skewed distance to white?
+  - optimisation based: distort sat in hue sat map until smoother gradients?
