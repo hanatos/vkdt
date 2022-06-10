@@ -561,10 +561,12 @@ mac_error:
 
       // float xy[2] = {x, y}, white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E
       float xy[2] = {x, y}, white[2] = {.3127266, .32902313}; // D65
-      float sat = dt_spectrum_saturation(xy, white);
+      // float sat = dt_spectrum_saturation(xy, white);
+      // something circular (should be elliptical, says munsell) but smooth:
+      float sat = pow(3.0 * ((x-white[0])*(x-white[0])+(y-white[1])*(y-white[1])), 0.25);
 
       // bin into lambda/saturation buffer
-      float satc = lsres * sat;
+      float satc = (lsres-2) * sat; // keep two columns for gamut limits
       // normalise to extended range:
       float norm = (c0yl[2] - 400.0)/(700.0-400.0);
       // float lamc = 1.0/(1.0+exp(-2.0*(2.0*norm-1.0))) * lsres / 2; // center deriv=1
@@ -576,7 +578,7 @@ mac_error:
       int sati = satc;
       if(c0yl[0] > 0) lami += lsres/2;
       lami = fmaxf(0, fminf(lsres-1, lami));
-      sati = fmaxf(0, fminf(lsres-1, sati));
+      sati = fmaxf(0, fminf(lsres-3, sati));
       float olamc = lsbuf[5*(lami*lsres + sati)+3];
       float osatc = lsbuf[5*(lami*lsres + sati)+4];
       float odist = 
@@ -607,20 +609,24 @@ mac_error:
     };
     dt_inpaint(&inpaint_buf);
 
-    // determine gamut boundaries for rec709 and rec2020:
+    // determine gamut boundaries for rec709, rec2020, and spectral:
     // walk each row and find first time it goes outside.
     // record this in special 1d tables
-    float *bound_rec709  = calloc(sizeof(float), lsres);
-    float *bound_rec2020 = calloc(sizeof(float), lsres);
+    float *bound_rec709   = calloc(sizeof(float), lsres);
+    float *bound_rec2020  = calloc(sizeof(float), lsres);
+    float *bound_spectral = calloc(sizeof(float), lsres);
     for(int j=0;j<lsres;j++)
     {
-      int active = 3;
-      for(int i=0;i<lsres;i++)
+      bound_rec2020[j] = (lsres-3.5)/lsres; // init to max because it touches and then is never inited below
+      int active = 7;
+      for(int i=0;i<lsres-2;i++)
       {
         int idx = j*lsres + i;
         double xyz[] = {lsbuf[5*idx], lsbuf[5*idx+1], 1.0-lsbuf[5*idx]-lsbuf[5*idx+1]};
         double rec709 [3] = {0.0};
         double rec2020[3] = {0.0};
+        const float xy[] = {xyz[0], xyz[1]};
+        const float d65[] = {.3127266, .32902313};
         for (int k = 0; k < 3; ++k)
           for (int l = 0; l < 3; ++l)
             rec709[k] += xyz_to_srgb[k][l] * xyz[l];
@@ -637,37 +643,45 @@ mac_error:
           bound_rec2020[j] = (i-.5f)/(float)lsres;
           active &= ~2;
         }
+        if((active & 4) && dt_spectrum_saturation(xy, d65) > 0.95)
+        {
+          bound_spectral[j] = (i-.5f)/(float)lsres;
+          active &= ~4;
+        }
         if(!active) break;
       }
     }
 
     // write 2 channel half lut:
-    uint32_t size = 2*sizeof(uint16_t)*lsres*(lsres+1);
+    uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
     uint16_t *b16 = malloc(size);
     // also write pfm for debugging purposes
-    // FILE *pfm = fopen(argv[2], "wb");
-    // if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", lsres+1, lsres);
+    FILE *pfm = fopen("abney.pfm", "wb");
+    if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", lsres, lsres);
     for(int j=0;j<lsres;j++)
     {
-      for(int i=0;i<lsres;i++)
+      for(int i=0;i<lsres-2;i++)
       {
-        int ki = j*lsres + i, ko = j*(lsres+1) + i;
+        int ki = j*lsres + i, ko = j*lsres + i;
         b16[2*ko+0] = float_to_half(lsbuf[5*ki+0]);
         b16[2*ko+1] = float_to_half(lsbuf[5*ki+1]);
         float q[] = {lsbuf[5*ki], lsbuf[5*ki+1], 1.0f-lsbuf[5*ki]-lsbuf[5*ki+1]};
-        // if(pfm) fwrite(q, sizeof(float), 3, pfm);
+        if(pfm) fwrite(q, sizeof(float), 3, pfm);
       }
-      b16[2*(j*(lsres+1)+lsres)+0] = float_to_half(bound_rec709 [j]);
-      b16[2*(j*(lsres+1)+lsres)+1] = float_to_half(bound_rec2020[j]);
-      float q[] = {bound_rec709[j], bound_rec2020[j], 0.0f};
-      // if(pfm) fwrite(q, sizeof(float), 3, pfm);
+      b16[2*(j*lsres+lsres-2)+0] = float_to_half(bound_rec709  [j]);
+      b16[2*(j*lsres+lsres-2)+1] = float_to_half(bound_rec2020 [j]);
+      b16[2*(j*lsres+lsres-1)+0] = float_to_half(bound_spectral[j]);
+      b16[2*(j*lsres+lsres-1)+1] = float_to_half(0.0);
+      float q[] = {bound_rec709[j], bound_rec2020[j], bound_spectral[j]};
+      if(pfm) fwrite(q, sizeof(float), 3, pfm);
+      if(pfm) fwrite(q, sizeof(float), 3, pfm);
     }
     header_t head = (header_t) {
       .magic    = 1234,
       .version  = 2,
       .channels = 2,
       .datatype = 0,
-      .wd       = lsres+1,
+      .wd       = lsres,
       .ht       = lsres,
     };
     FILE *f = fopen("abney.lut", "wb");
@@ -680,7 +694,8 @@ mac_error:
     free(b16);
     free(bound_rec709);
     free(bound_rec2020);
-    // if(pfm) fclose(pfm);
+    free(bound_spectral);
+    if(pfm) fclose(pfm);
   }
 
   { // write spectra map: (x,y) |--> sigmoid coeffs + saturation

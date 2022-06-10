@@ -10,7 +10,7 @@
 #define CIE_LAMBDA_MIN 360.0
 #define CIE_LAMBDA_MAX 830.0
 #define CIE_FINE_SAMPLES ((CIE_SAMPLES - 1) * 3 + 1)
-#include "details/cie1931.h"
+#include "shared/cie1931.h"
 #include "core/inpaint.h"
 #include "core/clip.h"
 #include "core/half.h"

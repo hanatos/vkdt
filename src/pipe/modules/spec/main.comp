@@ -117,11 +117,9 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   // convert camera rgb to xyz:
-  if(false)//ipos.x < params.split * imageSize(img_out).x)
+  if(params.matrix_mode == 0)//ipos.x < params.split * imageSize(img_out).x)
   { // matrix
-    float b = rgb.r+rgb.g+rgb.b;
     rgb = params.cam_to_rec2020 * rgb;
-    rgb *= b / (rgb.r+rgb.g+rgb.b); // could have normalised the matrix, but now it's guaranteed to match up with the spectral lut below
   }
   else
   { // spectral lut
@@ -270,10 +268,14 @@ main()
     const ivec2 size = textureSize(img_abney, 0).xy;
     if(params.gamut_mode > 0)
     {
-      float bound = 1.0; // spectral locus
-      if(params.gamut_mode > 1)
+      float bound = 1.0;
+      if(params.gamut_mode == 1)
+      { // spectral locus
+        bound = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).r;
+      }
+      else if(params.gamut_mode > 1)
       {
-        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).rg;
+        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-2, sl.y*size.y), 0).rg;
         if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
         if(params.gamut_mode == 3) bound = max_sat.x; // rec709
       }
@@ -285,7 +287,7 @@ main()
       sl.x = m;
       if(sl.x > bound) sl.x = bound; // clip to gamut
     }
-    else sl.x = clamp(m, 0.0, (size.x-2.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
+    else sl.x = clamp(m, 0.0, (size.x-3.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
     // use lambda/sat lut to get new xy chroma values
     vec2 xy = texture(img_abney, sl).rg;
 #else
