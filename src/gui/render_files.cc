@@ -150,7 +150,7 @@ void render_files()
     if(ImGui::CollapsingHeader("folder"))
     {
       ImGui::Indent();
-      ImGui::Text(filebrowser.cwd);
+      ImGui::Text("%s", filebrowser.cwd);
       if(ImGui::Button("open in lighttable"))
       {
         just_entered = 1; // remember for next time we get here
@@ -170,7 +170,7 @@ void render_files()
     {
       ImGui::Indent();
       static int cnt = 0, mounted[20];
-      static char devname[20][20] = {0};
+      static char devname[20][20] = {{0}};
       char mountpoint[1000];
       if(ImGui::Button("refresh list"))
         cnt = find_usb_block_devices(devname, mounted);
@@ -209,7 +209,7 @@ void render_files()
     {
       ImGui::Indent();
       static char pattern[100] = {0};
-      if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
+      if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
       if(ImGui::InputText("", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
       ImGui::SameLine();
       ImGui::Text("pattern");
@@ -222,7 +222,7 @@ void render_files()
             "enter a descriptive string to be used as the ${dest} variable when expanding\n"
             "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
             "`%s'", pattern);
-      static copy_job_t job[4] = {{0}};
+      static copy_job_t job[4] = {{{0}}};
       int32_t copy_mode = 0, num_idle = 0;
       const char *copy_mode_str = "keep original\0delete original\0\0";
       ImGui::Combo("copy mode", &copy_mode, copy_mode_str);
