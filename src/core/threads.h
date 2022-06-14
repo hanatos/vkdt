@@ -49,7 +49,7 @@ int threads_shutting_down();
 int threads_num();
 
 // wait for a task to finish (pass same values as to threads_task)
-void threads_wait_for_all(uint32_t *done, const uint32_t work_item_cnt);
+void threads_wait(uint32_t *done, const uint32_t work_item_cnt);
 
 static inline uint32_t threads_id()
 {

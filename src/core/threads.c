@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sched.h>
+#include <time.h>
 #include <pthread.h>
 
 threads_t thr;
@@ -182,14 +183,17 @@ int threads_task(
   return 0;
 }
 
-void threads_wait_for_all(uint32_t *done, const uint32_t max)
+void threads_wait(uint32_t *done, const uint32_t max)
 {
   pthread_mutex_t mutex;
   pthread_mutex_init(&mutex, 0);
   while(1)
-  {
+  { // only do timed wait in case the task and all threads already finished and won't signal us:
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 1; // wait for one second max
     pthread_mutex_lock(&mutex);
-    pthread_cond_wait(&thr.cond_task_done, &mutex);
+    pthread_cond_timedwait(&thr.cond_task_done, &mutex, &ts);
     pthread_mutex_unlock(&mutex);
     if(*done >= max) return;
   }

@@ -607,7 +607,7 @@ mac_error:
   uint32_t done = 0;
   for(int i=0;i<nt;i++)
     threads_task(res*res, &work_item, &done, &par, parallel_run, 0);
-  threads_wait_for_all(&done, res*res);
+  threads_wait(&done, res*res);
 
   { // scope write abney map on (lambda, saturation)
     dt_inpaint_buf_t inpaint_buf = {

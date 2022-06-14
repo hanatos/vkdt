@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
   for(int i=0;i<nt;i++)
     threads_task(work_item_cnt, &work_item, &done, buf, parallel_run, 0);
 
-  threads_wait_for_all(&done, work_item_cnt);
+  threads_wait(&done, work_item_cnt);
 
   // inpaint/hole filling
   dt_inpaint_buf_t inpaint_buf = {
