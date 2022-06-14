@@ -4,6 +4,7 @@
 #include "upsample.h"
 #include "core/clip.h"
 #include "core/core.h"
+#include "core/fs.h"
 #include "core/half.h"
 #include "core/inpaint.h"
 
@@ -195,7 +196,10 @@ int main(int argc, char *argv[])
   }
 
   dt_lut_header_t sp_header;
-  float *sp_buf = load_spectra_lut("data/spectra.lut", &sp_header);
+  char filename[PATH_MAX+30], basedir[PATH_MAX];
+  fs_basedir(basedir, sizeof(basedir));
+  snprintf(filename, sizeof(filename), "%s/data/spectra.lut", basedir);
+  float *sp_buf = load_spectra_lut(filename, &sp_header);
   if(!sp_buf)
   {
     fprintf(stderr, "[mkclut] can't load 'data/spectra.lut' upsampling table!\n");
