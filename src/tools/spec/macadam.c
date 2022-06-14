@@ -14,6 +14,7 @@
 #include "core/inpaint.h"
 #include "core/clip.h"
 #include "core/half.h"
+#include "core/threads.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -21,72 +22,83 @@
 #include <string.h>
 #include <assert.h>
 
-int main(int argc, char *argv[])
+const int res = 1024;
+const int max_l = CIE_SAMPLES*2;
+const int incres = 8.0;//64.0;
+
+void parallel_run(uint32_t item, void *data)
 {
-  const int max_l = CIE_SAMPLES*2;
-  int res = 1024;
-  float *buf = calloc(sizeof(float), 4*res*res);
-
-  int incres = 8.0;//64.0;
-
   // enumerate all possible box spectra in the sense of [MacAdam 1935],
   // all wavelengths l: l0 <= l <= l1 are s(l) = 1, 0 else:
-// #pragma omp parallel for schedule(dynamic) default(shared)
-  for(int iw0=0;iw0<=incres*(max_l/2-1);iw0++)
+  const int iw0 = item;
+  float *buf = data;
+  for(int iw1=iw0+1;iw1<=incres*(max_l-2);iw1++)
   {
-    for(int iw1=iw0+1;iw1<=incres*(max_l-2);iw1++)
+    const float w0 = iw0/(float)incres;
+    const float w1 = iw1/(float)incres;
+    // compute xy chromaticities:
+    // const int l0 = w0, l1 = w1;
+    // const float f0 = w0-l0, f1 = w1-l1;
+    const float lambda0 = CIE_LAMBDA_MIN + w0 * 5.0;
+    const float lambda1 = CIE_LAMBDA_MIN + w1 * 5.0 > CIE_LAMBDA_MAX ?
+       CIE_LAMBDA_MIN + (w1 - CIE_SAMPLES + 1)*5.0 :
+       CIE_LAMBDA_MIN + w1 * 5.0;
+
+    double X, Y, Z;
+    X = Y = Z = 0.0;
+    for(int l=0;l<5*CIE_SAMPLES;l++)
     {
-      const float w0 = iw0/(float)incres;
-      const float w1 = iw1/(float)incres;
-      // compute xy chromaticities:
-      // const int l0 = w0, l1 = w1;
-      // const float f0 = w0-l0, f1 = w1-l1;
-      const float lambda0 = CIE_LAMBDA_MIN + w0 * 5.0;
-      const float lambda1 = CIE_LAMBDA_MIN + w1 * 5.0 > CIE_LAMBDA_MAX ?
-         CIE_LAMBDA_MIN + (w1 - CIE_SAMPLES + 1)*5.0 :
-         CIE_LAMBDA_MIN + w1 * 5.0;
-
-      double X, Y, Z;
-      X = Y = Z = 0.0;
-      for(int l=0;l<5*CIE_SAMPLES;l++)
-      {
-        const float ll = l / (5.0f*CIE_SAMPLES - 1.0f);
-        const float lambda = CIE_LAMBDA_MIN * (1.0f-ll) + CIE_LAMBDA_MAX * ll;
-        float p = 0.0f;
-        if(lambda0 < lambda1)
-        { // peak
-          if(lambda > lambda0 && lambda <= lambda1) p = 1.0f;
-        }
-        else
-        { // dip
-          if(lambda <= lambda1 || lambda > lambda0) p = 1.0f;
-        }
-        X += p * cie_x[l/5] * 1.0f/106.89;
-        Y += p * cie_y[l/5] * 1.0f/106.89;
-        Z += p * cie_z[l/5] * 1.0f/106.89;
+      const float ll = l / (5.0f*CIE_SAMPLES - 1.0f);
+      const float lambda = CIE_LAMBDA_MIN * (1.0f-ll) + CIE_LAMBDA_MAX * ll;
+      float p = 0.0f;
+      if(lambda0 < lambda1)
+      { // peak
+        if(lambda > lambda0 && lambda <= lambda1) p = 1.0f;
       }
+      else
+      { // dip
+        if(lambda <= lambda1 || lambda > lambda0) p = 1.0f;
+      }
+      X += p * cie_x[l/5] * 1.0f/106.89;
+      Y += p * cie_y[l/5] * 1.0f/106.89;
+      Z += p * cie_z[l/5] * 1.0f/106.89;
+    }
 
-      const float b = X+Y+Z;
-      const float x = X/b;
-      const float y = Y/b;
-      // rasterize into map
-      if(b > 1e-4f && x > 0 && y > 0)
+    const float b = X+Y+Z;
+    const float x = X/b;
+    const float y = Y/b;
+    // rasterize into map
+    if(b > 1e-4f && x > 0 && y > 0)
+    {
+      const int i = x*res+0.5f, j = y*res+0.5f;
+      if(i>=0&&i<res&&j>=0&&j<res)
       {
-        const int i = x*res+0.5f, j = y*res+0.5f;
-        if(i>=0&&i<res&&j>=0&&j<res)
-        {
-          float *v = buf + 4*(j*res+i);
-          // const float n = v[3];
-          // const float t0 = n/(n+1.0), t1 = 1.0/(n+1.0);
-          const float t0 = 0.0f, t1 = 1.0f;
-          v[0] = t0*v[0] + t1*b;
-          v[1] = t0*v[1] + t1*lambda0;
-          v[2] = t0*v[2] + t1*lambda1;
-          v[3] ++ ;
-        }
+        float *v = buf + 4*(j*res+i);
+        // const float n = v[3];
+        // const float t0 = n/(n+1.0), t1 = 1.0/(n+1.0);
+        const float t0 = 0.0f, t1 = 1.0f;
+        v[0] = t0*v[0] + t1*b;
+        v[1] = t0*v[1] + t1*lambda0;
+        v[2] = t0*v[2] + t1*lambda1;
+        v[3] ++ ;
       }
     }
   }
+}
+
+int main(int argc, char *argv[])
+{
+  float *buf = calloc(sizeof(float), 4*res*res);
+
+  threads_global_init();
+  const int nt = threads_num();
+  uint32_t work_item = 0, work_item_cnt = incres * (max_l/2-1)+1;
+  uint32_t done = 0;
+
+  for(int i=0;i<nt;i++)
+    threads_task(work_item_cnt, &work_item, &done, buf, parallel_run, 0);
+
+  threads_wait_for_all(&done, work_item_cnt);
 
   // inpaint/hole filling
   dt_inpaint_buf_t inpaint_buf = {
@@ -156,7 +168,7 @@ int main(int argc, char *argv[])
     fwrite(b16, size, 1, f);
     fclose(f);
   }
-#if 0 // debug, can look at this with eu:
+#if 1 // debug, can look at this with eu:
   FILE *pfm = fopen("macadam.pfm", "wb");
   if(pfm)
   {
@@ -168,6 +180,7 @@ int main(int argc, char *argv[])
 #endif
   free(b16);
   free(smooth);
+  threads_global_cleanup();
 
   exit(0);
 }

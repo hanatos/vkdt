@@ -19,6 +19,7 @@
 #include "shared/matrices.h"
 #include "core/clip.h"
 #include "core/inpaint.h"
+#include "core/threads.h"
 #include "shared/q2t.h"
 #include "core/half.h"
 #include "core/core.h"
@@ -39,6 +40,7 @@ int use_bad_cmf = 0;
 #define MOM_EPS 1e-3
 
 #include "shared/cie1931.h"
+
 
 /// Precomputed tables for fast spectral -> RGB conversion
 double lambda_tbl[CIE_FINE_SAMPLES],
@@ -362,6 +364,91 @@ double max_dist(double theta)
   else return 0.0; // XXX
 }
 
+typedef struct parallel_shared_t
+{
+  float *out, *lsbuf, *max_b;
+  int max_w, max_h, res;
+}
+parallel_shared_t;
+
+void parallel_run(uint32_t item, void *data)
+{
+  const parallel_shared_t *const d = data;
+  const int j = item / d->res;
+  const int i = item - j * d->res;
+  const int lsres = d->res;
+  if(i == 0)
+  {
+    printf(".");
+    fflush(stdout);
+  }
+
+  double x = (i) / (double)d->res;
+  double y = (j) / (double)d->res;
+  quad2tri(&x, &y);
+  double rgb[3];
+  double coeffs[3];
+  init_coeffs(coeffs);
+  // normalise to max(rgb)=1
+  rgb[0] = x;
+  rgb[1] = y;
+  rgb[2] = 1.0-x-y;
+  if(check_gamut(rgb)) return;
+
+  int ii = (int)fmin(d->max_w - 1, fmax(0, x * d->max_w + 0.5));
+  int jj = (int)fmin(d->max_h - 1, fmax(0, y * d->max_h + 0.5));
+  double m = fmax(0.001, 0.5*d->max_b[ii + d->max_w * jj]);
+  double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
+  double resid = gauss_newton(rgbm, coeffs);
+
+  double c0yl[3];
+  cvt_c012_c0yl(coeffs, c0yl);
+
+  (void)resid;
+  int idx = j*d->res + i;
+  d->out[5*idx + 0] = coeffs[0];
+  d->out[5*idx + 1] = coeffs[1];
+  d->out[5*idx + 2] = coeffs[2];
+
+  float white[2] = {.3127266, .32902313}; // D65
+  // something circular (should be elliptical, says munsell) but smooth:
+  float sat = pow(3.0 * ((x-white[0])*(x-white[0])+(y-white[1])*(y-white[1])), 0.25);
+
+  // bin into lambda/saturation buffer
+  float satc = (lsres-2) * sat; // keep two columns for gamut limits
+  // normalise to extended range:
+  float norm = (c0yl[2] - 400.0)/(700.0-400.0);
+  // float lamc = 1.0/(1.0+exp(-2.0*(2.0*norm-1.0))) * lsres / 2; // center deriv=1
+  // float fx = norm*norm*norm+norm;
+  float fx = norm-0.5;
+  // fx = fx*fx*fx+fx; // worse
+  float lamc = (0.5 + 0.5 * fx / sqrt(fx*fx+0.25)) * lsres / 2;
+  int lami = fmaxf(0, fminf(lsres/2-1, lamc));
+  int sati = satc;
+  if(c0yl[0] > 0) lami += lsres/2;
+  lami = fmaxf(0, fminf(lsres-1, lami));
+  sati = fmaxf(0, fminf(lsres-3, sati));
+  float olamc = d->lsbuf[5*(lami*lsres + sati)+3];
+  float osatc = d->lsbuf[5*(lami*lsres + sati)+4];
+  float odist = 
+    (olamc - lami - 0.5f)*(olamc - lami - 0.5f)+
+    (osatc - sati - 0.5f)*(osatc - sati - 0.5f);
+  float  dist = 
+    ( lamc - lami - 0.5f)*( lamc - lami - 0.5f)+
+    ( satc - sati - 0.5f)*( satc - sati - 0.5f);
+  if(dist < odist)
+  {
+    d->lsbuf[5*(lami*lsres + sati)+0] = x;
+    d->lsbuf[5*(lami*lsres + sati)+1] = y;
+    d->lsbuf[5*(lami*lsres + sati)+2] = 1.0-x-y;
+    d->lsbuf[5*(lami*lsres + sati)+3] = lamc;
+    d->lsbuf[5*(lami*lsres + sati)+4] = satc;
+  }
+  d->out[5*idx + 3] = (lami+0.5f) / (float)lsres;
+  d->out[5*idx + 4] = (sati+0.5f) / (float)lsres;
+}
+
+
 int main(int argc, char **argv)
 {
   Gamut gamut = XYZ;
@@ -504,80 +591,23 @@ mac_error:
 
   size_t bufsize = 5*res*res;
   float *out = calloc(sizeof(float), bufsize);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(dynamic) shared(stdout,out,max_b,max_w,max_h)
-#endif
-  for (int j = 0; j < res; ++j)
-  {
-    printf(".");
-    fflush(stdout);
-    for (int i = 0; i < res; ++i)
-    {
-      double x = (i) / (double)res;
-      double y = (j) / (double)res;
-      quad2tri(&x, &y);
-      double rgb[3];
-      double coeffs[3];
-      init_coeffs(coeffs);
-      // normalise to max(rgb)=1
-      rgb[0] = x;
-      rgb[1] = y;
-      rgb[2] = 1.0-x-y;
-      if(check_gamut(rgb)) continue;
 
-      int ii = (int)fmin(max_w - 1, fmax(0, x * max_w + 0.5));
-      int jj = (int)fmin(max_h - 1, fmax(0, y * max_h + 0.5));
-      double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
-      double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
-      double resid = gauss_newton(rgbm, coeffs);
+  parallel_shared_t par = (parallel_shared_t) {
+    .out   = out,
+    .lsbuf = lsbuf,
+    .max_b = max_b,
+    .max_w = max_w,
+    .max_h = max_h,
+    .res   = res,
+  };
 
-      double c0yl[3];
-      cvt_c012_c0yl(coeffs, c0yl);
-
-      (void)resid;
-      int idx = j*res + i;
-      out[5*idx + 0] = coeffs[0];
-      out[5*idx + 1] = coeffs[1];
-      out[5*idx + 2] = coeffs[2];
-
-      float white[2] = {.3127266, .32902313}; // D65
-      // something circular (should be elliptical, says munsell) but smooth:
-      float sat = pow(3.0 * ((x-white[0])*(x-white[0])+(y-white[1])*(y-white[1])), 0.25);
-
-      // bin into lambda/saturation buffer
-      float satc = (lsres-2) * sat; // keep two columns for gamut limits
-      // normalise to extended range:
-      float norm = (c0yl[2] - 400.0)/(700.0-400.0);
-      // float lamc = 1.0/(1.0+exp(-2.0*(2.0*norm-1.0))) * lsres / 2; // center deriv=1
-      // float fx = norm*norm*norm+norm;
-      float fx = norm-0.5;
-      // fx = fx*fx*fx+fx; // worse
-      float lamc = (0.5 + 0.5 * fx / sqrt(fx*fx+0.25)) * lsres / 2;
-      int lami = fmaxf(0, fminf(lsres/2-1, lamc));
-      int sati = satc;
-      if(c0yl[0] > 0) lami += lsres/2;
-      lami = fmaxf(0, fminf(lsres-1, lami));
-      sati = fmaxf(0, fminf(lsres-3, sati));
-      float olamc = lsbuf[5*(lami*lsres + sati)+3];
-      float osatc = lsbuf[5*(lami*lsres + sati)+4];
-      float odist = 
-        (olamc - lami - 0.5f)*(olamc - lami - 0.5f)+
-        (osatc - sati - 0.5f)*(osatc - sati - 0.5f);
-      float  dist = 
-        ( lamc - lami - 0.5f)*( lamc - lami - 0.5f)+
-        ( satc - sati - 0.5f)*( satc - sati - 0.5f);
-      if(dist < odist)
-      {
-        lsbuf[5*(lami*lsres + sati)+0] = x;
-        lsbuf[5*(lami*lsres + sati)+1] = y;
-        lsbuf[5*(lami*lsres + sati)+2] = 1.0-x-y;
-        lsbuf[5*(lami*lsres + sati)+3] = lamc;
-        lsbuf[5*(lami*lsres + sati)+4] = satc;
-      }
-      out[5*idx + 3] = (lami+0.5f) / (float)lsres;
-      out[5*idx + 4] = (sati+0.5f) / (float)lsres;
-    }
-  }
+  threads_global_init();
+  const int nt = threads_num();
+  uint32_t work_item = 0;
+  uint32_t done = 0;
+  for(int i=0;i<nt;i++)
+    threads_task(res*res, &work_item, &done, &par, parallel_run, 0);
+  threads_wait_for_all(&done, res*res);
 
   { // scope write abney map on (lambda, saturation)
     dt_inpaint_buf_t inpaint_buf = {
@@ -702,5 +732,6 @@ mac_error:
     // if(pfm) fclose(pfm);
   }
   free(out);
+  threads_global_cleanup();
   printf("\n");
 }

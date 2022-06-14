@@ -32,9 +32,9 @@ MKCLUT_DEPS=core/inpaint.h \
 macadam.lut: macadam
 	./macadam
 
-macadam: tools/spec/macadam.c Makefile
+macadam: tools/spec/macadam.c core/threads.c Makefile
 	@echo "[tools] precomputing max theoretical reflectance brightness.."
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< core/threads.c -o $@ $(LDFLAGS) $(ADD_LDFLAGS) -pthread
 
-mkabney: tools/spec/createlut.c Makefile
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
+mkabney: tools/spec/createlut.c core/threads.c Makefile
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< core/threads.c -o $@ $(LDFLAGS) $(ADD_LDFLAGS) -pthread
