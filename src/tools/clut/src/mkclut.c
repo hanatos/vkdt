@@ -195,8 +195,12 @@ int main(int argc, char *argv[])
   }
 
   dt_lut_header_t sp_header;
-  float *sp_buf = load_spectra_lut("spectra.lut", &sp_header);
-  if(!sp_buf) exit(1);
+  float *sp_buf = load_spectra_lut("data/spectra.lut", &sp_header);
+  if(!sp_buf)
+  {
+    fprintf(stderr, "[mkclut] can't load 'data/spectra.lut' upsampling table!\n");
+    exit(1);
+  }
 
   double cfa_spec[100][4];
   double cie_spec[100][4];

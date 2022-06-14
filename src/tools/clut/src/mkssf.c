@@ -102,10 +102,10 @@ void refresh_upsample()
 
 void init_upsample()
 { // load upsampling table
-  lut_buf = load_spectra_lut("spectra.lut", &lut_header);
+  lut_buf = load_spectra_lut("data/spectra.lut", &lut_header);
   if(!lut_buf)
   {
-    fprintf(stderr, "[mkssf] can't load 'spectra.lut' upsampling table!\n");
+    fprintf(stderr, "[mkssf] can't load 'data/spectra.lut' upsampling table!\n");
     exit(1);
   }
   refresh_upsample();
