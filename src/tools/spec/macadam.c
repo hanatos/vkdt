@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
     fwrite(b16, size, 1, f);
     fclose(f);
   }
-#if 1 // debug, can look at this with eu:
+#if 0 // debug, can look at this with eu:
   FILE *pfm = fopen("macadam.pfm", "wb");
   if(pfm)
   {
