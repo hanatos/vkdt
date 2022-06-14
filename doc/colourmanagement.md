@@ -33,6 +33,15 @@ name it is looking for if it's not found.
 currently only single or dual monitors (left/right of another)
 are supported.
 
+`vkdt` only supports matrix profiles for the output device transform. assuming
+monitors with linear response to the input on their primaries (after applying
+TRC), this is mathematically sufficient to reproduce the right colour for a
+human observer. the reason is that the colour is already encoded as tristimulus
+values in a colour space that has the same metameric behaviour as the cie
+observer (rec2020 in our case here). this does not hold true for [input device
+transforms](../src/tools/clut/readme.md), which in general require more complex
+transforms.
+
 ## gui
 all gui colours need to be given in rec2020 tristimulus values.
 ``gui/render.cc`` has a function to convert user/theme supplied
