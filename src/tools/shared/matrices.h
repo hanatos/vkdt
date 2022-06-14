@@ -76,3 +76,61 @@ const double rec2020_to_xyz[3][3] = {
     { 0.2627002120, 0.6779980715, 0.0593017165 },
     { 0.0000000000, 0.0280726930, 1.0609850577 }
 };
+
+static inline double
+mat3_det(const double a[3][3])
+{
+#define A(y, x) a[y - 1][x - 1]
+  return
+    A(1, 1) * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3)) -
+    A(2, 1) * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3)) +
+    A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+}
+
+static inline double
+mat3_inv(const double a[3][3], double inv[3][3])
+{
+  const double det = mat3_det(a);
+  if(!(det != 0.0)) return 0.0;
+  const double invdet = 1.0 / det;
+
+  inv[0][0] =  invdet * (A(3, 3) * A(2, 2) - A(3, 2) * A(2, 3));
+  inv[0][1] = -invdet * (A(3, 3) * A(1, 2) - A(3, 2) * A(1, 3));
+  inv[0][2] =  invdet * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
+
+  inv[1][0] = -invdet * (A(3, 3) * A(2, 1) - A(3, 1) * A(2, 3));
+  inv[1][1] =  invdet * (A(3, 3) * A(1, 1) - A(3, 1) * A(1, 3));
+  inv[1][2] = -invdet * (A(2, 3) * A(1, 1) - A(2, 1) * A(1, 3));
+
+  inv[2][0] =  invdet * (A(3, 2) * A(2, 1) - A(3, 1) * A(2, 2));
+  inv[2][1] = -invdet * (A(3, 2) * A(1, 1) - A(3, 1) * A(1, 2));
+  inv[2][2] =  invdet * (A(2, 2) * A(1, 1) - A(2, 1) * A(1, 2));
+  return det;
+#undef A
+}
+
+static inline void
+mat3_mulv(
+    const double a[3][3],
+    const double v[3],
+    double res[3])
+{
+  res[0] = res[1] = res[2] = 0.0f;
+  for(int j=0;j<3;j++)
+    for(int i=0;i<3;i++)
+      res[j] += a[j][i] * v[i];
+}
+
+static inline void
+mat3_mul(
+    const double a[3][3],
+    const double b[3][3],
+    double res[3][3])
+{
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+  {
+    res[i][j] = 0.0;
+    for(int k=0;k<3;k++)
+      res[i][j] += a[i][k] * b[k][j];
+  }
+}

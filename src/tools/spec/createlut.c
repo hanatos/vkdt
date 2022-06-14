@@ -349,25 +349,6 @@ double gauss_newton(const double rgb[3], double coeffs[3])
   return sqrt(r);
 }
 
-static Gamut parse_gamut(const char *str)
-{
-  if(!strcasecmp(str, "sRGB"))
-    return SRGB;
-  if(!strcasecmp(str, "eRGB"))
-    return ERGB;
-  if(!strcasecmp(str, "XYZ"))
-    return XYZ;
-  if(!strcasecmp(str, "ProPhotoRGB"))
-    return ProPhotoRGB;
-  if(!strcasecmp(str, "ACES2065_1"))
-    return ACES2065_1;
-  if(!strcasecmp(str, "ACES_AP1"))
-    return ACES_AP1;
-  if(!strcasecmp(str, "REC2020"))
-    return REC2020;
-  return SRGB;
-}
-
 // this is the piecewise fit
 double max_dist(double theta)
 {
@@ -559,9 +540,7 @@ mac_error:
       out[5*idx + 1] = coeffs[1];
       out[5*idx + 2] = coeffs[2];
 
-      // float xy[2] = {x, y}, white[2] = {1.0f/3.0f, 1.0f/3.0f}; // illum E
-      float xy[2] = {x, y}, white[2] = {.3127266, .32902313}; // D65
-      // float sat = dt_spectrum_saturation(xy, white);
+      float white[2] = {.3127266, .32902313}; // D65
       // something circular (should be elliptical, says munsell) but smooth:
       float sat = pow(3.0 * ((x-white[0])*(x-white[0])+(y-white[1])*(y-white[1])), 0.25);
 

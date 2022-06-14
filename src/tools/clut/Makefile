@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-I../.. -D_XOPEN_SOURCE=600 -Wall -std=c11 -g  -D_POSIX_C_SOURCE=200809L
+CFLAGS=-I../.. -I../shared -D_XOPEN_SOURCE=600 -Wall -std=c11 -g  -D_POSIX_C_SOURCE=200809L
 CFLAGS+=-march=native -O2
 # CFLAGS+=-fsanitize=address
 # LDFLAGS+=-fsanitize=address
@@ -21,8 +21,8 @@ mkclut: src/mkclut.c src/q2t.h ${DEPS} Makefile spectra.lut
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
 SSFDEPS=src/dngproc.h\
-        src/cie1931.h\
-        src/matrices.h\
+        ../shared/cie1931.h\
+        ../shared/matrices.h\
         src/cfa.h\
         src/cfa_data.h\
         src/cfa-plain.h\
