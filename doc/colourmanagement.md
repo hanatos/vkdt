@@ -41,6 +41,8 @@ values in a colour space that has the same metameric behaviour as the cie
 observer (rec2020 in our case here). this does not hold true for [input device
 transforms](../src/tools/clut/readme.md), which in general require more complex
 transforms.
+as an additional simplification, currently only gamma is supported, no generic
+shaper curve.
 
 ## gui
 all gui colours need to be given in rec2020 tristimulus values.
