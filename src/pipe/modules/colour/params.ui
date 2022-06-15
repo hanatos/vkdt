@@ -3,7 +3,7 @@ sat:slider:0.0:3.0
 picked:combo:ignore:white balance:deflicker:both
 mode:combo:parametric:data driven
 matrix:combo:rec2020:image:XYZ:rec709:clut
-gamut:hidden
+gamut:combo:no limit:limit to spectral locus:limit to rec2020:limit to rec709
 white:rgb:0:1
 mat:hidden
 group:mode:1

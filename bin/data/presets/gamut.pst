@@ -1,0 +1,10 @@
+# this preset uses look up tables to drive hue-constant saturation
+# changes in the `colour` module. it connects two luts which are created
+# during the build process and assumes a `01` instance of the `colour` module.
+module:i-lut:abney
+module:i-lut:spectra
+connect:i-lut:abney:output:colour:01:abney
+connect:i-lut:spectra:output:colour:01:spectra
+param:i-lut:abney:filename:data/abney.lut
+param:i-lut:spectra:filename:data/spectra.lut
+param:colour:01:gamut:1

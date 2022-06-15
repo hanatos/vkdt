@@ -4,9 +4,6 @@
 // efficient spectral upsampling. Computer Graphics Forum (Proceedings of
 // Eurographics), 38(2), March 2019. 
 
-// run like
-// make && ./createlut 512 lut.pfm XYZ && eu lut.pfm -w 1400 -h 1400
-
 // creates spectra.lut (c0*1e5 y l s)/(x y) and abney.lut (x y)/(s l)
 #include <math.h>
 #include <string.h>
@@ -652,13 +649,16 @@ mac_error:
           bound_rec2020[j] = (i-.5f)/(float)lsres;
           active &= ~2;
         }
-        if((active & 4) && dt_spectrum_saturation(xy, d65) > 0.95)
+        if((active & 4) && dt_spectrum_saturation(xy, d65) > 0.98)
         {
           bound_spectral[j] = (i-.5f)/(float)lsres;
           active &= ~4;
         }
         if(!active) break;
       }
+      // clamp so that everything is smaller than what we think is the spectral locus
+      bound_rec2020[j] = fminf(bound_rec2020[j], bound_spectral[j]);
+      bound_rec709 [j] = fminf(bound_rec709 [j], bound_spectral[j]);
     }
 
     // write 2 channel half lut:
@@ -678,9 +678,9 @@ mac_error:
         if(pfm) fwrite(q, sizeof(float), 3, pfm);
       }
       b16[2*(j*lsres+lsres-2)+0] = float_to_half(bound_rec709  [j]);
-      b16[2*(j*lsres+lsres-2)+1] = float_to_half(bound_rec2020 [j]);
-      b16[2*(j*lsres+lsres-1)+0] = float_to_half(bound_spectral[j]);
-      b16[2*(j*lsres+lsres-1)+1] = float_to_half(0.0);
+      b16[2*(j*lsres+lsres-2)+1] = float_to_half(bound_spectral[j]);
+      b16[2*(j*lsres+lsres-1)+0] = float_to_half(bound_rec2020 [j]);
+      b16[2*(j*lsres+lsres-1)+1] = float_to_half(bound_spectral[j]);
       float q[] = {bound_rec709[j], bound_rec2020[j], bound_spectral[j]};
       if(pfm) fwrite(q, sizeof(float), 3, pfm);
       if(pfm) fwrite(q, sizeof(float), 3, pfm);
