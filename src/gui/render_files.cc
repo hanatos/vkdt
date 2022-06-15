@@ -69,7 +69,7 @@ int copy_job(
   snprintf(j->dst, sizeof(j->dst), "%s", dst);
   fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
-  if(j->cnt < 0) return 2;
+  if(j->cnt == -1u) return 2;
   return threads_task(j->cnt, 0, &j->done, j, copy_job_work, copy_job_cleanup);
 }
 
