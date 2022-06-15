@@ -209,21 +209,24 @@ int main(int argc, char *argv[])
   double cfa_spec[100][4];
   double cie_spec[100][4];
   double d65_spec[1000][4];
-  int d65_cnt = spectrum_load("data/cie_d65", d65_spec);
+  snprintf(filename, sizeof(filename), "%s/data/cie_d65", basedir);
+  int d65_cnt = spectrum_load(filename, d65_spec);
 
   int clut_wd, clut_ht;
   float *clut0, *clut1;
   for(int ill=0;ill<2;ill++)
   {
-    int cfa_spec_cnt = spectrum_load(model, cfa_spec);
-    int cie_spec_cnt = spectrum_load("data/cie_observer", cie_spec);
+    snprintf(filename, sizeof(filename), "%s/data/cie_observer", basedir);
+    int cfa_spec_cnt = spectrum_load(model,    cfa_spec);
+    int cie_spec_cnt = spectrum_load(filename, cie_spec);
     if(!cfa_spec_cnt || !cie_spec_cnt)
     {
       fprintf(stderr, "[mkclut] could not open %s.txt or data/cie_observer.txt!\n", model);
       exit(2);
     }
     double illum_spec[1000][4];
-    int illum_cnt = spectrum_load(ill ? illum_file1 : illum_file0, illum_spec);
+    snprintf(filename, sizeof(filename), "%s/%s", basedir, ill ? illum_file1 : illum_file0);
+    int illum_cnt = spectrum_load(filename, illum_spec);
     if(!illum_cnt) 
     {
       fprintf(stderr, "[mkclut] could not open illumination spectrum %s!\n", ill ? illum_file1 : illum_file0);
