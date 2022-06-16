@@ -553,6 +553,8 @@ inline void draw_widget(int modid, int parid)
               ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
               param->widget.min, param->widget.max, ""))
         RESETBLOCK {
+          if(io.KeyShift) // lockstep all three if shift is pressed
+            for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -563,7 +565,7 @@ inline void draw_widget(int modid, int parid)
         }
         KEYFRAME
         if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-          ImGui::SetTooltip("%s %.3f", str, val[0]);
+          ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
 
         ImGui::PopStyleColor(4);
         if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
