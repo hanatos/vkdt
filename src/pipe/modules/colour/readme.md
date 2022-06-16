@@ -3,6 +3,8 @@
 this is a unified module to handle important things concerning colour.
 the input is in camera rgb and the output will be rec2020.
 
+## input device transform
+
 it supports two modes of operation: using 3x3 colour matrices and profiles
 created from spectral response curves of the cameras colour filter array (CFA).
 to use such a profile, first [create one for your camera using the profiling
@@ -11,15 +13,21 @@ to route the profile data to the input here, there is a `clut.pst` preset.
 
 the second, more simplistic mode of operation applies a 3x3 matrix. this kind
 of input transform is known to be imprecise especially for saturated colours
-and produce all kinds of artifacts (say way out of gamut dark blue tones). to
-alleviate this, this module comes with a corrective radial basis function (RBF)
-applied after white balance and matrix (or clut). it allows to map arbitrary
-source to target points in 2d chromaticity space.
+and produce all kinds of artifacts (say way out of gamut dark blue tones).
+
+## colour mapping
+
+to fine tune calibration or for artistic purposes, this module comes with a
+corrective radial basis function (RBF) applied after white balance and matrix
+(or clut). it allows to map arbitrary source to target points in 2d
+chromaticity space.
 
 this mechanism be used to calibrate the input colour against a measured
 test chart (for instance an IT8), or for artistic colour manipulation.
 
 the chromaticity RBF operates in rec2020, normalised to r/(r+g+b) and b/(r+g+b).
+
+## white balancing
 
 white balancing (using CAT16) will adjust rec2020 D65 white to the colour
 represented by the three white sliders. to input alternative source colours
@@ -30,34 +38,38 @@ such that it will match the destination colour defined by the sliders. in
 conjunction with skin tone presets (cf. `colour-monk-[0-9].pst`), this is
 useful to match skin rendition precisely in difficult lighting situations.
 
-a note on gamut mapping: the `gamut` parameter employs a few lookup tables to
+## gamut mapping
+
+the `gamut` parameter employs a few lookup tables to
 work. in particular the optional inputs `abney` and `spectra` have to be
 connected. you can easily do this by applying the `gamut.pst`
 preset (press `ctrl-p` and start to type `gamut.pst` until it shows as the
 first entry in the list, then press enter).
 once this is done, the parameter is closely intertwined with the `sat` control:
 if `gamut` is set to unlimited, increasing chroma will quickly push colours
-outside of the spectral locus, which can be observed by connecting an instance of a
-[ciediag module](../ciediag/readme.md) to the `hist` display for instance.
-limiting to spectral locus instead will only show an effect if `sat` is
-increased, and never push colours off limits. the two other options (rec2020
-and rec709) first scale down all colours such that the theoretical maximum (on
-the spectral locus boundary) will fit into the respective colour space. `sat`
-can then be used to increase saturation again from there, but will never
-produce values outside the respective tristimulus gamut.
+outside of the spectral locus, which can be observed by connecting an instance
+of a [ciediag module](../ciediag/readme.md) between this module and the `hist`
+display for instance. limiting to spectral locus instead will only show an
+effect if `sat` is increased, and never push colours off limits. the two other
+options (rec2020 and rec709) first scale down all colours such that the
+theoretical maximum (on the spectral locus boundary) will fit into the
+respective colour space. `sat` can then be used to increase saturation again
+from there, but will never produce values outside the respective tristimulus
+gamut.
 
 
 ## parameters
 
 * `exposure` this is here for convenience, so we save the memory bandwidth to carry
   all the pixels to yet another module doing a trivial transform on the input data.
-* `sat` saturation control using dt UCS
+* `sat` saturation control using dt UCS or the optional lookup tables if they are connected.
 * `mode` the module can be run in `parametric` mode, where the colour matrix and white
   balance coefficients are used and then the RBF only comes into play for gamut mapping.
   the `data driven` mode works on an aribtrary list of source and target points which
   can be given in the parameters as `source` and `target` list of points.
   this parameter runs a ui group, so it will show/hide a few other elements.
-* `gamut` the gamut can be left untouched, projected to spectral locus, rec2020, or rec709
+* `gamut` the gamut can be left untouched, projected to spectral locus, rec2020, or rec709.
+  works only if the abney and spectra inputs are connected.
 * `picked` what to do with the picked input colour, if it is connected to the `picked` connector.
   it can be used as source for white balancing and/or deflickering.
 * `matrix` input device transform mode: use the image matrix or a selection of presets, or the colour lut.
