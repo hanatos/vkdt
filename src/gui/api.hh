@@ -5,6 +5,7 @@ extern "C" {
 #include "pipe/modules/api.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-export.h"
+#include "pipe/graph-history.h"
 }
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -394,6 +395,7 @@ dt_gui_dr_modals()
           lno++;
           // > 0 are warnings, < 0 are fatal, 0 is success
           if(dt_graph_read_config_line(&vkdt.graph_dev, line) < 0) goto error;
+          dt_graph_history_line(&vkdt.graph_dev, line);
         }
         fclose(f);
         vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);

@@ -163,6 +163,21 @@ dt_graph_history_global(
   graph->history_item_cur = graph->history_item_end = i;
 }
 
+// append a line of cfg (as it comes from presets) straight to history
+static inline void
+dt_graph_history_line(
+    dt_graph_t *graph,
+    const char *line)
+{
+  size_t len = strlen(line)+1; // include null byte
+  if(_dt_graph_history_check_buf(graph, len)) return;
+  if(len <= 1 || line[0] == '#') return; // ignore comments and mistakes
+  int i = graph->history_item_end;
+  char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
+  if(hi[i] < (hi[i+1] = strncpy(hi[i], line, max - hi[i]) + len))
+  { *(hi[i+1]-1) = 0; graph->history_item_cur = ++graph->history_item_end; }
+}
+
 // reset graph configuration to a certain point in history
 static inline int
 dt_graph_history_set(
@@ -174,9 +189,16 @@ dt_graph_history_set(
   // clean up all connections (they might potentially leave disconnected/broken
   // portions of graph otherwise).
   for(uint32_t m=0;m<graph->num_modules;m++)
+  {
     for(int c=0;c<graph->module[m].num_connectors;c++)
       if(dt_connector_input(graph->module[m].connector+c))
         dt_module_connect(graph, -1, -1, m, c);
+    for(int p=0;p<graph->module[m].so->num_params;p++)
+    { // reset all parameters to their defaults
+      const dt_ui_param_t *param = graph->module[m].so->param[p];
+      memcpy(graph->module[m].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+    }
+  }
   for(uint32_t i=0;i<graph->history_item_cur;i++)
     if(dt_graph_read_config_line(graph, graph->history_item[i]) < 0)
       return 1;
