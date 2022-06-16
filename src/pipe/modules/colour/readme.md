@@ -30,6 +30,23 @@ such that it will match the destination colour defined by the sliders. in
 conjunction with skin tone presets (cf. `colour-monk-[0-9].pst`), this is
 useful to match skin rendition precisely in difficult lighting situations.
 
+a note on gamut mapping: the `gamut` parameter employs a few lookup tables to
+work. in particular the optional inputs `abney` and `spectra` have to be
+connected. you can easily do this by applying the `gamut.pst`
+preset (press `ctrl-p` and start to type `gamut.pst` until it shows as the
+first entry in the list, then press enter).
+once this is done, the parameter is closely intertwined with the `sat` control:
+if `gamut` is set to unlimited, increasing chroma will quickly push colours
+outside of the spectral locus, which can be observed by connecting an instance of a
+[ciediag module](../ciediag/readme.md) to the `hist` display for instance.
+limiting to spectral locus instead will only show an effect if `sat` is
+increased, and never push colours off limits. the two other options (rec2020
+and rec709) first scale down all colours such that the theoretical maximum (on
+the spectral locus boundary) will fit into the respective colour space. `sat`
+can then be used to increase saturation again from there, but will never
+produce values outside the respective tristimulus gamut.
+
+
 ## parameters
 
 * `exposure` this is here for convenience, so we save the memory bandwidth to carry
