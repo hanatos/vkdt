@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
   uint32_t work_item = 0, work_item_cnt = incres * (max_l/2-1)+1;
   uint32_t done = 0;
 
-#if 1
+#if 0
   for(int i=0;i<nt;i++)
     threads_task(work_item_cnt, &work_item, &done, buf, parallel_run, 0);
 
