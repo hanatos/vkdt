@@ -55,6 +55,8 @@ typedef struct threads_t
   threads_task_t *task;
   pthread_cond_t  cond_task_done;
   pthread_cond_t  cond_task_push;
+  pthread_mutex_t mutex_done;
+  pthread_mutex_t mutex_push;
 }
 threads_t;
 
@@ -73,14 +75,11 @@ void *threads_work(void *arg)
   sched_setaffinity(0, sizeof(cpu_set_t), &set);
 #endif
 
-  pthread_mutex_t mutex;
-  pthread_mutex_init(&mutex, 0);
-
   while(1)
   {
-    pthread_mutex_lock(&mutex);
-    pthread_cond_wait(&thr.cond_task_push, &mutex);
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_lock(&thr.mutex_push);
+    pthread_cond_wait(&thr.cond_task_push, &thr.mutex_push);
+    pthread_mutex_unlock(&thr.mutex_push);
     if(thr.shutdown) break;
     threads_task_t *task = 0;
     for(int k=0;k<thr.task_max;k++)
@@ -110,7 +109,9 @@ void *threads_work(void *arg)
       task->free(task->data); // every thread gets the callback, they coordinate who cleans task->data
     }
     // signal everybody that we're done with the task
+    pthread_mutex_lock(&thr.mutex_done);
     pthread_cond_broadcast(&thr.cond_task_done);
+    pthread_mutex_unlock(&thr.mutex_done);
     // mark task as recyclable:
     uint32_t oldval = __sync_val_compare_and_swap(&task->tid, tid, s_task_state_recycle);
     assert(oldval == tid); // this should never fail, people shall not mess with our task
@@ -118,8 +119,6 @@ void *threads_work(void *arg)
     (void)oldval;
 #endif
   }
-  // cleanup
-  pthread_mutex_destroy(&mutex);
   return 0;
 }
 
@@ -130,6 +129,8 @@ void threads_global_cleanup()
     pthread_join(thr.worker[i], 0);
   pthread_cond_destroy(&thr.cond_task_done);
   pthread_cond_destroy(&thr.cond_task_push);
+  pthread_mutex_destroy(&thr.mutex_done);
+  pthread_mutex_destroy(&thr.mutex_push);
   free(thr.cpuid);
   free(thr.task);
   free(thr.worker);
@@ -179,25 +180,24 @@ int threads_task(
   (void)oldval;
 #endif
   // wake up one thread by signaling the condition
+  pthread_mutex_lock(&thr.mutex_push);
   pthread_cond_signal(&thr.cond_task_push);
+  pthread_mutex_unlock(&thr.mutex_push);
   return 0;
 }
 
 void threads_wait(uint32_t *done, const uint32_t max)
 {
-  pthread_mutex_t mutex;
-  pthread_mutex_init(&mutex, 0);
   while(1)
   { // only do timed wait in case the task and all threads already finished and won't signal us:
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec += 1; // wait for one second max
-    pthread_mutex_lock(&mutex);
-    pthread_cond_timedwait(&thr.cond_task_done, &mutex, &ts);
-    pthread_mutex_unlock(&mutex);
-    if(*done >= max) return;
+    pthread_mutex_lock(&thr.mutex_done);
+    pthread_cond_timedwait(&thr.cond_task_done, &thr.mutex_done, &ts);
+    pthread_mutex_unlock(&thr.mutex_done);
+    if(*done >= max) break;
   }
-  pthread_mutex_destroy(&mutex);
 }
 
 void threads_global_init()
@@ -251,6 +251,8 @@ void threads_global_init()
 
   pthread_cond_init(&thr.cond_task_done, 0);
   pthread_cond_init(&thr.cond_task_push, 0);
+  pthread_mutex_init(&thr.mutex_done, 0);
+  pthread_mutex_init(&thr.mutex_push, 0);
 
   thr.worker = malloc(sizeof(pthread_t)*thr.num_threads);
   for(uint64_t k=0;k<thr.num_threads;k++)
@@ -261,8 +263,12 @@ void threads_shutdown()
 {
   thr.shutdown = 1;
   // unblock everyone, even though we're not done:
+  pthread_mutex_lock(&thr.mutex_done);
   pthread_cond_broadcast(&thr.cond_task_done);
+  pthread_mutex_unlock(&thr.mutex_done);
+  pthread_mutex_lock(&thr.mutex_push);
   pthread_cond_broadcast(&thr.cond_task_push);
+  pthread_mutex_unlock(&thr.mutex_push);
 }
 
 int threads_shutting_down()

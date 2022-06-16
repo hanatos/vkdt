@@ -602,7 +602,7 @@ mac_error:
   const int nt = threads_num();
   uint32_t work_item = 0;
   uint32_t done = 0;
-#if 0
+#if 1
   for(int i=0;i<nt;i++)
     threads_task(res*res, &work_item, &done, &par, parallel_run, 0);
   threads_wait(&done, res*res);
@@ -670,7 +670,7 @@ mac_error:
     uint32_t size = 2*sizeof(uint16_t)*lsres*lsres;
     uint16_t *b16 = malloc(size);
     // also write pfm for debugging purposes
-    FILE *pfm = fopen("abney.pfm", "wb");
+    FILE *pfm = 0;//fopen("abney.pfm", "wb");
     if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", lsres, lsres);
     for(int j=0;j<lsres;j++)
     {
