@@ -602,9 +602,14 @@ mac_error:
   const int nt = threads_num();
   uint32_t work_item = 0;
   uint32_t done = 0;
+#if 0
   for(int i=0;i<nt;i++)
     threads_task(res*res, &work_item, &done, &par, parallel_run, 0);
   threads_wait(&done, res*res);
+#else
+  for(int k=0;k<res*res;k++)
+    parallel_run(k, &par);
+#endif
 
   { // scope write abney map on (lambda, saturation)
     dt_inpaint_buf_t inpaint_buf = {
