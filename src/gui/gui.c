@@ -361,10 +361,10 @@ VkResult dt_gui_present()
     .pImageIndices      = &vkdt.frame_index,
   };
   threads_mutex_lock(&qvk.queue_mutex);
-  QVKR(vkQueuePresentKHR(qvk.queue_graphics, &info));
+  VkResult res = vkQueuePresentKHR(qvk.queue_graphics, &info);
   threads_mutex_unlock(&qvk.queue_mutex);
   vkdt.sem_index = (vkdt.sem_index + 1) % vkdt.image_count;
-  return VK_SUCCESS;
+  return res;
 }
 
 void
