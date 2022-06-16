@@ -77,7 +77,7 @@ const double rec2020_to_xyz[3][3] = {
     { 0.0000000000, 0.0280726930, 1.0609850577 }
 };
 
-static inline double 
+static inline double
 mat3_det(const double a[3][3])
 {
 #define A(y, x) a[y - 1][x - 1]

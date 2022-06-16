@@ -117,11 +117,9 @@ main()
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
   // convert camera rgb to xyz:
-  if(false)//ipos.x < params.split * imageSize(img_out).x)
+  if(params.matrix_mode == 0)//ipos.x < params.split * imageSize(img_out).x)
   { // matrix
-    float b = rgb.r+rgb.g+rgb.b;
     rgb = params.cam_to_rec2020 * rgb;
-    rgb *= b / (rgb.r+rgb.g+rgb.b); // could have normalised the matrix, but now it's guaranteed to match up with the spectral lut below
   }
   else
   { // spectral lut
@@ -231,7 +229,7 @@ main()
   else
   { // split: spectral
   float Y;
-  if(params.sat != 1.0)
+  if(params.sat != 1.0 || params.gamut_mode > 0)
   { // change saturation:
 #if 1 // XXX DEBUG commented out for experiments below
     const mat3 xyz_to_rec2020 = mat3(
@@ -264,28 +262,33 @@ main()
 
     if(lut.x > 0.0) sl.y += 0.5;
     // this is where we would be at (unbounded params.sat)
-    float m = params.desat * params.sat * sl.x;
+    float m = params.sat * sl.x;
     // but we want to compress input in [sl.x.. infty) into
     // the interval [sl.x .. max_sat.x]
     const ivec2 size = textureSize(img_abney, 0).xy;
     if(params.gamut_mode > 0)
     {
-      float bound = 1.0; // spectral locus
-      if(params.gamut_mode > 1)
-      {
-        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).rg;
-        if(params.gamut_mode == 2) bound = max_sat.y; // rec2020
-        if(params.gamut_mode == 3) bound = max_sat.x; // rec709
+      float bound = 1.0;
+      if(params.gamut_mode == 1)
+      { // spectral locus
+        bound = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).r;
       }
-      // quite harsh global restriction to bounds:
-      // float f = m / bound;
-      // sl.x = bound * f / pow(pow(f, 4.0) + 1.0, 1.0/4.0);
-      if(params.sat > 1.0) // only limit artificially increased saturation:
-        m = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
-      sl.x = m;
+      else if(params.gamut_mode == 2)
+      { // rec709
+        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-2, sl.y*size.y), 0).rg;
+        bound = max_sat.x;
+        sl.x *= max_sat.x / max_sat.y; // adjust lower bound to spectral locus scaled into rec709
+      }
+      else if(params.gamut_mode == 3)
+      { // rec2020
+        vec2 max_sat = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).rg;
+        bound = max_sat.x;
+        sl.x *= max_sat.x / max_sat.y; // same but rec2020
+      }
+      sl.x = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
       if(sl.x > bound) sl.x = bound; // clip to gamut
     }
-    else sl.x = clamp(m, 0.0, (size.x-2.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
+    else sl.x = clamp(m, 0.0, (size.x-3.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
     // use lambda/sat lut to get new xy chroma values
     vec2 xy = texture(img_abney, sl).rg;
 #else

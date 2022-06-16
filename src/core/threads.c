@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sched.h>
+#include <time.h>
 #include <pthread.h>
 
 threads_t thr;
@@ -182,19 +183,22 @@ int threads_task(
   return 0;
 }
 
-#if 0
-// TODO: active wait for task:
-// give us the one global work item atomic you passed to the task[s] when creating them
-// give us the global work item cnt
-// waiting for all threads to idle
-// waiting for any work item to complete
-// waiting for task to complete
+void threads_wait(uint32_t *done, const uint32_t max)
 {
-  // TODO: call thread worker function and work while we wait
-  // after every step, compare work item cnt and work item counter. if done, return
-  // if not active waiting: wait for "done with one job" signal and check condition afterwards
+  pthread_mutex_t mutex;
+  pthread_mutex_init(&mutex, 0);
+  while(1)
+  { // only do timed wait in case the task and all threads already finished and won't signal us:
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 1; // wait for one second max
+    pthread_mutex_lock(&mutex);
+    pthread_cond_timedwait(&thr.cond_task_done, &mutex, &ts);
+    pthread_mutex_unlock(&mutex);
+    if(*done >= max) return;
+  }
+  pthread_mutex_destroy(&mutex);
 }
-#endif
 
 void threads_global_init()
 {

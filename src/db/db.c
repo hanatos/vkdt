@@ -561,7 +561,7 @@ void dt_db_duplicate_selected_images(dt_db_t *db)
     }
     dt_log(s_log_db, "creating duplicate `%s'", fn);
     if(!dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)))
-      dt_file_copy(fn, fullfn);
+      fs_copy(fn, fullfn);
 next:;
   }
 }

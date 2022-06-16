@@ -1,0 +1,11 @@
+- use turingbot's idea for hue angle/wavelength mapping?
+- saturation:
+  - fit ellipses to abney data?
+  - some skewed distance to white?
+  - optimisation based: distort sat in hue sat map until smoother gradients?
+
+- wire to global makefile
+- put into colour module as optional inputs
+- ship preset
+- remove spec module
+- remove openmp and use our threads

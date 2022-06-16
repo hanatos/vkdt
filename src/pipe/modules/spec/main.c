@@ -15,12 +15,12 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const float  p_sat = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("sat")))[0];
   const int    p_mat = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("matrix")))[0];
   const int    p_gam = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("gamut")))[0];
-  // XXX matrix mode combo box is somehow broken
-  if(p_mat == 1)
+  if(p_mat == 0)
   { // the one that comes with the image from the source node:
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4*i+j] = module->img_param.cam_to_rec2020[3*j+i];
   }
+#if 0
   else if(p_mat == 2)
   { // CIE XYZ
     const float xyz_to_rec2020[] = {
@@ -35,6 +35,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4*j+i] = i==j ? 1.0f : 0.0f;
   }
+#endif
   f[12+0] = p_wht[0];
   f[12+1] = p_wht[1];
   f[12+2] = p_wht[2];

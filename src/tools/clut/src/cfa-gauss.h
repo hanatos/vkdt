@@ -45,7 +45,9 @@ fakegaussian(const float x)
   const int i1 = 0x3f800000u, i2 = 0x40000000u;
   const int k0 = i1 - x*x * (i2 - i1);
   const int k = k0 > 0 ? k0 : 0;
-  return (*(const float *)&k);// /norm_c1;
+  float ret;
+  memcpy(&ret, &k, sizeof(float));
+  return ret; // /norm_c1;
 }
 
 static inline double

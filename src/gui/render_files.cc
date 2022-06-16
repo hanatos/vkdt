@@ -16,49 +16,6 @@ namespace { // anonymous namespace
 
 static dt_filebrowser_widget_t filebrowser = {{0}};
 
-int find_usb_block_devices(
-    char devname[20][20],
-    int  mounted[20])
-{ // pretty much ls /sys/class/scsi_disk/*/device/block/{sda,sdb,sdd,..}/{..sdd1..} and then grep for it in /proc/mounts
-  int cnt = 0;
-  char block[1000];
-  struct dirent **ent, **ent2;
-  int ent_cnt = scandir("/sys/class/scsi_disk/", &ent, 0, alphasort);
-  if(ent_cnt < 0) return 0;
-  for(int i=0;i<ent_cnt&&cnt<20;i++)
-  {
-    snprintf(block, sizeof(block), "/sys/class/scsi_disk/%s/device/block", ent[i]->d_name);
-    int ent2_cnt = scandir(block, &ent2, 0, alphasort);
-    if(ent2_cnt < 0) goto next;
-    for(int j=0;j<ent2_cnt&&cnt<20;j++)
-    {
-      for(int k=1;k<10&&cnt<20;k++)
-      {
-        snprintf(block, sizeof(block), "/sys/class/scsi_disk/%s/device/block/%s/%.13s%d", ent[i]->d_name,
-            ent2[j]->d_name, ent2[j]->d_name, k);
-        struct stat sb;
-        if(stat(block, &sb)) break;
-        if(sb.st_mode & S_IFDIR)
-          snprintf(devname[cnt++], sizeof(devname[0]), "/dev/%.13s%d", ent2[j]->d_name, k%10u);
-      }
-      free(ent2[j]);
-    }
-    free(ent2);
-next:
-    free(ent[i]);
-  }
-  free(ent);
-  for(int i=0;i<cnt;i++) mounted[i] = 0;
-  FILE *f = fopen("/proc/mounts", "r");
-  if(f) while(!feof(f))
-  {
-    fscanf(f, "%999s %*[^\n]", block);
-    for(int i=0;i<cnt;i++) if(!strcmp(block, devname[i])) mounted[i] = 1;
-  }
-  if(f) fclose(f);
-  return cnt;
-}
-
 void set_cwd(const char *dir, int up)
 {
   snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", dir);
@@ -97,8 +54,8 @@ void copy_job_work(uint32_t item, void *arg)
   char src[1300], dst[1300];
   snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item]->d_name);
   snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item]->d_name);
-  if(dt_file_copy(dst, src)) j->abort = 1;
-  else if(j->move) dt_file_delete(src);
+  if(fs_copy(dst, src)) j->abort = 1;
+  else if(j->move) fs_delete(src);
 }
 int copy_job(
     copy_job_t *j,
@@ -110,9 +67,9 @@ int copy_job(
   j->done  = 0;
   snprintf(j->src, sizeof(j->src), "%s", src);
   snprintf(j->dst, sizeof(j->dst), "%s", dst);
-  dt_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
+  fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
-  if(j->cnt < 0) return 2;
+  if(j->cnt == -1u) return 2;
   return threads_task(j->cnt, 0, &j->done, j, copy_job_work, copy_job_cleanup);
 }
 
@@ -173,7 +130,7 @@ void render_files()
       static char devname[20][20] = {{0}};
       char mountpoint[1000];
       if(ImGui::Button("refresh list"))
-        cnt = find_usb_block_devices(devname, mounted);
+        cnt = fs_find_usb_block_devices(devname, mounted);
       for(int i=0;i<cnt;i++)
       {
         int red = mounted[i];

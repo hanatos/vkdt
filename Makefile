@@ -26,6 +26,7 @@ install: all
 	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
+	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
 	cp -rfL bin/default* ${VKDTDIR}
 	cp -rfL bin/darkroom.ui ${VKDTDIR}
 	cp -rfL bin/thumb.cfg ${VKDTDIR}
@@ -64,10 +65,9 @@ distclean:
 	$(shell find . -name "*.spv" -exec rm {} \;)
 	$(shell find . -name "*.so"  -exec rm {} \;)
 	rm -rf src/vkdt src/vkdt-fit src/vkdt-cli
-	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli
-	rm -rf src/pipe/modules/spec/macadam
-	rm -rf src/pipe/modules/spec/mkabney
-	rm -rf src/pipe/modules/spec/mkspectra
+	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut
+	rm -rf src/macadam
+	rm -rf src/mkabney
 	rm -rf bin/data/*.lut
 	rm -rf bin/data/cameras.xml
 	rm -rf built/

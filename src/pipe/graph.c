@@ -1265,7 +1265,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
 // has been processed. that is: all inputs and all of our outputs
 // which aren't connected to another node.
 // note that vkfree doesn't in fact free anything in case the reference count is > 0
-static inline void
+static inline VkResult
 free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
   for(int i=0;i<node->num_connectors;i++)
@@ -1281,8 +1281,11 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       //     dt_token_str(c->name));
       // ssbo do not use staging memory for sinks, and if they did these are no sinks:
       for(int f=0;f<c->frames;f++) for(int k=0;k<MAX(1,c->array_length);k++)
-        dt_vkfree(&graph->heap, 
-            dt_graph_connector_image(graph, node-graph->node, i, k, f)->mem);
+      {
+        dt_connector_image_t *im = dt_graph_connector_image(graph, node-graph->node, i, k, f);
+        if(!im) return VK_INCOMPLETE;
+        dt_vkfree(&graph->heap, im->mem);
+      }
       // note that we keep the offset and VkImage etc around, we'll be using
       // these in consecutive runs through the pipeline and only clean up at
       // the very end. we just instruct our allocator that we're done with
@@ -1297,12 +1300,12 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       //     c->connected_mi, c->mem->ref);
       for(int f=0;f<c->frames;f++) for(int k=0;k<MAX(1,c->array_length);k++)
       {
-        if(dt_connector_ssbo(c) && c->type == dt_token("source"))
-          dt_vkfree(&graph->heap_staging, // host visible buffer
-              dt_graph_connector_image(graph, node-graph->node, i, k, f)->mem);
-        else
-          dt_vkfree(&graph->heap, // device visible only
-              dt_graph_connector_image(graph, node-graph->node, i, k, f)->mem);
+        dt_connector_image_t *im = dt_graph_connector_image(graph, node-graph->node, i, k, f);
+        if(!im) return VK_INCOMPLETE;
+        if(dt_connector_ssbo(c) && c->type == dt_token("source")) // host visible buffer
+          dt_vkfree(&graph->heap_staging, im->mem);
+        else // device visible only
+          dt_vkfree(&graph->heap, im->mem);
       }
     }
     // staging memory for sources or sinks only needed during execution once
@@ -1315,6 +1318,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       dt_vkfree(&graph->heap_staging, c->mem_staging);
     }
   }
+  return VK_SUCCESS;
 }
 
 // propagate full buffer size from source to sink
@@ -2176,7 +2180,7 @@ VkResult dt_graph_run(
     for(int i=0;i<cnt;i++)
     {
       QVKR(alloc_outputs(graph, graph->node+nodeid[i]));
-      free_inputs       (graph, graph->node+nodeid[i]);
+      QVKR(free_inputs  (graph, graph->node+nodeid[i]));
     }
   }
 
@@ -2641,7 +2645,10 @@ dt_graph_connector_image(
     int         frame)  // frame number
 {
   if(graph->node[nid].conn_image[cid] == -1)
+  {
     dt_log(s_log_err, "requesting disconnected image buffer!");
+    return 0;
+  }
   int nid2 = nid, cid2 = cid;
   if(dt_connector_input(graph->node[nid].connector+cid))
   {

@@ -1,6 +1,7 @@
 #include "core/core.h"
 #include "core/solve.h"
 #include "core/lut.h"
+#include "core/fs.h"
 #include "cie1931.h"
 #include "cc24.h"
 #include "sigmoid.h"
@@ -102,10 +103,13 @@ void refresh_upsample()
 
 void init_upsample()
 { // load upsampling table
-  lut_buf = load_spectra_lut("spectra.lut", &lut_header);
+  char filename[PATH_MAX+30], basedir[PATH_MAX];
+  fs_basedir(basedir, sizeof(basedir));
+  snprintf(filename, sizeof(filename), "%s/data/spectra.lut", basedir);
+  lut_buf = load_spectra_lut(filename, &lut_header);
   if(!lut_buf)
   {
-    fprintf(stderr, "[mkssf] can't load 'spectra.lut' upsampling table!\n");
+    fprintf(stderr, "[mkssf] can't load 'data/spectra.lut' upsampling table!\n");
     exit(1);
   }
   refresh_upsample();

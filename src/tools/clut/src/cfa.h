@@ -116,7 +116,7 @@ cfa_model_parse(const char *c)
 }
 
 static inline const char*
-cfa_model_str(model)
+cfa_model_str(int model)
 {
   switch(model)
   {

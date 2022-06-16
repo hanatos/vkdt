@@ -14,4 +14,4 @@ sanitize:
 
 clean:
 	$(MAKE) -C .. clean
-	rm -f vkdt vkdt-cli
+	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut

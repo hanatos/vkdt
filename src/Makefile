@@ -35,7 +35,7 @@ TOOLTIPS=$(patsubst %/readme.md,%/ptooltips,$(READMES))
 
 .PHONY: all clean modules
 
-all: vkdt-cli vkdt-fit vkdt modules Makefile
+all: vkdt-cli vkdt-fit vkdt modules tools Makefile 
 
 include qvk/flat.mk
 include core/flat.mk
@@ -45,6 +45,7 @@ include snd/flat.mk
 include gui/flat.mk
 include cli/flat.mk
 include fit/flat.mk
+include tools/flat.mk
 
 clean: Makefile
 	rm -f vkdt vkdt-cli vkdt-fit
