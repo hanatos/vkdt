@@ -192,6 +192,7 @@ void threads_wait(volatile uint32_t *done, const uint32_t max)
   {
 #if 1
     sched_yield(); // spin lock
+    fprintf(stderr, "XXX %u %u\n", *done, max);
 #else // this deadlocks some machines (but never mine)
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
