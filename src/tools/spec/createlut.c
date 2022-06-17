@@ -599,7 +599,7 @@ mac_error:
   };
 
   threads_global_init();
-#if 1
+#if 0
   const int nt = threads_num();
   uint32_t work_item = 0;
   uint32_t done = 0;

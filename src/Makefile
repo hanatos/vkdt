@@ -2,10 +2,10 @@
 
 # modules which need a dso have flat.mk, collect all these.
 # generate list of all modules (the * in pipe/modules/*/flat.mk)
-FLATMK=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/flat.mk))))
-MODULES=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
-MODULESXX=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
-READMES=$(wildcard pipe/modules/*/readme.md)
+FLATMK:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/flat.mk))))
+MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
+MODULESXX:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
+READMES:=$(wildcard pipe/modules/*/readme.md)
 # kill some modules based on config flags:
 ifneq ($(VKDT_USE_RAWSPEED), 1)
   MODULESXX:=$(filter-out i-raw,$(MODULESXX))
@@ -24,14 +24,14 @@ ifneq ($(VKDT_USE_QUAKE), 1)
 endif
 
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
-MOD_DSOS=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
-MOD_DSOSXX=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
+MOD_DSOS:=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
+MOD_DSOSXX:=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
 # also all .comp compute shaders will be compiled to spir-v.
 SHD_EXT=comp vert tesc tese geom frag
-SPV=$(foreach shd,$(SHD_EXT),\
+SPV:=$(foreach shd,$(SHD_EXT),\
 $(patsubst %.$(shd),%.$(shd).spv,$(shell ls -1 pipe/modules/*/*.$(shd))))
 
-TOOLTIPS=$(patsubst %/readme.md,%/ptooltips,$(READMES))
+TOOLTIPS:=$(patsubst %/readme.md,%/ptooltips,$(READMES))
 
 .PHONY: all clean modules
 
@@ -62,7 +62,7 @@ CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 EXE_CFLAGS=-fPIE
 LDFLAGS=
-VK_CFLAGS=$(shell pkg-config --cflags vulkan)
+VK_CFLAGS:=$(shell pkg-config --cflags vulkan)
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
