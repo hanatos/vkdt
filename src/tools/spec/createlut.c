@@ -599,13 +599,12 @@ mac_error:
   };
 
   threads_global_init();
-#if 0
+#if 1
   const int nt = threads_num();
-  uint32_t work_item = 0;
-  uint32_t done = 0;
+  int taskid = -1;
   for(int i=0;i<nt;i++)
-    threads_task(res*res, &work_item, &done, &par, parallel_run, 0);
-  threads_wait(&done, res*res);
+    taskid = threads_task(res*res, taskid, &par, parallel_run, 0);
+  threads_wait(taskid);
 #else
   for(int k=0;k<res*res;k++)
     parallel_run(k, &par);

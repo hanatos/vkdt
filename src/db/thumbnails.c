@@ -299,8 +299,6 @@ typedef struct cache_coll_job_t
 {
   uint64_t stamp;
   threads_mutex_t mutex_storage;
-  uint32_t idx_storage;
-  uint32_t done;
   uint32_t gid;
   threads_mutex_t *mutex;
   dt_thumbnails_t *tn;
@@ -369,6 +367,7 @@ dt_thumbnails_cache_list(
   uint32_t *collection = malloc(sizeof(uint32_t) * imgid_cnt);
   memcpy(collection, imgid, sizeof(uint32_t) * imgid_cnt); // take copy because this thing changes
   cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t)*DT_THUMBNAILS_THREADS);
+  int taskid = -1;
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
     if(k == 0)
@@ -393,17 +392,13 @@ dt_thumbnails_cache_list(
     };
     // we only care about internal errors. if we call with stupid values,
     // it just does nothing and returns:
-    int res = threads_task(
+    taskid = threads_task(
         imgid_cnt,
-        &job[0].idx_storage,
-        &job[0].done,
+        taskid,
         job+k,
         thread_work_coll,
         thread_free_coll);
-    assert(-1 != res);
-#ifdef NDEBUG
-    (void)res;
-#endif
+    assert(taskid >= 0);
   }
   return VK_SUCCESS;
 }

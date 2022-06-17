@@ -37,9 +37,9 @@ struct copy_job_t
   char src[1000], dst[1000];
   struct dirent **ent;
   uint32_t cnt;
-  uint32_t done;
   uint32_t move;  // set to non-zero to remove src after copy
   uint32_t abort;
+  int taskid;
 };
 void copy_job_cleanup(void *arg)
 { // task is done, every thread will call this (but we put only one)
@@ -62,15 +62,14 @@ int copy_job(
     const char *dst,
     const char *src)
 {
-  if(j->done < j->cnt) return 1; // old job still going
   j->abort = 0;
-  j->done  = 0;
   snprintf(j->src, sizeof(j->src), "%s", src);
   snprintf(j->dst, sizeof(j->dst), "%s", dst);
   fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
   if(j->cnt == -1u) return 2;
-  return threads_task(j->cnt, 0, &j->done, j, copy_job_work, copy_job_cleanup);
+  j->taskid = threads_task(j->cnt, -1, j, copy_job_work, copy_job_cleanup);
+  return j->taskid;
 }
 
 } // end anonymous namespace
@@ -206,11 +205,11 @@ void render_files()
             ImGui::SetTooltip("copy contents of %s\nto %s,\n%s",
                 filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
         }
-        else if(job[k].cnt > 0 && job[k].done < job[k].cnt)
+        else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
         { // running
           if(ImGui::Button("abort")) job[k].abort = 1;
           ImGui::SameLine();
-          ImGui::ProgressBar((float)job[k].cnt/(float)job[k].done, ImVec2(-1, 0));
+          ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
         }
         else
         { // done/aborted
