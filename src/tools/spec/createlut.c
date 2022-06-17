@@ -599,7 +599,7 @@ mac_error:
   };
 
   threads_global_init();
-#if 1
+#if 0
   const int nt = threads_num();
   int taskid = -1;
   for(int i=0;i<nt;i++)
