@@ -91,14 +91,13 @@ int main(int argc, char *argv[])
   float *buf = calloc(sizeof(float), 4*res*res);
 
   threads_global_init();
+  const uint32_t work_item_cnt = incres * (max_l/2-1)+1;
+#if 1
   const int nt = threads_num();
-  uint32_t work_item = 0, work_item_cnt = incres * (max_l/2-1)+1;
+  uint32_t work_item = 0;
   uint32_t done = 0;
-
-#if 0
   for(int i=0;i<nt;i++)
     threads_task(work_item_cnt, &work_item, &done, buf, parallel_run, 0);
-
   threads_wait(&done, work_item_cnt);
 #else // single threaded version:
   for(int k=0;k<work_item_cnt;k++)

@@ -186,17 +186,22 @@ int threads_task(
   return 0;
 }
 
-void threads_wait(uint32_t *done, const uint32_t max)
+void threads_wait(volatile uint32_t *done, const uint32_t max)
 {
-  while(1)
-  { // only do timed wait in case the task and all threads already finished and won't signal us:
+  while(*done < max)
+  {
+#if 1
+    sched_yield(); // spin lock
+#else // this deadlocks some machines (but never mine)
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec += 1; // wait for one second max
+    // this is because the threads may finish in between us checking the condition
+    // and waiting on the condition (so the condition will not be triggered again)
     pthread_mutex_lock(&thr.mutex_done);
     pthread_cond_timedwait(&thr.cond_task_done, &thr.mutex_done, &ts);
     pthread_mutex_unlock(&thr.mutex_done);
-    if(*done >= max) break;
+#endif
   }
 }
 
