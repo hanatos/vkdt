@@ -33,6 +33,7 @@ typedef struct threads_task_t
 {
   atomic_uint     work_item_storage; // work item counter (if not referring to another task)
   atomic_uint     done_storage;
+  // XXX maybe the pointer deref is the problem?
   atomic_uint    *work_item;         // pointing to an atomically increased synchronising work item counter
   atomic_uint    *done;              // counting how many tasks are *done* (not just *picked*), to coordinate cleanup.
   uint32_t        work_item_cnt;     // global number of work items. externally set to 0 if abortion is triggered.
@@ -194,7 +195,7 @@ int threads_task(
 void threads_wait(int taskid)
 {
   if(taskid < 0 || taskid >= thr.task_max) return;
-  while(thr.task[taskid].done[0] < thr.task[taskid].work_item_cnt)
+  while(thr.task[taskid].done_storage < thr.task[taskid].work_item_cnt)
   {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);

@@ -398,7 +398,7 @@ dt_thumbnails_cache_list(
         job+k,
         thread_work_coll,
         thread_free_coll);
-    assert(taskid >= 0);
+    assert(taskid != -1); // only -1 is fatal
   }
   return VK_SUCCESS;
 }
