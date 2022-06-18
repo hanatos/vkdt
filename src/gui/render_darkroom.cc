@@ -742,6 +742,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
           vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
           widget_end();
+          darkroom_reset_zoom();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
       }
