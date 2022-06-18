@@ -636,7 +636,8 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
-  if(vkdt.wstate.history_view) dt_gui_dr_toggle_history();
+  if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
+  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
   return 0;
 }
 
