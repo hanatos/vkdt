@@ -1,0 +1,46 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+//layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint scale;
+} push;
+
+layout(
+    set = 1, binding = 0
+) uniform sampler2D img_input;
+
+layout(
+    set = 1, binding = 1
+) uniform sampler2D img_coarse;
+
+layout(
+    set = 1, binding = 2
+) uniform sampler2D img_mask;
+
+layout( // output fine resolution
+    set = 1, binding = 3
+) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  // upsample img_coarse, by definition it has no undefined pixels any more
+  vec4 upsm = sample_flower(img_coarse, (opos+0.5)/imageSize(img_out));
+  vec4 fine = texelFetch(img_input, opos, 0);
+  if(push.scale == 0) fine.w = clamp(texelFetch(img_mask, opos, 0).r, 0.0, 1.0);
+  fine.rgb = mix(fine.rgb, upsm.rgb, fine.w);
+  imageStore(img_out, opos, vec4(fine.rgb, 1));
+}
+
