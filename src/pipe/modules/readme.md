@@ -68,6 +68,7 @@ it follows the current list of available modules.
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
 * [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
 * [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
+* [inpaint: smooth reconstruction of masked out areas](./inpaint/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)
