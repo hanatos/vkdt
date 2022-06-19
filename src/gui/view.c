@@ -23,6 +23,9 @@ dt_view_switch(dt_gui_view_t view)
     case s_view_darkroom:
       err = darkroom_enter();
       break;
+    case s_view_lighttable:
+      err = lighttable_enter();
+      break;
     default:;
   }
   // TODO: reshuffle this stuff so we don't have to re-enter the old view?

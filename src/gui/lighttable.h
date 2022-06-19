@@ -1,6 +1,7 @@
 #pragma once
 
 #include "darkroom-util.h"
+#include "gui/api.h"
 
 static inline void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
@@ -56,3 +57,9 @@ lighttable_mouse_position(GLFWwindow* window, double x, double y) {}
 
 static inline void
 lighttable_mouse_scrolled(GLFWwindow* window, double xoff, double yoff) {}
+
+static inline int
+lighttable_enter()
+{
+  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+}

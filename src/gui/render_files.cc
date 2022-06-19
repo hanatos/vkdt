@@ -149,7 +149,7 @@ void render_files()
             if(!mounted[i])
             {
               fscanf(f, "Mounted %*s at %999s", mountpoint);
-              set_cwd(mountpoint, 0);
+              set_cwd(mountpoint, 1);
               mounted[i] = 1;
             }
             else mounted[i] = 0;
@@ -166,11 +166,11 @@ void render_files()
       ImGui::Indent();
       static char pattern[100] = {0};
       if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
-      if(ImGui::InputText("", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
+      if(ImGui::InputText("##pattern", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
       ImGui::SameLine();
       ImGui::Text("pattern");
       static char dest[20];
-      ImGui::InputText("", dest, sizeof(dest));
+      ImGui::InputText("##dest", dest, sizeof(dest));
       ImGui::SameLine();
       ImGui::Text("dest");
       if(ImGui::IsItemHovered())
