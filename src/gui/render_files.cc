@@ -96,6 +96,20 @@ void render_files()
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     dt_filebrowser(&filebrowser, 'f');
+
+    // TODO: nav triangle for open in lt?
+    if(ImGui::IsKeyPressed(GLFW_KEY_ENTER))
+    { // open selected in lt without changing cwd
+      char newdir[PATH_MAX];
+      if(filebrowser.selected_type == DT_DIR)
+      {
+        snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected);
+        dt_gui_switch_collection(newdir);
+      }
+      else dt_gui_switch_collection(filebrowser.cwd);
+      dt_view_switch(s_view_lighttable);
+    }
+
     ImGui::End();
     ImGui::PopStyleColor(1);
   } // end center window

@@ -34,6 +34,10 @@ static ImHotKey::HotKey hk_lighttable[] = {
 
 void render_lighttable_center(double &hotkey_time)
 { // center image view
+  ImGuiIO& io = ImGui::GetIO();
+  if(io.NavInputs[ImGuiNavInput_Cancel] > 0.0f)
+    dt_view_switch(s_view_files);
+
   { // assign star rating/colour labels via gamepad:
     int /*axes_cnt = 0,*/ butt_cnt = 0;
     const uint8_t* butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;

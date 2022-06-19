@@ -10,6 +10,7 @@ struct dt_filebrowser_widget_t
   struct dirent **ent;     // cached directory entries
   int ent_cnt;             // number of cached directory entries
   const char *selected;    // points to selected file name ent->d_name
+  int selected_type;       // copy of d_type
 };
 
 // no need to explicitly call it, just sets 0
@@ -31,6 +32,7 @@ dt_filebrowser_cleanup(
   w->ent_cnt = 0;
   w->ent = 0;
   w->selected = 0;
+  w->selected_type = 0;
 }
 
 namespace {
@@ -85,6 +87,7 @@ dt_filebrowser(
     }
   }
 
+  ImGuiIO& io = ImGui::GetIO();
   // print cwd
   ImGui::PushFont(dt_gui_imgui_get_font(2));
   ImGui::Text("%s", w->cwd);
@@ -98,12 +101,15 @@ dt_filebrowser(
         w->ent[i]->d_name,
         w->ent[i]->d_type == DT_DIR ? "/":"");
     int selected = w->ent[i]->d_name == w->selected;
-    if(ImGui::Selectable(name, selected, ImGuiSelectableFlags_DontClosePopups))
+    if(ImGui::Selectable(name, selected, ImGuiSelectableFlags_AllowDoubleClick|ImGuiSelectableFlags_DontClosePopups))
     {
       w->selected = w->ent[i]->d_name; // mark as selected
-      if(w->ent[i]->d_type == DT_DIR)
-      { // directory clicked
-        // change cwd by appending to the string..
+      w->selected_type = w->ent[i]->d_type;
+      if((io.NavInputs[ImGuiNavInput_Activate] > 0.0f ||
+          ImGui::IsMouseDoubleClicked(0)) && 
+          w->ent[i]->d_type == DT_DIR)
+      { // directory double-clicked
+        // change cwd by appending to the string
         int len = strnlen(w->cwd, sizeof(w->cwd));
         char *c = w->cwd;
         if(!strcmp(w->ent[i]->d_name, ".."))
@@ -116,13 +122,8 @@ dt_filebrowser(
         { // append dir name
           snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->ent[i]->d_name);
         }
-        // ..and then cleaning up the dirent cache
-        for(int i=0;i<w->ent_cnt;i++)
-          free(w->ent[i]);
-        free(w->ent);
-        w->ent_cnt = 0;
-        w->ent = 0;
-        w->selected = 0;
+        // and then clean up the dirent cache
+        dt_filebrowser_cleanup(w);
       }
     }
   }

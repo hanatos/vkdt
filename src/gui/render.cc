@@ -295,6 +295,8 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
+  ImGuiIO& io = ImGui::GetIO();
+  if(io.KeysDown[GLFW_KEY_CAPS_LOCK]) io.NavInputs[ImGuiNavInput_Cancel] = 1.0f;
 
   switch(vkdt.view_mode)
   {
