@@ -64,7 +64,7 @@ fs_basedir(
 static inline int // return the number of devices found
 fs_find_usb_block_devices(
     char devname[20][20],
-    int  mounted[20])
+    char mountpoint[20][50])
 { // pretty much ls /sys/class/scsi_disk/*/device/block/{sda,sdb,sdd,..}/{..sdd1..} and then grep for it in /proc/mounts
   int cnt = 0;
   char block[1000];
@@ -94,12 +94,20 @@ next:
     free(ent[i]);
   }
   free(ent);
-  for(int i=0;i<cnt;i++) mounted[i] = 0;
+  for(int i=0;i<cnt;i++) mountpoint[i][0] = 0;
   FILE *f = fopen("/proc/mounts", "r");
   if(f) while(!feof(f))
   {
-    fscanf(f, "%999s %*[^\n]", block);
-    for(int i=0;i<cnt;i++) if(!strcmp(block, devname[i])) mounted[i] = 1;
+    char mp[50];
+    fscanf(f, "%999s %49s %*[^\n]", block, mp);
+    for(int i=0;i<cnt;i++)
+    {
+      if(!strcmp(block, devname[i]))
+      {
+        strncpy(mountpoint[i], mp, sizeof(mountpoint[0]));
+        break;
+      }
+    }
   }
   if(f) fclose(f);
   return cnt;

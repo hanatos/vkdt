@@ -33,5 +33,7 @@ int dt_gui_imgui_want_text();
 void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
 
 #ifdef __cplusplus
+struct ImFont;
+ImFont *dt_gui_imgui_get_font(int which);
 }
 #endif

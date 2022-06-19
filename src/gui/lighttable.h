@@ -61,5 +61,7 @@ lighttable_mouse_scrolled(GLFWwindow* window, double xoff, double yoff) {}
 static inline int
 lighttable_enter()
 {
+  if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
   if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  return 0;
 }

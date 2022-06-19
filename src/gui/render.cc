@@ -120,7 +120,14 @@ inline void dark_corporate_style()
   }
 #endif
 }
+
+static ImFont *g_font[3] = {0};
 } // anonymous namespace
+
+ImFont *dt_gui_imgui_get_font(int which)
+{
+  return g_font[which];
+}
 
 extern "C" int dt_gui_init_imgui()
 {
@@ -217,7 +224,9 @@ extern "C" int dt_gui_init_imgui()
   float fontsize = qvk.win_height / 55.0f * dpi_scale;
   // io.Fonts->AddFontFromFileTTF("data/OpenSans-Light.ttf", fontsize);
   snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
-  io.Fonts->AddFontFromFileTTF(tmp, fontsize);
+  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
+  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, 1.5*fontsize);
+  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
   // io.Fonts->AddFontFromFileTTF("../ext/imgui/misc/fonts/Roboto-Medium.ttf", fontsize);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
   //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);

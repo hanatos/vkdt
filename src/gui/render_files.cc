@@ -29,6 +29,8 @@ void set_cwd(const char *dir, int up)
   int ret = stat(filebrowser.cwd, &statbuf);
   if(ret || (statbuf.st_mode & S_IFMT) != S_IFDIR) // don't point to non existing/non directory
     strcpy(filebrowser.cwd, "/");
+  size_t len = strlen(filebrowser.cwd);
+  if(filebrowser.cwd[len-1] != '/') strcpy(filebrowser.cwd + len, "/");
   dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
 }
 
@@ -93,7 +95,7 @@ void render_files()
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-    dt_filebrowser(&filebrowser, 'd');
+    dt_filebrowser(&filebrowser, 'f');
     ImGui::End();
     ImGui::PopStyleColor(1);
   } // end center window
@@ -125,14 +127,14 @@ void render_files()
     if(ImGui::CollapsingHeader("drives"))
     {
       ImGui::Indent();
-      static int cnt = 0, mounted[20];
-      static char devname[20][20] = {{0}};
-      char mountpoint[1000];
+      static int cnt = 0;
+      static char devname[20][20] = {{0}}, mountpoint[20][50] = {{0}};
+      char command[1000];
       if(ImGui::Button("refresh list"))
-        cnt = fs_find_usb_block_devices(devname, mounted);
+        cnt = fs_find_usb_block_devices(devname, mountpoint);
       for(int i=0;i<cnt;i++)
       {
-        int red = mounted[i];
+        int red = mountpoint[i][0];
         if(red)
         {
           ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
@@ -141,23 +143,29 @@ void render_files()
         }
         if(ImGui::Button(devname[i]))
         {
-          if(mounted[i]) snprintf(mountpoint, sizeof(mountpoint), "/usr/bin/udisksctl unmount -b %s", devname[i]);
-          else           snprintf(mountpoint, sizeof(mountpoint), "/usr/bin/udisksctl mount -b %s", devname[i]);
-          FILE *f = popen(mountpoint, "r");
+          if(red) snprintf(command, sizeof(command), "/usr/bin/udisksctl unmount -b %s", devname[i]);
+          else    snprintf(command, sizeof(command), "/usr/bin/udisksctl mount -b %s", devname[i]);
+          FILE *f = popen(command, "r");
           if(f)
           {
-            if(!mounted[i])
+            if(!red)
             {
-              fscanf(f, "Mounted %*s at %999s", mountpoint);
-              set_cwd(mountpoint, 1);
-              mounted[i] = 1;
+              fscanf(f, "Mounted %*s at %49s", mountpoint[i]);
+              set_cwd(mountpoint[i], 1);
             }
-            else mounted[i] = 0;
-            if(pclose(f)) mounted[i] ^= 1; // did not work, roll back
+            else mountpoint[i][0] = 0;
+            pclose(f); // TODO: if(.) need to refresh the list
           }
         }
-        if(ImGui::IsItemHovered()) ImGui::SetTooltip(mounted[i] ? "click to unmount" : "click to mount");
-        if(red) ImGui::PopStyleColor(3);
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip(red ? "click to unmount" : "click to mount");
+        if(red)
+        {
+          ImGui::PopStyleColor(3);
+          ImGui::SameLine();
+          if(ImGui::Button("go to mountpoint", ImVec2(-1,0)))
+            set_cwd(mountpoint[i], 0);
+          if(ImGui::IsItemHovered()) ImGui::SetTooltip(mountpoint[i]);
+        }
       }
       ImGui::Unindent();
     }
@@ -166,13 +174,15 @@ void render_files()
       ImGui::Indent();
       static char pattern[100] = {0};
       if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
-      if(ImGui::InputText("##pattern", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
-      ImGui::SameLine();
-      ImGui::Text("pattern");
+      if(ImGui::InputText("pattern", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("destination directory pattern. expands the following:\n"
+                          "${home} - home directory\n"
+                          "${date} - YYYYMMDD date\n"
+                          "${yyyy} - four char year\n"
+                          "${dest} - dest string just below");
       static char dest[20];
-      ImGui::InputText("##dest", dest, sizeof(dest));
-      ImGui::SameLine();
-      ImGui::Text("dest");
+      ImGui::InputText("dest", dest, sizeof(dest));
       if(ImGui::IsItemHovered())
         ImGui::SetTooltip(
             "enter a descriptive string to be used as the ${dest} variable when expanding\n"
@@ -194,10 +204,11 @@ void render_files()
             char dst[1000];
             time_t t = time(0);
             struct tm *tm = localtime(&t);
-            char date[10] = {0};
+            char date[10] = {0}, yyyy[5] = {0};
             strftime(date, sizeof(date), "%Y%m%d", tm);
-            const char *key[] = { "home", "date", "dest", 0};
-            const char *val[] = { getenv("HOME"), date, dest, 0};
+            strftime(yyyy, sizeof(yyyy), "%Y", tm);
+            const char *key[] = { "home", "yyyy", "date", "dest", 0};
+            const char *val[] = { getenv("HOME"), yyyy, date, dest, 0};
             dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
             copy_job(job+k, dst, filebrowser.cwd);
           }

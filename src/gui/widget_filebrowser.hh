@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gui/render.h"
 #include <dirent.h>
 
 // store some state
@@ -32,10 +33,14 @@ dt_filebrowser_cleanup(
   w->selected = 0;
 }
 
-// TODO: make one that sorts dirs first:
-// int alphasort(const struct dirent **a, const struct dirent **b);
-
 namespace {
+
+int dt_filebrowser_sort_dir_first(const struct dirent **a, const struct dirent **b)
+{
+  if((*a)->d_type == DT_DIR && (*b)->d_type != DT_DIR) return 0;
+  if((*a)->d_type != DT_DIR && (*b)->d_type == DT_DIR) return 1;
+  return strcmp((*a)->d_name, (*b)->d_name);
+}
 
 int dt_filebrowser_filter_dir(const struct dirent *d)
 {
@@ -72,7 +77,7 @@ dt_filebrowser(
         mode == 'd' ?
         &dt_filebrowser_filter_dir :
         &dt_filebrowser_filter_file,
-        alphasort);
+        &dt_filebrowser_sort_dir_first);
     if(w->ent_cnt == -1)
     {
       w->ent = 0;
@@ -80,12 +85,18 @@ dt_filebrowser(
     }
   }
 
+  // print cwd
+  ImGui::PushFont(dt_gui_imgui_get_font(2));
+  ImGui::Text(w->cwd);
+  ImGui::PopFont();
   // display list of file names
+  ImGui::PushFont(dt_gui_imgui_get_font(1));
   for(int i=0;i<w->ent_cnt;i++)
   {
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
-        w->ent[i]->d_type == DT_DIR ? "[d]":"[f]", w->ent[i]->d_name);
+        w->ent[i]->d_name,
+        w->ent[i]->d_type == DT_DIR ? "/":"");
     int selected = w->ent[i]->d_name == w->selected;
     if(ImGui::Selectable(name, selected, ImGuiSelectableFlags_DontClosePopups))
     {
@@ -115,6 +126,7 @@ dt_filebrowser(
       }
     }
   }
+  ImGui::PopFont();
 }
 
 // returns 0 if cancelled, or 1 if "ok" has been pressed
