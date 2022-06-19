@@ -350,7 +350,8 @@ void modify_roi_out(
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   // mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   // mod->graph->frame_rate = dat->video.frame_rate;
-  mod->graph->frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
+  if(mod->graph->frame_rate == 0) // don't overwrite cfg
+    mod->graph->frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
   double duration = d->fmtc->duration / (double)AV_TIME_BASE; // in seconds
   mod->graph->frame_cnt = duration * mod->graph->frame_rate;
 }

@@ -1,5 +1,4 @@
 module:i-vid:main
-module:srgb2f:01
 module:colour:01
 module:hist:01
 module:resize:01
@@ -8,8 +7,7 @@ module:display:hist
 # last display is the one determining the ROI:
 module:display:main
 connect:i-vid:main:output:resize:01:input
-connect:resize:01:output:srgb2f:01:input
-connect:srgb2f:01:output:colour:01:input
+connect:resize:01:output:colour:01:input
 connect:colour:01:output:display:main:input
 connect:colour:01:output:hist:01:input
 connect:hist:01:output:display:hist:input
