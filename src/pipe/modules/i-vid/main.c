@@ -166,7 +166,7 @@ open_stream(vid_data_t *d, const char *filename)
   d->video_idx = av_find_best_stream(d->fmtc, AVMEDIA_TYPE_VIDEO, -1, -1, 0, 0);
   if(d->video_idx < 0) goto error;
 
-  d->mp4 = (!strcmp(d->fmtc->iformat->long_name, "QuickTime / MOV") ||
+  d->mp4 = (// !strcmp(d->fmtc->iformat->long_name, "QuickTime / MOV") ||
             !strcmp(d->fmtc->iformat->long_name, "FLV (Flash Video)") ||
             !strcmp(d->fmtc->iformat->long_name, "Matroska / WebM"));
 
@@ -350,6 +350,9 @@ void modify_roi_out(
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   // mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   // mod->graph->frame_rate = dat->video.frame_rate;
+  mod->graph->frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
+  double duration = d->fmtc->duration / (double)AV_TIME_BASE; // in seconds
+  mod->graph->frame_cnt = duration * mod->graph->frame_rate;
 }
 
 #if 0 // TODO
@@ -501,6 +504,7 @@ int audio(
 #endif
     const float *input_l = (const float *)d->aframe->extended_data[0];
     const float *input_r = (const float *)d->aframe->extended_data[1];
+    if(!input_r) input_r = input_l;
 
     if(num_samples == -1)
     {
@@ -543,6 +547,7 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
+    .flags  = s_module_request_read_source,
     .num_connectors = 1,
     .connector = {{
       .name   = dt_token("source"),

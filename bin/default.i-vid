@@ -1,16 +1,14 @@
-module:i-jpg:main
+module:i-vid:main
 module:srgb2f:01
 module:colour:01
 module:resize:01
-module:filmcurv:01
 module:f2srgb:main
 module:o-bc1:main
-connect:i-jpg:main:output:resize:01:input
+connect:i-vid:main:output:resize:01:input
 # we scale in non-linear *shocking* because it's faster for thumbnails
 connect:resize:01:output:srgb2f:01:input
 connect:srgb2f:01:output:colour:01:input
-connect:colour:01:output:filmcurv:01:input
-connect:filmcurv:01:output:f2srgb:main:input
+connect:colour:01:output:f2srgb:main:input
 connect:f2srgb:main:output:o-bc1:main:input
 param:colour:01:exposure:0
 param:colour:01:matrix:1

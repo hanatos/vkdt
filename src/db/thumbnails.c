@@ -4,6 +4,7 @@
 #include "db/murmur3.h"
 #include "qvk/qvk.h"
 #include "pipe/graph-io.h"
+#include "pipe/graph-defaults.h"
 #include "pipe/graph-export.h"
 #include "pipe/modules/api.h"
 #include "pipe/dlist.h"
@@ -225,14 +226,7 @@ dt_thumbnails_cache_one(
 
   dt_token_t input_module = dt_token("i-raw");
   if(len >= 9)
-  {
-    if(!strncasecmp(f2-4, ".mlv", 4))
-      input_module = dt_token("i-mlv");
-    else if(!strncasecmp(f2-4, ".pfm", 4))
-      input_module = dt_token("i-pfm");
-    else if(!strncasecmp(f2-4, ".jpg", 4))
-      input_module = dt_token("i-jpg");
-  }
+    input_module = dt_graph_default_input_module(f2);
   char cfgfilename[PATH_MAX+100];
   char deffilename[PATH_MAX+100];
   char bc1filename[PATH_MAX+100];

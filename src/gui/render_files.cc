@@ -111,13 +111,11 @@ void render_files()
       ImGui::Text("%s", filebrowser.cwd);
       if(ImGui::Button("open in lighttable"))
       {
-        just_entered = 1; // remember for next time we get here
         dt_gui_switch_collection(filebrowser.cwd);
         dt_view_switch(s_view_lighttable);
       }
       if(ImGui::Button("back to lighttable"))
       {
-        just_entered = 1; // remember for next time we get here
         dt_view_switch(s_view_lighttable);
       }
       ImGui::Unindent();
@@ -144,6 +142,8 @@ void render_files()
         if(ImGui::Button(devname[i]))
         {
           if(red) snprintf(command, sizeof(command), "/usr/bin/udisksctl unmount -b %s", devname[i]);
+          // TODO: use -f for lazy unmounting?
+          // TODO: also send a (blocking?) power-off command right after that?
           else    snprintf(command, sizeof(command), "/usr/bin/udisksctl mount -b %s", devname[i]);
           FILE *f = popen(command, "r");
           if(f)
@@ -151,7 +151,7 @@ void render_files()
             if(!red)
             {
               fscanf(f, "Mounted %*s at %49s", mountpoint[i]);
-              set_cwd(mountpoint[i], 1);
+              set_cwd(mountpoint[i], 0);
             }
             else mountpoint[i][0] = 0;
             pclose(f); // TODO: if(.) need to refresh the list
@@ -189,7 +189,8 @@ void render_files()
             "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
             "`%s'", pattern);
       static copy_job_t job[4] = {{{0}}};
-      int32_t copy_mode = 0, num_idle = 0;
+      static int32_t copy_mode = 0;
+      int32_t num_idle = 0;
       const char *copy_mode_str = "keep original\0delete original\0\0";
       ImGui::Combo("copy mode", &copy_mode, copy_mode_str);
       for(int k=0;k<4;k++)
