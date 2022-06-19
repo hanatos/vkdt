@@ -348,12 +348,14 @@ void modify_roi_out(
   // snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
-  // mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
-  // mod->graph->frame_rate = dat->video.frame_rate;
-  if(mod->graph->frame_rate == 0) // don't overwrite cfg
-    mod->graph->frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
+  double frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
   double duration = d->fmtc->duration / (double)AV_TIME_BASE; // in seconds
-  mod->graph->frame_cnt = duration * mod->graph->frame_rate;
+  mod->graph->frame_cnt = duration * frame_rate;
+  // XXX FIXME: the number is correct but needs more testing because
+  // we can't deliver 60fps on slower computers, killing audio etc
+  // this first needs a robust way of doing frame drops.
+  // if(mod->graph->frame_rate == 0) // don't overwrite cfg
+    // mod->graph->frame_rate = frame_rate;
 }
 
 #if 0 // TODO
@@ -509,6 +511,8 @@ int audio(
 
     if(num_samples == -1)
     {
+      float frame_rate = mod->graph->frame_rate;
+      if(frame_rate < 1) return 0; // no fixed frame rate no sound
       num_samples = d->aframe->sample_rate / mod->graph->frame_rate + 0.5; // how many per one video frame?
       // num_samples = 44100 / mod->graph->frame_rate + 0.5; // how many per one video frame?
       need_samples = num_samples - d->snd_lag; // how many do we need to also compensate the lag?
