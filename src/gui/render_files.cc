@@ -164,7 +164,7 @@ void render_files()
           ImGui::SameLine();
           if(ImGui::Button("go to mountpoint", ImVec2(-1,0)))
             set_cwd(mountpoint[i], 0);
-          if(ImGui::IsItemHovered()) ImGui::SetTooltip(mountpoint[i]);
+          if(ImGui::IsItemHovered()) ImGui::SetTooltip("%s", mountpoint[i]);
         }
       }
       ImGui::Unindent();

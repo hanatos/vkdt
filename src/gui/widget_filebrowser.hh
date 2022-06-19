@@ -87,7 +87,7 @@ dt_filebrowser(
 
   // print cwd
   ImGui::PushFont(dt_gui_imgui_get_font(2));
-  ImGui::Text(w->cwd);
+  ImGui::Text("%s", w->cwd);
   ImGui::PopFont();
   // display list of file names
   ImGui::PushFont(dt_gui_imgui_get_font(1));
