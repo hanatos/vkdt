@@ -224,9 +224,7 @@ dt_thumbnails_cache_one(
   // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
   // if that already exists with a newer timestamp than the cfg, bail out
 
-  dt_token_t input_module = dt_token("i-raw");
-  if(len >= 9)
-    input_module = dt_graph_default_input_module(f2);
+  dt_token_t input_module = dt_graph_default_input_module(filename);
   char cfgfilename[PATH_MAX+100];
   char deffilename[PATH_MAX+100];
   char bc1filename[PATH_MAX+100];
