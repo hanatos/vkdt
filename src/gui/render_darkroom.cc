@@ -398,6 +398,7 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
 inline void draw_widget(int modid, int parid)
 {
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
+  if(!param) return;
   ImGuiIO& io = ImGui::GetIO();
 
   // skip if group mode does not match:
@@ -1321,11 +1322,12 @@ void render_darkroom()
         vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too
         goto abort;
       }
+      // disable keyboard nav ctrl + shift to change images:
       else if(io.NavInputs[ImGuiNavInput_Menu] == 0.0f &&
-              io.NavInputs[ImGuiNavInput_TweakSlow] > 0.0f)
+              io.NavInputs[ImGuiNavInput_TweakSlow] > 0.0f && !io.KeyCtrl)
         dt_gui_dr_prev();
       else if(io.NavInputs[ImGuiNavInput_Menu] == 0.0f &&
-              io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
+              io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f && !io.KeyShift)
         dt_gui_dr_next();
       else if(0)
       {
@@ -1340,7 +1342,7 @@ abort:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-      if(butt && butt[11]) // left stick pressed
+      if(dt_gui_imgui_nav_button(11)) // left stick pressed
         darkroom_reset_zoom();
       if(axes)
       {

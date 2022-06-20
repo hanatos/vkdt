@@ -86,6 +86,9 @@ void render_files()
     just_entered = 0;
   }
 
+  if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+    dt_view_switch(s_view_lighttable);
+
   { // right panel
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);

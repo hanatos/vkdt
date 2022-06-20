@@ -27,7 +27,7 @@ dt_gui_dr_zoom()
   float scale = vkdt.state.scale <= 0.0f ? MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht) : vkdt.state.scale;
   float im_x = (x - (vkdt.state.center_x + imwd)/2.0f);
   float im_y = (y - (vkdt.state.center_y + imht)/2.0f);
-  if(vkdt.state.scale <= 0.0f)
+  if(vkdt.state.scale < 1.0f)
   {
     vkdt.state.scale = 1.0f;
     const float dscale = 1.0f/scale - 1.0f/vkdt.state.scale;
@@ -59,10 +59,18 @@ dt_gui_dr_next()
     uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
     if(next < vkdt.db.collection_cnt)
     {
-      darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+      int err;
+      err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+      if(err) return;
       dt_db_selection_clear(&vkdt.db);
       dt_db_selection_add(&vkdt.db, next);
-      darkroom_enter();
+      err = darkroom_enter();
+      if(err)
+      { // roll back
+        dt_db_selection_clear(&vkdt.db);
+        dt_db_selection_add(&vkdt.db, next-1);
+        darkroom_enter(); // hope they take us back
+      }
     }
   }
 }
@@ -80,10 +88,18 @@ dt_gui_dr_prev()
     int32_t next = dt_db_current_colid(&vkdt.db) - 1;
     if(next >= 0)
     {
-      darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+      int err;
+      err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+      if(err) return;
       dt_db_selection_clear(&vkdt.db);
       dt_db_selection_add(&vkdt.db, next);
-      darkroom_enter();
+      err = darkroom_enter();
+      if(err)
+      { // roll back
+        dt_db_selection_clear(&vkdt.db);
+        dt_db_selection_add(&vkdt.db, next+1);
+        darkroom_enter(); // hope they take us back
+      }
     }
   }
 }
