@@ -65,8 +65,8 @@ int copy_job(
     const char *src)
 {
   j->abort = 0;
-  snprintf(j->src, sizeof(j->src), "%s", src);
-  snprintf(j->dst, sizeof(j->dst), "%s", dst);
+  snprintf(j->src, sizeof(j->src), "%.*s", (int)sizeof(j->src)-1, src);
+  snprintf(j->dst, sizeof(j->dst), "%.*s", (int)sizeof(j->dst)-1, dst);
   fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
   if(j->cnt == -1u) return 2;
