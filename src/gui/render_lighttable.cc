@@ -11,6 +11,7 @@ extern "C"
 #include "gui/widget_thumbnail.hh"
 #include "gui/widget_recentcollect.hh"
 #include "gui/api.hh"
+#include "gui/render.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -34,9 +35,11 @@ static ImHotKey::HotKey hk_lighttable[] = {
 
 void render_lighttable_center(double &hotkey_time)
 { // center image view
-  ImGuiIO& io = ImGui::GetIO();
-  if(io.NavInputs[ImGuiNavInput_Cancel] > 0.0f)
+  if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
     dt_view_switch(s_view_files);
+  if(dt_gui_imgui_nav_input(ImGuiNavInput_Input) > 0.0f)
+    if(dt_db_current_imgid(&vkdt.db) != -1u)
+      dt_view_switch(s_view_darkroom);
 
   { // assign star rating/colour labels via gamepad:
     int /*axes_cnt = 0,*/ butt_cnt = 0;

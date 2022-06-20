@@ -31,6 +31,9 @@ int dt_gui_imgui_want_text();
 
 
 void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
+// time-throttled access to nav input (keyboard/gamepad navigation)
+float dt_gui_imgui_nav_input(int which);
+float dt_gui_imgui_nav_button(int which);
 
 #ifdef __cplusplus
 struct ImFont;

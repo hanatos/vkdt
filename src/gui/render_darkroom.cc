@@ -405,20 +405,14 @@ inline void draw_widget(int modid, int parid)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
-  double time_now = ImGui::GetTime();
-  static double gamepad_time = ImGui::GetTime();
-  int axes_cnt = 0, butt_cnt = 0;
-  const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
-  const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt) : 0;
+  int axes_cnt = 0;
+  const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
   static int gamepad_reset = 0;
-  if(time_now - gamepad_time > 0.1 && butt && butt[12])
-  {
-    gamepad_reset = 1;
-    gamepad_time = time_now;
-  }
+  if(dt_gui_imgui_nav_button(12)) gamepad_reset = 1;
   // some state for double click detection for reset functionality
   static int doubleclick = 0;
   static double doubleclick_time = 0;
+  double time_now = ImGui::GetTime();
 #define RESETBLOCK \
   {\
     if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
@@ -638,20 +632,13 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
-        if(time_now - gamepad_time > 0.1)
+        if(dt_gui_imgui_nav_input(ImGuiNavInput_TweakFast) > 0.0f)
         {
-          if(io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
-          {
-            vkdt.wstate.selected ++;
-            if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-            gamepad_time = time_now;
-          }
-          if(io.NavInputs[ImGuiNavInput_Activate] > 0.0f)
-          {
-            accept = 1;
-            gamepad_time = time_now;
-          }
+          vkdt.wstate.selected ++;
+          if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
         }
+        if(dt_gui_imgui_nav_input(ImGuiNavInput_Activate) > 0.0f)
+          accept = 1;
         const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
         if(vkdt.wstate.selected >= 0 && axes)
         {
@@ -710,20 +697,14 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
-        if(time_now - gamepad_time > 0.1)
+        if(dt_gui_imgui_nav_input(ImGuiNavInput_TweakFast) > 0.0f)
         {
-          if(io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f)
-          {
-            vkdt.wstate.selected ++;
-            if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-            gamepad_time = time_now;
-          }
-          if(io.NavInputs[ImGuiNavInput_Activate] > 0.0f)
-          {
-            accept = 1;
-            gamepad_time = time_now;
-          }
+          vkdt.wstate.selected ++;
+          if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
         }
+        if(dt_gui_imgui_nav_input(ImGuiNavInput_Activate) > 0.0f)
+          accept = 1;
+
         int axes_cnt = 0;
         const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
         const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
@@ -1334,7 +1315,7 @@ void render_darkroom()
         dt_gui_dr_toggle_fullscreen_view();
       }
 
-      if(io.NavInputs[ImGuiNavInput_Cancel] > 0.0f)
+      if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
       {
         dt_view_switch(s_view_lighttable);
         vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too

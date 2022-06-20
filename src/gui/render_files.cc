@@ -86,34 +86,6 @@ void render_files()
     just_entered = 0;
   }
 
-  { // center window
-    // TODO: wire double click/enter/(x) -> lighttable mode
-    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    ImVec2 border = ImVec2(2*win_x, 2*win_y);
-    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-    ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-    dt_filebrowser(&filebrowser, 'f');
-
-    // TODO: nav triangle for open in lt?
-    if(ImGui::IsKeyPressed(GLFW_KEY_ENTER))
-    { // open selected in lt without changing cwd
-      char newdir[PATH_MAX];
-      if(filebrowser.selected_type == DT_DIR)
-      {
-        snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected);
-        dt_gui_switch_collection(newdir);
-      }
-      else dt_gui_switch_collection(filebrowser.cwd);
-      dt_view_switch(s_view_lighttable);
-    }
-
-    ImGui::End();
-    ImGui::PopStyleColor(1);
-  } // end center window
-
   { // right panel
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
@@ -257,7 +229,32 @@ void render_files()
       }
       ImGui::Unindent();
     } // end collapsing header "recent collections"
-    // TODO: keyboard nav in filebrowser?
     ImGui::End();
   }
+
+  { // center window (last so it has key focus by default)
+    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
+    ImVec2 border = ImVec2(2*win_x, 2*win_y);
+    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
+    ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+    dt_filebrowser(&filebrowser, 'f');
+
+    if(dt_gui_imgui_nav_input(ImGuiNavInput_Input) > 0.0f) // triangle or enter
+    { // open selected in lt without changing cwd
+      char newdir[PATH_MAX];
+      if(filebrowser.selected_type == DT_DIR)
+      {
+        snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected);
+        dt_gui_switch_collection(newdir);
+      }
+      else dt_gui_switch_collection(filebrowser.cwd);
+      dt_view_switch(s_view_lighttable);
+    }
+
+    ImGui::End();
+    ImGui::PopStyleColor(1);
+  } // end center window
 }

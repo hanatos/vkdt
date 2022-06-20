@@ -87,7 +87,6 @@ dt_filebrowser(
     }
   }
 
-  ImGuiIO& io = ImGui::GetIO();
   // print cwd
   ImGui::PushFont(dt_gui_imgui_get_font(2));
   ImGui::Text("%s", w->cwd);
@@ -101,11 +100,13 @@ dt_filebrowser(
         w->ent[i]->d_name,
         w->ent[i]->d_type == DT_DIR ? "/":"");
     int selected = w->ent[i]->d_name == w->selected;
-    if(ImGui::Selectable(name, selected, ImGuiSelectableFlags_AllowDoubleClick|ImGuiSelectableFlags_DontClosePopups))
+    int select = ImGui::Selectable(name, selected, ImGuiSelectableFlags_AllowDoubleClick|ImGuiSelectableFlags_DontClosePopups);
+    select |= ImGui::IsItemFocused(); // has key/gamepad focus?
+    if(select)
     {
       w->selected = w->ent[i]->d_name; // mark as selected
       w->selected_type = w->ent[i]->d_type;
-      if((io.NavInputs[ImGuiNavInput_Activate] > 0.0f ||
+      if((dt_gui_imgui_nav_input(ImGuiNavInput_Activate) > 0.0f ||
           ImGui::IsMouseDoubleClicked(0)) && 
           w->ent[i]->d_type == DT_DIR)
       { // directory double-clicked
