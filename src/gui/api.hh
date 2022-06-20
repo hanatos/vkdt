@@ -259,7 +259,7 @@ dt_gui_dr_modals()
         ImGui::SetTooltip("type to filter the list\n"
                           "press enter to accept\n"
                           "press escape to close");
-      if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+      if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
         ok = 3;
 
       for(int i=0;i<line_cnt;i++)
@@ -352,7 +352,7 @@ dt_gui_dr_modals()
           "type to filter the list of presets\n"
           "press enter to apply top item\n"
           "press escape to close");
-    if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+    if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
     { FREE_ENT; ImGui::CloseCurrentPopup(); }
 
     if(!ent_cnt)

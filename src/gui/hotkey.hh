@@ -29,6 +29,7 @@
 extern "C" {
 #include "gui/gui.h"
 }
+#include "render.h"
 #include "imgui.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -282,7 +283,7 @@ namespace ImHotKey
 
   static int GetHotKey(HotKey *hotkey, size_t hotkeyCount)
   {
-    if(ImGui::GetIO().WantCaptureKeyboard) return -1;
+    if(dt_gui_imgui_want_text()) return -1;
     for(uint32_t i=0;i<hotkeyCount;i++)
       if((hotkey[i].key0 && glfwGetKey(qvk.window, hotkey[i].key0) == GLFW_PRESS) &&
         (!hotkey[i].key1 || glfwGetKey(qvk.window, hotkey[i].key1) == GLFW_PRESS))

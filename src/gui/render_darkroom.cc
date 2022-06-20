@@ -1532,11 +1532,11 @@ abort:
 
   { // right panel
     int hotkey = -1;
-    static double hotkey_time = 0;
+    static double hotkey_time = ImGui::GetTime();
     if(ImGui::GetTime() - hotkey_time > 0.1)
     {
       hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
-      hotkey_time = ImGui::GetTime();
+      if(hotkey > -1) hotkey_time = ImGui::GetTime();
     }
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
