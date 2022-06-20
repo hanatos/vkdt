@@ -137,6 +137,6 @@ the shader sources (`*.{glsl,comp,vert,geom,frag,tese,tesc}`) as well as the
 `examples/` and various `test/` directories are optional and do not have to be
 copied.
 to build for generic instruction sets, be sure to edit `config.mk`, especially
-set `OPT_CFLAGS=` to `-march=generic` and whatever you require. to convince
-rawspeed to do the same, set `RAWSPEED_PACKAGE_BUILD=1`.
+set `OPT_CFLAGS=` to `-march=x86-64` (not `native`) and whatever you require.
+to convince rawspeed to do the same, set `RAWSPEED_PACKAGE_BUILD=1`.
 
