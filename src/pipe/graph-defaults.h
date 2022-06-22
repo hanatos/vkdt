@@ -8,13 +8,13 @@ dt_graph_default_input_module(
   if(len <= 4) return 0;
   int off = 4;
   if(len > 4 && !strcasecmp(filename+len-4, ".cfg")) off = 8;
-  if(!strcasecmp(filename+len-off, ".mlv"))
+  if(!strncasecmp(filename+len-off, ".mlv", 4))
     return dt_token("i-mlv");
-  if(!strcasecmp(filename+len-off, ".pfm"))
+  if(!strncasecmp(filename+len-off, ".pfm", 4))
     return dt_token("i-pfm");
-  if(!strcasecmp(filename+len-off, ".jpg"))
+  if(!strncasecmp(filename+len-off, ".jpg", 4))
     return dt_token("i-jpg");
-  if(!strcasecmp(filename+len-off, ".mov"))
+  if(!strncasecmp(filename+len-off, ".mov", 4))
     return dt_token("i-vid");
   return dt_token("i-raw"); // you assume too much
 }
