@@ -1,4 +1,5 @@
 #include "pipe/graph-io.h"
+#include "pipe/graph-history.h"
 #include "modules/api.h"
 #include "pipe/io.h"
 #include "core/log.h"
@@ -537,6 +538,7 @@ dt_graph_read_block(
       // just ignore whatever goes wrong:
       if(dt_graph_read_config_line(graph, line))
         dt_log(s_log_pipe, "failed in line %u: '%s'", lno, line);
+      dt_graph_history_line(graph, line);
     }
     fclose(f);
     return 0;
