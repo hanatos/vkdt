@@ -31,7 +31,7 @@ namespace { // anonymous gui state namespace
 
 inline void dark_corporate_style()
 {
-  ImGuiStyle & style = ImGui::GetStyle();
+  ImGuiStyle &style = ImGui::GetStyle();
   ImVec4 * colors = style.Colors;
 
 	/// 0 = FLAT APPEARENCE

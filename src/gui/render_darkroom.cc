@@ -9,7 +9,6 @@ extern "C"
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
 #include "gui/api.hh"
-#include "gui/widget_filebrowser.hh" // XXX remove me (only use: load blocks)
 
 namespace { // anonymous namespace
 
@@ -1250,7 +1249,6 @@ void render_darkroom_pipeline()
     else dt_graph_history_module(graph, new_modid);
   }
 
-  static dt_filebrowser_widget_t filebrowser = {{0}};
   // add block (read cfg snipped)
   if(gui.state == gui_state_data_t::s_gui_state_insert_block)
   {
@@ -1268,20 +1266,20 @@ void render_darkroom_pipeline()
   }
   else
   {
-    if(dt_filebrowser_display(&filebrowser, 'f'))
+    if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     { // "ok" pressed
-      fprintf(stderr, "read file: %s/%s\n", filebrowser.cwd, filebrowser.selected);
-      snprintf(gui.block_filename, sizeof(gui.block_filename), "%s/%s", filebrowser.cwd, filebrowser.selected);
-      dt_filebrowser_cleanup(&filebrowser); // reset all but cwd
-      gui.state = gui_state_data_t::s_gui_state_insert_block;
+      static char filter[256] = "";
+      int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), 0);
+      if(ok) ImGui::CloseCurrentPopup();
+      if(ok == 1)
+        gui.state = gui_state_data_t::s_gui_state_insert_block;
       // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+      ImGui::EndPopup();
     }
     if(ImGui::Button("insert block.."))
     {
-      // gui.state = gui_state_data_t::s_gui_state_insert_block;
       gui.block_token[0] = dt_token(mod_inst);
-      snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s/data/blocks", dt_pipe.basedir);
-      dt_filebrowser_open(&filebrowser);
+      ImGui::OpenPopup("insert block");
     }
   }
 }

@@ -60,14 +60,6 @@ int dt_filebrowser_filter_file(const struct dirent *d)
 }
 
 inline void
-dt_filebrowser_open(
-    dt_filebrowser_widget_t *w)
-{
-  ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd*0.8, vkdt.state.center_ht*0.8), ImGuiCond_Always);
-  ImGui::OpenPopup("select directory");
-}
-
-inline void
 dt_filebrowser(
     dt_filebrowser_widget_t *w,
     const char               mode) // 'f' or 'd'
@@ -129,34 +121,4 @@ dt_filebrowser(
     }
   }
   ImGui::PopFont();
-}
-
-// returns 0 if cancelled, or 1 if "ok" has been pressed
-inline int
-dt_filebrowser_display(
-    dt_filebrowser_widget_t *w,
-    const char               mode) // 'f' or 'd'
-{
-  int ret = 0;
-  if(ImGui::BeginPopupModal("select directory", 0, 0))
-  {
-    ImGui::PushID(w);
-    ImGui::BeginChild("dirlist", ImVec2(0, vkdt.state.center_ht*0.75), 0);
-    dt_filebrowser(w, mode);
-    ImGui::EndChild();
-    int wd = ImGui::GetWindowWidth()*0.496;
-    int escidx = ImGui::GetIO().KeyMap[ImGuiKey_Escape];
-    if(ImGui::Button("cancel", ImVec2(wd, 0)) || ImGui::IsKeyPressed(escidx))
-      ImGui::CloseCurrentPopup();
-
-    ImGui::SameLine();
-    if(ImGui::Button("ok", ImVec2(wd, 0)))
-    {
-      ret = 1;
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::PopID();
-    ImGui::EndPopup();
-  }
-  return ret;
 }
