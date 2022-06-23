@@ -1,0 +1,6 @@
+module:inpaint:inpaint
+module:draw:inpaint
+connect:draw:inpaint:output:inpaint:inpaint:mask
+# assume default pipeline:
+connect:colour:01:output:inpaint:inpaint:input
+connect:inpaint:inpaint:output:filmcurv:01:input
