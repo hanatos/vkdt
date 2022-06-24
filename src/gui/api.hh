@@ -127,46 +127,6 @@ dt_gui_lt_paste_history()
       sel, vkdt.db.selection_cnt);
 }
 
-inline void
-dt_gui_lt_export()
-{
-  if(vkdt.db.selection_cnt <= 0)
-  {
-    dt_gui_notification("need to select at least one image to export!");
-    return;
-  }
-  const dt_token_t format_mod[] = {dt_token("o-jpg"), dt_token("o-pfm"), dt_token("o-ffmpeg")};
-  // TODO: put in background job, implement job scheduler
-  const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-  const char *basename = dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img");
-  const int wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
-  const int ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
-  const int fm = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/export/format", 0),
-          (int)0, (int)(sizeof(format_mod)/sizeof(format_mod[0])-1));
-  const float qy = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90.0f);
-  char filename[256], infilename[256];
-  dt_graph_t graph;
-  dt_graph_init(&graph);
-  for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
-  {
-    snprintf(filename, sizeof(filename), "%s_%04d", basename, i);
-    dt_gui_notification("exporting to %s", filename); // <== will actually not show unless in bg job
-    dt_db_image_path(&vkdt.db, sel[i], infilename, sizeof(infilename));
-    dt_graph_export_t param = {0};
-    param.output_cnt = 1;
-    param.output[0].p_filename = filename;
-    param.output[0].max_width  = wd;
-    param.output[0].max_height = ht;
-    param.output[0].quality    = qy;
-    param.output[0].mod        = format_mod[fm];
-    param.p_cfgfile = infilename;
-    if(dt_graph_export(&graph, &param))
-      dt_gui_notification("export %s failed!\n", infilename);
-    dt_graph_reset(&graph);
-  }
-  dt_graph_cleanup(&graph);
-}
-
 // scroll to top of collection
 inline void
 dt_gui_lt_scroll_top()

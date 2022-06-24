@@ -218,6 +218,7 @@ void render_files()
           { // reset
             memset(job+k, 0, sizeof(copy_job_t));
           }
+          if(ImGui::IsItemHovered()) ImGui::SetTooltip("click to reset");
         }
       }
       ImGui::Unindent();

@@ -5,6 +5,7 @@ extern "C"
 #include "gui/gui.h"
 #include "db/thumbnails.h"
 #include "db/rc.h"
+#include "core/strexpand.h"
 }
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
@@ -209,6 +210,91 @@ dont_update_time:;
   ImGui::End(); // lt center window
 }
 
+
+// export bg job stuff. put into api.hh?
+struct export_job_t
+{
+  uint32_t *sel;
+  dt_token_t output_module;
+  int wd, ht;
+  float quality;
+  uint32_t cnt;
+  uint32_t overwrite;
+  uint32_t abort;
+  int taskid;
+  char basename[1000];
+  dt_graph_t graph;
+};
+void export_job_cleanup(void *arg)
+{ // task is done, every thread will call this (but we put only one)
+  export_job_t *j = (export_job_t *)arg;
+  free(j->sel);
+  dt_graph_cleanup(&j->graph);
+}
+void export_job_work(uint32_t item, void *arg)
+{
+  export_job_t *j = (export_job_t *)arg;
+  if(j->abort) return;
+
+  char dst[1000];
+  time_t t = time(0);
+  struct tm *tm = localtime(&t);
+  char date[10] = {0}, yyyy[5] = {0};
+  strftime(date, sizeof(date), "%Y%m%d", tm);
+  strftime(yyyy, sizeof(yyyy), "%Y", tm);
+  const char *key[] = { "home", "yyyy", "date", "seq", 0};
+  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", 0};
+  dt_strexpand(j->basename, sizeof(j->basename), dst, sizeof(dst), key, val);
+
+  char filename[PATH_MAX], infilename[PATH_MAX];
+  snprintf(filename, sizeof(filename), dst, item);
+  dt_gui_notification("exporting to %s", filename);
+
+  dt_db_image_path(&vkdt.db, j->sel[item], infilename, sizeof(infilename));
+  dt_graph_export_t param = {0};
+  param.output_cnt = 1;
+  param.output[0].p_filename = filename;
+  param.output[0].max_width  = j->wd;
+  param.output[0].max_height = j->ht;
+  param.output[0].quality    = j->quality;
+  param.output[0].mod        = j->output_module;
+  param.p_cfgfile = infilename;
+  // TODO: add a parameter to overwrite or not
+  if(dt_graph_export(&j->graph, &param))
+    dt_gui_notification("export %s failed!\n", infilename);
+  dt_graph_reset(&j->graph);
+}
+int export_job(
+    export_job_t *j,
+    int overwrite)
+{
+  j->abort = 0;
+  j->overwrite = overwrite;
+  if(vkdt.db.selection_cnt <= 0)
+  {
+    dt_gui_notification("need to select at least one image to export!");
+    return -1;
+  }
+  j->cnt = vkdt.db.selection_cnt;
+  j->sel = (uint32_t *)malloc(sizeof(uint32_t)*j->cnt);
+  memcpy(j->sel, dt_db_selection_get(&vkdt.db), sizeof(uint32_t)*j->cnt);
+  snprintf(j->basename, sizeof(j->basename), "%.*s", (int)sizeof(j->basename)-1, dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img_${seq}"));
+  j->wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
+  j->ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
+  const dt_token_t format_mod[] = {dt_token("o-jpg"), dt_token("o-pfm"), dt_token("o-ffmpeg")};
+  const int fm = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/export/format", 0),
+          (int)0, (int)(sizeof(format_mod)/sizeof(format_mod[0])-1));
+  j->output_module = format_mod[fm];
+  j->quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90.0f);
+  dt_graph_init(&j->graph);
+  // TODO:
+  // fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
+  j->taskid = threads_task(j->cnt, -1, j, export_job_work, export_job_cleanup);
+  return j->taskid;
+}
+// end export bg job stuff
+
+
 void render_lighttable_right_panel(double &hotkey_time)
 { // right panel
   ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
@@ -220,9 +306,10 @@ void render_lighttable_right_panel(double &hotkey_time)
   ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
   // lt hotkeys in same scope as buttons as modals (right panel)
+  int hotkey = -1;
   if(ImGui::GetTime() - hotkey_time > 0.1)
   {
-    int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+    hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
     switch(hotkey)
     {
       case 0: // assign tag
@@ -231,8 +318,7 @@ void render_lighttable_right_panel(double &hotkey_time)
       case 1: // toggle select all
         dt_gui_lt_toggle_select_all();
         break;
-      case 2:
-        dt_gui_lt_export();
+      case 2: // handled later
         break;
       case 3:
         dt_gui_lt_copy();
@@ -479,7 +565,7 @@ dont_update_time:;
     static float quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
     static char basename[240] = "";
     if(basename[0] == 0) strncpy(basename,
-        dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img"),
+        dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img_${seq}"),
         sizeof(basename)-1);
     const char format_data[] = "jpg\0pfm\0ffmpeg\0\0";
     if(ImGui::InputInt("width", &wd, 1, 100, 0))
@@ -488,12 +574,48 @@ dont_update_time:;
       dt_rc_set_int(&vkdt.rc, "gui/export/ht", ht);
     if(ImGui::InputText("filename", basename, sizeof(basename)))
       dt_rc_set(&vkdt.rc, "gui/export/basename", basename);
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+        "basename of exported files. the following will be replaced:\n"
+        "${home} -- home directory\n"
+        "${yyyy} -- current year\n"
+        "${date} -- today's date\n"
+        "${seq}  -- sequence number");
     if(ImGui::InputFloat("quality", &quality, 1, 100, 0))
       dt_rc_set_float(&vkdt.rc, "gui/export/quality", quality);
     if(ImGui::Combo("format", &format, format_data))
       dt_rc_set_int(&vkdt.rc, "gui/export/format", format);
-    if(ImGui::Button("export", size))
-      dt_gui_lt_export();
+    static export_job_t job[4] = {{0}};
+    static int32_t overwrite_mode = 0;
+    int32_t num_idle = 0;
+    // TODO: this is not wired in the backend so hidden from gui for now too:
+    // const char *overwrite_mode_str = "keep\0overwrite\0\0";
+    // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);
+    for(int k=0;k<4;k++)
+    { // list of four jobs to copy stuff simultaneously
+      if(job[k].cnt == 0)
+      { // idle job
+        if(num_idle++) break; // show at max one idle job
+        if(hotkey == 2 || ImGui::Button("export"))
+        { // TODO: make sure we don't start a job that is already running in another job[.]
+          export_job(job+k, overwrite_mode);
+        }
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip("export current selection");
+      }
+      else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
+      { // running
+        if(ImGui::Button("abort")) job[k].abort = 1;
+        ImGui::SameLine();
+        ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
+      }
+      else
+      { // done/aborted
+        if(ImGui::Button(job[k].abort ? "aborted" : "done"))
+        { // reset
+          memset(job+k, 0, sizeof(export_job_t));
+        }
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip("click to reset");
+      }
+    }
     ImGui::Unindent();
   } // end collapsing header "export"
 
