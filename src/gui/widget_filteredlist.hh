@@ -32,7 +32,7 @@ filteredlist(
   static char dirname[PATH_MAX+20];
   static char dirname_local[PATH_MAX+20];
   if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
-  if(ImGui::InputText("##edit", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
+  if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
     ok = 1;
   if(ImGui::IsItemHovered())
     ImGui::SetTooltip(
@@ -69,10 +69,8 @@ filteredlist(
   LIST(ent, 0);
 #undef LIST
 
-  ImGuiStyle &style = ImGui::GetStyle();
-  int bwd = 200; // TODO: dynamically scaled!
-  int twd = style.ItemSpacing.x * (allow_new ? 2 : 1) + bwd * (allow_new ? 3 : 2);
-  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - twd);
+  ImGui::Dummy(ImVec2(0.0f, vkdt.state.panel_wd * 0.05f));
+  int bwd = vkdt.state.panel_wd / (allow_new ? 3 : 2);
   if (allow_new && ImGui::Button("create new", ImVec2(bwd, 0))) { pick = -1; ok = 1; }
   if (allow_new) ImGui::SameLine();
   if (ImGui::Button("cancel", ImVec2(bwd, 0))) {FREE_ENT; return 2;}
