@@ -94,23 +94,15 @@ void render_files()
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("files panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     // if(ImGui::CollapsingHeader("settings")) ??
+#if 0
     if(ImGui::CollapsingHeader("folder"))
     {
       ImGui::Indent();
-      ImGui::Text("%s", filebrowser.cwd);
-      if(ImGui::Button("open in lighttable"))
-      {
-        dt_gui_switch_collection(filebrowser.cwd);
-        dt_view_switch(s_view_lighttable);
-      }
-      if(ImGui::Button("back to lighttable"))
-      {
-        dt_view_switch(s_view_lighttable);
-      }
       ImGui::Unindent();
       // TODO: show images/show only directories
       // TODO: feature to show only raw/whatever?
     }
+#endif
     if(ImGui::CollapsingHeader("drives"))
     {
       ImGui::Indent();
@@ -158,6 +150,16 @@ void render_files()
       }
       ImGui::Unindent();
     }
+    if(ImGui::CollapsingHeader("recent collections"))
+    { // recently used collections in ringbuffer:
+      ImGui::Indent();
+      if(recently_used_collections())
+      {
+        set_cwd(vkdt.db.dirname, 0);
+        dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
+      }
+      ImGui::Unindent();
+    } // end collapsing header "recent collections"
     if(ImGui::CollapsingHeader("import"))
     {
       ImGui::Indent();
@@ -223,23 +225,38 @@ void render_files()
       }
       ImGui::Unindent();
     }
-    if(ImGui::CollapsingHeader("recent collections"))
-    { // recently used collections in ringbuffer:
-      ImGui::Indent();
-      if(recently_used_collections())
-      {
-        set_cwd(vkdt.db.dirname, 0);
-        dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
-      }
-      ImGui::Unindent();
-    } // end collapsing header "recent collections"
+    ImGui::End();
+  }
+
+  { // bottom panel with buttons
+    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
+    ImVec2 border = ImVec2(2*win_x, win_y);
+    ImGui::SetNextWindowPos (ImVec2(0, win_h+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, border.y), ImGuiCond_Always);
+    ImGui::Begin("files buttons", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+    int bwd = win_w / 4;
+    int twd = ImGui::GetStyle().ItemSpacing.x + bwd * 2;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - twd);
+    if(ImGui::Button("open in lighttable", ImVec2(bwd, 0)))
+    {
+      dt_gui_switch_collection(filebrowser.cwd);
+      dt_view_switch(s_view_lighttable);
+    }
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("open current directory in light table mode");
+    ImGui::SameLine();
+    if(ImGui::Button("back to lighttable", ImVec2(bwd, 0)))
+    {
+      dt_view_switch(s_view_lighttable);
+    }
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("return to lighttable mode without changing directory");
     ImGui::End();
   }
 
   { // center window (last so it has key focus by default)
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    ImVec2 border = ImVec2(2*win_x, 2*win_y);
+    ImVec2 border = ImVec2(2*win_x, win_y);
     ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
