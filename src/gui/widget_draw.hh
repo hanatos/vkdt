@@ -1,5 +1,9 @@
 #pragma once
 // minimal postscript interpreter to draw decorative line patterns
+// could use imgui's 
+// PathClear PathLineTo PathBezierCubicCurveTo(v,v,v,num_seg) PathStroke(col, flags, thickness) to avoid internal vertex buffer
+// ImDrawFlags_Closed (instead of true/false btw!)
+// TODO: add transformations on vertices before tessellation
 
 static const float dt_draw_cmd_marker = -0.0f/0.0f;
 enum dt_draw_cmd_t
@@ -115,6 +119,28 @@ l, 86.707, 130.453, 88.469, 132.32, 91.344, 132.844, c, 96.352, 133.238, 100.195
 , 235.316, 149.344, c, 238.238, 149.344, 241.035, 150.504, 243.102, 152.57, c, 245.164
 , 154.637, 246.324, 157.438, 246.32, 160.355, c, h,
 };
+// arrows pointing to the buttons
+static const float dt_draw_list_gamepad_arrow[][20] = {
+{143.246, 169.57, m, 32.777, 260.625, l, -137.781, 261.77, l},
+{323.477, 174.398, m, 413.711, 260.547, l, 588.363, 260.996, l},
+{90.871, 21.934, m, 66.652, -10.746, l, -136.203, -9.57, l},
+{384.836, 24.336, m, 385.523, 21.586, 434.609, -11.016, 434.609, -11.016, c, 587.93, -11.012, l},
+{373.504, 65.945, m, 458.934, 44.438, l, 587.77, 44.043, l},
+{406.766, 97.645, m, 462.723, 86.527, l, 588.242, 85.637, l},
+{373.82, 129.336, m, 454.578, 128.176, l, 588.234, 127.336, l},
+{340.566, 98.203, m, 360.781, 168.645, l, 589.039, 170.395, l},
+{112.438, 21.602, m, 82.77, -51.652, l, -136.754, -53.75, l},
+{361.473, 21.148, m, 410.766, -51.82, l, 587.961, -52.711, l},
+{97.215, 75.797, m, -8.457, 44.039, l, -135.887, 44.172, l},
+{72.074, 97.508, m, -7.238, 84.77, l, -136.711, 85.52, l},
+{97.016, 120.57, m, 94.652, 119.859, 11.598, 125.883, 11.598, 125.883, c, -136.855 , 127.207, l},
+{126.355, 97.949, m, 99.895, 170.566, l, -137.996, 170.398, l},
+{200.727, 114.797, m, 150.363, -93.09, l, -51.844, -92.754, l},
+{261.641, 114.574, m, 306.43, -93.754, l, 502.551, -94.16, l},
+{235.469, 160.25, m, 235.359, 337.348, l},
+{165.594, 157.938, m, 115.074, 302.762, l, -136.211, 303.523, l},
+{306.121, 156.926, m, 351.91, 303.555, l, 587.215, 302.441, l},
+};
 #undef m
 #undef l
 #undef c
@@ -188,4 +214,7 @@ dt_draw(
     else if(sp < stacksize) stack[sp++] = cmd[i];
     else return; // stack overflow
   }
+  // stroke last batch
+  if(vert_cnt > 0)
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2*)vert, vert_cnt, IM_COL32_WHITE, false, vkdt.state.center_ht/500.0f);
 }

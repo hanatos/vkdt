@@ -10,6 +10,7 @@ extern "C"
 #include "gui/hotkey.hh"
 #include "gui/api.hh"
 #include "gui/widget_draw.hh"
+#include "gui/widget_gamepadhelp.hh"
 
 namespace { // anonymous namespace
 
@@ -1495,6 +1496,9 @@ abort:
 
     // XXX DEBUG draw lists
     dt_draw(dt_draw_list_gamepad, IM_ARRAYSIZE(dt_draw_list_gamepad), 10);
+    dt_gamepadhelp_set(dt_gamepadhelp_button_tri, "yay a triangle");
+    dt_gamepadhelp_set(dt_gamepadhelp_ps, "display this help");
+    dt_gamepadhelp();
 
     ImGui::End();
     ImGui::PopStyleColor();
