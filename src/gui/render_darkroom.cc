@@ -9,6 +9,7 @@ extern "C"
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
 #include "gui/api.hh"
+#include "gui/widget_draw.hh"
 
 namespace { // anonymous namespace
 
@@ -1491,6 +1492,10 @@ abort:
         default:;
       }
     }
+
+    // XXX DEBUG draw lists
+    dt_draw(dt_draw_list_gamepad, IM_ARRAYSIZE(dt_draw_list_gamepad), 10);
+
     ImGui::End();
     ImGui::PopStyleColor();
   } // end center view

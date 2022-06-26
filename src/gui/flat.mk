@@ -22,6 +22,7 @@ GUI_H=gui/gui.h\
       gui/widget_thumbnail.hh\
       gui/widget_recentcollect.hh\
       gui/widget_filteredlist.hh\
+      gui/widget_draw.hh\
       gui/view.h\
       gui/darkroom.h\
       gui/darkroom-util.h\
