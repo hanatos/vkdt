@@ -666,6 +666,9 @@ inline void draw_widget(int modid, int parid)
             dt_token_str(param->name));
         if(ImGui::Button(string))
         {
+          dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
+          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
+          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
@@ -735,6 +738,9 @@ inline void draw_widget(int modid, int parid)
             dt_token_str(param->name));
         if(ImGui::Button(string))
         {
+          dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
+          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
+          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
@@ -1304,7 +1310,8 @@ void render_darkroom()
     ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     ImGuiIO& io = ImGui::GetIO();
-    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && 
+      vkdt.wstate.active_widget_modid < 0) // active widget grabs controls
     {
       static int fs_state = 0;
       if(butt && !butt[6] && !butt[7]) fs_state = 0;
@@ -1494,8 +1501,7 @@ abort:
     }
 
     // draw context sensitive help overlay
-    // if(vkdt.wstate.show_gamepadhelp)
-    dt_gamepadhelp();
+    if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
 
     ImGui::End();
     ImGui::PopStyleColor();

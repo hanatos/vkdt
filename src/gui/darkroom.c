@@ -612,12 +612,12 @@ darkroom_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "plus L1/R1: switch panel");
   dt_gamepadhelp_set(dt_gamepadhelp_ps, "display this help");
-  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "pan around");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
   dt_gamepadhelp_set(dt_gamepadhelp_L1, "previous image. anim: stop/reset");
   dt_gamepadhelp_set(dt_gamepadhelp_R1, "next image. anim: play");
   dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
   dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
-  dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset zoom");
+  dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
   return 0;
 }
 

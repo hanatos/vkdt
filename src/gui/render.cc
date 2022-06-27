@@ -322,7 +322,7 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGuiIO& io = ImGui::GetIO();
   if(io.KeysDown[GLFW_KEY_CAPS_LOCK]) io.NavInputs[ImGuiNavInput_Cancel] = 1.0f;
 
-  // if(dt_gui_imgui_nav_button(XXX)) vkdt.wstate.show_gamepadhelp ^= 1;
+  if(dt_gui_imgui_nav_button(10)) vkdt.wstate.show_gamepadhelp ^= 1;
 
   switch(vkdt.view_mode)
   {
