@@ -83,6 +83,9 @@ typedef struct dt_gui_wstate_t
 
   int set_nav_focus;            // gamepad navigation delay to communicate between lighttable and darkroom
   int busy;                     // still busy for how many frames before stopping redraw?
+
+  float fontsize;               // pixel size of currently loaded (regular) font
+  int   show_gamepadhelp;       // show context sensitive gamepad help
 }
 dt_gui_wstate_t;
 

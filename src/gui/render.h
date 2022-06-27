@@ -35,8 +35,39 @@ void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
 float dt_gui_imgui_nav_input(int which);
 float dt_gui_imgui_nav_button(int which);
 
+// display context sensitive help:
+// all inputs of the dualshock 3 controller
+typedef enum dt_gamepadhelp_input_t
+{ // axes
+  dt_gamepadhelp_analog_stick_L = 0,
+  dt_gamepadhelp_analog_stick_R,
+  dt_gamepadhelp_L2,
+  dt_gamepadhelp_R2,
+  // pressure sensitive buttons
+  dt_gamepadhelp_button_triangle,
+  dt_gamepadhelp_button_circle,
+  dt_gamepadhelp_button_cross,
+  dt_gamepadhelp_button_square,
+  dt_gamepadhelp_L1,
+  dt_gamepadhelp_R1,
+  dt_gamepadhelp_arrow_up,
+  dt_gamepadhelp_arrow_left,
+  dt_gamepadhelp_arrow_down,
+  dt_gamepadhelp_arrow_right,
+  // digital buttons
+  dt_gamepadhelp_start,
+  dt_gamepadhelp_select,
+  dt_gamepadhelp_ps,
+  dt_gamepadhelp_L3,
+  dt_gamepadhelp_R3,
+  dt_gamepadhelp_cnt
+} dt_gamepadhelp_input_t;
+void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str);
+void dt_gamepadhelp_clear();
+
 #ifdef __cplusplus
 struct ImFont;
 ImFont *dt_gui_imgui_get_font(int which);
+void dt_gamepadhelp();
 }
 #endif

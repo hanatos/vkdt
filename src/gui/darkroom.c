@@ -4,6 +4,7 @@
 #include "gui/api.h"
 #include "gui/gui.h"
 #include "gui/view.h"
+#include "gui/render.h"
 #include "gui/darkroom.h"
 #include "gui/darkroom-util.h"
 #include "pipe/graph.h"
@@ -607,6 +608,16 @@ darkroom_enter()
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
   darkroom_reset_zoom();
+
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_square, "plus L1/R1: switch panel");
+  dt_gamepadhelp_set(dt_gamepadhelp_ps, "display this help");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "pan around");
+  dt_gamepadhelp_set(dt_gamepadhelp_L1, "previous image. anim: stop/reset");
+  dt_gamepadhelp_set(dt_gamepadhelp_R1, "next image. anim: play");
+  dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
+  dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
+  dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset zoom");
   return 0;
 }
 
@@ -628,6 +639,7 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
+  dt_gamepadhelp_clear();
   return 0;
 }
 

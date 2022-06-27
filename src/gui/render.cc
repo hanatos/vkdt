@@ -1,6 +1,5 @@
 extern "C" {
 #include "gui.h"
-#include "render.h"
 #include "view.h"
 #include "qvk/qvk.h"
 #include "pipe/graph-export.h"
@@ -8,9 +7,11 @@ extern "C" {
 #include "pipe/graph-history.h"
 #include "gui/darkroom-util.h"
 }
+#include "render.h"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "widget_draw.hh"
 #include "render_view.hh"
 #if VKDT_USE_FREETYPE == 1
 #include "misc/freetype/imgui_freetype.h"
@@ -21,11 +22,6 @@ extern "C" {
 #endif
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-
-// #include <libgen.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
 
 namespace { // anonymous gui state namespace
 
@@ -258,10 +254,7 @@ extern "C" int dt_gui_init_imgui()
   g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
   g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, 1.5*fontsize);
   g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
-  // io.Fonts->AddFontFromFileTTF("../ext/imgui/misc/fonts/Roboto-Medium.ttf", fontsize);
-  //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-  //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-  //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
+  vkdt.wstate.fontsize = fontsize;
   //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
   //IM_ASSERT(font != NULL);
 #if VKDT_USE_FREETYPE == 1
@@ -328,6 +321,8 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui::NewFrame();
   ImGuiIO& io = ImGui::GetIO();
   if(io.KeysDown[GLFW_KEY_CAPS_LOCK]) io.NavInputs[ImGuiNavInput_Cancel] = 1.0f;
+
+  // if(dt_gui_imgui_nav_button(XXX)) vkdt.wstate.show_gamepadhelp ^= 1;
 
   switch(vkdt.view_mode)
   {
@@ -430,4 +425,52 @@ extern "C" void dt_gui_ungrab_mouse()
   glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   vkdt.wstate.grabbed = 0;
   // dt_gui_dr_toggle_fullscreen_view();
+}
+
+struct dt_gamepadhelp_t
+{
+  const char *help[dt_gamepadhelp_cnt];
+};
+static dt_gamepadhelp_t g_gamepadhelp = {0};
+
+extern "C" void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str)
+{
+  if(which < 0 || which >= dt_gamepadhelp_cnt) return;
+  g_gamepadhelp.help[which] = str;
+}
+extern "C" void dt_gamepadhelp_clear()
+{
+  for(int k=0;k<dt_gamepadhelp_cnt;k++)
+    g_gamepadhelp.help[k] = 0;
+}
+
+void dt_gamepadhelp()
+{
+  static const char *dt_gamepadhelp_input_str[] = {
+    "analog L", "analog R", "trigger L2", "trigger R2",
+    "triangle", "circle", "cross", "square", "L1", "R1", // "∆", "o", "x", "□"
+    "up", "left", "down", "right", // "↑", "←", "↓", "→",
+    "start", "select", "ps", "L3", "R3",
+  };
+
+  const float m[] = {
+    vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
+    0.0f, vkdt.state.center_wd / 1200.0f, vkdt.state.center_ht * 0.50f,
+  };
+  dt_draw(dt_draw_list_gamepad, IM_ARRAYSIZE(dt_draw_list_gamepad), 10, m);
+  for(int k=0;k<dt_gamepadhelp_cnt;k++)
+  {
+    if(g_gamepadhelp.help[k])
+    {
+      dt_draw(dt_draw_list_gamepad_arrow[k], IM_ARRAYSIZE(dt_draw_list_gamepad_arrow[k]), 10, m);
+      ImVec2 v = ImVec2(dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]);
+      ImVec2 pos = ImVec2(
+          v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
+          v.x * m[3*1 + 0] + v.y * m[3*1 + 1] + m[3*1 + 2]);
+      pos.y -= vkdt.wstate.fontsize * 1.1;
+      ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, dt_gamepadhelp_input_str[k]);
+      pos.y += vkdt.wstate.fontsize * 1.1;
+      ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, g_gamepadhelp.help[k]);
+    }
+  }
 }

@@ -126,7 +126,7 @@ static const float dt_draw_list_gamepad_arrow[][20] = {
 {143.246, 169.57, m, 32.777, 260.625, l, -137.781, 261.77, l, S},
 {323.477, 174.398, m, 413.711, 260.547, l, 588.363, 260.996, l, S},
 {90.871, 21.934, m, 66.652, -10.746, l, -136.203, -9.57, l, S},
-{384.836, 24.336, m, 385.523, 21.586, 434.609, -11.016, 434.609, -11.016, c, 587.93, -11.012, l, S},
+{384.836, 24.336, m, 434.609, -11.016, l, 587.93, -11.012, l, S},
 {373.504, 65.945, m, 458.934, 44.438, l, 587.77, 44.043, l, S},
 {406.766, 97.645, m, 462.723, 86.527, l, 588.242, 85.637, l, S},
 {373.82, 129.336, m, 454.578, 128.176, l, 588.234, 127.336, l, S},
@@ -135,11 +135,11 @@ static const float dt_draw_list_gamepad_arrow[][20] = {
 {361.473, 21.148, m, 410.766, -51.82, l, 587.961, -52.711, l, S},
 {97.215, 75.797, m, -8.457, 44.039, l, -135.887, 44.172, l, S},
 {72.074, 97.508, m, -7.238, 84.77, l, -136.711, 85.52, l, S},
-{97.016, 120.57, m, 94.652, 119.859, 11.598, 125.883, 11.598, 125.883, c, -136.855 , 127.207, l, S},
+{97.016, 120.57, m, 11.598, 125.883, l, -136.855 , 127.207, l, S},
 {126.355, 97.949, m, 99.895, 170.566, l, -137.996, 170.398, l, S},
 {200.727, 114.797, m, 150.363, -93.09, l, -51.844, -92.754, l, S},
 {261.641, 114.574, m, 306.43, -93.754, l, 502.551, -94.16, l, S},
-{235.469, 160.25, m, 235.359, 337.348, l, S},
+{235.469, 160.25, m, 235.469, 337.348, l, 283.055, 337.348, l, S},
 {165.594, 157.938, m, 115.074, 302.762, l, -136.211, 303.523, l, S},
 {306.121, 156.926, m, 351.91, 303.555, l, 587.215, 302.441, l, S},
 };
@@ -148,11 +148,22 @@ static const float dt_draw_list_gamepad_arrow[][20] = {
 #undef c
 #undef h
 
+namespace {
+inline ImVec2 xf(ImVec2 v, const float *m)
+{
+  if(!m) return v;
+  return ImVec2(
+      v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
+      v.x * m[3*1 + 0] + v.y * m[3*1 + 1] + m[3*1 + 2]);
+}
+};
+
 inline void
 dt_draw(
     const float *cmd,  // command buffer
     const int    cnt,  // number of commands
-    const int    det)  // detail/how many points per bezier
+    const int    det,  // detail/how many points per bezier
+    const float *m)    // 3x2 affine transform, optional
 {
   float stack[10];
   const int stacksize = sizeof(stack)/sizeof(stack[0]);
@@ -171,16 +182,16 @@ dt_draw(
           // note: no break
         case dt_draw_lineto:
           if(sp < 2) return; // stack underflow
-          dl->PathLineTo(ImVec2(stack[sp-2], stack[sp-1]));
+          dl->PathLineTo(xf(ImVec2(stack[sp-2], stack[sp-1]), m));
           sp -= 2;
           break;
         case dt_draw_curveto:
           if(sp < 6) return; // stack underflow
           sp -= 6;
           dl->PathBezierCubicCurveTo(
-            ImVec2(stack[sp+0], stack[sp+1]),
-            ImVec2(stack[sp+2], stack[sp+3]),
-            ImVec2(stack[sp+4], stack[sp+5]), det);
+            xf(ImVec2(stack[sp+0], stack[sp+1]), m),
+            xf(ImVec2(stack[sp+2], stack[sp+3]), m),
+            xf(ImVec2(stack[sp+4], stack[sp+5]), m), det);
           break;
         case dt_draw_closepath:
           dl->PathStroke(IM_COL32_WHITE, ImDrawFlags_Closed, thickness);
