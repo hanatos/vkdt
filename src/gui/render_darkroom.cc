@@ -655,6 +655,7 @@ inline void draw_widget(int modid, int parid)
             dt_token_str(param->name));
         if(ImGui::Button(string) || accept)
         {
+          dt_gamepadhelp_pop();
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -666,6 +667,8 @@ inline void draw_widget(int modid, int parid)
             dt_token_str(param->name));
         if(ImGui::Button(string))
         {
+          dt_gamepadhelp_push();
+          dt_gamepadhelp_clear();
           dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
           dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
           dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
@@ -727,6 +730,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
           vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
           widget_end();
+          dt_gamepadhelp_pop();
           darkroom_reset_zoom();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -738,6 +742,8 @@ inline void draw_widget(int modid, int parid)
             dt_token_str(param->name));
         if(ImGui::Button(string))
         {
+          dt_gamepadhelp_push();
+          dt_gamepadhelp_clear();
           dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
           dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
           dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");

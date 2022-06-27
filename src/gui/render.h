@@ -64,6 +64,8 @@ typedef enum dt_gamepadhelp_input_t
 } dt_gamepadhelp_input_t;
 void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str);
 void dt_gamepadhelp_clear();
+void dt_gamepadhelp_push();
+void dt_gamepadhelp_pop();
 
 #ifdef __cplusplus
 struct ImFont;

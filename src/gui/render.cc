@@ -429,19 +429,32 @@ extern "C" void dt_gui_ungrab_mouse()
 
 struct dt_gamepadhelp_t
 {
-  const char *help[dt_gamepadhelp_cnt];
+  int sp;
+  const char *help[10][dt_gamepadhelp_cnt];
 };
 static dt_gamepadhelp_t g_gamepadhelp = {0};
 
 extern "C" void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str)
 {
   if(which < 0 || which >= dt_gamepadhelp_cnt) return;
-  g_gamepadhelp.help[which] = str;
+  g_gamepadhelp.help[g_gamepadhelp.sp][which] = str;
 }
 extern "C" void dt_gamepadhelp_clear()
 {
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
-    g_gamepadhelp.help[k] = 0;
+    g_gamepadhelp.help[g_gamepadhelp.sp][k] = 0;
+}
+extern "C" void dt_gamepadhelp_push()
+{
+  int sp = 0;
+  if(g_gamepadhelp.sp < 10) sp = ++g_gamepadhelp.sp;
+  else return;
+  for(int k=0;k<dt_gamepadhelp_cnt;k++)
+    g_gamepadhelp.help[sp][k] = g_gamepadhelp.help[sp-1][k];
+}
+extern "C" void dt_gamepadhelp_pop()
+{
+  if(g_gamepadhelp.sp > 0) g_gamepadhelp.sp--;
 }
 
 void dt_gamepadhelp()
@@ -460,7 +473,7 @@ void dt_gamepadhelp()
   dt_draw(dt_draw_list_gamepad, IM_ARRAYSIZE(dt_draw_list_gamepad), 10, m);
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
   {
-    if(g_gamepadhelp.help[k])
+    if(g_gamepadhelp.help[g_gamepadhelp.sp][k])
     {
       dt_draw(dt_draw_list_gamepad_arrow[k], IM_ARRAYSIZE(dt_draw_list_gamepad_arrow[k]), 10, m);
       ImVec2 v = ImVec2(dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]);
@@ -470,7 +483,7 @@ void dt_gamepadhelp()
       pos.y -= vkdt.wstate.fontsize * 1.1;
       ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, dt_gamepadhelp_input_str[k]);
       pos.y += vkdt.wstate.fontsize * 1.1;
-      ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, g_gamepadhelp.help[k]);
+      ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, g_gamepadhelp.help[g_gamepadhelp.sp][k]);
     }
   }
 }
