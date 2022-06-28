@@ -765,6 +765,12 @@ inline void draw_widget(int modid, int parid)
           const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
           const float owd = MAX(iwd, iht);
           const float oht = MAX(iwd, iht);
+          float *c = vkdt.wstate.state;
+          if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
+          {
+            c[0] = c[2] = 0.0f;
+            c[1] = c[3] = 1.0f;
+          }
           vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
           vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);

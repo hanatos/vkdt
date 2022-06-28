@@ -618,6 +618,7 @@ darkroom_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
   dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
   dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
+  dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
   return 0;
 }
 
