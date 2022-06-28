@@ -70,6 +70,20 @@ void widget_end()
   vkdt.wstate.selected = -1;
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
 }
+void widget_abort()
+{
+  if(!vkdt.wstate.grabbed)
+  {
+    if(vkdt.wstate.active_widget_modid < 0) return; // all good already
+    // rerun all (roi could have changed, buttons are drastic)
+    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+    if(vkdt.wstate.mapped) vkdt.wstate.mapped = 0; // mapped can't really abort, need to rollback via history.
+  }
+  dt_gui_ungrab_mouse();
+  vkdt.wstate.active_widget_modid = -1;
+  vkdt.wstate.selected = -1;
+  vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
+}
 
 void draw_arrow(float p[8], int feedback)
 {
@@ -653,7 +667,12 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(ImGui::Button(string) || accept)
+        if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+        {
+          dt_gamepadhelp_pop();
+          widget_abort();
+        }
+        else if(ImGui::Button(string) || accept)
         {
           dt_gamepadhelp_pop();
           widget_end();
@@ -672,6 +691,7 @@ inline void draw_widget(int modid, int parid)
           dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
           dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
           dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
+          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
@@ -723,7 +743,13 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(ImGui::Button(string) || accept)
+        if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+        {
+          widget_abort();
+          dt_gamepadhelp_pop();
+          darkroom_reset_zoom();
+        }
+        else if(ImGui::Button(string) || accept)
         {
           vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
@@ -747,6 +773,7 @@ inline void draw_widget(int modid, int parid)
           dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
           dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
           dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
+          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
