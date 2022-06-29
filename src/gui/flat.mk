@@ -27,6 +27,7 @@ GUI_H=gui/gui.h\
       gui/darkroom.h\
       gui/darkroom-util.h\
       gui/lighttable.h\
+      gui/files.h\
       core/fs.h\
       pipe/graph-traverse.inc\
       pipe/graph-history.h

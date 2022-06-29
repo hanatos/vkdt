@@ -207,6 +207,10 @@ void render_lighttable_center(double &hotkey_time)
     hotkey_time = ImGui::GetTime();
 dont_update_time:;
   }
+
+  // draw context sensitive help overlay
+  if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
+
   ImGui::End(); // lt center window
 }
 

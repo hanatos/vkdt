@@ -275,6 +275,9 @@ void render_files()
       dt_view_switch(s_view_lighttable);
     }
 
+    // draw context sensitive help overlay
+    if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
+
     ImGui::End();
     ImGui::PopStyleColor(1);
   } // end center window

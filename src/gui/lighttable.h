@@ -2,6 +2,7 @@
 
 #include "darkroom-util.h"
 #include "gui/api.h"
+#include "gui/render.h"
 
 static inline void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
@@ -59,5 +60,22 @@ lighttable_enter()
 {
   if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
   if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  dt_gamepadhelp_set(dt_gamepadhelp_ps,              "display this help");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "plus L1/R1: switch panel");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to files");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "enter darkroom for currently highlighted image");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "select highlighted image (twice to enter darkroom)");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "highlight entry one up");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "highlight entry one down");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "highlight entry one left");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "highlight entry one right");
+  return 0;
+}
+
+static inline int
+lighttable_leave()
+{
+  dt_gamepadhelp_clear();
   return 0;
 }

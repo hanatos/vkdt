@@ -1,6 +1,7 @@
 #include "gui/view.h"
 #include "gui/darkroom.h"
 #include "gui/lighttable.h"
+#include "gui/files.h"
 #include "gui/render.h"
 
 int
@@ -11,6 +12,12 @@ dt_view_switch(dt_gui_view_t view)
   {
     case s_view_darkroom:
       err = darkroom_leave();
+      break;
+    case s_view_lighttable:
+      err = lighttable_leave();
+      break;
+    case s_view_files:
+      err = files_leave();
       break;
     default:;
   }
@@ -24,6 +31,9 @@ dt_view_switch(dt_gui_view_t view)
       break;
     case s_view_lighttable:
       err = lighttable_enter();
+      break;
+    case s_view_files:
+      err = files_enter();
       break;
     default:;
   }
