@@ -87,7 +87,8 @@ joystick_active(void *unused)
       res = 1;
       break;
     }
-    for(int i=0;i<axes_cnt;i++) if(fabsf(axes[i] - prev_axes[i]) > 0.04)
+    float restpos[20] = {0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f}; // rest positions of the dual shock 3
+    for(int i=0;i<MIN(20,axes_cnt);i++) if(fabsf(axes[i] - restpos[i]) > 0.03)
     {
       prev_axes[i] = axes[i];
       res = 1;
@@ -98,7 +99,8 @@ joystick_active(void *unused)
       vkdt.wstate.busy = 20; // make sure we'll stay awake for a few frames
       glfwPostEmptyEvent();
     }
-    sched_yield();
+    struct timespec req = { .tv_sec = 0, .tv_nsec = 16000 }, rem;
+    nanosleep(&req, &rem);
   }
   return 0;
 }

@@ -130,7 +130,7 @@ float dt_gui_imgui_nav_button(int which)
   // TODO: look at io.AddKeyEvent() in newer imgui!
   double time_now = ImGui::GetTime();
   static double gamepad_time = ImGui::GetTime();
-  if(time_now - gamepad_time > 0.1)
+  if(time_now - gamepad_time > 0.15)
   {
     int butt_cnt = 0;
     const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
@@ -147,7 +147,7 @@ float dt_gui_imgui_nav_input(int which)
   // TODO: look at io.AddKeyEvent() in newer imgui!
   double time_now = ImGui::GetTime();
   static double gamepad_time = ImGui::GetTime();
-  if(time_now - gamepad_time > 0.1)
+  if(time_now - gamepad_time > 0.15)
   {
     ImGuiIO& io = ImGui::GetIO();
     float nav = io.NavInputs[which];
