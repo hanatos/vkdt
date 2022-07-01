@@ -64,7 +64,7 @@ cfa_gauss_all(
   for(int i=0;i<num/2;i++)
   {
     const double sigma = 22.0 * 20.0 / num; // simulate IR filter cutoff starting at 680nm (x is <= 1.0)
-    double z = (wavelength-(380.0 + (680.0-380.0)*x[i]))/sigma * 0.833;
+    double z = (wavelength-(420.0 + (680.0-420.0)*x[i]))/sigma * 0.833;
     res += y[i] * y[i] * fakegaussian(z);
     // res += sqrt(p[i] * p[i]) * exp(-(wavelength-x[i])*(wavelength-x[i])/(20.0*20.0));
   }

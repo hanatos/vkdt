@@ -390,12 +390,13 @@ int main(int argc, char *argv[])
     else fprintf(stderr, "[mkssf] unknown argument %s\n", argv[k]);
   }
 
-  if(!model)
+  if(!model && (!pick_a || !pick_d65))
   {
     fprintf(stderr, "mkssf: estimate spectral sensitivity functions of a cfa.\n");
     fprintf(stderr, "usage: mkssf <dng file>      lookup dng profile from this file\n"
                     // "             --illum <illum> parse 'illum.txt' as illuminant (else d65)\n"
                     "          --picked <a> <d65> load '<a>.txt' and '<d65>.txt' with cc24 values\n"
+                    // TODO: need two illuminants that go with it, if it's not A or D65
                     "                             to be used instead of the dng profile.\n"
                     "          --num-it <i>       use this number of iterations per epoch.\n"
                     "          --num-epochs <e>   generate new data for every epoch.\n"
@@ -408,9 +409,11 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  // load dng profiles (matrices etc) from exif tags
-  dng_profile_fill(&profile_a,   model, 1);
-  dng_profile_fill(&profile_d65, model, 2);
+  if(model)
+  { // load dng profiles (matrices etc) from exif tags
+    dng_profile_fill(&profile_a,   model, 1);
+    dng_profile_fill(&profile_d65, model, 2);
+  }
 
 #if 0
   // init default d65 illumination spectrum
@@ -450,8 +453,7 @@ int main(int argc, char *argv[])
 
   if(pick_a)
   { // init reference from cc24 chart photograph (needs to be camera rgb)
-    // TODO: make mutually exclusive with dng profile
-    // TODO: set profile_a.model to something useful!
+    strcpy(profile_a.model, "picked"); // get something more useful?
     FILE *f;
     f = fopen(pick_a, "rb"); // read illuminant A lit colour checker patches (incandescent)
     if(!f) { fprintf(stderr, "[vkdt-mkssf] could not open %s\n", pick_a); exit(2); }
@@ -463,6 +465,7 @@ int main(int argc, char *argv[])
     fscanf(f, "param:pick:01:picked:%lf:%lf:%lf",   &ref_picked_d65[0][0], &ref_picked_d65[0][1], &ref_picked_d65[0][2]);
     for(int i=1;i<24;i++) fscanf(f, ":%lf:%lf:%lf", &ref_picked_d65[i][0], &ref_picked_d65[i][1], &ref_picked_d65[i][2]);
     fclose(f);
+    num_epochs = 2; // more than one hardly makes sense, we can't sample new ref data
   }
 
   // init ref by integrating against cie observer
