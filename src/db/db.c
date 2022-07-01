@@ -35,6 +35,7 @@ dt_db_cleanup(dt_db_t *db)
   // do not write if opened single image:
   if(db->image_cnt > 1) dt_db_write(db, dbname, 0);
   dt_stringpool_cleanup(&db->sp_filename);
+  dt_stringpool_cleanup(&db->sp_tags);
   free(db->collection);
   free(db->selection);
   free(db->image);
@@ -196,6 +197,7 @@ void dt_db_load_directory(
   db->selection = malloc(sizeof(uint32_t)*db->selection_max);
 
   dt_stringpool_init(&db->sp_filename, db->collection_max, 20);
+  dt_stringpool_init(&db->sp_tags, db->collection_max, 50);
 
   snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
   char *c = db->dirname + strlen(db->dirname) - 1;
@@ -280,6 +282,7 @@ int dt_db_load_image(
   db->selection = malloc(sizeof(uint32_t)*db->selection_max);
 
   dt_stringpool_init(&db->sp_filename, db->collection_max, 256);
+  dt_stringpool_init(&db->sp_tags, db->collection_max, 50);
 
   db->image_cnt = 1;
   const uint32_t imgid = 0;
@@ -398,6 +401,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
   char line[256];
   char imgn[256];
   char what[256];
+  char text[256];
   uint64_t num;
 
   uint32_t lno = 0;
@@ -408,7 +412,8 @@ int dt_db_read(dt_db_t *db, const char *filename)
     lno++;
 
     // scan filename:rating|labels:number
-    sscanf(line, "%[^:]:%[^:]:%lu", imgn, what, &num);
+    sscanf(line, "%[^:]:%[^:]:%s", imgn, what, text);
+    sscanf(text, "%lu", &num);
 
     if(!strcmp(imgn, "sort"))
     {
@@ -436,6 +441,8 @@ int dt_db_read(dt_db_t *db, const char *filename)
         db->image[imgid].rating = num;
       else if(!strcasecmp(what, "labels"))
         db->image[imgid].labels = num;
+      else if(!strcasecmp(what, "tags"))
+        dt_stringpool_get(&db->sp_tags, text, strlen(text), imgid, &db->image[imgid].tags);
       else
         dt_log(s_log_db|s_log_err, "no such property in line %u: '%s'", lno, line);
     }
@@ -460,6 +467,7 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
   {
     if( db->image[i].rating          > 0) fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);
     if((db->image[i].labels&0x7fffu) > 0) fprintf(f, "%s:labels:%u\n", db->image[i].filename, db->image[i].labels & 0x7fffu); // mask selection bit
+    if( db->image[i].tags               ) fprintf(f, "%s:tags:%s\n", db->image[i].filename, db->image[i].tags);
   }
   fclose(f);
   return 0;
@@ -471,6 +479,57 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
     return snprintf(fn, maxlen, "%s/%s.cfg", db->dirname, db->image[imgid].filename) >= maxlen;
   else
     return snprintf(fn, maxlen, "%s.cfg", db->image[imgid].filename) >= maxlen;
+}
+
+static char *_image_tag_found(const char *haystack, const char *needle)
+{
+  char *str = strstr(haystack, needle);
+  if(str)
+    if((str == haystack) || (str[-1] == ',' ))
+      if((str[strlen(needle)] == '\0' || (str[strlen(needle)]  == ',')))
+        return str;
+  return NULL;
+}
+
+void dt_db_attach_tag(const dt_db_t *db, const uint32_t imgid, const char *cname)
+{
+  char tags[256];
+  if(!db->image[imgid].tags)
+    snprintf(tags, sizeof(tags), "%s", cname);
+  else
+  {
+    if(_image_tag_found(db->image[imgid].tags, cname) != NULL)
+      return;
+    snprintf(tags, sizeof(tags), "%s,%s", db->image[imgid].tags, cname);
+  }
+  dt_stringpool_get(&db->sp_tags, tags, strlen(tags), imgid, &db->image[imgid].tags);
+}
+
+void dt_db_remove_tag(const dt_db_t *db, const uint32_t imgid, const char *cname)
+{
+  char tags[256];
+  if(!db->image[imgid].tags)
+    return;
+  char *str = _image_tag_found(db->image[imgid].tags, cname);
+  if(str == NULL)
+    return;
+  if(strlen(str) == strlen(cname))
+  {
+    db->image[imgid].tags = NULL;
+    return;
+  }
+  char *p = tags;
+  char *str2 = str + strlen(cname);
+  for(char *s = (char *)db->image[imgid].tags; s < db->image[imgid].tags + strlen(db->image[imgid].tags); s++)
+  {
+    if((s < str-1) || (s > str2))
+    {
+      p[0] = s[0];
+      p++;
+    }
+  }
+  p[0] = 0;
+  dt_stringpool_get(&db->sp_tags, tags, strlen(tags), imgid, &db->image[imgid].tags);
 }
 
 // add image to named collection/tag
@@ -492,6 +551,7 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   snprintf(linkname, sizeof(linkname), "%s/tags/%s/%x.cfg", db->basedir, cname, hash);
   int err = symlink(filename, linkname);
   if(err) return 1;
+  dt_db_attach_tag(db, imgid, cname);
   return 0;
 }
 

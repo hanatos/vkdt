@@ -22,6 +22,7 @@ typedef struct dt_image_t
   uint32_t    thumbnail; // index into thumbnails->thumb[] or -1u
   uint16_t    rating;    // -1u reject 0 1 2 3 4 5 stars
   uint16_t    labels;    // each bit is one colour label flag, 1<<15 is selected bit
+  const char *tags;      // point into db.sp_tags.buf stringpool
 }
 dt_image_t;
 
@@ -72,6 +73,8 @@ typedef struct dt_db_t
 
   // string pool for image file names
   dt_stringpool_t sp_filename;
+  // string pool for image tags
+  dt_stringpool_t sp_tags;
 
   // TODO: light table edit history
 
