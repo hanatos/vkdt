@@ -195,7 +195,8 @@ void dt_db_load_directory(
   db->selection_max = db->image_max;
   db->selection = malloc(sizeof(uint32_t)*db->selection_max);
 
-  dt_stringpool_init(&db->sp_filename, db->collection_max, 20);
+  // you would not believe how lengthy people name their files:
+  dt_stringpool_init(&db->sp_filename, db->collection_max, 50);
 
   snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
   char *c = db->dirname + strlen(db->dirname) - 1;
