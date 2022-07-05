@@ -32,6 +32,8 @@ int main(int argc, char *argv[])
   {
     if(!strcmp(argv[i], "-g") && i < argc-1)
       param.p_cfgfile = argv[++i];
+    else if(!strcmp(argv[i], "--i-format") && i < argc-1)
+      {i++; param.input_module = dt_token(argv[i]);}
     else if(!strcmp(argv[i], "--quality") && i < argc-1)
       param.output[output_cnt].quality = atof(argv[++i]);
     else if(!strcmp(argv[i], "--width") && i < argc-1)
@@ -68,6 +70,7 @@ int main(int argc, char *argv[])
     "    [--width <x>]                 max output width\n"
     "    [--height <y>]                max output height\n"
     "    [--filename <f>]              output filename (without extension or frame number)\n"
+    "    [--i-format <fm>]             input format (i-raw, i-jpg, ..)\n"
     "    [--format <fm>]               output format (o-jpg, o-bc1, o-pfm, ..)\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "                                  this resets output specific options: quality, width, height, audio\n"
