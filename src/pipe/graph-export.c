@@ -3,6 +3,7 @@
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
 #include "pipe/graph-export.h"
+#include "pipe/graph-defaults.h"
 #include "pipe/modules/api.h"
 
 #include <libgen.h>
@@ -89,7 +90,8 @@ dt_graph_export(
     { // well yes, loading default then. not an interesting message:
       // dt_log(s_log_pipe, "could not open config file '%s'.", param->p_cfgfile);
       dt_token_t input_module = param->input_module;
-      if(param->input_module == 0) input_module = dt_token("i-raw");
+      if(param->input_module == 0)
+        input_module = dt_graph_default_input_module(param->p_cfgfile);
       char graph_cfg[PATH_MAX+100];
       if(param->p_defcfg)
         snprintf(graph_cfg, sizeof(graph_cfg), "%s", param->p_defcfg);
