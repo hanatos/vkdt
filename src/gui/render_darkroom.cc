@@ -1349,8 +1349,7 @@ void render_darkroom()
     ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     ImGuiIO& io = ImGui::GetIO();
-    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && 
-      vkdt.wstate.active_widget_modid < 0) // active widget grabs controls
+    if(vkdt.wstate.active_widget_modid < 0) // active widget grabs controls
     {
       static int fs_state = 0;
       if(butt && !butt[6] && !butt[7]) fs_state = 0;
