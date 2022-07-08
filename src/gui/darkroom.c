@@ -490,6 +490,7 @@ darkroom_process()
       if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
+    if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1) vkdt.state.anim_playing = 0; // reached the end, stop.
   }
   else
   { // if no animation, reset time stamp
