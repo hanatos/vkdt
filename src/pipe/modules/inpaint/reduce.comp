@@ -38,8 +38,8 @@ main()
   float wgt = 0.0;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
-    vec4 rgbm = texelFetch(img_in, 2*opos+ivec2(ii,jj), 0);
-    if(push.scale == 0) rgbm.w = texelFetch(img_mask, 2*opos+ivec2(ii,jj), 0).r;
+    vec4 rgbm = texture(img_in, (2*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
+    if(push.scale == 0) rgbm.w = texture(img_mask, (2*opos+ivec2(ii,jj)+0.5)/textureSize(img_mask, 0)).r;
     float u = w[ii+2]*w[jj+2];
     // u *= clamp(1.0-rgbm.z, 0.0, 1.0); // if mask is 1.0 pixels count as invalid
     if(rgbm.w < 0.5)
