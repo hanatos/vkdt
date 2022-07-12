@@ -12,11 +12,8 @@ module:display:main
 connect:i-jpg:main:output:resize:01:input
 connect:resize:01:output:srgb2f:01:input
 connect:srgb2f:01:output:colour:01:input
-connect:colour:01:output:filmcurv:01:input
-# apply llap after curve
-connect:filmcurv:01:output:llap:01:input
-connect:llap:01:output:display:main:input
-connect:llap:01:output:hist:01:input
+connect:colour:01:output:display:main:input
+connect:colour:01:output:hist:01:input
 connect:hist:01:output:display:hist:input
 param:colour:01:exposure:0
 param:colour:01:matrix:1
