@@ -58,6 +58,7 @@ void copy_job_work(uint32_t item, void *arg)
   snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item]->d_name);
   if(fs_copy(dst, src)) j->abort = 1;
   else if(j->move) fs_delete(src);
+  glfwPostEmptyEvent(); // redraw status bar
 }
 int copy_job(
     copy_job_t *j,

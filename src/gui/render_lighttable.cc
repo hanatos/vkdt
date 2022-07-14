@@ -267,6 +267,7 @@ void export_job_work(uint32_t item, void *arg)
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
   dt_graph_reset(&j->graph);
+  glfwPostEmptyEvent(); // redraw status bar
 }
 int export_job(
     export_job_t *j,
