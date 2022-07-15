@@ -18,10 +18,10 @@ static dt_filebrowser_widget_t filebrowser = {{0}};
 
 void set_cwd(const char *dir, int up)
 {
-  snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", dir);
+  if(dir != filebrowser.cwd) snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", dir);
   if(up)
   {
-    char *c = filebrowser.cwd + strlen(filebrowser.cwd) - 1;
+    char *c = filebrowser.cwd + strlen(filebrowser.cwd) - 2; // ignore '/' as last character
     for(;*c!='/'&&c>filebrowser.cwd;c--);
     if(c > filebrowser.cwd) strcpy(c, "/"); // truncate at last '/' to remove subdir
   }
@@ -267,13 +267,18 @@ void render_files()
     if(dt_gui_imgui_nav_input(ImGuiNavInput_Input) > 0.0f) // triangle or enter
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
-      if(filebrowser.selected_type == DT_DIR)
+      if(!strcmp(filebrowser.selected, ".."))
+        set_cwd(filebrowser.cwd, 1);
+      else
       {
-        snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected);
-        dt_gui_switch_collection(newdir);
+        if(filebrowser.selected_type == DT_DIR)
+        {
+          snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected);
+          dt_gui_switch_collection(newdir);
+        }
+        else dt_gui_switch_collection(filebrowser.cwd);
+        dt_view_switch(s_view_lighttable);
       }
-      else dt_gui_switch_collection(filebrowser.cwd);
-      dt_view_switch(s_view_lighttable);
     }
 
     // draw context sensitive help overlay
