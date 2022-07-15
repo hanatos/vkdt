@@ -432,17 +432,45 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   else
 #endif
-  if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
+  if(action == GLFW_PRESS)
   {
-    dt_gui_dr_next();
-  }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
-  {
-    dt_gui_dr_prev();
-  }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_TAB)
-  {
-    dt_gui_dr_toggle_fullscreen_view();
+    if(key == GLFW_KEY_SPACE)
+    {
+      dt_gui_dr_next();
+    }
+    else if(key == GLFW_KEY_BACKSPACE)
+    {
+      dt_gui_dr_prev();
+    }
+    else if(key == GLFW_KEY_TAB)
+    {
+      dt_gui_dr_toggle_fullscreen_view();
+    }
+#define RATE(X)\
+    else if(key == GLFW_KEY_ ## X )\
+    {\
+      const uint32_t ci = dt_db_current_imgid(&vkdt.db); \
+      if(ci != -1u) vkdt.db.image[ci].rating = X;\
+    }
+    RATE(1)
+    RATE(2)
+    RATE(3)
+    RATE(4)
+    RATE(5)
+    RATE(0)
+#undef RATE
+#define LABEL(X)\
+    else if(key == GLFW_KEY_F ## X)\
+    {\
+      const uint32_t ci = dt_db_current_imgid(&vkdt.db); \
+      if(ci != -1u) vkdt.db.image[ci].labels ^= 1<<(X-1);\
+    }
+    LABEL(1)
+    LABEL(2)
+    LABEL(3)
+    LABEL(4)
+    LABEL(5)
+#undef LABEL
   }
 }
 
