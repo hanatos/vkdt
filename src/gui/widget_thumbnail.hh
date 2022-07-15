@@ -3,8 +3,6 @@
 #include "imgui_internal.h"
 #include <algorithm>
 
-namespace ImGui {
-
 namespace {
 void draw_star(float u, float v, float size, uint32_t col)
 {
@@ -36,8 +34,31 @@ void draw_star(float u, float v, float size, uint32_t col)
 }
 }
 
+inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
+{
+  const uint32_t starcol = 0xff000000u;
+  for(int i=0;i<rating;i++)
+    draw_star(x + wd*i, y, 0.3*wd, starcol);
+}
+inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
+{
+  const uint32_t label_col[] = {
+    0xff3333ccu, // red
+    0xff33cc33u, // green
+    0xffcc3333u, // blue
+    0xff33ccccu, // yellow
+    0xffcc33ccu, // magenta
+  };
+  ImGuiWindow* window = ImGui::GetCurrentWindow();
+  for(int i=0;i<5;i++)
+    if(labels & (1<<i))
+      window->DrawList->AddCircleFilled(ImVec2(x + wd*i, y), 0.4*wd, label_col[i]);
+}
+
+namespace ImGui {
+
 // this is pretty much ImGui::ImageButton with a few custom hacks:
-uint32_t ThumbnailImage(
+inline uint32_t ThumbnailImage(
     uint32_t imgid,
     ImTextureID user_texture_id,
     const ImVec2& size,
@@ -94,20 +115,8 @@ uint32_t ThumbnailImage(
   window->DrawList->AddImage(user_texture_id, image_bb.Min, image_bb.Max, uv0, uv1, GetColorU32(tint_col));
 
   // render decorations (colour labels/stars/etc?)
-  uint32_t starcol = 0xff000000u;
-  for(int i=0;i<rating;i++)
-    draw_star(bb.Min[0] + 0.1*wd*(i+1), bb.Min[1] + 0.1*wd, 0.03*wd, starcol);
-
-  uint32_t label_col[] = {
-    0xff3333ccu, // red
-    0xff33cc33u, // green
-    0xffcc3333u, // blue
-    0xff33ccccu, // yellow
-    0xffcc33ccu, // magenta
-  };
-  for(int i=0;i<5;i++)
-    if(labels & (1<<i))
-      window->DrawList->AddCircleFilled(ImVec2(bb.Min[0] + 0.1*wd*(i+1), bb.Min[1] + 0.9*wd), 0.04*wd, label_col[i]);
+  dt_draw_rating(bb.Min[0]+0.1*wd, bb.Min[1]+0.1*wd, 0.1*wd, rating);
+  dt_draw_labels(bb.Min[0]+0.1*wd, bb.Min[1]+0.9*wd, 0.1*wd, labels);
 
   if(text) // optionally render text
     window->DrawList->AddText(0, 0.0f, ImVec2(bb.Min[0]+padding, bb.Min[1]+padding), 0xff111111u, text, text+strlen(text), wd, 0);

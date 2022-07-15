@@ -10,6 +10,7 @@ extern "C"
 #include "gui/hotkey.hh"
 #include "gui/api.hh"
 #include "gui/widget_draw.hh"
+#include "gui/widget_thumbnail.hh"
 
 namespace { // anonymous namespace
 
@@ -1347,6 +1348,18 @@ void render_darkroom()
     ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+
+    { // draw image properties TODO: only if mouse y < something
+      float wd = 0.5*border;
+      const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+      if(ci != -1u)
+      { // this should *always* be the case
+        const uint16_t labels = vkdt.db.image[ci].labels;
+        const uint16_t rating = vkdt.db.image[ci].rating;
+        dt_draw_rating(win_x-wd,   win_y-wd, wd, rating);
+        dt_draw_labels(win_x+4*wd, win_y-wd, wd, labels);
+      }
+    }
 
     ImGuiIO& io = ImGui::GetIO();
     if(vkdt.wstate.active_widget_modid < 0) // active widget grabs controls
