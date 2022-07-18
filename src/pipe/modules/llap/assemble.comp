@@ -93,7 +93,11 @@ main()
       l1 = texelFetch(img_l0[g  ], opos, 0).r - gauss_expand(img_l1[g  ], opos);
     }
   }
+
+  float tmp = res + l0 * (1.0-a) + l1 * a;
+  if(isnan(tmp)) tmp = 0.0;
+  if(isinf(tmp)) tmp = 0.5;
   
-  imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
+  imageStore(img_out, opos, vec4(tmp));
 }
 
