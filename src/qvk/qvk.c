@@ -392,7 +392,7 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
     if((preferred_device_name && !strcmp(preferred_device_name, dev_properties.deviceName)) ||
-       (picked_device < 0 || dev_properties.vendorID == 0x10de))
+      (!preferred_device_name && (picked_device < 0 || dev_properties.vendorID == 0x10de)))
     { // vendor ids are: nvidia 0x10de, intel 0x8086
       qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
       qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
