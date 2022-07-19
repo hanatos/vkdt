@@ -41,9 +41,10 @@ main()
   // colour adjustment
   // rgb = adjust_colour(rgb, yo, y);
   vec3 col = rgb * y/yo;
-  if(any(isnan(rgb)) || any(isinf(rgb))) col = vec3(0.0,1.0,1.0);
+  if(any(isnan(rgb)) || any(isinf(rgb))) col = vec3(0,1.0,1.0);
   // col = mix(col, vec3(dot(vec3(1.0/3.0), col)), smoothstep(0.02, 0.0, yo));
-  rgb = adjust_colour_dng(rgb, col);
+  // rgb = adjust_colour_dng(rgb, col);
+  rgb = col; // DEBUG switch off
   // imageStore(img_out, opos, vec4(vec3(y), 1));
   imageStore(img_out, opos, vec4(max(vec3(0), rgb), 1));
 }
