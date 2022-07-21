@@ -1,0 +1,300 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_atomic_float     : enable
+#extension GL_KHR_shader_subgroup_basic            : enable
+#extension GL_KHR_shader_subgroup_ballot           : enable
+#extension GL_KHR_shader_subgroup_arithmetic       : enable
+#extension GL_KHR_shader_subgroup_shuffle          : enable
+#extension GL_KHR_shader_subgroup_clustered        : enable
+#extension GL_KHR_shader_subgroup_vote             : enable
+#extension GL_KHR_shader_subgroup_shuffle_relative : enable
+#extension GL_EXT_shader_atomic_float              : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+
+// layout(push_constant, std140) uniform push_t
+// { uint filters; } push;
+
+layout(
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // something desaturation buffer
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+layout( // coefficients
+    set = 1, binding = 2, r32f
+) uniform image2D img_coef;
+
+float dot9(float a[9], float b[9])
+{
+  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] +
+         a[3]*b[3] + a[4]*b[4] + a[5]*b[5] +
+         a[6]*b[6] + a[7]*b[7] + a[8]*b[8];
+}
+
+float
+legendre_P(    // evaluate the legendre orthonormal basis
+    int n,     // degree
+    float x)   // |x|<1
+{
+  switch(n)
+  { // not very elegant, could use some recursive definition instead
+    case 0: return 1.0;
+    case 1: return x;
+    case 2: return 0.5   * (3.0*x*x - 1.0);
+    case 3: return 0.5   * (5.0*x*x*x - 3.0*x);
+    case 4: return 1.0/8.0  * (35.0*x*x*x*x - 30.0*x*x + 3.0);
+    case 5: return 1.0/8.0  * (63*pow(x,5.0) - 70.0*x*x*x + 15.0*x);
+    case 6: return 1.0/16.0 * (231.0*pow(x,6.0) - 315.0*x*x*x*x + 105*x*x - 5.0);
+    default: return 0.0; // only up to degree 6
+  }
+}
+
+#if 0
+void
+fit_plane()
+{
+  // directly invert the vandermonde matrix A on a 5x5
+  // neighourhood such that
+  // A x = px(x) where x are the 2D offsets [-2,2]^2
+  // A = [x y 1]x25 and M = A^-1 \in R^25x3
+  // const float M[3][25] = {
+   // -4 -2 0 2 4 x5 rows
+   // {-4.00000000e-02 -2.00000000e-02  0.00000000e+00  2.00000000e-02  4.00000000e-02
+   //  -4.00000000e-02 -2.00000000e-02  0.00000000e+00  2.00000000e-02  4.00000000e-02
+   //  -4.00000000e-02 -2.00000000e-02  0.00000000e+00  2.00000000e-02  4.00000000e-02
+   //  -4.00000000e-02 -2.00000000e-02  0.00000000e+00  2.00000000e-02  4.00000000e-02
+   //  -4.00000000e-02 -2.00000000e-02  0.00000000e+00  2.00000000e-02  4.00000000e-02},
+   // columns as 5x [-4 -2 0 2 4]
+   // {-4.00000000e-02 -4.00000000e-02 -4.00000000e-02 -4.00000000e-02 -4.00000000e-02
+   //  -2.00000000e-02 -2.00000000e-02 -2.00000000e-02 -2.00000000e-02 -2.00000000e-02
+   //  -1.56547054e-17 -1.56547054e-17 -1.56547054e-17 -1.56547054e-17 -1.56547054e-17
+   //   2.00000000e-02  2.00000000e-02  2.00000000e-02  2.00000000e-02  2.00000000e-02
+   //   4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02},
+   // this is just the straight average 1/25
+   // { 4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02
+   //   4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02
+   //   4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02
+   //   4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02
+   //   4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02
+   //   4.00000000e-02  4.00000000e-02  4.00000000e-02  4.00000000e-02
+   //   4.00000000e-02}
+  //};
+  // now we can compute the normal vector n and the offset b
+  vec2 nr, ng, nb;
+  nr = ng = nb = vec2(0.0);
+  vec3 mean = vec3(0.0);
+  float coef[5] = {-0.04, -0.02, 0.0, 0.02, 0.04};
+  for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
+  {
+    vec3 rgb = texture(img_in, (ipos+0.5+ivec2(ii,jj))/imageSize(img_out)).rgb;
+    nr += vec2(coef[ii+2], coef[jj+2]) * rgb.r;
+    ng += vec2(coef[ii+2], coef[jj+2]) * rgb.g;
+    nb += vec2(coef[ii+2], coef[jj+2]) * rgb.b;
+    mean += rgb / 25.0;
+  }
+}
+#endif
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+#if 0
+  // fit quadric to each of the three channels:
+  vec4 mu_r, mu_g, mu_b;
+  for(int c=0;c<3;c++)
+  {
+    // find local shape by fitting a presumably positive semi definite
+    // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
+    // in their supplemental material.
+    // D_sub_2 (eq 14) from the paper, linearised into one vector
+    float D_sub_2[9];
+    for(int jj=-1;jj<=1;jj++)
+      for(int ii=-1;ii<=1;ii++)
+        D_sub_2[3*(jj+1)+ii+1] =
+          c == 0 ? texture(img_in, (ipos+0.5+ivec2(ii,jj))/imageSize(img_out)).r :
+         (c == 1 ? texture(img_in, (ipos+0.5+ivec2(ii,jj))/imageSize(img_out)).g :
+                   texture(img_in, (ipos+0.5+ivec2(ii,jj))/imageSize(img_out)).b);
+
+    // filter banks:
+    const float F_A11[] = float[](
+        1/4.0, -2/4.0, 1/4.0,
+        2/4.0, -4/4.0, 2/4.0,
+        1/4.0, -2/4.0, 1/4.0
+        );
+    const float F_A22[] = float[](
+        1/4.0,  2/4.0,  1/4.0,
+       -2/4.0, -4/4.0, -2/4.0,
+        1/4.0,  2/4.0,  1/4.0
+        );
+    const float F_A12[] = float[](
+        1/4.0, 0, -1/4.0,
+            0, 0,  0,
+       -1/4.0, 0,  1/4.0
+        );
+    const float F_b1[] = float[](
+       -1/8.0, 0, 1/8.0,
+       -2/8.0, 0, 2/8.0,
+       -1/8.0, 0, 1/8.0
+        );
+    const float F_b2[] = float[](
+       -1/8.0, -2/8.0, -1/8.0,
+        0/8.0,  0/8.0,  0/8.0,
+        1/8.0,  2/8.0,  1/8.0
+        );
+    // unused because c irrelevant for us
+    // const float F_c[] = float[](
+    //   -1/16.0,  2/16.0, -1/16.0,
+    //    2/16.0, 12/16.0,  2/16.0,
+    //   -1/16.0,  2/16.0, -1/16.0
+    // );
+
+    mat2 A = mat2(
+        dot9(F_A11, D_sub_2), 
+        dot9(F_A12, D_sub_2),
+        dot9(F_A12, D_sub_2), 
+        dot9(F_A22, D_sub_2));
+    vec2 b = vec2(
+        dot9(F_b1, D_sub_2),
+        dot9(F_b2, D_sub_2));
+    // float A[] = float[](
+    //     dot9(F_A11, D_sub_2), dot9(F_A12, D_sub_2), 
+    //     dot9(F_A12, D_sub_2), dot9(F_A22, D_sub_2));
+    // const float b[] = float[](
+    //     dot9(F_b1, D_sub_2),
+    //     dot9(F_b2, D_sub_2));
+    // unused because we just need the min
+    // const float c = dot9(F_c, D_sub_2);
+#if 0 // i think this causes more trouble than it does good:
+        // make A positive semi definite if it's not yet:
+    A[0] = max(0.0, A[0]);
+    A[3] = max(0.0, A[3]);
+    float detA = A[0]*A[3] - A[1]*A[2];
+    if(detA < 0.0) A[1] = A[2] = 0.0;
+#endif
+
+    // now transform the 1/2xAx + bx + c form to
+    // 1/2(x-mu) A (x-mu) + s
+    // because we want to know mu.
+
+    // mu = - A^-1 b
+    //  s = c - muAmu/2
+
+    float detA = determinant(A);//A[0]*A[3] - A[1]*A[2];
+    // if D_sub is constant, A will be zero and thus the determinant "small" (for small values of "small")
+    // in this case we need to discard this sample.
+    vec4 mu = vec4(- inverse(A) * b, 1.0, 1.0);
+    // vec4 mu = vec4(
+    //     (A[3] * b[0] - A[1]*b[1])/detA,
+    //     (A[0] * b[1] - A[2]*b[0])/detA,
+    //     1.0, 1.0);
+    if(detA <= 1e-3) mu.z = 0.0;
+    else
+    { // weight by anisotropy of covariance matrix!
+      vec2 eval, evec0, evec1;
+      evd2x2(eval, evec0, evec1, A);
+      float ecc = eval.x / (eval.y+1e-6);
+      mu.w = eval.y;
+      mu.z *= ecc * abs(dot(evec1, normalize(ipos + 0.5 - 0.5*imageSize(img_out))));
+    }
+
+    if(c == 0) mu_r = mu;
+    if(c == 1) mu_g = mu;
+    else       mu_b = mu;
+  }
+
+  // average mean offset - green offset
+  mu_r.xy -= mu_g.xy;
+  mu_b.xy -= mu_g.xy;
+
+  // accumulate legendre polynomial coefficients
+  const float px2ndc = 1.0/length(imageSize(img_out));
+  float dr = clamp(length(mu_r.xy), -5, 5) * px2ndc;
+  float db = clamp(length(mu_b.xy), -5, 5) * px2ndc;
+  float r = length(ipos + 0.5 - 0.5*imageSize(img_out)) * px2ndc;
+  vec2 sc = vec2(mu_r.z, mu_b.z);
+  vec2 s0 = (2.0*0 + 1.0)/2.0 * vec2(dr, db) * legendre_P(0, r) * 2.0 * sc;
+  vec2 s2 = (2.0*2 + 1.0)/2.0 * vec2(dr, db) * legendre_P(2, r) * 2.0 * sc;
+  vec2 s4 = (2.0*4 + 1.0)/2.0 * vec2(dr, db) * legendre_P(4, r) * 2.0 * sc;
+  vec2 s6 = (2.0*6 + 1.0)/2.0 * vec2(dr, db) * legendre_P(6, r) * 2.0 * sc;
+#endif
+
+#if 1
+  // fit plane parameters:
+  vec2 nr, ng, nb;
+  nr = ng = nb = vec2(0.0);
+  vec3 mean = vec3(0.0);
+  float coef[5] = {-0.04, -0.02, 0.0, 0.02, 0.04};
+  for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
+  {
+    vec3 rgb = texture(img_in, (ipos+0.5+ivec2(ii,jj))/imageSize(img_out)).rgb;
+    nr += vec2(coef[ii+2], coef[jj+2]) * rgb.r;
+    ng += vec2(coef[ii+2], coef[jj+2]) * rgb.g;
+    nb += vec2(coef[ii+2], coef[jj+2]) * rgb.b;
+    mean += rgb / 25.0;
+  }
+  const float px2ndc = 1.0/length(imageSize(img_out));
+  vec2 rv = (ipos + 0.5 - 0.5*imageSize(img_out)) * px2ndc;
+  float rl = length(rv);
+  vec3 cosrgb = vec3(dot(rv, nr)/length(nr), dot(rv, ng)/length(ng), dot(rv, nb)/length(nb))/rl;
+  // mask out non orthogonal edges
+  vec2 sc = any(lessThan(abs(cosrgb), vec3(0.92))) // orientation not ortho to towards center
+    || min(length(nr), min(length(ng), length(nb))) < 0.04  // gradient magnitude small
+    ? vec2(0.0) : vec2(1.0); // count valid samples
+  // evaluate zero crossing of all three channels
+  // mean.rb - cos.rb * length().rb * x = mean.g
+  // FIXME: seems to work but is kinda upside down. maybe a sign error?
+  float db = (mean.g - mean.r) / (length(nr) * cosrgb.r) * px2ndc;
+  float dr = (mean.g - mean.b) / (length(nb) * cosrgb.b) * px2ndc;
+  // accumulate legendre polynomial coefficients
+  // s0: should always be zero because in the center there is no CA
+  // need to normalise the legendre polynomials by (2k+1)/2 and
+  // account for MC density 2 / N assuming uniform pdf = 1/2 in [-1,1].
+  // in fact our circular density here incurs a jacobian determinant of r
+  vec2 s0 = (2.0*0 + 1.0)/2.0 * vec2(dr, db) * legendre_P(0, rl) * 1.0 * sc / max(rl, 1e-5);
+  vec2 s2 = (2.0*2 + 1.0)/2.0 * vec2(dr, db) * legendre_P(2, rl) * 1.0 * sc / max(rl, 1e-5);
+  vec2 s4 = (2.0*4 + 1.0)/2.0 * vec2(dr, db) * legendre_P(4, rl) * 1.0 * sc / max(rl, 1e-5);
+  vec2 s6 = (2.0*6 + 1.0)/2.0 * vec2(dr, db) * legendre_P(6, rl) * 1.0 * sc / max(rl, 1e-5);
+  // TODO: use difference in slope for defringe instruction
+  imageStore(img_out, ipos, vec4(sc, sc));
+#endif
+
+  subgroupBarrier();
+  sc = subgroupAdd(sc);
+  s0 = subgroupAdd(s0);
+  s2 = subgroupAdd(s2);
+  s4 = subgroupAdd(s4);
+  s6 = subgroupAdd(s6);
+  subgroupBarrier();
+
+  if(gl_SubgroupInvocationID == 0 && !all(equal(vec2(0), sc)))
+  {
+    // seems the ssbo was 10x faster, but maybe it's about the early out above?
+    imageAtomicAdd(img_coef, ivec2(0, 0), s0.x);
+    imageAtomicAdd(img_coef, ivec2(0, 1), s0.y);
+    imageAtomicAdd(img_coef, ivec2(1, 0), s2.x);
+    imageAtomicAdd(img_coef, ivec2(1, 1), s2.y);
+    imageAtomicAdd(img_coef, ivec2(2, 0), s4.x);
+    imageAtomicAdd(img_coef, ivec2(2, 1), s4.y);
+    imageAtomicAdd(img_coef, ivec2(3, 0), s6.x);
+    imageAtomicAdd(img_coef, ivec2(3, 1), s6.y);
+    imageAtomicAdd(img_coef, ivec2(4, 0), sc.x);
+    imageAtomicAdd(img_coef, ivec2(4, 1), sc.y);
+  }
+
+  // write img_out something depending on how different is the green cov vs red/blue cov
+  // float spr = max(abs(mu_r.w - mu_g.w), abs(mu_b.w - mu_g.w));
+  // imageStore(img_out, ipos, vec4(sc, sc));
+  // imageStore(img_out, ipos, vec4(spr));
+  //imageStore(img_out, ipos, abs(vec4(mu_r.z * mu_r.xy, mu_r.xy)));
+}
