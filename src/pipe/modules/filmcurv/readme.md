@@ -7,6 +7,7 @@ the curve is parametric and uses the [weibull distribution](https://en.wikipedia
 
 * `light` change the overall brightness of the output. this is the reciprocal lambda parameter of the weibull distribution
 * `contrast` contrast of the output. this is the k parameter of the weibull distribution
+* `bias` offset to add to black pixels. use to lift for low contrast renders and to correct elevated raw black level
 
 ## connectors
 

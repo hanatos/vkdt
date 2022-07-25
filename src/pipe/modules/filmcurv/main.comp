@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float brightness;
   float contrast;
+  float bias;
 } params;
 
 layout( // input f16 buffer rgba
@@ -57,6 +58,7 @@ main()
   float il = max(5e-3, params.brightness);
   float k  = max(1e-5, params.contrast);
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
+  col0 += params.bias;
   vec3 col1 = weibull_cdf(col0, il, k);
 #if 1 // colour using aurelien's patented ucs:
   // if(ipos.x > imageSize(img_out).x*0.66) {

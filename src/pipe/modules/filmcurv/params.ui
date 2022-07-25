@@ -1,2 +1,3 @@
 light:slider:0:10
 contrast:slider:0:2
+bias:slider:0:0.02
