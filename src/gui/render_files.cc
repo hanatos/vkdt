@@ -144,9 +144,11 @@ void render_files()
         {
           ImGui::PopStyleColor(3);
           ImGui::SameLine();
+          ImGui::PushID(i);
           if(ImGui::Button("go to mountpoint", ImVec2(-1,0)))
             set_cwd(mountpoint[i], 0);
           if(ImGui::IsItemHovered()) ImGui::SetTooltip("%s", mountpoint[i]);
+          ImGui::PopID();
         }
       }
       ImGui::Unindent();
