@@ -30,7 +30,8 @@ GUI_H=gui/gui.h\
       gui/files.h\
       core/fs.h\
       pipe/graph-traverse.inc\
-      pipe/graph-history.h
+      pipe/graph-history.h\
+      pipe/graph-defaults.h
 GUI_CFLAGS=$(VKDT_GLFW_CFLAGS) -I../ext/imgui -I../ext/imgui/backends/
 GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++
 

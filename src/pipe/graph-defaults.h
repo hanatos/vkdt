@@ -14,7 +14,8 @@ dt_graph_default_input_module(
     return dt_token("i-pfm");
   if(!strncasecmp(filename+len-off, ".jpg", 4))
     return dt_token("i-jpg");
-  if(!strncasecmp(filename+len-off, ".mov", 4))
+  if(!strncasecmp(filename+len-off, ".mov", 4) ||
+     !strncasecmp(filename+len-off, ".mp4", 4))
     return dt_token("i-vid");
   return dt_token("i-raw"); // you assume too much
 }
