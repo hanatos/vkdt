@@ -3,7 +3,9 @@ RAWSPEED_L=../built/ext/rawspeed
 MOD_CFLAGS=-std=c++17 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(shell pkg-config --cflags pugixml libjpeg)
 MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(shell pkg-config --libs pugixml libjpeg)
 ifeq ($(CXX),clang++)
-MOD_LDFLAGS+=-lomp
+# omp has no pkg-config. this sucks so much:
+OMP_LIB=$(shell grep OpenMP_omp_LIBRARY:FILEPATH ../built/ext/rawspeed/CMakeCache.txt | cut -f2 -d=)
+MOD_LDFLAGS+=$(OMP_LIB)
 endif
 ifeq ($(CXX),g++)
 MOD_LDFLAGS+=-lgomp
