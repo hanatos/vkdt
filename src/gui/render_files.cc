@@ -195,17 +195,36 @@ void render_files()
           if(ImGui::Button("copy"))
           {
             // TODO: make sure we don't start a job that is already running in another job[.]
-            job[k].move = copy_mode;
-            char dst[1000];
-            time_t t = time(0);
-            struct tm *tm = localtime(&t);
-            char date[10] = {0}, yyyy[5] = {0};
-            strftime(date, sizeof(date), "%Y%m%d", tm);
-            strftime(yyyy, sizeof(yyyy), "%Y", tm);
-            const char *key[] = { "home", "yyyy", "date", "dest", 0};
-            const char *val[] = { getenv("HOME"), yyyy, date, dest, 0};
-            dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
-            copy_job(job+k, dst, filebrowser.cwd);
+            int duplicate = 0;
+            for(int k2=0;k2<4;k2++)
+            {
+              if(k2 == k) continue;
+              if(!strcmp(job[k2].src, filebrowser.cwd)) duplicate = 1;
+            }
+            if(duplicate)
+            { // this doesn't sound right
+              ImGui::SameLine();
+              ImGui::Text("duplicate warning!");
+              if(ImGui::IsItemHovered())
+                ImGui::SetTooltip("another job already has the current directory as source."
+                                  "it may still be running or be aborted or have finished already,"
+                                  "but either way you may want to double check you actually want to"
+                                  "start this again (and if so reset the job in question)");
+            }
+            else
+            { // green light :)
+              job[k].move = copy_mode;
+              char dst[1000];
+              time_t t = time(0);
+              struct tm *tm = localtime(&t);
+              char date[10] = {0}, yyyy[5] = {0};
+              strftime(date, sizeof(date), "%Y%m%d", tm);
+              strftime(yyyy, sizeof(yyyy), "%Y", tm);
+              const char *key[] = { "home", "yyyy", "date", "dest", 0};
+              const char *val[] = { getenv("HOME"), yyyy, date, dest, 0};
+              dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
+              copy_job(job+k, dst, filebrowser.cwd);
+            }
           }
           if(ImGui::IsItemHovered())
             ImGui::SetTooltip("copy contents of %s\nto %s,\n%s",
@@ -216,6 +235,7 @@ void render_files()
           if(ImGui::Button("abort")) job[k].abort = 1;
           ImGui::SameLine();
           ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
+          if(ImGui::IsItemHovered()) ImGui::SetTooltip("copying %s to %s", job[k].src, job[k].dst);
         }
         else
         { // done/aborted
