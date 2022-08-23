@@ -56,7 +56,7 @@ void copy_job_work(uint32_t item, void *arg)
   char src[1300], dst[1300];
   snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item]->d_name);
   snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item]->d_name);
-  if(fs_copy(dst, src)) j->abort = 1;
+  if(fs_copy(dst, src)) j->abort = 2;
   else if(j->move) fs_delete(src);
   glfwPostEmptyEvent(); // redraw status bar
 }
@@ -223,7 +223,11 @@ void render_files()
           { // reset
             memset(job+k, 0, sizeof(copy_job_t));
           }
-          if(ImGui::IsItemHovered()) ImGui::SetTooltip("click to reset");
+          if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+              job[k].abort == 1 ? "copy from %s aborted by user. click to reset" :
+             (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
+              "copy from %s done. click to reset"),
+             job[k].src);
         }
       }
       ImGui::Unindent();
