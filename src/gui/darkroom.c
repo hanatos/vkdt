@@ -377,6 +377,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
         vkdt.wstate.state[3] = x;
         vkdt.wstate.state[4] = y;
       }
+      return;
     }
     else if(type == dt_token("crop"))
     {
