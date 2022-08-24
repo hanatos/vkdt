@@ -210,6 +210,7 @@ dt_module_so_load(
         b += len; // set pointer to the end
       }
       else if(type == dt_token("colour"))  {}
+      else if(type == dt_token("straight")){}
       else if(type == dt_token("crop"))    {}
       else if(type == dt_token("draw"))    {}
       else if(type == dt_token("filename")){}

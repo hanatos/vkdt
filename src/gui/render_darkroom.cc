@@ -715,6 +715,53 @@ inline void draw_widget(int modid, int parid)
       num = count;
       break;
     }
+    case dt_token("straight"):
+    { // horizon line straighten tool for rotation
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+        float oldval = *val;
+        char str[10] = {0};
+        memcpy(str, &param->name, 8);
+
+        if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+        {
+          if(ImGui::Button("done"))
+          {
+            widget_end();
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
+        }
+        else
+        {
+          if(ImGui::Button("straighten"))
+          {
+            widget_end();
+            vkdt.wstate.active_widget_modid = modid;
+            vkdt.wstate.active_widget_parid = parid;
+            vkdt.wstate.active_widget_parnm = 0;
+            vkdt.wstate.active_widget_parsz = sizeof(float);
+            vkdt.wstate.selected = -1;
+            memcpy(vkdt.wstate.state, val, sizeof(float));
+          }
+          if(ImGui::IsItemHovered())
+            ImGui::SetTooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
+        }
+
+        // full manual control over parameter using the slider:
+        ImGui::SameLine();
+        if(ImGui::SliderFloat(str, val, 0.0f, 360.0f, "%2.5f"))
+        RESETBLOCK {
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+          vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
+        KEYFRAME
+        TOOLTIP
+        break;
+    }
     case dt_token("crop"):
     {
       ImGui::InputFloat("aspect ratio", &vkdt.wstate.aspect, 0.0f, 4.0f, "%.3f");
@@ -1461,6 +1508,16 @@ abort:
             ImGui::GetWindowDrawList()->AddCircleFilled(
                 ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
                 0x77777777u, 20);
+          }
+          break;
+        }
+        case dt_token("straight"):
+        {
+          if(vkdt.wstate.selected >= 0)
+          {
+            float v[4] = { vkdt.wstate.state[1], vkdt.wstate.state[2], vkdt.wstate.state[3], vkdt.wstate.state[4] };
+            ImGui::GetWindowDrawList()->AddPolyline(
+                (ImVec2 *)v, 2, IM_COL32_WHITE, false, 1.0);
           }
           break;
         }

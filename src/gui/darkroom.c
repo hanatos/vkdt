@@ -142,6 +142,31 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         if(max_dist < FLT_MAX) return;
       }
     }
+    else if(type == dt_token("straight"))
+    {
+      if(action == GLFW_RELEASE)
+      {
+        vkdt.wstate.selected = 0;
+        float dx = x - vkdt.wstate.state[1];
+        float dy = y - vkdt.wstate.state[2];
+        vkdt.wstate.state[3] = x;
+        vkdt.wstate.state[4] = y;
+        float a = atan2f(dy, dx);
+        if(fabsf(dx) > fabsf(dy)) a =        + a * 180.0f/M_PI;
+        else                      a = 270.0f + a * 180.0f/M_PI;
+        if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
+        if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
+        if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
+        if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
+        vkdt.wstate.state[0] += a;
+      }
+      else if(action == GLFW_PRESS)
+      {
+        vkdt.wstate.state[1] = vkdt.wstate.state[3] = x;
+        vkdt.wstate.state[2] = vkdt.wstate.state[4] = y;
+        vkdt.wstate.selected = 1;
+      }
+    }
     else if(type == dt_token("crop"))
     {
       if(action == GLFW_RELEASE)
@@ -343,6 +368,14 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       {
         dt_gui_dr_pers_adjust(n, 0);
         return;
+      }
+    }
+    else if(type == dt_token("straight"))
+    {
+      if(vkdt.wstate.selected > 0)
+      { // only update while still pressed
+        vkdt.wstate.state[3] = x;
+        vkdt.wstate.state[4] = y;
       }
     }
     else if(type == dt_token("crop"))
