@@ -1,6 +1,14 @@
 #!/bin/bash
 # bash script to create html/css web gallery from list of jpg images in this directory.
 
+echo "this is vkdt's web gallery creation script."
+echo "it will create a pure css (js-free) html web gallery page."
+echo "call this script from within a directory that hosts your jpg files"
+echo "and it will create a file 'index.html' which you can edit to taste."
+echo "remember to copy 'data/gallery.css' to the same directory!"
+echo "(press enter to continue)"
+read
+
 # pass prev, curr, next as arguments
 print_image()
 {
