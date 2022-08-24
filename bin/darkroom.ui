@@ -3,6 +3,7 @@ filmcurv:01:light:slider:0:10
 filmcurv:01:contrast:slider:0:2
 crop:01:perspect:quad
 crop:01:crop:axquad
+crop:01:rotate:straight
 llap:01:clarity:slider:-1.0:10.0
 llap:01:shadows:slider:0.0:2.0
 llap:01:hilights:slider:0.0:2.0
