@@ -4,7 +4,7 @@
 */
 
 body{
-  max-width:125em;
+  max-width:100em;
   background-color:black;
   margin:auto;
 }
@@ -13,8 +13,7 @@ body{
 .gallery {
   width:32%;
   height:auto;
-  padding-right:1%;
-  padding-bottom:1%;
+  padding:0.5%;
 }
 /* container for thumbnail images */
 .gallery__grid {
@@ -30,6 +29,9 @@ body{
   background-position:center;
   background-size:contain;
   border:1px black;
+}
+.footnote {
+color:white;
 }
 
 /**

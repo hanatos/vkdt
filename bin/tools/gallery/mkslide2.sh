@@ -67,6 +67,7 @@ print_image $prev $curr x
 
 cat >> index.html << EOF
 </div>
+<p class="footnote">web gallery created with $(vkdt --version), images (c) their owners</p>
 </body>
 </html>
 EOF
