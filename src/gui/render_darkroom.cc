@@ -421,6 +421,8 @@ inline void draw_widget(int modid, int parid)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
+  ImGui::PushItemWidth(.66*vkdt.state.panel_wd);
+
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
   static int gamepad_reset = 0;
@@ -747,7 +749,9 @@ inline void draw_widget(int modid, int parid)
         }
 
         // full manual control over parameter using the slider:
-        ImGui::SameLine();
+        ImGui::SameLine(); // almost matches the right size:
+        ImGui::SetNextItemWidth(ImGui::GetStyle().ItemSpacing.x + 0.66*vkdt.state.panel_wd - ImGui::GetCursorPosX());
+
         if(ImGui::SliderFloat(str, val, 0.0f, 360.0f, "%2.5f"))
         RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
@@ -1135,6 +1139,7 @@ inline void draw_widget(int modid, int parid)
   }
   ImGui::PopID();
   } // end for multiple widgets
+  ImGui::PopItemWidth();
 #undef RESETBLOCK
 #undef KEYFRAME
 #undef TOOLTIP
