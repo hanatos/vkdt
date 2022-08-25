@@ -22,6 +22,8 @@ static int cfa_model     = 2;          // default to gauss
 static int cfa_num_coeff = 20;
 static double cfa_param[3*36] = {0.1}; // init to something. zero has zero derivatives and is thus bad.
 
+static double ill[2][CIE2_SAMPLES];    // tabulated illuminants for the two target shots
+
 // reference data.
 // a) via two cc24 photographs, incandescent + daylight:
 static double ref_picked_a  [24][3];   // cc24 patches A-lit   reference photographed, colour picked, and loaded here, in camera rgb
@@ -56,6 +58,39 @@ int parse_optimiser(const char *c)
   if(!strcmp(c, "adam"))         return 2;
   if(!strcmp(c, "nelder-mead"))  return 3;
   return 2;
+}
+
+inline double
+blackbody_radiation(
+    double l,  // wavelength  in [nm]
+    double T)  // temperature in [K]
+{
+  const double h = 6.62606957e-34; // Planck's constant [J s]
+  const double c = 299792458.0;    // speed of light [m/s]
+  const double k = 1.3807e-23;     // Boltzmann's constant [J/K]
+  const double lambda_m = l*1e-9;  // lambda [m]
+  const double lambda2 = lambda_m*lambda_m;
+  const double lambda5 = lambda2*lambda_m*lambda2;
+  const double c1 = 2. * h * c * c / lambda5;
+  const double c2 = h * c / (lambda_m * T * k);
+  // convert to spectral radiance in [W/m^2 / sr / nm]
+  return 2.21566e-16 * c1 / (exp(c2)-1.0); // such that it integrates y to 1.0
+}
+
+void init_blackbody(
+    double *ill, // write normalised (unit luminance) blackbody with CIE2_SAMPLES here
+    double T)    // use this temperature in kelvin
+{
+  double V = 0.0; // luminance before normalisation
+  for(int i=0;i<CIE2_SAMPLES;i++)
+  {
+    double l = CIE2_LAMBDA_MIN + i * (CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN)/(double)CIE2_SAMPLES;
+    double f = blackbody_radiation(l, T);
+    ill[i] = f;
+    V += f;
+  }
+  V *= (CIE2_LAMBDA_MAX - CIE2_LAMBDA_MIN)/(double)CIE2_SAMPLES;
+  for(int i=0;i<CIE2_SAMPLES;i++) ill[i] /= V;
 }
 
 void integrate_ref_upsample(
@@ -376,11 +411,12 @@ int main(int argc, char *argv[])
   const char *pick_a   = 0;
   const char *pick_d65 = 0;
   int optimiser = 2; // default adam
-  // const char *illuf = 0;
+  double temp0 = -1.0, temp1 = -1.0;
   for(int k=1;k<argc;k++)
   {
     if     (!strcmp(argv[k], "--picked"    ) && k+2 < argc) { pick_a = argv[++k]; pick_d65 = argv[++k]; }
-    // else if(!strcmp(argv[k], "--illum"  )  && k+1 < argc) illuf = argv[++k];
+    else if(!strcmp(argv[k], "--ill0"      ) && k+1 < argc) temp0 = atol(argv[++k]);
+    else if(!strcmp(argv[k], "--ill1"      ) && k+1 < argc) temp1 = atol(argv[++k]);
     else if(!strcmp(argv[k], "--num-it"    ) && k+1 < argc) num_it = atol(argv[++k]);
     else if(!strcmp(argv[k], "--num-epochs") && k+1 < argc) num_epochs = atol(argv[++k]);
     else if(!strcmp(argv[k], "--cfa-model" ) && k+1 < argc) cfa_model = cfa_model_parse(argv[++k]);
@@ -390,13 +426,19 @@ int main(int argc, char *argv[])
     else fprintf(stderr, "[mkssf] unknown argument %s\n", argv[k]);
   }
 
+  // init illum
+  memcpy(ill[0], cie_d65, sizeof(double)*CIE2_SAMPLES);
+  memcpy(ill[1], cie_a,   sizeof(double)*CIE2_SAMPLES);
+  if(temp0 > 0) init_blackbody(ill[0], temp0);
+  if(temp1 > 0) init_blackbody(ill[1], temp1);
+
   if(!model && (!pick_a || !pick_d65))
   {
     fprintf(stderr, "mkssf: estimate spectral sensitivity functions of a cfa.\n");
     fprintf(stderr, "usage: mkssf <dng file>      lookup dng profile from this file\n"
-                    // "             --illum <illum> parse 'illum.txt' as illuminant (else d65)\n"
+                    "          --ill0 <temp>      use blackbody with this temperature instead of D65\n"
+                    "          --ill1 <temp>      use blackbody with this temperature instead of A\n"
                     "          --picked <a> <d65> load '<a>.txt' and '<d65>.txt' with cc24 values\n"
-                    // TODO: need two illuminants that go with it, if it's not A or D65
                     "                             to be used instead of the dng profile.\n"
                     "          --num-it <i>       use this number of iterations per epoch.\n"
                     "          --num-epochs <e>   generate new data for every epoch.\n"
@@ -465,7 +507,6 @@ int main(int argc, char *argv[])
     fscanf(f, "param:pick:01:picked:%lf:%lf:%lf",   &ref_picked_d65[0][0], &ref_picked_d65[0][1], &ref_picked_d65[0][2]);
     for(int i=1;i<24;i++) fscanf(f, ":%lf:%lf:%lf", &ref_picked_d65[i][0], &ref_picked_d65[i][1], &ref_picked_d65[i][2]);
     fclose(f);
-    num_epochs = 2; // more than one hardly makes sense, we can't sample new ref data
   }
 
   // init ref by integrating against cie observer
