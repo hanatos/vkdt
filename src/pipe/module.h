@@ -82,6 +82,9 @@ typedef struct dt_module_t
   // earlier module: dt_module_get_input_img_param()
   dt_image_params_t img_param;
 
+  int disabled;         // the ui may choose to switch off modules for a test/interaction.
+                        // this can only be 1 if the so->has_inout_chain set.
+
   // parameters:
   // human facing parameters for gui + serialisation
   // compute facing parameters for uniform upload

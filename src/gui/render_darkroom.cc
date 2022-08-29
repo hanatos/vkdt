@@ -165,6 +165,22 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
   ImVec2 hp = ImGui::GetCursorScreenPos();
   int m_our = module - graph->module;
   ImGui::PushID(m_our);
+  if(module->so->has_inout_chain)
+  {
+    ImGui::PushFont(dt_gui_imgui_get_font(3));
+    if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(0.06f*vkdt.state.panel_wd, 0)))
+    {
+      module->disabled ^= 1;
+      vkdt.graph_dev.runflags = s_graph_run_all;
+    }
+    ImGui::PopFont();
+    if(ImGui::IsItemHovered())
+      ImGui::SetTooltip(module->disabled ? "re-enable this module" :
+          "temporarily disable this module without disconnecting it from the graph.\n"
+          "this is just a convenience A/B switch in the ui and will not affect your\n"
+          "processing history, lighttable thumbnail, or export.");
+    ImGui::SameLine();
+  }
   if(!ImGui::CollapsingHeader(name))
   {
     for(int k=0;k<module->num_connectors;k++)

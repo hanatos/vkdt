@@ -117,7 +117,7 @@ inline void dark_corporate_style()
 #endif
 }
 
-static ImFont *g_font[3] = {0};
+static ImFont *g_font[4] = {0};
 } // anonymous namespace
 
 ImFont *dt_gui_imgui_get_font(int which)
@@ -254,6 +254,13 @@ extern "C" int dt_gui_init_imgui()
   g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
   g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, 1.5*fontsize);
   g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
+  snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
+  ImFontConfig config;
+        // config.MergeMode = true;
+        config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
+        static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
+  g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
+  assert(g_font[3]);
   vkdt.wstate.fontsize = fontsize;
   //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
   //IM_ASSERT(font != NULL);

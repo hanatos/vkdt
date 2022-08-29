@@ -1862,7 +1862,20 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
   const int nodes_begin = graph->num_nodes;
   // TODO: if roi size/scale does not match, insert resample node!
   // TODO: where? inside create_nodes? or we fix it afterwards?
-  if(module->so->create_nodes)
+  if(module->disabled)
+  {
+    int mc_in = -1, mc_out = -1;
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      if(dt_connector_output(module->connector+i) && module->connector[i].name == dt_token("output"))
+        mc_out = i;
+      if(dt_connector_input(module->connector+i) && module->connector[i].name == dt_token("input"))
+        mc_in = i;
+    }
+    // TODO error handling?
+    dt_connector_bypass(graph, module, mc_in, mc_out);
+  }
+  else if(module->so->create_nodes)
   {
     module->so->create_nodes(graph, module);
   }

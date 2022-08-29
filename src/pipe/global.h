@@ -108,6 +108,9 @@ typedef struct dt_module_so_t
   // pointer to variably-sized parameters
   dt_ui_param_t *param[30];
   int num_params;
+
+  // is this module simple, i.e. has a clear input and output connector chain?
+  int has_inout_chain;
 }
 dt_module_so_t;
 

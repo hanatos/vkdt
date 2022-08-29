@@ -333,6 +333,31 @@ dt_module_so_load(
     fclose(f);
   }
 
+  // find out whether this defines a simple module
+  int found_input = 0, found_output = 0, num_outputs = 0;
+  dt_token_t fmt = dt_token("*"), chn = dt_token("*");
+  for(int i=0;i<mod->num_connectors;i++)
+  { // TODO: also test for &input style definitions?
+#define CHECK(X,Y) (X != dt_token("*") && mod->connector[i].Y != dt_token("*") && mod->connector[i].Y != X)
+    if(dt_connector_output(mod->connector+i))
+    {
+      num_outputs++;
+      if(mod->connector[i].name == dt_token("output"))
+      {
+        found_output = !(CHECK(fmt,format) || CHECK(chn,chan));
+        fmt = mod->connector[i].format;
+        chn = mod->connector[i].chan;
+      }
+    }
+    if(dt_connector_input(mod->connector+i) && mod->connector[i].name == dt_token("input"))
+    {
+      found_input = !(CHECK(fmt,format) || CHECK(chn,chan));
+      fmt = mod->connector[i].format;
+      chn = mod->connector[i].chan;
+    }
+#undef CHECK
+  }
+  mod->has_inout_chain = found_input==1 && found_output==1 && num_outputs==1;
 
   // TODO: more sanity checks?
 
