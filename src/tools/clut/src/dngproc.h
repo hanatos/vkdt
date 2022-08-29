@@ -305,3 +305,23 @@ dng_process(
   // convert to xyz
   mat3_mulv(prophoto_rgb_to_xyz, rgb, xyz);
 }
+
+static inline void
+dng_profile_interpolate(
+    const dng_profile_t *A,
+    const double CCT_A,
+    const dng_profile_t *B,
+    const double CCT_B,
+    dng_profile_t *R,
+    const double CCT_R)
+{
+  // what the dng spec says:
+  double iA = 1.0/CCT_A, iB = 1.0/CCT_B, iR = 1.0/CCT_R;
+  double t = (iR - iA)/(iB - iA);
+
+  memcpy(R, A, sizeof(dng_profile_t));
+  // TODO: mix cm, cc, rm, fm, via t
+
+  // TODO: allocate and copy huesatmap from A if present
+  // TODO: if huesatmap is present on B, interpolate the same
+}

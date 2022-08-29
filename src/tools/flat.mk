@@ -12,6 +12,7 @@ MKSSF_DEPS=tools/clut/src/dngproc.h\
         tools/clut/src/cfa_data.h\
         tools/clut/src/cfa-plain.h\
         tools/clut/src/cfa-sigmoid.h\
+        tools/clut/src/cfa-legendre.h\
         tools/clut/src/cfa-gauss.h
 
 MKCLUT_DEPS=core/inpaint.h \
