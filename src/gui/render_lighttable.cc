@@ -36,26 +36,24 @@ static ImHotKey::HotKey hk_lighttable[] = {
 
 void render_lighttable_center(double &hotkey_time)
 { // center image view
-  if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
-    dt_view_switch(s_view_files);
-  if(dt_gui_imgui_nav_input(ImGuiNavInput_Input) > 0.0f)
+  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+     ImGui::IsKeyPressed(ImGuiKey_Escape)||
+     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+  { dt_view_switch(s_view_files); return; }
+  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
+     ImGui::IsKeyPressed(ImGuiKey_Enter))
     if(dt_db_current_imgid(&vkdt.db) != -1u)
-      dt_view_switch(s_view_darkroom);
+    { dt_view_switch(s_view_darkroom); return; }
 
   { // assign star rating/colour labels via gamepad:
-    int /*axes_cnt = 0,*/ butt_cnt = 0;
-    const uint8_t* butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
-    // const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-    static double gamepad_time = ImGui::GetTime();
-    if(butt && butt[2]) // triangle
-      if(ImGui::GetTime() - gamepad_time > 0.1)
+    if(ImGui::IsKeyDown(ImGuiKey_GamepadFaceUp))
     {
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
       int rtdir = 0, lbdir = 0;
-      if(butt[4]) rtdir = -1; // l1
-      if(butt[5]) rtdir =  1; // r1
-      if(butt[6]) lbdir = -1; // l2
-      if(butt[7]) lbdir =  1; // r2
+      rtdir -= ImGui::IsKeyPressed(ImGuiKey_GamepadL1);
+      rtdir += ImGui::IsKeyPressed(ImGuiKey_GamepadR1);
+      lbdir -= ImGui::IsKeyPressed(ImGuiKey_GamepadL2);
+      lbdir += ImGui::IsKeyPressed(ImGuiKey_GamepadR2);
       for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         vkdt.db.image[sel[i]].rating = CLAMP(vkdt.db.image[sel[i]].rating + rtdir, 0, 5);
@@ -65,7 +63,6 @@ void render_lighttable_center(double &hotkey_time)
           CLAMP(lbdir > 0 ? (vkdt.db.image[sel[i]].labels << 1) :
                             (vkdt.db.image[sel[i]].labels >> 1), 0, 8) : 1;
       }
-      gamepad_time = ImGui::GetTime();
     }
   }
   ImGuiStyle &style = ImGui::GetStyle();

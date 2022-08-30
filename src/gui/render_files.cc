@@ -87,7 +87,9 @@ void render_files()
     just_entered = 0;
   }
 
-  if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+     ImGui::IsKeyPressed(ImGuiKey_Escape)||
+     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
     dt_view_switch(s_view_lighttable);
 
   { // right panel
@@ -290,7 +292,7 @@ void render_files()
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     dt_filebrowser(&filebrowser, 'f');
 
-    if(dt_gui_imgui_nav_input(ImGuiNavInput_Input) > 0.0f) // triangle or enter
+    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp) || ImGui::IsKeyPressed(ImGuiKey_Enter)) // triangle or enter
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
       if(!strcmp(filebrowser.selected, ".."))

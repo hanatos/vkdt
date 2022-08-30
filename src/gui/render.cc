@@ -125,38 +125,6 @@ ImFont *dt_gui_imgui_get_font(int which)
   return g_font[which];
 }
 
-float dt_gui_imgui_nav_button(int which)
-{
-  // TODO: look at io.AddKeyEvent() in newer imgui!
-  double time_now = ImGui::GetTime();
-  static double gamepad_time = ImGui::GetTime();
-  if(time_now - gamepad_time > 0.15)
-  {
-    int butt_cnt = 0;
-    const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
-    float res = 0.0f;
-    if(butt && butt[which]) res = butt[which];
-    if(res > 0.0f) gamepad_time = time_now;
-    return res;
-  }
-  return 0.0f;
-}
-
-float dt_gui_imgui_nav_input(int which)
-{
-  // TODO: look at io.AddKeyEvent() in newer imgui!
-  double time_now = ImGui::GetTime();
-  static double gamepad_time = ImGui::GetTime();
-  if(time_now - gamepad_time > 0.15)
-  {
-    ImGuiIO& io = ImGui::GetIO();
-    float nav = io.NavInputs[which];
-    if(nav > 0.0f) gamepad_time = time_now;
-    return nav;
-  }
-  return 0.0f;
-}
-
 extern "C" int dt_gui_init_imgui()
 {
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
@@ -326,10 +294,16 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  ImGuiIO& io = ImGui::GetIO();
-  if(io.KeysDown[GLFW_KEY_CAPS_LOCK]) io.NavInputs[ImGuiNavInput_Cancel] = 1.0f;
+  double now = glfwGetTime();
 
-  if(dt_gui_imgui_nav_button(10)) vkdt.wstate.show_gamepadhelp ^= 1;
+  static double button_pressed_time = 0.0;
+  if(now - button_pressed_time > 0.1)
+  { // the imgui/glfw backend does not support the "ps" button, so we do the stupid thing:
+    int buttons_count = 0;
+    const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons_count);
+    if(buttons && buttons[10]) vkdt.wstate.show_gamepadhelp ^= 1;
+    button_pressed_time = now;
+  }
 
   switch(vkdt.view_mode)
   {
@@ -346,7 +320,6 @@ extern "C" void dt_gui_render_frame_imgui()
   }
 
   // draw notification message
-  double now = glfwGetTime();
   if(vkdt.wstate.notification_msg[0] &&
      now - vkdt.wstate.notification_time < 4.0)
   {

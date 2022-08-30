@@ -39,7 +39,9 @@ filteredlist(
         "type to filter the list\n"
         "press enter to apply top item\n"
         "press escape to close");
-  if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+     ImGui::IsKeyPressed(ImGuiKey_Escape)||
+     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
   { FREE_ENT; return 2; }
 
   if(!ent_cnt)

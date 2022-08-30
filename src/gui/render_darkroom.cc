@@ -442,7 +442,7 @@ inline void draw_widget(int modid, int parid)
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
   static int gamepad_reset = 0;
-  if(dt_gui_imgui_nav_button(12)) gamepad_reset = 1;
+  if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
   // some state for double click detection for reset functionality
   static int doubleclick = 0;
   static double doubleclick_time = 0;
@@ -666,12 +666,12 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
-        if(dt_gui_imgui_nav_input(ImGuiNavInput_TweakFast) > 0.0f)
+        if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
         {
           vkdt.wstate.selected ++;
           if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
         }
-        if(dt_gui_imgui_nav_input(ImGuiNavInput_Activate) > 0.0f)
+        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
           accept = 1;
         const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
         if(vkdt.wstate.selected >= 0 && axes)
@@ -686,7 +686,7 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
           widget_abort();
@@ -792,12 +792,12 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
-        if(dt_gui_imgui_nav_input(ImGuiNavInput_TweakFast) > 0.0f)
+        if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
         {
           vkdt.wstate.selected ++;
           if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
         }
-        if(dt_gui_imgui_nav_input(ImGuiNavInput_Activate) > 0.0f)
+        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
           accept = 1;
 
         int axes_cnt = 0;
@@ -811,7 +811,9 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
-        if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+           ImGui::IsKeyPressed(ImGuiKey_Escape)||
+           ImGui::IsKeyPressed(ImGuiKey_CapsLock))
         {
           widget_abort();
           dt_gamepadhelp_pop();
@@ -1404,8 +1406,7 @@ void render_darkroom_pipeline()
 
 void render_darkroom()
 {
-  int axes_cnt = 0, butt_cnt = 0;
-  const uint8_t *butt = vkdt.wstate.have_joystick ? glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt) : 0;
+  int axes_cnt = 0;
   const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
     int border = vkdt.style.border_frac * qvk.win_width;
@@ -1433,26 +1434,29 @@ void render_darkroom()
     if(vkdt.wstate.active_widget_modid < 0) // active widget grabs controls
     {
       static int fs_state = 0;
-      if(butt && !butt[6] && !butt[7]) fs_state = 0;
-      else if(fs_state == 0 && butt && butt[6]) fs_state = 1;
-      else if(fs_state == 1 && butt && butt[6] && butt[7])
+      if(!ImGui::IsKeyDown(ImGuiKey_GamepadL2) &&
+         !ImGui::IsKeyDown(ImGuiKey_GamepadR2)) fs_state = 0;
+      else if(fs_state == 0 && ImGui::IsKeyPressed(ImGuiKey_GamepadL2)) fs_state = 1;
+      else if(fs_state == 1 && ImGui::IsKeyDown(ImGuiKey_GamepadL2) && ImGui::IsKeyPressed(ImGuiKey_GamepadR2))
       {
         fs_state = 2;
         dt_gui_dr_toggle_fullscreen_view();
       }
 
-      if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+         ImGui::IsKeyPressed(ImGuiKey_Escape)||
+         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
       {
         dt_view_switch(s_view_lighttable);
         vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too
         goto abort;
       }
       // disable keyboard nav ctrl + shift to change images:
-      else if(io.NavInputs[ImGuiNavInput_Menu] == 0.0f &&
-              io.NavInputs[ImGuiNavInput_TweakSlow] > 0.0f && !io.KeyCtrl)
+      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyCtrl &&
+               ImGui::IsKeyPressed(ImGuiKey_GamepadL1))
         dt_gui_dr_prev();
-      else if(io.NavInputs[ImGuiNavInput_Menu] == 0.0f &&
-              io.NavInputs[ImGuiNavInput_TweakFast] > 0.0f && !io.KeyShift)
+      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyShift &&
+               ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
         dt_gui_dr_next();
       else if(0)
       {
@@ -1467,7 +1471,7 @@ abort:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-      if(dt_gui_imgui_nav_button(11)) // left stick pressed
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadL3)) // left stick pressed
         darkroom_reset_zoom();
       if(axes)
       {

@@ -206,7 +206,9 @@ dt_gui_dr_modals()
         ImGui::SetTooltip("type to filter the list\n"
                           "press enter to accept\n"
                           "press escape to close");
-      if(dt_gui_imgui_nav_input(ImGuiNavInput_Cancel) > 0.0f)
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+         ImGui::IsKeyPressed(ImGuiKey_Escape)||
+         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
         ok = 3;
 
       for(int i=0;i<line_cnt;i++)

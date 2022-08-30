@@ -98,7 +98,7 @@ dt_filebrowser(
     {
       w->selected = w->ent[i]->d_name; // mark as selected
       w->selected_type = w->ent[i]->d_type;
-      if((dt_gui_imgui_nav_input(ImGuiNavInput_Activate) > 0.0f ||
+      if((ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown) ||
           ImGui::IsMouseDoubleClicked(0)) && 
           w->ent[i]->d_type == DT_DIR)
       { // directory double-clicked
