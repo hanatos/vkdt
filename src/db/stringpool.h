@@ -40,6 +40,7 @@ dt_stringpool_cleanup(dt_stringpool_t *sp)
 {
   free(sp->entry);
   free(sp->buf);
+  sp->entry = sp->buf = 0;
 }
 
 static inline void
