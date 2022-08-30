@@ -30,7 +30,7 @@ void draw_star(float u, float v, float size, uint32_t col)
   // imgui's line aa doesn't really do what you'd expect, so we draw
   // really thick lines to not look ridiculous for these sharp angles:
   ImGui::GetWindowDrawList()->AddPolyline(
-      (ImVec2 *)x, 5, col, true, 2*size);//vkdt.state.center_ht/50.0f);
+      (ImVec2 *)x, 5, col, true, .45*size);//vkdt.state.center_ht/50.0f);
 }
 }
 
