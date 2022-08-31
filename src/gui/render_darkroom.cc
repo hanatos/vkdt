@@ -168,7 +168,7 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
   if(module->so->has_inout_chain)
   {
     ImGui::PushFont(dt_gui_imgui_get_font(3));
-    if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(0.06f*vkdt.state.panel_wd, 0)))
+    if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(1.6*vkdt.wstate.fontsize, 0)))
     {
       module->disabled ^= 1;
       vkdt.graph_dev.runflags = s_graph_run_all;
