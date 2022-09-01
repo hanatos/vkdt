@@ -210,11 +210,6 @@ int main(int argc, char *argv[])
   threads_global_init();
   dt_set_signal_handlers();
 
-  char *filename = 0;
-  char defpath[1024];
-  snprintf(defpath, sizeof(defpath), "%s/Pictures", getenv("HOME"));
-  if(argc > lastarg+1) filename = realpath(argv[lastarg+1], 0);
-  else                 filename = realpath(defpath, 0);
   if(dt_gui_init())
   {
     dt_log(s_log_gui|s_log_err, "failed to init gui/swapchain");
@@ -247,19 +242,27 @@ int main(int argc, char *argv[])
   // only width/height will matter here
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
   dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
+  dt_db_init(&vkdt.db);
+  char *filename = 0;
+  {
+    char defpath[1024];
+    const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
+    if(strcmp(mru, "null")) snprintf(defpath, sizeof(defpath), "%s", mru);
+    else snprintf(defpath, sizeof(defpath), "%s/Pictures", getenv("HOME"));
+    if(argc > lastarg+1) filename = realpath(argv[lastarg+1], 0);
+    else                 filename = realpath(defpath, 0);
+  }
   struct stat statbuf = {0};
   if(filename) stat(filename, &statbuf);
   if(!filename || ((statbuf.st_mode & S_IFMT) == S_IFDIR))
   {
     vkdt.view_mode = s_view_lighttable;
-    dt_db_init(&vkdt.db);
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
     dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
   }
   else
   {
-    dt_db_init(&vkdt.db);
     if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, filename))
     {
       dt_log(s_log_err, "image could not be loaded!");
