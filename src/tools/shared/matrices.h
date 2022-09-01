@@ -115,7 +115,7 @@ mat3_mulv(
     const double v[3],
     double res[3])
 {
-  res[0] = res[1] = res[2] = 0.0f;
+  res[0] = res[1] = res[2] = 0.0;
   for(int j=0;j<3;j++)
     for(int i=0;i<3;i++)
       res[j] += a[j][i] * v[i];

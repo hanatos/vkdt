@@ -79,7 +79,7 @@ blackbody_radiation(
 
 void init_blackbody(
     double *ill, // write normalised (unit luminance) blackbody with CIE2_SAMPLES here
-    double T)    // use this temperature in kelvin
+    double  T)   // use this temperature in kelvin
 {
   double V = 0.0; // luminance before normalisation
   for(int i=0;i<CIE2_SAMPLES;i++)
@@ -117,7 +117,7 @@ void integrate_ref_upsample(
   }
   for(int s=0;s<upsample_cnt;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (cc24_nwavelengths-1.0);
+      (double)cc24_nwavelengths;
   for(int s=0;s<upsample_cnt;s++) normalise_col(res[s]);
 }
 
@@ -176,7 +176,7 @@ void integrate_cfa_upsample(
   }
   for(int s=0;s<upsample_cnt;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (cc24_nwavelengths-1.0);
+      (double)cc24_nwavelengths;
 }
 
 // integrate with cfa in the loop: cc24 * (A|D65) * cfa = camera rgb
@@ -204,7 +204,7 @@ void integrate_cfa(
   }
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (cc24_nwavelengths-1.0);
+      (double)cc24_nwavelengths;
 }
 
 // reference integration: cc24 * D50 * cie_xyz = xyz(d50)
@@ -230,7 +230,7 @@ void integrate_ref(
   }
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (cc24_nwavelengths-1.0);
+      (double)cc24_nwavelengths;
   for(int s=0;s<24;s++) normalise_col(res[s]);
 }
 
@@ -455,6 +455,9 @@ int main(int argc, char *argv[])
   { // load dng profiles (matrices etc) from exif tags
     dng_profile_fill(&profile_a,   model, 1);
     dng_profile_fill(&profile_d65, model, 2);
+    // kill the HueSatMap because it assumes normalised input which we don't provide during optimisation
+    free(profile_a.hsm);   profile_a.hsm   = 0;
+    free(profile_d65.hsm); profile_d65.hsm = 0;
   }
 
 #if 0

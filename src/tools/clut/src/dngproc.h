@@ -31,6 +31,13 @@ typedef struct dng_profile_t
 } dng_profile_t;
 
 static inline void
+dng_cleanup(dng_profile_t *p)
+{
+  free(p->hsm);
+  p->hsm = 0;
+}
+
+static inline void
 rgb_to_hsv(const double *rgb, double *hsv)
 {
   double M = fmax(rgb[0], fmax(rgb[1], rgb[2]));
@@ -277,7 +284,6 @@ dng_process(
   // since during optimisation we don't know how the intermediate CFA model will be normalised,
   // we could compute a canonical exposure value and try to fit the working set into [0,1] each time
   // we update CFA. or we assume the mapping here doesn't depend on V and normalise before entering here?
-  return; // XXX
   // hsv map dance:
   double rgb[3], hsv[3];
   // convert to prophotorgb
@@ -306,6 +312,12 @@ dng_process(
   mat3_mulv(prophoto_rgb_to_xyz, rgb, xyz);
 }
 
+static inline double
+mix(double a, double b, double t)
+{
+  return (1.0-t)*a + t*b;
+}
+
 static inline void
 dng_profile_interpolate(
     const dng_profile_t *A,
@@ -320,8 +332,23 @@ dng_profile_interpolate(
   double t = (iR - iA)/(iB - iA);
 
   memcpy(R, A, sizeof(dng_profile_t));
-  // TODO: mix cm, cc, rm, fm, via t
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+  {
+    R->cm[j][i] = mix(A->cm[j][i], B->cm[j][i], t);
+    R->cc[j][i] = mix(A->cc[j][i], B->cc[j][i], t);
+    R->rm[j][i] = mix(A->rm[j][i], B->rm[j][i], t);
+    R->fm[j][i] = mix(A->fm[j][i], B->fm[j][i], t);
+  }
 
-  // TODO: allocate and copy huesatmap from A if present
-  // TODO: if huesatmap is present on B, interpolate the same
+  if(A->hsm)
+  {
+    memcpy(R->hsm_dim, A->hsm_dim, sizeof(A->hsm_dim));
+    R->hsm = malloc(sizeof(float)*3*R->hsm_dim[0]*R->hsm_dim[1]*R->hsm_dim[2]);
+    memcpy(R->hsm, A->hsm, sizeof(float)*3*R->hsm_dim[0]*R->hsm_dim[1]*R->hsm_dim[2]);
+    if(B->hsm)
+    {
+      uint64_t cnt = 3*R->hsm_dim[0]*R->hsm_dim[1]*R->hsm_dim[2];
+      for(uint64_t i=0;i<cnt;i++) R->hsm[i] = mix(A->hsm[i], B->hsm[i], t);
+    }
+  }
 }
