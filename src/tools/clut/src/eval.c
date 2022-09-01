@@ -13,6 +13,7 @@
 // TODO: create this input to evaluate: (Nikon D7000 because we have cc24 shots for it)
 // [*] dcp from patches
 // [*] dcp from adobe
+// [ ] spec lut from ssf
 // [ ] spec lut from patches
 // [ ] spec lut from dcp from patches
 // [ ] spec lut from dcp from adobe
@@ -58,11 +59,10 @@ texture(
   int dx = x1 - x0, dy = y1 - y0;
   double u = xf - x0, v = yf - y0;
   const uint16_t *c = tex + 2*(y0*wd + x0);
-  out[0] = out[1] = out[2] = 0.0;
-  for(int k=0;k<3;k++) out[k] += (1.0-u)*(1.0-v)*half_to_float(c[k]);
-  for(int k=0;k<3;k++) out[k] += (    u)*(1.0-v)*half_to_float(c[k + 4*dx]);
-  for(int k=0;k<3;k++) out[k] += (1.0-u)*(    v)*half_to_float(c[k + 4*wd*dy]);
-  for(int k=0;k<3;k++) out[k] += (    u)*(    v)*half_to_float(c[k + 4*(wd*dy+dx)]);
+  for(int k=0;k<2;k++) out[k] += (1.0-u)*(1.0-v)*half_to_float(c[k]);
+  for(int k=0;k<2;k++) out[k] += (    u)*(1.0-v)*half_to_float(c[k + 2*dx]);
+  for(int k=0;k<2;k++) out[k] += (1.0-u)*(    v)*half_to_float(c[k + 2*wd*dy]);
+  for(int k=0;k<2;k++) out[k] += (    u)*(    v)*half_to_float(c[k + 2*(wd*dy+dx)]);
 }
 
 void tri2quad(double *tc)
@@ -99,9 +99,9 @@ process_clut(
   double rb[2] = {
     mix(rbrb[0], rbrb[2], temp),
     mix(rbrb[1], rbrb[3], temp)};
-  out[0] = rb[0] * L * b;
-  out[1] = 1.0-rb[0]-rb[1] * L * b;
-  out[2] = rb[1] * L * b;
+  out[0] =  rb[0]            * L * b;
+  out[1] = (1.0-rb[0]-rb[1]) * L * b;
+  out[2] =  rb[1]            * L * b;
 }
 
 void
@@ -124,6 +124,14 @@ eval_clut(
     for(int j=0;j<3;j++)
       for(int i=0;i<3;i++)
         xyz[3*k+j] += rec2020_to_xyz[j][i] * rec2020[i];
+    // XXX: FIXME even with this manually chosen scale (which brings the white/grey patches where you'd expect)
+    // XXX FIXME: this does not yield good results. especially cyan is off by a fair bit (DE 3.79).
+    // TODO: check if that is training to sigmoids vs. training to cc24?
+    // TODO: (or a bug, wb difference?)
+    float scale = 0.887094/0.664151;
+      for(int i=0;i<3;i++) xyz[3*k+i] *= scale;
+    // XXX
+    fprintf(stderr, "out xyz %g %g %g\n", xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
   }
   free(clut);
 }
@@ -159,9 +167,8 @@ test_dataset_cc24(
     const char   *ssf_filename,
     const double *ill,          // for instance cie_d65 or cie_a
     float       **cam_rgb,      // illuminant * cc24 * camera ssf
-    float       **xyz)          // d50 * cc24 * cie cmf
-  // TODO: illuminant
-{ // the cc24 patches converted to camera rgb
+    float       **xyz)          // d65 * cc24 * cie cmf (since the built-in wb is meant for rec2020 which is d65)
+{
   *xyz     = malloc(sizeof(float)*3*24);
   *cam_rgb = malloc(sizeof(float)*3*24);
   float (*res)[3] = (float (*)[3])*cam_rgb;
@@ -182,13 +189,13 @@ test_dataset_cc24(
     for(int s=0;s<24;s++)
     {
        ref[s][0] += cc24_spectra[s][i]
-         * cie_interp(cie_d50, cc24_wavelengths[i])
+         * cie_interp(cie_d65, cc24_wavelengths[i])
          * cie_interp(cie_x,   cc24_wavelengths[i]);
        ref[s][1] += cc24_spectra[s][i]
-         * cie_interp(cie_d50, cc24_wavelengths[i])
+         * cie_interp(cie_d65, cc24_wavelengths[i])
          * cie_interp(cie_y,   cc24_wavelengths[i]);
        ref[s][2] += cc24_spectra[s][i]
-         * cie_interp(cie_d50, cc24_wavelengths[i])
+         * cie_interp(cie_d65, cc24_wavelengths[i])
          * cie_interp(cie_z,   cc24_wavelengths[i]);
        res[s][0] += cc24_spectra[s][i]
          * cie_interp(ill, cc24_wavelengths[i])
@@ -312,6 +319,7 @@ int main(int argc, char *argv[])
 {
   // XXX parse!
   const char *ssf_filename = "Nikon_D7000";
+  // const char *ssf_filename = "cie_observer";
   const char *profile_name = "nikon_d7000.dcp";
   const char *lut_name     = "Nikon D7000.lut";
   const double *illuminant = cie_d65;
@@ -333,9 +341,9 @@ int main(int argc, char *argv[])
 
   // evaluate test set on profile
   xyz_p = malloc(sizeof(float)*3*num);
-  if(profile_name)
-    eval_dcp (profile_name, Ta, Tb, T, num, cam_rgb, xyz_p);
-  else if(lut_name)
+  // if(profile_name)
+    // eval_dcp (profile_name, Ta, Tb, T, num, cam_rgb, xyz_p);
+  if(lut_name)
     eval_clut(lut_name, T, num, cam_rgb, xyz_p);
 
   // output report
