@@ -147,6 +147,7 @@ eval_dcp(
     double co[3], ci[3] = { cam_rgb[3*i+0], cam_rgb[3*i+1], cam_rgb[3*i+2]};
     dng_process(&p, ci, co);
     xyz[3*i+0] = co[0]; xyz[3*i+1] = co[1]; xyz[3*i+2] = co[2];
+    fprintf(stderr, "out xyz %g %g %g\n", co[0], co[1], co[2]);
   }
   dng_cleanup(&pa);
   dng_cleanup(&pb);
@@ -163,18 +164,19 @@ test_dataset_cc24(
 { // the cc24 patches converted to camera rgb
   *xyz     = malloc(sizeof(float)*3*24);
   *cam_rgb = malloc(sizeof(float)*3*24);
-  float (*res)[3] = (float (*)[3])cam_rgb;
-  float (*ref)[3] = (float (*)[3])xyz;
+  float (*res)[3] = (float (*)[3])*cam_rgb;
+  float (*ref)[3] = (float (*)[3])*xyz;
 
-  double cfa_spec[1000][4];
+  double *dat = malloc(sizeof(double)*1000*4);
+  double (*cfa_spec)[4] = (double (*)[4])dat;
   int cfa_spec_cnt = spectrum_load(ssf_filename, cfa_spec);
   if(!cfa_spec_cnt)
   {
     fprintf(stderr, "[eval-profile] could not open %s.txt!\n", ssf_filename);
     exit(2);
   }
-  for(int s=0;s<24;s++)
-    res[s][0] = res[s][1] = res[s][2] = 0.0;
+  for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
+  for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
   for(int i=0;i<cc24_nwavelengths;i++)
   {
     for(int s=0;s<24;s++)
@@ -199,12 +201,15 @@ test_dataset_cc24(
          * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, cc24_wavelengths[i]);
     }
   }
+  free(dat);
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
       (double)cc24_nwavelengths;
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
       (double)cc24_nwavelengths;
+  for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
+  for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
   return 24;
 }
 

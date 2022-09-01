@@ -60,7 +60,7 @@ int parse_optimiser(const char *c)
   return 2;
 }
 
-inline double
+double
 blackbody_radiation(
     double l,  // wavelength  in [nm]
     double T)  // temperature in [K]
