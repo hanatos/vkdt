@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <float.h>
 // TODO: create this input to evaluate: (Nikon D7000 because we have cc24 shots for it)
 // [*] dcp from patches
 // [*] dcp from adobe
@@ -17,6 +18,29 @@
 // [ ] spec lut from patches
 // [ ] spec lut from dcp from patches
 // [ ] spec lut from dcp from adobe
+
+static inline int
+find_whitest(
+    const float *ref,
+    const float *res,
+    const int    cnt)
+{
+  float min_sat = FLT_MAX;
+  int min_i = -1;
+  for(int i=0;i<cnt;i++)
+  {
+    const float s = MAX(ref[3*i+0], MAX(ref[3*i+1], ref[3*i+2]));
+    const float b = ref[3*i+0] + ref[3*i+1] + ref[3*i+2];
+    float sat = s/b;
+    if(sat < min_sat)
+    {
+      min_sat = sat;
+      min_i   = i;
+    }
+  }
+  fprintf(stderr, "whitest patch is %d - %g %g %g\n", min_i, ref[3*min_i+0], ref[3*min_i+1], ref[3*min_i+2]);
+  return min_i;
+}
 
 static inline uint16_t*
 load_clut(
@@ -124,13 +148,6 @@ eval_clut(
     for(int j=0;j<3;j++)
       for(int i=0;i<3;i++)
         xyz[3*k+j] += rec2020_to_xyz[j][i] * rec2020[i];
-    // XXX: FIXME even with this manually chosen scale (which brings the white/grey patches where you'd expect)
-    // XXX FIXME: this does not yield good results. especially cyan is off by a fair bit (DE 3.79).
-    // TODO: check if that is training to sigmoids vs. training to cc24?
-    // TODO: (or a bug, wb difference?)
-    float scale = 0.887094/0.664151;
-      for(int i=0;i<3;i++) xyz[3*k+i] *= scale;
-    // XXX
     fprintf(stderr, "out xyz %g %g %g\n", xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
   }
   free(clut);
@@ -150,6 +167,7 @@ eval_dcp(
   dng_profile_fill(&pa, filename, 1); // illuminant 1:A  2:D65
   dng_profile_fill(&pb, filename, 2);
   dng_profile_interpolate(&pa, Ta, &pb, Tb, &p, T);
+  // p.hsm = 0; // XXX
   for(int i=0;i<num;i++)
   {
     double co[3], ci[3] = { cam_rgb[3*i+0], cam_rgb[3*i+1], cam_rgb[3*i+2]};
@@ -182,6 +200,7 @@ test_dataset_cc24(
     fprintf(stderr, "[eval-profile] could not open %s.txt!\n", ssf_filename);
     exit(2);
   }
+  double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
   for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
   for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
   for(int i=0;i<cc24_nwavelengths;i++)
@@ -189,13 +208,13 @@ test_dataset_cc24(
     for(int s=0;s<24;s++)
     {
        ref[s][0] += cc24_spectra[s][i]
-         * cie_interp(cie_d65, cc24_wavelengths[i])
+         * cie_interp(ref_ill, cc24_wavelengths[i])
          * cie_interp(cie_x,   cc24_wavelengths[i]);
        ref[s][1] += cc24_spectra[s][i]
-         * cie_interp(cie_d65, cc24_wavelengths[i])
+         * cie_interp(ref_ill, cc24_wavelengths[i])
          * cie_interp(cie_y,   cc24_wavelengths[i]);
        ref[s][2] += cc24_spectra[s][i]
-         * cie_interp(cie_d65, cc24_wavelengths[i])
+         * cie_interp(ref_ill, cc24_wavelengths[i])
          * cie_interp(cie_z,   cc24_wavelengths[i]);
        res[s][0] += cc24_spectra[s][i]
          * cie_interp(ill, cc24_wavelengths[i])
@@ -283,9 +302,16 @@ void integrate_ref_upsample(
 
 static inline void
 xyz_to_lab(
-    const float *xyz,
+    const float *xyz0,
     float       *Lab)
 {
+  float xyz[] = {xyz0[0], xyz0[1], xyz0[2]};
+#if 0 // normalise before use to see if we can at least get the hue/chroma part right
+  float b = xyz[0]+xyz[1]+xyz[2];
+  xyz[0] /= b;
+  xyz[1] /= b;
+  xyz[2] /= b;
+#endif
   const float epsilon = 216.0f / 24389.0f;
   const float kappa = 24389.0f / 27.0f;
 #define labf(x) ((x > epsilon) ? cbrtf(x) : (kappa * x + 16.0f) / 116.0f)
@@ -322,6 +348,7 @@ int main(int argc, char *argv[])
   // const char *ssf_filename = "cie_observer";
   const char *profile_name = "nikon_d7000.dcp";
   const char *lut_name     = "Nikon D7000.lut";
+  // const char *lut_name     = "cie_observer.lut";
   const double *illuminant = cie_d65;
   double Ta = 2856.0, Tb = 6504.0;
   double T  = 6504.0;
@@ -341,10 +368,24 @@ int main(int argc, char *argv[])
 
   // evaluate test set on profile
   xyz_p = malloc(sizeof(float)*3*num);
-  // if(profile_name)
-    // eval_dcp (profile_name, Ta, Tb, T, num, cam_rgb, xyz_p);
+#if 1
+  if(profile_name)
+    eval_dcp (profile_name, Ta, Tb, T, num, cam_rgb, xyz_p);
+#else
   if(lut_name)
     eval_clut(lut_name, T, num, cam_rgb, xyz_p);
+#endif
+
+#if 1 // correct brightness and wb at whitest patch we find
+  int whitest = find_whitest(xyz, xyz_p, num);
+  float wb[] = {
+    xyz[3*whitest+0]/xyz_p[3*whitest+0],
+    xyz[3*whitest+1]/xyz_p[3*whitest+1],
+    xyz[3*whitest+2]/xyz_p[3*whitest+2]};
+  for(int i=0;i<num;i++)
+    for(int k=0;k<3;k++)
+      xyz_p[3*i+k] *= wb[k];
+#endif
 
   // output report
   for(int i=0;i<num;i++)

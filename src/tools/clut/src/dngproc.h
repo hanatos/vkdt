@@ -26,8 +26,8 @@ typedef struct dng_profile_t
   double wb[3];    // XYZ white balance. A xy = (0.44758, 0.40745) D65 xy = (0.3127,0.329)
   double nt[3];    // AsShotNeutral
 
-  int hsm_dim[3]; // ProfilehueSatmapDims
-  float *hsm;     // ProfileHueSatMapData [123]
+  int hsm_dim[3];  // ProfilehueSatmapDims
+  float *hsm;      // ProfileHueSatMapData [123]
 } dng_profile_t;
 
 static inline void
@@ -37,6 +37,7 @@ dng_cleanup(dng_profile_t *p)
   p->hsm = 0;
 }
 
+#if 0 // now same resuts as dcamprof below, but my use of fmod is not the same as keeping H positive, so off for now.
 static inline void
 rgb_to_hsv(const double *rgb, double *hsv)
 {
@@ -50,6 +51,8 @@ rgb_to_hsv(const double *rgb, double *hsv)
   else if(V == rgb[0]) H = 60.0 * (0 + (rgb[1] - rgb[2])/C);
   else if(V == rgb[1]) H = 60.0 * (2 + (rgb[2] - rgb[0])/C);
   else if(V == rgb[2]) H = 60.0 * (4 + (rgb[0] - rgb[1])/C);
+  if(H < 0)   H += 360.0;
+  if(H > 360) H -= 360.0;
   hsv[0] = H;
   hsv[1] = S;
   hsv[2] = V;
@@ -73,6 +76,79 @@ hsv_to_rgb(const double *hsv, double *rgb)
   rgb[1] += m;
   rgb[2] += m;
 }
+#else
+// dcamprof's version
+static inline void
+rgb_to_hsv(const double *rgb, double *hsv)
+{
+  double h, s, v;
+  double largest = rgb[0];
+  double smallest = rgb[0];
+  for (int i = 1; i < 3; i++) {
+    if (rgb[i] > largest)  largest  = rgb[i];
+    if (rgb[i] < smallest) smallest = rgb[i];
+  }
+  v = largest;
+  double span = largest - smallest;
+  if (span > 0.0) {
+    if (rgb[0] == v) {
+      h = (rgb[1] - rgb[2]) / span;
+      if (h < 0.0) {
+        h += 6.0;
+      }
+    } else if (rgb[1] == v) {
+      h = 2.0 + (rgb[2] - rgb[0]) / span;
+    } else {
+      h = 4.0 + (rgb[0] - rgb[1]) / span;
+    }
+    s = span / v;
+  } else {
+    h = s = 0.0;
+  }
+  // return (v3){{ h, s, v }};
+  // rescale h in 0..6 to 0..360 for dcp huesatmap use:
+  hsv[0] = h * 60.0;
+  hsv[1] = s;
+  hsv[2] = v;
+}
+static inline void
+hsv_to_rgb(const double *hsv, double *rgb)
+{
+  double h = hsv[0]/60.0, s = hsv[1], v = hsv[2], r, g, b;
+  if (s > 0.0f) {
+    if (h < 0.0f) {
+      h += 6.0f;
+    }
+    if (h >= 6.0f) {
+      h -= 6.0f;
+    }
+    int  i = (int)h;
+    double f = h - (double)i;
+    double p = v * (1.0f - s);
+#define q       (v * (1.0f - s * f))
+#define t       (v * (1.0f - s * (1.0f - f)))
+    switch (i) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      case 5: r = v; g = p; b = q; break;
+      default: r = g = b = 0; // never reached
+    }
+#undef q
+#undef t
+  } else {
+    r = v;
+    g = v;
+    b = v;
+  }
+  // return (v3){{ r, g, b }};
+  rgb[0] = r;
+  rgb[1] = g;
+  rgb[2] = b;
+}
+#endif
 
 // the order is value, hue, saturation, hsv (major to minor)
 static inline void
@@ -294,10 +370,12 @@ dng_process(
   float hsvmap[3];
   lookup_hsm(p, hsv, hsvmap);
   // add hue shift and wrap
+  fprintf(stderr, "hueshift %g\n", hsvmap[0]);
   hsv[0] = fmod(hsv[0] + hsvmap[0], 360.0f);
   // multiply sat factor and clamp
   hsv[1] *= hsvmap[1];
   if(hsv[1] > 1.0f) hsv[1] = 1.0f;
+  if(hsv[1] < 0.0f) hsv[1] = 0.0f;
   // multiply value scale and clamp
   hsv[2] *= hsvmap[2];
   // this is in the spec but breaks highlights.
@@ -305,7 +383,8 @@ dng_process(
   // this is potentially a big problem because if the profile depends on V,
   // a wrong scale will shift it in weird directions. i have yet to see
   // one of these profiles though.
-  // if(hsv[2] > 1.0f) hsv[2] = 1.0f;
+  if(hsv[2] > 1.0f) hsv[2] = 1.0f;
+  if(hsv[2] < 0.0f) hsv[2] = 0.0f;
   // convert to rgb
   hsv_to_rgb(hsv, rgb);
   // convert to xyz
@@ -330,6 +409,7 @@ dng_profile_interpolate(
   // what the dng spec says:
   double iA = 1.0/CCT_A, iB = 1.0/CCT_B, iR = 1.0/CCT_R;
   double t = (iR - iA)/(iB - iA);
+  fprintf(stderr, "interpolant %g for temperatures %g %g %g\n", t, CCT_A, CCT_B, CCT_R);
 
   memcpy(R, A, sizeof(dng_profile_t));
   for(int j=0;j<3;j++) for(int i=0;i<3;i++)
@@ -339,6 +419,7 @@ dng_profile_interpolate(
     R->rm[j][i] = mix(A->rm[j][i], B->rm[j][i], t);
     R->fm[j][i] = mix(A->fm[j][i], B->fm[j][i], t);
   }
+  for(int i=0;i<3;i++) R->wb[i] = mix(A->wb[i], B->wb[i], t);
 
   if(A->hsm)
   {
