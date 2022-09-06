@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "jpegexiforient.h"
 
 #include <jpeglib.h>
 #include <stdio.h>
@@ -78,6 +79,7 @@ read_header(
     mod->img_param.whitebalance[k] = 1.0f;
   }
   mod->img_param.filters = 0;
+  mod->img_param.orientation = jpg_read_orientation(filename);
 
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
   return 0;
