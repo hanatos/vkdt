@@ -67,17 +67,14 @@ read_2_bytes (FILE *myfile)
 }
 
 static inline int
-jpg_read_orientation(const char *filename)
+jpg_read_orientation(FILE *myfile)
 {
-  FILE * myfile;		/* My JPEG file */
   unsigned char exif_data[65536L];
 
   int set_flag = 0;
   unsigned int length, i;
   int is_motorola; /* Flag for byte order */
   unsigned int offset, number_of_tags, tagnum;
-
-  if ((myfile = fopen(filename, "rb")) == NULL) return 0;
 
   /* Read File head, check for JPEG SOI + Exif APP1 */
   for (i = 0; i < 4; i++)

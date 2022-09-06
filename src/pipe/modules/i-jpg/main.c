@@ -79,7 +79,9 @@ read_header(
     mod->img_param.whitebalance[k] = 1.0f;
   }
   mod->img_param.filters = 0;
-  mod->img_param.orientation = jpg_read_orientation(filename);
+
+  FILE *f2 = dt_graph_open_resource(mod->graph, filename, "rb");
+  mod->img_param.orientation = jpg_read_orientation(f2);
 
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
   return 0;
