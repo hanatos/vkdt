@@ -10,6 +10,9 @@
 #include <libavcodec/bsf.h>
 #include <limits.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 typedef struct vid_data_t
 {
@@ -342,9 +345,12 @@ void modify_roi_out(
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
   };
-  // snprintf(mod->img_param.datetime, sizeof(mod->img_param.datetime), "%4d%2d%2d %2d:%2d%2d",
-  //     dat->video.RTCI.tm_year, dat->video.RTCI.tm_mon, dat->video.RTCI.tm_mday,
-  //     dat->video.RTCI.tm_hour, dat->video.RTCI.tm_min, dat->video.RTCI.tm_sec);
+  struct stat statbuf;
+  if(!stat(filename, &statbuf))
+  {
+    struct tm result;
+    strftime(mod->img_param.datetime, 20, "%Y:%m:%d %H:%M:%S", localtime_r(&statbuf.st_mtime, &result));
+  }
   // snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
@@ -516,7 +522,7 @@ int audio(
       num_samples = d->aframe->sample_rate / mod->graph->frame_rate + 0.5; // how many per one video frame?
       // num_samples = 44100 / mod->graph->frame_rate + 0.5; // how many per one video frame?
       need_samples = num_samples - d->snd_lag; // how many do we need to also compensate the lag?
-      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * d->aframe->channels;
+      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * 2;// ??? d->aframe->channels;
       if(d->sndbuf_size < sizereq)
       {
         free(d->sndbuf);

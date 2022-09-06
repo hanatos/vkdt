@@ -1,4 +1,7 @@
 #pragma once
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // fake exif extraction unit. so far we extract the exif tag 0x9004 CreateDate (or similar)
 // admittedly the matching is a bit fuzzy, as you will observe:
@@ -70,6 +73,12 @@ dt_db_exif_mini(
       // fprintf(stderr, "create date %s model %s\n", createdate, model);
       return 0;
     }
+  }
+  struct stat statbuf;
+  if(!stat(filename, &statbuf))
+  {
+    struct tm result;
+    strftime(createdate, 20, "%Y:%m:%d %H:%M:%S", localtime_r(&statbuf.st_mtime, &result));
   }
   return 1;
 }
