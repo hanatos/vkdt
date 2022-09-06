@@ -1446,7 +1446,8 @@ void render_darkroom()
 
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
          ImGui::IsKeyPressed(ImGuiKey_Escape)||
-         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+         ImGui::IsKeyPressed(ImGuiKey_CapsLock)||
+         (ImGui::IsWindowHovered() && ImGui::IsMouseDoubleClicked(0)))
       {
         dt_view_switch(s_view_lighttable);
         vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too
