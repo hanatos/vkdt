@@ -216,11 +216,11 @@ extern "C" int dt_gui_init_imgui()
   // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
   //io.Fonts->AddFontDefault();
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = qvk.win_height / 55.0f * dpi_scale;
+  float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
   // io.Fonts->AddFontFromFileTTF("data/OpenSans-Light.ttf", fontsize);
   snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
   g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
-  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, 1.5*fontsize);
+  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize));
   g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   ImFontConfig config;
