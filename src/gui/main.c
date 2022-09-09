@@ -133,6 +133,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
       g_fullscreen = 1;
     }
     dt_gui_recreate_swapchain();
+    dt_gui_init_fonts();
   }
 }
 
@@ -155,6 +156,7 @@ window_size_callback(GLFWwindow* window, int width, int height)
 {
   // window resized, need to rebuild our swapchain:
   dt_gui_recreate_swapchain();
+  dt_gui_init_fonts();
 }
 
 static void

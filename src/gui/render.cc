@@ -125,6 +125,64 @@ ImFont *dt_gui_imgui_get_font(int which)
   return g_font[which];
 }
 
+extern "C" void dt_gui_init_fonts()
+{
+  char tmp[PATH_MAX+100] = {0};
+  ImGuiIO& io = ImGui::GetIO();
+  io.Fonts->Clear();
+  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+  float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
+  snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
+  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
+  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize));
+  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
+  snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
+  ImFontConfig config;
+        // config.MergeMode = true;
+        config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
+        static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
+  g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
+  assert(g_font[3]);
+  vkdt.wstate.fontsize = fontsize;
+#if VKDT_USE_FREETYPE == 1
+  io.Fonts->TexGlyphPadding = 1;
+  uint32_t flags = 0; // ImGuiFreeType::{NoHinting NoAutoHint ForceAutoHint LightHinting MonoHinting Bold Oblique Monochrome}
+  for (int n = 0; n < io.Fonts->ConfigData.Size; n++)
+  {
+    ImFontConfig* font_config = (ImFontConfig*)&io.Fonts->ConfigData[n];
+    font_config->RasterizerMultiply = 1.0f;
+  }
+  ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
+#endif
+
+  { // upload Fonts, use any command queue
+    VkCommandPool command_pool = vkdt.command_pool[0];
+    VkCommandBuffer command_buffer = vkdt.command_buffer[0];
+
+    vkResetCommandPool(qvk.device, command_pool, 0);
+    VkCommandBufferBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+    VkSubmitInfo end_info = {};
+    end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    end_info.commandBufferCount = 1;
+    end_info.pCommandBuffers = &command_buffer;
+    vkEndCommandBuffer(command_buffer);
+    threads_mutex_lock(&qvk.queue_mutex);
+    vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
+    threads_mutex_unlock(&qvk.queue_mutex);
+
+    threads_mutex_lock(&qvk.queue_mutex);
+    vkDeviceWaitIdle(qvk.device);
+    threads_mutex_unlock(&qvk.queue_mutex);
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+  }
+}
+
 extern "C" int dt_gui_init_imgui()
 {
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
@@ -207,70 +265,7 @@ extern "C" int dt_gui_init_imgui()
     ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 
-  // Load Fonts
-  // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-  // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-  // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-  // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-  // - Read 'misc/fonts/README.txt' for more instructions and details.
-  // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-  //io.Fonts->AddFontDefault();
-  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
-  // io.Fonts->AddFontFromFileTTF("data/OpenSans-Light.ttf", fontsize);
-  snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
-  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
-  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize));
-  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
-  snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
-  ImFontConfig config;
-        // config.MergeMode = true;
-        config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
-        static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
-  g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
-  assert(g_font[3]);
-  vkdt.wstate.fontsize = fontsize;
-  //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-  //IM_ASSERT(font != NULL);
-#if VKDT_USE_FREETYPE == 1
-  io.Fonts->TexGlyphPadding = 1;
-  uint32_t flags = 0; // ImGuiFreeType::{NoHinting NoAutoHint ForceAutoHint LightHinting MonoHinting Bold Oblique Monochrome}
-  for (int n = 0; n < io.Fonts->ConfigData.Size; n++)
-  {
-    ImFontConfig* font_config = (ImFontConfig*)&io.Fonts->ConfigData[n];
-    font_config->RasterizerMultiply = 1.0f;
-  }
-  ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
-#endif
-
-  // upload Fonts
-  {
-    // use any command queue
-    VkCommandPool command_pool = vkdt.command_pool[0];
-    VkCommandBuffer command_buffer = vkdt.command_buffer[0];
-
-    vkResetCommandPool(qvk.device, command_pool, 0);
-    VkCommandBufferBeginInfo begin_info = {};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(command_buffer, &begin_info);
-
-    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-
-    VkSubmitInfo end_info = {};
-    end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    end_info.commandBufferCount = 1;
-    end_info.pCommandBuffers = &command_buffer;
-    vkEndCommandBuffer(command_buffer);
-    threads_mutex_lock(&qvk.queue_mutex);
-    vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
-    threads_mutex_unlock(&qvk.queue_mutex);
-
-    threads_mutex_lock(&qvk.queue_mutex);
-    vkDeviceWaitIdle(qvk.device);
-    threads_mutex_unlock(&qvk.queue_mutex);
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
-  }
+  dt_gui_init_fonts();
 
   // prepare list of potential modules for ui selection:
   vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);

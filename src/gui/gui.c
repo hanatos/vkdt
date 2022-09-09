@@ -66,8 +66,8 @@ int dt_gui_init()
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   // start "full screen"
-  qvk.win_width  = mode->width;  //1920;
-  qvk.win_height = mode->height; //1080;
+  qvk.win_width  = mode->width;
+  qvk.win_height = mode->height;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
   // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);

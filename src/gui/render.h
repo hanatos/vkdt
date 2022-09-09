@@ -11,6 +11,9 @@ extern "C" {
 // will steal whatever is needed from global qvk struct.
 int dt_gui_init_imgui();
 
+// initialise and upload fonts for current window height
+void dt_gui_init_fonts();
+
 // tear down imgui and free resources
 void dt_gui_cleanup_imgui();
 
