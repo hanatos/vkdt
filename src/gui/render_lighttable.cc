@@ -361,10 +361,40 @@ dont_update_time:;
       dt_db_update_collection(&vkdt.db);
     }
     int filter_val = static_cast<int>(vkdt.db.collection_filter_val);
-    if(ImGui::InputInt("filter value", &filter_val, 1, 100, 0))
+    if(filter_prop == s_prop_labels)
     {
-      vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
-      dt_db_update_collection(&vkdt.db);
+      const ImVec4 col[5] = {
+        ImVec4(0.8f, 0.2f, 0.2f, 1.0f),
+        ImVec4(0.2f, 0.8f, 0.2f, 1.0f),
+        ImVec4(0.2f, 0.2f, 0.8f, 1.0f),
+        ImVec4(0.8f, 0.8f, 0.2f, 1.0f),
+        ImVec4(0.8f, 0.2f, 0.8f, 1.0f),};
+      for(int k=0;k<5;k++)
+      {
+        ImGui::PushID(k);
+        ImGui::PushStyleColor(ImGuiCol_Button, col[k]);
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(.5, .1, .5, 1));
+        int sel = filter_val & (1<<k);
+        if(sel) ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.wstate.fontsize*0.2);
+        if(ImGui::Button(" "))
+        {
+          filter_val ^= (1<<k);
+          vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
+          dt_db_update_collection(&vkdt.db);
+        }
+        if(k<4) ImGui::SameLine();
+        ImGui::PopStyleColor(2);
+        if(sel) ImGui::PopStyleVar();
+        ImGui::PopID();
+      }
+    }
+    else
+    {
+      if(ImGui::InputInt("filter value", &filter_val, 1, 100, 0))
+      {
+        vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
+        dt_db_update_collection(&vkdt.db);
+      }
     }
 
     if(ImGui::Button("open directory", size))
