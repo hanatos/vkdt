@@ -106,7 +106,7 @@ you can also build without rawspeed if that is useful for you.
 
 ## faq
 * **can i load canon cr3 files?**  
-this has been confirmed to work:
+this has been confirmed to work:  
 ```
 cd ext/rawspeed
 git remote add cytrinox https://github.com/cytrinox/rawspeed.git
@@ -140,13 +140,13 @@ to build for generic instruction sets, be sure to edit `config.mk`, especially
 set `OPT_CFLAGS=` to `-march=x86-64` (not `native`) and whatever you require.
 to convince rawspeed to do the same, set `RAWSPEED_PACKAGE_BUILD=1`.
 
-* **i have multiple GPUs and vkdt picks the wrong one by default. what do i do?**
+* **i have multiple GPUs and vkdt picks the wrong one by default. what do i do?**  
 make sure the GPU you want to run has the HDMI/dp cable attached (or else you
-can only run `vkdt-cli`) on it. then run `vkdt -d qvk` and find a line such as
+can only run `vkdt-cli`) on it. then run `vkdt -d qvk` and find a line such as  
 ```
 [qvk] dev 0: NVIDIA GeForce RTX 2070
 ```
-and then place this printed name exactly as written there in your
+and then place this printed name exactly as written there in your  
 `~/.config/vkdt/config.rc` in a line such as, in this example:
 ```
 strqvk/device_name:NVIDIA GeForce RTX 2070
