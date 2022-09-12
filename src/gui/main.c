@@ -88,7 +88,7 @@ joystick_active(void *unused)
       break;
     }
     float restpos[20] = {0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f}; // rest positions of the dual shock 3
-    for(int i=0;i<MIN(20,axes_cnt);i++) if(fabsf(axes[i] - restpos[i]) > 0.03)
+    for(int i=0;i<MIN(20,axes_cnt);i++) if(fabsf(axes[i] - restpos[i]) > 0.25)
     {
       prev_axes[i] = axes[i];
       res = 1;
