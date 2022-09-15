@@ -1,0 +1,58 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4  bordercol;
+  vec4  linecol;
+  float border_x, border_y; // size of border
+  float linewd;             // thickness of decor line
+  float pos_x, pos_y;       // alignment of image within frame
+  float linepos;
+} params;
+
+layout(
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout(
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// compute the signed distance to an aabb centered at the origin, with half-widths b.
+float sd_box(vec2 p, vec2 b)
+{
+  vec2 d = abs(p) - b;
+  return min(max(d.x,d.y),0.0) +
+         length(max(d,vec2(0.0)));
+}
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  ivec2 ts_in  = textureSize(img_in, 0);
+  ivec2 ts_out = imageSize(img_out);
+
+  ivec2 off = ivec2((ts_out - ts_in) * vec2(params.pos_x, params.pos_y));
+
+  vec2 c = ts_in * 0.5 + off;
+  vec2 p = opos - c;
+  float dist = abs(sd_box(p, mix(0.5*ts_in, 0.5*ts_out, params.linepos)));
+
+  float wdpx = params.linewd * (ts_out.x - ts_in.x) * 0.5;
+  vec3 rgb = mix(params.bordercol.rgb, params.linecol.rgb, clamp(wdpx - dist, 0.0, 1.0));
+
+  if(all(greaterThanEqual(opos, off)) && all(lessThan(opos - off, ts_in)))
+    rgb = texelFetch(img_in, opos-off, 0).rgb;
+
+  imageStore(img_out, opos, vec4(rgb, 1.0));
+}
+

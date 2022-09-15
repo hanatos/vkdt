@@ -1,0 +1,6 @@
+border:float:4:1.0:1.0:1.0:1.0
+line:float:4:0.0:0.0:0.0:1.0
+size:float:2:0.2:0.2
+linewd:float:1:0.01
+align:float:2:0.5:0.5
+linepos:float:1:0.0
