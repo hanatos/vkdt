@@ -64,6 +64,7 @@ it follows the current list of available modules.
 * [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
 * [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
 * [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)
+* [frame: postcard-style decor border around the image](./frame/readme.md)
 * [grad: linear gradient density filter](./grad/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
 * [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
