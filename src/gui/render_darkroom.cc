@@ -15,9 +15,9 @@ extern "C"
 namespace { // anonymous namespace
 
 static ImHotKey::HotKey hk_darkroom[] = {
-  {"create preset", "create new preset from image",     GLFW_KEY_LEFT_CONTROL, GLFW_KEY_O},
-  {"apply preset",  "choose preset to apply",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_P},
-  {"show history",  "toggle visibility of left panel",  GLFW_KEY_LEFT_CONTROL, GLFW_KEY_H},
+  {"create preset", "create new preset from image",     {ImGuiKey_LeftCtrl, ImGuiKey_O}},
+  {"apply preset",  "choose preset to apply",           {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"show history",  "toggle visibility of left panel",  {ImGuiKey_LeftCtrl, ImGuiKey_H}},
 };
 
 // used to communictate between the gui helper functions
@@ -1676,13 +1676,7 @@ abort:
   } // end left panel
 
   { // right panel
-    int hotkey = -1;
-    static double hotkey_time = ImGui::GetTime();
-    if(ImGui::GetTime() - hotkey_time > 0.1)
-    {
-      hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
-      if(hotkey > -1) hotkey_time = ImGui::GetTime();
-    }
+    int hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);

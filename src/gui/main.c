@@ -106,6 +106,27 @@ joystick_active(void *unused)
 }
 
 static void
+toggle_fullscreen()
+{
+  GLFWmonitor* monitor = get_current_monitor(qvk.window);
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+  if(g_fullscreen)
+  {
+    glfwSetWindowPos(qvk.window, mode->width/8, mode->height/8);
+    glfwSetWindowSize(qvk.window, mode->width/4 * 3, mode->height/4 * 3);
+    g_fullscreen = 0;
+  }
+  else
+  {
+    glfwSetWindowPos(qvk.window, 0, 0);
+    glfwSetWindowSize(qvk.window, mode->width, mode->height);
+    g_fullscreen = 1;
+  }
+  dt_gui_recreate_swapchain();
+  dt_gui_init_fonts();
+}
+
+static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   dt_view_keyboard(window, key, scancode, action, mods);
@@ -118,22 +139,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
-    GLFWmonitor* monitor = get_current_monitor(qvk.window);
-    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-    if(g_fullscreen)
-    {
-      glfwSetWindowPos(qvk.window, mode->width/8, mode->height/8);
-      glfwSetWindowSize(qvk.window, mode->width/4 * 3, mode->height/4 * 3);
-      g_fullscreen = 0;
-    }
-    else
-    {
-      glfwSetWindowPos(qvk.window, 0, 0);
-      glfwSetWindowSize(qvk.window, mode->width, mode->height);
-      g_fullscreen = 1;
-    }
-    dt_gui_recreate_swapchain();
-    dt_gui_init_fonts();
+    toggle_fullscreen();
   }
 }
 
@@ -220,7 +226,7 @@ int main(int argc, char *argv[])
 
   // start fullscreen on current monitor, we only know which one is that after
   // we created the window in dt_gui_init(). maybe should be a config option:
-  key_callback(qvk.window, GLFW_KEY_F11, 0, GLFW_PRESS, 0);
+  toggle_fullscreen();
 
   glfwSetKeyCallback(qvk.window, key_callback);
   glfwSetWindowSizeCallback(qvk.window, window_size_callback);

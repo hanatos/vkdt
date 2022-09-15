@@ -23,27 +23,30 @@ namespace { // anonymous namespace
 
 // TODO: also init from .config/vkdt/hotkeys
 static ImHotKey::HotKey hk_lighttable[] = {
-  {"tag",           "assign a tag to selected images",  GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T},
-  {"select all",    "toggle select all/none",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_A},
-  {"export",        "export selected images",           GLFW_KEY_LEFT_CONTROL, GLFW_KEY_S},
-  {"copy",          "copy from selected image",         GLFW_KEY_LEFT_CONTROL, GLFW_KEY_C},
-  {"paste history", "paste history to selected images", GLFW_KEY_LEFT_CONTROL, GLFW_KEY_V},
-  {"scroll cur",    "scroll to current image",          GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_C},
-  {"scroll end",    "scroll to end of collection",      GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_G},
-  {"scroll top",    "scroll to top of collection",      GLFW_KEY_G},
-  {"duplicate",     "duplicate selected images",        GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_D},
+  {"tag",           "assign a tag to selected images",  {ImGuiKey_LeftCtrl,  ImGuiKey_T}},
+  {"select all",    "toggle select all/none",           {ImGuiKey_LeftCtrl,  ImGuiKey_A}},
+  {"export",        "export selected images",           {ImGuiKey_LeftCtrl,  ImGuiKey_S}},
+  {"copy",          "copy from selected image",         {ImGuiKey_LeftCtrl,  ImGuiKey_C}},
+  {"paste history", "paste history to selected images", {ImGuiKey_LeftCtrl,  ImGuiKey_V}},
+  {"scroll cur",    "scroll to current image",          {ImGuiKey_LeftShift, ImGuiKey_C}},
+  {"scroll end",    "scroll to end of collection",      {ImGuiKey_LeftShift, ImGuiKey_G}},
+  {"scroll top",    "scroll to top of collection",      {ImGuiKey_G}},
+  {"duplicate",     "duplicate selected images",        {ImGuiKey_LeftShift, ImGuiKey_D}},
 };
 
-void render_lighttable_center(double &hotkey_time)
+void render_lighttable_center()
 { // center image view
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-     ImGui::IsKeyPressed(ImGuiKey_Escape)||
-     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-  { dt_view_switch(s_view_files); return; }
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
-     ImGui::IsKeyPressed(ImGuiKey_Enter))
-    if(dt_db_current_imgid(&vkdt.db) != -1u)
-    { dt_view_switch(s_view_darkroom); return; }
+  if(!ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel))
+  { // global enter/exit key accels only if no popup is active
+    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+       ImGui::IsKeyPressed(ImGuiKey_Escape)||
+       ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+    { dt_view_switch(s_view_files); return; }
+    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
+       ImGui::IsKeyPressed(ImGuiKey_Enter))
+      if(dt_db_current_imgid(&vkdt.db) != -1u)
+      { dt_view_switch(s_view_darkroom); return; }
+  }
 
   { // assign star rating/colour labels via gamepad:
     if(ImGui::IsKeyDown(ImGuiKey_GamepadFaceUp))
@@ -182,27 +185,20 @@ void render_lighttable_center(double &hotkey_time)
     }
   }
   // lt hotkeys in same scope as center window (scroll)
-  if(ImGui::GetTime() - hotkey_time > 0.1)
+  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+  switch(hotkey)
   {
-    int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
-    switch(hotkey)
-    {
-      case 5:
-        dt_gui_lt_scroll_current();
-        break;
-      case 6:
-        dt_gui_lt_scroll_bottom();
-        break;
-      case 7:
-        dt_gui_lt_scroll_top();
-        break;
-      case 8:
-        dt_gui_lt_duplicate();
-      default:
-        goto dont_update_time;
-    }
-    hotkey_time = ImGui::GetTime();
-dont_update_time:;
+    case 5:
+      dt_gui_lt_scroll_current();
+      break;
+    case 6:
+      dt_gui_lt_scroll_bottom();
+      break;
+    case 7:
+      dt_gui_lt_scroll_top();
+      break;
+    case 8:
+      dt_gui_lt_duplicate();
   }
 
   // draw context sensitive help overlay
@@ -297,7 +293,7 @@ int export_job(
 // end export bg job stuff
 
 
-void render_lighttable_right_panel(double &hotkey_time)
+void render_lighttable_right_panel()
 { // right panel
   ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
@@ -308,31 +304,23 @@ void render_lighttable_right_panel(double &hotkey_time)
   ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
   // lt hotkeys in same scope as buttons as modals (right panel)
-  int hotkey = -1;
-  if(ImGui::GetTime() - hotkey_time > 0.1)
+  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+  switch(hotkey)
   {
-    hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
-    switch(hotkey)
-    {
-      case 0: // assign tag
-        dt_gui_lt_assign_tag();
-        break;
-      case 1: // toggle select all
-        dt_gui_lt_toggle_select_all();
-        break;
-      case 2: // handled later
-        break;
-      case 3:
-        dt_gui_lt_copy();
-        break;
-      case 4:
-        dt_gui_lt_paste_history();
-        break;
-      default:
-        goto dont_update_time;
-    }
-    hotkey_time = ImGui::GetTime();
-dont_update_time:;
+    case 0: // assign tag
+      dt_gui_lt_assign_tag();
+      break;
+    case 1: // toggle select all
+      dt_gui_lt_toggle_select_all();
+      break;
+    case 2: // handled later
+      break;
+    case 3:
+      dt_gui_lt_copy();
+      break;
+    case 4:
+      dt_gui_lt_paste_history();
+      break;
   }
 
   if(ImGui::CollapsingHeader("settings"))
@@ -661,7 +649,6 @@ dont_update_time:;
 
 void render_lighttable()
 {
-  static double hotkey_time = 0;
-  render_lighttable_right_panel(hotkey_time);
-  render_lighttable_center(hotkey_time);
+  render_lighttable_right_panel();
+  render_lighttable_center();
 }
