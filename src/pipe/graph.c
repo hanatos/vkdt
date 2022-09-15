@@ -1327,7 +1327,11 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
-  module->img_param = (dt_image_params_t){{0}};
+  // main input modules have to init their params completely. we will not zero it.
+  // this is because they run a modify_roi_out prepass to determine the main input
+  // dimensions/types and we would destroy it here the second time around.
+  if(module->inst != dt_token("main") || strncmp(dt_token_str(module->name), "i-", 2))
+    module->img_param = (dt_image_params_t){{0}};
   if(input >= 0)
   { // first copy image metadata if we have a unique "input" connector
     c = module->connector + input;

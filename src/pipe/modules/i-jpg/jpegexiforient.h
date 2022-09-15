@@ -80,17 +80,21 @@ jpg_read_orientation(FILE *myfile)
   for (i = 0; i < 4; i++)
     exif_data[i] = (unsigned char) read_1_byte(myfile);
   if (exif_data[0] != 0xFF ||
-      exif_data[1] != 0xD8 ||
-      exif_data[2] != 0xFF ||
-      exif_data[3] != 0xE1)
-    goto abort;
+      exif_data[1] != 0xD8) goto abort; // no JPEG SOI
+
+  i = 0;
+  while(i < 40 && (exif_data[2] != 0xff || exif_data[3] != 0xe1)) // search for Exif APP1
+  {
+    exif_data[2] = (unsigned char) read_1_byte(myfile);
+    exif_data[3] = (unsigned char) read_1_byte(myfile);
+  }
+  if(i >= 40) goto abort; // give up
 
   /* Get the marker parameter length count */
   length = read_2_bytes(myfile);
   /* Length includes itself, so must be at least 2 */
   /* Following Exif data length must be at least 6 */
-  if (length < 8)
-    goto abort;
+  if (length < 8) goto abort;
   length -= 8;
   /* Read Exif head, check for "Exif" */
   for (i = 0; i < 6; i++)
@@ -176,15 +180,15 @@ jpg_read_orientation(FILE *myfile)
     offset += 12;
   }
 
-    /* Get the Orientation value */
-    if (is_motorola) {
-      if (exif_data[offset+8] != 0) goto abort;
-      set_flag = exif_data[offset+9];
-    } else {
-      if (exif_data[offset+9] != 0) goto abort;
-      set_flag = exif_data[offset+8];
-    }
-    if (set_flag > 8) goto abort;
+  /* Get the Orientation value */
+  if (is_motorola) {
+    if (exif_data[offset+8] != 0) goto abort;
+    set_flag = exif_data[offset+9];
+  } else {
+    if (exif_data[offset+9] != 0) goto abort;
+    set_flag = exif_data[offset+8];
+  }
+  if (set_flag > 8) goto abort;
 
 abort:
   fclose(myfile);
