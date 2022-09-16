@@ -1830,7 +1830,13 @@ abort:
   } // end right panel
 }
 
+void render_darkroom_init()
+{
+  ImHotKey::Deserialise("darkroom", hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+}
+
 void render_darkroom_cleanup()
 {
+  ImHotKey::Serialise("darkroom", hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
   widget_end(); // commit params if still ongoing
 }

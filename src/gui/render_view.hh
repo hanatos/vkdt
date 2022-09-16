@@ -13,5 +13,8 @@ inline ImVec4 gamma(ImVec4 in)
 
 void render_files();
 void render_lighttable();
+void render_lighttable_init();
+void render_lighttable_cleanup();
 void render_darkroom();
+void render_darkroom_init();
 void render_darkroom_cleanup();

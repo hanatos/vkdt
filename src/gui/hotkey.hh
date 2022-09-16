@@ -311,4 +311,41 @@ namespace ImHotKey
     }
     return -1;
   }
+
+  static void Serialise(const char *fn, HotKey *hk, int cnt)
+  {
+    char filename[PATH_MAX+100];
+    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", vkdt.db.basedir, fn);
+    FILE *f = fopen(filename, "wb");
+    if(f)
+    {
+      for(int i=0;i<cnt;i++)
+        fprintf(f, "%s:%d %d %d %d\n", hk[i].functionName, hk[i].key[0], hk[i].key[1], hk[i].key[2], hk[i].key[3]);
+      fclose(f);
+    }
+  }
+
+  static void Deserialise(const char *fn, HotKey *hk, int cnt)
+  {
+    char filename[PATH_MAX+100];
+    char basedir[PATH_MAX]; // same as vkdt.db.basedir, but we are called before db starts up
+    snprintf(basedir, sizeof(basedir), "%s/.config/vkdt", getenv("HOME"));
+    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", basedir, fn);
+    FILE *f = fopen(filename, "rb");
+    if(f)
+    {
+      while(!feof(f))
+      {
+        char name[100] = {0};
+        int key[4] = {0};
+        fscanf(f, "%[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
+        if(!name[0]) break;
+        fgetc(f);
+        for(int i=0;i<cnt;i++)
+          if(!strcmp(hk[i].functionName, name))
+            for(int k=0;k<4;k++) hk[i].key[k] = key[k];
+      }
+      fclose(f);
+    }
+  }
 };

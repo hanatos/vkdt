@@ -652,3 +652,13 @@ void render_lighttable()
   render_lighttable_right_panel();
   render_lighttable_center();
 }
+
+void render_lighttable_init()
+{
+  ImHotKey::Deserialise("lighttable", hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+}
+
+void render_lighttable_cleanup()
+{
+  ImHotKey::Serialise("lighttable", hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+}

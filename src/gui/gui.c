@@ -289,6 +289,7 @@ dt_gui_recreate_swapchain()
 
 void dt_gui_cleanup()
 {
+  dt_gui_cleanup_imgui();
   char configfile[512];
   snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
   dt_rc_write(&vkdt.rc, configfile);

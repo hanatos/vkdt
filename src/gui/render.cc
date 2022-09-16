@@ -279,6 +279,9 @@ extern "C" int dt_gui_init_imgui()
     vkdt.wstate.module_names[i] = vkdt.wstate.module_names_buf + pos;
     pos += len+1;
   }
+
+  render_lighttable_init();
+  render_darkroom_init();
   return 0;
 }
 
@@ -341,6 +344,7 @@ extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 extern "C" void dt_gui_cleanup_imgui()
 {
   render_darkroom_cleanup();
+  render_lighttable_cleanup();
   threads_mutex_lock(&qvk.queue_mutex);
   vkDeviceWaitIdle(qvk.device);
   threads_mutex_unlock(&qvk.queue_mutex);
