@@ -74,14 +74,15 @@ void dt_thumbnails_cleanup(dt_thumbnails_t *tn);
 
 // create bc1 thumbnails for the current collection in given db.
 // this is a convenience wrapper around dt_thumbnails_cache_list().
-VkResult dt_thumbnails_cache_collection(dt_thumbnails_t *tn, dt_db_t *db);
+VkResult dt_thumbnails_cache_collection(dt_thumbnails_t *tn, dt_db_t *db, void (*ufn)(void));
 
 // create bc1 thumbnails for the given list, in background threads.
 VkResult dt_thumbnails_cache_list(
-    dt_thumbnails_t *tn,         // thumbnail struct used to create the thumbnails (will not load thumbs here)
-    dt_db_t         *db,         // database to map imageid to filename.
-    const uint32_t  *imgid,      // imageids to cache in the background (will be copied for thread safety)
-    uint32_t         imgid_cnt); // number of image ids in list
+    dt_thumbnails_t *tn,               // thumbnail struct used to create the thumbnails (will not load thumbs here)
+    dt_db_t         *db,               // database to map imageid to filename.
+    const uint32_t  *imgid,            // imageids to cache in the background (will be copied for thread safety)
+    uint32_t         imgid_cnt,        // number of image ids in list
+    void           (*updatefn)(void)); // function to call after every render (or 0)
 
 // create bc1 thumbnail only for given image
 // runs in this thread.

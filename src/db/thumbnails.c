@@ -296,6 +296,7 @@ typedef struct cache_coll_job_t
   dt_thumbnails_t *tn;
   dt_db_t *db;
   uint32_t *coll;
+  void    (*ufn)(void);
 }
 cache_coll_job_t;
 
@@ -339,6 +340,7 @@ thread_work_coll(
   // invalidate what we have in memory to trigger a reload:
   j->db->image[j->coll[item]].thumbnail = 0;
   j->tn->graph[j->gid].io_mutex = 0;
+  if(j->ufn) j->ufn();
 abort:
   threads_mutex_unlock(j->tn->graph_lock+j->gid);
 }
@@ -348,7 +350,8 @@ dt_thumbnails_cache_list(
     dt_thumbnails_t *tn,
     dt_db_t         *db,
     const uint32_t  *imgid,
-    uint32_t         imgid_cnt)
+    uint32_t         imgid_cnt,
+    void           (*updatefn)(void))
 {
   if(imgid_cnt <= 0)
   {
@@ -370,6 +373,7 @@ dt_thumbnails_cache_list(
         .gid   = k,
         .tn    = tn,
         .db    = db,
+        .ufn   = updatefn,
       };
       threads_mutex_init(&job[0].mutex_storage, 0);
       job[0].mutex = &job[0].mutex_storage;
@@ -381,6 +385,7 @@ dt_thumbnails_cache_list(
       .gid   = k,
       .tn    = tn,
       .db    = db,
+      .ufn   = updatefn,
     };
     // we only care about internal errors. if we call with stupid values,
     // it just does nothing and returns:
@@ -398,9 +403,10 @@ dt_thumbnails_cache_list(
 VkResult
 dt_thumbnails_cache_collection(
     dt_thumbnails_t *tn,
-    dt_db_t         *db)
+    dt_db_t         *db,
+    void           (*updatefn)(void))
 {
-  return dt_thumbnails_cache_list(tn, db, db->collection, db->collection_cnt);
+  return dt_thumbnails_cache_list(tn, db, db->collection, db->collection_cnt, updatefn);
 }
 
 // 1) if db loads a directory, kick off thumbnail creation of directory in bg

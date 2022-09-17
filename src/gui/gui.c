@@ -465,7 +465,7 @@ void dt_gui_switch_collection(const char *dir)
   dt_db_init(&vkdt.db);
   QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
-  dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
+  dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
 
   // update recently used collection list:
   int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);

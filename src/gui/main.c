@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
     vkdt.view_mode = s_view_lighttable;
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
-    dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db);
+    dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
   }
   else
   {

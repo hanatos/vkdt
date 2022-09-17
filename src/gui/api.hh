@@ -124,7 +124,8 @@ dt_gui_lt_paste_history()
   dt_thumbnails_cache_list(
       &vkdt.thumbnail_gen,
       &vkdt.db,
-      sel, vkdt.db.selection_cnt);
+      sel, vkdt.db.selection_cnt,
+      &glfwPostEmptyEvent);
 }
 
 // scroll to top of collection

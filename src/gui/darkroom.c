@@ -698,7 +698,8 @@ darkroom_leave()
   dt_thumbnails_cache_list(
       &vkdt.thumbnail_gen,
       &vkdt.db,
-      &imgid, 1);
+      &imgid, 1,
+      &glfwPostEmptyEvent);
 
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);

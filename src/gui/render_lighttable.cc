@@ -489,7 +489,8 @@ void render_lighttable_right_panel()
       dt_thumbnails_cache_list(
           &vkdt.thumbnail_gen,
           &vkdt.db,
-          sel, vkdt.db.selection_cnt);
+          sel, vkdt.db.selection_cnt,
+          &glfwPostEmptyEvent);
     }
 
     // ==============================================================
@@ -569,7 +570,8 @@ void render_lighttable_right_panel()
       dt_thumbnails_cache_list(
           &vkdt.thumbnail_gen,
           &vkdt.db,
-          &main_imgid, 1);
+          &main_imgid, 1,
+          &glfwPostEmptyEvent);
     }
     ImGui::Unindent();
   } // end collapsing header "selected"
