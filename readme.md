@@ -1,13 +1,13 @@
 # vkdt: darktable which sucks less
 
-[this](https://jo.dreggn.org/vkdt) is an experimental complete rewrite of
-[darktable](https://darktable.org), at this point with a reduced feature set.
-`vkdt` is designed with high performance in mind. there are already some new
-features, too: support for animations, raw video, and heavy lifting algorithms
-like image alignment and better highlight inpainting. this is made possible by
-faster processing, allowing more complex operations.
+[vkdt](https://jo.dreggn.org/vkdt) is a workflow tool for raw photography.
+`vkdt` is designed with high performance in mind. it features a flexible
+processing node graph at its core, enabling real-time support for animations,
+timelapses, raw video, and heavy lifting algorithms like image alignment and
+better highlight inpainting. this is made possible by faster processing,
+allowing more complex operations.
 
-the processing pipeline has been rewritten as a generic node graph (DAG) which
+the processing pipeline is a generic node graph (DAG) which
 supports multiple inputs and multiple outputs. all processing is done in glsl
 shaders/vulkan. this facilitates potentially heavy duty computational
 photography tasks, for instance aligning multiple raw files and merging them
@@ -18,13 +18,13 @@ targets, such as the main view and histograms.
 
 ## features
 
-* [set of essential image operation modules](src/pipe/modules/readme.md)
+* [image operation modules documentation](src/pipe/modules/readme.md)
 * [very fast GPU only processing](src/qvk/readme.md)
 * [general DAG of processing operations](src/pipe/readme.md), featuring multiple inputs and outputs and
   feedback connectors for animation/iteration
 * [full window colour management](doc/colourmanagement.md)
 * [noise profiling](doc/noiseprofiling.md)
-* [minimally invasive image database](src/db/readme.md)
+* [minimally invasive folder-based image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
