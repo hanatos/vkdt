@@ -13,3 +13,12 @@ the module is based on automatic detection, it has no parameters.
 * `output` the output connector with chromatic aberrations corrected
 
 ## parameters
+
+## examples
+
+zoom-in to the side of a 20MP image (drag to compare):
+
+<div class="compare_box">
+<textarea readonly style="background-image:url(off.jpg)"></textarea>
+<textarea readonly style="background-image:url(on.jpg)" ></textarea>
+</div>

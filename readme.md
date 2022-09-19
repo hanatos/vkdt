@@ -154,13 +154,12 @@ strqvk/device_name:NVIDIA GeForce RTX 2070
 
 * **can i use my pentablet to draw masks in vkdt?**  
 yes, but you need a specific version of glfw to support it.
-you can for instance clone `https://github.com/hanatos/glfw`
-and then put the following in your custom `bin/config.mk`:  
+you can for instance clone `https://github.com/hanatos/glfw`,
+for instance to `/home/you/vc/glfw`, and then put the
+following in your custom `bin/config.mk`:  
 ```
-# use our custom glfw from git
 VKDT_GLFW_CFLAGS=-I/home/you/vc/glfw/include/
 VKDT_GLFW_LDFLAGS=/home/you/vc/glfw/build/src/libglfw3.a
-
 VKDT_USE_PENTABLET=1
 export VKDT_USE_PENTABLET
 ```

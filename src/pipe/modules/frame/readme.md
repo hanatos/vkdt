@@ -3,6 +3,8 @@
 this module allows you to draw a decorative frame with a line of different colour inside it
 around the image.
 
+![example frame](frame.jpg)
+
 # connectors
 
 * `input` the input image
