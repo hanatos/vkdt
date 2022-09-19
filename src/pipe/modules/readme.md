@@ -52,6 +52,7 @@ it follows the current list of available modules.
 * [accum: accumulate frames](./accum/readme.md)
 * [align: align animation frames or burst photographs](./align/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
+* [ca: correct chromatic aberrations](./ca/readme.md)
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
