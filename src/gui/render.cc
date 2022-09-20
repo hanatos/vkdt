@@ -188,7 +188,8 @@ extern "C" int dt_gui_init_imgui()
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   // Setup Dear ImGui context
   ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = 0; // disable automatic writing of "imgui.ini"
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   if(vkdt.wstate.have_joystick)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
