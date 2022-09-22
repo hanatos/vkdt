@@ -163,3 +163,12 @@ VKDT_GLFW_LDFLAGS=/home/you/vc/glfw/build/src/libglfw3.a
 VKDT_USE_PENTABLET=1
 export VKDT_USE_PENTABLET
 ```
+
+* **are there system recommendations?**  
+`vkdt` needs a vulkan capable GPU. it will work better with floating point atomics,
+in particular `shaderImageFloat32AtomicAdd`. you can check this property for certain
+devices [on this website](https://vulkan.gpuinfo.org).
+also, `vkdt` requires 4GB video ram (it may run with less, but this seems to be a
+number that is fun to work with). a fast ssd is desirable since disk io is often times
+a limiting factor, especially during thumbnail creation.
+
