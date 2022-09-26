@@ -15,9 +15,11 @@ extern "C"
 namespace { // anonymous namespace
 
 static ImHotKey::HotKey hk_darkroom[] = {
-  {"create preset", "create new preset from image",     {ImGuiKey_LeftCtrl, ImGuiKey_O}},
-  {"apply preset",  "choose preset to apply",           {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"show history",  "toggle visibility of left panel",  {ImGuiKey_LeftCtrl, ImGuiKey_H}},
+  {"create preset", "create new preset from image",      {ImGuiKey_LeftCtrl, ImGuiKey_O}},
+  {"apply preset",  "choose preset to apply",            {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"show history",  "toggle visibility of left panel",   {ImGuiKey_LeftCtrl, ImGuiKey_H}},
+  {"redo",          "go up in history stack one item",   {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
+  {"undo",          "go down in history stack one item", {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
 };
 
 // used to communictate between the gui helper functions
@@ -619,7 +621,7 @@ inline void draw_widget(int modid, int parid)
         {
           ImGui::SameLine();
           char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-          ImGui::InputText("", v, count);
+          ImGui::InputText("##s", v, count);
         }
       }
       break;
@@ -1821,6 +1823,15 @@ abort:
           break;
         case 2:
           dt_gui_dr_toggle_history();
+          break;
+        case 3:
+          dt_gui_dr_show_history();
+          dt_gui_dr_history_redo();
+          break;
+        case 4:
+          dt_gui_dr_show_history();
+          dt_gui_dr_history_undo();
+          break;
         default:;
       }
       dt_gui_dr_modals(); // draw modal window for presets

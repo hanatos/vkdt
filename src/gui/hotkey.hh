@@ -159,7 +159,7 @@ namespace ImHotKey
 
   static void GetHotKeyLib(HotKey *hk, char *buffer, size_t bs)
   {
-    buffer[0] = 0;
+    buffer[0] = '#'; buffer[1] = '#'; buffer[2] = 0;
     if(hk->key[0] == 0) return;
 
     int cnt = 0;

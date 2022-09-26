@@ -21,7 +21,6 @@ extern "C"
 
 namespace { // anonymous namespace
 
-// TODO: also init from .config/vkdt/hotkeys
 static ImHotKey::HotKey hk_lighttable[] = {
   {"tag",           "assign a tag to selected images",  {ImGuiKey_LeftCtrl,  ImGuiKey_T}},
   {"select all",    "toggle select all/none",           {ImGuiKey_LeftCtrl,  ImGuiKey_A}},

@@ -1,4 +1,5 @@
 #pragma once
+#include "pipe/graph-history.h"
 #include "gui/gui.h"
 #include "gui/darkroom.h"
 #include "gui/darkroom-util.h"
@@ -204,6 +205,27 @@ dt_gui_dr_toggle_history()
     vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - vkdt.state.panel_wd;
     vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
   }
+}
+
+static inline void
+dt_gui_dr_show_history()
+{
+  if(vkdt.wstate.history_view) return;
+  dt_gui_dr_toggle_history();
+}
+
+static inline void
+dt_gui_dr_history_undo()
+{ // "cur" means "current end", item is just before that.
+  dt_graph_history_set(&vkdt.graph_dev, vkdt.graph_dev.history_item_cur-2);
+  vkdt.graph_dev.runflags = s_graph_run_all;
+}
+
+static inline void
+dt_gui_dr_history_redo()
+{
+  dt_graph_history_set(&vkdt.graph_dev, vkdt.graph_dev.history_item_cur);
+  vkdt.graph_dev.runflags = s_graph_run_all;
 }
 
 static inline void
