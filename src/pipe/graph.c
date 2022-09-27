@@ -1460,6 +1460,7 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
         { // sources don't negotiate their size, they just give what they have
           roi->wd = roi->full_wd;
           roi->ht = roi->full_ht;
+          if(roi->scale <= 0) roi->scale = 1.0; // mark as initialised, we force the resolution now
           c->roi = *roi; // TODO: this may mean that we need a resample node if the module can't handle it!
           // TODO: insert manually here
         }
