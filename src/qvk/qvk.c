@@ -366,9 +366,9 @@ QVK_FEATURE_DO(inheritedQueries, 1)
 
   qvk.raytracing_supported = 0;
   int picked_device = -1;
-  VkPhysicalDeviceFeatures dev_features;
   for(int i = 0; i < num_devices; i++) {
     VkPhysicalDeviceProperties dev_properties;
+    VkPhysicalDeviceFeatures dev_features;
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
     vkGetPhysicalDeviceFeatures  (devices[i], &dev_features);
 
@@ -416,7 +416,8 @@ QVK_FEATURE_DO(inheritedQueries, 1)
   }
 
   qvk.physical_device = devices[picked_device];
-
+  VkPhysicalDeviceFeatures dev_features; // be sure that corresponds to what we picked
+  vkGetPhysicalDeviceFeatures(qvk.physical_device, &dev_features);
 
   vkGetPhysicalDeviceMemoryProperties(qvk.physical_device, &qvk.mem_properties);
 
