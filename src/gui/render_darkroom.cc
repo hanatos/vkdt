@@ -1510,6 +1510,12 @@ abort:
         ImGui::GetWindowDrawList()->AddImage(
             imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
             ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+        char scaletext[10];
+        if(vkdt.state.scale >= 1.0f)
+        {
+          snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(vkdt.state.scale*100.0));
+          ImGui::GetWindowDrawList()->AddText(ImVec2(win_x+0.9f*win_w,0.5f*win_y), 0xffffffffu, scaletext);
+        }
       }
       if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
