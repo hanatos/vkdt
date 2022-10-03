@@ -5,7 +5,7 @@
 
 #include "shared.glsl"
 // #include "shared/munsell.glsl" // not used currently
-#include "shared/dtucs.glsl"
+// #include "shared/dtucs.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -60,7 +60,7 @@ main()
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
   col0 += params.bias;
   vec3 col1 = weibull_cdf(col0, il, k);
-#if 1 // colour using aurelien's patented ucs:
+#if 0 // colour using aurelien's patented ucs:
   // if(ipos.x > imageSize(img_out).x*0.66) {
   {
     col0 = max(vec3(0), col0);
@@ -82,11 +82,8 @@ main()
     col1 = xyz_to_rec2020 * xyz1;
   }
 #elif 0
-  }
-  else if(ipos.x > imageSize(img_out).x*0.33)
-  {
   // colour reconstruction using munsell hue constancy.
-  if(dot(vec3(1),col1) > 1e-5)
+  // if(dot(vec3(1),col1) > 1e-5)
   {
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
@@ -102,7 +99,6 @@ main()
     xyz1 = vec3(xy1, 1.0-xy1.x-xy1.y) * dot(vec3(1),xyz1);
     col1 = xyz_to_rec2020 * xyz1;
   }
-  } else
 #else
   { // simple rgb/hsv hack:
   col1 = adjust_colour_dng(col0, col1);
