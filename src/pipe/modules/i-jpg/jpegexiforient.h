@@ -83,7 +83,7 @@ jpg_read_orientation(FILE *myfile)
       exif_data[1] != 0xD8) goto abort; // no JPEG SOI
 
   i = 0;
-  while(i < 40 && (exif_data[2] != 0xff || exif_data[3] != 0xe1)) // search for Exif APP1
+  while(i++ < 40 && (exif_data[2] != 0xff || exif_data[3] != 0xe1)) // search for Exif APP1
   {
     exif_data[2] = (unsigned char) read_1_byte(myfile);
     exif_data[3] = (unsigned char) read_1_byte(myfile);
