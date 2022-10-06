@@ -13,8 +13,8 @@ processed_point_outside(
     int corner)
 {
   float xy[2] = {
-    corner & 1 ? (crop[1]-crop[0])*wd : crop[0]*wd,
-    corner & 2 ? (crop[3]-crop[2])*ht : crop[2]*ht};
+    corner & 1 ? crop[1]*wd : crop[0]*wd,
+    corner & 2 ? crop[3]*ht : crop[2]*ht};
   xy[0] -= wd/2.0;
   xy[1] -= ht/2.0;
   float tmp[3] = {0.0f};
