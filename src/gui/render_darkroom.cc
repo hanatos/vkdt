@@ -892,6 +892,20 @@ inline void draw_widget(int modid, int parid)
         KEYFRAME
         TOOLTIP
       }
+      dt_module_t *m = vkdt.graph_dev.module+modid;
+      if(m->so->ui_callback)
+      {
+        ImGui::SameLine();
+        if(ImGui::Button("auto crop"))
+        {
+          m->so->ui_callback(m, param->name);
+          darkroom_reset_zoom();
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
+        if(ImGui::IsItemHovered())
+          ImGui::SetTooltip("automatically crop away black rims");
+      }
       num = count;
       break;
     }

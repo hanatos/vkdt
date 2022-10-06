@@ -3,6 +3,87 @@
 
 #include <math.h>
 
+static inline int
+processed_point_outside(
+    const int    wd, // input roi
+    const int    ht,
+    const float *T,
+    const float *H,
+    const float *crop,
+    int corner)
+{
+  float xy[2] = {
+    corner & 1 ? (crop[1]-crop[0])*wd : crop[0]*wd,
+    corner & 2 ? (crop[3]-crop[2])*ht : crop[2]*ht};
+  xy[0] -= wd/2.0;
+  xy[1] -= ht/2.0;
+  float tmp[3] = {0.0f};
+  for(int i=0;i<2;i++)
+    for(int j=0;j<2;j++)
+      tmp[i] += T[2*j+i] * xy[j];
+  tmp[0] += wd/2.0;
+  tmp[1] += ht/2.0;
+  tmp[2] = 1.0f;
+  float tmp2[3] = {0.0f};
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++)
+      tmp2[i] += H[4*j+i] * tmp[j];
+  tmp2[0] /= tmp2[2];
+  tmp2[1] /= tmp2[2];
+
+  if(tmp2[0] >= wd) return 1;
+  if(tmp2[1] >= ht) return 1;
+  if(tmp2[0] < 0)   return 1;
+  if(tmp2[1] < 0)   return 1;
+  return 0;
+}
+
+void ui_callback(
+    dt_module_t *module,
+    dt_token_t   param)
+{ // auto-crop away black borders
+  const int wd = module->connector[0].roi.wd;
+  const int ht = module->connector[0].roi.ht;
+  float H[16], T[4], crop[4];
+  float *f = (float*)module->committed_param;
+  for(int k=0;k<12;k++) H[k] = f[k];   // perspective matrix H
+  f += 12;
+  for(int k=0;k<4;k++) T[k] = f[k];    // rotation matrix T
+  f += 4;
+  for(int k=0;k<4;k++) crop[k] = f[k]; // crop window
+  float xy[4][2];
+  for(int c=0;c<4;c++)
+  { // create corners: (0,0)..(wd, ht)
+    xy[c][0] = c & 1 ? wd : 0;
+    xy[c][1] = c & 2 ? ht : 0;
+  }
+
+  float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
+  for(int i=0;i<20;i++)
+  {
+    float scale = (scale0 + scale1)/2.0f;
+    for(int k=0;k<2;k++)
+    { // aspect ratio preserving scale of crop window
+      float cn[2] = {wd * crop[k & 1 ? 1 : 0], ht * crop[k & 1 ? 3 : 2]};
+      cn[0] = 0.5f * wd + scale * (cn[0] - 0.5f * wd); // is this a good center?
+      cn[1] = 0.5f * ht + scale * (cn[1] - 0.5f * ht);
+      crop2[k & 1 ? 1 : 0] = cn[0] / wd;
+      crop2[k & 1 ? 3 : 2] = cn[1] / ht;
+    }
+    int out = 0;
+    for(int c=0;c<4;c++)
+      if((out |= processed_point_outside(wd, ht, T, H, crop2, c)))
+        break;
+    if(out) scale1 = scale;
+    else    scale0 = scale;
+  }
+  float *p_crop = (float *)dt_module_param_float(module, 1);
+  p_crop[0] = 1.01 * crop2[0];
+  p_crop[1] = 0.99 * crop2[1];
+  p_crop[2] = 1.01 * crop2[2];
+  p_crop[3] = 0.99 * crop2[3];
+}
+
 // fill crop and rotation if auto-rotate by exif data has been requested
 static inline void
 get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, const float *p_rot, float *crop, float *rot)
