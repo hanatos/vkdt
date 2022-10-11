@@ -51,12 +51,6 @@ void ui_callback(
   for(int k=0;k<4;k++) T[k] = f[k];    // rotation matrix T
   f += 4;
   for(int k=0;k<4;k++) crop[k] = f[k]; // crop window
-  float xy[4][2];
-  for(int c=0;c<4;c++)
-  { // create corners: (0,0)..(wd, ht)
-    xy[c][0] = c & 1 ? wd : 0;
-    xy[c][1] = c & 2 ? ht : 0;
-  }
 
   float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
   for(int i=0;i<20;i++)
