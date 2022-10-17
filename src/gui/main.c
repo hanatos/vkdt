@@ -127,8 +127,9 @@ toggle_fullscreen()
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+  const int grabbed = vkdt.wstate.grabbed;
   dt_view_keyboard(window, key, scancode, action, mods);
-  if(!vkdt.wstate.grabbed)
+  if(!grabbed) // also don't pass on if we just ungrabbed
     dt_gui_imgui_keyboard(window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)

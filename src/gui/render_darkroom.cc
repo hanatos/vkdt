@@ -1448,7 +1448,8 @@ void render_darkroom()
 
     ImGuiIO& io = ImGui::GetIO();
     if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
-      !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel))
+      !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel) &&
+      !vkdt.wstate.grabbed)
     {
       static int fs_state = 0;
       if(!ImGui::IsKeyDown(ImGuiKey_GamepadL2) &&
