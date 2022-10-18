@@ -226,7 +226,8 @@ dng_process(
 {
   double ab_cc[3][3], ab_cc_i[3][3], refn[3];
   mat3_mul(p->ab, p->cc, ab_cc); // mostly diag(1 1 1) * diag(moderate wb)
-  mat3_inv(ab_cc, ab_cc_i);      // mostly invert a diagonal, often identity
+  double det = mat3_inv(ab_cc, ab_cc_i);      // mostly invert a diagonal, often identity
+  if(det == 0.0) return;
 
   // XYZtoCamera = AB * CC * CM
   double xyz_to_cam[3][3], camn[3];
