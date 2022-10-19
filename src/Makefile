@@ -29,7 +29,7 @@ MOD_DSOSXX:=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
 # also all .comp compute shaders will be compiled to spir-v.
 SHD_EXT=comp vert tesc tese geom frag
 SPV:=$(foreach shd,$(SHD_EXT),\
-$(patsubst %.$(shd),%.$(shd).spv,$(shell ls -1 pipe/modules/*/*.$(shd))))
+$(patsubst %.$(shd),%.$(shd).spv,$(shell ls -1 pipe/modules/*/*.$(shd) 2>/dev/null)))
 
 TOOLTIPS:=$(patsubst %/readme.md,%/ptooltips,$(READMES))
 
