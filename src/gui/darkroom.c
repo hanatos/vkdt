@@ -352,6 +352,9 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     return;
   }
 
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(!out) return; // should never happen
+
   if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
   if(vkdt.wstate.active_widget_modid >= 0)
   {
@@ -711,6 +714,8 @@ darkroom_leave()
 void
 darkroom_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
+  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(!out) return; // should never happen
   if(vkdt.wstate.active_widget_modid >= 0)
   {
     dt_token_t type = vkdt.graph_dev.module[

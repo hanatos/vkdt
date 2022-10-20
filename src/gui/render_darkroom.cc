@@ -1534,8 +1534,8 @@ abort:
       }
       if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
-    // center view has on-canvas widgets:
-    if(vkdt.wstate.active_widget_modid >= 0)
+    // center view has on-canvas widgets (but only if there *is* an image):
+    if(out_main && vkdt.wstate.active_widget_modid >= 0)
     {
       // distinguish by type:
       switch(vkdt.graph_dev.module[
