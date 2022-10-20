@@ -79,7 +79,7 @@ int init(dt_module_t *mod)
     "+map", "st1m1",
     "+map", "start",
   };
-  int argc = 5; // 7;
+  int argc =  9;
 
   d->worldspawn = 0;
   d->parms.argc = argc;
@@ -324,7 +324,7 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   // TODO: maybe use our string pool to do name->id mapping? also it seems quake has a crc
   if(qs_data.initing < 1) return;
   // mirror the data locally. the copy sucks, but whatever.
-  fprintf(stderr, "[load tex] %u %ux%u %s\n", glt->texnum, glt->width, glt->height, glt->name);
+  // fprintf(stderr, "[load tex] %u %ux%u %s\n", glt->texnum, glt->width, glt->height, glt->name);
   qs_data.tex_cnt = MIN(MAX_GLTEXTURES, MAX(qs_data.tex_cnt, glt->texnum+1));
   if(glt->texnum >= qs_data.tex_cnt)
   {
@@ -683,6 +683,8 @@ int read_geo(
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    p->node->rt.vtx_cnt = vtx_cnt;
+    p->node->rt.tri_cnt = idx_cnt / 3;
     p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
   }
   // fprintf(stderr, "[read_geo '%"PRItkn"']: vertex count %u index count %u\n", dt_token_str(p->node->kernel), vtx_cnt, idx_cnt);
@@ -700,7 +702,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_rt = graph->num_nodes++;
   graph->node[id_rt] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("main"),
     .module = module,
     .wd     = module->connector[0].roi.wd,
@@ -750,7 +752,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_tex = graph->num_nodes++;
   graph->node[id_tex] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("tex"),
     .module = module,
     .wd     = 1,
@@ -800,7 +802,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_dyngeo = graph->num_nodes++;
   graph->node[id_dyngeo] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("dyngeo"),
     .module = module,
     .wd     = 1,
@@ -833,7 +835,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_stcgeo = graph->num_nodes++;
   graph->node[id_stcgeo] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("stcgeo"),
     .module = module,
     .wd     = 1,

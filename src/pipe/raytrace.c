@@ -202,10 +202,20 @@ dt_raytrace_graph_init(
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
     .descriptorCount = 1,
     .stageFlags      = VK_SHADER_STAGE_ALL,
+  },{
+    .binding         = 1,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .stageFlags      = VK_SHADER_STAGE_ALL,
+  },{
+    .binding         = 2,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .stageFlags      = VK_SHADER_STAGE_ALL,
   }};
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
     .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 1,
+    .bindingCount = 3,
     .pBindings    = bindings,
   };
   if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
@@ -302,6 +312,21 @@ dt_raytrace_graph_alloc(
     .accelerationStructureCount = 1,
     .pAccelerationStructures    = &graph->rt.accel,
   };
+  VkDescriptorBufferInfo *bvtx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
+  VkDescriptorBufferInfo *bidx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
+  for(int i=0;i<graph->rt.nid_cnt;i++)
+  {
+    bvtx[i] = (VkDescriptorBufferInfo){
+      .offset = 0,
+      .buffer = graph->node[graph->rt.nid[i]].rt.buf_vtx,
+      .range  = VK_WHOLE_SIZE,
+    };
+    bidx[i] = (VkDescriptorBufferInfo){
+      .offset = 0,
+      .buffer = graph->node[graph->rt.nid[i]].rt.buf_idx,
+      .range  = VK_WHOLE_SIZE,
+    };
+  }
   VkWriteDescriptorSet dset_write[] = {{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -309,8 +334,22 @@ dt_raytrace_graph_alloc(
     .dstSet          = graph->rt.dset[0],
     .dstBinding      = 0,
     .pNext           = &acceleration_structure_info
+  },{
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .dstSet          = graph->rt.dset[0],
+    .dstBinding      = 1,
+    .pBufferInfo     = bvtx,
+  },{
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .dstSet          = graph->rt.dset[0],
+    .dstBinding      = 2,
+    .pBufferInfo     = bidx,
   }};
-  vkUpdateDescriptorSets(qvk.device, 1, dset_write, 0, NULL);
+  vkUpdateDescriptorSets(qvk.device, 3, dset_write, 0, NULL);
   return VK_SUCCESS;
 }
 #undef CREATE_SCRATCH_BUF_R
