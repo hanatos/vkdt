@@ -51,9 +51,17 @@ layout(
     set = 1, binding = 5
 ) uniform writeonly image2D img_aov;
 
-layout(
-    set = 2, binding = 0
-) uniform accelerationStructureEXT rt_accel;
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+
+layout(set = 2, binding = 1) buffer buf_vtx_t
+{ // 3x float vertex data for every instance
+  float v[];
+} buf_vtx[];
+
+layout(set = 2, binding = 2) buffer buf_idx_t
+{ // index data for every instance
+  uint i[];
+} buf_idx[];
 
 
 #define M_PI   3.14159265358979323846
@@ -198,7 +206,26 @@ void prepare_intersection(
     st = mat3x2(st0, st1, st2) * b;
   }
   float t = rayQueryGetIntersectionTEXT(rq, true);
-  x += t*w; // XXX TODO: get more precise out of interpolating vertices of triangle
+#if 0 // fast and dirty:
+  x += t*w;
+#else // more precise intersection point by using vertices + barycentrics
+  uint i0 = buf_idx[instance_id].i[3*pi+0];
+  uint i1 = buf_idx[instance_id].i[3*pi+1];
+  uint i2 = buf_idx[instance_id].i[3*pi+2];
+  vec3 v0 = vec3(
+      buf_vtx[instance_id].v[3*i0+0],
+      buf_vtx[instance_id].v[3*i0+1],
+      buf_vtx[instance_id].v[3*i0+2]);
+  vec3 v1 = vec3(
+      buf_vtx[instance_id].v[3*i1+0],
+      buf_vtx[instance_id].v[3*i1+1],
+      buf_vtx[instance_id].v[3*i1+2]);
+  vec3 v2 = vec3(
+      buf_vtx[instance_id].v[3*i2+0],
+      buf_vtx[instance_id].v[3*i2+1],
+      buf_vtx[instance_id].v[3*i2+2]);
+  x = mat3(v0, v1, v2) * b;
+#endif
 }
 
 vec3 colourtex(vec2 st)
@@ -456,9 +483,10 @@ main()
       }
       else
       { // envmap, never reached for closed quake maps
-        vec3 diffcol = texture(img_tex[0], w.xy).rgb;
-        acc += rgb * diffcol * 1000.0 * vec3(0.2, 0.4, 0.9);
-        if(b == 0) aov = (w+vec3(1.0))/2.0;
+        acc += envmap(w).rgb;
+        // vec3 diffcol = texture(img_tex[0], w.xy).rgb;
+        // acc += rgb * diffcol * 1000.0 * vec3(0.2, 0.4, 0.9);
+        // if(b == 0) aov = (w+vec3(1.0))/2.0;
         break;
       }
     }

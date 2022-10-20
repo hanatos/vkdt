@@ -10,4 +10,4 @@ llap:01:hilights:slider:0.0:2.0
 saturate:01:sat:slider:0.0:2.0
 denoise:01:strength:slider:0:1
 rt:01:cam:grab
-i-quake:main:cam:grab
+quake:main:cam:grab
