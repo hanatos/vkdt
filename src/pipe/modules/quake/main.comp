@@ -179,13 +179,17 @@ void prepare_intersection(
   b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, true);
   b.x = 1.0-b.z-b.y;
   int i = 7*pi;
+  vec3 n0, n1, n2;
   if(instance_id == 0)
   { // dyn geo
     mat   = dynssbo.v[i+6]&0xffff;
     matfb = dynssbo.v[i+6]>>16;
-    vec3 n0 = geo_decode_normal(dynssbo.v[i+0]);
-    vec3 n1 = geo_decode_normal(dynssbo.v[i+1]);
-    vec3 n2 = geo_decode_normal(dynssbo.v[i+2]);
+    n0 = geo_decode_normal(dynssbo.v[i+0]);
+    n1 = geo_decode_normal(dynssbo.v[i+1]);
+    n2 = geo_decode_normal(dynssbo.v[i+2]);
+    if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
+    if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
+    if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
     n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
@@ -196,17 +200,17 @@ void prepare_intersection(
   { // static geo
     mat   = stcssbo.v[i+6]&0xffff;
     matfb = stcssbo.v[i+6]>>16;
-    vec3 n0 = geo_decode_normal(stcssbo.v[i+0]);
-    vec3 n1 = geo_decode_normal(stcssbo.v[i+1]);
-    vec3 n2 = geo_decode_normal(stcssbo.v[i+2]);
+    n0 = geo_decode_normal(stcssbo.v[i+0]);
+    n1 = geo_decode_normal(stcssbo.v[i+1]);
+    n2 = geo_decode_normal(stcssbo.v[i+2]);
     n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
     st = mat3x2(st0, st1, st2) * b;
   }
-  float t = rayQueryGetIntersectionTEXT(rq, true);
 #if 0 // fast and dirty:
+  float t = rayQueryGetIntersectionTEXT(rq, true);
   x += t*w;
 #else // more precise intersection point by using vertices + barycentrics
   uint i0 = buf_idx[instance_id].i[3*pi+0];
@@ -226,6 +230,17 @@ void prepare_intersection(
       buf_vtx[instance_id].v[3*i2+2]);
   x = mat3(v0, v1, v2) * b;
 #endif
+  if(instance_id == 0)
+  { // now fix terminator problem:
+    vec3 tmpu = x - v0, tmpv = x - v1, tmpw = x - v2;
+    float dotu = min(0.0, dot(tmpu, n0));
+    float dotv = min(0.0, dot(tmpv, n1));
+    float dotw = min(0.0, dot(tmpw, n2));
+    tmpu -= dotu*n0;
+    tmpv -= dotv*n1;
+    tmpw -= dotw*n2;
+    x += mat3(tmpu, tmpv, tmpw) * b;
+  }
 }
 
 vec3 colourtex(vec2 st)
@@ -444,7 +459,7 @@ main()
         uint mat = 0, matfb = 0;
         vec3 oldx = x;
         prepare_intersection(rq, w, x, n, st, mat, matfb);
-        if(dot(w, n) > 0) n = -n;
+        // if(dot(w, n) > 0) n = -n;
         vec3 du, dv, up = vec3(1,0,0);
         if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
         du = normalize(cross(up, n));
@@ -464,7 +479,7 @@ main()
           emcol = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0) : vec4(0.0);
           emcol *= 1000.0;
         }
-        if(b == 0) aov = diffcol.rgb + emcol.rgb;
+        if(b == 0) aov = vec3(-dot(w, n));//diffcol.rgb;// + emcol.rgb;
         if(any(greaterThan(emcol.rgb, vec3(0.0))))
         {
           acc += rgb * emcol.rgb;

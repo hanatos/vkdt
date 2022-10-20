@@ -69,6 +69,7 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+map", "start",
     "-game", "ad",
+    "+map", "e1m1",
     "+map", "ad_azad",
     "-game", "SlayerTest",
     "+map", "e1m2b",
@@ -439,27 +440,40 @@ add_geo(
       for(int k=0;k<3;k++)
         vtx[3*v+k] = ent->origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
     }
+#if 1 // both options fail to extract correct creases/vertex normals for health/shells
+    int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
+    if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
+    {
+      int i = hdr->numverts * f + desc[v].vertindex;
+      float nm[3], nw[3];
+      memcpy(nm, r_avertexnormals[trivertexes[i].lightnormalindex], sizeof(float)*3);
+      for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
+      encode_normal(tmpn+2*v, nw);
+    }
+#endif
     if(idx) for(int i = 0; i < hdr->numindexes; i++)
       idx[i] = *vtx_cnt + indexes[i];
 
     if(ext) for(int i = 0; i < hdr->numindexes/3; i++)
     {
-#if 0 // ???
-      //johnfitz -- padded skins
-    hscale = (float)hdr->skinwidth/(float)TexMgr_PadConditional(hdr->skinwidth);
-    vscale = (float)hdr->skinheight/(float)TexMgr_PadConditional(hdr->skinheight);
-    //johnfitz
-#endif
+#if 0
       float nm[3], nw[3];
-      memcpy(nm, r_avertexnormals[trivertexes[desc[indexes[3*i+0]].vertindex].lightnormalindex], sizeof(float)*3);
+      int off = hdr->numverts * f;
+  fprintf(stderr, "[add_geo] %s normal index %d numposes %d/%d\n", m->name, trivertexes[off+desc[indexes[3*i+0]].vertindex].lightnormalindex, f, hdr->numposes);
+      memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+0]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+0, nw);
-      memcpy(nm, r_avertexnormals[trivertexes[desc[indexes[3*i+1]].vertindex].lightnormalindex], sizeof(float)*3);
+      memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+1]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+2, nw);
-      memcpy(nm, r_avertexnormals[trivertexes[desc[indexes[3*i+2]].vertindex].lightnormalindex], sizeof(float)*3);
+      memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+2]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+4, nw);
+#else
+      memcpy(ext+14*i+0, tmpn+2*indexes[3*i+0], sizeof(int16_t)*2);
+      memcpy(ext+14*i+2, tmpn+2*indexes[3*i+1], sizeof(int16_t)*2);
+      memcpy(ext+14*i+4, tmpn+2*indexes[3*i+2], sizeof(int16_t)*2);
+#endif
       ext[14*i+ 6] = float_to_half((desc[indexes[3*i+0]].st[0]+0.5)/(float)hdr->skinwidth);
       ext[14*i+ 7] = float_to_half((desc[indexes[3*i+0]].st[1]+0.5)/(float)hdr->skinheight);
       ext[14*i+ 8] = float_to_half((desc[indexes[3*i+1]].st[0]+0.5)/(float)hdr->skinwidth);
