@@ -70,7 +70,7 @@ dt_connector_copy(
     *c1 = *c0;
   else
   {
-    c1->frames = c0->frames;
+    c1->frames = MAX(c1->frames,c0->frames); // keep feedback connectors
     c1->flags  = c0->flags;
     c1->format = c0->format; // modules may be rigged from the outside, for export etc
     c1->roi    = c0->roi;
