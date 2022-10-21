@@ -9,7 +9,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 { 
   float alpha;
-  float taa_thrs;
+  float taa;
+  float lalpha;
+  float ltaa;
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;     // motion vectors
@@ -18,7 +20,8 @@ layout(set = 1, binding = 2) uniform sampler2D img_prevb;  // previous beauty
 layout(set = 1, binding = 3) uniform sampler2D img_light;  // current light
 layout(set = 1, binding = 4) uniform sampler2D img_albedo; // current albedo
 
-layout(set = 1, binding = 5) uniform writeonly image2D img_out;  // new beauty frame
+layout(set = 1, binding = 5) uniform writeonly image2D img_out;      // new beauty frame
+layout(set = 1, binding = 6) uniform writeonly image2D img_lightout; // combined light only
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
@@ -42,41 +45,43 @@ main()
   vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
 
+  L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
 #if 1 // taa box clamping old light vs. new light
   {
-  vec3 mL1  = vec3(0.0f);
-  vec3 mL2  = vec3(0.0f);
+  // vec3 mL1  = vec3(0.0f);
+  // vec3 mL2  = vec3(0.0f);
   vec3 maL1 = vec3(0.0f);
   vec3 maL2 = vec3(0.0f);
   const int r = 1;
   for(int yy = -r; yy <= r; yy++) {
     for(int xx = -r; xx <= r; xx++) {
       vec3 a = texelFetch(img_albedo, ipos + ivec2(xx, yy), 0).rgb;
-      vec3 L = texelFetch(img_light, eaw3_tc(ipos + ivec2(xx, yy), sz), 0).rgb;
+      // vec3 L = texelFetch(img_light, eaw3_tc(ipos + ivec2(xx, yy), sz), 0).rgb;
       maL1 += a*L;
       maL2 += a*a*L*L;
-      mL1 += L;
-      mL2 += L*L;
+      // mL1 += L;
+      // mL2 += L*L;
     }
   }
   maL1 /= (2.0 * r + 1) * (2.0 * r + 1);
   maL2 /= (2.0 * r + 1) * (2.0 * r + 1);
-  mL1  /= (2.0 * r + 1) * (2.0 * r + 1);
-  mL2  /= (2.0 * r + 1) * (2.0 * r + 1);
+  // mL1  /= (2.0 * r + 1) * (2.0 * r + 1);
+  // mL2  /= (2.0 * r + 1) * (2.0 * r + 1);
 
-  vec3 sigma = sqrt(max(vec3(0), mL2 - mL1 * mL1));
-  const float thresh = params.taa_thrs;
-  Lo = clamp(Lo, max(vec3(0), mL1 - thresh * sigma), mL1 + thresh * sigma);
-  sigma = sqrt(max(vec3(0), maL2 - maL1 * maL1));
+  // vec3 sigma = sqrt(max(vec3(0), mL2 - mL1 * mL1));
+  // float thresh = params.ltaa;
+  // Lo = clamp(Lo, max(vec3(0), mL1 - thresh * sigma), mL1 + thresh * sigma);
+  vec3 sigma = sqrt(max(vec3(0), maL2 - maL1 * maL1));
+  float thresh = params.taa;
   prevb = clamp(prevb, max(vec3(0), maL1 - thresh * sigma), maL1 + thresh * sigma);
   }
 #endif
 
-  L = mix(L, Lo, params.alpha); // exponential moving average with aligned old light
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
-  vec3 beauty = L*albedo;
+  vec3 beauty = L *albedo;
 
-  beauty = mix(beauty, prevb, params.alpha); // TODO other alpha?
+  beauty = mix(beauty, prevb, params.alpha);
   imageStore(img_out, ipos, vec4(beauty, 1));
+  imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
 }
 
