@@ -69,8 +69,8 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+map", "start",
     "-game", "ad",
-    "+map", "e1m1",
     "+map", "ad_azad",
+    "+map", "e1m1",
     "-game", "SlayerTest",
     "+map", "e1m2b",
     "+map", "e1m1",
@@ -722,7 +722,7 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 9,
+    .num_connectors = 8,
     .connector = {{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
@@ -755,6 +755,18 @@ create_nodes(
       .connected_mi = -1,
     },{
       .name   = dt_token("aov"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+    },{
+      .name   = dt_token("nee_in"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("nee_out"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
@@ -875,6 +887,7 @@ create_nodes(
   CONN(dt_node_connect(graph, id_tex, 0, id_rt, 3));
   CONN(dt_node_connect(graph, id_stcgeo, 0, id_rt, 1));
   CONN(dt_node_connect(graph, id_dyngeo, 0, id_rt, 2));
+  CONN(dt_node_feedback(graph, id_rt, 7, id_rt, 6)); // nee cache
   dt_connector_copy(graph, module, 0, id_rt, 0); // wire output buffer
   dt_connector_copy(graph, module, 1, id_rt, 4); // wire blue noise input
   dt_connector_copy(graph, module, 2, id_rt, 5); // output aov image
