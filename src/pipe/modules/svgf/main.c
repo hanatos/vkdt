@@ -14,7 +14,7 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 6,
+    .num_connectors = 7,
     .connector = {{
       .name   = dt_token("mv"),
       .type   = dt_token("read"),
@@ -52,6 +52,12 @@ create_nodes(
       .connected_mi = -1,
     },{
       .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f16"),
+      .roi    = module->connector[0].roi,
+    },{
+      .name   = dt_token("lightout"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
@@ -95,9 +101,10 @@ create_nodes(
   for(int i=1;i<4;i++)
     CONN(dt_node_connect (graph, id_eaw[i-1], 1, id_eaw[i], 0));
 
-  CONN(dt_node_feedback(graph, id_eaw[3],  1, id_blend, 1)); // denoised light, old
-  CONN(dt_node_feedback(graph, id_blend,   5, id_blend, 2)); // beauty frame, old
-  CONN(dt_node_connect (graph, id_eaw[3],  1, id_blend, 3)); // denoised light
+  // CONN(dt_node_feedback(graph, id_eaw[3], 1, id_blend, 1)); // denoised light, old
+  CONN(dt_node_feedback(graph, id_blend,  6, id_blend, 1)); // denoised light, old
+  CONN(dt_node_feedback(graph, id_blend,  5, id_blend, 2)); // beauty frame, old
+  CONN(dt_node_connect (graph, id_eaw[3], 1, id_blend, 3)); // denoised light
 
   dt_connector_copy(graph, module, 0, id_blend, 0);  // mv
   dt_connector_copy(graph, module, 2, id_blend, 4);  // albedo

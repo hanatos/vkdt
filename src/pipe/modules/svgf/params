@@ -1,2 +1,4 @@
 alpha:float:1:0.9
 taa:float:1:1.0
+lalpha:float:1:0.9
+ltaa:float:1:1.0
