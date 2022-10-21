@@ -1,0 +1,4 @@
+center:slider:-1:1
+coef0:slider:-10:10
+coef1:slider:-10:10
+angle:slider:0:360

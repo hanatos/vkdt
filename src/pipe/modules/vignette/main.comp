@@ -9,12 +9,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   vec2 center;
-  vec2 mata;
-  vec2 matb;
-  vec2 cxa;
-  vec2 cxb;
-  vec2 cya;
-  vec2 cyb;
+  vec2 cx;
+  vec2 cy;
+  float angle;
 } params;
 
 
@@ -27,19 +24,17 @@ layout( // output
 ) uniform writeonly image2D img_out;
 
 float
-poly(vec2 ca, vec2 cb, float x)
+poly(vec2 c, float x)
 {
-  float r =   ca.x;
-  r = r * x + ca.y;
-  r = r * x + cb.x;
-  r = r * x + cb.y;
-  return r;
+  float x2 = x*x, x4 = x2*x2;
+  return - c.x * x2 - c.y * x4;
 }
 
 float
 sigmoid(float x)
 {
-  return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
+  return exp(x);
+  // return 0.5 * x / sqrt(1.0 + x * x) + 0.5;
 }
 
 // evaluates the vignetting function at a point x
@@ -48,12 +43,12 @@ float
 vignette(vec2 x)
 {
   x -= params.center; // subtract center
-  x = vec2( // apply 2x2 matrix distortion
-      dot(x, params.mata),
-      dot(x, params.matb));
+  const float sx = sin(radians(params.angle)), cx = cos(radians(params.angle));
+  mat2 rot = mat2(cx, sx, -sx, cx);
+  x = rot * x;
   // separable sigmoid of polynomial/attenuation factor in both dimensions
-  float ax = sigmoid(poly(params.cxa, params.cxb, x.x));
-  float ay = sigmoid(poly(params.cya, params.cyb, x.y));
+  float ax = sigmoid(poly(params.cx, x.x));
+  float ay = sigmoid(poly(params.cy, x.y));
   return ax * ay;
 }
 
@@ -64,8 +59,8 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec2 tc = 2.0 * (ipos + 0.5)/imageSize(img_out) - 1.0;
-  float att = vignette(tc);
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * 0.1 / att;
+  tc.y *= imageSize(img_out).y/float(imageSize(img_out).x);
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb * vignette(tc);
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

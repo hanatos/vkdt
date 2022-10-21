@@ -7,6 +7,7 @@
 
 ## parameters
 
-* `coeff` : these are 14 32-bit floating point coefficients that define the vignette.
-
-the coefficients encode in this order: 2d center, 2x2 transformation matrix, 4d polynomial coefficients for x, 4d polynomial coefficients for y aligned falloffs.
+* `center` the center of the vignette. (0,0) is the center of the image
+* `coef0`  the coefficients of the attenuation (x^2 and x^4) along the first axis
+* `coef1`  the coefficients of the attenuation (x^2 and x^4) along the second axis
+* `angle`  rotate the main axes of the vignette
