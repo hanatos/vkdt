@@ -51,6 +51,14 @@ layout(
     set = 1, binding = 5
 ) uniform writeonly image2D img_aov;
 
+layout(
+    set = 1, binding = 6
+) uniform sampler2D img_nee_in;
+
+layout(
+    set = 1, binding = 7
+) uniform writeonly image2D img_nee_out;
+
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
 layout(set = 2, binding = 1) buffer buf_vtx_t
@@ -421,11 +429,22 @@ main()
   vec3 acc = vec3(0.0);
   vec3 lpos = vec3(0.0);
 
+  vec4 needat = vec4(0,0,0,1e-8); // stores 3d position + energy of direct illumination, if found
+
+#if 0 // TODO:
+  vec4 neeold = needat;
+  for()
+  {
+    // TODO: reverse motion vectors before the fetch
+    vec4 nee = texelFetch(img_nee_in, ipos, 0);
+    // TODO: do the actually correct thing:
+    if(rand < nee.w / neeold.w) neeold = nee;
+  }
+  // TODO: further down: use neeold.xyz as next event position
+#endif
 
   for(int s=0;s<params.spp;s++)
   {
-    vec3 primary_bsdf = vec3(1.0);
-    vec3 guide_dir;
     float total_dist = 0.0;
     vec4 rand = xrand(seed, rp);
     seed = uint(70000 * rand.x);
@@ -479,19 +498,27 @@ main()
           emcol = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0) : vec4(0.0);
           emcol *= 1000.0;
         }
-        if(b == 0) aov = vec3(-dot(w, n));//diffcol.rgb;// + emcol.rgb;
+        rand = xrand(seed, rp);
+        if(b == 1)
+        { // remember successful nee sample
+          float w = length(emcol);
+          if(rand.z < w / needat.w)
+          {
+            needat.xyz = x;
+            needat.w = w;
+          }
+        }
+        if(b == 0) aov = diffcol.rgb + emcol.rgb;//vec3(-dot(w, n));//diffcol.rgb;// + emcol.rgb;
         if(any(greaterThan(emcol.rgb, vec3(0.0))))
         {
           acc += rgb * emcol.rgb;
           break;
         }
-        primary_bsdf = diffcol.rgb;
-        rgb *= diffcol.rgb;   // multiply bsdf weight
+        // rgb *= diffcol.rgb;   // (don't) multiply bsdf weight
 #if 1 // next event estimation to torch:
         acc += nee_torch(lpos, x, rgb, n, seed, rp);
 #endif
         // sample new ray direction
-        rand = xrand(seed, rp);
         w = sample_cos(rand.xy);
         w = w.x * du + w.y * dv + w.z * n;
         w = normalize(w);
@@ -515,6 +542,7 @@ main()
       0.04330266, 0.0113596 , 0.89538035);
   acc = M * acc;
 
+  imageStore(img_nee_out, ipos, needat);
   imageStore(img_out, ipos, vec4(10*acc, 1));
   imageStore(img_aov, ipos, vec4(aov, 1));
 }
