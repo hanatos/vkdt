@@ -80,6 +80,13 @@ main()
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
   vec3 beauty = L *albedo;
 
+  // convert linear rec709 to linear rec2020
+  mat3 M = mat3(
+      0.62750375, 0.06910828, 0.01639406,
+      0.32927542, 0.91951916, 0.08801125,
+      0.04330266, 0.0113596 , 0.89538035);
+  beauty = M * beauty;
+
   beauty = mix(beauty, prevb, params.alpha);
   imageStore(img_out, ipos, vec4(beauty, 1));
   imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
