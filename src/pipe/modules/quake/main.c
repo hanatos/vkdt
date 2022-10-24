@@ -69,8 +69,8 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+map", "start",
     "-game", "ad",
-    "+map", "ad_azad",
     "+map", "e1m1",
+    "+map", "ad_azad",
     "-game", "SlayerTest",
     "+map", "e1m2b",
     "+map", "e1m1",
@@ -910,6 +910,7 @@ int audio(
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
+    Cmd_ExecuteString("give all", src_command);
   }
   int buffersize = shm->samples * (shm->samplebits / 8);
   int pos = (shm->samplepos * (shm->samplebits / 8));
