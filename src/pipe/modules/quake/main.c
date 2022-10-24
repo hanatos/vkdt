@@ -722,7 +722,7 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 8,
+    .num_connectors = 9,
     .connector = {{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
@@ -771,6 +771,12 @@ create_nodes(
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
+    },{
+      .name   = dt_token("mv"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rg"),
+      .format = dt_token("f16"),
+      .connected_mi = -1,
     }},
     .push_constant = { d->first_skybox },
     .push_constant_size = sizeof(uint32_t),
@@ -891,6 +897,7 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_rt, 0); // wire output buffer
   dt_connector_copy(graph, module, 1, id_rt, 4); // wire blue noise input
   dt_connector_copy(graph, module, 2, id_rt, 5); // output aov image
+  dt_connector_copy(graph, module, 3, id_rt, 8); // motion vectors from outside
 
   // propagate up so things will start to move at all at the node level:
   module->flags = s_module_request_read_geo | s_module_request_read_source;

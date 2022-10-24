@@ -44,6 +44,7 @@ layout(set = 1, binding = 5) uniform writeonly image2D img_albedo;
 
 layout(set = 1, binding = 6) uniform sampler2D img_nee_in;
 layout(set = 1, binding = 7) uniform writeonly image2D img_nee_out;
+layout(set = 1, binding = 8) uniform sampler2D img_mv;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
@@ -400,6 +401,66 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
   return (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT);
 }
 
+struct reservoir_t
+{
+  vec3  y;     // world space position of light source point
+  float w_sum; // sum of weights
+  int   M;     // number of samples so far
+  // float W;     // combined weight
+};
+
+void
+reservoir_new(
+    inout reservoir_t r)
+{
+  r.y = vec3(0);
+  r.w_sum = 0.0;
+  r.M = 0;
+}
+
+void
+reservoir_update(
+    inout reservoir_t r,
+    vec3              x, // world space sample position on the light source
+    float             w, // = ph/p, ideal unobtainable pdf / actual pdf
+    float             rand)
+{
+  r.w_sum += w;
+  r.M ++;
+  if(rand < w / r.w_sum) r.y = x;
+}
+
+float ph(
+    vec3 y, // point on light
+    vec3 x, // shading point
+    vec3 n) // shading normal
+  // TODO: bsdf
+  // TODO: L_e/light normal
+{ // return ideal sampling probability density for this light sample point
+  vec3 d = y-x;
+  return max(0, dot(d, n))/(length(d)*dot(d,d)); // whatever remains of the G term
+}
+
+float
+reservoir_W(
+    reservoir_t r,
+    vec3 x, vec3 n)
+{
+  return r.w_sum / r.M / ph(r.y, x, n);
+}
+
+vec4
+reservoir_store(reservoir_t r, vec3 x, vec3 n)
+{ // every other pixel/time needs to multiply their ph(y) to the 4th channel
+  return vec4(r.y, reservoir_W(r, x, n)*r.M);
+}
+
+void
+reservoir_combine(inout reservoir_t r, vec4 d, vec3 x, vec3 n, float rand)
+{
+  reservoir_update(r, d.xyz, ph(d.xyz, x, n)*d.w, rand);
+}
+
 void
 main()
 {
@@ -416,17 +477,24 @@ main()
 
   vec3 lpos = vec3(0.0); // torch light pos, not sure why we have it here
 
-  vec4 needat = vec4(0,0,0,1e-8); // stores 3d position + energy of direct illumination, if found
+  // reservoir sampling for direct light:
+  // reservoir stores: y (sample), w_sum (weight), M (num samples), W = 1/ph(y) * w_sum/M
+  // update with new sample x_i~p: add (x, w_i=ph/p)
+  //   w_sum += w_i, M++, if(rand < w_i/w_sum) y = x_i
+  // combine: create new reservoir and add
+  // y, ph(y)*W*M for every other reservoir
+  // update W as above
+  // estimator is f(y) * W
+  vec4 resd;
+  reservoir_t res;
+  reservoir_new(res);
 #if 0 // TODO:
-  vec4 neeold = needat;
   for()
   {
     // TODO: reverse motion vectors before the fetch
     vec4 nee = texelFetch(img_nee_in, ipos, 0);
-    // TODO: do the actually correct thing:
-    if(rand < nee.w / neeold.w) neeold = nee;
+    reservoir_combine(res, nee, rand);
   }
-  // TODO: further down: use neeold.xyz as next event position
 #endif
 
   for(int s=0;s<params.spp;s++)
@@ -487,12 +555,8 @@ main()
         rand = xrand(seed, rp);
         if(b == 1)
         { // remember successful nee sample
-          float w = length(emcol);
-          if(rand.z < w / needat.w)
-          {
-            needat.xyz = x;
-            needat.w = w;
-          }
+          // reservoir_update(res, lpos, ph(lpos, x, n)/pdf, rand);
+          resd = reservoir_store(res, x, n);
         }
         if(b == 0)
         { // fill albedo channel
@@ -531,7 +595,7 @@ main()
   irr /= params.spp;
   alb /= params.spp;
 
-  imageStore(img_nee_out,    ipos, needat);
+  imageStore(img_nee_out,    ipos, resd);
   imageStore(img_irradiance, ipos, vec4(40*irr, 1));
   imageStore(img_albedo,     ipos, vec4(alb, 1));
 }
