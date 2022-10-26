@@ -137,6 +137,7 @@ create_nodes(
   CONN(dt_node_feedback(graph, id_blend,  6, id_blend, 1)); // denoised light, old
   CONN(dt_node_feedback(graph, id_blend,  5, id_blend, 2)); // beauty frame, old
   CONN(dt_node_connect (graph, id_eaw[3], 1, id_blend, 3)); // denoised light
+  dt_connector_copy(graph, module, 1, id_blend, 3); // XXX DEBUG light w/o denoising
 
   dt_connector_copy(graph, module, 0, id_blend, 0);  // mv
   dt_connector_copy(graph, module, 2, id_blend, 4);  // albedo
