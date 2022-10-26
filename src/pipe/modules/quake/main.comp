@@ -316,7 +316,7 @@ vec3 nee_torch(
   }
   // ao += 0.5*(rand.z + rand.w)-0.5; // dither
   ao = clamp(ao/samples, 0.0, 1.0);
-  float edf = 100.0*pow(abs(dot(-ws, params.cam_w.xyz)), 10.0);
+  float edf = 5.0*pow(abs(dot(-ws, params.cam_w.xyz)), 30.0);
   return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(50.0)/(ldist*ldist); // light with falloff
 }
 
@@ -487,16 +487,7 @@ main()
   // estimator is f(y) * W
   vec4 resd;
   reservoir_t res;
-  reservoir_new(res);
-#if 0 // TODO:
-  for()
-  {
-    // TODO: reverse motion vectors before the fetch
-    vec4 nee = texelFetch(img_nee_in, ipos, 0);
-    reservoir_combine(res, nee, rand);
-  }
-#endif
-
+  reservoir_new(res); // init zero
   for(int s=0;s<params.spp;s++)
   {
     float total_dist = 0.0;
@@ -505,6 +496,7 @@ main()
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
     vec3 rgb = vec3(1.0);
     vec3 x, w, n; // ray position, direction, hit normal
+    float pdf_w;  // pdf of directional sampling
     vec2 st;      // texture coordinates
     { // camera setup:
       x = params.cam_x.xyz;
@@ -519,17 +511,20 @@ main()
       vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
       // vec2 uv = (ipos+0.5)/imageSize(img_irradiance) - 0.5;
       w = normalize(0.45*f + r*uv.x + t*uv.y);
+      n = f;
+      pdf_w = 1.0; // whatever we will not be light tracing here
     }
     for(int b=0;b<2;b++) // bounces
     {
       rayQueryEXT rq;
       if(cast_ray(rq, x, w))
-      { // ray intersected geometry
+      { // ray intersected geometry, init material state and tangent frame
         const float t = rayQueryGetIntersectionTEXT(rq, true);
         total_dist += t;
         const float T = exp(-t * 3.);
         rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
         uint mat = 0, matfb = 0;
+        vec3 oldn = n;
         vec3 oldx = x;
         prepare_intersection(rq, w, x, n, st, mat, matfb);
         if(dot(w, n) > 0) n = -n; // never happens except when it does (transparent surfaces/sky)
@@ -552,35 +547,69 @@ main()
           emcol = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0) : vec4(0.0);
         }
         // emcol *= 100.0; // hack: indirect light is much brighter than it appears
+
+        // vertex area measure pdf of x (new vertex)
+        float pdf = pdf_w * 1.0/dot(x-oldx,x-oldx) * max(0, dot(oldn, w)) * max(0, dot(n, -w));
+
+        // handle intersection:
+        // * accumulate direct albedo and indirect irradiance channels
+        // * first time: load nee state from buffer
+        // * successful nee sample: store nee state in registers
         rand = xrand(seed, rp);
-        if(b == 1)
-        { // remember successful nee sample
-          // reservoir_update(res, lpos, ph(lpos, x, n)/pdf, rand);
-          resd = reservoir_store(res, x, n);
+        if(b == 0 && s == 0)
+        { // first primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
+          vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+          const ivec2 off[] = {
+            ivec2(-1, -3), ivec2(3, -1), ivec2(1,  3), ivec2(-3, 1),
+            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
+            ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+            ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)};
+          for(int i=0;i<13;i++)
+          {
+            rand = xrand(seed, rp);
+            vec4 nee = texelFetch(img_nee_in, ivec2(ipos+mv+off[i]), 0);
+            reservoir_combine(res, nee, oldx, n, rand.x);
+          }
         }
-        if(b == 0)
-        { // fill albedo channel
-          if(any(greaterThan(emcol.rgb, vec3(0.0))))
-          { // no indirect light on emitters
+        if(any(greaterThan(emcol.rgb, vec3(0.0))))
+        { // have >0 radiance sample
+          if(b == 1) // on 3rd vertex
+          { // update nee sampling state
+            reservoir_update(res, lpos, ph(x, oldx, n)/pdf, rand.z);
+            resd = reservoir_store(res, x, n);
+          }
+          if(b >= 1) // 3rd vertex or more
+          { // accumulate indirect irradiance
+            irr += rgb * emcol.rgb;
+          }
+          if(b == 0) // on 2nd vertex
+          { // directly visible light source
             irr += 0.01; // but be sure that albedo * irradiance stays put.
             alb += 100 * emcol.rgb;
-            break;
           }
-          else alb += diffcol.rgb;// + emcol.rgb;//vec3(-dot(w, n));//diffcol.rgb;// + emcol.rgb;
+          break; // no indirect light on emitters
         }
-        if(b >= 1 && any(greaterThan(emcol.rgb, vec3(0.0))))
-        { // only write light channel for indirect
-          irr += rgb * emcol.rgb;
-          break;
+        else
+        { // no light source
+          if(b == 0) alb += diffcol.rgb; // accumulate directly visible albedo
         }
-        // rgb *= diffcol.rgb;   // (don't) multiply bsdf weight
-#if 0 // next event estimation to torch:
+
+
+
+#if 1 // next event estimation to torch:
         irr += nee_torch(lpos, x, rgb, n, seed, rp);
 #endif
+
+
+        // TODO: sample from the reservoir
+        // use res.y as point to aim at
+        // weight is f(res.y)/res.W
+
         // sample new ray direction
         w = sample_cos(rand.xy);
         w = w.x * du + w.y * dv + w.z * n;
-        w = normalize(w);
+        w = normalize(w); // paranoia/numerical jitter over bounces
+        pdf_w = 1.0/radians(180);
       }
       else
       { // envmap, never reached for closed quake maps
