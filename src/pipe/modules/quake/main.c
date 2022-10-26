@@ -771,6 +771,7 @@ create_nodes(
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
+      .flags  = s_conn_clear, // init with zero weights/counts
     },{
       .name   = dt_token("mv"),
       .type   = dt_token("read"),

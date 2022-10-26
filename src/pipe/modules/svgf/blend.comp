@@ -41,10 +41,12 @@ main()
 
   ivec2 sz = textureSize(img_light, 0).xy;
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-  vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
+  // XXX DEBUG vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
+  vec3 L  = texelFetch(img_light, ipos, 0).rgb;
   vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
 
+#if 0
   L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
 #if 1 // taa box clamping old light vs. new light
   {
@@ -76,6 +78,7 @@ main()
   prevb = clamp(prevb, max(vec3(0), maL1 - thresh * sigma), maL1 + thresh * sigma);
   }
 #endif
+#endif
 
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
   vec3 beauty = L *albedo;
@@ -87,7 +90,7 @@ main()
       0.04330266, 0.0113596 , 0.89538035);
   beauty = M * beauty;
 
-  beauty = mix(beauty, prevb, params.alpha);
+  // beauty = mix(beauty, prevb, params.alpha);
   imageStore(img_out, ipos, vec4(beauty, 1));
   imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
 }

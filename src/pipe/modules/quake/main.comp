@@ -438,7 +438,7 @@ float ph(
   // TODO: L_e/light normal
 { // return ideal sampling probability density for this light sample point
   vec3 d = y-x;
-  return max(0, dot(d, n))/(length(d)*dot(d,d)); // whatever remains of the G term
+  return max(0, dot(d, n))/max(1e-6, (length(d)*dot(d,d))); // whatever remains of the G term
 }
 
 float
@@ -449,10 +449,11 @@ reservoir_W(
   return r.w_sum / r.M / ph(r.y, x, n);
 }
 
+// TODO: store int instance/primid + 2x16b uv coords to id light source (with texture+normal)
 vec4
 reservoir_store(reservoir_t r, vec3 x, vec3 n)
 { // every other pixel/time needs to multiply their ph(y) to the 4th channel
-  return vec4(r.y, reservoir_W(r, x, n)*r.M);
+  return vec4(r.y, r.w_sum / ph(r.y, x, n));//reservoir_W(r, x, n)*r.M);
 }
 
 void
@@ -575,8 +576,8 @@ main()
         { // have >0 radiance sample
           if(b == 1) // on 3rd vertex
           { // update nee sampling state
-            reservoir_update(res, lpos, ph(x, oldx, n)/pdf, rand.z);
-            resd = reservoir_store(res, x, n);
+            reservoir_update(res, x, ph(x, oldx, oldn)/pdf, rand.z);
+            resd = reservoir_store(res, oldx, oldn);
           }
           if(b >= 1) // 3rd vertex or more
           { // accumulate indirect irradiance
@@ -596,7 +597,7 @@ main()
 
 
 
-#if 1 // next event estimation to torch:
+#if 0 // next event estimation to torch:
         irr += nee_torch(lpos, x, rgb, n, seed, rp);
 #endif
 
@@ -604,12 +605,22 @@ main()
         // TODO: sample from the reservoir
         // use res.y as point to aim at
         // weight is f(res.y)/res.W
-
-        // sample new ray direction
-        w = sample_cos(rand.xy);
-        w = w.x * du + w.y * dv + w.z * n;
-        w = normalize(w); // paranoia/numerical jitter over bounces
-        pdf_w = 1.0/radians(180);
+#if 1
+        float W = reservoir_W(res, x, n);
+        if(global.frame > 10 && W > 0 && rand.w > 0.2)
+        {
+          w = normalize(res.y - x);
+          float G = 1.0/dot(res.y-x,res.y-x) * max(0, dot(n, w));// * max(0, dot(light_n, -w));
+          pdf_w = W/G;
+        }
+        else
+#endif
+        { // sample independent new ray direction
+          w = sample_cos(rand.xy);
+          w = w.x * du + w.y * dv + w.z * n;
+          w = normalize(w); // paranoia/numerical jitter over bounces
+          pdf_w = 1.0/radians(180);
+        }
       }
       else
       { // envmap, never reached for closed quake maps
