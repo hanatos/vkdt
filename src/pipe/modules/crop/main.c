@@ -80,7 +80,8 @@ void ui_callback(
 
 // fill crop and rotation if auto-rotate by exif data has been requested
 static inline void
-get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, const float *p_rot, float *crop, float *rot)
+get_crop_rot(uint32_t or, double wd, double ht,
+    const float *p_crop, const float *p_rot, float *crop, float *rot)
 {
   // flip by exif orientation if we have it and it's requested:
   float rotation = p_rot[0];
@@ -99,34 +100,34 @@ get_crop_rot(uint32_t or, float wd, float ht, const float *p_crop, const float *
   }
   if(crop[0] == 1.0 && crop[1] == 3.0 && crop[2] == 3.0 && crop[3] == 7.0)
   { // more magic: microcrop by pixel safety margin for resampling:
-    float crw = 3.0 / wd, crh = 3.0 / ht;
+    double crw = wd > 400 ? 3.0 / wd : 0.0, crh = ht > 400 ? 3.0 / ht : 0.0;
     if(rot[0] >= 45 && rot[0] < 135)
     { // almost 90
-      crop[0] = 0.5f - (.5f - crh) * ht / wd;
-      crop[2] = 0.5f - (.5f - crw) * wd / ht;
-      crop[1] = 0.5f + (.5f - crh) * ht / wd;
-      crop[3] = 0.5f + (.5f - crw) * wd / ht;
+      crop[0] = 0.5 - (.5 - crh) * ht / wd;
+      crop[2] = 0.5 - (.5 - crw) * wd / ht;
+      crop[1] = 0.5 + (.5 - crh) * ht / wd;
+      crop[3] = 0.5 + (.5 - crw) * wd / ht;
     }
     else if(rot[0] < 225)
     { // almost 180
       crop[0] = crw;
       crop[2] = crh;
-      crop[1] = 1.0f-crw;
-      crop[3] = 1.0f-crh;
+      crop[1] = 1.0-crw;
+      crop[3] = 1.0-crh;
     }
     else if(rot[0] < 315)
     { // almost 270
-      crop[0] = 0.5f - (.5f - crh) * ht / wd;
-      crop[2] = 0.5f - (.5f - crw) * wd / ht;
-      crop[1] = 0.5f + (.5f - crh) * ht / wd;
-      crop[3] = 0.5f + (.5f - crw) * wd / ht;
+      crop[0] = 0.5 - (.5 - crh) * ht / wd;
+      crop[2] = 0.5 - (.5 - crw) * wd / ht;
+      crop[1] = 0.5 + (.5 - crh) * ht / wd;
+      crop[3] = 0.5 + (.5 - crw) * wd / ht;
     }
     else
     { // almost 0
       crop[0] = crw;
       crop[2] = crh;
-      crop[1] = 1.0f-crw;
-      crop[3] = 1.0f-crh;
+      crop[1] = 1.0-crw;
+      crop[3] = 1.0-crh;
     }
   }
 }

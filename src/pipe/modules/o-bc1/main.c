@@ -9,24 +9,6 @@
 #include <string.h>
 #include <zlib.h>
 
-
-void modify_roi_in(
-    dt_graph_t  *graph,
-    dt_module_t *mod)
-{
-  dt_roi_t *r = &mod->connector[0].roi;
-  r->scale = 1.0f;
-  // scale to fit into requested roi
-  if(graph->output_wd > 0 || graph->output_ht > 0)
-    r->scale = MAX(
-        r->full_wd / (float) graph->output_wd,
-        r->full_ht / (float) graph->output_ht);
-  r->wd = r->full_wd/r->scale;
-  r->ht = r->full_ht/r->scale;
-  r->wd = (r->wd/4)*4; // make sure we have bc1 blocks aligned
-  r->ht = (r->ht/4)*4;
-}
-
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
 void write_sink(
@@ -50,8 +32,7 @@ void write_sink(
   for(int j=0;j<4*by;j+=4)
   {
     for(int i=0;i<4*bx;i+=4)
-    {
-      // swizzle block data together:
+    { // swizzle block data together:
       uint8_t block[64];
       for(int jj=0;jj<4;jj++)
         for(int ii=0;ii<4;ii++)
@@ -68,7 +49,7 @@ void write_sink(
   snprintf(tmpfile, sizeof(tmpfile), "%s.temp", filename);
   gzFile f = gzopen(tmpfile, "wb");
   // write magic, version, width, height
-  uint32_t header[4] = { dt_token("bc1z"), 1, wd, ht };
+  uint32_t header[4] = { dt_token("bc1z"), 1, bx*4, by*4 };
   gzwrite(f, header, sizeof(uint32_t)*4);
   gzwrite(f, out, sizeof(uint8_t)*8*num_blocks);
   gzclose(f);
