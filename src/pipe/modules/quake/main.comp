@@ -453,7 +453,8 @@ reservoir_W(
 vec4
 reservoir_store(reservoir_t r, vec3 x, vec3 n)
 { // every other pixel/time needs to multiply their ph(y) to the 4th channel
-  return vec4(r.y, r.w_sum / ph(r.y, x, n));//reservoir_W(r, x, n)*r.M);
+  // return vec4(r.y, r.w_sum / ph(r.y, x, n));//reservoir_W(r, x, n)*r.M);
+  return vec4(r.y, 1.0/ph(r.y,x,n)); // XXX this term (w_sum essentially) runs over after a while
 }
 
 void
@@ -550,7 +551,7 @@ main()
         // emcol *= 100.0; // hack: indirect light is much brighter than it appears
 
         // vertex area measure pdf of x (new vertex)
-        float pdf = pdf_w * 1.0/dot(x-oldx,x-oldx) * max(0, dot(oldn, w)) * max(0, dot(n, -w));
+        float pdf = pdf_w;//  * 1.0/dot(x-oldx,x-oldx) * max(0, dot(oldn, w)) * max(0, dot(n, -w));
 
         // handle intersection:
         // * accumulate direct albedo and indirect irradiance channels
@@ -611,7 +612,8 @@ main()
         {
           w = normalize(res.y - x);
           float G = 1.0/dot(res.y-x,res.y-x) * max(0, dot(n, w));// * max(0, dot(light_n, -w));
-          pdf_w = W/G;
+          pdf_w = 1.0;// XXX W/G;
+          rgb *= 1.0/radians(180); // bsdf without albedo * weight
         }
         else
 #endif
@@ -620,6 +622,7 @@ main()
           w = w.x * du + w.y * dv + w.z * n;
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = 1.0/radians(180);
+          // rgb *= 1
         }
       }
       else
