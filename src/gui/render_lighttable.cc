@@ -84,15 +84,11 @@ void render_lighttable_center()
   const int cnt = vkdt.db.collection_cnt;
   const int lines = (cnt+ipl-1)/ipl;
   ImGuiListClipper clipper;
-  clipper.Begin(lines);
+  clipper.Begin(lines, ht + 2*border + style.ItemSpacing.y);
+  // a bit crude, but works: align thumbnail at pixel boundary:
+  ImGui::GetCurrentWindow()->DC.CursorPos[0] = (int)ImGui::GetCurrentWindow()->DC.CursorPos[0];
   while(clipper.Step())
   {
-    // for whatever reason (gauge sizes?) imgui will always pass [0,1) as a first range.
-    // we don't want these to trigger a deferred load.
-    // in case [0,1) is within the visible region, however, [1,8) might be the next
-    // range, for instance. this means we'll need to do some weird dance to detect it
-    // TODO: ^
-    // fprintf(stderr, "displaying range %u %u\n", clipper.DisplayStart, clipper.DisplayEnd);
     dt_thumbnails_load_list(
         &vkdt.thumbnails,
         &vkdt.db,
