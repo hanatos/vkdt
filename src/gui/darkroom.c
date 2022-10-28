@@ -606,14 +606,13 @@ darkroom_enter()
   // stat, if doesn't exist, load default
   // always set filename param? (definitely do that for default cfg)
   int load_default = 0;
-  char imgfilename[256], realimg[PATH_MAX];
+  char realimg[PATH_MAX];
   dt_token_t input_module = dt_token("i-raw");
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
   {
-    dt_log(s_log_err|s_log_gui, "individual config %s not found, loading default!", graph_cfg);
-    dt_db_image_path(&vkdt.db, imgid, imgfilename, sizeof(imgfilename));
-    realpath(imgfilename, realimg);
+    dt_log(s_log_gui, "individual config %s not found, loading default!", graph_cfg);
+    realpath(graph_cfg, realimg); // depend on GNU extension in case of ENOENT (to cut out /../ and so on)
     int len = strlen(realimg);
     assert(len > 4);
     realimg[len-4] = 0; // cut away ".cfg"

@@ -5,6 +5,7 @@ extern "C"
 #include "gui/darkroom-util.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-history.h"
+#include "pipe/graph-defaults.h"
 }
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
@@ -1671,6 +1672,57 @@ abort:
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
+    int action = 0;
+    if(ImGui::Button("compress",  ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 1; // compress
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("rewrite history in a compact way");
+    ImGui::SameLine();
+    if(ImGui::Button("roll back", ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 2; // load previously stored cfg from disk
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("roll back to the state when entered darkroom mode");
+    ImGui::SameLine();
+    if(ImGui::Button("reset",     ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 3; // load factory defaults
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("reset everything to factory defaults");
+    if(action)
+    {
+      uint32_t imgid = dt_db_current_imgid(&vkdt.db);
+      char graph_cfg[PATH_MAX+100];
+      char realimg[PATH_MAX];
+      dt_token_t input_module = dt_token("i-raw");
+
+      if(action >= 2) dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
+      if(action == 2)
+      {
+        struct stat statbuf;
+        if(stat(graph_cfg, &statbuf)) action = 3;
+      }
+      if(action == 3)
+      {
+        realpath(graph_cfg, realimg);
+        int len = strlen(realimg);
+        assert(len > 4);
+        realimg[len-4] = 0; // cut away ".cfg"
+        input_module = dt_graph_default_input_module(realimg);
+        snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+      }
+
+      // anything goes wrong, what can we do?
+      if(action >= 2) dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
+
+      if(action == 3)
+      { // default needs to update input filename and search path
+        dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
+        char *basen = basename(realimg); // cut away path so we can relocate more easily
+        int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("main"));
+        if(modid >= 0)
+          dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
+              basen);
+      }
+
+      dt_graph_history_reset(&vkdt.graph_dev);
+      vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+    }
+
+    ImGui::BeginChild("history-scrollpane");
+
     for(int i=vkdt.graph_dev.history_item_end-1;i>=0;i--)
     {
       int pop = 0;
@@ -1695,6 +1747,7 @@ abort:
       }
       if(pop) ImGui::PopStyleColor(pop);
     }
+    ImGui::EndChild();
     ImGui::End();
   } // end left panel
 
