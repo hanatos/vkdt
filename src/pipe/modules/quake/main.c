@@ -68,9 +68,10 @@ int init(dt_module_t *mod)
   char *argv[] = {"quakespasm",
     "-basedir", "/usr/share/games/quake",
     "+map", "start",
+    "+skill", "2",
     "-game", "ad",
-    "+map", "ad_azad",
     "+map", "e1m1",
+    "+map", "ad_azad",
     "-game", "SlayerTest",
     "+map", "e1m2b",
     "+map", "e1m1",
@@ -80,7 +81,7 @@ int init(dt_module_t *mod)
     "+map", "st1m1",
     "+map", "start",
   };
-  int argc =  9;
+  int argc =  11;
 
   d->worldspawn = 0;
   d->parms.argc = argc;
@@ -769,7 +770,7 @@ create_nodes(
       .name   = dt_token("nee_out"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
+      .format = dt_token("f16"), // XXX f32 or i32
       .roi    = module->connector[0].roi,
       .flags  = s_conn_clear, // init with zero weights/counts
     },{
