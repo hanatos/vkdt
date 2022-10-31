@@ -764,13 +764,13 @@ create_nodes(
       .name   = dt_token("nee_in"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
+      .format = dt_token("ui32"),
       .connected_mi = -1,
     },{
       .name   = dt_token("nee_out"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
-      .format = dt_token("f16"), // XXX f32 or i32
+      .format = dt_token("ui32"),
       .roi    = module->connector[0].roi,
       .flags  = s_conn_clear, // init with zero weights/counts
     },{

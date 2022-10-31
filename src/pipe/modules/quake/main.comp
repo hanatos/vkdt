@@ -27,6 +27,7 @@ layout(push_constant, std140) uniform push_t
 
 layout(set = 1, binding = 0) uniform writeonly image2D img_irradiance;
 
+// TODO: make this an array (and support more instances for decals etc)
 layout(std430, set = 1, binding = 1) buffer sssbo_t
 {
   uint v[]; // extra geo info for static geo
@@ -42,8 +43,8 @@ layout(set = 1, binding = 4) uniform sampler2D img_blue;
 
 layout(set = 1, binding = 5) uniform writeonly image2D img_albedo;
 
-layout(set = 1, binding = 6) uniform sampler2D img_nee_in;
-layout(set = 1, binding = 7) uniform writeonly image2D img_nee_out;
+layout(set = 1, binding = 6) uniform usampler2D img_nee_in;
+layout(set = 1, binding = 7) uniform writeonly uimage2D img_nee_out;
 layout(set = 1, binding = 8) uniform sampler2D img_mv;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
@@ -190,8 +191,6 @@ struct intersection_t
   uint uv;     // unpackHalf2x16
 };
 
-// TODO store to ssbo/array via floatBitsToUint?
-
 struct material_info_t
 { // initialised hit point to work with
   vec3 x;
@@ -216,28 +215,23 @@ prepare_intersection(
 
 material_info_t
 prepare_material_info(
-    vec3                w,      // incoming ray direction
-    intersection_t      inter)  // identify geo intersection
+    vec3           x,      // incoming ray origin. only used if w.x == 666
+    vec3           w,      // incoming ray direction. if w.x == 666, create by using new x and old x.
+    intersection_t inter)  // identify geo intersection
 {
   material_info_t m;
-  int instance_id = inter.instid;
-  int pi          = inter.primid;
   vec3 b;
   b.yz = unpackHalf2x16(inter.uv);
   b.x = 1.0-b.z-b.y;
-  int i = 7*pi;
+  int i = 7*inter.primid;
   vec3 n0, n1, n2;
-  if(instance_id == 0)
+  if(inter.instid == 0)
   { // dyn geo
     m.mat   = dynssbo.v[i+6]&0xffff;
     m.matfb = dynssbo.v[i+6]>>16;
     n0 = geo_decode_normal(dynssbo.v[i+0]);
     n1 = geo_decode_normal(dynssbo.v[i+1]);
     n2 = geo_decode_normal(dynssbo.v[i+2]);
-    if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
-    if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
-    if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
-    m.n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
@@ -257,9 +251,9 @@ prepare_material_info(
     m.st = mat3x2(st0, st1, st2) * b;
   }
   // more precise intersection point by using vertices + barycentrics
-  uint i0 = buf_idx[inter.instid].i[3*pi+0];
-  uint i1 = buf_idx[inter.instid].i[3*pi+1];
-  uint i2 = buf_idx[inter.instid].i[3*pi+2];
+  uint i0 = buf_idx[inter.instid].i[3*inter.primid+0];
+  uint i1 = buf_idx[inter.instid].i[3*inter.primid+1];
+  uint i2 = buf_idx[inter.instid].i[3*inter.primid+2];
   vec3 v0 = vec3(
       buf_vtx[inter.instid].v[3*i0+0],
       buf_vtx[inter.instid].v[3*i0+1],
@@ -273,8 +267,13 @@ prepare_material_info(
       buf_vtx[inter.instid].v[3*i2+1],
       buf_vtx[inter.instid].v[3*i2+2]);
   m.x = mat3(v0, v1, v2) * b;
+  if(w.x == 666) w = normalize(m.x - x); // regenerate if no direction known
   if(inter.instid == 0)
-  { // now fix terminator problem:
+  { // now fix shading normals below horizon and terminator problem:
+    if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
+    if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
+    if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
+    m.n = normalize(mat3(n0, n1, n2) * b);
     vec3 tmpu = m.x - v0, tmpv = m.x - v1, tmpw = m.x - v2;
     float dotu = min(0.0, dot(tmpu, n0));
     float dotv = min(0.0, dot(tmpv, n1));
@@ -442,43 +441,39 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
 
 struct reservoir_t
 {
-  vec3  y;     // world space position of light source point
-  float w_sum; // sum of weights
-  int   M;     // number of samples so far
-  // float W;     // combined weight
+  intersection_t inter; // descriptor of ponit on light source, reconstructs the next block:
+
+  vec3  y;              // world space position of light source point
+  vec3  Le;             // emission of that point
+  vec3  n;              // shading normal
+
+  float w_sum;          // sum of weights
+  uint  M;              // number of samples so far
+  float W;              // combined weight
 };
 
-void
-reservoir_new(
-    inout reservoir_t r)
+reservoir_t reservoir_new()
 {
+  reservoir_t r;
   r.y = vec3(0);
   r.w_sum = 0.0;
   r.M = 0;
-}
-
-void
-reservoir_update(
-    inout reservoir_t r,
-    vec3              x, // world space sample position on the light source
-    float             w, // = ph/p, ideal unobtainable pdf / actual pdf
-    float             rand)
-{
-  r.w_sum += w;
-  r.w_sum = clamp(r.w_sum, 0, 2000); // seems necessary to avoid overflow
-  r.M ++;
-  if(rand < w / r.w_sum) r.y = x;
+  r.W = 0;
+  return r;
 }
 
 float ph(
-    vec3 y, // point on light
-    vec3 x, // shading point
-    vec3 n) // shading normal
+    vec3 y,  // point on light
+    vec3 ny, // shading normal on light
+    vec3 Le, // emission
+    vec3 x,  // shading point
+    vec3 nx) // shading normal
   // TODO: bsdf
-  // TODO: L_e/light normal
 { // return ideal sampling probability density for this light sample point
   vec3 d = y-x;
-  return max(0, dot(d, n))/max(1e-6, (length(d)*dot(d,d))); // whatever remains of the G term
+  float r2 = dot(d,d);
+  d = normalize(d);
+  return length(Le) * max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
 }
 
 float
@@ -486,26 +481,57 @@ reservoir_W(
     reservoir_t r,
     vec3 x, vec3 n)
 {
-  return r.w_sum / r.M / ph(r.y, x, n);
-}
-
-// TODO: store int instance/primid + 2x16b uv coords to id light source (with texture+normal)
-// we need to add the reservoir as phq(r.y)/phq'(r.x) * r.w_sum
-// which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
-vec4
-reservoir_store(reservoir_t r, vec3 x, vec3 n)
-{ // every other pixel/time needs to multiply their ph(y) to the 4th channel
-  return vec4(r.y, reservoir_W(r, x, n));
-  // return vec4(r.y, r.w_sum / ph(r.y, x, n));//reservoir_W(r, x, n)*r.M);
-  // return vec4(r.y, 1.0/ph(r.y,x,n)); // XXX this term (w_sum essentially) runs over after a while
+  if(r.M == 0) return 0.0;
+  return r.w_sum / r.M / ph(r.y, r.n, r.Le, x, n);
 }
 
 void
-reservoir_combine(inout reservoir_t r, vec4 d, vec3 x, vec3 n, float rand)
+reservoir_combine(
+    inout reservoir_t r,
+    reservoir_t       r2,
+    vec3              x,    // shading point x
+    vec3              n,    // shading point n
+    float             rand)
 {
-  // XXX FIXME: would need to r.M += stored.M!
-  // XXX since i don't want to store more memory, pretend the reservoir had M=1
-  reservoir_update(r, d.xyz, ph(d.xyz, x, n)*d.w, rand);
+  float w = ph(r2.y, r2.n, r2.Le, x, n)*r2.W*r2.M;
+  r.w_sum += w;
+  r.M     += r2.M;
+  r.w_sum = clamp(r.w_sum, 0, 5000); // seems necessary to avoid overflow
+  r.M     = clamp(r.M, 0, 5000);
+  if(rand < w / r.w_sum)
+  {
+    r.inter = r2.inter;
+    r.y     = r2.y;
+    r.n     = r2.n;
+    r.Le    = r2.Le;
+    r.W     = reservoir_W(r, x, n);
+  }
+}
+
+// we need to add the reservoir as phq(r.y)/phq'(r.x) * r.w_sum
+// which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
+uvec4 reservoir_encode(reservoir_t r)
+{
+  return uvec4(
+      (r.inter.instid & 0x3) | (r.inter.primid << 2),
+      r.inter.uv,
+      r.M,
+      floatBitsToUint(r.W));
+}
+
+reservoir_t reservoir_decode(uvec4 enc, vec3 x)
+{
+  reservoir_t r;
+  r.inter.instid = int(enc.x & 0x3);
+  r.inter.primid = int(enc.x >> 2);
+  r.inter.uv = enc.y;
+  r.M = enc.z;
+  r.W = uintBitsToFloat(enc.w);
+  material_info_t m = prepare_material_info(x, vec3(666), r.inter);
+  r.y  = m.x;
+  r.n  = m.n;
+  r.Le = m.emission;
+  return r;
 }
 
 void
@@ -522,21 +548,11 @@ main()
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
 
-  vec3 lpos = vec3(0.0); // torch light pos, not sure why we have it here
-
-  // reservoir sampling for direct light:
-  // reservoir stores: y (sample), w_sum (weight), M (num samples), W = 1/ph(y) * w_sum/M
-  // update with new sample x_i~p: add (x, w_i=ph/p)
-  //   w_sum += w_i, M++, if(rand < w_i/w_sum) y = x_i
-  // combine: create new reservoir and add
-  // y, ph(y)*W*M for every other reservoir
-  // update W as above
-  // estimator is f(y) * W
-  vec4 resd;
-  reservoir_t res;
-  reservoir_new(res); // init zero
+  reservoir_t res = reservoir_new(); // init zero
   for(int s=0;s<params.spp;s++)
   {
+    vec3 lpos = vec3(0.0); // torch light pos, depending on camera
+    intersection_t inter;
     material_info_t m0, m1;
     float total_dist = 0.0;
     vec4 rand = xrand(seed, rp);
@@ -570,11 +586,11 @@ main()
         total_dist += t;
         const float T = exp(-t * 3.);
         rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-        m1 = prepare_material_info(w, prepare_intersection(rq));
+        intersection_t inter = prepare_intersection(rq);
+        m1 = prepare_material_info(m0.x, w, inter);
 
         // vertex area measure pdf of x (new vertex)
-        // XXX currently ignoring cosine at light (because we don't store it in the reservoir store)
-        float pdf = pdf_w * 1.0/dot(m1.x-m0.x,m1.x-m0.x) * max(0, dot(m0.n, w));// * max(0, dot(m1.n, -w));
+        float pdf = pdf_w * 1.0/dot(m1.x-m0.x,m1.x-m0.x) * max(0, dot(m0.n, w)) * max(0, dot(m1.n, -w));
 
         // handle intersection:
         // * accumulate direct albedo and indirect irradiance channels
@@ -582,7 +598,7 @@ main()
         // * successful nee sample: store nee state in registers
         rand = xrand(seed, rp);
         if(b == 0 && s == 0)
-        { // first primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
+        { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
           vec2 mv = texelFetch(img_mv, ipos, 0).rg;
           const ivec2 off[] = {
             ivec2(-1, -4), ivec2(4, -1), ivec2(1,  4), ivec2(-4, 1),
@@ -592,16 +608,18 @@ main()
           for(int i=0;i<13;i++)
           {
             rand = xrand(seed, rp);
-            vec4 nee = texelFetch(img_nee_in, ivec2(ipos+mv+off[i]), 0);
-            reservoir_combine(res, nee, m1.x, m1.n, rand.x);
+            reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off[i]), 0), m1.x);
+            reservoir_combine(res, r2, m1.x, m1.n, rand.x);
           }
         }
         if(any(greaterThan(m1.emission, vec3(0.0))))
         { // have >0 radiance sample
           if(b == 1) // on 3rd vertex
           { // update nee sampling state
-            reservoir_update(res, m1.x, ph(m1.x, m0.x, m0.n)/pdf, rand.z);
-            resd = reservoir_store(res, m0.x, m0.n);
+            reservoir_t r2 = reservoir_new();
+            r2.y = m1.x; r2.n = m1.n; r2.Le = m1.emission;
+            r2.M = 1; r2.W = 1.0/pdf; r2.inter = inter;
+            reservoir_combine(res, r2, m0.x, m0.n, rand.z);
           }
           if(b >= 1) // 3rd vertex or more
           { // accumulate indirect irradiance
@@ -617,6 +635,7 @@ main()
         else
         { // no light source
           if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
+          if(b == 1) { res.M = 0; res.W = 0.0; } // not visible after all so it seems, clear reservoir
         }
 
 
@@ -629,12 +648,13 @@ main()
 #if 1
         // sample direction outgoing from m1.x according to the reservoir
         // use res.y as point to aim at, estimator is f(res.y)*res.W
-        float W = reservoir_W(res, m1.x, m1.n);
-        if(global.frame > 10 && W > 0 && rand.w > 0.2)
+        float W = res.W;//reservoir_W(res, m1.x, m1.n);
+        const float a = 0.2;
+        if(global.frame > 10 && W > 0 && rand.w > a)
         {
           w = normalize(res.y - m1.x);
-          float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w));// * max(0, dot(light_n, -w));
-          pdf_w = 1.0/(W*G); // convert to directional pdf (projected solid angle)
+          float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w)) * max(0, dot(res.n, -w));
+          pdf_w = (1.0-a)/(W*G); // convert to directional pdf (projected solid angle)
           rgb *= 1.0/radians(180); // bsdf without albedo
         }
         else
@@ -643,7 +663,7 @@ main()
           w = sample_cos(rand.xy);
           w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = 1.0/radians(180); // uniform projected solid angle
+          pdf_w = a/radians(180); // uniform projected solid angle
           rgb *= 1.0/radians(180);  // bsdf without albedo
         }
         m0 = m1; // advance path vertex
@@ -661,7 +681,7 @@ main()
   irr /= params.spp;
   alb /= params.spp;
 
-  imageStore(img_nee_out,    ipos, resd);
+  imageStore(img_nee_out,    ipos, reservoir_encode(res));
   imageStore(img_irradiance, ipos, vec4(40*irr, 1));
   imageStore(img_albedo,     ipos, vec4(alb, 1));
 }
