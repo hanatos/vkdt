@@ -151,91 +151,105 @@ vec3 geo_decode_normal(const uint enc)
 }
 
 struct intersection_t
-{
-  // TODO: clean this up
+{ // minimal descriptor to id a material_info_t
+  int  instid;
+  int  primid;
+  uint uv;     // unpackHalf2x16
+};
+
+// TODO store to ssbo/array via floatBitsToUint?
+
+struct material_info_t
+{ // initialised hit point to work with
+  vec3 x;
   vec3 n;
   vec2 st;
   uint mat;
   uint matfb;
 };
 
-void prepare_intersection(
-    rayQueryEXT rq,
-    vec3 w,
-    inout vec3 x,
-    out vec3 n,
-    out vec2 st,
-    out uint mat,   // texture
-    out uint matfb) // fullbright texture
+intersection_t
+prepare_intersection(
+    rayQueryEXT rq)
 {
-  int instance_id = rayQueryGetIntersectionInstanceIdEXT(rq, true); // which of our ssbo
-  int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, true); // primitive inside instance
+  intersection_t inter;
+  inter.instid = rayQueryGetIntersectionInstanceIdEXT(rq, true);     // which of our ssbo
+  inter.primid = rayQueryGetIntersectionPrimitiveIndexEXT(rq, true); // primitive inside instance
+  inter.uv     = packHalf2x16(rayQueryGetIntersectionBarycentricsEXT(rq, true));
+  return inter;
+}
+
+material_info_t
+prepare_material_info(
+    vec3                w,      // incoming ray direction
+    intersection_t      inter)  // identify geo intersection
+{
+  material_info_t matin;
+  int instance_id = inter.instid;
+  int pi          = inter.primid;
   vec3 b;
-  b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, true);
+  b.yz = unpackHalf2x16(inter.uv);
   b.x = 1.0-b.z-b.y;
   int i = 7*pi;
   vec3 n0, n1, n2;
   if(instance_id == 0)
   { // dyn geo
-    mat   = dynssbo.v[i+6]&0xffff;
-    matfb = dynssbo.v[i+6]>>16;
+    matin.mat   = dynssbo.v[i+6]&0xffff;
+    matin.matfb = dynssbo.v[i+6]>>16;
     n0 = geo_decode_normal(dynssbo.v[i+0]);
     n1 = geo_decode_normal(dynssbo.v[i+1]);
     n2 = geo_decode_normal(dynssbo.v[i+2]);
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
     if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
-    n = normalize(mat3(n0, n1, n2) * b);
+    matin.n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
-    st = mat3x2(st0, st1, st2) * b;
+    matin.st = mat3x2(st0, st1, st2) * b;
   }
   else
   { // static geo
-    mat   = stcssbo.v[i+6]&0xffff;
-    matfb = stcssbo.v[i+6]>>16;
+    matin.mat   = stcssbo.v[i+6]&0xffff;
+    matin.matfb = stcssbo.v[i+6]>>16;
     n0 = geo_decode_normal(stcssbo.v[i+0]);
     n1 = geo_decode_normal(stcssbo.v[i+1]);
     n2 = geo_decode_normal(stcssbo.v[i+2]);
-    n = normalize(mat3(n0, n1, n2) * b);
+    matin.n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
-    st = mat3x2(st0, st1, st2) * b;
+    matin.st = mat3x2(st0, st1, st2) * b;
   }
-#if 0 // fast and dirty:
-  float t = rayQueryGetIntersectionTEXT(rq, true);
-  x += t*w;
-#else // more precise intersection point by using vertices + barycentrics
-  uint i0 = buf_idx[instance_id].i[3*pi+0];
-  uint i1 = buf_idx[instance_id].i[3*pi+1];
-  uint i2 = buf_idx[instance_id].i[3*pi+2];
+  // more precise intersection point by using vertices + barycentrics
+  uint i0 = buf_idx[inter.instid].i[3*pi+0];
+  uint i1 = buf_idx[inter.instid].i[3*pi+1];
+  uint i2 = buf_idx[inter.instid].i[3*pi+2];
   vec3 v0 = vec3(
-      buf_vtx[instance_id].v[3*i0+0],
-      buf_vtx[instance_id].v[3*i0+1],
-      buf_vtx[instance_id].v[3*i0+2]);
+      buf_vtx[inter.instid].v[3*i0+0],
+      buf_vtx[inter.instid].v[3*i0+1],
+      buf_vtx[inter.instid].v[3*i0+2]);
   vec3 v1 = vec3(
-      buf_vtx[instance_id].v[3*i1+0],
-      buf_vtx[instance_id].v[3*i1+1],
-      buf_vtx[instance_id].v[3*i1+2]);
+      buf_vtx[inter.instid].v[3*i1+0],
+      buf_vtx[inter.instid].v[3*i1+1],
+      buf_vtx[inter.instid].v[3*i1+2]);
   vec3 v2 = vec3(
-      buf_vtx[instance_id].v[3*i2+0],
-      buf_vtx[instance_id].v[3*i2+1],
-      buf_vtx[instance_id].v[3*i2+2]);
-  x = mat3(v0, v1, v2) * b;
-#endif
-  if(instance_id == 0)
+      buf_vtx[inter.instid].v[3*i2+0],
+      buf_vtx[inter.instid].v[3*i2+1],
+      buf_vtx[inter.instid].v[3*i2+2]);
+  matin.x = mat3(v0, v1, v2) * b;
+  if(inter.instid == 0)
   { // now fix terminator problem:
-    vec3 tmpu = x - v0, tmpv = x - v1, tmpw = x - v2;
+    vec3 tmpu = matin.x - v0, tmpv = matin.x - v1, tmpw = matin.x - v2;
     float dotu = min(0.0, dot(tmpu, n0));
     float dotv = min(0.0, dot(tmpv, n1));
     float dotw = min(0.0, dot(tmpw, n2));
     tmpu -= dotu*n0;
     tmpv -= dotv*n1;
     tmpw -= dotw*n2;
-    x += mat3(tmpu, tmpv, tmpw) * b;
+    matin.x += mat3(tmpu, tmpv, tmpw) * b;
   }
+  return matin;
 }
 
 vec3 colourtex(vec2 st)
@@ -426,6 +440,7 @@ reservoir_update(
     float             rand)
 {
   r.w_sum += w;
+  r.w_sum = clamp(r.w_sum, 0, 2000); // seems necessary to avoid overflow
   r.M ++;
   if(rand < w / r.w_sum) r.y = x;
 }
@@ -450,16 +465,21 @@ reservoir_W(
 }
 
 // TODO: store int instance/primid + 2x16b uv coords to id light source (with texture+normal)
+// we need to add the reservoir as phq(r.y)/phq'(r.x) * r.w_sum
+// which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
 vec4
 reservoir_store(reservoir_t r, vec3 x, vec3 n)
 { // every other pixel/time needs to multiply their ph(y) to the 4th channel
+  return vec4(r.y, reservoir_W(r, x, n));
   // return vec4(r.y, r.w_sum / ph(r.y, x, n));//reservoir_W(r, x, n)*r.M);
-  return vec4(r.y, 1.0/ph(r.y,x,n)); // XXX this term (w_sum essentially) runs over after a while
+  // return vec4(r.y, 1.0/ph(r.y,x,n)); // XXX this term (w_sum essentially) runs over after a while
 }
 
 void
 reservoir_combine(inout reservoir_t r, vec4 d, vec3 x, vec3 n, float rand)
 {
+  // XXX FIXME: would need to r.M += stored.M!
+  // XXX since i don't want to store more memory, pretend the reservoir had M=1
   reservoir_update(r, d.xyz, ph(d.xyz, x, n)*d.w, rand);
 }
 
@@ -492,66 +512,63 @@ main()
   reservoir_new(res); // init zero
   for(int s=0;s<params.spp;s++)
   {
+    material_info_t m0, m1;
     float total_dist = 0.0;
     vec4 rand = xrand(seed, rp);
     seed = uint(70000 * rand.x);
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
     vec3 rgb = vec3(1.0);
-    vec3 x, w, n; // ray position, direction, hit normal
+    vec3 w;       // ray direction
     float pdf_w;  // pdf of directional sampling
-    vec2 st;      // texture coordinates
     { // camera setup:
-      x = params.cam_x.xyz;
+      m0.x = params.cam_x.xyz;
       vec3 f = params.cam_w.xyz;
       vec3 up = vec3(0, 0, 1);
       vec3 r = normalize(cross(f, up));
       vec3 t = normalize(cross(f, r)) * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
 
-      lpos = x + 1*f + 10*up + 20*r;
+      lpos = m0.x + 1*f + 10*up + 20*r;
 
       vec2 off = filter_bh_sample(rand.yz);
       vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
       // vec2 uv = (ipos+0.5)/imageSize(img_irradiance) - 0.5;
       w = normalize(0.45*f + r*uv.x + t*uv.y);
-      n = f;
+      m0.n = f;
       pdf_w = 1.0; // whatever we will not be light tracing here
     }
     for(int b=0;b<2;b++) // bounces
     {
       rayQueryEXT rq;
-      if(cast_ray(rq, x, w))
+      if(cast_ray(rq, m0.x, w))
       { // ray intersected geometry, init material state and tangent frame
         const float t = rayQueryGetIntersectionTEXT(rq, true);
         total_dist += t;
         const float T = exp(-t * 3.);
         rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-        uint mat = 0, matfb = 0;
-        vec3 oldn = n;
-        vec3 oldx = x;
-        prepare_intersection(rq, w, x, n, st, mat, matfb);
-        if(dot(w, n) > 0) n = -n; // never happens except when it does (transparent surfaces/sky)
+        m1 = prepare_material_info(w, prepare_intersection(rq));
+        if(dot(w, m1.n) > 0) m1.n = -m1.n; // never happens except when it does (transparent surfaces/sky)
         vec3 du, dv, up = vec3(1,0,0);
-        if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-        du = normalize(cross(up, n));
-        dv = normalize(cross(du, n));
+        if(abs(m1.n.x) > abs(m1.n.y)) up = vec3(0,1,0);
+        du = normalize(cross(up, m1.n));
+        dv = normalize(cross(du, m1.n));
         vec4 diffcol = vec4(0), emcol = vec4(0);
-        if(mat == 0xffff)
+        if(m1.mat == 0xffff)
         { // marked as sky
           diffcol = vec4(0.0);
           emcol = envmap(w);
         }
         else
         {
-          ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
-          tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
-          diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+          ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m1.mat)], 0)*mod(m1.st, vec2(1.0)));
+          tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m1.mat)], 0)-1);
+          diffcol = texelFetch(img_tex[nonuniformEXT(m1.mat)], tc, 0);
           diffcol *= diffcol; // "un-gamma"
-          emcol = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0) : vec4(0.0);
+          emcol = m1.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m1.matfb)], tc, 0) : vec4(0.0);
         }
         // emcol *= 100.0; // hack: indirect light is much brighter than it appears
 
         // vertex area measure pdf of x (new vertex)
-        float pdf = pdf_w;//  * 1.0/dot(x-oldx,x-oldx) * max(0, dot(oldn, w)) * max(0, dot(n, -w));
+        float pdf = pdf_w * 1.0/dot(m1.x-m0.x,m1.x-m0.x) * max(0, dot(m0.n, w)) * max(0, dot(m1.n, -w));
 
         // handle intersection:
         // * accumulate direct albedo and indirect irradiance channels
@@ -570,15 +587,15 @@ main()
           {
             rand = xrand(seed, rp);
             vec4 nee = texelFetch(img_nee_in, ivec2(ipos+mv+off[i]), 0);
-            reservoir_combine(res, nee, oldx, n, rand.x);
+            reservoir_combine(res, nee, m1.x, m1.n, rand.x);
           }
         }
         if(any(greaterThan(emcol.rgb, vec3(0.0))))
         { // have >0 radiance sample
           if(b == 1) // on 3rd vertex
           { // update nee sampling state
-            reservoir_update(res, x, ph(x, oldx, oldn)/pdf, rand.z);
-            resd = reservoir_store(res, oldx, oldn);
+            reservoir_update(res, m1.x, ph(m1.x, m0.x, m0.n)/pdf, rand.z);
+            resd = reservoir_store(res, m0.x, m0.n);
           }
           if(b >= 1) // 3rd vertex or more
           { // accumulate indirect irradiance
@@ -599,31 +616,31 @@ main()
 
 
 #if 0 // next event estimation to torch:
-        irr += nee_torch(lpos, x, rgb, n, seed, rp);
+        irr += nee_torch(lpos, m1.x, rgb, m1.n, seed, rp);
 #endif
 
 
-        // TODO: sample from the reservoir
-        // use res.y as point to aim at
-        // weight is f(res.y)/res.W
 #if 1
-        float W = reservoir_W(res, x, n);
+        // sample direction outgoing from m1.x according to the reservoir
+        // use res.y as point to aim at, estimator is f(res.y)*res.W
+        float W = reservoir_W(res, m1.x, m1.n);
         if(global.frame > 10 && W > 0 && rand.w > 0.2)
         {
-          w = normalize(res.y - x);
-          float G = 1.0/dot(res.y-x,res.y-x) * max(0, dot(n, w));// * max(0, dot(light_n, -w));
-          pdf_w = 1.0;// XXX W/G;
+          w = normalize(res.y - m1.x);
+          float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w));// * max(0, dot(light_n, -w));
+          pdf_w = W/G;
           rgb *= 1.0/radians(180); // bsdf without albedo * weight
         }
         else
 #endif
         { // sample independent new ray direction
           w = sample_cos(rand.xy);
-          w = w.x * du + w.y * dv + w.z * n;
+          w = w.x * du + w.y * dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = 1.0/radians(180);
           // rgb *= 1
         }
+        m0 = m1; // advance path vertex
       }
       else
       { // envmap, never reached for closed quake maps
