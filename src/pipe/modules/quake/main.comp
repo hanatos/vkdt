@@ -111,6 +111,39 @@ float fbm3(in vec3 uvx) {
 }
 #endif
 
+
+vec3 envmap(in vec3 w)
+{
+  // vec3 sundir = normalize(vec3(1, 1, 1)); // this where the moon is in ad_azad
+  vec3 sundir = normalize(vec3(1, -1, 1)); // this comes in more nicely through the windows for debugging
+  const float k0 = 4.0, k1 = 30.0, k2 = 4.0;
+  vec3 emcol;
+  emcol  = vec3(0.50, 0.50, 0.50) * /*(k0+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k0);
+  emcol += vec3(1.00, 0.70, 0.30) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k1);
+  emcol += vec3(0.20, 0.08, 0.02) * /*(k2+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0-w.z), k2);
+  // emcol *= 2.0;
+  // multiply with some background texture, if we have.
+  // these are e.g. gfx/env/*{rt,bk,lf,ft,up,dn}
+  int m = 0;
+  if(abs(w.y) > abs(w.x) && abs(w.y) > abs(w.z)) m = 1;
+  if(abs(w.z) > abs(w.x) && abs(w.z) > abs(w.y)) m = 2;
+  uint side = 0;
+  vec2 st;
+  if     (m == 0 && w.x > 0) { side = 0; st = 0.5 + 0.5*vec2(-w.y, -w.z) / abs(w.x);} // rt
+  else if(m == 0 && w.x < 0) { side = 2; st = 0.5 + 0.5*vec2( w.y, -w.z) / abs(w.x);} // lf
+  else if(m == 1 && w.y > 0) { side = 1; st = 0.5 + 0.5*vec2( w.x, -w.z) / abs(w.y);} // bk
+  else if(m == 1 && w.y < 0) { side = 3; st = 0.5 + 0.5*vec2(-w.x, -w.z) / abs(w.y);} // ft
+  else if(m == 2 && w.z > 0) { side = 4; st = 0.5 + 0.5*vec2(-w.y,  w.x) / abs(w.z);} // up
+  else if(m == 2 && w.z < 0) { side = 5; st = 0.5 + 0.5*vec2(-w.y, -w.x) / abs(w.z);} // dn
+  side += push.first_skybox;
+  ivec2 tc = 
+      clamp(ivec2(textureSize(img_tex[nonuniformEXT(side)], 0)*st),
+        ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
+  vec3 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0).rgb;
+  emcol += tex*tex; // mul "un-gamma"d sky texture
+  return emcol;
+}
+
 #if 1 // TODO: put stuff like this in montecarlo.glsl or so
 
 // sample hemisphere, cos lobe, p = cos(theta)/pi
@@ -162,10 +195,12 @@ struct intersection_t
 struct material_info_t
 { // initialised hit point to work with
   vec3 x;
-  vec3 n;
-  vec2 st;
-  uint mat;
-  uint matfb;
+  vec3 n, du, dv; // shading frame
+  vec2 st;        // texture coordinates
+  uint mat;       // albedo texture
+  uint matfb;     // "fullbright" texture/emission
+  vec3 albedo;
+  vec3 emission;
 };
 
 intersection_t
@@ -184,7 +219,7 @@ prepare_material_info(
     vec3                w,      // incoming ray direction
     intersection_t      inter)  // identify geo intersection
 {
-  material_info_t matin;
+  material_info_t m;
   int instance_id = inter.instid;
   int pi          = inter.primid;
   vec3 b;
@@ -194,32 +229,32 @@ prepare_material_info(
   vec3 n0, n1, n2;
   if(instance_id == 0)
   { // dyn geo
-    matin.mat   = dynssbo.v[i+6]&0xffff;
-    matin.matfb = dynssbo.v[i+6]>>16;
+    m.mat   = dynssbo.v[i+6]&0xffff;
+    m.matfb = dynssbo.v[i+6]>>16;
     n0 = geo_decode_normal(dynssbo.v[i+0]);
     n1 = geo_decode_normal(dynssbo.v[i+1]);
     n2 = geo_decode_normal(dynssbo.v[i+2]);
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
     if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
-    matin.n = normalize(mat3(n0, n1, n2) * b);
+    m.n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
-    matin.st = mat3x2(st0, st1, st2) * b;
+    m.st = mat3x2(st0, st1, st2) * b;
   }
   else
   { // static geo
-    matin.mat   = stcssbo.v[i+6]&0xffff;
-    matin.matfb = stcssbo.v[i+6]>>16;
+    m.mat   = stcssbo.v[i+6]&0xffff;
+    m.matfb = stcssbo.v[i+6]>>16;
     n0 = geo_decode_normal(stcssbo.v[i+0]);
     n1 = geo_decode_normal(stcssbo.v[i+1]);
     n2 = geo_decode_normal(stcssbo.v[i+2]);
-    matin.n = normalize(mat3(n0, n1, n2) * b);
+    m.n = normalize(mat3(n0, n1, n2) * b);
     vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
-    matin.st = mat3x2(st0, st1, st2) * b;
+    m.st = mat3x2(st0, st1, st2) * b;
   }
   // more precise intersection point by using vertices + barycentrics
   uint i0 = buf_idx[inter.instid].i[3*pi+0];
@@ -237,19 +272,42 @@ prepare_material_info(
       buf_vtx[inter.instid].v[3*i2+0],
       buf_vtx[inter.instid].v[3*i2+1],
       buf_vtx[inter.instid].v[3*i2+2]);
-  matin.x = mat3(v0, v1, v2) * b;
+  m.x = mat3(v0, v1, v2) * b;
   if(inter.instid == 0)
   { // now fix terminator problem:
-    vec3 tmpu = matin.x - v0, tmpv = matin.x - v1, tmpw = matin.x - v2;
+    vec3 tmpu = m.x - v0, tmpv = m.x - v1, tmpw = m.x - v2;
     float dotu = min(0.0, dot(tmpu, n0));
     float dotv = min(0.0, dot(tmpv, n1));
     float dotw = min(0.0, dot(tmpw, n2));
     tmpu -= dotu*n0;
     tmpv -= dotv*n1;
     tmpw -= dotw*n2;
-    matin.x += mat3(tmpu, tmpv, tmpw) * b;
+    m.x += mat3(tmpu, tmpv, tmpw) * b;
   }
-  return matin;
+
+  // init tangent frame
+  if(dot(w, m.n) > 0) m.n = -m.n; // never happens except when it does (transparent surfaces/sky)
+  vec3 up = vec3(1,0,0);
+  if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
+  m.du = normalize(cross(up, m.n));
+  m.dv = normalize(cross(m.du, m.n));
+  m.albedo   = vec3(0);
+  m.emission = vec3(0);
+  if(m.mat == 0xffff)
+  { // marked as sky
+    m.albedo = vec3(0.0);
+    m.emission = envmap(w);
+  }
+  else
+  {
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
+    m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
+    m.albedo *= m.albedo; // "un-gamma"
+    m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
+  }
+
+  return m;
 }
 
 vec3 colourtex(vec2 st)
@@ -332,39 +390,6 @@ vec3 nee_torch(
   ao = clamp(ao/samples, 0.0, 1.0);
   float edf = 5.0*pow(abs(dot(-ws, params.cam_w.xyz)), 30.0);
   return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(50.0)/(ldist*ldist); // light with falloff
-}
-
-
-vec4 envmap(in vec3 w)
-{
-  // vec3 sundir = normalize(vec3(1, 1, 1)); // this where the moon is in ad_azad
-  vec3 sundir = normalize(vec3(1, -1, 1)); // this comes in more nicely through the windows for debugging
-  const float k0 = 4.0, k1 = 30.0, k2 = 4.0;
-  vec4 emcol;
-  emcol  = vec4(0.50, 0.50, 0.50, 1.0) * /*(k0+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k0);
-  emcol += vec4(1.00, 0.70, 0.30, 1.0) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k1);
-  emcol += vec4(0.20, 0.08, 0.02, 1.0) * /*(k2+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0-w.z), k2);
-  // emcol *= 2.0;
-  // multiply with some background texture, if we have.
-  // these are e.g. gfx/env/*{rt,bk,lf,ft,up,dn}
-  int m = 0;
-  if(abs(w.y) > abs(w.x) && abs(w.y) > abs(w.z)) m = 1;
-  if(abs(w.z) > abs(w.x) && abs(w.z) > abs(w.y)) m = 2;
-  uint side = 0;
-  vec2 st;
-  if     (m == 0 && w.x > 0) { side = 0; st = 0.5 + 0.5*vec2(-w.y, -w.z) / abs(w.x);} // rt
-  else if(m == 0 && w.x < 0) { side = 2; st = 0.5 + 0.5*vec2( w.y, -w.z) / abs(w.x);} // lf
-  else if(m == 1 && w.y > 0) { side = 1; st = 0.5 + 0.5*vec2( w.x, -w.z) / abs(w.y);} // bk
-  else if(m == 1 && w.y < 0) { side = 3; st = 0.5 + 0.5*vec2(-w.x, -w.z) / abs(w.y);} // ft
-  else if(m == 2 && w.z > 0) { side = 4; st = 0.5 + 0.5*vec2(-w.y,  w.x) / abs(w.z);} // up
-  else if(m == 2 && w.z < 0) { side = 5; st = 0.5 + 0.5*vec2(-w.y, -w.x) / abs(w.z);} // dn
-  side += push.first_skybox;
-  ivec2 tc = 
-      clamp(ivec2(textureSize(img_tex[nonuniformEXT(side)], 0)*st),
-        ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
-  vec4 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0);
-  emcol += tex*tex; // mul "un-gamma"d sky texture
-  return emcol;
 }
 
 bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
@@ -546,29 +571,10 @@ main()
         const float T = exp(-t * 3.);
         rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
         m1 = prepare_material_info(w, prepare_intersection(rq));
-        if(dot(w, m1.n) > 0) m1.n = -m1.n; // never happens except when it does (transparent surfaces/sky)
-        vec3 du, dv, up = vec3(1,0,0);
-        if(abs(m1.n.x) > abs(m1.n.y)) up = vec3(0,1,0);
-        du = normalize(cross(up, m1.n));
-        dv = normalize(cross(du, m1.n));
-        vec4 diffcol = vec4(0), emcol = vec4(0);
-        if(m1.mat == 0xffff)
-        { // marked as sky
-          diffcol = vec4(0.0);
-          emcol = envmap(w);
-        }
-        else
-        {
-          ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m1.mat)], 0)*mod(m1.st, vec2(1.0)));
-          tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m1.mat)], 0)-1);
-          diffcol = texelFetch(img_tex[nonuniformEXT(m1.mat)], tc, 0);
-          diffcol *= diffcol; // "un-gamma"
-          emcol = m1.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m1.matfb)], tc, 0) : vec4(0.0);
-        }
-        // emcol *= 100.0; // hack: indirect light is much brighter than it appears
 
         // vertex area measure pdf of x (new vertex)
-        float pdf = pdf_w * 1.0/dot(m1.x-m0.x,m1.x-m0.x) * max(0, dot(m0.n, w)) * max(0, dot(m1.n, -w));
+        // XXX currently ignoring cosine at light (because we don't store it in the reservoir store)
+        float pdf = pdf_w * 1.0/dot(m1.x-m0.x,m1.x-m0.x) * max(0, dot(m0.n, w));// * max(0, dot(m1.n, -w));
 
         // handle intersection:
         // * accumulate direct albedo and indirect irradiance channels
@@ -579,10 +585,10 @@ main()
         { // first primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
           vec2 mv = texelFetch(img_mv, ipos, 0).rg;
           const ivec2 off[] = {
-            ivec2(-1, -3), ivec2(3, -1), ivec2(1,  3), ivec2(-3, 1),
-            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
+            ivec2(-1, -4), ivec2(4, -1), ivec2(1,  4), ivec2(-4, 1),
+            ivec2(-2, -1), ivec2(0, -1), ivec2(1, -2),
             ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
-            ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)};
+            ivec2(-1,  2), ivec2(0,  1), ivec2(2,  1)};
           for(int i=0;i<13;i++)
           {
             rand = xrand(seed, rp);
@@ -590,7 +596,7 @@ main()
             reservoir_combine(res, nee, m1.x, m1.n, rand.x);
           }
         }
-        if(any(greaterThan(emcol.rgb, vec3(0.0))))
+        if(any(greaterThan(m1.emission, vec3(0.0))))
         { // have >0 radiance sample
           if(b == 1) // on 3rd vertex
           { // update nee sampling state
@@ -599,18 +605,18 @@ main()
           }
           if(b >= 1) // 3rd vertex or more
           { // accumulate indirect irradiance
-            irr += rgb * emcol.rgb;
+            irr += rgb * m1.emission / pdf_w;
           }
           if(b == 0) // on 2nd vertex
           { // directly visible light source
             irr += 0.01; // but be sure that albedo * irradiance stays put.
-            alb += 100 * emcol.rgb;
+            alb += 100 * m1.emission;
           }
           break; // no indirect light on emitters
         }
         else
         { // no light source
-          if(b == 0) alb += diffcol.rgb; // accumulate directly visible albedo
+          if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
         }
 
 
@@ -628,17 +634,17 @@ main()
         {
           w = normalize(res.y - m1.x);
           float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w));// * max(0, dot(light_n, -w));
-          pdf_w = W/G;
-          rgb *= 1.0/radians(180); // bsdf without albedo * weight
+          pdf_w = 1.0/(W*G); // convert to directional pdf (projected solid angle)
+          rgb *= 1.0/radians(180); // bsdf without albedo
         }
         else
 #endif
         { // sample independent new ray direction
           w = sample_cos(rand.xy);
-          w = w.x * du + w.y * dv + w.z * m1.n;
+          w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = 1.0/radians(180);
-          // rgb *= 1
+          pdf_w = 1.0/radians(180); // uniform projected solid angle
+          rgb *= 1.0/radians(180);  // bsdf without albedo
         }
         m0 = m1; // advance path vertex
       }
