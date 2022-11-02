@@ -1,5 +1,6 @@
-# quakespasm
+# quake
 
+play the 1996 id software game *quake*.
 this input node cannibalises quakespasm to read quake input geometry and textures.
 the data is sent to vulkan ray tracing kernels.
 you can try `vkdt examples/quake.cfg` to test it. requires a bluenoise input texture, see below.

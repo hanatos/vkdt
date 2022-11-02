@@ -468,7 +468,7 @@ reservoir_combine(
 float vmm_eval(float kappa, float dotmu)
 {
   if(kappa < 1e-4) return 1.0/(4.0*M_PI);
-  return kappa/(4.0*M_PI*sinh(kappa)) * exp(kappa*dotmu);
+  return kappa/(2.0*M_PI*(1.0 - exp(-2.0*kappa))) * exp(kappa*(dotmu-1.0));
 }
 
 vec3 vmm_sample(float kappa, vec2 r)
