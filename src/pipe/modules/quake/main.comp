@@ -305,6 +305,7 @@ prepare_material_info(
     m.albedo *= m.albedo; // "un-gamma"
     m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
   }
+  m.emission *= 40.0;
 
   return m;
 }
@@ -462,6 +463,14 @@ reservoir_t reservoir_new()
   return r;
 }
 
+float G_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
+{
+  vec3 d = y - x;
+  float r2 = dot(d, d);
+  d = normalize(d);
+  return max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
+}
+
 float ph(
     vec3 y,  // point on light
     vec3 ny, // shading normal on light
@@ -470,10 +479,8 @@ float ph(
     vec3 nx) // shading normal
   // TODO: bsdf
 { // return ideal sampling probability density for this light sample point
-  vec3 d = y-x;
-  float r2 = dot(d,d);
-  d = normalize(d);
-  return length(Le) * max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
+  // return length(Le) * G_term(x, nx, y, ny);
+  return G_term(x, nx, y, ny) / radians(180.0);
 }
 
 float
@@ -482,7 +489,9 @@ reservoir_W(
     vec3 x, vec3 n)
 {
   if(r.M == 0) return 0.0;
-  return r.w_sum / r.M / ph(r.y, r.n, r.Le, x, n);
+  float pdf = ph(r.y, r.n, r.Le, x, n);
+  if(pdf < 1e-6) return 0.0;
+  return r.w_sum / r.M / pdf;
 }
 
 void
@@ -493,11 +502,13 @@ reservoir_combine(
     vec3              n,    // shading point n
     float             rand)
 {
+  if(r2.W == 0.0) return;
+  // if(r.M > 20) return;
   float w = ph(r2.y, r2.n, r2.Le, x, n)*r2.W*r2.M;
   r.w_sum += w;
   r.M     += r2.M;
-  r.w_sum = clamp(r.w_sum, 0, 5000); // seems necessary to avoid overflow
-  r.M     = clamp(r.M, 0, 5000);
+  r.w_sum = clamp(r.w_sum, 0, 500); // seems necessary to avoid overflow
+  r.M     = clamp(r.M, 0, 100);
   if(rand < w / r.w_sum)
   {
     r.inter = r2.inter;
@@ -508,10 +519,12 @@ reservoir_combine(
   }
 }
 
-// we need to add the reservoir as phq(r.y)/phq'(r.x) * r.w_sum
+// we need to add the reservoir r2 later with w = phq(r2.y)/phq'(r2.y) * r2.w_sum
 // which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
 uvec4 reservoir_encode(reservoir_t r)
 {
+  // r.W *= r.M; // XXX
+  r.M = min(r.M, 1);    // XXX
   return uvec4(
       (r.inter.instid & 0x3) | (r.inter.primid << 2),
       r.inter.uv,
@@ -560,6 +573,7 @@ main()
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
     vec3 rgb = vec3(1.0);
     vec3 w;       // ray direction
+    float W;      // resampling weight
     float pdf_w;  // pdf of directional sampling
     { // camera setup:
       m0.x = params.cam_x.xyz;
@@ -576,6 +590,7 @@ main()
       w = normalize(0.45*f + r*uv.x + t*uv.y);
       m0.n = f;
       pdf_w = 1.0; // whatever we will not be light tracing here
+      W = 0.0; // not resampled
     }
     for(int b=0;b<2;b++) // bounces
     {
@@ -590,14 +605,16 @@ main()
         m1 = prepare_material_info(m0.x, w, inter);
 
         // vertex area measure pdf of x (new vertex)
-        float pdf = pdf_w * 1.0/dot(m1.x-m0.x,m1.x-m0.x) * max(0, dot(m0.n, w)) * max(0, dot(m1.n, -w));
+        const float G = G_term(m0.x, m0.n, m1.x, m1.n);
+        const float pdf = pdf_w * G;
 
         // handle intersection:
         // * accumulate direct albedo and indirect irradiance channels
         // * first time: load nee state from buffer
         // * successful nee sample: store nee state in registers
         rand = xrand(seed, rp);
-        if(b == 0 && s == 0)
+#if 1
+        if(b == 0 && s >= params.spp/2);// XXX s == 0)
         { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
           vec2 mv = texelFetch(img_mv, ipos, 0).rg;
           const ivec2 off[] = {
@@ -608,13 +625,16 @@ main()
           for(int i=0;i<13;i++)
           {
             rand = xrand(seed, rp);
-            reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off[i]), 0), m1.x);
+            reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in,
+                  ivec2(ipos+mv+3*off[i]) + ivec2((2.0*rand.yz-1.0) * 5.0),
+                  0), m1.x);
             reservoir_combine(res, r2, m1.x, m1.n, rand.x);
           }
         }
+#endif
         if(any(greaterThan(m1.emission, vec3(0.0))))
         { // have >0 radiance sample
-          if(b == 1) // on 3rd vertex
+          if(b == 1 && W == 0.0) // on 3rd vertex
           { // update nee sampling state
             reservoir_t r2 = reservoir_new();
             r2.y = m1.x; r2.n = m1.n; r2.Le = m1.emission;
@@ -623,7 +643,12 @@ main()
           }
           if(b >= 1) // 3rd vertex or more
           { // accumulate indirect irradiance
-            irr += rgb * m1.emission / pdf_w;
+            // irr += rgb * m1.emission / pdf_w;
+            // irr += rgb * m1.emission / pdf * G; // XXX
+            // irr += rgb * m1.emission / pdf_w * G; // XXX looks better on the (temporally) resampled input! why??
+            // if(W > 0.0) irr += rgb * m1.emission * W * G;
+            if(W > 0.0) irr += rgb * m1.emission * 10000 * G;// * W;
+            else        irr += rgb * m1.emission / pdf_w;
           }
           if(b == 0) // on 2nd vertex
           { // directly visible light source
@@ -646,15 +671,19 @@ main()
 
 
 #if 1
+        // res = reservoir_decode(reservoir_encode(res), m1.x); // XXX debug decode/encode cycle
         // sample direction outgoing from m1.x according to the reservoir
         // use res.y as point to aim at, estimator is f(res.y)*res.W
-        float W = res.W;//reservoir_W(res, m1.x, m1.n);
-        const float a = 0.2;
-        if(global.frame > 10 && W > 0 && rand.w > a)
+        const float a = global.frame <= 10 || s < params.spp/2 || res.W == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
+        // if(global.frame > 10 && res.W > 0 && s > 0) // XXX rand.w > a)
+        if(a < 1.0)
         {
           w = normalize(res.y - m1.x);
-          float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w)) * max(0, dot(res.n, -w));
-          pdf_w = (1.0-a)/(W*G); // convert to directional pdf (projected solid angle)
+          // float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w)) * max(0, dot(res.n, -w));
+          // const float G = G_term(m1.x, m1.n, res.y, res.n);
+          W = res.W;
+          // pdf_w = (1.0-a)/G; // convert to directional pdf (projected solid angle)
+          // pdf_w = 1.0/(G*W); // convert to directional pdf (projected solid angle)
           rgb *= 1.0/radians(180); // bsdf without albedo
         }
         else
@@ -664,7 +693,10 @@ main()
           w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = a/radians(180); // uniform projected solid angle
+          W = 0.0; // no reweighted sample
+          // pdf_w = 1.0/radians(180); // uniform projected solid angle
           rgb *= 1.0/radians(180);  // bsdf without albedo
+          // rgb *= 0.0;// XXX DEBUG disable directly found samples
         }
         m0 = m1; // advance path vertex
       }
@@ -682,7 +714,7 @@ main()
   alb /= params.spp;
 
   imageStore(img_nee_out,    ipos, reservoir_encode(res));
-  imageStore(img_irradiance, ipos, vec4(40*irr, 1));
+  imageStore(img_irradiance, ipos, vec4(irr, 1));
   imageStore(img_albedo,     ipos, vec4(alb, 1));
 }
 

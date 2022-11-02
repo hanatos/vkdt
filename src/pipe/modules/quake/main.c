@@ -67,11 +67,11 @@ int init(dt_module_t *mod)
 
   char *argv[] = {"quakespasm",
     "-basedir", "/usr/share/games/quake",
-    "+map", "start",
     "+skill", "2",
     "-game", "ad",
     "+map", "e1m1",
     "+map", "ad_azad",
+    "+map", "start",
     "-game", "SlayerTest",
     "+map", "e1m2b",
     "+map", "e1m1",
@@ -81,7 +81,7 @@ int init(dt_module_t *mod)
     "+map", "st1m1",
     "+map", "start",
   };
-  int argc =  11;
+  int argc =  9;
 
   d->worldspawn = 0;
   d->parms.argc = argc;
@@ -603,6 +603,8 @@ void commit_params(
   // ffmpeg -i qu.vid_0002.h264 -f s16le -sample_rate 44100 -channels 2  -i qu.aud -c:v copy quake.mp4
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
+  // to test rocket illumination etc:
+  if(graph->frame == 10) Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
 
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
 #if 0 // our camera
@@ -724,56 +726,56 @@ create_nodes(
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
     .num_connectors = 9,
-    .connector = {{
+    .connector = {{ // 0
       .name   = dt_token("output"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
-    },{
+    },{ // 1
       .name   = dt_token("stcgeo"),
       .type   = dt_token("read"),
       .chan   = dt_token("ssbo"),
       .format = dt_token("geo"),
       .connected_mi = -1,
-    },{
+    },{ // 2
       .name   = dt_token("dyngeo"),
       .type   = dt_token("read"),
       .chan   = dt_token("ssbo"),
       .format = dt_token("geo"),
       .connected_mi = -1,
-    },{
+    },{ // 3
       .name   = dt_token("tex"),
       .type   = dt_token("read"),
       .chan   = dt_token("*"),
       .format = dt_token("*"),
       .connected_mi = -1,
-    },{
+    },{ // 4
       .name   = dt_token("blue"),
       .type   = dt_token("read"),
       .chan   = dt_token("*"),
       .format = dt_token("*"),
       .connected_mi = -1,
-    },{
+    },{ // 5
       .name   = dt_token("aov"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
-    },{
+    },{ // 6
       .name   = dt_token("nee_in"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("ui32"),
       .connected_mi = -1,
-    },{
+    },{ // 7
       .name   = dt_token("nee_out"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("ui32"),
       .roi    = module->connector[0].roi,
       .flags  = s_conn_clear, // init with zero weights/counts
-    },{
+    },{ // 8
       .name   = dt_token("mv"),
       .type   = dt_token("read"),
       .chan   = dt_token("rg"),
@@ -919,7 +921,6 @@ int audio(
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
-    Cmd_ExecuteString("give all", src_command);
   }
   int buffersize = shm->samples * (shm->samplebits / 8);
   int pos = (shm->samplepos * (shm->samplebits / 8));
