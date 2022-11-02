@@ -70,49 +70,6 @@ vec2 filter_bh_sample(vec2 rand)
   return res * r;
 }
 
-
-#if 0
-float rand3(vec3 v) {
-    return fract(sin(dot(v + vec3(-8.5123, 23.2156, 0.0), vec3(12.9898, 6.233, 0.84261))) * 47583.5453123);
-}
-float noise3lin(in vec3 uvx) {
-    vec3 f = fract(uvx);
-    vec3 i = floor(uvx);
-
-    float a1 = rand3(i);
-    float b1 = rand3(i + vec3(0.0, 1.0, 0.0));
-    float c1 = rand3(i + vec3(1.0, 0.0, 0.0));
-    float d1 = rand3(i + vec3(1.0, 1.0, 0.0));
-    float a2 = rand3(i + vec3(0.0, 0.0, 1.0));
-    float b2 = rand3(i + vec3(0.0, 1.0, 1.0));
-    float c2 = rand3(i + vec3(1.0, 0.0, 1.0));
-    float d2 = rand3(i + vec3(1.0, 1.0, 1.0));
-
-    vec3 u = -2. * f * f * f + 3. * f * f;
-
-    float a = mix(a1, a2, f.z);
-    float b = mix(b1, b2, f.z);
-    float c = mix(c1, c2, f.z);
-    float d = mix(d1, d2, f.z);
-
-    return mix(mix(a, b, u.y), mix(c, d, u.y), u.x);
-}
-float fbm3(in vec3 uvx) {
-    float sum = 0.0;
-    float amp = 0.0;
-    float persistence = 0.7;
-    vec3 stz = uvx;
-
-    for (int i = 0; i < 8; ++i) {
-        amp = amp / persistence + noise3lin(stz);
-        sum = sum / persistence + 1.;
-        stz *= 2.;
-    }
-    return amp / sum;
-}
-#endif
-
-
 vec3 envmap(in vec3 w)
 {
   // vec3 sundir = normalize(vec3(1, 1, 1)); // this where the moon is in ad_azad
@@ -305,7 +262,7 @@ prepare_material_info(
     m.albedo *= m.albedo; // "un-gamma"
     m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
   }
-  m.emission *= 40.0;
+  m.emission *= 80.0;
 
   return m;
 }
@@ -442,11 +399,10 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
 
 struct reservoir_t
 {
-  intersection_t inter; // descriptor of ponit on light source, reconstructs the next block:
-
   vec3  y;              // world space position of light source point
-  vec3  Le;             // emission of that point
-  vec3  n;              // shading normal
+  float f;              // observed measurement contribution until there (bsdf * G * Le)
+  float kappa;          // concentration parameter for vMF
+  float b;              // mean image brightness for independent MC estimates in this pixel
 
   float w_sum;          // sum of weights
   uint  M;              // number of samples so far
@@ -471,79 +427,98 @@ float G_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
   return max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
 }
 
-float ph(
-    vec3 y,  // point on light
-    vec3 ny, // shading normal on light
-    vec3 Le, // emission
-    vec3 x,  // shading point
-    vec3 nx) // shading normal
-  // TODO: bsdf
-{ // return ideal sampling probability density for this light sample point
-  // return length(Le) * G_term(x, nx, y, ny);
-  return G_term(x, nx, y, ny) / radians(180.0);
+float ph(reservoir_t r)
+{ // return something proportional to sampling probability for this vMF lobe
+  return r.f;
 }
 
 float
-reservoir_W(
-    reservoir_t r,
-    vec3 x, vec3 n)
+reservoir_W(reservoir_t r)
 {
   if(r.M == 0) return 0.0;
-  float pdf = ph(r.y, r.n, r.Le, x, n);
-  if(pdf < 1e-6) return 0.0;
-  return r.w_sum / r.M / pdf;
+  float p = ph(r);
+  if(p < 1e-6) return 0.0;
+  return r.w_sum / r.M / p;
 }
 
 void
 reservoir_combine(
     inout reservoir_t r,
     reservoir_t       r2,
-    vec3              x,    // shading point x
-    vec3              n,    // shading point n
     float             rand)
 {
-  if(r2.W == 0.0) return;
+  if(r2.f == 0.0) return;
   // if(r.M > 20) return;
-  float w = ph(r2.y, r2.n, r2.Le, x, n)*r2.W*r2.M;
+  float w = ph(r2)*r2.W*r2.M;
+  // XXX ???
+  // r.b = (r.b * r.M + r2.b * r2.M)/(r.M+r2.M); // average mean image brightness no matter what
   r.w_sum += w;
   r.M     += r2.M;
   r.w_sum = clamp(r.w_sum, 0, 500); // seems necessary to avoid overflow
   r.M     = clamp(r.M, 0, 100);
   if(rand < w / r.w_sum)
   {
-    r.inter = r2.inter;
     r.y     = r2.y;
-    r.n     = r2.n;
-    r.Le    = r2.Le;
-    r.W     = reservoir_W(r, x, n);
+    r.f     = r2.f;
+    r.kappa = r2.kappa;
+    r.W     = reservoir_W(r);
   }
 }
+
+float vmm_eval(float kappa, float dotmu)
+{
+  if(kappa < 1e-4) return 1.0/(4.0*M_PI);
+  return kappa/(4.0*M_PI*sinh(kappa)) * exp(kappa*dotmu);
+}
+
+vec3 vmm_sample(float kappa, vec2 r)
+{ // see wenzel's doc on numerically stable expression for vmm:
+  float w = 1.0 + log(r.x + (1.0-r.x)*exp(-2.0*kappa))/kappa;
+  vec2 v = vec2(sin(2.0*M_PI*r.y), cos(2.0*M_PI*r.y));
+  return vec3(sqrt(1.0-w*w)*v, w);
+}
+
+float vmm_get_kappa(float x)
+{ // compute concentration parameter for given maximum density x
+  if(x > 0.795) return 2.0*M_PI*x;
+  return max(1e-5, (168.479*x*x + 16.4585*x - 2.39942)/
+      (-1.12718*x*x+29.1433*x+1.0));
+}
+
+// TODO serialise into uvec4:
+// * world space pos    // packHalf2x16 3
+// * weight/f/contrib?  // packHalf2x16 1
+// * spread (future work)
+// * have one uint extra (mean image brightness for independent?)
+
+// 1) pick "mutation strategy" by reservoir sampling in random pixel environment
+//    (reserve a spot for uniform sampling)
+// 2) sample y by vmm lobe?
+// 3) acceptance probability [ f(y) / T(y|x) ] / [ f(x) / T(x|y) ]
+// 4) lobe weight: f(z) on accepted sample z
 
 // we need to add the reservoir r2 later with w = phq(r2.y)/phq'(r2.y) * r2.w_sum
 // which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
 uvec4 reservoir_encode(reservoir_t r)
 {
-  // r.W *= r.M; // XXX
-  r.M = min(r.M, 1);    // XXX
   return uvec4(
-      (r.inter.instid & 0x3) | (r.inter.primid << 2),
-      r.inter.uv,
-      r.M,
-      floatBitsToUint(r.W));
+      packHalf2x16(r.y.xy),
+      packHalf2x16(vec2(r.y.z, r.f)),
+      packHalf2x16(vec2(r.kappa, r.b)),
+      0);
 }
 
-reservoir_t reservoir_decode(uvec4 enc, vec3 x)
+reservoir_t reservoir_decode(uvec4 enc)
 {
   reservoir_t r;
-  r.inter.instid = int(enc.x & 0x3);
-  r.inter.primid = int(enc.x >> 2);
-  r.inter.uv = enc.y;
-  r.M = enc.z;
-  r.W = uintBitsToFloat(enc.w);
-  material_info_t m = prepare_material_info(x, vec3(666), r.inter);
-  r.y  = m.x;
-  r.n  = m.n;
-  r.Le = m.emission;
+  r.y.xy  = unpackHalf2x16(enc.x);
+  r.y.z   = unpackHalf2x16(enc.y).x;
+  r.f     = unpackHalf2x16(enc.y).y;
+  r.kappa = unpackHalf2x16(enc.z).x;
+  r.b     = unpackHalf2x16(enc.z).y;
+  r.M = 1;
+  r.w_sum = r.f;
+  r.W = 1.0;
   return r;
 }
 
@@ -616,6 +591,8 @@ main()
 #if 1
         if(b == 0 && s >= params.spp/2);// XXX s == 0)
         { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
+          res = reservoir_new(); // initialise as zero for new sample again
+          // TODO: insert independent bsdf sample
           vec2 mv = texelFetch(img_mv, ipos, 0).rg;
           const ivec2 off[] = {
             ivec2(-1, -4), ivec2(4, -1), ivec2(1,  4), ivec2(-4, 1),
@@ -627,28 +604,31 @@ main()
             rand = xrand(seed, rp);
             reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in,
                   ivec2(ipos+mv+3*off[i]) + ivec2((2.0*rand.yz-1.0) * 5.0),
-                  0), m1.x);
-            reservoir_combine(res, r2, m1.x, m1.n, rand.x);
+                  0));
+            reservoir_combine(res, r2, rand.x); // this picks one lobe
           }
         }
 #endif
         if(any(greaterThan(m1.emission, vec3(0.0))))
         { // have >0 radiance sample
-          if(b == 1 && W == 0.0) // on 3rd vertex
+          if(b == 1) // on 3rd vertex
           { // update nee sampling state
-            reservoir_t r2 = reservoir_new();
-            r2.y = m1.x; r2.n = m1.n; r2.Le = m1.emission;
-            r2.M = 1; r2.W = 1.0/pdf; r2.inter = inter;
-            reservoir_combine(res, r2, m0.x, m0.n, rand.z);
-          }
-          if(b >= 1) // 3rd vertex or more
-          { // accumulate indirect irradiance
-            // irr += rgb * m1.emission / pdf_w;
-            // irr += rgb * m1.emission / pdf * G; // XXX
-            // irr += rgb * m1.emission / pdf_w * G; // XXX looks better on the (temporally) resampled input! why??
-            // if(W > 0.0) irr += rgb * m1.emission * W * G;
-            if(W > 0.0) irr += rgb * m1.emission * 10000 * G;// * W;
-            else        irr += rgb * m1.emission / pdf_w;
+            // TODO: metropolis hastings step:
+            // TODO: update state of this pixel by sampling forward and back pdf:
+            float f = length(m1.emission); // TODO * bsdf but 1/M_PI cancels // XXX no G because vmm doesn't?
+            // if this is an independent sample add to mean image brightness:
+            if(W == 0.0) res.b = mix(f / pdf_w, res.b, 0.5); // XXX how to accum for temporal?
+            float dotmu = 1.0;//dot(w, normalize(res.y-m0.x));
+            float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, dotmu)));
+            irr += rgb * m1.emission / pdf_w; // XXX res.b; // in both cases, a + (1-a)
+            if(res.f == 0.0 || rand.x < a)
+            { // update markov chain state for this pixel:
+              res.f = f;
+              res.w_sum = f;
+              res.y = m1.x;
+              res.M++;
+              res.kappa = 50.0; // XXX???
+            }
           }
           if(b == 0) // on 2nd vertex
           { // directly visible light source
@@ -660,7 +640,7 @@ main()
         else
         { // no light source
           if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
-          if(b == 1) { res.M = 0; res.W = 0.0; } // not visible after all so it seems, clear reservoir
+          if(b == 1) { res.M = 0; res.f = 0.0; } // not visible after all so it seems, clear reservoir
         }
 
 
@@ -674,39 +654,46 @@ main()
         // res = reservoir_decode(reservoir_encode(res), m1.x); // XXX debug decode/encode cycle
         // sample direction outgoing from m1.x according to the reservoir
         // use res.y as point to aim at, estimator is f(res.y)*res.W
-        const float a = global.frame <= 10 || s < params.spp/2 || res.W == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
+        float a = global.frame <= 10 || s < params.spp/2 || res.f == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
         // if(global.frame > 10 && res.W > 0 && s > 0) // XXX rand.w > a)
         if(a < 1.0)
         {
-          w = normalize(res.y - m1.x);
+          w = vmm_sample(res.kappa, rand.xy);
+          vec3 mu = normalize(res.y-m1.x);
+          vec3 up = vec3(1,0,0), du, dv;
+          if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
+          du = normalize(cross(up, mu));
+          dv = normalize(cross(du, mu));
+          w = w.x * du + w.y * dv + w.z * mu;
+          pdf_w = 0.01 * vmm_eval(res.kappa, dot(w, mu));
+          if(dot(w, m1.n) <= 0.0) a = 1.0; // fall back to bsdf if under surface
+          // w = normalize(res.y - m1.x);
           // float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w)) * max(0, dot(res.n, -w));
           // const float G = G_term(m1.x, m1.n, res.y, res.n);
-          W = res.W;
+          // W = res.W;
+          W = 1.0;
           // pdf_w = (1.0-a)/G; // convert to directional pdf (projected solid angle)
           // pdf_w = 1.0/(G*W); // convert to directional pdf (projected solid angle)
-          rgb *= 1.0/radians(180); // bsdf without albedo
+          rgb *= 1.0/M_PI; // bsdf without albedo
         }
-        else
+
+        if(a == 1.0)
 #endif
         { // sample independent new ray direction
           w = sample_cos(rand.xy);
           w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = a/radians(180); // uniform projected solid angle
+          pdf_w = a/M_PI; // uniform projected solid angle
           W = 0.0; // no reweighted sample
           // pdf_w = 1.0/radians(180); // uniform projected solid angle
-          rgb *= 1.0/radians(180);  // bsdf without albedo
-          // rgb *= 0.0;// XXX DEBUG disable directly found samples
+          rgb *= 1.0/M_PI;  // bsdf without albedo
+          rgb *= 0.0;// XXX DEBUG disable directly found samples
         }
         m0 = m1; // advance path vertex
       }
       else
       { // envmap, never reached for closed quake maps
-        // irr += envmap(w).rgb; // accumulate nothing to avoid light leaks
-        // vec3 diffcol = texture(img_tex[0], w.xy).rgb;
-        // acc += rgb * diffcol * 1000.0 * vec3(0.2, 0.4, 0.9);
-        // if(b == 0) aov = (w+vec3(1.0))/2.0;
-        break;
+        break; // accumulate nothing to avoid light leaks
       }
     }
   }
