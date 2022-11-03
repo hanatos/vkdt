@@ -537,6 +537,7 @@ main()
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
 
   reservoir_t res = reservoir_new(); // init zero
+  reservoir_t ind; // backup of independent reservoir
   for(int s=0;s<params.spp;s++)
   {
     vec3 lpos = vec3(0.0); // torch light pos, depending on camera
@@ -591,7 +592,8 @@ main()
 #if 1
         if(b == 0 && s >= params.spp/2);// XXX s == 0)
         { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
-          res = reservoir_new(); // initialise as zero for new sample again
+          // res = reservoir_new(); // initialise as zero for new sample again
+          res = ind; // forget other samples but not the independent/newly discovered ones
           // TODO: insert independent bsdf sample
           vec2 mv = texelFetch(img_mv, ipos, 0).rg;
           const ivec2 off[] = {
@@ -629,6 +631,7 @@ main()
               res.M++;
               res.kappa = 50.0; // XXX???
             }
+            if(W==0.0) ind = res;
           }
           if(b == 0) // on 2nd vertex
           { // directly visible light source
