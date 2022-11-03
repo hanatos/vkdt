@@ -69,8 +69,8 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "e1m3",
     "+map", "ad_azad",
-    "+map", "e1m2",
     "+map", "start",
     "-game", "SlayerTest",
     "+map", "e1m2b",
@@ -605,6 +605,11 @@ void commit_params(
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
   // to test rocket illumination etc:
   if(graph->frame == 10) Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
+
+  if(sv_player->v.weapon == 1) // axe has torch built in:
+    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
+  else
+    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
 
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
 #if 0 // our camera

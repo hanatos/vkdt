@@ -1,2 +1,3 @@
 cam:float:8:0:0:0:0:1:0:0:0
 spp:int:1:1
+torch:int:1:0
