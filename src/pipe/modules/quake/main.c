@@ -36,6 +36,7 @@ qs_data_t;
 // also the texture manager will call into us
 static qs_data_t qs_data = {0};
 extern float r_avertexnormals[162][3]; // from r_alias.c
+// mspriteframe_t *R_GetSpriteFrame (entity_t *currentent); // from r_sprite.c
 
 int init(dt_module_t *mod)
 {
@@ -536,11 +537,11 @@ add_geo(
           encode_normal(ext+14*pi+4, nw);
           if(surf->texinfo->texture->gltexture)
           {
-            ext[14*pi+ 6] = float_to_half(1-p->verts[0  ][3]);
+            ext[14*pi+ 6] = float_to_half(p->verts[0  ][3]);
             ext[14*pi+ 7] = float_to_half(p->verts[0  ][4]);
-            ext[14*pi+ 8] = float_to_half(1-p->verts[k-1][3]);
+            ext[14*pi+ 8] = float_to_half(p->verts[k-1][3]);
             ext[14*pi+ 9] = float_to_half(p->verts[k-1][4]);
-            ext[14*pi+10] = float_to_half(1-p->verts[k-0][3]);
+            ext[14*pi+10] = float_to_half(p->verts[k-0][3]);
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
             ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
@@ -559,6 +560,152 @@ add_geo(
       }
     }
   }
+  else if(m->type == mod_sprite)
+  { // explosions, decals, etc, this is R_DrawSpriteModel
+    vec3_t      point, v_forward, v_right, v_up;
+    msprite_t   *psprite;
+    mspriteframe_t  *frame;
+    float     *s_up, *s_right;
+    float     angle, sr, cr;
+    float     scale = 1.0f;// XXX newer quakespasm has this: ENTSCALE_DECODE(ent->scale);
+
+    vec3_t vpn, vright, vup, r_origin;
+    VectorCopy (r_refdef.vieworg, r_origin);
+    AngleVectors (r_refdef.viewangles, vpn, vright, vup);
+
+    frame = R_GetSpriteFrame(ent);
+    psprite = (msprite_t *) ent->model->cache.data;
+
+    switch(psprite->type)
+    {
+      case SPR_VP_PARALLEL_UPRIGHT: //faces view plane, up is towards the heavens
+        v_up[0] = 0;
+        v_up[1] = 0;
+        v_up[2] = 1;
+        s_up = v_up;
+        s_right = vright;
+        break;
+      case SPR_FACING_UPRIGHT: //faces camera origin, up is towards the heavens
+        VectorSubtract(ent->origin, r_origin, v_forward);
+        v_forward[2] = 0;
+        VectorNormalizeFast(v_forward);
+        v_right[0] = v_forward[1];
+        v_right[1] = -v_forward[0];
+        v_right[2] = 0;
+        v_up[0] = 0;
+        v_up[1] = 0;
+        v_up[2] = 1;
+        s_up = v_up;
+        s_right = v_right;
+        break;
+      case SPR_VP_PARALLEL: //faces view plane, up is towards the top of the screen
+        s_up = vup;
+        s_right = vright;
+        break;
+      case SPR_ORIENTED: //pitch yaw roll are independent of camera
+        AngleVectors (ent->angles, v_forward, v_right, v_up);
+        s_up = v_up;
+        s_right = v_right;
+        break;
+      case SPR_VP_PARALLEL_ORIENTED: //faces view plane, but obeys roll value
+        angle = ent->angles[ROLL] * M_PI_DIV_180;
+        sr = sin(angle);
+        cr = cos(angle);
+        v_right[0] = vright[0] * cr + vup[0] * sr;
+        v_right[1] = vright[1] * cr + vup[1] * sr;
+        v_right[2] = vright[2] * cr + vup[2] * sr;
+        v_up[0] = vright[0] * -sr + vup[0] * cr;
+        v_up[1] = vright[1] * -sr + vup[1] * cr;
+        v_up[2] = vright[2] * -sr + vup[2] * cr;
+        s_up = v_up;
+        s_right = v_right;
+        break;
+      default:
+        return;
+    }
+
+    int numv = 4; // add a quad
+    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
+       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
+          return;
+    float vert[4][3];
+    if(vtx || ext)
+    {
+      VectorMA (ent->origin, frame->down * scale, s_up, point);
+      VectorMA (point, frame->left * scale, s_right, point);
+      for(int l=0;l<3;l++) vert[0][l] = point[l];
+
+      VectorMA (ent->origin, frame->up * scale, s_up, point);
+      VectorMA (point, frame->left * scale, s_right, point);
+      for(int l=0;l<3;l++) vert[1][l] = point[l];
+
+      VectorMA (ent->origin, frame->up * scale, s_up, point);
+      VectorMA (point, frame->right * scale, s_right, point);
+      for(int l=0;l<3;l++) vert[2][l] = point[l];
+
+      VectorMA (ent->origin, frame->down * scale, s_up, point);
+      VectorMA (point, frame->right * scale, s_right, point);
+      for(int l=0;l<3;l++) vert[3][l] = point[l];
+    }
+    if(vtx)
+    {
+      for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
+    }
+    if(idx)
+    {
+      idx[nidx+3*0+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*0+1] = *vtx_cnt + nvtx+2-1;
+      idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+
+      idx[nidx+3*1+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*1+1] = *vtx_cnt + nvtx+3-1;
+      idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
+    }
+    if(ext)
+    {
+      int pi = nidx/3; // start of the two triangles
+      float n[3], e0[] = {
+        vert[2][0] - vert[0][0],
+        vert[2][1] - vert[0][1],
+        vert[2][2] - vert[0][2]}, e1[] = {
+        vert[1][0] - vert[0][0],
+        vert[1][1] - vert[0][1],
+        vert[1][2] - vert[0][2]};
+      cross(e0, e1, n);
+      encode_normal(ext+14*pi+0, n);
+      encode_normal(ext+14*pi+2, n);
+      encode_normal(ext+14*pi+4, n);
+      encode_normal(ext+14*(pi+1)+0, n);
+      encode_normal(ext+14*(pi+1)+2, n);
+      encode_normal(ext+14*(pi+1)+4, n);
+      if(frame->gltexture)
+      {
+        ext[14*pi+ 6] = float_to_half(0);
+        ext[14*pi+ 7] = float_to_half(1);
+        ext[14*pi+ 8] = float_to_half(0);
+        ext[14*pi+ 9] = float_to_half(0);
+        ext[14*pi+10] = float_to_half(1);
+        ext[14*pi+11] = float_to_half(0);
+
+        ext[14*(pi+1)+ 6] = float_to_half(0);
+        ext[14*(pi+1)+ 7] = float_to_half(1);
+        ext[14*(pi+1)+ 8] = float_to_half(1);
+        ext[14*(pi+1)+ 9] = float_to_half(0);
+        ext[14*(pi+1)+10] = float_to_half(1);
+        ext[14*(pi+1)+11] = float_to_half(1);
+
+        ext[14*pi+12]     = frame->gltexture->texnum;
+        ext[14*pi+13]     = frame->gltexture->texnum; // fullbright XXX where to get this?
+        ext[14*(pi+1)+12] = frame->gltexture->texnum;
+        ext[14*(pi+1)+13] = frame->gltexture->texnum; // fullbright XXX where to get this?
+      }
+    }
+    nvtx += 4;
+    nidx += 6;
+  } // end sprite model
   *vtx_cnt += nvtx;
   *idx_cnt += nidx;
 }
