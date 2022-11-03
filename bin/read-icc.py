@@ -4,9 +4,15 @@
 import os, sys
 import numpy
 
-if len(sys.argv) != 2:
-  print('please supply icc profile as command line argument')
-  print('usage: ./read-icc.py your-display.icc')
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+
+if len(sys.argv) < 2:
+  print('usage: ./read-icc.py your-display.icc [gamma]')
   sys.exit(1)
 
 profile=sys.argv[1]
@@ -23,10 +29,20 @@ proc = os.popen('iccdump  -v3 -t rTRC -t gTRC -t bTRC '+profile, 'r', 1)
 got = proc.read().replace(',', '')
 proc.close()
 tokens = got.split()
-gamma = numpy.array([
-float(tokens[5]),
-float(tokens[11]),
-float(tokens[17])])
+
+if isfloat(tokens[5]):
+	gamma = numpy.array([
+	float(tokens[5]),
+	float(tokens[11]),
+	float(tokens[17])])
+elif len(sys.argv) >= 3:
+	gamma = numpy.array([
+	float(sys.argv[2]),
+	float(sys.argv[2]),
+	float(sys.argv[2])])
+else:
+	print('this icc does not contain a simple gamma value. please specify (optional 2nd parameter)!')
+	sys.exit(1)
 
 proc = os.popen('iccdump -v3 -t wtpt -t rXYZ -t gXYZ -t bXYZ '+profile, 'r', 1)
 got = proc.read().replace(',', '')
