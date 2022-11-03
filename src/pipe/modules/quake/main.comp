@@ -18,6 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 cam_x;
   vec4 cam_w;
   int spp;
+  int torch;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -345,8 +346,8 @@ vec3 nee_torch(
   }
   // ao += 0.5*(rand.z + rand.w)-0.5; // dither
   ao = clamp(ao/samples, 0.0, 1.0);
-  float edf = 5.0*pow(abs(dot(-ws, params.cam_w.xyz)), 30.0);
-  return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(50.0)/(ldist*ldist); // light with falloff
+  float edf = 4000.0*pow(abs(dot(-ws, params.cam_w.xyz)), 45.0);
+  return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
 }
 
 bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
@@ -659,8 +660,9 @@ main()
 
 
 
-#if 0 // next event estimation to torch:
-        irr += nee_torch(lpos, m1.x, rgb, m1.n, seed, rp);
+#if 1 // next event estimation to torch:
+        if(params.torch == 1)
+          irr += nee_torch(lpos, m1.x, rgb, m1.n, seed, rp);
 #endif
 
 
