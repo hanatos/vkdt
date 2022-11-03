@@ -99,7 +99,7 @@ vec3 envmap(in vec3 w)
         ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
   vec3 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0).rgb;
   emcol += tex*tex; // mul "un-gamma"d sky texture
-  return emcol;
+  return 0.2*emcol;
 }
 
 #if 1 // TODO: put stuff like this in montecarlo.glsl or so
@@ -262,7 +262,7 @@ prepare_material_info(
     m.albedo *= m.albedo; // "un-gamma"
     m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
   }
-  m.emission *= 80.0;
+  m.emission *= 200.0;
 
   return m;
 }
@@ -400,12 +400,15 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
 struct reservoir_t
 {
   vec3  y;              // world space position of light source point
+  // XXX remove: (use only w_sum)
   float f;              // observed measurement contribution until there (bsdf * G * Le)
   float kappa;          // concentration parameter for vMF
+  // XXX remove:
   float b;              // mean image brightness for independent MC estimates in this pixel
 
   float w_sum;          // sum of weights
   uint  M;              // number of samples so far
+  // XXX remove:
   float W;              // combined weight
 };
 
@@ -413,7 +416,9 @@ reservoir_t reservoir_new()
 {
   reservoir_t r;
   r.y = vec3(0);
+  r.f =
   r.w_sum = 0.0;
+  r.kappa = 300.0; // XXX
   r.M = 0;
   r.W = 0;
   return r;
@@ -450,11 +455,12 @@ reservoir_combine(
   if(r2.f == 0.0) return;
   // if(r.M > 20) return;
   float w = ph(r2)*r2.W*r2.M;
+  if(w == 0.0) return;
   // XXX ???
   // r.b = (r.b * r.M + r2.b * r2.M)/(r.M+r2.M); // average mean image brightness no matter what
   r.w_sum += w;
   r.M     += r2.M;
-  r.w_sum = clamp(r.w_sum, 0, 500); // seems necessary to avoid overflow
+  r.w_sum = clamp(r.w_sum, 1e-5, 500); // seems necessary to avoid overflow
   r.M     = clamp(r.M, 0, 100);
   if(rand < w / r.w_sum)
   {
@@ -504,18 +510,22 @@ uvec4 reservoir_encode(reservoir_t r)
   return uvec4(
       packHalf2x16(r.y.xy),
       packHalf2x16(vec2(r.y.z, r.f)),
-      packHalf2x16(vec2(r.kappa, r.b)),
+      floatBitsToUint(r.kappa),
+      // packHalf2x16(vec2(r.kappa, r.b)),
       0);
 }
 
 reservoir_t reservoir_decode(uvec4 enc)
 {
   reservoir_t r;
-  r.y.xy  = unpackHalf2x16(enc.x);
-  r.y.z   = unpackHalf2x16(enc.y).x;
-  r.f     = unpackHalf2x16(enc.y).y;
-  r.kappa = unpackHalf2x16(enc.z).x;
-  r.b     = unpackHalf2x16(enc.z).y;
+  vec2 h = unpackHalf2x16(enc.y);
+  r.y.xy = unpackHalf2x16(enc.x);
+  r.y.z  = h.x;
+  r.f    = h.y;
+  r.kappa = uintBitsToFloat(enc.z);
+  // h = unpackHalf2x16(enc.z);
+  // r.kappa = 250;//h.x; // XXX this changes things!
+  // r.b     = h.y;
   r.M = 1;
   r.w_sum = r.f;
   r.W = 1.0;
@@ -615,8 +625,8 @@ main()
         { // have >0 radiance sample
           if(b == 1) // on 3rd vertex
           { // update nee sampling state
-            // TODO: metropolis hastings step:
-            // TODO: update state of this pixel by sampling forward and back pdf:
+            // metropolis hastings step:
+            // update state of this pixel by sampling forward and back pdf:
             float f = length(m1.emission); // TODO * bsdf but 1/M_PI cancels // XXX no G because vmm doesn't?
             // if this is an independent sample add to mean image brightness:
             if(W == 0.0) res.b = mix(f / pdf_w, res.b, 0.5); // XXX how to accum for temporal?
@@ -629,7 +639,7 @@ main()
               res.w_sum = f;
               res.y = m1.x;
               res.M++;
-              res.kappa = 50.0; // XXX???
+              res.kappa = 300.0; // XXX???
             }
             if(W==0.0) ind = res;
           }
@@ -643,6 +653,7 @@ main()
         else
         { // no light source
           if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
+          // XXX do we really want this and why does it have such a severe effect:
           if(b == 1) { res.M = 0; res.f = 0.0; } // not visible after all so it seems, clear reservoir
         }
 
@@ -668,7 +679,7 @@ main()
           du = normalize(cross(up, mu));
           dv = normalize(cross(du, mu));
           w = w.x * du + w.y * dv + w.z * mu;
-          pdf_w = 0.01 * vmm_eval(res.kappa, dot(w, mu));
+          pdf_w = vmm_eval(res.kappa, dot(w, mu));
           if(dot(w, m1.n) <= 0.0) a = 1.0; // fall back to bsdf if under surface
           // w = normalize(res.y - m1.x);
           // float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w)) * max(0, dot(res.n, -w));
@@ -690,7 +701,7 @@ main()
           W = 0.0; // no reweighted sample
           // pdf_w = 1.0/radians(180); // uniform projected solid angle
           rgb *= 1.0/M_PI;  // bsdf without albedo
-          rgb *= 0.0;// XXX DEBUG disable directly found samples
+          // rgb *= 0.0;// XXX DEBUG disable directly found samples
         }
         m0 = m1; // advance path vertex
       }
