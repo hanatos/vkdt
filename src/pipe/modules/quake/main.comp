@@ -472,6 +472,7 @@ reservoir_combine(
   }
 }
 
+// TODO: depend on normal and eval both hemispheres (mirror!)
 float vmm_eval(float kappa, float dotmu)
 {
   if(kappa < 1e-4) return 1.0/(4.0*M_PI);
@@ -601,10 +602,13 @@ main()
         // * successful nee sample: store nee state in registers
         rand = xrand(seed, rp);
 #if 1
-        if(b == 0 && s >= params.spp/2);// XXX s == 0)
+        if(b == 0 && s >= 1)//params.spp/2)// XXX s == 0)
         { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
+          // sample "mixture model" by selecting lobes from nb pixels.
+          // this should be an independent process and only have a fallback to 1/pi projected
+          // hemisphere sampling (but can depend on earlier samplings of the pixel env)
           // res = reservoir_new(); // initialise as zero for new sample again
-          res = ind; // forget other samples but not the independent/newly discovered ones
+          // res = ind; // forget other samples but not the independent/newly discovered ones
           // TODO: insert independent bsdf sample
           vec2 mv = texelFetch(img_mv, ipos, 0).rg;
           const ivec2 off[] = {
@@ -630,7 +634,7 @@ main()
             // update state of this pixel by sampling forward and back pdf:
             float f = length(m1.emission); // TODO * bsdf but 1/M_PI cancels // XXX no G because vmm doesn't?
             // if this is an independent sample add to mean image brightness:
-            if(W == 0.0) res.b = mix(f / pdf_w, res.b, 0.5); // XXX how to accum for temporal?
+            // if(W == 0.0) res.b = mix(f / pdf_w, res.b, 0.5); // XXX how to accum for temporal?
             float dotmu = 1.0;//dot(w, normalize(res.y-m0.x));
             float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, dotmu)));
             irr += rgb * m1.emission / pdf_w; // XXX res.b; // in both cases, a + (1-a)
@@ -638,9 +642,9 @@ main()
             { // update markov chain state for this pixel:
               res.f = f;
               res.w_sum = f;
-              res.y = m1.x;
+              res.y = m1.x;      // create new lobe around good sample
               res.M++;
-              res.kappa = 300.0; // XXX???
+              res.kappa = 10*t;//1600.0; // XXX??? // TODO: pick based on distance
             }
             if(W==0.0) ind = res;
           }
@@ -655,6 +659,7 @@ main()
         { // no light source
           if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
           // XXX do we really want this and why does it have such a severe effect:
+          // TODO: can we cast this as a regular MCMC rejection step?
           if(b == 1) { res.M = 0; res.f = 0.0; } // not visible after all so it seems, clear reservoir
         }
 
@@ -670,7 +675,8 @@ main()
         // res = reservoir_decode(reservoir_encode(res), m1.x); // XXX debug decode/encode cycle
         // sample direction outgoing from m1.x according to the reservoir
         // use res.y as point to aim at, estimator is f(res.y)*res.W
-        float a = global.frame <= 10 || s < params.spp/2 || res.f == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
+        // float a = global.frame <= 10 || s < params.spp/2 || res.f == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
+        float a = global.frame <= 10 || s < 1 || res.f == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
         // if(global.frame > 10 && res.W > 0 && s > 0) // XXX rand.w > a)
         if(a < 1.0)
         {
