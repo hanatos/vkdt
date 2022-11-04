@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "config.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -41,7 +42,7 @@ main()
 
   ivec2 sz = textureSize(img_light, 0).xy;
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-#if 0
+#if SVGF_OFF==0
   vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
 #else
   vec3 L  = texelFetch(img_light, ipos, 0).rgb;
@@ -49,7 +50,7 @@ main()
   vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
 
-#if 0
+#if SVGF_OFF==0
   L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
 #if 1 // taa box clamping old light vs. new light
   {

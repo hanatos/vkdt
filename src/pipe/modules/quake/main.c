@@ -91,9 +91,6 @@ int init(dt_module_t *mod)
 
   COM_InitArgv(d->parms.argc, d->parms.argv);
 
-  // isDedicated = (COM_CheckParm("-dedicated") != 0); // yeah no
-  // Sys_InitSDL ();
-
   Sys_Init();
 
   d->parms.memsize = 256 * 1024 * 1024; // qs default in 0.94.3
