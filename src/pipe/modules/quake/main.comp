@@ -472,18 +472,27 @@ reservoir_combine(
   }
 }
 
-// TODO: depend on normal and eval both hemispheres (mirror!)
-float vmm_eval(float kappa, float dotmu)
+// depend on normal and eval both hemispheres (mirror)
+float vmm_eval(float kappa, vec3 mu, vec3 wo, vec3 n)
 {
-  if(kappa < 1e-4) return 1.0/(4.0*M_PI);
-  return kappa/(2.0*M_PI*(1.0 - exp(-2.0*kappa))) * exp(kappa*(dotmu-1.0));
+  if(kappa < 1e-4) return 1.0/(2.0*M_PI); // mirroring is easy here
+
+  float dotmu0 = dot(mu, wo); // regular dot
+  wo -= 2.0 * n * dot(wo, n);
+  float dotmu1 = dot(mu, wo); // mirrored dot
+  return kappa/(2.0*M_PI*(1.0 - exp(-2.0*kappa))) * (
+      exp(kappa*(dotmu0-1.0)) +
+      exp(kappa*(dotmu1-1.0)));
 }
 
-vec3 vmm_sample(float kappa, vec2 r)
+vec3 vmm_sample(float kappa, vec2 r, vec3 n)
 { // see wenzel's doc on numerically stable expression for vmm:
   float w = 1.0 + log(r.x + (1.0-r.x)*exp(-2.0*kappa))/kappa;
   vec2 v = vec2(sin(2.0*M_PI*r.y), cos(2.0*M_PI*r.y));
-  return vec3(sqrt(1.0-w*w)*v, w);
+  vec3 wo = vec3(sqrt(1.0-w*w)*v, w);
+  if(dot(wo, n) < 0.0) // mirror back
+    wo -= 2.0 * n * dot(wo, n);
+  return wo;
 }
 
 float vmm_get_kappa(float x)
@@ -635,8 +644,8 @@ main()
             float f = length(m1.emission); // TODO * bsdf but 1/M_PI cancels // XXX no G because vmm doesn't?
             // if this is an independent sample add to mean image brightness:
             // if(W == 0.0) res.b = mix(f / pdf_w, res.b, 0.5); // XXX how to accum for temporal?
-            float dotmu = 1.0;//dot(w, normalize(res.y-m0.x));
-            float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, dotmu)));
+            vec3 mu = normalize(res.y-m0.x);
+            float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, mu, mu, m1.n)));
             irr += rgb * m1.emission / pdf_w; // XXX res.b; // in both cases, a + (1-a)
             if(res.f == 0.0 || rand.x < a)
             { // update markov chain state for this pixel:
@@ -665,30 +674,27 @@ main()
 
 
 
-#if 1 // next event estimation to torch:
-        if(params.torch == 1)
+        if(params.torch == 1) // next event estimation to torch:
           irr += nee_torch(lpos, m1.x, rgb, m1.n, seed, rp);
-#endif
 
 
 #if 1
         // res = reservoir_decode(reservoir_encode(res), m1.x); // XXX debug decode/encode cycle
         // sample direction outgoing from m1.x according to the reservoir
         // use res.y as point to aim at, estimator is f(res.y)*res.W
-        // float a = global.frame <= 10 || s < params.spp/2 || res.f == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
-        float a = global.frame <= 10 || s < 1 || res.f == 0.0 ? 1.0 : 0.0; // 0.2; // b == 0 ? 0.2 : 1.0;
-        // if(global.frame > 10 && res.W > 0 && s > 0) // XXX rand.w > a)
-        if(a < 1.0)
+        bool use_vmf = global.frame > 10 && s > 0 && res.f > 0;
+        if(use_vmf)
         {
-          w = vmm_sample(res.kappa, rand.xy);
+          w = vmm_sample(res.kappa, rand.xy, m1.n);
           vec3 mu = normalize(res.y-m1.x);
           vec3 up = vec3(1,0,0), du, dv;
           if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
           du = normalize(cross(up, mu));
           dv = normalize(cross(du, mu));
           w = w.x * du + w.y * dv + w.z * mu;
-          pdf_w = vmm_eval(res.kappa, dot(w, mu));
-          if(dot(w, m1.n) <= 0.0) a = 1.0; // fall back to bsdf if under surface
+          pdf_w = vmm_eval(res.kappa, mu, w, m1.n);
+          // XXX don't do this but instead mirror direction to other hemisphere
+          // if(dot(w, m1.n) <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           // w = normalize(res.y - m1.x);
           // float G = 1.0/dot(res.y-m1.x,res.y-m1.x) * max(0, dot(m1.n, w)) * max(0, dot(res.n, -w));
           // const float G = G_term(m1.x, m1.n, res.y, res.n);
@@ -699,13 +705,13 @@ main()
           rgb *= 1.0/M_PI; // bsdf without albedo
         }
 
-        if(a == 1.0)
+        if(!use_vmf)
 #endif
         { // sample independent new ray direction
           w = sample_cos(rand.xy);
           w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = a/M_PI; // uniform projected solid angle
+          pdf_w = 1.0/M_PI; // uniform projected solid angle
           W = 0.0; // no reweighted sample
           // pdf_w = 1.0/radians(180); // uniform projected solid angle
           rgb *= 1.0/M_PI;  // bsdf without albedo
