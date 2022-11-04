@@ -49,7 +49,7 @@ main()
   vec4 sum = t * rgb;
   float wgt = t;
 
-  const float sigma = 500.0; // XXX noise model
+  const float sigma = 10.0; // XXX noise model per pixel
   vec4 wc = vec4(vec3(1./sigma), 1.0);
 #define lookup(O) \
   do { \

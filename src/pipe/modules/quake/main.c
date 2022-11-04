@@ -70,7 +70,7 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "e1m3",
+    "+map", "e3m1",
     "+map", "ad_azad",
     "+map", "start",
     "-game", "SlayerTest",
@@ -143,7 +143,6 @@ input(
     mod->flags = s_module_request_all;
     dat->worldspawn = 0;
     // close menu because we don't have an esc key:
-    // Cmd_ExecuteString("give all", src_command);
     // Cmd_ExecuteString("notarget", src_command);
     // Cmd_ExecuteString("god", src_command);
     key_dest = key_game;
@@ -751,7 +750,14 @@ void commit_params(
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
   // to test rocket illumination etc:
-  if(graph->frame == 10) Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
+  if(graph->frame == 10)
+  {
+    // Cmd_ExecuteString("developer 1", src_command);
+    // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
+    Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
+    Cmd_ExecuteString("god", src_command);
+    Cmd_ExecuteString("notarget", src_command);
+  }
 
   if(sv_player->v.weapon == 1) // axe has torch built in:
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
