@@ -41,7 +41,7 @@ main()
   float wgt = 0.0f;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
-    vec3 rgb = texelFetch(img_in, 2*opos+ivec2(ii,jj), 0).rgb;
+    vec3 rgb = texture(img_in, (2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
     float u = w[ii+2]*w[jj+2];
     vec3 rgbw = rgb.rgb * push.wb.rgb;
     float cmax = max(rgbw.r, max(rgbw.g, rgbw.b));

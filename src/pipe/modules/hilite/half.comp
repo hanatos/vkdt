@@ -71,7 +71,7 @@ main()
   {
     vec4 c = textureGather(img_in, 2*(ipos+.5)/vec2(textureSize(img_in, 0)), 0);
     // ignore clipped pixels:
-    if(c.x >= white) c.x = c.z;
+    if(c.x >= white) c.x = c.z; // replace one clipped green by the other
     if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
   }
