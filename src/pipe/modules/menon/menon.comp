@@ -31,14 +31,12 @@ shared vec3 curr[STRIDE*DT_MENON_TILE_HT];
 // works for pixel offset o in [-2,2]^2
 vec3 getpx(const ivec2 p, const ivec2 o)
 {
-  if(p.y < 0 || p.y >= DT_MENON_TILE_HT) return vec3(100); // XXX this triggers!!
+  if(p.y < 0 || p.y >= DT_MENON_TILE_HT) return vec3(100); // XXX this triggers but does not show bright spots!
   ivec2 c = p+o;
   if(c.x <  0) c.x += 2;
   if(c.x >= DT_MENON_TILE_WD) c.x -= 2;
   if(c.y <  0) c.y += 2;
   if(c.y >= DT_MENON_TILE_HT) c.y -= 2;
-  // XXX ???
-  // if(c.y < 0 || c.y >= DT_MENON_TILE_HT) return vec3(0);
   const uint idx = c.x + STRIDE * c.y;
   return curr[idx];
 }
@@ -61,11 +59,7 @@ void setb(ivec2 c, float b)
   curr[idx].b = b;
 }
 
-// we are running on input tiles + border:
-// * someone needs to remember not to write to output
-// * ipos == opos == complicated(invocation_id)
-// * need to mask out all blur loops for borders
-// * need to run more threads (but we have plenty)
+// we are running on input tiles + border
 void
 main()
 {
@@ -80,7 +74,6 @@ main()
 
   // everybody get their texels:
   const uint idx = p.x + STRIDE * p.y;
-  // vec3 orig; // remember original pixel colour
   // XXX clamp to bayer block!
   curr[idx] = texelFetch(img_in, clamp(ipos, ivec2(0), textureSize(img_in, 0)-1), 0).rrr;
 
@@ -91,11 +84,6 @@ main()
   // in the first pass (interpolate green) we will use rb as scratch memory.
 
   barrier(); // be sure all the data is written to shared memory
-
-  // TODO:
-  // compute horizontal and vertical green interpolation candidates GH and GV
-  // then choose between H and V (based on GH and GV only)
-  // compute bilinear interpolation of R-GH and B-GH or R-GV and B-GV, accordingly
 
   // A) 5-tap FIR green interpolation H or V
   // gh = 0.5*(g+1 + g-1) + 0.25*(2*r0 - r+2 - r-2)    (or blue ofc)
@@ -108,11 +96,11 @@ main()
       + 0.25*(2.0*getpx(p, ivec2(0)).r - getpx(p, ivec2(2, 0)).r - getpx(p, ivec2(-2, 0)).r);
     gv = 0.5*(getpx(p, ivec2(0, 1)).r + getpx(p, ivec2(0, -1))).r
       + 0.25*(2.0*getpx(p, ivec2(0)).r - getpx(p, ivec2(0, 2)).r - getpx(p, ivec2(0, -2)).r);
-  // B) decide H or V
-  // compute
-  // CH = r - gh  // on a red  pixel
-  //    = b - gh  // on a blue pixel
-  // and same with CV and gv
+    // B) decide H or V
+    // compute
+    // CH = r - gh  // on a red  pixel
+    //    = b - gh  // on a blue pixel
+    // and same with CV and gv
     float rb = getpx(p, ivec2(0)).r; // red or blue on our pixel
     setr(p, rb - gh); // horizontal value in red channel
     setb(p, rb - gv); // vertical value in blue channel
@@ -136,18 +124,16 @@ main()
 
   if(((ipos.x+ipos.y)&1) == 0)
   { // no green pixel (we are red or blue)
-  // compute the classifiers dh and dv as the sum of DH and DV over a 5x5 window
-  // weighted sum giving 3x more weight to those in same row (dh) or col (dv)
+    // compute the classifiers dh and dv as the sum of DH and DV over a 5x5 window
+    // weighted sum giving 3x more weight to those in same row (dh) or col (dv)
     vec2 delta = vec2(0.0);
     for(int j=-2;j<=2;j++)
       for(int i=-2;i<=2;i++)
         delta += getpx(p, ivec2(i,j)).rb
           * vec2(j==0?3.0:1.0, i==0?3.0:1.0);
-  // if dv < dh: g = gv
-  // else        g = gh
+    // if dv < dh: g = gv
+    // else        g = gh
     vertical = delta.y < delta.x;
-    // setr(p, delta.x); // XXX DEBUG see h/v
-    // setb(p, delta.y);
   }
   barrier();
 
@@ -156,14 +142,9 @@ main()
     setr(p, getpx(p, ivec2(0)).g); // restore red or blue channel into .r location
     if(vertical) setg(p, gv);
     else         setg(p, gh);
-    // setg(p, gv); // XXX gv is unstable!
   }
   barrier();
   // now green is interpolated in the shared memory .g slot. the original data is in .r (be it red, green, or blue).
-#if 0 // XXX DEBUG
-  setr(p, getpx(p, ivec2(0)).g);
-  setb(p, getpx(p, ivec2(0)).g);
-#endif
 
   // C) colour interpolation (red/blue)
   if(((ipos.x+ipos.y)&1) == 1)
@@ -209,7 +190,6 @@ main()
     else setb(p, res); // red line, set blue
   }
 #if 1
-  // XXX is this broken/wrong ?
   barrier();
   // D) refinement
   // red/blue in green location: use 1d lowpass of direct nb that belong to bayer pattern
@@ -224,7 +204,6 @@ main()
     float ch = ((ipos.y & 1) == 0) ? px.r - lo.r : px.b - lo.b;
     setg(p, lo.g + ch);
   }
-// #if 0
   // 2) update red/blue in green location
   //    g = gl+gh, r = rl+rh   1d h/v depending on location of red nb
   //    r = rl+gh
@@ -244,7 +223,6 @@ main()
     setr(p, rl.r + rh);
     setb(p, bl.b + bh);
   }
-// #if 0
   barrier();
   // 3) update red (blue) in blue (red) locations
   //    r = rl+rh, b = bl+bl   1d h/v depending on dv/dh
@@ -264,8 +242,6 @@ main()
     setr(p, rl.r + rh);
     setb(p, bl.b + bh);
   }
-
-  // low pass filter is FIR [1/3 1/3 1/3]
 #endif
   barrier();
 
