@@ -126,15 +126,15 @@ main()
   // try and only apply if we are reasonably sure it's not an edge but a gradient:
   // (i think this goes the right direction but maybe t needs to be more
   // aggressive, i.e. degenerate to the above smooth with t=1 sooner)
-  float t = 0.0;
+  // float t = 0.0;
   // if(any(greaterThanEqual(fine, vec3(white)))) t = 1.0;
   // // else t = clamp(1.0-0.3*length(fine-upsm), 0, 1);
   // else
     // t = clamp(1.4*params.soft-0.3*length(fine-upsm), 0, 1);
 
     // soft means less rescaling at this level (copy blurred version through)
-    t = params.soft;
-    rec = mix(rec, upsm, t);
+    // t = params.soft;
+    // rec = mix(rec, upsm, t);
 
     // XXX this blended between rec (scaled to fine, includes detail) and
     // XXX upsm (straight upsampled, very smooth). the trouble with rec is that
@@ -157,7 +157,14 @@ main()
   // if(all(lessThan(upsm, vec3(white))))
   // fine = mix(fine, upsm, t);
   //  fine = upsm;
+#if 0
     fine = rec;
+#else
+    // float t = params.soft;
+    float t = clamp(1.4*params.soft-0.3*length(fine-rec), 0, 1);
+    if(any(greaterThanEqual(fine, vec3(white)))) t = 1.0;
+    fine = mix(fine, rec, t);
+#endif
 #if 0
     t = clamp(params.soft - push.level * 0.25, 0, 1);
   const float softw = 0.97*white;

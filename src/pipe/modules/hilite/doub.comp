@@ -120,14 +120,14 @@ main()
     float wb = exp(upsm.b - max(upsm.r, upsm.g));
     float scale = (sr * wr + sg * wg + sb * wb) / (wr + wg + wb);
 
-    const float softw = 0.97*white;
+    const float softw = 0.95*white;
     float maxrgb = max(max(c.x, c.y), max(c.z, c.w));
     if(maxrgb > softw)
     {
       const float t = smoothstep(softw, white, maxrgb);
       c = mix(c, scale * upsm.gbgr, t);
     }
-    // c = upsm.gbgr;
+    // c = upsm.gbgr; // XXX DEBUG
     imageStore(img_out, 2*ipos,            vec4(c.w));
     imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
     imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));
