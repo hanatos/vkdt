@@ -104,7 +104,7 @@ create_nodes(
   int node_up = id_doub;
   int conn_up = 1;
 
-  const int max_nl = 9;//8;
+  const int max_nl = 15;
   int nl = max_nl;
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
