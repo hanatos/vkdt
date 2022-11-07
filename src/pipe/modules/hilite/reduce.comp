@@ -42,7 +42,7 @@ main()
   float wgt = 0.0;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
-    vec3 rgb = texture(img_in, (2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
+    vec3 rgb = texture(img_in, vec2(2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
     // if(jj==0 && ii==0) center = rgb;
     float u = w[ii+2]*w[jj+2];
     vec3 rgbw = rgb.rgb * push.wb.rgb;
