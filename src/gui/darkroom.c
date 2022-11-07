@@ -671,7 +671,9 @@ darkroom_enter()
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
-  if(vkdt.state.scale < 0.0f) darkroom_reset_zoom();
+#ifndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
+  darkroom_reset_zoom();
+#endif
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "plus L1/R1: switch panel");
