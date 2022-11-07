@@ -36,12 +36,14 @@ main()
 
   const float white = params.white;
   // blur, store only coarse res
-  const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
-  vec3 col = vec3(0.0f);
-  float wgt = 0.0f;
+  const float w[5] = {1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0};
+  vec3 col = vec3(0.0);
+  // vec3 center;
+  float wgt = 0.0;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
     vec3 rgb = texture(img_in, (2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
+    // if(jj==0 && ii==0) center = rgb;
     float u = w[ii+2]*w[jj+2];
     vec3 rgbw = rgb.rgb * push.wb.rgb;
     float cmax = max(rgbw.r, max(rgbw.g, rgbw.b));
@@ -58,7 +60,7 @@ main()
       wgt += u;
     }
   }
-  if(wgt == 0.0f) col = vec3(1.0);
+  if(wgt == 0.0) col = vec3(1.0);//center; // propagate clipped value!
   else col /= wgt;
   imageStore(img_out, opos, vec4(col, 1));
 }

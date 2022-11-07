@@ -127,6 +127,7 @@ main()
       const float t = smoothstep(softw, white, maxrgb);
       c = mix(c, scale * upsm.gbgr, t);
     }
+    // c = upsm.gbgr;
     imageStore(img_out, 2*ipos,            vec4(c.w));
     imageStore(img_out, 2*ipos+ivec2(1,0), vec4(c.z));
     imageStore(img_out, 2*ipos+ivec2(0,1), vec4(c.x));

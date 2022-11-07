@@ -35,10 +35,10 @@ layout( // output fine resolution
 
 vec3 gauss_expand(sampler2D img_in, ivec2 opos)
 {
-  vec3 c = vec3(0.0f);
-  const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
+  vec3 c = vec3(0.0);
+  const float w[5] = {1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0};
   const float white = params.white;
-  float wgt = 0.0f;
+  float wgt = 0.0;
   ivec2 ipos = opos/2;
   const int d = (opos.x&1) + 2*(opos.y&1);
   if(d == 0)
@@ -46,7 +46,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
     for(int ii=-1;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
     {
       vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
-      if(all(lessThan(rgb, vec3(white))))
+      // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+2]*w[2*ii+2];
         wgt += w[2*jj+2]*w[2*ii+2];
@@ -58,7 +58,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
     for(int ii=0;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
     {
       vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
-      if(all(lessThan(rgb, vec3(white))))
+      // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+2]*w[2*ii+1];
         wgt += w[2*jj+2]*w[2*ii+1];
@@ -70,7 +70,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
     for(int ii=-1;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
     {
       vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
-      if(all(lessThan(rgb, vec3(white))))
+      // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+1]*w[2*ii+2];
         wgt += w[2*jj+1]*w[2*ii+2];
@@ -82,7 +82,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
     for(int ii=0;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
     {
       vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
-      if(all(lessThan(rgb, vec3(white))))
+      // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+1]*w[2*ii+1];
         wgt += w[2*jj+1]*w[2*ii+1];
@@ -120,17 +120,61 @@ main()
   float scale = (sr * wr + sg * wg + sb * wb) / (wr + wg + wb);
 
   vec3 rec = upsm * scale;
+  // fine = rec;
+  // upsm = rec; // XXX
 
   // try and only apply if we are reasonably sure it's not an edge but a gradient:
   // (i think this goes the right direction but maybe t needs to be more
   // aggressive, i.e. degenerate to the above smooth with t=1 sooner)
-  float t = 0.0f;
-  if(any(greaterThanEqual(fine, vec3(white)))) t = 1.0f;
-  // else t = clamp(1.0-0.3*length(fine-upsm), 0, 1);
-  else t = clamp(1.4*params.soft-0.3*length(fine-upsm), 0, 1);
+  float t = 0.0;
+  // if(any(greaterThanEqual(fine, vec3(white)))) t = 1.0;
+  // // else t = clamp(1.0-0.3*length(fine-upsm), 0, 1);
+  // else
+    // t = clamp(1.4*params.soft-0.3*length(fine-upsm), 0, 1);
 
-  if(all(lessThan(upsm, vec3(white))))
-    fine = mix(fine, upsm, t);
+    // soft means less rescaling at this level (copy blurred version through)
+    t = params.soft;
+    rec = mix(rec, upsm, t);
+
+    // XXX this blended between rec (scaled to fine, includes detail) and
+    // XXX upsm (straight upsampled, very smooth). the trouble with rec is that
+    // XXX the reconstruction only holds on to one (darkest) colour channel,
+    // XXX so it messes with colour hue and chroma.
+    // XXX TODO: now need to reconstruct fine based on white/clipped
+    // XXX the problem is this depends on the level
+    // we have three colours:
+    // (a) plain fine res
+    // (b) super blurry upsm
+    // (c) rec: (b) modulated to match the darkest channel of (a)
+    //
+    // (d) is (b) and (c) mixed for softness (XXX do we need this?)
+    // now mix (a) and (d) to gain colour back
+    //
+    // the problem is that anything in relation to "white" is unreliable at
+    // this stage. fine can be assumed to be clean here (fixed on way down)
+
+
+  // if(all(lessThan(upsm, vec3(white))))
+  // fine = mix(fine, upsm, t);
+  //  fine = upsm;
+    fine = rec;
+#if 0
+    t = clamp(params.soft - push.level * 0.25, 0, 1);
+  const float softw = 0.97*white;
+  float maxrgb = max(max(fine.r, fine.g), fine.b);
+  if(all(lessThan(fine, vec3(softw)))) fine = fine;
+#if 1
+  else
+  {
+    // float s = clamp(smoothstep(softw, white, maxrgb), 0, 1);
+    // vec3 f = mix(fine, rec, s);
+    // fine = mix(fine, rec, s);
+    fine = rec;
+    // fine = mix(rec, fine, clamp(-0.2 + params.soft - push.level * 0.12, 0, 1));
+  }
+#endif
+  // else fine = rec;
+#endif
 #else
   if(any(greaterThanEqual(fine, vec3(white))))
     fine = upsm; // XXX DEBUG
