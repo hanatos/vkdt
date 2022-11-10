@@ -657,9 +657,9 @@ main()
             float dotmu = 1.0;//dot(w, normalize(res.y-m0.x));
             // float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, dotmu)));
             // float a = min(1.0, f * G / res.f);
-            // float a = min(1.0, G / G_term(m0.x, m0.n, res.y, m1.n));
+            float a = min(1.0, G / G_term(m0.x, m0.n, res.y, res.n));
             // interestingly 0.5 looks better than 1.0 but still kinda broken
-            float a = 0.5; // always accept to get high throughput of different values
+            // float a = 0.5; // always accept to get high throughput of different values
             // FIXME: maybe it's the reset step below that breaks it, but:
             // FIXME: this pretty much only selects the "winner" and leaves the mixture model quite boring
             // float a = min(1.0, f / res.f);
@@ -673,8 +673,10 @@ main()
               res.f = 
               res.w_sum = 1;//G * f;///pdf_w;     // XXX or f or f/pdf_w ?
               res.y = m1.x;      // create new lobe around good sample
+              res.n = m1.n;
               res.M++;
-              res.kappa = 50.0 + 10.0*t;//1600.0; // XXX??? // TODO: pick based on distance
+              // TODO: pick this wisely. too narrow makes diffuse noise (because MIS goes down)
+              res.kappa = 10.0 + 40.0*t;//1600.0; // XXX??? // TODO: pick based on distance
             }
             if(W==0.0) ind = res;
           }
