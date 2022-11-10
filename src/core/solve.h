@@ -146,19 +146,20 @@ dt_adam(
     const double *ub,     // m upper bound constraints
     const int     num_it, // number of iterations
     void         *data,
-    double        eps,    // 1e-8 to avoid squared gradient estimation to drop to zero
-    double        beta1,  // 0.9 decay rate of gradient
-    double        beta2,  // 0.99 decay rate of squared gradient
+    double        eps,    // 1e-8  to avoid squared gradient estimation to drop to zero
+    double        beta1,  // 0.9   decay rate of gradient
+    double        beta2,  // 0.999 decay rate of squared gradient
     double        alpha,  // 0.001 learning rate
     int          *abort)  // external user flag to abort asynchronously. can be 0.
 {
   double *f  = alloca(sizeof(double)*n);
   double *bp = alloca(sizeof(double)*m);   // best p seen so far
   double *J  = alloca(sizeof(double)*n*m);
-  double *mt = alloca(sizeof(double)*n*m); // averaged gradient
-  double vt   = 0.0;     // sum of squared past gradients
+  double *mt = alloca(sizeof(double)*n*m); // averaged gradient (1st moment)
+  double *vt = alloca(sizeof(double)*n*m); // past gradient second moment
   double best = DBL_MAX; // best loss seen so far
   memset(mt, 0, sizeof(double)*m*n);
+  memset(vt, 0, sizeof(double)*m*n);
   assert(n == 1); // this only works for a single loss value
 
   // int bad = 0;
@@ -178,19 +179,16 @@ dt_adam(
       memcpy(p, bp, sizeof(double)*m);
     }
 #endif
-    double sumJ2 = 0.0;
-    for(int k=0;k<n*m;k++) sumJ2 += J[k]*J[k];
-    vt = beta2 * vt + (1.0-beta2) * sumJ2;
-    for(int k=0;k<n*m;k++)
-      mt[k] = beta1 * mt[k] + (1.0-beta1) * J[k];
+    for(int k=0;k<n*m;k++) vt[k] = beta2 * mt[k] + (1.0-beta2) * J[k] * J[k];
+    for(int k=0;k<n*m;k++) mt[k] = beta1 * mt[k] + (1.0-beta1) * J[k];
 
     double corr_m = 1.0/(1.0-pow(beta1, it));
-    double corr_v = sqrt(vt / (1.0-pow(beta2, it)));
+    double corr_v = 1.0/(1.0-pow(beta2, it));
     if(!(corr_v > 0.0)) corr_v = 1.0;
     if(!(corr_m > 0.0)) corr_m = 1.0;
 
     for(int k=0;k<m;k++)
-      p[k] -= mt[k]*corr_m * alpha / (corr_v + eps);
+      p[k] -= mt[k]*corr_m * alpha / (sqrt(vt[k]*corr_v) + eps);
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
 
