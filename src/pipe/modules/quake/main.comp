@@ -44,8 +44,8 @@ layout(set = 1, binding = 4) uniform sampler2D img_blue;
 
 layout(set = 1, binding = 5) uniform writeonly image2D img_albedo;
 
-layout(set = 1, binding = 6) uniform usampler2D img_nee_in;
-layout(set = 1, binding = 7) uniform writeonly uimage2D img_nee_out;
+layout(set = 1, binding = 6) uniform highp usampler2D img_nee_in;
+layout(set = 1, binding = 7, rgba32ui) uniform highp writeonly uimage2D img_nee_out;
 layout(set = 1, binding = 8) uniform sampler2D img_mv;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
@@ -524,22 +524,19 @@ uvec4 reservoir_encode(reservoir_t r)
   return uvec4(
       packHalf2x16(r.y.xy),
       packHalf2x16(vec2(r.y.z, r.f)),
-      geo_encode_normal(r.n),
-      floatBitsToUint(r.kappa));
+      uint(r.kappa),
+      geo_encode_normal(r.n));
 }
 
 reservoir_t reservoir_decode(uvec4 enc)
 {
-  reservoir_t r;
+  reservoir_t r = reservoir_new();
   vec2 h = unpackHalf2x16(enc.y);
   r.y.xy = unpackHalf2x16(enc.x);
   r.y.z  = h.x;
   r.f    = h.y;
-  r.n = geo_decode_normal(enc.z);
-  r.kappa = uintBitsToFloat(enc.w);
-  // h = unpackHalf2x16(enc.z);
-  // r.kappa = 250;//h.x; // XXX this changes things!
-  // r.b     = h.y;
+  r.kappa = enc.z;
+  r.n = geo_decode_normal(enc.w);
   r.M = 1;
   r.w_sum = r.f;
   r.W = 1.0;
@@ -560,18 +557,16 @@ main()
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
   const int spp = 8; // needs to be a compile time constant (use specialisation?)
-#if 0
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
-#endif
   vec3 pos;      // g-buffer screen space position after eye ray
 
   reservoir_t res = reservoir_new(); // init zero
-  reservoir_t ind; // backup of independent reservoir
+  reservoir_t ind = reservoir_new(); // backup of independent reservoir
   for(int s=0;s<spp;s++)
   {
-    // rad[s] = vec3(0.0);
+    rad[s] = vec3(0.0);
     vec3 lpos = vec3(0.0); // torch light pos, depending on camera
     intersection_t inter;
     material_info_t m0, m1;
@@ -670,10 +665,9 @@ main()
             // float a = min(1.0, f / res.f);
             // XXX TODO: use CMIS and collect all samples irr + all samples (mu,kappa), divide sum of pdf!
             // if(s > 0) // discard bsdf sampling (because noise. invent some MIS?)
-              irr += rgb * m1.emission / pdf_w; // XXX res.b; // in both cases, a + (1-a)
-            // rad[s] = rgb * m1.emission;
-            // par[s] = vec4(res.y, res.kappa);
-            // lco[s] = m1.x;
+              // irr += rgb * m1.emission / pdf_w; // XXX res.b; // in both cases, a + (1-a)
+            rad[s] = rgb * m1.emission;
+            lco[s] = m1.x;
             if(res.f == 0.0 || rand.x < a)
             { // update markov chain state for this pixel:
               res.f = 
@@ -724,6 +718,7 @@ main()
           if(dot(w, m1.n) <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           W = 1.0;
           rgb *= 1.0/M_PI; // bsdf without albedo
+          par[s] = vec4(res.y, res.kappa);
         }
 
         if(!use_vmf)
@@ -733,11 +728,12 @@ main()
           w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = 1.0/M_PI; // uniform projected solid angle
-          W = 0.0; // no reweighted sample
+          W = 0.0; // no reweighted sample/bsdf sample
           rgb *= 1.0/M_PI;  // bsdf without albedo
           // rgb *= 0.0;// XXX DEBUG disable directly found samples
           // TODO: store our normal in res.y? for cosine?
-          res.kappa = 0.0; // mark as bsdf sample
+          // res.kappa = 0.0; // mark as bsdf sample
+          par[s] = vec4(m1.n, 0.0);
         }
         m0 = m1; // advance path vertex
       }
@@ -750,18 +746,25 @@ main()
   irr /= spp;
   alb /= spp;
 
-#if 0
   for(int s=0;s<spp;s++)
   {
-    float pdf = 1.0/M_PI; // XXX times cosine?
+    float pdf = dot(normalize(lco[s] - pos), par[0].xyz)/M_PI;
     for(int t=1;t<spp;t++)
-      pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - pos), normalize(par[t].xyz - pos)));
+    {
+      if(par[t].w == 0.0)
+        pdf += dot(normalize(lco[s] - pos), par[t].xyz) / M_PI;
+      else
+        pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - pos), normalize(par[t].xyz - pos)));
+    }
     if(any(greaterThan(rad[s], vec3(0.0))))
       irr += rad[s] / pdf; // XXX / spp?
   }
-#endif
+
+  // uvec4 tmp = texelFetch(img_nee_in, ipos, 0);
+  // irr = vec3(tmp.w / 1000000.0);
 
   imageStore(img_nee_out,    ipos, reservoir_encode(res));
+  // imageStore(img_nee_out,    ipos, uvec4(0, 0, 0, global.frame));
   imageStore(img_irradiance, ipos, vec4(irr, 1));
   imageStore(img_albedo,     ipos, vec4(alb, 1));
 }
