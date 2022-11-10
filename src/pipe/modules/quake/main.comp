@@ -128,6 +128,10 @@ vec4 xrand(inout uint seed, ivec2 p)
 
 #endif
 
+vec2 sign_no0(vec2 v)
+{
+  return mix(vec2(1.0), vec2(-1.0), lessThan(v, vec2(0.0)));
+}
 // 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
 // A Survey of Efficient Representations for Independent Unit Vectors,
 // almost like oct30
@@ -135,11 +139,16 @@ vec3 geo_decode_normal(const uint enc)
 {
   vec2 projected = unpackSnorm2x16(enc); // -1..1
   vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
-  if(vec.z < 0.0)
-    vec.xy = vec2(
-        (1.0 - abs(vec.y)) * (vec.x < 0.0 ? -1.0 : 1.0),
-        (1.0 - abs(vec.x)) * (vec.y < 0.0 ? -1.0 : 1.0));
+  if(vec.z < 0.0) vec.xy = vec2(1.0-abs(vec.yx)) * sign_no0(vec.xy);
   return normalize(vec);
+}
+uint geo_encode_normal(vec3 n)
+{
+  const float invL1Norm = 1.0 / (abs(n.x) + abs(n.y) + abs(n.z));
+  vec2 enc; // find floating point values of octahedral map in [-1,1]:
+  if(n.z < 0.0) enc = (1.0-abs(n.yx * invL1Norm)) * sign_no0(n.xy);
+  else          enc = n.xy * invL1Norm;
+  return packSnorm2x16(enc);
 }
 
 struct intersection_t
@@ -401,11 +410,12 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
 struct reservoir_t
 {
   vec3  y;              // world space position of light source point
+  vec3  n;              // world space light normal
   // XXX remove: (use only w_sum)
   float f;              // observed measurement contribution until there (bsdf * G * Le)
   float kappa;          // concentration parameter for vMF
   // XXX remove:
-  float b;              // mean image brightness for independent MC estimates in this pixel
+  // float b;              // mean image brightness for independent MC estimates in this pixel
 
   float w_sum;          // sum of weights
   uint  M;              // number of samples so far
@@ -514,9 +524,8 @@ uvec4 reservoir_encode(reservoir_t r)
   return uvec4(
       packHalf2x16(r.y.xy),
       packHalf2x16(vec2(r.y.z, r.f)),
-      floatBitsToUint(r.kappa),
-      // packHalf2x16(vec2(r.kappa, r.b)),
-      0);
+      geo_encode_normal(r.n),
+      floatBitsToUint(r.kappa));
 }
 
 reservoir_t reservoir_decode(uvec4 enc)
@@ -526,7 +535,8 @@ reservoir_t reservoir_decode(uvec4 enc)
   r.y.xy = unpackHalf2x16(enc.x);
   r.y.z  = h.x;
   r.f    = h.y;
-  r.kappa = uintBitsToFloat(enc.z);
+  r.n = geo_decode_normal(enc.z);
+  r.kappa = uintBitsToFloat(enc.w);
   // h = unpackHalf2x16(enc.z);
   // r.kappa = 250;//h.x; // XXX this changes things!
   // r.b     = h.y;
@@ -549,11 +559,19 @@ main()
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
+  const int spp = 8; // needs to be a compile time constant (use specialisation?)
+#if 0
+  vec3 rad[spp]; // radiance per sample
+  vec3 lco[spp]; // light source coordinates
+  vec4 par[spp]; // sampling pdf parameters (mean, kappa)
+#endif
+  vec3 pos;      // g-buffer screen space position after eye ray
 
   reservoir_t res = reservoir_new(); // init zero
   reservoir_t ind; // backup of independent reservoir
-  for(int s=0;s<params.spp;s++)
+  for(int s=0;s<spp;s++)
   {
+    // rad[s] = vec3(0.0);
     vec3 lpos = vec3(0.0); // torch light pos, depending on camera
     intersection_t inter;
     material_info_t m0, m1;
@@ -626,6 +644,8 @@ main()
             reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in,
                   ivec2(ipos+mv+5*off[i] + (2.0*rand.yz-1.0) * 4.0 + 0.5),
                   0));
+            // TODO: exclude obviously irrelevant ones (G term zero/normal culling)
+            // r2.f = r2.w_sum = G_term(m0.x, m0.n, r2.y, r2.n);
             reservoir_combine(res, r2, rand.x); // this picks one lobe
           }
         }
@@ -643,19 +663,24 @@ main()
             // float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, dotmu)));
             // float a = min(1.0, f * G / res.f);
             // float a = min(1.0, G / G_term(m0.x, m0.n, res.y, m1.n));
+            // interestingly 0.5 looks better than 1.0 but still kinda broken
             float a = 0.5; // always accept to get high throughput of different values
             // FIXME: maybe it's the reset step below that breaks it, but:
             // FIXME: this pretty much only selects the "winner" and leaves the mixture model quite boring
             // float a = min(1.0, f / res.f);
-            if(s > 0) // discard bsdf sampling
+            // XXX TODO: use CMIS and collect all samples irr + all samples (mu,kappa), divide sum of pdf!
+            // if(s > 0) // discard bsdf sampling (because noise. invent some MIS?)
               irr += rgb * m1.emission / pdf_w; // XXX res.b; // in both cases, a + (1-a)
+            // rad[s] = rgb * m1.emission;
+            // par[s] = vec4(res.y, res.kappa);
+            // lco[s] = m1.x;
             if(res.f == 0.0 || rand.x < a)
             { // update markov chain state for this pixel:
               res.f = 
-              res.w_sum = G * f;///pdf_w;     // XXX or f or f/pdf_w ?
+              res.w_sum = 1;//G * f;///pdf_w;     // XXX or f or f/pdf_w ?
               res.y = m1.x;      // create new lobe around good sample
               res.M++;
-              res.kappa = 150.0 + 50.0*t;//1600.0; // XXX??? // TODO: pick based on distance
+              res.kappa = 50.0 + 10.0*t;//1600.0; // XXX??? // TODO: pick based on distance
             }
             if(W==0.0) ind = res;
           }
@@ -671,8 +696,12 @@ main()
           if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
           // XXX do we really want this and why does it have such a severe effect:
           // TODO: can we cast this as a regular MCMC rejection step?
+          // XXX still helps, but in a shit way. need better rejection of old samples
           // if(b == 1) { res.M = 0; res.f = 0.0; } // not visible after all so it seems, clear reservoir
         }
+
+        // remember shading vertex
+        if(b==0) pos = m1.x;
 
 
 
@@ -707,6 +736,8 @@ main()
           W = 0.0; // no reweighted sample
           rgb *= 1.0/M_PI;  // bsdf without albedo
           // rgb *= 0.0;// XXX DEBUG disable directly found samples
+          // TODO: store our normal in res.y? for cosine?
+          res.kappa = 0.0; // mark as bsdf sample
         }
         m0 = m1; // advance path vertex
       }
@@ -716,8 +747,19 @@ main()
       }
     }
   }
-  irr /= params.spp-1;
-  alb /= params.spp;
+  irr /= spp;
+  alb /= spp;
+
+#if 0
+  for(int s=0;s<spp;s++)
+  {
+    float pdf = 1.0/M_PI; // XXX times cosine?
+    for(int t=1;t<spp;t++)
+      pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - pos), normalize(par[t].xyz - pos)));
+    if(any(greaterThan(rad[s], vec3(0.0))))
+      irr += rad[s] / pdf; // XXX / spp?
+  }
+#endif
 
   imageStore(img_nee_out,    ipos, reservoir_encode(res));
   imageStore(img_irradiance, ipos, vec4(irr, 1));
