@@ -457,6 +457,7 @@ void render_lighttable_right_panel()
     static int really_delete = 0;
     if(ImGui::Button("delete image[s]", size))
       really_delete ^= 1;
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("will ask you again");
 
     if(really_delete)
     {
@@ -466,6 +467,12 @@ void render_lighttable_right_panel()
         dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
         really_delete = 0;
       }
+      if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+          "this button will physically delete the .cfg files of the selection.\n"
+          "it will only delete the source image file if its filename is\n"
+          "exacty the .cfg file name without the .cfg postfix.\n"
+          "this means duplicates or tag collections will keep the source\n"
+          "image file name on disk untouched.");
     }
 
     // ==============================================================
