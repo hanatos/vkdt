@@ -657,7 +657,7 @@ main()
             float dotmu = 1.0;//dot(w, normalize(res.y-m0.x));
             // float a = min(1.0, (f / pdf_w) / (res.f / vmm_eval(res.kappa, dotmu)));
             // float a = min(1.0, f * G / res.f);
-            float a = min(1.0, G / G_term(m0.x, m0.n, res.y, res.n));
+            float a = min(1.0, f * G / (res.f * G_term(m0.x, m0.n, res.y, res.n)));
             // interestingly 0.5 looks better than 1.0 but still kinda broken
             // float a = 0.5; // always accept to get high throughput of different values
             // FIXME: maybe it's the reset step below that breaks it, but:
@@ -671,7 +671,7 @@ main()
             if(res.f == 0.0 || rand.x < a)
             { // update markov chain state for this pixel:
               res.f = 
-              res.w_sum = 1;//G * f;///pdf_w;     // XXX or f or f/pdf_w ?
+              res.w_sum = f;// * G;//G * f;///pdf_w;     // XXX or f or f/pdf_w ?
               res.y = m1.x;      // create new lobe around good sample
               res.n = m1.n;
               res.M++;

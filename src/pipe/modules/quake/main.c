@@ -742,11 +742,14 @@ void commit_params(
   Host_Frame(time);
   d->oldtime = newtime;
 
+  // in quake, run `record <demo name>` until `stop`
   // XXX for performance/testing, enable this playdemo and do
   // ./vkdt-cli -g examples/quake.cfg --format o-ffmpeg --filename qu.vid --audio qu.aud --output main --format o-ffmpeg --filename mv.vid --output hist --config frames:3000 fps:24
   // ffmpeg -i qu.vid_0002.h264 -f s16le -sample_rate 44100 -channels 2  -i qu.aud -c:v copy quake.mp4
+  // (add -r 60 to resample for different frame rate)
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
   // to test rocket illumination etc:
   if(graph->frame == 10)
   {
@@ -757,10 +760,12 @@ void commit_params(
     Cmd_ExecuteString("notarget", src_command);
   }
 
+#if 1 // does not work with demo replay
   if(sv_player->v.weapon == 1) // axe has torch built in:
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
   else
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
+#endif
 
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
 #if 0 // our camera
