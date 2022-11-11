@@ -733,6 +733,7 @@ void commit_params(
   // ./vkdt-cli -g examples/quake.cfg --format o-ffmpeg --filename qu.vid --audio qu.aud --output main --format o-ffmpeg --filename mv.vid --output hist --config frames:3000 fps:24
   // ffmpeg -i qu.vid_0002.h264 -f s16le -sample_rate 44100 -channels 2  -i qu.aud -c:v copy quake.mp4
   // (add -r 60 to resample for different frame rate)
+  // (replace '-c:v copy' by '-vcodec libx264 -crf 27 -preset veryfast' for compression)
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
