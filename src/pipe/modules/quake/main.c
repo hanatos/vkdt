@@ -70,9 +70,9 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "ad_azad",
     "+map", "e1m1",
     "+map", "e3m1",
-    "+map", "ad_azad",
     "+map", "start",
     "-game", "SlayerTest",
     "+map", "e1m2b",
@@ -134,20 +134,6 @@ input(
     dt_module_input_event_t *p)
 {
   qs_data_t *dat = mod->data;
-
-#if 0 // now in audio
-  if(dat->worldspawn)
-  {
-    mod->flags = s_module_request_all;
-    dat->worldspawn = 0;
-    // close menu because we don't have an esc key:
-    // Cmd_ExecuteString("notarget", src_command);
-    // Cmd_ExecuteString("god", src_command);
-    key_dest = key_game;
-    m_state = m_none;
-    IN_Activate();
-  }
-#endif
 
   if(p->type == 0)
   { // activate event: store mouse zero and clear all movement flags we might still have
@@ -757,7 +743,7 @@ void commit_params(
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
     Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
     Cmd_ExecuteString("god", src_command);
-    Cmd_ExecuteString("notarget", src_command);
+    // Cmd_ExecuteString("notarget", src_command);
   }
 
 #if 1 // does not work with demo replay
