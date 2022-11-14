@@ -194,6 +194,7 @@ prepare_material_info(
   b.x = 1.0-b.z-b.y;
   int i = 7*inter.primid;
   vec3 n0, n1, n2;
+  vec2 st0, st1, st2;
   bool brush_model = false;
   if(inter.instid == 0)
   { // dyn geo
@@ -204,7 +205,7 @@ prepare_material_info(
     if(brush_model)
     {
       m.matgl = dynssbo.v[i+0]&0xffff;
-      m.mat = m.matnd = dynssbo.v[i+0]>>16;
+      m.matnd = dynssbo.v[i+0]>>16;
     }
     else
     {
@@ -212,9 +213,9 @@ prepare_material_info(
       n1 = geo_decode_normal(dynssbo.v[i+1]);
       n2 = geo_decode_normal(dynssbo.v[i+2]);
     }
-    vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
-    vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
-    vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
+    st0 = unpackHalf2x16(dynssbo.v[i+3]);
+    st1 = unpackHalf2x16(dynssbo.v[i+4]);
+    st2 = unpackHalf2x16(dynssbo.v[i+5]);
     m.st = mat3x2(st0, st1, st2) * b;
   }
   else
@@ -225,7 +226,7 @@ prepare_material_info(
     if(brush_model)
     {
       m.matgl = stcssbo.v[i+0]&0xffff;
-      m.mat = m.matnd = stcssbo.v[i+0]>>16;
+      m.matnd = stcssbo.v[i+0]>>16;
     }
     else
     {
@@ -233,9 +234,9 @@ prepare_material_info(
       n1 = geo_decode_normal(stcssbo.v[i+1]);
       n2 = geo_decode_normal(stcssbo.v[i+2]);
     }
-    vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
-    vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
-    vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
+    st0 = unpackHalf2x16(stcssbo.v[i+3]);
+    st1 = unpackHalf2x16(stcssbo.v[i+4]);
+    st2 = unpackHalf2x16(stcssbo.v[i+5]);
     m.st = mat3x2(st0, st1, st2) * b;
   }
   // more precise intersection point by using vertices + barycentrics
@@ -273,7 +274,6 @@ prepare_material_info(
   else
   { // brushmodels have no vertex normals
     m.n = n0 = n1 = n2 = normalize(cross(v2-v0, v1-v0));
-    // TODO: but static geometry has normal maps/displacements
   }
 
   m.albedo   = vec3(0);
@@ -294,12 +294,39 @@ prepare_material_info(
     m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
   }
   m.emission *= 200.0;
-  // init tangent frame
-  if(dot(w, m.n) > 0) m.n = -m.n; // never happens except when it does (transparent surfaces/sky)
-  vec3 up = vec3(1,0,0);
-  if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
-  m.du = normalize(cross(up, m.n));
-  m.dv = normalize(cross(m.du, m.n));
+#if 1
+  if(brush_model && m.matnd > 0)
+  { // apply normal map XXX FIXME seems still broken, and bleeds through walls too
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.matnd)], 0)*mod(m.st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.matnd)], 0)-1);
+    vec3 du = v2 - v0, dv = v1 - v0;
+    vec2 duv1 = st2 - st0, duv2 = st1 - st0;
+    float det = duv1.x * duv2.y - duv2.x * duv1.y;
+    if(abs(det) > 1e-8)
+    {
+      m.du =  normalize(( duv2.y * du - duv1.y * dv) / det);
+      m.dv = -normalize((-duv2.x * du + duv1.x * dv) / det);
+    }
+#if 1
+    // m.n = normalize(mat3(m.du, m.dv, m.n) * ((texelFetch(img_tex[nonuniformEXT(m.matnd)], tc, 0).xyz - vec3(0.5, 0.5, 0)) * vec3(2,2,1)));
+    m.n = normalize(mat3(m.du, m.dv, m.n) * ((texelFetch(img_tex[nonuniformEXT(m.matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
+    vec3 up = vec3(1,0,0);
+    if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
+    m.du = normalize(cross(up, m.n));
+    m.dv = normalize(cross(m.du, m.n));
+    // if(dot(w,m.n) > 0) m.n -= w*dot(w,m.n);
+    // TODO: store geo normal and shading normal, clip G at both
+#endif
+  }
+  else
+#endif
+  { // init tangent frame
+    if(dot(w, m.n) > 0) m.n = -m.n; // never happens except when it does (transparent surfaces/sky)
+    vec3 up = vec3(1,0,0);
+    if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
+    m.du = normalize(cross(up, m.n));
+    m.dv = normalize(cross(m.du, m.n));
+  }
 
   return m;
 }
@@ -383,7 +410,7 @@ vec3 nee_torch(
   // ao += 0.5*(rand.z + rand.w)-0.5; // dither
   ao = clamp(ao/samples, 0.0, 1.0);
   float edf = 4000.0*pow(abs(dot(-ws, params.cam_w.xyz)), 45.0);
-  return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
+  return (1.0-ao) * rgb * pow(abs(dot(ws,n)), 20.0) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
 }
 
 bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
