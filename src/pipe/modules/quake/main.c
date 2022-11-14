@@ -521,15 +521,16 @@ add_geo(
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
             ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
-            if(surf->flags & (SURF_DRAWLAVA | SURF_DRAWSLIME))
-              ext[14*pi+13] = ext[14*pi+12]; // let them glow
+            // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
+            uint32_t flags = 0;
+            if(surf->flags & SURF_DRAWLAVA)  flags = 1;
+            if(surf->flags & SURF_DRAWSLIME) flags = 2;
+            if(surf->flags & SURF_DRAWTELE)  flags = 3;
+            if(surf->flags & SURF_DRAWWATER) flags = 4;
+            // if(surf->flags & SURF_DRAWSKY)   flags = 5; // could do this too
+            ext[14*pi+13] |= flags << 12;
           }
           if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xffff;
-          // TODO: set special materials for these too:
-          // #define SURF_DRAWLAVA   0x400
-          // #define SURF_DRAWSLIME    0x800
-          // #define SURF_DRAWTELE   0x1000
-          // #define SURF_DRAWWATER
         }
         nvtx += p->numverts;
         nidx += 3*(p->numverts-2);
