@@ -70,7 +70,7 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "e1m1",
+    "+map", "e1m8",
     "+map", "e3m1",
     "+map", "ad_azad",
     "+map", "start",
@@ -521,6 +521,8 @@ add_geo(
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
             ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
+            if(surf->flags & (SURF_DRAWLAVA | SURF_DRAWSLIME))
+              ext[14*pi+13] = ext[14*pi+12]; // let them glow
           }
           if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xffff;
           // TODO: set special materials for these too:
