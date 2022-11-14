@@ -70,8 +70,8 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "ad_azad",
     "+map", "e1m1",
+    "+map", "ad_azad",
     "+map", "e3m1",
     "+map", "start",
     "-game", "SlayerTest",
@@ -483,6 +483,8 @@ add_geo(
     for (int i=0; i<m->nummodelsurfaces; i++)
     {
       msurface_t *surf = &m->surfaces[m->firstmodelsurface + i];
+      // TODO: 
+      // if(!strcmp(surf->texinfo->texture->filename, "skip")) skip this surface
       glpoly_t *p = surf->polys;
       while(p)
       {
@@ -505,19 +507,10 @@ add_geo(
         if(ext) for(int k=2;k<p->numverts;k++)
         {
           int pi = (nidx+3*(k-2))/3;
-          float n[3], e0[] = {
-            p->verts[k  ][0]-p->verts[0][0],
-            p->verts[k  ][1]-p->verts[0][1],
-            p->verts[k  ][2]-p->verts[0][2]}, e1[] = {
-            p->verts[k-1][0]-p->verts[0][0],
-            p->verts[k-1][1]-p->verts[0][1],
-            p->verts[k-1][2]-p->verts[0][2]};
-          cross(e0, e1, n);
-          float nw[3];
-          for(int i=0;i<3;i++) nw[i] = fwd[i] * n[0] - rgt[i] * n[1] + top[i] * n[2];
-          encode_normal(ext+14*pi+0, nw);
-          encode_normal(ext+14*pi+2, nw);
-          encode_normal(ext+14*pi+4, nw);
+          ext[14*pi+0] = surf->texinfo->texture->gloss ? surf->texinfo->texture->gloss->texnum : 0;
+          ext[14*pi+1] = surf->texinfo->texture->norm  ? surf->texinfo->texture->norm->texnum  : 0;
+          ext[14*pi+2] = 0xffff; // mark as brush model
+          ext[14*pi+3] = 0xffff;
           if(surf->texinfo->texture->gltexture)
           {
             ext[14*pi+ 6] = float_to_half(p->verts[0  ][3]);
