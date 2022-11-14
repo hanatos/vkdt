@@ -200,10 +200,18 @@ prepare_material_info(
     m.mat   = dynssbo.v[i+6]&0xffff;
     m.matfb = dynssbo.v[i+6]>>16;
     m.matgl = m.matnd = 0;
-    n0 = geo_decode_normal(dynssbo.v[i+0]);
-    n1 = geo_decode_normal(dynssbo.v[i+1]);
-    n2 = geo_decode_normal(dynssbo.v[i+2]);
     brush_model = (dynssbo.v[i+1] == 0xffffffff);
+    if(brush_model)
+    {
+      m.matgl = dynssbo.v[i+0]&0xffff;
+      m.mat = m.matnd = dynssbo.v[i+0]>>16;
+    }
+    else
+    {
+      n0 = geo_decode_normal(dynssbo.v[i+0]);
+      n1 = geo_decode_normal(dynssbo.v[i+1]);
+      n2 = geo_decode_normal(dynssbo.v[i+2]);
+    }
     vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
@@ -214,8 +222,17 @@ prepare_material_info(
     brush_model = (stcssbo.v[i+1] == 0xffffffff);
     m.mat   = stcssbo.v[i+6]&0xffff;
     m.matfb = stcssbo.v[i+6]>>16;
-    m.matgl = stcssbo.v[i+0]&0xffff;
-    m.mat = m.matnd = stcssbo.v[i+0]>>16;
+    if(brush_model)
+    {
+      m.matgl = stcssbo.v[i+0]&0xffff;
+      m.mat = m.matnd = stcssbo.v[i+0]>>16;
+    }
+    else
+    {
+      n0 = geo_decode_normal(stcssbo.v[i+0]);
+      n1 = geo_decode_normal(stcssbo.v[i+1]);
+      n2 = geo_decode_normal(stcssbo.v[i+2]);
+    }
     vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
