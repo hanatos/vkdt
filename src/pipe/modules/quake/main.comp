@@ -168,6 +168,7 @@ struct material_info_t
   uint matfb;     // "fullbright" texture/emission
   uint matgl;     // glossy texture, if any
   uint matnd;     // normal/displacement texture, if any
+  uint flags;     // none, lava, slime, tele, water
   vec3 albedo;
   vec3 emission;
 };
@@ -199,8 +200,9 @@ prepare_material_info(
   bool brush_model = false;
   if(inter.instid == 0)
   { // dyn geo
-    m.mat   = dynssbo.v[i+6]&0xffff;
-    m.matfb = dynssbo.v[i+6]>>16;
+    m.mat   =  dynssbo.v[i+6]&0xffff;
+    m.matfb = (dynssbo.v[i+6]>>16) & 0xfff;
+    m.flags =  dynssbo.v[i+6]>>28;
     m.matgl = m.matnd = 0;
     brush_model = (dynssbo.v[i+1] == 0xffffffff);
     if(brush_model)
@@ -222,8 +224,9 @@ prepare_material_info(
   else
   { // static geo
     brush_model = (stcssbo.v[i+1] == 0xffffffff);
-    m.mat   = stcssbo.v[i+6]&0xffff;
-    m.matfb = stcssbo.v[i+6]>>16;
+    m.mat   =  stcssbo.v[i+6]&0xffff;
+    m.matfb = (stcssbo.v[i+6]>>16) & 0xfff;
+    m.flags =  stcssbo.v[i+6]>>28;
     if(brush_model)
     {
       m.matgl = stcssbo.v[i+0]&0xffff;
@@ -289,13 +292,23 @@ prepare_material_info(
   }
   else
   {
+    if(m.flags > 0)
+    { // all esoteric surfaces warp
+      m.st = vec2(
+          m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
+          m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
+    }
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
     m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
     m.albedo *= m.albedo; // "un-gamma"
     m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
+    m.emission *= m.emission;
   }
-  m.emission *= 200.0;
+  if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
+  else if(m.flags == 2) m.emission =  5.0*m.albedo; // slime
+  else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
+  else m.emission *= 200.0;
 #if 1
   if(brush_model && m.matnd > 0)
   { // apply normal map
