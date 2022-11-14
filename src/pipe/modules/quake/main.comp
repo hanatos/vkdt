@@ -165,6 +165,8 @@ struct material_info_t
   vec2 st;        // texture coordinates
   uint mat;       // albedo texture
   uint matfb;     // "fullbright" texture/emission
+  uint matgl;     // glossy texture, if any
+  uint matnd;     // normal/displacement texture, if any
   vec3 albedo;
   vec3 emission;
 };
@@ -192,13 +194,16 @@ prepare_material_info(
   b.x = 1.0-b.z-b.y;
   int i = 7*inter.primid;
   vec3 n0, n1, n2;
+  bool brush_model = false;
   if(inter.instid == 0)
   { // dyn geo
     m.mat   = dynssbo.v[i+6]&0xffff;
     m.matfb = dynssbo.v[i+6]>>16;
+    m.matgl = m.matnd = 0;
     n0 = geo_decode_normal(dynssbo.v[i+0]);
     n1 = geo_decode_normal(dynssbo.v[i+1]);
     n2 = geo_decode_normal(dynssbo.v[i+2]);
+    brush_model = (dynssbo.v[i+1] == 0xffffffff);
     vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
@@ -206,12 +211,11 @@ prepare_material_info(
   }
   else
   { // static geo
+    brush_model = (stcssbo.v[i+1] == 0xffffffff);
     m.mat   = stcssbo.v[i+6]&0xffff;
     m.matfb = stcssbo.v[i+6]>>16;
-    n0 = geo_decode_normal(stcssbo.v[i+0]);
-    n1 = geo_decode_normal(stcssbo.v[i+1]);
-    n2 = geo_decode_normal(stcssbo.v[i+2]);
-    m.n = normalize(mat3(n0, n1, n2) * b);
+    m.matgl = stcssbo.v[i+0]&0xffff;
+    m.mat = m.matnd = stcssbo.v[i+0]>>16;
     vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
     vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
     vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
@@ -234,7 +238,7 @@ prepare_material_info(
       buf_vtx[inter.instid].v[3*i2+1],
       buf_vtx[inter.instid].v[3*i2+2]);
   m.x = mat3(v0, v1, v2) * b;
-  if(inter.instid == 0)
+  if(!brush_model)// inter.instid == 0) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
@@ -248,6 +252,11 @@ prepare_material_info(
     tmpv -= dotv*n1;
     tmpw -= dotw*n2;
     m.x += mat3(tmpu, tmpv, tmpw) * b;
+  }
+  else
+  { // brushmodels have no vertex normals
+    m.n = n0 = n1 = n2 = normalize(cross(v2-v0, v1-v0));
+    // TODO: but static geometry has normal maps/displacements
   }
 
   m.albedo   = vec3(0);
