@@ -162,6 +162,7 @@ struct material_info_t
 { // initialised hit point to work with
   vec3 x;
   vec3 n, du, dv; // shading frame
+  vec3 ng;        // geo normal, if different to n
   vec2 st;        // texture coordinates
   uint mat;       // albedo texture
   uint matfb;     // "fullbright" texture/emission
@@ -614,95 +615,117 @@ main()
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
-  vec3 pos;      // g-buffer screen space position after eye ray
 
   reservoir_t res = reservoir_new(); // init zero
   reservoir_t ind = reservoir_new(); // backup of independent reservoir
-  for(int s=0;s<spp;s++)
-  {
-    rad[s] = vec3(0.0);
-    vec3 lpos = vec3(0.0); // torch light pos, depending on camera
-    intersection_t inter;
-    material_info_t m0, m1;
-    float total_dist = 0.0;
-    vec4 rand = xrand(seed, rp);
-    seed = uint(70000 * rand.x);
-    float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
-    vec3 rgb = vec3(1.0);
-    vec3 w;       // ray direction
-    float W;      // resampling weight
-    float pdf_w;  // pdf of directional sampling
-    { // camera setup:
-      m0.x = params.cam_x.xyz;
-      vec3 f = params.cam_w.xyz;
-      vec3 up = vec3(0, 0, 1);
-      vec3 r = normalize(cross(f, up));
-      vec3 t = normalize(cross(f, r)) * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
 
-      lpos = m0.x + 1*f + 10*up + 20*r;
+  vec3 lpos = vec3(0.0); // torch light pos, depending on camera
+  intersection_t inter;
+  material_info_t m0, m1, me;
+  vec4 rand = xrand(seed, rp);
+  seed = uint(70000 * rand.x);
+  float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
+  vec3 rgb_cam = vec3(1.0);
+  vec3 w_cam; // ray direction from camera
+  { // camera setup:
+    m0.x = params.cam_x.xyz;
+    vec3 f = params.cam_w.xyz;
+    vec3 up = vec3(0, 0, 1);
+    vec3 r = normalize(cross(f, up));
+    vec3 t = normalize(cross(f, r)) * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
 
-      vec2 off = filter_bh_sample(rand.yz);
-      vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
-      // vec2 uv = (ipos+0.5)/imageSize(img_irradiance) - 0.5;
-      w = normalize(0.45*f + r*uv.x + t*uv.y);
-      m0.n = f;
-      pdf_w = 1.0; // whatever we will not be light tracing here
-      W = 0.0; // not resampled
+    lpos = m0.x + 1*f + 10*up + 20*r;
+
+    vec2 off = filter_bh_sample(rand.yz);
+    vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
+    // vec2 uv = (ipos+0.5)/imageSize(img_irradiance) - 0.5;
+    w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
+    m0.n = f;
+  }
+
+  rayQueryEXT rq;
+  if(cast_ray(rq, m0.x, w_cam))
+  { // ray intersected geometry, init material state and tangent frame
+    intersection_t inter = prepare_intersection(rq);
+    m1 = prepare_material_info(m0.x, w_cam, inter);
+    // sky is "far" away
+    const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
+    const float T = exp(-t * 3.);
+    rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+
+    if(any(greaterThan(m1.emission, vec3(0.0))))
+    { // have >0 radiance sample on second vertex
+      irr = vec3(0.01); // but be sure that albedo * irradiance stays put.
+                  // alb += 100 * m1.emission;
+      alb = 10.0 * m1.emission; // looks shit either way :|
     }
-    for(int b=0;b<2;b++) // bounces
+    else // no light source
+      alb = m1.albedo; // directly visible albedo
+
+    me = m1; // store g-buffer primary ray result
+
+    if(params.torch == 1) // next event estimation to torch:
+      irr += nee_torch(lpos, m1.x, rgb_cam, m1.n, seed, rp);
+
+    // indirect rays, splitting trajectories here
+    for(int s=0;s<spp;s++)
     {
-      rayQueryEXT rq;
-      if(cast_ray(rq, m0.x, w))
-      { // ray intersected geometry, init material state and tangent frame
-        intersection_t inter = prepare_intersection(rq);
-        m1 = prepare_material_info(m0.x, w, inter);
-        // sky is "far" away
-        const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
-        total_dist += t;
-        const float T = exp(-t * 3.);
-        rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-
-        // vertex area measure pdf of x (new vertex)
-        const float G = G_term(m0.x, m0.n, m1.x, m1.n);
-        const float pdf = pdf_w * G;
-
-        // handle intersection:
-        // * accumulate direct albedo and indirect irradiance channels
-        // * first time: load nee state from buffer
-        // * successful nee sample: store nee state in registers
-        rand = xrand(seed, rp);
-#if 1
-        bool use_vmf = global.frame > 10 && s > 0;
-        if(b == 0 && use_vmf == true)
-        { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
-          // sample "mixture model" by selecting lobes from nb pixels.
-          // this should be an independent process and only have a fallback to 1/pi projected
-          // hemisphere sampling (but can depend on earlier samplings of the pixel env)
-          // res = reservoir_new(); // initialise as zero for new sample again
-          // to be strictly uniform in nbhood we'll need to reset here (no double accounting if overlapping samples)
-          res = ind; // forget other samples but not the independent/newly discovered ones
-          // TODO: insert independent bsdf sample (currently this is f=0 and via rejection)
-          vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-          const ivec2 off[] = {
-            ivec2(-1, -4), ivec2(4, -1), ivec2(1,  4), ivec2(-4, 1),
-            ivec2(-2, -1), ivec2(0, -1), ivec2(1, -2),
-            ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
-            ivec2(-1,  2), ivec2(0,  1), ivec2(2,  1)};
-          for(int i=0;i<13;i++)
-          {
-            rand = xrand(seed, rp);
-            reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in,
-                  ivec2(ipos+mv+5*off[i] + (2.0*rand.yz-1.0) * 4.0 + 0.5),
-                  0));
-            // TODO: exclude obviously irrelevant ones (G term zero/normal culling)
-            // r2.f = r2.w_sum = G_term(m0.x, m0.n, r2.y, r2.n);
-            reservoir_combine(res, r2, rand.x); // this picks one lobe
-          }
+      float pdf_w = 1.0;
+      float W = 0.0; // not resampled
+      m0 = me;       // restore camera point, direction, contribution
+      vec3 w = w_cam;
+      vec3 rgb = rgb_cam;
+      rad[s] = vec3(0.0);
+      for(int b=0;b<1;b++) // indirect bounces
+      {
+        bool use_vmf = s > 0;
+        if(res.f == 0) use_vmf = false;
+        if(use_vmf)
+        {
+          w = vmm_sample(res.kappa, rand.xy);
+          vec3 mu = normalize(res.y-m0.x);
+          vec3 up = vec3(1,0,0), du, dv;
+          if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
+          du = normalize(cross(up, mu));
+          dv = normalize(cross(du, mu));
+          w = w.x * du + w.y * dv + w.z * mu;
+          pdf_w = vmm_eval(res.kappa, dot(w, mu));
+          if(dot(w, m0.n) <= 0.0) use_vmf = false; // fall back to bsdf if under surface
+          W = 1.0;
+          rgb *= 1.0/M_PI; // bsdf without albedo
+          par[s] = vec4(res.y, res.kappa);
         }
-#endif
-        if(any(greaterThan(m1.emission, vec3(0.0))))
-        { // have >0 radiance sample
-          if(b == 1) // on 3rd vertex
+        if(!use_vmf)
+        { // sample independent new ray direction
+          w = sample_cos(rand.xy);
+          w = w.x * m0.du + w.y * m0.dv + w.z * m0.n;
+          w = normalize(w); // paranoia/numerical jitter over bounces
+          pdf_w = 1.0/M_PI; // uniform projected solid angle
+          W = 0.0; // no reweighted sample/bsdf sample
+          rgb *= 1.0/M_PI;  // bsdf without albedo
+                            // rgb *= 0.0;// XXX DEBUG disable directly found samples
+          par[s] = vec4(m0.n, 0.0);
+        }
+
+        if(cast_ray(rq, m0.x, w))
+        { // ray intersected geometry, init material state and tangent frame
+          intersection_t inter = prepare_intersection(rq);
+          m1 = prepare_material_info(m0.x, w, inter);
+          // sky is "far" away
+          const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
+          const float T = exp(-t * 3.);
+          rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+
+          // vertex area measure pdf of x (new vertex)
+          const float G = G_term(m0.x, m0.n, m1.x, m1.n);
+          const float pdf = pdf_w * G;
+
+          // handle intersection:
+          // * accumulate direct albedo and indirect irradiance channels
+          // * successful nee sample: store nee state in registers
+          rand = xrand(seed, rp);
+
+          if(b == 0 && any(greaterThan(m1.emission, vec3(0.0))))
           { // update nee sampling state
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
@@ -710,7 +733,7 @@ main()
             float a = min(1.0, f * G / (res.f * G_term(m0.x, m0.n, res.y, res.n)));
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = m1.x;
-            if(res.f == 0.0 || rand.x < a)
+            if(res.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
               res.f = res.w_sum = f;
               res.y = m1.x;      // create new lobe around good sample
@@ -720,80 +743,52 @@ main()
               res.kappa = 10.0 + 40.0*t;
               if(m1.mat == 0xffff) res.kappa = 10; // sky is smooth
             }
-            if(W==0.0) ind = res;
+            // if(W==0.0) ind = res;
+            if(s==0.0) ind = res;
           }
-          if(b == 0) // on 2nd vertex
-          { // directly visible light source
-            irr += 0.01; // but be sure that albedo * irradiance stays put.
-            // alb += 100 * m1.emission;
-            alb += 10.0 * m1.emission; // looks shit either way :|
-          }
-          break; // no indirect light on emitters
-        }
-        else
-        { // no light source
-          if(b == 0) alb += m1.albedo; // accumulate directly visible albedo
-        }
 
-        // remember shading vertex
-        if(b==0) pos = m1.x;
+          m0 = m1; // advance path vertex
+        } // end if cast ray intersected anything
+        else break; // nothing intersected, can't go on
+      } // end bounces
 
-
-
-        if(params.torch == 1) // next event estimation to torch:
-          irr += nee_torch(lpos, m1.x, rgb, m1.n, seed, rp);
-
-
-#if 1
-        if(res.f == 0) use_vmf = false;
-        if(use_vmf)
+      if(global.frame > 10)
+      { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
+        // sample "mixture model" by selecting lobes from nb pixels.
+        // this should be an independent process and only have a fallback to 1/pi projected
+        // hemisphere sampling (but can depend on earlier samplings of the pixel env)
+        // res = reservoir_new(); // initialise as zero for new sample again
+        // to be strictly uniform in nbhood we'll need to reset here (no double accounting if overlapping samples)
+        res = ind; // forget other samples but not the independent/newly discovered ones
+                   // TODO: insert independent bsdf sample (currently this is f=0 and via rejection)
+        vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+        const ivec2 off[] = {
+          ivec2(-1, -4), ivec2(4, -1), ivec2(1,  4), ivec2(-4, 1),
+          ivec2(-2, -1), ivec2(0, -1), ivec2(1, -2),
+          ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+          ivec2(-1,  2), ivec2(0,  1), ivec2(2,  1)};
+        for(int i=0;i<13;i++)
         {
-          w = vmm_sample(res.kappa, rand.xy);
-          vec3 mu = normalize(res.y-m1.x);
-          vec3 up = vec3(1,0,0), du, dv;
-          if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
-          du = normalize(cross(up, mu));
-          dv = normalize(cross(du, mu));
-          w = w.x * du + w.y * dv + w.z * mu;
-          pdf_w = vmm_eval(res.kappa, dot(w, mu));
-          if(dot(w, m1.n) <= 0.0) use_vmf = false; // fall back to bsdf if under surface
-          W = 1.0;
-          rgb *= 1.0/M_PI; // bsdf without albedo
-          par[s] = vec4(res.y, res.kappa);
+          rand = xrand(seed, rp);
+          reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in,
+                ivec2(ipos+mv+5*off[i] + (2.0*rand.yz-1.0) * 4.0 + 0.5),
+                0));
+          reservoir_combine(res, r2, rand.x); // this picks one lobe
         }
-
-        if(!use_vmf)
-#endif
-        { // sample independent new ray direction
-          w = sample_cos(rand.xy);
-          w = w.x * m1.du + w.y * m1.dv + w.z * m1.n;
-          w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = 1.0/M_PI; // uniform projected solid angle
-          W = 0.0; // no reweighted sample/bsdf sample
-          rgb *= 1.0/M_PI;  // bsdf without albedo
-          // rgb *= 0.0;// XXX DEBUG disable directly found samples
-          par[s] = vec4(m1.n, 0.0);
-        }
-        m0 = m1; // advance path vertex
       }
-      else
-      { // envmap, never reached for closed quake maps
-        break; // accumulate nothing to avoid light leaks
-      }
-    }
-  }
-  irr /= spp;
-  alb /= spp;
+    } // end spp for indirect rays
+  } // end if intersect primary ray
 
+  // apply cmis:
   for(int s=0;s<spp;s++)
   {
-    float pdf = dot(normalize(lco[s] - pos), par[0].xyz)/M_PI;
+    float pdf = dot(normalize(lco[s] - me.x), par[0].xyz)/M_PI;
     for(int t=1;t<spp;t++)
     {
       if(par[t].w == 0.0)
-        pdf += dot(normalize(lco[s] - pos), par[t].xyz) / M_PI;
+        pdf += dot(normalize(lco[s] - me.x), par[t].xyz) / M_PI;
       else
-        pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - pos), normalize(par[t].xyz - pos)));
+        pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
     }
     if(any(greaterThan(rad[s], vec3(0.0))))
       irr += rad[s] / pdf;
