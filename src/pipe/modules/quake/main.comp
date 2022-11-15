@@ -19,6 +19,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 cam_w;
   int spp;
   int torch;
+  int water;
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -425,8 +426,10 @@ vec3 nee_torch(
   return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
 }
 
-bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
+bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
 {
+  bool do_trans = trans.x > 0;
+  if(do_trans) trans = vec4(1.0);
   rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, 10000.0);
   while(rayQueryProceedEXT(rq))
   {
@@ -440,10 +443,12 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
       // if(min(b.x,min(b.y,b.z)) < 0.05) rayQueryConfirmIntersectionEXT(rq); // wireframe
       int i = 7*pi;
       uint mat = 0;
+      uint flags = 0;
       vec2 st;
       if(instance_id == 0)
       {
         mat   = dynssbo.v[i+6]&0xffff;
+        flags = dynssbo.v[i+6]>>28;
         vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
         vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
@@ -452,6 +457,7 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
       else
       {
         mat   = stcssbo.v[i+6]&0xffff;
+        flags = stcssbo.v[i+6]>>28;
         vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
         vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
@@ -463,10 +469,15 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w)
       }
       else
       {
+        if(flags > 0) st = vec2(
+            st.x + 0.2*sin(st.y*2.0 + global.frame * 0.01),
+            st.y + 0.2*sin(st.x*2.0 + global.frame * 0.01));
         ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
         tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
         vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-        if(diffcol.a > 0.666) rayQueryConfirmIntersectionEXT(rq);
+        if(do_trans && flags > 0)
+          trans *= vec4(diffcol.rgb*diffcol.rgb, 0.2); // half transparent fluids
+        else if(diffcol.a > 0.666) rayQueryConfirmIntersectionEXT(rq);
       }
     }
   }
@@ -649,13 +660,17 @@ main()
 
     vec2 off = filter_bh_sample(rand.yz);
     vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
-    // vec2 uv = (ipos+0.5)/imageSize(img_irradiance) - 0.5;
+    if(params.water > 0)
+      uv = vec2(
+          uv.x + 0.05*sin(uv.y*2.0 + global.frame * 0.01),
+          uv.y + 0.05*sin(uv.x*2.0 + global.frame * 0.01));
     w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
     m0.n = f;
   }
 
   rayQueryEXT rq;
-  if(cast_ray(rq, m0.x, w_cam))
+  vec4 trans = vec4(0.0);
+  if(cast_ray(rq, m0.x, w_cam, trans))
   { // ray intersected geometry, init material state and tangent frame
     intersection_t inter = prepare_intersection(rq);
     m1 = prepare_material_info(m0.x, w_cam, inter);
@@ -718,7 +733,8 @@ main()
 
         if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
 
-        if(cast_ray(rq, m0.x, w))
+        trans = vec4(1.0);
+        if(cast_ray(rq, m0.x, w, trans))
         { // ray intersected geometry, init material state and tangent frame
           intersection_t inter = prepare_intersection(rq);
           m1 = prepare_material_info(m0.x, w, inter);
@@ -726,6 +742,7 @@ main()
           const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
           const float T = exp(-t * 3.);
           rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+          rgb = mix(trans.rgb, rgb, trans.w);
 
           // vertex area measure pdf of x (new vertex)
           const float G = G_term(m0.x, m0.n, m1.x, m1.n);
