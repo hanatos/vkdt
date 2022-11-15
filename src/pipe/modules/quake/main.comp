@@ -264,6 +264,7 @@ prepare_material_info(
   m.ng = normalize(cross(v2-v0,v1-v0));
   if(!brush_model)// inter.instid == 0) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
+#if 0
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
     if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
@@ -276,6 +277,9 @@ prepare_material_info(
     tmpv -= dotv*n1;
     tmpw -= dotw*n2;
     m.x += mat3(tmpu, tmpv, tmpw) * b;
+#else // XXX FIXME: shading normals are fubared!
+    m.n = n0 = n1 = n2 = m.ng;
+#endif
   }
   else
   { // brushmodels have no vertex normals
@@ -309,7 +313,8 @@ prepare_material_info(
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
   else if(m.flags == 2) m.emission =  5.0*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
-  else m.emission *= 200.0;
+  else m.emission = 100.0*(exp2(m.emission*10.0)-1.0);
+  // else m.emission *= 200.0;
 #if 1
   if(brush_model && m.matnd > 0)
   { // apply normal map
@@ -666,6 +671,7 @@ main()
           uv.y + 0.05*sin(uv.x*2.0 + global.frame * 0.01));
     w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
     m0.n = f;
+    m0.x += w_cam * 0.02; // push a bit to avoid problems with some level-end cameras
   }
 
   rayQueryEXT rq;
@@ -677,6 +683,7 @@ main()
     // sky is "far" away
     const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
     const float T = exp(-t * 3.);
+    // TODO: if underwater (params.water) attenuate a bit more
     rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
 
     if(any(greaterThan(m1.emission, vec3(0.0))))
@@ -703,6 +710,7 @@ main()
       rad[s] = vec3(0.0);
       for(int b=0;b<1;b++) // indirect bounces
       {
+        rand = xrand(seed, rp);
         bool use_vmf = s > 0;
         if(res.f == 0) use_vmf = false;
         if(use_vmf)
@@ -751,8 +759,6 @@ main()
           // handle intersection:
           // * accumulate direct albedo and indirect irradiance channels
           // * successful nee sample: store nee state in registers
-          rand = xrand(seed, rp);
-
           if(b == 0 && any(greaterThan(m1.emission, vec3(0.0))))
           { // update nee sampling state
             // metropolis hastings step:
