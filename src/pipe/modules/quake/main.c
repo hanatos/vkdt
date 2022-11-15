@@ -70,7 +70,9 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "e1m8",
+    "+map", "e1m2",
+    "+map", "e1m7", // cthon
+    "+map", "e1m8", // bonus
     "+map", "e3m1",
     "+map", "ad_azad",
     "+map", "start",
@@ -744,10 +746,14 @@ void commit_params(
   }
 
 #if 1 // does not work with demo replay
-  if(sv_player->v.weapon == 1) // axe has torch built in:
+  if(sv_player->v.weapon == 1) // shotgun has torch built in:
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
   else
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
+  if(sv_player->v.waterlevel >= 3) // apply crazy underwater effect
+    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
+  else
+    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
 #endif
 
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
