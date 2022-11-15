@@ -262,7 +262,7 @@ prepare_material_info(
       buf_vtx[inter.instid].v[3*i2+2]);
   m.x = mat3(v0, v1, v2) * b;
   m.ng = normalize(cross(v2-v0,v1-v0));
-  if(!brush_model)// inter.instid == 0) // only alias models have these normals
+  if(!brush_model) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
 #if 0
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
@@ -314,7 +314,6 @@ prepare_material_info(
   else if(m.flags == 2) m.emission =  5.0*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
   else m.emission = 100.0*(exp2(m.emission*10.0)-1.0);
-  // else m.emission *= 200.0;
 #if 1
   if(brush_model && m.matnd > 0)
   { // apply normal map
@@ -368,65 +367,60 @@ vec3 nee_torch(
   vec3 ws;
   float ldist = distance(lpos, x);
   float ao = 0.0;
-  const int samples = 1;
-  // for(int i=0;i<samples;i++)
-  {
-    vec4 rand = xrand(seed, rp);
-    ws = normalize(lpos + 2.0*rand.xyz - x);
+  vec4 rand = xrand(seed, rp);
+  ws = normalize(lpos + 2.0*rand.xyz - x);
 #if 1
-    rayQueryInitializeEXT(rq, rt_accel,
-        gl_RayFlagsNoneEXT,
-        // gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
-        0xFF, x, 1e-2, ws, ldist-1e-2);
-    while(rayQueryProceedEXT(rq))
+  rayQueryInitializeEXT(rq, rt_accel,
+      gl_RayFlagsNoneEXT,
+      // gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
+      0xFF, x, 1e-2, ws, ldist-1e-2);
+  while(rayQueryProceedEXT(rq))
+  {
+    if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
     {
-      if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+      int instance_id = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
+      int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
+      vec3 b;
+      b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
+      b.x = 1.0-b.z-b.y;
+      // if(min(b.x,min(b.y,b.z)) < 0.05) rayQueryConfirmIntersectionEXT(rq); // wireframe
+      int i = 7*pi;
+      uint mat = 0;
+      vec2 st;
+      if(instance_id == 0)
       {
-        int instance_id = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
-        int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
-        vec3 b;
-        b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
-        b.x = 1.0-b.z-b.y;
-        // if(min(b.x,min(b.y,b.z)) < 0.05) rayQueryConfirmIntersectionEXT(rq); // wireframe
-        int i = 7*pi;
-        uint mat = 0;
-        vec2 st;
-        if(instance_id == 0)
-        {
-          mat   = dynssbo.v[i+6]&0xffff;
-          vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
-          vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
-          vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
-          st = mat3x2(st0, st1, st2) * b;
-        }
-        else
-        {
-          mat   = stcssbo.v[i+6]&0xffff;
-          vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
-          vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
-          vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
-          st = mat3x2(st0, st1, st2) * b;
-        }
-        if(mat == 0xffff) 
-        { // sky, nothing behind it, right?
+        mat   = dynssbo.v[i+6]&0xffff;
+        vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
+        vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
+        vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
+        st = mat3x2(st0, st1, st2) * b;
+      }
+      else
+      {
+        mat   = stcssbo.v[i+6]&0xffff;
+        vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
+        vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
+        vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
+        st = mat3x2(st0, st1, st2) * b;
+      }
+      if(mat == 0xffff) 
+      { // sky, nothing behind it, right?
+        rayQueryConfirmIntersectionEXT(rq);
+      }
+      else
+      {
+        ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
+        tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
+        vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+        // if(any(greaterThan(diffcol.rgb, vec3(0.0))) || diffcol.a > 0.666)
+        if(diffcol.a > 0.666)
           rayQueryConfirmIntersectionEXT(rq);
-        }
-        else
-        {
-          ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
-          tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
-          vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-          // if(any(greaterThan(diffcol.rgb, vec3(0.0))) || diffcol.a > 0.666)
-          if(diffcol.a > 0.666)
-            rayQueryConfirmIntersectionEXT(rq);
-        }
       }
     }
-    if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) ao ++;
-#endif
   }
-  // ao += 0.5*(rand.z + rand.w)-0.5; // dither
-  ao = clamp(ao/samples, 0.0, 1.0);
+  if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) ao ++;
+#endif
+  ao = clamp(ao, 0.0, 1.0);
   float edf = 4000.0*pow(abs(dot(-ws, params.cam_w.xyz)), 45.0);
   return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
 }
@@ -445,7 +439,6 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      // if(min(b.x,min(b.y,b.z)) < 0.05) rayQueryConfirmIntersectionEXT(rq); // wireframe
       int i = 7*pi;
       uint mat = 0;
       uint flags = 0;
@@ -496,13 +489,9 @@ struct reservoir_t
   // XXX remove: (use only w_sum)
   float f;              // observed measurement contribution until there (bsdf * G * Le)
   float kappa;          // concentration parameter for vMF
-  // XXX remove:
-  // float b;              // mean image brightness for independent MC estimates in this pixel
 
   float w_sum;          // sum of weights
   uint  M;              // number of samples so far
-  // XXX remove:
-  float W;              // combined weight
 };
 
 reservoir_t reservoir_new()
@@ -513,7 +502,6 @@ reservoir_t reservoir_new()
   r.w_sum = 0.0;
   r.kappa = 300.0; // XXX
   r.M = 0;
-  r.W = 0;
   return r;
 }
 
@@ -547,10 +535,10 @@ reservoir_combine(
 {
   if(r2.f == 0.0) return;
   // if(r.M > 20) return;
-  float w = ph(r2)*r2.W*r2.M;
+  float w = ph(r2);//*r2.W*r2.M;
   if(w == 0.0) return;
-  // XXX ???
-  // r.b = (r.b * r.M + r2.b * r2.M)/(r.M+r2.M); // average mean image brightness no matter what
+  // doing this by importance, too, will trip the markov chain and bias everything to the one
+  // "winning" light source. it will counteract the mixing and effectively destroy the image.
   w = 1; // XXX DEBUG constant weight/selection in nbhood
 
   r.w_sum += w;
@@ -562,11 +550,9 @@ reservoir_combine(
     r.y     = r2.y;
     r.f     = r2.f;
     r.kappa = r2.kappa;
-    r.W     = reservoir_W(r);
   }
 }
 
-// TODO: depend on normal and eval both hemispheres (mirror!)
 float vmm_eval(float kappa, float dotmu)
 {
   if(kappa < 1e-4) return 1.0/(4.0*M_PI);
@@ -586,18 +572,6 @@ float vmm_get_kappa(float x)
   return max(1e-5, (168.479*x*x + 16.4585*x - 2.39942)/
       (-1.12718*x*x+29.1433*x+1.0));
 }
-
-// TODO serialise into uvec4:
-// * world space pos    // packHalf2x16 3
-// * weight/f/contrib?  // packHalf2x16 1
-// * spread (future work)
-// * have one uint extra (mean image brightness for independent?)
-
-// 1) pick "mutation strategy" by reservoir sampling in random pixel environment
-//    (reserve a spot for uniform sampling)
-// 2) sample y by vmm lobe?
-// 3) acceptance probability [ f(y) / T(y|x) ] / [ f(x) / T(x|y) ]
-// 4) lobe weight: f(z) on accepted sample z
 
 // we need to add the reservoir r2 later with w = phq(r2.y)/phq'(r2.y) * r2.w_sum
 // which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
@@ -621,7 +595,6 @@ reservoir_t reservoir_decode(uvec4 enc)
   r.n = geo_decode_normal(enc.w);
   r.M = 1;
   r.w_sum = r.f;
-  r.W = 1.0;
   return r;
 }
 
@@ -631,9 +604,9 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_irradiance)))) return;
 
-  // uint seed = 19937 * global.frame;
+  uint seed = 19937 * global.frame;
   // today my bluenoise textures are borken. wtf.
-  uint seed = 13370000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
+  // uint seed = 13370000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
   const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
 
   vec3 alb = vec3(0.0); // albedo
