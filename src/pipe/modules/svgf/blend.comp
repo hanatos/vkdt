@@ -26,12 +26,16 @@ layout(set = 1, binding = 6) uniform writeonly image2D img_lightout; // combined
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
+#if SVGF_OFF==1
+  return tc;
+#else
   sz += ivec2(1);
   tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
   tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
   tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
   tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
   return tc;
+#endif
 }
 
 void
@@ -42,11 +46,7 @@ main()
 
   ivec2 sz = textureSize(img_light, 0).xy;
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-#if SVGF_OFF==0
   vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
-#else
-  vec3 L  = texelFetch(img_light, ipos, 0).rgb;
-#endif
   vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
 
@@ -85,7 +85,7 @@ main()
 #endif
 
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
-  vec3 beauty = L *albedo;
+  vec3 beauty = L * albedo;
 
   // convert linear rec709 to linear rec2020
   mat3 M = mat3(
