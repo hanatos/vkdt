@@ -475,8 +475,8 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
         ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
         tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
         vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-        if(do_trans && flags > 0)
-          trans *= vec4(diffcol.rgb*diffcol.rgb, 0.2); // half transparent fluids
+        if(do_trans && flags == 4) // only water is transparent, the others shall glow
+          trans *= vec4(diffcol.rgb*diffcol.rgb, 0.2);
         else if(diffcol.a > 0.666) rayQueryConfirmIntersectionEXT(rq);
       }
     }

@@ -70,9 +70,9 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "e1m2",
-    "+map", "e1m7", // cthon
     "+map", "e1m8", // bonus
+    "+map", "e1m7", // cthon
+    "+map", "e1m2",
     "+map", "e3m1",
     "+map", "ad_azad",
     "+map", "start",
