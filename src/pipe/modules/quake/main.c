@@ -70,9 +70,9 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "e1m2",
     "+map", "e1m8", // bonus
     "+map", "e1m7", // cthon
-    "+map", "e1m2",
     "+map", "e3m1",
     "+map", "ad_azad",
     "+map", "start",
@@ -428,6 +428,9 @@ add_geo(
         vtx[3*v+k] = ent->origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
     }
 #if 1 // both options fail to extract correct creases/vertex normals for health/shells
+    // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
+    // just by chance happened to produce something similar enough sometimes?
+    // TODO: fuck this vbo bs and get the mdl itself
     int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
     if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
