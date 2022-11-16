@@ -15,54 +15,68 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 7,
-    .connector = {{
+    .num_connectors = 9,
+    .connector = {{ // 0
       .name   = dt_token("mv"),
       .type   = dt_token("read"),
       .chan   = dt_token("rg"),
       .format = dt_token("*"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
-    },{
+    },{ // 1
       .name   = dt_token("prevl"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("*"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
-    },{
+    },{ // 2
       .name   = dt_token("prevb"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("*"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
-    },{
+    },{ // 3
       .name   = dt_token("light"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("*"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
-    },{
+    },{ // 4
       .name   = dt_token("albedo"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("*"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
-    },{
+    },{ // 5
       .name   = dt_token("output"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
-    },{
+    },{ // 6
       .name   = dt_token("lightout"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .roi    = module->connector[0].roi,
+    },{ // 7
+      .name   = dt_token("gbufp"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f32"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
+    },{ // 8
+      .name   = dt_token("gbufc"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f32"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
     }},
     // .push_constant_size = 9*sizeof(uint32_t),
     // .push_constant = { },
@@ -145,4 +159,6 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_blend, 0);  // mv
   dt_connector_copy(graph, module, 2, id_blend, 4);  // albedo
   dt_connector_copy(graph, module, 3, id_blend, 5);  // output beauty
+  dt_connector_copy(graph, module, 4, id_blend, 7);  // previous gbuffer
+  dt_connector_copy(graph, module, 5, id_blend, 8);  // current gbuffer
 }
