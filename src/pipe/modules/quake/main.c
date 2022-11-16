@@ -70,7 +70,7 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "e1m2",
+    "+map", "e1m6",
     "+map", "e1m8", // bonus
     "+map", "e1m7", // cthon
     "+map", "e3m1",
@@ -470,10 +470,18 @@ add_geo(
       ext[14*i+ 9] = float_to_half((desc[indexes[3*i+1]].st[1]+0.5)/(float)hdr->skinheight);
       ext[14*i+10] = float_to_half((desc[indexes[3*i+2]].st[0]+0.5)/(float)hdr->skinwidth);
       ext[14*i+11] = float_to_half((desc[indexes[3*i+2]].st[1]+0.5)/(float)hdr->skinheight);
-      ext[14*i+12] = hdr->gltextures[CLAMP(0, ent->skinnum, hdr->numskins-1)][((int)(cl.time*10))&3]->texnum;
-      ext[14*i+13] =
-        hdr->fbtextures[CLAMP(0, ent->skinnum, hdr->numskins-1)][((int)(cl.time*10))&3] ?
-        hdr->fbtextures[CLAMP(0, ent->skinnum, hdr->numskins-1)][((int)(cl.time*10))&3]->texnum : 0;
+      const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
+      ext[14*i+12] = hdr->gltextures[sk][fm]->texnum;
+      ext[14*i+13] = hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0;
+#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
+      if(hdr->nmtextures[sk][fm])
+      {
+        ext[14*i+0] = 0;
+        ext[14*i+1] = hdr->nmtextures[sk][fm]->texnum;
+        ext[14*i+2] = 0xffff; // mark as brush model
+        ext[14*i+3] = 0xffff;
+      }
+#endif
     }
   }
   else if(m->type == mod_brush)
