@@ -55,8 +55,8 @@ main()
   vec2 off = vec2(10000, 10000);
   const int r = 1;
   for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
-  { // XXX FIXME: seems to have a consistent drift!
-    vec2 o = block * texelFetch(img_off, ivec2(i, j) + ipos / block, 0).rg;// + 1.0;
+  {
+    vec2 o = block * texelFetch(img_off, ivec2(i, j) + ipos / block, 0).rg;
     if(dot(o,o) < dot(off,off)) off = o;
   }
 #endif
