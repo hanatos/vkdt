@@ -24,6 +24,22 @@ layout(set = 1, binding = 4) uniform sampler2D img_albedo; // current albedo
 layout(set = 1, binding = 5) uniform writeonly image2D img_out;      // new beauty frame
 layout(set = 1, binding = 6) uniform writeonly image2D img_lightout; // combined light only
 
+layout(set = 1, binding = 7) uniform sampler2D img_gbufp; // old gbuffer
+layout(set = 1, binding = 8) uniform sampler2D img_gbufc; // current gbuffer
+
+// TODO: share code with quake:
+vec2 sign_no0(vec2 v)
+{
+  return mix(vec2(1.0), vec2(-1.0), lessThan(v, vec2(0.0)));
+}
+vec3 geo_decode_normal(const uint enc)
+{
+  vec2 projected = unpackSnorm2x16(enc); // -1..1
+  vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
+  if(vec.z < 0.0) vec.xy = vec2(1.0-abs(vec.yx)) * sign_no0(vec.xy);
+  return normalize(vec);
+}
+
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
 #if SVGF_OFF==1
@@ -49,6 +65,9 @@ main()
   vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
   vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
+
+  vec4 gbufc = texelFetch(img_gbufc, ipos, 0);
+  vec4 gbufp = texelFetch(img_gbufp, ivec2(ipos+mv), 0);
 
 #if SVGF_OFF==0
   L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
@@ -96,7 +115,11 @@ main()
       0.04330266, 0.0113596 , 0.89538035);
   beauty = M * beauty;
 
-  // beauty = mix(beauty, prevb, params.alpha);
+  vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.x));
+  vec3 np = geo_decode_normal(floatBitsToUint(gbufp.x));
+  if(dot(nc, np) > 0.8 && abs(gbufc.y - gbufp.y)/max(gbufc.y, gbufp.y) < 0.02)
+    beauty = mix(beauty, prevb, params.alpha);
+
   imageStore(img_out, ipos, vec4(beauty, 1));
   imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
 }

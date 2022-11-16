@@ -47,8 +47,19 @@ main()
 
   int block = push.scale;
   // offset is on coarse scale (/block):
+#if 0 // more or less straight
   vec2 off = block * textureLod(img_off, (ipos+.5)/vec2(block*textureSize(img_off, 0)), 0).rg;
   // vec2 off = block * sample_soft(img_off, (ipos+.5)/vec2(block*textureSize(img_off, 0))).rg;
+  // vec2 off = block * texelFetch(img_off, ipos / block, 0).rg;
+#else // smallest in block, filters out some remaining jitter due to texture aliasing
+  vec2 off = vec2(10000, 10000);
+  const int r = 1;
+  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
+  { // XXX FIXME: seems to have a consistent drift!
+    vec2 o = block * texelFetch(img_off, ivec2(i, j) + ipos / block, 0).rg;// + 1.0;
+    if(dot(o,o) < dot(off,off)) off = o;
+  }
+#endif
 
   vec3 col;
   if(push.filters == 9)
