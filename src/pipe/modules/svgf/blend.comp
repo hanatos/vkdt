@@ -79,6 +79,8 @@ main()
   // Lo = clamp(Lo, max(vec3(0), mL1 - thresh * sigma), mL1 + thresh * sigma);
   vec3 sigma = sqrt(max(vec3(0), maL2 - maL1 * maL1));
   float thresh = params.taa;
+  // FIXME: if we want to clamp this, we need to take rec2020 moments!
+  // XXX can transform the moments once at the end, because linear.
   prevb = clamp(prevb, max(vec3(0), maL1 - thresh * sigma), maL1 + thresh * sigma);
   }
 #endif
