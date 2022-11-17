@@ -1,0 +1,107 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+#include "render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+layout(push_constant, std140) uniform push_t
+{
+  int gap;
+} push;
+
+layout(set = 1, binding = 0) uniform sampler2D img_irr;
+layout(set = 1, binding = 2) uniform sampler2D img_alb;
+layout(set = 1, binding = 3) uniform sampler2D img_gbuf;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+vec4 gamma(vec4 f)
+{
+  return vec4(
+      f.x < 0.0 ? f.x : pow(f.x, 0.8),
+      f.y < 0.0 ? f.y : pow(f.y, 0.8),
+      f.z < 0.0 ? f.z : pow(f.z, 0.8),
+      f.w < 0.0 ? f.w : pow(f.w, 0.8));
+}
+
+// christoph's vanilla svgf edge stopping functions:
+float edge(
+    vec2  dx,      // delta in screen space
+    vec2  grad_z,  // depth gradient at p
+    float sigma,   // noise estimation for light
+    vec3  Lp,      // center pixel light
+    vec3  Lq,      // other pixel light
+    vec3  np,      // normal center
+    vec3  nq,      // normal other
+    float dp,      // depth center
+    float dq)      // depth other
+{
+  const float sigma_z = 1;   // parameter for depth       = 1
+  const float sigma_n = 128; // parameter for normals     = 128
+  const float sigma_l = 4;   // parameter for brightness, = 4
+  float w_z = exp(-abs(dp-dq) / (sigma_z * abs( dot(grad_z, dx))));
+  float w_n = pow(max(0.0, dot(np, nq)), sigma_n);
+  float w_l = exp(-dot(Lp-Lq, Lp-Lq) / (sigma_l * sigma + 1e-6));
+  return w_z * w_n * w_l;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  ivec2 sz = textureSize(img_irr, 0).xy;
+
+  // temporal std dev estimation:
+  vec4  gbuf   = texelFetch(img_gbuf, ipos, 0);
+  vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.x));
+  float depth  = gbuf.y;
+  float m1 = gbuf.z, m2 = gbuf.w;
+  vec2 grad_z = vec2(0.0);
+
+  // estimate variance spatially, and get z gradient too:
+  const int r=1;
+  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
+  {
+    vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+    m1 += gbufq.z; m2 += gbufq.w;
+    if(i != 0 && j != 0) grad_z += (gbufq.y - depth)/vec2(i, j);
+  }
+  m1 /= (2.0*r+1)*(2.0*r+1);
+  m2 /= (2.0*r+1)*(2.0*r+1);
+  grad_z /= 4;
+  float sigma  = sqrt(max(0, m2 - m1*m1)) + 1e-8;
+
+  vec3 Lp = texelFetch(img_irr, ipos, 0).rgb;
+  float w_sum = 1.0;
+  vec3 res = w_sum * Lp;
+  // evaluate filter:
+  const int g = push.gap;
+  for(int j=-2*g;j<=2*g;j+=g) for(int i=-2*g;i<=2*g;i+=g) if (i!=0 || j!=0)
+  {
+    vec3 Lq = texelFetch(img_irr, ipos+ivec2(i,j), 0).rgb;
+    vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));
+    float w = edge(
+        vec2(i,j), grad_z, sigma, 
+        Lp, Lq,
+        normal, nq,
+        depth, gbufq.y);
+    res += Lq * w;
+    w_sum += w;
+  }
+  res /= w_sum;
+
+#if 0
+  // sort image to write positions so we can iterate the filter
+  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
+  ipos = ipos / 2 + off;
+#endif
+
+  imageStore(img_out, ipos, vec4(res, 1));
+}
+

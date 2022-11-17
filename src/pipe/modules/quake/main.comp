@@ -5,6 +5,7 @@
 #extension GL_EXT_ray_query               : enable
 
 #include "shared.glsl"
+#include "render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -131,29 +132,6 @@ vec4 xrand(inout uint seed, ivec2 p)
 }
 
 #endif
-
-vec2 sign_no0(vec2 v)
-{
-  return mix(vec2(1.0), vec2(-1.0), lessThan(v, vec2(0.0)));
-}
-// 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
-// A Survey of Efficient Representations for Independent Unit Vectors,
-// almost like oct30
-vec3 geo_decode_normal(const uint enc)
-{
-  vec2 projected = unpackSnorm2x16(enc); // -1..1
-  vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
-  if(vec.z < 0.0) vec.xy = vec2(1.0-abs(vec.yx)) * sign_no0(vec.xy);
-  return normalize(vec);
-}
-uint geo_encode_normal(vec3 n)
-{
-  const float invL1Norm = 1.0 / (abs(n.x) + abs(n.y) + abs(n.z));
-  vec2 enc; // find floating point values of octahedral map in [-1,1]:
-  if(n.z < 0.0) enc = (1.0-abs(n.yx * invL1Norm)) * sign_no0(n.xy);
-  else          enc = n.xy * invL1Norm;
-  return packSnorm2x16(enc);
-}
 
 struct intersection_t
 { // minimal descriptor to id a material_info_t
@@ -485,26 +463,20 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
   return (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT);
 }
 
-struct reservoir_t
+struct mc_state_t
 {
   vec3  y;              // world space position of light source point
   vec3  n;              // world space light normal
-  // XXX remove: (use only w_sum)
   float f;              // observed measurement contribution until there (bsdf * G * Le)
   float kappa;          // concentration parameter for vMF
-
-  float w_sum;          // sum of weights
-  uint  M;              // number of samples so far
 };
 
-reservoir_t reservoir_new()
+mc_state_t mc_state_new()
 {
-  reservoir_t r;
+  mc_state_t r;
   r.y = vec3(0);
-  r.f =
-  r.w_sum = 0.0;
+  r.f = 0.0;
   r.kappa = 300.0; // XXX
-  r.M = 0;
   return r;
 }
 
@@ -516,44 +488,9 @@ float G_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
   return max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
 }
 
-float ph(reservoir_t r)
+float ph(mc_state_t r)
 { // return something proportional to sampling probability for this vMF lobe
-  return r.w_sum;
-}
-
-float
-reservoir_W(reservoir_t r)
-{
-  if(r.M == 0) return 0.0;
-  float p = ph(r);
-  if(p < 1e-6) return 0.0;
-  return r.w_sum / r.M / p;
-}
-
-void
-reservoir_combine(
-    inout reservoir_t r,
-    reservoir_t       r2,
-    float             rand)
-{
-  if(r2.f == 0.0) return;
-  // if(r.M > 20) return;
-  float w = ph(r2);//*r2.W*r2.M;
-  if(w == 0.0) return;
-  // doing this by importance, too, will trip the markov chain and bias everything to the one
-  // "winning" light source. it will counteract the mixing and effectively destroy the image.
-  w = 1; // XXX DEBUG constant weight/selection in nbhood
-
-  r.w_sum += w;
-  r.M     += r2.M;
-  r.w_sum = clamp(r.w_sum, 1e-5, 500); // seems necessary to avoid overflow
-  r.M     = clamp(r.M, 0, 100);
-  if(rand < w / r.w_sum)
-  {
-    r.y     = r2.y;
-    r.f     = r2.f;
-    r.kappa = r2.kappa;
-  }
+  return r.f;
 }
 
 float vmm_eval(float kappa, float dotmu)
@@ -578,7 +515,7 @@ float vmm_get_kappa(float x)
 
 // we need to add the reservoir r2 later with w = phq(r2.y)/phq'(r2.y) * r2.w_sum
 // which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
-uvec4 reservoir_encode(reservoir_t r)
+uvec4 mc_state_encode(mc_state_t r)
 {
   return uvec4(
       packHalf2x16(r.y.xy),
@@ -587,17 +524,15 @@ uvec4 reservoir_encode(reservoir_t r)
       geo_encode_normal(r.n));
 }
 
-reservoir_t reservoir_decode(uvec4 enc)
+mc_state_t mc_state_decode(uvec4 enc)
 {
-  reservoir_t r = reservoir_new();
+  mc_state_t r = mc_state_new();
   vec2 h = unpackHalf2x16(enc.y);
   r.y.xy = unpackHalf2x16(enc.x);
   r.y.z  = h.x;
   r.f    = h.y;
   r.kappa = enc.z;
   r.n = geo_decode_normal(enc.w);
-  r.M = 1;
-  r.w_sum = r.f;
   return r;
 }
 
@@ -611,6 +546,7 @@ main()
   // today my bluenoise textures are borken. wtf.
   // uint seed = 13370000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
   const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
+  vec2 mv = texelFetch(img_mv, ipos, 0).rg;
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
@@ -619,8 +555,8 @@ main()
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
 
-  reservoir_t res = reservoir_new(); // init zero
-  reservoir_t ind = reservoir_new(); // backup of independent reservoir
+  mc_state_t curr = mc_state_new(); // zero current state
+  mc_state_t tent = mc_state_new(); // tentative new state
 
   vec3 lpos = vec3(0.0); // torch light pos, depending on camera
   intersection_t inter;
@@ -688,21 +624,21 @@ main()
       {
         rand = xrand(seed, rp);
         bool use_vmf = s > 0;
-        if(res.f == 0) use_vmf = false;
+        if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
-          w = vmm_sample(res.kappa, rand.xy);
-          vec3 mu = normalize(res.y-m0.x);
+          w = vmm_sample(tent.kappa, rand.xy);
+          vec3 mu = normalize(tent.y-m0.x);
           vec3 up = vec3(1,0,0), du, dv;
           if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
           du = normalize(cross(up, mu));
           dv = normalize(cross(du, mu));
           w = w.x * du + w.y * dv + w.z * mu;
-          pdf_w = vmm_eval(res.kappa, dot(w, mu));
+          pdf_w = vmm_eval(tent.kappa, dot(w, mu));
           if(dot(w, m0.n)  <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           W = 1.0;
           rgb *= 1.0/M_PI; // bsdf without albedo
-          par[s] = vec4(res.y, res.kappa);
+          par[s] = vec4(tent.y, tent.kappa);
         }
         if(!use_vmf)
         { // sample independent new ray direction
@@ -740,21 +676,20 @@ main()
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
             float f = length(m1.emission)/pdf_w;
-            float a = min(1.0, f * G / (res.f * G_term(m0.x, m0.n, res.y, res.n)));
+            float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = m1.x;
-            if(res.f == 0.0 || rand.z < a)
+            if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
-              res.f = res.w_sum = f;
-              res.y = m1.x;      // create new lobe around good sample
-              res.n = m1.n;
-              res.M++;
+              curr = tent;
+              curr.f = f;
+              curr.y = m1.x;      // create new lobe around good sample
+              curr.n = m1.n;
               // TODO: pick this wisely. too narrow makes diffuse noise (because MIS goes down)
-              res.kappa = 10.0 + 40.0*t;
-              if(m1.mat == 0xffff) res.kappa = 10; // sky is smooth
+              // TODO: based on MCMC history, i.e. curr and tent kappa and a?
+              curr.kappa = 80.0 + 50.0*t;
+              if(m1.mat == 0xffff) curr.kappa = 50; // sky is smooth
             }
-            // if(W==0.0) ind = res;
-            if(s==0.0) ind = res;
           }
 
           m0 = m1; // advance path vertex
@@ -763,28 +698,12 @@ main()
       } // end bounces
 
       if(global.frame > 10)
-      { // first sample primary hit combines spatiotemporal reservoirs (surroundings of pixel in last frame)
-        // sample "mixture model" by selecting lobes from nb pixels.
-        // this should be an independent process and only have a fallback to 1/pi projected
-        // hemisphere sampling (but can depend on earlier samplings of the pixel env)
-        // res = reservoir_new(); // initialise as zero for new sample again
-        // to be strictly uniform in nbhood we'll need to reset here (no double accounting if overlapping samples)
-        res = ind; // forget other samples but not the independent/newly discovered ones
-                   // TODO: insert independent bsdf sample (currently this is f=0 and via rejection)
-        vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-        const ivec2 off[] = {
-          ivec2(-1, -4), ivec2(4, -1), ivec2(1,  4), ivec2(-4, 1),
-          ivec2(-2, -1), ivec2(0, -1), ivec2(1, -2),
-          ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
-          ivec2(-1,  2), ivec2(0,  1), ivec2(2,  1)};
-        for(int i=0;i<13;i++)
-        {
-          rand = xrand(seed, rp);
-          reservoir_t r2 = reservoir_decode(texelFetch(img_nee_in,
-                ivec2(ipos+mv+5*off[i] + (2.0*rand.yz-1.0) * 4.0 + 0.5),
-                0));
-          reservoir_combine(res, r2, rand.x); // this picks one lobe
-        }
+      {
+        rand = xrand(seed, rp);
+        ivec2 off = ivec2(30 * (2.0*rand.xy-1.0));
+        mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+        if(tent.f == 0 || rand.z < t2.f / tent.f)
+          tent = t2;
       }
     } // end spp for indirect rays
   } // end if intersect primary ray
@@ -804,14 +723,14 @@ main()
       irr += rad[s] / pdf;
   }
 
-  vec4 gbuf = texelFetch(img_gbuf_in, ipos, 0);
+  vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
   gbuf.x = uintBitsToFloat(geo_encode_normal(me.n)); // normal
   gbuf.y = length(me.x - params.cam_x.xyz);          // depth
   gbuf.z = mix(length(irr),  gbuf.z, 0.9);           // biased first  moment
   gbuf.w = mix(dot(irr,irr), gbuf.w, 0.9);           // biased second moment
   imageStore(img_gbuf_out, ipos, gbuf);
 
-  imageStore(img_nee_out,    ipos, reservoir_encode(res));
+  imageStore(img_nee_out,    ipos, mc_state_encode(curr));
   imageStore(img_irradiance, ipos, vec4(irr, 1));
   imageStore(img_albedo,     ipos, vec4(alb, 1));
 }

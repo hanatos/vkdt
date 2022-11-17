@@ -4,6 +4,7 @@
 
 #include "shared.glsl"
 #include "config.h"
+#include "render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -26,19 +27,6 @@ layout(set = 1, binding = 6) uniform writeonly image2D img_lightout; // combined
 
 layout(set = 1, binding = 7) uniform sampler2D img_gbufp; // old gbuffer
 layout(set = 1, binding = 8) uniform sampler2D img_gbufc; // current gbuffer
-
-// TODO: share code with quake:
-vec2 sign_no0(vec2 v)
-{
-  return mix(vec2(1.0), vec2(-1.0), lessThan(v, vec2(0.0)));
-}
-vec3 geo_decode_normal(const uint enc)
-{
-  vec2 projected = unpackSnorm2x16(enc); // -1..1
-  vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
-  if(vec.z < 0.0) vec.xy = vec2(1.0-abs(vec.yx)) * sign_no0(vec.xy);
-  return normalize(vec);
-}
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
@@ -115,10 +103,23 @@ main()
       0.04330266, 0.0113596 , 0.89538035);
   beauty = M * beauty;
 
+  float alpha = params.alpha; // blend weight, larger means use more of the history.
+  // predict temporal variance from biased moments.
+  // could use a bias correction scheme as adam does if we knew the number of iterations.
+  float sigma = sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
+  // float sigmap = sqrt(max(0, gbufp.w - gbufp.z*gbufp.z));
+
+  // discontinuity detection
+  alpha *= smoothstep(sigma, 0.0, abs(gbufc.z - length(L)));
+
+  // gbuffer weight:
   vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.x));
   vec3 np = geo_decode_normal(floatBitsToUint(gbufp.x));
-  if(dot(nc, np) > 0.8 && abs(gbufc.y - gbufp.y)/max(gbufc.y, gbufp.y) < 0.02)
-    beauty = mix(beauty, prevb, params.alpha);
+  alpha *= smoothstep(0.8, 1.0, dot(nc, np));
+  alpha *= smoothstep(0.02*max(gbufc.y, gbufp.y), 0.0, abs(gbufc.y - gbufp.y));
+
+  beauty = mix(beauty, prevb, alpha);
+  // beauty = vec3(gbufc.z, sigmac, sigmap); // visualise mean and variance
 
   imageStore(img_out, ipos, vec4(beauty, 1));
   imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
