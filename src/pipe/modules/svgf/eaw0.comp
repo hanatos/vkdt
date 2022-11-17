@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive    : enable
 
 #include "shared.glsl"
+#include "render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -10,6 +11,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(set = 1, binding = 0) uniform sampler2D img_irr;
 layout(set = 1, binding = 2) uniform sampler2D img_alb;
+layout(set = 1, binding = 3) uniform sampler2D img_gbuf;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 vec4 gamma(vec4 f)
@@ -37,6 +39,12 @@ main()
 
   ivec2 sz = textureSize(img_irr, 0).xy;
 
+  // temporal std dev estimation:
+  vec4  gbuf   = texelFetch(img_gbuf, ipos, 0);
+  float sigma  = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)) + 1e-8;
+  vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.x));
+  float depth  = gbuf.y;
+
   // 5 tap flower filter
   // const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
   // const float t = 0.3; // a bit sharper
@@ -48,11 +56,15 @@ main()
   vec4 sum = t * rgba;
   float wgt = t;
 
-  const float sigma = 500.0; // XXX noise model
-  vec4 wc = vec4(vec3(1./sigma), 1.0);
+  vec4 wc = vec4(vec3(.1/sigma), 1.0);
 #define lookup(O) \
   do { \
-  vec4 col = vec4(texture(img_irr, (ipos + O)/vec2(sz)).rgb, dot(vec3(1),texture(img_alb, (ipos+O)/vec2(sz)).rgb)); \
+  vec4 col = vec4(\
+                   texture(img_irr, (ipos+O)/vec2(sz)).rgb,   \
+      dot(vec3(1), texture(img_alb, (ipos+O)/vec2(sz)).rgb)   \
+      * dot(normal, geo_decode_normal(floatBitsToUint(texelFetch(img_gbuf, ipos, 0).x))) \
+      * abs(depth - texelFetch(img_gbuf, ipos, 0).y) \
+      ); \
   float w = edge(wc, col, rgba) * (1.0-t)/4.0; \
   sum += w * col; \
   wgt += w; \

@@ -92,7 +92,7 @@ create_nodes(
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,
     .dp     = 1,
-    .num_connectors = 3,
+    .num_connectors = 4,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
@@ -111,6 +111,13 @@ create_nodes(
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("*"),
+      .roi    = module->connector[0].roi,
+      .connected_mi = -1,
+    },{
+      .name   = dt_token("gbuf"),
+      .type   = dt_token("read"),
+      .chan   = dt_token("rgba"),
+      .format = dt_token("f32"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
     }},
@@ -145,6 +152,7 @@ create_nodes(
 
   dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
   dt_connector_copy(graph, module, 2, id_eaw[0], 2);  // albedo for edges
+  dt_connector_copy(graph, module, 5, id_eaw[0], 3);  // gbuffer for normal, depth, L moments
   for(int i=1;i<4;i++)
     CONN(dt_node_connect (graph, id_eaw[i-1], 1, id_eaw[i], 0));
 
