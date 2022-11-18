@@ -21,7 +21,7 @@ typedef struct qs_data_t
   uint8_t      tex_req[MAX_GLTEXTURES];   // dynamic texture request flags: 1:new 2:upload 4:free
   int32_t      tex_cnt;                   // current number of textures
   uint32_t     tex_maxw, tex_maxh;        // maximum texture size, to allocate staging upload buffer
-  uint32_t     first_skybox;              // first of 6 cubemap skybox texture ids
+  uint32_t     skybox[6];                 // 6 cubemap skybox texture ids
 
   uint32_t     move;                      // for our own debug camera
   double       mx, my;                    // mouse coordinates
@@ -69,12 +69,13 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "ad_tears",
+    "+map", "ad_azad",
     "+map", "e1m6",
     "+map", "start",
     "+map", "e1m2",
     "+map", "e4m3",     // has no lights
     "+map", "ad_tfuma", // TODO: for this one need transparent windows
-    "+map", "ad_azad",
     "+map", "e1m8", // bonus
     "+map", "e1m7", // cthon
     "-game", "SlayerTest",
@@ -328,7 +329,15 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   qs_data.tex_req[glt->texnum] = 7; // free, new and upload
 
   if(!strncmp(glt->name, "gfx/env/", 8))
-    qs_data.first_skybox = glt->texnum-5;
+  {
+    fprintf(stderr, "sky %d %s\n", glt->texnum, glt->name);
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_rt", 3)) qs_data.skybox[0] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_bk", 3)) qs_data.skybox[1] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_lf", 3)) qs_data.skybox[2] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_ft", 3)) qs_data.skybox[3] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_up", 3)) qs_data.skybox[4] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_dn", 3)) qs_data.skybox[5] = glt->texnum;
+  }
 
   // TODO: think about cleanup later, maybe
 }
@@ -759,7 +768,7 @@ void commit_params(
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
     Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
     Cmd_ExecuteString("god", src_command);
-    // Cmd_ExecuteString("notarget", src_command);
+    Cmd_ExecuteString("notarget", src_command);
   }
 
 #if 1 // does not work with demo replay
@@ -772,6 +781,9 @@ void commit_params(
   else
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
 #endif
+
+  int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
+  for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];
 
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
 #if 0 // our camera
@@ -962,8 +974,6 @@ create_nodes(
       .roi    = module->connector[0].roi,
       .flags  = s_conn_clear, // init with zero
     }},
-    .push_constant = { d->first_skybox },
-    .push_constant_size = sizeof(uint32_t),
   };
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_tex = graph->num_nodes++;
