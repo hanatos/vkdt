@@ -36,7 +36,6 @@ qs_data_t;
 // also the texture manager will call into us
 static qs_data_t qs_data = {0};
 extern float r_avertexnormals[162][3]; // from r_alias.c
-// mspriteframe_t *R_GetSpriteFrame (entity_t *currentent); // from r_sprite.c
 
 int init(dt_module_t *mod)
 {
@@ -616,87 +615,92 @@ add_geo(
         return;
     }
 
-    int numv = 4; // add a quad
+    int numv = 3* 4; // add three quads
     if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
        *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
           return;
-    float vert[4][3];
-    if(vtx || ext)
+    for(int k=0;k<3;k++)
     {
-      VectorMA (ent->origin, frame->down * scale, s_up, point);
-      VectorMA (point, frame->left * scale, s_right, point);
-      for(int l=0;l<3;l++) vert[0][l] = point[l];
-
-      VectorMA (ent->origin, frame->up * scale, s_up, point);
-      VectorMA (point, frame->left * scale, s_right, point);
-      for(int l=0;l<3;l++) vert[1][l] = point[l];
-
-      VectorMA (ent->origin, frame->up * scale, s_up, point);
-      VectorMA (point, frame->right * scale, s_right, point);
-      for(int l=0;l<3;l++) vert[2][l] = point[l];
-
-      VectorMA (ent->origin, frame->down * scale, s_up, point);
-      VectorMA (point, frame->right * scale, s_right, point);
-      for(int l=0;l<3;l++) vert[3][l] = point[l];
-    }
-    if(vtx)
-    {
-      for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
-    }
-    if(idx)
-    {
-      idx[nidx+3*0+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*0+1] = *vtx_cnt + nvtx+2-1;
-      idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
-
-      idx[nidx+3*1+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*1+1] = *vtx_cnt + nvtx+3-1;
-      idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
-    }
-    if(ext)
-    {
-      int pi = nidx/3; // start of the two triangles
-      float n[3], e0[] = {
-        vert[2][0] - vert[0][0],
-        vert[2][1] - vert[0][1],
-        vert[2][2] - vert[0][2]}, e1[] = {
-        vert[1][0] - vert[0][0],
-        vert[1][1] - vert[0][1],
-        vert[1][2] - vert[0][2]};
-      cross(e0, e1, n);
-      encode_normal(ext+14*pi+0, n);
-      encode_normal(ext+14*pi+2, n);
-      encode_normal(ext+14*pi+4, n);
-      encode_normal(ext+14*(pi+1)+0, n);
-      encode_normal(ext+14*(pi+1)+2, n);
-      encode_normal(ext+14*(pi+1)+4, n);
-      if(frame->gltexture)
+      float vert[4][3];
+      if(vtx || ext)
       {
-        ext[14*pi+ 6] = float_to_half(0);
-        ext[14*pi+ 7] = float_to_half(1);
-        ext[14*pi+ 8] = float_to_half(0);
-        ext[14*pi+ 9] = float_to_half(0);
-        ext[14*pi+10] = float_to_half(1);
-        ext[14*pi+11] = float_to_half(0);
+        vec3_t front;
+        CrossProduct(s_up, s_right, front);
+        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+        VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[0][l] = point[l];
 
-        ext[14*(pi+1)+ 6] = float_to_half(0);
-        ext[14*(pi+1)+ 7] = float_to_half(1);
-        ext[14*(pi+1)+ 8] = float_to_half(1);
-        ext[14*(pi+1)+ 9] = float_to_half(0);
-        ext[14*(pi+1)+10] = float_to_half(1);
-        ext[14*(pi+1)+11] = float_to_half(1);
+        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
+        VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[1][l] = point[l];
 
-        ext[14*pi+12]     = frame->gltexture->texnum;
-        ext[14*pi+13]     = frame->gltexture->texnum; // fullbright XXX where to get this?
-        ext[14*(pi+1)+12] = frame->gltexture->texnum;
-        ext[14*(pi+1)+13] = frame->gltexture->texnum; // fullbright XXX where to get this?
+        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
+        VectorMA (point, frame->right * scale,    k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[2][l] = point[l];
+
+        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+        VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[3][l] = point[l];
       }
-    }
-    nvtx += 4;
-    nidx += 6;
+      if(vtx)
+      {
+        for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
+        for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
+        for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
+        for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
+      }
+      if(idx)
+      {
+        idx[nidx+3*0+0] = *vtx_cnt + nvtx;
+        idx[nidx+3*0+1] = *vtx_cnt + nvtx+2-1;
+        idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+
+        idx[nidx+3*1+0] = *vtx_cnt + nvtx;
+        idx[nidx+3*1+1] = *vtx_cnt + nvtx+3-1;
+        idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
+      }
+      if(ext)
+      {
+        int pi = nidx/3; // start of the two triangles
+        float n[3], e0[] = {
+          vert[2][0] - vert[0][0],
+          vert[2][1] - vert[0][1],
+          vert[2][2] - vert[0][2]}, e1[] = {
+          vert[1][0] - vert[0][0],
+          vert[1][1] - vert[0][1],
+          vert[1][2] - vert[0][2]};
+        cross(e0, e1, n);
+        encode_normal(ext+14*pi+0, n);
+        encode_normal(ext+14*pi+2, n);
+        encode_normal(ext+14*pi+4, n);
+        encode_normal(ext+14*(pi+1)+0, n);
+        encode_normal(ext+14*(pi+1)+2, n);
+        encode_normal(ext+14*(pi+1)+4, n);
+        if(frame->gltexture)
+        {
+          ext[14*pi+ 6] = float_to_half(0);
+          ext[14*pi+ 7] = float_to_half(1);
+          ext[14*pi+ 8] = float_to_half(0);
+          ext[14*pi+ 9] = float_to_half(0);
+          ext[14*pi+10] = float_to_half(1);
+          ext[14*pi+11] = float_to_half(0);
+
+          ext[14*(pi+1)+ 6] = float_to_half(0);
+          ext[14*(pi+1)+ 7] = float_to_half(1);
+          ext[14*(pi+1)+ 8] = float_to_half(1);
+          ext[14*(pi+1)+ 9] = float_to_half(0);
+          ext[14*(pi+1)+10] = float_to_half(1);
+          ext[14*(pi+1)+11] = float_to_half(1);
+
+          ext[14*pi+12]     = frame->gltexture->texnum;
+          ext[14*pi+13]     = frame->gltexture->texnum; // sprites always emit
+          ext[14*(pi+1)+12] = frame->gltexture->texnum;
+          ext[14*(pi+1)+13] = frame->gltexture->texnum;
+        }
+      }
+      nvtx += 4;
+      nidx += 6;
+    } // end three axes
   } // end sprite model
   *vtx_cnt += nvtx;
   *idx_cnt += nidx;
