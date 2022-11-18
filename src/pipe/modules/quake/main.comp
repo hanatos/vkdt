@@ -294,7 +294,7 @@ prepare_material_info(
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
   else if(m.flags == 2) m.emission =  5.0*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
-  else m.emission = 100.0*(exp2(m.emission*10.0)-1.0);
+  else m.emission = 10.0*(exp2(m.emission*10.0)-1.0);
 #if 1
   if(brush_model && m.matnd > 0)
   { // apply normal map
@@ -685,11 +685,13 @@ main()
               curr.f = f;
               curr.y = m1.x;      // create new lobe around good sample
               curr.n = m1.n;
-              // TODO: pick this wisely. too narrow makes diffuse noise (because MIS goes down)
-              // TODO: based on MCMC history, i.e. curr and tent kappa and a?
-              curr.kappa = 80.0 + 50.0*t;
-              if(m1.mat == 0xffff) curr.kappa = 50; // sky is smooth
-            }
+              // heuristic hand tuned version:
+              // curr.kappa = 180.0 + 90.0*t;
+              // if(m1.mat == 0xffff) curr.kappa = 50; // sky is smooth
+              // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
+              curr.kappa = min(10000, tent.kappa * 2.0);
+            } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
+            else tent.kappa = max(50.0, tent.kappa*0.5); // maybe try again (if not replaced by nbhood)
           }
 
           m0 = m1; // advance path vertex
