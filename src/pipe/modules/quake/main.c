@@ -70,20 +70,20 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "ad_azad",
     "+map", "e1m6",
+    "+map", "start",
+    "+map", "e1m2",
+    "+map", "e4m3",     // has no lights
+    "+map", "ad_tfuma", // TODO: for this one need transparent windows
+    "+map", "ad_azad",
     "+map", "e1m8", // bonus
     "+map", "e1m7", // cthon
-    "+map", "e3m1",
-    "+map", "start",
     "-game", "SlayerTest",
     "+map", "e1m2b",
     "+map", "e1m1",
     "+map", "ep1m1",
     "+map", "e1m1b",
-    "+map", "start",
     "+map", "st1m1",
-    "+map", "start",
   };
   int argc =  9;
 
@@ -746,6 +746,8 @@ void commit_params(
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo demos/e1m2", src_command); // qdq ~2000 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo sparks", src_command); // e1m6 sparkly lights, 2000 frames
   // to test rocket illumination etc:
   if(graph->frame == 10)
   {
