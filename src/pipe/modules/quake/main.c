@@ -69,11 +69,12 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "e1m2",
+    "+map", "ad_sepulcher",
     "+map", "ad_tears",
     "+map", "ad_azad",
     "+map", "e1m6",
     "+map", "start",
-    "+map", "e1m2",
     "+map", "e4m3",     // has no lights
     "+map", "ad_tfuma", // TODO: for this one need transparent windows
     "+map", "e1m8", // bonus
