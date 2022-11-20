@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
+#include <errno.h>
 
 static inline int // returns zero on success
 fs_copy(
@@ -19,9 +21,10 @@ fs_copy(
   if(sb.st_mode & S_IFDIR) { len = 0; goto copy_error; } // don't copy directories
   if(-1 == (fd1 = open(dst, O_CREAT | O_WRONLY | O_TRUNC, 0644))) goto copy_error;
   do {
-    ret = copy_file_range(fd0, 0, fd1, 0, len, 0);
+    ret = sendfile(fd1, fd0, 0, len); // works on linux >= 2.6.33, else fd1 would need to be a socket
   } while((len-=ret) > 0 && ret > 0);
 copy_error:
+  if(len != 0) fprintf(stderr, "[fs_copy] %s\n", strerror(errno));
   if(fd0 >= 0) close(fd0);
   if(fd0 >= 0) close(fd1);
   return len;
