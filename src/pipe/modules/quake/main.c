@@ -78,7 +78,7 @@ int init(dt_module_t *mod)
     "+map", "e4m3",     // has no lights
     "+map", "ad_tfuma", // TODO: for this one need transparent windows
     "+map", "e1m8", // bonus
-    "+map", "e1m7", // cthon
+    "+map", "e1m7", // chthon
     "-game", "SlayerTest",
     "+map", "e1m2b",
     "+map", "e1m1",

@@ -16,11 +16,11 @@ layout(push_constant, std140) uniform push_t
 layout(set = 1, binding = 0) uniform sampler2D img_irr;
 layout(set = 1, binding = 1) uniform sampler2D img_gbuf;
 layout(set = 1, binding = 2) uniform writeonly image2D img_out;
+layout(set = 1, binding = 3) uniform writeonly image2D img_gbuf_out;
 
 // christoph's vanilla svgf edge stopping functions:
 float edge(
     vec2  dx,      // delta in screen space
-    vec2  grad_z,  // depth gradient at p
     float sigma,   // noise estimation for light
     vec3  Lp,      // center pixel light
     vec3  Lq,      // other pixel light
@@ -50,7 +50,6 @@ main()
   vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.x));
   float depth  = gbuf.y;
   float m1 = gbuf.z, m2 = gbuf.w;
-  vec2 grad_z = vec2(0.0);
   float sigma;
   vec3 Lp;
 
@@ -59,18 +58,15 @@ main()
   sigma = sqrt(tmp.w);
 
   if(push.gap == 1)
-  {
-    // estimate variance spatially, and get z gradient too:
+  { // estimate variance spatially, and get z gradient too:
     const int r = 1;
     for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
     {
       vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
       m1 += gbufq.z; m2 += gbufq.w;
-      // if(i != 0 && j != 0) grad_z += (gbufq.y - depth)/vec2(i, j);
     }
     m1 /= (2.0*r+1)*(2.0*r+1);
     m2 /= (2.0*r+1)*(2.0*r+1);
-    // grad_z /= 4;
     if(push.gap == 1)
       sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
   }
@@ -78,14 +74,13 @@ main()
   float w_sum = 1.0;
   vec4 res = vec4(w_sum * Lp, sigma*sigma);
   // evaluate filter:
-  const int g = push.gap;
-  for(int j=-2*g;j<=2*g;j+=g) for(int i=-2*g;i<=2*g;i+=g) if (i!=0 || j!=0)
+  for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++) if (i!=0 || j!=0)
   {
     vec3 Lq = texelFetch(img_irr, ipos+ivec2(i,j), 0).rgb;
     vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
     vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));
     float w = edge(
-        vec2(i,j), grad_z, sigma, 
+        vec2(i,j), sigma, 
         Lp, Lq,
         normal, nq,
         depth, gbufq.y);
@@ -94,14 +89,10 @@ main()
   }
   res /= w_sum;
 
-#if 0
-  // TODO: use reiner's version
   // sort image to write positions so we can iterate the filter
-  // ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
-  // ipos = ipos / 2 + off;
-  ipos = mix(ipos / 2, imageSize(img_out)-1-ipos/2, (ipos & 1) == 0);
-#endif
+  ipos = mix(ipos / 2, imageSize(img_out)-1-ipos/2, equal(ipos & 1, ivec2(0)));
 
-  imageStore(img_out, ipos, res);
+  imageStore(img_out,      ipos, res);
+  imageStore(img_gbuf_out, ipos, gbuf);
 }
 

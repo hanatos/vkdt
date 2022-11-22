@@ -148,26 +148,32 @@ create_nodes(
       .wd     = module->connector[0].roi.wd,
       .ht     = module->connector[0].roi.ht,
       .dp     = 1,
-      .num_connectors = 3,
-      .connector = {{
+      .num_connectors = 4,
+      .connector = {{ // 0
         .name   = dt_token("input"),
         .type   = dt_token("read"),
         .chan   = dt_token("rgba"),
         .format = dt_token("*"),
         .roi    = module->connector[0].roi,
         .connected_mi = -1,
-      },{
+      },{ // 1
         .name   = dt_token("gbuf"),
         .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
+        .chan   = dt_token("*"),
         .format = dt_token("f32"),
         .roi    = module->connector[0].roi,
         .connected_mi = -1,
-      },{
+      },{ // 2
         .name   = dt_token("output"),
         .type   = dt_token("write"),
         .chan   = dt_token("rgba"),
         .format = dt_token("f16"),
+        .roi    = module->connector[0].roi,
+      },{ // 3
+        .name   = dt_token("gbuf_out"),
+        .type   = dt_token("write"),
+        .chan   = dt_token("rg"),
+        .format = dt_token("f32"),
         .roi    = module->connector[0].roi,
       }},
       .push_constant_size = 1*sizeof(uint32_t),
@@ -187,7 +193,7 @@ create_nodes(
   for(int i=1;i<4;i++)
   {
     CONN(dt_node_connect (graph, id_eaw[i-1], 2, id_eaw[i], 0));
-    dt_connector_copy(graph, module, 5, id_eaw[i], 1);  // gbuffer for normal, depth, L moments
+    CONN(dt_node_connect (graph, id_eaw[i-1], 3, id_eaw[i], 1));
   }
   CONN(dt_node_connect (graph, id_eaw[3], 2, id_blend, 3)); // denoised light
 
