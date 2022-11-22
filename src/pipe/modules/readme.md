@@ -109,8 +109,19 @@ equivalent `i-mlv` version for raw video.
 
 ## files to describe a module
 
-* `flat.mk` is used to express compile time dependencies (if you're including glsl files or if you have a main.c to be compiled)
-* `connectors` defines the io connectors, for instance
+note that most strings here (parameter and connector names etc) are stored as
+`dt_token_t`, which is exactly 8 bytes long. this means we can very easily
+express the parameters and corresponding history stacks in a binary format,
+which is useful for larger parameter sets such as used for the vertices
+in the `draw` module.
+
+###  `flat.mk`
+is used to express compile time dependencies (if you're including glsl files or
+if you have a main.c to be compiled). this is build-time only and not needed
+to run `vkdt`.
+
+### `connectors`
+defines the io connectors, for instance
 ```
 input:read:rgba:f16
 output:write:rgba:f16
@@ -130,12 +141,15 @@ the channels can be anything you want, but the GPU only supports one, two, or
 four channels per pixel. these are represented by one char each, and will be
 matched during connection of modules.
 
-format can be `ui8` `ui16` `ui32` `f16` `f32`.
+format can be one of the primitive `ui8` `ui16` `ui32` `f16` `f32` or one of
+the special formats `dspy` and `atom`. `dspy` evaluates to the display
+capabilities (may be a 10 bits/channel special format). `atom` evaluates to
+`f32` if supported, or else falls back to `ui32` (many amd cards).
 
 when connecting two modules, the connectors will be tested for compatibility.
 some modules can handle more than one specific configuration of channels and
 formats, so they specify a wildcard `*` instead. if both reader and writer
-specify `*` vkdt defaults to `rgba:f16`.
+specify `*` `vkdt` defaults to `rgba:f16`.
 
 there is one more special case, modules can reference the channel or format of
 a previously connected connector on the same module, for instance the blend module:
@@ -149,7 +163,8 @@ references the channel configuration of the `input` connector and configures
 the `output` connector to match it. note that this requires to connect `input`
 before `output`.
 
-* `params` defines the parameters that can be set in the `cfg` files and which
+### `params`
+defines the parameters that can be set in the `cfg` files and which
   will be routed to the compute shaders as uniforms. for instance
 ```
 sigma:float:1:0.12
@@ -157,14 +172,50 @@ shadows:float:1:1.0
 hilights:float:1:1.0
 clarity:float:1:0.0
 ```
-* `params.ui` defines the mapping of parameters to ui widgets. i recommend you
-  look through existing examples to get a sense. the ui is programmed in c++,
-  the modules in c, and the processing is done in glsl. this way there is an
-  extremely clear separation of algorithms, module logic, and gui.
+### `params.ui`
+defines the mapping of parameters to ui widgets. i recommend you look through
+existing examples to get a sense. the ui is programmed in c++, the modules in
+c, and the processing is done in glsl. this way there is an extremely clear
+separation of algorithms, module logic, and gui.
 
-note that most strings here (parameter and connector names etc) are stored as
-`dt_token_t`, which is exactly 8 bytes long. this means we can very easily
-express the parameters and corresponding history stacks in a binary format,
-which is useful for larger parameter sets such as used for the vertices
-in the `draw` module.
+the format is in general, one per line:
+
+`<name of parameter>:<widget>:<special info for widget>`
+
+the ui supports the following widgets
+
+* `slider` takes `min:max` as range argument
+* `vslider` a vertical slider. takes `min:max` as range argument
+* `callback` a special button that triggers the `ui_callback` function in the module
+* `colour` 
+* `combo` a combobox. takes the `:`-separated list of string entries as argument
+* `crop` the crop tool of the crop/rotate module
+* `draw` draw brush strokes with the mouse/pentablet
+* `filename` a file name
+* `grab` grab the keyboard and mouse and pass to the module
+* `group` a special directive, see below
+* `hidden` do not show the parameter in the ui
+* `pers` the perspective correction tool of the crop/rotate module
+* `pick` a special colour picker widget (use mouse to draw rect on image)
+* `print` print a string using the parameter
+* `rbmap` a special colour widget for radial basis function mapping
+* `rgb` three sliders (red green blue) which show the colour in the ui background. takes the usual range argument `min:max`.
+* `straight` the straighten tool of the crop/rotate module
+
+
+the `group` keyword is used to only show the following ui elements if a
+parameter switch is set accordingly. syntax: `group:<param>:<val>`. for an
+example, see [the colour module](colour/readme.md). here, `<param>`
+refers to an `int` parameter driven by a combo box, and we use it to only show
+the colour temperature slider if the matrix mode is set to colour lookup table
+`clut`:
+
+```
+matrix:combo:rec2020:image:XYZ:rec709:clut
+group:matrix:4
+temp:slider:2856:6504
+```
+
+everything after the `group` directive until the next one will be shown only if
+the `matrix` parameter is set to `4`.
 
