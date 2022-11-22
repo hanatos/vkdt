@@ -14,6 +14,8 @@ layout(std140, set = 0, binding = 0) uniform global_t
   int frame;
 } global;
 
+#include "water.glsl"
+
 layout(std140, set = 0, binding = 1) uniform params_t
 { 
   vec4 cam_x;
@@ -337,6 +339,21 @@ prepare_material_info(
   }
   if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
 
+#if 1
+  if(m.flags == 4)
+  { // water
+    const float depth = 32.0;
+    float t = water_intersect(m.x, w, depth);
+    m.x = m.x + t*w;
+    vec4 wn = water_normal(m.x, 1e-4, depth);
+    m.ng = wn.xyz;
+    if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
+    m.n = m.ng;
+    // m.albedo = mix(vec3(0.1, 0.5, 0.8), vec3(0.8, 0.9, 0.9), pow(wn.w/depth, 2));
+    m.albedo = mix(vec3(1, 0, 1), vec3(0, 1, 1), pow(wn.w/depth, 4));
+  }
+#endif
+
   return m;
 }
 
@@ -607,8 +624,8 @@ main()
     vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
     if(params.water > 0)
       uv = vec2(
-          uv.x + 0.05*sin(uv.y*2.0 + global.frame * 0.01),
-          uv.y + 0.05*sin(uv.x*2.0 + global.frame * 0.01));
+          uv.x + 0.02*sin(uv.y*5.0 + global.frame * 0.01),
+          uv.y + 0.02*sin(uv.x*5.0 + global.frame * 0.01));
     w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
     m0.n = f;
     m0.x += w_cam * 0.02; // push a bit to avoid problems with some level-end cameras
@@ -636,6 +653,7 @@ main()
       compute_indirect = false;
     }
     else alb = m1.albedo; // directly visible albedo
+    // else alb = vec3(pow(abs(dot(m1.n,w_cam)), 10));
 
     me = m1; // store g-buffer-like primary ray result
 
