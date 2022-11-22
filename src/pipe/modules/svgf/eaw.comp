@@ -29,10 +29,10 @@ float edge(
     float dp,      // depth center
     float dq)      // depth other
 { // parameters from paper, default/paper version in comment:
-  const float sigma_z = 1;     // parameter for depth      = 1
+  const float sigma_z = 100;     // parameter for depth      = 1
   const float sigma_n = 128;   // parameter for normals    = 128
   const float sigma_l = 4000;  // parameter for brightness = 4
-  float w_z = exp(-abs(dp-dq) / (sigma_z * (1e-6+abs(dot(grad_z, dx)))));
+  float w_z = exp(-abs(dp-dq) / (sigma_z));// * (1e-6+abs(dot(grad_z, dx)))));
   float w_n = pow(max(0.0, dot(np, nq)), sigma_n);
   float w_l = exp(-dot(Lp-Lq, Lp-Lq) / (sigma_l * sigma + 1e-6));
   return w_z * w_n * w_l;
@@ -54,21 +54,23 @@ main()
   float sigma;
   vec3 Lp;
 
+  vec4 tmp = texelFetch(img_irr, ipos, 0);
+  Lp = tmp.xyz;
+  sigma = sqrt(tmp.w);
+
+  if(push.gap == 1)
   {
-    vec4 tmp = texelFetch(img_irr, ipos, 0);
-    Lp = tmp.xyz;
-    sigma = sqrt(tmp.w);
     // estimate variance spatially, and get z gradient too:
     const int r = 1;
     for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
     {
       vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
       m1 += gbufq.z; m2 += gbufq.w;
-      if(i != 0 && j != 0) grad_z += (gbufq.y - depth)/vec2(i, j);
+      // if(i != 0 && j != 0) grad_z += (gbufq.y - depth)/vec2(i, j);
     }
     m1 /= (2.0*r+1)*(2.0*r+1);
     m2 /= (2.0*r+1)*(2.0*r+1);
-    grad_z /= 4;
+    // grad_z /= 4;
     if(push.gap == 1)
       sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
   }
