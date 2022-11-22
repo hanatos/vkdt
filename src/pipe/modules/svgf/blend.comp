@@ -16,16 +16,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;     // motion vectors
-layout(set = 1, binding = 1) uniform sampler2D img_prevl;  // previous light (denoised)
-layout(set = 1, binding = 2) uniform sampler2D img_prevb;  // previous beauty
-layout(set = 1, binding = 3) uniform sampler2D img_light;  // current light (denoised)
-layout(set = 1, binding = 4) uniform sampler2D img_albedo; // current albedo
-
-layout(set = 1, binding = 5) uniform writeonly image2D img_out;      // new beauty frame
-layout(set = 1, binding = 6) uniform writeonly image2D img_lightout; // combined light only
-
-layout(set = 1, binding = 7) uniform sampler2D img_gbufp; // old gbuffer
-layout(set = 1, binding = 8) uniform sampler2D img_gbufc; // current gbuffer
+layout(set = 1, binding = 1) uniform sampler2D img_prevb;  // previous beauty
+layout(set = 1, binding = 2) uniform sampler2D img_light;  // current light (denoised)
+layout(set = 1, binding = 3) uniform sampler2D img_albedo; // current albedo
+layout(set = 1, binding = 4) uniform writeonly image2D img_out; // new beauty frame
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
@@ -55,15 +49,8 @@ main()
 
   ivec2 sz = textureSize(img_light, 0).xy;
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-  vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
-  // vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
+  vec3 L  = texelFetch(img_light, eaw3_tc(ipos, sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
-
-  vec4 gbufc = texelFetch(img_gbufc, ipos, 0);
-  vec4 gbufp = texelFetch(img_gbufp, ivec2(ipos+mv), 0);
-
-  // results in unnecessary lag:
-  // L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
 
   mat3 M = mat3( // linear rec709 to linear rec2020
       0.62750375, 0.06910828, 0.01639406,
@@ -97,6 +84,5 @@ main()
   beauty = mix(beauty, prevb, alpha);
 
   imageStore(img_out, ipos, vec4(beauty, 1));
-  // imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
 }
 
