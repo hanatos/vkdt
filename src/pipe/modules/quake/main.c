@@ -69,11 +69,12 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "e1m2",
     "+map", "ad_tears",
     "+map", "ad_azad",
+    "+map", "ad_sepulcher",
     "+map", "e1m6",
     "+map", "start",
-    "+map", "e1m2",
     "+map", "e4m3",     // has no lights
     "+map", "ad_tfuma", // TODO: for this one need transparent windows
     "+map", "e1m8", // bonus
@@ -330,7 +331,6 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
 
   if(!strncmp(glt->name, "gfx/env/", 8))
   {
-    fprintf(stderr, "sky %d %s\n", glt->texnum, glt->name);
     if(!strncmp(glt->name+strlen(glt->name)-3, "_rt", 3)) qs_data.skybox[0] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_bk", 3)) qs_data.skybox[1] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_lf", 3)) qs_data.skybox[2] = glt->texnum;
@@ -550,8 +550,19 @@ add_geo(
             if(surf->flags & SURF_DRAWWATER) flags = 4;
             // if(surf->flags & SURF_DRAWSKY)   flags = 5; // could do this too
             ext[14*pi+13] |= flags << 12;
+            if((surf->flags & SURF_DRAWTURB) && ent->alpha)
+            { // alpha in 4 bits
+              // TODO: somehow respect this: (ad_tears does waterfalls with this)
+              // fprintf(stderr, "brush alpha: %d\n", ent->alpha);
+              // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
+              // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
+              // TODO: or "slime" or "tele" instead of "lava"
+              uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15);
+              ai = 0;
+              ext[14*pi+12] |= ai << 12;
+            }
           }
-          if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xffff;
+          if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xfff;
         }
         nvtx += p->numverts;
         nidx += 3*(p->numverts-2);
@@ -761,14 +772,16 @@ void commit_params(
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo demos/e1m2", src_command); // qdq ~2000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo sparks", src_command); // e1m6 sparkly lights, 2000 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo caustics", src_command); // ad_tears underwater caustics 1000 frames
   // to test rocket illumination etc:
   if(graph->frame == 10)
   {
+    // TODO: execute config file name
     // Cmd_ExecuteString("developer 1", src_command);
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
     Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
     Cmd_ExecuteString("god", src_command);
-    Cmd_ExecuteString("notarget", src_command);
+    // Cmd_ExecuteString("notarget", src_command);
   }
 
 #if 1 // does not work with demo replay

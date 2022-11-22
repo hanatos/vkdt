@@ -496,6 +496,13 @@ void render_lighttable_right_panel()
     }
 
     // ==============================================================
+    // duplicate selected images
+    if(ImGui::Button("duplicate", size))
+    {
+      dt_gui_lt_duplicate();
+    }
+
+    // ==============================================================
     // merge/align images
     if(vkdt.db.selection_cnt > 1)
     if(ImGui::Button("merge into current", size))

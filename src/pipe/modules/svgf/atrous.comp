@@ -68,6 +68,17 @@ main()
   // sort image to write positions so we can iterate the filter
   ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
   ipos = ipos / 2 + off;
+#if 0
+# reiner's trick:
+half_img_size = len(img_ping) / 2
+half_img_mask = half_img_size - 1
+is_uneven = (x & 1)
+offset = is_uneven * half_img_size
+new_x = x / 2 + offset
++ itr == 0:
++   #new_x = new_x ^ (half_img_mask * is_uneven)
++   new_x = offset + (half_img_mask - new_x_local)
+#endif
 
   imageStore(img_out, ipos, rgb);
 }

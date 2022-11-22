@@ -148,6 +148,7 @@ struct material_info_t
   uint matfb;     // "fullbright" texture/emission
   uint matgl;     // glossy texture, if any
   uint matnd;     // normal/displacement texture, if any
+  float alpha;    // if > 0.0 overwrite texture alpha
   uint flags;     // none, lava, slime, tele, water
   vec3 albedo;
   vec3 emission;
@@ -180,7 +181,8 @@ prepare_material_info(
   bool brush_model = false;
   if(inter.instid == 0)
   { // dyn geo
-    m.mat   =  dynssbo.v[i+6]&0xffff;
+    m.mat   =  dynssbo.v[i+6]&0xfff;
+    m.alpha = (dynssbo.v[i+6]>>12)/15.0;
     m.matfb = (dynssbo.v[i+6]>>16) & 0xfff;
     m.flags =  dynssbo.v[i+6]>>28;
     m.matgl = m.matnd = 0;
@@ -204,7 +206,8 @@ prepare_material_info(
   else
   { // static geo
     brush_model = (stcssbo.v[i+1] == 0xffffffff);
-    m.mat   =  stcssbo.v[i+6]&0xffff;
+    m.mat   =  stcssbo.v[i+6]&0xfff;
+    m.alpha = (stcssbo.v[i+6]>>12)/15.0;
     m.matfb = (stcssbo.v[i+6]>>16) & 0xfff;
     m.flags =  stcssbo.v[i+6]>>28;
     if(brush_model)
@@ -267,7 +270,7 @@ prepare_material_info(
 
   m.albedo   = vec3(0);
   m.emission = vec3(0);
-  if(m.mat == 0xffff)
+  if(m.mat == 0xfff)
   { // marked as sky
     m.albedo = vec3(0.0);
     m.emission = envmap(w);
@@ -368,7 +371,7 @@ vec3 nee_torch(
       vec2 st;
       if(instance_id == 0)
       {
-        mat   = dynssbo.v[i+6]&0xffff;
+        mat   = dynssbo.v[i+6]&0xfff;
         vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
         vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
@@ -376,13 +379,13 @@ vec3 nee_torch(
       }
       else
       {
-        mat   = stcssbo.v[i+6]&0xffff;
+        mat   = stcssbo.v[i+6]&0xfff;
         vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
         vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
         st = mat3x2(st0, st1, st2) * b;
       }
-      if(mat == 0xffff) 
+      if(mat == 0xfff) 
       { // sky, nothing behind it, right?
         rayQueryConfirmIntersectionEXT(rq);
       }
@@ -406,9 +409,10 @@ vec3 nee_torch(
 
 bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
 {
+  float t_max = 10000.0; // current max distance to opaque
   bool do_trans = trans.x > 0;
   if(do_trans) trans = vec4(1.0);
-  rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, 10000.0);
+  rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max);
   while(rayQueryProceedEXT(rq))
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
@@ -421,10 +425,12 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
       int i = 7*pi;
       uint mat = 0;
       uint flags = 0;
+      uint alpha = 0;
       vec2 st;
       if(instance_id == 0)
       {
-        mat   = dynssbo.v[i+6]&0xffff;
+        mat   = dynssbo.v[i+6]&0xfff;
+        alpha = dynssbo.v[i+6]>>12;
         flags = dynssbo.v[i+6]>>28;
         vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
@@ -433,14 +439,15 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
       }
       else
       {
-        mat   = stcssbo.v[i+6]&0xffff;
+        mat   = stcssbo.v[i+6]&0xfff;
+        alpha = stcssbo.v[i+6]>>12;
         flags = stcssbo.v[i+6]>>28;
         vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
         vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
         st = mat3x2(st0, st1, st2) * b;
       }
-      if(mat == 0xffff) 
+      if(mat == 0xfff) 
       { // sky, nothing behind it, right?
         rayQueryConfirmIntersectionEXT(rq);
       }
@@ -452,9 +459,22 @@ bool cast_ray(rayQueryEXT rq, vec3 x, vec3 w, inout vec4 trans)
         ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
         tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
         vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-        if(do_trans && flags == 4) // only water is transparent, the others shall glow
-          trans *= vec4(diffcol.rgb*diffcol.rgb, 0.2);
-        else if(diffcol.a > 0.666) rayQueryConfirmIntersectionEXT(rq);
+        // XXX FIXME: has some heavy ordering issues (transparent first but behind opaque is hard to resolve)
+        if((do_trans && flags == 4))// || (alpha > 0)) // only water is transparent, the others shall glow
+        {
+          // float t = rayQueryGetIntersectionTEXT(rq, false);
+          // if(t < t_max)
+          {
+            float a = 0.2;
+            // if(alpha > 0) a = 0.5;//1.0-alpha/15.0;
+            trans *= vec4(diffcol.rgb*diffcol.rgb, a);
+          }
+        }
+        else if(diffcol.a > 0.666)
+        {
+          // t_max = rayQueryGetIntersectionTEXT(rq, false);
+          rayQueryConfirmIntersectionEXT(rq);
+        }
       }
     }
   }
@@ -585,17 +605,18 @@ main()
   }
 
   rayQueryEXT rq;
-  vec4 trans = vec4(0.0);
+  vec4 trans = vec4(0.0); // cannot do this for std quake maps if "r_vis 1"
   bool compute_indirect = true;
   if(cast_ray(rq, m0.x, w_cam, trans))
   { // ray intersected geometry, init material state and tangent frame
     intersection_t inter = prepare_intersection(rq);
     m1 = prepare_material_info(m0.x, w_cam, inter);
     // sky is "far" away
-    const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
+    const float t = m1.mat == 0xfff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
     const float T = exp(-t * 3.);
     // TODO: if underwater (params.water) attenuate a bit more
     rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+    // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
 
     if(any(greaterThan(m1.emission, vec3(0.0))))
     { // have >0 radiance sample on second vertex
@@ -660,7 +681,7 @@ main()
           intersection_t inter = prepare_intersection(rq);
           m1 = prepare_material_info(m0.x, w, inter);
           // sky is "far" away
-          const float t = m1.mat == 0xffff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
+          const float t = m1.mat == 0xfff ? 10000.0 : rayQueryGetIntersectionTEXT(rq, true);
           const float T = exp(-t * 3.);
           rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
           rgb = mix(trans.rgb, rgb, trans.w);
@@ -686,9 +707,11 @@ main()
               curr.f = f;
               curr.y = m1.x;      // create new lobe around good sample
               curr.n = m1.n;
-              // heuristic hand tuned version:
-              // curr.kappa = 180.0 + 90.0*t;
-              // if(m1.mat == 0xffff) curr.kappa = 50; // sky is smooth
+              if(tent.f == 0.0)
+              { // sampled diffuse to get here? insert distance based heuristic as starting point:
+                curr.kappa = 180.0 + 90.0*t;
+                if(m1.mat == 0xfff) curr.kappa = 50; // sky is smooth
+              }
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
               curr.kappa = min(10000, tent.kappa * 2.0);
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
