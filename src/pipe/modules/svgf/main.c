@@ -109,9 +109,9 @@ create_nodes(
     }},
   };
 
-  int id_eaw[4];
+  int id_eaw[SVGF_IT];
 
-  for(int i=0;i<4;i++)
+  for(int i=0;i<SVGF_IT;i++)
   {
     id_eaw[i] = graph->num_nodes++;
     graph->node[id_eaw[i]] = (dt_node_t) {
@@ -163,13 +163,13 @@ create_nodes(
   CONN(dt_node_connect(graph, id_preblend, 5, id_eaw[0], 0)); // less noisy light
   // dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
   dt_connector_copy(graph, module, 5, id_eaw[0], 1);  // gbuffer for normal, depth, L moments
-  for(int i=1;i<4;i++)
+  for(int i=1;i<SVGF_IT;i++)
   {
     CONN(dt_node_connect (graph, id_eaw[i-1], 2, id_eaw[i], 0));
     CONN(dt_node_connect (graph, id_eaw[i-1], 3, id_eaw[i], 1));
   }
-  CONN(dt_node_connect (graph, id_eaw[3], 2, id_blend, 2)); // denoised light
-  CONN(dt_node_feedback(graph, id_blend,  4, id_blend, 1)); // beauty frame, old
+  CONN(dt_node_connect (graph, id_eaw[SVGF_IT-1], 2, id_blend, 2)); // denoised light
+  CONN(dt_node_feedback(graph, id_blend, 4, id_blend, 1)); // beauty frame, old
 #if SVGF_OFF==1
   dt_connector_copy(graph, module, 1, id_blend, 2); // XXX DEBUG light w/o denoising
 #endif

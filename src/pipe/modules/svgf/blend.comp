@@ -29,7 +29,12 @@ ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+#if SVGF_IT > 3
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+#if SVGF_IT > 4
+  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+#endif
+#endif
   return tc;
 #else
   sz += ivec2(1);
