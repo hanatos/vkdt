@@ -1,2 +1,5 @@
 cam:grab
 spp:slider:1:64
+torch:hidden
+water:hidden
+skybox:hidden

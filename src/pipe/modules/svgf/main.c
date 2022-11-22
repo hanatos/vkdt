@@ -134,85 +134,10 @@ create_nodes(
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
     }},
-    // .push_constant_size = 9*sizeof(uint32_t),
-    // .push_constant = { },
   };
 
   int id_eaw[4];
 
-#if 0
-  id_eaw[0] = graph->num_nodes++;
-  graph->node[id_eaw[0]] = (dt_node_t) {
-    .name   = dt_token("svgf"),
-    .kernel = dt_token("eaw0"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 4,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    },{
-      .name   = dt_token("albedo"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("gbuf"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    }},
-  };
-  for(int i=1;i<4;i++)
-  {
-    id_eaw[i] = graph->num_nodes++;
-    graph->node[id_eaw[i]] = (dt_node_t) {
-      .name   = dt_token("svgf"),
-      .kernel = dt_token("atrous"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("*"),
-        .roi    = module->connector[0].roi,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = module->connector[0].roi,
-      }},
-    };
-  }
-  dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
-  dt_connector_copy(graph, module, 2, id_eaw[0], 2);  // albedo for edges
-  dt_connector_copy(graph, module, 5, id_eaw[0], 3);  // gbuffer for normal, depth, L moments
-  for(int i=1;i<4;i++)
-    CONN(dt_node_connect (graph, id_eaw[i-1], 1, id_eaw[i], 0));
-  CONN(dt_node_connect (graph, id_eaw[3], 1, id_blend, 3)); // denoised light
-#else
   for(int i=0;i<4;i++)
   {
     id_eaw[i] = graph->num_nodes++;
@@ -249,7 +174,6 @@ create_nodes(
       .push_constant = { 1<<i },
     };
   }
-#endif
 
   dt_connector_copy(graph, module, 0, id_preblend, 0);  // mv
   dt_connector_copy_feedback(graph, module, 1, id_preblend, 1);  // previous noisy light

@@ -13,7 +13,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float alpha;
   float taa;
   float lalpha;
-  float ltaa;
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;    // motion vectors
