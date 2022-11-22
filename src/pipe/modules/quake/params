@@ -3,3 +3,4 @@ spp:int:1:1
 torch:int:1:0
 water:int:1:0
 skybox:int:6:0
+exec:string:100:

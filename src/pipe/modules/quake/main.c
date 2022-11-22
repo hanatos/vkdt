@@ -773,9 +773,14 @@ void commit_params(
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo demos/e1m2", src_command); // qdq ~2000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo sparks", src_command); // e1m6 sparkly lights, 2000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo caustics", src_command); // ad_tears underwater caustics 1000 frames
-  // to test rocket illumination etc:
+  if(graph->frame == 0)
+  { // careful to only do this at == 0 so sv_player (among others) will not crash
+    const char *p_exec = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("exec")));
+    if(p_exec[0]) Cmd_ExecuteString(p_exec, src_command);
+  }
+
   if(graph->frame == 10)
-  {
+  { // to test rocket illumination etc:
     // TODO: execute config file name
     // Cmd_ExecuteString("developer 1", src_command);
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
@@ -785,6 +790,7 @@ void commit_params(
   }
 
 #if 1 // does not work with demo replay
+  // the sv_player edict points to rubbish if we issue a map change above.
   if(sv_player->v.weapon == 1) // shotgun has torch built in:
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
   else
