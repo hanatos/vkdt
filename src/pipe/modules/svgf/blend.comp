@@ -17,9 +17,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;     // motion vectors
-layout(set = 1, binding = 1) uniform sampler2D img_prevl;  // previous light
+layout(set = 1, binding = 1) uniform sampler2D img_prevl;  // previous light (denoised)
 layout(set = 1, binding = 2) uniform sampler2D img_prevb;  // previous beauty
-layout(set = 1, binding = 3) uniform sampler2D img_light;  // current light
+layout(set = 1, binding = 3) uniform sampler2D img_light;  // current light (denoised)
 layout(set = 1, binding = 4) uniform sampler2D img_albedo; // current albedo
 
 layout(set = 1, binding = 5) uniform writeonly image2D img_out;      // new beauty frame
@@ -30,7 +30,7 @@ layout(set = 1, binding = 8) uniform sampler2D img_gbufc; // current gbuffer
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
-#if SVGF_OFF==1
+#if 1 // SVGF_OFF==1
   return tc;
 #else
   sz += ivec2(1);
@@ -51,77 +51,51 @@ main()
   ivec2 sz = textureSize(img_light, 0).xy;
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
   vec3 L  = texelFetch(img_light, eaw3_tc(ipos,           sz), 0).rgb;
-  vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
+  // vec3 Lo = texelFetch(img_prevl, eaw3_tc(ivec2(ipos+mv), sz), 0).rgb;
   vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
 
   vec4 gbufc = texelFetch(img_gbufc, ipos, 0);
   vec4 gbufp = texelFetch(img_gbufp, ivec2(ipos+mv), 0);
 
-#if SVGF_OFF==0
-  L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
-#if 1 // taa box clamping old light vs. new light
-  {
-  // vec3 mL1  = vec3(0.0f);
-  // vec3 mL2  = vec3(0.0f);
-  vec3 maL1 = vec3(0.0f);
-  vec3 maL2 = vec3(0.0f);
-  const int r = 1;
-  for(int yy = -r; yy <= r; yy++) {
-    for(int xx = -r; xx <= r; xx++) {
-      vec3 a = texelFetch(img_albedo, ipos + ivec2(xx, yy), 0).rgb;
-      // vec3 L = texelFetch(img_light, eaw3_tc(ipos + ivec2(xx, yy), sz), 0).rgb;
-      maL1 += a*L;
-      maL2 += a*a*L*L;
-      // mL1 += L;
-      // mL2 += L*L;
-    }
-  }
-  maL1 /= (2.0 * r + 1) * (2.0 * r + 1);
-  maL2 /= (2.0 * r + 1) * (2.0 * r + 1);
-  // mL1  /= (2.0 * r + 1) * (2.0 * r + 1);
-  // mL2  /= (2.0 * r + 1) * (2.0 * r + 1);
+  // results in unnecessary lag:
+  // L = mix(L, Lo, params.lalpha); // exponential moving average with aligned old light
 
-  // vec3 sigma = sqrt(max(vec3(0), mL2 - mL1 * mL1));
-  // float thresh = params.ltaa;
-  // Lo = clamp(Lo, max(vec3(0), mL1 - thresh * sigma), mL1 + thresh * sigma);
-  vec3 sigma = sqrt(max(vec3(0), maL2 - maL1 * maL1));
-  float thresh = params.taa;
-  // FIXME: if we want to clamp this, we need to take rec2020 moments!
-  // XXX can transform the moments once at the end, because linear.
-  prevb = clamp(prevb, max(vec3(0), maL1 - thresh * sigma), maL1 + thresh * sigma);
+  mat3 M = mat3( // linear rec709 to linear rec2020
+      0.62750375, 0.06910828, 0.01639406,
+      0.32927542, 0.91951916, 0.08801125,
+      0.04330266, 0.0113596 , 0.89538035);
+
+  { // taa with box clamping
+  vec3 m1 = vec3(0.0f);
+  vec3 m2 = vec3(0.0f);
+  const int r = 1;
+  for(int yy=-r;yy<=r;yy++) for(int xx=-r;xx<=r;xx++)
+  {
+    vec3 a = texelFetch(img_albedo, ipos + ivec2(xx, yy), 0).rgb;
+    vec3 L = texelFetch(img_light, eaw3_tc(ipos + ivec2(xx, yy), sz), 0).rgb;
+    vec3 b = a*L;
+    m1 += b;
+    m2 += b*b;
   }
-#endif
-#endif
+  m1 /= (2.0 * r + 1) * (2.0 * r + 1);
+  m2 /= (2.0 * r + 1) * (2.0 * r + 1);
+
+  m1 = M * m1; // transform moments to rec2020
+  m2 = M * m2;
+  vec3 sigma = sqrt(max(vec3(0), m2 - m1 * m1));
+  float thresh = params.taa;
+  prevb = clamp(prevb, max(vec3(0), m1 - thresh * sigma), m1 + thresh * sigma);
+  }
 
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
   vec3 beauty = L * albedo;
 
-  // convert linear rec709 to linear rec2020
-  mat3 M = mat3(
-      0.62750375, 0.06910828, 0.01639406,
-      0.32927542, 0.91951916, 0.08801125,
-      0.04330266, 0.0113596 , 0.89538035);
   beauty = M * beauty;
 
   float alpha = params.alpha; // blend weight, larger means use more of the history.
-  // predict temporal variance from biased moments.
-  // could use a bias correction scheme as adam does if we knew the number of iterations.
-  float sigma = sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
-  // float sigmap = sqrt(max(0, gbufp.w - gbufp.z*gbufp.z));
-
-  // discontinuity detection
-  alpha *= smoothstep(sigma, 0.0, abs(gbufc.z - length(L)));
-
-  // gbuffer weight:
-  vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.x));
-  vec3 np = geo_decode_normal(floatBitsToUint(gbufp.x));
-  alpha *= smoothstep(0.8, 1.0, dot(nc, np));
-  alpha *= smoothstep(0.02*max(gbufc.y, gbufp.y), 0.0, abs(gbufc.y - gbufp.y));
-
   beauty = mix(beauty, prevb, alpha);
-  // beauty = vec3(gbufc.z, sigmac, sigmap); // visualise mean and variance
 
   imageStore(img_out, ipos, vec4(beauty, 1));
-  imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
+  // imageStore(img_lightout, eaw3_tc(ipos, sz), vec4(L, 1));
 }
 

@@ -87,6 +87,20 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+static inline void
+dt_connector_copy_feedback(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int mc,    // connector id on module to copy
+    int nid,   // node id
+    int nc)    // connector id on node to copy to
+{
+  dt_connector_copy(graph, module, mc, nid, nc);
+  graph->node[nid].connector[nc].flags |= s_conn_feedback;
+  graph->node[nid].connector[nc].frames = 2;
+  module->connector[mc].frames = 2;
+}
+
 // bypass a module: instead of linking the module connectors to their
 // counterparts on the node level, directly link to the node level of the next
 // module.
