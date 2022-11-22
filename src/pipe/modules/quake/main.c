@@ -329,8 +329,18 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   qs_data.tex_maxh = MAX(qs_data.tex_maxh, glt->height);
   qs_data.tex_req[glt->texnum] = 7; // free, new and upload
 
+  if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6) ||
+     !strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
+  { // classic quake sky
+    fprintf(stderr, "found back face thing %s %d\n", glt->name, glt->texnum);
+    if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6))
+      qs_data.skybox[1] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
+      qs_data.skybox[0] = glt->texnum;
+    qs_data.skybox[2] = -1u;
+  }
   if(!strncmp(glt->name, "gfx/env/", 8))
-  {
+  { // full featured cube map/arcane dimensions
     if(!strncmp(glt->name+strlen(glt->name)-3, "_rt", 3)) qs_data.skybox[0] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_bk", 3)) qs_data.skybox[1] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_lf", 3)) qs_data.skybox[2] = glt->texnum;

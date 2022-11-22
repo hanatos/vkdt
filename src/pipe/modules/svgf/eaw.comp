@@ -29,7 +29,7 @@ float edge(
     float dp,      // depth center
     float dq)      // depth other
 { // parameters from paper, default/paper version in comment:
-  const float sigma_z = 100;     // parameter for depth      = 1
+  const float sigma_z = 10;    // parameter for depth      = 1
   const float sigma_n = 128;   // parameter for normals    = 128
   const float sigma_l = 4000;  // parameter for brightness = 4
   float w_z = exp(-abs(dp-dq) / (sigma_z));// * (1e-6+abs(dot(grad_z, dx)))));
@@ -97,8 +97,9 @@ main()
 #if 0
   // TODO: use reiner's version
   // sort image to write positions so we can iterate the filter
-  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
-  ipos = ipos / 2 + off;
+  // ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
+  // ipos = ipos / 2 + off;
+  ipos = mix(ipos / 2, imageSize(img_out)-1-ipos/2, (ipos & 1) == 0);
 #endif
 
   imageStore(img_out, ipos, res);
