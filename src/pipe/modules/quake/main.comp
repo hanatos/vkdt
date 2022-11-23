@@ -67,8 +67,6 @@ layout(set = 2, binding = 2) buffer buf_idx_t
   uint i[];
 } buf_idx[];
 
-
-#define M_PI   3.14159265358979323846
 // importance sample the blackman harris pixel filter.
 // has 1.5px radius support
 vec2 filter_bh_sample(vec2 rand)
@@ -119,15 +117,6 @@ vec3 envmap(in vec3 w)
   }
 }
 
-#if 1 // TODO: put stuff like this in montecarlo.glsl or so
-
-// sample hemisphere, cos lobe, p = cos(theta)/pi
-vec3 sample_cos(vec2 x)
-{
-  float su = sqrt(x.x);
-  return vec3(su*cos(2.0*3.1415*x.y), su*sin(2.0*3.1415*x.y), sqrt(1.0 - x.x));
-}
-
 float mrand(inout uint seed)
 { // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
   seed ^= seed << 13;
@@ -141,8 +130,6 @@ vec4 xrand(inout uint seed, ivec2 p)
   // cp shift based on seed
   return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
 }
-
-#endif
 
 struct intersection_t
 { // almost minimal intersection descriptor
@@ -691,7 +678,6 @@ main()
     for(int s=0;s<spp;s++)
     {
       float pdf_w = 1.0;
-      float W = 0.0; // not resampled
       m0 = me;       // restore camera point, direction, contribution
       vec3 w = w_cam;
       vec3 rgb = rgb_cam;
@@ -712,20 +698,16 @@ main()
           w = w.x * du + w.y * dv + w.z * mu;
           pdf_w = vmm_eval(tent.kappa, dot(w, mu));
           if(dot(w, m0.n)  <= 0.0) use_vmf = false; // fall back to bsdf if under surface
-          W = 1.0;
-          rgb *= 1.0/M_PI; // bsdf without albedo
           par[s] = vec4(tent.y, tent.kappa);
         }
         if(!use_vmf)
         { // sample independent new ray direction
-          w = sample_cos(rand.xy);
-          w = w.x * m0.du + w.y * m0.dv + w.z * m0.n;
+          w = bsdf_sample(w_cam, m0.du, m0.dv, m0.n, rand.xy);
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = 1.0/M_PI; // uniform projected solid angle
-          W = 0.0; // no reweighted sample/bsdf sample
-          rgb *= 1.0/M_PI;  // bsdf without albedo
+          pdf_w = bsdf_pdf(w_cam, m0.n, w); // uniform projected solid angle
           par[s] = vec4(m0.n, 0.0);
         }
+        rgb *= bsdf_eval(w_cam, m0.n, w); // bsdf without albedo
 
         if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
 
@@ -760,7 +742,7 @@ main()
               curr.y = m1.x;      // create new lobe around good sample
               curr.n = m1.n;
               if(tent.f == 0.0)
-              { // sampled diffuse to get here? insert distance based heuristic as starting point:
+              { // sampled bsdf to get here? insert distance based heuristic as starting point:
                 curr.kappa = 180.0 + 90.0*m1.t;
                 if(m1.mat == 0xfff) curr.kappa = 50; // sky is smooth
               }
@@ -789,11 +771,11 @@ main()
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
-    float pdf = dot(normalize(lco[s] - me.x), par[0].xyz)/M_PI;
+    float pdf = bsdf_pdf(w_cam, me.n, normalize(lco[s]-me.x));
     for(int t=1;t<spp;t++)
     {
       if(par[t].w == 0.0)
-        pdf += dot(normalize(lco[s] - me.x), par[t].xyz) / M_PI;
+        pdf += bsdf_pdf(w_cam, me.n, normalize(lco[s]-me.x));
       else
         pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
     }

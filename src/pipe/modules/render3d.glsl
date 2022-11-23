@@ -1,5 +1,7 @@
 // shared functions for 3d rendering
 
+#define M_PI   3.14159265358979323846
+
 // 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
 // A Survey of Efficient Representations for Independent Unit Vectors,
 // almost like oct30
@@ -23,3 +25,38 @@ uint geo_encode_normal(vec3 n)
   return packSnorm2x16(enc);
 }
 
+// sample hemisphere, cos lobe, p = cos(theta)/pi
+vec3 sample_cos(vec2 x)
+{
+  float su = sqrt(x.x);
+  return vec3(su*cos(2.0*3.1415*x.y), su*sin(2.0*3.1415*x.y), sqrt(1.0 - x.x));
+}
+
+vec3 bsdf_diffuse_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 xi)
+{
+  return mat3(du, dv, n) * sample_cos(xi);
+}
+
+float bsdf_diffuse_pdf(vec3 wi, vec3 n, vec3 wo)
+{
+  return 1.0/M_PI;
+}
+
+// evaluate *without* albedo, that has to multiplied in the end
+float bsdf_diffuse_eval(vec3 wi, vec3 n, vec3 wo)
+{
+  return 1.0/M_PI;
+}
+
+vec3 bsdf_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 xi)
+{
+  return bsdf_diffuse_sample(wi, du, dv, n, xi);
+}
+float bsdf_pdf(vec3 wi, vec3 n, vec3 wo)
+{
+  return bsdf_diffuse_pdf(wi, n, wo);
+}
+float bsdf_eval(vec3 wi, vec3 n, vec3 wo)
+{
+  return bsdf_diffuse_eval(wi, n, wo);
+}
