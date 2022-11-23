@@ -69,8 +69,8 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
-    "+map", "e1m2",
     "+map", "ad_tears",
+    "+map", "e1m2",
     "+map", "ad_azad",
     "+map", "ad_sepulcher",
     "+map", "e1m6",
@@ -332,7 +332,6 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6) ||
      !strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
   { // classic quake sky
-    fprintf(stderr, "found back face thing %s %d\n", glt->name, glt->texnum);
     if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6))
       qs_data.skybox[1] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-5, "_back", 5))

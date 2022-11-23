@@ -68,7 +68,6 @@ float Lambda(float cosTheta, float sigmaSq) {
   return max(0.0, (exp(-v * v) - v * sqrt(M_PI) * erfc(v)) / (2.0 * v * sqrt(M_PI)));
   //return (exp(-v * v)) / (2.0 * v * sqrt(M_PI)); // approximate, faster formula
 }
-// FIXME: seem to have the normal distribution upside down somehow
 // L, V, N, Tx, Ty in world space
 float bsdf_rough_eval(
     vec3 V, vec3 Tx, vec3 Ty, vec3 N, vec3 L, vec2 sigmaSq)
@@ -84,7 +83,6 @@ float bsdf_rough_eval(
   if(zL < 0 || zV < 0 || zH < 0) return 0.0;
   float zH2 = zH * zH;
 
-  // sigmaSq.xy = vec2(0.01); // XXX
   float p = exp(-0.5 * (zetax * zetax / sigmaSq.x + zetay * zetay / sigmaSq.y))
     / (2.0 * M_PI * sqrt(sigmaSq.x * sigmaSq.y));
 

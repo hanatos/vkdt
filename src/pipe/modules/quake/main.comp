@@ -345,11 +345,13 @@ prepare_material_info(
 #if 1
   if(inter.water.t < inter.opaque.t)
   { // potentially closer water intersection
-    float t = water_intersect(x+inter.water.t*w, w, WATER_DEPTH);
-    if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.02)
+    uint seed = uint(1337000*(17*m.x.x+m.x.y));
+    float rand = mrand(seed);
+    float t = water_intersect(x+(inter.water.t+rand*0.01)*w, w, WATER_DEPTH);
+    if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.03)
     {
       m.bsdf = 1; // rough microfacet
-      m.bsdf_param = vec3(0.001);
+      m.bsdf_param = vec3(0.002);
       m.t = inter.water.t + t;
       m.x = x + m.t*w;
       vec4 wn = water_normal(m.x, WATER_DEPTH);
@@ -362,8 +364,8 @@ prepare_material_info(
       m.du = normalize(cross(up, m.n));
       m.dv = normalize(cross(m.du, m.n));
 
-      b.yz = unpackHalf2x16(inter.water.uv);
-      b.x = 1.0-b.z-b.y;
+      // b.yz = unpackHalf2x16(inter.water.uv);
+      // b.x = 1.0-b.z-b.y;
       i = 7*inter.water.primid;
       m.mat   =  stcssbo.v[i+6]&0xfff;
       m.alpha = (stcssbo.v[i+6]>>12)/15.0;
@@ -371,14 +373,14 @@ prepare_material_info(
       m.flags =  stcssbo.v[i+6]>>28;
       m.matgl =  stcssbo.v[i+0]&0xffff;
       m.matnd =  stcssbo.v[i+0]>>16;
-      st0 = unpackHalf2x16(stcssbo.v[i+3]);
-      st1 = unpackHalf2x16(stcssbo.v[i+4]);
-      st2 = unpackHalf2x16(stcssbo.v[i+5]);
-      m.st = mat3x2(st0, st1, st2) * b;
-      // all esoteric surfaces warp
-      m.st = vec2(
-          m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
-          m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
+      // st0 = unpackHalf2x16(stcssbo.v[i+3]);
+      // st1 = unpackHalf2x16(stcssbo.v[i+4]);
+      // st2 = unpackHalf2x16(stcssbo.v[i+5]);
+      // m.st = mat3x2(st0, st1, st2) * b;
+      m.st = m.x.xy*0.01;
+      // m.st = vec2(
+      //     m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
+      //     m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
       m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
@@ -674,6 +676,7 @@ main()
     }
     else alb = m1.albedo; // directly visible albedo
     // else alb = vec3(pow(abs(dot(m1.n,w_cam)), 10)); // debug normals
+    // else alb = mod(m1.x*0.05, vec3(1)); // debug world space position
 
     me = m1; // store g-buffer-like primary ray result
 

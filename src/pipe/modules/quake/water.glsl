@@ -32,8 +32,9 @@ float water_height(vec2 position, int iterations)
     speed *= 1.07;
   }
   return w / ws;
-  // compress a bit more towards 1.0
-  // return 1.2 * w / ws;
+  // bias a bit more towards 1.0
+  return w / ws + 0.5;
+  // XXX for ad_tears we need to make depth shallower too?
 }
 
 float // return distance to camera // TODO: do we need it?
@@ -48,12 +49,15 @@ water_intersect(
   if(reverse) dir = -dir;
   pos.z = depth;
   float t = 0.0;
+  const float sh = 0.001 + sqrt(1.0-dir.z*dir.z)*0.8;
   for(int i=0;i<318;i++)
   {
     float h = water_height(pos.xy, WATER_IT) * depth;
-    if(h + 0.01 > pos.z) return reverse ? -t : t;
-    pos += dir * (pos.z - h);
-    t += (pos.z - h);
+    if(h + 0.005 > pos.z) return reverse ? -t : t;
+    // float s = max(0.005, pos.z - h);
+    float s = clamp(sh*(pos.z - h), 0.001, 10);
+    pos += dir * s;
+    t += s;
   }
   return 10000.0;
 }
@@ -67,6 +71,6 @@ water_normal(
   float H = water_height(pos.xy, WATER_IN) * depth;
   vec3  a = vec3(pos.xy, H);
   return vec4(normalize(cross(
-        (a+vec3(posx, water_height(posx, WATER_IN) * depth)),
-        (a+vec3(posy, water_height(posy, WATER_IN) * depth)))), H);
+        (a-vec3(posx, water_height(posx, WATER_IN) * depth)),
+        (a-vec3(posy, water_height(posy, WATER_IN) * depth)))), H);
 }
