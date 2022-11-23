@@ -160,6 +160,8 @@ struct material_info_t
   uint flags;     // none, lava, slime, tele, water
   vec3 albedo;
   vec3 emission;
+  uint bsdf;      // bsdf model id
+  vec3 bsdf_param;// extra bsdf params, anisotropic roughness etc
 };
 
 intersection_t
@@ -337,12 +339,17 @@ prepare_material_info(
   }
   if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
 
+  m.bsdf = 1; // slight rough lobe too
+  m.bsdf_param = vec3(0.01);
+
 #if 1
   if(inter.water.t < inter.opaque.t)
   { // potentially closer water intersection
     float t = water_intersect(x+inter.water.t*w, w, WATER_DEPTH);
     if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.02)
     {
+      m.bsdf = 1; // rough microfacet
+      m.bsdf_param = vec3(0.001);
       m.t = inter.water.t + t;
       m.x = x + m.t*w;
       vec4 wn = water_normal(m.x, WATER_DEPTH);
@@ -404,7 +411,7 @@ vec3 nee_torch(
   rayQueryInitializeEXT(rq, rt_accel,
       gl_RayFlagsNoneEXT,
       // gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
-      0xFF, x, 1e-2, ws, ldist-1e-2);
+      0xFF, x, 2e-2, ws, ldist-2e-2);
   while(rayQueryProceedEXT(rq))
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
@@ -702,12 +709,13 @@ main()
         }
         if(!use_vmf)
         { // sample independent new ray direction
-          w = bsdf_sample(w_cam, m0.du, m0.dv, m0.n, rand.xy);
+          w = bsdf_sample(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, m0.bsdf_param, rand.xy);
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = bsdf_pdf(w_cam, m0.n, w); // uniform projected solid angle
+          pdf_w = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // uniform projected solid angle
           par[s] = vec4(m0.n, 0.0);
         }
-        rgb *= bsdf_eval(w_cam, m0.n, w); // bsdf without albedo
+        // rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
+        rgb *= bsdf_eval(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param); // bsdf without albedo
 
         if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
 
@@ -771,11 +779,11 @@ main()
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
-    float pdf = bsdf_pdf(w_cam, me.n, normalize(lco[s]-me.x));
+    float pdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
     for(int t=1;t<spp;t++)
     {
       if(par[t].w == 0.0)
-        pdf += bsdf_pdf(w_cam, me.n, normalize(lco[s]-me.x));
+        pdf += bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
       else
         pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
     }

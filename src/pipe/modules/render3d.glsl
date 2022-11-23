@@ -42,21 +42,81 @@ float bsdf_diffuse_pdf(vec3 wi, vec3 n, vec3 wo)
   return 1.0/M_PI;
 }
 
-// evaluate *without* albedo, that has to multiplied in the end
-float bsdf_diffuse_eval(vec3 wi, vec3 n, vec3 wo)
+float bsdf_diffuse_eval()
 {
   return 1.0/M_PI;
 }
 
-vec3 bsdf_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 xi)
+vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 xi)
+{
+  // TODO:
+  return vec3(0);
+}
+//==================================================
+// microfacet model by jonathan:
+float erfc(float x) {
+  return 2.0 * exp(-x * x) / (2.319 * x + sqrt(4.0 + 1.52 * x * x));
+}
+float erf(float x) {
+  float a  = 0.140012;
+  float x2 = x*x;
+  float ax2 = a*x2;
+  return sign(x) * sqrt( 1.0 - exp(-x2*(4.0/M_PI + ax2)/(1.0 + ax2)) );
+}
+float Lambda(float cosTheta, float sigmaSq) {
+  float v = cosTheta / sqrt((1.0 - cosTheta * cosTheta) * (2.0 * sigmaSq));
+  return max(0.0, (exp(-v * v) - v * sqrt(M_PI) * erfc(v)) / (2.0 * v * sqrt(M_PI)));
+  //return (exp(-v * v)) / (2.0 * v * sqrt(M_PI)); // approximate, faster formula
+}
+// FIXME: seem to have the normal distribution upside down somehow
+// L, V, N, Tx, Ty in world space
+float bsdf_rough_eval(
+    vec3 V, vec3 Tx, vec3 Ty, vec3 N, vec3 L, vec2 sigmaSq)
+{
+  V = -V; // all pointing away from surface intersection point
+  vec3 H = normalize(L + V);
+  float zetax = dot(H, Tx) / dot(H, N);
+  float zetay = dot(H, Ty) / dot(H, N);
+
+  float zL = dot(L, N); // cos of source zenith angle
+  float zV = dot(V, N); // cos of receiver zenith angle
+  float zH = dot(H, N); // cos of facet normal zenith angle
+  if(zL < 0 || zV < 0 || zH < 0) return 0.0;
+  float zH2 = zH * zH;
+
+  // sigmaSq.xy = vec2(0.01); // XXX
+  float p = exp(-0.5 * (zetax * zetax / sigmaSq.x + zetay * zetay / sigmaSq.y))
+    / (2.0 * M_PI * sqrt(sigmaSq.x * sigmaSq.y));
+
+  float tanV = atan(dot(V, Ty), dot(V, Tx));
+  float cosV2 = 1.0 / (1.0 + tanV * tanV);
+  float sigmaV2 = sigmaSq.x * cosV2 + sigmaSq.y * (1.0 - cosV2);
+
+  float tanL = atan(dot(L, Ty), dot(L, Tx));
+  float cosL2 = 1.0 / (1.0 + tanL * tanL);
+  float sigmaL2 = sigmaSq.x * cosL2 + sigmaSq.y * (1.0 - cosL2);
+
+  float fresnel = 0.02 + 0.98 * pow(1.0 - dot(V, H), 5.0);
+
+  zL = max(zL, 0.01);
+  zV = max(zV, 0.01);
+
+  return mix(1.0/M_PI, p / ((1.0 + Lambda(zL, sigmaL2) + Lambda(zV, sigmaV2)) * zV * zH2 * zH2 * 4.0), fresnel);
+}
+//==================================================
+
+
+// multiplexing:
+vec3 bsdf_sample(uint m, vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 param, vec2 xi)
 {
   return bsdf_diffuse_sample(wi, du, dv, n, xi);
 }
-float bsdf_pdf(vec3 wi, vec3 n, vec3 wo)
+float bsdf_pdf(uint m, vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 wo, vec3 param)
 {
   return bsdf_diffuse_pdf(wi, n, wo);
 }
-float bsdf_eval(vec3 wi, vec3 n, vec3 wo)
-{
-  return bsdf_diffuse_eval(wi, n, wo);
+float bsdf_eval(uint m, vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 wo, vec3 param)
+{ // evaluate *without* albedo, that has to multiplied in the end
+  if(m == 1) return bsdf_rough_eval(wi, du, dv, n, wo, param.xy);
+  return bsdf_diffuse_eval();
 }
