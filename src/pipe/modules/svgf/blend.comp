@@ -23,9 +23,9 @@ layout(set = 1, binding = 4) uniform writeonly image2D img_out; // new beauty fr
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
-#if 0 // SVGF_OFF==1
+#if SVGF_OFF==1
   return tc;
-#elif 1
+#else
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
@@ -35,13 +35,6 @@ ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
 #endif
 #endif
-  return tc;
-#else
-  sz += ivec2(1);
-  tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
-  tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
-  tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
-  tc = tc / 2 + ivec2(tc.x & 1, tc.y & 1) * sz/2;
   return tc;
 #endif
 }

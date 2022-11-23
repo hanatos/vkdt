@@ -12,7 +12,7 @@ float water_height(vec2 position, int iterations)
   position *= 0.005;
   float iter = 0.0;
   float phase = 6.0;
-  float speed = 0.01;
+  float speed = 0.1;
   float weight = 1.0;
   float w = 0.0;
   float ws = 0.0;
@@ -42,18 +42,20 @@ water_intersect(
     vec3 dir,    // ray direction
     float depth) // depth of wave layer
 {
-  float hupper = depth;
-  float hlower = 0.0;
-  pos.z = hupper;
+  // now it becomes interesting. when looking from below, the surface should be *closer* than
+  // the geometry entry point for symmetry. we accept that near borders this will not work correctly.
+  bool reverse = dir.z > 0;
+  if(reverse) dir = -dir;
+  pos.z = depth;
   float t = 0.0;
   for(int i=0;i<318;i++)
   {
     float h = water_height(pos.xy, WATER_IT) * depth;
-    if(h + 0.01 > pos.z) return t;
+    if(h + 0.01 > pos.z) return reverse ? -t : t;
     pos += dir * (pos.z - h);
     t += (pos.z - h);
   }
-  return -1.0;
+  return 10000.0;
 }
 
 vec4 // returns normal of wave pattern (more detailed than surface) and h in the w channel
@@ -63,8 +65,8 @@ water_normal(
     float depth) // depth of wave layer
 { 
   vec2 posx = vec2(pos.x+e, pos.y), posy = vec2(pos.x, pos.y+e);
-  float H  = water_height(pos.xy, WATER_IN) * depth;
-  vec3  a  = vec3(pos.xy, H);
+  float H = water_height(pos.xy, WATER_IN) * depth;
+  vec3  a = vec3(pos.xy, H);
   return vec4(normalize(cross(
         (a+vec3(posx, water_height(posx, WATER_IN) * depth)),
         (a+vec3(posy, water_height(posy, WATER_IN) * depth)))), H);
