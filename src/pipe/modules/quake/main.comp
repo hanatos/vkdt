@@ -257,7 +257,7 @@ prepare_material_info(
       buf_vtx[inter.opaque.instid].v[3*i2+1],
       buf_vtx[inter.opaque.instid].v[3*i2+2]);
   m.x = mat3(v0, v1, v2) * b;
-  m.t = m.mat == 0xfff ? 10000.0 : inter.opaque.t;
+  m.t = m.mat == 0xfff ? 9999.0 : inter.opaque.t;
   m.ng = normalize(cross(v2-v0,v1-v0));
   if(!brush_model) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
@@ -510,20 +510,12 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
 
       if(flags == 4)
-      {
-        // only remember closest water intersection, but don't confirm.
+      { // only remember closest water intersection, but don't confirm.
         // we need the opaque geo behind it in case the procedural water pattern
         // ends up not intersecting after all.
         if(rayQueryGetIntersectionTEXT(rq, false) < res.water.t)
           res.water = prepare_intersection(rq);
       }
-#if 0
-      if(do_trans && flags == 4) // only water is transparent, the others shall glow
-      { // FIXME: due to ordering of transparent/non-transparent, this is broken!
-        float a = 0.2;
-        trans *= vec4(diffcol.rgb*diffcol.rgb, a);
-      }
-#endif
       else if(diffcol.a > 0.666)
       {
         res.opaque = prepare_intersection(rq);
@@ -532,7 +524,35 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
     }
   }
   return res;
+  // always the case, quake maps are closed:
   // return (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT);
+}
+
+// propagate ray through (single bounce) specular chain
+material_info_t
+propagate_ray(
+    vec3 x,                // ray origin
+    vec3 w,                // ray direction
+    inout bool underwater, // start under water? (see params.water for camera rays)
+    float xi)              // [0,1) random number for R/T lobe selection
+{
+  rayQueryEXT rq;
+  const float t_max = 10000.0;
+  raycast_res_t res = cast_ray(rq, x, w, t_max);
+  material_info_t m = prepare_material_info(x, w, res);
+  if(m.flags != 4) return m; // no water no transmission, simple
+  
+  float fresnel = 0.02 + 0.98 * pow(1.0 - dot(-w, m.n), 5.0);
+  if(xi < fresnel) return m; // use R lobe (non-singular bsdf, whatever was set in m)
+  // randomly sample reflective/termination vs specular transmit
+  float eta = 1.33;
+  if(!underwater) eta = 1.0/eta;
+  vec3 wo = refract(-w, m.n, eta);
+  if(all(equal(wo, vec3(0.0)))) return m; // total internal reflection
+  underwater = !underwater;
+  res = cast_ray(rq, m.x-m.n*0.01, wo, t_max);
+  m = prepare_material_info(m.x, wo, res);
+  return m;
 }
 
 struct mc_state_t
@@ -548,7 +568,7 @@ mc_state_t mc_state_new()
   mc_state_t r;
   r.y = vec3(0);
   r.f = 0.0;
-  r.kappa = 300.0; // XXX
+  r.kappa = 1000.0; // XXX FIXME: this affects stuff! i thought it did not!
   return r;
 }
 
@@ -641,10 +661,14 @@ main()
   rayQueryEXT rq;
   vec4 trans = vec4(0.0); // cannot do this for std quake maps if "r_vis 1"
   bool compute_indirect = true;
-  raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
-  if(res.opaque.t < 10000.0)
+
+  bool cam_underwater = params.water > 0;
+  m1 = propagate_ray(m0.x, w_cam, cam_underwater, rand.w);
+  // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
+  // if(res.opaque.t < 10000.0)
+  if(m1.t < 10000.0)
   { // ray intersected geometry, init material state and tangent frame
-    m1 = prepare_material_info(m0.x, w_cam, res);
+    // m1 = prepare_material_info(m0.x, w_cam, res);
     // sky is "far" away
     const float T = exp(-m1.t * 3.);
     // TODO: if underwater (params.water) attenuate a bit more
@@ -706,11 +730,15 @@ main()
 
         if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
 
+        bool underwater = cam_underwater;
+        // XXX TODO: return the intermediate water vertex, if any. we need it to aim to for guiding!
+        m1 = propagate_ray(m0.x, w, underwater, rand.w);
         // trans = vec4(1.0);
-        res = cast_ray(rq, m0.x, w, 10000.0);
-        if(res.opaque.t < 10000.0)
+        // res = cast_ray(rq, m0.x, w, 10000.0);
+        // if(res.opaque.t < 10000.0)
+        if(m1.t < 10000.0)
         { // ray intersected geometry, init material state and tangent frame
-          m1 = prepare_material_info(m0.x, w, res);
+          // m1 = prepare_material_info(m0.x, w, res);
           const float T = exp(-m1.t * 3.);
           rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
           // rgb = mix(trans.rgb, rgb, trans.w);

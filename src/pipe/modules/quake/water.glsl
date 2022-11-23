@@ -33,8 +33,7 @@ float water_height(vec2 position, int iterations)
   }
   return w / ws;
   // bias a bit more towards 1.0
-  return w / ws + 0.5;
-  // XXX for ad_tears we need to make depth shallower too?
+  return 0.5*(1.0 + w / ws + 0.75);
 }
 
 float // return distance to camera // TODO: do we need it?

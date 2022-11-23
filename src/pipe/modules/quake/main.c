@@ -763,6 +763,8 @@ void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  // could print these interesting messages from the map:
+  // fprintf(stderr, con_lastcenterstring);
   qs_data_t *d = module->data;
   // float *f = (float *)module->committed_param;
   double newtime = Sys_DoubleTime();
