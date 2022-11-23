@@ -15,7 +15,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
 } global;
 
 #include "water.glsl"
-#define WATER_DEPTH 32.0
+#define WATER_DEPTH 16.0
 
 layout(std140, set = 0, binding = 1) uniform params_t
 { 
@@ -90,11 +90,14 @@ vec3 envmap(in vec3 w)
   else
   { // cubemap: gfx/env/*{rt,bk,lf,ft,up,dn}
     // vec3 sundir = normalize(vec3(1, 1, 1)); // this where the moon is in ad_azad
-    vec3 sundir = normalize(vec3(1, -1, 1)); // this comes in more nicely through the windows for debugging
-    const float k0 = 4.0, k1 = 30.0, k2 = 4.0;
-    vec3 emcol;
+    // vec3 sundir = normalize(vec3(1, -1, 1)); // this comes in more nicely through the windows for debugging
+    vec3 sundir = normalize(vec3(1, -1, 1)); // ad_tears
+    const float k0 = 4.0, k1 = 30.0, k2 = 4.0, k3 = 3000.0;
+    vec3 emcol = vec3(0.0);
     emcol  = vec3(0.50, 0.50, 0.50) * /*(k0+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k0);
     emcol += vec3(1.00, 0.70, 0.30) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k1);
+    // emcol += 1000*vec3(1.00, 1.00, 1.00) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k3);
+    emcol += 100.0*vec3(1.1, 1.0, 0.9)*vmf_eval(k3, dot(sundir, w));
     emcol += vec3(0.20, 0.08, 0.02) * /*(k2+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0-w.z), k2);
     // emcol *= 2.0;
     int m = 0;
@@ -113,7 +116,7 @@ vec3 envmap(in vec3 w)
           ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0).rgb;
     emcol += tex*tex; // mul "un-gamma"d sky texture
-    return 0.2*emcol;
+    return emcol;
   }
 }
 
@@ -307,6 +310,7 @@ prepare_material_info(
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
   else if(m.flags == 2) m.emission =  5.0*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
+  else if(m.mat == 0xfff) m.emission = m.emission;//(exp2(m.emission*10.0)-1.0);
   else m.emission = 10.0*(exp2(m.emission*10.0)-1.0);
 #if 1
   if(brush_model && m.matnd > 0)
@@ -561,26 +565,6 @@ float ph(mc_state_t r)
   return r.f;
 }
 
-float vmm_eval(float kappa, float dotmu)
-{
-  if(kappa < 1e-4) return 1.0/(4.0*M_PI);
-  return kappa/(2.0*M_PI*(1.0 - exp(-2.0*kappa))) * exp(kappa*(dotmu-1.0));
-}
-
-vec3 vmm_sample(float kappa, vec2 r)
-{ // see wenzel's doc on numerically stable expression for vmm:
-  float w = 1.0 + log(r.x + (1.0-r.x)*exp(-2.0*kappa))/kappa;
-  vec2 v = vec2(sin(2.0*M_PI*r.y), cos(2.0*M_PI*r.y));
-  return vec3(sqrt(1.0-w*w)*v, w);
-}
-
-float vmm_get_kappa(float x)
-{ // compute concentration parameter for given maximum density x
-  if(x > 0.795) return 2.0*M_PI*x;
-  return max(1e-5, (168.479*x*x + 16.4585*x - 2.39942)/
-      (-1.12718*x*x+29.1433*x+1.0));
-}
-
 // we need to add the reservoir r2 later with w = phq(r2.y)/phq'(r2.y) * r2.w_sum
 // which is equivalent to phq(r.y) * r.M * r.W (and we'll multiply phq on load)
 uvec4 mc_state_encode(mc_state_t r)
@@ -699,14 +683,14 @@ main()
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
-          w = vmm_sample(tent.kappa, rand.xy);
+          w = vmf_sample(tent.kappa, rand.xy);
           vec3 mu = normalize(tent.y-m0.x);
           vec3 up = vec3(1,0,0), du, dv;
           if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
           du = normalize(cross(up, mu));
           dv = normalize(cross(du, mu));
           w = w.x * du + w.y * dv + w.z * mu;
-          pdf_w = vmm_eval(tent.kappa, dot(w, mu));
+          pdf_w = vmf_eval(tent.kappa, dot(w, mu));
           if(dot(w, m0.n)  <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           par[s] = vec4(tent.y, tent.kappa);
         }
@@ -788,7 +772,7 @@ main()
       if(par[t].w == 0.0)
         pdf += bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
       else
-        pdf += vmm_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
+        pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
     }
     if(any(greaterThan(rad[s], vec3(0.0))))
       irr += rad[s] / pdf;
