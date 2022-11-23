@@ -354,11 +354,11 @@ prepare_material_info(
   if(inter.water.t < inter.opaque.t)
   { // potentially closer water intersection
     float t = water_intersect(x+inter.water.t*w, w, WATER_DEPTH);
-    if(inter.water.t + t < inter.opaque.t)
+    if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.02)
     {
-      m.x = x + (inter.water.t + t)*w;
       m.t = inter.water.t + t;
-      vec4 wn = water_normal(m.x, 1e-4, WATER_DEPTH);
+      m.x = x + m.t*w;
+      vec4 wn = water_normal(m.x, WATER_DEPTH);
       m.ng = wn.xyz;
       m.flags = 4;
       if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
@@ -367,20 +367,36 @@ prepare_material_info(
       if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
       m.du = normalize(cross(up, m.n));
       m.dv = normalize(cross(m.du, m.n));
-      // m.albedo = mix(vec3(0.1, 0.5, 0.8), vec3(0.8, 0.9, 0.9), pow(wn.w/depth, 2));
-      m.albedo = mix(m.albedo, vec3(0, 1, 1), smoothstep(0.5, 1.0, clamp(wn.w/WATER_DEPTH, 0, 1.0)));
+
+      b.yz = unpackHalf2x16(inter.water.uv);
+      b.x = 1.0-b.z-b.y;
+      i = 7*inter.water.primid;
+      m.mat   =  stcssbo.v[i+6]&0xfff;
+      m.alpha = (stcssbo.v[i+6]>>12)/15.0;
+      m.matfb = (stcssbo.v[i+6]>>16) & 0xfff;
+      m.flags =  stcssbo.v[i+6]>>28;
+      m.matgl =  stcssbo.v[i+0]&0xffff;
+      m.matnd =  stcssbo.v[i+0]>>16;
+      st0 = unpackHalf2x16(stcssbo.v[i+3]);
+      st1 = unpackHalf2x16(stcssbo.v[i+4]);
+      st2 = unpackHalf2x16(stcssbo.v[i+5]);
+      m.st = mat3x2(st0, st1, st2) * b;
+      // all esoteric surfaces warp
+      m.st = vec2(
+          m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
+          m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
+      m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
+      m.albedo *= m.albedo; // "un-gamma"
+      // m.albedo = mix(vec3(0.1, 0.5, 0.8), vec3(0.8, 0.9, 0.9), pow(wn.w/WATER_DEPTH, 2));
+      // m.albedo *= mix(vec3(1.0), vec3(1, 2, 2), smoothstep(0.0, 1.0, clamp(wn.w/WATER_DEPTH, 0, 1.0)));
+      m.emission = vec3(0.0);
     }
   }
 #endif
 
   return m;
-}
-
-vec3 colourtex(vec2 st)
-{
-  if((fract(st.x * 200) < 0.5) ^^ (fract(st.y * 200) < 0.5))
-    return vec3(0.3);
-  return vec3(0.4);
 }
 
 vec3 nee_torch(
@@ -431,19 +447,12 @@ vec3 nee_torch(
         vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
         st = mat3x2(st0, st1, st2) * b;
       }
-      if(mat == 0xfff) 
-      { // sky, nothing behind it, right?
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
+      vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+      // if(any(greaterThan(diffcol.rgb, vec3(0.0))) || diffcol.a > 0.666)
+      if(diffcol.a > 0.666)
         rayQueryConfirmIntersectionEXT(rq);
-      }
-      else
-      {
-        ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
-        tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
-        vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-        // if(any(greaterThan(diffcol.rgb, vec3(0.0))) || diffcol.a > 0.666)
-        if(diffcol.a > 0.666)
-          rayQueryConfirmIntersectionEXT(rq);
-      }
     }
   }
   if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) ao ++;
@@ -493,39 +502,32 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
         vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
         st = mat3x2(st0, st1, st2) * b;
       }
-      if(mat == 0xfff) 
-      { // sky, nothing behind it, right?
-        rayQueryConfirmIntersectionEXT(rq);
-      }
-      else
-      {
-        if(flags > 0) st = vec2(
-            st.x + 0.2*sin(st.y*2.0 + global.frame * 0.01),
-            st.y + 0.2*sin(st.x*2.0 + global.frame * 0.01));
-        ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
-        tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
-        vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+      if(flags > 0) st = vec2(
+          st.x + 0.2*sin(st.y*2.0 + global.frame * 0.01),
+          st.y + 0.2*sin(st.x*2.0 + global.frame * 0.01));
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
+      vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
 
-        if(flags == 4)
-        {
-          // only remember closest water intersection, but don't confirm.
-          // we need the opaque geo behind it in case the procedural water pattern
-          // ends up not intersecting after all.
-          if(rayQueryGetIntersectionTEXT(rq, false) < res.water.t)
-            res.water = prepare_intersection(rq);
-        }
+      if(flags == 4)
+      {
+        // only remember closest water intersection, but don't confirm.
+        // we need the opaque geo behind it in case the procedural water pattern
+        // ends up not intersecting after all.
+        if(rayQueryGetIntersectionTEXT(rq, false) < res.water.t)
+          res.water = prepare_intersection(rq);
+      }
 #if 0
-        if(do_trans && flags == 4) // only water is transparent, the others shall glow
-        { // FIXME: due to ordering of transparent/non-transparent, this is broken!
-          float a = 0.2;
-          trans *= vec4(diffcol.rgb*diffcol.rgb, a);
-        }
+      if(do_trans && flags == 4) // only water is transparent, the others shall glow
+      { // FIXME: due to ordering of transparent/non-transparent, this is broken!
+        float a = 0.2;
+        trans *= vec4(diffcol.rgb*diffcol.rgb, a);
+      }
 #endif
-        else if(diffcol.a > 0.666)
-        {
-          res.opaque = prepare_intersection(rq);
-          rayQueryConfirmIntersectionEXT(rq);
-        }
+      else if(diffcol.a > 0.666)
+      {
+        res.opaque = prepare_intersection(rq);
+        rayQueryConfirmIntersectionEXT(rq);
       }
     }
   }
@@ -676,8 +678,8 @@ main()
       alb = 10.0 * m1.emission; // looks shit either way :|
       compute_indirect = false;
     }
-    // else alb = m1.albedo; // directly visible albedo
-    else alb = vec3(pow(abs(dot(m1.n,w_cam)), 10));
+    else alb = m1.albedo; // directly visible albedo
+    // else alb = vec3(pow(abs(dot(m1.n,w_cam)), 10)); // debug normals
 
     me = m1; // store g-buffer-like primary ray result
 

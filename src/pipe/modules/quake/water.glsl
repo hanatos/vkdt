@@ -12,7 +12,7 @@ float water_height(vec2 position, int iterations)
   position *= 0.005;
   float iter = 0.0;
   float phase = 6.0;
-  float speed = 0.1;
+  float speed = 0.02;
   float weight = 1.0;
   float w = 0.0;
   float ws = 0.0;
@@ -38,13 +38,13 @@ float water_height(vec2 position, int iterations)
 
 float // return distance to camera // TODO: do we need it?
 water_intersect(
-    vec3 pos,    // entry point into geo
-    vec3 dir,    // ray direction
+    vec3  pos,   // entry point into geo
+    vec3  dir,   // ray direction
     float depth) // depth of wave layer
 {
   // now it becomes interesting. when looking from below, the surface should be *closer* than
   // the geometry entry point for symmetry. we accept that near borders this will not work correctly.
-  bool reverse = dir.z > 0;
+  bool reverse = dir.z > 0; // reverse means we're looking from below
   if(reverse) dir = -dir;
   pos.z = depth;
   float t = 0.0;
@@ -60,11 +60,10 @@ water_intersect(
 
 vec4 // returns normal of wave pattern (more detailed than surface) and h in the w channel
 water_normal(
-    vec3 pos,    // intersection position
-    float e,     // finite differencing with this epsilon
+    vec3  pos,   // intersection position
     float depth) // depth of wave layer
 { 
-  vec2 posx = vec2(pos.x+e, pos.y), posy = vec2(pos.x, pos.y+e);
+  vec2 posx = vec2(pos.x+1e-4, pos.y), posy = vec2(pos.x, pos.y+1e-4);
   float H = water_height(pos.xy, WATER_IN) * depth;
   vec3  a = vec3(pos.xy, H);
   return vec4(normalize(cross(
