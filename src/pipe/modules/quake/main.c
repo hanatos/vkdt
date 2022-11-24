@@ -562,8 +562,6 @@ again:;
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
             ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
-            if(wateroffset)
-              ext[14*pi+12] = 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;

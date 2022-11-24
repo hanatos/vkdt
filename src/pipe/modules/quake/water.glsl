@@ -41,22 +41,32 @@ float // return distance to camera // TODO: do we need it?
 water_intersect(
     vec3  pos,   // entry point into geo
     vec3  dir,   // ray direction
-    float depth) // depth of wave layer
+    float depth, // depth of wave layer
+    bool  top)   // entry point is the top surface of the two (at h = depth, not the bottom at h = 0)
 {
   // return 0.0;// XXX switch off
   // now it becomes interesting. when looking from below, the surface should be *closer* than
   // the geometry entry point for symmetry. we accept that near borders this will not work correctly.
   bool reverse = dir.z > 0; // reverse means we're looking from below
-  if(reverse) dir = -dir;
-  pos.z = depth;
+  pos.z = top ? depth : 0.0;
+  // if dir.z > 0 but intersected the top surface (in the side stripe going up)
+  // we need to walk backwards and return -t
+  // since height h < pos.z, the stepsize pos.z - h will be negative and facilitate that
+  // exit criterion:
+  // (-) if pos.z < h //  reverse &&  top // side stripe looking up
+  // (+) if pos.z < h // !reverse &&  top // easy normal case looking down into the water
+  // (+) if pos.z > h //  reverse && !top // normal case under water looking up
+  // (-) if pos.z > h // !reverse && !top // side stripe looking down
+  // sign of ray march should always be + if reverse ^^ top
+  float sgn = (reverse ^^ top) ? 1.0 : -1.0;
   float t = 0.0;
-  const float sh = 0.001 + sqrt(1.0-dir.z*dir.z)*0.8;
-  for(int i=0;i<318;i++)
+  const float sh = mix(0.5, 1.0, dir.z);
+  for(int i=0;i<300;i++)
   {
     float h = water_height(pos.xy, WATER_IT) * depth;
-    if(h + 0.005 > pos.z) return reverse ? -t : t;
-    // float s = max(0.005, pos.z - h);
-    float s = clamp(sh*(pos.z - h), 0.001, 10);
+    if(!top && h - 0.005 < pos.z) return t;
+    if( top && h + 0.005 > pos.z) return t;
+    float s = sgn*clamp(sh*abs(pos.z - h), 0.001, 10);
     pos += dir * s;
     t += s;
   }
