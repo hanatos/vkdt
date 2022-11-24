@@ -513,8 +513,10 @@ add_geo(
     AngleVectors (angles, fwd, rgt, top);
     for (int i=0; i<m->nummodelsurfaces; i++)
     {
+#if WATER_MODE==WATER_MODE_FULL
       int wateroffset = 0;
 again:;
+#endif
       msurface_t *surf = &m->surfaces[m->firstmodelsurface + i];
       if(!strcmp(surf->texinfo->texture->name, "skip")) continue;
       glpoly_t *p = surf->polys;
@@ -530,6 +532,7 @@ again:;
               p->verts[k][1] * rgt[l] +
               p->verts[k][2] * top[l]
               + ent->origin[l];
+#if WATER_MODE==WATER_MODE_FULL
         if(vtx && wateroffset) for(int k=0;k<p->numverts;k++)
         {
           for(int l=0;l<3;l++)
@@ -539,6 +542,7 @@ again:;
           }
           vtx[3*(nvtx+k)+2] -= WATER_DEPTH;
         }
+#endif
         if(idx) for(int k=2;k<p->numverts;k++)
         {
           idx[nidx+3*(k-2)+0] = *vtx_cnt + nvtx;
@@ -568,7 +572,9 @@ again:;
             if(surf->flags & SURF_DRAWSLIME) flags = 2;
             if(surf->flags & SURF_DRAWTELE)  flags = 3;
             if(surf->flags & SURF_DRAWWATER) flags = 4;
+#if WATER_MODE==WATER_MODE_FULL
             if(wateroffset)                  flags = 5; // this is our procedural water lower mark
+#endif
             // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
             ext[14*pi+13] |= flags << 12;
             if((surf->flags & SURF_DRAWTURB) && ent->alpha)
@@ -587,11 +593,13 @@ again:;
         }
         nvtx += p->numverts;
         nidx += 3*(p->numverts-2);
+#if WATER_MODE==WATER_MODE_FULL
         if(!wateroffset && (surf->flags & SURF_DRAWWATER))
         { // TODO: and normal points the right way?
           wateroffset = 1;
           goto again;
         }
+#endif
         // p = p->next;
         p = 0; // XXX
       }
