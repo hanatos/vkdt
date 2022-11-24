@@ -543,10 +543,15 @@ propagate_ray(
   m = prepare_material_info(x, w, res);
   if(m.flags != 4) return m; // no water no transmission, simple
   
-  float fresnel = 0.02 + 0.98 * pow(max(0.0, 1.0 - dot(-w, m.n)), 5.0);
-  if(xi < fresnel) return m; // use R lobe (non-singular bsdf, whatever was set in m)
   // randomly sample reflective/termination vs specular transmit
   float ior = 1.33;
+  // critical angle for out->inside is 90 degrees grazing
+  // critical angle for in->outside is where eta^2 * (1.0-dot(N,I)^2) >= 1
+  const float r = 0.02;
+  float fresnel;
+  if(underwater) fresnel = r + (1.0-r) * pow(clamp(ior*ior*(1.0 - dot(-w, m.n)*dot(-w, m.n)), 0.0, 1.0), 5.0);
+  else           fresnel = r + (1.0-r) * pow(clamp(1.0 - dot(-w, m.n), 0.0, 1.0), 5.0);
+  if(xi < fresnel) return m; // use R lobe (non-singular bsdf, whatever was set in m)
   vec3 wo;
   if(underwater) wo = refract(w, m.n, ior);
   else           wo = refract(w, m.n, 1.0/ior);
