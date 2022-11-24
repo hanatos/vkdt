@@ -1,0 +1,1 @@
+#define WATER_DEPTH 16.0

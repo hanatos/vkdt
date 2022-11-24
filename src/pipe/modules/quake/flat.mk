@@ -11,3 +11,4 @@ pipe/modules/quake/quakespasm/Quake/Makefile:
 	$(shell git clone https://github.com/hanatos/quakespasm --depth 1 --branch master --single-branch pipe/modules/quake/quakespasm)
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/water.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/render3d.glsl
+pipe/modules/quake/main.comp.spv:pipe/modules/quake/config.h

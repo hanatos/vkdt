@@ -4,6 +4,7 @@
 #include "../rt/quat.h"
 #undef CLAMP // ouch. careful! quake redefines this but with (m, x, M) param order!
 
+#include "config.h"
 #include "quakedef.h"
 #include "bgmusic.h"
 
@@ -512,6 +513,8 @@ add_geo(
     AngleVectors (angles, fwd, rgt, top);
     for (int i=0; i<m->nummodelsurfaces; i++)
     {
+      int wateroffset = 0;
+again:;
       msurface_t *surf = &m->surfaces[m->firstmodelsurface + i];
       if(!strcmp(surf->texinfo->texture->name, "skip")) continue;
       glpoly_t *p = surf->polys;
@@ -527,6 +530,15 @@ add_geo(
               p->verts[k][1] * rgt[l] +
               p->verts[k][2] * top[l]
               + ent->origin[l];
+        if(vtx && wateroffset) for(int k=0;k<p->numverts;k++)
+        {
+          for(int l=0;l<3;l++)
+          { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
+            vtx[3*(nvtx+k)+l] += fwd[l] * (p->verts[k][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vtx[3*(nvtx+k)+l] -= rgt[l] * (p->verts[k][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+          }
+          vtx[3*(nvtx+k)+2] -= WATER_DEPTH;
+        }
         if(idx) for(int k=2;k<p->numverts;k++)
         {
           idx[nidx+3*(k-2)+0] = *vtx_cnt + nvtx;
@@ -550,13 +562,16 @@ add_geo(
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
             ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
+            if(wateroffset)
+              ext[14*pi+12] = 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
             if(surf->flags & SURF_DRAWSLIME) flags = 2;
             if(surf->flags & SURF_DRAWTELE)  flags = 3;
             if(surf->flags & SURF_DRAWWATER) flags = 4;
-            // if(surf->flags & SURF_DRAWSKY)   flags = 5; // could do this too
+            if(wateroffset)                  flags = 5; // this is our procedural water lower mark
+            // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
             ext[14*pi+13] |= flags << 12;
             if((surf->flags & SURF_DRAWTURB) && ent->alpha)
             { // alpha in 4 bits
@@ -574,6 +589,11 @@ add_geo(
         }
         nvtx += p->numverts;
         nidx += 3*(p->numverts-2);
+        if(!wateroffset && (surf->flags & SURF_DRAWWATER))
+        { // TODO: and normal points the right way?
+          wateroffset = 1;
+          goto again;
+        }
         // p = p->next;
         p = 0; // XXX
       }
