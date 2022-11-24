@@ -29,9 +29,9 @@ float edge(
     float dp,      // depth center
     float dq)      // depth other
 { // parameters from paper, default/paper version in comment:
-  const float sigma_z = 10;    // parameter for depth      = 1
-  const float sigma_n = 128;   // parameter for normals    = 128
-  const float sigma_l = 4000;  // parameter for brightness = 4
+  const float sigma_z = 10;    // parameter for depth      = 1   larger blurs more
+  const float sigma_n = 64;    // parameter for normals    = 128 larger blurs more
+  const float sigma_l = 400;   // parameter for brightness = 4   larger blurs more
   float w_z = exp(-abs(dp-dq) / (sigma_z));// * (1e-6+abs(dot(grad_z, dx)))));
   float w_n = pow(max(0.0, dot(np, nq)), sigma_n);
   float w_l = exp(-dot(Lp-Lq, Lp-Lq) / (sigma_l * sigma + 1e-6));

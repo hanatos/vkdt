@@ -808,13 +808,24 @@ main()
 
       if(global.frame > 10)
       {
-        // for(int i=0;i<10;i++) // helps explore difficult cases but is expensive
+        for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
         {
           rand = xrand(seed, rp);
-          ivec2 off = ivec2(30 * (2.0*rand.xy-1.0));
-          mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-          if(tent.f == 0 || rand.z < t2.f / tent.f)
-            tent = t2;
+          ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
+                      ivec2(15 * (2.0*rand.zw-1.0));
+#if 0 // gbuffer based culling experiments:
+          vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv+off), 0);
+          vec3 n = geo_decode_normal(floatBitsToUint(gbuf.x));
+          float dp = gbuf.y, dq = length(me.x - params.cam_x.xyz);
+          float w_n = pow(max(0.0, dot(n, me.n)), 128.0);
+          float w_z = 1.0;//exp(-abs(dp-dq) / 10.0);
+          if(w_n * w_z > 0.2)
+#endif
+          {
+            mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+            if(tent.f == 0 || rand.z < t2.f / tent.f)
+              tent = t2;
+          }
         }
       }
     } // end spp for indirect rays
