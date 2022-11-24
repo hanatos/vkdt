@@ -531,28 +531,29 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
 // propagate ray through (single bounce) specular chain
 material_info_t
 propagate_ray(
-    vec3 x,                // ray origin
-    vec3 w,                // ray direction
-    inout bool underwater, // start under water? (see params.water for camera rays)
-    float xi)              // [0,1) random number for R/T lobe selection
+    vec3 x,                   // ray origin
+    vec3 w,                   // ray direction
+    inout bool underwater,    // start under water? (see params.water for camera rays)
+    inout material_info_t m,  // intermediate vertex (if any, or else same as returned)
+    float xi)                 // [0,1) random number for R/T lobe selection
 {
   rayQueryEXT rq;
   const float t_max = 10000.0;
   raycast_res_t res = cast_ray(rq, x, w, t_max);
-  material_info_t m = prepare_material_info(x, w, res);
+  m = prepare_material_info(x, w, res);
   if(m.flags != 4) return m; // no water no transmission, simple
   
-  float fresnel = 0.02 + 0.98 * pow(1.0 - dot(-w, m.n), 5.0);
+  float fresnel = 0.02 + 0.98 * pow(max(0.0, 1.0 - dot(-w, m.n)), 5.0);
   if(xi < fresnel) return m; // use R lobe (non-singular bsdf, whatever was set in m)
   // randomly sample reflective/termination vs specular transmit
-  float eta = 1.33;
-  if(!underwater) eta = 1.0/eta;
-  vec3 wo = refract(-w, m.n, eta);
+  float ior = 1.33;
+  vec3 wo;
+  if(underwater) wo = refract(w, m.n, ior);
+  else           wo = refract(w, m.n, 1.0/ior);
   if(all(equal(wo, vec3(0.0)))) return m; // total internal reflection
   underwater = !underwater;
   res = cast_ray(rq, m.x-m.n*0.01, wo, t_max);
-  m = prepare_material_info(m.x, wo, res);
-  return m;
+  return prepare_material_info(m.x, wo, res);
 }
 
 struct mc_state_t
@@ -627,12 +628,14 @@ main()
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
 
+  vec2 v1_nd; // vertex 1 after camera, depth and normal for gbuffer
+
   mc_state_t curr = mc_state_new(); // zero current state
   mc_state_t tent = mc_state_new(); // tentative new state
 
   vec3 lpos = vec3(0.0); // torch light pos, depending on camera
   intersection_t inter;
-  material_info_t m0, m1, me;
+  material_info_t m0, m1, me, mg;
   vec4 rand = xrand(seed, rp);
   seed = uint(70000 * rand.x);
   float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
@@ -663,7 +666,9 @@ main()
   bool compute_indirect = true;
 
   bool cam_underwater = params.water > 0;
-  m1 = propagate_ray(m0.x, w_cam, cam_underwater, rand.w);
+  m1 = propagate_ray(m0.x, w_cam, cam_underwater, mg, rand.w);
+  v1_nd.x = uintBitsToFloat(geo_encode_normal(mg.n)); // normal
+  v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
   // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
   // if(res.opaque.t < 10000.0)
   if(m1.t < 10000.0)
@@ -731,8 +736,7 @@ main()
         if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
 
         bool underwater = cam_underwater;
-        // XXX TODO: return the intermediate water vertex, if any. we need it to aim to for guiding!
-        m1 = propagate_ray(m0.x, w, underwater, rand.w);
+        m1 = propagate_ray(m0.x, w, underwater, mg, rand.w);
         // trans = vec4(1.0);
         // res = cast_ray(rq, m0.x, w, 10000.0);
         // if(res.opaque.t < 10000.0)
@@ -744,6 +748,7 @@ main()
           // rgb = mix(trans.rgb, rgb, trans.w);
 
           // vertex area measure pdf of x (new vertex)
+          // XXX could use the generalised geometry term in case mg != m1:
           const float G = G_term(m0.x, m0.n, m1.x, m1.n);
           const float pdf = pdf_w * G;
 
@@ -757,16 +762,16 @@ main()
             float f = length(m1.emission)/pdf_w;
             float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
-            lco[s] = m1.x;
+            lco[s] = mg.x; // aim at position on watersurface, if any
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
               curr = tent;
               curr.f = f;
-              curr.y = m1.x;      // create new lobe around good sample
-              curr.n = m1.n;
+              curr.y = mg.x;      // create new lobe around good sample
+              curr.n = mg.n;
               if(tent.f == 0.0)
               { // sampled bsdf to get here? insert distance based heuristic as starting point:
-                curr.kappa = 180.0 + 90.0*m1.t;
+                curr.kappa = 180.0 + 90.0*m1.t; // XXX total distance?
                 if(m1.mat == 0xfff) curr.kappa = 50; // sky is smooth
               }
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
@@ -782,11 +787,14 @@ main()
 
       if(global.frame > 10)
       {
-        rand = xrand(seed, rp);
-        ivec2 off = ivec2(30 * (2.0*rand.xy-1.0));
-        mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-        if(tent.f == 0 || rand.z < t2.f / tent.f)
-          tent = t2;
+        for(int i=0;i<10;i++)
+        {
+          rand = xrand(seed, rp);
+          ivec2 off = ivec2(30 * (2.0*rand.xy-1.0));
+          mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+          if(tent.f == 0 || rand.z < t2.f / tent.f)
+            tent = t2;
+        }
       }
     } // end spp for indirect rays
   } // end if intersect primary ray
