@@ -70,8 +70,8 @@ int init(dt_module_t *mod)
     "+skill", "2",
     "-game", "ad",
     "+map", "ad_tears",
-    "+map", "e1m2",
     "+map", "ad_azad",
+    "+map", "e1m2",
     "+map", "ad_sepulcher",
     "+map", "e1m6",
     "+map", "start",
@@ -513,8 +513,7 @@ add_geo(
     for (int i=0; i<m->nummodelsurfaces; i++)
     {
       msurface_t *surf = &m->surfaces[m->firstmodelsurface + i];
-      // TODO: 
-      // if(!strcmp(surf->texinfo->texture->filename, "skip")) skip this surface
+      if(!strcmp(surf->texinfo->texture->name, "skip")) continue;
       glpoly_t *p = surf->polys;
       while(p)
       {

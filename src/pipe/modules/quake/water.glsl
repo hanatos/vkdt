@@ -9,7 +9,7 @@
 // return heightfield of waves
 float water_height(vec2 position, int iterations)
 {
-  return 1.0;// XXX
+  // return 1.0;// XXX switch off
   position *= 0.005;
   float iter = 0.0;
   float phase = 6.0;
@@ -43,13 +43,11 @@ water_intersect(
     vec3  dir,   // ray direction
     float depth) // depth of wave layer
 {
+  // return 0.0;// XXX switch off
   // now it becomes interesting. when looking from below, the surface should be *closer* than
   // the geometry entry point for symmetry. we accept that near borders this will not work correctly.
   bool reverse = dir.z > 0; // reverse means we're looking from below
   if(reverse) dir = -dir;
-  // XXX
-  return 0.0;
-  // XXX
   pos.z = depth;
   float t = 0.0;
   const float sh = 0.001 + sqrt(1.0-dir.z*dir.z)*0.8;
