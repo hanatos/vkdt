@@ -12,3 +12,4 @@ pipe/modules/quake/quakespasm/Quake/Makefile:
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/water.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/render3d.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/config.h
+pipe/modules/quake/libquake.so:pipe/modules/quake/config.h

@@ -822,7 +822,8 @@ void commit_params(
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
     Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
     Cmd_ExecuteString("god", src_command);
-    Cmd_ExecuteString("notarget", src_command);
+    // Cmd_ExecuteString("notarget", src_command);
+    // Cmd_ExecuteString("r_vis 0", src_command);
   }
 
 #if 1 // does not work with demo replay
