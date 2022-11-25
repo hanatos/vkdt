@@ -4,7 +4,7 @@
 
 #include "shared.glsl"
 #include "config.h"
-#include "render3d.glsl"
+#include "shared/render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
