@@ -21,6 +21,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 { 
   vec4 cam_x;
   vec4 cam_w;
+  vec4 cam_u;
   int spp;
   int torch;
   int water;
@@ -665,11 +666,10 @@ main()
   { // camera setup:
     m0.x = params.cam_x.xyz;
     vec3 f = params.cam_w.xyz;
-    vec3 up = vec3(0, 0, 1);
-    vec3 r = normalize(cross(f, up));
-    vec3 t = normalize(cross(f, r)) * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
+    vec3 t = -params.cam_u.xyz * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
+    vec3 r = -normalize(cross(f, t));
 
-    lpos = m0.x + 1*f + 10*up + 20*r;
+    lpos = m0.x + 1*f + 10*t + 20*r;
 
     vec2 off = filter_bh_sample(rand.yz);
     vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;

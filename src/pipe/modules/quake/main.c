@@ -859,6 +859,7 @@ void commit_params(
   AngleVectors (r_refdef.viewangles, fwd, rgt, top);
   for(int k=0;k<3;k++) p_cam[k]   = r_refdef.vieworg[k];
   for(int k=0;k<3;k++) p_cam[4+k] = fwd[k];
+  for(int k=0;k<3;k++) p_cam[8+k] = top[k];
 #endif
 }
 

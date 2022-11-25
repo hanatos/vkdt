@@ -4,7 +4,7 @@
 
 #define WATER_DRAG_MULT 0.048
 #define WATER_IT 13
-#define WATER_IN 48
+#define WATER_IN 15 //48
 
 // return heightfield of waves
 float water_height(vec2 position, int iterations)
