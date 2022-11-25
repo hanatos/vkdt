@@ -26,6 +26,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int torch;
   int water;
   uint sky_rt, sky_bk, sky_lf, sky_ft, sky_up, sky_dn;
+  float cl_time; // quake time
 } params;
 
 // layout(push_constant, std140) uniform push_t
@@ -354,14 +355,14 @@ prepare_material_info(
     float rand = mrand(seed);
     i = 7*inter.water.primid;
     uint flags = stcssbo.v[i+6]>>28;
-    float t = water_intersect(x+(inter.water.t+rand*0.01)*w, w, WATER_DEPTH, flags == 4);
+    float t = water_intersect(params.cl_time, x+(inter.water.t+rand*0.01)*w, w, WATER_DEPTH, flags == 4);
     if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.03)
     {
       m.bsdf = 1; // rough microfacet
       m.bsdf_param = vec3(0.002);
       m.t = inter.water.t + t;
       m.x = x + m.t*w;
-      vec4 wn = water_normal(m.x, WATER_DEPTH);
+      vec4 wn = water_normal(params.cl_time, m.x, WATER_DEPTH);
       m.ng = wn.xyz;
       // m.flags = 4;
       if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
@@ -729,7 +730,7 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-        bool use_vmf = s > 0;
+        bool use_vmf = false;// XXX s > 0;
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {

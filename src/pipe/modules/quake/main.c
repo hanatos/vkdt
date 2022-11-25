@@ -94,6 +94,7 @@ int init(dt_module_t *mod)
   d->parms.argv = argv;
   d->parms.errstate = 0;
 
+  srand(1337); // quake uses this
   COM_InitArgv(d->parms.argc, d->parms.argv);
 
   Sys_Init();
@@ -791,18 +792,19 @@ void commit_params(
   // could print these interesting messages from the map:
   // fprintf(stderr, con_lastcenterstring);
   qs_data_t *d = module->data;
+  int sv_player_set = 0;
   // float *f = (float *)module->committed_param;
-  double newtime = Sys_DoubleTime();
-  double time = newtime - d->oldtime;
-  Host_Frame(time);
-  d->oldtime = newtime;
+  const int p_pause = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("pause")))[0];
+  if(!p_pause || graph->frame < p_pause)
+  {
+    double newtime = Sys_DoubleTime();
+    double time = ((d->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - d->oldtime;
+    Host_Frame(time);
+    d->oldtime = newtime;
+    sv_player_set = 1;
+  }
 
   // in quake, run `record <demo name>` until `stop`
-  // XXX for performance/testing, enable this playdemo and do
-  // ./vkdt-cli -g examples/quake.cfg --format o-ffmpeg --filename qu.vid --audio qu.aud --output main --format o-ffmpeg --filename mv.vid --output hist --config frames:3000 fps:24
-  // ffmpeg -i qu.vid_0002.h264 -f s16le -sample_rate 44100 -channels 2  -i qu.aud -c:v copy quake.mp4
-  // (add -r 60 to resample for different frame rate)
-  // (replace '-c:v copy' by '-vcodec libx264 -crf 27 -preset veryfast' for compression)
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
@@ -812,7 +814,11 @@ void commit_params(
   if(graph->frame == 0)
   { // careful to only do this at == 0 so sv_player (among others) will not crash
     const char *p_exec = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("exec")));
-    if(p_exec[0]) Cmd_ExecuteString(p_exec, src_command);
+    if(p_exec[0])
+    {
+      Cmd_ExecuteString(p_exec, src_command);
+      sv_player_set = 0; // just in case we loaded a map (demo, savegame)
+    }
   }
 
   if(graph->frame == 10)
@@ -824,10 +830,19 @@ void commit_params(
     Cmd_ExecuteString("god", src_command);
     // Cmd_ExecuteString("notarget", src_command);
     // Cmd_ExecuteString("r_vis 0", src_command);
+    // sv_player_set = 0; // if you're doing messy things above
   }
 
-#if 1 // does not work with demo replay
-  // the sv_player edict points to rubbish if we issue a map change above.
+  // set sv_player. this has to be done if we're not calling Host_Frame after a map reload
+  client_t *host_client = svs.clients;
+  for (int i=0;i<svs.maxclients && !sv_player_set; i++, host_client++)
+  {
+    if (!host_client->active) continue;
+    sv_player = host_client->edict;
+    sv_player_set = 1;
+  }
+  if(!sv_player_set) return;
+
   if(sv_player->v.weapon == 1) // shotgun has torch built in:
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
   else
@@ -836,11 +851,11 @@ void commit_params(
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
   else
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
-#endif
 
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
   for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];
 
+  ((float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cltime"))))[0] = cl.time;
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
 #if 0 // our camera
   // put back to params:
@@ -1166,10 +1181,11 @@ int audio(
   if(dat->worldspawn)
   {
     mod->flags = s_module_request_all;
-    dat->worldspawn = 0;
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
+    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
+    dat->worldspawn = 0;
   }
   int buffersize = shm->samples * (shm->samplebits / 8);
   int pos = (shm->samplepos * (shm->samplebits / 8));
