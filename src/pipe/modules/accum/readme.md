@@ -1,19 +1,21 @@
 # accumulate images
 
-this module implements frame blending. the `output` will be (1-`opacity`) x
-`input` + `opacity` x `back`.
-you can use this together with feedback connectors to implement
-exponentially weighted averages or framebuffers for monte carlo integration
-with a known sample count.
+this module implements frame accumulation. the output will be
+```
+out = input/(N+1.0) + N/(N+1.0) * back
+```
+where `N` is 0 if frame is the start parameter.
+you can use this together with a feedback connector from `output` to `back` to
+implement a framebuffer for Monte Carlo integration.
 
 ## connectors
 
 * `input` one input buffer
-* `back` the other input buffer
-* `output` the blended output
+* `back` the back buffer
+* `output` the accumulated output
 
 ## parameters
 
-* `opacity` the blend weight between the two input buffers
+* `start` the first frame to start accumulating
 
 

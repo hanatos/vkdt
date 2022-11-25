@@ -13,7 +13,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float opacity;
+  uint start;
 } params;
 
 layout( // input buffer rgb
@@ -36,7 +36,11 @@ main()
 
   vec3 rgb = texelFetch(img_in,   ipos, 0).rgb;
   vec3 bck = texelFetch(img_back, ipos, 0).rgb;
-  if(global.frame > 0) rgb = mix(rgb, bck, params.opacity);
+  if(global.frame >= params.start)
+  {
+    float N = global.frame - params.start;
+    rgb = rgb/(N+1.0) + N/(N+1.0) * bck;
+  }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
