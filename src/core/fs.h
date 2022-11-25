@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
@@ -43,6 +44,29 @@ fs_mkdir(
     mode_t      mode)
 {
   return mkdir(pathname, mode);
+}
+
+static inline int // return zero if argument contains no '/', else alter str
+fs_dirname(char *str)
+{ // don't use: dirname(3) since it may or may not alter the argument, implementation dependent.
+  char *c = 0;
+  for(int i=0;str[i]!=0;i++) if(str[i] == '/') c = str+i;
+  if(c)
+  {
+    *c = 0;  // get dirname, i.e. strip off file name
+    return 1;
+  }
+  return 0;
+}
+
+// pretty much the POSIX version. never modifies str but returns no const
+// to not force a const cast onto you.
+static inline char* // returns pointer to empty string (end of str) if str ends in '/'
+fs_basename(char *str)
+{ // don't use basename(3) because there are at least two versions of it which sometimes modify str
+  char *c = str; // return str if it contains no '/'
+  for(int i=0;str[i]!=0;i++) if(str[i] == '/') c = str+i;
+  return c+1;
 }
 
 static inline void  // returns the directory where the actual binary (not the symlink) resides

@@ -44,6 +44,8 @@ int main(int argc, char *argv[])
       {i++; param.output[output_cnt].mod = dt_token(argv[i]);}
     else if(!strcmp(argv[i], "--audio") && i < argc-1)
       param.output[output_cnt].p_audio = argv[++i];
+    else if(!strcmp(argv[i], "--last-frame-only"))
+      param.last_frame_only = 1;
     else if(!strcmp(argv[i], "--dump-modules"))
       param.dump_modules = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
@@ -63,6 +65,7 @@ int main(int argc, char *argv[])
   {
     fprintf(stderr, "usage: vkdt-cli -g <graph.cfg>\n"
     "    [-d verbosity]                set log verbosity (none,qvk,pipe,gui,db,cli,snd,perf,mem,err,all)\n"
+    "    [--last-frame-only]           only write the last frame, not the intermediates\n"
     "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
     "    [--quality <0-100>]           jpg output quality\n"
     "    [--width <x>]                 max output width\n"

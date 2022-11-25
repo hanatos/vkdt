@@ -419,9 +419,7 @@ void render_lighttable_right_panel()
         char *resolved = realpath(filename, 0);
         if(resolved)
         {
-          char *c = 0;
-          for(int i=0;resolved[i];i++) if(resolved[i] == '/') c = resolved+i;
-          if(c) *c = 0; // get dirname, i.e. strip off image file name
+          fs_dirname(resolved);
           dt_gui_switch_collection(resolved);
           free(resolved);
         }
@@ -531,7 +529,7 @@ void render_lighttable_right_panel()
           "module:display:hist\n"
           "module:display:main\n");
       realpath(filename, realname);
-      char *base = basename(realname);
+      char *base = fs_basename(realname);
       base[strlen(base)-4] = 0;
       fprintf(f, "param:i-raw:main:filename:%s\n", base);
       int ii = 1;
@@ -540,7 +538,7 @@ void render_lighttable_right_panel()
         if(sel[i] == main_imgid) continue;
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
         realpath(filename, realname);
-        char *base = basename(realname);
+        char *base = fs_basename(realname);
         base[strlen(base)-4] = 0;
         fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, base);
         fprintf(f,

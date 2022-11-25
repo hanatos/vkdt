@@ -1,4 +1,5 @@
 #include "core/log.h"
+#include "core/fs.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
@@ -109,7 +110,7 @@ dt_graph_export(
       int len = strlen(imgfilename);
       assert(len > 4);
       imgfilename[len-4] = 0; // cut away ".cfg"
-      char *basen = basename(imgfilename); // cut away path o we can relocate more easily
+      char *basen = fs_basename(imgfilename); // cut away path so we can relocate more easily
       int modid = dt_module_get(graph, input_module, dt_token("main"));
       if(modid < 0 ||
           dt_module_set_param_string(graph->module + modid, dt_token("filename"), basen))
@@ -250,7 +251,8 @@ dt_graph_export(
       dt_graph_apply_keyframes(graph);
       res = dt_graph_run(graph,
           s_graph_run_record_cmd_buf | 
-          s_graph_run_download_sink  |
+          ((!param->last_frame_only || (f == graph->frame_cnt-1)) ?
+          s_graph_run_download_sink : 0) |
           s_graph_run_wait_done);
       if(res != VK_SUCCESS) goto done;
       if(audio_f)

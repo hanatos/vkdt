@@ -48,6 +48,7 @@ typedef struct dt_graph_export_t
   dt_graph_export_output_t output[20];
 
   int          dump_modules;   // debug output: write module graph in dot format
+  int          last_frame_only;// only write the very last frame of an animation
 }
 dt_graph_export_t;
 
