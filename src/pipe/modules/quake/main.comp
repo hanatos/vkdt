@@ -730,7 +730,8 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-        bool use_vmf = false;// XXX s > 0;
+        // TODO: make this a parameter (switch guiding off / on)
+        bool use_vmf = s > 0;
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
@@ -801,6 +802,8 @@ main()
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else tent.kappa = max(50.0, tent.kappa*0.5); // maybe try again (if not replaced by nbhood)
           }
+          // XXX clearly defferent results, looks worse:
+          // tent = curr; // rejected state means the markov chain stays
 
           m0 = m1; // advance path vertex
         } // end if cast ray intersected anything
@@ -814,7 +817,8 @@ main()
           rand = xrand(seed, rp);
           ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
                       ivec2(15 * (2.0*rand.zw-1.0));
-#if 0 // gbuffer based culling experiments:
+#if 0     // gbuffer based culling experiments. not conclusive. what would be good is to distinguish
+          // between first hit and after-water-propagation hit (store sign bit in depth?)
           vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv+off), 0);
           vec3 n = geo_decode_normal(floatBitsToUint(gbuf.x));
           float dp = gbuf.y, dq = length(me.x - params.cam_x.xyz);
