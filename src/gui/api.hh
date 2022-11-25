@@ -3,6 +3,7 @@
 #include "widget_filteredlist.hh"
 extern "C" {
 #include "api.h"
+#include "core/fs.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-export.h"
@@ -255,7 +256,7 @@ dt_gui_dr_modals()
     {
       char filename[PATH_MAX+100];
       snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
-      mkdir(filename, 0755);
+      fs_mkdir(filename, 0755);
       snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
       FILE *f = fopen(filename, "wb");
       if(f)

@@ -3,6 +3,7 @@
 #include "modules/api.h"
 #include "pipe/io.h"
 #include "core/log.h"
+#include "core/fs.h"
 #include <libgen.h>
 #include <unistd.h>
 
@@ -237,11 +238,10 @@ int dt_graph_set_searchpath(
   }
   else
   {
-    // don't use: dirname(graph->searchpath) since it may or may not alter graph->searchpath, implementation dependent.
-    char *c = 0;
-    for(int i=0;graph->searchpath[i]!=0;i++) if(graph->searchpath[i] == '/') c = graph->searchpath+i;
-    if(c) *c = 0; // get dirname, i.e. strip off executable name
-    else { c = graph->searchpath; c[0] = '.'; c[1] = '/'; c[2] = 0; } // found no '/', gotta use './'
+    if(!fs_dirname(graph->searchpath))
+    { // found no '/', gotta use './'
+      char *c = graph->searchpath; c[0] = '.'; c[1] = '/'; c[2] = 0;
+    }
     return 0;
   }
 }

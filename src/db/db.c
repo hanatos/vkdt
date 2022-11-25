@@ -23,7 +23,7 @@ dt_db_init(dt_db_t *db)
   db->current_imgid = -1u;
   db->current_colid = -1u;
   snprintf(db->basedir, sizeof(db->basedir), "%s/.config/vkdt", getenv("HOME"));
-  mkdir(db->basedir, 0755);
+  fs_mkdir(db->basedir, 0755);
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;
 }
@@ -487,9 +487,9 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
   char dirname[1040];
   snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
-  mkdir(dirname, 0755);
+  fs_mkdir(dirname, 0755);
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
-  mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
+  fs_mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
   snprintf(linkname, sizeof(linkname), "%s/tags/%s/%x.cfg", db->basedir, cname, hash);
   int err = symlink(filename, linkname);
@@ -574,10 +574,9 @@ void dt_db_duplicate_selected_images(dt_db_t *db)
       FILE *f = fopen(fn, "ab");
       if(f)
       { // cut away directory part and potential _XX duplicate id
-        char *c = fullfn+len-4;
-        for(;c>fullfn&&*c!='/';c--); if(*c=='/') c++;
         if(fullfn[len-7] == '_' && isdigit(fullfn[len-5]) && isdigit(fullfn[len-6]))
           fullfn[len-7] = 0;
+        char *c = fs_basename(fullfn);
         fprintf(f, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), c);
         fclose(f);
       }
