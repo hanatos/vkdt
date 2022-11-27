@@ -472,7 +472,7 @@ int read_source(
   {
     for(int j=0;j<ht;j++)
       memcpy(buf + j*wd,
-          &(mod_data->d->mRaw->getU16DataAsUncroppedArray2DRef()(ox, j+oy)),
+          &(mod_data->d->mRaw->getU16DataAsUncroppedArray2DRef()(j+oy,ox)),
           sizeof(uint16_t)*wd);
     return 0;
   }
