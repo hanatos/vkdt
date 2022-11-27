@@ -9,3 +9,7 @@ doi: 10.1109/TIP.2006.884928
 
 it has a particularly smooth colour reconstruction but does not work
 for xtrans colour filter array (cfa) input.
+
+this module does not feature the builtin resize-features as the
+`demosaic` module does, so you probably want an explicit `resize`
+module in the pipeline after it.

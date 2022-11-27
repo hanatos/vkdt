@@ -49,7 +49,6 @@ it follows the current list of available modules.
 
 **processing modules**
 
-* [accum: accumulate frames](./accum/readme.md)
 * [align: align animation frames or burst photographs](./align/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
 * [ca: correct chromatic aberrations](./ca/readme.md)
@@ -73,6 +72,7 @@ it follows the current list of available modules.
 * [inpaint: smooth reconstruction of masked out areas](./inpaint/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
+* [menon: alternative demosaicing for bayer sensors](./menon/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)
 * [saturate: simple rgb saturation](./saturate/readme.md)
 * [spec: spectral colour manipulation/input transform](./spec/readme.md)
@@ -83,6 +83,7 @@ it follows the current list of available modules.
 
 **3d rendering**
 
+* [accum: accumulate frames in a frame buffer](./accum/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)
 * [sss: sub surface scattering testbed](./sss/readme.md)
