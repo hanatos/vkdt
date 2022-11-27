@@ -6,6 +6,26 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// load a one-linear heading from the readme.md file in the
+
+static inline char*
+filteredlist_get_heading(
+    const char *basedir,
+    const char *dirname)
+{
+  char fn[256], *res = 0;
+  int r = snprintf(fn, sizeof(fn), "%s/%s/readme.md", basedir, dirname);
+  if(r >= 255) return 0; // truncated
+  FILE *f = fopen(fn, "rb");
+  if(f)
+  {
+    res = (char*)malloc(256);
+    fscanf(f, "# %255[^\n]", res);
+    fclose(f);
+  }
+  return res;
+}
+
 // displays a filtered list of directory entries.
 // this is useful to select from existing presets, blocks, tags, etc.
 // call this between BeginPopupModal and EndPopup.
@@ -17,7 +37,8 @@ filteredlist(
     char        filter[256], // initial filter string (will be updated)
     char       *retstr,      // selection will be written here
     int         retstr_len,  // buffer size
-    int         allow_new)   // if != 0 will display an optional 'new' button
+    int         allow_new,   // if != 0 will display an optional 'new' button
+    int         descr)       // descriptions: 0 none, 1 optional, 2 required
   // TODO: custom filter rule?
 {
   int ok = 0;
@@ -31,6 +52,7 @@ filteredlist(
   static int ent_cnt = 0, ent_local_cnt = 0;
   static char dirname[PATH_MAX+20];
   static char dirname_local[PATH_MAX+20];
+  static char **desc, **desc_local;
   if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
   if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
     ok = 1;
@@ -45,30 +67,43 @@ filteredlist(
   { FREE_ENT; return 2; }
 
   if(!ent_cnt)
-  { // open preset directory
+  { // open directory
     if(dir)
     {
       snprintf(dirname, sizeof(dirname), dir, dt_pipe.basedir);
       ent_cnt = scandir(dirname, &ent, 0, alphasort);
       if(ent_cnt == -1) ent_cnt = 0;
+      if(ent_cnt && descr)
+      {
+        desc = (char**)malloc(sizeof(char*)*ent_cnt);
+        for(int i=0;i<ent_cnt;i++)
+          desc[i] = filteredlist_get_heading(dirname, ent[i]->d_name);
+      }
     }
     if(dir_local)
     {
       snprintf(dirname_local, sizeof(dirname_local), dir_local, vkdt.db.basedir);
       ent_local_cnt = scandir(dirname_local, &ent_local, 0, alphasort);
       if(ent_local_cnt == -1) ent_local_cnt = 0;
+      if(ent_local_cnt && descr)
+      {
+        desc_local = (char**)malloc(sizeof(char*)*ent_local_cnt);
+        for(int i=0;i<ent_local_cnt;i++)
+          desc_local[i] = filteredlist_get_heading(dirname_local, ent_local[i]->d_name);
+      }
     }
     else ent_local_cnt = 0;
   }
-#define LIST(E, L) do { \
+#define LIST(E, D, L) do { \
   for(int i=0;i<E##_cnt;i++)\
-  if(strstr(E[i]->d_name, filter) && E[i]->d_name[0] != '.') {\
+  if((strstr(E[i]->d_name, filter) || (D[i] && strstr(D[i], filter)))\
+      && E[i]->d_name[0] != '.' && (descr<2 || D[i])) {\
     if(pick < 0) { local = L; pick = i; } \
-    if(ImGui::Button(E[i]->d_name)) {\
+    if(ImGui::Button(D[i] ? D[i] : E[i]->d_name)) {\
       ok = 1; pick = i; local = L;\
     } } } while(0)
-  LIST(ent_local, 1);
-  LIST(ent, 0);
+  LIST(ent_local, desc_local, 1);
+  LIST(ent, desc, 0);
 #undef LIST
 
   ImGui::Dummy(ImVec2(0.0f, vkdt.state.panel_wd * 0.05f));

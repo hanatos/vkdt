@@ -21,6 +21,7 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"show history",  "toggle visibility of left panel",   {ImGuiKey_LeftCtrl, ImGuiKey_H}},
   {"redo",          "go up in history stack one item",   {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
   {"undo",          "go down in history stack one item", {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
+  {"add module",    "open module selection dialog",      {ImGuiKey_LeftCtrl, ImGuiKey_M}},
 };
 
 // used to communictate between the gui helper functions
@@ -1374,16 +1375,28 @@ void render_darkroom_pipeline()
   }
 
   // add new module to the graph (unconnected)
-  static int add_modid = 0; ImGui::Combo("module", &add_modid, vkdt.wstate.module_names_buf);
-  static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
-  if(ImGui::Button("add module"))
+  if(ImGui::Button("add module.."))
   {
-    int new_modid = dt_module_add(graph, dt_token(vkdt.wstate.module_names[add_modid]), dt_token(mod_inst));
-    if(new_modid == -1) last_err = 16ul<<32;
-    else dt_graph_history_module(graph, new_modid);
+    ImGui::OpenPopup("add module");
+    vkdt.wstate.busy += 5;
   }
+  if(ImGui::BeginPopupModal("add module", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
+    char filename[1024] = {0};
+    static char filter[256];
+    int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename), 0, 2);
+    if(ok) ImGui::CloseCurrentPopup();
+    if(ok == 1)
+    {
+      int new_modid = dt_module_add(&vkdt.graph_dev, dt_token(filename), dt_token(mod_inst));
+      if(new_modid >= 0) dt_graph_history_module(&vkdt.graph_dev, new_modid);
+    }
+    ImGui::EndPopup();
+  } // end BeginPopupModal add module
 
   // add block (read cfg snipped)
+  static char mod_inst[10] = "01";
   if(gui.state == gui_state_data_t::s_gui_state_insert_block)
   {
     if(ImGui::Button("insert disconnected"))
@@ -1401,9 +1414,10 @@ void render_darkroom_pipeline()
   else
   {
     if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-    { // "ok" pressed
+    {
+      ImGui::InputText("instance", mod_inst, 8);
       static char filter[256] = "";
-      int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), 0);
+      int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), 0, 0);
       if(ok) ImGui::CloseCurrentPopup();
       if(ok == 1)
         gui.state = gui_state_data_t::s_gui_state_insert_block;
