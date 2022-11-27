@@ -38,6 +38,8 @@ such that it will match the destination colour defined by the sliders. in
 conjunction with skin tone presets (cf. `colour-monk-[0-9].pst`), this is
 useful to match skin rendition precisely in difficult lighting situations.
 
+to pick a neutral spot, you can use the `pick-neutral.pst` preset.
+
 ## gamut mapping
 
 the `gamut` parameter employs a few lookup tables to
