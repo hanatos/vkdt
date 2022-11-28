@@ -1,4 +1,4 @@
-# jpeg image input
+# i-jpg: jpeg image input
 
 this module reads jpeg from the input. to make it useful, you may want to
 include a [`resize` module](../resize/readme.md) to correctly scale the image

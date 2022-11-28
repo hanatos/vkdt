@@ -1,4 +1,4 @@
-# colour picker
+# pick: colour picker
 
 attach this module to the output of any other module. it will collect
 statistics for the box you selected in the gui. it is possible to collect up to

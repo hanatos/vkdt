@@ -6,6 +6,36 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// load a one-linear heading from the readme.md file in the
+
+static inline char*
+filteredlist_get_heading(
+    const char *basedir,
+    const char *dirname)
+{
+  char fn[256], *res = 0;
+  int r = snprintf(fn, sizeof(fn), "%s/%s/readme.md", basedir, dirname);
+  if(r >= 255) return 0; // truncated
+  FILE *f = fopen(fn, "rb");
+  if(f)
+  {
+    res = (char*)malloc(256);
+    fscanf(f, "# %255[^\n]", res);
+    fclose(f);
+  }
+  return res;
+}
+
+enum filteredlist_flags_t
+{
+  s_filteredlist_default      = 0,
+  s_filteredlist_allow_new    = 1, // provide "new" button
+  s_filteredlist_descr_opt    = 2, // descriptions in dir/readme.md are optionally read and shown
+  s_filteredlist_descr_req    = 4, // descriptions are mandatory, else the entry is filtered out
+  s_filteredlist_descr_any    = 6, // both the above (for testing only, don't pass this)
+  s_filteredlist_return_short = 8, // return only the short filename, not the absolute one
+};
+
 // displays a filtered list of directory entries.
 // this is useful to select from existing presets, blocks, tags, etc.
 // call this between BeginPopupModal and EndPopup.
@@ -17,7 +47,7 @@ filteredlist(
     char        filter[256], // initial filter string (will be updated)
     char       *retstr,      // selection will be written here
     int         retstr_len,  // buffer size
-    int         allow_new)   // if != 0 will display an optional 'new' button
+    filteredlist_flags_t flags)
   // TODO: custom filter rule?
 {
   int ok = 0;
@@ -25,12 +55,16 @@ filteredlist(
 #define FREE_ENT do {\
   for(int i=0;i<ent_cnt;i++) free(ent[i]);\
   for(int i=0;i<ent_local_cnt;i++) free(ent_local[i]);\
+  if(desc)       for(int i=0;i<ent_cnt;i++) free(desc[i]);\
+  if(desc_local) for(int i=0;i<ent_cnt;i++) free(desc_local[i]);\
+  free(desc); free(desc_local); \
   free(ent_local); ent_local = 0; ent_local_cnt = 0;\
   free(ent); ent = 0; ent_cnt = 0; } while(0)
   static struct dirent **ent = 0, **ent_local = 0;
   static int ent_cnt = 0, ent_local_cnt = 0;
   static char dirname[PATH_MAX+20];
   static char dirname_local[PATH_MAX+20];
+  static char **desc = 0, **desc_local = 0;
   if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
   if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
     ok = 1;
@@ -45,45 +79,74 @@ filteredlist(
   { FREE_ENT; return 2; }
 
   if(!ent_cnt)
-  { // open preset directory
+  { // open directory
     if(dir)
     {
       snprintf(dirname, sizeof(dirname), dir, dt_pipe.basedir);
       ent_cnt = scandir(dirname, &ent, 0, alphasort);
       if(ent_cnt == -1) ent_cnt = 0;
+      if(ent_cnt && (flags & s_filteredlist_descr_any))
+      {
+        desc = (char**)malloc(sizeof(char*)*ent_cnt);
+        for(int i=0;i<ent_cnt;i++)
+          desc[i] = filteredlist_get_heading(dirname, ent[i]->d_name);
+      }
     }
     if(dir_local)
     {
       snprintf(dirname_local, sizeof(dirname_local), dir_local, vkdt.db.basedir);
       ent_local_cnt = scandir(dirname_local, &ent_local, 0, alphasort);
       if(ent_local_cnt == -1) ent_local_cnt = 0;
+      if(ent_local_cnt && (flags & s_filteredlist_descr_any))
+      {
+        desc_local = (char**)malloc(sizeof(char*)*ent_local_cnt);
+        for(int i=0;i<ent_local_cnt;i++)
+          desc_local[i] = filteredlist_get_heading(dirname_local, ent_local[i]->d_name);
+      }
     }
     else ent_local_cnt = 0;
   }
-#define LIST(E, L) do { \
+
+
+  ImGui::BeginChild("filteredlist-scrollpane", ImVec2(0.0f, 0.75f*vkdt.state.center_ht));
+  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+#define LIST(E, D, L) do { \
   for(int i=0;i<E##_cnt;i++)\
-  if(strstr(E[i]->d_name, filter) && E[i]->d_name[0] != '.') {\
+  if((strstr(E[i]->d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
+      && E[i]->d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
     if(pick < 0) { local = L; pick = i; } \
-    if(ImGui::Button(E[i]->d_name)) {\
+    if(ImGui::Button((D && D[i]) ? D[i] : E[i]->d_name, ImVec2(-1, 0))) {\
       ok = 1; pick = i; local = L;\
     } } } while(0)
-  LIST(ent_local, 1);
-  LIST(ent, 0);
+  LIST(ent_local, desc_local, 1);
+  LIST(ent, desc, 0);
 #undef LIST
+  ImGui::PopStyleVar();
+  ImGui::EndChild(); // scrollable list
 
-  ImGui::Dummy(ImVec2(0.0f, vkdt.state.panel_wd * 0.05f));
-  int bwd = vkdt.state.panel_wd / (allow_new ? 3 : 2);
-  if (allow_new && ImGui::Button("create new", ImVec2(bwd, 0))) { pick = -1; ok = 1; }
-  if (allow_new) ImGui::SameLine();
+  int bwd = vkdt.state.panel_wd / ((flags & s_filteredlist_allow_new) ? 3 : 2);
+  ImGui::Dummy(ImVec2(0, 0.05f*vkdt.state.panel_wd));
+  ImGui::Dummy(ImVec2(0.8f*vkdt.state.center_wd-2.0f*bwd, 0)); ImGui::SameLine();
+  if((flags & s_filteredlist_allow_new) && ImGui::Button("create new", ImVec2(bwd, 0))) { pick = -1; ok = 1; }
+  if (flags & s_filteredlist_allow_new) ImGui::SameLine();
   if (ImGui::Button("cancel", ImVec2(bwd, 0))) {FREE_ENT; return 2;}
   ImGui::SameLine();
   if (ImGui::Button("ok", ImVec2(bwd, 0))) ok = 1;
 
   if(ok == 1)
   {
-    if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
-    else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick]->d_name);
-    else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick]->d_name);
+    if(flags & s_filteredlist_return_short)
+    {
+      if(pick < 0) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
+      if(local)    snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick]->d_name);
+      else         snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick]->d_name);
+    }
+    else
+    {
+      if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
+      else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick]->d_name);
+      else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick]->d_name);
+    }
     FREE_ENT;
   }
   return ok;

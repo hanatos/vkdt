@@ -1,4 +1,4 @@
-# lens corrections
+# lens: apply or correct lens distortions
 
 this implements a very simple distortion correction following
 [The Double Sphere Camera Model Vladyslav Usenko, Nikolaus Demmel and Daniel Cremers](https://arxiv.org/pdf/1807.08957.pdf).

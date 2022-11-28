@@ -30,7 +30,7 @@ dt_gui_lt_modals()
   {
     static char filter[256] = "all time best";
     static char name[PATH_MAX];
-    int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), 1);
+    int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new);
     if(ok) ImGui::CloseCurrentPopup(); // got some answer
     ImGui::EndPopup();
     if(ok == 1)
@@ -286,7 +286,7 @@ dt_gui_dr_modals()
     if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
       dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
     static char filter[256];
-    int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), 0);
+    int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
     if(ok) ImGui::CloseCurrentPopup();
     if(ok == 1)
     {
@@ -316,7 +316,7 @@ error:
       }
     } // end if ok == 1
     ImGui::EndPopup();
-  } // end BeginPopupModal
+  } // end BeginPopupModal apply preset
 }
 
 inline void

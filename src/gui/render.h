@@ -31,6 +31,7 @@ void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y);
 int dt_gui_imgui_want_mouse();
 int dt_gui_imgui_want_keyboard();
 int dt_gui_imgui_want_text();
+int dt_gui_imgui_input_blocked(); // modal dialog open or something
 
 
 void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);

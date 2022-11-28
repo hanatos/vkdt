@@ -7,7 +7,7 @@ for iterative/multi-frame execution.
 ## list of modules
 it follows the current list of available modules.
 
-**input modules**
+**input**
 
 * [i-bc1: input module for bc1-compressed thumbnails](./i-bc1/readme.md)
 * [i-geo: input binary 3d geometry as ssbo connector](./i-geo/readme.md)
@@ -20,7 +20,7 @@ it follows the current list of available modules.
 * [i-v4l2: webcam input module](./i-v4l2/readme.md)
 * [i-vid: video input module](./i-vid/readme.md)
 
-**output modules**
+**output**
 
 * [o-bc1: write bc1 compressed thumbnail files](./o-bc1/readme.md)
 * [o-ffmpeg: write h264 compressed video stream for multi-frame input](./o-ffmpeg/readme.md)
@@ -29,7 +29,7 @@ it follows the current list of available modules.
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
 * [loss: compute loss for optimisation](./loss/readme.md)
 
-**visualisation and inspection modules**
+**visualisation and inspection**
 
 * [ab: a/b images in split screen](./ab/readme.md)
 * [check: mark out of gamut and under- and overexposure](./check/readme.md)
@@ -41,53 +41,71 @@ it follows the current list of available modules.
 * [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
 * [y2srgb: visualise first channel in grey scale](./y2srgb/readme.md)
 
+**raw processing**
+
+* [ca: correct chromatic aberrations](./ca/readme.md)
+* [demosaic: demosaic bayer or x-trans raw files](./demosaic/readme.md)
+* [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
+* [menon: alternative demosaicing for bayer sensors](./menon/readme.md)
+
+**colour processing**
+
+* [colour: generic colour manipulation/input transform](./colour/readme.md)
+* [grade: simple ACES CDL grading tool](./grade/readme.md)
+* [saturate: simple rgb saturation](./saturate/readme.md)
+* [spec: spectral colour manipulation/input transform](./spec/readme.md)
+
+**corrective**
+
+* [crop: crop/rotate/perspective correction](./crop/readme.md)
+* [deconv: deconvolution sharpening](./deconv/readme.md)
+* [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
+* [lens: lens distortion correction](./lens/readme.md)
+
+**tone**
+
+* [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
+* [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
+* [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
+* [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)
+* [grad: linear gradient density filter](./grad/readme.md)
+* [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
+* [vignette: add/remove parametric vignette](./vignette/readme.md)
+* [zones: zone system-like tone manipulation tool](./zones/readme.md)
+
+**retouching**
+
+* [draw: draw raster masks via brush strokes (e.g. for dodging and burning)](./draw/readme.md)
+* [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
+* [inpaint: smooth reconstruction of masked out areas](./inpaint/readme.md)
+* [wavelet: skin retouching](./wavelet/readme.md)
+
+**effects**
+
+* [frame: postcard-style decor border around the image](./frame/readme.md)
+
+**technical**
+
+* [align: align animation frames or burst photographs](./align/readme.md)
+* [blend: masked frame blending](./blend/readme.md)
+* [cnn: convolutional neural network](./cnn/readme.md)
+* [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
+* [resize: add ability to resize buffers](./resize/readme.md)
+* [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
+
+**3d rendering**
+
+* [accum: accumulate frames in a frame buffer](./accum/readme.md)
+* [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
+* [rt: real-time ray tracing](./rt/readme.md)
+* [spheres: shadertoy demo ported for testing](./spheres/readme.md)
+* [sss: sub surface scattering testbed](./sss/readme.md)
+* [svgf: spatiotemporal variance guided filtering](./svgf/readme.md)
+
 **internal use**
 
 * [nprof: create noise profile](./nprof/readme.md)
 * [thumb: special display for bc1 thumbnails](./thumb/readme.md)
-
-**processing modules**
-
-* [accum: accumulate frames](./accum/readme.md)
-* [align: align animation frames or burst photographs](./align/readme.md)
-* [blend: masked frame blending](./blend/readme.md)
-* [ca: correct chromatic aberrations](./ca/readme.md)
-* [colour: generic colour manipulation/input transform](./colour/readme.md)
-* [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
-* [crop: crop/rotate/perspective correction](./crop/readme.md)
-* [cnn: convolutional neural network](./cnn/readme.md)
-* [deconv: deconvolution sharpening](./deconv/readme.md)
-* [demosaic: demosaic bayer or x-trans raw files](./demosaic/readme.md)
-* [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
-* [draw: draw raster masks via brush strokes (e.g. for dodging and burning)](./draw/readme.md)
-* [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
-* [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
-* [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
-* [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)
-* [frame: postcard-style decor border around the image](./frame/readme.md)
-* [grad: linear gradient density filter](./grad/readme.md)
-* [grade: simple ACES CDL grading tool](./grade/readme.md)
-* [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
-* [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
-* [inpaint: smooth reconstruction of masked out areas](./inpaint/readme.md)
-* [lens: lens distortion correction](./lens/readme.md)
-* [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
-* [resize: add ability to resize buffers](./resize/readme.md)
-* [saturate: simple rgb saturation](./saturate/readme.md)
-* [spec: spectral colour manipulation/input transform](./spec/readme.md)
-* [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
-* [vignette: add/remove parametric vignette](./vignette/readme.md)
-* [wavelet: skin retouching](./wavelet/readme.md)
-* [zones: zone system-like tone manipulation tool](./zones/readme.md)
-
-**3d rendering**
-
-* [quake: render the quake game](./quake/readme.md)
-* [rt: real-time ray tracing](./rt/readme.md)
-* [spheres: shadertoy demo ported for testing](./spheres/readme.md)
-* [sss: sub surface scattering testbed](./sss/readme.md)
-* [svgf: variance guided filtering](./svgf/readme.md)
-
 
 ## default pipeline
 

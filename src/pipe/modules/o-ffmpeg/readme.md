@@ -1,4 +1,4 @@
-# ffmpeg video output
+# o-ffmpeg: video output via ffmpeg
 
 this is a `cli` output module, don't use it in the gui! the gui may perform
 frame drops, especially when the outputs need to be written out and are encoded

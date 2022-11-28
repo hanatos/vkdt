@@ -1,4 +1,4 @@
-# simple colour grading: lift gamma gain
+# grade: simple colour grading via lift gamma gain (ACES CDL)
 
 this implements the popular and simple lift gamma gain scheme
 to colour grade images.

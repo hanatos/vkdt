@@ -1,4 +1,4 @@
-# jpeg array input
+# i-jpglst: jpeg array input
 
 this node allows you to load a large array of images of possible different
 resolution. it takes as argument a text file with one filename per line. the

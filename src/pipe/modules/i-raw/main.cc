@@ -319,7 +319,7 @@ void modify_roi_out(
     if(mod_data->d->mRaw->metadata.colorMatrix.size() > 0)
     { // get d65 camera matrix from rawspeed
       for(int k=0;k<9;k++)
-        xyz_to_cam[k] = mod_data->d->mRaw->metadata.colorMatrix[k] / 10000.0f;
+        xyz_to_cam[k] = float(mod_data->d->mRaw->metadata.colorMatrix[k]);
       mat3inv(mat, xyz_to_cam);
     }
     else mat[0] = mat[4] = mat[8] = 1.0;
@@ -463,13 +463,17 @@ int read_source(
   const size_t bufsize_rawspeed = (size_t)mod_data->d->mRaw->pitch * dim_uncropped.y;
   if(bufsize_compact == bufsize_rawspeed)
   {
-    memcpy(buf, mod_data->d->mRaw->getDataUncropped(0, 0), bufsize_compact);
+    memcpy(buf,
+        &(mod_data->d->mRaw->getU16DataAsUncroppedArray2DRef()(0,0)),
+        bufsize_compact);
     return 0;
   }
   else
   {
     for(int j=0;j<ht;j++)
-      memcpy(buf + j*wd, mod_data->d->mRaw->getDataUncropped(ox, j+oy), sizeof(uint16_t)*wd);
+      memcpy(buf + j*wd,
+          &(mod_data->d->mRaw->getU16DataAsUncroppedArray2DRef()(j+oy,ox)),
+          sizeof(uint16_t)*wd);
     return 0;
   }
 }

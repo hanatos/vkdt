@@ -1,4 +1,4 @@
-# resize images
+# resize: resample images
 
 this module resizes input images. it has no parameters because the
 size of the buffer is dictated by the graph surrounding it. it can e.g. be set

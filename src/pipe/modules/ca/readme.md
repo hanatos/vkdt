@@ -7,6 +7,9 @@ reference channel. this is then corrected in a second pass.
 
 the module is based on automatic detection, it has no parameters.
 
+note: the module is known to be pre-production quality and have fail
+cases which need fixing.
+
 ## connectors
 
 * `input` the input connector

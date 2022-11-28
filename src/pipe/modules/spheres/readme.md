@@ -1,4 +1,4 @@
-# bouncing spheres demo
+# spheres: 3d bouncing spheres demo
 
 this has been ported from [reinder nijhoff's 2013 shadertoy
 demo](https://www.shadertoy.com/view/lsX3DH) for testing purposes. it features

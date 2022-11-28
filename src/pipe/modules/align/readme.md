@@ -1,4 +1,4 @@
-# image alignment
+# align: image alignment
 
 this module is an implementation of [Johannes Hanika, Lorenzo Tessari, and
 Carsten Dachsbacher, Fast temporal reprojection without motion vectors, Journal

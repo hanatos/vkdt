@@ -1,4 +1,4 @@
-# display module
+# display: an output for gui view or export
 
 this module implements means to display output pixels on screen.
 in expects rec2020 linear data and will colour manage it for

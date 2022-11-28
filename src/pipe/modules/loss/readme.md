@@ -1,4 +1,4 @@
-# fitting loss
+# loss: compute a loss value for fitting purposes
 
 this modules serves to compute a loss function to guide non-linear optimisation
 of module parameters. to this end, it reads an input buffer with some processing applied

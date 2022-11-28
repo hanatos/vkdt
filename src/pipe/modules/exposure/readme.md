@@ -1,4 +1,4 @@
-# exposure
+# exposure: simple adjustment most useful in conjunction with masks
 
 this implements simple exposure correction. note that [the `colour`
 module](../colour/readme.md) already contains this feature. the module here is

@@ -1,4 +1,4 @@
-# crop, rotate, and perspective correction
+# crop: crop, rotate, and perspective correction
 
 this module allows you to crop and rotate an image. it also features a
 perspective correction button, which will let you pick a quad on the image and

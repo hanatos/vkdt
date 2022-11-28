@@ -1,4 +1,4 @@
-# jpg output
+# o-jpg: write jpg files
 
 supports writing jpg images to disk. [convert to srgb](../f2srgb/readme.md)
 before connecting to this module.

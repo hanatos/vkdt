@@ -1,4 +1,4 @@
-# lookup table input
+# i-lut: lookup table input
 
 some custom uncompressed input format that supports half float, 32-bit float,
 1-, 2-, and 4-channel data.

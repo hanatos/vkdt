@@ -1,4 +1,4 @@
-# denoise
+# denoise: reduce image noise based on noise profiles
 
 this reads a [noise profile](../../../../doc/noiseprofiling.md) and then runs
 some variant of a-trous fisz-transform wavelets for noise reduction.

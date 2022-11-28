@@ -35,7 +35,7 @@ static ImHotKey::HotKey hk_lighttable[] = {
 
 void render_lighttable_center()
 { // center image view
-  if(!ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel))
+  if(!dt_gui_imgui_input_blocked())
   { // global enter/exit key accels only if no popup is active
     if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
        ImGui::IsKeyPressed(ImGuiKey_Escape)||

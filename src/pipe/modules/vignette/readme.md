@@ -1,4 +1,4 @@
-# vignetting / devignetting
+# vignette: apply or remove vignetting
 
 ## connectors
 

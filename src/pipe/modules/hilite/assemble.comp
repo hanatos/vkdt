@@ -45,7 +45,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
   { // both are even, 3x3 stencil
     for(int ii=-1;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
     {
-      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
+      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0)).rgb;
       // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+2]*w[2*ii+2];
@@ -57,7 +57,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
   { // i is odd, 2x3 stencil
     for(int ii=0;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
     {
-      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
+      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0)).rgb;
       // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+2]*w[2*ii+1];
@@ -69,7 +69,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
   { // j is odd, 3x2 stencil
     for(int ii=-1;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
     {
-      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
+      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0)).rgb;
       // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+1]*w[2*ii+2];
@@ -81,7 +81,7 @@ vec3 gauss_expand(sampler2D img_in, ivec2 opos)
   { // both are odd, 2x2 stencil
     for(int ii=0;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
     {
-      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0).rgb;
+      vec3 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0)).rgb;
       // if(all(lessThan(rgb, vec3(white))))
       {
         c += rgb * w[2*jj+1]*w[2*ii+1];

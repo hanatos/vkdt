@@ -467,3 +467,8 @@ void dt_gamepadhelp()
     }
   }
 }
+
+extern "C" int dt_gui_imgui_input_blocked()
+{
+  return ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel);
+}

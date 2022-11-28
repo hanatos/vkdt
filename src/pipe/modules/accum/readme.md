@@ -1,4 +1,4 @@
-# accumulate images
+# accum: accumulate images in a frame buffer
 
 this module implements frame accumulation. the output will be
 ```

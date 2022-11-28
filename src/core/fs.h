@@ -75,7 +75,11 @@ fs_basedir(
     size_t maxlen)  // allocation size
 {
 #ifdef __linux__
-  realpath("/proc/self/exe", basedir);
+  // stupid allocation dance because passing basedir directly
+  // may or may not require PATH_MAX bytes instead of maxlen
+  char *bd = realpath("/proc/self/exe", 0);
+  snprintf(basedir, maxlen, "%s", bd);
+  free(bd);
 #elif defined(__FreeBSD__)
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = maxlen;
@@ -83,9 +87,7 @@ fs_basedir(
 #else
 #error port me
 #endif
-  char *c = 0;
-  for(int i=0;basedir[i]!=0;i++) if(basedir[i] == '/') c = basedir+i;
-  if(c) *c = 0; // get dirname, i.e. strip off executable name
+  fs_dirname(basedir);
 }
 
 static inline int // return the number of devices found

@@ -1,4 +1,4 @@
-# simple real-time ray tracing
+# rt: simple real-time ray tracing
 
 this uses the vulkan ray tracing extension to 
 

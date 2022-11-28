@@ -1,4 +1,4 @@
-# postcard frame and decor line
+# frame: draw postcard frame and decor line
 
 this module allows you to draw a decorative frame with a line of different colour inside it
 around the image.

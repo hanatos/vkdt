@@ -301,8 +301,8 @@ void render_files()
       {
         if(filebrowser.selected_type == DT_DIR)
         {
-          snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected);
-          dt_gui_switch_collection(newdir);
+          if(snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
+            dt_gui_switch_collection(newdir);
         }
         else dt_gui_switch_collection(filebrowser.cwd);
         dt_view_switch(s_view_lighttable);

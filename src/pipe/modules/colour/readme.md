@@ -1,4 +1,4 @@
-# colour processing
+# colour: essential colour handling
 
 this is a unified module to handle important things concerning colour.
 the input is in camera rgb and the output will be rec2020.
@@ -37,6 +37,8 @@ picked patch will be used as source colour and white balancing will be adjusted
 such that it will match the destination colour defined by the sliders. in
 conjunction with skin tone presets (cf. `colour-monk-[0-9].pst`), this is
 useful to match skin rendition precisely in difficult lighting situations.
+
+to pick a neutral spot, you can use the `pick-neutral.pst` preset.
 
 ## gamut mapping
 

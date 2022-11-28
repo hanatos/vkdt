@@ -1,4 +1,4 @@
-# deconvolution
+# deconv: sharpen based on deconvolution
 
 this is a straightforward implementation of richardson lucy deconvolution.
 it's inspired by rawtherapee's "capture sharpening" and can help reduce

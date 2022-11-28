@@ -1,4 +1,4 @@
-# 10 bit display tester
+# test10b: draw gradient to test 10 bit display
 
 this is just a simple module to render a gradient [0, 0.5]. it can be used to
 test whether your x is setup to render 10 bit/channel (i.e. 30 bit per pixel)
