@@ -1,4 +1,4 @@
-# accumulate images
+# accum: accumulate images in a frame buffer
 
 this module implements frame blending. the `output` will be (1-`opacity`) x
 `input` + `opacity` x `back`.

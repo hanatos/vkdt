@@ -1,4 +1,4 @@
-# output nothing
+# o-null: output nothing but avoid dead code elimination
 
 this is `/dev/null` for a `vkdt` graph. this can be useful to
 make sure the branch is actually evaluated even if the buffer

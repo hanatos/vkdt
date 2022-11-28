@@ -1,4 +1,4 @@
-# draw raster masks
+# draw: raster masks as brush strokes
 
 this module rasterises a drawn mask (single opacity channel). to be useful, it
 has to be combined with blending. quick access is possible by adding the `draw`

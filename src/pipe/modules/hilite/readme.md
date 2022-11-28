@@ -1,4 +1,4 @@
-# highlight reconstruction
+# hilite: highlight reconstruction for raw images
 
 this module supports inpainting of clipped channels of raw images.
 it works only for raw images, and on raw data.

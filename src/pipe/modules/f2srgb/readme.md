@@ -1,4 +1,4 @@
-# convert linear rec2020 to srgb
+# f2srgb: convert linear rec2020 to srgb
 
 that.
 

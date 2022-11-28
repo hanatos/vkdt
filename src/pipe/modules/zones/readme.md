@@ -1,4 +1,4 @@
-# zone system
+# zones: zone system tone editor
 
 this is inspired by ansel adams zone system, a way to think
 about a tone curve, i.e. modifying brightness of the output

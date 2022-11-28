@@ -1,4 +1,4 @@
-# colour processing
+# colour: essential colour handling
 
 this is a unified module to handle important things concerning colour.
 the input is in camera rgb and the output will be rec2020.

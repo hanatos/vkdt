@@ -1,4 +1,4 @@
-# local contrast
+# contrast: local contrast based on guided filter
 
 increase or decrease local contrast in an image.
 this utilises [the guided filter](../guided/readme.md) to extract a coarse image.

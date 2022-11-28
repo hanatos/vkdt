@@ -1,4 +1,4 @@
-# film curve
+# filmcurv: compress scene referred linear for display
 
 this module applies a film-style curve to the image.
 the curve is parametric and uses the [weibull distribution](https://en.wikipedia.org/wiki/Weibull_distribution).

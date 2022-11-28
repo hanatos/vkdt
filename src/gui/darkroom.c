@@ -94,6 +94,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     return;
   }
 
+  if(dt_gui_imgui_input_blocked()) return;
   if(action == GLFW_PRESS && (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
     return; // ignore only press over panel for pan
   if(vkdt.wstate.active_widget_modid >= 0 &&
@@ -287,6 +288,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
   }
 
   if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
+  if(dt_gui_imgui_input_blocked()) return;
 
   // active widgets grabbed input?
   if(vkdt.wstate.active_widget_modid >= 0)
@@ -357,6 +359,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
   if(!out) return; // should never happen
 
   if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
+  if(dt_gui_imgui_input_blocked()) return;
   if(vkdt.wstate.active_widget_modid >= 0)
   {
     // convert view space mouse coordinate to normalised image
@@ -450,7 +453,8 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     }
     return;
   }
-#ifdef QVK_ENABLE_VALIDATION // reload shaders only in a debug build
+  if(dt_gui_imgui_input_blocked()) return;
+#if 0 // def QVK_ENABLE_VALIDATION // reload shaders only in a debug build
   if(action == GLFW_PRESS && key == GLFW_KEY_R)
   {
     // dt_view_switch(s_view_cnt);

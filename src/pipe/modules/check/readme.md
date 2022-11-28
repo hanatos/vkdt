@@ -1,4 +1,4 @@
-# gamut and exposure checking
+# check: gamut and exposure checking
 
 this module marks out of gamut and over- or underexposed pixels in the image.
 

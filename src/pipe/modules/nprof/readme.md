@@ -1,4 +1,4 @@
-# noise profiling
+# nprof: estimate parameters for noise profiling
 
 this output module fits a gaussian/poissonian noise model and creates noise
 profile files to be stored in `data/nprof/` and read back in by `vkdt`.

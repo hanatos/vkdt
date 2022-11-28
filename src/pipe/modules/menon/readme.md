@@ -1,4 +1,4 @@
-# bayer cfa demosaicing
+# menon: alternative bayer cfa demosaicing
 
 this implements bayer pattern demosaicing following the paper
 

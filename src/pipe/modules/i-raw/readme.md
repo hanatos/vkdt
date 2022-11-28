@@ -1,4 +1,4 @@
-# raw input module
+# i-raw: raw image input via rawspeed
 
 this module uses the rawspeed library to decode raw photographs.
 

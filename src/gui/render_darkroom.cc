@@ -21,7 +21,6 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"show history",  "toggle visibility of left panel",   {ImGuiKey_LeftCtrl, ImGuiKey_H}},
   {"redo",          "go up in history stack one item",   {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
   {"undo",          "go down in history stack one item", {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
-  {"add module",    "open module selection dialog",      {ImGuiKey_LeftCtrl, ImGuiKey_M}},
 };
 
 // used to communictate between the gui helper functions
@@ -1377,15 +1376,17 @@ void render_darkroom_pipeline()
   // add new module to the graph (unconnected)
   if(ImGui::Button("add module.."))
   {
+    ImGui::SetNextWindowSize(ImVec2(0.8*vkdt.state.center_wd, 0.9*vkdt.state.center_ht), ImGuiCond_Always);
     ImGui::OpenPopup("add module");
     vkdt.wstate.busy += 5;
   }
-  if(ImGui::BeginPopupModal("add module", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+  if(ImGui::BeginPopupModal("add module", NULL, ImGuiWindowFlags_NoResize))
   {
     static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
     char filename[1024] = {0};
     static char filter[256];
-    int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename), 0, 2);
+    int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename),
+        static_cast<filteredlist_flags_t>(s_filteredlist_descr_req | s_filteredlist_return_short));
     if(ok) ImGui::CloseCurrentPopup();
     if(ok == 1)
     {
@@ -1417,7 +1418,7 @@ void render_darkroom_pipeline()
     {
       ImGui::InputText("instance", mod_inst, 8);
       static char filter[256] = "";
-      int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), 0, 0);
+      int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), s_filteredlist_default);
       if(ok) ImGui::CloseCurrentPopup();
       if(ok == 1)
         gui.state = gui_state_data_t::s_gui_state_insert_block;
@@ -1463,7 +1464,7 @@ void render_darkroom()
 
     ImGuiIO& io = ImGui::GetIO();
     if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
-      !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel) &&
+      !dt_gui_imgui_input_blocked() &&
       !vkdt.wstate.grabbed)
     {
       static int fs_state = 0;

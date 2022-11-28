@@ -1,4 +1,4 @@
-# demosaic raw images
+# demosaic: interpolate cfa in raw images
 
 this module applies some gaussian splatting to mosaiced raw
 sensor images. it works transparently for bayer or xtrans sensors.
