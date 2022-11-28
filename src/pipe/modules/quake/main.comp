@@ -264,7 +264,7 @@ prepare_material_info(
       buf_vtx[inter.opaque.instid].v[3*i2+1],
       buf_vtx[inter.opaque.instid].v[3*i2+2]);
   m.x = mat3(v0, v1, v2) * b;
-  m.t = m.mat == 0xfff ? 9999.0 : inter.opaque.t;
+  m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
   m.ng = normalize(cross(v2-v0,v1-v0));
   if(!brush_model) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
@@ -297,7 +297,7 @@ prepare_material_info(
     m.albedo = vec3(0.0);
     m.emission = envmap(w);
     m.n = -w; // sky has no normal
-    m.x = x + 10000.0 * w; // sky is far away
+    m.x = x + (T_MAX-1.0) * w; // sky is far away
   }
   else
   {
@@ -563,7 +563,7 @@ propagate_ray(
     float xi)                 // [0,1) random number for R/T lobe selection
 {
   rayQueryEXT rq;
-  const float t_max = 10000.0;
+  const float t_max = T_MAX;
   raycast_res_t res = cast_ray(rq, x, w, t_max);
   m = prepare_material_info(x, w, res);
 #if WATER_MODE==WATER_MODE_OFF
@@ -613,10 +613,13 @@ mc_state_t mc_state_new()
   return r;
 }
 
+// pass shading point first, remote/light second (for sky detection)
 float G_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
 {
   vec3 d = y - x;
   float r2 = dot(d, d);
+  if(r2 > (T_MAX-1.0-100)*(T_MAX-1.0-100)) // this has got to be the sky
+    return max(0, dot(d, nx));
   d = normalize(d);
   return max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
 }
@@ -743,7 +746,7 @@ main()
   v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
   // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
   // if(res.opaque.t < 10000.0)
-  if(m1.t < 10000.0)
+  if(m1.t < T_MAX)
   { // ray intersected geometry, init material state and tangent frame
     // m1 = prepare_material_info(m0.x, w_cam, res);
     // sky is "far" away
@@ -763,6 +766,7 @@ main()
     // else alb = mod(0.05 * mc_state_get_ws_pos(m1.instid, m1.primid, m1.uv), vec3(1)); // this works
     // else alb = vec3((m1.primid % 256)/256.0); // are not staying consistent between frames :/
     // else alb = vec3(pow(abs(dot(m1.n,w_cam)), 10)); // debug normals
+    // else alb = vec3(pow(abs(dot(geo_decode_normal(geo_encode_normal(m1.n)),w_cam)), 10)); // debug normals
     // else alb = mod(m1.x*0.05, vec3(1)); // debug world space position
 
     me = m1; // store g-buffer-like primary ray result
@@ -803,7 +807,7 @@ main()
           w = bsdf_sample(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, m0.bsdf_param, rand.xy);
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // uniform projected solid angle
-          par[s] = vec4(m0.n, 0.0);
+          par[s] = vec4(0.0);//vec4(m0.n, 0.0); // normal is clear from gbuf
         }
         // rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
         rgb *= bsdf_eval(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param); // bsdf without albedo
@@ -815,7 +819,7 @@ main()
         // trans = vec4(1.0);
         // res = cast_ray(rq, m0.x, w, 10000.0);
         // if(res.opaque.t < 10000.0)
-        if(m1.t < 10000.0)
+        if(m1.t < T_MAX)
         { // ray intersected geometry, init material state and tangent frame
           // m1 = prepare_material_info(m0.x, w, res);
           const float T = exp(-m1.t * 3.);
@@ -880,7 +884,7 @@ main()
 
       if(global.frame > 10)
       {
-        float G1 = G_term(me.x, me.n, tent.y, tent.n);
+        // float G = G_term(me.x, me.n, tent.y, tent.n);
         for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
         {
           rand = xrand(seed, rp);
@@ -897,8 +901,9 @@ main()
 #endif
           {
             mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-            float G2 = G_term(me.x, me.n, t2.y, t2.n);
-            if(tent.f == 0 || rand.z < (G2 * t2.f) / (G * tent.f))
+            // float G2 = G_term(me.x, me.n, t2.y, t2.n);
+            // if(tent.f*G == 0 || rand.z < (G2 * t2.f) / (G * tent.f))
+            if(tent.f == 0 || rand.z < t2.f / tent.f)
               tent = t2;
           }
         }
