@@ -880,6 +880,7 @@ main()
 
       if(global.frame > 10)
       {
+        float G1 = G_term(me.x, me.n, tent.y, tent.n);
         for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
         {
           rand = xrand(seed, rp);
@@ -896,7 +897,8 @@ main()
 #endif
           {
             mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-            if(tent.f == 0 || rand.z < t2.f / tent.f)
+            float G2 = G_term(me.x, me.n, t2.y, t2.n);
+            if(tent.f == 0 || rand.z < (G2 * t2.f) / (G * tent.f))
               tent = t2;
           }
         }
