@@ -67,12 +67,11 @@ main()
     }
     m1 /= (2.0*r+1)*(2.0*r+1);
     m2 /= (2.0*r+1)*(2.0*r+1);
-    if(push.gap == 1)
-      sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
+    sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
   }
 
-  float w_sum = 1.0;
-  vec4 res = vec4(w_sum * Lp, sigma*sigma);
+  vec2 w_sum = vec2(1.0);
+  vec4 res = vec4(w_sum.x * Lp, w_sum.y*sigma*sigma);
   // evaluate filter:
   for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++) if (i!=0 || j!=0)
   {
@@ -84,10 +83,10 @@ main()
         Lp, Lq,
         normal, nq,
         depth, gbufq.y);
-    res += w*vec4(Lq, sigma*sigma);
-    w_sum += w;
+    res += w*vec4(w*Lq, w*w*sigma*sigma);
+    w_sum += vec2(w, w*w);
   }
-  res /= w_sum;
+  res /= w_sum.xxxy;
 
   // sort image to write positions so we can iterate the filter
   ipos = mix(ipos / 2, imageSize(img_out)-1-ipos/2, equal(ipos & 1, ivec2(0)));
