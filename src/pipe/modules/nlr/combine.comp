@@ -1,0 +1,55 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float sigma_v;
+  float power;
+  float sigma_n;
+  float sigma_d;
+} params;
+
+// layout(push_constant, std140) uniform push_t
+// { } push;
+
+layout(set = 1, binding = 0) uniform sampler2D img_lo; // same res as hi, but comes from below/i.e. denoised once more
+layout(set = 1, binding = 1) uniform sampler2D img_hi;
+layout(set = 1, binding = 2) uniform sampler2D img_gbuf_lo; // now this is *really* low res
+layout(set = 1, binding = 3) uniform sampler2D img_gbuf_hi;
+layout(set = 1, binding = 4) uniform writeonly image2D img_out;
+
+vec3 detail(vec3 x, float var)
+{
+	float l = luminance_rec2020(x);
+	return x * pow(1 - exp(- l*l / max(1e-6, params.sigma_v * var)), params.power);
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec4 lo = texelFetch(img_lo, ipos, 0);
+  vec4 hi = texelFetch(img_hi, ipos, 0);
+  vec2 gbuf_hi = texelFetch(img_gbuf_hi, ipos,   0).xy;
+  vec2 gbuf_lo = texelFetch(img_gbuf_lo, ipos/2+ivec2(0,0), 0).xy;
+
+  vec3 nhi = geo_decode_normal(floatBitsToUint(gbuf_hi.x));
+  vec3 nlo = geo_decode_normal(floatBitsToUint(gbuf_lo.x));
+  float n_dot = pow(max(0.0, dot(nhi, nlo)), params.sigma_n);
+  float w = mix(params.sigma_n_min, 1.0, n_dot);               // normal
+  w *= exp(-length(gbuf_hi.y - gbuf_lo.y) * params.sigma_d);   // depth
+
+  float var = lo.w;
+  vec3 detail = detail(hi.rgb - lo.rgb, var);
+  detail = mix(hi.rgb - lo.rgb, detail, w);
+
+  imageStore(img_out, ipos, vec4(lo.rgb + detail, 1));
+}
+
