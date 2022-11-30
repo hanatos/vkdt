@@ -23,6 +23,15 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"undo",          "go down in history stack one item", {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
 };
 
+enum hotkey_names_t
+{ // for sane access in code
+  s_hotkey_create_preset = 0,
+  s_hotkey_apply_preset  = 1,
+  s_hotkey_show_history  = 2,
+  s_hotkey_redo          = 3,
+  s_hotkey_undo          = 4,
+};
+
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
 {
@@ -34,6 +43,7 @@ static struct gui_state_data_t
   } state;
   char       block_filename[2*PATH_MAX+10];
   dt_token_t block_token[20];
+  int        hotkey = -1;
 } gui = {gui_state_data_t::s_gui_state_regular};
 
 
@@ -1438,8 +1448,9 @@ void render_darkroom_pipeline()
 
 void render_darkroom()
 {
+  gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
   int axes_cnt = 0;
-  const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
+  const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
     int border = vkdt.style.border_frac * qvk.win_width;
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
@@ -1767,7 +1778,6 @@ abort:
   } // end left panel
 
   { // right panel
-    int hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
@@ -1892,42 +1902,42 @@ abort:
         {
           ImVec2 size((vkdt.state.panel_wd-4)/2, 0);
           if(ImGui::Button("create preset", size))
-            hotkey = 0;
+            gui.hotkey = s_hotkey_create_preset;
           ImGui::SameLine();
           if(ImGui::Button("apply preset", size))
-            hotkey = 1;
+            gui.hotkey = s_hotkey_apply_preset;
         }
 
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();
-
-      switch(hotkey)
-      {
-        case 0:
-          dt_gui_dr_preset_create();
-          break;
-        case 1:
-          dt_gui_dr_preset_apply();
-          break;
-        case 2:
-          dt_gui_dr_toggle_history();
-          break;
-        case 3:
-          dt_gui_dr_show_history();
-          dt_gui_dr_history_redo();
-          break;
-        case 4:
-          dt_gui_dr_show_history();
-          dt_gui_dr_history_undo();
-          break;
-        default:;
-      }
-      dt_gui_dr_modals(); // draw modal window for presets
     }
 
     ImGui::End();
   } // end right panel
+
+  switch(gui.hotkey)
+  {
+    case s_hotkey_create_preset:
+      dt_gui_dr_preset_create();
+      break;
+    case s_hotkey_apply_preset:
+      dt_gui_dr_preset_apply();
+      break;
+    case s_hotkey_show_history:
+      dt_gui_dr_toggle_history();
+      break;
+    case s_hotkey_redo:
+      dt_gui_dr_show_history();
+      dt_gui_dr_history_redo();
+      break;
+    case s_hotkey_undo:
+      dt_gui_dr_show_history();
+      dt_gui_dr_history_undo();
+      break;
+    default:;
+  }
+  dt_gui_dr_modals(); // draw modal windows for presets etc
 }
 
 void render_darkroom_init()
