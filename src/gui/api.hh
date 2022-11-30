@@ -317,6 +317,21 @@ error:
     } // end if ok == 1
     ImGui::EndPopup();
   } // end BeginPopupModal apply preset
+  if(ImGui::BeginPopupModal("add module", NULL, ImGuiWindowFlags_NoResize))
+  {
+    static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
+    char filename[1024] = {0};
+    static char filter[256];
+    int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename),
+        static_cast<filteredlist_flags_t>(s_filteredlist_descr_req | s_filteredlist_return_short));
+    if(ok) ImGui::CloseCurrentPopup();
+    if(ok == 1)
+    {
+      int new_modid = dt_module_add(&vkdt.graph_dev, dt_token(filename), dt_token(mod_inst));
+      if(new_modid >= 0) dt_graph_history_module(&vkdt.graph_dev, new_modid);
+    }
+    ImGui::EndPopup();
+  } // end BeginPopupModal add module
 }
 
 inline void
@@ -330,5 +345,13 @@ inline void
 dt_gui_dr_preset_apply()
 {
   ImGui::OpenPopup("apply preset");
+  vkdt.wstate.busy += 5;
+}
+
+inline void
+dt_gui_dr_module_add()
+{
+  ImGui::SetNextWindowSize(ImVec2(0.8*vkdt.state.center_wd, 0.9*vkdt.state.center_ht), ImGuiCond_Always);
+  ImGui::OpenPopup("add module");
   vkdt.wstate.busy += 5;
 }
