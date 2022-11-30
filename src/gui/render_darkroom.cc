@@ -1388,10 +1388,9 @@ void render_darkroom_pipeline()
   }
 
   // add new module to the graph (unconnected)
-  if(ImGui::Button("add module.."))
-  {
+  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+  if(ImGui::Button("add module..", ImVec2(-1, 0)))
     gui.hotkey = s_hotkey_module_add;
-  }
 
   // add block (read cfg snipped)
   if(gui.state == gui_state_data_t::s_gui_state_insert_block)
@@ -1408,10 +1407,9 @@ void render_darkroom_pipeline()
     if(ImGui::Button("abort"))
       gui.state = gui_state_data_t::s_gui_state_regular;
   }
-  else if(ImGui::Button("insert block.."))
-  {
+  else if(ImGui::Button("insert block..", ImVec2(-1, 0)))
     gui.hotkey = s_hotkey_block_add;
-  }
+  ImGui::PopStyleVar();
 }
 
 } // end anonymous namespace
@@ -1757,7 +1755,7 @@ abort:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
     if(out_hist && vkdt.graph_res == VK_SUCCESS)
     {
-      int wd = vkdt.state.panel_wd;
+      int wd = vkdt.state.panel_wd * 0.975;
       // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
       ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
