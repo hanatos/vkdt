@@ -1,4 +1,4 @@
-# vkdt: darktable which sucks less
+# vkdt: raw image processing workflow which sucks less
 
 [vkdt](https://jo.dreggn.org/vkdt) is a workflow tool for raw photography.
 `vkdt` is designed with high performance in mind. it features a flexible
@@ -106,7 +106,9 @@ you can also build without rawspeed if that is useful for you.
 
 ## faq
 * **can i load canon cr3 files?**  
-this has been confirmed to work:  
+yes. the rawspeed submodule in this repository is now by default
+already using a branch that supports cr3 files. essentially on top
+of vanilla rawspeed, it is a merge of:
 ```
 cd ext/rawspeed
 git remote add cytrinox https://github.com/cytrinox/rawspeed.git
