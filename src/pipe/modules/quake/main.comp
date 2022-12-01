@@ -612,7 +612,7 @@ mc_state_t mc_state_new()
   r.y = vec3(0);
   r.n = vec3(0);
   r.f = 0.0;
-  r.kappa = 1000.0; // XXX FIXME: this affects stuff! i thought it did not!
+  r.kappa = 0;
   return r;
 }
 
@@ -789,7 +789,7 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-        // TODO: make this a parameter (switch guiding off / on)
+        // TODO: make this a parameter (switch guiding off / on for reference renders)
         bool use_vmf = s > 0;
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
@@ -845,6 +845,14 @@ main()
             float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
+            if(tent.f == 0.0)
+            { // sampled bsdf to get here? insert distance based heuristic as starting point:
+              tent.kappa = 1800.0 + 900.0*m1.t; // XXX total distance?
+              if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
+              tent.f = f;
+              tent.y = mg.x;
+              tent.n = mg.n;
+            }
             // XXX TODO: also if G_term was 0
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
@@ -858,18 +866,12 @@ main()
               curr.instid = mg.instid;
               curr.uv     = mg.uv;
 #endif
-
-              if(tent.f == 0.0)
-              { // sampled bsdf to get here? insert distance based heuristic as starting point:
-                curr.kappa = 180.0 + 90.0*m1.t; // XXX total distance?
-                if(m1.mat == 0xfff) curr.kappa = 50; // sky is smooth
-              }
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
-              curr.kappa = min(10000, tent.kappa * 2.0);
+              tent.kappa = max(100.0, tent.kappa * 0.5);
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else
-            {
-              tent.kappa = max(50.0, tent.kappa*0.5); // maybe try again (if not replaced by nbhood)
+            { // rejected, maybe try again with different kappa (if not replaced by nbhood)
+              tent.kappa = min(500000.0, tent.kappa * 2.0);
 #if 0
               tent.primid = mg.primid;
               tent.instid = mg.instid;
