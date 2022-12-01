@@ -4,6 +4,9 @@
 #include "shared.glsl"
 #include "shared/render3d.glsl"
 
+//#define ALPHA 0.5
+#define ALPHA mix(0.25, 0.05, smoothstep(0, 16, i))
+
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 layout(std140, set = 0, binding = 1) uniform params_t
@@ -11,6 +14,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float sigma_v;
   float power;
   float sigma_n;
+  float sigma_n_min;
   float sigma_d;
   int   steps;
 } params;
@@ -79,9 +83,9 @@ dErrdW(
     vec3 e2 = (expq + 1) * (expq + 1);
     float weight = /*weights[i % 3] * weights[int(i / 3)] */ y[i].w;
 #ifdef MAE
-    vec3 f = weight * sign(qs - y[i]) * expq / e2 * (fmax - fmin) / float(9);
+    vec3 f = weight * sign(qs - y[i].rgb) * expq / e2 * (fmax - fmin) / float(9);
 #else
-    vec3 f = weight * 2.0 * (qs - y[i]) * expq / e2 * (fmax - fmin) / float(9);
+    vec3 f = weight * 2.0 * (qs - y[i].rgb) * expq / e2 * (fmax - fmin) / float(9);
 #endif
     dEdWL[0] += f.x * phixL[i];
     dEdWL[1] += f.y * phixL[i];
@@ -169,7 +173,7 @@ main()
 
 	for (int i = 0; i < params.steps; ++i)
   {
-		dErrdW(WL, WR, f, f_weights, fmin, fmax, dEdWL, dEdWR);
+		dErrdW(WL, WR, val, fmin, fmax, dEdWL, dEdWR);
 		if (i == 0) {
 			mL[0] = dEdWL[0]; mL[1] = dEdWL[1]; mL[2] = dEdWL[2];
 			mR[0] = dEdWR[0]; mR[1] = dEdWR[1]; mR[2] = dEdWR[2];
@@ -187,10 +191,10 @@ main()
     vec3(0.125,0.125,-0.125), vec3(0.125,0.125,0.125),
     vec3(0.125,0.125, 0.125), vec3(0.125,0.125,-0.125)
   };
-	vec3 total0 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[0], phiUR[0])), fmin + epsilon, fmax - epsilon);
-	vec3 total1 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[1], phiUR[1])), fmin + epsilon, fmax - epsilon);
-	vec3 total2 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[2], phiUR[2])), fmin + epsilon, fmax - epsilon);
-	vec3 total3 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[3], phiUR[3])), fmin + epsilon, fmax - epsilon);
+	vec3 total0 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[0], phiUR[0]))), fmin + epsilon, fmax - epsilon);
+	vec3 total1 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[1], phiUR[1]))), fmin + epsilon, fmax - epsilon);
+	vec3 total2 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[2], phiUR[2]))), fmin + epsilon, fmax - epsilon);
+	vec3 total3 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[3], phiUR[3]))), fmin + epsilon, fmax - epsilon);
 
   imageStore(img_out, 2*ipos+ivec2(0, 0), vec4(total0, 1.0));
   imageStore(img_out, 2*ipos+ivec2(1, 0), vec4(total1, 1.0));
