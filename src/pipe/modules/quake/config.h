@@ -1,4 +1,4 @@
-#define WATER_DEPTH 16.0
+#define WATER_DEPTH 8.0
 // water does not really work with stock quake maps (because r_vis 1 etc)
 #define WATER_MODE_OFF     0 // opaque water
 #define WATER_MODE_FLAT    1 // flat but transparent with "caustics"
