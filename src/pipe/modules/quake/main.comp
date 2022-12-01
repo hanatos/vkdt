@@ -710,7 +710,11 @@ main()
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
-  const int spp = 32; // needs to be a compile time constant (use specialisation?)
+  // XXX 64 looks worse than 16, 8 starts to be wonky and 4 has none of the grids in s1.sav:
+  // XXX too long chains/high spp probably means not enough diffuse/bsdf samples to discover things
+  // XXX too low means uh? kappa adaptation can't work?
+  // XXX still multi-light mixtures are wonky!
+  const int spp = 4; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
@@ -851,12 +855,13 @@ main()
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
             float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
-            float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
+            // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
+            float a = min(1.0, f / tent.f);
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
-              tent.kappa = clamp(800.0 + 900.0*m1.t, 100, 20000); // XXX total distance?
+              tent.kappa = clamp(800.0 + 900.0*m1.t, 100, 200000); // XXX total distance?
               if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
               tent.f = f;
               tent.y = mg.x;
@@ -880,7 +885,7 @@ main()
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else
             { // rejected, maybe try again with different kappa (if not replaced by nbhood)
-              tent.kappa = min(20000.0, tent.kappa * 2.0);
+              tent.kappa = min(200000.0, tent.kappa * 2.0);
 #if 0
               tent.primid = mg.primid;
               tent.instid = mg.instid;
