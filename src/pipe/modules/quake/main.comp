@@ -27,6 +27,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int water;
   uint sky_rt, sky_bk, sky_lf, sky_ft, sky_up, sky_dn;
   float cl_time; // quake time
+  int   ref;     // use reference sampling
 } params;
 
 // layout(push_constant, std140) uniform push_t
@@ -315,7 +316,7 @@ prepare_material_info(
     m.emission *= m.emission;
   }
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
-  else if(m.flags == 2) m.emission =  5.0*m.albedo; // slime
+  else if(m.flags == 2) m.emission =  0.5*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
   else if(m.mat == 0xfff) m.emission = m.emission;//(exp2(m.emission*10.0)-1.0);
   else m.emission = 10.0*(exp2(m.emission*10.0)-1.0);
@@ -572,7 +573,7 @@ propagate_ray(
 #if WATER_MODE==WATER_MODE_OFF
   return m;
 #else
-  if(m.flags != 4 && m.flags != 5) return m; // no water no transmission, simple
+  if(m.flags != 4 && m.flags != 5/* && m.alpha > 0.5*/) return m; // no water no transmission, simple
   
   // randomly sample reflective/termination vs specular transmit
   float ior = 1.33;
@@ -614,6 +615,13 @@ mc_state_t mc_state_new()
   r.f = 0.0;
   r.kappa = 0;
   return r;
+}
+
+// return only the cosines, not the distance squared part
+float G_cosines(vec3 x, vec3 nx, vec3 y, vec3 ny)
+{
+  vec3 d = normalize(y - x);
+  return max(0, dot(d, nx))*max(0, dot(-d, ny));
 }
 
 // pass shading point first, remote/light second (for sky detection)
@@ -702,7 +710,7 @@ main()
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
-  const int spp = 8; // needs to be a compile time constant (use specialisation?)
+  const int spp = 32; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
@@ -789,8 +797,7 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-        // TODO: make this a parameter (switch guiding off / on for reference renders)
-        bool use_vmf = s > 0;
+        bool use_vmf = (params.ref == 0) && (s > 0);
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
@@ -802,7 +809,9 @@ main()
           dv = normalize(cross(du, mu));
           w = w.x * du + w.y * dv + w.z * mu;
           pdf_w = vmf_eval(tent.kappa, dot(w, mu));
-          if(dot(w, m0.n)  <= 0.0) use_vmf = false; // fall back to bsdf if under surface
+          float dotn = dot(w, m0.n);
+          if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface
+          rgb *= dotn; // we do not sample this (as diffuse/bsdf does) so we need to multiply
           par[s] = vec4(tent.y, tent.kappa);
         }
         if(!use_vmf)
@@ -841,13 +850,13 @@ main()
           { // update nee sampling state
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
-            float f = length(m1.emission)/pdf_w;
+            float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
             float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
-              tent.kappa = 1800.0 + 900.0*m1.t; // XXX total distance?
+              tent.kappa = clamp(800.0 + 900.0*m1.t, 100, 20000); // XXX total distance?
               if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
               tent.f = f;
               tent.y = mg.x;
@@ -871,7 +880,7 @@ main()
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else
             { // rejected, maybe try again with different kappa (if not replaced by nbhood)
-              tent.kappa = min(500000.0, tent.kappa * 2.0);
+              tent.kappa = min(20000.0, tent.kappa * 2.0);
 #if 0
               tent.primid = mg.primid;
               tent.instid = mg.instid;
@@ -879,7 +888,7 @@ main()
 #endif
             }
           }
-          // XXX clearly defferent results, looks worse:
+          // XXX clearly different results, looks worse:
           // tent = curr; // rejected state means the markov chain stays
 
           m0 = m1; // advance path vertex
@@ -889,12 +898,31 @@ main()
 
       if(global.frame > 10)
       {
-        // float G = G_term(me.x, me.n, tent.y, tent.n);
+        // float G = max(0, -dot(me.n, tent.n));//G_term(me.x, me.n, tent.y, tent.n);
+        float G = G_cosines(me.x, me.n, tent.y, tent.n);
+        float sum = tent.f*G; // XXX disregarding current tent looks better/mixes more (??)
+#if 1 // random
         for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
         {
           rand = xrand(seed, rp);
           ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
                       ivec2(15 * (2.0*rand.zw-1.0));
+#elif 0 //dense
+        for(int j=-16;j<=16;j+=2) for(int i=-16;i<=16;i+=2)
+        {
+          ivec2 off = ivec2(i, j);
+#elif 1 // fixed pattern
+        for(int i=0;i<13;i++)
+        {
+          const ivec2 ofs[] = {ivec2(-2, 6), ivec2(6, 2), ivec2(2, -6), ivec2(-2, -6),
+            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
+            ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+            ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)};
+          ivec2 off = ofs[12-i];
+#else // just our very own center pixel
+        {
+          ivec2 off = ivec2(0);
+#endif
 #if 0     // gbuffer based culling experiments. not conclusive. what would be good is to distinguish
           // between first hit and after-water-propagation hit (store sign bit in depth?)
           vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv+off), 0);
@@ -905,11 +933,19 @@ main()
           if(w_n * w_z > 0.2)
 #endif
           {
+            // rand = xrand(seed, rp);
+            float rnd = mrand(seed);
             mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-            // float G2 = G_term(me.x, me.n, t2.y, t2.n);
-            // if(tent.f*G == 0 || rand.z < (G2 * t2.f) / (G * tent.f))
-            if(tent.f == 0 || rand.z < t2.f / tent.f)
+            // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
+            float G2 = G_cosines(me.x, me.n, t2.y, t2.n);
+            // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f))
+            // if(G == 0 || rand.z < G2 / G)
+            // if(rand.z < 0.5)
+            // if(tent.f == 0 || rnd < t2.f / tent.f)
+            // if(tent.f == 0 || rnd < t2.f / (t2.f + sum)) // XXX reservoir style resampling: markov depends on order?
+            if(tent.f == 0 || rnd < t2.f*G2 / (t2.f*G2 + sum))
               tent = t2;
+            sum += t2.f*G2;
           }
         }
       }

@@ -550,11 +550,14 @@ again:;
           idx[nidx+3*(k-2)+1] = *vtx_cnt + nvtx+k-1;
           idx[nidx+3*(k-2)+2] = *vtx_cnt + nvtx+k;
         }
+        // TODO: make somehow dynamic. don't want to re-upload the whole model just because the texture animates.
+        // for now that means static brush models will not actually animate their textures
+        texture_t *t = R_TextureAnimation(surf->texinfo->texture, ent->frame);
         if(ext) for(int k=2;k<p->numverts;k++)
         {
           int pi = (nidx+3*(k-2))/3;
-          ext[14*pi+0] = surf->texinfo->texture->gloss ? surf->texinfo->texture->gloss->texnum : 0;
-          ext[14*pi+1] = surf->texinfo->texture->norm  ? surf->texinfo->texture->norm->texnum  : 0;
+          ext[14*pi+0] = t->gloss ? t->gloss->texnum : 0;
+          ext[14*pi+1] = t->norm  ? t->norm->texnum  : 0;
           ext[14*pi+2] = 0xffff; // mark as brush model
           ext[14*pi+3] = 0xffff;
           if(surf->texinfo->texture->gltexture)
@@ -565,8 +568,8 @@ again:;
             ext[14*pi+ 9] = float_to_half(p->verts[k-1][4]);
             ext[14*pi+10] = float_to_half(p->verts[k-0][3]);
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
-            ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
-            ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
+            ext[14*pi+12] = t->gltexture->texnum;
+            ext[14*pi+13] = t->fullbright ? t->fullbright->texnum : 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
@@ -578,17 +581,12 @@ again:;
 #endif
             // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
             ext[14*pi+13] |= flags << 12;
-            if((surf->flags & SURF_DRAWTURB) && ent->alpha)
-            { // alpha in 4 bits
-              // TODO: somehow respect this: (ad_tears does waterfalls with this)
-              // fprintf(stderr, "brush alpha: %d\n", ent->alpha);
-              // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
-              // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
-              // TODO: or "slime" or "tele" instead of "lava"
-              uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15);
-              ai = 0;
-              ext[14*pi+12] |= ai << 12;
-            }
+            uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15); // alpha in 4 bits
+            if(!ent->alpha) ai = 15;
+            // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
+            // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
+            // TODO: or "slime" or "tele" instead of "lava"
+            ext[14*pi+12] |= ai << 12;
           }
           if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xfff;
         }
