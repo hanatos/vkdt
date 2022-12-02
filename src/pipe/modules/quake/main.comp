@@ -305,8 +305,8 @@ prepare_material_info(
     if(m.flags > 0)
     { // all esoteric surfaces warp
       m.st = vec2(
-          m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
-          m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
+          m.st.x + 0.2*sin(m.st.y*2.0 + params.cl_time * 0.01),
+          m.st.y + 0.2*sin(m.st.x*2.0 + params.cl_time * 0.01));
     }
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
@@ -744,8 +744,8 @@ main()
     vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
     if(params.water > 0)
       uv = vec2(
-          uv.x + 0.02*sin(uv.y*5.0 + global.frame * 0.01),
-          uv.y + 0.02*sin(uv.x*5.0 + global.frame * 0.01));
+          uv.x + 0.02*sin(uv.y*5.0 + params.cl_time * 0.01),
+          uv.y + 0.02*sin(uv.x*5.0 + params.cl_time * 0.01));
     w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
     m0.n = f;
     m0.x += w_cam * 0.02; // push a bit to avoid problems with some level-end cameras
