@@ -35,18 +35,6 @@ static ImHotKey::HotKey hk_lighttable[] = {
 
 void render_lighttable_center()
 { // center image view
-  if(!dt_gui_imgui_input_blocked())
-  { // global enter/exit key accels only if no popup is active
-    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-       ImGui::IsKeyPressed(ImGuiKey_Escape)||
-       ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-    { dt_view_switch(s_view_files); return; }
-    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
-       ImGui::IsKeyPressed(ImGuiKey_Enter))
-      if(dt_db_current_imgid(&vkdt.db) != -1u)
-      { dt_view_switch(s_view_darkroom); return; }
-  }
-
   { // assign star rating/colour labels via gamepad:
     if(ImGui::IsKeyDown(ImGuiKey_GamepadFaceUp))
     {
@@ -648,6 +636,17 @@ void render_lighttable_right_panel()
     ImGui::Unindent();
   } // end collapsing header "export"
 
+  if(!dt_gui_imgui_input_blocked())
+  { // global enter/exit key accels only if no popup is active
+    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+       ImGui::IsKeyPressed(ImGuiKey_Escape)||
+       ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+      dt_view_switch(s_view_files);
+    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
+       ImGui::IsKeyPressed(ImGuiKey_Enter))
+      if(dt_db_current_imgid(&vkdt.db) != -1u)
+        dt_view_switch(s_view_darkroom);
+  }
   dt_gui_lt_modals(); // draw modal windows from buttons/hotkeys
 
   ImGui::End(); // lt right panel
