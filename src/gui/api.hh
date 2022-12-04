@@ -30,7 +30,8 @@ dt_gui_lt_modals()
   {
     static char filter[256] = "all time best";
     static char name[PATH_MAX];
-    int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new);
+    int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name),
+        static_cast<filteredlist_flags_t>(s_filteredlist_allow_new | s_filteredlist_return_short));
     if(ok) ImGui::CloseCurrentPopup(); // got some answer
     ImGui::EndPopup();
     if(ok == 1)
