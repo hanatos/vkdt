@@ -23,6 +23,7 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"undo",          "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
   {"add module",    "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
   {"add block",     "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
+  {"assign tag",    "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
 };
 
 enum hotkey_names_t
@@ -34,6 +35,7 @@ enum hotkey_names_t
   s_hotkey_undo          = 4,
   s_hotkey_module_add    = 5,
   s_hotkey_block_add     = 6,
+  s_hotkey_assign_tag    = 7,
 };
 
 // used to communictate between the gui helper functions
@@ -1909,6 +1911,9 @@ abort:
       break;
     case s_hotkey_block_add:
       ImGui::OpenPopup("insert block");
+      break;
+    case s_hotkey_assign_tag:
+      dt_gui_dr_assign_tag();
       break;
     default:;
   }

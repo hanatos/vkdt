@@ -333,6 +333,20 @@ error:
     }
     ImGui::EndPopup();
   } // end BeginPopupModal add module
+  if(ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_NoResize))
+  {
+    static char filter[256] = "all time best";
+    static char name[PATH_MAX];
+    int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name),
+        static_cast<filteredlist_flags_t>(s_filteredlist_allow_new | s_filteredlist_return_short));
+    if(ok) ImGui::CloseCurrentPopup(); // got some answer
+    ImGui::EndPopup();
+    if(ok == 1)
+    {
+      dt_db_add_to_collection(&vkdt.db, vkdt.db.current_imgid, name);
+      dt_gui_read_tags();
+    }
+  } // end BeginPopupModal assign tag
 }
 
 inline void
@@ -356,3 +370,11 @@ dt_gui_dr_module_add()
   ImGui::OpenPopup("add module");
   vkdt.wstate.busy += 5;
 }
+
+inline void
+dt_gui_dr_assign_tag()
+{
+  ImGui::OpenPopup("assign tag");
+  vkdt.wstate.busy += 5;
+}
+
