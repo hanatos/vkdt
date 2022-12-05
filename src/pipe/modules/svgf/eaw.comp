@@ -73,19 +73,25 @@ main()
   vec2 w_sum = vec2(1.0);
   vec4 res = vec4(w_sum.x * Lp, w_sum.y*sigma*sigma);
   // evaluate filter:
-  for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++) if (i!=0 || j!=0)
-  {
-    vec3 Lq = texelFetch(img_irr, ipos+ivec2(i,j), 0).rgb;
-    vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
-    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));
-    float w = edge(
-        vec2(i,j), sigma, 
-        Lp, Lq,
-        normal, nq,
-        depth, gbufq.y);
-    res += w*vec4(w*Lq, w*w*sigma*sigma);
-    w_sum += vec2(w, w*w);
-  }
+#define FILTER \
+    do {\
+    vec3 Lq = texelFetch(img_irr, ipos+ivec2(i,j), 0).rgb;\
+    vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);\
+    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));\
+    float w = edge(\
+        vec2(i,j), sigma, \
+        Lp, Lq,\
+        normal, nq,\
+        depth, gbufq.y);\
+    res += w*vec4(w*Lq, w*w*sigma*sigma);\
+    w_sum += vec2(w, w*w);\
+    } while(false)
+  { int j=-2; for(int i=-1;i<=1;i++) FILTER; }
+  { int j=-1; for(int i=-2;i<=2;i++) FILTER; }
+  { int j= 0; for(int i=-2;i<=2;i++) if(i!=0) FILTER; }
+  { int j= 1; for(int i=-2;i<=2;i++) FILTER; }
+  { int j= 2; for(int i=-1;i<=1;i++) FILTER; }
+#undef FILTER
   res /= w_sum.xxxy;
 
   // sort image to write positions so we can iterate the filter

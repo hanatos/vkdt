@@ -278,26 +278,20 @@ create_nodes(
 
   dt_node_connect(graph, id_den, 2, id_down[0], 0);
   dt_connector_copy(graph, module, 5, id_down[0], 1);
+  dt_node_connect(graph, id_up[SVGF_IT-1], 0, id_down[SVGF_IT-1], 2); // lowest down/up has no combine
+  dt_node_connect(graph, id_up[SVGF_IT-1], 1, id_down[SVGF_IT-1], 3);
   for(int i=1;i<SVGF_IT;i++)
   {
     dt_node_connect(graph, id_down[i-1], 2, id_down[i], 0);
     dt_node_connect(graph, id_down[i-1], 3, id_down[i], 1);
+
+    dt_node_connect(graph, id_up[i-1], 0, id_comb[i] // XXX
 
     dt_node_connect(graph, id_down[i],   2, id_comb[i-1], 0); // col  lo
     dt_node_connect(graph, id_down[i],   3, id_comb[i-1], 2); // gbuf lo
     dt_node_connect(graph, id_up[i],     2, id_comb[i-1], 1); // col  hi
     dt_node_connect(graph, id_down[i-1], 3, id_comb[i-1], 3); // gbuf hi
   }
-#if 0
-  // dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
-  dt_connector_copy(graph, module, 5, id_eaw[0], 1);  // gbuffer for normal, depth, L moments
-  for(int i=1;i<SVGF_IT;i++)
-  {
-    CONN(dt_node_connect (graph, id_eaw[i-1], 2, id_eaw[i], 0));
-    CONN(dt_node_connect (graph, id_eaw[i-1], 3, id_eaw[i], 1));
-  }
-  CONN(dt_node_connect (graph, id_eaw[SVGF_IT-1], 2, id_blend, 2)); // denoised light
-#endif
   CONN(dt_node_connect (graph, id_comb[0], 4, id_blend, 2)); // denoised light
   CONN(dt_node_feedback(graph, id_blend, 4, id_blend, 1)); // beauty frame, old
 #if SVGF_OFF==1
