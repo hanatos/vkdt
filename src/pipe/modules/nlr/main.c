@@ -10,7 +10,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   int id_preblend = graph->num_nodes++;
   graph->node[id_preblend] = (dt_node_t) {
-    .name   = dt_token("svgf"),
+    .name   = dt_token("nlr"),
     .kernel = dt_token("preblend"),
     .module = module,
     .wd     = module->connector[0].roi.wd,
@@ -65,7 +65,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   int id_blend = graph->num_nodes++;
   graph->node[id_blend] = (dt_node_t) {
-    .name   = dt_token("svgf"),
+    .name   = dt_token("nlr"),
     .kernel = dt_token("blend"),
     .module = module,
     .wd     = module->connector[0].roi.wd,
@@ -219,11 +219,10 @@ create_nodes(
         .roi    = roi,
       }},
     };
-    if(i == SVGF_IT-1) continue;
     id_comb[i] = graph->num_nodes++;
     graph->node[id_comb[i]] = (dt_node_t) {
       .name   = dt_token("nlr"),
-      .kernel = dt_token("comb"),
+      .kernel = dt_token("combine"),
       .module = module,
       .wd     = roi.wd,
       .ht     = roi.ht,
@@ -278,21 +277,33 @@ create_nodes(
 
   dt_node_connect(graph, id_den, 2, id_down[0], 0);
   dt_connector_copy(graph, module, 5, id_down[0], 1);
-  dt_node_connect(graph, id_up[SVGF_IT-1], 0, id_down[SVGF_IT-1], 2); // lowest down/up has no combine
-  dt_node_connect(graph, id_up[SVGF_IT-1], 1, id_down[SVGF_IT-1], 3);
-  for(int i=1;i<SVGF_IT;i++)
+  // dt_node_connect(graph, id_down[SVGF_IT-1], 2, id_up[SVGF_IT-1], 0); // lowest down/up has no combine
+  // dt_node_connect(graph, id_down[SVGF_IT-1], 3, id_up[SVGF_IT-1], 1);
+  for(int i=0;i<SVGF_IT;i++)
   {
-    dt_node_connect(graph, id_down[i-1], 2, id_down[i], 0);
-    dt_node_connect(graph, id_down[i-1], 3, id_down[i], 1);
+    if(i)
+    {
+      dt_node_connect(graph, id_down[i-1], 2, id_down[i], 0); // downsize
+      dt_node_connect(graph, id_down[i-1], 2, id_comb[i], 1);
+      dt_node_connect(graph, id_down[i-1], 3, id_down[i], 1);
+      dt_node_connect(graph, id_down[i-1], 3, id_comb[i], 3);
+      dt_node_connect(graph, id_comb[i], 4, id_up[i-1], 0);
+    }
+    else // i==0
+    {
+      dt_node_connect  (graph, id_den, 2, id_down[i], 0); // downsize input
+      dt_node_connect  (graph, id_den, 2, id_comb[i], 1);
+      dt_connector_copy(graph, module, 5, id_down[i], 1); // current gbuffer
+      dt_connector_copy(graph, module, 5, id_comb[i], 3);
+      dt_node_connect(graph, id_comb[i], 4, id_blend, 2);
+    }
+    dt_node_connect(graph, id_down[i], 2, id_up[i],   0); 
+    dt_node_connect(graph, id_down[i], 3, id_up[i],   1);
 
-    dt_node_connect(graph, id_up[i-1], 0, id_comb[i] // XXX
-
-    dt_node_connect(graph, id_down[i],   2, id_comb[i-1], 0); // col  lo
-    dt_node_connect(graph, id_down[i],   3, id_comb[i-1], 2); // gbuf lo
-    dt_node_connect(graph, id_up[i],     2, id_comb[i-1], 1); // col  hi
-    dt_node_connect(graph, id_down[i-1], 3, id_comb[i-1], 3); // gbuf hi
+    dt_node_connect(graph, id_up[i],   2, id_comb[i], 0); // col lo
+    dt_node_connect(graph, id_down[i], 3, id_comb[i], 2); // gbuf lo
   }
-  CONN(dt_node_connect (graph, id_comb[0], 4, id_blend, 2)); // denoised light
+  // CONN(dt_node_connect (graph, id_comb[0], 4, id_blend, 2)); // denoised light
   CONN(dt_node_feedback(graph, id_blend, 4, id_blend, 1)); // beauty frame, old
 #if SVGF_OFF==1
   dt_connector_copy(graph, module, 1, id_blend, 2); // XXX DEBUG light w/o denoising

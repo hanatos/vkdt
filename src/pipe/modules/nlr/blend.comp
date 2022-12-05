@@ -23,9 +23,9 @@ layout(set = 1, binding = 4) uniform writeonly image2D img_out; // new beauty fr
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
-#if SVGF_OFF==1
-  return tc;
-#else
+// #if SVGF_OFF==1
+  return tc; // NLR does not swizzle
+#if 0
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
