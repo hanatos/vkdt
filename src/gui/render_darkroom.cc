@@ -16,11 +16,26 @@ extern "C"
 namespace { // anonymous namespace
 
 static ImHotKey::HotKey hk_darkroom[] = {
-  {"create preset", "create new preset from image",      {ImGuiKey_LeftCtrl, ImGuiKey_O}},
-  {"apply preset",  "choose preset to apply",            {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"show history",  "toggle visibility of left panel",   {ImGuiKey_LeftCtrl, ImGuiKey_H}},
-  {"redo",          "go up in history stack one item",   {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
-  {"undo",          "go down in history stack one item", {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
+  {"create preset", "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
+  {"apply preset",  "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"show history",  "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
+  {"redo",          "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
+  {"undo",          "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
+  {"add module",    "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
+  {"add block",     "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
+  {"assign tag",    "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
+};
+
+enum hotkey_names_t
+{ // for sane access in code
+  s_hotkey_create_preset = 0,
+  s_hotkey_apply_preset  = 1,
+  s_hotkey_show_history  = 2,
+  s_hotkey_redo          = 3,
+  s_hotkey_undo          = 4,
+  s_hotkey_module_add    = 5,
+  s_hotkey_block_add     = 6,
+  s_hotkey_assign_tag    = 7,
 };
 
 // used to communictate between the gui helper functions
@@ -34,6 +49,7 @@ static struct gui_state_data_t
   } state;
   char       block_filename[2*PATH_MAX+10];
   dt_token_t block_token[20];
+  int        hotkey = -1;
 } gui = {gui_state_data_t::s_gui_state_regular};
 
 
@@ -1374,36 +1390,17 @@ void render_darkroom_pipeline()
   }
 
   // add new module to the graph (unconnected)
-  if(ImGui::Button("add module.."))
-  {
-    ImGui::SetNextWindowSize(ImVec2(0.8*vkdt.state.center_wd, 0.9*vkdt.state.center_ht), ImGuiCond_Always);
-    ImGui::OpenPopup("add module");
-    vkdt.wstate.busy += 5;
-  }
-  if(ImGui::BeginPopupModal("add module", NULL, ImGuiWindowFlags_NoResize))
-  {
-    static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
-    char filename[1024] = {0};
-    static char filter[256];
-    int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename),
-        static_cast<filteredlist_flags_t>(s_filteredlist_descr_req | s_filteredlist_return_short));
-    if(ok) ImGui::CloseCurrentPopup();
-    if(ok == 1)
-    {
-      int new_modid = dt_module_add(&vkdt.graph_dev, dt_token(filename), dt_token(mod_inst));
-      if(new_modid >= 0) dt_graph_history_module(&vkdt.graph_dev, new_modid);
-    }
-    ImGui::EndPopup();
-  } // end BeginPopupModal add module
+  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+  if(ImGui::Button("add module..", ImVec2(-1, 0)))
+    gui.hotkey = s_hotkey_module_add;
 
   // add block (read cfg snipped)
-  static char mod_inst[10] = "01";
   if(gui.state == gui_state_data_t::s_gui_state_insert_block)
   {
     if(ImGui::Button("insert disconnected"))
     {
       dt_graph_read_block(&vkdt.graph_dev, gui.block_filename,
-          dt_token(mod_inst),
+          gui.block_token[0],
           dt_token(""), dt_token(""), dt_token(""),
           dt_token(""), dt_token(""), dt_token(""));
       gui.state = gui_state_data_t::s_gui_state_regular;
@@ -1412,25 +1409,9 @@ void render_darkroom_pipeline()
     if(ImGui::Button("abort"))
       gui.state = gui_state_data_t::s_gui_state_regular;
   }
-  else
-  {
-    if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-    {
-      ImGui::InputText("instance", mod_inst, 8);
-      static char filter[256] = "";
-      int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), s_filteredlist_default);
-      if(ok) ImGui::CloseCurrentPopup();
-      if(ok == 1)
-        gui.state = gui_state_data_t::s_gui_state_insert_block;
-      // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
-      ImGui::EndPopup();
-    }
-    if(ImGui::Button("insert block.."))
-    {
-      gui.block_token[0] = dt_token(mod_inst);
-      ImGui::OpenPopup("insert block");
-    }
-  }
+  else if(ImGui::Button("insert block..", ImVec2(-1, 0)))
+    gui.hotkey = s_hotkey_block_add;
+  ImGui::PopStyleVar();
 }
 
 } // end anonymous namespace
@@ -1438,8 +1419,9 @@ void render_darkroom_pipeline()
 
 void render_darkroom()
 {
+  gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
   int axes_cnt = 0;
-  const float   *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
+  const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
     int border = vkdt.style.border_frac * qvk.win_width;
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
@@ -1767,7 +1749,6 @@ abort:
   } // end left panel
 
   { // right panel
-    int hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
     ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
@@ -1776,7 +1757,7 @@ abort:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
     if(out_hist && vkdt.graph_res == VK_SUCCESS)
     {
-      int wd = vkdt.state.panel_wd;
+      int wd = vkdt.state.panel_wd * 0.975;
       // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
       ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
@@ -1892,42 +1873,65 @@ abort:
         {
           ImVec2 size((vkdt.state.panel_wd-4)/2, 0);
           if(ImGui::Button("create preset", size))
-            hotkey = 0;
+            gui.hotkey = s_hotkey_create_preset;
           ImGui::SameLine();
           if(ImGui::Button("apply preset", size))
-            hotkey = 1;
+            gui.hotkey = s_hotkey_apply_preset;
         }
 
         ImGui::EndTabItem();
       }
       ImGui::EndTabBar();
-
-      switch(hotkey)
-      {
-        case 0:
-          dt_gui_dr_preset_create();
-          break;
-        case 1:
-          dt_gui_dr_preset_apply();
-          break;
-        case 2:
-          dt_gui_dr_toggle_history();
-          break;
-        case 3:
-          dt_gui_dr_show_history();
-          dt_gui_dr_history_redo();
-          break;
-        case 4:
-          dt_gui_dr_show_history();
-          dt_gui_dr_history_undo();
-          break;
-        default:;
-      }
-      dt_gui_dr_modals(); // draw modal window for presets
     }
 
     ImGui::End();
   } // end right panel
+
+  switch(gui.hotkey)
+  {
+    case s_hotkey_create_preset:
+      dt_gui_dr_preset_create();
+      break;
+    case s_hotkey_apply_preset:
+      dt_gui_dr_preset_apply();
+      break;
+    case s_hotkey_show_history:
+      dt_gui_dr_toggle_history();
+      break;
+    case s_hotkey_redo:
+      dt_gui_dr_show_history();
+      dt_gui_dr_history_redo();
+      break;
+    case s_hotkey_undo:
+      dt_gui_dr_show_history();
+      dt_gui_dr_history_undo();
+      break;
+    case s_hotkey_module_add:
+      dt_gui_dr_module_add();
+      break;
+    case s_hotkey_block_add:
+      ImGui::OpenPopup("insert block");
+      break;
+    case s_hotkey_assign_tag:
+      dt_gui_dr_assign_tag();
+      break;
+    default:;
+  }
+  dt_gui_dr_modals(); // draw modal windows for presets etc
+  // this one uses state that is local to our file, so it's kept here:
+  if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    static char mod_inst[10] = "01";
+    ImGui::InputText("instance", mod_inst, 8);
+    gui.block_token[0] = dt_token(mod_inst);
+    static char filter[256] = "";
+    int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, gui.block_filename, sizeof(gui.block_filename), s_filteredlist_default);
+    if(ok) ImGui::CloseCurrentPopup();
+    if(ok == 1)
+      gui.state = gui_state_data_t::s_gui_state_insert_block;
+    // .. and render_module() will continue adding it using the data in gui.block* when the "insert before this" button is pressed.
+    ImGui::EndPopup();
+  }
 }
 
 void render_darkroom_init()
