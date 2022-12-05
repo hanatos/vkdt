@@ -1,27 +1,19 @@
-# ca: correct chromatic aberrations
+# ca: remove chromatic aberrations by defringing
 
-this is a straight forward implementation of chromatic aberration
-correction: it uses an edge detection pass and fits a polynomial to
-the radial offsets of red and blue channels as compared to the green
-reference channel. this is then corrected in a second pass.
+this simple module detects edges and removes coloured fringes
+which are caused by any kind of chromatic aberration (or other issues,
+for that matter).
 
-the module is based on automatic detection, it has no parameters.
-
-note: the module is known to be pre-production quality and have fail
-cases which need fixing.
-
-## connectors
-
-* `input` the input connector
-* `output` the output connector with chromatic aberrations corrected
+since it tries to detect edges and saturation (with the assumption that r=g=b
+is "white"), it depends on a reasonably white balanced colour space, i.e. place
+it after the `colour` module.
 
 ## parameters
 
-## examples
+* `thrs` an edge detection threshold, everything above this is an edge
+* `amount` if you don't want to desaturate all the way, you can dial the effect down here
 
-zoom-in to the side of a 20MP image (drag to compare):
+## connectors
 
-<div class="compare_box">
-<textarea readonly style="background-image:url(off.jpg)"></textarea>
-<textarea readonly style="background-image:url(on.jpg)" ></textarea>
-</div>
+* `input` the input buffer with chromatic aberrations
+* `output` the output buffer without chromatic aberrations

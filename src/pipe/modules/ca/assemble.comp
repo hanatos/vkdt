@@ -1,0 +1,89 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float thrs;
+  float amount;
+} params;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint level;
+} push;
+
+layout( // input f16 buffer, original input at fine level
+    set = 1, binding = 0
+) uniform sampler2D img_input;
+
+layout( // coarse f16 buffer
+    set = 1, binding = 1
+) uniform sampler2D img_coarse;
+
+layout( // output fine resolution
+    set = 1, binding = 2
+) uniform writeonly image2D img_out;
+
+
+vec4 gauss_expand(sampler2D img_in, ivec2 opos)
+{
+  vec4 c = vec4(0.0);
+  float s = 0.0;
+  const float w[5] = {1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0};
+  ivec2 ipos = opos/2;
+  const int d = (opos.x&1) + 2*(opos.y&1);
+
+  if(d == 0) for(int ii=-1;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
+  { // both are even, 3x3 stencil
+    vec4 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
+    c += rgb * w[2*jj+2]*w[2*ii+2];
+    s += w[2*jj+2]*w[2*ii+2];
+  }
+  else if(d == 1) for(int ii=0;ii<=1;ii++) for(int jj=-1;jj<=1;jj++)
+  { // i is odd, 2x3 stencil
+    vec4 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
+    c += rgb * w[2*jj+2]*w[2*ii+1];
+    s += w[2*jj+2]*w[2*ii+1];
+  }
+  else if(d == 2) for(int ii=-1;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
+  { // j is odd, 3x2 stencil
+    vec4 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
+    c += rgb * w[2*jj+1]*w[2*ii+2];
+    s += w[2*jj+1]*w[2*ii+2];
+  }
+  else for(int ii=0;ii<=1;ii++) for(int jj=0;jj<=1;jj++)
+  { // both are odd, 2x2 stencil
+    vec4 rgb = texture(img_in, vec2(ipos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
+    c += rgb * w[2*jj+1]*w[2*ii+1];
+    s += w[2*jj+1]*w[2*ii+1];
+  }
+  return c / s;
+}
+
+// assemble
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  // upsample img_coarse
+  vec4 upsm = gauss_expand(img_coarse, opos);
+  // fetch input pixel
+  vec4 fine = texelFetch(img_input, opos, 0);
+
+  if((push.level == 1) || fine.a == 0.0)
+  {
+    vec2 diff = fine.rb - fine.g;
+    diff = mix(diff, sign(diff) * clamp(abs(diff), vec2(0.0), abs(upsm.rb - upsm.g)), params.amount);
+    fine.rb = fine.g + diff;
+  }
+
+  imageStore(img_out, opos, vec4(fine.rgb, upsm.a));
+}
+
