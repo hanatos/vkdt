@@ -46,6 +46,7 @@ main()
   vec3 nlo = geo_decode_normal(floatBitsToUint(gbuf_lo.x));
   float n_dot = pow(max(0.0, dot(nhi, nlo)), params.sigma_n);
   float w = mix(params.sigma_n_min, 1.0, n_dot);               // normal
+  w = 1.0;// XXX i think the gbuf lo is broken
   w *= exp(-length(gbuf_hi.y - gbuf_lo.y) * params.sigma_d);   // depth
 
   float var = lo.w;

@@ -63,6 +63,7 @@ main()
     for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
     {
       vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+      // vec4 gbufq = texture(img_gbuf, (ipos+ivec2(i,j)+0.5)/textureSize(img_gbuf, 0));
       m1 += gbufq.z; m2 += gbufq.w;
     }
     m1 /= (2.0*r+1)*(2.0*r+1);
@@ -75,8 +76,8 @@ main()
   // evaluate filter:
 #define FILTER \
     do {\
-    vec3 Lq = texelFetch(img_irr, ipos+ivec2(i,j), 0).rgb;\
-    vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);\
+    vec3 Lq = texture(img_irr, (ipos+ivec2(i,j)+0.5)/textureSize(img_irr, 0)).rgb;\
+    vec4 gbufq = texture(img_gbuf, (ipos+ivec2(i,j)+0.5)/textureSize(img_gbuf, 0));\
     vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));\
     float w = edge(\
         vec2(i,j), sigma, \
