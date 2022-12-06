@@ -3,8 +3,8 @@
 // https://www.shadertoy.com/view/MdXyzX
 
 #define WATER_DRAG_MULT 0.048
-#define WATER_IT 2 // 13
-#define WATER_IN 3 // 15 //48 [jo] i think 48 is pretty much emulating microfacet models directly :)
+#define WATER_IT 5//2 // 13
+#define WATER_IN 7//3 // 15 //48 [jo] i think 48 is pretty much emulating microfacet models directly :)
 
 // return heightfield of waves
 float water_height(float cl_time, vec2 position, int iterations)
