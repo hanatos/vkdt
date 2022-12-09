@@ -399,8 +399,9 @@ prepare_material_info(
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
       m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
       m.albedo *= m.albedo; // "un-gamma"
-#endif
+#else
       m.albedo = vec3(1.0);
+#endif
       // m.albedo = mix(vec3(0.1, 0.5, 0.8), vec3(0.8, 0.9, 0.9), pow(wn.w/WATER_DEPTH, 2));
       // m.albedo *= mix(vec3(1.0), vec3(1, 2, 2), smoothstep(0.0, 1.0, clamp(wn.w/WATER_DEPTH, 0, 1.0)));
       m.emission = vec3(0.0);

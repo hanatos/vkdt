@@ -70,6 +70,7 @@ int init(dt_module_t *mod)
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
     "-game", "ad",
+    "+map", "e1m1",
     "+map", "ad_tears",
     "+map", "ad_azad",
     "+map", "e1m2",
@@ -82,7 +83,6 @@ int init(dt_module_t *mod)
     "+map", "e1m7", // chthon
     "-game", "SlayerTest",
     "+map", "e1m2b",
-    "+map", "e1m1",
     "+map", "ep1m1",
     "+map", "e1m1b",
     "+map", "st1m1",

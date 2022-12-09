@@ -31,7 +31,7 @@ layout(set = 1, binding = 4) uniform writeonly image2D img_out;
 vec3 detail(vec3 x, float var)
 {
 	float l = luminance_rec2020(x);
-	return x * pow(1 - exp(- l*l / max(1e-6, params.sigma_v * var)), params.power);
+	return x * pow(1 - exp(- l*l / max(1e-14, params.sigma_v * var)), params.power);
 }
 
 void
@@ -52,7 +52,7 @@ main()
   w = 1.0;// XXX i think the gbuf lo is broken
   w *= exp(-length(gbuf_hi.y - gbuf_lo.y) * params.sigma_d);   // depth
 
-  float var = lo.w;
+  float var = sqrt(lo.w);
   vec3 detail = detail(hi.rgb - lo.rgb, var);
   detail = mix(hi.rgb - lo.rgb, detail, w);
 

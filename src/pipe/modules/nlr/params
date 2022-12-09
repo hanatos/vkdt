@@ -1,6 +1,6 @@
 alpha:float:1:0.9
 taa:float:1:1.0
-lalpha:float:1:0.9
+prealpha:float:1:0.9
 sig_v:float:1:0.0
 power:float:1:16
 sig_n:float:1:128

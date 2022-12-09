@@ -23,7 +23,7 @@ frame via taa with box clamping.
 
 * `alpha` the taa blend weight for the previous frame. more means more blur
 * `taa` the taa rejection threshold for the previous frame, in units of standard deviation
-* `lalpha` controls the exponentially weighted average of the pre-blend pass on the noisy
+* `prealpha` controls the exponentially weighted average of the pre-blend pass on the noisy
   input samples
 
 # connectors
