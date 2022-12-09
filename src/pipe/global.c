@@ -395,6 +395,7 @@ int dt_pipe_global_init()
   (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
   // setup search directory
   fs_basedir(dt_pipe.basedir, sizeof(dt_pipe.basedir));
+  fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
   char mod[PATH_MAX+20];
   snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
   struct dirent *dp;

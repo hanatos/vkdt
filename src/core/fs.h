@@ -69,6 +69,14 @@ fs_basename(char *str)
   return c+1;
 }
 
+static inline void  // ${HOME}/.config/vkdt
+fs_homedir(
+    char *basedir,  // output will be copied here
+    size_t maxlen)  // allocation size
+{
+  snprintf(basedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
+}
+
 static inline void  // returns the directory where the actual binary (not the symlink) resides
 fs_basedir(
     char *basedir,  // output will be copied here

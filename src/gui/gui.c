@@ -55,7 +55,7 @@ int dt_gui_init()
   }
 
   char configfile[512];
-  snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
+  snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir);
   dt_rc_init(&vkdt.rc);
   dt_rc_read(&vkdt.rc, configfile);
 
@@ -291,7 +291,7 @@ void dt_gui_cleanup()
 {
   dt_gui_cleanup_imgui();
   char configfile[512];
-  snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
+  snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir);
   dt_rc_write(&vkdt.rc, configfile);
   dt_rc_cleanup(&vkdt.rc);
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
@@ -398,8 +398,13 @@ dt_gui_read_favs(
     f = fopen(filename, "rb");
   else
   {
-    snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, filename);
+    snprintf(tmp, sizeof(tmp), "%s/%s", vkdt.db.basedir, filename); // try ~/.config/vkdt/ first
     f = fopen(tmp, "rb");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, filename);
+      f = fopen(tmp, "rb");
+    }
   }
   if(!f) return 1;
   char buf[2048];

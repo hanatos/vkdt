@@ -90,7 +90,7 @@ void write_sink(
   // incredibly simplistic linear regression from stack overflow.
   // compute covariance matrix and from that the parameters a, b:
   // FILE *d = fopen("test.dat", "wb");
-  double sx = 0.0, sx2 = 0.0, sy = 0.0, sy2 = 0.0, sxy = 0.0;
+  double sx = 0.0, sx2 = 0.0, sy = 0.0, sxy = 0.0;
   double cnt = 0.0;
   // double white = log2(module->img_param.white[1])/16.0f;
   // double black = log2(module->img_param.black[1])/16.0f;
@@ -108,7 +108,6 @@ void write_sink(
     sx  += x * c;
     sx2 += x*x * c;
     sy  += y * c;
-    sy2 += y*y * c;
     sxy += x*y * c;
     // fprintf(d, "%g %g\n", x, y);
   }

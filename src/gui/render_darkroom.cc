@@ -1698,7 +1698,7 @@ abort:
         assert(len > 4);
         realimg[len-4] = 0; // cut away ".cfg"
         input_module = dt_graph_default_input_module(realimg);
-        snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
       }
 
       // anything goes wrong, what can we do?

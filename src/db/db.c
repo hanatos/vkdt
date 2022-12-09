@@ -22,7 +22,7 @@ dt_db_init(dt_db_t *db)
   memset(db, 0, sizeof(*db));
   db->current_imgid = -1u;
   db->current_colid = -1u;
-  snprintf(db->basedir, sizeof(db->basedir), "%s/.config/vkdt", getenv("HOME"));
+  fs_homedir(db->basedir, sizeof(db->basedir));
   fs_mkdir(db->basedir, 0755);
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;

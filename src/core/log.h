@@ -83,8 +83,13 @@ dt_log_init_arg(int argc, char *argv[])
   }
 
   // user parameters add to the mask:
+#ifdef __cplusplus // now comes the shit code. whoever invented that should be %^&
+  dt_log_global.mask = static_cast<dt_log_mask_t>(dt_log_global.mask | verbose);
+  if(verbose == 0ul) dt_log_global.mask = static_cast<dt_log_mask_t>(verbose);
+#else
   dt_log_global.mask |= verbose;
   if(verbose == 0ul) dt_log_global.mask = verbose;
+#endif
   return lastarg;
 }
 

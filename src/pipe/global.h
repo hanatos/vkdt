@@ -121,6 +121,7 @@ typedef struct dt_pipe_global_t
   // in the repository. it is used to find all sorts of resources
   // relative to it, i.e. data/ and modules/.
   char basedir[PATH_MAX];
+  char homedir[PATH_MAX]; // this is normally ${HOME}/.config/vkdt
   dt_module_so_t *module;
   uint32_t num_modules;
 

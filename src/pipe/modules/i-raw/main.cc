@@ -12,6 +12,7 @@
 
 extern "C" {
 #include "modules/api.h"
+#include "core/log.h"
 
 static rawspeed::CameraMetaData *meta = 0;
 
@@ -102,7 +103,7 @@ rawspeed_load_meta(const dt_module_t *mod)
       }
       catch(...)
       {
-        fprintf(stderr, "[rawspeed] could not open cameras.xml!\n");
+        dt_log(s_log_err, "[rawspeed] could not open cameras.xml!");
       }
     }
     lock.unlock();
@@ -178,7 +179,7 @@ load_raw(
   }
   clock_t end = clock();
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
-  fprintf(stderr, "[rawspeed] load %s in %3.0fms\n", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  dt_log(s_log_perf, "[rawspeed] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
   return 0;
 }
 

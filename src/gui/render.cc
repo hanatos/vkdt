@@ -237,8 +237,13 @@ extern "C" int dt_gui_init_imgui()
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name0);
     FILE *f = fopen(tmp, "r");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
+      f = fopen(tmp, "r");
+    }
     if(f)
     {
       fscanf(f, "%f %f %f\n", gamma0, gamma0+1, gamma0+2);

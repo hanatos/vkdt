@@ -315,7 +315,7 @@ namespace ImHotKey
   static void Serialise(const char *fn, HotKey *hk, int cnt)
   {
     char filename[PATH_MAX+100];
-    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", vkdt.db.basedir, fn);
+    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", dt_pipe.homedir, fn);
     FILE *f = fopen(filename, "wb");
     if(f)
     {
@@ -328,9 +328,7 @@ namespace ImHotKey
   static void Deserialise(const char *fn, HotKey *hk, int cnt)
   {
     char filename[PATH_MAX+100];
-    char basedir[PATH_MAX]; // same as vkdt.db.basedir, but we are called before db starts up
-    snprintf(basedir, sizeof(basedir), "%s/.config/vkdt", getenv("HOME"));
-    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", basedir, fn);
+    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", dt_pipe.homedir, fn);
     FILE *f = fopen(filename, "rb");
     if(f)
     {

@@ -232,7 +232,7 @@ dt_thumbnails_cache_one(
   uint32_t hash = murmur_hash3(filename, len, 1337);
   snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
-  snprintf(deffilename, sizeof(deffilename), "%s/default.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+  snprintf(deffilename, sizeof(deffilename), "default.%"PRItkn, dt_token_str(input_module));
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
