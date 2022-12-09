@@ -54,10 +54,10 @@ int dt_gui_init()
     return 1;
   }
 
-  char configfile[512];
-  snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir);
   dt_rc_init(&vkdt.rc);
-  dt_rc_read(&vkdt.rc, configfile);
+  char configfile[512];
+  if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
+    dt_rc_read(&vkdt.rc, configfile);
 
   vkdt.wstate.copied_imgid = -1u; // none copied at startup
 
@@ -291,8 +291,8 @@ void dt_gui_cleanup()
 {
   dt_gui_cleanup_imgui();
   char configfile[512];
-  snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir);
-  dt_rc_write(&vkdt.rc, configfile);
+  if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
+    dt_rc_write(&vkdt.rc, configfile);
   dt_rc_cleanup(&vkdt.rc);
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
   glfwDestroyWindow(qvk.window);
