@@ -844,7 +844,7 @@ main()
 
           // vertex area measure pdf of x (new vertex)
           // XXX could use the generalised geometry term in case mg != m1:
-          const float G = G_term(m0.x, m0.n, m1.x, m1.n);
+          const float G = G_cosines(m0.x, m0.n, m1.x, m1.n);
           const float pdf = pdf_w * G;
 
           // handle intersection:
@@ -854,9 +854,12 @@ main()
           { // update nee sampling state
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
+            // include bsdf, look worse:
+            // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z))/pdf_w;
             float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
-            float a = min(1.0, f / tent.f);
+            float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
+            // float a = min(1.0, f / tent.f);
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
             if(tent.f == 0.0)

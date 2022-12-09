@@ -264,6 +264,7 @@ create_nodes(
         .roi    = roi,
       }},
     };
+    roi = roi_lo;
   }
 
   dt_connector_copy(graph, module, 0, id_preblend, 0);  // mv

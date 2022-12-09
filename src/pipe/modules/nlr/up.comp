@@ -11,6 +11,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  float alpha;
+  float taa;
+  float lalpha;
   float sigma_v;
   float power;
   float sigma_n;
@@ -150,7 +153,7 @@ main()
     w *= exp(-length(nd0.y - nd.y) * params.sigma_d);
     val[i+r+(j+r)*3] = vec4(lo.rgb, w);
     fmin = min(fmin, lo.rgb);
-    fmax = min(fmax, lo.rgb);
+    fmax = max(fmax, lo.rgb);
     mean += lo.rgb * w;
     w_sum += w;
   }

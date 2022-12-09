@@ -8,6 +8,9 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  float alpha;
+  float taa;
+  float lalpha;
   float sigma_v;
   float power;
   float sigma_n;
@@ -40,7 +43,7 @@ main()
   vec4 lo = texelFetch(img_lo, ipos, 0);
   vec4 hi = texelFetch(img_hi, ipos, 0);
   vec2 gbuf_hi = texelFetch(img_gbuf_hi, ipos,   0).xy;
-  vec2 gbuf_lo = texelFetch(img_gbuf_lo, ipos/2+ivec2(0,0), 0).xy;
+  vec2 gbuf_lo = texelFetch(img_gbuf_lo, ipos/2, 0).xy;
 
   vec3 nhi = geo_decode_normal(floatBitsToUint(gbuf_hi.x));
   vec3 nlo = geo_decode_normal(floatBitsToUint(gbuf_lo.x));
