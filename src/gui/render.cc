@@ -138,11 +138,10 @@ extern "C" void dt_gui_init_fonts()
   g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   ImFontConfig config;
-        // config.MergeMode = true;
-        config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
-        static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
+  // config.MergeMode = true;
+  config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
+  static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
   g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
-  assert(g_font[3]);
   vkdt.wstate.fontsize = fontsize;
 #if VKDT_USE_FREETYPE == 1
   io.Fonts->TexGlyphPadding = 1;

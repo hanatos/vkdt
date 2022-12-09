@@ -571,6 +571,33 @@ void render_lighttable_right_panel()
     ImGui::Unindent();
   } // end collapsing header "selected"
 
+  if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("metadata"))
+  {
+    ImGui::Indent();
+    static uint32_t imgid = -1u;
+    static char text[2048], *text_end = 0;
+    if(imgid != vkdt.db.current_imgid)
+    {
+      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", "/usr/bin/exiftool -l -createdate -aperture -shutterspeed -iso");
+      char cmd[PATH_MAX];
+      snprintf(cmd, sizeof(cmd), "%s ", rccmd);
+      dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, cmd+strlen(cmd), sizeof(cmd)-strlen(cmd));
+      size_t len = strnlen(cmd, sizeof(cmd));
+      if(len > 4) cmd[len-4] = 0; // cut away .cfg
+      FILE *f = popen(cmd, "r");
+      if(f)
+      {
+        fread(text, 1, sizeof(text), f);
+        text_end = text + strlen(text);
+        imgid = vkdt.db.current_imgid;
+        pclose(f);
+      }
+    }
+    ImGui::TextUnformatted(text, text_end);
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("customise what is shown here in config.rc");
+    ImGui::Unindent();
+  } // end collapsing header "metadata"
+
   // ==============================================================
   // export selection
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export selection"))
