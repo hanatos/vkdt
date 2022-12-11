@@ -458,7 +458,8 @@ void render_lighttable_right_panel()
           "it will only delete the source image file if its filename is\n"
           "exacty the .cfg file name without the .cfg postfix.\n"
           "this means duplicates or tag collections will keep the source\n"
-          "image file name on disk untouched.");
+          "image file name on disk untouched, but only remove the duplicate\n"
+          "or the tag from the image");
     }
 
     // ==============================================================
