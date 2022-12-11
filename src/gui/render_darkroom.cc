@@ -16,26 +16,28 @@ extern "C"
 namespace { // anonymous namespace
 
 static ImHotKey::HotKey hk_darkroom[] = {
-  {"create preset", "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
-  {"apply preset",  "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"show history",  "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
-  {"redo",          "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
-  {"undo",          "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
-  {"add module",    "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
-  {"add block",     "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
-  {"assign tag",    "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
+  {"create preset",   "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
+  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"show history",    "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
+  {"redo",            "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
+  {"undo",            "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
+  {"add module",      "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
+  {"add block",       "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
+  {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
+  {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
 };
 
 enum hotkey_names_t
 { // for sane access in code
-  s_hotkey_create_preset = 0,
-  s_hotkey_apply_preset  = 1,
-  s_hotkey_show_history  = 2,
-  s_hotkey_redo          = 3,
-  s_hotkey_undo          = 4,
-  s_hotkey_module_add    = 5,
-  s_hotkey_block_add     = 6,
-  s_hotkey_assign_tag    = 7,
+  s_hotkey_create_preset   = 0,
+  s_hotkey_apply_preset    = 1,
+  s_hotkey_show_history    = 2,
+  s_hotkey_redo            = 3,
+  s_hotkey_undo            = 4,
+  s_hotkey_module_add      = 5,
+  s_hotkey_block_add       = 6,
+  s_hotkey_assign_tag      = 7,
+  s_hotkey_insert_keyframe = 8,
 };
 
 // used to communictate between the gui helper functions
@@ -484,12 +486,10 @@ inline void draw_widget(int modid, int parid)
   if(change)
 
   // common code block to insert a keyframe. currently only supports float (for interpolation)
-  static double keyframe_time = glfwGetTime();
 #define KEYFRAME\
   if(ImGui::IsItemHovered())\
   {\
-    double now = glfwGetTime(); \
-    if(glfwGetKey(qvk.window, GLFW_KEY_K) == GLFW_PRESS && now - keyframe_time > 1.0)\
+    if(gui.hotkey == s_hotkey_insert_keyframe)\
     {\
       dt_graph_t *g = &vkdt.graph_dev;\
       uint32_t ki = -1u;\
@@ -512,7 +512,6 @@ inline void draw_widget(int modid, int parid)
       memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
       dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
           g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
-      keyframe_time = now; \
       dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
     }\
   }
@@ -1243,7 +1242,6 @@ void render_darkroom_full()
       {
         if(!open[m])
         { // just opened, now this is the 'active module'.
-          // fprintf(stderr, "module %" PRItkn " got focus!\n", dt_token_str(arr[curr].name));
           active_module = curr;
           int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
           if(cid >= 0)
