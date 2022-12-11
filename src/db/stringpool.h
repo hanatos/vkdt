@@ -94,10 +94,14 @@ dt_stringpool_get(
       sp->buf_cnt += sl+1;
       entry->next  = -1u;
       entry->val   = val;
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
       strncpy(entry->buf, str, sl); // gcc does not understand the following line with the null termination
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
       entry->buf[sl] = 0; // explicitly null-terminate (potentially again, can't hurt)
       if(dedup) *dedup = entry->buf;
       return entry->val;
