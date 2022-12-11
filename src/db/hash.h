@@ -4,7 +4,7 @@
 static inline uint64_t
 hash64_l(const char *str, size_t l)
 {
-  uint64_t mix = 1337u;
+  uint64_t mix = 0;
   const uint64_t mulp = 2654435789u;
   mix ^= 104395301u;
   for(size_t i=0;i<l&&*str;i++) mix += (*str++ * mulp) ^ (mix >> 23);

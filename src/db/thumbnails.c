@@ -501,7 +501,7 @@ dt_thumbnails_load_one(
     // threads_mutex_unlock(&tn->lru_lock);
   }
   else th = tn->thumb + *thumb_index;
-  
+
   // cache eviction:
   // clean up memory in case there was something here:
   if(th->image)      vkDestroyImage(qvk.device, th->image, VK_NULL_HANDLE);
