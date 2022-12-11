@@ -385,6 +385,7 @@ void render_lighttable_right_panel()
 
     // ==============================================================
     // recently used tags:
+    ImGui::PushID("tags");
     char filename[PATH_MAX+100];
     for(int i=0;i<vkdt.tag_cnt;i++)
     {
@@ -395,6 +396,7 @@ void render_lighttable_right_panel()
       }
       if(((i & 3) != 3) && (i != vkdt.tag_cnt-1)) ImGui::SameLine();
     }
+    ImGui::PopID();
     // button to jump to original folder of selected image if it is a symlink
     uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
     if(main_imgid != -1u)
