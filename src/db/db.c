@@ -476,7 +476,7 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
 }
 
 // add image to named collection/tag
-// get image_path, get murmur3 hash
+// get image_path, get hash
 // create directory ~/.config/vkdt/tags/<tag>/ and link <hash> to our image path
 // use relative path names in link? still useful if ~/.config top level?
 int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname)
@@ -484,14 +484,14 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   char filename[PATH_MAX+100];
   dt_db_image_path(db, imgid, filename, sizeof(filename));
 
-  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+  uint64_t hash = hash64(filename);
   char dirname[1040];
   snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
   fs_mkdir(dirname, 0755);
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
   fs_mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
-  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%x.cfg", db->basedir, cname, hash);
+  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%lx.cfg", db->basedir, cname, hash);
   int err = symlink(filename, linkname);
   if(err) return 1;
   return 0;

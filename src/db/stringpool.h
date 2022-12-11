@@ -1,6 +1,6 @@
 #pragma once
 
-#include "murmur3.h"
+#include "hash.h"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -61,8 +61,7 @@ dt_stringpool_get(
     uint32_t         val,   // primary key to associate with the string, in case it's not been inserted before. pass -1u if you don't want to insert. will return old primary key if the string already exists.
     const char     **dedup) // deduplicated string from pool, or 0
 {
-  const uint32_t seed = 1337;
-  uint32_t j = murmur_hash3(str, sl, seed);
+  uint64_t j = hash64_l(str, sl);
   const int step = 7919; // large prime number. up to entry_max < this we will always step through all entries in the list then.
   while(1)
   {
