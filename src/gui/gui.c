@@ -465,6 +465,7 @@ dt_gui_read_tags()
 
 void dt_gui_switch_collection(const char *dir)
 {
+  vkdt.wstate.copied_imgid = -1u; // invalidate
   dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
   dt_db_cleanup(&vkdt.db);
   dt_db_init(&vkdt.db);
