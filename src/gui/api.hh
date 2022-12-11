@@ -84,10 +84,11 @@ dt_gui_lt_paste_history()
   char filename[1024];
   uint32_t cid = vkdt.wstate.copied_imgid;
   dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
-  FILE *fin = fopen(filename, "rb");
+  char *src = realpath(filename, 0);
+  FILE *fin = fopen(src, "rb");
   if(!fin)
-  {
-    dt_gui_notification("could not open %s!", filename);
+  { // also fails if src is 0
+    dt_gui_notification("could not open %s!", src);
     return;
   }
   fseek(fin, 0, SEEK_END);
@@ -104,25 +105,33 @@ dt_gui_lt_paste_history()
   {
     if(sel[i] == cid) continue; // don't copy to self
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-    FILE *fout = fopen(filename, "wb");
+    char *dst = realpath(filename, 0);
+    if(!dst) continue;
+    FILE *fout = fopen(dst, "wb");
     if(fout)
     {
       fwrite(buf, fsize, 1, fout);
       // replace (relative) image file name
-      const char *fn = vkdt.db.image[sel[i]].filename;
+      char *fn = fs_basename(dst);
       size_t len = strlen(fn);
-      if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
-        fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
-      else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
-        fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
-      else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
-        fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
-      else
-        fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
+      if(len > 4)
+      {
+        fn[len-=4] = 0; // cut off .cfg
+        if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
+          fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
+        else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
+          fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
+        else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
+          fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
+        else
+          fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
+      }
       fclose(fout);
     }
+    free(dst);
   }
   free(buf);
+  free(src);
   dt_thumbnails_cache_list(
       &vkdt.thumbnail_gen,
       &vkdt.db,
