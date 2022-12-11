@@ -270,7 +270,7 @@ int export_job(
   dt_graph_init(&j->graph);
   // TODO:
   // fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
-  j->taskid = threads_task(j->cnt, -1, j, export_job_work, export_job_cleanup);
+  j->taskid = threads_task("export", j->cnt, -1, j, export_job_work, export_job_cleanup);
   return j->taskid;
 }
 // end export bg job stuff

@@ -391,12 +391,13 @@ dt_thumbnails_cache_list(
     // we only care about internal errors. if we call with stupid values,
     // it just does nothing and returns:
     taskid = threads_task(
+        "thumb",
         imgid_cnt,
         taskid,
         job+k,
         thread_work_coll,
         thread_free_coll);
-    assert(taskid != -1); // only -1 is fatal
+    if(taskid < 0) return VK_INCOMPLETE;
   }
   return VK_SUCCESS;
 }

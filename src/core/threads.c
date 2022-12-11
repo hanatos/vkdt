@@ -39,6 +39,7 @@ typedef struct threads_task_t
   threads_run_t   run;           // work function
   void           *data;          // user data to be passed to run function
   threads_free_t  free;          // optionally clean up user data
+  char            desc[30];      // description for debugging
 }
 threads_task_t;
 
@@ -136,6 +137,26 @@ void threads_global_cleanup()
   free(thr.worker);
 }
 
+static inline void
+threads_task_print(
+    int taskid)
+{
+  if(taskid >= (int)thr.task_max || taskid < 0) return;
+  fprintf(stderr, "[threads] task %d '%s' items picked,done/total: %u,%u / %u, ref %d\n",
+      taskid, thr.task[taskid].desc,
+      thr.task[thr.task[taskid].reftask].work_item,
+      thr.task[thr.task[taskid].reftask].done,
+      thr.task[thr.task[taskid].reftask].work_item_cnt,
+      thr.task[taskid].reftask);
+}
+
+static inline void
+threads_task_print_all()
+{
+  for(int t=0;t<thr.task_max;t++)
+    threads_task_print(t);
+}
+
 // push task
 // return:
 // -1 no more recyclable tasks, too many tasks running
@@ -143,11 +164,12 @@ void threads_global_cleanup()
 // -3 invalid taskid
 // or >= 0: the new task id
 int threads_task(
-    uint32_t work_item_cnt,
-    int      taskid,
-    void    *data,
-    void   (*run)(uint32_t item, void *data),
-    void   (*free)(void*))
+    const char *desc,
+    uint32_t    work_item_cnt,
+    int         taskid,
+    void       *data,
+    void      (*run)(uint32_t item, void *data),
+    void      (*free)(void*))
 {
   if(taskid >= (int)thr.task_max) return -3;
   if(run == 0 || work_item_cnt == 0) return -2;
@@ -163,6 +185,7 @@ int threads_task(
   if(task == 0)
   {
     fprintf(stderr, "[threads] no more free tasks!\n");
+    threads_task_print_all();
     return -1;
   }
   // set all required entries on task
@@ -173,6 +196,7 @@ int threads_task(
   task->reftask = taskid >= 0 ? taskid : task - thr.task;
   task->work_item = 0;
   task->done = 0;
+  (void)snprintf(task->desc, sizeof(task->desc), "%s", desc);
 
   // mark as ready
   uint32_t oldval = __sync_val_compare_and_swap(&task->tid, s_task_state_initing, s_task_state_ready);
