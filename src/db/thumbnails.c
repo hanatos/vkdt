@@ -81,7 +81,8 @@ dt_thumbnails_init(
   tn->thumb = malloc(sizeof(dt_thumbnail_t)*tn->thumb_max);
   memset(tn->thumb, 0, sizeof(dt_thumbnail_t)*tn->thumb_max);
   // need at least one extra slot to catch free block (if contiguous, else more)
-  dt_vkalloc_init(&tn->alloc, tn->thumb_max + 10, heap_size);
+  // seems we sometimes get quite fragmented memory after long runs, be sure we can always split free memory:
+  dt_vkalloc_init(&tn->alloc, 3*tn->thumb_max, heap_size);
 
   // init lru list
   tn->lru = tn->thumb + 1; // [0] is special: busy bee
@@ -569,6 +570,11 @@ dt_thumbnails_load_one(
     dt_log(s_log_qvk|s_log_err, "[thm] memory type bits don't match!");
 
   dt_vkmem_t *mem = dt_vkalloc(&tn->alloc, mem_req.size, mem_req.alignment);
+  if(!mem)
+  {
+    dt_log(s_log_err, "[thm] no more thumbnail gpu memory allocation possible!\n");
+    return VK_INCOMPLETE; // probably fragmented memory
+  }
   // TODO: if (!mem) we have not enough memory! need to handle this now (more cache eviction?)
   // TODO: could do batch cleanup in case we need memory:
   // walk lru list from front and kill all contents (see above)
