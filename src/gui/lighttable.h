@@ -63,7 +63,7 @@ lighttable_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_ps,              "display this help");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "plus L1/R1: switch panel");
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to files");
-  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "enter darkroom for currently highlighted image");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "hold + L1/R1: stars, +L2/R2: colour labels");
   dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "select highlighted image (twice to enter darkroom)");
   dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "highlight entry one up");

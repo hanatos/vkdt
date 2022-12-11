@@ -669,8 +669,7 @@ void render_lighttable_right_panel()
        ImGui::IsKeyPressed(ImGuiKey_Escape)||
        ImGui::IsKeyPressed(ImGuiKey_CapsLock))
       dt_view_switch(s_view_files);
-    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
-       ImGui::IsKeyPressed(ImGuiKey_Enter))
+    if(ImGui::IsKeyPressed(ImGuiKey_Enter))
       if(dt_db_current_imgid(&vkdt.db) != -1u)
         dt_view_switch(s_view_darkroom);
   }
