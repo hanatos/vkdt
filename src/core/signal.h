@@ -18,6 +18,8 @@
 #pragma once
 #include "pipe/global.h"
 #include "core/version.h"
+#include "db/db.h"
+#include "gui/gui.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -30,6 +32,9 @@ static void
 dt_sigsegv_handler(int param)
 {
   char filename[PATH_MAX];
+  // write backup of whatever have we in flight:
+  dt_db_write(&vkdt.db, "/tmp/vkdt-crash-recovery.db", 0); // possibly colour labels/star ratings
+  dt_graph_write_config_ascii(&vkdt.graph_dev, "/tmp/vkdt-crash-recovery.cfg"); // unsaved edits if in dr mode
   snprintf(filename, sizeof(filename), "/tmp/vkdt-bt-%d.txt", (int)getpid());
   FILE *f = fopen(filename, "wb");
   if(!f) return; // none of the code below works otherwise :(
@@ -50,6 +55,7 @@ dt_sigsegv_handler(int param)
       prctl(PR_SET_PTRACER, pid, 0, 0, 0);
       waitpid(pid, NULL, 0);
       fprintf(stderr, "backtrace written to %s\n", filename);
+      fprintf(stderr, "recovery data written to /tmp/vkdt-crash-recovery.*\n");
     }
     else
     {
