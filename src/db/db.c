@@ -320,6 +320,13 @@ uint32_t dt_db_current_colid(dt_db_t *db)
   return db->current_colid;
 }
 
+uint32_t dt_db_filename_colid(dt_db_t *db, const char *basename)
+{
+  for(uint32_t i=0;i<db->collection_cnt;i++)
+    if(!strcmp(basename, db->image[db->collection[i]].filename)) return i;
+  return -1u;
+}
+
 void dt_db_current_set(dt_db_t *db, uint32_t colid)
 {
   if(colid == -1u)

@@ -183,6 +183,7 @@ void render_lighttable_center()
     case 8:
       dt_gui_lt_duplicate();
   }
+  dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
 
   // draw context sensitive help overlay
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
@@ -409,8 +410,12 @@ void render_lighttable_right_panel()
         char *resolved = realpath(filename, 0);
         if(resolved)
         {
+          char *bn = fs_basename(resolved);
+          size_t len = strlen(bn);
+          if(len > 4) bn[len-4] = 0; // cut away .cfg
           fs_dirname(resolved);
           dt_gui_switch_collection(resolved);
+          dt_gui_lt_scroll_basename(bn);
           free(resolved);
         }
       }

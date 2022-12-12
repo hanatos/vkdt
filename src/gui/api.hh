@@ -157,6 +157,25 @@ dt_gui_lt_scroll_current()
   ImGui::SetScrollY(p);
 }
 
+inline void
+dt_gui_lt_scroll_basename(const char *bn)
+{
+  static uint32_t colid = -1u;
+  static int32_t  cnt = 2; // need a delay to let imgui determine correct GetScrollMaxY
+  if(bn)
+  {
+    colid = dt_db_filename_colid(&vkdt.db, bn);
+    cnt = 2;
+  }
+  else if(colid != -1u && (cnt-- <= 0))
+  {
+    const int ipl = 6; // hardcoded images per line :(
+    const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * ImGui::GetScrollMaxY();
+    ImGui::SetScrollY(p);
+    colid = -1u;
+  }
+}
+
 // scroll to end of collection
 inline void
 dt_gui_lt_scroll_bottom()
