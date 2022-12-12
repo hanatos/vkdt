@@ -21,7 +21,7 @@ create_nodes(
   int node_up = -1;
   int conn_up = 1;
 
-  const int max_nl = 3;
+  const int max_nl = 5;
   int nl = max_nl;
   for(int l=1;l<nl;l++)
   { // for all coarseness levels

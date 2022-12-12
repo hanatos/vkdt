@@ -79,8 +79,8 @@ main()
 
   if((push.level == 1) || fine.a == 0.0)
   {
-    vec2 diff = fine.rb - fine.g;
-    diff = mix(diff, sign(diff) * clamp(abs(diff), vec2(0.0), abs(upsm.rb - upsm.g)), params.amount);
+    vec2 diff1 = fine.rb - fine.g, diff2 = upsm.rb - upsm.g;
+    vec2 diff = mix(diff1, diff2, params.amount);
     fine.rb = fine.g + diff;
   }
 
