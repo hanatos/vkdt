@@ -704,6 +704,7 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
@@ -715,6 +716,7 @@ inline void draw_widget(int modid, int parid)
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
@@ -760,11 +762,13 @@ inline void draw_widget(int modid, int parid)
 
         if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
         {
+          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
           if(ImGui::Button("done"))
           {
             widget_end();
             dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           }
+          ImGui::PopStyleColor();
         }
         else
         {
@@ -829,6 +833,7 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
            ImGui::IsKeyPressed(ImGuiKey_Escape)||
            ImGui::IsKeyPressed(ImGuiKey_CapsLock))
@@ -848,6 +853,7 @@ inline void draw_widget(int modid, int parid)
           darkroom_reset_zoom();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
@@ -934,11 +940,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::Button(string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
@@ -973,11 +981,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::Button(string, size))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
@@ -1086,11 +1096,13 @@ inline void draw_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
             dt_token_str(vkdt.graph_dev.module[modid].name),
             dt_token_str(param->name));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::Button(string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
