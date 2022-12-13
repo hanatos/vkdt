@@ -1,4 +1,4 @@
-# graduated density filter
+# grad: graduated density filter
 
 colour your landscape skies.
 
