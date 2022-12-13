@@ -1,6 +1,6 @@
 # denoise: reduce image noise based on noise profiles
 
-this reads a [noise profile](../../../../doc/noiseprofiling.md) and then runs
+this reads a [noise profile](../../../../doc/howto/noise-profiling/readme.md) and then runs
 some variant of a-trous fisz-transform wavelets for noise reduction.
 if you did not profile your camera for noise coefficients at the given iso value yet,
 you can manually dial in the gaussian and poissonian part of the noise model

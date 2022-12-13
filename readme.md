@@ -21,8 +21,8 @@ targets, such as the main view and histograms.
 * [very fast GPU only processing](src/qvk/readme.md)
 * [general DAG of processing operations](src/pipe/readme.md), featuring multiple inputs and outputs and
   feedback connectors for animation/iteration
-* [full window colour management](doc/colourmanagement.md)
-* [noise profiling](doc/noiseprofiling.md)
+* [full window colour management](doc/howto/colour-display/readme.md)
+* [noise profiling](doc/howto/noise-profiling/readme.md)
 * [minimally invasive folder-based image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)

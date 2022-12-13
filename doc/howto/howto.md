@@ -6,11 +6,11 @@ this folder lists quick instructions on a few special topics:
 * [how to draw masks](./draw-masks/readme.md)
 * [how to use your gamepad](./gamepad/readme.md)
 * [how to customise metadata display](./metadata/readme.md)
+* [display colour management](./colour-display/readme.md)
+* [how to characterise the colour response of your camera](./colour-input/readme.md)
 
 -- these following topics do not exist yet --
 
-* [display colour management](./colour-display/readme.md)
-* [how to characterise the colour response of your camera](./colour-input/readme.md)
 * [how to reduce image noise](./noise-profiling/readme.md)
 * [how to do timelapses and keyframes](./timelapse/readme.md)
 * [how to manage presets](./presets/readme.md)

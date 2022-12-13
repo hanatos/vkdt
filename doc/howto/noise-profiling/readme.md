@@ -1,4 +1,29 @@
-# noise profiling
+# how to reduce image noise
+
+## image denoising
+
+standard noise reduction is done by the
+[default denoise module](../../../src/pipe/modules/denoise/readme.md).
+it makes use of a noise model to use as a prior for the expected amount of
+noise in the image, depending on iso value. this model can be tweaked manually
+by changing the `noise_a` and `noise_b` parameters in the
+[raw input module](../../../src/pipe/modules/i-raw/readme.md).
+just up the sliders until the perceived amount of noise in the image is
+lowered enough while still preserving good detail.
+of course a more principled approach is to measure the amount of noise
+and use fitted values.
+
+## noise profiling
+
+in short, these are the instructions for the impatient: do this in
+your `bin/` directory:
+
+```
+./noise-profile.sh your-raw-file.raw
+```
+
+it will write the noise profile for the camera maker/model/iso combination to
+`bin/data/nprof` so it can be picked up by `vkdt`.
 
 for various things it is useful to know how much noise we can expect from a
 pixel in the raw image file. we fit a gaussian/poissonian mixture to the
@@ -12,9 +37,9 @@ bin/data/noisecheck.cfg
 ```
 
 to wire these to your specific raw file, there is a convenience wrapper bash
-script, ```bin/noise-profile.sh```. it takes a single argument, the raw file
+script, `bin/noise-profile.sh`. it takes a single argument, the raw file
 you'd like to measure. it will output an nprof file, copy it to the
-```data/nprof``` directory, and run the noisecheck graph, resulting in an
+`data/nprof` directory, and run the noisecheck graph, resulting in an
 output histogram such as the following:
 
 ![rawhist](noisehistogram.jpg)

@@ -1,7 +1,7 @@
 # utilities to create input device transforms
 
 this page is about characterising the colour of an input device. there is
-[a separate page for colour management on the display device](../../../doc/colourmanagement.md).
+[a separate page for colour management on the display device](../../../doc/howto/colour-display/readme.md).
 
 to generate very accurate input colour transforms from camera rgb to profiled
 rec2020, `vkdt` supports colour lookup tables as a replacement for the often
@@ -24,7 +24,7 @@ principal component analysis (see Jun Jiang, Dengyu Liu, Jinwei Gu, Sabine
 Süsstrunk *What is the space of spectral sensitivity functions for digital
 color cameras?* 2013).
 
-this model is used in the `mkssf` tool to estimate the ssf of your camera in
+this model is used in the `vkdt-mkssf` tool to estimate the ssf of your camera in
 case you don't have measurements (probably the regular case). as additional
 input to `mkssf` you can either extract a dng profile from a dng (created by
 the adobe dng converter) or use two shots of a profiled colour checker target.
@@ -47,14 +47,14 @@ the results.
 ### usage
 
 ```
-mkssf <dng|dcp file>        dng or dcp file containing profile data
-      --picked <a> <d65>    work with images of the cc24 chart instead
+vkdt-mkssf <dng|dcp file>        dng or dcp file containing profile data
+           --picked <a> <d65>    work with images of the cc24 chart instead
 ```
 
 ### examples
 
 ```
-mkssf IMG_0001.dng
+vkdt-mkssf IMG_0001.dng
 ```
 
 will output `<camera model>.txt` the ssf, `<camera model>.html` the report, and
@@ -84,9 +84,9 @@ illuminant A (incandescent). the usual wisdom about avoiding glare and looking
 for uniform illumination, avoiding vignetting by not filling the whole frame etc
 applies here.
 
-preparing the images for `mkssf`:
+preparing the images for `vkdt-mkssf`:
 
-to generate input for `mkssf`, load the images in `vkdt`, rectify them using
+to generate input for `vkdt-mkssf`, load the images in `vkdt`, rectify them using
 the perspective correction in the `crop` module, and crop them so only the
 rectified patches are visible.
 
@@ -107,7 +107,7 @@ this line (say `picked_a.txt` and `picked_d65.txt`).
 
 
 
-## mkclut: generating a colour lut profile
+## vkdt-mkclut: generating a colour lut profile
 
 create a lookup table to be used as an input device transform by `vkdt`. it
 will convert camera rgb values to rec2020 coordinates. takes as input the known
@@ -119,16 +119,16 @@ matrices in the dng pipeline).
 ### usage:
 
 ```
-mkclut <model>            model.txt will be openend as cfa data,
-                          model.lut will be written as output.
-       --illum0 <illum>   optional spectral illuminant description, txt extension will be added.
-       --illum1 <illum>   spectral characterisation of second illuminant
+vkdt-mkclut <model>            model.txt will be openend as cfa data,
+                               model.lut will be written as output.
+            --illum0 <illum>   optional spectral illuminant description, txt extension will be added.
+            --illum1 <illum>   spectral characterisation of second illuminant
 ```
 
 ### examples:
 
 ```
-./mkclut <camera model>.txt
+./vkdt-mkclut <camera model>.txt
 ```
 
 will output `<camera model>.pfm` for visual inspection as well as `<camera model>.lut`

@@ -10,7 +10,7 @@ this module uses the rawspeed library to decode raw photographs.
 * `startid` the first image in a timelapse series
 
 if both noise parameters are set to `0.0`, `vkdt` will load the noise profiles
-from `data/nprof/*`. see [noise profiling](../../../../doc/noiseprofiling.md)
+from `data/nprof/*`. see [noise profiling](../../../../doc/howto/noise-profiling/readme.md)
 for how to create a profile.
 
 ## timelapses
