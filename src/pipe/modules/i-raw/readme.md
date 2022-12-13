@@ -30,5 +30,5 @@ second. if you set `fps` to something faster than your ssd/gpu can
 deliver, you will experience frame drops.
 
 you may want to checkout the keyframes feature to gradually modify
-exposure for instance (see `examples/keyframes.cfg`, or the `k`
-shortcut to create keyframes from the gui when hovering over controls.
+exposure for instance (see `examples/keyframes.cfg`, or the `ctrl-k`
+hotkey to create keyframes from the gui when hovering over controls.
