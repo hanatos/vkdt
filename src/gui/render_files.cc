@@ -191,16 +191,25 @@ void render_files()
       ImGui::Combo("copy mode", &copy_mode, copy_mode_str);
       for(int k=0;k<4;k++)
       { // list of four jobs to copy stuff simultaneously
+        ImGui::PushID(k);
         if(job[k].cnt == 0)
         { // idle job
-          if(num_idle++) break; // show at max one idle job
+          if(num_idle++)
+          { // show at max one idle job
+            ImGui::PopID();
+            break;
+          }
           if(ImGui::Button("copy"))
           {
             // TODO: make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
             {
-              if(k2 == k) continue;
+              if(k2 == k)
+              {
+                ImGui::PopID();
+                continue;
+              }
               if(!strcmp(job[k2].src, filebrowser.cwd)) duplicate = 1;
             }
             if(duplicate)
@@ -251,6 +260,7 @@ void render_files()
               "copy from %s done. click to reset"),
              job[k].src);
         }
+        ImGui::PopID();
       }
       ImGui::Unindent();
     }

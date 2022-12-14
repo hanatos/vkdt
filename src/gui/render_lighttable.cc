@@ -242,7 +242,6 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].quality    = j->quality;
   param.output[0].mod        = j->output_module;
   param.p_cfgfile = infilename;
-  // TODO: add a parameter to overwrite or not
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
   dt_graph_reset(&j->graph);
@@ -647,9 +646,14 @@ void render_lighttable_right_panel()
     // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);
     for(int k=0;k<4;k++)
     { // list of four jobs to copy stuff simultaneously
+      ImGui::PushID(k);
       if(job[k].cnt == 0)
       { // idle job
-        if(num_idle++) break; // show at max one idle job
+        if(num_idle++)
+        { // show at max one idle job
+          ImGui::PopID();
+          break;
+        }
         if(hotkey == 2 || ImGui::Button("export"))
         { // TODO: make sure we don't start a job that is already running in another job[.]
           export_job(job+k, overwrite_mode);
@@ -670,6 +674,7 @@ void render_lighttable_right_panel()
         }
         if(ImGui::IsItemHovered()) ImGui::SetTooltip("click to reset");
       }
+      ImGui::PopID();
     }
     ImGui::Unindent();
   } // end collapsing header "export"
