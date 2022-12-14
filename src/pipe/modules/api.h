@@ -452,6 +452,9 @@ dt_api_blur(
     int         *id_blur_out,
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
+  if(radius < 2)
+    return dt_api_blur_3x3(graph, module, nodeid_input, connid_input,
+        id_blur_in, id_blur_out, 0.5f*radius);
   if(radius == 2)
     return dt_api_blur_5x5(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out);
   // XXX DEBUG XXX frustratingly that is much faster even for relatively large blurs it seems
