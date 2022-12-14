@@ -217,17 +217,19 @@ void export_job_work(uint32_t item, void *arg)
   export_job_t *j = (export_job_t *)arg;
   if(j->abort) return;
 
+  char filename[PATH_MAX], infilename[PATH_MAX], filedir[PATH_MAX];
+  dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
+  fs_dirname(filedir);
   char dst[1000];
   time_t t = time(0);
   struct tm *tm = localtime(&t);
   char date[10] = {0}, yyyy[5] = {0};
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
-  const char *key[] = { "home", "yyyy", "date", "seq", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", 0};
+  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", 0};
+  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", filedir, 0};
   dt_strexpand(j->basename, sizeof(j->basename), dst, sizeof(dst), key, val);
 
-  char filename[PATH_MAX], infilename[PATH_MAX];
   snprintf(filename, sizeof(filename), dst, item);
   dt_gui_notification("exporting to %s", filename);
 
@@ -631,7 +633,8 @@ void render_lighttable_right_panel()
         "${home} -- home directory\n"
         "${yyyy} -- current year\n"
         "${date} -- today's date\n"
-        "${seq}  -- sequence number");
+        "${seq}  -- sequence number\n"
+        "${fdir} -- directory of input file");
     if(ImGui::InputFloat("quality", &quality, 1, 100, 0))
       dt_rc_set_float(&vkdt.rc, "gui/export/quality", quality);
     if(ImGui::Combo("format", &format, format_data))
