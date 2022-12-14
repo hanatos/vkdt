@@ -363,7 +363,8 @@ double max_dist(double theta)
 
 typedef struct parallel_shared_t
 {
-  float *out, *lsbuf, *max_b;
+  float *out, *max_b;
+  _Atomic float *lsbuf;
   int max_w, max_h, res;
 }
 parallel_shared_t;
@@ -584,7 +585,7 @@ mac_error:
   printf("optimising ");
 
   int lsres = res; // /4;
-  float *lsbuf = calloc(sizeof(float), 5*lsres*lsres);
+  _Atomic float *lsbuf = calloc(sizeof(float), 5*lsres*lsres);
 
   size_t bufsize = 5*res*res;
   float *out = calloc(sizeof(float), bufsize);
@@ -599,11 +600,11 @@ mac_error:
   };
 
   threads_global_init();
-#if 0
+#if 0 // note that with proper atomics this is slower than single thread:
   const int nt = threads_num();
   int taskid = -1;
   for(int i=0;i<nt;i++)
-    taskid = threads_task(res*res, taskid, &par, parallel_run, 0);
+    taskid = threads_task("mkabney", res*res, taskid, &par, parallel_run, 0);
   threads_wait(taskid);
 #else
   for(int k=0;k<res*res;k++)
@@ -612,7 +613,7 @@ mac_error:
 
   { // scope write abney map on (lambda, saturation)
     dt_inpaint_buf_t inpaint_buf = {
-      .dat = lsbuf,
+      .dat = (float *)lsbuf,
       .wd  = lsres,
       .ht  = lsres,
       .cpp = 5,
