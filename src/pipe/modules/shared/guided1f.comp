@@ -33,6 +33,6 @@ main()
 
   float I = luminance_rec2020(texelFetch(img_in,   ipos, 0).rgb);
   float p = luminance_rec2020(texelFetch(img_edge, ipos, 0).rgb);
-  imageStore(img_out, ipos, vec4(I, p, I*I, p*I));
+  imageStore(img_out, ipos, clamp(vec4(I, p, I*I, p*I), vec4(-1), vec4(1)));
 }
 
