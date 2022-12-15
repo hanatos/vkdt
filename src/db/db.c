@@ -395,8 +395,23 @@ void dt_db_selection_clear(dt_db_t *db)
 
 const uint32_t *dt_db_selection_get(dt_db_t *db)
 {
-  // TODO: sync sorting criterion with collection
-  qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filename, db);
+  switch(db->collection_sort)
+  { // sync sorting criterion with collection
+  case s_prop_none:
+    break;
+  case s_prop_filename:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filename, db);
+    break;
+  case s_prop_rating:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_rating, db);
+    break;
+  case s_prop_labels:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_labels, db);
+    break;
+  case s_prop_createdate:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_createdate, db);
+    break;
+  }
   return db->selection;
 }
 
