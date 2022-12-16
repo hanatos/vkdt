@@ -1877,6 +1877,12 @@ abort:
             vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
             dt_graph_history_global(&vkdt.graph_dev);
           }
+          float frame_rate = vkdt.graph_dev.frame_rate;
+          if(ImGui::SliderFloat("frame rate", &frame_rate, 0, 200))
+          {
+            vkdt.graph_dev.frame_rate = frame_rate; // conv to double
+            dt_graph_history_global(&vkdt.graph_dev);
+          }
         }
 
         if(ImGui::CollapsingHeader("presets"))
