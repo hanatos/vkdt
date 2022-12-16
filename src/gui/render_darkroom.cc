@@ -1872,9 +1872,9 @@ abort:
             vkdt.graph_dev.frame = vkdt.state.anim_frame;
             vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
           }
-          if(ImGui::SliderInt("frame count", &vkdt.state.anim_max_frame, 0, 10000))
+          if(ImGui::SliderInt("last frame", &vkdt.state.anim_max_frame, 0, 10000))
           {
-            vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
+            vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
             dt_graph_history_global(&vkdt.graph_dev);
           }
           float frame_rate = vkdt.graph_dev.frame_rate;
