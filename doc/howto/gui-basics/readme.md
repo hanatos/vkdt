@@ -4,7 +4,8 @@
 
 basic cascade of ui views is:
 
-files <-> lighttable <-> darkroom
+files ⟷ lighttable ⟷ darkroom
+
 
 you can usually walk the arrows by key accel (enter/escape) or gamepad (`x`/`o`).
 
@@ -27,7 +28,7 @@ darkroom mode (only on the single edited image).
 
 ## hotkeys
 
-can be customised for each view separately in the gui via `settings` ->
+can be customised for each view separately in the gui via `settings`→
 `hotkeys`. some keys are special and not in the hotkey system.
 
 `f11` goes full screen

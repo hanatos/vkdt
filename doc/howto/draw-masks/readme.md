@@ -38,12 +38,15 @@ also see the (simpler) [graduated density](../../../src/pipe/modules/grad/readme
 module which can create a simple linear gradient mask without brush strokes.
 
 
-## transforming modules in the pipeline
+## interaction with transform modules
 
-transform modules (e.g. `lens`, `crop`, `frame`) interact with the draw module.
-the best way to deal with this is to place the module using the drawn mask
-before the transforming module, so you can change the transform later on without
-invalidating the mask.
+transform modules (e.g. `lens`, `crop`, `frame`) interact with the draw module
+because they change the size and position of the image on the screen and thus
+render drawn masks inconsistent. the best way to deal with this is to place the
+module using the drawn mask before any transforming module (if possible). this
+way, you can change the transform later on without invalidating the mask.
 
-when drawing the mask, you can temporarily disable the module by clicking
-the circle symbol on the module expander in the `pipeline config` tab.
+while drawing the mask, you can temporarily disable any transform modules which
+come later in the pipeline (usually further up in the list in the right panel)
+by clicking the circle symbol on the module expander in the `pipeline config`
+tab.
