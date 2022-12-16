@@ -76,7 +76,7 @@ read_header(
   if(geo && !strcmp(geo->filename, filename))
     return 0; // already loaded
 
-  FILE *f = dt_graph_open_resource(mod->graph, filename, "rb");
+  FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!f) goto error;
   if(load_scene(mod, f)) goto error;
   fclose(f);

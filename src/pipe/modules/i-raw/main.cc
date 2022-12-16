@@ -237,7 +237,7 @@ void modify_roi_out(
   char        filename[2*PATH_MAX+10];
   if(get_filename(mod, fname, id, filename, sizeof(filename))) return;
 
-  if(strstr(fname, "%04d"))
+  if(strstr(fname, "%"))
   { // reading a sequence of raws as a timelapse animation
     mod->flags = s_module_request_read_source;
   }
@@ -260,7 +260,7 @@ void modify_roi_out(
   for(int k=0;k<9;k++)
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
-  dt_exif_read(&mod->img_param, filename);
+  dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
 #endif
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->d->mRaw->metadata.canonical_make.c_str());
@@ -273,7 +273,7 @@ void modify_roi_out(
         mod->img_param.maker,
         mod->img_param.model,
         (int)mod->img_param.iso);
-    FILE *f = dt_graph_open_resource(graph, pname, "rb");
+    FILE *f = dt_graph_open_resource(graph, id, pname, "rb");
     if(f)
     {
       float a = 0.0f, b = 0.0f;

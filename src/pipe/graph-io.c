@@ -531,7 +531,7 @@ dt_graph_read_block(
     dt_token_t in_inst,
     dt_token_t in_conn)
 {
-  FILE *f = dt_graph_open_resource(graph, filename, "rb");
+  FILE *f = dt_graph_open_resource(graph, 0, filename, "rb");
   if(f)
   { // read lines individually, we need to search/replace generic input/output/instance strings
     // needs to be large enough to hold 1000 vertices of drawn masks:
