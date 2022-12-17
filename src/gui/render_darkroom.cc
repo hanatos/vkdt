@@ -549,6 +549,7 @@ inline void draw_widget(int modid, int parid)
   {
   ImGui::PushID(2000*modid + 200*parid + num);
   char string[256];
+  const float halfw = (0.66*vkdt.state.panel_wd - ImGui::GetStyle().ItemSpacing.x)/2;
   // distinguish by type:
   switch(param->widget.type)
   {
@@ -635,8 +636,7 @@ inline void draw_widget(int modid, int parid)
       {
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        ImVec2 size(0.5*vkdt.state.panel_wd, 0);
-        if(ImGui::Button(str, size))
+        if(ImGui::Button(str, ImVec2(halfw, 0)))
         {
           dt_module_t *m = vkdt.graph_dev.module+modid;
           if(m->so->ui_callback) m->so->ui_callback(m, param->name);
@@ -711,16 +711,14 @@ inline void draw_widget(int modid, int parid)
 #undef SMOOTH
           dt_gui_dr_pers_adjust(inc, 1);
         }
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
+        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
           widget_abort();
         }
-        else if(ImGui::Button(string) || accept)
+        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
         {
           dt_gamepadhelp_pop();
           widget_end();
@@ -730,10 +728,8 @@ inline void draw_widget(int modid, int parid)
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
-        if(ImGui::Button(string))
+        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
@@ -840,8 +836,7 @@ inline void draw_widget(int modid, int parid)
           dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
 #undef SMOOTH
 
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
+        snprintf(string, sizeof(string), "%" PRItkn" done",
             dt_token_str(param->name));
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
@@ -852,7 +847,7 @@ inline void draw_widget(int modid, int parid)
           dt_gamepadhelp_pop();
           darkroom_reset_zoom();
         }
-        else if(ImGui::Button(string) || accept)
+        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
         {
           vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
@@ -867,10 +862,9 @@ inline void draw_widget(int modid, int parid)
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
+        snprintf(string, sizeof(string), "%" PRItkn" start",
             dt_token_str(param->name));
-        if(ImGui::Button(string))
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
@@ -928,7 +922,7 @@ inline void draw_widget(int modid, int parid)
       if(m->so->ui_callback)
       {
         ImGui::SameLine();
-        if(ImGui::Button("auto crop"))
+        if(ImGui::Button("auto crop", ImVec2(halfw, 0)))
         {
           m->so->ui_callback(m, param->name);
           darkroom_reset_zoom();
@@ -1070,7 +1064,7 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid)
       {
-        if(ImGui::Button("stop [esc]"))
+        if(ImGui::Button("stop [esc]", ImVec2(halfw, 0)))
         {
           // dt_gui_dr_toggle_fullscreen_view();
           dt_module_t *mod = vkdt.graph_dev.module + modid;
@@ -1081,7 +1075,7 @@ inline void draw_widget(int modid, int parid)
       }
       else
       {
-        if(ImGui::Button("grab input"))
+        if(ImGui::Button("grab input", ImVec2(halfw, 0)))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
@@ -1103,11 +1097,9 @@ inline void draw_widget(int modid, int parid)
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
+        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::Button(string))
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
@@ -1116,10 +1108,8 @@ inline void draw_widget(int modid, int parid)
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
-        if(ImGui::Button(string))
+        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.state[0] = 1.0f; // abuse for radius
