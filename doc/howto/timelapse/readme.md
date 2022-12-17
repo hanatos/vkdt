@@ -5,12 +5,18 @@ in darkroom mode). it is therefore straight forward to process timelapses.
 
 ## load an image sequence
 
-to wire all images in a sequence to the raw input, use the [`i-raw` module](../../../src/pipe/modules/i-raw/readme.md). in short, you should set the `filename` parameter
-to say `IMG_%04d.CR2` and the `startid` parameter to the first image in the
-sequence. the module will then construct a filename for every frame, starting at
-`startid` and the using total frame count set on the graph. you can also set
-the `fps` global parameter in the `.cfg` file to control playback speed. `vkdt` will
-drop frames if it cannot decode the raws from disk fast enough.
+to wire consecutive images in a timelapse sequence to individual frame numbers
+in an animation, use
+[the `i-raw` module](../../../src/pipe/modules/i-raw/readme.md) for raw images or
+[the `i-jpg` module](../../../src/pipe/modules/i-jpg/readme.md) for jpg images.
+they both support loading animations in the following way: you should set the
+`filename` parameter to say `IMG_%04d.CR2` and the `startid` parameter to the
+first image in the sequence (say 305 if `IMG_0305.CR2` is the filename of the
+first frame). the module will then construct a filename for every frame,
+starting at `startid` and using the total frame count set on the graph. you can
+also set the `fps` global parameter in the `.cfg` file to control playback
+speed (also accessible in the `esoteric`→`animation` expander in the gui).
+`vkdt` will drop frames if it cannot decode the files from disk fast enough.
 
 to see whether that worked, press `space` to play the animation (or use the
 `play` button in the `animation` expander in the gui). pressing `space` again
@@ -28,7 +34,7 @@ paused. then hover over the control of the parameter you wish to create a
 keyframe for. this also works with keyboard/gamepad navigation.
 
 then create a keyframe by pressing the associated hotkey (default `ctrl-k`, you
-can adjust it to your liking in the `settings`->`hotkeys` dialog).
+can adjust it to your liking in the `settings`→`hotkeys` dialog).
 
 to test whether this worked, you will want to create at least a second
 keyframe: navigate to the other frame, change the parameter of the same control
