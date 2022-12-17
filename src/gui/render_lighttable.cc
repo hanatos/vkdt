@@ -449,9 +449,12 @@ void render_lighttable_right_panel()
     // ==============================================================
     // delete images
     static int really_delete = 0;
-    if(ImGui::Button("delete image[s]", size))
-      really_delete ^= 1;
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("will ask you again");
+    if(really_delete) { if(ImGui::Button("no, don't delete!", size)) really_delete = 0; }
+    else
+    {
+      if(ImGui::Button("delete image[s]", size)) really_delete = 1;
+      if(ImGui::IsItemHovered()) ImGui::SetTooltip("will ask you again");
+    }
 
     if(really_delete)
     {
