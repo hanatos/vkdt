@@ -584,7 +584,7 @@ void render_lighttable_right_panel()
   {
     ImGui::Indent();
     static uint32_t imgid = -1u;
-    static char text[2048], *text_end = 0;
+    static char text[2048], *text_end = text;
     if(imgid != vkdt.db.current_imgid)
     {
       text[0] = 0; text_end = text;
