@@ -16,6 +16,28 @@ you can export your work but don't have to save it.
 
 `vkdt.db` (labels and ratings) is saved when you switch folder or exit vkdt.
 
+### files
+
+this is a basic file manager which allows you to navigate to folders and
+to mount external drives and import images from them.
+
+### lighttable
+
+in this view you can look at a folder of images. you can do basic sorting and
+filtering (see widgets in the right panel). the images listed in one lighttable
+session always correspond directly to a folder on disk. collections formed by
+tags are symlinks in a folder in `~/.config/vkdt/tags/`.
+in particular this means there is no obscure database that holds references
+to your images and needs to be synchronised.
+you can copy/paste edit history between images and export a selection here.
+
+### darkroom
+
+this allows you to edit the image. press `tab` for a fullscreen mode that only
+shows the image, not the controls in the right panel. press `ctrl-h` (default
+hotkey) to show the edit history panel on the left which also allows you to
+roll back changes.
+
 
 ## rate and label
 
@@ -39,3 +61,4 @@ can be customised for each view separately in the gui via `settings`→
 
 most widgets are stock imgui widgets. in particular, if you want to
 type a value instead of clicking, the way to do it is to `ctrl+click`.
+most widgets support a double-click-to-reset-to default action.
