@@ -38,7 +38,7 @@ main()
 
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
-    vec4 px = texture(img_in, vec2(2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0), 0);
+    vec4 px = texture(img_in, vec2(2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
     grad   += vec2(w[ii+2], w[jj+2]) * sign(vec2(ii,jj)) * px.g;
     grad_w += vec2(w[ii+2], w[jj+2]);
 
