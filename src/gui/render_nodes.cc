@@ -1,12 +1,13 @@
 extern "C"
 {
-#include "gui/view.h"
-#include "gui/gui.h"
+#include "view.h"
+#include "gui.h"
 #include "pipe/modules/api.h"
+#include "nodes.h"
 }
-#include "gui/render_view.hh"
-#include "gui/render.h"
-#include "gui/imnodes.h"
+#include "render_view.hh"
+#include "render.h"
+#include "imnodes.h"
 #include <stdint.h>
 
 void render_nodes()
@@ -69,8 +70,39 @@ void render_nodes()
   ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_TopRight);
   ImNodes::EndNodeEditor();
 
+  // TODO: if something got connected/disconnected
+  // TODO: we'll get attribute ids and even node ids
+  // TODO: but if a link is deleted we'll get the link id, so we need to encode it!
+
   ImGui::End(); // nodes center
+  if(ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+    dt_view_switch(s_view_darkroom);
+
+  // TODO: right panel with:
+  // displays: main, hist, view0, ..
+  // add module, insert block
 }
 
 // void render_nodes_init() {}
 // void render_nodes_cleanup() {}
+
+extern "C" int nodes_enter()
+{
+  // TODO: LoadCurrentEditorStateFromIniFile
+  // TODO: if that fails, perform automatic positioning of the nodes
+  // TODO: by calling the same code as darkroom mode but horizontally
+  return 0;
+}
+
+extern "C" int nodes_leave()
+{
+  // TODO:
+  // ImNodes::SaveCurrentEditorStateToIniFile("/tmp/dreggn.ini");
+  // this only saves positions of modules by id. since that might change
+  // when adding/removing modules, i'll suggest rewriting it with mod name/inst.
+  // TODO:
+  // decide whether to write to ~/.config/nodes/<hash>.dat or a visible sidecar.
+  // may need complete cfg file name in .dat for collision handling
+  return 0;
+}
