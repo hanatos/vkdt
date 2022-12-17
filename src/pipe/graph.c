@@ -1344,7 +1344,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
       c->roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
   }
-  if(module->so->modify_roi_out)
+  if(!module->disabled && module->so->modify_roi_out)
   {
     module->so->modify_roi_out(graph, module);
     // mark roi in of all outputs as uninitialised:
@@ -1405,13 +1405,12 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 static void
 modify_roi_in(dt_graph_t *graph, dt_module_t *module)
 {
-  if(module->so->modify_roi_in)
+  if(!module->disabled && module->so->modify_roi_in)
   {
     module->so->modify_roi_in(graph, module);
   }
   else
-  {
-    // propagate roi request on output module to our inputs ("read")
+  { // propagate roi request on output module to our inputs ("read")
     int output = dt_module_get_connector(module, dt_token("output"));
     if(output == -1 && module->connector[0].type == dt_token("sink"))
     { // by default ask for it all:
