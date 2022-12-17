@@ -202,6 +202,16 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
           "processing history, lighttable thumbnail, or export.");
     ImGui::SameLine();
   }
+  else
+  {
+    ImGui::PushFont(dt_gui_imgui_get_font(3));
+    ImGui::Button("\ue15b", ImVec2(1.6*vkdt.wstate.fontsize, 0));
+    ImGui::PopFont();
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+        "this module cannot be disabled automatically because\n"
+        "it does not implement a simple input -> output chain");
+    ImGui::SameLine();
+  }
   if(!ImGui::CollapsingHeader(name))
   {
     for(int k=0;k<module->num_connectors;k++)
