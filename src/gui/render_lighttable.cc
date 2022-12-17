@@ -285,7 +285,7 @@ void render_lighttable_right_panel()
   ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
   float lineht = ImGui::GetTextLineHeight();
-  float bwd = 0.5f;
+  float bwd = 0.47f;
   ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
   // lt hotkeys in same scope as buttons as modals (right panel)
