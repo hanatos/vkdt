@@ -3,6 +3,7 @@
 #include "gui/lighttable.h"
 #include "gui/files.h"
 #include "gui/render.h"
+#include "gui/nodes.h"
 
 int
 dt_view_switch(dt_gui_view_t view)
@@ -19,6 +20,9 @@ dt_view_switch(dt_gui_view_t view)
     case s_view_files:
       err = files_leave();
       break;
+    case s_view_nodes:
+      err = nodes_leave();
+      break;
     default:;
   }
   if(err) return err;
@@ -34,6 +38,9 @@ dt_view_switch(dt_gui_view_t view)
       break;
     case s_view_files:
       err = files_enter();
+      break;
+    case s_view_nodes:
+      err = nodes_enter();
       break;
     default:;
   }

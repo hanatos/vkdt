@@ -25,6 +25,7 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"add block",       "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
   {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
   {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
+  {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
 };
 
 enum hotkey_names_t
@@ -38,6 +39,7 @@ enum hotkey_names_t
   s_hotkey_block_add       = 6,
   s_hotkey_assign_tag      = 7,
   s_hotkey_insert_keyframe = 8,
+  s_hotkey_nodes_enter     = 9,
 };
 
 // used to communictate between the gui helper functions
@@ -1469,6 +1471,11 @@ void render_darkroom()
         dt_gui_dr_toggle_fullscreen_view();
       }
 
+      if(gui.hotkey == s_hotkey_nodes_enter)
+      {
+        dt_view_switch(s_view_nodes);
+        goto abort;
+      }
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
          ImGui::IsKeyPressed(ImGuiKey_Escape)||
          ImGui::IsKeyPressed(ImGuiKey_CapsLock)||

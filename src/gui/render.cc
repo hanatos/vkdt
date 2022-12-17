@@ -11,6 +11,7 @@ extern "C" {
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "imnodes.h"
 #include "widget_draw.hh"
 #include "render_view.hh"
 #if VKDT_USE_FREETYPE == 1
@@ -187,6 +188,7 @@ extern "C" int dt_gui_init_imgui()
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   // Setup Dear ImGui context
   ImGui::CreateContext();
+  ImNodes::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = 0; // disable automatic writing of "imgui.ini"
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
@@ -319,6 +321,9 @@ extern "C" void dt_gui_render_frame_imgui()
     case s_view_darkroom:
       render_darkroom();
       break;
+    case s_view_nodes:
+      render_nodes();
+      break;
     default:;
   }
 
@@ -355,6 +360,7 @@ extern "C" void dt_gui_cleanup_imgui()
   threads_mutex_unlock(&qvk.queue_mutex);
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
+  ImNodes::DestroyContext();
   ImGui::DestroyContext();
 }
 
