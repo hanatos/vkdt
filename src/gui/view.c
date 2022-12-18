@@ -12,7 +12,7 @@ dt_view_switch(dt_gui_view_t view)
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      err = darkroom_leave();
+      if(view != s_view_nodes) err = darkroom_leave();
       break;
     case s_view_lighttable:
       err = lighttable_leave();
@@ -31,7 +31,7 @@ dt_view_switch(dt_gui_view_t view)
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      err = darkroom_enter();
+      if(old_view != s_view_nodes) err = darkroom_enter();
       break;
     case s_view_lighttable:
       err = lighttable_enter();
