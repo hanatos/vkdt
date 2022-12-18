@@ -202,7 +202,7 @@ extern "C" int nodes_enter()
   char filename[PATH_MAX], datname[PATH_MAX];
   dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, filename, sizeof(filename));
   uint64_t hash = hash64(filename);
-  if(snprintf(datname, sizeof(datname), "%s/nodes/%lX.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
+  if(snprintf(datname, sizeof(datname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
   { // write to ~/.config/vkdt/nodes/<hash>.dat
     FILE *f = fopen(datname, "rb");
     if(f)
@@ -240,7 +240,7 @@ extern "C" int nodes_leave()
   uint64_t hash = hash64(filename);
   if(snprintf(datname, sizeof(datname), "%s/nodes", dt_pipe.homedir) < int(sizeof(datname)))
     fs_mkdir(datname, 0755);
-  if(snprintf(datname, sizeof(datname), "%s/nodes/%lX.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
+  if(snprintf(datname, sizeof(datname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
   { // write to ~/.config/vkdt/nodes/<hash>.dat
     FILE *f = fopen(datname, "wb");
     if(f)
