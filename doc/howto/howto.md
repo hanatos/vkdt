@@ -19,3 +19,4 @@ this folder lists quick instructions on a few special topics:
 * [how to create a css/html website gallery](./gallery/readme.md)
 * [how to customise the favourites ui in darkroom mode](./favs/readme.md)
 * [how to fit parameters automatically](./fit/readme.md)
+* [how to use align and merge handheld images for low light photography](./align/readme.md)
