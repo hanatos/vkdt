@@ -43,9 +43,12 @@ void render_nodes_module(dt_graph_t *g, int m)
     }
     else
     {
+      ImNodes::PushAttributeFlag( // inputs have only one source so we can disconnect:
+          ImNodesAttributeFlags_EnableLinkDetachWithDragClick);
       ImNodes::BeginInputAttribute(cid);
       ImGui::Text("%" PRItkn, dt_token_str(mod->connector[c].name));
       ImNodes::EndInputAttribute();
+      ImNodes::PopAttributeFlag();
     }
   }
   ImNodes::EndNode();
@@ -130,13 +133,15 @@ void render_nodes()
     modid[m] = m; // init as identity mapping
 
   const float nodew = 200.0f;
+  ImNodes::PushAttributeFlag(
+      ImNodesAttributeFlags_EnableLinkCreationOnSnap);
 
 #define TRAVERSE_POST \
   assert(cnt < sizeof(modid)/sizeof(modid[0]));\
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
   for(int m=cnt-1;m>=0;m--)
-  {
+  { // draw the graph
     uint32_t curr = modid[m];
     pos2 = curr;
     while(mod_id[pos2] != curr) pos2 = mod_id[pos2];
@@ -150,17 +155,16 @@ void render_nodes()
       ImNodes::SetNodeEditorSpacePos(curr, nodes.mod_pos[curr]);
   }
 
-  // now draw the disconnected modules
   for(int m=pos;m<arr_cnt;m++)
-  {
+  { // draw disconnected modules
     render_nodes_module(g, mod_id[m]);
     if(nodes.do_layout == 1)
       ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m-pos), 600));
     else if(nodes.do_layout == 2)
       ImNodes::SetNodeEditorSpacePos(mod_id[m], nodes.mod_pos[mod_id[m]]);
   }
+  ImNodes::PopAttributeFlag();
 
-  int lid = 0;
   for(uint32_t m=0;m<g->num_modules;m++)
   {
     dt_module_t *mod = g->module+m;
@@ -170,7 +174,7 @@ void render_nodes()
       {
         int id0 = (m<<5) + c;
         int id1 = (mod->connector[c].connected_mi<<5) + mod->connector[c].connected_mc;
-        ImNodes::Link(lid++, id0, id1);
+        ImNodes::Link(id0, id0, id1); // id0 is the input connector which is unique
       }
     }
   }
@@ -178,9 +182,20 @@ void render_nodes()
   ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_TopRight);
   ImNodes::EndNodeEditor();
 
-  // TODO: if something got connected/disconnected
-  // TODO: we'll get attribute ids and even node ids
-  // TODO: but if a link is deleted we'll get the link id, so we need to encode it!
+  int sid, eid;
+  if(ImNodes::IsLinkCreated(&sid, &eid))
+  { // handle new links
+    int mi0 = sid>>5,   mi1 = eid>>5;
+    int mc0 = sid&0x1f, mc1 = eid&0x1f;
+    dt_module_connect(g, mi0, mc0, mi1, mc1);
+  }
+
+  int lid = 0;
+  if(ImNodes::IsLinkDestroyed(&lid))
+  { // handle deleted links
+    int mi = lid>>5, mc = lid&0x1f;
+    dt_module_connect(g, -1, -1, mi, mc);
+  }
 
   ImGui::End(); // nodes center
   if(ImGui::IsKeyPressed(ImGuiKey_Escape) ||
