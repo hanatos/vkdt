@@ -208,21 +208,25 @@ extern "C" int nodes_enter()
     if(f)
     {
       char line[300];
-      while(!feof(f))
-      {
-        fscanf(f, "%299[^\n]", line);
-        char *l = line;
-        if(fgetc(f) == EOF) break; // read \n
-        dt_token_t name = dt_read_token(l, &l);
-        dt_token_t inst = dt_read_token(l, &l);
-        const float px  = dt_read_float(l, &l);
-        const float py  = dt_read_float(l, &l);
-        for(uint32_t m=0;m<MIN(sizeof(nodes.mod_pos)/sizeof(nodes.mod_pos[0]), g->num_modules);m++)
-          if(g->module[m].name == name && g->module[m].inst == inst)
-            nodes.mod_pos[m] = ImVec2(px, py);
+      fscanf(f, "%299[^\n]", line);
+      if(!strcmp(line, filename))
+      { // only use hashed positions if filename actually matches
+        while(!feof(f))
+        {
+          fscanf(f, "%299[^\n]", line);
+          char *l = line;
+          if(fgetc(f) == EOF) break; // read \n
+          dt_token_t name = dt_read_token(l, &l);
+          dt_token_t inst = dt_read_token(l, &l);
+          const float px  = dt_read_float(l, &l);
+          const float py  = dt_read_float(l, &l);
+          for(uint32_t m=0;m<MIN(sizeof(nodes.mod_pos)/sizeof(nodes.mod_pos[0]), g->num_modules);m++)
+            if(g->module[m].name == name && g->module[m].inst == inst)
+              nodes.mod_pos[m] = ImVec2(px, py);
+        }
+        nodes.do_layout = 2; // ask to read positions
       }
       fclose(f);
-      nodes.do_layout = 2; // ask to read positions
     }
   }
   return 0;
