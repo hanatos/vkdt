@@ -25,11 +25,18 @@ gui_nodes_t nodes;
 
 void render_nodes_module(dt_graph_t *g, int m)
 {
-  ImNodes::BeginNode(m);
   dt_module_t *mod = g->module+m;
+  if(mod->disabled)
+  {
+    ImNodes::PushColorStyle(ImNodesCol_NodeBackground, IM_COL32(10,10,10,255));
+    ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(10,10,10,255));
+    ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(10,10,10,255));
+  }
+  ImNodes::BeginNode(m);
 
   ImNodes::BeginNodeTitleBar();
   ImGui::Text("%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
+  if(mod->disabled) ImGui::TextUnformatted("disabled");
   ImNodes::EndNodeTitleBar();
 
   for(int c=0;c<mod->num_connectors;c++)
@@ -52,6 +59,7 @@ void render_nodes_module(dt_graph_t *g, int m)
     }
   }
   ImNodes::EndNode();
+  if(mod->disabled) for(int k=0;k<3;k++) ImNodes::PopColorStyle();
 }
 
 void render_nodes_right_panel()
@@ -92,16 +100,28 @@ void render_nodes_right_panel()
     }
   }
   // add module, insert block
-  // selected node:
   int  sel_node_cnt = ImNodes::NumSelectedNodes();
   int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
   ImNodes::GetSelectedNodes(sel_node_id);
-  // TODO: buttons: disconnect, remove?, insert block before this,
-  // TODO: move left, move right
   for(int i=0;i<sel_node_cnt;i++)
   {
     dt_module_t *mod = vkdt.graph_dev.module + sel_node_id[i];
-    ImGui::Text("%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
+    char name[100];
+    snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
+    if(ImGui::CollapsingHeader(name))
+    {
+      if(mod->so->has_inout_chain && !mod->disabled && ImGui::Button("temporarily disable"))
+      {
+        mod->disabled = 1;
+        vkdt.graph_dev.runflags = s_graph_run_all;
+      }
+      else if(mod->so->has_inout_chain && mod->disabled && ImGui::Button("re-enable"))
+      {
+        mod->disabled = 0;
+        vkdt.graph_dev.runflags = s_graph_run_all;
+      }
+      // TODO: buttons: disconnect, remove?, insert block before this?
+    }
   }
 
   ImGui::End();
@@ -118,6 +138,13 @@ void render_nodes()
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
   ImGui::Begin("nodes center", 0, window_flags);
 
+  // make dpi independent:
+  ImNodes::PushStyleVar(ImNodesStyleVar_LinkThickness, vkdt.state.center_wd*0.002);
+  ImNodes::PushStyleVar(ImNodesStyleVar_PinCircleRadius, vkdt.state.center_wd*0.003);
+  ImNodes::PushStyleVar(ImNodesStyleVar_NodePadding, ImVec2(
+        vkdt.state.center_wd*0.004, vkdt.state.center_wd*0.004));
+  // TODO: ImNodesStyleVar_PinHoverRadius
+  // TODO: ImNodesStyleVar_LinkHoverDistance
   ImNodes::BeginNodeEditor();
 
   dt_graph_t *g = &vkdt.graph_dev;
@@ -132,7 +159,8 @@ void render_nodes()
   for(int m=0;m<arr_cnt;m++)
     modid[m] = m; // init as identity mapping
 
-  const float nodew = 200.0f;
+  const float nodew = vkdt.state.center_wd * 0.09;
+  const float nodey = vkdt.state.center_ht * 0.3;
   ImNodes::PushAttributeFlag(
       ImNodesAttributeFlags_EnableLinkCreationOnSnap);
 
@@ -150,7 +178,7 @@ void render_nodes()
     mod_id[pos2] = tmp;
     render_nodes_module(g, curr);
     if(nodes.do_layout == 1)
-      ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*m, 300));
+      ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.5), nodey));
     else if(nodes.do_layout == 2)
       ImNodes::SetNodeEditorSpacePos(curr, nodes.mod_pos[curr]);
   }
@@ -159,7 +187,7 @@ void render_nodes()
   { // draw disconnected modules
     render_nodes_module(g, mod_id[m]);
     if(nodes.do_layout == 1)
-      ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m-pos), 600));
+      ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m+0.5-pos), 2*nodey));
     else if(nodes.do_layout == 2)
       ImNodes::SetNodeEditorSpacePos(mod_id[m], nodes.mod_pos[mod_id[m]]);
   }
@@ -181,6 +209,7 @@ void render_nodes()
 
   ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_TopRight);
   ImNodes::EndNodeEditor();
+  ImNodes::PopStyleVar(3);
 
   int sid, eid;
   if(ImNodes::IsLinkCreated(&sid, &eid))
@@ -244,6 +273,8 @@ extern "C" int nodes_enter()
       fclose(f);
     }
   }
+  // make sure we process once:
+  vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
   return 0;
 }
 
@@ -273,4 +304,12 @@ extern "C" int nodes_leave()
     }
   }
   return 0;
+}
+
+extern "C" void nodes_process()
+{
+  vkdt.state.anim_playing = 0; // we don't animate in graph edit mode
+  if(vkdt.graph_dev.runflags)
+    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
+        vkdt.graph_dev.runflags | s_graph_run_wait_done);
 }

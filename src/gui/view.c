@@ -126,6 +126,9 @@ dt_view_process()
     case s_view_darkroom:
       darkroom_process();
       break;
+    case s_view_nodes:
+      nodes_process();
+      break;
     default:;
   }
 }
