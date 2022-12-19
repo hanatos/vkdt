@@ -217,6 +217,7 @@ void render_nodes()
     int mi0 = sid>>5,   mi1 = eid>>5;
     int mc0 = sid&0x1f, mc1 = eid&0x1f;
     dt_module_connect(g, mi0, mc0, mi1, mc1);
+    vkdt.graph_dev.runflags = s_graph_run_all;
   }
 
   int lid = 0;
@@ -224,6 +225,7 @@ void render_nodes()
   { // handle deleted links
     int mi = lid>>5, mc = lid&0x1f;
     dt_module_connect(g, -1, -1, mi, mc);
+    vkdt.graph_dev.runflags = s_graph_run_all;
   }
 
   ImGui::End(); // nodes center
