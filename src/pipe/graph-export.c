@@ -97,7 +97,7 @@ dt_graph_export(
       if(param->p_defcfg)
         snprintf(graph_cfg, sizeof(graph_cfg), "%s", param->p_defcfg);
       else
-        snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%"PRItkn, dt_token_str(input_module));
       err = dt_graph_read_config_ascii(graph, graph_cfg);
       char imgfilename[PATH_MAX+100];
       // follow link if this is a cfg in a tag collection:

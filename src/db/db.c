@@ -22,7 +22,7 @@ dt_db_init(dt_db_t *db)
   memset(db, 0, sizeof(*db));
   db->current_imgid = -1u;
   db->current_colid = -1u;
-  snprintf(db->basedir, sizeof(db->basedir), "%s/.config/vkdt", getenv("HOME"));
+  fs_homedir(db->basedir, sizeof(db->basedir));
   fs_mkdir(db->basedir, 0755);
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;
@@ -320,6 +320,13 @@ uint32_t dt_db_current_colid(dt_db_t *db)
   return db->current_colid;
 }
 
+uint32_t dt_db_filename_colid(dt_db_t *db, const char *basename)
+{
+  for(uint32_t i=0;i<db->collection_cnt;i++)
+    if(!strcmp(basename, db->image[db->collection[i]].filename)) return i;
+  return -1u;
+}
+
 void dt_db_current_set(dt_db_t *db, uint32_t colid)
 {
   if(colid == -1u)
@@ -388,8 +395,23 @@ void dt_db_selection_clear(dt_db_t *db)
 
 const uint32_t *dt_db_selection_get(dt_db_t *db)
 {
-  // TODO: sync sorting criterion with collection
-  qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filename, db);
+  switch(db->collection_sort)
+  { // sync sorting criterion with collection
+  case s_prop_none:
+    break;
+  case s_prop_filename:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filename, db);
+    break;
+  case s_prop_rating:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_rating, db);
+    break;
+  case s_prop_labels:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_labels, db);
+    break;
+  case s_prop_createdate:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_createdate, db);
+    break;
+  }
   return db->selection;
 }
 
@@ -476,7 +498,7 @@ int dt_db_image_path(const dt_db_t *db, const uint32_t imgid, char *fn, uint32_t
 }
 
 // add image to named collection/tag
-// get image_path, get murmur3 hash
+// get image_path, get hash
 // create directory ~/.config/vkdt/tags/<tag>/ and link <hash> to our image path
 // use relative path names in link? still useful if ~/.config top level?
 int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char *cname)
@@ -484,14 +506,14 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   char filename[PATH_MAX+100];
   dt_db_image_path(db, imgid, filename, sizeof(filename));
 
-  uint32_t hash = murmur_hash3(filename, strlen(filename), 1337);
+  uint64_t hash = hash64(filename);
   char dirname[1040];
   snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
   fs_mkdir(dirname, 0755);
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
   fs_mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
-  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%x.cfg", db->basedir, cname, hash);
+  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%lx.cfg", db->basedir, cname, hash);
   int err = symlink(filename, linkname);
   if(err) return 1;
   return 0;

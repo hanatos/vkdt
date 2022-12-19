@@ -54,6 +54,7 @@ dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
   assert(l && "vkalloc: no more free slots!");
+  if(!l) return 0;
   while(l)
   { // TODO: store last element so we can access it in fast?
     if(!l->next) break;
@@ -257,7 +258,7 @@ dt_vkalloc_check(dt_vkalloc_t *a)
   uint64_t num_unused = DLIST_LENGTH(a->unused);
   if(num_used + num_free + num_unused != a->pool_size)
   {
-    fprintf(stderr, "used %lu free %lu unused %lu\n", num_used, num_free, num_unused);
+    fprintf(stderr, "used %lu free %lu unused %lu != %lu\n", num_used, num_free, num_unused, a->pool_size);
     return 1;
   }
 

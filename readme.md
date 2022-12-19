@@ -1,4 +1,4 @@
-# vkdt: fast image processing workflow
+# raw image processing workflow which sucks less
 
 [vkdt](https://jo.dreggn.org/vkdt) is a workflow tool for raw photography.
 `vkdt` is designed with high performance in mind. it features a flexible
@@ -18,12 +18,11 @@ targets, such as the main view and histograms.
 
 ## features
 
-* [image operation modules documentation](src/pipe/modules/readme.md)
 * [very fast GPU only processing](src/qvk/readme.md)
 * [general DAG of processing operations](src/pipe/readme.md), featuring multiple inputs and outputs and
   feedback connectors for animation/iteration
-* [full window colour management](doc/colourmanagement.md)
-* [noise profiling](doc/noiseprofiling.md)
+* [full window colour management](doc/howto/colour-display/readme.md)
+* [noise profiling](doc/howto/noise-profiling/readme.md)
 * [minimally invasive folder-based image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
@@ -31,6 +30,11 @@ targets, such as the main view and histograms.
 * [gamepad input](https://github.com/ocornut/imgui/issues/787) inherited from imgui
 * [automatic parameter optimisation](src/fit/readme.md), for instance to fit vignetting
 * [heavy handed processing](src/pipe/modules/cnn/readme.md) at almost realistic speeds
+
+## documentation
+
+* [image operation modules documentation](src/pipe/modules/readme.md)
+* [how to do selected things](doc/howto/howto.md)
 
 ## packages
 
@@ -54,10 +58,12 @@ vulkan validation layers, so you need to have them installed), try
   make debug -j12
 ```
 
-simply run `make` without the `debug` for a release build. `make sanitize` is
-supported to switch on the address sanitizer. changes to the compile time
-configuration as well as the compiler toolchain can be set in `config.mk`. if
-you don't have that file yet, you can copy it from `config.mk.defaults`.
+simply run `make` without the `debug` for a release build. note that the debug
+build includes some extra memory overhead and performs expensive checks and can
+thus be much slower. `make sanitize` is supported to switch on the address
+sanitizer. changes to the compile time configuration as well as the compiler
+toolchain can be set in `config.mk`. if you don't have that file yet, you can
+copy it from `config.mk.defaults`.
 
 ## running
 
@@ -69,7 +75,7 @@ anywhere, create a symlink such as `/usr/local/bin/vkdt -> ~/vc/vkdt/bin/vkdt`.
 ```
 raw files will be assigned the `bin/default-darkroom.i-raw` processing graph.
 if you run the command line interface `vkdt-cli`, it will replace all `display`
-nodes by `export` nodes.
+nodes by export nodes.
 there are also a few example config files in `bin/examples/`. note that you
 have to edit the filename in the example cfg to point to a file that actually
 exists on your system.
@@ -174,3 +180,8 @@ also, `vkdt` requires 4GB video ram (it may run with less, but this seems to be 
 number that is fun to work with). a fast ssd is desirable since disk io is often times
 a limiting factor, especially during thumbnail creation.
 
+* **can i speed up rendering on my 2012 on-board GPU?**  
+you can set the level of detail (LOD) parameter in your
+`~/.config/vkdt/config.rc` file: `intgui/lod:1`. set it to `2` to only render
+exactly at the resolution of your screen (will slow down when you zoom in), or
+to `3` and more to brute force downsample.

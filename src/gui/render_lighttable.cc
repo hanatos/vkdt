@@ -183,6 +183,7 @@ void render_lighttable_center()
     case 8:
       dt_gui_lt_duplicate();
   }
+  dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
 
   // draw context sensitive help overlay
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
@@ -216,17 +217,19 @@ void export_job_work(uint32_t item, void *arg)
   export_job_t *j = (export_job_t *)arg;
   if(j->abort) return;
 
+  char filename[PATH_MAX], infilename[PATH_MAX], filedir[PATH_MAX];
+  dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
+  fs_dirname(filedir);
   char dst[1000];
   time_t t = time(0);
   struct tm *tm = localtime(&t);
   char date[10] = {0}, yyyy[5] = {0};
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
-  const char *key[] = { "home", "yyyy", "date", "seq", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", 0};
+  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", 0};
+  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", filedir, 0};
   dt_strexpand(j->basename, sizeof(j->basename), dst, sizeof(dst), key, val);
 
-  char filename[PATH_MAX], infilename[PATH_MAX];
   snprintf(filename, sizeof(filename), dst, item);
   dt_gui_notification("exporting to %s", filename);
 
@@ -239,7 +242,6 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].quality    = j->quality;
   param.output[0].mod        = j->output_module;
   param.p_cfgfile = infilename;
-  // TODO: add a parameter to overwrite or not
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
   dt_graph_reset(&j->graph);
@@ -270,7 +272,7 @@ int export_job(
   dt_graph_init(&j->graph);
   // TODO:
   // fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
-  j->taskid = threads_task(j->cnt, -1, j, export_job_work, export_job_cleanup);
+  j->taskid = threads_task("export", j->cnt, -1, j, export_job_work, export_job_cleanup);
   return j->taskid;
 }
 // end export bg job stuff
@@ -283,7 +285,7 @@ void render_lighttable_right_panel()
   ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
   float lineht = ImGui::GetTextLineHeight();
-  float bwd = 0.5f;
+  float bwd = 0.47f;
   ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
   // lt hotkeys in same scope as buttons as modals (right panel)
@@ -385,6 +387,7 @@ void render_lighttable_right_panel()
 
     // ==============================================================
     // recently used tags:
+    ImGui::PushID("tags");
     char filename[PATH_MAX+100];
     for(int i=0;i<vkdt.tag_cnt;i++)
     {
@@ -395,6 +398,7 @@ void render_lighttable_right_panel()
       }
       if(((i & 3) != 3) && (i != vkdt.tag_cnt-1)) ImGui::SameLine();
     }
+    ImGui::PopID();
     // button to jump to original folder of selected image if it is a symlink
     uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
     if(main_imgid != -1u)
@@ -407,8 +411,12 @@ void render_lighttable_right_panel()
         char *resolved = realpath(filename, 0);
         if(resolved)
         {
+          char *bn = fs_basename(resolved);
+          size_t len = strlen(bn);
+          if(len > 4) bn[len-4] = 0; // cut away .cfg
           fs_dirname(resolved);
           dt_gui_switch_collection(resolved);
+          dt_gui_lt_scroll_basename(bn);
           free(resolved);
         }
       }
@@ -441,9 +449,12 @@ void render_lighttable_right_panel()
     // ==============================================================
     // delete images
     static int really_delete = 0;
-    if(ImGui::Button("delete image[s]", size))
-      really_delete ^= 1;
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("will ask you again");
+    if(really_delete) { if(ImGui::Button("no, don't delete!", size)) really_delete = 0; }
+    else
+    {
+      if(ImGui::Button("delete image[s]", size)) really_delete = 1;
+      if(ImGui::IsItemHovered()) ImGui::SetTooltip("will ask you again");
+    }
 
     if(really_delete)
     {
@@ -458,7 +469,8 @@ void render_lighttable_right_panel()
           "it will only delete the source image file if its filename is\n"
           "exacty the .cfg file name without the .cfg postfix.\n"
           "this means duplicates or tag collections will keep the source\n"
-          "image file name on disk untouched.");
+          "image file name on disk untouched, but only remove the duplicate\n"
+          "or the tag from the image");
     }
 
     // ==============================================================
@@ -571,6 +583,40 @@ void render_lighttable_right_panel()
     ImGui::Unindent();
   } // end collapsing header "selected"
 
+  if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("metadata"))
+  {
+    ImGui::Indent();
+    static uint32_t imgid = -1u;
+    static char text[2048], *text_end = text;
+    if(imgid != vkdt.db.current_imgid)
+    {
+      text[0] = 0; text_end = text;
+      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", "/usr/bin/exiftool -l -createdate -aperture -shutterspeed -iso");
+      char cmd[PATH_MAX], imgpath[PATH_MAX];
+      snprintf(cmd, sizeof(cmd), "%s '", rccmd);
+      dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
+      realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
+      size_t len = strnlen(cmd, sizeof(cmd));
+      if(len > 4)
+      {
+        cmd[len-4] = '\''; // cut away .cfg
+        cmd[len-3] = 0;
+        FILE *f = popen(cmd, "r");
+        if(f)
+        {
+          len = fread(text, 1, sizeof(text), f);
+          while(!feof(f) && !ferror(f)) fgetc(f); // drain empty
+          text_end = text + len;
+          imgid = vkdt.db.current_imgid;
+          pclose(f);
+        }
+      }
+    }
+    ImGui::TextUnformatted(text, text_end);
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip("customise what is shown here in config.rc");
+    ImGui::Unindent();
+  } // end collapsing header "metadata"
+
   // ==============================================================
   // export selection
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export selection"))
@@ -596,7 +642,8 @@ void render_lighttable_right_panel()
         "${home} -- home directory\n"
         "${yyyy} -- current year\n"
         "${date} -- today's date\n"
-        "${seq}  -- sequence number");
+        "${seq}  -- sequence number\n"
+        "${fdir} -- directory of input file");
     if(ImGui::InputFloat("quality", &quality, 1, 100, 0))
       dt_rc_set_float(&vkdt.rc, "gui/export/quality", quality);
     if(ImGui::Combo("format", &format, format_data))
@@ -609,9 +656,14 @@ void render_lighttable_right_panel()
     // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);
     for(int k=0;k<4;k++)
     { // list of four jobs to copy stuff simultaneously
+      ImGui::PushID(k);
       if(job[k].cnt == 0)
       { // idle job
-        if(num_idle++) break; // show at max one idle job
+        if(num_idle++)
+        { // show at max one idle job
+          ImGui::PopID();
+          break;
+        }
         if(hotkey == 2 || ImGui::Button("export"))
         { // TODO: make sure we don't start a job that is already running in another job[.]
           export_job(job+k, overwrite_mode);
@@ -632,6 +684,7 @@ void render_lighttable_right_panel()
         }
         if(ImGui::IsItemHovered()) ImGui::SetTooltip("click to reset");
       }
+      ImGui::PopID();
     }
     ImGui::Unindent();
   } // end collapsing header "export"
@@ -642,8 +695,7 @@ void render_lighttable_right_panel()
        ImGui::IsKeyPressed(ImGuiKey_Escape)||
        ImGui::IsKeyPressed(ImGuiKey_CapsLock))
       dt_view_switch(s_view_files);
-    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp)||
-       ImGui::IsKeyPressed(ImGuiKey_Enter))
+    if(ImGui::IsKeyPressed(ImGuiKey_Enter))
       if(dt_db_current_imgid(&vkdt.db) != -1u)
         dt_view_switch(s_view_darkroom);
   }

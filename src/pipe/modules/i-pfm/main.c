@@ -27,7 +27,7 @@ read_header(
 
   pfm->channels = 3;
   if(pfm->f) fclose(pfm->f);
-  pfm->f = dt_graph_open_resource(mod->graph, filename, "rb");
+  pfm->f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!pfm->f) goto error;
 
   int wd, ht;

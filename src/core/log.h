@@ -32,6 +32,7 @@ extern dt_log_t dt_log_global;
 
 // this can be done to parse "-d level" from
 // the command line to add more verbose output
+// or "-D level" to remove a specific level again (like "-d all -D perf")
 // returns the index to the last argument that has been used here.
 static inline int
 dt_log_init_arg(int argc, char *argv[])
@@ -67,10 +68,28 @@ dt_log_init_arg(int argc, char *argv[])
         }
       }
     }
+    else if(!strcmp(argv[i], "-D") && i < argc-1)
+    {
+      lastarg = ++i;
+      for(int j=0;j<num;j++)
+      {
+        if(!strcmp(argv[i], id[j]))
+        {
+          if(j == num-1) verbose = 0ul;
+          else           verbose &= ~(1<<(j-1));
+        }
+      }
+    }
   }
+
   // user parameters add to the mask:
+#ifdef __cplusplus // now comes the shit code. whoever invented that should be %^&
+  dt_log_global.mask = static_cast<dt_log_mask_t>(dt_log_global.mask | verbose);
+  if(verbose == 0ul) dt_log_global.mask = static_cast<dt_log_mask_t>(verbose);
+#else
   dt_log_global.mask |= verbose;
   if(verbose == 0ul) dt_log_global.mask = verbose;
+#endif
   return lastarg;
 }
 
@@ -103,7 +122,7 @@ dt_log(
   if(dt_log_global.mask & mask)
   {
     char str[2048];
-    int index = mask ? 32-__builtin_clz(mask) : 0;
+    uint32_t index = mask ? 32-__builtin_clz(mask) : 0;
     if(index > sizeof(pre)/sizeof(pre[0])) index = 0;
     snprintf(str, sizeof(str), "%s %s\n", pre[index], format);
     va_list args;

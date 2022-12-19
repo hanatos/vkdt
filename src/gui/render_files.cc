@@ -71,7 +71,7 @@ int copy_job(
   fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
   if(j->cnt == -1u) return 2;
-  j->taskid = threads_task(j->cnt, -1, j, copy_job_work, copy_job_cleanup);
+  j->taskid = threads_task("copy", j->cnt, -1, j, copy_job_work, copy_job_cleanup);
   return j->taskid;
 }
 
@@ -191,16 +191,25 @@ void render_files()
       ImGui::Combo("copy mode", &copy_mode, copy_mode_str);
       for(int k=0;k<4;k++)
       { // list of four jobs to copy stuff simultaneously
+        ImGui::PushID(k);
         if(job[k].cnt == 0)
         { // idle job
-          if(num_idle++) break; // show at max one idle job
+          if(num_idle++)
+          { // show at max one idle job
+            ImGui::PopID();
+            break;
+          }
           if(ImGui::Button("copy"))
           {
             // TODO: make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
             {
-              if(k2 == k) continue;
+              if(k2 == k)
+              {
+                ImGui::PopID();
+                continue;
+              }
               if(!strcmp(job[k2].src, filebrowser.cwd)) duplicate = 1;
             }
             if(duplicate)
@@ -251,6 +260,7 @@ void render_files()
               "copy from %s done. click to reset"),
              job[k].src);
         }
+        ImGui::PopID();
       }
       ImGui::Unindent();
     }

@@ -32,7 +32,7 @@ read_header(
     return 0; // already loaded
   assert(lut); // this should be inited in init()
 
-  lut->f = dt_graph_open_resource(mod->graph, filename, "rb");
+  lut->f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!lut->f) goto error;
 
   if(fread(&lut->header, sizeof(dt_lut_header_t), 1, lut->f) != 1 || lut->header.version != 2)

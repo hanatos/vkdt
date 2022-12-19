@@ -16,26 +16,30 @@ extern "C"
 namespace { // anonymous namespace
 
 static ImHotKey::HotKey hk_darkroom[] = {
-  {"create preset", "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
-  {"apply preset",  "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"show history",  "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
-  {"redo",          "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
-  {"undo",          "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
-  {"add module",    "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
-  {"add block",     "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
-  {"assign tag",    "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
+  {"create preset",   "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
+  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"show history",    "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
+  {"redo",            "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
+  {"undo",            "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
+  {"add module",      "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
+  {"add block",       "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
+  {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
+  {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
+  {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
 };
 
 enum hotkey_names_t
 { // for sane access in code
-  s_hotkey_create_preset = 0,
-  s_hotkey_apply_preset  = 1,
-  s_hotkey_show_history  = 2,
-  s_hotkey_redo          = 3,
-  s_hotkey_undo          = 4,
-  s_hotkey_module_add    = 5,
-  s_hotkey_block_add     = 6,
-  s_hotkey_assign_tag    = 7,
+  s_hotkey_create_preset   = 0,
+  s_hotkey_apply_preset    = 1,
+  s_hotkey_show_history    = 2,
+  s_hotkey_redo            = 3,
+  s_hotkey_undo            = 4,
+  s_hotkey_module_add      = 5,
+  s_hotkey_block_add       = 6,
+  s_hotkey_assign_tag      = 7,
+  s_hotkey_insert_keyframe = 8,
+  s_hotkey_nodes_enter     = 9,
 };
 
 // used to communictate between the gui helper functions
@@ -198,6 +202,16 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
           "temporarily disable this module without disconnecting it from the graph.\n"
           "this is just a convenience A/B switch in the ui and will not affect your\n"
           "processing history, lighttable thumbnail, or export.");
+    ImGui::SameLine();
+  }
+  else
+  {
+    ImGui::PushFont(dt_gui_imgui_get_font(3));
+    ImGui::Button("\ue15b", ImVec2(1.6*vkdt.wstate.fontsize, 0));
+    ImGui::PopFont();
+    if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+        "this module cannot be disabled automatically because\n"
+        "it does not implement a simple input -> output chain");
     ImGui::SameLine();
   }
   if(!ImGui::CollapsingHeader(name))
@@ -484,12 +498,10 @@ inline void draw_widget(int modid, int parid)
   if(change)
 
   // common code block to insert a keyframe. currently only supports float (for interpolation)
-  static double keyframe_time = glfwGetTime();
 #define KEYFRAME\
   if(ImGui::IsItemHovered())\
   {\
-    double now = glfwGetTime(); \
-    if(glfwGetKey(qvk.window, GLFW_KEY_K) == GLFW_PRESS && now - keyframe_time > 1.0)\
+    if(gui.hotkey == s_hotkey_insert_keyframe)\
     {\
       dt_graph_t *g = &vkdt.graph_dev;\
       uint32_t ki = -1u;\
@@ -512,7 +524,6 @@ inline void draw_widget(int modid, int parid)
       memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
       dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
           g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
-      keyframe_time = now; \
       dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
     }\
   }
@@ -540,6 +551,7 @@ inline void draw_widget(int modid, int parid)
   {
   ImGui::PushID(2000*modid + 200*parid + num);
   char string[256];
+  const float halfw = (0.66*vkdt.state.panel_wd - ImGui::GetStyle().ItemSpacing.x)/2;
   // distinguish by type:
   switch(param->widget.type)
   {
@@ -626,8 +638,7 @@ inline void draw_widget(int modid, int parid)
       {
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        ImVec2 size(0.5*vkdt.state.panel_wd, 0);
-        if(ImGui::Button(str, size))
+        if(ImGui::Button(str, ImVec2(halfw, 0)))
         {
           dt_module_t *m = vkdt.graph_dev.module+modid;
           if(m->so->ui_callback) m->so->ui_callback(m, param->name);
@@ -702,27 +713,25 @@ inline void draw_widget(int modid, int parid)
 #undef SMOOTH
           dt_gui_dr_pers_adjust(inc, 1);
         }
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
+        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
           widget_abort();
         }
-        else if(ImGui::Button(string) || accept)
+        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
         {
           dt_gamepadhelp_pop();
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
-        if(ImGui::Button(string))
+        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
@@ -761,11 +770,13 @@ inline void draw_widget(int modid, int parid)
 
         if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
         {
+          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
           if(ImGui::Button("done"))
           {
             widget_end();
             dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           }
+          ImGui::PopStyleColor();
         }
         else
         {
@@ -827,9 +838,9 @@ inline void draw_widget(int modid, int parid)
           dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
 #undef SMOOTH
 
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
+        snprintf(string, sizeof(string), "%" PRItkn" done",
             dt_token_str(param->name));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
            ImGui::IsKeyPressed(ImGuiKey_Escape)||
            ImGui::IsKeyPressed(ImGuiKey_CapsLock))
@@ -838,7 +849,7 @@ inline void draw_widget(int modid, int parid)
           dt_gamepadhelp_pop();
           darkroom_reset_zoom();
         }
-        else if(ImGui::Button(string) || accept)
+        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
         {
           vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
@@ -849,13 +860,13 @@ inline void draw_widget(int modid, int parid)
           darkroom_reset_zoom();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
+        snprintf(string, sizeof(string), "%" PRItkn" start",
             dt_token_str(param->name));
-        if(ImGui::Button(string))
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
@@ -913,7 +924,7 @@ inline void draw_widget(int modid, int parid)
       if(m->so->ui_callback)
       {
         ImGui::SameLine();
-        if(ImGui::Button("auto crop"))
+        if(ImGui::Button("auto crop", ImVec2(halfw, 0)))
         {
           m->so->ui_callback(m, param->name);
           darkroom_reset_zoom();
@@ -935,11 +946,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::Button(string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
@@ -974,11 +987,13 @@ inline void draw_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
         if(ImGui::Button(string, size))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
@@ -1051,7 +1066,7 @@ inline void draw_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid)
       {
-        if(ImGui::Button("stop [esc]"))
+        if(ImGui::Button("stop [esc]", ImVec2(halfw, 0)))
         {
           // dt_gui_dr_toggle_fullscreen_view();
           dt_module_t *mod = vkdt.graph_dev.module + modid;
@@ -1062,7 +1077,7 @@ inline void draw_widget(int modid, int parid)
       }
       else
       {
-        if(ImGui::Button("grab input"))
+        if(ImGui::Button("grab input", ImVec2(halfw, 0)))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
@@ -1084,21 +1099,19 @@ inline void draw_widget(int modid, int parid)
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" done",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
-        if(ImGui::Button(string))
+        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        ImGui::PopStyleColor();
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn":%" PRItkn" start",
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
-        if(ImGui::Button(string))
+        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+        if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.state[0] = 1.0f; // abuse for radius
@@ -1243,7 +1256,6 @@ void render_darkroom_full()
       {
         if(!open[m])
         { // just opened, now this is the 'active module'.
-          // fprintf(stderr, "module %" PRItkn " got focus!\n", dt_token_str(arr[curr].name));
           active_module = curr;
           int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
           if(cid >= 0)
@@ -1459,6 +1471,11 @@ void render_darkroom()
         dt_gui_dr_toggle_fullscreen_view();
       }
 
+      if(gui.hotkey == s_hotkey_nodes_enter)
+      {
+        dt_view_switch(s_view_nodes);
+        goto abort;
+      }
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
          ImGui::IsKeyPressed(ImGuiKey_Escape)||
          ImGui::IsKeyPressed(ImGuiKey_CapsLock)||
@@ -1698,7 +1715,7 @@ abort:
         assert(len > 4);
         realimg[len-4] = 0; // cut away ".cfg"
         input_module = dt_graph_default_input_module(realimg);
-        snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
       }
 
       // anything goes wrong, what can we do?
@@ -1862,9 +1879,15 @@ abort:
             vkdt.graph_dev.frame = vkdt.state.anim_frame;
             vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
           }
-          if(ImGui::SliderInt("frame count", &vkdt.state.anim_max_frame, 0, 10000))
+          if(ImGui::SliderInt("last frame", &vkdt.state.anim_max_frame, 0, 10000))
           {
-            vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame;
+            vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
+            dt_graph_history_global(&vkdt.graph_dev);
+          }
+          float frame_rate = vkdt.graph_dev.frame_rate;
+          if(ImGui::SliderFloat("frame rate", &frame_rate, 0, 200))
+          {
+            vkdt.graph_dev.frame_rate = frame_rate; // conv to double
             dt_graph_history_global(&vkdt.graph_dev);
           }
         }

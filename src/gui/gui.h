@@ -16,6 +16,7 @@ typedef enum dt_gui_view_t
   s_view_files      = 0,
   s_view_lighttable = 1,
   s_view_darkroom   = 2,
+  s_view_nodes      = 3,
   s_view_cnt,
 }
 dt_gui_view_t;

@@ -176,7 +176,7 @@ void modify_roi_out(
       mod->img_param.maker,
       mod->img_param.model,
       (int)mod->img_param.iso);
-  FILE *f = dt_graph_open_resource(graph, pname, "rb");
+  FILE *f = dt_graph_open_resource(graph, 0, pname, "rb");
   if(f)
   {
     float a = 0.0f, b = 0.0f;

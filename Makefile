@@ -48,6 +48,10 @@ sanitize:OPT_CFLAGS=-fno-omit-frame-pointer -fsanitize=address -g -O0
 sanitize:OPT_LDFLAGS=-fsanitize=address
 sanitize:all
 
+sanitize-thread:OPT_CFLAGS=-fsanitize=thread -g -O0
+sanitize-thread:OPT_LDFLAGS=-fsanitize=thread
+sanitize-thread:all
+
 ext: Makefile
 	mkdir -p built/
 	$(MAKE) -C ext/

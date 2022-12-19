@@ -33,11 +33,12 @@ void threads_global_cleanup();
 // and done pointers.
 int // returns the task id of the original job, i.e. taskid that was passed if >= 0
 threads_task(
-    uint32_t work_item_cnt,  // number of work items
-    int      taskid,         // if >= 0, refer to previously added task (schedule another thread to help out there)
-    void    *data,           // opaque user data that will be passed to the run function
-    void   (*run)(uint32_t item, void *data),
-    void   (*free)(void*));  // this is called only at the very end to clean up (for every thread working on a job)
+    const char *desc,           // short textual description
+    uint32_t    work_item_cnt,  // number of work items
+    int         taskid,         // if >= 0, refer to previously added task (schedule another thread to help out there)
+    void       *data,           // opaque user data that will be passed to the run function
+    void      (*run)(uint32_t item, void *data),
+    void      (*free)(void*));  // this is called only at the very end to clean up (for every thread working on a job)
 
 // returns zero if the task is done
 int threads_task_running(int taskid);

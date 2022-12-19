@@ -466,6 +466,9 @@ dt_api_blur(
     int         *id_blur_out,
     float        radius)        // 2 sigma of the requsted blur, in pixels
 {
+  if(radius < 2)
+    return dt_api_blur_3x3(graph, module, nodeid_input, connid_input,
+        id_blur_in, id_blur_out, 0.5f*radius);
   if(radius == 2)
     return dt_api_blur_5x5(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out);
   // XXX DEBUG XXX frustratingly that is much faster even for relatively large blurs it seems
@@ -953,21 +956,28 @@ dt_module_get_input_img_param(
 // open a file pointer, consider search paths specific to this graph
 static inline FILE*
 dt_graph_open_resource(
-    dt_graph_t *graph,
-    const char *fname,
-    const char *mode)
+    dt_graph_t *graph,   // graph associated with the module
+    uint32_t    frame,   // optional frame for timelapses, if fname contains %04d
+    const char *fname,   // file name template (basename maybe with %04d)
+    const char *mode)    // open mode "r" or "w" etc will be passed to fopen
 {
+  char filename[2*PATH_MAX+10];
   if(fname[0] == '/')
-    return fopen(fname, mode);  // absolute path
-  char filename[2*PATH_MAX+10]; // for relative paths, add search path
-  if(graph)
   {
+    snprintf(filename, sizeof(filename), fname, frame);
+    return fopen(filename, mode);  // absolute path
+  }
+  if(graph)
+  { // for relative paths, add search path
     snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
-    FILE *f = fopen(filename, mode);
+    char tmp[2*PATH_MAX+10];
+    snprintf(tmp, sizeof(tmp), filename, frame);
+    FILE *f = fopen(tmp, mode);
     if(f) return f;
     // if we can't open it in the graph specific search path, try the global one:
     snprintf(filename, sizeof(filename), "%s/%s", graph->basedir, fname);
-    return fopen(filename, mode);
+    snprintf(tmp, sizeof(tmp), filename, frame);
+    return fopen(tmp, mode);
   }
   return 0;
 }

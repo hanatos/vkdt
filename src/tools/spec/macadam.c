@@ -31,7 +31,7 @@ void parallel_run(uint32_t item, void *data)
   // enumerate all possible box spectra in the sense of [MacAdam 1935],
   // all wavelengths l: l0 <= l <= l1 are s(l) = 1, 0 else:
   const int iw0 = item;
-  float *buf = data;
+  _Atomic float *buf = data;
   for(int iw1=iw0+1;iw1<=incres*(max_l-2);iw1++)
   {
     const float w0 = iw0/(float)incres;
@@ -73,7 +73,7 @@ void parallel_run(uint32_t item, void *data)
       const int i = x*res+0.5f, j = y*res+0.5f;
       if(i>=0&&i<res&&j>=0&&j<res)
       {
-        float *v = buf + 4*(j*res+i);
+        _Atomic float *v = buf + 4*(j*res+i);
         // const float n = v[3];
         // const float t0 = n/(n+1.0), t1 = 1.0/(n+1.0);
         const float t0 = 0.0f, t1 = 1.0f;
@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
   const int nt = threads_num();
   int taskid = -1;
   for(int i=0;i<nt;i++)
-    taskid = threads_task(work_item_cnt, taskid, buf, parallel_run, 0);
+    taskid = threads_task("macadam", work_item_cnt, taskid, buf, parallel_run, 0);
   threads_wait(taskid);
 #else // single threaded version:
   for(int k=0;k<work_item_cnt;k++)

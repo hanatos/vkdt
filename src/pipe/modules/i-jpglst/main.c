@@ -38,7 +38,7 @@ read_header(
     const char  *filename)
 {
   dim[0] = dim[1] = 0;
-  FILE *f = dt_graph_open_resource(mod->graph, filename, "rb");
+  FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!f) return;
 
   struct jpeg_decompress_struct dinfo;
@@ -64,7 +64,7 @@ read_full(
     const char  *filename,
     uint8_t     *out)
 {
-  FILE *f = dt_graph_open_resource(mod->graph, filename, "rb");
+  FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!f) return;
 
   struct jpeg_decompress_struct dinfo;
@@ -126,7 +126,7 @@ void modify_roi_out(
   lst_t *lst = mod->data;
   // load list of images, keep number of files and the dimension of their images.
   const char *filename = dt_module_param_string(mod, 0);
-  FILE *f = dt_graph_open_resource(mod->graph, filename, "rb");
+  FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!f) return;
   fseek(f, 0, SEEK_END);
   uint64_t size = ftell(f);

@@ -51,7 +51,7 @@ main()
 
   // do the iterations
   for(int i=0;i<params.iter_cnt;i++)
-  // hardcoded 10 iterations does not reall give a conclusive speedup
+  // hardcoded 10 iterations does not really give a conclusive speedup
   // #pragma optionNV (unroll all)
   // for(int i=0;i<10;i++)
   {
@@ -59,6 +59,7 @@ main()
     // remember I(i) locally
     barrier();
     const vec3 I_i = curr[idx];
+    vec3 cm = I_i, cM = I_i;
     // compute the gaussian blur of the input, I(i) x K and store the result locally
     vec3 res;
     // going from blur to separable two pass blur means 9.5 -> 8.5ms
@@ -71,6 +72,8 @@ main()
     res += curr[x0 + y] * w;\
     res += curr[x1 + y];\
     res += curr[x2 + y] * w;\
+    cm = min(min(cm, curr[x0+y]), min(curr[x1+y], curr[x2+y]));\
+    cM = max(max(cM, curr[x0+y]), max(curr[x1+y], curr[x2+y]));\
     barrier();\
     }
 #define BLURV {\
@@ -82,6 +85,8 @@ main()
     res += curr[x + y0] * w;\
     res += curr[x + y1];\
     res += curr[x + y2] * w;\
+    cm = min(min(cm, curr[x+y0]), min(curr[x+y1], curr[x+y2]));\
+    cM = max(max(cM, curr[x+y0]), max(curr[x+y1], curr[x+y2]));\
     barrier();\
     }
 
@@ -100,7 +105,7 @@ main()
     BLURV
 
     // multiply and write back
-    curr[idx] = I_i * res;
+    curr[idx] = clamp(I_i * res, cm, cM);
   }
 
   barrier();

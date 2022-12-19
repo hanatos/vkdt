@@ -557,10 +557,11 @@ darkroom_process()
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
       if(!vkdt.state.anim_no_keyframes)
         dt_graph_apply_keyframes(&vkdt.graph_dev);
-      if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame)
+      if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame+1)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
-    if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1) vkdt.state.anim_playing = 0; // reached the end, stop.
+    if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1)
+      vkdt.state.anim_playing = 0; // reached the end, stop.
   }
   else
   { // if no animation, reset time stamp
@@ -615,13 +616,12 @@ darkroom_enter()
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
   {
-    dt_log(s_log_gui, "individual config %s not found, loading default!", graph_cfg);
     realpath(graph_cfg, realimg); // depend on GNU extension in case of ENOENT (to cut out /../ and so on)
     int len = strlen(realimg);
     assert(len > 4);
     realimg[len-4] = 0; // cut away ".cfg"
     input_module = dt_graph_default_input_module(realimg);
-    snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+    snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%"PRItkn, dt_token_str(input_module));
     load_default = 1;
   }
 
@@ -672,7 +672,7 @@ darkroom_enter()
 
   // do this after running the graph, it may only know
   // after initing say the output roi, after loading an input file
-  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt;
+  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt-1;
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");

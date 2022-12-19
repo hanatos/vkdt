@@ -3,9 +3,11 @@ GUI_O=gui/gui.o\
       gui/render_files.o\
       gui/render_lighttable.o\
       gui/render_darkroom.o\
+      gui/render_nodes.o\
       gui/darkroom.o\
       gui/main.o\
       gui/view.o\
+      gui/imnodes.o\
       ../ext/imgui/imgui.o\
       ../ext/imgui/imgui_draw.o\
       ../ext/imgui/imgui_widgets.o\
@@ -28,12 +30,13 @@ GUI_H=gui/gui.h\
       gui/darkroom-util.h\
       gui/lighttable.h\
       gui/files.h\
+      gui/nodes.h\
       core/fs.h\
       pipe/graph-traverse.inc\
       pipe/graph-history.h\
       pipe/graph-defaults.h
 GUI_CFLAGS=$(VKDT_GLFW_CFLAGS) -I../ext/imgui -I../ext/imgui/backends/
-GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++
+GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++ -rdynamic
 
 ifeq ($(VKDT_USE_FREETYPE),1)
 GUI_CFLAGS+=$(shell pkg-config --cflags freetype2) -DVKDT_USE_FREETYPE=1

@@ -4,9 +4,9 @@ the following writeup is about display colour management:
 how it works, how to install icc profiles for your screens
 and a few related details. for camera characterisation, i.e.
 input colour management, please see
-[the `colour` module](../src/pipe/modules/colour/readme.md)
+[the `colour` module](../../../src/pipe/modules/colour/readme.md)
 as well as
-[the input device transform creation tools](../src/tools/clut/readme.md).
+[the input device transform creation tools](../../../src/tools/clut/readme.md).
 
 
 the whole window is colour managed, i.e. everything
@@ -39,7 +39,7 @@ TRC), this is mathematically sufficient to reproduce the right colour for a
 human observer. the reason is that the colour is already encoded as tristimulus
 values in a colour space that has the same metameric behaviour as the cie
 observer (rec2020 in our case here). this does not hold true for [input device
-transforms](../src/tools/clut/readme.md), which in general require more complex
+transforms](../../../src/tools/clut/readme.md), which in general require more complex
 transforms.
 as an additional simplification, currently only gamma is supported, no generic
 shaper curve.

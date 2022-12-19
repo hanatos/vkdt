@@ -40,6 +40,7 @@ void ui_callback(
 }
 
 
+#if 0
 static inline void
 clip_poly(
     const float *p,        // pointer to polygon points
@@ -195,6 +196,7 @@ create_ring(
   // move individual colours
   // etc
 }
+#endif
 
 
 // thinplate spline kernel phi(r).

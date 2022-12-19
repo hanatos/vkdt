@@ -2,6 +2,7 @@
 inline int
 recently_used_collections()
 {
+  ImGui::PushID("ruc");
   int32_t ret = 0, num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
   for(int i=0;i<num;i++)
   {
@@ -23,5 +24,6 @@ recently_used_collections()
       ImGui::PopStyleVar(1);
     }
   }
+  ImGui::PopID();
   return ret;
 }

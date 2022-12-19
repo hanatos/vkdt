@@ -10,7 +10,7 @@ this module uses the rawspeed library to decode raw photographs.
 * `startid` the first image in a timelapse series
 
 if both noise parameters are set to `0.0`, `vkdt` will load the noise profiles
-from `data/nprof/*`. see [noise profiling](../../../../doc/noiseprofiling.md)
+from `data/nprof/*`. see [noise profiling](../../../../doc/howto/noise-profiling/readme.md)
 for how to create a profile.
 
 ## timelapses
@@ -30,5 +30,5 @@ second. if you set `fps` to something faster than your ssd/gpu can
 deliver, you will experience frame drops.
 
 you may want to checkout the keyframes feature to gradually modify
-exposure for instance (see `examples/keyframes.cfg`, or the `k`
-shortcut to create keyframes from the gui when hovering over controls.
+exposure for instance (see `examples/keyframes.cfg`, or the `ctrl-k`
+hotkey to create keyframes from the gui when hovering over controls.

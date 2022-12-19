@@ -1,0 +1,53 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float thrs;
+} params;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint level;
+} push;
+
+layout( // input buffer y
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output buffer y blurred/downsized
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+// gauss reduce, run on dimensions of reduced output buffer
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  // blur, store only coarse res
+  const float w[5] = {1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0};
+  vec2 grad = vec2(0.0), grad_w = vec2(0.0);
+  vec4 col = vec4(0.0);
+
+  for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
+  {
+    vec4 px = texture(img_in, vec2(2.0*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
+    grad   += vec2(w[ii+2], w[jj+2]) * sign(vec2(ii,jj)) * px.g;
+    grad_w += vec2(w[ii+2], w[jj+2]);
+
+    float u = w[ii+2]*w[jj+2];
+    if(push.level == 1 || px.w > 0) col += vec4(px.rgb * u, u);
+  }
+  if(col.w < 1e-8) col.w = 1.0;
+  col /= col.w;
+  grad /= grad_w;
+  if(push.level <= 2 && length(grad) > params.thrs) col = vec4(0.0);
+  imageStore(img_out, opos, col);
+}

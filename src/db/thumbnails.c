@@ -2,7 +2,7 @@
 #include "core/fs.h"
 #include "db/db.h"
 #include "db/thumbnails.h"
-#include "db/murmur3.h"
+#include "db/hash.h"
 #include "qvk/qvk.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-defaults.h"
@@ -81,7 +81,8 @@ dt_thumbnails_init(
   tn->thumb = malloc(sizeof(dt_thumbnail_t)*tn->thumb_max);
   memset(tn->thumb, 0, sizeof(dt_thumbnail_t)*tn->thumb_max);
   // need at least one extra slot to catch free block (if contiguous, else more)
-  dt_vkalloc_init(&tn->alloc, tn->thumb_max + 10, heap_size);
+  // seems we sometimes get quite fragmented memory after long runs, be sure we can always split free memory:
+  dt_vkalloc_init(&tn->alloc, 3*tn->thumb_max, heap_size);
 
   // init lru list
   tn->lru = tn->thumb + 1; // [0] is special: busy bee
@@ -202,10 +203,9 @@ dt_thumbnails_invalidate(
     dt_thumbnails_t *tn,
     const char      *filename)
 {
-  int len = strnlen(filename, 2048);
-  uint32_t hash = murmur_hash3(filename, len, 1337);
+  uint64_t hash = hash64(filename);
   char bc1filename[1040];
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%lx.bc1", tn->cachedir, hash);
   unlink(bc1filename);
 }
 
@@ -222,17 +222,17 @@ dt_thumbnails_cache_one(
   const char *f2 = filename + len - 4;
   if(strcasecmp(f2, ".cfg")) return VK_INCOMPLETE;
 
-  // use ~/.cache/vkdt/<murmur3-of-filename>.bc1 as output file name
+  // use ~/.cache/vkdt/<hash-of-filename>.bc1 as output file name
   // if that already exists with a newer timestamp than the cfg, bail out
 
   dt_token_t input_module = dt_graph_default_input_module(filename);
   char cfgfilename[PATH_MAX+100];
   char deffilename[PATH_MAX+100];
   char bc1filename[PATH_MAX+100];
-  uint32_t hash = murmur_hash3(filename, len, 1337);
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%x.bc1", tn->cachedir, hash);
+  uint64_t hash = hash64(filename);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%lx.bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
-  snprintf(deffilename, sizeof(deffilename), "%s/default.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+  snprintf(deffilename, sizeof(deffilename), "default.%"PRItkn, dt_token_str(input_module));
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
@@ -391,12 +391,13 @@ dt_thumbnails_cache_list(
     // we only care about internal errors. if we call with stupid values,
     // it just does nothing and returns:
     taskid = threads_task(
+        "thumb",
         imgid_cnt,
         taskid,
         job+k,
         thread_work_coll,
         thread_free_coll);
-    assert(taskid != -1); // only -1 is fatal
+    if(taskid < 0) return VK_INCOMPLETE;
   }
   return VK_SUCCESS;
 }
@@ -473,8 +474,8 @@ dt_thumbnails_load_one(
   if(strncmp(filename, "data/", 5))
   { // only hash images that aren't straight from our resource directory:
     // TODO: make sure ./dir/file and dir//file etc turn out to be the same
-    uint32_t hash = murmur_hash3(filename, strnlen(filename, 2048), 1337);
-    snprintf(imgfilename, sizeof(imgfilename), "%s/%x.bc1", tn->cachedir, hash);
+    uint64_t hash = hash64(filename);
+    snprintf(imgfilename, sizeof(imgfilename), "%s/%lx.bc1", tn->cachedir, hash);
   }
   else snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename);
   struct stat statbuf = {0};
@@ -501,7 +502,7 @@ dt_thumbnails_load_one(
     // threads_mutex_unlock(&tn->lru_lock);
   }
   else th = tn->thumb + *thumb_index;
-  
+
   // cache eviction:
   // clean up memory in case there was something here:
   if(th->image)      vkDestroyImage(qvk.device, th->image, VK_NULL_HANDLE);
@@ -569,6 +570,11 @@ dt_thumbnails_load_one(
     dt_log(s_log_qvk|s_log_err, "[thm] memory type bits don't match!");
 
   dt_vkmem_t *mem = dt_vkalloc(&tn->alloc, mem_req.size, mem_req.alignment);
+  if(!mem)
+  {
+    dt_log(s_log_err, "[thm] no more thumbnail gpu memory allocation possible!\n");
+    return VK_INCOMPLETE; // probably fragmented memory
+  }
   // TODO: if (!mem) we have not enough memory! need to handle this now (more cache eviction?)
   // TODO: could do batch cleanup in case we need memory:
   // walk lru list from front and kill all contents (see above)

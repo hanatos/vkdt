@@ -11,6 +11,7 @@ extern "C" {
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "imnodes.h"
 #include "widget_draw.hh"
 #include "render_view.hh"
 #if VKDT_USE_FREETYPE == 1
@@ -138,11 +139,10 @@ extern "C" void dt_gui_init_fonts()
   g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   ImFontConfig config;
-        // config.MergeMode = true;
-        config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
-        static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
+  // config.MergeMode = true;
+  config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
+  static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
   g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
-  assert(g_font[3]);
   vkdt.wstate.fontsize = fontsize;
 #if VKDT_USE_FREETYPE == 1
   io.Fonts->TexGlyphPadding = 1;
@@ -188,6 +188,7 @@ extern "C" int dt_gui_init_imgui()
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   // Setup Dear ImGui context
   ImGui::CreateContext();
+  ImNodes::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = 0; // disable automatic writing of "imgui.ini"
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
@@ -237,8 +238,13 @@ extern "C" int dt_gui_init_imgui()
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name0);
     FILE *f = fopen(tmp, "r");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
+      f = fopen(tmp, "r");
+    }
     if(f)
     {
       fscanf(f, "%f %f %f\n", gamma0, gamma0+1, gamma0+2);
@@ -315,6 +321,9 @@ extern "C" void dt_gui_render_frame_imgui()
     case s_view_darkroom:
       render_darkroom();
       break;
+    case s_view_nodes:
+      render_nodes();
+      break;
     default:;
   }
 
@@ -351,6 +360,7 @@ extern "C" void dt_gui_cleanup_imgui()
   threads_mutex_unlock(&qvk.queue_mutex);
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
+  ImNodes::DestroyContext();
   ImGui::DestroyContext();
 }
 

@@ -154,6 +154,8 @@ const uint32_t *dt_db_selection_get(dt_db_t *db);
 uint32_t dt_db_current_imgid(dt_db_t *db);
 // return current collection id (i.e. index into the collection list of imageids, db->collection[.])
 uint32_t dt_db_current_colid(dt_db_t *db);
+// return collection id of given base filename
+uint32_t dt_db_filename_colid(dt_db_t *db, const char *basename);
 
 // work with lighttable history
 // TODO: modify image rating w/ adding history

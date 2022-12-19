@@ -12,6 +12,9 @@ debug:
 sanitize:
 	$(MAKE) -C .. sanitize
 
+sanitize-thread:
+	$(MAKE) -C .. sanitize-thread
+
 clean:
 	$(MAKE) -C .. clean
 	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut

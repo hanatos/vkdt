@@ -3,6 +3,7 @@
 #include "gui/lighttable.h"
 #include "gui/files.h"
 #include "gui/render.h"
+#include "gui/nodes.h"
 
 int
 dt_view_switch(dt_gui_view_t view)
@@ -11,13 +12,16 @@ dt_view_switch(dt_gui_view_t view)
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      err = darkroom_leave();
+      if(view != s_view_nodes) err = darkroom_leave();
       break;
     case s_view_lighttable:
       err = lighttable_leave();
       break;
     case s_view_files:
       err = files_leave();
+      break;
+    case s_view_nodes:
+      err = nodes_leave();
       break;
     default:;
   }
@@ -27,13 +31,16 @@ dt_view_switch(dt_gui_view_t view)
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      err = darkroom_enter();
+      if(old_view != s_view_nodes) err = darkroom_enter();
       break;
     case s_view_lighttable:
       err = lighttable_enter();
       break;
     case s_view_files:
       err = files_enter();
+      break;
+    case s_view_nodes:
+      err = nodes_enter();
       break;
     default:;
   }
@@ -118,6 +125,9 @@ dt_view_process()
   {
     case s_view_darkroom:
       darkroom_process();
+      break;
+    case s_view_nodes:
+      nodes_process();
       break;
     default:;
   }

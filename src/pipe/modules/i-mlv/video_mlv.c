@@ -149,7 +149,7 @@ static FILE **load_all_chunks(const char *base_filename, int *entries)
     /* check for the next file M00, M01 etc */
     char seq_name[8];
 
-    sprintf(seq_name, "%02d", seq_number);
+    sprintf(seq_name, "%02d", seq_number % 100);
     seq_number++;
 
     strcpy(&filename[strlen(filename) - 2], seq_name);

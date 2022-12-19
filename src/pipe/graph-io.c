@@ -254,6 +254,17 @@ int dt_graph_read_config_ascii(
     const char *filename)
 {
   FILE *f = fopen(filename, "rb");
+  if(!f && filename[0] != '/')
+  {
+    char graph_cfg[PATH_MAX+100];
+    snprintf(graph_cfg, sizeof(graph_cfg), "%s/%s", dt_pipe.homedir, filename);
+    f = fopen(graph_cfg, "rb");
+    if(!f)
+    {
+      snprintf(graph_cfg, sizeof(graph_cfg), "%s/%s", dt_pipe.basedir, filename);
+      f = fopen(graph_cfg, "rb");
+    }
+  }
   if(!f) return 1;
   dt_graph_set_searchpath(graph, filename);
   // needs to be large enough to hold 10000 vertices of drawn masks:
@@ -520,7 +531,7 @@ dt_graph_read_block(
     dt_token_t in_inst,
     dt_token_t in_conn)
 {
-  FILE *f = dt_graph_open_resource(graph, filename, "rb");
+  FILE *f = dt_graph_open_resource(graph, 0, filename, "rb");
   if(f)
   { // read lines individually, we need to search/replace generic input/output/instance strings
     // needs to be large enough to hold 1000 vertices of drawn masks:

@@ -54,10 +54,10 @@ int dt_gui_init()
     return 1;
   }
 
-  char configfile[512];
-  snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
   dt_rc_init(&vkdt.rc);
-  dt_rc_read(&vkdt.rc, configfile);
+  char configfile[512];
+  if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
+    dt_rc_read(&vkdt.rc, configfile);
 
   vkdt.wstate.copied_imgid = -1u; // none copied at startup
 
@@ -291,8 +291,8 @@ void dt_gui_cleanup()
 {
   dt_gui_cleanup_imgui();
   char configfile[512];
-  snprintf(configfile, sizeof(configfile), "%s/.config/vkdt/config.rc", getenv("HOME"));
-  dt_rc_write(&vkdt.rc, configfile);
+  if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
+    dt_rc_write(&vkdt.rc, configfile);
   dt_rc_cleanup(&vkdt.rc);
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
   glfwDestroyWindow(qvk.window);
@@ -398,8 +398,13 @@ dt_gui_read_favs(
     f = fopen(filename, "rb");
   else
   {
-    snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, filename);
+    snprintf(tmp, sizeof(tmp), "%s/%s", vkdt.db.basedir, filename); // try ~/.config/vkdt/ first
     f = fopen(tmp, "rb");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, filename);
+      f = fopen(tmp, "rb");
+    }
   }
   if(!f) return 1;
   char buf[2048];
@@ -460,6 +465,7 @@ dt_gui_read_tags()
 
 void dt_gui_switch_collection(const char *dir)
 {
+  vkdt.wstate.copied_imgid = -1u; // invalidate
   dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
   dt_db_cleanup(&vkdt.db);
   dt_db_init(&vkdt.db);

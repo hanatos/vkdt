@@ -34,6 +34,7 @@ error_exit(j_common_ptr cinfo)
 static int 
 read_header(
     dt_module_t *mod,
+    uint32_t    frame,
     const char *filename)
 {
   jpginput_buf_t *jpg = mod->data;
@@ -47,7 +48,7 @@ read_header(
     jpeg_destroy_decompress(&(jpg->dinfo));
     jpg->f = 0;
   }
-  jpg->f = dt_graph_open_resource(mod->graph, filename, "rb");
+  jpg->f = dt_graph_open_resource(mod->graph, frame, filename, "rb");
   if(!jpg->f) return 1;
 
   jpgerr_t err;
@@ -80,7 +81,7 @@ read_header(
   }
   mod->img_param.filters = 0;
 
-  FILE *f2 = dt_graph_open_resource(mod->graph, filename, "rb");
+  FILE *f2 = dt_graph_open_resource(mod->graph, frame, filename, "rb");
   mod->img_param.orientation = jpg_read_orientation(f2);
 
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
@@ -174,8 +175,11 @@ void modify_roi_out(
     dt_module_t *mod)
 {
   // load image if not happened yet
+  const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename)) return;
+  if(strstr(filename, "%")) // reading a sequence of raws as a timelapse animation
+    mod->flags = s_module_request_read_source;
+  if(read_header(mod, id+graph->frame, filename)) return;
   jpginput_buf_t *jpg = mod->data;
   mod->connector[0].roi.full_wd = jpg->width;
   mod->connector[0].roi.full_ht = jpg->height;
@@ -186,8 +190,9 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
+  const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename)) return 1;
+  if(read_header(mod, id+mod->graph->frame, filename)) return 1;
   jpginput_buf_t *jpg = mod->data;
   jpeg_read(jpg, mapped);
   return 0;

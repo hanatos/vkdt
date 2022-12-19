@@ -179,7 +179,7 @@ dt_adam(
       memcpy(p, bp, sizeof(double)*m);
     }
 #endif
-    for(int k=0;k<n*m;k++) vt[k] = beta2 * mt[k] + (1.0-beta2) * J[k] * J[k];
+    for(int k=0;k<n*m;k++) vt[k] = beta2 * vt[k] + (1.0-beta2) * J[k] * J[k];
     for(int k=0;k<n*m;k++) mt[k] = beta1 * mt[k] + (1.0-beta1) * J[k];
 
     double corr_m = 1.0/(1.0-pow(beta1, it));
