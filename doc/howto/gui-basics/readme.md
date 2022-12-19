@@ -23,10 +23,14 @@ the node editor view.
 
 ### files
 
+[![file manager](files.jpg)](files.jpg)
+
 this is a basic file manager which allows you to navigate to folders and
 to mount external drives and import images from them.
 
 ### lighttable
+
+[![lighttable](lighttable.jpg)](lighttable.jpg)
 
 in this view you can look at a folder of images. you can do basic sorting and
 filtering (see widgets in the right panel). the images listed in one lighttable
@@ -38,12 +42,17 @@ you can copy/paste edit history between images and export a selection here.
 
 ### darkroom
 
+[![darkroom](darkroom.jpg)](darkroom.jpg)
+[![darkroom fullscreen](darkroom-fs.jpg)](darkroom-fs.jpg)
+
 this allows you to edit the image. press `tab` for a fullscreen mode that only
-shows the image, not the controls in the right panel. press `ctrl-h` (default
-hotkey) to show the edit history panel on the left which also allows you to
-roll back changes.
+shows the image (bottom), not the controls in the right panel. press `ctrl-h`
+(default hotkey) to show the edit history panel on the left which also allows
+you to roll back changes.
 
 ### node editor
+
+[![node editor](node-editor.jpg)](node-editor.jpg)
 
 for complex editing graphs it is useful to view them in a more generous 2D
 layout. the node editor offers most screen real estate to the node graph and,
