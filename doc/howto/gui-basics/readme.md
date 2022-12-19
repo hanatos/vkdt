@@ -2,19 +2,24 @@
 
 ## views
 
-basic cascade of ui views is:
+the basic cascade of ui views is:
 
-files ⟷ lighttable ⟷ darkroom
+files ⟷ lighttable ⟷ darkroom ⟷ node editor
 
+you can usually walk the arrows by key accel (enter/escape) or gamepad
+(`x`/`o`). the way from darkroom to node editor is special, because you will
+not technically leave darkroom mode. the default key accel from darkroom to
+node editor is `ctrl-n`.
 
-you can usually walk the arrows by key accel (enter/escape) or gamepad (`x`/`o`).
+in general, you can export your work but don't have to save it.
 
-you can export your work but don't have to save it.
+the processing history `.cfg` is saved when you exit darkroom mode or switch to
+the next image (backspace/space or L1/R1).
 
-`.cfg` is saved when you exit darkroom mode or switch to the next image
-(backspace/space or L1/R1).
+labels and ratings `vkdt.db` are saved when you switch folder or exit vkdt.
 
-`vkdt.db` (labels and ratings) is saved when you switch folder or exit vkdt.
+the positions of the 2D node graph layout are saved to disk when you exit
+the node editor view.
 
 ### files
 
@@ -38,12 +43,20 @@ shows the image, not the controls in the right panel. press `ctrl-h` (default
 hotkey) to show the edit history panel on the left which also allows you to
 roll back changes.
 
+### node editor
 
-## rate and label
+for complex editing graphs it is useful to view them in a more generous 2D
+layout. the node editor offers most screen real estate to the node graph and,
+as a trade off, only shows small images in the right panel.
+
+
+## rate, label, tag
 
 colour labels `f1`-`f5`
 
 star ratings `1`-`5`
+
+tag `ctrl-t`
 
 these key accels work in both lighttable mode (on the whole selection) and in
 darkroom mode (only on the single edited image).
