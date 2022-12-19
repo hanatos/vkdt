@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
     // vkdt.wstate.busy = 100; // do these two lines instead if profiling in nvidia gfx insight or so.
     // vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     if(vkdt.state.anim_playing) // should redraw because animation is playing?
-      vkdt.wstate.busy = vkdt.state.anim_max_frame == 0 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
+      vkdt.wstate.busy = vkdt.state.anim_max_frame == -1 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
     if(vkdt.wstate.busy > 0) glfwPostEmptyEvent();
     else vkdt.wstate.busy = 3;
     // should probably consider this instead:
