@@ -83,6 +83,9 @@ dt_filebrowser(
   ImGui::PushFont(dt_gui_imgui_get_font(2));
   ImGui::Text("%s", w->cwd);
   ImGui::PopFont();
+  ImGui::BeginChild("scroll files");
+  if(ImGui::IsWindowAppearing())
+    ImGui::SetKeyboardFocusHere();
   // display list of file names
   ImGui::PushFont(dt_gui_imgui_get_font(1));
   for(int i=0;i<w->ent_cnt;i++)
@@ -119,7 +122,16 @@ dt_filebrowser(
         // and then clean up the dirent cache
         dt_filebrowser_cleanup(w);
       }
+      else if(ImGui::IsKeyPressed(ImGuiKey_Backspace))
+      { // go up one dir
+        int len = strnlen(w->cwd, sizeof(w->cwd));
+        char *c = w->cwd + len;
+        *(--c) = 0;
+        while(c > w->cwd && *c != '/') *(c--) = 0;
+        dt_filebrowser_cleanup(w);
+      }
     }
   }
   ImGui::PopFont();
+  ImGui::EndChild();
 }
