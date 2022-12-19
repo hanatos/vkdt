@@ -58,6 +58,10 @@ for complex editing graphs it is useful to view them in a more generous 2D
 layout. the node editor offers most screen real estate to the node graph and,
 as a trade off, only shows small images in the right panel.
 
+this is mostly useful for slightly more complex graphs:
+
+[![node editor 2](node-editor2.jpg)](node-editor2.jpg)
+
 
 ## rate, label, tag
 
