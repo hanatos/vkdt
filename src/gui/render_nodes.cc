@@ -354,8 +354,8 @@ void render_nodes()
           int mi0 = lid>>5, mc0 = lid&0x1f; // lid encodes input connector
           int mi1 = g->module[mi0].connector[mc0].connected_mi;
           int mc1 = g->module[mi0].connector[mc0].connected_mc;
-          dt_module_connect(g, mi1, mc1, mid, mci);
-          dt_module_connect(g, mid, mco, mi0, mc0);
+          dt_module_connect_with_history(g, mi1, mc1, mid, mci);
+          dt_module_connect_with_history(g, mid, mco, mi0, mc0);
           g->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
         }
       }
@@ -367,14 +367,14 @@ void render_nodes()
   { // handle new links
     int mi0 = sid>>5,   mi1 = eid>>5;
     int mc0 = sid&0x1f, mc1 = eid&0x1f;
-    dt_module_connect(g, mi0, mc0, mi1, mc1);
+    dt_module_connect_with_history(g, mi0, mc0, mi1, mc1);
     vkdt.graph_dev.runflags = s_graph_run_all;
   }
 
   if(ImNodes::IsLinkDestroyed(&lid))
   { // handle deleted links
     int mi = lid>>5, mc = lid&0x1f;
-    dt_module_connect(g, -1, -1, mi, mc);
+    dt_module_connect_with_history(g, -1, -1, mi, mc);
     vkdt.graph_dev.runflags = s_graph_run_all;
   }
 
