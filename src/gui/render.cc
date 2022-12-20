@@ -289,6 +289,7 @@ extern "C" int dt_gui_init_imgui()
 
   render_lighttable_init();
   render_darkroom_init();
+  render_nodes_init();
   return 0;
 }
 
@@ -353,6 +354,7 @@ extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 
 extern "C" void dt_gui_cleanup_imgui()
 {
+  render_nodes_cleanup();
   render_darkroom_cleanup();
   render_lighttable_cleanup();
   threads_mutex_lock(&qvk.queue_mutex);

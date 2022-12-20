@@ -11,13 +11,27 @@ extern "C"
 #include "render_view.hh"
 #include "render.h"
 #include "imnodes.h"
+#include "hotkey.hh"
+#include "api.hh"
 #include <stdint.h>
 
+static ImHotKey::HotKey hk_nodes[] = {
+  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"add module",      "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
+};
+
 namespace {
+enum hotkey_names_t
+{ // for sane access in code
+  s_hotkey_apply_preset    = 0,
+  s_hotkey_module_add      = 1,
+};
+
 typedef struct gui_nodes_t
 {
   int do_layout;       // got nothing, do initial auto layout
   ImVec2 mod_pos[100]; // read manual positions from file
+  int hotkey;
 }
 gui_nodes_t;
 gui_nodes_t nodes;
@@ -120,15 +134,68 @@ void render_nodes_right_panel()
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      // TODO: buttons: disconnect, remove?, insert block before this?
+      // TODO: buttons: disconnect, remove?
+
+      // insert block before this:
+      if(ImGui::Button("insert block before this.."))
+        ImGui::OpenPopup("insert block");
+      if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+      {
+        static char mod_inst[10] = "01";
+        char filename[PATH_MAX];
+        ImGui::InputText("instance", mod_inst, 8);
+        static char filter[256] = "";
+        int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, filename, sizeof(filename), s_filteredlist_default);
+        if(ok) ImGui::CloseCurrentPopup();
+        if(ok == 1)
+        {
+          int err = 0;
+          int c_prev, m_prev = dt_module_get_module_before(mod->graph, mod, &c_prev);
+          if(m_prev != -1)
+          {
+            int c_our_in = dt_module_get_connector(mod, dt_token("input"));
+            if(c_our_in != -1)
+            {
+              err |= dt_graph_read_block(mod->graph, filename,
+                  dt_token(mod_inst),
+                  mod->graph->module[m_prev].name,
+                  mod->graph->module[m_prev].inst,
+                  mod->graph->module[m_prev].connector[c_prev].name,
+                  mod->name,
+                  mod->inst,
+                  mod->connector[c_our_in].name);
+              if(!err) vkdt.graph_dev.runflags = s_graph_run_all;
+            }
+            else err = 3;
+          }
+          else err = 3;
+          if(err == 3) dt_gui_notification("no clear input/output chain!");
+          else if(err) dt_gui_notification("reading the block failed!");
+        }
+        ImGui::EndPopup();
+      }
     }
   }
 
+  if(ImGui::CollapsingHeader("settings"))
+  {
+    if(ImGui::Button("hotkeys"))
+      ImGui::OpenPopup("edit hotkeys");
+    ImHotKey::Edit(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), "edit hotkeys");
+  }
+
+  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+  if(ImGui::Button("add module..", ImVec2(-1, 0)))
+    nodes.hotkey = s_hotkey_module_add;
+  if(ImGui::Button("apply preset", ImVec2(-1, 0)))
+    nodes.hotkey = s_hotkey_apply_preset;
+  ImGui::PopStyleVar();
   ImGui::End();
 }
 
 void render_nodes()
 {
+  nodes.hotkey = ImHotKey::GetHotKey(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
   ImGuiWindowFlags window_flags = 0;
   window_flags |= ImGuiWindowFlags_NoTitleBar;
   window_flags |= ImGuiWindowFlags_NoMove;
@@ -233,20 +300,41 @@ void render_nodes()
   }
 
   ImGui::End(); // nodes center
-  if(ImGui::IsKeyPressed(ImGuiKey_Escape) ||
-     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-    dt_view_switch(s_view_darkroom);
+  if(!dt_gui_imgui_input_blocked())
+    if(ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+       ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+      dt_view_switch(s_view_darkroom);
 
   if(nodes.do_layout) nodes.do_layout = 0;
 
   render_nodes_right_panel();
+
+  switch(nodes.hotkey)
+  {
+    case s_hotkey_apply_preset:
+      dt_gui_dr_preset_apply();
+      break;
+    case s_hotkey_module_add:
+      dt_gui_dr_module_add();
+      break;
+    default:;
+  }
+  dt_gui_dr_modals(); // draw modal windows for presets etc
 }
 
-// void render_nodes_init() {}
-// void render_nodes_cleanup() {}
+void render_nodes_init()
+{
+  ImHotKey::Deserialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
+}
+
+void render_nodes_cleanup()
+{
+  ImHotKey::Serialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
+}
 
 extern "C" int nodes_enter()
 {
+  nodes.hotkey = -1;
   nodes.do_layout = 1; // assume bad initial auto layout
   dt_graph_t *g = &vkdt.graph_dev;
   char filename[PATH_MAX], datname[PATH_MAX];
