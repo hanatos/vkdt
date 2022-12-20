@@ -1168,6 +1168,8 @@ inline void draw_widget(int modid, int parid)
               param->widget.min, param->widget.max, "%2.5f"))
         RESETBLOCK
         {
+          if(io.KeyShift) // lockstep all three if shift is pressed
+            for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
