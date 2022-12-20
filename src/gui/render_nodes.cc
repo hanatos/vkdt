@@ -236,6 +236,8 @@ void render_nodes_right_panel()
     nodes.hotkey = s_hotkey_module_add;
   if(ImGui::Button("apply preset", ImVec2(-1, 0)))
     nodes.hotkey = s_hotkey_apply_preset;
+  if(ImGui::Button("back to darkroom mode", ImVec2(-1, 0)))
+    dt_view_switch(s_view_darkroom);
   ImGui::PopStyleVar();
   ImGui::End();
 }

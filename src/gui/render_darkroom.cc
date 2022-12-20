@@ -1416,6 +1416,9 @@ void render_darkroom_pipeline()
   }
   else if(ImGui::Button("insert block..", ImVec2(-1, 0)))
     gui.hotkey = s_hotkey_block_add;
+
+  if(ImGui::Button("open node editor", ImVec2(-1, 0)))
+    gui.hotkey = s_hotkey_nodes_enter;
   ImGui::PopStyleVar();
 }
 
@@ -1930,6 +1933,9 @@ abort:
       break;
     case s_hotkey_assign_tag:
       dt_gui_dr_assign_tag();
+      break;
+    case s_hotkey_nodes_enter:
+      dt_view_switch(s_view_nodes);
       break;
     default:;
   }
