@@ -202,7 +202,11 @@ void render_nodes()
       {
         int id0 = (m<<5) + c;
         int id1 = (mod->connector[c].connected_mi<<5) + mod->connector[c].connected_mc;
+        if(mod->connector[c].flags & s_conn_feedback)
+          ImNodes::PushColorStyle(ImNodesCol_Link, IM_COL32(210,10,210,255));
         ImNodes::Link(id0, id0, id1); // id0 is the input connector which is unique
+        if(mod->connector[c].flags & s_conn_feedback)
+          ImNodes::PopColorStyle();
       }
     }
   }
