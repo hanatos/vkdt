@@ -126,27 +126,29 @@ void render_nodes_right_panel()
     snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
     if(ImGui::CollapsingHeader(name))
     {
-      if(mod->so->has_inout_chain && !mod->disabled && ImGui::Button("temporarily disable"))
+      ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+      if(mod->so->has_inout_chain && !mod->disabled && ImGui::Button("temporarily disable", ImVec2(-1, 0)))
       {
         mod->disabled = 1;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      else if(mod->so->has_inout_chain && mod->disabled && ImGui::Button("re-enable"))
+      else if(mod->so->has_inout_chain && mod->disabled && ImGui::Button("re-enable", ImVec2(-1, 0)))
       {
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
       // TODO: buttons: disconnect
 
-      if(ImGui::Button("remove module"))
+      if(ImGui::Button("remove module", ImVec2(-1, 0)))
       {
         dt_module_remove(mod->graph, mod - mod->graph->module);
         ImNodes::ClearNodeSelection();
         mod->graph->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
       }
 
-      if(ImGui::Button("insert block before this.."))
+      if(ImGui::Button("insert block before this..", ImVec2(-1, 0)))
         ImGui::OpenPopup("insert block");
+      ImGui::PopStyleVar();
       if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
       {
         static char mod_inst[10] = "01";
