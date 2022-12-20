@@ -124,7 +124,10 @@ int dt_node_feedback(dt_graph_t *graph, int n0, int c0, int n1, int c1);
 static inline int
 dt_connected(const dt_connector_t *c)
 {
-  return c->connected_mi >= 0 && c->connected_mc >= 0;
+  if(c->type == dt_token("read") || c->type == dt_token("sink"))
+    return c->connected_mi >= 0 && c->connected_mc >= 0; // input have specific id
+  else
+    return c->connected_mi > 0; // outputs hold reference counts
 }
 
 static inline const char*
