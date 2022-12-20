@@ -57,16 +57,6 @@ static struct gui_state_data_t
 } gui = {gui_state_data_t::s_gui_state_regular};
 
 
-int dt_module_connect_with_history(
-    dt_graph_t *graph,
-    int m0, int c0, int m1, int c1)
-{
-  int cerr = dt_module_connect(graph, m0, c0, m1, c1);
-  if(cerr) return cerr;
-  dt_graph_history_connection(graph, m1, c1); // history records only inputs
-  return cerr;
-}
-
 void widget_end()
 {
   if(!vkdt.wstate.grabbed)

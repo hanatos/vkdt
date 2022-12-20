@@ -4,6 +4,7 @@ extern "C"
 #include "gui.h"
 #include "pipe/modules/api.h"
 #include "pipe/io.h"
+#include "pipe/graph-history.h"
 #include "nodes.h"
 #include "db/hash.h"
 #include "core/fs.h"
@@ -138,13 +139,48 @@ void render_nodes_right_panel()
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      // TODO: buttons: disconnect
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip(mod->disabled ? "re-enable this module" :
+            "temporarily disable this module without disconnecting it from the graph.\n"
+            "this is just a convenience A/B switch in the ui and will not affect your\n"
+            "processing history, lighttable thumbnail, or export.");
 
+      int disconnect = 0;
+      if(ImGui::Button("disconnect module", ImVec2(-1, 0)))
+        disconnect = 1;
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("disconnect all connectors of this module, try to\n"
+                          "establish links to the neighbours directly where possible");
       if(ImGui::Button("remove module", ImVec2(-1, 0)))
+        disconnect = 2;
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("remove this module from the graph completely, try to\n"
+                          "establish links to the neighbours directly where possible");
+      if(disconnect)
       {
-        dt_module_remove(mod->graph, mod - mod->graph->module);
         ImNodes::ClearNodeSelection();
+        int id_dspy = dt_module_get(mod->graph, dt_token("display"), dt_token("dspy"));
+        if(id_dspy >= 0) dt_module_connect(mod->graph, -1, -1, id_dspy, 0); // no history
         mod->graph->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+
+        if(mod->so->has_inout_chain)
+        {
+          int m_after[5], c_after[5], max_after = 5;
+          int c_prev, m_prev = dt_module_get_module_before(mod->graph, mod, &c_prev);
+          int cnt = dt_module_get_module_after(mod->graph, mod, m_after, c_after, max_after);
+          if(m_prev != -1 && cnt > 0)
+          {
+            int m_our = mod - mod->graph->module;
+            int c_our = dt_module_get_connector(mod, dt_token("input"));
+            int cerr = dt_module_connect_with_history(mod->graph, -1, -1, m_our, c_our);
+            for(int k=0;k<cnt;k++)
+              if(!cerr)
+                cerr = dt_module_connect_with_history(mod->graph, m_prev, c_prev, m_after[k], c_after[k]);
+          }
+        }
+
+        if(disconnect == 2)
+          dt_module_remove(mod->graph, mod - mod->graph->module);
       }
 
       if(ImGui::Button("insert block before this..", ImVec2(-1, 0)))
@@ -320,6 +356,7 @@ void render_nodes()
           int mc1 = g->module[mi0].connector[mc0].connected_mc;
           dt_module_connect(g, mi1, mc1, mid, mci);
           dt_module_connect(g, mid, mco, mi0, mc0);
+          g->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
         }
       }
     }
