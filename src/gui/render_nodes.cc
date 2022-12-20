@@ -40,6 +40,7 @@ gui_nodes_t nodes;
 void render_nodes_module(dt_graph_t *g, int m)
 {
   dt_module_t *mod = g->module+m;
+  if(mod->name == 0) return; // has been removed, only the zombie left
   if(mod->disabled)
   {
     ImNodes::PushColorStyle(ImNodesCol_NodeBackground, IM_COL32(10,10,10,255));
@@ -120,6 +121,7 @@ void render_nodes_right_panel()
   for(int i=0;i<sel_node_cnt;i++)
   {
     dt_module_t *mod = vkdt.graph_dev.module + sel_node_id[i];
+    if(mod->name == 0) continue; // skip deleted
     char name[100];
     snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
     if(ImGui::CollapsingHeader(name))
@@ -134,9 +136,15 @@ void render_nodes_right_panel()
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      // TODO: buttons: disconnect, remove?
+      // TODO: buttons: disconnect
 
-      // insert block before this:
+      if(ImGui::Button("remove module"))
+      {
+        dt_module_remove(mod->graph, mod - mod->graph->module);
+        ImNodes::ClearNodeSelection();
+        mod->graph->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+      }
+
       if(ImGui::Button("insert block before this.."))
         ImGui::OpenPopup("insert block");
       if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
@@ -389,6 +397,7 @@ extern "C" int nodes_leave()
       dt_graph_t *g = &vkdt.graph_dev;
       for(uint32_t m=0;m<g->num_modules;m++)
       {
+        if(g->module[m].name == 0) continue; // don't write removed ones
         ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
         fprintf(f, "%" PRItkn ":%" PRItkn ":%g:%g\n",
             dt_token_str(g->module[m].name), dt_token_str(g->module[m].inst),

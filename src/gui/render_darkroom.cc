@@ -173,6 +173,7 @@ void dt_gui_set_lod(int lod)
 
 uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
 {
+  if(module->name == 0) return 0; // has been removed, only the zombie left
   static int mod[2] = {-1,-1}, con[2] = {-1,-1};
   uint64_t err = 0;
   static int insert_modid_before = -1;

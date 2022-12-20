@@ -115,8 +115,12 @@ int dt_module_remove(
     graph->module[modid].so->cleanup(graph->module+modid);
   // disconnect all channels
   for(int c=0;c<graph->module[modid].num_connectors;c++)
-    if(dt_module_connect(graph, -1, -1, modid, c))
-      return -1;
+  {
+    if(dt_connector_input(graph->module[modid].connector+c))
+      dt_module_connect(graph, -1, -1, modid, c);
+    else
+      dt_module_connect(graph, modid, c, -1, -1);
+  }
   graph->module[modid].name = 0;
   graph->module[modid].inst = 0;
   graph->module[modid].connector[0].type = 0; // to avoid being detected as sink
