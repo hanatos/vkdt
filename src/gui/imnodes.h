@@ -419,6 +419,11 @@ bool IsLinkCreated(
 // output argument link_id.
 bool IsLinkDestroyed(int* link_id);
 
+// checks whether at the end of a drag, a node is dropped onto a link.
+bool IsLinkNodeDropped(int* const link_id);
+// will return the same as IsLinkNodeDropped before the mouse button is released
+bool IsLinkNodeHovered(int* const link_id);
+
 // Use the following functions to write the editor context's state to a string, or directly to a
 // file. The editor context is serialized in the INI file format.
 

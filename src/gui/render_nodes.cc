@@ -32,6 +32,7 @@ typedef struct gui_nodes_t
   int do_layout;       // got nothing, do initial auto layout
   ImVec2 mod_pos[100]; // read manual positions from file
   int hotkey;
+  int node_hovered_link;
 }
 gui_nodes_t;
 gui_nodes_t nodes;
@@ -281,7 +282,11 @@ void render_nodes()
         int id1 = (mod->connector[c].connected_mi<<5) + mod->connector[c].connected_mc;
         if(mod->connector[c].flags & s_conn_feedback)
           ImNodes::PushColorStyle(ImNodesCol_Link, IM_COL32(210,10,210,255));
+        if(id0 == nodes.node_hovered_link)
+          ImNodes::PushColorStyle(ImNodesCol_Link, IM_COL32(210,10,10,255));
         ImNodes::Link(id0, id0, id1); // id0 is the input connector which is unique
+        if(id0 == nodes.node_hovered_link)
+          ImNodes::PopColorStyle();
         if(mod->connector[c].flags & s_conn_feedback)
           ImNodes::PopColorStyle();
       }
@@ -292,6 +297,34 @@ void render_nodes()
   ImNodes::EndNodeEditor();
   ImNodes::PopStyleVar(3);
 
+  int lid = 0, mid = -1;
+  nodes.node_hovered_link = -1;
+  if(ImNodes::NumSelectedNodes() == 1)
+  {
+    ImNodes::GetSelectedNodes(&mid);
+    if(g->module[mid].so->has_inout_chain)
+    {
+      int mco = dt_module_get_connector(g->module+mid, dt_token("output"));
+      int mci = dt_module_get_connector(g->module+mid, dt_token("input"));
+      if(mco >= 0 && mci >= 0 &&
+         !dt_connected(g->module[mid].connector+mco) &&
+         !dt_connected(g->module[mid].connector+mci))
+      {
+        if(ImNodes::IsLinkNodeHovered(&lid))
+          nodes.node_hovered_link = lid;
+        if(ImNodes::IsLinkNodeDropped(&lid))
+        {
+          nodes.node_hovered_link = -1;
+          int mi0 = lid>>5, mc0 = lid&0x1f; // lid encodes input connector
+          int mi1 = g->module[mi0].connector[mc0].connected_mi;
+          int mc1 = g->module[mi0].connector[mc0].connected_mc;
+          dt_module_connect(g, mi1, mc1, mid, mci);
+          dt_module_connect(g, mid, mco, mi0, mc0);
+        }
+      }
+    }
+  }
+
   int sid, eid;
   if(ImNodes::IsLinkCreated(&sid, &eid))
   { // handle new links
@@ -301,7 +334,6 @@ void render_nodes()
     vkdt.graph_dev.runflags = s_graph_run_all;
   }
 
-  int lid = 0;
   if(ImNodes::IsLinkDestroyed(&lid))
   { // handle deleted links
     int mi = lid>>5, mc = lid&0x1f;
@@ -346,6 +378,7 @@ extern "C" int nodes_enter()
 {
   nodes.hotkey = -1;
   nodes.do_layout = 1; // assume bad initial auto layout
+  nodes.node_hovered_link = -1;
   dt_graph_t *g = &vkdt.graph_dev;
   char filename[PATH_MAX], datname[PATH_MAX];
   dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, filename, sizeof(filename));
