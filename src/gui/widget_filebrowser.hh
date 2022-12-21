@@ -84,17 +84,17 @@ dt_filebrowser(
   ImGui::Text("%s", w->cwd);
   ImGui::PopFont();
   ImGui::BeginChild("scroll files");
-  if(ImGui::IsWindowAppearing())
-    ImGui::SetKeyboardFocusHere();
   // display list of file names
   ImGui::PushFont(dt_gui_imgui_get_font(1));
   for(int i=0;i<w->ent_cnt;i++)
   {
+    if(i == 0 && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
         w->ent[i]->d_name,
         w->ent[i]->d_type == DT_DIR ? "/":"");
     int selected = w->ent[i]->d_name == w->selected;
+    if(selected && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     int select = ImGui::Selectable(name, selected, ImGuiSelectableFlags_AllowDoubleClick|ImGuiSelectableFlags_DontClosePopups);
     select |= ImGui::IsItemFocused(); // has key/gamepad focus?
     if(select)
