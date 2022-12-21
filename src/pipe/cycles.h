@@ -11,6 +11,7 @@ dt_connection_is_cyclic_rec(
     int        *stack,
     const int   m0_extra)
 {
+  if(mid < 0) return 0;
   if(!visited[mid])
   {
     visited[mid] = 1;
@@ -29,6 +30,7 @@ dt_connection_is_cyclic_rec(
         !(cn->flags & s_conn_feedback))
       { // don't visit feedback connectors, these don't constitute cycles
         int m0 = cn->connected_mi;
+        if(m0 < 0) continue; // disconnected, may be fine
         if(!visited[m0] && dt_connection_is_cyclic_rec(g, m0, visited, stack, -1))
           return 1;
         else if(stack[m0])
