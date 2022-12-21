@@ -42,6 +42,9 @@ dt_view_switch(dt_gui_view_t view)
     case s_view_nodes:
       err = nodes_enter();
       break;
+    case s_view_cnt: // called on exit
+      if(old_view == s_view_nodes) err = darkroom_leave(); // make sure to write .cfg too
+      break;
     default:;
   }
   // TODO: reshuffle this stuff so we don't have to re-enter the old view?
