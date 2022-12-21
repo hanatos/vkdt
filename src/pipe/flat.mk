@@ -11,6 +11,7 @@ PIPE_H=\
 pipe/alloc.h\
 pipe/connector.h\
 pipe/connector.inc\
+pipe/cycles.h\
 pipe/dlist.h\
 pipe/draw.h\
 pipe/global.h\
