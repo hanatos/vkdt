@@ -9,19 +9,28 @@ int dt_module_add(
     dt_token_t name,
     dt_token_t inst)
 {
-  // dedup if existing:
+  int modid = -1;
   for(int i=0;i<graph->num_modules;i++)
+  { // dedup if existing:
     if(graph->module[i].name == name && graph->module[i].inst == inst)
       return i;
+    if(graph->module[i].name == 0)
+    { // recycle empty/previously deleted modules
+      modid = i;
+      break;
+    }
+  }
 
   // add to graph's list
-  // make sure we have enough memory, realloc if not
-  if(graph->num_modules >= graph->max_modules-1)
-  {
-    assert(0 && "TODO: realloc module graph arrays");
-    return -1;
+  if(modid == -1)
+  { // make sure we have enough memory, realloc if not
+    if(graph->num_modules >= graph->max_modules-1)
+    {
+      assert(0 && "TODO: realloc module graph arrays");
+      return -1;
+    }
+    modid = graph->num_modules++;
   }
-  const int modid = graph->num_modules++;
 
   dt_module_t *mod = graph->module + modid;
   mod->name = name;

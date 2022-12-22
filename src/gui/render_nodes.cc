@@ -116,10 +116,89 @@ void render_nodes_right_panel()
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
     }
   }
-  // add module, insert block
+
+  // expanders for selection and individual nodes:
   int  sel_node_cnt = ImNodes::NumSelectedNodes();
   int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
   ImNodes::GetSelectedNodes(sel_node_id);
+  if(sel_node_cnt && ImGui::CollapsingHeader("selection"))
+  { // all selected nodes:
+    ImGui::Indent();
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+    if(ImGui::Button("ab compare", ImVec2(-1, 0)))
+    {
+      vkdt.graph_dev.runflags = s_graph_run_all;
+      for(int i=0;i<sel_node_cnt;i++)
+      {
+        int m = sel_node_id[i];
+        int modid = dt_module_add(&vkdt.graph_dev, vkdt.graph_dev.module[m].name, vkdt.graph_dev.module[m].inst+1);
+        if(modid >= 0)
+        {
+          dt_graph_history_module(&vkdt.graph_dev, modid);
+          ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
+          ImVec2 dim = ImNodes::GetNodeDimensions(m);
+          ImNodes::SetNodeEditorSpacePos(modid, ImVec2(pos.x, pos.y+1.2*dim.y));
+        }
+        else
+        {
+          dt_gui_notification("adding the module failed!");
+          break;
+        }
+        for(int c=0;c<vkdt.graph_dev.module[m].num_connectors;c++)
+        {
+          dt_connector_t *cn = vkdt.graph_dev.module[m].connector + c;
+          if(dt_connected(cn) && dt_connector_input(cn))
+          { // for all input connectors, see where we are going
+            int m0 = cn->connected_mi, c0 = cn->connected_mc;
+            dt_module_connect_with_history(&vkdt.graph_dev, m0, c0, modid, c);
+            for(int j=0;j<sel_node_cnt;j++) if(sel_node_id[j] == m0)
+            { // if the module id is in the selection, connect to the copy instead
+              int pmodid = dt_module_add(&vkdt.graph_dev, vkdt.graph_dev.module[m0].name, vkdt.graph_dev.module[m0].inst+1);
+              if(pmodid >= 0)
+                dt_module_connect_with_history(&vkdt.graph_dev, pmodid, c0, modid, c);
+              break;
+            }
+          }
+          else if(dt_connected(cn) && dt_connector_output(cn) && cn->name != dt_token("dspy"))
+          { // is this the exit point? connect to new ab module
+            int nm[10], nc[10];
+            int ncnt = dt_module_get_module_after(
+                &vkdt.graph_dev, vkdt.graph_dev.module+m, nm, nc, 10);
+            for(int k=0;k<ncnt;k++)
+            {
+              int dup = 0; // is the following node in the dup selection too?
+              for(int j=0;j<sel_node_cnt;j++)
+                if(sel_node_id[j] == nm[k]) {dup = 1; break; }
+              if(!dup)
+              { // if not, we need to connect it through an ab/module
+                int mab = dt_module_add(&vkdt.graph_dev, dt_token("ab"), dt_token("ab"));
+                if(mab >= 0)
+                {
+                  dt_module_connect_with_history(&vkdt.graph_dev, mab, 2, nm[k], nc[k]);
+                  dt_module_connect_with_history(&vkdt.graph_dev, m,     c, mab, 0);
+                  dt_module_connect_with_history(&vkdt.graph_dev, modid, c, mab, 1);
+                  dt_graph_history_module(&vkdt.graph_dev, mab);
+                  ImVec2 pos = ImNodes::GetNodeEditorSpacePos(nm[k]);
+                  ImVec2 dim = ImNodes::GetNodeDimensions(nm[k]);
+                  ImNodes::SetNodeEditorSpacePos(mab, ImVec2(pos.x-dim.x*1.2, pos.y));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if(ImGui::Button("remove selected modules", ImVec2(-1, 0)))
+    {
+      ImNodes::ClearNodeSelection();
+      for(int i=0;i<sel_node_cnt;i++)
+        dt_gui_dr_remove_module(sel_node_id[i]);
+    }
+    ImGui::PopStyleVar();
+    ImGui::Unindent();
+  }
+  sel_node_cnt = ImNodes::NumSelectedNodes();
+  ImNodes::GetSelectedNodes(sel_node_id); // we only *remove* ids in the global section above
   for(int i=0;i<sel_node_cnt;i++)
   {
     dt_module_t *mod = vkdt.graph_dev.module + sel_node_id[i];
@@ -127,7 +206,8 @@ void render_nodes_right_panel()
     char name[100];
     snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
     if(ImGui::CollapsingHeader(name))
-    {
+    { // expander for individual module
+      ImGui::Indent();
       ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
       if(mod->so->has_inout_chain && !mod->disabled && ImGui::Button("temporarily disable", ImVec2(-1, 0)))
       {
@@ -145,43 +225,22 @@ void render_nodes_right_panel()
             "this is just a convenience A/B switch in the ui and will not affect your\n"
             "processing history, lighttable thumbnail, or export.");
 
-      int disconnect = 0;
       if(ImGui::Button("disconnect module", ImVec2(-1, 0)))
-        disconnect = 1;
+      {
+        ImNodes::ClearNodeSelection();
+        dt_gui_dr_disconnect_module(sel_node_id[i]);
+      }
       if(ImGui::IsItemHovered())
         ImGui::SetTooltip("disconnect all connectors of this module, try to\n"
                           "establish links to the neighbours directly where possible");
       if(ImGui::Button("remove module", ImVec2(-1, 0)))
-        disconnect = 2;
+      {
+        ImNodes::ClearNodeSelection();
+        dt_gui_dr_remove_module(sel_node_id[i]);
+      }
       if(ImGui::IsItemHovered())
         ImGui::SetTooltip("remove this module from the graph completely, try to\n"
                           "establish links to the neighbours directly where possible");
-      if(disconnect)
-      {
-        ImNodes::ClearNodeSelection();
-        int id_dspy = dt_module_get(mod->graph, dt_token("display"), dt_token("dspy"));
-        if(id_dspy >= 0) dt_module_connect(mod->graph, -1, -1, id_dspy, 0); // no history
-        mod->graph->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-
-        if(mod->so->has_inout_chain)
-        {
-          int m_after[5], c_after[5], max_after = 5;
-          int c_prev, m_prev = dt_module_get_module_before(mod->graph, mod, &c_prev);
-          int cnt = dt_module_get_module_after(mod->graph, mod, m_after, c_after, max_after);
-          if(m_prev != -1 && cnt > 0)
-          {
-            int m_our = mod - mod->graph->module;
-            int c_our = dt_module_get_connector(mod, dt_token("input"));
-            int cerr = dt_module_connect_with_history(mod->graph, -1, -1, m_our, c_our);
-            for(int k=0;k<cnt;k++)
-              if(!cerr)
-                cerr = dt_module_connect_with_history(mod->graph, m_prev, c_prev, m_after[k], c_after[k]);
-          }
-        }
-
-        if(disconnect == 2)
-          dt_module_remove(mod->graph, mod - mod->graph->module);
-      }
 
       if(ImGui::Button("insert block before this..", ImVec2(-1, 0)))
         ImGui::OpenPopup("insert block");
@@ -221,7 +280,8 @@ void render_nodes_right_panel()
         }
         ImGui::EndPopup();
       }
-    }
+      ImGui::Unindent();
+    } // end collapsing header
   }
 
   if(ImGui::CollapsingHeader("settings"))
