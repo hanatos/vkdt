@@ -429,7 +429,12 @@ void render_nodes()
   { // handle new links
     int mi0 = sid>>5,   mi1 = eid>>5;
     int mc0 = sid&0x1f, mc1 = eid&0x1f;
-    int err = dt_module_connect_with_history(g, mi0, mc0, mi1, mc1);
+
+    int err = 0;
+    if(ImGui::IsKeyDown(ImGuiKey_ModShift))
+      err = dt_module_feedback_with_history(g, mi0, mc0, mi1, mc1);
+    else
+      err = dt_module_connect_with_history(g, mi0, mc0, mi1, mc1);
     if(err) dt_gui_notification(dt_connector_error_str(err));
     else vkdt.graph_dev.runflags = s_graph_run_all;
   }
