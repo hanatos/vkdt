@@ -1,0 +1,45 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float d0; // there's a difference in alignment between ; and , here.
+  float d1;
+  float d2;
+  float d3;
+  float d4;
+  float d5; // XXX FIXME: these parameters don't make it to here
+} params;
+layout(push_constant, std140) uniform push_t
+{
+  int level;
+} push;
+layout(set = 1, binding = 0) uniform sampler2D img_c0;
+layout(set = 1, binding = 1) uniform sampler2D img_c1;
+layout(set = 1, binding = 2) uniform sampler2D img_fn;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+  vec2 tc = (opos+0.5)/vec2(imageSize(img_out));
+  vec4 c0 = sample_flower_adj(img_c0, tc);
+  vec4 c1 = sample_flower_adj(img_c1, tc);
+  vec3 org = texture(img_fn, tc).rgb;
+  vec3 det = org - c0.rgb;
+  float s = 1.0;
+  if     (push.level == 0) s = params.d0;
+  else if(push.level == 1) s = params.d1;
+  else if(push.level == 2) s = params.d2;
+  else if(push.level == 3) s = params.d3;
+  else if(push.level == 4) s = params.d4;
+  else if(push.level == 5) s = params.d5;
+  float l = luminance_rec2020(c0.rgb);
+  float sigma = sqrt(max(0, c0.w - l*l));
+  vec3 rgb = mix(c1.rgb + s*det, org, sigma/(0.005+sigma));
+  imageStore(img_out, opos, vec4(rgb, 1));
+}
