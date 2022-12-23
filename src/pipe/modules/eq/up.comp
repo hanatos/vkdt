@@ -5,12 +5,12 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float d0; // there's a difference in alignment between ; and , here.
+  float d0;
   float d1;
   float d2;
   float d3;
   float d4;
-  float d5; // XXX FIXME: these parameters don't make it to here
+  float d5;
 } params;
 layout(push_constant, std140) uniform push_t
 {

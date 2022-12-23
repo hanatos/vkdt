@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include <math.h>
 
 void
 create_nodes(
@@ -7,8 +8,10 @@ create_nodes(
 {
   dt_roi_t roif = module->connector[0].roi;
   dt_roi_t roic = roif;
-  const int numl = 6;
-  int id_down[numl], id_up[numl];
+  const int maxnuml = 6;
+  const int loff = log2f(roif.full_wd / roif.wd);
+  const int numl = 6-loff;
+  int id_down[maxnuml], id_up[maxnuml];
   for(int l=0;l<numl;l++)
   {
     roic.wd = (roif.wd+1)/2;
@@ -77,7 +80,7 @@ create_nodes(
         .roi    = roif,
       }},
       .push_constant_size = sizeof(uint32_t),
-      .push_constant = { l },
+      .push_constant = { l + loff },
     };
     roif = roic;
   }
