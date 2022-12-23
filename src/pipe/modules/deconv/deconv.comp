@@ -45,7 +45,7 @@ main()
   // everybody get their texels:
   const uint idx = gl_LocalInvocationID.x + (gl_WorkGroupSize.x+1) * gl_LocalInvocationID.y;
   vec3 orig; // remember original pixel colour
-  curr[idx] = orig = texelFetch(img_in, clamp(ipos, ivec2(0), textureSize(img_in, 0)-1), 0).rgb;
+  curr[idx] = orig = max(vec3(0.0), texelFetch(img_in, clamp(ipos, ivec2(0), textureSize(img_in, 0)-1), 0).rgb);
 
   const float w = exp(-1/(2.0*params.sigma*params.sigma));
 
