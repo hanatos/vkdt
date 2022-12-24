@@ -124,7 +124,7 @@ vec4 sample_flower(sampler2D tex, vec2 uv)
 #define LOAD(T, W)\
   do {\
     vec4 v = textureLod(tex, T, 0);\
-    float l = luminance_rec2020(v.rgb);\
+    float l = max(v.r, max(v.g, v.b));\
     result += vec4(W*v.rgb, W*l*l);\
   } while(false)
   LOAD(uv, t);
