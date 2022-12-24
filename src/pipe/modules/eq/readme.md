@@ -6,7 +6,7 @@ to shield edges from artifacts.
 
 ## parameters
 
-* `detail` modulate wavelet details at every scale
+* `detail` modulate wavelet details at every scale, fine to coarse
 
 ## connectors
 
