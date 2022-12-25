@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
   int config_start = 0; // start of arguments which are interpreted as additional config lines
   dt_graph_export_t param = {0};
   const char *gpu_name = 0;
+  int gpu_id = -1;
   for(int i=0;i<argc;i++)
   {
     if(!strcmp(argv[i], "-g") && i < argc-1)
@@ -54,12 +55,14 @@ int main(int argc, char *argv[])
       param.output[output_cnt++].inst = dt_token(argv[i]);
     else if(!strcmp(argv[i], "--device") && i < argc-1)
       gpu_name = argv[++i];
+    else if(!strcmp(argv[i], "--device-id") && i < argc-1)
+      gpu_id = atol(argv[++i]);
     else if(!strcmp(argv[i], "--config"))
     { config_start = i+1; break; }
   }
   param.output_cnt = MAX(1, output_cnt);
 
-  if(qvk_init(gpu_name)) exit(1);
+  if(qvk_init(gpu_name, gpu_id)) exit(1);
 
   if(!param.p_cfgfile)
   {
@@ -76,6 +79,7 @@ int main(int argc, char *argv[])
     "                                  this resets output specific options: quality, width, height, audio\n"
     "    [--audio <file>]              dump audio stream to this file, if any\n"
     "    [--device <gpu name>]         explicitly use this gpu if you have multiple\n"
+    "    [--device-id <gpu id>]        explicitly use this gpu id if you have multiple\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
         );
     threads_global_cleanup();

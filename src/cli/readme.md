@@ -17,5 +17,6 @@ usage: vkdt-cli -g <graph.cfg>
                                   this resets output specific options: quality, width, height, audio
     [--audio <file>]              dump audio stream to this file, if any
     [--device <gpu name>]         explicitly use this gpu if you have multiple
+    [--device-id <gpu id>]        explicitly use this gpu id if you have multiple
     [--config]                    everything after this will be interpreted as additional cfg lines
 ```

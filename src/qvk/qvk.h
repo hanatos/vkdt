@@ -145,8 +145,9 @@ extern qvk_t qvk;
 _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
-// global initialisation. pick device by that name if it is present
-VkResult qvk_init(const char *preferred_device_name);
+// global initialisation. pick device by that name if it is not null,
+// same for the direct id if it is not negative (use for multiple identical devices)
+VkResult qvk_init(const char *preferred_device_name, int preferred_device_id);
 VkResult qvk_cleanup();
 
 VkResult qvk_create_swapchain();

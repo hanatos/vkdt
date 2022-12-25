@@ -251,7 +251,7 @@ out:;
 
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init(const char *preferred_device_name)
+qvk_init(const char *preferred_device_name, int preferred_device_id)
 {
   threads_mutex_init(&qvk.queue_mutex, 0);
   threads_mutex_init(&qvk.queue_work0_mutex, 0);
@@ -391,7 +391,8 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
-    if((preferred_device_name && !strcmp(preferred_device_name, dev_properties.deviceName)) ||
+    if((preferred_device_id == i) ||
+       (preferred_device_name && !strcmp(preferred_device_name, dev_properties.deviceName)) ||
       (!preferred_device_name && (picked_device < 0 || dev_properties.vendorID == 0x10de)))
     { // vendor ids are: nvidia 0x10de, intel 0x8086
       qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
@@ -406,6 +407,8 @@ QVK_FEATURE_DO(inheritedQueries, 1)
       picked_device = i;
       if(preferred_device_name)
         dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);
+      if(preferred_device_id == i)
+        dt_log(s_log_qvk, "selecting device %d by explicit request", preferred_device_id);
     }
   }
 
