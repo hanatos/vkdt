@@ -968,10 +968,10 @@ inline void draw_widget(int modid, int parid)
     {
       if(num == 0) ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
       ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.14, 0);
-      int sz = dt_ui_param_size(param->type, 4); // src rb -> tgt rb is four floats
+      int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], 1.0-v[0]-v[1], v[1], 1.0));
-      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[2], 1.0-v[2]-v[3], v[3], 1.0));
+      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], v[1], v[2], 1.0));
+      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[3], v[4], v[5], 1.0));
       ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.state.panel_wd*0.02);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid &&
@@ -997,9 +997,9 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parnm = num;
           vkdt.wstate.active_widget_parsz = 0;
         }
-        count *= 4; // keyframe needs to know it's 4 floats too
+        count *= 6; // keyframe needs to know it's 6 floats too
         KEYFRAME
-        count /= 4;
+        count /= 6;
       }
       ImGui::PopStyleVar(1);
       ImGui::PopStyleColor(2);
@@ -1016,23 +1016,24 @@ inline void draw_widget(int modid, int parid)
            vkdt.wstate.active_widget_parid == parid)
         { // now add ability to change target colour coordinate
           int active_num = vkdt.wstate.active_widget_parnm;
-          for(int i=0;i<2;i++)
+          for(int i=0;i<3;i++)
           {
-            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 2 + i;
+            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
             float oldval = *val;
-            if(ImGui::SliderFloat(i ? "blue" : "red", val, 0.0, 1.0, "%2.5f"))
+            const char *label[] = {"red", "green", "blue"};
+            if(ImGui::SliderFloat(label[i], val, 0.0, 1.0, "%2.5f"))
             { // custom resetblock: set only this colour spot to identity mapping
               if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;
-              if(doubleclick) memcpy(val-i, val-i-2, sizeof(float)*2);
+              if(doubleclick) memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
             if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) ||
-                (ImGui::IsItemFocused() && gamepad_reset))
+               (ImGui::IsItemFocused() && gamepad_reset))
             {
               doubleclick_time = time_now;
               gamepad_reset = 0;
               doubleclick = 1;
-              memcpy(val-i, val-i-2, sizeof(float)*2);
+              memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
             if(change)

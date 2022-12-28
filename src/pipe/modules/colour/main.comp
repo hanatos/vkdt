@@ -10,9 +10,11 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   vec4  mul;               // camera white balance (r,g,b, exposure)
   mat3  cam_to_rec2020;    // camera matrix
-  uvec4 N;                 // number of patches < 20
-  vec4  coef[22];          // xy RBF positions, zw coefs
-  float temp;              // colour temperature for wb 0:2856 1:6500
+  uvec4 N;                 // number of patches <= 24
+  mat3  rbf_P;             // rbf matrix part
+  vec4  rbf_c[24];         // rbf coefficients
+  vec4  rbf_p[24];         // rbf positions
+  float temp;              // colour temperature for wb 0:2856 1:6504
   uint  colour_mode;       // 0-matrix 1-clut
   float saturation;        // multiplier on chroma
   uint  pick_mode;         // what do we do with the colour picked input?
@@ -82,7 +84,7 @@ cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
 
 
 float
-kernel(vec2 ci, vec2 p)
+kernel(vec3 ci, vec3 p)
 { // thinplate spline kernel
   float r2 = .99 * dot(ci-p, ci-p) + 1e-3;
   return r2 * log(r2);
@@ -155,16 +157,10 @@ main()
 
   if(params.N.x > 0)
   { // now rbf part:
-    const float b = dot(rgb, vec3(1));
-    rgb /= b;
-    vec2 ci = rgb.xz;
-    vec2 co = mat2(params.coef[params.N.x+0].zw, params.coef[params.N.x+1].zw) * ci;
-    for(int i=0;i<params.N.x;i++)
-      co += params.coef[i].zw * kernel(ci, params.coef[i].xy);
-
-    rgb.xz = co;
-    rgb.y = 1.0 - rgb.x - rgb.z;
-    rgb *= b; // keep brightness constant
+    vec3 co = params.rbf_P * rgb;
+    uint N = clamp(params.N.x, 0, 24);
+    for(int i=0;i<N;i++) co += params.rbf_c[i].rgb * kernel(rgb, params.rbf_p[i].rgb);
+    rgb = co;
   }
 
   // dt ucs saturation last so we don't mess with the rbf which is potentially
