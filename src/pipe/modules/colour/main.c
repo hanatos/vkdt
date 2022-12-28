@@ -1,4 +1,4 @@
-#include "../crop/gaussian_elimination.h" // TODO: clean up and move to core/api headers
+#include "core/gaussian_elimination.h"
 #include "modules/api.h"
 #include <math.h>
 #include <stdlib.h>

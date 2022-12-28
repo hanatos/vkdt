@@ -1,5 +1,5 @@
 #include "modules/api.h"
-#include "gaussian_elimination.h"
+#include "core/gaussian_elimination.h"
 
 #include <math.h>
 
