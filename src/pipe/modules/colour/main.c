@@ -39,166 +39,6 @@ void ui_callback(
   rbcnt[0] = cnt;
 }
 
-
-#if 0
-static inline void
-clip_poly(
-    const float *p,        // pointer to polygon points
-    uint32_t     p_cnt,    // number of corners
-    const float *w,        // constant white
-    float       *v)        // point potentially outside, will clip this to p
-{
-  for(int i=0;i<p_cnt;i++)
-  {
-    float vp0 [] = {v[0]-p[2*i+0], v[1]-p[2*i+1]};
-    float p1p0[] = {p[2*i+2+0]-p[2*i+0], p[2*i+2+1]-p[2*i+1]};
-    float n[] = {p1p0[1], -p1p0[0]};
-    float dotv = n[0]*vp0[0] + n[1]*vp0[1];
-    if(dotv <= 0) continue; // inside
-
-    // project along line in rb space
-    float dotvw = n[0]*(v[0]-w[0]) + n[1]*(v[1]-w[1]);
-    float dotpw = n[0]*(p[2*i]-w[0]) + n[1]*(p[2*i+1]-w[1]);
-    float t = dotpw/dotvw;
-    if(t > 0.0f && t < 1.0f)
-    {
-      v[0] = w[0] + t * (v[0] - w[0]);
-      v[1] = w[1] + t * (v[1] - w[1]);
-    }
-  }
-}
-
-// clamp to spectral locus:
-static inline void
-clip_spectral_locus(float *v, const float *white)
-{
-  // manually picked subset of points on the spectral locus transformed to
-  // rec2020 r/(r+g+b), b/(r+g+b). the points have been picked by walking the
-  // wavelength domain in 5nm intervals and computing XYZ chromaticity
-  // coordinates by integrating the 1931 2deg CMF.
-  static const float gamut_rec2020_rb[] =
-  {
-    0.119264, 1.0047,
-    0.0352311, 1.01002,
-    -0.0587504, 0.957361,
-    -0.166419, 0.817868,
-    -0.269602, 0.55565,
-    -0.300098, 0.281734,
-    -0.228864, 0.0937406,
-    -0.0263976, 0.00459292,
-    0.230836, -0.0158645,
-    1.051, 0.00138612,
-    0.119264, 1.0047,        // wrap around point
-  };
-  const int cnt = sizeof(gamut_rec2020_rb) / sizeof(gamut_rec2020_rb[0]) / 2 - 1;
-  clip_poly(gamut_rec2020_rb, cnt, white, v);
-}
-
-// clamp to rec2020 gamut:
-static inline void
-clip_rec2020(float *v, const float *white)
-{
-  const float gamut_rec2020_rb[] = {
-    1.0f, 0.0f, // red
-    0.0f, 1.0f, // blue
-    0.0f, 0.0f, // green
-    1.0f, 0.0f, // red again
-  };
-  const int cnt = sizeof(gamut_rec2020_rb) / sizeof(gamut_rec2020_rb[0]) / 2 - 1;
-  clip_poly(gamut_rec2020_rb, cnt, white, v);
-}
-
-// clamp to rec709 gamut:
-static inline void
-clip_rec709(float *v, const float *white)
-{
-  const float gamut_rec709_rb[] = {
-    0.88008f, 0.02299f,   // red
-    0.04558f, 0.94246f,   // blue
-    0.24632f, 0.06584f,   // green
-    0.88008f, 0.02299f,   // red (need to have correct winding order)
-  };
-  const int cnt = sizeof(gamut_rec709_rb) / sizeof(gamut_rec709_rb[0]) / 2 - 1;
-
-  // used this matrix: rec709 -> rec2020
-  // 0.62750375, 0.32927542, 0.04330267,
-  // 0.06910828, 0.91951917, 0.0113596,
-  // 0.01639406, 0.08801128, 0.89538036
-  clip_poly(gamut_rec709_rb, cnt, white, v);
-}
-
-// create 2d pattern of points:
-// outer ring: to push back into gamut
-// inner ring: to protect inner values
-static inline void
-create_ring(
-    const float *wb,          // camera white balance coefs
-    const float  saturation,  // saturate the inner ring
-    const float *white,       // adjust white point
-    float       *source,      // generated list of source points
-    float       *target,      // generated list of target points
-    int          gamut)       // gamut mapping mode: 0 none, 1 spectral locus, 2 rec2020, 3 rec709
-{
-  // 6+6+1 points in 2D RBF: outer, inner, white.
-  const int N = 13;
-  const float S = 0.20f; // larger S means more white means less saturated
-  float out[21] = {
-    S, 1, 1,  // dim red
-    S, S, 1,  // dim yellow
-    1, S, 1,  // dim green
-    1, S, S,  // dim cyan
-    1, 1, S,  // dim blue
-    S, 1, S,  // dim magenta
-    1, 1, 1   // white
-  };
-
-  for(int k=0;k<7;k++)
-  {
-    const float b = out[3*k+0] + out[3*k+1] + out[3*k+2];
-    out[k*3+0] /= b;
-    out[k*3+2] /= b;
-  }
-  const float w2[] = {1.0/3.0, 1.0/3.0};
-  for(int k=0;k<N;k++)
-  {
-    float x = k > 6 ? 4.0*(out[3*(k-7)+0]-w2[0])+w2[0] : out[3*k+0];
-    float y = k > 6 ? 4.0*(out[3*(k-7)+2]-w2[1])+w2[1] : out[3*k+2];
-    source[2*k+0] = target[2*k+0] = x;
-    source[2*k+1] = target[2*k+1] = y;
-    if     (gamut == 1) clip_spectral_locus(target + 2*k, w2);
-    else if(gamut == 2) clip_rec2020(target + 2*k, w2);
-    else if(gamut == 3) clip_rec709(target + 2*k, w2);
-  }
-  for(int k=0;k<6;k++)
-  { // saturation:
-    if(saturation < 0.5f)
-    { // desaturate outer ring, too:
-      float s = saturation * 2.0f;
-      target[2*k+0] = (1.0f-s)*white[0] + s*target[2*k+0];
-      target[2*k+1] = (1.0f-s)*white[1] + s*target[2*k+1];
-      target[2*(k+6)+0] = white[0];
-      target[2*(k+6)+1] = white[1];
-    }
-    else
-    { // desaturate inner ring only:
-      float s = (saturation - 0.5f)*2.0f;
-      target[2*(k+6)+0] = (1.0f-s)*white[0] + s*target[2*(k+6)+0];
-      target[2*(k+6)+1] = (1.0f-s)*white[1] + s*target[2*(k+6)+1];
-    }
-  }
-  // move white
-  // target[2*12+0] = white[0];
-  // target[2*12+1] = white[1];
-  // source[2*12+0] = white[0];
-  // source[2*12+1] = white[1];
-  // TODO: further parametric manipulations?
-  // rotate hue?
-  // move individual colours
-  // etc
-}
-#endif
-
-
 // thinplate spline kernel phi(r).
 // note that this one is different to the one used in darktable:
 // okay, it's 2d to begin with. but also the threshold added to r2 is crucial,
@@ -251,8 +91,7 @@ compute_coefficients(
     coef[4*N+4+3] = target[1] / source[1];
     break;
   default: // fully generic case, N patches
-  {
-    // setup linear system of equations
+  { // setup linear system of equations
     int N2 = N+2;
     double *A = malloc(sizeof(*A) * N2 * N2);
     double *b = malloc(sizeof(*b) * N2);
@@ -270,8 +109,7 @@ compute_coefficients(
     // make coefficient matrix triangular
     int *pivot = malloc(sizeof(*pivot)*N2);
     if (gauss_make_triangular(A, pivot, N2))
-    {
-      // calculate coefficients for x channel
+    { // calculate coefficients for x channel
       for(int i=0;i<N; i++) b[i] = target[2*i];
       for(int i=N;i<N2;i++) b[i] = 0;
       gauss_solve_triangular(A, pivot, b, N2);
@@ -285,6 +123,7 @@ compute_coefficients(
     else
     { // yes, really, we should have continued to use the svd/pseudoinverse for exactly such cases.
       // i might bring it back at some point.
+#if 0
       fprintf(stderr, "[colour] fuck, matrix was singular or something!\n");
       fprintf(stderr, "[colour] N=%d\n", N);
       for(int k=0;k<N;k++)
@@ -300,6 +139,7 @@ compute_coefficients(
           fprintf(stderr, "%.2f\t", A[j*N2+i]);
         fprintf(stderr, "\n");
       }
+#endif
     }
     // fprintf(stderr, "matrix part %g %g %g %g\n",
     //     coef[4*N+2],
@@ -388,18 +228,11 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
     float p2_src[40], p2_tgt[40];
     for(int i=0;i<p_cnt;i++)
-    {
-#if 1 // plain rgb
+    { // plain rgb
       p2_src[2*i+0] = p_map[4*i+0];
       p2_src[2*i+1] = p_map[4*i+1];
       p2_tgt[2*i+0] = p_map[4*i+2];
       p2_tgt[2*i+1] = p_map[4*i+3];
-#else // log space (cannot exceed rec2020)
-      p2_src[2*i+0] = log(MAX(1e-8, (1.0-p_map[4*i+0]-p_map[4*i+1])/(1e-8+p_map[4*i+0])));
-      p2_src[2*i+1] = log(MAX(1e-8, (1.0-p_map[4*i+0]-p_map[4*i+1])/(1e-8+p_map[4*i+1])));
-      p2_tgt[2*i+0] = log(MAX(1e-8, (1.0-p_map[4*i+2]-p_map[4*i+3])/(1e-8+p_map[4*i+2])));
-      p2_tgt[2*i+1] = log(MAX(1e-8, (1.0-p_map[4*i+2]-p_map[4*i+3])/(1e-8+p_map[4*i+3])));
-#endif
     }
 
     // init f[20]..
@@ -409,39 +242,16 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
       f[20 + 4*k + 0] = p2_src[2*k+0];
       f[20 + 4*k + 1] = p2_src[2*k+1];
     }
-    // TODO: go through target and map to gamut!
     compute_coefficients(N, p2_src, p2_tgt, f + 20);
   }
   else
   { // mode == 0 (or default): "parametric" mode
     i[16] = 0; // disable rbf
-#if 0
-    float wb[] = {1, 1, 1};
-    // TODO: bind some param to white and saturations!
-    float white[] = {0.33333, 0.33333};
-    // { p_wb[0], p_wb[1] };
-    float source[26];
-    float target[26];
-    create_ring(wb, 1.0f, // p_wb[2],
-        white, source, target, p_gam);
-    const int N = 13;
-    i[16] = N;
-    i[18] = i[19] = i[17] = 0;
-    // init f[20]..
-    memset(f + 20, 0, sizeof(float)*44);
-    for(int k=0;k<N;k++)
-    { // source points
-      f[20 + 4*k + 0] = source[2*k+0];
-      f[20 + 4*k + 1] = source[2*k+1];
-    }
-    compute_coefficients(N, source, target, f + 20);
-#endif
   }
 }
 
 int init(dt_module_t *mod)
-{
-  // wb, matrix, uvec4 cnt, vec4 coef[22], mode, exposure, sat, pick, gamut
+{ // wb, matrix, uvec4 cnt, vec4 coef[22], mode, exposure, sat, pick, gamut
   mod->committed_param_size = sizeof(float)*(4+12+4+88+5);
   return 0;
 }
