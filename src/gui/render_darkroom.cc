@@ -640,7 +640,9 @@ inline void draw_widget(int modid, int parid)
         {
           ImGui::SameLine();
           char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
+          ImGui::PushItemWidth(-1);
           ImGui::InputText("##s", v, count);
+          ImGui::PopItemWidth();
         }
       }
       break;
@@ -967,7 +969,7 @@ inline void draw_widget(int modid, int parid)
     case dt_token("rbmap"): // red/blue chromaticity mapping via src/target coordinates
     {
       if(num == 0) ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
-      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.14, 0);
+      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.135, 0);
       int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
       ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], v[1], v[2], 1.0));
