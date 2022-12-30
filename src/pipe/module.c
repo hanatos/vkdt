@@ -137,8 +137,8 @@ int dt_module_remove(
   graph->module[modid].num_connectors = 0;
   free(graph->module[modid].keyframe);
   graph->module[modid].keyframe_size = 0;
-  grapg->module[modid].keyframe_cnt = 0;
-  grapg->module[modid].keyframe = 0;
+  graph->module[modid].keyframe_cnt = 0;
+  graph->module[modid].keyframe = 0;
   return 0;
 }
 
