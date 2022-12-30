@@ -6,7 +6,8 @@ all: rawspeed
 rawspeed: Makefile $(BUILT)/rawspeed/librawspeed.a
 
 $(BUILT)/rawspeed/Makefile: Makefile
-ifeq ($(VKDT_USE_RAWSPEED),0)
+ifneq ($(VKDT_USE_RAWSPEED),1)
+	mkdir -p $(BUILT)/rawspeed
 	touch $(BUILT)/rawspeed/Makefile
 else
 ifeq ($(RAWSPEED_PACKAGE_BUILD),0)
@@ -23,7 +24,8 @@ endif
 
 $(BUILT)/rawspeed/librawspeed.a: Makefile $(BUILT)/rawspeed/Makefile
 	mkdir -p $(BUILT)/rawspeed
-ifeq ($(VKDT_USE_RAWSPEED),0)
+ifneq ($(VKDT_USE_RAWSPEED),1)
+	touch $(BUILT)/rawspeed/librawspeed.a
 else
 	$(MAKE) -C $(BUILT)/rawspeed
 	strip -S $(BUILT)/rawspeed/librawspeed.a
