@@ -1717,8 +1717,11 @@ abort:
         snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
       }
 
-      // anything goes wrong, what can we do?
-      if(action >= 2) dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
+      if(action >= 2)
+      { // read previous cfg or factory default cfg, first init modules to their default state:
+        for(uint32_t m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_reset_params(vkdt.graph_dev.module+m);
+        dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
+      }
 
       if(action == 3)
       { // default needs to update input filename and search path

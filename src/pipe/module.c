@@ -172,3 +172,13 @@ int dt_module_get_module_before(const dt_graph_t *graph, const dt_module_t *us, 
   if(cout) *cout = us->connector[conn].connected_mc;
   return us->connector[conn].connected_mi;
 }
+
+void dt_module_reset_params(dt_module_t *mod)
+{
+  if(mod->name == 0) return; // skip deleted modules
+  for(int p=0;p<mod->so->num_params;p++)
+  {
+    dt_ui_param_t *param = mod->so->param[p];
+    memcpy(mod->param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+  }
+}

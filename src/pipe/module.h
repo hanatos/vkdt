@@ -139,3 +139,6 @@ int dt_module_get_module_after(
     int               *m_out,      // buffer to store module ids
     int               *c_out,      // buffer to store input connector ids
     int                max_cnt);   // size of the argument buffers
+
+// reset all parameters to their defaults
+void dt_module_reset_params(dt_module_t *mod);
