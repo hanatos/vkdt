@@ -20,7 +20,7 @@ ifneq ($(VKDT_USE_FFMPEG), 1)
   MODULES:=$(filter-out i-vid,$(MODULES))
 endif
 ifneq ($(VKDT_USE_QUAKE), 1)
-  MODULES:=$(filter-out i-quake,$(MODULES))
+  MODULES:=$(filter-out quake,$(MODULES))
 endif
 
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
