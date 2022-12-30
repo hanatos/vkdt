@@ -1383,6 +1383,7 @@ void render_darkroom_pipeline()
   for(int mi=arr_cnt-1;mi>=0;mi--)
   {
     int m = mod_id[mi];
+    if(graph->module[m].name == 0) continue;
     for(int k=graph->module[m].num_connectors-1;k>=0;k--)
     {
       if(dt_connector_input(graph->module[m].connector+k))

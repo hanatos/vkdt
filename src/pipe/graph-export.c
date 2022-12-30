@@ -218,7 +218,7 @@ dt_graph_export(
   int audio_mod= -1, audio_cnt = 0;
   uint16_t *audio_samples;
   for(int i=0;i<graph->num_modules;i++)
-    if(graph->module[i].so->audio) { audio_mod = i; break; }
+    if(graph->module[i].name && graph->module[i].so->audio) { audio_mod = i; break; }
   FILE *audio_f = 0;
   if(param->output[0].p_audio && audio_mod >= 0) audio_f = fopen(param->output[0].p_audio, "wb");
 

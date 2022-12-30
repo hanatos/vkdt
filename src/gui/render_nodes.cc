@@ -372,6 +372,7 @@ void render_nodes()
   for(uint32_t m=0;m<g->num_modules;m++)
   {
     dt_module_t *mod = g->module+m;
+    if(mod->name == 0) continue;
     for(int c=0;c<mod->num_connectors;c++)
     {
       if(dt_connector_input(mod->connector+c) && dt_connected(mod->connector+c))

@@ -577,6 +577,7 @@ darkroom_process()
     dt_graph_t *g = &vkdt.graph_dev;
     for(int i=0;i<g->num_modules;i++)
     { // find first audio module, if any
+      if(g->module[i].name == 0) continue;
       if(g->module[i].so->audio)
       {
         uint16_t *samples;

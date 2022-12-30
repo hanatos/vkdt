@@ -190,6 +190,7 @@ dt_graph_history_set(
   // portions of graph otherwise).
   for(uint32_t m=0;m<graph->num_modules;m++)
   {
+    if(graph->module[m].name == 0) continue; // skip deleted modules
     for(int c=0;c<graph->module[m].num_connectors;c++)
       if(dt_connector_input(graph->module[m].connector+c))
         dt_module_connect(graph, -1, -1, m, c);
