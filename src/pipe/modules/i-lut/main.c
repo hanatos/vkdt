@@ -26,7 +26,7 @@ read_header(
   const char *key[] = { "maker", "model", 0};
   const char *val[] = { mod->graph->main_img_param.maker, mod->graph->main_img_param.model, 0};
   dt_strexpand(pattern, strlen(pattern), filename, sizeof(filename), key, val);
-  // fprintf(stderr, "[i-lut] loading %s\n", filename);
+  // fprintf(stderr, "[i-lut] %"PRItkn" loading `%s'!\n", dt_token_str(mod->inst), filename);
 
   if(lut && !strcmp(lut->filename, filename))
     return 0; // already loaded
@@ -54,7 +54,8 @@ read_header(
   snprintf(lut->filename, sizeof(lut->filename), "%s", filename);
   return 0;
 error:
-  fprintf(stderr, "[i-lut] could not load file `%s'!\n", filename);
+  fprintf(stderr, "[i-lut] %"PRItkn" could not load file `%s'!\n", dt_token_str(mod->inst), filename);
+  lut->filename[0] = 0;
   return 1;
 }
 
