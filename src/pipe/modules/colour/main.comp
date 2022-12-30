@@ -205,14 +205,18 @@ main()
         vec2 max_sat = texelFetch(img_abney, ivec2(size.x-1, sl.y*size.y), 0).rg;
         bound = max_sat.x;
         sl.x *= max_sat.x / max_sat.y; // adjust lower bound to spectral locus scaled into triangle
+        m = params.saturation * sl.x;
       }
       else if(params.gamut_mode == 3)
       { // rec709
         vec2 max_sat = texelFetch(img_abney, ivec2(size.x-2, sl.y*size.y), 0).rg;
         bound = max_sat.x;
         sl.x *= max_sat.x / max_sat.y;
+        m = params.saturation * sl.x;
       }
-      sl.x = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
+      if(params.saturation > 1.0)
+        sl.x = mix(sl.x, bound, (m - sl.x)/(m - sl.x + 1.0));
+      else sl.x = m;
       if(sl.x > bound) sl.x = bound; // clip to gamut
     }
     else sl.x = clamp(m, 0.0, (size.x-3.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
