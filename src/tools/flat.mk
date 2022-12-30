@@ -3,7 +3,7 @@
 tools:../bin/data/spectra.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut
 
 ADD_CFLAGS=-Itools -Itools/shared
-ADD_LDFLAGS=-lm -latomic
+ADD_LDFLAGS=-lm
 
 MKSSF_DEPS=tools/clut/src/dngproc.h\
         tools/shared/cie1931.h\

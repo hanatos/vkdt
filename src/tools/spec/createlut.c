@@ -364,7 +364,7 @@ double max_dist(double theta)
 typedef struct parallel_shared_t
 {
   float *out, *max_b;
-  _Atomic float *lsbuf;
+  float *lsbuf;
   int max_w, max_h, res;
 }
 parallel_shared_t;
@@ -585,7 +585,7 @@ mac_error:
   printf("optimising ");
 
   int lsres = res; // /4;
-  _Atomic float *lsbuf = calloc(sizeof(float), 5*lsres*lsres);
+  float *lsbuf = calloc(sizeof(float), 5*lsres*lsres);
 
   size_t bufsize = 5*res*res;
   float *out = calloc(sizeof(float), bufsize);
