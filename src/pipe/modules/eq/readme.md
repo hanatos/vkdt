@@ -6,7 +6,8 @@ artifacts. it's essentially unsharp mask (USM) on steroids.
 
 it is intended to affect the *texture* of the image, not the edges. that is,
 high-contrast detail such as hair and silhouettes will remain unaffected by
-this module.
+this module. it works best in scene-referred linear, i.e. before the display
+transform in `filmcurv` for instance.
 
 here is an example where the `eq` module is used for dehazing and for some
 exaggerated contrast in the sky (image a playraw from pixls.us, pull the little
