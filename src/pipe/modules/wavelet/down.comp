@@ -23,8 +23,7 @@ main()
   vec3 rgb = sample_flower(img_in, (ipos+vec2(0.5))/vec2(sz)).rgb;
 
   // sort image to write positions so we can iterate the filter
-  ivec2 off = ivec2(ipos.x & 1, ipos.y & 1) * (imageSize(img_out)+ivec2(1))/2;
-  ipos = ipos / 2 + off;
+  ipos = mix(ipos / 2, imageSize(img_out)-1-ipos/2, equal(ipos & 1, ivec2(0)));
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

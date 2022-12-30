@@ -57,16 +57,6 @@ static struct gui_state_data_t
 } gui = {gui_state_data_t::s_gui_state_regular};
 
 
-int dt_module_connect_with_history(
-    dt_graph_t *graph,
-    int m0, int c0, int m1, int c1)
-{
-  int cerr = dt_module_connect(graph, m0, c0, m1, c1);
-  if(cerr) return cerr;
-  dt_graph_history_connection(graph, m1, c1); // history records only inputs
-  return cerr;
-}
-
 void widget_end()
 {
   if(!vkdt.wstate.grabbed)
@@ -173,6 +163,7 @@ void dt_gui_set_lod(int lod)
 
 uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
 {
+  if(module->name == 0) return 0; // has been removed, only the zombie left
   static int mod[2] = {-1,-1}, con[2] = {-1,-1};
   uint64_t err = 0;
   static int insert_modid_before = -1;
@@ -604,31 +595,56 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
-        if(ImGui::VSliderFloat("##v",
-              ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
-              param->widget.min, param->widget.max, ""))
-        RESETBLOCK {
-          if(io.KeyShift) // lockstep all three if shift is pressed
-            for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        KEYFRAME
-        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-          ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
+        if(count == 3)
+        { // assume rgb vsliders
+          ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
+          ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
+          ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
+          ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
+          if(ImGui::VSliderFloat("##v",
+                ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
+                param->widget.min, param->widget.max, ""))
+          RESETBLOCK {
+            if(io.KeyShift) // lockstep all three if shift is pressed
+              for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
+            dt_graph_run_t flags = s_graph_run_none;
+            if(vkdt.graph_dev.module[modid].so->check_params)
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+            vkdt.graph_dev.active_module = modid;
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
+          KEYFRAME
+          if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
 
-        ImGui::PopStyleColor(4);
-        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-            num < count - 1) ImGui::SameLine();
+          ImGui::PopStyleColor(4);
+          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+              num < count - 1) ImGui::SameLine();
+        }
+        else
+        {
+          if(ImGui::VSliderFloat("##v",
+                ImVec2(vkdt.state.panel_wd / (count+1.0), vkdt.state.panel_ht * 0.2), val,
+                param->widget.min, param->widget.max, ""))
+          RESETBLOCK {
+            if(io.KeyShift) // lockstep all three if shift is pressed
+              for(int k=0;k<count;k++) val[k-num] = val[0];
+            dt_graph_run_t flags = s_graph_run_none;
+            if(vkdt.graph_dev.module[modid].so->check_params)
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+            vkdt.graph_dev.active_module = modid;
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
+          KEYFRAME
+          TOOLTIP
+
+          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+              num < count - 1) ImGui::SameLine();
+        }
       }
       break;
     }
@@ -649,7 +665,9 @@ inline void draw_widget(int modid, int parid)
         {
           ImGui::SameLine();
           char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
+          ImGui::PushItemWidth(-1);
           ImGui::InputText("##s", v, count);
+          ImGui::PopItemWidth();
         }
       }
       break;
@@ -976,11 +994,11 @@ inline void draw_widget(int modid, int parid)
     case dt_token("rbmap"): // red/blue chromaticity mapping via src/target coordinates
     {
       if(num == 0) ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
-      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.14, 0);
-      int sz = dt_ui_param_size(param->type, 4); // src rb -> tgt rb is four floats
+      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.135, 0);
+      int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], 1.0-v[0]-v[1], v[1], 1.0));
-      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[2], 1.0-v[2]-v[3], v[3], 1.0));
+      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], v[1], v[2], 1.0));
+      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[3], v[4], v[5], 1.0));
       ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.state.panel_wd*0.02);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid &&
@@ -1006,9 +1024,9 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parnm = num;
           vkdt.wstate.active_widget_parsz = 0;
         }
-        count *= 4; // keyframe needs to know it's 4 floats too
+        count *= 6; // keyframe needs to know it's 6 floats too
         KEYFRAME
-        count /= 4;
+        count /= 6;
       }
       ImGui::PopStyleVar(1);
       ImGui::PopStyleColor(2);
@@ -1025,23 +1043,24 @@ inline void draw_widget(int modid, int parid)
            vkdt.wstate.active_widget_parid == parid)
         { // now add ability to change target colour coordinate
           int active_num = vkdt.wstate.active_widget_parnm;
-          for(int i=0;i<2;i++)
+          for(int i=0;i<3;i++)
           {
-            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 2 + i;
+            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
             float oldval = *val;
-            if(ImGui::SliderFloat(i ? "blue" : "red", val, 0.0, 1.0, "%2.5f"))
+            const char *label[] = {"red", "green", "blue"};
+            if(ImGui::SliderFloat(label[i], val, 0.0, 1.0, "%2.5f"))
             { // custom resetblock: set only this colour spot to identity mapping
               if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;
-              if(doubleclick) memcpy(val-i, val-i-2, sizeof(float)*2);
+              if(doubleclick) memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
             if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) ||
-                (ImGui::IsItemFocused() && gamepad_reset))
+               (ImGui::IsItemFocused() && gamepad_reset))
             {
               doubleclick_time = time_now;
               gamepad_reset = 0;
               doubleclick = 1;
-              memcpy(val-i, val-i-2, sizeof(float)*2);
+              memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
             if(change)
@@ -1177,6 +1196,8 @@ inline void draw_widget(int modid, int parid)
               param->widget.min, param->widget.max, "%2.5f"))
         RESETBLOCK
         {
+          if(io.KeyShift) // lockstep all three if shift is pressed
+            for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
@@ -1423,6 +1444,9 @@ void render_darkroom_pipeline()
   }
   else if(ImGui::Button("insert block..", ImVec2(-1, 0)))
     gui.hotkey = s_hotkey_block_add;
+
+  if(ImGui::Button("open node editor", ImVec2(-1, 0)))
+    gui.hotkey = s_hotkey_nodes_enter;
   ImGui::PopStyleVar();
 }
 
@@ -1718,8 +1742,11 @@ abort:
         snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
       }
 
-      // anything goes wrong, what can we do?
-      if(action >= 2) dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
+      if(action >= 2)
+      { // read previous cfg or factory default cfg, first init modules to their default state:
+        for(uint32_t m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_reset_params(vkdt.graph_dev.module+m);
+        dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
+      }
 
       if(action == 3)
       { // default needs to update input filename and search path
@@ -1937,6 +1964,9 @@ abort:
       break;
     case s_hotkey_assign_tag:
       dt_gui_dr_assign_tag();
+      break;
+    case s_hotkey_nodes_enter:
+      dt_view_switch(s_view_nodes);
       break;
     default:;
   }

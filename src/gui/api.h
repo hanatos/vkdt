@@ -251,3 +251,36 @@ dt_gui_lt_duplicate()
   snprintf(dir, sizeof(dir), "%s", vkdt.db.dirname);
   dt_gui_switch_collection(dir);
 }
+
+static inline int
+dt_gui_dr_disconnect_module(int m)
+{
+  int id_dspy = dt_module_get(&vkdt.graph_dev, dt_token("display"), dt_token("dspy"));
+  if(id_dspy >= 0) dt_module_connect(&vkdt.graph_dev, -1, -1, id_dspy, 0); // no history
+  vkdt.graph_dev.runflags = s_graph_run_all;
+
+  int ret = 0;
+  dt_module_t *mod = vkdt.graph_dev.module + m;
+  if(mod->so->has_inout_chain)
+  {
+    int m_after[10], c_after[10], max_after = 10;
+    int c_prev, m_prev = dt_module_get_module_before(mod->graph, mod, &c_prev);
+    int cnt = dt_module_get_module_after(mod->graph, mod, m_after, c_after, max_after);
+    if(m_prev != -1 && cnt > 0)
+    {
+      int c_our = dt_module_get_connector(mod, dt_token("input"));
+      ret = dt_module_connect_with_history(mod->graph, -1, -1, m, c_our);
+      for(int k=0;k<cnt;k++)
+        if(!ret)
+          ret = dt_module_connect_with_history(mod->graph, m_prev, c_prev, m_after[k], c_after[k]);
+    }
+  }
+  return ret;
+}
+
+static inline void
+dt_gui_dr_remove_module(int m)
+{
+  dt_gui_dr_disconnect_module(m);
+  dt_module_remove(&vkdt.graph_dev, m);
+}

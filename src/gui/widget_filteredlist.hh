@@ -58,6 +58,7 @@ filteredlist(
   if(desc)       for(int i=0;i<ent_cnt;i++) free(desc[i]);\
   if(desc_local) for(int i=0;i<ent_cnt;i++) free(desc_local[i]);\
   free(desc); free(desc_local); \
+  desc = desc_local = 0; \
   free(ent_local); ent_local = 0; ent_local_cnt = 0;\
   free(ent); ent = 0; ent_cnt = 0; } while(0)
   static struct dirent **ent = 0, **ent_local = 0;

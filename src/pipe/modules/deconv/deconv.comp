@@ -14,13 +14,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint  iter_cnt;
 } params;
 
-layout( // input buffer
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output buffer
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // making this not square but off by one (to reduce bank conflicts in the y pass)
 // reduces run time from 8.5 to 8.3ms
@@ -45,7 +40,7 @@ main()
   // everybody get their texels:
   const uint idx = gl_LocalInvocationID.x + (gl_WorkGroupSize.x+1) * gl_LocalInvocationID.y;
   vec3 orig; // remember original pixel colour
-  curr[idx] = orig = texelFetch(img_in, clamp(ipos, ivec2(0), textureSize(img_in, 0)-1), 0).rgb;
+  curr[idx] = orig = max(vec3(0.0), texelFetch(img_in, clamp(ipos, ivec2(0), textureSize(img_in, 0)-1), 0).rgb);
 
   const float w = exp(-1/(2.0*params.sigma*params.sigma));
 

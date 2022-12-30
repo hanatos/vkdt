@@ -65,6 +65,7 @@ it follows the current list of available modules.
 **tone**
 
 * [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
+* [eq: local contrast equaliser](./eq/readme.md)
 * [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
 * [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
 * [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)

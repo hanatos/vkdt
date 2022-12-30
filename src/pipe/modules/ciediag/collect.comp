@@ -13,13 +13,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 ref[18];
 } params;
 
-layout( // input f16 buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output ui32 buffer rgb
-    set = 1, binding = 1, r32ui
-) uniform uimage2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1, r32ui) uniform uimage2D img_out;
 
 // histogram counter. this runs on the input dimensions
 void
@@ -43,4 +38,3 @@ main()
   ivec2 opos = clamp(ivec2(scale * xy), ivec2(0), imageSize(img_out).xy-1);
   imageAtomicAdd(img_out, opos, 1);
 }
-

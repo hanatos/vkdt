@@ -83,15 +83,18 @@ dt_filebrowser(
   ImGui::PushFont(dt_gui_imgui_get_font(2));
   ImGui::Text("%s", w->cwd);
   ImGui::PopFont();
+  ImGui::BeginChild("scroll files");
   // display list of file names
   ImGui::PushFont(dt_gui_imgui_get_font(1));
   for(int i=0;i<w->ent_cnt;i++)
   {
+    if(i == 0 && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
         w->ent[i]->d_name,
         w->ent[i]->d_type == DT_DIR ? "/":"");
     int selected = w->ent[i]->d_name == w->selected;
+    if(selected && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     int select = ImGui::Selectable(name, selected, ImGuiSelectableFlags_AllowDoubleClick|ImGuiSelectableFlags_DontClosePopups);
     select |= ImGui::IsItemFocused(); // has key/gamepad focus?
     if(select)
@@ -119,7 +122,16 @@ dt_filebrowser(
         // and then clean up the dirent cache
         dt_filebrowser_cleanup(w);
       }
+      else if(ImGui::IsKeyPressed(ImGuiKey_Backspace))
+      { // go up one dir
+        int len = strnlen(w->cwd, sizeof(w->cwd));
+        char *c = w->cwd + len;
+        *(--c) = 0;
+        while(c > w->cwd && *c != '/') *(c--) = 0;
+        dt_filebrowser_cleanup(w);
+      }
     }
   }
   ImGui::PopFont();
+  ImGui::EndChild();
 }

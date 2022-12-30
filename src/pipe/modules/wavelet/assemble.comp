@@ -38,17 +38,17 @@ main()
   // go through all levels same as downsampling would, swizzling coordinates
   // on the go as done in down.comp. then pick up the scales accordingly.
   ivec2 esi = ipos;
-  ivec2 sz = textureSize(img_s1, 0).xy + ivec2(1);
+  ivec2 sz = textureSize(img_s1, 0).xy;
 
   float mask = texelFetch(img_mask, esi, 0).r;
   vec3 down0 = texelFetch(img_s0, esi, 0).rgb;
-  esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+  esi = mix(esi/2, sz-1-esi/2, equal(esi & 1, ivec2(0)));
   vec3 down1 = texelFetch(img_s1, esi, 0).rgb;
-  esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+  esi = mix(esi/2, sz-1-esi/2, equal(esi & 1, ivec2(0)));
   vec3 down2 = texelFetch(img_s2, esi, 0).rgb;
-  esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+  esi = mix(esi/2, sz-1-esi/2, equal(esi & 1, ivec2(0)));
   vec3 down3 = texelFetch(img_s3, esi, 0).rgb;
-  esi = esi / 2 + ivec2(esi.x & 1, esi.y & 1) * sz/2;
+  esi = mix(esi/2, sz-1-esi/2, equal(esi & 1, ivec2(0)));
   vec3 down4 = texelFetch(img_s4, esi, 0).rgb;
 
   const float sigma = 1.0;

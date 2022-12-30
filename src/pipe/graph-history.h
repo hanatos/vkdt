@@ -204,3 +204,25 @@ dt_graph_history_set(
       return 1;
   return 0;
 }
+
+static inline int
+dt_module_feedback_with_history(
+    dt_graph_t *graph,
+    int m0, int c0, int m1, int c1)
+{
+  int cerr = dt_module_feedback(graph, m0, c0, m1, c1);
+  if(cerr) return cerr;
+  dt_graph_history_connection(graph, m1, c1); // history records only inputs
+  return cerr;
+}
+
+static inline int
+dt_module_connect_with_history(
+    dt_graph_t *graph,
+    int m0, int c0, int m1, int c1)
+{
+  int cerr = dt_module_connect(graph, m0, c0, m1, c1);
+  if(cerr) return cerr;
+  dt_graph_history_connection(graph, m1, c1); // history records only inputs
+  return cerr;
+}

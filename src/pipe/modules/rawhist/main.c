@@ -13,14 +13,13 @@ void modify_roi_out(
   module->connector[2].roi.full_ht =    4;
 }
 
-// XXX why do we need this and the other histogram doesn't??
 void modify_roi_in(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
-  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-  module->connector[0].roi.scale = 1.0f;
+  module->connector[1].roi.wd = module->connector[1].roi.full_wd;
+  module->connector[1].roi.ht = module->connector[1].roi.full_ht;
+  module->connector[1].roi.scale = 1.0f;
   module->connector[2].roi.wd = module->connector[2].roi.full_wd;
   module->connector[2].roi.ht = module->connector[2].roi.full_ht;
   module->connector[2].roi.scale = 1.0f;

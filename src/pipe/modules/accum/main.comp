@@ -16,17 +16,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint start;
 } params;
 
-layout( // input buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // back buffer
-    set = 1, binding = 2
-) uniform sampler2D img_back;
-
-layout( // output
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 2) uniform sampler2D img_back;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()

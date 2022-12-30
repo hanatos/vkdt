@@ -19,13 +19,18 @@ and produce all kinds of artifacts (say way out of gamut dark blue tones).
 
 to fine tune calibration or for artistic purposes, this module comes with a
 corrective radial basis function (RBF) applied after white balance and matrix
-(or clut). it allows to map arbitrary source to target points in 2d
-chromaticity space.
+(or clut). it allows to map arbitrary source to target points in 3d rec2020
+colour space.
 
 this mechanism be used to calibrate the input colour against a measured
 test chart (for instance an IT8), or for artistic colour manipulation.
 
-the chromaticity RBF operates in rec2020, normalised to r/(r+g+b) and b/(r+g+b).
+so far, the gui only allows you to change the target values, the source values
+can be filled using the colour picker (using the `import` button) and from a
+preset (see the `colourcc.pst` preset for the 24 ColorChecker patches).or, of
+course, by editing the `.cfg` file by hand, the `rbmap` parameter is a series
+of `src r:src g:src b:tgt r:tgt g:tgt b` elements, the number of source and
+target pairs is given by the `cnt` parameter.
 
 ## white balancing
 

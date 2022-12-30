@@ -2,13 +2,10 @@
 #include <math.h>
 
 void modify_roi_in(
-    dt_graph_t *graph,
+    dt_graph_t  *graph,
     dt_module_t *module)
 {
-  dt_roi_t *r = &module->connector[0].roi;
-  r->wd = r->full_wd;
-  r->ht = r->full_ht;
-  r->scale = 1.0f;
+  // don't alter the acutal input roi, we'll go with whatever comes
   module->connector[3].roi.wd = module->connector[3].roi.full_wd;
   module->connector[3].roi.ht = module->connector[3].roi.full_ht;
   module->connector[2].roi.wd = module->connector[2].roi.full_wd;
@@ -16,7 +13,7 @@ void modify_roi_in(
 }
 
 void modify_roi_out(
-    dt_graph_t *graph,
+    dt_graph_t  *graph,
     dt_module_t *module)
 {
   // always request constant size for picked colours:

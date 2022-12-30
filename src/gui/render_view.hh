@@ -19,5 +19,5 @@ void render_darkroom();
 void render_darkroom_init();
 void render_darkroom_cleanup();
 void render_nodes();
-// void render_nodes_init();
-// void render_nodes_cleanup();
+void render_nodes_init();
+void render_nodes_cleanup();

@@ -9,19 +9,28 @@ int dt_module_add(
     dt_token_t name,
     dt_token_t inst)
 {
-  // dedup if existing:
+  int modid = -1;
   for(int i=0;i<graph->num_modules;i++)
+  { // dedup if existing:
     if(graph->module[i].name == name && graph->module[i].inst == inst)
       return i;
+    if(graph->module[i].name == 0)
+    { // recycle empty/previously deleted modules
+      modid = i;
+      break;
+    }
+  }
 
   // add to graph's list
-  // make sure we have enough memory, realloc if not
-  if(graph->num_modules >= graph->max_modules-1)
-  {
-    assert(0 && "TODO: realloc module graph arrays");
-    return -1;
+  if(modid == -1)
+  { // make sure we have enough memory, realloc if not
+    if(graph->num_modules >= graph->max_modules-1)
+    {
+      assert(0 && "TODO: realloc module graph arrays");
+      return -1;
+    }
+    modid = graph->num_modules++;
   }
-  const int modid = graph->num_modules++;
 
   dt_module_t *mod = graph->module + modid;
   mod->name = name;
@@ -115,8 +124,12 @@ int dt_module_remove(
     graph->module[modid].so->cleanup(graph->module+modid);
   // disconnect all channels
   for(int c=0;c<graph->module[modid].num_connectors;c++)
-    if(dt_module_connect(graph, -1, -1, modid, c))
-      return -1;
+  {
+    if(dt_connector_input(graph->module[modid].connector+c))
+      dt_module_connect(graph, -1, -1, modid, c);
+    else
+      dt_module_connect(graph, modid, c, -1, -1);
+  }
   graph->module[modid].name = 0;
   graph->module[modid].inst = 0;
   graph->module[modid].connector[0].type = 0; // to avoid being detected as sink
@@ -158,4 +171,14 @@ int dt_module_get_module_before(const dt_graph_t *graph, const dt_module_t *us, 
   if(conn == -1) return -1;
   if(cout) *cout = us->connector[conn].connected_mc;
   return us->connector[conn].connected_mi;
+}
+
+void dt_module_reset_params(dt_module_t *mod)
+{
+  if(mod->name == 0) return; // skip deleted modules
+  for(int p=0;p<mod->so->num_params;p++)
+  {
+    dt_ui_param_t *param = mod->so->param[p];
+    memcpy(mod->param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+  }
 }

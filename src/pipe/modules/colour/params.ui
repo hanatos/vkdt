@@ -7,7 +7,7 @@ gamut:combo:no limit:limit to spectral locus:limit to rec2020:limit to rec709
 white:rgb:0:1
 mat:hidden
 group:mode:1
-cnt:slider:2:20
+cnt:slider:2:24
 rbmap:rbmap:cnt
 import:callback
 group:matrix:4

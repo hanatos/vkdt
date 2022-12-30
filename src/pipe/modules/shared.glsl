@@ -104,6 +104,12 @@ vec4 sample_semisoft(sampler2D tex, vec2 uv)
   return result / 4.0f;
 }
 
+float luminance_rec2020(vec3 rec2020)
+{
+  // excerpt from the rec2020 to xyz matrix (y channel only)
+  return dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rec2020);
+}
+
 // almost 5x5 support in 5 taps
 vec4 sample_flower(sampler2D tex, vec2 uv)
 {
@@ -114,12 +120,18 @@ vec4 sample_flower(sampler2D tex, vec2 uv)
   vec2 off1 = vec2(-0.4, 1.2);
 
   const float t = 36.0/256.0;
-  vec4 result = textureLod(tex, uv, 0) * t;
-  result += textureLod(tex, (tc + off0)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, (tc - off0)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, (tc + off1)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, (tc - off1)/texSize, 0) * (1.0-t)/4.0;
-
+  vec4 result = vec4(0);
+#define LOAD(T, W)\
+  do {\
+    vec4 v = textureLod(tex, T, 0);\
+    float l = max(v.r, max(v.g, v.b));\
+    result += vec4(W*v.rgb, W*l*l);\
+  } while(false)
+  LOAD(uv, t);
+  LOAD((tc+off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc+off1)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off1)/texSize, (1.0-t)/4.0);
   return result;
 }
 
@@ -133,19 +145,14 @@ vec4 sample_flower_adj(sampler2D tex, vec2 uv)
   vec2 off1 = vec2( 0.4,  1.2);
 
   const float t = 36.0/256.0;
-  vec4 result = textureLod(tex, uv, 0) * t;
-  result += textureLod(tex, (tc + off0)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, (tc - off0)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, (tc + off1)/texSize, 0) * (1.0-t)/4.0;
-  result += textureLod(tex, (tc - off1)/texSize, 0) * (1.0-t)/4.0;
-
+  vec4 result = vec4(0);
+  LOAD(uv, t);
+  LOAD((tc+off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc+off1)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off1)/texSize, (1.0-t)/4.0);
+#undef LOAD
   return result;
-}
-
-float luminance_rec2020(vec3 rec2020)
-{
-  // excerpt from the rec2020 to xyz matrix (y channel only)
-  return dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rec2020);
 }
 
 vec3 rec2020_to_xyY(vec3 rec2020)

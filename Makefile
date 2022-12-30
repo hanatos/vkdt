@@ -23,7 +23,7 @@ install: all
 	mkdir -p $(VKDTDIR)/modules
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	cp -rfL bin/data ${VKDTDIR}
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}

@@ -6,7 +6,6 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// global uniform stuff about image and roi
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   mat3 H;
@@ -15,14 +14,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float crop_y, crop_Y;
 } params;
 
-
-layout( // input f16 buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer rgb
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()
@@ -34,7 +27,6 @@ main()
   // this means we go through the operations in reverse order:
   // crop, rotate, perspective correction.
   vec2 ts_in  = textureSize(img_in, 0);
-  // vec2 ts_out = imageSize(img_out);
 
   vec2 xy = vec2(ipos.xy)+0.5;
 

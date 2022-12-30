@@ -11,8 +11,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4  bordercol;
   vec4  linecol;
   float border_x, border_y; // size of border
-  float linewd;             // thickness of decor line
   float pos_x, pos_y;       // alignment of image within frame
+  float linewd;             // thickness of decor line
   float linepos;
 } params;
 

@@ -301,6 +301,7 @@ dt_graph_write_module_ascii(
     char             *line,
     size_t            size)
 {
+  if(graph->module[m].name == 0) return line; // don't write removed modules
   WRITE("module:%"PRItkn":%"PRItkn"\n",
       dt_token_str(graph->module[m].name),
       dt_token_str(graph->module[m].inst));
@@ -343,6 +344,7 @@ dt_graph_write_param_ascii(
     char            **eop)
 {
   const dt_module_t *mod = graph->module + m;
+  if(mod->name == 0) return line; // don't write params for deleted module
   WRITE("param:%"PRItkn":%"PRItkn":%"PRItkn":",
       dt_token_str(mod->name),
       dt_token_str(mod->inst),

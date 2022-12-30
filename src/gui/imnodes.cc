@@ -986,6 +986,33 @@ void ClickInteractionUpdate(ImNodesEditorContext& editor)
     {
         TranslateSelectedNodes(editor);
 
+        if(editor.SelectedNodeIndices.size() == 1) for (int link_idx = 0; link_idx < editor.Links.Pool.size(); ++link_idx)
+        {
+          if (editor.Links.InUse[link_idx])
+          {
+            const ImLinkData& link = editor.Links.Pool[link_idx];
+
+            const ImPinData& pin_start = editor.Pins.Pool[link.StartPinIdx];
+            const ImPinData& pin_end = editor.Pins.Pool[link.EndPinIdx];
+            const ImRect&    node_start_rect = editor.Nodes.Pool[pin_start.ParentNodeIdx].Rect;
+            const ImRect&    node_end_rect = editor.Nodes.Pool[pin_end.ParentNodeIdx].Rect;
+
+            const ImVec2 start = GetScreenSpacePinCoordinates(
+                node_start_rect, pin_start.AttributeRect, pin_start.Type);
+            const ImVec2 end =
+              GetScreenSpacePinCoordinates(node_end_rect, pin_end.AttributeRect, pin_end.Type);
+
+            const int node_idx = editor.SelectedNodeIndices[0];
+            if (RectangleOverlapsLink(editor.Nodes.Pool[node_idx].Rect, start, end, pin_start.Type))
+            {
+              if (GImNodes->LeftMouseReleased)
+                GImNodes->NodeDropLinkIdx = link_idx;
+              else
+                GImNodes->NodeHoverLinkIdx = link_idx;
+              break; // only one link is possible
+            }
+          }
+        }
         if (GImNodes->LeftMouseReleased)
         {
             editor.ClickInteraction.Type = ImNodesClickInteractionType_None;
@@ -2219,6 +2246,8 @@ void BeginNodeEditor()
     GImNodes->HoveredPinIdx.Reset();
     GImNodes->DeletedLinkIdx.Reset();
     GImNodes->SnapLinkIdx.Reset();
+    GImNodes->NodeDropLinkIdx.Reset();
+    GImNodes->NodeHoverLinkIdx.Reset();
 
     GImNodes->NodeIndicesOverlappingWithMouse.clear();
 
@@ -3081,6 +3110,32 @@ bool IsLinkCreated(
     }
 
     return is_created;
+}
+
+bool IsLinkNodeHovered(int* const link_id)
+{
+  IM_ASSERT(GImNodes->CurrentScope == ImNodesScope_None);
+  if (GImNodes->NodeHoverLinkIdx.HasValue())
+  {
+    const ImNodesEditorContext& editor = EditorContextGet();
+    const int                   link_idx = GImNodes->NodeHoverLinkIdx.Value();
+    *link_id = editor.Links.Pool[link_idx].Id;
+    return true;
+  }
+  return false;
+}
+
+bool IsLinkNodeDropped(int* const link_id)
+{
+  IM_ASSERT(GImNodes->CurrentScope == ImNodesScope_None);
+  if(GImNodes->NodeDropLinkIdx.HasValue())
+  {
+    const ImNodesEditorContext& editor = EditorContextGet();
+    const int                   link_idx = GImNodes->NodeDropLinkIdx.Value();
+    *link_id = editor.Links.Pool[link_idx].Id;
+    return true;
+  }
+  return false;
 }
 
 bool IsLinkDestroyed(int* const link_id)

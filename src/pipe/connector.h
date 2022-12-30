@@ -117,14 +117,18 @@ dt_connector_t;
 // "templatised" connection functions for both modules and nodes
 typedef struct dt_graph_t dt_graph_t; // fwd declare
 // connect source|write (m0,c0) -> sink|read (m1,c1)
-int dt_module_connect(dt_graph_t *graph, int m0, int c0, int m1, int c1);
-int dt_node_connect(dt_graph_t *graph, int n0, int c0, int n1, int c1);
+int dt_module_connect (dt_graph_t *graph, int m0, int c0, int m1, int c1);
+int dt_module_feedback(dt_graph_t *graph, int m0, int c0, int m1, int c1);
+int dt_node_connect (dt_graph_t *graph, int n0, int c0, int n1, int c1);
 int dt_node_feedback(dt_graph_t *graph, int n0, int c0, int n1, int c1);
 
 static inline int
 dt_connected(const dt_connector_t *c)
 {
-  return c->connected_mi >= 0 && c->connected_mc >= 0;
+  if(c->type == dt_token("read") || c->type == dt_token("sink"))
+    return c->connected_mi >= 0 && c->connected_mc >= 0; // input have specific id
+  else
+    return c->connected_mi > 0; // outputs hold reference counts
 }
 
 static inline const char*
@@ -143,6 +147,7 @@ dt_connector_error_str(const int err)
     case  9: return "source does not write";
     case 10: return "channels do not match";
     case 11: return "format does not match";
+    case 12: return "connection would be cyclic";
     default: return "";
   }
 }

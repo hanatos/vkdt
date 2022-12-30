@@ -1,6 +1,6 @@
 set logging redirect on
-set logging off
-set logging on
+set logging enabled off
+set logging enabled on
 where
 echo \n=========\n\n
 info threads

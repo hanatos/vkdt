@@ -31,7 +31,7 @@ void parallel_run(uint32_t item, void *data)
   // enumerate all possible box spectra in the sense of [MacAdam 1935],
   // all wavelengths l: l0 <= l <= l1 are s(l) = 1, 0 else:
   const int iw0 = item;
-  _Atomic float *buf = data;
+  float *buf = data;
   for(int iw1=iw0+1;iw1<=incres*(max_l-2);iw1++)
   {
     const float w0 = iw0/(float)incres;
@@ -73,7 +73,7 @@ void parallel_run(uint32_t item, void *data)
       const int i = x*res+0.5f, j = y*res+0.5f;
       if(i>=0&&i<res&&j>=0&&j<res)
       {
-        _Atomic float *v = buf + 4*(j*res+i);
+        float *v = buf + 4*(j*res+i);
         // const float n = v[3];
         // const float t0 = n/(n+1.0), t1 = 1.0/(n+1.0);
         const float t0 = 0.0f, t1 = 1.0f;

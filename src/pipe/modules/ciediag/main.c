@@ -1,7 +1,15 @@
 #include "modules/api.h"
 
+void modify_roi_in(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{ // do not init [0], we'll go with whatever the other connectors may ask
+  module->connector[1].roi.wd = module->connector[1].roi.full_wd;
+  module->connector[1].roi.ht = module->connector[1].roi.full_ht;
+}
+
 void modify_roi_out(
-    dt_graph_t *graph,
+    dt_graph_t  *graph,
     dt_module_t *module)
 {
   // always request constant histogram size:
