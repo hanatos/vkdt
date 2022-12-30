@@ -595,31 +595,56 @@ inline void draw_widget(int modid, int parid)
         float oldval = *val;
         char str[10] = {0};
         memcpy(str, &param->name, 8);
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
-        if(ImGui::VSliderFloat("##v",
-              ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
-              param->widget.min, param->widget.max, ""))
-        RESETBLOCK {
-          if(io.KeyShift) // lockstep all three if shift is pressed
-            for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        KEYFRAME
-        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-          ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
+        if(count == 3)
+        { // assume rgb vsliders
+          ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
+          ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
+          ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
+          ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
+          if(ImGui::VSliderFloat("##v",
+                ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
+                param->widget.min, param->widget.max, ""))
+          RESETBLOCK {
+            if(io.KeyShift) // lockstep all three if shift is pressed
+              for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
+            dt_graph_run_t flags = s_graph_run_none;
+            if(vkdt.graph_dev.module[modid].so->check_params)
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+            vkdt.graph_dev.active_module = modid;
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
+          KEYFRAME
+          if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
 
-        ImGui::PopStyleColor(4);
-        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-            num < count - 1) ImGui::SameLine();
+          ImGui::PopStyleColor(4);
+          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+              num < count - 1) ImGui::SameLine();
+        }
+        else
+        {
+          if(ImGui::VSliderFloat("##v",
+                ImVec2(vkdt.state.panel_wd / (count+1.0), vkdt.state.panel_ht * 0.2), val,
+                param->widget.min, param->widget.max, ""))
+          RESETBLOCK {
+            if(io.KeyShift) // lockstep all three if shift is pressed
+              for(int k=0;k<count;k++) val[k-num] = val[0];
+            dt_graph_run_t flags = s_graph_run_none;
+            if(vkdt.graph_dev.module[modid].so->check_params)
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+            vkdt.graph_dev.active_module = modid;
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
+          KEYFRAME
+          TOOLTIP
+
+          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+              num < count - 1) ImGui::SameLine();
+        }
       }
       break;
     }
