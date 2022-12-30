@@ -11,13 +11,8 @@ layout(push_constant, std140) uniform push_t
   uint filters;
 } push;
 
-layout( // input uint16 buffer rggb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer y
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()

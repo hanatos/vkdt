@@ -54,18 +54,13 @@ main()
   // only one special case: do we have coarse or not (detect using scale):
   vec2 coff = vec2(0);
   if(push.scale > 0)
-    // coff = sample_soft(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
     coff = texture(img_coff, (ipos+.5)/vec2(push.scale*textureSize(img_coff, 0))).rg * push.scale;
-    // coff = texelFetch(img_coff, ivec2(ipos*vec2(textureSize(img_coff, 0))/vec2(imageSize(img_out))+0.5), 0).rg * push.scale;
-    // coff = texelFetch(img_coff, ivec2(ipos/push.scale), 0).rg * push.scale;
 
   vec4 res1 = vec4(0, 0, 6500000, 1);
 
   float dist[25];
   int bi = 0;
   for(int i=0;i<25;i++)
-    // dist[i] = sample_soft(img_dist[i], (ipos+.5)/vec2(imageSize(img_out))).r;
-    // dist[i] = textureLod(img_dist[i], (ipos+.5)/vec2(imageSize(img_out)), 0).r;
     dist[i] = texelFetch(img_dist[i], ipos, 0).r;
   for(int i=0;i<25;i++)
     if(dist[i] < dist[bi]) bi = i;

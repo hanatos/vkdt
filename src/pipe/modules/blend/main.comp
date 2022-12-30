@@ -39,32 +39,6 @@ layout( // output
     set = 1, binding = 3
 ) uniform writeonly image2D img_out;
 
-// return (mu, sigma2) of local x-trans environment
-vec2 gauss_xtrans(ivec2 pos)
-{
-  // rgb from pattern:
-  bool blue_top = ((pos.x/3 + pos.y/3) & 1) > 0;
-  pos = (pos/3)*3; // start of block pattern
-
-  float mom1 = 0.0f, mom2 = 0.0f;
-#define ADD(x, y)\
-  {\
-    float g = texelFetch(img_top, pos + ivec2(x, y), 0).r;\
-    mom1 += g;\
-    mom2 += g * g;\
-  }
-  ADD(0,0)
-  ADD(2,0)
-  ADD(1,1)
-  ADD(0,2)
-  ADD(2,2)
-#undef ADD
-  mom1 /= 5.0;
-  mom2 /= 5.0;
-
-  return vec2(mom1, max(0, mom2 - mom2*mom1));
-}
-
 void
 main()
 {
@@ -84,7 +58,6 @@ main()
   }
   else
   {
-#if 1 // switch this off to see unshielded warping:
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
     // this works best for real time anti aliasing, since it will increase
@@ -107,29 +80,8 @@ main()
     vec3 sigma = sqrt(s2);
     const float thresh = params.taa_thrs;// * mask;
     bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
-    // s2 *= thresh*thresh;
-    // bck = mix(rgb, bck, exp(-dot((bck-rgb)/s2,(bck-rgb)/s2)));
     rgb = mix(rgb, bck, params.opacity);
-#endif
-    // rgb = (global.frame * bck + rgb)/(global.frame+1);
   }
-#if 0
-  if(false)//else
-  { // photography version.
-    // too high values (allow too much input) gives weird colour cast
-    float sigma2 = params.noise_a + 65535.0*max(0, rgb.r - params.black)*params.noise_b;
-    // increase for flat areas:
-    // TODO: fix for bayer:
-    vec2 dist = vec2(1.0);
-    if(params.filters == 9)
-      dist = gauss_xtrans(ipos); // how flat is the area we're looking at?
-    // detect flat by comparing sigma2 (noise model) and dist.y (local surroundings)
-    float f = 10*clamp(sigma2 / dist.y, 1.0, 4.0);
-    sigma2 *= f;
-    t *= clamp(exp(-0.5*(rgb.r - bck.r)*(rgb.r - bck.r) / sigma2), 0, 1);
-    rgb = mix(rgb, bck, t);
-  }
-#endif
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

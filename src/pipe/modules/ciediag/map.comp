@@ -13,13 +13,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 ref[18];
 } params;
 
-layout( // input ui32 buffer r
-    set = 1, binding = 0
-) uniform usampler2D img_in;
-
-layout( // output f16 buffer rgba
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform usampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // display histogram, runs on output dimensions==input
 void
@@ -30,7 +25,6 @@ main()
 
   uint cnt = texelFetch(img_in, ipos, 0).r;
   vec3 rgb = vec3(cnt/100.0);
-  // rgb = pow(rgb, vec3(2.3));
   vec2 xy = ipos.xy / vec2(imageSize(img_out));
   xy.y = 1.0-xy.y;
   // draw anti aliased lines through illum E and the tangent at the red/orange side for orientation
@@ -63,47 +57,6 @@ main()
   if(all(greaterThan(xyz_to_rec2020 * xyz, vec3(0.0)))) rgb = max(rgb, vec3(0.01));
   if(all(greaterThan(xyz_to_rec709  * xyz, vec3(0.0)))) rgb = max(rgb, vec3(0.03));
 
-#if 0
-  { // planckian locus 3000 - 50000
-    const float A0 = -949.86315, A1 = 6253.80338, A2 = 28.70599, A3 = 0.00004;
-    const float t1 = 0.92159, t2 = 0.20039, t3 = 0.07125;
-    const float xe = 0.3366, ye = 0.1735;
-    // 50000 --
-    // const float A0 = 36284.48953, A1 = 0.00228, A2 = 5.4535e-36;
-    // const float t1 = 0.07861, t2 = 0.01543;
-    // const float xe = 0.3356, ye = 0.1691;
-    const float n = (xy.x - xe) / (xy.y - ye);
-    const float CCT = A0 + A1 * exp(-n/t1) + A2 * exp(-n/t2) + A3 * exp(-n/t3);
-
-    // now compute xy chromaticity that goes with it
-    const vec4 c0x = vec4(-3.0258469e9,  2.1070379e6, 0.2226347e3, 0.240390); // 4000-25000
-    const vec4 c1x = vec4(-0.2661239e9, -0.2343589e6, 0.8776956e3, 0.179910); // 1667-4000
-    const vec4 c0y = vec4( 3.0817580, -5.87338670, 3.75112997, -0.37001483);
-    const vec4 c1y = vec4(-0.9549476, -1.37418593, 2.09137015, -0.16748867);
-    const vec4 c2y = vec4(-1.1063814, -1.34811020, 2.18555832, -0.20219683);
-    vec4 cx, cy;
-    if(CCT > 4000)
-    {
-      cx = c0x;
-      cy = c0y;
-    }
-    else if(CCT > 2222)
-    {
-      cx = c1x;
-      cy = c1y;
-    }
-    else
-    {
-      cx = c1x;
-      cy = c2y;
-    }
-
-    const float xc = cx.x/(CCT*CCT*CCT) + cx.y/(CCT*CCT) + cx.z/CCT + cx.w;
-    const float yc = cy.x*xc*xc*xc + cy.y*xc*xc + cy.z*xc + cy.w;
-    d = distance(xy, vec2(xc, yc));
-    rgb.g = max(rgb.g, 0.9 * smoothstep(t, 0.0, d));
-  }
-#endif
   if(xy.x <= 0.65 && xy.x >= 0.25)
   { // planckian locus, manual fit
     const vec4 cf = vec4(0.157127, -3.10907, 2.95381, -0.300549);

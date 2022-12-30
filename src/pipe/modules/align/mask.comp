@@ -18,23 +18,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   // blur0--3 to follow here but we don't care
 } params;
 
-// layout(push_constant, std140) uniform push_t { } push;
-
-layout( // input buffer
-    set = 1, binding = 0
-) uniform sampler2D img_dst;
-
-layout( // input to-be-warped buffer
-    set = 1, binding = 1
-) uniform sampler2D img_src;
-
-layout( // input buffer warp offsets
-    set = 1, binding = 2
-) uniform sampler2D img_off;
-
-layout( // output mask
-    set = 1, binding = 3
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_dst;
+layout(set = 1, binding = 1) uniform sampler2D img_src;
+layout(set = 1, binding = 2) uniform sampler2D img_off;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
 
 void
 main()

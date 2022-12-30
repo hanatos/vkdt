@@ -6,13 +6,8 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout( // input buffer, grey scale
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output buffer grey scale
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // output grey scale image downsized 4x4
 void
@@ -21,75 +16,14 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-#if 0 // fake edge aware
-  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
-  vec2 sz = vec2(textureSize(img_in, 0).xy);
-  ivec2 ipos = 4*opos;
-
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  vec3 sum = t * rgb;
-  float wgt = t;
-  vec3 wc = 1000.*vec3(1.0, 1.0, 1.0);
-
-#define lookup(O) \
-  do { \
-  vec3 col = texture(img_in, (ipos + O)/vec2(sz)).rgb; \
-  float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; \
-  sum += w * col; \
-  wgt += w; \
-  } while(false)
-
-  lookup(vec2(0.5 + 1.2, 0.5 + 0.4));
-  lookup(vec2(0.5 - 1.2, 0.5 - 0.4));
-  lookup(vec2(0.5 + 0.4, 0.5 - 1.2));
-  lookup(vec2(0.5 - 0.4, 0.5 + 1.2));
-
-  rgb = sum / wgt;
-  float c = rgb.r;
-#undef lookup
-#else
-
-#if 0
-  // 16 expensive smooth lookups
-  float c = 0;
-  c += sample_soft(img_in, (4*opos+vec2(0.0, 0.0)+0.5)/vec2(textureSize(img_in, 0))).r;
-  c += sample_soft(img_in, (4*opos+vec2(0.0, 2.0)+0.5)/vec2(textureSize(img_in, 0))).r;
-  c += sample_soft(img_in, (4*opos+vec2(2.0, 0.0)+0.5)/vec2(textureSize(img_in, 0))).r;
-  c += sample_soft(img_in, (4*opos+vec2(2.0, 2.0)+0.5)/vec2(textureSize(img_in, 0))).r;
-#else
-
-#if 0 // wavelet style flower filter
-  vec2 sz = vec2(textureSize(img_in, 0).xy);
-  const float t = 36.0/256.0; // preserve weight of center pixel, we're leaving away 8 samples in the boundary of the support.
-  ivec2 ipos = 4*opos;
-  float c = texelFetch(img_in, ipos, 0).r * t;
-  c += texture(img_in, (ipos + vec2(0.5 + 1.2, 0.5 + 0.4))/sz).r / 4.0 * (1.0-t);
-  c += texture(img_in, (ipos + vec2(0.5 - 1.2, 0.5 - 0.4))/sz).r / 4.0 * (1.0-t);
-  c += texture(img_in, (ipos + vec2(0.5 + 0.4, 0.5 - 1.2))/sz).r / 4.0 * (1.0-t);
-  c += texture(img_in, (ipos + vec2(0.5 - 0.4, 0.5 + 1.2))/sz).r / 4.0 * (1.0-t);
-#else // box filter equal weight
   vec4 c0 = textureGather(img_in, (4*opos+vec2(0.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c1 = textureGather(img_in, (4*opos+vec2(0.0, 2.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c2 = textureGather(img_in, (4*opos+vec2(2.0, 0.0))/vec2(textureSize(img_in, 0)), 0);
   vec4 c3 = textureGather(img_in, (4*opos+vec2(2.0, 2.0))/vec2(textureSize(img_in, 0)), 0);
-
   float c =
    (c0.x+c0.y+c0.z+c0.w+
     c1.x+c1.y+c1.z+c1.w+
     c2.x+c2.y+c2.z+c2.w+
     c3.x+c3.y+c3.z+c3.w) / 16.0;
-
-#if 0 // min or max pooling to make sure extreme features do propagate up. sometimes better, sometimes worse.
-  vec4 cm = min(min(c0, c1), min(c2, c3));
-  float m = min(min(cm.x, cm.y), min(cm.z, cm.w));
-  vec4 cM = max(max(c0, c1), max(c2, c3));
-  float M = max(max(cM.x, cM.y), max(cM.z, cM.w));
-  if(abs(c-M) < abs(c-m)) c = M;
-  else c = m;
-#endif
-#endif
-#endif
-#endif
-
   imageStore(img_out, opos, vec4(vec3(c), 1));
 }

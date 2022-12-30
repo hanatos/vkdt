@@ -14,13 +14,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint  iter_cnt;
 } params;
 
-layout( // input buffer
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output buffer
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // making this not square but off by one (to reduce bank conflicts in the y pass)
 // reduces run time from 8.5 to 8.3ms

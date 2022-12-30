@@ -13,13 +13,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 
-layout( // input
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()
@@ -33,10 +28,10 @@ main()
   if(params.gamut == 3)
   { // if rec709 mode: convert via matrix
     const mat3 M = mat3(
-         1.66022677, -0.58754761, -0.07283825,
-        -0.12455334,  1.13292605, -0.00834963,
-        -0.01815514, -0.10060303,  1.11899817);
-    rgbc *= M;
+         1.66022677, -0.12455334, -0.01815514,
+        -0.58754761,  1.13292605, -0.10060303,
+        -0.07283825, -0.00834963,  1.11899817);
+    rgb = M * rgb;
   }
 
   if((params.mode & 1) > 0 && (params.gamut == 2 || params.gamut == 3))
