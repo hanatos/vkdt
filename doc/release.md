@@ -1,6 +1,7 @@
 # release procedure
 
 this document lists relevant steps in the release procedure.
+action items are labelled (a)..(f).
 
 ## release branch
 
@@ -9,8 +10,13 @@ contain tags for point releases `0.5.0` and `0.5.1` etc.
 the `master` branch will carry on with new features and eventually become the
 next release branch.
 
-remove useless/half broken/unfinished/stuff we don't want to maintain like
-this in the future: simply delete module directory.
+(a) remove useless/half broken/unfinished/stuff we don't want to maintain like
+this in the future: simply delete module directory:
+```
+cnn       (will ship better version)
+i-quake   (will ship better version)
+saturate  (superseded by colour)
+```
 
 ## submodules
 
@@ -25,14 +31,14 @@ will be exported by `make release`.
 `src/core/version.h` depends on `.git/FETCH_HEAD` if present.
 
 to generate it for local testing purposes without pushing the tag
-to the public repository,
+to the public repository, (b)
 ```
 git tag -a '0.5.0'
 git push dreggn 0.5.0
 git fetch --all
 ```
 
-and for paranoia:
+and for paranoia (c):
 
 ```
 make src/core/version.h
@@ -41,16 +47,18 @@ cat src/core/version.h
 
 ## create tarball
 
-`make release` and test in `/tmp`
+(d) `make release` and (e) test in `/tmp`
 
 ## upload
+
+(f)
 
 * changelog
 * acks
 * checksum
 * sign the tag
 
-# changelog
+### current changelog
 
 this is the first release of `vkdt`. the project has been under development for
 quite some years and so this is by no means a 'release early' kind of release.
@@ -61,8 +69,7 @@ since there is no previous version, here are a few noteworthy features of this r
 * video support (both ldr `.mov` and raw `.mlv`)
 * timelapse support
 * keyframe support for majority of parameters
-* 3d rendering (quake!)
-* support spectral input profiles
+* support spectral input profiles and dcp
 * drawn masks with pentablet support
 * flexible metadata display
 * script to create css/html only web gallery
