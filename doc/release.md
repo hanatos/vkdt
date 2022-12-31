@@ -1,7 +1,7 @@
 # release procedure
 
 this document lists relevant steps in the release procedure.
-action items are labelled (a)..(f).
+action items are labelled (a)..(h).
 
 ## release branch
 
@@ -28,9 +28,9 @@ will be exported by `make release`.
 to generate it for local testing purposes without pushing the tag
 to the public repository, (b)
 ```
-git tag -a '0.5.0'
+git tag -s '0.5.0' -m "this is release 0.5.0"
 git push dreggn 0.5.0
-git fetch --all
+git fetch --all --tags
 ```
 
 and for paranoia (c):
@@ -56,11 +56,16 @@ DESTDIR=/tmp/testrel make install
 
 ## upload
 
-(f)
+(e) push to public: `git push origin 0.5.0 release-0.5`
+
+(g) sign the tarball:
+`gpg -u jo@dreggn.org --detach-sign vkdt-0.5.0.tar.xz`
+
+(h) github release announcement
 
 * changelog
 * acks
-* checksum
+* checksum + dsc
 * sign the tag
 
 ### current changelog
@@ -80,3 +85,9 @@ since there is no previous version, here are a few noteworthy features of this r
 * script to create css/html only web gallery
 * cr3 support via rawspeed
 * multi-frame image alignment
+
+## diverge branches
+
+on the master branch, delete the changelog (to be filled with new features which
+will also only be pushed to this branch). the release branch will be used for
+bugfix/pointreleases.
