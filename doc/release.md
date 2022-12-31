@@ -9,6 +9,9 @@ contain tags for point releases `0.5.0` and `0.5.1` etc.
 the `master` branch will carry on with new features and eventually become the
 next release branch.
 
+remove useless/half broken/unfinished/stuff we don't want to maintain like
+this in the future: simply delete module directory.
+
 ## submodules
 
 will be exported by `make release`.
