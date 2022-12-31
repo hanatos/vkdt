@@ -11,12 +11,7 @@ the `master` branch will carry on with new features and eventually become the
 next release branch.
 
 (a) remove useless/half broken/unfinished/stuff we don't want to maintain like
-this in the future: simply delete module directory:
-```
-cnn       (will ship better version)
-i-quake   (will ship better version)
-saturate  (superseded by colour)
-```
+this in the future: simply delete module directory
 
 ## submodules
 
@@ -41,13 +36,23 @@ git fetch --all
 and for paranoia (c):
 
 ```
+touch .git/FETCH_HEAD
 make src/core/version.h
 cat src/core/version.h
 ```
 
 ## create tarball
 
-(d) `make release` and (e) test in `/tmp`
+(d) `make release` and (e) test in `/tmp`:
+
+```
+cd /tmp
+tar xvJf vkdt-0.5.0.tar.xz
+cd vkdt-0.5.0/
+make -j20
+DESTDIR=/tmp/testrel make install
+/tmp/testrel/usr/bin/vkdt
+```
 
 ## upload
 
