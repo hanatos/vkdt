@@ -35,7 +35,8 @@ main()
 
   // grab x position and find corresponding in input buffer
   float x = float(x_min) + float(x_max - x_min) * float(ipos.x) / float(imageSize(img_out).x);
-  float cnt  = texelFetch(img_in, ivec2(x, 0), 0).r;
+  float cnt  = texelFetch(img_in, ivec2(x, 4), 0).r;
+  float cnt2 = texelFetch(img_in, ivec2(x, 0), 0).r;
   float mean = texelFetch(img_in, ivec2(x, 1), 0).r;
   float mom2 = texelFetch(img_in, ivec2(x, 2), 0).r;
   float var = mom2/cnt - mean/cnt*mean/cnt;
@@ -53,7 +54,7 @@ main()
   float fit = params.c + params.dx * linear_x;
   if(abs(y - log2(var) * c1) < 0.015)
     rgb = .5*(rgb + col_var);
-  if(y < log2(cnt) * c2)
+  if(y < log2(cnt2) * c2)
     rgb += col_cnt;
   if(abs(y - log2(fit) * c1) < 0.005)
     rgb += smoothstep(0.0, 1.0, 1.0-abs(y - log2(fit) * c1)/0.005);
