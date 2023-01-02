@@ -10,7 +10,7 @@ void modify_roi_out(
   module->connector[1].roi.full_wd = 1000;
   module->connector[1].roi.full_ht =  600;
   module->connector[2].roi.full_wd = 1000;
-  module->connector[2].roi.full_ht =    4;
+  module->connector[2].roi.full_ht =    5;
 }
 
 void modify_roi_in(
