@@ -108,8 +108,11 @@ void modify_roi_out(
   }
   lutinput_buf_t *lut = mod->data;
   // adjust output connector channels:
-  if(lut->header.channels == 2) mod->connector[0].chan = dt_token("rg");
-  if(lut->header.channels == 4) mod->connector[0].chan = dt_token("rgba");
+  if(lut->header.channels == 1)
+    if(mod->connector[0].chan != dt_token("ssbo"))
+        mod->connector[0].chan = dt_token("r");
+  if(lut->header.channels == 2) mod->connector[0].chan   = dt_token("rg");
+  if(lut->header.channels == 4) mod->connector[0].chan   = dt_token("rgba");
   if(lut->header.datatype == 0) mod->connector[0].format = dt_token("f16");
   if(lut->header.datatype == 1) mod->connector[0].format = dt_token("f32");
   mod->connector[0].roi.full_wd = lut->header.wd;
