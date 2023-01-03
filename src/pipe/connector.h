@@ -163,7 +163,7 @@ do { \
 #endif
 
 static inline size_t
-dt_connector_bytes_per_pixel(const dt_connector_t *c)
+dt_connector_bytes_per_channel(const dt_connector_t *c)
 {
   if(c->format == dt_token("ui32")) return 4;
   if(c->format == dt_token("f32"))  return 4;
@@ -194,6 +194,6 @@ dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
   if(c->format == dt_token("yuv")) return wd*ht * 2; // XXX ??? * 2/3 is not enough here.
   if(c->format == dt_token("geo")) return 14*sizeof(int16_t)*ht/3; // 14 values per triangle
   const int numc = dt_connector_channels(c);
-  const size_t bpp = dt_connector_bytes_per_pixel(c);
+  const size_t bpp = dt_connector_bytes_per_channel(c);
   return numc * bpp * wd * ht;
 }
