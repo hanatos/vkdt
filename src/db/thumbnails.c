@@ -240,7 +240,10 @@ dt_thumbnails_cache_one(
     tcfg = statbuf.st_mtim.tv_sec;
   else
   {
-    if(!stat(deffilename, &statbuf))
+    char tmp[PATH_MAX];
+    if(snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, deffilename) >= PATH_MAX)
+      return VK_INCOMPLETE;
+    if(!stat(tmp, &statbuf))
       tcfg = statbuf.st_mtim.tv_sec;
     else return VK_INCOMPLETE;
   }
