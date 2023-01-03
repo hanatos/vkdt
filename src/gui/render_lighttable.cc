@@ -327,11 +327,13 @@ void render_lighttable_right_panel()
     {
       vkdt.db.collection_sort = static_cast<dt_db_property_t>(sort_prop);
       dt_db_update_collection(&vkdt.db);
+      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
     if(ImGui::Combo("filter", &filter_prop, dt_db_property_text))
     {
       vkdt.db.collection_filter = static_cast<dt_db_property_t>(filter_prop);
       dt_db_update_collection(&vkdt.db);
+      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
     int filter_val = static_cast<int>(vkdt.db.collection_filter_val);
     if(filter_prop == s_prop_labels)
@@ -354,6 +356,7 @@ void render_lighttable_right_panel()
           filter_val ^= (1<<k);
           vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
           dt_db_update_collection(&vkdt.db);
+          dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
         }
         if(k<4) ImGui::SameLine();
         ImGui::PopStyleColor(2);
@@ -367,6 +370,7 @@ void render_lighttable_right_panel()
       {
         vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
         dt_db_update_collection(&vkdt.db);
+        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
     }
 

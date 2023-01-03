@@ -427,9 +427,8 @@ dt_thumbnails_load_list(
     uint32_t         beg,
     uint32_t         end)
 {
-  // for all images in given collection
   for(int k=beg;k<end;k++)
-  {
+  { // for all images in given collection
     const uint32_t imgid = collection[k];
     if(imgid >= db->image_cnt) break; // safety first. this probably means this job is stale! big danger!
     dt_image_t *img = db->image + imgid;
