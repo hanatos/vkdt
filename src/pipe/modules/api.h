@@ -5,6 +5,7 @@
 #include "pipe/modules/localsize.h"
 
 #include <math.h>
+#include <stdarg.h>
 
 // some module specific helpers and constants
 
@@ -106,6 +107,69 @@ dt_connector_bypass(
   c_out->bypass_mc = mc_in;
   c_in->bypass_mi  = module - graph->module;
   c_in->bypass_mc  = mc_out;
+}
+
+// convenience function to add a new node to the graph.
+// will return nodeid or -1 on failure
+static inline int
+dt_node_add(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    const char  *name,    // module name, i.e. directory of shader
+    const char  *kernel,  // file name of compute shader
+    const int    wd,      // dimensions of the shader execution (will be divided by DT_LOCAL_SIZE_[XY] for workgroup numbers
+    const int    ht,
+    const int    dp,
+    const int    pc_size, // byte size of push constants
+    const int   *pc,      // push constants, cast to int*
+    const int    nc,      // number of connectors
+    ...)                  // info about the connectors: 4x char*:(name, type, chan, format) and one dt_roi_t*
+{
+  if(graph->num_nodes >= graph->max_nodes) return -1;
+  const int id = graph->num_nodes++;
+  graph->node[id] = (dt_node_t) {
+    .name   = dt_token(name),
+    .kernel = dt_token(kernel),
+    .module = module,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
+    .num_connectors     = nc,
+    .push_constant_size = pc_size,
+  };
+  memcpy(graph->node[id].push_constant, pc, pc_size);
+  va_list args;
+  va_start(args, nc);
+  for(int c=0;c<nc;c++)
+  {
+    graph->node[id].connector[c].name   = dt_token(va_arg(args, char*));
+    graph->node[id].connector[c].type   = dt_token(va_arg(args, char*));
+    graph->node[id].connector[c].chan   = dt_token(va_arg(args, char*));
+    graph->node[id].connector[c].format = dt_token(va_arg(args, char*));
+    graph->node[id].connector[c].roi    = *va_arg(args, dt_roi_t*);
+    if(dt_connector_input(graph->node[id].connector+c))
+      graph->node[id].connector[c].connected_mi = -1; // mark input as disconnected
+  }
+  va_end(args);
+}
+
+// connect two nodes id0->id1 by named connectors
+static inline int
+dt_node_connect_named(
+    dt_graph_t *graph,
+    const int   id0,
+    const char *c0,
+    const int   id1,
+    const char *c1)
+{
+  int c0i = -1, c1i = -1;
+  const dt_token_t c0t = dt_token(c0), c1t = dt_token(c1);
+  for(int c=0;c<graph->node[id0].num_connectors;c++)
+    if(graph->node[id0].connector[c].name == c0t) { c0i = c; break; }
+  for(int c=0;c<graph->node[id1].num_connectors;c++)
+    if(graph->node[id1].connector[c].name == c1t) { c1i = c; break; }
+  if(c0i < 0 || c1i < 0) return -100;
+  return dt_node_connect(graph, id0, c0i, id1, c1i);
 }
 
 static inline uint32_t
