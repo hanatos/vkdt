@@ -219,7 +219,7 @@ void render_nodes_right_panel()
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      if(ImGui::IsItemHovered())
+      if(mod->so->has_inout_chain && ImGui::IsItemHovered())
         ImGui::SetTooltip(mod->disabled ? "re-enable this module" :
             "temporarily disable this module without disconnecting it from the graph.\n"
             "this is just a convenience A/B switch in the ui and will not affect your\n"
