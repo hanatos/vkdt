@@ -58,3 +58,8 @@ and profiling the raw raw data has the advantage that *black stripes* outside
 the crop window contribute to a good estimate of the gaussian portion. as a
 result i could pretty much use any shot i wanted to denoise out of the box for
 single-shot noise profiling, without the need for dedicated profiling shots.
+
+## contributing noise profiles
+
+if you created a good profile for your camera and want to share with others,
+please submit a pull request to [the `camconst` data repository](https://github.com/hanatos/vkdt-camconst)!
