@@ -16,72 +16,17 @@ create_nodes(
   {
     roic.wd = (roif.wd+1)/2;
     roic.ht = (roif.ht+1)/2;
-    assert(graph->num_nodes < graph->max_nodes);
-    id_down[l] = graph->num_nodes++;
-    graph->node[id_down[l]] = (dt_node_t) {
-      .name   = dt_token("eq"),
-      .kernel = dt_token("down"),
-      .module = module,
-      .wd     = roic.wd,
-      .ht     = roic.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roif,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roic,
-      }},
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    id_up[l] = graph->num_nodes++;
-    graph->node[id_up[l]] = (dt_node_t) {
-      .name   = dt_token("eq"),
-      .kernel = dt_token("up"),
-      .module = module,
-      .wd     = roif.wd,
-      .ht     = roif.ht,
-      .dp     = 1,
-      .num_connectors = 4,
-      .connector = {{
-        .name   = dt_token("coarse0"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roic,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("coarse1"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roic,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("fine"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roif,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = roif,
-      }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { l + loff },
-    };
+    id_down[l] = dt_node_add(graph, module, "eq", "down",
+        roic.wd, roic.ht, 1, 0, 0, 2,
+        "input",  "read",  "rgba", "f16", &roif,
+        "output", "write", "rgba", "f16", &roic);
+    int32_t pc[] = { l + loff };
+    id_up[l] = dt_node_add(graph, module, "eq", "up",
+        roif.wd, roif.ht, 1, sizeof(int32_t), pc, 4,
+        "coarse0", "read",  "rgba", "f16", &roic,
+        "coarse1", "read",  "rgba", "f16", &roic,
+        "fine",    "read",  "rgba", "f16", &roif,
+        "output",  "write", "rgba", "f16", &roif);
     roif = roic;
   }
   dt_connector_copy(graph, module, 0, id_down[0], 0);
