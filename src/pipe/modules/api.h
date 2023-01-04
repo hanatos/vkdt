@@ -137,16 +137,19 @@ dt_node_add(
     .num_connectors     = nc,
     .push_constant_size = pc_size,
   };
-  memcpy(graph->node[id].push_constant, pc, pc_size);
+  if(pc) memcpy(graph->node[id].push_constant, pc, pc_size);
   va_list args;
   va_start(args, nc);
   for(int c=0;c<nc;c++)
   {
-    graph->node[id].connector[c].name   = dt_token(va_arg(args, char*));
-    graph->node[id].connector[c].type   = dt_token(va_arg(args, char*));
-    graph->node[id].connector[c].chan   = dt_token(va_arg(args, char*));
-    graph->node[id].connector[c].format = dt_token(va_arg(args, char*));
-    graph->node[id].connector[c].roi    = *va_arg(args, dt_roi_t*);
+    const char *tmp0 = va_arg(args, const char*), *tmp1 = va_arg(args, const char*);
+    const char *tmp2 = va_arg(args, const char*), *tmp3 = va_arg(args, const char*);
+    dt_roi_t *roi = va_arg(args, dt_roi_t*);
+    graph->node[id].connector[c].name   = dt_token(tmp0);
+    graph->node[id].connector[c].type   = dt_token(tmp1);
+    graph->node[id].connector[c].chan   = dt_token(tmp2);
+    graph->node[id].connector[c].format = dt_token(tmp3);
+    graph->node[id].connector[c].roi    = *roi;
     if(dt_connector_input(graph->node[id].connector+c))
       graph->node[id].connector[c].connected_mi = -1; // mark input as disconnected
   }
