@@ -27,7 +27,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#ifndef NDEBUG
+#ifdef __linux__
 #include <execinfo.h>
+#endif
+#endif
 
 qvk_t qvk =
 {
@@ -89,12 +93,14 @@ vk_debug_callback(
   if(strncmp(callback_data->pMessage, "Device Extension", sizeof(*"Device Extension"))) // avoid excessive spam
   dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
 #ifndef NDEBUG
+#ifdef __linux__
   if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
     // assert(0);
   }
+#endif
 #endif
   return VK_FALSE;
 }
