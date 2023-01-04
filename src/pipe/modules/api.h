@@ -151,6 +151,7 @@ dt_node_add(
       graph->node[id].connector[c].connected_mi = -1; // mark input as disconnected
   }
   va_end(args);
+  return id;
 }
 
 // connect two nodes id0->id1 by named connectors
