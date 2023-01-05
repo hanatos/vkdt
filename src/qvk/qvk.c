@@ -408,8 +408,6 @@ QVK_FEATURE_DO(inheritedQueries, 1)
           qvk.raytracing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME))
           qvk.float_atomics_supported = 1;
-      if(dev_properties.vendorID == 0x1002) // this is AMD
-        qvk.float_atomics_supported = 0;    // it seems they lie to us about support.
       picked_device = i;
       if(preferred_device_name)
         dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);
