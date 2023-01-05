@@ -17,7 +17,7 @@
 // - optimiser: gauss/newton adam nelder/mead
 // - parameter: number of iterations
 static int num_it        = 300;
-static int num_epochs    = 30;
+static int num_epochs    = 15;
 static int cfa_model     = 2;          // default to gauss
 static int cfa_num_coeff = 20;
 static double cfa_param[3*36] = {0.1}; // init to something. zero has zero derivatives and is thus bad.
