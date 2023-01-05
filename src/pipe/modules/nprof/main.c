@@ -23,8 +23,8 @@ void write_sink(
     dt_module_t *module,
     void *buf)
 {
-  // read back uint32_t buffer, fit line to noise, output param a and param b to file with our maker model iso:
-  uint32_t *p32 = buf;
+  // read back buffer, fit line to noise, output param a and param b to file with our maker model iso:
+  float *p32 = buf;
 
   const int wd = module->connector[0].roi.wd;
   // const int ht = module->connector[0].roi.ht; == 5
@@ -48,7 +48,7 @@ void write_sink(
         // model is to be applied to uint16_t range x that have the black level
         // subtracted, but have not been rescaled to white. make
         // sure a and b are positive, reject sample otherwise
-        double c  = p32[i + 4*wd];
+        double c  = p32[i + 0*wd];
         if(c < fk*64) continue;
         double m1 = p32[i + 1*wd];
         double m2 = p32[i + 2*wd];
@@ -56,7 +56,7 @@ void write_sink(
         double x1 = m1/c - bk;
         double y1 = m2/c - (m1/c)*(m1/c);
 
-        c  = p32[j + 4*wd];
+        c  = p32[j + 0*wd];
         if(c < fk*64) continue;
         m1 = p32[j + 1*wd];
         m2 = p32[j + 2*wd];
@@ -97,7 +97,7 @@ void write_sink(
   for(int ii=0;ii<valid_cnt;ii++)
   {
     int i = valid[ii];
-    double c  = p32[i + 4*wd];
+    double c  = p32[i + 0*wd];
     // brightness from bin index:
     // double x = exp2((i / (double)wd * (white - black) + black) * 16.0) - module->img_param.black[1];
     double m1 = p32[i + 1*wd];

@@ -16,7 +16,19 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_in;
-layout(set = 1, binding = 1, r32f) uniform image2D img_out;
+layout(set = 1, binding = 1, r32ui) uniform uimage2D img_out;
+
+void imgAtomicAdd(ivec2 tc, float a)
+{ // for amd. ouch, this is going to be slow
+  bool done = false;
+  while(!done)
+  {
+    uint val = imageLoad(img_out, tc).r;
+    uint nvl = floatBitsToUint(uintBitsToFloat(val)+a);
+    uint ovl = imageAtomicCompSwap(img_out, tc, val, nvl);
+    done = (ovl == val);
+  }
+}
 
 // histogram counter. this runs on the input dimensions/block size
 void
@@ -64,8 +76,8 @@ main()
 #endif
   }
 
-  imageAtomicAdd(img_out, ivec2(x, 0), 1);
-  imageAtomicAdd(img_out, ivec2(x, 1), mean);
-  imageAtomicAdd(img_out, ivec2(x, 2), mom2);
+  imgAtomicAdd(ivec2(x, 0), 1.0);
+  imgAtomicAdd(ivec2(x, 1), mean);
+  imgAtomicAdd(ivec2(x, 2), mom2);
 }
 
