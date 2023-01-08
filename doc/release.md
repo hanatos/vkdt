@@ -5,8 +5,8 @@ action items are labelled (a)..(h).
 
 ## release branch
 
-use semantic versioning and make a branch `release-0.5` to
-contain tags for point releases `0.5.0` and `0.5.1` etc.
+use semantic versioning and make a branch `release-0.6` to
+contain tags for point releases `0.6.0` and `0.6.1` etc.
 the `master` branch will carry on with new features and eventually become the
 next release branch.
 
@@ -28,8 +28,8 @@ will be exported by `make release`.
 to generate it for local testing purposes without pushing the tag
 to the public repository, (b)
 ```
-git tag -s '0.5.0' -m "this is release 0.5.0"
-git push dreggn 0.5.0
+git tag -s '0.6.0' -m "this is release 0.6.0"
+git push dreggn 0.6.0
 git fetch --all --tags
 ```
 
@@ -47,8 +47,8 @@ cat src/core/version.h
 
 ```
 cd /tmp
-tar xvJf vkdt-0.5.0.tar.xz
-cd vkdt-0.5.0/
+tar xvJf vkdt-0.6.0.tar.xz
+cd vkdt-0.6.0/
 make -j20
 DESTDIR=/tmp/testrel make install
 /tmp/testrel/usr/bin/vkdt
@@ -56,10 +56,10 @@ DESTDIR=/tmp/testrel make install
 
 ## upload
 
-(e) push to public: `git push origin 0.5.0 release-0.5`
+(e) push to public: `git push origin 0.6.0 release-0.6`
 
 (g) sign the tarball:
-`gpg -u jo@dreggn.org --detach-sign vkdt-0.5.0.tar.xz`
+`gpg -u jo@dreggn.org --detach-sign vkdt-0.6.0.tar.xz`
 
 (h) github release announcement
 
@@ -75,3 +75,7 @@ DESTDIR=/tmp/testrel make install
 on the master branch, delete the changelog (to be filled with new features which
 will also only be pushed to this branch). the release branch will be used for
 bugfix/pointreleases.
+tag the master/development branch as such, so dev packages will be ordered correctly:
+```
+git tag -s 0.6.9999 -m "this is the beginning of the unreleased development branch which will become 0.7.0 eventually"
+```
