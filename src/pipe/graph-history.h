@@ -222,6 +222,8 @@ dt_module_connect_with_history(
     dt_graph_t *graph,
     int m0, int c0, int m1, int c1)
 {
+  int id_dspy = dt_module_get(graph, dt_token("display"), dt_token("dspy"));
+  if(id_dspy >= 0) dt_module_connect(graph, -1, -1, id_dspy, 0); // disconnect dspy entry point, no history
   int cerr = dt_module_connect(graph, m0, c0, m1, c1);
   if(cerr) return cerr;
   dt_graph_history_connection(graph, m1, c1); // history records only inputs

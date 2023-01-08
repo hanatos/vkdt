@@ -353,6 +353,7 @@ void render_nodes()
     mod_id[pos++] = mod_id[pos2];
     mod_id[pos2] = tmp;
     render_nodes_module(g, curr);
+    if(!g->module[curr].name) continue;
     if(nodes.do_layout == 1)
       ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
     else if(nodes.do_layout == 2)
@@ -362,6 +363,7 @@ void render_nodes()
   for(int m=pos;m<arr_cnt;m++)
   { // draw disconnected modules
     render_nodes_module(g, mod_id[m]);
+    if(!g->module[mod_id[m]].name) continue;
     if(nodes.do_layout == 1)
       ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m+0.25-pos), 2*nodey));
     else if(nodes.do_layout == 2)
