@@ -158,7 +158,9 @@ read_connection_ascii(
   }
   int conid0 = dt_module_get_connector(graph->module+modid0, conn0);
   int conid1 = dt_module_get_connector(graph->module+modid1, conn1);
-  int err = dt_module_connect(graph, modid0, conid0, modid1, conid1);
+  int err = extra_flags & s_conn_feedback ?
+    dt_module_feedback(graph, modid0, conid0, modid1, conid1) :
+    dt_module_connect (graph, modid0, conid0, modid1, conid1);
   if(err)
   {
     dt_log(s_log_pipe, "[read connect] "
@@ -175,14 +177,7 @@ read_connection_ascii(
   }
   else
   {
-    // graph->module[modid0].connector[conid0].flags |= extra_flags;
     graph->module[modid1].connector[conid1].flags |= extra_flags;
-    if(extra_flags & s_conn_feedback)
-    { // set this here because during dag traversal it would potentially
-      // update too many connectors (connected to multiple inputs w/o feedback?)
-      graph->module[modid0].connector[conid0].frames = 2;
-      graph->module[modid1].connector[conid1].frames = 2;
-    }
   }
   return 0;
 }
