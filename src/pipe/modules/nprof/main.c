@@ -23,11 +23,11 @@ void write_sink(
     dt_module_t *module,
     void *buf)
 {
-  // read back uint32_t buffer, fit line to noise, output param a and param b to file with our maker model iso:
-  uint32_t *p32 = buf;
+  // read back buffer, fit line to noise, output param a and param b to file with our maker model iso:
+  float *p32 = buf;
 
   const int wd = module->connector[0].roi.wd;
-  // const int ht = module->connector[0].roi.ht; == 4
+  // const int ht = module->connector[0].roi.ht; == 5
 
   // examine pairs of samples and find out whether one position likely leads to
   // an outlier or not.
@@ -44,29 +44,29 @@ void write_sink(
       {
         // fit: sigma^2 = y = a + b*x
         // to the data (x,y) by looking at pairs of (x,y) from the input. x is
-        // the first moment of the observed raw histogram - black level. in
-        // particular this means that the noise model is to be applied to
-        // uint16_t range x that have the black level subtracted, but have not
-        // been rescaled to white in any way.
-        // make sure a and b are positive, reject sample otherwise
+        // the first moment of the observed raw data. this means that the noise
+        // model is to be applied to uint16_t range x that have the black level
+        // subtracted, but have not been rescaled to white. make
+        // sure a and b are positive, reject sample otherwise
         double c  = p32[i + 0*wd];
         if(c < fk*64) continue;
         double m1 = p32[i + 1*wd];
         double m2 = p32[i + 2*wd];
-        double x1 = m1/c - module->img_param.black[1];
-        double y1 = m2/c - m1/c*m1/c;
+        const double bk = module->img_param.black[1];
+        double x1 = m1/c - bk;
+        double y1 = m2/c - (m1/c)*(m1/c);
 
         c  = p32[j + 0*wd];
         if(c < fk*64) continue;
         m1 = p32[j + 1*wd];
         m2 = p32[j + 2*wd];
-        double x2 = m1/c - module->img_param.black[1];
-        double y2 = m2/c - m1/c*m1/c;
+        double x2 = m1/c - bk;
+        double y2 = m2/c - (m1/c)*(m1/c);
 
         if(y1 <= 0 || y2 <= 0) continue;
         double eb = (y2-y1)/(x2-x1);
-        if(!(eb > 0.0)) continue;
         double ea  = y1 - x1 * eb;
+        if(!(eb > 0.0)) continue;
         if(!(ea > 0.0)) continue;
         if(!(ea < 35000.0)) continue; // half the range noise? that would be extraordinary
 

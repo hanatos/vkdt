@@ -27,7 +27,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#ifndef NDEBUG
+#ifdef __linux__
 #include <execinfo.h>
+#endif
+#endif
 
 qvk_t qvk =
 {
@@ -89,12 +93,14 @@ vk_debug_callback(
   if(strncmp(callback_data->pMessage, "Device Extension", sizeof(*"Device Extension"))) // avoid excessive spam
   dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
 #ifndef NDEBUG
+#ifdef __linux__
   if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
     // assert(0);
   }
+#endif
 #endif
   return VK_FALSE;
 }
@@ -402,8 +408,6 @@ QVK_FEATURE_DO(inheritedQueries, 1)
           qvk.raytracing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME))
           qvk.float_atomics_supported = 1;
-      if(dev_properties.vendorID == 0x1002) // this is AMD
-        qvk.float_atomics_supported = 0;    // it seems they lie to us about support.
       picked_device = i;
       if(preferred_device_name)
         dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);

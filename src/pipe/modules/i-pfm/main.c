@@ -58,6 +58,7 @@ read_header(
   return 0;
 error:
   fprintf(stderr, "[i-pfm] could not load file `%s'!\n", filename);
+  pfm->filename[0] = 0;
   return 1;
 }
 

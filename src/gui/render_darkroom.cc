@@ -781,54 +781,54 @@ inline void draw_widget(int modid, int parid)
     }
     case dt_token("straight"):
     { // horizon line straighten tool for rotation
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        float oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      float oldval = *val;
+      char str[10] = {0};
+      memcpy(str, &param->name, 8);
 
-        if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+      {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        if(ImGui::Button("done"))
         {
-          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-          if(ImGui::Button("done"))
-          {
-            widget_end();
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
-          ImGui::PopStyleColor();
-        }
-        else
-        {
-          if(ImGui::Button("straighten"))
-          {
-            widget_end();
-            vkdt.wstate.active_widget_modid = modid;
-            vkdt.wstate.active_widget_parid = parid;
-            vkdt.wstate.active_widget_parnm = 0;
-            vkdt.wstate.active_widget_parsz = sizeof(float);
-            vkdt.wstate.selected = -1;
-            memcpy(vkdt.wstate.state, val, sizeof(float));
-          }
-          if(ImGui::IsItemHovered())
-            ImGui::SetTooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
-        }
-
-        // full manual control over parameter using the slider:
-        ImGui::SameLine(); // almost matches the right size:
-        ImGui::SetNextItemWidth(ImGui::GetStyle().ItemSpacing.x + 0.66*vkdt.state.panel_wd - ImGui::GetCursorPosX());
-
-        if(ImGui::SliderFloat(str, val, 0.0f, 360.0f, "%2.5f"))
-        RESETBLOCK {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-          vkdt.graph_dev.active_module = modid;
+          widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        KEYFRAME
-        TOOLTIP
-        break;
+        ImGui::PopStyleColor();
+      }
+      else
+      {
+        if(ImGui::Button("straighten"))
+        {
+          widget_end();
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = 0;
+          vkdt.wstate.active_widget_parsz = sizeof(float);
+          vkdt.wstate.selected = -1;
+          memcpy(vkdt.wstate.state, val, sizeof(float));
+        }
+        if(ImGui::IsItemHovered())
+          ImGui::SetTooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
+      }
+
+      // full manual control over parameter using the slider:
+      ImGui::SameLine(); // almost matches the right size:
+      ImGui::SetNextItemWidth(ImGui::GetStyle().ItemSpacing.x + 0.66*vkdt.state.panel_wd - ImGui::GetCursorPosX());
+
+      if(ImGui::SliderFloat(str, val, 0.0f, 360.0f, "%2.5f"))
+      RESETBLOCK {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+            s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      KEYFRAME
+      TOOLTIP
+      break;
     }
     case dt_token("crop"):
     {
@@ -1383,6 +1383,7 @@ void render_darkroom_pipeline()
   for(int mi=arr_cnt-1;mi>=0;mi--)
   {
     int m = mod_id[mi];
+    if(graph->module[m].name == 0) continue;
     for(int k=graph->module[m].num_connectors-1;k>=0;k--)
     {
       if(dt_connector_input(graph->module[m].connector+k))

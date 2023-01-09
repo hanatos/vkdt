@@ -104,12 +104,14 @@ dt_graph_cleanup(dt_graph_t *g)
   QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   if(!dt_pipe.modules_reloaded)
     for(int i=0;i<g->num_modules;i++)
-      if(g->module[i].so->cleanup)
+      if(g->module[i].name && g->module[i].so->cleanup)
         g->module[i].so->cleanup(g->module+i);
   for(int i=0;i<g->num_modules;i++)
   {
     free(g->module[i].keyframe);
     g->module[i].keyframe_size = 0;
+    g->module[i].keyframe_cnt = 0;
+    g->module[i].keyframe = 0;
   }
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_staging);
@@ -1490,6 +1492,16 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
   VkCommandBuffer cmd_buf = graph->command_buffer;
 
+  // sanity check: are all input connectors bound?
+  for(int i=0;i<node->num_connectors;i++)
+    if(dt_connector_input(node->connector+i))
+      if(node->connector[i].connected_mi == -1)
+      {
+        dt_log(s_log_err, "input %"PRItkn":%"PRItkn" not connected!",
+            dt_token_str(node->name), dt_token_str(node->connector[i].name));
+        return VK_INCOMPLETE;
+      }
+
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
   if((runflag == 0) && dt_node_source(node))
   {
@@ -1513,16 +1525,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     return VK_SUCCESS;
   }
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
-
-  // sanity check: are all input connectors bound?
-  for(int i=0;i<node->num_connectors;i++)
-    if(dt_connector_input(node->connector+i))
-      if(node->connector[i].connected_mi == -1)
-      {
-        dt_log(s_log_err, "input %"PRItkn":%"PRItkn" not connected!",
-            dt_token_str(node->name), dt_token_str(node->connector[i].name));
-        return VK_INCOMPLETE;
-      }
 
   // special case for end of pipeline and thumbnail creation:
   if(graph->thumbnail_image &&
@@ -2694,7 +2696,7 @@ void dt_graph_reset(dt_graph_t *g)
   g->query_cnt = 0;
   g->params_end = 0;
   for(int i=0;i<g->num_modules;i++)
-    if(g->module[i].so->cleanup)
+    if(g->module[i].name && g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
   for(int i=0;i<g->conn_image_end;i++)
   {
@@ -2735,6 +2737,7 @@ dt_graph_apply_keyframes(
 {
   for(int m=0;m<g->num_modules;m++)
   {
+    if(g->module[m].name == 0) continue;
     dt_keyframe_t *kf = g->module[m].keyframe;
     for(int ki=0;ki<g->module[m].keyframe_cnt;ki++)
     {

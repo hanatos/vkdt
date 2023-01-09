@@ -25,3 +25,9 @@ vkdt-mkclut <camera model>.txt
 
 there are a few options for the optimisation process involved here
 and there is an instructive report printed as html.
+
+## contributing an input profile lut
+
+once you created a lut, are happy with the results and want to share with
+others, please submit a pull request to [the `camconst` data
+repository](https://github.com/hanatos/vkdt-camconst)!

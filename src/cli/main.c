@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 {
   for(int i=0;i<argc;i++) if(!strcmp(argv[i], "--version"))
   {
-    printf("vkdt "VKDT_VERSION" (c) 2020--2022 johannes hanika\n");
+    printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
     exit(0);
   }
   // init global things, log and pipeline:

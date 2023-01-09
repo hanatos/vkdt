@@ -240,7 +240,10 @@ dt_thumbnails_cache_one(
     tcfg = statbuf.st_mtim.tv_sec;
   else
   {
-    if(!stat(deffilename, &statbuf))
+    char tmp[PATH_MAX];
+    if(snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, deffilename) >= PATH_MAX)
+      return VK_INCOMPLETE;
+    if(!stat(tmp, &statbuf))
       tcfg = statbuf.st_mtim.tv_sec;
     else return VK_INCOMPLETE;
   }
@@ -427,9 +430,8 @@ dt_thumbnails_load_list(
     uint32_t         beg,
     uint32_t         end)
 {
-  // for all images in given collection
   for(int k=beg;k<end;k++)
-  {
+  { // for all images in given collection
     const uint32_t imgid = collection[k];
     if(imgid >= db->image_cnt) break; // safety first. this probably means this job is stale! big danger!
     dt_image_t *img = db->image + imgid;

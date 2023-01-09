@@ -30,6 +30,7 @@ install: all
 	cp -rfL bin/default* ${VKDTDIR}
 	cp -rfL bin/darkroom.ui ${VKDTDIR}
 	cp -rfL bin/thumb.cfg ${VKDTDIR}
+	cp -rfL bin/noise-profile.sh bin/vkdt-mkgallery.sh bin/read-icc.py ${VKDTDIR}
 	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 

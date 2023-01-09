@@ -185,3 +185,6 @@ you can set the level of detail (LOD) parameter in your
 `~/.config/vkdt/config.rc` file: `intgui/lod:1`. set it to `2` to only render
 exactly at the resolution of your screen (will slow down when you zoom in), or
 to `3` and more to brute force downsample.
+
+* **where can i ask for support?**  
+try `#vkdt` on `oftc.net` or ask on [pixls.us](https://discuss.pixls.us).

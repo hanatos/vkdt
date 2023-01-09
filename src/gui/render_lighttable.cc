@@ -219,6 +219,11 @@ void export_job_work(uint32_t item, void *arg)
 
   char filename[PATH_MAX], infilename[PATH_MAX], filedir[PATH_MAX];
   dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
+  char *filebase = fs_basename(filedir);
+  size_t len = strlen(filebase);
+  if(len > 4) filebase[len-4] = 0; // cut away .cfg
+  if(len > 8 && filebase[len-8] == '.') filebase[len-8] = 0; // cut .xxx
+  if(len > 9 && filebase[len-9] == '.') filebase[len-9] = 0; // cut .xxxx
   fs_dirname(filedir);
   char dst[1000];
   time_t t = time(0);
@@ -226,8 +231,8 @@ void export_job_work(uint32_t item, void *arg)
   char date[10] = {0}, yyyy[5] = {0};
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
-  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", filedir, 0};
+  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "ffile", 0};
+  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", filedir, filebase, 0};
   dt_strexpand(j->basename, sizeof(j->basename), dst, sizeof(dst), key, val);
 
   snprintf(filename, sizeof(filename), dst, item);
@@ -327,11 +332,13 @@ void render_lighttable_right_panel()
     {
       vkdt.db.collection_sort = static_cast<dt_db_property_t>(sort_prop);
       dt_db_update_collection(&vkdt.db);
+      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
     if(ImGui::Combo("filter", &filter_prop, dt_db_property_text))
     {
       vkdt.db.collection_filter = static_cast<dt_db_property_t>(filter_prop);
       dt_db_update_collection(&vkdt.db);
+      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
     int filter_val = static_cast<int>(vkdt.db.collection_filter_val);
     if(filter_prop == s_prop_labels)
@@ -354,6 +361,7 @@ void render_lighttable_right_panel()
           filter_val ^= (1<<k);
           vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
           dt_db_update_collection(&vkdt.db);
+          dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
         }
         if(k<4) ImGui::SameLine();
         ImGui::PopStyleColor(2);
@@ -367,6 +375,7 @@ void render_lighttable_right_panel()
       {
         vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
         dt_db_update_collection(&vkdt.db);
+        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
     }
 
@@ -642,8 +651,9 @@ void render_lighttable_right_panel()
         "${home} -- home directory\n"
         "${yyyy} -- current year\n"
         "${date} -- today's date\n"
-        "${seq}  -- sequence number\n"
-        "${fdir} -- directory of input file");
+        "${seq} -- sequence number\n"
+        "${fdir} -- directory of input file\n"
+        "${ffile} -- basename of input file");
     if(ImGui::InputFloat("quality", &quality, 1, 100, 0))
       dt_rc_set_float(&vkdt.rc, "gui/export/quality", quality);
     if(ImGui::Combo("format", &format, format_data))

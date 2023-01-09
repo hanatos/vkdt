@@ -4,7 +4,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
 
 #include "shared.glsl"
-// #include "shared/munsell.glsl" // not used currently
+#include "shared/munsell.glsl"
 #include "shared/dtucs.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
@@ -17,17 +17,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   colourmode;
 } params;
 
-layout( // input f16 buffer rgba
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer rgba
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
-
-layout( // output f16 buffer rgba
-    set = 1, binding = 2
-) uniform writeonly image2D img_crv;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform writeonly image2D img_crv;
 
 float
 weibull_cdf(
@@ -61,9 +53,8 @@ main()
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
   col0 += params.bias;
   vec3 col1 = weibull_cdf(col0, il, k);
-#if 1 // colour using aurelien's patented ucs:
   if(params.colourmode == 0)
-  {
+  { // colour using aurelien's patented ucs:
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
         -0.3556707838, 1.6164812366, -0.0427706133, 
@@ -80,10 +71,8 @@ main()
     xyz1 = vec3(xyY1.xy, 1.0-xyY1.x-xyY1.y) * xyz1.y / max(1e-4,xyY1.y);
     col1 = xyz_to_rec2020 * xyz1;
   }
-#elif 0
-  // colour reconstruction using munsell hue constancy.
-  // if(dot(vec3(1),col1) > 1e-5)
-  {
+  else if(params.colourmode == 2)
+  { // colour reconstruction using munsell hue constancy.
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
         -0.3556707838, 1.6164812366, -0.0427706133, 
@@ -98,12 +87,13 @@ main()
     xyz1 = vec3(xy1, 1.0-xy1.x-xy1.y) * dot(vec3(1),xyz1);
     col1 = xyz_to_rec2020 * xyz1;
   }
-#else
-  else
+  else if(params.colourmode == 3)
   { // simple rgb/hsv hack:
     col1 = adjust_colour_dng(col0, col1);
   }
-#endif
+  else if(params.colourmode == 1)
+  { // apply per channel
+  }
 
   if(all(lessThan(ipos, imageSize(img_crv))))
   {

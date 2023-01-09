@@ -49,7 +49,11 @@ read_header(
     jpg->f = 0;
   }
   jpg->f = dt_graph_open_resource(mod->graph, frame, filename, "rb");
-  if(!jpg->f) return 1;
+  if(!jpg->f)
+  {
+    jpg->filename[0] = 0;
+    return 1;
+  }
 
   jpgerr_t err;
   jpg->dinfo.err = jpeg_std_error(&err.pub);

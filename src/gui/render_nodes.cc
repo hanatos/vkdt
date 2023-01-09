@@ -219,7 +219,7 @@ void render_nodes_right_panel()
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      if(ImGui::IsItemHovered())
+      if(mod->so->has_inout_chain && ImGui::IsItemHovered())
         ImGui::SetTooltip(mod->disabled ? "re-enable this module" :
             "temporarily disable this module without disconnecting it from the graph.\n"
             "this is just a convenience A/B switch in the ui and will not affect your\n"
@@ -353,6 +353,7 @@ void render_nodes()
     mod_id[pos++] = mod_id[pos2];
     mod_id[pos2] = tmp;
     render_nodes_module(g, curr);
+    if(!g->module[curr].name) continue;
     if(nodes.do_layout == 1)
       ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
     else if(nodes.do_layout == 2)
@@ -362,6 +363,7 @@ void render_nodes()
   for(int m=pos;m<arr_cnt;m++)
   { // draw disconnected modules
     render_nodes_module(g, mod_id[m]);
+    if(!g->module[mod_id[m]].name) continue;
     if(nodes.do_layout == 1)
       ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m+0.25-pos), 2*nodey));
     else if(nodes.do_layout == 2)
@@ -372,6 +374,7 @@ void render_nodes()
   for(uint32_t m=0;m<g->num_modules;m++)
   {
     dt_module_t *mod = g->module+m;
+    if(mod->name == 0) continue;
     for(int c=0;c<mod->num_connectors;c++)
     {
       if(dt_connector_input(mod->connector+c) && dt_connected(mod->connector+c))

@@ -317,6 +317,7 @@ dt_graph_write_connection_ascii(
     char             *line,
     size_t            size)
 {
+  if(graph->module[m].name == 0) return line;
   dt_connector_t *c = graph->module[m].connector+i;
   if(!dt_connector_input(c)) return line; // refuse to serialise outgoing connections
   if(c->connected_mi == -1)  return line; // not connected
@@ -387,6 +388,7 @@ dt_graph_write_keyframe_ascii(
     size_t            size)
 {
   const dt_module_t *mod = graph->module + m;
+  if(mod->name == 0) return line;
   WRITE("keyframe:%d:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
       mod->keyframe[k].frame,
       dt_token_str(mod->name),

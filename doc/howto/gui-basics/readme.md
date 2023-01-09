@@ -106,6 +106,28 @@ fixed list of commands to the graph `.cfg`. slightly more abstract are
 and their connectors (which is why a block has to be *inserted before* a module,
 you can do this in the right panel if you selected a module on the graph.
 
+### special instance names
+
+there are a few instance names that will trigger special
+behaviour in the graph:
+
+* `main` as the input module: this one is responsible to propagate
+  image information further down the graph, such as camera maker and
+  model and noise profiles.
+* `main` as a display module: this will determine the output dimensions
+  and will show as large image in the center part of darkroom mode.
+* `hist` as a display module: this will show as the histogram view
+  in darkroom mode and the node editor.
+* `view0` and `view1` as display modules: these will be shown in the
+  gui as additional images. only `view0` in darkroom mode and both in
+  the node editor.
+* `dspy` as display module: this is a special display that will
+  automatically and temporarily be created and connected to the
+  currently active (last expanded) module, if it has a `dspy` output.
+  you can see it for instance in the `filmcurv` module.
+
+
+
 
 ## general remarks
 

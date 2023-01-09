@@ -25,6 +25,7 @@ dt_graph_print_modules(
   // for all modules, print all incoming edges (outgoing don't have module ids)
   for(int m=0;m<graph->num_modules;m++)
   {
+    if(graph->module[m].name == 0) continue;
     fprintf(stdout, "n%d_%s [label=\"%s|{",
         m,
         _pr(graph->module[m].name),
@@ -39,6 +40,7 @@ dt_graph_print_modules(
   }
   for(int m=0;m<graph->num_modules;m++)
   {
+    if(graph->module[m].name == 0) continue;
     for(int c=0;c<graph->module[m].num_connectors;c++)
     {
       if((graph->module[m].connector[c].type == dt_token("read") ||

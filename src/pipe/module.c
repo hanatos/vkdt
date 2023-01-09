@@ -134,6 +134,11 @@ int dt_module_remove(
   graph->module[modid].inst = 0;
   graph->module[modid].connector[0].type = 0; // to avoid being detected as sink
   graph->module[modid].flags = 0;
+  graph->module[modid].num_connectors = 0;
+  free(graph->module[modid].keyframe);
+  graph->module[modid].keyframe_size = 0;
+  graph->module[modid].keyframe_cnt = 0;
+  graph->module[modid].keyframe = 0;
   return 0;
 }
 
@@ -150,6 +155,7 @@ int dt_module_get_module_after(
   int modi = us - graph->module;
   for(int m=0;m<graph->num_modules;m++)
   {
+    if(graph->module[m].name == 0) continue;
     for(int c=0;c<graph->module[m].num_connectors;c++)
     {
       if(dt_connector_input(graph->module[m].connector+c) &&
