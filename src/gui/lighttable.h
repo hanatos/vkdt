@@ -70,6 +70,7 @@ lighttable_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "highlight entry one down");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "highlight entry one left");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "highlight entry one right");
+  vkdt.wstate.copied_imgid = -1u; // reset to invalid
   return 0;
 }
 
