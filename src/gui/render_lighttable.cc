@@ -32,8 +32,20 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"scroll top",    "scroll to top of collection",      {ImGuiKey_G}},
   {"duplicate",     "duplicate selected images",        {ImGuiKey_LeftShift, ImGuiKey_D}},
 };
+enum hotkey_names_t
+{
+  s_hotkey_assign_tag = 0,
+  s_hotkey_select_all = 1,
+  s_hotkey_export     = 2,
+  s_hotkey_copy_hist  = 3,
+  s_hotkey_paste_hist = 4,
+  s_hotkey_scroll_cur = 5,
+  s_hotkey_scroll_end = 6,
+  s_hotkey_scroll_top = 7,
+  s_hotkey_duplicate  = 8,
+};
 
-void render_lighttable_center()
+void render_lighttable_center(int hotkey)
 { // center image view
   { // assign star rating/colour labels via gamepad:
     if(ImGui::IsKeyDown(ImGuiKey_GamepadFaceUp))
@@ -168,19 +180,18 @@ void render_lighttable_center()
     }
   }
   // lt hotkeys in same scope as center window (scroll)
-  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
   switch(hotkey)
   {
-    case 5:
+    case s_hotkey_scroll_cur:
       dt_gui_lt_scroll_current();
       break;
-    case 6:
+    case s_hotkey_scroll_end:
       dt_gui_lt_scroll_bottom();
       break;
-    case 7:
+    case s_hotkey_scroll_top:
       dt_gui_lt_scroll_top();
       break;
-    case 8:
+    case s_hotkey_duplicate:
       dt_gui_lt_duplicate();
   }
   dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
@@ -283,7 +294,7 @@ int export_job(
 // end export bg job stuff
 
 
-void render_lighttable_right_panel()
+void render_lighttable_right_panel(int hotkey)
 { // right panel
   ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
@@ -294,21 +305,20 @@ void render_lighttable_right_panel()
   ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
 
   // lt hotkeys in same scope as buttons as modals (right panel)
-  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
   switch(hotkey)
   {
-    case 0: // assign tag
+    case s_hotkey_assign_tag:
       dt_gui_lt_assign_tag();
       break;
-    case 1: // toggle select all
+    case s_hotkey_select_all:
       dt_gui_lt_toggle_select_all();
       break;
-    case 2: // handled later
+    case s_hotkey_export: // handled later
       break;
-    case 3:
+    case s_hotkey_copy_hist:
       dt_gui_lt_copy();
       break;
-    case 4:
+    case s_hotkey_paste_hist:
       dt_gui_lt_paste_history();
       break;
   }
@@ -674,7 +684,7 @@ void render_lighttable_right_panel()
           ImGui::PopID();
           break;
         }
-        if(hotkey == 2 || ImGui::Button("export"))
+        if(hotkey == s_hotkey_export || ImGui::Button("export"))
         { // TODO: make sure we don't start a job that is already running in another job[.]
           export_job(job+k, overwrite_mode);
         }
@@ -719,12 +729,14 @@ void render_lighttable_right_panel()
 
 void render_lighttable()
 {
-  render_lighttable_right_panel();
-  render_lighttable_center();
+  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+  render_lighttable_right_panel(hotkey);
+  render_lighttable_center(hotkey);
 }
 
 void render_lighttable_init()
 {
+  vkdt.wstate.copied_imgid = -1u; // reset to invalid
   ImHotKey::Deserialise("lighttable", hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
 }
 
