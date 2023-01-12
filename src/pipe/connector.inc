@@ -49,6 +49,7 @@
         graph->element[old_mod].connector[old_con].format = graph->element[old_mod].so->connector[old_con].format;
         graph->element[old_mod].connector[old_con].frames = graph->element[old_mod].so->connector[old_con].frames;
         graph->element[old_mod].connector[old_con].chan   = graph->element[old_mod].so->connector[old_con].chan;
+        graph->element[old_mod].connector[old_con].flags &= ~s_conn_feedback;
       }
 #endif
     }
@@ -124,6 +125,7 @@
   cn1->connected_mi = m0;
   cn1->connected_mc = c0;
   cn1->array_length = cn0->array_length; // copy from what is written to output
+  cn1->flags &= ~s_conn_feedback; // not a feedback connector by default
 
   // back connections are not unique, so we're just using this
   // as a reference counter, so we know there is /some/ connection.
