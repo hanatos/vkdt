@@ -780,7 +780,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           {
             dt_log(s_log_qvk|s_log_err, "node %"PRItkn" %"PRItkn" %"PRItkn":",
                 dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name));
-            dt_log(s_log_qvk|s_log_err, "buffer memory type bits don't match!");
+            dt_log(s_log_qvk|s_log_err, "buffer memory type bits don't match! %d %d", buf_mem_req.memoryTypeBits, graph->memory_type_bits);
           }
           graph->memory_type_bits = buf_mem_req.memoryTypeBits;
 
