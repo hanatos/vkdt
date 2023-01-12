@@ -402,7 +402,11 @@ allocate_image_array_element(
     vkGetImageMemoryRequirements(qvk.device, img->image, &mem_req);
   }
   if(graph->memory_type_bits != ~0 && mem_req.memoryTypeBits != graph->memory_type_bits)
+  {
+    dt_log(s_log_qvk|s_log_err, "node %"PRItkn" %"PRItkn" %"PRItkn":",
+        dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name));
     dt_log(s_log_qvk|s_log_err, "image memory type bits don't match! %d %d", mem_req.memoryTypeBits, graph->memory_type_bits);
+  }
   graph->memory_type_bits = mem_req.memoryTypeBits;
 
   assert(!(mem_req.alignment & (mem_req.alignment - 1)));
@@ -773,7 +777,11 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         { // other buffers are device only, i.e. use the default heap:
           vkGetBufferMemoryRequirements(qvk.device, img->buffer, &buf_mem_req);
           if(graph->memory_type_bits != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits)
+          {
+            dt_log(s_log_qvk|s_log_err, "node %"PRItkn" %"PRItkn" %"PRItkn":",
+                dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name));
             dt_log(s_log_qvk|s_log_err, "buffer memory type bits don't match!");
+          }
           graph->memory_type_bits = buf_mem_req.memoryTypeBits;
 
           if(c->frames == 2) // allocate protected memory for feedback connectors
