@@ -105,8 +105,8 @@ dt_gui_lt_paste_history()
   {
     if(sel[i] == cid) continue; // don't copy to self
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-    char *dst = realpath(filename, 0);
-    if(!dst) continue;
+    char dst[PATH_MAX];
+    realpath(filename, dst);
     FILE *fout = fopen(dst, "wb");
     if(fout)
     {
@@ -128,7 +128,6 @@ dt_gui_lt_paste_history()
       }
       fclose(fout);
     }
-    free(dst);
   }
   free(buf);
   free(src);
