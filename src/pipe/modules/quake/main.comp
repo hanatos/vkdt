@@ -88,7 +88,7 @@ vec3 envmap(in vec3 w)
     vec4 bck = texelFetch(img_tex[nonuniformEXT(params.sky_rt)], ivec2(mod(st+0.1*t, vec2(1))*textureSize(img_tex[nonuniformEXT(params.sky_rt)], 0)), 0);
     vec4 fnt= texelFetch(img_tex[nonuniformEXT(params.sky_bk)], ivec2(mod(st+t, vec2(1))*textureSize(img_tex[nonuniformEXT(params.sky_bk)], 0)), 0);
     vec3 tex = mix(bck.rgb, fnt.rgb, fnt.a);
-    return tex*tex;
+    return 40*tex*tex;
   }
   else
   { // cubemap: gfx/env/*{rt,bk,lf,ft,up,dn}
