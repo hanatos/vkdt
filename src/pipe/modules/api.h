@@ -131,6 +131,7 @@ dt_node_add(
     .name   = dt_token(name),
     .kernel = dt_token(kernel),
     .module = module,
+    .flags  = module->flags,    // propagate sink/source copy requests
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
