@@ -224,6 +224,7 @@ int main(int argc, char *argv[])
       fprintf(stderr, "[mkclut] could not open %s.txt or data/cie_observer.txt!\n", model);
       exit(2);
     }
+    cfa_spec_cnt = spectrum_chg_interval( cfa_spec, cfa_spec_cnt, 5); //interpolates spectrum to 5nm intervals
     double illum_spec[1000][4];
     snprintf(filename, sizeof(filename), "%s/%s", basedir, ill ? illum_file1 : illum_file0);
     int illum_cnt = spectrum_load(filename, illum_spec);

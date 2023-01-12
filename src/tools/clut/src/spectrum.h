@@ -44,8 +44,18 @@ spectrum_load(
       if(fscanf(fr, "%[^\n]", line) == EOF) break;
       fgetc(fr); // \n
       double buf[4] = {0.0};
-      if(1 > sscanf(line, "%lg %lg %lg %lg", buf, buf+1, buf+2, buf+3))
-        continue; // do nothing, we'll ignore comments and stuff gone wrong
+      if (strstr(line, ", ")) {
+        if(1 > sscanf(line, "%lg, %lg, %lg, %lg", buf, buf+1, buf+2, buf+3))
+          continue;
+      }
+      else if (strstr(line, ",")) {
+        if(1 > sscanf(line, "%lg,%lg,%lg,%lg", buf, buf+1, buf+2, buf+3))
+          continue;
+      }
+      else {
+        if(1 > sscanf(line, "%lg %lg %lg %lg", buf, buf+1, buf+2, buf+3))
+          continue; // do nothing, we'll ignore comments and stuff gone wrong
+      }
       if(cfa_spec) for(int i=0;i<4;i++) cfa_spec[cfa_spec_cnt][i] = buf[i];
       // fprintf(stderr, "read %d %g %g %g %g\n", cfa_spec_cnt,
       //     cfa_spec[cfa_spec_cnt][0],
@@ -58,6 +68,45 @@ spectrum_load(
   }
   else fprintf(stderr, "[vkdt-mkclut] can't open response curves! `%s'\n", filename);
   return cfa_spec_cnt;
+}
+
+// changes the interval of the spec data to the one specified.
+// interpolates new values 
+static inline int
+spectrum_chg_interval(
+  double (*spec)[4],
+  int spec_cnt,
+  int interval
+  )
+{
+  double new_int[1000][4];
+  int i=0;
+  for (double w = spec[0][0]; w<=spec[spec_cnt-1][0]; w+=interval) {
+    new_int[i][0] = w;
+    for (int j=0; j<spec_cnt; j++) {
+      if (spec[j][0] == w) { //identical input and output wavelengths
+        new_int[i][1] = spec[j][1];
+        new_int[i][2] = spec[j][2];
+        new_int[i][3] = spec[j][3];
+        break;
+      }
+      else if (spec[j][0] < w & spec[j+1][0] > w) {  //interpolate between spec[j] and spec[j+1]
+        double interp = (w - spec[j][0]) / (spec[j+1][0] - spec[j][0]);
+        new_int[i][1] = spec[j][1] + (spec[j+1][1] - spec[j][1]) * interp;
+        new_int[i][2] = spec[j][2] + (spec[j+1][2] - spec[j][2]) * interp;
+        new_int[i][3] = spec[j][3] + (spec[j+1][3] - spec[j][3]) * interp;
+        break;
+      }
+    }
+    i++;
+  }
+  for (int k=0; k<i; k++) {
+    spec[k][0] = new_int[k][0];
+    spec[k][1] = new_int[k][1];
+    spec[k][2] = new_int[k][2];
+    spec[k][3] = new_int[k][3];
+  }
+  return i;
 }
 
 // white balance three cfa spectra by dividing out one illuminant and multiplying
