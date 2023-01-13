@@ -90,7 +90,7 @@ spectrum_chg_interval(
         new_int[i][3] = spec[j][3];
         break;
       }
-      else if (spec[j][0] < w & spec[j+1][0] > w) {  //interpolate between spec[j] and spec[j+1]
+      else if (spec[j][0] < w && spec[j+1][0] > w) {  //interpolate between spec[j] and spec[j+1]
         double interp = (w - spec[j][0]) / (spec[j+1][0] - spec[j][0]);
         new_int[i][1] = spec[j][1] + (spec[j+1][1] - spec[j][1]) * interp;
         new_int[i][2] = spec[j][2] + (spec[j+1][2] - spec[j][2]) * interp;
