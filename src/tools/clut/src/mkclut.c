@@ -169,6 +169,22 @@ write_chroma_lut(
     b16[2*(3*wd*j+i+2*wd)+1] = float_to_half(buf1[3*(wd*j+i)+1]);
   }
   fwrite(b16, sizeof(uint16_t), wd*ht*6, f);
+  // append metadata, the source spectrum:
+  fprintf(f, "##### created by vkdt mkclut, from following input\n");
+  snprintf(filename, sizeof(filename), "%s.txt", basename);
+  FILE *f2 = fopen(filename, "rb");
+  if(f2)
+  {
+    char buf[BUFSIZ];
+    while(!feof(f2))
+    {
+      fscanf(f2, "%[^\n]", buf);
+      fgetc(f2);
+      fprintf(f, "%s\n", buf);
+      buf[0] = 0;
+    }
+    fclose(f2);
+  }
   fclose(f);
   free(b16);
 }
