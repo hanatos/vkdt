@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 typedef struct dt_lut_header_t
 { // header of .lut files
