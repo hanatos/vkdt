@@ -654,22 +654,13 @@ darkroom_enter()
   dt_graph_history_reset(&vkdt.graph_dev);
 
   if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
-  {
-    // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
-    dt_log(s_log_err|s_log_gui, "running the graph failed (%s)!",
+    dt_gui_notification("running the graph failed (%s)!",
         qvk_result_to_string(vkdt.graph_res));
-    dt_graph_cleanup(&vkdt.graph_dev);
-    return 4;
-  }
 
   // nodes are only constructed after running once
   // (could run up to s_graph_run_create_nodes)
   if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
-  {
-    dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
-    dt_graph_cleanup(&vkdt.graph_dev);
-    return 5;
-  }
+    dt_gui_notification("graph does not contain a display:main node!");
 
   // do this after running the graph, it may only know
   // after initing say the output roi, after loading an input file
