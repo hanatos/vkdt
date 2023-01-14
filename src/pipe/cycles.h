@@ -62,3 +62,19 @@ dt_connection_is_cyclic(
     return 1;
   return 0;
 }
+
+static inline int
+dt_graph_is_cyclic(
+    dt_graph_t *g)
+{
+  int visited[200] = {0};
+  int stack  [200] = {0};
+  assert(g->num_modules < sizeof(visited)/sizeof(visited[0]));
+  for(int m=0;m<g->num_modules;m++)
+  {
+    if(!g->module[m].name) continue;
+    if(!visited[m] && dt_connection_is_cyclic_rec(g, m, visited, stack, -1))
+      return m;
+  }
+  return -1;
+}
