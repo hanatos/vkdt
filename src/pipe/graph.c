@@ -2084,13 +2084,13 @@ VkResult dt_graph_run(
       if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     }
-    graph->num_nodes = 0;
     graph->conn_image_end = 0;
     for(int i=0;i<graph->num_nodes;i++)
     {
       for(int j=0;j<graph->node[i].num_connectors;j++)
       {
         dt_connector_t *c = graph->node[i].connector+j;
+        c->associated_i = c->associated_c = -1;
         if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
       }
       vkDestroyPipelineLayout     (qvk.device, graph->node[i].pipeline_layout,  0);
@@ -2100,6 +2100,7 @@ VkResult dt_graph_run(
       vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
       dt_raytrace_node_cleanup    (graph->node + i);
     }
+    graph->num_nodes = 0;
     // we need two uint32, alignment is 64 bytes
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
