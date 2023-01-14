@@ -2,6 +2,7 @@
 #include "graph-io.h"
 #include "draw.h"
 #include "module.h"
+#include "cycles.h"
 #include "modules/api.h"
 #include "modules/localsize.h"
 #include "core/log.h"
