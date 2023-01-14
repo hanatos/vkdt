@@ -677,7 +677,7 @@ darkroom_enter()
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
-#ifndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
+#if 0//ndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
   darkroom_reset_zoom();
 #endif
 
