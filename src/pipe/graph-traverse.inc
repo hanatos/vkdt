@@ -99,10 +99,12 @@
 #ifndef __cplusplus
 #if 0
             if(((int64_t)sp >= (int64_t)(sizeof(stack)/sizeof(stack[0])-1)))
-              fprintf(stderr, "graph cyclic at module %d\n", dt_graph_is_cyclic(graph));
+              fprintf(stderr, "graph cyclic at node %d\n", dt_graph_nodes_are_cyclic(graph));
 #endif
 #endif
-            assert((int64_t)sp < (int64_t)(sizeof(stack)/sizeof(stack[0])-1));
+            // assert((int64_t)sp < (int64_t)(sizeof(stack)/sizeof(stack[0])-1));
+            if((int64_t)sp >= (int64_t)(sizeof(stack)/sizeof(stack[0])-1))
+            { sp = sp2 = -1; break; }
             stack[++sp] = el;
 #ifndef __cplusplus
 #if 0
@@ -121,7 +123,9 @@
           }
           if((mark[el] != 3) && (arr[curr].connector[i].flags & s_conn_feedback)) // only push unfinished feedback connectors
           {
-            assert((int64_t)sp2 < (int64_t)(sizeof(feedback_stack)/sizeof(feedback_stack[0])-1));
+            // assert((int64_t)sp2 < (int64_t)(sizeof(feedback_stack)/sizeof(feedback_stack[0])-1));
+            if((int64_t)sp2 >= (int64_t)(sizeof(feedback_stack)/sizeof(feedback_stack[0])-1))
+            { sp = sp2 = -1; break; }
             feedback_stack[++sp2] = el;
             mark[el] = 1;
           }
