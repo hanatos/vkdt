@@ -1995,8 +1995,8 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc)
   {
-      vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
-      graph->uniform_dset_layout = 0;
+    vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
+    graph->uniform_dset_layout = 0;
     if(!graph->uniform_dset_layout)
     { // init layout of uniform descriptor set:
       VkDescriptorSetLayoutBinding bindings[] = {{
@@ -2070,6 +2070,10 @@ VkResult dt_graph_run(
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     }
     graph->conn_image_end = 0;
+    for(int i=0;i<cnt;i++)
+      for(int j=0;j<graph->module[modid[i]].num_connectors;j++)
+        graph->module[modid[i]].connector[j].associated_i =
+          graph->module[modid[i]].connector[j].associated_c = -1;
     for(int i=0;i<graph->num_nodes;i++)
     {
       for(int j=0;j<graph->node[i].num_connectors;j++)
