@@ -70,9 +70,14 @@ DESTDIR=/tmp/testrel make install
 
 ### current changelog
 
-this is a bugfix point release: compared to 0.5.0 this:
-* fixes noise profile generation for high-res images (quick fix)
-* fixes thumbnail generation for directories that have not been loaded before
+this is a bugfix point release: compared to 0.5.1 this:
+* fixes copy/paste history hotkeys in lighttable mode
+* fixes feedback connector creation in node editor (for animations, hold shift to connect output from last frame to input of modules)
+* fix spurious crash in node editor when disconnecting nodes
+* fix atomic support detection for amd devices
+* fix backspace hotkey in files view to go up one directory
+* allow to enter darkroom mode even for broken cfg files
+  (so the user can go and fix it in the gui)
 
 ## diverge branches
 
