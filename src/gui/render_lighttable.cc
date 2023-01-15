@@ -410,7 +410,7 @@ void render_lighttable_right_panel(int hotkey)
     char filename[PATH_MAX+100];
     for(int i=0;i<vkdt.tag_cnt;i++)
     {
-      if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
+      if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.49, size.y)))
       { // load tag collection:
         snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
         dt_gui_switch_collection(filename);
@@ -425,7 +425,7 @@ void render_lighttable_right_panel(int hotkey)
       dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
       struct stat buf;
       lstat(filename, &buf);
-      if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", size))
+      if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", ImVec2(-1, 0)))
       {
         char *resolved = realpath(filename, 0);
         if(resolved)
