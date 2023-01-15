@@ -462,6 +462,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
       if(!strcmp(what, "rating"))      db->collection_sort = s_prop_rating;
       if(!strcmp(what, "label"))       db->collection_sort = s_prop_labels;
       if(!strcmp(what, "create date")) db->collection_sort = s_prop_createdate;
+      if(!strcmp(what, "file type"))   db->collection_sort = s_prop_filetype;
       continue;
     }
     if(!strcmp(imgn, "filter"))
@@ -470,6 +471,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
       if(!strcmp(what, "rating"))      db->collection_filter = s_prop_rating;
       if(!strcmp(what, "label"))       db->collection_filter = s_prop_labels;
       if(!strcmp(what, "create date")) db->collection_filter = s_prop_createdate;
+      if(!strcmp(what, "file type"))   db->collection_filter = s_prop_filetype;
       db->collection_filter_val = num;
       continue;
     }

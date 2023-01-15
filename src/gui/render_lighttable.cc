@@ -381,11 +381,10 @@ void render_lighttable_right_panel(int hotkey)
     }
     else if(filter_prop == s_prop_filetype)
     {
-      static char filter_type[10];
+      char *filter_type = dt_token_str(vkdt.db.collection_filter_val);
       if(ImGui::InputText("filetype", filter_type+2, 6))
       {
         filter_type[0] = 'i'; filter_type[1] = '-';
-        vkdt.db.collection_filter_val = dt_token(filter_type);
         dt_db_update_collection(&vkdt.db);
         dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
