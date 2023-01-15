@@ -540,6 +540,13 @@ int audio(
     const float *input_r = (const float *)d->aframe->extended_data[1];
     if(!input_r) input_r = input_l;
 
+    int channels = d->actx->ch_layout.nb_channels;
+    size_t bps = 1; // u8
+    if     (mod->graph->main_img_param.snd_format ==  2) bps = 2; // S16
+    else if(mod->graph->main_img_param.snd_format == 10) bps = 4; // S32
+    else if(mod->graph->main_img_param.snd_format == 14) bps = 4; // f32
+    else if(mod->graph->main_img_param.snd_format == 16) bps = 8; // d32
+
     if(num_samples == -1)
     {
       float frame_rate = mod->graph->frame_rate;
@@ -547,7 +554,7 @@ int audio(
       num_samples = d->aframe->sample_rate / mod->graph->frame_rate + 0.5; // how many per one video frame?
       // num_samples = 44100 / mod->graph->frame_rate + 0.5; // how many per one video frame?
       need_samples = num_samples - d->snd_lag; // how many do we need to also compensate the lag?
-      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * 2;// ??? d->aframe->channels;
+      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * bps * channels;
       if(d->sndbuf_size < sizereq)
       {
         free(d->sndbuf);
@@ -556,11 +563,14 @@ int audio(
         *samples = (uint8_t *)d->sndbuf;
       }
     }
+    memcpy(((uint8_t*)d->sndbuf) + written*bps*channels, input_l, d->aframe->nb_samples * bps * channels);
+#if 0
     for(int i=0;i<d->aframe->nb_samples;i++)
     {
       d->sndbuf[2*(i+written)+0] = input_l[i];
       d->sndbuf[2*(i+written)+1] = input_r[i];
     }
+#endif
     written += d->aframe->nb_samples;
     d->snd_lag = written - need_samples;
   } while(d->snd_lag < 0);

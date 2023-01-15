@@ -598,7 +598,7 @@ int
 darkroom_enter()
 {
   vkdt.state.anim_frame = 0;
-  vkdt.state.anim_playing = 0;
+  dt_gui_dr_anim_stop();
   vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
@@ -688,6 +688,7 @@ darkroom_enter()
 int
 darkroom_leave()
 {
+  dt_gui_dr_anim_stop();
   char filename[1024];
   dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
   if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))

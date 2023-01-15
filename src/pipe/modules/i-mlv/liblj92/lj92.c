@@ -315,6 +315,9 @@ static int decode(ljp* self) {
 }
 
 static int receive(ljp* self,int ssss) {
+    if (ssss == 16) {
+        return 1 << 15;
+    }
     int i = 0;
     int v = 0;
     while (i != ssss) {
@@ -366,24 +369,29 @@ inline static int nextdiff(ljp* self) {
     cnt -= usedbits;
     int keepbitsmask = (1 << cnt)-1;
     b &= keepbitsmask;
-    while (cnt < t) {
-        next = *(u16*)&self->data[ix];
-        int one = next&0xFF;
-        int two = next>>8;
-        b = (b<<16)|(one<<8)|two;
-        cnt += 16;
-        ix += 2;
-        if (one==0xFF) {
-            b >>= 8;
-            cnt -= 8;
-        } else if (two==0xFF) ix++;
-    }
-    cnt -= t;
-    int diff = b >> cnt;
-    int vt = 1<<(t-1);
-    if (diff < vt) {
-        vt = (-1 << t) + 1;
-        diff += vt;
+    int diff;
+    if (t == 16) {
+        diff = 1 << 15;
+    } else {
+        while (cnt < t) {
+            next = *(u16*)&self->data[ix];
+            int one = next&0xFF;
+            int two = next>>8;
+            b = (b<<16)|(one<<8)|two;
+            cnt += 16;
+            ix += 2;
+            if (one==0xFF) {
+                b >>= 8;
+                cnt -= 8;
+            } else if (two==0xFF) ix++;
+        }
+        cnt -= t;
+        diff = b >> cnt;
+        int vt = 1<<(t-1);
+        if (diff < vt) {
+            vt = (-1 << t) + 1;
+            diff += vt;
+        }
     }
     keepbitsmask = (1 << cnt)-1;
     self->b = b & keepbitsmask;
@@ -768,6 +776,7 @@ int frequencyScan(lje* self) {
             Px = rows[0][col] + ((rows[1][col-1] - rows[0][col-1])>>1);
         diff = rows[1][col] - Px;
         diff = diff%65536;
+        diff = (int16_t)diff;
         int ssss = 32 - __builtin_clz(abs(diff));
         if (diff==0) ssss=0;
         self->hist[ssss]++;
@@ -1038,7 +1047,7 @@ int writeBody(lje* self) {
     int row = 0;
     int Px = 0;
     int32_t diff = 0;
-    int bitcount = 0;
+    // int bitcount = 0;
     uint8_t* out = self->encoded;
     int w = self->encodedWritten;
     uint8_t next = 0;
@@ -1058,6 +1067,7 @@ int writeBody(lje* self) {
             Px = rows[0][col] + ((rows[1][col-1] - rows[0][col-1])>>1);
         diff = rows[1][col] - Px;
         diff = diff%65536;
+        diff = (int16_t)diff;
         int ssss = 32 - __builtin_clz(abs(diff));
         if (diff==0) ssss=0;
         //printf("%d %d %d %d %d\n",col,row,Px,diff,ssss);
@@ -1066,7 +1076,6 @@ int writeBody(lje* self) {
         int huffcode = self->huffsym[ssss];
         int huffenc = self->huffenc[huffcode];
         int huffbits = self->huffbits[huffcode];
-        bitcount += huffbits + ssss;
 
         int vt = ssss>0?(1<<(ssss-1)):0;
         //printf("%d %d %d %d\n",rows[1][col],Px,diff,Px+diff);
@@ -1097,7 +1106,10 @@ int writeBody(lje* self) {
             }
         }
         // Write the rest of the bits for the value
-
+        if (ssss == 16) {
+            // Diff values (always 32678) for SSSS=16 are encoded with 0 bits
+            ssss = 0;
+        }
         while (ssss>0) {
             int usebits = ssss>nextbits?nextbits:ssss;
             // Add top usebits from huffval to next usebits of nextbits
@@ -1204,5 +1216,4 @@ int lj92_encode(uint16_t* image, int width, int height, int bitdepth,
 
     return ret;
 }
-
 

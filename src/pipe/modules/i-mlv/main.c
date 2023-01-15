@@ -148,7 +148,7 @@ void modify_roi_out(
     .aperture       = dat->video.LENS.aperture * 0.01f,
     .iso            = dat->video.EXPO.isoValue,
     .focal_length   = dat->video.LENS.focalLength,
-    .snd_samplerate = dat->video.frame_rate,
+    .snd_samplerate = dat->video.WAVI.samplingRate,
     .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE, // XXX use dat->video.WAVI.bytesPerSample
     .snd_channels   = dat->video.WAVI.channels,
 
