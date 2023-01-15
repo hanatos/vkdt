@@ -1899,10 +1899,10 @@ abort:
           if(vkdt.state.anim_playing)
           {
             if(ImGui::Button("stop", size))
-              vkdt.state.anim_playing = 0;
+              dt_gui_dr_anim_stop();
           }
           else if(ImGui::Button("play", size))
-            vkdt.state.anim_playing = 1;
+            dt_gui_dr_anim_start();
           ImGui::SameLine();
           if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
           {

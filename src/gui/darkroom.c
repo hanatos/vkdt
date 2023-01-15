@@ -561,7 +561,7 @@ darkroom_process()
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
     if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1)
-      vkdt.state.anim_playing = 0; // reached the end, stop.
+      dt_gui_dr_anim_stop(); // reached the end, stop.
   }
   else
   { // if no animation, reset time stamp

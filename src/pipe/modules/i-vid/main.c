@@ -33,6 +33,27 @@ typedef struct vid_data_t
 }
 vid_data_t;
 
+int av_sample_fmt_to_alsa(int sf)
+{
+  switch(sf)
+  {
+    case AV_SAMPLE_FMT_NONE: return -1;
+    case AV_SAMPLE_FMT_U8:   return  1;
+    case AV_SAMPLE_FMT_S16:  return  2;
+    case AV_SAMPLE_FMT_S32:  return 10;
+    case AV_SAMPLE_FMT_FLT:  return 14;
+    case AV_SAMPLE_FMT_DBL:  return 16;
+    default: return -1; // uhm
+                        // case AV_SAMPLE_FMT_U8P:
+                        // case AV_SAMPLE_FMT_S16P:
+                        // case AV_SAMPLE_FMT_S32P:
+                        // case AV_SAMPLE_FMT_FLTP:
+                        // case AV_SAMPLE_FMT_DBLP:
+                        // case AV_SAMPLE_FMT_S64:
+                        // case AV_SAMPLE_FMT_S64P:
+  }
+}
+
 static inline void
 dump_parameters(
     vid_data_t *d)
@@ -342,6 +363,10 @@ void modify_roi_out(
     // .iso            = dat->video.EXPO.isoValue,
     // .focal_length   = dat->video.LENS.focalLength,
 
+    .snd_samplerate = d->actx->sample_rate,
+    .snd_format     = av_sample_fmt_to_alsa(d->actx->sample_fmt),
+    .snd_channels   = d->actx->ch_layout.nb_channels,
+
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
   };
@@ -360,8 +385,8 @@ void modify_roi_out(
   // XXX FIXME: the number is correct but needs more testing because
   // we can't deliver 60fps on slower computers, killing audio etc
   // this first needs a robust way of doing frame drops.
-  // if(mod->graph->frame_rate == 0) // don't overwrite cfg
-    // mod->graph->frame_rate = frame_rate;
+  if(mod->graph->frame_rate == 0) // don't overwrite cfg
+    mod->graph->frame_rate = frame_rate;
 }
 
 #if 0 // TODO

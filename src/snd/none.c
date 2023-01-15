@@ -7,7 +7,8 @@ void dt_snd_cleanup(dt_snd_t *snd) { }
 int dt_snd_init(
     dt_snd_t *snd,
     int       sample_rate,
-    int       channels)
+    int       channels,
+    int       format)
 {
   return 0;
 }

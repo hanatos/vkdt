@@ -18,8 +18,10 @@ static int
 dt_snd_alsa_init(
     dt_snd_t *snd,
     int       sample_rate,
-    int       channels)
+    int       channels,
+    int       format)
 {
+  dt_snd_alsa_cleanup(snd); // just in case
   memset(snd, 0, sizeof(*snd));
   snd->sample_rate = sample_rate;
   snd->channels = channels;
@@ -38,7 +40,7 @@ dt_snd_alsa_init(
   if(0 > (err = snd_pcm_hw_params_malloc(&hwparams))) goto error;
   if(0 > (err = snd_pcm_hw_params_any(pcm, hwparams))) goto error;
   if(0 > (err = snd_pcm_hw_params_set_access(pcm, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED))) goto error;
-  if(0 > (err = snd_pcm_hw_params_set_format(pcm, hwparams, SND_PCM_FORMAT_S16_LE))) goto error;
+  if(0 > (err = snd_pcm_hw_params_set_format(pcm, hwparams, format))) goto error;
   if(0 > (err = snd_pcm_hw_params_set_rate(pcm, hwparams, sample_rate, 0))) goto error;
   if(0 > (err = snd_pcm_hw_params_set_channels(pcm, hwparams, channels))) goto error;
   if(0 > (err = snd_pcm_hw_params(pcm, hwparams))) goto error;
@@ -86,9 +88,10 @@ void dt_snd_cleanup(dt_snd_t *snd)
 int dt_snd_init(
     dt_snd_t *snd,
     int       sample_rate,
-    int       channels)
+    int       channels,
+    int       format)
 {
-  return dt_snd_alsa_init(snd, sample_rate, channels);
+  return dt_snd_alsa_init(snd, sample_rate, channels, format);
 }
 
 int dt_snd_play(

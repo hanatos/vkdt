@@ -51,10 +51,33 @@ dt_gui_dr_zoom()
 }
 
 static inline void
+dt_gui_dr_anim_start()
+{
+  vkdt.state.anim_playing = 1;
+  dt_snd_init(
+      &vkdt.snd, 
+      vkdt.graph_dev.main_img_param.snd_samplerate,
+      vkdt.graph_dev.main_img_param.snd_channels,
+      vkdt.graph_dev.main_img_param.snd_format);
+}
+
+static inline void
+dt_gui_dr_anim_stop()
+{
+  vkdt.state.anim_playing = 0;
+  dt_snd_cleanup(&vkdt.snd);
+}
+
+static inline void
 dt_gui_dr_next()
 {
   if(vkdt.graph_dev.frame_cnt != 1)
-    vkdt.state.anim_playing ^= 1; // start/stop playing animation
+  { // start/stop animation
+    if(vkdt.state.anim_playing == 0)
+      dt_gui_dr_anim_start();
+    else
+      dt_gui_dr_anim_stop();
+  }
   else
   { // advance to next image in lighttable collection
     uint32_t next = dt_db_current_colid(&vkdt.db) + 1;

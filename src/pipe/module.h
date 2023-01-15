@@ -42,6 +42,11 @@ typedef struct dt_image_params_t
   float    iso;               // iso value as shot
   float    focal_length;      // focal length of lens
 
+  // audio information (from ffmpeg or mlv or game code)
+  int snd_format;             // see alsa's snd_pcm_format_t
+  int snd_channels;           // 0 1 2..
+  int snd_samplerate;         // in Hz
+
   // from us:
   float noise_a;              // raw noise estimate, gaussian part
   float noise_b;              // raw noise estimate, poissonian part

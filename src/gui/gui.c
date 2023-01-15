@@ -209,8 +209,6 @@ int dt_gui_init()
 
   dt_gui_init_imgui();
 
-  dt_snd_init(&vkdt.snd, 44100, 2);
-
   return 0;
 }
 
@@ -298,7 +296,6 @@ void dt_gui_cleanup()
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
   glfwDestroyWindow(qvk.window);
   glfwTerminate();
-  dt_snd_cleanup(&vkdt.snd);
 }
 
 VkResult dt_gui_render()

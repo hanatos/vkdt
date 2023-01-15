@@ -554,7 +554,7 @@ extern "C" int nodes_leave()
 
 extern "C" void nodes_process()
 {
-  vkdt.state.anim_playing = 0; // we don't animate in graph edit mode
+  dt_gui_dr_anim_stop(); // we don't animate in graph edit mode
   if(vkdt.graph_dev.runflags)
     vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
