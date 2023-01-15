@@ -379,6 +379,23 @@ void render_lighttable_right_panel(int hotkey)
         ImGui::PopID();
       }
     }
+    else if(filter_prop == s_prop_filetype)
+    {
+      static char filter_type[10];
+      if(ImGui::InputText("filetype", filter_type+2, 6))
+      {
+        filter_type[0] = 'i'; filter_type[1] = '-';
+        vkdt.db.collection_filter_val = dt_token(filter_type);
+        dt_db_update_collection(&vkdt.db);
+        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+      }
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("enter the responsible input module here, for instance\n"
+                          "raw : raw files\n"
+                          "jpg : jpg files\n"
+                          "vid : video files\n"
+                          "mlv : raw video files");
+    }
     else
     {
       if(ImGui::InputInt("filter value", &filter_val, 1, 100, 0))

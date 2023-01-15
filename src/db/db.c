@@ -107,6 +107,19 @@ compare_createdate(const void *a, const void *b, void *arg)
   return strcmp(cda, cdb);
 }
 
+static int
+compare_filetype(const void *a, const void *b, void *arg)
+{
+  dt_db_t *db = arg;
+  const uint32_t *ia = a, *ib = b;
+  dt_token_t ta = dt_graph_default_input_module(db->image[ia[0]].filename);
+  dt_token_t tb = dt_graph_default_input_module(db->image[ib[0]].filename);
+  // convert 64 to 32 bits:
+  if(ta > tb) return 1;
+  else if(tb > ta) return -1;
+  return 0;
+}
+
 static inline void
 image_init(dt_image_t *img)
 {
@@ -137,6 +150,9 @@ dt_db_update_collection(dt_db_t *db)
     case s_prop_createdate:
       // TODO: match beginning of filter val string
       break;
+    case s_prop_filetype:
+      if(dt_graph_default_input_module(db->image[k].filename) != db->collection_filter_val) continue;
+      break;
     }
     db->collection[db->collection_cnt++] = k;
   }
@@ -156,6 +172,9 @@ dt_db_update_collection(dt_db_t *db)
     break;
   case s_prop_createdate:
     qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_createdate, db);
+    break;
+  case s_prop_filetype:
+    qsort_r(db->collection, db->collection_cnt, sizeof(db->collection[0]), compare_filetype, db);
     break;
   }
 }
@@ -410,6 +429,9 @@ const uint32_t *dt_db_selection_get(dt_db_t *db)
     break;
   case s_prop_createdate:
     qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_createdate, db);
+    break;
+  case s_prop_filetype:
+    qsort_r(db->selection, db->selection_cnt, sizeof(db->selection[0]), compare_filetype, db);
     break;
   }
   return db->selection;

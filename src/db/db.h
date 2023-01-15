@@ -45,6 +45,7 @@ typedef enum dt_db_property_t
   s_prop_rating      = 2, // >=
   s_prop_labels      = 3, // &
   s_prop_createdate  = 4,
+  s_prop_filetype    = 5, // == input module token
 }
 dt_db_property_t;
 
@@ -57,6 +58,7 @@ dt_db_property_text =
   "rating\0"
   "label\0"
   "create date\0"
+  "file type\0"
   "\0"
 };
 
