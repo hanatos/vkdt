@@ -138,9 +138,9 @@ filteredlist(
   {
     if(flags & s_filteredlist_return_short)
     {
-      if(pick < 0) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
-      if(local)    snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick]->d_name);
-      else         snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick]->d_name);
+      if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
+      else if(local) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick]->d_name);
+      else           snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick]->d_name);
     }
     else
     {
