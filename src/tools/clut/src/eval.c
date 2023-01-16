@@ -370,8 +370,8 @@ int main(int argc, char *argv[])
 
   // create ground truth datasets:
   float *cam_rgb, *xyz, *xyz_p;
-  // int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
-  int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
+  int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
+  // int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
 
 
   // evaluate test set on profile
@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
   for(int i=0;i<num;i++)
   {
     float err = cie_de76(xyz+3*i, xyz_p+3*i);
-    fprintf(stderr, "patch %d %c%02d %g\n", i, 'A'+(i/4), (i%6), err);
+    fprintf(stderr, "patch %d %c%02d %g\n", i, 'A'+(i/6), 1+(i%6), err);
     // TODO: nicer html/sort values/output max
   }
 
