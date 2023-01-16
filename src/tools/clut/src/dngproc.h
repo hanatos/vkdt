@@ -193,7 +193,7 @@ dng_profile_fill(
   memset(p, 0, sizeof(*p));
   FILE *f;
   char command[2048];
-  snprintf(command, sizeof(command), "exiftool -ColorMatrix%d -b -m %s", illuminant, filename);
+  snprintf(command, sizeof(command), "exiftool -ColorMatrix%d -b -m '%s'", illuminant, filename);
   f = popen(command, "r");
   double *ptr = &p->cm[0][0];
   fscanf(f, "%lg %lg %lg %lg %lg %lg %lg %lg %lg",
@@ -205,7 +205,7 @@ dng_profile_fill(
   pclose(f);
 
   p->cc[0][0] = p->cc[1][1] = p->cc[2][2] = 1.0;
-  snprintf(command, sizeof(command), "exiftool -CameraCalibration%d -b -m %s", illuminant, filename);
+  snprintf(command, sizeof(command), "exiftool -CameraCalibration%d -b -m '%s'", illuminant, filename);
   f = popen(command, "r");
   ptr = &p->cc[0][0];
   fscanf(f, "%lg %lg %lg %lg %lg %lg %lg %lg %lg",
@@ -217,7 +217,7 @@ dng_profile_fill(
   pclose(f);
 
   p->nt[0] = p->nt[1] = p->nt[2] = 1.0;
-  snprintf(command, sizeof(command), "exiftool -AsShotNeutral -b -m %s", filename);
+  snprintf(command, sizeof(command), "exiftool -AsShotNeutral -b -m '%s'", filename);
   f = popen(command, "r");
   ptr = &p->nt[0];
   fscanf(f, "%lg %lg %lg", ptr+0, ptr+1, ptr+2);
@@ -225,7 +225,7 @@ dng_profile_fill(
   pclose(f);
 
   p->ab[0][0] = p->ab[1][1] = p->ab[2][2] = 1.0;
-  snprintf(command, sizeof(command), "exiftool -AnalogBalance -b -m %s", filename);
+  snprintf(command, sizeof(command), "exiftool -AnalogBalance -b -m '%s'", filename);
   f = popen(command, "r");
   ptr = &p->ab[0][0];
   fscanf(f, "%lg %lg %lg", ptr+0, ptr+4, ptr+8);
@@ -236,7 +236,7 @@ dng_profile_fill(
   pclose(f);
 
   p->rm[0][0] = p->rm[1][1] = p->rm[2][2] = 1.0;
-  snprintf(command, sizeof(command), "exiftool -ReductionMatrix%d -b -m %s", illuminant, filename);
+  snprintf(command, sizeof(command), "exiftool -ReductionMatrix%d -b -m '%s'", illuminant, filename);
   f = popen(command, "r");
   ptr = &p->rm[0][0];
   fscanf(f, "%lg %lg %lg %lg %lg %lg %lg %lg %lg",
@@ -247,7 +247,7 @@ dng_profile_fill(
       p->rm[2][0], p->rm[2][1], p->rm[2][2]);
   pclose(f);
 
-  snprintf(command, sizeof(command), "exiftool -ForwardMatrix%d -b -m %s", illuminant, filename);
+  snprintf(command, sizeof(command), "exiftool -ForwardMatrix%d -b -m '%s'", illuminant, filename);
   f = popen(command, "r");
   ptr = &p->fm[0][0];
   fscanf(f, "%lg %lg %lg %lg %lg %lg %lg %lg %lg",
@@ -259,7 +259,7 @@ dng_profile_fill(
   pclose(f);
 
   int have_hsm = 1;
-  snprintf(command, sizeof(command), "exiftool -ProfileHueSatMapDims -b -m %s", filename);
+  snprintf(command, sizeof(command), "exiftool -ProfileHueSatMapDims -b -m '%s'", filename);
   f = popen(command, "r");
   if(fscanf(f, "%d %d %d", p->hsm_dim+0, p->hsm_dim+1, p->hsm_dim+2) != 3)
     have_hsm = 0;
@@ -269,7 +269,7 @@ dng_profile_fill(
   if(have_hsm)
   {
     p->hsm = malloc(sizeof(float)*3*p->hsm_dim[0]*p->hsm_dim[1]*p->hsm_dim[2]);
-    snprintf(command, sizeof(command), "exiftool -ProfileHueSatMapData%d -b -m %s", illuminant, filename);
+    snprintf(command, sizeof(command), "exiftool -ProfileHueSatMapData%d -b -m '%s'", illuminant, filename);
     f = popen(command, "r");
     int i = 0;
     while(!feof(f))
@@ -295,7 +295,7 @@ dng_profile_fill(
     p->wb[2] = 1.0-p->wb[0]-p->wb[1];
   }
 
-  snprintf(command, sizeof(command), "exiftool -UniqueCameraModel -b -m %s", filename);
+  snprintf(command, sizeof(command), "exiftool -UniqueCameraModel -b -m '%s'", filename);
   f = popen(command, "r");
   fscanf(f, "%[^\n]", p->model);
   pclose(f);
