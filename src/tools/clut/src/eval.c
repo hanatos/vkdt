@@ -6,6 +6,7 @@
 #include "matrices.h"
 #include "cie1931.h"
 #include "spectrum.h"
+#include "cfa.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -200,10 +201,10 @@ test_dataset_cc24(
     fprintf(stderr, "[eval-profile] could not open %s.txt!\n", ssf_filename);
     exit(2);
   }
-  double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
+  const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
   for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
   for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
-  for(int i=0;i<cc24_nwavelengths;i++)
+  for(int i=0;i<cc24_nwavelengths;i++) // XXX this is just 10nm spacing, TODO use finer quadrature rule!
   {
     for(int s=0;s<24;s++)
     {
@@ -241,63 +242,67 @@ test_dataset_cc24(
 
 static inline int
 test_dataset_sat(
-    float **cam_rgb,
-    float **xyz)
+    const char   *ssf_filename,
+    const double *ill,          // for instance cie_d65 or cie_a
+    float       **cam_rgb,      // illuminant * cc24 * camera ssf
+    float       **xyz)          // d65 * cc24 * cie cmf (since the built-in wb is meant for rec2020 which is d65)
 { // more saturated colours/LED
-  // XXX TODO
-#if 0
-  // load upsampling table
-  dt_lut_header_t sp_header;
-  char filename[PATH_MAX+30], basedir[PATH_MAX];
-  fs_basedir(basedir, sizeof(basedir));
-  snprintf(filename, sizeof(filename), "%s/data/spectra.lut", basedir);
-  float *sp_buf = load_spectra_lut(filename, &sp_header);
-  if(!sp_buf)
+  double p[20] = {
+     -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, // <= peak pos normalised as 0--1 between 420..680
+    1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  *xyz     = malloc(sizeof(float)*3*24);
+  *cam_rgb = malloc(sizeof(float)*3*24);
+  float (*res)[3] = (float (*)[3])*cam_rgb;
+  float (*ref)[3] = (float (*)[3])*xyz;
+
+  double *dat = malloc(sizeof(double)*1000*4);
+  double (*cfa_spec)[4] = (double (*)[4])dat;
+  int cfa_spec_cnt = spectrum_load(ssf_filename, cfa_spec);
+  if(!cfa_spec_cnt)
   {
-    fprintf(stderr, "[eval] can't load 'data/spectra.lut' upsampling table!\n");
-    exit(1);
+    fprintf(stderr, "[eval-profile] could not open %s.txt!\n", ssf_filename);
+    exit(2);
   }
-#endif
-#if 0
-    snprintf(filename, sizeof(filename), "%s/data/cie_observer", basedir);
-    int cfa_spec_cnt = spectrum_load(model,    cfa_spec);
-    int cie_spec_cnt = spectrum_load(filename, cie_spec);
-    if(!cfa_spec_cnt || !cie_spec_cnt)
-    {
-      fprintf(stderr, "[eval-profile] could not open %s.txt or data/cie_observer.txt!\n", model);
-      exit(2);
-    }
-#endif
-#if 0
-void integrate_ref_upsample(
-    double res[][3])
-{
-  for(int s=0;s<upsample_cnt;s++)
-    res[s][0] = res[s][1] = res[s][2] = 0.0;
+  const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
+  for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
+  for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
   for(int i=0;i<cc24_nwavelengths;i++)
   {
-    for(int s=0;s<upsample_cnt;s++)
+    for(int s=0;s<24;s++)
     {
-      double c[3];
-      fetch_coeff(upsample_xy[s], lut_buf, lut_header.wd, lut_header.ht, c);
-      res[s][0] += sigmoid(poly(c, cc24_wavelengths[i], 3))
-        * cie_interp(cie_d50, cc24_wavelengths[i])
-        * cie_interp(cie_x, cc24_wavelengths[i]);
-      res[s][1] += sigmoid(poly(c, cc24_wavelengths[i], 3))
-        * cie_interp(cie_d50, cc24_wavelengths[i])
-        * cie_interp(cie_y, cc24_wavelengths[i]);
-      res[s][2] += sigmoid(poly(c, cc24_wavelengths[i], 3))
-        * cie_interp(cie_d50, cc24_wavelengths[i])
-        * cie_interp(cie_z, cc24_wavelengths[i]);
+      p[0] = (s-0.5)/23.0;
+      double refspec = cfa_gauss_all(20, p, cc24_wavelengths[i]);
+      if(!s) refspec = 1.0; // some reference white to adjust exposure/wb
+      ref[s][0] += refspec
+        * cie_interp(ref_ill, cc24_wavelengths[i])
+        * cie_interp(cie_x,   cc24_wavelengths[i]);
+      ref[s][1] += refspec
+        * cie_interp(ref_ill, cc24_wavelengths[i])
+        * cie_interp(cie_y,   cc24_wavelengths[i]);
+      ref[s][2] += refspec
+        * cie_interp(ref_ill, cc24_wavelengths[i])
+        * cie_interp(cie_z,   cc24_wavelengths[i]);
+      res[s][0] += refspec
+        * cie_interp(ill, cc24_wavelengths[i])
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, cc24_wavelengths[i]);
+      res[s][1] += refspec
+        * cie_interp(ill, cc24_wavelengths[i])
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, cc24_wavelengths[i]);
+      res[s][2] += refspec
+        * cie_interp(ill, cc24_wavelengths[i])
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, cc24_wavelengths[i]);
     }
   }
-  for(int s=0;s<upsample_cnt;s++) for(int k=0;k<3;k++)
+  free(dat);
+  for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (cc24_nwavelengths-1.0);
-  for(int s=0;s<upsample_cnt;s++) normalise_col(res[s]);
-}
-#endif
-  return 0;
+      (double)cc24_nwavelengths;
+  for(int s=0;s<24;s++) for(int k=0;k<3;k++)
+    ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
+      (double)cc24_nwavelengths;
+  for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
+  for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
+  return 24;
 }
 
 static inline void
@@ -343,12 +348,19 @@ cie_de76(
 // - evaluate at which illuminant/temperature
 int main(int argc, char *argv[])
 {
-  // XXX parse!
-  const char *ssf_filename = "Nikon_D7000";
-  // const char *ssf_filename = "cie_observer";
-  const char *profile_name = "nikon_d7000.dcp";
-  const char *lut_name     = "Nikon D7000.lut";
-  // const char *lut_name     = "cie_observer.lut";
+  char *model = 0;
+  if(argc < 2)
+  {
+    fprintf(stderr, "[eval-profile] evaluate the accuracy of a colour lookup table profile\n");
+    fprintf(stderr, "usage: vkdt-eval-profile <model>\n");
+    exit(1);
+  }
+  model = argv[1];
+  const char *ssf_filename = model;
+  char profile_name[256];
+  char lut_name[256];
+  snprintf(profile_name, sizeof(profile_name), "%s.dcp", model);
+  snprintf(lut_name, sizeof(lut_name), "%s.lut", model);
   const double *illuminant = cie_d65;
   double Ta = 2856.0, Tb = 6504.0;
   double T  = 6504.0;
@@ -357,22 +369,19 @@ int main(int argc, char *argv[])
   // XXX parse!
 
   // create ground truth datasets:
-
-  // cc24:
   float *cam_rgb, *xyz, *xyz_p;
-  int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
+  // int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
+  int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
 
-  // TODO: create test dataset:
-  // upsample saturated colours (almost spec locus) and integrate against gt ssf
-  // test_dataset_sat(..)
 
   // evaluate test set on profile
   xyz_p = malloc(sizeof(float)*3*num);
-#if 1
-  if(profile_name)
+  // TODO: command line switch or only evaluate if the lut/dcp files are found:
+#if 0
+  // if(profile_name)
     eval_dcp (profile_name, Ta, Tb, T, num, cam_rgb, xyz_p);
 #else
-  if(lut_name)
+  // if(lut_name)
     eval_clut(lut_name, T, num, cam_rgb, xyz_p);
 #endif
 
@@ -382,6 +391,8 @@ int main(int argc, char *argv[])
     xyz[3*whitest+0]/xyz_p[3*whitest+0],
     xyz[3*whitest+1]/xyz_p[3*whitest+1],
     xyz[3*whitest+2]/xyz_p[3*whitest+2]};
+  // all else going well this is just to match exposure:
+  fprintf(stderr, "corrective wb %g %g %g\n", wb[0], wb[1], wb[2]);
   for(int i=0;i<num;i++)
     for(int k=0;k<3;k++)
       xyz_p[3*i+k] *= wb[k];
@@ -391,7 +402,7 @@ int main(int argc, char *argv[])
   for(int i=0;i<num;i++)
   {
     float err = cie_de76(xyz+3*i, xyz_p+3*i);
-    fprintf(stderr, "patch %d %g\n", i, err);
+    fprintf(stderr, "patch %d %c%02d %g\n", i, 'A'+(i/4), (i%6), err);
     // TODO: nicer html/sort values/output max
   }
 
