@@ -78,7 +78,7 @@ texture(
     double         *out)    // bilinear lookup will end up here
 {
   out[0] = out[1] = 0.0;
-  double xf = tc[0]*wd, yf = tc[1]*ht;
+  double xf = tc[0]*wd - 0.5, yf = tc[1]*ht - 0.5;
   int x0 = (int)CLAMP(xf,   0, wd-1), y0 = (int)CLAMP(yf,   0, ht-1);
   int x1 = (int)CLAMP(x0+1, 0, wd-1), y1 = (int)CLAMP(y0+1, 0, ht-1);
   int dx = x1 - x0, dy = y1 - y0;
@@ -149,7 +149,11 @@ eval_clut(
     for(int j=0;j<3;j++)
       for(int i=0;i<3;i++)
         xyz[3*k+j] += rec2020_to_xyz[j][i] * rec2020[i];
-    fprintf(stderr, "out xyz %g %g %g\n", xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
+    // fprintf(stderr, "out xyz %g %g %g\n", xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
+    fprintf(stderr, "cam rgb vs xyz %g %g %g -- %g %g %g\n",
+        cam_rgb[3*k+0], cam_rgb[3*k+1], cam_rgb[3*k+2],
+        xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
+    // fprintf(stderr, "rec 2020: %g %g %g\n", rec2020[0], rec2020[1], rec2020[2]);
   }
   free(clut);
 }
@@ -174,7 +178,7 @@ eval_dcp(
     double co[3], ci[3] = { cam_rgb[3*i+0], cam_rgb[3*i+1], cam_rgb[3*i+2]};
     dng_process(&p, ci, co);
     xyz[3*i+0] = co[0]; xyz[3*i+1] = co[1]; xyz[3*i+2] = co[2];
-    fprintf(stderr, "out xyz %g %g %g\n", co[0], co[1], co[2]);
+    // fprintf(stderr, "out xyz %g %g %g\n", co[0], co[1], co[2]);
   }
   dng_cleanup(&pa);
   dng_cleanup(&pb);
@@ -204,39 +208,58 @@ test_dataset_cc24(
   const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
   for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
   for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
-  for(int i=0;i<cc24_nwavelengths;i++) // XXX this is just 10nm spacing, TODO use finer quadrature rule!
+  // for(int i=0;i<cc24_nwavelengths;i++) // XXX this is just 10nm spacing, TODO use finer quadrature rule!
+  const int cnt = CIE2_SAMPLES;
+  for(int i=0;i<cnt;i++) // XXX this is just 10nm spacing, TODO use finer quadrature rule!
   {
+    double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
     for(int s=0;s<24;s++)
     {
-       ref[s][0] += cc24_spectra[s][i]
-         * cie_interp(ref_ill, cc24_wavelengths[i])
-         * cie_interp(cie_x,   cc24_wavelengths[i]);
-       ref[s][1] += cc24_spectra[s][i]
-         * cie_interp(ref_ill, cc24_wavelengths[i])
-         * cie_interp(cie_y,   cc24_wavelengths[i]);
-       ref[s][2] += cc24_spectra[s][i]
-         * cie_interp(ref_ill, cc24_wavelengths[i])
-         * cie_interp(cie_z,   cc24_wavelengths[i]);
-       res[s][0] += cc24_spectra[s][i]
-         * cie_interp(ill, cc24_wavelengths[i])
-         * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, cc24_wavelengths[i]);
-       res[s][1] += cc24_spectra[s][i]
-         * cie_interp(ill, cc24_wavelengths[i])
-         * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, cc24_wavelengths[i]);
-       res[s][2] += cc24_spectra[s][i]
-         * cie_interp(ill, cc24_wavelengths[i])
-         * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, cc24_wavelengths[i]);
+       ref[s][0] += cc24_interp(cc24_spectra[s], wavelength)
+         * cie_interp(ref_ill, wavelength)
+         * cie_interp(cie_x,   wavelength);
+       ref[s][1] += cc24_interp(cc24_spectra[s], wavelength)
+         * cie_interp(ref_ill, wavelength)
+         * cie_interp(cie_y,   wavelength);
+       ref[s][2] += cc24_interp(cc24_spectra[s], wavelength)
+         * cie_interp(ref_ill, wavelength)
+         * cie_interp(cie_z,   wavelength);
+       res[s][0] += cc24_interp(cc24_spectra[s], wavelength)
+         * cie_interp(ill, wavelength)
+         * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, wavelength);
+       res[s][1] += cc24_interp(cc24_spectra[s], wavelength)
+         * cie_interp(ill, wavelength)
+         * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, wavelength);
+       res[s][2] += cc24_interp(cc24_spectra[s], wavelength)
+         * cie_interp(ill, wavelength)
+         * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, wavelength);
     }
   }
   free(dat);
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (double)cc24_nwavelengths;
+      (double)cnt;
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (double)cc24_nwavelengths;
+      (double)cnt;
   for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
   for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
+#if 1
+  double xy[24*2];
+  FILE *f = fopen("quad.dat", "wb");
+  if(f)
+  {
+    for(int s=0;s<24;s++)
+    {
+      const double b = ref[s][0] + ref[s][1] + ref[s][2];
+      xy[2*s+0] = ref[s][0] / b;
+      xy[2*s+1] = ref[s][1] / b;
+      tri2quad(xy+2*s);
+      fprintf(f, "%g %g\n", xy[2*s+0], xy[2*s+1]);
+    }
+    fclose(f);
+  }
+#endif
   return 24;
 }
 
@@ -266,42 +289,61 @@ test_dataset_sat(
   const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
   for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
   for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
-  for(int i=0;i<cc24_nwavelengths;i++)
+  const int cnt = CIE2_SAMPLES;
+  // for(int i=0;i<cc24_nwavelengths;i++)
+  for(int i=0;i<cnt;i++)
   {
+    double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
     for(int s=0;s<24;s++)
     {
       p[0] = (s-0.5)/23.0;
-      double refspec = cfa_gauss_all(20, p, cc24_wavelengths[i]);
+      double refspec = cfa_gauss_all(20, p, wavelength);
       if(!s) refspec = 1.0; // some reference white to adjust exposure/wb
       ref[s][0] += refspec
-        * cie_interp(ref_ill, cc24_wavelengths[i])
-        * cie_interp(cie_x,   cc24_wavelengths[i]);
+        * cie_interp(ref_ill, wavelength)
+        * cie_interp(cie_x,   wavelength);
       ref[s][1] += refspec
-        * cie_interp(ref_ill, cc24_wavelengths[i])
-        * cie_interp(cie_y,   cc24_wavelengths[i]);
+        * cie_interp(ref_ill, wavelength)
+        * cie_interp(cie_y,   wavelength);
       ref[s][2] += refspec
-        * cie_interp(ref_ill, cc24_wavelengths[i])
-        * cie_interp(cie_z,   cc24_wavelengths[i]);
+        * cie_interp(ref_ill, wavelength)
+        * cie_interp(cie_z,   wavelength);
       res[s][0] += refspec
-        * cie_interp(ill, cc24_wavelengths[i])
-        * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, cc24_wavelengths[i]);
+        * cie_interp(ill, wavelength)
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, wavelength);
       res[s][1] += refspec
-        * cie_interp(ill, cc24_wavelengths[i])
-        * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, cc24_wavelengths[i]);
+        * cie_interp(ill, wavelength)
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, wavelength);
       res[s][2] += refspec
-        * cie_interp(ill, cc24_wavelengths[i])
-        * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, cc24_wavelengths[i]);
+        * cie_interp(ill, wavelength)
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, wavelength);
     }
   }
   free(dat);
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (double)cc24_nwavelengths;
+      (double)cnt;
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (double)cc24_nwavelengths;
+      (double)cnt;
   for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
   for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
+#if 1
+  double xy[24*2];
+  FILE *f = fopen("quad.dat", "wb");
+  if(f)
+  {
+    for(int s=0;s<24;s++)
+    {
+      const double b = ref[s][0] + ref[s][1] + ref[s][2];
+      xy[2*s+0] = ref[s][0] / b;
+      xy[2*s+1] = ref[s][1] / b;
+      tri2quad(xy+2*s);
+      fprintf(f, "%g %g\n", xy[2*s+0], xy[2*s+1]);
+    }
+    fclose(f);
+  }
+#endif
   return 24;
 }
 
@@ -370,8 +412,8 @@ int main(int argc, char *argv[])
 
   // create ground truth datasets:
   float *cam_rgb, *xyz, *xyz_p;
-  int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
-  // int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
+  // int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
+  int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
 
 
   // evaluate test set on profile

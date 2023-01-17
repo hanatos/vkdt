@@ -8,6 +8,44 @@
 #include "core/half.h"
 #include "core/inpaint.h"
 
+#if 0
+// XXX DEBUG write just the matrix from xyz to rec2020 for precision checks:
+static inline float*
+create_chroma_lut_DEBUG(
+    int                   *wd_out,
+    int                   *ht_out,
+    const float           *spectra,          // sigmoid upsampling table
+    const dt_lut_header_t *sh,               // lut header for spectra
+    const double         (*cfa_spec)[4],     // tabulated cfa spectra
+    const int              cfa_spec_cnt,
+    const double         (*cie_spec)[4],     // tabulated cie observer
+    const int              cie_spec_cnt)
+{
+  int wd  = sh->wd, ht = sh->ht; // output dimensions
+  float *buf = calloc(sizeof(float)*3, wd*ht+1);
+
+  for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
+  {
+    double xz[2] = {(i+0.5)/wd, (j+0.5)/ht};
+    quad2tri(xz+0, xz+1);
+    // double xyz[3] = {xy[0], xy[1], 1.0-xy[0]-xy[1]}; // = "cam rgb"
+    double xyz[3] = {xz[0], 1.0-xz[0]-xz[1], xz[1]}; // = "cam rgb"
+
+    double rec2020[3];
+    mat3_mulv(xyz_to_rec2020, xyz, rec2020);
+    // const double ref_L = white_cam_rgb_L1 / white_rec2020_L1;
+    const double rec2020_L1 = normalise1(rec2020); // XXX * ref_L ???
+    const double cam_rgb_L1 = normalise1(xyz);
+
+    buf[3*(j*wd + i)+0] = rec2020[0];
+    buf[3*(j*wd + i)+1] = rec2020[2];
+    buf[3*(j*wd + i)+2] = rec2020_L1 / cam_rgb_L1;
+  }
+  *wd_out = wd;
+  *ht_out = ht;
+  return buf;
+}
+#endif
 
 // create 2.5D chroma lut
 static inline float*
