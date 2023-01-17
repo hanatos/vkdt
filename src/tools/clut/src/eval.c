@@ -15,13 +15,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <float.h>
-// TODO: create this input to evaluate: (Nikon D7000 because we have cc24 shots for it)
-// [*] dcp from patches
-// [*] dcp from adobe
-// [ ] spec lut from ssf
-// [ ] spec lut from patches
-// [ ] spec lut from dcp from patches
-// [ ] spec lut from dcp from adobe
 
 static inline int
 find_whitest(
@@ -205,9 +198,8 @@ test_dataset_cc24(
   const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
   for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
   for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
-  // for(int i=0;i<cc24_nwavelengths;i++) // XXX this is just 10nm spacing, TODO use finer quadrature rule!
   const int cnt = CIE2_SAMPLES;
-  for(int i=0;i<cnt;i++) // XXX this is just 10nm spacing, TODO use finer quadrature rule!
+  for(int i=0;i<cnt;i++)
   {
     double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
     for(int s=0;s<24;s++)
@@ -296,7 +288,6 @@ test_dataset_sig(
   for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
   for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
   const int cnt = CIE2_SAMPLES;
-  // for(int i=0;i<cc24_nwavelengths;i++)
   for(int i=0;i<cnt;i++)
   {
     double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
@@ -375,92 +366,6 @@ test_dataset_sig(
   return 24;
 }
 
-#if 0
-static inline int
-test_dataset_sat(
-    const char   *ssf_filename,
-    const double *ill,          // for instance cie_d65 or cie_a
-    float       **cam_rgb,      // illuminant * cc24 * camera ssf
-    float       **xyz)          // d65 * cc24 * cie cmf (since the built-in wb is meant for rec2020 which is d65)
-{ // more saturated colours/LED
-  double p[20] = {
-     -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, // <= peak pos normalised as 0--1 between 420..680
-      1.0};
-  *xyz     = malloc(sizeof(float)*3*24);
-  *cam_rgb = malloc(sizeof(float)*3*24);
-  float (*res)[3] = (float (*)[3])*cam_rgb;
-  float (*ref)[3] = (float (*)[3])*xyz;
-
-  double *dat = malloc(sizeof(double)*1000*4);
-  double (*cfa_spec)[4] = (double (*)[4])dat;
-  int cfa_spec_cnt = spectrum_load(ssf_filename, cfa_spec);
-  if(!cfa_spec_cnt)
-  {
-    fprintf(stderr, "[eval-profile] could not open %s.txt!\n", ssf_filename);
-    exit(2);
-  }
-  const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
-  for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
-  for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
-  const int cnt = CIE2_SAMPLES;
-  // for(int i=0;i<cc24_nwavelengths;i++)
-  for(int i=0;i<cnt;i++)
-  {
-    double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
-    for(int s=0;s<24;s++)
-    {
-      p[0] = (s-0.5)/23.0;
-      double refspec = cfa_gauss_all(sizeof(p)/sizeof(p[0]), p, wavelength);
-      if(!s) refspec = 1.0; // some reference white to adjust exposure/wb
-      ref[s][0] += refspec
-        * cie_interp(ref_ill, wavelength)
-        * cie_interp(cie_x,   wavelength);
-      ref[s][1] += refspec
-        * cie_interp(ref_ill, wavelength)
-        * cie_interp(cie_y,   wavelength);
-      ref[s][2] += refspec
-        * cie_interp(ref_ill, wavelength)
-        * cie_interp(cie_z,   wavelength);
-      res[s][0] += refspec
-        * cie_interp(ill, wavelength)
-        * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, wavelength);
-      res[s][1] += refspec
-        * cie_interp(ill, wavelength)
-        * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, wavelength);
-      res[s][2] += refspec
-        * cie_interp(ill, wavelength)
-        * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, wavelength);
-    }
-  }
-  free(dat);
-  for(int s=0;s<24;s++) for(int k=0;k<3;k++)
-    res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (double)cnt;
-  for(int s=0;s<24;s++) for(int k=0;k<3;k++)
-    ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
-      (double)cnt;
-  // for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
-  // for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
-#if 0
-  double xy[24*2];
-  FILE *f = fopen("quad.dat", "wb");
-  if(f)
-  {
-    for(int s=0;s<24;s++)
-    {
-      const double b = ref[s][0] + ref[s][1] + ref[s][2];
-      xy[2*s+0] = ref[s][0] / b;
-      xy[2*s+1] = ref[s][1] / b;
-      tri2quad(xy+2*s, xy+2*s+1);
-      fprintf(f, "%g %g\n", xy[2*s+0], xy[2*s+1]);
-    }
-    fclose(f);
-  }
-#endif
-  return 24;
-}
-#endif
-
 static inline void
 xyz_to_lab(
     const float *xyz0,
@@ -530,7 +435,6 @@ int main(int argc, char *argv[])
     int num = 0;
     if(set == 0) num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
     else         num = test_dataset_sig (ssf_filename, illuminant, &cam_rgb, &xyz);
-    // int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
 
     // evaluate test set on profile
     xyz_p = malloc(sizeof(float)*3*num);
