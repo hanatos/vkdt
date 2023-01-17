@@ -1,12 +1,15 @@
 #include "core/half.h"
 #include "core/lut.h"
 #include "core/core.h"
+#include "core/clip.h"
+#include "core/fs.h"
 #include "cc24.h"
 #include "dngproc.h"
 #include "matrices.h"
 #include "cie1931.h"
 #include "spectrum.h"
 #include "cfa.h"
+#include "upsample.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +42,7 @@ find_whitest(
       min_i   = i;
     }
   }
-  fprintf(stderr, "whitest patch is %d - %g %g %g\n", min_i, ref[3*min_i+0], ref[3*min_i+1], ref[3*min_i+2]);
+  // fprintf(stderr, "whitest patch is %d - %g %g %g\n", min_i, ref[3*min_i+0], ref[3*min_i+1], ref[3*min_i+2]);
   return min_i;
 }
 
@@ -90,12 +93,6 @@ texture(
   for(int k=0;k<2;k++) out[k] += (    u)*(    v)*half_to_float(c[k + 2*(wd*dy+dx)]);
 }
 
-void tri2quad(double *tc)
-{
-  tc[1] = tc[1] / (1.0-tc[0]);
-  tc[0] = (1.0-tc[0])*(1.0-tc[0]);
-}
-
 void
 process_clut(
     const dt_lut_header_t *clut_header,
@@ -112,7 +109,7 @@ process_clut(
   double temp = 1.0f - CLAMP(tanf(asinhf(46.3407f+T))+(-0.0287128f*cosf(0.000798585f*(714.855f-T)))+0.942275f, 0.0f, 1.0f);
   double b = rgb[0]+rgb[1]+rgb[2];
   double tc[] = {rgb[0]/b, rgb[2]/b};
-  tri2quad(tc);
+  tri2quad(tc, tc+1);
   tc[0] /= 3.0;
   double rbrb[4], L2[2];
   texture(tc, clut, clut_header->wd, clut_header->ht, rbrb);
@@ -150,9 +147,9 @@ eval_clut(
       for(int i=0;i<3;i++)
         xyz[3*k+j] += rec2020_to_xyz[j][i] * rec2020[i];
     // fprintf(stderr, "out xyz %g %g %g\n", xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
-    fprintf(stderr, "cam rgb vs xyz %g %g %g -- %g %g %g\n",
-        cam_rgb[3*k+0], cam_rgb[3*k+1], cam_rgb[3*k+2],
-        xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
+    // fprintf(stderr, "cam rgb vs xyz %g %g %g -- %g %g %g\n",
+    //     cam_rgb[3*k+0], cam_rgb[3*k+1], cam_rgb[3*k+2],
+    //     xyz[3*k+0], xyz[3*k+1], xyz[3*k+2]);
     // fprintf(stderr, "rec 2020: %g %g %g\n", rec2020[0], rec2020[1], rec2020[2]);
   }
   free(clut);
@@ -242,9 +239,9 @@ test_dataset_cc24(
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
       (double)cnt;
-  for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
-  for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
-#if 1
+  // for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
+  // for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
+#if 0
   double xy[24*2];
   FILE *f = fopen("quad.dat", "wb");
   if(f)
@@ -254,7 +251,7 @@ test_dataset_cc24(
       const double b = ref[s][0] + ref[s][1] + ref[s][2];
       xy[2*s+0] = ref[s][0] / b;
       xy[2*s+1] = ref[s][1] / b;
-      tri2quad(xy+2*s);
+      tri2quad(xy+2*s, xy+2*s+1);
       fprintf(f, "%g %g\n", xy[2*s+0], xy[2*s+1]);
     }
     fclose(f);
@@ -264,15 +261,24 @@ test_dataset_cc24(
 }
 
 static inline int
-test_dataset_sat(
+test_dataset_sig(
     const char   *ssf_filename,
     const double *ill,          // for instance cie_d65 or cie_a
     float       **cam_rgb,      // illuminant * cc24 * camera ssf
     float       **xyz)          // d65 * cc24 * cie cmf (since the built-in wb is meant for rec2020 which is d65)
 { // more saturated colours/LED
-  double p[20] = {
-     -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, // <= peak pos normalised as 0--1 between 420..680
-    1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  dt_lut_header_t sp_header;
+  char filename[300], basedir[256];
+  fs_basedir(basedir, sizeof(basedir));
+  snprintf(filename, sizeof(filename), "%s/data/spectra.lut", basedir);
+  float *sp_buf = load_spectra_lut(filename, &sp_header);
+  if(!sp_buf)
+  {
+    fprintf(stderr, "[eval-profile] can't load 'data/spectra.lut' upsampling table!\n");
+    exit(1);
+  }
+
   *xyz     = malloc(sizeof(float)*3*24);
   *cam_rgb = malloc(sizeof(float)*3*24);
   float (*res)[3] = (float (*)[3])*cam_rgb;
@@ -296,8 +302,30 @@ test_dataset_sat(
     double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
     for(int s=0;s<24;s++)
     {
-      p[0] = (s-0.5)/23.0;
-      double refspec = cfa_gauss_all(20, p, wavelength);
+#if 0 // spectral line
+      double l0 = CIE2_LAMBDA_MIN + (CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN)*(s-0.5)/23.0;
+      double xyz[3] = {
+        cie_interp(cie_x, l0),
+        cie_interp(cie_y, l0),
+        cie_interp(cie_z, l0)};
+      double b = xyz[0]+xyz[1]+xyz[2];
+      double xy[2] = {xyz[0]/b, xyz[1]/b};
+#else // all around E:
+      const float w[] = {1.0/3.0, 1.0/3.0}; // illuminant E white
+      float alpha = 2.0*M_PI*(s-0.5)/23.0;
+      float out[2] = { w[0] + cosf(alpha), w[1] + sinf(alpha) };
+      const int cnt = sizeof(dt_spectrum_clip)/2/sizeof(dt_spectrum_clip[0]);
+      dt_spectrum_clip_poly(dt_spectrum_clip, cnt, w, out);
+      // now "out" is on the spectral locus
+      double xy[2] = {out[0], out[1]};
+#endif
+
+      double t = 0.90; // at 90% of way to fall off the spectral locus
+      xy[0] = t * xy[0] + (1.0-t) * 1.0/3.0;
+      xy[1] = t * xy[1] + (1.0-t) * 1.0/3.0;
+      double cf[3]; // look up the coeffs for the sampled colour spectrum
+      fetch_coeffi(xy, sp_buf, sp_header.wd, sp_header.ht, cf); // nearest
+      double refspec = sigmoid(poly(cf, wavelength, 3));
       if(!s) refspec = 1.0; // some reference white to adjust exposure/wb
       ref[s][0] += refspec
         * cie_interp(ref_ill, wavelength)
@@ -326,9 +354,9 @@ test_dataset_sat(
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
     ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
       (double)cnt;
-  for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
-  for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
-#if 1
+  // for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
+  // for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
+#if 0
   double xy[24*2];
   FILE *f = fopen("quad.dat", "wb");
   if(f)
@@ -338,7 +366,7 @@ test_dataset_sat(
       const double b = ref[s][0] + ref[s][1] + ref[s][2];
       xy[2*s+0] = ref[s][0] / b;
       xy[2*s+1] = ref[s][1] / b;
-      tri2quad(xy+2*s);
+      tri2quad(xy+2*s, xy+2*s+1);
       fprintf(f, "%g %g\n", xy[2*s+0], xy[2*s+1]);
     }
     fclose(f);
@@ -346,6 +374,92 @@ test_dataset_sat(
 #endif
   return 24;
 }
+
+#if 0
+static inline int
+test_dataset_sat(
+    const char   *ssf_filename,
+    const double *ill,          // for instance cie_d65 or cie_a
+    float       **cam_rgb,      // illuminant * cc24 * camera ssf
+    float       **xyz)          // d65 * cc24 * cie cmf (since the built-in wb is meant for rec2020 which is d65)
+{ // more saturated colours/LED
+  double p[20] = {
+     -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, // <= peak pos normalised as 0--1 between 420..680
+      1.0};
+  *xyz     = malloc(sizeof(float)*3*24);
+  *cam_rgb = malloc(sizeof(float)*3*24);
+  float (*res)[3] = (float (*)[3])*cam_rgb;
+  float (*ref)[3] = (float (*)[3])*xyz;
+
+  double *dat = malloc(sizeof(double)*1000*4);
+  double (*cfa_spec)[4] = (double (*)[4])dat;
+  int cfa_spec_cnt = spectrum_load(ssf_filename, cfa_spec);
+  if(!cfa_spec_cnt)
+  {
+    fprintf(stderr, "[eval-profile] could not open %s.txt!\n", ssf_filename);
+    exit(2);
+  }
+  const double *ref_ill = cie_d65; // dcp goes d50, our lut goes d65/rec2020
+  for(int s=0;s<24;s++) res[s][0] = res[s][1] = res[s][2] = 0.0;
+  for(int s=0;s<24;s++) ref[s][0] = ref[s][1] = ref[s][2] = 0.0;
+  const int cnt = CIE2_SAMPLES;
+  // for(int i=0;i<cc24_nwavelengths;i++)
+  for(int i=0;i<cnt;i++)
+  {
+    double wavelength = CIE2_LAMBDA_MIN + ((CIE2_LAMBDA_MAX-CIE2_LAMBDA_MIN) * i)/cnt;
+    for(int s=0;s<24;s++)
+    {
+      p[0] = (s-0.5)/23.0;
+      double refspec = cfa_gauss_all(sizeof(p)/sizeof(p[0]), p, wavelength);
+      if(!s) refspec = 1.0; // some reference white to adjust exposure/wb
+      ref[s][0] += refspec
+        * cie_interp(ref_ill, wavelength)
+        * cie_interp(cie_x,   wavelength);
+      ref[s][1] += refspec
+        * cie_interp(ref_ill, wavelength)
+        * cie_interp(cie_y,   wavelength);
+      ref[s][2] += refspec
+        * cie_interp(ref_ill, wavelength)
+        * cie_interp(cie_z,   wavelength);
+      res[s][0] += refspec
+        * cie_interp(ill, wavelength)
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, wavelength);
+      res[s][1] += refspec
+        * cie_interp(ill, wavelength)
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, wavelength);
+      res[s][2] += refspec
+        * cie_interp(ill, wavelength)
+        * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, wavelength);
+    }
+  }
+  free(dat);
+  for(int s=0;s<24;s++) for(int k=0;k<3;k++)
+    res[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
+      (double)cnt;
+  for(int s=0;s<24;s++) for(int k=0;k<3;k++)
+    ref[s][k] *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
+      (double)cnt;
+  // for(int s=0;s<24;s++) fprintf(stderr, "ref xyz %g %g %g\n", ref[s][0], ref[s][1], ref[s][2]);
+  // for(int s=0;s<24;s++) fprintf(stderr, "cam rgb %g %g %g\n", res[s][0], res[s][1], res[s][2]);
+#if 0
+  double xy[24*2];
+  FILE *f = fopen("quad.dat", "wb");
+  if(f)
+  {
+    for(int s=0;s<24;s++)
+    {
+      const double b = ref[s][0] + ref[s][1] + ref[s][2];
+      xy[2*s+0] = ref[s][0] / b;
+      xy[2*s+1] = ref[s][1] / b;
+      tri2quad(xy+2*s, xy+2*s+1);
+      fprintf(f, "%g %g\n", xy[2*s+0], xy[2*s+1]);
+    }
+    fclose(f);
+  }
+#endif
+  return 24;
+}
+#endif
 
 static inline void
 xyz_to_lab(
@@ -404,48 +518,58 @@ int main(int argc, char *argv[])
   snprintf(profile_name, sizeof(profile_name), "%s.dcp", model);
   snprintf(lut_name, sizeof(lut_name), "%s.lut", model);
   const double *illuminant = cie_d65;
-  double Ta = 2856.0, Tb = 6504.0;
   double T  = 6504.0;
   // double illbb[CIE2_SAMPLES];
   // if(temp0 > 0) init_blackbody(illbb, temp0); // XXX TODO: init from blackbody
   // XXX parse!
 
-  // create ground truth datasets:
-  float *cam_rgb, *xyz, *xyz_p;
-  // int num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
-  int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
+  for(int set=0;set<2;set++)
+  {
+    // create ground truth datasets:
+    float *cam_rgb, *xyz, *xyz_p;
+    int num = 0;
+    if(set == 0) num = test_dataset_cc24(ssf_filename, illuminant, &cam_rgb, &xyz);
+    else         num = test_dataset_sig (ssf_filename, illuminant, &cam_rgb, &xyz);
+    // int num = test_dataset_sat(ssf_filename, illuminant, &cam_rgb, &xyz);
 
-
-  // evaluate test set on profile
-  xyz_p = malloc(sizeof(float)*3*num);
-  // TODO: command line switch or only evaluate if the lut/dcp files are found:
+    // evaluate test set on profile
+    xyz_p = malloc(sizeof(float)*3*num);
+    // TODO: command line switch or only evaluate if the lut/dcp files are found:
 #if 0
-  // if(profile_name)
+    double Ta = 2856.0, Tb = 6504.0;
+    // if(profile_name)
     eval_dcp (profile_name, Ta, Tb, T, num, cam_rgb, xyz_p);
 #else
-  // if(lut_name)
+    // if(lut_name)
     eval_clut(lut_name, T, num, cam_rgb, xyz_p);
 #endif
 
 #if 1 // correct brightness and wb at whitest patch we find
-  int whitest = find_whitest(xyz, xyz_p, num);
-  float wb[] = {
-    xyz[3*whitest+0]/xyz_p[3*whitest+0],
-    xyz[3*whitest+1]/xyz_p[3*whitest+1],
-    xyz[3*whitest+2]/xyz_p[3*whitest+2]};
-  // all else going well this is just to match exposure:
-  fprintf(stderr, "corrective wb %g %g %g\n", wb[0], wb[1], wb[2]);
-  for(int i=0;i<num;i++)
-    for(int k=0;k<3;k++)
-      xyz_p[3*i+k] *= wb[k];
+    int whitest = find_whitest(xyz, xyz_p, num);
+    float wb[] = {
+      xyz[3*whitest+0]/xyz_p[3*whitest+0],
+      xyz[3*whitest+1]/xyz_p[3*whitest+1],
+      xyz[3*whitest+2]/xyz_p[3*whitest+2]};
+    // all else going well this is just to match exposure:
+    // fprintf(stderr, "corrective wb %g %g %g\n", wb[0], wb[1], wb[2]);
+    for(int i=0;i<num;i++)
+      for(int k=0;k<3;k++)
+        xyz_p[3*i+k] *= wb[k];
 #endif
 
-  // output report
-  for(int i=0;i<num;i++)
-  {
-    float err = cie_de76(xyz+3*i, xyz_p+3*i);
-    fprintf(stderr, "patch %d %c%02d %g\n", i, 'A'+(i/6), 1+(i%6), err);
-    // TODO: nicer html/sort values/output max
+    // output report
+    for(int i=0;i<num;i++)
+    {
+      float err = cie_de76(xyz+3*i, xyz_p+3*i);
+      if(set == 0)
+        fprintf(stderr, "patch %c%02d %g\n", 'A'+(i/6), 1+(i%6), err);
+      else
+        fprintf(stderr, "patch X%02d %g\n", i, err);
+      // TODO: nicer html/sort values/output max
+    }
+    free(xyz_p);
+    free(cam_rgb);
+    free(xyz);
   }
 
   exit(0);
