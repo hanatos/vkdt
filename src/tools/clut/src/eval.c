@@ -466,9 +466,9 @@ int main(int argc, char *argv[])
     {
       float err = cie_de76(xyz+3*i, xyz_p+3*i);
       if(set == 0)
-        fprintf(stderr, "patch %c%02d %g\n", 'A'+(i/6), 1+(i%6), err);
+        fprintf(stdout, "patch %c%02d %g\n", 'A'+(i/6), 1+(i%6), err);
       else
-        fprintf(stderr, "patch X%02d %g\n", i, err);
+        fprintf(stdout, "patch X%02d %g\n", i, err);
       // TODO: nicer html/sort values/output max
     }
     free(xyz_p);
