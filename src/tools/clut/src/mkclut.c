@@ -251,8 +251,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  double cfa_spec[100][4];
-  double cie_spec[100][4];
+  double cfa_spec[1000][4];
+  double cie_spec[1000][4];
   double d65_spec[1000][4];
   snprintf(filename, sizeof(filename), "%s/data/cie_d65", basedir);
   int d65_cnt = spectrum_load(filename, d65_spec);
