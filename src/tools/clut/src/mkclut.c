@@ -175,16 +175,6 @@ write_chroma_lut(
     const int    wd,
     const int    ht)
 {
-  char filename[256] = {0};
-  snprintf(filename, sizeof(filename), "%s.pfm", basename);
-  FILE *f = fopen(filename, "wb");
-  fprintf(f, "PF\n%d %d\n-1.0\n", wd, ht);
-  for(int k=0;k<wd*ht;k++)
-  {
-    float col[3] = {buf0[3*k], buf0[3*k+1], 1.0-buf0[3*k]-buf0[3*k+1]};
-    fwrite(col, sizeof(float), 3, f);
-  }
-  fclose(f);
   dt_lut_header_t hout = {
     .magic    = dt_lut_header_magic,
     .version  = dt_lut_header_version,
@@ -193,8 +183,9 @@ write_chroma_lut(
     .wd       = 3*wd,
     .ht       = ht,
   };
+  char filename[256] = {0};
   snprintf(filename, sizeof(filename), "%s.lut", basename);
-  f = fopen(filename, "wb");
+  FILE *f = fopen(filename, "wb");
   fwrite(&hout, sizeof(hout), 1, f);
   uint16_t *b16 = calloc(sizeof(uint16_t), wd*ht*6);
   for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
@@ -304,6 +295,32 @@ int main(int argc, char *argv[])
         cfa_spec_cnt,
         cie_spec,
         cie_spec_cnt);
+
+#if 1
+    if(ill == 0)
+    { // write debugging output for plots with the source data only,
+      // to visualise sampling density and the limits of the spectral locus
+      snprintf(filename, sizeof(filename), "%s.ppm", model);
+      FILE *f = fopen(filename, "wb");
+      fprintf(f, "P6\n%d %d\n255\n", clut_wd, clut_ht);
+      for(int j=0;j<clut_ht;j++)
+      for(int i=0;i<clut_wd;i++)
+      {
+        int k = (clut_ht-1-j)*clut_wd + i; // fucking flip so convert -> png shows correctly
+        float col[3] = {clut0[3*k], clut0[3*k+1], 1.0-clut0[3*k]-clut0[3*k+1]};
+        uint8_t c8[3] = {
+          // CLAMP(256*(i+0.5)/clut_wd, 0, 255),
+          // CLAMP(256*(j+0.5)/clut_ht, 0, 255),
+          // CLAMP(256*0, 0, 255)};
+          CLAMP(256*col[0], 0, 255),
+          CLAMP(256*col[1], 0, 255),
+          CLAMP(256*col[2], 0, 255)};
+        if(c8[2] == 255) c8[0] = c8[1] = c8[2];
+        fwrite(c8, sizeof(uint8_t), 3, f);
+      }
+      fclose(f);
+    }
+#endif
 
     dt_inpaint_buf_t inpaint_buf = {
       .dat = (ill ? clut1 : clut0),
