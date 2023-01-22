@@ -54,8 +54,6 @@ it follows the current list of available modules.
 
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
-* [saturate: simple rgb saturation](./saturate/readme.md)
-* [spec: spectral colour manipulation/input transform](./spec/readme.md)
 
 **corrective**
 
