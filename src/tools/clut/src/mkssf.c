@@ -165,13 +165,13 @@ void integrate_cfa_upsample(
       fetch_coeff(upsample_xy[s], lut_buf, lut_header.wd, lut_header.ht, c);
       res[s][0] += sigmoid(poly(c, cc24_wavelengths[i], 3)) *
         cie_interp(ill, cc24_wavelengths[i]) *
-        (cfa_red  (cfa_model, cfa_num_coeff, cfa_p+0*cfa_num_coeff, cc24_wavelengths[i]));
+        cfa_red  (cfa_model, cfa_num_coeff, cfa_p+0*cfa_num_coeff, cc24_wavelengths[i]);
       res[s][1] += sigmoid(poly(c, cc24_wavelengths[i], 3)) *
         cie_interp(ill, cc24_wavelengths[i]) *
-        (cfa_green(cfa_model, cfa_num_coeff, cfa_p+1*cfa_num_coeff, cc24_wavelengths[i]));
+        cfa_green(cfa_model, cfa_num_coeff, cfa_p+1*cfa_num_coeff, cc24_wavelengths[i]);
       res[s][2] += sigmoid(poly(c, cc24_wavelengths[i], 3)) *
         cie_interp(ill, cc24_wavelengths[i]) *
-        (cfa_blue (cfa_model, cfa_num_coeff, cfa_p+2*cfa_num_coeff, cc24_wavelengths[i]));
+        cfa_blue (cfa_model, cfa_num_coeff, cfa_p+2*cfa_num_coeff, cc24_wavelengths[i]);
     }
   }
   for(int s=0;s<upsample_cnt;s++) for(int k=0;k<3;k++)
@@ -193,13 +193,13 @@ void integrate_cfa(
     {
        res[s][0] += cc24_spectra[s][i] * 
          cie_interp(ill, cc24_wavelengths[i]) *
-         (cfa_red  (cfa_model, cfa_num_coeff, cfa_p+0*cfa_num_coeff, cc24_wavelengths[i]));
+         cfa_red  (cfa_model, cfa_num_coeff, cfa_p+0*cfa_num_coeff, cc24_wavelengths[i]);
        res[s][1] += cc24_spectra[s][i] *
          cie_interp(ill, cc24_wavelengths[i]) *
-         (cfa_green(cfa_model, cfa_num_coeff, cfa_p+1*cfa_num_coeff, cc24_wavelengths[i]));
+         cfa_green(cfa_model, cfa_num_coeff, cfa_p+1*cfa_num_coeff, cc24_wavelengths[i]);
        res[s][2] += cc24_spectra[s][i] *
          cie_interp(ill, cc24_wavelengths[i]) *
-         (cfa_blue (cfa_model, cfa_num_coeff, cfa_p+2*cfa_num_coeff, cc24_wavelengths[i]));
+         cfa_blue (cfa_model, cfa_num_coeff, cfa_p+2*cfa_num_coeff, cc24_wavelengths[i]);
     }
   }
   for(int s=0;s<24;s++) for(int k=0;k<3;k++)
