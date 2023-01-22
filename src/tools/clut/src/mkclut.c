@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
         cie_spec,
         cie_spec_cnt);
 
-#if 1
+#if 0
     if(ill == 0)
     { // write debugging output for plots with the source data only,
       // to visualise sampling density and the limits of the spectral locus
