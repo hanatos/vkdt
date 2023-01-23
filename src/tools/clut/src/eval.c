@@ -433,11 +433,13 @@ int main(int argc, char *argv[])
       {
         for(int i=0;i<num;i++)
         { // output a few samples to show gamut
-          const double b = cam_rgb[3*i+0] + cam_rgb[3*i+1] + cam_rgb[3*i+2];
+          double b = cam_rgb[3*i+0] + cam_rgb[3*i+1] + cam_rgb[3*i+2];
           double xy[] = {cam_rgb[3*i+0] / b, cam_rgb[3*i+2] / b};
+          double rec2020[3], ref[3] = {xyz[3*i+0], xyz[3*i+1], xyz[3*i+2]};
+          mat3_mulv(xyz_to_rec2020, ref, rec2020);
+          b = rec2020[0] + rec2020[1] + rec2020[2];
           tri2quad(xy, xy+1);
-          fprintf(f, "%g %g %g %g %g\n", xy[0], xy[1],
-              cam_rgb[3*i+0]/b, cam_rgb[3*i+1]/b, cam_rgb[3*i+2]/b);
+          fprintf(f, "%g %g %g %g %g\n", xy[0], xy[1], rec2020[0]/b, rec2020[1]/b, rec2020[2]/b);
         }
         fclose(f);
       }
