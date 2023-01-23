@@ -32,6 +32,7 @@ GUI_H=gui/gui.h\
       gui/files.h\
       gui/nodes.h\
       core/fs.h\
+      core/tools.h\
       pipe/graph-traverse.inc\
       pipe/graph-history.h\
       pipe/graph-defaults.h

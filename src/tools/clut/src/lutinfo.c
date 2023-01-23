@@ -5,7 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-  FILE *f = fopen(argv[1], "rb");
+  FILE *f = argc > 1 ? fopen(argv[1], "rb") : 0;
   if(!f)
   {
     fprintf(stderr, "usage: lutinfo <camera model>.lut\n"
@@ -24,12 +24,8 @@ int main(int argc, char *argv[])
     char buf[BUFSIZ];
     fscanf(f, "%[^\n]", buf);
     fgetc(f);
-    // size_t s = fread(buf, BUFSIZ, 1, f);
-    // fprintf(stderr, "%c\n", buf[0]);
     fprintf(stdout, "%s\n", buf);
     buf[0] = 0;
-    // fwrite(buf, s, 1, stdout);
   }
-  // fprintf(stdout, "\n");
   exit(0);
 }

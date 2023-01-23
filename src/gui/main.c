@@ -8,6 +8,7 @@
 #include "core/log.h"
 #include "core/signal.h"
 #include "core/version.h"
+#include "core/tools.h"
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/view.h"
@@ -210,6 +211,7 @@ int main(int argc, char *argv[])
     printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
     exit(0);
   }
+  dt_tool_dispatch(argc, argv);
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui|s_log_pipe);
   int lastarg = dt_log_init_arg(argc, argv);
