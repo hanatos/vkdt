@@ -486,7 +486,7 @@ void dt_gui_switch_collection(const char *dir)
     if(saved[(i+1)&1][0]) { dt_rc_set(&vkdt.rc, entry, saved[(i+1)&1]); j++; }
     saved[(i+1)&1][0] = 0;
   }
-  dt_rc_set_int(&vkdt.rc, "gui/ruc_num", j);
+  dt_rc_set_int(&vkdt.rc, "gui/ruc_num", MIN(j, 10));
 }
 
 void dt_gui_notification(const char *msg, ...)
