@@ -54,7 +54,8 @@ static inline void
 dt_gui_dr_anim_start()
 {
   vkdt.state.anim_playing = 1;
-  dt_snd_init(
+  if(vkdt.graph_dev.main_img_param.snd_samplerate)
+    dt_snd_init(
       &vkdt.snd, 
       vkdt.graph_dev.main_img_param.snd_samplerate,
       vkdt.graph_dev.main_img_param.snd_channels,
