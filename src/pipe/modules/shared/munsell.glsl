@@ -43,7 +43,7 @@ vec2
 munsell_to_xy(const vec2 mhc) // 2d munsell coordinate: hue and chroma
 {
   float hm = mhc.x * munsell_hdim;
-  float cm = mhc.y * munsell_cdim;
+  float cm = max(mhc.y, 0) * munsell_cdim;
   int hidxm = int(hm);
   int cidxm = int(cm);
   float hu = hm - hidxm;
@@ -131,7 +131,7 @@ munsell_from_xy(const vec2 xy)
       // now interpolate grid corner coordinates via these barycentrics:
       float hi = u0 * hidxm + u1 * (hidxm+1.0) + u2 * (hidxm+1.0) + u3 *  hidxm;
       float ci = u0 * cidxm + u1 *  cidxm      + u2 * (cidxm+1.0) + u3 * (cidxm+1.0);
-      return vec2(hi/munsell_hdim, ci/munsell_cdim);
+      return vec2(hi/munsell_hdim, max(0, ci/munsell_cdim));
     }
   }
 }
