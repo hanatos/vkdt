@@ -257,7 +257,7 @@ void render_files()
           if(!job[k].abort)
           {
             ImGui::SameLine();
-            if(ImGui::Button("view copied files"))
+            if(ImGui::Button("view copied files", ImVec2(-1, 0)))
             {
               memset(job+k, 0, sizeof(copy_job_t));
               dt_gui_switch_collection(filebrowser.cwd);
