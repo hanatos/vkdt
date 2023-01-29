@@ -200,16 +200,11 @@ void render_files()
             break;
           }
           if(ImGui::Button("copy"))
-          {
-            // TODO: make sure we don't start a job that is already running in another job[.]
+          { // make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
             {
-              if(k2 == k)
-              {
-                ImGui::PopID();
-                continue;
-              }
+              if(k2 == k) continue; // not a duplicate
               if(!strcmp(job[k2].src, filebrowser.cwd)) duplicate = 1;
             }
             if(duplicate)
