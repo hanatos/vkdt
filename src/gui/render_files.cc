@@ -200,16 +200,11 @@ void render_files()
             break;
           }
           if(ImGui::Button("copy"))
-          {
-            // TODO: make sure we don't start a job that is already running in another job[.]
+          { // make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
             {
-              if(k2 == k)
-              {
-                ImGui::PopID();
-                continue;
-              }
+              if(k2 == k) continue; // our job is not a dupe
               if(!strcmp(job[k2].src, filebrowser.cwd)) duplicate = 1;
             }
             if(duplicate)
@@ -259,9 +254,22 @@ void render_files()
              (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
               "copy from %s done. click to reset"),
              job[k].src);
+          if(!job[k].abort)
+          {
+            ImGui::SameLine();
+            if(ImGui::Button("view copied files"))
+            {
+              memset(job+k, 0, sizeof(copy_job_t));
+              dt_gui_switch_collection(filebrowser.cwd);
+              dt_view_switch(s_view_lighttable);
+            }
+            if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+                "open %s in lighttable mode",
+                job[k].dst);
+          }
         }
         ImGui::PopID();
-      }
+      } // end for jobs
       ImGui::Unindent();
     }
     ImGui::End();
@@ -302,7 +310,9 @@ void render_files()
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     dt_filebrowser(&filebrowser, 'f');
 
-    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp) || ImGui::IsKeyPressed(ImGuiKey_Enter)) // triangle or enter
+    if(filebrowser.selected &&
+      (ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp) ||
+       ImGui::IsKeyPressed(ImGuiKey_Enter))) // triangle or enter
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
       if(!strcmp(filebrowser.selected, ".."))
