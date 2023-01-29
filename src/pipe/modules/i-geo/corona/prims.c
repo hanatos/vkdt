@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 // slightly bloaty geometry storage backend.
 // removed a lot of stuff we don't need if we're not doing cpu ray tracing on it.
