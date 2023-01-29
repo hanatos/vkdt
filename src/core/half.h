@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include <xmmintrin.h>
+// #include <xmmintrin.h>
 
 // float->half variants.
 // by Fabian "ryg" Giesen.
@@ -105,6 +105,7 @@ static inline uint16_t float_to_half(float fi)
   return o.u;
 }
 
+#if 0
 // round-half-up (same as ISPC)
 static inline __m128i float_to_half_sse(__m128 f)
 {
@@ -144,3 +145,4 @@ static inline __m128i float_to_half_sse(__m128 f)
   return final;
 #undef CONSTF
 }
+#endif

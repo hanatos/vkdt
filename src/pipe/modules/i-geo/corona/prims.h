@@ -3,7 +3,7 @@
 // #include "pathspace.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <xmmintrin.h>
+// #include <xmmintrin.h>
 
 typedef struct primid_t
 {
@@ -44,14 +44,16 @@ typedef struct prims_header_t
 }
 prims_header_t;
 
-typedef union prims_vtx_t
+// typedef union prims_vtx_t
+// {
+//   __m128 m;
+//   struct
+typedef struct prims_vtx_t
 {
-  __m128 m;
-  struct
-  {
+  //{
     float v[3]; // vertex coordinates
     uint32_t n; // compressed normal
-  };
+  //};
 }
 __attribute__((aligned(16))) // sse alignment for fast motion blur
 prims_vtx_t;
