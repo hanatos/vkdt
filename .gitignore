@@ -8,6 +8,7 @@ src/core/version.h
 src/vkdt
 src/vkdt-cli
 src/vkdt-fit
+bin/config.mk
 bin/vkdt
 bin/vkdt-cli
 bin/vkdt-fit
