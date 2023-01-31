@@ -283,7 +283,7 @@ dt_module_so_load(
   f = fopen(filename, "rb");
   if(!f)
   {
-    dt_log(s_log_pipe|s_log_err, "module %s has no connectors!", dirname);
+    dt_log(s_log_pipe, "module %s has no connectors!", dirname);
     return 1; // error, can't have zero connectors.
   }
   else
