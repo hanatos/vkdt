@@ -1920,6 +1920,15 @@ abort:
             vkdt.graph_dev.frame_rate = frame_rate; // conv to double
             dt_graph_history_global(&vkdt.graph_dev);
           }
+          if(ImGui::Button("force downloading all outputs", ImVec2(-1, 0)))
+          {
+            vkdt.graph_dev.runflags = s_graph_run_download_sink;
+          }
+          if(ImGui::IsItemHovered())
+            ImGui::SetTooltip("this is useful if an animated graph has output modules"
+                              "attached to it. for instance this allows you to trigger"
+                              "writing of intermediate results of an optimisation from the gui."
+                              "only works when the animation is stopped.");
         }
 
         if(ImGui::CollapsingHeader("presets"))
