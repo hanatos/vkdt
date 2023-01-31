@@ -2,6 +2,20 @@
 #include "fs.h"
 #include <unistd.h>
 
+static inline void
+dt_tool_print_usage()
+{
+  fprintf(stderr, "[vkdt] dispatch tool usage:\n"
+                  "vkdt cli           -- command line interface\n"
+                  "vkdt fit           -- parameter optimisation\n"
+                  "vkdt lutinfo       -- print .lut file metadata\n"
+                  "vkdt mkssf         -- estimate ssf from dcp\n"
+                  "vkdt mkclut        -- create a clut camera input profile\n"
+                  "vkdt eval-profile  -- evaluate a clut profile\n"
+                  "vkdt gallery       -- create a static web gallery from jpg\n"
+                  "vkdt noise-profile -- create a noise profile for a given raw\n");
+}
+
 // dispatch execution to tools for convenient commandline interaction
 // if successful, this never returns
 static inline void
