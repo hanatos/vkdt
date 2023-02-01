@@ -1925,9 +1925,9 @@ abort:
             vkdt.graph_dev.runflags = s_graph_run_download_sink;
           }
           if(ImGui::IsItemHovered())
-            ImGui::SetTooltip("this is useful if an animated graph has output modules"
-                              "attached to it. for instance this allows you to trigger"
-                              "writing of intermediate results of an optimisation from the gui."
+            ImGui::SetTooltip("this is useful if an animated graph has output modules\n"
+                              "attached to it. for instance this allows you to trigger\n"
+                              "writing of intermediate results of an optimisation from the gui.\n"
                               "only works when the animation is stopped.");
         }
 
