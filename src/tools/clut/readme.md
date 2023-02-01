@@ -47,14 +47,14 @@ the results.
 ### usage
 
 ```
-vkdt-mkssf <dng|dcp file>        dng or dcp file containing profile data
+vkdt mkssf <dng|dcp file>        dng or dcp file containing profile data
            --picked <a> <d65>    work with images of the cc24 chart instead
 ```
 
 ### examples
 
 ```
-vkdt-mkssf IMG_0001.dng
+vkdt mkssf IMG_0001.dng
 ```
 
 will output `<camera model>.txt` the ssf, `<camera model>.html` the report, and
@@ -84,9 +84,9 @@ illuminant A (incandescent). the usual wisdom about avoiding glare and looking
 for uniform illumination, avoiding vignetting by not filling the whole frame etc
 applies here.
 
-preparing the images for `vkdt-mkssf`:
+preparing the images for `vkdt mkssf`:
 
-to generate input for `vkdt-mkssf`, load the images in `vkdt`, rectify them using
+to generate input for `vkdt mkssf`, load the images in `vkdt`, rectify them using
 the perspective correction in the `crop` module, and crop them so only the
 rectified patches are visible.
 
@@ -119,7 +119,7 @@ matrices in the dng pipeline).
 ### usage:
 
 ```
-vkdt-mkclut <model>            model.txt will be openend as cfa data,
+vkdt mkclut <model>            model.txt will be openend as cfa data,
                                model.lut will be written as output.
             --illum0 <illum>   optional spectral illuminant description, txt extension will be added.
             --illum1 <illum>   spectral characterisation of second illuminant
@@ -128,7 +128,7 @@ vkdt-mkclut <model>            model.txt will be openend as cfa data,
 ### examples:
 
 ```
-./vkdt-mkclut <camera model>.txt
+vkdt mkclut <camera model>.txt
 ```
 
 will output `<camera model>.pfm` for visual inspection as well as `<camera model>.lut`
