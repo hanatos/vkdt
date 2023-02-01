@@ -2643,7 +2643,8 @@ VkResult dt_graph_run(
     }
   }
 
-  QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
+  if(graph->query_cnt)
+    QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
         0, graph->query_cnt,
         sizeof(graph->query_pool_results[0]) * graph->query_max,
         graph->query_pool_results,
