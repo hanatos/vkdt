@@ -15,29 +15,28 @@ and use fitted values.
 
 ## noise profiling
 
-in short, these are the instructions for the impatient: do this in
-your `bin/` directory:
+in short, these are the instructions for the impatient:
 
 ```
-./noise-profile.sh your-raw-file.raw
+vkdt noise-profile your-raw-file.raw
 ```
 
 it will write the noise profile for the camera maker/model/iso combination to
-`bin/data/nprof` so it can be picked up by `vkdt`.
+`data/nprof/` so it can be picked up by `vkdt`.
 
 for various things it is useful to know how much noise we can expect from a
 pixel in the raw image file. we fit a gaussian/poissonian mixture to the
 observed variance in an image.
 
-to derive the values, there are two processing graphs in the `bin/data/` directory:
+to derive the values, there are two processing graphs in the `data/` directory:
 
 ```
-bin/data/noiseprofile.cfg
-bin/data/noisecheck.cfg
+data/noiseprofile.cfg
+data/noisecheck.cfg
 ```
 
 to wire these to your specific raw file, there is a convenience wrapper bash
-script, `bin/noise-profile.sh`. it takes a single argument, the raw file
+script, `vkdt-noise-profile`. it takes a single argument, the raw file
 you'd like to measure. it will output an nprof file, copy it to the
 `data/nprof` directory, and run the noisecheck graph, resulting in an
 output histogram such as the following:
