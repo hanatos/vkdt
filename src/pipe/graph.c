@@ -337,8 +337,8 @@ allocate_image_array_element(
       | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
     // we will potentially need access to these images from both graphics and compute pipeline:
     .sharingMode           = VK_SHARING_MODE_EXCLUSIVE, // VK_SHARING_MODE_CONCURRENT, 
-    .queueFamilyIndexCount = 0,//2,
-    .pQueueFamilyIndices   = 0,//queues,
+    // .queueFamilyIndexCount = 0,//2,
+    // .pQueueFamilyIndices   = 0,//queues,
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
   uint32_t wd = MAX(1, c->roi.wd), ht = MAX(1, c->roi.ht);

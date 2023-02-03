@@ -44,28 +44,26 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
   do { \
     VkImageMemoryBarrier img_mem_barrier = { \
       .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, \
-      .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-      .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
       __VA_ARGS__ \
     }; \
     vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL, \
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,\
+        0, NULL, 0, NULL, \
         1, &img_mem_barrier); \
   } while(0)
 
 #define BARRIER_IMG_LAYOUT(img, old_layout, new_layout) \
   do { \
-    VkImageSubresourceRange subresource_range = { \
-      .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, \
-      .baseMipLevel   = 0, \
-      .levelCount     = 1, \
-      .baseArrayLayer = 0, \
-      .layerCount     = 1 \
-    }; \
     IMAGE_BARRIER(cmd_buf, \
         .image            = img, \
-        .subresourceRange = subresource_range, \
-        .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT, \
+        .subresourceRange = {\
+          .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, \
+          .baseMipLevel   = 0, \
+          .levelCount     = 1, \
+          .baseArrayLayer = 0, \
+          .layerCount     = 1 \
+        }, \
+        .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT, \
         .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
         .oldLayout        = old_layout, \
         .newLayout        = new_layout, \
