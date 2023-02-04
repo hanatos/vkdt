@@ -70,8 +70,10 @@ DESTDIR=/tmp/testrel make install
 
 ### current changelog
 
-this is a bugfix point release: compared to 0.5.2 this:
-* fixes a crash when creating a new tag
+this is a bugfix point release: compared to 0.5.3 this:
+* fixes an assertion triggered for mismatching PushID/PopID in the files view
+* enables compilation on ARM
+* fixes image barriers for the mesa/amdgpu vulkan driver
 
 ## diverge branches
 
