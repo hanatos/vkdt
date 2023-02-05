@@ -157,6 +157,12 @@ mouse_position_callback(GLFWwindow* window, double x, double y)
 }
 
 static void
+window_close_callback(GLFWwindow* window)
+{
+  g_running = 0;
+}
+
+static void
 window_size_callback(GLFWwindow* window, int width, int height)
 {
   // window resized, need to rebuild our swapchain:
@@ -234,6 +240,7 @@ int main(int argc, char *argv[])
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
   glfwSetCharCallback(qvk.window, char_callback);
   glfwSetScrollCallback(qvk.window, scroll_callback);
+  glfwSetWindowCloseCallback(qvk.window, window_close_callback);
 #if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
