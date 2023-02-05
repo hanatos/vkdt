@@ -315,10 +315,10 @@ void render_nodes()
   ImGui::Begin("nodes center", 0, window_flags);
 
   // make dpi independent:
-  ImNodes::PushStyleVar(ImNodesStyleVar_LinkThickness, vkdt.state.center_wd*0.002);
-  ImNodes::PushStyleVar(ImNodesStyleVar_PinCircleRadius, vkdt.state.center_wd*0.003);
+  ImNodes::PushStyleVar(ImNodesStyleVar_LinkThickness, vkdt.state.center_ht*0.003);
+  ImNodes::PushStyleVar(ImNodesStyleVar_PinCircleRadius, vkdt.state.center_ht*0.004);
   ImNodes::PushStyleVar(ImNodesStyleVar_NodePadding, ImVec2(
-        vkdt.state.center_wd*0.004, vkdt.state.center_wd*0.004));
+        vkdt.state.center_ht*0.005, vkdt.state.center_ht*0.005));
   // TODO: ImNodesStyleVar_PinHoverRadius
   // TODO: ImNodesStyleVar_LinkHoverDistance
   ImNodes::BeginNodeEditor();
