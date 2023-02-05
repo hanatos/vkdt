@@ -93,7 +93,9 @@ void render_files()
     dt_view_switch(s_view_lighttable);
 
   { // right panel
-    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+          ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("files panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     // if(ImGui::CollapsingHeader("settings")) ??
@@ -279,7 +281,9 @@ void render_files()
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     ImVec2 border = ImVec2(2*win_x, win_y);
-    ImGui::SetNextWindowPos (ImVec2(0, win_h+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + 0,
+          ImGui::GetMainViewport()->Pos.y + win_h+border.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, border.y), ImGuiCond_Always);
     ImGui::Begin("files buttons", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     int bwd = win_w / 4;
@@ -304,7 +308,9 @@ void render_files()
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     ImVec2 border = ImVec2(2*win_x, win_y);
-    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + 0,
+          ImGui::GetMainViewport()->Pos.y + 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);

@@ -73,7 +73,9 @@ void render_lighttable_center(int hotkey)
   window_flags |= ImGuiWindowFlags_NoMove;
   window_flags |= ImGuiWindowFlags_NoResize;
   window_flags |= ImGuiWindowFlags_NoBackground;
-  ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
+        ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y),  ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
   ImGui::Begin("lighttable center", 0, window_flags);
 
@@ -296,7 +298,9 @@ int export_job(
 
 void render_lighttable_right_panel(int hotkey)
 { // right panel
-  ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+        ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
   ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 

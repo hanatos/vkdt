@@ -1464,7 +1464,9 @@ void render_darkroom()
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     // draw background over the full thing:
-    ImGui::SetNextWindowPos (ImVec2(win_x-  border, win_y-  border), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + win_x - border,
+          ImGui::GetMainViewport()->Pos.y + win_y - border), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar |
@@ -1709,7 +1711,9 @@ abort:
 
   if(vkdt.wstate.history_view)
   { // left panel
-    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x,
+          ImGui::GetMainViewport()->Pos.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
@@ -1796,7 +1800,9 @@ abort:
   } // end left panel
 
   { // right panel
-    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+          ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
     ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 

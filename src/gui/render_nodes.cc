@@ -81,7 +81,9 @@ void render_nodes_module(dt_graph_t *g, int m)
 
 void render_nodes_right_panel()
 {
-  ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+        ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
   ImGui::Begin("nodes right panel", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
@@ -108,12 +110,21 @@ void render_nodes_right_panel()
       float scale = MIN(pwd / iwd, 2.0f/3.0f*pwd / iht);
       int ht = scale * iht;
       int wd = scale * iwd;
+      char title[10] = {0};
+      memcpy(title, dt_token_str(dsp[d]), 8);
+      // interferes with docking?
+      // ImGui::SetNextWindowPos(ImVec2(
+      //       ImGui::GetMainViewport()->WorkPos.x,
+      //       ImGui::GetMainViewport()->WorkPos.y), ImGuiCond_Always);
+      // ImGui::SetNextWindowSize(ImVec2(wd, ht), ImGuiCond_Always);
+      ImGui::Begin(title, 0, 0);// flags);
       ImGui::NewLine(); // center
       ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
       ImGui::Image(out->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
           ImVec2(wd, ht),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+      ImGui::End();
     }
   }
 
@@ -310,7 +321,9 @@ void render_nodes()
   window_flags |= ImGuiWindowFlags_NoMove;
   window_flags |= ImGuiWindowFlags_NoResize;
   window_flags |= ImGuiWindowFlags_NoBackground;
-  ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
+        ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y),  ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
   ImGui::Begin("nodes center", 0, window_flags);
 
