@@ -133,10 +133,15 @@ extern "C" void dt_gui_init_fonts()
   io.Fonts->Clear();
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
-  snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
-  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
-  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize));
-  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
+  static const ImWchar ranges[] = { 0x0020, 0xFFFF, 0, };
+  const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
+  if(fontfile[0] != '/')
+    snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
+  else
+    snprintf(tmp, sizeof(tmp), "%s", fontfile);
+  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, 0, ranges);
+  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize), 0, ranges);
+  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize, 0, ranges);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   ImFontConfig config;
   // config.MergeMode = true;
@@ -271,8 +276,6 @@ extern "C" int dt_gui_init_imgui()
       bitdepth = 10;
     ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
-
-  dt_gui_init_fonts();
 
   // prepare list of potential modules for ui selection:
   vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);
