@@ -26,7 +26,6 @@
 
 dt_gui_t vkdt = {0};
 
-int g_running = 1;
 int g_fullscreen = 0;
 
 // from a stackoverflow answer. get the monitor that currently covers most of
@@ -73,7 +72,7 @@ static void*
 joystick_active(void *unused)
 {
   uint8_t prev_butt[100] = {0};
-  while(g_running)
+  while(!glfwWindowShouldClose(qvk.window))
   {
     int res = 0;
     int axes_cnt = 0, butt_cnt = 0;
@@ -135,7 +134,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 
   if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
-    g_running = 0;
+    glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
@@ -306,7 +305,7 @@ int main(int argc, char *argv[])
   // main loop
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
-  while(g_running)
+  while(!glfwWindowShouldClose(qvk.window))
   {
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
@@ -321,7 +320,6 @@ int main(int argc, char *argv[])
     // should probably consider this instead:
     // https://github.com/bvgastel/imgui/commits/imgui-2749
     glfwWaitEvents();
-    if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
     // clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();
