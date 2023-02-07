@@ -159,7 +159,7 @@ mouse_position_callback(GLFWwindow* window, double x, double y)
 static void
 window_close_callback(GLFWwindow* window)
 {
-  g_running = 0;
+  glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
 }
 
 static void
