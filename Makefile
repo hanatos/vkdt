@@ -69,7 +69,6 @@ distclean:
 	$(shell find . -name "*.o"   -exec rm {} \;)
 	$(shell find . -name "*.spv" -exec rm {} \;)
 	$(shell find . -name "*.so"  -exec rm {} \;)
-	rm -rf src/vkdt src/vkdt-fit src/vkdt-cli
 	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut
 	rm -rf src/macadam
 	rm -rf src/mkabney
@@ -81,9 +80,6 @@ distclean:
 
 bin: src Makefile
 	mkdir -p bin/data
-	cp -f src/vkdt-cli bin/
-	cp -f src/vkdt-fit bin/
-	cp -f src/vkdt bin/
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data
 

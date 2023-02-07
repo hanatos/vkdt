@@ -35,7 +35,7 @@ TOOLTIPS:=$(patsubst %/readme.md,%/ptooltips,$(READMES))
 
 .PHONY: all clean modules
 
-all: vkdt-cli vkdt-fit vkdt modules tools Makefile 
+all: ../bin/vkdt-cli ../bin/vkdt-fit ../bin/vkdt modules tools Makefile 
 
 include qvk/flat.mk
 include core/flat.mk
@@ -48,7 +48,7 @@ include fit/flat.mk
 include tools/flat.mk
 
 clean: Makefile
-	rm -f vkdt vkdt-cli vkdt-fit
+	rm -f ../bin/vkdt ../bin/vkdt-cli ../bin/vkdt-fit
 	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(FIT_O) $(QVK_O) $(DB_O)
 	# we delete *all* modules, not just the one in MOD_DSOS* because they may be from another branch.
 	# such stale libraries can still cause segfaults because they would be loaded.
@@ -99,20 +99,20 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 
 # main application
 # ======================
-vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) -pie -o vkdt \
+../bin/vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) -pie -o $@ \
     $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(SND_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # command line interface
 # ======================
-vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o vkdt-cli \
+../bin/vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o $@ \
     $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # parameter optimiser
 # ======================
-vkdt-fit: $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o vkdt-fit \
+../bin/vkdt-fit: $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o $@ \
     $(LDFLAGS) $(FIT_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # modules
