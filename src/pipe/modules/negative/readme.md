@@ -1,13 +1,14 @@
 # negative: invert scanned film negatives
 
-this corrects scanned negative films to produce
-a positive image as output. since the process depends
-on the film stock as well as the device used to digitise it,
-the image matrix is usually not useful and it is a good idea
-to set the colour matrix to rec2020 in the
-[`colour module`](../colour/readme.md) which you should place
-after the `negative` module in the graph. for further refinement
-of the image, you may want to use the [`grade`](../grade/readme.md)
+this corrects scanned negative films to produce a positive image as output.
+since the process depends on the film stock as well as the device used to
+digitise it, you have to decide where to put the image matrix (in the `colour`
+module). for a photograph of film, put the `colour` module first, correcting
+the camera's response (keeping exposure and the rest at identity values). you
+may then want to use a second instance of the [`colour module`](../colour/readme.md),
+with matrix set to `rec2020`, placed after the `negative` module in the graph,
+to change exposure and for other artistic changes to colours. for further
+refinement of the image, you may want to use the [`grade`](../grade/readme.md)
 module after `negative` and `colour`.
 
 ## parameters
