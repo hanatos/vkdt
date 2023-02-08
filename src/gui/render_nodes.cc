@@ -110,18 +110,42 @@ void render_nodes_right_panel()
       float scale = MIN(pwd / iwd, 2.0f/3.0f*pwd / iht);
       int ht = scale * iht;
       int wd = scale * iwd;
-      char title[10] = {0};
-      memcpy(title, dt_token_str(dsp[d]), 8);
-      // interferes with docking?
-      // ImGui::SetNextWindowPos(ImVec2(
-      //       ImGui::GetMainViewport()->WorkPos.x,
-      //       ImGui::GetMainViewport()->WorkPos.y), ImGuiCond_Always);
-      // ImGui::SetNextWindowSize(ImVec2(wd, ht), ImGuiCond_Always);
+      char title[20] = {0};
+      snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
+      ImGuiViewport *vp = 0;
+#if 0
+      for(int k=0;k<ImGui::GetPlatformIO().Monitors.size();k++)
+      {
+        fprintf(stderr, "found monitor %d - %f x %f\n",
+            k,
+            ImGui::GetPlatformIO().Monitors[k].MainSize.x,
+            ImGui::GetPlatformIO().Monitors[k].MainSize.y);
+      }
+      for(int k=0;k<ImGui::GetPlatformIO().Viewports.size();k++)
+      {
+        if(ImGui::GetPlatformIO().Viewports[k] != ImGui::GetMainViewport())
+          vp = ImGui::GetPlatformIO().Viewports[k];
+      }
+      if(vp)
+      {
+        fprintf(stderr, "found viewport! %d -- %f %f\n", ImGui::GetPlatformIO().Viewports.size(),
+            vp->Size.x, vp->Size.y);
+        ImGui::SetNextWindowViewport(vp->ID);
+        ImGui::SetNextWindowPos(vp->Pos, ImGuiCond_Always);
+        ImGui::SetNextWindowSize(vp->Size, ImGuiCond_Always);
+      }
+#endif
+        ImGui::SetNextWindowViewport(ImGui::GetID("nodes fullscreen"));
       ImGui::Begin(title, 0, 0);// flags);
-      ImGui::NewLine(); // center
-      ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
+
+      // ImGui::ImGuiWindow* window = GetCurrentContext().CurrentWindow;
+      // window->Viewport = AddUpdateViewport(window, window->ID, window->Pos, window->Size, ImGuiViewportFlags_NoFocusOnAppearing);
+      // XXX only if not popped out:
+      // ImGui::NewLine(); // center
+      // ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
       ImGui::Image(out->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
-          ImVec2(wd, ht),
+          // vp ? vp->Size : ImVec2(wd, ht),
+          ImGui::GetWindowSize(),
           ImVec2(0,0), ImVec2(1,1),
           ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
       ImGui::End();

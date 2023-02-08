@@ -197,7 +197,7 @@ extern "C" int dt_gui_init_imgui()
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos; //  | ImGuiBackendFlags_HasSetMousePos;
 
   // enable docking and multiple viewports:
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+  // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
   io.ConfigDockingWithShift = true;
 
