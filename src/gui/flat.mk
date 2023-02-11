@@ -20,11 +20,12 @@ GUI_H=gui/gui.h\
       gui/api.h\
       gui/api.hh\
       gui/hotkey.hh\
-      gui/widget_filebrowser.hh\
-      gui/widget_thumbnail.hh\
-      gui/widget_recentcollect.hh\
-      gui/widget_filteredlist.hh\
       gui/widget_draw.hh\
+      gui/widget_filebrowser.hh\
+      gui/widget_filteredlist.hh\
+      gui/widget_image.hh\
+      gui/widget_recentcollect.hh\
+      gui/widget_thumbnail.hh\
       gui/view.h\
       gui/darkroom.h\
       gui/darkroom-util.h\

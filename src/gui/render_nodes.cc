@@ -14,6 +14,7 @@ extern "C"
 #include "imnodes.h"
 #include "hotkey.hh"
 #include "api.hh"
+#include "widget_image.hh"
 #include <stdint.h>
 
 static ImHotKey::HotKey hk_nodes[] = {
@@ -34,6 +35,7 @@ typedef struct gui_nodes_t
   ImVec2 mod_pos[100]; // read manual positions from file
   int hotkey;
   int node_hovered_link;
+  int dual_monitor;
 }
 gui_nodes_t;
 gui_nodes_t nodes;
@@ -104,51 +106,18 @@ void render_nodes_right_panel()
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
     if(out && vkdt.graph_res == VK_SUCCESS)
     {
-      float pwd = 0.975 * vkdt.state.panel_wd;
-      float iwd = out->connector[0].roi.wd;
-      float iht = out->connector[0].roi.ht;
-      float scale = MIN(pwd / iwd, 2.0f/3.0f*pwd / iht);
-      int ht = scale * iht;
-      int wd = scale * iwd;
+      int popout = ImGui::GetPlatformIO().Monitors.size() > 1 &&
+        dsp[d] == dt_token("main") && nodes.dual_monitor;
       char title[20] = {0};
       snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
-      ImGuiViewport *vp = 0;
-#if 0
-      for(int k=0;k<ImGui::GetPlatformIO().Monitors.size();k++)
-      {
-        fprintf(stderr, "found monitor %d - %f x %f\n",
-            k,
-            ImGui::GetPlatformIO().Monitors[k].MainSize.x,
-            ImGui::GetPlatformIO().Monitors[k].MainSize.y);
-      }
-      for(int k=0;k<ImGui::GetPlatformIO().Viewports.size();k++)
-      {
-        if(ImGui::GetPlatformIO().Viewports[k] != ImGui::GetMainViewport())
-          vp = ImGui::GetPlatformIO().Viewports[k];
-      }
-      if(vp)
-      {
-        fprintf(stderr, "found viewport! %d -- %f %f\n", ImGui::GetPlatformIO().Viewports.size(),
-            vp->Size.x, vp->Size.y);
-        ImGui::SetNextWindowViewport(vp->ID);
-        ImGui::SetNextWindowPos(vp->Pos, ImGuiCond_Always);
-        ImGui::SetNextWindowSize(vp->Size, ImGuiCond_Always);
-      }
-#endif
-        ImGui::SetNextWindowViewport(ImGui::GetID("nodes fullscreen"));
-      ImGui::Begin(title, 0, 0);// flags);
+      if(popout) ImGui::Begin(title, 0, ImGuiWindowFlags_SecondMonitor);
+      else ImGui::BeginChild(title, ImVec2(0.975*ImGui::GetWindowSize().x,
+            MIN(ImGui::GetWindowSize().y, ImGui::GetWindowSize().x*2.0f/3.0f)));
 
-      // ImGui::ImGuiWindow* window = GetCurrentContext().CurrentWindow;
-      // window->Viewport = AddUpdateViewport(window, window->ID, window->Pos, window->Size, ImGuiViewportFlags_NoFocusOnAppearing);
-      // XXX only if not popped out:
-      // ImGui::NewLine(); // center
-      // ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
-      ImGui::Image(out->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
-          // vp ? vp->Size : ImVec2(wd, ht),
-          ImGui::GetWindowSize(),
-          ImVec2(0,0), ImVec2(1,1),
-          ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
-      ImGui::End();
+      static dt_image_widget_t imgw = { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 };
+      dt_image(&imgw, out);
+      if(popout) ImGui::End();
+      else ImGui::EndChild();
     }
   }
 
@@ -324,6 +293,13 @@ void render_nodes_right_panel()
     if(ImGui::Button("hotkeys"))
       ImGui::OpenPopup("edit hotkeys");
     ImHotKey::Edit(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), "edit hotkeys");
+    if(ImGui::GetPlatformIO().Monitors.size() > 1)
+    {
+      if(nodes.dual_monitor && ImGui::Button("single monitor"))
+        nodes.dual_monitor = 0;
+      else if(!nodes.dual_monitor && ImGui::Button("dual monitor"))
+        nodes.dual_monitor = 1;
+    }
   }
 
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
@@ -521,6 +497,7 @@ void render_nodes_cleanup()
 
 extern "C" int nodes_enter()
 {
+  nodes.dual_monitor = 0; // XXX TODO: get from rc and write on leave
   nodes.hotkey = -1;
   nodes.do_layout = 1; // assume bad initial auto layout
   nodes.node_hovered_link = -1;
