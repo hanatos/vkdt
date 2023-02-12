@@ -1733,12 +1733,12 @@ abort:
           ImVec2 pos = ImGui::GetMousePos();
           float vv[] = {pos.x, pos.y}, n[2] = {0};
           dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
-          if(hovered && ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
           {
-            vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
-            vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
-            vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
-            vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
+            vkdt.wstate.state[0] = n[0];
+            vkdt.wstate.state[1] = n[0];
+            vkdt.wstate.state[2] = n[1];
+            vkdt.wstate.state[3] = n[1];
           }
           if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
           {
