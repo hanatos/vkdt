@@ -1,7 +1,6 @@
 #pragma once
 
 // widget for window-size image with zoom/pan interaction
-
 struct dt_image_widget_t
 {
   dt_node_t *out;
@@ -15,6 +14,7 @@ struct dt_image_widget_t
 
 // TODO: need cleanup/zero init?
 
+// TODO: replace darkroom mode center view by this and then:
 // darkroom_reset_zoom() // delete this TODO
 // TODO: delete darkroom-util.h
 // api.h dt_gui_dr_zoom() TODO: move this here too
@@ -75,10 +75,8 @@ dt_image_from_view(
     const float        v[2],
     float              img[2])
 {
-  float scale = MIN(w->win_w/w->wd, w->win_h/w->ht);
-  if(w->scale > 0.0f) scale = w->scale;
-  float cvx = w->win_x + w->win_w *.5f;
-  float cvy = w->win_y + w->win_h *.5f;
+  float scale = w->scale > 0.0f ? w->scale : MIN(w->win_w/w->wd, w->win_h/w->ht);
+  float cvx = w->win_x + w->win_w *.5f, cvy = w->win_y + w->win_h *.5f;
   if(w->look_at_x == FLT_MAX) w->look_at_x = w->wd/2.0f;
   if(w->look_at_y == FLT_MAX) w->look_at_y = w->ht/2.0f;
   float ox = cvx - scale * (w->look_at_x - w->wd/2.0f);
@@ -94,16 +92,14 @@ dt_image_to_view(
     const float        img[2], // image pixel coordinate in [0,1]^2
     float              v[2])   // window pixel coordinate
 {
-  float scale = MIN(w->win_w/w->wd, w->win_h/w->ht);
-  if(w->scale > 0.0f) scale = w->scale;
-  float cvx = w->win_x + w->win_w *.5f;
-  float cvy = w->win_y + w->win_h *.5f;
+  float scale = w->scale > 0.0f ? w->scale : MIN(w->win_w/w->wd, w->win_h/w->ht);
+  float cvx = w->win_x + w->win_w *.5f, cvy = w->win_y + w->win_h *.5f;
   if(w->look_at_x == FLT_MAX) w->look_at_x = w->wd/2.0f;
   if(w->look_at_y == FLT_MAX) w->look_at_y = w->ht/2.0f;
   float ox = cvx - scale * (w->look_at_x - w->wd/2.0f);
   float oy = cvy - scale * (w->look_at_y - w->ht/2.0f);
-  v[0] = ox + scale * (img[0]-0.5f) * w->wd;
-  v[1] = oy + scale * (img[1]-0.5f) * w->ht;
+  v[0] = ox + (img[0]-0.5f) * scale * w->wd;
+  v[1] = oy + (img[1]-0.5f) * scale * w->ht;
 }
 
 // make sure the out->dset is valid!
@@ -141,60 +137,34 @@ dt_image(
   }
 
   // now the controls:
-  // XXX FIXME: somehow all the mouse lookat are wrong
-  // TODO: if not hovered reset the mouse drag (m_x = -1)
-  // ImGui::SameLine((w->win_w-(v1[0]-v0[0]))/2.0f);
   ImGui::InvisibleButton("display", ImVec2(w->win_w, w->win_h));
-      // ImVec2(v1[0]-v0[0], v1[1]-v0[1]));
   if(ImGui::IsItemHovered())
-      // ImGui::IsMousePosValid(&mpos) &&
-      // mpos.x >= v0[0] && mpos.y >= v0[1] &&
-      // mpos.x <= v1[0] && mpos.y <= v1[1])
   {
-      // fprintf(stderr, "XXX hovered, pentablet %d\n", vkdt.wstate.pentablet_enabled);
     ImVec2 mpos = ImGui::GetMousePos();
-#if 0
-    // fprintf(stderr, "XXX rel mouse %g %g\n", mpos.x-w->win_x, mpos.y-w->win_y);
-        float v[] = {mpos.x, mpos.y};
-        float im[2];
-        dt_image_from_view(w, v, im);
-    fprintf(stderr, "XXX im mouse %g %g\n", im[0], im[1]);
-#endif
-    // ImGui::IsMousePosValid(&mpos);
-    // TODO: set cursor when dragging?
-    // SetMouseCursor(ImGuiMouseCursor_Arrow);
-    // SetMouseCursor(ImGuiMouseCursor_ResizeAll);//Hand?
     if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft) ||
        ImGui::IsKeyReleased(ImGuiKey_MouseMiddle))
     {
-      // fprintf(stderr, "XXX release click %g %g\n", mpos.x, mpos.y);
       w->m_x = w->m_y = -1;
     }
-    if((!vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseLeft)) ||
-       ( vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseMiddle)))
+    if((!vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false)) ||
+       ( vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseMiddle, false)))
     { // click to pan
-      // fprintf(stderr, "XXX left click %g %g\n", mpos.x, mpos.y);
       w->m_x = mpos.x;
       w->m_y = mpos.y;
       w->old_look_x = w->look_at_x;
       w->old_look_y = w->look_at_y;
-      fprintf(stderr, "XXX left click lookat %g %g\n", w->look_at_x, w->look_at_y);
     }
-    else if(!vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseMiddle))
+    else if(!vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseMiddle, false))
     { // middle click to 1:1
-      fprintf(stderr, "XXX middle click %g %g sc %g\n", mpos.x, mpos.y, w->scale);
       dt_image_zoom(w, mpos.x, mpos.y);
     }
-    if(ImGui::IsKeyPressed(ImGuiKey_MouseWheelY))
+    if(ImGui::IsKeyPressed(ImGuiKey_MouseWheelY, false))
     { // mouse wheel (yoff is the input)
       float yoff = ImGui::GetIO().MouseWheel;
       const float fit_scale = MIN(w->win_w/w->wd, w->win_h/w->ht);
       const float scale = w->scale <= 0.0f ? fit_scale : w->scale;
       const float im_x = mpos.x - (w->win_x + w->win_w/2.0f);
       const float im_y = mpos.y - (w->win_y + w->win_h/2.0f);
-        // float v[] = {mpos.x, mpos.y};
-        // float im[2];
-        // dt_image_from_view(w, v, im);
       w->scale = scale * (yoff > 0.0f ? 1.1f : 0.9f);
       w->scale = CLAMP(w->scale, 0.1f, 8.0f);
       if(w->scale > fit_scale)
@@ -204,31 +174,31 @@ dt_image(
         const float dscale = 1.0f/scale - 1.0f/w->scale;
         w->look_at_x += im_x * dscale;
         w->look_at_y += im_y * dscale;
-        // w->look_at_x = im[0];
-        // w->look_at_y = im[1];
-      w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
-      w->look_at_y = CLAMP(w->look_at_y, 0.0f, w->ht);
+        w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
+        w->look_at_y = CLAMP(w->look_at_y, 0.0f, w->ht);
       }
       else
       {
         w->look_at_x = w->wd/2.0f;
         w->look_at_y = w->ht/2.0f;
       }
-      fprintf(stderr, "XXX wheel look %g %g\n", w->look_at_x, w->look_at_y);
     }
-    if(w->m_x > 0 && w->scale > 0.0f)
-    { // mouse moved while dragging
-      float dx = mpos.x - w->m_x;
-      float dy = mpos.y - w->m_y;
-      w->look_at_x = w->old_look_x - dx / w->scale;
-      w->look_at_y = w->old_look_y - dy / w->scale;
-      w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
-      w->look_at_y = CLAMP(w->look_at_y, 0.0f, w->ht);
-    }
-    // XXX TODO: gamepad input!
   } // end if mouse over image
   else
-  { // reset stuff
-    w->m_x = w->m_y = -1;
+  { // reset stuff, but enable drag outside:
+    if(!ImGui::IsKeyDown(ImGuiKey_MouseLeft) &&
+       !ImGui::IsKeyDown(ImGuiKey_MouseMiddle))
+    {
+      w->m_x = w->m_y = -1;
+    }
+  }
+  if(w->m_x > 0 && w->scale > 0.0f)
+  { // mouse moved while dragging
+    ImVec2 mpos = ImGui::GetMousePos();
+    ImVec2 d = ImVec2(mpos.x - w->m_x, mpos.y - w->m_y);
+    w->look_at_x = w->old_look_x - d.x / w->scale;
+    w->look_at_y = w->old_look_y - d.y / w->scale;
+    w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
+    w->look_at_y = CLAMP(w->look_at_y, 0.0f, w->ht);
   }
 }
