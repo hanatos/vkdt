@@ -1,3 +1,3 @@
-nspots:hidden
+nspots:slider:0:24
 pad:hidden
-ref:hidden
+ref:colour:nspots
