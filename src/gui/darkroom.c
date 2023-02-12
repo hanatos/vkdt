@@ -7,11 +7,11 @@
 #include "gui/view.h"
 #include "gui/render.h"
 #include "gui/darkroom.h"
+#include "pipe/draw.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-defaults.h"
 #include "pipe/modules/api.h"
-#include "pipe/draw.h"
 #include "pipe/graph-history.h"
 
 #include <stdio.h>
@@ -24,7 +24,7 @@
 #include <libgen.h>
 #include <limits.h>
 
-static inline void
+void
 draw_position(
     float *n,          // image space coordinate
     float  pressure)   // pressure in [0, 1]
@@ -90,156 +90,6 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-    return;
-  }
-
-  if(dt_gui_imgui_input_blocked()) return;
-  if(action == GLFW_PRESS && (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
-    return; // ignore only press over panel for pan
-  if(vkdt.wstate.active_widget_modid >= 0 &&
-     (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
-    return; // and all events on panel for on-canvas module interaction
-  const float px_dist = 0.1*qvk.win_height;
-
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-  vkdt.wstate.selected = -1;
-
-  if(vkdt.wstate.active_widget_modid >= 0)
-  {
-    dt_token_t type = vkdt.graph_dev.module[
-        vkdt.wstate.active_widget_modid].so->param[
-        vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("pers"))
-    {
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = -1;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        // find active corner if close enough
-        float m[] = {(float)x, (float)y};
-        float max_dist = FLT_MAX;
-        for(int cc=0;cc<4;cc++)
-        {
-          float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
-          dt_image_to_view(&vkdt.wstate.img_widget, n, v);
-          float dist2 =
-            (v[0]-m[0])*(v[0]-m[0])+
-            (v[1]-m[1])*(v[1]-m[1]);
-          if(dist2 < px_dist*px_dist)
-          {
-            if(dist2 < max_dist)
-            {
-              max_dist = dist2;
-              vkdt.wstate.selected = cc;
-            }
-          }
-        }
-        if(max_dist < FLT_MAX) return;
-      }
-    }
-    else if(type == dt_token("straight"))
-    {
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = 0;
-        float dx = x - vkdt.wstate.state[1];
-        float dy = y - vkdt.wstate.state[2];
-        vkdt.wstate.state[3] = x;
-        vkdt.wstate.state[4] = y;
-        float a = atan2f(dy, dx);
-        if(fabsf(dx) > fabsf(dy)) a =        + a * 180.0f/M_PI;
-        else                      a = 270.0f + a * 180.0f/M_PI;
-        if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
-        if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
-        if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
-        if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
-        vkdt.wstate.state[0] += a;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        vkdt.wstate.state[1] = vkdt.wstate.state[3] = x;
-        vkdt.wstate.state[2] = vkdt.wstate.state[4] = y;
-        vkdt.wstate.selected = 1;
-      }
-    }
-    else if(type == dt_token("crop"))
-    {
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = -1;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        float m[2] = {(float)x, (float)y};
-        float max_dist = FLT_MAX;
-        for(int ee=0;ee<4;ee++)
-        {
-          float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
-          dt_image_to_view(&vkdt.wstate.img_widget, n, v);
-          float dist2 =
-            ee < 2 ?
-            (v[0]-m[0])*(v[0]-m[0]) :
-            (v[1]-m[1])*(v[1]-m[1]);
-          if(dist2 < px_dist*px_dist)
-          {
-            if(dist2 < max_dist)
-            {
-              max_dist = dist2;
-              vkdt.wstate.selected = ee;
-            }
-          }
-        }
-        if(max_dist < FLT_MAX) return;
-      }
-    }
-    else if(type == dt_token("pick"))
-    {
-      if(button == GLFW_MOUSE_BUTTON_LEFT)
-      {
-        float v[] = {(float)x, (float)y}, n[2] = {0};
-        dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-        if(action == GLFW_RELEASE)
-        {
-          vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
-          vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
-          vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
-          vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
-        }
-        else if(action == GLFW_PRESS)
-        {
-          vkdt.wstate.state[0] = n[0];
-          vkdt.wstate.state[1] = n[0];
-          vkdt.wstate.state[2] = n[1];
-          vkdt.wstate.state[3] = n[1];
-        }
-        return;
-      }
-    }
-    else if(type == dt_token("draw"))
-    {
-      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT)
-      { // right mouse click resets the last stroke
-        for(int i=dat[0]-2;i>=0;i--)
-        {
-          if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
-          {
-            dat[0] = i; // reset count
-            break;
-          }
-        }
-        // trigger recomputation:
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
-        return;
-      }
-      else if(!vkdt.wstate.pentablet_enabled && 
-          action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
-        return; // don't pan when drawing with the mouse
-    }
   }
 }
 
@@ -259,30 +109,6 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-    return;
-  }
-
-  if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
-  if(dt_gui_imgui_input_blocked()) return;
-
-  // active widgets grabbed input?
-  if(vkdt.wstate.active_widget_modid >= 0)
-  {
-    dt_token_t type =
-      vkdt.graph_dev.module[
-      vkdt.wstate.active_widget_modid].so->param[
-        vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("draw"))
-    {
-      const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
-      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) // opacity
-        vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
-      else if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) // hardness
-        vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
-      else // radius
-        vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
-      return; // don't zoom, we processed the input
-    }
   }
 }
 
@@ -299,68 +125,6 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-    return;
-  }
-
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-
-  if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
-  if(dt_gui_imgui_input_blocked()) return;
-  if(vkdt.wstate.active_widget_modid >= 0)
-  {
-    // convert view space mouse coordinate to normalised image
-    float v[] = {(float)x, (float)y}, n[2] = {0};
-    dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-    dt_token_t type =
-      vkdt.graph_dev.module[
-      vkdt.wstate.active_widget_modid].so->param[
-        vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("pers"))
-    {
-      if(vkdt.wstate.selected >= 0)
-      {
-        dt_gui_dr_pers_adjust(n, 0);
-        return;
-      }
-    }
-    else if(type == dt_token("straight"))
-    {
-      if(vkdt.wstate.selected > 0)
-      { // only update while still pressed
-        vkdt.wstate.state[3] = x;
-        vkdt.wstate.state[4] = y;
-      }
-      return;
-    }
-    else if(type == dt_token("crop"))
-    {
-      if(vkdt.wstate.selected >= 0)
-      {
-        float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
-        dt_gui_dr_crop_adjust(edge, 0);
-        return; // only count as handled if something was selected
-      }
-    }
-    else if(type == dt_token("pick"))
-    {
-      // TODO: capture mouse position when button is pressed somewhere above!
-      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
-      {
-        vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
-        vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
-        vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
-        vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
-        return; // we got this
-      }
-    }
-    else if(type == dt_token("draw"))
-    {
-      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
-        draw_position(n, 1.0f);
-      else
-        draw_position(n, 0.0f);
-    }
   }
 }
 

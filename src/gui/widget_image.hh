@@ -2,11 +2,11 @@
 #include "widget_image.h"
 // widget for window-size image with zoom/pan interaction
 
-// make sure the out->dset is valid!
 inline void
 dt_image(
     dt_image_widget_t *w,
-    dt_node_t         *out)
+    dt_node_t         *out,     // make sure the out->dset is valid!
+    int                events)  // if !=0 provide zoom/pan interaction
 {
   if(!out) return;
   w->out = out;
@@ -39,6 +39,7 @@ dt_image(
 
   // now the controls:
   ImGui::InvisibleButton("display", ImVec2(0.975*w->win_w, 0.975*w->win_h));
+  if(!events) return;
   if(ImGui::IsItemHovered())
   {
     ImVec2 mpos = ImGui::GetMousePos();

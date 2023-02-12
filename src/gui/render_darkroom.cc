@@ -765,7 +765,8 @@ inline void draw_widget(int modid, int parid)
           float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
           memcpy(v, def, sizeof(float)*8);
           vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
+          dt_image_widget_t *w = &vkdt.wstate.img_widget;
+          w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
         }
         if(0) RESETBLOCK {
           vkdt.graph_dev.runflags = s_graph_run_all;
@@ -926,7 +927,8 @@ inline void draw_widget(int modid, int parid)
             .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
           memcpy(v, def, sizeof(float)*4);
           vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
+          dt_image_widget_t *w = &vkdt.wstate.img_widget;
+          w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
         }
         if(0) RESETBLOCK {
           vkdt.graph_dev.runflags = s_graph_run_all;
@@ -1528,6 +1530,7 @@ abort:
     }
 
     // draw center view image:
+    bool hovered = false;
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
@@ -1551,25 +1554,16 @@ abort:
       }
       if(vkdt.graph_res == VK_SUCCESS)
       {
-        // ImGui::SetNextWindowPos (ImVec2(
-        //       ImGui::GetMainViewport()->Pos.x + win_x,
-        //       ImGui::GetMainViewport()->Pos.y + win_y), ImGuiCond_Always);
-        // ImGui::SetNextWindowSize(ImVec2(win_w, win_h), ImGuiCond_Always);
-        // ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-        // ImGui::Begin("darkroom center image", 0, ImGuiWindowFlags_NoTitleBar |
-        //     ImGuiWindowFlags_NoMove |
-        //     ImGuiWindowFlags_NoResize |
-        //     ImGuiWindowFlags_NoBackground);
-        dt_image(&vkdt.wstate.img_widget, out_main);
-        // ImGui::End();
-        // ImGui::PopStyleColor(1);
+        int events = !vkdt.wstate.grabbed &&
+          (vkdt.wstate.active_widget_modid < 0); // only if no widget wants it
+        dt_image(&vkdt.wstate.img_widget, out_main, events);
+        hovered = ImGui::IsItemHovered();
       }
       if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
     // center view has on-canvas widgets (but only if there *is* an image):
     if(out_main && vkdt.wstate.active_widget_modid >= 0)
-    {
-      // distinguish by type:
+    { // distinguish by type:
       switch(vkdt.graph_dev.module[
           vkdt.wstate.active_widget_modid].so->param[
           vkdt.wstate.active_widget_parid]->widget.type)
@@ -1590,16 +1584,76 @@ abort:
             ImGui::GetWindowDrawList()->AddCircleFilled(
                 ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
                 0x77777777u, 20);
+            if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            {
+              ImVec2 pos = ImGui::GetMousePos();
+              float v[] = {pos.x, pos.y}, n[2] = {0};
+              dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+              dt_gui_dr_pers_adjust(n, 0);
+            }
+          }
+          if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.selected = -1;
+          }
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          { // find active corner if close enough
+            ImVec2 pos = ImGui::GetMousePos();
+            float m[] = {pos.x, pos.y};
+            float max_dist = FLT_MAX;
+            const float px_dist = 0.1*qvk.win_height;
+            for(int cc=0;cc<4;cc++)
+            {
+              float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
+              dt_image_to_view(&vkdt.wstate.img_widget, n, v);
+              float dist2 =
+                (v[0]-m[0])*(v[0]-m[0])+
+                (v[1]-m[1])*(v[1]-m[1]);
+              if(dist2 < px_dist*px_dist)
+              {
+                if(dist2 < max_dist)
+                {
+                  max_dist = dist2;
+                  vkdt.wstate.selected = cc;
+                }
+              }
+            }
           }
           break;
         }
         case dt_token("straight"):
         {
+          ImVec2 pos = ImGui::GetMousePos();
           if(vkdt.wstate.selected >= 0)
           {
             float v[4] = { vkdt.wstate.state[1], vkdt.wstate.state[2], vkdt.wstate.state[3], vkdt.wstate.state[4] };
             ImGui::GetWindowDrawList()->AddPolyline(
                 (ImVec2 *)v, 2, IM_COL32_WHITE, false, 1.0);
+            if(vkdt.wstate.selected > 0)
+            {
+              vkdt.wstate.state[3] = pos.x;
+              vkdt.wstate.state[4] = pos.y;
+            }
+          }
+          if(hovered && ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.selected = 0;
+            float dx = pos.x - vkdt.wstate.state[1];
+            float dy = pos.y - vkdt.wstate.state[2];
+            float a = atan2f(dy, dx);
+            if(fabsf(dx) > fabsf(dy)) a =        + a * 180.0f/M_PI;
+            else                      a = 270.0f + a * 180.0f/M_PI;
+            if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
+            if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
+            if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
+            if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
+            vkdt.wstate.state[0] += a;
+          }
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          {
+            vkdt.wstate.state[1] = vkdt.wstate.state[3] = pos.x;
+            vkdt.wstate.state[2] = vkdt.wstate.state[4] = pos.y;
+            vkdt.wstate.selected = 1;
           }
           break;
         }
@@ -1628,6 +1682,40 @@ abort:
             ImGui::GetWindowDrawList()->AddQuadFilled(
                 ImVec2(q[0],q[1]), ImVec2(q[2],q[3]),
                 ImVec2(q[4],q[5]), ImVec2(q[6],q[7]), 0x77777777u);
+
+            ImVec2 pos = ImGui::GetMousePos();
+            float v[] = {pos.x, pos.y}, n[2] = {0};
+            dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+            float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
+            dt_gui_dr_crop_adjust(edge, 0);
+          }
+          if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.selected = -1;
+          }
+          else if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          {
+            ImVec2 pos = ImGui::GetMousePos();
+            float m[2] = {(float)pos.x, (float)pos.y};
+            float max_dist = FLT_MAX;
+            const float px_dist = 0.1*qvk.win_height;
+            for(int ee=0;ee<4;ee++)
+            {
+              float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
+              dt_image_to_view(&vkdt.wstate.img_widget, n, v);
+              float dist2 =
+                ee < 2 ?
+                (v[0]-m[0])*(v[0]-m[0]) :
+                (v[1]-m[1])*(v[1]-m[1]);
+              if(dist2 < px_dist*px_dist)
+              {
+                if(dist2 < max_dist)
+                {
+                  max_dist = dist2;
+                  vkdt.wstate.selected = ee;
+                }
+              }
+            }
           }
           break;
         }
@@ -1642,6 +1730,23 @@ abort:
             dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          ImVec2 pos = ImGui::GetMousePos();
+          float vv[] = {pos.x, pos.y}, n[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
+          if(hovered && ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
+            vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
+            vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
+            vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
+          }
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
+            vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
+            vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
+            vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
+          }
           break;
         }
         case dt_token("draw"):
@@ -1655,15 +1760,13 @@ abort:
 
           const int modid = vkdt.wstate.active_widget_modid;
           const float scale = vkdt.wstate.img_widget.scale <= 0.0f ?
-            MIN(
-                vkdt.state.center_wd / (float)
+            MIN(vkdt.state.center_wd / (float)
                 vkdt.graph_dev.module[modid].connector[0].roi.wd,
                 vkdt.state.center_ht / (float)
                 vkdt.graph_dev.module[modid].connector[0].roi.ht) :
             vkdt.wstate.img_widget.scale;
           for(int i=0;i<2;i++)
-          {
-            // ui scaled roi wd * radius * stroke radius
+          { // ui scaled roi wd * radius * stroke radius
             float r = vkdt.wstate.state[4] * vkdt.wstate.state[3] * radius;
             if(i >= 1) r *= hardness;
             for(int k=0;k<cnt;k++)
@@ -1684,6 +1787,39 @@ abort:
           p[7] = opacity * (pos.y+sz) + (1.0f-opacity)*(pos.y+sz/2.0f);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 3.0);
+
+          uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseRight, false))
+          { // right mouse click resets the last stroke
+            for(int i=dat[0]-2;i>=0;i--)
+            {
+              if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
+              {
+                dat[0] = i; // reset count
+                break;
+              }
+            }
+            // trigger recomputation:
+            vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+            vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+          }
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseWheelY))
+          {
+            float yoff = ImGui::GetIO().MouseWheel;
+            const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
+            if(ImGui::IsKeyDown(ImGuiKey_LeftShift)) // opacity
+              vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
+            else if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl)) // hardness
+              vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
+            else // radius
+              vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
+          }
+          float v[] = {pos.x, pos.y}, n[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            draw_position(n, 1.0f);
+          else
+            draw_position(n, 0.0f);
           break;
         }
         default:;

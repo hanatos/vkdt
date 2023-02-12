@@ -28,11 +28,11 @@ dt_draw_vertex(
     float hardness) // in 0..1
 {
   return (dt_draw_vert_t){
-    .x = CLAMP((int32_t)((x+2.0f)/4.0f*0xffff), 0, 0xffff),
-    .y = CLAMP((int32_t)((y+2.0f)/4.0f*0xffff), 0, 0xffff),
-    .r = CLAMP((int32_t)(0.5*radius*0xffff), 0, 0xffff),
-    .o = CLAMP((int32_t)(opacity *0xff), 0, 0xff),
-    .h = CLAMP((int32_t)(hardness*0xff), 0, 0xff),
+    .x = (uint16_t)CLAMP((int32_t)((x+2.0f)/4.0f*0xffff), 0, 0xffff),
+    .y = (uint16_t)CLAMP((int32_t)((y+2.0f)/4.0f*0xffff), 0, 0xffff),
+    .r = (uint16_t)CLAMP((int32_t)(0.5*radius*0xffff), 0, 0xffff),
+    .o = (uint8_t)CLAMP((int32_t)(opacity *0xff), 0, 0xff),
+    .h = (uint8_t)CLAMP((int32_t)(hardness*0xff), 0, 0xff),
   };
 }
 
@@ -51,11 +51,11 @@ dt_draw_mix(
     float t)
 {
   return (dt_draw_vert_t){
-    .x = CLAMP((int32_t)((1.0f-t)*v0.x + t*v1.x), 0, 0xffff),
-    .y = CLAMP((int32_t)((1.0f-t)*v0.y + t*v1.y), 0, 0xffff),
-    .r = CLAMP((int32_t)((1.0f-t)*v0.r + t*v1.r), 0, 0xffff),
-    .o = CLAMP((int32_t)((1.0f-t)*v0.o + t*v1.o), 0, 0xff),
-    .h = CLAMP((int32_t)((1.0f-t)*v0.h + t*v1.h), 0, 0xff),
+    .x = (uint16_t)CLAMP((int32_t)((1.0f-t)*v0.x + t*v1.x), 0, 0xffff),
+    .y = (uint16_t)CLAMP((int32_t)((1.0f-t)*v0.y + t*v1.y), 0, 0xffff),
+    .r = (uint16_t)CLAMP((int32_t)((1.0f-t)*v0.r + t*v1.r), 0, 0xffff),
+    .o = (uint8_t)CLAMP((int32_t)((1.0f-t)*v0.o + t*v1.o), 0, 0xff),
+    .h = (uint8_t)CLAMP((int32_t)((1.0f-t)*v0.h + t*v1.h), 0, 0xff),
   };
 }
 
@@ -70,7 +70,3 @@ dt_draw_eq(
          v0.o == v1.o &&
          v0.h == v1.h;
 }
-
-
-
-// length of array vs number of vertices, write paramsub style stuff?

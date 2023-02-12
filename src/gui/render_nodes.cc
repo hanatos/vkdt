@@ -115,7 +115,7 @@ void render_nodes_right_panel()
             MIN(ImGui::GetWindowSize().y, ImGui::GetWindowSize().x*2.0f/3.0f)));
 
       static dt_image_widget_t imgw = { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 };
-      dt_image(&imgw, out);
+      dt_image(&imgw, out, 1);
       if(popout) ImGui::End();
       else ImGui::EndChild();
     }
