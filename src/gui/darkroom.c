@@ -153,68 +153,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       if(mod->so->input) mod->so->input(mod, &p);
       if(p.type == -1) vkdt.wstate.active_widget_modid = -1;
     }
-    return;
-  }
-  if(dt_gui_imgui_input_blocked()) return;
-#if 0 // def QVK_ENABLE_VALIDATION // reload shaders only in a debug build
-  if(action == GLFW_PRESS && key == GLFW_KEY_R)
-  {
-    // dt_view_switch(s_view_cnt);
-    // view switching will not work because we're doing really wacky things here.
-    // hence we call cleanup and below darkroom_enter() instead.
-    dt_graph_cleanup(&vkdt.graph_dev);
-    dt_pipe_global_cleanup();
-    // this will crash on shutdown.
-    // actually we'd have to shutdown and re-init thumbnails, too
-    // because they hold a graph which holds pointers to global modules.
-    // this would mean to re-init the db, too ..
-    system("make debug"); // build shaders
-    dt_pipe_global_init();
-    dt_pipe.modules_reloaded = 1;
-    darkroom_enter();
-    // dt_view_switch(s_view_darkroom);
-  }
-  else
-#endif
-  if(action == GLFW_PRESS)
-  {
-    if(key == GLFW_KEY_SPACE)
-    {
-      dt_gui_dr_next();
-    }
-    else if(key == GLFW_KEY_BACKSPACE)
-    {
-      dt_gui_dr_prev();
-    }
-    else if(key == GLFW_KEY_TAB)
-    {
-      dt_gui_dr_toggle_fullscreen_view();
-    }
-#define RATE(X)\
-    else if(key == GLFW_KEY_ ## X )\
-    {\
-      const uint32_t ci = dt_db_current_imgid(&vkdt.db); \
-      if(ci != -1u) vkdt.db.image[ci].rating = X;\
-    }
-    RATE(1)
-    RATE(2)
-    RATE(3)
-    RATE(4)
-    RATE(5)
-    RATE(0)
-#undef RATE
-#define LABEL(X)\
-    else if(key == GLFW_KEY_F ## X)\
-    {\
-      const uint32_t ci = dt_db_current_imgid(&vkdt.db); \
-      if(ci != -1u) vkdt.db.image[ci].labels ^= 1<<(X-1);\
-    }
-    LABEL(1)
-    LABEL(2)
-    LABEL(3)
-    LABEL(4)
-    LABEL(5)
-#undef LABEL
   }
 }
 

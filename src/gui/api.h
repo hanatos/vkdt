@@ -265,3 +265,48 @@ dt_gui_dr_remove_module(int m)
   dt_gui_dr_disconnect_module(m);
   dt_module_remove(&vkdt.graph_dev, m);
 }
+
+static inline void
+dt_gui_rate(int rate)
+{
+  if(vkdt.view_mode == s_view_lighttable)
+  {
+    const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+    for(int i=0;i<vkdt.db.selection_cnt;i++)
+      vkdt.db.image[sel[i]].rating = rate;
+  }
+  else if(vkdt.view_mode == s_view_darkroom)
+  {
+    const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+    if(ci != -1u) vkdt.db.image[ci].rating = rate;
+  }
+}
+
+static inline void
+dt_gui_label(int label)
+{
+  if(vkdt.view_mode == s_view_lighttable)
+  {
+    const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+    for(int i=0;i<vkdt.db.selection_cnt;i++)
+      vkdt.db.image[sel[i]].labels ^= 1<<(label-1);
+  }
+  else if(vkdt.view_mode == s_view_darkroom)
+  {
+    const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+    if(ci != -1u) vkdt.db.image[ci].labels ^= 1<<(label-1);
+  }
+}
+
+static inline void dt_gui_rate_0() { dt_gui_rate(0); }
+static inline void dt_gui_rate_1() { dt_gui_rate(1); }
+static inline void dt_gui_rate_2() { dt_gui_rate(2); }
+static inline void dt_gui_rate_3() { dt_gui_rate(3); }
+static inline void dt_gui_rate_4() { dt_gui_rate(4); }
+static inline void dt_gui_rate_5() { dt_gui_rate(5); }
+
+static inline void dt_gui_label_1() { dt_gui_label(1); }
+static inline void dt_gui_label_2() { dt_gui_label(2); }
+static inline void dt_gui_label_3() { dt_gui_label(3); }
+static inline void dt_gui_label_4() { dt_gui_label(4); }
+static inline void dt_gui_label_5() { dt_gui_label(5); }

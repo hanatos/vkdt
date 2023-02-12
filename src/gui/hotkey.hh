@@ -216,7 +216,7 @@ namespace ImHotKey
     ImGui::BeginGroup();
 
     for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_KeypadEqual; i++)
-      if (IDX(i) && ImGui::IsKeyPressed(ImGuiKey(i)))
+      if (IDX(i) && ImGui::IsKeyPressed(ImGuiKey(i), false))
         keyDown[IDX(i)] = !keyDown[IDX(i)];
 
     for (unsigned int y = 0; y < 6; y++)
@@ -302,11 +302,11 @@ namespace ImHotKey
       int cnt = 0;
       for(int k=0;k<4&&hotkey[i].key[k];k++,cnt++);
       if((cnt == 4 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[1]))
-                   && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[2])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[3]))) ||
+                   && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[2])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[3]), false)) ||
          (cnt == 3 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[1]))
-                   && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[2]))) ||
-         (cnt == 2 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[1]))) ||
-         (cnt == 1 && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[0]))))
+                   && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[2]), false)) ||
+         (cnt == 2 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[1]), false)) ||
+         (cnt == 1 && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[0]), false)))
         return i;
     }
     return -1;

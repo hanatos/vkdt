@@ -25,6 +25,20 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
   {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
   {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
+  {"next image",      "switch to next image in folder",             {ImGuiKey_Space}},
+  {"prev image",      "switch to previous image in folder",         {ImGuiKey_Backspace}},
+  {"fullscreen",      "show/hide side panels for fullscreen",       {ImGuiKey_Tab}},
+  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
+  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
+  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
+  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
+  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
+  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
+  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
+  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
+  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
+  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
+  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
 };
 
 enum hotkey_names_t
@@ -39,6 +53,20 @@ enum hotkey_names_t
   s_hotkey_assign_tag      = 7,
   s_hotkey_insert_keyframe = 8,
   s_hotkey_nodes_enter     = 9,
+  s_hotkey_next_image      = 10,
+  s_hotkey_prev_image      = 11,
+  s_hotkey_fullscreen      = 12,
+  s_hotkey_rate_0          = 13,
+  s_hotkey_rate_1          = 14,
+  s_hotkey_rate_2          = 15,
+  s_hotkey_rate_3          = 16,
+  s_hotkey_rate_4          = 17,
+  s_hotkey_rate_5          = 18,
+  s_hotkey_label_1         = 19,
+  s_hotkey_label_2         = 20,
+  s_hotkey_label_3         = 21,
+  s_hotkey_label_4         = 22,
+  s_hotkey_label_5         = 23,
 };
 
 // used to communictate between the gui helper functions
@@ -1559,7 +1587,6 @@ abort:
         dt_image(&vkdt.wstate.img_widget, out_main, events);
         hovered = ImGui::IsItemHovered();
       }
-      if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
     // center view has on-canvas widgets (but only if there *is* an image):
     if(out_main && vkdt.wstate.active_widget_modid >= 0)
@@ -1833,7 +1860,7 @@ abort:
     ImGui::PopStyleColor();
   } // end center view
 
-  if(vkdt.wstate.history_view)
+  if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
   { // left panel
     ImGui::SetNextWindowPos (ImVec2(
           ImGui::GetMainViewport()->Pos.x,
@@ -1923,6 +1950,7 @@ abort:
     ImGui::End();
   } // end left panel
 
+  if(!vkdt.wstate.fullscreen_view)
   { // right panel
     ImGui::SetNextWindowPos (ImVec2(
           ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
@@ -2110,6 +2138,26 @@ abort:
     case s_hotkey_nodes_enter:
       dt_view_switch(s_view_nodes);
       break;
+    case s_hotkey_next_image:
+      dt_gui_dr_next();
+      break;
+    case s_hotkey_prev_image:
+      dt_gui_dr_prev();
+      break;
+    case s_hotkey_fullscreen:
+      dt_gui_dr_toggle_fullscreen_view();
+      break;
+    case s_hotkey_rate_0: dt_gui_rate_0(); break;
+    case s_hotkey_rate_1: dt_gui_rate_1(); break;
+    case s_hotkey_rate_2: dt_gui_rate_2(); break;
+    case s_hotkey_rate_3: dt_gui_rate_3(); break;
+    case s_hotkey_rate_4: dt_gui_rate_4(); break;
+    case s_hotkey_rate_5: dt_gui_rate_5(); break;
+    case s_hotkey_label_1: dt_gui_label_1(); break;
+    case s_hotkey_label_2: dt_gui_label_2(); break;
+    case s_hotkey_label_3: dt_gui_label_3(); break;
+    case s_hotkey_label_4: dt_gui_label_4(); break;
+    case s_hotkey_label_5: dt_gui_label_5(); break;
     default:;
   }
   dt_gui_dr_modals(); // draw modal windows for presets etc

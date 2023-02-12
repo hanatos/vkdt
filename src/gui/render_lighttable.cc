@@ -31,6 +31,17 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"scroll end",    "scroll to end of collection",      {ImGuiKey_LeftShift, ImGuiKey_G}},
   {"scroll top",    "scroll to top of collection",      {ImGuiKey_G}},
   {"duplicate",     "duplicate selected images",        {ImGuiKey_LeftShift, ImGuiKey_D}},
+  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
+  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
+  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
+  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
+  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
+  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
+  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
+  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
+  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
+  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
+  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
 };
 enum hotkey_names_t
 {
@@ -43,6 +54,17 @@ enum hotkey_names_t
   s_hotkey_scroll_end = 6,
   s_hotkey_scroll_top = 7,
   s_hotkey_duplicate  = 8,
+  s_hotkey_rate_0     = 9,
+  s_hotkey_rate_1     = 10,
+  s_hotkey_rate_2     = 11,
+  s_hotkey_rate_3     = 12,
+  s_hotkey_rate_4     = 13,
+  s_hotkey_rate_5     = 14,
+  s_hotkey_label_1    = 15,
+  s_hotkey_label_2    = 16,
+  s_hotkey_label_3    = 17,
+  s_hotkey_label_4    = 18,
+  s_hotkey_label_5    = 19,
 };
 
 void render_lighttable_center(int hotkey)
@@ -195,6 +217,19 @@ void render_lighttable_center(int hotkey)
       break;
     case s_hotkey_duplicate:
       dt_gui_lt_duplicate();
+      break;
+    case s_hotkey_rate_0: dt_gui_rate_0(); break;
+    case s_hotkey_rate_1: dt_gui_rate_1(); break;
+    case s_hotkey_rate_2: dt_gui_rate_2(); break;
+    case s_hotkey_rate_3: dt_gui_rate_3(); break;
+    case s_hotkey_rate_4: dt_gui_rate_4(); break;
+    case s_hotkey_rate_5: dt_gui_rate_5(); break;
+    case s_hotkey_label_1: dt_gui_label_1(); break;
+    case s_hotkey_label_2: dt_gui_label_2(); break;
+    case s_hotkey_label_3: dt_gui_label_3(); break;
+    case s_hotkey_label_4: dt_gui_label_4(); break;
+    case s_hotkey_label_5: dt_gui_label_5(); break;
+    default: break;
   }
   dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
 
