@@ -1487,10 +1487,28 @@ void render_darkroom()
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
-    int border = 0;//vkdt.style.border_frac * qvk.win_width;
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    // draw background over the full thing:
+    { // draw image properties
+      ImGui::SetNextWindowPos (ImGui::GetMainViewport()->Pos, ImGuiCond_Always);
+      ImGui::SetNextWindowSize(ImVec2(win_w+2*win_x, win_y), ImGuiCond_Always);
+      ImGui::Begin("darkroom statusbar", 0, ImGuiWindowFlags_NoTitleBar |
+          ImGuiWindowFlags_NoMove |
+          ImGuiWindowFlags_NoResize |
+          ImGuiWindowFlags_NoMouseInputs |
+          ImGuiWindowFlags_NoBackground);
+      float wd = 0.5*vkdt.style.border_frac * qvk.win_width;
+      const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+      if(ci != -1u)
+      { // this should *always* be the case
+        const uint16_t labels = vkdt.db.image[ci].labels;
+        const uint16_t rating = vkdt.db.image[ci].rating;
+        dt_draw_rating(win_x-wd,   win_y-wd, wd, rating);
+        dt_draw_labels(win_x+4*wd, win_y-wd, wd, labels);
+      }
+      ImGui::End();
+    }
+    int border = 0;
     ImGui::SetNextWindowPos (ImVec2(
           ImGui::GetMainViewport()->Pos.x + win_x - border,
           ImGui::GetMainViewport()->Pos.y + win_y - border), ImGuiCond_Always);
@@ -1500,17 +1518,6 @@ void render_darkroom()
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoBackground);
-    { // draw image properties TODO: only if mouse y < something
-      float wd = 0.5*border;
-      const uint32_t ci = dt_db_current_imgid(&vkdt.db);
-      if(ci != -1u)
-      { // this should *always* be the case
-        const uint16_t labels = vkdt.db.image[ci].labels;
-        const uint16_t rating = vkdt.db.image[ci].rating;
-        dt_draw_rating(win_x-wd,   win_y-wd, wd, rating);
-        dt_draw_labels(win_x+4*wd, win_y-wd, wd, labels);
-      }
-    }
 
     ImGuiIO& io = ImGui::GetIO();
     if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
