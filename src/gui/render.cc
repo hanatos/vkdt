@@ -5,7 +5,6 @@ extern "C" {
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
-#include "gui/darkroom-util.h"
 }
 #include "render.h"
 #include "imgui.h"

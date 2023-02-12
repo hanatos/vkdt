@@ -7,7 +7,6 @@
 #include "gui/view.h"
 #include "gui/render.h"
 #include "gui/darkroom.h"
-#include "gui/darkroom-util.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-defaults.h"
@@ -104,9 +103,6 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 
   dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   if(!out) return; // should never happen
-  assert(out);
-  vkdt.wstate.wd = (float)out->connector[0].roi.wd;
-  vkdt.wstate.ht = (float)out->connector[0].roi.ht;
   vkdt.wstate.selected = -1;
 
   if(vkdt.wstate.active_widget_modid >= 0)
@@ -128,7 +124,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         for(int cc=0;cc<4;cc++)
         {
           float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
-          dt_image_to_view(n, v);
+          dt_image_to_view(&vkdt.wstate.img_widget, n, v);
           float dist2 =
             (v[0]-m[0])*(v[0]-m[0])+
             (v[1]-m[1])*(v[1]-m[1]);
@@ -182,7 +178,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         for(int ee=0;ee<4;ee++)
         {
           float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
-          dt_image_to_view(n, v);
+          dt_image_to_view(&vkdt.wstate.img_widget, n, v);
           float dist2 =
             ee < 2 ?
             (v[0]-m[0])*(v[0]-m[0]) :
@@ -204,7 +200,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       if(button == GLFW_MOUSE_BUTTON_LEFT)
       {
         float v[] = {(float)x, (float)y}, n[2] = {0};
-        dt_view_to_image(v, n);
+        dt_image_from_view(&vkdt.wstate.img_widget, v, n);
         if(action == GLFW_RELEASE)
         {
           vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
@@ -243,27 +239,6 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       else if(!vkdt.wstate.pentablet_enabled && 
           action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
         return; // don't pan when drawing with the mouse
-    }
-  }
-
-  if(action == GLFW_RELEASE)
-  {
-    vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
-  }
-  else if(action == GLFW_PRESS &&
-      x > vkdt.state.center_x && x < vkdt.state.center_x + vkdt.state.center_wd)
-  {
-    if((!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_LEFT) ||
-       ( vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE))
-    {
-      vkdt.wstate.m_x = x;
-      vkdt.wstate.m_y = y;
-      vkdt.wstate.old_look_x = vkdt.state.look_at_x;
-      vkdt.wstate.old_look_y = vkdt.state.look_at_y;
-    }
-    else if(!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE)
-    {
-      dt_gui_dr_zoom();
     }
   }
 }
@@ -309,34 +284,6 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
       return; // don't zoom, we processed the input
     }
   }
-  
-  // zoom:
-  {
-    dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-    if(!out) return; // should never happen
-    assert(out);
-    vkdt.wstate.wd = (float)out->connector[0].roi.wd;
-    vkdt.wstate.ht = (float)out->connector[0].roi.ht;
-
-    const float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
-    const float fit_scale = MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht);
-    const float scale = vkdt.state.scale <= 0.0f ? fit_scale : vkdt.state.scale;
-    const float im_x = (x - (vkdt.state.center_x + imwd)/2.0f);
-    const float im_y = (y - (vkdt.state.center_y + imht)/2.0f);
-    vkdt.state.scale = scale * (yoff > 0.0f ? 1.1f : 0.9f);
-    vkdt.state.scale = CLAMP(vkdt.state.scale , 0.1f, 8.0f);
-    if(vkdt.state.scale >= fit_scale)
-    {
-      const float dscale = 1.0f/scale - 1.0f/vkdt.state.scale;
-      vkdt.state.look_at_x += im_x  * dscale;
-      vkdt.state.look_at_y += im_y  * dscale;
-    }
-    else
-    {
-      vkdt.state.look_at_x = vkdt.wstate.wd/2.0f;
-      vkdt.state.look_at_y = vkdt.wstate.ht/2.0f;
-    }
-  }
 }
 
 void
@@ -364,7 +311,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
   {
     // convert view space mouse coordinate to normalised image
     float v[] = {(float)x, (float)y}, n[2] = {0};
-    dt_view_to_image(v, n);
+    dt_image_from_view(&vkdt.wstate.img_widget, v, n);
     dt_token_t type =
       vkdt.graph_dev.module[
       vkdt.wstate.active_widget_modid].so->param[
@@ -414,15 +361,6 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       else
         draw_position(n, 0.0f);
     }
-  }
-  if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
-  {
-    int dx = x - vkdt.wstate.m_x;
-    int dy = y - vkdt.wstate.m_y;
-    vkdt.state.look_at_x = vkdt.wstate.old_look_x - dx / vkdt.state.scale;
-    vkdt.state.look_at_y = vkdt.wstate.old_look_y - dy / vkdt.state.scale;
-    vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, vkdt.wstate.wd);
-    vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, vkdt.wstate.ht);
   }
 }
 
@@ -599,7 +537,7 @@ darkroom_enter()
 {
   vkdt.state.anim_frame = 0;
   dt_gui_dr_anim_stop();
-  vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
   vkdt.wstate.mapped = 0;
@@ -669,7 +607,7 @@ darkroom_enter()
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
 #if 1//ndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
-  darkroom_reset_zoom();
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
 #endif
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
@@ -722,7 +660,7 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
     if(type == dt_token("draw"))
     {
       float v[] = {(float)x, (float)y}, n[2] = {0};
-      dt_view_to_image(v, n);
+      dt_image_from_view(&vkdt.wstate.img_widget, v, n);
       if(glfwGetMouseButton(qvk.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
         draw_position(n, pressure);
     }

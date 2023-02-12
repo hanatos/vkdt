@@ -1,6 +1,5 @@
 #pragma once
 
-#include "darkroom-util.h"
 #include "gui/api.h"
 #include "gui/render.h"
 

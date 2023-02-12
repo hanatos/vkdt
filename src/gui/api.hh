@@ -1,6 +1,7 @@
 #pragma once
 #include "imgui.h"
 #include "widget_filteredlist.hh"
+#include "widget_image.hh"
 extern "C" {
 #include "api.h"
 #include "core/fs.h"
@@ -334,7 +335,7 @@ dt_gui_dr_modals()
         }
         fclose(f);
         vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-        darkroom_reset_zoom();
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
       }
       else
       {
@@ -405,3 +406,11 @@ dt_gui_dr_assign_tag()
   vkdt.wstate.busy += 5;
 }
 
+inline void
+dt_gui_dr_zoom()
+{ // zoom 1:1
+  // where does the mouse look in the current image?
+  double x, y;
+  glfwGetCursorPos(qvk.window, &x, &y);
+  dt_image_zoom(&vkdt.wstate.img_widget, x, y);
+}

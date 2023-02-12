@@ -20,9 +20,6 @@ style_to_state()
 {
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * qvk.win_height;
   vkdt.state = (dt_gui_state_t) {
-    .look_at_x = FLT_MAX,
-    .look_at_y = FLT_MAX,
-    .scale = -1.0f,
     .center_x = vkdt.style.border_frac * qvk.win_width,
     .center_y = vkdt.style.border_frac * qvk.win_width,
     .panel_wd = pwd,

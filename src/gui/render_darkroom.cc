@@ -2,7 +2,6 @@
 extern "C"
 {
 #include "gui/view.h"
-#include "gui/darkroom-util.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-history.h"
 #include "pipe/graph-defaults.h"
@@ -82,7 +81,6 @@ void widget_end()
   dt_gui_ungrab_mouse();
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
-  vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
 }
 void widget_abort()
 {
@@ -96,7 +94,6 @@ void widget_abort()
   dt_gui_ungrab_mouse();
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
-  vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
 }
 
 void draw_arrow(float p[8], int feedback)
@@ -158,7 +155,7 @@ void dt_gui_set_lod(int lod)
   }
   vkdt.graph_dev.runflags = s_graph_run_all;
   // reset view? would need to set zoom, too
-  darkroom_reset_zoom();
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }
 
 uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
@@ -721,7 +718,7 @@ inline void draw_widget(int modid, int parid)
         }
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
           accept = 1;
-        const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
+        const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
         if(vkdt.wstate.selected >= 0 && axes)
         {
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
@@ -768,11 +765,11 @@ inline void draw_widget(int modid, int parid)
           float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
           memcpy(v, def, sizeof(float)*8);
           vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
         if(0) RESETBLOCK {
           vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
         TOOLTIP
       }
@@ -850,7 +847,7 @@ inline void draw_widget(int modid, int parid)
 
         int axes_cnt = 0;
         const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-        const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
+        const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
         if(vkdt.wstate.selected >= 0 && axes)
           dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
@@ -865,7 +862,7 @@ inline void draw_widget(int modid, int parid)
         {
           widget_abort();
           dt_gamepadhelp_pop();
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
         else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
         {
@@ -875,7 +872,7 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
           widget_end();
           dt_gamepadhelp_pop();
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
         ImGui::PopStyleColor();
@@ -929,11 +926,11 @@ inline void draw_widget(int modid, int parid)
             .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
           memcpy(v, def, sizeof(float)*4);
           vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
         if(0) RESETBLOCK {
           vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
         KEYFRAME
         TOOLTIP
@@ -945,7 +942,7 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::Button("auto crop", ImVec2(halfw, 0)))
         {
           m->so->ui_callback(m, param->name);
-          darkroom_reset_zoom();
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
           vkdt.graph_dev.runflags = s_graph_run_all;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -1460,7 +1457,7 @@ void render_darkroom()
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
-    int border = vkdt.style.border_frac * qvk.win_width;
+    int border = 0;//vkdt.style.border_frac * qvk.win_width;
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     // draw background over the full thing:
@@ -1535,7 +1532,7 @@ abort:
     if(out_main)
     {
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadL3)) // left stick pressed
-        darkroom_reset_zoom();
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
       if(axes)
       {
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
@@ -1543,38 +1540,29 @@ abort:
         float ht  = (float)out_main->connector[0].roi.ht;
         float imwd = win_w, imht = win_h;
         float scale = MIN(imwd/wd, imht/ht);
-        if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
+        if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;
         if(axes[2] > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(axes[2]+1.0f)); 
         if(axes[5] > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(axes[5]+1.0f)); 
         // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-        vkdt.state.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
-        vkdt.state.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
-        vkdt.state.scale = scale;
+        vkdt.wstate.img_widget.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
+        vkdt.wstate.img_widget.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
+        vkdt.wstate.img_widget.scale = scale;
 #undef SMOOTH
       }
       if(vkdt.graph_res == VK_SUCCESS)
       {
-        ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
-        float im0[2], im1[2];
-        float v0[2] = {(float)win_x, (float)win_y};
-        float v1[2] = {(float)win_x+win_w, (float)win_y+win_h};
-        dt_view_to_image(v0, im0);
-        dt_view_to_image(v1, im1);
-        im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
-        im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
-        im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
-        im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
-        dt_image_to_view(im0, v0);
-        dt_image_to_view(im1, v1);
-        ImGui::GetWindowDrawList()->AddImage(
-            imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
-            ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
-        char scaletext[10];
-        if(vkdt.state.scale >= 1.0f)
-        {
-          snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(vkdt.state.scale*100.0));
-          ImGui::GetWindowDrawList()->AddText(ImVec2(win_x+0.9f*win_w,0.5f*win_y), 0xffffffffu, scaletext);
-        }
+        // ImGui::SetNextWindowPos (ImVec2(
+        //       ImGui::GetMainViewport()->Pos.x + win_x,
+        //       ImGui::GetMainViewport()->Pos.y + win_y), ImGuiCond_Always);
+        // ImGui::SetNextWindowSize(ImVec2(win_w, win_h), ImGuiCond_Always);
+        // ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
+        // ImGui::Begin("darkroom center image", 0, ImGuiWindowFlags_NoTitleBar |
+        //     ImGuiWindowFlags_NoMove |
+        //     ImGuiWindowFlags_NoResize |
+        //     ImGuiWindowFlags_NoBackground);
+        dt_image(&vkdt.wstate.img_widget, out_main);
+        // ImGui::End();
+        // ImGui::PopStyleColor(1);
       }
       if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
@@ -1591,7 +1579,7 @@ abort:
           float *v = vkdt.wstate.state;
           float p[8];
           for(int k=0;k<4;k++)
-            dt_image_to_view(v+2*k, p+2*k);
+            dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           if(vkdt.wstate.selected >= 0)
@@ -1622,7 +1610,7 @@ abort:
             vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
-          for(int k=0;k<4;k++) dt_image_to_view(v+2*k, p+2*k);
+          for(int k=0;k<4;k++) dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           if(vkdt.wstate.selected >= 0)
@@ -1651,7 +1639,7 @@ abort:
           };
           float p[8];
           for(int k=0;k<4;k++)
-            dt_image_to_view(v+2*k, p+2*k);
+            dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           break;
@@ -1666,13 +1654,13 @@ abort:
           int cnt = sizeof(p)/sizeof(p[0])/2;
 
           const int modid = vkdt.wstate.active_widget_modid;
-          const float scale = vkdt.state.scale <= 0.0f ?
+          const float scale = vkdt.wstate.img_widget.scale <= 0.0f ?
             MIN(
                 vkdt.state.center_wd / (float)
                 vkdt.graph_dev.module[modid].connector[0].roi.wd,
                 vkdt.state.center_ht / (float)
                 vkdt.graph_dev.module[modid].connector[0].roi.ht) :
-            vkdt.state.scale;
+            vkdt.wstate.img_widget.scale;
           for(int i=0;i<2;i++)
           {
             // ui scaled roi wd * radius * stroke radius
