@@ -211,18 +211,21 @@ pentablet_cursor_callback(unsigned int cursor)
 
 int main(int argc, char *argv[])
 {
-  if(!strcmp(argv[1], "--version"))
+  if(argc > 1)
   {
-    printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
-    exit(0);
+    if(!strcmp(argv[1], "--version"))
+    {
+      printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
+      exit(0);
+    }
+    else if(!strcmp(argv[1], "--help"))
+    {
+      printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
+      dt_tool_print_usage();
+      exit(0);
+    }
+    dt_tool_dispatch(argc, argv);
   }
-  else if(!strcmp(argv[1], "--help"))
-  {
-    printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
-    dt_tool_print_usage();
-    exit(0);
-  }
-  dt_tool_dispatch(argc, argv);
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui);
   int lastarg = dt_log_init_arg(argc, argv);
