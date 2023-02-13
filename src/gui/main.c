@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
   }
   dt_tool_dispatch(argc, argv);
   // init global things, log and pipeline:
-  dt_log_init(s_log_err|s_log_gui|s_log_pipe);
+  dt_log_init(s_log_err|s_log_gui);
   int lastarg = dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
   threads_global_init();
