@@ -312,64 +312,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
   QVKR(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
 
-  // can probably remove a few more here:
-#define QVK_FEATURE_LIST \
-QVK_FEATURE_DO(robustBufferAccess, 1)\
-QVK_FEATURE_DO(fullDrawIndexUint32, 1)\
-QVK_FEATURE_DO(imageCubeArray, 1)\
-QVK_FEATURE_DO(independentBlend, 1)\
-QVK_FEATURE_DO(geometryShader, 1)\
-QVK_FEATURE_DO(tessellationShader, 1)\
-QVK_FEATURE_DO(sampleRateShading, 0)\
-QVK_FEATURE_DO(dualSrcBlend, 1)\
-QVK_FEATURE_DO(logicOp, 1)\
-QVK_FEATURE_DO(multiDrawIndirect, 1)\
-QVK_FEATURE_DO(drawIndirectFirstInstance, 1)\
-QVK_FEATURE_DO(depthClamp, 1)\
-QVK_FEATURE_DO(depthBiasClamp, 1)\
-QVK_FEATURE_DO(fillModeNonSolid, 0)\
-QVK_FEATURE_DO(depthBounds, 0)\
-QVK_FEATURE_DO(wideLines, 0)\
-QVK_FEATURE_DO(largePoints, 0)\
-QVK_FEATURE_DO(alphaToOne, 0)\
-QVK_FEATURE_DO(multiViewport, 0)\
-QVK_FEATURE_DO(samplerAnisotropy, 1)\
-QVK_FEATURE_DO(textureCompressionETC2, 0)\
-QVK_FEATURE_DO(textureCompressionASTC_LDR, 0)\
-QVK_FEATURE_DO(textureCompressionBC, 1)\
-QVK_FEATURE_DO(occlusionQueryPrecise, 0)\
-QVK_FEATURE_DO(pipelineStatisticsQuery, 1)\
-QVK_FEATURE_DO(vertexPipelineStoresAndAtomics, 1)\
-QVK_FEATURE_DO(fragmentStoresAndAtomics, 1)\
-QVK_FEATURE_DO(shaderTessellationAndGeometryPointSize, 1)\
-QVK_FEATURE_DO(shaderImageGatherExtended, 1)\
-QVK_FEATURE_DO(shaderStorageImageExtendedFormats, 1)\
-QVK_FEATURE_DO(shaderStorageImageMultisample, 0)\
-QVK_FEATURE_DO(shaderStorageImageReadWithoutFormat, 0)\
-QVK_FEATURE_DO(shaderStorageImageWriteWithoutFormat, 1)\
-QVK_FEATURE_DO(shaderUniformBufferArrayDynamicIndexing, 1)\
-QVK_FEATURE_DO(shaderSampledImageArrayDynamicIndexing, 1)\
-QVK_FEATURE_DO(shaderStorageBufferArrayDynamicIndexing, 1)\
-QVK_FEATURE_DO(shaderStorageImageArrayDynamicIndexing, 1)\
-QVK_FEATURE_DO(shaderClipDistance, 1)\
-QVK_FEATURE_DO(shaderCullDistance, 1)\
-QVK_FEATURE_DO(shaderFloat64, 1)\
-QVK_FEATURE_DO(shaderInt64, 1)\
-QVK_FEATURE_DO(shaderInt16, 0)\
-QVK_FEATURE_DO(shaderResourceResidency, 0)\
-QVK_FEATURE_DO(shaderResourceMinLod, 0)\
-QVK_FEATURE_DO(sparseBinding, 0)\
-QVK_FEATURE_DO(sparseResidencyBuffer, 0)\
-QVK_FEATURE_DO(sparseResidencyImage2D, 0)\
-QVK_FEATURE_DO(sparseResidencyImage3D, 0)\
-QVK_FEATURE_DO(sparseResidency2Samples, 0)\
-QVK_FEATURE_DO(sparseResidency4Samples, 0)\
-QVK_FEATURE_DO(sparseResidency8Samples, 0)\
-QVK_FEATURE_DO(sparseResidency16Samples, 0)\
-QVK_FEATURE_DO(sparseResidencyAliased, 0)\
-QVK_FEATURE_DO(variableMultisampleRate, 0)\
-QVK_FEATURE_DO(inheritedQueries, 1)
-
   qvk.raytracing_supported = 0;
   int picked_device = -1;
   for(int i = 0; i < num_devices; i++) {
@@ -384,13 +326,6 @@ QVK_FEATURE_DO(inheritedQueries, 1)
     dt_log(s_log_qvk, "max image allocation size %u x %u",
         dev_properties.limits.maxImageDimension2D, dev_properties.limits.maxImageDimension2D);
     dt_log(s_log_qvk, "max uniform buffer range %u", dev_properties.limits.maxUniformBufferRange);
-#define QVK_FEATURE_DO(F, R)\
-    if(dev_features.F == 0 && R == 1) {\
-      dev_features.F = 1;\
-      dt_log(s_log_qvk, "device %d does not support requested feature " #F ", trying anyways", i);}
-    QVK_FEATURE_LIST
-#undef QVK_FEATURE_DO
-#undef QVK_FEATURE_LIST
     uint32_t num_ext;
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, NULL);
 
