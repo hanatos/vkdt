@@ -711,6 +711,9 @@ inline void draw_widget(int modid, int parid)
     case dt_token("pers"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
+      const float aspect = iwd/iht;
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
@@ -736,11 +739,14 @@ inline void draw_widget(int modid, int parid)
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
+          dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
           widget_abort();
         }
         else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
         {
           dt_gamepadhelp_pop();
+          dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
+          dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -764,6 +770,17 @@ inline void draw_widget(int modid, int parid)
           vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sizeof(float)*8);
+          float rot = dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("rotate")))[0];
+          dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), 0.0f);
+          vkdt.wstate.state[9] = rot;
+          // reset module params so the image will not appear cropped:
+          float defc[] = {
+            .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
+            .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
+            .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
+            .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
+          memcpy(vkdt.wstate.state+10, dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("crop"))), sizeof(float)*4);
+          dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), defc, 4);
           // reset module params so the image will not appear distorted:
           float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
           memcpy(v, def, sizeof(float)*8);
