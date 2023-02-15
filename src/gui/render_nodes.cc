@@ -100,6 +100,10 @@ void render_nodes_right_panel()
         ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
   }
 
+  static dt_image_widget_t imgw[] = {
+    { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 },
+    { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 },
+    { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 }};
   dt_token_t dsp[] = { dt_token("main"), dt_token("view0"), dt_token("view1") };
   for(uint32_t d = 0; d < sizeof(dsp)/sizeof(dsp[0]); d++)
   {
@@ -114,8 +118,7 @@ void render_nodes_right_panel()
       else ImGui::BeginChild(title, ImVec2(0.975*ImGui::GetWindowSize().x,
             MIN(ImGui::GetWindowSize().y, ImGui::GetWindowSize().x*2.0f/3.0f)));
 
-      static dt_image_widget_t imgw = { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 };
-      dt_image(&imgw, out, 1);
+      dt_image(imgw+d, out, 1);
       if(popout) ImGui::End();
       else ImGui::EndChild();
     }
