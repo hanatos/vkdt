@@ -10,11 +10,9 @@ processed_point_outside(
     const float *T,
     const float *H,
     const float *crop,
-    int corner)
+    const float *x) // position in pixels
 {
-  float xy[2] = {
-    corner & 1 ? crop[1]*wd : crop[0]*wd,
-    corner & 2 ? crop[3]*ht : crop[2]*ht};
+  float xy[2] = { x[0], x[1] };
   xy[0] -= wd/2.0;
   xy[1] -= ht/2.0;
   float tmp[3] = {0.0f};
@@ -38,6 +36,31 @@ processed_point_outside(
   return 0;
 }
 
+static inline float
+line_search(
+    const int    wd,  // input roi
+    const int    ht,
+    const float *T,
+    const float *H,
+    const float *crop,
+    const float *x,   // point in pixel coordinates, on the inside
+    const float *y)   // the other point where to aim at (but don't go farther)
+{ // ray trace from the inside until intersection with the boundary, return point that is still inside
+  float m = 0.0f, M = 1.0f;
+  if(!processed_point_outside(wd, ht, T, H, crop, y)) return 1.0f; // early out
+  for(int it=0;it<10;it++)
+  { // binary search for a bit
+    float t = (M+m)/2.0f;
+    float z[2];
+    for(int k=0;k<2;k++) z[k] = (1.0f-t)*x[k] + t*y[k];
+    if(processed_point_outside(wd, ht, T, H, crop, z))
+      M = t;
+    else
+      m = t;
+  }
+  return m; // be conservative, return the inside distance
+}
+
 void ui_callback(
     dt_module_t *module,
     dt_token_t   param)
@@ -51,6 +74,16 @@ void ui_callback(
   for(int k=0;k<4;k++) T[k] = f[k];    // rotation matrix T
   f += 4;
   for(int k=0;k<4;k++) crop[k] = f[k]; // crop window
+
+  // XXX TODO: from the center vertex, ray trace to the outside in a 4-star to find axis aligned candidates for cropping
+  // XXX TODO: from that, construct tentative corner vertices of the resulting aabb
+  // XXX TODO: for each corner: if it is outside, trace three rays towards it:
+  //           from the center and the two adjacent 4-star edge points from before.
+  // TODO: for each vertex we now have 1..3 candidate vertices
+  // TODO: consider for the final aabb:
+  // x-coords any of the up to 6 left ones + any of the x-coords of the up to 6 right ones
+  // same for y. need to eval final validity + area for combination of both :(
+  // XXX consider the two opposing corners as aabb (2x 3x3 combinations)
 
   float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
   for(int i=0;i<20;i++)
@@ -66,8 +99,13 @@ void ui_callback(
     }
     int out = 0;
     for(int c=0;c<4;c++)
-      if((out |= processed_point_outside(wd, ht, T, H, crop2, c)))
+    {
+      float xy[2] = {
+        c & 1 ? crop2[1]*wd : crop2[0]*wd,
+        c & 2 ? crop2[3]*ht : crop2[2]*ht};
+      if((out |= processed_point_outside(wd, ht, T, H, crop2, xy)))
         break;
+    }
     if(out) scale1 = scale;
     else    scale0 = scale;
   }
