@@ -107,14 +107,19 @@ void ui_callback(
   // for(nxyc)
   // { // find initial corner: this is one of (min,min),(min,max),(max,min),(max,max), say depending on initial corner
   //   // one corner index selects x and y for each either min or max
-  //   int c2 = (int)(xyc[3]) ^ 2; // if we have x|ymin, search for x|ymax and the other way around
+  //   // like this but correct: int c2 = (int)(xyc[3]) ^ 2; // if we have x|ymin, search for x|ymax and the other way around
+  //   aabb[i] = XX; aabb[j] = YY;
   //   for(npts[c2])
   //   { // find the other x coordinate
   //     // if candidate x (min or max) on the wrong side of first x, discard/continue (x < xmin or x > xmax)
   //     // y needs to be *outside* the bounds dictated by the initial vertex! or else x doesn't count for the whole interval
+  //     aabb[ii] = XXX;
   //     int c3 = c
-  //     for()
+  //     for() // for all vertices in ymin|max list
   //     { // find last coordinate: y min or max
+  //       x needs to be *outside* the already fixed xmin,xmax bounds
+  //       consider y as ymin or max, compute A and record aabb if it is > A_max
+  //       aabb[jj] = YYY;
   //     }
   //   }
   // } // end find initial corner
