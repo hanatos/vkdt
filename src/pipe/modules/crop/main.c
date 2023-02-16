@@ -85,6 +85,40 @@ void ui_callback(
   // same for y. need to eval final validity + area for combination of both :(
   // XXX consider the two opposing corners as aabb (2x 3x3 combinations)
 
+  // TODO: backtrack:
+  // - start from one vertex as a corner of the aabb, fixing x and y for min or max
+  // - say we have xmin and ymin and want to select ymax next:
+  //   - go through all other vertices. if x < xmin, consider y as ymax
+  //   - now we have xmin, ymin, ymax, select xmax:
+  //   - go through all remaining vertices, if y < ymin or y > ymax, consider as xmax
+  //   - compute area and store candidate
+
+  // 1) ray trace to obtain a list of <= 12 vertices
+  //    - trace 4-star to find coarse aabb
+  //    - trace 3 rays towards corners of this aabb (from two edges + center)
+  // 2) pick one of the <=12 as starting vertex
+  // TODO: need lists of vertices so we can access them by candidate corner:
+  //       - find all verts to be considered for xmin or xmax or y..
+  // float xy[4][12][2] = {{..}}; // [xmin, ymin, xmax, ymax][npts][xy]
+  // int nxy[4];
+  // float xyc[12][3]; // all candidate vertices with their corner index
+  // int nxyc;
+  // float A_max = 0.0f, aabb_max[4];
+  // for(nxyc)
+  // { // find initial corner: this is one of (min,min),(min,max),(max,min),(max,max), say depending on initial corner
+  //   // one corner index selects x and y for each either min or max
+  //   int c2 = (int)(xyc[3]) ^ 2; // if we have x|ymin, search for x|ymax and the other way around
+  //   for(npts[c2])
+  //   { // find the other x coordinate
+  //     // if candidate x (min or max) on the wrong side of first x, discard/continue (x < xmin or x > xmax)
+  //     // y needs to be *outside* the bounds dictated by the initial vertex! or else x doesn't count for the whole interval
+  //     int c3 = c
+  //     for()
+  //     { // find last coordinate: y min or max
+  //     }
+  //   }
+  // } // end find initial corner
+
   float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
   for(int i=0;i<20;i++)
   {
