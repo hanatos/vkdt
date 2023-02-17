@@ -66,16 +66,18 @@ void ui_callback(
     dt_module_t *module,
     dt_token_t   param)
 { // auto-crop away black borders
+  // really this code is shit. it can fail and it is hardly ever optimal.
+  // there are a couple of publications on finding the maximum inscribed axis aligned rectangle
+  // of a convex polygon, but starting from a (sorted) list of vertices adn sounds like too much trouble.
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
-  float H[16], T[4], crop[4];
+  float H[16], T[4], crop[4] = {0, 1, 0, 1};
   float *f = (float*)module->committed_param;
   for(int k=0;k<12;k++) H[k] = f[k];   // perspective matrix H
   f += 12;
   for(int k=0;k<4;k++) T[k] = f[k];    // rotation matrix T
-  f += 4;
-  for(int k=0;k<4;k++) crop[k] = f[k]; // crop window
 
+  float A_max = 0.0f, aabb_max[4];
   // 1) ray trace to obtain a list of <= 12 vertices
   float center[2] = {wd/2.0, ht/2.0};
   float aabb[] = {FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX}; // xmin ymin xmax ymax
@@ -94,7 +96,17 @@ void ui_callback(
     aabb[2] = MAX(edgep[e][0], aabb[2]);
     aabb[3] = MAX(edgep[e][1], aabb[3]);
   }
-  // TODO: could check if all four corners are inside and if so return this immediately (fast path for axis aligned orientation flips)
+  int all_good = 1;
+  for(int c=0;c<4;c++)
+  { // check if all four corners are inside and if so return this immediately (fast path for axis aligned orientation flips)
+    float y[] = { aabb[2*(c&1)], aabb[1+(c&2)] };
+    if(processed_point_outside(wd, ht, T, H, crop, y)) all_good = 0;
+  }
+  if(all_good)
+  {
+    memcpy(aabb_max, aabb, sizeof(aabb_max));
+    goto out;
+  }
   float xy[4][12][2], xyc[4][3][2];
   int nxy[4] = {0}, nxyc[4] = {0};
   for(int c=0;c<4;c++)
@@ -103,7 +115,7 @@ void ui_callback(
     int xl = (c&1) ? 2 : 0, yl = (c&2) ? 3 : 1;
     for(int k=0;k<3;k++)
     { // record results in the lists to be considered for xmax/min and ymax/min:
-      float *x = center;// XXX k == 0 ? center : (k == 1 ? edgep[xl] : edgep[yl]);
+      float *x = k == 0 ? center : (k == 1 ? edgep[xl] : edgep[yl]);
       float t = line_search(wd, ht, T, H, crop, x, y);
       int i = nxy[xl]++, j = nxy[yl]++, l = nxyc[c]++;
       xyc[c][l][0] = xy[yl][j][0] = xy[xl][i][0] = (1.0f - t) * x[0] + t * y[0];
@@ -112,7 +124,6 @@ void ui_callback(
   }
 
   // 2) pick one of the <=12 as starting vertex
-  float A_max = 0.0f, aabb_max[4];
   for(int c=0;c<4;c++) for(int k=0;k<nxyc[c];k++)
   { // select fixed corner for first two aabb dimensions
     const int xm = c&1, ym = (c&2)>>1; // xmin(0) or max(1), ymin(0) or max(1)
@@ -134,6 +145,13 @@ void ui_callback(
         if( ym && y >= aabb[3]) continue;
         if(!ym && y <= aabb[1]) continue;
         aabb[1+2*(1-ym)] = y;
+        int cc = 0;
+          for(;cc<4;cc++)
+          {
+            float y[] = { aabb[2*(cc&1)], aabb[1+(cc&2)] };
+            if(processed_point_outside(wd, ht, T, H, crop, y)) break;
+          }
+          if(cc < 4) continue;
         float A = (aabb[2]-aabb[0])*(aabb[3]-aabb[1]);
         if(A > A_max)
         {
@@ -143,45 +161,14 @@ void ui_callback(
       }
     }
   }
-  // XXX fallback:
+  // fallback if all else failed:
   if(A_max <= 0.0f) memcpy(aabb, aabb_max, sizeof(aabb_max));
+out:;
   float *p_crop = (float *)dt_module_param_float(module, 1);
   p_crop[0] = 1.01 * aabb_max[0] / wd;
   p_crop[1] = 0.99 * aabb_max[2] / wd;
   p_crop[2] = 1.01 * aabb_max[1] / ht;
   p_crop[3] = 0.99 * aabb_max[3] / ht;
-
-#if 0
-  float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
-  for(int i=0;i<20;i++)
-  {
-    float scale = (scale0 + scale1)/2.0f;
-    for(int k=0;k<2;k++)
-    { // aspect ratio preserving scale of crop window
-      float cn[2] = {wd * crop[k & 1 ? 1 : 0], ht * crop[k & 1 ? 3 : 2]};
-      cn[0] = 0.5f * wd + scale * (cn[0] - 0.5f * wd); // is this a good center?
-      cn[1] = 0.5f * ht + scale * (cn[1] - 0.5f * ht);
-      crop2[k & 1 ? 1 : 0] = cn[0] / wd;
-      crop2[k & 1 ? 3 : 2] = cn[1] / ht;
-    }
-    int out = 0;
-    for(int c=0;c<4;c++)
-    {
-      float xy[2] = {
-        c & 1 ? crop2[1]*wd : crop2[0]*wd,
-        c & 2 ? crop2[3]*ht : crop2[2]*ht};
-      if((out |= processed_point_outside(wd, ht, T, H, crop2, xy)))
-        break;
-    }
-    if(out) scale1 = scale;
-    else    scale0 = scale;
-  }
-  float *p_crop = (float *)dt_module_param_float(module, 1);
-  p_crop[0] = 1.01 * crop2[0];
-  p_crop[1] = 0.99 * crop2[1];
-  p_crop[2] = 1.01 * crop2[2];
-  p_crop[3] = 0.99 * crop2[3];
-#endif
 }
 
 // fill crop and rotation if auto-rotate by exif data has been requested
