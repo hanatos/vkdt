@@ -1701,6 +1701,8 @@ abort:
           for(int k=0;k<4;k++) dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          if(!ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            vkdt.wstate.selected = -1;
           if(vkdt.wstate.selected >= 0)
           {
             float o = vkdt.state.center_wd * 0.02;
@@ -1723,11 +1725,8 @@ abort:
             float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
             dt_gui_dr_crop_adjust(edge, 0);
           }
-          if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
-          {
-            vkdt.wstate.selected = -1;
-          }
-          else if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          else dt_image_events(&vkdt.wstate.img_widget, hovered);
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
           {
             ImVec2 pos = ImGui::GetMousePos();
             float m[2] = {(float)pos.x, (float)pos.y};
