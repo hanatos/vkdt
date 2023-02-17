@@ -381,10 +381,7 @@ extern "C" void dt_gui_cleanup_imgui()
   ImGui::DestroyContext();
 }
 
-extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y)
-{
-  ImGui_ImplVulkan_SetWindowPos(x);
-}
+extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
 
 extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
