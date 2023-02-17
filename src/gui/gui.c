@@ -68,6 +68,7 @@ int dt_gui_init()
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
   // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+  glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
   qvk.window = glfwCreateWindow(qvk.win_width, qvk.win_height, "vkdt", NULL, NULL);
   glfwSetWindowPos(qvk.window, 0, 0);
 
