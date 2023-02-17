@@ -1492,6 +1492,7 @@ void render_darkroom()
     { // draw image properties
       ImGui::SetNextWindowPos (ImGui::GetMainViewport()->Pos, ImGuiCond_Always);
       ImGui::SetNextWindowSize(ImVec2(win_w+2*win_x, win_y), ImGuiCond_Always);
+      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
       ImGui::Begin("darkroom statusbar", 0, ImGuiWindowFlags_NoTitleBar |
           ImGuiWindowFlags_NoMove |
           ImGuiWindowFlags_NoResize |
@@ -1513,6 +1514,7 @@ void render_darkroom()
           ImGui::GetMainViewport()->Pos.x + win_x - border,
           ImGui::GetMainViewport()->Pos.y + win_y - border), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoMove |
@@ -1872,6 +1874,7 @@ abort:
           ImGui::GetMainViewport()->Pos.x,
           ImGui::GetMainViewport()->Pos.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     int action = 0;
@@ -1962,6 +1965,7 @@ abort:
           ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
           ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     // draw histogram image:

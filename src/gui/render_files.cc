@@ -97,6 +97,7 @@ void render_files()
           ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
           ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("files panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     // if(ImGui::CollapsingHeader("settings")) ??
 #if 0
@@ -285,6 +286,7 @@ void render_files()
           ImGui::GetMainViewport()->Pos.x + 0,
           ImGui::GetMainViewport()->Pos.y + win_h+border.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("files buttons", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     int bwd = win_w / 4;
     int twd = ImGui::GetStyle().ItemSpacing.x + bwd * 2;
@@ -312,6 +314,7 @@ void render_files()
           ImGui::GetMainViewport()->Pos.x + 0,
           ImGui::GetMainViewport()->Pos.y + 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     dt_filebrowser(&filebrowser, 'f');
