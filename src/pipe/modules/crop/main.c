@@ -2,6 +2,7 @@
 #include "core/gaussian_elimination.h"
 
 #include <math.h>
+#include <float.h>
 
 static inline int
 processed_point_outside(
@@ -75,55 +76,82 @@ void ui_callback(
   f += 4;
   for(int k=0;k<4;k++) crop[k] = f[k]; // crop window
 
-  // XXX TODO: from the center vertex, ray trace to the outside in a 4-star to find axis aligned candidates for cropping
-  // XXX TODO: from that, construct tentative corner vertices of the resulting aabb
-  // XXX TODO: for each corner: if it is outside, trace three rays towards it:
-  //           from the center and the two adjacent 4-star edge points from before.
-  // TODO: for each vertex we now have 1..3 candidate vertices
-  // TODO: consider for the final aabb:
-  // x-coords any of the up to 6 left ones + any of the x-coords of the up to 6 right ones
-  // same for y. need to eval final validity + area for combination of both :(
-  // XXX consider the two opposing corners as aabb (2x 3x3 combinations)
-
-  // TODO: backtrack:
-  // - start from one vertex as a corner of the aabb, fixing x and y for min or max
-  // - say we have xmin and ymin and want to select ymax next:
-  //   - go through all other vertices. if x < xmin, consider y as ymax
-  //   - now we have xmin, ymin, ymax, select xmax:
-  //   - go through all remaining vertices, if y < ymin or y > ymax, consider as xmax
-  //   - compute area and store candidate
-
   // 1) ray trace to obtain a list of <= 12 vertices
-  //    - trace 4-star to find coarse aabb
-  //    - trace 3 rays towards corners of this aabb (from two edges + center)
-  // 2) pick one of the <=12 as starting vertex
-  // TODO: need lists of vertices so we can access them by candidate corner:
-  //       - find all verts to be considered for xmin or xmax or y..
-  // float xy[4][12][2] = {{..}}; // [xmin, ymin, xmax, ymax][npts][xy]
-  // int nxy[4];
-  // float xyc[12][3]; // all candidate vertices with their corner index
-  // int nxyc;
-  // float A_max = 0.0f, aabb_max[4];
-  // for(nxyc)
-  // { // find initial corner: this is one of (min,min),(min,max),(max,min),(max,max), say depending on initial corner
-  //   // one corner index selects x and y for each either min or max
-  //   // like this but correct: int c2 = (int)(xyc[3]) ^ 2; // if we have x|ymin, search for x|ymax and the other way around
-  //   aabb[i] = XX; aabb[j] = YY;
-  //   for(npts[c2])
-  //   { // find the other x coordinate
-  //     // if candidate x (min or max) on the wrong side of first x, discard/continue (x < xmin or x > xmax)
-  //     // y needs to be *outside* the bounds dictated by the initial vertex! or else x doesn't count for the whole interval
-  //     aabb[ii] = XXX;
-  //     int c3 = c
-  //     for() // for all vertices in ymin|max list
-  //     { // find last coordinate: y min or max
-  //       x needs to be *outside* the already fixed xmin,xmax bounds
-  //       consider y as ymin or max, compute A and record aabb if it is > A_max
-  //       aabb[jj] = YYY;
-  //     }
-  //   }
-  // } // end find initial corner
+  float center[2] = {wd/2.0, ht/2.0};
+  float aabb[] = {FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX}; // xmin ymin xmax ymax
+  float edgep[4][2]; // xmin ymin xmax ymax
+  for(int e=0;e<4;e++)
+  { // trace 4-star outside to find coarse aabb
+    const float dir[4][2] = {{-1,0},{0,-1},{1,0},{0,1}};
+    float y[] = {
+      2.0*wd*dir[e][0] + center[0],
+      2.0*wd*dir[e][1] + center[1]};
+    float t = line_search(wd, ht, T, H, crop, center, y);
+    edgep[e][0] = center[0] + t*2.0*wd*dir[e][0];
+    edgep[e][1] = center[1] + t*2.0*wd*dir[e][1];
+    aabb[0] = MIN(edgep[e][0], aabb[0]);
+    aabb[1] = MIN(edgep[e][1], aabb[1]);
+    aabb[2] = MAX(edgep[e][0], aabb[2]);
+    aabb[3] = MAX(edgep[e][1], aabb[3]);
+  }
+  // TODO: could check if all four corners are inside and if so return this immediately (fast path for axis aligned orientation flips)
+  float xy[4][12][2], xyc[4][3][2];
+  int nxy[4] = {0}, nxyc[4] = {0};
+  for(int c=0;c<4;c++)
+  { // trace 3 rays towards corners of this aabb (from two edges + center)
+    float y[] = { aabb[2*(c&1)], aabb[1+(c&2)] }; // trace towards corner c
+    int xl = (c&1) ? 2 : 0, yl = (c&2) ? 3 : 1;
+    for(int k=0;k<3;k++)
+    { // record results in the lists to be considered for xmax/min and ymax/min:
+      float *x = center;// XXX k == 0 ? center : (k == 1 ? edgep[xl] : edgep[yl]);
+      float t = line_search(wd, ht, T, H, crop, x, y);
+      int i = nxy[xl]++, j = nxy[yl]++, l = nxyc[c]++;
+      xyc[c][l][0] = xy[yl][j][0] = xy[xl][i][0] = (1.0f - t) * x[0] + t * y[0];
+      xyc[c][l][1] = xy[yl][j][1] = xy[xl][i][1] = (1.0f - t) * x[1] + t * y[1];
+    }
+  }
 
+  // 2) pick one of the <=12 as starting vertex
+  float A_max = 0.0f, aabb_max[4];
+  for(int c=0;c<4;c++) for(int k=0;k<nxyc[c];k++)
+  { // select fixed corner for first two aabb dimensions
+    const int xm = c&1, ym = (c&2)>>1; // xmin(0) or max(1), ymin(0) or max(1)
+    float aabb[4];
+    aabb[0+2*xm] = xyc[c][k][0];
+    aabb[1+2*ym] = xyc[c][k][1];
+    for(int i=0;i<nxy[2*(1-xm)];i++)
+    { // find other x coordinate
+      float x = xy[2*(1-xm)][i][0], y = xy[2*(1-xm)][i][1];
+      if( xm && x >= aabb[2]) continue; // candidate x is on the wrong side of what we already have
+      if(!xm && x <= aabb[0]) continue;
+      if( ym && y <= aabb[3]) continue; // y needs to be outside
+      if(!ym && y >= aabb[1]) continue;
+      aabb[2*(1-xm)] = x;
+      for(int j=0;j<nxy[1+2*(1-ym)];j++)
+      { // find last y coordinate
+        float x = xy[1+2*(1-ym)][j][0], y = xy[1+2*(1-ym)][j][1];
+        if(x >= aabb[0] && x <= aabb[2]) continue; // x needs to be outside
+        if( ym && y >= aabb[3]) continue;
+        if(!ym && y <= aabb[1]) continue;
+        aabb[1+2*(1-ym)] = y;
+        float A = (aabb[2]-aabb[0])*(aabb[3]-aabb[1]);
+        if(A > A_max)
+        {
+          A_max = A;
+          memcpy(aabb_max, aabb, sizeof(aabb_max));
+        }
+      }
+    }
+  }
+  // XXX fallback:
+  if(A_max <= 0.0f) memcpy(aabb, aabb_max, sizeof(aabb_max));
+  float *p_crop = (float *)dt_module_param_float(module, 1);
+  p_crop[0] = 1.01 * aabb_max[0] / wd;
+  p_crop[1] = 0.99 * aabb_max[2] / wd;
+  p_crop[2] = 1.01 * aabb_max[1] / ht;
+  p_crop[3] = 0.99 * aabb_max[3] / ht;
+
+#if 0
   float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
   for(int i=0;i<20;i++)
   {
@@ -153,6 +181,7 @@ void ui_callback(
   p_crop[1] = 0.99 * crop2[1];
   p_crop[2] = 1.01 * crop2[2];
   p_crop[3] = 0.99 * crop2[3];
+#endif
 }
 
 // fill crop and rotation if auto-rotate by exif data has been requested
