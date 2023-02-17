@@ -5,7 +5,6 @@ extern "C" {
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
-#include "gui/darkroom-util.h"
 }
 #include "render.h"
 #include "imgui.h"
@@ -201,13 +200,18 @@ extern "C" int dt_gui_init_imgui()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos; //  | ImGuiBackendFlags_HasSetMousePos;
 
+  // enable docking and multiple viewports:
+  // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  io.ConfigDockingWithShift = true;
+
   // Setup Dear ImGui style
   // ImGui::StyleColorsDark();
   // ImGui::StyleColorsClassic();
   dark_corporate_style();
 
   // Setup Platform/Renderer bindings
-  ImGui_ImplGlfw_InitForVulkan(qvk.window, false);
+  ImGui_ImplGlfw_InitForVulkan(qvk.window, false); // don't install callbacks
   ImGui_ImplVulkan_InitInfo init_info = {};
   init_info.Instance         = qvk.instance;
   init_info.PhysicalDevice   = qvk.physical_device;
@@ -305,6 +309,10 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui::NewFrame();
   double now = glfwGetTime();
 
+  // ???
+  // ImGuiDockNodeFlags_PassthruCentralNode
+  // ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+
   static double button_pressed_time = 0.0;
   if(now - button_pressed_time > 0.1)
   { // the imgui/glfw backend does not support the "ps" button, so we do the stupid thing:
@@ -340,14 +348,22 @@ extern "C" void dt_gui_render_frame_imgui()
       | ImGuiWindowFlags_NoMove
       | ImGuiWindowFlags_NoResize
       | ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y/2),  ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
+          ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y/2),  ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, 0.05 * vkdt.state.center_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("notification message", 0, window_flags);
     ImGui::Text("%s", vkdt.wstate.notification_msg);
     ImGui::End();
   }
 
   ImGui::Render();
+  if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+  { // Update and Render additional Platform Windows
+    ImGui::UpdatePlatformWindows();
+    ImGui::RenderPlatformWindowsDefault();
+  }
 }
 
 extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
@@ -369,10 +385,7 @@ extern "C" void dt_gui_cleanup_imgui()
   ImGui::DestroyContext();
 }
 
-extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y)
-{
-  ImGui_ImplVulkan_SetWindowPos(x);
-}
+extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
 
 extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {

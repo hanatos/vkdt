@@ -2,6 +2,7 @@
 #include "core/gaussian_elimination.h"
 
 #include <math.h>
+#include <float.h>
 
 static inline int
 processed_point_outside(
@@ -10,11 +11,9 @@ processed_point_outside(
     const float *T,
     const float *H,
     const float *crop,
-    int corner)
+    const float *x) // position in pixels
 {
-  float xy[2] = {
-    corner & 1 ? crop[1]*wd : crop[0]*wd,
-    corner & 2 ? crop[3]*ht : crop[2]*ht};
+  float xy[2] = { x[0], x[1] };
   xy[0] -= wd/2.0;
   xy[1] -= ht/2.0;
   float tmp[3] = {0.0f};
@@ -38,44 +37,138 @@ processed_point_outside(
   return 0;
 }
 
+static inline float
+line_search(
+    const int    wd,  // input roi
+    const int    ht,
+    const float *T,
+    const float *H,
+    const float *crop,
+    const float *x,   // point in pixel coordinates, on the inside
+    const float *y)   // the other point where to aim at (but don't go farther)
+{ // ray trace from the inside until intersection with the boundary, return point that is still inside
+  float m = 0.0f, M = 1.0f;
+  if(!processed_point_outside(wd, ht, T, H, crop, y)) return 1.0f; // early out
+  for(int it=0;it<10;it++)
+  { // binary search for a bit
+    float t = (M+m)/2.0f;
+    float z[2];
+    for(int k=0;k<2;k++) z[k] = (1.0f-t)*x[k] + t*y[k];
+    if(processed_point_outside(wd, ht, T, H, crop, z))
+      M = t;
+    else
+      m = t;
+  }
+  return m; // be conservative, return the inside distance
+}
+
 void ui_callback(
     dt_module_t *module,
     dt_token_t   param)
 { // auto-crop away black borders
+  // really this code is shit. it can fail and it is hardly ever optimal.
+  // there are a couple of publications on finding the maximum inscribed axis aligned rectangle
+  // of a convex polygon, but starting from a (sorted) list of vertices adn sounds like too much trouble.
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
-  float H[16], T[4], crop[4];
+  float H[16], T[4], crop[4] = {0, 1, 0, 1};
   float *f = (float*)module->committed_param;
   for(int k=0;k<12;k++) H[k] = f[k];   // perspective matrix H
   f += 12;
   for(int k=0;k<4;k++) T[k] = f[k];    // rotation matrix T
-  f += 4;
-  for(int k=0;k<4;k++) crop[k] = f[k]; // crop window
 
-  float crop2[4], scale0 = 0.1f, scale1 = 1.0f;
-  for(int i=0;i<20;i++)
-  {
-    float scale = (scale0 + scale1)/2.0f;
-    for(int k=0;k<2;k++)
-    { // aspect ratio preserving scale of crop window
-      float cn[2] = {wd * crop[k & 1 ? 1 : 0], ht * crop[k & 1 ? 3 : 2]};
-      cn[0] = 0.5f * wd + scale * (cn[0] - 0.5f * wd); // is this a good center?
-      cn[1] = 0.5f * ht + scale * (cn[1] - 0.5f * ht);
-      crop2[k & 1 ? 1 : 0] = cn[0] / wd;
-      crop2[k & 1 ? 3 : 2] = cn[1] / ht;
-    }
-    int out = 0;
-    for(int c=0;c<4;c++)
-      if((out |= processed_point_outside(wd, ht, T, H, crop2, c)))
-        break;
-    if(out) scale1 = scale;
-    else    scale0 = scale;
+  float A_max = 0.0f, aabb_max[4];
+  // 1) ray trace to obtain a list of <= 12 vertices
+  float center[2] = {wd/2.0, ht/2.0};
+  float aabb[] = {FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX}; // xmin ymin xmax ymax
+  float edgep[4][2]; // xmin ymin xmax ymax
+  for(int e=0;e<4;e++)
+  { // trace 4-star outside to find coarse aabb
+    const float dir[4][2] = {{-1,0},{0,-1},{1,0},{0,1}};
+    float y[] = {
+      2.0*wd*dir[e][0] + center[0],
+      2.0*wd*dir[e][1] + center[1]};
+    float t = line_search(wd, ht, T, H, crop, center, y);
+    edgep[e][0] = center[0] + t*2.0*wd*dir[e][0];
+    edgep[e][1] = center[1] + t*2.0*wd*dir[e][1];
+    aabb[0] = MIN(edgep[e][0], aabb[0]);
+    aabb[1] = MIN(edgep[e][1], aabb[1]);
+    aabb[2] = MAX(edgep[e][0], aabb[2]);
+    aabb[3] = MAX(edgep[e][1], aabb[3]);
   }
+  int all_good = 1;
+  for(int c=0;c<4;c++)
+  { // check if all four corners are inside and if so return this immediately (fast path for axis aligned orientation flips)
+    float y[] = { aabb[2*(c&1)], aabb[1+(c&2)] };
+    if(processed_point_outside(wd, ht, T, H, crop, y)) all_good = 0;
+  }
+  if(all_good)
+  {
+    memcpy(aabb_max, aabb, sizeof(aabb_max));
+    goto out;
+  }
+  float xy[4][12][2], xyc[4][3][2];
+  int nxy[4] = {0}, nxyc[4] = {0};
+  for(int c=0;c<4;c++)
+  { // trace 3 rays towards corners of this aabb (from two edges + center)
+    float y[] = { aabb[2*(c&1)], aabb[1+(c&2)] }; // trace towards corner c
+    int xl = (c&1) ? 2 : 0, yl = (c&2) ? 3 : 1;
+    for(int k=0;k<3;k++)
+    { // record results in the lists to be considered for xmax/min and ymax/min:
+      float *x = k == 0 ? center : (k == 1 ? edgep[xl] : edgep[yl]);
+      float t = line_search(wd, ht, T, H, crop, x, y);
+      int i = nxy[xl]++, j = nxy[yl]++, l = nxyc[c]++;
+      xyc[c][l][0] = xy[yl][j][0] = xy[xl][i][0] = (1.0f - t) * x[0] + t * y[0];
+      xyc[c][l][1] = xy[yl][j][1] = xy[xl][i][1] = (1.0f - t) * x[1] + t * y[1];
+    }
+  }
+
+  // 2) pick one of the <=12 as starting vertex
+  for(int c=0;c<4;c++) for(int k=0;k<nxyc[c];k++)
+  { // select fixed corner for first two aabb dimensions
+    const int xm = c&1, ym = (c&2)>>1; // xmin(0) or max(1), ymin(0) or max(1)
+    float aabb[4];
+    aabb[0+2*xm] = xyc[c][k][0];
+    aabb[1+2*ym] = xyc[c][k][1];
+    for(int i=0;i<nxy[2*(1-xm)];i++)
+    { // find other x coordinate
+      float x = xy[2*(1-xm)][i][0], y = xy[2*(1-xm)][i][1];
+      if( xm && x >= aabb[2]) continue; // candidate x is on the wrong side of what we already have
+      if(!xm && x <= aabb[0]) continue;
+      if( ym && y <= aabb[3]) continue; // y needs to be outside
+      if(!ym && y >= aabb[1]) continue;
+      aabb[2*(1-xm)] = x;
+      for(int j=0;j<nxy[1+2*(1-ym)];j++)
+      { // find last y coordinate
+        float x = xy[1+2*(1-ym)][j][0], y = xy[1+2*(1-ym)][j][1];
+        if(x >= aabb[0] && x <= aabb[2]) continue; // x needs to be outside
+        if( ym && y >= aabb[3]) continue;
+        if(!ym && y <= aabb[1]) continue;
+        aabb[1+2*(1-ym)] = y;
+        int cc = 0;
+          for(;cc<4;cc++)
+          {
+            float y[] = { aabb[2*(cc&1)], aabb[1+(cc&2)] };
+            if(processed_point_outside(wd, ht, T, H, crop, y)) break;
+          }
+          if(cc < 4) continue;
+        float A = (aabb[2]-aabb[0])*(aabb[3]-aabb[1]);
+        if(A > A_max)
+        {
+          A_max = A;
+          memcpy(aabb_max, aabb, sizeof(aabb_max));
+        }
+      }
+    }
+  }
+  // fallback if all else failed:
+  if(A_max <= 0.0f) memcpy(aabb, aabb_max, sizeof(aabb_max));
+out:;
   float *p_crop = (float *)dt_module_param_float(module, 1);
-  p_crop[0] = 1.01 * crop2[0];
-  p_crop[1] = 0.99 * crop2[1];
-  p_crop[2] = 1.01 * crop2[2];
-  p_crop[3] = 0.99 * crop2[3];
+  p_crop[0] = 1.01 * aabb_max[0] / wd;
+  p_crop[1] = 0.99 * aabb_max[2] / wd;
+  p_crop[2] = 1.01 * aabb_max[1] / ht;
+  p_crop[3] = 0.99 * aabb_max[3] / ht;
 }
 
 // fill crop and rotation if auto-rotate by exif data has been requested

@@ -4,6 +4,7 @@
 #include "db/db.h"
 #include "db/rc.h"
 #include "snd/snd.h"
+#include "widget_image.h"
 
 #include <vulkan/vulkan.h>
 
@@ -35,9 +36,6 @@ dt_gui_style_t;
 typedef struct dt_gui_state_t
 {
   // center window configuration
-  float look_at_x;
-  float look_at_y;
-  float scale;
   int   center_x, center_y;
   int   center_wd, center_ht;
   int   panel_wd;
@@ -54,9 +52,7 @@ dt_gui_state_t;
 // a few local things to exchange data between core and ui and c and c++
 typedef struct dt_gui_wstate_t
 {
-  int      m_x, m_y;
-  float    old_look_x, old_look_y;
-  float    wd, ht;
+  dt_image_widget_t img_widget;
   int      active_widget_modid; // module id
   int      active_widget_parid; // parameter id
   int      active_widget_parnm; // number of parameter (if multi count)

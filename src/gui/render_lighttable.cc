@@ -31,6 +31,17 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"scroll end",    "scroll to end of collection",      {ImGuiKey_LeftShift, ImGuiKey_G}},
   {"scroll top",    "scroll to top of collection",      {ImGuiKey_G}},
   {"duplicate",     "duplicate selected images",        {ImGuiKey_LeftShift, ImGuiKey_D}},
+  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
+  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
+  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
+  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
+  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
+  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
+  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
+  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
+  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
+  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
+  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
 };
 enum hotkey_names_t
 {
@@ -43,6 +54,17 @@ enum hotkey_names_t
   s_hotkey_scroll_end = 6,
   s_hotkey_scroll_top = 7,
   s_hotkey_duplicate  = 8,
+  s_hotkey_rate_0     = 9,
+  s_hotkey_rate_1     = 10,
+  s_hotkey_rate_2     = 11,
+  s_hotkey_rate_3     = 12,
+  s_hotkey_rate_4     = 13,
+  s_hotkey_rate_5     = 14,
+  s_hotkey_label_1    = 15,
+  s_hotkey_label_2    = 16,
+  s_hotkey_label_3    = 17,
+  s_hotkey_label_4    = 18,
+  s_hotkey_label_5    = 19,
 };
 
 void render_lighttable_center(int hotkey)
@@ -73,8 +95,11 @@ void render_lighttable_center(int hotkey)
   window_flags |= ImGuiWindowFlags_NoMove;
   window_flags |= ImGuiWindowFlags_NoResize;
   window_flags |= ImGuiWindowFlags_NoBackground;
-  ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
+        ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y),  ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   ImGui::Begin("lighttable center", 0, window_flags);
 
   const int ipl = 6;
@@ -193,6 +218,19 @@ void render_lighttable_center(int hotkey)
       break;
     case s_hotkey_duplicate:
       dt_gui_lt_duplicate();
+      break;
+    case s_hotkey_rate_0: dt_gui_rate_0(); break;
+    case s_hotkey_rate_1: dt_gui_rate_1(); break;
+    case s_hotkey_rate_2: dt_gui_rate_2(); break;
+    case s_hotkey_rate_3: dt_gui_rate_3(); break;
+    case s_hotkey_rate_4: dt_gui_rate_4(); break;
+    case s_hotkey_rate_5: dt_gui_rate_5(); break;
+    case s_hotkey_label_1: dt_gui_label_1(); break;
+    case s_hotkey_label_2: dt_gui_label_2(); break;
+    case s_hotkey_label_3: dt_gui_label_3(); break;
+    case s_hotkey_label_4: dt_gui_label_4(); break;
+    case s_hotkey_label_5: dt_gui_label_5(); break;
+    default: break;
   }
   dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
 
@@ -296,8 +334,11 @@ int export_job(
 
 void render_lighttable_right_panel(int hotkey)
 { // right panel
-  ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+        ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
   float lineht = ImGui::GetTextLineHeight();

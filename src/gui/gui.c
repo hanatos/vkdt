@@ -20,9 +20,6 @@ style_to_state()
 {
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * qvk.win_height;
   vkdt.state = (dt_gui_state_t) {
-    .look_at_x = FLT_MAX,
-    .look_at_y = FLT_MAX,
-    .scale = -1.0f,
     .center_x = vkdt.style.border_frac * qvk.win_width,
     .center_y = vkdt.style.border_frac * qvk.win_width,
     .panel_wd = pwd,
@@ -71,6 +68,7 @@ int dt_gui_init()
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
   // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+  glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
   qvk.window = glfwCreateWindow(qvk.win_width, qvk.win_height, "vkdt", NULL, NULL);
   glfwSetWindowPos(qvk.window, 0, 0);
 
