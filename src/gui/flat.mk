@@ -17,6 +17,7 @@ GUI_O=gui/gui.o\
 GUI_H=gui/gui.h\
       gui/render.h\
       gui/render_view.hh\
+      gui/render_darkroom.hh\
       gui/api.h\
       gui/api.hh\
       gui/hotkey.hh\

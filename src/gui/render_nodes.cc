@@ -15,6 +15,8 @@ extern "C"
 #include "hotkey.hh"
 #include "api.hh"
 #include "widget_image.hh"
+#define KEYFRAME // empty define to disable hover/keyframe behaviour
+#include "render_darkroom.hh"
 #include <stdint.h>
 
 static ImHotKey::HotKey hk_nodes[] = {
@@ -212,7 +214,7 @@ void render_nodes_right_panel()
     dt_module_t *mod = vkdt.graph_dev.module + sel_node_id[i];
     if(mod->name == 0) continue; // skip deleted
     char name[100];
-    snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
+    snprintf(name, sizeof(name), "manage %" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
     if(ImGui::CollapsingHeader(name))
     { // expander for individual module
       ImGui::Indent();
@@ -290,6 +292,9 @@ void render_nodes_right_panel()
       }
       ImGui::Unindent();
     } // end collapsing header
+    static int32_t active_module = -1;
+    static char open[100] = {0};
+    render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i], open, active_module);
   }
 
   if(ImGui::CollapsingHeader("settings"))
