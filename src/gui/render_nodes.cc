@@ -297,21 +297,23 @@ void render_nodes_right_panel()
     render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i], open, active_module);
   }
 
+  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
   if(ImGui::CollapsingHeader("settings"))
   {
-    if(ImGui::Button("hotkeys"))
+    ImGui::Indent();
+    if(ImGui::Button("hotkeys", ImVec2(-1, 0)))
       ImGui::OpenPopup("edit hotkeys");
     ImHotKey::Edit(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), "edit hotkeys");
     if(ImGui::GetPlatformIO().Monitors.size() > 1)
     {
-      if(nodes.dual_monitor && ImGui::Button("single monitor"))
+      if(nodes.dual_monitor && ImGui::Button("single monitor", ImVec2(-1, 0)))
         nodes.dual_monitor = 0;
-      else if(!nodes.dual_monitor && ImGui::Button("dual monitor"))
+      else if(!nodes.dual_monitor && ImGui::Button("dual monitor", ImVec2(-1, 0)))
         nodes.dual_monitor = 1;
     }
+    ImGui::Unindent();
   }
 
-  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
   if(ImGui::Button("add module..", ImVec2(-1, 0)))
     nodes.hotkey = s_hotkey_module_add;
   if(ImGui::Button("apply preset", ImVec2(-1, 0)))
