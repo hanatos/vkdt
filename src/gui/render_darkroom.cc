@@ -456,15 +456,16 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
       }
       if(ImGui::IsItemHovered())
       {
-          ImGui::BeginTooltip();
-          ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-          ImGui::Text("click to connect, format: %" PRItkn ":%" PRItkn,
-              dt_token_str(module->connector[k].chan),
-              dt_token_str(module->connector[k].format));
-          if(module->connector[k].tooltip)
-            ImGui::TextUnformatted(module->connector[k].tooltip);
-          ImGui::PopTextWrapPos();
-          ImGui::EndTooltip();
+        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(vkdt.state.panel_wd);
+        ImGui::Text("click to connect, format: %" PRItkn ":%" PRItkn,
+            dt_token_str(module->connector[k].chan),
+            dt_token_str(module->connector[k].format));
+        if(module->connector[k].tooltip)
+          ImGui::TextUnformatted(module->connector[k].tooltip);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
       }
       if(selected)
         ImGui::PopStyleColor(3);
@@ -546,6 +547,7 @@ inline void draw_widget(int modid, int parid)
 #define TOOLTIP \
   if(param->tooltip && ImGui::IsItemHovered())\
   {\
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);\
     ImGui::BeginTooltip();\
     ImGui::PushTextWrapPos(vkdt.state.panel_wd);\
     ImGui::TextUnformatted(param->tooltip);\
