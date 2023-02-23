@@ -72,11 +72,11 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   else
   { // per pixel blending, all the same kernel
     int id_main = dt_node_add(graph, module, "blend", "main",
-          roif.wd, roif.ht, 1, 0, 0, 4,
-          "back",   "read",  "rgba", "f16", &roif,
-          "top",    "read",  "rgba", "f16", &roif,
-          "mask",   "read",  "r",    "f16", &roif,
-          "output", "write", "rgba", "f16", &roif);
+        roif.wd, roif.ht, 1, 0, 0, 4,
+        "back",   "read",  "rgba", "f16", &roif,
+        "top",    "read",  "rgba", "f16", &roif,
+        "mask",   "read",  "r",    "f16", &roif,
+        "output", "write", "rgba", "f16", &roif);
     for(int k=0;k<4;k++) dt_connector_copy(graph, module, k, id_main, k);
   }
 }
