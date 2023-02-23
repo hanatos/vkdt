@@ -13,13 +13,9 @@ layout(std140, set = 0, binding = 0) uniform global_t
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  int filters;
   float opacity;
-  float black;
-  float white;
-  float noise_a;
-  float noise_b;
   float taa_thrs;
+  int   mode;
 } params;
 
 layout( // input back buffer
@@ -44,18 +40,22 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 bck   = texelFetch(img_in,   ipos, 0).rgb;
-  vec3 rgb   = texelFetch(img_top,  ipos, 0).rgb;
-  float mask = texture(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
-  // float mask = sample_semisoft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
-  // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
-  float t = clamp(params.opacity*(1.0-mask), 0, 1);
+  vec3 bck = texelFetch(img_in,  ipos, 0).rgb;
+  vec3 rgb = texelFetch(img_top, ipos, 0).rgb;
 
-  if(params.taa_thrs == 0.0)
-  { // explicitly don't want taa
-    rgb = mix(rgb, bck, t);
+  if(params.mode == 0)
+  { // over
+    rgb = mix(bck, rgb, params.opacity);
   }
-  else
+  else if(params.mode == 1)
+  { // masked over
+    float mask = texture(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
+    // float mask = sample_semisoft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
+    // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
+    float t = clamp(params.opacity*mask, 0, 1);
+    rgb = mix(bck, rgb, t);
+  }
+  else if(params.mode == 2)
   {
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
