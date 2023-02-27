@@ -4,3 +4,4 @@ blur0:float:1:32
 blur1:float:1:16
 blur2:float:1:8
 blur3:float:1:8
+sub:int:1:4

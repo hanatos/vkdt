@@ -12,6 +12,7 @@ layout(push_constant, std140) uniform push_t
   vec4 black;
   vec4 white;
   uint filters;
+  int  block;
 } push;
 
 layout( // input buffer rggb
@@ -33,19 +34,36 @@ main()
   vec3 rgb;
   if(push.filters == 0) // no CFA
   {
-#ifdef DT_BURST_HRES_FIT // 2x2 downsampling
-    rgb  = texelFetch(img_in, 2*ipos+ivec2(0,0), 0).rgb * .25;
-    rgb += texelFetch(img_in, 2*ipos+ivec2(0,1), 0).rgb * .25;
-    rgb += texelFetch(img_in, 2*ipos+ivec2(1,0), 0).rgb * .25;
-    rgb += texelFetch(img_in, 2*ipos+ivec2(1,1), 0).rgb * .25;
-#elif defined(DT_BURST_QRES_FIT) // 4x4 downsampling
-    rgb  = texture(img_in, 4*ipos+ivec2(1,1)).rgb * .125;
-    rgb += texture(img_in, 4*ipos+ivec2(1,3)).rgb * .125;
-    rgb += texture(img_in, 4*ipos+ivec2(3,1)).rgb * .125;
-    rgb += texture(img_in, 4*ipos+ivec2(3,3)).rgb * .125;
-#else // full res
-    rgb = texelFetch(img_in, ipos, 0).rgb;
-#endif
+    if(push.block == 1)
+    {
+      rgb = texelFetch(img_in, ipos, 0).rgb;
+    }
+    else if(push.block == 2)
+    {
+      rgb  = texelFetch(img_in, 2*ipos+ivec2(0,0), 0).rgb * .25;
+      rgb += texelFetch(img_in, 2*ipos+ivec2(0,1), 0).rgb * .25;
+      rgb += texelFetch(img_in, 2*ipos+ivec2(1,0), 0).rgb * .25;
+      rgb += texelFetch(img_in, 2*ipos+ivec2(1,1), 0).rgb * .25;
+    }
+    else if(push.block == 3)
+    {
+      rgb  = texelFetch(img_in, 3*ipos+ivec2(0,0), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(0,1), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(0,2), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(1,0), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(1,1), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(1,2), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(2,0), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(2,1), 0).rgb * 1.0/9.0;
+      rgb += texelFetch(img_in, 3*ipos+ivec2(2,2), 0).rgb * 1.0/9.0;
+    }
+    else if(push.block == 4)
+    {
+      rgb  = texture(img_in, 4*ipos+ivec2(1,1)).rgb * .125;
+      rgb += texture(img_in, 4*ipos+ivec2(1,3)).rgb * .125;
+      rgb += texture(img_in, 4*ipos+ivec2(3,1)).rgb * .125;
+      rgb += texture(img_in, 4*ipos+ivec2(3,3)).rgb * .125;
+    }
   }
   else if(push.filters == 9) // x-trans
   {

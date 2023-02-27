@@ -13,6 +13,8 @@ check_params(
     float newrad = dt_module_param_float(module, parid)[0];
     return dt_api_blur_check_params(oldrad, newrad);
   }
+  if(parid == 6) // subsampling changed
+    return s_graph_run_create_nodes;
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
@@ -60,13 +62,8 @@ create_nodes(
   // input best coarse offsets to next finer level, and finally output offsets on finest scale.
   dt_roi_t roi[num_levels+1];
   roi[0] = module->connector[0].roi;
-#ifdef DT_BURST_HRES_FIT // 2x2 down
-  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 2 : 2);
-#elif defined(DT_BURST_QRES_FIT) // 4x4 down
-  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 4 : 2);
-#else // full res
-  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? 1 : 2);
-#endif
+  const int32_t p_down = CLAMP(dt_module_param_int(module, dt_module_get_param(module->so, dt_token("sub")))[0], 1, 4);
+  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? p_down : 2);
 
   for(int i=1;i<=num_levels;i++)
   {
@@ -94,7 +91,7 @@ create_nodes(
   {
     int pc[] = { blacki[0], blacki[1], blacki[2], blacki[3],
         whitei[0], whitei[1], whitei[2], whitei[3],
-        img_param->filters, down }; // XXX don't pass "down" but if QRES etc
+        img_param->filters, block };
     id_down[k][0] = dt_node_add(graph, module, "align", "half", roi[1].wd, roi[1].ht, 1, sizeof(pc), pc, 2,
         "input",  "read", module->img_param.filters == 0 ? "rgba" : "rggb", dt_token_str(module->connector[k].format), roi+0,
         "output", "write", "y", fmt_img, roi+1);
