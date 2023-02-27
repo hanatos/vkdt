@@ -1,6 +1,6 @@
 mode:combo:over:masked over:taa:focus stack
 group:mode:2
 taathrs:slider:0:10
-opacity:silder:0:1
+opacity:slider:0:1
 group:mode:0
-opacity:silder:0:1
+opacity:slider:0:1

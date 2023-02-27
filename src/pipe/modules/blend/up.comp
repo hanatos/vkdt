@@ -3,6 +3,10 @@
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
 // layout(push_constant, std140) uniform push_t { } push;
 layout(set = 1, binding = 0) uniform sampler2D img_c0; // first image, coarse
@@ -21,12 +25,14 @@ main()
   vec4 c0 = sample_flower_adj(img_c0, tc);
   vec4 c1 = sample_flower_adj(img_c1, tc);
   vec4 co = sample_flower_adj(img_co, tc);
-  vec4 f0 = texture(img_c0, tc);
-  vec4 f1 = texture(img_c1, tc);
+  vec4 f0 = texture(img_f0, tc);
+  vec4 f1 = texture(img_f1, tc);
   vec4 d0 = f0 - c0;
   vec4 d1 = f1 - c1;
   vec4 d = mix(d0, d1, greaterThan(abs(d1), abs(d0)));
   // TODO: refine with some local/variance/noise estimation
   co += d;
+  co.a = 1.0;
+  if(global.frame == 0) co = c1;
   imageStore(img_out, opos, co);
 }
