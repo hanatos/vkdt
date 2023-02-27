@@ -777,6 +777,9 @@ void modify_roi_out(
     .filters        = 0, // anything not 0 or 9 will be bayer starting at R
     .crop_aabb      = {0, 0, wd, ht},
     .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+    .snd_samplerate = 44100,
+    .snd_format     = 2, // SND_PCM_FORMAT_S16_LE
+    .snd_channels   = 2, // stereo
     .noise_a        = 1.0,
     .noise_b        = 0.0,
     .orientation    = 0,

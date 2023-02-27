@@ -56,11 +56,11 @@ dt_snd_alsa_init(
 
   snd_pcm_hw_params_free(hwparams);
   snd_pcm_sw_params_free(swparams);
+  dt_log(s_log_snd, "inited alsa device %s", pcm_device);
   return 0;
 
 error:
   dt_log(s_log_err|s_log_snd, "failed to open alsa device %s: %d %s", pcm_device, err, snd_strerror(err));
-  assert(0);
   if(hwparams) snd_pcm_hw_params_free(hwparams);
   if(swparams) snd_pcm_sw_params_free(swparams);
   dt_snd_alsa_cleanup(snd);

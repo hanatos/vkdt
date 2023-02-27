@@ -1372,7 +1372,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 
     // if this is the main input of the graph, remember the img_param
     // globally, so others can pick up maker/model:
-    if(module->inst == dt_token("main") && !strncmp(dt_token_str(module->name), "i-", 2))
+    if(module->inst == dt_token("main") && dt_connector_output(module->connector))
       graph->main_img_param = module->img_param;
   }
   else
