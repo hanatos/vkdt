@@ -41,8 +41,8 @@ release: Makefile src/core/version.h
 	$(shell (echo src/core/version.h; git ls-files --recurse-submodules) | tar caf vkdt-${VERSION}.tar.xz --xform s:^:vkdt-${VERSION}/: --verbatim-files-from -T-)
 
 # overwrites the above optimised build flags:
-# debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION -DDEBUG_MARKERS
-debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0
+debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION -DDEBUG_MARKERS
+# debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0
 debug:OPT_LDFLAGS=
 debug:all
 
