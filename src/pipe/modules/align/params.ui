@@ -1,0 +1,7 @@
+merge_k:slider:0:30
+merge_n:slider:0:1
+blur0:slider:0:32
+blur1:slider:0:32
+blur2:slider:0:32
+blur3:slider:0:32
+sub:slider:1:4

@@ -33,6 +33,7 @@ the parameters are as described in the paper.
 * `blur1`
 * `blur2`
 * `blur3`
+* `sub` if the image is not raw, determines the subsampling block size side length. bayer will always use 2x2 and xtrans 3x3.
 
 
 ## examples
