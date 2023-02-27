@@ -65,6 +65,7 @@ dt_gui_lt_toggle_select_all()
   else // select all
     for(uint32_t i=0;i<vkdt.db.collection_cnt;i++)
       dt_db_selection_add(&vkdt.db, i);
+  dt_gui_notification("selected %d/%d images", vkdt.db.selection_cnt, vkdt.db.collection_cnt);
 }
 
 inline void
