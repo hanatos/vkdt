@@ -617,6 +617,16 @@ void render_darkroom_pipeline()
 void render_darkroom()
 {
   gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+  switch(gui.hotkey)
+  { // these are "destructive" hotkeys, they change the image and invalidate the dset.
+    // this has to happen this frame *before* the dset is sent to imgui for display.
+    case s_hotkey_next_image:
+      dt_gui_dr_next();
+      break;
+    case s_hotkey_prev_image:
+      dt_gui_dr_prev();
+      break;
+  }
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
@@ -1280,12 +1290,6 @@ abort:
       break;
     case s_hotkey_nodes_enter:
       dt_view_switch(s_view_nodes);
-      break;
-    case s_hotkey_next_image:
-      dt_gui_dr_next();
-      break;
-    case s_hotkey_prev_image:
-      dt_gui_dr_prev();
       break;
     case s_hotkey_fullscreen:
       dt_gui_dr_toggle_fullscreen_view();

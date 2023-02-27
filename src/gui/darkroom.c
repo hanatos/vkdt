@@ -345,6 +345,7 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
+  vkdt.graph_res = VK_INCOMPLETE; // invalidate
   dt_gamepadhelp_clear();
   return 0;
 }
