@@ -31,6 +31,17 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"scroll end",    "scroll to end of collection",      {ImGuiKey_LeftShift, ImGuiKey_G}},
   {"scroll top",    "scroll to top of collection",      {ImGuiKey_G}},
   {"duplicate",     "duplicate selected images",        {ImGuiKey_LeftShift, ImGuiKey_D}},
+  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
+  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
+  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
+  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
+  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
+  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
+  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
+  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
+  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
+  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
+  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
 };
 enum hotkey_names_t
 {
@@ -43,6 +54,17 @@ enum hotkey_names_t
   s_hotkey_scroll_end = 6,
   s_hotkey_scroll_top = 7,
   s_hotkey_duplicate  = 8,
+  s_hotkey_rate_0     = 9,
+  s_hotkey_rate_1     = 10,
+  s_hotkey_rate_2     = 11,
+  s_hotkey_rate_3     = 12,
+  s_hotkey_rate_4     = 13,
+  s_hotkey_rate_5     = 14,
+  s_hotkey_label_1    = 15,
+  s_hotkey_label_2    = 16,
+  s_hotkey_label_3    = 17,
+  s_hotkey_label_4    = 18,
+  s_hotkey_label_5    = 19,
 };
 
 void render_lighttable_center(int hotkey)
@@ -73,8 +95,11 @@ void render_lighttable_center(int hotkey)
   window_flags |= ImGuiWindowFlags_NoMove;
   window_flags |= ImGuiWindowFlags_NoResize;
   window_flags |= ImGuiWindowFlags_NoBackground;
-  ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y),  ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
+        ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y),  ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   ImGui::Begin("lighttable center", 0, window_flags);
 
   const int ipl = 6;
@@ -193,6 +218,19 @@ void render_lighttable_center(int hotkey)
       break;
     case s_hotkey_duplicate:
       dt_gui_lt_duplicate();
+      break;
+    case s_hotkey_rate_0: dt_gui_rate_0(); break;
+    case s_hotkey_rate_1: dt_gui_rate_1(); break;
+    case s_hotkey_rate_2: dt_gui_rate_2(); break;
+    case s_hotkey_rate_3: dt_gui_rate_3(); break;
+    case s_hotkey_rate_4: dt_gui_rate_4(); break;
+    case s_hotkey_rate_5: dt_gui_rate_5(); break;
+    case s_hotkey_label_1: dt_gui_label_1(); break;
+    case s_hotkey_label_2: dt_gui_label_2(); break;
+    case s_hotkey_label_3: dt_gui_label_3(); break;
+    case s_hotkey_label_4: dt_gui_label_4(); break;
+    case s_hotkey_label_5: dt_gui_label_5(); break;
+    default: break;
   }
   dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
 
@@ -296,8 +334,11 @@ int export_job(
 
 void render_lighttable_right_panel(int hotkey)
 { // right panel
-  ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+  ImGui::SetNextWindowPos (ImVec2(
+        ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+        ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
   float lineht = ImGui::GetTextLineHeight();
@@ -379,6 +420,22 @@ void render_lighttable_right_panel(int hotkey)
         ImGui::PopID();
       }
     }
+    else if(filter_prop == s_prop_filetype)
+    {
+      char *filter_type = dt_token_str(vkdt.db.collection_filter_val);
+      if(ImGui::InputText("filetype", filter_type+2, 6))
+      {
+        filter_type[0] = 'i'; filter_type[1] = '-';
+        dt_db_update_collection(&vkdt.db);
+        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+      }
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("enter the responsible input module here, for instance\n"
+                          "raw : raw files\n"
+                          "jpg : jpg files\n"
+                          "vid : video files\n"
+                          "mlv : raw video files");
+    }
     else
     {
       if(ImGui::InputInt("filter value", &filter_val, 1, 100, 0))
@@ -410,7 +467,7 @@ void render_lighttable_right_panel(int hotkey)
     char filename[PATH_MAX+100];
     for(int i=0;i<vkdt.tag_cnt;i++)
     {
-      if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.495, size.y)))
+      if(ImGui::Button(vkdt.tag[i], ImVec2(size.x*0.49, size.y)))
       { // load tag collection:
         snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
         dt_gui_switch_collection(filename);
@@ -425,7 +482,7 @@ void render_lighttable_right_panel(int hotkey)
       dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
       struct stat buf;
       lstat(filename, &buf);
-      if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", size))
+      if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", ImVec2(-1, 0)))
       {
         char *resolved = realpath(filename, 0);
         if(resolved)
@@ -523,8 +580,7 @@ void render_lighttable_right_panel(int hotkey)
     // merge/align images
     if(vkdt.db.selection_cnt > 1)
     if(ImGui::Button("merge into current", size))
-    {
-      // overwrite .cfg for this image file:
+    { // overwrite .cfg for this image file:
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
       char filename[1024] = {0}, realname[PATH_MAX] = {0};
@@ -563,13 +619,14 @@ void render_lighttable_right_panel(int hotkey)
         fprintf(f,
             "connect:i-raw:%02d:output:align:%02d:alignsrc\n"
             "connect:i-raw:%02d:output:align:%02d:input\n"
-            "connect:align:%02d:output:blend:%02d:back\n"
+            "connect:align:%02d:output:blend:%02d:input\n"
             "connect:align:%02d:mask:blend:%02d:mask\n",
             ii, ii, ii, ii, ii, ii, ii, ii);
-        if(ii == 1) fprintf(f, "connect:i-raw:main:output:blend:%02d:input\n", ii);
-        else        fprintf(f, "connect:blend:%02d:output:blend:%02d:input\n", ii-1, ii);
+        if(ii == 1) fprintf(f, "connect:i-raw:main:output:blend:%02d:back\n", ii);
+        else        fprintf(f, "connect:blend:%02d:output:blend:%02d:back\n", ii-1, ii);
         fprintf(f, "connect:i-raw:main:output:align:%02d:aligndst\n", ii);
         fprintf(f,
+            "param:blend:%02d:mode:1\n"
             "param:blend:%02d:opacity:%g\n"
             "param:align:%02d:merge_n:0.05\n"
             "param:align:%02d:merge_k:30\n"
@@ -577,7 +634,7 @@ void render_lighttable_right_panel(int hotkey)
             "param:align:%02d:blur1:16\n"
             "param:align:%02d:blur2:32\n"
             "param:align:%02d:blur3:64\n",
-            ii, pow(0.5, ii),
+            ii, ii, pow(0.5, ii),
             ii, ii, ii, ii, ii, ii);
         ii++;
       }

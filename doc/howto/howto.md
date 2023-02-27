@@ -12,6 +12,7 @@ this folder lists quick instructions on a few special topics:
 * [how to process timelapses and keyframes](./timelapse/readme.md)
 * [how to manage presets](./presets/readme.md)
 * [how to manage custom blocks](./blocks/readme.md)
+* [how to find similar modules to darktable](./dt/readme.md)
 
 -- these following topics do not exist yet --
 

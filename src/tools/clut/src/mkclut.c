@@ -8,6 +8,44 @@
 #include "core/half.h"
 #include "core/inpaint.h"
 
+#if 0
+// XXX DEBUG write just the matrix from xyz to rec2020 for precision checks:
+static inline float*
+create_chroma_lut_DEBUG(
+    int                   *wd_out,
+    int                   *ht_out,
+    const float           *spectra,          // sigmoid upsampling table
+    const dt_lut_header_t *sh,               // lut header for spectra
+    const double         (*cfa_spec)[4],     // tabulated cfa spectra
+    const int              cfa_spec_cnt,
+    const double         (*cie_spec)[4],     // tabulated cie observer
+    const int              cie_spec_cnt)
+{
+  int wd  = sh->wd, ht = sh->ht; // output dimensions
+  float *buf = calloc(sizeof(float)*3, wd*ht+1);
+
+  for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
+  {
+    double xz[2] = {(i+0.5)/wd, (j+0.5)/ht};
+    quad2tri(xz+0, xz+1);
+    // double xyz[3] = {xy[0], xy[1], 1.0-xy[0]-xy[1]}; // = "cam rgb"
+    double xyz[3] = {xz[0], 1.0-xz[0]-xz[1], xz[1]}; // = "cam rgb"
+
+    double rec2020[3];
+    mat3_mulv(xyz_to_rec2020, xyz, rec2020);
+    // const double ref_L = white_cam_rgb_L1 / white_rec2020_L1;
+    const double rec2020_L1 = normalise1(rec2020); // XXX * ref_L ???
+    const double cam_rgb_L1 = normalise1(xyz);
+
+    buf[3*(j*wd + i)+0] = rec2020[0];
+    buf[3*(j*wd + i)+1] = rec2020[2];
+    buf[3*(j*wd + i)+2] = rec2020_L1 / cam_rgb_L1;
+  }
+  *wd_out = wd;
+  *ht_out = ht;
+  return buf;
+}
+#endif
 
 // create 2.5D chroma lut
 static inline float*
@@ -137,16 +175,6 @@ write_chroma_lut(
     const int    wd,
     const int    ht)
 {
-  char filename[256] = {0};
-  snprintf(filename, sizeof(filename), "%s.pfm", basename);
-  FILE *f = fopen(filename, "wb");
-  fprintf(f, "PF\n%d %d\n-1.0\n", wd, ht);
-  for(int k=0;k<wd*ht;k++)
-  {
-    float col[3] = {buf0[3*k], buf0[3*k+1], 1.0-buf0[3*k]-buf0[3*k+1]};
-    fwrite(col, sizeof(float), 3, f);
-  }
-  fclose(f);
   dt_lut_header_t hout = {
     .magic    = dt_lut_header_magic,
     .version  = dt_lut_header_version,
@@ -155,8 +183,9 @@ write_chroma_lut(
     .wd       = 3*wd,
     .ht       = ht,
   };
+  char filename[256] = {0};
   snprintf(filename, sizeof(filename), "%s.lut", basename);
-  f = fopen(filename, "wb");
+  FILE *f = fopen(filename, "wb");
   fwrite(&hout, sizeof(hout), 1, f);
   uint16_t *b16 = calloc(sizeof(uint16_t), wd*ht*6);
   for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
@@ -169,6 +198,22 @@ write_chroma_lut(
     b16[2*(3*wd*j+i+2*wd)+1] = float_to_half(buf1[3*(wd*j+i)+1]);
   }
   fwrite(b16, sizeof(uint16_t), wd*ht*6, f);
+  // append metadata, the source spectrum:
+  fprintf(f, "##### created by vkdt mkclut, from following input\n");
+  snprintf(filename, sizeof(filename), "%s.txt", basename);
+  FILE *f2 = fopen(filename, "rb");
+  if(f2)
+  {
+    char buf[BUFSIZ];
+    while(!feof(f2))
+    {
+      fscanf(f2, "%[^\n]", buf);
+      fgetc(f2);
+      fprintf(f, "%s\n", buf);
+      buf[0] = 0;
+    }
+    fclose(f2);
+  }
   fclose(f);
   free(b16);
 }
@@ -206,8 +251,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  double cfa_spec[100][4];
-  double cie_spec[100][4];
+  double cfa_spec[1000][4];
+  double cie_spec[1000][4];
   double d65_spec[1000][4];
   snprintf(filename, sizeof(filename), "%s/data/cie_d65", basedir);
   int d65_cnt = spectrum_load(filename, d65_spec);
@@ -250,6 +295,32 @@ int main(int argc, char *argv[])
         cfa_spec_cnt,
         cie_spec,
         cie_spec_cnt);
+
+#if 0
+    if(ill == 0)
+    { // write debugging output for plots with the source data only,
+      // to visualise sampling density and the limits of the spectral locus
+      snprintf(filename, sizeof(filename), "%s.ppm", model);
+      FILE *f = fopen(filename, "wb");
+      fprintf(f, "P6\n%d %d\n255\n", clut_wd, clut_ht);
+      for(int j=0;j<clut_ht;j++)
+      for(int i=0;i<clut_wd;i++)
+      {
+        int k = (clut_ht-1-j)*clut_wd + i; // fucking flip so convert -> png shows correctly
+        float col[3] = {clut0[3*k], clut0[3*k+1], 1.0-clut0[3*k]-clut0[3*k+1]};
+        uint8_t c8[3] = {
+          // CLAMP(256*(i+0.5)/clut_wd, 0, 255),
+          // CLAMP(256*(j+0.5)/clut_ht, 0, 255),
+          // CLAMP(256*0, 0, 255)};
+          CLAMP(256*col[0], 0, 255),
+          CLAMP(256*col[1], 0, 255),
+          CLAMP(256*col[2], 0, 255)};
+        if(c8[2] == 255) c8[0] = c8[1] = c8[2];
+        fwrite(c8, sizeof(uint8_t), 3, f);
+      }
+      fclose(f);
+    }
+#endif
 
     dt_inpaint_buf_t inpaint_buf = {
       .dat = (ill ? clut1 : clut0),

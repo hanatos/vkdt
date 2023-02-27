@@ -1,7 +1,7 @@
 # release procedure
 
 this document lists relevant steps in the release procedure.
-action items are labelled (a)..(h).
+action items are labelled (a)..(i).
 
 ## release branch
 
@@ -12,6 +12,8 @@ next release branch.
 
 (a) remove useless/half broken/unfinished/stuff we don't want to maintain like
 this in the future: simply delete module directory
+
+(b) update release notes/changelog, and commit
 
 ## submodules
 
@@ -26,14 +28,14 @@ will be exported by `make release`.
 `src/core/version.h` depends on `.git/FETCH_HEAD` if present.
 
 to generate it for local testing purposes without pushing the tag
-to the public repository, (b)
+to the public repository, (c)
 ```
 git tag -s '0.6.0' -m "this is release 0.6.0"
 git push dreggn 0.6.0
 git fetch --all --tags
 ```
 
-and for paranoia (c):
+and for paranoia (d):
 
 ```
 touch .git/FETCH_HEAD
@@ -43,7 +45,7 @@ cat src/core/version.h
 
 ## create tarball
 
-(d) `make release` and (e) test in `/tmp`:
+(e) `make release` and (f) test in `/tmp`:
 
 ```
 cd /tmp
@@ -56,12 +58,12 @@ DESTDIR=/tmp/testrel make install
 
 ## upload
 
-(e) push to public: `git push origin 0.6.0 release-0.6`
+(g) push to public: `git push origin 0.6.0 release-0.6`
 
-(g) sign the tarball:
+(h) sign the tarball:
 `gpg -u jo@dreggn.org --detach-sign vkdt-0.6.0.tar.xz`
 
-(h) github release announcement
+(i) github release announcement
 
 * changelog
 * acks

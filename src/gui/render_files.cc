@@ -93,8 +93,11 @@ void render_files()
     dt_view_switch(s_view_lighttable);
 
   { // right panel
-    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+          ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("files panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     // if(ImGui::CollapsingHeader("settings")) ??
 #if 0
@@ -200,16 +203,11 @@ void render_files()
             break;
           }
           if(ImGui::Button("copy"))
-          {
-            // TODO: make sure we don't start a job that is already running in another job[.]
+          { // make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
             {
-              if(k2 == k)
-              {
-                ImGui::PopID();
-                continue;
-              }
+              if(k2 == k) continue; // our job is not a dupe
               if(!strcmp(job[k2].src, filebrowser.cwd)) duplicate = 1;
             }
             if(duplicate)
@@ -259,9 +257,22 @@ void render_files()
              (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
               "copy from %s done. click to reset"),
              job[k].src);
+          if(!job[k].abort)
+          {
+            ImGui::SameLine();
+            if(ImGui::Button("view copied files", ImVec2(-1, 0)))
+            {
+              memset(job+k, 0, sizeof(copy_job_t));
+              dt_gui_switch_collection(filebrowser.cwd);
+              dt_view_switch(s_view_lighttable);
+            }
+            if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+                "open %s in lighttable mode",
+                job[k].dst);
+          }
         }
         ImGui::PopID();
-      }
+      } // end for jobs
       ImGui::Unindent();
     }
     ImGui::End();
@@ -271,8 +282,11 @@ void render_files()
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     ImVec2 border = ImVec2(2*win_x, win_y);
-    ImGui::SetNextWindowPos (ImVec2(0, win_h+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + 0,
+          ImGui::GetMainViewport()->Pos.y + win_h+border.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("files buttons", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     int bwd = win_w / 4;
     int twd = ImGui::GetStyle().ItemSpacing.x + bwd * 2;
@@ -296,13 +310,18 @@ void render_files()
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     ImVec2 border = ImVec2(2*win_x, win_y);
-    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + 0,
+          ImGui::GetMainViewport()->Pos.y + 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
     dt_filebrowser(&filebrowser, 'f');
 
-    if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp) || ImGui::IsKeyPressed(ImGuiKey_Enter)) // triangle or enter
+    if(filebrowser.selected &&
+      (ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp) ||
+       ImGui::IsKeyPressed(ImGuiKey_Enter))) // triangle or enter
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
       if(!strcmp(filebrowser.selected, ".."))

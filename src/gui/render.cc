@@ -5,7 +5,6 @@ extern "C" {
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
-#include "gui/darkroom-util.h"
 }
 #include "render.h"
 #include "imgui.h"
@@ -133,10 +132,15 @@ extern "C" void dt_gui_init_fonts()
   io.Fonts->Clear();
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
-  snprintf(tmp, sizeof(tmp), "%s/data/Roboto-Regular.ttf", dt_pipe.basedir);
-  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize);
-  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize));
-  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize);
+  static const ImWchar ranges[] = { 0x0020, 0xFFFF, 0, };
+  const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
+  if(fontfile[0] != '/')
+    snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
+  else
+    snprintf(tmp, sizeof(tmp), "%s", fontfile);
+  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, 0, ranges);
+  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize), 0, ranges);
+  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize, 0, ranges);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   ImFontConfig config;
   // config.MergeMode = true;
@@ -196,13 +200,18 @@ extern "C" int dt_gui_init_imgui()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos; //  | ImGuiBackendFlags_HasSetMousePos;
 
+  // enable docking and multiple viewports:
+  // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  io.ConfigDockingWithShift = true;
+
   // Setup Dear ImGui style
   // ImGui::StyleColorsDark();
   // ImGui::StyleColorsClassic();
   dark_corporate_style();
 
   // Setup Platform/Renderer bindings
-  ImGui_ImplGlfw_InitForVulkan(qvk.window, false);
+  ImGui_ImplGlfw_InitForVulkan(qvk.window, false); // don't install callbacks
   ImGui_ImplVulkan_InitInfo init_info = {};
   init_info.Instance         = qvk.instance;
   init_info.PhysicalDevice   = qvk.physical_device;
@@ -272,8 +281,6 @@ extern "C" int dt_gui_init_imgui()
     ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 
-  dt_gui_init_fonts();
-
   // prepare list of potential modules for ui selection:
   vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);
   vkdt.wstate.module_names     = (const char **)malloc(sizeof(char*)*dt_pipe.num_modules);
@@ -301,6 +308,10 @@ extern "C" void dt_gui_render_frame_imgui()
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   double now = glfwGetTime();
+
+  // ???
+  // ImGuiDockNodeFlags_PassthruCentralNode
+  // ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
   static double button_pressed_time = 0.0;
   if(now - button_pressed_time > 0.1)
@@ -337,14 +348,22 @@ extern "C" void dt_gui_render_frame_imgui()
       | ImGuiWindowFlags_NoMove
       | ImGuiWindowFlags_NoResize
       | ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(vkdt.state.center_x,  vkdt.state.center_y/2),  ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
+          ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y/2),  ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, 0.05 * vkdt.state.center_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("notification message", 0, window_flags);
     ImGui::Text("%s", vkdt.wstate.notification_msg);
     ImGui::End();
   }
 
   ImGui::Render();
+  if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+  { // Update and Render additional Platform Windows
+    ImGui::UpdatePlatformWindows();
+    ImGui::RenderPlatformWindowsDefault();
+  }
 }
 
 extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
@@ -366,10 +385,7 @@ extern "C" void dt_gui_cleanup_imgui()
   ImGui::DestroyContext();
 }
 
-extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y)
-{
-  ImGui_ImplVulkan_SetWindowPos(x);
-}
+extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
 
 extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {

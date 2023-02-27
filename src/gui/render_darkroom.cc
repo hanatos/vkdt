@@ -2,7 +2,6 @@
 extern "C"
 {
 #include "gui/view.h"
-#include "gui/darkroom-util.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-history.h"
 #include "pipe/graph-defaults.h"
@@ -26,6 +25,20 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
   {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
   {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
+  {"next image",      "switch to next image in folder",             {ImGuiKey_Space}},
+  {"prev image",      "switch to previous image in folder",         {ImGuiKey_Backspace}},
+  {"fullscreen",      "show/hide side panels for fullscreen",       {ImGuiKey_Tab}},
+  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
+  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
+  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
+  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
+  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
+  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
+  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
+  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
+  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
+  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
+  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
 };
 
 enum hotkey_names_t
@@ -40,6 +53,20 @@ enum hotkey_names_t
   s_hotkey_assign_tag      = 7,
   s_hotkey_insert_keyframe = 8,
   s_hotkey_nodes_enter     = 9,
+  s_hotkey_next_image      = 10,
+  s_hotkey_prev_image      = 11,
+  s_hotkey_fullscreen      = 12,
+  s_hotkey_rate_0          = 13,
+  s_hotkey_rate_1          = 14,
+  s_hotkey_rate_2          = 15,
+  s_hotkey_rate_3          = 16,
+  s_hotkey_rate_4          = 17,
+  s_hotkey_rate_5          = 18,
+  s_hotkey_label_1         = 19,
+  s_hotkey_label_2         = 20,
+  s_hotkey_label_3         = 21,
+  s_hotkey_label_4         = 22,
+  s_hotkey_label_5         = 23,
 };
 
 // used to communictate between the gui helper functions
@@ -56,48 +83,9 @@ static struct gui_state_data_t
   int        hotkey = -1;
 } gui = {gui_state_data_t::s_gui_state_regular};
 
-
-void widget_end()
-{
-  if(!vkdt.wstate.grabbed)
-  {
-    if(vkdt.wstate.active_widget_modid < 0) return; // all good already
-    // rerun all (roi could have changed, buttons are drastic)
-    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-    int modid = vkdt.wstate.active_widget_modid;
-    int parid = vkdt.wstate.active_widget_parid;
-    int parnm = vkdt.wstate.active_widget_parnm;
-    int parsz = vkdt.wstate.active_widget_parsz;
-    if(vkdt.wstate.mapped)
-    {
-      vkdt.wstate.mapped = 0;
-    }
-    else if(parsz)
-    {
-      const dt_ui_param_t *p = vkdt.graph_dev.module[modid].so->param[parid];
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + p->offset + parsz * parnm);
-      memcpy(v, vkdt.wstate.state, parsz);
-    }
-  }
-  dt_gui_ungrab_mouse();
-  vkdt.wstate.active_widget_modid = -1;
-  vkdt.wstate.selected = -1;
-  vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
-}
-void widget_abort()
-{
-  if(!vkdt.wstate.grabbed)
-  {
-    if(vkdt.wstate.active_widget_modid < 0) return; // all good already
-    // rerun all (roi could have changed, buttons are drastic)
-    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-    if(vkdt.wstate.mapped) vkdt.wstate.mapped = 0; // mapped can't really abort, need to rollback via history.
-  }
-  dt_gui_ungrab_mouse();
-  vkdt.wstate.active_widget_modid = -1;
-  vkdt.wstate.selected = -1;
-  vkdt.wstate.m_x = vkdt.wstate.m_y = -1.;
-}
+// goes here because the keyframe code depends on the above defines/hotkeys
+// could probably pass a function pointer instead.
+#include "gui/render_darkroom.hh"
 
 void draw_arrow(float p[8], int feedback)
 {
@@ -158,7 +146,7 @@ void dt_gui_set_lod(int lod)
   }
   vkdt.graph_dev.runflags = s_graph_run_all;
   // reset view? would need to set zoom, too
-  darkroom_reset_zoom();
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }
 
 uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
@@ -431,15 +419,16 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
       }
       if(ImGui::IsItemHovered())
       {
-          ImGui::BeginTooltip();
-          ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-          ImGui::Text("click to connect, format: %" PRItkn ":%" PRItkn,
-              dt_token_str(module->connector[k].chan),
-              dt_token_str(module->connector[k].format));
-          if(module->connector[k].tooltip)
-            ImGui::TextUnformatted(module->connector[k].tooltip);
-          ImGui::PopTextWrapPos();
-          ImGui::EndTooltip();
+        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(vkdt.state.panel_wd);
+        ImGui::Text("click to connect, format: %" PRItkn ":%" PRItkn,
+            dt_token_str(module->connector[k].chan),
+            dt_token_str(module->connector[k].format));
+        if(module->connector[k].tooltip)
+          ImGui::TextUnformatted(module->connector[k].tooltip);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
       }
       if(selected)
         ImGui::PopStyleColor(3);
@@ -448,786 +437,6 @@ uint64_t render_module(dt_graph_t *graph, dt_module_t *module, int connected)
   ImGui::Columns(1);
   ImGui::PopID();
   return err;
-}
-
-inline void draw_widget(int modid, int parid)
-{
-  const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
-  if(!param) return;
-  ImGuiIO& io = ImGui::GetIO();
-
-  // skip if group mode does not match:
-  if(param->widget.grpid != -1)
-    if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
-      return;
-
-  ImGui::PushItemWidth(.66*vkdt.state.panel_wd);
-
-  int axes_cnt = 0;
-  const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-  static int gamepad_reset = 0;
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
-  // some state for double click detection for reset functionality
-  static int doubleclick = 0;
-  static double doubleclick_time = 0;
-  double time_now = ImGui::GetTime();
-#define RESETBLOCK \
-  {\
-    if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
-    if(doubleclick) memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
-    change = 1;\
-  }\
-  if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) || \
-     (ImGui::IsItemFocused() && gamepad_reset))\
-  {\
-    doubleclick_time = time_now;\
-    gamepad_reset = 0;\
-    doubleclick = 1;\
-    memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
-    change = 1;\
-  }\
-  if(change)
-
-  // common code block to insert a keyframe. currently only supports float (for interpolation)
-#define KEYFRAME\
-  if(ImGui::IsItemHovered())\
-  {\
-    if(gui.hotkey == s_hotkey_insert_keyframe)\
-    {\
-      dt_graph_t *g = &vkdt.graph_dev;\
-      uint32_t ki = -1u;\
-      for(uint32_t i=0;ki<0&&i<g->module[modid].keyframe_cnt;i++)\
-        if(g->module[modid].keyframe[i].param == param->name && \
-           g->module[modid].keyframe[i].frame == g->frame)\
-          ki = i;\
-      if(ki == -1u)\
-      {\
-        ki = g->module[modid].keyframe_cnt++;\
-        g->module[modid].keyframe = (dt_keyframe_t *)dt_realloc(g->module[modid].keyframe, &g->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));\
-        g->module[modid].keyframe[ki].beg   = 0;\
-        g->module[modid].keyframe[ki].end   = count;\
-        g->module[modid].keyframe[ki].frame = g->frame;\
-        g->module[modid].keyframe[ki].param = param->name;\
-        g->module[modid].keyframe[ki].data  = g->params_pool + g->params_end;\
-        g->params_end += dt_ui_param_size(param->type, count);\
-        assert(g->params_end <= g->params_max);\
-      }\
-      memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
-      dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
-          g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
-      dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
-    }\
-  }
-#define TOOLTIP \
-  if(param->tooltip && ImGui::IsItemHovered())\
-  {\
-    ImGui::BeginTooltip();\
-    ImGui::PushTextWrapPos(vkdt.state.panel_wd);\
-    ImGui::TextUnformatted(param->tooltip);\
-    ImGui::PopTextWrapPos();\
-    ImGui::EndTooltip();\
-  }
-
-  const double throttle = 2.0; // min delay for same param in history, in seconds
-  // distinguish by count:
-  // get count by param cnt or explicit multiplicity from ui file
-  int count = 1, change = 0;
-  if(param->name == dt_token("draw")) // TODO: wire through named count too?
-    count = 2*dt_module_param_int(vkdt.graph_dev.module + modid, parid)[0]+1; // vertex count + list of 2d vertices
-  else if(param->widget.cntid == -1)
-    count = param->cnt; // if we know nothing else, we use all elements
-  else
-    count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
-  for(int num=0;num<count;num++)
-  {
-  ImGui::PushID(2000*modid + 200*parid + num);
-  char string[256];
-  const float halfw = (0.66*vkdt.state.panel_wd - ImGui::GetStyle().ItemSpacing.x)/2;
-  // distinguish by type:
-  switch(param->widget.type)
-  {
-    case dt_token("slider"):
-    {
-      if(param->type == dt_token("float"))
-      {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        float oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
-        if(ImGui::SliderFloat(str, val, param->widget.min, param->widget.max, "%2.5f"))
-        RESETBLOCK {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        KEYFRAME
-        TOOLTIP
-      }
-      else if(param->type == dt_token("int"))
-      {
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        int32_t oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
-        if(ImGui::SliderInt(str, val, param->widget.min, param->widget.max, "%d"))
-        RESETBLOCK {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        TOOLTIP
-      }
-      break;
-    }
-    case dt_token("vslider"):
-    {
-      if(param->type == dt_token("float"))
-      {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        float oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
-        if(count == 3)
-        { // assume rgb vsliders
-          ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
-          ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
-          ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
-          ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
-          if(ImGui::VSliderFloat("##v",
-                ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
-                param->widget.min, param->widget.max, ""))
-          RESETBLOCK {
-            if(io.KeyShift) // lockstep all three if shift is pressed
-              for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
-            dt_graph_run_t flags = s_graph_run_none;
-            if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-            vkdt.graph_dev.active_module = modid;
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
-          KEYFRAME
-          if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
-
-          ImGui::PopStyleColor(4);
-          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-              num < count - 1) ImGui::SameLine();
-        }
-        else
-        {
-          if(ImGui::VSliderFloat("##v",
-                ImVec2(vkdt.state.panel_wd / (count+1.0), vkdt.state.panel_ht * 0.2), val,
-                param->widget.min, param->widget.max, ""))
-          RESETBLOCK {
-            if(io.KeyShift) // lockstep all three if shift is pressed
-              for(int k=0;k<count;k++) val[k-num] = val[0];
-            dt_graph_run_t flags = s_graph_run_none;
-            if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-            vkdt.graph_dev.active_module = modid;
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
-          KEYFRAME
-          TOOLTIP
-
-          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-              num < count - 1) ImGui::SameLine();
-        }
-      }
-      break;
-    }
-    case dt_token("callback"):
-    { // special callback button
-      if(num == 0)
-      {
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
-        if(ImGui::Button(str, ImVec2(halfw, 0)))
-        {
-          dt_module_t *m = vkdt.graph_dev.module+modid;
-          if(m->so->ui_callback) m->so->ui_callback(m, param->name);
-          // TODO: probably needs a history item appended. for all parameters?
-        }
-        TOOLTIP
-        if(param->type == dt_token("string"))
-        {
-          ImGui::SameLine();
-          char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-          ImGui::PushItemWidth(-1);
-          ImGui::InputText("##s", v, count);
-          ImGui::PopItemWidth();
-        }
-      }
-      break;
-    }
-    case dt_token("combo"):
-    { // combo box
-      if(param->type == dt_token("int"))
-      {
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        int32_t oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
-        if(ImGui::Combo(str, val, (const char *)param->widget.data))
-        {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          vkdt.wstate.busy += 2;
-        }
-        TOOLTIP
-      }
-      break;
-    }
-    case dt_token("colour"):
-    {
-      char str[21] = {0};
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      snprintf(str, sizeof(str), "%" PRItkn " %d", dt_token_str(param->name), num);
-      ImVec4 col(val[0], val[1], val[2], 1.0f);
-      ImVec2 size(0.1*vkdt.state.panel_wd, 0.1*vkdt.state.panel_wd);
-      ImGui::ColorButton(str, col, ImGuiColorEditFlags_HDR, size);
-      TOOLTIP
-      if((num < count - 1) && ((num % 6) != 5))
-        ImGui::SameLine();
-      break;
-    }
-    case dt_token("pers"):
-    {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        int accept = 0;
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-        {
-          vkdt.wstate.selected ++;
-          if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-        }
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
-          accept = 1;
-        const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
-        if(vkdt.wstate.selected >= 0 && axes)
-        {
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-          float inc[2] = {
-              0.002f/scale * SMOOTH(axes[3]),
-              0.002f/scale * SMOOTH(axes[4])};
-#undef SMOOTH
-          dt_gui_dr_pers_adjust(inc, 1);
-        }
-        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
-        {
-          dt_gamepadhelp_pop();
-          widget_abort();
-        }
-        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
-        {
-          dt_gamepadhelp_pop();
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        ImGui::PopStyleColor();
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
-        {
-          dt_gamepadhelp_push();
-          dt_gamepadhelp_clear();
-          dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
-          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          // copy to quad state
-          memcpy(vkdt.wstate.state, v, sizeof(float)*8);
-          // reset module params so the image will not appear distorted:
-          float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
-          memcpy(v, def, sizeof(float)*8);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
-        }
-        if(0) RESETBLOCK {
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
-        }
-        TOOLTIP
-      }
-      num = count;
-      break;
-    }
-    case dt_token("straight"):
-    { // horizon line straighten tool for rotation
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-      float oldval = *val;
-      char str[10] = {0};
-      memcpy(str, &param->name, 8);
-
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::Button("done"))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        ImGui::PopStyleColor();
-      }
-      else
-      {
-        if(ImGui::Button("straighten"))
-        {
-          widget_end();
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          vkdt.wstate.active_widget_parsz = sizeof(float);
-          vkdt.wstate.selected = -1;
-          memcpy(vkdt.wstate.state, val, sizeof(float));
-        }
-        if(ImGui::IsItemHovered())
-          ImGui::SetTooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
-      }
-
-      // full manual control over parameter using the slider:
-      ImGui::SameLine(); // almost matches the right size:
-      ImGui::SetNextItemWidth(ImGui::GetStyle().ItemSpacing.x + 0.66*vkdt.state.panel_wd - ImGui::GetCursorPosX());
-
-      if(ImGui::SliderFloat(str, val, 0.0f, 360.0f, "%2.5f"))
-      RESETBLOCK {
-        dt_graph_run_t flags = s_graph_run_none;
-        if(vkdt.graph_dev.module[modid].so->check_params)
-          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-            s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-        vkdt.graph_dev.active_module = modid;
-        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-      }
-      KEYFRAME
-      TOOLTIP
-      break;
-    }
-    case dt_token("crop"):
-    {
-      ImGui::InputFloat("aspect ratio", &vkdt.wstate.aspect, 0.0f, 4.0f, "%.3f");
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-      const float aspect = iwd/iht;
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        int accept = 0;
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-        {
-          vkdt.wstate.selected ++;
-          if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-        }
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
-          accept = 1;
-
-        int axes_cnt = 0;
-        const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-        const float scale = vkdt.state.scale > 0.0f ? vkdt.state.scale : 1.0f;
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-        if(vkdt.wstate.selected >= 0 && axes)
-          dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
-#undef SMOOTH
-
-        snprintf(string, sizeof(string), "%" PRItkn" done",
-            dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-           ImGui::IsKeyPressed(ImGuiKey_Escape)||
-           ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-        {
-          widget_abort();
-          dt_gamepadhelp_pop();
-          darkroom_reset_zoom();
-        }
-        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
-        {
-          vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
-          vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
-          vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
-          vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
-          widget_end();
-          dt_gamepadhelp_pop();
-          darkroom_reset_zoom();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        ImGui::PopStyleColor();
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%" PRItkn" start",
-            dt_token_str(param->name));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
-        {
-          dt_gamepadhelp_push();
-          dt_gamepadhelp_clear();
-          dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
-          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          // copy to quad state
-          memcpy(vkdt.wstate.state, v, sizeof(float)*4);
-
-          // the values we draw are relative to output of the whole pipeline,
-          // but the coordinates of crop are relative to the *input*
-          // coordinates of the module!
-          // the output is the anticipated output while we switched off crop, i.e
-          // using the default values to result in a square of max(iwd, iht)^2
-          // first convert these v[] from input w/h to output w/h of the module:
-          const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
-          const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
-          const float owd = MAX(iwd, iht);
-          const float oht = MAX(iwd, iht);
-          float *c = vkdt.wstate.state;
-          if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
-          {
-            c[0] = c[2] = 0.0f;
-            c[1] = c[3] = 1.0f;
-          }
-          vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
-          vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
-          vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);
-          vkdt.wstate.state[3] = .5f +  iht/oht * (vkdt.wstate.state[3] - .5f);
-
-          // reset module params so the image will not appear cropped:
-          float def[] = {
-            .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
-            .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
-            .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
-            .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
-          memcpy(v, def, sizeof(float)*4);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
-        }
-        if(0) RESETBLOCK {
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          darkroom_reset_zoom();
-        }
-        KEYFRAME
-        TOOLTIP
-      }
-      dt_module_t *m = vkdt.graph_dev.module+modid;
-      if(m->so->ui_callback)
-      {
-        ImGui::SameLine();
-        if(ImGui::Button("auto crop", ImVec2(halfw, 0)))
-        {
-          m->so->ui_callback(m, param->name);
-          darkroom_reset_zoom();
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        if(ImGui::IsItemHovered())
-          ImGui::SetTooltip("automatically crop away black rims");
-      }
-      num = count;
-      break;
-    }
-    case dt_token("pick"):  // simple aabb for selection, no distortion transform
-    {
-      int sz = dt_ui_param_size(param->type, 4);
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      if(vkdt.wstate.active_widget_modid == modid &&
-         vkdt.wstate.active_widget_parid == parid &&
-         vkdt.wstate.active_widget_parnm == num)
-      {
-        snprintf(string, sizeof(string), "done");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::Button(string))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        ImGui::PopStyleColor();
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%02d", num);
-        if(ImGui::Button(string))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = num;
-          vkdt.wstate.active_widget_parsz = sz;
-          // copy to quad state
-          memcpy(vkdt.wstate.state, v, sz);
-        }
-        TOOLTIP
-      }
-      if((num < count - 1) && ((num % 6) != 5))
-        ImGui::SameLine();
-      break;
-    }
-    case dt_token("rbmap"): // red/blue chromaticity mapping via src/target coordinates
-    {
-      if(num == 0) ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
-      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.135, 0);
-      int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], v[1], v[2], 1.0));
-      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[3], v[4], v[5], 1.0));
-      ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.state.panel_wd*0.02);
-      if(vkdt.wstate.active_widget_modid == modid &&
-         vkdt.wstate.active_widget_parid == parid &&
-         vkdt.wstate.active_widget_parnm == num)
-      {
-        snprintf(string, sizeof(string), "done");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::Button(string, size))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        ImGui::PopStyleColor();
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%02d", num);
-        if(ImGui::Button(string, size))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = num;
-          vkdt.wstate.active_widget_parsz = 0;
-        }
-        count *= 6; // keyframe needs to know it's 6 floats too
-        KEYFRAME
-        count /= 6;
-      }
-      ImGui::PopStyleVar(1);
-      ImGui::PopStyleColor(2);
-      if((num < count - 1) && ((num % 6) != 5))
-      {
-        ImGui::SameLine();
-        ImGui::Dummy(ImVec2(0.01*vkdt.state.panel_wd, 0));
-        ImGui::SameLine();
-      }
-      else if(num == count - 1)
-      { // edit specific colour patch below list of patches:
-        ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
-        if(vkdt.wstate.active_widget_modid == modid &&
-           vkdt.wstate.active_widget_parid == parid)
-        { // now add ability to change target colour coordinate
-          int active_num = vkdt.wstate.active_widget_parnm;
-          for(int i=0;i<3;i++)
-          {
-            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
-            float oldval = *val;
-            const char *label[] = {"red", "green", "blue"};
-            if(ImGui::SliderFloat(label[i], val, 0.0, 1.0, "%2.5f"))
-            { // custom resetblock: set only this colour spot to identity mapping
-              if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;
-              if(doubleclick) memcpy(val-i, val-i-3, sizeof(float)*3);
-              change = 1;
-            }
-            if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) ||
-               (ImGui::IsItemFocused() && gamepad_reset))
-            {
-              doubleclick_time = time_now;
-              gamepad_reset = 0;
-              doubleclick = 1;
-              memcpy(val-i, val-i-3, sizeof(float)*3);
-              change = 1;
-            }
-            if(change)
-            {
-              dt_graph_run_t flags = s_graph_run_none;
-              if(vkdt.graph_dev.module[modid].so->check_params)
-                flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-              vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                  s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-              vkdt.graph_dev.active_module = modid;
-              dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-            }
-          }
-        }
-      }
-      else ImGui::Dummy(ImVec2(0, 0.02*vkdt.state.panel_wd));
-      break;
-    }
-    case dt_token("grab"):  // grab all input
-    {
-      if(num != 0) break;
-      if(vkdt.wstate.active_widget_modid == modid &&
-         vkdt.wstate.active_widget_parid == parid)
-      {
-        if(ImGui::Button("stop [esc]", ImVec2(halfw, 0)))
-        {
-          // dt_gui_dr_toggle_fullscreen_view();
-          dt_module_t *mod = vkdt.graph_dev.module + modid;
-          dt_module_input_event_t p = { .type = -1 };
-          if(modid >= 0 && mod->so->input) mod->so->input(mod, &p);
-          widget_end();
-        }
-      }
-      else
-      {
-        if(ImGui::Button("grab input", ImVec2(halfw, 0)))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          dt_module_input_event_t p = { 0 };
-          dt_module_t *mod = vkdt.graph_dev.module + modid;
-          dt_gui_grab_mouse();
-          if(modid >= 0)
-            if(mod->so->input) mod->so->input(mod, &p);
-        }
-        KEYFRAME
-        TOOLTIP
-      }
-      break;
-    }
-    case dt_token("draw"):
-    {
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        ImGui::PopStyleColor();
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.state[0] = 1.0f; // abuse for radius
-          vkdt.wstate.state[1] = 1.0f; // abuse for opacity
-          vkdt.wstate.state[2] = 1.0f; // abuse for hardness
-          // get base radius from other param
-          int pid = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("radius"));
-          if(pid >= 0) vkdt.wstate.state[3] = dt_module_param_float(
-              vkdt.graph_dev.module+modid, pid)[0];
-          else vkdt.wstate.state[3] = 1.0;
-          vkdt.wstate.state[4] = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          // TODO: how to crop this to smaller size in case it's not required?
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          // for sanity also keep mapped_size to make clear that it belongs to the mapping, not the copy
-          vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
-          vkdt.wstate.mapped = v; // map state
-        }
-        KEYFRAME
-        if(ImGui::IsItemHovered())
-          ImGui::SetTooltip("start drawing brush strokes with the mouse\n"
-              "scroll - fine tune radius\n"
-              "ctrl scroll - fine tune hardness\n"
-              "shift scroll - fine tune opacity\n"
-              "right click - discard last stroke");
-      }
-      if(vkdt.wstate.mapped)
-      {
-        ImGui::SameLine();
-        ImGui::Text("%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
-      }
-      num = count;
-      break;
-    }
-    case dt_token("filename"):
-    {
-      if(num == 0)
-      { // only show first, cnt refers to allocation length of string param
-        char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        if(ImGui::InputText("filename", v, count))
-        {
-          vkdt.graph_dev.runflags = s_graph_run_all; // kinda grave change, rerun all
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-      }
-      break;
-    }
-    case dt_token("rgb"):
-    {
-      float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      ImGui::PushStyleColor(ImGuiCol_FrameBg, gamma(ImVec4(col[0], col[1], col[2], 1.0)));
-      for(int comp=0;comp<3;comp++)
-      {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
-        float oldval = *val;
-        char str[32] = {0};
-        snprintf(str, sizeof(str), "%" PRItkn " %s",
-            dt_token_str(param->name),
-            comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
-        if(ImGui::SliderFloat(str, val,
-              param->widget.min, param->widget.max, "%2.5f"))
-        RESETBLOCK
-        {
-          if(io.KeyShift) // lockstep all three if shift is pressed
-            for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        KEYFRAME
-        TOOLTIP
-      }
-      ImGui::PopStyleColor();
-      if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
-      break;
-    }
-    case dt_token("print"):
-    {
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      ImGui::Text("%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
-      num = count; // we've done it all at once
-      break;
-    }
-    default:;
-  }
-  ImGui::PopID();
-  } // end for multiple widgets
-  ImGui::PopItemWidth();
-#undef RESETBLOCK
-#undef KEYFRAME
-#undef TOOLTIP
 }
 
 void render_darkroom_favourite()
@@ -1246,7 +455,7 @@ void render_darkroom_favourite()
     {
       if(modid[m] == vkdt.fav_modid[i])
       {
-        draw_widget(vkdt.fav_modid[i], vkdt.fav_parid[i]);
+        render_darkroom_widget(vkdt.fav_modid[i], vkdt.fav_parid[i]);
         break;
       }
     }
@@ -1255,7 +464,6 @@ void render_darkroom_favourite()
 
 void render_darkroom_full()
 {
-  char name[30];
   static char open[100] = {0};
   static int32_t active_module = -1;
   dt_graph_t *graph = &vkdt.graph_dev;
@@ -1267,55 +475,7 @@ void render_darkroom_full()
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
   for(int m=cnt-1;m>=0;m--)
-  {
-    int curr = modid[m];
-    if(arr[curr].so->num_params)
-    {
-      snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
-          dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
-      if(ImGui::CollapsingHeader(name))
-      {
-        if(!open[m])
-        { // just opened, now this is the 'active module'.
-          active_module = curr;
-          int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
-          if(cid >= 0)
-          { // if 'dspy' output exists, connect to 'dspy' display
-            int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
-            if(graph->module[mid].connector[0].connected_mi != curr ||
-               graph->module[mid].connector[0].connected_mc != cid)
-            { // only if not connected yet, don't record in history
-              CONN(dt_module_connect(graph, curr, cid, mid, 0));
-              vkdt.graph_dev.runflags = s_graph_run_all;
-            }
-          }
-          open[m] = 1;
-        }
-        if(active_module == curr &&
-          dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
-        {
-          dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
-          if(out_dspy && vkdt.graph_res == VK_SUCCESS)
-          {
-            float iwd = out_dspy->connector[0].roi.wd;
-            float iht = out_dspy->connector[0].roi.ht;
-            float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
-            int ht = scale * iht;
-            int wd = scale * iwd;
-            ImGui::NewLine(); // end expander
-            ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
-            ImGui::Image(out_dspy->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
-                ImVec2(wd, ht),
-                ImVec2(0,0), ImVec2(1,1),
-                ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
-          }
-        }
-        for(int i=0;i<arr[curr].so->num_params;i++)
-          draw_widget(curr, i);
-      }
-      else open[m] = 0;
-    }
-  }
+    render_darkroom_widgets(&vkdt.graph_dev, modid[m], open, active_module);
 }
 
 void render_darkroom_pipeline()
@@ -1457,20 +617,31 @@ void render_darkroom_pipeline()
 void render_darkroom()
 {
   gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+  switch(gui.hotkey)
+  { // these are "destructive" hotkeys, they change the image and invalidate the dset.
+    // this has to happen this frame *before* the dset is sent to imgui for display.
+    case s_hotkey_next_image:
+      dt_gui_dr_next();
+      break;
+    case s_hotkey_prev_image:
+      dt_gui_dr_prev();
+      break;
+  }
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
-    int border = vkdt.style.border_frac * qvk.win_width;
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
     int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    // draw background over the full thing:
-    ImGui::SetNextWindowPos (ImVec2(win_x-  border, win_y-  border), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-    ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-
-    { // draw image properties TODO: only if mouse y < something
-      float wd = 0.5*border;
+    { // draw image properties
+      ImGui::SetNextWindowPos (ImGui::GetMainViewport()->Pos, ImGuiCond_Always);
+      ImGui::SetNextWindowSize(ImVec2(win_w+2*win_x, win_y), ImGuiCond_Always);
+      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+      ImGui::Begin("darkroom statusbar", 0, ImGuiWindowFlags_NoTitleBar |
+          ImGuiWindowFlags_NoMove |
+          ImGuiWindowFlags_NoResize |
+          ImGuiWindowFlags_NoMouseInputs |
+          ImGuiWindowFlags_NoBackground);
+      float wd = 0.5*vkdt.style.border_frac * qvk.win_width;
       const uint32_t ci = dt_db_current_imgid(&vkdt.db);
       if(ci != -1u)
       { // this should *always* be the case
@@ -1479,7 +650,19 @@ void render_darkroom()
         dt_draw_rating(win_x-wd,   win_y-wd, wd, rating);
         dt_draw_labels(win_x+4*wd, win_y-wd, wd, labels);
       }
+      ImGui::End();
     }
+    int border = 0;
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + win_x - border,
+          ImGui::GetMainViewport()->Pos.y + win_y - border), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
+    ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoBackground);
 
     ImGuiIO& io = ImGui::GetIO();
     if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
@@ -1527,11 +710,12 @@ abort:
     }
 
     // draw center view image:
+    bool hovered = false;
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadL3)) // left stick pressed
-        darkroom_reset_zoom();
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
       if(axes)
       {
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
@@ -1539,45 +723,26 @@ abort:
         float ht  = (float)out_main->connector[0].roi.ht;
         float imwd = win_w, imht = win_h;
         float scale = MIN(imwd/wd, imht/ht);
-        if(vkdt.state.scale > 0.0f) scale = vkdt.state.scale;
+        if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;
         if(axes[2] > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(axes[2]+1.0f)); 
         if(axes[5] > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(axes[5]+1.0f)); 
         // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-        vkdt.state.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
-        vkdt.state.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
-        vkdt.state.scale = scale;
+        vkdt.wstate.img_widget.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
+        vkdt.wstate.img_widget.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
+        vkdt.wstate.img_widget.scale = scale;
 #undef SMOOTH
       }
       if(vkdt.graph_res == VK_SUCCESS)
       {
-        ImTextureID imgid = out_main->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
-        float im0[2], im1[2];
-        float v0[2] = {(float)win_x, (float)win_y};
-        float v1[2] = {(float)win_x+win_w, (float)win_y+win_h};
-        dt_view_to_image(v0, im0);
-        dt_view_to_image(v1, im1);
-        im0[0] = CLAMP(im0[0], 0.0f, 1.0f);
-        im0[1] = CLAMP(im0[1], 0.0f, 1.0f);
-        im1[0] = CLAMP(im1[0], 0.0f, 1.0f);
-        im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
-        dt_image_to_view(im0, v0);
-        dt_image_to_view(im1, v1);
-        ImGui::GetWindowDrawList()->AddImage(
-            imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
-            ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
-        char scaletext[10];
-        if(vkdt.state.scale >= 1.0f)
-        {
-          snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(vkdt.state.scale*100.0));
-          ImGui::GetWindowDrawList()->AddText(ImVec2(win_x+0.9f*win_w,0.5f*win_y), 0xffffffffu, scaletext);
-        }
+        int events = !vkdt.wstate.grabbed &&
+          (vkdt.wstate.active_widget_modid < 0); // only if no widget wants it
+        dt_image(&vkdt.wstate.img_widget, out_main, events);
+        hovered = ImGui::IsItemHovered();
       }
-      if(vkdt.wstate.fullscreen_view) goto abort; // no panel
     }
     // center view has on-canvas widgets (but only if there *is* an image):
     if(out_main && vkdt.wstate.active_widget_modid >= 0)
-    {
-      // distinguish by type:
+    { // distinguish by type:
       switch(vkdt.graph_dev.module[
           vkdt.wstate.active_widget_modid].so->param[
           vkdt.wstate.active_widget_parid]->widget.type)
@@ -1587,7 +752,7 @@ abort:
           float *v = vkdt.wstate.state;
           float p[8];
           for(int k=0;k<4;k++)
-            dt_image_to_view(v+2*k, p+2*k);
+            dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
           if(vkdt.wstate.selected >= 0)
@@ -1598,16 +763,76 @@ abort:
             ImGui::GetWindowDrawList()->AddCircleFilled(
                 ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
                 0x77777777u, 20);
+            if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            {
+              ImVec2 pos = ImGui::GetMousePos();
+              float v[] = {pos.x, pos.y}, n[2] = {0};
+              dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+              dt_gui_dr_pers_adjust(n, 0);
+            }
+          }
+          if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.selected = -1;
+          }
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          { // find active corner if close enough
+            ImVec2 pos = ImGui::GetMousePos();
+            float m[] = {pos.x, pos.y};
+            float max_dist = FLT_MAX;
+            const float px_dist = 0.1*qvk.win_height;
+            for(int cc=0;cc<4;cc++)
+            {
+              float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
+              dt_image_to_view(&vkdt.wstate.img_widget, n, v);
+              float dist2 =
+                (v[0]-m[0])*(v[0]-m[0])+
+                (v[1]-m[1])*(v[1]-m[1]);
+              if(dist2 < px_dist*px_dist)
+              {
+                if(dist2 < max_dist)
+                {
+                  max_dist = dist2;
+                  vkdt.wstate.selected = cc;
+                }
+              }
+            }
           }
           break;
         }
         case dt_token("straight"):
         {
+          ImVec2 pos = ImGui::GetMousePos();
           if(vkdt.wstate.selected >= 0)
           {
             float v[4] = { vkdt.wstate.state[1], vkdt.wstate.state[2], vkdt.wstate.state[3], vkdt.wstate.state[4] };
             ImGui::GetWindowDrawList()->AddPolyline(
                 (ImVec2 *)v, 2, IM_COL32_WHITE, false, 1.0);
+            if(vkdt.wstate.selected > 0)
+            {
+              vkdt.wstate.state[3] = pos.x;
+              vkdt.wstate.state[4] = pos.y;
+            }
+          }
+          if(hovered && ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.selected = 0;
+            float dx = pos.x - vkdt.wstate.state[1];
+            float dy = pos.y - vkdt.wstate.state[2];
+            float a = atan2f(dy, dx);
+            if(fabsf(dx) > fabsf(dy)) a =        + a * 180.0f/M_PI;
+            else                      a = 270.0f + a * 180.0f/M_PI;
+            if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
+            if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
+            if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
+            if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
+            vkdt.wstate.state[0] += a;
+          }
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          {
+            vkdt.wstate.state[1] = vkdt.wstate.state[3] = pos.x;
+            vkdt.wstate.state[2] = vkdt.wstate.state[4] = pos.y;
+            vkdt.wstate.selected = 1;
           }
           break;
         }
@@ -1618,9 +843,11 @@ abort:
             vkdt.wstate.state[1], vkdt.wstate.state[3], vkdt.wstate.state[0], vkdt.wstate.state[3]
           };
           float p[8];
-          for(int k=0;k<4;k++) dt_image_to_view(v+2*k, p+2*k);
+          for(int k=0;k<4;k++) dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          if(!ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            vkdt.wstate.selected = -1;
           if(vkdt.wstate.selected >= 0)
           {
             float o = vkdt.state.center_wd * 0.02;
@@ -1636,6 +863,37 @@ abort:
             ImGui::GetWindowDrawList()->AddQuadFilled(
                 ImVec2(q[0],q[1]), ImVec2(q[2],q[3]),
                 ImVec2(q[4],q[5]), ImVec2(q[6],q[7]), 0x77777777u);
+
+            ImVec2 pos = ImGui::GetMousePos();
+            float v[] = {pos.x, pos.y}, n[2] = {0};
+            dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+            float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
+            dt_gui_dr_crop_adjust(edge, 0);
+          }
+          else dt_image_events(&vkdt.wstate.img_widget, hovered);
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          {
+            ImVec2 pos = ImGui::GetMousePos();
+            float m[2] = {(float)pos.x, (float)pos.y};
+            float max_dist = FLT_MAX;
+            const float px_dist = 0.1*qvk.win_height;
+            for(int ee=0;ee<4;ee++)
+            {
+              float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
+              dt_image_to_view(&vkdt.wstate.img_widget, n, v);
+              float dist2 =
+                ee < 2 ?
+                (v[0]-m[0])*(v[0]-m[0]) :
+                (v[1]-m[1])*(v[1]-m[1]);
+              if(dist2 < px_dist*px_dist)
+              {
+                if(dist2 < max_dist)
+                {
+                  max_dist = dist2;
+                  vkdt.wstate.selected = ee;
+                }
+              }
+            }
           }
           break;
         }
@@ -1647,9 +905,26 @@ abort:
           };
           float p[8];
           for(int k=0;k<4;k++)
-            dt_image_to_view(v+2*k, p+2*k);
+            dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+          ImVec2 pos = ImGui::GetMousePos();
+          float vv[] = {pos.x, pos.y}, n[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+          {
+            vkdt.wstate.state[0] = n[0];
+            vkdt.wstate.state[1] = n[0];
+            vkdt.wstate.state[2] = n[1];
+            vkdt.wstate.state[3] = n[1];
+          }
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+          {
+            vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
+            vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
+            vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
+            vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
+          }
           break;
         }
         case dt_token("draw"):
@@ -1662,16 +937,14 @@ abort:
           int cnt = sizeof(p)/sizeof(p[0])/2;
 
           const int modid = vkdt.wstate.active_widget_modid;
-          const float scale = vkdt.state.scale <= 0.0f ?
-            MIN(
-                vkdt.state.center_wd / (float)
+          const float scale = vkdt.wstate.img_widget.scale <= 0.0f ?
+            MIN(vkdt.state.center_wd / (float)
                 vkdt.graph_dev.module[modid].connector[0].roi.wd,
                 vkdt.state.center_ht / (float)
                 vkdt.graph_dev.module[modid].connector[0].roi.ht) :
-            vkdt.state.scale;
+            vkdt.wstate.img_widget.scale;
           for(int i=0;i<2;i++)
-          {
-            // ui scaled roi wd * radius * stroke radius
+          { // ui scaled roi wd * radius * stroke radius
             float r = vkdt.wstate.state[4] * vkdt.wstate.state[3] * radius;
             if(i >= 1) r *= hardness;
             for(int k=0;k<cnt;k++)
@@ -1692,6 +965,39 @@ abort:
           p[7] = opacity * (pos.y+sz) + (1.0f-opacity)*(pos.y+sz/2.0f);
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, 4, IM_COL32_WHITE, true, 3.0);
+
+          uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
+          if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseRight, false))
+          { // right mouse click resets the last stroke
+            for(int i=dat[0]-2;i>=0;i--)
+            {
+              if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
+              {
+                dat[0] = i; // reset count
+                break;
+              }
+            }
+            // trigger recomputation:
+            vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+            vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
+          }
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseWheelY))
+          {
+            float yoff = ImGui::GetIO().MouseWheel;
+            const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
+            if(ImGui::IsKeyDown(ImGuiKey_LeftShift)) // opacity
+              vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
+            else if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl)) // hardness
+              vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
+            else // radius
+              vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
+          }
+          float v[] = {pos.x, pos.y}, n[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            draw_position(n, 1.0f);
+          else
+            draw_position(n, 0.0f);
           break;
         }
         default:;
@@ -1705,10 +1011,13 @@ abort:
     ImGui::PopStyleColor();
   } // end center view
 
-  if(vkdt.wstate.history_view)
+  if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
   { // left panel
-    ImGui::SetNextWindowPos (ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x,
+          ImGui::GetMainViewport()->Pos.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     int action = 0;
@@ -1793,9 +1102,13 @@ abort:
     ImGui::End();
   } // end left panel
 
+  if(!vkdt.wstate.fullscreen_view)
   { // right panel
-    ImGui::SetNextWindowPos (ImVec2(qvk.win_width - vkdt.state.panel_wd, 0),   ImGuiCond_Always);
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
+          ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
     // draw histogram image:
@@ -1897,10 +1210,10 @@ abort:
           if(vkdt.state.anim_playing)
           {
             if(ImGui::Button("stop", size))
-              vkdt.state.anim_playing = 0;
+              dt_gui_dr_anim_stop();
           }
           else if(ImGui::Button("play", size))
-            vkdt.state.anim_playing = 1;
+            dt_gui_dr_anim_start();
           ImGui::SameLine();
           if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
           {
@@ -1918,6 +1231,15 @@ abort:
             vkdt.graph_dev.frame_rate = frame_rate; // conv to double
             dt_graph_history_global(&vkdt.graph_dev);
           }
+          if(ImGui::Button("force downloading all outputs", ImVec2(-1, 0)))
+          {
+            vkdt.graph_dev.runflags = s_graph_run_download_sink;
+          }
+          if(ImGui::IsItemHovered())
+            ImGui::SetTooltip("this is useful if an animated graph has output modules\n"
+                              "attached to it. for instance this allows you to trigger\n"
+                              "writing of intermediate results of an optimisation from the gui.\n"
+                              "only works when the animation is stopped.");
         }
 
         if(ImGui::CollapsingHeader("presets"))
@@ -1969,6 +1291,20 @@ abort:
     case s_hotkey_nodes_enter:
       dt_view_switch(s_view_nodes);
       break;
+    case s_hotkey_fullscreen:
+      dt_gui_dr_toggle_fullscreen_view();
+      break;
+    case s_hotkey_rate_0: dt_gui_rate_0(); break;
+    case s_hotkey_rate_1: dt_gui_rate_1(); break;
+    case s_hotkey_rate_2: dt_gui_rate_2(); break;
+    case s_hotkey_rate_3: dt_gui_rate_3(); break;
+    case s_hotkey_rate_4: dt_gui_rate_4(); break;
+    case s_hotkey_rate_5: dt_gui_rate_5(); break;
+    case s_hotkey_label_1: dt_gui_label_1(); break;
+    case s_hotkey_label_2: dt_gui_label_2(); break;
+    case s_hotkey_label_3: dt_gui_label_3(); break;
+    case s_hotkey_label_4: dt_gui_label_4(); break;
+    case s_hotkey_label_5: dt_gui_label_5(); break;
     default:;
   }
   dt_gui_dr_modals(); // draw modal windows for presets etc

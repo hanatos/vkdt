@@ -1,6 +1,6 @@
 .PHONY:tools
 
-tools:../bin/data/spectra.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut
+tools:../bin/data/spectra.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
 
 ADD_CFLAGS=-Itools -Itools/shared
 ADD_LDFLAGS=-lm
@@ -12,6 +12,7 @@ MKSSF_DEPS=tools/clut/src/dngproc.h\
         tools/clut/src/cfa_data.h\
         tools/clut/src/cfa-plain.h\
         tools/clut/src/cfa-sigmoid.h\
+        tools/clut/src/cfa-legendre.h\
         tools/clut/src/cfa-gauss.h
 
 MKCLUT_DEPS=core/inpaint.h \
@@ -22,6 +23,12 @@ MKCLUT_DEPS=core/inpaint.h \
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
 
 ../bin/vkdt-mkclut: tools/clut/src/mkclut.c ${MKCLUT_DEPS} Makefile
+	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
+
+../bin/vkdt-lutinfo: tools/clut/src/lutinfo.c core/lut.h Makefile
+	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
+
+../bin/vkdt-eval-profile: tools/clut/src/eval.c ${MKSSF_DEPS} Makefile
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
 
 ../bin/data/spectra.lut: mkabney macadam.lut Makefile

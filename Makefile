@@ -27,10 +27,11 @@ install: all
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
+	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo ${VKDTDIR}
 	cp -rfL bin/default* ${VKDTDIR}
 	cp -rfL bin/darkroom.ui ${VKDTDIR}
 	cp -rfL bin/thumb.cfg ${VKDTDIR}
-	cp -rfL bin/noise-profile.sh bin/vkdt-mkgallery.sh bin/read-icc.py ${VKDTDIR}
+	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
 	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 
@@ -41,7 +42,7 @@ release: Makefile src/core/version.h
 
 # overwrites the above optimised build flags:
 debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION -DDEBUG_MARKERS
-# debug:OPT_CFLAGS+=-g -gdwarf-2 -ggdb3 -O0
+# debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0
 debug:OPT_LDFLAGS=
 debug:all
 
@@ -69,8 +70,7 @@ distclean:
 	$(shell find . -name "*.o"   -exec rm {} \;)
 	$(shell find . -name "*.spv" -exec rm {} \;)
 	$(shell find . -name "*.so"  -exec rm {} \;)
-	rm -rf src/vkdt src/vkdt-fit src/vkdt-cli
-	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut
+	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile
 	rm -rf src/macadam
 	rm -rf src/mkabney
 	rm -rf bin/data/*.lut
@@ -81,11 +81,6 @@ distclean:
 
 bin: src Makefile
 	mkdir -p bin/data
-	# copy so we can take the executable path via /proc/self/exe:
-	cp -f src/vkdt-cli bin/
-	cp -f src/vkdt-fit bin/
-	cp -f src/vkdt bin/
-	# should probably copy this for easier install, too:
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data
 

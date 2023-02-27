@@ -1,0 +1,18 @@
+#!/bin/bash
+if [ "$#" -ne 1 ] || [ "$1" == "--help" ]
+then
+    echo "usage: vkdt noise-profile <raw image file>"
+    echo "create a noise profile for the given camera maker/model/iso, place the"
+    echo "resulting values in data/nprof/ and render a histogram in the current directory."
+    exit -1
+fi
+RAWFILE=$(realpath $1)
+VKDT_PATH=$(dirname ${0})
+fname=$(vkdt-cli -g ${VKDT_PATH}/data/noiseprofile.cfg --config param:i-raw:01:filename:${RAWFILE} | grep nprof | cut -d\' -f2)
+if [ -n "$fname" ]
+then
+  mkdir -p ${VKDT_PATH}/data/nprof
+  mv "$fname" ${VKDT_PATH}/data/nprof/
+  vkdt-cli -g ${VKDT_PATH}/data/noisecheck.cfg --filename "$fname" --config param:i-raw:01:filename:${RAWFILE}
+fi
+

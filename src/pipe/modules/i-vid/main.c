@@ -33,6 +33,27 @@ typedef struct vid_data_t
 }
 vid_data_t;
 
+int av_sample_fmt_to_alsa(int sf)
+{
+  switch(sf)
+  {
+    case AV_SAMPLE_FMT_NONE: return -1;
+    case AV_SAMPLE_FMT_U8:   return  1;
+    case AV_SAMPLE_FMT_S16:  return  2;
+    case AV_SAMPLE_FMT_S32:  return 10;
+    case AV_SAMPLE_FMT_FLT:  return 14;
+    case AV_SAMPLE_FMT_DBL:  return 16;
+    default: return -1; // uhm
+                        // case AV_SAMPLE_FMT_U8P:
+                        // case AV_SAMPLE_FMT_S16P:
+                        // case AV_SAMPLE_FMT_S32P:
+                        // case AV_SAMPLE_FMT_FLTP:
+                        // case AV_SAMPLE_FMT_DBLP:
+                        // case AV_SAMPLE_FMT_S64:
+                        // case AV_SAMPLE_FMT_S64P:
+  }
+}
+
 static inline void
 dump_parameters(
     vid_data_t *d)
@@ -342,6 +363,10 @@ void modify_roi_out(
     // .iso            = dat->video.EXPO.isoValue,
     // .focal_length   = dat->video.LENS.focalLength,
 
+    .snd_samplerate = d->actx->sample_rate,
+    .snd_format     = av_sample_fmt_to_alsa(d->actx->sample_fmt),
+    .snd_channels   = d->actx->ch_layout.nb_channels,
+
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
   };
@@ -360,8 +385,8 @@ void modify_roi_out(
   // XXX FIXME: the number is correct but needs more testing because
   // we can't deliver 60fps on slower computers, killing audio etc
   // this first needs a robust way of doing frame drops.
-  // if(mod->graph->frame_rate == 0) // don't overwrite cfg
-    // mod->graph->frame_rate = frame_rate;
+  if(mod->graph->frame_rate == 0) // don't overwrite cfg
+    mod->graph->frame_rate = frame_rate;
 }
 
 #if 0 // TODO
@@ -515,6 +540,13 @@ int audio(
     const float *input_r = (const float *)d->aframe->extended_data[1];
     if(!input_r) input_r = input_l;
 
+    int channels = d->actx->ch_layout.nb_channels;
+    size_t bps = 1; // u8
+    if     (mod->graph->main_img_param.snd_format ==  2) bps = 2; // S16
+    else if(mod->graph->main_img_param.snd_format == 10) bps = 4; // S32
+    else if(mod->graph->main_img_param.snd_format == 14) bps = 4; // f32
+    else if(mod->graph->main_img_param.snd_format == 16) bps = 8; // d32
+
     if(num_samples == -1)
     {
       float frame_rate = mod->graph->frame_rate;
@@ -522,7 +554,7 @@ int audio(
       num_samples = d->aframe->sample_rate / mod->graph->frame_rate + 0.5; // how many per one video frame?
       // num_samples = 44100 / mod->graph->frame_rate + 0.5; // how many per one video frame?
       need_samples = num_samples - d->snd_lag; // how many do we need to also compensate the lag?
-      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * 2;// ??? d->aframe->channels;
+      size_t sizereq = 3 * MAX(d->aframe->nb_samples, need_samples) * bps * channels;
       if(d->sndbuf_size < sizereq)
       {
         free(d->sndbuf);
@@ -531,11 +563,14 @@ int audio(
         *samples = (uint8_t *)d->sndbuf;
       }
     }
+    memcpy(((uint8_t*)d->sndbuf) + written*bps*channels, input_l, d->aframe->nb_samples * bps * channels);
+#if 0
     for(int i=0;i<d->aframe->nb_samples;i++)
     {
       d->sndbuf[2*(i+written)+0] = input_l[i];
       d->sndbuf[2*(i+written)+1] = input_r[i];
     }
+#endif
     written += d->aframe->nb_samples;
     d->snd_lag = written - need_samples;
   } while(d->snd_lag < 0);

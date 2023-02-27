@@ -8,6 +8,7 @@
 #include "core/log.h"
 #include "core/signal.h"
 #include "core/version.h"
+#include "core/tools.h"
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/view.h"
@@ -25,7 +26,6 @@
 
 dt_gui_t vkdt = {0};
 
-int g_running = 1;
 int g_fullscreen = 0;
 
 // from a stackoverflow answer. get the monitor that currently covers most of
@@ -72,7 +72,7 @@ static void*
 joystick_active(void *unused)
 {
   uint8_t prev_butt[100] = {0};
-  while(g_running)
+  while(!glfwWindowShouldClose(qvk.window))
   {
     int res = 0;
     int axes_cnt = 0, butt_cnt = 0;
@@ -134,7 +134,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 
   if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
-    g_running = 0;
+    glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
@@ -154,6 +154,12 @@ static void
 mouse_position_callback(GLFWwindow* window, double x, double y)
 {
   dt_view_mouse_position(window, x, y);
+}
+
+static void
+window_close_callback(GLFWwindow* window)
+{
+  glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
 }
 
 static void
@@ -205,13 +211,23 @@ pentablet_cursor_callback(unsigned int cursor)
 
 int main(int argc, char *argv[])
 {
-  for(int i=0;i<argc;i++) if(!strcmp(argv[i], "--version"))
+  if(argc > 1)
   {
-    printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
-    exit(0);
+    if(!strcmp(argv[1], "--version"))
+    {
+      printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
+      exit(0);
+    }
+    else if(!strcmp(argv[1], "--help"))
+    {
+      printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
+      dt_tool_print_usage();
+      exit(0);
+    }
+    dt_tool_dispatch(argc, argv);
   }
   // init global things, log and pipeline:
-  dt_log_init(s_log_err|s_log_gui|s_log_pipe);
+  dt_log_init(s_log_err|s_log_gui);
   int lastarg = dt_log_init_arg(argc, argv);
   dt_pipe_global_init();
   threads_global_init();
@@ -234,6 +250,7 @@ int main(int argc, char *argv[])
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
   glfwSetCharCallback(qvk.window, char_callback);
   glfwSetScrollCallback(qvk.window, scroll_callback);
+  glfwSetWindowCloseCallback(qvk.window, window_close_callback);
 #if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
@@ -288,7 +305,7 @@ int main(int argc, char *argv[])
   // main loop
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
-  while(g_running)
+  while(!glfwWindowShouldClose(qvk.window))
   {
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
@@ -303,7 +320,6 @@ int main(int argc, char *argv[])
     // should probably consider this instead:
     // https://github.com/bvgastel/imgui/commits/imgui-2749
     glfwWaitEvents();
-    if(glfwWindowShouldClose(qvk.window)) g_running = 0;
 
     // clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();

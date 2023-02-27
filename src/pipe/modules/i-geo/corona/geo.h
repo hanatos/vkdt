@@ -11,7 +11,7 @@
 // convenience struct for SSE things
 typedef union
 {
-  __m128 m;
+  // __m128 m;
   float f[4];
   unsigned int i[4];
 }
@@ -153,18 +153,18 @@ static inline void geo_get_vertex_time(const prims_t *p, primid_t pi, int v, flo
   const prims_shape_t *s = p->shape + pi.shapeid;
   if(pi.mb)
   {
-    // for(int k=0;k<3;k++)
-    //   vtx[k] = (1.0f-time)*s->vtx[2*s->vtxidx[pi.vi + v].v].v[k] +
-    //     time*s->vtx[2*s->vtxidx[pi.vi + v].v + 1].v[k];
-    vtx->m = _mm_add_ps(
-        _mm_mul_ps(_mm_set1_ps(1.0f-time), s->vtx[2*s->vtxidx[pi.vi + v].v].m),
-        _mm_mul_ps(_mm_set1_ps(     time), s->vtx[2*s->vtxidx[pi.vi + v].v + 1].m));
+    for(int k=0;k<3;k++)
+      vtx->f[k] = (1.0f-time)*s->vtx[2*s->vtxidx[pi.vi + v].v].v[k] +
+        time*s->vtx[2*s->vtxidx[pi.vi + v].v + 1].v[k];
+    // vtx->m = _mm_add_ps(
+    //     _mm_mul_ps(_mm_set1_ps(1.0f-time), s->vtx[2*s->vtxidx[pi.vi + v].v].m),
+    //     _mm_mul_ps(_mm_set1_ps(     time), s->vtx[2*s->vtxidx[pi.vi + v].v + 1].m));
   }
   else
   {
-    // const float *vt = s->vtx[s->vtxidx[pi.vi + v].v].v;
-    // for(int k=0;k<3;k++) vtx[k] = vt[k];
-    vtx->m = *(__m128*)s->vtx[s->vtxidx[pi.vi + v].v].v;
+    const float *vt = s->vtx[s->vtxidx[pi.vi + v].v].v;
+    for(int k=0;k<3;k++) vtx->f[k] = vt[k];
+    // vtx->m = *(__m128*)s->vtx[s->vtxidx[pi.vi + v].v].v;
   }
 }
 

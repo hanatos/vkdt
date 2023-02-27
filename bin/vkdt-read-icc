@@ -12,7 +12,8 @@ def isfloat(num):
         return False
 
 if len(sys.argv) < 2:
-  print('usage: ./read-icc.py your-display.icc [gamma]')
+  print('usage: vkdt read-icc your-display.icc [gamma]')
+  print('requires the iccdump utility and will write display.profile files for vkdt')
   sys.exit(1)
 
 profile=sys.argv[1]

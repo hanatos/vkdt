@@ -148,6 +148,9 @@ void modify_roi_out(
     .aperture       = dat->video.LENS.aperture * 0.01f,
     .iso            = dat->video.EXPO.isoValue,
     .focal_length   = dat->video.LENS.focalLength,
+    .snd_samplerate = dat->video.WAVI.samplingRate,
+    .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE, // XXX use dat->video.WAVI.bytesPerSample
+    .snd_channels   = dat->video.WAVI.channels,
 
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
@@ -163,12 +166,6 @@ void modify_roi_out(
   for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   mod->graph->frame_rate = dat->video.frame_rate;
-  // TODO: re-init alsa to support this, need to talk to gui core about these settings!
-  // fprintf(stderr, "[i-mlv] audio info: sampling rate %d, channels %d, bytes per second %d, bits per sample %d\n",
-  //     dat->video.WAVI.samplingRate,
-  //     dat->video.WAVI.channels,
-  //     dat->video.WAVI.bytesPerSecond,
-  //     dat->video.WAVI.bitsPerSample);
 
   // load noise profile:
   char pname[512];

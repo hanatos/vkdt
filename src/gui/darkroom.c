@@ -7,12 +7,11 @@
 #include "gui/view.h"
 #include "gui/render.h"
 #include "gui/darkroom.h"
-#include "gui/darkroom-util.h"
+#include "pipe/draw.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-defaults.h"
 #include "pipe/modules/api.h"
-#include "pipe/draw.h"
 #include "pipe/graph-history.h"
 
 #include <stdio.h>
@@ -25,7 +24,7 @@
 #include <libgen.h>
 #include <limits.h>
 
-static inline void
+void
 draw_position(
     float *n,          // image space coordinate
     float  pressure)   // pressure in [0, 1]
@@ -91,180 +90,6 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-    return;
-  }
-
-  if(dt_gui_imgui_input_blocked()) return;
-  if(action == GLFW_PRESS && (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
-    return; // ignore only press over panel for pan
-  if(vkdt.wstate.active_widget_modid >= 0 &&
-     (x < vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd))
-    return; // and all events on panel for on-canvas module interaction
-  const float px_dist = 0.1*qvk.win_height;
-
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-  assert(out);
-  vkdt.wstate.wd = (float)out->connector[0].roi.wd;
-  vkdt.wstate.ht = (float)out->connector[0].roi.ht;
-  vkdt.wstate.selected = -1;
-
-  if(vkdt.wstate.active_widget_modid >= 0)
-  {
-    dt_token_t type = vkdt.graph_dev.module[
-        vkdt.wstate.active_widget_modid].so->param[
-        vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("pers"))
-    {
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = -1;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        // find active corner if close enough
-        float m[] = {(float)x, (float)y};
-        float max_dist = FLT_MAX;
-        for(int cc=0;cc<4;cc++)
-        {
-          float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
-          dt_image_to_view(n, v);
-          float dist2 =
-            (v[0]-m[0])*(v[0]-m[0])+
-            (v[1]-m[1])*(v[1]-m[1]);
-          if(dist2 < px_dist*px_dist)
-          {
-            if(dist2 < max_dist)
-            {
-              max_dist = dist2;
-              vkdt.wstate.selected = cc;
-            }
-          }
-        }
-        if(max_dist < FLT_MAX) return;
-      }
-    }
-    else if(type == dt_token("straight"))
-    {
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = 0;
-        float dx = x - vkdt.wstate.state[1];
-        float dy = y - vkdt.wstate.state[2];
-        vkdt.wstate.state[3] = x;
-        vkdt.wstate.state[4] = y;
-        float a = atan2f(dy, dx);
-        if(fabsf(dx) > fabsf(dy)) a =        + a * 180.0f/M_PI;
-        else                      a = 270.0f + a * 180.0f/M_PI;
-        if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
-        if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
-        if(fabsf(a + 180.0f) < fabsf(a)) a += 180.0f;
-        if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
-        vkdt.wstate.state[0] += a;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        vkdt.wstate.state[1] = vkdt.wstate.state[3] = x;
-        vkdt.wstate.state[2] = vkdt.wstate.state[4] = y;
-        vkdt.wstate.selected = 1;
-      }
-    }
-    else if(type == dt_token("crop"))
-    {
-      if(action == GLFW_RELEASE)
-      {
-        vkdt.wstate.selected = -1;
-      }
-      else if(action == GLFW_PRESS)
-      {
-        float m[2] = {(float)x, (float)y};
-        float max_dist = FLT_MAX;
-        for(int ee=0;ee<4;ee++)
-        {
-          float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
-          dt_image_to_view(n, v);
-          float dist2 =
-            ee < 2 ?
-            (v[0]-m[0])*(v[0]-m[0]) :
-            (v[1]-m[1])*(v[1]-m[1]);
-          if(dist2 < px_dist*px_dist)
-          {
-            if(dist2 < max_dist)
-            {
-              max_dist = dist2;
-              vkdt.wstate.selected = ee;
-            }
-          }
-        }
-        if(max_dist < FLT_MAX) return;
-      }
-    }
-    else if(type == dt_token("pick"))
-    {
-      if(button == GLFW_MOUSE_BUTTON_LEFT)
-      {
-        float v[] = {(float)x, (float)y}, n[2] = {0};
-        dt_view_to_image(v, n);
-        if(action == GLFW_RELEASE)
-        {
-          vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
-          vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
-          vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
-          vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
-        }
-        else if(action == GLFW_PRESS)
-        {
-          vkdt.wstate.state[0] = n[0];
-          vkdt.wstate.state[1] = n[0];
-          vkdt.wstate.state[2] = n[1];
-          vkdt.wstate.state[3] = n[1];
-        }
-        return;
-      }
-    }
-    else if(type == dt_token("draw"))
-    {
-      uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-      if(action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_RIGHT)
-      { // right mouse click resets the last stroke
-        for(int i=dat[0]-2;i>=0;i--)
-        {
-          if(i == 0 || dat[1+2*i+1] == 0) // detected end marker
-          {
-            dat[0] = i; // reset count
-            break;
-          }
-        }
-        // trigger recomputation:
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
-        return;
-      }
-      else if(!vkdt.wstate.pentablet_enabled && 
-          action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT)
-        return; // don't pan when drawing with the mouse
-    }
-  }
-
-  if(action == GLFW_RELEASE)
-  {
-    vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
-  }
-  else if(action == GLFW_PRESS &&
-      x > vkdt.state.center_x && x < vkdt.state.center_x + vkdt.state.center_wd)
-  {
-    if((!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_LEFT) ||
-       ( vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE))
-    {
-      vkdt.wstate.m_x = x;
-      vkdt.wstate.m_y = y;
-      vkdt.wstate.old_look_x = vkdt.state.look_at_x;
-      vkdt.wstate.old_look_y = vkdt.state.look_at_y;
-    }
-    else if(!vkdt.wstate.pentablet_enabled && button == GLFW_MOUSE_BUTTON_MIDDLE)
-    {
-      dt_gui_dr_zoom();
-    }
   }
 }
 
@@ -284,58 +109,6 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-    return;
-  }
-
-  if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
-  if(dt_gui_imgui_input_blocked()) return;
-
-  // active widgets grabbed input?
-  if(vkdt.wstate.active_widget_modid >= 0)
-  {
-    dt_token_t type =
-      vkdt.graph_dev.module[
-      vkdt.wstate.active_widget_modid].so->param[
-        vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("draw"))
-    {
-      const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
-      if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) // opacity
-        vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
-      else if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) // hardness
-        vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
-      else // radius
-        vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
-      return; // don't zoom, we processed the input
-    }
-  }
-  
-  // zoom:
-  {
-    dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-    if(!out) return; // should never happen
-    assert(out);
-    vkdt.wstate.wd = (float)out->connector[0].roi.wd;
-    vkdt.wstate.ht = (float)out->connector[0].roi.ht;
-
-    const float imwd = vkdt.state.center_wd, imht = vkdt.state.center_ht;
-    const float fit_scale = MIN(imwd/vkdt.wstate.wd, imht/vkdt.wstate.ht);
-    const float scale = vkdt.state.scale <= 0.0f ? fit_scale : vkdt.state.scale;
-    const float im_x = (x - (vkdt.state.center_x + imwd)/2.0f);
-    const float im_y = (y - (vkdt.state.center_y + imht)/2.0f);
-    vkdt.state.scale = scale * (yoff > 0.0f ? 1.1f : 0.9f);
-    vkdt.state.scale = CLAMP(vkdt.state.scale , 0.1f, 8.0f);
-    if(vkdt.state.scale >= fit_scale)
-    {
-      const float dscale = 1.0f/scale - 1.0f/vkdt.state.scale;
-      vkdt.state.look_at_x += im_x  * dscale;
-      vkdt.state.look_at_y += im_y  * dscale;
-    }
-    else
-    {
-      vkdt.state.look_at_x = vkdt.wstate.wd/2.0f;
-      vkdt.state.look_at_y = vkdt.wstate.ht/2.0f;
-    }
   }
 }
 
@@ -352,77 +125,6 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-    return;
-  }
-
-  dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-  if(!out) return; // should never happen
-
-  if(x <= vkdt.state.center_x || x >= vkdt.state.center_x + vkdt.state.center_wd) return;
-  if(dt_gui_imgui_input_blocked()) return;
-  if(vkdt.wstate.active_widget_modid >= 0)
-  {
-    // convert view space mouse coordinate to normalised image
-    float v[] = {(float)x, (float)y}, n[2] = {0};
-    dt_view_to_image(v, n);
-    dt_token_t type =
-      vkdt.graph_dev.module[
-      vkdt.wstate.active_widget_modid].so->param[
-        vkdt.wstate.active_widget_parid]->widget.type;
-    if(type == dt_token("pers"))
-    {
-      if(vkdt.wstate.selected >= 0)
-      {
-        dt_gui_dr_pers_adjust(n, 0);
-        return;
-      }
-    }
-    else if(type == dt_token("straight"))
-    {
-      if(vkdt.wstate.selected > 0)
-      { // only update while still pressed
-        vkdt.wstate.state[3] = x;
-        vkdt.wstate.state[4] = y;
-      }
-      return;
-    }
-    else if(type == dt_token("crop"))
-    {
-      if(vkdt.wstate.selected >= 0)
-      {
-        float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
-        dt_gui_dr_crop_adjust(edge, 0);
-        return; // only count as handled if something was selected
-      }
-    }
-    else if(type == dt_token("pick"))
-    {
-      // TODO: capture mouse position when button is pressed somewhere above!
-      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
-      {
-        vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
-        vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
-        vkdt.wstate.state[2] = MIN(vkdt.wstate.state[2], n[1]);
-        vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
-        return; // we got this
-      }
-    }
-    else if(type == dt_token("draw"))
-    {
-      if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
-        draw_position(n, 1.0f);
-      else
-        draw_position(n, 0.0f);
-    }
-  }
-  if(vkdt.wstate.m_x > 0 && vkdt.state.scale > 0.0f)
-  {
-    int dx = x - vkdt.wstate.m_x;
-    int dy = y - vkdt.wstate.m_y;
-    vkdt.state.look_at_x = vkdt.wstate.old_look_x - dx / vkdt.state.scale;
-    vkdt.state.look_at_y = vkdt.wstate.old_look_y - dy / vkdt.state.scale;
-    vkdt.state.look_at_x = CLAMP(vkdt.state.look_at_x, 0.0f, vkdt.wstate.wd);
-    vkdt.state.look_at_y = CLAMP(vkdt.state.look_at_y, 0.0f, vkdt.wstate.ht);
   }
 }
 
@@ -451,68 +153,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       if(mod->so->input) mod->so->input(mod, &p);
       if(p.type == -1) vkdt.wstate.active_widget_modid = -1;
     }
-    return;
-  }
-  if(dt_gui_imgui_input_blocked()) return;
-#if 0 // def QVK_ENABLE_VALIDATION // reload shaders only in a debug build
-  if(action == GLFW_PRESS && key == GLFW_KEY_R)
-  {
-    // dt_view_switch(s_view_cnt);
-    // view switching will not work because we're doing really wacky things here.
-    // hence we call cleanup and below darkroom_enter() instead.
-    dt_graph_cleanup(&vkdt.graph_dev);
-    dt_pipe_global_cleanup();
-    // this will crash on shutdown.
-    // actually we'd have to shutdown and re-init thumbnails, too
-    // because they hold a graph which holds pointers to global modules.
-    // this would mean to re-init the db, too ..
-    system("make debug"); // build shaders
-    dt_pipe_global_init();
-    dt_pipe.modules_reloaded = 1;
-    darkroom_enter();
-    // dt_view_switch(s_view_darkroom);
-  }
-  else
-#endif
-  if(action == GLFW_PRESS)
-  {
-    if(key == GLFW_KEY_SPACE)
-    {
-      dt_gui_dr_next();
-    }
-    else if(key == GLFW_KEY_BACKSPACE)
-    {
-      dt_gui_dr_prev();
-    }
-    else if(key == GLFW_KEY_TAB)
-    {
-      dt_gui_dr_toggle_fullscreen_view();
-    }
-#define RATE(X)\
-    else if(key == GLFW_KEY_ ## X )\
-    {\
-      const uint32_t ci = dt_db_current_imgid(&vkdt.db); \
-      if(ci != -1u) vkdt.db.image[ci].rating = X;\
-    }
-    RATE(1)
-    RATE(2)
-    RATE(3)
-    RATE(4)
-    RATE(5)
-    RATE(0)
-#undef RATE
-#define LABEL(X)\
-    else if(key == GLFW_KEY_F ## X)\
-    {\
-      const uint32_t ci = dt_db_current_imgid(&vkdt.db); \
-      if(ci != -1u) vkdt.db.image[ci].labels ^= 1<<(X-1);\
-    }
-    LABEL(1)
-    LABEL(2)
-    LABEL(3)
-    LABEL(4)
-    LABEL(5)
-#undef LABEL
   }
 }
 
@@ -561,7 +201,7 @@ darkroom_process()
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
     if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1)
-      vkdt.state.anim_playing = 0; // reached the end, stop.
+      dt_gui_dr_anim_stop(); // reached the end, stop.
   }
   else
   { // if no animation, reset time stamp
@@ -598,8 +238,8 @@ int
 darkroom_enter()
 {
   vkdt.state.anim_frame = 0;
-  vkdt.state.anim_playing = 0;
-  vkdt.wstate.m_x = vkdt.wstate.m_y = -1;
+  dt_gui_dr_anim_stop();
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
   vkdt.wstate.mapped = 0;
@@ -654,22 +294,13 @@ darkroom_enter()
   dt_graph_history_reset(&vkdt.graph_dev);
 
   if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
-  {
-    // TODO: could consider VK_TIMEOUT which sometimes happens on old intel
-    dt_log(s_log_err|s_log_gui, "running the graph failed (%s)!",
+    dt_gui_notification("running the graph failed (%s)!",
         qvk_result_to_string(vkdt.graph_res));
-    dt_graph_cleanup(&vkdt.graph_dev);
-    return 4;
-  }
 
   // nodes are only constructed after running once
   // (could run up to s_graph_run_create_nodes)
   if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
-  {
-    dt_log(s_log_err|s_log_gui, "graph does not contain a display:main node!");
-    dt_graph_cleanup(&vkdt.graph_dev);
-    return 5;
-  }
+    dt_gui_notification("graph does not contain a display:main node!");
 
   // do this after running the graph, it may only know
   // after initing say the output roi, after loading an input file
@@ -677,8 +308,8 @@ darkroom_enter()
 
   // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
-#ifndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
-  darkroom_reset_zoom();
+#if 1//ndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
 #endif
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
@@ -697,6 +328,7 @@ darkroom_enter()
 int
 darkroom_leave()
 {
+  dt_gui_dr_anim_stop();
   char filename[1024];
   dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
   if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
@@ -713,6 +345,7 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
+  vkdt.graph_res = VK_INCOMPLETE; // invalidate
   dt_gamepadhelp_clear();
   return 0;
 }
@@ -730,7 +363,7 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
     if(type == dt_token("draw"))
     {
       float v[] = {(float)x, (float)y}, n[2] = {0};
-      dt_view_to_image(v, n);
+      dt_image_from_view(&vkdt.wstate.img_widget, v, n);
       if(glfwGetMouseButton(qvk.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
         draw_position(n, pressure);
     }

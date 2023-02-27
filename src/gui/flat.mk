@@ -17,21 +17,23 @@ GUI_O=gui/gui.o\
 GUI_H=gui/gui.h\
       gui/render.h\
       gui/render_view.hh\
+      gui/render_darkroom.hh\
       gui/api.h\
       gui/api.hh\
       gui/hotkey.hh\
-      gui/widget_filebrowser.hh\
-      gui/widget_thumbnail.hh\
-      gui/widget_recentcollect.hh\
-      gui/widget_filteredlist.hh\
       gui/widget_draw.hh\
+      gui/widget_filebrowser.hh\
+      gui/widget_filteredlist.hh\
+      gui/widget_image.hh\
+      gui/widget_recentcollect.hh\
+      gui/widget_thumbnail.hh\
       gui/view.h\
       gui/darkroom.h\
-      gui/darkroom-util.h\
       gui/lighttable.h\
       gui/files.h\
       gui/nodes.h\
       core/fs.h\
+      core/tools.h\
       pipe/graph-traverse.inc\
       pipe/graph-history.h\
       pipe/graph-defaults.h

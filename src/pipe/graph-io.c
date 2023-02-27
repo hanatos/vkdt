@@ -154,7 +154,7 @@ read_connection_ascii(
         dt_token_str(mod0), dt_token_str(inst0), dt_token_str(conn0),
         dt_token_str(mod1), dt_token_str(inst1), dt_token_str(conn1));
     dt_log(s_log_pipe, "[read connect] no such modules %d %d", modid0, modid1);
-    return -1;
+    return 1;
   }
   int conid0 = dt_module_get_connector(graph->module+modid0, conn0);
   int conid1 = dt_module_get_connector(graph->module+modid1, conn1);
@@ -173,7 +173,7 @@ read_connection_ascii(
         dt_token_str(graph->module[modid0].connector[conid0].format),
         dt_token_str(graph->module[modid1].connector[conid1].chan),
         dt_token_str(graph->module[modid1].connector[conid1].format));
-    return -err;
+    return err;
   }
   else
   {
@@ -193,7 +193,12 @@ read_module_ascii(
   // in case of failure:
   // discard module id, but remember error state (returns modid=-1)
   int modid = dt_module_add(graph, name, inst);
-  if(modid < 0) return -1; // this is a fatal error
+  if(modid < 0)
+  { // okay this is bad but what can you do. life goes on, maybe the user will fix it:
+    dt_log(s_log_pipe|s_log_err, "failed to add module %"PRItkn" %"PRItkn,
+        dt_token_str(name), dt_token_str(inst));
+    return 1;
+  }
   return 0;
 }
 

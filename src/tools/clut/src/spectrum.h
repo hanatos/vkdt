@@ -23,6 +23,28 @@ spectrum_integrate(
   return out * (cfa_spec[cnt-1][0] - cfa_spec[0][0]) / (double) cnt;
 }
 
+static inline double
+spectrum_interp(
+    const double (*spec)[4],
+    const int      cnt,
+    const int      chn,
+    const double   lambda)
+{
+  if(lambda < spec[0][0])     return 0.0;
+  if(lambda > spec[cnt-1][0]) return 0.0;
+  int i0 = 0, i1 = cnt-1;
+  while(i1 > i0+1)
+  {
+    int   im = (i0+i1)/2;
+    float lm = spec[im][0];
+    if(lm > lambda) i1 = im;
+    else            i0 = im;
+  }
+  double l0 = spec[i0][0];
+  double l1 = spec[i1][0];
+  double t = (lambda - l0)/(l1 - l0);
+  return (1.0-t) * spec[i0][chn+1] + t * spec[i1][chn+1];
+}
 
 // loads up to 4 columns from each row in a space-separated file
 // pass cfa_spec = 0 for a dry run counting lines
@@ -90,7 +112,7 @@ spectrum_chg_interval(
         new_int[i][3] = spec[j][3];
         break;
       }
-      else if (spec[j][0] < w & spec[j+1][0] > w) {  //interpolate between spec[j] and spec[j+1]
+      else if (spec[j][0] < w && spec[j+1][0] > w) {  //interpolate between spec[j] and spec[j+1]
         double interp = (w - spec[j][0]) / (spec[j+1][0] - spec[j][0]);
         new_int[i][1] = spec[j][1] + (spec[j+1][1] - spec[j][1]) * interp;
         new_int[i][2] = spec[j][2] + (spec[j+1][2] - spec[j][2]) * interp;

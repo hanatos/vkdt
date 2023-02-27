@@ -2,6 +2,7 @@
 #include "graph-io.h"
 #include "draw.h"
 #include "module.h"
+#include "cycles.h"
 #include "modules/api.h"
 #include "modules/localsize.h"
 #include "core/log.h"
@@ -339,8 +340,8 @@ allocate_image_array_element(
       | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
     // we will potentially need access to these images from both graphics and compute pipeline:
     .sharingMode           = VK_SHARING_MODE_EXCLUSIVE, // VK_SHARING_MODE_CONCURRENT, 
-    .queueFamilyIndexCount = 0,//2,
-    .pQueueFamilyIndices   = 0,//queues,
+    // .queueFamilyIndexCount = 0,//2,
+    // .pQueueFamilyIndices   = 0,//queues,
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
   uint32_t wd = MAX(1, c->roi.wd), ht = MAX(1, c->roi.ht);
@@ -2001,6 +2002,8 @@ VkResult dt_graph_run(
   // at least one module requested a full rebuild:
   if(module_flags & s_module_request_all) run |= s_graph_run_all;
 
+  if(run & s_graph_run_create_nodes) run |= s_graph_run_all;
+
   // only waiting for the gui thread to draw our output, and only
   // if we intend to clean it up behind their back
   if(graph->gui_attached &&
@@ -2009,8 +2012,8 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc)
   {
-      vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
-      graph->uniform_dset_layout = 0;
+    vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
+    graph->uniform_dset_layout = 0;
     if(!graph->uniform_dset_layout)
     { // init layout of uniform descriptor set:
       VkDescriptorSetLayoutBinding bindings[] = {{
@@ -2083,13 +2086,17 @@ VkResult dt_graph_run(
       if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     }
-    graph->num_nodes = 0;
     graph->conn_image_end = 0;
+    for(int i=0;i<cnt;i++)
+      for(int j=0;j<graph->module[modid[i]].num_connectors;j++)
+        graph->module[modid[i]].connector[j].associated_i =
+          graph->module[modid[i]].connector[j].associated_c = -1;
     for(int i=0;i<graph->num_nodes;i++)
     {
       for(int j=0;j<graph->node[i].num_connectors;j++)
       {
         dt_connector_t *c = graph->node[i].connector+j;
+        c->associated_i = c->associated_c = -1;
         if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
       }
       vkDestroyPipelineLayout     (qvk.device, graph->node[i].pipeline_layout,  0);
@@ -2099,6 +2106,7 @@ VkResult dt_graph_run(
       vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
       dt_raytrace_node_cleanup    (graph->node + i);
     }
+    graph->num_nodes = 0;
     // we need two uint32, alignment is 64 bytes
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
@@ -2637,7 +2645,8 @@ VkResult dt_graph_run(
     }
   }
 
-  QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
+  if(graph->query_cnt)
+    QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
         0, graph->query_cnt,
         sizeof(graph->query_pool_results[0]) * graph->query_max,
         graph->query_pool_results,

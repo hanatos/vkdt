@@ -906,11 +906,13 @@ bool ShouldLinkSnapToPin(
 {
     const ImPinData& end_pin = editor.Pins.Pool[hovered_pin_idx];
 
+#if 0 // no it doesn't
     // The end pin must be in a different node
     if (start_pin.ParentNodeIdx == end_pin.ParentNodeIdx)
     {
         return false;
     }
+#endif
 
     // The end pin must be of a different type
     if (start_pin.Type == end_pin.Type)

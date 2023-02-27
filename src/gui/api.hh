@@ -1,6 +1,7 @@
 #pragma once
 #include "imgui.h"
 #include "widget_filteredlist.hh"
+#include "widget_image.hh"
 extern "C" {
 #include "api.h"
 #include "core/fs.h"
@@ -64,6 +65,7 @@ dt_gui_lt_toggle_select_all()
   else // select all
     for(uint32_t i=0;i<vkdt.db.collection_cnt;i++)
       dt_db_selection_add(&vkdt.db, i);
+  dt_gui_notification("selected %d/%d images", vkdt.db.selection_cnt, vkdt.db.collection_cnt);
 }
 
 inline void
@@ -105,8 +107,8 @@ dt_gui_lt_paste_history()
   {
     if(sel[i] == cid) continue; // don't copy to self
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-    char *dst = realpath(filename, 0);
-    if(!dst) continue;
+    char dst[PATH_MAX];
+    realpath(filename, dst);
     FILE *fout = fopen(dst, "wb");
     if(fout)
     {
@@ -128,7 +130,6 @@ dt_gui_lt_paste_history()
       }
       fclose(fout);
     }
-    free(dst);
   }
   free(buf);
   free(src);
@@ -335,7 +336,7 @@ dt_gui_dr_modals()
         }
         fclose(f);
         vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-        darkroom_reset_zoom();
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
       }
       else
       {
@@ -406,3 +407,11 @@ dt_gui_dr_assign_tag()
   vkdt.wstate.busy += 5;
 }
 
+inline void
+dt_gui_dr_zoom()
+{ // zoom 1:1
+  // where does the mouse look in the current image?
+  double x, y;
+  glfwGetCursorPos(qvk.window, &x, &y);
+  dt_image_zoom(&vkdt.wstate.img_widget, x, y);
+}

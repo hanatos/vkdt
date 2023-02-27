@@ -53,8 +53,6 @@ it follows the current list of available modules.
 
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
-* [saturate: simple rgb saturation](./saturate/readme.md)
-* [spec: spectral colour manipulation/input transform](./spec/readme.md)
 
 **corrective**
 
@@ -62,14 +60,14 @@ it follows the current list of available modules.
 * [deconv: deconvolution sharpening](./deconv/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
+* [negative: invert film negatives](./negative/readme.md)
 
 **tone**
 
 * [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
 * [eq: local contrast equaliser](./eq/readme.md)
 * [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
-* [filmcurv: parametric log + contrast S shaper curve](./filmcurv/readme.md)
-* [filmsim: dummy for future implementation of analog film simulation](./filmsim/readme.md)
+* [filmcurv: display transform curve](./filmcurv/readme.md)
 * [grad: linear gradient density filter](./grad/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
 * [vignette: add/remove parametric vignette](./vignette/readme.md)

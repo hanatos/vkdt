@@ -73,19 +73,12 @@ main()
   }
   else if(params.colourmode == 2)
   { // colour reconstruction using munsell hue constancy.
-    const mat3 xyz_to_rec2020 = mat3(
-        1.7166511880, -0.6666843518, 0.0176398574, 
-        -0.3556707838, 1.6164812366, -0.0427706133, 
-        -0.2533662814, 0.0157685458, 0.9421031212);
-    vec3 xyz0 = inverse(xyz_to_rec2020) * col0;
-    vec2 xy0 = xyz0.xy / dot(vec3(1),xyz0);
-    vec2 m0 = munsell_from_xy(xy0);
-    vec3 xyz1 = inverse(xyz_to_rec2020) * col1;
-    vec2 xy1 = xyz1.xy / dot(vec3(1),xyz1);
-    vec2 m1 = munsell_from_xy(xy1);
-    xy1 = munsell_to_xy(vec2(m0.x, m1.y));
-    xyz1 = vec3(xy1, 1.0-xy1.x-xy1.y) * dot(vec3(1),xyz1);
-    col1 = xyz_to_rec2020 * xyz1;
+    vec3 xyY0 = rec2020_to_xyY(col0);
+    vec2 m0   = munsell_from_xy(xyY0.xy);
+    vec3 xyY1 = rec2020_to_xyY(col1);
+    vec2 m1   = munsell_from_xy(xyY1.xy);
+    xyY1.xy   = munsell_to_xy(vec2(m0.x, m1.y));
+    col1 = xyY_to_rec2020(xyY1);
   }
   else if(params.colourmode == 3)
   { // simple rgb/hsv hack:

@@ -96,14 +96,36 @@
             // feedback connectors only push their deps if not pushed before:
             !(arr[curr].connector[i].flags & s_conn_feedback))
           { // push to stack only unmarked
-            assert((int64_t)sp < (int64_t)(sizeof(stack)/sizeof(stack[0])-1));
+#ifndef __cplusplus
+#if 0
+            if(((int64_t)sp >= (int64_t)(sizeof(stack)/sizeof(stack[0])-1)))
+              fprintf(stderr, "graph cyclic at node %d\n", dt_graph_nodes_are_cyclic(graph));
+#endif
+#endif
+            // assert((int64_t)sp < (int64_t)(sizeof(stack)/sizeof(stack[0])-1));
+            if((int64_t)sp >= (int64_t)(sizeof(stack)/sizeof(stack[0])-1))
+            { sp = sp2 = -1; break; }
             stack[++sp] = el;
+#ifndef __cplusplus
+#if 0
+            if((size_t)arr == (size_t)graph->node) fprintf(stderr, "node %02d %8" PRItkn " %8" PRItkn
+                " <- %02d %8" PRItkn " %8" PRItkn "\n",
+                el,
+                dt_token_str(graph->node[el].name),
+                dt_token_str(graph->node[el].kernel),
+                curr,
+                dt_token_str(graph->node[curr].kernel),
+                dt_token_str(graph->node[curr].connector[i].name));
+#endif
+#endif
             done[sp] = 0;
             if(mark[el] < 1) mark[el] = 1;
           }
           if((mark[el] != 3) && (arr[curr].connector[i].flags & s_conn_feedback)) // only push unfinished feedback connectors
           {
-            assert((int64_t)sp2 < (int64_t)(sizeof(feedback_stack)/sizeof(feedback_stack[0])-1));
+            // assert((int64_t)sp2 < (int64_t)(sizeof(feedback_stack)/sizeof(feedback_stack[0])-1));
+            if((int64_t)sp2 >= (int64_t)(sizeof(feedback_stack)/sizeof(feedback_stack[0])-1))
+            { sp = sp2 = -1; break; }
             feedback_stack[++sp2] = el;
             mark[el] = 1;
           }
