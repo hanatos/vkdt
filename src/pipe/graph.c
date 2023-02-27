@@ -2002,6 +2002,8 @@ VkResult dt_graph_run(
   // at least one module requested a full rebuild:
   if(module_flags & s_module_request_all) run |= s_graph_run_all;
 
+  if(run & s_graph_run_create_nodes) run |= s_graph_run_all;
+
   // only waiting for the gui thread to draw our output, and only
   // if we intend to clean it up behind their back
   if(graph->gui_attached &&
