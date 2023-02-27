@@ -580,8 +580,7 @@ void render_lighttable_right_panel(int hotkey)
     // merge/align images
     if(vkdt.db.selection_cnt > 1)
     if(ImGui::Button("merge into current", size))
-    {
-      // overwrite .cfg for this image file:
+    { // overwrite .cfg for this image file:
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
       char filename[1024] = {0}, realname[PATH_MAX] = {0};
@@ -620,13 +619,14 @@ void render_lighttable_right_panel(int hotkey)
         fprintf(f,
             "connect:i-raw:%02d:output:align:%02d:alignsrc\n"
             "connect:i-raw:%02d:output:align:%02d:input\n"
-            "connect:align:%02d:output:blend:%02d:back\n"
+            "connect:align:%02d:output:blend:%02d:input\n"
             "connect:align:%02d:mask:blend:%02d:mask\n",
             ii, ii, ii, ii, ii, ii, ii, ii);
-        if(ii == 1) fprintf(f, "connect:i-raw:main:output:blend:%02d:input\n", ii);
-        else        fprintf(f, "connect:blend:%02d:output:blend:%02d:input\n", ii-1, ii);
+        if(ii == 1) fprintf(f, "connect:i-raw:main:output:blend:%02d:back\n", ii);
+        else        fprintf(f, "connect:blend:%02d:output:blend:%02d:back\n", ii-1, ii);
         fprintf(f, "connect:i-raw:main:output:align:%02d:aligndst\n", ii);
         fprintf(f,
+            "param:blend:%02d:mode:1\n"
             "param:blend:%02d:opacity:%g\n"
             "param:align:%02d:merge_n:0.05\n"
             "param:align:%02d:merge_k:30\n"
@@ -634,7 +634,7 @@ void render_lighttable_right_panel(int hotkey)
             "param:align:%02d:blur1:16\n"
             "param:align:%02d:blur2:32\n"
             "param:align:%02d:blur3:64\n",
-            ii, pow(0.5, ii),
+            ii, ii, pow(0.5, ii),
             ii, ii, ii, ii, ii, ii);
         ii++;
       }

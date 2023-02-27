@@ -52,7 +52,7 @@ main()
     float mask = texture(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
     // float mask = sample_semisoft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
     // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
-    float t = clamp(params.opacity*mask, 0, 1);
+    float t = clamp(params.opacity*(1.0-mask), 0, 1);
     rgb = mix(bck, rgb, t);
   }
   else if(params.mode == 2)
