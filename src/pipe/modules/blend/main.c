@@ -12,7 +12,7 @@ check_params(
     int oldmode = *(int*)oldval;
     int newmode = dt_module_param_int(module, parid)[0];
     if(oldmode != newmode && (oldmode == 3 || newmode == 3))
-      return s_graph_run_create_nodes;
+      return s_graph_run_all;
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }

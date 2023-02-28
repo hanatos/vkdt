@@ -14,7 +14,7 @@ check_params(
     return dt_api_blur_check_params(oldrad, newrad);
   }
   if(parid == 6) // subsampling changed
-    return s_graph_run_create_nodes;
+    return s_graph_run_all;
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
