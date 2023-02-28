@@ -947,10 +947,10 @@ main()
             mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
             // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
             float G2 = G_cosines(me.x, me.n, t2.y, t2.n);
-            // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f))
+            // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f)) // markov with G
             // if(G == 0 || rand.z < G2 / G)
             // if(rand.z < 0.5)
-            // if(tent.f == 0 || rnd < t2.f / tent.f)
+            // if(tent.f == 0 || rnd < t2.f / tent.f) // this is the markov chain acceptance
             // if(tent.f == 0 || rnd < t2.f / (t2.f + sum)) // XXX reservoir style resampling: markov depends on order?
             if(tent.f == 0 || rnd < t2.f*G2 / (t2.f*G2 + sum))
               tent = t2;

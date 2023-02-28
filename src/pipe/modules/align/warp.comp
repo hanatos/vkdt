@@ -111,7 +111,7 @@ main()
     // float len = length(off.xy);
     // vec3 rgb = vec3(0.0);
     // if(len > 2.0) rgb = vec3(off.xy/max(10.0, len), 0);
-    vec3 rgb = vec3(off.xy, 0) * 0.05;
+    vec3 rgb = vec3(off.xy, 0) * 10.05;
     rgb = clamp((vec3(1.0) + rgb)*.5, vec3(0.0), vec3(1.0));
     imageStore(img_visn, ipos, vec4(rgb, 1));
   }
