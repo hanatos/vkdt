@@ -565,7 +565,8 @@ propagate_ray(
     vec3 w,                   // ray direction
     inout bool underwater,    // start under water? (see params.water for camera rays)
     inout material_info_t m,  // intermediate vertex (if any, or else same as returned)
-    float xi)                 // [0,1) random number for R/T lobe selection
+    float xi,                 // [0,1) random number for R/T lobe selection
+    inout vec3 weight)        // potentially adjust throughput weight
 {
   rayQueryEXT rq;
   const float t_max = T_MAX;
@@ -584,13 +585,14 @@ propagate_ray(
   float fresnel;
   if(underwater) fresnel = r + (1.0-r) * pow(clamp(ior*ior*(1.0 - dot(-w, m.n)*dot(-w, m.n)), 0.0, 1.0), 5.0);
   else           fresnel = r + (1.0-r) * pow(clamp(1.0 - dot(-w, m.n), 0.0, 1.0), 5.0);
-  if(xi < fresnel) return m; // use R lobe (non-singular bsdf, whatever was set in m)
+  if(xi < fresnel) { weight /= fresnel; return m; } // use R lobe (non-singular bsdf, whatever was set in m)
   vec3 wo;
   if(underwater) wo = refract(w, m.n, ior);
   else           wo = refract(w, m.n, 1.0/ior);
   if(all(equal(wo, vec3(0.0)))) return m; // total internal reflection
   underwater = !underwater;
   res = cast_ray(rq, m.x-m.n*0.01, wo, t_max);
+  weight /= (1.0-fresnel);
   return prepare_material_info(m.x, wo, res);
 #endif
 }
@@ -757,7 +759,7 @@ main()
   bool compute_indirect = true;
 
   bool cam_underwater = params.water > 0;
-  m1 = propagate_ray(m0.x, w_cam, cam_underwater, mg, rand.w);
+  m1 = propagate_ray(m0.x, w_cam, cam_underwater, mg, rand.w, rgb_cam);
   v1_nd.x = uintBitsToFloat(geo_encode_normal(mg.n)); // normal
   v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
   // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
@@ -832,7 +834,7 @@ main()
         if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
 
         bool underwater = cam_underwater;
-        m1 = propagate_ray(m0.x, w, underwater, mg, rand.w);
+        m1 = propagate_ray(m0.x, w, underwater, mg, rand.w, rgb);
         // trans = vec4(1.0);
         // res = cast_ray(rq, m0.x, w, 10000.0);
         // if(res.opaque.t < 10000.0)
