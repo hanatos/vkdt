@@ -166,7 +166,6 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 void
 dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
 {
-  assert(mem->ref > 0);
   if(mem->ref)
   {
     mem->ref--;
