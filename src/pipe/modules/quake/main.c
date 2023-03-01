@@ -58,8 +58,8 @@ int init(dt_module_t *mod)
   if(host_initialized) return 0;
 
   qs_data_t *d = mod->data;
-  d->tex_maxw = 1024; // as it turns out, we sometimes adaptively load more textures and thus the max detection isn't robust.
-  d->tex_maxh = 1024; // we would need to re-create nodes every time a new max is detected in QS_load_texture.
+  d->tex_maxw = 2048; // as it turns out, we sometimes adaptively load more textures and thus the max detection isn't robust.
+  d->tex_maxh = 2048; // we would need to re-create nodes every time a new max is detected in QS_load_texture.
 
   // these host parameters are just a pointer with defined linkage in host.c.
   // we'll need to point it to an actual struct (that belongs to us):

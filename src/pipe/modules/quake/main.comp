@@ -717,7 +717,7 @@ main()
   // XXX too long chains/high spp probably means not enough diffuse/bsdf samples to discover things
   // XXX too low means uh? kappa adaptation can't work?
   // XXX still multi-light mixtures are wonky!
-  const int spp = 4; // needs to be a compile time constant (use specialisation?)
+  const int spp = 8; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
@@ -857,6 +857,8 @@ main()
           { // update nee sampling state
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
+            // float f = 1.0; // does not do anything
+            // float f = 1.0/pdf_w; // ditto
             // include bsdf, look worse:
             // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z))/pdf_w;
             float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
@@ -900,7 +902,7 @@ main()
             }
           }
           // XXX clearly different results, looks worse:
-          // tent = curr; // rejected state means the markov chain stays
+          tent = curr; // rejected state means the markov chain stays
 
           m0 = m1; // advance path vertex
         } // end if cast ray intersected anything
