@@ -871,6 +871,8 @@ main()
             // include bsdf, look worse:
             // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z))/pdf_w;
             float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
+            // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z));
+            // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z));
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
             // float a = min(1.0, f / tent.f);
@@ -920,9 +922,20 @@ main()
 
       if(global.frame > 10)
       {
+#if 0 // pick exactly one completely uninformedly
+        rand = xrand(seed, rp);
+        ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + ivec2(15 * (2.0*rand.zw-1.0));
+        mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+        tent = t2;
+#else
         // float G = max(0, -dot(me.n, tent.n));//G_term(me.x, me.n, tent.y, tent.n);
         float G = G_cosines(me.x, me.n, tent.y, tent.n);
+// #define G_ONLY
+#ifdef G_ONLY
+        float sum = G;
+#else
         float sum = tent.f*G; // XXX disregarding current tent looks better/mixes more (??)
+#endif
 #if 1 // random
         for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
         {
@@ -961,15 +974,22 @@ main()
             // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
             float G2 = G_cosines(me.x, me.n, t2.y, t2.n);
             // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f)) // markov with G
+#ifdef G_ONLY
             // if(G == 0 || rand.z < G2 / G)
+            if(G == 0 || rand.z < G2 / (G2 + sum)) // reservoir style geo terms only
+              tent = t2;
+            sum += G2;
+#else
             // if(rand.z < 0.5)
             // if(tent.f == 0 || rnd < t2.f / tent.f) // this is the markov chain acceptance
             // if(tent.f == 0 || rnd < t2.f / (t2.f + sum)) // XXX reservoir style resampling: markov depends on order?
             if(tent.f == 0 || rnd < t2.f*G2 / (t2.f*G2 + sum))
               tent = t2;
             sum += t2.f*G2;
+#endif
           }
         }
+#endif
       }
     } // end spp for indirect rays
   } // end if intersect primary ray
