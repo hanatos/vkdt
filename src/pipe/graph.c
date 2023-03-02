@@ -2758,6 +2758,7 @@ void dt_graph_reset(dt_graph_t *g)
 #endif
   dt_raytrace_graph_reset(g);
   g->gui_attached = 0;
+  g->gui_msg = 0;
   g->active_module = 0;
   g->lod_scale = 0;
   g->runflags = 0;

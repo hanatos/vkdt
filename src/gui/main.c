@@ -332,6 +332,7 @@ int main(int argc, char *argv[])
       dt_gui_recreate_swapchain();
 
     dt_view_process();
+    if(vkdt.graph_dev.gui_msg && vkdt.graph_dev.gui_msg[0]) dt_gui_notification(vkdt.graph_dev.gui_msg);
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 
