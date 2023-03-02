@@ -353,6 +353,13 @@ prepare_material_info(
 
   m.bsdf = 1; // slight rough lobe too
   m.bsdf_param = vec3(0.01);
+  if(m.matgl > 0)
+  { // apply glossiness texture
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.matgl)], 0)*mod(m.st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.matgl)], 0)-1);
+    float gloss = texelFetch(img_tex[nonuniformEXT(m.matgl)], tc, 0).r;
+    m.bsdf_param = vec3(mix(0.2, 0.01, gloss));
+  }
 
 #if 0 // does not work with water (no uvs) and not well in general (primids inconsistent)
   m.instid = inter.opaque.instid;
