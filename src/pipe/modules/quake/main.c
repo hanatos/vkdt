@@ -792,6 +792,7 @@ void commit_params(
 {
   // could print these interesting messages from the map:
   // fprintf(stderr, con_lastcenterstring);
+  graph->gui_msg = con_lastcenterstring;
   qs_data_t *d = module->data;
   int sv_player_set = 0;
   // float *f = (float *)module->committed_param;
@@ -1181,6 +1182,7 @@ int audio(
   qs_data_t *dat = mod->data;
   if(dat->worldspawn)
   {
+    mod->graph->gui_msg = 0;
     mod->flags = s_module_request_all;
     key_dest = key_game;
     m_state = m_none;
