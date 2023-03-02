@@ -705,6 +705,8 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_irradiance)))) return;
 
+  if(params.cl_time < 2.0) return; // stupid last resort fix for level loading in progress :|
+
   uint seed = 19937 * global.frame;
   // today my bluenoise textures are borken. wtf.
   // uint seed = 13370000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
