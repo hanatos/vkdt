@@ -428,24 +428,19 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .samplerYcbcrConversion = 1,
     .pNext                  = &atomic_features,
   };
+  VkPhysicalDeviceMaintenance4Features maintenance4 = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
+    .pNext = &v11f,
+  };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = &v11f,
+    .pNext    = &maintenance4,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
-  VkPhysicalDeviceFeatures2 *tmp = &device_features;
-  while(tmp)
-  { // now find out whether we *really* support 32-bit floating point atomic adds:
-    if(tmp->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT)
-    {
-      VkPhysicalDeviceShaderAtomicFloatFeaturesEXT *af =
-        (VkPhysicalDeviceShaderAtomicFloatFeaturesEXT*)tmp;
-      if(af->shaderImageFloat32AtomicAdd == VK_FALSE)
-        qvk.float_atomics_supported = 0;
-    }
-    tmp = tmp->pNext;
-  }
+  // now find out whether we *really* support 32-bit floating point atomic adds:
+  if(atomic_features.shaderImageFloat32AtomicAdd == VK_FALSE)
+    qvk.float_atomics_supported = 0;
 
   dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics support", picked_device,
       qvk.raytracing_supported ? "with" : "without",
