@@ -947,12 +947,16 @@ int read_geo(
       add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     // for (int i=0; i<cl_max_edicts; i++)
       // add_geo(cl_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+    idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+    idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
     p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now

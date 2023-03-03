@@ -726,7 +726,7 @@ main()
   // XXX too long chains/high spp probably means not enough diffuse/bsdf samples to discover things
   // XXX too low means uh? kappa adaptation can't work?
   // XXX still multi-light mixtures are wonky!
-  const int spp = 8; // needs to be a compile time constant (use specialisation?)
+  const int spp = 1; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
