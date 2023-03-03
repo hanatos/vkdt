@@ -65,6 +65,7 @@ dt_raytrace_graph_cleanup(
   vkGetBufferMemoryRequirements(qvk.device, (BUF), &mr);\
   if(mr.memoryTypeBits) graph->rt.TYPE##_memory_type_bits &= mr.memoryTypeBits;\
   size_t off = graph->rt.TYPE##_end;\
+  mr.alignment = MAX(mr.alignment, 64); \
   BUF##_offset = ((off + (mr.alignment-1)) & ~(mr.alignment-1));\
   graph->rt.TYPE##_end = BUF##_offset + mr.size;\
 } while(0)
