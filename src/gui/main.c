@@ -342,9 +342,9 @@ out:
   dt_view_switch(s_view_cnt);
 
   threads_shutdown();
+  threads_global_cleanup(); // join worker threads before killing their resources
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   dt_thumbnails_cleanup(&vkdt.thumbnail_gen);
-  threads_global_cleanup(); // join worker threads before killing their resources
   dt_gui_cleanup();
   dt_db_cleanup(&vkdt.db);
   dt_pipe_global_cleanup();
