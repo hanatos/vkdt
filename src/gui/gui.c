@@ -292,6 +292,7 @@ void dt_gui_cleanup()
     dt_rc_write(&vkdt.rc, configfile);
   dt_rc_cleanup(&vkdt.rc);
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
+  qvk_cleanup();
   glfwDestroyWindow(qvk.window);
   glfwTerminate();
 }
