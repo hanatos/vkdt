@@ -121,7 +121,10 @@ void render_nodes_right_panel()
       else ImGui::BeginChild(title, ImVec2(0.975*ImGui::GetWindowSize().x,
             MIN(ImGui::GetWindowSize().y, ImGui::GetWindowSize().x*2.0f/3.0f)));
 
-      dt_image(imgw+d, out, 1);
+      if(dsp[d] == dt_token("main"))
+        dt_image(&vkdt.wstate.img_widget, out, 1, 1);
+      else
+        dt_image(imgw+d, out, 1, 0);
       if(popout) ImGui::End();
       else ImGui::EndChild();
     }

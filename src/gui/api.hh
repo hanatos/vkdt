@@ -1,8 +1,8 @@
 #pragma once
 #include "imgui.h"
 #include "widget_filteredlist.hh"
-#include "widget_image.hh"
 extern "C" {
+#include "widget_image.h"
 #include "api.h"
 #include "core/fs.h"
 #include "pipe/modules/api.h"

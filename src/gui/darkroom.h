@@ -10,7 +10,3 @@ void darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, in
 void darkroom_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll);
 void darkroom_process();
 int  darkroom_leave();
-
-void draw_position(
-    float *n,          // image space coordinate
-    float  pressure);  // pressure in [0, 1]

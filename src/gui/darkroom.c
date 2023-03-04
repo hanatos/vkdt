@@ -7,6 +7,7 @@
 #include "gui/view.h"
 #include "gui/render.h"
 #include "gui/darkroom.h"
+#include "gui/widget_image.h"
 #include "pipe/draw.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
@@ -23,53 +24,6 @@
 #include <math.h>
 #include <libgen.h>
 #include <limits.h>
-
-void
-draw_position(
-    float *n,          // image space coordinate
-    float  pressure)   // pressure in [0, 1]
-{
-  float radius   = vkdt.wstate.state[0];
-  float opacity  = vkdt.wstate.state[1];
-  float hardness = vkdt.wstate.state[2];
-  uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-  if(!dat) return; // paranoid segfault shield
-  dt_draw_vert_t *vx = (dt_draw_vert_t *)(dat+1);
-  if(pressure > 0.0f)
-  {
-    static struct timespec beg = {0};
-    float xi = 2.0f*n[0] - 1.0f, yi = 2.0f*n[1] - 1.0f;
-    if(dat[0])
-    { // already have a vertex in the list
-      if(beg.tv_sec)
-      { // avoid spam
-        struct timespec end;
-        clock_gettime(CLOCK_REALTIME, &end);
-        double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
-        if(dt < 1.0/60.0) return; // draw at low frame rates
-        beg = end;
-      }
-      else clock_gettime(CLOCK_REALTIME, &beg);
-      // this cuts off at steps < ~0.005 of the image width
-      const dt_draw_vert_t vo = vx[dat[0]-1];
-      if(vo.x != 0 && vo.y != 0 && fabsf(vo.x - xi) < 0.005 && fabsf(vo.y - yi) < 0.005) return;
-    }
-    if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
-    { // add vertex
-      int v = dat[0]++;
-      vx[v] = dt_draw_vertex(xi, yi, pressure * radius, opacity, hardness);
-    }
-    // trigger draw list upload and recomputation:
-    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_upload_source | s_graph_run_wait_done;
-    vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
-  }
-  else
-  { // write endmarker
-    if(dat[0] && dt_draw_vert_is_endmarker(vx[dat[0]-1])) return; // already have an endmarker
-    if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
-      vx[dat[0]++] = dt_draw_endmarker();
-  }
-}
 
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
@@ -365,7 +319,7 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
       float v[] = {(float)x, (float)y}, n[2] = {0};
       dt_image_from_view(&vkdt.wstate.img_widget, v, n);
       if(glfwGetMouseButton(qvk.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
-        draw_position(n, pressure);
+        dt_gui_dr_draw_position(n, pressure);
     }
   }
 }

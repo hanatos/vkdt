@@ -96,4 +96,3 @@ dt_image_to_view(
   v[0] = ox + (img[0]-0.5f) * scale * w->wd;
   v[1] = oy + (img[1]-0.5f) * scale * w->ht;
 }
-
