@@ -422,8 +422,12 @@ add_particles(
     float vert[4][3];
     if(vtx || ext)
     {
-      for(int k=0;k<4;k++)
-      for(int l=0;l<3;l++) vert[k][l] = p->org[l] + voff[k][l] + (xrand()-0.5) + (xrand()-0.5);
+      for(int l=0;l<3;l++)
+      {
+        float off = 2*(xrand()-0.5) + 2*(xrand()-0.5);
+        for(int k=0;k<4;k++)
+          vert[k][l] = p->org[l] + off + voff[k][l] + (xrand()-0.5) + (xrand()-0.5);
+      }
     }
     if(vtx)
     {
