@@ -913,7 +913,8 @@ main()
             }
           }
           // XXX clearly different results, looks worse:
-          tent = curr; // rejected state means the markov chain stays
+          // tent = curr; // rejected state means the markov chain stays
+          // XXX i think this is because we need to give tent a chance to converge kappa
 
           m0 = m1; // advance path vertex
         } // end if cast ray intersected anything
