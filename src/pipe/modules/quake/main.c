@@ -12,6 +12,16 @@
 #define MAX_IDX_CNT 2000000 // global bounds for dynamic geometry, because lazy programmer
 #define MAX_VTX_CNT 2000000
 
+static uint32_t seed = 1337;
+static inline double
+xrand()
+{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  seed ^= seed << 13;
+  seed ^= seed >> 17;
+  seed ^= seed << 5;
+  return seed / 4294967296.0;
+}
+
 typedef struct qs_data_t
 {
   double       oldtime;
@@ -37,6 +47,7 @@ qs_data_t;
 // also the texture manager will call into us
 static qs_data_t qs_data = {0};
 extern float r_avertexnormals[162][3]; // from r_alias.c
+extern particle_t *active_particles;
 
 int init(dt_module_t *mod)
 {
@@ -384,6 +395,107 @@ encode_normal(
   }
   enc[0] = roundf(CLAMP(-32768.0f, enc0 * 32768.0f, 32767.0f));
   enc[1] = roundf(CLAMP(-32768.0f, enc1 * 32768.0f, 32767.0f));
+}
+
+static void
+add_particles(
+    float    *vtx,   // vertex data, 3f
+    uint32_t *idx,   // triangle indices, 3 per tri
+    int16_t  *ext,
+    uint32_t *vtx_cnt,
+    uint32_t *idx_cnt)
+{
+  uint32_t nvtx = 0, nidx = 0;
+  for(particle_t *p=active_particles;p;p=p->next)
+  {
+    // c = (GLubyte *) &d_8to24table[(int)p->color];
+
+    int numv = 4; // add tet
+    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
+       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
+          return;
+    const float voff[4][3] = {
+      { 0.0,  1.0,  0.0},
+      {-0.5, -0.5, -0.87},
+      {-0.5, -0.5,  0.87},
+      { 1.0, -0.5,  0.0}};
+    float vert[4][3];
+    if(vtx || ext)
+    {
+      for(int k=0;k<4;k++)
+      for(int l=0;l<3;l++) vert[k][l] = p->org[l] + voff[k][l] + (xrand()-0.5) + (xrand()-0.5);
+    }
+    if(vtx)
+    {
+      for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
+    }
+    if(idx)
+    {
+      idx[nidx+3*0+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*0+1] = *vtx_cnt + nvtx+1;
+      idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+
+      idx[nidx+3*1+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*1+1] = *vtx_cnt + nvtx+2;
+      idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
+
+      idx[nidx+3*2+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*2+1] = *vtx_cnt + nvtx+3;
+      idx[nidx+3*2+2] = *vtx_cnt + nvtx+1;
+
+      idx[nidx+3*3+0] = *vtx_cnt + nvtx+1;
+      idx[nidx+3*3+1] = *vtx_cnt + nvtx+2;
+      idx[nidx+3*3+2] = *vtx_cnt + nvtx+3;
+    }
+#if 0 // has no vertex normals and no texture
+    if(ext)
+    {
+      int pi = nidx/3; // start of the tet
+      float n[3], e0[] = {
+        vert[2][0] - vert[0][0],
+        vert[2][1] - vert[0][1],
+        vert[2][2] - vert[0][2]}, e1[] = {
+        vert[1][0] - vert[0][0],
+        vert[1][1] - vert[0][1],
+        vert[1][2] - vert[0][2]};
+      cross(e0, e1, n);
+      encode_normal(ext+14*pi+0, n);
+      encode_normal(ext+14*pi+2, n);
+      encode_normal(ext+14*pi+4, n);
+      encode_normal(ext+14*(pi+1)+0, n);
+      encode_normal(ext+14*(pi+1)+2, n);
+      encode_normal(ext+14*(pi+1)+4, n);
+      if(frame->gltexture)
+      {
+        ext[14*pi+ 6] = float_to_half(0);
+        ext[14*pi+ 7] = float_to_half(1);
+        ext[14*pi+ 8] = float_to_half(0);
+        ext[14*pi+ 9] = float_to_half(0);
+        ext[14*pi+10] = float_to_half(1);
+        ext[14*pi+11] = float_to_half(0);
+
+        ext[14*(pi+1)+ 6] = float_to_half(0);
+        ext[14*(pi+1)+ 7] = float_to_half(1);
+        ext[14*(pi+1)+ 8] = float_to_half(1);
+        ext[14*(pi+1)+ 9] = float_to_half(0);
+        ext[14*(pi+1)+10] = float_to_half(1);
+        ext[14*(pi+1)+11] = float_to_half(1);
+
+        ext[14*pi+12]     = frame->gltexture->texnum;
+        ext[14*pi+13]     = frame->gltexture->texnum; // sprites always emit
+        ext[14*(pi+1)+12] = frame->gltexture->texnum;
+        ext[14*(pi+1)+13] = frame->gltexture->texnum;
+      }
+    }
+#endif
+    nvtx += 4;
+    nidx += 3*4;
+  } // end for all particles
+  *vtx_cnt += nvtx;
+  *idx_cnt += nidx;
 }
 
 static void
@@ -917,6 +1029,7 @@ int read_source(
     // temp entities are in visedicts already
     // for (int i=0; i<cl_max_edicts; i++)
       // add_geo(cl_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
+    add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     p->node->flags |= s_module_request_read_source; // request again
   }
   else if(p->node->kernel == dt_token("stcgeo"))
@@ -947,6 +1060,7 @@ int read_geo(
       add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     // for (int i=0; i<cl_max_edicts; i++)
       // add_geo(cl_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
