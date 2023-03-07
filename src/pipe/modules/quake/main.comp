@@ -866,13 +866,9 @@ main()
           { // update nee sampling state
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
-            // float f = 1.0; // does not do anything
-            // float f = 1.0/pdf_w; // ditto
-            // include bsdf, look worse:
-            // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z))/pdf_w;
-            float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
-            // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z));
-            // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z));
+            // include bsdf, look worse?
+            // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
+            float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z))/pdf_w;
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
             float a = min(1.0, f * G / (curr.f * G_cosines(m0.x, m0.n, curr.y, curr.n)));
@@ -887,10 +883,9 @@ main()
               tent.y = mg.x;
               tent.n = mg.n;
             }
-            // XXX TODO: also if G_term was 0
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
-              tent.y = mg.x; // XXX ???
+              tent.y = mg.x; // XXX update state mean too
               curr = tent;
               curr.f = f;
               curr.y = mg.x;      // create new lobe around good sample
