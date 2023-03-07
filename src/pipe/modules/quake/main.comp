@@ -874,7 +874,8 @@ main()
             // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z));
             // float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z));
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
-            float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
+            // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
+            float a = min(1.0, f * G / (curr.f * G_cosines(m0.x, m0.n, curr.y, curr.n)));
             // float a = min(1.0, f / tent.f);
             rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
@@ -889,6 +890,7 @@ main()
             // XXX TODO: also if G_term was 0
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
+              tent.y = mg.x; // XXX ???
               curr = tent;
               curr.f = f;
               curr.y = mg.x;      // create new lobe around good sample
