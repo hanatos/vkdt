@@ -939,6 +939,7 @@ void commit_params(
     }
   }
 
+#if 1 // set to zero so playdemo works
   if(graph->frame == 10)
   { // to test rocket illumination etc:
     // TODO: execute config file name
@@ -969,6 +970,7 @@ void commit_params(
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
   else
     ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
+#endif
 
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
   for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];

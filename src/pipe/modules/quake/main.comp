@@ -305,8 +305,8 @@ prepare_material_info(
     if(m.flags > 0)
     { // all esoteric surfaces warp
       m.st = vec2(
-          m.st.x + 0.2*sin(m.st.y*2.0 + params.cl_time * 0.01),
-          m.st.y + 0.2*sin(m.st.x*2.0 + params.cl_time * 0.01));
+          m.st.x + 0.2*sin(m.st.y*2.0 + params.cl_time * 1.0),
+          m.st.y + 0.2*sin(m.st.x*2.0 + params.cl_time * 1.0));
     }
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
@@ -494,6 +494,11 @@ vec3 nee_torch(
   ao = clamp(ao, 0.0, 1.0);
   float edf = 4000.0*pow(abs(dot(-ws, params.cam_w.xyz)), 45.0);
   return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
+}
+
+float lum(vec3 rgb)
+{
+  return rgb.r+rgb.g+rgb.b;
 }
 
 raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
@@ -756,8 +761,8 @@ main()
     vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
     if(params.water > 0)
       uv = vec2(
-          uv.x + 0.02*sin(uv.y*5.0 + params.cl_time * 0.01),
-          uv.y + 0.02*sin(uv.x*5.0 + params.cl_time * 0.01));
+          uv.x + 0.02*sin(uv.y*5.0 + params.cl_time * 1.0),
+          uv.y + 0.02*sin(uv.x*5.0 + params.cl_time * 1.0));
     w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
     m0.n = f;
     m0.x += w_cam * 0.02; // push a bit to avoid problems with some level-end cameras
@@ -868,7 +873,7 @@ main()
             // update state of this pixel by sampling forward and back pdf:
             // include bsdf, look worse?
             // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
-            float f = max(rgb.x * m1.emission.x, max(rgb.y * m1.emission.y, rgb.z * m1.emission.z))/pdf_w;
+            float f = lum(rgb * m1.emission)/pdf_w;
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
             float a = min(1.0, f * G / (curr.f * G_cosines(m0.x, m0.n, curr.y, curr.n)));
@@ -886,10 +891,12 @@ main()
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
               tent.y = mg.x; // XXX update state mean too
+              tent.n = mg.n;
+              tent.f = f;
               curr = tent;
-              curr.f = f;
-              curr.y = mg.x;      // create new lobe around good sample
-              curr.n = mg.n;
+              // curr.f = f;
+              // curr.y = mg.x;      // create new lobe around good sample
+              // curr.n = mg.n;
 
 #if 0
               curr.primid = mg.primid;
@@ -918,7 +925,7 @@ main()
         else break; // nothing intersected, can't go on
       } // end bounces
 
-      if(global.frame > 10)
+      if(global.frame > 10 && s < spp-1)
       {
 #if 0 // pick exactly one completely uninformedly
         rand = xrand(seed, rp);
