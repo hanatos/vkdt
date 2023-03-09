@@ -53,6 +53,8 @@ void render_nodes_module(dt_graph_t *g, int m)
     ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(10,10,10,255));
     ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(10,10,10,255));
   }
+  else
+    ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(70,70,70,255));
   ImNodes::BeginNode(m);
 
   ImNodes::BeginNodeTitleBar();
