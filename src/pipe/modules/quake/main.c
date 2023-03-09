@@ -916,7 +916,7 @@ void commit_params(
     double time = ((d->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - d->oldtime;
     Host_Frame(time);
     d->oldtime = newtime;
-    sv_player_set = 1;
+    // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
   }
 
   // in quake, run `record <demo name>` until `stop`
@@ -936,7 +936,6 @@ void commit_params(
     }
   }
 
-#if 0 // set to zero so playdemo works
   if(graph->frame == 10)
   { // to test rocket illumination etc:
     // TODO: execute config file name
@@ -957,17 +956,17 @@ void commit_params(
     sv_player = host_client->edict;
     sv_player_set = 1;
   }
-  if(!sv_player_set) return;
-
-  if(sv_player->v.weapon == 1) // shotgun has torch built in:
-    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
-  else
-    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
-  if(sv_player->v.waterlevel >= 3) // apply crazy underwater effect
-    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
-  else
-    ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
-#endif
+  if(sv_player_set)
+  {
+    if(sv_player->v.weapon == 1) // shotgun has torch built in:
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
+    else
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
+    if(sv_player->v.waterlevel >= 3) // apply crazy underwater effect
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
+    else
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
+  }
 
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
   for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];
