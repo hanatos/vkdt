@@ -857,21 +857,12 @@ void render_darkroom_widgets(
 
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
-#if 0 // TODO: bring this back so that it looks nice and completes the "manage" expander in node view!
-  float lineht = ImGui::GetTextLineHeight();
-  float wd = 0.6f, bwd = 0.16f;
-  ImVec2 csize(bwd*vkdt.state.panel_wd, 1.6*lineht); // size of the co
-nector buttons
-  ImVec2 fsize(0.3*vkdt.state.panel_wd, 1.6*lineht); // size of the fu
-ction buttons
-  ImVec2 hp = ImGui::GetCursorScreenPos();
-  int m_our = module - graph->module;
-  ImGui::PushID(m_our);
+  ImGui::PushID(curr);
+  dt_module_t *module = graph->module+curr;
   if(module->so->has_inout_chain)
   {
     ImGui::PushFont(dt_gui_imgui_get_font(3));
-    if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(1.
-*vkdt.wstate.fontsize, 0)))
+    if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(1.6*vkdt.wstate.fontsize, 0)))
     {
       module->disabled ^= 1;
       vkdt.graph_dev.runflags = s_graph_run_all;
@@ -894,7 +885,6 @@ ction buttons
         "it does not implement a simple input -> output chain");
     ImGui::SameLine();
   }
-#endif
   if(ImGui::CollapsingHeader(name))
   {
     if(!open[curr])
@@ -936,5 +926,6 @@ ction buttons
       render_darkroom_widget(curr, i);
   }
   else open[curr] = 0;
+  ImGui::PopID();
 }
 
