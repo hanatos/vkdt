@@ -12,10 +12,11 @@
 #define MAX_IDX_CNT 2000000 // global bounds for dynamic geometry, because lazy programmer
 #define MAX_VTX_CNT 2000000
 
-static uint32_t seed = 1337;
 static inline double
-xrand()
+xrand(uint32_t reset)
 { // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  static uint32_t seed = 1337;
+  if(reset) seed = 1337;
   seed ^= seed << 13;
   seed ^= seed >> 17;
   seed ^= seed << 5;
@@ -33,6 +34,7 @@ typedef struct qs_data_t
   int32_t      tex_cnt;                   // current number of textures
   uint32_t     tex_maxw, tex_maxh;        // maximum texture size, to allocate staging upload buffer
   uint32_t     skybox[6];                 // 6 cubemap skybox texture ids
+  uint32_t     tex_explosion;             // something emissive for particles
 
   uint32_t     move;                      // for our own debug camera
   double       mx, my;                    // mouse coordinates
@@ -333,6 +335,9 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
     fprintf(stderr, "[load tex] no more free slots for %s!\n", glt->name);
     return;
   }
+  // if(!strcmp(glt->name, "progs/ammo_rockets1.mdl:frame0"))//"progs/s_light.mdl:frame0"))//"textures/#lava1"))//"progs/s_exp_big.spr:frame10"))
+  if(!strcmp(glt->name, "progs/s_exp_big.spr:frame10"))
+    qs_data.tex_explosion = glt->texnum; // HACK: store for emissive rocket particle trails
   qs_data.tex_dim[2*glt->texnum+0] = glt->width;
   qs_data.tex_dim[2*glt->texnum+1] = glt->height;
   if(qs_data.tex[glt->texnum]) free(qs_data.tex[glt->texnum]);
@@ -406,10 +411,10 @@ add_particles(
     uint32_t *idx_cnt)
 {
   uint32_t nvtx = 0, nidx = 0;
+  xrand(1); // reset so we can do reference renders
   for(particle_t *p=active_particles;p;p=p->next)
   {
-    // c = (GLubyte *) &d_8to24table[(int)p->color];
-
+    // c = (GLubyte *) &d_8to24table[(int)p->color]; // that would be the colour. pick texture based on this?
     int numv = 4; // add tet
     if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
        *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
@@ -424,9 +429,9 @@ add_particles(
     {
       for(int l=0;l<3;l++)
       {
-        float off = 2*(xrand()-0.5) + 2*(xrand()-0.5);
+        float off = 2*(xrand(0)-0.5) + 2*(xrand(0)-0.5);
         for(int k=0;k<4;k++)
-          vert[k][l] = p->org[l] + off + voff[k][l] + (xrand()-0.5) + (xrand()-0.5);
+          vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
       }
     }
     if(vtx)
@@ -454,47 +459,39 @@ add_particles(
       idx[nidx+3*3+1] = *vtx_cnt + nvtx+2;
       idx[nidx+3*3+2] = *vtx_cnt + nvtx+3;
     }
-#if 0 // has no vertex normals and no texture
     if(ext)
     {
-      int pi = nidx/3; // start of the tet
-      float n[3], e0[] = {
-        vert[2][0] - vert[0][0],
-        vert[2][1] - vert[0][1],
-        vert[2][2] - vert[0][2]}, e1[] = {
-        vert[1][0] - vert[0][0],
-        vert[1][1] - vert[0][1],
-        vert[1][2] - vert[0][2]};
-      cross(e0, e1, n);
-      encode_normal(ext+14*pi+0, n);
-      encode_normal(ext+14*pi+2, n);
-      encode_normal(ext+14*pi+4, n);
-      encode_normal(ext+14*(pi+1)+0, n);
-      encode_normal(ext+14*(pi+1)+2, n);
-      encode_normal(ext+14*(pi+1)+4, n);
-      if(frame->gltexture)
+      for(int k=0;k<4;k++)
       {
+        int pi = nidx/3 + k; // start of the tet + tri index
+        // float n[3], e0[] = {
+        //   vert[2][0] - vert[0][0],
+        //   vert[2][1] - vert[0][1],
+        //   vert[2][2] - vert[0][2]}, e1[] = {
+        //   vert[1][0] - vert[0][0],
+        //   vert[1][1] - vert[0][1],
+        //   vert[1][2] - vert[0][2]};
+        // cross(e0, e1, n);
+        // encode_normal(ext+14*pi+0, n);
+        // encode_normal(ext+14*pi+2, n);
+        // encode_normal(ext+14*pi+4, n);
+        // encode_normal(ext+14*(pi+1)+0, n);
+        // encode_normal(ext+14*(pi+1)+2, n);
+        // encode_normal(ext+14*(pi+1)+4, n);
+        ext[14*pi+ 0] = 0;
+        ext[14*pi+ 1] = 0;
+        ext[14*pi+ 2] = 0;
+        ext[14*pi+ 3] = 0;
         ext[14*pi+ 6] = float_to_half(0);
         ext[14*pi+ 7] = float_to_half(1);
         ext[14*pi+ 8] = float_to_half(0);
         ext[14*pi+ 9] = float_to_half(0);
         ext[14*pi+10] = float_to_half(1);
         ext[14*pi+11] = float_to_half(0);
-
-        ext[14*(pi+1)+ 6] = float_to_half(0);
-        ext[14*(pi+1)+ 7] = float_to_half(1);
-        ext[14*(pi+1)+ 8] = float_to_half(1);
-        ext[14*(pi+1)+ 9] = float_to_half(0);
-        ext[14*(pi+1)+10] = float_to_half(1);
-        ext[14*(pi+1)+11] = float_to_half(1);
-
-        ext[14*pi+12]     = frame->gltexture->texnum;
-        ext[14*pi+13]     = frame->gltexture->texnum; // sprites always emit
-        ext[14*(pi+1)+12] = frame->gltexture->texnum;
-        ext[14*(pi+1)+13] = frame->gltexture->texnum;
+        ext[14*pi+12] = qs_data.tex_explosion;
+        ext[14*pi+13] = qs_data.tex_explosion;
       }
     }
-#endif
     nvtx += 4;
     nidx += 3*4;
   } // end for all particles
@@ -939,7 +936,7 @@ void commit_params(
     }
   }
 
-#if 1 // set to zero so playdemo works
+#if 0 // set to zero so playdemo works
   if(graph->frame == 10)
   { // to test rocket illumination etc:
     // TODO: execute config file name
