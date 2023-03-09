@@ -21,8 +21,6 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"show history",    "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
   {"redo",            "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
   {"undo",            "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
-  {"add module",      "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
-  {"add block",       "add a prefab block of modules to the graph", {ImGuiKey_LeftCtrl, ImGuiKey_B}},
   {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
   {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
   {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
@@ -49,25 +47,23 @@ enum hotkey_names_t
   s_hotkey_show_history    = 2,
   s_hotkey_redo            = 3,
   s_hotkey_undo            = 4,
-  s_hotkey_module_add      = 5,
-  s_hotkey_block_add       = 6,
-  s_hotkey_assign_tag      = 7,
-  s_hotkey_insert_keyframe = 8,
-  s_hotkey_nodes_enter     = 9,
-  s_hotkey_next_image      = 10,
-  s_hotkey_prev_image      = 11,
-  s_hotkey_fullscreen      = 12,
-  s_hotkey_rate_0          = 13,
-  s_hotkey_rate_1          = 14,
-  s_hotkey_rate_2          = 15,
-  s_hotkey_rate_3          = 16,
-  s_hotkey_rate_4          = 17,
-  s_hotkey_rate_5          = 18,
-  s_hotkey_label_1         = 19,
-  s_hotkey_label_2         = 20,
-  s_hotkey_label_3         = 21,
-  s_hotkey_label_4         = 22,
-  s_hotkey_label_5         = 23,
+  s_hotkey_assign_tag      = 5,
+  s_hotkey_insert_keyframe = 6,
+  s_hotkey_nodes_enter     = 7,
+  s_hotkey_next_image      = 8,
+  s_hotkey_prev_image      = 9,
+  s_hotkey_fullscreen      = 10,
+  s_hotkey_rate_0          = 11,
+  s_hotkey_rate_1          = 12,
+  s_hotkey_rate_2          = 13,
+  s_hotkey_rate_3          = 14,
+  s_hotkey_rate_4          = 15,
+  s_hotkey_rate_5          = 16,
+  s_hotkey_label_1         = 17,
+  s_hotkey_label_2         = 18,
+  s_hotkey_label_3         = 19,
+  s_hotkey_label_4         = 20,
+  s_hotkey_label_5         = 21,
 };
 
 // used to communictate between the gui helper functions
@@ -554,12 +550,6 @@ abort:
     case s_hotkey_undo:
       dt_gui_dr_show_history();
       dt_gui_dr_history_undo();
-      break;
-    case s_hotkey_module_add:
-      dt_gui_dr_module_add();
-      break;
-    case s_hotkey_block_add:
-      ImGui::OpenPopup("insert block");
       break;
     case s_hotkey_assign_tag:
       dt_gui_dr_assign_tag();
