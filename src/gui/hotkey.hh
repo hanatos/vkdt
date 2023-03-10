@@ -160,7 +160,11 @@ namespace ImHotKey
   static void GetHotKeyLib(HotKey *hk, char *buffer, size_t bs)
   {
     buffer[0] = '#'; buffer[1] = '#'; buffer[2] = 0;
-    if(hk->key[0] == 0) return;
+    if(hk->key[0] == 0)
+    {
+      snprintf(buffer, bs, "%s (unassigned)", hk->functionName);
+      return;
+    }
 
     int cnt = 0;
     for(int k=0;k<4&&hk->key[k];k++,cnt++);
