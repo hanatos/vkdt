@@ -62,6 +62,9 @@ src: ext Makefile
 	mkdir -p built/
 	$(MAKE) -C src/
 
+reload-shaders: Makefile
+	$(MAKE) -C src/ reload-shaders
+
 clean:
 	$(MAKE) -C ext/ clean
 	$(MAKE) -C src/ clean
