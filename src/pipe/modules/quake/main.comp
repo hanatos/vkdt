@@ -896,7 +896,9 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-        bool use_vmf = (params.ref == 0) && (s > 0);
+        // bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
+        bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z > 0.125); // bsdf at random in between
+        if(use_vmf) read_neighbour_state(tent, me, ipos, mv, seed, rp);
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
@@ -1003,14 +1005,24 @@ main()
         else break; // nothing intersected, can't go on
       } // end bounces
 
-      if(global.frame > 10 && s < spp-1)
-        read_neighbour_state(tent, me, ipos, mv, seed, rp);
+      // if(global.frame > 10 && s < spp-1) read_neighbour_state(tent, me, ipos, mv, seed, rp);
     } // end spp for indirect rays
   } // end if intersect primary ray
 
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
+#if 1 // randomised version, this is still all wrong
+    float pdf = 0.0;
+    for(int t=0;t<spp;t++)
+    {
+      float pdf_bsdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
+      if(par[t].w == 0.0)
+        pdf += pdf_bsdf;
+      else
+        pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
+    }
+#else
     float pdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
     for(int t=1;t<spp;t++)
     {
@@ -1019,6 +1031,7 @@ main()
       else
         pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
     }
+#endif
     if(any(greaterThan(rad[s], vec3(0.0))))
       irr += rad[s] / pdf;
   }
