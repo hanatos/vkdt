@@ -711,6 +711,84 @@ mc_state_t mc_state_decode(uvec4 enc)
   return r;
 }
 
+void read_neighbour_state(
+    inout mc_state_t tent,
+    material_info_t me,
+    ivec2 ipos,
+    vec2  mv,
+    inout uint seed,
+    const ivec2 rp)
+{
+#if 0 // pick exactly one completely uninformedly
+        vec4 rand = xrand(seed, rp);
+        ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + ivec2(15 * (2.0*rand.zw-1.0));
+        mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+        tent = t2;
+#else
+        // float G = max(0, -dot(me.n, tent.n));//G_term(me.x, me.n, tent.y, tent.n);
+        float G = G_cosines(me.x, me.n, tent.y, tent.n);
+// #define G_ONLY
+#ifdef G_ONLY
+        float sum = G;
+#else
+        float sum = tent.f*G; // XXX disregarding current tent looks better/mixes more (??)
+#endif
+#if 1 // random
+        for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
+        {
+          vec4 rand = xrand(seed, rp);
+          ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
+                      ivec2(15 * (2.0*rand.zw-1.0));
+#elif 0 //dense
+        for(int j=-16;j<=16;j+=2) for(int i=-16;i<=16;i+=2)
+        {
+          ivec2 off = ivec2(i, j);
+#elif 1 // fixed pattern
+        for(int i=0;i<13;i++)
+        {
+          const ivec2 ofs[] = {ivec2(-2, 6), ivec2(6, 2), ivec2(2, -6), ivec2(-2, -6),
+            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
+            ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+            ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)};
+          ivec2 off = ofs[12-i];
+#else // just our very own center pixel
+        {
+          ivec2 off = ivec2(0);
+#endif
+#if 0     // gbuffer based culling experiments. not conclusive. what would be good is to distinguish
+          // between first hit and after-water-propagation hit (store sign bit in depth?)
+          vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv+off), 0);
+          vec3 n = geo_decode_normal(floatBitsToUint(gbuf.x));
+          float dp = gbuf.y, dq = length(me.x - params.cam_x.xyz);
+          float w_n = pow(max(0.0, dot(n, me.n)), 128.0);
+          float w_z = 1.0;//exp(-abs(dp-dq) / 10.0);
+          if(w_n * w_z > 0.2)
+#endif
+          {
+            // rand = xrand(seed, rp);
+            float rnd = mrand(seed);
+            mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+            // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
+            float G2 = G_cosines(me.x, me.n, t2.y, t2.n);
+            // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f)) // markov with G
+#ifdef G_ONLY
+            // if(G == 0 || rand.z < G2 / G)
+            if(G == 0 || rand.z < G2 / (G2 + sum)) // reservoir style geo terms only
+              tent = t2;
+            sum += G2;
+#else
+            // if(rand.z < 0.5)
+            // if(tent.f == 0 || rnd < t2.f / tent.f) // this is the markov chain acceptance
+            // if(tent.f == 0 || rnd < t2.f / (t2.f + sum)) // XXX reservoir style resampling: markov depends on order?
+            if(tent.f == 0 || rnd < t2.f*G2 / (t2.f*G2 + sum))
+              tent = t2;
+            sum += t2.f*G2;
+#endif
+          }
+        }
+#endif
+}
+
 void
 main()
 {
@@ -926,76 +1004,7 @@ main()
       } // end bounces
 
       if(global.frame > 10 && s < spp-1)
-      {
-#if 0 // pick exactly one completely uninformedly
-        rand = xrand(seed, rp);
-        ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + ivec2(15 * (2.0*rand.zw-1.0));
-        mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-        tent = t2;
-#else
-        // float G = max(0, -dot(me.n, tent.n));//G_term(me.x, me.n, tent.y, tent.n);
-        float G = G_cosines(me.x, me.n, tent.y, tent.n);
-// #define G_ONLY
-#ifdef G_ONLY
-        float sum = G;
-#else
-        float sum = tent.f*G; // XXX disregarding current tent looks better/mixes more (??)
-#endif
-#if 1 // random
-        for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
-        {
-          rand = xrand(seed, rp);
-          ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
-                      ivec2(15 * (2.0*rand.zw-1.0));
-#elif 0 //dense
-        for(int j=-16;j<=16;j+=2) for(int i=-16;i<=16;i+=2)
-        {
-          ivec2 off = ivec2(i, j);
-#elif 1 // fixed pattern
-        for(int i=0;i<13;i++)
-        {
-          const ivec2 ofs[] = {ivec2(-2, 6), ivec2(6, 2), ivec2(2, -6), ivec2(-2, -6),
-            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
-            ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
-            ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)};
-          ivec2 off = ofs[12-i];
-#else // just our very own center pixel
-        {
-          ivec2 off = ivec2(0);
-#endif
-#if 0     // gbuffer based culling experiments. not conclusive. what would be good is to distinguish
-          // between first hit and after-water-propagation hit (store sign bit in depth?)
-          vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv+off), 0);
-          vec3 n = geo_decode_normal(floatBitsToUint(gbuf.x));
-          float dp = gbuf.y, dq = length(me.x - params.cam_x.xyz);
-          float w_n = pow(max(0.0, dot(n, me.n)), 128.0);
-          float w_z = 1.0;//exp(-abs(dp-dq) / 10.0);
-          if(w_n * w_z > 0.2)
-#endif
-          {
-            // rand = xrand(seed, rp);
-            float rnd = mrand(seed);
-            mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-            // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
-            float G2 = G_cosines(me.x, me.n, t2.y, t2.n);
-            // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f)) // markov with G
-#ifdef G_ONLY
-            // if(G == 0 || rand.z < G2 / G)
-            if(G == 0 || rand.z < G2 / (G2 + sum)) // reservoir style geo terms only
-              tent = t2;
-            sum += G2;
-#else
-            // if(rand.z < 0.5)
-            // if(tent.f == 0 || rnd < t2.f / tent.f) // this is the markov chain acceptance
-            // if(tent.f == 0 || rnd < t2.f / (t2.f + sum)) // XXX reservoir style resampling: markov depends on order?
-            if(tent.f == 0 || rnd < t2.f*G2 / (t2.f*G2 + sum))
-              tent = t2;
-            sum += t2.f*G2;
-#endif
-          }
-        }
-#endif
-      }
+        read_neighbour_state(tent, me, ipos, mv, seed, rp);
     } // end spp for indirect rays
   } // end if intersect primary ray
 
