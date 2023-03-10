@@ -5,6 +5,7 @@ extern "C"
 #include "pipe/modules/api.h"
 #include "pipe/io.h"
 #include "pipe/graph-history.h"
+#include "pipe/graph-defaults.h"
 #include "nodes.h"
 #include "db/hash.h"
 #include "core/fs.h"
@@ -523,8 +524,14 @@ extern "C" int nodes_enter()
   dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, filename, sizeof(filename));
   uint64_t hash = hash64(filename);
   if(snprintf(datname, sizeof(datname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
-  { // write to ~/.config/vkdt/nodes/<hash>.dat
+  { // read from ~/.config/vkdt/nodes/<hash>.dat
     FILE *f = fopen(datname, "rb");
+    if(!f)
+    { // try initial config for default input module
+      dt_token_t mod = dt_graph_default_input_module(filename);
+      if(snprintf(datname, sizeof(datname), "%s/nodes/default.%" PRItkn ".dat", dt_pipe.homedir, dt_token_str(mod)) < int(sizeof(datname)))
+        f = fopen(datname, "rb");
+    }
     if(f)
     {
       char line[300];
