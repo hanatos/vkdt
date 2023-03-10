@@ -470,9 +470,7 @@ dt_thumbnails_load_one(
   if(dt_pipe.modules_reloaded) return VK_INCOMPLETE;
 
   dt_graph_t *graph = tn->graph;
-  char cfgfilename[PATH_MAX+100] = {0};
   char imgfilename[PATH_MAX+100] = {0};
-  snprintf(cfgfilename, sizeof(cfgfilename), "%s/thumb.cfg", dt_pipe.basedir);
   if(strncmp(filename, "data/", 5))
   { // only hash images that aren't straight from our resource directory:
     // TODO: make sure ./dir/file and dir//file etc turn out to be the same
@@ -482,14 +480,11 @@ dt_thumbnails_load_one(
   else snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename);
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
-  if(stat(cfgfilename, &statbuf)) return VK_INCOMPLETE;
 
   dt_graph_reset(graph);
-  if(dt_graph_read_config_ascii(graph, cfgfilename))
-  {
-    dt_log(s_log_err, "[thm] could not load graph configuration from '%s'!", cfgfilename);
-    return VK_INCOMPLETE;
-  }
+  int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("01"));
+  int m1 = dt_module_add(graph, dt_token("thumb"), dt_token("main"));
+  dt_module_connect(graph, m0, 0, m1, 0);
 
   dt_thumbnail_t *th = 0;
   if(*thumb_index == -1u)
@@ -519,13 +514,7 @@ dt_thumbnails_load_one(
 
   // set param for rawinput
   // get module
-  int modid = dt_module_get(graph, dt_token("i-bc1"), dt_token("01"));
-  if(modid < 0 ||
-     dt_module_set_param_string(graph->module + modid, dt_token("filename"), imgfilename))
-  {
-    dt_log(s_log_err, "[thm] config '%s' has no bc1 input module!", cfgfilename);
-    return VK_INCOMPLETE;
-  }
+  dt_module_set_param_string(graph->module + m0, dt_token("filename"), imgfilename);
 
   // run graph only up to roi computations to get size
   // run all <= create nodes
@@ -537,9 +526,8 @@ dt_thumbnails_load_one(
   }
 
   // now grab roi size from graph's main output node
-  modid = dt_module_get(graph, dt_token("thumb"), dt_token("main"));
-  th->wd = graph->module[modid].connector[0].roi.full_wd;
-  th->ht = graph->module[modid].connector[0].roi.full_ht;
+  th->wd = graph->module[m1].connector[0].roi.full_wd;
+  th->ht = graph->module[m1].connector[0].roi.full_ht;
 
   VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
   VkImageCreateInfo images_create_info = {
