@@ -117,6 +117,7 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 
 # modules
 # ======================
+reload-shaders: $(SPV) Makefile
 modules: $(MOD_DSOS) $(MOD_DSOSXX) $(SPV) $(TOOLTIPS) Makefile
 
 MOD_GLOBAL_DEPS=\

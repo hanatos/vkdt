@@ -15,6 +15,9 @@ sanitize:
 sanitize-thread:
 	$(MAKE) -C .. sanitize-thread
 
+reload-shaders:
+	$(MAKE) -C .. reload-shaders
+
 clean:
 	$(MAKE) -C .. clean
 	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut

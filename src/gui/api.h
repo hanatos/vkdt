@@ -9,6 +9,13 @@
 // can be called from the non-imgui parts of the code.
 
 static inline void
+dt_gui_dr_reload_shaders()
+{
+  system("make reload-shaders");
+  vkdt.graph_dev.runflags = s_graph_run_all;
+}
+
+static inline void
 dt_gui_dr_anim_start()
 {
   vkdt.state.anim_playing = 1;

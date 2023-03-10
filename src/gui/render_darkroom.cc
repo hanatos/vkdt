@@ -39,6 +39,7 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
   {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
   {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
+  {"reload shaders",  "debug: reload shader code while running",    {}},
 };
 
 enum hotkey_names_t
@@ -67,6 +68,7 @@ enum hotkey_names_t
   s_hotkey_label_3         = 21,
   s_hotkey_label_4         = 22,
   s_hotkey_label_5         = 23,
+  s_hotkey_reload_shaders  = 24,
 };
 
 // used to communictate between the gui helper functions
@@ -1305,6 +1307,7 @@ abort:
     case s_hotkey_label_3: dt_gui_label_3(); break;
     case s_hotkey_label_4: dt_gui_label_4(); break;
     case s_hotkey_label_5: dt_gui_label_5(); break;
+    case s_hotkey_reload_shaders: dt_gui_dr_reload_shaders(); break;
     default:;
   }
   dt_gui_dr_modals(); // draw modal windows for presets etc
