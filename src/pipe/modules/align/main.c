@@ -18,8 +18,6 @@ check_params(
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
-// the roi callbacks are only needed for the debug outputs. other than that
-// the default implementation would work fine for us.
 void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
