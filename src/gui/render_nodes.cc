@@ -81,6 +81,19 @@ void render_nodes_module(dt_graph_t *g, int m)
       ImNodes::EndInputAttribute();
       ImNodes::PopAttributeFlag();
     }
+    if(ImGui::IsItemHovered())
+    {
+      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+      ImGui::BeginTooltip();
+      ImGui::PushTextWrapPos(vkdt.state.panel_wd);
+      ImGui::Text("format: %" PRItkn ":%" PRItkn,
+          dt_token_str(mod->connector[c].chan),
+          dt_token_str(mod->connector[c].format));
+      if(mod->connector[c].tooltip)
+        ImGui::TextUnformatted(mod->connector[c].tooltip);
+      ImGui::PopTextWrapPos();
+      ImGui::EndTooltip();
+    }
   }
   ImNodes::EndNode();
   if(mod->disabled) for(int k=0;k<3;k++) ImNodes::PopColorStyle();

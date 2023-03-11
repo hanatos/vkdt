@@ -97,22 +97,6 @@ void dt_gui_set_lod(int lod)
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }
 
-#if 0 // TODO: display this in node editor view 
-      if(ImGui::IsItemHovered())
-      {
-        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-        ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-        ImGui::Text("click to connect, format: %" PRItkn ":%" PRItkn,
-            dt_token_str(module->connector[k].chan),
-            dt_token_str(module->connector[k].format));
-        if(module->connector[k].tooltip)
-          ImGui::TextUnformatted(module->connector[k].tooltip);
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-      }
-#endif
-
 void render_darkroom_favourite()
 { // streamlined "favourite" ui
   dt_graph_t *graph = &vkdt.graph_dev;
