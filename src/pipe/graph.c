@@ -123,6 +123,7 @@ dt_graph_cleanup(dt_graph_t *g)
     if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image,  VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+    g->conn_image_pool[i].buffer = 0;
     g->conn_image_pool[i].image = 0;
     g->conn_image_pool[i].image_view = 0;
   }
@@ -159,6 +160,9 @@ dt_graph_cleanup(dt_graph_t *g)
   g->vkmem_size = g->vkmem_ssbo_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
   vkDestroyFence(qvk.device, g->command_fence, 0);
   vkDestroyQueryPool(qvk.device, g->query_pool, 0);
+  if(g->command_pool != VK_NULL_HANDLE)
+    vkFreeCommandBuffers(qvk.device, g->command_pool, 1, &g->command_buffer);
+  g->command_buffer = VK_NULL_HANDLE;
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
   free(g->module);
   free(g->node);

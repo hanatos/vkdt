@@ -291,6 +291,19 @@ void dt_gui_cleanup()
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
     dt_rc_write(&vkdt.rc, configfile);
   dt_rc_cleanup(&vkdt.rc);
+  dt_graph_cleanup(&vkdt.graph_dev);
+
+  for(int i=0;i<vkdt.image_count;i++)
+  {
+    vkFreeCommandBuffers(qvk.device, vkdt.command_pool[i], 1, &vkdt.command_buffer[i]);
+    vkDestroyCommandPool(qvk.device, vkdt.command_pool[i], 0);
+    vkDestroySemaphore(qvk.device, vkdt.sem_image_acquired[i], 0);
+    vkDestroySemaphore(qvk.device, vkdt.sem_render_complete[i], 0);
+    vkDestroyFence(qvk.device, vkdt.fence[i], 0);
+    vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
+  }
+  if(vkdt.render_pass)
+    vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
   vkDestroyDescriptorPool(qvk.device, vkdt.descriptor_pool, 0);
   qvk_cleanup();
   glfwDestroyWindow(qvk.window);
