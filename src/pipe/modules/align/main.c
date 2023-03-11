@@ -56,6 +56,8 @@ create_nodes(
 {
   const int down = 4;
   const int num_levels = 4; // need more when downscaling less than 4x4 each step
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
   // connect each mosaic input to half, generate grey lum map for both input images
   // by a sequence of half, down4, down4, down4 kernels.
   // then compute distance (dist kernel) coarse to fine, merge best offsets (merge kernel),
@@ -63,7 +65,7 @@ create_nodes(
   dt_roi_t roi[num_levels+1];
   roi[0] = module->connector[0].roi;
   const int32_t p_down = CLAMP(dt_module_param_int(module, dt_module_get_param(module->so, dt_token("sub")))[0], 1, 4);
-  const int block = module->img_param.filters == 9u ? 3 : (module->img_param.filters == 0 ? p_down : 2);
+  const int block = img_param->filters == 9u ? 3 : (img_param->filters == 0 ? p_down : 2);
 
   for(int i=1;i<=num_levels;i++)
   {
@@ -83,8 +85,6 @@ create_nodes(
   const char *fmt_dst = "f16";// "ui8";
 
   int id_down[2][num_levels];
-  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
-  if(!img_param) return;
   uint32_t *blacki = (uint32_t *)img_param->black;
   uint32_t *whitei = (uint32_t *)img_param->white;
   for(int k=0;k<2;k++)
@@ -93,7 +93,7 @@ create_nodes(
         whitei[0], whitei[1], whitei[2], whitei[3],
         img_param->filters, block };
     id_down[k][0] = dt_node_add(graph, module, "align", "half", roi[1].wd, roi[1].ht, 1, sizeof(pc), pc, 2,
-        "input",  "read", module->img_param.filters == 0 ? "rgba" : "rggb", dt_token_str(module->connector[k].format), roi+0,
+        "input",  "read", img_param->filters == 0 ? "rgba" : "rggb", dt_token_str(module->connector[k].format), roi+0,
         "output", "write", "y", fmt_img, roi+1);
     // these are the "alignsrc" and "aligndst" channels:
     dt_connector_copy(graph, module, 3-k, id_down[k][0], 0);
@@ -161,11 +161,11 @@ create_nodes(
   // but would need refinement if more fidelity is required (as input for
   // splatting super res demosaic for instance)
 
-  int pc2[] = { module->img_param.filters, block };
+  int pc2[] = { img_param->filters, block };
   const int id_warp = dt_node_add(graph, module, "align", "warp", roi[0].wd, roi[0].ht, 1, sizeof(pc2), pc2, 5,
-      "input",  "read", module->img_param.filters == 0 ? "rgba" : "rggb", "f16", roi+0,
+      "input",  "read", img_param->filters == 0 ? "rgba" : "rggb", "f16", roi+0,
       "offset", "read", "rg", "f16", roi+1,
-      "output", "write", module->img_param.filters == 0 ? "rgba" : "rggb", "f16", roi+0,
+      "output", "write", img_param->filters == 0 ? "rgba" : "rggb", "f16", roi+0,
       "visn",   "write", "rgba", "ui8", roi+0,
       "mv", "write", "rg", "f16", roi+0);
   dt_connector_copy(graph, module, 0, id_warp, 0);
