@@ -105,10 +105,9 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
   QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
-  if(!dt_pipe.modules_reloaded)
-    for(int i=0;i<g->num_modules;i++)
-      if(g->module[i].name && g->module[i].so->cleanup)
-        g->module[i].so->cleanup(g->module+i);
+  for(int i=0;i<g->num_modules;i++)
+    if(g->module[i].name && g->module[i].so->cleanup)
+      g->module[i].so->cleanup(g->module+i);
   for(int i=0;i<g->num_modules;i++)
   {
     free(g->module[i].keyframe);
