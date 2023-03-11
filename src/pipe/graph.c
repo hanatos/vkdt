@@ -100,6 +100,7 @@ dt_graph_init(dt_graph_t *g)
 void
 dt_graph_cleanup(dt_graph_t *g)
 {
+  if(!g->module) return; // already cleaned up
 #ifdef DEBUG_MARKERS
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
@@ -133,6 +134,7 @@ dt_graph_cleanup(dt_graph_t *g)
     {
       dt_connector_t *c = g->node[i].connector+j;
       if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
+      c->staging = 0;
       if(c->array_alloc)
       { // free any potential residuals of dynamic allocation
         dt_vkalloc_cleanup(c->array_alloc);
@@ -147,30 +149,42 @@ dt_graph_cleanup(dt_graph_t *g)
     vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
     vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
     vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
+    g->node[i].pipeline_layout = 0;
+    g->node[i].pipeline = 0;
+    g->node[i].dset_layout = 0;
+    g->node[i].draw_framebuffer = 0;
+    g->node[i].draw_render_pass = 0;
     dt_raytrace_node_cleanup(g->node + i);
   }
   dt_raytrace_graph_cleanup(g);
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
   vkDestroyBuffer(qvk.device, g->uniform_buffer, 0);
+  g->dset_pool = 0;
+  g->uniform_dset_layout = 0;
+  g->uniform_buffer = 0;
   vkFreeMemory(qvk.device, g->vkmem, 0);
   vkFreeMemory(qvk.device, g->vkmem_ssbo, 0);
   vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
+  g->vkmem = g->vkmem_ssbo = g->vkmem_staging = g->vkmem_uniform = 0;
   g->vkmem_size = g->vkmem_ssbo_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
   vkDestroyFence(qvk.device, g->command_fence, 0);
+  g->command_fence = 0;
   vkDestroyQueryPool(qvk.device, g->query_pool, 0);
+  g->query_pool = 0;
   if(g->command_pool != VK_NULL_HANDLE)
     vkFreeCommandBuffers(qvk.device, g->command_pool, 1, &g->command_buffer);
   g->command_buffer = VK_NULL_HANDLE;
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
-  free(g->module);
-  free(g->node);
-  free(g->params_pool);
-  free(g->conn_image_pool);
-  free(g->query_pool_results);
-  free(g->query_name);
-  free(g->query_kernel);
+  g->command_pool = 0;
+  free(g->module);             g->module = 0;
+  free(g->node);               g->node = 0;
+  free(g->params_pool);        g->params_pool = 0;
+  free(g->conn_image_pool);    g->conn_image_pool = 0;
+  free(g->query_pool_results); g->query_pool_results = 0;
+  free(g->query_name);         g->query_name = 0;
+  free(g->query_kernel);       g->query_kernel = 0;
 }
 
 static inline void *
@@ -2100,12 +2114,18 @@ VkResult dt_graph_run(
         dt_connector_t *c = graph->node[i].connector+j;
         c->associated_i = c->associated_c = -1;
         if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
+        c->staging = 0;
       }
       vkDestroyPipelineLayout     (qvk.device, graph->node[i].pipeline_layout,  0);
       vkDestroyPipeline           (qvk.device, graph->node[i].pipeline,         0);
       vkDestroyDescriptorSetLayout(qvk.device, graph->node[i].dset_layout,      0);
       vkDestroyFramebuffer        (qvk.device, graph->node[i].draw_framebuffer, 0);
       vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
+      graph->node[i].pipeline_layout = 0;
+      graph->node[i].pipeline = 0;
+      graph->node[i].dset_layout = 0;
+      graph->node[i].draw_framebuffer = 0;
+      graph->node[i].draw_render_pass = 0;
       dt_raytrace_node_cleanup    (graph->node + i);
     }
     graph->num_nodes = 0;
@@ -2237,6 +2257,7 @@ VkResult dt_graph_run(
     {
       QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem, 0);
+      graph->vkmem = 0;
     }
     // image data to pass between nodes
     VkMemoryAllocateInfo mem_alloc_info = {
@@ -2256,6 +2277,7 @@ VkResult dt_graph_run(
     {
       QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_ssbo, 0);
+      graph->vkmem_ssbo = 0;
     }
     // image data to pass between nodes
     VkMemoryAllocateInfo mem_alloc_info = {
@@ -2275,6 +2297,7 @@ VkResult dt_graph_run(
     {
       QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
+      graph->vkmem_staging = 0;
     }
     // staging memory to copy to and from device
     VkMemoryAllocateInfo mem_alloc_info_staging = {
@@ -2294,6 +2317,7 @@ VkResult dt_graph_run(
     {
       QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
+      graph->vkmem_uniform = 0;
     }
     // uniform data to pass parameters
     VkBufferCreateInfo buffer_info = {
@@ -2374,8 +2398,8 @@ VkResult dt_graph_run(
           + graph->num_nodes
           + graph->dset_cnt_buffer     + graph->dset_cnt_uniform),
       };
-      if(graph->dset_pool)
-        vkDestroyDescriptorPool(qvk.device, graph->dset_pool, VK_NULL_HANDLE);
+      vkDestroyDescriptorPool(qvk.device, graph->dset_pool, VK_NULL_HANDLE);
+      graph->dset_pool = 0;
       QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &graph->dset_pool));
       graph->dset_cnt_image_read_alloc = graph->dset_cnt_image_read;
       graph->dset_cnt_image_write_alloc = graph->dset_cnt_image_write;
@@ -2760,6 +2784,7 @@ void dt_graph_reset(dt_graph_t *g)
     {
       dt_connector_t *c = g->node[i].connector+j;
       if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
+      c->staging = 0;
       if(c->array_alloc)
       { // free any potential residuals of dynamic allocation
         dt_vkalloc_cleanup(c->array_alloc);
@@ -2774,6 +2799,11 @@ void dt_graph_reset(dt_graph_t *g)
     vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
     vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
     vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
+    g->node[i].pipeline_layout = 0;
+    g->node[i].pipeline = 0;
+    g->node[i].dset_layout = 0;
+    g->node[i].draw_framebuffer = 0;
+    g->node[i].draw_render_pass = 0;
   }
   g->conn_image_end = 0;
   g->num_nodes = 0;
