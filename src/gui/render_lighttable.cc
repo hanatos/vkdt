@@ -5,6 +5,7 @@ extern "C"
 #include "gui/gui.h"
 #include "db/thumbnails.h"
 #include "db/rc.h"
+#include "db/hash.h"
 #include "core/strexpand.h"
 }
 #include "gui/render_view.hh"
@@ -558,6 +559,9 @@ void render_lighttable_right_panel(int hotkey)
       for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+        uint64_t hash = hash64(filename);
+        if(snprintf(realname, sizeof(realname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(realname)))
+          unlink(realname); // maybe remove node positions ~/.config/vkdt/nodes/<hash>.dat
         realpath(filename, realname);
         unlink(realname);
         dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
