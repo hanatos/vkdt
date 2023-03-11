@@ -73,6 +73,7 @@ dt_gui_dr_prev()
   {
     vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
     vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
+    vkdt.graph_dev.runflags = s_graph_run_all; // reprocess first frame
   }
   else
   { // backtrack to last image in lighttable collection
