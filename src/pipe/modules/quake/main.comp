@@ -319,7 +319,8 @@ prepare_material_info(
   else if(m.flags == 2) m.emission =  0.5*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
   else if(m.mat == 0xfff) m.emission = m.emission;//(exp2(m.emission*10.0)-1.0);
-  else m.emission = 10.0*(exp2(m.emission*10.0)-1.0);
+  else m.emission = 10.0*(exp2(m.emission*10.0)-1.0); // looks great on q1 torches
+  // else m.emission = m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0); // more natural colours, better on tfuma/some newer ad stuff
 #if 1
   if(brush_model && m.matnd > 0)
   { // apply normal map
@@ -650,6 +651,13 @@ float G_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
   return max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
 }
 
+float C_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
+{
+  float G = G_cosines(x, nx, y, ny);
+  if(G > 0.0) return 1.0;
+  return 0.0;
+}
+
 uvec4 mc_state_encode(mc_state_t r)
 {
   return uvec4(
@@ -726,7 +734,7 @@ void read_neighbour_state(
         tent = t2;
 #else
         // float G = max(0, -dot(me.n, tent.n));//G_term(me.x, me.n, tent.y, tent.n);
-        float G = G_cosines(me.x, me.n, tent.y, tent.n);
+        float G = C_term(me.x, me.n, tent.y, tent.n);
 // #define G_ONLY
 #ifdef G_ONLY
         float sum = G;
@@ -769,7 +777,7 @@ void read_neighbour_state(
             float rnd = mrand(seed);
             mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
             // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
-            float G2 = G_cosines(me.x, me.n, t2.y, t2.n);
+            float G2 = C_term(me.x, me.n, t2.y, t2.n);
             // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f)) // markov with G
 #ifdef G_ONLY
             // if(G == 0 || rand.z < G2 / G)
@@ -896,9 +904,13 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-        // bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
+#define RANDOMISED_BSDF
+#ifdef RANDOMISED_BSDF
         bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z > 0.125); // bsdf at random in between
         if(use_vmf) read_neighbour_state(tent, me, ipos, mv, seed, rp);
+#else
+        bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
+#endif
         if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
@@ -912,7 +924,8 @@ main()
           pdf_w = vmf_eval(tent.kappa, dot(w, mu));
           float dotn = dot(w, m0.n);
           if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface
-          rgb *= dotn; // we do not sample this (as diffuse/bsdf does) so we need to multiply
+          rgb *= dotn; // radiance now in solid angle space
+          // if(dotn <= 0.0) break; // dead sample XXX
           par[s] = vec4(tent.y, tent.kappa);
         }
         if(!use_vmf)
@@ -920,12 +933,19 @@ main()
           w = bsdf_sample(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, m0.bsdf_param, rand.xy);
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // uniform projected solid angle
+          float dotn = dot(w, m0.n);
+          rgb *= dotn; // radiance now in solid angle space
+          pdf_w *= dotn; // now in solid angle too
           par[s] = vec4(0.0);//vec4(m0.n, 0.0); // normal is clear from gbuf
         }
         // rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
         rgb *= bsdf_eval(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param); // bsdf without albedo
 
-        if(dot(w, m0.ng) <= 0.0) rgb = vec3(0.0); // kill under geo surface paths
+        if(dot(w, m0.ng) <= 0.0)
+        { // kill under geo surface paths
+          rgb = vec3(0.0);
+          break;
+        }
 
         bool underwater = cam_underwater;
         m1 = propagate_ray(m0.x, w, underwater, mg, rand.w, rgb);
@@ -941,8 +961,7 @@ main()
 
           // vertex area measure pdf of x (new vertex)
           // XXX could use the generalised geometry term in case mg != m1:
-          const float G = G_cosines(m0.x, m0.n, m1.x, m1.n);
-          const float pdf = pdf_w * G;
+          const float G = C_term(m0.x, m0.n, m1.x, m1.n);
 
           // handle intersection:
           // * accumulate direct albedo and indirect irradiance channels
@@ -956,9 +975,9 @@ main()
             float f = lum(rgb * m1.emission)/pdf_w;
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
-            float a = min(1.0, f * G / (curr.f * G_cosines(m0.x, m0.n, curr.y, curr.n)));
+            float a = min(1.0, f * G / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
             // float a = min(1.0, f / tent.f);
-            rad[s] = rgb * m1.emission; // store for balance heuristic/cmis
+            rad[s] = rgb * m1.emission; // store radiance in solid angle space for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
@@ -985,10 +1004,12 @@ main()
 #endif
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
               tent.kappa = max(100.0, tent.kappa * 0.5);
+              // curr.kappa = max(100.0, curr.kappa * 0.5);
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else
             { // rejected, maybe try again with different kappa (if not replaced by nbhood)
               tent.kappa = min(200000.0, tent.kappa * 2.0);
+              // curr.kappa = min(200000.0, curr.kappa * 2.0);
 #if 0
               tent.primid = mg.primid;
               tent.instid = mg.instid;
@@ -1005,22 +1026,31 @@ main()
         else break; // nothing intersected, can't go on
       } // end bounces
 
-      // if(global.frame > 10 && s < spp-1) read_neighbour_state(tent, me, ipos, mv, seed, rp);
+#ifndef RANDOMISED_BSDF
+      if(global.frame > 10 && s < spp-1) read_neighbour_state(tent, me, ipos, mv, seed, rp);
+#endif
     } // end spp for indirect rays
   } // end if intersect primary ray
 
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
-#if 1 // randomised version, this is still all wrong
+#ifdef RANDOMISED_BSDF // randomised version, this is still all wrong
     float pdf = 0.0;
-    for(int t=0;t<spp;t++)
+    vec3 w = normalize(lco[s]-me.x);
+    float wdotn = dot(w, me.n);
+    if(params.ref != 0)
     {
-      float pdf_bsdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
-      if(par[t].w == 0.0)
-        pdf += pdf_bsdf;
-      else
-        pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
+      pdf = spp * wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
+    }
+    else for(int t=0;t<spp;t++)
+    {
+      float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
+      pdf += 0.125 * pdf_bsdf;
+      // if(par[t].w == 0.0)
+      //   pdf += 0.875 * pdf_bsdf;
+      // else
+        pdf += 0.875 * vmf_eval(par[t].w, dot(w, normalize(par[t].xyz - me.x)));
     }
 #else
     float pdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);

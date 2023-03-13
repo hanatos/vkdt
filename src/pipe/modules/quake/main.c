@@ -1303,7 +1303,7 @@ int audio(
   if(dat->worldspawn)
   {
     mod->graph->gui_msg = 0;
-    mod->flags = s_module_request_all;
+    mod->flags = s_module_request_all; // TODO: move somewhere else so we can run without audio (from cmdline!). needs to be picked up though!
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
@@ -1317,8 +1317,9 @@ int audio(
 
   // sync: keep old buffer pos, check times, submit only what we need
   static double oldtime = 0.0;
-  double time = cl.time; // use quake game time for audio sync
+  double time = Sys_DoubleTime();
   double newtime = time;
+  if(newtime > oldtime + 30.0/60.0) oldtime = 0.0;
   if(oldtime == 0.0)
     oldtime = newtime - 1.0/60.0; // assume some fps
   // compute number of samples and then bytes required for this timeslot
