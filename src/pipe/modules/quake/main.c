@@ -1317,7 +1317,7 @@ int audio(
 
   // sync: keep old buffer pos, check times, submit only what we need
   static double oldtime = 0.0;
-  double time = Sys_DoubleTime();
+  double time = cl.time; // use quake game time for audio sync
   double newtime = time;
   if(oldtime == 0.0)
     oldtime = newtime - 1.0/60.0; // assume some fps
