@@ -864,8 +864,18 @@ void render_darkroom_widgets(
     ImGui::PushFont(dt_gui_imgui_get_font(3));
     if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(1.6*vkdt.wstate.fontsize, 0)))
     {
-      module->disabled ^= 1;
-      vkdt.graph_dev.runflags = s_graph_run_all;
+      int bad = 0;
+      for(int c=0;c<module->num_connectors;c++)
+        if(module->connector[c].frames > 1) bad = 1;
+      if(bad)
+      {
+        dt_gui_notification("cannot disable a module with feedback connectors!");
+      }
+      else
+      {
+        module->disabled ^= 1;
+        vkdt.graph_dev.runflags = s_graph_run_all;
+      }
     }
     ImGui::PopFont();
     if(ImGui::IsItemHovered())
