@@ -54,6 +54,8 @@ void render_nodes_module(dt_graph_t *g, int m)
     ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(10,10,10,255));
     ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(10,10,10,255));
   }
+  else
+    ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(70,70,70,255));
   ImNodes::BeginNode(m);
 
   ImNodes::BeginNodeTitleBar();
@@ -78,6 +80,19 @@ void render_nodes_module(dt_graph_t *g, int m)
       ImGui::Text("%" PRItkn, dt_token_str(mod->connector[c].name));
       ImNodes::EndInputAttribute();
       ImNodes::PopAttributeFlag();
+    }
+    if(ImGui::IsItemHovered())
+    {
+      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+      ImGui::BeginTooltip();
+      ImGui::PushTextWrapPos(vkdt.state.panel_wd);
+      ImGui::Text("format: %" PRItkn ":%" PRItkn,
+          dt_token_str(mod->connector[c].chan),
+          dt_token_str(mod->connector[c].format));
+      if(mod->connector[c].tooltip)
+        ImGui::TextUnformatted(mod->connector[c].tooltip);
+      ImGui::PopTextWrapPos();
+      ImGui::EndTooltip();
     }
   }
   ImNodes::EndNode();
@@ -122,7 +137,10 @@ void render_nodes_right_panel()
       else ImGui::BeginChild(title, ImVec2(0.975*ImGui::GetWindowSize().x,
             MIN(ImGui::GetWindowSize().y, ImGui::GetWindowSize().x*2.0f/3.0f)));
 
-      dt_image(imgw+d, out, 1);
+      if(dsp[d] == dt_token("main"))
+        dt_image(&vkdt.wstate.img_widget, out, 1, 1);
+      else
+        dt_image(imgw+d, out, 1, 0);
       if(popout) ImGui::End();
       else ImGui::EndChild();
     }

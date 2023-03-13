@@ -2123,9 +2123,9 @@ void StyleColorsDark(ImNodesStyle* dest)
     dest->Colors[ImNodesCol_BoxSelector] = IM_COL32(61, 133, 224, 30);
     dest->Colors[ImNodesCol_BoxSelectorOutline] = IM_COL32(61, 133, 224, 150);
 
-    dest->Colors[ImNodesCol_GridBackground] = IM_COL32(40, 40, 50, 200);
-    dest->Colors[ImNodesCol_GridLine] = IM_COL32(200, 200, 200, 40);
-    dest->Colors[ImNodesCol_GridLinePrimary] = IM_COL32(240, 240, 240, 60);
+    dest->Colors[ImNodesCol_GridBackground] = IM_COL32(20, 20, 20, 200);
+    dest->Colors[ImNodesCol_GridLine] = IM_COL32(100, 100, 100, 40);
+    dest->Colors[ImNodesCol_GridLinePrimary] = IM_COL32(140, 140, 140, 60);
 
     // minimap colors
     dest->Colors[ImNodesCol_MiniMapBackground] = IM_COL32(25, 25, 25, 150);
