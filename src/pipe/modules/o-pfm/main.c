@@ -1,5 +1,4 @@
 #include "modules/api.h"
-#include "core/half.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +11,7 @@ void write_sink(
 {
   const char *basename = dt_module_param_string(module, 0);
   fprintf(stderr, "[o-pfm] writing '%s'\n", basename);
-  uint16_t *p16 = buf;
+  float *pf = buf;
 
   const int width  = module->connector[0].roi.wd;
   const int height = module->connector[0].roi.ht;
@@ -34,10 +33,7 @@ void write_sink(
     fprintf(f, "\n");
     for(size_t k=0;k<width*height;k++)
     {
-      float p32[3] = {
-        half_to_float(p16[4*k+0]),
-        half_to_float(p16[4*k+1]),
-        half_to_float(p16[4*k+2])};
+      float p32[3] = {pf[4*k+0], pf[4*k+1], pf[4*k+2]};
       fwrite(p32, sizeof(float), 3ul, f);
     }
     fclose(f);
