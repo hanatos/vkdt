@@ -680,23 +680,22 @@ void read_neighbour_state(
 {
   float C = C_term(me.x, me.n, tent.y, tent.n);
   float sum = tent.f*C;
-#if 0
+#if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
     vec4 rand = xrand(seed, rp);
     ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
                 ivec2(15 * (2.0*rand.zw-1.0));
 #else
-    {
-    // just our very own center pixel
+    { // just our very own center pixel
     ivec2 off = ivec2(0);
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    float C2 = C_term(me.x, me.n, t2.y, t2.n);
-    if(tent.f == 0 || rnd < t2.f*C2 / (t2.f*C2 + sum))
+    float other = t2.f * C_term(me.x, me.n, t2.y, t2.n);
+    if(tent.f == 0 || rnd < other / (other + sum))
       tent = t2;
-    sum += t2.f*C2;
+    sum += other;
   }
 }
 
@@ -867,8 +866,8 @@ main()
             lco[s] = mg.x; // aim at position on watersurface, if any
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
-#if 0
-              tent.kappa = 50;// XXX clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
+#if 1
+              tent.kappa = clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
               tent.acc = 0.5;
               if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
               tent.f = f;
@@ -887,7 +886,7 @@ main()
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
               // XXX
-#if 0
+#if 1
               tent.y = mg.x; // XXX update state mean too
               tent.n = mg.n;
               tent.f = f;
@@ -900,12 +899,6 @@ main()
               curr.n = mg.n;
               // curr.kappa = max(100.0, curr.kappa * 0.5);
 #endif
-
-#if 0
-              curr.primid = mg.primid;
-              curr.instid = mg.instid;
-              curr.uv     = mg.uv;
-#endif
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
               // tent.kappa = max(100.0, tent.kappa * 0.5);
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
@@ -915,13 +908,8 @@ main()
               // tent.kappa = min(200000.0, tent.kappa * 2.0);
               // tent.kappa = min(65500.0, tent.kappa * 2.0);
               // curr.kappa = min(65500.0, curr.kappa * 2.0);
-#if 0
-              tent.primid = mg.primid;
-              tent.instid = mg.instid;
-              tent.uv     = mg.uv;
-#endif
             }
-#if 0
+#if 1
             // XXX this adjustment in some form is the determining factor for success!
             // use controller based on target acceptance rate of 50%:
             // XXX FIXME: i think some hopeless samples keep increasing kappa, hindering their acceptance!
@@ -951,7 +939,7 @@ main()
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
-#if 1 // DEBUG
+#if 0 // DEBUG
     if(any(greaterThan(rad[s], vec3(0.0))))
     {
       vec3 w = normalize(lco[s]-me.x);
@@ -967,17 +955,17 @@ main()
     float pdf = 0.0;
     vec3 w = normalize(lco[s]-me.x);
     float wdotn = dot(w, me.n);
+    float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
     if(params.ref != 0)
     {
-      pdf = spp * wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
+      pdf = spp * pdf_bsdf;
     }
     else for(int t=0;t<spp;t++)
     {
-      float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
       pdf += 0.125 * pdf_bsdf;
-      // if(par[t].w == 0.0)
-      //   pdf += 0.875 * pdf_bsdf;
-      // else
+      if(par[t].w == 0.0)
+        pdf += 0.875 * pdf_bsdf;
+      else
         pdf += 0.875 * vmf_eval(par[t].w, dot(w, normalize(par[t].xyz - me.x)));
     }
 #else
