@@ -169,11 +169,6 @@ struct material_info_t
   vec3 emission;
   uint bsdf;      // bsdf model id
   vec3 bsdf_param;// extra bsdf params, anisotropic roughness etc
-#if 0
-  int instid;
-  int primid;
-  vec2 uv;
-#endif
 };
 
 intersection_t
@@ -362,12 +357,6 @@ prepare_material_info(
     float gloss = texelFetch(img_tex[nonuniformEXT(m.matgl)], tc, 0).r;
     m.bsdf_param = vec3(mix(0.2, 0.01, gloss));
   }
-
-#if 0 // does not work with water (no uvs) and not well in general (primids inconsistent)
-  m.instid = inter.opaque.instid;
-  m.primid = inter.opaque.primid;
-  m.uv = b.yz;
-#endif
 
 #if WATER_MODE==WATER_MODE_FULL
   if(inter.water.t < inter.opaque.t)
@@ -618,11 +607,6 @@ struct mc_state_t
   float f;              // observed measurement contribution until there (bsdf * G * Le)
   float kappa;          // concentration parameter for vMF
   float acc;            // mean acceptance (exp.avg.)
-#if 0
-  uint instid;          // 16 bit instance id
-  uint primid;          // 16 bit primitive id
-  vec2 uv;              // 2x8 bit barycentrics
-#endif
 };
 
 mc_state_t mc_state_new()
@@ -664,45 +648,12 @@ float C_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
 uvec4 mc_state_encode(mc_state_t r)
 {
   return uvec4(
-#if 1
       packHalf2x16(r.y.xy),
       packHalf2x16(vec2(r.y.z, r.f)),
       packHalf2x16(vec2(r.kappa, r.acc)),
       // uint(r.kappa),
       geo_encode_normal(r.n));
-#else
-      r.instid | (r.primid << 4),
-      // (packSnorm4x8(r.uv.xyxy) & 0xffff) | (packHalf2x16(vec2(r.f))<<16),
-      packHalf2x16(vec2(r.f)),
-      uint(r.kappa),
-      packHalf2x16(r.uv));
-#endif
 }
-
-#if 0
-vec3 mc_state_get_ws_pos(uint instid, uint primid, vec2 uv)
-{
-  vec3 b;
-  b.yz = uv;
-  b.x = 1.0-b.z-b.y;
-  uint i0 = buf_idx[instid].i[3*primid+0];
-  uint i1 = buf_idx[instid].i[3*primid+1];
-  uint i2 = buf_idx[instid].i[3*primid+2];
-  vec3 v0 = vec3(
-      buf_vtx[instid].v[3*i0+0],
-      buf_vtx[instid].v[3*i0+1],
-      buf_vtx[instid].v[3*i0+2]);
-  vec3 v1 = vec3(
-      buf_vtx[instid].v[3*i1+0],
-      buf_vtx[instid].v[3*i1+1],
-      buf_vtx[instid].v[3*i1+2]);
-  vec3 v2 = vec3(
-      buf_vtx[instid].v[3*i2+0],
-      buf_vtx[instid].v[3*i2+1],
-      buf_vtx[instid].v[3*i2+2]);
-  return mat3(v0, v1, v2) * b;
-}
-#endif
 
 mc_state_t mc_state_decode(uvec4 enc)
 {
@@ -716,13 +667,6 @@ mc_state_t mc_state_decode(uvec4 enc)
   r.kappa = ka.x;
   r.acc   = ka.y;
   r.n = geo_decode_normal(enc.w);
-#if 0
-  r.primid = enc.x>>4;
-  r.instid = enc.x & 0xf;
-  r.uv     = unpackHalf2x16(enc.w);//vec2(0.5);//unpackSnorm4x8(enc.y).xy;
-  r.f      = h.y;
-  mc_state_get_ws_pos(r);
-#endif
   return r;
 }
 
@@ -734,74 +678,26 @@ void read_neighbour_state(
     inout uint seed,
     const ivec2 rp)
 {
-#if 0 // pick exactly one completely uninformedly
-        vec4 rand = xrand(seed, rp);
-        ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + ivec2(15 * (2.0*rand.zw-1.0));
-        mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-        tent = t2;
+  float C = C_term(me.x, me.n, tent.y, tent.n);
+  float sum = tent.f*C;
+#if 0
+  for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
+  {
+    vec4 rand = xrand(seed, rp);
+    ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
+                ivec2(15 * (2.0*rand.zw-1.0));
 #else
-        // float G = max(0, -dot(me.n, tent.n));//G_term(me.x, me.n, tent.y, tent.n);
-        float G = C_term(me.x, me.n, tent.y, tent.n);
-// #define G_ONLY
-#ifdef G_ONLY
-        float sum = G;
-#else
-        float sum = tent.f*G; // XXX disregarding current tent looks better/mixes more (??)
+    {
+    // just our very own center pixel
+    ivec2 off = ivec2(0);
 #endif
-#if 1 // random
-        for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
-        {
-          vec4 rand = xrand(seed, rp);
-          ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
-                      ivec2(15 * (2.0*rand.zw-1.0));
-#elif 0 //dense
-        for(int j=-16;j<=16;j+=2) for(int i=-16;i<=16;i+=2)
-        {
-          ivec2 off = ivec2(i, j);
-#elif 1 // fixed pattern
-        for(int i=0;i<13;i++)
-        {
-          const ivec2 ofs[] = {ivec2(-2, 6), ivec2(6, 2), ivec2(2, -6), ivec2(-2, -6),
-            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
-            ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
-            ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)};
-          ivec2 off = ofs[12-i];
-#else // just our very own center pixel
-        {
-          ivec2 off = ivec2(0);
-#endif
-#if 0     // gbuffer based culling experiments. not conclusive. what would be good is to distinguish
-          // between first hit and after-water-propagation hit (store sign bit in depth?)
-          vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv+off), 0);
-          vec3 n = geo_decode_normal(floatBitsToUint(gbuf.x));
-          float dp = gbuf.y, dq = length(me.x - params.cam_x.xyz);
-          float w_n = pow(max(0.0, dot(n, me.n)), 128.0);
-          float w_z = 1.0;//exp(-abs(dp-dq) / 10.0);
-          if(w_n * w_z > 0.2)
-#endif
-          {
-            // rand = xrand(seed, rp);
-            float rnd = mrand(seed);
-            mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-            // float G2 = 1;//dot(me.n,t2.n)>0? 0.0 : 1.0; //max(0, -dot(me.n, t2.n));//G_term(me.x, me.n, t2.y, t2.n);
-            float G2 = C_term(me.x, me.n, t2.y, t2.n);
-            // if(tent.f*G == 0 || rnd < (G2 * t2.f) / (G * tent.f)) // markov with G
-#ifdef G_ONLY
-            // if(G == 0 || rand.z < G2 / G)
-            if(G == 0 || rand.z < G2 / (G2 + sum)) // reservoir style geo terms only
-              tent = t2;
-            sum += G2;
-#else
-            // if(rand.z < 0.5)
-            // if(tent.f == 0 || rnd < t2.f / tent.f) // this is the markov chain acceptance
-            // if(tent.f == 0 || rnd < t2.f / (t2.f + sum)) // XXX reservoir style resampling: markov depends on order?
-            if(tent.f == 0 || rnd < t2.f*G2 / (t2.f*G2 + sum))
-              tent = t2;
-            sum += t2.f*G2;
-#endif
-          }
-        }
-#endif
+    float rnd = mrand(seed);
+    mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+    float C2 = C_term(me.x, me.n, t2.y, t2.n);
+    if(tent.f == 0 || rnd < t2.f*C2 / (t2.f*C2 + sum))
+      tent = t2;
+    sum += t2.f*C2;
+  }
 }
 
 void
@@ -813,17 +709,11 @@ main()
   if(params.cl_time < 2.0) return; // stupid last resort fix for level loading in progress :|
 
   uint seed = 19937 * global.frame;
-  // today my bluenoise textures are borken. wtf.
-  // uint seed = 13370000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
   const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
-  // XXX 64 looks worse than 16, 8 starts to be wonky and 4 has none of the grids in s1.sav:
-  // XXX too long chains/high spp probably means not enough diffuse/bsdf samples to discover things
-  // XXX too low means uh? kappa adaptation can't work?
-  // XXX still multi-light mixtures are wonky!
   const int spp = 8; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
@@ -888,11 +778,6 @@ main()
       compute_indirect = false;
     }
     else alb = m1.albedo; // directly visible albedo
-    // else alb = mod(0.05 * mc_state_get_ws_pos(m1.instid, m1.primid, m1.uv), vec3(1)); // this works
-    // else alb = vec3((m1.primid % 256)/256.0); // are not staying consistent between frames :/
-    // else alb = vec3(pow(abs(dot(m1.n,w_cam)), 10)); // debug normals
-    // else alb = vec3(pow(abs(dot(geo_decode_normal(geo_encode_normal(m1.n)),w_cam)), 10)); // debug normals
-    // else alb = mod(m1.x*0.05, vec3(1)); // debug world space position
 
     me = m1; // store g-buffer-like primary ray result
 
@@ -932,7 +817,7 @@ main()
           float dotn = dot(w, m0.n);
           if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           rgb *= dotn; // radiance now in solid angle space
-          // if(dotn <= 0.0) break; // dead sample XXX
+          if(dotn <= 0.0) break; // dead sample XXX
           par[s] = vec4(tent.y, tent.kappa);
         }
         if(!use_vmf)
@@ -945,8 +830,8 @@ main()
           pdf_w *= dotn; // now in solid angle too
           par[s] = vec4(0.0);//vec4(m0.n, 0.0); // normal is clear from gbuf
         }
-        // rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
-        rgb *= bsdf_eval(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param); // bsdf without albedo
+        rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
+        // rgb *= bsdf_eval(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param); // bsdf without albedo
 
         if(dot(w, m0.ng) <= 0.0)
         { // kill under geo surface paths
@@ -956,19 +841,13 @@ main()
 
         bool underwater = cam_underwater;
         m1 = propagate_ray(m0.x, w, underwater, mg, rand.w, rgb);
-        // trans = vec4(1.0);
-        // res = cast_ray(rq, m0.x, w, 10000.0);
-        // if(res.opaque.t < 10000.0)
         if(m1.t < T_MAX)
         { // ray intersected geometry, init material state and tangent frame
-          // m1 = prepare_material_info(m0.x, w, res);
           const float T = exp(-m1.t * 3.);
           rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-          // rgb = mix(trans.rgb, rgb, trans.w);
 
           // vertex area measure pdf of x (new vertex)
-          // XXX could use the generalised geometry term in case mg != m1:
-          const float G = C_term(m0.x, m0.n, m1.x, m1.n);
+          const float C = C_term(m0.x, m0.n, m1.x, m1.n);
 
           // handle intersection:
           // * accumulate direct albedo and indirect irradiance channels
@@ -982,16 +861,15 @@ main()
             float f = lum(rgb * m1.emission)/pdf_w;
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
-            float a = min(1.0, f * G / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
+            float a = min(1.0, f * C / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
             // float a = min(1.0, f / tent.f);
             rad[s] = rgb * m1.emission; // store radiance in solid angle space for balance heuristic/cmis
             lco[s] = mg.x; // aim at position on watersurface, if any
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
-              // tent.kappa = clamp(800.0 + 900.0*m1.t, 100, 200000); // XXX total distance?
-#if 1
-              tent.kappa = clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
-              tent.acc = 0.0;
+#if 0
+              tent.kappa = 50;// XXX clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
+              tent.acc = 0.5;
               if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
               tent.f = f;
               tent.y = mg.x;
@@ -1005,21 +883,22 @@ main()
               curr.n = mg.n;
 #endif
             }
+            const float acc_hist_alpha = 0.9;
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
               // XXX
-#if 1
+#if 0
               tent.y = mg.x; // XXX update state mean too
               tent.n = mg.n;
               tent.f = f;
-              tent.acc = mix(1.0, tent.acc, 0.97);
+              tent.acc = mix(1.0, tent.acc, acc_hist_alpha);
               curr = tent;
 #else
               // XXX
               curr.f = f;
               curr.y = mg.x;      // create new lobe around good sample
               curr.n = mg.n;
-              curr.kappa = max(100.0, curr.kappa * 0.5);
+              // curr.kappa = max(100.0, curr.kappa * 0.5);
 #endif
 
 #if 0
@@ -1032,7 +911,7 @@ main()
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else
             { // rejected, maybe try again with different kappa (if not replaced by nbhood)
-              tent.acc = mix(0.0, tent.acc, 0.97);
+              tent.acc = mix(0.0, tent.acc, acc_hist_alpha);
               // tent.kappa = min(200000.0, tent.kappa * 2.0);
               // tent.kappa = min(65500.0, tent.kappa * 2.0);
               // curr.kappa = min(65500.0, curr.kappa * 2.0);
@@ -1042,10 +921,17 @@ main()
               tent.uv     = mg.uv;
 #endif
             }
+#if 0
             // XXX this adjustment in some form is the determining factor for success!
             // use controller based on target acceptance rate of 50%:
+            // XXX FIXME: i think some hopeless samples keep increasing kappa, hindering their acceptance!
+            // XXX FIXME: limit
             float d = 100.*(0.5 - tent.acc);
             tent.kappa = clamp(tent.kappa * (1.0 + d), 100.0, 65500.0);
+            // if(tent.acc < 0.2)// XXX 1.0-acc_hist_alpha)
+            if(tent.acc < 1.0-acc_hist_alpha)
+              tent.kappa = 50.0; // reset
+#endif
           }
           // XXX clearly different results, looks worse:
           // tent = curr; // rejected state means the markov chain stays
@@ -1065,6 +951,18 @@ main()
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
+#if 1 // DEBUG
+    if(any(greaterThan(rad[s], vec3(0.0))))
+    {
+      vec3 w = normalize(lco[s]-me.x);
+      float wdotn = dot(w, me.n);
+      float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
+      float pdf = 0.125 * pdf_bsdf;
+      if(par[s].w == 0.0) pdf += 0.875 * pdf_bsdf;
+      else pdf += 0.875 * vmf_eval(par[s].w, dot(w, normalize(par[s].xyz - me.x)));
+      irr += rad[s] / (spp * pdf);
+    }
+#else
 #ifdef RANDOMISED_BSDF // randomised version, this is still all wrong
     float pdf = 0.0;
     vec3 w = normalize(lco[s]-me.x);
@@ -1094,10 +992,11 @@ main()
 #endif
     if(any(greaterThan(rad[s], vec3(0.0))))
       irr += rad[s] / pdf;
+#endif
   }
 
   // vec4 deb = vec4(curr.kappa*0.001, curr.acc, 0, 1.0);
-  vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.), 0, 0, 1.0);
+  vec4 deb = vec4(curr.kappa/(curr.kappa + 500.0), curr.acc, 0, 1.0);
   // vec4 deb = vec4(0.0, curr.acc, 0, 1.0);
   imageStore(img_debug, ipos, deb);
 
