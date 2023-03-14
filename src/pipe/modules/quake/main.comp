@@ -57,6 +57,7 @@ layout(set = 1, binding = 8) uniform sampler2D img_mv;
 
 layout(set = 1, binding =  9) uniform sampler2D img_gbuf_in;
 layout(set = 1, binding = 10) uniform writeonly image2D img_gbuf_out;
+layout(set = 1, binding = 11) uniform writeonly image2D img_debug;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
@@ -988,25 +989,38 @@ main()
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
               // tent.kappa = clamp(800.0 + 900.0*m1.t, 100, 200000); // XXX total distance?
+#if 1
               tent.kappa = clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
               tent.acc = 0.0;
               if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
               tent.f = f;
               tent.y = mg.x;
               tent.n = mg.n;
+#else // seems this also works a bit but adapts slower
+              curr.kappa = clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
+              curr.acc = 0.0;
+              if(m1.mat == 0xfff) curr.kappa = 50; // sky is smooth
+              curr.f = f;
+              curr.y = mg.x;
+              curr.n = mg.n;
+#endif
             }
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
               // XXX
+#if 1
               tent.y = mg.x; // XXX update state mean too
               tent.n = mg.n;
               tent.f = f;
-              tent.acc = mix(1.0, tent.acc, 0.9);
+              tent.acc = mix(1.0, tent.acc, 0.97);
               curr = tent;
+#else
               // XXX
-              // curr.f = f;
-              // curr.y = mg.x;      // create new lobe around good sample
-              // curr.n = mg.n;
+              curr.f = f;
+              curr.y = mg.x;      // create new lobe around good sample
+              curr.n = mg.n;
+              curr.kappa = max(100.0, curr.kappa * 0.5);
+#endif
 
 #if 0
               curr.primid = mg.primid;
@@ -1015,23 +1029,23 @@ main()
 #endif
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
               // tent.kappa = max(100.0, tent.kappa * 0.5);
-              // curr.kappa = max(100.0, curr.kappa * 0.5);
             } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
             else
             { // rejected, maybe try again with different kappa (if not replaced by nbhood)
-              tent.acc = mix(0.0, tent.acc, 0.9);
+              tent.acc = mix(0.0, tent.acc, 0.97);
               // tent.kappa = min(200000.0, tent.kappa * 2.0);
               // tent.kappa = min(65500.0, tent.kappa * 2.0);
-              // curr.kappa = min(200000.0, curr.kappa * 2.0);
+              // curr.kappa = min(65500.0, curr.kappa * 2.0);
 #if 0
               tent.primid = mg.primid;
               tent.instid = mg.instid;
               tent.uv     = mg.uv;
 #endif
             }
+            // XXX this adjustment in some form is the determining factor for success!
             // use controller based on target acceptance rate of 50%:
-            // float d = 100.*(0.5 - tent.acc);
-            // tent.kappa = clamp(tent.kappa * (1.0 + d), 100.0, 65500.0);
+            float d = 100.*(0.5 - tent.acc);
+            tent.kappa = clamp(tent.kappa * (1.0 + d), 100.0, 65500.0);
           }
           // XXX clearly different results, looks worse:
           // tent = curr; // rejected state means the markov chain stays
@@ -1081,6 +1095,11 @@ main()
     if(any(greaterThan(rad[s], vec3(0.0))))
       irr += rad[s] / pdf;
   }
+
+  // vec4 deb = vec4(curr.kappa*0.001, curr.acc, 0, 1.0);
+  vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.), 0, 0, 1.0);
+  // vec4 deb = vec4(0.0, curr.acc, 0, 1.0);
+  imageStore(img_debug, ipos, deb);
 
   vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
   gbuf.x = uintBitsToFloat(geo_encode_normal(me.n)); // normal

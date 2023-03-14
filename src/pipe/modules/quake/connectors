@@ -3,3 +3,4 @@ blue:read:*:*
 aov:write:rgba:f16
 mv:read:rg:f16
 gbuf:write:rgba:f32
+debug:write:rgba:f16

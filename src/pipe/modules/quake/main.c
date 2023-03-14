@@ -897,6 +897,7 @@ void modify_roi_out(
     .noise_b        = 0.0,
     .orientation    = 0,
   };
+  mod->connector[5].roi = mod->connector[0].roi; // debug connector
 }
 
 void commit_params(
@@ -1089,86 +1090,23 @@ create_nodes(
   qs_data_t *d = module->data;
 
   // ray tracing kernel:
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_rt = graph->num_nodes++;
-  graph->node[id_rt] = (dt_node_t) {
-    .name   = dt_token("quake"),
-    .kernel = dt_token("main"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 11,
-    .connector = {{ // 0
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    },{ // 1
-      .name   = dt_token("stcgeo"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .connected_mi = -1,
-    },{ // 2
-      .name   = dt_token("dyngeo"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .connected_mi = -1,
-    },{ // 3
-      .name   = dt_token("tex"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("*"),
-      .format = dt_token("*"),
-      .connected_mi = -1,
-    },{ // 4
-      .name   = dt_token("blue"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("*"),
-      .format = dt_token("*"),
-      .connected_mi = -1,
-    },{ // 5
-      .name   = dt_token("aov"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    },{ // 6
-      .name   = dt_token("nee_in"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("ui32"),
-      .connected_mi = -1,
-    },{ // 7
-      .name   = dt_token("nee_out"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("ui32"),
-      .roi    = module->connector[0].roi,
-      .flags  = s_conn_clear, // init with zero weights/counts
-    },{ // 8
-      .name   = dt_token("mv"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rg"),
-      .format = dt_token("f16"),
-      .connected_mi = -1,
-    },{ // 9
-      .name   = dt_token("gbuf_in"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .connected_mi = -1,
-    },{ // 10
-      .name   = dt_token("gbuf_out"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[0].roi,
-      .flags  = s_conn_clear, // init with zero
-    }},
-  };
+  int id_rt = dt_node_add(graph, module, "quake", "main", 
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
+      "output",   "write", "rgba", "f16",  &module->connector[0].roi, // 0
+      "stcgeo",   "read",  "ssbo", "geo",  -1ul,                      // 1
+      "dyngeo",   "read",  "ssbo", "geo",  -1ul,                      // 2
+      "tex",      "read",  "*",    "*",    -1ul,                      // 3
+      "blue",     "read",  "*",    "*",    -1ul,                      // 4
+      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 5
+      "nee_in",   "read",  "rgba", "ui32", -1ul,                      // 6
+      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 7
+      "mv",       "read",  "rg",   "f16",  -1ul,                      // 8
+      "gbuf_in",  "read",  "rgba", "f32",  -1ul,                      // 9
+      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 10
+      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 11
+  graph->module[id_rt].connector[ 7].flags |= s_conn_clear;
+  graph->module[id_rt].connector[10].flags |= s_conn_clear;
+
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_tex = graph->num_nodes++;
   graph->node[id_tex] = (dt_node_t) {
@@ -1288,6 +1226,7 @@ create_nodes(
   dt_connector_copy(graph, module, 2, id_rt,  5); // output aov image
   dt_connector_copy(graph, module, 3, id_rt,  8); // motion vectors from outside
   dt_connector_copy(graph, module, 4, id_rt, 10); // gbuf output (n, d, mu_1, mu_2)
+  dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
 
   // propagate up so things will start to move at all at the node level:
   module->flags = s_module_request_read_geo | s_module_request_read_source;
