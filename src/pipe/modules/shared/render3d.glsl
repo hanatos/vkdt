@@ -25,6 +25,14 @@ uint geo_encode_normal(vec3 n)
   return packSnorm2x16(enc);
 }
 
+// sample sphere, p = 1/4pi
+vec3 sample_sphere(vec2 x)
+{
+  float z = 2.0*(x.x-0.5);
+  float z2 = sqrt(1.0-z*z);
+  return vec3(z2 * cos(2.0*M_PI*x.y), z2 * sin(2.0*M_PI*x.y), z);
+}
+
 // sample hemisphere, cos lobe, p = cos(theta)/pi
 vec3 sample_cos(vec2 x)
 {

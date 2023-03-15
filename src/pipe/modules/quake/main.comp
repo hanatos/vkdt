@@ -804,13 +804,17 @@ main()
 #else
         bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
 #endif
-        // XXX if(tent.f == 0) use_vmf = false;
+        if(tent.f == 0) use_vmf = false; // XXX probably wrong in general
         if(use_vmf)
         {
-          // tent.kappa = .1 + 250.0 * rand.z; // XXX
+#if 0 // XXX DEBUG SMIS
           tent.kappa = -log(1.0-rand.z) * 50.0;
+          rand = xrand(seed, rp);
+          vec3 mu = sample_sphere(rand.zw);
+#else
+          vec3 mu = normalize(tent.y-m0.x);
+#endif
           w = vmf_sample(tent.kappa, rand.xy);
-          vec3 mu = m0.n; // XXX normalize(tent.y-m0.x);
           vec3 up = vec3(1,0,0), du, dv;
           if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
           du = normalize(cross(up, mu));
@@ -818,11 +822,10 @@ main()
           pdf_w = vmf_eval(tent.kappa, w.z);
           w = w.x * du + w.y * dv + w.z * mu;
           float dotn = dot(w, m0.n);
-          if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           rgb *= dotn; // radiance now in solid angle space
+          par[s] = vec4(mu, tent.kappa);
+          // if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface XXX probably wrong in general
           if(dotn <= 0.0) break; // dead sample XXX
-          // XXX par[s] = vec4(tent.y, tent.kappa);
-          par[s] = vec4(m0.x + m0.n, tent.kappa); // XXX
         }
         if(!use_vmf)
         { // sample independent new ray direction
@@ -835,7 +838,6 @@ main()
           par[s] = vec4(0.0);//vec4(m0.n, 0.0); // normal is clear from gbuf
         }
         rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
-        // rgb *= bsdf_eval(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param); // bsdf without albedo
 
         if(dot(w, m0.ng) <= 0.0)
         { // kill under geo surface paths
@@ -952,7 +954,7 @@ main()
       float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
       float pdf = BSDF_P * pdf_bsdf;
       if(par[s].w == 0.0) pdf += (1.0-BSDF_P) * pdf_bsdf;
-      else pdf += (1.0-BSDF_P) * vmf_eval(par[s].w, dot(w, normalize(par[s].xyz - me.x)));
+      else pdf += (1.0-BSDF_P) * vmf_eval(par[s].w, dot(w, par[s].xyz));
       irr += rad[s] / (spp * pdf);
     }
 #else
@@ -972,7 +974,7 @@ main()
       if(par[t].w == 0.0)
         pdf += (1.0-BSDF_P) * pdf_bsdf;
       else
-        pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(w, normalize(par[t].xyz - me.x)));
+        pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(w, par[t].xyz));
     }
 #else
     float pdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
@@ -981,7 +983,7 @@ main()
       if(par[t].w == 0.0)
         pdf += bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
       else
-        pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), normalize(par[t].xyz - me.x)));
+        pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), par[t].xyz);
     }
 #endif
     if(any(greaterThan(rad[s], vec3(0.0))))

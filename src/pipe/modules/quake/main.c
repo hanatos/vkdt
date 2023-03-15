@@ -35,6 +35,7 @@ typedef struct qs_data_t
   uint32_t     tex_maxw, tex_maxh;        // maximum texture size, to allocate staging upload buffer
   uint32_t     skybox[6];                 // 6 cubemap skybox texture ids
   uint32_t     tex_explosion;             // something emissive for particles
+  uint32_t     tex_blood;                 // for blood particles
 
   uint32_t     move;                      // for our own debug camera
   double       mx, my;                    // mouse coordinates
@@ -335,8 +336,9 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
     fprintf(stderr, "[load tex] no more free slots for %s!\n", glt->name);
     return;
   }
-  // if(!strcmp(glt->name, "progs/ammo_rockets1.mdl:frame0"))//"progs/s_light.mdl:frame0"))//"textures/#lava1"))//"progs/s_exp_big.spr:frame10"))
-  if(!strcmp(glt->name, "progs/s_exp_big.spr:frame10"))
+  if(!strcmp(glt->name, "progs/gib_1.mdl:frame0")) // makes okay blood (non-emissive)
+    qs_data.tex_blood = glt->texnum;
+  if(!strcmp(glt->name, "progs/s_exp_big.spr:frame10")) // makes good sparks
     qs_data.tex_explosion = glt->texnum; // HACK: store for emissive rocket particle trails
   qs_data.tex_dim[2*glt->texnum+0] = glt->width;
   qs_data.tex_dim[2*glt->texnum+1] = glt->height;
@@ -414,7 +416,12 @@ add_particles(
   xrand(1); // reset so we can do reference renders
   for(particle_t *p=active_particles;p;p=p->next)
   {
-    // c = (GLubyte *) &d_8to24table[(int)p->color]; // that would be the colour. pick texture based on this?
+    uint8_t *c = (uint8_t *) &d_8to24table[(int)p->color]; // that would be the colour. pick texture based on this:
+    // smoke is r=g=b
+    // blood is g=b=0
+    // rocket trails are r=2*g=2*b a bit randomised
+    uint32_t tex_col = c[1] == 0 && c[2] == 0 ? qs_data.tex_blood : qs_data.tex_explosion;
+    uint32_t tex_lum = c[1] == 0 && c[2] == 0 ? 0 : qs_data.tex_explosion;
     int numv = 4; // add tet
     if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
        *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
@@ -488,8 +495,8 @@ add_particles(
         ext[14*pi+ 9] = float_to_half(0);
         ext[14*pi+10] = float_to_half(1);
         ext[14*pi+11] = float_to_half(0);
-        ext[14*pi+12] = qs_data.tex_explosion;
-        ext[14*pi+13] = qs_data.tex_explosion;
+        ext[14*pi+12] = tex_col;
+        ext[14*pi+13] = tex_lum;
       }
     }
     nvtx += 4;
