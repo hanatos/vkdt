@@ -795,29 +795,34 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
+// #define BSDF_P 0.125
+#define BSDF_P 0
 #define RANDOMISED_BSDF
 #ifdef RANDOMISED_BSDF
-        bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z > 0.125); // bsdf at random in between
+        bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
         if(use_vmf) read_neighbour_state(tent, me, ipos, mv, seed, rp);
 #else
         bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
 #endif
-        if(tent.f == 0) use_vmf = false;
+        // XXX if(tent.f == 0) use_vmf = false;
         if(use_vmf)
         {
+          // tent.kappa = .1 + 250.0 * rand.z; // XXX
+          tent.kappa = -log(1.0-rand.z) * 50.0;
           w = vmf_sample(tent.kappa, rand.xy);
-          vec3 mu = normalize(tent.y-m0.x);
+          vec3 mu = m0.n; // XXX normalize(tent.y-m0.x);
           vec3 up = vec3(1,0,0), du, dv;
           if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
           du = normalize(cross(up, mu));
           dv = normalize(cross(du, mu));
+          pdf_w = vmf_eval(tent.kappa, w.z);
           w = w.x * du + w.y * dv + w.z * mu;
-          pdf_w = vmf_eval(tent.kappa, dot(w, mu));
           float dotn = dot(w, m0.n);
           if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface
           rgb *= dotn; // radiance now in solid angle space
           if(dotn <= 0.0) break; // dead sample XXX
-          par[s] = vec4(tent.y, tent.kappa);
+          // XXX par[s] = vec4(tent.y, tent.kappa);
+          par[s] = vec4(m0.x + m0.n, tent.kappa); // XXX
         }
         if(!use_vmf)
         { // sample independent new ray direction
@@ -945,9 +950,9 @@ main()
       vec3 w = normalize(lco[s]-me.x);
       float wdotn = dot(w, me.n);
       float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
-      float pdf = 0.125 * pdf_bsdf;
-      if(par[s].w == 0.0) pdf += 0.875 * pdf_bsdf;
-      else pdf += 0.875 * vmf_eval(par[s].w, dot(w, normalize(par[s].xyz - me.x)));
+      float pdf = BSDF_P * pdf_bsdf;
+      if(par[s].w == 0.0) pdf += (1.0-BSDF_P) * pdf_bsdf;
+      else pdf += (1.0-BSDF_P) * vmf_eval(par[s].w, dot(w, normalize(par[s].xyz - me.x)));
       irr += rad[s] / (spp * pdf);
     }
 #else
@@ -962,11 +967,12 @@ main()
     }
     else for(int t=0;t<spp;t++)
     {
-      pdf += 0.125 * pdf_bsdf;
+      pdf += BSDF_P * pdf_bsdf;
+      // float pdf_kappa = 1.0/50.0 * exp(-1.0/50.0 * par[t].w);
       if(par[t].w == 0.0)
-        pdf += 0.875 * pdf_bsdf;
+        pdf += (1.0-BSDF_P) * pdf_bsdf;
       else
-        pdf += 0.875 * vmf_eval(par[t].w, dot(w, normalize(par[t].xyz - me.x)));
+        pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(w, normalize(par[t].xyz - me.x)));
     }
 #else
     float pdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
