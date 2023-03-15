@@ -1092,7 +1092,7 @@ create_nodes(
   // ray tracing kernel:
   int id_rt = dt_node_add(graph, module, "quake", "main", 
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
-      "output",   "write", "rgba", "f16",  &module->connector[0].roi, // 0
+      "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
       "stcgeo",   "read",  "ssbo", "geo",  -1ul,                      // 1
       "dyngeo",   "read",  "ssbo", "geo",  -1ul,                      // 2
       "tex",      "read",  "*",    "*",    -1ul,                      // 3

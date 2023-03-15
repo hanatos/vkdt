@@ -56,7 +56,7 @@ create_nodes(
       .name   = dt_token("output"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
+      .format = dt_token("f32"),
       .roi    = module->connector[0].roi,
     }},
   };
@@ -104,7 +104,7 @@ create_nodes(
       .name   = dt_token("output"),
       .type   = dt_token("write"),
       .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
+      .format = dt_token("f32"),
       .roi    = module->connector[0].roi,
     }},
   };
