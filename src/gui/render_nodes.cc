@@ -536,6 +536,7 @@ extern "C" int nodes_enter()
   char filename[PATH_MAX], datname[PATH_MAX];
   dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, filename, sizeof(filename));
   uint64_t hash = hash64(filename);
+  int loaded_default = 0;
   if(snprintf(datname, sizeof(datname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
   { // read from ~/.config/vkdt/nodes/<hash>.dat
     FILE *f = fopen(datname, "rb");
@@ -544,12 +545,13 @@ extern "C" int nodes_enter()
       dt_token_t mod = dt_graph_default_input_module(filename);
       if(snprintf(datname, sizeof(datname), "%s/nodes/default.%" PRItkn ".dat", dt_pipe.homedir, dt_token_str(mod)) < int(sizeof(datname)))
         f = fopen(datname, "rb");
+      loaded_default = 1;
     }
     if(f)
     {
       char line[300];
       fscanf(f, "%299[^\n]", line);
-      if(!strcmp(line, filename))
+      if(loaded_default || !strcmp(line, filename))
       { // only use hashed positions if filename actually matches
         while(!feof(f))
         {
