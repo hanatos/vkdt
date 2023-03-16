@@ -85,17 +85,7 @@ int init(dt_module_t *mod)
     "+skill", "2",
     "-game", "ad",
     "+map", "e1m1",
-    "+map", "ad_tears",
-    "+map", "ad_azad",
-    "+map", "e1m2",
-    "+map", "ad_sepulcher",
-    "+map", "e1m6",
-    "+map", "start",
-    "+map", "e4m3",     // has no lights
-    "+map", "ad_tfuma", // TODO: for this one need transparent windows
-    "+map", "e1m8", // bonus
-    "+map", "e1m7", // chthon
-    "-game", "SlayerTest",
+    "-game", "SlayerTest", // needs different particle rules! also overbright and lack of alpha?
     "+map", "e1m2b",
     "+map", "ep1m1",
     "+map", "e1m1b",
@@ -923,6 +913,7 @@ void commit_params(
     double newtime = Sys_DoubleTime();
     double time = ((d->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - d->oldtime;
     Host_Frame(time);
+    R_SetupView(); // init some left/right vectors also used for sound
     d->oldtime = newtime;
     // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
   }
@@ -1274,7 +1265,7 @@ int audio(
   { // clipped at buffer end?
     shm->samplepos = 0;    // wrap around
     len = 4*(tobufend/4);  // clip number of samples we send to multiple of bytes/sample
-    newtime = ((double)len) / (shm->samplebits / 8) / shm->speed + oldtime; // also clip time
+    newtime = ((double)len) / shm->channels / (shm->samplebits / 8) / shm->speed + oldtime; // also clip time
   }
   else shm->samplepos += len / (shm->samplebits / 8);
   oldtime = newtime;

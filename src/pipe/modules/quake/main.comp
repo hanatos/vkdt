@@ -3,6 +3,8 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #extension GL_EXT_ray_tracing             : enable
 #extension GL_EXT_ray_query               : enable
+#extension GL_KHR_shader_subgroup_basic   : enable
+#extension GL_KHR_shader_subgroup_shuffle : enable
 
 #include "shared.glsl"
 #include "shared/render3d.glsl"
@@ -792,6 +794,14 @@ main()
       vec3 w = w_cam;
       vec3 rgb = rgb_cam;
       rad[s] = vec3(0.0);
+
+#if 1 // addis' patented unbiased fix
+      tent.y = subgroupShuffle(tent.y, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
+      tent.n = subgroupShuffle(tent.n, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
+      tent.f = subgroupShuffle(tent.f, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
+      tent.kappa = subgroupShuffle(tent.kappa, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
+      tent.acc   = subgroupShuffle(tent.acc,   (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
+#endif
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
