@@ -933,7 +933,8 @@ main()
             // use controller based on target acceptance rate of 50%:
             // XXX FIXME: i think some hopeless samples keep increasing kappa, hindering their acceptance!
             // XXX FIXME: limit
-            float d = 1.0 + 1.95*(0.5 - tent.acc);
+            // float d = 1.0 + 1.95*(0.5 - tent.acc);
+            float d = exp(20.0*(0.5 - tent.acc));
             tent.kappa = clamp(tent.kappa * d, 100.0, 65500.0);
             // if(tent.acc < 0.2)// XXX 1.0-acc_hist_alpha)
             if(tent.acc < 1.0-acc_hist_alpha)
@@ -1004,7 +1005,7 @@ main()
   }
 
   // vec4 deb = vec4(curr.kappa*0.001, curr.acc, 0, 1.0);
-  vec4 deb = vec4(curr.kappa/(curr.kappa + 500.0), curr.acc, 0, 1.0);
+  vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.0), 0, 0, 1.0);
   // vec4 deb = vec4(0.0, curr.acc, 0, 1.0);
   imageStore(img_debug, ipos, deb);
 
