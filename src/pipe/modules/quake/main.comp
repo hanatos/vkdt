@@ -762,7 +762,7 @@ main()
   v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
   // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
   // if(res.opaque.t < 10000.0)
-  if(m1.t < T_MAX)
+  // if(m1.t < T_MAX) // XXX should always be the case for quake
   { // ray intersected geometry, init material state and tangent frame
     // m1 = prepare_material_info(m0.x, w_cam, res);
     // sky is "far" away
@@ -776,6 +776,7 @@ main()
       irr = vec3(0.01); // but be sure that albedo * irradiance stays put.
                   // alb += 100 * m1.emission;
       alb = 10.0 * m1.emission; // looks shit either way :|
+      rgb_cam = vec3(0.0);
       compute_indirect = false;
     }
     else alb = m1.albedo; // directly visible albedo
@@ -796,6 +797,7 @@ main()
       rad[s] = vec3(0.0);
 
 #if 1 // addis' patented unbiased fix
+      // subgroupBarrier(); // apparently not needed, will be masked implicitly
       tent.y = subgroupShuffle(tent.y, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.n = subgroupShuffle(tent.n, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.f = subgroupShuffle(tent.f, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
@@ -857,7 +859,7 @@ main()
 
         bool underwater = cam_underwater;
         m1 = propagate_ray(m0.x, w, underwater, mg, rand.w, rgb);
-        if(m1.t < T_MAX)
+        // XXX always the case in quake: if(m1.t < T_MAX)
         { // ray intersected geometry, init material state and tangent frame
           const float T = exp(-m1.t * 3.);
           rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
@@ -931,8 +933,8 @@ main()
             // use controller based on target acceptance rate of 50%:
             // XXX FIXME: i think some hopeless samples keep increasing kappa, hindering their acceptance!
             // XXX FIXME: limit
-            float d = 100.*(0.5 - tent.acc);
-            tent.kappa = clamp(tent.kappa * (1.0 + d), 100.0, 65500.0);
+            float d = 1.0 + 1.95*(0.5 - tent.acc);
+            tent.kappa = clamp(tent.kappa * d, 100.0, 65500.0);
             // if(tent.acc < 0.2)// XXX 1.0-acc_hist_alpha)
             if(tent.acc < 1.0-acc_hist_alpha)
               tent.kappa = 50.0; // reset
@@ -944,7 +946,7 @@ main()
 
           m0 = m1; // advance path vertex
         } // end if cast ray intersected anything
-        else break; // nothing intersected, can't go on
+        // XXX else break; // nothing intersected, can't go on
       } // end bounces
 
 #ifndef RANDOMISED_BSDF
