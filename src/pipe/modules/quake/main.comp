@@ -807,8 +807,8 @@ main()
       for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
-// #define BSDF_P 0.125
-#define BSDF_P 0
+#define BSDF_P 0.125
+// #define BSDF_P 0
 #define RANDOMISED_BSDF
 #ifdef RANDOMISED_BSDF
         bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
@@ -971,7 +971,7 @@ main()
       irr += rad[s] / (spp * pdf);
     }
 #else
-#ifdef RANDOMISED_BSDF // randomised version, this is still all wrong
+#ifdef RANDOMISED_BSDF
     float pdf = 0.0;
     vec3 w = normalize(lco[s]-me.x);
     float wdotn = dot(w, me.n);
@@ -983,7 +983,6 @@ main()
     else for(int t=0;t<spp;t++)
     {
       pdf += BSDF_P * pdf_bsdf;
-      // float pdf_kappa = 1.0/50.0 * exp(-1.0/50.0 * par[t].w);
       if(par[t].w == 0.0)
         pdf += (1.0-BSDF_P) * pdf_bsdf;
       else
