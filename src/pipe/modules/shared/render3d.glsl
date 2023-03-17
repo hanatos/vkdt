@@ -115,14 +115,17 @@ float bsdf_rough_eval(
 // multiplexing:
 vec3 bsdf_sample(uint m, vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 param, vec2 xi)
 {
+  if(m == 2) return sample_sphere(xi);
   return bsdf_diffuse_sample(wi, du, dv, n, xi);
 }
 float bsdf_pdf(uint m, vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 wo, vec3 param)
 {
+  if(m == 2) return 1.0/(4.0*M_PI);
   return bsdf_diffuse_pdf(wi, n, wo);
 }
 float bsdf_eval(uint m, vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 wo, vec3 param)
 { // evaluate *without* albedo, that has to multiplied in the end
+  if(m == 2) return 1.0/(4.0*M_PI);
   if(m == 1) return bsdf_rough_eval(wi, du, dv, n, wo, param.xy);
   return bsdf_diffuse_eval();
 }

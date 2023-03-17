@@ -626,7 +626,10 @@ mc_state_t mc_state_new()
 float G_cosines(vec3 x, vec3 nx, vec3 y, vec3 ny)
 {
   vec3 d = normalize(y - x);
-  return max(0, dot(d, nx))*max(0, dot(-d, ny));
+  float res = 1.0;
+  if(any(notEqual(nx, vec3(0.0)))) res *= dot( d, nx);
+  if(any(notEqual(ny, vec3(0.0)))) res *= dot(-d, ny);
+  return res;
 }
 
 // pass shading point first, remote/light second (for sky detection)
@@ -686,8 +689,8 @@ void read_neighbour_state(
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
     vec4 rand = xrand(seed, rp);
-    ivec2 off = ivec2(15 * (2.0*rand.xy-1.0)) + 
-                ivec2(15 * (2.0*rand.zw-1.0));
+    ivec2 off = ivec2(25.0 * (2.0*rand.xy-1.0)) + 
+                ivec2(25.0 * (2.0*rand.zw-1.0));
 #else
     { // just our very own center pixel
     ivec2 off = ivec2(0);
@@ -715,7 +718,7 @@ main()
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
-  const int spp = 8; // needs to be a compile time constant (use specialisation?)
+  const int spp = 6; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
@@ -764,12 +767,35 @@ main()
   // if(res.opaque.t < 10000.0)
   // if(m1.t < T_MAX) // XXX should always be the case for quake
   { // ray intersected geometry, init material state and tangent frame
+#if 0 // "honest" inscattering MC estimator. will not converge:
+    float mu_t = 6e-5;
+    // TODO: sample distance clipped to ray tmax
+    // float c0 = 0.0, c1 = 1.0-exp(-mu_t * m1.t);
+    // float r2 = (rand.x - c0)/(c1-c0);
+    // float M = (c1-c0)/(1.0-c0);
+    // float dist = - log(1.0-r2*M)/mu_t;
+    float dist = -log(1.0-rand.x)/mu_t;
+              // if(m1.mat == 0xfff) // sky
+    if(dist < m1.t)
+    {
+      m1.x = m0.x + w_cam * dist;
+      m1.ng = m1.n = vec3(0.0);//w_cam;
+      m1.t = dist;
+      m1.emission = vec3(0.0);
+      m1.albedo = vec3(1.0);
+      m1.bsdf = 2; // volume shader
+    }
+#else
     // m1 = prepare_material_info(m0.x, w_cam, res);
     // sky is "far" away
-    const float T = exp(-m1.t * 3.);
+    const float T = exp(-m1.t * 6e-5); // fake in-scattering would look great in ad_tears, but lacks occlusion
     // TODO: if underwater (params.water) attenuate a bit more
+    // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
     rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
     // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
+    // XXX could look fantastic on ad_tears, but please eval without sun!
+    // irr += envmap(w_cam) * (1.0-T);
+#endif
 
     if(any(greaterThan(m1.emission, vec3(0.0))))
     { // have >0 radiance sample on second vertex
@@ -833,7 +859,7 @@ main()
           dv = normalize(cross(du, mu));
           pdf_w = vmf_eval(tent.kappa, w.z);
           w = w.x * du + w.y * dv + w.z * mu;
-          float dotn = dot(w, m0.n);
+          float dotn = any(notEqual(m0.n, vec3(0.0))) ? dot(w, m0.n) : 1.0;
           rgb *= dotn; // radiance now in solid angle space
           par[s] = vec4(mu, tent.kappa);
           // if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface XXX probably wrong in general
@@ -844,14 +870,14 @@ main()
           w = bsdf_sample(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, m0.bsdf_param, rand.xy);
           w = normalize(w); // paranoia/numerical jitter over bounces
           pdf_w = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // uniform projected solid angle
-          float dotn = dot(w, m0.n);
+          float dotn = any(notEqual(m0.n, vec3(0.0))) ? dot(w, m0.n) : 1.0;
           rgb *= dotn; // radiance now in solid angle space
           pdf_w *= dotn; // now in solid angle too
           par[s] = vec4(0.0);//vec4(m0.n, 0.0); // normal is clear from gbuf
         }
         rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
 
-        if(dot(w, m0.ng) <= 0.0)
+        if(any(notEqual(m0.ng, vec3(0.0))) && dot(w, m0.ng) <= 0.0)
         { // kill under geo surface paths
           rgb = vec3(0.0);
           break;
@@ -999,7 +1025,11 @@ main()
     }
 #endif
     if(any(greaterThan(rad[s], vec3(0.0))))
-      irr += rad[s] / pdf;
+    {
+      vec3 contrib = rad[s] / pdf;
+      if(!any(isinf(contrib)) && !any(isnan(contrib)))
+        irr += rad[s] / pdf;
+    }
 #endif
   }
 
