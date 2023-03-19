@@ -5,6 +5,7 @@ extern "C" {
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
+#include "api.h"
 }
 #include "render.h"
 #include "imgui.h"
@@ -424,7 +425,6 @@ extern "C" void dt_gui_grab_mouse()
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
   glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   vkdt.wstate.grabbed = 1;
-  // dt_gui_dr_toggle_fullscreen_view();
 }
 
 extern "C" void dt_gui_ungrab_mouse()
@@ -432,7 +432,7 @@ extern "C" void dt_gui_ungrab_mouse()
   ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
   glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   vkdt.wstate.grabbed = 0;
-  // dt_gui_dr_toggle_fullscreen_view();
+  dt_gui_dr_unset_fullscreen_view();
 }
 
 struct dt_gamepadhelp_t

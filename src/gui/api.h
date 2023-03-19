@@ -178,6 +178,18 @@ dt_gui_dr_toggle_fullscreen_view()
 }
 
 static inline void
+dt_gui_dr_set_fullscreen_view()
+{
+  if(!vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+}
+
+static inline void
+dt_gui_dr_unset_fullscreen_view()
+{
+  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+}
+
+static inline void
 dt_gui_dr_toggle_history()
 {
   vkdt.wstate.history_view ^= 1;
