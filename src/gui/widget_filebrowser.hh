@@ -124,7 +124,9 @@ dt_filebrowser(
       }
     }
   }
-  if(ImGui::IsKeyPressed(ImGuiKey_Backspace))
+  if(!dt_gui_imgui_input_blocked() &&
+     !dt_gui_imgui_want_text() &&
+     ImGui::IsKeyPressed(ImGuiKey_Backspace))
   { // go up one dir
     int len = strnlen(w->cwd, sizeof(w->cwd));
     char *c = w->cwd + len;
