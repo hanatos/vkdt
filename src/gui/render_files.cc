@@ -262,8 +262,9 @@ void render_files()
             ImGui::SameLine();
             if(ImGui::Button("view copied files", ImVec2(-1, 0)))
             {
+              set_cwd(job[k].dst, 1);
+              dt_gui_switch_collection(job[k].dst);
               memset(job+k, 0, sizeof(copy_job_t));
-              dt_gui_switch_collection(filebrowser.cwd);
               dt_view_switch(s_view_lighttable);
             }
             if(ImGui::IsItemHovered()) ImGui::SetTooltip(
