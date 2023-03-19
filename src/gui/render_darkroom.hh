@@ -725,6 +725,22 @@ void render_darkroom_widget(int modid, int parid)
         }
         KEYFRAME
         TOOLTIP
+        ImGui::SameLine();
+        if(ImGui::Button("grab fullscreen", ImVec2(halfw, 0)))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          dt_module_input_event_t p = { 0 };
+          dt_module_t *mod = vkdt.graph_dev.module + modid;
+          dt_gui_grab_mouse();
+          dt_gui_dr_set_fullscreen_view();
+          if(modid >= 0)
+            if(mod->so->input) mod->so->input(mod, &p);
+        }
+        KEYFRAME
+        TOOLTIP
       }
       break;
     }
@@ -864,8 +880,18 @@ void render_darkroom_widgets(
     ImGui::PushFont(dt_gui_imgui_get_font(3));
     if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(1.6*vkdt.wstate.fontsize, 0)))
     {
-      module->disabled ^= 1;
-      vkdt.graph_dev.runflags = s_graph_run_all;
+      int bad = 0;
+      for(int c=0;c<module->num_connectors;c++)
+        if(module->connector[c].frames > 1) bad = 1;
+      if(bad)
+      {
+        dt_gui_notification("cannot disable a module with feedback connectors!");
+      }
+      else
+      {
+        module->disabled ^= 1;
+        vkdt.graph_dev.runflags = s_graph_run_all;
+      }
     }
     ImGui::PopFont();
     if(ImGui::IsItemHovered())
