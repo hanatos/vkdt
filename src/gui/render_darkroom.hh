@@ -725,6 +725,22 @@ void render_darkroom_widget(int modid, int parid)
         }
         KEYFRAME
         TOOLTIP
+        ImGui::SameLine();
+        if(ImGui::Button("grab fullscreen", ImVec2(halfw, 0)))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          dt_module_input_event_t p = { 0 };
+          dt_module_t *mod = vkdt.graph_dev.module + modid;
+          dt_gui_grab_mouse();
+          dt_gui_dr_set_fullscreen_view();
+          if(modid >= 0)
+            if(mod->so->input) mod->so->input(mod, &p);
+        }
+        KEYFRAME
+        TOOLTIP
       }
       break;
     }
