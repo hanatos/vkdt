@@ -684,7 +684,8 @@ void read_neighbour_state(
     const ivec2 rp)
 {
   float C = C_term(me.x, me.n, tent.y, tent.n);
-  float sum = tent.f*C;
+  // float sum = tent.f * C;
+  float sum = C;
 #if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
@@ -697,7 +698,8 @@ void read_neighbour_state(
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    float other = t2.f * C_term(me.x, me.n, t2.y, t2.n);
+    // float other = t2.f * C_term(me.x, me.n, t2.y, t2.n);
+    float other = C_term(me.x, me.n, t2.y, t2.n);
     if(tent.f == 0 || rnd < other / (other + sum))
       tent = t2;
     sum += other;
