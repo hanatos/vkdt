@@ -720,7 +720,7 @@ main()
 
   vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
-  const int spp = 6; // needs to be a compile time constant (use specialisation?)
+  const int spp = 8; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
   vec3 lco[spp]; // light source coordinates
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
