@@ -83,6 +83,8 @@ typedef struct dt_gui_wstate_t
 
   float fontsize;               // pixel size of currently loaded (regular) font
   int   show_gamepadhelp;       // show context sensitive gamepad help
+
+  int show_perf_overlay;        // show a frame time graph as overlay
 }
 dt_gui_wstate_t;
 
