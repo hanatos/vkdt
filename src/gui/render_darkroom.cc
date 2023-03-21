@@ -265,6 +265,7 @@ abort:
 
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
+    if(vkdt.wstate.show_perf_overlay) render_perf_overlay();
 
     ImGui::End();
     ImGui::PopStyleColor();
@@ -451,14 +452,20 @@ abort:
       {
         if(ImGui::CollapsingHeader("settings"))
         {
-          if(ImGui::Button("hotkeys"))
+          ImGui::Indent();
+          ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
+          if(ImGui::Button("hotkeys", ImVec2(-1, 0)))
             ImGui::OpenPopup("edit hotkeys");
           ImHotKey::Edit(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]), "edit hotkeys");
+          if(ImGui::Button("toggle perf overlay", ImVec2(-1, 0)))
+            vkdt.wstate.show_perf_overlay ^= 1;
 
           if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
           { // LOD switcher
             dt_gui_set_lod(vkdt.wstate.lod);
           }
+          ImGui::PopStyleVar();
+          ImGui::Unindent();
         }
 
         if(ImGui::CollapsingHeader("animation"))

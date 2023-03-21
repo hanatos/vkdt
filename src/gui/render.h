@@ -73,6 +73,7 @@ void dt_gamepadhelp_pop();
 
 #ifdef __cplusplus
 struct ImFont;
+// 0 small, 1 medium, 2 large, 3 material symbols
 ImFont *dt_gui_imgui_get_font(int which);
 void dt_gamepadhelp();
 }

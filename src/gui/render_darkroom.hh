@@ -43,6 +43,37 @@ void widget_abort()
 } // end anonymous namespace
 
 
+void render_perf_overlay()
+{
+  const int nvmask = 127;
+  static float values[128] = {0.0f};
+  static int values_offset = 0;
+  char overlay[32];
+  values[values_offset] = (vkdt.graph_dev.query_pool_results[vkdt.graph_dev.query_cnt-1]-vkdt.graph_dev.query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
+  snprintf(overlay, sizeof(overlay), "%.2fms", values[values_offset]);
+
+  ImVec2 sz  = ImGui::GetMainViewport()->Size;
+  ImVec2 pos = ImGui::GetMainViewport()->Pos;
+  pos = ImVec2(pos.x + sz.x/2.0, pos.y + sz.y * 0.1);
+  sz = ImVec2(sz.x/2.0, sz.y*0.1);
+  ImU32 col = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
+  for(int i=0;i<IM_ARRAYSIZE(values)-1;i++)
+  {
+    int j0 = (i + values_offset    )&nvmask;
+    int j1 = (i + values_offset + 1)&nvmask;
+    ImGui::GetWindowDrawList()->AddLine(
+        ImVec2(pos.x + sz.x * (i    /(nvmask+1.0)), pos.y + sz.y * (1.0 - values[j0]/100.0)),
+        ImVec2(pos.x + sz.x * ((i+1)/(nvmask+1.0)), pos.y + sz.y * (1.0 - values[j1]/100.0)),
+        col, 4.0);
+  }
+  ImU32 bgcol = ImGui::GetColorU32(ImGuiCol_PlotLines);
+  ImGui::GetWindowDrawList()->AddLine(pos, ImVec2(pos.x+sz.x, pos.y), bgcol);
+  ImGui::GetWindowDrawList()->AddLine(ImVec2(pos.x, pos.y+sz.y), ImVec2(pos.x+sz.x, pos.y+sz.y), bgcol);
+  ImGui::GetWindowDrawList()->AddLine(ImVec2(pos.x, (1.0-16.0/100.0)*sz.y+pos.y), ImVec2(pos.x+sz.x, (1.0-16.0/100.0)*sz.y+pos.y), bgcol);
+  ImGui::GetWindowDrawList()->AddText(dt_gui_imgui_get_font(2), dt_gui_imgui_get_font(2)->FontSize, pos, col, overlay);
+  values_offset = (values_offset + 1) & nvmask;
+}
+
 void render_darkroom_widget(int modid, int parid)
 {
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
