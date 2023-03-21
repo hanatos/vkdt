@@ -135,8 +135,7 @@ float mrand(inout uint seed)
 }
 
 vec4 xrand(inout uint seed, ivec2 p)
-{
-  // cp shift based on seed
+{ // cp shift based on seed
   return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
 }
 
@@ -270,9 +269,9 @@ prepare_material_info(
   m.c.x = mat3(v0, v1, v2) * b;
   m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
   m.c.ng = normalize(cross(v2-v0,v1-v0));
+#if 0
   if(!brush_model) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
-#if 0
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
     if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
@@ -285,11 +284,9 @@ prepare_material_info(
     tmpv -= dotv*n1;
     tmpw -= dotw*n2;
     m.c.x += mat3(tmpu, tmpv, tmpw) * b;
-#else // XXX FIXME: shading normals are fubared!
-    m.c.n = n0 = n1 = n2 = m.c.ng;
-#endif
   }
   else
+#endif // XXX FIXME: shading normals are fubared!
   { // brushmodels have no vertex normals
     m.c.n = n0 = n1 = n2 = m.c.ng;
   }
@@ -431,6 +428,7 @@ prepare_material_info(
   return m;
 }
 
+#if 0
 vec3 nee_torch(
     in const vec3 lpos,
     in const vec3 x,
@@ -459,7 +457,6 @@ vec3 nee_torch(
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      // if(min(b.x,min(b.y,b.z)) < 0.05) rayQueryConfirmIntersectionEXT(rq); // wireframe
       int i = 7*pi;
       uint mat = 0;
       vec2 st;
@@ -482,7 +479,6 @@ vec3 nee_torch(
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
       vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-      // if(any(greaterThan(diffcol.rgb, vec3(0.0))) || diffcol.a > 0.666)
       if(diffcol.a > 0.666)
         rayQueryConfirmIntersectionEXT(rq);
     }
@@ -493,6 +489,7 @@ vec3 nee_torch(
   float edf = 4000.0*pow(abs(dot(-ws, params.cam_w.xyz)), 45.0);
   return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
 }
+#endif
 
 float lum(vec3 rgb)
 {
@@ -564,8 +561,6 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
     }
   }
   return res;
-  // always the case, quake maps are closed:
-  // return (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT);
 }
 
 // propagate ray through (single bounce) specular chain
@@ -663,7 +658,6 @@ uvec4 mc_state_encode(mc_state_t r)
       packHalf2x16(r.y.xy),
       packHalf2x16(vec2(r.y.z, r.f)),
       packHalf2x16(vec2(r.kappa, r.acc)),
-      // uint(r.kappa),
       geo_encode_normal(r.n));
 }
 
@@ -674,7 +668,6 @@ mc_state_t mc_state_decode(uvec4 enc)
   r.y.xy = unpackHalf2x16(enc.x);
   r.y.z  = h.x;
   r.f    = h.y;
-  // r.kappa = enc.z;
   vec2 ka = unpackHalf2x16(enc.z);
   r.kappa = ka.x;
   r.acc   = ka.y;
@@ -734,8 +727,6 @@ main()
   vec3 ltw[spp]; // light source direction
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
 
-  // vec2 v1_nd; // vertex 1 after camera, depth and normal for gbuffer
-
   mc_state_t curr = mc_state_new(); // zero current state
   mc_state_t tent = mc_state_new(); // tentative new state
 
@@ -743,7 +734,6 @@ main()
   material_core_t m0;
   vec4 rand = xrand(seed, rp);
   seed = uint(70000 * rand.x);
-  // float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
   vec3 rgb_cam = vec3(1.0);
   vec3 w_cam; // ray direction from camera
   { // camera setup:
@@ -763,68 +753,53 @@ main()
   }
 
   rayQueryEXT rq;
-  // vec4 trans = vec4(0.0); // cannot do this for std quake maps if "r_vis 1"
   bool compute_indirect = true;
 
   bool cam_underwater = params.water > 0;
   {
-  vec3 xm, nm;
-  mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, nm, rand.w, rgb_cam);
-  m0 = mat.c;
+    vec3 xm, nm;
+    mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, nm, rand.w, rgb_cam);
+    m0 = mat.c;
   }
-  // v1_nd.x = uintBitsToFloat(geo_encode_normal(mg.n)); // normal
-  // v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
-  // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
-  // if(res.opaque.t < 10000.0)
-  // if(m1.t < T_MAX) // XXX should always be the case for quake
   { // ray intersected geometry, init material state and tangent frame
 #if 0 // "honest" inscattering MC estimator. will not converge:
     float mu_t = 6e-5;
-    // TODO: sample distance clipped to ray tmax
-    // float c0 = 0.0, c1 = 1.0-exp(-mu_t * m1.t);
-    // float r2 = (rand.x - c0)/(c1-c0);
-    // float M = (c1-c0)/(1.0-c0);
-    // float dist = - log(1.0-r2*M)/mu_t;
     float dist = -log(1.0-rand.x)/mu_t;
-              // if(m1.mat == 0xfff) // sky
     if(dist < m1.t)
     {
       m1.x = m0.x + w_cam * dist;
-      m1.ng = m1.n = vec3(0.0);//w_cam;
+      m1.ng = m1.n = vec3(0.0);
       m1.t = dist;
       m1.emission = vec3(0.0);
       m1.albedo = vec3(1.0);
       m1.bsdf = 2; // volume shader
     }
 #else
-    // m1 = prepare_material_info(m0.x, w_cam, res);
-    // sky is "far" away
-    const float T = exp(-mat.t * 6e-5); // fake in-scattering would look great in ad_tears, but lacks occlusion
-    // TODO: if underwater (params.water) attenuate a bit more
-    // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
-    rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-    // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
-    // XXX could look fantastic on ad_tears, but please eval without sun!
-    // irr += envmap(w_cam) * (1.0-T);
+    {
+      const float T = exp(-mat.t * 6e-5); // fake in-scattering would look great in ad_tears, but lacks occlusion
+      // TODO: if underwater (params.water) attenuate a bit more
+      // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
+      rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+      // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
+      // XXX could look fantastic on ad_tears, but please eval without sun!
+      // irr += envmap(w_cam) * (1.0-T);
+    }
 #endif
 
     {
-    vec3 alb;
-    if(any(greaterThan(mat.emission, vec3(0.0))))
-    { // have >0 radiance sample on second vertex
-      irr = vec3(0.01); // but be sure that albedo * irradiance stays put.
-                  // alb += 100 * m1.emission;
-      alb = 10.0 * mat.emission; // looks shit either way :|
-      rgb_cam = vec3(0.0);
-      compute_indirect = false;
-    }
-    else alb = mat.albedo; // directly visible albedo
-    imageStore(img_albedo, ipos, vec4(alb, 1));
+      vec3 alb;
+      if(any(greaterThan(mat.emission, vec3(0.0))))
+      { // have >0 radiance sample on second vertex
+        irr = vec3(0.01); // but be sure that albedo * irradiance stays put.
+        alb = 10.0 * mat.emission; // looks shit either way :| mul by only 10 so it doesn't overshoot
+        rgb_cam = vec3(0.0);
+        compute_indirect = false;
+      }
+      else alb = mat.albedo; // directly visible albedo
+      imageStore(img_albedo, ipos, vec4(alb, 1));
     }
 
-    // m0 = m1;
-    // me = m1; // store g-buffer-like primary ray result
-
+#if 0
     if(compute_indirect && (params.torch == 1)) // next event estimation to torch:
     {
       vec3 f = params.cam_w.xyz;
@@ -833,26 +808,24 @@ main()
       vec3 lpos = params.cam_x.xyz + 1*f + 10*t + 20*r;
       irr += nee_torch(lpos, m0.x, rgb_cam, m0.n, seed, rp);
     }
+#endif
 
     // indirect rays, splitting trajectories here
     if(compute_indirect) // direct lights need no indirect lighting computation
     for(int s=0;s<spp;s++)
     {
       float pdf_w = 1.0;
-      // m0 = me;       // restore camera point, direction, contribution
       vec3 w = w_cam;
       vec3 rgb = rgb_cam;
       rad[s] = vec3(0.0);
 
 #if 1 // addis' patented unbiased fix
-      // subgroupBarrier(); // apparently not needed, will be masked implicitly
       tent.y = subgroupShuffle(tent.y, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.n = subgroupShuffle(tent.n, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.f = subgroupShuffle(tent.f, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.kappa = subgroupShuffle(tent.kappa, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.acc   = subgroupShuffle(tent.acc,   (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
 #endif
-      // for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
 #define BSDF_P 0.125
@@ -885,7 +858,7 @@ main()
           rgb *= dotn; // radiance now in solid angle space
           par[s] = vec4(mu, tent.kappa);
           // if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface XXX probably wrong in general
-          if(dotn <= 0.0) continue;// break; // dead sample XXX
+          if(dotn <= 0.0) continue; // dead sample XXX
         }
         if(!use_vmf)
         { // sample independent new ray direction
@@ -901,35 +874,26 @@ main()
         if(any(notEqual(m0.ng, vec3(0.0))) && dot(w, m0.ng) <= 0.0)
         { // kill under geo surface paths
           rgb = vec3(0.0);
-          continue; // break;
+          continue;
         }
 
         {
           bool underwater = cam_underwater;
           vec3 xm, nm;
           mat = propagate_ray(m0.x, w, underwater, xm, nm, rand.w, rgb);
-        // XXX always the case in quake: if(m1.t < T_MAX)
-        // ray intersected geometry, init material state and tangent frame
-          const float T = exp(-mat.t * 3.);
-          rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-
+          { // ray intersected geometry, init material state and tangent frame
+            const float T = exp(-mat.t * 3.);
+            rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+          }
 
           // handle intersection:
           // * accumulate direct albedo and indirect irradiance channels
           // * successful nee sample: store nee state in registers
-          // if(b == 0 && any(greaterThan(m1.emission, vec3(0.0))))
           if(any(greaterThan(mat.emission, vec3(0.0))))
           { // update nee sampling state
-            // metropolis hastings step:
-            // update state of this pixel by sampling forward and back pdf:
-            // include bsdf, look worse?
-            // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
             const float f = lum(rgb * mat.emission)/pdf_w;
-            // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
-            // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
             const float C = C_term(m0.x, m0.n, mat.c.x, mat.c.n);
             const float a = min(1.0, f * C / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
-            // float a = min(1.0, f / tent.f);
             rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
             ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
             if(tent.f == 0.0)
@@ -953,15 +917,13 @@ main()
             const float acc_hist_alpha = 0.9;
             if(curr.f == 0.0 || rand.z < a)
             { // update markov chain state for this pixel:
-              // XXX
 #if 1
-              tent.y = xm; // XXX update state mean too
+              tent.y = xm; // update state mean too
               tent.n = nm;
               tent.f = f;
               tent.acc = mix(1.0, tent.acc, acc_hist_alpha);
               curr = tent;
 #else
-              // XXX
               curr.f = f;
               curr.y = xm;      // create new lobe around good sample
               curr.n = nm;
@@ -985,18 +947,11 @@ main()
             // float d = 1.0 + 1.95*(0.5 - tent.acc);
             float d = exp(20.0*(0.5 - tent.acc));
             tent.kappa = clamp(tent.kappa * d, 100.0, 65500.0);
-            // if(tent.acc < 0.2)// XXX 1.0-acc_hist_alpha)
             if(tent.acc < 1.0-acc_hist_alpha)
               tent.kappa = 50.0; // reset
 #endif
           }
-          // XXX clearly different results, looks worse:
-          // tent = curr; // rejected state means the markov chain stays
-          // XXX i think this is because we need to give tent a chance to converge kappa
-
-          // m0 = m1; // advance path vertex
         } // end if cast ray intersected anything
-        // XXX else break; // nothing intersected, can't go on
       } // end bounces
 
 #ifndef RANDOMISED_BSDF
@@ -1057,22 +1012,19 @@ main()
   }
 
   {
-  // vec4 deb = vec4(curr.kappa*0.001, curr.acc, 0, 1.0);
-  vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.0), 0, 0, 1.0);
-  // vec4 deb = vec4(0.0, curr.acc, 0, 1.0);
-  imageStore(img_debug, ipos, deb);
+    vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.0), 0, 0, 1.0);
+    imageStore(img_debug, ipos, deb);
   }
 
   {
-  vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
-  gbuf.x = uintBitsToFloat(geo_encode_normal(m0.n)); // normal
-  gbuf.y = length(m0.x - params.cam_x.xyz);          // depth
-  gbuf.z = mix(length(irr),  gbuf.z, 0.9);           // biased first  moment
-  gbuf.w = mix(dot(irr,irr), gbuf.w, 0.9);           // biased second moment
-  imageStore(img_gbuf_out, ipos, gbuf);
+    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    gbuf.x = uintBitsToFloat(geo_encode_normal(m0.n)); // normal
+    gbuf.y = length(m0.x - params.cam_x.xyz);          // depth
+    gbuf.z = mix(length(irr),  gbuf.z, 0.9);           // biased first  moment
+    gbuf.w = mix(dot(irr,irr), gbuf.w, 0.9);           // biased second moment
+    imageStore(img_gbuf_out, ipos, gbuf);
   }
 
   imageStore(img_nee_out,    ipos, mc_state_encode(curr));
   imageStore(img_irradiance, ipos, vec4(irr, 1));
 }
-
