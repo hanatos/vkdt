@@ -154,11 +154,18 @@ struct raycast_res_t
   intersection_t water;
 };
 
+struct material_core_t
+{ // minimal stuff for bsdf/pdf eval
+  vec3 x;
+  vec3 ng;        // geo normal, if different to n
+  vec3 n, du, dv; // shading frame
+  uint bsdf;      // bsdf model id
+  vec3 bsdf_param;// extra bsdf params, anisotropic roughness etc
+};
+
 struct material_info_t
 { // initialised hit point to work with
-  vec3 x;
-  vec3 n, du, dv; // shading frame
-  vec3 ng;        // geo normal, if different to n
+  material_core_t c;
   vec2 st;        // texture coordinates
   uint mat;       // albedo texture
   uint matfb;     // "fullbright" texture/emission
@@ -169,8 +176,6 @@ struct material_info_t
   uint flags;     // none, lava, slime, tele, water
   vec3 albedo;
   vec3 emission;
-  uint bsdf;      // bsdf model id
-  vec3 bsdf_param;// extra bsdf params, anisotropic roughness etc
 };
 
 intersection_t
@@ -262,31 +267,31 @@ prepare_material_info(
       buf_vtx[inter.opaque.instid].v[3*i2+0],
       buf_vtx[inter.opaque.instid].v[3*i2+1],
       buf_vtx[inter.opaque.instid].v[3*i2+2]);
-  m.x = mat3(v0, v1, v2) * b;
+  m.c.x = mat3(v0, v1, v2) * b;
   m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
-  m.ng = normalize(cross(v2-v0,v1-v0));
+  m.c.ng = normalize(cross(v2-v0,v1-v0));
   if(!brush_model) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
 #if 0
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
     if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
-    m.n = normalize(mat3(n0, n1, n2) * b);
-    vec3 tmpu = m.x - v0, tmpv = m.x - v1, tmpw = m.x - v2;
+    m.c.n = normalize(mat3(n0, n1, n2) * b);
+    vec3 tmpu = m.c.x - v0, tmpv = m.c.x - v1, tmpw = m.c.x - v2;
     float dotu = min(0.0, dot(tmpu, n0));
     float dotv = min(0.0, dot(tmpv, n1));
     float dotw = min(0.0, dot(tmpw, n2));
     tmpu -= dotu*n0;
     tmpv -= dotv*n1;
     tmpw -= dotw*n2;
-    m.x += mat3(tmpu, tmpv, tmpw) * b;
+    m.c.x += mat3(tmpu, tmpv, tmpw) * b;
 #else // XXX FIXME: shading normals are fubared!
-    m.n = n0 = n1 = n2 = m.ng;
+    m.c.n = n0 = n1 = n2 = m.c.ng;
 #endif
   }
   else
   { // brushmodels have no vertex normals
-    m.n = n0 = n1 = n2 = m.ng;
+    m.c.n = n0 = n1 = n2 = m.c.ng;
   }
 
   m.albedo   = vec3(0);
@@ -295,8 +300,8 @@ prepare_material_info(
   { // marked as sky
     m.albedo = vec3(0.0);
     m.emission = envmap(w);
-    m.n = -w; // sky has no normal
-    m.x = x + (T_MAX-1.0) * w; // sky is far away
+    m.c.n = -w; // sky has no normal
+    m.c.x = x + (T_MAX-1.0) * w; // sky is far away
   }
   else
   {
@@ -329,60 +334,60 @@ prepare_material_info(
     float det = duv1.x * duv2.y - duv2.x * duv1.y;
     if(abs(det) > 1e-8)
     {
-      m.du =  normalize(( duv2.y * du - duv1.y * dv) / det);
-      m.dv = -normalize((-duv2.x * du + duv1.x * dv) / det);
+      m.c.du =  normalize(( duv2.y * du - duv1.y * dv) / det);
+      m.c.dv = -normalize((-duv2.x * du + duv1.x * dv) / det);
     }
-    m.n = normalize(mat3(m.du, m.dv, m.n) * ((texelFetch(img_tex[nonuniformEXT(m.matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
+    m.c.n = normalize(mat3(m.c.du, m.c.dv, m.c.n) * ((texelFetch(img_tex[nonuniformEXT(m.matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
     vec3 up = vec3(1,0,0);
-    if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
-    m.du = normalize(cross(up, m.n));
-    m.dv = normalize(cross(m.du, m.n));
-    if(dot(w,m.n) > 0) m.n -= w*dot(w,m.n);
+    if(abs(m.c.n.x) > abs(m.c.n.y)) up = vec3(0,1,0);
+    m.c.du = normalize(cross(up, m.c.n));
+    m.c.dv = normalize(cross(m.c.du, m.c.n));
+    if(dot(w,m.c.n) > 0) m.c.n -= w*dot(w,m.c.n);
   }
   else
 #endif
   { // init tangent frame
-    if(dot(w, m.n) > 0) m.n = -m.n; // never happens except when it does (transparent surfaces/sky)
+    if(dot(w, m.c.n) > 0) m.c.n = -m.c.n; // never happens except when it does (transparent surfaces/sky)
     vec3 up = vec3(1,0,0);
-    if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
-    m.du = normalize(cross(up, m.n));
-    m.dv = normalize(cross(m.du, m.n));
+    if(abs(m.c.n.x) > abs(m.c.n.y)) up = vec3(0,1,0);
+    m.c.du = normalize(cross(up, m.c.n));
+    m.c.dv = normalize(cross(m.c.du, m.c.n));
   }
-  if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
+  if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
 
-  m.bsdf = 1; // slight rough lobe too
-  m.bsdf_param = vec3(0.01);
+  m.c.bsdf = 1; // slight rough lobe too
+  m.c.bsdf_param = vec3(0.01);
   if(m.matgl > 0)
   { // apply glossiness texture
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.matgl)], 0)*mod(m.st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.matgl)], 0)-1);
     float gloss = texelFetch(img_tex[nonuniformEXT(m.matgl)], tc, 0).r;
-    m.bsdf_param = vec3(mix(0.2, 0.01, gloss));
+    m.c.bsdf_param = vec3(mix(0.2, 0.01, gloss));
   }
 
 #if WATER_MODE==WATER_MODE_FULL
   if(inter.water.t < inter.opaque.t)
   { // potentially closer water intersection
-    uint seed = uint(1337000*(17*m.x.x+m.x.y));
+    uint seed = uint(1337000*(17*m.c.x.x+m.c.x.y));
     float rand = mrand(seed);
     i = 7*inter.water.primid;
     uint flags = stcssbo.v[i+6]>>28;
     float t = water_intersect(params.cl_time, x+(inter.water.t+rand*0.01)*w, w, WATER_DEPTH, flags == 4);
     if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.03)
     {
-      m.bsdf = 1; // rough microfacet
-      m.bsdf_param = vec3(0.002);
+      m.c.bsdf = 1; // rough microfacet
+      m.c.bsdf_param = vec3(0.002);
       m.t = inter.water.t + t;
-      m.x = x + m.t*w;
-      vec4 wn = water_normal(params.cl_time, m.x, WATER_DEPTH);
-      m.ng = wn.xyz;
+      m.c.x = x + m.t*w;
+      vec4 wn = water_normal(params.cl_time, m.c.x, WATER_DEPTH);
+      m.c.ng = wn.xyz;
       // m.flags = 4;
-      if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
-      m.n = m.ng;
+      if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
+      m.c.n = m.c.ng;
       vec3 up = vec3(1,0,0);
-      if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
-      m.du = normalize(cross(up, m.n));
-      m.dv = normalize(cross(m.du, m.n));
+      if(abs(m.c.n.x) > abs(m.c.n.y)) up = vec3(0,1,0);
+      m.c.du = normalize(cross(up, m.c.n));
+      m.c.dv = normalize(cross(m.c.du, m.c.n));
       m.flags =  flags;//stcssbo.v[i+6]>>28;
 
 #if 1
@@ -410,16 +415,16 @@ prepare_material_info(
 #elif WATER_MODE==WATER_MODE_NORMALS
   if(m.flags == 4)
   {
-    m.bsdf = 1; // rough microfacet
-    m.bsdf_param = vec3(0.002);
-    vec4 wn = water_normal(m.x, WATER_DEPTH);
-    m.ng = wn.xyz;
-    if(dot(w, m.ng) > 0) m.ng = -m.ng; // never happens except when it does (transparent surfaces/sky)
-    m.n = m.ng;
+    m.c.bsdf = 1; // rough microfacet
+    m.c.bsdf_param = vec3(0.002);
+    vec4 wn = water_normal(m.c.x, WATER_DEPTH);
+    m.c.ng = wn.xyz;
+    if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
+    m.c.n = m.c.ng;
     vec3 up = vec3(1,0,0);
-    if(abs(m.n.x) > abs(m.n.y)) up = vec3(0,1,0);
-    m.du = normalize(cross(up, m.n));
-    m.dv = normalize(cross(m.du, m.n));
+    if(abs(m.c.n.x) > abs(m.c.n.y)) up = vec3(0,1,0);
+    m.c.du = normalize(cross(up, m.c.n));
+    m.c.dv = normalize(cross(m.c.du, m.c.n));
   }
 #endif
 
@@ -569,14 +574,16 @@ propagate_ray(
     vec3 x,                   // ray origin
     vec3 w,                   // ray direction
     inout bool underwater,    // start under water? (see params.water for camera rays)
-    inout material_info_t m,  // intermediate vertex (if any, or else same as returned)
+    out vec3 xm,              // intermediate vertex and normal, if any, or else same as on returned material info
+    out vec3 nm,
     float xi,                 // [0,1) random number for R/T lobe selection
     inout vec3 weight)        // potentially adjust throughput weight
 {
   rayQueryEXT rq;
   const float t_max = T_MAX;
   raycast_res_t res = cast_ray(rq, x, w, t_max);
-  m = prepare_material_info(x, w, res);
+  material_info_t m = prepare_material_info(x, w, res);
+  xm = m.c.x; nm = m.c.n;
 #if WATER_MODE==WATER_MODE_OFF
   return m;
 #else
@@ -588,17 +595,17 @@ propagate_ray(
   // critical angle for in->outside is where eta^2 * (1.0-dot(N,I)^2) >= 1
   const float r = 0.02;
   float fresnel;
-  if(underwater) fresnel = r + (1.0-r) * pow(clamp(ior*ior*(1.0 - dot(-w, m.n)*dot(-w, m.n)), 0.0, 1.0), 5.0);
-  else           fresnel = r + (1.0-r) * pow(clamp(1.0 - dot(-w, m.n), 0.0, 1.0), 5.0);
+  if(underwater) fresnel = r + (1.0-r) * pow(clamp(ior*ior*(1.0 - dot(-w, m.c.n)*dot(-w, m.c.n)), 0.0, 1.0), 5.0);
+  else           fresnel = r + (1.0-r) * pow(clamp(1.0 - dot(-w, m.c.n), 0.0, 1.0), 5.0);
   if(xi < fresnel) { weight /= fresnel; return m; } // use R lobe (non-singular bsdf, whatever was set in m)
   vec3 wo;
-  if(underwater) wo = refract(w, m.n, ior);
-  else           wo = refract(w, m.n, 1.0/ior);
+  if(underwater) wo = refract(w, m.c.n, ior);
+  else           wo = refract(w, m.c.n, 1.0/ior);
   if(all(equal(wo, vec3(0.0)))) return m; // total internal reflection
   underwater = !underwater;
-  res = cast_ray(rq, m.x-m.n*0.01, wo, t_max);
+  res = cast_ray(rq, m.c.x-m.c.n*0.01, wo, t_max);
   weight /= (1.0-fresnel);
-  return prepare_material_info(m.x, wo, res);
+  return prepare_material_info(m.c.x, wo, res);
 #endif
 }
 
@@ -677,32 +684,35 @@ mc_state_t mc_state_decode(uvec4 enc)
 
 void read_neighbour_state(
     inout mc_state_t tent,
-    material_info_t me,
+    vec3 x,
+    vec3 n,
     ivec2 ipos,
     vec2  mv,
     inout uint seed,
     const ivec2 rp)
 {
-  float C = C_term(me.x, me.n, tent.y, tent.n);
-  // float sum = tent.f * C;
+  float C = C_term(x, n, tent.y, tent.n);
+  // float rnd0 = mrand(seed);
+  // float sum = rnd0 >= 0.5 ? tent.f * C : C;
   float sum = C;
 #if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
-    vec4 rand = xrand(seed, rp);
-    ivec2 off = ivec2(25.0 * (2.0*rand.xy-1.0)) + 
-                ivec2(25.0 * (2.0*rand.zw-1.0));
+    vec4 r0 = xrand(seed, rp);
+    vec4 r1 = xrand(seed, rp);
+    ivec2 off = ivec2(15.0 * (r0.xy + r0.zw + r1.xy + r1.zw - 2.0));
 #else
     { // just our very own center pixel
     ivec2 off = ivec2(0);
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    // float other = t2.f * C_term(me.x, me.n, t2.y, t2.n);
-    float other = C_term(me.x, me.n, t2.y, t2.n);
+    // float other = (rnd0 >= 0.5 ? t2.f : 1.0) * C_term(x, n, t2.y, t2.n);
+    float other = C_term(x, n, t2.y, t2.n);
     if(tent.f == 0 || rnd < other / (other + sum))
       tent = t2;
     sum += other;
+    if(tent.f > 0) break;
   }
 }
 
@@ -718,24 +728,22 @@ main()
   const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
 
-  vec3 alb = vec3(0.0); // albedo
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
   const int spp = 8; // needs to be a compile time constant (use specialisation?)
   vec3 rad[spp]; // radiance per sample
-  vec3 lco[spp]; // light source coordinates
+  vec3 ltw[spp]; // light source direction
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
 
-  vec2 v1_nd; // vertex 1 after camera, depth and normal for gbuffer
+  // vec2 v1_nd; // vertex 1 after camera, depth and normal for gbuffer
 
   mc_state_t curr = mc_state_new(); // zero current state
   mc_state_t tent = mc_state_new(); // tentative new state
 
-  vec3 lpos = vec3(0.0); // torch light pos, depending on camera
-  intersection_t inter;
-  material_info_t m0, m1, me, mg;
+  material_info_t mat;
+  material_core_t m0;
   vec4 rand = xrand(seed, rp);
   seed = uint(70000 * rand.x);
-  float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
+  // float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
   vec3 rgb_cam = vec3(1.0);
   vec3 w_cam; // ray direction from camera
   { // camera setup:
@@ -743,9 +751,6 @@ main()
     vec3 f = params.cam_w.xyz;
     vec3 t = -params.cam_u.xyz * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
     vec3 r = -normalize(cross(f, t));
-
-    lpos = m0.x + 1*f + 10*t + 20*r;
-
     vec2 off = filter_bh_sample(rand.yz);
     vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
     if(params.water > 0)
@@ -758,13 +763,17 @@ main()
   }
 
   rayQueryEXT rq;
-  vec4 trans = vec4(0.0); // cannot do this for std quake maps if "r_vis 1"
+  // vec4 trans = vec4(0.0); // cannot do this for std quake maps if "r_vis 1"
   bool compute_indirect = true;
 
   bool cam_underwater = params.water > 0;
-  m1 = propagate_ray(m0.x, w_cam, cam_underwater, mg, rand.w, rgb_cam);
-  v1_nd.x = uintBitsToFloat(geo_encode_normal(mg.n)); // normal
-  v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
+  {
+  vec3 xm, nm;
+  mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, nm, rand.w, rgb_cam);
+  m0 = mat.c;
+  }
+  // v1_nd.x = uintBitsToFloat(geo_encode_normal(mg.n)); // normal
+  // v1_nd.y = length(mg.x - params.cam_x.xyz);          // depth
   // raycast_res_t res = cast_ray(rq, m0.x, w_cam, 10000.0);
   // if(res.opaque.t < 10000.0)
   // if(m1.t < T_MAX) // XXX should always be the case for quake
@@ -790,7 +799,7 @@ main()
 #else
     // m1 = prepare_material_info(m0.x, w_cam, res);
     // sky is "far" away
-    const float T = exp(-m1.t * 6e-5); // fake in-scattering would look great in ad_tears, but lacks occlusion
+    const float T = exp(-mat.t * 6e-5); // fake in-scattering would look great in ad_tears, but lacks occlusion
     // TODO: if underwater (params.water) attenuate a bit more
     // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
     rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
@@ -799,27 +808,38 @@ main()
     // irr += envmap(w_cam) * (1.0-T);
 #endif
 
-    if(any(greaterThan(m1.emission, vec3(0.0))))
+    {
+    vec3 alb;
+    if(any(greaterThan(mat.emission, vec3(0.0))))
     { // have >0 radiance sample on second vertex
       irr = vec3(0.01); // but be sure that albedo * irradiance stays put.
                   // alb += 100 * m1.emission;
-      alb = 10.0 * m1.emission; // looks shit either way :|
+      alb = 10.0 * mat.emission; // looks shit either way :|
       rgb_cam = vec3(0.0);
       compute_indirect = false;
     }
-    else alb = m1.albedo; // directly visible albedo
+    else alb = mat.albedo; // directly visible albedo
+    imageStore(img_albedo, ipos, vec4(alb, 1));
+    }
 
-    me = m1; // store g-buffer-like primary ray result
+    // m0 = m1;
+    // me = m1; // store g-buffer-like primary ray result
 
     if(compute_indirect && (params.torch == 1)) // next event estimation to torch:
-      irr += nee_torch(lpos, m1.x, rgb_cam, m1.n, seed, rp);
+    {
+      vec3 f = params.cam_w.xyz;
+      vec3 t = -params.cam_u.xyz;
+      vec3 r = -normalize(cross(f, t));
+      vec3 lpos = params.cam_x.xyz + 1*f + 10*t + 20*r;
+      irr += nee_torch(lpos, m0.x, rgb_cam, m0.n, seed, rp);
+    }
 
     // indirect rays, splitting trajectories here
     if(compute_indirect) // direct lights need no indirect lighting computation
     for(int s=0;s<spp;s++)
     {
       float pdf_w = 1.0;
-      m0 = me;       // restore camera point, direction, contribution
+      // m0 = me;       // restore camera point, direction, contribution
       vec3 w = w_cam;
       vec3 rgb = rgb_cam;
       rad[s] = vec3(0.0);
@@ -832,7 +852,7 @@ main()
       tent.kappa = subgroupShuffle(tent.kappa, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       tent.acc   = subgroupShuffle(tent.acc,   (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
 #endif
-      for(int b=0;b<1;b++) // indirect bounces
+      // for(int b=0;b<1;b++) // indirect bounces
       {
         rand = xrand(seed, rp);
 #define BSDF_P 0.125
@@ -840,7 +860,7 @@ main()
 #define RANDOMISED_BSDF
 #ifdef RANDOMISED_BSDF
         bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
-        if(use_vmf) read_neighbour_state(tent, me, ipos, mv, seed, rp);
+        if(use_vmf) read_neighbour_state(tent, m0.x, m0.n, ipos, mv, seed, rp);
 #else
         bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
 #endif
@@ -865,68 +885,69 @@ main()
           rgb *= dotn; // radiance now in solid angle space
           par[s] = vec4(mu, tent.kappa);
           // if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface XXX probably wrong in general
-          if(dotn <= 0.0) break; // dead sample XXX
+          if(dotn <= 0.0) continue;// break; // dead sample XXX
         }
         if(!use_vmf)
         { // sample independent new ray direction
           w = bsdf_sample(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, m0.bsdf_param, rand.xy);
           w = normalize(w); // paranoia/numerical jitter over bounces
-          pdf_w = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // uniform projected solid angle
           float dotn = any(notEqual(m0.n, vec3(0.0))) ? dot(w, m0.n) : 1.0;
           rgb *= dotn; // radiance now in solid angle space
-          pdf_w *= dotn; // now in solid angle too
-          par[s] = vec4(0.0);//vec4(m0.n, 0.0); // normal is clear from gbuf
+          pdf_w = dotn * bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // solid angle
+          par[s] = vec4(0.0);
         }
         rgb *= bsdf_eval(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
 
         if(any(notEqual(m0.ng, vec3(0.0))) && dot(w, m0.ng) <= 0.0)
         { // kill under geo surface paths
           rgb = vec3(0.0);
-          break;
+          continue; // break;
         }
 
-        bool underwater = cam_underwater;
-        m1 = propagate_ray(m0.x, w, underwater, mg, rand.w, rgb);
+        {
+          bool underwater = cam_underwater;
+          vec3 xm, nm;
+          mat = propagate_ray(m0.x, w, underwater, xm, nm, rand.w, rgb);
         // XXX always the case in quake: if(m1.t < T_MAX)
-        { // ray intersected geometry, init material state and tangent frame
-          const float T = exp(-m1.t * 3.);
+        // ray intersected geometry, init material state and tangent frame
+          const float T = exp(-mat.t * 3.);
           rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
 
-          // vertex area measure pdf of x (new vertex)
-          const float C = C_term(m0.x, m0.n, m1.x, m1.n);
 
           // handle intersection:
           // * accumulate direct albedo and indirect irradiance channels
           // * successful nee sample: store nee state in registers
-          if(b == 0 && any(greaterThan(m1.emission, vec3(0.0))))
+          // if(b == 0 && any(greaterThan(m1.emission, vec3(0.0))))
+          if(any(greaterThan(mat.emission, vec3(0.0))))
           { // update nee sampling state
             // metropolis hastings step:
             // update state of this pixel by sampling forward and back pdf:
             // include bsdf, look worse?
             // float f = max(m1.emission.x, max(m1.emission.y, m1.emission.z))/pdf_w;
-            float f = lum(rgb * m1.emission)/pdf_w;
+            const float f = lum(rgb * mat.emission)/pdf_w;
             // float a = min(1.0, f * G / (tent.f * G_term(m0.x, m0.n, tent.y, tent.n)));
             // float a = min(1.0, f * G / (tent.f * G_cosines(m0.x, m0.n, tent.y, tent.n)));
-            float a = min(1.0, f * C / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
+            const float C = C_term(m0.x, m0.n, mat.c.x, mat.c.n);
+            const float a = min(1.0, f * C / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
             // float a = min(1.0, f / tent.f);
-            rad[s] = rgb * m1.emission; // store radiance in solid angle space for balance heuristic/cmis
-            lco[s] = mg.x; // aim at position on watersurface, if any
+            rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
+            ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
             if(tent.f == 0.0)
             { // sampled bsdf to get here? insert distance based heuristic as starting point:
 #if 1
-              tent.kappa = clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
+              tent.kappa = clamp(50.0 + 100.0*mat.t, 100, 65500); // XXX total distance?
               tent.acc = 0.5;
-              if(m1.mat == 0xfff) tent.kappa = 50; // sky is smooth
+              if(mat.mat == 0xfff) tent.kappa = 50; // sky is smooth
               tent.f = f;
-              tent.y = mg.x;
-              tent.n = mg.n;
+              tent.y = xm;
+              tent.n = nm;
 #else // seems this also works a bit but adapts slower
-              curr.kappa = clamp(50.0 + 100.0*m1.t, 100, 65500); // XXX total distance?
+              curr.kappa = clamp(50.0 + 100.0*mat.t, 100, 65500); // XXX total distance?
               curr.acc = 0.0;
-              if(m1.mat == 0xfff) curr.kappa = 50; // sky is smooth
+              if(mat.mat == 0xfff) curr.kappa = 50; // sky is smooth
               curr.f = f;
-              curr.y = mg.x;
-              curr.n = mg.n;
+              curr.y = xm;
+              curr.n = nm;
 #endif
             }
             const float acc_hist_alpha = 0.9;
@@ -934,16 +955,16 @@ main()
             { // update markov chain state for this pixel:
               // XXX
 #if 1
-              tent.y = mg.x; // XXX update state mean too
-              tent.n = mg.n;
+              tent.y = xm; // XXX update state mean too
+              tent.n = nm;
               tent.f = f;
               tent.acc = mix(1.0, tent.acc, acc_hist_alpha);
               curr = tent;
 #else
               // XXX
               curr.f = f;
-              curr.y = mg.x;      // create new lobe around good sample
-              curr.n = mg.n;
+              curr.y = xm;      // create new lobe around good sample
+              curr.n = nm;
               // curr.kappa = max(100.0, curr.kappa * 0.5);
 #endif
               // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
@@ -973,13 +994,13 @@ main()
           // tent = curr; // rejected state means the markov chain stays
           // XXX i think this is because we need to give tent a chance to converge kappa
 
-          m0 = m1; // advance path vertex
+          // m0 = m1; // advance path vertex
         } // end if cast ray intersected anything
         // XXX else break; // nothing intersected, can't go on
       } // end bounces
 
 #ifndef RANDOMISED_BSDF
-      if(global.frame > 10 && s < spp-1) read_neighbour_state(tent, me, ipos, mv, seed, rp);
+      if(global.frame > 10 && s < spp-1) read_neighbour_state(tent, m0.x, m0.n, ipos, mv, seed, rp);
 #endif
     } // end spp for indirect rays
   } // end if intersect primary ray
@@ -990,9 +1011,9 @@ main()
 #if 0 // DEBUG
     if(any(greaterThan(rad[s], vec3(0.0))))
     {
-      vec3 w = normalize(lco[s]-me.x);
-      float wdotn = dot(w, me.n);
-      float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
+      vec3 w = ltw[s];
+      float wdotn = dot(w, m0.n);
+      float pdf_bsdf = wdotn * bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param);
       float pdf = BSDF_P * pdf_bsdf;
       if(par[s].w == 0.0) pdf += (1.0-BSDF_P) * pdf_bsdf;
       else pdf += (1.0-BSDF_P) * vmf_eval(par[s].w, dot(w, par[s].xyz));
@@ -1001,9 +1022,9 @@ main()
 #else
 #ifdef RANDOMISED_BSDF
     float pdf = 0.0;
-    vec3 w = normalize(lco[s]-me.x);
-    float wdotn = dot(w, me.n);
-    float pdf_bsdf = wdotn * bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, w, me.bsdf_param);
+    vec3 w = ltw[s];
+    float wdotn = dot(w, m0.n);
+    float pdf_bsdf = wdotn * bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param);
     if(params.ref != 0)
     {
       pdf = spp * pdf_bsdf;
@@ -1017,38 +1038,41 @@ main()
         pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(w, par[t].xyz));
     }
 #else
-    float pdf = bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
+    float pdf = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, ltw[s], m0.bsdf_param);
     for(int t=1;t<spp;t++)
     {
       if(par[t].w == 0.0)
-        pdf += bsdf_pdf(me.bsdf, w_cam, me.du, me.dv, me.n, normalize(lco[s]-me.x), me.bsdf_param);
+        pdf += bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, ltw[s], m0.bsdf_param);
       else
-        pdf += vmf_eval(par[t].w, dot(normalize(lco[s] - me.x), par[t].xyz);
+        pdf += vmf_eval(par[t].w, dot(ltw[s], par[t].xyz);
     }
 #endif
     if(any(greaterThan(rad[s], vec3(0.0))))
     {
       vec3 contrib = rad[s] / pdf;
       if(!any(isinf(contrib)) && !any(isnan(contrib)))
-        irr += rad[s] / pdf;
+        irr += contrib;
     }
 #endif
   }
 
+  {
   // vec4 deb = vec4(curr.kappa*0.001, curr.acc, 0, 1.0);
   vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.0), 0, 0, 1.0);
   // vec4 deb = vec4(0.0, curr.acc, 0, 1.0);
   imageStore(img_debug, ipos, deb);
+  }
 
+  {
   vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
-  gbuf.x = uintBitsToFloat(geo_encode_normal(me.n)); // normal
-  gbuf.y = length(me.x - params.cam_x.xyz);          // depth
+  gbuf.x = uintBitsToFloat(geo_encode_normal(m0.n)); // normal
+  gbuf.y = length(m0.x - params.cam_x.xyz);          // depth
   gbuf.z = mix(length(irr),  gbuf.z, 0.9);           // biased first  moment
   gbuf.w = mix(dot(irr,irr), gbuf.w, 0.9);           // biased second moment
   imageStore(img_gbuf_out, ipos, gbuf);
+  }
 
   imageStore(img_nee_out,    ipos, mc_state_encode(curr));
   imageStore(img_irradiance, ipos, vec4(irr, 1));
-  imageStore(img_albedo,     ipos, vec4(alb, 1));
 }
 
