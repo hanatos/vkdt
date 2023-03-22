@@ -972,6 +972,11 @@ void commit_params(
 
   ((float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cltime"))))[0] = cl.time;
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
+  float *p_fog = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("fog")));
+  float *qf = Fog_GetColor();
+  p_fog[0] = qf[0]; p_fog[1] = qf[1]; p_fog[2] = qf[2];
+  p_fog[3] = Fog_GetDensity();
+  p_fog[3] *= p_fog[3]; // quake provides sqrt of collision coefficients, dunno why
 #if 0 // our camera
   // put back to params:
   float fwd[] = {p_cam[4], p_cam[5], p_cam[6]};

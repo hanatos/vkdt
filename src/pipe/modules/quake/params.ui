@@ -1,4 +1,5 @@
 cam:grab
+fog:hidden
 spp:slider:1:64
 torch:hidden
 water:hidden
