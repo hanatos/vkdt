@@ -8,8 +8,8 @@ this is done in [the denoise module](../denoise/readme.md).
 
 ## connectors
 
-* `input` `rggb` / mosaic input with single channel per pixel
-* `output` `rgba f16` demosaiced output with colour per pixel
+* `input` mosaic input with single channel per pixel
+* `output` demosaiced output with colour per pixel
 
 ## parameters
 
