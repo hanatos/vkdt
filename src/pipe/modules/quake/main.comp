@@ -320,8 +320,14 @@ prepare_material_info(
   else if(m.flags == 2) m.emission =  0.5*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
   else if(m.mat == 0xfff) m.emission = m.emission;//(exp2(m.emission*10.0)-1.0);
-  else m.emission = 10.0*(exp2(m.emission*10.0)-1.0); // looks great on q1 torches
-  // else m.emission = m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0); // more natural colours, better on tfuma/some newer ad stuff
+  else
+  {
+    // m.emission = 10.0*(exp2(m.emission*10.0)-1.0); // looks great on q1 torches
+    // m.emission = m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0); // more natural colours, better on tfuma/some newer ad stuff
+    m.emission = mix(10.0*(exp2(m.emission*10.0)-1.0),
+        m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0),
+        clamp(m.emission.b-m.emission.r, 0, 1));
+  }
 #if 1
   if(brush_model && m.matnd > 0)
   { // apply normal map
@@ -785,13 +791,14 @@ main()
       // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
       // rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
       // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
+      rgb_cam *= T;
       // XXX could look fantastic on ad_tears, but please eval without sun!
       // irr += envmap(w_cam) * (1.0-T);
       irr = params.fog.rgb * (1.0-T);
       // if(any(greaterThan(mat.albedo, vec3(0.0))))
       if(mat.mat != 0xfff)
       {
-        mat.albedo = max(mat.albedo, vec3(1e-5));
+        mat.albedo = max(mat.albedo, vec3(1e-2));
         irr /= mat.albedo;
       }
       // irr += envmap(w_cam) * (1.0-T)/max(vec3(1e-5),mat.albedo);
