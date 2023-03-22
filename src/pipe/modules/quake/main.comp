@@ -798,7 +798,7 @@ main()
       // if(any(greaterThan(mat.albedo, vec3(0.0))))
       if(mat.mat != 0xfff)
       {
-        mat.albedo = max(mat.albedo, vec3(1e-2));
+        mat.albedo = max(mat.albedo, vec3(5e-3));
         irr /= mat.albedo;
       }
       // irr += envmap(w_cam) * (1.0-T)/max(vec3(1e-5),mat.albedo);
