@@ -400,7 +400,7 @@ prepare_material_info(
       m.matfb = (stcssbo.v[i+6]>>16) & 0xfff;
       m.matgl =  stcssbo.v[i+0]&0xffff;
       m.matnd =  stcssbo.v[i+0]>>16;
-      m.st = m.x.xy*0.01;
+      m.st = m.c.x.xy*0.01;
       // m.st = vec2(
       //     m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
       //     m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
@@ -513,20 +513,19 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
     {
-      int instance_id = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
-      int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
+      const int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      int i = 7*pi;
+      const int i = 7*pi;
       uint mat = 0;
       uint flags = 0;
-      uint alpha = 0;
+      // uint alpha = 0;
       vec2 st;
-      if(instance_id == 0)
+      if(rayQueryGetIntersectionInstanceIdEXT(rq, false) == 0) // which of our ssbo
       {
         mat   = dynssbo.v[i+6]&0xfff;
-        alpha = dynssbo.v[i+6]>>12;
+        // alpha = dynssbo.v[i+6]>>12;
         flags = dynssbo.v[i+6]>>28;
         vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
@@ -536,7 +535,7 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       else
       {
         mat   = stcssbo.v[i+6]&0xfff;
-        alpha = stcssbo.v[i+6]>>12;
+        // alpha = stcssbo.v[i+6]>>12;
         flags = stcssbo.v[i+6]>>28;
         vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
         vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
@@ -694,6 +693,7 @@ void read_neighbour_state(
   float C = C_term(x, n, tent.y, tent.n);
   // float rnd0 = mrand(seed);
   // float sum = rnd0 >= 0.5 ? tent.f * C : C;
+  // float sum = tent.f * C;
   float sum = C;
 #if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
@@ -708,6 +708,7 @@ void read_neighbour_state(
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
     // float other = (rnd0 >= 0.5 ? t2.f : 1.0) * C_term(x, n, t2.y, t2.n);
+    // float other = t2.f * C_term(x, n, t2.y, t2.n);
     float other = C_term(x, n, t2.y, t2.n);
     if(tent.f == 0 || rnd < other / (other + sum))
       tent = t2;
@@ -719,14 +720,14 @@ void read_neighbour_state(
 void
 main()
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_irradiance)))) return;
 
   if(params.cl_time < 2.0) return; // stupid last resort fix for level loading in progress :|
 
   uint seed = 19937 * global.frame;
   const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
-  vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+  const vec2 mv = texelFetch(img_mv, ipos, 0).rg;
 
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
   const int spp = 8; // needs to be a compile time constant (use specialisation?)
