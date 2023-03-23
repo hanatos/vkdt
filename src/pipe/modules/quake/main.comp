@@ -902,9 +902,9 @@ main()
           bool underwater = cam_underwater;
           vec3 xm, nm;
           mat = propagate_ray(m0.x, w, underwater, xm, nm, rand.w, rgb);
-          { // ray intersected geometry, init material state and tangent frame
-            const float T = exp(-mat.t * 3.);
-            rgb *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+          {
+            const float T = exp(-min(mat.t, 1000.0) * 0.01 * params.fog.w);
+            rgb *= T;//mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
           }
 
           // handle intersection:
