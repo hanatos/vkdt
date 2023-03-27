@@ -137,7 +137,7 @@ next:
   if(f) while(!feof(f))
   {
     char mp[50];
-    fscanf(f, "%999s %49s %*[^\n]", block, mp);
+    if(fscanf(f, "%999s %49s %*[^\n]", block, mp) >= 2)
     for(int i=0;i<cnt;i++)
     {
       if(!strcmp(block, devname[i]))
