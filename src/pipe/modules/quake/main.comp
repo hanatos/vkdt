@@ -683,10 +683,10 @@ void read_neighbour_state(
     const ivec2 rp)
 {
   float C = C_term(x, n, tent.y, tent.n);
-  // float rnd0 = mrand(seed);
-  // float sum = rnd0 >= 0.5 ? tent.f * C : C;
+  float rnd0 = mrand(seed);
+  float sum = rnd0 < 0.2 ? tent.f * C : C;
   // float sum = tent.f * C;
-  float sum = C;
+  // float sum = C;
 #if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
@@ -699,9 +699,9 @@ void read_neighbour_state(
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    // float other = (rnd0 >= 0.5 ? t2.f : 1.0) * C_term(x, n, t2.y, t2.n);
+    float other = (rnd0 < 0.2 ? t2.f : 1.0) * C_term(x, n, t2.y, t2.n);
     // float other = t2.f * C_term(x, n, t2.y, t2.n);
-    float other = C_term(x, n, t2.y, t2.n);
+    // float other = C_term(x, n, t2.y, t2.n);
     if(tent.f == 0 || rnd < other / (other + sum))
       tent = t2;
     sum += other;
@@ -898,17 +898,16 @@ main()
         {
           bool underwater = cam_underwater;
           vec3 xm, nm;
+          // XXX TODO: return virtual point to aim at (see seb's formula of apparent distance)
+          // XXX TODO: remove normal at light and see how far we can go
           mat = propagate_ray(m0.x, w, underwater, xm, nm, rand.w, rgb);
-          {
+          { // eval extinction towards light source (no more in-scattering for now here)
             const float T = exp(-min(mat.t, 1000.0) * 0.01 * params.fog.w);
             rgb *= T;//mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
           }
 
-          // handle intersection:
-          // * accumulate direct albedo and indirect irradiance channels
-          // * successful nee sample: store nee state in registers
           if(any(greaterThan(mat.emission, vec3(0.0))))
-          { // update nee sampling state
+          { // found light source connection
             const float f = lum(rgb * mat.emission)/pdf_w;
             const float C = C_term(m0.x, m0.n, mat.c.x, mat.c.n);
             const float a = min(1.0, f * C / (curr.f * C_term(m0.x, m0.n, curr.y, curr.n)));
