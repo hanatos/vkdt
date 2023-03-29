@@ -598,7 +598,7 @@ propagate_ray(
   underwater = !underwater;
   res = cast_ray(rq, m.c.x-m.c.n*0.01, wo, t_max);
   dist += res.opaque.t * abs(dot(-w, m.c.n)/dot(wo, m.c.n)) * 1.0/ior; // =  t * abs(cos_int / cos_ext) * n_ext / n_int
-  // xm = x + w * dist; // seb's patented underwater parallax compensation
+  xm = x + w * dist; // seb's patented underwater parallax compensation
   weight /= (1.0-fresnel);
   return prepare_material_info(m.c.x, wo, res);
 #endif
