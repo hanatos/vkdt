@@ -151,7 +151,7 @@ struct intersection_t
 struct raycast_res_t
 { // stores whatever a ray cast needs to report
   intersection_t opaque;
-#if WATER_MODE==WATER_MODE_FULL
+#if WATER_MODE!=WATER_MODE_OFF
   intersection_t water;
 #endif
 };
@@ -581,6 +581,7 @@ propagate_ray(
 #else
   if(m.flags != 4 && m.flags != 5/* && m.alpha > 0.5*/) return m; // no water no transmission, simple
   
+  float dist = res.opaque.t;
   // randomly sample reflective/termination vs specular transmit
   float ior = 1.33;
   // critical angle for out->inside is 90 degrees grazing
@@ -596,6 +597,8 @@ propagate_ray(
   if(all(equal(wo, vec3(0.0)))) return m; // total internal reflection
   underwater = !underwater;
   res = cast_ray(rq, m.c.x-m.c.n*0.01, wo, t_max);
+  dist += res.opaque.t * abs(dot(-w, m.c.n)/dot(wo, m.c.n)) * 1.0/ior; // =  t * abs(cos_int / cos_ext) * n_ext / n_int
+  // xm = x + w * dist; // seb's patented underwater parallax compensation
   weight /= (1.0-fresnel);
   return prepare_material_info(m.c.x, wo, res);
 #endif
