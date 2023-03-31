@@ -621,7 +621,7 @@ struct mc_state_t
   float sum_len;  // TODO: store mean cosine in [0,1] = sum_len / sum_w instead!
 };
 
-#define ML_PRIOR_N 10.0 // cannot be zero or else mean cos -> kappa blows up
+#define ML_PRIOR_N 2.0 // cannot be zero or else mean cos -> kappa blows up
 #define ML_MAX_N 1024
 #define ML_MIN_ALPHA 0.5
 #define ML_SCALE 100.0
@@ -657,7 +657,7 @@ vec4 mc_state_vmf(mc_state_t s, vec3 x)
 #if 1
   vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
   float d = length(tgt-x);
-  float rp = 1.0 -  1.0/clamp(50.0 + 100.0*d, 100.0, 6500.0);
+  float rp = 1.0 -  1.0/clamp(150.0 + 1000.0*d, 100.0, 6500.0);
   r = (s.N * r + ML_PRIOR_N * rp) / (s.N + ML_PRIOR_N);
 #else
   r = (s.N * r) / (s.N + ML_PRIOR_N);
