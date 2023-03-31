@@ -5,6 +5,10 @@
 #extension GL_EXT_ray_query               : enable
 #extension GL_KHR_shader_subgroup_basic   : enable
 #extension GL_KHR_shader_subgroup_shuffle : enable
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_EXT_shader_16bit_storage    : enable
+#extension GL_EXT_shader_subgroup_extended_types_int16   : enable
+#extension GL_EXT_shader_subgroup_extended_types_float16 : enable
 
 #include "shared.glsl"
 #include "shared/render3d.glsl"
@@ -607,74 +611,90 @@ propagate_ray(
 }
 
 struct mc_state_t
-{
-  vec3  y;              // world space position of light source point
-  float f;              // observed measurement contribution until there (bsdf * G * Le)
-  float kappa;          // concentration parameter for vMF
-  float acc;            // mean acceptance (exp.avg.)
+{ // mcmc state representing a single lobe, plus the ML-estimate intermediates
+  float16_t f;
+  uint16_t  N;
+  float16_t sum_w;
+  float16_t sum_len;
+  vec3      sum_tgt;
 };
 
+#define ML_PRIOR_N 0.1
+#define ML_MAX_N 1024
+#define ML_MIN_ALPHA 0.01
+
+bool mc_state_valid(mc_state_t s) { return s.sum_w > float16_t(0.0); }
+
+vec3 mc_state_dir(mc_state_t s, vec3 x)
+{ // return normalised direction to shoot to, as seen from given point x
+  vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
+  return normalize(tgt - x);
+}
+
+void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y)
+{ // add sample to lobe via maximum likelihood estimator and exponentially weighted average
+  s.N = min(uint16_t(s.N + 1), uint16_t(ML_MAX_N));
+  float alpha = max(1.0 / float(s.N), ML_MIN_ALPHA);
+  s.sum_w   = float16_t(mix(float(s.sum_w), w, alpha));
+  s.sum_tgt = mix(s.sum_tgt, w*y, alpha);
+  vec3 to = s.sum_len * mc_state_dir(s, x);
+  to = mix(to, w * dir, alpha);
+  s.sum_len = float16_t(length(to));
+}
+
+vec4 mc_state_vmf(mc_state_t s, vec3 x)
+{ // return a vmf lobe (direction + kappa) for the given position
+  float r = s.sum_len / s.sum_w;
+  r = (s.N * r) / (s.N + ML_PRIOR_N);
+  return vec4(mc_state_dir(s, x), (3.0*r - r*r*r) / (1.0 - r*r));
+}
+
+void mc_state_shuffle(inout mc_state_t s, uint lane)
+{ // shuffle state to different subgroup lane
+  s.f       = subgroupShuffle(s.f, lane);
+  s.N       = subgroupShuffle(s.N, lane);
+  s.sum_w   = subgroupShuffle(s.sum_w, lane);
+  s.sum_len = subgroupShuffle(s.sum_len, lane);
+  s.sum_tgt = subgroupShuffle(s.sum_tgt, lane);
+}
+
 mc_state_t mc_state_new()
-{
+{ // zero-init new markov chain state
   mc_state_t r;
-  r.y = vec3(0);
-  r.f = 0.0;
-  r.kappa = 0;
-  r.acc = 0.0;
+  r.f       = float16_t(0.0);
+  r.N       = uint16_t (0);
+  r.sum_w   = float16_t(0.0);
+  r.sum_len = float16_t(0.0);
+  r.sum_tgt = vec3(0.0);
   return r;
 }
 
-#if 0
-// return only the cosines, not the distance squared part
-float G_cosines(vec3 x, vec3 nx, vec3 y, vec3 ny)
-{
-  vec3 d = normalize(y - x);
-  float res = 1.0;
-  if(any(notEqual(nx, vec3(0.0)))) res *= dot( d, nx);
-  // if(any(notEqual(ny, vec3(0.0)))) res *= dot(-d, ny); // XXX switch off light cosine for a test
-  return res;
-}
-
-// pass shading point first, remote/light second (for sky detection)
-float G_term(vec3 x, vec3 nx, vec3 y, vec3 ny)
-{
-  vec3 d = y - x;
-  float r2 = dot(d, d);
-  if(r2 > (T_MAX-1.0-100)*(T_MAX-1.0-100)) // this has got to be the sky
-    return max(0, dot(d, nx));
-  d = normalize(d);
-  return max(0, dot(d, nx))*max(0, dot(-d, ny))/max(1e-6, r2);
-}
-#endif
-
-float C_term(vec3 x, vec3 nx, vec3 y)
-{
+float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
+{ // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
+  vec3 y = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
   if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
   return 1.0;
-  // float G = G_cosines(x, nx, y, ny);
-  // if(G > 0.0) return 1.0;
-  // return 0.0;
 }
 
 uvec4 mc_state_encode(mc_state_t r)
-{
+{ // encode mc state in 4 uints
   return uvec4(
-      packHalf2x16(r.y.xy),
-      packHalf2x16(vec2(r.y.z, r.f)),
-      packHalf2x16(vec2(r.kappa, r.acc)),
+      pack32(u16vec2(float16BitsToUint16(r.f), r.N)),
+      pack32(u16vec2(float16BitsToUint16(r.sum_w), float16BitsToUint16(r.sum_len))),
+      geo_encode_normal(r.sum_tgt),
       0);
 }
 
 mc_state_t mc_state_decode(uvec4 enc)
-{
+{ // decode mc state
   mc_state_t r = mc_state_new();
-  vec2 h = unpackHalf2x16(enc.y);
-  r.y.xy = unpackHalf2x16(enc.x);
-  r.y.z  = h.x;
-  r.f    = h.y;
-  vec2 ka = unpackHalf2x16(enc.z);
-  r.kappa = ka.x;
-  r.acc   = ka.y;
+  u16vec2 i0 = unpack16(enc.x);
+  r.f = uint16BitsToFloat16(i0.x);
+  r.N = i0.y;
+  i0 = unpack16(enc.y);
+  r.sum_w   = uint16BitsToFloat16(i0.x);
+  r.sum_len = uint16BitsToFloat16(i0.y);
+  r.sum_tgt = geo_decode_normal(enc.z);
   return r;
 }
 
@@ -687,7 +707,7 @@ void read_neighbour_state(
     inout uint seed,
     const ivec2 rp)
 {
-  float C = C_term(x, n, tent.y);
+  float C = mc_state_C(tent, x, n);
   float rnd0 = mrand(seed);
   float sum = rnd0 < 0.2 ? tent.f * C : C;
   // float sum = tent.f * C;
@@ -704,13 +724,13 @@ void read_neighbour_state(
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    float other = (rnd0 < 0.2 ? t2.f : 1.0) * C_term(x, n, t2.y);
+    float other = (rnd0 < 0.2 ? t2.f : 1.0) * mc_state_C(t2, x, n);
     // float other = t2.f * C_term(x, n, t2.y, t2.n);
     // float other = C_term(x, n, t2.y, t2.n);
-    if(tent.f == 0 || rnd < other / (other + sum))
+    if(!mc_state_valid(tent) || rnd < other / (other + sum))
       tent = t2;
     sum += other;
-    if(tent.f > 0) break;
+    if(mc_state_valid(tent)) break;
   }
 }
 
@@ -723,7 +743,7 @@ main()
   if(params.cl_time < 2.0) return; // stupid last resort fix for level loading in progress :|
 
   uint seed = 19937 * global.frame;
-  const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
+  const ivec2 rp = ipos % textureSize(img_blue, 0);
   const vec2 mv = texelFetch(img_mv, ipos, 0).rg;
 
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
@@ -837,43 +857,28 @@ main()
       vec3 rgb = rgb_cam;
       rad[s] = vec3(0.0);
 
-#if 1 // addis' patented unbiased fix
-      tent.y = subgroupShuffle(tent.y, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
-      tent.f = subgroupShuffle(tent.f, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
-      tent.kappa = subgroupShuffle(tent.kappa, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
-      tent.acc   = subgroupShuffle(tent.acc,   (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
-#endif
+      // addis' patented unbiased fix
+      mc_state_shuffle(tent, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       {
         rand = xrand(seed, rp);
 #define BSDF_P 0.125
 // #define BSDF_P 0
-#define RANDOMISED_BSDF
-#ifdef RANDOMISED_BSDF
         bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
         if(use_vmf) read_neighbour_state(tent, m0.x, m0.n, ipos, mv, seed, rp);
-#else
-        bool use_vmf = (params.ref == 0) && (s > 0); // always bsdf first time only
-#endif
-        if(tent.f == 0) use_vmf = false; // XXX probably wrong in general
+        if(!mc_state_valid(tent)) use_vmf = false; // XXX probably wrong in general
         if(use_vmf)
         {
-#if 0 // XXX DEBUG SMIS
-          tent.kappa = -log(1.0-rand.z) * 50.0;
-          rand = xrand(seed, rp);
-          vec3 mu = sample_sphere(rand.zw);
-#else
-          vec3 mu = normalize(tent.y-m0.x);
-#endif
-          w = vmf_sample(tent.kappa, rand.xy);
+          vec4 vmf = mc_state_vmf(tent, m0.x);
+          w = vmf_sample(vmf.w, rand.xy);
           vec3 up = vec3(1,0,0), du, dv;
-          if(abs(mu.x) > abs(mu.y)) up = vec3(0,1,0);
-          du = normalize(cross(up, mu));
-          dv = normalize(cross(du, mu));
-          pdf_w = vmf_eval(tent.kappa, w.z);
-          w = w.x * du + w.y * dv + w.z * mu;
+          if(abs(vmf.x) > abs(vmf.y)) up = vec3(0,1,0);
+          du = normalize(cross(up, vmf.xyz));
+          dv = normalize(cross(du, vmf.xyz));
+          pdf_w = vmf_eval(vmf.w, w.z);
+          w = w.x * du + w.y * dv + w.z * vmf.xyz;
           float dotn = any(notEqual(m0.n, vec3(0.0))) ? dot(w, m0.n) : 1.0;
           rgb *= dotn; // radiance now in solid angle space
-          par[s] = vec4(mu, tent.kappa);
+          par[s] = vmf;
           // if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface XXX probably wrong in general
           if(dotn <= 0.0) continue; // dead sample XXX
         }
@@ -912,86 +917,28 @@ main()
           if(any(greaterThan(mat.emission, vec3(0.0))))
           { // found light source connection
             const float f = lum(rgb * mat.emission)/pdf_w;
-            const float C = C_term(m0.x, m0.n, mat.c.x);
-            const float a = min(1.0, f * C / (curr.f * C_term(m0.x, m0.n, curr.y)));
+            // tent.f = float16_t(min(65530.0, lum(rgb * mat.emission)/pdf_w));
+            // const float C = mc_state_C(tent, m0.x, m0.n);
+            // const float C = C_term(m0.x, m0.n, mat.c.x);
+            const float a = min(1.0, f * mc_state_C(tent, m0.x, m0.n) / (curr.f * mc_state_C(curr, m0.x, m0.n)));
             rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
             ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
-            if(tent.f == 0.0)
-            { // sampled bsdf to get here? insert distance based heuristic as starting point:
-#if 1
-              tent.kappa = clamp(50.0 + 100.0*mat.t, 100, 65500); // XXX total distance?
-              tent.acc = 0.5;
-              if(mat.mat == 0xfff) tent.kappa = 50; // sky is smooth
-              tent.f = f;
-              tent.y = xm;
-#else // seems this also works a bit but adapts slower
-              curr.kappa = clamp(50.0 + 100.0*mat.t, 100, 65500); // XXX total distance?
-              curr.acc = 0.0;
-              if(mat.mat == 0xfff) curr.kappa = 50; // sky is smooth
-              curr.f = f;
-              curr.y = xm;
-#endif
-            }
-            const float acc_hist_alpha = 0.9;
-            if(curr.f == 0.0 || rand.z < a)
+            if(curr.f == float16_t(0.0) || rand.z < a)
             { // update markov chain state for this pixel:
-#if 1
-              tent.y = xm; // update state mean too
-              tent.f = f;
-              tent.acc = mix(1.0, tent.acc, acc_hist_alpha);
+              if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
+              tent.f = float16_t(min(65530.0, f)); // XXX when do we set f??
               curr = tent;
-#else
-              curr.f = f;
-              curr.y = xm;      // create new lobe around good sample
-              // curr.kappa = max(100.0, curr.kappa * 0.5);
-#endif
-              // okay this was a hit! so we can try to smooth out a bit more to explore the surroundings too:
-              // tent.kappa = max(100.0, tent.kappa * 0.5);
-            } // this was a miss! make the lobe sharper so we increase the chances of intersecting a small light:
-            else
-            { // rejected, maybe try again with different kappa (if not replaced by nbhood)
-              tent.acc = mix(0.0, tent.acc, acc_hist_alpha);
-              // tent.kappa = min(200000.0, tent.kappa * 2.0);
-              // tent.kappa = min(65500.0, tent.kappa * 2.0);
-              // curr.kappa = min(65500.0, curr.kappa * 2.0);
             }
-#if 1
-            // XXX this adjustment in some form is the determining factor for success!
-            // use controller based on target acceptance rate of 50%:
-            // XXX FIXME: i think some hopeless samples keep increasing kappa, hindering their acceptance!
-            // XXX FIXME: limit
-            // float d = 1.0 + 1.95*(0.5 - tent.acc);
-            float d = exp(20.0*(0.5 - tent.acc));
-            tent.kappa = clamp(tent.kappa * d, 100.0, 65500.0);
-            if(tent.acc < 1.0-acc_hist_alpha)
-              tent.kappa = 50.0; // reset
-#endif
+            mc_state_add(tent, m0.x, f, ltw[s], xm);
           }
         } // end if cast ray intersected anything
       } // end bounces
-
-#ifndef RANDOMISED_BSDF
-      if(global.frame > 10 && s < spp-1) read_neighbour_state(tent, m0.x, m0.n, ipos, mv, seed, rp);
-#endif
     } // end spp for indirect rays
   } // end if intersect primary ray
 
   // apply cmis:
   if(compute_indirect) for(int s=0;s<spp;s++)
   {
-#if 0 // DEBUG
-    if(any(greaterThan(rad[s], vec3(0.0))))
-    {
-      vec3 w = ltw[s];
-      float wdotn = dot(w, m0.n);
-      float pdf_bsdf = wdotn * bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, w, m0.bsdf_param);
-      float pdf = BSDF_P * pdf_bsdf;
-      if(par[s].w == 0.0) pdf += (1.0-BSDF_P) * pdf_bsdf;
-      else pdf += (1.0-BSDF_P) * vmf_eval(par[s].w, dot(w, par[s].xyz));
-      irr += rad[s] / (spp * pdf);
-    }
-#else
-#ifdef RANDOMISED_BSDF
     float pdf = 0.0, pdf_bsdf;
     {
       float wdotn = dot(ltw[s], m0.n);
@@ -1012,29 +959,20 @@ main()
       else
         pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(ltw[s], par[t].xyz));
     }
-#else
-    float pdf = bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, ltw[s], m0.bsdf_param);
-    for(int t=1;t<spp;t++)
-    {
-      if(par[t].w == 0.0)
-        pdf += bsdf_pdf(m0.bsdf, w_cam, m0.du, m0.dv, m0.n, ltw[s], m0.bsdf_param);
-      else
-        pdf += vmf_eval(par[t].w, dot(ltw[s], par[t].xyz);
-    }
-#endif
     if(any(greaterThan(rad[s], vec3(0.0))))
     {
       vec3 contrib = rad[s] / pdf;
       if(!any(isinf(contrib)) && !any(isnan(contrib)))
         irr += contrib;
     }
-#endif
   }
 
+#if 0
   {
     vec4 deb = vec4(curr.kappa/(curr.kappa + 1000.0), 0, 0, 1.0);
     imageStore(img_debug, ipos, deb);
   }
+#endif
 
   {
     vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
