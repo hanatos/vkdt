@@ -747,10 +747,11 @@ void read_neighbour_state(
     inout uint seed,
     const ivec2 rp)
 {
+  const float p_f = 0.2;
   float C = mc_state_C(tent, x, n);
   float rnd0 = mrand(seed);
   // float sum = rnd0 < 0.2 ? tent.f * C : C;
-  float sum = rnd0 < 0.2 ? tent.sum_w * C : C;
+  float sum = rnd0 < p_f ? tent.sum_w * C : C;
   // float sum = tent.f * C;
   // float sum = C;
 #if 1
@@ -766,7 +767,7 @@ void read_neighbour_state(
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
     // float other = (rnd0 < 0.2 ? t2.f : 1.0) * mc_state_C(t2, x, n);
-    float other = (rnd0 < 0.2 ? t2.sum_w : 1.0) * mc_state_C(t2, x, n);
+    float other = (rnd0 < p_f ? t2.sum_w : 1.0) * mc_state_C(t2, x, n);
     // float other = t2.f * C_term(x, n, t2.y, t2.n);
     // float other = C_term(x, n, t2.y, t2.n);
     if(!mc_state_valid(tent) || rnd < other / (other + sum))
@@ -846,15 +847,17 @@ main()
       // TODO clip max dist! we want to see the envmap!
       // float vert = (1.0-w_cam.z)/2.0; // vertical modifier, 0..1
       const float vert = 1.0;//exp(-10.0 * w_cam.z);
-      const float T = exp(-min(mat.t, 1000.0) * 0.01 * vert * params.fog.w);//6e-5); // fake in-scattering would look great in ad_tears, but lacks occlusion
+      const float mu_t = 0.01 * vert * params.fog.w;
+      const float T = exp(-min(mat.t, 1000.0) * mu_t); // fake in-scattering would look great in ad_tears, but lacks occlusion
       // TODO: if underwater (params.water) attenuate a bit more
       // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
       // rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
       // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
       rgb_cam *= T;
       // XXX could look fantastic on ad_tears, but please eval without sun!
-      // irr += envmap(w_cam) * (1.0-T);
-      irr = params.fog.rgb * (1.0-T);
+      // irr += envmap(w_cam) * (1.0-T) / mu_t;
+      // the correct in-scattering needs / mu_t here but looks way overbright then. let's assume fog.rgb comes in premultiplied by 1/mu_t ..
+      irr = params.fog.rgb * (1.0-T);// / mu_t;
       // if(any(greaterThan(mat.albedo, vec3(0.0))))
       if(mat.mat != 0xfff)
       {
@@ -954,6 +957,7 @@ main()
           { // eval extinction towards light source (no more in-scattering for now here. would be like fluorescing fog..)
             const float T = exp(-min(mat.t, 1000.0) * 0.01 * params.fog.w);
             rgb *= T;//mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+            // irr += params.fog.rgb * (1.0-T);// / mu_t; lack of albedo mul dance makes this very ambient
           }
 
           // if(any(greaterThan(mat.emission, vec3(0.0))))
