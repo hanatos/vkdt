@@ -15,6 +15,9 @@ sanitize:
 sanitize-thread:
 	$(MAKE) -C .. sanitize-thread
 
+cli:
+	$(MAKE) -C .. cli
+
 reload-shaders:
 	$(MAKE) -C .. reload-shaders
 

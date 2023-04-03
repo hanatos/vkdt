@@ -64,6 +64,10 @@ src: ext Makefile
 reload-shaders: Makefile
 	$(MAKE) -C src/ reload-shaders
 
+CLI=../bin/vkdt-cli ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-fit ../bin/vkdt-eval-profile ../bin/vkdt-lutinfo
+cli: Makefile
+	$(MAKE) -C src/ ${CLI}
+
 clean:
 	$(MAKE) -C ext/ clean
 	$(MAKE) -C src/ clean
