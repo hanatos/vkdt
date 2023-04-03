@@ -50,3 +50,14 @@ static inline double dt_time()
   gettimeofday(&time, NULL);
   return time.tv_sec - 1290608000 + (1.0/1000000.0)*time.tv_usec;
 }
+
+static inline void dt_sanitize_user_string(char *str)
+{ // https://wiki.sei.cmu.edu/confluence/display/c/STR02-C.+Sanitize+data+passed+to+complex+subsystems
+  static char ok_chars[] = "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "1234567890_-.@";
+  char *cp = str;
+  const char *end = str + strlen(str);
+  for (cp += strspn(cp, ok_chars); cp != end; cp += strspn(cp, ok_chars))
+    *cp = '_';
+}

@@ -407,7 +407,7 @@ int main(int argc, char *argv[])
   //  parse command line
   // =============================================
 
-  const char *model    = 0;
+  char       *model    = 0;
   const char *pick_a   = 0;
   const char *pick_d65 = 0;
   int optimiser = 2; // default adam
