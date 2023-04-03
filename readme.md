@@ -159,6 +159,12 @@ and then place this printed name exactly as written there in your
 ```
 strqvk/device_name:NVIDIA GeForce RTX 2070
 ```
+if you have several identical models in your system, you can use the device
+number `vkdt` assigns (an index starting at zero, again see the log output),
+and instead use
+```
+intqvk/device_id:0
+```
 
 * **can i use my pentablet to draw masks in vkdt?**  
 yes, but you need a specific version of glfw to support it.
