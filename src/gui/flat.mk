@@ -32,6 +32,7 @@ GUI_H=gui/gui.h\
       gui/lighttable.h\
       gui/files.h\
       gui/nodes.h\
+      core/core.h\
       core/fs.h\
       core/tools.h\
       pipe/graph-traverse.inc\
