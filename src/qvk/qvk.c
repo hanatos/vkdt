@@ -314,7 +314,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
 
   qvk.raytracing_supported = 0;
   int picked_device = -1;
-  for(int i = 0; i < num_devices; i++) {
+  for(int i = 0; i < num_devices; i++)
+  {
     VkPhysicalDeviceProperties dev_properties;
     VkPhysicalDeviceFeatures dev_features;
     vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
@@ -329,7 +330,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     uint32_t num_ext;
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, NULL);
 
-    VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
+    VkExtensionProperties *ext_properties = malloc(sizeof(VkExtensionProperties) * num_ext);
     vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
     if((preferred_device_id == i) ||
@@ -349,6 +350,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
       if(preferred_device_id == i)
         dt_log(s_log_qvk, "selecting device %d by explicit request", preferred_device_id);
     }
+    free(ext_properties);
   }
 
   if(picked_device < 0)
