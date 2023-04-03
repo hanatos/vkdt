@@ -611,6 +611,74 @@ propagate_ray(
 #endif
 }
 
+#define MC_STATE_KAPPA
+#ifdef MC_STATE_KAPPA
+struct mc_state_t
+{
+  vec3  y;              // world space position of light source point
+  float f;              // observed measurement contribution until there (bsdf * G * Le)
+  float kappa;          // concentration parameter for vMF
+  float acc;            // mean acceptance (exp.avg.)
+};
+
+mc_state_t mc_state_new()
+{
+  mc_state_t r = { vec3(0.0), 0.0, 0.0, 0.0 };
+  return r;
+}
+
+vec4 mc_state_vmf(mc_state_t s, vec3 x)
+{ // return a vmf lobe (direction + kappa) for the given position
+  return vec4(normalize(s.y - x), s.kappa);
+}
+
+void mc_state_shuffle(inout mc_state_t s, uint lane)
+{ // shuffle state to different subgroup lane
+  s.y     = subgroupShuffle(s.y, lane);
+  s.f     = subgroupShuffle(s.f, lane);
+  s.kappa = subgroupShuffle(s.kappa, lane);
+  s.acc   = subgroupShuffle(s.acc, lane);
+}
+
+float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
+{ // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
+   if(any(notEqual(nx, vec3(0.0))) && dot(s.y-x, nx) <= 0.0) return 0.0;
+   return 1.0;
+}
+
+bool mc_state_valid(mc_state_t s) { return s.f > 0.0; }
+
+float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
+{
+  const float p_f = 0.2;
+  const float f = rnd0 < p_f ? s.f : 1.0;
+  return f * mc_state_C(s, x, nx);
+}
+
+uvec4 mc_state_encode(mc_state_t r)
+{ // encode mc state in 4 uints
+  return uvec4(
+      packHalf2x16(r.y.xy),
+      packHalf2x16(vec2(r.y.z, r.f)),
+      packHalf2x16(vec2(r.kappa, r.acc)),
+      0);
+}
+
+mc_state_t mc_state_decode(uvec4 enc)
+{ // decode mc state
+  mc_state_t r = mc_state_new();
+  vec2 h = unpackHalf2x16(enc.y);
+  r.y.xy = unpackHalf2x16(enc.x);
+  r.y.z  = h.x;
+  r.f    = h.y;
+  vec2 ka = unpackHalf2x16(enc.z);
+  r.kappa = ka.x;
+  r.acc   = ka.y;
+  return r;
+}
+
+#else // ML-version
+
 struct mc_state_t
 { // mcmc state representing a single lobe, plus the ML-estimate intermediates
   vec3  sum_tgt;
@@ -692,6 +760,13 @@ float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
   return 1.0;
 }
 
+float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
+{
+  const float p_f = 0.2;
+  const float f = rnd0 < p_f ? s.sum_w : 1.0;
+  return f * mc_state_C(s, x, nx);
+}
+
 uvec4 mc_state_encode(mc_state_t r)
 { // encode mc state in 4 uints
   return uvec4(
@@ -737,6 +812,7 @@ mc_state_t mc_state_decode(uvec4 enc)
   r.sum_tgt *= ML_SCALE * r.sum_w;
   return r;
 }
+#endif
 
 void read_neighbour_state(
     inout mc_state_t tent,
@@ -747,13 +823,7 @@ void read_neighbour_state(
     inout uint seed,
     const ivec2 rp)
 {
-  const float p_f = 0.2;
-  float C = mc_state_C(tent, x, n);
-  float rnd0 = mrand(seed);
-  // float sum = rnd0 < 0.2 ? tent.f * C : C;
-  float sum = rnd0 < p_f ? tent.sum_w * C : C;
-  // float sum = tent.f * C;
-  // float sum = C;
+  float sum = mc_state_score(tent, x, n, mrand(seed));
 #if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
@@ -766,10 +836,7 @@ void read_neighbour_state(
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    // float other = (rnd0 < 0.2 ? t2.f : 1.0) * mc_state_C(t2, x, n);
-    float other = (rnd0 < p_f ? t2.sum_w : 1.0) * mc_state_C(t2, x, n);
-    // float other = t2.f * C_term(x, n, t2.y, t2.n);
-    // float other = C_term(x, n, t2.y, t2.n);
+    float other = mc_state_score(t2, x, n, mrand(seed));
     if(!mc_state_valid(tent) || rnd < other / (other + sum))
       tent = t2;
     sum += other;
@@ -951,8 +1018,7 @@ main()
 
         {
           bool underwater = cam_underwater;
-          vec3 xm;
-          // XXX TODO: return virtual point to aim at (see seb's formula of apparent distance)
+          vec3 xm; // virtual point (estimating flat refraction)
           mat = propagate_ray(m0.x, w, underwater, xm, rand.w, rgb);
           { // eval extinction towards light source (no more in-scattering for now here. would be like fluorescing fog..)
             const float T = exp(-min(mat.t, 1000.0) * 0.01 * params.fog.w);
@@ -960,26 +1026,47 @@ main()
             // irr += params.fog.rgb * (1.0-T);// / mu_t; lack of albedo mul dance makes this very ambient
           }
 
-          // if(any(greaterThan(mat.emission, vec3(0.0))))
-          // { // found light source connection
+#ifdef MC_STATE_KAPPA
+          if(any(greaterThan(mat.emission, vec3(0.0))))
+          { // found light source connection
             const float f = lum(rgb * mat.emission)/pdf_w;
-            // tent.f = float16_t(min(65530.0, lum(rgb * mat.emission)/pdf_w));
-            // const float C = mc_state_C(tent, m0.x, m0.n);
-            // const float C = C_term(m0.x, m0.n, mat.c.x);
-            // const float a = min(1.0, f * mc_state_C(tent, m0.x, m0.n) / (curr.f * mc_state_C(curr, m0.x, m0.n)));
-            // tentative state just sampled this path, so C is obviously =1
-            // const float a = min(1.0, f / (curr.f * mc_state_C(curr, m0.x, m0.n)));
-            const float a = min(1.0, f / (curr.sum_w * mc_state_C(curr, m0.x, m0.n)));
+            const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
             rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
             ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
+            if(!mc_state_valid(tent))
+            { // new bsdf sample, init tent state
+              tent.kappa = clamp(50.0 + 100.0*mat.t, 100, 65500);
+              tent.acc = 0.5;
+              if(mat.mat == 0xfff) tent.kappa = 50; // sky is smooth
+              tent.f = f;
+              tent.y = xm;
+            }
+            const float acc_hist_alpha = 0.9;
             if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
-            { // update markov chain state for this pixel:
-              if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
-              // tent.f = float16_t(min(65530.0, f)); // XXX when do we set f??
+            {
+              tent.y = xm; // update state mean too
+              tent.f = f;
+              tent.acc = mix(1.0, tent.acc, acc_hist_alpha);
               curr = tent;
             }
-          // }
+            else tent.acc = mix(0.0, tent.acc, acc_hist_alpha);
+            float d = exp(20.0*(0.5 - tent.acc));
+            tent.kappa = clamp(tent.kappa * d, 100.0, 65500.0);
+            if(tent.acc < 1.0-acc_hist_alpha)
+              tent.kappa = 50.0; // reset
+          }
+#else // ML-version
+          const float f = lum(rgb * mat.emission)/pdf_w;
+          const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
+          rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
+          ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
+          if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
+          { // update markov chain state for this pixel:
+            if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
+            curr = tent;
+          }
           mc_state_add(tent, m0.x, f, ltw[s], xm);
+#endif
         } // end if cast ray intersected anything
       } // end bounces
     } // end spp for indirect rays
