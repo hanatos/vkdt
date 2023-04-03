@@ -137,6 +137,10 @@ straight from a tty console. this means you'll only be able to use the
 command line interface `vkdt-cli`. we force a timeout, too, but it's
 something like 16 minutes. let us know if you run into this..
 
+* **can i build without display server?**  
+there is a `cli` target, i.e. you can try to run `make cli` to only generate
+the command line interface tools that do not depend on xorg or wayland or glfw.
+
 * **how do i build a binary package?**  
 you mostly need the `bin/` directory for this. after running `make` inside
 `bin/`, a straight copy of `bin/` to say `/opt/vkdt/` would work (you can put a
