@@ -681,9 +681,7 @@ mc_state_t mc_state_decode(uvec4 enc)
 struct mc_state_t
 { // mcmc state representing a single lobe, plus the ML-estimate intermediates
   vec3  sum_tgt;
-  // float16_t sum_w;
   float sum_w;
-  // float16_t f;
   uint  N;
   float sum_len;  // TODO: store mean cosine in [0,1] = sum_len / sum_w instead!
 };
@@ -703,18 +701,14 @@ vec3 mc_state_dir(mc_state_t s, vec3 x)
 
 void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y)
 { // add sample to lobe via maximum likelihood estimator and exponentially weighted average
-  // s.N = min(uint16_t(s.N + 1), uint16_t(ML_MAX_N));
   s.N = min(s.N + 1, ML_MAX_N);
   // XXX TODO: hack this (to 0.99) for faster adaptation!
   // float alpha = 0.999;
   float alpha = max(1.0 / s.N, ML_MIN_ALPHA);
-  // float alpha = 1.0 / s.N;
-  // s.sum_w   = float16_t(min(65530.0, mix(float(s.sum_w), w, alpha)));
   s.sum_w   = mix(s.sum_w, w, alpha);
   s.sum_tgt = mix(s.sum_tgt, w*y, alpha);
   vec3 to = s.sum_len * mc_state_dir(s, x);
   to = mix(to, w * dir, alpha);
-  // s.sum_len = float16_t(min(65530.0, length(to)));
   s.sum_len = length(to);
 }
 
@@ -734,7 +728,6 @@ vec4 mc_state_vmf(mc_state_t s, vec3 x)
 
 void mc_state_shuffle(inout mc_state_t s, uint lane)
 { // shuffle state to different subgroup lane
-  // s.f       = subgroupShuffle(s.f, lane);
   s.N       = subgroupShuffle(s.N, lane);
   s.sum_w   = subgroupShuffle(s.sum_w, lane);
   s.sum_len = subgroupShuffle(s.sum_len, lane);
@@ -743,12 +736,7 @@ void mc_state_shuffle(inout mc_state_t s, uint lane)
 
 mc_state_t mc_state_new()
 { // zero-init new markov chain state
-  mc_state_t r;
-  // r.f       = float16_t(0.0);
-  r.N       = 0;//uint16_t (0);
-  r.sum_w   = 0.0;//float16_t(0.0);
-  r.sum_len = 0.0;//float16_t(0.0);
-  r.sum_tgt = vec3(0.0);
+  mc_state_t r = { vec3(0.0), 0.0, 0, 0.0 };
   return r;
 }
 
@@ -769,45 +757,23 @@ float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
 uvec4 mc_state_encode(mc_state_t r)
 { // encode mc state in 4 uints
   return uvec4(
-      // pack32(u16vec2(float16BitsToUint16(r.f), r.N)),
-      // pack32(u16vec2(0, r.N)),
       floatBitsToUint(r.sum_len),
-      // N,
-      // pack32(u16vec2(float16BitsToUint16(r.sum_w), float16BitsToUint16(r.sum_len))),
       floatBitsToUint(r.sum_w),
-      // XXX TODO: maybe should encode in fixed point / bounding box instead?
       packHalf2x16(clamp(r.sum_tgt.xy/(ML_SCALE*r.sum_w), vec2(-65530.0), vec2(65530.0))),
-      // packHalf2x16(clamp(vec2(r.sum_tgt.z/(ML_SCALE*r.sum_w), 0.0), vec2(-65530.0), vec2(65530.0))));
-      // pack32(u16vec2(float16BitsToUint16(
-      //         float16_t(clamp(r.sum_tgt.z/(ML_SCALE*r.sum_w), -65530.0, 65530.0))
-      //         ), float16BitsToUint16(r.sum_len))));
-       packHalf2x16(vec2(
-               clamp(r.sum_tgt.z/(ML_SCALE*r.sum_w), -65530.0, 65530.0),
-               r.N)));
-               //r.sum_len / r.sum_w)));
+      packHalf2x16(vec2(
+          clamp(r.sum_tgt.z/(ML_SCALE*r.sum_w), -65530.0, 65530.0),
+          r.N)));
 }
 
 mc_state_t mc_state_decode(uvec4 enc)
 { // decode mc state
   mc_state_t r = mc_state_new();
-  // u16vec2 i0 = unpack16(enc.x);
-  // r.f = uint16BitsToFloat16(i0.x);
-  // r.N = i0.y;
   r.sum_len = uintBitsToFloat(enc.x);
-
-  // i0 = unpack16(enc.y);
   r.sum_w = uintBitsToFloat(enc.y);
-  // r.sum_w   = uint16BitsToFloat16(i0.x);
-  // r.sum_len = uint16BitsToFloat16(i0.y);
   r.sum_tgt.xy = unpackHalf2x16(enc.z);
-  // r.sum_tgt.z  = ML_SCALE * unpackHalf2x16(enc.w).x;
   vec2 tmp = unpackHalf2x16(enc.w);
   r.sum_tgt.z = tmp.x;
-  // r.sum_len = float16_t(min(65530.0, tmp.y * r.sum_w));
   r.N = uint(tmp.y);
-  // i0 = unpack16(enc.w);
-  // r.sum_tgt.z = ML_SCALE * uint16BitsToFloat16(i0.x);
-  // r.sum_len = uint16BitsToFloat16(i0.y);
   r.sum_tgt *= ML_SCALE * r.sum_w;
   return r;
 }
