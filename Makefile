@@ -3,7 +3,7 @@
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
-.PHONY:all ext src clean distclean bin install release
+.PHONY:all ext src clean distclean bin install release cli
 include bin/config.mk.defaults
 sinclude bin/config.mk
 
@@ -64,9 +64,9 @@ src: ext Makefile
 reload-shaders: Makefile
 	$(MAKE) -C src/ reload-shaders
 
-CLI=../bin/vkdt-cli ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-fit ../bin/vkdt-eval-profile ../bin/vkdt-lutinfo
-cli: Makefile
-	$(MAKE) -C src/ ${CLI}
+CLI=../bin/vkdt-cli ../bin/vkdt-fit
+cli: Makefile bin
+	$(MAKE) -C src/ ${CLI} tools modules
 
 clean:
 	$(MAKE) -C ext/ clean
@@ -85,7 +85,7 @@ distclean:
 	rm -rf bin/modules
 	rm -rf src/macadam.lut
 
-bin: src Makefile
+bin: Makefile
 	mkdir -p bin/data
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data
