@@ -1012,27 +1012,29 @@ dt_module_get_input_img_param(
 static inline FILE*
 dt_graph_open_resource(
     dt_graph_t *graph,   // graph associated with the module
-    uint32_t    frame,   // optional frame for timelapses, if fname contains %04d
-    const char *fname,   // file name template (basename maybe with %04d)
+    uint32_t    frame,   // optional frame for timelapses, if fname contains "%04d"
+    const char *fname,   // file name template (basename contains exactly "%04d")
     const char *mode)    // open mode "r" or "w" etc will be passed to fopen
 {
+  char fstr[5] = {0}, *c = 0;
+  snprintf(fstr, sizeof(fstr), "%04d", frame); // for security reasons don't use user-supplied fname as format string
   char filename[2*PATH_MAX+10];
   if(fname[0] == '/')
   {
-    snprintf(filename, sizeof(filename), fname, frame);
+    strncpy(filename, fname, sizeof(filename));
+    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     return fopen(filename, mode);  // absolute path
   }
   if(graph)
   { // for relative paths, add search path
     snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
-    char tmp[2*PATH_MAX+10];
-    snprintf(tmp, sizeof(tmp), filename, frame);
-    FILE *f = fopen(tmp, mode);
+    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
+    FILE *f = fopen(filename, mode);
     if(f) return f;
     // if we can't open it in the graph specific search path, try the global one:
     snprintf(filename, sizeof(filename), "%s/%s", graph->basedir, fname);
-    snprintf(tmp, sizeof(tmp), filename, frame);
-    return fopen(tmp, mode);
+    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
+    return fopen(filename, mode);
   }
   return 0;
 }
