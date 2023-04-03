@@ -7,3 +7,7 @@
 #define WATER_MODE WATER_MODE_OFF
 
 #define T_MAX 10000.0  // max ray tracing distance. sky is that -1
+
+#define MCMC_KAPPA 1
+#define MCMC_ML 2
+#define MCMC_ADAPTATION MCMC_KAPPA

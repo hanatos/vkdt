@@ -611,8 +611,7 @@ propagate_ray(
 #endif
 }
 
-#define MC_STATE_KAPPA
-#ifdef MC_STATE_KAPPA
+#if MCMC_ADAPTATION==MCMC_KAPPA
 struct mc_state_t
 {
   vec3  y;              // world space position of light source point
@@ -1026,7 +1025,7 @@ main()
             // irr += params.fog.rgb * (1.0-T);// / mu_t; lack of albedo mul dance makes this very ambient
           }
 
-#ifdef MC_STATE_KAPPA
+#if MCMC_ADAPTATION==MCMC_KAPPA
           if(any(greaterThan(mat.emission, vec3(0.0))))
           { // found light source connection
             const float f = lum(rgb * mat.emission)/pdf_w;
