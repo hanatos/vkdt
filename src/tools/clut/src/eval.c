@@ -150,7 +150,7 @@ eval_clut(
 
 void
 eval_dcp(
-    const char  *filename,
+    char        *filename,
     const double Ta,  // first illuminant, usually StdA, 2856.0
     const double Tb,  // second illuminant, usually D65, 6504.0
     const double T,

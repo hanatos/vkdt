@@ -3,6 +3,7 @@
 #pragma once
 
 #include "matrices.h"
+#include "core/core.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -187,10 +188,11 @@ lookup_hsm(
 static inline void
 dng_profile_fill(
     dng_profile_t *p,          // profile data to be filled
-    const char    *filename,   // DNG filename
+    char          *filename,   // DNG filename
     const int      illuminant) // 1 : A, 2 : D65
 {
   memset(p, 0, sizeof(*p));
+  dt_sanitize_user_string(filename); // remove potential shell escapes
   FILE *f;
   char command[2048];
   snprintf(command, sizeof(command), "exiftool -ColorMatrix%d -b -m '%s'", illuminant, filename);
