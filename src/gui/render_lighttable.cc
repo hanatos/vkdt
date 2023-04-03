@@ -275,17 +275,16 @@ void export_job_work(uint32_t item, void *arg)
   if(len > 8 && filebase[len-8] == '.') filebase[len-8] = 0; // cut .xxx
   if(len > 9 && filebase[len-9] == '.') filebase[len-9] = 0; // cut .xxxx
   fs_dirname(filedir);
-  char dst[1000];
   time_t t = time(0);
   struct tm *tm = localtime(&t);
-  char date[10] = {0}, yyyy[5] = {0};
+  char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
+  snprintf(istr, sizeof(istr), "%04d", item);
   const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "ffile", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, "%04d", filedir, filebase, 0};
-  dt_strexpand(j->basename, sizeof(j->basename), dst, sizeof(dst), key, val);
+  const char *val[] = { getenv("HOME"), yyyy, date, istr, filedir, filebase, 0};
+  dt_strexpand(j->basename, sizeof(j->basename), filename, sizeof(filename), key, val);
 
-  snprintf(filename, sizeof(filename), dst, item);
   dt_gui_notification("exporting to %s", filename);
 
   dt_db_image_path(&vkdt.db, j->sel[item], infilename, sizeof(infilename));
