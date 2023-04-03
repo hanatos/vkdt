@@ -26,7 +26,7 @@ void write_sink(
   // parallelise via our thread pool or openmp or what?
   // probably usually bc1 thumbnails are too small to warrant a good speedup.
   const int bx = wd/4, by = ht/4;
-  size_t num_blocks = bx * by;
+  size_t num_blocks = bx * (uint64_t)by;
   uint8_t *out = (uint8_t *)malloc(sizeof(uint8_t)*8*num_blocks);
 // #pragma omp parallel for collapse(2) schedule(static)
   for(int j=0;j<4*by;j+=4)

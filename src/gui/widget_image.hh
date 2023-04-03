@@ -216,8 +216,8 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
           if(i >= 1) r *= hardness;
           for(int k=0;k<cnt;k++)
           {
-            p[2*k+0] = pos.x + scale * r*sin(k/(cnt-1.0)*M_PI*2.0);
-            p[2*k+1] = pos.y + scale * r*cos(k/(cnt-1.0)*M_PI*2.0);
+            p[2*k+0] = pos.x + scale * r*sinf(k/(cnt-1.0)*M_PI*2.0);
+            p[2*k+1] = pos.y + scale * r*cosf(k/(cnt-1.0)*M_PI*2.0);
           }
           ImGui::GetWindowDrawList()->AddPolyline(
               (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 4.0f/(i+1.0f));

@@ -98,7 +98,7 @@ read_plain(
 {
   JSAMPROW row_pointer[1];
   int ac = jpg->dinfo.out_color_components;
-  row_pointer[0] = malloc(jpg->dinfo.output_width * ac);
+  row_pointer[0] = malloc(jpg->dinfo.output_width * (uint64_t)ac);
   uint8_t *tmp = out;
   while(jpg->dinfo.output_scanline < jpg->dinfo.image_height)
   {

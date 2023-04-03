@@ -69,7 +69,7 @@ read_plain(
   fseek(pfm->f, pfm->data_begin, SEEK_SET);
   uint16_t one = float_to_half(1.0f);
   const int stride = pfm->channels == 1 ? 1 : 4;
-  for(int64_t k=0;k<pfm->width*pfm->height;k++)
+  for(int64_t k=0;k<pfm->width*(int64_t)pfm->height;k++)
   {
     float in[3];
     fread(in, pfm->channels, sizeof(float), pfm->f);

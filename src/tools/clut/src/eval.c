@@ -52,8 +52,8 @@ load_clut(
   if(header->magic    != dt_lut_header_magic)   goto error;
   if(header->version  != dt_lut_header_version) goto error;
   if(header->datatype != dt_lut_header_f16)     goto error;
-  clut = calloc(2*sizeof(uint16_t), header->wd * header->ht);
-  fread(clut, header->wd*header->ht, 2*sizeof(uint16_t), f);
+  clut = calloc(2*sizeof(uint16_t), header->wd * (uint64_t)header->ht);
+  fread(clut, header->wd*(uint64_t)header->ht, 2*sizeof(uint16_t), f);
   fclose(f);
   if(0)
   {

@@ -15,8 +15,8 @@ load_spectra_lut(
   if(header->magic    != dt_lut_header_magic)   goto error;
   if(header->version  != dt_lut_header_version) goto error;
   if(header->datatype != dt_lut_header_f32)     goto error;
-  spectra = calloc(4*sizeof(float), header->wd * header->ht);
-  fread(spectra, header->wd*header->ht, 4*sizeof(float), f);
+  spectra = calloc(4*sizeof(float), header->wd * (uint64_t)header->ht);
+  fread(spectra, header->wd*(uint64_t)header->ht, 4*sizeof(float), f);
   fclose(f);
   if(0)
   {
