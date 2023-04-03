@@ -684,6 +684,7 @@ struct mc_state_t
   float sum_w;
   uint  N;
   float sum_len;  // TODO: store mean cosine in [0,1] = sum_len / sum_w instead!
+  float f;
 };
 
 #define ML_PRIOR_N 2.0 // cannot be zero or else mean cos -> kappa blows up
@@ -732,11 +733,12 @@ void mc_state_shuffle(inout mc_state_t s, uint lane)
   s.sum_w   = subgroupShuffle(s.sum_w, lane);
   s.sum_len = subgroupShuffle(s.sum_len, lane);
   s.sum_tgt = subgroupShuffle(s.sum_tgt, lane);
+  s.f       = subgroupShuffle(s.f, lane);
 }
 
 mc_state_t mc_state_new()
 { // zero-init new markov chain state
-  mc_state_t r = { vec3(0.0), 0.0, 0, 0.0 };
+  mc_state_t r = { vec3(0.0), 0.0, 0, 0.0, 0.0 };
   return r;
 }
 
@@ -750,7 +752,8 @@ float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
 float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
 {
   const float p_f = 0.2;
-  const float f = rnd0 < p_f ? s.sum_w : 1.0;
+  // const float f = rnd0 < p_f ? s.sum_w : 1.0;
+  const float f = rnd0 < p_f ? s.f : 1.0;
   return f * mc_state_C(s, x, nx);
 }
 
@@ -769,7 +772,7 @@ mc_state_t mc_state_decode(uvec4 enc)
 { // decode mc state
   mc_state_t r = mc_state_new();
   r.sum_len = uintBitsToFloat(enc.x);
-  r.sum_w = uintBitsToFloat(enc.y);
+  r.f = r.sum_w = uintBitsToFloat(enc.y);
   r.sum_tgt.xy = unpackHalf2x16(enc.z);
   vec2 tmp = unpackHalf2x16(enc.w);
   r.sum_tgt.z = tmp.x;
@@ -1028,6 +1031,7 @@ main()
           if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
           { // update markov chain state for this pixel:
             if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
+            tent.f = f;
             curr = tent;
           }
           mc_state_add(tent, m0.x, f, ltw[s], xm);
