@@ -98,7 +98,10 @@ int main(int argc, char *argv[])
   if(param.output[0].p_audio)
   {
     dt_log(s_log_cli, "wrote audio channel to %s. to combine the streams, use something like", param.output[0].p_audio);
-    dt_log(s_log_cli, "ffmpeg -i main_0000.h264 -f s16le -sample_rate 48000 -channels 2  -i %s -c:v copy combined.mp4", param.output[0].p_audio);
+    dt_log(s_log_cli, "ffmpeg -i main_0000.h264 -f s16le -sample_rate %d -channels %d  -i %s -c:v copy combined.mp4",
+        graph.main_img_param.snd_channels,
+        graph.main_img_param.snd_samplerate,
+        param.output[0].p_audio);
   }
 
   // nodes we can only print after run() has been called:
