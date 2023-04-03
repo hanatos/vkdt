@@ -65,7 +65,7 @@ reload-shaders: Makefile
 	$(MAKE) -C src/ reload-shaders
 
 CLI=../bin/vkdt-cli ../bin/vkdt-fit
-cli: Makefile bin
+cli: Makefile bin ext
 	$(MAKE) -C src/ ${CLI} tools modules
 
 clean:
