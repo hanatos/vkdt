@@ -687,7 +687,7 @@ struct mc_state_t
   float f;
 };
 
-#define ML_PRIOR_N 0.01 // cannot be zero or else mean cos -> kappa blows up
+#define ML_PRIOR_N 2.0 // cannot be zero or else mean cos -> kappa blows up
 #define ML_MAX_N 1024
 #define ML_MIN_ALPHA 0.5
 #define ML_SCALE 100.0
@@ -716,10 +716,10 @@ void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y)
 vec4 mc_state_vmf(mc_state_t s, vec3 x)
 { // return a vmf lobe (direction + kappa) for the given position
   float r = s.sum_len / s.sum_w; // = mean cosine in [0,1]
-#if 0
+#if 1
   vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
   float d = length(tgt-x);
-  float rp = 1.0 -  1.0/clamp(150.0 + 1000.0*d, 100.0, 6500.0);
+  float rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 6500.0);
   r = (s.N * r + ML_PRIOR_N * rp) / (s.N + ML_PRIOR_N);
 #else
   r = (s.N * r) / (s.N + ML_PRIOR_N);
