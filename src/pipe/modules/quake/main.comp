@@ -766,7 +766,7 @@ uvec4 mc_state_encode(mc_state_t r)
   uvec3 y = uvec3(clamp(32768 + 8.0 * r.sum_tgt / r.sum_w, 0, 65535));
   return uvec4(
       pack32(u16vec2(float16BitsToUint16(float16_t(r.sum_len / r.sum_w)),
-        uint16_t(clamp(log2(max(1e-5,1000.0*r.f)), 0.0, 65535.0)))),
+        uint16_t(clamp(log2(1.0 + 1000.0*r.f), 0.0, 65535.0)))),
       // packHalf2x16(vec2(r.sum_len / r.sum_w, clamp(r.f, 0.0, 65530.0))),
       // floatBitsToUint(r.sum_len),
       floatBitsToUint(r.sum_w),
@@ -787,7 +787,7 @@ mc_state_t mc_state_decode(uvec4 enc)
   // r.sum_len = uintBitsToFloat(enc.x);
   // r.f = t0.y;
   r.sum_len = r.sum_w * uint16BitsToFloat16(t0.x);
-  r.f = exp2(float(t0.y))/1000.0;
+  r.f = max(0, (exp2(float(t0.y)) - 1.0)/1000.0);
   if(!(r.f < 100000.0)) r.f = 100000.0; // fix overflows
 #if 0
   r.sum_tgt.xy = unpackHalf2x16(enc.z);
