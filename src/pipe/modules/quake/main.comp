@@ -711,6 +711,9 @@ void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y)
   vec3 to = s.sum_len * mc_state_dir(s, x);
   to = mix(to, w * dir, alpha);
   s.sum_len = length(to);
+  // XXX
+  // s.f = w;
+  // s.f = s.sum_w / s.N;
 }
 
 vec4 mc_state_vmf(mc_state_t s, vec3 x)
@@ -719,7 +722,7 @@ vec4 mc_state_vmf(mc_state_t s, vec3 x)
 #if 1
   vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
   float d = length(tgt-x);
-  float rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 6500.0);
+  float rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 65000.0);
   r = (s.N * r + ML_PRIOR_N * rp) / (s.N + ML_PRIOR_N);
 #else
   r = (s.N * r) / (s.N + ML_PRIOR_N);
@@ -751,9 +754,10 @@ float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
 
 float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
 {
-  const float p_f = 1.0;
+  // const float p_f = 0.0;
   // const float f = rnd0 < p_f ? s.sum_w : 1.0;
-  const float f = rnd0 < p_f ? s.f : 1.0;
+  // const float f = rnd0 < p_f ? s.f : 1.0;
+  const float f = s.f;
   return f * mc_state_C(s, x, nx);
 }
 
@@ -762,7 +766,7 @@ uvec4 mc_state_encode(mc_state_t r)
   uvec3 y = uvec3(clamp(32768 + 8.0 * r.sum_tgt / r.sum_w, 0, 65535));
   return uvec4(
       pack32(u16vec2(float16BitsToUint16(float16_t(r.sum_len / r.sum_w)),
-        uint16_t(clamp(log2(1000.0*r.f), 0.0, 65535.0)))),
+        uint16_t(clamp(log2(max(1e-5,1000.0*r.f)), 0.0, 65535.0)))),
       // packHalf2x16(vec2(r.sum_len / r.sum_w, clamp(r.f, 0.0, 65530.0))),
       // floatBitsToUint(r.sum_len),
       floatBitsToUint(r.sum_w),
@@ -784,6 +788,7 @@ mc_state_t mc_state_decode(uvec4 enc)
   // r.f = t0.y;
   r.sum_len = r.sum_w * uint16BitsToFloat16(t0.x);
   r.f = exp2(float(t0.y))/1000.0;
+  if(!(r.f < 100000.0)) r.f = 100000.0; // fix overflows
 #if 0
   r.sum_tgt.xy = unpackHalf2x16(enc.z);
   vec2 tmp = unpackHalf2x16(enc.w);
@@ -824,10 +829,20 @@ void read_neighbour_state(
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
     float other = mc_state_score(t2, x, n, mrand(seed));
-    if(!mc_state_valid(tent) || rnd < other / (other + sum))
+    // if(!mc_state_valid(tent) || rnd < other / (other + sum))
+#if 1
+    if(sum <= 0.0 || rnd < other / (other + sum))
       tent = t2;
     sum += other;
-    if(mc_state_valid(tent)) break;
+    // if(mc_state_score(tent, x, n, 0.0) > 0.0) break; // this line is bad for very hard cases
+#else
+    if(other > sum)
+    {
+      tent = t2;
+      sum = other;
+    }
+#endif
+    // if(mc_state_valid(tent)) break;
   }
 }
 
@@ -1017,7 +1032,8 @@ main()
           if(any(greaterThan(mat.emission, vec3(0.0))))
           { // found light source connection
             const float f = lum(rgb * mat.emission)/pdf_w;
-            const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
+            // const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
+            const float a = min(1.0, f / curr.f);
             rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
             ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
             if(!mc_state_valid(tent))
@@ -1043,17 +1059,44 @@ main()
               tent.kappa = 50.0; // reset
           }
 #else // ML-version
-          const float f = lum(rgb * mat.emission)/pdf_w;
-          const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
+          float f = lum(rgb * mat.emission)/pdf_w;
+          // const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
+          // vec4 vmfc = mc_state_vmf(curr, m0.x), vmft = mc_state_vmf(tent, m0.x);
+          // const float dct = dot(vmfc.xyz, vmft.xyz);
+          // const float T0 = vmf_eval(vmfc.w, dct);
+          // const float T1 = vmf_eval(vmft.w, dct);
+          // const float a = min(1.0, f/T0 / (curr.f/T1));
+          const float a = min(1.0, f / curr.f);
+          // const float a = min(1.0, tent.sum_w / curr.sum_w);
           rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
           ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
+          // if(use_vmf)
+            // mc_state_add(tent, m0.x, f, ltw[s], xm);
+          // const float a = min(1.0, tent.f / curr.f);
           if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
           { // update markov chain state for this pixel:
+#if 0 // seb's muted bsdf samples:
+            if(!use_vmf)
+            {
+              tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
+              mc_state_add(tent, m0.x, f, ltw[s], xm);
+              vec4 vmf = mc_state_vmf(tent, m0.x);
+              f *= pdf_w / vmf_eval(vmf.w, dot(vmf.xyz, ltw[s]));
+              tent = mc_state_new();
+            }
+            tent.f = f;
+            mc_state_add(tent, m0.x, f, ltw[s], xm);
+            curr = tent;
+          }
+          else if(use_vmf)
+            mc_state_add(tent, m0.x, f, ltw[s], xm);
+#else // vanilla
             if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
             tent.f = f;
             curr = tent;
           }
           mc_state_add(tent, m0.x, f, ltw[s], xm);
+#endif
 #endif
         } // end if cast ray intersected anything
       } // end bounces

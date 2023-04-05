@@ -4,7 +4,7 @@
 #define WATER_MODE_FLAT    1 // flat but transparent with "caustics"
 #define WATER_MODE_NORMALS 2 // flat but with normals and transparent
 #define WATER_MODE_FULL    3 // full blown animated procedural displacement
-#define WATER_MODE WATER_MODE_OFF
+#define WATER_MODE WATER_MODE_FULL
 
 #define T_MAX 10000.0  // max ray tracing distance. sky is that -1
 
