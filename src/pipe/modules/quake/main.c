@@ -1080,6 +1080,20 @@ int read_geo(
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
     p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+#if 0 // debug: quake aabb are in +-4096
+    float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
+    for(int i=0;i<vtx_cnt;i++) 
+    {
+      aabb[0] = MIN(aabb[0], p->vtx[3*i+0]);
+      aabb[1] = MIN(aabb[1], p->vtx[3*i+1]);
+      aabb[2] = MIN(aabb[2], p->vtx[3*i+2]);
+      aabb[3] = MAX(aabb[3], p->vtx[3*i+0]);
+      aabb[4] = MAX(aabb[4], p->vtx[3*i+1]);
+      aabb[5] = MAX(aabb[5], p->vtx[3*i+2]);
+    }
+    fprintf(stderr, "XXX static geo bounds %g %g %g -- %g %g %g\n",
+        aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
+#endif
   }
   // fprintf(stderr, "[read_geo '%"PRItkn"']: vertex count %u index count %u\n", dt_token_str(p->node->kernel), vtx_cnt, idx_cnt);
   return 0;

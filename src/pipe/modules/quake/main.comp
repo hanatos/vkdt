@@ -759,16 +759,19 @@ float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
 
 uvec4 mc_state_encode(mc_state_t r)
 { // encode mc state in 4 uints
+  uvec3 y = uvec3(clamp(32768 + 8.0 * r.sum_tgt / r.sum_w, 0, 65535));
   return uvec4(
       pack32(u16vec2(float16BitsToUint16(float16_t(r.sum_len / r.sum_w)),
         uint16_t(clamp(log2(1000.0*r.f), 0.0, 65535.0)))),
       // packHalf2x16(vec2(r.sum_len / r.sum_w, clamp(r.f, 0.0, 65530.0))),
       // floatBitsToUint(r.sum_len),
       floatBitsToUint(r.sum_w),
-      packHalf2x16(clamp(r.sum_tgt.xy/(ML_SCALE*r.sum_w), vec2(-65530.0), vec2(65530.0))),
-      packHalf2x16(vec2(
-          clamp(r.sum_tgt.z/(ML_SCALE*r.sum_w), -65530.0, 65530.0),
-          r.N)));
+      // packHalf2x16(clamp(r.sum_tgt.xy/(ML_SCALE*r.sum_w), vec2(-65530.0), vec2(65530.0))),
+      pack32(u16vec2(y.xy)),
+      pack32(u16vec2(y.z, r.N)));
+      // packHalf2x16(vec2(
+      //     clamp(r.sum_tgt.z/(ML_SCALE*r.sum_w), -65530.0, 65530.0),
+      //     r.N)));
 }
 
 mc_state_t mc_state_decode(uvec4 enc)
@@ -781,11 +784,19 @@ mc_state_t mc_state_decode(uvec4 enc)
   // r.f = t0.y;
   r.sum_len = r.sum_w * uint16BitsToFloat16(t0.x);
   r.f = exp2(float(t0.y))/1000.0;
+#if 0
   r.sum_tgt.xy = unpackHalf2x16(enc.z);
   vec2 tmp = unpackHalf2x16(enc.w);
   r.sum_tgt.z = tmp.x;
   r.N = uint(tmp.y);
   r.sum_tgt *= ML_SCALE * r.sum_w;
+#else
+  t0 = unpack16(enc.z);
+  r.sum_tgt.xy = (t0 - 32768 + 0.5) / 8.0 * r.sum_w;
+  t0 = unpack16(enc.w);
+  r.sum_tgt.z = (t0.x - 32768 + 0.5) / 8.0 * r.sum_w;
+  r.N = t0.y;
+#endif
   return r;
 }
 #endif
