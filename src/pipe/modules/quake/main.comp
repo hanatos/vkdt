@@ -65,6 +65,7 @@ layout(set = 1, binding = 8) uniform sampler2D img_mv;
 layout(set = 1, binding =  9) uniform sampler2D img_gbuf_in;
 layout(set = 1, binding = 10) uniform writeonly image2D img_gbuf_out;
 layout(set = 1, binding = 11) uniform writeonly image2D img_debug;
+layout(set = 1, binding = 12) uniform sampler2D img_oldout;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
@@ -965,7 +966,7 @@ main()
     }
 #endif
 
-    {
+    // {
       vec3 alb;
       if(any(greaterThan(mat.emission, vec3(0.0))))
       { // have >0 radiance sample on second vertex
@@ -977,7 +978,7 @@ main()
       }
       else alb = mat.albedo; // directly visible albedo
       imageStore(img_albedo, ipos, vec4(alb, 1));
-    }
+    // }
 
 #if 0
     if(compute_indirect && (params.torch == 1)) // next event estimation to torch:
@@ -1094,7 +1095,10 @@ main()
           // const float T0 = vmf_eval(vmfc.w, dct);
           // const float T1 = vmf_eval(vmft.w, dct);
           // const float a = min(1.0, f/T0 / (curr.f/T1));
-          const float a = min(1.0, f / curr.f);
+          vec4 oldrad = texelFetch(img_oldout, ivec2(ipos+mv), 0);
+          float oldf = lum(oldrad.rgb / alb);
+          const float a = min(1.0, f / oldf);
+          // const float a = min(1.0, f / curr.f);
           // const float a = min(1.0, f / (f + curr.f));
           // const float a = min(1.0, tent.sum_w / curr.sum_w);
           rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
