@@ -705,12 +705,16 @@ vec3 mc_state_dir(mc_state_t s, vec3 x)
 void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y, bool sky)
 { // add sample to lobe via maximum likelihood estimator and exponentially weighted average
   if(s.N > 0 && s.sky != sky) return;
+  if(s.N == 0) s.sky = sky;
   s.N = min(s.N + 1, ML_MAX_N);
   // XXX TODO: hack this (to 0.99) for faster adaptation!
   // float alpha = 0.999;
   float alpha = max(1.0 / s.N, ML_MIN_ALPHA);
   s.sum_w   = mix(s.sum_w, w, alpha);
-  s.sum_tgt = mix(s.sum_tgt, w*y, alpha);
+  if(s.sky)
+    s.sum_tgt = mix(s.sum_tgt, w*dir, alpha);
+  else
+    s.sum_tgt = mix(s.sum_tgt, w*y, alpha);
   vec3 to = s.sum_len * mc_state_dir(s, x);
   to = mix(to, w * dir, alpha);
   s.sum_len = length(to);
@@ -723,14 +727,14 @@ vec4 mc_state_vmf(mc_state_t s, vec3 x)
 { // return a vmf lobe (direction + kappa) for the given position
   float r = s.sum_len / s.sum_w; // = mean cosine in [0,1]
 #if 1
-  float rp = 0.9;
+  float rp = 0.99;
   if(!s.sky)
   {
     vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
     float d = length(tgt-x);
     rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 6500.0);
   }
-  r = (s.N * r + ML_PRIOR_N * rp) / (s.N + ML_PRIOR_N);
+  r = (s.N*s.N * r + ML_PRIOR_N * rp) / (s.N*s.N + ML_PRIOR_N);
 #else
   r = (s.N * r) / (s.N + ML_PRIOR_N);
 #endif
@@ -756,7 +760,10 @@ mc_state_t mc_state_new()
 float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
 { // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
   vec3 y = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
-  if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
+  if(s.sky)
+    if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
+  else
+    if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
   return 1.0;
 }
 
@@ -774,7 +781,9 @@ uvec4 mc_state_encode(mc_state_t r)
   // XXX how do we get r.f into 16 bits without losing too much information?
   // XXX could do (floatBitsToUint() >> 15) & 0xffff to grab everything except sign, and exponent just enough.
   // XXX the hacky log2/1000 works much better, will never find out why.
-  uvec3 y = uvec3(clamp(32768 + 8.0 * r.sum_tgt / r.sum_w, 0, 65535));
+  uvec3 y;
+  if(r.sky) y = uvec3(clamp(32768 + 30000.0 * (r.sum_tgt / r.sum_w), 0, 65535));
+  else      y = uvec3(clamp(32768 +     8.0 * (r.sum_tgt / r.sum_w), 0, 65535));
   return uvec4(
       pack32(u16vec2(float16BitsToUint16(float16_t(r.sum_len / r.sum_w)),
         uint16_t(clamp(log2(1.0 + 1000.0*r.f), 0.0, 65535.0)))),
@@ -811,11 +820,14 @@ mc_state_t mc_state_decode(uvec4 enc)
   r.N = uint(tmp.y);
   r.sum_tgt *= ML_SCALE * r.sum_w;
 #else
+  uvec3 y;
   t0 = unpack16(enc.z);
-  r.sum_tgt.xy = (t0 - 32768 + 0.5) / 8.0 * r.sum_w;
+  y.xy = t0;
   t0 = unpack16(enc.w);
-  r.sum_tgt.z = (t0.x - 32768 + 0.5) / 8.0 * r.sum_w;
+  y.z = t0.x;
   r.N = t0.y;
+  if(r.sky) r.sum_tgt = (y - 32768.0 + 0.5) / 30000.0 * r.sum_w;
+  else      r.sum_tgt = (y - 32768.0 + 0.5) / 8.0 * r.sum_w;
 #endif
   return r;
 }
@@ -849,6 +861,7 @@ void read_neighbour_state(
     if(sum <= 0.0 || rnd < other / (other + sum))
       tent = t2;
     sum += other;
+    // if(t2.sky) tent = t2; // argh :(
     // if(mc_state_score(tent, x, n, 0.0) > 0.0) break; // this line is bad for very hard cases
 #else
     if(other > sum)
