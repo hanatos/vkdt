@@ -691,7 +691,7 @@ struct mc_state_t
 
 #define ML_PRIOR_N 2.0 // cannot be zero or else mean cos -> kappa blows up
 #define ML_MAX_N 1024
-#define ML_MIN_ALPHA 0.5
+#define ML_MIN_ALPHA 0.01
 #define ML_SCALE 100.0
 
 bool mc_state_valid(mc_state_t s) { return s.sum_w > 0.0; }
@@ -762,7 +762,7 @@ float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
 { // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
   vec3 y = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
   if(s.sky)
-    if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
+    return 1;//if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
   else
     if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
   return 1.0;
@@ -966,7 +966,7 @@ main()
     }
 #endif
 
-    // {
+    {
       vec3 alb;
       if(any(greaterThan(mat.emission, vec3(0.0))))
       { // have >0 radiance sample on second vertex
@@ -978,7 +978,7 @@ main()
       }
       else alb = mat.albedo; // directly visible albedo
       imageStore(img_albedo, ipos, vec4(alb, 1));
-    // }
+    }
 
 #if 0
     if(compute_indirect && (params.torch == 1)) // next event estimation to torch:
@@ -1096,7 +1096,7 @@ main()
           // const float T1 = vmf_eval(vmft.w, dct);
           // const float a = min(1.0, f/T0 / (curr.f/T1));
           vec4 oldrad = texelFetch(img_oldout, ivec2(ipos+mv), 0);
-          float oldf = lum(oldrad.rgb / alb);
+          float oldf = lum(oldrad.rgb);
           const float a = min(1.0, f / oldf);
           // const float a = min(1.0, f / curr.f);
           // const float a = min(1.0, f / (f + curr.f));
