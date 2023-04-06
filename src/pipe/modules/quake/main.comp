@@ -685,6 +685,7 @@ struct mc_state_t
   uint  N;
   float sum_len;  // TODO: store mean cosine in [0,1] = sum_len / sum_w instead!
   float f;
+  bool sky;
 };
 
 #define ML_PRIOR_N 2.0 // cannot be zero or else mean cos -> kappa blows up
@@ -696,12 +697,14 @@ bool mc_state_valid(mc_state_t s) { return s.sum_w > 0.0; }
 
 vec3 mc_state_dir(mc_state_t s, vec3 x)
 { // return normalised direction to shoot to, as seen from given point x
+  if(s.sky) return normalize(s.sum_tgt);
   vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
   return normalize(tgt - x);
 }
 
-void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y)
+void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y, bool sky)
 { // add sample to lobe via maximum likelihood estimator and exponentially weighted average
+  if(s.N > 0 && s.sky != sky) return;
   s.N = min(s.N + 1, ML_MAX_N);
   // XXX TODO: hack this (to 0.99) for faster adaptation!
   // float alpha = 0.999;
@@ -720,9 +723,13 @@ vec4 mc_state_vmf(mc_state_t s, vec3 x)
 { // return a vmf lobe (direction + kappa) for the given position
   float r = s.sum_len / s.sum_w; // = mean cosine in [0,1]
 #if 1
-  vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
-  float d = length(tgt-x);
-  float rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 65000.0);
+  float rp = 0.9;
+  if(!s.sky)
+  {
+    vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
+    float d = length(tgt-x);
+    rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 6500.0);
+  }
   r = (s.N * r + ML_PRIOR_N * rp) / (s.N + ML_PRIOR_N);
 #else
   r = (s.N * r) / (s.N + ML_PRIOR_N);
@@ -737,11 +744,12 @@ void mc_state_shuffle(inout mc_state_t s, uint lane)
   s.sum_len = subgroupShuffle(s.sum_len, lane);
   s.sum_tgt = subgroupShuffle(s.sum_tgt, lane);
   s.f       = subgroupShuffle(s.f, lane);
+  s.sky     = subgroupShuffle(s.sky, lane);
 }
 
 mc_state_t mc_state_new()
 { // zero-init new markov chain state
-  mc_state_t r = { vec3(0.0), 0.0, 0, 0.0, 0.0 };
+  mc_state_t r = { vec3(0.0), 0.0, 0, 0.0, 0.0, false };
   return r;
 }
 
@@ -763,13 +771,17 @@ float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
 
 uvec4 mc_state_encode(mc_state_t r)
 { // encode mc state in 4 uints
+  // XXX how do we get r.f into 16 bits without losing too much information?
+  // XXX could do (floatBitsToUint() >> 15) & 0xffff to grab everything except sign, and exponent just enough.
+  // XXX the hacky log2/1000 works much better, will never find out why.
   uvec3 y = uvec3(clamp(32768 + 8.0 * r.sum_tgt / r.sum_w, 0, 65535));
   return uvec4(
       pack32(u16vec2(float16BitsToUint16(float16_t(r.sum_len / r.sum_w)),
         uint16_t(clamp(log2(1.0 + 1000.0*r.f), 0.0, 65535.0)))),
+        // uint16_t((floatBitsToUint(r.f)>>15)&0xffff))),
       // packHalf2x16(vec2(r.sum_len / r.sum_w, clamp(r.f, 0.0, 65530.0))),
       // floatBitsToUint(r.sum_len),
-      floatBitsToUint(r.sum_w),
+      floatBitsToUint(r.sky ? -r.sum_w : r.sum_w),
       // packHalf2x16(clamp(r.sum_tgt.xy/(ML_SCALE*r.sum_w), vec2(-65530.0), vec2(65530.0))),
       pack32(u16vec2(y.xy)),
       pack32(u16vec2(y.z, r.N)));
@@ -781,7 +793,9 @@ uvec4 mc_state_encode(mc_state_t r)
 mc_state_t mc_state_decode(uvec4 enc)
 { // decode mc state
   mc_state_t r = mc_state_new();
-  r.f = r.sum_w = uintBitsToFloat(enc.y);
+  r.sum_w = uintBitsToFloat(enc.y);
+  if(r.sum_w < 0) r.sky = true;
+  r.sum_w = abs(r.sum_w);
   u16vec2 t0 = unpack16(enc.x);
   // vec2 t0 = unpackHalf2x16(enc.x);
   // r.sum_len = uintBitsToFloat(enc.x);
@@ -789,6 +803,7 @@ mc_state_t mc_state_decode(uvec4 enc)
   r.sum_len = r.sum_w * uint16BitsToFloat16(t0.x);
   r.f = max(0, (exp2(float(t0.y)) - 1.0)/1000.0);
   if(!(r.f < 100000.0)) r.f = 100000.0; // fix overflows
+  // r.f = uintBitsToFloat(t0.y << 15);
 #if 0
   r.sum_tgt.xy = unpackHalf2x16(enc.z);
   vec2 tmp = unpackHalf2x16(enc.w);
@@ -1067,6 +1082,7 @@ main()
           // const float T1 = vmf_eval(vmft.w, dct);
           // const float a = min(1.0, f/T0 / (curr.f/T1));
           const float a = min(1.0, f / curr.f);
+          // const float a = min(1.0, f / (f + curr.f));
           // const float a = min(1.0, tent.sum_w / curr.sum_w);
           rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
           ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
@@ -1095,7 +1111,7 @@ main()
             tent.f = f;
             curr = tent;
           }
-          mc_state_add(tent, m0.x, f, ltw[s], xm);
+          mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
 #endif
 #endif
         } // end if cast ray intersected anything
