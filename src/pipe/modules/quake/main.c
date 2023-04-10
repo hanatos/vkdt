@@ -1108,7 +1108,7 @@ create_nodes(
 
   // ray tracing kernel:
   int id_rt = dt_node_add(graph, module, "quake", "main", 
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 13,
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
       "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
       "stcgeo",   "read",  "ssbo", "geo",  -1ul,                      // 1
       "dyngeo",   "read",  "ssbo", "geo",  -1ul,                      // 2
@@ -1120,8 +1120,8 @@ create_nodes(
       "mv",       "read",  "rg",   "f16",  -1ul,                      // 8
       "gbuf_in",  "read",  "rgba", "f32",  -1ul,                      // 9
       "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 10
-      "debug",    "write", "rgba", "f16",  &module->connector[0].roi, // 11
-      "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 12
+      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 11
+      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 12
   graph->module[id_rt].connector[ 7].flags |= s_conn_clear;
   graph->module[id_rt].connector[10].flags |= s_conn_clear;
 
@@ -1245,7 +1245,7 @@ create_nodes(
   dt_connector_copy(graph, module, 3, id_rt,  8); // motion vectors from outside
   dt_connector_copy(graph, module, 4, id_rt, 10); // gbuf output (n, d, mu_1, mu_2)
   dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
-  dt_connector_copy(graph, module, 6, id_rt, 12); // feedback old framebuffer
+  // dt_connector_copy(graph, module, 6, id_rt, 12); // feedback old framebuffer
 
   // propagate up so things will start to move at all at the node level:
   module->flags = s_module_request_read_geo | s_module_request_read_source;

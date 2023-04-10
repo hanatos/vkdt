@@ -65,7 +65,7 @@ layout(set = 1, binding = 8) uniform sampler2D img_mv;
 layout(set = 1, binding =  9) uniform sampler2D img_gbuf_in;
 layout(set = 1, binding = 10) uniform writeonly image2D img_gbuf_out;
 layout(set = 1, binding = 11) uniform writeonly image2D img_debug;
-layout(set = 1, binding = 12) uniform sampler2D img_oldout;
+// layout(set = 1, binding = 12) uniform sampler2D img_oldout;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
