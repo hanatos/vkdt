@@ -1095,10 +1095,10 @@ main()
           // const float T0 = vmf_eval(vmfc.w, dct);
           // const float T1 = vmf_eval(vmft.w, dct);
           // const float a = min(1.0, f/T0 / (curr.f/T1));
-          vec4 oldrad = texelFetch(img_oldout, ivec2(ipos+mv), 0);
-          float oldf = lum(oldrad.rgb);
-          const float a = min(1.0, f / oldf);
-          // const float a = min(1.0, f / curr.f);
+          // vec4 oldrad = texelFetch(img_oldout, ivec2(ipos+mv), 0);
+          // float oldf = lum(oldrad.rgb);
+          // const float a = min(1.0, f / oldf);
+          const float a = min(1.0, f / curr.f);
           // const float a = min(1.0, f / (f + curr.f));
           // const float a = min(1.0, tent.sum_w / curr.sum_w);
           rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
@@ -1127,8 +1127,10 @@ main()
             if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
             tent.f = f;
             curr = tent;
+            mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
           }
-          mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
+          else if(!use_vmf)
+            mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
 #endif
 #endif
         } // end if cast ray intersected anything
