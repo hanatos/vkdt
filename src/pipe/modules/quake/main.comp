@@ -689,7 +689,7 @@ struct mc_state_t
   bool sky;
 };
 
-#define ML_PRIOR_N 2.0 // cannot be zero or else mean cos -> kappa blows up
+#define ML_PRIOR_N .20 // cannot be zero or else mean cos -> kappa blows up
 #define ML_MAX_N 1024
 #define ML_MIN_ALPHA 0.01
 #define ML_SCALE 100.0
@@ -774,7 +774,7 @@ float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
   // const float f = rnd0 < p_f ? s.sum_w : 1.0;
   // const float f = rnd0 < p_f ? s.f : 1.0;
   const float f = s.f;
-  return f * mc_state_C(s, x, nx);
+  return f;// * mc_state_C(s, x, nx);
 }
 
 uvec4 mc_state_encode(mc_state_t r)
