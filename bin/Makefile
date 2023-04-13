@@ -18,9 +18,12 @@ sanitize-thread:
 cli:
 	$(MAKE) -C .. cli
 
+lib:
+	$(MAKE) -C .. lib
+
 reload-shaders:
 	$(MAKE) -C .. reload-shaders
 
 clean:
 	$(MAKE) -C .. clean
-	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut vkdt-eval-profile vkdt-lutinfo
+	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut vkdt-eval-profile vkdt-lutinfo libvkdt.so

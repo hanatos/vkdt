@@ -1,4 +1,10 @@
 #pragma once
+#ifdef __linux__
+  #ifdef LIBVKDT
+    #include <dlfcn.h>
+    #include <link.h>
+  #endif
+#endif
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -84,11 +90,23 @@ fs_basedir(
     size_t maxlen)  // allocation size
 {
 #ifdef __linux__
+  #ifdef LIBVKDT
+  void *handle;
+  char mod[PATH_MAX];
+  handle = dlopen("libvkdt.so", RTLD_LAZY);
+  if (!handle) {
+    fprintf(stderr, "%s\n", dlerror());
+	exit(1);
+  }
+  dlinfo(handle, RTLD_DI_ORIGIN, &mod);
+  snprintf(basedir, maxlen, "%s/", mod);
+  #else
   // stupid allocation dance because passing basedir directly
   // may or may not require PATH_MAX bytes instead of maxlen
   char *bd = realpath("/proc/self/exe", 0);
   snprintf(basedir, maxlen, "%s", bd);
   free(bd);
+  #endif
 #elif defined(__FreeBSD__)
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = maxlen;
