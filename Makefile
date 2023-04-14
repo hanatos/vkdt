@@ -18,8 +18,8 @@ all: ext src bin
 prefix?=/usr
 DESTDIR?=
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
-VKDTLIBDIR=/usr/local/lib/vkdt
-VKDTINCDIR=/usr/local/include/vkdt
+VKDTLIBDIR=$(DESTDIR)$(prefix)/lib
+VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install: all
 	mkdir -p $(VKDTDIR)
 	mkdir -p $(VKDTDIR)/modules
@@ -37,10 +37,8 @@ install: all
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 
 libinstall: ext lib bin
-	mkdir -p $(VKDTLIBDIR)
 	mkdir -p $(VKDTLIBDIR)/modules
 	mkdir -p $(VKDTLIBDIR)/data
-	mkdir -p $(VKDTINCDIR)
 	mkdir -p $(VKDTINCDIR)/qvk
 	mkdir -p $(VKDTINCDIR)/pipe
 	mkdir -p $(VKDTINCDIR)/pipe/modules
@@ -55,8 +53,6 @@ libinstall: ext lib bin
 	cp -rfL src/pipe/modules/*.h $(VKDTINCDIR)/pipe/modules
 	cp -rfL src/gui/*.h $(VKDTINCDIR)/gui
 	cp -rfL src/core/*.h $(VKDTINCDIR)/core
-	echo "$(VKDTLIBDIR)" > /etc/ld.so.conf.d/libvkdt.conf
-	ldconfig
 
 VERSION=$(shell grep VERSION src/core/version.h | cut -d'"' -f2)
 release: Makefile src/core/version.h
@@ -115,10 +111,8 @@ distclean:
 	rm -rf src/macadam.lut
 
 libclean:
-	rm -rf $(VKDTLIBDIR)
+	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
 	rm -rf $(VKDTINCDIR)
-	rm -r /etc/ld.so.conf.d/libvkdt.conf
-	ldconfig
 
 bin: Makefile
 	mkdir -p bin/data

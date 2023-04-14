@@ -26,4 +26,5 @@ reload-shaders:
 
 clean:
 	$(MAKE) -C .. clean
-	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut vkdt-eval-profile vkdt-lutinfo libvkdt.so
+	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut vkdt-eval-profile vkdt-lutinfo libvkdt*
+

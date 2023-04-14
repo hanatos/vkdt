@@ -84,23 +84,24 @@ fs_homedir(
   snprintf(basedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
 }
 
-static inline void  // returns the directory where the actual binary (not the symlink) resides
+static inline int  // returns the directory where the actual binary (not the symlink) resides
 fs_basedir(
     char *basedir,  // output will be copied here
     size_t maxlen)  // allocation size
 {
 #ifdef __linux__
-  #ifdef LIBVKDT
+#ifdef LIBVKDT
   void *handle;
   char mod[PATH_MAX];
   handle = dlopen("libvkdt.so", RTLD_LAZY);
   if (!handle) {
     fprintf(stderr, "%s\n", dlerror());
-	exit(1);
+	return(1);
   }
   dlinfo(handle, RTLD_DI_ORIGIN, &mod);
   snprintf(basedir, maxlen, "%s/", mod);
-  #else
+  dlclose(handle);
+#else
   // stupid allocation dance because passing basedir directly
   // may or may not require PATH_MAX bytes instead of maxlen
   char *bd = realpath("/proc/self/exe", 0);
@@ -115,6 +116,7 @@ fs_basedir(
 #error port me
 #endif
   fs_dirname(basedir);
+  return(0);
 }
 
 static inline int // return the number of devices found
