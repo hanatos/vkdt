@@ -1,5 +1,4 @@
-#ifndef LIBVKDT_H
-#define LIBVKDT_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,5 +18,4 @@ extern "C" {
 }
 #endif
 
-#endif
 
