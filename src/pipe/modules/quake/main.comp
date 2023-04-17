@@ -849,7 +849,8 @@ void read_neighbour_state(
   {
     vec4 r0 = xrand(seed, rp);
     vec4 r1 = xrand(seed, rp);
-    ivec2 off = ivec2(15.0 * (r0.xy + r0.zw + r1.xy + r1.zw - 2.0));
+    vec4 r2 = xrand(seed, rp);
+    ivec2 off = ivec2(15.0 * (r0.xy + r0.zw + r1.xy + r1.zw + r2.xy + r2.zw - 3.0));
 #else
     { // just our very own center pixel
     ivec2 off = ivec2(0);
