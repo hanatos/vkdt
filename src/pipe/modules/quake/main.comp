@@ -173,16 +173,17 @@ struct material_core_t
 struct material_info_t
 { // initialised hit point to work with
   material_core_t c;
-  vec2 st;        // texture coordinates
   uint mat;       // albedo texture
-  uint matfb;     // "fullbright" texture/emission
-  uint matgl;     // glossy texture, if any
-  uint matnd;     // normal/displacement texture, if any
-  float alpha;    // if > 0.0 overwrite texture alpha
   float t;        // intersection distance
   uint flags;     // none, lava, slime, tele, water
   vec3 albedo;
   vec3 emission;
+  // XXX TODO: try to put these into prep_mat_info locally:
+  // vec2 st;        // texture coordinates
+  // uint matfb;     // "fullbright" texture/emission
+  // uint matgl;     // glossy texture, if any
+  // uint matnd;     // normal/displacement texture, if any
+  // float alpha;    // if > 0.0 overwrite texture alpha
 };
 
 intersection_t
@@ -203,6 +204,11 @@ prepare_material_info(
     vec3           w,      // incoming ray direction.
     raycast_res_t  inter)  // identify geo intersection
 {
+  vec2 st;        // texture coordinates
+  uint matfb;     // "fullbright" texture/emission
+  uint matgl;     // glossy texture, if any
+  uint matnd;     // normal/displacement texture, if any
+  float alpha;    // if > 0.0 overwrite texture alpha
   material_info_t m;
   vec3 b;
   b.yz = unpackHalf2x16(inter.opaque.uv);
@@ -214,15 +220,15 @@ prepare_material_info(
   if(inter.opaque.instid == 0)
   { // dyn geo
     m.mat   =  dynssbo.v[i+6]&0xfff;
-    m.alpha = (dynssbo.v[i+6]>>12)/15.0;
-    m.matfb = (dynssbo.v[i+6]>>16) & 0xfff;
+      alpha = (dynssbo.v[i+6]>>12)/15.0;
+      matfb = (dynssbo.v[i+6]>>16) & 0xfff;
     m.flags =  dynssbo.v[i+6]>>28;
-    m.matgl = m.matnd = 0;
+      matgl = matnd = 0;
     brush_model = (dynssbo.v[i+1] == 0xffffffff);
     if(brush_model)
     {
-      m.matgl = dynssbo.v[i+0]&0xffff;
-      m.matnd = dynssbo.v[i+0]>>16;
+      matgl = dynssbo.v[i+0]&0xffff;
+      matnd = dynssbo.v[i+0]>>16;
     }
     else
     {
@@ -233,19 +239,19 @@ prepare_material_info(
     st0 = unpackHalf2x16(dynssbo.v[i+3]);
     st1 = unpackHalf2x16(dynssbo.v[i+4]);
     st2 = unpackHalf2x16(dynssbo.v[i+5]);
-    m.st = mat3x2(st0, st1, st2) * b;
+    st = mat3x2(st0, st1, st2) * b;
   }
   else
   { // static geo
     brush_model = (stcssbo.v[i+1] == 0xffffffff);
     m.mat   =  stcssbo.v[i+6]&0xfff;
-    m.alpha = (stcssbo.v[i+6]>>12)/15.0;
-    m.matfb = (stcssbo.v[i+6]>>16) & 0xfff;
+    alpha   = (stcssbo.v[i+6]>>12)/15.0;
+    matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
     m.flags =  stcssbo.v[i+6]>>28;
     if(brush_model)
     {
-      m.matgl = stcssbo.v[i+0]&0xffff;
-      m.matnd = stcssbo.v[i+0]>>16;
+      matgl = stcssbo.v[i+0]&0xffff;
+      matnd = stcssbo.v[i+0]>>16;
     }
     else
     {
@@ -256,7 +262,7 @@ prepare_material_info(
     st0 = unpackHalf2x16(stcssbo.v[i+3]);
     st1 = unpackHalf2x16(stcssbo.v[i+4]);
     st2 = unpackHalf2x16(stcssbo.v[i+5]);
-    m.st = mat3x2(st0, st1, st2) * b;
+    st = mat3x2(st0, st1, st2) * b;
   }
   // more precise intersection point by using vertices + barycentrics
   uint i0 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+0];
@@ -314,15 +320,15 @@ prepare_material_info(
   {
     if(m.flags > 0)
     { // all esoteric surfaces warp
-      m.st = vec2(
-          m.st.x + 0.2*sin(m.st.y*2.0 + params.cl_time * 1.0),
-          m.st.y + 0.2*sin(m.st.x*2.0 + params.cl_time * 1.0));
+      st = vec2(
+          st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
+          st.y + 0.2*sin(st.x*2.0 + params.cl_time * 1.0));
     }
-    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
     m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
     m.albedo *= m.albedo; // "un-gamma"
-    m.emission = m.matfb > 0 ? texelFetch(img_tex[nonuniformEXT(m.matfb)], tc, 0).rgb : vec3(0.0);
+    m.emission = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0).rgb : vec3(0.0);
     m.emission *= m.emission;
   }
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
@@ -338,10 +344,10 @@ prepare_material_info(
     //     clamp(m.emission.b-m.emission.r, 0, 1));
   }
 #if 1
-  if(brush_model && m.matnd > 0)
+  if(brush_model && matnd > 0)
   { // apply normal map
-    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.matnd)], 0)*mod(m.st, vec2(1.0)));
-    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.matnd)], 0)-1);
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(matnd)], 0)*mod(st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matnd)], 0)-1);
     vec3 du = v2 - v0, dv = v1 - v0;
     vec2 duv1 = st2 - st0, duv2 = st1 - st0;
     float det = duv1.x * duv2.y - duv2.x * duv1.y;
@@ -350,7 +356,7 @@ prepare_material_info(
       du =  normalize(( duv2.y * du - duv1.y * dv) / det);
       dv = -normalize((-duv2.x * du + duv1.x * dv) / det);
     }
-    m.c.n = normalize(mat3(du, dv, m.c.n) * ((texelFetch(img_tex[nonuniformEXT(m.matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
+    m.c.n = normalize(mat3(du, dv, m.c.n) * ((texelFetch(img_tex[nonuniformEXT(matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
     if(dot(w,m.c.n) > 0) m.c.n -= w*dot(w,m.c.n);
   }
   else
@@ -362,11 +368,11 @@ prepare_material_info(
 
   m.c.bsdf = 1; // slight rough lobe too
   m.c.bsdf_param = vec3(0.01);
-  if(m.matgl > 0)
+  if(matgl > 0)
   { // apply glossiness texture
-    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.matgl)], 0)*mod(m.st, vec2(1.0)));
-    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.matgl)], 0)-1);
-    float gloss = texelFetch(img_tex[nonuniformEXT(m.matgl)], tc, 0).r;
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(matgl)], 0)*mod(st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matgl)], 0)-1);
+    float gloss = texelFetch(img_tex[nonuniformEXT(matgl)], tc, 0).r;
     m.c.bsdf_param = vec3(mix(0.2, 0.01, gloss));
   }
 
@@ -393,15 +399,15 @@ prepare_material_info(
 
 #if 1
       m.mat   =  stcssbo.v[i+6]&0xfff;
-      m.alpha = (stcssbo.v[i+6]>>12)/15.0;
-      m.matfb = (stcssbo.v[i+6]>>16) & 0xfff;
-      m.matgl =  stcssbo.v[i+0]&0xffff;
-      m.matnd =  stcssbo.v[i+0]>>16;
-      m.st = m.c.x.xy*0.01;
+      alpha   = (stcssbo.v[i+6]>>12)/15.0;
+      matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
+      matgl   =  stcssbo.v[i+0]&0xffff;
+      matnd   =  stcssbo.v[i+0]>>16;
+      st      = m.c.x.xy*0.01;
       // m.st = vec2(
       //     m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
       //     m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
-      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(m.st, vec2(1.0)));
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
       m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
       m.albedo *= m.albedo; // "un-gamma"
