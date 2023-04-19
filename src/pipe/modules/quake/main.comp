@@ -164,7 +164,7 @@ struct raycast_res_t
 struct material_core_t
 { // minimal stuff for bsdf/pdf eval
   vec3 x;
-  // vec3 ng;        // geo normal, if different to n
+  vec3 ng;        // geo normal, if different to n
   vec3 n;         // shading normal
   uint bsdf;      // bsdf model id
   vec3 bsdf_param;// extra bsdf params, anisotropic roughness etc
@@ -282,8 +282,7 @@ prepare_material_info(
       buf_vtx[inter.opaque.instid].v[3*i2+2]);
   m.c.x = mat3(v0, v1, v2) * b;
   m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
-  // m.c.ng = normalize(cross(v2-v0,v1-v0));
-  m.c.n = normalize(cross(v2-v0,v1-v0));
+  m.c.ng = normalize(cross(v2-v0,v1-v0));
 #if 0
   if(!brush_model) // only alias models have these normals
   { // now fix shading normals below horizon and terminator problem:
@@ -303,8 +302,7 @@ prepare_material_info(
   else
 #endif // XXX FIXME: shading normals are fubared!
   { // brushmodels have no vertex normals
-    // m.c.n = n0 = n1 = n2 = m.c.ng;
-    n0 = n1 = n2 = m.c.n;
+    m.c.n = n0 = n1 = n2 = m.c.ng;
   }
 
   m.albedo   = vec3(0);
@@ -364,7 +362,7 @@ prepare_material_info(
   { // init tangent frame
     if(dot(w, m.c.n) > 0) m.c.n = -m.c.n; // never happens except when it does (transparent surfaces/sky)
   }
-  // if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
+  if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
 
   m.c.bsdf = 1; // slight rough lobe too
   m.c.bsdf_param = vec3(0.01);
@@ -394,7 +392,7 @@ prepare_material_info(
       m.c.n = wn.xyz;
       // m.flags = 4;
       if(dot(w, m.c.n) > 0) m.c.n = -m.c.n; // never happens except when it does (transparent surfaces/sky)
-      // m.c.ng = m.c.n;
+      m.c.ng = m.c.n;
       m.flags =  flags;//stcssbo.v[i+6]>>28;
 
 #if 1
@@ -430,7 +428,7 @@ prepare_material_info(
     vec4 wn = water_normal(m.c.x, WATER_DEPTH);
     m.c.n = wn.xyz;
     if(dot(w, m.c.n) > 0) m.c.n = -m.c.n;
-    // m.c.ng = m.c.n;
+    m.c.ng = m.c.n;
     vec3 up = vec3(1,0,0);
     if(abs(m.c.n.x) > abs(m.c.n.y)) up = vec3(0,1,0);
     m.c.du = normalize(cross(up, m.c.n));
@@ -952,8 +950,7 @@ main()
     if(dist < m1.t)
     {
       m1.x = m0.x + w_cam * dist;
-      // m1.ng =
-      m1.n = vec3(0.0);
+      m1.ng = m1.n = vec3(0.0);
       m1.t = dist;
       m1.emission = vec3(0.0);
       m1.albedo = vec3(1.0);
@@ -1062,8 +1059,7 @@ main()
           rgb *= bsdf_eval(m0.bsdf, w_cam, du, dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
         }
 
-        // if(any(notEqual(m0.ng, vec3(0.0))) && dot(w, m0.ng) <= 0.0)
-        if(any(notEqual(m0.n, vec3(0.0))) && dot(w, m0.n) <= 0.0)
+        if(any(notEqual(m0.ng, vec3(0.0))) && dot(w, m0.ng) <= 0.0)
         { // kill under geo surface paths
           rgb = vec3(0.0);
           continue;
