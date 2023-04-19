@@ -910,10 +910,9 @@ main()
   vec3 ltw[spp]; // light source direction
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
 
-  // XXX TODO: can we not have this in registers but always just encode/write out on acceptance?
-  // XXX would need curr.f and valid(curr) and for debugging get vmf/kappa
-  // mc_state_t curr = mc_state_new(); // zero current state
-  uvec4 curr_enc = uvec4(0.0);
+  mc_state_t curr = mc_state_new(); // zero current state
+  // uvec4 curr_enc = uvec4(0.0);
+  // float curr_f = 0.0;
   mc_state_t tent = mc_state_new(); // tentative new state
 
   material_info_t mat;
@@ -1112,17 +1111,20 @@ main()
           }
 #else // ML-version
           float f = lum(rgb * mat.emission)/pdf_w;
-          float curr_f = mc_state_decode_f(curr_enc);
-          const float a = min(1.0, f / curr_f);//curr.f);
+          // float curr_f = mc_state_decode_f(curr_enc);
+          // const float a = min(1.0, f / curr_f);
+          const float a = min(1.0, f / curr.f);
           rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
           ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
-          // if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
-          if(f > 0 && (curr_f <= 0.0 || rand.z < a))
+          if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
+          // if(f > 0 && (curr_f <= 0.0 || rand.z < a))
           { // update markov chain state for this pixel:
             if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
             tent.f = f;
-            // curr = tent;
-            curr_enc = mc_state_encode(tent);
+            curr = tent;
+            // curr_f = f;
+            // imageStore(img_nee_out,    ipos, mc_state_encode(tent)); // significantly slower
+            // curr_enc = mc_state_encode(tent);
             mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
           }
           else if(!use_vmf)
@@ -1181,7 +1183,7 @@ main()
     imageStore(img_gbuf_out, ipos, gbuf);
   }
 
-  // imageStore(img_nee_out,    ipos, mc_state_encode(curr));
-  imageStore(img_nee_out,    ipos, curr_enc);
+  imageStore(img_nee_out,    ipos, mc_state_encode(curr));
+  // imageStore(img_nee_out,    ipos, curr_enc);
   imageStore(img_irradiance, ipos, vec4(irr, 1));
 }
