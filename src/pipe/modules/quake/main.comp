@@ -808,6 +808,14 @@ uvec4 mc_state_encode(mc_state_t r)
       //     r.N)));
 }
 
+float mc_state_decode_f(uvec4 enc)
+{
+  u16vec2 t0 = unpack16(enc.x);
+  float f = max(0, (exp2(float(t0.y)) - 1.0)/1000.0);
+  if(!(f < 100000.0)) f = 100000.0; // fix overflows
+  return f;
+}
+
 mc_state_t mc_state_decode(uvec4 enc)
 { // decode mc state
   mc_state_t r = mc_state_new();
@@ -902,16 +910,19 @@ main()
   vec3 ltw[spp]; // light source direction
   vec4 par[spp]; // sampling pdf parameters (mean, kappa)
 
-  mc_state_t curr = mc_state_new(); // zero current state
+  // XXX TODO: can we not have this in registers but always just encode/write out on acceptance?
+  // XXX would need curr.f and valid(curr) and for debugging get vmf/kappa
+  // mc_state_t curr = mc_state_new(); // zero current state
+  uvec4 curr_enc = uvec4(0.0);
   mc_state_t tent = mc_state_new(); // tentative new state
 
   material_info_t mat;
   material_core_t m0;
-  vec4 rand = xrand(seed, rp);
-  seed = uint(70000 * rand.x);
   vec3 rgb_cam = vec3(1.0);
   vec3 w_cam; // ray direction from camera
   { // camera setup:
+    vec4 rand = xrand(seed, rp);
+    seed = uint(70000 * rand.x);
     m0.x = params.cam_x.xyz;
     vec3 f = params.cam_w.xyz;
     vec3 t = -params.cam_u.xyz * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
@@ -927,13 +938,12 @@ main()
     m0.x += w_cam * 0.02; // push a bit to avoid problems with some level-end cameras
   }
 
-  rayQueryEXT rq;
   bool compute_indirect = true;
 
   bool cam_underwater = params.water > 0;
   {
     vec3 xm;
-    mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, rand.w, rgb_cam);
+    mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, mrand(seed), rgb_cam);
     m0 = mat.c;
   }
   { // ray intersected geometry, init material state and tangent frame
@@ -1006,14 +1016,16 @@ main()
     for(int s=0;s<spp;s++)
     {
       float pdf_w = 1.0;
-      vec3 w = w_cam;
+      vec3 w = vec3(0.0);
       vec3 rgb = rgb_cam;
       rad[s] = vec3(0.0);
+      par[s] = vec4(0.0);
+      ltw[s] = vec3(0.0);
 
       // addis' patented unbiased fix
       mc_state_shuffle(tent, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
       {
-        rand = xrand(seed, rp);
+        vec4 rand = xrand(seed, rp);
 #define BSDF_P 0.125
 // #define BSDF_P 0
         bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
@@ -1100,49 +1112,21 @@ main()
           }
 #else // ML-version
           float f = lum(rgb * mat.emission)/pdf_w;
-          // const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
-          // vec4 vmfc = mc_state_vmf(curr, m0.x), vmft = mc_state_vmf(tent, m0.x);
-          // const float dct = dot(vmfc.xyz, vmft.xyz);
-          // const float T0 = vmf_eval(vmfc.w, dct);
-          // const float T1 = vmf_eval(vmft.w, dct);
-          // const float a = min(1.0, f/T0 / (curr.f/T1));
-          // vec4 oldrad = texelFetch(img_oldout, ivec2(ipos+mv), 0);
-          // float oldf = lum(oldrad.rgb);
-          // const float a = min(1.0, f / oldf);
-          const float a = min(1.0, f / curr.f);
-          // const float a = min(1.0, f / (f + curr.f));
-          // const float a = min(1.0, tent.sum_w / curr.sum_w);
+          float curr_f = mc_state_decode_f(curr_enc);
+          const float a = min(1.0, f / curr_f);//curr.f);
           rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
           ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
-          // if(use_vmf)
-            // mc_state_add(tent, m0.x, f, ltw[s], xm);
-          // const float a = min(1.0, tent.f / curr.f);
-          if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
+          // if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
+          if(f > 0 && (curr_f <= 0.0 || rand.z < a))
           { // update markov chain state for this pixel:
-#if 0 // seb's muted bsdf samples:
-            if(!use_vmf)
-            {
-              tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
-              mc_state_add(tent, m0.x, f, ltw[s], xm);
-              vec4 vmf = mc_state_vmf(tent, m0.x);
-              f *= pdf_w / vmf_eval(vmf.w, dot(vmf.xyz, ltw[s]));
-              tent = mc_state_new();
-            }
-            tent.f = f;
-            mc_state_add(tent, m0.x, f, ltw[s], xm);
-            curr = tent;
-          }
-          else if(use_vmf)
-            mc_state_add(tent, m0.x, f, ltw[s], xm);
-#else // vanilla
             if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
             tent.f = f;
-            curr = tent;
+            // curr = tent;
+            curr_enc = mc_state_encode(tent);
             mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
           }
           else if(!use_vmf)
             mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
-#endif
 #endif
         } // end if cast ray intersected anything
       } // end bounces
@@ -1180,7 +1164,7 @@ main()
     }
   }
 
-#if 1
+#if 0
   {
     vec4 vmf = mc_state_vmf(curr, m0.x);
     vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
@@ -1197,6 +1181,7 @@ main()
     imageStore(img_gbuf_out, ipos, gbuf);
   }
 
-  imageStore(img_nee_out,    ipos, mc_state_encode(curr));
+  // imageStore(img_nee_out,    ipos, mc_state_encode(curr));
+  imageStore(img_nee_out,    ipos, curr_enc);
   imageStore(img_irradiance, ipos, vec4(irr, 1));
 }
