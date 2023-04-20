@@ -31,7 +31,7 @@ float edge(
 { // parameters from paper, default/paper version in comment:
   const float sigma_z = 10;    // parameter for depth      = 1   larger blurs more
   const float sigma_n = 64;    // parameter for normals    = 128 larger blurs more
-  const float sigma_l = 400;   // parameter for brightness = 4   larger blurs more
+  const float sigma_l = 40;    // parameter for brightness = 4   larger blurs more
   float w_z = exp(-abs(dp-dq) / (sigma_z));// * (1e-6+abs(dot(grad_z, dx)))));
   float w_n = pow(max(0.0, dot(np, nq)), sigma_n);
   float w_l = exp(-dot(Lp-Lq, Lp-Lq) / (sigma_l * sigma + 1e-6));
@@ -71,12 +71,19 @@ main()
     m2 /= (2.0*r+1)*(2.0*r+1)-1;
     sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
     // Lp = clamp(Lp, m1-2*sigma, m1+2*sigma); // firefly clamping. completely hosed on envmaps.
-    m1 += gbuf.z; m2 += gbuf.w;
-    m1 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
-    m2 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
-    sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
+    // m1 += gbuf.z; m2 += gbuf.w;
+    // m1 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
+    // m2 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
+    // sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
     if(any(greaterThanEqual(Lp, vec3(m1+1.0*sigma)))) // even this looks so weird
       sigma = 1000000.0;
+    else
+    {
+      m1 += gbuf.z; m2 += gbuf.w;
+      m1 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
+      m2 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
+      sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
+    }
   }
 
   vec2 w_sum = vec2(1.0);

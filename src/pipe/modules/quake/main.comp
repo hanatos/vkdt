@@ -351,8 +351,9 @@ prepare_material_info(
     float det = duv1.x * duv2.y - duv2.x * duv1.y;
     if(abs(det) > 1e-8)
     {
-      du =  normalize(( duv2.y * du - duv1.y * dv) / det);
+      vec3 du2 =  normalize(( duv2.y * du - duv1.y * dv) / det);
       dv = -normalize((-duv2.x * du + duv1.x * dv) / det);
+      du = du2;
     }
     m.c.n = normalize(mat3(du, dv, m.c.n) * ((texelFetch(img_tex[nonuniformEXT(matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
     if(dot(w,m.c.n) > 0) m.c.n -= w*dot(w,m.c.n);
@@ -764,23 +765,42 @@ mc_state_t mc_state_new()
   return r;
 }
 
-float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
+float mc_state_C(mc_state_t s, vec3 x, vec3 nx, ivec2 tc, ivec2 tc0)
 { // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
-  vec3 y = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
-  if(s.sky)
-    return 1;//if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
-  else
-    if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
-  return 1.0;
+  // return 1.0;
+  // vec3 y = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
+  // if(s.sky) nx = vec3(0.0);
+  // float dp = 1.0;
+  vec4 gbuf;
+  gbuf = texelFetch(img_gbuf_in, tc0, 0);
+  const float irr0 = gbuf.w;
+  const float sig0 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+  gbuf = texelFetch(img_gbuf_in, tc, 0);
+  const float sig1 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+  vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
+  const float sigma_n = 64; // svgf style
+  const float sigma_z = 10;
+  const float sigma_r = 100; // XXX lower to like 0.1 for sharp static contact shadows.
+                             // XXX unfortunately dynamic/rotating lights require a looser bound here
+  float w_r = exp(-abs(gbuf.w - irr0) / (sigma_r*(sig0+sig1)));
+  float w_n = pow(max(0.0, dot(nx, nq)), sigma_n);
+  float w_d = exp(-abs(gbuf.y - length(x - params.cam_x.xyz))/sigma_z);
+  return w_n * w_d * w_r;
+
+  // if(s.sky)
+  //   return 1;//if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
+  // else
+  //   if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
+  // return 1.0;
 }
 
-float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
+float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0, ivec2 tc, ivec2 tc0)
 {
   // const float p_f = 0.0;
   // const float f = rnd0 < p_f ? s.sum_w : 1.0;
   // const float f = rnd0 < p_f ? s.f : 1.0;
   const float f = s.f;
-  return f;// * mc_state_C(s, x, nx);
+  return f * mc_state_C(s, x, nx, tc, tc0);
 }
 
 uvec4 mc_state_encode(mc_state_t r)
@@ -857,7 +877,7 @@ void read_neighbour_state(
     inout uint seed,
     const ivec2 rp)
 {
-  float sum = mc_state_score(tent, x, n, mrand(seed));
+  float sum = mc_state_score(tent, x, n, mrand(seed), ivec2(ipos+mv), ivec2(ipos+mv));
 #if 1
   for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
   {
@@ -871,7 +891,7 @@ void read_neighbour_state(
 #endif
     float rnd = mrand(seed);
     mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
-    float other = mc_state_score(t2, x, n, mrand(seed));
+    float other = mc_state_score(t2, x, n, mrand(seed), ivec2(ipos+mv+off), ivec2(ipos+mv));
     // if(!mc_state_valid(tent) || rnd < other / (other + sum))
 #if 1
     if(sum <= 0.0 || rnd < other / (other + sum))
@@ -1164,18 +1184,32 @@ main()
 
 #if 0
   {
-    vec4 vmf = mc_state_vmf(curr, m0.x);
-    vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
+    // vec4 vmf = mc_state_vmf(curr, m0.x);
+    // vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
+    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+    // vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
+    // vec4 deb = vec4((nq + 1.0)/2.0, 1.0);
+    // vec4 deb = vec4((m0.n + 1.0)/2.0, 1.0);
+    vec4 deb = vec4(gbuf.z, sigma, 1.0, 1.0);
     imageStore(img_debug, ipos, deb);
   }
 #endif
 
   {
     vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    // const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+    const float depth = length(m0.x - params.cam_x.xyz);
+    const vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
+    const float sigma_n = 64; // svgf style
+    const float sigma_z = 10;
+    float w_n = pow(max(0.0, dot(m0.n, nq)), sigma_n);
+    float w_z = exp(-abs(gbuf.y - length(m0.x - params.cam_x.xyz))/sigma_z);
+    float alpha = 0.9 * w_n * w_z;
     gbuf.x = uintBitsToFloat(geo_encode_normal(m0.n)); // normal
-    gbuf.y = length(m0.x - params.cam_x.xyz);          // depth
-    gbuf.z = mix(length(irr),  gbuf.z, 0.9);           // biased first  moment
-    gbuf.w = mix(dot(irr,irr), gbuf.w, 0.9);           // biased second moment
+    gbuf.y = depth;                                    // depth/z
+    gbuf.z = mix(length(irr),  gbuf.z, alpha);         // biased first  moment
+    gbuf.w = mix(dot(irr,irr), gbuf.w, alpha);         // biased second moment
     imageStore(img_gbuf_out, ipos, gbuf);
   }
 
