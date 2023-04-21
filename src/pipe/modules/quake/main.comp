@@ -772,20 +772,20 @@ float mc_state_C(mc_state_t s, vec3 x, vec3 nx, ivec2 tc, ivec2 tc0)
   // if(s.sky) nx = vec3(0.0);
   // float dp = 1.0;
   vec4 gbuf;
-  gbuf = texelFetch(img_gbuf_in, tc0, 0);
-  const float irr0 = gbuf.w;
-  const float sig0 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+  // gbuf = texelFetch(img_gbuf_in, tc0, 0);
+  // const float irr0 = gbuf.w;
+  // const float sig0 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
   gbuf = texelFetch(img_gbuf_in, tc, 0);
-  const float sig1 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+  // const float sig1 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
   vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
   const float sigma_n = 64; // svgf style
   const float sigma_z = 10;
   const float sigma_r = 100; // XXX lower to like 0.1 for sharp static contact shadows.
                              // XXX unfortunately dynamic/rotating lights require a looser bound here
-  float w_r = exp(-abs(gbuf.w - irr0) / (sigma_r*(sig0+sig1)));
+  // float w_r = exp(-abs(gbuf.w - irr0) / (sigma_r*(sig0+sig1)));
   float w_n = pow(max(0.0, dot(nx, nq)), sigma_n);
   float w_d = exp(-abs(gbuf.y - length(x - params.cam_x.xyz))/sigma_z);
-  return w_n * w_d * w_r;
+  return w_n * w_d;// * w_r;
 
   // if(s.sky)
   //   return 1;//if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
