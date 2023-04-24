@@ -18,36 +18,35 @@ all: ext src bin
 prefix?=/usr
 DESTDIR?=
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
-VKDTLIBDIR=$(DESTDIR)$(prefix)/lib
+VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
-install: all
-	mkdir -p $(VKDTDIR)
-	mkdir -p $(VKDTDIR)/modules
+install-bin: all Makefile
 	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp -rfL bin/data ${VKDTDIR}
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
+	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
 	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo ${VKDTDIR}
-	cp -rfL bin/default* ${VKDTDIR}
-	cp -rfL bin/darkroom.ui ${VKDTDIR}
 	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
-	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
-	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
+	cp -rfL bin/darkroom.ui ${VKDTDIR}
 
-libinstall: ext lib bin
-	mkdir -p $(VKDTLIBDIR)/modules
-	mkdir -p $(VKDTLIBDIR)/data
+install-mod: ext lib bin Makefile
+	mkdir -p $(VKDTDIR)/modules
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	cp -rfL bin/data ${VKDTDIR}
+	cp -rfL bin/default* ${VKDTDIR}
+
+install: install-bin install-mod Makefile
+
+install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/qvk
 	mkdir -p $(VKDTINCDIR)/pipe
 	mkdir -p $(VKDTINCDIR)/pipe/modules
 	mkdir -p $(VKDTINCDIR)/core
 	mkdir -p $(VKDTINCDIR)/gui
-	cp -rfL bin/data ${VKDTLIBDIR}
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTLIBDIR}/modules/
 	cp -rfL bin/libvkdt.so ${VKDTLIBDIR} 
-	cp -rfL bin/libvkdt.h $(VKDTINCDIR)
+	cp -rfL src/lib/vkdt.h $(VKDTINCDIR)
 	cp -rfL src/qvk/*.h $(VKDTINCDIR)/qvk
 	cp -rfL src/pipe/*.h $(VKDTINCDIR)/pipe
 	cp -rfL src/pipe/modules/*.h $(VKDTINCDIR)/pipe/modules
@@ -91,7 +90,6 @@ cli: Makefile bin ext
 LIB=../bin/libvkdt.so
 lib: Makefile bin ext
 	$(MAKE) -C src/ ${LIB} modules
-	cp -p src/lib/libvkdt.h bin/
 
 clean:
 	$(MAKE) -C ext/ clean
@@ -110,7 +108,7 @@ distclean:
 	rm -rf bin/modules
 	rm -rf src/macadam.lut
 
-libclean:
+uninstall-lib:
 	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
 	rm -rf $(VKDTINCDIR)
 
@@ -118,4 +116,3 @@ bin: Makefile
 	mkdir -p bin/data
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data
-
