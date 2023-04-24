@@ -21,6 +21,7 @@ VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
+	mkdir -p $(VKDTDIR)/lib
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
 	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli

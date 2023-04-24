@@ -1,10 +1,6 @@
 #pragma once
-#ifdef __linux__
-  #ifdef LIBVKDT
-    #include <dlfcn.h>
-    #include <link.h>
-  #endif
-#endif
+#include <dlfcn.h>
+#include <link.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -84,39 +80,39 @@ fs_homedir(
   snprintf(basedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
 }
 
-static inline int  // returns the directory where the actual binary (not the symlink) resides
+static inline void  // returns the directory where the actual binary (not the symlink) resides
 fs_basedir(
     char *basedir,  // output will be copied here
     size_t maxlen)  // allocation size
 {
+  basedir[0] = 0;
 #ifdef __linux__
-#ifdef LIBVKDT
-  void *handle;
-  char mod[PATH_MAX];
-  handle = dlopen("libvkdt.so", RTLD_LAZY);
-  if (!handle) {
-    fprintf(stderr, "%s\n", dlerror());
-	return(1);
-  }
-  dlinfo(handle, RTLD_DI_ORIGIN, &mod);
-  snprintf(basedir, maxlen, "%s/", mod);
-  dlclose(handle);
-#else
   // stupid allocation dance because passing basedir directly
   // may or may not require PATH_MAX bytes instead of maxlen
   char *bd = realpath("/proc/self/exe", 0);
   snprintf(basedir, maxlen, "%s", bd);
   free(bd);
-  #endif
+  fs_dirname(basedir);
+  char mod[PATH_MAX];
+  snprintf(mod, sizeof(mod), "%s/darkroom.ui", basedir);
+  if(access(mod, F_OK))
+  { // no darkroom.ui file and probably also lacking the rest. try dlopen/dso path:
+    void *handle = dlopen("libvkdt.so", RTLD_LAZY);
+    if(handle)
+    {
+      dlinfo(handle, RTLD_DI_ORIGIN, &mod);
+      snprintf(basedir, maxlen, "%s/vkdt", mod);
+      dlclose(handle);
+    }
+  }
 #elif defined(__FreeBSD__)
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = maxlen;
   sysctl(mib_procpath, 4, basedir, &len_procpath, NULL, 0);
+  fs_dirname(basedir);
 #else
 #error port me
 #endif
-  fs_dirname(basedir);
-  return(0);
 }
 
 static inline int // return the number of devices found
