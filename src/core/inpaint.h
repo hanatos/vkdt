@@ -31,7 +31,7 @@ dt_inpaint_blur(const dt_inpaint_buf_t *s, dt_inpaint_buf_t *d)
   d->cpp = s->cpp;
   d->wd = (s->wd + 1)/2;
   d->ht = (s->ht + 1)/2;
-  d->dat = calloc(sizeof(float)*d->cpp, d->wd * d->ht);
+  d->dat = calloc(sizeof(float)*d->cpp, d->wd * (uint64_t)d->ht);
   const float wg[5] = {1.0, 4.0, 6.0, 4.0, 1.0};
   for(int j=0;j<d->ht;j++) for(int i=0;i<d->wd;i++)
   {

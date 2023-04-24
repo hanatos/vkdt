@@ -30,7 +30,7 @@ void write_sink(
     fwrite(&header, sizeof(header), 1, f);
     // use whatever connector says because that's the real allocation (in case
     // it's just uint8 or so)
-    size_t bytes = header.wd * header.ht * header.channels * dt_connector_bytes_per_channel(module->connector+0);
+    size_t bytes = header.wd * (uint64_t)header.ht * (uint64_t)header.channels * (uint64_t)dt_connector_bytes_per_channel(module->connector+0);
     fwrite(buf, bytes, 1, f);
     fclose(f);
   }

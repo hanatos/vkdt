@@ -72,6 +72,16 @@ DESTDIR=/tmp/testrel make install
 
 ### current changelog
 
+github actions: build linux, codeql
+code cleanup/security fixes
+perf overlay
+gui fixes and finetune things
+clean shutdown
+graph editor/delete graph edit tab in darkroom
+initial focusstack blend mode
+new autocrop button
+
+
 ## diverge branches
 
 on the master branch, delete the changelog (to be filled with new features which

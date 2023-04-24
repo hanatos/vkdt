@@ -31,7 +31,7 @@ void write_sink(
     while((len + 1 + off) & 0xf) off++;
     while(off-- > 0) fprintf(f, "0");
     fprintf(f, "\n");
-    for(size_t k=0;k<width*height;k++)
+    for(size_t k=0;k<width*(uint64_t)height;k++)
     {
       float p32[3] = {pf[4*k+0], pf[4*k+1], pf[4*k+2]};
       fwrite(p32, sizeof(float), 3ul, f);

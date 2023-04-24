@@ -34,8 +34,7 @@ enum hotkey_names_t
 
 typedef struct gui_nodes_t
 {
-  int do_layout;       // got nothing, do initial auto layout
-  ImVec2 mod_pos[100]; // read manual positions from file
+  int do_layout;          // do initial auto layout
   int hotkey;
   int node_hovered_link;
   int dual_monitor;
@@ -398,20 +397,26 @@ void render_nodes()
     mod_id[pos2] = tmp;
     render_nodes_module(g, curr);
     if(!g->module[curr].name) continue;
-    if(nodes.do_layout == 1)
-      ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
-    else if(nodes.do_layout == 2)
-      ImNodes::SetNodeEditorSpacePos(curr, nodes.mod_pos[curr]);
+    if(nodes.do_layout)
+    {
+      if(g->module[curr].gui_x == 0 && g->module[curr].gui_y == 0)
+        ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
+      else
+        ImNodes::SetNodeEditorSpacePos(curr, ImVec2(g->module[curr].gui_x, g->module[curr].gui_y));
+    }
   }
 
   for(int m=pos;m<arr_cnt;m++)
   { // draw disconnected modules
     render_nodes_module(g, mod_id[m]);
     if(!g->module[mod_id[m]].name) continue;
-    if(nodes.do_layout == 1)
-      ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m+0.25-pos), 2*nodey));
-    else if(nodes.do_layout == 2)
-      ImNodes::SetNodeEditorSpacePos(mod_id[m], nodes.mod_pos[mod_id[m]]);
+    if(nodes.do_layout)
+    {
+      if(g->module[mod_id[m]].gui_x == 0 && g->module[mod_id[m]].gui_y == 0)
+        ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m+0.25-pos), 2*nodey));
+      else
+        ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(g->module[mod_id[m]].gui_x, g->module[mod_id[m]].gui_y));
+    }
   }
   ImNodes::PopAttributeFlag();
 
@@ -532,45 +537,7 @@ extern "C" int nodes_enter()
   nodes.hotkey = -1;
   nodes.do_layout = 1; // assume bad initial auto layout
   nodes.node_hovered_link = -1;
-  dt_graph_t *g = &vkdt.graph_dev;
-  char filename[PATH_MAX], datname[PATH_MAX];
-  dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, filename, sizeof(filename));
-  uint64_t hash = hash64(filename);
-  int loaded_default = 0;
-  if(snprintf(datname, sizeof(datname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
-  { // read from ~/.config/vkdt/nodes/<hash>.dat
-    FILE *f = fopen(datname, "rb");
-    if(!f)
-    { // try initial config for default input module
-      dt_token_t mod = dt_graph_default_input_module(filename);
-      if(snprintf(datname, sizeof(datname), "%s/nodes/default.%" PRItkn ".dat", dt_pipe.homedir, dt_token_str(mod)) < int(sizeof(datname)))
-        f = fopen(datname, "rb");
-      loaded_default = 1;
-    }
-    if(f)
-    {
-      char line[300];
-      fscanf(f, "%299[^\n]", line);
-      if(loaded_default || !strcmp(line, filename))
-      { // only use hashed positions if filename actually matches
-        while(!feof(f))
-        {
-          fscanf(f, "%299[^\n]", line);
-          char *l = line;
-          if(fgetc(f) == EOF) break; // read \n
-          dt_token_t name = dt_read_token(l, &l);
-          dt_token_t inst = dt_read_token(l, &l);
-          const float px  = dt_read_float(l, &l);
-          const float py  = dt_read_float(l, &l);
-          for(uint32_t m=0;m<MIN(sizeof(nodes.mod_pos)/sizeof(nodes.mod_pos[0]), g->num_modules);m++)
-            if(g->module[m].name == name && g->module[m].inst == inst)
-              nodes.mod_pos[m] = ImVec2(px, py);
-        }
-        nodes.do_layout = 2; // ask to read positions
-      }
-      fclose(f);
-    }
-  }
+  nodes.do_layout = 2; // ask to read positions
   // make sure we process once:
   vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
   return 0;
@@ -578,29 +545,13 @@ extern "C" int nodes_enter()
 
 extern "C" int nodes_leave()
 {
-  // serialise node positions to hidden/hashed file in ~/.config
-  char filename[PATH_MAX], datname[PATH_MAX];
-  dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, filename, sizeof(filename));
-  uint64_t hash = hash64(filename);
-  if(snprintf(datname, sizeof(datname), "%s/nodes", dt_pipe.homedir) < int(sizeof(datname)))
-    fs_mkdir(datname, 0755);
-  if(snprintf(datname, sizeof(datname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(datname)))
-  { // write to ~/.config/vkdt/nodes/<hash>.dat
-    FILE *f = fopen(datname, "wb");
-    if(f)
-    {
-      fprintf(f, "%s\n", filename);
-      dt_graph_t *g = &vkdt.graph_dev;
-      for(uint32_t m=0;m<g->num_modules;m++)
-      {
-        if(g->module[m].name == 0) continue; // don't write removed ones
-        ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
-        fprintf(f, "%" PRItkn ":%" PRItkn ":%g:%g\n",
-            dt_token_str(g->module[m].name), dt_token_str(g->module[m].inst),
-            pos.x, pos.y);
-      }
-      fclose(f);
-    }
+  dt_graph_t *g = &vkdt.graph_dev;
+  for(uint32_t m=0;m<g->num_modules;m++)
+  { // set gui positions on modules
+    if(g->module[m].name == 0) continue; // don't write removed ones
+    ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
+    g->module[m].gui_x = pos.x;
+    g->module[m].gui_y = pos.y;
   }
   return 0;
 }

@@ -430,7 +430,7 @@ dng_profile_interpolate(
     memcpy(R->hsm, A->hsm, sizeof(float)*3*R->hsm_dim[0]*R->hsm_dim[1]*R->hsm_dim[2]);
     if(B->hsm)
     {
-      uint64_t cnt = 3*R->hsm_dim[0]*R->hsm_dim[1]*R->hsm_dim[2];
+      uint64_t cnt = 3*(uint64_t)R->hsm_dim[0]*(uint64_t)R->hsm_dim[1]*(uint64_t)R->hsm_dim[2];
       for(uint64_t i=0;i<cnt;i++) R->hsm[i] = mix(A->hsm[i], B->hsm[i], t);
     }
   }

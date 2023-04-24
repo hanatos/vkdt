@@ -187,7 +187,7 @@ write_chroma_lut(
   snprintf(filename, sizeof(filename), "%s.lut", basename);
   FILE *f = fopen(filename, "wb");
   fwrite(&hout, sizeof(hout), 1, f);
-  uint16_t *b16 = calloc(sizeof(uint16_t), wd*ht*6);
+  uint16_t *b16 = calloc(sizeof(uint16_t), wd*(uint64_t)ht*6);
   for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
   {
     b16[2*(3*wd*j+i)+0]      = float_to_half(buf0[3*(wd*j+i)+0]);
@@ -197,7 +197,7 @@ write_chroma_lut(
     b16[2*(3*wd*j+i+2*wd)+0] = float_to_half(buf1[3*(wd*j+i)+0]);
     b16[2*(3*wd*j+i+2*wd)+1] = float_to_half(buf1[3*(wd*j+i)+1]);
   }
-  fwrite(b16, sizeof(uint16_t), wd*ht*6, f);
+  fwrite(b16, sizeof(uint16_t), wd*(uint64_t)ht*6, f);
   // append metadata, the source spectrum:
   fprintf(f, "##### created by vkdt mkclut, from following input\n");
   snprintf(filename, sizeof(filename), "%s.txt", basename);

@@ -79,7 +79,7 @@ read_full(
   dinfo.out_color_components = 3;
 
   (void)jpeg_start_decompress(&dinfo);
-  JSAMPROW row_pointer[1] = { malloc(dinfo.output_width * dinfo.num_components) };
+  JSAMPROW row_pointer[1] = { malloc(dinfo.output_width * (uint64_t)dinfo.num_components) };
   uint8_t *tmp = out;
   while(dinfo.output_scanline < dinfo.image_height)
   {

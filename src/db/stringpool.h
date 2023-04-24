@@ -26,7 +26,7 @@ dt_stringpool_init(
     uint32_t avg_len)     // assume average string length. filenames straight from cam are 12.
 {
   num_entries += num_entries; // add slack
-  size_t buf_size = num_entries * avg_len;
+  size_t buf_size = num_entries * (uint64_t)avg_len;
   memset(sp, 0, sizeof(*sp));
   sp->entry_max = num_entries;
   sp->entry     = calloc(sizeof(dt_stringpool_entry_t), num_entries);

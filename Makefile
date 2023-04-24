@@ -3,7 +3,7 @@
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
-.PHONY:all ext src clean distclean bin install release
+.PHONY:all ext src clean distclean bin install release cli
 include bin/config.mk.defaults
 sinclude bin/config.mk
 
@@ -18,21 +18,41 @@ all: ext src bin
 prefix?=/usr
 DESTDIR?=
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
-install: all
-	mkdir -p $(VKDTDIR)
-	mkdir -p $(VKDTDIR)/modules
+VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
+VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
+install-bin: all Makefile
+	mkdir -p $(VKDTDIR)/lib
 	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp -rfL bin/data ${VKDTDIR}
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
+	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
 	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo ${VKDTDIR}
-	cp -rfL bin/default* ${VKDTDIR}
-	cp -rfL bin/darkroom.ui ${VKDTDIR}
 	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
-	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
-	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
+	cp -rfL bin/darkroom.ui ${VKDTDIR}
+
+install-mod: ext lib bin Makefile
+	mkdir -p $(VKDTDIR)/modules
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	cp -rfL bin/data ${VKDTDIR}
+	cp -rfL bin/default* ${VKDTDIR}
+
+install: install-bin install-mod Makefile
+
+install-lib: install-mod Makefile src/core/version.h
+	mkdir -p $(VKDTINCDIR)/qvk
+	mkdir -p $(VKDTINCDIR)/pipe
+	mkdir -p $(VKDTINCDIR)/pipe/modules
+	mkdir -p $(VKDTINCDIR)/core
+	mkdir -p $(VKDTINCDIR)/gui
+	cp -rfL bin/libvkdt.so ${VKDTLIBDIR} 
+	cp -rfL src/lib/vkdt.h $(VKDTINCDIR)
+	cp -rfL src/qvk/*.h $(VKDTINCDIR)/qvk
+	cp -rfL src/pipe/*.h $(VKDTINCDIR)/pipe
+	cp -rfL src/pipe/modules/*.h $(VKDTINCDIR)/pipe/modules
+	cp -rfL src/gui/*.h $(VKDTINCDIR)/gui
+	cp -rfL src/core/*.h $(VKDTINCDIR)/core
 
 VERSION=$(shell grep VERSION src/core/version.h | cut -d'"' -f2)
 release: Makefile src/core/version.h
@@ -64,9 +84,13 @@ src: ext Makefile
 reload-shaders: Makefile
 	$(MAKE) -C src/ reload-shaders
 
-CLI=../bin/vkdt-cli ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-fit ../bin/vkdt-eval-profile ../bin/vkdt-lutinfo
-cli: Makefile
-	$(MAKE) -C src/ ${CLI}
+CLI=../bin/vkdt-cli ../bin/vkdt-fit
+cli: Makefile bin ext
+	$(MAKE) -C src/ ${CLI} tools modules
+
+LIB=../bin/libvkdt.so
+lib: Makefile bin ext
+	$(MAKE) -C src/ ${LIB} modules
 
 clean:
 	$(MAKE) -C ext/ clean
@@ -76,7 +100,7 @@ distclean:
 	$(shell find . -name "*.o"   -exec rm {} \;)
 	$(shell find . -name "*.spv" -exec rm {} \;)
 	$(shell find . -name "*.so"  -exec rm {} \;)
-	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile
+	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile bin/libvkdt.so
 	rm -rf src/macadam
 	rm -rf src/mkabney
 	rm -rf bin/data/*.lut
@@ -85,8 +109,11 @@ distclean:
 	rm -rf bin/modules
 	rm -rf src/macadam.lut
 
-bin: src Makefile
+uninstall-lib:
+	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
+	rm -rf $(VKDTINCDIR)
+
+bin: Makefile
 	mkdir -p bin/data
 	ln -sf ../src/pipe/modules bin/
 	cp ext/rawspeed/data/cameras.xml bin/data
-

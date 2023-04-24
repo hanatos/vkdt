@@ -67,7 +67,7 @@ read_plain(
   if(!lut->f) return 1;
   fseek(lut->f, lut->data_begin, SEEK_SET);
   size_t sz = lut->header.datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
-  fread(out, lut->header.wd*lut->header.ht*lut->header.channels, sz, lut->f);
+  fread(out, lut->header.wd*(uint64_t)lut->header.ht*(uint64_t)lut->header.channels, sz, lut->f);
   return 0;
 }
 

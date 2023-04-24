@@ -60,7 +60,7 @@ clean: Makefile
 # GNU_SOURCE for sched_affinity
 CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
-EXE_CFLAGS=-fPIE
+EXE_CFLAGS?=-fPIC
 LDFLAGS=
 VK_CFLAGS:=$(shell pkg-config --cflags vulkan)
 
@@ -114,6 +114,11 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 ../bin/vkdt-fit: $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 	$(CC) $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o $@ \
     $(LDFLAGS) $(FIT_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
+
+# library
+# ======================
+../bin/libvkdt.so: $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile core/version.h
+	$(CC) -shared -nostartfiles -Wl,-soname,libvkdt.so -o $@ $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O)
 
 # modules
 # ======================

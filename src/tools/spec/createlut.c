@@ -477,11 +477,11 @@ int main(int argc, char **argv)
     max_h = header.ht;
     if(header.channels != 1) goto mac_error;
     if(header.version != 2) goto mac_error;
-    max_b = calloc(sizeof(float), max_w*max_h);
-    uint16_t *half = calloc(sizeof(float), max_w*max_h);
-    fread(half, header.wd*header.ht, sizeof(uint16_t), f);
+    max_b = calloc(sizeof(float), max_w*(uint64_t)max_h);
+    uint16_t *half = calloc(sizeof(float), max_w*(uint64_t)max_h);
+    fread(half, header.wd*(uint64_t)header.ht, sizeof(uint16_t), f);
     fclose(f);
-    for(int k=0;k<header.wd*header.ht;k++)
+    for(uint64_t k=0;k<header.wd*(uint64_t)header.ht;k++)
       max_b[k] = half_to_float(half[k]);
     free(half);
     if(0)

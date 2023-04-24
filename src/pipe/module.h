@@ -117,6 +117,9 @@ typedef struct dt_module_t
   // this is useful for instance for a cpu caching of
   // input data decoded from disk inside a module:
   void *data; // if you indeed must store your own data.
+
+  // gui stuff. for convenience referenced here directly, but not crucial for cli operation and may be left 0.
+  float gui_x, gui_y;      // position in graph editor
 }
 dt_module_t;
 

@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
   size_t sz = header.datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
   fprintf(stderr, "lut with %d x %d with %d channels at %zu bytes per channel\n",
       header.wd, header.ht, header.channels, sz);
-  sz *= header.wd * header.ht * header.channels;
+  sz *= header.wd * (uint64_t)header.ht * (uint64_t)header.channels;
   fseek(f, sz+sizeof(header), SEEK_SET);
   while(!feof(f))
   {
