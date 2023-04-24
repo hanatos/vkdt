@@ -190,6 +190,8 @@ read_module_ascii(
 {
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
+  float x = dt_read_float(line, &line);
+  float y = dt_read_float(line, &line);
   // in case of failure:
   // discard module id, but remember error state (returns modid=-1)
   int modid = dt_module_add(graph, name, inst);
@@ -199,6 +201,8 @@ read_module_ascii(
         dt_token_str(name), dt_token_str(inst));
     return 1;
   }
+  graph->module[modid].gui_x = x;
+  graph->module[modid].gui_y = y;
   return 0;
 }
 
@@ -302,9 +306,10 @@ dt_graph_write_module_ascii(
     size_t            size)
 {
   if(graph->module[m].name == 0) return line; // don't write removed modules
-  WRITE("module:%"PRItkn":%"PRItkn"\n",
+  WRITE("module:%"PRItkn":%"PRItkn":%g:%g\n",
       dt_token_str(graph->module[m].name),
-      dt_token_str(graph->module[m].inst));
+      dt_token_str(graph->module[m].inst),
+      graph->module[m].gui_x, graph->module[m].gui_y);
   return line;
 }
 
