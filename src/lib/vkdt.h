@@ -1,8 +1,10 @@
 #pragma once
+// convenience header which pulls in all necessary
+// vkdt headers needed for basic operation
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
 #include "qvk/qvk.h"
 #include "pipe/graph.h"
@@ -17,5 +19,3 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-
