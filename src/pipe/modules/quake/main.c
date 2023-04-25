@@ -941,7 +941,7 @@ void commit_params(
     // Cmd_ExecuteString("developer 1", src_command);
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
     Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
-    Cmd_ExecuteString("god", src_command);
+    // Cmd_ExecuteString("god", src_command);
     // Cmd_ExecuteString("notarget", src_command);
     // Cmd_ExecuteString("r_vis 0", src_command);
     // sv_player_set = 0; // if you're doing messy things above
@@ -965,6 +965,8 @@ void commit_params(
       ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
     else
       ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
+    int *p_health = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("health")));
+    p_health[0] = sv_player->v.health;
   }
 
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));

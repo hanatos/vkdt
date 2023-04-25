@@ -7,3 +7,4 @@ skybox:hidden
 exec:hidden
 pause:slider:0:2000
 cltime:hidden
+health:hidden
