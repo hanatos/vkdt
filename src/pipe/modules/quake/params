@@ -7,5 +7,6 @@ skybox:int:6:0
 cltime:float:1:0
 ref:int:1:0
 health:int:1:100
+armor:int:1:100
 exec:string:100:
 pause:int:1:0

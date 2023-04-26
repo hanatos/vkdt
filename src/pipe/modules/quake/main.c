@@ -967,6 +967,8 @@ void commit_params(
       ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
     int *p_health = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("health")));
     p_health[0] = sv_player->v.health;
+    int *p_armor = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("armor")));
+    p_armor[0] = sv_player->v.armorvalue;
   }
 
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));

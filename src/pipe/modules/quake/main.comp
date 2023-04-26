@@ -36,6 +36,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float cl_time; // quake time
   int   ref;     // use reference sampling
   int   health;
+  int   armor;
 } params;
 
 // layout(push_constant, std140) uniform push_t
@@ -1216,9 +1217,12 @@ main()
 
   if(ipos.y > imageSize(img_irradiance).y*0.96 && ipos.x > imageSize(img_irradiance).x*0.8)
   {
-    vec3 col = 0.1*clamp(vec3(100.0-params.health, params.health, 10.0), vec3(0), vec3(100));
+    float val = 0.0;
+    if(ipos.y > imageSize(img_irradiance).y*0.98) val = params.health;
+    else val = params.armor;
+    vec3 col = 0.1*clamp(vec3(100.0-val, val, 10.0), vec3(0), vec3(100));
     float off = (ipos.x/float(imageSize(img_irradiance).x) - 0.8)/0.1;
-    if(off*100 < params.health) irr = col;
+    if(off*100 < val) irr = col;
   }
 
   imageStore(img_nee_out,    ipos, mc_state_encode(curr));
