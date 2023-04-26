@@ -940,7 +940,7 @@ void commit_params(
     // TODO: execute config file name
     // Cmd_ExecuteString("developer 1", src_command);
     // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
-    Cmd_ExecuteString("bind \"q\" \"impulse 9\"", src_command);
+    Cmd_ExecuteString("bind \"q\" \"impulse 9;give health 666\"", src_command);
     // Cmd_ExecuteString("god", src_command);
     // Cmd_ExecuteString("notarget", src_command);
     // Cmd_ExecuteString("r_vis 0", src_command);
