@@ -16,20 +16,22 @@ shared vec3 sbuf[7*8];
 void
 main()
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  ivec2 ipos = ivec2(gl_GlobalInvocationID)/8;
   vec3 rgb = vec3(0.0);
-  if(all(lessThan(ipos, textureSize(img_in, 0))))
-    rgb = texelFetch(img_in, ipos, 0).rgb;
+  int sx = int(gl_SubgroupInvocationID % 8);
+  int sy = int(gl_SubgroupInvocationID / 8 + 4*gl_SubgroupID);
+  ivec2 tc = 8*ipos + ivec2(sx, sy);
+  if(all(lessThan(tc, textureSize(img_in, 0))))
+    rgb = texelFetch(img_in, tc, 0).rgb;
 
   // horizontal sums/reduction
-  rgb = subgroupClusteredAdd(rgb, 2);
-  int sx = int(gl_SubgroupInvocationID / 2);
-  int sy = int(gl_SubgroupInvocationID / 8 + 4*gl_SubgroupID);
+  sx /= 2;
+  rgb = subgroupClusteredAdd(rgb, 2)/2.0;
   if((gl_SubgroupInvocationID % 2) == 0) sbuf[sx + 7*sy] = rgb;
-  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 2), 2);
+  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 2), 2)/2.0;
   sx /= 2;
   if((gl_SubgroupInvocationID % 4) == 0) sbuf[4+sx + 7*sy] = rgb;
-  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 4), 2);
+  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 4), 2)/2.0;
   sx /= 2;
   if((gl_SubgroupInvocationID % 8) == 0) sbuf[6 + 7*sy] = rgb;
 
@@ -39,16 +41,16 @@ main()
   sx = int(gl_SubgroupInvocationID / 8 + 4*gl_SubgroupID);
   rgb = vec3(0.0);
   if(sx < 7) rgb = sbuf[sx + 7*sy];
-  rgb = subgroupClusteredAdd(rgb, 2);
+  rgb = subgroupClusteredAdd(rgb, 2)/2.0;
   // TODO: go vertical first so we can write out coalesced? (images are special anyways?)
   if(sx < 4)
-    if((sy % 2) == 0) imageStore(img_out2, 4*(ipos/8) + ivec2(sx, sy/2), vec4(rgb, 1)); // 4x4 block
+    if((sy % 2) == 0) imageStore(img_out2, 4*ipos + ivec2(sx, sy/2), vec4(rgb, 1)); // 4x4 block
 
-  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 2), 2);
+  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 2), 2)/2.0;
   if(sx >= 4 && sx < 6)
-    if((sy % 4) == 0) imageStore(img_out4, 2*(ipos/8)+ ivec2((sx-4), sy/4), vec4(rgb, 1)); // 2x2 block
+    if((sy % 4) == 0) imageStore(img_out4, 2*ipos + ivec2((sx-4), sy/4), vec4(rgb, 1)); // 2x2 block
 
-  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 4), 2);
-  if(sx == 6)
-    if((sy % 8) == 0) imageStore(img_out8, ipos/8, vec4(rgb, 1)); // 1x1 full average of 8x8 block
+  rgb = subgroupClusteredAdd(subgroupShuffleXor(rgb, 4), 2)/2.0;
+  if(sx == 6 && sy == 0)
+    imageStore(img_out8, ipos, vec4(rgb, 1)); // 1x1 full average of 8x8 block
 }

@@ -1,4 +1,5 @@
 input:read:*:*
-output:write:*:*
-out4:write:*:*
-out8:write:*:*
+gbuf:read:rgba:f32
+output:write:rgba:f16
+out4:write:rgba:f16
+out8:write:rgba:f16
