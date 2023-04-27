@@ -1,0 +1,4 @@
+input:read:*:*
+output:write:*:*
+out4:write:*:*
+out8:write:*:*
