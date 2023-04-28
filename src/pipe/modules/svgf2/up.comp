@@ -30,10 +30,11 @@ main()
 
   // TODO: blend/shrink between crs and fin
   // XXX this is what eq does:
-  vec3 rgb = max(vec3(0.0), mix(c1.rgb + s*det, org, sigma/(0.005+sigma)));
+  float s = 1.0;
+  vec3 rgb = max(vec3(0.0), mix(c1.rgb + s*det, fn.rgb, sigma/(0.005+sigma)));
 
   // XXX bayesshrink says T=sigma^2/sigma_X (noise var / signal stddev)
   // XXX TODO: estimate signal stddev from gbuf! how does one do this?
 
-  imageStore(img_out, opos, rgb);
+  imageStore(img_out, opos, vec4(rgb, 1));
 }
