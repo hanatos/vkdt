@@ -682,14 +682,14 @@ again:;
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = t->gltexture->texnum;
             ext[14*pi+13] = t->fullbright ? t->fullbright->texnum : 0;
-            // hack for ad_tears and emissive waterfalls
-            if(strstr(t->gltexture->name, "wfall")) ext[14*pi+13] = t->gltexture->texnum;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
             if(surf->flags & SURF_DRAWSLIME) flags = 2;
             if(surf->flags & SURF_DRAWTELE)  flags = 3;
             if(surf->flags & SURF_DRAWWATER) flags = 4;
+            // hack for ad_tears and emissive waterfalls
+            if(strstr(t->gltexture->name, "wfall")) flags = 7;// ext[14*pi+13] = t->gltexture->texnum;
 #if WATER_MODE==WATER_MODE_FULL
             if(wateroffset)                  flags = 5; // this is our procedural water lower mark
 #endif

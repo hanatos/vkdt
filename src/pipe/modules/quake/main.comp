@@ -318,7 +318,7 @@ prepare_material_info(
   }
   else
   {
-    if(m.flags > 0)
+    if(m.flags > 0 && m.flags < 6)
     { // all esoteric surfaces warp
       st = vec2(
           st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
@@ -334,6 +334,7 @@ prepare_material_info(
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
   else if(m.flags == 2) m.emission =  0.5*m.albedo; // slime
   else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
+  else if(m.flags == 7) m.emission =      m.albedo; // ad_tears emissive waterfall hack
   else if(m.mat == 0xfff) m.emission = m.emission;//(exp2(m.emission*10.0)-1.0);
   else
   {
