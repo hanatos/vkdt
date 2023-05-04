@@ -357,6 +357,8 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
     if(!strncmp(glt->name+strlen(glt->name)-3, "_up", 3)) qs_data.skybox[4] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_dn", 3)) qs_data.skybox[5] = glt->texnum;
   }
+  // these should emit in ad_tears. we hack it later when uploading the texture:
+  // if(strstr(glt->name, "wfall")) fprintf(stderr, "XXX %s\n", glt->name);
 
   // TODO: think about cleanup later, maybe
 }
@@ -680,6 +682,8 @@ again:;
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
             ext[14*pi+12] = t->gltexture->texnum;
             ext[14*pi+13] = t->fullbright ? t->fullbright->texnum : 0;
+            // hack for ad_tears and emissive waterfalls
+            if(strstr(t->gltexture->name, "wfall")) ext[14*pi+13] = t->gltexture->texnum;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
