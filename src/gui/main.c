@@ -209,6 +209,17 @@ pentablet_cursor_callback(unsigned int cursor)
 { }
 #endif
 
+static void
+dt_gui_print_usage()
+{
+  printf("gui usage: vkdt [options] [file | directory]\n"
+         "  options:\n"
+         "       -d <log layer>   switch on log layer\n"
+         "       -D <log layer>   mute log layer\n"
+         "  log layers:\n"
+         "  none qvk pipe gui db cli snd perf mem err all\n");
+}
+
 int main(int argc, char *argv[])
 {
   if(argc > 1)
@@ -222,6 +233,7 @@ int main(int argc, char *argv[])
     {
       printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
       dt_tool_print_usage();
+      dt_gui_print_usage();
       exit(0);
     }
     dt_tool_dispatch(argc, argv);
