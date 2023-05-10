@@ -209,5 +209,6 @@ dt_rc_write(
     }
     i += len+1; // eat terminating 0, too
   }
+  fclose(f);
   return 0;
 }
