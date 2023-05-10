@@ -20,6 +20,7 @@ filteredlist_get_heading(
   if(f)
   {
     res = (char*)malloc(256);
+    strncpy(res, dirname, 10);
     fscanf(f, "# %255[^\n]", res);
     fclose(f);
   }
