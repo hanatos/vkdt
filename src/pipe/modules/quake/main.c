@@ -516,6 +516,7 @@ add_geo(
   // fprintf(stderr, "[add_geo] %s\n", m->name);
   // if (!m || m->name[0] == '*') return; // '*' is the moving brush models such as doors
   if (!m) return;
+  if(qs_data.worldspawn) return;
 
   // TODO: lerp between lerpdata.pose1 and pose2 using blend
   // TODO: apply transformation matrix cpu side, whatever.
@@ -1050,7 +1051,8 @@ int read_source(
   {
     uint32_t vtx_cnt = 0, idx_cnt = 0;
     add_geo(cl_entities+0, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    p->node->flags &= ~s_module_request_read_source; // done uploading static extra data
+    if(qs_data.worldspawn) p->node->flags |= s_module_request_read_source; // request again
+    else p->node->flags &= ~s_module_request_read_source; // done uploading static extra data
   }
 
   return 0;
@@ -1087,7 +1089,7 @@ int read_geo(
     idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
-    p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+    if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 
