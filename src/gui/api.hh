@@ -250,8 +250,8 @@ dt_gui_dr_modals()
           const int selected = sel[i];
           if(selected)
           {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8, 0.2, 0.1, 1.0));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0, 0.4, 0.2, 1.0));
+            ImGui::PushStyleColor(ImGuiCol_Button,        ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogramHovered]);
           }
           if(ImGui::Button(line[i])) sel[i] ^= 1;
           if(ImGui::IsItemHovered())

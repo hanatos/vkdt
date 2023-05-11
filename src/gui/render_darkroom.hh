@@ -362,7 +362,7 @@ void render_darkroom_widget(int modid, int parid)
           dt_gui_dr_pers_adjust(inc, 1);
         }
         snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
@@ -433,7 +433,7 @@ void render_darkroom_widget(int modid, int parid)
 
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::Button("done"))
         {
           widget_end();
@@ -503,7 +503,7 @@ void render_darkroom_widget(int modid, int parid)
 
         snprintf(string, sizeof(string), "%" PRItkn" done",
             dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
            ImGui::IsKeyPressed(ImGuiKey_Escape)||
            ImGui::IsKeyPressed(ImGuiKey_CapsLock))
@@ -610,7 +610,7 @@ void render_darkroom_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::Button(string))
         {
           widget_end();
@@ -651,7 +651,7 @@ void render_darkroom_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::Button(string, size))
         {
           widget_end();
@@ -781,7 +781,7 @@ void render_darkroom_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::Button(string, ImVec2(halfw, 0)))
         {
           widget_end();

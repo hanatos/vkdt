@@ -238,7 +238,9 @@ namespace ImHotKey
           ImGui::Indent(ofs*s);
         const int kid = IDX(key.imkey);
         bool& butSwtch = keyDown[kid];
-        if(kid) ImGui::PushStyleColor(ImGuiCol_Button, butSwtch ? 0xFF1040FF : 0x80000000);
+        if(kid) ImGui::PushStyleColor(ImGuiCol_Button, butSwtch ?
+            ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram] :
+            ImGui::GetStyle().Colors[ImGuiCol_Button]);
         if (ImGui::Button(Keys[y][x].lib, ImVec2(width*s, 40*s)))
           if(kid)
             butSwtch = !butSwtch;

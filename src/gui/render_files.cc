@@ -122,9 +122,8 @@ void render_files()
         int red = mountpoint[i][0];
         if(red)
         {
-          ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
-          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.8f, 0.8f, 1.0f));
-          ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+          ImGui::PushStyleColor(ImGuiCol_Button,        ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
+          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogramHovered]);
         }
         if(ImGui::Button(devname[i]))
         {
@@ -147,7 +146,7 @@ void render_files()
         if(ImGui::IsItemHovered()) ImGui::SetTooltip(red ? "click to unmount" : "click to mount");
         if(red)
         {
-          ImGui::PopStyleColor(3);
+          ImGui::PopStyleColor(2);
           ImGui::SameLine();
           ImGui::PushID(i);
           if(ImGui::Button("go to mountpoint", ImVec2(-1,0)))
