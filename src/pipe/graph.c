@@ -860,7 +860,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
                 graph, node, c, &graph->heap, 0, f, k));
       else
       { // in case of dynamic allocation, reserve a protected block and wait until later
-        c->array_mem = dt_vkalloc_feedback(&graph->heap, c->array_alloc_size, 0x1000);
+        c->array_mem = dt_vkalloc_feedback(&graph->heap, c->array_alloc_size, 0x10000); // this is shit and should probably get a fake alignment value for a fake image. amd requires this large one, nvidia can do one 0 less
         c->array_alloc = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }

@@ -490,6 +490,18 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV,
+  };
+  VkPhysicalDeviceProperties2 devprop = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+    .pNext = &devprop_acc,
+  };
+  vkGetPhysicalDeviceProperties2(qvk.physical_device, &devprop);
+  qvk.raytracing_acc_min_align = devprop_acc.minAccelerationStructureScratchOffsetAlignment;
+  qvk.raytracing_acc_min_align = 0x10000;//devprop_acc.minAccelerationStructureScratchOffsetAlignment;
+  dt_log(s_log_err|s_log_qvk, "align scratch accel memory %lx", qvk.raytracing_acc_min_align);
+
   // create texture samplers
   VkSamplerCreateInfo sampler_info = {
     .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
