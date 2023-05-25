@@ -436,18 +436,16 @@ dt_raytrace_record_command_buffer_accel_build(
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, rebuild_cnt, build_info, p_build_range);
 
-#define ACCEL_BARRIER do {\
-  VkMemoryBarrier barrier = { \
-    .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER, \
-    .srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, \
-    .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, \
-  }; \
-  vkCmdPipelineBarrier(graph->command_buffer, \
-      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, \
-      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, \
-      0, 1, &barrier, 0, NULL, 0, NULL); \
-  } while(0)
-  ACCEL_BARRIER; // barrier before top level is starting to build
+  // barrier before top level is starting to build
+  VkMemoryBarrier barrier = {
+    .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+    .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+  };
+  vkCmdPipelineBarrier(graph->command_buffer,
+      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      0, 1, &barrier, 0, NULL, 0, NULL);
 
   // build top level accel
   VkBufferDeviceAddressInfo scratch_adress_info = {
@@ -468,7 +466,15 @@ dt_raytrace_record_command_buffer_accel_build(
   build_range[0] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = graph->rt.nid_cnt };
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, 1, &graph->rt.build_info, p_build_range);
 
-  ACCEL_BARRIER; // push another barrier
-#undef ACCEL_BARRIER
+  // push another barrier
+  barrier = (VkMemoryBarrier){
+    .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+  };
+  vkCmdPipelineBarrier(graph->command_buffer,
+      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+      0, 1, &barrier, 0, NULL, 0, NULL);
   return VK_SUCCESS;
 }
