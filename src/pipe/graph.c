@@ -2094,12 +2094,15 @@ VkResult dt_graph_run(
   // and create nodes for all modules
   // ==============================================
   if(run & (s_graph_run_roi | s_graph_run_create_nodes))
-  {
-    // delete all previous nodes
+  { // delete all previous nodes
     for(int i=0;i<graph->conn_image_end;i++)
     {
+      if(graph->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    graph->conn_image_pool[i].buffer, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+      graph->conn_image_pool[i].buffer = 0;
+      graph->conn_image_pool[i].image = 0;
+      graph->conn_image_pool[i].image_view = 0;
     }
     graph->conn_image_end = 0;
     for(int i=0;i<cnt;i++)
