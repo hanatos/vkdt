@@ -940,6 +940,10 @@ void commit_params(
     }
   }
 
+  // hijacked for performance counter rendering
+  float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
+  p_duration[0] = graph->query_last_frame_duration;
+
   if(graph->frame == 10)
   { // to test rocket illumination etc:
     // TODO: execute config file name

@@ -11,6 +11,7 @@
 #extension GL_EXT_shader_subgroup_extended_types_float16 : enable
 
 #include "shared.glsl"
+#include "shared/text.h"
 #include "shared/render3d.glsl"
 #include "config.h"
 
@@ -29,7 +30,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 cam_w;
   vec4 cam_u;
   vec4 fog;
-  int spp;
+  float duration; // hijacked: int spp;
   int torch;
   int water;
   uint sky_rt, sky_bk, sky_lf, sky_ft, sky_up, sky_dn;
@@ -1216,6 +1217,21 @@ main()
     imageStore(img_gbuf_out, ipos, gbuf);
   }
 
+  if(ipos.y < imageSize(img_irradiance).y*0.08)
+  { 
+    if(ipos.x > imageSize(img_irradiance).x*0.8)
+    {
+      vec2 ts = vec2(0.47,0.04)*imageSize(img_irradiance);
+      float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
+      irr += 10*c;
+    }
+    else
+    {
+      vec2 ts = vec2(0.01,0.04)*imageSize(img_irradiance);
+      float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
+      irr += 10*c;
+    }
+  }
   if(ipos.y > imageSize(img_irradiance).y*0.96 && ipos.x > imageSize(img_irradiance).x*0.8)
   {
     float val = 0.0;
