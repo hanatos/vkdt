@@ -92,6 +92,7 @@ typedef struct dt_graph_t
   uint64_t             *query_pool_results;
   dt_token_t           *query_name;
   dt_token_t           *query_kernel;
+  float                 query_last_frame_duration; // for convenience the last frame time in milliseconds
 
   uint32_t              dset_cnt_image_read,  dset_cnt_image_read_alloc;
   uint32_t              dset_cnt_image_write, dset_cnt_image_write_alloc;

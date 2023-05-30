@@ -2707,8 +2707,10 @@ VkResult dt_graph_run(
         graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
   }
   if(graph->query_cnt)
-    dt_log(s_log_perf, "total time:\t%8.3f ms",
-        (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds);
+  {
+    graph->query_last_frame_duration = (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
+    dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query_last_frame_duration);
+  }
   // reset run flags:
   graph->runflags = 0;
   return VK_SUCCESS;
