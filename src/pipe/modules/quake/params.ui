@@ -1,10 +1,11 @@
 cam:grab
 fog:hidden
-spp:slider:1:64
+spp:hidden
 torch:hidden
 water:hidden
 skybox:hidden
 exec:hidden
+ref:combo:guided sampling:reference mode
 pause:slider:0:2000
 cltime:hidden
 health:hidden

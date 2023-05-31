@@ -83,15 +83,15 @@ int init(dt_module_t *mod)
   char *argv[] = {"quakespasm",
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
-    "-game", "ad",
     "+map", "e1m1",
+    "-game", "ad",
     "-game", "SlayerTest", // needs different particle rules! also overbright and lack of alpha?
     "+map", "e1m2b",
     "+map", "ep1m1",
     "+map", "e1m1b",
     "+map", "st1m1",
   };
-  int argc =  9;
+  int argc = 5;
 
   d->worldspawn = 0;
   d->parms.argc = argc;
@@ -935,7 +935,15 @@ void commit_params(
     const char *p_exec = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("exec")));
     if(p_exec[0])
     {
-      Cmd_ExecuteString(p_exec, src_command);
+      char buf[256] = {0}, *p = 0, *q = buf;
+      strncpy(buf, p_exec, sizeof(buf)-1);
+      while((p = strstr(q, ";")))
+      {
+        p[0] = 0;
+        Cmd_ExecuteString(q, src_command);
+        q = ++p;
+      }
+      if(q[0]) Cmd_ExecuteString(q, src_command);
       sv_player_set = 0; // just in case we loaded a map (demo, savegame)
     }
   }
