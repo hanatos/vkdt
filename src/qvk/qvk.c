@@ -59,7 +59,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_2,
+  .apiVersion         = VK_API_VERSION_1_3,
 };
 
 static void
@@ -430,24 +430,19 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .samplerYcbcrConversion = 1,
     .pNext                  = &atomic_features,
   };
+  VkPhysicalDeviceMaintenance4Features maintenance4 = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
+    .pNext = &v11f,
+  };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = &v11f,
+    .pNext    = &maintenance4,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
-  VkPhysicalDeviceFeatures2 *tmp = &device_features;
-  while(tmp)
-  { // now find out whether we *really* support 32-bit floating point atomic adds:
-    if(tmp->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT)
-    {
-      VkPhysicalDeviceShaderAtomicFloatFeaturesEXT *af =
-        (VkPhysicalDeviceShaderAtomicFloatFeaturesEXT*)tmp;
-      if(af->shaderImageFloat32AtomicAdd == VK_FALSE)
-        qvk.float_atomics_supported = 0;
-    }
-    tmp = tmp->pNext;
-  }
+  // now find out whether we *really* support 32-bit floating point atomic adds:
+  if(atomic_features.shaderImageFloat32AtomicAdd == VK_FALSE)
+    qvk.float_atomics_supported = 0;
 
   dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics support", picked_device,
       qvk.raytracing_supported ? "with" : "without",
@@ -494,6 +489,18 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     if(!q##a) { dt_log(s_log_qvk|s_log_err, "could not load function %s. do you have validation layers setup correctly?", #a); return VK_INCOMPLETE; }
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
+
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV,
+  };
+  VkPhysicalDeviceProperties2 devprop = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+    .pNext = &devprop_acc,
+  };
+  vkGetPhysicalDeviceProperties2(qvk.physical_device, &devprop);
+  qvk.raytracing_acc_min_align = devprop_acc.minAccelerationStructureScratchOffsetAlignment;
+  qvk.raytracing_acc_min_align = 0x10000; // amd returns 0 here, which then doesn't work.
+  dt_log(s_log_qvk, "align scratch accel memory %lx", qvk.raytracing_acc_min_align);
 
   // create texture samplers
   VkSamplerCreateInfo sampler_info = {

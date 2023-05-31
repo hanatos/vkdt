@@ -1,0 +1,40 @@
+#version 460
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_KHR_shader_subgroup_clustered : enable
+#extension GL_KHR_shader_subgroup_shuffle   : enable
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(set = 1, binding = 0) uniform sampler2D img_c0;
+layout(set = 1, binding = 1) uniform sampler2D img_c1;
+layout(set = 1, binding = 2) uniform sampler2D img_fn;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  vec2 tc = (opos+0.5)/vec2(imageSize(img_out));
+  vec4 c0 = sample_semisoft(img_c0, tc);
+  vec4 c1 = sample_semisoft(img_c1, tc);
+  vec4 fn = texelFetch(img_fn, opos, 0);
+  vec3 det = fn.rgb - c0.rgb;
+
+  // XXX we store the 2nd moment in the w channel. this can be linearly
+  // XXX filtered and we'll compute the first moment squared as late as now so it's
+  // XXX a good estimate.
+  float l = luminance_rec2020(c0.rgb);
+  float sigma = sqrt(max(0.0, c0.w - l*l));
+
+  // TODO: blend/shrink between crs and fin
+  // XXX this is what eq does:
+  float s = 1.0;
+  vec3 rgb = max(vec3(0.0), mix(c1.rgb + s*det, fn.rgb, sigma/(0.005+sigma)));
+
+  // XXX bayesshrink says T=sigma^2/sigma_X (noise var / signal stddev)
+  // XXX TODO: estimate signal stddev from gbuf! how does one do this?
+
+  imageStore(img_out, opos, vec4(rgb, 1));
+}

@@ -1,0 +1,46 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+// layout(std140, set = 0, binding = 1) uniform params_t
+// { } params;
+// layout(push_constant, std140) uniform push_t
+// { } push;
+
+layout(set = 1, binding = 0) uniform sampler2D img_irr;
+layout(set = 1, binding = 1) uniform sampler2D img_gbuf;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
+layout(set = 1, binding = 3) uniform writeonly image2D img_gbuf_out;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  ivec2 sz = textureSize(img_irr, 0).xy;
+  vec4 col0 = texture(img_irr, (2*ipos+ivec2(0,0) + 0.5)/sz);
+  vec4 col1 = texture(img_irr, (2*ipos+ivec2(0,1) + 0.5)/sz);
+  vec4 col2 = texture(img_irr, (2*ipos+ivec2(1,0) + 0.5)/sz);
+  vec4 col3 = texture(img_irr, (2*ipos+ivec2(1,0) + 0.5)/sz);
+  vec4 buf0 = texture(img_irr, (2*ipos+ivec2(0,0) + 0.5)/sz);
+  vec4 buf1 = texture(img_irr, (2*ipos+ivec2(0,1) + 0.5)/sz);
+  vec4 buf2 = texture(img_irr, (2*ipos+ivec2(1,0) + 0.5)/sz);
+  vec4 buf3 = texture(img_irr, (2*ipos+ivec2(1,1) + 0.5)/sz);
+
+  vec4 col = (col0 + col1 + col2 + col3)/4.0;
+  vec4 buf = (buf0 + buf1 + buf2 + buf3)/4.0;
+  buf.x = uintBitsToFloat(geo_encode_normal(
+        geo_decode_normal(floatBitsToUint(buf0.x)) +
+        geo_decode_normal(floatBitsToUint(buf1.x)) +
+        geo_decode_normal(floatBitsToUint(buf2.x)) +
+        geo_decode_normal(floatBitsToUint(buf3.x))));
+
+  imageStore(img_out,      ipos, col);
+  imageStore(img_gbuf_out, ipos, buf);
+}
+

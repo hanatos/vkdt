@@ -1,0 +1,12 @@
+cam:float:12:0:0:0:0:1:0:0:0:0:0:1:0
+fog:float:4:0:0:0:0
+spp:int:1:1
+torch:int:1:0
+water:int:1:0
+skybox:int:6:0
+cltime:float:1:0
+ref:int:1:0
+health:int:1:100
+armor:int:1:100
+exec:string:100:map e1m1
+pause:int:1:0

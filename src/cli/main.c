@@ -75,9 +75,9 @@ int main(int argc, char *argv[])
     "    [--height <y>]                max output height\n"
     "    [--filename <f>]              output filename (without extension or frame number)\n"
     "    [--format <fm>]               output format (o-jpg, o-bc1, o-pfm, ..)\n"
+    "    [--audio <file>]              dump output audio stream to this file, if any\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "                                  this resets output specific options: quality, width, height, audio\n"
-    "    [--audio <file>]              dump audio stream to this file, if any\n"
     "    [--device <gpu name>]         explicitly use this gpu if you have multiple\n"
     "    [--device-id <gpu id>]        explicitly use this gpu id if you have multiple\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
@@ -98,9 +98,10 @@ int main(int argc, char *argv[])
   if(param.output[0].p_audio)
   {
     dt_log(s_log_cli, "wrote audio channel to %s. to combine the streams, use something like", param.output[0].p_audio);
-    dt_log(s_log_cli, "ffmpeg -i main_0000.h264 -f s16le -sample_rate %d -channels %d  -i %s -c:v copy combined.mp4",
-        graph.main_img_param.snd_channels,
+    dt_log(s_log_cli, "ffmpeg -i %s.h264 -f s16le -sample_rate %d -channels %d  -i %s -c:v copy combined.mp4",
+        param.output[0].p_filename,
         graph.main_img_param.snd_samplerate,
+        graph.main_img_param.snd_channels,
         param.output[0].p_audio);
   }
 

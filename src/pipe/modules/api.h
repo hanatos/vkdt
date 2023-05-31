@@ -88,6 +88,20 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+static inline void
+dt_connector_copy_feedback(
+    dt_graph_t  *graph,
+    dt_module_t *module,
+    int mc,    // connector id on module to copy
+    int nid,   // node id
+    int nc)    // connector id on node to copy to
+{
+  dt_connector_copy(graph, module, mc, nid, nc);
+  graph->node[nid].connector[nc].flags |= s_conn_feedback;
+  graph->node[nid].connector[nc].frames = 2;
+  module->connector[mc].frames = 2;
+}
+
 // bypass a module: instead of linking the module connectors to their
 // counterparts on the node level, directly link to the node level of the next
 // module.
@@ -150,7 +164,8 @@ dt_node_add(
     graph->node[id].connector[c].type   = dt_token(tmp1);
     graph->node[id].connector[c].chan   = dt_token(tmp2);
     graph->node[id].connector[c].format = dt_token(tmp3);
-    graph->node[id].connector[c].roi    = *roi;
+    if((uint64_t)roi != -1ul) // not required for input connectors, they will take on that of the output. va_arg doesn't do null pointers though :(
+      graph->node[id].connector[c].roi  = *roi;
     if(dt_connector_input(graph->node[id].connector+c))
       graph->node[id].connector[c].connected_mi = -1; // mark input as disconnected
   }

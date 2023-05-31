@@ -1,0 +1,5 @@
+input:read:*:*
+gbuf:read:rgba:f32
+output:write:rgba:f16
+out4:write:rgba:f16
+out8:write:rgba:f16

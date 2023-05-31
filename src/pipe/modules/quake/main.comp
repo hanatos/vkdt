@@ -1,0 +1,1248 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_ray_tracing             : enable
+#extension GL_EXT_ray_query               : enable
+#extension GL_KHR_shader_subgroup_basic   : enable
+#extension GL_KHR_shader_subgroup_shuffle : enable
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_EXT_shader_16bit_storage    : enable
+#extension GL_EXT_shader_subgroup_extended_types_int16   : enable
+#extension GL_EXT_shader_subgroup_extended_types_float16 : enable
+
+#include "shared.glsl"
+#include "shared/text.h"
+#include "shared/render3d.glsl"
+#include "config.h"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{ 
+  int frame;
+} global;
+
+#include "water.glsl"
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  vec4 cam_x;
+  vec4 cam_w;
+  vec4 cam_u;
+  vec4 fog;
+  float duration; // hijacked: int spp;
+  int torch;
+  int water;
+  uint sky_rt, sky_bk, sky_lf, sky_ft, sky_up, sky_dn;
+  float cl_time; // quake time
+  int   ref;     // use reference sampling
+  int   health;
+  int   armor;
+} params;
+
+// layout(push_constant, std140) uniform push_t
+// { } push;
+
+layout(set = 1, binding = 0) uniform writeonly image2D img_irradiance;
+
+// TODO: make this an array (and support more instances for decals etc)
+layout(std430, set = 1, binding = 1) buffer sssbo_t
+{
+  uint v[]; // extra geo info for static geo
+} stcssbo;
+
+layout(std430, set = 1, binding = 2) buffer dssbo_t
+{
+  uint v[]; // extra geo info for dynamic geo
+} dynssbo;
+
+layout(set = 1, binding = 3) uniform sampler2D img_tex[];
+layout(set = 1, binding = 4) uniform sampler2D img_blue;
+
+layout(set = 1, binding = 5) uniform writeonly image2D img_albedo;
+
+layout(set = 1, binding = 6) uniform usampler2D img_nee_in;
+layout(set = 1, binding = 7) uniform writeonly uimage2D img_nee_out;
+layout(set = 1, binding = 8) uniform sampler2D img_mv;
+
+layout(set = 1, binding =  9) uniform sampler2D img_gbuf_in;
+layout(set = 1, binding = 10) uniform writeonly image2D img_gbuf_out;
+layout(set = 1, binding = 11) uniform writeonly image2D img_debug;
+// layout(set = 1, binding = 12) uniform sampler2D img_oldout;
+
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+
+layout(set = 2, binding = 1) buffer buf_vtx_t
+{ // 3x float vertex data for every instance
+  float v[];
+} buf_vtx[];
+
+layout(set = 2, binding = 2) buffer buf_idx_t
+{ // index data for every instance
+  uint i[];
+} buf_idx[];
+
+// importance sample the blackman harris pixel filter.
+// has 1.5px radius support
+vec2 filter_bh_sample(vec2 rand)
+{
+  vec2 res = vec2(cos(rand.y*M_PI*2.0), sin(rand.y*M_PI*2.0));
+  float r = 0.943404 * asin(0.636617 * asin(sqrt(rand.x))); // surprisingly good fit to inverse cdf
+  return res * r;
+}
+
+vec3 envmap(in vec3 w)
+{
+  if(params.sky_lf == -1u)
+  { // classic quake sky
+    vec2 st = 0.5 + 0.5*vec2(-w.y,w.x) / abs(w.z);
+    vec2 t = global.frame * vec2(0.002, 0.001);
+    vec4 bck = texelFetch(img_tex[nonuniformEXT(params.sky_rt)], ivec2(mod(st+0.1*t, vec2(1))*textureSize(img_tex[nonuniformEXT(params.sky_rt)], 0)), 0);
+    vec4 fnt= texelFetch(img_tex[nonuniformEXT(params.sky_bk)], ivec2(mod(st+t, vec2(1))*textureSize(img_tex[nonuniformEXT(params.sky_bk)], 0)), 0);
+    vec3 tex = mix(bck.rgb, fnt.rgb, fnt.a);
+    return 100*tex*tex;
+  }
+  else
+  { // cubemap: gfx/env/*{rt,bk,lf,ft,up,dn}
+    // vec3 sundir = normalize(vec3(1, 1, 1)); // this where the moon is in ad_azad
+    // vec3 sundir = normalize(vec3(1, -1, 1)); // this comes in more nicely through the windows for debugging
+    vec3 sundir = normalize(vec3(1, -1, 1)); // ad_tears
+    const float k0 = 4.0, k1 = 30.0, k2 = 4.0, k3 = 3000.0;
+    vec3 emcol = vec3(0.0);
+    emcol  = vec3(0.50, 0.50, 0.50) * /*(k0+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k0);
+    emcol += vec3(1.00, 0.70, 0.30) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k1);
+    // emcol += 1000*vec3(1.00, 1.00, 1.00) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k3);
+    emcol += 30.0*vec3(1.1, 1.0, 0.9)*vmf_eval(k3, dot(sundir, w));
+    emcol += vec3(0.20, 0.08, 0.02) * /*(k2+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0-w.z), k2);
+    // emcol *= 2.0;
+    int m = 0;
+    if(abs(w.y) > abs(w.x) && abs(w.y) > abs(w.z)) m = 1;
+    if(abs(w.z) > abs(w.x) && abs(w.z) > abs(w.y)) m = 2;
+    uint side = 0;
+    vec2 st;
+    if     (m == 0 && w.x > 0) { side = params.sky_rt; st = 0.5 + 0.5*vec2(-w.y, -w.z) / abs(w.x);} // rt
+    else if(m == 0 && w.x < 0) { side = params.sky_lf; st = 0.5 + 0.5*vec2( w.y, -w.z) / abs(w.x);} // lf
+    else if(m == 1 && w.y > 0) { side = params.sky_bk; st = 0.5 + 0.5*vec2( w.x, -w.z) / abs(w.y);} // bk
+    else if(m == 1 && w.y < 0) { side = params.sky_ft; st = 0.5 + 0.5*vec2(-w.x, -w.z) / abs(w.y);} // ft
+    else if(m == 2 && w.z > 0) { side = params.sky_up; st = 0.5 + 0.5*vec2(-w.y,  w.x) / abs(w.z);} // up
+    else if(m == 2 && w.z < 0) { side = params.sky_dn; st = 0.5 + 0.5*vec2(-w.y, -w.x) / abs(w.z);} // dn
+    ivec2 tc = 
+      clamp(ivec2(textureSize(img_tex[nonuniformEXT(side)], 0)*st),
+          ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
+    vec3 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0).rgb;
+    emcol += tex*tex; // mul "un-gamma"d sky texture
+    return emcol;
+  }
+}
+
+float mrand(inout uint seed)
+{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  seed ^= seed << 13;
+  seed ^= seed >> 17;
+  seed ^= seed << 5;
+  return seed / 4294967296.0;
+}
+
+vec4 xrand(inout uint seed, ivec2 p)
+{ // cp shift based on seed
+  return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
+}
+
+struct intersection_t
+{ // almost minimal intersection descriptor
+  int  instid;
+  int  primid;
+  uint uv;     // unpackHalf2x16
+  float t;     // intersection distance
+};
+
+struct raycast_res_t
+{ // stores whatever a ray cast needs to report
+  intersection_t opaque;
+#if WATER_MODE!=WATER_MODE_OFF
+  intersection_t water;
+#endif
+};
+
+struct material_core_t
+{ // minimal stuff for bsdf/pdf eval
+  vec3 x;
+  vec3 ng;        // geo normal, if different to n
+  vec3 n;         // shading normal
+  uint bsdf;      // bsdf model id
+  vec3 bsdf_param;// extra bsdf params, anisotropic roughness etc
+};
+
+struct material_info_t
+{ // initialised hit point to work with
+  material_core_t c;
+  uint mat;       // albedo texture
+  float t;        // intersection distance
+  uint flags;     // none, lava, slime, tele, water
+  vec3 albedo;
+  vec3 emission;
+  // XXX TODO: try to put these into prep_mat_info locally:
+  // vec2 st;        // texture coordinates
+  // uint matfb;     // "fullbright" texture/emission
+  // uint matgl;     // glossy texture, if any
+  // uint matnd;     // normal/displacement texture, if any
+  // float alpha;    // if > 0.0 overwrite texture alpha
+};
+
+intersection_t
+prepare_intersection(
+    rayQueryEXT rq)
+{
+  intersection_t inter;
+  inter.instid = rayQueryGetIntersectionInstanceIdEXT(rq, false);     // which of our ssbo
+  inter.primid = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
+  inter.uv     = packHalf2x16(rayQueryGetIntersectionBarycentricsEXT(rq, false));
+  inter.t      = rayQueryGetIntersectionTEXT(rq, false);
+  return inter;
+}
+
+material_info_t
+prepare_material_info(
+    vec3           x,      // incoming ray origin.
+    vec3           w,      // incoming ray direction.
+    raycast_res_t  inter)  // identify geo intersection
+{
+  vec2 st;        // texture coordinates
+  uint matfb;     // "fullbright" texture/emission
+  uint matgl;     // glossy texture, if any
+  uint matnd;     // normal/displacement texture, if any
+  float alpha;    // if > 0.0 overwrite texture alpha
+  material_info_t m;
+  vec3 b;
+  b.yz = unpackHalf2x16(inter.opaque.uv);
+  b.x = 1.0-b.z-b.y;
+  int i = 7*inter.opaque.primid;
+  vec3 n0, n1, n2;
+  vec2 st0, st1, st2;
+  bool brush_model = false;
+  if(inter.opaque.instid == 0)
+  { // dyn geo
+    m.mat   =  dynssbo.v[i+6]&0xfff;
+      alpha = (dynssbo.v[i+6]>>12)/15.0;
+      matfb = (dynssbo.v[i+6]>>16) & 0xfff;
+    m.flags =  dynssbo.v[i+6]>>28;
+      matgl = matnd = 0;
+    brush_model = (dynssbo.v[i+1] == 0xffffffff);
+    if(brush_model)
+    {
+      matgl = dynssbo.v[i+0]&0xffff;
+      matnd = dynssbo.v[i+0]>>16;
+    }
+    else
+    {
+      n0 = geo_decode_normal(dynssbo.v[i+0]);
+      n1 = geo_decode_normal(dynssbo.v[i+1]);
+      n2 = geo_decode_normal(dynssbo.v[i+2]);
+    }
+    st0 = unpackHalf2x16(dynssbo.v[i+3]);
+    st1 = unpackHalf2x16(dynssbo.v[i+4]);
+    st2 = unpackHalf2x16(dynssbo.v[i+5]);
+    st = mat3x2(st0, st1, st2) * b;
+  }
+  else
+  { // static geo
+    brush_model = (stcssbo.v[i+1] == 0xffffffff);
+    m.mat   =  stcssbo.v[i+6]&0xfff;
+    alpha   = (stcssbo.v[i+6]>>12)/15.0;
+    matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
+    m.flags =  stcssbo.v[i+6]>>28;
+    if(brush_model)
+    {
+      matgl = stcssbo.v[i+0]&0xffff;
+      matnd = stcssbo.v[i+0]>>16;
+    }
+    else
+    {
+      n0 = geo_decode_normal(stcssbo.v[i+0]);
+      n1 = geo_decode_normal(stcssbo.v[i+1]);
+      n2 = geo_decode_normal(stcssbo.v[i+2]);
+    }
+    st0 = unpackHalf2x16(stcssbo.v[i+3]);
+    st1 = unpackHalf2x16(stcssbo.v[i+4]);
+    st2 = unpackHalf2x16(stcssbo.v[i+5]);
+    st = mat3x2(st0, st1, st2) * b;
+  }
+  // more precise intersection point by using vertices + barycentrics
+  uint i0 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+0];
+  uint i1 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+1];
+  uint i2 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+2];
+  vec3 v0 = vec3(
+      buf_vtx[inter.opaque.instid].v[3*i0+0],
+      buf_vtx[inter.opaque.instid].v[3*i0+1],
+      buf_vtx[inter.opaque.instid].v[3*i0+2]);
+  vec3 v1 = vec3(
+      buf_vtx[inter.opaque.instid].v[3*i1+0],
+      buf_vtx[inter.opaque.instid].v[3*i1+1],
+      buf_vtx[inter.opaque.instid].v[3*i1+2]);
+  vec3 v2 = vec3(
+      buf_vtx[inter.opaque.instid].v[3*i2+0],
+      buf_vtx[inter.opaque.instid].v[3*i2+1],
+      buf_vtx[inter.opaque.instid].v[3*i2+2]);
+  m.c.x = mat3(v0, v1, v2) * b;
+  m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
+  m.c.ng = normalize(cross(v2-v0,v1-v0));
+#if 0
+  if(!brush_model) // only alias models have these normals
+  { // now fix shading normals below horizon and terminator problem:
+    if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
+    if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
+    if(dot(w,n2) > 0) n2 -= w*dot(w,n2);
+    m.c.n = normalize(mat3(n0, n1, n2) * b);
+    vec3 tmpu = m.c.x - v0, tmpv = m.c.x - v1, tmpw = m.c.x - v2;
+    float dotu = min(0.0, dot(tmpu, n0));
+    float dotv = min(0.0, dot(tmpv, n1));
+    float dotw = min(0.0, dot(tmpw, n2));
+    tmpu -= dotu*n0;
+    tmpv -= dotv*n1;
+    tmpw -= dotw*n2;
+    m.c.x += mat3(tmpu, tmpv, tmpw) * b;
+  }
+  else
+#endif // XXX FIXME: shading normals are fubared!
+  { // brushmodels have no vertex normals
+    m.c.n = n0 = n1 = n2 = m.c.ng;
+  }
+
+  m.albedo   = vec3(0);
+  m.emission = vec3(0);
+  if(m.mat == 0xfff)
+  { // marked as sky
+    m.albedo = vec3(0.0);
+    m.emission = envmap(w);
+    m.c.n = -w; // sky has no normal
+    m.c.x = x + (T_MAX-1.0) * w; // sky is far away
+  }
+  else
+  {
+    if(m.flags > 0 && m.flags < 6)
+    { // all esoteric surfaces warp
+      st = vec2(
+          st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
+          st.y + 0.2*sin(st.x*2.0 + params.cl_time * 1.0));
+    }
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
+    m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
+    m.albedo *= m.albedo; // "un-gamma"
+    m.emission = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0).rgb : vec3(0.0);
+    m.emission *= m.emission;
+  }
+  if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
+  else if(m.flags == 2) m.emission =  0.5*m.albedo; // slime
+  else if(m.flags == 3) m.emission =  5.0*m.albedo; // tele
+  else if(m.flags == 7) m.emission =      m.albedo; // ad_tears emissive waterfall hack
+  else if(m.mat == 0xfff) m.emission = m.emission;//(exp2(m.emission*10.0)-1.0);
+  else
+  {
+    // m.emission = 10.0*(exp2(m.emission*10.0)-1.0); // looks great on q1 torches
+    m.emission = m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0); // more natural colours, better on tfuma/some newer ad stuff
+    // m.emission = mix(3.0*(exp2(m.emission*10.0)-1.0), // balanced version that keeps reds saturated:
+    //     m.emission/dot(m.emission, vec3(1)) * 3.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0),
+    //     clamp(m.emission.b-m.emission.r, 0, 1));
+  }
+#if 1
+  if(brush_model && matnd > 0)
+  { // apply normal map
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(matnd)], 0)*mod(st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matnd)], 0)-1);
+    vec3 du = v2 - v0, dv = v1 - v0;
+    vec2 duv1 = st2 - st0, duv2 = st1 - st0;
+    float det = duv1.x * duv2.y - duv2.x * duv1.y;
+    if(abs(det) > 1e-8)
+    {
+      vec3 du2 =  normalize(( duv2.y * du - duv1.y * dv) / det);
+      dv = -normalize((-duv2.x * du + duv1.x * dv) / det);
+      du = du2;
+    }
+    m.c.n = normalize(mat3(du, dv, m.c.n) * ((texelFetch(img_tex[nonuniformEXT(matnd)], tc, 0).xyz - vec3(0.5)) * vec3(2)));
+    if(dot(w,m.c.n) > 0) m.c.n -= w*dot(w,m.c.n);
+  }
+  else
+#endif
+  { // init tangent frame
+    if(dot(w, m.c.n) > 0) m.c.n = -m.c.n; // never happens except when it does (transparent surfaces/sky)
+  }
+  if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
+
+  m.c.bsdf = 1; // slight rough lobe too
+  m.c.bsdf_param = vec3(0.01);
+  if(matgl > 0)
+  { // apply glossiness texture
+    ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(matgl)], 0)*mod(st, vec2(1.0)));
+    tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matgl)], 0)-1);
+    float gloss = texelFetch(img_tex[nonuniformEXT(matgl)], tc, 0).r;
+    m.c.bsdf_param = vec3(mix(0.2, 0.01, gloss));
+  }
+
+#if WATER_MODE==WATER_MODE_FULL
+  if(inter.water.t < inter.opaque.t)
+  { // potentially closer water intersection
+    uint seed = uint(1337000*(17*m.c.x.x+m.c.x.y));
+    float rand = mrand(seed);
+    i = 7*inter.water.primid;
+    uint flags = stcssbo.v[i+6]>>28;
+    float t = water_intersect(params.cl_time, x+(inter.water.t+rand*0.01)*w, w, WATER_DEPTH, flags == 4);
+    if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.03)
+    {
+      m.c.bsdf = 1; // rough microfacet
+      m.c.bsdf_param = vec3(0.002);
+      m.t = inter.water.t + t;
+      m.c.x = x + m.t*w;
+      vec4 wn = water_normal(params.cl_time, m.c.x, WATER_DEPTH);
+      m.c.n = wn.xyz;
+      // m.flags = 4;
+      if(dot(w, m.c.n) > 0) m.c.n = -m.c.n; // never happens except when it does (transparent surfaces/sky)
+      m.c.ng = m.c.n;
+      m.flags =  flags;//stcssbo.v[i+6]>>28;
+
+#if 1
+      m.mat   =  stcssbo.v[i+6]&0xfff;
+      alpha   = (stcssbo.v[i+6]>>12)/15.0;
+      matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
+      matgl   =  stcssbo.v[i+0]&0xffff;
+      matnd   =  stcssbo.v[i+0]>>16;
+      st      = m.c.x.xy*0.01;
+      // m.st = vec2(
+      //     m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
+      //     m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
+      m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
+      m.albedo *= m.albedo; // "un-gamma"
+#else
+      m.albedo = vec3(1.0);
+#endif
+      // m.albedo = mix(vec3(0.1, 0.5, 0.8), vec3(0.8, 0.9, 0.9), pow(wn.w/WATER_DEPTH, 2));
+      // m.albedo *= mix(vec3(1.0), vec3(1, 2, 2), smoothstep(0.0, 1.0, clamp(wn.w/WATER_DEPTH, 0, 1.0)));
+      // nice ethereal glow of water in ad_tears:
+      // m.emission = mix(vec3(0.0), m.albedo, smoothstep(0.0, 1.0, clamp(wn.w/WATER_DEPTH, 0, 1.0)));
+      // m.emission = 500.0*max(vec3(0.0), m.albedo-0.0);
+      m.emission = vec3(0.0);
+    }
+  }
+#elif WATER_MODE==WATER_MODE_NORMALS
+  if(m.flags == 4)
+  {
+    m.c.bsdf = 1; // rough microfacet
+    m.c.bsdf_param = vec3(0.002);
+    vec4 wn = water_normal(m.c.x, WATER_DEPTH);
+    m.c.n = wn.xyz;
+    if(dot(w, m.c.n) > 0) m.c.n = -m.c.n;
+    m.c.ng = m.c.n;
+    vec3 up = vec3(1,0,0);
+    if(abs(m.c.n.x) > abs(m.c.n.y)) up = vec3(0,1,0);
+    m.c.du = normalize(cross(up, m.c.n));
+    m.c.dv = normalize(cross(m.c.du, m.c.n));
+  }
+#endif
+
+  return m;
+}
+
+#if 0
+vec3 nee_torch(
+    in const vec3 lpos,
+    in const vec3 x,
+    in const vec3 rgb, // TODO: replace by some material that we can evaluate for directions
+    in const vec3 n,
+    inout uint seed,
+    in ivec2 rp)
+{
+  rayQueryEXT rq;
+  vec3 ws;
+  float ldist = distance(lpos, x);
+  float ao = 0.0;
+  vec4 rand = xrand(seed, rp);
+  ws = normalize(lpos + 2.0*rand.xyz - x);
+#if 1
+  rayQueryInitializeEXT(rq, rt_accel,
+      gl_RayFlagsNoneEXT,
+      // gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
+      0xFF, x, 2e-2, ws, ldist-2e-2);
+  while(rayQueryProceedEXT(rq))
+  {
+    if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+    {
+      int instance_id = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
+      int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
+      vec3 b;
+      b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
+      b.x = 1.0-b.z-b.y;
+      int i = 7*pi;
+      uint mat = 0;
+      vec2 st;
+      if(instance_id == 0)
+      {
+        mat   = dynssbo.v[i+6]&0xfff;
+        vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
+        vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
+        vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
+        st = mat3x2(st0, st1, st2) * b;
+      }
+      else
+      {
+        mat   = stcssbo.v[i+6]&0xfff;
+        vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
+        vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
+        vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
+        st = mat3x2(st0, st1, st2) * b;
+      }
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
+      vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+      if(diffcol.a > 0.666)
+        rayQueryConfirmIntersectionEXT(rq);
+    }
+  }
+  if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) ao ++;
+#endif
+  ao = clamp(ao, 0.0, 1.0);
+  float edf = 4000.0*pow(abs(dot(-ws, params.cam_w.xyz)), 45.0);
+  return (1.0-ao) * rgb * abs(dot(ws,n)) * edf * vec3(0.2, 0.7, 1.0)/(ldist*ldist); // light with falloff
+}
+#endif
+
+float lum(vec3 rgb)
+{
+  return rgb.r+rgb.g+rgb.b;
+}
+
+raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
+{
+  raycast_res_t res;
+#if WATER_MODE==WATER_MODE_FULL
+  res.water.t  = t_max;
+#endif
+  res.opaque.t = t_max;
+  rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max);
+  while(rayQueryProceedEXT(rq))
+  {
+    if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+    {
+      const int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
+      vec3 b;
+      b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
+      b.x = 1.0-b.z-b.y;
+      const int i = 7*pi;
+      uint mat = 0;
+      uint flags = 0;
+      // uint alpha = 0;
+      vec2 st;
+      if(rayQueryGetIntersectionInstanceIdEXT(rq, false) == 0) // which of our ssbo
+      {
+        mat   = dynssbo.v[i+6]&0xfff;
+        // alpha = dynssbo.v[i+6]>>12;
+        flags = dynssbo.v[i+6]>>28;
+        vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
+        vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
+        vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
+        st = mat3x2(st0, st1, st2) * b;
+      }
+      else
+      {
+        mat   = stcssbo.v[i+6]&0xfff;
+        // alpha = stcssbo.v[i+6]>>12;
+        flags = stcssbo.v[i+6]>>28;
+        vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
+        vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
+        vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
+        st = mat3x2(st0, st1, st2) * b;
+      }
+      if(flags > 0) st = vec2(
+          st.x + 0.2*sin(st.y*2.0 + global.frame * 0.01),
+          st.y + 0.2*sin(st.x*2.0 + global.frame * 0.01));
+      ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
+      vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+
+#if WATER_MODE==WATER_MODE_FULL
+      if((flags == 4) || (flags == 5))
+      { // only remember closest water intersection, but don't confirm.
+        // we need the opaque geo behind it in case the procedural water pattern
+        // ends up not intersecting after all.
+        if(rayQueryGetIntersectionTEXT(rq, false) < res.water.t)
+          res.water = prepare_intersection(rq);
+      }
+      else if(flags != 4 && flags != 5)
+#endif
+      if(diffcol.a > 0.666)
+      {
+        res.opaque = prepare_intersection(rq);
+        rayQueryConfirmIntersectionEXT(rq);
+      }
+    }
+  }
+  return res;
+}
+
+// propagate ray through (single bounce) specular chain
+material_info_t
+propagate_ray(
+    vec3 x,                   // ray origin
+    vec3 w,                   // ray direction
+    inout bool underwater,    // start under water? (see params.water for camera rays)
+    out vec3 xm,              // virtual target vertex
+    float xi,                 // [0,1) random number for R/T lobe selection
+    inout vec3 weight)        // potentially adjust throughput weight
+{
+  rayQueryEXT rq;
+  const float t_max = T_MAX;
+  raycast_res_t res = cast_ray(rq, x, w, t_max);
+  material_info_t m = prepare_material_info(x, w, res);
+  xm = m.c.x;
+#if WATER_MODE==WATER_MODE_OFF
+  return m;
+#else
+  if(m.flags != 4 && m.flags != 5/* && m.alpha > 0.5*/) return m; // no water no transmission, simple
+  
+  float dist = res.opaque.t;
+  // randomly sample reflective/termination vs specular transmit
+  float ior = 1.33;
+  // critical angle for out->inside is 90 degrees grazing
+  // critical angle for in->outside is where eta^2 * (1.0-dot(N,I)^2) >= 1
+  const float r = 0.02;
+  float fresnel;
+  if(underwater) fresnel = r + (1.0-r) * pow(clamp(ior*ior*(1.0 - dot(-w, m.c.n)*dot(-w, m.c.n)), 0.0, 1.0), 5.0);
+  else           fresnel = r + (1.0-r) * pow(clamp(1.0 - dot(-w, m.c.n), 0.0, 1.0), 5.0);
+  if(xi < fresnel) { weight /= fresnel; return m; } // use R lobe (non-singular bsdf, whatever was set in m)
+  vec3 wo;
+  if(underwater) wo = refract(w, m.c.n, ior);
+  else           wo = refract(w, m.c.n, 1.0/ior);
+  if(all(equal(wo, vec3(0.0)))) return m; // total internal reflection
+  underwater = !underwater;
+  res = cast_ray(rq, m.c.x-m.c.n*0.01, wo, t_max);
+  dist += res.opaque.t * abs(dot(-w, m.c.n)/dot(wo, m.c.n)) * 1.0/ior; // =  t * abs(cos_int / cos_ext) * n_ext / n_int
+  xm = x + w * dist; // seb's patented underwater parallax compensation
+  weight /= (1.0-fresnel);
+  return prepare_material_info(m.c.x, wo, res);
+#endif
+}
+
+#if MCMC_ADAPTATION==MCMC_KAPPA
+struct mc_state_t
+{
+  vec3  y;              // world space position of light source point
+  float f;              // observed measurement contribution until there (bsdf * G * Le)
+  float kappa;          // concentration parameter for vMF
+  float acc;            // mean acceptance (exp.avg.)
+};
+
+mc_state_t mc_state_new()
+{
+  mc_state_t r = { vec3(0.0), 0.0, 0.0, 0.0 };
+  return r;
+}
+
+vec4 mc_state_vmf(mc_state_t s, vec3 x)
+{ // return a vmf lobe (direction + kappa) for the given position
+  return vec4(normalize(s.y - x), s.kappa);
+}
+
+void mc_state_shuffle(inout mc_state_t s, uint lane)
+{ // shuffle state to different subgroup lane
+  s.y     = subgroupShuffle(s.y, lane);
+  s.f     = subgroupShuffle(s.f, lane);
+  s.kappa = subgroupShuffle(s.kappa, lane);
+  s.acc   = subgroupShuffle(s.acc, lane);
+}
+
+float mc_state_C(mc_state_t s, vec3 x, vec3 nx)
+{ // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
+   if(any(notEqual(nx, vec3(0.0))) && dot(s.y-x, nx) <= 0.0) return 0.0;
+   return 1.0;
+}
+
+bool mc_state_valid(mc_state_t s) { return s.f > 0.0; }
+
+float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0)
+{
+  const float p_f = 0.2;
+  const float f = rnd0 < p_f ? s.f : 1.0;
+  return f * mc_state_C(s, x, nx);
+}
+
+uvec4 mc_state_encode(mc_state_t r)
+{ // encode mc state in 4 uints
+  return uvec4(
+      packHalf2x16(r.y.xy),
+      packHalf2x16(vec2(r.y.z, r.f)),
+      packHalf2x16(vec2(r.kappa, r.acc)),
+      0);
+}
+
+mc_state_t mc_state_decode(uvec4 enc)
+{ // decode mc state
+  mc_state_t r = mc_state_new();
+  vec2 h = unpackHalf2x16(enc.y);
+  r.y.xy = unpackHalf2x16(enc.x);
+  r.y.z  = h.x;
+  r.f    = h.y;
+  vec2 ka = unpackHalf2x16(enc.z);
+  r.kappa = ka.x;
+  r.acc   = ka.y;
+  return r;
+}
+
+#else // ML-version
+
+struct mc_state_t
+{ // mcmc state representing a single lobe, plus the ML-estimate intermediates
+  vec3  sum_tgt;
+  float sum_w;
+  uint  N;
+  float sum_len;  // TODO: store mean cosine in [0,1] = sum_len / sum_w instead!
+  float f;
+  bool sky;
+};
+
+#define ML_PRIOR_N .20 // cannot be zero or else mean cos -> kappa blows up
+#define ML_MAX_N 1024
+#define ML_MIN_ALPHA 0.01
+#define ML_SCALE 100.0
+
+bool mc_state_valid(mc_state_t s) { return s.sum_w > 0.0; }
+
+vec3 mc_state_dir(mc_state_t s, vec3 x)
+{ // return normalised direction to shoot to, as seen from given point x
+  if(s.sky) return normalize(s.sum_tgt);
+  vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
+  return normalize(tgt - x);
+}
+
+void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y, bool sky)
+{ // add sample to lobe via maximum likelihood estimator and exponentially weighted average
+  if(s.N > 0 && s.sky != sky) return;
+  if(s.N == 0) s.sky = sky;
+  s.N = min(s.N + 1, ML_MAX_N);
+  // XXX TODO: hack this (to 0.99) for faster adaptation!
+  // float alpha = 0.999;
+  float alpha = max(1.0 / s.N, ML_MIN_ALPHA);
+  s.sum_w   = mix(s.sum_w, w, alpha);
+  if(s.sky)
+    s.sum_tgt = mix(s.sum_tgt, w*dir, alpha);
+  else
+    s.sum_tgt = mix(s.sum_tgt, w*y, alpha);
+  vec3 to = s.sum_len * mc_state_dir(s, x);
+  to = mix(to, w * dir, alpha);
+  s.sum_len = length(to);
+  // XXX
+  // s.f = w;
+  // s.f = s.sum_w / s.N;
+}
+
+vec4 mc_state_vmf(mc_state_t s, vec3 x)
+{ // return a vmf lobe (direction + kappa) for the given position
+  float r = s.sum_len / s.sum_w; // = mean cosine in [0,1]
+#if 1
+  float rp = 0.99;
+  if(!s.sky)
+  {
+    vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
+    float d = length(tgt-x);
+    rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 6500.0);
+  }
+  r = (s.N*s.N * r + ML_PRIOR_N * rp) / (s.N*s.N + ML_PRIOR_N);
+#else
+  r = (s.N * r) / (s.N + ML_PRIOR_N);
+#endif
+  return vec4(mc_state_dir(s, x), (3.0*r - r*r*r) / (1.0 - r*r));
+}
+
+void mc_state_shuffle(inout mc_state_t s, uint lane)
+{ // shuffle state to different subgroup lane
+  s.N       = subgroupShuffle(s.N, lane);
+  s.sum_w   = subgroupShuffle(s.sum_w, lane);
+  s.sum_len = subgroupShuffle(s.sum_len, lane);
+  s.sum_tgt = subgroupShuffle(s.sum_tgt, lane);
+  s.f       = subgroupShuffle(s.f, lane);
+  s.sky     = subgroupShuffle(s.sky, lane);
+}
+
+mc_state_t mc_state_new()
+{ // zero-init new markov chain state
+  mc_state_t r = { vec3(0.0), 0.0, 0, 0.0, 0.0, false };
+  return r;
+}
+
+float mc_state_C(mc_state_t s, vec3 x, vec3 nx, ivec2 tc, ivec2 tc0)
+{ // evaluate hemisphere clamp test (can this light y be seen from x with normal nx?)
+  // return 1.0;
+  // vec3 y = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
+  // if(s.sky) nx = vec3(0.0);
+  // float dp = 1.0;
+  vec4 gbuf;
+  // gbuf = texelFetch(img_gbuf_in, tc0, 0);
+  // const float irr0 = gbuf.w;
+  // const float sig0 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+  gbuf = texelFetch(img_gbuf_in, tc, 0);
+  // const float sig1 = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+  vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
+  const float sigma_n = 64; // svgf style
+  const float sigma_z = 10;
+  const float sigma_r = 100; // XXX lower to like 0.1 for sharp static contact shadows.
+                             // XXX unfortunately dynamic/rotating lights require a looser bound here
+  // float w_r = exp(-abs(gbuf.w - irr0) / (sigma_r*(sig0+sig1)));
+  float w_n = pow(max(0.0, dot(nx, nq)), sigma_n);
+  float w_d = exp(-abs(gbuf.y - length(x - params.cam_x.xyz))/sigma_z);
+  return w_n * w_d;// * w_r;
+
+  // if(s.sky)
+  //   return 1;//if(any(notEqual(nx, vec3(0.0))) && dot(y, nx) <= 0.0) return 0.0;
+  // else
+  //   if(any(notEqual(nx, vec3(0.0))) && dot(y-x, nx) <= 0.0) return 0.0;
+  // return 1.0;
+}
+
+float mc_state_score(mc_state_t s, vec3 x, vec3 nx, float rnd0, ivec2 tc, ivec2 tc0)
+{
+  // const float p_f = 0.0;
+  // const float f = rnd0 < p_f ? s.sum_w : 1.0;
+  // const float f = rnd0 < p_f ? s.f : 1.0;
+  const float f = s.f;
+  return f * mc_state_C(s, x, nx, tc, tc0);
+}
+
+uvec4 mc_state_encode(mc_state_t r)
+{ // encode mc state in 4 uints
+  // XXX how do we get r.f into 16 bits without losing too much information?
+  // XXX could do (floatBitsToUint() >> 15) & 0xffff to grab everything except sign, and exponent just enough.
+  // XXX the hacky log2/1000 works much better, will never find out why.
+  uvec3 y;
+  if(r.sky) y = uvec3(clamp(32768 + 30000.0 * (r.sum_tgt / r.sum_w), 0, 65535));
+  else      y = uvec3(clamp(32768 +     8.0 * (r.sum_tgt / r.sum_w), 0, 65535));
+  return uvec4(
+      pack32(u16vec2(float16BitsToUint16(float16_t(r.sum_len / r.sum_w)),
+        uint16_t(clamp(log2(1.0 + 1000.0*r.f), 0.0, 65535.0)))),
+        // uint16_t((floatBitsToUint(r.f)>>15)&0xffff))),
+      // packHalf2x16(vec2(r.sum_len / r.sum_w, clamp(r.f, 0.0, 65530.0))),
+      // floatBitsToUint(r.sum_len),
+      floatBitsToUint(r.sky ? -r.sum_w : r.sum_w),
+      // packHalf2x16(clamp(r.sum_tgt.xy/(ML_SCALE*r.sum_w), vec2(-65530.0), vec2(65530.0))),
+      pack32(u16vec2(y.xy)),
+      pack32(u16vec2(y.z, r.N)));
+      // packHalf2x16(vec2(
+      //     clamp(r.sum_tgt.z/(ML_SCALE*r.sum_w), -65530.0, 65530.0),
+      //     r.N)));
+}
+
+float mc_state_decode_f(uvec4 enc)
+{
+  u16vec2 t0 = unpack16(enc.x);
+  float f = max(0, (exp2(float(t0.y)) - 1.0)/1000.0);
+  if(!(f < 100000.0)) f = 100000.0; // fix overflows
+  return f;
+}
+
+mc_state_t mc_state_decode(uvec4 enc)
+{ // decode mc state
+  mc_state_t r = mc_state_new();
+  r.sum_w = uintBitsToFloat(enc.y);
+  if(r.sum_w < 0) r.sky = true;
+  r.sum_w = abs(r.sum_w);
+  u16vec2 t0 = unpack16(enc.x);
+  // vec2 t0 = unpackHalf2x16(enc.x);
+  // r.sum_len = uintBitsToFloat(enc.x);
+  // r.f = t0.y;
+  r.sum_len = r.sum_w * uint16BitsToFloat16(t0.x);
+  r.f = max(0, (exp2(float(t0.y)) - 1.0)/1000.0);
+  if(!(r.f < 100000.0)) r.f = 100000.0; // fix overflows
+  // r.f = uintBitsToFloat(t0.y << 15);
+#if 0
+  r.sum_tgt.xy = unpackHalf2x16(enc.z);
+  vec2 tmp = unpackHalf2x16(enc.w);
+  r.sum_tgt.z = tmp.x;
+  r.N = uint(tmp.y);
+  r.sum_tgt *= ML_SCALE * r.sum_w;
+#else
+  uvec3 y;
+  t0 = unpack16(enc.z);
+  y.xy = t0;
+  t0 = unpack16(enc.w);
+  y.z = t0.x;
+  r.N = t0.y;
+  if(r.sky) r.sum_tgt = (y - 32768.0 + 0.5) / 30000.0 * r.sum_w;
+  else      r.sum_tgt = (y - 32768.0 + 0.5) / 8.0 * r.sum_w;
+#endif
+  return r;
+}
+#endif
+
+void read_neighbour_state(
+    inout mc_state_t tent,
+    vec3 x,
+    vec3 n,
+    ivec2 ipos,
+    vec2  mv,
+    inout uint seed,
+    const ivec2 rp)
+{
+  float sum = mc_state_score(tent, x, n, mrand(seed), ivec2(ipos+mv), ivec2(ipos+mv));
+#if 1
+  for(int i=0;i<5;i++) // helps explore difficult cases but is expensive
+  {
+    vec4 r0 = xrand(seed, rp);
+    vec4 r1 = xrand(seed, rp);
+    vec4 r2 = xrand(seed, rp);
+    ivec2 off = ivec2(15.0 * (r0.xy + r0.zw + r1.xy + r1.zw + r2.xy + r2.zw - 3.0));
+#else
+    { // just our very own center pixel
+    ivec2 off = ivec2(0);
+#endif
+    float rnd = mrand(seed);
+    mc_state_t t2 = mc_state_decode(texelFetch(img_nee_in, ivec2(ipos+mv+off), 0));
+    float other = mc_state_score(t2, x, n, mrand(seed), ivec2(ipos+mv+off), ivec2(ipos+mv));
+    // if(!mc_state_valid(tent) || rnd < other / (other + sum))
+#if 1
+    if(sum <= 0.0 || rnd < other / (other + sum))
+      tent = t2;
+    sum += other;
+    // if(t2.sky) tent = t2; // argh :(
+    // if(mc_state_score(tent, x, n, 0.0) > 0.0) break; // this line is bad for very hard cases
+#else
+    if(other > sum)
+    {
+      tent = t2;
+      sum = other;
+    }
+#endif
+    // if(mc_state_valid(tent)) break;
+  }
+}
+
+void
+main()
+{
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_irradiance)))) return;
+
+  if(params.cl_time < 2.0) return; // stupid last resort fix for level loading in progress :|
+
+  uint seed = 19937 * global.frame;
+  const ivec2 rp = ipos % textureSize(img_blue, 0);
+  const vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+
+  vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
+  const int spp = 4; // needs to be a compile time constant (use specialisation?)
+  vec3 rad[spp]; // radiance per sample
+  vec3 ltw[spp]; // light source direction
+  vec4 par[spp]; // sampling pdf parameters (mean, kappa)
+
+  mc_state_t curr = mc_state_new(); // zero current state
+  // uvec4 curr_enc = uvec4(0.0);
+  // float curr_f = 0.0;
+  mc_state_t tent = mc_state_new(); // tentative new state
+
+  material_info_t mat;
+  material_core_t m0;
+  vec3 rgb_cam = vec3(1.0);
+  vec3 w_cam; // ray direction from camera
+  { // camera setup:
+    vec4 rand = xrand(seed, rp);
+    seed = uint(70000 * rand.x);
+    m0.x = params.cam_x.xyz;
+    vec3 f = params.cam_w.xyz;
+    vec3 t = -params.cam_u.xyz * float(imageSize(img_irradiance).y)/float(imageSize(img_irradiance).x);
+    vec3 r = -normalize(cross(f, t));
+    vec2 off = filter_bh_sample(rand.yz);
+    vec2 uv = (ipos+off)/imageSize(img_irradiance) - 0.5;
+    if(params.water > 0)
+      uv = vec2(
+          uv.x + 0.02*sin(uv.y*5.0 + params.cl_time * 1.0),
+          uv.y + 0.02*sin(uv.x*5.0 + params.cl_time * 1.0));
+    w_cam = normalize(0.45*f + r*uv.x + t*uv.y);
+    m0.n = f;
+    m0.x += w_cam * 0.02; // push a bit to avoid problems with some level-end cameras
+  }
+
+  bool compute_indirect = true;
+
+  bool cam_underwater = params.water > 0;
+  {
+    vec3 xm;
+    mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, mrand(seed), rgb_cam);
+    m0 = mat.c;
+  }
+  { // ray intersected geometry, init material state and tangent frame
+#if 0 // "honest" inscattering MC estimator. will not converge:
+    float mu_t = 6e-5;
+    float dist = -log(1.0-rand.x)/mu_t;
+    if(dist < m1.t)
+    {
+      m1.x = m0.x + w_cam * dist;
+      m1.ng = m1.n = vec3(0.0);
+      m1.t = dist;
+      m1.emission = vec3(0.0);
+      m1.albedo = vec3(1.0);
+      m1.bsdf = 2; // volume shader
+    }
+#else
+    {
+      // TODO clip max dist! we want to see the envmap!
+      // float vert = (1.0-w_cam.z)/2.0; // vertical modifier, 0..1
+      const float vert = 1.0;//exp(-10.0 * w_cam.z);
+      const float mu_t = 0.01 * vert * params.fog.w;
+      const float T = exp(-min(mat.t, 1000.0) * mu_t); // fake in-scattering would look great in ad_tears, but lacks occlusion
+      // TODO: if underwater (params.water) attenuate a bit more
+      // rgb_cam = mix(envmap(w_cam), rgb_cam, T);
+      // rgb_cam *= mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+      // rgb_cam = mix(trans.rgb, rgb_cam, trans.w);
+      rgb_cam *= T;
+      // XXX could look fantastic on ad_tears, but please eval without sun!
+      // irr += envmap(w_cam) * (1.0-T) / mu_t;
+      // the correct in-scattering needs / mu_t here but looks way overbright then. let's assume fog.rgb comes in premultiplied by 1/mu_t ..
+      irr = params.fog.rgb * (1.0-T);// / mu_t;
+      // if(any(greaterThan(mat.albedo, vec3(0.0))))
+      if(mat.mat != 0xfff)
+      {
+        mat.albedo = max(mat.albedo, vec3(5e-3));
+        irr /= mat.albedo;
+      }
+      // irr += envmap(w_cam) * (1.0-T)/max(vec3(1e-5),mat.albedo);
+    }
+#endif
+
+    {
+      vec3 alb;
+      if(any(greaterThan(mat.emission, vec3(0.0))))
+      { // have >0 radiance sample on second vertex
+        // "tonemap" torches and light textures by an extra 10x:
+        alb = (mat.mat == 0xfff ? 100.0 : 10.0) * (mat.emission + irr);
+        irr = vec3(0.01); // but be sure that albedo * irradiance stays put.
+        rgb_cam = vec3(0.0);
+        compute_indirect = false;
+      }
+      else alb = mat.albedo; // directly visible albedo
+      imageStore(img_albedo, ipos, vec4(alb, 1));
+    }
+
+#if 0
+    if(compute_indirect && (params.torch == 1)) // next event estimation to torch:
+    {
+      vec3 f = params.cam_w.xyz;
+      vec3 t = -params.cam_u.xyz;
+      vec3 r = -normalize(cross(f, t));
+      vec3 lpos = params.cam_x.xyz + 1*f + 10*t + 20*r;
+      irr += nee_torch(lpos, m0.x, rgb_cam, m0.n, seed, rp);
+    }
+#endif
+
+    // indirect rays, splitting trajectories here
+    if(compute_indirect) // direct lights need no indirect lighting computation
+    for(int s=0;s<spp;s++)
+    {
+      float pdf_w = 1.0;
+      vec3 w = vec3(0.0);
+      vec3 rgb = rgb_cam;
+      rad[s] = vec3(0.0);
+      par[s] = vec4(0.0);
+      ltw[s] = vec3(0.0);
+
+      // addis' patented unbiased fix
+      mc_state_shuffle(tent, (gl_SubgroupInvocationID+1)%gl_SubgroupSize);
+      {
+        vec4 rand = xrand(seed, rp);
+#define BSDF_P 0.125
+// #define BSDF_P 0
+        bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
+        if(use_vmf) read_neighbour_state(tent, m0.x, m0.n, ipos, mv, seed, rp);
+        if(!mc_state_valid(tent)) use_vmf = false; // XXX probably wrong in general
+        if(use_vmf)
+        {
+          vec4 vmf = mc_state_vmf(tent, m0.x);
+          w = vmf_sample(vmf.w, rand.xy);
+          vec3 up = vec3(1,0,0), du, dv;
+          if(abs(vmf.x) > abs(vmf.y)) up = vec3(0,1,0);
+          du = normalize(cross(up, vmf.xyz));
+          dv = normalize(cross(du, vmf.xyz));
+          pdf_w = vmf_eval(vmf.w, w.z);
+          w = w.x * du + w.y * dv + w.z * vmf.xyz;
+          float dotn = any(notEqual(m0.n, vec3(0.0))) ? dot(w, m0.n) : 1.0;
+          rgb *= dotn; // radiance now in solid angle space
+          par[s] = vmf;
+          // if(dotn <= 0.0) use_vmf = false; // fall back to bsdf if under surface XXX probably wrong in general
+          if(dotn <= 0.0) continue; // dead sample XXX
+        }
+        {
+          vec3 up = (abs(m0.n.x) > abs(m0.n.y)) ? vec3(0,1,0) : vec3(1,0,0);
+          vec3 du = normalize(cross(up, m0.n));
+          vec3 dv = normalize(cross(du, m0.n));
+          if(!use_vmf)
+          { // sample independent new ray direction
+            w = bsdf_sample(m0.bsdf, w_cam, du, dv, m0.n, m0.bsdf_param, rand.xy);
+            w = normalize(w); // paranoia/numerical jitter over bounces
+            float dotn = any(notEqual(m0.n, vec3(0.0))) ? dot(w, m0.n) : 1.0;
+            rgb *= dotn; // radiance now in solid angle space
+            pdf_w = dotn * bsdf_pdf(m0.bsdf, w_cam, du, dv, m0.n, w, m0.bsdf_param); // solid angle
+            par[s] = vec4(0.0);
+          }
+          rgb *= bsdf_eval(m0.bsdf, w_cam, du, dv, m0.n, w, m0.bsdf_param); // bsdf without albedo
+        }
+
+        if(any(notEqual(m0.ng, vec3(0.0))) && dot(w, m0.ng) <= 0.0)
+        { // kill under geo surface paths
+          rgb = vec3(0.0);
+          continue;
+        }
+
+        {
+          bool underwater = cam_underwater;
+          vec3 xm; // virtual point (estimating flat refraction)
+          mat = propagate_ray(m0.x, w, underwater, xm, rand.w, rgb);
+          { // eval extinction towards light source (no more in-scattering for now here. would be like fluorescing fog..)
+            const float T = exp(-min(mat.t, 1000.0) * 0.01 * params.fog.w);
+            rgb *= T;//mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
+            // irr += params.fog.rgb * (1.0-T);// / mu_t; lack of albedo mul dance makes this very ambient
+          }
+
+#if MCMC_ADAPTATION==MCMC_KAPPA
+          if(any(greaterThan(mat.emission, vec3(0.0))))
+          { // found light source connection
+            const float f = lum(rgb * mat.emission)/pdf_w;
+            // const float a = min(1.0, f / mc_state_score(curr, m0.x, m0.n, 0.0));
+            const float a = min(1.0, f / curr.f);
+            rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
+            ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
+            if(!mc_state_valid(tent))
+            { // new bsdf sample, init tent state
+              tent.kappa = clamp(50.0 + 100.0*mat.t, 100, 65500);
+              tent.acc = 0.5;
+              if(mat.mat == 0xfff) tent.kappa = 50; // sky is smooth
+              tent.f = f;
+              tent.y = xm;
+            }
+            const float acc_hist_alpha = 0.9;
+            if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
+            {
+              tent.y = xm; // update state mean too
+              tent.f = f;
+              tent.acc = mix(1.0, tent.acc, acc_hist_alpha);
+              curr = tent;
+            }
+            else tent.acc = mix(0.0, tent.acc, acc_hist_alpha);
+            float d = exp(20.0*(0.5 - tent.acc));
+            tent.kappa = clamp(tent.kappa * d, 100.0, 65500.0);
+            if(tent.acc < 1.0-acc_hist_alpha)
+              tent.kappa = 50.0; // reset
+          }
+#else // ML-version
+          float f = lum(rgb * mat.emission)/pdf_w;
+          // float curr_f = mc_state_decode_f(curr_enc);
+          // const float a = min(1.0, f / curr_f);
+          const float a = min(1.0, f / curr.f);
+          rad[s] = rgb * mat.emission; // store radiance in solid angle space for balance heuristic/cmis
+          ltw[s] = normalize(xm-m0.x); // aim at position on watersurface, if any
+          if(f > 0 && (!mc_state_valid(curr) || rand.z < a))
+          // if(f > 0 && (curr_f <= 0.0 || rand.z < a))
+          { // update markov chain state for this pixel:
+            if(!use_vmf) tent = mc_state_new(); // reset / init new state from bsdf sample further down in add()
+            tent.f = f;
+            curr = tent;
+            // curr_f = f;
+            // imageStore(img_nee_out,    ipos, mc_state_encode(tent)); // significantly slower
+            // curr_enc = mc_state_encode(tent);
+            mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
+          }
+          else if(!use_vmf)
+            mc_state_add(tent, m0.x, f, ltw[s], xm, mat.mat == 0xfff);
+#endif
+        } // end if cast ray intersected anything
+      } // end bounces
+    } // end spp for indirect rays
+  } // end if intersect primary ray
+
+  // apply cmis:
+  if(compute_indirect) for(int s=0;s<spp;s++)
+  {
+    float pdf = 0.0, pdf_bsdf;
+    {
+      float wdotn = dot(ltw[s], m0.n);
+      vec3 up = (abs(m0.n.x) > abs(m0.n.y)) ? vec3(0,1,0) : vec3(1,0,0);
+      vec3 du = normalize(cross(up, m0.n));
+      vec3 dv = normalize(cross(du, m0.n));
+      pdf_bsdf = wdotn * bsdf_pdf(m0.bsdf, w_cam, du, dv, m0.n, ltw[s], m0.bsdf_param);
+    }
+    if(params.ref != 0)
+    {
+      pdf = spp * pdf_bsdf;
+    }
+    else for(int t=0;t<spp;t++)
+    {
+      pdf += BSDF_P * pdf_bsdf;
+      if(par[t].w == 0.0)
+        pdf += (1.0-BSDF_P) * pdf_bsdf;
+      else
+        pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(ltw[s], par[t].xyz));
+    }
+    if(any(greaterThan(rad[s], vec3(0.0))))
+    {
+      vec3 contrib = rad[s] / pdf;
+      if(!any(isinf(contrib)) && !any(isnan(contrib)))
+        irr += contrib;
+    }
+  }
+
+#if 1
+  {
+    // vec4 vmf = mc_state_vmf(curr, m0.x);
+    // vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
+    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+    // vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
+    // vec4 deb = vec4((nq + 1.0)/2.0, 1.0);
+    // vec4 deb = vec4((m0.n + 1.0)/2.0, 1.0);
+    vec4 deb = vec4(gbuf.z, sigma, 1.0, 1.0);
+    imageStore(img_debug, ipos, deb);
+  }
+#endif
+
+  {
+    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    // const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
+    const float depth = length(m0.x - params.cam_x.xyz);
+    const vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
+    const float sigma_n = 64; // svgf style
+    const float sigma_z = 10;
+    float w_n = pow(max(0.0, dot(m0.n, nq)), sigma_n);
+    float w_z = exp(-abs(gbuf.y - length(m0.x - params.cam_x.xyz))/sigma_z);
+    float alpha = 0.9 * w_n * w_z;
+    gbuf.x = uintBitsToFloat(geo_encode_normal(m0.n)); // normal
+    gbuf.y = depth;                                    // depth/z
+    gbuf.z = mix(length(irr),  gbuf.z, alpha);         // biased first  moment
+    gbuf.w = mix(dot(irr,irr), gbuf.w, alpha);         // biased second moment
+    imageStore(img_gbuf_out, ipos, gbuf);
+  }
+
+  if(ipos.y < imageSize(img_irradiance).y*0.08)
+  { 
+    if(ipos.x > imageSize(img_irradiance).x*0.8)
+    {
+      vec2 ts = vec2(0.47,0.04)*imageSize(img_irradiance);
+      float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
+      irr += 10*c;
+    }
+    else
+    {
+      vec2 ts = vec2(0.01,0.04)*imageSize(img_irradiance);
+      float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
+      irr += 10*c;
+    }
+  }
+  if(ipos.y > imageSize(img_irradiance).y*0.96 && ipos.x > imageSize(img_irradiance).x*0.8)
+  {
+    float val = 0.0;
+    if(ipos.y > imageSize(img_irradiance).y*0.98) val = params.health;
+    else val = params.armor;
+    vec3 col = 0.1*clamp(vec3(100.0-val, val, 10.0), vec3(0), vec3(100));
+    float off = (ipos.x/float(imageSize(img_irradiance).x) - 0.8)/0.1;
+    if(off*100 < val) irr = col;
+  }
+
+  imageStore(img_nee_out,    ipos, mc_state_encode(curr));
+  // imageStore(img_nee_out,    ipos, curr_enc);
+  imageStore(img_irradiance, ipos, vec4(irr, 1));
+}

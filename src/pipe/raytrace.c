@@ -65,7 +65,7 @@ dt_raytrace_graph_cleanup(
   vkGetBufferMemoryRequirements(qvk.device, (BUF), &mr);\
   if(mr.memoryTypeBits) graph->rt.TYPE##_memory_type_bits &= mr.memoryTypeBits;\
   size_t off = graph->rt.TYPE##_end;\
-  mr.alignment = MAX(mr.alignment, 64); \
+  mr.alignment = MAX(mr.alignment, qvk.raytracing_acc_min_align); \
   BUF##_offset = ((off + (mr.alignment-1)) & ~(mr.alignment-1));\
   graph->rt.TYPE##_end = BUF##_offset + mr.size;\
 } while(0)
@@ -203,10 +203,20 @@ dt_raytrace_graph_init(
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
     .descriptorCount = 1,
     .stageFlags      = VK_SHADER_STAGE_ALL,
+  },{
+    .binding         = 1,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .stageFlags      = VK_SHADER_STAGE_ALL,
+  },{
+    .binding         = 2,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .stageFlags      = VK_SHADER_STAGE_ALL,
   }};
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
     .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 1,
+    .bindingCount = 3,
     .pBindings    = bindings,
   };
   if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
@@ -303,6 +313,21 @@ dt_raytrace_graph_alloc(
     .accelerationStructureCount = 1,
     .pAccelerationStructures    = &graph->rt.accel,
   };
+  VkDescriptorBufferInfo *bvtx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
+  VkDescriptorBufferInfo *bidx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
+  for(int i=0;i<graph->rt.nid_cnt;i++)
+  {
+    bvtx[i] = (VkDescriptorBufferInfo){
+      .offset = 0,
+      .buffer = graph->node[graph->rt.nid[i]].rt.buf_vtx,
+      .range  = VK_WHOLE_SIZE,
+    };
+    bidx[i] = (VkDescriptorBufferInfo){
+      .offset = 0,
+      .buffer = graph->node[graph->rt.nid[i]].rt.buf_idx,
+      .range  = VK_WHOLE_SIZE,
+    };
+  }
   VkWriteDescriptorSet dset_write[] = {{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -310,8 +335,22 @@ dt_raytrace_graph_alloc(
     .dstSet          = graph->rt.dset[0],
     .dstBinding      = 0,
     .pNext           = &acceleration_structure_info
+  },{
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .dstSet          = graph->rt.dset[0],
+    .dstBinding      = 1,
+    .pBufferInfo     = bvtx,
+  },{
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt.nid_cnt,
+    .dstSet          = graph->rt.dset[0],
+    .dstBinding      = 2,
+    .pBufferInfo     = bidx,
   }};
-  vkUpdateDescriptorSets(qvk.device, 1, dset_write, 0, NULL);
+  vkUpdateDescriptorSets(qvk.device, 3, dset_write, 0, NULL);
   return VK_SUCCESS;
 }
 #undef CREATE_SCRATCH_BUF_R
@@ -397,18 +436,16 @@ dt_raytrace_record_command_buffer_accel_build(
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, rebuild_cnt, build_info, p_build_range);
 
-#define ACCEL_BARRIER do {\
-  VkMemoryBarrier barrier = { \
-    .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER, \
-    .srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, \
-    .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, \
-  }; \
-  vkCmdPipelineBarrier(graph->command_buffer, \
-      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, \
-      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, \
-      0, 1, &barrier, 0, NULL, 0, NULL); \
-  } while(0)
-  ACCEL_BARRIER; // barrier before top level is starting to build
+  // barrier before top level is starting to build
+  VkMemoryBarrier barrier = {
+    .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+    .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+  };
+  vkCmdPipelineBarrier(graph->command_buffer,
+      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      0, 1, &barrier, 0, NULL, 0, NULL);
 
   // build top level accel
   VkBufferDeviceAddressInfo scratch_adress_info = {
@@ -429,7 +466,15 @@ dt_raytrace_record_command_buffer_accel_build(
   build_range[0] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = graph->rt.nid_cnt };
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, 1, &graph->rt.build_info, p_build_range);
 
-  ACCEL_BARRIER; // push another barrier
-#undef ACCEL_BARRIER
+  // push another barrier
+  barrier = (VkMemoryBarrier){
+    .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+  };
+  vkCmdPipelineBarrier(graph->command_buffer,
+      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+      0, 1, &barrier, 0, NULL, 0, NULL);
   return VK_SUCCESS;
 }

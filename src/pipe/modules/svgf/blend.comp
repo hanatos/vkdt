@@ -1,0 +1,86 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+#include "config.h"
+#include "shared/render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  float alpha;
+  float taa;
+  float lalpha;
+} params;
+
+layout(set = 1, binding = 0) uniform sampler2D img_mv;     // motion vectors
+layout(set = 1, binding = 1) uniform sampler2D img_prevb;  // previous beauty
+layout(set = 1, binding = 2) uniform sampler2D img_light;  // current light (denoised)
+layout(set = 1, binding = 3) uniform sampler2D img_albedo; // current albedo
+layout(set = 1, binding = 4) uniform writeonly image2D img_out; // new beauty frame
+
+ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
+{
+#if SVGF_OFF==1
+  return tc;
+#else
+  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+#if SVGF_IT > 3
+  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+#if SVGF_IT > 4
+  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
+#endif
+#endif
+  return tc;
+#endif
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  ivec2 sz = textureSize(img_light, 0).xy;
+  vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+  vec3 L  = texelFetch(img_light, eaw3_tc(ipos, sz), 0).rgb;
+  vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
+
+  mat3 M = mat3( // linear rec709 to linear rec2020
+      0.62750375, 0.06910828, 0.01639406,
+      0.32927542, 0.91951916, 0.08801125,
+      0.04330266, 0.0113596 , 0.89538035);
+
+  // taa with box clamping
+  vec3 m1 = vec3(0.0f), m2 = vec3(0.0f);
+  const int r = 1;
+  for(int yy=-r;yy<=r;yy++) for(int xx=-r;xx<=r;xx++)
+  {
+    vec3 a = texelFetch(img_albedo, ipos + ivec2(xx, yy), 0).rgb;
+    vec3 L = texelFetch(img_light, eaw3_tc(ipos + ivec2(xx, yy), sz), 0).rgb;
+    vec3 b = M * (a*L);
+    m1 += b;
+    m2 += b*b;
+  }
+  m1 /= (2.0 * r + 1) * (2.0 * r + 1);
+  m2 /= (2.0 * r + 1) * (2.0 * r + 1);
+
+  vec3 sigma = sqrt(max(vec3(0), m2 - m1 * m1));
+  float thresh = params.taa;
+  prevb = clamp(prevb, max(vec3(0), m1 - thresh * sigma), m1 + thresh * sigma);
+
+  vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
+  vec3 beauty = L * albedo;
+
+  beauty = M * beauty;
+
+  float alpha = params.alpha; // blend weight, larger means use more of the history.
+  beauty = mix(beauty, prevb, alpha);
+
+  imageStore(img_out, ipos, vec4(beauty, 1));
+}
+

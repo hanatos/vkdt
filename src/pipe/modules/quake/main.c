@@ -4,12 +4,24 @@
 #include "../rt/quat.h"
 #undef CLAMP // ouch. careful! quake redefines this but with (m, x, M) param order!
 
+#include "config.h"
 #include "quakedef.h"
 #include "bgmusic.h"
 
 #define MAX_GLTEXTURES 4096 // happens to be MAX_GLTEXTURES in quakespasm, a #define in gl_texmgr.c
 #define MAX_IDX_CNT 2000000 // global bounds for dynamic geometry, because lazy programmer
 #define MAX_VTX_CNT 2000000
+
+static inline double
+xrand(uint32_t reset)
+{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  static uint32_t seed = 1337;
+  if(reset) seed = 1337;
+  seed ^= seed << 13;
+  seed ^= seed >> 17;
+  seed ^= seed << 5;
+  return seed / 4294967296.0;
+}
 
 typedef struct qs_data_t
 {
@@ -21,7 +33,9 @@ typedef struct qs_data_t
   uint8_t      tex_req[MAX_GLTEXTURES];   // dynamic texture request flags: 1:new 2:upload 4:free
   int32_t      tex_cnt;                   // current number of textures
   uint32_t     tex_maxw, tex_maxh;        // maximum texture size, to allocate staging upload buffer
-  uint32_t     first_skybox;              // first of 6 cubemap skybox texture ids
+  uint32_t     skybox[6];                 // 6 cubemap skybox texture ids
+  uint32_t     tex_explosion;             // something emissive for particles
+  uint32_t     tex_blood;                 // for blood particles
 
   uint32_t     move;                      // for our own debug camera
   double       mx, my;                    // mouse coordinates
@@ -36,6 +50,7 @@ qs_data_t;
 // also the texture manager will call into us
 static qs_data_t qs_data = {0};
 extern float r_avertexnormals[162][3]; // from r_alias.c
+extern particle_t *active_particles;
 
 int init(dt_module_t *mod)
 {
@@ -57,8 +72,8 @@ int init(dt_module_t *mod)
   if(host_initialized) return 0;
 
   qs_data_t *d = mod->data;
-  d->tex_maxw = 1024; // as it turns out, we sometimes adaptively load more textures and thus the max detection isn't robust.
-  d->tex_maxh = 1024; // we would need to re-create nodes every time a new max is detected in QS_load_texture.
+  d->tex_maxw = 2048; // as it turns out, we sometimes adaptively load more textures and thus the max detection isn't robust.
+  d->tex_maxh = 2048; // we would need to re-create nodes every time a new max is detected in QS_load_texture.
 
   // these host parameters are just a pointer with defined linkage in host.c.
   // we'll need to point it to an actual struct (that belongs to us):
@@ -67,29 +82,24 @@ int init(dt_module_t *mod)
 
   char *argv[] = {"quakespasm",
     "-basedir", "/usr/share/games/quake",
-    "+map", "start",
-    "-game", "ad",
-    "+map", "ad_azad",
-    "-game", "SlayerTest",
-    "+map", "e1m2b",
+    "+skill", "2",
     "+map", "e1m1",
+    "-game", "ad",
+    "-game", "SlayerTest", // needs different particle rules! also overbright and lack of alpha?
+    "+map", "e1m2b",
     "+map", "ep1m1",
     "+map", "e1m1b",
-    "+map", "start",
     "+map", "st1m1",
-    "+map", "start",
   };
-  int argc = 5; // 7;
+  int argc = 5;
 
   d->worldspawn = 0;
   d->parms.argc = argc;
   d->parms.argv = argv;
   d->parms.errstate = 0;
 
+  srand(1337); // quake uses this
   COM_InitArgv(d->parms.argc, d->parms.argv);
-
-  // isDedicated = (COM_CheckParm("-dedicated") != 0); // yeah no
-  // Sys_InitSDL ();
 
   Sys_Init();
 
@@ -133,21 +143,6 @@ input(
     dt_module_input_event_t *p)
 {
   qs_data_t *dat = mod->data;
-
-#if 0 // now in audio
-  if(dat->worldspawn)
-  {
-    mod->flags = s_module_request_all;
-    dat->worldspawn = 0;
-    // close menu because we don't have an esc key:
-    // Cmd_ExecuteString("give all", src_command);
-    // Cmd_ExecuteString("notarget", src_command);
-    // Cmd_ExecuteString("god", src_command);
-    key_dest = key_game;
-    m_state = m_none;
-    IN_Activate();
-  }
-#endif
 
   if(p->type == 0)
   { // activate event: store mouse zero and clear all movement flags we might still have
@@ -324,13 +319,17 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   // TODO: maybe use our string pool to do name->id mapping? also it seems quake has a crc
   if(qs_data.initing < 1) return;
   // mirror the data locally. the copy sucks, but whatever.
-  fprintf(stderr, "[load tex] %u %ux%u %s\n", glt->texnum, glt->width, glt->height, glt->name);
+  // fprintf(stderr, "[load tex] %u %ux%u %s\n", glt->texnum, glt->width, glt->height, glt->name);
   qs_data.tex_cnt = MIN(MAX_GLTEXTURES, MAX(qs_data.tex_cnt, glt->texnum+1));
   if(glt->texnum >= qs_data.tex_cnt)
   {
     fprintf(stderr, "[load tex] no more free slots for %s!\n", glt->name);
     return;
   }
+  if(!strcmp(glt->name, "progs/gib_1.mdl:frame0")) // makes okay blood (non-emissive)
+    qs_data.tex_blood = glt->texnum;
+  if(!strcmp(glt->name, "progs/s_exp_big.spr:frame10")) // makes good sparks
+    qs_data.tex_explosion = glt->texnum; // HACK: store for emissive rocket particle trails
   qs_data.tex_dim[2*glt->texnum+0] = glt->width;
   qs_data.tex_dim[2*glt->texnum+1] = glt->height;
   if(qs_data.tex[glt->texnum]) free(qs_data.tex[glt->texnum]);
@@ -340,8 +339,26 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   qs_data.tex_maxh = MAX(qs_data.tex_maxh, glt->height);
   qs_data.tex_req[glt->texnum] = 7; // free, new and upload
 
+  if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6) ||
+     !strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
+  { // classic quake sky
+    if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6))
+      qs_data.skybox[1] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
+      qs_data.skybox[0] = glt->texnum;
+    qs_data.skybox[2] = -1u;
+  }
   if(!strncmp(glt->name, "gfx/env/", 8))
-    qs_data.first_skybox = glt->texnum-5;
+  { // full featured cube map/arcane dimensions
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_rt", 3)) qs_data.skybox[0] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_bk", 3)) qs_data.skybox[1] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_lf", 3)) qs_data.skybox[2] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_ft", 3)) qs_data.skybox[3] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_up", 3)) qs_data.skybox[4] = glt->texnum;
+    if(!strncmp(glt->name+strlen(glt->name)-3, "_dn", 3)) qs_data.skybox[5] = glt->texnum;
+  }
+  // these should emit in ad_tears. we hack it later when uploading the texture:
+  // if(strstr(glt->name, "wfall")) fprintf(stderr, "XXX %s\n", glt->name);
 
   // TODO: think about cleanup later, maybe
 }
@@ -380,6 +397,108 @@ encode_normal(
 }
 
 static void
+add_particles(
+    float    *vtx,   // vertex data, 3f
+    uint32_t *idx,   // triangle indices, 3 per tri
+    int16_t  *ext,
+    uint32_t *vtx_cnt,
+    uint32_t *idx_cnt)
+{
+  uint32_t nvtx = 0, nidx = 0;
+  xrand(1); // reset so we can do reference renders
+  for(particle_t *p=active_particles;p;p=p->next)
+  {
+    uint8_t *c = (uint8_t *) &d_8to24table[(int)p->color]; // that would be the colour. pick texture based on this:
+    // smoke is r=g=b
+    // blood is g=b=0
+    // rocket trails are r=2*g=2*b a bit randomised
+    uint32_t tex_col = c[1] == 0 && c[2] == 0 ? qs_data.tex_blood : qs_data.tex_explosion;
+    uint32_t tex_lum = c[1] == 0 && c[2] == 0 ? 0 : qs_data.tex_explosion;
+    int numv = 4; // add tet
+    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
+       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
+          return;
+    const float voff[4][3] = {
+      { 0.0,  1.0,  0.0},
+      {-0.5, -0.5, -0.87},
+      {-0.5, -0.5,  0.87},
+      { 1.0, -0.5,  0.0}};
+    float vert[4][3];
+    if(vtx || ext)
+    {
+      for(int l=0;l<3;l++)
+      {
+        float off = 2*(xrand(0)-0.5) + 2*(xrand(0)-0.5);
+        for(int k=0;k<4;k++)
+          vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
+      }
+    }
+    if(vtx)
+    {
+      for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
+      for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
+    }
+    if(idx)
+    {
+      idx[nidx+3*0+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*0+1] = *vtx_cnt + nvtx+1;
+      idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+
+      idx[nidx+3*1+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*1+1] = *vtx_cnt + nvtx+2;
+      idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
+
+      idx[nidx+3*2+0] = *vtx_cnt + nvtx;
+      idx[nidx+3*2+1] = *vtx_cnt + nvtx+3;
+      idx[nidx+3*2+2] = *vtx_cnt + nvtx+1;
+
+      idx[nidx+3*3+0] = *vtx_cnt + nvtx+1;
+      idx[nidx+3*3+1] = *vtx_cnt + nvtx+2;
+      idx[nidx+3*3+2] = *vtx_cnt + nvtx+3;
+    }
+    if(ext)
+    {
+      for(int k=0;k<4;k++)
+      {
+        int pi = nidx/3 + k; // start of the tet + tri index
+        // float n[3], e0[] = {
+        //   vert[2][0] - vert[0][0],
+        //   vert[2][1] - vert[0][1],
+        //   vert[2][2] - vert[0][2]}, e1[] = {
+        //   vert[1][0] - vert[0][0],
+        //   vert[1][1] - vert[0][1],
+        //   vert[1][2] - vert[0][2]};
+        // cross(e0, e1, n);
+        // encode_normal(ext+14*pi+0, n);
+        // encode_normal(ext+14*pi+2, n);
+        // encode_normal(ext+14*pi+4, n);
+        // encode_normal(ext+14*(pi+1)+0, n);
+        // encode_normal(ext+14*(pi+1)+2, n);
+        // encode_normal(ext+14*(pi+1)+4, n);
+        ext[14*pi+ 0] = 0;
+        ext[14*pi+ 1] = 0;
+        ext[14*pi+ 2] = 0;
+        ext[14*pi+ 3] = 0;
+        ext[14*pi+ 6] = float_to_half(0);
+        ext[14*pi+ 7] = float_to_half(1);
+        ext[14*pi+ 8] = float_to_half(0);
+        ext[14*pi+ 9] = float_to_half(0);
+        ext[14*pi+10] = float_to_half(1);
+        ext[14*pi+11] = float_to_half(0);
+        ext[14*pi+12] = tex_col;
+        ext[14*pi+13] = tex_lum;
+      }
+    }
+    nvtx += 4;
+    nidx += 3*4;
+  } // end for all particles
+  *vtx_cnt += nvtx;
+  *idx_cnt += nidx;
+}
+
+static void
 add_geo(
     entity_t *ent,
     float    *vtx,   // vertex data, 3f
@@ -397,6 +516,7 @@ add_geo(
   // fprintf(stderr, "[add_geo] %s\n", m->name);
   // if (!m || m->name[0] == '*') return; // '*' is the moving brush models such as doors
   if (!m) return;
+  if(qs_data.worldspawn) return;
 
   // TODO: lerp between lerpdata.pose1 and pose2 using blend
   // TODO: apply transformation matrix cpu side, whatever.
@@ -439,37 +559,61 @@ add_geo(
       for(int k=0;k<3;k++)
         vtx[3*v+k] = ent->origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
     }
+#if 1 // both options fail to extract correct creases/vertex normals for health/shells
+    // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
+    // just by chance happened to produce something similar enough sometimes?
+    // TODO: fuck this vbo bs and get the mdl itself
+    int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
+    if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
+    {
+      int i = hdr->numverts * f + desc[v].vertindex;
+      float nm[3], nw[3];
+      memcpy(nm, r_avertexnormals[trivertexes[i].lightnormalindex], sizeof(float)*3);
+      for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
+      encode_normal(tmpn+2*v, nw);
+    }
+#endif
     if(idx) for(int i = 0; i < hdr->numindexes; i++)
       idx[i] = *vtx_cnt + indexes[i];
 
     if(ext) for(int i = 0; i < hdr->numindexes/3; i++)
     {
-#if 0 // ???
-      //johnfitz -- padded skins
-    hscale = (float)hdr->skinwidth/(float)TexMgr_PadConditional(hdr->skinwidth);
-    vscale = (float)hdr->skinheight/(float)TexMgr_PadConditional(hdr->skinheight);
-    //johnfitz
-#endif
+#if 0
       float nm[3], nw[3];
-      memcpy(nm, r_avertexnormals[trivertexes[desc[indexes[3*i+0]].vertindex].lightnormalindex], sizeof(float)*3);
+      int off = hdr->numverts * f;
+  fprintf(stderr, "[add_geo] %s normal index %d numposes %d/%d\n", m->name, trivertexes[off+desc[indexes[3*i+0]].vertindex].lightnormalindex, f, hdr->numposes);
+      memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+0]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+0, nw);
-      memcpy(nm, r_avertexnormals[trivertexes[desc[indexes[3*i+1]].vertindex].lightnormalindex], sizeof(float)*3);
+      memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+1]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+2, nw);
-      memcpy(nm, r_avertexnormals[trivertexes[desc[indexes[3*i+2]].vertindex].lightnormalindex], sizeof(float)*3);
+      memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+2]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+4, nw);
+#else
+      memcpy(ext+14*i+0, tmpn+2*indexes[3*i+0], sizeof(int16_t)*2);
+      memcpy(ext+14*i+2, tmpn+2*indexes[3*i+1], sizeof(int16_t)*2);
+      memcpy(ext+14*i+4, tmpn+2*indexes[3*i+2], sizeof(int16_t)*2);
+#endif
       ext[14*i+ 6] = float_to_half((desc[indexes[3*i+0]].st[0]+0.5)/(float)hdr->skinwidth);
       ext[14*i+ 7] = float_to_half((desc[indexes[3*i+0]].st[1]+0.5)/(float)hdr->skinheight);
       ext[14*i+ 8] = float_to_half((desc[indexes[3*i+1]].st[0]+0.5)/(float)hdr->skinwidth);
       ext[14*i+ 9] = float_to_half((desc[indexes[3*i+1]].st[1]+0.5)/(float)hdr->skinheight);
       ext[14*i+10] = float_to_half((desc[indexes[3*i+2]].st[0]+0.5)/(float)hdr->skinwidth);
       ext[14*i+11] = float_to_half((desc[indexes[3*i+2]].st[1]+0.5)/(float)hdr->skinheight);
-      ext[14*i+12] = hdr->gltextures[CLAMP(0, ent->skinnum, hdr->numskins-1)][((int)(cl.time*10))&3]->texnum;
-      ext[14*i+13] =
-        hdr->fbtextures[CLAMP(0, ent->skinnum, hdr->numskins-1)][((int)(cl.time*10))&3] ?
-        hdr->fbtextures[CLAMP(0, ent->skinnum, hdr->numskins-1)][((int)(cl.time*10))&3]->texnum : 0;
+      const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
+      ext[14*i+12] = hdr->gltextures[sk][fm]->texnum;
+      ext[14*i+13] = hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0;
+#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
+      if(hdr->nmtextures[sk][fm])
+      {
+        ext[14*i+0] = 0;
+        ext[14*i+1] = hdr->nmtextures[sk][fm]->texnum;
+        ext[14*i+2] = 0xffff; // mark as brush model
+        ext[14*i+3] = 0xffff;
+      }
+#endif
     }
   }
   else if(m->type == mod_brush)
@@ -483,7 +627,12 @@ add_geo(
     AngleVectors (angles, fwd, rgt, top);
     for (int i=0; i<m->nummodelsurfaces; i++)
     {
+#if WATER_MODE==WATER_MODE_FULL
+      int wateroffset = 0;
+again:;
+#endif
       msurface_t *surf = &m->surfaces[m->firstmodelsurface + i];
+      if(!strcmp(surf->texinfo->texture->name, "skip")) continue;
       glpoly_t *p = surf->polys;
       while(p)
       {
@@ -497,53 +646,230 @@ add_geo(
               p->verts[k][1] * rgt[l] +
               p->verts[k][2] * top[l]
               + ent->origin[l];
+#if WATER_MODE==WATER_MODE_FULL
+        if(vtx && wateroffset) for(int k=0;k<p->numverts;k++)
+        {
+          for(int l=0;l<3;l++)
+          { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
+            vtx[3*(nvtx+k)+l] += fwd[l] * (p->verts[k][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vtx[3*(nvtx+k)+l] -= rgt[l] * (p->verts[k][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+          }
+          vtx[3*(nvtx+k)+2] -= WATER_DEPTH;
+        }
+#endif
         if(idx) for(int k=2;k<p->numverts;k++)
         {
           idx[nidx+3*(k-2)+0] = *vtx_cnt + nvtx;
           idx[nidx+3*(k-2)+1] = *vtx_cnt + nvtx+k-1;
           idx[nidx+3*(k-2)+2] = *vtx_cnt + nvtx+k;
         }
+        // TODO: make somehow dynamic. don't want to re-upload the whole model just because the texture animates.
+        // for now that means static brush models will not actually animate their textures
+        texture_t *t = R_TextureAnimation(surf->texinfo->texture, ent->frame);
         if(ext) for(int k=2;k<p->numverts;k++)
         {
           int pi = (nidx+3*(k-2))/3;
-          float n[3], e0[] = {
-            p->verts[k  ][0]-p->verts[0][0],
-            p->verts[k  ][1]-p->verts[0][1],
-            p->verts[k  ][2]-p->verts[0][2]}, e1[] = {
-            p->verts[k-1][0]-p->verts[0][0],
-            p->verts[k-1][1]-p->verts[0][1],
-            p->verts[k-1][2]-p->verts[0][2]};
-          cross(e0, e1, n);
-          float nw[3];
-          for(int i=0;i<3;i++) nw[i] = fwd[i] * n[0] - rgt[i] * n[1] + top[i] * n[2];
-          encode_normal(ext+14*pi+0, nw);
-          encode_normal(ext+14*pi+2, nw);
-          encode_normal(ext+14*pi+4, nw);
+          ext[14*pi+0] = t->gloss ? t->gloss->texnum : 0;
+          ext[14*pi+1] = t->norm  ? t->norm->texnum  : 0;
+          ext[14*pi+2] = 0xffff; // mark as brush model
+          ext[14*pi+3] = 0xffff;
           if(surf->texinfo->texture->gltexture)
           {
-            ext[14*pi+ 6] = float_to_half(1-p->verts[0  ][3]);
+            ext[14*pi+ 6] = float_to_half(p->verts[0  ][3]);
             ext[14*pi+ 7] = float_to_half(p->verts[0  ][4]);
-            ext[14*pi+ 8] = float_to_half(1-p->verts[k-1][3]);
+            ext[14*pi+ 8] = float_to_half(p->verts[k-1][3]);
             ext[14*pi+ 9] = float_to_half(p->verts[k-1][4]);
-            ext[14*pi+10] = float_to_half(1-p->verts[k-0][3]);
+            ext[14*pi+10] = float_to_half(p->verts[k-0][3]);
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
-            ext[14*pi+12] = surf->texinfo->texture->gltexture->texnum;
-            ext[14*pi+13] = surf->texinfo->texture->fullbright ? surf->texinfo->texture->fullbright->texnum : 0;
+            ext[14*pi+12] = t->gltexture->texnum;
+            ext[14*pi+13] = t->fullbright ? t->fullbright->texnum : 0;
+            // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
+            uint32_t flags = 0;
+            if(surf->flags & SURF_DRAWLAVA)  flags = 1;
+            if(surf->flags & SURF_DRAWSLIME) flags = 2;
+            if(surf->flags & SURF_DRAWTELE)  flags = 3;
+            if(surf->flags & SURF_DRAWWATER) flags = 4;
+            // hack for ad_tears and emissive waterfalls
+            if(strstr(t->gltexture->name, "wfall")) flags = 7;// ext[14*pi+13] = t->gltexture->texnum;
+#if WATER_MODE==WATER_MODE_FULL
+            if(wateroffset)                  flags = 5; // this is our procedural water lower mark
+#endif
+            // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
+            ext[14*pi+13] |= flags << 12;
+            uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15); // alpha in 4 bits
+            if(!ent->alpha) ai = 15;
+            // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
+            // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
+            // TODO: or "slime" or "tele" instead of "lava"
+            ext[14*pi+12] |= ai << 12;
           }
-          if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xffff;
-          // TODO: set special materials for these too:
-          // #define SURF_DRAWLAVA   0x400
-          // #define SURF_DRAWSLIME    0x800
-          // #define SURF_DRAWTELE   0x1000
-          // #define SURF_DRAWWATER
+          if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xfff;
         }
         nvtx += p->numverts;
         nidx += 3*(p->numverts-2);
+#if WATER_MODE==WATER_MODE_FULL
+        if(!wateroffset && (surf->flags & SURF_DRAWWATER))
+        { // TODO: and normal points the right way?
+          wateroffset = 1;
+          goto again;
+        }
+#endif
         // p = p->next;
         p = 0; // XXX
       }
     }
   }
+  else if(m->type == mod_sprite)
+  { // explosions, decals, etc, this is R_DrawSpriteModel
+    vec3_t      point, v_forward, v_right, v_up;
+    msprite_t   *psprite;
+    mspriteframe_t  *frame;
+    float     *s_up, *s_right;
+    float     angle, sr, cr;
+    float     scale = 1.0f;// XXX newer quakespasm has this: ENTSCALE_DECODE(ent->scale);
+
+    vec3_t vpn, vright, vup, r_origin;
+    VectorCopy (r_refdef.vieworg, r_origin);
+    AngleVectors (r_refdef.viewangles, vpn, vright, vup);
+
+    frame = R_GetSpriteFrame(ent);
+    psprite = (msprite_t *) ent->model->cache.data;
+
+    switch(psprite->type)
+    {
+      case SPR_VP_PARALLEL_UPRIGHT: //faces view plane, up is towards the heavens
+        v_up[0] = 0;
+        v_up[1] = 0;
+        v_up[2] = 1;
+        s_up = v_up;
+        s_right = vright;
+        break;
+      case SPR_FACING_UPRIGHT: //faces camera origin, up is towards the heavens
+        VectorSubtract(ent->origin, r_origin, v_forward);
+        v_forward[2] = 0;
+        VectorNormalizeFast(v_forward);
+        v_right[0] = v_forward[1];
+        v_right[1] = -v_forward[0];
+        v_right[2] = 0;
+        v_up[0] = 0;
+        v_up[1] = 0;
+        v_up[2] = 1;
+        s_up = v_up;
+        s_right = v_right;
+        break;
+      case SPR_VP_PARALLEL: //faces view plane, up is towards the top of the screen
+        s_up = vup;
+        s_right = vright;
+        break;
+      case SPR_ORIENTED: //pitch yaw roll are independent of camera
+        AngleVectors (ent->angles, v_forward, v_right, v_up);
+        s_up = v_up;
+        s_right = v_right;
+        break;
+      case SPR_VP_PARALLEL_ORIENTED: //faces view plane, but obeys roll value
+        angle = ent->angles[ROLL] * M_PI_DIV_180;
+        sr = sin(angle);
+        cr = cos(angle);
+        v_right[0] = vright[0] * cr + vup[0] * sr;
+        v_right[1] = vright[1] * cr + vup[1] * sr;
+        v_right[2] = vright[2] * cr + vup[2] * sr;
+        v_up[0] = vright[0] * -sr + vup[0] * cr;
+        v_up[1] = vright[1] * -sr + vup[1] * cr;
+        v_up[2] = vright[2] * -sr + vup[2] * cr;
+        s_up = v_up;
+        s_right = v_right;
+        break;
+      default:
+        return;
+    }
+
+    int numv = 3* 4; // add three quads
+    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
+       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
+          return;
+    for(int k=0;k<3;k++)
+    {
+      float vert[4][3];
+      if(vtx || ext)
+      {
+        vec3_t front;
+        CrossProduct(s_up, s_right, front);
+        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+        VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[0][l] = point[l];
+
+        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
+        VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[1][l] = point[l];
+
+        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
+        VectorMA (point, frame->right * scale,    k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[2][l] = point[l];
+
+        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+        VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
+        for(int l=0;l<3;l++) vert[3][l] = point[l];
+      }
+      if(vtx)
+      {
+        for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
+        for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
+        for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
+        for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
+      }
+      if(idx)
+      {
+        idx[nidx+3*0+0] = *vtx_cnt + nvtx;
+        idx[nidx+3*0+1] = *vtx_cnt + nvtx+2-1;
+        idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+
+        idx[nidx+3*1+0] = *vtx_cnt + nvtx;
+        idx[nidx+3*1+1] = *vtx_cnt + nvtx+3-1;
+        idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
+      }
+      if(ext)
+      {
+        int pi = nidx/3; // start of the two triangles
+        float n[3], e0[] = {
+          vert[2][0] - vert[0][0],
+          vert[2][1] - vert[0][1],
+          vert[2][2] - vert[0][2]}, e1[] = {
+          vert[1][0] - vert[0][0],
+          vert[1][1] - vert[0][1],
+          vert[1][2] - vert[0][2]};
+        cross(e0, e1, n);
+        encode_normal(ext+14*pi+0, n);
+        encode_normal(ext+14*pi+2, n);
+        encode_normal(ext+14*pi+4, n);
+        encode_normal(ext+14*(pi+1)+0, n);
+        encode_normal(ext+14*(pi+1)+2, n);
+        encode_normal(ext+14*(pi+1)+4, n);
+        if(frame->gltexture)
+        {
+          ext[14*pi+ 6] = float_to_half(0);
+          ext[14*pi+ 7] = float_to_half(1);
+          ext[14*pi+ 8] = float_to_half(0);
+          ext[14*pi+ 9] = float_to_half(0);
+          ext[14*pi+10] = float_to_half(1);
+          ext[14*pi+11] = float_to_half(0);
+
+          ext[14*(pi+1)+ 6] = float_to_half(0);
+          ext[14*(pi+1)+ 7] = float_to_half(1);
+          ext[14*(pi+1)+ 8] = float_to_half(1);
+          ext[14*(pi+1)+ 9] = float_to_half(0);
+          ext[14*(pi+1)+10] = float_to_half(1);
+          ext[14*(pi+1)+11] = float_to_half(1);
+
+          ext[14*pi+12]     = frame->gltexture->texnum;
+          ext[14*pi+13]     = frame->gltexture->texnum; // sprites always emit
+          ext[14*(pi+1)+12] = frame->gltexture->texnum;
+          ext[14*(pi+1)+13] = frame->gltexture->texnum;
+        }
+      }
+      nvtx += 4;
+      nidx += 6;
+    } // end three axes
+  } // end sprite model
   *vtx_cnt += nvtx;
   *idx_cnt += nidx;
 }
@@ -566,30 +892,112 @@ void modify_roi_out(
     .filters        = 0, // anything not 0 or 9 will be bayer starting at R
     .crop_aabb      = {0, 0, wd, ht},
     .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+    .snd_samplerate = 44100,
+    .snd_format     = 2, // SND_PCM_FORMAT_S16_LE
+    .snd_channels   = 2, // stereo
     .noise_a        = 1.0,
     .noise_b        = 0.0,
     .orientation    = 0,
   };
+  mod->connector[5].roi = mod->connector[0].roi; // debug connector
 }
 
 void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  // could print these interesting messages from the map:
+  // fprintf(stderr, con_lastcenterstring);
+  graph->gui_msg = con_lastcenterstring;
   qs_data_t *d = module->data;
+  int sv_player_set = 0;
   // float *f = (float *)module->committed_param;
-  double newtime = Sys_DoubleTime();
-  double time = newtime - d->oldtime;
-  Host_Frame(time);
-  d->oldtime = newtime;
+  const int p_pause = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("pause")))[0];
+  if(!p_pause || graph->frame < p_pause)
+  {
+    double newtime = Sys_DoubleTime();
+    double time = ((d->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - d->oldtime;
+    Host_Frame(time);
+    R_SetupView(); // init some left/right vectors also used for sound
+    d->oldtime = newtime;
+    // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
+  }
 
-  // XXX for performance/testing, enable this playdemo and do
-  // ./vkdt-cli -g examples/quake.cfg --format o-ffmpeg --filename qu.vid --audio qu.aud --output main --format o-ffmpeg --filename mv.vid --output hist --config frames:3000 fps:24
-  // ffmpeg -i qu.vid_0002.h264 -f s16le -sample_rate 44100 -channels 2  -i qu.aud -c:v copy quake.mp4
+  // in quake, run `record <demo name>` until `stop`
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
   // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo demos/e1m2", src_command); // qdq ~2000 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo sparks", src_command); // e1m6 sparkly lights, 2000 frames
+  // if(graph->frame == 0) Cmd_ExecuteString("playdemo caustics", src_command); // ad_tears underwater caustics 1000 frames
+  if(graph->frame == 0)
+  { // careful to only do this at == 0 so sv_player (among others) will not crash
+    const char *p_exec = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("exec")));
+    if(p_exec[0])
+    {
+      char buf[256] = {0}, *p = 0, *q = buf;
+      strncpy(buf, p_exec, sizeof(buf)-1);
+      while((p = strstr(q, ";")))
+      {
+        p[0] = 0;
+        Cmd_ExecuteString(q, src_command);
+        q = ++p;
+      }
+      if(q[0]) Cmd_ExecuteString(q, src_command);
+      sv_player_set = 0; // just in case we loaded a map (demo, savegame)
+    }
+  }
 
+  // hijacked for performance counter rendering
+  float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
+  p_duration[0] = graph->query_last_frame_duration;
+
+  if(graph->frame == 10)
+  { // to test rocket illumination etc:
+    // TODO: execute config file name
+    // Cmd_ExecuteString("developer 1", src_command);
+    // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
+    Cmd_ExecuteString("bind \"q\" \"impulse 9;give health 666\"", src_command);
+    // Cmd_ExecuteString("god", src_command);
+    // Cmd_ExecuteString("notarget", src_command);
+    // Cmd_ExecuteString("r_vis 0", src_command);
+    // sv_player_set = 0; // if you're doing messy things above
+  }
+
+  // set sv_player. this has to be done if we're not calling Host_Frame after a map reload
+  client_t *host_client = svs.clients;
+  for (int i=0;i<svs.maxclients && !sv_player_set; i++, host_client++)
+  {
+    if (!host_client->active) continue;
+    sv_player = host_client->edict;
+    sv_player_set = 1;
+  }
+  if(sv_player_set)
+  {
+    if(sv_player->v.weapon == 1) // shotgun has torch built in:
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
+    else
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
+    if(sv_player->v.waterlevel >= 3) // apply crazy underwater effect
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
+    else
+      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 0;
+    int *p_health = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("health")));
+    p_health[0] = sv_player->v.health;
+    int *p_armor = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("armor")));
+    p_armor[0] = sv_player->v.armorvalue;
+  }
+
+  int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
+  for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];
+
+  ((float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cltime"))))[0] = cl.time;
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
+  float *p_fog = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("fog")));
+  float *qf = Fog_GetColor();
+  p_fog[0] = qf[0]; p_fog[1] = qf[1]; p_fog[2] = qf[2];
+  p_fog[3] = Fog_GetDensity();
+  p_fog[3] *= p_fog[3]; // quake provides sqrt of collision coefficients, dunno why
 #if 0 // our camera
   // put back to params:
   float fwd[] = {p_cam[4], p_cam[5], p_cam[6]};
@@ -607,6 +1015,7 @@ void commit_params(
   AngleVectors (r_refdef.viewangles, fwd, rgt, top);
   for(int k=0;k<3;k++) p_cam[k]   = r_refdef.vieworg[k];
   for(int k=0;k<3;k++) p_cam[4+k] = fwd[k];
+  for(int k=0;k<3;k++) p_cam[8+k] = top[k];
 #endif
 }
 
@@ -647,13 +1056,15 @@ int read_source(
     // temp entities are in visedicts already
     // for (int i=0; i<cl_max_edicts; i++)
       // add_geo(cl_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
+    add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     p->node->flags |= s_module_request_read_source; // request again
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     uint32_t vtx_cnt = 0, idx_cnt = 0;
     add_geo(cl_entities+0, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    p->node->flags &= ~s_module_request_read_source; // done uploading static extra data
+    if(qs_data.worldspawn) p->node->flags |= s_module_request_read_source; // request again
+    else p->node->flags &= ~s_module_request_read_source; // done uploading static extra data
   }
 
   return 0;
@@ -677,13 +1088,34 @@ int read_geo(
       add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     // for (int i=0; i<cl_max_edicts; i++)
       // add_geo(cl_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+    idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+    idx_cnt = MAX(3, idx_cnt);
+    p->node->rt.vtx_cnt = vtx_cnt;
+    p->node->rt.tri_cnt = idx_cnt / 3;
+    if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+#if 0 // debug: quake aabb are in +-4096
+    float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
+    for(int i=0;i<vtx_cnt;i++) 
+    {
+      aabb[0] = MIN(aabb[0], p->vtx[3*i+0]);
+      aabb[1] = MIN(aabb[1], p->vtx[3*i+1]);
+      aabb[2] = MIN(aabb[2], p->vtx[3*i+2]);
+      aabb[3] = MAX(aabb[3], p->vtx[3*i+0]);
+      aabb[4] = MAX(aabb[4], p->vtx[3*i+1]);
+      aabb[5] = MAX(aabb[5], p->vtx[3*i+2]);
+    }
+    fprintf(stderr, "XXX static geo bounds %g %g %g -- %g %g %g\n",
+        aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
+#endif
   }
   // fprintf(stderr, "[read_geo '%"PRItkn"']: vertex count %u index count %u\n", dt_token_str(p->node->kernel), vtx_cnt, idx_cnt);
   return 0;
@@ -697,60 +1129,28 @@ create_nodes(
   qs_data_t *d = module->data;
 
   // ray tracing kernel:
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_rt = graph->num_nodes++;
-  graph->node[id_rt] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
-    .kernel = dt_token("main"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 9,
-    .connector = {{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    },{
-      .name   = dt_token("stcgeo"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("dyngeo"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("tex"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("*"),
-      .format = dt_token("*"),
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("blue"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("*"),
-      .format = dt_token("*"),
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("aov"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-    .push_constant = { d->first_skybox },
-    .push_constant_size = sizeof(uint32_t),
-  };
+  int id_rt = dt_node_add(graph, module, "quake", "main", 
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
+      "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
+      "stcgeo",   "read",  "ssbo", "geo",  -1ul,                      // 1
+      "dyngeo",   "read",  "ssbo", "geo",  -1ul,                      // 2
+      "tex",      "read",  "*",    "*",    -1ul,                      // 3
+      "blue",     "read",  "*",    "*",    -1ul,                      // 4
+      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 5
+      "nee_in",   "read",  "rgba", "ui32", -1ul,                      // 6
+      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 7
+      "mv",       "read",  "rg",   "f16",  -1ul,                      // 8
+      "gbuf_in",  "read",  "rgba", "f32",  -1ul,                      // 9
+      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 10
+      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 11
+      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 12
+  graph->module[id_rt].connector[ 7].flags |= s_conn_clear;
+  graph->module[id_rt].connector[10].flags |= s_conn_clear;
+
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_tex = graph->num_nodes++;
   graph->node[id_tex] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("tex"),
     .module = module,
     .wd     = 1,
@@ -800,7 +1200,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_dyngeo = graph->num_nodes++;
   graph->node[id_dyngeo] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("dyngeo"),
     .module = module,
     .wd     = 1,
@@ -833,7 +1233,7 @@ create_nodes(
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_stcgeo = graph->num_nodes++;
   graph->node[id_stcgeo] = (dt_node_t) {
-    .name   = dt_token("i-quake"),
+    .name   = dt_token("quake"),
     .kernel = dt_token("stcgeo"),
     .module = module,
     .wd     = 1,
@@ -859,9 +1259,15 @@ create_nodes(
   CONN(dt_node_connect(graph, id_tex, 0, id_rt, 3));
   CONN(dt_node_connect(graph, id_stcgeo, 0, id_rt, 1));
   CONN(dt_node_connect(graph, id_dyngeo, 0, id_rt, 2));
-  dt_connector_copy(graph, module, 0, id_rt, 0); // wire output buffer
-  dt_connector_copy(graph, module, 1, id_rt, 4); // wire blue noise input
-  dt_connector_copy(graph, module, 2, id_rt, 5); // output aov image
+  CONN(dt_node_feedback(graph, id_rt,  7, id_rt, 6)); // nee cache
+  CONN(dt_node_feedback(graph, id_rt, 10, id_rt, 9)); // gbuf
+  dt_connector_copy(graph, module, 0, id_rt,  0); // wire output buffer
+  dt_connector_copy(graph, module, 1, id_rt,  4); // wire blue noise input
+  dt_connector_copy(graph, module, 2, id_rt,  5); // output aov image
+  dt_connector_copy(graph, module, 3, id_rt,  8); // motion vectors from outside
+  dt_connector_copy(graph, module, 4, id_rt, 10); // gbuf output (n, d, mu_1, mu_2)
+  dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
+  // dt_connector_copy(graph, module, 6, id_rt, 12); // feedback old framebuffer
 
   // propagate up so things will start to move at all at the node level:
   module->flags = s_module_request_read_geo | s_module_request_read_source;
@@ -876,11 +1282,13 @@ int audio(
   qs_data_t *dat = mod->data;
   if(dat->worldspawn)
   {
-    mod->flags = s_module_request_all;
-    dat->worldspawn = 0;
+    mod->graph->gui_msg = 0;
+    mod->flags = s_module_request_all; // TODO: move somewhere else so we can run without audio (from cmdline!). needs to be picked up though!
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
+    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
+    dat->worldspawn = 0;
   }
   int buffersize = shm->samples * (shm->samplebits / 8);
   int pos = (shm->samplepos * (shm->samplebits / 8));
@@ -891,6 +1299,7 @@ int audio(
   static double oldtime = 0.0;
   double time = Sys_DoubleTime();
   double newtime = time;
+  if(newtime > oldtime + 30.0/60.0) oldtime = 0.0;
   if(oldtime == 0.0)
     oldtime = newtime - 1.0/60.0; // assume some fps
   // compute number of samples and then bytes required for this timeslot
@@ -899,7 +1308,7 @@ int audio(
   { // clipped at buffer end?
     shm->samplepos = 0;    // wrap around
     len = 4*(tobufend/4);  // clip number of samples we send to multiple of bytes/sample
-    newtime = ((double)len) / (shm->samplebits / 8) / shm->speed + oldtime; // also clip time
+    newtime = ((double)len) / shm->channels / (shm->samplebits / 8) / shm->speed + oldtime; // also clip time
   }
   else shm->samplepos += len / (shm->samplebits / 8);
   oldtime = newtime;

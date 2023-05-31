@@ -860,7 +860,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
                 graph, node, c, &graph->heap, 0, f, k));
       else
       { // in case of dynamic allocation, reserve a protected block and wait until later
-        c->array_mem = dt_vkalloc_feedback(&graph->heap, c->array_alloc_size, 0x1000);
+        c->array_mem = dt_vkalloc_feedback(&graph->heap, c->array_alloc_size, 0x10000); // this is shit and should probably get a fake alignment value for a fake image. amd requires this large one, nvidia can do one 0 less
         c->array_alloc = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }
@@ -1389,7 +1389,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 
     // if this is the main input of the graph, remember the img_param
     // globally, so others can pick up maker/model:
-    if(module->inst == dt_token("main") && !strncmp(dt_token_str(module->name), "i-", 2))
+    if(module->inst == dt_token("main") && dt_connector_output(module->connector))
       graph->main_img_param = module->img_param;
   }
   else
@@ -2707,8 +2707,10 @@ VkResult dt_graph_run(
         graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
   }
   if(graph->query_cnt)
-    dt_log(s_log_perf, "total time:\t%8.3f ms",
-        (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds);
+  {
+    graph->query_last_frame_duration = (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
+    dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query_last_frame_duration);
+  }
   // reset run flags:
   graph->runflags = 0;
   return VK_SUCCESS;

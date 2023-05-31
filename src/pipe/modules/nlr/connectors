@@ -1,0 +1,6 @@
+mv:read:rg:f16
+input:read:*:*
+albedo:read:*:*
+output:write:rgba:f16
+gbufp:read:rgba:f32
+gbufc:read:rgba:f32

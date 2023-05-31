@@ -81,7 +81,7 @@ main()
   // corner and edge cases don't get interpolated, sorry:
   if((offx > -2 || offx < 2 || offy > -2 || offy < 2) &&
      // (push.it <= 1)) // only refine finest two levels, others not stable enough
-     (push.it == 0)) // only refine very las time
+     (push.it == 0)) // only refine very last time
   { // internal coordinate, we have a surrounding set of points
     // find sub-pixel minimum by fitting a presumably positive semi definite
     // quadratic polynomial to the 2d field. this follows hasinoff [2016] sec 4
@@ -137,8 +137,7 @@ main()
     // make A positive semi definite if it's not yet:
     A[0] = max(0.0, A[0]);
     A[3] = max(0.0, A[3]);
-    float detA = A[0]*A[3] - A[1]*A[2];
-    if(detA < 0.0) A[1] = A[2] = 0.0;
+    if(A[0]*A[3] - A[1]*A[2] < 1e-3) A[1] = A[2] = 0.0;
 #endif
 
     // now transform the 1/2xAx + bx + c form to
@@ -158,6 +157,7 @@ main()
           (A[0] * b[1] - A[2]*b[0])/detA);
       res1.xy -= clamp(mu, vec2(-1), vec2(1));
     }
+    // else res1.xy = vec2(0); // happens all the time :(
   }
 #endif
 

@@ -1,0 +1,207 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+
+//#define ALPHA 0.5
+#define ALPHA mix(0.25, 0.05, smoothstep(0, 16, i))
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float alpha;
+  float taa;
+  float lalpha;
+  float sigma_v;
+  float power;
+  float sigma_n;
+  float sigma_n_min;
+  float sigma_d;
+  int   steps;
+} params;
+
+// layout(push_constant, std140) uniform push_t
+// { } push;
+
+layout(set = 1, binding = 0) uniform sampler2D img_lo;          // lo res input
+layout(set = 1, binding = 1) uniform sampler2D img_gbuf_lo;     // lo res gbuffer
+layout(set = 1, binding = 2) uniform writeonly image2D img_out; // hi res output
+
+vec3 sigmoid(vec3 x) {
+  return 1.0 / (1.0 + exp(-x));
+}
+float sigmoid(float x) {
+  return 1.0 / (1.0 + exp(-x));
+}
+vec3 sigmoid_inv(vec3 x)
+{
+  vec3 x2 = clamp(x, 0.000001, 0.9999999);
+  return log(x2) - log(1.0 - x2);
+}
+vec3 WdotX(vec3 WL[3], vec3 WR[3], vec3 phiL, vec3 phiR)
+{
+  return vec3(dot(phiL, WL[0]), dot(phiL, WL[1]), dot(phiL, WL[2]))
+       + vec3(dot(phiR, WR[0]), dot(phiR, WR[1]), dot(phiR, WR[2]));
+}
+
+void
+dErrdW(
+    vec3 WL[3], vec3 WR[3],   // model parameters
+    vec4 y[9],                // 3x3 environment values
+    vec3 fmin, vec3 fmax,     // min and max of y
+    out vec3 dEdWL[3], out vec3 dEdWR[3]) // output derivative
+{
+  dEdWL[0] = dEdWL[1] = dEdWL[2] = vec3(0);
+  dEdWR[0] = dEdWR[1] = dEdWR[2] = vec3(0);
+
+  const vec3 phixR[9] = {
+    vec3(-1, 1,1), vec3(0, 1,1), vec3(1, 1,1),
+    vec3(-1, 0,1), vec3(0, 0,1), vec3(1, 0,1),
+    vec3(-1,-1,1), vec3(0,-1,1), vec3(1,-1,1),
+  };
+
+#ifdef LINEAR
+  const vec3 phixL[9] = {
+    vec3(0), vec3(0), vec3(0),
+    vec3(0), vec3(0), vec3(0),
+    vec3(0), vec3(0), vec3(0),
+  };
+#else
+  const vec3 phixL[9] = {
+    vec3(1,1,-1), vec3(0,1,0), vec3(1,1, 1),
+    vec3(1,0, 0), vec3(0,0,0), vec3(1,0, 0),
+    vec3(1,1, 1), vec3(0,1,0), vec3(1,1,-1),
+  };
+#endif
+
+  for (int i=0;i<9;i++)
+  {
+    vec3 qx = vec3(dot(phixL[i], WL[0]), dot(phixL[i], WL[1]), dot(phixL[i], WL[2]))
+            + vec3(dot(phixR[i], WR[0]), dot(phixR[i], WR[1]), dot(phixR[i], WR[2]));
+    vec3 qs = mix(fmin, fmax, sigmoid(qx));
+
+    vec3 expq = exp(qx);
+    vec3 e2 = (expq + 1) * (expq + 1);
+    float weight = /*weights[i % 3] * weights[int(i / 3)] */ y[i].w;
+#ifdef MAE
+    vec3 f = weight * sign(qs - y[i].rgb) * expq / e2 * (fmax - fmin) / float(9);
+#else
+    vec3 f = weight * 2.0 * (qs - y[i].rgb) * expq / e2 * (fmax - fmin) / float(9);
+#endif
+    dEdWL[0] += f.x * phixL[i];
+    dEdWL[1] += f.y * phixL[i];
+    dEdWL[2] += f.z * phixL[i];
+
+    dEdWR[0] += f.x * phixR[i];
+    dEdWR[1] += f.y * phixR[i];
+    dEdWR[2] += f.z * phixR[i];
+  }
+}
+
+void
+adam_step(
+    inout vec3 WL[3], inout vec3 WR[3],
+    inout vec3 mL[3], inout vec3 mR[3],
+    inout vec3 vL[3], inout vec3 vR[3],
+    vec3 dEdWL[3],    vec3 dEdWR[3],
+    float alpha, // learning rate
+    float t)     // iteration
+{
+	const float eps = 1e-8;
+	const float beta1 = 0.5;
+	const float beta2 = 0.7;
+
+	for (int i = 0; i < 3; ++i)
+  {
+		mL[i] = mix(mL[i], dEdWL[i], beta1);
+		mR[i] = mix(mR[i], dEdWR[i], beta1);
+
+		vL[i] = mix(vL[i], dEdWL[i] * dEdWL[i], beta2);
+		vR[i] = mix(vR[i], dEdWR[i] * dEdWR[i], beta2);
+
+		vec3 mdL = mL[i] / (1 - pow(beta1, t));
+		vec3 mdR = mR[i] / (1 - pow(beta1, t));
+
+		vec3 vdL = vL[i] / (1 - pow(beta2, t));
+		vec3 vdR = vR[i] / (1 - pow(beta2, t));
+    WL[i] = WL[i] - alpha * mdL / sqrt(vdL + eps);
+    WR[i] = WR[i] - alpha * mdR / sqrt(vdR + eps);
+	}
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec4 val[9];
+  const int r=1;
+  vec2 nd0 = texture(img_gbuf_lo, (ipos+0.5)/textureSize(img_gbuf_lo, 0)).rg;
+  vec3 n0 = geo_decode_normal(floatBitsToUint(nd0.x));
+  vec3 fmin = vec3(1000.0), fmax = vec3(-1000.0), mean = vec3(0.0);
+  float w_sum = 0.0;
+  for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)
+  {
+    vec4 lo = texture(img_lo,      (ipos+0.5+ivec2(i,j))/textureSize(img_lo, 0));
+    vec2 nd = texture(img_gbuf_lo, (ipos+0.5+ivec2(i,j))/textureSize(img_gbuf_lo, 0)).rg;
+    vec3 n = geo_decode_normal(floatBitsToUint(nd.x));
+    float w = 1.0;
+    w *= pow(max(0.0, dot(n, n0)), params.sigma_n);
+    w *= exp(-length(nd0.y - nd.y) * params.sigma_d);
+    val[i+r+(j+r)*3] = vec4(lo.rgb, w);
+    fmin = min(fmin, lo.rgb);
+    fmax = max(fmax, lo.rgb);
+    mean += lo.rgb * w;
+    w_sum += w;
+  }
+	mean /= max(1e-4, w_sum);
+	vec3 epsilon = 0.05 * (fmax - fmin);
+	fmin -= epsilon;
+	fmax += epsilon;
+
+	vec3 WL[3], WR[3];
+	WL[0] = WL[1] = WL[2] = vec3(0.0);
+
+	vec3 invC = sigmoid_inv((mean - fmin) / (fmax - fmin));
+	WR[0] = vec3(0, 0, invC.x);
+	WR[1] = vec3(0, 0, invC.y);
+	WR[2] = vec3(0, 0, invC.z);
+
+	vec3 dEdWL[3], dEdWR[3];
+	vec3 mL[3], mR[3];
+	vec3 vL[3], vR[3];
+
+	for (int i = 0; i < params.steps; ++i)
+  {
+		dErrdW(WL, WR, val, fmin, fmax, dEdWL, dEdWR);
+		if (i == 0) {
+			mL[0] = dEdWL[0]; mL[1] = dEdWL[1]; mL[2] = dEdWL[2];
+			mR[0] = dEdWR[0]; mR[1] = dEdWR[1]; mR[2] = dEdWR[2];
+			vL[0] = mL[0] * mL[0]; vL[1] = mL[1] * mL[1]; vL[2] = mL[2] * mL[2];
+			vR[0] = mR[0] * mR[0]; vR[1] = mR[1] * mR[1]; vR[2] = mR[2] * mR[2];
+		}
+		adam_step(WL, WR, mL, mR, vL, vR, dEdWL, dEdWR, ALPHA, i + 1);
+	}
+
+  const vec3 phiUR[4] = {
+    vec3(-0.25, 0.25,1), vec3(0.25, 0.25,1),
+    vec3(-0.25,-0.25,1), vec3(0.25,-0.25,1)
+  };
+  const vec3 phiUL[4] = {
+    vec3(0.125,0.125,-0.125), vec3(0.125,0.125,0.125),
+    vec3(0.125,0.125, 0.125), vec3(0.125,0.125,-0.125)
+  };
+	vec3 total0 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[0], phiUR[0]))), fmin + epsilon, fmax - epsilon);
+	vec3 total1 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[1], phiUR[1]))), fmin + epsilon, fmax - epsilon);
+	vec3 total2 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[2], phiUR[2]))), fmin + epsilon, fmax - epsilon);
+	vec3 total3 = clamp(mix(fmin, fmax, sigmoid(WdotX(WL, WR, phiUL[3], phiUR[3]))), fmin + epsilon, fmax - epsilon);
+
+  imageStore(img_out, 2*ipos+ivec2(0, 0), vec4(total0, 1.0));
+  imageStore(img_out, 2*ipos+ivec2(1, 0), vec4(total1, 1.0));
+  imageStore(img_out, 2*ipos+ivec2(0, 1), vec4(total2, 1.0));
+  imageStore(img_out, 2*ipos+ivec2(1, 1), vec4(total3, 1.0));
+}
+
