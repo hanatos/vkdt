@@ -2130,6 +2130,7 @@ VkResult dt_graph_run(
       graph->node[i].draw_render_pass = 0;
       dt_raytrace_node_cleanup    (graph->node + i);
     }
+    dt_raytrace_graph_cleanup(graph);
     graph->num_nodes = 0;
     // we need two uint32, alignment is 64 bytes
     graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
