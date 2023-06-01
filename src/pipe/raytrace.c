@@ -440,7 +440,7 @@ dt_raytrace_record_command_buffer_accel_build(
     .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
   };
   vkCmdPipelineBarrier(graph->command_buffer,
-      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
       0, 1, &barrier, 0, NULL, 0, NULL);
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer, rebuild_cnt, build_info, p_build_range);
