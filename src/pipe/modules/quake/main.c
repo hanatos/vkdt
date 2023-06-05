@@ -941,6 +941,7 @@ void commit_params(
       {
         p[0] = 0;
         Cmd_ExecuteString(q, src_command);
+        Host_Frame(1.0/60.0); // this is required so some stuff is picked up (like sprite spawning for 'game ad' changes)
         q = ++p;
       }
       if(q[0]) Cmd_ExecuteString(q, src_command);
