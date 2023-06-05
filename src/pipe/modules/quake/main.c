@@ -237,7 +237,7 @@ void cleanup(dt_module_t *mod)
   // qs_data_t *d = mod->data;
   // free(d);
   // i don't think quake does any cleanup
-  // TODO: make sure at least our params struct is cleaned up
+  qs_data.worldspawn = 1; // re-init next time
   mod->data = 0;
 }
 
