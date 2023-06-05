@@ -83,13 +83,6 @@ int init(dt_module_t *mod)
   char *argv[] = {"quakespasm",
     "-basedir", "/usr/share/games/quake",
     "+skill", "2",
-    "+map", "e1m1",
-    "-game", "ad",
-    "-game", "SlayerTest", // needs different particle rules! also overbright and lack of alpha?
-    "+map", "e1m2b",
-    "+map", "ep1m1",
-    "+map", "e1m1b",
-    "+map", "st1m1",
   };
   int argc = 5;
 
@@ -104,15 +97,6 @@ int init(dt_module_t *mod)
   Sys_Init();
 
   d->parms.memsize = 256 * 1024 * 1024; // qs default in 0.94.3
-#if 0
-  if (COM_CheckParm("-heapsize"))
-  {
-    int t = COM_CheckParm("-heapsize") + 1;
-    if (t < com_argc)
-      d->parms.memsize = Q_atoi(com_argv[t]) * 1024;
-  }
-#endif
-
   d->parms.membase = malloc (d->parms.memsize);
 
   if (!d->parms.membase)
@@ -906,8 +890,7 @@ void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // could print these interesting messages from the map:
-  // fprintf(stderr, con_lastcenterstring);
+  // print these interesting messages from the map:
   graph->gui_msg = con_lastcenterstring;
   qs_data_t *d = module->data;
   int sv_player_set = 0;
@@ -923,13 +906,6 @@ void commit_params(
     // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
   }
 
-  // in quake, run `record <demo name>` until `stop`
-  // if(graph->frame == 0) Cmd_ExecuteString("playdemo mydemo2", src_command); // 3000 frames
-  // if(graph->frame == 0) Cmd_ExecuteString("playdemo rotatingarmour", src_command); // 400 frames
-  // if(graph->frame == 0) Cmd_ExecuteString("playdemo mlt-noise", src_command); // 3000 frames
-  // if(graph->frame == 0) Cmd_ExecuteString("playdemo demos/e1m2", src_command); // qdq ~2000 frames
-  // if(graph->frame == 0) Cmd_ExecuteString("playdemo sparks", src_command); // e1m6 sparkly lights, 2000 frames
-  // if(graph->frame == 0) Cmd_ExecuteString("playdemo caustics", src_command); // ad_tears underwater caustics 1000 frames
   if(graph->frame == 0)
   { // careful to only do this at == 0 so sv_player (among others) will not crash
     const char *p_exec = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("exec")));
@@ -952,18 +928,6 @@ void commit_params(
   // hijacked for performance counter rendering
   float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
   p_duration[0] = graph->query_last_frame_duration;
-
-  if(graph->frame == 10)
-  { // to test rocket illumination etc:
-    // TODO: execute config file name
-    // Cmd_ExecuteString("developer 1", src_command);
-    // Cmd_ExecuteString("bind \"q\" \"impulse 9 ; wait ; impulse 255\"", src_command);
-    Cmd_ExecuteString("bind \"q\" \"impulse 9;give health 666\"", src_command);
-    // Cmd_ExecuteString("god", src_command);
-    // Cmd_ExecuteString("notarget", src_command);
-    // Cmd_ExecuteString("r_vis 0", src_command);
-    // sv_player_set = 0; // if you're doing messy things above
-  }
 
   // set sv_player. this has to be done if we're not calling Host_Frame after a map reload
   client_t *host_client = svs.clients;
@@ -1027,18 +991,14 @@ int read_source(
 {
   qs_data_t *d = mod->data;
 
-  // fprintf(stderr, "[read_source '%"PRItkn"'] uploading source %d\n", dt_token_str(p->node->kernel), p->a);
-
   if(p->node->kernel == dt_token("tex") && p->a < d->tex_cnt)
   { // upload texture array
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
-    // p->node->connector[0].array_length = d->tex_cnt; // truncate to our current texture count
   }
   else if(p->node->kernel == dt_token("dyngeo"))
-  {
-    // FIXME: uploading this stuff is like 3x as expensive as uploading the geo for it!
+  { // uploading this stuff is like 3x as expensive as uploading the geo for it!
     uint32_t vtx_cnt = 0, idx_cnt = 0;
     // XXX TODO
     // ent is the player model (visible when out of body)
@@ -1268,13 +1228,11 @@ create_nodes(
   dt_connector_copy(graph, module, 3, id_rt,  8); // motion vectors from outside
   dt_connector_copy(graph, module, 4, id_rt, 10); // gbuf output (n, d, mu_1, mu_2)
   dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
-  // dt_connector_copy(graph, module, 6, id_rt, 12); // feedback old framebuffer
 
   // propagate up so things will start to move at all at the node level:
   module->flags = s_module_request_read_geo | s_module_request_read_source;
 }
 
-#if 1
 int audio(
     dt_module_t  *mod,
     const int     frame,
@@ -1315,4 +1273,3 @@ int audio(
   oldtime = newtime;
   return len/4; // return number of samples (compute from byte size /4: stereo and 16 bit)
 }
-#endif
