@@ -43,7 +43,7 @@ vkdt cli -g examples/quake.cfg --format o-ffmpeg --filename qu.vid --audio qu.au
 ffmpeg -i qu.vid_0001.h264 -f s16le -sample_rate 44100 -channels 2  -i qu.aud \
   -c:v copy quake.mp4
 ```
-(add `-r 60` to resample for different frame rate)
+(add `-r 60` before `-i`to resample for different frame rate)
 (replace `-c:v copy` by `-vcodec libx264 -crf 27 -preset veryfast` for compression)
 
 you probably want to use the [`svgf` module](../svgf/readme.md) to remodulate
