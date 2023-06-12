@@ -48,7 +48,7 @@ dt_image_zoom(
   }
   else if(w->scale >= 1.0f)
   {
-    w->scale *= 2.0f;
+    w->scale = MIN(w->scale * 2.0f, 8.0f);
     const float dscale = 1.0f/scale - 1.0f/w->scale;
     w->look_at_x += im_x * dscale;
     w->look_at_y += im_y * dscale;
