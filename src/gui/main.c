@@ -315,6 +315,8 @@ int main(int argc, char *argv[])
   if(joystick_present) pthread_create(&joystick_thread, 0, joystick_active, 0);
 
   // main loop
+  double beg_rf = dt_time();
+  const int frame_limiter = dt_rc_get_int(&vkdt.rc, "gui/frame_limiter", 0);
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   while(!glfwWindowShouldClose(qvk.window))
@@ -332,11 +334,18 @@ int main(int argc, char *argv[])
     // should probably consider this instead:
     // https://github.com/bvgastel/imgui/commits/imgui-2749
     glfwWaitEvents();
+    if(frame_limiter)
+    { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
+      double end_rf = dt_time();
+      if(end_rf - beg_rf < frame_limiter / 1000.0)
+      {
+        usleep(frame_limiter * 1000);
+        continue;
+      }
+      beg_rf = end_rf;
+    }
 
-    // clock_t beg_rf = clock();
     dt_gui_render_frame_imgui();
-    // clock_t end_rf  = clock();
-    // dt_log(s_log_perf, "ui time %2.3fs", (end_rf - beg_rf)/(double)CLOCKS_PER_SEC);
 
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
