@@ -162,9 +162,11 @@ darkroom_process()
     start_time = (struct timespec){0};
   }
 
+  int reset_view = vkdt.graph_dev.runflags == s_graph_run_all;
   if(vkdt.graph_dev.runflags)
     vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
+  if(reset_view) dt_image_reset_zoom(&vkdt.wstate.img_widget); // roi may have changed. too often? maybe need to check roi dimensions
 
   if(vkdt.state.anim_playing && advance)
   { // new frame for animations need new audio, too
