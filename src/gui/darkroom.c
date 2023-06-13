@@ -162,11 +162,23 @@ darkroom_process()
     start_time = (struct timespec){0};
   }
 
-  int reset_view = vkdt.graph_dev.runflags == s_graph_run_all;
+  int reset_view = 0;
+  dt_roi_t old_roi;
+  if(vkdt.graph_dev.runflags & s_graph_run_roi)
+  {
+    reset_view = 1;
+    dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+    if(md) old_roi = md->connector[0].roi;
+  }
   if(vkdt.graph_dev.runflags)
     vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
-  if(reset_view) dt_image_reset_zoom(&vkdt.wstate.img_widget); // roi may have changed. too often? maybe need to check roi dimensions
+  if(reset_view)
+  {
+    dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+    if(md && memcmp(&old_roi, &md->connector[0].roi, sizeof(dt_roi_t))) // did the output roi change?
+      dt_image_reset_zoom(&vkdt.wstate.img_widget);
+  }
 
   if(vkdt.state.anim_playing && advance)
   { // new frame for animations need new audio, too
