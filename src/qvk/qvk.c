@@ -59,7 +59,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_3,
+  .apiVersion         = VK_API_VERSION_1_2,
 };
 
 static void
@@ -430,14 +430,16 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .samplerYcbcrConversion = 1,
     .pNext                  = &atomic_features,
   };
-  VkPhysicalDeviceMaintenance4Features maintenance4 = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
-    .pNext = &v11f,
-  };
+  // vk 1.3 stuff:
+  // VkPhysicalDeviceMaintenance4Features maintenance4 = {
+  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
+  //   .pNext = &v11f,
+  // };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = &maintenance4,
+    // .pNext    = &maintenance4,
+    .pNext = &v11f,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
