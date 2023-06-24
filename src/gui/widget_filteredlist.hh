@@ -6,6 +6,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// just wraps imgui but sets the viewport to the existing one.
+// avoids swapchain recomputation and issues with tiling window managers.
+inline void
+dt_gui_set_tooltip(const char *fmt, ...)
+{
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+  va_list args;
+  va_start(args, fmt);
+  ImGui::SetTooltipV(fmt, args);
+  va_end(args);
+}
+
+
 // load a one-linear heading from the readme.md file in the
 
 static inline char*
@@ -71,7 +84,7 @@ filteredlist(
   if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
     ok = 1;
   if(ImGui::IsItemHovered())
-    ImGui::SetTooltip(
+    dt_gui_set_tooltip(
         "type to filter the list\n"
         "press enter to apply top item\n"
         "press escape to close");

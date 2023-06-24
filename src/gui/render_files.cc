@@ -143,7 +143,7 @@ void render_files()
             pclose(f); // TODO: if(.) need to refresh the list
           }
         }
-        if(ImGui::IsItemHovered()) ImGui::SetTooltip(red ? "click to unmount" : "click to mount");
+        if(ImGui::IsItemHovered()) dt_gui_set_tooltip(red ? "click to unmount" : "click to mount");
         if(red)
         {
           ImGui::PopStyleColor(2);
@@ -151,7 +151,7 @@ void render_files()
           ImGui::PushID(i);
           if(ImGui::Button("go to mountpoint", ImVec2(-1,0)))
             set_cwd(mountpoint[i], 0);
-          if(ImGui::IsItemHovered()) ImGui::SetTooltip("%s", mountpoint[i]);
+          if(ImGui::IsItemHovered()) dt_gui_set_tooltip("%s", mountpoint[i]);
           ImGui::PopID();
         }
       }
@@ -174,7 +174,7 @@ void render_files()
       if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
       if(ImGui::InputText("pattern", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("destination directory pattern. expands the following:\n"
+        dt_gui_set_tooltip("destination directory pattern. expands the following:\n"
                           "${home} - home directory\n"
                           "${date} - YYYYMMDD date\n"
                           "${yyyy} - four char year\n"
@@ -182,7 +182,7 @@ void render_files()
       static char dest[20];
       ImGui::InputText("dest", dest, sizeof(dest));
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip(
+        dt_gui_set_tooltip(
             "enter a descriptive string to be used as the ${dest} variable when expanding\n"
             "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
             "`%s'", pattern);
@@ -214,7 +214,7 @@ void render_files()
               ImGui::SameLine();
               ImGui::Text("duplicate warning!");
               if(ImGui::IsItemHovered())
-                ImGui::SetTooltip("another job already has the current directory as source."
+                dt_gui_set_tooltip("another job already has the current directory as source."
                                   "it may still be running or be aborted or have finished already,"
                                   "but either way you may want to double check you actually want to"
                                   "start this again (and if so reset the job in question)");
@@ -235,7 +235,7 @@ void render_files()
             }
           }
           if(ImGui::IsItemHovered())
-            ImGui::SetTooltip("copy contents of %s\nto %s,\n%s",
+            dt_gui_set_tooltip("copy contents of %s\nto %s,\n%s",
                 filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
         }
         else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
@@ -243,7 +243,7 @@ void render_files()
           if(ImGui::Button("abort")) job[k].abort = 1;
           ImGui::SameLine();
           ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
-          if(ImGui::IsItemHovered()) ImGui::SetTooltip("copying %s to %s", job[k].src, job[k].dst);
+          if(ImGui::IsItemHovered()) dt_gui_set_tooltip("copying %s to %s", job[k].src, job[k].dst);
         }
         else
         { // done/aborted
@@ -251,7 +251,7 @@ void render_files()
           { // reset
             memset(job+k, 0, sizeof(copy_job_t));
           }
-          if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+          if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
               job[k].abort == 1 ? "copy from %s aborted by user. click to reset" :
              (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
               "copy from %s done. click to reset"),
@@ -266,7 +266,7 @@ void render_files()
               memset(job+k, 0, sizeof(copy_job_t));
               dt_view_switch(s_view_lighttable);
             }
-            if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+            if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
                 "open %s in lighttable mode",
                 job[k].dst);
           }
@@ -296,13 +296,13 @@ void render_files()
       dt_gui_switch_collection(filebrowser.cwd);
       dt_view_switch(s_view_lighttable);
     }
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("open current directory in light table mode");
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("open current directory in light table mode");
     ImGui::SameLine();
     if(ImGui::Button("back to lighttable", ImVec2(bwd, 0)))
     {
       dt_view_switch(s_view_lighttable);
     }
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("return to lighttable mode without changing directory");
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("return to lighttable mode without changing directory");
     ImGui::End();
   }
 

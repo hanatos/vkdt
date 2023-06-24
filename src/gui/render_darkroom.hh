@@ -244,7 +244,7 @@ void render_darkroom_widget(int modid, int parid)
           }
           KEYFRAME
           if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
+            dt_gui_set_tooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
 
           ImGui::PopStyleColor(4);
           if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
@@ -454,7 +454,7 @@ void render_darkroom_widget(int modid, int parid)
           memcpy(vkdt.wstate.state, val, sizeof(float));
         }
         if(ImGui::IsItemHovered())
-          ImGui::SetTooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
+          dt_gui_set_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
       }
 
       // full manual control over parameter using the slider:
@@ -596,7 +596,7 @@ void render_darkroom_widget(int modid, int parid)
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
         if(ImGui::IsItemHovered())
-          ImGui::SetTooltip("automatically crop away black rims");
+          dt_gui_set_tooltip("automatically crop away black rims");
       }
       num = count;
       break;
@@ -815,7 +815,7 @@ void render_darkroom_widget(int modid, int parid)
         }
         KEYFRAME
         if(ImGui::IsItemHovered())
-          ImGui::SetTooltip("start drawing brush strokes with the mouse\n"
+          dt_gui_set_tooltip("start drawing brush strokes with the mouse\n"
               "scroll - fine tune radius\n"
               "ctrl scroll - fine tune hardness\n"
               "shift scroll - fine tune opacity\n"
@@ -926,7 +926,7 @@ void render_darkroom_widgets(
     }
     ImGui::PopFont();
     if(ImGui::IsItemHovered())
-      ImGui::SetTooltip(module->disabled ? "re-enable this module" :
+      dt_gui_set_tooltip(module->disabled ? "re-enable this module" :
           "temporarily disable this module without disconnecting it from the graph.\n"
           "this is just a convenience A/B switch in the ui and will not affect your\n"
           "processing history, lighttable thumbnail, or export.");
@@ -937,7 +937,7 @@ void render_darkroom_widgets(
     ImGui::PushFont(dt_gui_imgui_get_font(3));
     ImGui::Button("\ue15b", ImVec2(1.6*vkdt.wstate.fontsize, 0));
     ImGui::PopFont();
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
         "this module cannot be disabled automatically because\n"
         "it does not implement a simple input -> output chain");
     ImGui::SameLine();

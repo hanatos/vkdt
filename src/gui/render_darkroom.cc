@@ -282,13 +282,13 @@ abort:
 
     int action = 0;
     if(ImGui::Button("compress",  ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 1; // compress
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("rewrite history in a compact way");
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("rewrite history in a compact way");
     ImGui::SameLine();
     if(ImGui::Button("roll back", ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 2; // load previously stored cfg from disk
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("roll back to the state when entered darkroom mode");
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("roll back to the state when entered darkroom mode");
     ImGui::SameLine();
     if(ImGui::Button("reset",     ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 3; // load factory defaults
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("reset everything to factory defaults");
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("reset everything to factory defaults");
     if(action)
     {
       uint32_t imgid = dt_db_current_imgid(&vkdt.db);
@@ -500,7 +500,7 @@ abort:
             vkdt.graph_dev.runflags = s_graph_run_download_sink;
           }
           if(ImGui::IsItemHovered())
-            ImGui::SetTooltip("this is useful if an animated graph has output modules\n"
+            dt_gui_set_tooltip("this is useful if an animated graph has output modules\n"
                               "attached to it. for instance this allows you to trigger\n"
                               "writing of intermediate results of an optimisation from the gui.\n"
                               "only works when the animation is stopped.");

@@ -248,7 +248,7 @@ void render_nodes_right_panel()
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
       if(mod->so->has_inout_chain && ImGui::IsItemHovered())
-        ImGui::SetTooltip(mod->disabled ? "re-enable this module" :
+        dt_gui_set_tooltip(mod->disabled ? "re-enable this module" :
             "temporarily disable this module without disconnecting it from the graph.\n"
             "this is just a convenience A/B switch in the ui and will not affect your\n"
             "processing history, lighttable thumbnail, or export.");
@@ -259,7 +259,7 @@ void render_nodes_right_panel()
         dt_gui_dr_disconnect_module(sel_node_id[i]);
       }
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("disconnect all connectors of this module, try to\n"
+        dt_gui_set_tooltip("disconnect all connectors of this module, try to\n"
                           "establish links to the neighbours directly where possible");
       if(ImGui::Button("remove module", ImVec2(-1, 0)))
       {
@@ -267,7 +267,7 @@ void render_nodes_right_panel()
         dt_gui_dr_remove_module(sel_node_id[i]);
       }
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("remove this module from the graph completely, try to\n"
+        dt_gui_set_tooltip("remove this module from the graph completely, try to\n"
                           "establish links to the neighbours directly where possible");
 
       if(ImGui::Button("insert block before this..", ImVec2(-1, 0)))

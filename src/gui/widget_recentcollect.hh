@@ -1,4 +1,5 @@
 #pragma once
+#include "api.hh"
 inline int
 recently_used_collections()
 {
@@ -20,7 +21,7 @@ recently_used_collections()
         ret = 1;
       }
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", dir);
+        dt_gui_set_tooltip("%s", dir);
       ImGui::PopStyleVar(1);
     }
   }

@@ -430,7 +430,7 @@ void render_lighttable_right_panel(int hotkey)
         dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("enter the responsible input module here, for instance\n"
+        dt_gui_set_tooltip("enter the responsible input module here, for instance\n"
                           "raw : raw files\n"
                           "jpg : jpg files\n"
                           "vid : video files\n"
@@ -529,7 +529,7 @@ void render_lighttable_right_panel(int hotkey)
     else
     {
       if(ImGui::Button("delete image[s]", size)) really_delete = 1;
-      if(ImGui::IsItemHovered()) ImGui::SetTooltip("will ask you again");
+      if(ImGui::IsItemHovered()) dt_gui_set_tooltip("will ask you again");
     }
 
     if(really_delete)
@@ -540,7 +540,7 @@ void render_lighttable_right_panel(int hotkey)
         dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
         really_delete = 0;
       }
-      if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+      if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
           "this button will physically delete the .cfg files of the selection.\n"
           "it will only delete the source image file if its filename is\n"
           "exacty the .cfg file name without the .cfg postfix.\n"
@@ -693,7 +693,7 @@ void render_lighttable_right_panel(int hotkey)
       }
     }
     ImGui::TextUnformatted(text, text_end);
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip("customise what is shown here in config.rc");
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("customise what is shown here in config.rc");
     ImGui::Unindent();
   } // end collapsing header "metadata"
 
@@ -717,7 +717,7 @@ void render_lighttable_right_panel(int hotkey)
       dt_rc_set_int(&vkdt.rc, "gui/export/ht", ht);
     if(ImGui::InputText("filename", basename, sizeof(basename)))
       dt_rc_set(&vkdt.rc, "gui/export/basename", basename);
-    if(ImGui::IsItemHovered()) ImGui::SetTooltip(
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
         "basename of exported files. the following will be replaced:\n"
         "${home} -- home directory\n"
         "${yyyy} -- current year\n"
@@ -749,7 +749,7 @@ void render_lighttable_right_panel(int hotkey)
         { // TODO: make sure we don't start a job that is already running in another job[.]
           export_job(job+k, overwrite_mode);
         }
-        if(ImGui::IsItemHovered()) ImGui::SetTooltip("export current selection");
+        if(ImGui::IsItemHovered()) dt_gui_set_tooltip("export current selection");
       }
       else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
       { // running
@@ -763,7 +763,7 @@ void render_lighttable_right_panel(int hotkey)
         { // reset
           memset(job+k, 0, sizeof(export_job_t));
         }
-        if(ImGui::IsItemHovered()) ImGui::SetTooltip("click to reset");
+        if(ImGui::IsItemHovered()) dt_gui_set_tooltip("click to reset");
       }
       ImGui::PopID();
     }
