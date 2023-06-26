@@ -32,7 +32,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[1] = module->img_param.noise_b;
   uint32_t *i = (uint32_t *)(f+2);
   i[0] = module->img_param.filters;
-  i[1] = module->img_param.black[1];
+  i[1] = MAX(1, module->img_param.black[1]);
   i[2] = module->img_param.white[1];
 }
 

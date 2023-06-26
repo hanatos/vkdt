@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "../core/core.h" // for MIN
+#include "../core/fs.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,50 @@ void modify_roi_in(
   r->wd = r->full_wd;
   r->ht = r->full_ht;
   r->scale = 1.0f;
+}
+
+void ui_callback(
+    dt_module_t *module,
+    dt_token_t   param)
+{
+  static char msg[128];
+  char filename[512];
+  snprintf(filename, sizeof(filename), "%s-%s-%d.nprof",
+      module->img_param.maker,
+      module->img_param.model,
+      (int)module->img_param.iso);
+  if(param == dt_token("test"))
+  { // transfer new noise profile parameters to i-raw:main for a test
+    FILE *f = fopen(filename, "rb");
+    if(f)
+    {
+      float a = 0.0f, b = 0.0f;
+      int num = fscanf(f, "%g %g", &a, &b);
+      if(num == 2)
+        for(int m=0;m<module->graph->num_modules;m++)
+          if(module->graph->module[m].name == dt_token("i-raw") && module->graph->module[m].inst == dt_token("main"))
+          { // TODO set with history?
+            dt_module_set_param_float(module->graph->module+m, dt_token("noise a"), a);
+            dt_module_set_param_float(module->graph->module+m, dt_token("noise b"), b);
+            snprintf(msg, sizeof(msg), "setting noise parameters %g %g\n", a, b);
+            module->graph->gui_msg = msg;
+            module->graph->runflags = s_graph_run_all;
+            break;
+          }
+      fclose(f);
+    }
+  }
+  else if(param == dt_token("install"))
+  { // install the new noise profile to ~/.config/vkdt/nprof/
+    char fhome[512];
+    snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
+    fs_dirname(fhome);
+    fs_mkdir(fhome, 0755);
+    snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
+    fs_copy(fhome, filename);
+    snprintf(msg, sizeof(msg), "installing noise profile to %s\n", fhome);
+    module->graph->gui_msg = msg;
+  }
 }
 
 // called after pipeline finished up to here.

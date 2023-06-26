@@ -1,0 +1,6 @@
+module:rawhist:np
+module:nprof:np
+module:display:view0
+connect:i-raw:main:output:rawhist:np:input
+connect:rawhist:np:output:display:view0:input
+connect:rawhist:np:data:nprof:np:input

@@ -269,7 +269,7 @@ void modify_roi_out(
   if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
   {
     char pname[512];
-    snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
+    snprintf(pname, sizeof(pname), "nprof/%s-%s-%d.nprof",
         mod->img_param.maker,
         mod->img_param.model,
         (int)mod->img_param.iso);
