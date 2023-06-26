@@ -44,7 +44,7 @@ dt_graph_init(dt_graph_t *g)
   g->module = calloc(sizeof(dt_module_t), g->max_modules);
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
-  dt_vkalloc_init(&g->heap, 8000, 1ul<<40); // bytesize doesn't matter
+  dt_vkalloc_init(&g->heap, 16000, 1ul<<40); // bytesize doesn't matter
   dt_vkalloc_init(&g->heap_ssbo, 8000, 1ul<<40);
   dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
   g->params_max = 16u<<20;

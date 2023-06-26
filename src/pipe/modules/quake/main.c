@@ -1135,7 +1135,7 @@ create_nodes(
       .array_dim    = d->tex_dim,
       .array_req    = d->tex_req,
       .flags        = s_conn_dynamic_array,
-      .array_alloc_size = 700<<20, // something enough for quake
+      .array_alloc_size = 1500<<20, // something enough for quake
     }},
   };
   // in case quake was already inited but we are called again to create nodes,
