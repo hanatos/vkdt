@@ -58,6 +58,19 @@ the crop window contribute to a good estimate of the gaussian portion. as a
 result i could pretty much use any shot i wanted to denoise out of the box for
 single-shot noise profiling, without the need for dedicated profiling shots.
 
+## convenience gui
+
+for quick and dirty profiling of single shots, `vkdt` supplies a preset:
+`noise-profile.pst`. apply this on the graph (press `ctrl-p` in darkroom or
+node editor view), it will add a raw histogram (`rawhist` module) as well as a
+noise profiling module `nprof`. this `nprof` module contains two buttons
+that allow you to test the newly created profile locally as well as install it
+for later automatic application in your home directory. the raw histogram
+can be used to inspect the quality of the profile as described above.
+
+you want to remove the `rawhist` module from the `i-raw` module after finishing
+the profiling process for performance reasons.
+
 ## contributing noise profiles
 
 if you created a good profile for your camera and want to share with others,
