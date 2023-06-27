@@ -211,7 +211,7 @@ prepare_material_info(
   vec3 b;
   b.yz = unpackHalf2x16(inter.opaque.uv);
   b.x = 1.0-b.z-b.y;
-  int i = 7*inter.opaque.primid;
+  nonuniformEXT int i = 7*inter.opaque.primid;
   vec3 n0, n1, n2;
   vec2 st0, st1, st2;
   bool brush_model = false;
@@ -242,9 +242,9 @@ prepare_material_info(
   else
   { // static geo
     brush_model = (stcssbo.v[i+1] == 0xffffffff);
-    m.mat   = 0;// XXX DEBUG  stcssbo.v[i+6]&0xfff;
+    m.mat   =  stcssbo.v[i+6]&0xfff;
     alpha   = (stcssbo.v[i+6]>>12)/15.0;
-    matfb   = 0;// XXX DEBUG (stcssbo.v[i+6]>>16) & 0xfff;
+    matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
     m.flags =  stcssbo.v[i+6]>>28;
     if(brush_model)
     {
@@ -263,21 +263,21 @@ prepare_material_info(
     st = mat3x2(st0, st1, st2) * b;
   }
   // more precise intersection point by using vertices + barycentrics
-  uint i0 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+0];
-  uint i1 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+1];
-  uint i2 = buf_idx[inter.opaque.instid].i[3*inter.opaque.primid+2];
+  uint i0 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+0)];
+  uint i1 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+1)];
+  uint i2 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+2)];
   vec3 v0 = vec3(
-      buf_vtx[inter.opaque.instid].v[3*i0+0],
-      buf_vtx[inter.opaque.instid].v[3*i0+1],
-      buf_vtx[inter.opaque.instid].v[3*i0+2]);
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+0],
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+1],
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+2]);
   vec3 v1 = vec3(
-      buf_vtx[inter.opaque.instid].v[3*i1+0],
-      buf_vtx[inter.opaque.instid].v[3*i1+1],
-      buf_vtx[inter.opaque.instid].v[3*i1+2]);
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+0],
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+1],
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+2]);
   vec3 v2 = vec3(
-      buf_vtx[inter.opaque.instid].v[3*i2+0],
-      buf_vtx[inter.opaque.instid].v[3*i2+1],
-      buf_vtx[inter.opaque.instid].v[3*i2+2]);
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+0],
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+1],
+      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+2]);
   m.c.x = mat3(v0, v1, v2) * b;
   m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
   m.c.ng = normalize(cross(v2-v0,v1-v0));
@@ -320,7 +320,9 @@ prepare_material_info(
           st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
           st.y + 0.2*sin(st.x*2.0 + params.cl_time * 1.0));
     }
-#if 0
+#if 1
+    m.mat = 23;//220;//2 + (global.frame & 3);//220;//m.mat & 15; // XXX
+    matfb = m.mat;//m.mat;//matfb & 15; // XXX
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
     m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
@@ -328,8 +330,11 @@ prepare_material_info(
     m.emission = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0).rgb : vec3(0.0);
     m.emission *= m.emission;
 #else // XXX DEBUG
-    m.albedo = vec3(st, 0.1); // XXX DEBUG
-    m.emission = b;//vec3(st, 0.01);
+    // ivec2 tc = ivec2(textureSize(img_blue, 0)*mod(st, vec2(1.0)));
+    // tc = clamp(tc, ivec2(0), textureSize(img_blue, 0)-1);
+    m.albedo = texture(img_blue, b.xy).rgb;
+    // m.albedo = texture(img_tex[0], b.xy).rgb;
+    m.emission = m.albedo*m.albedo;//vec3(st, 0.01);
 #endif
   }
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava

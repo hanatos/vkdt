@@ -314,11 +314,11 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
     qs_data.tex_blood = glt->texnum;
   if(!strcmp(glt->name, "progs/s_exp_big.spr:frame10")) // makes good sparks
     qs_data.tex_explosion = glt->texnum; // HACK: store for emissive rocket particle trails
-  qs_data.tex_dim[2*glt->texnum+0] = glt->width;
-  qs_data.tex_dim[2*glt->texnum+1] = glt->height;
+  int wd = qs_data.tex_dim[2*glt->texnum+0] = MAX(2, glt->width);
+  int ht = qs_data.tex_dim[2*glt->texnum+1] = MAX(2, glt->height);
   if(qs_data.tex[glt->texnum]) free(qs_data.tex[glt->texnum]);
-  qs_data.tex[glt->texnum] = malloc(sizeof(uint32_t)*glt->width*glt->height);
-  memcpy(qs_data.tex[glt->texnum], data, sizeof(uint32_t)*glt->width*glt->height);
+  qs_data.tex[glt->texnum] = malloc(sizeof(uint32_t)*wd*ht);
+  if(glt->width > 0 && glt->height > 0) memcpy(qs_data.tex[glt->texnum], data, sizeof(uint32_t)*glt->width*glt->height);
   qs_data.tex_maxw = MAX(qs_data.tex_maxw, glt->width);
   qs_data.tex_maxh = MAX(qs_data.tex_maxh, glt->height);
   qs_data.tex_req[glt->texnum] = 7; // free, new and upload
@@ -587,13 +587,13 @@ add_geo(
       ext[14*i+10] = float_to_half((desc[indexes[3*i+2]].st[0]+0.5)/(float)hdr->skinwidth);
       ext[14*i+11] = float_to_half((desc[indexes[3*i+2]].st[1]+0.5)/(float)hdr->skinheight);
       const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
-      ext[14*i+12] = hdr->gltextures[sk][fm]->texnum;
-      ext[14*i+13] = hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0;
+      ext[14*i+12] = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
+      ext[14*i+13] = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
 #if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
       if(hdr->nmtextures[sk][fm])
       {
         ext[14*i+0] = 0;
-        ext[14*i+1] = hdr->nmtextures[sk][fm]->texnum;
+        ext[14*i+1] = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum);
         ext[14*i+2] = 0xffff; // mark as brush model
         ext[14*i+3] = 0xffff;
       }
@@ -653,8 +653,8 @@ again:;
         if(ext) for(int k=2;k<p->numverts;k++)
         {
           int pi = (nidx+3*(k-2))/3;
-          ext[14*pi+0] = t->gloss ? t->gloss->texnum : 0;
-          ext[14*pi+1] = t->norm  ? t->norm->texnum  : 0;
+          ext[14*pi+0] = t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0;
+          ext[14*pi+1] = t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0;
           ext[14*pi+2] = 0xffff; // mark as brush model
           ext[14*pi+3] = 0xffff;
           if(surf->texinfo->texture->gltexture)
@@ -665,8 +665,8 @@ again:;
             ext[14*pi+ 9] = float_to_half(p->verts[k-1][4]);
             ext[14*pi+10] = float_to_half(p->verts[k-0][3]);
             ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
-            ext[14*pi+12] = t->gltexture->texnum;
-            ext[14*pi+13] = t->fullbright ? t->fullbright->texnum : 0;
+            ext[14*pi+12] = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
+            ext[14*pi+13] = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
@@ -844,10 +844,10 @@ again:;
           ext[14*(pi+1)+10] = float_to_half(1);
           ext[14*(pi+1)+11] = float_to_half(1);
 
-          ext[14*pi+12]     = frame->gltexture->texnum;
-          ext[14*pi+13]     = frame->gltexture->texnum; // sprites always emit
-          ext[14*(pi+1)+12] = frame->gltexture->texnum;
-          ext[14*(pi+1)+13] = frame->gltexture->texnum;
+          ext[14*pi+12]     = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          ext[14*pi+13]     = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
+          ext[14*(pi+1)+12] = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          ext[14*(pi+1)+13] = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
         }
       }
       nvtx += 4;
@@ -993,6 +993,7 @@ int read_source(
 
   if(p->node->kernel == dt_token("tex") && p->a < d->tex_cnt)
   { // upload texture array
+    fprintf(stderr, "XXX tex slot %d upload %d x %d\n", p->a, d->tex_dim[2*p->a], d->tex_dim[2*p->a+1]);
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
@@ -1066,7 +1067,6 @@ int read_geo(
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    fprintf(stderr, "XXX read rt geo static\n");
     add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
