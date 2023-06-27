@@ -321,14 +321,19 @@ prepare_material_info(
           st.y + 0.2*sin(st.x*2.0 + params.cl_time * 1.0));
     }
 #if 1
-    m.mat = 23;//220;//2 + (global.frame & 3);//220;//m.mat & 15; // XXX
+    // m.mat = 23;//220;//2 + (global.frame & 3);//220;//m.mat & 15; // XXX
     matfb = m.mat;//m.mat;//matfb & 15; // XXX
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
     m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
     m.albedo *= m.albedo; // "un-gamma"
-    m.emission = matfb > 0 ? texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0).rgb : vec3(0.0);
-    m.emission *= m.emission;
+    if(matfb > 0)
+    {
+      tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matfb)], 0)-1);
+      m.emission = texelFetch(img_tex[nonuniformEXT(matfb)], tc, 0).rgb;
+      m.emission *= m.emission;
+    }
+    else m.emission = vec3(0.0);
 #else // XXX DEBUG
     // ivec2 tc = ivec2(textureSize(img_blue, 0)*mod(st, vec2(1.0)));
     // tc = clamp(tc, ivec2(0), textureSize(img_blue, 0)-1);
@@ -478,7 +483,7 @@ vec3 nee_torch(
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      int i = 7*pi;
+      nonuniformEXT int i = 7*pi;
       uint mat = 0;
       vec2 st;
       if(instance_id == 0)
@@ -533,7 +538,7 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      const int i = 7*pi;
+      nonuniformEXT int i = 7*pi;
       uint mat = 0;
       uint flags = 0;
       // uint alpha = 0;
