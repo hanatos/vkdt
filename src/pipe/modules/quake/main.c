@@ -999,7 +999,7 @@ int read_source(
   }
   else if(p->node->kernel == dt_token("dyngeo"))
   { // uploading this stuff is like 3x as expensive as uploading the geo for it!
-#if 0
+#if 1
     uint32_t vtx_cnt = 0, idx_cnt = 0;
     // XXX TODO
     // ent is the player model (visible when out of body)
@@ -1043,7 +1043,7 @@ int read_geo(
   uint32_t vtx_cnt = 0, idx_cnt = 0;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-#if 0
+#if 1
     // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     for(int i=0;i<cl_numvisedicts;i++)
@@ -1165,8 +1165,8 @@ create_nodes(
   // node creation/memory allocation pass. reallocation usually invalidates *all* buffers
   // requiring fresh data upload for everything.
   // i suppose the core allocator might need support for incremental additions otherwise.
-  vtx_cnt = 3;// XXX MAX_VTX_CNT;
-  idx_cnt = 3;// XXX MAX_IDX_CNT;
+  vtx_cnt = MAX_VTX_CNT;
+  idx_cnt = MAX_IDX_CNT;
 
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_dyngeo = graph->num_nodes++;
