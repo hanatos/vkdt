@@ -110,9 +110,11 @@ dt_raytrace_node_init(
   { // find connector with geo:
     node->rt.vtx_cnt = node->connector[c].roi.full_wd;
     node->rt.idx_cnt = node->connector[c].roi.full_ht;
+  fprintf(stderr, "rt node init %"PRItkn" %"PRItkn" %d %d\n", dt_token_str(node->kernel), dt_token_str(node->connector[c].name), node->rt.vtx_cnt, node->rt.idx_cnt);
     break;
   }
   node->rt.tri_cnt = node->rt.idx_cnt/3;
+  if(node->rt.tri_cnt == 0) return VK_SUCCESS;
   CREATE_STAGING_BUF_R(node->rt.vtx_cnt * sizeof(float) * 3, node->rt.buf_vtx);
   CREATE_STAGING_BUF_R(node->rt.idx_cnt * sizeof(uint32_t),  node->rt.buf_idx);
 
@@ -124,7 +126,7 @@ dt_raytrace_node_init(
     .geometry          = {
       .triangles       = {
         .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-        .maxVertex     = node->rt.vtx_cnt,
+        .maxVertex     = node->rt.vtx_cnt-1,
         .vertexStride  = 3 * sizeof(float),
         .transformData = {0},
         .indexType     = VK_INDEX_TYPE_UINT32,
@@ -358,15 +360,12 @@ dt_raytrace_graph_alloc(
 #undef CREATE_ACCEL_BUF_R
 #undef ALLOC_MEM_R
 
-// TODO: place timers around the build commands!
-// TODO: cpu side upload too?
 // call this from graph_run once command buffer is ready:
 VkResult
 dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
   if(!qvk.raytracing_supported || graph->rt.nid_cnt == 0) return VK_SUCCESS;
-  // XXX TODO: do not build bottom if not needed (see flags on node)
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
 
@@ -389,6 +388,8 @@ dt_raytrace_record_command_buffer_accel_build(
       .idx    = (uint32_t *)(mapped_staging + node->rt.buf_idx_offset),
     };
     if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
+    fprintf(stderr, "XXX read geo with %d verts\n", node->rt.vtx_cnt);
+    if(node->rt.vtx_cnt == 0) continue;
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -420,7 +421,7 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt.build_info.scratchData.deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+0);
     node->rt.geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-      .maxVertex     = node->rt.vtx_cnt,
+      .maxVertex     = node->rt.vtx_cnt-1,
       .vertexStride  = 3*sizeof(float),
       .transformData = {0},
       .indexType     = VK_INDEX_TYPE_UINT32,
@@ -433,6 +434,7 @@ dt_raytrace_record_command_buffer_accel_build(
     build_info   [ii] = node->rt.build_info;
   }
   vkUnmapMemory(qvk.device, graph->rt.vkmem_staging);
+  fprintf(stderr, "XXX rebuilding %d\n", rebuild_cnt);
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
   VkMemoryBarrier barrier = {
     .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,

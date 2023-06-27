@@ -999,6 +999,7 @@ int read_source(
   }
   else if(p->node->kernel == dt_token("dyngeo"))
   { // uploading this stuff is like 3x as expensive as uploading the geo for it!
+#if 0
     uint32_t vtx_cnt = 0, idx_cnt = 0;
     // XXX TODO
     // ent is the player model (visible when out of body)
@@ -1019,6 +1020,9 @@ int read_source(
       // add_geo(cl_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     p->node->flags |= s_module_request_read_source; // request again
+#else
+    p->node->flags &= ~s_module_request_read_source; // done uploading
+#endif
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
@@ -1039,6 +1043,7 @@ int read_geo(
   uint32_t vtx_cnt = 0, idx_cnt = 0;
   if(p->node->kernel == dt_token("dyngeo"))
   {
+#if 0
     // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     for(int i=0;i<cl_numvisedicts;i++)
@@ -1054,9 +1059,14 @@ int read_geo(
     idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
+#else
+    p->node->rt.vtx_cnt = 0;
+    p->node->rt.tri_cnt = 0;
+#endif
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
+    fprintf(stderr, "XXX read rt geo static\n");
     add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
@@ -1155,8 +1165,8 @@ create_nodes(
   // node creation/memory allocation pass. reallocation usually invalidates *all* buffers
   // requiring fresh data upload for everything.
   // i suppose the core allocator might need support for incremental additions otherwise.
-  vtx_cnt = MAX_VTX_CNT;
-  idx_cnt = MAX_IDX_CNT;
+  vtx_cnt = 3;// XXX MAX_VTX_CNT;
+  idx_cnt = 3;// XXX MAX_IDX_CNT;
 
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_dyngeo = graph->num_nodes++;

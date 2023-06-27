@@ -2586,15 +2586,17 @@ VkResult dt_graph_run(
   if(run & s_graph_run_record_cmd_buf)
   {
     double rt_beg = dt_time();
-    // TODO: please be more fine grained (read_geo vs build accel)!
     int run_all = run & s_graph_run_upload_source;
     int run_mod = module_flags & s_module_request_read_geo;
     if(run_all || run_mod) QVKR(dt_raytrace_record_command_buffer_accel_build(graph));
+    double rt_end = dt_time();
+    dt_log(s_log_perf, "create raytrace accel:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
+    rt_beg = rt_end;
     for(int i=0;i<cnt;i++)
       QVKR(record_command_buffer(graph, graph->node+nodeid[i], run_all ||
           (graph->node[nodeid[i]].module->flags & s_module_request_read_source)));
-    double rt_end = dt_time();
-    dt_log(s_log_perf, "upload for raytrace:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
+    rt_end = dt_time();
+    dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
   }
 } // end scope, done with nodes
 
