@@ -110,7 +110,6 @@ dt_raytrace_node_init(
   { // find connector with geo:
     node->rt.vtx_cnt = node->connector[c].roi.full_wd;
     node->rt.idx_cnt = node->connector[c].roi.full_ht;
-  fprintf(stderr, "rt node init %"PRItkn" %"PRItkn" %d %d\n", dt_token_str(node->kernel), dt_token_str(node->connector[c].name), node->rt.vtx_cnt, node->rt.idx_cnt);
     break;
   }
   node->rt.tri_cnt = node->rt.idx_cnt/3;
@@ -388,7 +387,6 @@ dt_raytrace_record_command_buffer_accel_build(
       .idx    = (uint32_t *)(mapped_staging + node->rt.buf_idx_offset),
     };
     if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
-    fprintf(stderr, "XXX read geo with %d verts\n", node->rt.vtx_cnt);
     if(node->rt.vtx_cnt == 0) continue;
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
@@ -434,7 +432,6 @@ dt_raytrace_record_command_buffer_accel_build(
     build_info   [ii] = node->rt.build_info;
   }
   vkUnmapMemory(qvk.device, graph->rt.vkmem_staging);
-  fprintf(stderr, "XXX rebuilding %d\n", rebuild_cnt);
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
   VkMemoryBarrier barrier = {
     .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,

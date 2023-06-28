@@ -93,7 +93,6 @@ vec2 filter_bh_sample(vec2 rand)
 
 vec3 envmap(in vec3 w)
 {
-  return vec3(1.0); // XXX DEBUG
   if(params.sky_lf == -1u)
   { // classic quake sky
     vec2 st = 0.5 + 0.5*vec2(-w.y,w.x) / abs(w.z);
@@ -248,8 +247,8 @@ prepare_material_info(
     m.flags =  stcssbo.v[i+6]>>28;
     if(brush_model)
     {
-      matgl = 0;// XXX DEBUG stcssbo.v[i+0]&0xffff;
-      matnd = 0;// XXX DEBUG stcssbo.v[i+0]>>16;
+      matgl = stcssbo.v[i+0]&0xffff;
+      matnd = stcssbo.v[i+0]>>16;
     }
     else
     {
@@ -320,9 +319,6 @@ prepare_material_info(
           st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
           st.y + 0.2*sin(st.x*2.0 + params.cl_time * 1.0));
     }
-#if 1
-    // m.mat = 23;//220;//2 + (global.frame & 3);//220;//m.mat & 15; // XXX
-    matfb = m.mat;//m.mat;//matfb & 15; // XXX
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
     m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
@@ -334,13 +330,6 @@ prepare_material_info(
       m.emission *= m.emission;
     }
     else m.emission = vec3(0.0);
-#else // XXX DEBUG
-    // ivec2 tc = ivec2(textureSize(img_blue, 0)*mod(st, vec2(1.0)));
-    // tc = clamp(tc, ivec2(0), textureSize(img_blue, 0)-1);
-    m.albedo = texture(img_blue, b.xy).rgb;
-    // m.albedo = texture(img_tex[0], b.xy).rgb;
-    m.emission = m.albedo*m.albedo;//vec3(st, 0.01);
-#endif
   }
   if     (m.flags == 1) m.emission = 20.0*m.albedo; // lava
   else if(m.flags == 2) m.emission =  0.5*m.albedo; // slime
@@ -566,13 +555,9 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       if(flags > 0) st = vec2(
           st.x + 0.2*sin(st.y*2.0 + global.frame * 0.01),
           st.y + 0.2*sin(st.x*2.0 + global.frame * 0.01));
-#if 0 // XXX DEBUG
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
       vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-#else
-      vec4 diffcol = vec4(vec3(0.1), 1.0);
-#endif
 
 #if WATER_MODE==WATER_MODE_FULL
       if((flags == 4) || (flags == 5))

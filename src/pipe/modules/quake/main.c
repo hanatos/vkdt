@@ -993,14 +993,12 @@ int read_source(
 
   if(p->node->kernel == dt_token("tex") && p->a < d->tex_cnt)
   { // upload texture array
-    fprintf(stderr, "XXX tex slot %d upload %d x %d\n", p->a, d->tex_dim[2*p->a], d->tex_dim[2*p->a+1]);
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
   }
   else if(p->node->kernel == dt_token("dyngeo"))
   { // uploading this stuff is like 3x as expensive as uploading the geo for it!
-#if 1
     uint32_t vtx_cnt = 0, idx_cnt = 0;
     // XXX TODO
     // ent is the player model (visible when out of body)
@@ -1021,9 +1019,6 @@ int read_source(
       // add_geo(cl_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     p->node->flags |= s_module_request_read_source; // request again
-#else
-    p->node->flags &= ~s_module_request_read_source; // done uploading
-#endif
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
@@ -1044,7 +1039,6 @@ int read_geo(
   uint32_t vtx_cnt = 0, idx_cnt = 0;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-#if 1
     // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     for(int i=0;i<cl_numvisedicts;i++)
@@ -1060,10 +1054,6 @@ int read_geo(
     idx_cnt = MAX(3, idx_cnt);
     p->node->rt.vtx_cnt = vtx_cnt;
     p->node->rt.tri_cnt = idx_cnt / 3;
-#else
-    p->node->rt.vtx_cnt = 0;
-    p->node->rt.tri_cnt = 0;
-#endif
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
