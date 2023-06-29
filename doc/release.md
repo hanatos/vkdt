@@ -39,7 +39,7 @@ and for paranoia (d):
 
 ```
 touch .git/FETCH_HEAD
-make src/core/version.h
+make -C src core/version.h
 cat src/core/version.h
 ```
 

@@ -5,20 +5,20 @@ to perform specific tasks which occur in photographic workflow.
 
 the basic cascade of ui views is:
 
-file manager ⟷ lighttable ⟷ darkroom ⟷ node editor
+file manager ⟷ lighttable ⟷ darkroom ⟷ graph editor
 
 you can usually walk the arrows by key accel (enter/escape) or gamepad
-(`x`/`o`). the way from darkroom to node editor is special, because you will
+(`x`/`o`). the way from darkroom to graph editor is special, because you will
 not technically leave darkroom mode. the default hotkey from darkroom to
-node editor is `ctrl-n`. more precisely:
+graph editor is `ctrl-n`. more precisely:
 
 * file manager → lighttable: press enter to open the folder which has keyboard focus,
   press escape (or caps lock) to return to lighttable without changing folders
 * lighttable → darkroom: press enter to open the most recently selected image in darkroom mode
-* darkroom → node editor: the default hotkey is `ctrl-n`
-* darkroom ← node editor: press escape (or caps lock)
+* darkroom → graph editor: the default hotkey is `ctrl-n`
+* darkroom ← graph editor: press escape (or caps lock)
 * lighttable ← darkroom: press escape (or caps lock)
-* node editor ← lighttable: press escape (or caps lock)
+* graph editor ← lighttable: press escape (or caps lock)
 
 in general, you can export your work but don't have to save it.
 
@@ -28,7 +28,7 @@ the next image (backspace/space or L1/R1).
 labels and ratings `vkdt.db` are saved when you switch folder or exit vkdt.
 
 the positions of the 2D node graph layout are saved to disk when you exit
-the node editor view.
+the graph editor view.
 
 ## file manager
 
@@ -69,19 +69,19 @@ the *pipeline config* tab lets you do limited changes to the graph
 configuration by adding or moving around modules.
 
 
-## node editor
+## graph editor
 
-[![node editor](node-editor.jpg)](node-editor.jpg)
+[![graph editor](node-editor.jpg)](node-editor.jpg)
 
 for complex editing graphs it is useful to view them in a more generous 2D
-layout. the node editor offers most screen real estate to the node graph and,
+layout. the graph editor offers most screen real estate to the node graph and,
 as a trade off, only shows small images in the right panel.
 this view does not provide means to change parameters of the module, it is
 only useful to create and visualise the graph structure.
 
 this is mostly useful for slightly more complex graphs:
 
-[![node editor 2](node-editor2.jpg)](node-editor2.jpg)
+[![graph editor 2](node-editor2.jpg)](node-editor2.jpg)
 
 basic interaction with the graph:
 
@@ -117,10 +117,10 @@ behaviour in the graph:
 * `main` as a display module: this will determine the output dimensions
   and will show as large image in the center part of darkroom mode.
 * `hist` as a display module: this will show as the histogram view
-  in darkroom mode and the node editor.
+  in darkroom mode and the graph editor.
 * `view0` and `view1` as display modules: these will be shown in the
   gui as additional images. only `view0` in darkroom mode and both in
-  the node editor.
+  the graph editor.
 * `dspy` as display module: this is a special display that will
   automatically and temporarily be created and connected to the
   currently active (last expanded) module, if it has a `dspy` output.
