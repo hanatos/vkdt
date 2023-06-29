@@ -894,6 +894,11 @@ main()
       else alb = mat.albedo; // directly visible albedo
       imageStore(img_albedo, ipos, vec4(alb, 1));
     }
+#if 1
+    // XXX FIXME: works well on amd using this shortcut:
+    imageStore(img_irradiance, ipos, vec4(1));
+    return;
+#endif
 
 #if 0
     if(compute_indirect && (params.torch == 1)) // next event estimation to torch:
