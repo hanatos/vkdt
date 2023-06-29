@@ -76,10 +76,18 @@ github actions: build linux, codeql
 code cleanup/security fixes
 perf overlay
 gui fixes and finetune things
-clean shutdown
+clean shutdown (write config file)
 graph editor/delete graph edit tab in darkroom
 initial focusstack blend mode
 new autocrop button
+preset for run-time gui noise profiling
+frame-limiter for power saving
+module graph editor coordinates stored in .cfg (see d7037435b21d420b0ca9b5abc0c1ee86abf29ab9)
+libvkdt build option for 3rd party software, option to build cli only
+dual screen support (display full image on second monitor)
+zoomable mini-displays in right panel
+key accels for rating/lables now configurable
+custom font support for non ascii characters
 
 
 ## diverge branches
