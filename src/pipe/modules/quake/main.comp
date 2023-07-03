@@ -339,7 +339,8 @@ prepare_material_info(
   else
   {
     // m.emission = 10.0*(exp2(m.emission*10.0)-1.0); // looks great on q1 torches
-    m.emission = m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0); // more natural colours, better on tfuma/some newer ad stuff
+    if(any(greaterThan(m.emission, vec3(1e-3)))) // avoid near div0
+      m.emission = m.emission/dot(m.emission, vec3(1)) * 10.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0); // more natural colours, better on tfuma/some newer ad stuff
     // m.emission = mix(3.0*(exp2(m.emission*10.0)-1.0), // balanced version that keeps reds saturated:
     //     m.emission/dot(m.emission, vec3(1)) * 3.0*(exp2(4.0*dot(m.emission, vec3(1)))-1.0),
     //     clamp(m.emission.b-m.emission.r, 0, 1));
