@@ -240,9 +240,9 @@ void modify_roi_in(
   // copy to input
   float wd = crop[1] - crop[0];
   float ht = crop[3] - crop[2];
-  module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
-  module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
-  module->connector[0].roi.scale = module->connector[1].roi.scale;
+  module->connector[0].roi.wd = MIN(module->connector[0].roi.full_wd, module->connector[1].roi.wd / wd);
+  module->connector[0].roi.ht = MIN(module->connector[0].roi.full_ht, module->connector[1].roi.ht / ht);
+  module->connector[0].roi.scale = MAX(1.0f, module->connector[1].roi.scale); // never zoom in/create more pixels
 }
 
 void modify_roi_out(
@@ -261,8 +261,9 @@ void modify_roi_out(
 
   float wd = crop[1] - crop[0];
   float ht = crop[3] - crop[2];
-  module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * wd;
-  module->connector[1].roi.full_ht = module->connector[0].roi.full_ht * ht;
+  // clip to typical max vk frame buffer dimensions
+  module->connector[1].roi.full_wd = MIN(32768, module->connector[0].roi.full_wd * wd);
+  module->connector[1].roi.full_ht = MIN(32768, module->connector[0].roi.full_ht * ht);
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
