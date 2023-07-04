@@ -425,10 +425,14 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .shaderImageFloat32AtomicAdd = VK_TRUE,
     .pNext                       = &v12f,
   };
+  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES,
+    .pNext = &atomic_features,
+  };
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .samplerYcbcrConversion = 1,
-    .pNext                  = &atomic_features,
+    .pNext                  = &sub_features,
   };
   // vk 1.3 stuff:
   // VkPhysicalDeviceMaintenance4Features maintenance4 = {
@@ -459,10 +463,11 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
     VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
     VK_KHR_RAY_QUERY_EXTENSION_NAME,
+    VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, // to bring intel + amd in line with our 32-wide code..
     // end of ray tracing
     // VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME, // ballot voting in work group
   };
-  int len = (qvk.raytracing_supported ? 7 : 0);
+  int len = (qvk.raytracing_supported ? 8 : 0);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
