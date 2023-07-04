@@ -923,7 +923,7 @@ main()
         vec4 rand = xrand(seed, rp);
 #define BSDF_P 0.125 // can we do it in lockstep per warp?
 // #define BSDF_P 0
-        bool use_vmf = (params.ref == 0) && (global.frame > 10) && (rand.z >= BSDF_P); // bsdf at random in between
+        bool use_vmf = (params.ref == 0) && (global.frame > 10) && (s > 0);//(rand.z >= BSDF_P); // bsdf at random in between
         if(use_vmf) read_neighbour_state(tent, m0.x, m0.n, ipos, mv, seed, rp);
         if(!mc_state_valid(tent)) use_vmf = false; // XXX probably wrong in general
         if(use_vmf)
@@ -1008,11 +1008,11 @@ main()
     }
     else for(int t=0;t<spp;t++)
     {
-      pdf += BSDF_P * pdf_bsdf;
+      // pdf += BSDF_P * pdf_bsdf;
       if(par[t].w == 0.0)
-        pdf += (1.0-BSDF_P) * pdf_bsdf;
+        pdf += /*(1.0-BSDF_P) */ pdf_bsdf;
       else
-        pdf += (1.0-BSDF_P) * vmf_eval(par[t].w, dot(ltw[s], par[t].xyz));
+        pdf += /*(1.0-BSDF_P) */ vmf_eval(par[t].w, dot(ltw[s], par[t].xyz));
     }
     if(any(greaterThan(rad[s], vec3(0.0))))
     {
