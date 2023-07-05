@@ -420,9 +420,6 @@ prepare_material_info(
       matgl   =  stcssbo.v[i+0]&0xffff;
       matnd   =  stcssbo.v[i+0]>>16;
       st      = m.c.x.xy*0.01;
-      // m.st = vec2(
-      //     m.st.x + 0.2*sin(m.st.y*2.0 + global.frame * 0.01),
-      //     m.st.y + 0.2*sin(m.st.x*2.0 + global.frame * 0.01));
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
       m.albedo = texelFetch(img_tex[nonuniformEXT(m.mat)], tc, 0).rgb;
@@ -532,6 +529,7 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
   res.water.t  = t_max;
 #endif
   res.opaque.t = t_max;
+  res.opaque.instid = res.opaque.primid = 0;
   // rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT | gl_RayFlagsCullBackFacingTrianglesEXT | gl_RayFlagsOpaqueEXT, 0xFF, x, 1e-3, w, t_max);
   rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max);
   while(rayQueryProceedEXT(rq))
@@ -588,7 +586,8 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
         rayQueryConfirmIntersectionEXT(rq);
     }
   }
-  res.opaque = prepare_intersection_committed(rq);
+  if(rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+    res.opaque = prepare_intersection_committed(rq);
   return res;
 }
 
@@ -814,7 +813,7 @@ main()
 
   uint seed = 19937 * global.frame;
   const ivec2 rp = ipos % textureSize(img_blue, 0);
-  const vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+  const vec2 mv = texture(img_mv, (ipos+0.5)/imageSize(img_irradiance)).rg;
 
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
   const int spp = 4; // needs to be a compile time constant (use specialisation?)
