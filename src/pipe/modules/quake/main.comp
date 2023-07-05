@@ -184,14 +184,27 @@ struct material_info_t
 };
 
 intersection_t
+prepare_intersection_committed(
+    rayQueryEXT rq)
+{
+  const bool c = true;
+  intersection_t inter;
+  inter.instid = rayQueryGetIntersectionInstanceIdEXT(rq, c);     // which of our ssbo
+  inter.primid = rayQueryGetIntersectionPrimitiveIndexEXT(rq, c); // primitive inside instance
+  inter.uv     = packHalf2x16(rayQueryGetIntersectionBarycentricsEXT(rq, c));
+  inter.t      = rayQueryGetIntersectionTEXT(rq, c);
+  return inter;
+}
+intersection_t
 prepare_intersection(
     rayQueryEXT rq)
 {
+  const bool c = false;
   intersection_t inter;
-  inter.instid = rayQueryGetIntersectionInstanceIdEXT(rq, false);     // which of our ssbo
-  inter.primid = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
-  inter.uv     = packHalf2x16(rayQueryGetIntersectionBarycentricsEXT(rq, false));
-  inter.t      = rayQueryGetIntersectionTEXT(rq, false);
+  inter.instid = rayQueryGetIntersectionInstanceIdEXT(rq, c);     // which of our ssbo
+  inter.primid = rayQueryGetIntersectionPrimitiveIndexEXT(rq, c); // primitive inside instance
+  inter.uv     = packHalf2x16(rayQueryGetIntersectionBarycentricsEXT(rq, c));
+  inter.t      = rayQueryGetIntersectionTEXT(rq, c);
   return inter;
 }
 
@@ -519,11 +532,15 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
   res.water.t  = t_max;
 #endif
   res.opaque.t = t_max;
+  // rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT | gl_RayFlagsCullBackFacingTrianglesEXT | gl_RayFlagsOpaqueEXT, 0xFF, x, 1e-3, w, t_max);
   rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max);
+  // for(int i=0;i<3 && rayQueryProceedEXT(rq);i++)
   while(rayQueryProceedEXT(rq))
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+    // if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCandidateIntersectionTriangleEXT)
     {
+#if 0 // XXX
       const int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
@@ -559,6 +576,7 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
       vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
+#endif
 
 #if WATER_MODE==WATER_MODE_FULL
       if((flags == 4) || (flags == 5))
@@ -570,13 +588,14 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       }
       else if(flags != 4 && flags != 5)
 #endif
-      if(diffcol.a > 0.666)
+      // if(diffcol.a > 0.666)
       {
-        res.opaque = prepare_intersection(rq);
+        // res.opaque = prepare_intersection(rq);
         rayQueryConfirmIntersectionEXT(rq);
       }
     }
   }
+  res.opaque = prepare_intersection_committed(rq);
   return res;
 }
 
@@ -894,7 +913,7 @@ main()
       else alb = mat.albedo; // directly visible albedo
       imageStore(img_albedo, ipos, vec4(alb, 1));
     }
-#if 1
+#if 0
     // XXX FIXME: works well on amd using this shortcut:
     imageStore(img_irradiance, ipos, vec4(1));
     return;

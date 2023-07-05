@@ -401,8 +401,8 @@ dt_raytrace_record_command_buffer_accel_build(
         {0.0f, 0.0f, 1.0f, 0.0f},
       }},
       .mask  = 0xFF,
-      .flags = // VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR |
-        VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+      // .flags = // VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR |
+        // VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
       .accelerationStructureReference = qvkGetAccelerationStructureDeviceAddressKHR(qvk.device, &address_request),
     };
     VkBufferDeviceAddressInfo address_info[] = {{
