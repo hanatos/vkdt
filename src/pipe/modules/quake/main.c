@@ -862,7 +862,8 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
-  int wd = 1920, ht = 1080;
+  // int wd = 1920, ht = 1080;
+  int wd = 576, ht = 320;
   mod->connector[0].roi.scale   = 1.0;
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
