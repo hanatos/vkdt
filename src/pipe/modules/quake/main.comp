@@ -534,13 +534,10 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
   res.opaque.t = t_max;
   // rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT | gl_RayFlagsCullBackFacingTrianglesEXT | gl_RayFlagsOpaqueEXT, 0xFF, x, 1e-3, w, t_max);
   rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max);
-  // for(int i=0;i<3 && rayQueryProceedEXT(rq);i++)
   while(rayQueryProceedEXT(rq))
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
-    // if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCandidateIntersectionTriangleEXT)
     {
-#if 0 // XXX
       const int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
@@ -576,7 +573,6 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
       vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
-#endif
 
 #if WATER_MODE==WATER_MODE_FULL
       if((flags == 4) || (flags == 5))
@@ -588,11 +584,8 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       }
       else if(flags != 4 && flags != 5)
 #endif
-      // if(diffcol.a > 0.666)
-      {
-        // res.opaque = prepare_intersection(rq);
+      if(diffcol.a > 0.666)
         rayQueryConfirmIntersectionEXT(rq);
-      }
     }
   }
   res.opaque = prepare_intersection_committed(rq);
