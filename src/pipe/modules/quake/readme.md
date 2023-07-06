@@ -72,4 +72,6 @@ these are taken with the hd textures and the ad mod, using an rtx 2080ti device.
 * `pause` frame number after which to pause the game. useful for reference renders. will also set a fixed quake time per frame. zero means no pause
 * `exec` command string to execute after loading quake. use with cli/config files. accepts ';' separated lists of commands
 * `ref` reference render mode. either use guided vMF mixture models or reference/plain cosine hemisphere sampling
+* `wd` the width of the rendered image in pixels
+* `ht` the height of the rendered image in pixels
 
