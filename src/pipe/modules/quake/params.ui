@@ -10,3 +10,5 @@ pause:slider:0:2000
 cltime:hidden
 health:hidden
 armor:hidden
+wd:slider:576:3840
+ht:slider:320:2400

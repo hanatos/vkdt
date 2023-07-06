@@ -10,3 +10,5 @@ health:int:1:100
 armor:int:1:100
 exec:string:100:map e1m1
 pause:int:1:0
+wd:int:1:1920
+ht:int:1:1080

@@ -38,6 +38,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   ref;     // use reference sampling
   int   health;
   int   armor;
+  int   wd;
+  int   ht;
 } params;
 
 // layout(push_constant, std140) uniform push_t
@@ -530,8 +532,8 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
 #endif
   res.opaque.t = t_max;
   res.opaque.instid = res.opaque.primid = 0;
-  // rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT | gl_RayFlagsCullBackFacingTrianglesEXT | gl_RayFlagsOpaqueEXT, 0xFF, x, 1e-3, w, t_max);
-  rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max);
+  // rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsCullFrontFacingTrianglesEXT, 0xFF, x, 1e-3, w, t_max); // quake uses these
+  rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, t_max); // same speed as with culling above
   while(rayQueryProceedEXT(rq))
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
@@ -905,11 +907,6 @@ main()
       else alb = mat.albedo; // directly visible albedo
       imageStore(img_albedo, ipos, vec4(alb, 1));
     }
-#if 0
-    // XXX FIXME: works well on amd using this shortcut:
-    imageStore(img_irradiance, ipos, vec4(1));
-    return;
-#endif
 
 #if 0
     if(compute_indirect && (params.torch == 1)) // next event estimation to torch:

@@ -862,8 +862,10 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
+  const int p_wd = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wd")))[0];
+  const int p_ht = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("ht")))[0];
   // int wd = 1920, ht = 1080;
-  int wd = 576, ht = 320;
+  int wd = p_wd, ht = p_ht;
   mod->connector[0].roi.scale   = 1.0;
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
@@ -885,6 +887,21 @@ void modify_roi_out(
     .orientation    = 0,
   };
   mod->connector[5].roi = mod->connector[0].roi; // debug connector
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 12 || parid == 13)
+  { // dimensions wd or ht
+    int oldsz = *(int*)oldval;
+    int newsz = dt_module_param_int(module, parid)[0];
+    if(oldsz != newsz) return s_graph_run_all; // we need to update the graph topology
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
 void commit_params(
