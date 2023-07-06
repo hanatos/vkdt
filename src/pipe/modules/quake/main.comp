@@ -147,7 +147,8 @@ float mrand(inout uint seed)
 
 vec4 xrand(inout uint seed, ivec2 p)
 { // cp shift based on seed
-  return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
+  // return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
+  return vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed));
 }
 
 struct intersection_t
@@ -216,6 +217,11 @@ prepare_material_info(
     vec3           w,      // incoming ray direction.
     raycast_res_t  inter)  // identify geo intersection
 {
+  if(inter.opaque.t == T_MAX)
+  {
+    material_info_t m = {{vec3(0),vec3(0),vec3(0),0,vec3(0)}, 0, T_MAX, 0, vec3(0.0), vec3(0.0)};
+    return m;
+  }
   vec2 st;        // texture coordinates
   uint matfb;     // "fullbright" texture/emission
   uint matgl;     // glossy texture, if any
@@ -813,8 +819,9 @@ main()
 
   if(params.cl_time < 2.0) return; // stupid last resort fix for level loading in progress :|
 
-  uint seed = 19937 * global.frame;
-  const ivec2 rp = ipos % textureSize(img_blue, 0);
+  // uint seed = 19937 * global.frame;
+  uint seed = 19937 * global.frame + 13370000 * ipos.x + 13*ipos.y;
+  const ivec2 rp = ivec2(0);//ipos % textureSize(img_blue, 0);
   const vec2 mv = texture(img_mv, (ipos+0.5)/imageSize(img_irradiance)).rg;
 
   vec3 irr = vec3(0.0); // estimator for incoming "irradiance", i.e. everything divided by albedo
@@ -854,6 +861,7 @@ main()
   {
     vec3 xm;
     mat = propagate_ray(m0.x, w_cam, cam_underwater, xm, mrand(seed), rgb_cam);
+    if(mat.t >= T_MAX) compute_indirect = false;
     m0 = mat.c;
   }
   { // ray intersected geometry, init material state and tangent frame
@@ -980,6 +988,7 @@ main()
           bool underwater = cam_underwater;
           vec3 xm; // virtual point (estimating flat refraction)
           mat = propagate_ray(m0.x, w, underwater, xm, rand.w, rgb);
+          if(mat.t >= T_MAX) break;
           { // eval extinction towards light source (no more in-scattering for now here. would be like fluorescent fog..)
             const float T = exp(-min(mat.t, 1000.0) * 0.01 * params.fog.w);
             rgb *= T;//mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
