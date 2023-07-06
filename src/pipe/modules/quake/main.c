@@ -321,6 +321,7 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   if(glt->width > 0 && glt->height > 0) memcpy(qs_data.tex[glt->texnum], data, sizeof(uint32_t)*glt->width*glt->height);
   qs_data.tex_maxw = MAX(qs_data.tex_maxw, glt->width);
   qs_data.tex_maxh = MAX(qs_data.tex_maxh, glt->height);
+  // XXX TODO: duplicate tex[][2] pointers for even and odd frames! can only clean up once the old frame is done
   qs_data.tex_req[glt->texnum] = 7; // free, new and upload
 
   if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6) ||

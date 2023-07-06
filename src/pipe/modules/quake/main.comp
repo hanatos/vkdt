@@ -606,6 +606,7 @@ propagate_ray(
   rayQueryEXT rq;
   const float t_max = T_MAX;
   raycast_res_t res = cast_ray(rq, x, w, t_max);
+  // XXX TODO: if t_max don't touch material!
   material_info_t m = prepare_material_info(x, w, res);
   xm = m.c.x;
 #if WATER_MODE==WATER_MODE_OFF

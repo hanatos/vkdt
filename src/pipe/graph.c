@@ -66,13 +66,14 @@ dt_graph_init(dt_graph_t *g)
     .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
     .commandPool        = g->command_pool,
     .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    .commandBufferCount = 1,
+    .commandBufferCount = 2,
   };
-  QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, &g->command_buffer));
+  QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer));
   VkFenceCreateInfo fence_info = {
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
   };
-  QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
+  QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+0));
+  QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+1));
   g->float_atomics_supported = qvk.float_atomics_supported;
 
   g->query_max = 2000;
@@ -2455,14 +2456,12 @@ VkResult dt_graph_run(
         if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
         for(int k=0;k<MAX(1,c->array_length);k++)
         {
-          // if(c->array_req[k]) fprintf(stderr, "array %d req before %d\n", k, c->array_req[k]);
           if(c->array_req[k]) node_dynamic_array = 1;
           if(c->array_req[k] & 4)
           { // free texture. we'll just give back the address space in the allocator, we won't really clean up:
             dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
             if(img->mem)
             {
-              // fprintf(stderr, "freeing %d\n", k);
               dt_vkfree(c->array_alloc, img->mem);
               assert(img->mem->ref == 0);
             }
@@ -2470,13 +2469,11 @@ VkResult dt_graph_run(
           }
           if(c->array_req[k] & 1) // allocate newly, in place of alloc_outputs
           {
-            // fprintf(stderr, "alloc %d\n", k);
             QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, f, k));
             QVKR(bind_buffers_to_memory(graph, node, c, f, k));
           }
           // req & 2 (upload) is handled below
           c->array_req[k] &= ~5; // clear all the flags we handled
-          // if(c->array_req[k]) fprintf(stderr, "array %d req after %d\n", k ,c->array_req[k]);
         }
       } // end for all connectors
       if(node_dynamic_array) dynamic_array = 1;

@@ -36,7 +36,7 @@ typedef struct dt_node_t
   VkRenderPass          draw_render_pass; // needed for raster kernels
   VkFramebuffer         draw_framebuffer; // 
 
-  dt_raytrace_node_t    rt;
+  dt_raytrace_node_t    rt[2];
 
   dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer
 
