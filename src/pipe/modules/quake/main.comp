@@ -685,13 +685,13 @@ void mc_state_add(inout mc_state_t s, vec3 x, float w, vec3 dir, vec3 y, bool sk
 
 vec4 mc_state_vmf(mc_state_t s, vec3 x)
 { // return a vmf lobe (direction + kappa) for the given position
-  float r = s.sum_len / s.sum_w; // = mean cosine in [0,1]
+  float r = s.sum_len / (s.sum_w > 0.0 ? s.sum_w : 1.0); // = mean cosine in [0,1]
   float rp = 0.99;
   if(!s.sky)
   {
     vec3 tgt = s.sum_tgt / (s.sum_w > 0.0 ? s.sum_w : 1.0);
     float d = length(tgt-x);
-    rp = 1.0 -  1.0/clamp(50.0*d, 0.0, 6500.0);
+    rp = 1.0 - 1.0/clamp(50.0*d, 0.01, 6500.0);
   }
   r = (s.N*s.N * r + ML_PRIOR_N * rp) / (s.N*s.N + ML_PRIOR_N);
   return vec4(mc_state_dir(s, x), (3.0*r - r*r*r) / (1.0 - r*r));
