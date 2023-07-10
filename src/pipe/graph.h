@@ -23,6 +23,18 @@ typedef struct dt_connector_image_t
 }
 dt_connector_image_t;
 
+typedef struct dt_graph_query_t
+{
+  uint32_t     max;
+  uint32_t     cnt;
+  VkQueryPool  pool;
+  uint64_t    *pool_results;
+  dt_token_t  *name;
+  dt_token_t  *kernel;
+  float        last_frame_duration; // for convenience the last frame time in milliseconds
+}
+dt_graph_query_t;
+
 // the graph is stored as list of modules and list of nodes.
 // these have connectors with detailed buffer information which
 // also hold the id to the other connected module or node. thus,
@@ -86,13 +98,7 @@ typedef struct dt_graph_t
   size_t                vkmem_staging_size;
   size_t                vkmem_uniform_size;
 
-  uint32_t              query_max;
-  uint32_t              query_cnt[2];        // for odd and even command buffers, starting at half query_max
-  VkQueryPool           query_pool;
-  uint64_t             *query_pool_results;
-  dt_token_t           *query_name;
-  dt_token_t           *query_kernel;
-  float                 query_last_frame_duration[2]; // for convenience the last frame time in milliseconds
+  dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max
 
   uint32_t              dset_cnt_image_read,  dset_cnt_image_read_alloc;
   uint32_t              dset_cnt_image_write, dset_cnt_image_write_alloc;

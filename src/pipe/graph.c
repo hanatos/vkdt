@@ -77,7 +77,7 @@ dt_graph_init(dt_graph_t *g)
   g->float_atomics_supported = qvk.float_atomics_supported;
 
   g->query_max = 2000;
-  g->query_cnt = 0;
+  g->query_cnt[0] = g->query_cnt[1] = 0;
   VkQueryPoolCreateInfo query_pool_info = {
     .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
     .queryType  = VK_QUERY_TYPE_TIMESTAMP,
