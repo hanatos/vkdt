@@ -30,7 +30,7 @@ typedef struct qs_data_t
 
   uint32_t    *tex[MAX_GLTEXTURES];       // cpu side cache of quake textures
   uint32_t     tex_dim[2*MAX_GLTEXTURES]; // resolutions of textures for modify_roi_out
-  uint8_t      tex_req[MAX_GLTEXTURES];   // dynamic texture request flags: 1:new 2:upload 4:free
+  uint8_t      tex_req[MAX_GLTEXTURES];   // dynamic texture request flag: replace this slot by new upload
   int32_t      tex_cnt;                   // current number of textures
   uint32_t     tex_maxw, tex_maxh;        // maximum texture size, to allocate staging upload buffer
   uint32_t     skybox[6];                 // 6 cubemap skybox texture ids
@@ -322,7 +322,7 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   qs_data.tex_maxw = MAX(qs_data.tex_maxw, glt->width);
   qs_data.tex_maxh = MAX(qs_data.tex_maxh, glt->height);
   // XXX TODO: duplicate tex[][2] pointers for even and odd frames! can only clean up once the old frame is done
-  qs_data.tex_req[glt->texnum] = 7; // free, new and upload
+  qs_data.tex_req[glt->texnum] = 1; // replace this allocation and upload new texture
 
   if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6) ||
      !strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
@@ -353,7 +353,7 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
 void QS_texture_free(gltexture_t *texture)
 {
   if(qs_data.initing < 1) return;
-  qs_data.tex_req[glt->texnum] = 4; // request free
+  qs_data.tex_req[glt->texnum] = ??;
   free(qs_data.tex[glt->texnum]);
   qs_data.tex[glt->texnum] = 0;
 }
@@ -1153,14 +1153,14 @@ create_nodes(
       .array_length = MAX_GLTEXTURES, // d->tex_cnt,
       .array_dim    = d->tex_dim,
       .array_req    = d->tex_req,
-      .flags        = s_conn_dynamic_array,
+      .flags        = s_conn_dynamic_array | s_conn_feedback, // mark as dynamic allocation suitable for multi-frame processing (double buffered)
       .array_alloc_size = 1500<<20, // something enough for quake
     }},
   };
   // in case quake was already inited but we are called again to create nodes,
   // we'll also need to re-upload all textures. flag them here:
   for(int i=0;i<d->tex_cnt;i++)
-    if(d->tex[i]) d->tex_req[i] = 7;
+    if(d->tex[i]) d->tex_req[i] = 1;
 
   uint32_t vtx_cnt = 0, idx_cnt = 0;
 #if 0

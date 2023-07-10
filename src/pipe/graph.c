@@ -119,6 +119,29 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_ssbo);
   dt_vkalloc_cleanup(&g->heap_staging);
+  for(int i=0;i<g->num_nodes;i++)
+  {
+    for(int j=0;j<g->node[i].num_connectors;j++)
+    {
+      dt_connector_t *c = g->node[i].connector+j;
+      if(c->flags & (s_conn_dynamic_array | s_conn_feedback))
+      { // free potential double images for multi-frame dsets
+        for(int k=0;k<MAX(1,c->array_length);k++)
+        {
+          dt_connector_image_t *img0 = dt_graph_connector_image(g, i, j, k, 0);
+          dt_connector_image_t *img1 = dt_graph_connector_image(g, i, j, k, 1);
+          if(!img0 || !img1) continue;
+          if(img0->image == img1->image)
+          { // it's enough to clean up one replicant, the rest will shut down cleanly later:
+            if(img0->buffer)     vkDestroyBuffer(qvk.device,    img0->buffer, VK_NULL_HANDLE);
+            if(img0->image)      vkDestroyImage(qvk.device,     img0->image,  VK_NULL_HANDLE);
+            if(img0->image_view) vkDestroyImageView(qvk.device, img0->image_view, VK_NULL_HANDLE);
+            *img0 = (dt_graph_connector_image){0};
+          }
+        }
+      }
+    }
+  }
   for(int i=0;i<g->conn_image_end;i++)
   {
     if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
@@ -2441,51 +2464,53 @@ VkResult dt_graph_run(
     for(int i=0;i<cnt;i++)
       QVKR(alloc_outputs3(graph, graph->node+nodeid[i]));
 
-  // find dynamically allocated connector in node that has dyn_array request set:
-  int dynamic_array = 0;
+  // find dynamically allocated connector in node that has array requests set:
+  int dynamic_array = 0; // will remain 0 if there are dynamic arrays that did not request changes, triggers upload later
   for(int i=0;i<cnt;i++)
   {
     dt_node_t *node = graph->node + nodeid[i];
-    // if(node->flags & s_module_request_dyn_array) // XXX wouldn't such a switch be great. how to set it?
+    for(int j=0;j<node->num_connectors;j++)
     {
-      int node_dynamic_array = 0;
-      for(int j=0;j<node->num_connectors;j++)
-      {
-        dt_connector_t *c = node->connector+j;
-        int f = 0; // XXX frame f for feedback connectors? does not make sense for source array textures
-        if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
-        for(int k=0;k<MAX(1,c->array_length);k++)
-        {
-          if(c->array_req[k]) node_dynamic_array = 1;
-          if(c->array_req[k] & 4)
-          { // free texture. we'll just give back the address space in the allocator, we won't really clean up:
-            dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
-            if(img->mem)
-            {
-              dt_vkfree(c->array_alloc, img->mem);
-              assert(img->mem->ref == 0);
-            }
-            img->mem = 0;
-          }
-          if(c->array_req[k] & 1) // allocate newly, in place of alloc_outputs
-          {
-            QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, f, k));
-            QVKR(bind_buffers_to_memory(graph, node, c, f, k));
-          }
-          // req & 2 (upload) is handled below
-          c->array_req[k] &= ~5; // clear all the flags we handled
+      dt_connector_t *c = node->connector+j;
+      int f = 0; // no frame for source array textures. for dynamic arrays, this is the odd/even pipeline to manage changes with multi-frame renders
+      if(c->array_resync)
+      { // last frame has pending sync work to do
+        for(int a=0;a<MAX(1,node->connector[c].array_length);a++)
+        { // keep array images the same in general, but delete images that wandered off the command buffer bindings:
+          dt_graph_connector_image_t *oldimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->frame+1);
+          dt_graph_connector_image_t *newimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->frame);
+          if(!oldimg || !newimg) continue; // will insert dummy later
+          if(oldimg->image == newimg->image) continue; // is the same already
+          if(newimg->buffer)     vkDestroyBuffer(qvk.device,    newimg->buffer, VK_NULL_HANDLE);
+          if(newimg->image)      vkDestroyImage(qvk.device,     newimg->image, VK_NULL_HANDLE);
+          if(newimg->image_view) vkDestroyImageView(qvk.device, newimg->image_view, VK_NULL_HANDLE);
+          dt_vkfree(c->array_alloc, newimg->mem);
+          *newimg = *oldimg; // point to same memory
         }
-      } // end for all connectors
-      if(node_dynamic_array) dynamic_array = 1;
-    } // end if node with dynamic allocation request
+        c->array_resync = 0; // done with this request
+      }
+      if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
+      for(int k=0;k<MAX(1,c->array_length);k++)
+      {
+        if(c->array_req[k])
+        { // free texture. we depend on f-1 still holding our data, it will be freed during resync.
+          dynamic_array = c->array_resync = 1; // remember to bring other frame in sync next time to pick up our changes
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
+          assert(img);
+          *img = (dt_graph_connector_image_t){0}; // make sure nothing is freed here
+          QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, f, k));
+          QVKR(bind_buffers_to_memory(graph, node, c, f, k));
+        }
+        // upload is handled below
+      }
+    } // end for all connectors
   }
   // call this instead of alloc_outputs3 (but for all nodes, at least ones that have the array as input too):
-  // instead of alloc_outputs3 above. write descriptor sets for all nodes (would need only the changed arrays
+  // write descriptor sets for all nodes (would need only the changed arrays
   // and everybody who connects their inputs to it)
   if(dynamic_array)
-    for(int i=0;i<cnt;i++)
-      for(int j=0;j<graph->node[nodeid[i]].num_connectors;j++)
-        write_descriptor_sets(graph, graph->node+nodeid[i], graph->node[nodeid[i]].connector+j, 1);
+    for(int i=0;i<cnt;i++) for(int j=0;j<graph->node[nodeid[i]].num_connectors;j++)
+      write_descriptor_sets(graph, graph->node+nodeid[i], graph->node[nodeid[i]].connector + j, 1);
 
   // upload all source data to staging memory
   threads_mutex_t *mutex = 0;// graph->io_mutex; // no speed impact, maybe not needed
@@ -2513,8 +2538,8 @@ VkResult dt_graph_run(
             {
               if(node->connector[c].array_req)
               {
-                if(!(node->connector[c].array_req[a] & 2)) continue;
-                node->connector[c].array_req[a] &= ~2; // clear image load request
+                if(!(node->connector[c].array_req[a])) continue;
+                node->connector[c].array_req[a] = 0; // clear image load request
               }
               // if(// XXX this flag is dysfunctional: (node->flags & s_module_request_dyn_array) &&
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };

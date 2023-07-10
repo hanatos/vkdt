@@ -87,6 +87,7 @@ typedef struct dt_connector_t
   size_t        array_alloc_size; // size of the pool allocated for this dynamic texture array
   dt_vkmem_t   *array_mem;        // memory allocated in outer mem pool, will be split for array dynamically
   uint8_t      *array_req;        // points to flags what do do: 0 - nothing, 1 - alloc, 2 - upload, 4 - free
+  int           array_resync;     // means we need to sync a dynamic array for multi-frame descriptor sets with one frame delay (internal use)
 
   // buffer associated with this in case it connects nodes:
   uint64_t offset_staging, size_staging;
