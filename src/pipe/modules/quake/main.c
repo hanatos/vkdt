@@ -945,7 +945,7 @@ void commit_params(
 
   // hijacked for performance counter rendering
   float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
-  p_duration[0] = graph->query_last_frame_duration;
+  p_duration[0] = graph->query[(graph->frame+1)%2].last_frame_duration;
 
   // set sv_player. this has to be done if we're not calling Host_Frame after a map reload
   client_t *host_client = svs.clients;
@@ -1055,6 +1055,7 @@ int read_geo(
 {
   // this is only called for our "geo" node because it has an output connector with format "geo".
   uint32_t vtx_cnt = 0, idx_cnt = 0;
+  const int f = mod->graph->frame % 2;
   if(p->node->kernel == dt_token("dyngeo"))
   {
     // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
@@ -1070,16 +1071,16 @@ int read_geo(
     add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
-    p->node->rt.vtx_cnt = vtx_cnt;
-    p->node->rt.tri_cnt = idx_cnt / 3;
+    p->node->rt[f].vtx_cnt = vtx_cnt;
+    p->node->rt[f].tri_cnt = idx_cnt / 3;
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
-    p->node->rt.vtx_cnt = vtx_cnt;
-    p->node->rt.tri_cnt = idx_cnt / 3;
+    p->node->rt[f].vtx_cnt = vtx_cnt;
+    p->node->rt[f].tri_cnt = idx_cnt / 3;
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
