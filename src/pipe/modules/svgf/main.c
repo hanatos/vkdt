@@ -155,11 +155,11 @@ create_nodes(
   }
 
   dt_connector_copy(graph, module, 0, id_preblend, 0);  // mv
-  dt_connector_copy_feedback(graph, module, 1, id_preblend, 1);  // previous noisy light
   dt_connector_copy(graph, module, 1, id_preblend, 2);  // noisy light
   dt_connector_copy(graph, module, 4, id_preblend, 3);  // previous gbuffer
   dt_connector_copy(graph, module, 5, id_preblend, 4);  // current gbuffer
 
+  CONN(dt_node_feedback(graph, id_preblend, 5, id_preblend, 1));  // previous noisy light
   CONN(dt_node_connect(graph, id_preblend, 5, id_eaw[0], 0)); // less noisy light
   // dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
   dt_connector_copy(graph, module, 5, id_eaw[0], 1);  // gbuffer for normal, depth, L moments
