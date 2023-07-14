@@ -2047,6 +2047,9 @@ VkResult dt_graph_run(
   const int f  = graph->frame % 2;     // recording this pipeline now
   const int fp = (graph->frame+1) % 2; // waiting for the previous frame // XXX TODO: set to = f in case no interleaving is requested/possible
 
+  if(run & s_graph_run_alloc)
+    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+
 { // module scope
   // find list of modules in post order
   uint32_t modid[100];
@@ -2508,6 +2511,7 @@ VkResult dt_graph_run(
           if(newimg->image_view) vkDestroyImageView(qvk.device, newimg->image_view, VK_NULL_HANDLE);
           if(newimg->mem)        dt_vkfree(c->array_alloc, newimg->mem);
           *newimg = *oldimg; // point to same memory
+          dynamic_array = 1; // need to re-create descriptor sets
         }
         c->array_resync = 0; // done with this request
       }

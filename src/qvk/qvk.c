@@ -98,7 +98,7 @@ vk_debug_callback(
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
-    // assert(0);
+    assert(0);
   }
 #endif
 #endif
