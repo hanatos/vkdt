@@ -10,6 +10,7 @@
 typedef struct jpginput_buf_t
 {
   char filename[PATH_MAX];
+  uint32_t frame;
   uint32_t width, height;
   struct jpeg_decompress_struct dinfo;
   FILE *f;
@@ -38,7 +39,7 @@ read_header(
     const char *filename)
 {
   jpginput_buf_t *jpg = mod->data;
-  if(jpg && !strcmp(jpg->filename, filename))
+  if(jpg && !strcmp(jpg->filename, filename) && jpg->frame == frame)
     return 0; // already loaded
   assert(jpg); // this should be inited in init()
 
@@ -89,6 +90,7 @@ read_header(
   mod->img_param.orientation = jpg_read_orientation(f2);
 
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
+  jpg->frame = frame;
   return 0;
 }
 
