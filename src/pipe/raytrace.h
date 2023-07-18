@@ -27,8 +27,8 @@ typedef struct dt_raytrace_graph_t
   size_t                                      accel_end,   accel_max;
   uint32_t                                   *nid;
   uint32_t                                    nid_cnt, nid_max;
-  VkDescriptorSet                             dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
-  VkDescriptorSetLayout                       dset_layout;               // they all share the same layout
+  VkDescriptorSet                             dset;              // one descriptor set for every frame (the whole struct is per frame)
+  VkDescriptorSetLayout                       dset_layout;       // they all share the same layout
 }
 dt_raytrace_graph_t;
 

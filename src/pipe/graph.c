@@ -137,9 +137,6 @@ dt_graph_cleanup(dt_graph_t *g)
           if(!img0 || !img1) continue;
           if(img0->image == img1->image)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
-            if(img0->buffer)     vkDestroyBuffer(qvk.device,    img0->buffer, VK_NULL_HANDLE);
-            if(img0->image)      vkDestroyImage(qvk.device,     img0->image,  VK_NULL_HANDLE);
-            if(img0->image_view) vkDestroyImageView(qvk.device, img0->image_view, VK_NULL_HANDLE);
             *img0 = (dt_connector_image_t){0};
           }
         }
@@ -1077,13 +1074,12 @@ bind_buffers_to_memory(
 // 2nd pass, now we have images and vkDeviceMemory, let's bind images and buffers
 // to memory and create descriptor sets
 static inline VkResult
-alloc_outputs2(dt_graph_t *graph, dt_node_t *node, int allocate_dynamic_arrays)
+alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if((!allocate_dynamic_arrays && !(c->flags & s_conn_dynamic_array)) || // regular case, first pass
-       ( allocate_dynamic_arrays &&  (c->flags & s_conn_dynamic_array)))   // dyn alloc, second pass
+    if(!(c->flags & s_conn_dynamic_array)) // regular case, first pass
       for(int f=0;f<c->frames;f++) for(int k=0;k<MAX(1,c->array_length);k++)
         QVKR(bind_buffers_to_memory(graph, node, c, f, k));
   }
@@ -1849,8 +1845,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   // combine all descriptor sets:
   VkDescriptorSet desc_sets[] = {
     node->uniform_dset,
-    node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
-    graph->rt[f].dset[0],
+    node->dset[f],
+    graph->rt[f].dset,
   };
   const int desc_sets_cnt = LENGTH(desc_sets) - 1 + dt_raytrace_present(graph);
 
@@ -2151,6 +2147,21 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & (s_graph_run_roi | s_graph_run_create_nodes))
   { // delete all previous nodes
+    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+    for(int i=0;i<graph->num_nodes;i++) for(int j=0;j<graph->node[i].num_connectors;j++)
+      if(graph->node[i].connector[j].flags & (s_conn_dynamic_array | s_conn_feedback))
+      { // free potential double images for multi-frame dsets
+        for(int k=0;k<MAX(1,graph->node[i].connector[j].array_length);k++)
+        {
+          dt_connector_image_t *img0 = dt_graph_connector_image(graph, i, j, k, 0);
+          dt_connector_image_t *img1 = dt_graph_connector_image(graph, i, j, k, 1);
+          if(!img0 || !img1) continue;
+          if(img0->image == img1->image)
+          { // it's enough to clean up one replicant, the rest will shut down cleanly later:
+            *img0 = (dt_connector_image_t){0};
+          }
+        }
+      }
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    graph->conn_image_pool[i].buffer, VK_NULL_HANDLE);
@@ -2484,7 +2495,7 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & s_graph_run_alloc)
     for(int i=0;i<cnt;i++)
-      QVKR(alloc_outputs2(graph, graph->node+nodeid[i], 0));
+      QVKR(alloc_outputs2(graph, graph->node+nodeid[i]));
 
   if(run & s_graph_run_alloc)
     for(int i=0;i<cnt;i++)
@@ -2518,6 +2529,17 @@ VkResult dt_graph_run(
       if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
       for(int k=0;k<MAX(1,c->array_length);k++)
       {
+        if(k == 0 && !c->array_req[0])
+        { // make sure the fallback slot 0 is always inited with at least rubbish:
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
+          assert(img);
+          if(!img->image_view)
+          {
+            *img = (dt_connector_image_t){0}; // make sure nothing is freed here
+            QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, f, k));
+            QVKR(bind_buffers_to_memory(graph, node, c, f, k));
+          }
+        }
         if(c->array_req[k])
         { // free texture. we depend on f-1 still holding our data, it will be freed during resync.
           dynamic_array = c->array_resync = 1; // remember to bring other frame in sync next time to pick up our changes
@@ -2703,7 +2725,8 @@ VkResult dt_graph_run(
     vkResetFences(qvk.device, 1, &graph->command_fence[f]);
     QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      // XXX FIXME: query state of fence before, and only wait if it is still pending/even inited at all (not the case for frame 0!!)
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait for our command buffer
+    else
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[fp], VK_TRUE, 1ul<<40)); // wait for previous command buffer
   }
   

@@ -145,19 +145,7 @@ int dt_gui_init()
       .commandBufferCount = 1,
     };
     QVKR(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, vkdt.command_buffer+i));
-
-    VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_image_acquired + i));
-    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_render_complete + i));
-
-    VkFenceCreateInfo fence_info = {
-      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-      .flags = VK_FENCE_CREATE_SIGNALED_BIT, /* fence's initial state set to be signaled to make program not hang */
-    };
-    QVKR(vkCreateFence(qvk.device, &fence_info, NULL, vkdt.fence + i));
   }
-  vkdt.frame_index = 0;
-  vkdt.sem_index = 0;
   // XXX intel says 0,0,0,1 is fastest:
   vkdt.clear_value = (VkClearValue){{.float32={0.18f, 0.18f, 0.18f, 1.0f}}};
 
@@ -280,7 +268,22 @@ dt_gui_recreate_swapchain()
   {
     attachment[0] = qvk.swap_chain_image_views[i];
     QVKR(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, vkdt.framebuffer + i));
+
+    if(vkdt.sem_image_acquired[i])  vkDestroySemaphore(qvk.device, vkdt.sem_image_acquired[i], 0);
+    if(vkdt.sem_render_complete[i]) vkDestroySemaphore(qvk.device, vkdt.sem_render_complete[i], 0);
+    if(vkdt.fence[i])               vkDestroyFence(qvk.device, vkdt.fence[i], 0);
+    VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_image_acquired + i));
+    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, vkdt.sem_render_complete + i));
+
+    VkFenceCreateInfo fence_info = {
+      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+      .flags = VK_FENCE_CREATE_SIGNALED_BIT, /* fence's initial state set to be signaled to make program not hang */
+    };
+    QVKR(vkCreateFence(qvk.device, &fence_info, NULL, vkdt.fence + i));
   }
+  vkdt.frame_index = 0;
+  vkdt.sem_index = 0;
   return VK_SUCCESS;
 }
 
@@ -315,7 +318,12 @@ VkResult dt_gui_render()
   VkSemaphore image_acquired_semaphore  = vkdt.sem_image_acquired [vkdt.sem_index];
   VkSemaphore render_complete_semaphore = vkdt.sem_render_complete[vkdt.sem_index];
   // timeout is in nanoseconds (these are ~2sec)
-  QVKR(vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index));
+  VkResult res = vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index);
+  if(res != VK_SUCCESS)
+  {
+    // XXX kill all semaphores
+    return res;
+  }
 
   const int i = vkdt.frame_index;
   QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
@@ -355,7 +363,7 @@ VkResult dt_gui_render()
 
   QVKR(vkEndCommandBuffer(vkdt.command_buffer[i]));
   threads_mutex_lock(&qvk.queue_mutex);
-  VkResult res = vkQueueSubmit(qvk.queue_graphics, 1, &sub_info, vkdt.fence[i]);
+  res = vkQueueSubmit(qvk.queue_graphics, 1, &sub_info, vkdt.fence[i]);
   threads_mutex_unlock(&qvk.queue_mutex);
   return res;
 }

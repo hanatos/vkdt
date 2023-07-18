@@ -112,10 +112,10 @@ dt_raytrace_graph_cleanup(
 static inline VkResult
 dt_raytrace_node_init(
     dt_graph_t *graph,
-    dt_node_t  *node)
+    dt_node_t  *node,
+    const int f)
 {
   if(!qvk.raytracing_supported) return VK_SUCCESS;
-  const int f = graph->frame % 2;
   node->rt[f].vtx_cnt = 3, node->rt[f].idx_cnt = 3;
   for(int c=0;c<node->num_connectors;c++) if(node->connector[c].format == dt_token("geo"))
   { // find connector with geo:
@@ -183,59 +183,61 @@ dt_raytrace_graph_init(
     uint32_t    nid_cnt)
 {
   if(!qvk.raytracing_supported) return VK_SUCCESS;
-  const int f = graph->frame % 2;
   dt_raytrace_graph_reset(graph);
-  for(int i=0;i<nid_cnt;i++)
+  for(int f=0;f<2;f++)
   {
-    dt_node_t *node = graph->node + nid[i];
-    if(node->module->so->read_geo &&
-       node->connector[0].format == dt_token("geo") &&
-       dt_connector_output(node->connector))
-    { // geometry for ray tracing requires an output connector "geo" and the read_geo() callback
-      node->type |= s_node_geometry;
-      graph->rt[f].nid_cnt++;
+    for(int i=0;i<nid_cnt;i++)
+    {
+      dt_node_t *node = graph->node + nid[i];
+      if(node->module->so->read_geo &&
+         node->connector[0].format == dt_token("geo") &&
+         dt_connector_output(node->connector))
+      { // geometry for ray tracing requires an output connector "geo" and the read_geo() callback
+        node->type |= s_node_geometry;
+        graph->rt[f].nid_cnt++;
+      }
     }
-  }
-  if(graph->rt[f].nid_cnt == 0) return VK_SUCCESS;
-  if(graph->rt[f].nid_max < graph->rt[f].nid_cnt)
-  {
-    free(graph->rt[f].nid);
-    graph->rt[f].nid_max = graph->rt[f].nid_cnt;
-    graph->rt[f].nid = malloc(sizeof(uint32_t)*graph->rt[f].nid_max);
-  }
-  graph->rt[f].nid_cnt = 0;
-  for(int i=0;i<nid_cnt;i++)
-  {
-    dt_node_t *node = graph->node + nid[i];
-    if(node->type & s_node_geometry)
-      graph->rt[f].nid[graph->rt[f].nid_cnt++] = nid[i];
-  }
+    if(graph->rt[f].nid_cnt == 0) return VK_SUCCESS;
+    if(graph->rt[f].nid_max < graph->rt[f].nid_cnt)
+    {
+      free(graph->rt[f].nid);
+      graph->rt[f].nid_max = graph->rt[f].nid_cnt;
+      graph->rt[f].nid = malloc(sizeof(uint32_t)*graph->rt[f].nid_max);
+    }
+    graph->rt[f].nid_cnt = 0;
+    for(int i=0;i<nid_cnt;i++)
+    {
+      dt_node_t *node = graph->node + nid[i];
+      if(node->type & s_node_geometry)
+        graph->rt[f].nid[graph->rt[f].nid_cnt++] = nid[i];
+    }
 
-  VkDescriptorSetLayoutBinding bindings[] = {{
-    .binding         = 0,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-    .descriptorCount = 1,
-    .stageFlags      = VK_SHADER_STAGE_ALL,
-  },{
-    .binding         = 1,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = graph->rt[f].nid_cnt,
-    .stageFlags      = VK_SHADER_STAGE_ALL,
-  },{
-    .binding         = 2,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = graph->rt[f].nid_cnt,
-    .stageFlags      = VK_SHADER_STAGE_ALL,
-  }};
-  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 3,
-    .pBindings    = bindings,
-  };
-  if(graph->rt[f].dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt[f].dset_layout, 0);
-  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt[f].dset_layout));
-  for(int i=0;i<graph->rt[f].nid_cnt;i++)
-    dt_raytrace_node_init(graph, graph->node + graph->rt[f].nid[i]);
+    VkDescriptorSetLayoutBinding bindings[] = {{
+      .binding         = 0,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+      .descriptorCount = 1,
+      .stageFlags      = VK_SHADER_STAGE_ALL,
+    },{
+      .binding         = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = graph->rt[f].nid_cnt,
+      .stageFlags      = VK_SHADER_STAGE_ALL,
+    },{
+      .binding         = 2,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = graph->rt[f].nid_cnt,
+      .stageFlags      = VK_SHADER_STAGE_ALL,
+    }};
+    VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+      .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 3,
+      .pBindings    = bindings,
+    };
+    if(graph->rt[f].dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt[f].dset_layout, 0);
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt[f].dset_layout));
+    for(int i=0;i<graph->rt[f].nid_cnt;i++)
+      dt_raytrace_node_init(graph, graph->node + graph->rt[f].nid[i], f);
+  }
   return VK_SUCCESS;
 }
 
@@ -244,7 +246,8 @@ VkResult
 dt_raytrace_graph_alloc(
     dt_graph_t *graph)
 {
-  const int f = graph->frame % 2;
+  for(int f=0;f<2;f++)
+  {
   if(!qvk.raytracing_supported || graph->rt[f].nid_cnt == 0) return VK_SUCCESS;
   // create staging buffer for graph, allocate staging memory, bind graph + node staging:
   CREATE_STAGING_BUF_R(graph->rt[f].nid_cnt * sizeof(VkAccelerationStructureInstanceKHR), graph->rt[f].buf_staging);
@@ -321,7 +324,7 @@ dt_raytrace_graph_alloc(
     .descriptorSetCount = 1,
     .pSetLayouts        = &graph->rt[f].dset_layout,
   };
-  QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, graph->rt[f].dset));
+  QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &graph->rt[f].dset));
   VkWriteDescriptorSetAccelerationStructureKHR acceleration_structure_info = {
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
     .accelerationStructureCount = 1,
@@ -346,25 +349,26 @@ dt_raytrace_graph_alloc(
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
     .descriptorCount = 1,
-    .dstSet          = graph->rt[f].dset[0],
+    .dstSet          = graph->rt[f].dset,
     .dstBinding      = 0,
     .pNext           = &acceleration_structure_info
   },{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
     .descriptorCount = graph->rt[f].nid_cnt,
-    .dstSet          = graph->rt[f].dset[0],
+    .dstSet          = graph->rt[f].dset,
     .dstBinding      = 1,
     .pBufferInfo     = bvtx,
   },{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
     .descriptorCount = graph->rt[f].nid_cnt,
-    .dstSet          = graph->rt[f].dset[0],
+    .dstSet          = graph->rt[f].dset,
     .dstBinding      = 2,
     .pBufferInfo     = bidx,
   }};
   vkUpdateDescriptorSets(qvk.device, 3, dset_write, 0, NULL);
+  }
   return VK_SUCCESS;
 }
 #undef CREATE_SCRATCH_BUF_R
