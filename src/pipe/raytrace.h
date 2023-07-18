@@ -49,6 +49,7 @@ typedef struct dt_raytrace_node_t
   uint32_t                                    vtx_cnt;        // number of vertices provided
   uint32_t                                    idx_cnt;        // number of indices provided by this node
   uint32_t                                    tri_cnt;        // number of indices provided by this node, i.e. idx_cnt/3
+  int                                         force_read_geo; // override for static geo in odd frames
 }
 dt_raytrace_node_t;
 

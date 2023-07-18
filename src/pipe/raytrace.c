@@ -381,7 +381,8 @@ VkResult
 dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
-  const int f = graph->frame % 2;
+  const int f  =  graph->frame    % 2;
+  const int fp = (graph->frame+1) % 2;
   if(!qvk.raytracing_supported || graph->rt[f].nid_cnt == 0) return VK_SUCCESS;
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
@@ -398,13 +399,16 @@ dt_raytrace_record_command_buffer_accel_build(
   for(int i=0;i<graph->rt[f].nid_cnt;i++)
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt[f].nid[i];
-    if(!(node->flags & s_module_request_read_geo)) continue;
+    if(!node->rt[f].force_read_geo && !(node->flags & s_module_request_read_geo)) continue;
     dt_read_geo_params_t p = (dt_read_geo_params_t) {
       .node   = node,
       .vtx    = (float    *)(mapped_staging + node->rt[f].buf_vtx_offset),
       .idx    = (uint32_t *)(mapped_staging + node->rt[f].buf_idx_offset),
     };
     if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
+    // flag has been cleared, node says it's done! need to make sure the other frame buffer knows the static geo too!
+    if(!(node->flags & s_module_request_read_geo)) node->rt[fp].force_read_geo = 1;
+    node->rt[f].force_read_geo = 0; // we are done now
     if(node->rt[f].vtx_cnt == 0) continue;
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
