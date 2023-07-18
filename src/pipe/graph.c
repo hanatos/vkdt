@@ -1101,7 +1101,7 @@ write_descriptor_sets(
 
   if(dt_connector_output(c))
   { // allocate our output buffers
-    if(dt_connector_ssbo(c))
+    if(!dyn_array && dt_connector_ssbo(c))
     { // storage buffer
       for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
       {
@@ -1133,7 +1133,7 @@ write_descriptor_sets(
       const int c_dyn_array = c->flags & s_conn_dynamic_array;
       int fm = c_dyn_array ? (graph->frame % 2) : 0;
       int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
-      for(int f=fm;f<fM;f++)
+      if((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)) for(int f=fm;f<fM;f++)
       {
         int ii = cur_img;
         for(int k=0;k<MAX(1,c->array_length);k++)
@@ -1165,8 +1165,7 @@ write_descriptor_sets(
   { // point our inputs to their counterparts:
     const int c_dyn_array = graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array;
     if(c->connected_mi >= 0 &&
-      ((!dyn_array && !c_dyn_array) ||
-       ( dyn_array &&  c_dyn_array)))
+      ((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)))
     {
       int fm = c_dyn_array ? (graph->frame % 2) : 0;
       int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
@@ -2553,9 +2552,8 @@ VkResult dt_graph_run(
       }
     } // end for all connectors
   }
-  // call this instead of alloc_outputs3 (but for all nodes, at least ones that have the array as input too):
-  // write descriptor sets for all nodes (would need only the changed arrays
-  // and everybody who connects their inputs to it)
+  // write the dynamic array descriptor sets separately (this is skipped in alloc_outputs3 above).
+  // this writes both the output and connected input descriptors.
   if(dynamic_array)
     for(int i=0;i<cnt;i++) for(int j=0;j<graph->node[nodeid[i]].num_connectors;j++)
       write_descriptor_sets(graph, graph->node+nodeid[i], graph->node[nodeid[i]].connector + j, 1);

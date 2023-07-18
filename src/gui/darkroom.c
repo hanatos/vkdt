@@ -170,9 +170,10 @@ darkroom_process()
     dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(md) old_roi = md->connector[0].roi;
   }
-  if(vkdt.graph_dev.runflags)
-    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
-        vkdt.graph_dev.runflags | s_graph_run_wait_done);
+  if(vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)
+    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, vkdt.graph_dev.runflags & ~s_graph_run_wait_done); // interleave cpu and gpu
+  else if(vkdt.graph_dev.runflags)
+    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, vkdt.graph_dev.runflags | s_graph_run_wait_done);  // wait
   if(reset_view)
   {
     dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
