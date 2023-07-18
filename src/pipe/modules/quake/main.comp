@@ -1054,25 +1054,31 @@ main()
     // vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
     // vec4 deb = vec4((nq + 1.0)/2.0, 1.0);
     // vec4 deb = vec4((m0.n + 1.0)/2.0, 1.0);
-    vec4 deb = vec4(gbuf.z, sigma, 1.0, 1.0);
+    // vec4 deb = vec4(gbuf.z, sigma, 1.0, 1.0);
+    vec4 deb = vec4(vec2(sigma/(sigma+1)), 0.0, 1.0);
     imageStore(img_debug, ipos, deb);
   }
 #endif
 
   {
-    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    const vec2 tc = vec2(ipos+0.5+mv)/vec2(textureSize(img_gbuf_in, 0));
+    vec4 gbuf = texture(img_gbuf_in, tc);
     // const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
     const float depth = length(m0.x - params.cam_x.xyz);
     const vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
     const float sigma_n = 64; // svgf style
     const float sigma_z = 10;
-    float w_n = pow(max(0.0, dot(m0.n, nq)), sigma_n);
+    float w_n = pow(clamp(dot(m0.n, nq), 0.0, 1.0), sigma_n);
     float w_z = exp(-abs(gbuf.y - length(m0.x - params.cam_x.xyz))/sigma_z);
     float alpha = 0.9 * w_n * w_z;
+    // gbuf = sample_soft(img_gbuf_in, tc); // reload so it gets blurred out as fuck over time
+    // gbuf = texture(img_gbuf_in, tc);
     gbuf.x = uintBitsToFloat(geo_encode_normal(m0.n)); // normal
     gbuf.y = depth;                                    // depth/z
-    gbuf.z = mix(length(irr),  gbuf.z, alpha);         // biased first  moment
-    gbuf.w = mix(dot(irr,irr), gbuf.w, alpha);         // biased second moment
+    if(!all(greaterThan(gbuf.zw, vec2(0.0))) || !all(lessThan(gbuf.zw, vec2(1e25))))
+      gbuf.zw = vec2(length(irr), dot(irr,irr));
+    else
+      gbuf.zw = mix(vec2(length(irr), dot(irr,irr)), gbuf.zw, alpha);         // biased first and second moments
     imageStore(img_gbuf_out, ipos, gbuf);
   }
 

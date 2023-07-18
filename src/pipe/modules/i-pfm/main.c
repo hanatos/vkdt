@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/half.h"
+#include "core/core.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 typedef struct pfminput_buf_t
 {
   char filename[PATH_MAX];
+  uint32_t frame;
   uint32_t width, height;
   size_t data_begin;
   FILE *f;
@@ -18,16 +20,17 @@ pfminput_buf_t;
 static int 
 read_header(
     dt_module_t *mod,
+    uint32_t    frame,
     const char *filename)
 {
   pfminput_buf_t *pfm = mod->data;
-  if(pfm && !strcmp(pfm->filename, filename))
+  if(pfm && !strcmp(pfm->filename, filename) && pfm->frame == frame)
     return 0; // already loaded
   assert(pfm); // this should be inited in init()
 
   pfm->channels = 3;
   if(pfm->f) fclose(pfm->f);
-  pfm->f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
+  pfm->f = dt_graph_open_resource(mod->graph, frame, filename, "rb");
   if(!pfm->f) goto error;
 
   int wd, ht;
@@ -55,10 +58,12 @@ read_header(
   mod->img_param.filters = 0;
 
   snprintf(pfm->filename, sizeof(pfm->filename), "%s", filename);
+  pfm->frame = frame;
   return 0;
 error:
   fprintf(stderr, "[i-pfm] could not load file `%s'!\n", filename);
   pfm->filename[0] = 0;
+  pfm->frame = -1;
   return 1;
 }
 
@@ -73,7 +78,7 @@ read_plain(
   {
     float in[3];
     fread(in, pfm->channels, sizeof(float), pfm->f);
-    for(int i=0;i<pfm->channels;i++) out[stride*k+i] = float_to_half(in[i]);
+    for(int i=0;i<pfm->channels;i++) out[stride*k+i] = float_to_half(CLAMP(in[i], -65000.0, 65000.0));
     if(stride == 4) out[stride*k+3] = one;
   }
   return 0;
@@ -107,8 +112,11 @@ void modify_roi_out(
     dt_module_t *mod)
 {
   // load image if not happened yet
+  const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename))
+  if(strstr(filename, "%")) // reading a sequence of raws as a timelapse animation
+    mod->flags = s_module_request_read_source;
+  if(read_header(mod, id+graph->frame, filename))
   {
     mod->connector[0].chan = dt_token("rgba");
     mod->connector[0].roi.full_wd = 32;
@@ -126,8 +134,9 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
+  const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename)) return 1;
+  if(read_header(mod, mod->graph->frame+id, filename)) return 1;
   pfminput_buf_t *pfm = mod->data;
   return read_plain(pfm, mapped);
 }
