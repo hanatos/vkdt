@@ -35,8 +35,9 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
       .offset = 0, \
       .size = VK_WHOLE_SIZE, \
     }; \
-		vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
-				VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 1, &mem_barrier, \
+		vkCmdPipelineBarrier(cmd_buf, \
+        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, \
+				VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 1, &mem_barrier, \
         0, NULL); \
   } while (0)
 
@@ -46,8 +47,9 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
       .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, \
       __VA_ARGS__ \
     }; \
-    vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,\
+    vkCmdPipelineBarrier(cmd_buf, \
+        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, \
+        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,\
         0, NULL, 0, NULL, \
         1, &img_mem_barrier); \
   } while(0)
