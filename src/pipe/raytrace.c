@@ -407,7 +407,7 @@ dt_raytrace_record_command_buffer_accel_build(
     };
     if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
     // flag has been cleared, node says it's done! need to make sure the other frame buffer knows the static geo too!
-    if(!(node->flags & s_module_request_read_geo)) node->rt[fp].force_read_geo = 1;
+    if(!(node->flags & s_module_request_read_geo) && !node->rt[f].force_read_geo) node->rt[fp].force_read_geo = 1;
     node->rt[f].force_read_geo = 0; // we are done now
     if(node->rt[f].vtx_cnt == 0) continue;
 
@@ -457,11 +457,11 @@ dt_raytrace_record_command_buffer_accel_build(
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
   VkMemoryBarrier barrier = {
     .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-    .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT,
+    .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
     .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
   };
   vkCmdPipelineBarrier(graph->command_buffer[f],
-      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+      VK_PIPELINE_STAGE_TRANSFER_BIT,
       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
       0, 1, &barrier, 0, NULL, 0, NULL);
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer[f], rebuild_cnt, build_info, p_build_range);
