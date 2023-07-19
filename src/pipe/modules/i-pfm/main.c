@@ -17,6 +17,23 @@ typedef struct pfminput_buf_t
 }
 pfminput_buf_t;
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 2 || parid == 3) // noise model
+  {
+    const float noise_a = dt_module_param_float(module, 2)[0];
+    const float noise_b = dt_module_param_float(module, 3)[0];
+    module->img_param.noise_a = noise_a;
+    module->img_param.noise_b = noise_b;
+    return s_graph_run_all; // need no do modify_roi_out again to read noise model from file
+  }
+  return s_graph_run_record_cmd_buf;
+}
+
 static int 
 read_header(
     dt_module_t *mod,
@@ -52,9 +69,15 @@ read_header(
   for(int k=0;k<4;k++)
   {
     mod->img_param.black[k]        = 0.0f;
-    mod->img_param.white[k]        = 1.0f;
+    mod->img_param.white[k]        = 65535.0f; // XXX should probably be fixed in the denoise module instead
     mod->img_param.whitebalance[k] = 1.0f;
   }
+  mod->img_param.crop_aabb[0] = 0;
+  mod->img_param.crop_aabb[1] = 0;
+  mod->img_param.crop_aabb[2] = wd;
+  mod->img_param.crop_aabb[3] = ht;
+  mod->img_param.noise_a = dt_module_param_float(mod, 2)[0];
+  mod->img_param.noise_b = dt_module_param_float(mod, 3)[0];
   mod->img_param.filters = 0;
 
   snprintf(pfm->filename, sizeof(pfm->filename), "%s", filename);
