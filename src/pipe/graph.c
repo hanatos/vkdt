@@ -1605,6 +1605,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         return VK_INCOMPLETE;
       }
 
+#if 0
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
   if((runflag == 0) && dt_node_source(node))
   {
@@ -1627,6 +1628,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     }
     return VK_SUCCESS;
   }
+#endif
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
 
   // special case for end of pipeline and thumbnail creation:
@@ -1693,6 +1695,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       // this needs to prepare the frame we're actually reading.
       // for feedback connections, this is crossed over.
       if(!((node->connector[i].type == dt_token("sink")) && node->module->so->write_sink))
+      {
+        if(node->connector[i].array_length <= 1)
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k,
@@ -1701,6 +1705,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
                 graph->frame),
               GENERAL,
               SHADER_READ_ONLY_OPTIMAL);
+          }
       else
         IMG_LAYOUT(
             dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
