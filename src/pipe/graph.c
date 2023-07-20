@@ -23,6 +23,8 @@
 
 #define IMG_LAYOUT(img, oli, nli) do {\
   if(!img->image) break;\
+  VkImageLayout ol = VK_IMAGE_LAYOUT_ ## oli;\
+  if(ol != VK_IMAGE_LAYOUT_UNDEFINED && ol != img->layout) { fprintf(stderr, "XXX layout mismatch\n"); assert(0); }\
   VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
   if(nl != img->layout)\
     BARRIER_IMG_LAYOUT(img->image, img->layout, nl);\
@@ -1605,14 +1607,14 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         return VK_INCOMPLETE;
       }
 
-#if 0
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
   if((runflag == 0) && dt_node_source(node))
   {
     for(int i=0;i<node->num_connectors;i++)
     { // this is completely retarded and just to make the layout match what we expect below
       if(!dt_connector_ssbo(node->connector+i) &&
-          dt_connector_output(node->connector+i))
+          dt_connector_output(node->connector+i) &&
+         !(node->connector[i].flags & s_conn_dynamic_array))
       {
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
@@ -1628,7 +1630,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     }
     return VK_SUCCESS;
   }
-#endif
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
 
   // special case for end of pipeline and thumbnail creation:
@@ -1696,16 +1697,22 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       // for feedback connections, this is crossed over.
       if(!((node->connector[i].type == dt_token("sink")) && node->module->so->write_sink))
       {
-        if(node->connector[i].array_length <= 1)
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
-          IMG_LAYOUT(
+          // FIXME: this needs to grab the output connector and ask for the array requests there!
+  //   cid2 = graph->node[nid].connector[cid].connected_mc;
+  //   nid2 = graph->node[nid].connector[cid].connected_mi;
+  // frame %= graph->node[nid2].connector[cid2].frames;
+          // XXX but why tf does the layout even trigger? it does check the last known internal state!
+          if(!node->connector[i].array_req || (node->connector[i].array_req && node->connector[i].array_req[k]))
+            // XXX also triggers for quake blue noise input even though it is already in READ_ONLY_OPT (already in f0)
+            IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k,
                 (node->connector[i].flags & s_conn_feedback) ?
                 1-(graph->frame & 1) :
                 graph->frame),
               GENERAL,
               SHADER_READ_ONLY_OPTIMAL);
-          }
+      }
       else
         IMG_LAYOUT(
             dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
