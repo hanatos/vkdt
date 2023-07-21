@@ -1547,7 +1547,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     for(int i=0;i<node->num_connectors;i++)
     { // this is completely retarded and just to make the layout match what we expect below
       if(!dt_connector_ssbo(node->connector+i) &&
-          dt_connector_output(node->connector+i))
+          dt_connector_output(node->connector+i) &&
+         !(node->connector[i].flags & s_conn_dynamic_array))
       {
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
@@ -1629,14 +1630,17 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       // this needs to prepare the frame we're actually reading.
       // for feedback connections, this is crossed over.
       if(!((node->connector[i].type == dt_token("sink")) && node->module->so->write_sink))
-        for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
-          IMG_LAYOUT(
+      {
+        if(!(node->connector[i].flags & s_conn_dynamic_array))
+          for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
+            IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k,
                 (node->connector[i].flags & s_conn_feedback) ?
                 1-(graph->frame & 1) :
                 graph->frame),
               GENERAL,
               SHADER_READ_ONLY_OPTIMAL);
+      }
       else
         IMG_LAYOUT(
             dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
@@ -1686,7 +1690,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
               COLOR_ATTACHMENT_OPTIMAL);
-        else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+        else if(!(node->connector[i].flags & s_conn_dynamic_array)) for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
