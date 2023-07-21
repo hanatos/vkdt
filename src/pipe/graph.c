@@ -21,10 +21,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+  // if(ol != VK_IMAGE_LAYOUT_UNDEFINED && ol != img->layout) { fprintf(stderr, "XXX layout mismatch\n"); assert(0); }
 #define IMG_LAYOUT(img, oli, nli) do {\
+  const char *fuck = #oli, *you = #nli;\
+  fprintf(stderr, "XXX transforming layout  %s to %s \n", fuck, you);\
   if(!img->image) break;\
   VkImageLayout ol = VK_IMAGE_LAYOUT_ ## oli;\
-  if(ol != VK_IMAGE_LAYOUT_UNDEFINED && ol != img->layout) { fprintf(stderr, "XXX layout mismatch\n"); assert(0); }\
   VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
   if(nl != img->layout)\
     BARRIER_IMG_LAYOUT(img->image, img->layout, nl);\
@@ -1616,6 +1618,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           dt_connector_output(node->connector+i) &&
          !(node->connector[i].flags & s_conn_dynamic_array))
       {
+        fprintf(stderr, "*** retarded codepath %"PRItkn" %"PRItkn"\n", dt_token_str(node->name), dt_token_str(node->connector[i].name));
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
@@ -1697,13 +1700,15 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       // for feedback connections, this is crossed over.
       if(!((node->connector[i].type == dt_token("sink")) && node->module->so->write_sink))
       {
+        fprintf(stderr, "*** input codepath %"PRItkn" %"PRItkn"\n", dt_token_str(node->name), dt_token_str(node->connector[i].name));
+         if(!(node->connector[i].flags & s_conn_dynamic_array))
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
           // FIXME: this needs to grab the output connector and ask for the array requests there!
   //   cid2 = graph->node[nid].connector[cid].connected_mc;
   //   nid2 = graph->node[nid].connector[cid].connected_mi;
   // frame %= graph->node[nid2].connector[cid2].frames;
           // XXX but why tf does the layout even trigger? it does check the last known internal state!
-          if(!node->connector[i].array_req || (node->connector[i].array_req && node->connector[i].array_req[k]))
+          // if(!node->connector[i].array_req || (node->connector[i].array_req && node->connector[i].array_req[k]))
             // XXX also triggers for quake blue noise input even though it is already in READ_ONLY_OPT (already in f0)
             IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k,
@@ -1762,7 +1767,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
               COLOR_ATTACHMENT_OPTIMAL);
-        else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+        else if(!(node->connector[i].flags & s_conn_dynamic_array)) for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
