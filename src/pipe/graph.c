@@ -1042,11 +1042,6 @@ bind_buffers_to_memory(
       QVKR(vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset));
     }
 
-    // put all newly created images into right layout
-    const int f = graph->frame % 2;
-    VkCommandBuffer cmd_buf = graph->command_buffer[f];
-    IMG_LAYOUT(img, UNDEFINED, SHADER_READ_ONLY_OPTIMAL);
-
     VkSamplerYcbcrConversionInfo ycbcr_info = {
       .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
       .conversion = qvk.yuv_conversion,
@@ -2515,8 +2510,6 @@ VkResult dt_graph_run(
     // VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT would allow simultaneous execution while still pending.
     // not sure about our images, i suppose they will need sync/double buffering in this case
   };
-  QVKR(vkBeginCommandBuffer(graph->command_buffer[f], &begin_info));
-  vkCmdResetQueryPool(graph->command_buffer[f], graph->query[f].pool, 0, graph->query[f].max);
 
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
@@ -2644,6 +2637,7 @@ VkResult dt_graph_run(
                 }};
                 const int yuv = node->connector[c].format == dt_token("yuv");
                 VkCommandBuffer cmd_buf = graph->command_buffer[f];
+                QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
                 IMG_LAYOUT(
                     dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
                     UNDEFINED,
@@ -2667,8 +2661,6 @@ VkResult dt_graph_run(
                 vkResetFences(qvk.device, 1, &graph->command_fence[f]);
                 QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
                 QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait inline on our lock because we share the staging buf
-                QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
-                vkCmdResetQueryPool(cmd_buf, graph->query[f].pool, 0, graph->query[f].max);
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
             }
@@ -2687,6 +2679,8 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_record_cmd_buf)
   {
+    QVKR(vkBeginCommandBuffer(graph->command_buffer[f], &begin_info));
+    vkCmdResetQueryPool(graph->command_buffer[f], graph->query[f].pool, 0, graph->query[f].max);
     double rt_beg = dt_time();
     int run_all = run & s_graph_run_upload_source;
     int run_mod = module_flags & s_module_request_read_geo;
@@ -2699,6 +2693,7 @@ VkResult dt_graph_run(
           (graph->node[nodeid[i]].module->flags & s_module_request_read_source)));
     rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
+    QVKR(vkEndCommandBuffer(graph->command_buffer[f]));
   }
 } // end scope, done with nodes
 
@@ -2714,8 +2709,6 @@ VkResult dt_graph_run(
         graph->heap_staging.peak_rss/(1024.0*1024.0),
         graph->heap_staging.vmsize  /(1024.0*1024.0));
   }
-
-  QVKR(vkEndCommandBuffer(graph->command_buffer[f]));
 
   // now upload uniform data before submitting command buffer
 { // module traversal
