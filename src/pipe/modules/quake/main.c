@@ -1030,7 +1030,6 @@ int read_source(
   else if(p->node->kernel == dt_token("dyngeo"))
   { // uploading this stuff is like 3x as expensive as uploading the geo for it!
     uint32_t vtx_cnt = 0, idx_cnt = 0;
-    // XXX TODO
     // ent is the player model (visible when out of body)
     // ent = &cl_entities[cl.viewentity];
     // view is the weapon model (only visible from inside body)
@@ -1039,14 +1038,9 @@ int read_source(
     add_geo(&cl.viewent, 0, 0, mapped, &vtx_cnt, &idx_cnt);
     for(int i=0;i<cl_numvisedicts;i++)
       add_geo(cl_visedicts[i], 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // for (int i=1 ; i<MAX_MODELS ; i++)
-      // add_geo(cl.model_precache+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     // decoration such as flames:
     for (int i=0; i<cl.num_statics; i++)
       add_geo(cl_static_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // temp entities are in visedicts already
-    // for (int i=0; i<cl_max_edicts; i++)
-      // add_geo(cl_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     p->node->flags |= s_module_request_read_source; // request again
   }
@@ -1074,15 +1068,11 @@ int read_geo(
     add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     for(int i=0;i<cl_numvisedicts;i++)
       add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    // for (int i=1 ; i<MAX_MODELS ; i++)
-      // add_geo(cl.model_precache+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     for (int i=0; i<cl.num_statics; i++)
       add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    // for (int i=0; i<cl_max_edicts; i++)
-      // add_geo(cl_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
     add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-    idx_cnt = MAX(3, idx_cnt);
+    // vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+    // idx_cnt = MAX(3, idx_cnt);
     p->node->rt[f].vtx_cnt = vtx_cnt;
     p->node->rt[f].tri_cnt = idx_cnt / 3;
   }

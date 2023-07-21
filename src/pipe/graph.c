@@ -2609,9 +2609,7 @@ VkResult dt_graph_run(
                 if(!(node->connector[c].array_req[a])) continue;
                 node->connector[c].array_req[a] = 0; // clear image load request
               }
-              // if(// XXX this flag is dysfunctional: (node->flags & s_module_request_dyn_array) &&
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };
-              // TODO: detect error code!
               node->module->so->read_source(node->module,
                   mapped + node->connector[c].offset_staging, &p);
               if(node->connector[c].array_length > 1)
