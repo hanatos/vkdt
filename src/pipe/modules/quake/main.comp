@@ -1049,7 +1049,7 @@ main()
   {
     // vec4 vmf = mc_state_vmf(curr, m0.x);
     // vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
-    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos), 0);
     const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
     // vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
     // vec4 deb = vec4((nq + 1.0)/2.0, 1.0);

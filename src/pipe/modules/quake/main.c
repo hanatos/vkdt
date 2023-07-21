@@ -2,6 +2,7 @@
 #include "modules/localsize.h"
 #include "core/half.h"
 #include "../rt/quat.h"
+#include "../i-raw/mat3.h"
 #undef CLAMP // ouch. careful! quake redefines this but with (m, x, M) param order!
 
 #include "config.h"
@@ -502,9 +503,6 @@ add_geo(
   if (!m) return;
   if(qs_data.worldspawn) return;
 
-  // TODO: lerp between lerpdata.pose1 and pose2 using blend
-  // TODO: apply transformation matrix cpu side, whatever.
-  // TODO: later: put into rt animation kernel
   if(m->type == mod_alias)
   { // alias model:
     // TODO: e->model->flags & MF_HOLEY <= enable alpha test
@@ -522,14 +520,22 @@ add_geo(
     nvtx += hdr->numverts_vbo;
     nidx += hdr->numindexes;
 
-    // lerpdata_t  lerpdata;
-    // R_SetupAliasFrame(hdr, ent->frame, &lerpdata);
-    // R_SetupEntityTransform(ent, &lerpdata);
+    lerpdata_t  lerpdata;
+    R_SetupAliasFrame(ent, hdr, ent->frame, &lerpdata);
+    R_SetupEntityTransform(ent, &lerpdata);
     // angles: pitch yaw roll. axes: right fwd up
-    float angles[3] = {-ent->angles[0], ent->angles[1], ent->angles[2]};
-    float fwd[3], rgt[3], top[3], pos[3];
+    float angles[3] = {-lerpdata.angles[0], lerpdata.angles[1], lerpdata.angles[2]};
+    float fwd[3], rgt[3], top[3], pos_t0[3], pos_t1[3], pos[3];
+    float origin[3] = { lerpdata.origin[0], lerpdata.origin[1], lerpdata.origin[2]};
     AngleVectors (angles, fwd, rgt, top);
     for(int k=0;k<3;k++) rgt[k] = -rgt[k]; // seems these come in flipped
+
+    float M[9] = {
+      fwd[0], rgt[0], top[0],
+      fwd[1], rgt[1], top[1],
+      fwd[2], rgt[2], top[2]};
+    float Mi[9];
+    mat3inv(Mi, M);
 
     // for(int f = 0; f < hdr->numposes; f++)
     // TODO: upload all vertices so we can just alter the indices on gpu
@@ -537,11 +543,14 @@ add_geo(
     if(f < 0 || f >= hdr->numposes) return;
     if(vtx) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
-      int i = hdr->numverts * f + desc[v].vertindex;
+      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
+      for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+      for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+
+      for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
       for(int k=0;k<3;k++)
-        pos[k] = trivertexes[i].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-      for(int k=0;k<3;k++)
-        vtx[3*v+k] = ent->origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
+        vtx[3*v+k] = origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
     }
 #if 1 // both options fail to extract correct creases/vertex normals for health/shells
     // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
@@ -550,10 +559,13 @@ add_geo(
     int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
     if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
-      int i = hdr->numverts * f + desc[v].vertindex;
-      float nm[3], nw[3];
-      memcpy(nm, r_avertexnormals[trivertexes[i].lightnormalindex], sizeof(float)*3);
-      for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
+      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
+      float nm0[3], nm1[3], nm[3], nw[3];
+      memcpy(nm0, r_avertexnormals[trivertexes[i0].lightnormalindex], sizeof(float)*3);
+      memcpy(nm1, r_avertexnormals[trivertexes[i1].lightnormalindex], sizeof(float)*3);
+      for(int k=0;k<3;k++) nm[k] = (1.0-lerpdata.blend) * nm0[k] + lerpdata.blend * nm1[k];
+      for(int k=0;k<3;k++) nw[k] = nm[0] * Mi[3*0+k] + nm[1] * Mi[3*1+k] + nm[2] * Mi[3*2+k];
       encode_normal(tmpn+2*v, nw);
     }
 #endif
