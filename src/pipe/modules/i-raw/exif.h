@@ -33,6 +33,11 @@ extern "C" {
 
 #include <exiv2/exiv2.hpp>
 
+#if EXIV2_TEST_VERSION(0,28,0)
+#define toLong toUint32
+#define AnyError Error
+#endif
+
 namespace {
 
 typedef enum dt_exif_image_orientation_t
@@ -108,9 +113,6 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
       else
         ip->focal_length = pos->toFloat();
     }
-#if EXIV2_TEST_VERSION(0,28,0)
-#define toLong toUint32
-#endif
     /*
      * Read image orientation
      */
@@ -166,7 +168,6 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
       if(FIND_EXIF_TAG("Exif.Image.CalibrationIlluminant2")) illu2 = pos->toLong();
       Exiv2::ExifData::const_iterator cm1_pos = exifData.findKey(Exiv2::ExifKey("Exif.Image.ColorMatrix1"));
       Exiv2::ExifData::const_iterator cm2_pos = exifData.findKey(Exiv2::ExifKey("Exif.Image.ColorMatrix2"));
-#undef toLong
 
       // Which is the wanted colormatrix?
       // If we have D65 in Illuminant1 we use it; otherwise we prefer Illuminant2 because it's the higher
@@ -293,3 +294,5 @@ int dt_exif_read(dt_image_params_t *ip, const char *path)
     return 1;
   }
 }
+#undef toLong
+#undef AnyError
