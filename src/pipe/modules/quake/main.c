@@ -1027,31 +1027,6 @@ int read_source(
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
   }
-  else if(p->node->kernel == dt_token("dyngeo"))
-  { // uploading this stuff is like 3x as expensive as uploading the geo for it!
-    uint32_t vtx_cnt = 0, idx_cnt = 0;
-    // ent is the player model (visible when out of body)
-    // ent = &cl_entities[cl.viewentity];
-    // view is the weapon model (only visible from inside body)
-    // view = &cl.viewent;
-    // add_geo(cl_entities+cl.viewentity, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    add_geo(&cl.viewent, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // decoration such as flames:
-    for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    p->node->flags |= s_module_request_read_source; // request again
-  }
-  else if(p->node->kernel == dt_token("stcgeo"))
-  {
-    uint32_t vtx_cnt = 0, idx_cnt = 0;
-    add_geo(cl_entities+0, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    if(qs_data.worldspawn) p->node->flags |= s_module_request_read_source; // request again
-    else p->node->flags &= ~s_module_request_read_source; // done uploading static extra data
-  }
-
   return 0;
 }
 
@@ -1064,13 +1039,13 @@ int read_geo(
   const int f = mod->graph->frame % 2;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 7*(idx_cnt/3), &vtx_cnt, &idx_cnt); // player model
+    add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+      add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+      add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
+    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     // vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     // idx_cnt = MAX(3, idx_cnt);
     p->node->rt[f].vtx_cnt = vtx_cnt;
@@ -1078,7 +1053,7 @@ int read_geo(
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
     p->node->rt[f].vtx_cnt = vtx_cnt;

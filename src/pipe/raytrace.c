@@ -35,6 +35,7 @@ dt_raytrace_node_cleanup(
     if(node->rt[f].buf_scratch) vkDestroyBuffer(qvk.device, node->rt[f].buf_scratch, VK_NULL_HANDLE);
     if(node->rt[f].buf_vtx)     vkDestroyBuffer(qvk.device, node->rt[f].buf_vtx,     VK_NULL_HANDLE);
     if(node->rt[f].buf_idx)     vkDestroyBuffer(qvk.device, node->rt[f].buf_idx,     VK_NULL_HANDLE);
+    if(node->rt[f].buf_ext)     vkDestroyBuffer(qvk.device, node->rt[f].buf_ext,     VK_NULL_HANDLE);
     memset(&node->rt[f], 0, sizeof(node->rt[f]));
   }
 }
@@ -125,8 +126,9 @@ dt_raytrace_node_init(
   }
   node->rt[f].tri_cnt = node->rt[f].idx_cnt/3;
   if(node->rt[f].tri_cnt == 0) return VK_SUCCESS;
-  CREATE_STAGING_BUF_R(node->rt[f].vtx_cnt * sizeof(float) * 3, node->rt[f].buf_vtx);
-  CREATE_STAGING_BUF_R(node->rt[f].idx_cnt * sizeof(uint32_t),  node->rt[f].buf_idx);
+  CREATE_STAGING_BUF_R(node->rt[f].vtx_cnt * sizeof(float) * 3,    node->rt[f].buf_vtx);
+  CREATE_STAGING_BUF_R(node->rt[f].idx_cnt * sizeof(uint32_t),     node->rt[f].buf_idx);
+  CREATE_STAGING_BUF_R(node->rt[f].tri_cnt * sizeof(int16_t) * 14, node->rt[f].buf_ext);
 
   VkAccelerationStructureBuildSizesInfoKHR accel_size = {
     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
@@ -227,10 +229,15 @@ dt_raytrace_graph_init(
       .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
       .descriptorCount = graph->rt[f].nid_cnt,
       .stageFlags      = VK_SHADER_STAGE_ALL,
+    },{
+      .binding         = 3,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = graph->rt[f].nid_cnt,
+      .stageFlags      = VK_SHADER_STAGE_ALL,
     }};
     VkDescriptorSetLayoutCreateInfo dset_layout_info = {
       .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-      .bindingCount = 3,
+      .bindingCount = 4,
       .pBindings    = bindings,
     };
     if(graph->rt[f].dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt[f].dset_layout, 0);
@@ -259,6 +266,7 @@ dt_raytrace_graph_alloc(
   {
     QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt[f].nid[i]].rt[f].buf_vtx, graph->rt[f].vkmem_staging, graph->node[graph->rt[f].nid[i]].rt[f].buf_vtx_offset));
     QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt[f].nid[i]].rt[f].buf_idx, graph->rt[f].vkmem_staging, graph->node[graph->rt[f].nid[i]].rt[f].buf_idx_offset));
+    QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt[f].nid[i]].rt[f].buf_ext, graph->rt[f].vkmem_staging, graph->node[graph->rt[f].nid[i]].rt[f].buf_ext_offset));
   }
 
   // get top-level acceleration structure size + scratch mem requirements.
@@ -332,6 +340,7 @@ dt_raytrace_graph_alloc(
   };
   VkDescriptorBufferInfo *bvtx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt[f].nid_cnt);
   VkDescriptorBufferInfo *bidx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt[f].nid_cnt);
+  VkDescriptorBufferInfo *bext = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt[f].nid_cnt);
   for(int i=0;i<graph->rt[f].nid_cnt;i++)
   {
     bvtx[i] = (VkDescriptorBufferInfo){
@@ -342,6 +351,11 @@ dt_raytrace_graph_alloc(
     bidx[i] = (VkDescriptorBufferInfo){
       .offset = 0,
       .buffer = graph->node[graph->rt[f].nid[i]].rt[f].buf_idx,
+      .range  = VK_WHOLE_SIZE,
+    };
+    bext[i] = (VkDescriptorBufferInfo){
+      .offset = 0,
+      .buffer = graph->node[graph->rt[f].nid[i]].rt[f].buf_ext,
       .range  = VK_WHOLE_SIZE,
     };
   }
@@ -366,8 +380,15 @@ dt_raytrace_graph_alloc(
     .dstSet          = graph->rt[f].dset,
     .dstBinding      = 2,
     .pBufferInfo     = bidx,
+  },{
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorCount = graph->rt[f].nid_cnt,
+    .dstSet          = graph->rt[f].dset,
+    .dstBinding      = 3,
+    .pBufferInfo     = bext,
   }};
-  vkUpdateDescriptorSets(qvk.device, 3, dset_write, 0, NULL);
+  vkUpdateDescriptorSets(qvk.device, 4, dset_write, 0, NULL);
   }
   return VK_SUCCESS;
 }
@@ -404,6 +425,7 @@ dt_raytrace_record_command_buffer_accel_build(
       .node   = node,
       .vtx    = (float    *)(mapped_staging + node->rt[f].buf_vtx_offset),
       .idx    = (uint32_t *)(mapped_staging + node->rt[f].buf_idx_offset),
+      .ext    = (int16_t  *)(mapped_staging + node->rt[f].buf_ext_offset),
     };
     if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
     // flag has been cleared, node says it's done! need to make sure the other frame buffer knows the static geo too!
