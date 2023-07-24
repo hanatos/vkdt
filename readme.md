@@ -42,6 +42,13 @@ there are up-to-date packages (deb/rpm/pkgbuild) in the
 
 [opensuse build system](https://software.opensuse.org/download.html?project=graphics%3Adarktable%3Amaster&package=vkdt)
 
+also there are [nixos packages](https://search.nixos.org/packages?channel=unstable&show=vkdt) `vkdt`
+and `vkdt-wayland` which you can use to try out/run on any linux distro, for instance:
+```
+  nix-shell -p vkdt
+```
+
+
 ## build instructions
 
 you should have checked out this repo recursively. if not, do
