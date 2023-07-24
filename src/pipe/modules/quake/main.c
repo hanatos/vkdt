@@ -1226,7 +1226,7 @@ create_nodes(
   dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
 
   // propagate up so things will start to move at all at the node level:
-  module->flags = s_module_request_read_geo | s_module_request_read_source;
+  module->flags = s_module_request_read_geo;
 }
 
 int audio(
