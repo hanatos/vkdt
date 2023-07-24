@@ -131,9 +131,9 @@ dt_graph_cleanup(dt_graph_t *g)
       if(c->flags & (s_conn_dynamic_array | s_conn_feedback))
       { // free potential double images for multi-frame dsets
         for(int k=0;k<MAX(1,c->array_length);k++)
-        {
-          dt_connector_image_t *img0 = dt_graph_connector_image(g, i, j, k, 0);
-          dt_connector_image_t *img1 = dt_graph_connector_image(g, i, j, k, 1);
+        { // avoid error message in case image does not exist:
+          dt_connector_image_t *img0 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 0) : 0;
+          dt_connector_image_t *img1 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 1) : 0;
           if(!img0 || !img1) continue;
           if(img0->image == img1->image)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
@@ -2175,9 +2175,9 @@ VkResult dt_graph_run(
       if(graph->node[i].connector[j].flags & (s_conn_dynamic_array | s_conn_feedback))
       { // free potential double images for multi-frame dsets
         for(int k=0;k<MAX(1,graph->node[i].connector[j].array_length);k++)
-        {
-          dt_connector_image_t *img0 = dt_graph_connector_image(graph, i, j, k, 0);
-          dt_connector_image_t *img1 = dt_graph_connector_image(graph, i, j, k, 1);
+        { // avoid error message in case image does not exist:
+          dt_connector_image_t *img0 = (graph->node[i].conn_image[j] != -1) ? dt_graph_connector_image(graph, i, j, k, 0) : 0;
+          dt_connector_image_t *img1 = (graph->node[i].conn_image[j] != -1) ? dt_graph_connector_image(graph, i, j, k, 1) : 0;
           if(!img0 || !img1) continue;
           if(img0->image == img1->image)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
