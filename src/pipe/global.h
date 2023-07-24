@@ -23,6 +23,7 @@ typedef struct dt_read_geo_params_t
   dt_node_t *node;    // the callback lives on the module and needs to identify the real source
   uint32_t  *idx;     // mmapped index array
   float     *vtx;     // mmapped vertex array
+  int16_t   *ext;     // mmapped extra data (normals, materials, texture ids, ..)
 }
 dt_read_geo_params_t;
 

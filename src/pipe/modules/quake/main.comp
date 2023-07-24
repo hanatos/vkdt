@@ -46,17 +46,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 // { } push;
 
 layout(set = 1, binding = 0) uniform writeonly image2D img_irradiance;
-
-// TODO: make this an array (and support more instances for decals etc)
-layout(std430, set = 1, binding = 1) buffer sssbo_t
-{
-  uint v[]; // extra geo info for static geo
-} stcssbo;
-
-layout(std430, set = 1, binding = 2) buffer dssbo_t
-{
-  uint v[]; // extra geo info for dynamic geo
-} dynssbo;
+layout(set = 1, binding = 1) buffer buf_inst0_t { float dum; } buf_inst0; // geo connector for instance 0
+layout(set = 1, binding = 2) buffer buf_inst1_t { float dum; } buf_inst1;
 
 layout(set = 1, binding = 3) uniform sampler2D img_tex[];
 layout(set = 1, binding = 4) uniform sampler2D img_blue;
@@ -83,6 +74,11 @@ layout(set = 2, binding = 2) buffer buf_idx_t
 { // index data for every instance
   uint i[];
 } buf_idx[];
+
+layout(set = 2, binding = 3) buffer buf_ext_t
+{ // extra geometry data for every instance
+  uint v[];
+} buf_ext[];
 
 // importance sample the blackman harris pixel filter.
 // has 1.5px radius support
@@ -235,53 +231,28 @@ prepare_material_info(
   vec3 n0, n1, n2;
   vec2 st0, st1, st2;
   bool brush_model = false;
-  if(inter.opaque.instid == 0)
-  { // dyn geo
-    m.mat   =  dynssbo.v[i+6]&0xfff;
-      alpha = (dynssbo.v[i+6]>>12)/15.0;
-      matfb = (dynssbo.v[i+6]>>16) & 0xfff;
-    m.flags =  dynssbo.v[i+6]>>28;
-      matgl = matnd = 0;
-    brush_model = (dynssbo.v[i+1] == 0xffffffff);
-    if(brush_model)
-    {
-      matgl = dynssbo.v[i+0]&0xffff;
-      matnd = dynssbo.v[i+0]>>16;
-    }
-    else
-    {
-      n0 = geo_decode_normal(dynssbo.v[i+0]);
-      n1 = geo_decode_normal(dynssbo.v[i+1]);
-      n2 = geo_decode_normal(dynssbo.v[i+2]);
-    }
-    st0 = unpackHalf2x16(dynssbo.v[i+3]);
-    st1 = unpackHalf2x16(dynssbo.v[i+4]);
-    st2 = unpackHalf2x16(dynssbo.v[i+5]);
-    st = mat3x2(st0, st1, st2) * b;
+  nonuniformEXT int inst = inter.opaque.instid;
+  m.mat =   buf_ext[inst].v[i+6] & 0xfff;
+  alpha =  (buf_ext[inst].v[i+6]>>12)/15.0;
+  matfb =  (buf_ext[inst].v[i+6]>>16) & 0xfff;
+  m.flags = buf_ext[inst].v[i+6]>>28;
+  matgl = matnd = 0;
+  brush_model = (buf_ext[inst].v[i+1] == 0xffffffff);
+  if(brush_model)
+  {
+    matgl = buf_ext[inst].v[i+0]&0xffff;
+    matnd = buf_ext[inst].v[i+0]>>16;
   }
   else
-  { // static geo
-    brush_model = (stcssbo.v[i+1] == 0xffffffff);
-    m.mat   =  stcssbo.v[i+6]&0xfff;
-    alpha   = (stcssbo.v[i+6]>>12)/15.0;
-    matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
-    m.flags =  stcssbo.v[i+6]>>28;
-    if(brush_model)
-    {
-      matgl = stcssbo.v[i+0]&0xffff;
-      matnd = stcssbo.v[i+0]>>16;
-    }
-    else
-    {
-      n0 = geo_decode_normal(stcssbo.v[i+0]);
-      n1 = geo_decode_normal(stcssbo.v[i+1]);
-      n2 = geo_decode_normal(stcssbo.v[i+2]);
-    }
-    st0 = unpackHalf2x16(stcssbo.v[i+3]);
-    st1 = unpackHalf2x16(stcssbo.v[i+4]);
-    st2 = unpackHalf2x16(stcssbo.v[i+5]);
-    st = mat3x2(st0, st1, st2) * b;
+  {
+    n0 = geo_decode_normal(buf_ext[inst].v[i+0]);
+    n1 = geo_decode_normal(buf_ext[inst].v[i+1]);
+    n2 = geo_decode_normal(buf_ext[inst].v[i+2]);
   }
+  st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
+  st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
+  st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+  st = mat3x2(st0, st1, st2) * b;
   // more precise intersection point by using vertices + barycentrics
   uint i0 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+0)];
   uint i1 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+1)];
@@ -406,7 +377,7 @@ prepare_material_info(
     uint seed = uint(1337000*(17*m.c.x.x+m.c.x.y));
     float rand = mrand(seed);
     i = 7*inter.water.primid;
-    uint flags = stcssbo.v[i+6]>>28;
+    uint flags = buf_ext[inter.water.instid].v[i+6]>>28;
     float t = water_intersect(params.cl_time, x+(inter.water.t+rand*0.01)*w, w, WATER_DEPTH, flags == 4);
     if(inter.water.t + t < inter.opaque.t && inter.water.t + t > 0.03)
     {
@@ -419,14 +390,14 @@ prepare_material_info(
       // m.flags = 4;
       if(dot(w, m.c.n) > 0) m.c.n = -m.c.n; // never happens except when it does (transparent surfaces/sky)
       m.c.ng = m.c.n;
-      m.flags =  flags;//stcssbo.v[i+6]>>28;
+      m.flags =  flags;
 
 #if 1
-      m.mat   =  stcssbo.v[i+6]&0xfff;
-      alpha   = (stcssbo.v[i+6]>>12)/15.0;
-      matfb   = (stcssbo.v[i+6]>>16) & 0xfff;
-      matgl   =  stcssbo.v[i+0]&0xffff;
-      matnd   =  stcssbo.v[i+0]>>16;
+      m.mat   =  buf_ext[inter.water.instid].v[i+6]&0xfff;
+      alpha   = (buf_ext[inter.water.instid].v[i+6]>>12)/15.0;
+      matfb   = (buf_ext[inter.water.instid].v[i+6]>>16) & 0xfff;
+      matgl   =  buf_ext[inter.water.instid].v[i+0]&0xffff;
+      matnd   =  buf_ext[inter.water.instid].v[i+0]>>16;
       st      = m.c.x.xy*0.01;
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(m.mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(m.mat)], 0)-1);
@@ -486,30 +457,17 @@ vec3 nee_torch(
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
     {
-      int instance_id = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
+      nonuniformEXT int inst = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
       int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
       nonuniformEXT int i = 7*pi;
-      uint mat = 0;
-      vec2 st;
-      if(instance_id == 0)
-      {
-        mat   = dynssbo.v[i+6]&0xfff;
-        vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
-        vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
-        vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
-        st = mat3x2(st0, st1, st2) * b;
-      }
-      else
-      {
-        mat   = stcssbo.v[i+6]&0xfff;
-        vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
-        vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
-        vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
-        st = mat3x2(st0, st1, st2) * b;
-      }
+      uint mat = buf_ext[inst].v[i+6]&0xfff;
+      vec2 st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
+      vec2 st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
+      vec2 st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+      vec2 st = mat3x2(st0, st1, st2) * b;
       ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(mat)], 0)*mod(st, vec2(1.0)));
       tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(mat)], 0)-1);
       vec4 diffcol = texelFetch(img_tex[nonuniformEXT(mat)], tc, 0);
@@ -544,35 +502,19 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
   {
     if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
     {
-      const int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
+      nonuniformEXT int inst = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
+      nonuniformEXT int pi = rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      nonuniformEXT int i = 7*pi;
-      uint mat = 0;
-      uint flags = 0;
-      // uint alpha = 0;
-      vec2 st;
-      if(rayQueryGetIntersectionInstanceIdEXT(rq, false) == 0) // which of our ssbo
-      {
-        mat   = dynssbo.v[i+6]&0xfff;
-        // alpha = dynssbo.v[i+6]>>12;
-        flags = dynssbo.v[i+6]>>28;
-        vec2 st0 = unpackHalf2x16(dynssbo.v[i+3]);
-        vec2 st1 = unpackHalf2x16(dynssbo.v[i+4]);
-        vec2 st2 = unpackHalf2x16(dynssbo.v[i+5]);
-        st = mat3x2(st0, st1, st2) * b;
-      }
-      else
-      {
-        mat   = stcssbo.v[i+6]&0xfff;
-        // alpha = stcssbo.v[i+6]>>12;
-        flags = stcssbo.v[i+6]>>28;
-        vec2 st0 = unpackHalf2x16(stcssbo.v[i+3]);
-        vec2 st1 = unpackHalf2x16(stcssbo.v[i+4]);
-        vec2 st2 = unpackHalf2x16(stcssbo.v[i+5]);
-        st = mat3x2(st0, st1, st2) * b;
-      }
+      int i = 7*pi;
+      uint mat = buf_ext[inst].v[i+6]&0xfff;
+      // uint alpha = buf_ext[inst].v[i+6]>>12;
+      uint flags = buf_ext[inst].v[i+6]>>28;
+      vec2 st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
+      vec2 st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
+      vec2 st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+      vec2 st = mat3x2(st0, st1, st2) * b;
       if(flags > 0) st = vec2(
           st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
           st.y + 0.2*sin(st.x*2.0 + params.cl_time * 1.0));
@@ -612,6 +554,7 @@ propagate_ray(
   rayQueryEXT rq;
   const float t_max = T_MAX;
   raycast_res_t res = cast_ray(rq, x, w, t_max);
+  // XXX TODO: if t_max don't touch material!
   material_info_t m = prepare_material_info(x, w, res);
   xm = m.c.x;
 #if WATER_MODE==WATER_MODE_OFF
@@ -1048,7 +991,7 @@ main()
   {
     // vec4 vmf = mc_state_vmf(curr, m0.x);
     // vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
-    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos+mv), 0);
+    vec4 gbuf = texelFetch(img_gbuf_in, ivec2(ipos), 0);
     const float sigma = sqrt(max(0, gbuf.w - gbuf.z*gbuf.z)); // noise stddev
     // vec3 nq = geo_decode_normal(floatBitsToUint(gbuf.x));
     // vec4 deb = vec4((nq + 1.0)/2.0, 1.0);

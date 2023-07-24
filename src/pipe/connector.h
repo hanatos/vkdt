@@ -87,6 +87,7 @@ typedef struct dt_connector_t
   size_t        array_alloc_size; // size of the pool allocated for this dynamic texture array
   dt_vkmem_t   *array_mem;        // memory allocated in outer mem pool, will be split for array dynamically
   uint8_t      *array_req;        // points to flags what do do: 0 - nothing, 1 - alloc, 2 - upload, 4 - free
+  int           array_resync;     // means we need to sync a dynamic array for multi-frame descriptor sets with one frame delay (internal use)
 
   // buffer associated with this in case it connects nodes:
   uint64_t offset_staging, size_staging;
@@ -192,7 +193,7 @@ dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
 {
   if(c->format == dt_token("bc1")) return wd/4*(uint64_t)ht/4 * (uint64_t)8;
   if(c->format == dt_token("yuv")) return wd*(uint64_t)ht * (uint64_t)2;
-  if(c->format == dt_token("geo")) return 14*sizeof(int16_t)*ht/3; // 14 values per triangle
+  if(c->format == dt_token("geo")) return 4*sizeof(float); // just a dummy for extra data, ray tracing geo will take care of itself
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_channel(c);
   return numc * bpp * wd * ht;

@@ -17,7 +17,7 @@ typedef struct dt_raytrace_graph_t
 	VkAccelerationStructureGeometryKHR          geometry;
   VkAccelerationStructureBuildGeometryInfoKHR build_info;
   VkDeviceMemory                              vkmem_scratch;
-  VkDeviceMemory                              vkmem_staging;  // memory for our instance array + all nodes vtx, idx data
+  VkDeviceMemory                              vkmem_staging;  // memory for our instance array + all nodes vtx, idx data, ext data
   VkDeviceMemory                              vkmem_accel;    // memory for our top level accel + all nodes bottom level accel
   uint32_t                                    staging_memory_type_bits;
   uint32_t                                    scratch_memory_type_bits;
@@ -27,8 +27,8 @@ typedef struct dt_raytrace_graph_t
   size_t                                      accel_end,   accel_max;
   uint32_t                                   *nid;
   uint32_t                                    nid_cnt, nid_max;
-  VkDescriptorSet                             dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
-  VkDescriptorSetLayout                       dset_layout;               // they all share the same layout
+  VkDescriptorSet                             dset;              // one descriptor set for every frame (the whole struct is per frame)
+  VkDescriptorSetLayout                       dset_layout;       // they all share the same layout
 }
 dt_raytrace_graph_t;
 
@@ -42,13 +42,16 @@ typedef struct dt_raytrace_node_t
   VkBuffer                                    buf_scratch;    // scratch memory for accel build
   VkBuffer                                    buf_vtx;        // vertex buffer
   VkBuffer                                    buf_idx;        // index buffer
+  VkBuffer                                    buf_ext;        // index buffer
   off_t                                       buf_accel_offset;
   off_t                                       buf_scratch_offset;
   off_t                                       buf_vtx_offset;
   off_t                                       buf_idx_offset;
+  off_t                                       buf_ext_offset;
   uint32_t                                    vtx_cnt;        // number of vertices provided
   uint32_t                                    idx_cnt;        // number of indices provided by this node
   uint32_t                                    tri_cnt;        // number of indices provided by this node, i.e. idx_cnt/3
+  int                                         force_read_geo; // override for static geo in odd frames
 }
 dt_raytrace_node_t;
 

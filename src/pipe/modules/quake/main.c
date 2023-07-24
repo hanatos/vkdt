@@ -2,6 +2,7 @@
 #include "modules/localsize.h"
 #include "core/half.h"
 #include "../rt/quat.h"
+#include "../i-raw/mat3.h"
 #undef CLAMP // ouch. careful! quake redefines this but with (m, x, M) param order!
 
 #include "config.h"
@@ -30,7 +31,7 @@ typedef struct qs_data_t
 
   uint32_t    *tex[MAX_GLTEXTURES];       // cpu side cache of quake textures
   uint32_t     tex_dim[2*MAX_GLTEXTURES]; // resolutions of textures for modify_roi_out
-  uint8_t      tex_req[MAX_GLTEXTURES];   // dynamic texture request flags: 1:new 2:upload 4:free
+  uint8_t      tex_req[MAX_GLTEXTURES];   // dynamic texture request flag: replace this slot by new upload
   int32_t      tex_cnt;                   // current number of textures
   uint32_t     tex_maxw, tex_maxh;        // maximum texture size, to allocate staging upload buffer
   uint32_t     skybox[6];                 // 6 cubemap skybox texture ids
@@ -321,7 +322,7 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
   if(glt->width > 0 && glt->height > 0) memcpy(qs_data.tex[glt->texnum], data, sizeof(uint32_t)*glt->width*glt->height);
   qs_data.tex_maxw = MAX(qs_data.tex_maxw, glt->width);
   qs_data.tex_maxh = MAX(qs_data.tex_maxh, glt->height);
-  qs_data.tex_req[glt->texnum] = 7; // free, new and upload
+  qs_data.tex_req[glt->texnum] = 1; // replace this allocation and upload new texture
 
   if(!strncmp(glt->name+strlen(glt->name)-6, "_front", 6) ||
      !strncmp(glt->name+strlen(glt->name)-5, "_back", 5))
@@ -352,7 +353,7 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
 void QS_texture_free(gltexture_t *texture)
 {
   if(qs_data.initing < 1) return;
-  qs_data.tex_req[glt->texnum] = 4; // request free
+  qs_data.tex_req[glt->texnum] = ??;
   free(qs_data.tex[glt->texnum]);
   qs_data.tex[glt->texnum] = 0;
 }
@@ -502,9 +503,6 @@ add_geo(
   if (!m) return;
   if(qs_data.worldspawn) return;
 
-  // TODO: lerp between lerpdata.pose1 and pose2 using blend
-  // TODO: apply transformation matrix cpu side, whatever.
-  // TODO: later: put into rt animation kernel
   if(m->type == mod_alias)
   { // alias model:
     // TODO: e->model->flags & MF_HOLEY <= enable alpha test
@@ -522,14 +520,22 @@ add_geo(
     nvtx += hdr->numverts_vbo;
     nidx += hdr->numindexes;
 
-    // lerpdata_t  lerpdata;
-    // R_SetupAliasFrame(hdr, ent->frame, &lerpdata);
-    // R_SetupEntityTransform(ent, &lerpdata);
+    lerpdata_t  lerpdata;
+    R_SetupAliasFrame(ent, hdr, ent->frame, &lerpdata);
+    R_SetupEntityTransform(ent, &lerpdata);
     // angles: pitch yaw roll. axes: right fwd up
-    float angles[3] = {-ent->angles[0], ent->angles[1], ent->angles[2]};
-    float fwd[3], rgt[3], top[3], pos[3];
+    float angles[3] = {-lerpdata.angles[0], lerpdata.angles[1], lerpdata.angles[2]};
+    float fwd[3], rgt[3], top[3], pos_t0[3], pos_t1[3], pos[3];
+    float origin[3] = { lerpdata.origin[0], lerpdata.origin[1], lerpdata.origin[2]};
     AngleVectors (angles, fwd, rgt, top);
     for(int k=0;k<3;k++) rgt[k] = -rgt[k]; // seems these come in flipped
+
+    float M[9] = {
+      fwd[0], rgt[0], top[0],
+      fwd[1], rgt[1], top[1],
+      fwd[2], rgt[2], top[2]};
+    float Mi[9];
+    mat3inv(Mi, M);
 
     // for(int f = 0; f < hdr->numposes; f++)
     // TODO: upload all vertices so we can just alter the indices on gpu
@@ -537,11 +543,14 @@ add_geo(
     if(f < 0 || f >= hdr->numposes) return;
     if(vtx) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
-      int i = hdr->numverts * f + desc[v].vertindex;
+      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
+      for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+      for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+
+      for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
       for(int k=0;k<3;k++)
-        pos[k] = trivertexes[i].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-      for(int k=0;k<3;k++)
-        vtx[3*v+k] = ent->origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
+        vtx[3*v+k] = origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
     }
 #if 1 // both options fail to extract correct creases/vertex normals for health/shells
     // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
@@ -550,10 +559,13 @@ add_geo(
     int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
     if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
-      int i = hdr->numverts * f + desc[v].vertindex;
-      float nm[3], nw[3];
-      memcpy(nm, r_avertexnormals[trivertexes[i].lightnormalindex], sizeof(float)*3);
-      for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
+      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
+      float nm0[3], nm1[3], nm[3], nw[3];
+      memcpy(nm0, r_avertexnormals[trivertexes[i0].lightnormalindex], sizeof(float)*3);
+      memcpy(nm1, r_avertexnormals[trivertexes[i1].lightnormalindex], sizeof(float)*3);
+      for(int k=0;k<3;k++) nm[k] = (1.0-lerpdata.blend) * nm0[k] + lerpdata.blend * nm1[k];
+      for(int k=0;k<3;k++) nw[k] = nm[0] * Mi[3*0+k] + nm[1] * Mi[3*1+k] + nm[2] * Mi[3*2+k];
       encode_normal(tmpn+2*v, nw);
     }
 #endif
@@ -945,7 +957,7 @@ void commit_params(
 
   // hijacked for performance counter rendering
   float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
-  p_duration[0] = graph->query_last_frame_duration;
+  p_duration[0] = graph->query[(graph->frame+1)%2].last_frame_duration;
 
   // set sv_player. this has to be done if we're not calling Host_Frame after a map reload
   client_t *host_client = svs.clients;
@@ -1015,37 +1027,6 @@ int read_source(
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
   }
-  else if(p->node->kernel == dt_token("dyngeo"))
-  { // uploading this stuff is like 3x as expensive as uploading the geo for it!
-    uint32_t vtx_cnt = 0, idx_cnt = 0;
-    // XXX TODO
-    // ent is the player model (visible when out of body)
-    // ent = &cl_entities[cl.viewentity];
-    // view is the weapon model (only visible from inside body)
-    // view = &cl.viewent;
-    // add_geo(cl_entities+cl.viewentity, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    add_geo(&cl.viewent, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // for (int i=1 ; i<MAX_MODELS ; i++)
-      // add_geo(cl.model_precache+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // decoration such as flames:
-    for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // temp entities are in visedicts already
-    // for (int i=0; i<cl_max_edicts; i++)
-      // add_geo(cl_entities+i, 0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    add_particles(0, 0, ((int16_t*)mapped) + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    p->node->flags |= s_module_request_read_source; // request again
-  }
-  else if(p->node->kernel == dt_token("stcgeo"))
-  {
-    uint32_t vtx_cnt = 0, idx_cnt = 0;
-    add_geo(cl_entities+0, 0, 0, mapped, &vtx_cnt, &idx_cnt);
-    if(qs_data.worldspawn) p->node->flags |= s_module_request_read_source; // request again
-    else p->node->flags &= ~s_module_request_read_source; // done uploading static extra data
-  }
-
   return 0;
 }
 
@@ -1055,31 +1036,28 @@ int read_geo(
 {
   // this is only called for our "geo" node because it has an output connector with format "geo".
   uint32_t vtx_cnt = 0, idx_cnt = 0;
+  const int f = mod->graph->frame % 2;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 7*(idx_cnt/3), &vtx_cnt, &idx_cnt); // player model
+    add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    // for (int i=1 ; i<MAX_MODELS ; i++)
-      // add_geo(cl.model_precache+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+      add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    // for (int i=0; i<cl_max_edicts; i++)
-      // add_geo(cl_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
-    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-    idx_cnt = MAX(3, idx_cnt);
-    p->node->rt.vtx_cnt = vtx_cnt;
-    p->node->rt.tri_cnt = idx_cnt / 3;
+      add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
+    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
+    // vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+    // idx_cnt = MAX(3, idx_cnt);
+    p->node->rt[f].vtx_cnt = vtx_cnt;
+    p->node->rt[f].tri_cnt = idx_cnt / 3;
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, 0, &vtx_cnt, &idx_cnt);
+    add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
     vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
     idx_cnt = MAX(3, idx_cnt);
-    p->node->rt.vtx_cnt = vtx_cnt;
-    p->node->rt.tri_cnt = idx_cnt / 3;
+    p->node->rt[f].vtx_cnt = vtx_cnt;
+    p->node->rt[f].tri_cnt = idx_cnt / 3;
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
@@ -1152,14 +1130,14 @@ create_nodes(
       .array_length = MAX_GLTEXTURES, // d->tex_cnt,
       .array_dim    = d->tex_dim,
       .array_req    = d->tex_req,
-      .flags        = s_conn_dynamic_array,
+      .flags        = s_conn_dynamic_array | s_conn_feedback, // mark as dynamic allocation suitable for multi-frame processing (double buffered)
       .array_alloc_size = 1500<<20, // something enough for quake
     }},
   };
   // in case quake was already inited but we are called again to create nodes,
   // we'll also need to re-upload all textures. flag them here:
   for(int i=0;i<d->tex_cnt;i++)
-    if(d->tex[i]) d->tex_req[i] = 7;
+    if(d->tex[i]) d->tex_req[i] = 1;
 
   uint32_t vtx_cnt = 0, idx_cnt = 0;
 #if 0

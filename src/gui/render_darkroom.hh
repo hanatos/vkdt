@@ -49,7 +49,7 @@ void render_perf_overlay()
   static float values[128] = {0.0f};
   static int values_offset = 0;
   char overlay[32];
-  values[values_offset] = (vkdt.graph_dev.query_pool_results[vkdt.graph_dev.query_cnt-1]-vkdt.graph_dev.query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
+  values[values_offset] = vkdt.graph_dev.query[(vkdt.graph_dev.frame+1)%2].last_frame_duration;
   snprintf(overlay, sizeof(overlay), "%.2fms", values[values_offset]);
 
   ImVec2 sz  = ImGui::GetMainViewport()->Size;

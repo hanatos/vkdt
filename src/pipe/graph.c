@@ -66,26 +66,31 @@ dt_graph_init(dt_graph_t *g)
     .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
     .commandPool        = g->command_pool,
     .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    .commandBufferCount = 1,
+    .commandBufferCount = 2,
   };
-  QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, &g->command_buffer));
+  QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer));
   VkFenceCreateInfo fence_info = {
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    .flags = VK_FENCE_CREATE_SIGNALED_BIT,
   };
-  QVK(vkCreateFence(qvk.device, &fence_info, NULL, &g->command_fence));
+  QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+0));
+  QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+1));
   g->float_atomics_supported = qvk.float_atomics_supported;
 
-  g->query_max = 2000;
-  g->query_cnt = 0;
-  VkQueryPoolCreateInfo query_pool_info = {
-    .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
-    .queryType  = VK_QUERY_TYPE_TIMESTAMP,
-    .queryCount = g->query_max,
-  };
-  QVK(vkCreateQueryPool(qvk.device, &query_pool_info, NULL, &g->query_pool));
-  g->query_pool_results = malloc(sizeof(uint64_t)*g->query_max);
-  g->query_name   = malloc(sizeof(dt_token_t)*g->query_max);
-  g->query_kernel = malloc(sizeof(dt_token_t)*g->query_max);
+  for(int i=0;i<2;i++)
+  {
+    g->query[i].max = 2000;
+    g->query[i].cnt = 0;
+    VkQueryPoolCreateInfo query_pool_info = {
+      .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+      .queryType  = VK_QUERY_TYPE_TIMESTAMP,
+      .queryCount = g->query[i].max,
+    };
+    QVK(vkCreateQueryPool(qvk.device, &query_pool_info, NULL, &g->query[i].pool));
+    g->query[i].pool_results = malloc(sizeof(uint64_t)*g->query[i].max);
+    g->query[i].name   = malloc(sizeof(dt_token_t)*g->query[i].max);
+    g->query[i].kernel = malloc(sizeof(dt_token_t)*g->query[i].max);
+  }
 
   // grab default queue:
   g->queue = qvk.queue_compute;
@@ -118,6 +123,26 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_vkalloc_cleanup(&g->heap);
   dt_vkalloc_cleanup(&g->heap_ssbo);
   dt_vkalloc_cleanup(&g->heap_staging);
+  for(int i=0;i<g->num_nodes;i++)
+  {
+    for(int j=0;j<g->node[i].num_connectors;j++)
+    {
+      dt_connector_t *c = g->node[i].connector+j;
+      if(c->flags & (s_conn_dynamic_array | s_conn_feedback))
+      { // free potential double images for multi-frame dsets
+        for(int k=0;k<MAX(1,c->array_length);k++)
+        { // avoid error message in case image does not exist:
+          dt_connector_image_t *img0 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 0) : 0;
+          dt_connector_image_t *img1 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 1) : 0;
+          if(!img0 || !img1) continue;
+          if(img0->image == img1->image)
+          { // it's enough to clean up one replicant, the rest will shut down cleanly later:
+            *img0 = (dt_connector_image_t){0};
+          }
+        }
+      }
+    }
+  }
   for(int i=0;i<g->conn_image_end;i++)
   {
     if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
@@ -168,22 +193,27 @@ dt_graph_cleanup(dt_graph_t *g)
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
   g->vkmem = g->vkmem_ssbo = g->vkmem_staging = g->vkmem_uniform = 0;
   g->vkmem_size = g->vkmem_ssbo_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
-  vkDestroyFence(qvk.device, g->command_fence, 0);
-  g->command_fence = 0;
-  vkDestroyQueryPool(qvk.device, g->query_pool, 0);
-  g->query_pool = 0;
+  vkDestroyFence(qvk.device, g->command_fence[0], 0);
+  vkDestroyFence(qvk.device, g->command_fence[1], 0);
+  g->command_fence[0] = 0;
+  g->command_fence[1] = 0;
   if(g->command_pool != VK_NULL_HANDLE)
-    vkFreeCommandBuffers(qvk.device, g->command_pool, 1, &g->command_buffer);
-  g->command_buffer = VK_NULL_HANDLE;
+    vkFreeCommandBuffers(qvk.device, g->command_pool, 2, g->command_buffer);
+  g->command_buffer[0] = g->command_buffer[1] = VK_NULL_HANDLE;
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
   g->command_pool = 0;
   free(g->module);             g->module = 0;
   free(g->node);               g->node = 0;
   free(g->params_pool);        g->params_pool = 0;
   free(g->conn_image_pool);    g->conn_image_pool = 0;
-  free(g->query_pool_results); g->query_pool_results = 0;
-  free(g->query_name);         g->query_name = 0;
-  free(g->query_kernel);       g->query_kernel = 0;
+  for(int i=0;i<2;i++)
+  {
+    vkDestroyQueryPool(qvk.device, g->query[i].pool, 0);
+    g->query[i].pool = 0;
+    free(g->query[i].pool_results); g->query[i].pool_results = 0;
+    free(g->query[i].name);         g->query[i].name = 0;
+    free(g->query[i].kernel);       g->query[i].kernel = 0;
+  }
 }
 
 static inline void *
@@ -463,6 +493,7 @@ allocate_image_array_element(
 static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
+  const int f = graph->frame % 2;
   // create descriptor bindings and pipeline:
   // we'll bind our buffers in the same order as in the connectors file.
   uint32_t drawn_connector_cnt = 0;
@@ -553,7 +584,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     VkDescriptorSetLayout dset_layout[] = {
       graph->uniform_dset_layout,
       node->dset_layout,
-      graph->rt.dset_layout, // goes last, is optional
+      graph->rt[f].dset_layout, // goes last, is optional
     };
     VkPushConstantRange pcrange = {
       .stageFlags = VK_SHADER_STAGE_ALL,
@@ -1011,10 +1042,6 @@ bind_buffers_to_memory(
       QVKR(vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset));
     }
 
-    // put all newly created images into right layout
-    VkCommandBuffer cmd_buf = graph->command_buffer;
-    IMG_LAYOUT(img, UNDEFINED, SHADER_READ_ONLY_OPTIMAL);
-
     VkSamplerYcbcrConversionInfo ycbcr_info = {
       .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
       .conversion = qvk.yuv_conversion,
@@ -1042,13 +1069,12 @@ bind_buffers_to_memory(
 // 2nd pass, now we have images and vkDeviceMemory, let's bind images and buffers
 // to memory and create descriptor sets
 static inline VkResult
-alloc_outputs2(dt_graph_t *graph, dt_node_t *node, int allocate_dynamic_arrays)
+alloc_outputs2(dt_graph_t *graph, dt_node_t *node)
 {
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if((!allocate_dynamic_arrays && !(c->flags & s_conn_dynamic_array)) || // regular case, first pass
-       ( allocate_dynamic_arrays &&  (c->flags & s_conn_dynamic_array)))   // dyn alloc, second pass
+    if(!(c->flags & s_conn_dynamic_array)) // regular case, first pass
       for(int f=0;f<c->frames;f++) for(int k=0;k<MAX(1,c->array_length);k++)
         QVKR(bind_buffers_to_memory(graph, node, c, f, k));
   }
@@ -1070,7 +1096,7 @@ write_descriptor_sets(
 
   if(dt_connector_output(c))
   { // allocate our output buffers
-    if(dt_connector_ssbo(c))
+    if(!dyn_array && dt_connector_ssbo(c))
     { // storage buffer
       for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
       {
@@ -1096,7 +1122,13 @@ write_descriptor_sets(
     }
     else
     { // image buffer
-      for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
+      // dynamic arrays will only initialise the descriptor set necessary for the current frame
+      // since the frames refer to the odd/even pipelines and not to feedback buffers used in the same
+      // command buffer:
+      const int c_dyn_array = c->flags & s_conn_dynamic_array;
+      int fm = c_dyn_array ? (graph->frame % 2) : 0;
+      int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
+      if((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)) for(int f=fm;f<fM;f++)
       {
         int ii = cur_img;
         for(int k=0;k<MAX(1,c->array_length);k++)
@@ -1126,11 +1158,13 @@ write_descriptor_sets(
   }
   else if(dt_connector_input(c))
   { // point our inputs to their counterparts:
+    const int c_dyn_array = graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array;
     if(c->connected_mi >= 0 &&
-      ((!dyn_array && !(graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array)) ||
-       ( dyn_array &&  (graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array))))
+      ((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)))
     {
-      for(int f=0;f<DT_GRAPH_MAX_FRAMES;f++)
+      int fm = c_dyn_array ? (graph->frame % 2) : 0;
+      int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
+      for(int f=fm;f<fM;f++)
       {
         int ii = dt_connector_ssbo(c) ? cur_buf : cur_img;
         for(int k=0;k<MAX(1,c->array_length);k++)
@@ -1225,7 +1259,8 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
       .descriptorSetCount = 1,
       .pSetLayouts = &graph->uniform_dset_layout,
     };
-    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info_u, &node->uniform_dset));
+    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info_u, node->uniform_dset+0));
+    QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info_u, node->uniform_dset+1));
     VkDescriptorBufferInfo uniform_info[] = {{
       .buffer      = graph->uniform_buffer,
       .offset      = 0,
@@ -1234,10 +1269,18 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
       .buffer      = graph->uniform_buffer,
       .offset      = node->module->uniform_size ? node->module->uniform_offset : 0,
       .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
+    },{
+      .buffer      = graph->uniform_buffer,
+      .offset      = graph->uniform_size,
+      .range       = graph->uniform_global_size,
+    },{
+      .buffer      = graph->uniform_buffer,
+      .offset      = graph->uniform_size + (node->module->uniform_size ? node->module->uniform_offset : 0),
+      .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
     }};
     VkWriteDescriptorSet buf_dset[] = {{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = node->uniform_dset,
+      .dstSet          = node->uniform_dset[0],
       .dstBinding      = 0,
       .dstArrayElement = 0,
       .descriptorCount = 1,
@@ -1245,14 +1288,30 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
       .pBufferInfo     = uniform_info+0,
     },{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = node->uniform_dset,
+      .dstSet          = node->uniform_dset[0],
       .dstBinding      = 1,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo     = uniform_info+1,
+    },{
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = node->uniform_dset[1],
+      .dstBinding      = 0,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = uniform_info+2,
+    },{
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = node->uniform_dset[1],
+      .dstBinding      = 1,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = uniform_info+3,
     }};
-    vkUpdateDescriptorSets(qvk.device, 2, buf_dset, 0, NULL);
+    vkUpdateDescriptorSets(qvk.device, 4, buf_dset, 0, NULL);
   }
 
   for(int i=0;i<node->num_connectors;i++)
@@ -1529,7 +1588,7 @@ void dt_token_print(dt_token_t t)
 static VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
-  VkCommandBuffer cmd_buf = graph->command_buffer;
+  VkCommandBuffer cmd_buf = graph->command_buffer[graph->frame % 2];
 
   // sanity check: are all input connectors bound?
   for(int i=0;i<node->num_connectors;i++)
@@ -1715,6 +1774,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     .imageSubresource.layerCount = 1,
     .imageExtent = { wd / 2, ht / 2, 1 },
   }};
+  const int f = graph->frame % 2;
   const int yuv = node->connector[0].format == dt_token("yuv");
   if(dt_node_sink(node) && node->module->so->write_sink)
   { // only schedule copy back if the node actually asks for it
@@ -1739,12 +1799,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
          (node->connector[0].array_length <= 1))  // arrays share the staging buffer, are handled by iterating read_source()
   {
     // push profiler start
-    if(graph->query_cnt < graph->query_max)
+    if(graph->query[f].cnt < graph->query[f].max)
     {
       vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-          graph->query_pool, graph->query_cnt);
-      graph->query_name  [graph->query_cnt  ] = node->name;
-      graph->query_kernel[graph->query_cnt++] = node->kernel;
+          graph->query[f].pool, graph->query[f].cnt);
+      graph->query[f].name  [graph->query[f].cnt  ] = node->name;
+      graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
     }
     IMG_LAYOUT(
         dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame),
@@ -1761,12 +1821,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         TRANSFER_DST_OPTIMAL,
         SHADER_READ_ONLY_OPTIMAL);
     // get a profiler timestamp:
-    if(graph->query_cnt < graph->query_max)
+    if(graph->query[f].cnt < graph->query[f].max)
     {
       vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-          graph->query_pool, graph->query_cnt);
-      graph->query_name  [graph->query_cnt  ] = node->name;
-      graph->query_kernel[graph->query_cnt++] = node->kernel;
+          graph->query[f].pool, graph->query[f].cnt);
+      graph->query[f].name  [graph->query[f].cnt  ] = node->name;
+      graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
     }
   }
 
@@ -1774,12 +1834,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   if(!node->pipeline) return VK_SUCCESS;
 
   // push profiler start
-  if(graph->query_cnt < graph->query_max)
+  if(graph->query[f].cnt < graph->query[f].max)
   {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        graph->query_pool, graph->query_cnt);
-    graph->query_name  [graph->query_cnt  ] = node->name;
-    graph->query_kernel[graph->query_cnt++] = node->kernel;
+        graph->query[f].pool, graph->query[f].cnt);
+    graph->query[f].name  [graph->query[f].cnt  ] = node->name;
+    graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
   }
 
   // compute or graphics pipeline?
@@ -1807,9 +1867,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 
   // combine all descriptor sets:
   VkDescriptorSet desc_sets[] = {
-    node->uniform_dset,
-    node->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
-    graph->rt.dset[0], // XXX graph->frame % DT_GRAPH_MAX_FRAMES],
+    node->uniform_dset[f],
+    node->dset[f],
+    graph->rt[f].dset,
   };
   const int desc_sets_cnt = LENGTH(desc_sets) - 1 + dt_raytrace_present(graph);
 
@@ -1849,12 +1909,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   }
 
   // get a profiler timestamp:
-  if(graph->query_cnt < graph->query_max)
+  if(graph->query[f].cnt < graph->query[f].max)
   {
     vkCmdWriteTimestamp(cmd_buf, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        graph->query_pool, graph->query_cnt);
-    graph->query_name  [graph->query_cnt  ] = node->name;
-    graph->query_kernel[graph->query_cnt++] = node->kernel;
+        graph->query[f].pool, graph->query[f].cnt);
+    graph->query[f].name  [graph->query[f].cnt  ] = node->name;
+    graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
   }
   return VK_SUCCESS;
 }
@@ -2003,6 +2063,11 @@ VkResult dt_graph_run(
 {
   double clock_beg = dt_time();
   dt_module_flags_t module_flags = 0;
+  const int f  = graph->frame % 2;     // recording this pipeline now
+  const int fp = (graph->frame+1) % 2; // waiting for the previous frame // XXX TODO: set to = f in case no interleaving is requested/possible
+
+  if(run & s_graph_run_alloc)
+    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
 
 { // module scope
   // find list of modules in post order
@@ -2060,7 +2125,7 @@ VkResult dt_graph_run(
       QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
     }
   }
-  graph->query_cnt = 0;
+  graph->query[f].cnt = 0;
 
   // ==============================================
   // first pass: find output rois
@@ -2105,6 +2170,21 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & (s_graph_run_roi | s_graph_run_create_nodes))
   { // delete all previous nodes
+    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+    for(int i=0;i<graph->num_nodes;i++) for(int j=0;j<graph->node[i].num_connectors;j++)
+      if(graph->node[i].connector[j].flags & (s_conn_dynamic_array | s_conn_feedback))
+      { // free potential double images for multi-frame dsets
+        for(int k=0;k<MAX(1,graph->node[i].connector[j].array_length);k++)
+        { // avoid error message in case image does not exist:
+          dt_connector_image_t *img0 = (graph->node[i].conn_image[j] != -1) ? dt_graph_connector_image(graph, i, j, k, 0) : 0;
+          dt_connector_image_t *img1 = (graph->node[i].conn_image[j] != -1) ? dt_graph_connector_image(graph, i, j, k, 1) : 0;
+          if(!img0 || !img1) continue;
+          if(img0->image == img1->image)
+          { // it's enough to clean up one replicant, the rest will shut down cleanly later:
+            *img0 = (dt_connector_image_t){0};
+          }
+        }
+      }
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    graph->conn_image_pool[i].buffer, VK_NULL_HANDLE);
@@ -2252,7 +2332,7 @@ VkResult dt_graph_run(
     graph->dset_cnt_image_read = 0;
     graph->dset_cnt_image_write = 0;
     graph->dset_cnt_buffer = 0;
-    graph->dset_cnt_uniform = 1; // we have one global uniform for params
+    graph->dset_cnt_uniform = DT_GRAPH_MAX_FRAMES; // we have one global uniform for params, per frame
     graph->memory_type_bits = ~0u;
     graph->memory_type_bits_ssbo = ~0u;
     graph->memory_type_bits_staging = ~0u;
@@ -2324,7 +2404,7 @@ VkResult dt_graph_run(
     graph->vkmem_staging_size = graph->heap_staging.vmsize;
   }
 
-  if(graph->vkmem_uniform_size < graph->uniform_size)
+  if(graph->vkmem_uniform_size < DT_GRAPH_MAX_FRAMES * graph->uniform_size)
   {
     if(graph->vkmem_uniform)
     {
@@ -2335,7 +2415,7 @@ VkResult dt_graph_run(
     // uniform data to pass parameters
     VkBufferCreateInfo buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .size  = 2 * graph->uniform_size, // leave headroom for later
+      .size  = DT_GRAPH_MAX_FRAMES * graph->uniform_size,
       .usage = // VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT|
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
@@ -2430,69 +2510,75 @@ VkResult dt_graph_run(
     // VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT would allow simultaneous execution while still pending.
     // not sure about our images, i suppose they will need sync/double buffering in this case
   };
-  QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
-  vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
 
   // ==============================================
   // 2nd pass finish alloc and record commmand buf
   // ==============================================
   if(run & s_graph_run_alloc)
     for(int i=0;i<cnt;i++)
-      QVKR(alloc_outputs2(graph, graph->node+nodeid[i], 0));
+      QVKR(alloc_outputs2(graph, graph->node+nodeid[i]));
 
   if(run & s_graph_run_alloc)
     for(int i=0;i<cnt;i++)
       QVKR(alloc_outputs3(graph, graph->node+nodeid[i]));
 
-  // find dynamically allocated connector in node that has dyn_array request set:
-  int dynamic_array = 0;
+  // find dynamically allocated connector in node that has array requests set:
+  int dynamic_array = 0; // will remain 0 if there are dynamic arrays that did not request changes, triggers upload later
   for(int i=0;i<cnt;i++)
   {
     dt_node_t *node = graph->node + nodeid[i];
-    // if(node->flags & s_module_request_dyn_array) // XXX wouldn't such a switch be great. how to set it?
+    for(int j=0;j<node->num_connectors;j++)
     {
-      int node_dynamic_array = 0;
-      for(int j=0;j<node->num_connectors;j++)
+      dt_connector_t *c = node->connector+j;
+      if(c->array_resync)
+      { // last frame has pending sync work to do
+        for(int a=0;a<MAX(1,c->array_length);a++)
+        { // keep array images the same in general, but delete images that wandered off the command buffer bindings:
+          dt_connector_image_t *oldimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->frame+1);
+          dt_connector_image_t *newimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->frame);
+          if(!oldimg || !newimg) continue; // will insert dummy later
+          if(oldimg->image == newimg->image) continue; // is the same already
+          if(newimg->buffer)     vkDestroyBuffer(qvk.device,    newimg->buffer, VK_NULL_HANDLE);
+          if(newimg->image)      vkDestroyImage(qvk.device,     newimg->image, VK_NULL_HANDLE);
+          if(newimg->image_view) vkDestroyImageView(qvk.device, newimg->image_view, VK_NULL_HANDLE);
+          if(newimg->mem)        dt_vkfree(c->array_alloc, newimg->mem);
+          *newimg = *oldimg; // point to same memory
+          dynamic_array = 1; // need to re-create descriptor sets
+        }
+        c->array_resync = 0; // done with this request
+      }
+      if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
+      for(int k=0;k<MAX(1,c->array_length);k++)
       {
-        dt_connector_t *c = node->connector+j;
-        int f = 0; // XXX frame f for feedback connectors? does not make sense for source array textures
-        if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
-        for(int k=0;k<MAX(1,c->array_length);k++)
-        {
-          // if(c->array_req[k]) fprintf(stderr, "array %d req before %d\n", k, c->array_req[k]);
-          if(c->array_req[k]) node_dynamic_array = 1;
-          if(c->array_req[k] & 4)
-          { // free texture. we'll just give back the address space in the allocator, we won't really clean up:
-            dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
-            if(img->mem)
-            {
-              // fprintf(stderr, "freeing %d\n", k);
-              dt_vkfree(c->array_alloc, img->mem);
-              assert(img->mem->ref == 0);
-            }
-            img->mem = 0;
-          }
-          if(c->array_req[k] & 1) // allocate newly, in place of alloc_outputs
+        if(k == 0 && !c->array_req[0])
+        { // make sure the fallback slot 0 is always inited with at least rubbish:
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
+          assert(img);
+          if(!img->image_view)
           {
-            // fprintf(stderr, "alloc %d\n", k);
+            *img = (dt_connector_image_t){0}; // make sure nothing is freed here
             QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, f, k));
             QVKR(bind_buffers_to_memory(graph, node, c, f, k));
           }
-          // req & 2 (upload) is handled below
-          c->array_req[k] &= ~5; // clear all the flags we handled
-          // if(c->array_req[k]) fprintf(stderr, "array %d req after %d\n", k ,c->array_req[k]);
         }
-      } // end for all connectors
-      if(node_dynamic_array) dynamic_array = 1;
-    } // end if node with dynamic allocation request
+        if(c->array_req[k])
+        { // free texture. we depend on f-1 still holding our data, it will be freed during resync.
+          dynamic_array = c->array_resync = 1; // remember to bring other frame in sync next time to pick up our changes
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, f);
+          assert(img);
+          *img = (dt_connector_image_t){0}; // make sure nothing is freed here
+          QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, f, k));
+          QVKR(bind_buffers_to_memory(graph, node, c, f, k));
+        }
+        // upload is handled below
+      }
+    } // end for all connectors
   }
-  // call this instead of alloc_outputs3 (but for all nodes, at least ones that have the array as input too):
-  // instead of alloc_outputs3 above. write descriptor sets for all nodes (would need only the changed arrays
-  // and everybody who connects their inputs to it)
+  // write the dynamic array descriptor sets separately (this is skipped in alloc_outputs3 above).
+  // this writes both the output and connected input descriptors.
   if(dynamic_array)
-    for(int i=0;i<cnt;i++)
-      for(int j=0;j<graph->node[nodeid[i]].num_connectors;j++)
-        write_descriptor_sets(graph, graph->node+nodeid[i], graph->node[nodeid[i]].connector+j, 1);
+    for(int i=0;i<cnt;i++) for(int j=0;j<graph->node[nodeid[i]].num_connectors;j++)
+      write_descriptor_sets(graph, graph->node+nodeid[i], graph->node[nodeid[i]].connector + j, 1);
 
   // upload all source data to staging memory
   threads_mutex_t *mutex = 0;// graph->io_mutex; // no speed impact, maybe not needed
@@ -2520,12 +2606,10 @@ VkResult dt_graph_run(
             {
               if(node->connector[c].array_req)
               {
-                if(!(node->connector[c].array_req[a] & 2)) continue;
-                node->connector[c].array_req[a] &= ~2; // clear image load request
+                if(!(node->connector[c].array_req[a])) continue;
+                node->connector[c].array_req[a] = 0; // clear image load request
               }
-              // if(// XXX this flag is dysfunctional: (node->flags & s_module_request_dyn_array) &&
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };
-              // TODO: detect error code!
               node->module->so->read_source(node->module,
                   mapped + node->connector[c].offset_staging, &p);
               if(node->connector[c].array_length > 1)
@@ -2533,7 +2617,6 @@ VkResult dt_graph_run(
                 if(!dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->image)
                   continue;
                 vkUnmapMemory(qvk.device, graph->vkmem_staging);
-                VkCommandBuffer cmd_buf = graph->command_buffer;
                 const uint32_t wd = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+0] : node->connector[c].roi.wd);
                 const uint32_t ht = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+1] : node->connector[c].roi.ht);
                 VkBufferImageCopy regions[] = {{
@@ -2551,6 +2634,8 @@ VkResult dt_graph_run(
                   .imageExtent = { wd / 2, ht / 2, 1 },
                 }};
                 const int yuv = node->connector[c].format == dt_token("yuv");
+                VkCommandBuffer cmd_buf = graph->command_buffer[f];
+                QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
                 IMG_LAYOUT(
                     dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
                     UNDEFINED,
@@ -2565,18 +2650,15 @@ VkResult dt_graph_run(
                     dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
                     TRANSFER_DST_OPTIMAL,
                     SHADER_READ_ONLY_OPTIMAL);
-                QVKR(vkEndCommandBuffer(graph->command_buffer));
+                QVKR(vkEndCommandBuffer(cmd_buf));
                 VkSubmitInfo submit = {
                   .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                   .commandBufferCount = 1,
-                  .pCommandBuffers    = &graph->command_buffer,
+                  .pCommandBuffers    = &cmd_buf,
                 };
-                vkResetFences(qvk.device, 1, &graph->command_fence);
-                QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
-                if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-                  QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
-                QVKR(vkBeginCommandBuffer(graph->command_buffer, &begin_info));
-                vkCmdResetQueryPool(graph->command_buffer, graph->query_pool, 0, graph->query_max);
+                vkResetFences(qvk.device, 1, &graph->command_fence[f]);
+                QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
+                QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait inline on our lock because we share the staging buf
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
             }
@@ -2595,6 +2677,8 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_record_cmd_buf)
   {
+    QVKR(vkBeginCommandBuffer(graph->command_buffer[f], &begin_info));
+    vkCmdResetQueryPool(graph->command_buffer[f], graph->query[f].pool, 0, graph->query[f].max);
     double rt_beg = dt_time();
     int run_all = run & s_graph_run_upload_source;
     int run_mod = module_flags & s_module_request_read_geo;
@@ -2607,6 +2691,7 @@ VkResult dt_graph_run(
           (graph->node[nodeid[i]].module->flags & s_module_request_read_source)));
     rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
+    QVKR(vkEndCommandBuffer(graph->command_buffer[f]));
   }
 } // end scope, done with nodes
 
@@ -2623,14 +2708,12 @@ VkResult dt_graph_run(
         graph->heap_staging.vmsize  /(1024.0*1024.0));
   }
 
-  QVKR(vkEndCommandBuffer(graph->command_buffer));
-
   // now upload uniform data before submitting command buffer
 { // module traversal
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
   uint8_t *uniform_mem = 0;
-  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0,
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, f * graph->uniform_size,
         graph->uniform_size, 0, (void**)&uniform_mem));
   ((uint32_t *)uniform_mem)[0] = graph->frame;
   ((uint32_t *)uniform_mem)[1] = graph->frame_cnt;
@@ -2652,17 +2735,22 @@ VkResult dt_graph_run(
   VkSubmitInfo submit = {
     .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
     .commandBufferCount = 1,
-    .pCommandBuffers    = &graph->command_buffer,
+    .pCommandBuffers    = &graph->command_buffer[f],
   };
 
   if(run & s_graph_run_record_cmd_buf)
   {
-    vkResetFences(qvk.device, 1, &graph->command_fence);
-    QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence));
+    vkResetFences(qvk.device, 1, &graph->command_fence[f]);
+    QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence, VK_TRUE, 1ul<<40));
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait for our command buffer
+    else
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[fp], VK_TRUE, 1ul<<40)); // wait for previous command buffer
   }
   
+  // XXX FIXME: this is a race condition for multi-frames. we'll need to wait until download is complete before starting the other command buffer!
+  // XXX FIXME: maybe lock the queue mutex around the whole block?
+  // XXX FIXME: may need an entirely different logic block for single frame?
   if((module_flags & s_module_request_write_sink) ||
      (run & s_graph_run_download_sink))
   {
@@ -2686,43 +2774,43 @@ VkResult dt_graph_run(
     }
   }
 
-  if(graph->query_cnt)
-    QVKR(vkGetQueryPoolResults(qvk.device, graph->query_pool,
-        0, graph->query_cnt,
-        sizeof(graph->query_pool_results[0]) * graph->query_max,
-        graph->query_pool_results,
-        sizeof(graph->query_pool_results[0]),
+  if(graph->query[fp].cnt) // could store the results just once, but for separation of concerns they are part of the struct:
+    QVKR(vkGetQueryPoolResults(qvk.device, graph->query[fp].pool,
+        0, graph->query[fp].cnt,
+        sizeof(graph->query[fp].pool_results[0]) * graph->query[fp].max,
+        graph->query[fp].pool_results,
+        sizeof(graph->query[fp].pool_results[0]),
         VK_QUERY_RESULT_64_BIT));
 
   uint64_t accum_time = 0;
   dt_token_t last_name = 0;
-  for(int i=0;i<graph->query_cnt;i+=2)
+  for(int i=0;i<graph->query[fp].cnt;i+=2)
   {
-    if(i < graph->query_cnt-2 && (
-       graph->query_name[i] == last_name || !last_name ||
-       graph->query_name[i] == dt_token("shared") || last_name == dt_token("shared")))
-      accum_time += graph->query_pool_results[i+1] - graph->query_pool_results[i];
+    if(i < graph->query[fp].cnt-2 && (
+       graph->query[fp].name[i] == last_name || !last_name ||
+       graph->query[fp].name[i] == dt_token("shared") || last_name == dt_token("shared")))
+      accum_time += graph->query[fp].pool_results[i+1] - graph->query[fp].pool_results[i];
     else
     {
-      if(i && accum_time > graph->query_pool_results[i-1] - graph->query_pool_results[i-2])
+      if(i && accum_time > graph->query[fp].pool_results[i-1] - graph->query[fp].pool_results[i-2])
         dt_log(s_log_perf, "sum %"PRItkn":\t%8.3f ms",
             dt_token_str(last_name),
             accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
-      if(i < graph->query_cnt-2)
-        accum_time = graph->query_pool_results[i+1] - graph->query_pool_results[i];
+      if(i < graph->query[fp].cnt-2)
+        accum_time = graph->query[fp].pool_results[i+1] - graph->query[fp].pool_results[i];
     }
-    last_name = graph->query_name[i];
+    last_name = graph->query[fp].name[i];
     // i think this is the most horrible line of printf i've ever written:
     dt_log(s_log_perf, "%-*.*s %-*.*s:\t%8.3f ms",
-        8, 8, dt_token_str(graph->query_name  [i]),
-        8, 8, dt_token_str(graph->query_kernel[i]),
-        (graph->query_pool_results[i+1]-
-        graph->query_pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
+        8, 8, dt_token_str(graph->query[fp].name  [i]),
+        8, 8, dt_token_str(graph->query[fp].kernel[i]),
+        (graph->query[fp].pool_results[i+1]-
+        graph->query[fp].pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
   }
-  if(graph->query_cnt)
+  if(graph->query[fp].cnt)
   {
-    graph->query_last_frame_duration = (graph->query_pool_results[graph->query_cnt-1]-graph->query_pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
-    dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query_last_frame_duration);
+    graph->query[fp].last_frame_duration = (graph->query[fp].pool_results[graph->query[fp].cnt-1]-graph->query[fp].pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
+    dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query[fp].last_frame_duration);
   }
   // reset run flags:
   graph->runflags = 0;
@@ -2784,7 +2872,7 @@ void dt_graph_reset(dt_graph_t *g)
   g->output_wd = 0;
   g->output_ht = 0;
   g->thumbnail_image = 0;
-  g->query_cnt = 0;
+  g->query[0].cnt = g->query[1].cnt = 0;
   g->params_end = 0;
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)

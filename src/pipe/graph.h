@@ -23,6 +23,18 @@ typedef struct dt_connector_image_t
 }
 dt_connector_image_t;
 
+typedef struct dt_graph_query_t
+{
+  uint32_t     max;
+  uint32_t     cnt;
+  VkQueryPool  pool;
+  uint64_t    *pool_results;
+  dt_token_t  *name;
+  dt_token_t  *kernel;
+  float        last_frame_duration; // for convenience the last frame time in milliseconds
+}
+dt_graph_query_t;
+
 // the graph is stored as list of modules and list of nodes.
 // these have connectors with detailed buffer information which
 // also hold the id to the other connected module or node. thus,
@@ -65,11 +77,11 @@ typedef struct dt_graph_t
   VkDeviceMemory        vkmem_ssbo;
   VkDeviceMemory        vkmem_staging;
   VkDescriptorPool      dset_pool;
-  VkCommandBuffer       command_buffer; // one thread per graph
+  VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
   VkCommandPool         command_pool;
-  VkFence               command_fence;  // one per command buffer
+  VkFence               command_fence[2];    // one per command buffer
   VkQueue               queue;
-  void                 *queue_mutex;    // if this is set to != 0 will be locked when the queue is used
+  void                 *queue_mutex;         // if this is set to != 0 will be locked when the queue is used
   uint32_t              queue_idx;
   int                   float_atomics_supported; // copy from qvk to pass down to modules
 
@@ -79,20 +91,14 @@ typedef struct dt_graph_t
   uint32_t              uniform_global_size; // size of the global section
   VkDescriptorSetLayout uniform_dset_layout; // same layout for all nodes
 
-  dt_raytrace_graph_t   rt;
+  dt_raytrace_graph_t   rt[2];
 
   size_t                vkmem_size;          // allocation sizes to tell whether we need to re-alloc
   size_t                vkmem_ssbo_size;
   size_t                vkmem_staging_size;
   size_t                vkmem_uniform_size;
 
-  uint32_t              query_max;
-  uint32_t              query_cnt;
-  VkQueryPool           query_pool;
-  uint64_t             *query_pool_results;
-  dt_token_t           *query_name;
-  dt_token_t           *query_kernel;
-  float                 query_last_frame_duration; // for convenience the last frame time in milliseconds
+  dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max
 
   uint32_t              dset_cnt_image_read,  dset_cnt_image_read_alloc;
   uint32_t              dset_cnt_image_write, dset_cnt_image_write_alloc;

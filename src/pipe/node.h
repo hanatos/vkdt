@@ -29,14 +29,14 @@ typedef struct dt_node_t
 
   VkPipeline            pipeline;
   VkPipelineLayout      pipeline_layout;
-  VkDescriptorSet       uniform_dset;              // uniform data is const per frame
-  VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES]; // one descriptor set for every frame
-  VkDescriptorSetLayout dset_layout;               // they all share the same layout
+  VkDescriptorSet       uniform_dset[DT_GRAPH_MAX_FRAMES]; // uniform data is const per frame
+  VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES];         // one descriptor set for every frame
+  VkDescriptorSetLayout dset_layout;                       // they all share the same layout
 
   VkRenderPass          draw_render_pass; // needed for raster kernels
   VkFramebuffer         draw_framebuffer; // 
 
-  dt_raytrace_node_t    rt;
+  dt_raytrace_node_t    rt[2];
 
   dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer
 
