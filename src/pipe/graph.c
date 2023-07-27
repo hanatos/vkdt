@@ -128,7 +128,7 @@ dt_graph_cleanup(dt_graph_t *g)
     for(int j=0;j<g->node[i].num_connectors;j++)
     {
       dt_connector_t *c = g->node[i].connector+j;
-      if(c->flags & (s_conn_dynamic_array | s_conn_feedback))
+      if(c->flags & s_conn_dynamic_array)
       { // free potential double images for multi-frame dsets
         for(int k=0;k<MAX(1,c->array_length);k++)
         { // avoid error message in case image does not exist:
@@ -2177,7 +2177,7 @@ VkResult dt_graph_run(
   { // delete all previous nodes
     QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
     for(int i=0;i<graph->num_nodes;i++) for(int j=0;j<graph->node[i].num_connectors;j++)
-      if(graph->node[i].connector[j].flags & (s_conn_dynamic_array | s_conn_feedback))
+      if(graph->node[i].connector[j].flags & s_conn_dynamic_array)
       { // free potential double images for multi-frame dsets
         for(int k=0;k<MAX(1,graph->node[i].connector[j].array_length);k++)
         { // avoid error message in case image does not exist:
