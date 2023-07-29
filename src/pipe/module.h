@@ -50,6 +50,7 @@ typedef struct dt_image_params_t
   // from us:
   float noise_a;              // raw noise estimate, gaussian part
   float noise_b;              // raw noise estimate, poissonian part
+  dt_token_t input_name;      // remember the name, "main" has special rights
 }
 dt_image_params_t;
 

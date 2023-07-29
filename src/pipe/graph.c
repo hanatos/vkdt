@@ -1427,6 +1427,14 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
+  for(int i=0;i<module->num_connectors;i++)
+  { // the default main input is wherever "main" came in, or named "input" if we don't find main
+    if(!dt_connector_input(module->connector+i)) continue;
+    int mid = module->connector[i].connected_mi;
+    if(mid < 0) continue;
+    if(graph->module[mid].img_param.input_name == dt_token("main"))
+      input = i;
+  }
   // main input modules have to init their params completely. we will not zero it.
   // this is because they run a modify_roi_out prepass to determine the main input
   // dimensions/types and we would destroy it here the second time around.
@@ -1456,6 +1464,9 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     // globally, so others can pick up maker/model:
     if(module->inst == dt_token("main") && dt_connector_output(module->connector))
       graph->main_img_param = module->img_param;
+    // remember source name to pass on further
+    if(module->connector[0].type == dt_token("source"))
+      module->img_param.input_name = module->inst;
   }
   else
   { // default implementation:
@@ -1463,6 +1474,9 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_output(module->connector+i))
         module->connector[i].roi.scale = -1.0f;
+    // remember instance name if [0] is a source connector
+    if(module->connector[0].type == dt_token("source"))
+      module->img_param.input_name = module->inst;
     // copy over roi from connector named "input" to all outputs ("write")
     dt_roi_t roi = {0};
     if(input < 0)
