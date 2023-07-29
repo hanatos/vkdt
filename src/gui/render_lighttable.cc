@@ -638,7 +638,7 @@ void render_lighttable_right_panel(int hotkey)
             "param:align:%02d:blur1:16\n"
             "param:align:%02d:blur2:32\n"
             "param:align:%02d:blur3:64\n",
-            ii, ii, pow(0.5, ii),
+            ii, ii, ii, 1.0/(ii+1.0),
             ii, ii, ii, ii, ii, ii);
         ii++;
       }
