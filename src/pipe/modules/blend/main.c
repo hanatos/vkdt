@@ -11,7 +11,7 @@ check_params(
   { // mode
     int oldmode = *(int*)oldval;
     int newmode = dt_module_param_int(module, parid)[0];
-    if(oldmode != newmode && (oldmode == 3 || newmode == 3))
+    if(oldmode != newmode && (oldmode == 2 || newmode == 2))
       return s_graph_run_all;
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
@@ -21,7 +21,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   const int32_t p_mode = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("mode")))[0];
   dt_roi_t roif = module->connector[0].roi;
-  if(p_mode == 3)
+  if(p_mode == 2)
   { // focus stack blend mode
     dt_roi_t roic = roif;
     const int maxnuml = 14;

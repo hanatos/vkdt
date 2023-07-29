@@ -6,14 +6,15 @@ mode of operation is controlled by the parameters mode and opacity.
 current blend modes:
 
 * `over` the output will be (1-opacity) * back + opacity * input
-* `masked over` the same but opacity will be multiplied by (1-mask) before blending
 * `taa` use temporal anti-aliasing with box clamping and opacity as parameter
 * `focus stack` wavelet transform both back and input and keep only the detail coefficients with larger magnitude
+* `multiply` multiplies the back buffer and input
 
 
 ## parameters
 
 * `mode` defines the blend mode
+* `mask` use or ignore the mask connector
 * `opacity` some blend modes use an opacity value
 * `taathrs` the threshold for temporal anti aliasing
 

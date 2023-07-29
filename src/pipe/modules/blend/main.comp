@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float opacity;
   float taa_thrs;
   int   mode;
+  int   mask;
 } params;
 
 layout( // input back buffer
@@ -44,19 +45,18 @@ main()
   vec3 bck = texture(img_in,  tc).rgb;
   vec3 rgb = texture(img_top, tc).rgb;
 
+  float t = params.opacity;
+  if(params.mask == 1)
+  {
+    float mask = texture(img_mask, tc).r;
+    t = clamp(params.opacity*(1.0-mask), 0, 1);
+  }
+
   if(params.mode == 0)
   { // over
-    rgb = mix(bck, rgb, params.opacity);
-  }
-  else if(params.mode == 1)
-  { // masked over
-    float mask = texture(img_mask, tc).r;
-    // float mask = sample_semisoft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
-    // float mask = sample_soft(img_mask, (ipos+0.5)/vec2(imageSize(img_out))).r;
-    float t = clamp(params.opacity*(1.0-mask), 0, 1);
     rgb = mix(bck, rgb, t);
   }
-  else if(params.mode == 2)
+  else if(params.mode == 1)
   {
     // use TAA style box clamping
     // estimate variance from spatial neighbours.
@@ -80,7 +80,11 @@ main()
     vec3 sigma = sqrt(s2);
     const float thresh = params.taa_thrs;// * mask;
     bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
-    rgb = mix(rgb, bck, params.opacity);
+    rgb = mix(rgb, bck, t);
+  }
+  else if(params.mode == 3)
+  { // multiply
+    rgb = mix(bck, bck*rgb, t);
   }
 
   imageStore(img_out, ipos, vec4(rgb, 1));

@@ -1,3 +1,4 @@
 opacity:float:1:1.0
 taathrs:float:1:0.0
 mode:int:1:0
+mask:int:1:0
