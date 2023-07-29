@@ -629,7 +629,8 @@ void render_lighttable_right_panel(int hotkey)
         else        fprintf(f, "connect:blend:%02d:output:blend:%02d:back\n", ii-1, ii);
         fprintf(f, "connect:i-raw:main:output:align:%02d:aligndst\n", ii);
         fprintf(f,
-            "param:blend:%02d:mode:1\n"
+            "param:blend:%02d:mode:0\n"
+            "param:blend:%02d:mask:1\n"
             "param:blend:%02d:opacity:%g\n"
             "param:align:%02d:merge_n:0.05\n"
             "param:align:%02d:merge_k:30\n"
