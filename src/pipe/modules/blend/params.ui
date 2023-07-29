@@ -1,5 +1,5 @@
-mode:combo:over:taa:focus stack:multiply
+mode:combo:over:temporal anti aliasing:focus stack:multiply
 mask:combo:ignore:apply
 opacity:slider:0:1
-group:mode:2
+group:mode:1
 taathrs:slider:0:10
