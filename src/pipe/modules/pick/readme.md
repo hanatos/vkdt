@@ -20,6 +20,7 @@ for the graph contain *download sink*.
 * `show` 0 - picked, 1 - ref, 2 - diff
 * `grab` indicates whether the results will be grabbed all the time (not only during regular pipeline reruns)
 * `de76` a dummy parameter that gets filled with the CIE DE76 error metric between `picked` and `ref`
+* `freeze` create a const module to replace this colour picker by frozen values. useful if you want to create a copy/pastable history
 
 note that the format of `nspots` and `ref` is the same as for
 the display of reference values in the [CIE xy diagram plot](../ciediag/readme.md).

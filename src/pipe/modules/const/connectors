@@ -1,1 +1,1 @@
-output:write:rgba:f16
+output:write:*:*

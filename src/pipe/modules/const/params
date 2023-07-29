@@ -1,3 +1,4 @@
 nspots:int:1:1
 pad:int:3:0
 colour:float:96:1
+mode:int:1:0

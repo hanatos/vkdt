@@ -229,3 +229,14 @@ dt_module_connect_with_history(
   dt_graph_history_connection(graph, m1, c1); // history records only inputs
   return cerr;
 }
+
+static inline int
+dt_module_add_with_history(
+    dt_graph_t *graph,
+    dt_token_t  name,
+    dt_token_t  inst)
+{
+  int new_modid = dt_module_add(graph, name, inst);
+  if(new_modid >= 0) dt_graph_history_module(graph, new_modid);
+  return new_modid;
+}

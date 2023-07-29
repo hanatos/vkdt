@@ -1427,8 +1427,11 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
+  if(input >= 0 &&
+     graph->module[module->connector[input].connected_mi].img_param.input_name != dt_token("main"))
   for(int i=0;i<module->num_connectors;i++)
-  { // the default main input is wherever "main" came in, or named "input" if we don't find main
+  { // the default main input is wherever "main" came in,
+    // but preferrably named "input"
     if(!dt_connector_input(module->connector+i)) continue;
     int mid = module->connector[i].connected_mi;
     if(mid < 0) continue;

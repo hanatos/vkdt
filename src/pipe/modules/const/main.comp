@@ -6,6 +6,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   uvec4 nspots;
   vec4 colour[24];
+  uint mode;
 } params;
 layout(set = 1, binding = 0) uniform writeonly image2D img_out;
 
@@ -13,6 +14,19 @@ void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  vec3 rgb = params.colour[0].rgb;
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  if(params.mode == 0)
+  { // constant colour fill mode
+    vec3 rgb = params.colour[0].rgb;
+    imageStore(img_out, ipos, vec4(rgb, 1));
+  }
+  else if(params.mode == 1)
+  { // replicate colour picker layout. actually in format r, atom, probably.
+    if(ipos.x > params.nspots.x) return;
+    if(ipos.y > 2) return;
+    vec3 rgb = vec3(0.0);
+    if(ipos.y == 0) rgb = vec3(params.colour[ipos.x].x);
+    if(ipos.y == 1) rgb = vec3(params.colour[ipos.x].y);
+    if(ipos.y == 2) rgb = vec3(params.colour[ipos.x].z);
+    imageStore(img_out, ipos, vec4(rgb, 1));
+  }
 }

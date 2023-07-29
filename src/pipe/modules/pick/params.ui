@@ -6,3 +6,4 @@ ref:hidden
 show:combo:picked:reference:difference
 grab:combo:only on change:live
 de76:print
+freeze:callback

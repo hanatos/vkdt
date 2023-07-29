@@ -1,5 +1,44 @@
 #include "modules/api.h"
 #include <math.h>
+#include "graph-history.h"
+
+void ui_callback(
+    dt_module_t *mod,
+    dt_token_t   param)
+{ // button to create static counterpart has been clicked
+  dt_graph_t *g = mod->graph;
+  int modid = dt_module_add_with_history(g, dt_token("const"), mod->inst);
+  if(modid < 0) return;
+  // copy nspots and picked colour to const module set const mode to 1 (replicate pick)
+  int parid_dst = dt_module_get_param(g->module[modid].so, dt_token("nspots"));
+  int parid_src = dt_module_get_param(mod->so, dt_token("nspots"));
+  int *p_ns_dst = (int *)dt_module_param_int(g->module+modid, parid_dst);
+  const int *p_ns_src = dt_module_param_int(mod, parid_src);
+  int cnt = p_ns_dst[0] = p_ns_src[0];
+  dt_graph_history_append(g, modid, parid_dst, 0.0);
+
+  parid_dst = dt_module_get_param(g->module[modid].so, dt_token("colour"));
+  parid_src = dt_module_get_param(mod->so, dt_token("picked"));
+  float *p_col_dst = (float *)dt_module_param_float(g->module+modid, parid_dst);
+  const float *p_col_src = dt_module_param_float(mod, parid_src);
+  for(int i=0;i<cnt;i++)
+    for(int k=0;k<3;k++)
+      p_col_dst[4*i+k] = p_col_src[3*i+k];
+
+  parid_dst = dt_module_get_param(g->module[modid].so, dt_token("mode"));
+  int *p_mode = (int *)dt_module_param_int(g->module+modid, parid_dst);
+  p_mode[0] = 1;
+
+  int mus = mod - g->module;
+  for(int m=0;m<g->num_modules;m++) for(int c=0;c<g->module[m].num_connectors;c++)
+  { // find connected modules and repoint them to constant module
+    int mid = g->module[m].connector[c].connected_mi;
+    int cid = g->module[m].connector[c].connected_mc;
+    if(dt_connector_input(g->module[m].connector+c) &&
+        mid == mus && cid == 3) // connected to picked:picked
+      CONN(dt_module_connect_with_history(g, modid, 0, m, c));
+  }
+}
 
 void modify_roi_in(
     dt_graph_t  *graph,
