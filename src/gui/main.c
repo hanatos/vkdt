@@ -348,13 +348,10 @@ int main(int argc, char *argv[])
 
     dt_gui_render_frame_imgui();
 
-    // if((vkdt.graph_dev.frame % 5) == 0) // XXX DEBUG
-    {
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
     else
       dt_gui_recreate_swapchain();
-    }
 
     dt_view_process();
     if(vkdt.graph_dev.gui_msg && vkdt.graph_dev.gui_msg[0]) dt_gui_notification(vkdt.graph_dev.gui_msg);
