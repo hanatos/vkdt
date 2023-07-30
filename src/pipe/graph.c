@@ -2444,6 +2444,7 @@ VkResult dt_graph_run(
         VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
+    vkDestroyBuffer(qvk.device, graph->uniform_buffer, 0);
     QVKR(vkCreateBuffer(qvk.device, &buffer_info, 0, &graph->uniform_buffer));
 #ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
@@ -2500,7 +2501,9 @@ VkResult dt_graph_run(
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*(graph->num_nodes+graph->dset_cnt_uniform),
       }, {
-        .type            = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+        .type            = qvk.raytracing_supported ?
+          VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR :
+          VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // dummy for validation layer
         .descriptorCount = DT_GRAPH_MAX_FRAMES,
       }};
 
