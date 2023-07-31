@@ -27,6 +27,7 @@ extern "C" {
 inline void
 dt_gui_lt_modals()
 {
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   if(ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_AlwaysAutoResize))
   {
     static char filter[256] = "all time best";
@@ -194,6 +195,7 @@ dt_gui_lt_scroll_bottom()
 inline void
 dt_gui_dr_modals()
 {
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   if(ImGui::BeginPopupModal("create preset", NULL, ImGuiWindowFlags_AlwaysAutoResize))
   {
     static char  preset[32] = "default";
@@ -308,6 +310,7 @@ dt_gui_dr_modals()
     }
     ImGui::EndPopup();
   }
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   if(ImGui::BeginPopupModal("apply preset", NULL, ImGuiWindowFlags_AlwaysAutoResize))
   {
     char filename[1024] = {0};
@@ -347,6 +350,7 @@ error:
     } // end if ok == 1
     ImGui::EndPopup();
   } // end BeginPopupModal apply preset
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   if(ImGui::BeginPopupModal("add module", NULL, ImGuiWindowFlags_NoResize))
   {
     static char mod_inst[10] = "01"; ImGui::InputText("instance", mod_inst, 8);
@@ -362,6 +366,7 @@ error:
     }
     ImGui::EndPopup();
   } // end BeginPopupModal add module
+  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
   if(ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_NoResize))
   {
     static char filter[256] = "all time best";
