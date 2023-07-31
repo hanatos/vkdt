@@ -51,6 +51,11 @@ main()
     float mask = texture(img_mask, tc).r;
     t = clamp(params.opacity*(1.0-mask), 0, 1);
   }
+  else if(params.mask == 2)
+  {
+    float mask = texture(img_mask, tc).r;
+    t = clamp(params.opacity*mask, 0, 1);
+  }
 
   if(params.mode == 0)
   { // over
