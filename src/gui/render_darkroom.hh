@@ -214,6 +214,30 @@ void render_darkroom_widget(int modid, int parid)
       }
       break;
     }
+    case dt_token("coledit"):
+    { // only works for param->type == float and count == 3
+      if((num % 3) == 0)
+      {
+        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+        float  oldval = *val;
+        char str[10] = {0};
+        memcpy(str, &param->name, 8);
+        if(ImGui::ColorEdit3(str, val, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_PickerHueWheel |
+             ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_InputRGB   | ImGuiColorEditFlags_Float))
+        RESETBLOCK {
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+          vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        }
+        KEYFRAME
+        TOOLTIP
+      }
+      break;
+    }
     case dt_token("vslider"):
     {
       if(param->type == dt_token("float"))
