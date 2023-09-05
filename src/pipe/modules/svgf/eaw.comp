@@ -29,9 +29,9 @@ float edge(
     float dp,      // depth center
     float dq)      // depth other
 { // parameters from paper, default/paper version in comment:
-  const float sigma_z = 10;    // parameter for depth      = 1   larger blurs more
-  const float sigma_n = 64;    // parameter for normals    = 128 larger blurs more
-  const float sigma_l = 40;    // parameter for brightness = 4   larger blurs more
+  const float sigma_z = 1;     // parameter for depth      = 1   larger blurs more
+  const float sigma_n = 32;    // parameter for normals    = 128 larger blurs more
+  const float sigma_l = 4;     // parameter for brightness = 4   larger blurs more
   float w_z = exp(-abs(dp-dq) / (sigma_z));// * (1e-6+abs(dot(grad_z, dx)))));
   float w_n = pow(max(0.0, dot(np, nq)), sigma_n);
   float w_l = exp(-dot(Lp-Lq, Lp-Lq) / (sigma_l * sigma + 1e-6));
@@ -61,20 +61,21 @@ main()
   if(push.gap == 1)
   { // estimate variance spatially, and get z gradient too:
     const int r = 1;
-    for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
+    for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)// if(i != 0 || j != 0)
     {
       vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
       // vec4 gbufq = texture(img_gbuf, (ipos+ivec2(i,j)+0.5)/textureSize(img_gbuf, 0));
       m1 += gbufq.z; m2 += gbufq.w;
     }
-    m1 /= (2.0*r+1)*(2.0*r+1)-1;
-    m2 /= (2.0*r+1)*(2.0*r+1)-1;
+    m1 /= (2.0*r+1)*(2.0*r+1);//-1;
+    m2 /= (2.0*r+1)*(2.0*r+1);//-1;
     sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
     // Lp = clamp(Lp, m1-2*sigma, m1+2*sigma); // firefly clamping. completely hosed on envmaps.
     // m1 += gbuf.z; m2 += gbuf.w;
     // m1 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
     // m2 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
     // sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
+#if 0
     if(any(greaterThanEqual(Lp, vec3(m1+1.0*sigma)))) // even this looks so weird
       sigma = 1000000.0;
     else
@@ -84,6 +85,7 @@ main()
       m2 *= ((2.0*r+1)*(2.0*r+1)-1)/((2.0*r+1)*(2.0*r+1));
       sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
     }
+#endif
   }
 
   vec2 w_sum = vec2(1.0);
@@ -91,15 +93,17 @@ main()
   // evaluate filter:
 #define FILTER \
     do {\
-    vec3 Lq = texture(img_irr, (ipos+ivec2(i,j)+0.5)/textureSize(img_irr, 0)).rgb;\
+    vec4 tx = texture(img_irr, (ipos+ivec2(i,j)+0.5)/textureSize(img_irr, 0));\
+    vec3 Lq = tx.rgb;\
     vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);\
     vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));\
+    float sq = push.gap == 1 ? sqrt(max(0, gbufq.w - gbufq.z*gbufq.z)) : sqrt(tx.w);\
     float w = edge(\
-        vec2(i,j), sigma, \
+        vec2(i,j), sq, \
         Lp, Lq,\
         normal, nq,\
         depth, gbufq.y);\
-    res += w*vec4(w*Lq, w*w*sigma*sigma);\
+    res += vec4(w*Lq, w*w*sq*sq);\
     w_sum += vec2(w, w*w);\
     } while(false)
   { int j=-2; for(int i=-1;i<=1;i++) FILTER; }

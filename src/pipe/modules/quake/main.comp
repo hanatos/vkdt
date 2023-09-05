@@ -987,7 +987,7 @@ main()
     }
   }
 
-#if 0 // fill debug buffer
+#if 1 // fill debug buffer
   {
     // vec4 vmf = mc_state_vmf(curr, m0.x);
     // vec4 deb = vec4(vmf.w/(vmf.w + 1000.0), 0, 0, 1.0);
