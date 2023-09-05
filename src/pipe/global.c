@@ -342,7 +342,7 @@ dt_module_so_load(
 #define CHECK(X,Y) (X != dt_token("*") && mod->connector[i].Y != dt_token("*") && mod->connector[i].Y != X)
     if(dt_connector_output(mod->connector+i))
     {
-      num_outputs++;
+      if(mod->connector[i].name != dt_token("dspy")) num_outputs++; // dspy is just a temporary thing and doesn't block us
       if(mod->connector[i].name == dt_token("output"))
       {
         found_output = !(CHECK(fmt,format) || CHECK(chn,chan));
