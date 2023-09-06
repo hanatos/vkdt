@@ -40,7 +40,7 @@ it follows the current list of available modules.
 * [pick: colour picker and visualisation tool](./pick/readme.md)
 * [rawhist: raw histogram with estimated noise levels](./rawhist/readme.md)
 * [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
-* [y2srgb: visualise first channel in grey scale](./y2srgb/readme.md)
+* [y2rgb: visualise first channel in grey scale](./y2rgb/readme.md)
 
 **raw processing**
 
