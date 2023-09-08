@@ -945,6 +945,13 @@ void render_darkroom_widgets(
       else
       {
         module->disabled ^= 1;
+        int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
+        if(cid >= 0)
+        { // (dis)connect dspy
+          int mid = dt_module_get(graph, dt_token("display"), dt_token("dspy"));
+          if(module->disabled) dt_module_connect(graph, -1, -1, mid, 0);
+          else dt_module_connect(graph, curr, cid, mid, 0); // reconnect
+        }
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
     }
@@ -976,7 +983,7 @@ void render_darkroom_widgets(
       { // if 'dspy' output exists, connect to 'dspy' display
         int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
         if(graph->module[mid].connector[0].connected_mi != curr ||
-            graph->module[mid].connector[0].connected_mc != cid)
+           graph->module[mid].connector[0].connected_mc != cid)
         { // only if not connected yet, don't record in history
           CONN(dt_module_connect(graph, curr, cid, mid, 0));
           vkdt.graph_dev.runflags = s_graph_run_all;
