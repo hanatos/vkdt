@@ -8,6 +8,8 @@
 #include "core/half.h"
 #include "core/inpaint.h"
 
+#include <limits.h>
+
 #if 0
 // XXX DEBUG write just the matrix from xyz to rec2020 for precision checks:
 static inline float*
