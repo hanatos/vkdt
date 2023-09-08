@@ -1,5 +1,5 @@
 radius:slider:0.001:1.0
 epsilon:slider:0.001:1.0
-gamma:slider:0.3:3.0
+gamma:slider:0.2:3.0
 nzones:slider:2:7
 zone:slider:-2:2:nzones
