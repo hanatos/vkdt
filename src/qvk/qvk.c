@@ -33,6 +33,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #endif
 
+#define VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME "VK_KHR_portability_subset"
+#define VK_KHR_VALIDATION_LAYER_NAME "VK_LAYER_KHRONOS_validation"
+
 qvk_t qvk =
 {
   .win_width          = 1920,
@@ -45,12 +48,15 @@ _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
 const char *vk_requested_layers[] = {
-  "VK_LAYER_KHRONOS_validation",
+  VK_KHR_VALIDATION_LAYER_NAME,
 };
 
 const char *vk_requested_instance_extensions[] = {
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+#ifdef __APPLE__
+  VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+#endif
 };
 
 static const VkApplicationInfo vk_app_info = {
@@ -275,6 +281,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
+#ifdef __APPLE__
+    .flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#endif
 #ifdef QVK_ENABLE_VALIDATION
     .enabledLayerCount       = LENGTH(vk_requested_layers),
     .ppEnabledLayerNames     = vk_requested_layers,
@@ -490,6 +499,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif
   if(qvk.window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+#ifdef __APPLE__
+  requested_device_extensions[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
+#endif
 
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
