@@ -515,7 +515,11 @@ fs_createtime(
 #else
   struct stat statbuf = {0};
   stat(filename, &statbuf);
+#ifdef __APPLE__
+  return statbuf.st_mtimespec.tv_sec;
+#else
   return statbuf.st_mtim.tv_sec;
+#endif
 #endif
 }
 static inline void
