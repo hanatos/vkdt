@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-#include <sys/syscall.h>
 #include <errno.h>
 #include <stdatomic.h>
 #include <string.h>
@@ -12,6 +11,9 @@
 #include <sched.h>
 #include <time.h>
 #include <pthread.h>
+#ifdef _WIN64
+  #include <Windows.h> 
+#endif
 
 threads_t thr;
 _Thread_local threads_tls_t thr_tls;
@@ -229,7 +231,13 @@ void threads_wait(int taskid)
 
 void threads_global_init()
 {
+#ifdef _WIN64
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  thr.num_threads = si.dwNumberOfProcessors;
+#else
   thr.num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
   thr.shutdown = 0;
   thr.task_max = thr.num_threads * 10;
   thr.task     = malloc(sizeof(threads_task_t)*thr.task_max);
