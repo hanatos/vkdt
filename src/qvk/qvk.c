@@ -33,6 +33,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #endif
 
+#define VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME "VK_KHR_portability_subset"
+#define VK_KHR_VALIDATION_LAYER_NAME "VK_LAYER_KHRONOS_validation"
+
 qvk_t qvk =
 {
   .frame_counter = 0,
@@ -43,7 +46,7 @@ _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
 const char *vk_requested_layers[] = {
-  "VK_LAYER_KHRONOS_validation",
+  VK_KHR_VALIDATION_LAYER_NAME,
 };
 
 const char *vk_requested_instance_extensions[] = {
@@ -156,6 +159,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
+#ifdef __APPLE__
+    .flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#endif
 #ifdef QVK_ENABLE_VALIDATION
     .enabledLayerCount       = LENGTH(vk_requested_layers),
     .ppEnabledLayerNames     = vk_requested_layers,
