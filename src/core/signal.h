@@ -27,7 +27,9 @@ static inline void dt_set_signal_handlers() {}
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/prctl.h>
+#ifndef __APPLE__
+  #include <sys/prctl.h>
+#endif
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -54,8 +56,11 @@ dt_sigsegv_handler(int param)
   if((pid = fork()) != -1)
   {
     if(pid)
-    { // allow the child to ptrace us
+    {
+    #ifndef __APPLE__
+      // allow the child to ptrace us
       prctl(PR_SET_PTRACER, pid, 0, 0, 0);
+    #endif
       waitpid(pid, NULL, 0);
       fprintf(stderr, "backtrace written to %s\n", filename);
       fprintf(stderr, "recovery data written to /tmp/vkdt-crash-recovery.*\n");
