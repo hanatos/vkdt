@@ -24,10 +24,7 @@ int rawspeed_get_number_of_processor_cores()
 typedef struct rawinput_buf_t
 {
   std::unique_ptr<rawspeed::RawDecoder> d;
-  std::unique_ptr<const rawspeed::Buffer> m;
-
   char filename[PATH_MAX] = {0};
-
   int ox, oy;
 }
 rawinput_buf_t;
@@ -115,7 +112,6 @@ free_raw(dt_module_t *mod)
 { // free auto pointers
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   if(mod_data->d.get()) mod_data->d.reset();
-  if(mod_data->m.get()) mod_data->m.reset();
 }
 
 int
@@ -142,9 +138,9 @@ load_raw(
   {
     rawspeed_load_meta(mod);
 
-    mod_data->m = f.readFile();
+    auto [storage, storageBuf] = f.readFile();
 
-    rawspeed::RawParser t(*mod_data->m);
+    rawspeed::RawParser t(storageBuf);
     mod_data->d = t.getDecoder(meta);
 
     if(!mod_data->d.get()) return 1;
@@ -152,18 +148,18 @@ load_raw(
     mod_data->d->failOnUnknown = true;
     mod_data->d->checkSupport(meta);
     mod_data->d->decodeRaw();
-
     mod_data->d->decodeMetaData(meta);
+    rawspeed::RawImage r = mod_data->d->mRaw;
 
-    const auto errors = mod_data->d->mRaw->getErrors();
-    // for(const auto &error : errors) fprintf(stderr, "[rawspeed] (%s) %s\n", filename, error.c_str());
+    const auto errors = r->getErrors();
+    for(const auto &error : errors) dt_log(s_log_err, "[i-raw] (%s) %s\n", filename, error.c_str());
 
     // TODO: do some corruption detection and support for esoteric formats/fails here
     // the data type doesn't seem to be inited on hdrmerge raws:
     // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
-    if(sizeof(uint16_t) != mod_data->d->mRaw->getBpp())
+    if(sizeof(uint16_t) != r->getBpp())
     {
-      // fprintf(stderr, "[i-raw] unhandled pixel format: %s\n", filename);
+      dt_log(s_log_err, "[i-raw] unhandled pixel format: %s\n", filename);
       return 1;
     }
   }

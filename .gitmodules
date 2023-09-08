@@ -1,6 +1,6 @@
 [submodule "ext/rawspeed"]
 	path = ext/rawspeed
-	url = https://github.com/hanatos/rawspeed.git
+	url = https://github.com/darktable-org/rawspeed.git
 [submodule "ext/imgui"]
 	path = ext/imgui
 	url = https://github.com/hanatos/imgui.git
