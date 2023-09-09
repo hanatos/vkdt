@@ -6,13 +6,8 @@
 built/
 src/core/version.h
 bin/config.mk
-bin/vkdt
-bin/vkdt-cli
-bin/vkdt-fit
-bin/vkdt-eval-profile
-bin/vkdt-lutinfo
-bin/vkdt-mkclut
-bin/vkdt-mkssf
+bin/vkdt*
+bin/libvkdt*
 bin/data/cameras.xml
 bin/modules
 bin/imgui.ini
