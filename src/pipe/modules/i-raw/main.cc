@@ -165,12 +165,12 @@ load_raw(
   }
   catch(const std::exception &exc)
   {
-    // printf("[rawspeed] (%s) %s\n", filename, exc.what());
+    dt_log(s_log_err, "[i-raw] (%s) %s\n", filename, exc.what());
     return 1;
   }
   catch(...)
   {
-    // printf("[rawspeed] unhandled exception in\n");
+    dt_log(s_log_err, "[i-raw] unhandled exception");
     return 1;
   }
   clock_t end = clock();
