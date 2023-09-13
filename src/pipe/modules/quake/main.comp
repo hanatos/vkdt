@@ -1024,7 +1024,7 @@ main()
     imageStore(img_gbuf_out, ipos, gbuf);
   }
 
-#if 0 // draw frame time in corners
+#if 1 // draw frame time in corners
   if(ipos.y < imageSize(img_irradiance).y*0.08)
   { 
     if(ipos.x > imageSize(img_irradiance).x*0.8)

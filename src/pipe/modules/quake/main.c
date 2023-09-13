@@ -981,6 +981,7 @@ void commit_params(
     p_health[0] = sv_player->v.health;
     int *p_armor = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("armor")));
     p_armor[0] = sv_player->v.armorvalue;
+    if((graph->frame % 20) == 0) p_duration[0] = VectorLength(sv_player->v.velocity);
   }
 
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
