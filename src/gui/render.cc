@@ -118,7 +118,7 @@ inline void dark_corporate_style()
 #endif
 }
 
-static ImFont *g_font[4] = {0};
+static ImFont *g_font[4] = {0}; // remember to add an image sampler in gui.c if adding more fonts!
 } // anonymous namespace
 
 ImFont *dt_gui_imgui_get_font(int which)
