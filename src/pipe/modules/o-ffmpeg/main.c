@@ -53,6 +53,7 @@ void write_sink(
     const char *basename = dt_module_param_string(mod, 0);
     char filename[512];
     snprintf(filename, sizeof(filename), "%s.h264", basename);
+    // snprintf(filename, sizeof(filename), "%s.mov", basename);
 
     const int width  = mod->connector[0].roi.wd & ~1;
     const int height = mod->connector[0].roi.ht & ~1;
@@ -61,6 +62,15 @@ void write_sink(
 
     // establish pipe to ffmpeg binary
     char cmdline[1024];
+#if 0 // apple prores encoding, trying 10 bit. will need some 10-bit input!
+    snprintf(cmdline, sizeof(cmdline),
+      "ffmpeg -y -probesize 5000000 -f rawvideo -pix_fmt rgba -s %dx%d -r %g -i - "
+      "-c:v prores_ks -profile:v 3 "
+      // "-qscale:v ${QSCALE} " // ??? is this our quality parameter?
+      "-vendor apl0 -pix_fmt yuv422p10le " // output stuff: "-s %dx%d -r %g"
+      "%s",
+      width, height, rate, filename);
+#else
     snprintf(cmdline, sizeof(cmdline),
         "ffmpeg "
         "-y -f rawvideo -pix_fmt rgba -s %dx%d -r %g -i - "
@@ -69,6 +79,7 @@ void write_sink(
         // "-an /tmp/out_tempData.h264 "
         "%s",
         width, height, rate, filename);
+#endif
     fprintf(stderr, "[o-ffmpeg] running `%s'\n", cmdline);
 
     if(dat->f) pclose(dat->f);
