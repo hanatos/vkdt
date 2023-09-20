@@ -363,9 +363,9 @@ void modify_roi_out(
     // .iso            = dat->video.EXPO.isoValue,
     // .focal_length   = dat->video.LENS.focalLength,
 
-    .snd_samplerate = d->actx->sample_rate,
-    .snd_format     = av_sample_fmt_to_alsa(d->actx->sample_fmt),
-    .snd_channels   = d->actx->ch_layout.nb_channels,
+    .snd_samplerate = d->actx ? d->actx->sample_rate : 0,
+    .snd_format     = av_sample_fmt_to_alsa(d->actx ? d->actx->sample_fmt : -1),
+    .snd_channels   = d->actx ? d->actx->ch_layout.nb_channels : 0,
 
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
@@ -425,7 +425,7 @@ int read_source(
 #endif
       // fprintf(stderr, "SEEEEEEEKX\n");
       avcodec_flush_buffers(d->vctx);
-      avcodec_flush_buffers(d->actx);
+      if(d->actx) avcodec_flush_buffers(d->actx);
       d->snd_lag = 0;
     }
     d->frame = mod->graph->frame+1; // this would be the next one we read
@@ -471,7 +471,7 @@ int read_source(
               pk = d->pktf;
             }
 #endif
-            if((ret = avcodec_send_packet(d->actx, curr)) < 0)
+            if(d->actx && ((ret = avcodec_send_packet(d->actx, curr)) < 0))
             {
               if(ret == AVERROR(EAGAIN)) {} // all good, buffer full already
               else goto error;
@@ -513,7 +513,7 @@ int audio(
     uint8_t     **samples)
 {
   vid_data_t *d = mod->data;
-  if(!d || !d->filename[0])
+  if(!d || !d->filename[0] || !d->actx)
     return 0;
   int ret = 0;
   int written = 0;
@@ -521,7 +521,7 @@ int audio(
   int need_samples = -1;
   *samples = (uint8_t *)d->sndbuf;
   do {
-    if((ret = avcodec_receive_frame(d->actx, d->aframe)) < 0)
+    if(d->actx && ((ret = avcodec_receive_frame(d->actx, d->aframe)) < 0))
     {
       if(ret == AVERROR(EAGAIN)) { } // receive frame needs moar packets! but sorry the main loop is in read_source()
       return written; // got zero samples in the last round
