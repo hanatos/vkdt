@@ -28,7 +28,7 @@ fs_copy(
     ret = sendfile(fd1, fd0, 0, len); // works on linux >= 2.6.33, else fd1 would need to be a socket
   } while((len-=ret) > 0 && ret > 0);
 copy_error:
-  if(len != 0) fprintf(stderr, "[fs_copy] %s\n", strerror(errno));
+  // if(len != 0) fprintf(stderr, "[fs_copy] %s\n", strerror(errno));
   if(fd0 >= 0) close(fd0);
   if(fd0 >= 0) close(fd1);
   return len;

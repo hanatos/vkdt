@@ -7,6 +7,7 @@ extern "C"
 #include "db/rc.h"
 #include "db/hash.h"
 #include "core/strexpand.h"
+#include "pipe/graph-defaults.h"
 }
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
@@ -19,6 +20,7 @@ extern "C"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 namespace { // anonymous namespace
 
@@ -558,9 +560,6 @@ void render_lighttable_right_panel(int hotkey)
       for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-        uint64_t hash = hash64(filename);
-        if(snprintf(realname, sizeof(realname), "%s/nodes/%lx.dat", dt_pipe.homedir, hash) < int(sizeof(realname)))
-          unlink(realname); // maybe remove node positions ~/.config/vkdt/nodes/<hash>.dat
         realpath(filename, realname);
         unlink(realname);
         dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
@@ -579,9 +578,70 @@ void render_lighttable_right_panel(int hotkey)
       dt_gui_lt_duplicate();
     }
 
+    if(vkdt.db.selection_cnt > 1)
+    {
+    // ==============================================================
+    // create timelapse
+    if(ImGui::Button("create timelapse", size))
+    { // does not work on tag list images or duplicates.
+      const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+      char filename[1024] = {0};
+      dt_db_image_path(&vkdt.db, sel[0], filename, sizeof(filename));
+      FILE *f = fopen(filename, "rb");
+      int len = strlen(filename); // we'll work with the full file name, symlinks do not work
+      if(len > 4) filename[len-4] = 0; // cut away ".cfg"
+      dt_token_t input_module = dt_graph_default_input_module(filename);
+      if(len > 4) filename[len-4] = '.'; // restore ".cfg"
+      if(!f)
+      {
+        char defcfg[PATH_MAX+30];
+        snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.homedir, dt_token_str(input_module));
+        if(fs_copy(filename, defcfg))
+        { // no homedir defaults, go global:
+          snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+          fs_copy(filename, defcfg);
+        }
+        f = fopen(filename, "ab");
+      }
+      else
+      {
+        fclose(f);
+        f = fopen(filename, "ab");
+      }
+      if(f && len > 11)
+      { // cut away .cfg and directory part
+        filename[len-4] = 0; len -=4;
+        char *c = fs_basename(filename);
+        int clen = strlen(c);
+        for(int k=5;k>1;k--) if(c[clen-k] == '.') { clen -= k; break; }
+        if(clen > 4)
+        {
+          int startid = atol(c+clen-4);
+          memcpy(c+clen-4, "%04d", 4);
+          fprintf(f, "param:%" PRItkn":main:filename:%s\n", dt_token_str(input_module), c);
+          fprintf(f, "param:%" PRItkn":main:startid:%d\n", dt_token_str(input_module), startid);
+          fprintf(f, "frames:%d\n", vkdt.db.selection_cnt);
+          fprintf(f, "fps:24\n");
+          fclose(f);
+          filename[len-4] = '.';
+          dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
+          dt_thumbnails_cache_list(
+              &vkdt.thumbnail_gen,
+              &vkdt.db,
+              sel, 1,
+              &glfwPostEmptyEvent);
+        }
+      }
+    }
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
+        "update the first image to become a timelapse animation of the selected images.\n"
+        "this assumes consecutive numbering of the image file names in the last four digits:\n"
+        "for example IMG_0001..IMG_0020.\n"
+        "does not work on tag collections or duplicates.");
+
     // ==============================================================
     // merge/align images
-    if(vkdt.db.selection_cnt > 1)
+    ImGui::SameLine();
     if(ImGui::Button("merge into current", size))
     { // overwrite .cfg for this image file:
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
@@ -660,7 +720,9 @@ void render_lighttable_right_panel(int hotkey)
           &main_imgid, 1,
           &glfwPostEmptyEvent);
     }
-    ImGui::Unindent();
+    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
+        "align selected images for stacking");
+    } // end if multiple images are selected
   } // end collapsing header "selected"
 
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("metadata"))
