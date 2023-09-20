@@ -70,7 +70,7 @@ void write_sink(
       "-pix_fmt rgba64le -s %dx%d -r %g -i - "
       // "-vf 'colorspace=all=bt2020:trc=smpte2084' " 
       // "-vf 'colorspace=all=smpte240m' "
-      "-vf 'colorspace=all=bt2020:trc=bt2020-10' "
+      "-vf 'colorspace=all=bt2020:trc=bt2020-10:iall=bt2020:itrc=linear' "
       "-c:v prores -profile:v 3 "
       // TODO: use quality parameter and scale from 31--2
       // "-qscale:v 10 " // ??? is this our quality parameter? 2--31, the lower the higher the bitrate
