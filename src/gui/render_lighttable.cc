@@ -581,8 +581,8 @@ void render_lighttable_right_panel(int hotkey)
     if(vkdt.db.selection_cnt > 1)
     {
     // ==============================================================
-    // create timelapse
-    if(ImGui::Button("create timelapse", size))
+    // create timelapse video
+    if(ImGui::Button("create video", size))
     { // does not work on tag list images or duplicates.
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
       char filename[1024] = {0};
@@ -630,13 +630,17 @@ void render_lighttable_right_panel(int hotkey)
               &vkdt.db,
               sel, 1,
               &glfwPostEmptyEvent);
+          // stupid, but can't add by imgid (or else would be able to select images that you can't see in the current collection)
+          int colid = dt_db_filename_colid(&vkdt.db, vkdt.db.image[sel[0]].filename);
+          dt_db_selection_clear(&vkdt.db);
+          dt_db_selection_add(&vkdt.db, colid);
         }
       }
     }
     if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
-        "update the first image to become a timelapse animation of the selected images.\n"
+        "update the first image to become a timelapse video of the selected images.\n"
         "this assumes consecutive numbering of the image file names in the last four digits:\n"
-        "for example IMG_0001..IMG_0020.\n"
+        "for example IMG_0001.CR2..IMG_0020.CR2.\n"
         "does not work on tag collections or duplicates.");
 
     // ==============================================================

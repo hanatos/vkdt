@@ -143,7 +143,7 @@ dt_db_accept_filename(
 }
 
 // add image to the list of selected images, O(1).
-void dt_db_selection_add   (dt_db_t *db, uint32_t coid);
+void dt_db_selection_add   (dt_db_t *db, uint32_t colid);
 // remove image from the list of selected images, O(N).
 void dt_db_selection_remove(dt_db_t *db, uint32_t colid);
 void dt_db_selection_clear(dt_db_t *db);
