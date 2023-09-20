@@ -1,1 +1,4 @@
 filename:string:256:output
+profile:int:1:3
+quality:float:1:100
+colour:int:1:0
