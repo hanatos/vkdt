@@ -66,6 +66,8 @@ main()
       rgba.br = col;
     rgba.g = (c0 + c2 + c4 + c6 + c8)/5.0;
     rgba.a = 1.0;
+    // actually looks worse than assuming full edges:
+    // rgba.a = abs(c0-rgba.g) + abs(c2-rgba.g) + abs(c4-rgba.g) + abs(c6-rgba.g) + abs(c8-rgba.g);
   }
   else
   {
@@ -74,6 +76,7 @@ main()
     if(c.x >= white) c.x = c.z; // replace one clipped green by the other
     if(c.z >= white) c.z = c.x;
     rgba = vec4(c.w, (c.x+c.z)/2.0, c.y, 1.0);
+    // rgba.a = abs(c.x - rgba.g) + abs(c.z - rgba.g);
   }
   imageStore(img_out, ipos, rgba);
 }
