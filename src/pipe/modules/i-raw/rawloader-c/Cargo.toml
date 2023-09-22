@@ -1,0 +1,23 @@
+[package]
+name = "rawloader-clib"
+description = "thin c bindings for rawloader"
+version = "0.1.0"
+authors = ["Johannes Hanika <hanika@kit.edu>"]
+license = "WTFPL"
+edition = "2018"
+
+[lib]
+name = "rawloader"
+path = "lib.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+rawloader = "0.37.1"
+libc = "0.2.148"
+
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+strip = true
