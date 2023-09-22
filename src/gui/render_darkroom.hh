@@ -170,6 +170,8 @@ void render_darkroom_widget(int modid, int parid)
   ImGui::PushID(2000*modid + 200*parid + num);
   char string[256];
   const float halfw = (0.66*vkdt.state.panel_wd - ImGui::GetStyle().ItemSpacing.x)/2;
+  char str[10] = {0};
+  memcpy(str, &param->name, 8);
   // distinguish by type:
   switch(param->widget.type)
   {
@@ -179,8 +181,6 @@ void render_darkroom_widget(int modid, int parid)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
         if(ImGui::SliderFloat(str, val, param->widget.min, param->widget.max, "%2.5f"))
         RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
@@ -198,8 +198,6 @@ void render_darkroom_widget(int modid, int parid)
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
         if(ImGui::SliderInt(str, val, param->widget.min, param->widget.max, "%d"))
         RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
@@ -220,8 +218,6 @@ void render_darkroom_widget(int modid, int parid)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float  oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
         if(ImGui::ColorEdit3(str, val, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_PickerHueWheel |
              ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_InputRGB   | ImGuiColorEditFlags_Float))
         RESETBLOCK {
@@ -244,8 +240,6 @@ void render_darkroom_widget(int modid, int parid)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
         if(count == 3)
         { // assume rgb vsliders
           ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
@@ -303,8 +297,6 @@ void render_darkroom_widget(int modid, int parid)
     { // special callback button
       if(num == 0)
       {
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
         if(ImGui::Button(str, ImVec2(halfw, 0)))
         {
           dt_module_t *m = vkdt.graph_dev.module+modid;
@@ -329,9 +321,8 @@ void render_darkroom_widget(int modid, int parid)
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
-        char str[10] = {0};
-        memcpy(str, &param->name, 8);
         if(ImGui::Combo(str, val, (const char *)param->widget.data))
+        RESETBLOCK
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
@@ -348,12 +339,11 @@ void render_darkroom_widget(int modid, int parid)
     }
     case dt_token("colour"):
     {
-      char str[21] = {0};
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      snprintf(str, sizeof(str), "%" PRItkn " %d", dt_token_str(param->name), num);
+      snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
       ImVec4 col(val[0], val[1], val[2], 1.0f);
       ImVec2 size(0.1*vkdt.state.panel_wd, 0.1*vkdt.state.panel_wd);
-      ImGui::ColorButton(str, col, ImGuiColorEditFlags_HDR, size);
+      ImGui::ColorButton(string, col, ImGuiColorEditFlags_HDR, size);
       TOOLTIP
       if((num < count - 1) && ((num % 6) != 5))
         ImGui::SameLine();
@@ -452,8 +442,6 @@ void render_darkroom_widget(int modid, int parid)
     { // horizon line straighten tool for rotation
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       float oldval = *val;
-      char str[10] = {0};
-      memcpy(str, &param->name, 8);
 
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
@@ -858,11 +846,12 @@ void render_darkroom_widget(int modid, int parid)
       if(num == 0)
       { // only show first, cnt refers to allocation length of string param
         char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        if(ImGui::InputText("filename", v, count))
+        if(ImGui::InputText(str, v, count))
         {
           vkdt.graph_dev.runflags = s_graph_run_all; // kinda grave change, rerun all
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        TOOLTIP
       }
       break;
     }
@@ -874,11 +863,10 @@ void render_darkroom_widget(int modid, int parid)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
         float oldval = *val;
-        char str[32] = {0};
-        snprintf(str, sizeof(str), "%" PRItkn " %s",
+        snprintf(string, sizeof(string), "%" PRItkn " %s",
             dt_token_str(param->name),
             comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
-        if(ImGui::SliderFloat(str, val,
+        if(ImGui::SliderFloat(string, val,
               param->widget.min, param->widget.max, "%2.5f"))
         RESETBLOCK
         {

@@ -135,3 +135,13 @@ int dt_pipe_global_init();
 
 // global cleanup:
 void dt_pipe_global_cleanup();
+
+// return total byte size of parameter storage
+static inline size_t
+dt_module_total_param_size(int soid)
+{
+  if(soid < 0 || soid >= dt_pipe.num_modules) return 0;
+  if(dt_pipe.module[soid].num_params <= 0) return 0;
+  const dt_ui_param_t *p = dt_pipe.module[soid].param[dt_pipe.module[soid].num_params-1];
+  return p->offset + dt_ui_param_size(p->type, p->cnt);
+}

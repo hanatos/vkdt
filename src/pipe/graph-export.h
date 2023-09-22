@@ -26,6 +26,7 @@ typedef struct dt_graph_export_output_t
   dt_token_t inst;         // instance name of sink to replace
   const char *p_filename;  // set filename param to this
   const char *p_audio;     // if set, write audio to this file
+  const char *p_pdata;     // if set, overwrite params of output module
   float quality;           // set quality param to this
 }
 dt_graph_export_output_t;

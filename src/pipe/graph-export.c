@@ -1,5 +1,6 @@
 #include "core/log.h"
 #include "core/fs.h"
+#include "pipe/global.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
@@ -207,12 +208,13 @@ dt_graph_export(
       else
         snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(param->output[i].inst));
     }
+    if(param->output[i].p_pdata)
+      memcpy(mod_out[i]->param, param->output[i].p_pdata, dt_module_total_param_size(mod_out[i]->so - dt_pipe.module));
     dt_module_set_param_string(
         mod_out[i], dt_token("filename"),
         filename);
     if(param->output[i].quality > 0)
-      if(mod_out[i]->name == dt_token("o-jpg"))
-        dt_module_set_param_float(mod_out[i], dt_token("quality"), param->output[i].quality);
+      dt_module_set_param_float(mod_out[i], dt_token("quality"), param->output[i].quality);
   }
 
   int audio_mod= -1, audio_cnt = 0;

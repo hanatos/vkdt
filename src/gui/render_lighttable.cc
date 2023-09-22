@@ -13,6 +13,7 @@ extern "C"
 #include "gui/hotkey.hh"
 #include "gui/widget_thumbnail.hh"
 #include "gui/widget_recentcollect.hh"
+#include "gui/widget_export.hh"
 #include "gui/api.hh"
 #include "gui/render.h"
 #define GLFW_INCLUDE_VULKAN
@@ -246,22 +247,24 @@ void render_lighttable_center(int hotkey)
 
 // export bg job stuff. put into api.hh?
 struct export_job_t
-{
+{ // this memory belongs to the export thread and will not change behind its back.
   uint32_t *sel;
   dt_token_t output_module;
   int wd, ht;
   float quality;
   uint32_t cnt;
   uint32_t overwrite;
+  char basename[1000];
+  uint8_t *pdata;
   uint32_t abort;
   int taskid;
-  char basename[1000];
   dt_graph_t graph;
 };
 void export_job_cleanup(void *arg)
 { // task is done, every thread will call this (but we put only one)
   export_job_t *j = (export_job_t *)arg;
   free(j->sel);
+  free(j->pdata);
   dt_graph_cleanup(&j->graph);
 }
 void export_job_work(uint32_t item, void *arg)
@@ -297,6 +300,7 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].max_height = j->ht;
   param.output[0].quality    = j->quality;
   param.output[0].mod        = j->output_module;
+  param.output[0].p_pdata    = (char *)j->pdata;
   param.p_cfgfile = infilename;
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
@@ -305,10 +309,10 @@ void export_job_work(uint32_t item, void *arg)
 }
 int export_job(
     export_job_t *j,
-    int overwrite)
+    dt_export_widget_t *w)
 {
   j->abort = 0;
-  j->overwrite = overwrite;
+  j->overwrite = w->overwrite;
   if(vkdt.db.selection_cnt <= 0)
   {
     dt_gui_notification("need to select at least one image to export!");
@@ -317,14 +321,14 @@ int export_job(
   j->cnt = vkdt.db.selection_cnt;
   j->sel = (uint32_t *)malloc(sizeof(uint32_t)*j->cnt);
   memcpy(j->sel, dt_db_selection_get(&vkdt.db), sizeof(uint32_t)*j->cnt);
-  snprintf(j->basename, sizeof(j->basename), "%.*s", (int)sizeof(j->basename)-1, dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img_${seq}"));
-  j->wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
-  j->ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
-  const dt_token_t format_mod[] = {dt_token("o-jpg"), dt_token("o-pfm"), dt_token("o-ffmpeg")};
-  const int fm = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/export/format", 0),
-          (int)0, (int)(sizeof(format_mod)/sizeof(format_mod[0])-1));
-  j->output_module = format_mod[fm];
-  j->quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90.0f);
+  snprintf(j->basename, sizeof(j->basename), "%.*s", (int)sizeof(j->basename)-1, w->basename);
+  j->wd = w->wd;
+  j->ht = w->ht;
+  j->output_module = dt_pipe.module[w->modid[w->format]].name;
+  j->quality = w->quality;
+  size_t psize = dt_module_total_param_size(w->modid[w->format]);
+  j->pdata = (uint8_t *)malloc(sizeof(uint8_t)*psize);
+  memcpy(j->pdata, w->pdata[w->format], psize);
   dt_graph_init(&j->graph);
   // TODO:
   // fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
@@ -769,39 +773,10 @@ void render_lighttable_right_panel(int hotkey)
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("export selection"))
   {
     ImGui::Indent();
-    static int wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
-    static int ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
-    static int format = dt_rc_get_int(&vkdt.rc, "gui/export/format", 0);
-    static float quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
-    static char basename[240] = "";
-    if(basename[0] == 0) strncpy(basename,
-        dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img_${seq}"),
-        sizeof(basename)-1);
-    const char format_data[] = "jpg\0pfm\0ffmpeg\0\0";
-    if(ImGui::InputInt("width", &wd, 1, 100, 0))
-      dt_rc_set_int(&vkdt.rc, "gui/export/wd", wd);
-    if(ImGui::InputInt("height", &ht, 1, 100, 0))
-      dt_rc_set_int(&vkdt.rc, "gui/export/ht", ht);
-    if(ImGui::InputText("filename", basename, sizeof(basename)))
-      dt_rc_set(&vkdt.rc, "gui/export/basename", basename);
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
-        "basename of exported files. the following will be replaced:\n"
-        "${home} -- home directory\n"
-        "${yyyy} -- current year\n"
-        "${date} -- today's date\n"
-        "${seq} -- sequence number\n"
-        "${fdir} -- directory of input file\n"
-        "${ffile} -- basename of input file");
-    if(ImGui::InputFloat("quality", &quality, 1, 100, 0))
-      dt_rc_set_float(&vkdt.rc, "gui/export/quality", quality);
-    if(ImGui::Combo("format", &format, format_data))
-      dt_rc_set_int(&vkdt.rc, "gui/export/format", format);
+    static dt_export_widget_t w = {0};
+    dt_export(&w);
     static export_job_t job[4] = {{0}};
-    static int32_t overwrite_mode = 0;
     int32_t num_idle = 0;
-    // TODO: this is not wired in the backend so hidden from gui for now too:
-    // const char *overwrite_mode_str = "keep\0overwrite\0\0";
-    // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);
     for(int k=0;k<4;k++)
     { // list of four jobs to copy stuff simultaneously
       ImGui::PushID(k);
@@ -814,7 +789,7 @@ void render_lighttable_right_panel(int hotkey)
         }
         if(hotkey == s_hotkey_export || ImGui::Button("export"))
         { // TODO: make sure we don't start a job that is already running in another job[.]
-          export_job(job+k, overwrite_mode);
+          export_job(job+k, &w);
         }
         if(ImGui::IsItemHovered()) dt_gui_set_tooltip("export current selection");
       }

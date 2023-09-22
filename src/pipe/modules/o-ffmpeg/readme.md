@@ -15,10 +15,10 @@ will work. the `cli` will append the necessary processing chain to the graph.
 we use plain `popen()` style communication with the ffmpeg binary (you'll need
 to have it installed in your `PATH` for this to work).
 
-this module only writes the h264 stream, the audio channels will need to be
+this module only writes a `.mov` stream, the audio channels will need to be
 combined manually, maybe like
 ```
- ffmpeg -i output.h264 -f s16le -sample_rate 48000 -channels 2 -i audio.raw -c:v copy combined.mp4
+ ffmpeg -i output.mov -f s16le -sample_rate 48000 -channels 2 -i audio.raw -c:v copy combined.mp4
 ```
 
 ## connectors
@@ -27,4 +27,7 @@ combined manually, maybe like
 
 ## parameters
 
-* `filename` the output filename to write the h264 stream to.
+* `filename` the output filename to write the stream to
+* `profile` the encoding quality preset
+* `quality` affects the bitrate
+* `colour` chroma subsampling: 422 or 4444, both 10 bits
