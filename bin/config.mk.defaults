@@ -12,8 +12,6 @@
 
 # if you disable this, the i-raw module will not be built
 # and you will be unable to load raw images.
-# since rawspeed is a submodule this is only useful if
-# you want to avoid the recursive dependencies.
 # note that since this in on by default in here, you'll need
 # to explicitly set it to =0 and export again in config.mk to
 # switch it off effectively.

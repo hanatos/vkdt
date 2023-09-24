@@ -1,6 +1,7 @@
-# i-raw: raw image input via rawspeed
+# i-raw: raw image input
 
-this module uses the rawspeed library to decode raw photographs.
+this module uses eithor the rawspeed library (c++) or the rawloader library
+(rust) to decode raw photographs.
 
 ## parameters
 
