@@ -101,6 +101,7 @@ distclean:
 	rm -rf bin/data/cameras.xml
 	rm -rf bin/modules
 	rm -rf src/macadam.lut
+	$(MAKE) -C src distclean
 
 uninstall-lib:
 	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data

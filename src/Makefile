@@ -7,10 +7,14 @@ MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
 MODULESXX:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
 READMES:=$(wildcard pipe/modules/*/readme.md)
 # kill some modules based on config flags:
-ifneq ($(VKDT_USE_RAWINPUT), 1)
+ifeq ($(VKDT_USE_RAWINPUT), 2) # use rawloader
   MODULESXX:=$(filter-out i-raw,$(MODULESXX))
 endif
-ifneq ($(VKDT_USE_RAWINPUT), 2)
+ifeq ($(VKDT_USE_RAWINPUT), 1) # use rawspeed
+  MODULES:=$(filter-out i-raw,$(MODULES))
+endif
+ifeq ($(VKDT_USE_RAWINPUT), 0) # use no raw loading module
+  MODULESXX:=$(filter-out i-raw,$(MODULESXX))
   MODULES:=$(filter-out i-raw,$(MODULES))
 endif
 ifneq ($(VKDT_USE_V4L2), 1)
