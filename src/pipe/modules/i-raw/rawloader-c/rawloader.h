@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 typedef struct rawimage_t
 {

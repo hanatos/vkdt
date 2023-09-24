@@ -7,8 +7,11 @@ MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.c))))
 MODULESXX:=$(notdir $(patsubst %/,%,$(dir $(wildcard pipe/modules/*/main.cc))))
 READMES:=$(wildcard pipe/modules/*/readme.md)
 # kill some modules based on config flags:
-ifneq ($(VKDT_USE_RAWSPEED), 1)
+ifneq ($(VKDT_USE_RAWINPUT), 1)
   MODULESXX:=$(filter-out i-raw,$(MODULESXX))
+endif
+ifneq ($(VKDT_USE_RAWINPUT), 2)
+  MODULES:=$(filter-out i-raw,$(MODULES))
 endif
 ifneq ($(VKDT_USE_V4L2), 1)
   MODULES:=$(filter-out i-v4l2,$(MODULES))

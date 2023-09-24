@@ -17,8 +17,13 @@
 # note that since this in on by default in here, you'll need
 # to explicitly set it to =0 and export again in config.mk to
 # switch it off effectively.
-VKDT_USE_RAWSPEED=1
-export VKDT_USE_RAWSPEED
+# switched off:
+# VKDT_USE_RAWINPUT=0
+# rawspeed  (c++):
+# VKDT_USE_RAWINPUT=1
+# rawloader (rust):
+VKDT_USE_RAWINPUT=2
+export VKDT_USE_RAWINPUT
 
 # exiv2 can optionally be used to load some super basic metadata (iso
 # speed, shutter time etc) inside the i-raw module. that is, you don't
@@ -78,8 +83,4 @@ OPT_CFLAGS=-Wall -pipe -O3 -march=native -DNDEBUG
 OPT_LDFLAGS=-s
 AR=ar
 
-# set this to 1 to signal rawspeed to build without processor specific extensions.
-# again, this is important for building packages for distros.
-RAWSPEED_PACKAGE_BUILD=0
-
-export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR RAWSPEED_PACKAGE_BUILD
+export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR
