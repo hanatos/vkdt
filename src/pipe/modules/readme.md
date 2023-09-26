@@ -10,6 +10,7 @@ it follows the current list of available modules.
 **input**
 
 * [i-bc1: input module for bc1-compressed thumbnails](./i-bc1/readme.md)
+* [i-exr: input openexr images](./i-exr/readme.md)
 * [i-geo: input binary 3d geometry as ssbo connector](./i-geo/readme.md)
 * [i-jpg: jpg input module](./i-jpg/readme.md)
 * [i-jpglst: input a longer list of jpg as an array connector](./i-jpglst/readme.md)
