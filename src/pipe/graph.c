@@ -2501,7 +2501,7 @@ VkResult dt_graph_run(
         .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*(graph->num_nodes+graph->dset_cnt_uniform),
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*2*graph->num_nodes,
       }, {
         .type            = qvk.raytracing_supported ?
           VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR :
