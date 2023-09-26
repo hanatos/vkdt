@@ -1,2 +1,2 @@
-input:read:*:*
-output:write:*:*
+input:read:rggb:*
+output:write:rggb:*

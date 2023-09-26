@@ -20,7 +20,8 @@ void main()
   float v1 = texture(img_in, (ipos + 0.5 + vec2( 2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
   float v2 = texture(img_in, (ipos + 0.5 + vec2( 0.0, -2.0))/vec2(textureSize(img_in, 0))).r;
   float v3 = texture(img_in, (ipos + 0.5 + vec2( 0.0,  2.0))/vec2(textureSize(img_in, 0))).r;
-  float M = max(max(v0, v1), max(v2, v3));
+  // float M = max(max(v0, v1), max(v2, v3));
+  float M = (v0 + v1 + v2 + v3)/4.0;
   if(v - M > params.t) v = M;
   imageStore(img_out, ipos, vec4(vec3(v), 1));
 }
