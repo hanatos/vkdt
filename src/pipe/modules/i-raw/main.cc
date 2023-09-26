@@ -45,43 +45,6 @@ FCxtrans(
   return xtrans[row][col];
 }
 
-
-// take file name param and start frame param and return located raw file name.
-// returns non-zero on failure.
-int
-get_filename(
-    dt_module_t *mod,
-    const char  *fname,
-    int          frame,
-    char        *ret,
-    size_t       ret_size)
-{
-  char tmp[2*PATH_MAX+10];
-  
-  if(fname[0] != '/') // relative paths
-  {
-    snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);
-    snprintf(ret, ret_size, tmp, frame);
-    FILE *f = fopen(ret, "rb");
-    if(!f)
-    {
-      snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->basedir, fname);
-      snprintf(ret, ret_size, tmp, frame);
-      f = fopen(tmp, "rb");
-      if(!f) return 1; // damn that.
-    }
-    fclose(f);
-  }
-  else
-  { // absolute path:
-    snprintf(ret, ret_size, fname, frame);
-    FILE *f = fopen(ret, "rb");
-    if(!f) return 1;
-    fclose(f);
-  }
-  return 0;
-}
-
 void
 rawspeed_load_meta(const dt_module_t *mod)
 {
@@ -231,7 +194,7 @@ void modify_roi_out(
   const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
   char        filename[2*PATH_MAX+10];
-  if(get_filename(mod, fname, id, filename, sizeof(filename))) return;
+  if(dt_graph_get_resource_filename(mod, fname, id, filename, sizeof(filename))) return;
 
   if(strstr(fname, "%"))
   { // reading a sequence of raws as a timelapse animation
@@ -435,7 +398,7 @@ int read_source(
   const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
   char        filename[2*PATH_MAX+10];
-  if(get_filename(mod, fname, id + mod->graph->frame, filename, sizeof(filename)))
+  if(dt_graph_get_resource_filename(mod, fname, id + mod->graph->frame, filename, sizeof(filename)))
     return 1;
   int err = load_raw(mod, filename);
   if(err) return 1;

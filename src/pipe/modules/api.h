@@ -1058,6 +1058,42 @@ dt_graph_open_resource(
   return 0;
 }
 
+// take file name param and start frame param and return located raw file name.
+// returns non-zero on failure.
+static inline int
+dt_graph_get_resource_filename(
+    dt_module_t *mod,
+    const char  *fname,
+    int          frame,
+    char        *ret,
+    size_t       ret_size)
+{
+  char tmp[2*PATH_MAX+10];
+  
+  if(fname[0] != '/') // relative paths
+  {
+    snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);
+    snprintf(ret, ret_size, tmp, frame);
+    FILE *f = fopen(ret, "rb");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->basedir, fname);
+      snprintf(ret, ret_size, tmp, frame);
+      f = fopen(tmp, "rb");
+      if(!f) return 1; // damn that.
+    }
+    fclose(f);
+  }
+  else
+  { // absolute path:
+    snprintf(ret, ret_size, fname, frame);
+    FILE *f = fopen(ret, "rb");
+    if(!f) return 1;
+    fclose(f);
+  }
+  return 0;
+}
+
 #ifndef __cplusplus
 // radix sort an array of integers.
 // this will output an offset table to be used by the following nodes.
