@@ -63,7 +63,7 @@ pub unsafe extern "C" fn rl_decode_file(
   for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevels[k]; }
   for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevels[k]; }
   for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
-  (*rawimg).orientation = image.orientation.to_u16() as u32; // ???
+  (*rawimg).orientation = image.orientation.to_u16() as u32;
 
   // TODO: add 0x8827 ISO to Tag:: in tiff.rs and fetch it here to hand over
 
@@ -73,19 +73,7 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).crop_aabb[2] = (image.width  - image.crops[1]) as u64;
   (*rawimg).crop_aabb[3] = (image.height - image.crops[2]) as u64;
 
-  // XXX TODO: CFA dance: do this while we can still access CFA.color_at(row,col)
-  // the alternative is to copy over the largish 48x48 pattern and port color_at in c.
-
-  // XXX i think we need not these dances:
-  // uncrop bayer sensor filter
-  // mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
-  // if(mod->img_param.filters != 9u)
-  //   mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
-  //       mod_data->d->mRaw->cfa.getDcrawFilter(),
-  //       cropTL.x, cropTL.y);
-
   // now we need to account for the pixel shift due to an offset filter:
-  // dt_roi_t *ro = &mod->connector[0].roi;
   let mut ox = 0 as usize;
   let mut oy = 0 as usize;
 

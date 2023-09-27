@@ -108,10 +108,8 @@ void modify_roi_out(
   mod->connector[0].roi.full_wd = mod_data->img.width;
   mod->connector[0].roi.full_ht = mod_data->img.height;
 
-  float *noise_a = (float*)dt_module_param_float(mod, 1);
-  float *noise_b = (float*)dt_module_param_float(mod, 2);
   for(int k=0;k<9;k++)
-  mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
+    mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
   dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
 #endif
@@ -121,6 +119,8 @@ void modify_roi_out(
 #if 0
   // XXX we need this ISO value!
   mod->img_param.iso = // XXX
+  float *noise_a = (float*)dt_module_param_float(mod, 1);
+  float *noise_b = (float*)dt_module_param_float(mod, 2);
   if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
   {
     char pname[512];
@@ -160,6 +160,7 @@ void modify_roi_out(
   mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
+  mod->img_param.filters = mod_data->img.filters;
 
   if(isnanf(mod->img_param.cam_to_rec2020[0]))
   { // camera matrix not found in exif or compiled without exiv2
