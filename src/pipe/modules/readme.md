@@ -17,7 +17,7 @@ it follows the current list of available modules.
 * [i-lut: half float lut input module](./i-lut/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
 * [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
-* [i-raw: rawspeed input module for photographic stills or timelapses](./i-raw/readme.md)
+* [i-raw: input module for raw-format photographic stills or timelapses](./i-raw/readme.md)
 * [i-v4l2: webcam input module](./i-v4l2/readme.md)
 * [i-vid: video input module](./i-vid/readme.md)
 
