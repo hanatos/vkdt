@@ -3,6 +3,7 @@ use libc::{c_void, c_char};
 use std::ffi::CStr;
 use std::str;
 use std::cmp;
+use rawler::imgop::xyz::Illuminant;
 
 #[repr(C)]
 pub struct c_rawimage {
@@ -63,8 +64,12 @@ pub unsafe extern "C" fn rl_decode_file(
   for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[cmp::min(image.wb_coeffs.len()-1,k)]; }
   for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevel[cmp::min(image.whitelevel.len()-1,k)]; }
   for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevel.levels[cmp::min(image.blacklevel.levels.len()-1,k)].as_f32() as u16; }
-  for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
   (*rawimg).orientation = image.orientation.to_u16() as u32;
+
+  match image.color_matrix.get(&Illuminant::D65) {
+    Some(m) => for j in 0..3 { for i in 0..3 { (*rawimg).xyz_to_cam[i][j] = m[3*i+j]; } }
+    None    => for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
+  }
 
   // TODO: add 0x8827 ISO to Tag:: in tiff.rs and fetch it here to hand over
 
