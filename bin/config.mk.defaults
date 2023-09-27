@@ -18,9 +18,9 @@
 # switched off:
 # VKDT_USE_RAWINPUT=0
 # rawspeed  (c++):
-# VKDT_USE_RAWINPUT=1
+VKDT_USE_RAWINPUT=1
 # rawloader (rust):
-VKDT_USE_RAWINPUT=2
+# VKDT_USE_RAWINPUT=2
 export VKDT_USE_RAWINPUT
 
 # exiv2 can optionally be used to load some super basic metadata (iso
