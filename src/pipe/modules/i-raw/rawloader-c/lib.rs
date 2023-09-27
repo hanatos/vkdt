@@ -19,9 +19,10 @@ pub struct c_rawimage {
   pub filters     : u32,
   pub crop_aabb   : [u64;4],
   pub orientation : u32,
-  // TODO: need data type indicator (u16 vs f32)
-  // TODO: need stride because width may be truncated
-  // TODO: need ox, oy so we can offset it when copying the buffer over to gpu
+  pub data_type   : u32,   // 0 means u16, 1 means f32
+  pub cfa_off_x   : u32,
+  pub cfa_off_y   : u32,
+  pub stride      : u32,
   pub data: *mut c_void,
 }
 
@@ -38,19 +39,25 @@ pub extern "C" fn rl_decode_file(
   unsafe{
   if let rawloader::RawImageData::Integer(ref mut vdat) = image.data
   {
-    // XXX TODO: mark as u16 in the c struct too!
     len = vdat.len();
     (*rawimg).data = vdat.as_mut_ptr() as *mut c_void;
-    std::mem::forget(image.data); // how do we clean this up??
+    std::mem::forget(image.data);
+    (*rawimg).data_type = 0;
   }
   else if let rawloader::RawImageData::Float(ref mut vdat) = image.data
   {
     len = vdat.len();
     (*rawimg).data = vdat.as_mut_ptr() as *mut c_void;
-    std::mem::forget(image.data); // how do we clean this up??
+    std::mem::forget(image.data);
+    (*rawimg).data_type = 1;
+  }
+  else
+  {
+    return len as u64;
   }
 
   (*rawimg).width  = image.width  as u64;
+  (*rawimg).stride = image.width  as u32;
   (*rawimg).height = image.height as u64;
   (*rawimg).cpp    = image.cpp    as u64;
   for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[k]; }
@@ -151,6 +158,8 @@ pub extern "C" fn rl_decode_file(
   // round down to full block size:
   (*rawimg).width  = ((*rawimg).width /block)*block;
   (*rawimg).height = ((*rawimg).height/block)*block;
+  (*rawimg).cfa_off_x = ox as u32;
+  (*rawimg).cfa_off_y = oy as u32;
   }
   len as u64
 }

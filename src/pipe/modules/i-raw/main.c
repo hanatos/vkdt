@@ -32,7 +32,17 @@ load_raw(
   if(!strcmp(mod_data->filename, filename))
     return 0; // already loaded
   else free_raw(mod); // maybe loaded the wrong one
-// TODO load_raw: call into rust to load stuff to cache struct
+  uint64_t len = 0;
+  char fname[2*PATH_MAX+10];
+  // XXX frame + startid!
+  if(dt_graph_get_resource_filename(mod, filename, mod->graph->frame, fname, sizeof(fname)))
+    goto error;
+  len = rl_decode_file(fname, &mod_data->img);
+  return 0;
+error:
+  fprintf(stderr, "[i-raw] failed to load raw file %s!\n", fname);
+  mod_data->filename[0] = 0;
+  return 1;
 }
 
 int init(dt_module_t *mod)
@@ -191,17 +201,11 @@ int read_source(
   int wd = mod_data->img.width;
   int ht = mod_data->img.height;
 
-  // XXX TODO: do this dance in the c bindings/rust!
-  int ox = mod_data->ox;
-  int oy = mod_data->oy;
-  wd -= ox;
-  ht -= oy;
-  // round down to full block size:
-  const int block = mod->img_param.filters == 9u ? 3 : 2;
-  wd = (wd/block)*block;
-  ht = (ht/block)*block;
+  int ox = mod_data->img.cfa_off_x;
+  int oy = mod_data->img.cfa_off_y;
+  int stride = mod_data->img.stride;
   size_t bufsize = (size_t)wd * ht * sizeof(uint16_t);
-  // XXX here we need the ox/oy offsets + original stride to copy the right portion:
-  memcpy(buf, mod_data->img.data, bufsize);
+  for(int j=0;j<ht;j++)
+    memcpy(buf + j*wd, ((uint16_t*)mod_data->img.data) + (j+oy)*stride + ox, sizeof(uint16_t)*wd);
   return 0;
 }
