@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "mat3.h"
 #include "rawloader-c/rawloader.h"
+#include "core/log.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -8,7 +9,9 @@
 typedef struct rawinput_buf_t
 {
   rawimage_t img;
+  uint64_t len;
   char filename[PATH_MAX];
+  int frame;
   int ox, oy;
 }
 rawinput_buf_t;
@@ -17,31 +20,35 @@ void
 free_raw(dt_module_t *mod)
 {
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
-  // XXX TODO: call into rust to free stuff
-  // XXX TODO: reset filename or zero the whole thing
+  rl_deallocate(mod_data->img.data, mod_data->len);
+  mod_data->filename[0] = 0;
 }
 
 int
 load_raw(
     dt_module_t *mod,
+    int         frame,
     const char *filename)
 {
-  clock_t beg = clock();
+  clock_t end, beg = clock();
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   assert(mod_data);
-  if(!strcmp(mod_data->filename, filename))
+  if(!strcmp(mod_data->filename, filename) && mod_data->frame == frame)
     return 0; // already loaded
   else free_raw(mod); // maybe loaded the wrong one
-  uint64_t len = 0;
   char fname[2*PATH_MAX+10];
-  // XXX frame + startid!
-  if(dt_graph_get_resource_filename(mod, filename, mod->graph->frame, fname, sizeof(fname)))
+  if(dt_graph_get_resource_filename(mod, filename, frame, fname, sizeof(fname)))
     goto error;
-  len = rl_decode_file(fname, &mod_data->img);
+  mod_data->len = rl_decode_file(fname, &mod_data->img);
+  end = clock();
+  dt_log(s_log_perf, "[rawloader] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
+  mod_data->frame = frame;
   return 0;
 error:
-  fprintf(stderr, "[i-raw] failed to load raw file %s!\n", fname);
+  dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);
   mod_data->filename[0] = 0;
+  mod_data->frame = -1;
   return 1;
 }
 
@@ -95,7 +102,7 @@ void modify_roi_out(
     mod->flags = s_module_request_read_source;
   }
   
-  if(load_raw(mod, filename)) return;
+  if(load_raw(mod, id + graph->frame, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = mod_data->img.width;
@@ -192,8 +199,9 @@ int read_source(
   char        filename[2*PATH_MAX+10];
   if(dt_graph_get_resource_filename(mod, fname, id + mod->graph->frame, filename, sizeof(filename)))
     return 1;
-  int err = load_raw(mod, filename);
+  int err = load_raw(mod, id + mod->graph->frame, filename);
   if(err) return 1;
+  // TODO: if img.data_type == 1 it's a f32 buffer instead.
   uint16_t *buf = (uint16_t *)mapped;
 
   // dimensions of uncropped image
@@ -204,7 +212,6 @@ int read_source(
   int ox = mod_data->img.cfa_off_x;
   int oy = mod_data->img.cfa_off_y;
   int stride = mod_data->img.stride;
-  size_t bufsize = (size_t)wd * ht * sizeof(uint16_t);
   for(int j=0;j<ht;j++)
     memcpy(buf + j*wd, ((uint16_t*)mod_data->img.data) + (j+oy)*stride + ox, sizeof(uint16_t)*wd);
   return 0;

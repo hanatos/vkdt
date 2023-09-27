@@ -27,3 +27,7 @@ typedef struct rawimage_t
 uint64_t rl_decode_file(
     const char *filename,
     rawimage_t *rawimg);
+
+void rl_deallocate(
+    void    *data,
+    uint64_t size);

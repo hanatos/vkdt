@@ -27,16 +27,15 @@ pub struct c_rawimage {
 }
 
 #[no_mangle]
-pub extern "C" fn rl_decode_file(
+pub unsafe extern "C" fn rl_decode_file(
     filename: *mut c_char,
     rawimg  : *mut c_rawimage,
     ) -> u64
 {
-  let c_str: &CStr = unsafe { CStr::from_ptr(filename) };
+  let c_str: &CStr = CStr::from_ptr(filename);
   let strn : &str = c_str.to_str().unwrap();
   let mut image = rawloader::decode_file(strn).unwrap();
   let mut len = 0 as usize;
-  unsafe{
   if let rawloader::RawImageData::Integer(ref mut vdat) = image.data
   {
     len = vdat.len();
@@ -160,13 +159,12 @@ pub extern "C" fn rl_decode_file(
   (*rawimg).height = ((*rawimg).height/block)*block;
   (*rawimg).cfa_off_x = ox as u32;
   (*rawimg).cfa_off_y = oy as u32;
-  }
   len as u64
 }
 
-// // XXX TODO: and then get rid of the buffer again
-// #[no_mangle]
-// pub unsafe extern "C" fn deallocate_rust_buffer(ptr: *mut i32, len: ffi::size_t) {
-//     let len = len as usize;
-//     drop(Vec::from_raw_parts(ptr, len, len));
-// }
+#[no_mangle]
+pub unsafe extern "C" fn rl_deallocate(ptr: *mut c_void, len: u64)
+{
+  let len = len as usize;
+  drop(Vec::from_raw_parts(ptr, len, len));
+}
