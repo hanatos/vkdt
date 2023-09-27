@@ -1,6 +1,6 @@
 [package]
 name = "rawloader-clib"
-description = "thin c bindings for rawloader"
+description = "thin c bindings for rawler"
 version = "0.1.0"
 authors = ["Johannes Hanika <hanika@kit.edu>"]
 license = "WTFPL"
@@ -12,7 +12,7 @@ path = "lib.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
-rawloader = "0.37.1"
+rawler = {path = "../dnglab/rawler", version = "0.5.1"}
 libc = "0.2.148"
 
 [profile.release]

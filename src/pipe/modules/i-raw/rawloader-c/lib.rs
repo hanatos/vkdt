@@ -1,7 +1,8 @@
-use rawloader;
+use rawler;
 use libc::{c_void, c_char};
 use std::ffi::CStr;
 use std::str;
+use std::cmp;
 
 #[repr(C)]
 pub struct c_rawimage {
@@ -34,16 +35,16 @@ pub unsafe extern "C" fn rl_decode_file(
 {
   let c_str: &CStr = CStr::from_ptr(filename);
   let strn : &str = c_str.to_str().unwrap();
-  let mut image = rawloader::decode_file(strn).unwrap();
+  let mut image = rawler::decode_file(strn).unwrap();
   let mut len = 0 as usize;
-  if let rawloader::RawImageData::Integer(ref mut vdat) = image.data
+  if let rawler::RawImageData::Integer(ref mut vdat) = image.data
   {
     len = vdat.len();
     (*rawimg).data = vdat.as_mut_ptr() as *mut c_void;
     std::mem::forget(image.data);
     (*rawimg).data_type = 0;
   }
-  else if let rawloader::RawImageData::Float(ref mut vdat) = image.data
+  else if let rawler::RawImageData::Float(ref mut vdat) = image.data
   {
     len = vdat.len();
     (*rawimg).data = vdat.as_mut_ptr() as *mut c_void;
@@ -59,19 +60,33 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).stride = image.width  as u32;
   (*rawimg).height = image.height as u64;
   (*rawimg).cpp    = image.cpp    as u64;
-  for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[k]; }
-  for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevels[k]; }
-  for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevels[k]; }
+  for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[cmp::min(image.wb_coeffs.len()-1,k)]; }
+  for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevel[cmp::min(image.whitelevel.len()-1,k)]; }
+  for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevel.levels[cmp::min(image.blacklevel.levels.len()-1,k)].as_f32() as u16; }
   for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
   (*rawimg).orientation = image.orientation.to_u16() as u32;
 
   // TODO: add 0x8827 ISO to Tag:: in tiff.rs and fetch it here to hand over
 
   // store aabb (x y X Y)
-  (*rawimg).crop_aabb[0] = image.crops[3] as u64;
-  (*rawimg).crop_aabb[1] = image.crops[0] as u64;
-  (*rawimg).crop_aabb[2] = (image.width  - image.crops[1]) as u64;
-  (*rawimg).crop_aabb[3] = (image.height - image.crops[2]) as u64;
+  // if let Rect ref cr = image.crop_area
+  match image.crop_area
+  {
+    Some(cr) =>
+    {
+      (*rawimg).crop_aabb[0] =  cr.x() as u64;
+      (*rawimg).crop_aabb[1] =  cr.y() as u64;
+      (*rawimg).crop_aabb[2] = (cr.x() + cr.width() ) as u64;
+      (*rawimg).crop_aabb[3] = (cr.y() + cr.height()) as u64;
+    }
+    None =>
+    {
+      (*rawimg).crop_aabb[0] = 0 as u64;
+      (*rawimg).crop_aabb[1] = 0 as u64;
+      (*rawimg).crop_aabb[2] = image.width  as u64;
+      (*rawimg).crop_aabb[3] = image.height as u64;
+    }
+  }
 
   // now we need to account for the pixel shift due to an offset filter:
   let mut ox = 0 as usize;
@@ -139,7 +154,6 @@ pub unsafe extern "C" fn rl_decode_file(
   b[2] =  (b[2] / block) * block;
   b[3] =  (b[3] / block) * block;
 
-  // TODO: also store unprocessed stride and pass to c
   (*rawimg).width  -= ox as u64;
   (*rawimg).height -= oy as u64;
   // round down to full block size:
