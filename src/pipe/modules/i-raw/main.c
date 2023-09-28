@@ -110,11 +110,9 @@ void modify_roi_out(
 
   for(int k=0;k<9;k++)
     mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
-#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
-  dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
-#endif
+
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
-  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_make);
+  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_maker);
   snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", mod_data->img.clean_model);
 #if 0
   // XXX we need this ISO value!

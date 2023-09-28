@@ -7,9 +7,9 @@ use rawler::imgop::xyz::Illuminant;
 
 #[repr(C)]
 pub struct c_rawimage {
-  pub make        : [c_char;32],
+  pub maker       : [c_char;32],
   pub model       : [c_char;32],
-  pub clean_make  : [c_char;32],
+  pub clean_maker : [c_char;32],
   pub clean_model : [c_char;32],
   pub width       : u64,
   pub height      : u64,
@@ -26,6 +26,17 @@ pub struct c_rawimage {
   pub cfa_off_y   : u32,
   pub stride      : u32,
   pub data: *mut c_void,
+}
+
+fn copy_string(
+    src: &String,
+    dst: &mut [c_char;32])
+{
+  for (i, c) in src.chars().enumerate() {
+    if i > 30 { break; }
+    dst[i] = c as i8;
+  }
+  dst[cmp::min(src.len(),31)] = 0;
 }
 
 #[no_mangle]
@@ -72,6 +83,13 @@ pub unsafe extern "C" fn rl_decode_file(
   }
 
   // TODO: add 0x8827 ISO to Tag:: in tiff.rs and fetch it here to hand over
+
+  copy_string(&image.make,  &mut (*rawimg).maker);
+  copy_string(&image.model, &mut (*rawimg).model);
+  copy_string(&image.clean_make,  &mut (*rawimg).clean_maker);
+  copy_string(&image.clean_model, &mut (*rawimg).clean_model);
+
+  // TODO: add lens info whatever stuff!
 
   // store aabb (x y X Y)
   // if let Rect ref cr = image.crop_area

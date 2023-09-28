@@ -3,9 +3,9 @@
 
 typedef struct rawimage_t
 {
-  char     make[32];
+  char     maker[32];
   char     model[32];
-  char     clean_make[32];
+  char     clean_maker[32];
   char     clean_model[32];
   uint64_t width;
   uint64_t height;
