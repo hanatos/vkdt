@@ -3,7 +3,12 @@ use libc::{c_void, c_char};
 use std::ffi::CStr;
 use std::str;
 use std::cmp;
+use std::fs::File;
+use std::io::BufReader;
 use rawler::imgop::xyz::Illuminant;
+use rawler::tags::ExifTag;
+use rawler::formats::tiff::GenericTiffReader;
+use rawler::formats::tiff::reader::TiffReader;
 
 #[repr(C)]
 pub struct c_rawimage {
@@ -21,6 +26,13 @@ pub struct c_rawimage {
   pub filters     : u32,
   pub crop_aabb   : [u64;4],
   pub orientation : u32,
+
+  pub iso         : f32,
+  pub exposure    : f32,
+  pub aperture    : f32,
+  pub focal_length: f32,
+  pub datetime    : [c_char;32],
+
   pub data_type   : u32,   // 0 means u16, 1 means f32
   pub cfa_off_x   : u32,
   pub cfa_off_y   : u32,
@@ -82,7 +94,22 @@ pub unsafe extern "C" fn rl_decode_file(
     None    => for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
   }
 
-  // TODO: add 0x8827 ISO to Tag:: in tiff.rs and fetch it here to hand over
+  // parse again:
+  let input = BufReader::new(File::open(&strn).map_err(|e| rawler::RawlerError::with_io_error("load into buffer", &strn, e)).unwrap());
+  let mut rawfile = rawler::RawFile::new(&strn, input);
+  match GenericTiffReader::new(rawfile.inner(), 0, 0, None, &[]) {
+      Ok(tiff) => {
+        let ifd = tiff.find_first_ifd_with_tag(ExifTag::ISOSpeedRatings).unwrap();
+        (*rawimg).iso          = ifd.get_entry(ExifTag::ISOSpeedRatings).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
+        (*rawimg).aperture     = ifd.get_entry(ExifTag::FNumber).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
+        (*rawimg).exposure     = ifd.get_entry(ExifTag::ExposureTime).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
+        (*rawimg).focal_length = ifd.get_entry(ExifTag::FocalLength).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
+        copy_string(
+            &ifd.get_entry(ExifTag::CreateDate).map(|entry| &entry.value).unwrap().as_string().unwrap(),
+            &mut (*rawimg).clean_maker);
+      }
+      Err(_e) => { } // whatever we just skip the exif
+  }
 
   copy_string(&image.make,  &mut (*rawimg).maker);
   copy_string(&image.model, &mut (*rawimg).model);

@@ -17,6 +17,11 @@ typedef struct rawimage_t
   uint32_t filters;
   uint64_t crop_aabb[4];
   uint32_t orientation;
+  float    iso;
+  float    exposure;
+  float    aperture;
+  float    focal_length;
+  char     datetime[32];
   uint32_t data_type; // 0 means u16, 1 means f32
   uint32_t cfa_off_x;
   uint32_t cfa_off_y;

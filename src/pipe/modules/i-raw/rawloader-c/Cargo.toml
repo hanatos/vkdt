@@ -13,6 +13,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 rawler = {path = "../dnglab/rawler", version = "0.5.1"}
+# rawler = { git = "https://github.com/dnglab/dnglab" }
 libc = "0.2.148"
 
 [profile.release]
