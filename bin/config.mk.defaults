@@ -24,8 +24,8 @@ VKDT_USE_RAWINPUT=1
 export VKDT_USE_RAWINPUT
 
 # exiv2 can optionally be used to load some super basic metadata (iso
-# speed, shutter time etc) inside the i-raw module. that is, you don't
-# have that you don't need to disable this.
+# speed, shutter time etc) inside the i-raw module when using rawspeed.
+# that is, it is only effective if VKDT_USE_RAWINPUT=1.
 # VKDT_USE_EXIV2=1
 # export VKDT_USE_EXIV2
 
