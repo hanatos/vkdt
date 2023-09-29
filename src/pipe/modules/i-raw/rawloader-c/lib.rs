@@ -100,13 +100,21 @@ pub unsafe extern "C" fn rl_decode_file(
   match GenericTiffReader::new(rawfile.inner(), 0, 0, None, &[]) {
       Ok(tiff) => {
         let ifd = tiff.find_first_ifd_with_tag(ExifTag::ISOSpeedRatings).unwrap();
-        (*rawimg).iso          = ifd.get_entry(ExifTag::ISOSpeedRatings).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
-        (*rawimg).aperture     = ifd.get_entry(ExifTag::FNumber).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
-        (*rawimg).exposure     = ifd.get_entry(ExifTag::ExposureTime).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
-        (*rawimg).focal_length = ifd.get_entry(ExifTag::FocalLength).map(|entry| &entry.value).unwrap().force_f32(0) as f32;
-        copy_string(
-            &ifd.get_entry(ExifTag::CreateDate).map(|entry| &entry.value).unwrap().as_string().unwrap(),
-            &mut (*rawimg).clean_maker);
+        match ifd.get_entry(ExifTag::ISOSpeedRatings).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).iso          = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::FNumber).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).aperture     = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::ExposureTime).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).exposure     = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::FocalLength).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).focal_length = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::CreateDate).map(|entry| &entry.value) {
+          Some(datetime) => { copy_string(&datetime.as_string().unwrap(), &mut (*rawimg).datetime); }
+          None => {} }
       }
       Err(_e) => { } // whatever we just skip the exif
   }
@@ -115,8 +123,6 @@ pub unsafe extern "C" fn rl_decode_file(
   copy_string(&image.model, &mut (*rawimg).model);
   copy_string(&image.clean_make,  &mut (*rawimg).clean_maker);
   copy_string(&image.clean_model, &mut (*rawimg).clean_model);
-
-  // TODO: add lens info whatever stuff!
 
   // store aabb (x y X Y)
   // if let Rect ref cr = image.crop_area
