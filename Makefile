@@ -64,6 +64,7 @@ endif
 ifeq ($(VKDT_USE_QUAKE), 1)
   RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's#^#src/pipe/modules/quake/quakespasm/#')
 endif
+RELEASE_FILES:=$(filter-out .%,$(RELEASE_FILES))
 
 VERSION=$(shell grep VERSION src/core/version.h | cut -d'"' -f2)
 release: Makefile src/core/version.h
