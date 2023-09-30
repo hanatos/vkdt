@@ -54,10 +54,21 @@ install-lib: install-mod Makefile src/core/version.h
 	cp -rfL src/gui/*.h $(VKDTINCDIR)/gui
 	cp -rfL src/core/*.h $(VKDTINCDIR)/core
 
+RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules)
+ifeq ($(VKDT_USE_RAWINPUT), 1)
+  RELEASE_FILES+=$(shell cd src/pipe/modules/i-raw/rawspeed && git ls-files | sed -e 's#^#src/pipe/modules/i-raw/rawspeed/#')
+endif
+ifeq ($(VKDT_USE_RAWINPUT), 2)
+  RELEASE_FILES+=$(shell cd src/pipe/modules/i-raw/rawloader && git ls-files | sed -e 's#^#src/pipe/modules/i-raw/rawloader/#')
+endif
+ifeq ($(VKDT_USE_QUAKE), 1)
+  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's#^#src/pipe/modules/quake/quakespasm/#')
+endif
+
 VERSION=$(shell grep VERSION src/core/version.h | cut -d'"' -f2)
 release: Makefile src/core/version.h
 	@echo packing up version ${VERSION}
-	$(shell (echo src/core/version.h; git ls-files --recurse-submodules) | tar caf vkdt-${VERSION}.tar.xz --xform s:^:vkdt-${VERSION}/: --verbatim-files-from -T-)
+	$(shell (echo ${RELEASE_FILES} | sed -e 's/ /\n/g' | tar caf vkdt-${VERSION}.tar.xz --xform s:^:vkdt-${VERSION}/: --verbatim-files-from -T-))
 
 # overwrites the above optimised build flags:
 debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION -DDEBUG_MARKERS
