@@ -24,14 +24,14 @@
 // in the worst case we wastefully copy it around.
 typedef struct dt_image_params_t
 {
-  // from rawspeed:
+  // raw metadata
   float    black[4];          // black point
   float    white[4];          // clipping threshold
   float    whitebalance[4];   // camera white balance coefficients
   uint32_t filters;           // 0-full 9-xtrans else: bayer bits
   uint32_t crop_aabb[4];      // crops away black borders of raw
 
-  // from exiv2:
+  // basic exif data
   float    cam_to_rec2020[9]; // adobe dng matrix or maybe from exif
   uint32_t orientation;       // flip/rotate bits from exif
   char     datetime[20];      // date time string

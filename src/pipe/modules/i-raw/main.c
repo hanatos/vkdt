@@ -110,15 +110,15 @@ void modify_roi_out(
 
   for(int k=0;k<9;k++)
     mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
-#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
-  dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
-#endif
+
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
-  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_make);
+  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_maker);
   snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", mod_data->img.clean_model);
-#if 0
-  // XXX we need this ISO value!
-  mod->img_param.iso = // XXX
+  mod->img_param.iso = mod_data->img.iso;
+  mod->img_param.aperture = mod_data->img.aperture;
+  mod->img_param.exposure = mod_data->img.exposure;
+  mod->img_param.focal_length = mod_data->img.focal_length;
+  strncpy(mod->img_param.datetime, mod_data->img.datetime, sizeof(mod->img_param.datetime));
   float *noise_a = (float*)dt_module_param_float(mod, 1);
   float *noise_b = (float*)dt_module_param_float(mod, 2);
   if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
@@ -146,7 +146,6 @@ void modify_roi_out(
     mod->img_param.noise_a = noise_a[0];
     mod->img_param.noise_b = noise_b[0];
   }
-#endif
 
   for(int k=0;k<4;k++)
   {

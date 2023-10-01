@@ -1,13 +1,20 @@
-use rawloader;
+use rawler;
 use libc::{c_void, c_char};
 use std::ffi::CStr;
 use std::str;
+use std::cmp;
+use std::fs::File;
+use std::io::BufReader;
+use rawler::imgop::xyz::Illuminant;
+use rawler::tags::ExifTag;
+use rawler::formats::tiff::GenericTiffReader;
+use rawler::formats::tiff::reader::TiffReader;
 
 #[repr(C)]
 pub struct c_rawimage {
-  pub make        : [c_char;32],
+  pub maker       : [c_char;32],
   pub model       : [c_char;32],
-  pub clean_make  : [c_char;32],
+  pub clean_maker : [c_char;32],
   pub clean_model : [c_char;32],
   pub width       : u64,
   pub height      : u64,
@@ -19,11 +26,29 @@ pub struct c_rawimage {
   pub filters     : u32,
   pub crop_aabb   : [u64;4],
   pub orientation : u32,
+
+  pub iso         : f32,
+  pub exposure    : f32,
+  pub aperture    : f32,
+  pub focal_length: f32,
+  pub datetime    : [c_char;32],
+
   pub data_type   : u32,   // 0 means u16, 1 means f32
   pub cfa_off_x   : u32,
   pub cfa_off_y   : u32,
   pub stride      : u32,
   pub data: *mut c_void,
+}
+
+fn copy_string(
+    src: &String,
+    dst: &mut [c_char;32])
+{
+  for (i, c) in src.chars().enumerate() {
+    if i > 30 { break; }
+    dst[i] = c as i8;
+  }
+  dst[cmp::min(src.len(),31)] = 0;
 }
 
 #[no_mangle]
@@ -34,16 +59,16 @@ pub unsafe extern "C" fn rl_decode_file(
 {
   let c_str: &CStr = CStr::from_ptr(filename);
   let strn : &str = c_str.to_str().unwrap();
-  let mut image = rawloader::decode_file(strn).unwrap();
+  let mut image = rawler::decode_file(strn).unwrap();
   let mut len = 0 as usize;
-  if let rawloader::RawImageData::Integer(ref mut vdat) = image.data
+  if let rawler::RawImageData::Integer(ref mut vdat) = image.data
   {
     len = vdat.len();
     (*rawimg).data = vdat.as_mut_ptr() as *mut c_void;
     std::mem::forget(image.data);
     (*rawimg).data_type = 0;
   }
-  else if let rawloader::RawImageData::Float(ref mut vdat) = image.data
+  else if let rawler::RawImageData::Float(ref mut vdat) = image.data
   {
     len = vdat.len();
     (*rawimg).data = vdat.as_mut_ptr() as *mut c_void;
@@ -59,19 +84,65 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).stride = image.width  as u32;
   (*rawimg).height = image.height as u64;
   (*rawimg).cpp    = image.cpp    as u64;
-  for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[k]; }
-  for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevels[k]; }
-  for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevels[k]; }
-  for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
+  for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[cmp::min(image.wb_coeffs.len()-1,k)]; }
+  for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevel[cmp::min(image.whitelevel.len()-1,k)]; }
+  for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevel.levels[cmp::min(image.blacklevel.levels.len()-1,k)].as_f32() as u16; }
   (*rawimg).orientation = image.orientation.to_u16() as u32;
 
-  // TODO: add 0x8827 ISO to Tag:: in tiff.rs and fetch it here to hand over
+  match image.color_matrix.get(&Illuminant::D65) {
+    Some(m) => for j in 0..3 { for i in 0..3 { (*rawimg).xyz_to_cam[i][j] = m[3*i+j]; } }
+    None    => for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
+  }
+
+  // parse again:
+  let input = BufReader::new(File::open(&strn).map_err(|e| rawler::RawlerError::with_io_error("load into buffer", &strn, e)).unwrap());
+  let mut rawfile = rawler::RawFile::new(&strn, input);
+  match GenericTiffReader::new(rawfile.inner(), 0, 0, None, &[]) {
+      Ok(tiff) => {
+        let ifd = tiff.find_first_ifd_with_tag(ExifTag::ISOSpeedRatings).unwrap();
+        match ifd.get_entry(ExifTag::ISOSpeedRatings).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).iso          = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::FNumber).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).aperture     = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::ExposureTime).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).exposure     = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::FocalLength).map(|entry| &entry.value) {
+          Some(value) => { (*rawimg).focal_length = value.force_f32(0) as f32; }
+          None => {} }
+        match ifd.get_entry(ExifTag::CreateDate).map(|entry| &entry.value) {
+          Some(datetime) => { copy_string(&datetime.as_string().unwrap(), &mut (*rawimg).datetime); }
+          None => {} }
+      }
+      Err(_e) => { } // whatever we just skip the exif
+  }
+
+  copy_string(&image.make,  &mut (*rawimg).maker);
+  copy_string(&image.model, &mut (*rawimg).model);
+  copy_string(&image.clean_make,  &mut (*rawimg).clean_maker);
+  copy_string(&image.clean_model, &mut (*rawimg).clean_model);
 
   // store aabb (x y X Y)
-  (*rawimg).crop_aabb[0] = image.crops[3] as u64;
-  (*rawimg).crop_aabb[1] = image.crops[0] as u64;
-  (*rawimg).crop_aabb[2] = (image.width  - image.crops[1]) as u64;
-  (*rawimg).crop_aabb[3] = (image.height - image.crops[2]) as u64;
+  // if let Rect ref cr = image.crop_area
+  match image.crop_area
+  {
+    Some(cr) =>
+    {
+      (*rawimg).crop_aabb[0] =  cr.x() as u64;
+      (*rawimg).crop_aabb[1] =  cr.y() as u64;
+      (*rawimg).crop_aabb[2] = (cr.x() + cr.width() ) as u64;
+      (*rawimg).crop_aabb[3] = (cr.y() + cr.height()) as u64;
+    }
+    None =>
+    {
+      (*rawimg).crop_aabb[0] = 0 as u64;
+      (*rawimg).crop_aabb[1] = 0 as u64;
+      (*rawimg).crop_aabb[2] = image.width  as u64;
+      (*rawimg).crop_aabb[3] = image.height as u64;
+    }
+  }
 
   // now we need to account for the pixel shift due to an offset filter:
   let mut ox = 0 as usize;
@@ -139,7 +210,6 @@ pub unsafe extern "C" fn rl_decode_file(
   b[2] =  (b[2] / block) * block;
   b[3] =  (b[3] / block) * block;
 
-  // TODO: also store unprocessed stride and pass to c
   (*rawimg).width  -= ox as u64;
   (*rawimg).height -= oy as u64;
   // round down to full block size:
