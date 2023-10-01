@@ -58,9 +58,6 @@ RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules
 ifeq ($(VKDT_USE_RAWINPUT), 1)
   RELEASE_FILES+=$(shell cd src/pipe/modules/i-raw/rawspeed && git ls-files | sed -e 's#^#src/pipe/modules/i-raw/rawspeed/#')
 endif
-ifeq ($(VKDT_USE_RAWINPUT), 2)
-  RELEASE_FILES+=$(shell cd src/pipe/modules/i-raw/rawloader && git ls-files | sed -e 's#^#src/pipe/modules/i-raw/rawloader/#')
-endif
 ifeq ($(VKDT_USE_QUAKE), 1)
   RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's#^#src/pipe/modules/quake/quakespasm/#')
 endif
