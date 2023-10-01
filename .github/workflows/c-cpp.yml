@@ -18,6 +18,6 @@ jobs:
     - name: update apt
       run: sudo apt-get update
     - name: install dependencies
-      run: sudo apt-get install -y cmake pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libpugixml-dev libfreetype-dev zlib1g-dev libexiv2-dev libxml2-utils rsync glslang-tools
+      run: sudo apt-get install -y cmake pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libpugixml-dev libfreetype-dev zlib1g-dev libexiv2-dev libxml2-utils rsync glslang-tools cargo rustc
     - name: make
       run: make -j20
