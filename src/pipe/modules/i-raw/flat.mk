@@ -47,6 +47,3 @@ pipe/modules/i-raw/libi-raw.so: pipe/modules/i-raw/rawloader-c/target/release/li
 pipe/modules/i-raw/rawloader-c/target/release/librawloader.a: pipe/modules/i-raw/rawloader-c/lib.rs
 	cd pipe/modules/i-raw/rawloader-c; cargo build --release
 endif
-
-distclean:
-	rm -rf pipe/modules/i-raw/rawspeed
