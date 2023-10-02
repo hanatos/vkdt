@@ -463,7 +463,7 @@ allocate_image_array_element(
 
   assert(!(mem_req.alignment & (mem_req.alignment - 1)));
 
-  if(heap_offset == 0 && (c->frames == 2 || c->type == dt_token("source"))) // allocate protected memory, only in outer heap
+  if(heap_offset == 0 && (c->frames == 2 || c->type == dt_token("source") || (c->flags & s_conn_protected))) // allocate protected memory, only in outer heap
     img->mem = dt_vkalloc_feedback(heap, mem_req.size, mem_req.alignment);
   else
     img->mem = dt_vkalloc(heap, mem_req.size, mem_req.alignment);
@@ -482,7 +482,7 @@ allocate_image_array_element(
     img->mem->ref = c->connected_mi;
 
   // TODO: better and more general caching:
-  if(heap_offset == 0 && c->type == dt_token("source"))
+  if(heap_offset == 0 && (c->type == dt_token("source") || (c->flags & s_conn_protected)))
     img->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
 
   return VK_SUCCESS;
