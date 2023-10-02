@@ -2,7 +2,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-// #extension GL_EXT_scalar_block_layout     : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform global_t
@@ -28,9 +27,8 @@ void main()
   const float exposure = clamp(0.18/luminance[0], 1e-3, 1e3);
   vec4 color = texelFetch(img_src, ipos, 0);
   color.rgb *= exposure;
+#if 0 // debug vis
   if(ipos.y < 40) color.rgb = vec3(luminance[0]);
-#if 0
-  // Visualize histogram (disable luminance)
   const uint hist_size = 16*16;
   const uint bin = ipos.x * (hist_size - 1) / imageSize(img_out).x;
   if(1.0 * histogram[bin] > (imageSize(img_out).y - ipos.y - 1))
