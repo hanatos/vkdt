@@ -168,12 +168,15 @@ static inline size_t
 dt_connector_bytes_per_channel(const dt_connector_t *c)
 {
   if(c->format == dt_token("ui32")) return 4;
+  if(c->format == dt_token("u32"))  return 4;
   if(c->format == dt_token("f32"))  return 4;
   if(c->format == dt_token("atom")) return 4; // evaluates to ui32 if no float atomics are supported, f32 otherwise
   if(c->format == dt_token("dspy")) return 4;
   if(c->format == dt_token("ui16")) return 2;
+  if(c->format == dt_token("u16"))  return 2;
   if(c->format == dt_token("f16"))  return 2;
   if(c->format == dt_token("ui8"))  return 1;
+  if(c->format == dt_token("u8"))   return 1;
   return 0;
 }
 
