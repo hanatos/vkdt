@@ -1,0 +1,60 @@
+// LDAP's merian exposure module code stolen:
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_scalar_block_layout     : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float vup;
+  float vdown;
+  float timediff;
+  int   reset;
+} params;
+layout(set = 0, binding = 0) uniform sampler2D img_src;
+layout(set = 0, binding = 1, scalar) buffer buf_hist { uint  histogram[]; };
+layout(set = 0, binding = 2, scalar) buffer buf_lum  { float luminance[]; };
+
+const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+shared uint[hist_size] local_hist;
+shared uint count;
+const float min_log_histogram = -15.0;
+const float max_log_histogram =  11.0;
+
+void main()
+{
+  float max_luminance;
+  const uint local_bin = histogram[gl_LocalInvocationIndex];
+  local_hist[gl_LocalInvocationIndex] = local_bin * gl_LocalInvocationIndex;
+  if (gl_LocalInvocationIndex == 0) count = histogram[hist_size];
+  barrier();
+
+  for (uint split = (hist_size >> 1); split > 0; split >>= 1)
+  {
+    if (uint(gl_LocalInvocationIndex) < split)
+      local_hist[gl_LocalInvocationIndex] += local_hist[gl_LocalInvocationIndex + split];
+    barrier();
+  }
+
+  if (gl_LocalInvocationIndex == 0)
+  {
+    const uvec2 image_size = textureSize(img_src, 0).rg;
+    const float num_bright_pixels = max(count - float(local_bin), 1.0);
+    const float average_bin = (local_hist[0] / num_bright_pixels) - 1.0;
+    const float average_l = exp2(((average_bin / float(hist_size - 2.)) * max_log_histogram) + min_log_histogram);
+
+    // const float ev = ev_100_from_average(average_l, 100, params.K);
+    // max_luminance = ev_100_to_max_luminance(ev, 100, params.q);
+    // max_luminance = 78.0 / ( 0.65) * avg_lum  / 8.0; // ??? = 960*average_l;
+    max_luminance = average_l;
+
+    float last_max_luminance = params.reset == 1 ? max_luminance : luminance[0];
+    if (isnan(last_max_luminance) || isinf(last_max_luminance)) last_max_luminance = max_luminance;
+
+    const float tau = -params.timediff * (max_luminance > last_max_luminance ? params.vup: params.vdown);
+    max_luminance = last_max_luminance + (max_luminance - last_max_luminance) * (1 - exp(tau));
+  }
+
+  if (gl_LocalInvocationIndex == 0) luminance[0] = max_luminance;
+}

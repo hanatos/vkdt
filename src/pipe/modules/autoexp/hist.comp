@@ -1,0 +1,60 @@
+// LDAP's merian exposure module code stolen:
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_scalar_block_layout     : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 0, binding = 0) uniform sampler2D img_src;
+layout(set = 0, binding = 1, scalar) buffer buf_hist { uint  histogram[]; };
+
+const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+shared uint[hist_size] local_hist;
+shared uint count;
+const float min_log_histogram = -15.0;
+const float max_log_histogram = 11.0;
+
+uint get_bin(const vec3 color)
+{
+  float l = luminance_rec2020(color);
+  if (l < pow(2, min_log_histogram)) return 0;
+  const float normalized = (log2(l) - min_log_histogram) / max_log_histogram;
+  const uint bin = uint(normalized * (hist_size - 2) + 1);
+  return clamp(bin, 0, hist_size - 1);
+}
+
+void main()
+{
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
+
+  local_hist[gl_LocalInvocationIndex] = 0;
+  if (gl_LocalInvocationIndex == 0)
+    count = 0;
+  barrier();
+
+  const ivec2 isize = textureSize(img_src, 0);
+  if (all(lessThan(ipos, isize)))
+  {
+    bool mask = false;
+    { // Dirty but works :D
+      mask = true;
+      mask = mask && (ipos.x % max(uint(smoothstep(.1 * isize.r / 2, isize.r / 2, distance(isize / 2, ipos)) * 13), 1)) == 0;
+      mask = mask && (ipos.y % max(uint(smoothstep(.1 * isize.r / 2, isize.r / 2, distance(isize / 2, ipos)) * 7), 1)) == 0;
+    }
+
+    if (mask)
+    {
+      const vec3 color = texelFetch(img_src, ipos, 0).rgb;
+      const uint bin = get_bin(color);
+      atomicAdd(local_hist[bin], 1);
+      atomicAdd(count, 1);
+    }
+  }
+  barrier();
+
+  atomicAdd(histogram[gl_LocalInvocationIndex], local_hist[gl_LocalInvocationIndex]);
+  // Number of pixel that are represented in the histogram
+  if (gl_LocalInvocationIndex == 0) atomicAdd(histogram[hist_size], count);
+}
+
