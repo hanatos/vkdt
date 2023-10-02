@@ -285,7 +285,16 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .ppEnabledExtensionNames = (const char * const*)ext,
   };
 
-  QVKR(vkCreateInstance(&inst_create_info, NULL, &qvk.instance));
+  {
+    VkResult res = vkCreateInstance(&inst_create_info, NULL, &qvk.instance);
+    if(res != VK_SUCCESS)
+    {
+      dt_log(s_log_qvk|s_log_err, "error %s executing vkCreateInstance!", qvk_result_to_string(res));
+      if(res == VK_ERROR_LAYER_NOT_PRESENT)
+        dt_log(s_log_qvk|s_log_err, "did you install the vulkan validation layer package?");
+      return res;
+    }
+  }
 
   /* setup debug callback */
   VkDebugUtilsMessengerCreateInfoEXT dbg_create_info = {
