@@ -57,6 +57,7 @@ it follows the current list of available modules.
 
 **corrective**
 
+* [autoexp: smooth auto exposure of video sequences](./autoexp/readme.md)
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
 * [deconv: deconvolution sharpening](./deconv/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
