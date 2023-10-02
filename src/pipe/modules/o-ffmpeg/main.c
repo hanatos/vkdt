@@ -54,9 +54,6 @@ void write_sink(
     const int   p_profile = dt_module_param_int  (mod, 1)[0];
     const float p_quality = dt_module_param_float(mod, 2)[0];
     const int   p_colour  = dt_module_param_int  (mod, 3)[0];
-    char filename[512];
-    // snprintf(filename, sizeof(filename), "%s.h264", basename);
-    snprintf(filename, sizeof(filename), "%s.mov", basename);
 
     const int width  = mod->connector[0].roi.wd & ~1;
     const int height = mod->connector[0].roi.ht & ~1;
@@ -64,8 +61,9 @@ void write_sink(
     if(width <= 0 || height <= 0) return;
 
     // establish pipe to ffmpeg binary
-    char cmdline[1024];
+    char cmdline[1024], filename[512];
 #if 1 // apple prores encoding, trying 10 bit. will need some 10-bit input!
+    snprintf(filename, sizeof(filename), "%s.mov", basename);
     snprintf(cmdline, sizeof(cmdline),
       "ffmpeg -y -probesize 5000000 -f rawvideo "
       "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
@@ -81,12 +79,14 @@ void write_sink(
       p_colour == 0 ? "yuv422p10le" : "yuva444p10le",
       filename);
 #else
+    snprintf(filename, sizeof(filename), "%s.mp4", basename);
     snprintf(cmdline, sizeof(cmdline),
-        "ffmpeg "
-        "-y -f rawvideo -pix_fmt rgba -s %dx%d -r %g -i - "
+        "ffmpeg -y -f rawvideo"
+        "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
+        "-pix_fmt rgba64le -s %dx%d -r %g -i - "
+        "-vf 'colorspace=all=bt709:trc=bt2020-10:iall=bt2020:itrc=linear' "
         "-c:v libx264 -profile:v baseline -pix_fmt yuv420p " // -level:v 3 " // -b:v 2500 "
         "-v error "
-        // "-an /tmp/out_tempData.h264 "
         "%s",
         width, height, rate, filename);
 #endif
