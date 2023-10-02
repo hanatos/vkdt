@@ -4,7 +4,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #extension GL_EXT_scalar_block_layout     : enable
 #include "shared.glsl"
-layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform global_t
 {
   uint frame;
@@ -16,15 +16,15 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float timediff;
   int   reset;
 } params;
-layout(set = 0, binding = 0) uniform sampler2D img_src;
-layout(set = 0, binding = 1, scalar) buffer buf_hist { uint  histogram[]; };
-layout(set = 0, binding = 2, scalar) buffer buf_lum  { float luminance[]; };
+layout(set = 1, binding = 0) uniform sampler2D img_src;
+layout(set = 1, binding = 1, std430) buffer buf_hist { uint  histogram[]; };
+layout(set = 1, binding = 2, std430) buffer buf_lum  { float luminance[]; };
 
 const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 shared uint[hist_size] local_hist;
 shared uint count;
 const float min_log_histogram = -15.0;
-const float max_log_histogram =  11.0;
+const float max_log_histogram =  20.0;
 
 void main()
 {
@@ -43,7 +43,6 @@ void main()
 
   if (gl_LocalInvocationIndex == 0)
   {
-    const uvec2 image_size = textureSize(img_src, 0).rg;
     const float num_bright_pixels = max(count - float(local_bin), 1.0);
     const float average_bin = (local_hist[0] / num_bright_pixels) - 1.0;
     const float average_l = exp2(((average_bin / float(hist_size - 2.)) * max_log_histogram) + min_log_histogram);
@@ -53,12 +52,11 @@ void main()
     // max_luminance = 78.0 / ( 0.65) * avg_lum  / 8.0; // ??? = 960*average_l;
     max_luminance = average_l;
 
-    float last_max_luminance = params.reset == 1 || global.frame == 0 ? max_luminance : luminance[0];
+    float last_max_luminance = (params.reset == 1 || global.frame == 0) ? max_luminance : luminance[0];
     if (isnan(last_max_luminance) || isinf(last_max_luminance)) last_max_luminance = max_luminance;
 
     const float tau = -params.timediff * (max_luminance > last_max_luminance ? params.vup: params.vdown);
     max_luminance = last_max_luminance + (max_luminance - last_max_luminance) * (1 - exp(tau));
+    luminance[0] = max_luminance;
   }
-
-  if (gl_LocalInvocationIndex == 0) luminance[0] = max_luminance;
 }

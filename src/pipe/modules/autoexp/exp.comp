@@ -2,9 +2,13 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-#extension GL_EXT_scalar_block_layout     : enable
+// #extension GL_EXT_scalar_block_layout     : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float vup;
@@ -12,16 +16,25 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float timediff;
   int   reset;
 } params;
-layout(set = 0, binding = 0) uniform sampler2D img_src;
-layout(set = 0, binding = 1) uniform writeonly image2D img_out;
-layout(set = 0, binding = 2, scalar) buffer buf_lum  { float luminance[]; };
+layout(set = 1, binding = 0) uniform sampler2D img_src;
+layout(set = 1, binding = 1, std430) buffer buf_hist { uint  histogram[]; };
+layout(set = 1, binding = 2, std430) buffer buf_lum  { float luminance[]; };
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
 
 void main()
 {
   const ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if (any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  const float exposure = clamp(1.0/luminance[0], 1e-3, 1e3);
+  const float exposure = clamp(0.18/luminance[0], 1e-3, 1e3);
   vec4 color = texelFetch(img_src, ipos, 0);
   color.rgb *= exposure;
-  imageStore(img_out, ipos, color);                 
+  if(ipos.y < 40) color.rgb = vec3(luminance[0]);
+#if 0
+  // Visualize histogram (disable luminance)
+  const uint hist_size = 16*16;
+  const uint bin = ipos.x * (hist_size - 1) / imageSize(img_out).x;
+  if(1.0 * histogram[bin] > (imageSize(img_out).y - ipos.y - 1))
+    color.rgb = vec3(1.0);
+#endif
+  imageStore(img_out, ipos, vec4(color.rgb, 1.0));
 }
