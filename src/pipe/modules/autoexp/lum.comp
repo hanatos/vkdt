@@ -5,6 +5,10 @@
 #extension GL_EXT_scalar_block_layout     : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float vup;
@@ -49,7 +53,7 @@ void main()
     // max_luminance = 78.0 / ( 0.65) * avg_lum  / 8.0; // ??? = 960*average_l;
     max_luminance = average_l;
 
-    float last_max_luminance = params.reset == 1 ? max_luminance : luminance[0];
+    float last_max_luminance = params.reset == 1 || global.frame == 0 ? max_luminance : luminance[0];
     if (isnan(last_max_luminance) || isinf(last_max_luminance)) last_max_luminance = max_luminance;
 
     const float tau = -params.timediff * (max_luminance > last_max_luminance ? params.vup: params.vdown);
