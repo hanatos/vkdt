@@ -1699,6 +1699,15 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
                 (node->connector[i].flags & s_conn_feedback) ?
                 1-(graph->frame & 1) :
                 graph->frame)->buffer);
+      if(dt_connector_output(node->connector+i) && (node->connector[i].flags & s_conn_clear))
+      {
+        VkBuffer buf = dt_graph_connector_image(graph, node-graph->node, i, 0,
+                (node->connector[i].flags & s_conn_feedback) ?
+                1-(graph->frame & 1) :
+                graph->frame)->buffer;
+        vkCmdFillBuffer(cmd_buf, buf, 0, VK_WHOLE_SIZE, 0);
+        BARRIER_COMPUTE_BUFFER(buf);
+      }
       continue;
     }
     if(dt_connector_input(node->connector+i))
