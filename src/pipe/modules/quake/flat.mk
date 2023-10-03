@@ -9,6 +9,10 @@ pipe/modules/quake/quakespasm/Quake/libquakespasm.a: pipe/modules/quake/quakespa
 	make -C pipe/modules/quake/quakespasm/Quake
 pipe/modules/quake/quakespasm/Quake/Makefile:
 	$(shell git clone https://github.com/hanatos/quakespasm --depth 1 --branch master --single-branch pipe/modules/quake/quakespasm)
+	rm -rf pipe/modules/quake/quakespasm/Linux
+	rm -rf pipe/modules/quake/quakespasm/MacOSX
+	rm -rf pipe/modules/quake/quakespasm/Misc
+	rm -rf pipe/modules/quake/quakespasm/Windows
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/water.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/shared/render3d.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/config.h
