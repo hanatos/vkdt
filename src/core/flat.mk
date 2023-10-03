@@ -5,8 +5,3 @@ CORE_H=core/core.h \
        core/threads.h
 CORE_CFLAGS=
 CORE_LDFLAGS=-pthread -ldl
-
-core/version.h: $(wildcard ../.git/FETCH_HEAD)
-	@echo "#pragma once" > core/version.h
-	@echo "#define VKDT_VERSION \"$(shell git describe --tags)\"" >> core/version.h
-

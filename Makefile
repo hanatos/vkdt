@@ -40,6 +40,10 @@ install-mod: lib bin Makefile
 
 install: install-bin install-mod Makefile
 
+src/core/version.h: $(wildcard .git/FETCH_HEAD)
+	@echo "#pragma once" > src/core/version.h
+	@echo "#define VKDT_VERSION \"$(shell git describe --tags)\"" >> src/core/version.h
+
 install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/qvk
 	mkdir -p $(VKDTINCDIR)/pipe
@@ -93,7 +97,7 @@ cli: Makefile bin
 	$(MAKE) -C src/ ${CLI} tools modules
 
 LIB=../bin/libvkdt.so
-lib: Makefile bin
+lib: Makefile bin src/core/version.h
 	$(MAKE) -C src/ ${LIB} modules
 
 clean:

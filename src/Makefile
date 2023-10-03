@@ -124,7 +124,7 @@ ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
 
 # library
 # ======================
-../bin/libvkdt.so: $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile core/version.h
+../bin/libvkdt.so: $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
 	$(CC) -shared -nostartfiles -Wl,-soname,libvkdt.so -o $@ $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O)
 
 # modules
