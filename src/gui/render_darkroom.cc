@@ -428,6 +428,30 @@ abort:
               (int)ip->focal_length, (int)ip->iso);
       }
     }
+    if(vkdt.graph_dev.frame_cnt != 1)
+    { // print timeline/navigation only if not a still
+      float bwd = 0.12f;
+      ImVec2 size(bwd*vkdt.state.panel_wd, 0);
+      if(vkdt.state.anim_playing)
+      {
+        if(ImGui::Button("stop", size))
+          dt_gui_dr_anim_stop();
+      }
+      else if(ImGui::Button("play", size))
+        dt_gui_dr_anim_start();
+      if(ImGui::IsItemHovered())
+        dt_gui_set_tooltip("play/pause the animation");
+      ImGui::SameLine();
+      if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+      {
+        vkdt.graph_dev.frame = vkdt.state.anim_frame;
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+      }
+      if(ImGui::IsItemHovered())
+        dt_gui_set_tooltip("timeline navigation: set current frame.\n"
+            "press space to play/pause and backspace to reset to beginning.\n"
+            "hint: you can hover over many controls and press the keyframe hotkey (default ctrl-k)");
+    }
 
     // tabs for module/params controls:
     ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
@@ -469,21 +493,6 @@ abort:
 
         if(ImGui::CollapsingHeader("animation"))
         { // animation controls
-          float bwd = 0.12f;
-          ImVec2 size(bwd*vkdt.state.panel_wd, 0);
-          if(vkdt.state.anim_playing)
-          {
-            if(ImGui::Button("stop", size))
-              dt_gui_dr_anim_stop();
-          }
-          else if(ImGui::Button("play", size))
-            dt_gui_dr_anim_start();
-          ImGui::SameLine();
-          if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
-          {
-            vkdt.graph_dev.frame = vkdt.state.anim_frame;
-            vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-          }
           if(ImGui::SliderInt("last frame", &vkdt.state.anim_max_frame, 0, 10000))
           {
             vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
