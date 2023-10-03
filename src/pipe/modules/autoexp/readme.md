@@ -12,5 +12,5 @@ dynamic range over time.
 
 * `vup` the speed of exposure adjustment going brighter
 * `vdown` the speed of exposure adjustments towards darker
-* `timediff` the anticipated time difference between frames
-* `reset` set to 1 to restart metering from zero
+* `timediff` the anticipated time difference between frames, affects the speed of adjustment
+* `reset` set to 1 to restart metering from zero instead of running average over time

@@ -1,0 +1,4 @@
+vup:slider:0:10
+vdown:slider:0:10
+timediff:slider:0:1
+reset:combo:running average:per frame

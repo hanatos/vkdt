@@ -67,8 +67,7 @@ gamut.
 
 ## parameters
 
-* `exposure` this is here for convenience, so we save the memory bandwidth to carry
-  all the pixels to yet another module doing a trivial transform on the input data.
+* `exposure` linear light exposure correction in ev/stops.
 * `sat` saturation control using dt UCS or the optional lookup tables if they are connected.
 * `mode` the module can be run in `parametric` mode, where the colour matrix and white
   balance coefficients are used and then the RBF only comes into play for gamut mapping.
