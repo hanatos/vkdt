@@ -731,6 +731,7 @@ void render_lighttable_right_panel(int hotkey)
     if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
         "align selected images for stacking");
     } // end if multiple images are selected
+    ImGui::Unindent();
   } // end collapsing header "selected"
 
   if(vkdt.db.selection_cnt > 0 && ImGui::CollapsingHeader("metadata"))
