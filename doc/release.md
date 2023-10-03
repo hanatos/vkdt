@@ -21,7 +21,7 @@ will be exported by `make release`.
 
 `ext/imgui` is relatively recent
 
-`ext/rawspeed` is a merge with the cr3 support branch
+rawspeed and quakespasm will only be deployed depending on build settings in `bin/config.mk`.
 
 ## version.h
 
@@ -39,7 +39,7 @@ and for paranoia (d):
 
 ```
 touch .git/FETCH_HEAD
-make -C src core/version.h
+make src/core/version.h
 cat src/core/version.h
 ```
 
@@ -55,6 +55,10 @@ make -j20
 DESTDIR=/tmp/testrel make install
 /tmp/testrel/usr/bin/vkdt
 ```
+
+## create appimage
+
+run `bin/mkappimg.sh` from the root directory
 
 ## upload
 
