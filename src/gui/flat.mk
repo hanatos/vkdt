@@ -50,4 +50,4 @@ ifeq ($(VKDT_USE_PENTABLET),1)
 GUI_CFLAGS+=-DVKDT_USE_PENTABLET=1
 endif
 
-gui/main.o:core/version.h core/signal.h
+gui/main.o: core/signal.h

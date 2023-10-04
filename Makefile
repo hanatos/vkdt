@@ -86,14 +86,14 @@ sanitize-thread:OPT_CFLAGS=-fsanitize=thread -g -O0
 sanitize-thread:OPT_LDFLAGS=-fsanitize=thread
 sanitize-thread:all
 
-src: Makefile
+src: Makefile src/core/version.h
 	$(MAKE) -C src/
 
 reload-shaders: Makefile
 	$(MAKE) -C src/ reload-shaders
 
 CLI=../bin/vkdt-cli ../bin/vkdt-fit
-cli: Makefile bin
+cli: Makefile bin src/core/version.h
 	$(MAKE) -C src/ ${CLI} tools modules
 
 LIB=../bin/libvkdt.so
