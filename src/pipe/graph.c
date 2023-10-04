@@ -2749,7 +2749,7 @@ VkResult dt_graph_run(
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
   uint8_t *uniform_mem = 0;
-  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, f * graph->uniform_size,
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, ((uint64_t)f) * graph->uniform_size,
         graph->uniform_size, 0, (void**)&uniform_mem));
   ((uint32_t *)uniform_mem)[0] = graph->frame;
   ((uint32_t *)uniform_mem)[1] = graph->frame_cnt;
