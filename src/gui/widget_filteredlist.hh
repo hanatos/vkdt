@@ -12,6 +12,7 @@ inline void
 dt_gui_set_tooltip(const char *fmt, ...)
 {
   ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+  ImGui::PushTextWrapPos(vkdt.state.panel_wd);
   va_list args;
   va_start(args, fmt);
   ImGui::SetTooltipV(fmt, args);
