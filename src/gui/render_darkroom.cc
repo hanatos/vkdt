@@ -9,6 +9,7 @@ extern "C"
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
 #include "gui/api.hh"
+#include "gui/widget_dopesheet.hh"
 #include "gui/widget_draw.hh"
 #include "gui/widget_thumbnail.hh"
 #include "gui/widget_image.hh"
@@ -27,6 +28,7 @@ static ImHotKey::HotKey hk_darkroom[] = {
   {"next image",      "switch to next image in folder",             {ImGuiKey_Space}},
   {"prev image",      "switch to previous image in folder",         {ImGuiKey_Backspace}},
   {"fullscreen",      "show/hide side panels for fullscreen",       {ImGuiKey_Tab}},
+  {"dopesheet",       "show/hide keyframe overview",                {ImGuiKey_LeftCtrl, ImGuiKey_D}},
   {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
   {"rate 1",          "assign one star",                            {ImGuiKey_1}},
   {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
@@ -54,18 +56,19 @@ enum hotkey_names_t
   s_hotkey_next_image      = 8,
   s_hotkey_prev_image      = 9,
   s_hotkey_fullscreen      = 10,
-  s_hotkey_rate_0          = 11,
-  s_hotkey_rate_1          = 12,
-  s_hotkey_rate_2          = 13,
-  s_hotkey_rate_3          = 14,
-  s_hotkey_rate_4          = 15,
-  s_hotkey_rate_5          = 16,
-  s_hotkey_label_1         = 17,
-  s_hotkey_label_2         = 18,
-  s_hotkey_label_3         = 19,
-  s_hotkey_label_4         = 20,
-  s_hotkey_label_5         = 21,
-  s_hotkey_reload_shaders  = 22,
+  s_hotkey_dopesheet       = 11,
+  s_hotkey_rate_0          = 12,
+  s_hotkey_rate_1          = 13,
+  s_hotkey_rate_2          = 14,
+  s_hotkey_rate_3          = 15,
+  s_hotkey_rate_4          = 16,
+  s_hotkey_rate_5          = 17,
+  s_hotkey_label_1         = 18,
+  s_hotkey_label_2         = 19,
+  s_hotkey_label_3         = 20,
+  s_hotkey_label_4         = 21,
+  s_hotkey_label_5         = 22,
+  s_hotkey_reload_shaders  = 23,
 };
 
 // used to communictate between the gui helper functions
@@ -155,7 +158,7 @@ void render_darkroom()
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   { // center image view
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
     { // draw image properties
       ImGui::SetNextWindowPos (ImGui::GetMainViewport()->Pos, ImGuiCond_Always);
       ImGui::SetNextWindowSize(ImVec2(win_w+2*win_x, win_y), ImGuiCond_Always);
@@ -176,11 +179,10 @@ void render_darkroom()
       }
       ImGui::End();
     }
-    int border = 0;
     ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + win_x - border,
-          ImGui::GetMainViewport()->Pos.y + win_y - border), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w+2*border, win_h+2*border), ImGuiCond_Always);
+          ImGui::GetMainViewport()->Pos.x + win_x,
+          ImGui::GetMainViewport()->Pos.y + win_y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w, win_h), ImGuiCond_Always);
     ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
     ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar |
@@ -270,6 +272,25 @@ abort:
     ImGui::End();
     ImGui::PopStyleColor();
   } // end center view
+
+  if(vkdt.wstate.dopesheet_view > 0.0f)
+  { // draw dopesheet
+    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y + vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.wstate.dopesheet_view;
+    ImGui::SetNextWindowPos (ImVec2(
+          ImGui::GetMainViewport()->Pos.x + win_x,
+          ImGui::GetMainViewport()->Pos.y + win_y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w, win_h), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
+    ImGui::Begin("darkroom dopesheet", 0, ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoBackground);
+    dt_dopesheet();
+    ImGui::End();
+    ImGui::PopStyleColor();
+  }
 
   if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
   { // left panel
@@ -445,6 +466,8 @@ abort:
       if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
       {
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
+        vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
+        dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
       }
       if(ImGui::IsItemHovered())
@@ -504,15 +527,26 @@ abort:
             vkdt.graph_dev.frame_rate = frame_rate; // conv to double
             dt_graph_history_global(&vkdt.graph_dev);
           }
-          if(ImGui::Button("force downloading all outputs", ImVec2(-1, 0)))
+          if(vkdt.graph_dev.frame_cnt != 1)
           {
-            vkdt.graph_dev.runflags = s_graph_run_download_sink;
+            if(vkdt.wstate.dopesheet_view == 0.0f && ImGui::Button("show dopesheet", ImVec2(-1, 0)))
+            {
+              dt_gui_dr_show_dopesheet();
+            }
+            else if(vkdt.wstate.dopesheet_view > 0.0f && ImGui::Button("hide dopesheet", ImVec2(-1, 0)))
+            {
+              dt_gui_dr_hide_dopesheet();
+            }
+            if(ImGui::Button("force downloading all outputs", ImVec2(-1, 0)))
+            {
+              vkdt.graph_dev.runflags = s_graph_run_download_sink;
+            }
+            if(ImGui::IsItemHovered())
+              dt_gui_set_tooltip("this is useful if an animated graph has output modules\n"
+                                "attached to it. for instance this allows you to trigger\n"
+                                "writing of intermediate results of an optimisation from the gui.\n"
+                                "only works when the animation is stopped.");
           }
-          if(ImGui::IsItemHovered())
-            dt_gui_set_tooltip("this is useful if an animated graph has output modules\n"
-                              "attached to it. for instance this allows you to trigger\n"
-                              "writing of intermediate results of an optimisation from the gui.\n"
-                              "only works when the animation is stopped.");
         }
 
         if(ImGui::CollapsingHeader("presets"))
@@ -560,6 +594,9 @@ abort:
       break;
     case s_hotkey_fullscreen:
       dt_gui_dr_toggle_fullscreen_view();
+      break;
+    case s_hotkey_dopesheet:
+      dt_gui_dr_toggle_dopesheet();
       break;
     case s_hotkey_rate_0: dt_gui_rate_0(); break;
     case s_hotkey_rate_1: dt_gui_rate_1(); break;

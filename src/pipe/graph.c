@@ -2961,26 +2961,31 @@ dt_graph_apply_keyframes(
 {
   for(int m=0;m<g->num_modules;m++)
   {
-    if(g->module[m].name == 0) continue;
+    if(g->module[m].name == 0) continue; // skip deleted modules
     dt_keyframe_t *kf = g->module[m].keyframe;
-    for(int ki=0;ki<g->module[m].keyframe_cnt;ki++)
+    if(g->module[m].keyframe_cnt) for(int p=0;p<g->module[m].so->num_params;p++)
     {
-      int kiM = -1; // find ki.f <= f < kiM.f
-      for(int i=ki+1;i<g->module[m].keyframe_cnt;i++)
+      int ki = -1, kiM = -1; // find ki.f <= f < kiM.f
+      for(int i=0;i<g->module[m].keyframe_cnt;i++)
       { // search for max frame smaller than current frame with same param
-        if(kf[i].param == kf[ki].param && 
-           kf[i].frame >  kf[ki].frame && kf[i].frame <= g->frame) ki = i;
+        if(kf[i].param == g->module[m].so->param[p]->name)
+        {
+          if(ki == -1) ki = i; // always accept if we don't have any so far
+          else if(kf[ki].frame >  g->frame && kf[i].frame < kf[ki].frame) // if we only have an emergency frame so far use the <
+            ki = i;
+          else if(kf[ki].frame <= g->frame && kf[i].frame <= g->frame && kf[i].frame > kf[ki].frame) // if we have one that is actually lower the new one needs to be <= too
+            ki = i;
+        }
       }
-      // discard frames in the future:
-      if(kf[ki].frame > g->frame) continue;
+      if(ki == -1) continue; // no keyframe for this parameter
 
-      for(int i=ki+1;i<g->module[m].keyframe_cnt;i++)
+      for(int i=0;i<g->module[m].keyframe_cnt;i++)
       { // now search for later frame to interpolate
-        if(kf[ki].param == kf[i].param )//&&
-           // kf[ki].beg == kf[i].beg && kf[ki].end == kf[i].end)
-          if(kiM == -1 && kf[i].frame > g->frame) kiM = i;
+        if(kf[i].param == g->module[m].so->param[p]->name)
+          if(kf[i].frame > g->frame && (kiM == -1 || kf[kiM].frame > kf[i].frame)) kiM = i;
       }
-      int parid = dt_module_get_param(g->module[m].so, kf[ki].param);
+      if(kiM == ki) kiM = -1; // don't interpolate same frame
+      int parid = dt_module_get_param(g->module[m].so, g->module[m].so->param[p]->name);
       const dt_ui_param_t *p = g->module[m].so->param[parid];
       uint8_t *pdat = g->module[m].param + p->offset;
       uint8_t *fdat = kf[ki].data;

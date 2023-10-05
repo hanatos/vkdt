@@ -72,8 +72,10 @@ dt_gui_dr_prev()
   if(vkdt.graph_dev.frame_cnt != 1)
   {
     vkdt.graph_dev.frame = vkdt.state.anim_frame = 0; // reset to beginning
-    vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
     vkdt.graph_dev.runflags = s_graph_run_all; // reprocess first frame
+    vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
+    dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
+    dt_gui_dr_anim_stop();
   }
   else
   { // backtrack to last image in lighttable collection
@@ -242,6 +244,25 @@ dt_gui_dr_leave_fullscreen_view()
 {
   if(vkdt.wstate.fullscreen_view)
     dt_gui_dr_toggle_fullscreen_view();
+}
+
+static inline void
+dt_gui_dr_show_dopesheet()
+{
+  vkdt.wstate.dopesheet_view = 1.0;
+}
+
+static inline void
+dt_gui_dr_hide_dopesheet()
+{
+  vkdt.wstate.dopesheet_view = 0.0;
+}
+
+static inline void
+dt_gui_dr_toggle_dopesheet()
+{
+  if(vkdt.wstate.dopesheet_view > 0) vkdt.wstate.dopesheet_view = 0.0;
+  else vkdt.wstate.dopesheet_view = 1.0;
 }
 
 static inline void
