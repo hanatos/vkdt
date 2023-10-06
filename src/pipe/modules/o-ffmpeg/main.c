@@ -89,8 +89,11 @@ void write_sink(
           "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
           "-pix_fmt rgba64le -s %dx%d -r %g -i - "
           "-vf 'colorspace=all=bt709:trc=bt709:iall=bt2020:itrc=linear' "
-          "-c:v libx264 -pix_fmt yuv420p " // -level:v 3 " // -b:v 2500 " -profile:v baseline
-          "-preset ultrafast -qp 0 "
+          "-c:v libx264 -preset ultrafast "
+//          "-c:v h264_nvenc -preset llhp " // -preset llhp/fast
+//          "-c:v rawvideo -pix_fmt rgb24 -f mpegts "
+          "-pix_fmt yuv420p " // -level:v 3 " // -b:v 2500 " -profile:v baseline
+//          "-qp 0 "
           "-crf %d "
           // "-v error "
           "\"%s\"",
