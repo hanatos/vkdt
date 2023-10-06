@@ -187,7 +187,7 @@ void render_darkroom_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+              s_graph_run_record_cmd_buf | flags);
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -204,7 +204,7 @@ void render_darkroom_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+              flags | s_graph_run_record_cmd_buf);
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -225,7 +225,7 @@ void render_darkroom_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+              flags | s_graph_run_record_cmd_buf);
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
@@ -256,7 +256,7 @@ void render_darkroom_widget(int modid, int parid)
             if(vkdt.graph_dev.module[modid].so->check_params)
               flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
             vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+                s_graph_run_record_cmd_buf | flags);
             vkdt.graph_dev.active_module = modid;
             dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           }
@@ -280,7 +280,7 @@ void render_darkroom_widget(int modid, int parid)
             if(vkdt.graph_dev.module[modid].so->check_params)
               flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
             vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+                s_graph_run_record_cmd_buf | flags);
             vkdt.graph_dev.active_module = modid;
             dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           }
@@ -328,7 +328,7 @@ void render_darkroom_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf | s_graph_run_wait_done);
+              flags | s_graph_run_record_cmd_buf);
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           vkdt.wstate.busy += 2;
@@ -479,7 +479,7 @@ void render_darkroom_widget(int modid, int parid)
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
         vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-            s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+            s_graph_run_record_cmd_buf | flags);
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -727,7 +727,7 @@ void render_darkroom_widget(int modid, int parid)
               if(vkdt.graph_dev.module[modid].so->check_params)
                 flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
               vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                  s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+                  s_graph_run_record_cmd_buf | flags);
               vkdt.graph_dev.active_module = modid;
               dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
             }
@@ -876,7 +876,7 @@ void render_darkroom_widget(int modid, int parid)
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | s_graph_run_wait_done | flags);
+              s_graph_run_record_cmd_buf | flags);
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
