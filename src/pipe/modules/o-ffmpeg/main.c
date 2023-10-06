@@ -90,6 +90,7 @@ void write_sink(
           "-pix_fmt rgba64le -s %dx%d -r %g -i - "
           "-vf 'colorspace=all=bt709:trc=bt709:iall=bt2020:itrc=linear' "
           "-c:v libx264 -pix_fmt yuv420p " // -level:v 3 " // -b:v 2500 " -profile:v baseline
+          "-preset ultrafast -qp 0 "
           "-crf %d "
           // "-v error "
           "%s",
