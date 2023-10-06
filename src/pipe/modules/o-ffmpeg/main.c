@@ -74,7 +74,7 @@ void write_sink(
         "-c:v prores -profile:v %d " // 0 1 2 3 for Proxy LT SQ HQ
         "-qscale:v %d " // is this our quality parameter: 2--31, lower qs -> higher bitrate
         "-vendor apl0 -pix_fmt %s " // yuv422p10le or yuva444p10le for 4444
-        "%s",
+        "\"%s\"",
         width, height, rate,
         CLAMP(p_profile, 0, 3),
         (int)CLAMP(31-p_quality*30/100.0, 1, 31),
