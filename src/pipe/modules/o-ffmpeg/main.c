@@ -85,7 +85,7 @@ void write_sink(
     { // h264, 8-bit
       snprintf(filename, sizeof(filename), "%s.mp4", basename);
       snprintf(cmdline, sizeof(cmdline),
-          "ffmpeg -y -f rawvideo "
+          "ffmpeg -threads 0 -y -f rawvideo "
           "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
           "-pix_fmt rgba64le -s %dx%d -r %g -i - "
           "-vf 'colorspace=all=bt709:trc=bt709:iall=bt2020:itrc=linear' "
@@ -93,7 +93,7 @@ void write_sink(
           "-preset ultrafast -qp 0 "
           "-crf %d "
           // "-v error "
-          "%s",
+          "\"%s\"",
           width, height, rate, (int)CLAMP(51-p_quality*51.0/100.0, 0, 51), filename);
     }
     fprintf(stderr, "[o-ffmpeg] running `%s'\n", cmdline);
