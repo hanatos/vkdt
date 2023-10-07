@@ -93,7 +93,7 @@ void write_sink(
           "-preset ultrafast -qp 0 "
           "-crf %d "
           // "-v error "
-          "%s",
+          "\"%s\"",
           width, height, rate, (int)CLAMP(51-p_quality*51.0/100.0, 0, 51), filename);
     }
     fprintf(stderr, "[o-ffmpeg] running `%s'\n", cmdline);
