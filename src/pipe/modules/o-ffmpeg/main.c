@@ -67,7 +67,7 @@ void write_sink(
     { // apple prores encoding, 10 bit output
       snprintf(filename, sizeof(filename), "%s.mov", basename);
       snprintf(cmdline, sizeof(cmdline),
-        "ffmpeg -y -probesize 5000000 -f rawvideo "
+        "ffmpeg -threads 0 -y -probesize 5000000 -f rawvideo "
         "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
         "-pix_fmt rgba64le -s %dx%d -r %g -i - "
         "-vf 'colorspace=all=bt2020:trc=bt2020-10:iall=bt2020:itrc=linear' "
