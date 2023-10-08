@@ -16,6 +16,7 @@
 
 #include "global.h"
 #include "connector.h"
+#include "lens_corr.h"
 
 // bare essential meta data that travels
 // with a (raw) input buffer along the graph.
@@ -32,15 +33,16 @@ typedef struct dt_image_params_t
   uint32_t crop_aabb[4];      // crops away black borders of raw
 
   // basic exif data
-  float    cam_to_rec2020[9]; // adobe dng matrix or maybe from exif
-  uint32_t orientation;       // flip/rotate bits from exif
-  char     datetime[20];      // date time string
-  char     maker[32];         // camera maker string
-  char     model[32];         // camera model string
-  float    exposure;          // exposure value as shot
-  float    aperture;          // f-stop as shot
-  float    iso;               // iso value as shot
-  float    focal_length;      // focal length of lens
+  float          cam_to_rec2020[9]; // adobe dng matrix or maybe from exif
+  uint32_t       orientation;       // flip/rotate bits from exif
+  char           datetime[20];      // date time string
+  char           maker[32];         // camera maker string
+  char           model[32];         // camera model string
+  float          exposure;          // exposure value as shot
+  float          aperture;          // f-stop as shot
+  float          iso;               // iso value as shot
+  float          focal_length;      // focal length of lens
+  dt_lens_corr_t lens_corr;         // lens correction parameters
 
   // audio information (from ffmpeg or mlv or game code)
   int snd_format;             // see alsa's snd_pcm_format_t

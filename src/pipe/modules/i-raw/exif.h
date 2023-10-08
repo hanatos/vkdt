@@ -18,6 +18,7 @@
 
 extern "C" {
 #include "module.h"
+#include "dng_opcode.h"
 }
 
 #include <cassert>
@@ -247,6 +248,22 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
         for(int k=0;k<9;k++)
           ip->cam_to_rec2020[k] = cam_to_rec2020[k];
       }
+    }
+
+    if(FIND_EXIF_TAG("Exif.SubImage1.OpcodeList3"))
+    {
+      uint8_t *data = (uint8_t *)malloc(pos->size());
+      pos->copy(data, Exiv2::invalidByteOrder);
+      dt_dng_opcode_process_opcode_list_3(data, pos->size(), ip);
+      free(data);
+    }
+    else if(FIND_EXIF_TAG("Exif.Image.OpcodeList3"))
+    {
+      // DNGs without an embedded preview have opcodes under Exif.Image
+      uint8_t *data = (uint8_t *)malloc(pos->size());
+      pos->copy(data, Exiv2::invalidByteOrder);
+      dt_dng_opcode_process_opcode_list_3(data, pos->size(), ip);
+      free(data);
     }
     return 0;
   }
