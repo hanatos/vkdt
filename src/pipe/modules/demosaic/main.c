@@ -71,8 +71,9 @@ create_nodes(
     const int id_conv = dt_node_add(graph, module, "demosaic", "rcd_conv",
         module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
         "cfa", "read",  "*", "*",   -1ul,
-        "vh",  "write", "r", "u8",  &module->connector[0].roi,
-        "pq",  "write", "r", "u8",  &hr,
+        // XXX TODO: u8!
+        "vh",  "write", "r", "f16",  &module->connector[0].roi,
+        "pq",  "write", "r", "f16",  &hr,
         "lp",  "write", "r", "f16", &hr);
     const uint32_t tile_size_x = DT_RCD_TILE_SIZE_X - 2*DT_RCD_BORDER;
     const uint32_t tile_size_y = DT_RCD_TILE_SIZE_Y - 2*DT_RCD_BORDER;

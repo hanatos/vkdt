@@ -26,7 +26,9 @@ void main()
   // XXX FIXME: lp should be accessed with proper rounding.
   // XXX FIXME: that means: access on x that means green: 
   // XXX TODO: make it smoother!
-#define lp(x,y)  texture(img_lp,  (vec2((tc. x - 0.5 + ((col(tc) == 1)? 0: 1))/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
+// #define lp(x,y)  texture(img_lp,  (vec2((tc. x - 0.5 + ((col(tc) == 1)? 0: 1))/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
+// #define lp(x,y)  texture(img_lp,  (vec2((tc. x - 0.0 + ((col(tc) == 1)? (((tc.r&1)==1)?1:1): 0))/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
+#define lp(x,y)  texture(img_lp,  (vec2((tc. x +((((tc.y)&1)==1)?0:1) )/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
 #define ind(x,y) (DT_RCD_TILE_SIZE_X*(lid. y) + lid. x + tc.r - ipos.r)
   ivec2 ipos = ivec2(gl_WorkGroupID.xy * ivec2(
         DT_RCD_TILE_SIZE_X-2*DT_RCD_BORDER,
@@ -48,10 +50,12 @@ void main()
     if(c0 == 2) shm_b[ind(x,  y)] = v0;
     if(c1 == 2) shm_b[ind(x+1,y)] = v1;
     // XXX DEBUG the low pass filtered image:
-#define SHOW_LP
+// #define SHOW_LP
 #ifdef SHOW_LP
-      shm_g[ind(x,  y)] = float16_t(lp(x,y));//v0;
-      shm_g[ind(x+1,y)] = float16_t(lp(x+1,y));//v1;
+      // shm_g[ind(x,  y)] = float16_t(lp(x,y));//v0;
+      // shm_g[ind(x+1,y)] = float16_t(lp(x+1,y));//v1;
+      shm_g[ind(x,  y)] = float16_t(vh(x,y));//v0;
+      shm_g[ind(x+1,y)] = float16_t(vh(x+1,y));//v1;
 #endif
   }
   barrier();
@@ -74,21 +78,23 @@ void main()
       + abs(cfa(x-1,y) - cfa(x+1,y)) + abs(cfa(x,y)   - cfa(x+2,y))
       + abs(cfa(x+1,y) - cfa(x+3,y)) + abs(cfa(x+2,y) - cfa(x+4,y));
 
-    const float N_est = cfa(x,y-1);// * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y-1)); // XXX this prediction sucks!
-    const float S_est = cfa(x,y+1);// * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y+1));
-    const float W_est = cfa(x-1,y) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x-1,y));
-    const float E_est = cfa(x+1,y) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x+1,y));
+    const float N_est = cfa(x,y-1) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y-2)); // XXX this prediction sucks!
+    const float S_est = cfa(x,y+1) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y+2)); // XXX because lp(xy) is a rb-centered and y+-1 is not?
+    const float W_est = cfa(x-1,y) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x-2,y)); // XXX but that's the case down here too!
+    const float E_est = cfa(x+1,y) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x+2,y)); // FIXED it by using offset of two both ways
 
     const float v_est = (S_grad * N_est + N_grad * S_est) / (N_grad + S_grad);
     const float h_est = (W_grad * E_est + E_grad * W_est) / (E_grad + W_grad);
-    // XXX h_est looks nice on h features, v_est looks always shit
-    shm_g[ind(x,y)] = float16_t((v_est + v_est)/2.0);//mix(v_est, h_est, vh_discr));
+    // XXX h_est looks nice on h features, v_est looks always shit // fixed
+    // shm_g[ind(x,y)] = float16_t((v_est + v_est)/2.0);//mix(v_est, h_est, vh_discr));
+    shm_g[ind(x,y)] = float16_t(mix(v_est, h_est, vh_discr));
 #ifdef SHOW_LP // XXX DEBUG the low pass filtered image:
-    shm_g[ind(x,y)] = float16_t(lp(x,y));//mix(v_est, h_est, vh_discr));
+    // shm_g[ind(x,y)] = float16_t(lp(x,y));
+    shm_g[ind(x,y)] = float16_t(vh(x,y));
 #endif
   }
   barrier();
-#if 0 // XXX DEBUG
+#if 1 // XXX DEBUG
   { // rb@br: fill colours using diagonal discriminator
     const ivec2 tc = (col(ipos) == 1) ? ipos+ivec2(1,0) : ipos; // select rb colour channel in our tuple
     const bool red = col(tc) == 0;
@@ -158,8 +164,8 @@ void main()
       if(all(greaterThanEqual(lp, ivec2(DT_RCD_BORDER))) &&
          all(lessThan(gp, imageSize(img_out))) &&
          all(lessThan(lp, ivec2(DT_RCD_TILE_SIZE_X, DT_RCD_TILE_SIZE_Y)-DT_RCD_BORDER)))
-        // imageStore(img_out, gp, vec4(shm_r[lidx], shm_g[lidx], shm_b[lidx], 1.0));
-        imageStore(img_out, gp, vec4(shm_g[lidx], shm_g[lidx], shm_g[lidx], 1.0));// XXX DEBUG
+        imageStore(img_out, gp, vec4(shm_r[lidx], shm_g[lidx], shm_b[lidx], 1.0));
+        // imageStore(img_out, gp, vec4(shm_g[lidx], shm_g[lidx], shm_g[lidx], 1.0));// XXX DEBUG
       lidx++;
       lp.x += 1;
       gp.x += 1;
