@@ -11,7 +11,7 @@ void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, textureSize(img_cfa, 0)))) return;
-#define cfa(x,y) texture(img_cfa, (ipos+ivec2(x,y)+0.5)/vec2(textureSize(img_cfa,0))).r
+#define cfa(x,y) texture(img_cfa, (ipos+vec2(x,y)+0.5)/vec2(textureSize(img_cfa,0))).r
   vec2 vhs = vec2(0.0);
   for(int i=-1;i<=1;i++)
     vhs += vec2(
@@ -22,7 +22,7 @@ void main()
   imageStore(img_vh, ipos, vec4(vh)); // every pixel
 
   // TODO: avoid branch divergence here by using one subgroup for each branch!
-  if(((ipos.x + ipos.y) % 1) == 0)
+  if(((ipos.x + ipos.y) & 1) == 0)
   { // compute pq for every rb pixel
     vec2 pqs = vec2(0.0);
     // XXX i think if i read the code correctly it blurs the 1 1 diag the same dir, and the -1 1 too

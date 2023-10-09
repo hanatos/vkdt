@@ -64,7 +64,7 @@ create_nodes(
 
   // else: full size
 
-  if(0)
+  if(1)
   { // bayer with RCD
     dt_roi_t hr = module->connector[0].roi;
     hr.wd /= 2;

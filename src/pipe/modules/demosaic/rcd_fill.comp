@@ -15,36 +15,48 @@ shared float16_t shm_r[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y]; // TODO: +1 strid
 shared float16_t shm_g[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y];
 shared float16_t shm_b[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y];
 
-int col(ivec2 p) { return ((p.x+p.y)%1==1) ? 1 : ((p.y&1)==0 ? 0 : 2); }
+int col(ivec2 p) { return (((p.x+p.y)&1)==1) ? 1 : ((p.y&1)==0 ? 0 : 2); }
 
 void main()
 {
-#define cfa(x,y) texture(img_cfa, (ivec2(tc. x,tc. y)+0.5)/vec2(textureSize(img_cfa,0))).r
-#define vh(x,y)  texture(img_vh,  (ivec2(tc. x,tc. y)+0.5)/vec2(textureSize(img_vh,0))).r
-#define pq(x,y)  texture(img_pq,  (ivec2((tc. x)/2,tc. y)+0.5)/vec2(textureSize(img_pq,0))).r
-#define lp(x,y)  texture(img_lp,  (ivec2((tc. x)/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
-#define ind(x,y) (DT_RCD_TILE_SIZE_X*(lid. y) + lid. x + tc.x - ipos.x)
+// #define cfa(x,y) texture(img_cfa, (ivec2(tc. x,tc. y)+0.5)/vec2(textureSize(img_cfa,0))).r
+#define cfa(x,y) texelFetch(img_cfa, ivec2(tc. x,tc. y), 0).r
+#define vh(x,y)  texture(img_vh,  (vec2(tc. x,tc. y)+0.5)/vec2(textureSize(img_vh,0))).r
+#define pq(x,y)  texture(img_pq,  (vec2((tc. x)/2,tc. y)+0.5)/vec2(textureSize(img_pq,0))).r
+  // XXX FIXME: lp should be accessed with proper rounding.
+  // XXX FIXME: that means: access on x that means green: 
+  // XXX TODO: make it smoother!
+#define lp(x,y)  texture(img_lp,  (vec2((tc. x - 0.5 + ((col(tc) == 1)? 0: 1))/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
+#define ind(x,y) (DT_RCD_TILE_SIZE_X*(lid. y) + lid. x + tc.r - ipos.r)
   ivec2 ipos = ivec2(gl_WorkGroupID.xy * ivec2(
         DT_RCD_TILE_SIZE_X-2*DT_RCD_BORDER,
         DT_RCD_TILE_SIZE_Y-2*DT_RCD_BORDER));
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   const ivec2 lid = ivec2(2,1)*ivec2(gl_LocalInvocationID.xy);
-  ipos += lid - ivec2(DT_RCD_BORDER, DT_RCD_BORDER); // add offset within the tile
+  ipos += lid - DT_RCD_BORDER; // add offset within the tile
   const float eps = 1e-5;
   { // fill rgb shm tile from global:
     const int c0 = col(ipos), c1 = col(ipos+ivec2(1,0));
     const ivec2 tc = ipos;
     const float16_t v0 = float16_t(cfa(x, y)), v1 = float16_t(cfa(x+1, y));
+    shm_r[ind(x,y)]   = shm_g[ind(x,y)]   = shm_b[ind(x,y)]   = float16_t(0.0);
+    shm_r[ind(x+1,y)] = shm_g[ind(x+1,y)] = shm_b[ind(x+1,y)] = float16_t(0.0);
     if(c0 == 0) shm_r[ind(x,  y)] = v0;
     if(c1 == 0) shm_r[ind(x+1,y)] = v1;
     if(c0 == 1) shm_g[ind(x,  y)] = v0;
     if(c1 == 1) shm_g[ind(x+1,y)] = v1;
     if(c0 == 2) shm_b[ind(x,  y)] = v0;
     if(c1 == 2) shm_b[ind(x+1,y)] = v1;
+    // XXX DEBUG the low pass filtered image:
+#define SHOW_LP
+#ifdef SHOW_LP
+      shm_g[ind(x,  y)] = float16_t(lp(x,y));//v0;
+      shm_g[ind(x+1,y)] = float16_t(lp(x+1,y));//v1;
+#endif
   }
   barrier();
   { // g@rb: fill green at rb locations
-    const ivec2 tc = col(ipos) == 1 ? ipos+ivec2(1,0) : ipos; // select rb colour channel in our tuple
+    const ivec2 tc = (col(ipos) == 1) ? ipos+ivec2(1,0) : ipos; // select rb colour channel in our tuple
     const float vhc = vh(x, y);
     const float vhn = 0.25 * (vh(x-1,y-1) + vh(x+1,y-1) + vh(x-1,y+1) + vh(x+1,y+1));
     const float vh_discr = mix(vhc, vhn, abs(0.5-vhc) < abs(0.5-vhn));
@@ -62,19 +74,24 @@ void main()
       + abs(cfa(x-1,y) - cfa(x+1,y)) + abs(cfa(x,y)   - cfa(x+2,y))
       + abs(cfa(x+1,y) - cfa(x+3,y)) + abs(cfa(x+2,y) - cfa(x+4,y));
 
-    const float N_est = cfa(x,y-1) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y-1));
-    const float S_est = cfa(x,y+1) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y+1));
+    const float N_est = cfa(x,y-1);// * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y-1)); // XXX this prediction sucks!
+    const float S_est = cfa(x,y+1);// * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x,y+1));
     const float W_est = cfa(x-1,y) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x-1,y));
     const float E_est = cfa(x+1,y) * 2.0*lp(x,y)/(eps + lp(x,y) + lp(x+1,y));
 
     const float v_est = (S_grad * N_est + N_grad * S_est) / (N_grad + S_grad);
     const float h_est = (W_grad * E_est + E_grad * W_est) / (E_grad + W_grad);
-    shm_g[ind(x,y)] = float16_t(mix(v_est, h_est, vh_discr));
+    // XXX h_est looks nice on h features, v_est looks always shit
+    shm_g[ind(x,y)] = float16_t((v_est + v_est)/2.0);//mix(v_est, h_est, vh_discr));
+#ifdef SHOW_LP // XXX DEBUG the low pass filtered image:
+    shm_g[ind(x,y)] = float16_t(lp(x,y));//mix(v_est, h_est, vh_discr));
+#endif
   }
   barrier();
+#if 0 // XXX DEBUG
   { // rb@br: fill colours using diagonal discriminator
-    const bool red = col(ipos) == 0;
-    const ivec2 tc = col(ipos) == 1 ? ipos+ivec2(1,0) : ipos; // select rb colour channel in our tuple
+    const ivec2 tc = (col(ipos) == 1) ? ipos+ivec2(1,0) : ipos; // select rb colour channel in our tuple
+    const bool red = col(tc) == 0;
     const float pqc = pq(x,y);
     const float pqn = 0.25*(pq(x-1,y-1) + pq(x,y-1) + pq(x-1,y+1) + pq(x,y+1));
     const float pq_discr = mix(pqc, pqn, abs(0.5-pqc) < abs(0.5-pqn));
@@ -101,7 +118,7 @@ void main()
   }
   barrier();
   { // rb@g: fill red and blue at green locations
-    const ivec2 tc = col(ipos) == 1 ? ipos : ipos+ivec2(1,0); // select g colour channel in our tuple
+    const ivec2 tc = (col(ipos) == 1) ? ipos : ipos+ivec2(1,0); // select g colour channel in our tuple
     const float vhc = vh(x,y);
     const float vhn = 0.25 * (vh(x-1,y-1) + vh(x+1,y-1) + vh(x-1,y+1) + vh(x+1,y+1));
     const float vh_discr = mix(vhc, vhn, abs(0.5-vhc) < abs(0.5-vhn));
@@ -131,14 +148,22 @@ void main()
 #undef sc
 #undef sg
   }
+#endif
   barrier();
   { // write global from shm. every thread is responsible for two pixels
     uint lidx = DT_RCD_TILE_SIZE_X * lid.y + lid.x;
-    if(all(greaterThanEqual(ipos, ivec2(0))) && all(lessThan(ipos, imageSize(img_out))))
-      imageStore(img_out, ipos, vec4(shm_r[lidx], shm_g[lidx], shm_b[lidx], 1.0));
-    lidx++;
-    if(all(greaterThanEqual(ipos, ivec2(0))) && all(lessThan(ipos, imageSize(img_out))))
-      imageStore(img_out, ipos+ivec2(1,0), vec4(shm_r[lidx], shm_g[lidx], shm_b[lidx], 1.0));
+    ivec2 gp = ipos, lp = lid;
+    [[unroll]] for(int i=0;i<2;i++)
+    {
+      if(all(greaterThanEqual(lp, ivec2(DT_RCD_BORDER))) &&
+         all(lessThan(gp, imageSize(img_out))) &&
+         all(lessThan(lp, ivec2(DT_RCD_TILE_SIZE_X, DT_RCD_TILE_SIZE_Y)-DT_RCD_BORDER)))
+        // imageStore(img_out, gp, vec4(shm_r[lidx], shm_g[lidx], shm_b[lidx], 1.0));
+        imageStore(img_out, gp, vec4(shm_g[lidx], shm_g[lidx], shm_g[lidx], 1.0));// XXX DEBUG
+      lidx++;
+      lp.x += 1;
+      gp.x += 1;
+    }
   }
 #undef cfa
 #undef vh
