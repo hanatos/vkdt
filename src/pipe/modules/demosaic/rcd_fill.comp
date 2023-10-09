@@ -41,6 +41,7 @@ void main()
     const int c0 = col(ipos), c1 = col(ipos+ivec2(1,0));
     const ivec2 tc = ipos;
     const float16_t v0 = float16_t(cfa(x, y)), v1 = float16_t(cfa(x+1, y));
+    // TODO OPT write only the ones we don't below
     shm_r[ind(x,y)]   = shm_g[ind(x,y)]   = shm_b[ind(x,y)]   = float16_t(0.0);
     shm_r[ind(x+1,y)] = shm_g[ind(x+1,y)] = shm_b[ind(x+1,y)] = float16_t(0.0);
     if(c0 == 0) shm_r[ind(x,  y)] = v0;
@@ -95,9 +96,10 @@ void main()
   }
   barrier();
 #if 1 // XXX DEBUG
+  // FIXME: colours are horribly broken
   { // rb@br: fill colours using diagonal discriminator
     const ivec2 tc = (col(ipos) == 1) ? ipos+ivec2(1,0) : ipos; // select rb colour channel in our tuple
-    const bool red = col(tc) == 0;
+    const bool red = (col(tc) == 0);
     const float pqc = pq(x,y);
     const float pqn = 0.25*(pq(x-1,y-1) + pq(x,y-1) + pq(x-1,y+1) + pq(x,y+1));
     const float pq_discr = mix(pqc, pqn, abs(0.5-pqc) < abs(0.5-pqn));
@@ -118,8 +120,8 @@ void main()
 
     const float p_est = (NW_grad * SE_est + SE_grad * NW_est) / (NW_grad + SE_grad);
     const float q_est = (NE_grad * SW_est + SW_grad * NE_est) / (NE_grad + SW_grad);
-    if(red) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(p_est, q_est, pq_discr));
-    else    shm_b[ind(x,y)] = float16_t(sg(x,y) + mix(p_est, q_est, pq_discr));
+    if(red) shm_b[ind(x,y)] = float16_t(sg(x,y) + mix(p_est, q_est, pq_discr));
+    else    shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(p_est, q_est, pq_discr));
 #undef sc
   }
   barrier();
