@@ -1,13 +1,15 @@
 #version 460
-#extension GL_GOOGLE_include_directive    : enable
-// TODO: explicit arithmetic f16
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_control_flow_attributes : enable
 #include "shared.glsl"
+#include "config.h"
 layout(local_size_x = DT_RCD_LOCAL_SIZE_X, local_size_y = DT_RCD_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(set = 1, binding = 0) uniform sampler2D img_cfa;
 layout(set = 1, binding = 1) uniform sampler2D img_vh; // vertical/horizontal discr
 layout(set = 1, binding = 2) uniform sampler2D img_pq; // diagonal discr
 layout(set = 1, binding = 3) uniform sampler2D img_lp; // low pass filtered green
-layout(set = 1, binding = 4) uniform writeonly image3D img_out; // interpolated output
+layout(set = 1, binding = 4) uniform writeonly image2D img_out; // interpolated output
 
 shared float16_t shm_r[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y]; // TODO: +1 stride for skew
 shared float16_t shm_g[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y];
@@ -26,12 +28,13 @@ void main()
         DT_RCD_TILE_SIZE_X-2*DT_RCD_BORDER,
         DT_RCD_TILE_SIZE_Y-2*DT_RCD_BORDER));
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  const uvec2 lid = ivec2(2,1)*ivec2(gl_LocalInvocationID.xy);
+  const ivec2 lid = ivec2(2,1)*ivec2(gl_LocalInvocationID.xy);
   ipos += lid - ivec2(DT_RCD_BORDER, DT_RCD_BORDER); // add offset within the tile
+  const float eps = 1e-5;
   { // fill rgb shm tile from global:
     const int c0 = col(ipos), c1 = col(ipos+ivec2(1,0));
     const ivec2 tc = ipos;
-    const float v0 = cfa(x,   y), v1 = cfa(x+1, y);
+    const float16_t v0 = float16_t(cfa(x, y)), v1 = float16_t(cfa(x+1, y));
     if(c0 == 0) shm_r[ind(x,  y)] = v0;
     if(c1 == 0) shm_r[ind(x+1,y)] = v1;
     if(c0 == 1) shm_g[ind(x,  y)] = v0;
@@ -46,7 +49,6 @@ void main()
     const float vhn = 0.25 * (vh(x-1,y-1) + vh(x+1,y-1) + vh(x-1,y+1) + vh(x+1,y+1));
     const float vh_discr = mix(vhc, vhn, abs(0.5-vhc) < abs(0.5-vhn));
 
-    const float eps = 1e-5;
     const float N_grad = eps
       + abs(cfa(x,y-1) - cfa(x,y+1)) + abs(cfa(x,y)   - cfa(x,y-2))
       + abs(cfa(x,y-1) - cfa(x,y-3)) + abs(cfa(x,y-2) - cfa(x,y-4));
@@ -67,7 +69,7 @@ void main()
 
     const float v_est = (S_grad * N_est + N_grad * S_est) / (N_grad + S_grad);
     const float h_est = (W_grad * E_est + E_grad * W_est) / (E_grad + W_grad);
-    shm_g[ind(x,y)] = mix(v_est, h_est, vh_discr);
+    shm_g[ind(x,y)] = float16_t(mix(v_est, h_est, vh_discr));
   }
   barrier();
   { // rb@br: fill colours using diagonal discriminator
@@ -93,8 +95,8 @@ void main()
 
     const float p_est = (NW_grad * SE_est + SE_grad * NW_est) / (NW_grad + SE_grad);
     const float q_est = (NE_grad * SW_est + SW_grad * NE_est) / (NE_grad + SW_grad);
-    // XXX probably sc = doesn't work lhs!
-    sc(0,0) = sg(0,0) + mix(p_est, q_est, pq_discr);
+    if(red) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(p_est, q_est, pq_discr));
+    else    shm_b[ind(x,y)] = float16_t(sg(x,y) + mix(p_est, q_est, pq_discr));
 #undef sc
   }
   barrier();
@@ -108,7 +110,7 @@ void main()
     const float S1 = eps + abs(sg(x,y) - sg(x,y+2));
     const float W1 = eps + abs(sg(x,y) - sg(x-2,y));
     const float E1 = eps + abs(sg(x,y) - sg(x+2,y));
-#define sc(x,y) (c ? shm_b[ind(x,y)] : shm_r[ind(x,y)])
+#define sc(x,y) (c!=0 ? shm_b[ind(x,y)] : shm_r[ind(x,y)])
     [[unroll]] for(int c=0;c<2;c++)
     { // for both colour channels shm_r and shm_b:
       const float SNabs = abs(sc(x,y-1) - sc(x,y+1));
@@ -123,8 +125,8 @@ void main()
       const float E_est = sc(x+1,y) - sg(x+1,y);
       const float v_est = (N_grad * S_est + S_grad * N_est) / (N_grad + S_grad);
       const float h_est = (E_grad * W_est + W_grad * E_est) / (E_grad + W_grad);
-      // XXX probably doesn't work lhs:
-      sc(x,y) = sg(x,y) + mix(v_est, h_est, vh_discr);
+      if(c == 0) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
+      else       shm_b[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
     }
 #undef sc
 #undef sg

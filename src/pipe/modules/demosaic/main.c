@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,7 +136,7 @@ create_nodes(
       "input",  "read",  "rggb", "*",   -1ul,
       "green",  "read",  "g",    "*",   -1ul,
       "cov",    "read",  "rgba", "f16", -1ul,
-      "output", "write", "rgba", "f16", &roi_fill);
+      "output", "write", "rgba", "f16", &roi_full);
   dt_connector_copy(graph, module, 0, id_fix, 0);
   CONN(dt_node_connect(graph, id_splat, 2, id_fix, 1));
   CONN(dt_node_connect(graph, id_gauss, 2, id_fix, 2));
