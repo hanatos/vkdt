@@ -2158,7 +2158,6 @@ VkResult dt_graph_run(
       QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
     }
   }
-  graph->query[f].cnt = 0;
 
   // ==============================================
   // first pass: find output rois
@@ -2714,6 +2713,7 @@ VkResult dt_graph_run(
   if(run & s_graph_run_record_cmd_buf)
   {
     QVKR(vkBeginCommandBuffer(graph->command_buffer[f], &begin_info));
+    graph->query[f].cnt = 0;
     vkCmdResetQueryPool(graph->command_buffer[f], graph->query[f].pool, 0, graph->query[f].max);
     double rt_beg = dt_time();
     int run_all = run & s_graph_run_upload_source;
@@ -2812,43 +2812,45 @@ VkResult dt_graph_run(
 
   if(dt_log_global.mask & s_log_perf)
   {
-    if(graph->query[fp].cnt) // could store the results just once, but for separation of concerns they are part of the struct:
-      QVKR(vkGetQueryPoolResults(qvk.device, graph->query[fp].pool,
-          0, graph->query[fp].cnt,
-          sizeof(graph->query[fp].pool_results[0]) * graph->query[fp].max,
-          graph->query[fp].pool_results,
-          sizeof(graph->query[fp].pool_results[0]),
+    int q = fp;
+    if(run & s_graph_run_wait_done) q = f; // if we're synchronous, use the one we just waited for
+    if(graph->query[q].cnt) // could store the results just once, but for separation of concerns they are part of the struct:
+      QVKR(vkGetQueryPoolResults(qvk.device, graph->query[q].pool,
+          0, graph->query[q].cnt,
+          sizeof(graph->query[q].pool_results[0]) * graph->query[q].max,
+          graph->query[q].pool_results,
+          sizeof(graph->query[q].pool_results[0]),
           VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
 
     uint64_t accum_time = 0;
     dt_token_t last_name = 0;
-    for(int i=0;i<graph->query[fp].cnt;i+=2)
+    for(int i=0;i<graph->query[q].cnt;i+=2)
     {
-      if(i < graph->query[fp].cnt-2 && (
-         graph->query[fp].name[i] == last_name || !last_name ||
-         graph->query[fp].name[i] == dt_token("shared") || last_name == dt_token("shared")))
-        accum_time += graph->query[fp].pool_results[i+1] - graph->query[fp].pool_results[i];
+      if(i < graph->query[q].cnt-2 && (
+         graph->query[q].name[i] == last_name || !last_name ||
+         graph->query[q].name[i] == dt_token("shared") || last_name == dt_token("shared")))
+        accum_time += graph->query[q].pool_results[i+1] - graph->query[q].pool_results[i];
       else
       {
-        if(i && accum_time > graph->query[fp].pool_results[i-1] - graph->query[fp].pool_results[i-2])
+        if(i && accum_time > graph->query[q].pool_results[i-1] - graph->query[q].pool_results[i-2])
           dt_log(s_log_perf, "sum %"PRItkn":\t%8.3f ms",
               dt_token_str(last_name),
               accum_time * 1e-6 * qvk.ticks_to_nanoseconds);
-        if(i < graph->query[fp].cnt-2)
-          accum_time = graph->query[fp].pool_results[i+1] - graph->query[fp].pool_results[i];
+        if(i < graph->query[q].cnt-2)
+          accum_time = graph->query[q].pool_results[i+1] - graph->query[q].pool_results[i];
       }
-      last_name = graph->query[fp].name[i];
+      last_name = graph->query[q].name[i];
       // i think this is the most horrible line of printf i've ever written:
       dt_log(s_log_perf, "%-*.*s %-*.*s:\t%8.3f ms",
-          8, 8, dt_token_str(graph->query[fp].name  [i]),
-          8, 8, dt_token_str(graph->query[fp].kernel[i]),
-          (graph->query[fp].pool_results[i+1]-
-          graph->query[fp].pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
+          8, 8, dt_token_str(graph->query[q].name  [i]),
+          8, 8, dt_token_str(graph->query[q].kernel[i]),
+          (graph->query[q].pool_results[i+1]-
+          graph->query[q].pool_results[i])* 1e-6 * qvk.ticks_to_nanoseconds);
     }
-    if(graph->query[fp].cnt)
+    if(graph->query[q].cnt)
     {
-      graph->query[fp].last_frame_duration = (graph->query[fp].pool_results[graph->query[fp].cnt-1]-graph->query[fp].pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
-      dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query[fp].last_frame_duration);
+      graph->query[q].last_frame_duration = (graph->query[q].pool_results[graph->query[q].cnt-1]-graph->query[q].pool_results[0])*1e-6 * qvk.ticks_to_nanoseconds;
+      dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query[q].last_frame_duration);
     }
   }
   // reset run flags:
