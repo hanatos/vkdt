@@ -1,0 +1,50 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_control_flow_attributes : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(set = 1, binding = 0) uniform sampler2D img_cfa;
+layout(set = 1, binding = 1) uniform writeonly image2D img_vh; // 8bit [0,1] vertical/horizontal discr
+layout(set = 1, binding = 2) uniform writeonly image2D img_pq; // 8bit [0,1] diagonal discr
+layout(set = 1, binding = 3) uniform writeonly image2D img_lp; // low pass filtered green
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_cfa, 0)))) return;
+#define cfa(x,y) texture(img_cfa, (ipos+vec2(x,y)+0.5)/vec2(textureSize(img_cfa,0))).r
+  vec2 vhs = vec2(0.0);
+  [[unroll]] for(int i=-1;i<=1;i++)
+    vhs += vec2(
+      cfa(i,-3) - 3.0 * cfa(i,-2) - cfa(i,-1) + 6.0*cfa(i,0) - cfa(i,1) - 3.0*cfa(i,2) + cfa(i,3),
+      cfa(-3,i) - 3.0 * cfa(-2,i) - cfa(-1,i) + 6.0*cfa(0,i) - cfa(1,i) - 3.0*cfa(2,i) + cfa(3,i));
+  vhs *= vhs;
+  float vh = vhs.x/(1e-5 + vhs.x + vhs.y);
+  imageStore(img_vh, ipos, vec4(vh)); // every pixel
+
+  // TODO: avoid branch divergence here by using one subgroup for each branch!
+  if(((ipos.x + ipos.y) & 1) == 0)
+  { // compute pq for every rb pixel
+    vec2 pqs = vec2(1e-5);
+    [[unroll]] for(int i=-1;i<=1;i++)
+      pqs += vec2(
+        // original/sharper version:
+        cfa(-3+i,-3+i) - cfa(1+i,-1+i) - cfa( 1+i,1+i) + cfa( 3+i,3+i) - 3.0*(cfa(-2+i,-2+i) + cfa( 2+i,2+i)) + 6.0 * cfa(i, i),
+        cfa( 3+i,-3-i) - cfa(1+i,-1-i) - cfa(-1+i,1-i) + cfa(-3+i,3-i) - 3.0*(cfa( 2+i,-2-i) + cfa(-2+i,2-i)) + 6.0 * cfa(i,-i));
+        // cfa(-3+i,-3-i) - cfa(1+i,-1-i) - cfa( 1+i,1-i) + cfa( 3+i,3-i) - 3.0*(cfa(-2+i,-2-i) + cfa( 2+i,2-i)) + 6.0 * cfa(i,-i),
+        // cfa( 3+i,-3+i) - cfa(1+i,-1+i) - cfa(-1+i,1+i) + cfa(-3+i,3+i) - 3.0*(cfa( 2+i,-2+i) + cfa(-2+i,2+i)) + 6.0 * cfa(i, i));
+    pqs *= pqs;
+    float pq = pqs.x/(pqs.x + pqs.y);
+    imageStore(img_pq, ivec2(ipos.x/2,ipos.y), vec4(pq));
+  }
+  else // green
+  { // compute low pass filter for every non-g pixel
+    float lp = 0.0;
+    const int off = ((ipos.x & 1) == 1) ? -1: 1; // find non-green adjacent pixel
+    const float w[3] = {0.5, 1.0, 0.5};
+    [[unroll]] for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+      lp += w[j+1]*w[i+1]*cfa(i+off,j);
+    imageStore(img_lp, ivec2(ipos.x/2,ipos.y), vec4(max(1e-6, lp)));
+  }
+#undef cfa
+}

@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +10,6 @@ void modify_roi_in(
     dt_module_t *module)
 {
   dt_roi_t *ri = &module->connector[0].roi;
-
   ri->wd = ri->full_wd;
   ri->ht = ri->full_ht;
   ri->scale = 1.0f;
@@ -18,13 +18,28 @@ void modify_roi_in(
 void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
-{
+{ // always give full size and negotiate half or not in modify_roi_in
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
-
-  // always give full size and negotiate half or not in modify_roi_in
   ro->full_wd = ri->full_wd;
   ro->full_ht = ri->full_ht;
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 1)
+  { // method
+    float oldstr = *(float*)oldval;
+    float newstr = dt_module_param_int(module, 1)[0];
+    if((oldstr <= 0.0f && newstr >  0.0f) ||
+       (oldstr >  0.0f && newstr <= 0.0f))
+    return s_graph_run_all;// we need to update the graph topology
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
 void
@@ -36,279 +51,123 @@ create_nodes(
   if(!img_param) return; // must have disconnected input somewhere
   const int block = img_param->filters == 9u ? 3 : 2;
   module->img_param.filters = 0u; // after we're done there won't be any more mosaic
+  const int wd = module->connector[0].roi.wd, ht = module->connector[0].roi.ht;
   dt_roi_t roi_full = module->connector[0].roi;
   dt_roi_t roi_half = module->connector[0].roi;
   roi_half.full_wd /= block;
   roi_half.full_ht /= block;
   roi_half.wd /= block;
   roi_half.ht /= block;
+  int *wbi = (int *)img_param->whitebalance;
+  const int pc[] = { wbi[0], wbi[1], wbi[2], wbi[3], img_param->filters };
   if(module->connector[1].roi.scale >= block)
   { // half size
-    // we do whatever the default implementation would have done, too:
-    dt_connector_t ci = {
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("*"),
-      .roi    = roi_full,
-      .connected_mi = -1,
-    };
-    dt_connector_t co = {
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = roi_half,
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_half = graph->num_nodes++;
-    dt_node_t *node_half = graph->node + id_half;
-    *node_half = (dt_node_t) {
-      .name   = dt_token("demosaic"),
-      .kernel = dt_token("halfsize"),
-      .module = module,
-      .wd     = roi_half.wd,
-      .ht     = roi_half.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {
-        ci, co,
-      },
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { img_param->filters },
-    };
-    // resample to get to the rest of the resolution, only if block != scale!
+    const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
+        roi_half.wd, roi_half.ht, 1, sizeof(pc), pc, 2,
+        "input",  "read",  "rggb", "*",   -1ul,
+        "output", "write", "rgba", "f16", &roi_half);
     dt_connector_copy(graph, module, 0, id_half, 0);
     if(block != module->connector[1].roi.scale)
-    {
-      ci.chan   = dt_token("rgba");
-      ci.format = dt_token("f16");
-      ci.roi    = roi_half;
-      ci.flags  = s_conn_smooth;
-      co.chan   = dt_token("rgba");
-      co.format = dt_token("f16");
-      co.roi    = module->connector[1].roi;
-      assert(graph->num_nodes < graph->max_nodes);
-      const int id_resample = graph->num_nodes++;
-      dt_node_t *node_resample = graph->node + id_resample;
-      *node_resample = (dt_node_t) {
-        .name   = dt_token("shared"),
-        .kernel = dt_token("resample"),
-        .module = module,
-        .wd     = co.roi.wd,
-        .ht     = co.roi.ht,
-        .dp     = 1,
-        .num_connectors = 2,
-        .connector = {
-          ci, co,
-        },
-      };
+    { // resample to get to the rest of the resolution, only if block != scale!
+      const int id_resample = dt_node_add(graph, module, "shared", "resample",
+          module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
+          "input",  "read",  "rgba", "f16", -1ul,
+          "output", "write", "rgba", "f16", &module->connector[1].roi);
       CONN(dt_node_connect(graph, id_half, 1, id_resample, 0));
       dt_connector_copy(graph, module, 1, id_resample, 1);
     }
-    else
-    {
-      dt_connector_copy(graph, module, 1, id_half, 1);
-    }
+    else dt_connector_copy(graph, module, 1, id_half, 1);
     return;
   }
 
   // else: full size
-  // need full size connectors and half size connectors:
-  const int wd = module->connector[0].roi.wd;
-  const int ht = module->connector[0].roi.ht;
-  const int dp = 1;
-  dt_connector_t ci = {
-    .name   = dt_token("input"),
-    .type   = dt_token("read"),
-    .chan   = dt_token("rggb"),
-    .format = dt_token("*"),
-    .roi    = roi_full,
-    .connected_mi = -1,
-  };
-  dt_connector_t co = {
-    .name   = dt_token("output"),
-    .type   = dt_token("write"),
-    .chan   = dt_token("y"),
-    .format = dt_token("f16"),
-    .roi    = roi_half,
-  };
-  dt_connector_t cg = {
-    .name   = dt_token("gauss"),
-    .type   = dt_token("read"),
-    .chan   = dt_token("rgba"),
-    .format = dt_token("f16"),
-    .roi    = roi_half,
-    .connected_mi = -1,
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_down = graph->num_nodes++;
-  dt_node_t *node_down = graph->node + id_down;
-  *node_down = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("down"),
-    .module = module,
-    .wd     = wd/block,
-    .ht     = ht/block,
-    .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = { img_param->filters },
-  };
-  ci.chan   = dt_token("y");
-  ci.format = dt_token("f16");
-  ci.roi    = roi_half;
-  co.chan   = dt_token("rgba");
-  co.format = dt_token("f16");
-  co.roi    = roi_half;
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_gauss = graph->num_nodes++;
-  dt_node_t *node_gauss = graph->node + id_gauss;
-  *node_gauss = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("gauss"),
-    .module = module,
-    .wd     = wd/block,
-    .ht     = ht/block,
-    .dp     = dp,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("y"),
-      .format = dt_token("f16"),
-      .roi    = roi_half,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("orig"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("*"),
-      .roi    = roi_half,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = roi_half,
-    }},
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = { img_param->filters },
-  };
+
+  const int method = dt_module_param_int(module, 1)[0];
+  if(method == 1)
+  { // bayer with RCD
+    dt_roi_t hr = module->connector[0].roi;
+    hr.wd /= 2;
+    const int id_conv = dt_node_add(graph, module, "demosaic", "rcd_conv",
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
+        "cfa", "read",  "*", "*",   -1ul,
+        "vh",  "write", "r", "f16",  &module->connector[0].roi, // could go u8 here but can't show a perf improvement
+        "pq",  "write", "r", "f16",  &hr,
+        "lp",  "write", "r", "f16", &hr);
+    const uint32_t tile_size_x = DT_RCD_TILE_SIZE_X - 2*DT_RCD_BORDER;
+    const uint32_t tile_size_y = DT_RCD_TILE_SIZE_Y - 2*DT_RCD_BORDER;
+    // how many tiles will we process?
+    const uint32_t num_tiles_x = (wd + tile_size_x - 1)/tile_size_x;
+    const uint32_t num_tiles_y = (ht + tile_size_y - 1)/tile_size_y;
+    const uint32_t invx = num_tiles_x * DT_LOCAL_SIZE_X;
+    const uint32_t invy = num_tiles_y * DT_LOCAL_SIZE_Y;
+    const int id_fill = dt_node_add(graph, module, "demosaic", "rcd_fill",
+        invx, invy, 1, sizeof(pc), pc, 5,
+        "cfa", "read", "*", "*", -1ul,
+        "vh",  "read", "*", "*", -1ul,
+        "pq",  "read", "*", "*", -1ul,
+        "lp",  "read", "*", "*", -1ul,
+        "output", "write", "rgba", "f16", &module->connector[0].roi);
+    CONN(dt_node_connect_named(graph, id_conv, "vh", id_fill, "vh"));
+    CONN(dt_node_connect_named(graph, id_conv, "pq", id_fill, "pq"));
+    CONN(dt_node_connect_named(graph, id_conv, "lp", id_fill, "lp"));
+    dt_connector_copy(graph, module, 0, id_conv, 0);
+    dt_connector_copy(graph, module, 0, id_fill, 0);
+    if(module->connector[1].roi.scale != 1.0)
+    { // add resample node to graph, copy its output instead:
+      const int id_resample = dt_node_add(graph, module, "shared", "resample",
+          module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
+          "input",  "read",  "rgba", "f16", -1ul,
+          "output", "write", "rgba", "f16", &module->connector[1].roi);
+      CONN(dt_node_connect(graph, id_fill, 4, id_resample, 0));
+      dt_connector_copy(graph, module, 1, id_resample, 1);
+    }
+    else dt_connector_copy(graph, module, 1, id_fill, 4);
+    return;
+  }
+
+  // bayer or xtrans with gaussian splats
+  const int id_down = dt_node_add(graph, module, "demosaic", "down",
+      wd/block, ht/block, 1, sizeof(pc), pc, 2,
+      "input", "read", "rggb", "*", -1ul,
+      "output", "write", "y", "f16", &roi_half);
+  const int id_gauss = dt_node_add(graph, module, "demosaic", "gauss",
+      wd/block, ht/block, 1, sizeof(pc), pc, 3,
+      "input",  "read",  "y",    "f16", -1ul,
+      "orig",   "read",  "rggb", "*",   -1ul,
+      "output", "write", "rgba", "f16", &roi_half);
   CONN(dt_node_connect(graph, id_down, 1, id_gauss, 0));
   dt_connector_copy(graph, module, 0, id_gauss, 1);
 
-  ci.chan   = dt_token("rggb");
-  ci.format = dt_token("*");
-  ci.roi    = roi_full;
-  co.chan   = dt_token("g");
-  co.format = dt_token("f16");
-  co.roi    = roi_full;
-  cg.chan   = dt_token("rgba");
-  cg.format = dt_token("f16");
-  cg.roi    = roi_half;
-  cg.flags  = s_conn_smooth;
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_splat = graph->num_nodes++;
-  graph->node[id_splat] = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("splat"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 3,
-    .connector = {
-      ci, cg, co,
-    },
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = { img_param->filters },
-  };
+  const int id_splat = dt_node_add(graph, module, "demosaic", "splat",
+      wd, ht, 1, sizeof(pc), pc, 3,
+      "input",  "read",  "rggb", "*",   -1ul,
+      "gauss",  "read",  "rgba", "f16", -1ul,
+      "output", "write", "g",    "f16", &roi_full);
   dt_connector_copy(graph, module, 0, id_splat, 0);
   CONN(dt_node_connect(graph, id_gauss, 2, id_splat, 1));
   dt_connector_copy(graph, module, 0, id_down,  0);
-  // XXX DEBUG see output of gaussian params
-  // dt_connector_copy(graph, module, 1, id_gauss, 2);
+  // dt_connector_copy(graph, module, 1, id_gauss, 2); // XXX DEBUG see output of gaussian params
   // return;
 
   // fix colour casts
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_fix = graph->num_nodes++;
-  graph->node[id_fix] = (dt_node_t) {
-    .name   = dt_token("demosaic"),
-    .kernel = dt_token("fix"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 4,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("*"),
-      .roi    = roi_full,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("green"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("g"),
-      .format = dt_token("*"),
-      .roi    = roi_full,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("cov"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = roi_half,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = roi_full,
-    }},
-    .push_constant_size = sizeof(uint32_t),
-    .push_constant = { img_param->filters },
-  };
+  const int id_fix = dt_node_add(graph, module, "demosaic", "fix",
+      wd, ht, 1, sizeof(pc), pc, 4,
+      "input",  "read",  "rggb", "*",   -1ul,
+      "green",  "read",  "g",    "*",   -1ul,
+      "cov",    "read",  "rgba", "f16", -1ul,
+      "output", "write", "rgba", "f16", &roi_full);
   dt_connector_copy(graph, module, 0, id_fix, 0);
   CONN(dt_node_connect(graph, id_splat, 2, id_fix, 1));
   CONN(dt_node_connect(graph, id_gauss, 2, id_fix, 2));
 
   if(module->connector[1].roi.scale != 1.0)
   { // add resample node to graph, copy its output instead:
-    ci.chan   = dt_token("rgba");
-    ci.format = dt_token("f16");
-    ci.roi    = roi_full;
-    ci.flags  = s_conn_smooth;
-    co.chan   = dt_token("rgba");
-    co.format = dt_token("f16");
-    co.roi    = module->connector[1].roi;
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_resample = graph->num_nodes++;
-    graph->node[id_resample] = (dt_node_t) {
-      .name   = dt_token("shared"),
-      .kernel = dt_token("resample"),
-      .module = module,
-      .wd     = co.roi.wd,
-      .ht     = co.roi.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {
-        ci, co,
-      },
-    };
+    const int id_resample = dt_node_add(graph, module, "shared", "resample",
+        module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
+        "input",  "read",  "rgba", "f16", -1ul,
+        "output", "write", "rgba", "f16", &module->connector[1].roi);
     CONN(dt_node_connect(graph, id_fix, 3, id_resample, 0));
     dt_connector_copy(graph, module, 1, id_resample, 1);
   }
-  else
-  { // directly output demosaicing result:
-    dt_connector_copy(graph, module, 1, id_fix, 3);
-  }
+  else dt_connector_copy(graph, module, 1, id_fix, 3);
 }

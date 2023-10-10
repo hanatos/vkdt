@@ -16,3 +16,5 @@ this is done in [the denoise module](../denoise/readme.md).
 * `colour` select sharp for collecting colour only in a small window.
    the smooth option is using a larger window and slower to process. use
    only when you encounter artifacts.
+* `method` choose between the demosaicing methods. some only work for bayer
+   patters (not fuji xtrans).
