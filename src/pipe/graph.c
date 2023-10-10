@@ -1158,7 +1158,7 @@ write_descriptor_sets(
   }
   else if(dt_connector_input(c))
   { // point our inputs to their counterparts:
-    const int c_dyn_array = graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array;
+    const int c_dyn_array = (c->connected_mi >=0 && c->connected_mc >= 0) ? graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array : 0;
     if(c->connected_mi >= 0 &&
       ((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)))
     {
