@@ -25,17 +25,16 @@ void main()
   // TODO: avoid branch divergence here by using one subgroup for each branch!
   if(((ipos.x + ipos.y) & 1) == 0)
   { // compute pq for every rb pixel
-    vec2 pqs = vec2(0.0);
-    // XXX i think if i read the code correctly it blurs the 1 1 diag the same dir, and the -1 1 too
-    // XXX we do the other way around because it seems more symmetrical (??)
+    vec2 pqs = vec2(1e-5);
     [[unroll]] for(int i=-1;i<=1;i++)
       pqs += vec2(
-        cfa(-3+i,-3-i) - cfa(-1+i,-1-i) - cfa(1+i, 1-i) + cfa(3+i, 3-i)
-        - 3.0*(cfa(-2+i,-2-i) + cfa(2+i, 2-i)) + 6.0 * cfa(i,-i),
-        cfa(-3+i, 3+i) - cfa(-1+i, 1+i) - cfa(1+i,-1+i) + cfa(3+i,-3+i)
-        - 3.0*(cfa(-2+i, 2+i) + cfa(2+i,-2+i)) + 6.0 * cfa(i, i));
+        // original/sharper version:
+        cfa(-3+i,-3+i) - cfa(1+i,-1+i) - cfa( 1+i,1+i) + cfa( 3+i,3+i) - 3.0*(cfa(-2+i,-2+i) + cfa( 2+i,2+i)) + 6.0 * cfa(i, i),
+        cfa( 3+i,-3-i) - cfa(1+i,-1-i) - cfa(-1+i,1-i) + cfa(-3+i,3-i) - 3.0*(cfa( 2+i,-2-i) + cfa(-2+i,2-i)) + 6.0 * cfa(i,-i));
+        // cfa(-3+i,-3-i) - cfa(1+i,-1-i) - cfa( 1+i,1-i) + cfa( 3+i,3-i) - 3.0*(cfa(-2+i,-2-i) + cfa( 2+i,2-i)) + 6.0 * cfa(i,-i),
+        // cfa( 3+i,-3+i) - cfa(1+i,-1+i) - cfa(-1+i,1+i) + cfa(-3+i,3+i) - 3.0*(cfa( 2+i,-2+i) + cfa(-2+i,2+i)) + 6.0 * cfa(i, i));
     pqs *= pqs;
-    float pq = pqs.x/(1e-5 + pqs.x + pqs.y);
+    float pq = pqs.x/(pqs.x + pqs.y);
     imageStore(img_pq, ivec2(ipos.x/2,ipos.y), vec4(pq));
   }
   else // green
