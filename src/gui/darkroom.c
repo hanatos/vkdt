@@ -304,6 +304,7 @@ darkroom_leave()
     dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
 
   if(vkdt.graph_dev.frame_cnt != 1) dt_gui_label_set(s_image_label_video);
+  else dt_gui_label_unset(s_image_label_video);
 
   // TODO: start from already loaded/inited graph instead of from scratch!
   const uint32_t imgid = dt_db_current_imgid(&vkdt.db);

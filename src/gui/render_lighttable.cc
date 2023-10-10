@@ -422,6 +422,8 @@ void render_lighttable_right_panel(int hotkey)
           dt_db_update_collection(&vkdt.db);
           dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
         }
+        if(ImGui::IsItemHovered())
+          dt_gui_set_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
         if(k<6) ImGui::SameLine();
         ImGui::PopStyleColor(2);
         if(sel) ImGui::PopStyleVar();
@@ -570,6 +572,8 @@ void render_lighttable_right_panel(int hotkey)
         unlink(realname);
         dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
       }
+      dt_gui_label_unset(s_image_label_video);
+      dt_gui_label_unset(s_image_label_bracket);
       dt_thumbnails_cache_list(
           &vkdt.thumbnail_gen,
           &vkdt.db,
@@ -640,6 +644,7 @@ void render_lighttable_right_panel(int hotkey)
           int colid = dt_db_filename_colid(&vkdt.db, vkdt.db.image[sel[0]].filename);
           dt_db_selection_clear(&vkdt.db);
           dt_db_selection_add(&vkdt.db, colid);
+          dt_gui_label_set(s_image_label_video);
         }
       }
     }
