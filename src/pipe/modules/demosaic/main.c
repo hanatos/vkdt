@@ -25,6 +25,23 @@ void modify_roi_out(
   ro->full_ht = ri->full_ht;
 }
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    void        *oldval)
+{
+  if(parid == 1)
+  { // method
+    float oldstr = *(float*)oldval;
+    float newstr = dt_module_param_int(module, 1)[0];
+    if((oldstr <= 0.0f && newstr >  0.0f) ||
+       (oldstr >  0.0f && newstr <= 0.0f))
+    return s_graph_run_all;// we need to update the graph topology
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+}
+
 void
 create_nodes(
     dt_graph_t  *graph,
@@ -64,15 +81,15 @@ create_nodes(
 
   // else: full size
 
-  if(1)
+  const int method = dt_module_param_int(module, 1)[0];
+  if(method == 1)
   { // bayer with RCD
     dt_roi_t hr = module->connector[0].roi;
     hr.wd /= 2;
     const int id_conv = dt_node_add(graph, module, "demosaic", "rcd_conv",
         module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
         "cfa", "read",  "*", "*",   -1ul,
-        // XXX TODO: u8!
-        "vh",  "write", "r", "f16",  &module->connector[0].roi,
+        "vh",  "write", "r", "f16",  &module->connector[0].roi, // could go u8 here but can't show a perf improvement
         "pq",  "write", "r", "f16",  &hr,
         "lp",  "write", "r", "f16", &hr);
     const uint32_t tile_size_x = DT_RCD_TILE_SIZE_X - 2*DT_RCD_BORDER;
