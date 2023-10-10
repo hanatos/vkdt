@@ -10,6 +10,11 @@ layout(set = 1, binding = 1) uniform sampler2D img_vh; // vertical/horizontal di
 layout(set = 1, binding = 2) uniform sampler2D img_pq; // diagonal discr
 layout(set = 1, binding = 3) uniform sampler2D img_lp; // low pass filtered green
 layout(set = 1, binding = 4) uniform writeonly image2D img_out; // interpolated output
+layout(push_constant, std140) uniform push_t
+{
+  vec4 wb;
+  uint filters;
+} push;
 
 #define STRIDE (DT_RCD_TILE_SIZE_X) // cannot show a perf difference here
 shared float16_t shm_r[STRIDE*DT_RCD_TILE_SIZE_Y];
@@ -36,18 +41,18 @@ void main()
   { // fill rgb shm tile from global:
     const int c0 = col(ipos), c1 = col(ipos+ivec2(1,0));
     const ivec2 tc = ipos;
-    const float16_t v0 = float16_t(clamp(cfa(x, y), 0.0, 65535.0)), v1 = float16_t(clamp(cfa(x+1, y), 0.0, 65535.0));
-    if(c0 == 0) shm_r[ind(x,  y)] = v0;
+    const float v0 = clamp(cfa(x, y), 0.0, 65535.0), v1 = clamp(cfa(x+1, y), 0.0, 65535.0);
+    if(c0 == 0) shm_r[ind(x,  y)] = float16_t(push.wb.r * v0);
     else        shm_r[ind(x,  y)] = float16_t(0.0);
-    if(c1 == 0) shm_r[ind(x+1,y)] = v1;
+    if(c1 == 0) shm_r[ind(x+1,y)] = float16_t(push.wb.r * v1);
     else        shm_r[ind(x+1,y)] = float16_t(0.0);
-    if(c0 == 1) shm_g[ind(x,  y)] = v0;
+    if(c0 == 1) shm_g[ind(x,  y)] = float16_t(push.wb.g * v0);
     else        shm_g[ind(x,  y)] = float16_t(0.0);
-    if(c1 == 1) shm_g[ind(x+1,y)] = v1;
+    if(c1 == 1) shm_g[ind(x+1,y)] = float16_t(push.wb.g * v1);
     else        shm_g[ind(x+1,y)] = float16_t(0.0);
-    if(c0 == 2) shm_b[ind(x,  y)] = v0;
+    if(c0 == 2) shm_b[ind(x,  y)] = float16_t(push.wb.b * v0);
     else        shm_b[ind(x,  y)] = float16_t(0.0);
-    if(c1 == 2) shm_b[ind(x+1,y)] = v1;
+    if(c1 == 2) shm_b[ind(x+1,y)] = float16_t(push.wb.b * v1);
     else        shm_b[ind(x+1,y)] = float16_t(0.0);
   }
   barrier();
@@ -144,7 +149,7 @@ void main()
       if(all(greaterThanEqual(lp, ivec2(DT_RCD_BORDER))) &&
          all(lessThan(gp, imageSize(img_out))) &&
          all(lessThan(lp, ivec2(DT_RCD_TILE_SIZE_X, DT_RCD_TILE_SIZE_Y)-DT_RCD_BORDER)))
-        imageStore(img_out, gp, vec4(shm_r[lidx], shm_g[lidx], shm_b[lidx], 1.0));
+        imageStore(img_out, gp, vec4(vec3(shm_r[lidx], shm_g[lidx], shm_b[lidx])/push.wb.rgb, 1.0));
       lidx++;
       lp.x += 1;
       gp.x += 1;

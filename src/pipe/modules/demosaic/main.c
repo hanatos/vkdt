@@ -58,7 +58,8 @@ create_nodes(
   roi_half.full_ht /= block;
   roi_half.wd /= block;
   roi_half.ht /= block;
-  const int pc[] = { img_param->filters };
+  int *wbi = (int *)img_param->whitebalance;
+  const int pc[] = { wbi[0], wbi[1], wbi[2], wbi[3], img_param->filters };
   if(module->connector[1].roi.scale >= block)
   { // half size
     const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
@@ -100,7 +101,7 @@ create_nodes(
     const uint32_t invx = num_tiles_x * DT_LOCAL_SIZE_X;
     const uint32_t invy = num_tiles_y * DT_LOCAL_SIZE_Y;
     const int id_fill = dt_node_add(graph, module, "demosaic", "rcd_fill",
-        invx, invy, 1, 0, 0, 5,
+        invx, invy, 1, sizeof(pc), pc, 5,
         "cfa", "read", "*", "*", -1ul,
         "vh",  "read", "*", "*", -1ul,
         "pq",  "read", "*", "*", -1ul,

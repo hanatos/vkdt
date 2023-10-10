@@ -8,6 +8,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(push_constant, std140) uniform push_t
 {
+  vec4 wb;
   uint filters;
 } push;
 
