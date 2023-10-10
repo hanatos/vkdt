@@ -18,7 +18,7 @@ void main()
       cfa(i,-3) - 3.0 * cfa(i,-2) - cfa(i,-1) + 6.0*cfa(i,0) - cfa(i,1) - 3.0*cfa(i,2) + cfa(i,3),
       cfa(-3,i) - 3.0 * cfa(-2,i) - cfa(-1,i) + 6.0*cfa(0,i) - cfa(1,i) - 3.0*cfa(2,i) + cfa(3,i));
   vhs *= vhs;
-  float vh = vhs.x/(vhs.x + vhs.y);
+  float vh = vhs.x/(1e-5 + vhs.x + vhs.y);
   imageStore(img_vh, ipos, vec4(vh)); // every pixel
 
   // TODO: avoid branch divergence here by using one subgroup for each branch!
@@ -34,7 +34,7 @@ void main()
         cfa(-3+i, 3+i) - cfa(-1+i, 1+i) - cfa(1+i,-1+i) + cfa(3+i,-3+i)
         - 3.0*(cfa(-2+i, 2+i) + cfa(2+i,-2+i)) + 6.0 * cfa(i, i));
     pqs *= pqs;
-    float pq = pqs.x/(pqs.x + pqs.y);
+    float pq = pqs.x/(1e-5 + pqs.x + pqs.y);
     imageStore(img_pq, ivec2(ipos.x/2,ipos.y), vec4(pq));
   }
   else // green
@@ -44,7 +44,7 @@ void main()
     const float w[3] = {0.5, 1.0, 0.5};
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
       lp += w[j+1]*w[i+1]*cfa(i+off,j);
-    imageStore(img_lp, ivec2(ipos.x/2,ipos.y), vec4(lp));
+    imageStore(img_lp, ivec2(ipos.x/2,ipos.y), vec4(max(1e-6, lp)));
   }
 #undef cfa
 }
