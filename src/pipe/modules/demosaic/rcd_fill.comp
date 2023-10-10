@@ -150,7 +150,7 @@ void main()
       const float E_est = sc(x+1,y) - sg(x+1,y);
       const float v_est = (N_grad * S_est + S_grad * N_est) / (N_grad + S_grad);
       const float h_est = (E_grad * W_est + W_grad * E_est) / (E_grad + W_grad);
-      if(c == 0) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
+      if(c != 0) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
       else       shm_b[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
     }
 #undef sc
