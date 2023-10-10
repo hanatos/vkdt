@@ -68,8 +68,8 @@ inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
     const float tc[] = {
       x+j*wd-0.2f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y+0.4f*wd, x+j*wd-0.2f*wd, y+0.4f*wd,
       x+j*wd+0.2f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y+0.4f*wd, x+j*wd+0.2f*wd, y+0.4f*wd };
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc,   4, label_col[6], false, .05*wd);
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc+8, 4, label_col[6], false, .05*wd);
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc,   4, label_col[6], false, .1*wd);
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc+4, 4, label_col[6], false, .1*wd);
   }
 }
 

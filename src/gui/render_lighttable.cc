@@ -728,6 +728,10 @@ void render_lighttable_right_panel(int hotkey)
           "connect:filmcurv:01:output:hist:01:input\n"
           "connect:hist:01:output:display:hist:input\n", vkdt.db.selection_cnt-1);
       fclose(f);
+      int colid = dt_db_filename_colid(&vkdt.db, vkdt.db.image[main_imgid].filename);
+      dt_db_selection_clear(&vkdt.db);
+      dt_db_selection_add(&vkdt.db, colid);
+      dt_gui_label_set(s_image_label_bracket);
       // now redo/delete thumbnail of main_imgid
       dt_thumbnails_cache_list(
           &vkdt.thumbnail_gen,
