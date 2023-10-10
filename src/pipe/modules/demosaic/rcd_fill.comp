@@ -104,7 +104,7 @@ void main()
     const float pqn = 0.25*(pq(x-1,y-1) + pq(x,y-1) + pq(x-1,y+1) + pq(x,y+1));
     const float pq_discr = mix(pqc, pqn, abs(0.5-pqc) < abs(0.5-pqn));
 #define sg(x,y) shm_g[ind(x,y)]
-#define sc(x,y) (red ? shm_r[ind(x,y)] : shm_b[ind(x,y)])
+#define sc(x,y) (red ? shm_b[ind(x,y)] : shm_r[ind(x,y)])
     const float NW_grad = eps
       + abs(sc(x-1,y-1) - sc(x+1,y+1)) + abs(sc(x-1,y-1) - sc(x-3,y-3)) + abs(sg(x,y) - sg(x-2,y-2));
     const float NE_grad = eps
@@ -135,7 +135,8 @@ void main()
     const float S1 = eps + abs(sg(x,y) - sg(x,y+2));
     const float W1 = eps + abs(sg(x,y) - sg(x-2,y));
     const float E1 = eps + abs(sg(x,y) - sg(x+2,y));
-#define sc(x,y) (c!=0 ? shm_b[ind(x,y)] : shm_r[ind(x,y)])
+    const bool redline = col(tc+ivec2(1,0)) == 0;
+#define sc(x,y) ((c==0) ? shm_r[ind(x,y)] : shm_b[ind(x,y)])
     [[unroll]] for(int c=0;c<2;c++)
     { // for both colour channels shm_r and shm_b:
       const float SNabs = abs(sc(x,y-1) - sc(x,y+1));
@@ -150,7 +151,7 @@ void main()
       const float E_est = sc(x+1,y) - sg(x+1,y);
       const float v_est = (N_grad * S_est + S_grad * N_est) / (N_grad + S_grad);
       const float h_est = (E_grad * W_est + W_grad * E_est) / (E_grad + W_grad);
-      if(c != 0) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
+      if(c == 0) shm_r[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
       else       shm_b[ind(x,y)] = float16_t(sg(x,y) + mix(v_est, h_est, vh_discr));
     }
 #undef sc
