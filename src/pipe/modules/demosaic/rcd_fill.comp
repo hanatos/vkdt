@@ -11,9 +11,10 @@ layout(set = 1, binding = 2) uniform sampler2D img_pq; // diagonal discr
 layout(set = 1, binding = 3) uniform sampler2D img_lp; // low pass filtered green
 layout(set = 1, binding = 4) uniform writeonly image2D img_out; // interpolated output
 
-shared float16_t shm_r[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y]; // TODO: +1 stride for skew
-shared float16_t shm_g[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y];
-shared float16_t shm_b[DT_RCD_TILE_SIZE_X*DT_RCD_TILE_SIZE_Y];
+#define STRIDE (DT_RCD_TILE_SIZE_X) // cannot show a perf difference here
+shared float16_t shm_r[STRIDE*DT_RCD_TILE_SIZE_Y];
+shared float16_t shm_g[STRIDE*DT_RCD_TILE_SIZE_Y];
+shared float16_t shm_b[STRIDE*DT_RCD_TILE_SIZE_Y];
 
 int col(ivec2 p) { return (((p.x+p.y)&1)==1) ? 1 : ((p.y&1)==0 ? 0 : 2); }
 
@@ -24,7 +25,7 @@ void main()
 #define vh(x,y)  texture(img_vh,  (vec2(tc. x,tc. y)+0.5)/vec2(textureSize(img_vh,0))).r
 #define pq(x,y)  texture(img_pq,  (vec2((tc. x)/2,tc. y)+0.5)/vec2(textureSize(img_pq,0))).r
 #define lp(x,y)  texture(img_lp,  (vec2((tc. x +((((tc.y)&1)==1)?0:1) )/2,tc. y)+0.5)/vec2(textureSize(img_lp,0))).r
-#define ind(x,y) (DT_RCD_TILE_SIZE_X*(lid. y) + lid. x + tc.r - ipos.r)
+#define ind(x,y) (STRIDE*(lid. y) + lid. x + tc.r - ipos.r)
   ivec2 ipos = ivec2(gl_WorkGroupID.xy * ivec2(
         DT_RCD_TILE_SIZE_X-2*DT_RCD_BORDER,
         DT_RCD_TILE_SIZE_Y-2*DT_RCD_BORDER));
@@ -138,7 +139,7 @@ void main()
   }
   barrier();
   { // write global from shm. every thread is responsible for two pixels
-    uint lidx = DT_RCD_TILE_SIZE_X * lid.y + lid.x;
+    uint lidx = STRIDE * lid.y + lid.x;
     ivec2 gp = ipos, lp = lid;
     [[unroll]] for(int i=0;i<2;i++)
     {
