@@ -6,12 +6,14 @@
 
 typedef enum dt_image_label_t
 {
-  s_image_label_none   = 0,
-  s_image_label_red    = 1<<0,
-  s_image_label_green  = 1<<1,
-  s_image_label_blue   = 1<<2,
-  s_image_label_yellow = 1<<3,
-  s_image_label_purple = 1<<4,
+  s_image_label_none     = 0,
+  s_image_label_red      = 1<<0,
+  s_image_label_green    = 1<<1,
+  s_image_label_blue     = 1<<2,
+  s_image_label_yellow   = 1<<3,
+  s_image_label_purple   = 1<<4,
+  s_image_label_video    = 1<<5,
+  s_image_label_bracket  = 1<<6,
   s_image_label_selected = 1<<15,
 }
 dt_image_label_t;

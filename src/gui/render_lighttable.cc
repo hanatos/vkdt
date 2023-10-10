@@ -400,27 +400,29 @@ void render_lighttable_right_panel(int hotkey)
     int filter_val = static_cast<int>(vkdt.db.collection_filter_val);
     if(filter_prop == s_prop_labels)
     {
-      const ImVec4 col[5] = {
+      const ImVec4 col[] = {
         ImVec4(0.8f, 0.2f, 0.2f, 1.0f),
         ImVec4(0.2f, 0.8f, 0.2f, 1.0f),
         ImVec4(0.2f, 0.2f, 0.8f, 1.0f),
         ImVec4(0.8f, 0.8f, 0.2f, 1.0f),
-        ImVec4(0.8f, 0.2f, 0.8f, 1.0f),};
-      for(int k=0;k<5;k++)
+        ImVec4(0.8f, 0.2f, 0.8f, 1.0f),
+        ImVec4(0.1f, 0.1f, 0.1f, 1.0f),
+        ImVec4(0.1f, 0.1f, 0.1f, 1.0f),};
+      for(int k=0;k<7;k++)
       {
         ImGui::PushID(k);
         ImGui::PushStyleColor(ImGuiCol_Button, col[k]);
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(.5, .1, .5, 1));
         int sel = filter_val & (1<<k);
         if(sel) ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.wstate.fontsize*0.2);
-        if(ImGui::Button(" "))
+        if(ImGui::Button( k==5 ? "m" : k==6 ? "[ ]" : " "))
         {
           filter_val ^= (1<<k);
           vkdt.db.collection_filter_val = static_cast<uint64_t>(filter_val);
           dt_db_update_collection(&vkdt.db);
           dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
         }
-        if(k<4) ImGui::SameLine();
+        if(k<6) ImGui::SameLine();
         ImGui::PopStyleColor(2);
         if(sel) ImGui::PopStyleVar();
         ImGui::PopID();

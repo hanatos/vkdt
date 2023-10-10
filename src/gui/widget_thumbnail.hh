@@ -48,11 +48,29 @@ inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
     0xffcc3333u, // blue
     0xff33ccccu, // yellow
     0xffcc33ccu, // magenta
+    0xff333333u, // black
+    0xff333333u, // black
   };
   ImGuiWindow* window = ImGui::GetCurrentWindow();
-  for(int i=0;i<5;i++)
+  int j=0;
+  for(int i=0;i<5;i++) // regular round colour labels
     if(labels & (1<<i))
-      window->DrawList->AddCircleFilled(ImVec2(x + wd*i, y), 0.4*wd, label_col[i]);
+      window->DrawList->AddCircleFilled(ImVec2(x + wd*(j++), y), 0.4*wd, label_col[i]);
+  if(labels & s_image_label_video)
+  { // movie indicator
+    const float tc[] = {x + wd*j - 0.2f*wd, y-0.4f*wd, x + wd*j - 0.2f*wd, y+0.4f*wd, x+wd*j+0.4f*wd, y };
+    ImGui::GetWindowDrawList()->AddConvexPolyFilled((ImVec2 *)tc, 3, label_col[5]);
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc, 3, 0xffffffffu, true, .05*wd);
+    j++;
+  }
+  if(labels & s_image_label_bracket)
+  { // bracketed shot indicator
+    const float tc[] = {
+      x+j*wd-0.2f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y+0.4f*wd, x+j*wd-0.2f*wd, y+0.4f*wd,
+      x+j*wd+0.2f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y+0.4f*wd, x+j*wd+0.2f*wd, y+0.4f*wd };
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc,   4, label_col[6], false, .05*wd);
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc+8, 4, label_col[6], false, .05*wd);
+  }
 }
 
 namespace ImGui {

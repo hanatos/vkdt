@@ -325,8 +325,24 @@ dt_gui_rate(int rate)
 }
 
 static inline void
+dt_gui_label_set(dt_image_label_t l)
+{ // set label
+  if(vkdt.view_mode == s_view_lighttable)
+  {
+    const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+    for(int i=0;i<vkdt.db.selection_cnt;i++)
+      vkdt.db.image[sel[i]].labels |= l;
+  }
+  else if(vkdt.view_mode == s_view_darkroom)
+  {
+    const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+    if(ci != -1u) vkdt.db.image[ci].labels |= l;
+  }
+}
+
+static inline void
 dt_gui_label(int label)
-{
+{ // toggle label
   if(vkdt.view_mode == s_view_lighttable)
   {
     const uint32_t *sel = dt_db_selection_get(&vkdt.db);
