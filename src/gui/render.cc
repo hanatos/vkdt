@@ -146,7 +146,7 @@ extern "C" void dt_gui_init_fonts()
   ImFontConfig config;
   // config.MergeMode = true;
   config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
-  static const ImWchar icon_ranges[] = { 0xE000, 0xF000, 0};
+  static const ImWchar icon_ranges[] = { 0x2000, 0xF000, 0};
   g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
   vkdt.wstate.fontsize = fontsize;
 #if VKDT_USE_FREETYPE == 1

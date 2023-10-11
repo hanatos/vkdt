@@ -36,6 +36,67 @@ dt_gui_dr_anim_stop()
 }
 
 static inline void
+dt_gui_dr_anim_seek(int frame)
+{
+  vkdt.graph_dev.frame = vkdt.state.anim_frame = CLAMP(frame, 0, vkdt.graph_dev.frame_cnt-1);
+  vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
+  dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
+  vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+}
+
+static inline void
+dt_gui_dr_anim_seek_keyframe_fwd()
+{
+  int f = vkdt.graph_dev.frame;     // current frame
+  int g = vkdt.graph_dev.frame_cnt; // best candidate we found
+  const dt_graph_t *graph = &vkdt.graph_dev;
+  dt_module_t *const arr = graph->module;
+  const int arr_cnt = graph->num_modules;
+  uint32_t modid[100], cnt = 0;
+#define TRAVERSE_POST \
+  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+  modid[cnt++] = curr;
+#include "pipe/graph-traverse.inc"
+  for(int m=0;m<cnt;m++)
+    for(int k=0;k<arr[modid[m]].keyframe_cnt;k++)
+      if(arr[modid[m]].keyframe[k].frame > f && arr[modid[m]].keyframe[k].frame < g)
+        g = arr[modid[m]].keyframe[k].frame;
+  dt_gui_dr_anim_seek(g);
+}
+
+static inline void
+dt_gui_dr_anim_seek_keyframe_bck()
+{
+  int f = vkdt.graph_dev.frame; // current frame
+  int g = 0;                    // best candidate
+  const dt_graph_t *graph = &vkdt.graph_dev;
+  dt_module_t *const arr = graph->module;
+  const int arr_cnt = graph->num_modules;
+  uint32_t modid[100], cnt = 0;
+#define TRAVERSE_POST \
+  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+  modid[cnt++] = curr;
+#include "pipe/graph-traverse.inc"
+  for(int m=0;m<cnt;m++)
+    for(int k=0;k<arr[modid[m]].keyframe_cnt;k++)
+      if(arr[modid[m]].keyframe[k].frame < f && arr[modid[m]].keyframe[k].frame > g)
+        g = arr[modid[m]].keyframe[k].frame;
+  dt_gui_dr_anim_seek(g);
+}
+
+static inline void
+dt_gui_dr_anim_step_fwd()
+{
+  dt_gui_dr_anim_seek(vkdt.graph_dev.frame + 1);
+}
+
+static inline void
+dt_gui_dr_anim_step_bck()
+{
+  dt_gui_dr_anim_seek(vkdt.graph_dev.frame - 1);
+}
+
+static inline void
 dt_gui_dr_next()
 {
   if(vkdt.graph_dev.frame_cnt != 1)

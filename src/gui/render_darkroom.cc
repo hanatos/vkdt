@@ -449,7 +449,7 @@ abort:
               (int)ip->focal_length, (int)ip->iso);
       }
     }
-    if(vkdt.graph_dev.frame_cnt != 1)
+    if(vkdt.graph_dev.frame_cnt != 1 && vkdt.wstate.dopesheet_view == 0)
     { // print timeline/navigation only if not a still
       float bwd = 0.12f;
       ImVec2 size(bwd*vkdt.state.panel_wd, 0);
