@@ -1,4 +1,4 @@
 vup:float:1:3.0
 vdown:float:1:5.0
-timediff:float:1:0.16
+timediff:float:1:0.016
 reset:int:1:0
