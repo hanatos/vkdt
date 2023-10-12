@@ -21,6 +21,12 @@ combined manually, maybe like
  ffmpeg -i output.mov -f s16le -sample_rate 48000 -channels 2 -i audio.raw -c:v copy combined.mp4
 ```
 
+one of the few ways of replaying a video with perceptual quantiser or hybrid log-gamma curves
+seems to be something like
+```
+ ffplay test_0000.mov -vf zscale=transferin=arib-std-b67:transfer=bt709:rangein=tv:range=pc:primariesin=2020:primaries=709
+```
+
 ## connectors
 
 * `input` the sink to read the raw pixel data

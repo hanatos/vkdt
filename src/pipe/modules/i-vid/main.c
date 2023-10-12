@@ -30,6 +30,9 @@ typedef struct vid_data_t
   float                *sndbuf;
   size_t                sndbuf_size;
   int64_t               snd_lag;
+
+  int p_chroma;
+  int p_bits;
 }
 vid_data_t;
 
@@ -55,16 +58,59 @@ int av_sample_fmt_to_alsa(int sf)
 }
 
 static inline void
-dump_parameters(
-    vid_data_t *d)
+parse_parameters(
+    dt_module_t *mod,
+    vid_data_t  *d)
 {
+  int *p_colour = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colour")));
+  int *p_trc    = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc")));
+  int *p_bits   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("bitdepth")));
+  int *p_chroma = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("chroma")));
+
+  switch(d->fmtc->streams[d->video_idx]->codecpar->format)
+  {
+    case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUV422P:
+      p_bits[0] = 0;
+      break;
+    case AV_PIX_FMT_YUV420P10LE:
+    case AV_PIX_FMT_YUV422P10LE:
+      p_bits[0] = 1;
+      break;
+    case AV_PIX_FMT_YUV422P12LE:
+    case AV_PIX_FMT_YUV420P12LE:
+      p_bits[0] = 2;
+      break;
+    case AV_PIX_FMT_YUV420P16LE:
+    case AV_PIX_FMT_YUV422P16LE:
+      p_bits[0] = 3;
+      break;
+    default:
+      p_bits[0] = 4; // unsupported
+  }
+  switch(d->fmtc->streams[d->video_idx]->codecpar->format)
+  {
+    case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUV420P10LE:
+    case AV_PIX_FMT_YUV420P12LE:
+    case AV_PIX_FMT_YUV420P16LE:
+      p_chroma[0] = 0;
+      break;
+    case AV_PIX_FMT_YUV422P:
+    case AV_PIX_FMT_YUV422P10LE:
+    case AV_PIX_FMT_YUV422P12LE:
+    case AV_PIX_FMT_YUV422P16LE:
+      p_chroma[0] = 1;
+      break;
+    default:
+      p_chroma[0] = 3; // unsupported
+  }
+
   // enum AVCodecID vcodec = d->fmtc->streams[d->video_idx]->codecpar->codec_id;
   // enum AVPixelFormat format = (enum AVPixelFormat)d->fmtc->streams[d->video_idx]->codecpar->format;
-  int bit_depth = 8;
-  if(d->fmtc->streams[d->video_idx]->codecpar->format == AV_PIX_FMT_YUV420P10LE)
-    bit_depth = 10;
-  if(d->fmtc->streams[d->video_idx]->codecpar->format == AV_PIX_FMT_YUV420P12LE)
-    bit_depth = 12;
+  const int bd[] = {8, 10, 12, 16, -1};
+  int bit_depth = bd[p_bits[0]];
+
   int profile = d->fmtc->streams[d->video_idx]->codecpar->profile;
   int level = d->fmtc->streams[d->video_idx]->codecpar->level;
 
@@ -139,6 +185,11 @@ dump_parameters(
     "NB: Not part of ABI",
   };
   fprintf(stderr, "[i-vid] trc %s\n", ctrc[color_trc]);
+  p_trc[0] = 4; // unsupported
+  if(color_trc == 8)  p_trc[0] = 0; // linear
+  if(color_trc == 1)  p_trc[0] = 1; // bt.709
+  if(color_trc == 16) p_trc[0] = 2; // smpte 2084
+  if(color_trc == 18) p_trc[0] = 3; // HLG
 
   static const char* cs[] = {
     "RGB:   order of coefficients is actually GBR, also IEC 61966-2-1 (sRGB)",
@@ -159,6 +210,9 @@ dump_parameters(
     "NB:  Not part of ABI",
   };
   fprintf(stderr, "[i-vid] colour space %s\n", cs[color_space]);
+  p_colour[0] = 2; // usupported
+  if(color_space == 1) p_colour[0] = 0; // bt.709
+  if(color_space == 9) p_colour[0] = 1; // bt.2020 non constant luminance
 
   static const char* cl[] = {
     "UNSPECIFIED",
@@ -171,10 +225,15 @@ dump_parameters(
     "NB:Not part of ABI",
   };
   fprintf(stderr, "[i-vid] chroma location %s\n", cl[chroma_location]);
+  d->p_chroma = p_chroma[0];
+  d->p_bits   = p_bits[0];
 }
 
 static inline int
-open_stream(vid_data_t *d, const char *filename)
+open_stream(
+    vid_data_t  *d,
+    dt_module_t *mod,
+    const char  *filename)
 {
   if(!strcmp(d->filename, filename)) return 0; // already opened this stream
   memset(d, 0, sizeof(*d));
@@ -194,14 +253,15 @@ open_stream(vid_data_t *d, const char *filename)
             !strcmp(d->fmtc->iformat->long_name, "FLV (Flash Video)") ||
             !strcmp(d->fmtc->iformat->long_name, "Matroska / WebM"));
 
+  parse_parameters(mod, d);
   d->wd = d->fmtc->streams[d->video_idx]->codecpar->width;
   d->ht = d->fmtc->streams[d->video_idx]->codecpar->height;
   d->dim[0] = d->wd;
   d->dim[1] = d->ht;
-  d->dim[2] = d->wd/2;
-  d->dim[3] = d->ht/2;
-  d->dim[4] = d->wd/2;
-  d->dim[5] = d->ht/2;
+  d->dim[2] = d->p_chroma < 2 ? d->wd/2 : d->wd;
+  d->dim[3] = d->p_chroma < 1 ? d->ht/2 : d->ht;
+  d->dim[4] = d->p_chroma < 2 ? d->wd/2 : d->wd;
+  d->dim[5] = d->p_chroma < 1 ? d->ht/2 : d->ht;
 
   d->pkt0 = av_packet_alloc();
   d->pkt1 = av_packet_alloc();
@@ -267,11 +327,7 @@ open_stream(vid_data_t *d, const char *filename)
 
   fprintf(stderr, "[i-vid] successfully opened %s %dx%d\n", filename, d->wd, d->ht);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-truncation" // yes i know it may truncate stfu
-  strncpy(d->filename, filename, sizeof(d->filename));
-#pragma GCC diagnostic pop
-  dump_parameters(d);
+  strncpy(d->filename, filename, sizeof(d->filename)-1);
   return 0;
 error:
   fprintf(stderr, "[i-vid] error opening %s (%s)\n", filename, av_err2str(ret));
@@ -325,26 +381,13 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
-  const char *fname = dt_module_param_string(mod, 0);
-  const char *filename = fname;
-  char tmpfn[2*PATH_MAX+10];
-  if(filename[0] != '/') // relative paths
-  {
-    snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
-    filename = tmpfn;
-    FILE *f = fopen(filename, "rb");
-    if(!f)
-    {
-      snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->basedir, fname);
-      filename = tmpfn;
-      f = fopen(filename, "rb");
-      if(!f) return; // damn that.
-    }
-    fclose(f);
-  }
+  const char *fname = dt_module_param_string(mod, dt_module_get_param(mod->so, dt_token("filename")));
+  char filename[PATH_MAX];
+  if(dt_graph_get_resource_filename(mod, fname, 0, filename, sizeof(filename)))
+    return;
 
   vid_data_t *d = mod->data;
-  if(open_stream(d, filename)) return;
+  if(open_stream(d, mod, filename)) return;
   mod->connector[0].roi.full_wd = d->wd;
   mod->connector[0].roi.full_ht = d->ht;
   // TODO: also init these correctly (as good as we can):
@@ -387,6 +430,8 @@ void modify_roi_out(
   // this first needs a robust way of doing frame drops.
   if(mod->graph->frame_rate == 0) // don't overwrite cfg
     mod->graph->frame_rate = frame_rate;
+
+  mod->connector[0].format = d->p_bits > 0 ? dt_token("ui16") : dt_token("ui8");
 }
 
 #if 0 // TODO
@@ -409,25 +454,23 @@ int read_source(
   { // first channel, new frame. parse + decode + handle audio:
     const double tbn = 1.0/av_q2d(d->fmtc->streams[d->video_idx]->time_base);
     int rate = tbn/mod->graph->frame_rate; // some obscure sampling rate vs frames per second number
-    // fprintf(stderr, "frames %d %ld %d %d\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
-    if(mod->graph->frame != d->frame)
-    // if(mod->graph->frame + 1 != d->vctx->frame_number) // zero vs 1 based
+    // fprintf(stderr, "frames %d %ld %d %d\n", mod->graph->frame, d->frame, d->vctx->frame_num, vfidx);//d->vframe->pts);
+#if 1
+    // if(mod->graph->frame != d->frame)
+    if(mod->graph->frame + 1 != d->vctx->frame_num) // zero vs 1 based
     { // seek
+      // XXX ??? can't seek in our own output (maybe it's the mov? try mkv instead)
       // old api. passing -1 converts the timestamp to something even more obscure.
       // passing video idx seeks to somewhere about the right place (+10 frames or so)
       int64_t dts = mod->graph->frame * rate;
       if((ret = av_seek_frame(d->fmtc, d->video_idx, dts, AVSEEK_FLAG_ANY)) < 0) goto error;
-#if 0 // new api does not seem to work yet:
-      if((ret = avformat_seek_file(d->fmtc, -1,
-              // mod->graph->frame - 2, mod->graph->frame, mod->graph->frame + 2,
-              0, mod->graph->frame, mod->graph->frame + 2,
-              AVSEEK_FLAG_ANY|AVSEEK_FLAG_FRAME)) < 0) goto error;
-#endif
-      // fprintf(stderr, "SEEEEEEEKX\n");
+      if(d->actx)
+      if((ret = av_seek_frame(d->fmtc, d->audio_idx, dts, AVSEEK_FLAG_ANY)) < 0) goto error;
       avcodec_flush_buffers(d->vctx);
       if(d->actx) avcodec_flush_buffers(d->actx);
       d->snd_lag = 0;
     }
+#endif
     d->frame = mod->graph->frame+1; // this would be the next one we read
 
     AVPacket *curr = d->pkt0;
@@ -489,15 +532,38 @@ int read_source(
       break; // got frame, exit loop
     } while(1);
     // int64_t vfidx = d->vframe->pts;//  / rate;
-    // fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_number, vfidx);//d->vframe->pts);
+    // fprintf(stderr, "frames %d %ld %d %ld\n", mod->graph->frame, d->frame, d->vctx->frame_num, vfidx);//d->vframe->pts);
   }
 
   // write the frame data to output file
-  uint32_t wd = p->a ? d->wd/2 : d->wd;
-  uint32_t ht = p->a ? d->ht/2 : d->ht;
   if(d->vframe->linesize[p->a])
-    for(int j=0;j<ht;j++)
-      memcpy(mapped + sizeof(uint8_t) * wd * j, d->vframe->data[p->a] +sizeof(uint8_t)*d->vframe->linesize[p->a]*j, wd);
+  {
+    const int p_bits   = d->p_bits;
+    const int p_chroma = d->p_chroma;
+    int wd = (p->a && (p_chroma < 2)) ? d->wd/2 : d->wd, ht = (p->a && (p_chroma < 1)) ? d->ht/2 : d->ht;
+    if(p_bits == 0)
+    { // 8-bit
+      for(int j=0;j<ht;j++)
+        memcpy(mapped + sizeof(uint8_t) * wd * j, d->vframe->data[p->a] + d->vframe->linesize[p->a]*j, wd);
+    }
+    else if(p_bits == 1)
+    { // 10-bit
+      for(int j=0;j<ht;j++)
+        for(int i=0;i<wd;i++)
+          ((uint16_t*)mapped)[wd*j+i] = ((uint16_t*)(d->vframe->data[p->a] + sizeof(uint16_t)*i + d->vframe->linesize[p->a]*j))[0]*64;
+    }
+    else if(p_bits == 2)
+    { // 12-bit
+      for(int j=0;j<ht;j++)
+        for(int i=0;i<wd;i++)
+          ((uint16_t*)mapped)[wd*j+i] = ((uint16_t*)(d->vframe->data[p->a] + sizeof(uint16_t)*i + d->vframe->linesize[p->a]*j))[0]*16;
+    }
+    else if(p_bits == 3)
+    { // 16-bit
+      for(int j=0;j<ht;j++)
+        memcpy(mapped + sizeof(uint16_t) * wd * j, d->vframe->data[p->a] + d->vframe->linesize[p->a]*j, wd);
+    }
+  }
 
   if(p->a == 2) av_frame_unref(d->vframe);
 
@@ -599,7 +665,7 @@ create_nodes(
       .name   = dt_token("source"),
       .type   = dt_token("source"),
       .chan   = dt_token("y"),
-      .format = dt_token("ui8"),
+      .format = d->p_bits ? dt_token("ui16") : dt_token("ui8"),
       .roi    = module->connector[0].roi,
       .array_length = 3,
       .array_dim    = d->dim,
@@ -619,7 +685,7 @@ create_nodes(
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("y"),
-      .format = dt_token("ui8"),
+      .format = d->p_bits ? dt_token("ui16") : dt_token("ui8"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
       .array_length = 3,

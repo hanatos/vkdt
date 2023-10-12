@@ -291,7 +291,7 @@ static inline VkFormat
 dt_connector_vkformat(const dt_connector_t *c)
 {
   const int len = dt_connector_channels(c);
-  if(c->format == dt_token("ui32") || (c->format == dt_token("atom") && !qvk.float_atomics_supported))
+  if(c->format == dt_token("ui32") || c->format == dt_token("u32") || (c->format == dt_token("atom") && !qvk.float_atomics_supported))
   {
     switch(len)
     { // int32 does not have UNORM equivalents (use SFLOAT instead i guess)
@@ -321,7 +321,7 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 4: return VK_FORMAT_R16G16B16A16_SFLOAT; // rgba16f
     }
   }
-  if(c->format == dt_token("ui16"))
+  if(c->format == dt_token("ui16") || c->format == dt_token("u16"))
   {
     switch(len)
     {
@@ -331,7 +331,7 @@ dt_connector_vkformat(const dt_connector_t *c)
       case 4: return VK_FORMAT_R16G16B16A16_UNORM;
     }
   }
-  if(c->format == dt_token("ui8"))
+  if(c->format == dt_token("ui8") || c->format == dt_token("u8"))
   {
     switch(len)
     {
