@@ -21,6 +21,7 @@ GUI_H=gui/gui.h\
       gui/api.h\
       gui/api.hh\
       gui/hotkey.hh\
+      gui/keyaccel.hh\
       gui/widget_dopesheet.hh\
       gui/widget_draw.hh\
       gui/widget_export.hh\

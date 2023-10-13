@@ -7,6 +7,13 @@
 #include <libgen.h>
 #include <unistd.h>
 
+typedef enum dt_param_write_mode_t
+{
+  s_param_set = 0,
+  s_param_inc = 1,
+  s_param_dec = 2,
+}
+dt_param_write_mode_t;
 
 // helper to the helpers reading parameters in full, subsets, or for keyframes.
 static inline int
@@ -18,7 +25,8 @@ read_param_values_ascii(
     dt_token_t  parm,
     int         beg,
     int         end,
-    int         frame)
+    int         frame,
+    dt_param_write_mode_t mode)
 {
   int modid = dt_module_get(graph, name, inst);
   if(modid < 0 || modid > graph->num_modules)
@@ -66,14 +74,22 @@ read_param_values_ascii(
   if(p->type == dt_token("float"))
   {
     float *block = (float *)data + beg;
-    for(int i=beg;i<end;i++)
-      *(block++) = dt_read_float(line, &line);
+    if(mode == s_param_set)
+      for(int i=beg;i<end;i++) *(block++) = dt_read_float(line, &line);
+    else if(mode == s_param_inc)
+      for(int i=beg;i<end;i++) *(block++) += dt_read_float(line, &line);
+    else if(mode == s_param_dec)
+      for(int i=beg;i<end;i++) *(block++) -= dt_read_float(line, &line);
   }
   else if(p->type == dt_token("int"))
   {
     int32_t *block = (int32_t *)data + beg;
-    for(int i=beg;i<end;i++)
-      *(block++) = dt_read_int(line, &line);
+    if(mode == s_param_set)
+      for(int i=beg;i<end;i++) *(block++) = dt_read_int(line, &line);
+    else if(mode == s_param_inc)
+      for(int i=beg;i<end;i++) *(block++) += dt_read_int(line, &line);
+    else if(mode == s_param_dec)
+      for(int i=beg;i<end;i++) *(block++) -= dt_read_int(line, &line);
   }
   else if(p->type == dt_token("string"))
   {
@@ -97,14 +113,15 @@ read_param_ascii(
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
   dt_token_t parm = dt_read_token(line, &line);
-  return read_param_values_ascii(graph, line, name, inst, parm, 0, 0, -1);
+  return read_param_values_ascii(graph, line, name, inst, parm, 0, 0, -1, s_param_set);
 }
 
 // read only a subset of the parameters, given explicit indices for begin and end.
 static inline int
 read_paramsub_ascii(
-    dt_graph_t *graph,
-    char       *line)
+    dt_graph_t           *graph,
+    char                 *line,
+    dt_param_write_mode_t mode)
 {
   // read module:instance:param:beg:end:value x cnt
   dt_token_t name = dt_read_token(line, &line);
@@ -112,7 +129,7 @@ read_paramsub_ascii(
   dt_token_t parm = dt_read_token(line, &line);
   int beg = dt_read_int(line, &line);
   int end = dt_read_int(line, &line);
-  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, -1);
+  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, -1, mode);
 }
 
 // helper to keyframe from config file
@@ -128,7 +145,7 @@ read_keyframe_ascii(
   dt_token_t parm = dt_read_token(line, &line);
   uint32_t beg = dt_read_int(line, &line);
   uint32_t end = dt_read_int(line, &line);
-  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, frame);
+  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, frame, s_param_set);
 }
 
 // helper to read a connection information from config file
@@ -214,7 +231,9 @@ int dt_graph_read_config_line(
   dt_token_t cmd = dt_read_token(c, &c);
   if     (cmd == dt_token("module"))   return read_module_ascii(graph, c);
   else if(cmd == dt_token("param"))    return read_param_ascii(graph, c);
-  else if(cmd == dt_token("paramsub")) return read_paramsub_ascii(graph, c);
+  else if(cmd == dt_token("paramsub")) return read_paramsub_ascii(graph, c, s_param_set);
+  else if(cmd == dt_token("paraminc")) return read_paramsub_ascii(graph, c, s_param_inc);
+  else if(cmd == dt_token("paramdec")) return read_paramsub_ascii(graph, c, s_param_dec);
   else if(cmd == dt_token("keyframe")) return read_keyframe_ascii(graph, c);
   else if(cmd == dt_token("connect"))  return read_connection_ascii(graph, c, 0);
   else if(cmd == dt_token("feedback")) return read_connection_ascii(graph, c, s_conn_feedback);

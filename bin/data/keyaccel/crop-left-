@@ -1,0 +1,2 @@
+# decrease crop at the left by 5%
+paraminc:crop:01:crop:0:1:0.05

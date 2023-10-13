@@ -8,6 +8,7 @@ extern "C"
 }
 #include "gui/render_view.hh"
 #include "gui/hotkey.hh"
+#include "gui/keyaccel.hh"
 #include "gui/api.hh"
 #include "gui/widget_dopesheet.hh"
 #include "gui/widget_draw.hh"
@@ -16,32 +17,7 @@ extern "C"
 
 namespace { // anonymous namespace
 
-static ImHotKey::HotKey hk_darkroom[] = {
-  {"create preset",   "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
-  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"show history",    "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
-  {"redo",            "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
-  {"undo",            "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
-  {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
-  {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
-  {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
-  {"next image",      "switch to next image in folder",             {ImGuiKey_Space}},
-  {"prev image",      "switch to previous image in folder",         {ImGuiKey_Backspace}},
-  {"fullscreen",      "show/hide side panels for fullscreen",       {ImGuiKey_Tab}},
-  {"dopesheet",       "show/hide keyframe overview",                {ImGuiKey_LeftCtrl, ImGuiKey_D}},
-  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
-  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
-  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
-  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
-  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
-  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
-  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
-  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
-  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
-  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
-  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
-  {"reload shaders",  "debug: reload shader code while running",    {}},
-};
+static dt_keyaccel_t keyaccel;
 
 enum hotkey_names_t
 { // for sane access in code
@@ -69,6 +45,36 @@ enum hotkey_names_t
   s_hotkey_label_4         = 21,
   s_hotkey_label_5         = 22,
   s_hotkey_reload_shaders  = 23,
+  s_hotkey_count           = 24,
+};
+
+static const int hk_darkroom_size = 128;
+static int hk_darkroom_cnt = s_hotkey_count;
+static ImHotKey::HotKey hk_darkroom[hk_darkroom_size] = {
+  {"create preset",   "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
+  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
+  {"show history",    "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
+  {"redo",            "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
+  {"undo",            "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
+  {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
+  {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
+  {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
+  {"next image",      "switch to next image in folder",             {ImGuiKey_Space}},
+  {"prev image",      "switch to previous image in folder",         {ImGuiKey_Backspace}},
+  {"fullscreen",      "show/hide side panels for fullscreen",       {ImGuiKey_Tab}},
+  {"dopesheet",       "show/hide keyframe overview",                {ImGuiKey_LeftCtrl, ImGuiKey_D}},
+  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
+  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
+  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
+  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
+  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
+  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
+  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
+  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
+  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
+  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
+  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
+  {"reload shaders",  "debug: reload shader code while running",    {}},
 };
 
 // used to communictate between the gui helper functions
@@ -143,7 +149,9 @@ void render_darkroom_full()
 
 void render_darkroom()
 {
-  gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+  gui.hotkey = -1;
+  if(!ImGui::IsPopupOpen("edit hotkeys", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+    gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, hk_darkroom_cnt);
   switch(gui.hotkey)
   { // these are "destructive" hotkeys, they change the image and invalidate the dset.
     // this has to happen this frame *before* the dset is sent to imgui for display.
@@ -502,7 +510,7 @@ abort:
           ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
           if(ImGui::Button("hotkeys", ImVec2(-1, 0)))
             ImGui::OpenPopup("edit hotkeys");
-          ImHotKey::Edit(hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]), "edit hotkeys");
+          ImHotKey::Edit(hk_darkroom, hk_darkroom_cnt, "edit hotkeys");
           if(ImGui::Button("toggle perf overlay", ImVec2(-1, 0)))
             vkdt.wstate.show_perf_overlay ^= 1;
 
@@ -610,18 +618,22 @@ abort:
     case s_hotkey_label_4: dt_gui_label_4(); break;
     case s_hotkey_label_5: dt_gui_label_5(); break;
     case s_hotkey_reload_shaders: dt_gui_dr_reload_shaders(); break;
-    default:;
+    default:
+     if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].functionName);
+     break;
   }
   dt_gui_dr_modals(); // draw modal windows for presets etc
 }
 
 void render_darkroom_init()
 {
-  ImHotKey::Deserialise("darkroom", hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+  hk_darkroom_cnt = dt_keyaccel_init(&keyaccel, hk_darkroom, hk_darkroom_cnt, hk_darkroom_size);
+  ImHotKey::Deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
 }
 
 void render_darkroom_cleanup()
 {
-  ImHotKey::Serialise("darkroom", hk_darkroom, sizeof(hk_darkroom)/sizeof(hk_darkroom[0]));
+  ImHotKey::Serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
+  dt_keyaccel_cleanup(&keyaccel);
   widget_end(); // commit params if still ongoing
 }

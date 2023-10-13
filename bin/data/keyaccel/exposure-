@@ -1,0 +1,2 @@
+# decrement exposure by half stop
+paramdec:colour:01:exposure:0:1:0.5

@@ -262,37 +262,34 @@ namespace ImHotKey
     if (ImGui::Button("clear", ImVec2(80*s, 40*s)))
       memset(keyDown, 0, sizeof(keyDown));
     ImGui::SameLine();
-    if (keyDownCount && keyDownCount <= 4)
+    if (ImGui::Button("set", ImVec2(80*s, 40*s)))
     {
-      if (ImGui::Button("set", ImVec2(80*s, 40*s)))
+      int scanCodeCount = 0;
+      hotkey[editingHotkey].key[0] = 0;
+      hotkey[editingHotkey].key[1] = 0;
+      hotkey[editingHotkey].key[2] = 0;
+      hotkey[editingHotkey].key[3] = 0;
+      if(keyDownCount && keyDownCount <= 4) // else clear
+      for(uint32_t i = 1; i < sizeof(keyDown); i++)
       {
-        int scanCodeCount = 0;
-        hotkey[editingHotkey].key[0] = 0;
-        hotkey[editingHotkey].key[1] = 0;
-        hotkey[editingHotkey].key[2] = 0;
-        hotkey[editingHotkey].key[3] = 0;
-        for(uint32_t i = 1; i < sizeof(keyDown); i++)
+        if (keyDown[i])
         {
-          if (keyDown[i])
+          if(scanCodeCount++)
           {
-            if(scanCodeCount++)
-            {
-              uint16_t *k = hotkey[editingHotkey].key + scanCodeCount-1;
-              k[0] = i + ImGuiKey_NamedKey_BEGIN;
-              if(k[0] >= ImGuiKey_ModCtrl)
-              { // swap control/mod to beginning
-                uint16_t tmp = hotkey[editingHotkey].key[0];
-                hotkey[editingHotkey].key[0] = k[0];
-                k[0] = tmp;
-              }
+            uint16_t *k = hotkey[editingHotkey].key + scanCodeCount-1;
+            k[0] = i + ImGuiKey_NamedKey_BEGIN;
+            if(k[0] >= ImGuiKey_ModCtrl)
+            { // swap control/mod to beginning
+              uint16_t tmp = hotkey[editingHotkey].key[0];
+              hotkey[editingHotkey].key[0] = k[0];
+              k[0] = tmp;
             }
-            else hotkey[editingHotkey].key[0] = i + ImGuiKey_NamedKey_BEGIN;
           }
+          else hotkey[editingHotkey].key[0] = i + ImGuiKey_NamedKey_BEGIN;
         }
       }
-      ImGui::SameLine(0.f, 20.f*s);
     }
-    else ImGui::SameLine(0.f, 100.f*s);
+    ImGui::SameLine(0.f, 20.f*s);
 
     if (ImGui::Button("done", ImVec2(80*s, 40*s))) { ImGui::CloseCurrentPopup(); }
     ImGui::EndGroup();
@@ -303,6 +300,8 @@ namespace ImHotKey
   static int GetHotKey(HotKey *hotkey, size_t hotkeyCount)
   {
     if(dt_gui_imgui_want_text()) return -1;
+    int max_cnt = 0;
+    int key = -1;
     for(uint32_t i=0;i<hotkeyCount;i++)
     {
       int cnt = 0;
@@ -313,9 +312,15 @@ namespace ImHotKey
                    && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[2]), false)) ||
          (cnt == 2 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[1]), false)) ||
          (cnt == 1 && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[0]), false)))
-        return i;
+      {
+        if(cnt > max_cnt)
+        {
+          max_cnt = cnt;
+          key = i;
+        }
+      }
     }
-    return -1;
+    return key;
   }
 
   static void Serialise(const char *fn, HotKey *hk, int cnt)

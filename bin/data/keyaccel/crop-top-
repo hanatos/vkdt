@@ -1,0 +1,2 @@
+# decrease crop at the top by 5%
+paraminc:crop:01:crop:2:3:0.05

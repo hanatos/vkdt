@@ -1,0 +1,2 @@
+# increment exposure by half stop
+paraminc:colour:01:exposure:0:1:0.5

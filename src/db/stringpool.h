@@ -29,8 +29,8 @@ dt_stringpool_init(
   size_t buf_size = num_entries * (uint64_t)avg_len;
   memset(sp, 0, sizeof(*sp));
   sp->entry_max = num_entries;
-  sp->entry     = calloc(sizeof(dt_stringpool_entry_t), num_entries);
-  sp->buf       = calloc(buf_size, 1);
+  sp->entry     = (dt_stringpool_entry_t *)calloc(sizeof(dt_stringpool_entry_t), num_entries);
+  sp->buf       = (char *)calloc(buf_size, 1);
   sp->buf_max   = buf_size;
   sp->buf_cnt   = 0;
 }
