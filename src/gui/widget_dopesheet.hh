@@ -57,14 +57,8 @@ dt_draw_param_line(
       {
         ImGui::ItemSize(bb);
         if (!ImGui::ItemAdd(bb, id)) return 0.0f;
-        if(ImGui::IsItemClicked(0))
-        { // left click: move animation time
-          // TODO: api functions! create/delete keyframe, set animation time
-          vkdt.graph_dev.frame = vkdt.state.anim_frame = screen_to_frame(ImGui::GetMousePos().x, mod->graph, bb);
-          vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
-          dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
-          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
-        }
+        if(ImGui::IsItemClicked(0)) // left click: move animation time
+          dt_gui_dr_anim_seek(screen_to_frame(ImGui::GetMousePos().x, mod->graph, bb));
         ImGui::SameLine();
         char text[60];
         window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_Button));
@@ -133,70 +127,54 @@ dt_dopesheet()
 { // draw all modules connected on the graph in same order as right panel in darkroom mode
   dt_graph_t *graph = &vkdt.graph_dev;
 
-  // TODO: draw timeline interaction buttons
-  // - play/pause
-    ImGui::PushFont(dt_gui_imgui_get_font(3));
-    // if(ImGui::Button(playing ? "\u23f8" : "\u23f5"))
-    // material icons says:
-    // e037 play arrow
-    // e047 stop
-    // e044 skip next
-    // e045 skip prev
-    // e042 replay
-    // f7d0 resume pause/play
-    // e01f fforward
-    // e020 fback
-    // f137 play/pause
-    // e034 pause
-    // e050 sound on
-    // e04f sound off
+  ImGui::PushFont(dt_gui_imgui_get_font(3));
 #define TOOLTIP(STR) do {\
     ImGui::PopFont();\
     if(ImGui::IsItemHovered()) dt_gui_set_tooltip(STR);\
     ImGui::PushFont(dt_gui_imgui_get_font(3));\
     } while(0)
 
-    if(vkdt.state.anim_playing)
-    {
-      if(ImGui::Button("\ue047")) // or \ue034 for pause icon
-        dt_gui_dr_anim_stop();
-    }
-    else if(ImGui::Button("\ue037"))
-      dt_gui_dr_anim_start();
-    TOOLTIP("play/pause the animation");
-    ImGui::SameLine();
-    if(ImGui::Button("\ue020"))
-    { // prev keyframe
-      dt_gui_dr_anim_seek_keyframe_bck();
-    }
-    TOOLTIP("seek to previous keyframe");
-    ImGui::SameLine();
-    if(ImGui::Button("\ue01f"))
-    { // next keyframe
-      dt_gui_dr_anim_seek_keyframe_fwd();
-    }
-    TOOLTIP("seek to next keyframe");
-    ImGui::SameLine();
-    if(ImGui::Button("\ue045"))
-    { // prev frame
-      dt_gui_dr_anim_step_bck();
-    }
-    TOOLTIP("back to previous frame");
-    ImGui::SameLine();
-    if(ImGui::Button("\ue044"))
-    { // next frame
-      dt_gui_dr_anim_step_fwd();
-    }
-    TOOLTIP("advance to next frame");
-    ImGui::SameLine();
-    if(ImGui::Button("\ue042"))
-    { // rewind
-      dt_gui_dr_prev();
-    }
-    TOOLTIP("rewind to start");
-    ImGui::PopFont();
-    ImGui::SameLine();
-    ImGui::Text("frame %d/%d", vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt);
+  if(vkdt.state.anim_playing)
+  {
+    if(ImGui::Button("\ue047")) // or \ue034 for pause icon
+      dt_gui_dr_anim_stop();
+  }
+  else if(ImGui::Button("\ue037"))
+    dt_gui_dr_anim_start();
+  TOOLTIP("play/pause the animation");
+  ImGui::SameLine();
+  if(ImGui::Button("\ue020"))
+  { // prev keyframe
+    dt_gui_dr_anim_seek_keyframe_bck();
+  }
+  TOOLTIP("seek to previous keyframe");
+  ImGui::SameLine();
+  if(ImGui::Button("\ue01f"))
+  { // next keyframe
+    dt_gui_dr_anim_seek_keyframe_fwd();
+  }
+  TOOLTIP("seek to next keyframe");
+  ImGui::SameLine();
+  if(ImGui::Button("\ue045"))
+  { // prev frame
+    dt_gui_dr_anim_step_bck();
+  }
+  TOOLTIP("back to previous frame");
+  ImGui::SameLine();
+  if(ImGui::Button("\ue044"))
+  { // next frame
+    dt_gui_dr_anim_step_fwd();
+  }
+  TOOLTIP("advance to next frame");
+  ImGui::SameLine();
+  if(ImGui::Button("\ue042"))
+  { // rewind
+    dt_gui_dr_prev();
+  }
+  TOOLTIP("rewind to start");
+  ImGui::PopFont();
+  ImGui::SameLine();
+  ImGui::Text("frame %d/%d", vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt);
 #undef TOOLTIP
 
   dt_module_t *const arr = graph->module;
@@ -209,9 +187,35 @@ dt_dopesheet()
   float size = 0.0;
   for(int m=cnt-1;m>=0;m--)
     size += dt_dopesheet_module(graph, modid[m]);
+
+  if(size == 0.0f)
+  { // no keyframes yet, want to display something
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    ImGui::PushID(1337);
+    const ImGuiID id = window->GetID("timeline");
+    ImGui::PopID();
+
+    int win_w = vkdt.state.center_wd;
+    int ht = vkdt.wstate.fontsize; // line height = font_size + 2*FramePadding.y ?
+    const ImVec2 cp = ImVec2((int)window->DC.CursorPos[0], (int)window->DC.CursorPos[1]);
+    const ImRect bb(ImVec2(cp[0]+(int)(0.12*win_w), cp[1]), ImVec2(cp[0] + win_w, cp[1] + ht));
+    ImGui::ItemSize(bb);
+    ImGui::ItemAdd(bb, id);
+    if(ImGui::IsItemClicked(0)) // left click: move animation time
+      dt_gui_dr_anim_seek(screen_to_frame(ImGui::GetMousePos().x, &vkdt.graph_dev, bb));
+    ImGui::SameLine();
+    const char *text = "timeline";
+    window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_Button));
+    window->DrawList->AddText(cp, ImGui::GetColorU32(ImGuiCol_Text), text);
+    const float x[4] = {
+      frame_to_screen(vkdt.graph_dev.frame, &vkdt.graph_dev, bb), bb.Min[1],
+      frame_to_screen(vkdt.graph_dev.frame, &vkdt.graph_dev, bb), bb.Max[1] };
+    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)x, 2, 0xff000000, false, .1*ht);
+    ImGui::NewLine();
+  }
+
   // this is unfortunately not reliable since we skip drawing and everything
   // in case a line cannot be seen on screen.
   // vkdt.wstate.dopesheet_view = MIN(0.5*vkdt.state.center_ht, size);
-  (void)size;
   vkdt.wstate.dopesheet_view = 0.2*vkdt.state.center_ht; // fixed size
 }

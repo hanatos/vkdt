@@ -76,6 +76,49 @@ run `bin/mkappimg.sh` from the root directory
 
 ### current changelog
 
+lots of small fixes for complicated/non-directed graphs, ui streamlining and polishing,
+doc and website updates.
+
+lighttable:
+
+* add button to create video from timelapse sequence of raw files
+* output modules all show their individual parameters now
+* new automatic labels: video and bracket
+
+darkroom:
+
+* new dopesheet widget to manage keyframes
+* animation controls
+* introducing keyaccels: quickly bind small scripts to hotkeys (for instance
+  expose up by half a stop, rotate ccw by one degree)
+
+new modules:
+
+* `autoexp` new module for autoexposure, most useful in video sequences
+* `i-exr` initial openexr file support for reading
+* new module `hotpx` to remove stuck pixels in bayer images
+
+modules:
+
+* `hilite` smooth out c/a artifacts at boundaries of overexposed regions
+* `o-ffmpeg` support prores PQ/smpte 2084 10-bit output
+* `i-vid` support 420, 422, and 8-, 10-, 12-, 16-bit input
+* `quake` with more parameters and amd raytracing support
+* `i-pfm` supports animation frames and noise profile arguments
+* `pick` colours with freeze support for copy/pasting of settings
+* `grade` with colour wheels input
+* `blend` with option to invert mask
+* `demosaic` now with RCD support. it's slower than the gaussian splats. some
+  numbers for 16MP: gaussian splatting: 1.5ms, new RCD: 2.5ms, darktable's
+  opencl implementation on the same image: 21ms.
+
+build:
+
+* `i-raw` update rawspeed to upstream + cr3 (but will not do it again)
+* support rawler/rust backend to load raw images as replacement for rawspeed/exiv2
+* initial .AppImage package provided
+
+
 ## diverge branches
 
 on the master branch, delete the changelog (to be filled with new features which
