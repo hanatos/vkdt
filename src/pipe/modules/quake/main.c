@@ -534,7 +534,7 @@ add_geo(
       fwd[0], rgt[0], top[0],
       fwd[1], rgt[1], top[1],
       fwd[2], rgt[2], top[2]};
-    float Mi[9];
+    float Mi[9] = {0};
     mat3inv(Mi, M);
 
     // for(int f = 0; f < hdr->numposes; f++)

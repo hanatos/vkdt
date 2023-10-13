@@ -327,7 +327,8 @@ open_stream(
 
   fprintf(stderr, "[i-vid] successfully opened %s %dx%d\n", filename, d->wd, d->ht);
 
-  strncpy(d->filename, filename, sizeof(d->filename)-1);
+  size_t r = snprintf(d->filename, sizeof(d->filename), "%s", filename);
+  if(r >= sizeof(d->filename)) d->filename[sizeof(d->filename)-1] = 0;
   return 0;
 error:
   fprintf(stderr, "[i-vid] error opening %s (%s)\n", filename, av_err2str(ret));

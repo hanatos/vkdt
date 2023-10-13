@@ -52,12 +52,15 @@ void ui_callback(
   else if(param == dt_token("install"))
   { // install the new noise profile to ~/.config/vkdt/nprof/
     char fhome[512];
-    snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
+    size_t r = snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
+    if(r >= sizeof(fhome)) return;
     fs_dirname(fhome);
     fs_mkdir(fhome, 0755);
-    snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
+    r = snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
+    if(r >= sizeof(fhome)) return;
     fs_copy(fhome, filename);
-    snprintf(msg, sizeof(msg), "installing noise profile to %s\n", fhome);
+    r = snprintf(msg, sizeof(msg), "installing noise profile to %s\n", fhome);
+    if(r >= sizeof(msg)) return;
     module->graph->gui_msg = msg;
   }
 }

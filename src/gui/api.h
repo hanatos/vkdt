@@ -57,8 +57,8 @@ dt_gui_dr_anim_seek_keyframe_fwd()
   assert(cnt < sizeof(modid)/sizeof(modid[0]));\
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
-  for(int m=0;m<cnt;m++)
-    for(int k=0;k<arr[modid[m]].keyframe_cnt;k++)
+  for(uint32_t m=0;m<cnt;m++)
+    for(uint32_t k=0;k<arr[modid[m]].keyframe_cnt;k++)
       if(arr[modid[m]].keyframe[k].frame > f && arr[modid[m]].keyframe[k].frame < g)
         g = arr[modid[m]].keyframe[k].frame;
   dt_gui_dr_anim_seek(g);
@@ -77,8 +77,8 @@ dt_gui_dr_anim_seek_keyframe_bck()
   assert(cnt < sizeof(modid)/sizeof(modid[0]));\
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
-  for(int m=0;m<cnt;m++)
-    for(int k=0;k<arr[modid[m]].keyframe_cnt;k++)
+  for(uint32_t m=0;m<cnt;m++)
+    for(uint32_t k=0;k<arr[modid[m]].keyframe_cnt;k++)
       if(arr[modid[m]].keyframe[k].frame < f && arr[modid[m]].keyframe[k].frame > g)
         g = arr[modid[m]].keyframe[k].frame;
   dt_gui_dr_anim_seek(g);
@@ -375,7 +375,7 @@ dt_gui_rate(int rate)
   if(vkdt.view_mode == s_view_lighttable)
   {
     const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-    for(int i=0;i<vkdt.db.selection_cnt;i++)
+    for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       vkdt.db.image[sel[i]].rating = rate;
   }
   else if(vkdt.view_mode == s_view_darkroom)
@@ -391,7 +391,7 @@ dt_gui_label_unset(dt_image_label_t l)
   if(vkdt.view_mode == s_view_lighttable)
   {
     const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-    for(int i=0;i<vkdt.db.selection_cnt;i++)
+    for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       vkdt.db.image[sel[i]].labels &= ~l;
   }
   else if(vkdt.view_mode == s_view_darkroom)
@@ -407,7 +407,7 @@ dt_gui_label_set(dt_image_label_t l)
   if(vkdt.view_mode == s_view_lighttable)
   {
     const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-    for(int i=0;i<vkdt.db.selection_cnt;i++)
+    for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       vkdt.db.image[sel[i]].labels |= l;
   }
   else if(vkdt.view_mode == s_view_darkroom)
@@ -423,7 +423,7 @@ dt_gui_label(int label)
   if(vkdt.view_mode == s_view_lighttable)
   {
     const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-    for(int i=0;i<vkdt.db.selection_cnt;i++)
+    for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       vkdt.db.image[sel[i]].labels ^= 1<<(label-1);
   }
   else if(vkdt.view_mode == s_view_darkroom)

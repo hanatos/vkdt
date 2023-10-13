@@ -120,7 +120,7 @@ dt_export_init(
   size_t pdata_size = 0;
   w->modid = (int *)malloc(sizeof(int)*dt_pipe.num_modules);
   w->modid_cnt = 0;
-  for(int i=0;i<dt_pipe.num_modules;i++)
+  for(uint32_t i=0;i<dt_pipe.num_modules;i++)
   {
     if(!strncmp(dt_token_str(dt_pipe.module[i].name), "o-", 2))
     {
@@ -195,7 +195,7 @@ dt_export(
   // const char *overwrite_mode_str = "keep\0overwrite\0\0";
   // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);
   w->format = CLAMP(w->format, 0, w->modid_cnt-1);
-  const int id = CLAMP(w->modid[w->format], 0, dt_pipe.num_modules-1);
+  const int id = CLAMP(w->modid[w->format], 0l, dt_pipe.num_modules-1l);
   const dt_module_so_t *mso = dt_pipe.module+id;
   for(int i=0;i<mso->num_params;i++)
   {

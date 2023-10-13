@@ -46,10 +46,10 @@ dt_draw_param_line(
   const ImVec2 cp = ImVec2((int)window->DC.CursorPos[0], (int)window->DC.CursorPos[1]);
   const ImRect bb(ImVec2(cp[0]+(int)(0.12*win_w), cp[1]), ImVec2(cp[0] + win_w, cp[1] + ht));
 
-  static int drag_k = -1, drag_mod = -1;
+  static uint32_t drag_k = -1u, drag_mod = -1u;
 
   int have_keys = 0;
-  for(int k=0;k<mod->keyframe_cnt;k++)
+  for(uint32_t k=0;k<mod->keyframe_cnt;k++)
   {
     if(mod->keyframe[k].param == mod->so->param[p]->name)
     {
@@ -88,7 +88,7 @@ dt_draw_param_line(
       if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft) && drag_k == k && drag_mod == mod-mod->graph->module)
       { // drag finished
         mod->keyframe[k].frame = screen_to_frame(ImGui::GetMousePos().x, mod->graph, bb);
-        drag_k = drag_mod = -1;
+        drag_k = drag_mod = -1u;
       }
       if(ImGui::IsItemClicked(1))
       { // right click: delete this keyframe by copying the last one over it and decreasing keyframe_cnt

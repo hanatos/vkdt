@@ -1036,7 +1036,7 @@ dt_graph_open_resource(
   char filename[2*PATH_MAX+10];
   if(fname[0] == '/')
   {
-    strncpy(filename, fname, sizeof(filename));
+    strncpy(filename, fname, sizeof(filename)-1);
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     return fopen(filename, mode);  // absolute path
   }

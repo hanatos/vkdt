@@ -165,7 +165,7 @@ eval_dcp(
   // p.hsm = 0; // XXX
   for(int i=0;i<num;i++)
   {
-    double co[3], ci[3] = { cam_rgb[3*i+0], cam_rgb[3*i+1], cam_rgb[3*i+2]};
+    double co[3] = {0}, ci[3] = { cam_rgb[3*i+0], cam_rgb[3*i+1], cam_rgb[3*i+2]};
     dng_process(&p, ci, co);
     xyz[3*i+0] = co[0]; xyz[3*i+1] = co[1]; xyz[3*i+2] = co[2];
     // fprintf(stderr, "out xyz %g %g %g\n", co[0], co[1], co[2]);

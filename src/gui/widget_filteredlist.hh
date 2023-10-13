@@ -20,21 +20,21 @@ dt_gui_set_tooltip(const char *fmt, ...)
 }
 
 
-// load a one-linear heading from the readme.md file in the
-
+// load a one-liner heading from the readme.md file in the directory
 static inline char*
 filteredlist_get_heading(
     const char *basedir,
     const char *dirname)
 {
   char fn[256], *res = 0;
-  int r = snprintf(fn, sizeof(fn), "%s/%s/readme.md", basedir, dirname);
-  if(r >= 255) return 0; // truncated
+  size_t r = snprintf(fn, sizeof(fn), "%s/%s/readme.md", basedir, dirname);
+  if(r >= sizeof(fn)) return 0; // truncated
   FILE *f = fopen(fn, "rb");
   if(f)
   {
-    res = (char*)malloc(256);
-    strncpy(res, dirname, 10);
+    res = (char*)calloc(256, 1);
+    r = snprintf(res, 10, "%s", dirname);
+    if(r >= 10) res[10] = 0; // whatever, just to silence gcc
     fscanf(f, "# %255[^\n]", res);
     fclose(f);
   }

@@ -24,11 +24,13 @@ dt_keyaccel_init(
   dt_stringpool_init(&ka->sp, 2*list_size, 30); // + space for description/comment
   struct dirent **ent = 0;
   char dirname[PATH_MAX];
-  int id = 0;
+  uint32_t id = 0;
   for(int dir=0;dir<2;dir++)
   { // first search home dir, then system wide:
-    if(dir) snprintf(dirname, sizeof(dirname), "%s/data/keyaccel", dt_pipe.basedir);
-    else    snprintf(dirname, sizeof(dirname), "%s/keyaccel", vkdt.db.basedir);
+    size_t r = 0;
+    if(dir) r = snprintf(dirname, sizeof(dirname), "%s/data/keyaccel", dt_pipe.basedir);
+    else    r = snprintf(dirname, sizeof(dirname), "%s/keyaccel", vkdt.db.basedir);
+    if(r >= sizeof(dirname)) continue; // truncated
     int ent_cnt = scandir(dirname, &ent, 0, alphasort);
     if(ent_cnt == -1) continue; // no such directory, we're out
     for(int i=0;i<ent_cnt;i++)
@@ -39,8 +41,8 @@ dt_keyaccel_init(
 
       char comment[256] = {0};
       char filename[PATH_MAX];
-      int r = snprintf(filename, sizeof(filename), "%s/%s", dirname, ent[i]->d_name);
-      if(r >= sizeof(filename)-1) continue; // truncated
+      size_t r = snprintf(filename, sizeof(filename), "%s/%s", dirname, ent[i]->d_name);
+      if(r >= sizeof(filename)) continue; // truncated
       FILE *f = fopen(filename, "rb");
       if(f)
       { // try to read comment line
@@ -81,7 +83,8 @@ dt_keyaccel_exec(const char *key)
   FILE *f = fopen(filename, "rb");
   if(!f)
   {
-    snprintf(filename, sizeof(filename), "%s/data/keyaccel/%s", dt_pipe.basedir, key);
+    size_t r = snprintf(filename, sizeof(filename), "%s/data/keyaccel/%s", dt_pipe.basedir, key);
+    if(r >= sizeof(filename)) return; // truncated
     f = fopen(filename, "rb");
   }
   if(!f) return; // out of luck today

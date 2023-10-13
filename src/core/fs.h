@@ -101,7 +101,8 @@ fs_basedir(
     if(handle)
     {
       dlinfo(handle, RTLD_DI_ORIGIN, &mod);
-      snprintf(basedir, maxlen, "%s/vkdt", mod);
+      size_t r = snprintf(basedir, maxlen, "%s/vkdt", mod);
+      if(r >= maxlen) { basedir[0] = 0; return; } // got truncated
       dlclose(handle);
     }
   }
