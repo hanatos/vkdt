@@ -1,0 +1,2 @@
+# decrement green channel white balance
+paramdec:colour:01:white:1:2:0.05

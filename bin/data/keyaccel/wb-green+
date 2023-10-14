@@ -1,0 +1,2 @@
+# increment green channel white balance
+paraminc:colour:01:white:1:2:0.05

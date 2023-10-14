@@ -1,0 +1,2 @@
+# increment blue channel white balance
+paraminc:colour:01:white:2:3:0.05

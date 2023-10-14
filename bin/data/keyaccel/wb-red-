@@ -1,0 +1,2 @@
+# decrement red channel white balance
+paramdec:colour:01:white:0:1:0.05
