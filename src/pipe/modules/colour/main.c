@@ -31,9 +31,9 @@ void ui_callback(
     rbmap[6*i+0] = pck[3*i+0];
     rbmap[6*i+1] = pck[3*i+1];
     rbmap[6*i+2] = pck[3*i+2];
-    rbmap[6*i+3] = ref[3*i+0];
-    rbmap[6*i+4] = ref[3*i+1];
-    rbmap[6*i+5] = ref[3*i+2];
+    rbmap[6*i+3] = ref[3*i+0] <= 0.0f ? pck[3*i+0] : ref[3*i+0];
+    rbmap[6*i+4] = ref[3*i+1] <= 0.0f ? pck[3*i+1] : ref[3*i+1];
+    rbmap[6*i+5] = ref[3*i+2] <= 0.0f ? pck[3*i+2] : ref[3*i+2];
   }
   rbcnt[0] = cnt;
 }
@@ -45,6 +45,7 @@ void ui_callback(
 // interesting curves that do not pass through the control points. this is true
 // at least in my tests with 5 control points, maybe the effect evens out for more
 // points which do not happen to reach exactly 0 and 1 as distance.
+// (some sources use r^2 * log(r/r0) where r0 takes care of the scale)
 static inline double
 kernel(const float *x, const float *y)
 {
@@ -52,8 +53,9 @@ kernel(const float *x, const float *y)
       (x[0] - y[0]) * (x[0] - y[0]) +
       (x[1] - y[1]) * (x[1] - y[1]) +
       (x[2] - y[2]) * (x[2] - y[2]);
-  if(r2 < 1e-8) return 0.0;
-  return r2 * sqrt(r2);
+  return sqrt(r2); // linear, cannot overshoot
+  // if(r2 < 1e-8) return 0.0;
+  // return r2 * sqrt(r2);
   // return r2 * logf(r2);
 }
 
@@ -133,6 +135,7 @@ compute_coefficients(
     else
     { // yes, really, we should have continued to use the svd/pseudoinverse for exactly such cases.
       // i might bring it back at some point.
+      // or precondition like https://www.sciencedirect.com/science/article/pii/S0377042711003669 ?
 #if 0
       fprintf(stderr, "[colour] fuck, matrix was singular or something!\n");
       fprintf(stderr, "[colour] N=%d\n", N);

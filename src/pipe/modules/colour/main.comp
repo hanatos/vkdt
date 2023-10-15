@@ -87,8 +87,9 @@ float
 kernel(vec3 ci, vec3 p)
 { // thinplate spline kernel
   float r2 = dot(ci-p, ci-p);
-  if(r2 < 1e-8) return 0.0;
-  return r2 * sqrt(r2);
+  return sqrt(r2);
+  // if(r2 < 1e-8) return 0.0;
+  // return r2 * sqrt(r2);
   // return r2 * log(r2);
 }
 
