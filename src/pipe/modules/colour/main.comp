@@ -86,8 +86,10 @@ cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
 float
 kernel(vec3 ci, vec3 p)
 { // thinplate spline kernel
-  float r2 = .99 * dot(ci-p, ci-p) + 1e-3;
-  return r2 * log(r2);
+  float r2 = dot(ci-p, ci-p);
+  if(r2 < 1e-8) return 0.0;
+  return r2 * sqrt(r2);
+  // return r2 * log(r2);
 }
 
 void tri2quad(inout vec2 tc)

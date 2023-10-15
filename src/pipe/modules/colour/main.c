@@ -40,7 +40,7 @@ void ui_callback(
 
 // thinplate spline kernel phi(r).
 // note that this one is different to the one used in darktable:
-// okay, it's 2d to begin with. but also the threshold added to r2 is crucial,
+// the threshold added to r2 is crucial,
 // or else distance 0 and distance 1 will both evaluate to 0, resulting in
 // interesting curves that do not pass through the control points. this is true
 // at least in my tests with 5 control points, maybe the effect evens out for more
@@ -48,11 +48,13 @@ void ui_callback(
 static inline double
 kernel(const float *x, const float *y)
 {
-  const double r2 = 1e-3 + .99*(
+  const double r2 =
       (x[0] - y[0]) * (x[0] - y[0]) +
       (x[1] - y[1]) * (x[1] - y[1]) +
-      (x[2] - y[2]) * (x[2] - y[2]));
-  return r2 * logf(r2);
+      (x[2] - y[2]) * (x[2] - y[2]);
+  if(r2 < 1e-8) return 0.0;
+  return r2 * sqrt(r2);
+  // return r2 * logf(r2);
 }
 
 static inline void
