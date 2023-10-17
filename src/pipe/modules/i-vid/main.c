@@ -69,6 +69,7 @@ parse_parameters(
 
   switch(d->fmtc->streams[d->video_idx]->codecpar->format)
   {
+    case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUV422P:
       p_bits[0] = 0;
@@ -90,6 +91,7 @@ parse_parameters(
   }
   switch(d->fmtc->streams[d->video_idx]->codecpar->format)
   {
+    case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUV420P10LE:
     case AV_PIX_FMT_YUV420P12LE:
