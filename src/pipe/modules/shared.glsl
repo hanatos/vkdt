@@ -319,3 +319,11 @@ adjust_colour_dng(
   if(flip.x) col1.bg = col1.gb;
   return col1;
 }
+
+float mrand(inout uint seed)
+{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+  seed ^= seed << 13;
+  seed ^= seed >> 17;
+  seed ^= seed << 5;
+  return seed / 4294967296.0;
+}

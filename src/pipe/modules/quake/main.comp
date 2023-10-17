@@ -133,14 +133,6 @@ vec3 envmap(in vec3 w)
   }
 }
 
-float mrand(inout uint seed)
-{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
-  seed ^= seed << 13;
-  seed ^= seed >> 17;
-  seed ^= seed << 5;
-  return seed / 4294967296.0;
-}
-
 vec4 xrand(inout uint seed, ivec2 p)
 { // cp shift based on seed
   // return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
