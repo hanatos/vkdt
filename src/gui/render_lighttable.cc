@@ -657,7 +657,7 @@ void render_lighttable_right_panel(int hotkey)
     // ==============================================================
     // merge/align images
     ImGui::SameLine();
-    if(ImGui::Button("merge into current", size))
+    if(ImGui::Button("low light bracket", size))
     { // overwrite .cfg for this image file:
       uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
@@ -740,7 +740,7 @@ void render_lighttable_right_panel(int hotkey)
           &glfwPostEmptyEvent);
     }
     if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
-        "align selected images for stacking");
+        "align and stack selected images for low light photography. they have to be same exposure to work.");
     } // end if multiple images are selected
     ImGui::Unindent();
   } // end collapsing header "selected"
