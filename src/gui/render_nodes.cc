@@ -383,6 +383,7 @@ void render_nodes()
   ImNodes::PushAttributeFlag(
       ImNodesAttributeFlags_EnableLinkCreationOnSnap);
 
+  int vpos = nodey;
 #define TRAVERSE_POST \
   assert(cnt < sizeof(modid)/sizeof(modid[0]));\
   modid[cnt++] = curr;
@@ -400,7 +401,15 @@ void render_nodes()
     if(nodes.do_layout)
     {
       if(g->module[curr].gui_x == 0 && g->module[curr].gui_y == 0)
-        ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
+      {
+        if(strncmp(dt_token_str(g->module[curr].name), "i-", 2))
+          ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
+        else // input nodes get their own vertical alignment
+        {
+          ImNodes::SetNodeEditorSpacePos(curr, ImVec2(0, vpos));
+          vpos += nodew;
+        }
+      }
       else
         ImNodes::SetNodeEditorSpacePos(curr, ImVec2(g->module[curr].gui_x, g->module[curr].gui_y));
     }
