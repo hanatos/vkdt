@@ -200,5 +200,5 @@ dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
   if(c->format == dt_token("geo")) return 4*sizeof(float); // just a dummy for extra data, ray tracing geo will take care of itself
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_channel(c);
-  return numc * bpp * wd * ht;
+  return numc * bpp * wd * ht > 0 ? numc * bpp * wd * ht : 16;
 }

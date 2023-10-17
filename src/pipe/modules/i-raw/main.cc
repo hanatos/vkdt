@@ -418,7 +418,8 @@ int read_source(
   const int block = mod->img_param.filters == 9u ? 3 : 2;
   wd = (wd/block)*block;
   ht = (ht/block)*block;
-  // TODO: make sure the roi we get on the connector agrees with this!
+  // make sure the roi we get on the connector agrees with this!
+  if(mod->connector[0].roi.wd < wd || mod->connector[0].roi.ht < ht) return 0;
   const size_t bufsize_compact = (size_t)wd * ht * sizeof(uint16_t); // mod_data->d->mRaw->getBpp();
   const size_t bufsize_rawspeed = (size_t)mod_data->d->mRaw->pitch * dim_uncropped.y;
   if(bufsize_compact == bufsize_rawspeed)

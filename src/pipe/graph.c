@@ -2114,7 +2114,7 @@ VkResult dt_graph_run(
   for(int i=0;i<cnt;i++)
   {
     if(!strncmp(dt_token_str(graph->module[modid[i]].name), "i-", 2) &&
-        graph->module[modid[i]].inst == dt_token("main"))
+       (main_input_module == -1 || graph->module[modid[i]].inst == dt_token("main")))
       main_input_module = modid[i];
     module_flags |= graph->module[modid[i]].flags;
   }
@@ -2184,8 +2184,7 @@ VkResult dt_graph_run(
   {
     if(graph->module[modid[i]].connector[0].type == dt_token("sink"))
     {
-      if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
-        return VK_INCOMPLETE;
+      if(graph->module[modid[i]].connector[0].roi.full_wd == 0) return VK_INCOMPLETE;
       break; // we're good
     }
   }
@@ -2321,6 +2320,8 @@ VkResult dt_graph_run(
       }
     }
   }
+  // one last check:
+  if(main_input_module >= 0 && graph->module[main_input_module].connector[0].roi.wd == 0) return VK_INCOMPLETE;
 } // end scope, done with modules
 
   // if no more action than generating the output roi was requested, exit now:
