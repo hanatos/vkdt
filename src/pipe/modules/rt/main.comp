@@ -128,14 +128,6 @@ vec3 sample_cos(vec2 x)
   return vec3(su*cos(2.0*3.1415*x.y), su*sin(2.0*3.1415*x.y), sqrt(1.0 - x.x));
 }
 
-float mrand(inout uint seed)
-{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
-  seed ^= seed << 13;
-  seed ^= seed >> 17;
-  seed ^= seed << 5;
-  return seed / 4294967296.0;
-}
-
 vec4 xrand(inout uint seed, ivec2 p)
 {
   // cp shift based on seed
