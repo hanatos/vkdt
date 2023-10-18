@@ -59,11 +59,25 @@ void main()
   mat2 R = inv_svd2x2(H, angle);
   vec2 T = mu_q - R * mu_p;
 
+  // now find consensus.
+  // could do histogram voting (bin angles) but limited precision and dimension
+  // ransac: search for other random positions and score
+  float score = 0;
+  for(int i=0;i<30;i++)
+  {
+    vec2 p2 = clamp(ivec2(vec2(mrand(seed), mrand(seed))*imageSize(img_out)), ivec2(0), ivec2(imageSize(img_out)-1));
+    vec2 q2 = p2 + texelFetch(img_in, ivec2(p2), 0).rg;
+    vec2 qt = R * p2 + T;
+    if(distance(q2,qt) < 4.0) score++;
+  }
+  score = subgroupAdd(score);
+
   vec4 rgb = vec4(0.0);
   if(angle != -666.0)
   {
     float scale = 1.0;
-    rgb = vec4(mod(angle/3.1415, 1.0), 0.5 + scale *T.x, 0.5 + scale *T.y, 1);
+    // rgb = vec4(mod(angle/3.1415, 1.0), 0.5 + scale *T.x, 0.5 + scale *T.y, 1);
+    rgb = vec4(mod(angle/3.1415, 1.0), score, 0, 1);
     // rgb = vec4(mod(angle/3.1415, 1.0));
   }
   imageStore(img_out, opos, rgb);
