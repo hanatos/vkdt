@@ -4,14 +4,17 @@ RAWSPEED_I=pipe/modules/i-raw/rawspeed
 RAWSPEED_L=pipe/modules/i-raw/rawspeed/build
 MOD_CFLAGS=-std=c++20 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(shell pkg-config --cflags pugixml libjpeg)
 MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(shell pkg-config --libs pugixml libjpeg)
-ifeq ($(CXX),clang++)
+
+pipe/modules/i-raw/libi-raw.so: $(RAWSPEED_L)/librawspeed.a
+
 # omp has no pkg-config. this sucks so much:
-MOD_LDFLAGS+=$(shell grep OpenMP_omp_LIBRARY:FILEPATH $(RAWSPEED_L)/CMakeCache.txt | cut -f2 -d=)
+ifeq ($(CXX),clang++)
+MOD_LDFLAGS+=-fopenmp=libomp
 endif
 ifeq ($(CXX),g++)
 MOD_LDFLAGS+=-lgomp
 endif
-pipe/modules/i-raw/libi-raw.so: $(RAWSPEED_L)/librawspeed.a
+
 
 $(RAWSPEED_L)/Makefile: $(RAWSPEED_I)/CMakeLists.txt
 	mkdir -p $(RAWSPEED_L)
