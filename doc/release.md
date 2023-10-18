@@ -5,8 +5,8 @@ action items are labelled (a)..(i).
 
 ## release branch
 
-use semantic versioning and make a branch `release-0.7` to
-contain tags for point releases `0.7.0` and `0.7.1` etc.
+use semantic versioning and make a branch `release-0.8` to
+contain tags for point releases `0.8.0` and `0.8.1` etc.
 the `master` branch will carry on with new features and eventually become the
 next release branch.
 
@@ -30,8 +30,8 @@ rawspeed and quakespasm will only be deployed depending on build settings in `bi
 to generate it for local testing purposes without pushing the tag
 to the public repository, (c)
 ```
-git tag -s '0.7.0' -m "this is release 0.7.0"
-git push dreggn 0.7.0
+git tag -s '0.8.0' -m "this is release 0.8.0"
+git push dreggn 0.8.0
 git fetch --all --tags
 ```
 
@@ -49,8 +49,8 @@ cat src/core/version.h
 
 ```
 cd /tmp
-tar xvJf vkdt-0.7.0.tar.xz
-cd vkdt-0.7.0/
+tar xvJf vkdt-0.8.0.tar.xz
+cd vkdt-0.8.0/
 make -j20
 DESTDIR=/tmp/testrel make install
 /tmp/testrel/usr/bin/vkdt
@@ -62,10 +62,10 @@ run `bin/mkappimg.sh` from the root directory
 
 ## upload
 
-(g) push to public: `git push origin 0.7.0 release-0.7`
+(g) push to public: `git push origin 0.8.0 release-0.8`
 
 (h) sign the tarball:
-`gpg -u jo@dreggn.org --detach-sign vkdt-0.7.0.tar.xz`
+`gpg -u jo@dreggn.org --detach-sign vkdt-0.8.0.tar.xz`
 
 (i) github release announcement
 
@@ -84,5 +84,5 @@ will also only be pushed to this branch). the release branch will be used for
 bugfix/pointreleases.
 tag the master/development branch as such, so dev packages will be ordered correctly:
 ```
-git tag -s 0.7.99 -m "this is the beginning of the unreleased development branch which will become 0.8.0 eventually"
+git tag -s 0.8.99 -m "this is the beginning of the unreleased development branch which will become 0.9.0 eventually"
 ```
