@@ -1,2 +1,3 @@
 input:read:*:*
 output:write:y:*
+dspy:write:rgba:f16

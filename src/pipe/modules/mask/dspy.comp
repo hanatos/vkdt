@@ -1,0 +1,64 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  int   mode; // 0-luminance, 1-
+  float vmin;
+  float vmax;
+  float x0;   // start of ease-in from vmin
+  float x1;   // begin of plateau at vmax
+  float x2;   // end of plateau
+  float x3;   // end of ease-out back to vmin
+} params;
+
+float env(float x)
+{
+  if     (x < params.x0) return params.vmin;
+  else if(x < params.x1) return mix(params.vmin, params.vmax, smoothstep(params.x0, params.x1, x));
+  else if(x < params.x2) return params.vmax;
+  else if(x < params.x3) return mix(params.vmax, params.vmin, smoothstep(params.x2, params.x3, x));
+  else                   return params.vmin;
+}
+
+float ddx_env(float x)
+{
+  if     (x < params.x0) return 0.0;
+  else if(x < params.x1) return (params.vmax - params.vmin)/(params.x1-params.x0) * 6.0*((x-params.x0)/(params.x1-params.x0))*(1.0-((x-params.x0)/(params.x1-params.x0)));
+  else if(x < params.x2) return 0.0;
+  else if(x < params.x3) return (params.vmin - params.vmax)/(params.x3-params.x2) * 6.0*((x-params.x2)/(params.x3-params.x2))*(1.0-((x-params.x2)/(params.x3-params.x2)));
+  else                   return 0.0;
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  const uint hist_size = 256;
+  vec4 rgba = vec4(0.05,0.05,0.05,1);
+  vec2 tc = (ipos+0.5) / vec2(imageSize(img_out));
+  // const float scale = 1.0;
+  // const float h = scale * histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]);
+  const float h = 0.25*log(1.0+100000.0*histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]))-1.0;
+  if(1.0-tc.y < h)
+  {
+    rgba = vec4(0.3, 0.3, 0.3, 1.0);
+    if(params.mode == 1) rgba.rgb = hsv2rgb(vec3(tc.x, 0.5, 0.5));
+  }
+
+  // rasterise envelope lines
+  float y = env(tc.x);
+  float ddx = ddx_env(tc.x);
+  const float w = 2.0; // stroke width
+  float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
+  float d = abs((1.0-y) * imageSize(img_out).y - ipos.y);
+  rgba = max(rgba, 0.7 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+
+  imageStore(img_out, ipos, rgba);
+}
