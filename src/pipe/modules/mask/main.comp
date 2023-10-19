@@ -1,0 +1,52 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  int   mode; // 0-luminance, 1-
+  float vmin;
+  float vmax;
+  float x0;   // start of ease-in from vmin
+  float x1;   // begin of plateau at vmax
+  float x2;   // end of plateau
+  float x3;   // end of ease-out back to vmin
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+// TODO: dspy connector for vis? also plot histogram in bg?
+// histogram will need additional kernel + main.c
+
+vec3 rgb2hsv(vec3 c)
+{
+  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  float e = 1.0e-6;
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+vec3 hsv2rgb(vec3 c)
+{
+  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  float x = 0.0;
+  if     (params.mode == 0) x = luminance_rec2020(rgb);
+  else if(params.mode == 1) x = rgb2hsv(rgb).x;
+  else if(params.mode == 2) x = rgb2hsv(rgb).y;
+  float v = smoothstep(params.x0, params.x1, x) * (1.0-smoothstep(params.x2, params.x3, x));
+  v = mix(params.vmin, params.vmax, v);
+
+  imageStore(img_out, ipos, vec4(v));
+}
