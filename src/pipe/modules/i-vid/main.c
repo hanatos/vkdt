@@ -62,10 +62,11 @@ parse_parameters(
     dt_module_t *mod,
     vid_data_t  *d)
 {
-  int *p_colour = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colour")));
-  int *p_trc    = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc")));
-  int *p_bits   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("bitdepth")));
-  int *p_chroma = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("chroma")));
+  int *p_colour   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colour")));
+  int *p_trc      = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc")));
+  int *p_bits     = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("bitdepth")));
+  int *p_chroma   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("chroma")));
+  int *p_colrange = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colrange")));
 
   switch(d->fmtc->streams[d->video_idx]->codecpar->format)
   {
@@ -106,6 +107,18 @@ parse_parameters(
       break;
     default:
       p_chroma[0] = 3; // unsupported
+  }
+  switch(d->fmtc->streams[d->video_idx]->codecpar->color_range)
+  { 
+    case AVCOL_RANGE_UNSPECIFIED:
+    case AVCOL_RANGE_MPEG:
+      p_colrange[0] = 0;
+      break;
+    case AVCOL_RANGE_JPEG:
+      p_colrange[0] = 1;
+      break;
+    default:
+      p_colrange[0] = 2; // unsupported
   }
 
   // enum AVCodecID vcodec = d->fmtc->streams[d->video_idx]->codecpar->codec_id;

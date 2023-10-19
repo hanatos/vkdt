@@ -2,4 +2,5 @@ colour:int:1:0
 trc:int:1:1
 bitdepth:int:1:0
 chroma:int:1:0
+colrange:int:1:0
 filename:string:256:test.mp4
