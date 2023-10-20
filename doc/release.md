@@ -76,6 +76,9 @@ run `bin/mkappimg.sh` from the root directory
 
 ### current changelog
 
+new modules:
+* `mask` create data-dependent masks from luminance, hue, or saturation of an image
+
 
 ## diverge branches
 
