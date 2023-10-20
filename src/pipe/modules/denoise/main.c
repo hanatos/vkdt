@@ -37,6 +37,7 @@ dt_graph_run_t
 check_params(
     dt_module_t *module,
     uint32_t     parid,
+    uint32_t     num,
     void        *oldval)
 {
   if(parid == 0)

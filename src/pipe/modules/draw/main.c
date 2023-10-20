@@ -20,6 +20,7 @@ dt_graph_run_t
 check_params(
     dt_module_t *module,
     uint32_t     parid,
+    uint32_t     num,
     void        *oldval)
 {
   const int pi = dt_module_get_param(module->so, dt_token("draw"));

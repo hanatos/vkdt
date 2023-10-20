@@ -185,7 +185,7 @@ void render_darkroom_widget(int modid, int parid)
         RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               s_graph_run_record_cmd_buf | flags);
           vkdt.graph_dev.active_module = modid;
@@ -202,7 +202,7 @@ void render_darkroom_widget(int modid, int parid)
         RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               flags | s_graph_run_record_cmd_buf);
           vkdt.graph_dev.active_module = modid;
@@ -224,7 +224,7 @@ void render_darkroom_widget(int modid, int parid)
         RESETBLOCK {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               flags | s_graph_run_record_cmd_buf);
           vkdt.graph_dev.active_module = modid;
@@ -255,7 +255,7 @@ void render_darkroom_widget(int modid, int parid)
               for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
             dt_graph_run_t flags = s_graph_run_none;
             if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
             vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
                 s_graph_run_record_cmd_buf | flags);
             vkdt.graph_dev.active_module = modid;
@@ -279,7 +279,7 @@ void render_darkroom_widget(int modid, int parid)
               for(int k=0;k<count;k++) val[k-num] = val[0];
             dt_graph_run_t flags = s_graph_run_none;
             if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
             vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
                 s_graph_run_record_cmd_buf | flags);
             vkdt.graph_dev.active_module = modid;
@@ -327,7 +327,7 @@ void render_darkroom_widget(int modid, int parid)
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               flags | s_graph_run_record_cmd_buf);
           vkdt.graph_dev.active_module = modid;
@@ -478,7 +478,7 @@ void render_darkroom_widget(int modid, int parid)
       RESETBLOCK {
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
-          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
         vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
             s_graph_run_record_cmd_buf | flags);
         vkdt.graph_dev.active_module = modid;
@@ -726,7 +726,7 @@ void render_darkroom_widget(int modid, int parid)
             {
               dt_graph_run_t flags = s_graph_run_none;
               if(vkdt.graph_dev.module[modid].so->check_params)
-                flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+                flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
               vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
                   s_graph_run_record_cmd_buf | flags);
               vkdt.graph_dev.active_module = modid;
@@ -875,7 +875,7 @@ void render_darkroom_widget(int modid, int parid)
             for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, &oldval);
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
           vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
               s_graph_run_record_cmd_buf | flags);
           vkdt.graph_dev.active_module = modid;

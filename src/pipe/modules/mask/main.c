@@ -1,5 +1,25 @@
 #include "modules/api.h"
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  const int pid = dt_module_get_param(module->so, dt_token("envelope"));
+  if(parid == pid)
+  {
+    float *p_env = (float *)dt_module_param_float(module, pid);
+    for(int i=0;i<4;i++)
+    { // make sure the sort order stays put
+      if(i < num && p_env[i] > p_env[num]) p_env[i] = p_env[num];
+      if(i > num && p_env[i] < p_env[num]) p_env[i] = p_env[num];
+    }
+  }
+  return s_graph_run_record_cmd_buf;
+}
+
 void
 create_nodes(
     dt_graph_t  *graph,
