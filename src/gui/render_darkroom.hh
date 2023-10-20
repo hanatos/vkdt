@@ -218,6 +218,7 @@ void render_darkroom_widget(int modid, int parid)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float  oldval = *val;
+        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
         if(ImGui::ColorEdit3(str, val, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_PickerHueWheel |
              ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_InputRGB   | ImGuiColorEditFlags_Float))
         RESETBLOCK {
