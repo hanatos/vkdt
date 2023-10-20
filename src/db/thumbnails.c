@@ -237,20 +237,20 @@ dt_thumbnails_cache_one(
   time_t tcfg = 0, tbc1 = 0;
 
   if(!stat(cfgfilename, &statbuf))
-    tcfg = statbuf.st_mtim.tv_sec;
+    tcfg = statbuf.st_mtime;
   else
   {
     char tmp[PATH_MAX];
     if(snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, deffilename) >= PATH_MAX)
       return VK_INCOMPLETE;
     if(!stat(tmp, &statbuf))
-      tcfg = statbuf.st_mtim.tv_sec;
+      tcfg = statbuf.st_mtime;
     else return VK_INCOMPLETE;
   }
 
   if(!stat(bc1filename, &statbuf))
   { // check timestamp
-    tbc1 = statbuf.st_mtim.tv_sec;
+    tbc1 = statbuf.st_mtime;
     if(tcfg && (tbc1 >= tcfg)) return VK_SUCCESS; // already up to date
   }
 
