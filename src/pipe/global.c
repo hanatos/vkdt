@@ -408,14 +408,14 @@ int dt_pipe_global_init()
   }
   int i = 0;
   while((dp = readdir(fd)))
-    if(dp->d_type == DT_DIR) i++;
+    if(fs_isdir(mod, dp)) i++;
   dt_pipe.num_modules = i;
   dt_pipe.module = malloc(sizeof(dt_module_so_t)*dt_pipe.num_modules);
   i = 0;
   rewinddir(fd);
   while((dp = readdir(fd)))
   {
-    if(dp->d_type == DT_DIR)
+    if(fs_isdir(mod, dp))
     {
       int err = dt_module_so_load(dt_pipe.module + i, dp->d_name);
       if(!err) i++;

@@ -1,6 +1,6 @@
 #pragma once
 #include <dlfcn.h>
-#include <link.h>
+// #include <link.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -8,7 +8,9 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef _WIN64
 #include <sys/sendfile.h>
+#endif
 #include <errno.h>
 
 static inline int // returns zero on success
@@ -16,9 +18,13 @@ fs_copy(
     const char *dst,
     const char *src)
 {
+#ifdef _WIN64
+#warning "port me!"
+  return 1;
+#else
   ssize_t ret;
   struct stat sb;
-  loff_t len = -1;
+  int64_t len = -1;
   int fd0 = open(src, O_RDONLY), fd1 = -1;
   if(fd0 == -1 || fstat(fd0, &sb) == -1) goto copy_error;
   len = sb.st_size;
@@ -32,6 +38,7 @@ copy_error:
   if(fd0 >= 0) close(fd0);
   if(fd0 >= 0) close(fd1);
   return len;
+#endif
 }
 
 static inline int // returns zero on success
@@ -46,7 +53,11 @@ fs_mkdir(
     const char *pathname,
     mode_t      mode)
 {
+#ifdef _WIN64
+  return mkdir(pathname);
+#else
   return mkdir(pathname, mode);
+#endif
 }
 
 static inline int // return zero if argument contains no '/', else alter str
@@ -112,7 +123,7 @@ fs_basedir(
   sysctl(mib_procpath, 4, basedir, &len_procpath, NULL, 0);
   fs_dirname(basedir);
 #else
-#error port me
+#warning "port me!"
 #endif
 }
 
@@ -121,6 +132,10 @@ fs_find_usb_block_devices(
     char devname[20][20],
     char mountpoint[20][50])
 { // pretty much ls /sys/class/scsi_disk/*/device/block/{sda,sdb,sdd,..}/{..sdd1..} and then grep for it in /proc/mounts
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
   int cnt = 0;
   char block[1000];
   struct dirent **ent, **ent2;
@@ -166,4 +181,35 @@ next:
   }
   if(f) fclose(f);
   return cnt;
+#endif
+}
+
+static inline int fs_islnk(const char *dirname, struct dirent *e)
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
+  return e->d_type == DT_LNK;
+#endif
+}
+
+static inline int fs_isreg(const char *dirname, struct dirent *e)
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
+  return e->d_type == DT_REG;
+#endif
+}
+
+static inline int fs_isdir(const char *dirname, struct dirent *e)
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
+  return e->d_type == DT_DIR;
+#endif
 }

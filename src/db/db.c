@@ -201,7 +201,7 @@ void dt_db_load_directory(
   db->image_max = 0;
   while((ep = readdir(dp)))
   {
-    if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue;
+    if(!fs_isreg(dirname, ep) && !fs_islnk(dirname, ep)) continue;
     if(!dt_db_accept_filename(ep->d_name)) continue;
     db->image_max++;
   }
@@ -229,7 +229,7 @@ void dt_db_load_directory(
   clock_t beg = clock();
   while((ep = readdir(dp)))
   {
-    if(ep->d_type != DT_REG && ep->d_type != DT_LNK) continue;
+    if(!fs_isreg(dirname, ep) && !fs_islnk(dirname, ep)) continue;
     if(!dt_db_accept_filename(ep->d_name)) continue;
 
     const uint32_t imgid = db->image_cnt++;
