@@ -3,7 +3,7 @@ QUAKE_L=pipe/modules/quake/quakespasm/Quake
 MOD_CFLAGS=-I$(QUAKE_I) $(VKDT_QEXTRA_CFLAGS)
 MOD_LDFLAGS=-L$(QUAKE_L) -lquakespasm -lm
 MOD_LDFLAGS+=$(VKDT_QEXTRA_LDFLAGS)
-pipe/modules/quake/libquake.so:pipe/modules/quake/quakespasm/Quake/libquakespasm.a
+pipe/modules/quake/libquake.$(SEXT):pipe/modules/quake/quakespasm/Quake/libquakespasm.a
 pipe/modules/quake/quakespasm/Quake/libquakespasm.a: pipe/modules/quake/quakespasm/Quake/Makefile
 	make -C pipe/modules/quake/quakespasm/Quake
 pipe/modules/quake/quakespasm/Quake/Makefile:
@@ -15,4 +15,4 @@ pipe/modules/quake/quakespasm/Quake/Makefile:
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/water.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/shared/render3d.glsl
 pipe/modules/quake/main.comp.spv:pipe/modules/quake/config.h
-pipe/modules/quake/libquake.so:pipe/modules/quake/config.h
+pipe/modules/quake/libquake.$(SEXT):pipe/modules/quake/config.h
