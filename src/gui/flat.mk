@@ -51,4 +51,4 @@ gui/shd.h: gui/shd/gui.vert.spv gui/shd/gui.frag.spv
 	xxd -i gui/shd/gui.frag.spv >> gui/shd.h
 
 %.spv: %
-	$(GLSLC) -I$(dir $$<) $(GLSLC_FLAGS) $$< -o $$@
+	$(GLSLC) -I$(dir $<).. $(GLSLC_FLAGS) $< -o $@
