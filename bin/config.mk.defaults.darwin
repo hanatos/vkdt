@@ -101,36 +101,30 @@ VKDT_VULKAN_CFLAGS=$(eval VKDT_VULKAN_CFLAGS := $$(shell pkg-config --cflags vul
 VKDT_VULKAN_LDFLAGS=$(eval VKDT_VULKAN_LDFLAGS := $$(shell pkg-config --libs vulkan))$(VKDT_VULKAN_LDFLAGS)
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
+
 # OS detect
-OS := Windows_NT
+OS := Darwin
 
 # compiler config
-CC  = clang
-CXX = clang++
-AR  = ar
-
-LDFLAGS = -Wl,-pie
+CC  = /opt/homebrew/Cellar/llvm/17.0.6_1/bin/clang
+CXX = /opt/homebrew/Cellar/llvm/17.0.6_1/bin/clang++
+AR  = /opt/homebrew/Cellar/llvm/17.0.6_1/bin/llvm-ar
+DYNAMIC = -rdynamic
 
 GLSLC=glslangValidator
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.2
 
-# optimised flags, you may want to use -march=x86-64 for distro builds:
-OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG
-OPT_LDFLAGS=-s
-AR=ar
-DYNAMIC=-rdynamic
 
-SEXT = so
+OPT_CFLAGS=-Wall -pipe -O3 -march=native -DNDEBUG
+LDFLAGS += -rpath /usr/local/lib
 
-CFLAGS   += -D_GNU_SOURCE
-CXXFLAGS += -D_GNU_SOURCE
-
-EXE_CFLAGS ?= -fPIC
+SEXT = dylib
 
 # Pass the library name as $1
-generate_shared_flags = -shared -nostartfiles -Wl,-soname,$$1.$(SEXT)
+generate_shared_flags = -dynamiclib -undefined dynamic_lookup -Wl,-install_name,$$1.$(SEXT)
+
 
 
 # set this to 1 to signal rawspeed to build without processor specific extensions.
@@ -144,7 +138,6 @@ VKDT_GLFW_CFLAGS=$(shell pkg-config --cflags glfw3)
 VKDT_GLFW_LDFLAGS=$(shell pkg-config --libs glfw3)
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
-# where to find openmp:
-OMP_CFLAGS  = -fopenmp
-OMP_LDFLAGS = $(shell grep OpenMP_omp_LIBRARY:FILEPATH ../built/ext/rawspeed/CMakeCache.txt | cut -f2 -d=) -lgomp
+OMP_CFLAGS  = -I/opt/homebrew/opt/libomp/include
+OMP_LDFLAGS = -L/opt/homebrew/opt/libomp/lib -lomp
 export OMP_CFLAGS OMP_LDFLAGS

@@ -34,7 +34,7 @@ $(RAWSPEED_I)/CMakeLists.txt:
 ifeq ($(VKDT_USE_EXIV2),1)
 MOD_CFLAGS+=$(VKDT_EXIV2_CFLAGS) -DVKDT_USE_EXIV2=1
 MOD_LDFLAGS+=$(VKDT_EXIV2_LDFLAGS)
-pipe/modules/i-raw/libi-raw.so:pipe/modules/i-raw/exif.h
+pipe/modules/i-raw/libi-raw.$(SEXT):pipe/modules/i-raw/exif.h
 endif
 # TODO: cache a hash to the checkout revision and test against what we want
 endif # end rawspeed
