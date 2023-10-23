@@ -1,6 +1,6 @@
 # raw image processing workflow which sucks less
 
-[vkdt](https://vkdt.org) is a workflow tool for raw photography.
+[vkdt](https://vkdt.org) is a workflow toolbox for raw photography and video.
 `vkdt` is designed with high performance in mind. it features a flexible
 processing node graph at its core, enabling real-time support for animations,
 timelapses, raw video, and heavy lifting algorithms like image alignment and
@@ -102,41 +102,30 @@ and we may link to some others, too.
 * vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
 * glfw (libglfw3-dev and libglfw3, only use libglfw3-wayland if you're on wayland)
 * submodule imgui
-* submodule rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp)
+* for raw input support:
+  * either rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp, build-depends on cmake, libomp-dev)
+  * or rawler (depends on rust toolchain which will manage their own dependencies)
 * libjpeg
 * build: make, pkg-config, clang, rsync, sed
-* build rawspeed: cmake, libomp-dev
 
 optional (configure in `bin/config.mk`):
 
 * freetype (libfreetype-dev libpng16-16) for nicer font rendering
-* exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles
+* exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles, only needed for rawspeed builds
 * asound (libasound2) for audio support in mlv raw video
-* ffmpeg (libavformat-dev libavcodec-dev) for the video input module `i-vid`
+* ffmpeg (ffmpeg, libavformat-dev libavcodec-dev) for the video input module `i-vid` and the output module `o-ffmpeg`
 
-you can also build without rawspeed if that is useful for you.
+you can also build without rawspeed or rawler if that is useful for you.
 
 
 ## faq
 * **can i load canon cr3 files?**  
 yes. the rawspeed submodule in this repository is now by default
-already using a branch that supports cr3 files. essentially on top
-of vanilla rawspeed, it is a merge of:
-```
-cd ext/rawspeed
-git remote add cytrinox https://github.com/cytrinox/rawspeed.git
-git fetch --all
-git checkout canon_cr3
-cd ../../
-rm -rf built/ext
-cd bin
-make -j20
-```
+already using a branch that supports cr3 files. this may go away in the future
+though. the rawler backend supports cr3.
 
 * **does it work with wayland?**  
-`vkdt` has been confirmed to run on wayland, using amd hardware.
-there are a few known quirks, such as fullscreen mode (f11) does not
-work and there were refresh issues when window focus is lost.
+`vkdt` has been confirmed to run on wayland, using amd and nvidia hardware.
 
 * **can i run my super long running kernel without timeout?**  
 if you're using your only gpu in the system, you'll need to run without xorg,
@@ -147,17 +136,6 @@ something like 16 minutes. let us know if you run into this..
 * **can i build without display server?**  
 there is a `cli` target, i.e. you can try to run `make cli` to only generate
 the command line interface tools that do not depend on xorg or wayland or glfw.
-
-* **how do i build a binary package?**  
-you mostly need the `bin/` directory for this. after running `make` inside
-`bin/`, a straight copy of `bin/` to say `/opt/vkdt/` would work (you can put a
-symlink to the binaries `vkdt` and `vkdt-cli` in `/usr/bin`).
-the shader sources (`*.{glsl,comp,vert,geom,frag,tese,tesc}`) as well as the
-`examples/` and various `test/` directories are optional and do not have to be
-copied.
-to build for generic instruction sets, be sure to edit `config.mk`, especially
-set `OPT_CFLAGS=` to `-march=x86-64` (not `native`) and whatever you require.
-to convince rawspeed to do the same, set `RAWSPEED_PACKAGE_BUILD=1`.
 
 * **i have multiple GPUs and vkdt picks the wrong one by default. what do i do?**  
 make sure the GPU you want to run has the HDMI/dp cable attached (or else you
@@ -209,4 +187,4 @@ set `intgui/frame_limiter:30` to have at most one redraw every `30` milliseconds
 leave it at `0` to redraw as quickly as possible.
 
 * **where can i ask for support?**  
-try `#vkdt` on `oftc.net` or ask on [pixls.us](https://discuss.pixls.us).
+try `#vkdt` on `oftc.net` or ask on [pixls.us](https://discuss.pixls.us/c/software/vkdt).
