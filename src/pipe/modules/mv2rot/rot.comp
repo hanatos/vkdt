@@ -1,0 +1,33 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1, std430) buffer buf_rot { float v[]; };
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec2 T;
+  mat2 M;
+  M[0][0] = buf_rot.v[0];
+  M[0][1] = buf_rot.v[1];
+  M[1][0] = buf_rot.v[2];
+  M[1][1] = buf_rot.v[3];
+  T.x = buf_rot.v[4];
+  T.y = buf_rot.v[5];
+
+  // TODO: are we going the right direction?
+  vec2 p = ipos;
+  vec2 q = R * p + T;
+
+  vec4 rgba = vec4(vec3(0.0), 1.0);
+  if(all(lessThan(ivec2(q), imageSize(img_out))) && all(greaterThan(q, vec2(0.0))))
+    rgba = texelFetch(img_in, ivec2(q), 0);
+  imageStore(img_out, ipos, rgba);
+}

@@ -3,10 +3,10 @@
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 #include "shared.glsl"
-layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
-layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 1, std430) buffer buf_res { float v[]; };
 
 mat2 inv_svd2x2(in mat2 M, out float angle)
 {
@@ -19,7 +19,6 @@ mat2 inv_svd2x2(in mat2 M, out float angle)
   float a1 = atan(G, F), a2 = atan(H, E);
   float theta = (a2-a1)/2.0, phi = (a2 + a1)/2.0;
   // now M = R(phi) * diag(sx,sy) * R(theta)
-
 
   angle = -theta-phi;
   if(sx < 0 || sy < 0) angle = -666.0;
@@ -35,6 +34,7 @@ void main()
   ivec2 opos = ipos;
 #if 1 // this kills quite a lot of the samples!
   uint seed = ipos.x*13370000 + 37*ipos.y;
+  // TODO: center weight this!
   ipos = clamp(ivec2(vec2(mrand(seed), mrand(seed))*imageSize(img_out)), ivec2(0), ivec2(imageSize(img_out)-1));
 #endif
 
@@ -63,7 +63,7 @@ void main()
   // could do histogram voting (bin angles) but limited precision and dimension
   // ransac: search for other random positions and score
   float score = 0;
-  for(int i=0;i<30;i++)
+  if(angle != -666.0) for(int i=0;i<30;i++)
   {
     vec2 p2 = clamp(ivec2(vec2(mrand(seed), mrand(seed))*imageSize(img_out)), ivec2(0), ivec2(imageSize(img_out)-1));
     vec2 q2 = p2 + texelFetch(img_in, ivec2(p2), 0).rg;
@@ -71,14 +71,15 @@ void main()
     if(distance(q2,qt) < 4.0) score++;
   }
   score = subgroupAdd(score);
-
-  vec4 rgb = vec4(0.0);
-  if(angle != -666.0)
+  if(gl_SubgroupInvocationID == 0)
   {
-    float scale = 1.0;
-    // rgb = vec4(mod(angle/3.1415, 1.0), 0.5 + scale *T.x, 0.5 + scale *T.y, 1);
-    rgb = vec4(mod(angle/3.1415, 1.0), score, 0, 1);
-    // rgb = vec4(mod(angle/3.1415, 1.0));
+    uint idx = gl_WorkGroupID.x * gl_NumSubgroups + gl_SubgroupID;
+    buf_res.v[7*idx+0] = R[0][0];
+    buf_res.v[7*idx+1] = R[0][1];
+    buf_res.v[7*idx+2] = R[1][0];
+    buf_res.v[7*idx+3] = R[1][1];
+    buf_res.v[7*idx+4] = T.x;
+    buf_res.v[7*idx+5] = T.y;
+    buf_res.v[7*idx+6] = score;
   }
-  imageStore(img_out, opos, rgb);
 }
