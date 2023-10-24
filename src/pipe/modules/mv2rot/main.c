@@ -7,9 +7,9 @@ create_nodes(
 {
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
-  dt_roi_t croi = (dt_roi_t){.wd = 7, .ht = (wd+31)/32 };
+  dt_roi_t croi = (dt_roi_t){.wd = 7, .ht = 1024 };
   dt_roi_t rroi = (dt_roi_t){.wd = 6, .ht = 1};
-  const int id_col = dt_node_add(graph, module, "mv2rot", "col", 40*wd, 1, 1, 0, 0, 2,
+  const int id_col = dt_node_add(graph, module, "mv2rot", "col", 1024*DT_LOCAL_SIZE_X, 1, 1, 0, 0, 2,
       "mv",  "read",  "*",    "*",   -1ul,
       "col", "write", "ssbo", "u32", &croi);
 

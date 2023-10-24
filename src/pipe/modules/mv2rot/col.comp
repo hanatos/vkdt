@@ -66,7 +66,7 @@ void main()
   // could do histogram voting (bin angles) but limited precision and dimension
   // ransac: search for other random positions and score
   float score = 0;
-  if(angle != -666.0) for(int i=0;i<10;i++)
+  if(angle != -666.0) for(int i=0;i<20;i++)
   {
     tc = vec2( // center weighted
         mrand(seed)+mrand(seed)+mrand(seed)+mrand(seed),
