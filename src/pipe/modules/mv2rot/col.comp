@@ -4,7 +4,6 @@
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 #include "shared.glsl"
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
-// layout(std140, set = 0, binding = 1) uniform params_t { } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1, std430) buffer buf_res { float v[]; };
 
@@ -29,27 +28,31 @@ mat2 inv_svd2x2(in mat2 M, out float angle)
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  const ivec2 sz = textureSize(img_in, 0);
+  if(any(greaterThanEqual(ipos, sz))) return;
 
   ivec2 opos = ipos;
 #if 1 // this kills quite a lot of the samples!
   uint seed = ipos.x*13370000 + 37*ipos.y;
-  // TODO: center weight this!
-  ipos = clamp(ivec2(vec2(mrand(seed), mrand(seed))*imageSize(img_out)), ivec2(0), ivec2(imageSize(img_out)-1));
+  vec2 tc = vec2( // center weighted
+      mrand(seed)+mrand(seed)+mrand(seed)+mrand(seed),
+      mrand(seed)+mrand(seed)+mrand(seed)+mrand(seed));
+  tc /= 4.0;
+  ipos = clamp(ivec2(tc*sz), ivec2(0), sz-1);
 #endif
 
   vec2 mv = texelFetch(img_in, ipos, 0).rg;
 
   // Arun et al. 1987
   // q = R p + T
-  vec2 mu_p = (ipos+0.5   )/(gl_SubgroupSize * vec2(imageSize(img_out)));
-  vec2 mu_q = (ipos+0.5+mv)/(gl_SubgroupSize * vec2(imageSize(img_out)));
+  vec2 mu_p = vec2(ipos+0.5   )/float(gl_SubgroupSize);
+  vec2 mu_q = vec2(ipos+0.5+mv)/float(gl_SubgroupSize);
 
   mu_p.x = subgroupAdd(mu_p.x); mu_p.y = subgroupAdd(mu_p.y);
   mu_q.x = subgroupAdd(mu_q.x); mu_q.y = subgroupAdd(mu_q.y);
 
-  vec2 p = (ipos+0.5   )/vec2(imageSize(img_out)) - mu_p;
-  vec2 q = (ipos+0.5+mv)/vec2(imageSize(img_out)) - mu_q;
+  vec2 p = vec2(ipos+0.5   ) - mu_p;
+  vec2 q = vec2(ipos+0.5+mv) - mu_q;
 
   mat2 H = outerProduct(p, q);
   H[0][0] = subgroupAdd(H[0][0]); H[0][1] = subgroupAdd(H[0][1]);
@@ -63,23 +66,27 @@ void main()
   // could do histogram voting (bin angles) but limited precision and dimension
   // ransac: search for other random positions and score
   float score = 0;
-  if(angle != -666.0) for(int i=0;i<30;i++)
+  if(angle != -666.0) for(int i=0;i<10;i++)
   {
-    vec2 p2 = clamp(ivec2(vec2(mrand(seed), mrand(seed))*imageSize(img_out)), ivec2(0), ivec2(imageSize(img_out)-1));
+    tc = vec2( // center weighted
+        mrand(seed)+mrand(seed)+mrand(seed)+mrand(seed),
+        mrand(seed)+mrand(seed)+mrand(seed)+mrand(seed));
+    tc /= 4.0;
+    vec2 p2 = clamp(ivec2(tc*sz), ivec2(0), ivec2(sz-1));
     vec2 q2 = p2 + texelFetch(img_in, ivec2(p2), 0).rg;
     vec2 qt = R * p2 + T;
-    if(distance(q2,qt) < 4.0) score++;
+    if(distance(q2,qt) < 1.0) score++;
   }
   score = subgroupAdd(score);
   if(gl_SubgroupInvocationID == 0)
   {
     uint idx = gl_WorkGroupID.x * gl_NumSubgroups + gl_SubgroupID;
-    buf_res.v[7*idx+0] = R[0][0];
-    buf_res.v[7*idx+1] = R[0][1];
-    buf_res.v[7*idx+2] = R[1][0];
-    buf_res.v[7*idx+3] = R[1][1];
-    buf_res.v[7*idx+4] = T.x;
-    buf_res.v[7*idx+5] = T.y;
-    buf_res.v[7*idx+6] = score;
+    v[7*idx+0] = R[0][0];
+    v[7*idx+1] = R[0][1];
+    v[7*idx+2] = R[1][0];
+    v[7*idx+3] = R[1][1];
+    v[7*idx+4] = T.x;
+    v[7*idx+5] = T.y;
+    v[7*idx+6] = score;
   }
 }

@@ -1,2 +1,3 @@
 input:read:*:*
+mv:read:*:*
 output:write:*:*
