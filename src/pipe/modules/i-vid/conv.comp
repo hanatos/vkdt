@@ -26,44 +26,55 @@ main()
   float v = texture(img_in[2], (ipos+0.5)/vec2(imageSize(img_out))).r;
 
   vec3 rgb = vec3(0.0);
-  if(params.color == 1)
+  if(params.color == 0 || params.color == 1)
   { // says the ITU-R BT.2087-0
     vec3 YCbCr = vec3(Y,u,v);
-    // D'YCbCr -> E'YCbCr : de-scale range Q_YC
-    //
-    // D'Y  = (219 * E'Y  +  16) * 2^(bits-8)
-    // D'Cb = (224 * E'Cb + 128) * 2^(bits-8)
-    // D'Cr = (224 * E'Cr + 128) * 2^(bits-8)
     if(params.colrange == 0)
-    { // or else it comes to us as full range already
-      if     (params.bits == 0) YCbCr = (YCbCr         - vec3(16.0, 128.0, 128.0 )     )/ vec3(219.0, 224.0, 224.0);
-      else if(params.bits == 1) YCbCr = (YCbCr* 1024.0 - vec3(16.0, 128.0, 128.0)*  4.0)/(vec3(219.0, 224.0, 224.0)*  4.0);
-      else if(params.bits == 2) YCbCr = (YCbCr* 4096.0 - vec3(16.0, 128.0, 128.0)* 16.0)/(vec3(219.0, 224.0, 224.0)* 16.0);
+    {
+      // D'YCbCr -> E'YCbCr : de-scale range Q_YC
+      //
+      // D'Y  = (219 * E'Y  +  16) * 2^(bits-8)
+      // D'Cb = (224 * E'Cb + 128) * 2^(bits-8)
+      // D'Cr = (224 * E'Cr + 128) * 2^(bits-8)
+      if     (params.bits == 0) YCbCr = (YCbCr*  255.0 - vec3(16.0, 128.0, 128.0 )     )/ vec3(219.0, 224.0, 224.0);
+      else if(params.bits == 1) YCbCr = (YCbCr*65535.0 - vec3(16.0, 128.0, 128.0)*  4.0)/(vec3(219.0, 224.0, 224.0)*  4.0);
+      else if(params.bits == 2) YCbCr = (YCbCr*65535.0 - vec3(16.0, 128.0, 128.0)* 16.0)/(vec3(219.0, 224.0, 224.0)* 16.0);
       else if(params.bits == 3) YCbCr = (YCbCr*65535.0 - vec3(16.0, 128.0, 128.0)*256.0)/(vec3(219.0, 224.0, 224.0)*256.0);
     }
-    //
-    // E'YCbCr -> E'RGB   : de-apply the matrix M3
-    //           |  0.2627          0.6780          0.0593        |  |E'R|
-    // E'YCbCr = | -0.2627/1.8814  -0.6780/1.8814   0.5           |  |E'G|
-    //           |  0.5            -0.6780/1.4746  -0.0593/1.4746 |  |E'B|
-    //
-    mat3 M3I = mat3(1, 1, 1,
-        0.0, -0.164553127, 1.8814,
-        1.4746, -0.571353127, 0.0);
-    rgb = M3I * YCbCr;
-    // E'      -> E RGB   : de-apply tone curve (E' = E^(1/2.4)  or E' = E^(1/2))
-    // (we'll use smpte 2084 for this)
-  }
-  else if(params.color == 0)
-  { // rec709, says this guy: https://www.silicondust.com/yuv-to-rgb-conversion-for-tv-video/
-    const mat3 YCbCrToRGBmatrix = mat3(
-        1.1643835616, 0.0000000000, 1.7927410714,
-        1.1643835616, -0.2132486143, -0.5329093286,
-        1.1643835616, 2.1124017857, 0.0000000000);
-    const vec3 YCbCrToRGBzero = vec3(-0.972945075, 0.301482665, -1.133402218);
-    vec3 YCbCr = vec3(Y,u,v);
-    if(params.colrange == 1) YCbCr = (YCbCr*vec3(219.0/255.0, 224.0/255.0, 224.0/255.0) + 16.0/255.0);
-    rgb = YCbCr * YCbCrToRGBmatrix + YCbCrToRGBzero; // convert to full range
+    else if(params.colrange == 1)
+    { // full-range - see Rec. ITU-T H.264 section E.2.1
+      //
+      // D'Y  = E'Y  * (2^bits - 1)
+      // D'Cb = E'Cb * (2^bits - 1) + 2^(bits-1)
+      // D'Cr = E'Cr * (2^bits - 1) + 2^(bits-1)
+      if      (params.bits == 0) YCbCr = YCbCr                - vec3(0.0,   128.0 /  255.0,   128.0 /   255.0);
+      else if (params.bits == 1) YCbCr = YCbCr*65535.0/1023.0 - vec3(0.0,   512.0 / 1023.0,   512.0 /  1023.0);
+      else if (params.bits == 2) YCbCr = YCbCr*65535.0/4095.0 - vec3(0.0,  2048.0 / 4095.0,  2048.0 /  4095.0);
+      else if (params.bits == 3) YCbCr = YCbCr                - vec3(0.0, 32768.0 /65535.0, 32768.0 / 65535.0);
+    }
+    if(params.color == 1)
+    {
+      //
+      // E'YCbCr -> E'RGB   : de-apply the matrix M3
+      //           |  0.2627          0.6780          0.0593        |  |E'R|
+      // E'YCbCr = | -0.2627/1.8814  -0.6780/1.8814   0.5           |  |E'G|
+      //           |  0.5            -0.6780/1.4746  -0.0593/1.4746 |  |E'B|
+      //
+      mat3 M3I = mat3(1, 1, 1,
+          0.0, -0.164553127, 1.8814,
+          1.4746, -0.571353127, 0.0);
+      rgb = M3I * YCbCr;
+      // E'      -> E RGB   : de-apply tone curve (E' = E^(1/2.4)  or E' = E^(1/2))
+      // (we'll use smpte 2084 for this)
+    }
+    else if(params.color == 0)
+    {
+      // E'YCbCr -> E'RGB   : apply the matrix M1
+      mat3 M1 = mat3(1.0, 1.0, 1.0,
+        0.0, -0.0722 * 1.8556 / 0.7152, 1.8556,
+        1.5748, -0.2126 * 1.5748 / 0.7152, 0.0);
+      rgb = M1 * YCbCr;
+    }
   }
 
   if(params.trc == 1)
