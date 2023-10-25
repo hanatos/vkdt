@@ -477,23 +477,14 @@ int read_source(
 
   if(p->a == 0)
   { // first channel, new frame. parse + decode + handle audio:
-    const double tbn = 1.0/av_q2d(d->fmtc->streams[d->video_idx]->time_base);
-    int rate = tbn/mod->graph->frame_rate; // some obscure sampling rate vs frames per second number
-    // fprintf(stderr, "frames %d %ld %d %d\n", mod->graph->frame, d->frame, d->vctx->frame_num, vfidx);//d->vframe->pts);
-#if 1
     if(mod->graph->frame + 1 != d->vctx->frame_num) // zero vs 1 based
-    // if(labs(mod->graph->frame - d->vctx->frame_num) > 20)
     { // seek
-      // passing video idx seeks to somewhere about the right place (+10 frames or so)
-      int64_t dts = mod->graph->frame * rate;
-      if((ret = av_seek_frame(d->fmtc, d->video_idx, dts, AVSEEK_FLAG_ANY)) < 0) goto error;
-      if(d->actx)
-      if((ret = av_seek_frame(d->fmtc, d->audio_idx, dts, AVSEEK_FLAG_ANY)) < 0) goto error;
-      avcodec_flush_buffers(d->vctx);
-      if(d->actx) avcodec_flush_buffers(d->actx);
+      double rate = AV_TIME_BASE / mod->graph->frame_rate;
+      int ts = mod->graph->frame * rate;
+      if(avformat_seek_file(d->fmtc, -1, ts-2, ts, ts+2, AVSEEK_FLAG_ANY))
+        goto error;
       d->snd_lag = 0;
     }
-#endif
     d->frame = mod->graph->frame+1; // this would be the next one we read
 
     AVPacket *curr = d->pkt0;
