@@ -1,0 +1,46 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_control_flow_attributes : enable
+#include "shared.glsl"
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout(set = 1, binding = 0, std430) buffer buf_in  { float vi[]; };
+layout(set = 1, binding = 1, std430) buffer buf_out { float vo[]; };
+
+const uint buf_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+shared uint [buf_size] shm_idx;
+shared float[buf_size] shm_score;
+
+void main()
+{
+  // load input into shared memory
+  const float score = vi[7*gl_LocalInvocationIndex+6];
+  shm_idx[gl_LocalInvocationIndex] = gl_LocalInvocationIndex;
+  shm_score[gl_LocalInvocationIndex] = score;
+  barrier();
+
+  for (uint split = (buf_size >> 1); split > 0; split >>= 1)
+  {
+    if (uint(gl_LocalInvocationIndex) < split)
+    {
+      if(shm_score[gl_LocalInvocationIndex] < shm_score[gl_LocalInvocationIndex + split])
+      {
+        shm_idx[gl_LocalInvocationIndex] = shm_idx[gl_LocalInvocationIndex + split];
+        shm_score[gl_LocalInvocationIndex] = shm_score[gl_LocalInvocationIndex + split];
+      }
+      // else everything stays as it is:
+      //{
+        // shm_idx[gl_LocalInvocationIndex] = shm_idx[gl_LocalInvocationIndex];
+        // shm_score[gl_LocalInvocationIndex] = winner_score;
+      //}
+    }
+    barrier();
+  }
+
+  if (gl_LocalInvocationIndex == 0)
+  {
+    const uint idx = shm_idx[0];
+    [[unroll]] for(int i=0;i<6;i++)
+      vo[i] = vi[7*idx + i];
+  }
+}
