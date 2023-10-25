@@ -68,6 +68,7 @@ parse_parameters(
   int *p_chroma   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("chroma")));
   int *p_colrange = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colrange")));
 
+  // if(p_bits[0] == 4) // we *always* overwrite this because it will crash if a user sets this to a wrong thing!
   switch(d->fmtc->streams[d->video_idx]->codecpar->format)
   {
     case AV_PIX_FMT_YUVJ420P:
@@ -90,6 +91,7 @@ parse_parameters(
     default:
       p_bits[0] = 4; // unsupported
   }
+  // if(p_chroma[0] == 3) // we *always* overwrite this because it will crash if a user sets this to a wrong thing!
   switch(d->fmtc->streams[d->video_idx]->codecpar->format)
   {
     case AV_PIX_FMT_YUVJ420P:
@@ -108,17 +110,18 @@ parse_parameters(
     default:
       p_chroma[0] = 3; // unsupported
   }
+  if(p_colrange[0] == 2)
   switch(d->fmtc->streams[d->video_idx]->codecpar->color_range)
   { 
-    case AVCOL_RANGE_UNSPECIFIED:
     case AVCOL_RANGE_MPEG:
       p_colrange[0] = 0;
       break;
+    case AVCOL_RANGE_UNSPECIFIED:
     case AVCOL_RANGE_JPEG:
       p_colrange[0] = 1;
       break;
     default:
-      p_colrange[0] = 2; // unsupported
+      p_colrange[0] = 1; // default to jpeg/full range
   }
 
   // enum AVCodecID vcodec = d->fmtc->streams[d->video_idx]->codecpar->codec_id;
@@ -200,11 +203,14 @@ parse_parameters(
     "NB: Not part of ABI",
   };
   fprintf(stderr, "[i-vid] trc %s\n", ctrc[color_trc]);
-  p_trc[0] = 4; // unsupported
-  if(color_trc == 8)  p_trc[0] = 0; // linear
-  if(color_trc == 1)  p_trc[0] = 1; // bt.709
-  if(color_trc == 16) p_trc[0] = 2; // smpte 2084
-  if(color_trc == 18) p_trc[0] = 3; // HLG
+  if(p_trc[0] == 4)
+  {
+    p_trc[0] = 1; // default to bt.709
+    if(color_trc == 8)  p_trc[0] = 0; // linear
+    if(color_trc == 1)  p_trc[0] = 1; // bt.709
+    if(color_trc == 16) p_trc[0] = 2; // smpte 2084
+    if(color_trc == 18) p_trc[0] = 3; // HLG
+  }
 
   static const char* cs[] = {
     "RGB:   order of coefficients is actually GBR, also IEC 61966-2-1 (sRGB)",
@@ -225,9 +231,12 @@ parse_parameters(
     "NB:  Not part of ABI",
   };
   fprintf(stderr, "[i-vid] colour space %s\n", cs[color_space]);
-  p_colour[0] = 2; // usupported
-  if(color_space == 1) p_colour[0] = 0; // bt.709
-  if(color_space == 9) p_colour[0] = 1; // bt.2020 non constant luminance
+  if(p_colour[0] == 2)
+  {
+    p_colour[0] = 0; // default to bt.709
+    if(color_space == 1) p_colour[0] = 0; // bt.709
+    if(color_space == 9) p_colour[0] = 1; // bt.2020 non constant luminance
+  }
 
   static const char* cl[] = {
     "UNSPECIFIED",
@@ -472,11 +481,9 @@ int read_source(
     int rate = tbn/mod->graph->frame_rate; // some obscure sampling rate vs frames per second number
     // fprintf(stderr, "frames %d %ld %d %d\n", mod->graph->frame, d->frame, d->vctx->frame_num, vfidx);//d->vframe->pts);
 #if 1
-    // if(mod->graph->frame != d->frame)
     if(mod->graph->frame + 1 != d->vctx->frame_num) // zero vs 1 based
+    // if(labs(mod->graph->frame - d->vctx->frame_num) > 20)
     { // seek
-      // XXX ??? can't seek in our own output (maybe it's the mov? try mkv instead)
-      // old api. passing -1 converts the timestamp to something even more obscure.
       // passing video idx seeks to somewhere about the right place (+10 frames or so)
       int64_t dts = mod->graph->frame * rate;
       if((ret = av_seek_frame(d->fmtc, d->video_idx, dts, AVSEEK_FLAG_ANY)) < 0) goto error;
