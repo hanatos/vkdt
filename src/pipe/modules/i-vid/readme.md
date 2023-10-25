@@ -9,3 +9,4 @@ compressed video streams as input.
 * `trc` tone response curve in the encoding
 * `bitdepth` bit depth of the input video stream (actually immutable but displayed here for your information)
 * `chroma` subsampling of the chroma planes (actually immutable but displayed here for your information)
+* `colrange` the colour range (full or restricted)
