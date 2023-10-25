@@ -5,10 +5,10 @@ use std::str;
 use std::cmp;
 use std::fs::File;
 use std::io::BufReader;
+use std::convert::TryInto;
+use rawler::Result;
 use rawler::imgop::xyz::Illuminant;
-use rawler::tags::ExifTag;
-use rawler::formats::tiff::GenericTiffReader;
-use rawler::formats::tiff::reader::TiffReader;
+use rawler::decoders::RawDecodeParams;
 
 #[repr(C)]
 pub struct c_rawimage {
@@ -49,6 +49,21 @@ fn copy_string(
     dst[i] = c as i8;
   }
   dst[cmp::min(src.len(),31)] = 0;
+}
+
+unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
+{
+  let input = BufReader::new(File::open(&path).map_err(|e| rawler::RawlerError::with_io_error("load into buffer", &path, e))?);
+  let mut rawfile = rawler::RawFile::new(&path, input);
+  let decoder = rawler::get_decoder(&mut rawfile)?;
+  let md = decoder.raw_metadata(&mut rawfile, RawDecodeParams::default())?;
+  // let iso = u32::from(md.exif.iso_speed.unwrap()); // is already u32 and should be preferred?
+  (*rawimg).iso          = u32::from(md.exif.iso_speed_ratings.unwrap()) as f32;
+  (*rawimg).aperture     = md.exif.fnumber.unwrap().try_into().ok().unwrap();
+  (*rawimg).exposure     = md.exif.exposure_time.unwrap().try_into().ok().unwrap();
+  (*rawimg).focal_length = md.exif.focal_length.unwrap().try_into().ok().unwrap();
+  copy_string(&md.exif.create_date.unwrap(), &mut (*rawimg).datetime);
+  Ok(())
 }
 
 #[no_mangle]
@@ -94,30 +109,7 @@ pub unsafe extern "C" fn rl_decode_file(
     None    => for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
   }
 
-  // parse again:
-  let input = BufReader::new(File::open(&strn).map_err(|e| rawler::RawlerError::with_io_error("load into buffer", &strn, e)).unwrap());
-  let mut rawfile = rawler::RawFile::new(&strn, input);
-  match GenericTiffReader::new(rawfile.inner(), 0, 0, None, &[]) {
-      Ok(tiff) => {
-        let ifd = tiff.find_first_ifd_with_tag(ExifTag::ISOSpeedRatings).unwrap();
-        match ifd.get_entry(ExifTag::ISOSpeedRatings).map(|entry| &entry.value) {
-          Some(value) => { (*rawimg).iso          = value.force_f32(0) as f32; }
-          None => {} }
-        match ifd.get_entry(ExifTag::FNumber).map(|entry| &entry.value) {
-          Some(value) => { (*rawimg).aperture     = value.force_f32(0) as f32; }
-          None => {} }
-        match ifd.get_entry(ExifTag::ExposureTime).map(|entry| &entry.value) {
-          Some(value) => { (*rawimg).exposure     = value.force_f32(0) as f32; }
-          None => {} }
-        match ifd.get_entry(ExifTag::FocalLength).map(|entry| &entry.value) {
-          Some(value) => { (*rawimg).focal_length = value.force_f32(0) as f32; }
-          None => {} }
-        match ifd.get_entry(ExifTag::CreateDate).map(|entry| &entry.value) {
-          Some(datetime) => { copy_string(&datetime.as_string().unwrap(), &mut (*rawimg).datetime); }
-          None => {} }
-      }
-      Err(_e) => { } // whatever we just skip the exif
-  }
+  copy_metadata(strn, rawimg).unwrap();
 
   copy_string(&image.make,  &mut (*rawimg).maker);
   copy_string(&image.model, &mut (*rawimg).model);
