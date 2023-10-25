@@ -226,8 +226,15 @@ dt_gui_dr_modals()
       }
       line_cnt = 1;
       line[0] = buf;
-      for(uint32_t i=0;i<s-1 && line_cnt < 1024;i++)
-        if(buf[i] == '\n') { line[line_cnt++] = buf+i+1; buf[i] = 0; }
+      for(uint32_t i=0;i<s-1 && line_cnt < 1024;i++) if(buf[i] == '\n')
+      {
+        line[line_cnt++] = buf+i+1;
+        buf[i] = 0;
+      }
+      for(uint32_t i=0;i<line_cnt;i++)
+      { // mark all lines as selected initially, only ones related to input modules not
+        sel[i] = strstr(line[i], "param:i-") == 0 ? 1 : 0;
+      }
       if(buf[s-1] == '\n') buf[s-1] = 0;
     }
     
@@ -237,7 +244,7 @@ dt_gui_dr_modals()
       if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
         ok = 1;
       if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("type to filter the list\n"
+        dt_gui_set_tooltip("type to filter the list\n"
                           "press enter to accept\n"
                           "press escape to close");
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
@@ -245,10 +252,17 @@ dt_gui_dr_modals()
          ImGui::IsKeyPressed(ImGuiKey_CapsLock))
         ok = 3;
 
+      int select_all = 0;
+      if(ImGui::Button("select all shown")) select_all = 1;
+      ImGui::SameLine();
+      if(ImGui::Button("deselect shown")) select_all = 2;
+
       for(int i=0;i<line_cnt;i++)
       {
         if(filter[0] == 0 || strstr(line[i], filter))
         {
+          if(select_all == 1) sel[i] = 1;
+          if(select_all == 2) sel[i] = 0;
           const int selected = sel[i];
           if(selected)
           {
@@ -258,16 +272,16 @@ dt_gui_dr_modals()
           if(ImGui::Button(line[i])) sel[i] ^= 1;
           if(ImGui::IsItemHovered())
           {
-            if(selected) ImGui::SetTooltip("click to drop from preset");
-            else         ImGui::SetTooltip("click to include in preset");
+            if(selected) dt_gui_set_tooltip("click to drop from preset");
+            else         dt_gui_set_tooltip("click to include in preset");
           }
           if(selected) ImGui::PopStyleColor(2);
         }
       }
 
-      if (ImGui::Button("cancel", ImVec2(120, 0))) ok = 3;
+      if (ImGui::Button("cancel")) ok = 3;
       ImGui::SameLine();
-      if (ImGui::Button("ok", ImVec2(120, 0))) ok = 1;
+      if (ImGui::Button("ok")) ok = 1;
     }
     else if(ok == 1)
     {
