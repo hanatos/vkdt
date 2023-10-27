@@ -75,11 +75,11 @@ main()
         1.5748, -0.2126 * 1.5748 / 0.7152, 0.0);
       rgb = M1 * YCbCr;
     }
-  }
+      }
 
   if(params.trc == 1)
-  {
-    rgb = mix(pow((rgb+0.055)/(1.0+0.055), vec3(2.4)), rgb/12.92, lessThanEqual(rgb, vec3(0.04045)));
+  { // bt.709
+    rgb = mix(pow((rgb+0.099)/(1.0+0.099), vec3(1.0/0.45)), rgb/4.5, lessThan(rgb, vec3(0.081)));
   }
   else if(params.trc == 2)
   { // undo PQ / SMPTE ST 2084
