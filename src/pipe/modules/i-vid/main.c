@@ -455,8 +455,6 @@ void modify_roi_out(
   // this first needs a robust way of doing frame drops.
   if(mod->graph->frame_rate == 0) // don't overwrite cfg
     mod->graph->frame_rate = frame_rate;
-
-  mod->connector[0].format = d->p_bits > 0 ? dt_token("ui16") : dt_token("ui8");
 }
 
 #if 0 // TODO
@@ -558,7 +556,8 @@ int read_source(
     if(p_bits == 0)
     { // 8-bit
       for(int j=0;j<ht;j++)
-        memcpy(mapped + sizeof(uint8_t) * wd * j, d->vframe->data[p->a] + d->vframe->linesize[p->a]*j, wd);
+        for(int i=0;i<wd;i++)
+          ((uint16_t*)mapped)[wd*j+i] = ((uint8_t*)(d->vframe->data[p->a] + sizeof(uint8_t)*i + d->vframe->linesize[p->a]*j))[0];
     }
     else if(p_bits == 1 || p_bits == 2 || p_bits == 3)
     { // 16-bit
@@ -667,7 +666,7 @@ create_nodes(
       .name   = dt_token("source"),
       .type   = dt_token("source"),
       .chan   = dt_token("y"),
-      .format = d->p_bits ? dt_token("ui16") : dt_token("ui8"),
+      .format = dt_token("ui16"),
       .roi    = module->connector[0].roi,
       .array_length = 3,
       .array_dim    = d->dim,
@@ -687,7 +686,7 @@ create_nodes(
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("y"),
-      .format = d->p_bits ? dt_token("ui16") : dt_token("ui8"),
+      .format = dt_token("ui16"),
       .roi    = module->connector[0].roi,
       .connected_mi = -1,
       .array_length = 3,
