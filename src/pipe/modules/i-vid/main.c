@@ -455,8 +455,6 @@ void modify_roi_out(
   // this first needs a robust way of doing frame drops.
   if(mod->graph->frame_rate == 0) // don't overwrite cfg
     mod->graph->frame_rate = frame_rate;
-
-  mod->connector[0].format = d->p_bits > 0 ? dt_token("ui16") : dt_token("ui8");
 }
 
 #if 0 // TODO
