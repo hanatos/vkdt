@@ -1,0 +1,53 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+#include "config.h"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec2 center;
+  float scale;
+} params;
+
+layout( // input f16 buffer rgb
+    set = 1, binding = 0
+) uniform sampler2D img_in;
+
+layout( // output f16 buffer rgb
+    set = 1, binding = 1
+) uniform writeonly image2D img_out;
+
+layout( // radius LUT
+  set = 1, binding = 2
+) uniform sampler2D radlut_in;
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  if(params.center.x < 0)
+  { // no-op
+    imageStore(img_out, ipos, texelFetch(img_in, ipos, 0));
+    return;
+  }
+
+  // max radius is the distance in pixels from the center to the furthest corner of the image
+  vec2 px_size = imageSize(img_out);
+  vec2 furthest = vec2(max(params.center.x, 1-params.center.x), max(params.center.y, 1-params.center.y));
+  float rad_max = length(px_size * furthest);
+  float rad_out = params.scale * distance(ipos, px_size * params.center) / rad_max;
+  vec4 rad_scale = texture(radlut_in, vec2(rad_out * ((LUT_SIZE-1.0)/LUT_SIZE) + (1.0/LUT_SIZE), 0.5));
+
+  vec2 p_out = (ipos+0.5)/px_size;
+  vec2 p_in_r = params.scale * (p_out - params.center) * rad_scale.r + params.center;
+  vec2 p_in_g = params.scale * (p_out - params.center) * rad_scale.g + params.center;
+  vec2 p_in_b = params.scale * (p_out - params.center) * rad_scale.b + params.center;
+  float sample_r = sample_catmull_rom(img_in, p_in_r).r;
+  float sample_g = sample_catmull_rom(img_in, p_in_g).g;
+  float sample_b = sample_catmull_rom(img_in, p_in_b).b;
+  imageStore(img_out, ipos, vec4(sample_r, sample_g, sample_b, 0));
+}

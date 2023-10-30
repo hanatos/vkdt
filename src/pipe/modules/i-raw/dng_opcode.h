@@ -81,7 +81,7 @@ void dt_dng_opcode_process_opcode_list_3(uint8_t *buf, uint32_t buf_size, dt_ima
         lc.warp_rect_coef[iplane].kt1 = get_be_double(&p);
       }
       if(num_planes == 1)
-      {
+      { // only one set of coefs to correct distortion only, not TCA - apply to all planes
         lc.warp_rect_coef[1] = lc.warp_rect_coef[0];
         lc.warp_rect_coef[2] = lc.warp_rect_coef[0];
       }
