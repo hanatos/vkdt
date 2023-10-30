@@ -49,5 +49,12 @@ main()
   float sample_r = sample_catmull_rom(img_in, p_in_r).r;
   float sample_g = sample_catmull_rom(img_in, p_in_g).g;
   float sample_b = sample_catmull_rom(img_in, p_in_b).b;
-  imageStore(img_out, ipos, vec4(sample_r, sample_g, sample_b, 0));
+  if(any(lessThan(p_in_g, vec2(0, 0))) || any(greaterThan(p_in_g, vec2(1, 1))))
+  { // black border for pixels outside the input image
+    imageStore(img_out, ipos, vec4(0, 0, 0, 0));
+  }
+  else
+  {
+    imageStore(img_out, ipos, vec4(sample_r, sample_g, sample_b, 0));
+  }
 }
