@@ -10,6 +10,7 @@ static uint32_t get_be_long(uint8_t **p)
   return int_val;
 }
 
+#if 0
 static float get_be_float(uint8_t **p)
 {
   uint32_t int_val = ((*p)[0] << 24) | ((*p)[1] << 16) | ((*p)[2] << 8) | (*p)[3];
@@ -21,6 +22,7 @@ static float get_be_float(uint8_t **p)
   *p += 4;
   return float_val;
 }
+#endif
 
 static double get_be_double(uint8_t **p)
 {
@@ -53,8 +55,8 @@ void dt_dng_opcode_process_opcode_list_3(uint8_t *buf, uint32_t buf_size, dt_ima
   while(count > 0)
   {
     uint32_t opcode_id = get_be_long(&p);
-    uint32_t spec_ver = get_be_long(&p);
-    uint32_t flags = get_be_long(&p);
+    get_be_long(&p); // spec version - ignore
+    get_be_long(&p); // flags - ignore
     uint32_t param_size = get_be_long(&p);
 
     if(offset + 16 + param_size > buf_size)
