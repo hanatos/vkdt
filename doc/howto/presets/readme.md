@@ -43,11 +43,14 @@ to select a preset from a list.
 
 for quick access to everyday operations, you can tie custom preset scripts
 directly to a hotkey. if you browse through the hotkeys in the settings
-expander in darkroom mode, you'll find entries like `exposure+`. these realised
-as small scripts in the `data/keyaccel/` or `~/.config/vkdt/keyaccel/` directories
-which follow the same syntax as `.cfg` or `.pst` files. if the first line is
-a comment (starting with `#`), it will be displayed as additional info in
-the gui.
+expander in darkroom mode, you'll find entries like `exposure+`:
+
+[![keyaccel](keyaccel.png)](keyaccel.png)
+
+these realised as small scripts in the `data/keyaccel/` or
+`~/.config/vkdt/keyaccel/` directories which follow the same syntax as `.cfg`
+or `.pst` files. if the first line is a comment (starting with `#`), it will be
+displayed as additional info in the gui.
 
 to support incremental changes to the parameters, you can use the `paraminc`
 and `paramdec` commands, see the existing scripts for examples.
