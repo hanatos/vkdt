@@ -31,6 +31,7 @@ typedef struct dt_image_params_t
   float    whitebalance[4];   // camera white balance coefficients
   uint32_t filters;           // 0-full 9-xtrans else: bayer bits
   uint32_t crop_aabb[4];      // crops away black borders of raw
+  uint32_t uncropped[2];      // original size of image before any cropping
 
   // basic exif data
   float          cam_to_rec2020[9]; // adobe dng matrix or maybe from exif

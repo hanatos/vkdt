@@ -205,6 +205,8 @@ void modify_roi_out(
   if(load_raw(mod, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
+  mod->img_param.uncropped[0] = dim_uncropped.x;
+  mod->img_param.uncropped[1] = dim_uncropped.y;
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = dim_uncropped.x;
   mod->connector[0].roi.full_ht = dim_uncropped.y;

@@ -105,6 +105,8 @@ void modify_roi_out(
   
   if(load_raw(mod, id + graph->frame, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  mod->img_param.uncropped[0] = mod_data->img.width;
+  mod->img_param.uncropped[1] = mod_data->img.height;
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = mod_data->img.width;
   mod->connector[0].roi.full_ht = mod_data->img.height;
