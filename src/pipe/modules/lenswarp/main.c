@@ -9,8 +9,8 @@ static void generate_radius_lut_dng(
   dt_lens_corr_dng_t *dng = &img_param->lens_corr.params.dng;
 
   if(dng->warp_rect_coef[0].kt0 != 0 || dng->warp_rect_coef[1].kt1 != 0
-    || dng->warp_rect_coef[0].kt0 != 0 || dng->warp_rect_coef[1].kt1 != 0
-    || dng->warp_rect_coef[0].kt0 != 0 || dng->warp_rect_coef[1].kt1 != 0)
+    || dng->warp_rect_coef[1].kt0 != 0 || dng->warp_rect_coef[1].kt1 != 0
+    || dng->warp_rect_coef[2].kt0 != 0 || dng->warp_rect_coef[2].kt1 != 0)
   {
     dt_log(s_log_err, "[lenswarp] Ignoring WarpRectilinear tangential coefficients");
   }
@@ -64,6 +64,30 @@ static void get_center_dng(
   center[1] = cy;
 }
 
+static int get_num_planes_dng(
+  dt_image_params_t *img_param)
+{
+  dt_lens_corr_dng_t *dng = &img_param->lens_corr.params.dng;
+  if(dng->warp_rect_planes == 1)
+  { // only one set of coefs defined in WarpRectilinear tag
+    return 1;
+  }
+
+  // WarpRectilinear defines three planes; are they all the same?
+  dt_warp_rect_coef_t *pa = &dng->warp_rect_coef[0];
+  for(int p = 1; p < 3; p++)
+  {
+    dt_warp_rect_coef_t *pb = &dng->warp_rect_coef[p];
+    if (pa->kr0 != pb->kr0 || pb->kr1 != pb->kr1 || pa->kr2 != pb->kr2 ||
+        pa->kr3 != pb->kr3 || pa->kt0 != pb->kt0 || pa->kt1 != pa->kt1)
+    {
+      // something is different, apply each set of coefs separately
+      return 3;
+    }
+  }
+  return 1;
+}
+
 int read_source(
     dt_module_t             *mod,
     void                    *mapped,
@@ -83,13 +107,17 @@ int read_source(
 void commit_params(dt_graph_t *graph, dt_module_t *mod)
 {
   float *f = (float *)mod->committed_param;
+  uint32_t *i = (uint32_t *)mod->committed_param;
   switch(mod->img_param.lens_corr.type)
   {
     case s_lens_corr_dng:
-      get_center_dng(&mod->img_param, &f[0]);
+      {
+        get_center_dng(&mod->img_param, &f[0]);
+        i[3] = get_num_planes_dng(&mod->img_param);
+      }
       break;
     default:
-      f[0] = -1; // no-op
+      i[3] = 0; // no-op
       break;
   }
 
@@ -99,7 +127,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*(3);
+  mod->committed_param_size = sizeof(float)*(4);
   return 0;
 }
 

@@ -47,7 +47,7 @@ static double get_be_double(uint8_t **p)
 
 void dt_dng_opcode_process_opcode_list_3(uint8_t *buf, uint32_t buf_size, dt_image_params_t *ip)
 {
-  dt_lens_corr_dng_t lc;
+  dt_lens_corr_dng_t lc = {0};
 
   uint8_t *p = buf;
   uint32_t count = get_be_long(&p);
@@ -80,22 +80,16 @@ void dt_dng_opcode_process_opcode_list_3(uint8_t *buf, uint32_t buf_size, dt_ima
         lc.warp_rect_coef[iplane].kt0 = get_be_double(&p);
         lc.warp_rect_coef[iplane].kt1 = get_be_double(&p);
       }
-      if(num_planes == 1)
-      { // only one set of coefs to correct distortion only, not TCA - apply to all planes
-        lc.warp_rect_coef[1] = lc.warp_rect_coef[0];
-        lc.warp_rect_coef[2] = lc.warp_rect_coef[0];
-      }
       lc.warp_rect_center_x = get_be_double(&p);
       lc.warp_rect_center_y = get_be_double(&p);
-
-      lc.warp_rect_enabled = true;
+      lc.warp_rect_planes = num_planes;
     }
 
     offset += 16 + param_size;
     count--;
   }
 
-  if(lc.warp_rect_enabled)
+  if(lc.warp_rect_planes > 0)
   {
     ip->lens_corr.type = s_lens_corr_dng;
     ip->lens_corr.params.dng = lc;

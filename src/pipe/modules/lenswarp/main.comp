@@ -10,6 +10,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   vec2 center;
   float scale;
+  uint planes;
 } params;
 
 layout( // input f16 buffer rgb
@@ -29,7 +30,7 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  if(params.center.x < 0)
+  if(params.planes == 0)
   { // no-op
     imageStore(img_out, ipos, texelFetch(img_in, ipos, 0));
     return;
@@ -43,18 +44,34 @@ main()
   vec4 rad_scale = texture(radlut_in, vec2(rad_out * ((LUT_SIZE-1.0)/LUT_SIZE) + (1.0/LUT_SIZE), 0.5));
 
   vec2 p_out = (ipos+0.5)/px_size;
-  vec2 p_in_r = params.scale * (p_out - params.center) * rad_scale.r + params.center;
-  vec2 p_in_g = params.scale * (p_out - params.center) * rad_scale.g + params.center;
-  vec2 p_in_b = params.scale * (p_out - params.center) * rad_scale.b + params.center;
-  float sample_r = sample_catmull_rom(img_in, p_in_r).r;
-  float sample_g = sample_catmull_rom(img_in, p_in_g).g;
-  float sample_b = sample_catmull_rom(img_in, p_in_b).b;
-  if(any(lessThan(p_in_g, vec2(0, 0))) || any(greaterThan(p_in_g, vec2(1, 1))))
-  { // black border for pixels outside the input image
-    imageStore(img_out, ipos, vec4(0, 0, 0, 0));
+  if(params.planes == 1)
+  { // apply same correction to all planes
+    vec2 p_in = params.scale * (p_out - params.center) * rad_scale.r + params.center;
+    vec4 sample_rgb = sample_catmull_rom(img_in, p_in);
+    if(any(lessThan(p_in, vec2(0, 0))) || any(greaterThan(p_in, vec2(1, 1))))
+    { // black border for pixels outside the input image
+      imageStore(img_out, ipos, vec4(0, 0, 0, 0));
+    }
+    else
+    {
+      imageStore(img_out, ipos, sample_rgb);
+    }
   }
   else
-  {
-    imageStore(img_out, ipos, vec4(sample_r, sample_g, sample_b, 0));
+  { // apply separate correction to each plane
+    vec2 p_in_r = params.scale * (p_out - params.center) * rad_scale.r + params.center;
+    vec2 p_in_g = params.scale * (p_out - params.center) * rad_scale.g + params.center;
+    vec2 p_in_b = params.scale * (p_out - params.center) * rad_scale.b + params.center;
+    float sample_r = sample_catmull_rom(img_in, p_in_r).r;
+    float sample_g = sample_catmull_rom(img_in, p_in_g).g;
+    float sample_b = sample_catmull_rom(img_in, p_in_b).b;
+    if(any(lessThan(p_in_g, vec2(0, 0))) || any(greaterThan(p_in_g, vec2(1, 1))))
+    { // black border for pixels outside the input image
+      imageStore(img_out, ipos, vec4(0, 0, 0, 0));
+    }
+    else
+    {
+      imageStore(img_out, ipos, vec4(sample_r, sample_g, sample_b, 0));
+    }
   }
 }

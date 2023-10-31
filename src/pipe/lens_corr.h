@@ -16,7 +16,10 @@ dt_warp_rect_coef_t;
 
 typedef struct dt_lens_corr_dng_t
 {
-  int                 warp_rect_enabled;
+  // 0: no WarpRectilinear
+  // 1: warp_rect_coef[0] applies to all planes
+  // 3: separate coefficients for each plane
+  int                 warp_rect_planes;
   dt_warp_rect_coef_t warp_rect_coef[3];
   double              warp_rect_center_x, warp_rect_center_y;
 }
