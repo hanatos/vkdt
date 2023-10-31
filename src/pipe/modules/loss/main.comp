@@ -28,8 +28,16 @@ void main()
     vec3 v0 = texelFetch(img_in,   ipos, 0).rgb;
     vec3 v1 = texture(img_orig, (ipos+0.5)/vec2(textureSize(img_in, 0))).rgb; // allow dummy/constant input at different size
     vec3 v = v0 - v1;
-    w = 1.0;
-    err = dot(v, v); // L2
+    if(any(isnan(v)) || any(isinf(v)))
+    {
+      w = 0.0;
+      err = 0.0;
+    }
+    else
+    {
+      w = 1.0;
+      err = dot(v, v); // L2
+    }
   }
   err = subgroupAdd(err);
   w   = subgroupAdd(w);

@@ -19,43 +19,49 @@ layout(set = 1, binding = 1, std430) buffer ssbo1_t { float v[]; } loss;
 layout(set = 1, binding = 2) uniform writeonly image2D img_loss;
 layout(set = 1, binding = 3) uniform writeonly image2D img_out;
 
-float lookup(float px)
-{
   // TODO: make these configurable
-  const float scale = 1.0;
+  const float scale = 0.1;
   const bool logx = true;
   const bool logy = true;
 
+float lookup(float px)
+{
   float frame = px * push.num_samples; // this is the linear frame number mapping
-  if(logx) frame = exp(frame * scale);
+  if(logx) frame = px * 16.0;
   
   uint f0 = uint(frame);
   float E0 = ssbo.v[f0 % push.num_samples];
   float E1 = ssbo.v[(f0+1) % push.num_samples];
 
-  // TODO: check interpolation for log scale!
-  float E = mix(E0, E1, clamp(frame-f0, 0.0, 1.0));
-  if(logy) return log(E);
+  // interpolation is wrong for log scale, but merely noticable:
+  float E = 0.0;
+  if(E1 > 0.0) E = mix(E0, E1, clamp(frame-f0, 0.0, 1.0));
+  if(logy) return log2(E) - log2(1.0/1000.0);
   return E;
 }
 
 void main()
 {
-  if(global.frame == 0 && gl_GlobalInvocationID.x < push.num_samples) ssbo.v[gl_GlobalInvocationID.x] = 1.0;
+  if(global.frame == 0 && gl_GlobalInvocationID.x < push.num_samples) ssbo.v[gl_GlobalInvocationID.x] = 0.0;
   if(gl_GlobalInvocationID.x == 0 && gl_GlobalInvocationID.y == 0)
   {
     imageStore(img_loss, ivec2(0), vec4(loss.v[0]));
-    ssbo.v[global.frame % push.num_samples] = loss.v[0];
+    if(!logx) ssbo.v[global.frame % push.num_samples] = loss.v[0];
+    else if(bitCount(global.frame) == 1)
+    { // remember only at 2^i checkpoints
+      uint pos = uint(log2(global.frame));
+      ssbo.v[pos % push.num_samples] = loss.v[0];
+    }
   }
   uvec2 ipos = gl_GlobalInvocationID.xy;
   if(any(greaterThan(ipos, imageSize(img_out)))) return;
   float E = lookup(ipos.x/float(imageSize(img_out).x));
-  float m = lookup(0.0) * 3.0; // this is 100%
+  float m = lookup(0.0) * 1.2; // this is 100%
   m = max(m, 1e-6);
   vec4 rgba = vec4(0.5, 0.5, 0.5, 1.0);
-  if(1.0 - ipos.y / float(imageSize(img_out).y) > E/m)
-    rgba.rgb = vec3(0.0);
-  // XXX TODO: reimplement this:
+  float dist = abs(1.0 - ipos.y / float(imageSize(img_out).y) - E/m);
+  rgba.rgb = mix(rgba.rgb, vec3(0.0), smoothstep(0.0, 3.0/float(imageSize(img_out).y), dist));
+  // XXX TODO: reimplement this (and maybe some scale/log indicators)
   // if(ipos.x == (global.frame % push.num_frames)) rgba = vec4(0.9, 0.3, 0.2, 1.0);
 
   float top = imageSize(img_out).y-1;
