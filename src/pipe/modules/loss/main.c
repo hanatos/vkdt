@@ -1,31 +1,26 @@
 #include "modules/api.h"
-#include "core/half.h"
 #include <math.h>
 
-void modify_roi_in(
-    dt_graph_t *graph,
+void
+modify_roi_out(
+    dt_graph_t  *graph,
     dt_module_t *module)
 {
-  dt_roi_t *r = &module->connector[0].roi;
-  r->wd = r->full_wd;
-  r->ht = r->full_ht;
-  r->scale = 1.0f;
-  r = &module->connector[1].roi;
-  r->wd = r->full_wd;
-  r->ht = r->full_ht;
-  r->scale = 1.0f;
-  module->connector[2].roi.wd = module->connector[2].roi.full_wd;
-  module->connector[2].roi.ht = module->connector[2].roi.full_ht;
-  module->connector[2].roi.scale = 1.0f;
+  module->connector[2].roi.full_wd = 512;
+  module->connector[2].roi.full_ht = 256;
 }
 
-void modify_roi_out(
-    dt_graph_t *graph,
+void
+modify_roi_in(
+    dt_graph_t  *graph,
     dt_module_t *module)
 {
-  const int sz = 2;
-  module->connector[2].roi.full_wd = (module->connector[0].roi.full_wd+sz-1)/sz;
-  module->connector[2].roi.full_ht = (module->connector[0].roi.full_ht+sz-1)/sz;
+  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  module->connector[0].roi.scale = 1;
+  module->connector[1].roi.wd = module->connector[1].roi.full_wd;
+  module->connector[1].roi.ht = module->connector[1].roi.full_ht;
+  module->connector[1].roi.scale = 1;
 }
 
 void
@@ -34,13 +29,15 @@ create_nodes(
     dt_module_t *module)
 {
   // one node to collect, and one to read back the sink
-  dt_roi_t rbuf = (dt_roi_t){.wd = (module->connector[0].roi.wd * module->connector[0].roi.ht+63) / 64, .ht = 1 };
+  dt_roi_t rbuf = (dt_roi_t){
+    .wd = ((module->connector[0].roi.wd + DT_LOCAL_SIZE_X - 1)/DT_LOCAL_SIZE_X) * ((module->connector[0].roi.ht + DT_LOCAL_SIZE_Y - 1)/DT_LOCAL_SIZE_Y),
+    .ht = 2,
+  };
   const int id_mse = dt_node_add(graph, module, "loss", "main",
-      module->connector[0].roi.wd, module->connector[1].roi.wd, 1, 0, 0, 3,
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 3,
       "input", "read", "*", "*", -1ul,
       "orig",  "read", "*", "*", -1ul,
       "loss",  "write", "ssbo", "f32", &rbuf);
-
   dt_connector_copy(graph, module, 0, id_mse, 0);
   dt_connector_copy(graph, module, 1, id_mse, 1);
 
@@ -53,7 +50,7 @@ create_nodes(
   {
     const int cwd = (rbuf.wd + sz - 1)/sz;
     const int pc[] = { rbuf.wd };
-    const int wd = cwd * DT_LOCAL_SIZE_X;
+    const int wd = cwd * DT_LOCAL_SIZE_X; // cwd is number of work groups.
     rbuf.wd = cwd;
     const int id_down = dt_node_add(graph, module, "loss", "down", wd, 1, 1, sizeof(pc), pc, 2,
         "input",  "read",  "ssbo", "f32", -1ul,
@@ -63,9 +60,21 @@ create_nodes(
     conn = 1;
   }
 
+  dt_roi_t rtime = (dt_roi_t){.wd = 256, .ht = 1};
+  dt_roi_t tiny  = (dt_roi_t){.wd = 8,   .ht = 8};
+  const int pc[] = { 256 };
+  const int id_dspy = dt_node_add(graph, module, "loss", "map", module->connector[2].roi.wd, module->connector[2].roi.ht, 1, sizeof(pc), pc, 4,
+      "time", "write", "ssbo", "f32", &rtime,
+      "loss", "read",  "ssbo", "f32", -1ul,
+      "tiny", "write", "rgba", "f32", &tiny,
+      "dspy", "write", "rgba", "f16", &module->connector[2].roi);
+  dt_connector_copy(graph, module, 2, id_dspy, 3);
+  CONN(dt_node_connect(graph, node, conn, id_dspy, 1));
+
   const int id_sink = dt_node_add(graph, module, "loss", "sink", 1, 1, 1, 0, 0, 1,
-      "input", "sink", "ssbo", "f32", -1ul);
-  CONN(dt_node_connect(graph, node, conn, id_sink, 0));
+      "input", "sink", "*", "f32", -1ul);
+  CONN(dt_node_connect_named(graph, id_dspy, "tiny", id_sink, "input")); // stupid dance via image because we don't have the buffer in host visible memory
+  graph->node[id_dspy].connector[0].flags |= s_conn_protected; // protect memory, will update the timeline
   module->flags |= s_module_request_write_sink;
 }
 
@@ -84,7 +93,7 @@ check_params(
 // our input buffer will come in memory mapped.
 void write_sink(
     dt_module_t *module,
-    void *buf)
+    void        *buf)
 {
   float *loss = 0;
   for(int p=0;p<module->so->num_params;p++)
@@ -94,4 +103,5 @@ void write_sink(
 
   float *b = buf;
   loss[0] = b[0];
+  fprintf(stderr, "XXX loss upload! %f\n", loss[0]);
 }

@@ -128,6 +128,8 @@
   cn1->flags = cn0->flags;
   cn1->flags &= ~s_conn_feedback; // not a feedback connector by default
 
+  cn1->roi = cn0->roi; // copy the buffer extents
+
   // back connections are not unique, so we're just using this
   // as a reference counter, so we know there is /some/ connection.
   // we know which is which because cn0->type == "write"|"source".

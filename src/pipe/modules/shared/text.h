@@ -48,7 +48,7 @@ vec2 carret = vec2(0);
 // Returns the digit sprite for the given number.
 vec2 digit(float d) {    
   vec3 r = vec3(0, 0, floor(d));
-  if (r.z == 0.) r.xy = c_0; else if (r.z == 1.) r.xy = c_1;
+  if      (r.z == 0.) r.xy = c_0; else if (r.z == 1.) r.xy = c_1;
   else if (r.z == 2.) r.xy = c_2; else if (r.z == 3.) r.xy = c_3;
   else if (r.z == 4.) r.xy = c_4; else if (r.z == 5.) r.xy = c_5;
   else if (r.z == 6.) r.xy = c_6; else if (r.z == 7.) r.xy = c_7;
@@ -85,7 +85,7 @@ float print_number(float number,vec2 pos, vec2 uv)
   vec2 dec_pos = pos;
   float result = 0.;
 
-  for(int i = 3; i >= -2; --i) {
+  [[unroll]] for(int i = 3; i >= -2; --i) {
     //Clip off leading zeros.
     float clip = float(abs(number) > pow(10.0, float(i)) || i <= 0);        
     float d = mod(number / pow(10., float(i)),10.);
@@ -94,7 +94,6 @@ float print_number(float number,vec2 pos, vec2 uv)
       result += spr(c_per,CHR.xy, uv - dec_pos);
       dec_pos.x += CHR.z;
     }
-
     result += spr(digit(d),CHR.xy, uv - dec_pos) * clip;
     dec_pos.x += CHR.z * clip;
   }

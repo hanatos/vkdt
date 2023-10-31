@@ -32,9 +32,8 @@ void main()
   float err = 0.0, w = 0.0;
   if(ipos < push.size)
   {
-    vec2 v = vec2(vin[2*ipos], vin[2*ipos+1]);
-    w = v.y;
-    err = w * v.x;
+    w = vin[2*ipos+1];
+    err = w * vin[2*ipos];
   }
   w = subgroupAdd(w);
   err = subgroupAdd(err);
@@ -48,16 +47,21 @@ void main()
 
   barrier();
 
-  if(gl_SubgroupID == 0 && gl_SubgroupInvocationID == 0)
+  if(gl_SubgroupID == 0)
   {
     err = 0.0; w = 0.0;
-    for(int i=0;i<gl_SubgroupSize;i++)
+    if(gl_SubgroupInvocationID < gl_NumSubgroups)
     {
-      err += shm_loss[i];
-      w += shm_w[i];
+      err = shm_loss[gl_SubgroupInvocationID];
+      w = shm_w[gl_SubgroupInvocationID];
     }
-    vout[2*gl_WorkGroupID.x  ] = err;
-    vout[2*gl_WorkGroupID.x+1] = w/gl_WorkGroupSize.x;
+    err = subgroupAdd(err);
+    w = subgroupAdd(w);
+    if(gl_SubgroupInvocationID == 0)
+    {
+      if(w > 0.0) err /= w;
+      vout[2*gl_WorkGroupID.x  ] = err;
+      vout[2*gl_WorkGroupID.x+1] = w/gl_WorkGroupSize.x;
+    }
   }
 }
-

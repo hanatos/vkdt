@@ -842,7 +842,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           }
           graph->memory_type_bits_ssbo = buf_mem_req.memoryTypeBits;
 
-          if(c->frames == 2) // allocate protected memory for feedback connectors
+          if((c->frames == 2 || (c->flags & s_conn_protected))) // allocate protected memory
             img->mem = dt_vkalloc_feedback(&graph->heap_ssbo, buf_mem_req.size, buf_mem_req.alignment);
           else
             img->mem = dt_vkalloc(&graph->heap_ssbo, buf_mem_req.size, buf_mem_req.alignment);

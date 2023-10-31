@@ -1,9 +1,8 @@
 #version 460
-#extension GL_GOOGLE_include_directive    : enable
-#extension GL_EXT_nonuniform_qualifier    : enable
-
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 #include "shared.glsl"
-
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 layout(std140, set = 0, binding = 1) uniform params_t
@@ -12,62 +11,52 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float loss;
 } params;
 
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform sampler2D img_orig;
+layout(set = 1, binding = 2, std430) buffer ssbo_t { float vout[]; };
 
-layout( // input f16 buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
+const uint shm_size = gl_WorkGroupSize.x*gl_WorkGroupSize.y / 4; // really divide by gl_SubgroupSize;
+shared float shm_loss[shm_size];
+shared float shm_w[shm_size];
 
-layout( // input f16 buffer rgb
-    set = 1, binding = 1
-) uniform sampler2D img_orig;
-
-layout( // output f16 buffer rgb
-    set = 1, binding = 2
-) uniform writeonly image2D img_out;
-
-void
-main()
+void main()
 {
-  ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
-
-  float mse = 0.0;
-  const int sz = 2;
-  float w = 0.0;
-  for(int i=0;i<sz;i++) for(int j=0;j<sz;j++)
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  float err = 0.0, w = 0.0;
+  if(all(lessThan(ipos, textureSize(img_in, 0))))
   {
-    ivec2 rd = sz*opos + ivec2(i,j);
-    if(any(greaterThanEqual(rd, textureSize(img_in, 0)))) continue;
-    if(any(lessThan(rd, ivec2(0)))) continue;
-#if 0
-    vec3 v = texelFetch(img_in, rd, 0).rgb;
-    // vec3 o = texelFetch(img_orig, sz*opos + ivec2(i, j), 0).rgb;
-
-    // float M = max(max(o.r, o.g), o.b);
-    // float m = min(min(o.r, o.g), o.b);
-    // if(o.r+o.g+o.b > params.bound_x &&
-    //    o.r+o.g+o.b < params.bound_y &&
-    //    M-m > params.bound_z)
-    // XXX somehow never triggers even for crazy bounds??
-#else
-
-    vec3 v0 = texelFetch(img_in,   rd, 0).rgb;
-    vec3 v1 = texelFetch(img_orig, rd, 0).rgb;
-    vec3 v = 100.0*(v0 - v1);
-#endif
+    vec3 v0 = texelFetch(img_in,   ipos, 0).rgb;
+    vec3 v1 = texture(img_orig, (ipos+0.5)/vec2(textureSize(img_in, 0))).rgb; // allow dummy/constant input at different size
+    vec3 v = v0 - v1;
+    w = 1.0;
+    err = dot(v, v); // L2
+  }
+  err = subgroupAdd(err);
+  w   = subgroupAdd(w);
+  if(gl_SubgroupInvocationID == 0)
+  {
+    if(w > 0.0) err /= w;
+    else err = 0.0;
+    shm_loss[gl_SubgroupID] = err;
+    shm_w[gl_SubgroupID] = w/gl_SubgroupSize;
+  }
+  barrier();
+  if(gl_SubgroupID == 0)
+  {
+    err = 0.0; w = 0.0;
+    if(gl_SubgroupInvocationID < gl_NumSubgroups)
     {
-      w++;
-      v -= vec3(1,1,1);   // ratio
-      // v -= vec3(0,0,0);   // difference
-      // mse += dot(v,v);     // L2
-      mse += dot(abs(v),vec3(1,1,1)); // L1
-      // mse = max(max(mse, v.r), max(v.g, v.b));  // max
+      err = shm_loss[gl_SubgroupInvocationID];
+      w = shm_w[gl_SubgroupInvocationID];
+    }
+    err = subgroupAdd(err);
+    w = subgroupAdd(w);
+    if(gl_SubgroupInvocationID == 0)
+    {
+      uint wid = gl_WorkGroupID.x + gl_NumWorkGroups.x * gl_WorkGroupID.y;
+      if(w > 0.0) err /= w;
+      vout[2*wid  ] = err;
+      vout[2*wid+1] = w/(gl_WorkGroupSize.x * gl_WorkGroupSize.y);
     }
   }
-
-  if(w == 0.0) mse = -1.0;
-  else mse /= w;
-
-  imageStore(img_out, opos, vec4(mse, w / (sz*sz), 0, 0));
 }
-
