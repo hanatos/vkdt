@@ -103,5 +103,4 @@ void write_sink(
 
   float *b = buf;
   loss[0] = b[0];
-  fprintf(stderr, "XXX loss upload! %f\n", loss[0]);
 }
