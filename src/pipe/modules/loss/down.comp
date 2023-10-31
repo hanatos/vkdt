@@ -1,10 +1,10 @@
 #version 460
-#extension GL_GOOGLE_include_directive    : enable
-#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
 #include "shared.glsl"
-
-layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
@@ -12,38 +12,52 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float loss;
 } params;
 
-
-layout( // input f16 buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer rgb
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
-
-void
-main()
+layout(push_constant, std140) uniform push_t
 {
-  ivec2 opos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+  int size;
+} push;
 
-  float mse = 0.0;
-  const int sz = 2;
-  float w = 0.0;
-  for(int i=0;i<sz;i++) for(int j=0;j<sz;j++)
+layout(set = 1, binding = 0, std430) buffer buf_in  { float vin[]; };
+layout(set = 1, binding = 1, std430) buffer buf_out { float vout[]; };
+
+// gl_SubgroupSize is not a constant (intel) so we work under the risky assumption
+// that it'll be a minimum of 4:
+const uint shm_size = gl_WorkGroupSize.x / 4; // really divide by gl_SubgroupSize;
+shared float shm_loss[shm_size];
+shared float shm_w[shm_size];
+
+void main()
+{
+  uint ipos = gl_GlobalInvocationID.x;
+  float err = 0.0, w = 0.0;
+  if(ipos < push.size)
   {
-    ivec2 rd = sz*opos + ivec2(i,j);
-    if(any(greaterThanEqual(rd, textureSize(img_in, 0)))) continue;
-    if(any(lessThan(rd, ivec2(0)))) continue;
-    vec2 v = texelFetch(img_in, rd, 0).rg;
-    w += v.y;
-    mse += v.y * v.x;
-    // mse = max(mse, v.x);
+    vec2 v = vec2(vin[2*ipos], vin[2*ipos+1]);
+    w = v.y;
+    err = w * v.x;
+  }
+  w = subgroupAdd(w);
+  err = subgroupAdd(err);
+  if(gl_SubgroupInvocationID == 0)
+  {
+    if(w > 0.0) err /= w;
+    else err = 0.0;
+    shm_loss[gl_SubgroupID] = err;
+    shm_w[gl_SubgroupID] = w/gl_SubgroupSize;
   }
 
-  if(w == 0.0) mse = -1.0;
-  else mse /= w;
+  barrier();
 
-  imageStore(img_out, opos, vec4(mse, w/(sz*sz), 0, 0));
+  if(gl_SubgroupID == 0 && gl_SubgroupInvocationID == 0)
+  {
+    err = 0.0; w = 0.0;
+    for(int i=0;i<gl_SubgroupSize;i++)
+    {
+      err += shm_loss[i];
+      w += shm_w[i];
+    }
+    vout[2*gl_WorkGroupID.x  ] = err;
+    vout[2*gl_WorkGroupID.x+1] = w/gl_WorkGroupSize.x;
+  }
 }
 

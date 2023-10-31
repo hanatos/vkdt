@@ -34,109 +34,38 @@ create_nodes(
     dt_module_t *module)
 {
   // one node to collect, and one to read back the sink
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_mse = graph->num_nodes++;
-  graph->node[id_mse] = (dt_node_t) {
-    .name   = dt_token("loss"),
-    .kernel = dt_token("main"),
-    .module = module,
-    .wd     = module->connector[2].roi.wd,
-    .ht     = module->connector[2].roi.ht,
-    .dp     = 1,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("*"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("orig"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("*"),
-      .format = dt_token("*"),
-      .roi    = module->connector[1].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("loss"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rg"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[2].roi,
-    }},
-  };
+  dt_roi_t rbuf = (dt_roi_t){.wd = (module->connector[0].roi.wd * module->connector[0].roi.ht+63) / 64, .ht = 1 };
+  const int id_mse = dt_node_add(graph, module, "loss", "main",
+      module->connector[0].roi.wd, module->connector[1].roi.wd, 1, 0, 0, 3,
+      "input", "read", "*", "*", -1ul,
+      "orig",  "read", "*", "*", -1ul,
+      "loss",  "write", "ssbo", "f32", &rbuf);
 
   dt_connector_copy(graph, module, 0, id_mse, 0);
   dt_connector_copy(graph, module, 1, id_mse, 1);
-  dt_connector_copy(graph, module, 2, id_mse, 2);
 
   // remember mse as entry point
   int node = id_mse;
   int conn = 2;
 
-  const int sz = 2;
-  dt_roi_t roi = module->connector[2].roi;
-  while(roi.wd > 1 && roi.ht > 1)
+  const int sz = 64;
+  while(rbuf.wd > 1)
   {
-    int cwd = (roi.wd + sz - 1)/sz;
-    int cht = (roi.ht + sz - 1)/sz;
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_down = graph->num_nodes++;
-    graph->node[id_down] = (dt_node_t) {
-      .name   = dt_token("loss"),
-      .kernel = dt_token("down"),
-      .module = module,
-      .wd     = cwd,
-      .ht     = cht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rg"),
-        .format = dt_token("f32"),
-        .roi    = roi,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rg"),
-        .format = dt_token("f32"),
-        .roi    = roi,
-      }},
-    };
-    roi.wd = cwd;
-    roi.ht = cht;
-    graph->node[id_down].connector[1].roi = roi;
+    const int cwd = (rbuf.wd + sz - 1)/sz;
+    const int pc[] = { rbuf.wd };
+    const int wd = cwd * DT_LOCAL_SIZE_X;
+    rbuf.wd = cwd;
+    const int id_down = dt_node_add(graph, module, "loss", "down", wd, 1, 1, sizeof(pc), pc, 2,
+        "input",  "read",  "ssbo", "f32", -1ul,
+        "output", "write", "ssbo", "f32", &rbuf);
     CONN(dt_node_connect(graph, node, conn, id_down, 0));
     node = id_down;
     conn = 1;
   }
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_sink = graph->num_nodes++;
-  graph->node[id_sink] = (dt_node_t) {
-    .name   = dt_token("loss"),
-    .kernel = dt_token("sink"),
-    .module = module,
-    .wd     = roi.wd,
-    .ht     = roi.ht,
-    .dp     = 1,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("sink"),
-      .chan   = dt_token("rg"),
-      .format = dt_token("f32"),
-      .roi    = roi,
-      .connected_mi = -1,
-    }},
-  };
+  const int id_sink = dt_node_add(graph, module, "loss", "sink", 1, 1, 1, 0, 0, 1,
+      "input", "sink", "ssbo", "f32", -1ul);
   CONN(dt_node_connect(graph, node, conn, id_sink, 0));
-
-  // dt_connector_copy(graph, module, 2, node, conn);
-
   module->flags |= s_module_request_write_sink;
 }
 
