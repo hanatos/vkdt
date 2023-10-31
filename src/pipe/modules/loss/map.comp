@@ -1,0 +1,65 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_control_flow_attributes : enable
+#include "shared.glsl"
+#include "shared/text.h"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+layout(push_constant, std140) uniform push_t
+{
+  uint num_samples;
+} push;
+
+layout(set = 1, binding = 0, std430) buffer ssbo0_t { float v[]; } ssbo;
+layout(set = 1, binding = 1, std430) buffer ssbo1_t { float v[]; } loss;
+layout(set = 1, binding = 2) uniform writeonly image2D img_loss;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
+
+float lookup(float px)
+{
+  // TODO: make these configurable
+  const float scale = 1.0;
+  const bool logx = true;
+  const bool logy = true;
+
+  float frame = px * push.num_samples; // this is the linear frame number mapping
+  if(logx) frame = exp(frame * scale);
+  
+  uint f0 = uint(frame);
+  float E0 = ssbo.v[f0 % push.num_samples];
+  float E1 = ssbo.v[(f0+1) % push.num_samples];
+
+  // TODO: check interpolation for log scale!
+  float E = mix(E0, E1, clamp(frame-f0, 0.0, 1.0));
+  if(logy) return log(E);
+  return E;
+}
+
+void main()
+{
+  if(global.frame == 0 && gl_GlobalInvocationID.x < push.num_samples) ssbo.v[gl_GlobalInvocationID.x] = 1.0;
+  if(gl_GlobalInvocationID.x == 0 && gl_GlobalInvocationID.y == 0)
+  {
+    imageStore(img_loss, ivec2(0), vec4(loss.v[0]));
+    ssbo.v[global.frame % push.num_samples] = loss.v[0];
+  }
+  uvec2 ipos = gl_GlobalInvocationID.xy;
+  if(any(greaterThan(ipos, imageSize(img_out)))) return;
+  float E = lookup(ipos.x/float(imageSize(img_out).x));
+  float m = lookup(0.0) * 3.0; // this is 100%
+  m = max(m, 1e-6);
+  vec4 rgba = vec4(0.5, 0.5, 0.5, 1.0);
+  if(1.0 - ipos.y / float(imageSize(img_out).y) > E/m)
+    rgba.rgb = vec3(0.0);
+  // XXX TODO: reimplement this:
+  // if(ipos.x == (global.frame % push.num_frames)) rgba = vec4(0.9, 0.3, 0.2, 1.0);
+
+  float top = imageSize(img_out).y-1;
+  float text = print_number(m, vec2(10, top-21), vec2(ipos.x, top-ipos.y));
+  rgba.rgb += vec3(text);
+  imageStore(img_out, ivec2(ipos), rgba);
+}
