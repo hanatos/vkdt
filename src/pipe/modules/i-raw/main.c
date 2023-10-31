@@ -119,6 +119,7 @@ void modify_roi_out(
   mod->img_param.aperture = mod_data->img.aperture;
   mod->img_param.exposure = mod_data->img.exposure;
   mod->img_param.focal_length = mod_data->img.focal_length;
+  mod->img_param.orientation = mod_data->img.orientation;
   size_t r = snprintf(mod->img_param.datetime, sizeof(mod->img_param.datetime), "%s", mod_data->img.datetime);
   if(r >= sizeof(mod->img_param.datetime)) mod->img_param.datetime[sizeof(mod->img_param.datetime)-1] = 0;
   float *noise_a = (float*)dt_module_param_float(mod, 1);
