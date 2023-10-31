@@ -111,6 +111,7 @@ struct dt_export_widget_t
   int     format;
   float   quality;
   int     overwrite;
+  int     last_frame_only;
 };
 
 inline void
@@ -155,6 +156,7 @@ dt_export_init(
   strncpy(w->basename,
         dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img_${seq}"),
         sizeof(w->basename)-1);
+  w->last_frame_only = 0;
 }
 
 inline void
@@ -191,6 +193,7 @@ dt_export(
     dt_rc_set_float(&vkdt.rc, "gui/export/quality", w->quality);
   if(ImGui::Combo("format", &w->format, w->format_text))
     dt_rc_set_int(&vkdt.rc, "gui/export/format", w->format);
+  ImGui::Combo("animations", &w->last_frame_only, "export every frame\0export last frame only\0\0");
   // TODO: this is not wired in the backend so hidden from gui for now too:
   // const char *overwrite_mode_str = "keep\0overwrite\0\0";
   // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);

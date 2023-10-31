@@ -254,6 +254,7 @@ struct export_job_t
   float quality;
   uint32_t cnt;
   uint32_t overwrite;
+  uint32_t last_frame_only;
   char basename[1000];
   uint8_t *pdata;
   uint32_t abort;
@@ -301,6 +302,7 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].quality    = j->quality;
   param.output[0].mod        = j->output_module;
   param.output[0].p_pdata    = (char *)j->pdata;
+  param.last_frame_only      = j->last_frame_only;
   param.p_cfgfile = infilename;
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
@@ -326,6 +328,7 @@ int export_job(
   j->ht = w->ht;
   j->output_module = dt_pipe.module[w->modid[w->format]].name;
   j->quality = w->quality;
+  j->last_frame_only = w->last_frame_only;
   size_t psize = dt_module_total_param_size(w->modid[w->format]);
   j->pdata = (uint8_t *)malloc(sizeof(uint8_t)*psize);
   memcpy(j->pdata, w->pdata[w->format], psize);
