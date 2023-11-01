@@ -205,8 +205,6 @@ void modify_roi_out(
   if(load_raw(mod, filename)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rawspeed::iPoint2D dim_uncropped = mod_data->d->mRaw->getUncroppedDim();
-  mod->img_param.uncropped[0] = dim_uncropped.x;
-  mod->img_param.uncropped[1] = dim_uncropped.y;
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = dim_uncropped.x;
   mod->connector[0].roi.full_ht = dim_uncropped.y;
@@ -223,6 +221,16 @@ void modify_roi_out(
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
   dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
+
+  // if we are applying DNG opcodes but did not find an ActiveArea tag, use the
+  // entire uncropped area as the ActiveArea.
+  if (mod->img_param.lens_corr.type == s_lens_corr_dng && mod->img_param.lens_corr.params.dng.active_area[2] == 0)
+  {
+    mod->img_param.lens_corr.params.dng.active_area[0] = 0;
+    mod->img_param.lens_corr.params.dng.active_area[1] = 0;
+    mod->img_param.lens_corr.params.dng.active_area[2] = dim_uncropped.y;
+    mod->img_param.lens_corr.params.dng.active_area[3] = dim_uncropped.x;
+  }
 #endif
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->d->mRaw->metadata.canonical_make.c_str());

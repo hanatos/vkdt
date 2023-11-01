@@ -265,6 +265,24 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
       dt_dng_opcode_process_opcode_list_3(data, pos->size(), ip);
       free(data);
     }
+
+    if (ip->lens_corr.type == s_lens_corr_dng)
+    {
+      // If applying DNG opcodes, get the ActiveArea, as the opcodes are
+      // intended to apply to that region rather than the DefaultCropOrigin /
+      // DefaultCropSize region.
+      if(FIND_EXIF_TAG("Exif.SubImage1.ActiveArea"))
+      {
+        for (int i=0;i<4;i++)
+          ip->lens_corr.params.dng.active_area[i] = pos->toLong(i);
+      }
+      else if (FIND_EXIF_TAG("Exif.Image.ActiveArea"))
+      {
+        for (int i=0;i<4;i++)
+          ip->lens_corr.params.dng.active_area[i] = pos->toLong(i);
+      }
+    }
+
     return 0;
   }
   catch(Exiv2::AnyError &e)

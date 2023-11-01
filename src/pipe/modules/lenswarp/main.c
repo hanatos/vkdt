@@ -16,16 +16,16 @@ static void generate_radius_lut_dng(
   }
 
   // For WarpRectilinear, radius 1 is defined as the distance from the center to
-  // the furthest corner of the uncropped image (or ActiveArea?). For the LUT we
-  // want to define radius 1 as the corner of the crop area.
+  // the furthest corner of the ActiveArea. For the LUT we want to define radius
+  // 1 as the corner of the crop area.
 
-  // pixel location of center in the uncropped image
-  float cx = dng->warp_rect_center_x * img_param->uncropped[0];
-  float cy = dng->warp_rect_center_y * img_param->uncropped[1];
-  // distance to furthest corner of uncropped image
+  // pixel location of center in the uncropped ActiveArea
+  float cx = dng->warp_rect_center_x * (dng->active_area[3] - dng->active_area[1]);
+  float cy = dng->warp_rect_center_y * (dng->active_area[2] - dng->active_area[0]);
+  // distance to furthest corner of uncropped ActiveArea
   float dng_dist = hypotf(
-    MAX(cx, img_param->uncropped[0] - cx),
-    MAX(cy, img_param->uncropped[1] - cy));
+    MAX(cx, (dng->active_area[3] - dng->active_area[1]) - cx),
+    MAX(cy, (dng->active_area[2] - dng->active_area[0]) - cy));
   // distance to furthest corner of cropped image
   float crop_dist = hypotf(
     MAX(cx - img_param->crop_aabb[0], img_param->crop_aabb[2] - cx),
@@ -48,12 +48,10 @@ static void get_center_dng(
     dt_image_params_t *img_param,
     float             *center)
 {
-  // TODO this might actually be relative to the ActiveArea not the full uncropped area?
-
   dt_lens_corr_dng_t *dng = &img_param->lens_corr.params.dng;
-  // pixel location of center in the uncropped image
-  float cx = dng->warp_rect_center_x * img_param->uncropped[0];
-  float cy = dng->warp_rect_center_y * img_param->uncropped[1];
+  // pixel location of center in the uncropped ActiveArea
+  float cx = dng->warp_rect_center_x * (dng->active_area[3] - dng->active_area[1]);
+  float cy = dng->warp_rect_center_y * (dng->active_area[2] - dng->active_area[0]);
   // pixel location of center in the cropped image
   cx -= img_param->crop_aabb[0];
   cy -= img_param->crop_aabb[1];

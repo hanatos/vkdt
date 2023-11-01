@@ -16,6 +16,8 @@ dt_warp_rect_coef_t;
 
 typedef struct dt_lens_corr_dng_t
 {
+  int                 active_area[4]; // top, left, bottom, right
+
   // 0: no WarpRectilinear
   // 1: warp_rect_coef[0] applies to all planes
   // 3: separate coefficients for each plane
