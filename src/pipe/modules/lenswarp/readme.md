@@ -2,6 +2,8 @@
 
 This warps the image in order to correct for lens distortion and / or transverse chromatic aberration.
 
+This must be placed after demosaic and before crop for correct operation.
+
 The correction parameters are automatically obtained from:
 
 * for [DNG](https://helpx.adobe.com/camera-raw/digital-negative.html) files: the `WarpRectilinear` opcode in the `OpcodeList3` tag
