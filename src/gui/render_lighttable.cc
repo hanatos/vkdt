@@ -813,6 +813,8 @@ void render_lighttable_right_panel(int hotkey)
         if(ImGui::Button("abort")) job[k].abort = 1;
         ImGui::SameLine();
         ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
+        if(job[k].graph.frame_cnt > 1)
+          ImGui::ProgressBar(job[k].graph.frame / (float)job[k].graph.frame_cnt, ImVec2(-1, 0));
       }
       else
       { // done/aborted
