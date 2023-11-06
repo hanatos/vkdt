@@ -1,2 +1,2 @@
 MOD_LDFLAGS=-lz
-pipe/modules/i-pfm/libi-exr.so: core/half.h
+pipe/modules/i-exr/libi-exr.so: core/half.h

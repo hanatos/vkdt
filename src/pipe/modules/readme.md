@@ -24,6 +24,7 @@ it follows the current list of available modules.
 **output**
 
 * [o-bc1: write bc1 compressed thumbnail files](./o-bc1/readme.md)
+* [o-exr: write openexr image files](./o-exr/readme.md)
 * [o-ffmpeg: write h264 compressed video stream for multi-frame input](./o-ffmpeg/readme.md)
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
 * [o-lut: write varying precision multi channel luts](./o-lut/readme.md)
