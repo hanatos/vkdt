@@ -27,6 +27,7 @@ main()
 
   vec3 rgb = texelFetch(img_in,   ipos, 0).rgb;
   vec3 bck = texelFetch(img_back, ipos, 0).rgb;
+  rgb = mix(rgb, bck, isnan(rgb)); // remove nan on input
   if(int(global.frame) >= params.start)
   {
     float N = int(global.frame) - params.start;
