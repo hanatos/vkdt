@@ -134,7 +134,7 @@ spectrum_chg_interval(
 // white balance three cfa spectra by dividing out one illuminant and multiplying
 // by another. this alters the cfa to include "in-scene" white balancing that is
 // conceptually happening before the light travels through the sensor.
-// the mul and div spectra are assumed to be at least as fine grained in wavelength
+// the mul spectrum is assumed to be at least as fine grained in wavelength
 // resolution as the cfa spectrum. only the same wavelengths as in cfa[.][0] will
 // be considered.
 static inline void
