@@ -287,7 +287,7 @@ void export_job_work(uint32_t item, void *arg)
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
   snprintf(istr, sizeof(istr), "%04d", item);
-  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "ffile", 0};
+  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "fbase", 0};
   const char *val[] = { getenv("HOME"), yyyy, date, istr, filedir, filebase, 0};
   dt_strexpand(j->basename, sizeof(j->basename), filename, sizeof(filename), key, val);
 

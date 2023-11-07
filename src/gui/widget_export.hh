@@ -188,7 +188,7 @@ dt_export(
       "${date} -- today's date\n"
       "${seq} -- sequence number\n"
       "${fdir} -- directory of input file\n"
-      "${ffile} -- basename of input file");
+      "${fbase} -- basename of input file");
   if(ImGui::InputFloat("quality", &w->quality, 1, 100, 0))
     dt_rc_set_float(&vkdt.rc, "gui/export/quality", w->quality);
   if(ImGui::Combo("format", &w->format, w->format_text))
