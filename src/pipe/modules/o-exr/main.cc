@@ -46,9 +46,9 @@ void write_sink(
   }
 
   uint16_t* image_ptr[3];
-  image_ptr[0] = &(images[2].at(0)); // B
-  image_ptr[1] = &(images[1].at(0)); // G
-  image_ptr[2] = &(images[0].at(0)); // R
+  image_ptr[0] = &(images[0].at(0));
+  image_ptr[1] = &(images[1].at(0));
+  image_ptr[2] = &(images[2].at(0));
 
   img.images = (unsigned char**)image_ptr;
   img.width  = wd;
@@ -56,10 +56,9 @@ void write_sink(
 
   hdr.num_channels = 3;
   hdr.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * hdr.num_channels);
-  // Must be BGR(A) order, since most of EXR viewers expect this channel order.
-  strncpy(hdr.channels[0].name, "B", 255); hdr.channels[0].name[strlen("B")] = '\0';
+  strncpy(hdr.channels[0].name, "R", 255); hdr.channels[0].name[strlen("R")] = '\0';
   strncpy(hdr.channels[1].name, "G", 255); hdr.channels[1].name[strlen("G")] = '\0';
-  strncpy(hdr.channels[2].name, "R", 255); hdr.channels[2].name[strlen("R")] = '\0';
+  strncpy(hdr.channels[2].name, "B", 255); hdr.channels[2].name[strlen("B")] = '\0';
 
   hdr.pixel_types = (int *)malloc(sizeof(int) * hdr.num_channels);
   hdr.requested_pixel_types = (int *)malloc(sizeof(int) * hdr.num_channels);
