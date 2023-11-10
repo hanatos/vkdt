@@ -310,7 +310,7 @@ void render_darkroom_widget(int modid, int parid)
           if(sel) ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.wstate.fontsize*0.2);
           char label[10];
           snprintf(label, sizeof(label), "%d", k);
-          if(ImGui::Button(label, ImVec2(vkdt.state.panel_wd / 16.0, 0))) { val[0] ^= (1<<k); change = 1; }
+          if(ImGui::Button(label, ImVec2(vkdt.state.panel_wd * 0.6 / 8.0, 0))) { val[0] ^= (1<<k); change = 1; }
           if(ImGui::IsItemHovered()) dt_gui_set_tooltip(c);
           if(sel) ImGui::PopStyleVar();
           for(;*c!=0;c++);
