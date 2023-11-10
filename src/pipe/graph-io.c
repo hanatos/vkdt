@@ -248,11 +248,9 @@ int dt_graph_set_searchpath(
     const char *filename)
 {
   snprintf(graph->basedir, sizeof(graph->basedir), "%s", dt_pipe.basedir); // take copy for modules without global access
-  char target[256] = {0};
+  char target[PATH_MAX] = {0};
   const char *f = target;
-  ssize_t err = readlink(filename, target, sizeof(target));
-  if(err == -1) // mostly not a link. might be a different error but we don't want to use target.
-    f = filename;
+  if(!fs_realpath(filename, target)) f = filename;
 
   if(snprintf(graph->searchpath, sizeof(graph->searchpath), "%s", f) < 0)
   {

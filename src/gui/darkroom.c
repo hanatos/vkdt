@@ -226,7 +226,7 @@ darkroom_enter()
   struct stat statbuf;
   if(stat(graph_cfg, &statbuf))
   {
-    realpath(graph_cfg, realimg); // depend on GNU extension in case of ENOENT (to cut out /../ and so on)
+    fs_realpath(graph_cfg, realimg); // depend on GNU extension in case of ENOENT (to cut out /../ and so on)
     int len = strlen(realimg);
     assert(len > 4);
     realimg[len-4] = 0; // cut away ".cfg"

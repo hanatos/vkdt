@@ -212,3 +212,25 @@ static inline int fs_isdir(const char *dirname, struct dirent *e)
   return e->d_type == DT_DIR;
 #endif
 }
+
+static inline char*
+fs_realpath(const char *path, char *resolved_path)
+{
+#ifdef _WIN64
+#warning "port me! something GetFinalPathNameByHandleW"
+  return 0;
+#else
+  return realpath(path, resolved_path);
+#endif
+}
+
+static inline int
+fs_symlink(const char *target, const char *linkpath)
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
+  return symlink(target, linkpath);
+#endif
+}

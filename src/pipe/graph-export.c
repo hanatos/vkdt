@@ -100,11 +100,9 @@ dt_graph_export(
       else
         snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%"PRItkn, dt_token_str(input_module));
       err = dt_graph_read_config_ascii(graph, graph_cfg);
-      char imgfilename[PATH_MAX+100];
+      char imgfilename[PATH_MAX];
       // follow link if this is a cfg in a tag collection:
-      ssize_t linklen = readlink(param->p_cfgfile, imgfilename, sizeof(imgfilename));
-      if(linklen == -1) snprintf(imgfilename, sizeof(imgfilename), "%s", param->p_cfgfile);
-      else imgfilename[linklen] = 0;
+      fs_realpath(param->p_cfgfile, imgfilename);
       // reading the config will reset the search path. we'll repoint it to the
       // actual image file, not the default cfg:
       dt_graph_set_searchpath(graph, imgfilename);

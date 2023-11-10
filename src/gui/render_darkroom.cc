@@ -333,7 +333,7 @@ abort:
       }
       if(action == 3)
       {
-        realpath(graph_cfg, realimg);
+        fs_realpath(graph_cfg, realimg);
         int len = strlen(realimg);
         assert(len > 4);
         realimg[len-4] = 0; // cut away ".cfg"

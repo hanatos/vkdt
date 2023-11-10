@@ -497,7 +497,7 @@ void render_lighttable_right_panel(int hotkey)
       lstat(filename, &buf);
       if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", ImVec2(-1, 0)))
       {
-        char *resolved = realpath(filename, 0);
+        char *resolved = fs_realpath(filename, 0);
         if(resolved)
         {
           char *bn = fs_basename(resolved);
@@ -571,7 +571,7 @@ void render_lighttable_right_panel(int hotkey)
       for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-        realpath(filename, realname);
+        fs_realpath(filename, realname);
         unlink(realname);
         dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
       }
@@ -684,7 +684,7 @@ void render_lighttable_right_panel(int hotkey)
           "module:hist:01\n"
           "module:display:hist\n"
           "module:display:main\n");
-      realpath(filename, realname);
+      fs_realpath(filename, realname);
       char *base = fs_basename(realname);
       base[strlen(base)-4] = 0;
       fprintf(f, "param:i-raw:main:filename:%s\n", base);
@@ -693,7 +693,7 @@ void render_lighttable_right_panel(int hotkey)
       {
         if(sel[i] == main_imgid) continue;
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-        realpath(filename, realname);
+        fs_realpath(filename, realname);
         char *base = fs_basename(realname);
         base[strlen(base)-4] = 0;
         fprintf(f, "param:i-raw:%02d:filename:%s\n", ii, base);
@@ -761,7 +761,7 @@ void render_lighttable_right_panel(int hotkey)
       char cmd[PATH_MAX], imgpath[PATH_MAX];
       snprintf(cmd, sizeof(cmd), "%s '", rccmd);
       dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
-      realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
+      fs_realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
       size_t len = strnlen(cmd, sizeof(cmd));
       if(len > 4)
       {

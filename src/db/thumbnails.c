@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #if 0
 void
@@ -205,7 +206,7 @@ dt_thumbnails_invalidate(
 {
   uint64_t hash = hash64(filename);
   char bc1filename[1040];
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%lx.bc1", tn->cachedir, hash);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
   unlink(bc1filename);
 }
 
@@ -230,7 +231,7 @@ dt_thumbnails_cache_one(
   char deffilename[PATH_MAX+100];
   char bc1filename[PATH_MAX+100];
   uint64_t hash = hash64(filename);
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%lx.bc1", tn->cachedir, hash);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
   snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
   snprintf(deffilename, sizeof(deffilename), "default.%"PRItkn, dt_token_str(input_module));
   struct stat statbuf = {0};
@@ -471,7 +472,7 @@ dt_thumbnails_load_one(
   { // only hash images that aren't straight from our resource directory:
     // TODO: make sure ./dir/file and dir//file etc turn out to be the same
     uint64_t hash = hash64(filename);
-    snprintf(imgfilename, sizeof(imgfilename), "%s/%lx.bc1", tn->cachedir, hash);
+    snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
   }
   else snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename);
   struct stat statbuf = {0};

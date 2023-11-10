@@ -44,9 +44,9 @@ dt_graph_init(dt_graph_t *g)
   g->module = calloc(sizeof(dt_module_t), g->max_modules);
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
-  dt_vkalloc_init(&g->heap, 16000, 1ul<<40); // bytesize doesn't matter
-  dt_vkalloc_init(&g->heap_ssbo, 8000, 1ul<<40);
-  dt_vkalloc_init(&g->heap_staging, 100, 1ul<<40);
+  dt_vkalloc_init(&g->heap, 16000, ((uint64_t)1)<<40); // bytesize doesn't matter
+  dt_vkalloc_init(&g->heap_ssbo, 8000, ((uint64_t)1)<<40);
+  dt_vkalloc_init(&g->heap_staging, 100, ((uint64_t)1)<<40);
   g->params_max = 16u<<20;
   g->params_end = 0;
   g->params_pool = calloc(sizeof(uint8_t), g->params_max);
@@ -2095,7 +2095,7 @@ VkResult dt_graph_run(
   if(run & s_graph_run_alloc)
     QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
 
-  QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait for last invocation of our command buffer, just in case
+  QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait for last invocation of our command buffer, just in case
 
 { // module scope
   // find list of modules in post order
@@ -2694,7 +2694,7 @@ VkResult dt_graph_run(
                 };
                 vkResetFences(qvk.device, 1, &graph->command_fence[f]);
                 QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
-                QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait inline on our lock because we share the staging buf
+                QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
             }
@@ -2780,9 +2780,9 @@ VkResult dt_graph_run(
     vkResetFences(qvk.device, 1, &graph->command_fence[f]);
     QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, 1ul<<40)); // wait for our command buffer
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait for our command buffer
     else
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[fp], VK_TRUE, 1ul<<40)); // wait for previous command buffer
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[fp], VK_TRUE, ((uint64_t)1)<<40)); // wait for previous command buffer
   }
   
   // XXX FIXME: this is a race condition for multi-frames. we'll need to wait until download is complete before starting the other command buffer!

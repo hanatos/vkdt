@@ -15,6 +15,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 void
 dt_db_init(dt_db_t *db)
@@ -83,20 +84,18 @@ compare_createdate(const void *a, const void *b, void *arg)
   dt_db_t *db = arg;
   const uint32_t *ia = a, *ib = b;
   char cda[20] = {0}, cdb[20] = {0};
-  char fna[1024], fnb[1024], *aa = fna, *bb = fnb;
-  char fna2[1024], fnb2[1024];
+  char fna[1024], fnb[1024];
+  char aa[1024], bb[1024];
   dt_db_image_path(db, ia[0], fna, sizeof(fna));
   dt_db_image_path(db, ib[0], fnb, sizeof(fnb));
   size_t off;
-  off = readlink(fna, fna2, sizeof(fna2));
-  if(off != -1) aa = fna2;
-  else off = strnlen(fna, sizeof(fna));
+  fs_realpath(fna, aa);
+  off = strnlen(aa, sizeof(aa));
   if(off > 4) aa[off - 4] = 0;
   else aa[off] = 0;
 
-  off = readlink(fnb, fnb2, sizeof(fnb2));
-  if(off != -1) bb = fnb2;
-  else off = strnlen(fnb, sizeof(fnb));
+  fs_realpath(fnb, bb);
+  off = strnlen(bb, sizeof(bb));
   if(off > 4) bb[off - 4] = 0;
   else bb[off] = 0;
 
@@ -454,7 +453,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
     lno++;
 
     // scan filename:rating|labels:number
-    sscanf(line, "%[^:]:%[^:]:%lu", imgn, what, &num);
+    sscanf(line, "%[^:]:%[^:]:%"PRIu64, imgn, what, &num);
 
     if(!strcmp(imgn, "sort"))
     {
@@ -503,7 +502,7 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
   fprintf(f, "sort:%s:\n", c);
   c = dt_db_property_text;
   for(int i=0;i<db->collection_filter;i++,c++) while(*c) c++;
-  fprintf(f, "filter:%s:%lu\n", c, db->collection_filter_val);
+  fprintf(f, "filter:%s:%"PRIu64"\n", c, db->collection_filter_val);
   for(int i=0;i<db->image_cnt;i++)
   {
     if( db->image[i].rating          > 0) fprintf(f, "%s:rating:%u\n", db->image[i].filename, db->image[i].rating);
@@ -537,8 +536,8 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
   fs_mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
-  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%lx.cfg", db->basedir, cname, hash);
-  int err = symlink(filename, linkname);
+  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%"PRIx64".cfg", db->basedir, cname, hash);
+  int err = fs_symlink(filename, linkname);
   if(err) return 1;
   return 0;
 }

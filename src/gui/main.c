@@ -285,8 +285,8 @@ int main(int argc, char *argv[])
     const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
     if(strcmp(mru, "null")) snprintf(defpath, sizeof(defpath), "%s", mru);
     else snprintf(defpath, sizeof(defpath), "%s/Pictures", getenv("HOME"));
-    if(argc > lastarg+1) filename = realpath(argv[lastarg+1], 0);
-    else                 filename = realpath(defpath, 0);
+    if(argc > lastarg+1) filename = fs_realpath(argv[lastarg+1], 0);
+    else                 filename = fs_realpath(defpath, 0);
   }
   struct stat statbuf = {0};
   if(filename) stat(filename, &statbuf);

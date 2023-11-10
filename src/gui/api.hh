@@ -87,7 +87,7 @@ dt_gui_lt_paste_history()
   char filename[1024];
   uint32_t cid = vkdt.wstate.copied_imgid;
   dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
-  char *src = realpath(filename, 0);
+  char *src = fs_realpath(filename, 0);
   FILE *fin = fopen(src, "rb");
   if(!fin)
   { // also fails if src is 0
@@ -109,7 +109,7 @@ dt_gui_lt_paste_history()
     if(sel[i] == cid) continue; // don't copy to self
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
     char dst[PATH_MAX];
-    realpath(filename, dst);
+    fs_realpath(filename, dst);
     FILE *fout = fopen(dst, "wb");
     if(fout)
     {

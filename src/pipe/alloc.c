@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <inttypes.h>
 
 void
 dt_vkalloc_init(dt_vkalloc_t *a, uint64_t pool_size, uint64_t bytesize)
@@ -257,7 +258,7 @@ dt_vkalloc_check(dt_vkalloc_t *a)
   uint64_t num_unused = DLIST_LENGTH(a->unused);
   if(num_used + num_free + num_unused != a->pool_size)
   {
-    fprintf(stderr, "used %lu free %lu unused %lu != %lu\n", num_used, num_free, num_unused, a->pool_size);
+    fprintf(stderr, "used %"PRIu64" free %"PRIu64" unused %"PRIu64" != %"PRIu64"\n", num_used, num_free, num_unused, a->pool_size);
     return 1;
   }
 
