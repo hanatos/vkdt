@@ -1,0 +1,4 @@
+loss:slider:0:1
+metric:combo:rmse
+x-axis:combo:linear:log scale
+y-axis:combo:linear:log scale

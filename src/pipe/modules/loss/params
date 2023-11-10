@@ -1,2 +1,4 @@
-bound:float:3:0:0.1:0.3:0.005
 loss:float:1:0
+metric:int:1:0
+x-axis:int:1:0
+y-axis:int:1:0
