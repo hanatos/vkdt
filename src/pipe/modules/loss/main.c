@@ -8,6 +8,8 @@ modify_roi_out(
 {
   module->connector[2].roi.full_wd = 512;
   module->connector[2].roi.full_ht = 256;
+  module->connector[3].roi.full_wd =
+  module->connector[3].roi.full_ht = 1;
 }
 
 void
@@ -61,12 +63,12 @@ create_nodes(
   }
 
   dt_roi_t rtime = (dt_roi_t){.wd = 256, .ht = 1};
-  dt_roi_t tiny  = (dt_roi_t){.wd = 8,   .ht = 8};
+  dt_roi_t tiny  = (dt_roi_t){.wd = 1,   .ht = 1};
   const int pc[] = { 256 };
   const int id_dspy = dt_node_add(graph, module, "loss", "map", module->connector[2].roi.wd, module->connector[2].roi.ht, 1, sizeof(pc), pc, 4,
       "time", "write", "ssbo", "f32", &rtime,
       "loss", "read",  "ssbo", "f32", -1ul,
-      "tiny", "write", "rgba", "f32", &tiny,
+      "tiny", "write", "y",    "f32", &tiny,
       "dspy", "write", "rgba", "f16", &module->connector[2].roi);
   dt_connector_copy(graph, module, 2, id_dspy, 3);
   CONN(dt_node_connect(graph, node, conn, id_dspy, 1));
@@ -74,6 +76,7 @@ create_nodes(
   const int id_sink = dt_node_add(graph, module, "loss", "sink", 1, 1, 1, 0, 0, 1,
       "input", "sink", "*", "f32", -1ul);
   CONN(dt_node_connect_named(graph, id_dspy, "tiny", id_sink, "input")); // stupid dance via image because we don't have the buffer in host visible memory
+  dt_connector_copy(graph, module, 3, id_dspy, 2);
   graph->node[id_dspy].connector[0].flags |= s_conn_protected; // protect memory, will update the timeline
   module->flags |= s_module_request_write_sink;
 }

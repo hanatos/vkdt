@@ -182,7 +182,7 @@ dt_graph_export(
 
   for(int i=0;i<param->output_cnt;i++)
   {
-    if(mod_out[i] == 0) continue; // not a known output module
+    if(mod_out[i] == 0) continue; // not a known output module (display node requested on command line)
     if(param->output[i].inst == dt_token("main"))
     { // set bounds to drive roi computation to main output if we find one
       // can this be generalised some more?

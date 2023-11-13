@@ -1,3 +1,4 @@
 input:read:*:*
 orig:read:*:*
 dspy:write:rgba:f16
+loss:write:y:f32
