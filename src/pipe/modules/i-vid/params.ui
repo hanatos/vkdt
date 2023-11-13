@@ -1,0 +1,6 @@
+colour:combo:bt.709:bt.2020:unsupported
+trc:combo:linear:bt.709:smpte2084:HLG:unsupported
+bitdepth:combo:8 bit:10 bit:12 bit:16 bit:unsupported
+chroma:combo:420:422:444:unsupported
+colrange:combo:MPEG:JPEG:unsupported
+filename:filename
