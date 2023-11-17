@@ -1,6 +1,7 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #include "shared.glsl"
+#include "transform.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform global_t
@@ -8,11 +9,17 @@ layout(std140, set = 0, binding = 0) uniform global_t
   uint frame;
   uint num_frames;
 } global;
-// layout(std140, set = 0, binding = 1) uniform params_t { } params;
-// layout(push_constant, std140) uniform push_t { } push;
-layout(set = 1, binding = 0) uniform sampler2D img_c0; // first image, coarse
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float opacity;
+  float taathrs;
+  int mode;
+  int mask;
+} params;
+layout(push_constant, std140) uniform push_t { uint level; uint numl; } push;
+layout(set = 1, binding = 0) uniform sampler2D img_c0; // first image, coarse (back)
 layout(set = 1, binding = 1) uniform sampler2D img_f0; // first image, once finer
-layout(set = 1, binding = 2) uniform sampler2D img_c1; // second image coarse
+layout(set = 1, binding = 2) uniform sampler2D img_c1; // second image coarse (input)
 layout(set = 1, binding = 3) uniform sampler2D img_f1; // second image fine
 layout(set = 1, binding = 4) uniform sampler2D img_co; // coarse for output image
 layout(set = 1, binding = 5) uniform writeonly image2D img_out; // output image
@@ -23,17 +30,73 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
   vec2 tc = (opos+0.5)/vec2(imageSize(img_out));
-  vec4 c0 = sample_flower_adj(img_c0, tc);
-  vec4 c1 = sample_flower_adj(img_c1, tc);
-  vec4 co = sample_flower_adj(img_co, tc);
+  vec4 c0 = sample_flower_adj4(img_c0, tc);
+  vec4 c1 = sample_flower_adj4(img_c1, tc);
+  vec4 co = sample_flower_adj4(img_co, tc);
   vec4 f0 = texture(img_f0, tc);
   vec4 f1 = texture(img_f1, tc);
+  if(push.level == 0) f0 = input_transform(f0);
+  if(push.level == 0) f1 = input_transform(f1);
   vec4 d0 = f0 - c0;
   vec4 d1 = f1 - c1;
-  vec4 d = mix(d0, d1, greaterThan(abs(d1), abs(d0)));
-  // TODO: refine with some local/variance/noise estimation
-  co += d;
-  co.a = 1.0;
-  if(global.num_frames > 1 && global.frame == 0) co = c1;
+  vec4 d;
+  if(params.mode == 4)
+  { // exposure fusion
+    vec4 t = vec4(4.0);
+    vec4 p0 = min(vec4(100.0), pow(abs(d0),t)), p1 = min(vec4(100.0), pow(abs(d1),t));
+    vec4 w = max(vec4(1e-8), p1) / max(vec4(1e-8), p0 + p1); 
+    // opacity slider controls radioactivity:
+    float b = push.level/float(push.numl-1.0);
+    b -= 0.5;
+    b = 0.5 + sign(b) * abs(b) / (params.opacity + abs(b));
+    w = mix(w, 1.0-w, b);
+    d = mix(d0, d1, w);
+  }
+
+  float mask = clamp(c1.a, 0.0, 1.0); // finest mask would need input mask image here (but maybe the blurred version is actually what we want)
+  if(params.mode == 2)
+  { // focus peak * input mask
+    float peak = mix(0.0, 1.0, length(d1) > length(d0));
+    if(params.mask == 0) mask = peak;
+    if(params.mask == 1) mask = (1.0-mask) * peak;
+    if(params.mask == 2) mask = mask * peak;
+  }
+
+  if(params.mode == 5 || params.mode == 2)
+  { // laplace pyramid blending or focus stack (the latter only operates on auto-generated mask)
+    float w = params.opacity;
+    if(params.mask == 1) w = params.opacity * (1.0-mask);
+    if(params.mask == 2) w = params.opacity * mask;
+    if(params.mode == 2) w = params.opacity * mask; // focus stacking has its own mask
+    if(push.level == push.numl-1) co = mix(c0, c1, w);
+    co += mix(d0, d1, w);
+  }
+  else // if(params.mode == 4)
+  { // exposure fusion blending
+    co += d;
+  }
+  if(push.level == 0)
+  {
+    // f0 = output_transform(f0);
+    // f1 = output_transform(f1);
+    // vec4 orig;// = f0.rgb;
+    // float w = pow(distance(co.rgb, f1.rgb), 4) / max(1e-8, pow(distance(co.rgb, f1.rgb), 4) + pow(distance(co.rgb, f0.rgb), 4));
+    // orig = mix(f0, f1, w);
+    // if(distance(co.rgb, f1.rgb) < distance(co.rgb, f0.rgb)) orig = f1.rgb;
+    co = output_transform(co);
+    // co.rgb = adjust_colour_dng(orig.rgb, co.rgb);
+    if(params.mode == 4) co *= 0.25; // exposure fusion comes out too bright because it takes the largest frequencies of both
+
+#if 0 // XXX DEBUG
+    const vec2 tc = (opos+vec2(0.5))/vec2(imageSize(img_out));
+    vec4 rgbv = sample_flower4(img_f1, tc);
+    float mask = 0.0;
+    mask = length(texture(img_f1, tc).rgb - rgbv.rgb);
+    mask = max(0.0, mask / luminance_rec2020(rgbv.rgb) - 0.1);
+    co = vec4(pow(mask, 1.0));
+#endif
+  }
+
+  if(global.num_frames > 1 && global.frame == 0) co = push.level == 0 ? output_transform(f1) : f1;
   imageStore(img_out, opos, co);
 }

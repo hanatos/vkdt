@@ -1,4 +1,4 @@
-mode:combo:over:temporal anti aliasing:focus stack:multiply
+mode:combo:over:temporal anti aliasing:focus stack:multiply:exposure fusion:pyramidal
 mask:combo:ignore:apply:apply inverted
 opacity:slider:0:1
 group:mode:1

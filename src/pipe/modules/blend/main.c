@@ -12,7 +12,7 @@ check_params(
   { // mode
     int oldmode = *(int*)oldval;
     int newmode = dt_module_param_int(module, parid)[0];
-    if(oldmode != newmode && (oldmode == 2 || newmode == 2))
+    if(oldmode != newmode) //  would need to test one of them is 2, 4 or 5
       return s_graph_run_all;
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
@@ -22,8 +22,8 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   const int32_t p_mode = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("mode")))[0];
   dt_roi_t roif = module->connector[0].roi;
-  if(p_mode == 2)
-  { // focus stack blend mode
+  if(p_mode == 2 || p_mode == 4 || p_mode == 5)
+  { // focus stack or exposure fusion or pyramidal blend modes
     dt_roi_t roic = roif;
     const int maxnuml = 14;
     const int loff = log2f(roif.full_wd / roif.wd);
@@ -31,33 +31,40 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     int id_down0[maxnuml], id_down1[maxnuml], id_up[maxnuml];
     for(int l=0;l<numl;l++)
     {
+      const int pc[] = { l, numl };
       roic.wd = (roif.wd+1)/2;
       roic.ht = (roif.ht+1)/2;
-      id_down0[l] = dt_node_add(graph, module, "eq", "down",
-          roic.wd, roic.ht, 1, 0, 0, 2,
-          "input",  "read",  "rgba", "f16", &roif,
-          "output", "write", "rgba", "f16", &roic);
-      id_down1[l] = dt_node_add(graph, module, "eq", "down",
-          roic.wd, roic.ht, 1, 0, 0, 2,
-          "input",  "read",  "rgba", "f16", &roif,
-          "output", "write", "rgba", "f16", &roic);
+      id_down0[l] = dt_node_add(graph, module, "blend", "down",
+          roic.wd, roic.ht, 1, sizeof(pc), pc, 3,
+          "input",  "read",  "rgba", "f16", -1ul,
+          "output", "write", "rgba", "f16", &roic,
+          "mask",   "read",  "*",    "*",   -1ul);
+      id_down1[l] = dt_node_add(graph, module, "blend", "down",
+          roic.wd, roic.ht, 1, sizeof(pc), pc, 3,
+          "input",  "read",  "rgba", "f16", -1ul,
+          "output", "write", "rgba", "f16", &roic,
+          "mask",   "read",  "*",    "*",   -1ul);
       id_up[l] = dt_node_add(graph, module, "blend", "up",
-          roif.wd, roif.ht, 1, 0, 0, 6,
-          "coarse0", "read",  "rgba", "f16", &roic,
-          "fine0",   "read",  "rgba", "f16", &roif,
-          "coarse1", "read",  "rgba", "f16", &roic,
-          "fine1",   "read",  "rgba", "f16", &roif,
-          "co",      "read",  "rgba", "f16", &roic,
+          roif.wd, roif.ht, 1, sizeof(pc), pc, 6,
+          "coarse0", "read",  "rgba", "f16", -1ul,
+          "fine0",   "read",  "rgba", "f16", -1ul,
+          "coarse1", "read",  "rgba", "f16", -1ul,
+          "fine1",   "read",  "rgba", "f16", -1ul,
+          "co",      "read",  "rgba", "f16", -1ul,
           "output",  "write", "rgba", "f16", &roif);
       roif = roic;
     }
     dt_connector_copy(graph, module, 0, id_down0[0], 0);
     dt_connector_copy(graph, module, 1, id_down1[0], 0);
+    dt_connector_copy(graph, module, 2, id_down0[0], 2);
+    dt_connector_copy(graph, module, 2, id_down1[0], 2);
     dt_connector_copy(graph, module, 3, id_up[0],    5); // output
     dt_connector_copy(graph, module, 0, id_up[0],    1);
     dt_connector_copy(graph, module, 1, id_up[0],    3);
     for(int l=1;l<numl;l++)
     {
+      dt_connector_copy(graph, module, 2, id_down0[l], 2); // pass on mask just to have something connected (not read)
+      dt_connector_copy(graph, module, 2, id_down1[l], 2);
       dt_node_connect(graph, id_down0[l-1], 1, id_down0[l], 0); // downsize more
       dt_node_connect(graph, id_down1[l-1], 1, id_down1[l], 0);
       dt_node_connect(graph, id_down0[l-1], 1, id_up[l],    1); // fine for details during upsizing

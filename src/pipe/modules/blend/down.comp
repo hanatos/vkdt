@@ -1,0 +1,32 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "shared.glsl"
+#include "transform.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float opacity;
+  float taathrs;
+  int mode;
+  int mask;
+} params;
+layout(push_constant, std140) uniform push_t { uint level; uint numl; } push;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform sampler2D img_mask;
+
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+  const vec2 tc = (opos+vec2(0.5))/vec2(imageSize(img_out));
+  vec4 rgbv = sample_flower4(img_in, tc);
+  if(push.level == 0)
+  { // load mask from external texture
+    float mask = sample_flower4(img_mask, tc).r;
+    rgbv = vec4(input_transform(rgbv).rgb, mask.r);
+  }
+  imageStore(img_out, opos, rgbv);
+}

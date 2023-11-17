@@ -5,7 +5,8 @@
 #include "shared.glsl"
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
-layout(set = 1, binding = 1, std430) buffer buf_res { float v[]; };
+layout(set = 1, binding = 1) uniform sampler2D img_mask;
+layout(set = 1, binding = 2, std430) buffer buf_res { float v[]; };
 
 mat2 inv_svd2x2(in mat2 M, out float angle)
 {
@@ -42,6 +43,7 @@ void main()
 #endif
 
   vec2 mv = texelFetch(img_in, ipos, 0).rg;
+  float mask = texelFetch(img_mask, ipos, 0).r;
 
   // Arun et al. 1987
   // q = R p + T
@@ -65,7 +67,7 @@ void main()
   // now find consensus.
   // could do histogram voting (bin angles) but limited precision and dimension
   // ransac: search for other random positions and score
-  float score = 0;
+  float score = -1.0*mask;
   if(angle != -666.0) for(int i=0;i<20;i++)
   {
     tc = vec2( // center weighted
@@ -75,7 +77,8 @@ void main()
     vec2 p2 = clamp(ivec2(tc*sz), ivec2(0), ivec2(sz-1));
     vec2 q2 = p2 + texelFetch(img_in, ivec2(p2), 0).rg;
     vec2 qt = R * p2 + T;
-    if(distance(q2,qt) < 1.0) score++;
+    float m2 = texelFetch(img_mask, ivec2(p2), 0).r;
+    if(distance(q2,qt) < 1.0) score += 1 - m2;
   }
   score = subgroupAdd(score);
   if(gl_SubgroupInvocationID == 0)

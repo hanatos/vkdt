@@ -110,6 +110,48 @@ float luminance_rec2020(vec3 rec2020)
   return dot(vec3(2.62700212e-01, 6.77998072e-01, 5.93017165e-02), rec2020);
 }
 
+// full 4-wide version, passing through all channels:
+vec4 sample_flower4(sampler2D tex, vec2 uv)
+{
+  vec2 texSize = textureSize(tex, 0);
+  vec2 tc = uv * texSize;
+
+  vec2 off0 = vec2( 1.2, 0.4);
+  vec2 off1 = vec2(-0.4, 1.2);
+
+  const float t = 36.0/256.0;
+  vec4 result = vec4(0);
+#define LOAD(T, W)\
+  do {\
+    vec4 v = textureLod(tex, T, 0);\
+    result += W * v;\
+  } while(false)
+  LOAD(uv, t);
+  LOAD((tc+off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc+off1)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off1)/texSize, (1.0-t)/4.0);
+  return result;
+}
+
+vec4 sample_flower_adj4(sampler2D tex, vec2 uv)
+{
+  vec2 texSize = textureSize(tex, 0);
+  vec2 tc = uv * texSize;
+
+  vec2 off0 = vec2( 1.2, -0.4);
+  vec2 off1 = vec2( 0.4,  1.2);
+
+  const float t = 36.0/256.0;
+  vec4 result = vec4(0);
+  LOAD(uv, t);
+  LOAD((tc+off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off0)/texSize, (1.0-t)/4.0);
+  LOAD((tc+off1)/texSize, (1.0-t)/4.0);
+  LOAD((tc-off1)/texSize, (1.0-t)/4.0);
+#undef LOAD
+  return result;
+}
 // almost 5x5 support in 5 taps
 vec4 sample_flower(sampler2D tex, vec2 uv)
 {

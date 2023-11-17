@@ -1,3 +1,4 @@
 input:read:*:*
 mv:read:*:*
+mask:read:*:*
 output:write:*:*
