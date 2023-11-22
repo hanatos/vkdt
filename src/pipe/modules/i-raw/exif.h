@@ -18,6 +18,7 @@
 
 extern "C" {
 #include "module.h"
+#include "dng_opcode.h"
 }
 
 #include <cassert>
@@ -248,6 +249,40 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
           ip->cam_to_rec2020[k] = cam_to_rec2020[k];
       }
     }
+
+    if(FIND_EXIF_TAG("Exif.SubImage1.OpcodeList3"))
+    {
+      uint8_t *data = (uint8_t *)malloc(pos->size());
+      pos->copy(data, Exiv2::invalidByteOrder);
+      dt_dng_opcode_process_opcode_list_3(data, pos->size(), ip);
+      free(data);
+    }
+    else if(FIND_EXIF_TAG("Exif.Image.OpcodeList3"))
+    {
+      // DNGs without an embedded preview have opcodes under Exif.Image
+      uint8_t *data = (uint8_t *)malloc(pos->size());
+      pos->copy(data, Exiv2::invalidByteOrder);
+      dt_dng_opcode_process_opcode_list_3(data, pos->size(), ip);
+      free(data);
+    }
+
+    if (ip->lens_corr.type == s_lens_corr_dng)
+    {
+      // If applying DNG opcodes, get the ActiveArea, as the opcodes are
+      // intended to apply to that region rather than the DefaultCropOrigin /
+      // DefaultCropSize region.
+      if(FIND_EXIF_TAG("Exif.SubImage1.ActiveArea"))
+      {
+        for (int i=0;i<4;i++)
+          ip->lens_corr.params.dng.active_area[i] = pos->toLong(i);
+      }
+      else if (FIND_EXIF_TAG("Exif.Image.ActiveArea"))
+      {
+        for (int i=0;i<4;i++)
+          ip->lens_corr.params.dng.active_area[i] = pos->toLong(i);
+      }
+    }
+
     return 0;
   }
   catch(Exiv2::AnyError &e)

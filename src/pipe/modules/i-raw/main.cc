@@ -221,6 +221,16 @@ void modify_roi_out(
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
   dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
+
+  // if we are applying DNG opcodes but did not find an ActiveArea tag, use the
+  // entire uncropped area as the ActiveArea.
+  if (mod->img_param.lens_corr.type == s_lens_corr_dng && mod->img_param.lens_corr.params.dng.active_area[2] == 0)
+  {
+    mod->img_param.lens_corr.params.dng.active_area[0] = 0;
+    mod->img_param.lens_corr.params.dng.active_area[1] = 0;
+    mod->img_param.lens_corr.params.dng.active_area[2] = dim_uncropped.y;
+    mod->img_param.lens_corr.params.dng.active_area[3] = dim_uncropped.x;
+  }
 #endif
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->d->mRaw->metadata.canonical_make.c_str());
