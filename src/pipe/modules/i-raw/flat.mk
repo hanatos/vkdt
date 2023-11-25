@@ -2,12 +2,11 @@
 ifeq ($(VKDT_USE_RAWINPUT),1)
 RAWSPEED_I=pipe/modules/i-raw/rawspeed
 RAWSPEED_L=pipe/modules/i-raw/rawspeed/build
-MOD_CFLAGS=-std=c++20 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(shell pkg-config --cflags pugixml libjpeg)
-MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(shell pkg-config --libs pugixml libjpeg)
+MOD_CFLAGS=-std=c++20 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(VKDT_PUGIXML_CFLAGS) $(VKDT_JPEG_CFLAGS)
+MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(VKDT_PUGIXML_LDFLAGS) $(VKDT_JPEG_LDFLAGS)
 
 pipe/modules/i-raw/libi-raw.so: $(RAWSPEED_L)/librawspeed.a
 
-# omp has no pkg-config. this sucks so much:
 ifeq ($(CXX),clang++)
 MOD_LDFLAGS+=-fopenmp=libomp
 endif
@@ -33,8 +32,8 @@ $(RAWSPEED_I)/CMakeLists.txt:
 	$(shell git clone https://github.com/hanatos/rawspeed.git --depth 1 --branch rebase_cr3 --single-branch $(RAWSPEED_I))
 
 ifeq ($(VKDT_USE_EXIV2),1)
-MOD_CFLAGS+=$(shell pkg-config --cflags exiv2) -DVKDT_USE_EXIV2=1
-MOD_LDFLAGS+=$(shell pkg-config --libs exiv2)
+MOD_CFLAGS+=$(VKDT_EXIV2_CFLAGS) -DVKDT_USE_EXIV2=1
+MOD_LDFLAGS+=$(VKDT_EXIV2_LDFLAGS)
 pipe/modules/i-raw/libi-raw.so:pipe/modules/i-raw/exif.h
 endif
 endif # end rawspeed

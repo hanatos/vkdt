@@ -45,8 +45,8 @@ GUI_CFLAGS=$(VKDT_GLFW_CFLAGS) -I../ext/imgui -I../ext/imgui/backends/
 GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++ -rdynamic
 
 ifeq ($(VKDT_USE_FREETYPE),1)
-GUI_CFLAGS+=$(shell pkg-config --cflags freetype2) -DVKDT_USE_FREETYPE=1
-GUI_LDFLAGS+=$(shell pkg-config --libs freetype2)
+GUI_CFLAGS+=$(VKDT_FREETYPE2_CFLAGS) -DVKDT_USE_FREETYPE=1
+GUI_LDFLAGS+=$(VKDT_FREETYPE2_LDFLAGS)
 endif
 ifeq ($(VKDT_USE_PENTABLET),1)
 GUI_CFLAGS+=-DVKDT_USE_PENTABLET=1

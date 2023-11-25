@@ -69,7 +69,7 @@ CFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE
 EXE_CFLAGS?=-fPIC
 LDFLAGS=
-VK_CFLAGS:=$(shell pkg-config --cflags vulkan)
+VK_CFLAGS:=$(VKDT_VULKAN_CFLAGS)
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
