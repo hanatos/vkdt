@@ -273,8 +273,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
   for(int i = 0; i < num_queue_families; i++)
   {
     if((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-       (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) &&
-       (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT))
+       (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT))
     {
       queue_cnt = queue_families[i].queueCount;
       queue_family_index = i;
