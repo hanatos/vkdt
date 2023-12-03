@@ -57,31 +57,9 @@ create_nodes(
   const float epsilon = ((float*)module->param)[1];
 
   // input image -> seven quantised zones of exposure in [0,1] (output int 0..6)
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_quant = graph->num_nodes++;
-  graph->node[id_quant] = (dt_node_t) {
-    .name   = dt_token("zones"),
-    .kernel = dt_token("quant"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 2,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
+  const int id_quant = dt_node_add(graph, module, "zones", "quant", wd, ht, dp, 0, 0, 2,
+      "input",  "read",  "rgba", "f16", -1ul,
+      "output", "write", "rgba", "f16", &module->connector[0].roi);
   // output: float image [0.0,6.0]
   // guided blur with I : zones, p : input image
   const int id_guided = dt_api_guided_filter_full(
@@ -89,47 +67,14 @@ create_nodes(
       0, 0, radius, epsilon);
 
   // process zone exposure correction:
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_apply = graph->num_nodes++;
-  graph->node[id_apply] = (dt_node_t) {
-    .name   = dt_token("zones"),
-    .kernel = dt_token("apply"),
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("zones"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
+  const int id_apply = dt_node_add(graph, module, "zones", "apply", wd, ht, dp, 0, 0, 3,
+      "input",  "read",  "rgba", "f16", -1ul,
+      "zones",  "read",  "rgba", "f16", -1ul,
+      "output", "write", "rgba", "f16", &module->connector[0].roi);
   CONN(dt_node_connect(graph, id_guided, 2, id_apply, 1));
   dt_connector_copy(graph, module, 0, id_apply, 0);
   dt_connector_copy(graph, module, 0, id_quant, 0);
-
-  // FIXME routing the guided output to dspy fails for thumbnails and for export:
-  // FIXME the size of the roi will be 0,0 and the connectors will hand this down
-  // FIXME or overwrite whatever reasonable sizes we had before!!
   dt_connector_copy(graph, module, 2, id_guided, 2); // dspy output
   // need to do this last to overwrite the empty roi again :(
   dt_connector_copy(graph, module, 1, id_apply, 2);
 }
-
