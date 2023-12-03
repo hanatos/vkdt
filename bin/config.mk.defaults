@@ -9,13 +9,14 @@
 # if you have freetype2 and png16, you can uncomment this:
 # VKDT_USE_FREETYPE=1
 # export VKDT_USE_FREETYPE
-# VKDT_FREETYPE2_CFLAGS=$(shell pkg-config --cflags freetype2)
-# VKDT_FREETYPE2_LDFLAGS=$(shell pkg-config --libs freetype2)
+# note the retarted assignment is due to https://savannah.gnu.org/bugs/index.php?64746
+# VKDT_FREETYPE2_CFLAGS=$(eval VKDT_FREETYPE2_CFLAGS := $$(shell pkg-config --cflags freetype2))$(VKDT_FREETYPE2_CFLAGS)
+# VKDT_FREETYPE2_LDFLAGS=$(eval VKDT_FREETYPE2_LDFLAGS := $$(shell pkg-config --libs freetype2))$(VKDT_FREETYPE2_LDFLAGS)
 # export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
 
 # needed for jpeg input (currently not optional)
-VKDT_JPEG_CFLAGS=$(shell pkg-config --cflags libjpeg)
-VKDT_JPEG_LDFLAGS=$(shell pkg-config --libs libjpeg)
+VKDT_JPEG_CFLAGS=$(eval VKDT_JPEG_CFLAGS := $$(shell pkg-config --cflags libjpeg))$(VKDT_JPEG_CFLAGS)
+VKDT_JPEG_LDFLAGS=$(eval VKDT_JPEG_LDFLAGS := $$(shell pkg-config --libs libjpeg))$(VKDT_JPEG_LDFLAGS)
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
 # if you disable this, the i-raw module will not be built
@@ -32,8 +33,8 @@ VKDT_USE_RAWINPUT=1
 export VKDT_USE_RAWINPUT
 
 # needed for rawspeed (RAWINPUT=1) only
-VKDT_PUGIXML_CFLAGS=$(shell pkg-config --cflags pugixml)
-VKDT_PUGIXML_LDFLAGS=$(shell pkg-config --libs pugixml)
+VKDT_PUGIXML_CFLAGS=$(eval VKDT_PUGIXML_CFLAGS := $$(shell pkg-config --cflags pugixml))$(VKDT_PUGIXML_CFLAGS)
+VKDT_PUGIXML_LDFLAGS=$(eval VKDT_PUGIXML_LDFLAGS := $$(shell pkg-config --libs pugixml))$(VKDT_PUGIXML_LDFLAGS)
 export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 
 # exiv2 can optionally be used to load some super basic metadata (iso
@@ -41,8 +42,8 @@ export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 # that is, it is only effective if VKDT_USE_RAWINPUT=1.
 # VKDT_USE_EXIV2=1
 # export VKDT_USE_EXIV2
-# VKDT_EXIV2_CFLAGS=$(shell pkg-config --cflags exiv2)
-# VKDT_EXIV2_LDFLAGS=$(shell pkg-config --libs exiv2)
+# VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
+# VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
 # export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
@@ -60,21 +61,21 @@ export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 # alsa. this introduces an asound dependency. disable here:
 # VKDT_USE_ALSA=1
 # export VKDT_USE_ALSA
-# VKDT_ALSA_CFLAGS=$(shell pkg-config --cflags alsa)
-# VKDT_ALSA_LDFLAGS=$(shell pkg-config --libs alsa)
+# VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
+# VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
 # export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
 
 # for the i-vid module using libavformat/libavcodec to read
 # video streams, we depend on these libraries
 # VKDT_USE_FFMPEG=1
 # export VKDT_USE_FFMPEG
-# VKDT_AV_CFLAGS=$(shell pkg-config --cflags libavformat --cflags libavcodec)
-# VKDT_AV_LDFLAGS=$(shell pkg-config --libs libavformat --libs libavcodec)
+# VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec))$(VKDT_AV_CFLAGS)
+# VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec))$(VKDT_AV_LDFLAGS)
 # export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # where to find glfw for the gui:
-VKDT_GLFW_CFLAGS=$(shell pkg-config --cflags glfw3)
-VKDT_GLFW_LDFLAGS=$(shell pkg-config --libs glfw3)
+VKDT_GLFW_CFLAGS=$(eval VKDT_GLFW_CFLAGS := $$(shell pkg-config --cflags glfw3))$(VKDT_GLFW_CFLAGS)
+VKDT_GLFW_LDFLAGS=$(eval VKDT_GLFW_LDFLAGS := $$(shell pkg-config --libs glfw3))$(VKDT_GLFW_LDFLAGS)
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # enable this if you have a custom build of glfw that supports the following
@@ -89,13 +90,13 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 # this will download and compile GPL code.
 # VKDT_USE_QUAKE=1
 # export VKDT_USE_QUAKE
-# VKDT_QEXTRA_CFLAGS=$(shell pkg-config --cflags vorbis vorbisfile ogg mad)
-# VKDT_QEXTRA_LDFLAGS=$(shell pkg-config --libs vorbis vorbisfile ogg mad)
+# VKDT_QEXTRA_CFLAGS=$(eval VKDT_QEXTRA_CFLAGS := $$(shell pkg-config --cflags vorbis vorbisfile ogg mad))$(VKDT_QEXTRA_CFLAGS)
+# VKDT_QEXTRA_LDFLAGS=$(eval VKDT_QEXTRA_LDFLAGS := $$(shell pkg-config --libs vorbis vorbisfile ogg mad))$(VKDT_QEXTRA_LDFLAGS)
 # export VKDT_QEXTRA_CFLAGS VKDT_QEXTRA_LDFLAGS
 
 # need vulkan
-VKDT_VULKAN_CFLAGS=$(shell pkg-config --cflags vulkan)
-VKDT_VULKAN_LDFLAGS=$(shell pkg-config --libs vulkan)
+VKDT_VULKAN_CFLAGS=$(eval VKDT_VULKAN_CFLAGS := $$(shell pkg-config --cflags vulkan))$(VKDT_VULKAN_CFLAGS)
+VKDT_VULKAN_LDFLAGS=$(eval VKDT_VULKAN_LDFLAGS := $$(shell pkg-config --libs vulkan))$(VKDT_VULKAN_LDFLAGS)
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
