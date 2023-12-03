@@ -41,7 +41,7 @@ main()
   const float nz = clamp(params.num_zones, 2, 7);
   // our guided filter somehow normalises/clamps at 1.0, so we provide our data in that range.
   // i suspect it's the clamp in guided2f.comp.
-  float zone = clamp(floor(lum * nz), 0.0, nz-1)/nz;
+  float zone = clamp(floor(lum * nz), 0.0, nz-1.0)/(nz-1.0);
   imageStore(img_out, ipos, vec4(vec3(zone), 1));
 }
 
