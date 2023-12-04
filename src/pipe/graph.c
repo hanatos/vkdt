@@ -2894,7 +2894,7 @@ dt_graph_connector_image(
     cid2 = graph->node[nid].connector[cid].connected_mc;
     nid2 = graph->node[nid].connector[cid].connected_mi;
   }
-  frame %= graph->node[nid2].connector[cid2].frames;
+  frame %= MAX(1, graph->node[nid2].connector[cid2].frames);
   return graph->conn_image_pool +
     graph->node[nid].conn_image[cid] + MAX(1,graph->node[nid].connector[cid].array_length) * frame + array;
 }
