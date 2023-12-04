@@ -150,6 +150,7 @@ dt_connector_error_str(const int err)
     case 10: return "channels do not match";
     case 11: return "format does not match";
     case 12: return "connection would be cyclic";
+    case -100: return "named connector does not exist";
     default: return "";
   }
 }
