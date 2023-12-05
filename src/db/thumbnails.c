@@ -67,10 +67,10 @@ dt_thumbnails_init(
   dt_graph_init(tn->graph + 1);
   tn->graph[0].queue       =  qvk.queue_work0;
   tn->graph[0].queue_idx   =  qvk.queue_idx_work0;
-  tn->graph[0].queue_mutex = &qvk.queue_work0_mutex;
+  tn->graph[0].queue_mutex = &qvk.queue_mutex;
   tn->graph[1].queue       =  qvk.queue_work1;
   tn->graph[1].queue_idx   =  qvk.queue_idx_work1;
-  tn->graph[1].queue_mutex = &qvk.queue_work1_mutex;
+  tn->graph[1].queue_mutex = &qvk.queue_mutex;
 
   threads_mutex_init(tn->graph_lock + 0, 0);
   threads_mutex_init(tn->graph_lock + 1, 0);

@@ -260,8 +260,6 @@ VkResult
 qvk_init(const char *preferred_device_name, int preferred_device_id)
 {
   threads_mutex_init(&qvk.queue_mutex, 0);
-  threads_mutex_init(&qvk.queue_work0_mutex, 0);
-  threads_mutex_init(&qvk.queue_work1_mutex, 0);
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
@@ -613,8 +611,6 @@ qvk_cleanup()
 {
   QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   threads_mutex_destroy(&qvk.queue_mutex);
-  threads_mutex_destroy(&qvk.queue_work0_mutex);
-  threads_mutex_destroy(&qvk.queue_work1_mutex);
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_yuv, 0);

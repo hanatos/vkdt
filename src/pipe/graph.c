@@ -95,8 +95,7 @@ dt_graph_init(dt_graph_t *g)
   // grab default queue:
   g->queue = qvk.queue_compute;
   g->queue_idx = qvk.queue_idx_compute;
-  if(g->queue == qvk.queue_graphics)
-    g->queue_mutex = &qvk.queue_mutex;
+  g->queue_mutex = &qvk.queue_mutex;
 
   g->lod_scale = 1;
   g->active_module = -1;

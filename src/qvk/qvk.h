@@ -85,8 +85,6 @@ typedef struct qvk_t
   VkQueue                     queue_compute;
   VkQueue                     queue_work0;
   VkQueue                     queue_work1;
-  threads_mutex_t             queue_work0_mutex;
-  threads_mutex_t             queue_work1_mutex;
   int32_t                     queue_idx_graphics;
   int32_t                     queue_idx_compute;
   int32_t                     queue_idx_work0;
