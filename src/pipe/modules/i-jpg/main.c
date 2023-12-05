@@ -10,6 +10,7 @@
 typedef struct jpginput_buf_t
 {
   char filename[PATH_MAX];
+  char errormsg[256];
   uint32_t frame;
   uint32_t width, height;
   struct jpeg_decompress_struct dinfo;
@@ -53,6 +54,8 @@ read_header(
   if(!jpg->f)
   {
     jpg->filename[0] = 0;
+    snprintf(jpg->errormsg, sizeof(jpg->errormsg), "i-jpg:%"PRItkn" could not open file `%s'!", dt_token_str(mod->inst), filename);
+    mod->graph->gui_msg = jpg->errormsg;
     return 1;
   }
 
@@ -65,6 +68,8 @@ read_header(
     fclose(jpg->f);
     jpg->f = 0;
     jpg->filename[0] = 0;
+    snprintf(jpg->errormsg, sizeof(jpg->errormsg), "i-jpg:%"PRItkn" failed to decode jpeg `%s'!", dt_token_str(mod->inst), filename);
+    mod->graph->gui_msg = jpg->errormsg;
     return 1;
   }
   jpeg_create_decompress(&(jpg->dinfo));

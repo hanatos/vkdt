@@ -2855,8 +2855,9 @@ VkResult dt_graph_run(
       dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query[q].last_frame_duration);
     }
   }
-  // reset run flags:
+  // reset run flags and gui error message
   graph->runflags = 0;
+  graph->gui_msg = 0;
   return VK_SUCCESS;
 }
 
