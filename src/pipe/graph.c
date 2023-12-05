@@ -2724,8 +2724,15 @@ VkResult dt_graph_run(
     dt_log(s_log_perf, "create raytrace accel:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
     rt_beg = rt_end;
     for(int i=0;i<cnt;i++)
-      QVKR(record_command_buffer(graph, graph->node+nodeid[i], run_all ||
-          (graph->node[nodeid[i]].module->flags & s_module_request_read_source)));
+    {
+      VkResult res = record_command_buffer(graph, graph->node+nodeid[i], run_all ||
+          (graph->node[nodeid[i]].module->flags & s_module_request_read_source));
+      if(res != VK_SUCCESS)
+      { // need to clean up command buffer before we quit
+        QVKR(vkEndCommandBuffer(graph->command_buffer[f]));
+        return res;
+      }
+    }
     rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
     QVKR(vkEndCommandBuffer(graph->command_buffer[f]));
