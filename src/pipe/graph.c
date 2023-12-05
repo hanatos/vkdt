@@ -391,7 +391,7 @@ allocate_image_array_element(
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
   uint32_t wd = MAX(1, c->roi.wd), ht = MAX(1, c->roi.ht);
-  fprintf(stderr, "DEBUG allocating imag %"PRItkn":%"PRItkn":%"PRItkn":%"PRItkn" %d x %d\n", dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(node->kernel), dt_token_str(c->name), wd, ht);
+  // fprintf(stderr, "DEBUG allocating imag %"PRItkn":%"PRItkn":%"PRItkn":%"PRItkn" %d x %d\n", dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(node->kernel), dt_token_str(c->name), wd, ht);
   if(c->array_dim)
   { // array with varying size images?
     wd = MAX(1, c->array_dim[2*k+0]);
@@ -818,7 +818,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
 #endif
-        fprintf(stderr, "DEBUG allocating ssbo %"PRItkn":%"PRItkn":%"PRItkn":%"PRItkn" %zu = %d x %d\n", dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(node->kernel), dt_token_str(c->name), size, c->roi.wd, c->roi.ht);
+        // fprintf(stderr, "DEBUG allocating ssbo %"PRItkn":%"PRItkn":%"PRItkn":%"PRItkn" %zu = %d x %d\n", dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(node->kernel), dt_token_str(c->name), size, c->roi.wd, c->roi.ht);
         VkMemoryRequirements buf_mem_req;
 
         if(c->type == dt_token("source"))
