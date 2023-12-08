@@ -58,13 +58,13 @@ create_nodes(
       graph->float_atomics_supported ? "collect" : "coldumb",
     module->connector[0].roi.wd/block, module->connector[0].roi.ht/block, 1,
     0, 0, 2,
-    "input",  "read",  "rggb", "ui16",   &module->connector[0].roi,
-    "output", "write", "r",    "atomic", &roi_buf);
+    "input",  "read",  "rggb", "ui16", &module->connector[0].roi,
+    "output", "write", "r",    "atom", &roi_buf);
   const int id_map = dt_node_add(graph, module, "rawhist", "map",
     module->connector[1].roi.wd, module->connector[1].roi.ht, 1,
     0, 0, 2,
-    "input",  "read",  "r",    "atomic", &roi_buf,
-    "output", "write", "rgba", "f16",    &module->connector[1].roi);
+    "input",  "read",  "r",    "atom", &roi_buf,
+    "output", "write", "rgba", "f16",  &module->connector[1].roi);
 
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_collect, 0);
