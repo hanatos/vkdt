@@ -27,6 +27,7 @@ dt_db_init(dt_db_t *db)
   fs_mkdir(db->basedir, 0755);
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;
+  threads_mutex_init(&db->image_mutex, 0);
 }
 
 void
@@ -40,6 +41,7 @@ dt_db_cleanup(dt_db_t *db)
   free(db->collection);
   free(db->selection);
   free(db->image);
+  threads_mutex_destroy(&db->image_mutex);
   memset(db, 0, sizeof(*db));
 }
 

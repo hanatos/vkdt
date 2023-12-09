@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/threads.h"
+
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
@@ -73,6 +75,7 @@ typedef struct dt_db_t
   dt_image_t *image;
   uint32_t image_cnt;
   uint32_t image_max;
+  threads_mutex_t image_mutex;
 
   // string pool for image file names
   dt_stringpool_t sp_filename;

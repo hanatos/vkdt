@@ -343,7 +343,9 @@ thread_work_coll(
   dt_db_image_path(j->db, j->coll[item], filename, sizeof(filename));
   (void) dt_thumbnails_cache_one(j->tn->graph + j->gid, j->tn, filename);
   // invalidate what we have in memory to trigger a reload:
+  threads_mutex_lock(&j->db->image_mutex);
   j->db->image[j->coll[item]].thumbnail = 0;
+  threads_mutex_unlock(&j->db->image_mutex);
   j->tn->graph[j->gid].io_mutex = 0;
   if(j->ufn) j->ufn();
 abort:
@@ -436,18 +438,23 @@ dt_thumbnails_load_list(
     const uint32_t imgid = collection[k];
     if(imgid >= db->image_cnt) break; // safety first. this probably means this job is stale! big danger!
     dt_image_t *img = db->image + imgid;
-    if(img->thumbnail == 0)
+    uint32_t tid = img->thumbnail;
+    if(tid == 0)
     { // not loaded
       char filename[1024];
       dt_db_image_path(db, imgid, filename, sizeof(filename));  
-      img->thumbnail = -1u;
-      if(dt_thumbnails_load_one(tn, filename, &img->thumbnail))
-        img->thumbnail = 0;
+      uint32_t thumb_index = -1u;
+      if(dt_thumbnails_load_one(tn, filename, &thumb_index) == VK_SUCCESS)
+      {
+        threads_mutex_lock(&db->image_mutex);
+        img->thumbnail = thumb_index;
+        threads_mutex_unlock(&db->image_mutex);
+      }
     }
-    else if(img->thumbnail > 0 && img->thumbnail < tn->thumb_max)
+    else if(tid > 0 && tid < tn->thumb_max)
     { // loaded, update lru
       // threads_mutex_lock(&tn->lru_lock);
-      dt_thumbnail_t *th = tn->thumb + img->thumbnail;
+      dt_thumbnail_t *th = tn->thumb + tid;
       if(th == tn->lru) tn->lru = tn->lru->next; // move head
       tn->lru->prev = 0;
       if(tn->mru == th) tn->mru = th->prev;      // going to remove mru, need to move
