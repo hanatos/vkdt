@@ -243,11 +243,15 @@ fs_expand_import_filename(
     char       *dst,     size_t dst_size,     // return expanded string here
     const char *dest)                         // ${dest} replacement string
 {
+  char date[10] = {0}, yyyy[5] = {0};
+#ifdef _WIN64
+#warning "port me!"
+#else
   time_t t = time(0);
   struct tm *tm = localtime(&t);
-  char date[10] = {0}, yyyy[5] = {0};
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
+#endif
   const char *key[] = { "home", "yyyy", "date", "dest", 0};
   const char *val[] = { getenv("HOME"), yyyy, date, dest, 0};
   dt_strexpand(pattern, pattern_size, dst, dst_size, key, val);
@@ -266,11 +270,15 @@ fs_expand_export_filename(
   if(len > 8 && filebase[len-8] == '.') filebase[len-8] = 0; // cut .xxx
   if(len > 9 && filebase[len-9] == '.') filebase[len-9] = 0; // cut .xxxx
   fs_dirname(filename);
+  char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
+#ifdef _WIN64
+#warning "port me!"
+#else
   time_t t = time(0);
   struct tm *tm = localtime(&t);
-  char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
+#endif
   snprintf(istr, sizeof(istr), "%04d", seq);
   const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "fbase", 0};
   const char *val[] = { getenv("HOME"), yyyy, date, istr, filename, filebase, 0};
@@ -282,12 +290,17 @@ fs_createdate(
     const char *filename,  // filename to stat
     char       *datetime)  // at least [20]
 {
+#ifdef _WIN64
+#warning "port me!"
+  datetime[0] = 0;
+#else
   struct stat statbuf;
   if(!stat(filename, &statbuf))
   {
     struct tm result;
     strftime(datetime, 20, "%Y:%m:%d %H:%M:%S", localtime_r(&statbuf.st_mtime, &result));
   }
+#endif
 }
 
 static inline int
