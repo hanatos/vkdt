@@ -289,3 +289,13 @@ fs_createdate(
     strftime(datetime, 20, "%Y:%m:%d %H:%M:%S", localtime_r(&statbuf.st_mtime, &result));
   }
 }
+
+static inline int
+fs_link(const char *oldpath, const char *newpath)
+{
+#ifdef _WIN64
+  return fs_copy(newpath, oldpath); // inefficient and stupid, as you would.
+#else
+  return link(oldpath, newpath);
+#endif
+}

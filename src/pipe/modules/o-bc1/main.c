@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/core.h"
+#include "core/fs.h"
 #define STB_DXT_IMPLEMENTATION
 #include "stb_dxt.h"
 
@@ -56,6 +57,6 @@ void write_sink(
   free(out);
   // atomically create filename only when we're quite done writing:
   unlink(filename); // just to be sure the link will work
-  link(tmpfile, filename);
+  fs_link(tmpfile, filename);
   unlink(tmpfile);
 }

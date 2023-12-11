@@ -283,7 +283,7 @@ dt_thumbnails_cache_one(
     dt_log(s_log_db, "[thm] running the thumbnail graph failed on image '%s'!", filename);
     // mark as dead
     snprintf(cfgfilename, sizeof(cfgfilename), "%s/data/bomb.bc1", dt_pipe.basedir);
-    link(cfgfilename, bc1filename);
+    fs_link(cfgfilename, bc1filename);
     return 4;
   }
   clock_t end = clock();
