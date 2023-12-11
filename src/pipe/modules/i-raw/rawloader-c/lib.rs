@@ -58,12 +58,12 @@ unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
   let decoder = rawler::get_decoder(&mut rawfile)?;
   let md = decoder.raw_metadata(&mut rawfile, RawDecodeParams::default())?;
   // let iso = u32::from(md.exif.iso_speed.unwrap()); // is already u32 and should be preferred?
-  (*rawimg).iso          = u32::from(md.exif.iso_speed_ratings.unwrap()) as f32;
-  (*rawimg).aperture     = md.exif.fnumber.unwrap().try_into().ok().unwrap();
-  (*rawimg).exposure     = md.exif.exposure_time.unwrap().try_into().ok().unwrap();
-  (*rawimg).focal_length = md.exif.focal_length.unwrap().try_into().ok().unwrap();
-  (*rawimg).orientation  = md.exif.orientation.unwrap() as u32;
-  copy_string(&md.exif.create_date.unwrap(), &mut (*rawimg).datetime);
+  match md.exif.iso_speed_ratings { Some(v) => { (*rawimg).iso          = u32::from(v) as f32; } None => {}}
+  match md.exif.fnumber           { Some(v) => { (*rawimg).aperture     = v.try_into().ok().unwrap(); } None => {}}
+  match md.exif.exposure_time     { Some(v) => { (*rawimg).exposure     = v.try_into().ok().unwrap(); } None => {}}
+  match md.exif.focal_length      { Some(v) => { (*rawimg).focal_length = v.try_into().ok().unwrap(); } None => {}}
+  match md.exif.orientation       { Some(v) => { (*rawimg).orientation  = v as u32; } None => {}}
+  match md.exif.create_date       { Some(d) => { copy_string(&d, &mut (*rawimg).datetime) } None => {}}
   Ok(())
 }
 
