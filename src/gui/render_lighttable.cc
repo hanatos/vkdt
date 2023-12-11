@@ -6,7 +6,7 @@ extern "C"
 #include "db/thumbnails.h"
 #include "db/rc.h"
 #include "db/hash.h"
-#include "core/strexpand.h"
+#include "core/fs.h"
 #include "pipe/graph-defaults.h"
 }
 #include "gui/render_view.hh"
@@ -275,21 +275,7 @@ void export_job_work(uint32_t item, void *arg)
 
   char filename[PATH_MAX], infilename[PATH_MAX], filedir[PATH_MAX];
   dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
-  char *filebase = fs_basename(filedir);
-  size_t len = strlen(filebase);
-  if(len > 4) filebase[len-4] = 0; // cut away .cfg
-  if(len > 8 && filebase[len-8] == '.') filebase[len-8] = 0; // cut .xxx
-  if(len > 9 && filebase[len-9] == '.') filebase[len-9] = 0; // cut .xxxx
-  fs_dirname(filedir);
-  time_t t = time(0);
-  struct tm *tm = localtime(&t);
-  char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
-  strftime(date, sizeof(date), "%Y%m%d", tm);
-  strftime(yyyy, sizeof(yyyy), "%Y", tm);
-  snprintf(istr, sizeof(istr), "%04d", item);
-  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "fbase", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, istr, filedir, filebase, 0};
-  dt_strexpand(j->basename, sizeof(j->basename), filename, sizeof(filename), key, val);
+  fs_expand_export_filename(j->basename, sizeof(j->basename), filename, sizeof(filename), filedir, item);
 
   dt_gui_notification("exporting to %s", filename);
 

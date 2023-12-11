@@ -74,12 +74,7 @@ dt_db_exif_mini(
       return 0;
     }
   }
-  struct stat statbuf;
-  if(!stat(filename, &statbuf))
-  {
-    struct tm result;
-    strftime(createdate, 20, "%Y:%m:%d %H:%M:%S", localtime_r(&statbuf.st_mtime, &result));
-  }
+  fs_createdate(filename, createdate);
   return 1;
 }
 

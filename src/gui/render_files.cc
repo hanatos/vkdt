@@ -3,7 +3,6 @@ extern "C" {
 #include "gui/gui.h"
 #include "gui/view.h"
 #include "core/fs.h"
-#include "core/strexpand.h"
 }
 #include "gui/render_view.hh"
 #include "gui/widget_filebrowser.hh"
@@ -223,14 +222,7 @@ void render_files()
             { // green light :)
               job[k].move = copy_mode;
               char dst[1000];
-              time_t t = time(0);
-              struct tm *tm = localtime(&t);
-              char date[10] = {0}, yyyy[5] = {0};
-              strftime(date, sizeof(date), "%Y%m%d", tm);
-              strftime(yyyy, sizeof(yyyy), "%Y", tm);
-              const char *key[] = { "home", "yyyy", "date", "dest", 0};
-              const char *val[] = { getenv("HOME"), yyyy, date, dest, 0};
-              dt_strexpand(pattern, strlen(pattern), dst, sizeof(dst), key, val);
+              fs_expand_import_filename(pattern, strlen(pattern), dst, sizeof(dst), dest);
               copy_job(job+k, dst, filebrowser.cwd);
             }
           }

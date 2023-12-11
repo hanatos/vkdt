@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <stdio.h>
 
 // pattern replaces ${variable key name} in strings
 // by a value strings. the pattern and the output strings

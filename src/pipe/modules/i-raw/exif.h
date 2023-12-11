@@ -267,13 +267,7 @@ int dt_exif_read(dt_image_params_t *ip, const char *path)
 {
   // at least set datetime taken to something useful in case there is no exif
   // data in this file (pfm, png, ...)
-  struct stat statbuf;
-
-  if(!stat(path, &statbuf))
-  {
-    struct tm result;
-    strftime(ip->datetime, 20, "%Y:%m:%d %H:%M:%S", localtime_r(&statbuf.st_mtime, &result));
-  }
+  fs_createdate(path, ip->datetime);
 
   try
   {
