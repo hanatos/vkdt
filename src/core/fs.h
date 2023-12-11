@@ -21,7 +21,8 @@ fs_copy(
 {
 #ifdef _WIN64
 #warning "port me!"
-  return 1;
+  bool res = CopyFile(src, dst, false);
+  return res != 0;
 #else
   ssize_t ret;
   struct stat sb;
