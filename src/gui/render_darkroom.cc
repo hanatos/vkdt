@@ -182,8 +182,8 @@ void render_darkroom()
       { // this should *always* be the case
         const uint16_t labels = vkdt.db.image[ci].labels;
         const uint16_t rating = vkdt.db.image[ci].rating;
-        dt_draw_rating(win_x-wd,   win_y-wd, wd, rating);
-        dt_draw_labels(win_x+4*wd, win_y-wd, wd, labels);
+        dt_draw_rating(ImGui::GetMainViewport()->Pos.x + win_x-wd,   ImGui::GetMainViewport()->Pos.y + win_y-wd, wd, rating);
+        dt_draw_labels(ImGui::GetMainViewport()->Pos.x + win_x+4*wd, ImGui::GetMainViewport()->Pos.y + win_y-wd, wd, labels);
       }
       ImGui::End();
     }
