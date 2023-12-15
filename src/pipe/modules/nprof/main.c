@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "../core/core.h" // for MIN
 #include "../core/fs.h"
+#include "graph-history.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +63,13 @@ void ui_callback(
     r = snprintf(msg, sizeof(msg), "installing noise profile to %s\n", fhome);
     if(r >= sizeof(msg)) return;
     module->graph->gui_msg = msg;
+  }
+  else if(param == dt_token("remove"))
+  { // try and remove the noise profiling modules.
+    // this assumes module names and instances as in the shipped noise profiling preset `noise-profile.pst`
+    dt_module_remove_with_history(module->graph, dt_token("rawhist"), dt_token("np"));
+    dt_module_remove_with_history(module->graph, dt_token("nprof"), dt_token("np"));
+    dt_module_remove_with_history(module->graph, dt_token("display"), dt_token("view0"));
   }
 }
 

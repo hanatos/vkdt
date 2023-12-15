@@ -7,6 +7,7 @@ profile files to be stored in `~/.config/vkdt/nprof` or `data/nprof/` and read b
 
 * `test` set the noise profile parameters in the file written out in the `i-raw:main` module for inspection
 * `install` install the noise profile to the home directory
+* `remove` remove the raw histogram and noise profile modules from the graph
 
 ## connectors
 

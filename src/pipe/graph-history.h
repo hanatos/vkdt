@@ -240,3 +240,24 @@ dt_module_add_with_history(
   if(new_modid >= 0) dt_graph_history_module(graph, new_modid);
   return new_modid;
 }
+
+static inline void
+dt_module_remove_with_history(
+    dt_graph_t *graph,
+    dt_token_t  name,
+    dt_token_t  inst)
+{
+  int modid = -1;
+  for(int i=0;i<graph->num_modules;i++)
+    if(graph->module[i].name == name && graph->module[i].inst == inst)
+    { modid = i; break; }
+  if(modid == -1) return;
+  for(int c=0;c<graph->module[modid].num_connectors;c++)
+  {
+    if(dt_connector_input(graph->module[modid].connector+c))
+      dt_module_connect_with_history(graph, -1, -1, modid, c);
+    else
+      dt_module_connect_with_history(graph, modid, c, -1, -1);
+  }
+  dt_module_remove(graph, modid);
+}
