@@ -14,9 +14,12 @@ int main(int argc, char *argv[])
   }
   dt_lut_header_t header;
   fread(&header, sizeof(header), 1, f);
-  size_t sz = header.datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
-  fprintf(stderr, "lut with %d x %d with %d channels at %zu bytes per channel\n",
-      header.wd, header.ht, header.channels, sz);
+  int datatype = header.datatype;
+  int is_ssbo = 0;
+  if(datatype >= dt_lut_header_ssbo_f16) { is_ssbo = 1; datatype -= dt_lut_header_ssbo_f16; }
+  size_t sz = datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
+  fprintf(stderr, "lut with %d x %d with %d channels at %zu bytes per %s channel\n",
+      header.wd, header.ht, header.channels, sz, is_ssbo ? "ssbo" : "colour");
   sz *= header.wd * (uint64_t)header.ht * (uint64_t)header.channels;
   fseek(f, sz+sizeof(header), SEEK_SET);
   while(!feof(f))

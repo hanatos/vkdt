@@ -12,7 +12,9 @@ typedef struct dt_lut_header_t
 } // data pointer follows right after this in the file.
 dt_lut_header_t;
 
-static const int dt_lut_header_magic   = 1234;
-static const int dt_lut_header_version = 2;
-static const int dt_lut_header_f16     = 0;
-static const int dt_lut_header_f32     = 1;
+static const int dt_lut_header_magic    = 1234;
+static const int dt_lut_header_version  = 2;
+static const int dt_lut_header_f16      = 0;
+static const int dt_lut_header_f32      = 1;
+static const int dt_lut_header_ssbo_f16 = 16;
+static const int dt_lut_header_ssbo_f32 = 17;
