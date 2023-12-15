@@ -864,20 +864,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           img->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
       }
     }
-    else if(dt_connector_ssbo(c) && dt_connector_input(c))
-    { // point our inputs to their counterparts:
-      if(c->connected_mi >= 0)
-      {
-        // point to conn_image of connected output directly:
-        node->conn_image[i] = graph->node[c->connected_mi].conn_image[c->connected_mc];
-        // TODO: as opposed to images, we do ideally not require staging
-        // memory. in fact i'm too lazy to track whether there's a sink node
-        // attached here, which would mean we would have had to allocate this
-        // buffer in host-visible staging memory in the output branch above.
-        // this means currently we would require a staging copy for ssbo sinks,
-        // but it's not implemented.
-      }
-    }
     else if(!dt_connector_ssbo(c) && dt_connector_output(c))
     { // allocate our output buffers
       const int dynalloc = c->flags & s_conn_dynamic_array; // connector asks for their own memory pool
@@ -939,8 +925,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging->ref++; // ref staging memory so we don't overwrite it before the pipe starts (will be written in read_source() in the module)
       }
     }
-    else if(!dt_connector_ssbo(c) && dt_connector_input(c))
-    { // point our inputs to their counterparts:
+    else if(dt_connector_input(c))
+    { // point our inputs to their counterparts and allocate staging memory for sinks
       if(c->connected_mi >= 0)
       {
         // point to conn_image of connected output directly:
@@ -967,10 +953,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
             .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
             .pObjectName = dedup,
           };
-        qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+          qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
 #endif
 #endif
-
           VkMemoryRequirements buf_mem_req;
           vkGetBufferMemoryRequirements(qvk.device, c->staging, &buf_mem_req);
           if(graph->memory_type_bits_staging != ~0 && buf_mem_req.memoryTypeBits != graph->memory_type_bits_staging)
@@ -1321,8 +1306,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   { // bind staging memory:
     dt_connector_t *c = node->connector+i;
-    if(dt_connector_ssbo(c)) continue; // ssbo need no staging memory
-    if(c->type == dt_token("source") || c->type == dt_token("sink"))
+    if((!dt_connector_ssbo(c) && (c->type == dt_token("source"))) || c->type == dt_token("sink"))
       vkBindBufferMemory(qvk.device, c->staging, graph->vkmem_staging, c->offset_staging);
   }
 
@@ -1806,8 +1790,17 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   { // only schedule copy back if the node actually asks for it
     if(dt_connector_ssbo(node->connector+0))
     {
-      // TODO: ssbo buffer copy?
-      // ssbo don't need staging memory, if we chose it host visible (currently only source ssbo)
+      VkBufferCopy bufreg = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size      = dt_connector_bufsize(node->connector, wd, ht),
+      };
+      vkCmdCopyBuffer(
+          cmd_buf,
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->buffer,
+          node->connector[0].staging,
+          1, &bufreg);
+      BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
     }
     else
     {

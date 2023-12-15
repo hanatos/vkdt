@@ -7,7 +7,7 @@
 
 void write_sink(
     dt_module_t *module,
-    void *buf)
+    void        *buf)
 {
   const char *basename = dt_module_param_string(module, 0);
   fprintf(stderr, "[o-lut] writing '%s'\n", basename);

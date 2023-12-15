@@ -65,11 +65,13 @@ error:
 static int
 read_plain(
     lutinput_buf_t *lut,
-    uint16_t       *out)
+    void           *out)
 {
   if(!lut->f) return 1;
   fseek(lut->f, lut->data_begin, SEEK_SET);
-  size_t sz = lut->header.datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
+  int datatype = lut->header.datatype;
+  if(datatype >= dt_lut_header_ssbo_f16) datatype -= dt_lut_header_ssbo_f16;
+  size_t sz = datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
   fread(out, lut->header.wd*(uint64_t)lut->header.ht*(uint64_t)lut->header.channels, sz, lut->f);
   return 0;
 }
