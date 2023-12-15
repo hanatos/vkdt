@@ -9,6 +9,7 @@
 typedef struct lutinput_buf_t
 {
   char filename[PATH_MAX];
+  char errormsg[256];
   dt_lut_header_t header;
   size_t data_begin;
   FILE *f;
@@ -55,6 +56,8 @@ read_header(
   return 0;
 error:
   fprintf(stderr, "[i-lut] %"PRItkn" could not load file `%s'!\n", dt_token_str(mod->inst), filename);
+  snprintf(lut->errormsg, sizeof(lut->errormsg), "i-lut: %"PRItkn" could not load file `%s'!\n", dt_token_str(mod->inst), filename);
+  mod->graph->gui_msg = lut->errormsg;
   lut->filename[0] = 0;
   return 1;
 }
