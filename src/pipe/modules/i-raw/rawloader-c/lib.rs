@@ -9,6 +9,7 @@ use std::convert::TryInto;
 use rawler::Result;
 use rawler::imgop::xyz::Illuminant;
 use rawler::decoders::RawDecodeParams;
+use rawler::rawimage::RawPhotometricInterpretation;
 
 #[repr(C)]
 pub struct c_rawimage {
@@ -20,8 +21,8 @@ pub struct c_rawimage {
   pub height      : u64,
   pub cpp         : u64,
   pub wb_coeffs   : [f32;4],
-  pub whitelevels : [u16;4],
-  pub blacklevels : [u16;4],
+  pub whitelevels : [f32;4],
+  pub blacklevels : [f32;4],
   pub xyz_to_cam  : [[f32;3];4],
   pub filters     : u32,
   pub crop_aabb   : [u64;4],
@@ -100,9 +101,9 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).stride = image.width  as u32;
   (*rawimg).height = image.height as u64;
   (*rawimg).cpp    = image.cpp    as u64;
-  for k in 0..4 { (*rawimg).wb_coeffs[k]   = image.wb_coeffs[cmp::min(image.wb_coeffs.len()-1,k)]; }
-  for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevel[cmp::min(image.whitelevel.len()-1,k)]; }
-  for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevel.levels[cmp::min(image.blacklevel.levels.len()-1,k)].as_f32() as u16; }
+  for k in 0..4 { (*rawimg).wb_coeffs[k] = image.wb_coeffs[cmp::min(image.wb_coeffs.len()-1,k)]; }
+  (*rawimg).whitelevels  = image.whitelevel.as_bayer_array();
+  (*rawimg).blacklevels  = image.blacklevel.as_bayer_array();
   // (*rawimg).orientation = image.orientation.to_u16() as u32;
 
   match image.color_matrix.get(&Illuminant::D65) {
@@ -142,74 +143,84 @@ pub unsafe extern "C" fn rl_decode_file(
   let mut oy = 0 as usize;
 
   (*rawimg).filters = 0x49494949; // something not 0 and not 9, indicating bayer
-  // special handling for x-trans sensors
-  if image.cfa.width == 6
-  { // find first green in same row
-    (*rawimg).filters = 9;
-    for i in 0..6 
-    {
-      if image.cfa.color_at(0, i) == 1
-      {
-        ox = i;
-        break;
-      }
-    }
-    if image.cfa.color_at(0, ox+1) != 1 && image.cfa.color_at(0, ox+2) != 1
-    { // center of green x, need to go 2 down
-      oy = 2;
-      ox = (ox + 2) % 3;
-    }
-    if image.cfa.color_at(oy+1, ox) == 1
-    { // two greens above one another, need to go down one
-      oy = oy + 1;
-    }
-    if image.cfa.color_at(oy, ox+1) == 1
-    { // if x+1 is green, too, either x++ or x-=2 if x>=2
-      if ox >= 2 { ox = ox - 2; }
-      else { ox = ox + 1; }
-    }
-    // now we should be at the beginning of a green 5-cross block.
-    if image.cfa.color_at(oy, ox+1) == 2
-    { // if x+1 == red and y+1 == blue, all good!
-      // if not, x+=3 or y+=3, equivalently.
-      if ox < oy  { ox = ox + 3; }
-      else        { oy = oy + 3; }
-    }
-  }
-  else // move to std bayer sensor offset
-  {
-    if image.cfa.color_at(0, 0) == 1
-    {
-      if image.cfa.color_at(0, 1) == 0 { ox = 1; }
-      if image.cfa.color_at(0, 1) == 2 { oy = 1; }
-    }
-    else if image.cfa.color_at(0, 0) == 2
-    {
-      ox = 1;
-      oy = 1;
-    }
-  }
-  // unfortunately need to round to full 6x6 block for xtrans
-  let block = if image.cfa.width == 6 { 3 } else { 2 } as u64;
-  let bigblock = image.cfa.width as u64;
-  // crop aabb is relative to buffer we emit,
-  // so we need to move it along to the CFA pattern boundary
-  let ref mut b = (*rawimg).crop_aabb;
-  b[2] -= ox as u64;
-  b[3] -= oy as u64;
-  // and also we'll round it to cut only between CFA blocks
-  b[0] = ((b[0] + bigblock - 1) / bigblock) * bigblock;
-  b[1] = ((b[1] + bigblock - 1) / bigblock) * bigblock;
-  b[2] =  (b[2] / block) * block;
-  b[3] =  (b[3] / block) * block;
 
-  (*rawimg).width  -= ox as u64;
-  (*rawimg).height -= oy as u64;
-  // round down to full block size:
-  (*rawimg).width  = ((*rawimg).width /block)*block;
-  (*rawimg).height = ((*rawimg).height/block)*block;
-  (*rawimg).cfa_off_x = ox as u32;
-  (*rawimg).cfa_off_y = oy as u32;
+  match image.photometric {
+    RawPhotometricInterpretation::BlackIsZero => {},
+    RawPhotometricInterpretation::Cfa(_) => {
+      let cfa = &image.camera.cfa;
+      // special handling for x-trans sensors
+      if cfa.width == 6
+      { // find first green in same row
+        (*rawimg).filters = 9;
+        for i in 0..6 
+        {
+          if cfa.color_at(0, i) == 1
+          {
+            ox = i;
+            break;
+          }
+        }
+        if cfa.color_at(0, ox+1) != 1 && cfa.color_at(0, ox+2) != 1
+        { // center of green x, need to go 2 down
+          oy = 2;
+          ox = (ox + 2) % 3;
+        }
+        if cfa.color_at(oy+1, ox) == 1
+        { // two greens above one another, need to go down one
+          oy = oy + 1;
+        }
+        if cfa.color_at(oy, ox+1) == 1
+        { // if x+1 is green, too, either x++ or x-=2 if x>=2
+          if ox >= 2 { ox = ox - 2; }
+          else { ox = ox + 1; }
+        }
+        // now we should be at the beginning of a green 5-cross block.
+        if cfa.color_at(oy, ox+1) == 2
+        { // if x+1 == red and y+1 == blue, all good!
+          // if not, x+=3 or y+=3, equivalently.
+          if ox < oy  { ox = ox + 3; }
+          else        { oy = oy + 3; }
+        }
+      }
+      else // move to std bayer sensor offset
+      {
+        if cfa.color_at(0, 0) == 1
+        {
+          if cfa.color_at(0, 1) == 0 { ox = 1; }
+          if cfa.color_at(0, 1) == 2 { oy = 1; }
+        }
+        else if cfa.color_at(0, 0) == 2
+        {
+          ox = 1;
+          oy = 1;
+        }
+      }
+      // unfortunately need to round to full 6x6 block for xtrans
+      let block = if cfa.width == 6 { 3 } else { 2 } as u64;
+      let bigblock = cfa.width as u64;
+      // crop aabb is relative to buffer we emit,
+      // so we need to move it along to the CFA pattern boundary
+      let ref mut b = (*rawimg).crop_aabb;
+      b[2] -= ox as u64;
+      b[3] -= oy as u64;
+      // and also we'll round it to cut only between CFA blocks
+      b[0] = ((b[0] + bigblock - 1) / bigblock) * bigblock;
+      b[1] = ((b[1] + bigblock - 1) / bigblock) * bigblock;
+      b[2] =  (b[2] / block) * block;
+      b[3] =  (b[3] / block) * block;
+
+      (*rawimg).width  -= ox as u64;
+      (*rawimg).height -= oy as u64;
+      // round down to full block size:
+      (*rawimg).width  = ((*rawimg).width /block)*block;
+      (*rawimg).height = ((*rawimg).height/block)*block;
+      (*rawimg).cfa_off_x = ox as u32;
+      (*rawimg).cfa_off_y = oy as u32;
+    },
+    RawPhotometricInterpretation::LinearRaw => {
+      (*rawimg).filters = 0; // no cfa
+    },
+  }
   len as u64
 }
 
