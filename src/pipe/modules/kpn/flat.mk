@@ -1,1 +1,1 @@
-pipe/modules/kpn/libkpn.so: pipe/modules/dnmlp/config.h
+pipe/modules/kpn/libkpn.so: pipe/modules/kpn-t/config.h
