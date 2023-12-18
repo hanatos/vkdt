@@ -76,7 +76,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     int pc[] = { wd, module->connector[4].roi.wd };
 #endif
     const int id_down = dt_node_add(
-        graph, module, "cnntrain", "down",
+        graph, module, "kpn-t", "down",
         (cwd+31)/32 * DT_LOCAL_SIZE_X, 1, 1, sizeof(pc), pc, 2,
         "Ei", "read",  "ssbo", "f32", -1ul,
         "Eo", "write", "ssbo", "f32", &croi);
@@ -91,7 +91,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   graph->node[id_in].connector[1].type = dt_token("source");// ???
   int pcm[] = { module->connector[4].roi.wd };
   const int id_map = dt_node_add(
-      graph, module, "cnntrain", "map",
+      graph, module, "kpn-t", "map",
       module->connector[4].roi.wd, module->connector[4].roi.ht, 1, sizeof(pcm), pcm, 2,
       "Ei",   "read",  "ssbo", "f32", -1ul,
       "dspy", "write", "rgba", "f16", &module->connector[4].roi);
