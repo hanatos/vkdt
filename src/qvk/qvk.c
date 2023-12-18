@@ -59,7 +59,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_2,
+  .apiVersion         = VK_API_VERSION_1_3,
 };
 
 static void
@@ -347,10 +347,14 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
       qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
       qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
       for(int k=0;k<num_ext;k++)
+      {
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
           qvk.raytracing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME))
           qvk.float_atomics_supported = 1;
+        else if (!strcmp(ext_properties[k].extensionName, VK_NV_COOPERATIVE_MATRIX_EXTENSION_NAME))
+          qvk.coopmat_supported = 1;
+      }
       picked_device = i;
       if(preferred_device_name)
         dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);
@@ -432,35 +436,37 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .shaderImageFloat32AtomicAdd = VK_TRUE,
     .pNext                       = &v12f,
   };
-  // VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
-  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES,
-  //   .pNext = &atomic_features,
-  // };
+  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES,
+    .pNext = &atomic_features,
+  };
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .samplerYcbcrConversion = 1,
-    // .pNext                  = &sub_features,
-    .pNext                  = &atomic_features,
+    .pNext                  = &sub_features,
   };
-  // vk 1.3 stuff:
-  // VkPhysicalDeviceMaintenance4Features maintenance4 = {
-  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
-  //   .pNext = &v11f,
-  // };
+  VkPhysicalDeviceMaintenance4Features maintenance4 = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
+    .pNext = &v11f,
+  };
+  VkPhysicalDeviceCooperativeMatrixFeaturesNV coopmat = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV,
+    .pNext = &maintenance4,
+  };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    // .pNext    = &maintenance4,
-    .pNext = &v11f,
+    .pNext    = &coopmat,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
   if(atomic_features.shaderImageFloat32AtomicAdd == VK_FALSE)
     qvk.float_atomics_supported = 0;
 
-  dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics support", picked_device,
+  dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics and %s coopmat support", picked_device,
       qvk.raytracing_supported ? "with" : "without",
-      qvk.float_atomics_supported ? "with" : "without");
+      qvk.float_atomics_supported ? "with" : "without",
+      qvk.coopmat_supported ? "with" : "without");
 
   const char *requested_device_extensions[30] = {
     // ray tracing
@@ -473,10 +479,11 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     VK_KHR_RAY_QUERY_EXTENSION_NAME,
     // VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, // to bring intel + amd in line with our 32-wide code..
     // end of ray tracing
-    // VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME, // ballot voting in work group
   };
   int len = (qvk.raytracing_supported ? 7 : 0);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
+  if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME;
+  if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_COOPERATIVE_MATRIX_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif

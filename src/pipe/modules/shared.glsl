@@ -1,5 +1,10 @@
 #include "localsize.h"
 
+float clamps(float v, float m, float M)
+{ // opposite to the definition of clamp this one never passes on v in case of NaN (but clamps to M instead)
+  return max(m, min(M, v));
+}
+
 // http://vec3.ca/bicubic-filtering-in-fewer-taps/
 vec4 sample_catmull_rom(sampler2D tex, vec2 uv)
 {
