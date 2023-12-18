@@ -1,0 +1,49 @@
+#version 460 core
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_shader_16bit_storage : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+
+#include "shared.glsl"
+#include "config.h"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t { int frame; } global;
+// layout(push_constant, std140) uniform push_t { } push;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+
+layout(std430, set = 1, binding = 0) readonly  buffer ssbo_w_t   { float16_t v[]; } ssbo_w;   // current weights
+layout(std430, set = 1, binding = 1) readonly  buffer ssbo_dw_t  { float     v[]; } ssbo_dw;  // dE/dw
+layout(std430, set = 1, binding = 2) readonly  buffer ssbo_dbg_t { float     v[]; } ssbo_dbg; // debug derivatives, finite differences
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
+
+void main()
+{
+  nonuniformEXT ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 rgb = vec3(0.0);
+  if(ipos.y < WIDTH)
+  { // weights
+    int layer = ipos.x / WIDTH;
+    int act = ipos.y;
+    int w = ipos.x % WIDTH;
+    rgb = vec3(ssbo_w.v[layer * WIDTH*WIDTH + act * WIDTH + w]);
+    if(all(lessThan(abs(rgb), vec3(1e-12)))) rgb = vec3(0,1,1); // mark zero entries
+  }
+  else if(ipos.y < 2*WIDTH)
+  { // dw
+    int layer = ipos.x / WIDTH;
+    int act = ipos.y - WIDTH;
+    int w = ipos.x % WIDTH;
+#ifdef DEBUG_DERIV
+    float w0 = ssbo_dbg.v[0];
+    float w1 = ssbo_dbg.v[layer * WIDTH*WIDTH + act * WIDTH + w + 1];
+    rgb = vec3((w1-w0)/DERIV_EPS);
+    if(layer * WIDTH*WIDTH + act * WIDTH + w + 1 > global.frame)
+      rgb = vec3(0);
+#else
+    rgb = vec3(ssbo_dw.v[layer * WIDTH*WIDTH + act * WIDTH + w]/GRAD_SCALE);
+#endif
+  }
+  if(rgb.x < 0) rgb = vec3(-rgb.x, 0, 0);
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}

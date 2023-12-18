@@ -1,0 +1,96 @@
+#version 460 core
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_shader_16bit_storage : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+
+#include "config.h"
+#include "shared.glsl"
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{ 
+  int frame;
+} global;
+layout(push_constant, std140) uniform push_t
+{
+  int size;
+} push;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float alpha;
+  float beta1;
+  float beta2;
+  float eps;
+  int randomise;
+  float L2reg;
+} params;
+
+layout(std430, set = 1, binding = 0) readonly  buffer ssbo_wi_t  { float16_t v[]; } ssbo_wi;  // current weights
+layout(std430, set = 1, binding = 1) readonly  buffer ssbo_dw_t  { float     v[]; } ssbo_dw;  // dE/dw
+layout(std430, set = 1, binding = 2) readonly  buffer ssbo_m1i_t { float16_t v[]; } ssbo_m1i; // biased first moment
+layout(std430, set = 1, binding = 3) readonly  buffer ssbo_m2i_t { float16_t v[]; } ssbo_m2i; // biased second moment
+layout(std430, set = 1, binding = 4) writeonly buffer ssbo_w_t   { float16_t v[]; } ssbo_w;
+layout(std430, set = 1, binding = 5) writeonly buffer ssbo_m1_t  { float16_t v[]; } ssbo_m1;
+layout(std430, set = 1, binding = 6) writeonly buffer ssbo_m2_t  { float16_t v[]; } ssbo_m2;
+layout(std430, set = 1, binding = 7) readonly  buffer ssbo_wcp_t { float16_t v[]; } ssbo_wcp; // weights from optional checkpoint 
+
+void
+main()
+{
+  const uint i = gl_GlobalInvocationID.x;
+  if(i >= push.size) return;
+
+  float dw = ssbo_dw.v[i] / GRAD_SCALE;
+  float  w = ssbo_wi.v[i];
+  float m1 = ssbo_m1i.v[i];
+  float m2 = ssbo_m2i.v[i];
+
+#ifdef DEBUG_DERIV
+  uint seed = i*133700013 + 19*0;
+  w = (0.5-mrand(seed)) * 2.0 * 0.0765;//* 1e-5;
+  if(global.frame - 1 == i) w += DERIV_EPS; // first frame: do nothing. other frames: change w at frame index
+  ssbo_w.v[i] = float16_t(w);
+  return;
+#else
+  uint seed = i*133700013 + 19*global.frame;
+#endif
+
+  if(params.L2reg > 0.0) // L2 regularisation
+    // add + lambda * sum(w^2) to the loss
+    // derivative: 2*lambda w
+    dw += 2.0 * params.L2reg * w;
+
+  m1 = mix(dw,    m1, params.beta1);
+  m2 = mix(dw*dw, m2, params.beta2);
+
+  float corr_m1 = 1.0/(1.0-pow(params.beta1, global.frame+1));
+  float corr_m2 = 1.0/(1.0-pow(params.beta2, global.frame+1));
+
+#if 0 // emergency clamping
+  float delta = m1 * corr_m1 * params.alpha / (sqrt(m2 * corr_m2) + params.eps);
+  w = clamps(w, -10.0, 10.0);
+  delta = sign(delta) * min(max(1e-2, abs(2.0*w)), abs(delta));
+  w -= delta;
+#else // plain
+  w -= m1 * corr_m1 * params.alpha / (sqrt(m2 * corr_m2) + params.eps);
+#endif
+
+  if(global.frame == 0)
+  { // initialisation
+    if(params.randomise != 0) // xavier initialisation: scale uniform -1,1 by sqrt(6/(rows + cols)) to keep variance of result bounded
+      w = (0.5-mrand(seed)) * 2.0 * sqrt(6.0/(WIDTH+WIDTH));
+    else w = ssbo_wcp.v[i];
+    m1 = 0.0;
+    m2 = 0.0;
+  }
+
+  // emergency recovery
+  if(isnan(w)  || isinf(w))  w = (0.5-mrand(seed)) * 2.0 * 0.0765;
+  if(isnan(m1) || isinf(m1)) m1 = 0.0;
+  if(isnan(m2) || isinf(m2)) m2 = 0.0;
+
+  ssbo_w .v[i] = float16_t(clamps(w,  -65000.0, 65000.0));
+  ssbo_m1.v[i] = float16_t(clamps(m1, -65000.0, 65000.0));
+  ssbo_m2.v[i] = float16_t(clamps(m2, -65000.0, 65000.0));
+}
