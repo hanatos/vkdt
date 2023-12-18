@@ -1,8 +1,10 @@
 # kpn-t: fully fused multi layer perceptron for denoising
 
+this is some super experimental neural network training module.
+if you don't know better already, you probably don't need to read on :)
+
 ## training
 
-TODO: document some more
 put the following in a file like `train-mlp-cli.cfg`:
 ```
 frames:150001

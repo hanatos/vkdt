@@ -1,7 +1,7 @@
 # kpn: kernel prediction neural network denoising
 
-see `kpn-t` for the training part. the weights lut produced by the latter module should
-be plugged into here.
+see [the `kpn-t` module](../kpn-t/readme.md) for the training part. the weights
+lut produced by the latter module should be plugged into here.
 
 ## connectors
 
