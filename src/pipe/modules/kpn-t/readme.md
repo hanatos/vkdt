@@ -38,27 +38,23 @@ lets us work with leaky relu without exploding gradients.
 
 ## TODO
 
-FIXME: export crashes x hard. memory bounds issue? check storage images and shared memory!
 FIXME: can't compute `DEBUG_DERIV` on current softmax code
-FIXME: loss plot seems borken bar
+FIXME: loss plot seems fubared
 
 release:
 TODO: use KHR coopmat extension instead of NV (mainly types matA matB matC)
 TODO: compile both versions (bck,fwd,inf)x(cm,nocm)
 TODO: pick kernel based on flag in qvk
-TODO: what about the non-32 subgroups?
+TODO: what about the non-32 subgroups? (is a vk1.3 extension)
 TODO: what is good input? (paris/durand propose shipping noise sigma)
 TODO: luma/chroma blend
 
 training:
 TODO: input luminance + noise std dev (for rendering)
-TODO: dpreview images are excellent, only they jump by 0.5-1px in a few directions. can't really use for high quality
-TODO: dpreview not suitable for noise profiling :(
 TODO: generate noisy input synthetically from noise profiles
 TODO: cnngenin: train with ref vs. all other iso
 
-extra credits:
-* run on raw bayer and demosaic as you go?
+extra credits: run on raw bayer and demosaic as you go?
 
 
 ## parameters
