@@ -36,9 +36,8 @@ MOD_CFLAGS+=$(VKDT_EXIV2_CFLAGS) -DVKDT_USE_EXIV2=1
 MOD_LDFLAGS+=$(VKDT_EXIV2_LDFLAGS)
 pipe/modules/i-raw/libi-raw.so:pipe/modules/i-raw/exif.h
 endif
-endif # end rawspeed
-
 # TODO: cache a hash to the checkout revision and test against what we want
+endif # end rawspeed
 
 # use rawloader
 ifeq ($(VKDT_USE_RAWINPUT),2)
@@ -48,4 +47,5 @@ pipe/modules/i-raw/libi-raw.so: pipe/modules/i-raw/rawloader-c/target/release/li
 
 pipe/modules/i-raw/rawloader-c/target/release/librawloader.a: pipe/modules/i-raw/rawloader-c/lib.rs pipe/modules/i-raw/rawloader-c/Cargo.toml
 	cd pipe/modules/i-raw/rawloader-c; cargo update; cargo build --release
+	touch pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
 endif
