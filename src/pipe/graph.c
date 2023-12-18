@@ -11,6 +11,7 @@
 #ifdef DEBUG_MARKERS
 #include "db/stringpool.h"
 #endif
+#include "cycles.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -750,17 +751,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "comp", &shader_module));
 
       // TODO: cache pipelines on module->so ?
-      // VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT sub = {
-      //   .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
-      //   .requiredSubgroupSize = 32,
-      // };
+      VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT sub = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
+        .requiredSubgroupSize = 32,
+      };
       VkPipelineShaderStageCreateInfo stage_info = {
         .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
         .pSpecializationInfo = 0,
         .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.
         .module              = shader_module,
-        // .pNext               = &sub,
+        .pNext               = &sub,
       };
 
       // finally create the pipeline
@@ -2177,7 +2178,14 @@ VkResult dt_graph_run(
   {
     if(graph->module[modid[i]].connector[0].type == dt_token("sink"))
     {
-      if(graph->module[modid[i]].connector[0].roi.full_wd == 0) return VK_INCOMPLETE;
+      if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
+      {
+        dt_log(s_log_pipe|s_log_err, "module %"PRItkn" %"PRItkn" connector %"PRItkn" has uninited size!",
+            dt_token_str(graph->module[modid[i]].name),
+            dt_token_str(graph->module[modid[i]].inst),
+            dt_token_str(graph->module[modid[i]].connector[0].name));
+        return VK_INCOMPLETE;
+      }
       break; // we're good
     }
   }
@@ -2780,9 +2788,9 @@ VkResult dt_graph_run(
     vkResetFences(qvk.device, 1, &graph->command_fence[f]);
     QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait for our command buffer
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
     else
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[fp], VK_TRUE, ((uint64_t)1)<<40)); // wait for previous command buffer
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[fp], VK_TRUE, ((uint64_t)1)<<30)); // wait for previous command buffer
   }
   
   // XXX FIXME: this is a race condition for multi-frames. we'll need to wait until download is complete before starting the other command buffer!
