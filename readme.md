@@ -29,7 +29,7 @@ targets, such as the main view and histograms.
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
 * [gamepad input](https://github.com/ocornut/imgui/issues/787) inherited from imgui
 * [automatic parameter optimisation](src/fit/readme.md), for instance to fit vignetting
-* [heavy handed processing](src/pipe/modules/cnn/readme.md) at almost realistic speeds
+* [heavy handed processing](src/pipe/modules/kpn-t/readme.md) at almost realistic speeds
 
 ## documentation
 
