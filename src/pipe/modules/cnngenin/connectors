@@ -1,0 +1,4 @@
+imgi:read:*:*
+refi:read:*:*
+imgo:write:rgba:f16
+refo:write:rgba:f16
