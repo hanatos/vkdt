@@ -352,6 +352,7 @@ dt_image(
   w->win_x = ImGui::GetWindowPos().x;  w->win_y = ImGui::GetWindowPos().y;
   w->win_w = ImGui::GetWindowSize().x; w->win_h = ImGui::GetWindowSize().y;
   ImTextureID imgid = out->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
+  if(!imgid) return;
   float im0[2], im1[2];
   float v0[2] = {w->win_x, w->win_y};
   float v1[2] = {w->win_x+w->win_w, w->win_y+w->win_h};

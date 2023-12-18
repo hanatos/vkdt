@@ -401,7 +401,7 @@ abort:
 
     // draw histogram image:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-    if(out_hist && vkdt.graph_res == VK_SUCCESS)
+    if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
     {
       int wd = vkdt.state.panel_wd * 0.975;
       // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
@@ -413,7 +413,7 @@ abort:
     }
 
     dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
-    if(out_view0 && vkdt.graph_res == VK_SUCCESS)
+    if(out_view0 && vkdt.graph_res == VK_SUCCESS && out_view0->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
     {
       float iwd = out_view0->connector[0].roi.wd;
       float iht = out_view0->connector[0].roi.ht;
