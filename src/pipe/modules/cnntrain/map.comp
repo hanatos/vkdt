@@ -1,0 +1,56 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_control_flow_attributes : enable
+#include "shared.glsl"
+#include "shared/text.h"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+layout(push_constant, std140) uniform push_t
+{
+  uint num_frames;
+} push;
+
+layout(set = 1, binding = 0) buffer ssbo_t { float v[]; } ssbo;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+float etod(float E)
+{
+  // return E;
+  return log(E+2) - log(2);
+}
+
+float lookup(uint px)
+{ // do a smoothed lookup, this is hell noisy:
+  int r = 4;
+  float res = 0.0;
+  for(int i=-r;i<=r;i++)
+  {
+    uint j = (px + i + push.num_frames) % push.num_frames;
+    res += etod(ssbo.v[j]);
+  }
+  return res / (2.0*r+1.0);
+}
+
+void main()
+{
+  uvec2 ipos = gl_GlobalInvocationID.xy;
+  if(any(greaterThan(ipos, imageSize(img_out)))) return;
+  float E = lookup(ipos.x);
+  // float m = etod(ssbo.v[global.frame % push.num_frames]) * 3.0; // this is 100%
+  float m = lookup(0) * 3.0; // this is 100%
+  m = max(m, 1e-6);
+  vec4 rgba = vec4(0.5, 0.5, 0.5, 1.0);
+  if(1.0 - ipos.y / float(imageSize(img_out).y) > E/m)
+    rgba.rgb = vec3(0.0);
+  if(ipos.x == (global.frame % push.num_frames))
+    rgba = vec4(0.9, 0.3, 0.2, 1.0);
+
+  float top = imageSize(img_out).y-1;
+  float text = print_number(m, vec2(10, top-21), vec2(ipos.x, top-ipos.y));
+  rgba.rgb += vec3(text);
+  imageStore(img_out, ivec2(ipos), rgba);
+}
