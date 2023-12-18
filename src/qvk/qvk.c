@@ -59,7 +59,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_3,
+  .apiVersion         = VK_API_VERSION_1_2,
 };
 
 static void
@@ -436,22 +436,24 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     .shaderImageFloat32AtomicAdd = VK_TRUE,
     .pNext                       = &v12f,
   };
-  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES,
-    .pNext = &atomic_features,
-  };
+  // VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
+  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES,
+  //   .pNext = &atomic_features,
+  // };
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .samplerYcbcrConversion = 1,
-    .pNext                  = &sub_features,
+    .pNext                  = &atomic_features,
+    // .pNext                  = &sub_features,
   };
-  VkPhysicalDeviceMaintenance4Features maintenance4 = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
-    .pNext = &v11f,
-  };
+  // VkPhysicalDeviceMaintenance4Features maintenance4 = {
+  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
+  //   .pNext = &v11f,
+  // };
   VkPhysicalDeviceCooperativeMatrixFeaturesNV coopmat = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV,
-    .pNext = &maintenance4,
+    // .pNext = &maintenance4, // VK 1.3 only so it seems
+    .pNext = &v11f,
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,

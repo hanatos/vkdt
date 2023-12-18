@@ -65,7 +65,7 @@ clean: Makefile
 	rm -f pipe/modules/*/{ctooltips,ptooltips}
 
 # GNU_SOURCE for sched_affinity
-CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11 -DVK_ENABLE_BETA_EXTENSIONS
+CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
 CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE
 EXE_CFLAGS?=-fPIC
 # LDFLAGS=
