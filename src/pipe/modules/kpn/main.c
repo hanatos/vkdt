@@ -1,5 +1,5 @@
 #include "modules/api.h"
-#include "../dnmlp/config.h"
+#include "../kpn-t/config.h"
 
 void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
@@ -17,7 +17,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     roi_M[i].ht = (roi_M[i-1].ht + 1)/2;
   }
   const int id_mip = dt_node_add(
-      graph, module, "dnmlp", "mip", // XXX channels?
+      graph, module, "kpn-t", "mip", // XXX channels?
       (roi_input.wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_input.ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
       "M0", "read",  "rgba", "*",  -1ul,
       "M1", "write", "rgba", "f16", roi_M+1,
@@ -38,13 +38,13 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
     const int id_inf = dt_node_add( // infer kernel and store intermediate activations too
-        graph, module, "dnmlp", "inf", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
+        graph, module, "kpn-t", "inf", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
         "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
         "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
         "K", "write", "ssbo", "f16", &roi_K); // network output, 15 kernel weights + 1 alpha per px 
 
     const int id_apply = dt_node_add( // apply convolution
-        graph, module, "dnmlp", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
         "M", "read",  "rgba", "*",   -1ul,
         "K", "read",  "ssbo", "f16", -1ul,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
@@ -53,7 +53,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     if(i < 3)
     {
       id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
-          graph, module, "dnmlp", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+          graph, module, "kpn-t", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
           "I",  "read",  "rgba", "*",   -1ul,   // the convolved image on this (fine) scale (with alpha channel)
           "Oc", "read",  "rgba", "*",   -1ul,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
           "O",  "write", "rgba", "f16", &roi_M[i]);

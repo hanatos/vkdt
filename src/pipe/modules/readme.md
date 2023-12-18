@@ -62,6 +62,8 @@ it follows the current list of available modules.
 * [deconv: deconvolution sharpening](./deconv/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
 * [hotpx: remove impulse noise/stuck pixels](./hotpx/readme.md)
+* [kpn: kernel prediction neural network for denoising](./kpn/readme.md)
+* [kpn-t: kernel prediction neural network for denoising, training](./kpn-t/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [negative: invert film negatives](./negative/readme.md)
 
