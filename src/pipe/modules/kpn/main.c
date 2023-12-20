@@ -1,7 +1,6 @@
 #include "modules/api.h"
 #include "../kpn-t/config.h"
 // TODO: re-define N_ITERS
-// TODO: make sure all the batch size things are wired to N_ITERS!
 
 void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
@@ -31,14 +30,15 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   int id_up_prev = -1;
   for(int i=0;i<4;i++)
   { // from fine M0 to coarse M3
-    const uint32_t batch_size = 128 * ((127 + roi_M[i].wd*roi_M[i].ht)/128);            // #px rounded up to 128 (=N_ITERS*16)
-    dt_roi_t roi_K = (dt_roi_t){ .wd = batch_size, .ht = 16 };                          // output: 15-tap kernel (+1 alpha) per pixel
+    const uint32_t unit = N_ITERS * 16;
+    const uint32_t batch_size = unit * ((unit - 1 + roi_M[i].wd*roi_M[i].ht)/unit); // #px rounded up to 128 (=N_ITERS*16)
     const int pc_inf[] = { 32, batch_size, 16 };
     // uint32_t in_width;         = WIDTH, multiple of 16
     // uint32_t output_stride;    = 16, last layer only
-    const int blocks[] = { pc_inf[1]/128, 1u, 1u }; // num pixels / (16 * N_ITERS)
+    const int blocks[] = { pc_inf[1]/unit, 1u, 1u }; // num pixels / (16 * N_ITERS)
     
-#if 1 // fused kernel
+#if 1 // fused kernel without global memory intermediats.
+    // XXX TODO: double check the wiring below and maybe put behind ifdef too
     const int id_apply = dt_node_add( // infer kernel and store intermediate activations too
         graph, module, "kpn-t", "infapply", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
         "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
@@ -46,8 +46,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
     const int id_inf = id_apply;
 #else
-    // XXX TODO: use our own inferencing kernel without global memory
-    // XXX TODO: run it in 32,N_BLOCKS but not N_ITERS! (i.e. keep local size but run more threads: blocks[0] = px / (16 * 2)
+    dt_roi_t roi_K = (dt_roi_t){ .wd = batch_size, .ht = 16 }; // output: 15-tap kernel (+1 alpha) per pixel
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
     const int id_inf = dt_node_add( // infer kernel and store intermediate activations too
         graph, module, "kpn-t", "inf", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
