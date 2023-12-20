@@ -461,7 +461,7 @@ void render_nodes()
   if(ImNodes::NumSelectedNodes() == 1)
   {
     ImNodes::GetSelectedNodes(&mid);
-    if(g->module[mid].so->has_inout_chain)
+    if(mid >= 0 && mid < g->num_modules && g->module[mid].so->has_inout_chain)
     {
       int mco = dt_module_get_connector(g->module+mid, dt_token("output"));
       int mci = dt_module_get_connector(g->module+mid, dt_token("input"));
@@ -554,6 +554,7 @@ extern "C" int nodes_enter()
 
 extern "C" int nodes_leave()
 {
+  ImNodes::ClearNodeSelection(); // don't leave stray selection. leads to problems re-entering with another graph.
   dt_graph_t *g = &vkdt.graph_dev;
   for(uint32_t m=0;m<g->num_modules;m++)
   { // set gui positions on modules
