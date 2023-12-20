@@ -1,0 +1,158 @@
+#version 460 core
+// fully connected multi-layer perceptron, following closely thomas mueller and
+// nikolaus binder's implementation in tiny-cuda-nn.
+#pragma use_vulkan_memory_model
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_EXT_nonuniform_qualifier      : enable
+#extension GL_KHR_shader_subgroup_basic     : enable
+#extension GL_EXT_scalar_block_layout       : enable
+#extension GL_KHR_memory_scope_semantics    : enable
+#extension GL_EXT_buffer_reference          : enable
+#extension GL_EXT_control_flow_attributes   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+
+#include "shared/coopmat.glsl"
+#include "config.h"
+#include "shared.glsl"
+#include "input.glsl"
+#include "sigmoid.glsl"
+
+layout(local_size_x = 32, local_size_y = N_BLOCKS, local_size_z = 1) in;
+layout(push_constant, std140) uniform push_t
+{
+  uint32_t in_width;
+  uint32_t batch_size;
+  uint32_t output_stride;
+} push;
+layout(set = 1, binding = 0) uniform sampler2D img_in; // 'M' input mipmap
+layout(set = 1, binding = 1) readonly buffer ssbo_wgt_t { uvec4 v[]; } ssbo_weights; // 'w'
+layout(set = 1, binding = 2) uniform writeonly image2D img_I; // 'I' output convolved image
+
+// TODO: if this is limited by shm, don't load weights via shm! (and strip off 16 from the first entry here)
+shared uvec4 shm_act[((16 + 16*N_ITERS) * (WIDTH + SKEW)) / EL_PER_UVEC4];
+shared float16_t Ks[16*16*2]; // two coopmat worth of kernel output, accessible as float16 // TODO: add skew?
+
+#define INFERENCE
+#define HAVE_NO_SSBO_RES
+#include "mlp.h"
+#include "fwd.h"
+
+void main()
+{
+  // each block computes exactly one 16-element chunk of the batch.
+  const uint32_t elem_idx = 16 * gl_WorkGroupID.x * N_ITERS; // TODO: N_ITERS=2 for this invocation!
+
+  // first layer
+  threadblock_load_input_static(0, elem_idx * WIDTH);
+  threadblock_layer(0, 0, elem_idx * WIDTH, 0);
+
+  const uint32_t first_weights_stride = WIDTH * push.in_width;
+  const uint32_t weights_stride = WIDTH * WIDTH;
+  const uint32_t layer_stride = WIDTH * push.batch_size;
+
+  // hidden layers
+  for (int k = 0; k < N_HIDDEN_LAYERS-1; ++k)
+    threadblock_layer(0, first_weights_stride + weights_stride * k, layer_stride * (k + 1) + elem_idx * WIDTH, 0);
+
+  // act_shmem contains the intermediate activations (shared memory) of the thread block's chunk of the batch
+  // weights_this_layer points to the weight matrix of the current layer
+  // out points to the location where the result produced by the thread block should be written to.
+  coopmat_t act_frag;               // input layout: row major
+  coopmat_t weights_frag[N_BLOCKS]; // weights layout: col major
+  coopmat_t result_frag;
+
+  const uint32_t li = gl_LocalInvocationID.x; // index in warp  ("lane index")
+  const uint32_t wi = gl_LocalInvocationID.y; // index in block ("warp index")
+
+  const uint32_t weights_shmem_idx = N_ITERS * 16 * (WIDTH + SKEW); // XXX N_ITERS = 2!
+  const uint32_t weights_row = (8 * li) % WIDTH;
+  const uint32_t weights_col = (8 * li + 8 * 32 * wi) / WIDTH;
+  const uint32_t wgt_idx = first_weights_stride + weights_stride * (N_HIDDEN_LAYERS-1);
+
+  // Load weight matrix into shared memory for the last multiplication.
+  // Loading into shared memory as opposed to directly into registers is faster
+  // because unlike in the previous layers, each warp uses the same entries of the weight matrix.
+  CHK_SHM((weights_shmem_idx + weights_row + weights_col * (WIDTH + SKEW))/EL_PER_UVEC4, 0) // is a bit overly conservative because 16 > 8
+  CHK_WGT((wgt_idx + weights_row + weights_col * WIDTH)/EL_PER_UVEC4, 0)
+  shm_act[(weights_shmem_idx + weights_row + weights_col * (WIDTH + SKEW))/EL_PER_UVEC4] =
+    ssbo_weights.v[(wgt_idx + weights_row + weights_col * WIDTH)/EL_PER_UVEC4];
+
+  barrier();
+  [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
+    CHK_SHM((weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
+    coopmat_load(weights_frag[i], shm_act, (weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/true);
+  barrier();
+
+  for (uint32_t idx = wi; idx < N_ITERS; idx += 2 * N_BLOCKS)
+  { // perform last layer by parallelising over iters
+    result_frag = coopmat_new(0.0);
+    [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
+    { // load a chunk of intermediate activations from shared memory and multiply with chunk of the weight matrix
+      CHK_SHM((16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
+      coopmat_load(act_frag, shm_act, (16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/false);
+      result_frag = coopmat_madd(act_frag, weights_frag[i], result_frag);
+    } // no activation in last layer
+    coopmat_store(result_frag, Ks, 0 * push.output_stride, push.output_stride, /*colmajor*/false);
+
+    result_frag = coopmat_new(0.0);
+    [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
+    { // load a chunk of intermediate activations from shared memory and multiply with chunk of the weight matrix
+      // CHK_SHM((16*i + (16*(N_BLOCKS + idx))*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
+      coopmat_load(act_frag, shm_act, (16*i + (16*(N_BLOCKS + idx))*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/false);
+      result_frag = coopmat_madd(act_frag, weights_frag[i], result_frag);
+    } // no activation in last layer
+    coopmat_store(result_frag, Ks, 1 * push.output_stride, push.output_stride, /*colmajor*/false);
+
+    // XXX now every subgroup mul-added 2x 16x16 activations A by the 2x 16x16 weights.
+    // XXX i.e. we have as result the 16 taps for 16 pixels (and store in global, tap varying fastest)
+    // we did this twice, so now we have 16 filter taps for 32 pixels
+
+    // TODO: need to work with N_ITERS as variable and configure later! (probably different value is optimal here now..)
+
+    // TODO: now everybody in the subgroup grab their output pixel + shm kernels
+    // XXX output_stride == kernel size == 16
+
+    // out_idx = elem_idx * output_stride
+    // start index of filter taps for pixel = (out_idx + output_stride * 16 * idx) / output_stride
+    ivec2 px = ivec2(
+        (elem_idx + idx * 16) % imageSize(img_I).x,
+        (elem_idx + idx * 16) / imageSize(img_I).x);
+    const uint32_t K_idx = 16 * gl_SubgroupInvocationID; // 16 filter taps for each of the 32 px/subgroup threads
+
+    const ivec2 tap[] = {           ivec2(0, -2),
+      ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
+                     ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+      ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
+                                    ivec2(0,  2) //, ivec2(666,666)
+    };
+#if (APPLY_ACTIVATION==APPLY_SOFTMAX)
+    vec3 rgb = vec3(0.0);
+    float den = 0.0;
+    [[unroll]] for(int k=0;k<15;k++)
+    {
+      const float w = sigma_exp(Ks[K_idx + k]);
+      rgb += w * texture(img_in, (px + tap[k] + 0.5)/vec2(textureSize(img_in, 0))).rgb;
+      den += w;
+    }
+    rgb /= max(1e-8, den);
+#elif (APPLY_ACTIVATION==APPLY_PLAIN)
+    vec3 rgb = vec3(0.0);
+    [[unroll]] for(int k=0;k<15;k++)
+    {
+      const float w = clamp(float(Ks[K_idx + k]), -200.0, 200.0);
+      rgb += w * texture(img_in, (px + tap[k] + 0.5)/vec2(textureSize(img_in, 0))).rgb;
+    }
+#endif
+#if (ALPHA_ACTIVATION==ALPHA_CONST)
+    const float alpha = 1.0;
+#elif (ALPHA_ACTIVATION==ALPHA_PLAIN)
+    const float alpha = Ks[K_idx + 15];
+#elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
+    const float alpha = sigmoid(Ks[K_idx + 15]);
+#endif
+    imageStore(img_I, px, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));
+  }
+}
+

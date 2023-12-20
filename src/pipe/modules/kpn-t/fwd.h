@@ -35,6 +35,8 @@ void threadblock_load_input_static(
   barrier();
 }
 
+
+#ifndef HAVE_NO_SSBO_RES
 // writes to ssbo_res
 void
 threadblock_last_layer_forward(
@@ -94,7 +96,7 @@ threadblock_last_layer_forward(
     }
   }
 }
-
+#endif
 
 
 #if 0 // XXX TODO: port this if we want a different input width or layout:

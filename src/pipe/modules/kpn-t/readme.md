@@ -1,6 +1,7 @@
 # kpn-t: fully fused multi layer perceptron for denoising
 
-this is some super experimental neural network training module.
+this is some super experimental neural network training module, the inferencing
+only part is in [the `kpn` module](../kpn/readme.md).
 if you don't know better already, you probably don't need to read on :)
 
 ## training
