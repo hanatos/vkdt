@@ -1,5 +1,7 @@
 #include "modules/api.h"
 #include "../kpn-t/config.h"
+// TODO: re-define N_ITERS
+// TODO: make sure all the batch size things are wired to N_ITERS!
 
 void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
@@ -36,6 +38,14 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     // uint32_t output_stride;    = 16, last layer only
     const int blocks[] = { pc_inf[1]/128, 1u, 1u }; // num pixels / (16 * N_ITERS)
     
+#if 1 // fused kernel
+    const int id_apply = dt_node_add( // infer kernel and store intermediate activations too
+        graph, module, "kpn-t", "infapply", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
+        "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
+        "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
+        "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
+    const int id_inf = id_apply;
+#else
     // XXX TODO: use our own inferencing kernel without global memory
     // XXX TODO: run it in 32,N_BLOCKS but not N_ITERS! (i.e. keep local size but run more threads: blocks[0] = px / (16 * 2)
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
@@ -50,6 +60,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "M", "read",  "rgba", "*",   -1ul,
         "K", "read",  "ssbo", "f16", -1ul,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
+#endif
 
     int id_up = -1;
     if(i < 3)
