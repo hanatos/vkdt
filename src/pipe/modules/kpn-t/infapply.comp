@@ -1,6 +1,7 @@
 #version 460 core
 // fully connected multi-layer perceptron, following closely thomas mueller and
 // nikolaus binder's implementation in tiny-cuda-nn.
+// fused version of inferencing + kernel application, written for WIDTH=32 and output 16
 #pragma use_vulkan_memory_model
 #extension GL_GOOGLE_include_directive      : enable
 #extension GL_EXT_nonuniform_qualifier      : enable
@@ -30,9 +31,7 @@ layout(set = 1, binding = 0) uniform sampler2D img_in; // 'M' input mipmap
 layout(set = 1, binding = 1) readonly buffer ssbo_wgt_t { uvec4 v[]; } ssbo_weights; // 'w'
 layout(set = 1, binding = 2) uniform writeonly image2D img_I; // 'I' output convolved image
 
-// TODO: if this is limited by shm, don't load weights via shm! (and strip off 16 from the first entry here)
-shared uvec4 shm_act[((16 + 16*N_ITERS) * (WIDTH + SKEW)) / EL_PER_UVEC4];
-shared float16_t Ks[16*16*2]; // two coopmat worth of kernel output, accessible as float16 // TODO: add skew?
+shared uvec4 shm_act[((32 + 16*N_ITERS) * (WIDTH + SKEW)) / EL_PER_UVEC4];
 
 #define INFERENCE
 #define HAVE_NO_SSBO_RES
@@ -42,7 +41,7 @@ shared float16_t Ks[16*16*2]; // two coopmat worth of kernel output, accessible 
 void main()
 {
   // each block computes exactly one 16-element chunk of the batch.
-  const uint32_t elem_idx = 16 * gl_WorkGroupID.x * N_ITERS; // TODO: N_ITERS=2 for this invocation!
+  const uint32_t elem_idx = 16 * gl_WorkGroupID.x * N_ITERS;
 
   // first layer
   threadblock_load_input_static(0, elem_idx * WIDTH);
@@ -66,7 +65,7 @@ void main()
   const uint32_t li = gl_LocalInvocationID.x; // index in warp  ("lane index")
   const uint32_t wi = gl_LocalInvocationID.y; // index in block ("warp index")
 
-  const uint32_t weights_shmem_idx = N_ITERS * 16 * (WIDTH + SKEW); // XXX N_ITERS = 2!
+  const uint32_t weights_shmem_idx = N_ITERS * 16 * (WIDTH + SKEW);
   const uint32_t weights_row = (8 * li) % WIDTH;
   const uint32_t weights_col = (8 * li + 8 * 32 * wi) / WIDTH;
   const uint32_t wgt_idx = first_weights_stride + weights_stride * (N_HIDDEN_LAYERS-1);
@@ -85,16 +84,27 @@ void main()
     coopmat_load(weights_frag[i], shm_act, (weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/true);
   barrier();
 
-  for (uint32_t idx = wi; idx < N_ITERS; idx += 2 * N_BLOCKS)
+  // FIXME: this works, but is super inefficient.
+  // it requires a shitton of shm for the Ks weights, and through the many iterations doesn't
+  // parallelise over pixels very well.
+  // TODO: go through this index loop and make use of lid.y: whenever a subgroup worth of pixels is full, do the thing!
+  // FIXME---
+  for (uint32_t idx = wi; idx < N_ITERS; idx += 2*N_BLOCKS)
   { // perform last layer by parallelising over iters
     result_frag = coopmat_new(0.0);
     [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
     { // load a chunk of intermediate activations from shared memory and multiply with chunk of the weight matrix
-      CHK_SHM((16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
+      // CHK_SHM((16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
       coopmat_load(act_frag, shm_act, (16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/false);
       result_frag = coopmat_madd(act_frag, weights_frag[i], result_frag);
     } // no activation in last layer
-    coopmat_store(result_frag, Ks, 0 * push.output_stride, push.output_stride, /*colmajor*/false);
+    // coopmat_store(result_frag, Ks, 0, push.output_stride + SKEW, /*colmajor*/false);
+    // coopmat_store(result_frag, Ks, 512*wi, push.output_stride, /*colmajor*/false); // FIXME: less shm!
+    coopmat_store(result_frag, shm_act, (weights_shmem_idx + 2*16*16*wi)/EL_PER_UVEC4, 16/EL_PER_UVEC4, /*colmajor*/false);
+    barrier();
+    // FIXME: now we have N_BLOCKS * 16 pixels done! N_BLOCKS=WIDTH/16=2, so for WIDTH=sugroup size we have exactly enough for one apply pass
+    // FIXME: now we have synchronised 32 * N_BLOCKS=64 threads
+    // FIXME: run once more (unroll) to get 2 * N_BLOCKS * 16 pixels
 
     result_frag = coopmat_new(0.0);
     [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
@@ -103,7 +113,10 @@ void main()
       coopmat_load(act_frag, shm_act, (16*i + (16*(N_BLOCKS + idx))*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/false);
       result_frag = coopmat_madd(act_frag, weights_frag[i], result_frag);
     } // no activation in last layer
-    coopmat_store(result_frag, Ks, 1 * push.output_stride, push.output_stride, /*colmajor*/false);
+    // coopmat_store(result_frag, Ks, 16 * (push.output_stride + SKEW), push.output_stride + SKEW, /*colmajor*/false);
+    // coopmat_store(result_frag, Ks, 512*wi + 16 * push.output_stride, push.output_stride, /*colmajor*/false);
+    coopmat_store(result_frag, shm_act, (weights_shmem_idx + 2*16*16*(wi+1))/EL_PER_UVEC4, 16/EL_PER_UVEC4, /*colmajor*/false);
+    barrier();
 
     // XXX now every subgroup mul-added 2x 16x16 activations A by the 2x 16x16 weights.
     // XXX i.e. we have as result the 16 taps for 16 pixels (and store in global, tap varying fastest)
@@ -114,12 +127,36 @@ void main()
     // TODO: now everybody in the subgroup grab their output pixel + shm kernels
     // XXX output_stride == kernel size == 16
 
+    // XXX FIXME: these pixel and shm indices don't match
     // out_idx = elem_idx * output_stride
     // start index of filter taps for pixel = (out_idx + output_stride * 16 * idx) / output_stride
-    ivec2 px = ivec2(
-        (elem_idx + idx * 16) % imageSize(img_I).x,
-        (elem_idx + idx * 16) / imageSize(img_I).x);
-    const uint32_t K_idx = 16 * gl_SubgroupInvocationID; // 16 filter taps for each of the 32 px/subgroup threads
+    ivec2 px;
+    // if(gl_SubgroupInvocationID < 16)
+    if(li < 16)
+      px = ivec2(
+          (elem_idx + idx * 16 + li) % imageSize(img_I).x,
+          (elem_idx + idx * 16 + li) / imageSize(img_I).x);
+    else
+      px = ivec2(
+          (elem_idx + (idx + N_BLOCKS - 1)*16 + li) % imageSize(img_I).x,
+          (elem_idx + (idx + N_BLOCKS - 1)*16 + li) / imageSize(img_I).x);
+    // const uint32_t K_idx = (16+SKEW) * gl_SubgroupInvocationID; // 16 filter taps for each of the 32 px/subgroup threads
+    // const uint32_t K_idx = 512*wi + 16 * gl_SubgroupInvocationID; // 16 filter taps for each of the 32 px/subgroup threads
+    // const uint32_t K_idx = (weights_shmem_idx + 16*16*wi)/EL_PER_UVEC4;
+    // const uint32_t K_idx = (weights_shmem_idx + 32*wi + li)/EL_PER_UVEC4;
+    const uint32_t K_idx = (weights_shmem_idx + (li < 16 ? (16*wi+li) : (16*(wi+1) + li)))/EL_PER_UVEC4;
+    // load kernel weights:
+    float16_t wgt[16];
+    uvec4 pack = shm_act[K_idx];
+    wgt[0] = unpackFloat2x16(pack.x).x; wgt[1] = unpackFloat2x16(pack.x).y;
+    wgt[2] = unpackFloat2x16(pack.y).x; wgt[3] = unpackFloat2x16(pack.y).y;
+    wgt[4] = unpackFloat2x16(pack.z).x; wgt[5] = unpackFloat2x16(pack.z).y;
+    wgt[6] = unpackFloat2x16(pack.w).x; wgt[7] = unpackFloat2x16(pack.w).y;
+    pack = shm_act[K_idx+1];
+    wgt[ 8] = unpackFloat2x16(pack.x).x; wgt[ 9] = unpackFloat2x16(pack.x).y;
+    wgt[10] = unpackFloat2x16(pack.y).x; wgt[11] = unpackFloat2x16(pack.y).y;
+    wgt[12] = unpackFloat2x16(pack.z).x; wgt[13] = unpackFloat2x16(pack.z).y;
+    wgt[14] = unpackFloat2x16(pack.w).x; wgt[15] = unpackFloat2x16(pack.w).y;
 
     const ivec2 tap[] = {           ivec2(0, -2),
       ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
@@ -132,7 +169,7 @@ void main()
     float den = 0.0;
     [[unroll]] for(int k=0;k<15;k++)
     {
-      const float w = sigma_exp(Ks[K_idx + k]);
+      const float w = sigma_exp(wgt[k]);
       rgb += w * texture(img_in, (px + tap[k] + 0.5)/vec2(textureSize(img_in, 0))).rgb;
       den += w;
     }
@@ -141,17 +178,18 @@ void main()
     vec3 rgb = vec3(0.0);
     [[unroll]] for(int k=0;k<15;k++)
     {
-      const float w = clamp(float(Ks[K_idx + k]), -200.0, 200.0);
+      const float w = clamp(float(wgt[k]), -200.0, 200.0);
       rgb += w * texture(img_in, (px + tap[k] + 0.5)/vec2(textureSize(img_in, 0))).rgb;
     }
 #endif
 #if (ALPHA_ACTIVATION==ALPHA_CONST)
     const float alpha = 1.0;
 #elif (ALPHA_ACTIVATION==ALPHA_PLAIN)
-    const float alpha = Ks[K_idx + 15];
+    const float alpha = wgt[15];
 #elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
-    const float alpha = sigmoid(Ks[K_idx + 15]);
+    const float alpha = sigmoid(wgt[15]);
 #endif
+    // TODO: if out of bounds?
     imageStore(img_I, px, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));
   }
 }

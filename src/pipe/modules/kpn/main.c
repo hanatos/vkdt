@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "../kpn-t/config.h"
 // TODO: re-define N_ITERS
+#define FUSED_INF
 
 void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
@@ -37,14 +38,14 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     // uint32_t output_stride;    = 16, last layer only
     const int blocks[] = { pc_inf[1]/unit, 1u, 1u }; // num pixels / (16 * N_ITERS)
     
-#if 1 // fused kernel without global memory intermediats.
-    // XXX TODO: double check the wiring below and maybe put behind ifdef too
-    const int id_apply = dt_node_add( // infer kernel and store intermediate activations too
+#ifdef FUSED_INF // fused kernel without global memory intermediats.
+    const int id_fused = dt_node_add( // infer kernel and store intermediate activations too
         graph, module, "kpn-t", "infapply", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
         "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
         "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
-    const int id_inf = id_apply;
+    dt_connector_copy(graph, module, 2, id_fused, 1); // wire weights
+    const int id_apply = id_fused; // for connections below
 #else
     dt_roi_t roi_K = (dt_roi_t){ .wd = batch_size, .ht = 16 }; // output: 15-tap kernel (+1 alpha) per pixel
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
@@ -59,6 +60,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "M", "read",  "rgba", "*",   -1ul,
         "K", "read",  "ssbo", "f16", -1ul,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
+    dt_connector_copy(graph, module, 2, id_inf, 1); // wire weights
+    CONN(dt_node_connect_named(graph, id_inf, "K", id_apply, "K"));
 #endif
 
     int id_up = -1;
@@ -78,20 +81,17 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     }
     id_up_prev = id_up;
 
-    dt_connector_copy(graph, module, 2, id_inf, 1); // wire weights
-    CONN(dt_node_connect_named(graph, id_inf, "K", id_apply, "K"));
-
     const char *mipstr = i==1 ? "M1" : (i==2 ? "M2" : "M3");
+#ifndef FUSED_INF
+    if(i==0)  dt_connector_copy    (graph, module, 0,      id_inf,  0); // input image
+    else CONN(dt_node_connect_named(graph, id_mip, mipstr, id_inf, "M"));
+#endif
     if(i==0)
     {
-      dt_connector_copy(graph, module, 0, id_inf,    0); // input image
       dt_connector_copy(graph, module, 1, id_up,     2); // output image
-      dt_connector_copy(graph, module, 0, id_apply,  0);
+      dt_connector_copy(graph, module, 0, id_apply,  0); // input image
     }
     else
-    {
-      CONN(dt_node_connect_named(graph, id_mip, mipstr, id_inf,    "M"));
       CONN(dt_node_connect_named(graph, id_mip, mipstr, id_apply,  "M"));
-    }
   }
 }
