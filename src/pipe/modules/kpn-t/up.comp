@@ -1,0 +1,41 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#include "shared.glsl"
+#include "sigmoid.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 1, binding = 0) uniform sampler2D img_I;
+layout(set = 1, binding = 1) uniform sampler2D img_Oc;
+layout(set = 1, binding = 2) uniform writeonly image2D img_O;
+
+// run on fine res and upsample coarse by 3x3 taps
+void main()
+{
+  const ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_O)))) return;
+
+  const float w0[3] = {5.0 / 16.0, 10.0 / 16.0, 1.0 / 16.0};
+  const float w1[3] = {1.0 / 16.0, 10.0 / 16.0, 5.0 / 16.0};
+  vec3 O = vec3(0.0);
+#if 1 // full 3x3
+  [[unroll]] for(int j=-1;j<=1;j++) [[unroll]] for(int i=-1;i<=1;i++)
+  {
+    vec3 rgb = texture(img_Oc, (opos/2 + ivec2(i,j) + 0.5)/vec2(textureSize(img_Oc, 0))).rgb;
+    float w = ((opos.x & 1) == 0) ? w0[i+1] : w1[i+1];
+    w      *= ((opos.y & 1) == 0) ? w0[j+1] : w1[j+1];
+    O += w*rgb;
+  }
+#else
+    vec3 rgb = texture(img_Oc, (opos/2 + 0.5)/vec2(textureSize(img_Oc, 0))).rgb;
+    float w = 1;
+    O += w*rgb;
+#endif
+  vec4 I = texelFetch(img_I, opos, 0);
+  O = mix(O, I.rgb, I.a);
+  imageStore(img_O, opos, vec4(O, 1));
+}

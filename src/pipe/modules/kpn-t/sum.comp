@@ -1,0 +1,27 @@
+#version 460 core
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_shader_16bit_storage    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 0) uniform global_t { } global;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(push_constant, std140) uniform push_t
+{
+  int size;
+} push;
+
+layout(std430, set = 1, binding = 0) readonly  buffer ssbo_dw0_t { float v[]; } ssbo_dw0;
+layout(std430, set = 1, binding = 1) readonly  buffer ssbo_dw1_t { float v[]; } ssbo_dw1;
+layout(std430, set = 1, binding = 2) readonly  buffer ssbo_dw2_t { float v[]; } ssbo_dw2;
+layout(std430, set = 1, binding = 3) readonly  buffer ssbo_dw3_t { float v[]; } ssbo_dw3;
+layout(std430, set = 1, binding = 4) writeonly buffer ssbo_dwo_t { float v[]; } ssbo_dwo;
+
+void main()
+{
+  nonuniformEXT uint i = gl_GlobalInvocationID.x;
+  if(i >= push.size) return;
+  float res = ssbo_dw0.v[i] + ssbo_dw1.v[i] + ssbo_dw2.v[i] + ssbo_dw3.v[i];
+  ssbo_dwo.v[i] = clamp(res, -65000000.0, 65000000.0);
+}

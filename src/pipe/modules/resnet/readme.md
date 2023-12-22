@@ -1,4 +1,4 @@
-# cnn: convolutional neural network denoise
+# resnet: gmic convolutional neural network denoise
 
 this reads the weights of [gmic's resnet](https://gmic.eu/reference/denoise_cnn.html) from a texture and evaluates
 the network.

@@ -1,0 +1,6 @@
+alpha:slider:0:1
+beta1:slider:0:1
+beta2:slider:0:1
+eps:slider:0:1
+init:combo:from input:randomise
+L2:slider:0:0.01

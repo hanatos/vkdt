@@ -1,0 +1,67 @@
+#version 460
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_EXT_nonuniform_qualifier       : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#include "shared.glsl"
+#include "config.h"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t  { } params;
+layout(set = 1, binding = 0) uniform sampler2D img_O; // output image O from denoiser
+layout(set = 1, binding = 1) uniform sampler2D img_R; // reference image
+layout(set = 1, binding = 2) uniform writeonly image2D img_dEdO;  // partial derivative of loss E wrt image O
+layout(set = 1, binding = 3) buffer ssbo_t { float v[]; } ssbo_E; // numerical error
+layout(set = 1, binding = 4) uniform writeonly image2D img_dbg;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  float E = 0.0;
+  if(all(lessThan(ipos, imageSize(img_dEdO))))
+  {
+    vec4 ref = texelFetch(img_R, ipos, 0);
+    vec4 res = texelFetch(img_O, ipos, 0);
+#if 0 // also add something based on sharpness
+    vec4 refs = -8.0*ref, ress = -8.0*res;
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+    {
+      if(i==0 && j==0) continue;
+      refs += texture(img_ref, (ipos + ivec2(i,j) + 0.5)/textureSize(img_ref, 0));
+      ress += texture(img_O,   (ipos + ivec2(i,j) + 0.5)/textureSize(img_O,   0));
+    }
+    float corr = (0.5 + 0.5*dot(refs,refs));
+#else
+    float corr = 1.0;
+#endif
+    vec4 dEdO = vec4(0.0);
+    if(all(not(isnan(res))) && all(not(isinf(res))))
+    {
+#if 0 // L2 loss
+      dEdO = 2.0 * (res - ref) * corr;
+      E = dot(res - ref, res - ref) * corr;
+#endif
+#if 1 // SMAPE
+      const float eps = 1e-5;
+      vec4 den = abs(res) + abs(ref) + eps;
+      E = dot(vec4(1.0), abs(res - ref)/den)/4.0;
+      dEdO = (res - ref)/(den*den) * (abs(res*ref) + eps * abs(res) + res*ref) / (eps + abs(res * (res-ref)));
+#endif
+#if 0 // cosh
+      E = dot(vec4(1.0), cosh(res - ref)) - 1.0;
+      dEdO = sinh(res - ref);
+#endif
+    }
+    else E = 1.0; // mark broken input in loss graph
+    imageStore(img_dEdO, ipos, dEdO * GRAD_SCALE);
+    imageStore(img_dbg, ipos, vec4(E, E, E, 1));
+  }
+  subgroupBarrier();
+  E = subgroupAdd(E);
+  if(gl_SubgroupInvocationID == 0)
+  {
+    nonuniformEXT uint idx = gl_NumSubgroups * (gl_WorkGroupID.x + gl_WorkGroupID.y * gl_NumWorkGroups.x) + gl_SubgroupID;
+    if(idx < (imageSize(img_dEdO).x*imageSize(img_dEdO).y+31)/32)
+      ssbo_E.v[idx] = E;
+  }
+}

@@ -1,0 +1,89 @@
+#version 460
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_EXT_nonuniform_qualifier      : enable
+#extension GL_EXT_control_flow_attributes   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#include "shared.glsl"
+#include "sigmoid.glsl"
+#include "config.h"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 1, binding = 0) uniform sampler2D img_M;     // the input image before application of convolution
+layout(set = 1, binding = 1) uniform sampler2D img_I;     // the input image after application of convolution
+layout(set = 1, binding = 2) uniform sampler2D img_dEdI;  // from loss or finer level
+layout(set = 1, binding = 3) buffer ssbo_K_t              { float16_t v[]; } ssbo_K;    // kernel from fwd pass
+layout(set = 1, binding = 4) writeonly buffer ssbo_dEdK_t { float16_t v[]; } ssbo_dEdK; // output derivative by kernel weight
+layout(set = 1, binding = 5) uniform writeonly image2D img_dbg;
+
+layout(push_constant, std140) uniform push_t
+{
+  uint level;
+} push;
+
+// apply:  I = sum(K * M), alpha
+// dapply: dEdK = dEdI * dIdK, pass on alpha from dEdI -> dEdK in channel 15
+void main()
+{
+  const ivec2 tap[] = {           ivec2(0, -2),
+    ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
+                   ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+    ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
+                                  ivec2(0,  2)//, ivec2(666,666)
+  };
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  const uint32_t output_stride = 16;
+  const uint32_t idx0 = (gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * textureSize(img_M, 0).x)*output_stride;
+  float16_t dEdK = float16_t(0.0);
+  if(all(lessThan(ipos, textureSize(img_M, 0))))
+  {
+    const uint32_t k = gl_GlobalInvocationID.z;
+    vec4 dEdI = texelFetch(img_dEdI, ipos, 0);
+    if(k < 15)
+    { // compute dI/dK from I = K * M => sum img pixel taps that connect I and K (exactly one)
+#if (APPLY_ACTIVATION==APPLY_SOFTMAX)
+      vec3 dIdK = vec3(0.0);
+      // now dI/dK also changes because K changes the normalisation of other K and M in the sum
+      // go through all connected M in kernel support. all the M[i] need to be summed up into dIdK, weighted by ddK_k s(K_i)
+      float sk = sigma_exp(ssbo_K.v[nonuniformEXT(idx0+k)]);
+      float den = 0.0;
+      for(int i=0;i<15;i++)
+        den += sigma_exp(ssbo_K.v[nonuniformEXT(idx0+i)]);
+      for(int i=0;i<15;i++)
+      { // s(K_i) = exp(K_i)/sum exp(K_k),  d/dK_k s(K_i) = s(K_i) (delta_ik - s(K_k))
+        vec3 M = texture(img_M, (ipos + tap[nonuniformEXT(i)] + 0.5)/textureSize(img_M, 0)).rgb;
+        float si = sigma_exp(ssbo_K.v[nonuniformEXT(idx0+i)]);
+        float ddk_si = si/den * ((i==k ? 1.0 : 0.0) - sk/den);
+        dIdK += ddk_si * M;
+      }
+      dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -1000.0, 1000.0));
+#elif (APPLY_ACTIVATION==APPLY_PLAIN)
+      vec3 dIdK = texture(img_M, (ipos + tap[nonuniformEXT(k)] + 0.5)/textureSize(img_M, 0)).rgb;
+      dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
+// #elif (APPLY_ACTIVATION==APPLY_SIGMOID)
+      // vec3 dOdw = texture(img_in, (ipos + tap[nonuniformEXT(k)] + 0.5)/textureSize(img_in, 0)).rgb;
+      // float win = ssbo_kernel.v[nonuniformEXT((gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * textureSize(img_in, 0).x)*output_stride+k)];
+      // float ddx_sig = ddx_sigmoid(win);
+      // dOdw *= ddx_sig;
+      // dLdw = float16_t(alpha * dot(dLdO * dOdw, vec3(1.0)));
+#endif
+    }
+    else
+    {
+      vec4 I = texture(img_I, (ipos + 0.5)/textureSize(img_I, 0));
+#if (ALPHA_ACTIVATION==ALPHA_CONST)
+      dEdK = float16_t(0.0); // fixed alpha
+#elif (ALPHA_ACTIVATION==ALPHA_PLAIN)
+      dEdK = float16_t(dEdI.a); // straight
+#elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
+      // float dIdK = clamps(ddx_sigmoid(inv_sigmoid(I.a)), -10.0, 10.0);
+      float dIdK = ddx_sigmoid(inv_sigmoid(I.a));
+      dEdK = float16_t(dEdI.a * dIdK);
+#endif
+      // dEdK = float16_t(mix(0.0, dEdI.a, I.a > 0 && I.a < 1)); // clamped both sides
+      // dEdK = float16_t(mix(dEdI.a, 0.0, I.a <= 0)); // relu
+    }
+  }
+  ssbo_dEdK.v[nonuniformEXT(idx0 + gl_GlobalInvocationID.z)] = dEdK;
+}

@@ -192,6 +192,24 @@ dt_node_connect_named(
   return dt_node_connect(graph, id0, c0i, id1, c1i);
 }
 
+static inline int
+dt_node_feedback_named(
+    dt_graph_t *graph,
+    const int   id0,
+    const char *c0,
+    const int   id1,
+    const char *c1)
+{
+  int c0i = -1, c1i = -1;
+  const dt_token_t c0t = dt_token(c0), c1t = dt_token(c1);
+  for(int c=0;c<graph->node[id0].num_connectors;c++)
+    if(graph->node[id0].connector[c].name == c0t) { c0i = c; break; }
+  for(int c=0;c<graph->node[id1].num_connectors;c++)
+    if(graph->node[id1].connector[c].name == c1t) { c1i = c; break; }
+  if(c0i < 0 || c1i < 0) return -100;
+  return dt_node_feedback(graph, id0, c0i, id1, c1i);
+}
+
 static inline uint32_t
 dt_api_blur_check_params(
     float oldrad,

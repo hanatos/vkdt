@@ -1,0 +1,69 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  int offx, offy; // XXX float for keyframes?
+  int flip;
+  float ev;
+  int generate;
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform sampler2D img_rfi;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
+layout(set = 1, binding = 3) uniform writeonly image2D img_rfo;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+#if 0 // XXX DEBUG
+  vec4 ref = vec4(1.0);
+  // uint seed = global.frame + 13370000 * ipos.x + ipos.y*123569;
+  uint seed = 13370000 * ipos.x + ipos.y*123569;
+  // if(ipos.y >= 16) ref.rgb = vec3(0.1);
+  if(((ipos.y/16) % 2) == 0) ref.rgb *= vec3(1,1,1);
+  else ref.rgb *= vec3(0,0,0);
+  vec4 rgb = ref;
+  // rgb.rgb += 0.05 * (0.5 - vec3(mrand(seed), mrand(seed), mrand(seed)));
+  // ref = vec4(1.0); // XXX
+  // rgb = vec4(1.0); // XXX
+  imageStore(img_out, ipos, rgb);
+  imageStore(img_rfo, ipos, ref);
+#else
+
+  ivec2 rpos = ipos;
+  int flip = params.flip;
+  ivec2 off = ivec2(params.offx, params.offy);
+  float ev = params.ev;
+
+  if(params.generate == 1)
+  {
+    // uint seed = 123456789+133700 * (global.frame/500);
+    uint seed = 123456789+133700 * global.frame;
+    ev = -2.0 + 4.0*mrand(seed);
+    flip = 0;// XXX int(4.0*mrand(seed));
+    off = ivec2(textureSize(img_in, 0) * vec2(mrand(seed), mrand(seed)));
+  }
+
+  if((flip & 1) != 0) rpos.x = imageSize(img_out).x - 1 - ipos.x;
+  if((flip & 2) != 0) rpos.y = imageSize(img_out).y - 1 - ipos.y;
+  ivec2 tci = rpos+off;
+  vec2 tc = (tci + 0.5)/vec2(textureSize(img_in, 0));
+  vec4 rgb = texture(img_in,  tc);
+  vec4 ref = texture(img_rfi, tc);
+  
+  rgb *= pow(2.0, ev);
+  ref *= pow(2.0, ev);
+
+  imageStore(img_out, ipos, rgb);
+  imageStore(img_rfo, ipos, ref);
+#endif
+}

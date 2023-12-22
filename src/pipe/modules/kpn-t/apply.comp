@@ -1,0 +1,67 @@
+#version 460
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_EXT_nonuniform_qualifier      : enable
+#extension GL_EXT_control_flow_attributes   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#include "shared.glsl"
+#include "sigmoid.glsl"
+#include "config.h"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 1, binding = 0) uniform sampler2D img_M;
+layout(set = 1, binding = 1) readonly buffer ssbo_K_t { float16_t v[]; } ssbo_K;
+layout(set = 1, binding = 2) uniform writeonly image2D img_I;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_I)))) return;
+
+  const ivec2 tap[] = {           ivec2(0, -2),
+    ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
+                   ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+    ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
+                                  ivec2(0,  2) //, ivec2(666,666)
+  };
+#if (APPLY_ACTIVATION==APPLY_SOFTMAX)
+  vec3 rgb = vec3(0.0);
+  float den = 0.0;
+  [[unroll]] for(int k=0;k<15;k++)
+  {
+    uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + k;
+    const float w = sigma_exp(ssbo_K.v[nonuniformEXT(idx)]);
+    rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+    den += w;
+  }
+  rgb /= max(1e-8, den);
+#elif (APPLY_ACTIVATION==APPLY_PLAIN)
+  vec3 rgb = vec3(0.0);
+  [[unroll]] for(int k=0;k<15;k++)
+  {
+    uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + k;
+    const float w = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), -200.0, 200.0);
+    rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+  }
+// #elif (APPLY_ACTIVATION==APPLY_SIGMOID)
+//   vec3 rgb = vec3(0.0);
+//   [[unroll]] for(int k=0;k<15;k++)
+//   {
+//     uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + k;
+//     const float w = sigmoid(ssbo_K.v[nonuniformEXT(idx)]);
+//     rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+//   }
+#endif
+  uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + 15;
+#if (ALPHA_ACTIVATION==ALPHA_CONST)
+  const float alpha = 1.0;
+#elif (ALPHA_ACTIVATION==ALPHA_PLAIN)
+  const float alpha = ssbo_K.v[nonuniformEXT(idx)];
+#elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
+  const float alpha = sigmoid(ssbo_K.v[nonuniformEXT(idx)]);
+#endif
+  // const float alpha = max(0.0, float(ssbo_K.v[nonuniformEXT(idx)])); // relu
+  // const float alpha = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), 0, 1); // clamp
+  imageStore(img_I, ipos, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));
+}

@@ -62,6 +62,7 @@ it follows the current list of available modules.
 * [deconv: deconvolution sharpening](./deconv/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
 * [hotpx: remove impulse noise/stuck pixels](./hotpx/readme.md)
+* [kpn: kernel prediction neural network for denoising](./kpn/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [negative: invert film negatives](./negative/readme.md)
 
@@ -92,10 +93,12 @@ it follows the current list of available modules.
 
 * [align: align animation frames or burst photographs](./align/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
-* [cnn: convolutional neural network](./cnn/readme.md)
+* [cnngenin: generate random input for neural network training](./cnngenin/readme.md)
 * [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
+* [kpn-t: kernel prediction neural network for denoising, training](./kpn-t/readme.md)
 * [mv2rot: estimate rotation + translation from motion vectors](./mv2rot/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)
+* [resnet: gmic convolutional neural network](./resnet/readme.md)
 * [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
 
 **3d rendering**

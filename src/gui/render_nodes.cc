@@ -108,7 +108,7 @@ void render_nodes_right_panel()
   ImGui::Begin("nodes right panel", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
   dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-  if(out_hist && vkdt.graph_res == VK_SUCCESS)
+  if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
   {
     int wd = vkdt.state.panel_wd * 0.975;
     int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect

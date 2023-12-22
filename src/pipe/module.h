@@ -51,6 +51,13 @@ typedef struct dt_image_params_t
   float noise_a;              // raw noise estimate, gaussian part
   float noise_b;              // raw noise estimate, poissonian part
   dt_token_t input_name;      // remember the name, "main" has special rights
+
+  // TODO: optional extra data to travel along with the image until the output:
+  // pointer to something*
+  // typedef struct something_t
+  // int type_id // can be plain text/comment, exif, whathaveyou
+  // next*
+  // void* data
 }
 dt_image_params_t;
 

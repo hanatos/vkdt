@@ -1,0 +1,8 @@
+input:read:*:*
+ref:read:*:*
+output:write:rgba:f16
+w:write:ssbo:f16
+graph:write:rgba:f16
+vis:write:rgba:f16
+debug:write:rgba:f16
+wcp:read:ssbo:f16
