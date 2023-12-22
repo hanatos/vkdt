@@ -1,7 +1,6 @@
 #include "modules/api.h"
 #include "../kpn-t/config.h"
-// TODO: re-define N_ITERS
-#define FUSED_INF
+// #define FUSED_INF // currently broken unfortunately. avoids a roundtrip to global memory and should be better.
 
 void
 create_nodes(dt_graph_t *graph, dt_module_t *module)
@@ -11,26 +10,41 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // input.col = output.col = aux.col = batch_size
   // but we don't have input (assemble it on demand from image)
 
+  // const int Mcnt = 7; // tempting, but apparently doesn't do much for us (need to train for it?)
+  const int Mcnt = 4;
   // mip map the input:
-  dt_roi_t roi_M[4] = { roi_input };
-  for(int i=1;i<4;i++)
+  dt_roi_t roi_M[7] = { roi_input };
+  for(int i=1;i<Mcnt;i++)
   {
     roi_M[i].wd = (roi_M[i-1].wd + 1)/2;
     roi_M[i].ht = (roi_M[i-1].ht + 1)/2;
   }
-  const int id_mip = dt_node_add(
+  const int id_mip0 = dt_node_add(
       graph, module, "kpn-t", "mip", // XXX channels?
-      (roi_input.wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_input.ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
+      (roi_M[0].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[0].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
       "M0", "read",  "rgba", "*",  -1ul,
       "M1", "write", "rgba", "f16", roi_M+1,
       "M2", "write", "rgba", "f16", roi_M+2,
       "M3", "write", "rgba", "f16", roi_M+3);
-  dt_connector_copy(graph, module, 0, id_mip, 0); // input image
+  dt_connector_copy(graph, module, 0, id_mip0, 0); // input image
+
+#if 0 // needed for Mcnt = 7:
+  const int id_mip1 = dt_node_add( // second level mip maps:
+      graph, module, "kpn-t", "mip",
+      (roi_M[3].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[3].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
+      "M3", "read",  "rgba", "*",  -1ul,
+      "M4", "write", "rgba", "f16", roi_M+4,
+      "M5", "write", "rgba", "f16", roi_M+5,
+      "M6", "write", "rgba", "f16", roi_M+6);
+  CONN(dt_node_connect_named(graph, id_mip0, "M3", id_mip1, "M3"));
+#else
+  const int id_mip1 = id_mip0;
+#endif
 
   // multi-level mlp kernel prediction pipeline
   int id_up_prev = -1;
-  for(int i=0;i<4;i++)
-  { // from fine M0 to coarse M3
+  for(int i=0;i<Mcnt;i++)
+  { // from fine M0 to coarse M3 and on to M6
     const uint32_t unit = N_ITERS * 16;
     const uint32_t batch_size = unit * ((unit - 1 + roi_M[i].wd*roi_M[i].ht)/unit); // #px rounded up to 128 (=N_ITERS*16)
     const int pc_inf[] = { 32, batch_size, 16 };
@@ -65,7 +79,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 #endif
 
     int id_up = -1;
-    if(i < 3)
+    if(i < Mcnt-1)
     {
       id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
           graph, module, "kpn-t", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
@@ -76,12 +90,14 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
     }
     else
-    { // i == 3, the coarsest layer (does not upscale yet another even coarser layer)
+    { // i == Mcnt-1, the coarsest layer (does not upscale yet another even coarser layer)
       CONN(dt_node_connect_named(graph, id_apply, "I", id_up_prev, "Oc"));
     }
     id_up_prev = id_up;
 
-    const char *mipstr = i==1 ? "M1" : (i==2 ? "M2" : "M3");
+    char mipstr[3] = "MX";
+    mipstr[1] = '0' + i;
+    const int id_mip = i > 3 ? id_mip1 : id_mip0;
 #ifndef FUSED_INF
     if(i==0)  dt_connector_copy    (graph, module, 0,      id_inf,  0); // input image
     else CONN(dt_node_connect_named(graph, id_mip, mipstr, id_inf, "M"));
