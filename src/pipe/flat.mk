@@ -1,6 +1,7 @@
 PIPE_O=\
 pipe/alloc.o\
 pipe/connector.o\
+pipe/dng_opcode.o\
 pipe/global.o\
 pipe/graph.o\
 pipe/graph-io.o\
