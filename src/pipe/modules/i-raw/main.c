@@ -21,6 +21,12 @@ free_raw(dt_module_t *mod)
 {
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rl_deallocate(mod_data->img.data, mod_data->len);
+  if(mod_data->img.dng_opcode_list_1_len > 0)
+    rl_deallocate(mod_data->img.dng_opcode_list_1, mod_data->img.dng_opcode_list_1_len);
+  if(mod_data->img.dng_opcode_list_2_len > 0)
+    rl_deallocate(mod_data->img.dng_opcode_list_2, mod_data->img.dng_opcode_list_2_len);
+  if(mod_data->img.dng_opcode_list_3_len > 0)
+    rl_deallocate(mod_data->img.dng_opcode_list_3, mod_data->img.dng_opcode_list_3_len);
   mod_data->filename[0] = 0;
 }
 
