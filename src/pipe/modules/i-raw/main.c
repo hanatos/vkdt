@@ -2,6 +2,7 @@
 #include "mat3.h"
 #include "rawloader-c/rawloader.h"
 #include "core/log.h"
+#include "dng_opcode.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -13,6 +14,7 @@ typedef struct rawinput_buf_t
   char filename[PATH_MAX];
   int frame;
   int ox, oy;
+  dng_opcode_list_t *dng_opcode_lists[3];
 }
 rawinput_buf_t;
   
@@ -21,12 +23,11 @@ free_raw(dt_module_t *mod)
 {
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rl_deallocate(mod_data->img.data, mod_data->len);
-  if(mod_data->img.dng_opcode_list_1_len > 0)
-    rl_deallocate(mod_data->img.dng_opcode_list_1, mod_data->img.dng_opcode_list_1_len);
-  if(mod_data->img.dng_opcode_list_2_len > 0)
-    rl_deallocate(mod_data->img.dng_opcode_list_2, mod_data->img.dng_opcode_list_2_len);
-  if(mod_data->img.dng_opcode_list_3_len > 0)
-    rl_deallocate(mod_data->img.dng_opcode_list_3, mod_data->img.dng_opcode_list_3_len);
+  for(int i=0;i<3;i++)
+  {
+    dt_dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
+    mod_data->dng_opcode_lists[i] = NULL;
+  }
   mod_data->filename[0] = 0;
 }
 
@@ -50,6 +51,19 @@ load_raw(
   dt_log(s_log_perf, "[rawloader] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
   mod_data->frame = frame;
+
+  for(int i=0;i<3;i++)
+  {
+    if(mod_data->img.dng_opcode_lists_len[i] > 0)
+    {
+      // decode the raw opcode list into C structures we can access directly
+      mod_data->dng_opcode_lists[i] = dt_dng_opcode_list_decode(
+        mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
+      // free the raw opcode list now that we have decoded it
+      rl_deallocate(mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
+      mod->img_param.dng_opcode_lists[i] = mod_data->dng_opcode_lists[i];
+    }
+  }
   return 0;
 error:
   dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);

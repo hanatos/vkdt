@@ -301,6 +301,8 @@ dt_dng_opcode_list_decode(uint8_t *data, size_t len)
 {
   uint8_t *p     = data;
   uint32_t count = get_be_long(&p);
+  if(count == 0)
+    return NULL;
 
   // Validate size of opcode list and of each opcode
   for(int i = 0; i < count; i++)
@@ -333,6 +335,8 @@ dt_dng_opcode_list_decode(uint8_t *data, size_t len)
 void
 dt_dng_opcode_list_free(dng_opcode_list_t *ops)
 {
+  if(ops == NULL)
+    return;
   for(int i = 0; i < ops->count; i++)
     free(ops->ops[i].data);
   free(ops);
