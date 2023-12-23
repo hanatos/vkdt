@@ -886,10 +886,13 @@ void render_darkroom_widget(int modid, int parid)
       if(num == 0)
       { // only show first, cnt refers to allocation length of string param
         char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        if(ImGui::InputText(str, v, count))
+        if(ImGui::InputText(str, v, count, ImGuiInputTextFlags_EnterReturnsTrue))
         {
-          vkdt.graph_dev.runflags = s_graph_run_all; // kinda grave change, rerun all
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          if(ImGui::IsKeyDown(ImGuiKey_Enter))
+          { // kinda grave change, rerun all, but only if enter pressed
+            vkdt.graph_dev.runflags = s_graph_run_all;
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
         }
         TOOLTIP
       }
