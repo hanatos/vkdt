@@ -24,7 +24,7 @@ dt_db_init(dt_db_t *db)
   db->current_imgid = -1u;
   db->current_colid = -1u;
   fs_homedir(db->basedir, sizeof(db->basedir));
-  fs_mkdir(db->basedir, 0755);
+  fs_mkdir_p(db->basedir, 0755);
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;
   threads_mutex_init(&db->image_mutex, 0);
@@ -566,9 +566,9 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
   uint64_t hash = hash64(filename);
   char dirname[1040];
   snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
-  fs_mkdir(dirname, 0755);
+  fs_mkdir_p(dirname, 0755);
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
-  fs_mkdir(dirname, 0755); // ignore error, might exist already (which is fine)
+  fs_mkdir_p(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
   snprintf(linkname, sizeof(linkname), "%s/tags/%s/%"PRIx64".cfg", db->basedir, cname, hash);
   int err = fs_symlink(filename, linkname);

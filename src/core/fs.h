@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -60,6 +61,27 @@ fs_mkdir(
 #else
   return mkdir(pathname, mode);
 #endif
+}
+
+static inline int // recursive variant, i.e. `mkdir -p`
+fs_mkdir_p(
+    const char *pathname,
+    mode_t      mode)
+{
+  char tmp[PATH_MAX];
+  char *p = NULL;
+  size_t len;
+
+  snprintf(tmp, sizeof(tmp), "%s", pathname);
+  len = strlen(tmp);
+  if (tmp[len - 1] == '/') tmp[len - 1] = 0;
+  for(p = tmp + 1; *p; p++) if (*p == '/')
+  {
+    *p = 0;
+    fs_mkdir(tmp, mode); // ignore error (if it exists etc)
+    *p = '/';
+  }
+  return fs_mkdir(tmp, mode);
 }
 
 static inline int // return zero if argument contains no '/', else alter str

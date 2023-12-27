@@ -56,7 +56,7 @@ void ui_callback(
     size_t r = snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
     if(r >= sizeof(fhome)) return;
     fs_dirname(fhome);
-    fs_mkdir(fhome, 0755);
+    fs_mkdir_p(fhome, 0755);
     r = snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
     if(r >= sizeof(fhome)) return;
     fs_copy(fhome, filename);

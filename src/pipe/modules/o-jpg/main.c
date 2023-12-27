@@ -40,7 +40,7 @@ void write_sink(
 
   char dir[512];
   snprintf(dir, sizeof(dir), "%s", basename);
-  if(fs_dirname(dir)) fs_mkdir(dir, 0755);
+  if(fs_dirname(dir)) fs_mkdir_p(dir, 0755);
 
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.jpg", basename);

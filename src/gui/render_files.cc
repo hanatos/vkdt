@@ -61,13 +61,13 @@ void copy_job_work(uint32_t item, void *arg)
 }
 int copy_job(
     copy_job_t *j,
-    const char *dst,
-    const char *src)
+    const char *dst, // destination directory
+    const char *src) // source directory
 {
   j->abort = 0;
   snprintf(j->src, sizeof(j->src), "%.*s", (int)sizeof(j->src)-1, src);
   snprintf(j->dst, sizeof(j->dst), "%.*s", (int)sizeof(j->dst)-1, dst);
-  fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
+  fs_mkdir_p(j->dst, 0777); // try and potentially fail to create destination directory
   j->cnt = scandir(src, &j->ent, 0, alphasort);
   if(j->cnt == -1u) return 2;
   j->taskid = threads_task("copy", j->cnt, -1, j, copy_job_work, copy_job_cleanup);

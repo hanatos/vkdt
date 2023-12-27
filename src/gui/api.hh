@@ -302,7 +302,7 @@ dt_gui_dr_modals()
     {
       char filename[PATH_MAX+100];
       snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
-      fs_mkdir(filename, 0755);
+      fs_mkdir_p(filename, 0755);
       snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
       FILE *f = fopen(filename, "wb");
       if(f)

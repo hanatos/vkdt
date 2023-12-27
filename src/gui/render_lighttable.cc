@@ -276,6 +276,9 @@ void export_job_work(uint32_t item, void *arg)
   char filename[PATH_MAX], infilename[PATH_MAX], filedir[PATH_MAX];
   dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
   fs_expand_export_filename(j->basename, sizeof(j->basename), filename, sizeof(filename), filedir, item);
+  char dir[512];
+  snprintf(dir, sizeof(dir), "%s", filename);
+  if(fs_dirname(dir)) fs_mkdir_p(dir, 0755);
 
   dt_gui_notification("exporting to %s", filename);
 
@@ -319,8 +322,6 @@ int export_job(
   j->pdata = (uint8_t *)malloc(sizeof(uint8_t)*psize);
   memcpy(j->pdata, w->pdata[w->format], psize);
   dt_graph_init(&j->graph);
-  // TODO:
-  // fs_mkdir(j->dst, 0777); // try and potentially fail to create destination directory
   j->taskid = threads_task("export", j->cnt, -1, j, export_job_work, export_job_cleanup);
   return j->taskid;
 }

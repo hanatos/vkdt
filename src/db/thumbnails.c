@@ -52,7 +52,7 @@ dt_thumbnails_init(
   // TODO: getenv(XDG_CACHE_HOME)
   const char *home = getenv("HOME");
   snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/.cache/vkdt", home);
-  int err = fs_mkdir(tn->cachedir, 0755);
+  int err = fs_mkdir_p(tn->cachedir, 0755);
   if(err && errno != EEXIST)
   {
     dt_log(s_log_err|s_log_db, "could not create thumbnail cache directory!");
