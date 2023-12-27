@@ -76,8 +76,30 @@ run `bin/mkappimg.sh` from the root directory
 
 ### current changelog
 
+main features:
+neural network infrastructure. better `loss` node with
+logarithmic plotting. `kpn`: kernel predicting neural network for
+denoising, training included as `kpn-t`. based on tiny mlp using
+tensor cores/registers/shm.
+
 new modules:
 * `mask` create data-dependent masks from luminance, hue, or saturation of an image
+* `mv2rot` compute rotation/translation from per pixel motion vectors
+* `o-exr` write openexr images with chromaticities attribute
+* `o-csv` dump image data to text file
+
+legacy modules:
+* `cnn`: renamed to `resnet` (training in gmic may be incompatible now)
+* `menon`: superseded by rcd mode in demosaic module
+
+platform compatibility:
+* move platform dependent code to `fs.h` and implement some windows stuff
+
+other:
+* rawler/rust-c interface updated
+* better video support
+
+bugfixes and code cleanups, gui streamlining things.
 
 
 ## diverge branches
