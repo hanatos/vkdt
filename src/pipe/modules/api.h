@@ -1067,6 +1067,7 @@ dt_graph_open_resource(
     // if we can't open it in the graph specific search path, try the home directory:
     snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.homedir, fname);
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
+    f = fopen(filename, mode);
     if(f) return f;
     // global basedir
     snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.basedir, fname);
