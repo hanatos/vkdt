@@ -1,6 +1,32 @@
 #include "modules/api.h"
 #include "config.h"
 
+int init(dt_module_t *mod)
+{
+  mod->data = malloc(sizeof(char)*2048);
+  snprintf(mod->data, 2048,
+      "lut contains weights for\n"
+      "multi-level kernel predicting mlp with:\n"
+      "%d hidden layers\n"
+      "%d network width\n"
+      "%s kernel weight activation\n"
+      "%s alpha blending activation\n",
+      N_HIDDEN_LAYERS,
+      WIDTH,
+       APPLY_ACTIVATION == APPLY_PLAIN ? "plain" :
+      (APPLY_ACTIVATION == APPLY_SOFTMAX ? "softmax" : "sigmoid"),
+       ALPHA_ACTIVATION == ALPHA_CONST ? "const" :
+      (ALPHA_ACTIVATION == ALPHA_PLAIN ? "plain" : "sigmoid"));
+  return 0;
+}
+
+void cleanup(dt_module_t *mod)
+{
+  if(!mod->data) return;
+  free(mod->data);
+  mod->data = 0;
+}
+
 void
 modify_roi_out(
     dt_graph_t  *graph,

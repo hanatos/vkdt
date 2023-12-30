@@ -16,6 +16,7 @@
 
 #include "global.h"
 #include "connector.h"
+#include "metadata.h"
 
 // bare essential meta data that travels
 // with a (raw) input buffer along the graph.
@@ -52,12 +53,8 @@ typedef struct dt_image_params_t
   float noise_b;              // raw noise estimate, poissonian part
   dt_token_t input_name;      // remember the name, "main" has special rights
 
-  // TODO: optional extra data to travel along with the image until the output:
-  // pointer to something*
-  // typedef struct something_t
-  // int type_id // can be plain text/comment, exif, whathaveyou
-  // next*
-  // void* data
+  // optional extra data to travel along with the image until the output:
+  dt_image_metadata_t *meta;  // owned by the i-* module that sets it
 }
 dt_image_params_t;
 

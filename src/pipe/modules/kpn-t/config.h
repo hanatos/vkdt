@@ -21,7 +21,7 @@
 // #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1e-1 // lower will only show numeric jitter
 
-#if 1 // check memory bounds before access
+#if 0 // check memory bounds before access
 #define CHK_WGT(base, stride) if(base + 15 * stride + 16/EL_PER_UVEC4 <= WIDTH * WIDTH * (N_HIDDEN_LAYERS+1)/EL_PER_UVEC4)
 #define CHK_SHM(base, stride) if(base + 15 * stride + 16/EL_PER_UVEC4 <= ((16 + 16*N_ITERS) * (WIDTH + SKEW)) / EL_PER_UVEC4)
 #define CHK_OUT(base, stride) if(base + 15 * stride + 16/EL_PER_UVEC4 <= push.batch_size * 16 / EL_PER_UVEC4)
