@@ -41,7 +41,7 @@ dt_metadata_find(
   while(meta)
   {
     if(meta->type == type) return meta;
-    meta = meta->next;
+    meta = (dt_image_metadata_t *)meta->next;
   }
   return 0;
 }
