@@ -86,9 +86,8 @@ dt_filebrowser(
         w->ent_cnt = 0;
         while((ent = readdir(dirp)))
           if((mode == 'd' && dt_filebrowser_filter_dir(ent)) ||
-              (mode != 'd' && dt_filebrowser_filter_file(ent)))
+             (mode != 'd' && dt_filebrowser_filter_file(ent)))
             w->ent[w->ent_cnt++] = *ent;
-
         sort(w->ent, w->ent_cnt, sizeof(w->ent[0]), dt_filebrowser_sort_dir_first, w->cwd);
       }
       closedir(dirp);

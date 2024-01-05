@@ -36,7 +36,7 @@ void set_cwd(const char *dir, int up)
 struct copy_job_t
 { // copy contents of a folder
   char src[1000], dst[1000];
-  struct dirent **ent;
+  struct dirent *ent;
   uint32_t cnt;
   uint32_t move;  // set to non-zero to remove src after copy
   uint32_t abort;
@@ -45,7 +45,6 @@ struct copy_job_t
 void copy_job_cleanup(void *arg)
 { // task is done, every thread will call this (but we put only one)
   copy_job_t *j = (copy_job_t *)arg;
-  for(uint32_t i=0;i<j->cnt;i++) free(j->ent[i]);
   if(j->ent) free(j->ent);
 }
 void copy_job_work(uint32_t item, void *arg)
@@ -53,8 +52,8 @@ void copy_job_work(uint32_t item, void *arg)
   copy_job_t *j = (copy_job_t *)arg;
   if(j->abort) return;
   char src[1300], dst[1300];
-  snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item]->d_name);
-  snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item]->d_name);
+  snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item].d_name);
+  snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item].d_name);
   if(fs_copy(dst, src)) j->abort = 2;
   else if(j->move) fs_delete(src);
   glfwPostEmptyEvent(); // redraw status bar
@@ -68,8 +67,24 @@ int copy_job(
   snprintf(j->src, sizeof(j->src), "%.*s", (int)sizeof(j->src)-1, src);
   snprintf(j->dst, sizeof(j->dst), "%.*s", (int)sizeof(j->dst)-1, dst);
   fs_mkdir_p(j->dst, 0777); // try and potentially fail to create destination directory
-  j->cnt = scandir(src, &j->ent, 0, alphasort);
-  if(j->cnt == -1u) return 2;
+
+  DIR* dirp = opendir(j->src);
+  j->cnt = 0;
+  struct dirent *ent = 0;
+  if(!dirp) return 2;
+  // first count valid entries
+  while((ent = readdir(dirp)))
+    if(!fs_isdir(j->src, ent))
+      j->cnt++;
+  if(!j->cnt) return 2;
+  rewinddir(dirp); // second pass actually record stuff
+  j->ent = (struct dirent *)malloc(sizeof(j->ent[0])*j->cnt);
+  j->cnt = 0;
+  while((ent = readdir(dirp)))
+    if(!fs_isdir(j->src, ent))
+      j->ent[j->cnt++] = *ent;
+  closedir(dirp);
+
   j->taskid = threads_task("copy", j->cnt, -1, j, copy_job_work, copy_job_cleanup);
   return j->taskid;
 }
