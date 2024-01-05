@@ -1,4 +1,5 @@
 #pragma once
+#include "core/sort.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -51,6 +52,15 @@ enum filteredlist_flags_t
   s_filteredlist_return_short = 8, // return only the short filename, not the absolute one
 };
 
+namespace {
+int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
+{
+  const struct dirent *a = (const struct dirent *)aa;
+  const struct dirent *b = (const struct dirent *)bb;
+  return strcmp(a->d_name, b->d_name);
+}
+}
+
 // displays a filtered list of directory entries.
 // this is useful to select from existing presets, blocks, tags, etc.
 // call this between BeginPopupModal and EndPopup.
@@ -68,18 +78,16 @@ filteredlist(
   int ok = 0;
   int pick = -1, local = 0;
 #define FREE_ENT do {\
-  for(int i=0;i<ent_cnt;i++) free(ent[i]);\
-  for(int i=0;i<ent_local_cnt;i++) free(ent_local[i]);\
   if(desc)       for(int i=0;i<ent_cnt;i++) free(desc[i]);\
   if(desc_local) for(int i=0;i<ent_cnt;i++) free(desc_local[i]);\
   free(desc); free(desc_local); \
   desc = desc_local = 0; \
   free(ent_local); ent_local = 0; ent_local_cnt = 0;\
   free(ent); ent = 0; ent_cnt = 0; } while(0)
-  static struct dirent **ent = 0, **ent_local = 0;
+  static struct dirent *ent = 0, *ent_local = 0;
   static int ent_cnt = 0, ent_local_cnt = 0;
-  static char dirname[PATH_MAX+20];
-  static char dirname_local[PATH_MAX+20];
+  static char dirname[PATH_MAX];
+  static char dirname_local[PATH_MAX];
   static char **desc = 0, **desc_local = 0;
   if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
   if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
@@ -99,25 +107,57 @@ filteredlist(
     if(dir)
     {
       snprintf(dirname, sizeof(dirname), dir, dt_pipe.basedir);
-      ent_cnt = scandir(dirname, &ent, 0, alphasort);
-      if(ent_cnt == -1) ent_cnt = 0;
+      DIR* dirp = opendir(dirname);
+      ent_cnt = 0;
+      struct dirent *it = 0;
+      if(dirp)
+      { // first count valid entries
+        while((it = readdir(dirp)))
+          ent_cnt++;
+        if(ent_cnt)
+        {
+          rewinddir(dirp); // second pass actually record stuff
+          ent = (struct dirent *)malloc(sizeof(ent[0])*ent_cnt);
+          ent_cnt = 0;
+          while((it = readdir(dirp)))
+            ent[ent_cnt++] = *it;
+        }
+        sort(ent, ent_cnt, sizeof(ent[0]), dt_filteredlist_compare, 0);
+        closedir(dirp);
+      }
       if(ent_cnt && (flags & s_filteredlist_descr_any))
       {
         desc = (char**)malloc(sizeof(char*)*ent_cnt);
         for(int i=0;i<ent_cnt;i++)
-          desc[i] = filteredlist_get_heading(dirname, ent[i]->d_name);
+          desc[i] = filteredlist_get_heading(dirname, ent[i].d_name);
       }
     }
     if(dir_local)
     {
       snprintf(dirname_local, sizeof(dirname_local), dir_local, vkdt.db.basedir);
-      ent_local_cnt = scandir(dirname_local, &ent_local, 0, alphasort);
-      if(ent_local_cnt == -1) ent_local_cnt = 0;
+      DIR* dirp = opendir(dirname_local);
+      ent_local_cnt = 0;
+      struct dirent *it = 0;
+      if(dirp)
+      { // first count valid entries
+        while((it = readdir(dirp)))
+          ent_local_cnt++;
+        if(ent_local_cnt)
+        {
+          rewinddir(dirp); // second pass actually record stuff
+          ent_local = (struct dirent *)malloc(sizeof(ent_local[0])*ent_local_cnt);
+          ent_local_cnt = 0;
+          while((it = readdir(dirp)))
+            ent_local[ent_local_cnt++] = *it;
+        }
+        sort(ent, ent_cnt, sizeof(ent[0]), dt_filteredlist_compare, 0);
+        closedir(dirp);
+      }
       if(ent_local_cnt && (flags & s_filteredlist_descr_any))
       {
         desc_local = (char**)malloc(sizeof(char*)*ent_local_cnt);
         for(int i=0;i<ent_local_cnt;i++)
-          desc_local[i] = filteredlist_get_heading(dirname_local, ent_local[i]->d_name);
+          desc_local[i] = filteredlist_get_heading(dirname_local, ent_local[i].d_name);
       }
     }
     else ent_local_cnt = 0;
@@ -128,10 +168,10 @@ filteredlist(
   ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
 #define LIST(E, D, L) do { \
   for(int i=0;i<E##_cnt;i++)\
-  if((strstr(E[i]->d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
-      && E[i]->d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
+  if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
+      && E[i].d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
     if(pick < 0) { local = L; pick = i; } \
-    if(ImGui::Button((D && D[i]) ? D[i] : E[i]->d_name, ImVec2(-1, 0))) {\
+    if(ImGui::Button((D && D[i]) ? D[i] : E[i].d_name, ImVec2(-1, 0))) {\
       ok = 1; pick = i; local = L;\
     } } } while(0)
   LIST(ent_local, desc_local, 1);
@@ -154,14 +194,14 @@ filteredlist(
     if(flags & s_filteredlist_return_short)
     {
       if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
-      else if(local) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick]->d_name);
-      else           snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick]->d_name);
+      else if(local) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick].d_name);
+      else           snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick].d_name);
     }
     else
     {
       if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
-      else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick]->d_name);
-      else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick]->d_name);
+      else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick].d_name);
+      else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick].d_name);
     }
     FREE_ENT;
   }

@@ -34,7 +34,7 @@ dt_keyaccel_init(
 {
   dt_stringpool_init(&ka->sp, 2*list_size, 30); // + space for description/comment
   char dirname[PATH_MAX];
-  uint32_t id = 0;
+  uint32_t id = 0, old_cnt = list_cnt;
   for(int dir=0;dir<2;dir++)
   { // first search home dir, then system wide:
     size_t r = 0;
@@ -46,7 +46,6 @@ dt_keyaccel_init(
     struct dirent *ent = 0;
     while((ent = readdir(dirp)))
     {
-      id++;
       if(list_cnt >= list_size) break;
       if(ent->d_name[0] == '.') continue; // skip parent directories and hidden files
 
@@ -62,6 +61,7 @@ dt_keyaccel_init(
       }
       else continue; // we can't even open the file!
 
+      id++;
       const char *dedup0 = 0, *dedup1 = 0;
       uint32_t id0 = dt_stringpool_get(&ka->sp, ent->d_name, strlen(ent->d_name), id, &dedup0);
       if(id0 != id) continue; // this preset name already inserted (probably local overriding global)
@@ -74,8 +74,8 @@ dt_keyaccel_init(
     }
     closedir(dirp);
   }
-  // sort the result
-  sort(list, list_cnt, sizeof(list[0]), compare_keyaccel, 0);
+  // sort only the new entries
+  if(id) sort(list+old_cnt, list_cnt-old_cnt, sizeof(list[0]), compare_keyaccel, 0);
   return list_cnt;
 }
 
