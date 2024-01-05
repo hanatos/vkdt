@@ -208,7 +208,7 @@ next:
 #endif
 }
 
-static inline int fs_islnk(const char *dirname, struct dirent *e)
+static inline int fs_islnk(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
 #warning "port me!"
@@ -218,7 +218,7 @@ static inline int fs_islnk(const char *dirname, struct dirent *e)
 #endif
 }
 
-static inline int fs_isreg(const char *dirname, struct dirent *e)
+static inline int fs_isreg(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
 #warning "port me!"
@@ -228,7 +228,7 @@ static inline int fs_isreg(const char *dirname, struct dirent *e)
 #endif
 }
 
-static inline int fs_isdir(const char *dirname, struct dirent *e)
+static inline int fs_isdir(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
 #warning "port me!"

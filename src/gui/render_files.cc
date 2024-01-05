@@ -320,7 +320,7 @@ void render_files()
         set_cwd(filebrowser.cwd, 1);
       else
       {
-        if(filebrowser.selected_type == DT_DIR)
+        if(filebrowser.selected_isdir)
         {
           if(snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
             dt_gui_switch_collection(newdir);
