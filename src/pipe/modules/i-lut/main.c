@@ -56,7 +56,8 @@ read_header(
   return 0;
 error:
   fprintf(stderr, "[i-lut] %"PRItkn" could not load file `%s'!\n", dt_token_str(mod->inst), filename);
-  snprintf(lut->errormsg, sizeof(lut->errormsg), "i-lut: %"PRItkn" could not load file `%s'!\n", dt_token_str(mod->inst), filename);
+  if(snprintf(lut->errormsg, sizeof(lut->errormsg), "i-lut: %"PRItkn" could not load file `%s'!\n", dt_token_str(mod->inst), filename) >= sizeof(lut->errormsg))
+    fprintf(stderr, "\n"); // fuck you gcc
   mod->graph->gui_msg = lut->errormsg;
   lut->filename[0] = 0;
   return 1;

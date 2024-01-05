@@ -304,7 +304,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       dt_connector_copy(graph, module, 5, id_vis,  3); // debug display weights out
     }
 
-    const char *mipstr = i==1 ? "M1" : (i==2 ? "M2" : "M3");
+    const char *mipstr = i==1 ? "M1" : (i==2 ? "M2" : "M3"); // gcc does not understand this codepath (const folding in dt_token) but whatever.
     if(i==0)
     {
       dt_connector_copy(graph, module, 0, id_fwd,    0); // input image

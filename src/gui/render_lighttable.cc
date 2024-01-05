@@ -277,7 +277,11 @@ void export_job_work(uint32_t item, void *arg)
   dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
   fs_expand_export_filename(j->basename, sizeof(j->basename), filename, sizeof(filename), filedir, item);
   char dir[512];
-  snprintf(dir, sizeof(dir), "%s", filename);
+  if(snprintf(dir, sizeof(dir), "%s", filename) >= (int)sizeof(dir))
+  {
+    dt_gui_notification("expanded filename too long!");
+    return;
+  }
   if(fs_dirname(dir)) fs_mkdir_p(dir, 0755);
 
   dt_gui_notification("exporting to %s", filename);

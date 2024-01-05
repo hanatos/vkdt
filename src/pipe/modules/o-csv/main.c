@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "core/core.h"
 #include "core/half.h"
+#include "pipe/token.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -61,25 +62,17 @@ void write_sink(
   const int ht = mod->connector[0].roi.ht;
   const int cn = dt_connector_channels(mod->connector);
   for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
-  {
-    switch(mod->connector[0].format)
-    {
-      case dt_token("ui8"):
-        for(int c=0;c<cn;c++) fprintf(dat->f, "%"PRIu8" ", (((uint8_t *)buf) + (j*wd + i)*cn)[c]);
-        break;
-      case dt_token("ui16"):
-        for(int c=0;c<cn;c++) fprintf(dat->f, "%"PRIu16" ", (((uint16_t *)buf) + (j*wd + i)*cn)[c]);
-        break;
-      case dt_token("ui32"):
-        for(int c=0;c<cn;c++) fprintf(dat->f, "%"PRIu32" ", (((uint32_t *)buf) + (j*wd + i)*cn)[c]);
-        break;
-      case dt_token("f16"):
-        for(int c=0;c<cn;c++) fprintf(dat->f, "%g ", half_to_float((((uint16_t *)buf) + (j*wd + i)*cn)[c]));
-        break;
-      case dt_token("f32"):
-        for(int c=0;c<cn;c++) fprintf(dat->f, "%g ", (((float *)buf) + (j*wd + i)*cn)[c]);
-        break;
-    }
+  { // gcc, the little fucker, does not fold the constants here (c) only in c++ mode.
+    if(mod->connector[0].format == dt_token("ui8"))
+      for(int c=0;c<cn;c++) fprintf(dat->f, "%"PRIu8" ", (((uint8_t *)buf) + (j*wd + i)*cn)[c]);
+    if(mod->connector[0].format == dt_token("ui16"))
+      for(int c=0;c<cn;c++) fprintf(dat->f, "%"PRIu16" ", (((uint16_t *)buf) + (j*wd + i)*cn)[c]);
+    if(mod->connector[0].format == dt_token("ui32"))
+      for(int c=0;c<cn;c++) fprintf(dat->f, "%"PRIu32" ", (((uint32_t *)buf) + (j*wd + i)*cn)[c]);
+    if(mod->connector[0].format == dt_token("f16"))
+      for(int c=0;c<cn;c++) fprintf(dat->f, "%g ", half_to_float((((uint16_t *)buf) + (j*wd + i)*cn)[c]));
+    if(mod->connector[0].format == dt_token("f32"))
+      for(int c=0;c<cn;c++) fprintf(dat->f, "%g ", (((float *)buf) + (j*wd + i)*cn)[c]);
   }
   fprintf(dat->f, "\n");
 }

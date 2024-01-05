@@ -68,11 +68,11 @@ fs_mkdir_p(
     const char *pathname,
     mode_t      mode)
 {
-  char tmp[PATH_MAX];
+  char tmp[2048];
   char *p = NULL;
   size_t len;
 
-  snprintf(tmp, sizeof(tmp), "%s", pathname);
+  if(snprintf(tmp, sizeof(tmp), "%s", pathname) >= (int)sizeof(tmp)) return 1;
   len = strlen(tmp);
   if (tmp[len - 1] == '/') tmp[len - 1] = 0;
   for(p = tmp + 1; *p; p++) if (*p == '/')
