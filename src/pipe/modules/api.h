@@ -1,4 +1,5 @@
 #pragma once
+#include "pipe/modules/bs.h"
 #include "pipe/node.h"
 #include "pipe/graph.h"
 #include "pipe/module.h"
@@ -6,6 +7,13 @@
 
 #include <math.h>
 #include <stdarg.h>
+
+#ifdef VKDT_DSO_BUILD
+int bs_init()
+{ // need to load symbols from the dso side
+  return dt_module_bs_init();
+}
+#endif
 
 // some module specific helpers and constants
 

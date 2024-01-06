@@ -99,10 +99,10 @@ gui/%.o: gui/%.cc Makefile $(GUI_H) gui/flat.mk
 	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
-	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
-	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # main application
 # ======================
@@ -156,7 +156,7 @@ $(foreach MOD,$(FLATMK),\
 
 define MOD_RULE
 pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
+	$(CC) -DVKDT_DSO_BUILD $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
 endef
 $(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 

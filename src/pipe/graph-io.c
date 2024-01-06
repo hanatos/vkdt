@@ -1,7 +1,7 @@
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
 #include "modules/api.h"
-#include "pipe/io.h"
+#include "pipe/asciiio.h"
 #include "core/log.h"
 #include "core/fs.h"
 #include <libgen.h>

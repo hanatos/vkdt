@@ -42,7 +42,7 @@ GUI_H=gui/gui.h\
       pipe/graph-history.h\
       pipe/graph-defaults.h
 GUI_CFLAGS=$(VKDT_GLFW_CFLAGS) -I../ext/imgui -I../ext/imgui/backends/
-GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++ -rdynamic
+GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm -lstdc++ $(DYNAMIC)
 
 ifeq ($(VKDT_USE_FREETYPE),1)
 GUI_CFLAGS+=$(VKDT_FREETYPE2_CFLAGS) -DVKDT_USE_FREETYPE=1

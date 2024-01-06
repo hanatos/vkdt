@@ -1,6 +1,5 @@
 #pragma once
 
-#include <alloca.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -14,16 +13,16 @@ static inline double
 dt_conj_grad(const double *A, const double *b, double *x, const int m)
 {
   for(int j=0;j<m;j++) x[j] = 0.0;
-  double *r = alloca(sizeof(double)*m);
+  double *r = malloc(sizeof(double)*m);
   for(int j=0;j<m;j++) r[j] = b[j];
 
-  double *p = alloca(sizeof(double)*m);
+  double *p = malloc(sizeof(double)*m);
   for(int j=0;j<m;j++) p[j] = r[j];
 
   double rsold = 0.0;
   for(int j=0;j<m;j++) rsold += r[j]*r[j];
 
-  double *Ap = alloca(sizeof(double)*m);
+  double *Ap = malloc(sizeof(double)*m);
   for(int i=0;i<m;i++)
   {
     memset(Ap, 0, sizeof(double)*m);
@@ -36,18 +35,19 @@ dt_conj_grad(const double *A, const double *b, double *x, const int m)
       pAp += p[j] * Ap[j];
     double alpha = rsold / pAp;
     // assert(alpha == alpha);
-    if(!(alpha == alpha)) return 0.1;//0.0;
+    if(!(alpha == alpha)) { free(r); free(p); free(Ap); return 0.1; }
     for(int j=0;j<m;j++)
       x[j] += alpha * p[j];
     for(int j=0;j<m;j++)
       r[j] -= alpha * Ap[j];
     double rsnew = 0.0;
     for(int j=0;j<m;j++) rsnew += r[j]*r[j];
-    if(sqrt(rsnew) < 2e-6) return sqrt(rsnew);
-    if(rsnew > rsold) return sqrt(rsnew);
+    if(sqrt(rsnew) < 2e-6) { free(r); free(p); free(Ap); return sqrt(rsnew); }
+    if(rsnew > rsold) { free(r); free(p); free(Ap); return sqrt(rsnew); }
     for(int j=0;j<m;j++) p[j] = r[j] + rsnew / rsold * p[j];
     rsold = rsnew;
   }
+  free(r); free(p); free(Ap);
   return sqrt(rsold);
 }
 
@@ -61,14 +61,14 @@ dt_gauss_newton_cg_step(
     const double *t)      // n target values
 {
   // compute b vector Jt r in R[m], residual r in R[n]
-  double *b = alloca(sizeof(double)*m);
+  double *b = malloc(sizeof(double)*m);
   memset(b, 0, sizeof(double)*m);
   for(int i=0;i<m;i++)
     for(int j=0;j<n;j++)
       b[i] += J[m*j + i] * (t[j] - f[j]);
 
   // compute dense square matrix Jt J
-  double *A = alloca(sizeof(double)*m*m);
+  double *A = malloc(sizeof(double)*m*m);
   memset(A, 0, sizeof(double)*m*m);
   // TODO: exploit symmetry
   // TODO: don't compute but pass to CG
@@ -82,10 +82,11 @@ dt_gauss_newton_cg_step(
   // (Jt J) Delta = Jt r
   //   A    x     = b
 
-  double *delta = alloca(sizeof(double)*m);
+  double *delta = malloc(sizeof(double)*m);
   double resid = dt_conj_grad(A, b, delta, m);
   assert(resid == resid);
   for(int i=0;i<m;i++) p[i] += delta[i];
+  free(b); free(A); free(delta);
   return resid;
 }
 
@@ -103,9 +104,9 @@ dt_gauss_newton_cg(
     const int     num_it, // number of iterations
     void         *data)
 {
-  double *bp = alloca(sizeof(double)*m);   // best p seen so far
-  double *f = alloca(sizeof(double)*n);
-  double *J = alloca(sizeof(double)*n*m);
+  double *bp = malloc(sizeof(double)*m);   // best p seen so far
+  double *f = malloc(sizeof(double)*n);
+  double *J = malloc(sizeof(double)*n*m);
   double resid = 0.0;
   double best = DBL_MAX;
   for(int it=0;it<num_it;it++)
@@ -122,15 +123,21 @@ dt_gauss_newton_cg(
     for(int i=0;i<m;i++)
       p[i] = fminf(fmaxf(p[i], lb[i]), ub[i]);
     fprintf(stderr, "[solve %d/%d] gauss: loss %g\r", it, num_it, f[0]);
-    if(resid < 1e-30) return resid;
+    if(resid < 1e-30)
+    {
+      free(bp); free(f); free(J);
+      return resid;
+    }
   }
 #if 1
   if(best < f[0])
   {
     memcpy(p, bp, sizeof(double)*m);
+    free(bp); free(f); free(J);
     return best;
   }
 #endif
+  free(bp); free(f); free(J);
   return resid;
 }
 
@@ -152,11 +159,11 @@ dt_adam(
     double        alpha,  // 0.001 learning rate
     int          *abort)  // external user flag to abort asynchronously. can be 0.
 {
-  double *f  = alloca(sizeof(double)*n);
-  double *bp = alloca(sizeof(double)*m);   // best p seen so far
-  double *J  = alloca(sizeof(double)*n*m);
-  double *mt = alloca(sizeof(double)*n*m); // averaged gradient (1st moment)
-  double *vt = alloca(sizeof(double)*n*m); // past gradient second moment
+  double *f  = malloc(sizeof(double)*n);
+  double *bp = malloc(sizeof(double)*m);   // best p seen so far
+  double *J  = malloc(sizeof(double)*n*m);
+  double *mt = malloc(sizeof(double)*n*m); // averaged gradient (1st moment)
+  double *vt = malloc(sizeof(double)*n*m); // past gradient second moment
   double best = DBL_MAX; // best loss seen so far
   memset(mt, 0, sizeof(double)*m*n);
   memset(vt, 0, sizeof(double)*m*n);
@@ -208,10 +215,13 @@ dt_adam(
   if(best < f[0])
   {
     memcpy(p, bp, sizeof(double)*m);
+    free(f); free(bp); free(J); free(mt); free(vt);
     return best;
   }
 #endif
-  return f[0];
+  double res = f[0];
+  free(f); free(bp); free(J); free(mt); free(vt);
+  return res;
 }
 
 /*! A basic implementation of the method of Nelder and Mead for minimization of

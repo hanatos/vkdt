@@ -12,6 +12,10 @@
 #include <time.h>
 #ifndef _WIN64
 #include <sys/sendfile.h>
+#else
+#include <direct.h>
+#include <io.h>
+#include <stdbool.h>
 #endif
 #include <errno.h>
 
@@ -22,7 +26,7 @@ fs_copy(
 {
 #ifdef _WIN64
 #warning "port me!"
-  bool res = CopyFile(src, dst, false);
+  bool res = false;// XXX CopyFile(src, dst, false);
   return res != 0;
 #else
   ssize_t ret;
@@ -57,7 +61,7 @@ fs_mkdir(
     mode_t      mode)
 {
 #ifdef _WIN64
-  return mkdir(pathname);
+  return _mkdir(pathname);
 #else
   return mkdir(pathname, mode);
 #endif
@@ -208,6 +212,18 @@ next:
 #endif
 }
 
+static inline int fs_islnk_file(const char *filename)
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
+  struct stat buf;
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFLNK;
+#endif
+}
+
 static inline int fs_islnk(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
@@ -308,6 +324,19 @@ fs_expand_export_filename(
   dt_strexpand(pattern, pattern_size, dst, dst_size, key, val);
 }
 
+static inline uint64_t
+fs_createtime(
+    const char *filename) // filename to stat
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0; // TODO!
+#else
+  struct stat statbuf;
+  stat(filename, &statbuf);
+  return statbuf.st_mtim.tv_sec;
+#endif
+}
 static inline void
 fs_createdate(
     const char *filename,  // filename to stat

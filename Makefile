@@ -4,7 +4,7 @@
 # also handles some global settings for compilers and debug flags.
 
 .PHONY:all src clean distclean bin install release cli
-include bin/config.mk.defaults
+include bin/config.mk.defaults.w64
 sinclude bin/config.mk
 
 # dr dobb's idea about makefile debugging:
@@ -122,4 +122,4 @@ uninstall-lib:
 
 bin: Makefile
 	mkdir -p bin/data
-	ln -sf ../src/pipe/modules bin/
+	ln -sf ../src/pipe/modules bin/ || true

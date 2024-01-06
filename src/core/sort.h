@@ -10,7 +10,7 @@ sort_wrapper_t;
 #if defined(__APPLE__) || defined(_WIN64)
 static int sort_wrap_compare(void *w, const void *a, const void *b)
 {
-  sort_wrapper_t *wrap = w;
+  sort_wrapper_t *wrap = (sort_wrapper_t *)w;
   return (*wrap->f)(a, b, wrap->d);
 }
 #endif

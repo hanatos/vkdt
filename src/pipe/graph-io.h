@@ -10,6 +10,7 @@ int dt_graph_write_config_ascii(
     dt_graph_t *graph,
     const char *filename);
 
+#ifndef VKDT_DSO_BUILD
 // write module definition
 char *
 dt_graph_write_module_ascii(
@@ -36,6 +37,7 @@ dt_graph_write_param_ascii(
     char             *line,
     size_t            size,
     char            **eop);   // end of prefix: where does the data start after module:inst:param:
+#endif
 
 // write keyframe
 char *

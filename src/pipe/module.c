@@ -91,6 +91,7 @@ int dt_module_add(
     return -1;
   }
 
+  if(mod->so->bs_init) mod->so->bs_init();
   if(mod->so->init)
   {
     mod->so->init(mod);

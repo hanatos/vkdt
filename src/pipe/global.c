@@ -1,5 +1,5 @@
 #include "global.h"
-#include "io.h"
+#include "asciiio.h"
 #include "module.h"
 #include "graph.h"
 #include "core/log.h"
@@ -108,6 +108,7 @@ dt_module_so_load(
     mod->modify_roi_in  = dlsym(mod->dlhandle, "modify_roi_in");
     mod->init           = dlsym(mod->dlhandle, "init");
     mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
+    mod->bs_init        = dlsym(mod->dlhandle, "bs_init");
     mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
     mod->read_geo       = dlsym(mod->dlhandle, "read_geo");
