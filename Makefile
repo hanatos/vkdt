@@ -4,7 +4,11 @@
 # also handles some global settings for compilers and debug flags.
 
 .PHONY:all src clean distclean bin install release cli
+ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
+else
+include bin/config.mk.defaults
+endif
 sinclude bin/config.mk
 
 # dr dobb's idea about makefile debugging:

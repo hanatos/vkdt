@@ -6,17 +6,6 @@
 #include <stdint.h>
 #include <vulkan/vulkan.h>
 
-// #ifdef _WIN64
-// #ifdef VKDT_DSO_BUILD
-// #define VKDT_API __declspec(dllimport)
-// #define VKDT_API extern
-// #else
-// #define VKDT_API __declspec(dllexport)
-// #endif
-// #else
-// #define VKDT_API
-// #endif
-
 // info about a region of interest.
 // stores full buffer dimensions, context and roi.
 typedef struct dt_roi_t

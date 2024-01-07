@@ -141,6 +141,9 @@ MOD_GLOBAL_DEPS=\
   pipe/connector.c\
   pipe/connector.inc
 MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC
+ifeq ($(OS),Windows_NT)
+MOD_GLOBAL_CFLAGS+=-DVKDT_DSO_BUILD
+endif
 
 # expand all cflags/ldflags/deps/extra-c from flat.mk:
 $(foreach MOD,$(FLATMK),\
@@ -156,7 +159,7 @@ $(foreach MOD,$(FLATMK),\
 
 define MOD_RULE
 pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) -DVKDT_DSO_BUILD $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
+	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
 endef
 $(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 

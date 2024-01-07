@@ -119,6 +119,9 @@ dt_module_so_load(
     mod->input          = dlsym(mod->dlhandle, "input");
   }
 
+  // init callback handles on dso side for windows:
+  if(mod->bs_init) mod->bs_init();
+
   // read default params:
   // read param name, type, cnt, default value + bounds
   // allocate dynamically, this step here is not immediately perf critical
@@ -398,6 +401,8 @@ int dt_pipe_global_init()
   // setup search directory
   fs_basedir(dt_pipe.basedir, sizeof(dt_pipe.basedir));
   fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
+  dt_log(s_log_pipe, "base directory %s", dt_pipe.basedir);
+  dt_log(s_log_pipe, "home directory %s", dt_pipe.homedir);
   char mod[PATH_MAX+20];
   snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
   struct dirent *dp;
@@ -423,6 +428,7 @@ int dt_pipe_global_init()
     }
   }
   dt_pipe.num_modules = i;
+  dt_log(s_log_pipe, "loaded %d modules", dt_pipe.num_modules);
   closedir(fd);
   // now sort modules alphabetically for convenience in gui later:
   qsort(dt_pipe.module, dt_pipe.num_modules, sizeof(dt_pipe.module[0]), &compare_module_name);
