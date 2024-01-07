@@ -26,9 +26,17 @@ fs_copy(
     const char *src)
 {
 #ifdef _WIN64
-#warning "port me!"
-  bool res = false;// XXX CopyFile(src, dst, false);
-  return res != 0;
+  FILE *fdst = fopen(dst, "wb");
+  if(!fdst) return 1;
+  FILE *fsrc = fopen(src, "rb");
+  if(!fsrc) return 2;
+  char buf[BUFSIZ];
+  size_t n;
+  while((n = fread(buf, sizeof(char), sizeof(buf), fsrc)) > 0)
+    if(fwrite(buffer, sizeof(char), n, fdst) != n)
+    { fclose(fdst); fclose(fsrc); return 3; }
+  fclose(fdst); fclose(fsrc);
+  return 0;
 #else
   ssize_t ret;
   struct stat sb;
@@ -79,8 +87,8 @@ fs_mkdir_p(
 
   if(snprintf(tmp, sizeof(tmp), "%s", pathname) >= (int)sizeof(tmp)) return 1;
   len = strlen(tmp);
-  if (tmp[len - 1] == '/') tmp[len - 1] = 0;
-  for(p = tmp + 1; *p; p++) if (*p == '/')
+  if (tmp[len-1] == '/' || tmp[len-1] == '\\') tmp[len - 1] = 0;
+  for(p = tmp + 1; *p; p++) if (*p == '/' || *p == '\\')
   {
     *p = 0;
     fs_mkdir(tmp, mode); // ignore error (if it exists etc)
@@ -108,7 +116,7 @@ static inline char* // returns pointer to empty string (end of str) if str ends 
 fs_basename(char *str)
 { // don't use basename(3) because there are at least two versions of it which sometimes modify str
   char *c = str; // return str if it contains no '/'
-  for(int i=0;str[i]!=0;i++) if(str[i] == '/') c = str+i;
+  for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
   return c+1;
 }
 
@@ -377,6 +385,7 @@ static inline int
 fs_link(const char *oldpath, const char *newpath)
 {
 #ifdef _WIN64
+  // TODO: win10 apparently supports symlinks and hardlinks
   return fs_copy(newpath, oldpath); // inefficient and stupid, as you would.
 #else
   return link(oldpath, newpath);
