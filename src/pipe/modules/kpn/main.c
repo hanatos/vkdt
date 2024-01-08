@@ -10,6 +10,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // input.col = output.col = aux.col = batch_size
   // but we don't have input (assemble it on demand from image)
 
+  const int have_coopmat = qvk.coopmat_supported;
+
   // const int Mcnt = 7; // tempting, but apparently doesn't do much for us (need to train for it?)
   const int Mcnt = 4;
   // mip map the input:
@@ -64,7 +66,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_roi_t roi_K = (dt_roi_t){ .wd = batch_size, .ht = 16 }; // output: 15-tap kernel (+1 alpha) per pixel
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
     const int id_inf = dt_node_add( // infer kernel and store intermediate activations too
-        graph, module, "kpn-t", "inf", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
+        graph, module, "kpn-t", have_coopmat ? "inf" : "inf-", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
         "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
         "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
         "K", "write", "ssbo", "f16", &roi_K); // network output, 15 kernel weights + 1 alpha per px 
