@@ -118,6 +118,7 @@ AR=ar
 
 # replace -rdynamic for windows:
 # (i don't think this is needed, could leave empty)
-DYNAMIC=-Wl,-export-all-symbols
+# DYNAMIC=-Wl,-export-all-symbols
+DYNAMIC=
 
 export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR DYNAMIC
