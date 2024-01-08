@@ -12,7 +12,7 @@ int dt_graph_write_config_ascii(
 
 #ifndef VKDT_DSO_BUILD
 // write module definition
-char *
+VKDT_API char *
 dt_graph_write_module_ascii(
     const dt_graph_t *graph,
     const int         m,
@@ -20,7 +20,7 @@ dt_graph_write_module_ascii(
     size_t            size);
 
 // serialises only incoming connections (others can't be resolved due to ambiguity)
-char *
+VKDT_API char *
 dt_graph_write_connection_ascii(
     const dt_graph_t *graph,
     const int         m,      // module index
@@ -29,7 +29,7 @@ dt_graph_write_connection_ascii(
     size_t            size);
 
 // write param
-char *
+VKDT_API char *
 dt_graph_write_param_ascii(
     const dt_graph_t *graph,
     const int         m,

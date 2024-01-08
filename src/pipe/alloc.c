@@ -142,7 +142,7 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       size_t end = l->offset_orig + l->size;
       mem->offset_orig = l->offset_orig;
       mem->offset = ((l->offset_orig + (alignment-1)) & ~(alignment-1));
-      assert(size < 1ul<<48);
+      assert(size < ((uint64_t)1ul)<<48);
       mem->size = size;
       l->offset = l->offset_orig = mem->offset + mem->size;
       assert(end >= l->offset_orig);

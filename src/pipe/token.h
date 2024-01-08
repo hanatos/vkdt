@@ -4,6 +4,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifdef _WIN64
+#define VKDT_API __declspec(dllexport)
+#else
+#define VKDT_API
+#endif
+
 // for efficient storage and comparisons and sort etc,
 // a token is limited to 8 chars, and stored as int64:
 typedef uint64_t dt_token_t;

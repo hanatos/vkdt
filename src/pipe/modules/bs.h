@@ -5,18 +5,19 @@
 #ifdef _WIN64
 #include <windows.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define DECLARE_FUNC(type,name,par) typedef type (WINAPI *name ## _t)par; static name ## _t name;
 #define DECLARE_VAR(type,name) static type * p ## name;
 #define DECLARE_PTR(type,name) static type *name;
 
-#define LOAD_FUNCC(name) if((name=(name ## _t)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 0
+#define LOAD_FUNCC(name) if((name=(name ## _t)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 1
 #define LOAD_FUNC(name) (name=(name ## _t)GetProcAddress(GetModuleHandle(NULL),#name))
 
-#define LOAD_VARC(type,name) if((p ## name=(type *)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 0
+#define LOAD_VARC(type,name) if((p ## name=(type *)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 1
 #define LOAD_VAR(type,name) (name=(type *)GetProcAddress(GetModuleHandle(NULL),#name))
 
-#define LOAD_PTRC(type,name) if((name=*(type **)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 0
+#define LOAD_PTRC(type,name) if((name=*(type **)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 1
 #define LOAD_PTR(type,name) (name=*(type **)GetProcAddress(GetModuleHandle(NULL),#name))
 
 

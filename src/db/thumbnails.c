@@ -483,13 +483,10 @@ dt_thumbnails_load_one(
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
 
-  fprintf(stderr, "XXX THM filename %s\n", imgfilename);
-
   dt_graph_reset(graph);
   int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("main"));
   int m1 = dt_module_add(graph, dt_token("thumb"), dt_token("main"));
   dt_module_connect(graph, m0, 0, m1, 0);
-  fprintf(stderr, "added module %d %d \n", m0, m1);
 
   dt_thumbnail_t *th = 0;
   if(*thumb_index == -1u)

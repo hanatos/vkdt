@@ -11,7 +11,9 @@
 #ifdef VKDT_DSO_BUILD
 int bs_init()
 { // need to load symbols from the dso side
-  return dt_module_bs_init();
+  int ret = dt_module_bs_init();
+  if(ret) fprintf(stderr, "bs init failed!\n");
+  return ret;
 }
 #endif
 
@@ -1102,7 +1104,7 @@ dt_graph_get_resource_filename(
 {
   char tmp[2*PATH_MAX+10];
   
-  if(fname[0] != '/') // relative paths
+  if(fname[0] != '/' && fname[1] != ':') // relative paths
   {
     snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);
     snprintf(ret, ret_size, tmp, frame);

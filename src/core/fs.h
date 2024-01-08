@@ -335,7 +335,7 @@ fs_realpath(const char *path, char *resolved_path)
   if(!ret) ret = (char*)malloc(sizeof(char)*PATH_MAX);
   GetFullPathNameA(path, PATH_MAX, ret, 0);
   // TODO: now try GetFinalPathNameByHandle to follow symlinks if any.
-  fprintf(stderr, "full path %s\n", ret);
+  // fprintf(stderr, "full path %s\n", ret);
   return ret;
 #else
   return realpath(path, resolved_path);
