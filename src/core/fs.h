@@ -33,7 +33,7 @@ fs_copy(
   char buf[BUFSIZ];
   size_t n;
   while((n = fread(buf, sizeof(char), sizeof(buf), fsrc)) > 0)
-    if(fwrite(buffer, sizeof(char), n, fdst) != n)
+    if(fwrite(buf, sizeof(char), n, fdst) != n)
     { fclose(fdst); fclose(fsrc); return 3; }
   fclose(fdst); fclose(fsrc);
   return 0;
@@ -118,6 +118,22 @@ fs_basename(char *str)
   char *c = str; // return str if it contains no '/'
   for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
   return c+1;
+}
+
+static inline void // ${HOME}/.cache/vkdt for thumbnails
+fs_cachedir(
+  char  *cachedir,
+  size_t maxlen)
+{
+#ifndef _WIN64
+  // TODO: getenv(XDG_CACHE_HOME)
+  const char *home = getenv("HOME");
+  snprintf(cachedir, maxlen, "%s/.cache/vkdt", home);
+#else
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  snprintf(cachedir, maxlen "%s/vkdt/cache", home);
+#endif
 }
 
 static inline void  // ${HOME}/.config/vkdt
