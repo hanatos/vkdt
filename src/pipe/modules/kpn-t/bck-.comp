@@ -1,4 +1,5 @@
 #version 460 core
 #pragma use_vulkan_memory_model
+#define VKDT_COOPMAT_FALLBACK
 #extension GL_GOOGLE_include_directive      : enable
-#include "inf-impl.glsl"
+#include "bck-impl.glsl"

@@ -4,8 +4,7 @@
 // smart about it. this is more an emergency fallback.
 // it implements exactly float16 16x16 matrix multiply add.
 
-#define HAVE_COOPMAT
-#ifdef HAVE_COOPMAT
+#ifndef VKDT_COOPMAT_FALLBACK
 #extension GL_NV_cooperative_matrix         : enable
 // this is the type of matrix we're using everywhere:
 #define coopmat_t fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>
