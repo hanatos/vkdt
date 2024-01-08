@@ -49,13 +49,19 @@ dt_thumbnails_init(
 {
   memset(tn, 0, sizeof(*tn));
 
+#ifndef _WIN64
   // TODO: getenv(XDG_CACHE_HOME)
   const char *home = getenv("HOME");
   snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/.cache/vkdt", home);
+#else
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/vkdt/cache", home);
+#endif
   int err = fs_mkdir_p(tn->cachedir, 0755);
   if(err && errno != EEXIST)
   {
-    dt_log(s_log_err|s_log_db, "could not create thumbnail cache directory!");
+    dt_log(s_log_err|s_log_db, "could not create thumbnail cache directory %s!", tn->cachedir);
     return VK_INCOMPLETE;
   }
 

@@ -13,6 +13,7 @@
 #ifndef _WIN64
 #include <sys/sendfile.h>
 #else
+#include <shlobj.h>
 #include <direct.h>
 #include <io.h>
 #include <stdbool.h>
@@ -92,7 +93,7 @@ static inline int // return zero if argument contains no '/', else alter str
 fs_dirname(char *str)
 { // don't use: dirname(3) since it may or may not alter the argument, implementation dependent.
   char *c = 0;
-  for(int i=0;str[i]!=0;i++) if(str[i] == '/') c = str+i;
+  for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
   if(c)
   {
     *c = 0;  // get dirname, i.e. strip off file name
@@ -113,15 +114,21 @@ fs_basename(char *str)
 
 static inline void  // ${HOME}/.config/vkdt
 fs_homedir(
-    char *basedir,  // output will be copied here
+    char  *homedir, // output will be copied here
     size_t maxlen)  // allocation size
 {
-  snprintf(basedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
+#ifndef _WIN64
+  snprintf(homedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
+#else
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  snprintf(homedir, maxlen, "%s/vkdt/config", home);
+#endif
 }
 
 static inline void  // returns the directory where the actual binary (not the symlink) resides
 fs_basedir(
-    char *basedir,  // output will be copied here
+    char  *basedir, // output will be copied here
     size_t maxlen)  // allocation size
 {
   basedir[0] = 0;
@@ -149,6 +156,11 @@ fs_basedir(
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = maxlen;
   sysctl(mib_procpath, 4, basedir, &len_procpath, NULL, 0);
+  fs_dirname(basedir);
+#elif defined(_WIN64)
+  char *path;
+  _get_pgmptr(&path);
+  snprintf(basedir, maxlen, "%s", path);
   fs_dirname(basedir);
 #else
 #warning "port me!"
@@ -237,8 +249,11 @@ static inline int fs_islnk(const char *dirname, const struct dirent *e)
 static inline int fs_isreg(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
-#warning "port me!"
-  return 0;
+  char filename[PATH_MAX];
+  struct __stat64 buf;
+  snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFREG) != 0;
 #else
   return e->d_type == DT_REG;
 #endif
@@ -247,8 +262,11 @@ static inline int fs_isreg(const char *dirname, const struct dirent *e)
 static inline int fs_isdir(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
-#warning "port me!"
-  return 0;
+  char filename[PATH_MAX];
+  struct __stat64 buf;
+  snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFDIR) != 0;
 #else
   return e->d_type == DT_DIR;
 #endif
@@ -269,7 +287,7 @@ static inline int
 fs_symlink(const char *target, const char *linkpath)
 {
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me!" // something CreateSymbolicLinkA (there's also hard links now)
   return 0;
 #else
   return symlink(target, linkpath);
