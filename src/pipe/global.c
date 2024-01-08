@@ -91,11 +91,10 @@ dt_module_so_load(
     return 1;
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
-  char filename[3*PATH_MAX], line[PATH_MAX];
+  char filename[PATH_MAX], line[8192];
   snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   mod->dlhandle = 0;
-  struct stat statbuf;
-  if(!stat(filename, &statbuf))
+  if(fs_isreg_file(filename))
   {
     mod->dlhandle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
     if(!mod->dlhandle)
@@ -136,7 +135,7 @@ dt_module_so_load(
   {
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       mod->param[i++] = read_param_config_ascii(line);
       if(i > sizeof(mod->param)/sizeof(mod->param[0])) break;
@@ -179,7 +178,7 @@ dt_module_so_load(
     int mode = 0;
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       char *b = line;
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t parm = dt_read_token(b, &b);
@@ -264,7 +263,7 @@ dt_module_so_load(
     while(!feof(f))
     {
       char *b = line;
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t pn = dt_read_token(b, &b);
       for(int i=0;i<mod->num_params;i++)
@@ -296,7 +295,7 @@ dt_module_so_load(
     i = 0;
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       read_connector_ascii(mod->connector+i++, line);
       // TODO also init all the other variables, maybe inside this function
@@ -319,7 +318,7 @@ dt_module_so_load(
     while(!feof(f))
     {
       char *b = line;
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t cn = dt_read_token(b, &b);
       for(int i=0;i<mod->num_connectors;i++)

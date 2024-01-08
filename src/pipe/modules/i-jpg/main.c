@@ -50,6 +50,7 @@ read_header(
     jpeg_destroy_decompress(&(jpg->dinfo));
     jpg->f = 0;
   }
+	fprintf(stderr, "XXX JPEG %s\n", filename);
   jpg->f = dt_graph_open_resource(mod->graph, frame, filename, "rb");
   if(!jpg->f)
   {
@@ -185,6 +186,7 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
+	fprintf(stderr, "XXX JPEG\n");
   // load image if not happened yet
   const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
@@ -194,6 +196,7 @@ void modify_roi_out(
   jpginput_buf_t *jpg = mod->data;
   mod->connector[0].roi.full_wd = jpg->width;
   mod->connector[0].roi.full_ht = jpg->height;
+	fprintf(stderr, "XXX jpeg input! %d %d\n", jpg->width, jpg->height);
 }
 
 int read_source(

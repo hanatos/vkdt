@@ -472,10 +472,10 @@ dt_thumbnails_load_one(
     uint32_t        *thumb_index)
 {
   dt_graph_t *graph = tn->graph;
-  char imgfilename[PATH_MAX+100] = {0};
+  char imgfilename[PATH_MAX] = {0};
   if(strncmp(filename, "data/", 5))
   { // only hash images that aren't straight from our resource directory:
-    // TODO: make sure ./dir/file and dir//file etc turn out to be the same
+    // XXX run through realpath once for windows and / vs \\ confusion?
     uint64_t hash = hash64(filename);
     snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
   }
@@ -483,10 +483,13 @@ dt_thumbnails_load_one(
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
 
+  fprintf(stderr, "XXX THM filename %s\n", imgfilename);
+
   dt_graph_reset(graph);
-  int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("01"));
+  int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("main"));
   int m1 = dt_module_add(graph, dt_token("thumb"), dt_token("main"));
   dt_module_connect(graph, m0, 0, m1, 0);
+  fprintf(stderr, "added module %d %d \n", m0, m1);
 
   dt_thumbnail_t *th = 0;
   if(*thumb_index == -1u)

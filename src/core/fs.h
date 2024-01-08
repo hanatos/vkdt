@@ -132,7 +132,7 @@ fs_cachedir(
 #else
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
-  snprintf(cachedir, maxlen "%s/vkdt/cache", home);
+  snprintf(cachedir, maxlen, "%s/vkdt/cache", home);
 #endif
 }
 
@@ -270,6 +270,19 @@ static inline int fs_islnk(const char *dirname, const struct dirent *e)
 #endif
 }
 
+static inline int fs_isreg_file(const char *filename)
+{
+#ifdef _WIN64
+  struct __stat64 buf;
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFREG) != 0;
+#else
+  struct stat buf;
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFREG;
+#endif
+}
+
 static inline int fs_isreg(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
@@ -283,6 +296,19 @@ static inline int fs_isreg(const char *dirname, const struct dirent *e)
 #endif
 }
 
+static inline int fs_isdir_file(const char *filename)
+{
+#ifdef _WIN64
+  struct __stat64 buf;
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat buf;
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFDIR;
+#endif
+}
+
 static inline int fs_isdir(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
@@ -290,6 +316,7 @@ static inline int fs_isdir(const char *dirname, const struct dirent *e)
   struct __stat64 buf;
   snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
   _stat64(filename, &buf);
+  // fprintf(stderr, "isdir %s => %d\n", filename, (buf.st_mode & _S_IFDIR) != 0);
   return (buf.st_mode & _S_IFDIR) != 0;
 #else
   return e->d_type == DT_DIR;
@@ -300,8 +327,16 @@ static inline char*
 fs_realpath(const char *path, char *resolved_path)
 {
 #ifdef _WIN64
-#warning "port me! something GetFinalPathNameByHandleW"
-  return 0;
+#warning "port me! something GetFinalPathNameByHandleA"
+  // GetFinalPathNameByHandleA() would resolve symlinks but requires us to open the file first.
+  // this means we first need to call GetFullPathNameA to reconstruct the path
+  // and return this as fallback if the second step fails.
+  char *ret = resolved_path;
+  if(!ret) ret = (char*)malloc(sizeof(char)*PATH_MAX);
+  GetFullPathNameA(path, PATH_MAX, ret, 0);
+  // TODO: now try GetFinalPathNameByHandle to follow symlinks if any.
+  fprintf(stderr, "full path %s\n", ret);
+  return ret;
 #else
   return realpath(path, resolved_path);
 #endif

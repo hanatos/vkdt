@@ -10,6 +10,7 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
+	fprintf(stderr, "XXX bc1 input!\n");
   // load only header
   const char *filename = dt_module_param_string(mod, 0);
 
@@ -29,6 +30,7 @@ void modify_roi_out(
   const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
+	fprintf(stderr, "XXX bc1 input! %d %d\n", wd, ht);
   gzclose(f);
 }
 

@@ -8,6 +8,7 @@ pipe/graph-export.o\
 pipe/module.o\
 pipe/raytrace.o
 PIPE_H=\
+core/fs.h\
 pipe/alloc.h\
 pipe/connector.h\
 pipe/connector.inc\

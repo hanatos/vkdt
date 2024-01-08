@@ -126,4 +126,8 @@ uninstall-lib:
 
 bin: Makefile
 	mkdir -p bin/data
-	ln -sf ../src/pipe/modules bin/ || true
+ifeq ($(OS),Windows_NT)
+	cp -rf src/pipe/modules bin/
+else
+	ln -sf ../src/pipe/modules bin/
+endif

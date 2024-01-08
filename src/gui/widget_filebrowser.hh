@@ -67,7 +67,11 @@ dt_filebrowser(
     dt_filebrowser_widget_t *w,
     const char               mode) // 'f' or 'd'
 {
+#ifdef _WIN64
+  if(w->cwd[0] == 0) strcpy(w->cwd, dt_pipe.homedir);
+#else
   if(w->cwd[0] == 0) w->cwd[0] = '/';
+#endif
   if(!w->ent)
   { // no cached entries, scan directory:
     DIR* dirp = opendir(w->cwd);
@@ -134,11 +138,12 @@ dt_filebrowser(
         { // go up one dir
           c += len;
           *(--c) = 0;
-          while(c > w->cwd && *c != '/') *(c--) = 0;
+          while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
         }
         else
         { // append dir name
           snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->ent[i].d_name);
+	  fprintf(stderr, "cwd %s\n", w->cwd);
         }
         // and then clean up the dirent cache
         dt_filebrowser_cleanup(w);

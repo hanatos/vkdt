@@ -1060,7 +1060,11 @@ dt_graph_open_resource(
   char fstr[5] = {0}, *c = 0;
   snprintf(fstr, sizeof(fstr), "%04d", frame); // for security reasons don't use user-supplied fname as format string
   char filename[2*PATH_MAX+10];
+#ifdef _WIN64
+  if(fname[0] == '/' || fname[1] == ':')
+#else
   if(fname[0] == '/')
+#endif
   {
     strncpy(filename, fname, sizeof(filename)-1);
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
@@ -1082,6 +1086,7 @@ dt_graph_open_resource(
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     return fopen(filename, mode);
   }
+  fprintf(stderr, "fuck, failed to find %s %s\n", fname, filename);
   return 0;
 }
 

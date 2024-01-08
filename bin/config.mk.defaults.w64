@@ -14,8 +14,8 @@
 # export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
 
 # needed for jpeg input (currently not optional)
-VKDT_JPEG_CFLAGS=-I../ext/libjpeg-turbo/include
-VKDT_JPEG_LDFLAGS=-L../ext/libjpeg-turbo/lib -ljpeg
+VKDT_JPEG_CFLAGS=-I/c/msys64/ucrt64/include
+VKDT_JPEG_LDFLAGS=-L/c/msys64/ucrt64/lib/lib -ljpeg
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
 # if you disable this, the i-raw module will not be built
