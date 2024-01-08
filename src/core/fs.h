@@ -39,7 +39,7 @@ fs_copy(
   return 0;
 #else
   ssize_t ret;
-  struct stat sb;
+  struct stat sb = {0};
   int64_t len = -1;
   int fd0 = open(src, O_RDONLY), fd1 = -1;
   if(fd0 == -1 || fstat(fd0, &sb) == -1) goto copy_error;
@@ -254,7 +254,7 @@ static inline int fs_islnk_file(const char *filename)
 #warning "port me!"
   return 0;
 #else
-  struct stat buf;
+  struct stat buf = {0};
   lstat(filename, &buf);
   return (buf.st_mode & S_IFMT) == S_IFLNK;
 #endif
@@ -273,11 +273,11 @@ static inline int fs_islnk(const char *dirname, const struct dirent *e)
 static inline int fs_isreg_file(const char *filename)
 {
 #ifdef _WIN64
-  struct __stat64 buf;
+  struct __stat64 buf = {0};
   _stat64(filename, &buf);
   return (buf.st_mode & _S_IFREG) != 0;
 #else
-  struct stat buf;
+  struct stat buf = {0};
   lstat(filename, &buf);
   return (buf.st_mode & S_IFMT) == S_IFREG;
 #endif
@@ -299,11 +299,11 @@ static inline int fs_isreg(const char *dirname, const struct dirent *e)
 static inline int fs_isdir_file(const char *filename)
 {
 #ifdef _WIN64
-  struct __stat64 buf;
+  struct __stat64 buf = {0};
   _stat64(filename, &buf);
   return (buf.st_mode & _S_IFDIR) != 0;
 #else
-  struct stat buf;
+  struct stat buf = {0};
   lstat(filename, &buf);
   return (buf.st_mode & S_IFMT) == S_IFDIR;
 #endif
@@ -409,7 +409,7 @@ fs_createtime(
 #warning "port me!"
   return 0; // TODO!
 #else
-  struct stat statbuf;
+  struct stat statbuf = {0};
   stat(filename, &statbuf);
   return statbuf.st_mtim.tv_sec;
 #endif
@@ -423,7 +423,7 @@ fs_createdate(
 #warning "port me!"
   datetime[0] = 0;
 #else
-  struct stat statbuf;
+  struct stat statbuf = {0};
   if(!stat(filename, &statbuf))
   {
     struct tm result;
