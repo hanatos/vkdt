@@ -37,8 +37,8 @@ create_nodes(
   };
   const int id_mse = dt_node_add(graph, module, "loss", "main",
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 3,
-      "input", "read", "*", "*", -1ul,
-      "orig",  "read", "*", "*", -1ul,
+      "input", "read", "*", "*", dt_no_roi,
+      "orig",  "read", "*", "*", dt_no_roi,
       "loss",  "write", "ssbo", "f32", &rbuf);
   dt_connector_copy(graph, module, 0, id_mse, 0);
   dt_connector_copy(graph, module, 1, id_mse, 1);
@@ -55,7 +55,7 @@ create_nodes(
     const int wd = cwd * DT_LOCAL_SIZE_X; // cwd is number of work groups.
     rbuf.wd = cwd;
     const int id_down = dt_node_add(graph, module, "loss", "down", wd, 1, 1, sizeof(pc), pc, 2,
-        "input",  "read",  "ssbo", "f32", -1ul,
+        "input",  "read",  "ssbo", "f32", dt_no_roi,
         "output", "write", "ssbo", "f32", &rbuf);
     CONN(dt_node_connect(graph, node, conn, id_down, 0));
     node = id_down;
@@ -67,14 +67,14 @@ create_nodes(
   const int pc[] = { 256 };
   const int id_dspy = dt_node_add(graph, module, "loss", "map", module->connector[2].roi.wd, module->connector[2].roi.ht, 1, sizeof(pc), pc, 4,
       "time", "write", "ssbo", "f32", &rtime,
-      "loss", "read",  "ssbo", "f32", -1ul,
+      "loss", "read",  "ssbo", "f32", dt_no_roi,
       "tiny", "write", "y",    "f32", &tiny,
       "dspy", "write", "rgba", "f16", &module->connector[2].roi);
   dt_connector_copy(graph, module, 2, id_dspy, 3);
   CONN(dt_node_connect(graph, node, conn, id_dspy, 1));
 
   const int id_sink = dt_node_add(graph, module, "loss", "sink", 1, 1, 1, 0, 0, 1,
-      "input", "sink", "*", "f32", -1ul);
+      "input", "sink", "*", "f32", dt_no_roi);
   CONN(dt_node_connect_named(graph, id_dspy, "tiny", id_sink, "input")); // stupid dance via image because we don't have the buffer in host visible memory
   dt_connector_copy(graph, module, 3, id_dspy, 2);
   graph->node[id_dspy].connector[0].flags |= s_conn_protected; // protect memory, will update the timeline

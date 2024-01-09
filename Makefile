@@ -27,8 +27,8 @@ VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
 	mkdir -p $(VKDTDIR)/lib
 	mkdir -p $(DESTDIR)$(prefix)/bin
-	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt
-	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli
+	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt || true
+	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli || true
 	cp -rfL bin/vkdt ${VKDTDIR}
 	cp -rfL bin/vkdt-cli ${VKDTDIR}
 	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
@@ -36,7 +36,7 @@ install-bin: all Makefile
 	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
 	cp -rfL bin/darkroom.ui ${VKDTDIR}
 
-install-mod: lib bin Makefile
+install-mod: bin Makefile
 	mkdir -p $(VKDTDIR)/modules
 	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/data ${VKDTDIR}

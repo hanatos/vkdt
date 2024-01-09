@@ -11,8 +11,8 @@
 #include <sched.h>
 #include <time.h>
 #include <pthread.h>
-#if 0//def _WIN64
-  #include <Windows.h> 
+#ifdef _WIN64
+#include <Windows.h> 
 #endif
 
 threads_t thr;
@@ -232,10 +232,10 @@ void threads_wait(int taskid)
 void threads_global_init()
 {
 #ifdef _WIN64
-  // SYSTEM_INFO si;
-  // GetSystemInfo(&si);
-  // thr.num_threads = si.dwNumberOfProcessors;
-  thr.num_threads = 4;
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  thr.num_threads = si.dwNumberOfProcessors;
+  // thr.num_threads = 4;
 #else
   thr.num_threads = sysconf(_SC_NPROCESSORS_ONLN);
 #endif

@@ -24,26 +24,30 @@ export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 # to explicitly set it to =0 and export again in config.mk to
 # switch it off effectively.
 # switched off:
-VKDT_USE_RAWINPUT=0
+# VKDT_USE_RAWINPUT=0
 # rawspeed  (c++):
-# VKDT_USE_RAWINPUT=1
+VKDT_USE_RAWINPUT=1
+CMAKE=/c/msys64/ucrt64/bin/cmake.exe
+export CMAKE
 # rawler (rust):
 # VKDT_USE_RAWINPUT=2
 export VKDT_USE_RAWINPUT
 
 # needed for rawspeed (RAWINPUT=1) only
-# VKDT_PUGIXML_CFLAGS=$(shell pkg-config --cflags pugixml)
-# VKDT_PUGIXML_LDFLAGS=$(shell pkg-config --libs pugixml)
-# export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
+VKDT_PUGIXML_CFLAGS=-I/c/msys64/include
+# VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/c/msys64/mingw64/lib -l:libpugixml.a
+VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/c/msys64/ucrt64/bin -lpugixml
+export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 
 # exiv2 can optionally be used to load some super basic metadata (iso
 # speed, shutter time etc) inside the i-raw module when using rawspeed.
 # that is, it is only effective if VKDT_USE_RAWINPUT=1.
-# VKDT_USE_EXIV2=1
-# export VKDT_USE_EXIV2
-# VKDT_EXIV2_CFLAGS=$(shell pkg-config --cflags exiv2)
-# VKDT_EXIV2_LDFLAGS=$(shell pkg-config --libs exiv2)
-# export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+VKDT_USE_EXIV2=1
+export VKDT_USE_EXIV2 
+VKDT_EXIV2_CFLAGS=-I/c/msys64/ucrt64/include/
+# VKDT_EXIV2_LDFLAGS=-L/c/msys64/mingw64/lib -l:libexiv2.a -l:libexiv2-xmp.a
+VKDT_EXIV2_LDFLAGS=-L/c/msys64/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
+export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
@@ -74,8 +78,8 @@ export VKDT_USE_RAWINPUT
 
 # install mingw-w64-x86_64-glfw via pacman -S!
 # where to find glfw for the gui:
-VKDT_GLFW_CFLAGS=-I../ext/glfw/include
-VKDT_GLFW_LDFLAGS=-L../ext/glfw/lib-mingw-w64 -lglfw3 -lgdi32
+VKDT_GLFW_CFLAGS=-I/c/msys64/ucrt64/include/GLFW
+VKDT_GLFW_LDFLAGS=-L/c/msys64/ucrt64/lib -l:libglfw3.a -lgdi32
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # enable this if you have a custom build of glfw that supports the following
@@ -95,20 +99,20 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 # export VKDT_QEXTRA_CFLAGS VKDT_QEXTRA_LDFLAGS
 
 # need vulkan
-VKDT_VULKAN_CFLAGS=-I/c/VulkanSDK/1.3.268.0/Include
-VKDT_VULKAN_LDFLAGS=-L/c/VulkanSDK/1.3.268.0/Lib -lvulkan-1
+VKDT_VULKAN_CFLAGS=-I/c/msys64/ucrt64/include
+VKDT_VULKAN_LDFLAGS=-L/c/msys64/ucrt64/lib -lvulkan-1
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
 CC=gcc
 CXX=g++
-GLSLC=/c/VulkanSDK/1.3.268.0/Bin/glslangValidator.exe
+GLSLC=/c/msys64/ucrt64/bin/glslangValidator.exe
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.2
-CFLAGS=-I/c/msys64/mingw64/include -I.
-CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/mingw64/include -I/c/msys64/ucrt64/include
-LDFLAGS=-L/c/msys64/mingw64/lib
+CFLAGS=-I/c/msys64/ucrt64/include -I.
+CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
+LDFLAGS=-L/c/msys64/ucrt64/lib
 export CFLAGS CXXFLAGS LDFLAGS
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:

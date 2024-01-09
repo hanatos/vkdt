@@ -65,14 +65,14 @@ create_nodes(
   { // half size
     const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
         roi_half.wd, roi_half.ht, 1, sizeof(pc), pc, 2,
-        "input",  "read",  "rggb", "*",   -1ul,
+        "input",  "read",  "rggb", "*",   dt_no_roi,
         "output", "write", "rgba", "f16", &roi_half);
     dt_connector_copy(graph, module, 0, id_half, 0);
     if(block != module->connector[1].roi.scale)
     { // resample to get to the rest of the resolution, only if block != scale!
       const int id_resample = dt_node_add(graph, module, "shared", "resample",
           module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
-          "input",  "read",  "rgba", "f16", -1ul,
+          "input",  "read",  "rgba", "f16", dt_no_roi,
           "output", "write", "rgba", "f16", &module->connector[1].roi);
       CONN(dt_node_connect(graph, id_half, 1, id_resample, 0));
       dt_connector_copy(graph, module, 1, id_resample, 1);
@@ -90,8 +90,8 @@ create_nodes(
     hr.wd /= 2;
     const int id_conv = dt_node_add(graph, module, "demosaic", "rcd_conv",
         module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
-        "cfa", "read",  "*", "*",   -1ul,
-        "vh",  "write", "r", "f16",  &module->connector[0].roi, // could go u8 here but can't show a perf improvement
+        "cfa", "read",  "*", "*",   dt_no_roi,
+        "vh",  "write", "r", "f16", &module->connector[0].roi, // could go u8 here but can't show a perf improvement
         "pq",  "write", "r", "f16",  &hr,
         "lp",  "write", "r", "f16", &hr);
     const uint32_t tile_size_x = DT_RCD_TILE_SIZE_X - 2*DT_RCD_BORDER;
@@ -103,10 +103,10 @@ create_nodes(
     const uint32_t invy = num_tiles_y * DT_LOCAL_SIZE_Y;
     const int id_fill = dt_node_add(graph, module, "demosaic", "rcd_fill",
         invx, invy, 1, sizeof(pc), pc, 5,
-        "cfa", "read", "*", "*", -1ul,
-        "vh",  "read", "*", "*", -1ul,
-        "pq",  "read", "*", "*", -1ul,
-        "lp",  "read", "*", "*", -1ul,
+        "cfa", "read", "*", "*", dt_no_roi,
+        "vh",  "read", "*", "*", dt_no_roi,
+        "pq",  "read", "*", "*", dt_no_roi,
+        "lp",  "read", "*", "*", dt_no_roi,
         "output", "write", "rgba", "f16", &module->connector[0].roi);
     CONN(dt_node_connect_named(graph, id_conv, "vh", id_fill, "vh"));
     CONN(dt_node_connect_named(graph, id_conv, "pq", id_fill, "pq"));
@@ -117,7 +117,7 @@ create_nodes(
     { // add resample node to graph, copy its output instead:
       const int id_resample = dt_node_add(graph, module, "shared", "resample",
           module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
-          "input",  "read",  "rgba", "f16", -1ul,
+          "input",  "read",  "rgba", "f16", dt_no_roi,
           "output", "write", "rgba", "f16", &module->connector[1].roi);
       CONN(dt_node_connect(graph, id_fill, 4, id_resample, 0));
       dt_connector_copy(graph, module, 1, id_resample, 1);
@@ -129,20 +129,20 @@ create_nodes(
   // bayer or xtrans with gaussian splats
   const int id_down = dt_node_add(graph, module, "demosaic", "down",
       wd/block, ht/block, 1, sizeof(pc), pc, 2,
-      "input", "read", "rggb", "*", -1ul,
+      "input", "read", "rggb", "*",  dt_no_roi,
       "output", "write", "y", "f16", &roi_half);
   const int id_gauss = dt_node_add(graph, module, "demosaic", "gauss",
       wd/block, ht/block, 1, sizeof(pc), pc, 3,
-      "input",  "read",  "y",    "f16", -1ul,
-      "orig",   "read",  "rggb", "*",   -1ul,
+      "input",  "read",  "y",    "f16", dt_no_roi,
+      "orig",   "read",  "rggb", "*",   dt_no_roi,
       "output", "write", "rgba", "f16", &roi_half);
   CONN(dt_node_connect(graph, id_down, 1, id_gauss, 0));
   dt_connector_copy(graph, module, 0, id_gauss, 1);
 
   const int id_splat = dt_node_add(graph, module, "demosaic", "splat",
       wd, ht, 1, sizeof(pc), pc, 3,
-      "input",  "read",  "rggb", "*",   -1ul,
-      "gauss",  "read",  "rgba", "f16", -1ul,
+      "input",  "read",  "rggb", "*",   dt_no_roi,
+      "gauss",  "read",  "rgba", "f16", dt_no_roi,
       "output", "write", "g",    "f16", &roi_full);
   dt_connector_copy(graph, module, 0, id_splat, 0);
   CONN(dt_node_connect(graph, id_gauss, 2, id_splat, 1));
@@ -153,9 +153,9 @@ create_nodes(
   // fix colour casts
   const int id_fix = dt_node_add(graph, module, "demosaic", "fix",
       wd, ht, 1, sizeof(pc), pc, 4,
-      "input",  "read",  "rggb", "*",   -1ul,
-      "green",  "read",  "g",    "*",   -1ul,
-      "cov",    "read",  "rgba", "f16", -1ul,
+      "input",  "read",  "rggb", "*",   dt_no_roi,
+      "green",  "read",  "g",    "*",   dt_no_roi,
+      "cov",    "read",  "rgba", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &roi_full);
   dt_connector_copy(graph, module, 0, id_fix, 0);
   CONN(dt_node_connect(graph, id_splat, 2, id_fix, 1));
@@ -165,7 +165,7 @@ create_nodes(
   { // add resample node to graph, copy its output instead:
     const int id_resample = dt_node_add(graph, module, "shared", "resample",
         module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
-        "input",  "read",  "rgba", "f16", -1ul,
+        "input",  "read",  "rgba", "f16", dt_no_roi,
         "output", "write", "rgba", "f16", &module->connector[1].roi);
     CONN(dt_node_connect(graph, id_fix, 3, id_resample, 0));
     dt_connector_copy(graph, module, 1, id_resample, 1);

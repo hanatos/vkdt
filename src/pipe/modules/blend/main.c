@@ -36,21 +36,21 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       roic.ht = (roif.ht+1)/2;
       id_down0[l] = dt_node_add(graph, module, "blend", "down",
           roic.wd, roic.ht, 1, sizeof(pc), pc, 3,
-          "input",  "read",  "rgba", "f16", -1ul,
+          "input",  "read",  "rgba", "f16", dt_no_roi,
           "output", "write", "rgba", "f16", &roic,
-          "mask",   "read",  "*",    "*",   -1ul);
+          "mask",   "read",  "*",    "*",   dt_no_roi);
       id_down1[l] = dt_node_add(graph, module, "blend", "down",
           roic.wd, roic.ht, 1, sizeof(pc), pc, 3,
-          "input",  "read",  "rgba", "f16", -1ul,
+          "input",  "read",  "rgba", "f16", dt_no_roi,
           "output", "write", "rgba", "f16", &roic,
-          "mask",   "read",  "*",    "*",   -1ul);
+          "mask",   "read",  "*",    "*",   dt_no_roi);
       id_up[l] = dt_node_add(graph, module, "blend", "up",
           roif.wd, roif.ht, 1, sizeof(pc), pc, 6,
-          "coarse0", "read",  "rgba", "f16", -1ul,
-          "fine0",   "read",  "rgba", "f16", -1ul,
-          "coarse1", "read",  "rgba", "f16", -1ul,
-          "fine1",   "read",  "rgba", "f16", -1ul,
-          "co",      "read",  "rgba", "f16", -1ul,
+          "coarse0", "read",  "rgba", "f16", dt_no_roi,
+          "fine0",   "read",  "rgba", "f16", dt_no_roi,
+          "coarse1", "read",  "rgba", "f16", dt_no_roi,
+          "fine1",   "read",  "rgba", "f16", dt_no_roi,
+          "co",      "read",  "rgba", "f16", dt_no_roi,
           "output",  "write", "rgba", "f16", &roif);
       roif = roic;
     }
@@ -81,9 +81,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   { // per pixel blending, all the same kernel
     int id_main = dt_node_add(graph, module, "blend", "main",
         roif.wd, roif.ht, 1, 0, 0, 4,
-        "back",   "read",  "rgba", "f16", -1ul,
-        "top",    "read",  "rgba", "f16", -1ul,
-        "mask",   "read",  "r",    "f16", -1ul,
+        "back",   "read",  "rgba", "f16", dt_no_roi,
+        "top",    "read",  "rgba", "f16", dt_no_roi,
+        "mask",   "read",  "r",    "f16", dt_no_roi,
         "output", "write", "rgba", "f16", &roif);
     for(int k=0;k<4;k++) dt_connector_copy(graph, module, k, id_main, k);
   }

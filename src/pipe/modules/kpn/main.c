@@ -24,7 +24,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_mip0 = dt_node_add(
       graph, module, "kpn-t", "mip", // XXX channels?
       (roi_M[0].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[0].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
-      "M0", "read",  "rgba", "*",  -1ul,
+      "M0", "read",  "rgba", "*",  dt_no_roi,
       "M1", "write", "rgba", "f16", roi_M+1,
       "M2", "write", "rgba", "f16", roi_M+2,
       "M3", "write", "rgba", "f16", roi_M+3);
@@ -34,7 +34,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_mip1 = dt_node_add( // second level mip maps:
       graph, module, "kpn-t", "mip",
       (roi_M[3].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[3].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
-      "M3", "read",  "rgba", "*",  -1ul,
+      "M3", "read",  "rgba", "*",  dt_no_roi,
       "M4", "write", "rgba", "f16", roi_M+4,
       "M5", "write", "rgba", "f16", roi_M+5,
       "M6", "write", "rgba", "f16", roi_M+6);
@@ -57,8 +57,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 #ifdef FUSED_INF // fused kernel without global memory intermediats.
     const int id_fused = dt_node_add( // infer kernel and store intermediate activations too
         graph, module, "kpn-t", "infapply", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
-        "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
-        "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
+        "M", "read",  "rgba", "*",   dt_no_roi,   // input image mipmap level
+        "w", "read",  "ssbo", "f16", dt_no_roi,   // MLP weights
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
     dt_connector_copy(graph, module, 2, id_fused, 1); // wire weights
     const int id_apply = id_fused; // for connections below
@@ -67,14 +67,14 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
     const int id_inf = dt_node_add( // infer kernel and store intermediate activations too
         graph, module, "kpn-t", have_coopmat ? "inf" : "inf-", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_inf), pc_inf, 3,
-        "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
-        "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
-        "K", "write", "ssbo", "f16", &roi_K); // network output, 15 kernel weights + 1 alpha per px 
+        "M", "read",  "rgba", "*",   dt_no_roi, // input image mipmap level
+        "w", "read",  "ssbo", "f16", dt_no_roi, // MLP weights
+        "K", "write", "ssbo", "f16", &roi_K);   // network output, 15 kernel weights + 1 alpha per px 
 
     const int id_apply = dt_node_add( // apply convolution
         graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
-        "M", "read",  "rgba", "*",   -1ul,
-        "K", "read",  "ssbo", "f16", -1ul,
+        "M", "read",  "rgba", "*",   dt_no_roi,
+        "K", "read",  "ssbo", "f16", dt_no_roi,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
     dt_connector_copy(graph, module, 2, id_inf, 1); // wire weights
     CONN(dt_node_connect_named(graph, id_inf, "K", id_apply, "K"));
@@ -85,8 +85,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     {
       id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
           graph, module, "kpn-t", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
-          "I",  "read",  "rgba", "*",   -1ul,   // the convolved image on this (fine) scale (with alpha channel)
-          "Oc", "read",  "rgba", "*",   -1ul,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
+          "I",  "read",  "rgba", "*",   dt_no_roi,   // the convolved image on this (fine) scale (with alpha channel)
+          "Oc", "read",  "rgba", "*",   dt_no_roi,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
           "O",  "write", "rgba", "f16", &roi_M[i]);
       CONN(dt_node_connect_named(graph, id_apply, "I", id_up, "I"));
       if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level

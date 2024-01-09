@@ -9,6 +9,9 @@
 #ifdef VKDT_USE_EXIV2
 #include "exif.h"
 #endif
+#ifdef _WIN64
+#include <Windows.h> 
+#endif
 
 extern "C" {
 #include "modules/api.h"
@@ -18,7 +21,13 @@ static rawspeed::CameraMetaData *meta = 0;
 
 int rawspeed_get_number_of_processor_cores()
 {
+#ifdef _WIN64
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwNumberOfProcessors;
+#else
   return sysconf(_SC_NPROCESSORS_ONLN);
+#endif
 }
 
 typedef struct rawinput_buf_t

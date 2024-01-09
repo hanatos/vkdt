@@ -1091,15 +1091,15 @@ create_nodes(
   int id_rt = dt_node_add(graph, module, "quake", "main", 
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
       "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
-      "stcgeo",   "read",  "ssbo", "geo",  -1ul,                      // 1
-      "dyngeo",   "read",  "ssbo", "geo",  -1ul,                      // 2
-      "tex",      "read",  "*",    "*",    -1ul,                      // 3
-      "blue",     "read",  "*",    "*",    -1ul,                      // 4
+      "stcgeo",   "read",  "ssbo", "geo",  dt_no_roi,                 // 1
+      "dyngeo",   "read",  "ssbo", "geo",  dt_no_roi,                 // 2
+      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 3
+      "blue",     "read",  "*",    "*",    dt_no_roi,                 // 4
       "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 5
-      "nee_in",   "read",  "rgba", "ui32", -1ul,                      // 6
+      "nee_in",   "read",  "rgba", "ui32", dt_no_roi,                 // 6
       "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 7
-      "mv",       "read",  "rg",   "f16",  -1ul,                      // 8
-      "gbuf_in",  "read",  "rgba", "f32",  -1ul,                      // 9
+      "mv",       "read",  "rg",   "f16",  dt_no_roi,                 // 8
+      "gbuf_in",  "read",  "rgba", "f32",  dt_no_roi,                 // 9
       "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 10
       "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 11
       // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 12

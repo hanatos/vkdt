@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
     char defpath[1024];
     const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
     if(strcmp(mru, "null")) snprintf(defpath, sizeof(defpath), "%s", mru);
-    else snprintf(defpath, sizeof(defpath), "%s/Pictures", getenv("HOME"));
+    else fs_picturesdir(defpath, sizeof(defpath));
     if(argc > lastarg+1) filename = fs_realpath(argv[lastarg+1], 0);
     else                 filename = fs_realpath(defpath, 0);
   }
