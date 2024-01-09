@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'hanatos/vkdt' || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'hanatos/vkdt' && false
     name: nightly vkdt appimage
     runs-on: ubuntu-22.04
     strategy:
@@ -47,8 +47,9 @@ jobs:
           sudo apt-get -y install \
             build-essential \
             appstream-util \
-            gettext \
             git \
+            vulkan-tools \
+            libvulkan-dev \
             libjpeg-dev \
             libpugixml-dev \
             libglfw3-dev \
@@ -75,7 +76,7 @@ jobs:
           retention-days: 1
 
   Windows:
-    if: github.repository == 'hanatos/vkdt' || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'hanatos/vkdt' && false
     name: nightly vkdt windows
     runs-on: windows-latest
     strategy:
@@ -99,6 +100,8 @@ jobs:
             cc:p
             cmake:p
             gcc-libs:p
+            vulkan-devel:p
+            glslang:p
             libjpeg-turbo:p
             omp:p
             pugixml:p
