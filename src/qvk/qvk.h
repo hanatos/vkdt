@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#include "pipe/token.h"
 #include "core/core.h"
 #include "core/threads.h"
 #include "qvk_util.h"
@@ -132,7 +133,7 @@ typedef struct qvk_t
 }
 qvk_t;
 
-extern qvk_t qvk;
+VKDT_API extern qvk_t qvk;
 
 #ifdef QVK_ENABLE_VALIDATION
 #define _VK_EXTENSION_LIST \
