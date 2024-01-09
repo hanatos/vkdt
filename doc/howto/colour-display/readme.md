@@ -16,10 +16,11 @@ conversion to the display profile is done in
 shader code.
 
 ## installation
-you need to profile your display, apply the TRC with dispwin, and supply the
-matrix to `vkdt`. the latter is currently done by running `vkdt read-icc` which
-will generate a `display.profile` file containing the extracted gamma and
-colour matrix.
+you need to profile your display (follow the instructions in [the excellent
+dcamprof article mirrored by rawtherapee](https://rawtherapee.com/mirror/dcamprof/argyll-display.html)),
+apply the TRC with dispwin, and supply the matrix to `vkdt`. the latter is
+currently done by running `vkdt read-icc` which will generate a
+`display.profile` file containing the extracted gamma and colour matrix.
 
 such a file, if found in the bin directory
 during run time, `vkdt` will pick it up and load it to the gpu.
