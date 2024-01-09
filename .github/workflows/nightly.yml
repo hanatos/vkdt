@@ -1,0 +1,130 @@
+name: nightly packages
+# based on the same for darktable-org/darktable
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  AppImage:
+    if: github.repository == 'hanatos/vkdt' || github.event_name == 'workflow_dispatch'
+    name: nightly vkdt appimage
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { compiler: GNU12, CC: gcc-12, CXX: g++-12, packages: gcc-12 g++-12 }
+        branch:
+          - { code: master, label: gitmaster }
+    env:
+      CC: ${{ matrix.compiler.CC }}
+      CXX: ${{ matrix.compiler.CXX }}
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir/usr
+      CMAKE_BUILD_TYPE: ${{ matrix.btype }}
+      GENERATOR: ${{ matrix.generator }}
+      TARGET: ${{ matrix.target }}
+      VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
+      BRANCH: ${{ matrix.branch.code }}
+      BUILD_NAME: ${{ matrix.branch.label }}
+    steps:
+      - name: install compiler ${{ matrix.compiler.compiler }}
+        run: |
+          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get -y install \
+            ${{ matrix.compiler.packages }}
+      - name: install base dependencies
+        run: |
+          sudo apt-get -y install \
+            build-essential \
+            appstream-util \
+            gettext \
+            git \
+            libjpeg-dev \
+            libpugixml-dev \
+            libglfw3-dev \
+            zlib1g-dev \
+            appstream;
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          submodules: true
+          # We have to fetch the entire history to correctly generate the version for the AppImage filename
+          fetch-depth: 0
+      - name: build and install
+        run: |
+          bash bin/mkappimg.sh
+      - name: check if it runs
+        run: |
+          ${INSTALL_PREFIX}/bin/vkdt --version
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/vkdt-*.AppImage*
+          name: artifact-appimage
+          retention-days: 1
+
+  Windows:
+    if: github.repository == 'hanatos/vkdt' || github.event_name == 'workflow_dispatch'
+    name: nightly vkdt windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        msystem:
+          - UCRT64
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/vkdt
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: >-
+            git
+          pacboy: >-
+            cc:p
+            cmake:p
+            gcc-libs:p
+            libjpeg-turbo:p
+            omp:p
+            pugixml:p
+            zlib:p
+          update: false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+          path: src
+      - name: build and install
+        run: |
+          make -C $(cygpath ${SRC_DIR})
+          make DESTDIR=$(cygpath ${INSTALL_PREFIX}) -C $(cygpath ${SRC_DIR}) install
+      - name: check if it runs
+        run: |
+          $(cygpath ${INSTALL_PREFIX})/bin/vkdt.exe --version
+      - name: get version info
+        run: |
+          cd ${SRC_DIR}
+          echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
+          ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.exe
+          name: artifact-windows
+          retention-days: 1
