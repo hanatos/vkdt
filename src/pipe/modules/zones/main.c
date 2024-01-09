@@ -58,7 +58,7 @@ create_nodes(
 
   // input image -> seven quantised zones of exposure in [0,1] (output int 0..6)
   const int id_quant = dt_node_add(graph, module, "zones", "quant", wd, ht, dp, 0, 0, 2,
-      "input",  "read",  "rgba", "f16", -1ul,
+      "input",  "read",  "rgba", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[0].roi);
   // output: float image [0.0,6.0]
   // guided blur with I : zones, p : input image
@@ -68,8 +68,8 @@ create_nodes(
 
   // process zone exposure correction:
   const int id_apply = dt_node_add(graph, module, "zones", "apply", wd, ht, dp, 0, 0, 3,
-      "input",  "read",  "rgba", "f16", -1ul,
-      "zones",  "read",  "rgba", "f16", -1ul,
+      "input",  "read",  "rgba", "f16", dt_no_roi,
+      "zones",  "read",  "rgba", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[0].roi);
   CONN(dt_node_connect(graph, id_guided, 2, id_apply, 1));
   dt_connector_copy(graph, module, 0, id_apply, 0);

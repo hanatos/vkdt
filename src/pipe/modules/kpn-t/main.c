@@ -84,8 +84,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_loss = dt_node_add(
       graph, module, "kpn-t", "loss",
       wd, ht, 1, 0, 0, 5,
-      "O",    "read",  "rgba", "*",   -1ul,
-      "R",    "read",  "rgba", "*",   -1ul,
+      "O",    "read",  "rgba", "*",   dt_no_roi,
+      "R",    "read",  "rgba", "*",   dt_no_roi,
       "dEdO", "write", "rgba", "f16", &roi_input,
       "Eo",   "write", "ssbo", "f32", &roi,
       "dbg",  "write", "rgba", "f16", &roi_dbg);
@@ -104,7 +104,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     const int id_down = dt_node_add(
         graph, module, "kpn-t", "down",
         (cwd+31)/32 * DT_LOCAL_SIZE_X, 1, 1, sizeof(pc), pc, 2,
-        "Ei", "read",  "ssbo", "f32", -1ul,
+        "Ei", "read",  "ssbo", "f32", dt_no_roi,
         "Eo", "write", "ssbo", "f32", &croi);
     CONN(dt_node_connect_named(graph, id_in, "Eo", id_down, "Ei"));
     id_in = id_down;
@@ -119,7 +119,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_map = dt_node_add(
       graph, module, "kpn-t", "map",
       module->connector[4].roi.wd, module->connector[4].roi.ht, 1, sizeof(pcm), pcm, 2,
-      "Ei",   "read",  "ssbo", "f32", -1ul,
+      "Ei",   "read",  "ssbo", "f32", dt_no_roi,
       "dspy", "write", "rgba", "f16", &module->connector[4].roi);
   CONN(dt_node_connect_named(graph, id_in, "Eo", id_map, "Ei"));
 
@@ -133,7 +133,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_mip = dt_node_add(
       graph, module, "kpn-t", "mip", // XXX channels?
       (roi_input.wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_input.ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
-      "M0", "read",  "rgba", "*",  -1ul,
+      "M0", "read",  "rgba", "*",  dt_no_roi,
       "M1", "write", "rgba", "f16", roi_M+1,
       "M2", "write", "rgba", "f16", roi_M+2,
       "M3", "write", "rgba", "f16", roi_M+3);
@@ -145,23 +145,23 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_sum = dt_node_add( // sum dw for adam optimiser
       graph, module, "kpn-t", "sum", (roi_weights.wd*roi_weights.ht+31)/32 * DT_LOCAL_SIZE_X, 1 * DT_LOCAL_SIZE_Y, 1,
       sizeof(pc_adam), pc_adam, 5,
-      "dw0", "read",  "ssbo", "f32", -1ul,
-      "dw1", "read",  "ssbo", "f32", -1ul,
-      "dw2", "read",  "ssbo", "f32", -1ul,
-      "dw3", "read",  "ssbo", "f32", -1ul,
+      "dw0", "read",  "ssbo", "f32", dt_no_roi,
+      "dw1", "read",  "ssbo", "f32", dt_no_roi,
+      "dw2", "read",  "ssbo", "f32", dt_no_roi,
+      "dw3", "read",  "ssbo", "f32", dt_no_roi,
       "dw",  "write", "ssbo", "f32", &roi_weights);
 #endif
   const int id_adam = dt_node_add( // adam optimiser
       graph, module, "kpn-t", "adam", (roi_weights.wd*roi_weights.ht+31)/32 * DT_LOCAL_SIZE_X, 1 * DT_LOCAL_SIZE_Y, 1,
       sizeof(pc_adam), pc_adam, 8,
-      "wi",  "read",  "ssbo", "f16", -1ul,
-      "dw",  "read",  "ssbo", "f32", -1ul,
-      "m1i", "read",  "ssbo", "f32", -1ul,
-      "m2i", "read",  "ssbo", "f32", -1ul,
+      "wi",  "read",  "ssbo", "f16", dt_no_roi,
+      "dw",  "read",  "ssbo", "f32", dt_no_roi,
+      "m1i", "read",  "ssbo", "f32", dt_no_roi,
+      "m2i", "read",  "ssbo", "f32", dt_no_roi,
       "w",   "write", "ssbo", "f16", &roi_weights,
       "m1",  "write", "ssbo", "f32", &roi_weights,
       "m2",  "write", "ssbo", "f32", &roi_weights,
-      "wcp", "read",  "ssbo", "f16", -1ul); // weights from checkpoint
+      "wcp", "read",  "ssbo", "f16", dt_no_roi); // weights from checkpoint
   CONN(dt_node_feedback_named(graph, id_adam, "w",  id_adam, "wi"));
   CONN(dt_node_feedback_named(graph, id_adam, "m1", id_adam, "m1i"));
   CONN(dt_node_feedback_named(graph, id_adam, "m2", id_adam, "m2i"));
@@ -189,16 +189,16 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
     const int id_fwd = dt_node_add( // infer kernel and store intermediate activations too
         graph, module, "kpn-t", "fwd", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_fwd), pc_fwd, 4,
-        "M", "read",  "rgba", "*",   -1ul,    // input image mipmap level
-        "w", "read",  "ssbo", "f16", -1ul,    // MLP weights
-        "K", "write", "ssbo", "f16", &roi_K,  // network output, 15 kernel weights + 1 alpha per px 
+        "M", "read",  "rgba", "*",   dt_no_roi, // input image mipmap level
+        "w", "read",  "ssbo", "f16", dt_no_roi, // MLP weights
+        "K", "write", "ssbo", "f16", &roi_K,    // network output, 15 kernel weights + 1 alpha per px 
         "A", "write", "ssbo", "f16", &roi_A); // intermediate layer activations, 32 per layer per px
     graph->node[id_fwd].connector[3].flags = s_conn_clear; // make sure padded entries are 0
 
     const int id_apply = dt_node_add( // apply convolution
         graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
-        "M", "read",  "rgba", "*",   -1ul,
-        "K", "read",  "ssbo", "f16", -1ul,
+        "M", "read",  "rgba", "*",   dt_no_roi,
+        "K", "read",  "ssbo", "f16", dt_no_roi,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
 
     int id_up = -1, id_dup = -1;
@@ -206,8 +206,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     {
       id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
           graph, module, "kpn-t", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
-          "I",  "read",  "rgba", "*",   -1ul,   // the convolved image on this (fine) scale (with alpha channel)
-          "Oc", "read",  "rgba", "*",   -1ul,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
+          "I",  "read",  "rgba", "*",   dt_no_roi,   // the convolved image on this (fine) scale (with alpha channel)
+          "Oc", "read",  "rgba", "*",   dt_no_roi,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
           "O",  "write", "rgba", "f16", &roi_M[i]);
       CONN(dt_node_connect_named(graph, id_apply, "I", id_up, "I"));
       if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
@@ -223,10 +223,10 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     const int push_dapply[] = { i };
     const int id_dapply = dt_node_add( // route loss derivative through convolution backwards
         graph, module, "kpn-t", "dapply", roi_M[i].wd, roi_M[i].ht, 16, sizeof(push_dapply), push_dapply, 6,
-        "M",    "read",  "rgba", "*",   -1ul,    // connect plain input image/mipmap
-        "I",    "read",  "rgba", "*",   -1ul,    // connect convolved image (for alpha derivative)
-        "dEdI", "read",  "rgba", "f16", -1ul,    // connect dup->dEdI from above
-        "K",    "read",  "ssbo", "f16", -1ul,    // kernel from fwd
+        "M",    "read",  "rgba", "*",   dt_no_roi, // connect plain input image/mipmap
+        "I",    "read",  "rgba", "*",   dt_no_roi, // connect convolved image (for alpha derivative)
+        "dEdI", "read",  "rgba", "f16", dt_no_roi, // connect dup->dEdI from above
+        "K",    "read",  "ssbo", "f16", dt_no_roi, // kernel from fwd
         "dEdK", "write", "ssbo", "f16", &roi_K,
         "dbg",  "write", "rgba", "f16", &roi_dbg);
     CONN(dt_node_connect_named(graph, id_apply, "I", id_dapply, "I"));
@@ -236,9 +236,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     {
       id_dup = dt_node_add(
           graph, module, "kpn-t", "dup", roi_M[i+1].wd, roi_M[i+1].ht, 1, 0, 0, 5,
-          "dEdO",  "read",  "rgba", "*",   -1ul,   // loss
-          "I",     "read",  "rgba", "*",   -1ul,   // the convolved image on this (fine) scale
-          "Oc",    "read",  "rgba", "*",   -1ul,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
+          "dEdO",  "read",  "rgba", "*",   dt_no_roi,   // loss
+          "I",     "read",  "rgba", "*",   dt_no_roi,   // the convolved image on this (fine) scale
+          "Oc",    "read",  "rgba", "*",   dt_no_roi,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
           "dEdI",  "write", "rgba", "f16", &roi_M[i],
           "dEdOc", "write", "rgba", "f16", &roi_M[i+1]);
       if(i == 0) CONN(dt_node_connect_named(graph, id_loss,     "dEdO",  id_dup, "dEdO"));
@@ -258,19 +258,19 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     int pc_bck[] = { 16, pc_fwd[1], 16 };
     const int id_bck = dt_node_add( // backpropagation: compute dE/dA
         graph, module, "kpn-t", "bck", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_bck), pc_bck, 4,
-        "w",    "read",  "ssbo", "f16", -1ul,       // weights
+        "w",    "read",  "ssbo", "f16", dt_no_roi,  // weights
         "dEdA", "write", "ssbo", "f16", &roi_A,     // write gradients (intermediate + last layer) for activations A
-        "A",    "read",  "ssbo", "f16", -1ul,       // intermediate layer activations, written as fwd -> A
-        "dEdK", "read",  "ssbo", "f16", -1ul);      // input from loss -> dapply
+        "A",    "read",  "ssbo", "f16", dt_no_roi,  // intermediate layer activations, written as fwd -> A
+        "dEdK", "read",  "ssbo", "f16", dt_no_roi); // input from loss -> dapply
     graph->node[id_bck].connector[1].flags = s_conn_clear; // make sure padded entries are 0
 
     int pc_mulw[] = { batch_size };
     const int id_dw = dt_node_add( // backpropagation: compute dE/dw
         graph, module, "kpn-t", "mulw", WIDTH * DT_LOCAL_SIZE_X, WIDTH * DT_LOCAL_SIZE_Y, 1, sizeof(pc_mulw), pc_mulw, 5,
-        "M",    "read",  "rgba", "*",   -1ul,          // input image
-        "dEdK", "read",  "ssbo", "f16", -1ul,          // last layer dE/dK from dapply
-        "A",    "read",  "ssbo", "f16", -1ul,          // intermediate fwd activations
-        "dEdA", "read",  "ssbo", "f16", -1ul,          // intermediate bck activations
+        "M",    "read",  "rgba", "*",   dt_no_roi,     // input image
+        "dEdK", "read",  "ssbo", "f16", dt_no_roi,     // last layer dE/dK from dapply
+        "A",    "read",  "ssbo", "f16", dt_no_roi,     // intermediate fwd activations
+        "dEdA", "read",  "ssbo", "f16", dt_no_roi,     // intermediate bck activations
         "dEdw", "write", "ssbo", "f32", &roi_weights); // weight gradients dE/dw
 
     CONN(dt_node_connect(graph, id_dw, 4, id_sum, i));
@@ -290,9 +290,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       dt_roi_t roi_vis = { .wd = (N_HIDDEN_LAYERS+2)*WIDTH, .ht = 4*WIDTH };
       const int id_vis = dt_node_add(
           graph, module, "kpn-t", "vis", roi_vis.wd, roi_vis.ht, 1, 0, 0, 4,
-          "w",   "read",  "ssbo", "f16", -1ul,
-          "dw",  "read",  "ssbo", "f32", -1ul,
-          "E",   "read",  "ssbo", "f32", -1ul, // from downsampling/reduction after loss
+          "w",   "read",  "ssbo", "f16", dt_no_roi,
+          "dw",  "read",  "ssbo", "f32", dt_no_roi,
+          "E",   "read",  "ssbo", "f32", dt_no_roi, // from downsampling/reduction after loss
           "out", "write", "rgba", "f16", &roi_vis);
       CONN(dt_node_connect_named(graph, id_adam, "w",  id_vis, "w"));
 #ifdef DEBUG_DERIV
