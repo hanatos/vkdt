@@ -18,6 +18,7 @@
 
 extern "C" {
 #include "module.h"
+#include "core/fs.h"
 }
 
 #include <cassert>
