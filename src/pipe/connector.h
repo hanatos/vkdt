@@ -119,10 +119,12 @@ dt_connector_t;
 // "templatised" connection functions for both modules and nodes
 typedef struct dt_graph_t dt_graph_t; // fwd declare
 // connect source|write (m0,c0) -> sink|read (m1,c1)
-int dt_module_connect (dt_graph_t *graph, int m0, int c0, int m1, int c1);
-int dt_module_feedback(dt_graph_t *graph, int m0, int c0, int m1, int c1);
-int dt_node_connect (dt_graph_t *graph, int n0, int c0, int n1, int c1);
-int dt_node_feedback(dt_graph_t *graph, int n0, int c0, int n1, int c1);
+#ifndef VKDT_DSO_BUILD
+VKDT_API int dt_module_connect (dt_graph_t *graph, int m0, int c0, int m1, int c1);
+VKDT_API int dt_module_feedback(dt_graph_t *graph, int m0, int c0, int m1, int c1);
+VKDT_API int dt_node_connect (dt_graph_t *graph, int n0, int c0, int n1, int c1);
+VKDT_API int dt_node_feedback(dt_graph_t *graph, int n0, int c0, int n1, int c1);
+#endif
 
 static inline int
 dt_connected(const dt_connector_t *c)

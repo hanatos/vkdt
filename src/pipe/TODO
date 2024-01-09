@@ -1,6 +1,0 @@
-* roi size negotiations:
-  - out of memory: cut into tiles and bisect
-
-* build
-  - public api for modules
-  - public api for core/cli

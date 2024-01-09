@@ -12,6 +12,11 @@
 #include <time.h>
 #ifndef _WIN64
 #include <sys/sendfile.h>
+#else
+#include <shlobj.h>
+#include <direct.h>
+#include <io.h>
+#include <stdbool.h>
 #endif
 #include <errno.h>
 
@@ -21,12 +26,20 @@ fs_copy(
     const char *src)
 {
 #ifdef _WIN64
-#warning "port me!"
-  bool res = CopyFile(src, dst, false);
-  return res != 0;
+  FILE *fdst = fopen(dst, "wb");
+  if(!fdst) return 1;
+  FILE *fsrc = fopen(src, "rb");
+  if(!fsrc) return 2;
+  char buf[BUFSIZ];
+  size_t n;
+  while((n = fread(buf, sizeof(char), sizeof(buf), fsrc)) > 0)
+    if(fwrite(buf, sizeof(char), n, fdst) != n)
+    { fclose(fdst); fclose(fsrc); return 3; }
+  fclose(fdst); fclose(fsrc);
+  return 0;
 #else
   ssize_t ret;
-  struct stat sb;
+  struct stat sb = {0};
   int64_t len = -1;
   int fd0 = open(src, O_RDONLY), fd1 = -1;
   if(fd0 == -1 || fstat(fd0, &sb) == -1) goto copy_error;
@@ -57,7 +70,7 @@ fs_mkdir(
     mode_t      mode)
 {
 #ifdef _WIN64
-  return mkdir(pathname);
+  return _mkdir(pathname);
 #else
   return mkdir(pathname, mode);
 #endif
@@ -74,8 +87,8 @@ fs_mkdir_p(
 
   if(snprintf(tmp, sizeof(tmp), "%s", pathname) >= (int)sizeof(tmp)) return 1;
   len = strlen(tmp);
-  if (tmp[len - 1] == '/') tmp[len - 1] = 0;
-  for(p = tmp + 1; *p; p++) if (*p == '/')
+  if (tmp[len-1] == '/' || tmp[len-1] == '\\') tmp[len - 1] = 0;
+  for(p = tmp + 1; *p; p++) if (*p == '/' || *p == '\\')
   {
     *p = 0;
     fs_mkdir(tmp, mode); // ignore error (if it exists etc)
@@ -88,7 +101,7 @@ static inline int // return zero if argument contains no '/', else alter str
 fs_dirname(char *str)
 { // don't use: dirname(3) since it may or may not alter the argument, implementation dependent.
   char *c = 0;
-  for(int i=0;str[i]!=0;i++) if(str[i] == '/') c = str+i;
+  for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
   if(c)
   {
     *c = 0;  // get dirname, i.e. strip off file name
@@ -103,21 +116,43 @@ static inline char* // returns pointer to empty string (end of str) if str ends 
 fs_basename(char *str)
 { // don't use basename(3) because there are at least two versions of it which sometimes modify str
   char *c = str; // return str if it contains no '/'
-  for(int i=0;str[i]!=0;i++) if(str[i] == '/') c = str+i;
+  for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
   return c+1;
+}
+
+static inline void // ${HOME}/.cache/vkdt for thumbnails
+fs_cachedir(
+  char  *cachedir,
+  size_t maxlen)
+{
+#ifndef _WIN64
+  // TODO: getenv(XDG_CACHE_HOME)
+  const char *home = getenv("HOME");
+  snprintf(cachedir, maxlen, "%s/.cache/vkdt", home);
+#else
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  snprintf(cachedir, maxlen, "%s/vkdt/cache", home);
+#endif
 }
 
 static inline void  // ${HOME}/.config/vkdt
 fs_homedir(
-    char *basedir,  // output will be copied here
+    char  *homedir, // output will be copied here
     size_t maxlen)  // allocation size
 {
-  snprintf(basedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
+#ifndef _WIN64
+  snprintf(homedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
+#else
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  snprintf(homedir, maxlen, "%s/vkdt/config", home);
+#endif
 }
 
 static inline void  // returns the directory where the actual binary (not the symlink) resides
 fs_basedir(
-    char *basedir,  // output will be copied here
+    char  *basedir, // output will be copied here
     size_t maxlen)  // allocation size
 {
   basedir[0] = 0;
@@ -145,6 +180,11 @@ fs_basedir(
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = maxlen;
   sysctl(mib_procpath, 4, basedir, &len_procpath, NULL, 0);
+  fs_dirname(basedir);
+#elif defined(_WIN64)
+  char *path;
+  _get_pgmptr(&path);
+  snprintf(basedir, maxlen, "%s", path);
   fs_dirname(basedir);
 #else
 #warning "port me!"
@@ -208,6 +248,18 @@ next:
 #endif
 }
 
+static inline int fs_islnk_file(const char *filename)
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0;
+#else
+  struct stat buf = {0};
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFLNK;
+#endif
+}
+
 static inline int fs_islnk(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
@@ -218,21 +270,54 @@ static inline int fs_islnk(const char *dirname, const struct dirent *e)
 #endif
 }
 
+static inline int fs_isreg_file(const char *filename)
+{
+#ifdef _WIN64
+  struct __stat64 buf = {0};
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFREG) != 0;
+#else
+  struct stat buf = {0};
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFREG;
+#endif
+}
+
 static inline int fs_isreg(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
-#warning "port me!"
-  return 0;
+  char filename[PATH_MAX];
+  struct __stat64 buf;
+  snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFREG) != 0;
 #else
   return e->d_type == DT_REG;
+#endif
+}
+
+static inline int fs_isdir_file(const char *filename)
+{
+#ifdef _WIN64
+  struct __stat64 buf = {0};
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat buf = {0};
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFDIR;
 #endif
 }
 
 static inline int fs_isdir(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
-#warning "port me!"
-  return 0;
+  char filename[PATH_MAX];
+  struct __stat64 buf;
+  snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+  _stat64(filename, &buf);
+  // fprintf(stderr, "isdir %s => %d\n", filename, (buf.st_mode & _S_IFDIR) != 0);
+  return (buf.st_mode & _S_IFDIR) != 0;
 #else
   return e->d_type == DT_DIR;
 #endif
@@ -242,8 +327,16 @@ static inline char*
 fs_realpath(const char *path, char *resolved_path)
 {
 #ifdef _WIN64
-#warning "port me! something GetFinalPathNameByHandleW"
-  return 0;
+#warning "port me! something GetFinalPathNameByHandleA"
+  // GetFinalPathNameByHandleA() would resolve symlinks but requires us to open the file first.
+  // this means we first need to call GetFullPathNameA to reconstruct the path
+  // and return this as fallback if the second step fails.
+  char *ret = resolved_path;
+  if(!ret) ret = (char*)malloc(sizeof(char)*PATH_MAX);
+  GetFullPathNameA(path, PATH_MAX, ret, 0);
+  // TODO: now try GetFinalPathNameByHandle to follow symlinks if any.
+  // fprintf(stderr, "full path %s\n", ret);
+  return ret;
 #else
   return realpath(path, resolved_path);
 #endif
@@ -253,7 +346,7 @@ static inline int
 fs_symlink(const char *target, const char *linkpath)
 {
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me!" // something CreateSymbolicLinkA (there's also hard links now)
   return 0;
 #else
   return symlink(target, linkpath);
@@ -308,6 +401,19 @@ fs_expand_export_filename(
   dt_strexpand(pattern, pattern_size, dst, dst_size, key, val);
 }
 
+static inline uint64_t
+fs_createtime(
+    const char *filename) // filename to stat
+{
+#ifdef _WIN64
+#warning "port me!"
+  return 0; // TODO!
+#else
+  struct stat statbuf = {0};
+  stat(filename, &statbuf);
+  return statbuf.st_mtim.tv_sec;
+#endif
+}
 static inline void
 fs_createdate(
     const char *filename,  // filename to stat
@@ -317,7 +423,7 @@ fs_createdate(
 #warning "port me!"
   datetime[0] = 0;
 #else
-  struct stat statbuf;
+  struct stat statbuf = {0};
   if(!stat(filename, &statbuf))
   {
     struct tm result;
@@ -330,6 +436,7 @@ static inline int
 fs_link(const char *oldpath, const char *newpath)
 {
 #ifdef _WIN64
+  // TODO: win10 apparently supports symlinks and hardlinks
   return fs_copy(newpath, oldpath); // inefficient and stupid, as you would.
 #else
   return link(oldpath, newpath);

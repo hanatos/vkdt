@@ -1,5 +1,4 @@
 ifeq ($(VKDT_USE_FFMPEG),1)
 MOD_CFLAGS=$(VKDT_AV_CFLAGS)
 MOD_LDFLAGS=$(VKDT_AV_LDFLAGS)
-MOD_C=pipe/connector.c
 endif

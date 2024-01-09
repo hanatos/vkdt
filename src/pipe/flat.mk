@@ -8,6 +8,7 @@ pipe/graph-export.o\
 pipe/module.o\
 pipe/raytrace.o
 PIPE_H=\
+core/fs.h\
 pipe/alloc.h\
 pipe/connector.h\
 pipe/connector.inc\
@@ -21,7 +22,7 @@ pipe/graph-print.h\
 pipe/graph-export.h\
 pipe/graph-traverse.inc\
 pipe/modules/api.h\
-pipe/io.h\
+pipe/asciiio.h\
 pipe/module.h\
 pipe/node.h\
 pipe/params.h\

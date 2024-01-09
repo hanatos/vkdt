@@ -288,9 +288,7 @@ int main(int argc, char *argv[])
     if(argc > lastarg+1) filename = fs_realpath(argv[lastarg+1], 0);
     else                 filename = fs_realpath(defpath, 0);
   }
-  struct stat statbuf = {0};
-  if(filename) stat(filename, &statbuf);
-  if(!filename || ((statbuf.st_mode & S_IFMT) == S_IFDIR))
+  if(!filename || fs_isdir_file(filename))
   {
     vkdt.view_mode = s_view_lighttable;
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);

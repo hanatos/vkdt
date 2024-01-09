@@ -47,14 +47,14 @@ int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
   return strcmp(a->d_name, b->d_name);
 }
 
-int dt_filebrowser_filter_dir(const struct dirent *d)
+int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
-  if(d->d_type != DT_DIR) return 0; // filter out non-dirs too
+  if(!fs_isdir(cwd, d)) return 0; // filter out non-dirs too
   return 1;
 }
 
-int dt_filebrowser_filter_file(const struct dirent *d)
+int dt_filebrowser_filter_file(const struct dirent *d, const char *cwd)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
   return 1;
@@ -67,7 +67,11 @@ dt_filebrowser(
     dt_filebrowser_widget_t *w,
     const char               mode) // 'f' or 'd'
 {
+#ifdef _WIN64
+  if(w->cwd[0] == 0) strcpy(w->cwd, dt_pipe.homedir);
+#else
   if(w->cwd[0] == 0) w->cwd[0] = '/';
+#endif
   if(!w->ent)
   { // no cached entries, scan directory:
     DIR* dirp = opendir(w->cwd);
@@ -76,8 +80,8 @@ dt_filebrowser(
     if(dirp)
     { // first count valid entries
       while((ent = readdir(dirp)))
-        if((mode == 'd' && dt_filebrowser_filter_dir(ent)) ||
-           (mode != 'd' && dt_filebrowser_filter_file(ent)))
+        if((mode == 'd' && dt_filebrowser_filter_dir(ent, w->cwd)) ||
+           (mode != 'd' && dt_filebrowser_filter_file(ent, w->cwd)))
            w->ent_cnt++;
       if(w->ent_cnt)
       {
@@ -85,8 +89,8 @@ dt_filebrowser(
         w->ent = (struct dirent *)malloc(sizeof(w->ent[0])*w->ent_cnt);
         w->ent_cnt = 0;
         while((ent = readdir(dirp)))
-          if((mode == 'd' && dt_filebrowser_filter_dir(ent)) ||
-             (mode != 'd' && dt_filebrowser_filter_file(ent)))
+          if((mode == 'd' && dt_filebrowser_filter_dir(ent, w->cwd)) ||
+             (mode != 'd' && dt_filebrowser_filter_file(ent, w->cwd)))
             w->ent[w->ent_cnt++] = *ent;
         sort(w->ent, w->ent_cnt, sizeof(w->ent[0]), dt_filebrowser_sort_dir_first, w->cwd);
       }
@@ -134,11 +138,12 @@ dt_filebrowser(
         { // go up one dir
           c += len;
           *(--c) = 0;
-          while(c > w->cwd && *c != '/') *(c--) = 0;
+          while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
         }
         else
         { // append dir name
           snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->ent[i].d_name);
+	  fprintf(stderr, "cwd %s\n", w->cwd);
         }
         // and then clean up the dirent cache
         dt_filebrowser_cleanup(w);

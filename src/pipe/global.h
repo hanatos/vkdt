@@ -48,6 +48,7 @@ typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf, dt_read_
 typedef void (*dt_module_read_geo_t)(dt_module_t *module, dt_read_geo_params_t *p);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
+typedef int  (*dt_module_bs_init_t) ();
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_ui_callback_t)(dt_module_t *module, dt_token_t param);
 typedef int  (*dt_module_audio_t)(dt_module_t *module, const int frame, uint16_t **samples);
@@ -103,6 +104,8 @@ typedef struct dt_module_so_t
   dt_module_init_t init;
   dt_module_init_t cleanup;
 
+  dt_module_bs_init_t bs_init; // windows module initialisation
+
   dt_connector_t connector[DT_MAX_CONNECTORS];
   int num_connectors;
 
@@ -128,7 +131,7 @@ typedef struct dt_pipe_global_t
 }
 dt_pipe_global_t;
 
-extern dt_pipe_global_t dt_pipe;
+VKDT_API extern dt_pipe_global_t dt_pipe;
 
 // returns non-zero on failure:
 int dt_pipe_global_init();

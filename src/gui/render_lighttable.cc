@@ -484,9 +484,7 @@ void render_lighttable_right_panel(int hotkey)
     if(main_imgid != -1u)
     {
       dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
-      struct stat buf;
-      lstat(filename, &buf);
-      if(((buf.st_mode & S_IFMT)== S_IFLNK) && ImGui::Button("jump to original collection", ImVec2(-1, 0)))
+      if(fs_islnk_file(filename) && ImGui::Button("jump to original collection", ImVec2(-1, 0)))
       {
         char *resolved = fs_realpath(filename, 0);
         if(resolved)

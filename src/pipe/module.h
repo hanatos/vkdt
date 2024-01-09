@@ -130,13 +130,15 @@ dt_module_t;
 
 typedef struct dt_graph_t dt_graph_t; // fwd declare
 
-// add a module to the graph, also init the dso class. returns the module id or -1.
-int dt_module_add(dt_graph_t *graph, dt_token_t name, dt_token_t inst);
-
 int dt_module_get_connector(const dt_module_t *m, dt_token_t conn);
 
+#ifndef VKDT_DSO_BUILD
+// add a module to the graph, also init the dso class. returns the module id or -1.
+VKDT_API int dt_module_add(dt_graph_t *graph, dt_token_t name, dt_token_t inst);
+
 // remove module from the graph
-int dt_module_remove(dt_graph_t *graph, const int modid);
+VKDT_API int dt_module_remove(dt_graph_t *graph, const int modid);
+#endif
 
 // convenience functions for simple cases where the graph degenerates to
 // a simple linear chain of "output" being plugged into "input" connectors.

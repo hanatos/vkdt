@@ -21,6 +21,9 @@
 #include "db/db.h"
 #include "gui/gui.h"
 
+#ifdef _WIN64
+static inline void dt_set_signal_handlers() {}
+#else
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -84,3 +87,4 @@ dt_set_signal_handlers()
   if(SIG_ERR == signal(SIGABRT, &dt_sigsegv_handler))
     perror("[dt_set_signal_handler]");
 }
+#endif

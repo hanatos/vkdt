@@ -99,10 +99,10 @@ gui/%.o: gui/%.cc Makefile $(GUI_H) gui/flat.mk
 	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ../ext/imgui/%.o: ../ext/imgui/%.cpp Makefile
-	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 ext/imgui/examples/%.o: ext/imgui/examples/%.cpp Makefile
-	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # main application
 # ======================
@@ -141,6 +141,9 @@ MOD_GLOBAL_DEPS=\
   pipe/connector.c\
   pipe/connector.inc
 MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC
+ifeq ($(OS),Windows_NT)
+MOD_GLOBAL_CFLAGS+=-DVKDT_DSO_BUILD
+endif
 
 # expand all cflags/ldflags/deps/extra-c from flat.mk:
 $(foreach MOD,$(FLATMK),\

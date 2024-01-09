@@ -1,6 +1,5 @@
 QUAKE_I=pipe/modules/quake/quakespasm/Quake
 QUAKE_L=pipe/modules/quake/quakespasm/Quake
-MOD_C=pipe/connector.c
 MOD_CFLAGS=-I$(QUAKE_I) $(VKDT_QEXTRA_CFLAGS)
 MOD_LDFLAGS=-L$(QUAKE_L) -lquakespasm -lm
 MOD_LDFLAGS+=$(VKDT_QEXTRA_LDFLAGS)

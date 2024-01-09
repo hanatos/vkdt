@@ -4,7 +4,11 @@
 # also handles some global settings for compilers and debug flags.
 
 .PHONY:all src clean distclean bin install release cli
+ifeq ($(OS),Windows_NT)
+include bin/config.mk.defaults.w64
+else
 include bin/config.mk.defaults
+endif
 sinclude bin/config.mk
 
 # dr dobb's idea about makefile debugging:
@@ -73,8 +77,8 @@ release: Makefile src/core/version.h
 	$(shell (echo ${RELEASE_FILES} | sed -e 's/ /\n/g' | tar caf vkdt-${VERSION}.tar.xz --xform s:^:vkdt-${VERSION}/: --verbatim-files-from -T-))
 
 # overwrites the above optimised build flags:
-debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION -DDEBUG_MARKERS
-# debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0
+# debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0 -DQVK_ENABLE_VALIDATION -DDEBUG_MARKERS
+debug:OPT_CFLAGS=-g -gdwarf-2 -ggdb3 -O0
 debug:OPT_LDFLAGS=
 debug:all
 
@@ -122,4 +126,8 @@ uninstall-lib:
 
 bin: Makefile
 	mkdir -p bin/data
+ifeq ($(OS),Windows_NT)
+	cp -rf src/pipe/modules bin/
+else
 	ln -sf ../src/pipe/modules bin/
+endif

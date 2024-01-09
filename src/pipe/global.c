@@ -1,5 +1,5 @@
 #include "global.h"
-#include "io.h"
+#include "asciiio.h"
 #include "module.h"
 #include "graph.h"
 #include "core/log.h"
@@ -91,11 +91,10 @@ dt_module_so_load(
     return 1;
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
-  char filename[3*PATH_MAX], line[PATH_MAX];
+  char filename[PATH_MAX], line[8192];
   snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   mod->dlhandle = 0;
-  struct stat statbuf;
-  if(!stat(filename, &statbuf))
+  if(fs_isreg_file(filename))
   {
     mod->dlhandle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
     if(!mod->dlhandle)
@@ -108,6 +107,7 @@ dt_module_so_load(
     mod->modify_roi_in  = dlsym(mod->dlhandle, "modify_roi_in");
     mod->init           = dlsym(mod->dlhandle, "init");
     mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
+    mod->bs_init        = dlsym(mod->dlhandle, "bs_init");
     mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
     mod->read_geo       = dlsym(mod->dlhandle, "read_geo");
@@ -117,6 +117,9 @@ dt_module_so_load(
     mod->audio          = dlsym(mod->dlhandle, "audio");
     mod->input          = dlsym(mod->dlhandle, "input");
   }
+
+  // init callback handles on dso side for windows:
+  if(mod->bs_init) mod->bs_init();
 
   // read default params:
   // read param name, type, cnt, default value + bounds
@@ -132,7 +135,7 @@ dt_module_so_load(
   {
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       mod->param[i++] = read_param_config_ascii(line);
       if(i > sizeof(mod->param)/sizeof(mod->param[0])) break;
@@ -175,7 +178,7 @@ dt_module_so_load(
     int mode = 0;
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       char *b = line;
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t parm = dt_read_token(b, &b);
@@ -260,7 +263,7 @@ dt_module_so_load(
     while(!feof(f))
     {
       char *b = line;
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t pn = dt_read_token(b, &b);
       for(int i=0;i<mod->num_params;i++)
@@ -292,7 +295,7 @@ dt_module_so_load(
     i = 0;
     while(!feof(f))
     {
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       read_connector_ascii(mod->connector+i++, line);
       // TODO also init all the other variables, maybe inside this function
@@ -315,7 +318,7 @@ dt_module_so_load(
     while(!feof(f))
     {
       char *b = line;
-      fscanf(f, "%[^\n]", line);
+      fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t cn = dt_read_token(b, &b);
       for(int i=0;i<mod->num_connectors;i++)
@@ -397,6 +400,8 @@ int dt_pipe_global_init()
   // setup search directory
   fs_basedir(dt_pipe.basedir, sizeof(dt_pipe.basedir));
   fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
+  dt_log(s_log_pipe, "base directory %s", dt_pipe.basedir);
+  dt_log(s_log_pipe, "home directory %s", dt_pipe.homedir);
   char mod[PATH_MAX+20];
   snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
   struct dirent *dp;
@@ -422,6 +427,7 @@ int dt_pipe_global_init()
     }
   }
   dt_pipe.num_modules = i;
+  dt_log(s_log_pipe, "loaded %d modules", dt_pipe.num_modules);
   closedir(fd);
   // now sort modules alphabetically for convenience in gui later:
   qsort(dt_pipe.module, dt_pipe.num_modules, sizeof(dt_pipe.module[0]), &compare_module_name);
