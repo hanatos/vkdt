@@ -74,8 +74,8 @@ export VKDT_USE_RAWINPUT
 
 # install mingw-w64-x86_64-glfw via pacman -S!
 # where to find glfw for the gui:
-VKDT_GLFW_CFLAGS=-I../ext/glfw/include
-VKDT_GLFW_LDFLAGS=-L../ext/glfw/lib-mingw-w64 -lglfw3 -lgdi32
+VKDT_GLFW_CFLAGS=-I/c/msys64/ucrt64/include/GLFW
+VKDT_GLFW_LDFLAGS=-L/c/msys64/ucrt64/lib -lglfw3 -lgdi32
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # enable this if you have a custom build of glfw that supports the following
@@ -95,14 +95,14 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 # export VKDT_QEXTRA_CFLAGS VKDT_QEXTRA_LDFLAGS
 
 # need vulkan
-VKDT_VULKAN_CFLAGS=-I/c/VulkanSDK/1.3.268.0/Include
-VKDT_VULKAN_LDFLAGS=-L/c/VulkanSDK/1.3.268.0/Lib -lvulkan-1
+VKDT_VULKAN_CFLAGS=-I/c/msys64/mingw64/include
+VKDT_VULKAN_LDFLAGS=-L/c/msys64/mingw64/lib -lvulkan-1
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
 CC=gcc
 CXX=g++
-GLSLC=/c/VulkanSDK/1.3.268.0/Bin/glslangValidator.exe
+GLSLC=/c/msys64/mingw64/bin/glslangValidator.exe
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.2
