@@ -120,6 +120,20 @@ fs_basename(char *str)
   return c+1;
 }
 
+static inline void // ${HOME}/Pictures
+fs_picturesdir(
+  char  *picdir,
+  size_t maxlen)
+{
+#ifndef _WIN64
+  const char *home = getenv("HOME");
+#else
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+#endif
+  snprintf(picdir, maxlen, "%s/Pictures", home);
+}
+
 static inline void // ${HOME}/.cache/vkdt for thumbnails
 fs_cachedir(
   char  *cachedir,

@@ -75,7 +75,7 @@ export VKDT_USE_RAWINPUT
 # install mingw-w64-x86_64-glfw via pacman -S!
 # where to find glfw for the gui:
 VKDT_GLFW_CFLAGS=-I/c/msys64/ucrt64/include/GLFW
-VKDT_GLFW_LDFLAGS=-L/c/msys64/ucrt64/lib -lglfw3 -lgdi32
+VKDT_GLFW_LDFLAGS=-L/c/msys64/ucrt64/lib -l:libglfw3.a -lgdi32
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # enable this if you have a custom build of glfw that supports the following
