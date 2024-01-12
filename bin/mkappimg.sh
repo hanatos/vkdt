@@ -22,11 +22,8 @@ cp vkdt.png AppDir/usr/share/icons/
 cat > AppDir/AppRun << 'EOF'
 #!/bin/bash
 HERE=$(dirname $(realpath ${0}))
-# this is necessary to make it run on some systems that don't ship for instance libjpeg.
-# if we don't set the path it doesn't find *any* library (system or internal).
-# on the other hand some systems have incompatible libc and will try to pick up the
-# internal library and then fail completely.
-export LD_LIBRARY_PATH=${HERE}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
+# export LD_LIBRARY_PATH=${HERE}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${HERE}/usr/lib:${LD_LIBRARY_PATH}
 ${HERE}/usr/bin/vkdt $@
 EOF
 chmod +x AppDir/AppRun
