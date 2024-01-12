@@ -22,6 +22,7 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdatomic.h>
 
 namespace { // anonymous namespace
 
@@ -257,7 +258,7 @@ struct export_job_t
   uint32_t last_frame_only;
   char basename[1000];
   uint8_t *pdata;
-  uint32_t abort;
+  atomic_uint abort;
   int taskid;
   dt_graph_t graph;
 };
@@ -270,24 +271,24 @@ void export_job_cleanup(void *arg)
 }
 void export_job_work(uint32_t item, void *arg)
 {
-  export_job_t *j = (export_job_t *)arg;
-  if(j->abort) return;
-
   char filename[PATH_MAX], infilename[PATH_MAX], filedir[PATH_MAX];
+  char dir[512];
+  dt_graph_export_t param = {0};
+  export_job_t *j = (export_job_t *)arg;
+  if(j->abort) goto out;
+
   dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
   fs_expand_export_filename(j->basename, sizeof(j->basename), filename, sizeof(filename), filedir, item);
-  char dir[512];
   if(snprintf(dir, sizeof(dir), "%s", filename) >= (int)sizeof(dir))
   {
     dt_gui_notification("expanded filename too long!");
-    return;
+    goto out;
   }
   if(fs_dirname(dir)) fs_mkdir_p(dir, 0755);
 
   dt_gui_notification("exporting to %s", filename);
 
   dt_db_image_path(&vkdt.db, j->sel[item], infilename, sizeof(infilename));
-  dt_graph_export_t param = {0};
   param.output_cnt = 1;
   param.output[0].p_filename = filename;
   param.output[0].max_width  = j->wd;
@@ -299,6 +300,7 @@ void export_job_work(uint32_t item, void *arg)
   param.p_cfgfile = infilename;
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
+out:
   dt_graph_reset(&j->graph);
   glfwPostEmptyEvent(); // redraw status bar
 }
@@ -779,10 +781,11 @@ void render_lighttable_right_panel(int hotkey)
     ImGui::Indent();
     static dt_export_widget_t w = {0};
     dt_export(&w);
-    static export_job_t job[4] = {{0}};
+#define NUM_JOBS 4
+    static export_job_t job[NUM_JOBS] = {{0}};
     int32_t num_idle = 0;
-    for(int k=0;k<4;k++)
-    { // list of four jobs to copy stuff simultaneously
+    for(int k=0;k<NUM_JOBS;k++)
+    { // list of jobs to export stuff simultaneously
       ImGui::PushID(k);
       if(job[k].cnt == 0)
       { // idle job
@@ -815,6 +818,7 @@ void render_lighttable_right_panel(int hotkey)
       }
       ImGui::PopID();
     }
+#undef NUM_JOBS
     ImGui::Unindent();
   } // end collapsing header "export"
 

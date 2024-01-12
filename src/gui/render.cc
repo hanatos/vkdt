@@ -341,6 +341,7 @@ extern "C" void dt_gui_render_frame_imgui()
   }
 
   // draw notification message
+  threads_mutex_lock(&vkdt.wstate.notification_mutex);
   if(vkdt.wstate.notification_msg[0] &&
      now - vkdt.wstate.notification_time < 4.0)
   {
@@ -358,6 +359,7 @@ extern "C" void dt_gui_render_frame_imgui()
     ImGui::Text("%s", vkdt.wstate.notification_msg);
     ImGui::End();
   }
+  threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 
   ImGui::Render();
   if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)

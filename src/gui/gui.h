@@ -69,6 +69,7 @@ typedef struct dt_gui_wstate_t
   char    *module_names_buf;
   const char **module_names;
 
+  threads_mutex_t notification_mutex;
   double notification_time;     // time the message appeared
   char   notification_msg[256]; // message to display
 
@@ -167,6 +168,7 @@ void dt_gui_read_tags();
 void dt_gui_switch_collection(const char *dir);
 
 // display a notification message overlay in the gui for some seconds
+// unlike most other functions, this one is thread-safe.
 void dt_gui_notification(const char *msg, ...);
 
 // lets the current input module grab the mouse, i.e. hide it from the rest of the gui

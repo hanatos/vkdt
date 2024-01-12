@@ -58,6 +58,7 @@ int dt_gui_init()
     dt_rc_read(&vkdt.rc, configfile);
 
   vkdt.wstate.copied_imgid = -1u; // none copied at startup
+  threads_mutex_init(&vkdt.wstate.notification_mutex, 0);
 
   vkdt.style.panel_width_frac = 0.2f;
   vkdt.style.border_frac = 0.02f;
@@ -302,6 +303,7 @@ void dt_gui_cleanup()
   qvk_cleanup();
   glfwDestroyWindow(qvk.window);
   glfwTerminate();
+  threads_mutex_destroy(&vkdt.wstate.notification_mutex);
 }
 
 VkResult dt_gui_render()
@@ -500,10 +502,12 @@ void dt_gui_switch_collection(const char *dir)
 
 void dt_gui_notification(const char *msg, ...)
 {
+  threads_mutex_lock(&vkdt.wstate.notification_mutex);
   va_list args;
   va_start(args, msg);
   vsnprintf(vkdt.wstate.notification_msg, sizeof(vkdt.wstate.notification_msg), msg, args);
   vkdt.wstate.notification_time = glfwGetTime();
   va_end(args);
+  threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 }
 
