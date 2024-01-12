@@ -4,7 +4,7 @@ inline int
 recently_used_collections()
 {
   ImGui::PushID("ruc");
-  int32_t ret = 0, num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
+  int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
   for(int i=0;i<num;i++)
   {
     char entry[512];
@@ -18,7 +18,9 @@ recently_used_collections()
       if(ImGui::Button(last, ImVec2(-1, 0)))
       {
         dt_gui_switch_collection(dir);
-        ret = 1;
+        ImGui::PopStyleVar(1);
+        ImGui::PopID();
+        return 0; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
       if(ImGui::IsItemHovered())
         dt_gui_set_tooltip("%s", dir);
@@ -26,5 +28,5 @@ recently_used_collections()
     }
   }
   ImGui::PopID();
-  return ret;
+  return 0;
 }
