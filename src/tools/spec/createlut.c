@@ -737,6 +737,8 @@ mac_error:
     // if(pfm) fclose(pfm);
   }
   free(out);
+  free(lsbuf);
+  free(max_b);
   // threads_global_cleanup();
   printf("\n");
 }
