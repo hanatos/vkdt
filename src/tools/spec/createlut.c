@@ -599,7 +599,7 @@ mac_error:
     .res   = res,
   };
 
-  threads_global_init();
+  // threads_global_init();
 #if 0 // note that with proper atomics this is slower than single thread:
   const int nt = threads_num();
   int taskid = -1;
@@ -737,6 +737,6 @@ mac_error:
     // if(pfm) fclose(pfm);
   }
   free(out);
-  threads_global_cleanup();
+  // threads_global_cleanup();
   printf("\n");
 }

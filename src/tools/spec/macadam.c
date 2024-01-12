@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 {
   float *buf = calloc(sizeof(float), 4*res*res);
 
-  threads_global_init();
+  // threads_global_init();
   const uint32_t work_item_cnt = incres * (max_l/2-1)+1;
 #if 0
   const int nt = threads_num();
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 #endif
   free(b16);
   free(smooth);
-  threads_global_cleanup();
+  // threads_global_cleanup();
 
   exit(0);
 }
