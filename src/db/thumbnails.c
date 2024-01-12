@@ -307,9 +307,12 @@ static void thread_free_coll(void *arg)
 {
   // task is done, every thread will call this
   cache_coll_job_t *j = arg;
-  // only first thread destroys mutex
-  if(j->gid == 0) pthread_mutex_destroy(&j->mutex_storage);
-  free(j->coll);
+  // only first thread destroys shared things
+  if(j->gid == 0)
+  {
+    pthread_mutex_destroy(&j->mutex_storage);
+    free(j->coll);
+  }
   free(j);
 }
 
@@ -478,7 +481,7 @@ dt_thumbnails_load_one(
     uint64_t hash = hash64(filename);
     snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
   }
-  else snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename);
+  else if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
 

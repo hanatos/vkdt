@@ -109,7 +109,7 @@ void *threads_work(void *arg)
       // and avoid the done pointer.
       while(!thr.shutdown && (thr.task[task->reftask].done < task->work_item_cnt)) sched_yield();
       if(thr.shutdown) break; // don't clean up, we didn't wait for everybody!
-      task->free(task->data); // every thread gets the callback, they coordinate who cleans task->data
+      task->free(task->data);
     }
     // signal everybody that we're done with the task
     pthread_mutex_lock(&thr.mutex_done);
