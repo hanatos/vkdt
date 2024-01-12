@@ -143,7 +143,6 @@ dt_filebrowser(
         else
         { // append dir name
           snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->ent[i].d_name);
-	  fprintf(stderr, "cwd %s\n", w->cwd);
         }
         // and then clean up the dirent cache
         dt_filebrowser_cleanup(w);
