@@ -378,7 +378,8 @@ fs_expand_import_filename(
 #warning "port me!"
 #else
   time_t t = time(0);
-  struct tm *tm = localtime(&t);
+  struct tm result;
+  struct tm *tm = localtime_r(&t, &result);
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
 #endif
@@ -405,7 +406,8 @@ fs_expand_export_filename(
 #warning "port me!"
 #else
   time_t t = time(0);
-  struct tm *tm = localtime(&t);
+  struct tm result;
+  struct tm *tm = localtime_r(&t, &result);
   strftime(date, sizeof(date), "%Y%m%d", tm);
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
 #endif

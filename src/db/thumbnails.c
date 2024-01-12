@@ -307,13 +307,10 @@ static void thread_free_coll(void *arg)
 {
   // task is done, every thread will call this
   cache_coll_job_t *j = arg;
-  // only first thread frees 
-  if(j->gid == 0)
-  {
-    pthread_mutex_destroy(&j->mutex_storage);
-    free(j->coll);
-    free(j);
-  }
+  // only first thread destroys mutex
+  if(j->gid == 0) pthread_mutex_destroy(&j->mutex_storage);
+  free(j->coll);
+  free(j);
 }
 
 void
@@ -366,13 +363,14 @@ dt_thumbnails_cache_list(
 
   uint32_t *collection = malloc(sizeof(uint32_t) * imgid_cnt);
   memcpy(collection, imgid, sizeof(uint32_t) * imgid_cnt); // take copy because this thing changes
-  cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t)*DT_THUMBNAILS_THREADS);
+  cache_coll_job_t *job0 = 0;
   int taskid = -1;
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
+    cache_coll_job_t *job = malloc(sizeof(cache_coll_job_t));
     if(k == 0)
     {
-      job[0] = (cache_coll_job_t) {
+      *job = (cache_coll_job_t) {
         .stamp = tn->job_timestamp,
         .coll  = collection,
         .gid   = k,
@@ -380,12 +378,13 @@ dt_thumbnails_cache_list(
         .db    = db,
         .ufn   = updatefn,
       };
-      threads_mutex_init(&job[0].mutex_storage, 0);
-      job[0].mutex = &job[0].mutex_storage;
+      threads_mutex_init(&job->mutex_storage, 0);
+      job->mutex = &job->mutex_storage;
+      job0 = job;
     }
-    else job[k] = (cache_coll_job_t) {
+    else *job = (cache_coll_job_t) {
       .stamp = tn->job_timestamp,
-      .mutex = &job[0].mutex_storage,
+      .mutex = &job0->mutex_storage,
       .coll  = collection,
       .gid   = k,
       .tn    = tn,
@@ -398,7 +397,7 @@ dt_thumbnails_cache_list(
         "thumb",
         imgid_cnt,
         taskid,
-        job+k,
+        job,
         thread_work_coll,
         thread_free_coll);
     if(taskid < 0) return VK_INCOMPLETE;

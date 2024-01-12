@@ -259,6 +259,7 @@ struct export_job_t
   char basename[1000];
   uint8_t *pdata;
   std::atomic_uint abort;
+  std::atomic_uint state; // 0 idle, 1 started, 2 cleaned
   int taskid;
   dt_graph_t graph;
 };
@@ -268,6 +269,7 @@ void export_job_cleanup(void *arg)
   free(j->sel);
   free(j->pdata);
   dt_graph_cleanup(&j->graph);
+  j->state = 2;
 }
 void export_job_work(uint32_t item, void *arg)
 {
@@ -309,6 +311,7 @@ int export_job(
     dt_export_widget_t *w)
 {
   j->abort = 0;
+  j->state = 1;
   j->overwrite = w->overwrite;
   if(vkdt.db.selection_cnt <= 0)
   {
@@ -787,7 +790,8 @@ void render_lighttable_right_panel(int hotkey)
     for(int k=0;k<NUM_JOBS;k++)
     { // list of jobs to export stuff simultaneously
       ImGui::PushID(k);
-      if(job[k].cnt == 0)
+      if(job[k].state == 2) job[k].state = 0; // reset
+      if(job[k].state == 0)
       { // idle job
         if(num_idle++)
         { // show at max one idle job
@@ -805,16 +809,10 @@ void render_lighttable_right_panel(int hotkey)
         if(ImGui::Button("abort")) job[k].abort = 1;
         ImGui::SameLine();
         ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
+        // technically a race condition on frame_cnt being inited by graph
+        // loading during the async job. do we care?
         if(job[k].graph.frame_cnt > 1)
           ImGui::ProgressBar(job[k].graph.frame / (float)job[k].graph.frame_cnt, ImVec2(-1, 0));
-      }
-      else
-      { // done/aborted
-        if(ImGui::Button(job[k].abort ? "aborted" : "done"))
-        { // reset
-          memset(job+k, 0, sizeof(export_job_t));
-        }
-        if(ImGui::IsItemHovered()) dt_gui_set_tooltip("click to reset");
       }
       ImGui::PopID();
     }

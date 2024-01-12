@@ -47,8 +47,8 @@ threads_task_t;
 
 typedef struct threads_t
 {
-  uint32_t num_threads;
-  int      shutdown;
+  uint32_t        num_threads;
+  atomic_int      shutdown;
 
   // worker list
   pthread_t      *worker;
