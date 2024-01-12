@@ -22,7 +22,7 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdatomic.h>
+#include <atomic>
 
 namespace { // anonymous namespace
 
@@ -258,7 +258,7 @@ struct export_job_t
   uint32_t last_frame_only;
   char basename[1000];
   uint8_t *pdata;
-  atomic_uint abort;
+  std::atomic_uint abort;
   int taskid;
   dt_graph_t graph;
 };
