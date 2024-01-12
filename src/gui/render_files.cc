@@ -10,6 +10,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <atomic>
 
 namespace { // anonymous namespace
 
@@ -39,13 +40,15 @@ struct copy_job_t
   struct dirent *ent;
   uint32_t cnt;
   uint32_t move;  // set to non-zero to remove src after copy
-  uint32_t abort;
+  std::atomic_uint abort;
+  std::atomic_uint state;
   int taskid;
 };
 void copy_job_cleanup(void *arg)
 { // task is done, every thread will call this (but we put only one)
   copy_job_t *j = (copy_job_t *)arg;
   if(j->ent) free(j->ent);
+  j->state = 2;
 }
 void copy_job_work(uint32_t item, void *arg)
 {
@@ -64,6 +67,7 @@ int copy_job(
     const char *src) // source directory
 {
   j->abort = 0;
+  j->state = 1;
   snprintf(j->src, sizeof(j->src), "%.*s", (int)sizeof(j->src)-1, src);
   snprintf(j->dst, sizeof(j->dst), "%.*s", (int)sizeof(j->dst)-1, dst);
   fs_mkdir_p(j->dst, 0777); // try and potentially fail to create destination directory
@@ -208,7 +212,7 @@ void render_files()
       for(int k=0;k<4;k++)
       { // list of four jobs to copy stuff simultaneously
         ImGui::PushID(k);
-        if(job[k].cnt == 0)
+        if(job[k].state == 0)
         { // idle job
           if(num_idle++)
           { // show at max one idle job
@@ -245,7 +249,7 @@ void render_files()
             dt_gui_set_tooltip("copy contents of %s\nto %s,\n%s",
                 filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
         }
-        else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
+        else if(job[k].state == 1)
         { // running
           if(ImGui::Button("abort")) job[k].abort = 1;
           ImGui::SameLine();
@@ -256,7 +260,7 @@ void render_files()
         { // done/aborted
           if(ImGui::Button(job[k].abort ? "aborted" : "done"))
           { // reset
-            memset(job+k, 0, sizeof(copy_job_t));
+            job[k].state = 0;
           }
           if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
               job[k].abort == 1 ? "copy from %s aborted by user. click to reset" :
@@ -270,7 +274,7 @@ void render_files()
             {
               set_cwd(job[k].dst, 1);
               dt_gui_switch_collection(job[k].dst);
-              memset(job+k, 0, sizeof(copy_job_t));
+              job[k].state = 0;
               dt_view_switch(s_view_lighttable);
             }
             if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
