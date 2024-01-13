@@ -318,6 +318,7 @@ dt_dng_opcode_list_decode(uint8_t *data, size_t len)
 
   dng_opcode_list_t *ops =
       calloc(1, sizeof(dng_opcode_list_t) + count * sizeof(dng_opcode_t));
+  ops->count = count;
 
   p = &data[4];
   for(int i = 0; i < count; i++)
