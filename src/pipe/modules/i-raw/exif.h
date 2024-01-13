@@ -273,7 +273,6 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dt_
           if(FIND_EXIF_TAG("Exif." + primary_group + ".OpcodeList2"))
           {
             uint8_t *data = (uint8_t *)malloc(pos->size());
-            std::cout << "op2 size " << pos->size() << std::endl;
             pos->copy(data, Exiv2::invalidByteOrder);
             dng_opcode_lists[1] = dt_dng_opcode_list_decode(data, pos->size());
             free(data);
