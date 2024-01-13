@@ -376,7 +376,10 @@ fs_expand_import_filename(
   char date[10] = {0}, yyyy[5] = {0};
 #ifdef _WIN64
 #warning "port me!"
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
 #else
+  char *home = getenv("HOME");
   time_t t = time(0);
   struct tm result;
   struct tm *tm = localtime_r(&t, &result);
@@ -384,7 +387,7 @@ fs_expand_import_filename(
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
 #endif
   const char *key[] = { "home", "yyyy", "date", "dest", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, dest, 0};
+  const char *val[] = { home, yyyy, date, dest, 0};
   dt_strexpand(pattern, pattern_size, dst, dst_size, key, val);
 }
 
@@ -404,7 +407,10 @@ fs_expand_export_filename(
   char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
 #ifdef _WIN64
 #warning "port me!"
+  char home[MAX_PATH];
+  SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
 #else
+  char *home = getenv("HOME");
   time_t t = time(0);
   struct tm result;
   struct tm *tm = localtime_r(&t, &result);
@@ -413,7 +419,7 @@ fs_expand_export_filename(
 #endif
   snprintf(istr, sizeof(istr), "%04d", seq);
   const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "fbase", 0};
-  const char *val[] = { getenv("HOME"), yyyy, date, istr, filename, filebase, 0};
+  const char *val[] = { home, yyyy, date, istr, filename, filebase, 0};
   dt_strexpand(pattern, pattern_size, dst, dst_size, key, val);
 }
 
