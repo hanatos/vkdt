@@ -38,6 +38,7 @@ typedef struct rawinput_buf_t
   std::unique_ptr<rawspeed::RawDecoder> d;
   char filename[PATH_MAX] = {0};
   int ox, oy;
+  dng_opcode_list_t *dng_opcode_lists[3];
 }
 rawinput_buf_t;
 
@@ -86,6 +87,11 @@ void
 free_raw(dt_module_t *mod)
 { // free auto pointers
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  for(int i=0;i<3;i++)
+  {
+    dt_dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
+    mod_data->dng_opcode_lists[i] = NULL;
+  }
   if(mod_data->d.get()) mod_data->d.reset();
 }
 
@@ -231,8 +237,12 @@ void modify_roi_out(
   float *noise_b = (float*)dt_module_param_float(mod, 2);
   for(int k=0;k<9;k++)
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
-#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
-  dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
+  for(int i =0;i<3;i++)
+    mod_data->dng_opcode_lists[i] = nullptr;
+#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value and DNG opcodes
+  dt_exif_read(&mod->img_param, filename, mod_data->dng_opcode_lists); // FIXME: will not work for timelapses
+  for(int i=0;i<3;i++)
+    mod->img_param.dng_opcode_lists[i] = mod_data->dng_opcode_lists[i];
 #endif
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->d->mRaw->metadata.canonical_make.c_str());
