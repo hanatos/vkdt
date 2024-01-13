@@ -51,7 +51,7 @@ get_be_double(uint8_t **p)
 }
 
 static void
-decode_dng_region(dng_region_t *region, uint8_t **p)
+decode_dng_region(dt_dng_region_t *region, uint8_t **p)
 {
   region->top       = get_be_long(p);
   region->left      = get_be_long(p);
@@ -69,9 +69,9 @@ decode_warp_rectilinear(void **out, uint8_t **p, uint32_t len)
   uint32_t count = get_be_long(p);
   if(len != 20 + count * 48)
     return 1;
-  dng_warp_rectilinear_t *wr =
-      calloc(1, sizeof(dng_warp_rectilinear_t) +
-                    count * sizeof(dng_warp_rectilinear_coef_t));
+  dt_dng_warp_rectilinear_t *wr =
+      calloc(1, sizeof(dt_dng_warp_rectilinear_t) +
+                    count * sizeof(dt_dng_warp_rectilinear_coef_t));
   *out      = wr;
   wr->count = count;
   for(int i = 0; i < count; i++)
@@ -92,8 +92,8 @@ decode_warp_fisheye(void **out, uint8_t **p, uint32_t len)
   uint32_t count = get_be_long(p);
   if(len != 20 + count * 32)
     return 1;
-  dng_warp_fisheye_t *wr = calloc(
-      1, sizeof(dng_warp_fisheye_t) + count * sizeof(dng_warp_fisheye_coef_t));
+  dt_dng_warp_fisheye_t *wr = calloc(
+      1, sizeof(dt_dng_warp_fisheye_t) + count * sizeof(dt_dng_warp_fisheye_coef_t));
   *out      = wr;
   wr->count = count;
   for(int i = 0; i < count; i++)
@@ -109,7 +109,7 @@ decode_warp_fisheye(void **out, uint8_t **p, uint32_t len)
 static int
 decode_gain_map(void **out, uint8_t **p, uint32_t len)
 {
-  dng_gain_map_t gm;
+  dt_dng_gain_map_t gm;
   decode_dng_region(&gm.region, p);
   gm.map_points_v  = get_be_long(p);
   gm.map_points_h  = get_be_long(p);
@@ -122,9 +122,9 @@ decode_gain_map(void **out, uint8_t **p, uint32_t len)
   size_t count = gm.map_points_h * gm.map_points_v * gm.map_planes;
   if(len != 76 + count * sizeof(float))
     return 1;
-  dng_gain_map_t *pgm =
-      calloc(1, sizeof(dng_gain_map_t) + count * sizeof(float));
-  memcpy(pgm, &gm, sizeof(dng_gain_map_t));
+  dt_dng_gain_map_t *pgm =
+      calloc(1, sizeof(dt_dng_gain_map_t) + count * sizeof(float));
+  memcpy(pgm, &gm, sizeof(dt_dng_gain_map_t));
   *out = pgm;
   for(int i = 0; i < count; i++)
     pgm->map_gain[i] = get_be_float(p);
@@ -137,7 +137,7 @@ decode_fix_vignette_radial(void **out, uint8_t **p, uint32_t len)
 {
   if(len != 56)
     return 1;
-  dng_fix_vignette_radial_t *fvr = calloc(1, sizeof(dng_fix_vignette_radial_t));
+  dt_dng_fix_vignette_radial_t *fvr = calloc(1, sizeof(dt_dng_fix_vignette_radial_t));
   *out                           = fvr;
   for(int j = 0; j < 5; j++)
     fvr->k[j] = get_be_double(p);
@@ -151,8 +151,8 @@ decode_fix_bad_pixels_constant(void **out, uint8_t **p, uint32_t len)
 {
   if(len != 8)
     return 1;
-  dng_fix_bad_pixels_constant_t *fbpc =
-      calloc(1, sizeof(dng_fix_bad_pixels_constant_t));
+  dt_dng_fix_bad_pixels_constant_t *fbpc =
+      calloc(1, sizeof(dt_dng_fix_bad_pixels_constant_t));
   *out              = fbpc;
   fbpc->constant    = get_be_long(p);
   fbpc->bayer_phase = get_be_long(p);
@@ -167,8 +167,8 @@ decode_fix_bad_pixels_list(void **out, uint8_t **p, uint32_t len)
   uint32_t bad_rect_count  = get_be_long(p);
   if(len != 12 + bad_point_count * 8 + bad_rect_count * 16)
     return 1;
-  dng_fix_bad_pixels_list_t *fbpl = calloc(
-      1, sizeof(dng_fix_bad_pixels_list_t) +
+  dt_dng_fix_bad_pixels_list_t *fbpl = calloc(
+      1, sizeof(dt_dng_fix_bad_pixels_list_t) +
              (bad_point_count * 2 + bad_rect_count * 4) * sizeof(uint32_t));
   *out                  = fbpl;
   fbpl->bayer_phase     = bayer_phase;
@@ -186,7 +186,7 @@ decode_trim_bounds(void **out, uint8_t **p, uint32_t len)
 {
   if(len != 16)
     return 1;
-  dng_trim_bounds_t *tb = calloc(1, sizeof(dng_trim_bounds_t));
+  dt_dng_trim_bounds_t *tb = calloc(1, sizeof(dt_dng_trim_bounds_t));
   *out                  = tb;
   tb->top               = get_be_long(p);
   tb->left              = get_be_long(p);
@@ -198,15 +198,15 @@ decode_trim_bounds(void **out, uint8_t **p, uint32_t len)
 static int
 decode_map_table(void **out, uint8_t **p, uint32_t len)
 {
-  dng_map_table_t mt;
+  dt_dng_map_table_t mt;
   decode_dng_region(&mt.region, p);
   mt.table_size = get_be_long(p);
   if(len != 36 + 2 * mt.table_size)
     return 1;
-  dng_map_table_t *pmt =
-      calloc(1, sizeof(dng_map_table_t) + mt.table_size * sizeof(uint16_t));
+  dt_dng_map_table_t *pmt =
+      calloc(1, sizeof(dt_dng_map_table_t) + mt.table_size * sizeof(uint16_t));
   *out = pmt;
-  memcpy(pmt, &mt, sizeof(dng_map_table_t));
+  memcpy(pmt, &mt, sizeof(dt_dng_map_table_t));
   for(int i = 0; i < mt.table_size; i++)
     pmt->table[i] = get_be_short(p);
   return 0;
@@ -215,15 +215,15 @@ decode_map_table(void **out, uint8_t **p, uint32_t len)
 static int
 decode_map_polynomial(void **out, uint8_t **p, uint32_t len)
 {
-  dng_map_polynomial_t mp;
+  dt_dng_map_polynomial_t mp;
   decode_dng_region(&mp.region, p);
   mp.degree = get_be_long(p);
   if(len != 36 + 8 * mp.degree)
     return 1;
-  dng_map_polynomial_t *pmp =
-      calloc(1, sizeof(dng_map_polynomial_t) + mp.degree * sizeof(double));
+  dt_dng_map_polynomial_t *pmp =
+      calloc(1, sizeof(dt_dng_map_polynomial_t) + mp.degree * sizeof(double));
   *out = pmp;
-  memcpy(pmp, &mp, sizeof(dng_map_polynomial_t));
+  memcpy(pmp, &mp, sizeof(dt_dng_map_polynomial_t));
   for(int i = 0; i < mp.degree; i++)
     pmp->coefs[i] = get_be_double(p);
   return 0;
@@ -235,9 +235,9 @@ decode_warp_rectilinear_2(void **out, uint8_t **p, uint32_t len)
   uint32_t count = get_be_long(p);
   if(len != 24 + count * 76)
     return 1;
-  dng_warp_rectilinear_2_t *wr =
-      calloc(1, sizeof(dng_warp_rectilinear_2_t) +
-                    count * sizeof(dng_warp_rectilinear_2_coef_t));
+  dt_dng_warp_rectilinear_2_t *wr =
+      calloc(1, sizeof(dt_dng_warp_rectilinear_2_t) +
+                    count * sizeof(dt_dng_warp_rectilinear_2_coef_t));
   *out      = wr;
   wr->count = count;
   for(int i = 0; i < count; i++)
@@ -256,7 +256,7 @@ decode_warp_rectilinear_2(void **out, uint8_t **p, uint32_t len)
 }
 
 static int
-decode_opcode(dng_opcode_t *op, uint8_t **p)
+decode_opcode(dt_dng_opcode_t *op, uint8_t **p)
 {
   uint32_t op_id = get_be_long(p);
   get_be_long(p);
@@ -296,7 +296,7 @@ decode_opcode(dng_opcode_t *op, uint8_t **p)
   }
 }
 
-dng_opcode_list_t *
+dt_dng_opcode_list_t *
 dt_dng_opcode_list_decode(uint8_t *data, size_t len)
 {
   uint8_t *p     = data;
@@ -316,8 +316,8 @@ dt_dng_opcode_list_decode(uint8_t *data, size_t len)
   if(p != &data[len])
     return NULL;
 
-  dng_opcode_list_t *ops =
-      calloc(1, sizeof(dng_opcode_list_t) + count * sizeof(dng_opcode_t));
+  dt_dng_opcode_list_t *ops =
+      calloc(1, sizeof(dt_dng_opcode_list_t) + count * sizeof(dt_dng_opcode_t));
   ops->count = count;
 
   p = &data[4];
@@ -334,7 +334,7 @@ dt_dng_opcode_list_decode(uint8_t *data, size_t len)
 }
 
 void
-dt_dng_opcode_list_free(dng_opcode_list_t *ops)
+dt_dng_opcode_list_free(dt_dng_opcode_list_t *ops)
 {
   if(ops == NULL)
     return;

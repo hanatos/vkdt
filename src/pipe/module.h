@@ -54,7 +54,7 @@ typedef struct dt_image_params_t
   float noise_b;              // raw noise estimate, poissonian part
   dt_token_t input_name;      // remember the name, "main" has special rights
 
-  dng_opcode_list_t *dng_opcode_lists[3];
+  dt_dng_opcode_list_t *dng_opcode_lists[3];
 
   // optional extra data to travel along with the image until the output:
   dt_image_metadata_t *meta;  // owned by the i-* module that sets it

@@ -55,7 +55,7 @@ typedef enum dt_exif_image_orientation_t
 }
 dt_exif_image_orientation_t;
 
-int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dng_opcode_list_t **dng_opcode_lists)
+int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dt_dng_opcode_list_t **dng_opcode_lists)
 {
   try
   {
@@ -303,7 +303,7 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dng
 /** read the metadata of an image.
  * XMP data trumps IPTC data trumps EXIF data
  */
-int dt_exif_read(dt_image_params_t *ip, const char *path, dng_opcode_list_t **dng_opcode_lists)
+int dt_exif_read(dt_image_params_t *ip, const char *path, dt_dng_opcode_list_t **dng_opcode_lists)
 {
   // at least set datetime taken to something useful in case there is no exif
   // data in this file (pfm, png, ...)

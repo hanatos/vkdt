@@ -16,23 +16,23 @@ typedef enum
   s_dngop_gain_map                = 9,
   s_dngop_warp_rectilinear_2      = 14
 }
-dng_opcode_id_t;
+dt_dng_opcode_id_t;
 
 typedef struct
 {
-  dng_opcode_id_t id;
+  dt_dng_opcode_id_t id;
   uint32_t        optional;
   uint32_t        preview_skip;
   void           *data;
 }
-dng_opcode_t;
+dt_dng_opcode_t;
 
 typedef struct
 {
   int          count;
-  dng_opcode_t ops[];
+  dt_dng_opcode_t ops[];
 }
-dng_opcode_list_t;
+dt_dng_opcode_list_t;
 
 typedef struct
 {
@@ -45,11 +45,11 @@ typedef struct
   uint32_t row_pitch;
   uint32_t col_pitch;
 }
-dng_region_t;
+dt_dng_region_t;
 
 typedef struct
 {
-  dng_region_t region;
+  dt_dng_region_t region;
   uint32_t     map_points_v;
   uint32_t     map_points_h;
   double       map_spacing_v;
@@ -59,38 +59,38 @@ typedef struct
   uint32_t     map_planes;
   float        map_gain[];
 }
-dng_gain_map_t;
+dt_dng_gain_map_t;
 
 typedef struct
 {
   double kr[4];
   double kt[2];
 }
-dng_warp_rectilinear_coef_t;
+dt_dng_warp_rectilinear_coef_t;
 
 typedef struct
 {
   uint32_t                    count;
   double                      center_x;
   double                      center_y;
-  dng_warp_rectilinear_coef_t coefs[];
+  dt_dng_warp_rectilinear_coef_t coefs[];
 }
-dng_warp_rectilinear_t;
+dt_dng_warp_rectilinear_t;
 
 typedef struct
 {
   double kr[4];
 }
-dng_warp_fisheye_coef_t;
+dt_dng_warp_fisheye_coef_t;
 
 typedef struct
 {
   uint32_t                count;
   double                  center_x;
   double                  center_y;
-  dng_warp_fisheye_coef_t coefs[];
+  dt_dng_warp_fisheye_coef_t coefs[];
 }
-dng_warp_fisheye_t;
+dt_dng_warp_fisheye_t;
 
 typedef struct
 {
@@ -98,14 +98,14 @@ typedef struct
   double center_x;
   double center_y;
 }
-dng_fix_vignette_radial_t;
+dt_dng_fix_vignette_radial_t;
 
 typedef struct
 {
   uint32_t constant;
   uint32_t bayer_phase;
 }
-dng_fix_bad_pixels_constant_t;
+dt_dng_fix_bad_pixels_constant_t;
 
 typedef struct
 {
@@ -116,7 +116,7 @@ typedef struct
   uint32_t *rects;
   uint32_t  _data[];
 }
-dng_fix_bad_pixels_list_t;
+dt_dng_fix_bad_pixels_list_t;
 
 typedef struct
 {
@@ -125,23 +125,23 @@ typedef struct
   uint32_t bottom;
   uint32_t right;
 }
-dng_trim_bounds_t;
+dt_dng_trim_bounds_t;
 
 typedef struct
 {
-  dng_region_t region;
+  dt_dng_region_t region;
   uint32_t     table_size;
   uint16_t     table[];
 }
-dng_map_table_t;
+dt_dng_map_table_t;
 
 typedef struct
 {
-  dng_region_t region;
+  dt_dng_region_t region;
   uint32_t     degree;
   double       coefs[];
 }
-dng_map_polynomial_t;
+dt_dng_map_polynomial_t;
 
 typedef struct
 {
@@ -150,7 +150,7 @@ typedef struct
   double min_valid_radius;
   double max_valid_radius;
 }
-dng_warp_rectilinear_2_coef_t;
+dt_dng_warp_rectilinear_2_coef_t;
 
 typedef struct
 {
@@ -158,10 +158,10 @@ typedef struct
   double                        center_x;
   double                        center_y;
   uint32_t                      reciprocal_radial;
-  dng_warp_rectilinear_2_coef_t coefs[];
+  dt_dng_warp_rectilinear_2_coef_t coefs[];
 }
-dng_warp_rectilinear_2_t;
+dt_dng_warp_rectilinear_2_t;
 
-dng_opcode_list_t *dt_dng_opcode_list_decode(uint8_t *data, size_t len);
+dt_dng_opcode_list_t *dt_dng_opcode_list_decode(uint8_t *data, size_t len);
 
-void dt_dng_opcode_list_free(dng_opcode_list_t *ops);
+void dt_dng_opcode_list_free(dt_dng_opcode_list_t *ops);

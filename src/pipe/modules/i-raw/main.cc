@@ -38,7 +38,7 @@ typedef struct rawinput_buf_t
   std::unique_ptr<rawspeed::RawDecoder> d;
   char filename[PATH_MAX] = {0};
   int ox, oy;
-  dng_opcode_list_t *dng_opcode_lists[3];
+  dt_dng_opcode_list_t *dng_opcode_lists[3];
 }
 rawinput_buf_t;
 
