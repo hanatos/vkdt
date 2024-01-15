@@ -1,16 +1,23 @@
 #include "modules/api.h"
+#include "metadata.h"
 #include "config.h"
 
 int init(dt_module_t *mod)
 {
-  mod->data = malloc(sizeof(char)*2048);
-  snprintf(mod->data, 2048,
+  dt_image_metadata_text_t *meta = malloc(sizeof(*meta));
+  char *text = malloc(sizeof(char)*2048);
+  *meta = (dt_image_metadata_text_t) {
+    .type = s_image_metadata_text,
+    .text = text,
+  };
+  mod->data = meta;
+  snprintf(text, 2048,
       "lut contains weights for\n"
       "multi-level kernel predicting mlp with:\n"
       "%d hidden layers\n"
       "%d network width\n"
       "%s kernel weight activation\n"
-      "%s alpha blending activation\n",
+      "%s alpha blending activation",
       N_HIDDEN_LAYERS,
       WIDTH,
        APPLY_ACTIVATION == APPLY_PLAIN ? "plain" :
@@ -23,6 +30,10 @@ int init(dt_module_t *mod)
 void cleanup(dt_module_t *mod)
 {
   if(!mod->data) return;
+  // probably not necessary now because a module remove/cleanup will trigger a complete graph rebuild:
+  mod->img_param.meta = dt_metadata_remove(mod->img_param.meta, mod->data);
+  dt_image_metadata_text_t *meta = mod->data;
+  free((char *)meta->text);
   free(mod->data);
   mod->data = 0;
 }
@@ -32,6 +43,7 @@ modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  module->img_param.meta = dt_metadata_append(module->img_param.meta, module->data);
   module->connector[3].roi = (dt_roi_t){ .full_wd = WIDTH, .full_ht = (N_HIDDEN_LAYERS+1)*WIDTH};  // weights
   module->connector[2].roi = module->connector[0].roi; // output image
   module->connector[4].roi.full_wd = 500; // output graph
@@ -113,8 +125,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   while(wd > 1);
   // last iteration maps to temporal buffer
   graph->node[id_in].connector[1].roi.wd = module->connector[4].roi.wd; // frames now
-  // graph->node[id_down].connector[1].flags = s_conn_protected; // protect memory
-  graph->node[id_in].connector[1].type = dt_token("source");// ???
+  // graph->node[id_in].connector[1].type = dt_token("source");// ???
   int pcm[] = { module->connector[4].roi.wd };
   const int id_map = dt_node_add(
       graph, module, "kpn-t", "map",
@@ -122,6 +133,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "Ei",   "read",  "ssbo", "f32", dt_no_roi,
       "dspy", "write", "rgba", "f16", &module->connector[4].roi);
   CONN(dt_node_connect_named(graph, id_in, "Eo", id_map, "Ei"));
+  graph->node[id_in].connector[1].flags = s_conn_protected; // protect memory
 
   // mip map the input:
   dt_roi_t roi_M[4] = { roi_input };

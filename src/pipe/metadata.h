@@ -45,3 +45,13 @@ dt_metadata_find(
   }
   return 0;
 }
+
+static inline void*
+dt_metadata_remove(
+    dt_image_metadata_t *meta,
+    dt_image_metadata_t *rem)
+{
+  if(meta == rem) return rem->next;
+  meta->next = dt_metadata_remove(meta->next, rem);
+  return meta;
+}

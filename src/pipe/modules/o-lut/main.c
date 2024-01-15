@@ -34,7 +34,8 @@ void write_sink(
     size_t bytes = header.wd * (uint64_t)header.ht * (uint64_t)header.channels * (uint64_t)dt_connector_bytes_per_channel(module->connector+0);
     fwrite(buf, bytes, 1, f);
     dt_image_metadata_text_t *meta = dt_metadata_find(module->img_param.meta, s_image_metadata_text);
-    if(meta && meta->text) fprintf(f, "%s", meta->text);
+    if(meta && meta->text)
+      fprintf(f, "%s\n", meta->text);
     fclose(f);
   }
 }

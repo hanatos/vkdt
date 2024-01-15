@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   fseek(f, sz+sizeof(header), SEEK_SET);
   while(!feof(f))
   {
-    char buf[BUFSIZ];
+    char buf[BUFSIZ] = {0};
     fscanf(f, "%[^\n]", buf);
     fgetc(f);
     fprintf(stdout, "%s\n", buf);
