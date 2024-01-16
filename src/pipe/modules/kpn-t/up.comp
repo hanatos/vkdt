@@ -37,7 +37,7 @@ void main()
 #endif
 
   vec4 I = texelFetch(img_I, opos, 0);
-#if 1 // do a down/up dance, sum only detail coefficients to upscaled O
+#if 0 // do a down/up dance, sum only detail coefficients to upscaled O
   // O = O + I.a * (I.rgb - updown(I.rgb)
   vec3 Ismooth = vec3(0.0);
   [[unroll]] for(int j=-1;j<=1;j++) [[unroll]] for(int i=-1;i<=1;i++)

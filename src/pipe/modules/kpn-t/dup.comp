@@ -27,7 +27,9 @@ void main()
 
   const ivec2 ipos = opos * 2; // rounded down on fine res
   vec3 dEdOc = vec3(0.0);
+#if 0
   vec4 dEdI[4] = {vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0)};
+#endif
 
   // one coarse pixel contributes to a grid of 6x6 fine pixels
   for(int j=-2;j<4;j++) for(int i=-2;i<4;i++)
@@ -41,7 +43,7 @@ void main()
     const float w1[3] = {1.0 / 16.0, 10.0 / 16.0, 5.0 / 16.0};
     vec3 O = vec3(0.0);
 
-#if 1 // O = up(Oc) + I.a * (I.rgb - updown(I.rgb))
+#if 0 // O = up(Oc) + I.a * (I.rgb - updown(I.rgb))
     // dEdOc    = dEdO * dO/dOc   = dEdO * sum(w)
     // dEdI.a   = dEdO * dOdI.a   = dEdO * (I.rgb - updown(I.rgb))        = dEdO * (I.rgb - Ismooth)
     // dEdI.rgb = dEdO * dOdI.rgb = dEdO * I.a * (1 - d/dI updown(I.rgb)) = dEdO * I.a * (1 - 1/4 * sum(w))
@@ -91,14 +93,14 @@ void main()
     O += w*rgb;
     if(tc/2 == opos) dEdOc += (1.0-I.a) * w * dEdO;
 #endif
-#endif
     if(j>=0 && j<2 && i>=0 && i<2)
     {
       vec4 dEdI = vec4(dEdO * I.a, dot(dEdO, I.rgb - O)); // original
       if(all(lessThan(tc, imageSize(img_dEdI)))) imageStore(img_dEdI, tc, dEdI);
     }
+#endif
   }
-#if 1
+#if 0
   imageStore(img_dEdI, 2*opos+ivec2(0,0), dEdI[0]);
   imageStore(img_dEdI, 2*opos+ivec2(1,0), dEdI[1]);
   imageStore(img_dEdI, 2*opos+ivec2(0,1), dEdI[2]);
