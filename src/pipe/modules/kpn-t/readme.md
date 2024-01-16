@@ -20,11 +20,12 @@ connect:i-pfm:main:output:cnngenin:01:imgi
 connect:i-pfm:ref:output:cnngenin:01:refi
 connect:cnngenin:01:imgo:kpn-t:01:input
 connect:cnngenin:01:refo:kpn-t:01:ref
+connect:cnngenin:01:noiseab:kpn-t:01:noiseab
 connect:kpn-t:01:w:o-lut:w:input
 connect:kpn-t:01:output:display:main:input
 param:i-pfm:main:filename:img_12800.pfm
 param:i-pfm:ref:filename:img_100.pfm
-param:cnngenin:01:generate:1
+param:cnngenin:01:generate:2
 param:kpn-t:01:init:1
 param:kpn-t:01:L2:0
 param:o-lut:w:filename:mlp-w
@@ -42,20 +43,12 @@ lets us work with leaky relu without exploding gradients.
 ## TODO
 
 FIXME: can't compute `DEBUG_DERIV` on current softmax code
-FIXME: loss plot seems fubared
 
 release:
 TODO: use KHR coopmat extension instead of NV (mainly types matA matB matC)
-TODO: compile both versions (bck,fwd,inf)x(cm,nocm)
-TODO: pick kernel based on flag in qvk
 TODO: what about the non-32 subgroups? (is a vk1.3 extension)
 TODO: what is good input? (paris/durand propose shipping noise sigma)
 TODO: luma/chroma blend
-
-training:
-TODO: input luminance + noise std dev (for rendering)
-TODO: generate noisy input synthetically from noise profiles
-TODO: cnngenin: train with ref vs. all other iso
 
 extra credits: run on raw bayer and demosaic as you go?
 
