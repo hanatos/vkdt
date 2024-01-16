@@ -9,10 +9,12 @@ layout(std140, set = 0, binding = 0) uniform global_t
 } global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  int offx, offy; // XXX float for keyframes?
+  int offx, offy;
   int flip;
   float ev;
   int generate;
+  float noise_a;
+  float noise_b;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_rfi;
@@ -24,32 +26,17 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-#if 0 // XXX DEBUG
-  vec4 ref = vec4(1.0);
-  // uint seed = global.frame + 13370000 * ipos.x + ipos.y*123569;
-  uint seed = 13370000 * ipos.x + ipos.y*123569;
-  // if(ipos.y >= 16) ref.rgb = vec3(0.1);
-  if(((ipos.y/16) % 2) == 0) ref.rgb *= vec3(1,1,1);
-  else ref.rgb *= vec3(0,0,0);
-  vec4 rgb = ref;
-  // rgb.rgb += 0.05 * (0.5 - vec3(mrand(seed), mrand(seed), mrand(seed)));
-  // ref = vec4(1.0); // XXX
-  // rgb = vec4(1.0); // XXX
-  imageStore(img_out, ipos, rgb);
-  imageStore(img_rfo, ipos, ref);
-#else
-
   ivec2 rpos = ipos;
   int flip = params.flip;
   ivec2 off = ivec2(params.offx, params.offy);
   float ev = params.ev;
 
-  if(params.generate == 1)
+  if(params.generate != 1)
   {
     // uint seed = 123456789+133700 * (global.frame/500);
     uint seed = 123456789+133700 * global.frame;
     ev = -2.0 + 4.0*mrand(seed);
-    flip = 0;// XXX int(4.0*mrand(seed));
+    flip = int(4.0*mrand(seed));
     off = ivec2(textureSize(img_in, 0) * vec2(mrand(seed), mrand(seed)));
   }
 
@@ -59,11 +46,21 @@ void main()
   vec2 tc = (tci + 0.5)/vec2(textureSize(img_in, 0));
   vec4 rgb = texture(img_in,  tc);
   vec4 ref = texture(img_rfi, tc);
+
+  if(params.generate == 2)
+  { // add noise according to gaussian/poissonian profile
+    uint seed = 123456789+133700 * global.frame + 7654*ipos.x + 1357900*ipos.y;
+    seed = uint((1<<29)*mrand(seed));
+    const float scale = 65535.0;
+    vec4 z = vec4(warp_gaussian(vec2(mrand(seed), mrand(seed))),
+                  warp_gaussian(vec2(mrand(seed), mrand(seed))));
+    rgb.rgb = ref.rgb + z.rgb * sqrt(params.noise_a + scale*max(ref.rgb, vec3(0))*params.noise_b)/scale;
+  }
   
   rgb *= pow(2.0, ev);
   ref *= pow(2.0, ev);
 
+  rgb.w = ref.w = 1.0;
   imageStore(img_out, ipos, rgb);
   imageStore(img_rfo, ipos, ref);
-#endif
 }

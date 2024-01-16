@@ -1,4 +1,5 @@
 #include "localsize.h"
+#define M_PI   3.14159265358979323846
 
 float clamps(float v, float m, float M)
 { // opposite to the definition of clamp this one never passes on v in case of NaN (but clamps to M instead)
@@ -390,4 +391,10 @@ vec3 hsv2rgb(vec3 c)
   vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
   vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
   return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+vec2 warp_gaussian(vec2 xi)
+{ // warp two uniform [0,1) random variables to two standard normal distributed ones (box muller transform)
+  // use 1-x instead of x to avoid log(0)
+  return sqrt(-2.0*log(1.0-xi.x))*vec2(cos(2.0*M_PI*xi.y), sin(2.0*M_PI*xi.y));
 }
