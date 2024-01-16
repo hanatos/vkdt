@@ -193,19 +193,21 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_roi_t roi_K = (dt_roi_t){ .wd = batch_size, .ht = 16 };                          // output: 15-tap kernel (+1 alpha) per pixel
     // XXX TODO: check size: seems ht = N_HIDDEN_LAYERS * WIDTH should be enough!
     dt_roi_t roi_A = (dt_roi_t){ .wd = batch_size, .ht = (N_HIDDEN_LAYERS + 1) *WIDTH}; // intermediates for backprop
-    const int pc_fwd[] = { 32, batch_size, 16 };
+    const int pc_fwd[] = { 32, batch_size, 16, i };
     // uint32_t in_width;         = WIDTH, multiple of 16
     // uint32_t output_stride;    = 16, last layer only
     const int blocks[] = { pc_fwd[1]/128, 1u, 1u }; // num pixels / (16 * N_ITERS)
     
     // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
     const int id_fwd = dt_node_add( // infer kernel and store intermediate activations too
-        graph, module, "kpn-t", "fwd", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_fwd), pc_fwd, 4,
+        graph, module, "kpn-t", "fwd", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_fwd), pc_fwd, 5,
         "M", "read",  "rgba", "*",   dt_no_roi, // input image mipmap level
         "w", "read",  "ssbo", "f16", dt_no_roi, // MLP weights
         "K", "write", "ssbo", "f16", &roi_K,    // network output, 15 kernel weights + 1 alpha per px 
-        "A", "write", "ssbo", "f16", &roi_A); // intermediate layer activations, 32 per layer per px
+        "A", "write", "ssbo", "f16", &roi_A,    // intermediate layer activations, 32 per layer per px
+        "nab","read", "ssbo", "f32", dt_no_roi);// noise profile from cnngenin
     graph->node[id_fwd].connector[3].flags = s_conn_clear; // make sure padded entries are 0
+    dt_connector_copy(graph, module, 8, id_fwd, 4); // wire noise profile ssbo
 
     const int id_apply = dt_node_add( // apply convolution
         graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
@@ -276,15 +278,17 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "dEdK", "read",  "ssbo", "f16", dt_no_roi); // input from loss -> dapply
     graph->node[id_bck].connector[1].flags = s_conn_clear; // make sure padded entries are 0
 
-    int pc_mulw[] = { batch_size };
+    int pc_mulw[] = { batch_size, i };
     const int id_dw = dt_node_add( // backpropagation: compute dE/dw
-        graph, module, "kpn-t", "mulw", WIDTH * DT_LOCAL_SIZE_X, WIDTH * DT_LOCAL_SIZE_Y, 1, sizeof(pc_mulw), pc_mulw, 5,
+        graph, module, "kpn-t", "mulw", WIDTH * DT_LOCAL_SIZE_X, WIDTH * DT_LOCAL_SIZE_Y, 1, sizeof(pc_mulw), pc_mulw, 6,
         "M",    "read",  "rgba", "*",   dt_no_roi,     // input image
         "dEdK", "read",  "ssbo", "f16", dt_no_roi,     // last layer dE/dK from dapply
         "A",    "read",  "ssbo", "f16", dt_no_roi,     // intermediate fwd activations
         "dEdA", "read",  "ssbo", "f16", dt_no_roi,     // intermediate bck activations
-        "dEdw", "write", "ssbo", "f32", &roi_weights); // weight gradients dE/dw
+        "dEdw", "write", "ssbo", "f32", &roi_weights,  // weight gradients dE/dw
+        "nab",  "read",  "ssbo", "f32", dt_no_roi);    // noise profile from cnngenin
 
+    dt_connector_copy(graph, module, 8, id_dw, 5); // wire noise profile ssbo
     CONN(dt_node_connect(graph, id_dw, 4, id_sum, i));
     CONN(dt_node_connect_named(graph, id_adam,   "w",    id_bck,    "w"));
     CONN(dt_node_connect_named(graph, id_fwd,    "A",    id_bck,    "A"));

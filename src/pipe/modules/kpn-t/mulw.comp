@@ -9,12 +9,12 @@
 
 #include "config.h"
 #include "shared.glsl"
-#include "input.glsl"
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 0) uniform global_t { } global;
 layout(push_constant, std140) uniform push_t
 {
-  int batch_size;       // number of pixels
+  int batch_size; // number of pixels
+  int level;      // mip level 0, 1, ..
 } push;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
 
@@ -23,6 +23,8 @@ layout(std430, set = 1, binding = 1) readonly  buffer ssbo_dEdK_t { float16_t v[
 layout(std430, set = 1, binding = 2) readonly  buffer ssbo_A_t    { float16_t v[]; } ssbo_A;    // intermediate fwd: activations
 layout(std430, set = 1, binding = 3) readonly  buffer ssbo_dEdA_t { float16_t v[]; } ssbo_dEdA; // intermediate bck: dE/dO
 layout(std430, set = 1, binding = 4) writeonly buffer ssbo_dEdw_t { float     v[]; } ssbo_dEdw; // dE/dw
+layout(std430, set = 1, binding = 4) readonly  buffer ssbo_nab_t { float noise_a; float noise_b; } ssbo_nab; // noise profile a b
+#include "input.glsl"
 
 shared float shm_tmp[32];
 

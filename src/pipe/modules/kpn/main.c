@@ -49,7 +49,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   { // from fine M0 to coarse M3 and on to M6
     const uint32_t unit = N_ITERS * 16;
     const uint32_t batch_size = unit * ((unit - 1 + roi_M[i].wd*roi_M[i].ht)/unit); // #px rounded up to 128 (=N_ITERS*16)
-    const int pc_inf[] = { 32, batch_size, 16 };
+    const int pc_inf[] = { 32, batch_size, 16, i };
     // uint32_t in_width;         = WIDTH, multiple of 16
     // uint32_t output_stride;    = 16, last layer only
     const int blocks[] = { pc_inf[1]/unit, 1u, 1u }; // num pixels / (16 * N_ITERS)

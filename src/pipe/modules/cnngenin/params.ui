@@ -2,5 +2,3 @@ off:hidden
 flip:hidden
 ev:hidden
 generate:combo:static patch:randomised:degrade reference
-noise a:slider:0:10000
-noise b:slider:0:20

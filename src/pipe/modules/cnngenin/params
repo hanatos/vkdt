@@ -2,5 +2,3 @@ off:int:2:0:0
 flip:int:1:0
 ev:float:1:0.0
 generate:int:1:0
-noise a:float:1:0
-noise b:float:1:0

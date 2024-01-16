@@ -13,13 +13,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int flip;
   float ev;
   int generate;
-  float noise_a;
-  float noise_b;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_rfi;
 layout(set = 1, binding = 2) uniform writeonly image2D img_out;
 layout(set = 1, binding = 3) uniform writeonly image2D img_rfo;
+layout(std430, set = 1, binding = 4) writeonly buffer ssbo_nab_t { float noise_a; float noise_b; } ssbo_nab; // noise profile a b
 
 void main()
 {
@@ -31,10 +30,10 @@ void main()
   ivec2 off = ivec2(params.offx, params.offy);
   float ev = params.ev;
 
+  // uint seed = 123456789+133700 * (global.frame/500);
+  uint seed = 123456789+133700 * global.frame;
   if(params.generate != 1)
   {
-    // uint seed = 123456789+133700 * (global.frame/500);
-    uint seed = 123456789+133700 * global.frame;
     ev = -2.0 + 4.0*mrand(seed);
     flip = int(4.0*mrand(seed));
     off = ivec2(textureSize(img_in, 0) * vec2(mrand(seed), mrand(seed)));
@@ -49,12 +48,20 @@ void main()
 
   if(params.generate == 2)
   { // add noise according to gaussian/poissonian profile
-    uint seed = 123456789+133700 * global.frame + 7654*ipos.x + 1357900*ipos.y;
-    seed = uint((1<<29)*mrand(seed));
+    // sample noise a/b based on per-frame seed
     const float scale = 65535.0;
+    float noise_a = scale * mrand(seed);
+    float noise_b = 100.0 * mrand(seed);
+    if(ipos.x == 0 && ipos.y == 0)
+    { // pass on to training in kpn-t
+      ssbo_nab.noise_a = noise_a;
+      ssbo_nab.noise_b = noise_b;
+    }
+    seed += 7654*ipos.x + 1357900*ipos.y;
+    seed = uint((1<<29)*mrand(seed));
     vec4 z = vec4(warp_gaussian(vec2(mrand(seed), mrand(seed))),
                   warp_gaussian(vec2(mrand(seed), mrand(seed))));
-    rgb.rgb = ref.rgb + z.rgb * sqrt(params.noise_a + scale*max(ref.rgb, vec3(0))*params.noise_b)/scale;
+    rgb.rgb = ref.rgb + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
   }
   
   rgb *= pow(2.0, ev);
