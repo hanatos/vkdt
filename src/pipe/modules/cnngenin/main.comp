@@ -48,22 +48,26 @@ void main()
   rgb *= pow(2.0, ev);
   ref *= pow(2.0, ev);
 
+  float noise_a = 0.0;
+  float noise_b = 0.0;
+
   if(params.generate == 2)
   { // add noise according to gaussian/poissonian profile
     // sample noise a/b based on per-frame seed
     const float scale = 65535.0;
-    float noise_a = scale * mrand(seed);
-    float noise_b = 100.0 * mrand(seed);
-    if(ipos.x == 0 && ipos.y == 0)
-    { // pass on to training in kpn-t
-      ssbo_nab.noise_a = noise_a;
-      ssbo_nab.noise_b = noise_b;
-    }
+    noise_a = scale * mrand(seed);
+    noise_b = 100.0 * mrand(seed);
     seed += 7654*ipos.x + 1357900*ipos.y;
     seed = uint((1<<29)*mrand(seed));
     vec4 z = vec4(warp_gaussian(vec2(mrand(seed), mrand(seed))),
                   warp_gaussian(vec2(mrand(seed), mrand(seed))));
     rgb.rgb = ref.rgb + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
+  }
+
+  if(ipos.x == 0 && ipos.y == 0)
+  { // pass on to training in kpn-t
+    ssbo_nab.noise_a = noise_a;
+    ssbo_nab.noise_b = noise_b;
   }
   
   rgb.w = ref.w = 1.0;
