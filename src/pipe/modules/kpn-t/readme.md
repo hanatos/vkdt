@@ -44,6 +44,8 @@ lets us work with leaky relu without exploding gradients.
 
 FIXME: can't compute `DEBUG_DERIV` on current softmax code
 
+TODO: try down/up step in up and dup
+
 release:
 TODO: use KHR coopmat extension instead of NV (mainly types matA matB matC)
 TODO: what about the non-32 subgroups? (is a vk1.3 extension)

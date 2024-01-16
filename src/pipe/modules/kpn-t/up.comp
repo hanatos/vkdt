@@ -31,11 +31,25 @@ void main()
     O += w*rgb;
   }
 #else
-    vec3 rgb = texture(img_Oc, (opos/2 + 0.5)/vec2(textureSize(img_Oc, 0))).rgb;
-    float w = 1;
-    O += w*rgb;
+  vec3 rgb = texture(img_Oc, (opos/2 + 0.5)/vec2(textureSize(img_Oc, 0))).rgb;
+  float w = 1;
+  O += w*rgb;
 #endif
+
   vec4 I = texelFetch(img_I, opos, 0);
+#if 1 // do a down/up dance, sum only detail coefficients to upscaled O
+  // O = O + I.a * (I.rgb - updown(I.rgb)
+  vec3 Ismooth = vec3(0.0);
+  [[unroll]] for(int j=-1;j<=1;j++) [[unroll]] for(int i=-1;i<=1;i++)
+  {
+    vec3 rgb = texture(img_I, (2.0*(opos/2 + ivec2(i,j))+1.0)/vec2(textureSize(img_I, 0))).rgb;
+    float w = ((opos.x & 1) == 0) ? w0[i+1] : w1[i+1];
+    w      *= ((opos.y & 1) == 0) ? w0[j+1] : w1[j+1];
+    Ismooth += w*rgb;
+  }
+  O = O + I.a * (I.rgb - Ismooth);
+#else
   O = mix(O, I.rgb, I.a);
+#endif
   imageStore(img_O, opos, vec4(O, 1));
 }

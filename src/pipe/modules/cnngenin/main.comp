@@ -45,6 +45,8 @@ void main()
   vec2 tc = (tci + 0.5)/vec2(textureSize(img_in, 0));
   vec4 rgb = texture(img_in,  tc);
   vec4 ref = texture(img_rfi, tc);
+  rgb *= pow(2.0, ev);
+  ref *= pow(2.0, ev);
 
   if(params.generate == 2)
   { // add noise according to gaussian/poissonian profile
@@ -64,9 +66,6 @@ void main()
     rgb.rgb = ref.rgb + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
   }
   
-  rgb *= pow(2.0, ev);
-  ref *= pow(2.0, ev);
-
   rgb.w = ref.w = 1.0;
   imageStore(img_out, ipos, rgb);
   imageStore(img_rfo, ipos, ref);
