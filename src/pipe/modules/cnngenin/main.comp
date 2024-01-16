@@ -32,7 +32,7 @@ void main()
 
   // uint seed = 123456789+133700 * (global.frame/500);
   uint seed = 123456789+133700 * global.frame;
-  if(params.generate != 1)
+  if(params.generate != 0)
   {
     ev = -2.0 + 4.0*mrand(seed);
     flip = int(4.0*mrand(seed));

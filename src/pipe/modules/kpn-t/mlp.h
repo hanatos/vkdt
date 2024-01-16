@@ -9,11 +9,15 @@ void warp_activation(
     out coopmat_t r)
 { // note that [.] only accesses the element owned by this invocation, and length only returns the count of these.
   // relu: for NaN, max is specified to keep the first argument
-  // for (int i = 0; i < x.length(); ++i) r[i] = max(float16_t(0.0), x[i]);
+#if (MLP_ACTIVATION==MLP_ACTIVATION_RELU)
+  for (int i = 0; i < x.length(); ++i) r[i] = max(float16_t(0.0), x[i]);
+#elif (MLP_ACTIVATION==MLP_ACTIVATION_LEAKY_RELU)
   // leaky relu: better against dead neurons but can cause exploding gradients
   for (int i = 0; i < x.length(); ++i) r[i] = max(float16_t(0.01*x[i]), x[i]);
+#elif (MLP_ACTIVATION==MLP_ACTIVATION_NONE)
   // DEBUG: no activation (useful to make network linear and debug derivatives with large epsilon)
-  // for (int i = 0; i < x.length(); ++i) r[i] = x[i];
+  for (int i = 0; i < x.length(); ++i) r[i] = x[i];
+#endif
   // TODO: also try elu = a(e^x-1)
 }
 
@@ -22,9 +26,13 @@ void warp_activation_backward(
     in  coopmat_t f,  // forward fragment
     out coopmat_t r)  // result
 { // inverted activation, i.e. if warp_activation: y=s(x) we compute dE/dx = act_bck(dE/dy) = dE/dy * dy/dx = x * s'(f)
-  // for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.0); // relu
+#if (MLP_ACTIVATION==MLP_ACTIVATION_RELU)
+  for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.0); // relu
+#elif (MLP_ACTIVATION==MLP_ACTIVATION_LEAKY_RELU)
   for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.01 * x[i]); // leaky relu
-  // for (int i = 0; i < x.length(); ++i) r[i] = x[i]; // DEBUG no activation
+#elif (MLP_ACTIVATION==MLP_ACTIVATION_NONE)
+  for (int i = 0; i < x.length(); ++i) r[i] = x[i]; // DEBUG no activation
+#endif
 }
 
 #ifndef INFERENCE
