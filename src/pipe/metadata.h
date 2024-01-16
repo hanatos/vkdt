@@ -52,6 +52,6 @@ dt_metadata_remove(
     dt_image_metadata_t *rem)
 {
   if(meta == rem) return rem->next;
-  meta->next = dt_metadata_remove(meta->next, rem);
+  meta->next = dt_metadata_remove((dt_image_metadata_t *)meta->next, rem);
   return meta;
 }
