@@ -187,6 +187,8 @@ void main()
       const float w = clamp(float(wgt[k]), -200.0, 200.0);
       rgb += w * texture(img_in, (px + tap[k] + 0.5)/vec2(textureSize(img_in, 0))).rgb;
     }
+#elif (APPLY_ACTIVATION==APPLY_DEBUG)
+    vec3 rgb = vec3(1);
 #endif
 #if (ALPHA_ACTIVATION==ALPHA_CONST)
     const float alpha = 1.0;

@@ -19,6 +19,12 @@ void main()
   const ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_O)))) return;
 
+#if 1 // XXX DEBUG
+  vec4 I = texelFetch(img_I, opos, 0);
+  imageStore(img_O, opos, vec4(I.rgb, 1)); // XXX DEBUG
+  return; // XXX DEBUG
+#else
+
   const float w0[3] = {5.0 / 16.0, 10.0 / 16.0, 1.0 / 16.0};
   const float w1[3] = {1.0 / 16.0, 10.0 / 16.0, 5.0 / 16.0};
   vec3 O = vec3(0.0);
@@ -52,4 +58,5 @@ void main()
   O = mix(O, I.rgb, I.a);
 #endif
   imageStore(img_O, opos, vec4(O, 1));
+#endif
 }

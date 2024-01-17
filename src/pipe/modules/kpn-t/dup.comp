@@ -25,6 +25,15 @@ void main()
   const ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_dEdOc)))) return;
 
+#if 1 // XXX DEBUG
+  imageStore(img_dEdI, 2*opos+ivec2(0,0), texelFetch(img_dEdO, 2*opos+ivec2(0,0), 0));
+  imageStore(img_dEdI, 2*opos+ivec2(1,0), texelFetch(img_dEdO, 2*opos+ivec2(1,0), 0));
+  imageStore(img_dEdI, 2*opos+ivec2(0,1), texelFetch(img_dEdO, 2*opos+ivec2(0,1), 0));
+  imageStore(img_dEdI, 2*opos+ivec2(1,1), texelFetch(img_dEdO, 2*opos+ivec2(1,1), 0));
+  imageStore(img_dEdOc, opos, vec4(0));
+  return; // XXX DEBUG
+#endif
+
   const ivec2 ipos = opos * 2; // rounded down on fine res
   vec3 dEdOc = vec3(0.0);
 #if 0

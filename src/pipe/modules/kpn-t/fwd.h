@@ -70,8 +70,10 @@ threadblock_last_layer_forward(
 
   barrier();
   [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
+  {
     CHK_SHM((weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
     coopmat_load(weights_frag[i], shm_act, (weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/true);
+  }
   barrier();
 
   for (uint32_t idx = wi; idx < N_ITERS; idx += N_BLOCKS)

@@ -3,7 +3,7 @@
 #define SKEW 8  // or 0 if WIDTH % 16 != 0
 #define N_BLOCKS (WIDTH / 16)     // how many blocks in the weights for one layer, when we can work on 16x16 at a time.
 #define N_ITERS 8 // or 2 if WIDTH >= 256 // going over pixels: how many iterations working on batches of px
-#define N_HIDDEN_LAYERS 4
+#define N_HIDDEN_LAYERS 1
 #define GRAD_SCALE 128.0 // avoid underflow in f16 loss/gradients
 // modes for convolution by kernel:
 #define APPLY_SOFTMAX 1
@@ -27,8 +27,8 @@
 // #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
 #define MLP_ACTIVATION MLP_ACTIVATION_NONE // XXX debug deriv outside mlp with large offset DERIV_EPS
 
-#define DEBUG_DERIV // debug derivatives instead of training
-#define DERIV_EPS 1 // 1e-1 // lower will only show numeric jitter
+// #define DEBUG_DERIV // debug derivatives instead of training
+#define DERIV_EPS 1e-1 // lower will only show numeric jitter
 
 #if 0 // check memory bounds before access
 #define CHK_WGT(base, stride) if(base + 15 * stride + 16/EL_PER_UVEC4 <= WIDTH * WIDTH * (N_HIDDEN_LAYERS+1)/EL_PER_UVEC4)
@@ -39,4 +39,3 @@
 #define CHK_SHM(base, stride)
 #define CHK_OUT(base, stride)
 #endif
-

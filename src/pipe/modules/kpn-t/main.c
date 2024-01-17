@@ -48,10 +48,11 @@ modify_roi_out(
   module->connector[2].roi = module->connector[0].roi; // output image
 #ifdef DEBUG_DERIV
   module->connector[4].roi.full_wd = (N_HIDDEN_LAYERS+1)*WIDTH * WIDTH - WIDTH*16 + 1; // enough for all the partial derivatives
+  module->connector[4].roi.full_ht = 1;
 #else
   module->connector[4].roi.full_wd = 500; // output graph
-#endif
   module->connector[4].roi.full_ht = 200;
+#endif
   module->connector[5].roi = (dt_roi_t){ .full_wd = (N_HIDDEN_LAYERS+2)*WIDTH, .full_ht = 4*WIDTH };
   module->connector[6].roi = (dt_roi_t){ .full_wd = 4*module->connector[0].roi.full_wd, .full_ht = 4*module->connector[0].roi.full_ht };
 
