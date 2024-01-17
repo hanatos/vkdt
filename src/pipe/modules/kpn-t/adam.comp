@@ -49,7 +49,9 @@ main()
 #ifdef DEBUG_DERIV
   uint seed = i*133700013 + 19*0;
   // XXX DEBUG w = (0.5-mrand(seed)) * 2.0 * sqrt(6.0/(WIDTH+WIDTH));
-  w = 0.0001;//sqrt(6.0/(WIDTH+WIDTH));
+  // w = 0.0001;//sqrt(6.0/(WIDTH+WIDTH));
+  // w = sqrt(6.0/(WIDTH+WIDTH));
+  w = 1.0/WIDTH;
   if(global.frame - 1 == i) w += DERIV_EPS; // first frame: do nothing. other frames: change w at frame index
   ssbo_w.v[i] = float16_t(w);
   return;
@@ -79,10 +81,12 @@ main()
 
   if(global.frame == 0)
   { // initialisation
+    // TODO: add something for wider input widths if supported.
     if(params.randomise != 0) // xavier initialisation: scale uniform -1,1 by sqrt(6/(rows + cols)) to keep variance of result bounded
       // XXX DEBUG w = (0.5-mrand(seed)) * 2.0 * sqrt(6.0/(WIDTH+WIDTH));
       // w = sqrt(6.0/(WIDTH+WIDTH));
-      w = 0.0001;//sqrt(6.0/(WIDTH+WIDTH));
+      w = 1.0/WIDTH;
+      // w = 0.0001;//sqrt(6.0/(WIDTH+WIDTH));
     else w = ssbo_wcp.v[i];
     m1 = 0.0;
     m2 = 0.0;

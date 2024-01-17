@@ -27,7 +27,7 @@
 // #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
 #define MLP_ACTIVATION MLP_ACTIVATION_NONE // XXX debug deriv outside mlp with large offset DERIV_EPS
 
-// #define DEBUG_DERIV // debug derivatives instead of training
+#define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1e-1 // lower will only show numeric jitter
 
 #if 0 // check memory bounds before access
