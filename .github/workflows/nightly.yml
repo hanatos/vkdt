@@ -100,7 +100,7 @@ jobs:
             cc:p
             gcc-libs:p
             dlfcn:p
-            rsync:p
+            rsync
             glfw:p
             vulkan-devel:p
             glslang:p
