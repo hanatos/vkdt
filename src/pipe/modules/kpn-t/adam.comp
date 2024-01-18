@@ -84,8 +84,9 @@ main()
     // TODO: add something for wider input widths if supported.
     if(params.randomise != 0) // xavier initialisation: scale uniform -1,1 by sqrt(6/(rows + cols)) to keep variance of result bounded
       // XXX DEBUG w = (0.5-mrand(seed)) * 2.0 * sqrt(6.0/(WIDTH+WIDTH));
+      w = (0.5-mrand(seed)) * 2.0 / WIDTH;
       // w = sqrt(6.0/(WIDTH+WIDTH));
-      w = 1.0/WIDTH;
+      // w = 1.0/WIDTH;
       // w = 0.0001;//sqrt(6.0/(WIDTH+WIDTH));
     else w = ssbo_wcp.v[i];
     m1 = 0.0;
