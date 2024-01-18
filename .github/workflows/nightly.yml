@@ -101,6 +101,7 @@ jobs:
             gcc-libs:p
             dlfcn:p
             rsync
+            make
             glfw:p
             vulkan-devel:p
             glslang:p
