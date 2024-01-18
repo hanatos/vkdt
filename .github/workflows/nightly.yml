@@ -123,7 +123,7 @@ jobs:
           make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
       - name: check if it runs
         run: |
-          ${INSTALL_PREFIX}/bin/vkdt.exe --version
+          ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
       - name: get version info
         run: |
           cd ${SRC_DIR}
