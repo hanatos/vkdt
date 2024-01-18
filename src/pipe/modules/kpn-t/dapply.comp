@@ -62,7 +62,7 @@ void main()
       vec3 dIdK = texture(img_M, (ipos + tap[nonuniformEXT(k)] + 0.5)/textureSize(img_M, 0)).rgb;
       dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
 #elif (APPLY_ACTIVATION==APPLY_DEBUG)
-      vec3 dIdK = vec3(1.0); // XXX DEBUG texture(img_M, (ipos + 0.5)/textureSize(img_M, 0)).rgb;
+      vec3 dIdK = texture(img_M, (ipos + 0.5)/textureSize(img_M, 0)).rgb;
       if(k == 7) dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
 // #elif (APPLY_ACTIVATION==APPLY_SIGMOID)
       // vec3 dOdw = texture(img_in, (ipos + tap[nonuniformEXT(k)] + 0.5)/textureSize(img_in, 0)).rgb;

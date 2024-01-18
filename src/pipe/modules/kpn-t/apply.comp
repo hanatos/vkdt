@@ -47,7 +47,7 @@ void main()
 #elif (APPLY_ACTIVATION==APPLY_DEBUG)
   uint32_t ix = 16*(ipos.x + ipos.y * imageSize(img_I).x) + 7;
   const float w = clamp(float(ssbo_K.v[nonuniformEXT(ix)]), -65000.0, 65000.0);
-  vec3 rgb = w * vec3(1.0);// XXX DEBUG texture(img_M, (ipos + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+  vec3 rgb = w * texture(img_M, (ipos + 0.5)/vec2(textureSize(img_M, 0))).rgb;
 // #elif (APPLY_ACTIVATION==APPLY_SIGMOID)
 //   vec3 rgb = vec3(0.0);
 //   [[unroll]] for(int k=0;k<15;k++)
