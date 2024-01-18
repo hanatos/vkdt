@@ -15,7 +15,7 @@
 
 # needed for jpeg input (currently not optional)
 VKDT_JPEG_CFLAGS=-I/c/msys64/ucrt64/include
-VKDT_JPEG_LDFLAGS=-L/c/msys64/ucrt64/lib/lib -ljpeg
+VKDT_JPEG_LDFLAGS=-L/ucrt64/lib -ljpeg
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
 # if you disable this, the i-raw module will not be built
@@ -36,7 +36,7 @@ export VKDT_USE_RAWINPUT
 # needed for rawspeed (RAWINPUT=1) only
 VKDT_PUGIXML_CFLAGS=-I/c/msys64/include
 # VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/c/msys64/mingw64/lib -l:libpugixml.a
-VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/c/msys64/ucrt64/bin -lpugixml
+VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/ucrt64/bin -lpugixml
 export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 
 # exiv2 can optionally be used to load some super basic metadata (iso
@@ -46,7 +46,7 @@ VKDT_USE_EXIV2=1
 export VKDT_USE_EXIV2 
 VKDT_EXIV2_CFLAGS=-I/c/msys64/ucrt64/include/
 # VKDT_EXIV2_LDFLAGS=-L/c/msys64/mingw64/lib -l:libexiv2.a -l:libexiv2-xmp.a
-VKDT_EXIV2_LDFLAGS=-L/c/msys64/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
+VKDT_EXIV2_LDFLAGS=-L/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
 export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
@@ -79,7 +79,7 @@ export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 # install mingw-w64-x86_64-glfw via pacman -S!
 # where to find glfw for the gui:
 VKDT_GLFW_CFLAGS=-I/c/msys64/ucrt64/include/GLFW
-VKDT_GLFW_LDFLAGS=-L/c/msys64/ucrt64/lib -l:libglfw3.a -lgdi32
+VKDT_GLFW_LDFLAGS=-L/ucrt64/lib -l:libglfw3.a -lgdi32
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # enable this if you have a custom build of glfw that supports the following
@@ -100,7 +100,7 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # need vulkan
 VKDT_VULKAN_CFLAGS=-I/c/msys64/ucrt64/include
-VKDT_VULKAN_LDFLAGS=-L/c/msys64/ucrt64/lib -lvulkan-1
+VKDT_VULKAN_LDFLAGS=-L/ucrt64/lib -lvulkan-1
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
