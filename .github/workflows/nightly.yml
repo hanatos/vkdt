@@ -88,7 +88,7 @@ jobs:
       run:
         shell: msys2 {0}
     env:
-      SRC_DIR: ${{ github.workspace }}
+      SRC_DIR: ${{ github.workspace }}/src
       INSTALL_PREFIX: ${{ github.workspace }}/install
     steps:
       - uses: msys2/setup-msys2@v2
