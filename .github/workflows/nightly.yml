@@ -76,7 +76,7 @@ jobs:
           retention-days: 1
 
   Windows:
-    if: github.repository == 'hanatos/vkdt' && false
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt windows
     runs-on: windows-latest
     strategy:
@@ -98,14 +98,18 @@ jobs:
             git
           pacboy: >-
             cc:p
-            cmake:p
             gcc-libs:p
+            dlfcn:p
+            rsync:p
+            glfw:p
             vulkan-devel:p
             glslang:p
             libjpeg-turbo:p
-            omp:p
-            pugixml:p
             zlib:p
+            exiv2:p
+            omp:p
+            cmake:p
+            pugixml:p
           update: false
       - uses: actions/checkout@v4
         with:
