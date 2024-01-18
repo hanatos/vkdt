@@ -73,6 +73,8 @@ extra credits: run on raw bayer and demosaic as you go?
 * `graph` a log-space error graph for visualisation of the convergence behaviour
 * `vis` visualisation of the weights and their derivatives
 * `debug` ever changing dev wire during coding
+* `wcp` weights from checkpoint. will be loaded if initialisation is requested
+* `noiseab` noise profile created by cnngenin
 
 
 ## model

@@ -106,8 +106,6 @@ threadblock_layer(
 #else
     warp_activation(result_frag[l], result_frag[l]);
 #endif
-    // XXX DEBUG switch off output of network to debug derivatives on last (special cased) layer only!
-    result_frag[l] = coopmat_new(1.0); // XXX DEBUG
   }
 
   barrier();

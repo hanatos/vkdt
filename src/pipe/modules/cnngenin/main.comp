@@ -9,9 +9,6 @@ layout(std140, set = 0, binding = 0) uniform global_t
 } global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  int offx, offy;
-  int flip;
-  float ev;
   int generate;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
@@ -26,9 +23,9 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   ivec2 rpos = ipos;
-  int flip = params.flip;
-  ivec2 off = ivec2(params.offx, params.offy);
-  float ev = params.ev;
+  int flip = 0;
+  ivec2 off = ivec2(0);
+  float ev = 0;
 
   // uint seed = 123456789+133700 * (global.frame/500);
   uint seed = 123456789+133700 * global.frame;
@@ -71,7 +68,6 @@ void main()
   }
   
   rgb.w = ref.w = 1.0;
-  // imageStore(img_out, ipos, rgb);
-  imageStore(img_out, ipos, vec4(1.2*ref.rgb, 1.0)); // XXX DEBUG
+  imageStore(img_out, ipos, rgb);
   imageStore(img_rfo, ipos, ref);
 }

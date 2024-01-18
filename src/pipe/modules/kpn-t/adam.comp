@@ -51,7 +51,8 @@ main()
   // XXX DEBUG w = (0.5-mrand(seed)) * 2.0 * sqrt(6.0/(WIDTH+WIDTH));
   // w = 0.0001;//sqrt(6.0/(WIDTH+WIDTH));
   // w = sqrt(6.0/(WIDTH+WIDTH));
-  w = 1.0/WIDTH;
+  w = (0.5-mrand(seed)) * 2.0 / WIDTH;
+  // w = 1.0/WIDTH;
   if(global.frame - 1 == i) w += DERIV_EPS; // first frame: do nothing. other frames: change w at frame index
   ssbo_w.v[i] = float16_t(w);
   return;

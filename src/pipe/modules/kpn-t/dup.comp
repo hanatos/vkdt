@@ -96,7 +96,7 @@ void main()
       // note that this captures wraparounds too (tc may be wrapped, opos is always inside)
       if((tc + ivec2(ii,jj))/2 == opos) dEdOc += (1.0-I.a) * w * dEdO;
     }
-#else // XXX DEBUG 1x1 support XXX this is same broken as the 3x3 (how encouraging)
+#else
     vec3 rgb = texture(img_Oc, (tc/2 + 0.5)/vec2(textureSize(img_Oc, 0))).rgb;
     float w = 1;
     O += w*rgb;

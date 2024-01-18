@@ -21,7 +21,6 @@ load_input_tap(
     vec3 rgb = texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb;
     return vec2(luminance_rec2020(rgb), max(rgb.r, max(rgb.g, rgb.b)) - min(rgb.r, min(rgb.g, rgb.b)));
   }
-  return vec2(0.0, 1.0); // XXX DEBUG
   // return noise stddev of center pixel in first channel here.
   // both cases: attenuate by push constant indicating mip level:
   const float mul = pow(0.5, push.level); // our mipmaps are 2x2 averages, so the stddev is halved every time (Var = 4 * (1/4)^2*Var(X))
