@@ -17,13 +17,16 @@ int init(dt_module_t *mod)
       "%d hidden layers\n"
       "%d network width\n"
       "%s kernel weight activation\n"
-      "%s alpha blending activation",
+      "%s alpha blending activation\n"
+      "%s mlp activation",
       N_HIDDEN_LAYERS,
       WIDTH,
        APPLY_ACTIVATION == APPLY_PLAIN ? "plain" :
       (APPLY_ACTIVATION == APPLY_SOFTMAX ? "softmax" : "sigmoid"),
        ALPHA_ACTIVATION == ALPHA_CONST ? "const" :
-      (ALPHA_ACTIVATION == ALPHA_PLAIN ? "plain" : "sigmoid"));
+      (ALPHA_ACTIVATION == ALPHA_PLAIN ? "plain" : "sigmoid"),
+       MLP_ACTIVATION == MLP_ACTIVATION_NONE ? "none" :
+      (MLP_ACTIVATION == MLP_ACTIVATION_RELU ? "relu" : "leaky relu"));
   return 0;
 }
 
