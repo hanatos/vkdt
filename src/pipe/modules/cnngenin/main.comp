@@ -71,6 +71,7 @@ void main()
   }
   
   rgb.w = ref.w = 1.0;
-  imageStore(img_out, ipos, rgb);
+  // imageStore(img_out, ipos, rgb);
+  imageStore(img_out, ipos, vec4(1.2*ref.rgb, 1.0)); // XXX DEBUG
   imageStore(img_rfo, ipos, ref);
 }
