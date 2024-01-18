@@ -27,7 +27,14 @@
 // #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
 #define MLP_ACTIVATION MLP_ACTIVATION_NONE // XXX debug deriv outside mlp with large offset DERIV_EPS
 
-#define DEBUG_DERIV // debug derivatives instead of training
+// XXX FIXME: cannot so far reproduce exactly the derivatives:
+// deriv is always like 4ev too bright as compared to diff.
+// this is not about sum (disabled the other layers)
+// this is not about mlp (hardcoded A=1 on output of inner layers)
+// could be the summation of the loss (diff is wrong)
+// could be the computation of dEdK (passed on from dEdI, single w[7], not much opportunity for error)
+// could be summing up too much in mulw
+// #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1e-1 // lower will only show numeric jitter
 
 #if 0 // check memory bounds before access
