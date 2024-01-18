@@ -21,7 +21,11 @@ all: src bin
 
 prefix?=/usr
 DESTDIR?=
+ifeq ($(OS),Windows_NT)
+VKDTDIR?=$(shell cygpath -u $(DESTDIR)$(prefix)/lib/vkdt)
+else
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
+endif
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
