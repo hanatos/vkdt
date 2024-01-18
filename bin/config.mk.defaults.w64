@@ -106,7 +106,7 @@ export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 # compiler config
 CC=gcc
 CXX=g++
-GLSLC=/c/msys64/ucrt64/bin/glslangValidator.exe
+GLSLC=/ucrt64/bin/glslangValidator.exe
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.2
