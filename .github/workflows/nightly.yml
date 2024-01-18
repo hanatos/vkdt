@@ -119,11 +119,11 @@ jobs:
           path: src
       - name: build and install
         run: |
-          make -C $(cygpath ${SRC_DIR})
-          make DESTDIR=$(cygpath ${INSTALL_PREFIX}) -C $(cygpath ${SRC_DIR}) install
+          make -C ${SRC_DIR}
+          make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
       - name: check if it runs
         run: |
-          $(cygpath ${INSTALL_PREFIX})/bin/vkdt.exe --version
+          ${INSTALL_PREFIX}/bin/vkdt.exe --version
       - name: get version info
         run: |
           cd ${SRC_DIR}
