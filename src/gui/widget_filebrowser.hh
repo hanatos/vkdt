@@ -106,7 +106,9 @@ dt_filebrowser(
 
   // print cwd
   ImGui::PushFont(dt_gui_imgui_get_font(2));
-  ImGui::Text("%s", w->cwd);
+  if(ImGui::InputText("##", w->cwd, sizeof(w->cwd), ImGuiInputTextFlags_EnterReturnsTrue))
+    if(ImGui::IsKeyDown(ImGuiKey_Enter))
+      dt_filebrowser_cleanup(w);
   ImGui::PopFont();
   ImGui::BeginChild("scroll files");
   // display list of file names
