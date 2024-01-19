@@ -88,7 +88,7 @@ main()
     //   w[0]   w[1]   w[2]   w[3]     <= loop runs l over these indices
     float total = 0.0;
     for(int it=0;it<(push.batch_size+1023)/1024;it++)
-    {
+    { // TODO: this loop depends on subgroup size = 32, also during invocation
       const uint px = 1024*it + 32*gl_LocalInvocationID.y + gl_LocalInvocationID.x;
 
       float res = 0.0;

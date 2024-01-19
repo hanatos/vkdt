@@ -22,6 +22,7 @@ void main()
   {
     vec4 ref = texelFetch(img_R, ipos, 0);
     vec4 res = texelFetch(img_O, ipos, 0);
+    ref.w = res.w = 1.0;
 #if 0 // also add something based on sharpness
     vec4 refs = -8.0*ref, ress = -8.0*res;
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)

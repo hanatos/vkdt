@@ -116,11 +116,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   {
     int cwd = (wd + 31)/32;
     dt_roi_t croi = (dt_roi_t){ .wd = cwd, .ht = 1 };
-#ifdef DEBUG_DERIV
-    int pc[] = { wd, (N_HIDDEN_LAYERS+1)*WIDTH*WIDTH+1 }; // enough for all weights/dw (+1 frame zero)
-#else
     int pc[] = { wd, module->connector[4].roi.wd };
-#endif
     const int id_down = dt_node_add(
         graph, module, "kpn-t", "down",
         (cwd+31)/32 * DT_LOCAL_SIZE_X, 1, 1, sizeof(pc), pc, 2,
@@ -133,7 +129,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   while(wd > 1);
   // last iteration maps to temporal buffer
   graph->node[id_in].connector[1].roi.wd = module->connector[4].roi.wd; // frames now
-  graph->node[id_in].connector[1].type = dt_token("source");// ???
   int pcm[] = { module->connector[4].roi.wd };
   const int id_map = dt_node_add(
       graph, module, "kpn-t", "map",
@@ -141,7 +136,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "Ei",   "read",  "ssbo", "f32", dt_no_roi,
       "dspy", "write", "rgba", "f16", &module->connector[4].roi);
   CONN(dt_node_connect_named(graph, id_in, "Eo", id_map, "Ei"));
-  // graph->node[id_in].connector[1].flags = s_conn_protected; // protect memory
+  graph->node[id_in].connector[1].flags = s_conn_protected; // protect memory
 
   // mip map the input:
   dt_roi_t roi_M[4] = { roi_input };
