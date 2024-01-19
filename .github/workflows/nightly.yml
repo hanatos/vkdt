@@ -68,7 +68,7 @@ jobs:
           bash bin/mkappimg.sh
       - name: check if it runs
         run: |
-          vkdt-*.AppImage --version
+          ./vkdt-*.AppImage --version
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
