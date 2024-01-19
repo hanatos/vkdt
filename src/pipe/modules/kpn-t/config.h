@@ -11,13 +11,12 @@
 #define APPLY_PLAIN 3
 #define APPLY_DEBUG 4
 // #define APPLY_ACTIVATION APPLY_SOFTMAX
-#define APPLY_ACTIVATION APPLY_DEBUG // XXX DEBUG
+#define APPLY_ACTIVATION APPLY_PLAIN // XXX DEBUG
 // modes for alpha blending
 #define ALPHA_CONST 1
 #define ALPHA_PLAIN 2
 #define ALPHA_SIGMOID 3
-// #define ALPHA_ACTIVATION ALPHA_PLAIN
-#define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
+#define ALPHA_ACTIVATION ALPHA_PLAIN
 // apply softmax + alpha plain seems to be a winning combination
 // both plain also works (and through negative filter weights may be more expressive)
 
