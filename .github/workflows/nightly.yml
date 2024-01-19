@@ -26,7 +26,7 @@ jobs:
       CC: ${{ matrix.compiler.CC }}
       CXX: ${{ matrix.compiler.CXX }}
       SRC_DIR: ${{ github.workspace }}/src
-      BUILD_DIR: ${{ github.workspace }}/build
+      BUILD_DIR: ${{ github.workspace }}
       INSTALL_PREFIX: ${{ github.workspace }}/AppDir
       CMAKE_BUILD_TYPE: ${{ matrix.btype }}
       GENERATOR: ${{ matrix.generator }}
@@ -73,7 +73,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.BUILD_DIR }}/vkdt-*.AppImage*
+          path: vkdt-*.AppImage*
           name: artifact-appimage
           retention-days: 1
 
@@ -104,6 +104,7 @@ jobs:
             dlfcn:p
             rsync
             make
+            zip
             glfw:p
             vulkan-devel:p
             glslang:p
@@ -131,10 +132,12 @@ jobs:
           cd ${SRC_DIR}
           echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
           ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
+          cd ${INSTALL_PREFIX}/usr/lib
+          zip -r vkdt-${{ env.VERSION }-${{ env.SYSTEM }}.zip vkdt/
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.BUILD_DIR }}/vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.exe
+          path: ${{ env.INSTALL_PREFIX}}/usr/lib/vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
           name: artifact-windows
           retention-days: 1
