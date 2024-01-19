@@ -25,17 +25,6 @@
 #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
 // #define MLP_ACTIVATION MLP_ACTIVATION_NONE // debug deriv outside mlp with large offset DERIV_EPS
 
-// XXX FIXME: cannot so far reproduce exactly the derivatives:
-// deriv is always like 4ev too bright as compared to diff.
-// XXX for hardcoded A=1 in mlp, diff is brighter!
-// this is not about sum (disabled the other layers)
-// this is not about mlp (hardcoded A=1 on output of inner layers)
-// don't think this is the summation of the loss (double and triple checked code)
-// don't think it's the summing in mulw (triple checked)
-// could be the computation of dEdK (passed on from dEdI, single w[7], not much opportunity for error)
-// experiment: find w to multiply global brightness change: works really well also with one fully switched on hidden layer
-// FIXED: something memory garbage: if attaching different output to view0, graph stops to work! (for instance debug instead of vis)
-// FIXED: i.e. only shows last 1/4 of the graph and the rest is randomly overwritten..
 #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1e-2 // lower will only show numeric jitter
 
