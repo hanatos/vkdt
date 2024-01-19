@@ -132,6 +132,8 @@ jobs:
           cd ${SRC_DIR}
           echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
           ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
+      - name: create zip package
+        run: |
           cd ${INSTALL_PREFIX}/usr/lib
           zip -r vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
       - name: package upload
