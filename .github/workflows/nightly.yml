@@ -148,7 +148,7 @@ jobs:
           name: artifact-windows
           retention-days: 1
 
-upload_to_release:
+  upload_to_release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
