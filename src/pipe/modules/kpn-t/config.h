@@ -38,7 +38,7 @@
 // experiment: find w to multiply global brightness change: works really well also with one fully switched on hidden layer
 // FIXED: something memory garbage: if attaching different output to view0, graph stops to work! (for instance debug instead of vis)
 // FIXED: i.e. only shows last 1/4 of the graph and the rest is randomly overwritten..
-#define DEBUG_DERIV // debug derivatives instead of training
+// #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1e-1 // lower will only show numeric jitter
 
 #if 0 // check memory bounds before access
