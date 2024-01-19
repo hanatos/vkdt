@@ -55,17 +55,41 @@ void main()
       w      *= ((j & 1) == 0) ? w0[jj+1] : w1[jj+1];
       O += w*rgb;
 
-      rgb = texture(img_I, (2.0*(tc/2 + ivec2(ii,jj))+1.0)/vec2(textureSize(img_I, 0))).rgb; // access in the middle/2x2 lookup
+      const ivec2 idx = 2*(tc/2 + ivec2(ii,jj));
+      rgb = texture(img_I, (idx+1.0)/vec2(textureSize(img_I, 0))).rgb; // access in the middle/2x2 lookup
       Ismooth += w*rgb;
 
       // note that this captures wraparounds too (tc may be wrapped, opos is always inside)
       if((tc + ivec2(ii,jj))/2 == opos)
       {
         dEdOc += w * dEdO;
-        dEdI[0].rgb -= dEdO * I.a * 0.25 * w;
-        dEdI[1].rgb -= dEdO * I.a * 0.25 * w;
-        dEdI[2].rgb -= dEdO * I.a * 0.25 * w;
-        dEdI[3].rgb -= dEdO * I.a * 0.25 * w;
+      }
+        // XXX this is wrong.
+        // TODO: think about it this way: we go through all O in a 6x6 support and pretend we go forward in the 3x3 loop.
+        // TODO: we have one output pixel O[i,j] with corresponding dEdO under consideration.
+        // TODO: in the inner loop, we have 3x3 x 2x2 = 6x6 I that contribute to O.
+        // TODO: what is dOdI for this I? how does this I affect the output O?
+        // TODO: find out whether this I[i,j] is one of the four we are supposed to write to:
+        // XXX: need to check the indices of I according to the texture read above, they aren't all in the same block
+        // XXX: as suggested in the if above
+        // dEdI[0].rgb -= dEdO * I.a * 0.25 * w;
+        // dEdI[1].rgb -= dEdO * I.a * 0.25 * w;
+        // dEdI[2].rgb -= dEdO * I.a * 0.25 * w;
+        // dEdI[3].rgb -= dEdO * I.a * 0.25 * w;
+      {
+        // I indices taken into account in the loop this time around:
+        // idx + (0,0),(0,1),(1,0),(1,1)
+        // I indices we are recording:
+        // ipos + (0,0),(0,1),(1,0),(1,1)
+        ivec2 off = idx - ipos;
+        [[unroll]] for(int u=0;u<2;u++) [[unroll]] for(int v=0;v<2;v++)
+        {
+          ivec2 o = off + ivec2(u, v);
+          if(o.x == 0 && o.y == 0) dEdI[0].rgb -= dEdO * I.a * 0.25 * w;
+          if(o.x == 1 && o.y == 0) dEdI[1].rgb -= dEdO * I.a * 0.25 * w;
+          if(o.x == 0 && o.y == 1) dEdI[2].rgb -= dEdO * I.a * 0.25 * w;
+          if(o.x == 1 && o.y == 1) dEdI[3].rgb -= dEdO * I.a * 0.25 * w;
+        }
       }
     }
     if(j>=0 && j<2 && i>=0 && i<2)
@@ -101,10 +125,10 @@ void main()
 #endif
   }
 #if 1
-  imageStore(img_dEdI, 2*opos+ivec2(0,0), dEdI[0]);
-  imageStore(img_dEdI, 2*opos+ivec2(0,1), dEdI[1]);
-  imageStore(img_dEdI, 2*opos+ivec2(1,0), dEdI[2]);
-  imageStore(img_dEdI, 2*opos+ivec2(1,1), dEdI[3]);
+  imageStore(img_dEdI, ipos+ivec2(0,0), dEdI[0]);
+  imageStore(img_dEdI, ipos+ivec2(0,1), dEdI[1]);
+  imageStore(img_dEdI, ipos+ivec2(1,0), dEdI[2]);
+  imageStore(img_dEdI, ipos+ivec2(1,1), dEdI[3]);
 #endif
   imageStore(img_dEdOc, opos, vec4(dEdOc, 0));
 }
