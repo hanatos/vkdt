@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'hanatos/vkdt' && false
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt appimage
     runs-on: ubuntu-22.04
     strategy:
@@ -48,12 +48,12 @@ jobs:
             build-essential \
             appstream-util \
             git \
-            vulkan-tools \
+            glslang-tools \
             libvulkan-dev \
             libjpeg-dev \
-            libpugixml-dev \
             libglfw3-dev \
             zlib1g-dev \
+            libpugixml-dev \
             appstream;
       - uses: actions/checkout@v4
         with:
