@@ -102,8 +102,8 @@ void main()
   }
 #if 1
   imageStore(img_dEdI, 2*opos+ivec2(0,0), dEdI[0]);
-  imageStore(img_dEdI, 2*opos+ivec2(1,0), dEdI[1]);
-  imageStore(img_dEdI, 2*opos+ivec2(0,1), dEdI[2]);
+  imageStore(img_dEdI, 2*opos+ivec2(0,1), dEdI[1]);
+  imageStore(img_dEdI, 2*opos+ivec2(1,0), dEdI[2]);
   imageStore(img_dEdI, 2*opos+ivec2(1,1), dEdI[3]);
 #endif
   imageStore(img_dEdOc, opos, vec4(dEdOc, 0));
