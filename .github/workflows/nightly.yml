@@ -27,7 +27,7 @@ jobs:
       CXX: ${{ matrix.compiler.CXX }}
       SRC_DIR: ${{ github.workspace }}/src
       BUILD_DIR: ${{ github.workspace }}/build
-      INSTALL_PREFIX: ${{ github.workspace }}/AppDir/usr
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
       CMAKE_BUILD_TYPE: ${{ matrix.btype }}
       GENERATOR: ${{ matrix.generator }}
       TARGET: ${{ matrix.target }}
@@ -68,7 +68,7 @@ jobs:
           bash bin/mkappimg.sh
       - name: check if it runs
         run: |
-          Appimage/usr/lib/vkdt/vkdt --version
+          vkdt-*.AppImage --version
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
