@@ -54,6 +54,7 @@ jobs:
             libglfw3-dev \
             zlib1g-dev \
             libpugixml-dev \
+            libfuse2 \
             appstream;
       - uses: actions/checkout@v4
         with:
