@@ -10,8 +10,7 @@
 // #define APPLY_SIGMOID 2
 #define APPLY_PLAIN 3
 #define APPLY_DEBUG 4
-// #define APPLY_ACTIVATION APPLY_SOFTMAX
-#define APPLY_ACTIVATION APPLY_PLAIN // XXX DEBUG
+#define APPLY_ACTIVATION APPLY_SOFTMAX
 // modes for alpha blending
 #define ALPHA_CONST 1
 #define ALPHA_PLAIN 2
@@ -37,7 +36,7 @@
 // experiment: find w to multiply global brightness change: works really well also with one fully switched on hidden layer
 // FIXED: something memory garbage: if attaching different output to view0, graph stops to work! (for instance debug instead of vis)
 // FIXED: i.e. only shows last 1/4 of the graph and the rest is randomly overwritten..
-// #define DEBUG_DERIV // debug derivatives instead of training
+#define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1e-2 // lower will only show numeric jitter
 
 #if 0 // check memory bounds before access
