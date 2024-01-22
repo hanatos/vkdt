@@ -1,8 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive      : enable
-#extension GL_EXT_nonuniform_qualifier      : enable
-#extension GL_KHR_shader_subgroup_clustered : enable
-#extension GL_KHR_shader_subgroup_shuffle   : enable
+#extension GL_EXT_control_flow_attributes   : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(set = 1, binding = 0) uniform sampler2D img_M0; // fine image
@@ -20,11 +18,11 @@ void main()
   [[unroll]] for(int jj=-1;jj<=1;jj++) [[unroll]] for(int ii=-1;ii<=1;ii++)
   {
     vec3 rgb = texture(img_M1, (opos/2 + ivec2(ii,jj) + 0.5)/vec2(textureSize(img_M1, 0))).rgb;
-    float w = ((i & 1) == 0) ? w0[ii+1] : w1[ii+1];
-    w      *= ((j & 1) == 0) ? w0[jj+1] : w1[jj+1];
+    float w = ((opos.x & 1) == 0) ? w0[ii+1] : w1[ii+1];
+    w      *= ((opos.y & 1) == 0) ? w0[jj+1] : w1[jj+1];
     C += w*rgb;
   }
   vec3 I = texture(img_M0, opos).rgb;
   vec3 diff = I - C;
-  imageStore(img_out, opos, vec4(diff, 1))
+  imageStore(img_out, opos, vec4(diff, 1));
 }

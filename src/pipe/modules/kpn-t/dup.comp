@@ -97,7 +97,11 @@ void main()
       O += w*rgb;
 
       // note that this captures wraparounds too (tc may be wrapped, opos is always inside)
+#ifdef PRE_MLP_DIFF // this mode does not blend, but sum O += a*I, so dO does not depend on alpha
+      if((tc + ivec2(ii,jj))/2 == opos) dEdOc += w * dEdO;
+#else
       if((tc + ivec2(ii,jj))/2 == opos) dEdOc += (1.0-I.a) * w * dEdO;
+#endif // pre mlp diff
     }
 #else
     vec3 rgb = texture(img_Oc, (tc/2 + 0.5)/vec2(textureSize(img_Oc, 0))).rgb;

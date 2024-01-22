@@ -139,8 +139,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   graph->node[id_in].connector[1].flags = s_conn_protected; // protect memory
 
   // mip map the input:
-  dt_roi_t roi_M[4] = { roi_input };
-  for(int i=1;i<4;i++)
+  dt_roi_t roi_M[8] = { roi_input };
+  for(int i=1;i<8;i++)
   {
     roi_M[i].wd = (roi_M[i-1].wd + 1)/2;
     roi_M[i].ht = (roi_M[i-1].ht + 1)/2;
@@ -153,6 +153,30 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "M2", "write", "rgba", "f16", roi_M+2,
       "M3", "write", "rgba", "f16", roi_M+3);
   dt_connector_copy(graph, module, 0, id_mip, 0); // input image
+
+#ifdef PRE_MLP_DIFF
+  const int id_mip1 = dt_node_add(
+      graph, module, "kpn-t", "mip",
+      (roi_M[3].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[3].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
+      "M3", "read",  "rgba", "*",  dt_no_roi,
+      "M4", "write", "rgba", "f16", roi_M+4,
+      "M5", "write", "rgba", "f16", roi_M+5,
+      "M6", "write", "rgba", "f16", roi_M+6);
+  int id_diff[4];
+  for(int i=0;i<4;i++)
+  { // insert 4 diff kernels to compute detail coefficients
+    id_diff[i] = dt_node_add(
+        graph, module, "kpn-t", "diff",
+        roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        "Mf", "read",  "rgba", "*", dt_no_roi,
+        "Mc", "read",  "rgba", "*", dt_no_roi,
+        "D",  "write", "rgba", "f16", roi_M+i);
+    char Mf = "Mx", Mc = "Mx";
+    Mf[1] = '0'+i; Mc[1] = '0'+i+1;
+    CONN(dt_node_connect_named(graph, id_mip, Mf, id_diff, "Mf"));
+    CONN(dt_node_connect_named(graph, i < 3 ? id_mip : id_mip1, Mc, id_diff, "Mc"));
+  }
+#endif
 
   dt_roi_t roi_weights = (dt_roi_t){ .wd = WIDTH, .ht = (N_HIDDEN_LAYERS + 1) * WIDTH}; // weights
   int pc_adam[] = { roi_weights.wd*roi_weights.ht };
@@ -219,6 +243,18 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
 
     int id_up = -1, id_dup = -1;
+#ifdef PRE_MLP_DIFF
+    id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
+        graph, module, "kpn-t", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        "I",  "read",  "rgba", "*",   dt_no_roi,   // the convolved image on this (fine) scale (with alpha channel)
+        "Oc", "read",  "rgba", "*",   dt_no_roi,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
+        "O",  "write", "rgba", "f16", &roi_M[i]);
+    CONN(dt_node_connect_named(graph, id_apply, "I", id_up, "I"));
+    if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
+    else      CONN(dt_node_connect_named(graph, id_up, "O", id_loss,    "O"));  // plug finest level output into loss
+    if(i == 3) // i == 3, the coarsest layer has no regular upsampled coarse
+      CONN(dt_node_connect_named(graph, id_mip1, "M4", id_up, "Oc"));
+#else
     if(i < 3)
     {
       id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
@@ -234,6 +270,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     { // i == 3, the coarsest layer (does not upscale yet another even coarser layer)
       CONN(dt_node_connect_named(graph, id_apply, "I", id_up_prev, "Oc"));
     }
+#endif
     id_up_prev = id_up;
 
 #ifndef DEBUG_DERIV
@@ -249,6 +286,21 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     CONN(dt_node_connect_named(graph, id_apply, "I", id_dapply, "I"));
     CONN(dt_node_connect_named(graph, id_fwd,   "K", id_dapply, "K"));
 
+#ifdef PRE_MLP_DIFF
+    id_dup = dt_node_add(
+        graph, module, "kpn-t", "dup", roi_M[i+1].wd, roi_M[i+1].ht, 1, 0, 0, 5,
+        "dEdO",  "read",  "rgba", "*",   dt_no_roi,   // loss
+        "I",     "read",  "rgba", "*",   dt_no_roi,   // the convolved image on this (fine) scale
+        "Oc",    "read",  "rgba", "*",   dt_no_roi,   // output of coarse level: connect to id_apply->out on coarsest i+1==3, or else to id_up i+1
+        "dEdI",  "write", "rgba", "f16", &roi_M[i],
+        "dEdOc", "write", "rgba", "f16", &roi_M[i+1]);
+    if(i == 0) CONN(dt_node_connect_named(graph, id_loss,     "dEdO",  id_dup, "dEdO"));
+    else       CONN(dt_node_connect_named(graph, id_dup_prev, "dEdOc", id_dup, "dEdO"));
+    if(i != 0) CONN(dt_node_connect_named(graph, id_up,       "O",     id_dup_prev, "Oc"));
+    CONN(dt_node_connect_named(graph, id_dup,   "dEdI", id_dapply, "dEdI"));
+    CONN(dt_node_connect_named(graph, id_apply, "I",    id_dup,    "I"));
+    if(i == 3) CONN(dt_node_connect_named(graph, id_mip1, "M4", id_dup, "Oc"));
+#else
     if(i < 3)
     {
       id_dup = dt_node_add(
@@ -269,6 +321,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       CONN(dt_node_connect_named(graph, id_dup_prev, "dEdOc", id_dapply,   "dEdI"));
       CONN(dt_node_connect_named(graph, id_apply,    "I",     id_dup_prev, "Oc"));
     }
+#endif
     id_dup_prev = id_dup;
 
     // out_width = rows = 16;  batch_size = columns; output_stride = 16
@@ -323,6 +376,14 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       dt_connector_copy(graph, module, 5, id_vis,  3); // debug display weights out
     }
 
+#ifdef PRE_MLP_DIFF
+    CONN(dt_node_connect_named(graph, id_diff[i], "D", id_fwd,    "M"));
+    CONN(dt_node_connect_named(graph, id_diff[i], "D", id_apply,  "M"));
+#ifndef DEBUG_DERIV
+    CONN(dt_node_connect_named(graph, id_diff[i], "D", id_dapply, "M"));
+    CONN(dt_node_connect_named(graph, id_diff[i], "D", id_dw,     "M"));
+#endif
+#else
     const char *mipstr = i==1 ? "M1" : (i==2 ? "M2" : "M3"); // gcc does not understand this codepath (const folding in dt_token) but whatever.
     if(i==0)
     {
@@ -343,6 +404,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       CONN(dt_node_connect_named(graph, id_mip, mipstr, id_dw,     "M"));
 #endif
     }
+#endif
   }
   dt_connector_copy(graph, module, 3, id_adam, 4); // output weights
   dt_connector_copy(graph, module, 6, id_loss, 4); // DEBUG: output per pixel loss

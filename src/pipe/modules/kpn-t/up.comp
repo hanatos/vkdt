@@ -48,6 +48,8 @@ void main()
     Ismooth += w*rgb;
   }
   O = O + I.a * (I.rgb - Ismooth);
+#elif defined(PRE_MLP_DIFF)
+  O += I.rgb * I.a;
 #else
   O = mix(O, I.rgb, I.a);
 #endif
