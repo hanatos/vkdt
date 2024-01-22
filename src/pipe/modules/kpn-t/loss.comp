@@ -38,11 +38,11 @@ void main()
     vec4 dEdO = vec4(0.0);
     if(all(not(isnan(res))) && all(not(isinf(res))))
     {
-#if 1 // L2 loss
+#if 0 // L2 loss
       dEdO = 2.0 * (res - ref) * corr;
       E = dot(res - ref, res - ref) * corr;
 #endif
-#if 0 // SMAPE
+#if 1 // SMAPE
       const float eps = 1e-5;
       vec4 den = abs(res) + abs(ref) + eps;
       E = dot(vec4(1.0), abs(res - ref)/den)/4.0;

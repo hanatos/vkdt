@@ -3,7 +3,7 @@
 #define SKEW 8  // or 0 if WIDTH % 16 != 0
 #define N_BLOCKS (WIDTH / 16)     // how many blocks in the weights for one layer, when we can work on 16x16 at a time.
 #define N_ITERS 8 // or 2 if WIDTH >= 256 // going over pixels: how many iterations working on batches of px
-#define N_HIDDEN_LAYERS 1
+#define N_HIDDEN_LAYERS 3
 #define GRAD_SCALE 128.0 // avoid underflow in f16 loss/gradients
 // modes for convolution by kernel:
 #define APPLY_SOFTMAX 1
@@ -15,19 +15,22 @@
 #define ALPHA_CONST 1
 #define ALPHA_PLAIN 2
 #define ALPHA_SIGMOID 3
-// #define ALPHA_ACTIVATION ALPHA_PLAIN
-#define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
+#define ALPHA_ACTIVATION ALPHA_PLAIN
+// #define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
 // apply softmax + alpha plain seems to be a winning combination
 // both plain also works (and through negative filter weights may be more expressive)
+
+#define POST_MLP_DIFF // only add (I-smooth(I))*alpha to the coarse (i.e. taking the diff post MLP)
+// #define PRE_MLP_DIFF // only pass laplacians, i.e. detail coefficients to the mlp for classification (noise/signal) or signal extraction
 
 #define MLP_ACTIVATION_RELU 1
 #define MLP_ACTIVATION_LEAKY_RELU 2
 #define MLP_ACTIVATION_NONE 3
-// #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
-#define MLP_ACTIVATION MLP_ACTIVATION_NONE // debug deriv outside mlp with large offset DERIV_EPS
+#define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
+// #define MLP_ACTIVATION MLP_ACTIVATION_NONE // debug deriv outside mlp with large offset DERIV_EPS
 
 // #define DEBUG_DERIV // debug derivatives instead of training
-#define DERIV_EPS 1e-1 // lower will only show numeric jitter
+#define DERIV_EPS 1 // lower will only show numeric jitter
 
 #if 0 // check memory bounds before access
 #define CHK_WGT(base, stride) if(base + 15 * stride + 16/EL_PER_UVEC4 <= WIDTH * WIDTH * (N_HIDDEN_LAYERS+1)/EL_PER_UVEC4)
