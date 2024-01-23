@@ -132,7 +132,7 @@ extern "C" void dt_gui_init_fonts()
   ImGuiIO& io = ImGui::GetIO();
   io.Fonts->Clear();
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
+  float fontsize = 10.0;//floorf(qvk.win_height / 55.0f * dpi_scale);
   static const ImWchar ranges[] = { 0x0020, 0xFFFF, 0, };
   const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
   if(fontfile[0] != '/')
