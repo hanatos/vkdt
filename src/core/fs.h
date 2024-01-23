@@ -10,14 +10,28 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#ifndef _WIN64
-#include <sys/sendfile.h>
-#else
+#ifdef _WIN64
 #include <shlobj.h>
 #include <direct.h>
 #include <io.h>
 #include <stdbool.h>
 #endif
+
+#if !defined(__APPLE__) && !defined(_WIN64)
+  #include <sys/sendfile.h>
+
+  #define os_sendfile sendfile
+#elif defined(__APPLE__)
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <sys/uio.h>
+  #include <mach-o/dyld.h>
+
+  typedef off_t loff_t;
+
+  #define os_sendfile(a,b,c,d) sendfile(a,b,c,&d,NULL,0)
+#endif
+
 #include <errno.h>
 
 static inline int // returns zero on success
@@ -47,7 +61,7 @@ fs_copy(
   if(sb.st_mode & S_IFDIR) { len = 0; goto copy_error; } // don't copy directories
   if(-1 == (fd1 = open(dst, O_CREAT | O_WRONLY | O_TRUNC, 0644))) goto copy_error;
   do {
-    ret = sendfile(fd1, fd0, 0, len); // works on linux >= 2.6.33, else fd1 would need to be a socket
+    ret = os_sendfile(fd1, fd0, 0, len); // works on linux >= 2.6.33, else fd1 would need to be a socket
   } while((len-=ret) > 0 && ret > 0);
 copy_error:
   // if(len != 0) fprintf(stderr, "[fs_copy] %s\n", strerror(errno));
@@ -199,6 +213,10 @@ fs_basedir(
   char *path;
   _get_pgmptr(&path);
   snprintf(basedir, maxlen, "%s", path);
+  fs_dirname(basedir);
+#elif __APPLE__
+  uint32_t len = maxlen;
+  _NSGetExecutablePath(basedir, &len);
   fs_dirname(basedir);
 #else
 #warning "port me!"
@@ -433,7 +451,11 @@ fs_createtime(
 #else
   struct stat statbuf = {0};
   stat(filename, &statbuf);
+#ifdef __APPLE__
+  return statbuf.st_mtimespec.tv_sec;
+#else
   return statbuf.st_mtim.tv_sec;
+#endif
 #endif
 }
 static inline void
