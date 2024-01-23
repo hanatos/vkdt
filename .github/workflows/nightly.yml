@@ -115,6 +115,8 @@ jobs:
             cmake:p
             pugixml:p
           update: false
+      - run: git config --global core.autocrlf input
+        shell: bash
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -130,7 +132,7 @@ jobs:
       - name: get version info
         run: |
           cd ${SRC_DIR}
-          echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe)" >> $GITHUB_ENV
           ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
       - name: create zip package
         run: |
@@ -168,6 +170,9 @@ jobs:
             this is an automated nightly build of vkdt.
 
             it may contain pre-release quality features, use with care :)
+
+            the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
+            you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
           files: |
             artifact-appimage/*
