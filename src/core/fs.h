@@ -201,7 +201,7 @@ fs_basedir(
   snprintf(basedir, maxlen, "%s", path);
   fs_dirname(basedir);
 #else
-#warning "port me!"
+#warning "port me! (basedir)"
 #endif
 }
 
@@ -211,7 +211,7 @@ fs_find_usb_block_devices(
     char mountpoint[20][50])
 { // pretty much ls /sys/class/scsi_disk/*/device/block/{sda,sdb,sdd,..}/{..sdd1..} and then grep for it in /proc/mounts
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me! (find block devices)"
   return 0;
 #else
   int cnt = 0;
@@ -341,27 +341,39 @@ static inline char*
 fs_realpath(const char *path, char *resolved_path)
 {
 #ifdef _WIN64
-#warning "port me! something GetFinalPathNameByHandleA"
   // GetFinalPathNameByHandleA() would resolve symlinks but requires us to open the file first.
   // this means we first need to call GetFullPathNameA to reconstruct the path
   // and return this as fallback if the second step fails.
   char *ret = resolved_path;
   if(!ret) ret = (char*)malloc(sizeof(char)*PATH_MAX);
   GetFullPathNameA(path, PATH_MAX, ret, 0);
-  // TODO: now try GetFinalPathNameByHandle to follow symlinks if any.
-  // fprintf(stderr, "full path %s\n", ret);
+  HANDLE hf = CreateFile(ret, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING,
+		  FILE_ATTRIBUTE_NORMAL, 0);
+  if(hf == INVALID_HANDLE_VALUE)
+    return ret;
+  // DWORD sz = // and then check < PATH_MAX
+  GetFinalPathNameByHandleA(hf, ret, PATH_MAX, 0);
+  CloseHandle(hf);
+  if(!strncmp(ret, "\\\\?\\", 4))
+  { // extra sanitisation required
+    char *ret2 = (char*)malloc(sizeof(char)*PATH_MAX);
+    snprintf(ret2, PATH_MAX, "%s", ret+4);
+    snprintf(ret,  PATH_MAX, "%s", ret2);
+    free(ret2);
+  }
+  fprintf(stderr, "final handle %s\n", ret);
   return ret;
 #else
   return realpath(path, resolved_path);
 #endif
 }
 
-static inline int
+static inline int // return 0 on success
 fs_symlink(const char *target, const char *linkpath)
 {
 #ifdef _WIN64
-#warning "port me!" // something CreateSymbolicLinkA (there's also hard links now)
-  return 0;
+  fprintf(stderr, "XXX *** XXX creating %s -> %s link!\n", linkpath, target);
+  return !CreateSymbolicLinkA(linkpath, target, 2);
 #else
   return symlink(target, linkpath);
 #endif
@@ -375,7 +387,7 @@ fs_expand_import_filename(
 {
   char date[10] = {0}, yyyy[5] = {0};
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me! (year, date)"
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
 #else
@@ -406,7 +418,7 @@ fs_expand_export_filename(
   fs_dirname(filename);
   char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me! (year and date)"
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
 #else
@@ -428,7 +440,7 @@ fs_createtime(
     const char *filename) // filename to stat
 {
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me! (create time)"
   return 0; // TODO!
 #else
   struct stat statbuf = {0};
@@ -442,7 +454,7 @@ fs_createdate(
     char       *datetime)  // at least [20]
 {
 #ifdef _WIN64
-#warning "port me!"
+#warning "port me! (create date)"
   datetime[0] = 0;
 #else
   struct stat statbuf = {0};
@@ -454,12 +466,11 @@ fs_createdate(
 #endif
 }
 
-static inline int
+static inline int // return 0 on success
 fs_link(const char *oldpath, const char *newpath)
 {
 #ifdef _WIN64
-  // TODO: win10 apparently supports symlinks and hardlinks
-  return fs_copy(newpath, oldpath); // inefficient and stupid, as you would.
+  return !CreateHardLinkA(newpath, oldpath, 0);
 #else
   return link(oldpath, newpath);
 #endif

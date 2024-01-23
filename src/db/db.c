@@ -534,8 +534,6 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
 
   uint64_t hash = hash64(filename);
   char dirname[1040];
-  snprintf(dirname, sizeof(dirname), "%s/tags", db->basedir);
-  fs_mkdir_p(dirname, 0755);
   snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
   fs_mkdir_p(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
