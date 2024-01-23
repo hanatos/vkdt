@@ -1056,10 +1056,10 @@ dt_module_get_input_img_param(
 // open a file pointer, consider search paths specific to this graph
 static inline FILE*
 dt_graph_open_resource(
-    dt_graph_t *graph,   // graph associated with the module
-    uint32_t    frame,   // optional frame for timelapses, if fname contains "%04d"
-    const char *fname,   // file name template (basename contains exactly "%04d")
-    const char *mode)    // open mode "r" or "w" etc will be passed to fopen
+    const dt_graph_t *graph,   // graph associated with the module
+    uint32_t          frame,   // optional frame for timelapses, if fname contains "%04d"
+    const char       *fname,   // file name template (basename contains exactly "%04d")
+    const char       *mode)    // open mode "r" or "w" etc will be passed to fopen
 {
   char fstr[5] = {0}, *c = 0;
   snprintf(fstr, sizeof(fstr), "%04d", frame); // for security reasons don't use user-supplied fname as format string
@@ -1098,11 +1098,11 @@ dt_graph_open_resource(
 // returns non-zero on failure.
 static inline int
 dt_graph_get_resource_filename(
-    dt_module_t *mod,
-    const char  *fname,
-    int          frame,
-    char        *ret,
-    size_t       ret_size)
+    const dt_module_t *mod,
+    const char        *fname,
+    int                frame,
+    char              *ret,
+    size_t             ret_size)
 {
   char tmp[2*PATH_MAX+10];
   
