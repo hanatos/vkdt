@@ -89,8 +89,7 @@ dt_graph_export(
   {
     int err = dt_graph_read_config_ascii(graph, param->p_cfgfile);
     if(err)
-    { // well yes, loading default then. not an interesting message:
-      // dt_log(s_log_pipe, "could not open config file '%s'.", param->p_cfgfile);
+    {
       dt_token_t input_module = param->input_module;
       if(param->input_module == 0)
         input_module = dt_graph_default_input_module(param->p_cfgfile);
@@ -111,8 +110,7 @@ dt_graph_export(
       imgfilename[len-4] = 0; // cut away ".cfg"
       char *basen = fs_basename(imgfilename); // cut away path so we can relocate more easily
       int modid = dt_module_get(graph, input_module, dt_token("main"));
-      if(modid < 0 ||
-          dt_module_set_param_string(graph->module + modid, dt_token("filename"), basen))
+      if(modid < 0 || dt_module_set_param_string(graph->module + modid, dt_token("filename"), basen))
       {
         dt_log(s_log_err, "config '%s' has no valid %"PRItkn" input module!", graph_cfg, dt_token_str(input_module));
         return VK_INCOMPLETE;
