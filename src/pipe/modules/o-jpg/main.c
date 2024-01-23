@@ -29,7 +29,7 @@ error_exit(j_common_ptr cinfo)
 // our input buffer will come in memory mapped.
 void write_sink(
     dt_module_t *module,
-    void *buf)
+    void        *buf)
 {
   const char *basename = dt_module_param_string(module, 0);
   fprintf(stderr, "[o-jpg] writing '%s'\n", basename);
@@ -96,4 +96,36 @@ void write_sink(
   free(row);
   jpeg_destroy_compress(&cinfo);
   fclose(f);
+
+  const int copy_exif = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("exif")))[0];
+  if(copy_exif)
+  {
+    char src_filename[1024] = {0};
+    for(int m=0;m<module->graph->num_modules;m++)
+    { // locate main input module, if it is jpg or raw (these have exif)
+      const dt_module_t *mod2 = module->graph->module+m;
+      if((mod2->name == dt_token("i-jpg") && mod2->inst == dt_token("main")) ||
+         (mod2->name == dt_token("i-raw") && mod2->inst == dt_token("main")))
+      {
+        const int   id   = dt_module_param_int(mod2, dt_module_get_param(mod2->so, dt_token("startid")))[0];
+        const char *base = dt_module_param_string(mod2, dt_module_get_param(mod2->so, dt_token("filename")));
+        if(dt_graph_get_resource_filename(mod2, base, module->graph->frame + id, src_filename, sizeof(src_filename)))
+          return;
+      }
+    }
+    if(src_filename[0] == 0) return;
+    char cmd[1024];
+    if(snprintf(cmd, sizeof(cmd),
+          "/usr/bin/exiftool -TagsFromFile %s \"-all:all>all:all\" %s",
+          src_filename, filename) >= sizeof(cmd))
+      return;
+
+    // or async if(fork()) exec(cmd); ? for cli probably staying in this thread is safer:
+    FILE *f = popen(cmd, "r");
+    if(f)
+    { // drain empty
+      while(!feof(f) && !ferror(f)) fgetc(f);
+      pclose(f);
+    }
+  }
 }
