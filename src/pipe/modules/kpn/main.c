@@ -12,8 +12,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 
   const int have_coopmat = qvk.coopmat_supported;
 
-  // const int Mcnt = 7; // tempting, but apparently doesn't do much for us (need to train for it?)
-  const int Mcnt = 4;
+  const int Mcnt = 7; // tempting, but apparently doesn't do much for us (need to train for it?)
+  // const int Mcnt = 4;
   // mip map the input:
   dt_roi_t roi_M[7] = { roi_input };
   for(int i=1;i<Mcnt;i++)
@@ -30,7 +30,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "M3", "write", "rgba", "f16", roi_M+3);
   dt_connector_copy(graph, module, 0, id_mip0, 0); // input image
 
-#ifdef PRE_MLP_DIFF // needed for Mcnt = 7:
+#ifdef PRE_MLP_DIFF // needed for Mcnt = 7 too
   const int id_mip1 = dt_node_add( // second level mip maps:
       graph, module, "kpn-t", "mip",
       (roi_M[3].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[3].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
@@ -39,8 +39,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "M5", "write", "rgba", "f16", roi_M+5,
       "M6", "write", "rgba", "f16", roi_M+6);
   CONN(dt_node_connect_named(graph, id_mip0, "M3", id_mip1, "M3"));
-  int id_diff[4];
-  for(int i=0;i<4;i++)
+  int id_diff[6];
+  for(int i=0;i<6;i++)
   { // insert 4 diff kernels to compute detail coefficients
     id_diff[i] = dt_node_add(
         graph, module, "kpn-t", "diff",
@@ -48,10 +48,11 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "Mf", "read",  "rgba", "*", dt_no_roi,
         "Mc", "read",  "rgba", "*", dt_no_roi,
         "D",  "write", "rgba", "f16", roi_M+i);
-    char Mf = "Mx", Mc = "Mx";
+    char Mf[3] = "Mx", Mc[3] = "Mx";
     Mf[1] = '0'+i; Mc[1] = '0'+i+1;
-    CONN(dt_node_connect_named(graph, id_mip0, Mf, id_diff, "Mf"));
-    CONN(dt_node_connect_named(graph, i < 3 ? id_mip0 : id_mip1, Mc, id_diff, "Mc"));
+    if(i == 0) dt_connector_copy(graph, module, 0, id_diff[i], 0);
+    else CONN(dt_node_connect_named(graph, i < 4 ? id_mip0 : id_mip1, Mf, id_diff[i], "Mf"));
+    CONN(dt_node_connect_named(graph, i < 3 ? id_mip0 : id_mip1, Mc, id_diff[i], "Mc"));
   }
 #else
   const int id_mip1 = id_mip0;
@@ -59,8 +60,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 
   // multi-level mlp kernel prediction pipeline
   int id_up_prev = -1;
-  for(int i=0;i<Mcnt;i++)
-  { // from fine M0 to coarse M3 and on to M6
+  for(int i=0;i<Mcnt-1;i++)
+  { // from fine M0 to coarse M2 or on to M5
     const uint32_t unit = N_ITERS * 16;
     const uint32_t batch_size = unit * ((unit - 1 + roi_M[i].wd*roi_M[i].ht)/unit); // #px rounded up to 128 (=N_ITERS*16)
     const int pc_inf[] = { 32, batch_size, 16, i };
@@ -103,12 +104,13 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "O",  "write", "rgba", "f16", &roi_M[i]);
     CONN(dt_node_connect_named(graph, id_apply, "I", id_up, "I"));
     if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
-    if(i == Mcnt-1)
-    { // i == Mcnt-1, the coarsest layer (does not upscale yet another even coarser layer)
-      CONN(dt_node_connect_named(graph, id_mip1, "M4", id_up, "Oc")); // XXX FIXME: not M4 but "M".Mcnt
+    if(i == Mcnt-2)
+    { // i is the coarsest layer we have detail coefs for (does not upscale yet another even coarser layer)
+      char M[3] = "MX"; M[1] = '0' + i + 1;
+      CONN(dt_node_connect_named(graph, id_mip1, M, id_up, "Oc"));
     }
 #else
-    if(i < Mcnt-1)
+    if(i < Mcnt-2)
     {
       id_up = dt_node_add( // upsample coarse and blend the result to fine with the fine alpha
           graph, module, "kpn-t", "up", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
@@ -119,7 +121,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
     }
     else
-    { // i == Mcnt-1, the coarsest layer (does not upscale yet another even coarser layer)
+    { // i is the coarsest layer (does not upscale yet another even coarser layer)
       CONN(dt_node_connect_named(graph, id_apply, "I", id_up_prev, "Oc"));
     }
 #endif

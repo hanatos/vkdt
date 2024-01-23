@@ -139,8 +139,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   graph->node[id_in].connector[1].flags = s_conn_protected; // protect memory
 
   // mip map the input:
-  dt_roi_t roi_M[8] = { roi_input };
-  for(int i=1;i<8;i++)
+  dt_roi_t roi_M[7] = { roi_input };
+  for(int i=1;i<7;i++)
   {
     roi_M[i].wd = (roi_M[i-1].wd + 1)/2;
     roi_M[i].ht = (roi_M[i-1].ht + 1)/2;
@@ -162,7 +162,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "M4", "write", "rgba", "f16", roi_M+4,
       "M5", "write", "rgba", "f16", roi_M+5,
       "M6", "write", "rgba", "f16", roi_M+6);
-  int id_diff[4];
+  CONN(dt_node_connect_named(graph, id_mip, "M3", id_mip1, "M3"));
+  int id_diff[4]; // XXX increase this number only if the training input support is large enough
   for(int i=0;i<4;i++)
   { // insert 4 diff kernels to compute detail coefficients
     id_diff[i] = dt_node_add(
@@ -171,10 +172,11 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "Mf", "read",  "rgba", "*", dt_no_roi,
         "Mc", "read",  "rgba", "*", dt_no_roi,
         "D",  "write", "rgba", "f16", roi_M+i);
-    char Mf = "Mx", Mc = "Mx";
+    char Mf[3] = "Mx", Mc[3] = "Mx";
     Mf[1] = '0'+i; Mc[1] = '0'+i+1;
-    CONN(dt_node_connect_named(graph, id_mip, Mf, id_diff, "Mf"));
-    CONN(dt_node_connect_named(graph, i < 3 ? id_mip : id_mip1, Mc, id_diff, "Mc"));
+    if(i == 0) dt_connector_copy(graph, module, 0, id_diff[i], 0);
+    else CONN(dt_node_connect_named(graph, id_mip, Mf, id_diff[i], "Mf"));
+    CONN(dt_node_connect_named(graph, i < 3 ? id_mip : id_mip1, Mc, id_diff[i], "Mc"));
   }
 #endif
 
@@ -377,6 +379,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     }
 
 #ifdef PRE_MLP_DIFF
+    if(i == 0) dt_connector_copy(graph, module, 2, id_up, 2);
     CONN(dt_node_connect_named(graph, id_diff[i], "D", id_fwd,    "M"));
     CONN(dt_node_connect_named(graph, id_diff[i], "D", id_apply,  "M"));
 #ifndef DEBUG_DERIV

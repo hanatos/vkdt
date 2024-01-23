@@ -7,6 +7,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
 #include "shared.glsl"
 #include "sigmoid.glsl"
+#include "config.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
 layout(set = 1, binding = 0) uniform sampler2D img_I;
@@ -37,7 +38,7 @@ void main()
 #endif
 
   vec4 I = texelFetch(img_I, opos, 0);
-#ifdef POST_MLP_DIFF // do a down/up dance, sum only detail coefficients to upscaled O
+#if defined(POST_MLP_DIFF) // do a down/up dance, sum only detail coefficients to upscaled O
   // O = O + I.a * (I.rgb - updown(I.rgb)
   vec3 Ismooth = vec3(0.0);
   [[unroll]] for(int j=-1;j<=1;j++) [[unroll]] for(int i=-1;i<=1;i++)

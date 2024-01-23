@@ -22,7 +22,7 @@ void main()
     w      *= ((opos.y & 1) == 0) ? w0[jj+1] : w1[jj+1];
     C += w*rgb;
   }
-  vec3 I = texture(img_M0, opos).rgb;
+  vec3 I = texelFetch(img_M0, opos, 0).rgb;
   vec3 diff = I - C;
   imageStore(img_out, opos, vec4(diff, 1));
 }

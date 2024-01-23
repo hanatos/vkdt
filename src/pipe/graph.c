@@ -2895,7 +2895,8 @@ dt_graph_connector_image(
 {
   if(graph->node[nid].conn_image[cid] == -1)
   {
-    dt_log(s_log_err, "requesting disconnected image buffer!");
+    dt_log(s_log_err, "requesting disconnected image buffer! %" PRItkn ":%" PRItkn ":%" PRItkn,
+        dt_token_str(graph->node[nid].name), dt_token_str(graph->node[nid].kernel), dt_token_str(graph->node[nid].connector[cid].name));
     return 0;
   }
   int nid2 = nid, cid2 = cid;
