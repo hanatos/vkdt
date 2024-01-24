@@ -41,6 +41,18 @@ typedef struct gui_nodes_t
 }
 gui_nodes_t;
 gui_nodes_t nodes;
+
+void write_back_module_positions()
+{
+  dt_graph_t *g = &vkdt.graph_dev;
+  for(uint32_t m=0;m<g->num_modules;m++)
+  { // set gui positions on modules
+    if(g->module[m].name == 0) continue; // don't write removed ones
+    ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
+    g->module[m].gui_x = pos.x;
+    g->module[m].gui_y = pos.y;
+  }
+}
 }; // anonymous namespace
 
 void render_nodes_module(dt_graph_t *g, int m)
@@ -513,7 +525,9 @@ void render_nodes()
        ImGui::IsKeyPressed(ImGuiKey_CapsLock))
       dt_view_switch(s_view_darkroom);
 
-  if(nodes.do_layout) nodes.do_layout = 0;
+  // only reset if the apply preset popup has been closed (loading a preset may give us new positions)
+  if(!ImGui::IsPopupOpen("apply preset"))
+    nodes.do_layout = 0;
 
   render_nodes_right_panel();
 
@@ -521,6 +535,8 @@ void render_nodes()
   {
     case s_hotkey_apply_preset:
       dt_gui_dr_preset_apply();
+      write_back_module_positions(); // make sure to keep stuff we moved just now
+      nodes.do_layout = 1;           // presets may ship positions for newly added nodes
       break;
     case s_hotkey_module_add:
       dt_gui_dr_module_add();
@@ -555,14 +571,7 @@ extern "C" int nodes_enter()
 extern "C" int nodes_leave()
 {
   ImNodes::ClearNodeSelection(); // don't leave stray selection. leads to problems re-entering with another graph.
-  dt_graph_t *g = &vkdt.graph_dev;
-  for(uint32_t m=0;m<g->num_modules;m++)
-  { // set gui positions on modules
-    if(g->module[m].name == 0) continue; // don't write removed ones
-    ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
-    g->module[m].gui_x = pos.x;
-    g->module[m].gui_y = pos.y;
-  }
+  write_back_module_positions();
   return 0;
 }
 
