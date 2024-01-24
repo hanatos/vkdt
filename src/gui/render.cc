@@ -264,8 +264,13 @@ extern "C" int dt_gui_init_imgui()
       fclose(f);
     }
     else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name0);
-    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name1);
     f = fopen(tmp, "r");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+      f = fopen(tmp, "r");
+    }
     if(f)
     {
       fscanf(f, "%f %f %f\n", gamma1, gamma1+1, gamma1+2);
