@@ -2,11 +2,14 @@
 module:draw:burn:767.213:202.1
 module:exposure:burn:1070.31:178.1
 module:blend:burn:1285.36:233.1
-connect:draw:burn:output:blend:burn:mask
+module:guided:burn:1068.26:370.1
+connect:draw:burn:output:guided:burn:guide
+connect:guided:burn:output:blend:burn:mask
 # we want to inject dodge/burn before colour in linear scene rgb.
 # the default pipeline connects crop->colour so we'll go in between.
 connect:crop:01:output:blend:burn:back
 connect:crop:01:output:exposure:burn:input
+connect:crop:01:output:guided:burn:input
 connect:exposure:burn:output:blend:burn:input
 connect:blend:burn:output:colour:01:input
 # now if we already connected a `blend:dodge` module in between, we'll
