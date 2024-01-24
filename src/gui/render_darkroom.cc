@@ -133,6 +133,15 @@ void render_darkroom_full()
 {
   static char open[100] = {0};
   static int32_t active_module = -1;
+  static char filter_name[10] = {0};
+  static char filter_inst[10] = {0};
+  ImGui::PushItemWidth(int(vkdt.state.panel_wd * 0.495));
+  ImGui::InputText("##filter name", filter_name, sizeof(filter_name));
+  if(ImGui::IsItemHovered()) dt_gui_set_tooltip("filter by module name");
+  ImGui::SameLine();
+  ImGui::InputText("##filter instance", filter_inst, sizeof(filter_inst));
+  if(ImGui::IsItemHovered()) dt_gui_set_tooltip("filter by module instance");
+  ImGui::PopItemWidth();
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
@@ -142,7 +151,21 @@ void render_darkroom_full()
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
   for(int m=cnt-1;m>=0;m--)
+  {
+    if(filter_name[0])
+    {
+      char name[10] = {0};
+      memcpy(name, dt_token_str(vkdt.graph_dev.module[modid[m]].name), 8);
+      if(!strstr(name, filter_name)) continue;
+    }
+    if(filter_inst[0])
+    {
+      char inst[10] = {0};
+      memcpy(inst, dt_token_str(vkdt.graph_dev.module[modid[m]].inst), 8);
+      if(!strstr(inst, filter_inst)) continue;
+    }
     render_darkroom_widgets(&vkdt.graph_dev, modid[m], open, active_module);
+  }
 }
 } // end anonymous namespace
 
