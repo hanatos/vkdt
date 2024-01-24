@@ -110,14 +110,12 @@ toggle_fullscreen()
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   if(g_fullscreen)
   {
-    glfwSetWindowPos(qvk.window, mode->width/8, mode->height/8);
-    glfwSetWindowSize(qvk.window, mode->width/4 * 3, mode->height/4 * 3);
+    glfwSetWindowMonitor(qvk.window, 0, 0, 0, mode->width/4 * 3, mode->height/4 * 3, mode->refreshRate);
     g_fullscreen = 0;
   }
   else
   {
-    glfwSetWindowPos(qvk.window, 0, 0);
-    glfwSetWindowSize(qvk.window, mode->width, mode->height);
+    glfwSetWindowMonitor(qvk.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     g_fullscreen = 1;
   }
   dt_gui_recreate_swapchain();
