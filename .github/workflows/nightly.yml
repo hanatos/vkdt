@@ -1,5 +1,6 @@
 name: nightly packages
 # based on the same for darktable-org/darktable
+# i suppose that makes it GPLv3.
 
 on:
   push:
@@ -98,13 +99,13 @@ jobs:
           msystem: ${{ matrix.msystem }}
           install: >-
             git
+            rsync
+            make
+            zip
           pacboy: >-
             cc:p
             gcc-libs:p
             dlfcn:p
-            rsync
-            make
-            zip
             glfw:p
             vulkan-devel:p
             glslang:p
