@@ -116,7 +116,7 @@ void write_sink(
     if(src_filename[0] == 0) return;
     char cmd[1024];
     if(snprintf(cmd, sizeof(cmd),
-          "/usr/bin/exiftool -TagsFromFile %s \"-all:all>all:all\" -*orientation*= -overwrite_original %s",
+          "/usr/bin/exiftool -TagsFromFile %s \"-all:all>all:all\" -Software=\"vkdt\" -*orientation*= -overwrite_original %s",
           src_filename, filename) >= sizeof(cmd))
       return;
 
