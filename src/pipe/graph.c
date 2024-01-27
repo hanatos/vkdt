@@ -76,8 +76,6 @@ dt_graph_init(dt_graph_t *g)
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+0));
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+1));
-  g->float_atomics_supported = qvk.float_atomics_supported;
-
   for(int i=0;i<2;i++)
   {
     g->query[i].max = 2000;

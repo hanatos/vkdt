@@ -235,7 +235,6 @@ void threads_global_init()
   SYSTEM_INFO si;
   GetSystemInfo(&si);
   thr.num_threads = si.dwNumberOfProcessors;
-  // thr.num_threads = 4;
 #else
   thr.num_threads = sysconf(_SC_NPROCESSORS_ONLN);
 #endif

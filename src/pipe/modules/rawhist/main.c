@@ -55,7 +55,7 @@ create_nodes(
   dt_roi_t roi_buf = module->connector[2].roi;
 
   const int id_collect = dt_node_add(graph, module, "rawhist",
-      graph->float_atomics_supported ? "collect" : "coldumb",
+      qvk.float_atomics_supported ? "collect" : "coldumb",
     module->connector[0].roi.wd/block, module->connector[0].roi.ht/block, 1,
     0, 0, 2,
     "input",  "read",  "rggb", "ui16", &module->connector[0].roi,

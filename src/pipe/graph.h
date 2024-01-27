@@ -83,7 +83,6 @@ typedef struct dt_graph_t
   VkQueue               queue;
   void                 *queue_mutex;         // if this is set to != 0 will be locked when the queue is used
   uint32_t              queue_idx;
-  int                   float_atomics_supported; // copy from qvk to pass down to modules
 
   VkBuffer              uniform_buffer;      // uniform buffer shared between all nodes
   VkDeviceMemory        vkmem_uniform;
