@@ -7,6 +7,7 @@
 #include "modules/localsize.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 #include "graph-print.h"
 #ifdef DEBUG_MARKERS
 #include "db/stringpool.h"
@@ -94,7 +95,6 @@ dt_graph_init(dt_graph_t *g)
   // grab default queue:
   g->queue = qvk.queue_compute;
   g->queue_idx = qvk.queue_idx_compute;
-  g->queue_mutex = &qvk.queue_mutex;
 
   g->lod_scale = 1;
   g->active_module = -1;
@@ -2689,7 +2689,7 @@ VkResult dt_graph_run(
                   .pCommandBuffers    = &cmd_buf,
                 };
                 vkResetFences(qvk.device, 1, &graph->command_fence[f]);
-                QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
+                qvk_submit(graph->queue, 1, &submit, graph->command_fence[f]);
                 QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
@@ -2781,7 +2781,7 @@ VkResult dt_graph_run(
   if(run & s_graph_run_record_cmd_buf)
   {
     vkResetFences(qvk.device, 1, &graph->command_fence[f]);
-    QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
+    qvk_submit(graph->queue, 1, &submit, graph->command_fence[f]);
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
     else

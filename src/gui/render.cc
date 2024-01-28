@@ -2,6 +2,7 @@ extern "C" {
 #include "gui.h"
 #include "view.h"
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
@@ -178,7 +179,7 @@ extern "C" void dt_gui_init_fonts()
     end_info.pCommandBuffers = &command_buffer;
     vkEndCommandBuffer(command_buffer);
     threads_mutex_lock(&qvk.queue_mutex);
-    vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
+    qvk_submit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
     threads_mutex_unlock(&qvk.queue_mutex);
 
     threads_mutex_lock(&qvk.queue_mutex);

@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "qvk.h"
+#include "sub.h"
 #include "core/log.h"
 
 #include <vulkan/vulkan.h>
@@ -259,6 +260,7 @@ out:;
 VkResult
 qvk_init(const char *preferred_device_name, int preferred_device_id)
 {
+  qvk_sub_init();
   threads_mutex_init(&qvk.queue_mutex, 0);
   /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
@@ -618,6 +620,7 @@ destroy_swapchain()
 int
 qvk_cleanup()
 {
+  qvk_sub_cleanup();
   QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   threads_mutex_destroy(&qvk.queue_mutex);
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);

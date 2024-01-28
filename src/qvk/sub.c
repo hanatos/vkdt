@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdio.h>
 
 typedef enum qvk_sub_status_t
 {
@@ -39,6 +40,7 @@ qvk_sub_t qvk_sub;
 
 void qvk_submit(
   VkQueue       queue,
+  int           cnt,
   VkSubmitInfo *si,
   VkFence       fence)
 {
@@ -54,6 +56,7 @@ void qvk_submit(
   task->si    = *si;
   task->fence = fence;
 
+  fprintf(stderr, "[sub] pushing new task!\n");
   // mark as ready
   __sync_val_compare_and_swap(&task->status, s_sub_initing, s_sub_ready);
   // wake up thread
@@ -68,6 +71,7 @@ void* run(void*)
 {
   while(qvk_sub.running)
   { // wait for signal to wake up
+    fprintf(stderr, "[sub] worker waiting for cmdbuf\n");
     pthread_mutex_lock(&qvk_sub.mutex_push);
     pthread_cond_wait(&qvk_sub.cond_push, &qvk_sub.mutex_push);
     pthread_mutex_unlock(&qvk_sub.mutex_push);
@@ -81,6 +85,7 @@ void* run(void*)
       else task = 0;
     }
     if(task == 0) continue; // wait for a bit more
+    fprintf(stderr, "[sub] submitting task!\n");
     vkQueueSubmit(task->queue, 1, &task->si, task->fence);
     if(!qvk_sub.running) break;
     __sync_val_compare_and_swap(&task->status, s_sub_running, s_sub_free);
@@ -90,7 +95,7 @@ void* run(void*)
 
 void qvk_sub_init()
 {
-  qvk_sub.running = 0;
+  qvk_sub.running = 1;
   for(int i=0;i<QVK_SUB_QUEUE_SIZE;i++)
     qvk_sub.list[i].status = s_sub_free;
   pthread_cond_init(&qvk_sub.cond_push, 0);

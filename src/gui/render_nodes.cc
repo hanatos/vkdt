@@ -473,7 +473,7 @@ void render_nodes()
   if(ImNodes::NumSelectedNodes() == 1)
   {
     ImNodes::GetSelectedNodes(&mid);
-    if(mid >= 0 && mid < g->num_modules && g->module[mid].so->has_inout_chain)
+    if(mid >= 0 && mid < (int)g->num_modules && g->module[mid].so->has_inout_chain)
     {
       int mco = dt_module_get_connector(g->module+mid, dt_token("output"));
       int mci = dt_module_get_connector(g->module+mid, dt_token("input"));
