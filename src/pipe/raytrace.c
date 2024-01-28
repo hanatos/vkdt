@@ -92,7 +92,6 @@ dt_raytrace_graph_cleanup(
 #define ALLOC_MEM_R(TYPE, BITS, memory_allocate_flags) do { \
   if(graph->rt[f].TYPE##_end > graph->rt[f].TYPE##_max) { \
     if(graph->rt[f].vkmem_##TYPE ) {\
-      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));\
       vkFreeMemory(qvk.device, graph->rt[f].vkmem_##TYPE, 0);\
     }\
     VkMemoryAllocateFlagsInfo allocation_flags = {\
