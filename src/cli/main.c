@@ -1,4 +1,5 @@
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
@@ -110,6 +111,7 @@ int main(int argc, char *argv[])
     dt_graph_print_nodes(&graph);
 
   dt_graph_cleanup(&graph);
+  qvk_sub_shutdown();
   threads_global_cleanup();
   qvk_cleanup();
   exit(res);

@@ -1,4 +1,5 @@
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 #include "pipe/graph.h"
 #include "pipe/asciiio.h"
 #include "pipe/graph-io.h"
@@ -350,6 +351,7 @@ int main(int argc, char *argv[])
   dt_graph_write_config_ascii(&dat.graph, "/dev/stdout");
 
   dt_graph_cleanup(&dat.graph);
+  qvk_sub_shutdown();
   threads_global_cleanup();
   qvk_cleanup();
   exit(0);
