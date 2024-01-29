@@ -35,7 +35,7 @@ jobs:
     - name: update apt
       run: sudo apt-get update
     - name: install dependencies
-      run: sudo apt-get install -y cmake pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libpugixml-dev libfreetype-dev zlib1g-dev libexiv2-dev libxml2-utils rsync glslang-tools
+      run: sudo apt-get install -y cmake pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libpugixml-dev libfreetype-dev zlib1g-dev libexiv2-dev libxml2-utils rsync glslang-tools libavcodec-dev libavformat-dev
       
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
