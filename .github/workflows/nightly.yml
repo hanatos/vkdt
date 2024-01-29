@@ -40,6 +40,7 @@ jobs:
         run: |
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
           sudo apt-get update
           sudo apt-get -y install \
             ${{ matrix.compiler.packages }}
