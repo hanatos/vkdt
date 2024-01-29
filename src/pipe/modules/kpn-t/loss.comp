@@ -45,7 +45,7 @@ void main()
 #if 1 // SMAPE
       const float eps = 1e-5;
       vec4 den = abs(res) + abs(ref) + eps;
-      E = dot(vec4(1.0), abs(res - ref)/den)/4.0;
+      E = dot(vec4(1.0), abs(res - ref)/den);
       dEdO = (res - ref)/(den*den) * (abs(res*ref) + eps * abs(res) + res*ref) / (eps + abs(res * (res-ref)));
 #endif
 #if 0 // cosh

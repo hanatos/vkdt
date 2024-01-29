@@ -112,7 +112,11 @@ void main()
 #endif
     if(j>=0 && j<2 && i>=0 && i<2)
     {
+#ifdef PRE_MLP_DIFF
+      vec4 dEdI = vec4(dEdO * I.a, dot(dEdO, I.rgb)); // pre-mlp-diff only adds a*I
+#else
       vec4 dEdI = vec4(dEdO * I.a, dot(dEdO, I.rgb - O)); // original
+#endif
       if(all(lessThan(tc, imageSize(img_dEdI)))) imageStore(img_dEdI, tc, dEdI);
     }
 #endif

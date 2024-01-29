@@ -197,7 +197,7 @@ finite differences for `dEdw`: for each frame, pick one `w`. permute it by some 
 
 FIXME: seems the recent updates broke this (diff version doesn't output useful stuff any more)
 
-try these
+try these (remember to set `cnngenin` to static input!)
 ```
 # with DEBUG_DERIV in config.h:
 make debug -j20 && vkdt cli -g mlp/mlp.cfg --format o-pfm --filename diff --last-frame-only --output view0
