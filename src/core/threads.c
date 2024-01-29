@@ -60,6 +60,7 @@ typedef struct threads_t
   pthread_cond_t  cond_task_push;
   pthread_mutex_t mutex_done;
   pthread_mutex_t mutex_push;
+  pthread_t       main_thread;
 }
 threads_t;
 
@@ -244,6 +245,8 @@ void threads_global_init()
   thr.cpuid    = malloc(sizeof(uint32_t)*thr.num_threads);
   thr.worker   = malloc(sizeof(pthread_t)*thr.num_threads);
 
+  thr.main_thread = pthread_self();
+
   for(int k=0;k<thr.task_max;k++)
     thr.task[k].tid = s_task_state_recycle;
 
@@ -328,4 +331,9 @@ float threads_task_progress(int taskid)
 {
   if(taskid < 0 || taskid >= thr.task_max) return 0.0f;
   return thr.task[taskid].done / (float) thr.task[taskid].work_item_cnt;
+}
+
+int threads_i_am_gui()
+{
+  return pthread_self() == thr.main_thread;
 }

@@ -1,4 +1,5 @@
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
@@ -224,7 +225,7 @@ int main(int argc, char *argv[])
   {
     if(!strcmp(argv[1], "--version"))
     {
-      printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
+      printf("vkdt "VKDT_VERSION" (c) 2020--2024 johannes hanika\n");
       exit(0);
     }
     else if(!strcmp(argv[1], "--help"))
@@ -327,9 +328,18 @@ int main(int argc, char *argv[])
       vkdt.wstate.busy = vkdt.state.anim_max_frame == -1 ? 3 : vkdt.state.anim_max_frame - vkdt.state.anim_frame + 1;
     if(vkdt.wstate.busy > 0) glfwPostEmptyEvent();
     else vkdt.wstate.busy = 3;
+
+    glfwWaitEvents();
+    for(int i=0;i<100;i++) if(!qvk_sub_work()) break;
+
+    // TODO: time sliced submitter thread here!
+    // TODO: work until queue completely drained (or crazy max)
+    // TODO:   post empty event to wake up this thread
+    // TODO: what about the frame limiter? we don't want it to affect the subs
+    // TODO: - if sub work item cnt > 0 ignore frame limiter
+
     // should probably consider this instead:
     // https://github.com/bvgastel/imgui/commits/imgui-2749
-    glfwWaitEvents();
     if(frame_limiter || (dt_log_global.mask & s_log_perf))
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
       double end_rf = dt_time();

@@ -15,8 +15,8 @@ void qvk_submit(
   VkSubmitInfo *si,
   VkFence       fence);
 
-// some required memory/mutex allocation
-void qvk_sub_init();
+int  qvk_sub_work();    // work on a slice of the queue
+void qvk_sub_init();    // init queue
 void qvk_sub_cleanup();
 #ifdef __cplusplus
 }

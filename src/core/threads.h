@@ -55,6 +55,10 @@ int threads_shutting_down();
 // return number of threads
 int threads_num();
 
+// return non-zero if the caller is the gui thread (i.e. main thread, which
+// called threads_global_init)
+int threads_i_am_gui();
+
 // wait for a task to finish (pass the taskid that threads_task returned)
 void threads_wait(int taskid);
 
@@ -62,4 +66,3 @@ static inline uint32_t threads_id()
 {
   return thr_tls.tid;
 }
-
