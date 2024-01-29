@@ -1,5 +1,6 @@
 name: nightly packages
 # based on the same for darktable-org/darktable
+# i suppose that makes it GPLv3.
 
 on:
   push:
@@ -12,7 +13,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'hanatos/vkdt' && false
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt appimage
     runs-on: ubuntu-22.04
     strategy:
@@ -26,8 +27,8 @@ jobs:
       CC: ${{ matrix.compiler.CC }}
       CXX: ${{ matrix.compiler.CXX }}
       SRC_DIR: ${{ github.workspace }}/src
-      BUILD_DIR: ${{ github.workspace }}/build
-      INSTALL_PREFIX: ${{ github.workspace }}/AppDir/usr
+      BUILD_DIR: ${{ github.workspace }}
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
       CMAKE_BUILD_TYPE: ${{ matrix.btype }}
       GENERATOR: ${{ matrix.generator }}
       TARGET: ${{ matrix.target }}
@@ -48,12 +49,14 @@ jobs:
             build-essential \
             appstream-util \
             git \
-            vulkan-tools \
+            glslang-tools \
             libvulkan-dev \
             libjpeg-dev \
-            libpugixml-dev \
             libglfw3-dev \
             zlib1g-dev \
+            libpugixml-dev \
+            libomp-dev \
+            libfuse2 \
             appstream;
       - uses: actions/checkout@v4
         with:
@@ -66,17 +69,17 @@ jobs:
           bash bin/mkappimg.sh
       - name: check if it runs
         run: |
-          ${INSTALL_PREFIX}/bin/vkdt --version
+          ./vkdt-*.AppImage --version
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.BUILD_DIR }}/vkdt-*.AppImage*
+          path: vkdt-*.AppImage*
           name: artifact-appimage
           retention-days: 1
 
   Windows:
-    if: github.repository == 'hanatos/vkdt' && false
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt windows
     runs-on: windows-latest
     strategy:
@@ -88,7 +91,7 @@ jobs:
       run:
         shell: msys2 {0}
     env:
-      SRC_DIR: ${{ github.workspace }}/vkdt
+      SRC_DIR: ${{ github.workspace }}/src
       INSTALL_PREFIX: ${{ github.workspace }}/install
     steps:
       - uses: msys2/setup-msys2@v2
@@ -96,17 +99,25 @@ jobs:
           msystem: ${{ matrix.msystem }}
           install: >-
             git
+            rsync
+            make
+            zip
           pacboy: >-
             cc:p
-            cmake:p
             gcc-libs:p
+            dlfcn:p
+            glfw:p
             vulkan-devel:p
             glslang:p
             libjpeg-turbo:p
-            omp:p
-            pugixml:p
             zlib:p
+            exiv2:p
+            omp:p
+            cmake:p
+            pugixml:p
           update: false
+      - run: git config --global core.autocrlf input
+        shell: bash
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -114,20 +125,56 @@ jobs:
           path: src
       - name: build and install
         run: |
-          make -C $(cygpath ${SRC_DIR})
-          make DESTDIR=$(cygpath ${INSTALL_PREFIX}) -C $(cygpath ${SRC_DIR}) install
+          make -C ${SRC_DIR}
+          make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
       - name: check if it runs
         run: |
-          $(cygpath ${INSTALL_PREFIX})/bin/vkdt.exe --version
+          ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
       - name: get version info
         run: |
           cd ${SRC_DIR}
-          echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe)" >> $GITHUB_ENV
           ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
+      - name: create zip package
+        run: |
+          cd ${INSTALL_PREFIX}/usr/lib
+          # copy dso for vkdt
+          cp /ucrt64/bin/{libdl.dll,libgcc_s_seh-1.dll,libjpeg-8.dll,libstdc++-6.dll,libwinpthread-1.dll} vkdt/
+          # copy dso for rawspeed + exiv2
+          cp /ucrt64/bin/{libbrotlicommon.dll,libbrotlidec.dll,libcrypto-3-x64.dll,libcurl-4.dll,libexiv2-28.dll,libexpat-1.dll,libidn2-0.dll,libintl-8.dll,libnghttp2-14.dll,libpsl-5.dll,libpugixml.dll,libssh2-1.dll,libssl-3-x64.dll,libunistring-5.dll,libgomp-1.dll,zlib1.dll,libiconv-2.dll,libINIReader-0.dll,libinih-0.dll,libzstd.dll} vkdt/
+          zip -r vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.BUILD_DIR }}/vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.exe
+          path: ${{ env.INSTALL_PREFIX}}/usr/lib/vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
           name: artifact-windows
           retention-days: 1
+
+  upload_to_release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    needs: [AppImage, Windows]
+    steps:
+      - name: download artifacts
+        uses: actions/download-artifact@v4
+      - name: update nightly release
+        uses: andelf/nightly-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: nightly
+          prerelease: true
+          name: 'vkdt nightly build $$'
+          body: |
+            this is an automated nightly build of vkdt.
+
+            it may contain pre-release quality features, use with care :)
+
+            the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
+            you can help by reporting more issues (or maybe even fixing, if you can ;) ).
+
+          files: |
+            artifact-appimage/*
+            artifact-windows/*

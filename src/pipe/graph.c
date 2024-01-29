@@ -7,6 +7,7 @@
 #include "modules/localsize.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 #include "graph-print.h"
 #ifdef DEBUG_MARKERS
 #include "db/stringpool.h"
@@ -76,8 +77,6 @@ dt_graph_init(dt_graph_t *g)
   };
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+0));
   QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+1));
-  g->float_atomics_supported = qvk.float_atomics_supported;
-
   for(int i=0;i<2;i++)
   {
     g->query[i].max = 2000;
@@ -96,7 +95,6 @@ dt_graph_init(dt_graph_t *g)
   // grab default queue:
   g->queue = qvk.queue_compute;
   g->queue_idx = qvk.queue_idx_compute;
-  g->queue_mutex = &qvk.queue_mutex;
 
   g->lod_scale = 1;
   g->active_module = -1;
@@ -109,7 +107,9 @@ dt_graph_cleanup(dt_graph_t *g)
 #ifdef DEBUG_MARKERS
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
-  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+  // needs sync if the gui graph, or none if running in bg
+  if(g->gui_attached) // i suppose we could wait on the gui fence instead.
+    QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -2087,9 +2087,6 @@ VkResult dt_graph_run(
   const int f  = graph->frame % 2;     // recording this pipeline now
   const int fp = (graph->frame+1) % 2; // waiting for the previous frame
 
-  if(run & s_graph_run_alloc)
-    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
-
   QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait for last invocation of our command buffer, just in case
 
 { // module scope
@@ -2122,11 +2119,13 @@ VkResult dt_graph_run(
      (module_flags & (s_module_request_read_source | s_module_request_write_sink)))
     run |= s_graph_run_wait_done;
 
+  // XXX currenty we only run animations/interleaved from gui, so this kinda catches
+  // XXX the anim case too. or else wait for fp fence above, too, in case we're allocing!
   // only waiting for the gui thread to draw our output, and only
   // if we intend to clean it up behind their back
   if(graph->gui_attached &&
-    (run & (s_graph_run_alloc | s_graph_run_create_nodes)))
-    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+    (run & (s_graph_run_roi | s_graph_run_alloc | s_graph_run_create_nodes)))
+    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device)); // probably enough to wait on gui queue fence
 
   if(run & s_graph_run_alloc)
   {
@@ -2203,7 +2202,6 @@ VkResult dt_graph_run(
   // ==============================================
   if(run & (s_graph_run_roi | s_graph_run_create_nodes))
   { // delete all previous nodes
-    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
     for(int i=0;i<graph->num_nodes;i++) for(int j=0;j<graph->node[i].num_connectors;j++)
       if(graph->node[i].connector[j].flags & s_conn_dynamic_array)
       { // free potential double images for multi-frame dsets
@@ -2383,7 +2381,6 @@ VkResult dt_graph_run(
     run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem)
     {
-      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem, 0);
       graph->vkmem = 0;
     }
@@ -2403,7 +2400,6 @@ VkResult dt_graph_run(
     run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem_ssbo)
     {
-      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_ssbo, 0);
       graph->vkmem_ssbo = 0;
     }
@@ -2423,7 +2419,6 @@ VkResult dt_graph_run(
     run |= s_graph_run_upload_source; // new mem means new source
     if(graph->vkmem_staging)
     {
-      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
       graph->vkmem_staging = 0;
     }
@@ -2443,7 +2438,6 @@ VkResult dt_graph_run(
   {
     if(graph->vkmem_uniform)
     {
-      QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
       vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
       graph->vkmem_uniform = 0;
     }
@@ -2695,7 +2689,7 @@ VkResult dt_graph_run(
                   .pCommandBuffers    = &cmd_buf,
                 };
                 vkResetFences(qvk.device, 1, &graph->command_fence[f]);
-                QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
+                qvk_submit(graph->queue, 1, &submit, graph->command_fence[f]);
                 QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
@@ -2787,7 +2781,7 @@ VkResult dt_graph_run(
   if(run & s_graph_run_record_cmd_buf)
   {
     vkResetFences(qvk.device, 1, &graph->command_fence[f]);
-    QVKLR(graph->queue_mutex, vkQueueSubmit(graph->queue, 1, &submit, graph->command_fence[f]));
+    qvk_submit(graph->queue, 1, &submit, graph->command_fence[f]);
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
     else

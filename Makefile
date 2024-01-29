@@ -21,7 +21,11 @@ all: src bin
 
 prefix?=/usr
 DESTDIR?=
+ifeq ($(OS),Windows_NT)
+VKDTDIR?=$(shell cygpath -u $(DESTDIR)$(prefix)/lib/vkdt)
+else
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
+endif
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
@@ -46,7 +50,7 @@ install: install-bin install-mod Makefile
 
 src/core/version.h: $(wildcard .git/FETCH_HEAD)
 	@echo "#pragma once" > src/core/version.h
-	@echo "#define VKDT_VERSION \"$(shell git describe --tags)\"" >> src/core/version.h
+	@echo "#define VKDT_VERSION \"$(shell git describe)\"" >> src/core/version.h
 
 install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/qvk

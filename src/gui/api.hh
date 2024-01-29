@@ -231,7 +231,7 @@ dt_gui_dr_modals()
         line[line_cnt++] = buf+i+1;
         buf[i] = 0;
       }
-      for(uint32_t i=0;i<line_cnt;i++)
+      for(int i=0;i<line_cnt;i++)
       { // mark all lines as selected initially, only ones related to input modules not
         sel[i] = strstr(line[i], "param:i-") == 0 ? 1 : 0;
       }

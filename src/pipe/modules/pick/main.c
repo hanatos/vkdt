@@ -73,7 +73,7 @@ create_nodes(
   const int id_collect = graph->num_nodes++;
   graph->node[id_collect] = (dt_node_t) {
     .name   = dt_token("pick"),
-    .kernel = graph->float_atomics_supported ? dt_token("collect") : dt_token("coldumb"),
+    .kernel = qvk.float_atomics_supported ? dt_token("collect") : dt_token("coldumb"),
     .module = module,
     .wd     = module->connector[0].roi.wd,
     .ht     = module->connector[0].roi.ht,

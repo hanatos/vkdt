@@ -273,58 +273,15 @@ void create_nodes(
   int have_clut = dt_connected(module->connector+2);
   int have_pick = dt_connected(module->connector+3);
   int have_abney = dt_connected(module->connector+4) && dt_connected(module->connector+5);
-  assert(graph->num_nodes < graph->max_nodes);
-  const int nodeid = graph->num_nodes++;
-  graph->node[nodeid] = (dt_node_t){
-    .name   = module->name,
-    .kernel = dt_token("main"), // file name
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 6,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[1].roi,
-    },{
-      .name   = dt_token("clut"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("picked"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("r"),
-      .format = dt_token("atom"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("abney"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rg"),
-      .format = dt_token("f16"),
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("spectra"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .connected_mi = -1,
-    }},
-    .push_constant_size = 3*sizeof(uint32_t),
-    .push_constant = { have_clut, have_pick, have_abney },
-  };
+  const int pc[] = { have_clut, have_pick, have_abney };
+  const int nodeid = dt_node_add(graph, module, "colour", qvk.float_atomics_supported ? "main" : "main-",
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 6,
+      "input",   "read",  "rgba", "f16",  dt_no_roi,
+      "output",  "write", "rgba", "f16",  &module->connector[0].roi,
+      "clut",    "read",  "rgba", "f16",  dt_no_roi,
+      "picked",  "read",  "r",    "atom", dt_no_roi,
+      "abney",   "read",  "rg",   "f16",  dt_no_roi,
+      "spectra", "read",  "rgba", "f16",  dt_no_roi);
   dt_connector_copy(graph, module, 0, nodeid, 0);
   dt_connector_copy(graph, module, 1, nodeid, 1);
   if(have_clut)  dt_connector_copy(graph, module, 2, nodeid, 2);

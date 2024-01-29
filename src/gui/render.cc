@@ -2,6 +2,7 @@ extern "C" {
 #include "gui.h"
 #include "view.h"
 #include "qvk/qvk.h"
+#include "qvk/sub.h"
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
@@ -178,7 +179,7 @@ extern "C" void dt_gui_init_fonts()
     end_info.pCommandBuffers = &command_buffer;
     vkEndCommandBuffer(command_buffer);
     threads_mutex_lock(&qvk.queue_mutex);
-    vkQueueSubmit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
+    qvk_submit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
     threads_mutex_unlock(&qvk.queue_mutex);
 
     threads_mutex_lock(&qvk.queue_mutex);
@@ -264,8 +265,13 @@ extern "C" int dt_gui_init_imgui()
       fclose(f);
     }
     else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name0);
-    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name1);
     f = fopen(tmp, "r");
+    if(!f)
+    {
+      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+      f = fopen(tmp, "r");
+    }
     if(f)
     {
       fscanf(f, "%f %f %f\n", gamma1, gamma1+1, gamma1+2);

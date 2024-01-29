@@ -248,7 +248,7 @@ dt_module_remove_with_history(
     dt_token_t  inst)
 {
   int modid = -1;
-  for(int i=0;i<graph->num_modules;i++)
+  for(uint32_t i=0;i<graph->num_modules;i++)
     if(graph->module[i].name == name && graph->module[i].inst == inst)
     { modid = i; break; }
   if(modid == -1) return;

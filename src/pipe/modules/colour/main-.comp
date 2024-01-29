@@ -1,3 +1,5 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
+#define HAVE_NO_ATOMICS
 #include "main-impl.glsl"
+

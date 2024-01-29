@@ -151,10 +151,10 @@ dt_export_init(
 
   w->wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
   w->ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
-  w->format = dt_rc_get_int(&vkdt.rc, "gui/export/format", 2);
+  w->format = dt_rc_get_int(&vkdt.rc, "gui/export/format", 4);
   w->quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
   strncpy(w->basename,
-        dt_rc_get(&vkdt.rc, "gui/export/basename", "/tmp/img_${seq}"),
+        dt_rc_get(&vkdt.rc, "gui/export/basename", "${home}/img_${seq}"),
         sizeof(w->basename)-1);
   w->last_frame_only = 0;
 }

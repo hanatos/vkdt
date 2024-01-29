@@ -33,7 +33,11 @@ dt_tool_dispatch(int argc, char *argv[])
     if(!strcmp(argv[1], cmds[i])) { cmd = cmds[i]; break; }
   if(!cmd) return; // no such tool
   char filename[256];
-  snprintf(filename, sizeof(filename), "%s/vkdt-%s", basedir, cmd);
+  if(snprintf(filename, sizeof(filename), "%s/vkdt-%s", basedir, cmd) < sizeof(filename))
+    goto error;
   if(execv(filename, argv+1) < 0)
-    fprintf(stderr, "[vkdt] dispatch tool: failed to execute %s\n", filename);
+    goto error;
+  return; // never reached
+error:
+  fprintf(stderr, "[vkdt] dispatch tool: failed to execute %s\n", filename);
 }
