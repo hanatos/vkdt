@@ -371,6 +371,7 @@ out:
   dt_view_switch(s_view_cnt);
 
   threads_shutdown();
+  qvk_sub_shutdown();
   threads_global_cleanup(); // join worker threads before killing their resources
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   dt_thumbnails_cleanup(&vkdt.thumbnail_gen);

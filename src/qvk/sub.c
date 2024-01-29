@@ -20,6 +20,7 @@ typedef struct qvk_sub_item_t
   VkQueue          queue;
   VkSubmitInfo     si;
   VkFence          fence;
+  VkResult         result;
   qvk_sub_status_t status;
 }
 qvk_sub_item_t;
@@ -38,17 +39,15 @@ qvk_sub_t;
 qvk_sub_t qvk_sub;
 
 
-void qvk_submit(
+VkResult qvk_submit(
   VkQueue       queue,
   int           cnt,
   VkSubmitInfo *si,
   VkFence       fence)
 {
+  if(qvk_sub.shutdown) return VK_ERROR_INITIALIZATION_FAILED;
   if(threads_i_am_gui())
-  {
-    vkQueueSubmit(queue, cnt, si, fence);
-    return;
-  }
+    return vkQueueSubmit(queue, cnt, si, fence);
   qvk_sub_item_t *task = 0;
   for(int k=0;k<QVK_SUB_QUEUE_SIZE;k++)
   { // brute force search for task
@@ -57,9 +56,11 @@ void qvk_submit(
     if(oldval == s_sub_free) break;
     else task = 0;
   }
-  task->queue = queue;
-  task->si    = *si;
-  task->fence = fence;
+  fprintf(stderr, "[XXX] submitting new task\n");
+  task->queue  = queue;
+  task->si     = *si;
+  task->fence  = fence;
+  task->result = VK_INCOMPLETE;
   qvk_sub.cnt++;
 
   // mark as ready
@@ -67,15 +68,16 @@ void qvk_submit(
   // wake up thread
   // XXX how?
   // glfwPostEmptyEvent but not without gui?
-  if(fence == VK_NULL_HANDLE) return; // no fence no problem
+  if(fence == VK_NULL_HANDLE) return VK_SUCCESS; // no fence no problem
   while(1)
   { // if a fence is passed, we need to block the caller until the queue was submitted:
+    fprintf(stderr, "[XXX] waiting for fence to become ready\n");
     pthread_mutex_lock  (&qvk_sub.mutex);
     pthread_cond_wait   (&qvk_sub.cond, &qvk_sub.mutex);
     uint32_t oldval = __sync_val_compare_and_swap(&task->status, s_sub_done, s_sub_free);
     pthread_mutex_unlock(&qvk_sub.mutex);
-    if(qvk_sub.shutdown) return;
-    if(oldval == s_sub_done) return; // this worked, it is now safe to vkWaitForFences
+    fprintf(stderr, "[XXX] fence is good, returning!\n");
+    if(oldval == s_sub_done) return task->result; // this worked, it is now safe to vkWaitForFences
   }
 }
 
@@ -95,17 +97,18 @@ int qvk_sub_work()
     }
     if(task)
     {
-      vkQueueSubmit(task->queue, 1, &task->si, task->fence);
+      fprintf(stderr, "[XXX] working on submit task!\n");
+      task->result = vkQueueSubmit(task->queue, 1, &task->si, task->fence);
       if(task->fence == VK_NULL_HANDLE)
         __sync_val_compare_and_swap(&task->status, s_sub_running, s_sub_free);
       else // extra step: block submit caller until done->free
         __sync_val_compare_and_swap(&task->status, s_sub_running, s_sub_done);
       qvk_sub.cnt--;
+      fprintf(stderr, "[XXX] submit done, %d left!\n", qvk_sub.cnt);
       // trigger one global condition variable to wake up all waiting folks
-      if(qvk_sub.shutdown) return qvk_sub.cnt;
-      pthread_mutex_lock  (&qvk_sub.mutex);
-      pthread_cond_signal (&qvk_sub.cond);
-      pthread_mutex_unlock(&qvk_sub.mutex);
+      pthread_mutex_lock    (&qvk_sub.mutex);
+      pthread_cond_broadcast(&qvk_sub.cond);
+      pthread_mutex_unlock  (&qvk_sub.mutex);
     }
   }
   return qvk_sub.cnt;
@@ -121,13 +124,15 @@ void qvk_sub_init()
   pthread_mutex_init(&qvk_sub.mutex, 0);
 }
 
-void qvk_sub_cleanup()
+void qvk_sub_shutdown()
 {
   qvk_sub.shutdown = 1;
-  pthread_mutex_lock(&qvk_sub.mutex);
-  pthread_cond_broadcast(&qvk_sub.cond);
-  pthread_mutex_unlock(&qvk_sub.mutex);
+  while(qvk_sub_work())// {} // drain, this is called from the main thread only
+  fprintf(stderr, "[XXX] draining , %d left!\n", qvk_sub.cnt);
+}
 
+void qvk_sub_cleanup()
+{
   pthread_mutex_destroy(&qvk_sub.mutex);
   pthread_cond_destroy(&qvk_sub.cond);
 }
