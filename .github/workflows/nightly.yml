@@ -56,6 +56,11 @@ jobs:
             zlib1g-dev \
             libpugixml-dev \
             libomp-dev \
+            libfreetype-dev \
+            libexiv2-dev \
+            libasound2-dev \
+            libavformat-dev \
+            libavcodec-dev \
             libfuse2 \
             appstream;
       - uses: actions/checkout@v4
