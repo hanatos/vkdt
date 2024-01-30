@@ -17,8 +17,8 @@
 #define ALPHA_PLAIN 2
 #define ALPHA_SIGMOID 3
 // #define ALPHA_ACTIVATION ALPHA_PLAIN
-#define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
-// #define ALPHA_ACTIVATION ALPHA_SIGMOID
+// #define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
+#define ALPHA_ACTIVATION ALPHA_SIGMOID
 // apply softmax + alpha plain seems to be a winning combination
 // both plain also works (and through negative filter weights may be more expressive)
 
