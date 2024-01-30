@@ -7,7 +7,10 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  uint32_t filters = module->img_param.filters;
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return; // must have disconnected input somewhere
+  uint32_t filters = img_param->filters;
+  if(!img_param->filters) return dt_connector_bypass(graph, module, 0, 1);
   // reinterpret to int bits:
   const uint32_t *wb = (uint32_t *)module->img_param.whitebalance;
 
