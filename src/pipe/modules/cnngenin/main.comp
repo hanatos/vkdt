@@ -52,7 +52,7 @@ void main()
   { // add noise according to gaussian/poissonian profile
     // sample noise a/b based on per-frame seed
     const float scale = 65535.0;
-    noise_a = 100.0 * scale * mrand(seed);
+    noise_a = 1000.0 * scale * mrand(seed);
     noise_b = 1000.0 * mrand(seed);
     seed += 7654*ipos.x + 1357900*ipos.y;
     seed = uint((1<<29)*mrand(seed));
