@@ -111,7 +111,8 @@ toggle_fullscreen()
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   if(g_fullscreen)
   {
-    glfwSetWindowMonitor(qvk.window, 0, 0, 0, mode->width/4 * 3, mode->height/4 * 3, mode->refreshRate);
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    glfwSetWindowMonitor(qvk.window, 0, mode->width/8, mode->height/8, mode->width/4 * 3, mode->height/4 * 3, mode->refreshRate);
     g_fullscreen = 0;
   }
   else
@@ -250,8 +251,9 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  // start fullscreen on current monitor, we only know which one is that after
+  // start un-fullscreen on current monitor, we only know which one is that after
   // we created the window in dt_gui_init(). maybe should be a config option:
+  g_fullscreen = 1;
   toggle_fullscreen();
 
   glfwSetKeyCallback(qvk.window, key_callback);
