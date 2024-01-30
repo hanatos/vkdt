@@ -75,7 +75,7 @@ main()
     corr_m2 = 1.0/(1.0-pow(params.beta2, global.frame+1));
   }
 
-#if 1 // emergency clamping
+#if 0 // emergency clamping
   float delta = m1 * corr_m1 * params.alpha / (sqrt(m2 * corr_m2) + params.eps);
   w = clamps(w, -10.0, 10.0);
   delta = sign(delta) * min(max(1e-2, abs(2.0*w)), abs(delta));

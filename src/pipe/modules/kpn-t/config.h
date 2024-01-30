@@ -25,6 +25,7 @@
 // both plain also works (and through negative filter weights may be more expressive)
 
 // #define POST_MLP_DIFF // only add (I-smooth(I))*alpha to the coarse (i.e. taking the diff post MLP)
+// broken in interesting ways, way too smooth
 // #define PRE_MLP_DIFF // only pass laplacians, i.e. detail coefficients to the mlp for classification (noise/signal) or signal extraction
 
 #define MLP_ACTIVATION_RELU 1
