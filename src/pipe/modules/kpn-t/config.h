@@ -3,8 +3,8 @@
 #define SKEW 8  // or 0 if WIDTH % 16 != 0
 #define N_BLOCKS (WIDTH / 16)     // how many blocks in the weights for one layer, when we can work on 16x16 at a time.
 #define N_ITERS 8 // or 2 if WIDTH >= 256 // going over pixels: how many iterations working on batches of px
-#define N_HIDDEN_LAYERS 2
-#define GRAD_SCALE 1024 // 128.0 // avoid underflow in f16 loss/gradients
+#define N_HIDDEN_LAYERS 3
+#define GRAD_SCALE 128.0 // avoid underflow in f16 loss/gradients
 // modes for convolution by kernel:
 #define APPLY_SOFTMAX 1
 // #define APPLY_SIGMOID 2
@@ -16,7 +16,9 @@
 #define ALPHA_CONST 1
 #define ALPHA_PLAIN 2
 #define ALPHA_SIGMOID 3
-#define ALPHA_ACTIVATION ALPHA_PLAIN
+#define ALPHA_CLAMPED 4
+// #define ALPHA_ACTIVATION ALPHA_PLAIN
+#define ALPHA_ACTIVATION ALPHA_CLAMPED
 // #define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
 // #define ALPHA_ACTIVATION ALPHA_SIGMOID
 // apply softmax + alpha plain seems to be a winning combination
@@ -31,6 +33,11 @@
 #define MLP_ACTIVATION MLP_ACTIVATION_RELU // best candidate for results
 // #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
 // #define MLP_ACTIVATION MLP_ACTIVATION_NONE // debug deriv outside mlp with large offset DERIV_EPS
+
+#define LOSS_L2 1    // prefers strong contrast edges
+#define LOSS_SMAPE 2 // prefers noise reduction
+#define LOSS_COSH 3
+#define LOSS LOSS_SMAPE
 
 // #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1 // lower will only show numeric jitter

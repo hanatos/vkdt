@@ -24,5 +24,5 @@ float
 sigma_exp(in float x)
 {
   if(isnan(x)) x = 0.0;
-  return exp(clamp(x, -6500.0, 6500.0));
+  return exp(clamp(x, -500.0, 26.0));
 }

@@ -35,7 +35,7 @@ void main()
     rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
     den += w;
   }
-  rgb /= max(1e-8, den);
+  rgb /= max(1e-3, den);
 #elif (APPLY_ACTIVATION==APPLY_PLAIN)
   vec3 rgb = vec3(0.0);
   [[unroll]] for(int k=0;k<15;k++)
@@ -64,8 +64,9 @@ void main()
   const float alpha = ssbo_K.v[nonuniformEXT(idx)];
 #elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
   const float alpha = sigmoid(ssbo_K.v[nonuniformEXT(idx)]);
+#elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
+  const float alpha = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), -1, 1); // clamp
 #endif
   // const float alpha = max(0.0, float(ssbo_K.v[nonuniformEXT(idx)])); // relu
-  // const float alpha = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), 0, 1); // clamp
   imageStore(img_I, ipos, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));
 }

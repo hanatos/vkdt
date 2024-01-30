@@ -83,8 +83,10 @@ void main()
       // float dIdK = clamps(ddx_sigmoid(inv_sigmoid(I.a)), -10.0, 10.0);
       float dIdK = ddx_sigmoid(inv_sigmoid(I.a));
       dEdK = float16_t(dEdI.a * dIdK);
+#elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
+      dEdK = float16_t(dEdI.a); // straight
+      if(I.a < -1.0 || I.a > 1.0) dEdK = float16_t(0.0); // no derivative outside interval
 #endif
-      // dEdK = float16_t(mix(0.0, dEdI.a, I.a > 0 && I.a < 1)); // clamped both sides
       // dEdK = float16_t(mix(dEdI.a, 0.0, I.a <= 0)); // relu
     }
   }

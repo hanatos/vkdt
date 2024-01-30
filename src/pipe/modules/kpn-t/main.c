@@ -18,7 +18,8 @@ int init(dt_module_t *mod)
       "%d network width\n"
       "%s kernel weight activation\n"
       "%s alpha blending activation\n"
-      "%s mlp activation",
+      "%s mlp activation\n"
+      "%s loss",
       N_HIDDEN_LAYERS,
       WIDTH,
        APPLY_ACTIVATION == APPLY_PLAIN ? "plain" :
@@ -26,7 +27,9 @@ int init(dt_module_t *mod)
        ALPHA_ACTIVATION == ALPHA_CONST ? "const" :
       (ALPHA_ACTIVATION == ALPHA_PLAIN ? "plain" : "sigmoid"),
        MLP_ACTIVATION == MLP_ACTIVATION_NONE ? "none" :
-      (MLP_ACTIVATION == MLP_ACTIVATION_RELU ? "relu" : "leaky relu"));
+      (MLP_ACTIVATION == MLP_ACTIVATION_RELU ? "relu" : "leaky relu"),
+       LOSS == LOSS_L2 ? "L2" :
+      (LOSS == LOSS_SMAPE ? "SMAPE" : "cosh"));
   return 0;
 }
 

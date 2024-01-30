@@ -196,6 +196,8 @@ void main()
     const float alpha = wgt[15];
 #elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
     const float alpha = sigmoid(wgt[15]);
+#elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
+    const float alpha = clamp(float(wgt[15]), -1.0, 1.0);
 #endif
     // TODO: if out of bounds?
     imageStore(img_I, px, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));
