@@ -129,9 +129,9 @@ load_raw(
     // TODO: do some corruption detection and support for esoteric formats/fails here
     // the data type doesn't seem to be inited on hdrmerge raws:
     // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
-    if(sizeof(uint16_t) != r->getBpp())
+    if(sizeof(uint16_t) != r->getBpp()/r->getCpp())
     {
-      dt_log(s_log_err, "[i-raw] unhandled pixel format: %s\n", filename);
+      dt_log(s_log_err, "[i-raw] unhandled pixel format %d bpp : %s\n", r->getBpp(), filename);
       return 1;
     }
   }
@@ -315,7 +315,12 @@ void modify_roi_out(
 
   // uncrop bayer sensor filter
   mod->img_param.filters = mod_data->d->mRaw->cfa.getDcrawFilter();
-  if(mod->img_param.filters != 9u)
+  if(mod_data->d->mRaw->getCpp() == 3)
+  {
+    mod->img_param.filters = 0;
+    mod->connector[0].chan = dt_token("rgba");
+  }
+  else if(mod->img_param.filters != 9u)
     mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
         mod_data->d->mRaw->cfa.getDcrawFilter(),
         cropTL.x, cropTL.y);
@@ -361,7 +366,7 @@ void modify_roi_out(
       else        oy += 3;
     }
   }
-  else // move to std bayer sensor offset
+  else if(mod->img_param.filters) // move to std bayer sensor offset
   {
     uint32_t f = mod->img_param.filters;
     if(FC(0,0,f) == 1)
@@ -374,30 +379,33 @@ void modify_roi_out(
       ox = oy = 1;
     }
   }
-  // unfortunately need to round to full 6x6 block for xtrans
-  const int block = mod->img_param.filters == 9u ? 3 : 2;
-  const int bigblock = mod->img_param.filters == 9u ? 6 : 2;
-  // crop aabb is relative to buffer we emit,
-  // so we need to move it along to the CFA pattern boundary
-  uint32_t *b = mod->img_param.crop_aabb;
-  b[2] -= ox;
-  b[3] -= oy;
-  // fprintf(stderr, "off %d %d\n", ox, oy);
-  // fprintf(stderr, "box %u %u %u %u\n", b[0], b[1], b[2], b[3]);
-  // and also we'll round it to cut only between CFA blocks
-  b[0] = ((b[0] + bigblock - 1) / bigblock) * bigblock;
-  b[1] = ((b[1] + bigblock - 1) / bigblock) * bigblock;
-  b[2] =  (b[2] / block) * block;
-  b[3] =  (b[3] / block) * block;
-  // fprintf(stderr, "bor %u %u %u %u\n", b[0], b[1], b[2], b[3]);
 
+  if(mod->img_param.filters)
+  { // unfortunately need to round to full 6x6 block for xtrans
+    const int block = mod->img_param.filters == 9u ? 3 : 2;
+    const int bigblock = mod->img_param.filters == 9u ? 6 : 2;
+    // crop aabb is relative to buffer we emit,
+    // so we need to move it along to the CFA pattern boundary
+    uint32_t *b = mod->img_param.crop_aabb;
+    b[2] -= ox;
+    b[3] -= oy;
+    // fprintf(stderr, "off %d %d\n", ox, oy);
+    // fprintf(stderr, "box %u %u %u %u\n", b[0], b[1], b[2], b[3]);
+    // and also we'll round it to cut only between CFA blocks
+    b[0] = ((b[0] + bigblock - 1) / bigblock) * bigblock;
+    b[1] = ((b[1] + bigblock - 1) / bigblock) * bigblock;
+    b[2] =  (b[2] / block) * block;
+    b[3] =  (b[3] / block) * block;
+    // fprintf(stderr, "bor %u %u %u %u\n", b[0], b[1], b[2], b[3]);
+    ro->full_wd -= ox;
+    ro->full_ht -= oy;
+    // round down to full block size:
+    ro->full_wd = (ro->full_wd/block)*block;
+    ro->full_ht = (ro->full_ht/block)*block;
+  }
+  
   mod_data->ox = ox;
   mod_data->oy = oy;
-  ro->full_wd -= ox;
-  ro->full_ht -= oy;
-  // round down to full block size:
-  ro->full_wd = (ro->full_wd/block)*block;
-  ro->full_ht = (ro->full_ht/block)*block;
 }
 
 int read_source(
@@ -420,6 +428,15 @@ int read_source(
   int wd = dim_uncropped.x;
   int ht = dim_uncropped.y;
 
+  if(mod_data->d->mRaw->getCpp() == 3)
+  { // colour "raw"
+    if(mod->connector[0].roi.wd < wd || mod->connector[0].roi.ht < ht) return 0;
+    for(int j=0;j<ht;j++) for(int i=0;i<wd;i++) for(int k=0;k<4;k++)
+      buf[4*(j*wd+i)+k] = k==3 ? 65535 : mod_data->d->mRaw->getU16DataAsUncroppedArray2DRef()(j,3*i+k);
+    return 0;
+  }
+
+  // mosaic pattern
   int ox = mod_data->ox;
   int oy = mod_data->oy;
   wd -= ox;
