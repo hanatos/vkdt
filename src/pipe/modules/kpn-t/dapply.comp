@@ -85,7 +85,7 @@ void main()
       dEdK = float16_t(dEdI.a * dIdK);
 #elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
       dEdK = float16_t(dEdI.a); // straight
-      if(I.a < -1.0 || I.a > 1.0) dEdK = float16_t(0.0); // no derivative outside interval
+      if(I.a < 0.0 || I.a > 1.0) dEdK = float16_t(0.0); // no derivative outside interval
 #endif
       // dEdK = float16_t(mix(dEdI.a, 0.0, I.a <= 0)); // relu
     }

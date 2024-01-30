@@ -30,8 +30,8 @@
 #define MLP_ACTIVATION_RELU 1
 #define MLP_ACTIVATION_LEAKY_RELU 2
 #define MLP_ACTIVATION_NONE 3
-#define MLP_ACTIVATION MLP_ACTIVATION_RELU // best candidate for results
-// #define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
+// #define MLP_ACTIVATION MLP_ACTIVATION_RELU // best candidate for results
+#define MLP_ACTIVATION MLP_ACTIVATION_LEAKY_RELU // best candidate for results
 // #define MLP_ACTIVATION MLP_ACTIVATION_NONE // debug deriv outside mlp with large offset DERIV_EPS
 
 #define LOSS_L2 1    // prefers strong contrast edges

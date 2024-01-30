@@ -13,7 +13,7 @@ void warp_activation(
   for (int i = 0; i < x.length(); ++i) r[i] = max(float16_t(0.0), x[i]);
 #elif (MLP_ACTIVATION==MLP_ACTIVATION_LEAKY_RELU)
   // leaky relu: better against dead neurons but can cause exploding gradients
-  for (int i = 0; i < x.length(); ++i) r[i] = max(float16_t(0.01*x[i]), x[i]);
+  for (int i = 0; i < x.length(); ++i) r[i] = max(float16_t(0.001*x[i]), x[i]);
 #elif (MLP_ACTIVATION==MLP_ACTIVATION_NONE)
   // DEBUG: no activation (useful to make network linear and debug derivatives with large epsilon)
   for (int i = 0; i < x.length(); ++i) r[i] = x[i];
@@ -29,7 +29,7 @@ void warp_activation_backward(
 #if (MLP_ACTIVATION==MLP_ACTIVATION_RELU)
   for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.0); // relu
 #elif (MLP_ACTIVATION==MLP_ACTIVATION_LEAKY_RELU)
-  for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.01 * x[i]); // leaky relu
+  for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.001 * x[i]); // leaky relu
 #elif (MLP_ACTIVATION==MLP_ACTIVATION_NONE)
   for (int i = 0; i < x.length(); ++i) r[i] = x[i]; // DEBUG no activation
 #endif

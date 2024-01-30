@@ -65,7 +65,7 @@ void main()
 #elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
   const float alpha = sigmoid(ssbo_K.v[nonuniformEXT(idx)]);
 #elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
-  const float alpha = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), -1, 1); // clamp
+  const float alpha = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), 0, 1); // clamp
 #endif
   // const float alpha = max(0.0, float(ssbo_K.v[nonuniformEXT(idx)])); // relu
   imageStore(img_I, ipos, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));
