@@ -200,7 +200,8 @@ dt_node_connect_named(
     if(graph->node[id0].connector[c].name == c0t) { c0i = c; break; }
   for(int c=0;c<graph->node[id1].num_connectors;c++)
     if(graph->node[id1].connector[c].name == c1t) { c1i = c; break; }
-  if(c0i < 0 || c1i < 0) return -100;
+  if(c0i < 0) return -100;
+  if(c1i < 0) return -101;
   return dt_node_connect(graph, id0, c0i, id1, c1i);
 }
 
