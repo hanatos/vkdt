@@ -2296,47 +2296,29 @@ VkResult dt_graph_run(
             // m3(out) -> m2(in) -> bypass m1(out) -> m0(in)
             if(graph->module[mi1].connector[mc1].bypass_mi >= 0)
             { // now go from mi1/mc1(out) -> m2 = bypass(in) -> m3 = conn(out)
-#if 1
-              int mi2 = graph->module[mi1].connector[mc1].bypass_mi;
-              int mc2 = graph->module[mi1].connector[mc1].bypass_mc;
-              if(mi2 == -1u) continue;
-              int mi3 = graph->module[mi2].connector[mc2].connected_mi;
-              int mc3 = graph->module[mi2].connector[mc2].connected_mc;
-              if(mi3 == -1u) continue;
-              //   fprintf(stderr, "XXX walking %" PRItkn":%" PRItkn
-              //       "--> %" PRItkn ":%" PRItkn
-              //       "--> %" PRItkn ":%" PRItkn"\n",
-              //       dt_token_str(graph->module[mi1].name),
-              //       dt_token_str(graph->module[mi1].connector[mc1].name),
-              //       dt_token_str(graph->module[mi2].name),
-              //       dt_token_str(graph->module[mi2].connector[mc2].name),
-              //       dt_token_str(graph->module[mi3].name),
-              //       dt_token_str(graph->module[mi3].connector[mc3].name));
-#else
+              // mi0:mc0 is the module connector (input) corresponding to our node
+              // mi1:mc1 is an output connector on a different module connected to us
+              // now we need to find the input connector in the same module, if there is bypass
+              // mi2:mc2
+              // and then find the module connected to this input connector, i.e.
+              // mi3:mc3 will be an output connector on a different module
+              // if mi3:mc3 has bypass, do the same again
               int mi3, mc3;
               while(1)
-              {
+              { // find input connector mc2, probably mi1==mi2 bypassing the module
                 int mi2 = graph->module[mi1].connector[mc1].bypass_mi;
                 int mc2 = graph->module[mi1].connector[mc1].bypass_mc;
                 if(mi2 == -1u) continue;
+                // now find previous module mi3 with output connector mc3
                 mi3 = graph->module[mi2].connector[mc2].connected_mi;
                 mc3 = graph->module[mi2].connector[mc2].connected_mc;
-                fprintf(stderr, "XXX walking %" PRItkn":%" PRItkn
-                    "--> %" PRItkn ":%" PRItkn
-                    "--> %" PRItkn ":%" PRItkn"\n",
-                    dt_token_str(graph->module[mi1].name),
-                    dt_token_str(graph->module[mi1].connector[mc1].name),
-                    dt_token_str(graph->module[mi2].name),
-                    dt_token_str(graph->module[mi2].connector[mc2].name),
-                    dt_token_str(graph->module[mi3].name),
-                    dt_token_str(graph->module[mi3].connector[mc3].name));
                 if(mi3 == -1u) continue;
                 // now if this module is again a bypass thing, continue the dance!
                 if(graph->module[mi3].connector[mc3].bypass_mi < 0) break;
+                if(mi1 == mi3 && mc1 == mc3) break; // emergency exit
                 mi1 = mi3;
                 mc1 = mc3;
               }
-#endif
               n0 = graph->module[mi3].connector[mc3].associated_i;
               c0 = graph->module[mi3].connector[mc3].associated_c;
             }
