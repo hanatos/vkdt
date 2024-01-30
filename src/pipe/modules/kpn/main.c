@@ -30,7 +30,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "M3", "write", "rgba", "f16", roi_M+3);
   dt_connector_copy(graph, module, 0, id_mip0, 0); // input image
 
-#ifdef PRE_MLP_DIFF // needed for Mcnt = 7 too
+#if 1//def PRE_MLP_DIFF // needed for Mcnt = 7 too
   const int id_mip1 = dt_node_add( // second level mip maps:
       graph, module, "kpn-t", "mip",
       (roi_M[3].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[3].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
@@ -39,6 +39,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "M5", "write", "rgba", "f16", roi_M+5,
       "M6", "write", "rgba", "f16", roi_M+6);
   CONN(dt_node_connect_named(graph, id_mip0, "M3", id_mip1, "M3"));
+#ifdef PRE_MLP_DIFF
   int id_diff[6];
   for(int i=0;i<6;i++)
   { // insert 4 diff kernels to compute detail coefficients
@@ -54,6 +55,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     else CONN(dt_node_connect_named(graph, i < 4 ? id_mip0 : id_mip1, Mf, id_diff[i], "Mf"));
     CONN(dt_node_connect_named(graph, i < 3 ? id_mip0 : id_mip1, Mc, id_diff[i], "Mc"));
   }
+#endif
 #else
   const int id_mip1 = id_mip0;
 #endif
