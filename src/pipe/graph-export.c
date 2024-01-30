@@ -260,7 +260,10 @@ dt_graph_export(
           if(audio_cnt) fwrite(audio_samples, 2*sizeof(uint16_t), audio_cnt, audio_f);
         } while(audio_cnt);
       }
+      if(param->print_progress)
+        fprintf(stderr, "\r[export] processing frame %d/%d", graph->frame, graph->frame_cnt-1);
     }
+    if(param->print_progress) fprintf(stderr, "\n");
 done:
     if(audio_f) fclose(audio_f);
     return res;
