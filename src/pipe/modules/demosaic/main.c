@@ -50,6 +50,9 @@ create_nodes(
 {
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
   if(!img_param) return; // must have disconnected input somewhere
+
+  if(!img_param->filters) return dt_connector_bypass(graph, module, 0, 1);
+
   const int block = img_param->filters == 9u ? 3 : 2;
   module->img_param.filters = 0u; // after we're done there won't be any more mosaic
   const int wd = module->connector[0].roi.wd, ht = module->connector[0].roi.ht;
