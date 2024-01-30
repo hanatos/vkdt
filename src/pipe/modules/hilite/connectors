@@ -1,2 +1,2 @@
 input:read:*:*
-output:write:rggb:f16
+output:write:&input:*

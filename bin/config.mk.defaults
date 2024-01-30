@@ -7,12 +7,12 @@
 # there.
 
 # if you have freetype2 and png16, you can uncomment this:
-# VKDT_USE_FREETYPE=1
-# export VKDT_USE_FREETYPE
+VKDT_USE_FREETYPE=1
+export VKDT_USE_FREETYPE
 # note the retarted assignment is due to https://savannah.gnu.org/bugs/index.php?64746
-# VKDT_FREETYPE2_CFLAGS=$(eval VKDT_FREETYPE2_CFLAGS := $$(shell pkg-config --cflags freetype2))$(VKDT_FREETYPE2_CFLAGS)
-# VKDT_FREETYPE2_LDFLAGS=$(eval VKDT_FREETYPE2_LDFLAGS := $$(shell pkg-config --libs freetype2))$(VKDT_FREETYPE2_LDFLAGS)
-# export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
+VKDT_FREETYPE2_CFLAGS=$(eval VKDT_FREETYPE2_CFLAGS := $$(shell pkg-config --cflags freetype2))$(VKDT_FREETYPE2_CFLAGS)
+VKDT_FREETYPE2_LDFLAGS=$(eval VKDT_FREETYPE2_LDFLAGS := $$(shell pkg-config --libs freetype2))$(VKDT_FREETYPE2_LDFLAGS)
+export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
 
 # needed for jpeg input (currently not optional)
 VKDT_JPEG_CFLAGS=$(eval VKDT_JPEG_CFLAGS := $$(shell pkg-config --cflags libjpeg))$(VKDT_JPEG_CFLAGS)
@@ -42,38 +42,38 @@ export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 # exiv2 can optionally be used to load some super basic metadata (iso
 # speed, shutter time etc) inside the i-raw module when using rawspeed.
 # that is, it is only effective if VKDT_USE_RAWINPUT=1.
-# VKDT_USE_EXIV2=1
-# export VKDT_USE_EXIV2
-# VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
-# VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
-# export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+VKDT_USE_EXIV2=1
+export VKDT_USE_EXIV2
+VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
+VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
+export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
-# VKDT_USE_V4L2=1
-# export VKDT_USE_V4L2
+VKDT_USE_V4L2=1
+export VKDT_USE_V4L2
 
 # we use GPL3 code in the i-mlv magic lantern raw video input
 # module. if you don't want it, leave it disabled here. if
 # you want video, you probably also want VKDT_USE_ALSA=1, see below.
-# VKDT_USE_MLV=1
-# export VKDT_USE_MLV
+VKDT_USE_MLV=1
+export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-# VKDT_USE_ALSA=1
-# export VKDT_USE_ALSA
-# VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
-# VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
-# export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
+VKDT_USE_ALSA=1
+export VKDT_USE_ALSA
+VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
+VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
+export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
 
 # for the i-vid module using libavformat/libavcodec to read
 # video streams, we depend on these libraries
-# VKDT_USE_FFMPEG=1
-# export VKDT_USE_FFMPEG
-# VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec))$(VKDT_AV_CFLAGS)
-# VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec))$(VKDT_AV_LDFLAGS)
-# export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
+VKDT_USE_FFMPEG=1
+export VKDT_USE_FFMPEG
+VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec))$(VKDT_AV_CFLAGS)
+VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec))$(VKDT_AV_LDFLAGS)
+export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # where to find glfw for the gui:
 VKDT_GLFW_CFLAGS=$(eval VKDT_GLFW_CFLAGS := $$(shell pkg-config --cflags glfw3))$(VKDT_GLFW_CFLAGS)

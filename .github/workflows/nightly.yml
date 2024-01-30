@@ -15,7 +15,7 @@ jobs:
   AppImage:
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt appimage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -40,6 +40,7 @@ jobs:
         run: |
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
           sudo apt-get update
           sudo apt-get -y install \
             ${{ matrix.compiler.packages }}
@@ -56,6 +57,11 @@ jobs:
             zlib1g-dev \
             libpugixml-dev \
             libomp-dev \
+            libfreetype-dev \
+            libexiv2-dev \
+            libasound2-dev \
+            libavformat-dev \
+            libavcodec-dev \
             libfuse2 \
             appstream;
       - uses: actions/checkout@v4
@@ -172,7 +178,12 @@ jobs:
 
             it may contain pre-release quality features, use with care :)
 
+            the appimage compiles in a lot of features (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype)
+            but not all (no quake). you also currently need `exiftool` and `ffmpeg` binaries installed
+            on your host system to enable all features (o-vid and metadata handling).
+
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
+            it compiles less features (rawspeed, exiv2) and leaves out many (no mlv, no v4l, no sound, no i-vid, no freetype, no quake).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
           files: |

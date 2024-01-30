@@ -66,14 +66,13 @@ int dt_gui_init()
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   // start "full screen"
-  qvk.win_width  = mode->width;
-  qvk.win_height = mode->height;
+  qvk.win_width  = 3*mode->width/4;
+  qvk.win_height = 3*mode->height/4;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-  // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
   qvk.window = glfwCreateWindow(qvk.win_width, qvk.win_height, "vkdt", NULL, NULL);
-  glfwSetWindowPos(qvk.window, 0, 0);
+  glfwSetWindowPos(qvk.window, qvk.win_width/8, qvk.win_height/8);
 
   // be verbose about monitor names so we can colour manage them:
   int monitors_cnt;

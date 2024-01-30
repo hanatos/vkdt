@@ -164,6 +164,12 @@ void modify_roi_out(
   mod->img_param.whitebalance[1] = 1.0f;
   mod->img_param.filters = mod_data->img.filters;
 
+  if(mod_data->img.cpp == 3)
+  {
+    mod->connector[0].chan = dt_token("rgba");
+    mod->img_param.filters = 0;
+  }
+
   if(isnanf(mod->img_param.cam_to_rec2020[0]))
   { // camera matrix not found in exif or compiled without exiv2
     float xyz_to_cam[12], mat[9] = {0};
@@ -204,7 +210,7 @@ int read_source(
     return 1;
   int err = load_raw(mod, id + mod->graph->frame, filename);
   if(err) return 1;
-  // TODO: if img.data_type == 1 it's a f32 buffer instead.
+  // TODO: if img.data_type == 1 it's an f32 buffer instead.
   uint16_t *buf = (uint16_t *)mapped;
 
   // dimensions of uncropped image
@@ -212,10 +218,22 @@ int read_source(
   int wd = mod_data->img.width;
   int ht = mod_data->img.height;
 
+  int icpp = mod_data->img.cpp;
+  int ocpp = icpp == 3 ? 4 : 1;
   int ox = mod_data->img.cfa_off_x;
   int oy = mod_data->img.cfa_off_y;
-  int stride = mod_data->img.stride;
-  for(int j=0;j<ht;j++)
-    memcpy(buf + j*wd, ((uint16_t*)mod_data->img.data) + (j+oy)*stride + ox, sizeof(uint16_t)*wd);
+  int stride = mod_data->img.stride * icpp;
+  if(icpp == 1)
+    for(int j=0;j<ht;j++)
+      memcpy(buf + j*wd, ((uint16_t*)mod_data->img.data) + (j+oy)*stride + ox, sizeof(uint16_t)*wd);
+  if(ocpp == 4)
+  {
+    for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
+    {
+      for(int k=0;k<3;k++)
+        buf[4*(j*wd + i)+k] = ((uint16_t*)mod_data->img.data)[(j+oy)*stride + icpp*(ox + i) + k];
+      buf[4*(j*wd + i)+3] = 1.0;
+    }
+  }
   return 0;
 }
