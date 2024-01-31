@@ -22,6 +22,10 @@ int  qvk_sub_work();     // work on a slice of the queue
 void qvk_sub_init();     // init queue
 void qvk_sub_shutdown(); // signal the end is near
 void qvk_sub_cleanup();  // cleanup
+// all users of this api need to implement this!
+// this is supposed to wake up the thread that performs the qvk_sub_work() slices inline.
+// for instance the vkdt gui implements it via glfwPostEmptyEvent
+extern void qvk_sub_wakeup();
 #ifdef __cplusplus
 }
 #endif

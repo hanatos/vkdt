@@ -13,6 +13,11 @@
 #include <float.h>
 #include <signal.h>
 
+void qvk_sub_wakeup()
+{ // provide linkage
+  dt_log(s_log_err, "cli should not submit async queues!");
+}
+
 // this limits the number of module parameters to optimise for.
 // each parameter may hold an array of values though.
 #define OPT_MAX_PAR 20

@@ -29,6 +29,11 @@ dt_gui_t vkdt = {0};
 
 int g_fullscreen = 0;
 
+void qvk_sub_wakeup()
+{ // provide linkage and implementation
+  glfwPostEmptyEvent();
+}
+
 // from a stackoverflow answer. get the monitor that currently covers most of
 // the window area.
 static GLFWmonitor*

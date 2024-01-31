@@ -10,6 +10,10 @@
 #include "core/version.h"
 
 #include <stdlib.h>
+void qvk_sub_wakeup()
+{ // provide linkage
+  dt_log(s_log_err, "cli should not submit async queues!");
+}
 
 int main(int argc, char *argv[])
 {
@@ -111,7 +115,6 @@ int main(int argc, char *argv[])
     dt_graph_print_nodes(&graph);
 
   dt_graph_cleanup(&graph);
-  qvk_sub_shutdown();
   threads_global_cleanup();
   qvk_cleanup();
   exit(res);
