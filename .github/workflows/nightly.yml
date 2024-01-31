@@ -65,6 +65,7 @@ jobs:
             libxkbcommon-dev \
             libxinerama-dev \
             libxcursor-dev \
+            libxi-dev \
             libfuse2 \
             appstream;
       - uses: actions/checkout@v4
