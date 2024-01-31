@@ -27,6 +27,8 @@
 
 // XXX maybe the downsampling 2x2 is broken to begin with.
 // XXX possible that it aliases to hell?
+// XXX look at screenshot: lines + coarse lines at (y,x) swapped
+// XXX look at other screenshot: very likely aliasing, very apparent starting with mip3
 #define POST_MLP_DIFF // only add (I-smooth(I))*alpha to the coarse (i.e. taking the diff post MLP)
 // broken in interesting ways, way too smooth, can create negative halos around high contrast edges
 // #define PRE_MLP_DIFF // only pass laplacians, i.e. detail coefficients to the mlp for classification (noise/signal) or signal extraction
