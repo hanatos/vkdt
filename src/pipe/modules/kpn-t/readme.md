@@ -42,14 +42,16 @@ lets us work with leaky relu without exploding gradients.
 
 ## TODO
 
-FIXME: can't compute `DEBUG_DERIV` on current softmax code
-
-TODO: try down/up step in up and dup
+multilevel:
+* fight aliasing! 2x2 not usable :(
+* try honest flower/5x5 pyramid down + bilinear up
+* implement all (plain, pre-diff, post-diff)
+* how to combine in up? O + I.a * I.rgb or more shrinkage like?
 
 release:
 TODO: use KHR coopmat extension instead of NV (mainly types matA matB matC)
 TODO: what about the non-32 subgroups? (is a vk1.3 extension)
-TODO: what is good input? (paris/durand propose shipping noise sigma)
+TODO: what is good input? (paris/durand propose shipping noise sigma, but seems to be ignored by MLP)
 TODO: luma/chroma blend
 
 extra credits: run on raw bayer and demosaic as you go?
