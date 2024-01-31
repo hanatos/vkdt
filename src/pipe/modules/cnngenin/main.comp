@@ -58,8 +58,8 @@ void main()
       mat2 R = mat2(cos(phi), -sin(phi), sin(phi), cos(phi));
       vec2 tc = ivec2(R * vec2(ipos));
       float wd = 1.0 + mrand(seed) * 20.0;
-      vec3 lo = vec3(mrand(seed)*0.55);
-      vec3 hi = vec3(0.45 + 0.55*mrand(seed));
+      vec3 lo = 0.55 * vec3(mrand(seed), mrand(seed), mrand(seed));
+      vec3 hi = 0.45 + 0.55*vec3(mrand(seed), mrand(seed), mrand(seed));
       if(mrand(seed) < 0.5)
       {
         hi = vec3(mrand(seed)*0.2);
@@ -71,7 +71,7 @@ void main()
     }
 // #endif
     const float scale = 65535.0;
-    noise_a = 100.0 * scale * mrand(seed);
+    noise_a = 1000.0 * scale * mrand(seed);
     noise_b = 1000.0 * mrand(seed);
     seed += 7654*ipos.x + 1357900*ipos.y;
     seed = uint((1<<29)*mrand(seed));
