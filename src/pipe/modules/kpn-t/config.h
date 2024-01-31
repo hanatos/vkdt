@@ -25,8 +25,10 @@
 // apply softmax + alpha plain seems to be a winning combination
 // both plain also works (and through negative filter weights may be more expressive)
 
-// #define POST_MLP_DIFF // only add (I-smooth(I))*alpha to the coarse (i.e. taking the diff post MLP)
-// broken in interesting ways, way too smooth
+// XXX maybe the downsampling 2x2 is broken to begin with.
+// XXX possible that it aliases to hell?
+#define POST_MLP_DIFF // only add (I-smooth(I))*alpha to the coarse (i.e. taking the diff post MLP)
+// broken in interesting ways, way too smooth, can create negative halos around high contrast edges
 // #define PRE_MLP_DIFF // only pass laplacians, i.e. detail coefficients to the mlp for classification (noise/signal) or signal extraction
 
 #define MLP_ACTIVATION_RELU 1
