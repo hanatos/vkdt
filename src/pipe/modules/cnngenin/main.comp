@@ -58,8 +58,8 @@ void main()
       mat2 R = mat2(cos(phi), -sin(phi), sin(phi), cos(phi));
       vec2 tc = ivec2(R * vec2(ipos));
       float wd = 1.0 + mrand(seed) * 20.0;
-      vec3 lo = vec3(mrand(seed)*0.2);
-      vec3 hi = vec3(0.5 + 0.5*mrand(seed));
+      vec3 lo = vec3(mrand(seed)*0.55);
+      vec3 hi = vec3(0.45 + 0.55*mrand(seed));
       if(mrand(seed) < 0.5)
       {
         hi = vec3(mrand(seed)*0.2);
