@@ -28,10 +28,16 @@ void main()
 #if (APPLY_ACTIVATION==APPLY_SOFTMAX)
   vec3 rgb = vec3(0.0);
   float den = 0.0;
+  float maxK = -1e38; // softmax(x) = softmax(x + c)
   [[unroll]] for(int k=0;k<15;k++)
   {
     uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + k;
-    const float w = sigma_exp(ssbo_K.v[nonuniformEXT(idx)]);
+    maxK = max(maxK, float(ssbo_K.v[nonuniformEXT(idx)]));
+  }
+  [[unroll]] for(int k=0;k<15;k++)
+  {
+    uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + k;
+    const float w = sigma_exp(ssbo_K.v[nonuniformEXT(idx)]-maxK);
     rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
     den += w;
   }
@@ -41,7 +47,9 @@ void main()
   [[unroll]] for(int k=0;k<15;k++)
   {
     uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + k;
-    const float w = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), -20000.0, 20000.0);
+    // const float w = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), -20000.0, 20000.0);
+    float w = float(ssbo_K.v[nonuniformEXT(idx)]);
+    if(!(w < 10.0) || !(w > -10.0)) w = 0.001;
     rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
   }
 #elif (APPLY_ACTIVATION==APPLY_DEBUG)

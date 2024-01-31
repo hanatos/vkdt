@@ -23,6 +23,9 @@ ddx_sigmoid(float x)
 float
 sigma_exp(in float x)
 {
-  if(isnan(x)) x = 0.0;
-  return exp(clamp(x, -500.0, 26.0));
+  // if(!(x <  10.0)) return 1.0;
+  // if(!(x > -10.0)) return 1.0;
+  if(isnan(x)) return 1.0;
+  return exp(clamp(.1 * x, -1000.0, 1000.0));
+  // return exp(clamp(0.01 * x, -10.0, 26.0)); // XXX train with low factor and then increase for sharpness :)
 }

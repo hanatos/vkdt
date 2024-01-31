@@ -11,6 +11,7 @@
 #define APPLY_PLAIN 3
 #define APPLY_DEBUG 4
 #define APPLY_ACTIVATION APPLY_SOFTMAX
+// #define APPLY_ACTIVATION APPLY_PLAIN
 // #define APPLY_ACTIVATION APPLY_DEBUG
 // modes for alpha blending
 #define ALPHA_CONST 1
@@ -18,8 +19,8 @@
 #define ALPHA_SIGMOID 3
 #define ALPHA_CLAMPED 4
 // #define ALPHA_ACTIVATION ALPHA_PLAIN
-#define ALPHA_ACTIVATION ALPHA_CLAMPED
-// #define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
+// #define ALPHA_ACTIVATION ALPHA_CLAMPED
+#define ALPHA_ACTIVATION ALPHA_CONST // XXX DEBUG
 // #define ALPHA_ACTIVATION ALPHA_SIGMOID
 // apply softmax + alpha plain seems to be a winning combination
 // both plain also works (and through negative filter weights may be more expressive)
@@ -38,7 +39,7 @@
 #define LOSS_L2 1    // prefers strong contrast edges
 #define LOSS_SMAPE 2 // prefers noise reduction
 #define LOSS_COSH 3
-#define LOSS LOSS_SMAPE
+#define LOSS LOSS_L2
 
 // #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1 // lower will only show numeric jitter

@@ -19,8 +19,8 @@ layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 float etod(float E)
 {
-  // return E;
-  return log(E+2) - log(2);
+  return E;
+  // return log(E+2) - log(2);
 }
 
 float lookup(uint px)
