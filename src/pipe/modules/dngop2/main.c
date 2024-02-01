@@ -48,15 +48,20 @@ get_gain_maps_bayer(dt_dng_opcode_list_t *op_list, int index, gain_maps_bayer_t 
   for(int i=0;i<4;i++)
     if(gmb->gm[i] == NULL)
       return 0;
-  // Check that all four GainMaps have the exact same shape
+  // Check that all four GainMaps have the exact same shape and the corners of
+  // the image region are in the same Bayer block
   for(int i=1;i<4;i++)
   {
-    if (gmb->gm[0]->map_points_h != gmb->gm[i]->map_points_h ||
-        gmb->gm[0]->map_points_v != gmb->gm[i]->map_points_v ||
+    if (gmb->gm[0]->map_points_h  != gmb->gm[i]->map_points_h  ||
+        gmb->gm[0]->map_points_v  != gmb->gm[i]->map_points_v  ||
         gmb->gm[0]->map_spacing_h != gmb->gm[i]->map_spacing_h ||
         gmb->gm[0]->map_spacing_v != gmb->gm[i]->map_spacing_v ||
-        gmb->gm[0]->map_origin_h != gmb->gm[i]->map_origin_h ||
-        gmb->gm[0]->map_origin_v != gmb->gm[i]->map_origin_v)
+        gmb->gm[0]->map_origin_h  != gmb->gm[i]->map_origin_h  ||
+        gmb->gm[0]->map_origin_v  != gmb->gm[i]->map_origin_v  ||
+        gmb->gm[0]->region.top    / 2 != gmb->gm[i]->region.top    / 2 ||
+        gmb->gm[0]->region.left   / 2 != gmb->gm[i]->region.left   / 2 ||
+        gmb->gm[0]->region.bottom / 2 != gmb->gm[i]->region.bottom / 2 ||
+        gmb->gm[0]->region.right  / 2 != gmb->gm[i]->region.right  / 2)
       return 0;
   }
 
@@ -79,7 +84,7 @@ init(dt_module_t *mod)
 {
   dngop2_data_t *d = calloc(sizeof(*d), 1);
   mod->data = d;
-  return 0;
+    return 0;
 }
 
 void
@@ -124,24 +129,35 @@ create_nodes_op_list(
       if(has_gain_map)
         continue; // Only apply one set even if there are more in the file
 
-      const int wd = gain_maps_bayer.gm[0]->map_points_h;
-      const int ht = gain_maps_bayer.gm[0]->map_points_v;
-      dt_roi_t gmdata_roi = (dt_roi_t){ .wd = wd, .ht = ht };
-      const int id_gmdata = dt_node_add(graph, module, "dngop2", "source",
-        wd, ht, 1,
+      memcpy(&d->gain_maps_bayer, &gain_maps_bayer, sizeof(gain_maps_bayer));
+
+      const int map_wd = gain_maps_bayer.gm[0]->map_points_h;
+      const int map_ht = gain_maps_bayer.gm[0]->map_points_v;
+      dt_roi_t gmdata_roi = (dt_roi_t){ .wd = map_wd, .ht = map_ht };
+      const int id_gmdata = dt_node_add(graph, module, "gmdata", "source",
+        map_wd, map_ht, 1,
         0, 0, 1,
         "source", "source", "rgba", "f32", &gmdata_roi);
 
+      int32_t gm_pc[8];
+      float *gm_pc_f = (float *)gm_pc;
+      gm_pc[0]   = gain_maps_bayer.gm[0]->region.left;
+      gm_pc[1]   = gain_maps_bayer.gm[0]->region.top;
+      gm_pc[2]   = gain_maps_bayer.gm[3]->region.right;
+      gm_pc[3]   = gain_maps_bayer.gm[3]->region.bottom;
+      gm_pc_f[4] = gain_maps_bayer.gm[0]->map_origin_h;
+      gm_pc_f[5] = gain_maps_bayer.gm[0]->map_origin_v;
+      gm_pc_f[6] = 1.0 / (gain_maps_bayer.gm[0]->map_spacing_h * (map_wd - 1));
+      gm_pc_f[7] = 1.0 / (gain_maps_bayer.gm[0]->map_spacing_v * (map_ht - 1));
       const int id_gainmap = dt_node_add(graph, module, "dngop2", "gainmap",
         module->connector[0].roi.wd, module->connector[0].roi.ht, 1,
-        0, 0, 3,
+        sizeof(gm_pc), gm_pc, 3,
         "input",  "read",  "rgba", "f16", &module->connector[0].roi,
         "output", "write", "rgba", "f16", &module->connector[0].roi,
         "gmdata", "read",  "rgba", "f32", &gmdata_roi);
 
       CONN(dt_node_connect(graph, id_gmdata, 0, id_gainmap, 2));
 
-      memcpy(&d->gain_maps_bayer, &gain_maps_bayer, sizeof(gain_maps_bayer));
       has_gain_map = 1;
       iop += 3; // Skip over all four of the GainMap opcodes
 
