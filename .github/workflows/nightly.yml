@@ -152,7 +152,7 @@ jobs:
       - name: bundle exiftool
         run: |
           wget https://exiftool.org/exiftool-12.76.zip
-          unzip exiftool-12.67.zip
+          unzip exiftool-12.76.zip
           mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
       - name: check if it runs
         run: |
