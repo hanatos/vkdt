@@ -114,12 +114,11 @@ void write_sink(
       }
     }
     if(src_filename[0] == 0) return;
-    char cmd[1024];
-    if(snprintf(cmd, sizeof(cmd),
-          "/usr/bin/exiftool -TagsFromFile %s \"-all:all>all:all\" -Software=\"vkdt\" -ModifyDate=\"now\" -*orientation*= -overwrite_original %s",
-          src_filename, filename) >= sizeof(cmd))
-      return;
 
+    // maybe route this string in via o-jpg params (beware of the ':' and then dt_sanitize_user_string + dt_strexpand it)
+    char cmd[1024];
+    if(sizeof(cmd) <= snprintf(cmd, sizeof(cmd), "%s/exiftool -TagsFromFile %s \"-all:all>all:all\" -Software=\"vkdt\" -ModifyDate=\"now\" -*orientation*= -overwrite_original %s",
+          dt_pipe.basedir, src_filename, filename)) return;
     // or async if(fork()) exec(cmd); ? for cli probably staying in this thread is safer:
     FILE *f = popen(cmd, "r");
     if(f)
