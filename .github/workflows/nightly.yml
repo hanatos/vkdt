@@ -122,6 +122,8 @@ jobs:
             rsync
             make
             zip
+            unzip
+            wget
           pacboy: >-
             cc:p
             gcc-libs:p
@@ -147,6 +149,11 @@ jobs:
         run: |
           make -C ${SRC_DIR}
           make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
+      - name: bundle exiftool
+        run: |
+          wget https://exiftool.org/exiftool-12.76.zip
+          unzip exiftool-12.67.zip
+          mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
