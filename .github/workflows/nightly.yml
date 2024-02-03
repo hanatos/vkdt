@@ -129,6 +129,8 @@ jobs:
             gcc-libs:p
             dlfcn:p
             glfw:p
+            freetype:p
+            ffmpeg:p
             vulkan-devel:p
             glslang:p
             libjpeg-turbo:p
