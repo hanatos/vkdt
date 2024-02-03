@@ -259,12 +259,15 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
           else // radius
             vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
         }
-        float v[] = {pos.x, pos.y}, n[2] = {0};
-        dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-        if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
-          dt_gui_dr_draw_position(n, 1.0f);
-        else
-          dt_gui_dr_draw_position(n, 0.0f);
+        if(!vkdt.wstate.pentablet_enabled)
+        {
+          float v[] = {pos.x, pos.y}, n[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+            dt_gui_dr_draw_position(n, 1.0f);
+          else
+            dt_gui_dr_draw_position(n, 0.0f);
+        }
         break;
       }
       default:;
