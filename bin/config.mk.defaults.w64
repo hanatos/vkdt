@@ -9,7 +9,7 @@
 # if you have freetype2 and png16, you can uncomment this:
 VKDT_USE_FREETYPE=1
 export VKDT_USE_FREETYPE
-VKDT_FREETYPE2_CFLAGS=
+VKDT_FREETYPE2_CFLAGS=-I/ucrt64/include/freetype2 
 VKDT_FREETYPE2_LDFLAGS=-L/ucrt64/lib -lfreetype -lpng
 export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
 
