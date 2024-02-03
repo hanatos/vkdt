@@ -7,11 +7,11 @@
 # there.
 
 # if you have freetype2 and png16, you can uncomment this:
-# VKDT_USE_FREETYPE=1
-# export VKDT_USE_FREETYPE
-# VKDT_FREETYPE2_CFLAGS=$(shell pkg-config --cflags freetype2)
-# VKDT_FREETYPE2_LDFLAGS=$(shell pkg-config --libs freetype2)
-# export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
+VKDT_USE_FREETYPE=1
+export VKDT_USE_FREETYPE
+VKDT_FREETYPE2_CFLAGS=
+VKDT_FREETYPE2_LDFLAGS=-L/ucrt64/lib -lfreetype -lpng
+export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
 
 # needed for jpeg input (currently not optional)
 VKDT_JPEG_CFLAGS=-I/c/msys64/ucrt64/include
@@ -57,8 +57,8 @@ export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 # we use GPL3 code in the i-mlv magic lantern raw video input
 # module. if you don't want it, leave it disabled here. if
 # you want video, you probably also want VKDT_USE_ALSA=1, see below.
-# VKDT_USE_MLV=1
-# export VKDT_USE_MLV
+VKDT_USE_MLV=1
+export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
@@ -70,11 +70,11 @@ export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # for the i-vid module using libavformat/libavcodec to read
 # video streams, we depend on these libraries
-# VKDT_USE_FFMPEG=1
-# export VKDT_USE_FFMPEG
-# VKDT_AV_CFLAGS=$(shell pkg-config --cflags libavformat --cflags libavcodec)
-# VKDT_AV_LDFLAGS=$(shell pkg-config --libs libavformat --libs libavcodec)
-# export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
+VKDT_USE_FFMPEG=1
+export VKDT_USE_FFMPEG
+VKDT_AV_CFLAGS=
+VKDT_AV_LDFLAGS=-L/ucrt64/lib -lavformat -lavcodec -lavutil
+export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # install mingw-w64-x86_64-glfw via pacman -S!
 # where to find glfw for the gui:
@@ -121,8 +121,6 @@ OPT_LDFLAGS=
 AR=ar
 
 # replace -rdynamic for windows:
-# (i don't think this is needed, could leave empty)
-# DYNAMIC=-Wl,-export-all-symbols
 DYNAMIC=
 
 export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR DYNAMIC
