@@ -274,12 +274,16 @@ void create_nodes(
   int have_pick = dt_connected(module->connector+3);
   int have_abney = dt_connected(module->connector+4) && dt_connected(module->connector+5);
   const int pc[] = { have_clut, have_pick, have_abney };
-  const int nodeid = dt_node_add(graph, module, "colour", qvk.float_atomics_supported ? "main" : "main-",
+  // we'll need the uint sampler in case there are no float atomics supported.
+  // but only if anything picked is connected at all. our dummy is f16 in any
+  // case and will run through the normal code with float atomics (there are no
+  // atomics here, we just read the buffer and need to know if it's uint or float)
+  const int nodeid = dt_node_add(graph, module, "colour", (qvk.float_atomics_supported || !have_pick) ? "main" : "main-",
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 6,
       "input",   "read",  "rgba", "f16",  dt_no_roi,
       "output",  "write", "rgba", "f16",  &module->connector[0].roi,
       "clut",    "read",  "rgba", "f16",  dt_no_roi,
-      "picked",  "read",  "r",    "atom", dt_no_roi,
+      "picked",  "read",  "r",    have_pick ? "atom" : "f16", dt_no_roi,
       "abney",   "read",  "rg",   "f16",  dt_no_roi,
       "spectra", "read",  "rgba", "f16",  dt_no_roi);
   dt_connector_copy(graph, module, 0, nodeid, 0);
