@@ -118,30 +118,8 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
             (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
         if(!ImGui::IsKeyDown(ImGuiKey_MouseLeft))
           vkdt.wstate.selected = -1;
-        if(vkdt.wstate.selected >= 0)
-        {
-          float o = vkdt.state.center_wd * 0.02;
-          float q0[8] = { p[0], p[1], p[2], p[3], p[2],   p[3]-o, p[0],   p[1]-o};
-          float q1[8] = { p[2], p[3], p[4], p[5], p[4]+o, p[5],   p[2]+o, p[3]};
-          float q2[8] = { p[4], p[5], p[6], p[7], p[6],   p[7]+o, p[4],   p[5]+o};
-          float q3[8] = { p[6], p[7], p[0], p[1], p[0]-o, p[1],   p[6]-o, p[7]};
-          float *q = q0;
-          if(vkdt.wstate.selected == 0) q = q3;
-          if(vkdt.wstate.selected == 1) q = q1;
-          if(vkdt.wstate.selected == 2) q = q0;
-          if(vkdt.wstate.selected == 3) q = q2;
-          ImGui::GetWindowDrawList()->AddQuadFilled(
-              ImVec2(q[0],q[1]), ImVec2(q[2],q[3]),
-              ImVec2(q[4],q[5]), ImVec2(q[6],q[7]), 0x77777777u);
-
-          ImVec2 pos = ImGui::GetMousePos();
-          float v[] = {pos.x, pos.y}, n[2] = {0};
-          dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-          float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
-          dt_gui_dr_crop_adjust(edge, 0);
-        }
-        else do_events = true; // enable zoom/panning around
-        if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+        int edge_hovered = -1;
+        if(hovered)
         {
           ImVec2 pos = ImGui::GetMousePos();
           float m[2] = {(float)pos.x, (float)pos.y};
@@ -160,11 +138,36 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
               if(dist2 < max_dist)
               {
                 max_dist = dist2;
-                vkdt.wstate.selected = ee;
+                edge_hovered = ee;
+                if(ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+                  vkdt.wstate.selected = ee;
               }
             }
           }
         }
+        if(edge_hovered >= 0)
+        {
+          float o = vkdt.state.center_wd * 0.02;
+          float q0[8] = { p[0], p[1], p[2], p[3], p[2],   p[3]-o, p[0],   p[1]-o};
+          float q1[8] = { p[2], p[3], p[4], p[5], p[4]+o, p[5],   p[2]+o, p[3]};
+          float q2[8] = { p[4], p[5], p[6], p[7], p[6],   p[7]+o, p[4],   p[5]+o};
+          float q3[8] = { p[6], p[7], p[0], p[1], p[0]-o, p[1],   p[6]-o, p[7]};
+          float *q = q0;
+          if(edge_hovered == 0) q = q3;
+          if(edge_hovered == 1) q = q1;
+          if(edge_hovered == 2) q = q0;
+          if(edge_hovered == 3) q = q2;
+          ImGui::GetWindowDrawList()->AddQuadFilled(
+              ImVec2(q[0],q[1]), ImVec2(q[2],q[3]),
+              ImVec2(q[4],q[5]), ImVec2(q[6],q[7]), 0x77777777u);
+
+          ImVec2 pos = ImGui::GetMousePos();
+          float v[] = {pos.x, pos.y}, n[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+          float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
+          dt_gui_dr_crop_adjust(edge, 0);
+        }
+        if(vkdt.wstate.selected < 0) do_events = true; // enable zoom/panning around
         break;
       }
       case dt_token("pick"):
