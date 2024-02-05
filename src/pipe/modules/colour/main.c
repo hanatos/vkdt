@@ -161,6 +161,18 @@ compute_coefficients(
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
+  // mark image matrix from here on as rec2020/identity
+  module->img_param.cam_to_rec2020[0] = 1.0;
+  module->img_param.cam_to_rec2020[1] = 0.0;
+  module->img_param.cam_to_rec2020[2] = 0.0;
+  module->img_param.cam_to_rec2020[3] = 0.0;
+  module->img_param.cam_to_rec2020[4] = 1.0;
+  module->img_param.cam_to_rec2020[5] = 0.0;
+  module->img_param.cam_to_rec2020[6] = 0.0;
+  module->img_param.cam_to_rec2020[7] = 1.0;
+
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
 
@@ -191,11 +203,11 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   i[off+3] = p_pck;
   i[off+4] = p_gam;
 
-  if(p_mat == 1 && !(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity
+  if(p_mat == 1 && !(img_param->cam_to_rec2020[0] == img_param->cam_to_rec2020[0])) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      f[4+4*i+j] = module->img_param.cam_to_rec2020[3*j+i];
+      f[4+4*i+j] = img_param->cam_to_rec2020[3*j+i];
   }
   else if(p_mat == 2)
   { // CIE XYZ
