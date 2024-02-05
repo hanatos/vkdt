@@ -280,19 +280,14 @@ static inline int fs_islnk(const char *dirname, const struct dirent *e)
 #warning "port me!"
   return 0;
 #else
-  if (e->d_type == DT_LNK) {
-    return 1;
-  }
-  else if (e->d_type == DT_UNKNOWN) {
-    char buf[512];
-    strcpy(buf, dirname);
-    strcat(buf, "/");
-    strcat(buf, e->d_name);
+  if (e->d_type == DT_LNK) return 1;
+  else if (e->d_type == DT_UNKNOWN)
+  {
+    char buf[PATH_MAX];
+    if(sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
     return fs_islnk_file(buf);
   }
-  else {
-    return 0;
-  }
+  return 0;
 #endif
 }
 
@@ -318,19 +313,14 @@ static inline int fs_isreg(const char *dirname, const struct dirent *e)
   _stat64(filename, &buf);
   return (buf.st_mode & _S_IFREG) != 0;
 #else
-  if (e->d_type == DT_REG) {
-    return 1;
-  }
-  else if (e->d_type == DT_UNKNOWN) {
-    char buf[512];
-    strcpy(buf, dirname);
-    strcat(buf, "/");
-    strcat(buf, e->d_name);
+  if (e->d_type == DT_REG) return 1;
+  else if (e->d_type == DT_UNKNOWN)
+  {
+    char buf[PATH_MAX];
+    if(sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
     return fs_isreg_file(buf);
   }
-  else {
-    return 0;
-  }
+  return 0;
 #endif
 }
 
