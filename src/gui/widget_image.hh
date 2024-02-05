@@ -22,27 +22,12 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
           dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
         ImGui::GetWindowDrawList()->AddPolyline(
             (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
-        if(vkdt.wstate.selected >= 0)
-        {
-          float q[2] = {
-            p[2*vkdt.wstate.selected],
-            p[2*vkdt.wstate.selected+1]};
-          ImGui::GetWindowDrawList()->AddCircleFilled(
-              ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
-              0x77777777u, 20);
-          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
-          {
-            ImVec2 pos = ImGui::GetMousePos();
-            float v[] = {pos.x, pos.y}, n[2] = {0};
-            dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-            dt_gui_dr_pers_adjust(n, 0);
-          }
-        }
+        int corner_hovered = -1;
         if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
         {
           vkdt.wstate.selected = -1;
         }
-        if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+        if(hovered)
         { // find active corner if close enough
           ImVec2 pos = ImGui::GetMousePos();
           float m[] = {pos.x, pos.y};
@@ -60,9 +45,27 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
               if(dist2 < max_dist)
               {
                 max_dist = dist2;
-                vkdt.wstate.selected = cc;
+                corner_hovered = cc;
+                if(ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+                  vkdt.wstate.selected = cc;
               }
             }
+          }
+        }
+        if(corner_hovered >= 0)
+        {
+          float q[2] = {
+            p[2*corner_hovered],
+            p[2*corner_hovered+1]};
+          ImGui::GetWindowDrawList()->AddCircleFilled(
+              ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
+              0x77777777u, 20);
+          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+          {
+            ImVec2 pos = ImGui::GetMousePos();
+            float v[] = {pos.x, pos.y}, n[2] = {0};
+            dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+            dt_gui_dr_pers_adjust(n, 0);
           }
         }
         break;
