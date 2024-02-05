@@ -310,6 +310,7 @@ VkResult dt_gui_render()
 {
   VkSemaphore image_acquired_semaphore  = vkdt.sem_image_acquired [vkdt.sem_index];
   VkSemaphore render_complete_semaphore = vkdt.sem_render_complete[vkdt.sem_index];
+  QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+vkdt.sem_fence[vkdt.sem_index], VK_TRUE, UINT64_MAX)); // make sure the semaphore is free
   // timeout is in nanoseconds (these are ~2sec)
   VkResult res = vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index);
   if(res != VK_SUCCESS)
@@ -337,6 +338,7 @@ VkResult dt_gui_render()
     .pClearValues             = &vkdt.clear_value,
   };
   vkCmdBeginRenderPass(vkdt.command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
+  vkdt.sem_fence[vkdt.sem_index] = i; // remember which frame in flight uses the semaphores
 
   dt_gui_record_command_buffer_imgui(vkdt.command_buffer[i]);
 
