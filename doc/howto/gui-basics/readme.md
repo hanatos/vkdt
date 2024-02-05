@@ -149,7 +149,7 @@ can be customised for each view separately in the gui via `settings`→
 
 `f11` goes full screen
 
-`ctrl+q` quits the application
+`ctrl+x` quits the application
 
 ### imgui widgets
 
