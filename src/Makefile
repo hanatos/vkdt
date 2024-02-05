@@ -141,6 +141,7 @@ MOD_GLOBAL_DEPS=\
   pipe/connector.c\
   pipe/connector.inc
 MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC -DVKDT_DSO_BUILD
+MOD_GLOBAL_LDFLAGS=-ldl
 
 # expand all cflags/ldflags/deps/extra-c from flat.mk:
 $(foreach MOD,$(FLATMK),\
@@ -156,13 +157,13 @@ $(foreach MOD,$(FLATMK),\
 
 define MOD_RULE
 pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
+	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
 endef
 $(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 
 define MOD_RULEXX
 pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
 endef
 $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 

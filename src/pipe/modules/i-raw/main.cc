@@ -1,4 +1,7 @@
 // unfortunately, since we'll link to rawspeed, we need c++ here.
+extern "C" {
+#include "modules/api.h"
+}
 #include "RawSpeed-API.h"
 #include "mat3.h"
 #include <omp.h>
