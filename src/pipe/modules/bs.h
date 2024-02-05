@@ -1,18 +1,24 @@
 #pragma once
+// bs: "bind symbols", obviously.
 // https://stackoverflow.com/questions/16022445/access-symbols-inside-application-from-within-shared-object-windows-mingw
-#ifdef VKDT_DSO_BUILD
-#ifdef _WIN64
-#include <windows.h>
+#include <dlfcn.h>
 #include <stdint.h>
 #include <stdio.h>
+#ifdef VKDT_DSO_BUILD
+// #ifdef _WIN64
+// #define VKDT_API __declspec(dllimport)
+// #else
+// #define VKDT_API __attribute__ ((visibility ("default")))
+// #endif
 
-#define DECLARE_FUNC(type,name,par) typedef type (WINAPI *name ## _t)par; static name ## _t name;
+// #define DECLARE_FUNC(type,name,par) typedef type (VKDT_API *name ## _t)par; static name ## _t name;
+#define DECLARE_FUNC(type,name,par) typedef type (*name ## _t)par; static name ## _t name;
 #define DECLARE_VAR(type,name) static type * p ## name;
 #define DECLARE_PTR(type,name) static type *name;
 
-#define LOAD_FUNCC(name) if((name=(name ## _t)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 1
-#define LOAD_VARC(type,name) if((p ## name=(type *)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 1
-#define LOAD_PTRC(type,name) if((name=*(type **)GetProcAddress(GetModuleHandle(NULL),#name))==NULL) return 1
+#define LOAD_FUNCC(name) if(!(name=(name ## _t)dlsym(dlopen(0,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
+#define LOAD_VARC(type,name) if(!(p ## name=(type *)dlsym(dlopen(0,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
+#define LOAD_PTRC(type,name) if(!(name=*(type **)dlsym(dlopen(0,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
 
 // forward declare stuff
 typedef uint64_t dt_token_t;
@@ -55,5 +61,4 @@ dt_module_bs_init()
   LOAD_FUNCC(dt_graph_write_module_ascii);
   return 0;
 }
-#endif
 #endif

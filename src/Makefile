@@ -140,10 +140,7 @@ MOD_GLOBAL_DEPS=\
   pipe/connector.h\
   pipe/connector.c\
   pipe/connector.inc
-MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC
-ifeq ($(OS),Windows_NT)
-MOD_GLOBAL_CFLAGS+=-DVKDT_DSO_BUILD
-endif
+MOD_GLOBAL_CFLAGS=-Ipipe -I. -fPIC -DVKDT_DSO_BUILD
 
 # expand all cflags/ldflags/deps/extra-c from flat.mk:
 $(foreach MOD,$(FLATMK),\

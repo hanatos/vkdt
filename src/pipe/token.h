@@ -7,7 +7,7 @@
 #ifdef _WIN64
 #define VKDT_API __declspec(dllexport)
 #else
-#define VKDT_API
+#define VKDT_API __attribute__ ((visibility ("default")))
 #endif
 
 // for efficient storage and comparisons and sort etc,

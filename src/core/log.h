@@ -29,7 +29,9 @@ typedef struct dt_log_t
 }
 dt_log_t;
 
+#ifndef VKDT_DSO_BUILD
 extern VKDT_API dt_log_t dt_log_global;
+#endif
 
 // this can be done to parse "-d level" from
 // the command line to add more verbose output
