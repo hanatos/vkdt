@@ -1,11 +1,11 @@
-# modules in the image processing graph
+# module reference documentation
 
 image processing is done in a DAG with potentially multiple sources and multiple sinks.
 the graph does in fact not strictly have to be acyclic, we allow `feedback` connectors
 for iterative/multi-frame execution.
 
 ## list of modules
-it follows the current list of available modules.
+it follows the reference documentation of available modules, grouped into categories.
 
 **input**
 
@@ -126,10 +126,10 @@ by default, a raw image is passed through the following pipeline:
 * `filmcurv`: film style tone curve
 * `llap`: local contrast, shadows, and highlights
 
-you can change the default pipeline by hacking `bin/default-darkroom.i-raw` for
-darkroom mode and `bin/default.i-raw` for thumbnails. the `i-raw` suffix
-indicates that the file will be used for raw input, there is also the
-equivalent `i-mlv` version for raw video.
+you can change the default pipeline by hacking `default-darkroom.i-raw` (either
+in the vkdt basedir or the homedir) for darkroom mode and `default.i-raw`
+for thumbnails. the `i-raw` suffix indicates that the file will be used for raw
+input, there is also the equivalent `i-mlv` version for raw video.
 
 
 ## files to describe a module
