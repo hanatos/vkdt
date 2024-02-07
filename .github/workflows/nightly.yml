@@ -90,6 +90,25 @@ jobs:
       - name: check if it runs
         run: |
           ./vkdt-*.AppImage --version
+          sudo apt-get -y remove \
+            git \
+            glslang-tools \
+            libvulkan-dev \
+            libjpeg-dev \
+            libglfw3-dev \
+            zlib1g-dev \
+            libpugixml-dev \
+            libomp-dev \
+            libfreetype-dev \
+            libexiv2-dev \
+            libasound2-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libxkbcommon-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev
+          ./vkdt-*.AppImage cli -g bin/examples/spheres.cfg --config frames:1
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
