@@ -87,7 +87,7 @@ jobs:
       - name: build and install
         run: |
           # build with gcc instead of clang, in the hope that it uses older libstdc++:
-          sed -i -e 's/clang++/g++/' -e 's/clang/gcc/' bin/config.mk.defaults
+          sed -i -e 's/clang++/g++-12/' -e 's/clang/gcc-12/' bin/config.mk.defaults
           bash bin/mkappimg.sh
       - name: check if it runs
         run: |
