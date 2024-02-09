@@ -2,6 +2,7 @@ pipe/modules/kpn-t/adam.comp.spv: pipe/modules/kpn-t/mlp.h pipe/modules/kpn-t/co
 pipe/modules/kpn-t/apply.comp.spv: pipe/modules/kpn-t/mlp.h pipe/modules/kpn-t/config.h pipe/modules/kpn-t/sigmoid.glsl
 pipe/modules/kpn-t/dapply.comp.spv: pipe/modules/kpn-t/mlp.h pipe/modules/kpn-t/config.h pipe/modules/kpn-t/sigmoid.glsl
 pipe/modules/kpn-t/up.comp.spv: pipe/modules/kpn-t/mlp.h pipe/modules/kpn-t/config.h
+pipe/modules/kpn-t/diff.comp.spv: pipe/modules/kpn-t/config.h
 pipe/modules/kpn-t/mulw.comp.spv: pipe/modules/kpn-t/config.h pipe/modules/kpn-t/input.glsl
 pipe/modules/kpn-t/vis.comp.spv: pipe/modules/kpn-t/config.h
 pipe/modules/kpn-t/dup.comp.spv: pipe/modules/kpn-t/mlp.h pipe/modules/kpn-t/config.h

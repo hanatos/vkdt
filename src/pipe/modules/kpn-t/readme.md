@@ -8,7 +8,7 @@ if you don't know better already, you probably don't need to read on :)
 
 put the following in a file like `train-mlp-cli.cfg`:
 ```
-frames:150001
+frames:250001
 fps:0
 module:i-pfm:main
 module:i-pfm:ref
@@ -28,6 +28,8 @@ param:i-pfm:ref:filename:img_100.pfm
 param:cnngenin:01:generate:2
 param:kpn-t:01:init:1
 param:kpn-t:01:L2:0
+param:kpn-t:01:alpha:0.003
+param:kpn-t:01:gradclip:1.0
 param:o-lut:w:filename:mlp-w
 ```
 
@@ -198,9 +200,7 @@ we'll feed forward and compute the loss in an animation, one frame for each weig
 
 finite differences for `dEdw`: for each frame, pick one `w`. permute it by some epsilon, compute loss.
 
-FIXME: seems the recent updates broke this (diff version doesn't output useful stuff any more)
-
-try these (remember to set `cnngenin` to static input!)
+try these (remember to set `cnngenin` to static input and disable gradient norm clipping!)
 ```
 # with DEBUG_DERIV in config.h:
 make debug -j20 && vkdt cli -g mlp/mlp.cfg --format o-pfm --filename diff --last-frame-only --output view0

@@ -148,6 +148,35 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     roi_M[i].wd = (roi_M[i-1].wd + 1)/2;
     roi_M[i].ht = (roi_M[i-1].ht + 1)/2;
   }
+#ifdef NO_ALIAS
+  int id_sub [4]; // one subsampling pass per mipmap level
+  int id_diff[4]; // XXX increase this number only if the training input support is large enough
+  for(int i=0;i<4;i++)
+  { // insert 4 diff kernels to compute detail coefficients
+    id_sub[i] = dt_node_add(
+        graph, module, "kpn-t", "sub",
+        roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 2,
+        "M0", "read",  "rgba", "*", dt_no_roi,
+        "M1", "write", "rgba", "f16", roi_M+i+1);
+    id_diff[i] = dt_node_add(
+        graph, module, "kpn-t", "diff",
+        roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        "Mf", "read",  "rgba", "*", dt_no_roi,
+        "Mc", "read",  "rgba", "*", dt_no_roi,
+        "D",  "write", "rgba", "f16", roi_M+i);
+    if(i == 0)
+    {
+      dt_connector_copy(graph, module, 0, id_sub [i], 0);
+      dt_connector_copy(graph, module, 0, id_diff[i], 0);
+    }
+    else
+    {
+      CONN(dt_node_connect_named(graph, id_sub[i-1], "M1", id_sub[i],  "M0"));
+      CONN(dt_node_connect_named(graph, id_sub[i-1], "M1", id_diff[i], "Mf"));
+    }
+    CONN(dt_node_connect_named(graph, id_sub[i],   "M1", id_diff[i], "Mc"));
+  }
+#else
   const int id_mip = dt_node_add(
       graph, module, "kpn-t", "mip", // XXX channels?
       (roi_input.wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_input.ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
@@ -181,6 +210,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     else CONN(dt_node_connect_named(graph, id_mip, Mf, id_diff[i], "Mf"));
     CONN(dt_node_connect_named(graph, i < 3 ? id_mip : id_mip1, Mc, id_diff[i], "Mc"));
   }
+#endif
 #endif
 
   dt_roi_t roi_weights = (dt_roi_t){ .wd = WIDTH, .ht = (N_HIDDEN_LAYERS + 1) * WIDTH}; // weights
@@ -279,7 +309,11 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
     else      CONN(dt_node_connect_named(graph, id_up, "O", id_loss,    "O"));  // plug finest level output into loss
     if(i == 3) // i == 3, the coarsest layer has no regular upsampled coarse
+#ifdef NO_ALIAS
+      CONN(dt_node_connect_named(graph, id_sub[i], "M1", id_up, "Oc"));
+#else
       CONN(dt_node_connect_named(graph, id_mip1, "M4", id_up, "Oc"));
+#endif
 #else
     if(i < 3)
     {
@@ -325,7 +359,11 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     if(i != 0) CONN(dt_node_connect_named(graph, id_up,       "O",     id_dup_prev, "Oc"));
     CONN(dt_node_connect_named(graph, id_dup,   "dEdI", id_dapply, "dEdI"));
     CONN(dt_node_connect_named(graph, id_apply, "I",    id_dup,    "I"));
+#ifdef NO_ALIAS
+    if(i == 3) CONN(dt_node_connect_named(graph, id_sub[i], "M1", id_dup, "Oc"));
+#else
     if(i == 3) CONN(dt_node_connect_named(graph, id_mip1, "M4", id_dup, "Oc"));
+#endif
 #else
     if(i < 3)
     {
@@ -436,6 +474,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_connector_copy(graph, module, 3, id_adam, 4); // output weights
   dt_connector_copy(graph, module, 6, id_loss, 4); // DEBUG: output per pixel loss
   // dt_connector_copy(graph, module, 6, id_mip, 3); // DEBUG: output low mipmap
+  // dt_connector_copy(graph, module, 6, id_sub[3], 1); // DEBUG: output low mipmap
   dt_connector_copy(graph, module, 1, id_loss, 1); // reference image
   dt_connector_copy(graph, module, 4, id_map,  1); // dspy out, loss graph
 }
