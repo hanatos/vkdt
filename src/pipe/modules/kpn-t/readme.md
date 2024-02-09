@@ -35,7 +35,7 @@ param:o-lut:w:filename:mlp-w
 
 and then run something like:
 ```
-$ vkdt cli -g mlp/train-mlp-cli.cfg --last-frame-only
+$ vkdt cli -g mlp/train-mlp-cli.cfg --last-frame-only --progress
 ```
 
 leaky relu works better with reduced learning rate of `alpha:0.001` but relu leads to dead neurons.
