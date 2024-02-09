@@ -24,6 +24,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float eps;
   int randomise;
   float L2reg;
+  float grad_norm_clip;
 } params;
 
 layout(std430, set = 1, binding = 0) readonly  buffer ssbo_wi_t  { float16_t v[]; } ssbo_wi;  // current weights
@@ -34,6 +35,7 @@ layout(std430, set = 1, binding = 4) writeonly buffer ssbo_w_t   { float16_t v[]
 layout(std430, set = 1, binding = 5) writeonly buffer ssbo_m1_t  { float16_t v[]; } ssbo_m1;
 layout(std430, set = 1, binding = 6) writeonly buffer ssbo_m2_t  { float16_t v[]; } ssbo_m2;
 layout(std430, set = 1, binding = 7) readonly  buffer ssbo_wcp_t { float16_t v[]; } ssbo_wcp; // weights from optional checkpoint 
+layout(std430, set = 1, binding = 8) readonly  buffer ssbo_dw2_t { float     v[]; } ssbo_dw2; // squared gradient norm in [0]
 
 void
 main()
@@ -45,6 +47,9 @@ main()
   float  w = ssbo_wi.v[i];
   float m1 = ssbo_m1i.v[i];
   float m2 = ssbo_m2i.v[i];
+
+  // gradient norm clipping
+  if(ssbo_dw2.v[0] > params.grad_norm_clip * params.grad_norm_clip) dw *= params.grad_norm_clip / sqrt(ssbo_dw2.v[0]);
 
 #ifdef DEBUG_DERIV
   uint seed = i*133700013 + 19*0;

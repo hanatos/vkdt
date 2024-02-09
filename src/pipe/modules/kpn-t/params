@@ -4,3 +4,4 @@ beta2:float:1:0.999
 eps:float:1:0.0001
 init:int:1:0
 L2:float:1:0.001
+gradclip:float:1:1000.0

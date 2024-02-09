@@ -194,10 +194,28 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "dw2", "read",  "ssbo", "f32", dt_no_roi,
       "dw3", "read",  "ssbo", "f32", dt_no_roi,
       "dw",  "write", "ssbo", "f32", &roi_weights);
+  int id_grad = -1;
+  {
+  int cnt = (roi_weights.wd * roi_weights.ht + 31) / 32;
+  int it = 0;
+  while(cnt > 1)
+  {
+    int pc_grad[] = { cnt, it };
+    int id_next = dt_node_add(
+        graph, module, "kpn-t", "norm", cnt * DT_LOCAL_SIZE_X, 1 * DT_LOCAL_SIZE_Y, 1,
+        sizeof(pc_grad), pc_grad, 2,
+        "dwi", "read",  "ssbo", "f32", dt_no_roi,
+        "dwo", "write", "ssbo", "f32", &roi_weights);
+    if(id_grad > 0) CONN(dt_node_connect_named(graph, id_grad, "dwo",  id_next, "dwi"));
+    else            CONN(dt_node_connect_named(graph, id_sum,   "dw",  id_next, "dwi"));
+    cnt = (cnt + 31)/32;
+    id_grad = id_next;
+    it++;
+  }}
 #endif
   const int id_adam = dt_node_add( // adam optimiser
       graph, module, "kpn-t", "adam", (roi_weights.wd*roi_weights.ht+31)/32 * DT_LOCAL_SIZE_X, 1 * DT_LOCAL_SIZE_Y, 1,
-      sizeof(pc_adam), pc_adam, 8,
+      sizeof(pc_adam), pc_adam, 9,
       "wi",  "read",  "ssbo", "f16", dt_no_roi,
       "dw",  "read",  "ssbo", "f32", dt_no_roi,
       "m1i", "read",  "ssbo", "f32", dt_no_roi,
@@ -205,14 +223,17 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "w",   "write", "ssbo", "f16", &roi_weights,
       "m1",  "write", "ssbo", "f32", &roi_weights,
       "m2",  "write", "ssbo", "f32", &roi_weights,
-      "wcp", "read",  "ssbo", "f16", dt_no_roi); // weights from checkpoint
+      "wcp", "read",  "ssbo", "f16", dt_no_roi,  // weights from checkpoint
+      "dwg", "read",  "ssbo", "f32", dt_no_roi); // gradient norm
   CONN(dt_node_feedback_named(graph, id_adam, "w",  id_adam, "wi"));
   CONN(dt_node_feedback_named(graph, id_adam, "m1", id_adam, "m1i"));
   CONN(dt_node_feedback_named(graph, id_adam, "m2", id_adam, "m2i"));
 #ifdef DEBUG_DERIV
   CONN(dt_node_feedback_named(graph, id_adam, "m1", id_adam, "dw"));
+  CONN(dt_node_feedback_named(graph, id_adam, "m1", id_adam, "dwg"));
 #else
-  CONN(dt_node_feedback_named(graph, id_sum,  "dw", id_adam, "dw"));
+  CONN(dt_node_feedback_named(graph, id_sum,   "dw",  id_adam, "dw"));
+  CONN(dt_node_feedback_named(graph, id_grad,  "dwo", id_adam, "dwg"));
 #endif
   if(dt_connected(module->connector+7)) dt_connector_copy(graph, module, 7, id_adam, 7);
   else CONN(dt_node_feedback_named(graph, id_adam, "w", id_adam, "wcp")); // connect dummy
