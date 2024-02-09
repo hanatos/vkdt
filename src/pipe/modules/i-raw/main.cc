@@ -1,6 +1,8 @@
 // unfortunately, since we'll link to rawspeed, we need c++ here.
 extern "C" {
 #include "modules/api.h"
+#include "dng_opcode.h"
+#include "dng_opcode_decode.c"
 }
 #include "RawSpeed-API.h"
 #include "mat3.h"
@@ -89,7 +91,7 @@ free_raw(dt_module_t *mod)
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   for(int i=0;i<3;i++)
   {
-    dt_dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
+    dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
     mod_data->dng_opcode_lists[i] = NULL;
   }
   if(mod_data->d.get()) mod_data->d.reset();

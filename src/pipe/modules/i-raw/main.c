@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <time.h>
 
+#include "dng_opcode_decode.c"
+
 typedef struct rawinput_buf_t
 {
   rawimage_t img;
@@ -14,7 +16,7 @@ typedef struct rawinput_buf_t
   char filename[PATH_MAX];
   int frame;
   int ox, oy;
-  dng_opcode_list_t *dng_opcode_lists[3];
+  dt_dng_opcode_list_t *dng_opcode_lists[3];
 }
 rawinput_buf_t;
   
@@ -25,7 +27,7 @@ free_raw(dt_module_t *mod)
   rl_deallocate(mod_data->img.data, mod_data->len);
   for(int i=0;i<3;i++)
   {
-    dt_dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
+    dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
     mod_data->dng_opcode_lists[i] = NULL;
   }
   mod_data->filename[0] = 0;
@@ -57,7 +59,7 @@ load_raw(
     if(mod_data->img.dng_opcode_lists_len[i] > 0)
     {
       // decode the raw opcode list into C structures we can access directly
-      mod_data->dng_opcode_lists[i] = dt_dng_opcode_list_decode(
+      mod_data->dng_opcode_lists[i] = dng_opcode_list_decode(
         mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
       // free the raw opcode list now that we have decoded it
       rl_deallocate(mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);

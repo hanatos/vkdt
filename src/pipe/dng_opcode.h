@@ -161,7 +161,3 @@ typedef struct
   dt_dng_warp_rectilinear_2_coef_t coefs[];
 }
 dt_dng_warp_rectilinear_2_t;
-
-dt_dng_opcode_list_t *dt_dng_opcode_list_decode(uint8_t *data, size_t len);
-
-void dt_dng_opcode_list_free(dt_dng_opcode_list_t *ops);

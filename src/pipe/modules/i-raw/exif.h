@@ -19,7 +19,7 @@
 extern "C" {
 #include "module.h"
 #include "core/fs.h"
-#include "dng_opcode.h"
+#include "dng_opcode_decode.h"
 }
 
 #include <cassert>
@@ -267,21 +267,21 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dt_
           {
             uint8_t *data = (uint8_t *)malloc(pos->size());
             pos->copy(data, Exiv2::invalidByteOrder);
-            dng_opcode_lists[0] = dt_dng_opcode_list_decode(data, pos->size());
+            dng_opcode_lists[0] = dng_opcode_list_decode(data, pos->size());
             free(data);
           }
           if(FIND_EXIF_TAG("Exif." + primary_group + ".OpcodeList2"))
           {
             uint8_t *data = (uint8_t *)malloc(pos->size());
             pos->copy(data, Exiv2::invalidByteOrder);
-            dng_opcode_lists[1] = dt_dng_opcode_list_decode(data, pos->size());
+            dng_opcode_lists[1] = dng_opcode_list_decode(data, pos->size());
             free(data);
           }
           if(FIND_EXIF_TAG("Exif." + primary_group + ".OpcodeList3"))
           {
             uint8_t *data = (uint8_t *)malloc(pos->size());
             pos->copy(data, Exiv2::invalidByteOrder);
-            dng_opcode_lists[2] = dt_dng_opcode_list_decode(data, pos->size());
+            dng_opcode_lists[2] = dng_opcode_list_decode(data, pos->size());
             free(data);
           }
         }
