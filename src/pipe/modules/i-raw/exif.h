@@ -19,7 +19,7 @@
 extern "C" {
 #include "module.h"
 #include "core/fs.h"
-#include "dng_opcode_decode.h"
+#include "dng_opcode.h"
 }
 
 #include <cassert>
