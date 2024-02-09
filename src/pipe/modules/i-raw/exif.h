@@ -256,7 +256,7 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dt_
         // this is a DNG file - locate the primary raw image
         std::string primary_group;
         for(pos = exifData.begin(); pos != exifData.end(); ++pos)
-          if(strcmp(pos->tagName().c_str(), "NewSubfileType") == 0 && pos->toUint32() == 0)
+          if(strcmp(pos->tagName().c_str(), "NewSubfileType") == 0 && pos->toLong() == 0)
           {
             primary_group = pos->groupName();
             break;
