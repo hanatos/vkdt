@@ -118,6 +118,94 @@ jobs:
           name: artifact-appimage
           retention-days: 1
 
+  AppImageOld:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt appimage, old (k)ubuntu
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { compiler: GNU12, CC: gcc-12, CXX: g++-12, packages: gcc-12 g++-12 }
+        branch:
+          - { code: master, label: gitmaster }
+    env:
+      CC: ${{ matrix.compiler.CC }}
+      CXX: ${{ matrix.compiler.CXX }}
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
+      CMAKE_BUILD_TYPE: ${{ matrix.btype }}
+      GENERATOR: ${{ matrix.generator }}
+      TARGET: ${{ matrix.target }}
+      VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
+      BRANCH: ${{ matrix.branch.code }}
+      BUILD_NAME: ${{ matrix.branch.label }}
+    steps:
+      - name: install compiler ${{ matrix.compiler.compiler }}
+        run: |
+          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get -y install \
+            ${{ matrix.compiler.packages }}
+      - name: install base dependencies
+        run: |
+          sudo apt-get -y install \
+            build-essential \
+            appstream-util \
+            git \
+            glslang-tools \
+            libvulkan-dev \
+            libjpeg-dev \
+            libglfw3-dev \
+            zlib1g-dev \
+            libpugixml-dev \
+            libomp-dev \
+            libfreetype-dev \
+            libexiv2-dev \
+            libasound2-dev \
+            libxkbcommon-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libfuse2 \
+            appstream;
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          submodules: true
+          # We have to fetch the entire history to correctly generate the version for the AppImage filename
+          fetch-depth: 0
+      - name: build glfw with pentablet support
+        run: |
+          git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
+          cd glfw
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          sudo cmake --install build
+          cd ..
+          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
+          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+      - name: build and install
+        run: |
+          echo "VKDT_USE_FFMPEG=0" >> bin/config.mk
+          echo "VKDT_AV_CFLAGS=" >> bin/config.mk
+          echo "VKDT_AV_LDFLAGS=" >> bin/config.mk
+          echo "export VKDT_USE_FFMPEG VKDT_AV_CFLAGS VKDT_AV_LDFLAGS" >> bin/config.mk
+          bash bin/mkappimg.sh
+          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed 's/vkdt-/vkdt-oldubuntu-/')
+      - name: check if it runs
+        run: |
+          ./vkdt-*.AppImage --version
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: vkdt-*.AppImage*
+          name: artifact-appimage
+          retention-days: 1
+
   Windows:
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt windows
@@ -227,6 +315,9 @@ jobs:
             (no quake).
             you also currently need `exiftool` and `ffmpeg`
             binaries installed on your host system to enable all features (o-vid and metadata handling).
+
+            there is also an appimage for reduced features (with `-oldubuntu-` in the name) that does not
+            handle video input but works with older standard libraries.
 
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
