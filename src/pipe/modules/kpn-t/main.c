@@ -434,8 +434,8 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 #endif
   }
   dt_connector_copy(graph, module, 3, id_adam, 4); // output weights
-  // dt_connector_copy(graph, module, 6, id_loss, 4); // DEBUG: output per pixel loss
-  dt_connector_copy(graph, module, 6, id_mip, 3); // DEBUG: output per pixel loss
+  dt_connector_copy(graph, module, 6, id_loss, 4); // DEBUG: output per pixel loss
+  // dt_connector_copy(graph, module, 6, id_mip, 3); // DEBUG: output low mipmap
   dt_connector_copy(graph, module, 1, id_loss, 1); // reference image
   dt_connector_copy(graph, module, 4, id_map,  1); // dspy out, loss graph
 }

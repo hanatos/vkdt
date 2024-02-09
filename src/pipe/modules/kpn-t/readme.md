@@ -65,6 +65,7 @@ extra credits: run on raw bayer and demosaic as you go?
 * `eps`   adam: the value to avoid division by zero
 * `init`  how to initialise weights in the first iteration
 * `L2`    how much L2 regularisation to apply to the weights (0 means none)
+* `gradclip` perform gradient norm clipping at the given threshold
 
 ## connectors
 

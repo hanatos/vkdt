@@ -51,8 +51,7 @@ void main()
   if(params.generate == 2)
   { // add noise according to gaussian/poissonian profile
     // sample noise a/b based on per-frame seed
-// #if 1 // XXX DEBUG
-    if(mrand(seed) < 0.2)
+    if(mrand(seed) < 0.1)
     {
       float phi = mrand(seed) * 2.0*M_PI;
       mat2 R = mat2(cos(phi), -sin(phi), sin(phi), cos(phi));
@@ -67,9 +66,7 @@ void main()
       }
       float n = mrand(seed)*7 + 1;
       ref.rgb = smoothstep(lo, hi, vec3(pow(2.0*abs(mod(tc.x, wd)/wd - 0.5), n)));
-      // if(((tc.x/wd) & 1) == 0) ref.rgb = vec3(0.5);
     }
-// #endif
     const float scale = 65535.0;
     noise_a = 1000.0 * scale * mrand(seed);
     noise_b = 1000.0 * mrand(seed);
