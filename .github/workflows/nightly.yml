@@ -86,8 +86,6 @@ jobs:
           echo "export VKDT_USE_PENTABLET" >> bin/config.mk
       - name: build and install
         run: |
-          # build with gcc instead of clang, in the hope that it uses older libstdc++:
-          sed -i -e 's/clang++/g++-12/' -e 's/clang/gcc-12/' bin/config.mk.defaults
           bash bin/mkappimg.sh
       - name: check if it runs
         run: |
