@@ -21,6 +21,35 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     roi_M[i].wd = (roi_M[i-1].wd + 1)/2;
     roi_M[i].ht = (roi_M[i-1].ht + 1)/2;
   }
+#ifdef NO_ALIAS
+  int id_sub [6]; // one subsampling pass per mipmap level
+  int id_diff[6];
+  for(int i=0;i<6;i++)
+  { // insert 4 diff kernels to compute detail coefficients
+    id_sub[i] = dt_node_add(
+        graph, module, "kpn-t", "sub",
+        roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 2,
+        "M0", "read",  "rgba", "*", dt_no_roi,
+        "M1", "write", "rgba", "f16", roi_M+i+1);
+    id_diff[i] = dt_node_add(
+        graph, module, "kpn-t", "diff",
+        roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        "Mf", "read",  "rgba", "*", dt_no_roi,
+        "Mc", "read",  "rgba", "*", dt_no_roi,
+        "D",  "write", "rgba", "f16", roi_M+i);
+    if(i == 0)
+    {
+      dt_connector_copy(graph, module, 0, id_sub [i], 0);
+      dt_connector_copy(graph, module, 0, id_diff[i], 0);
+    }
+    else
+    {
+      CONN(dt_node_connect_named(graph, id_sub[i-1], "M1", id_sub[i],  "M0"));
+      CONN(dt_node_connect_named(graph, id_sub[i-1], "M1", id_diff[i], "Mf"));
+    }
+    CONN(dt_node_connect_named(graph, id_sub[i],   "M1", id_diff[i], "Mc"));
+  }
+#else
   const int id_mip0 = dt_node_add(
       graph, module, "kpn-t", "mip", // XXX channels?
       (roi_M[0].wd + 7)/8 * DT_LOCAL_SIZE_X, (roi_M[0].ht + 7)/8 * DT_LOCAL_SIZE_Y, 1, 0, 0, 4,
@@ -58,6 +87,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 #endif
 #else
   const int id_mip1 = id_mip0;
+#endif
 #endif
 
   // multi-level mlp kernel prediction pipeline
@@ -108,8 +138,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     if(i > 0) CONN(dt_node_connect_named(graph, id_up, "O", id_up_prev, "Oc")); // plug our (coarser) into "Oc" input on finer level
     if(i == Mcnt-2)
     { // i is the coarsest layer we have detail coefs for (does not upscale yet another even coarser layer)
+#ifdef NO_ALIAS
+      CONN(dt_node_connect_named(graph, id_sub[Mcnt-2], "M1", id_up, "Oc"));
+#else
       char M[3] = "MX"; M[1] = '0' + i + 1;
       CONN(dt_node_connect_named(graph, id_mip1, M, id_up, "Oc"));
+#endif
     }
 #else
     if(i < Mcnt-2)
