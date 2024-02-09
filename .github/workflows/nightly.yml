@@ -203,7 +203,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: vkdt-*.AppImage*
-          name: artifact-appimage
+          name: artifact-appimage-oldubuntu
           retention-days: 1
 
   Windows:
@@ -328,4 +328,5 @@ jobs:
 
           files: |
             artifact-appimage/*
+            artifact-appimage-oldubuntu/*
             artifact-windows/*
