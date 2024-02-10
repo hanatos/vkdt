@@ -398,6 +398,8 @@ jobs:
 
             it may contain pre-release quality features, use with care :)
 
+            appimage
+            ========
             the appimage compiles in a lot of features
             (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
             but not all
@@ -405,9 +407,18 @@ jobs:
             you also currently need `exiftool` and `ffmpeg`
             binaries installed on your host system to enable all features (o-vid and metadata handling).
 
+            appimage for old ubuntu
+            =======================
             there is also an appimage for reduced features (with `-oldubuntu-` in the name) that does not
             handle video input but works with older standard libraries.
 
+            appimage with rawler
+            ====================
+            use this for CR3 raws (newer canon cameras), uses the rust-based backend instead of the c++-based
+            rawspeed which does not have CR3 support.
+
+            windows
+            =======
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
             (rawspeed, exiv2, freetype mlv, i-vid)
