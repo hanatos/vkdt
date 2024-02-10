@@ -118,6 +118,94 @@ jobs:
           name: artifact-appimage
           retention-days: 1
 
+  AppImageRawler:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt appimage, rawler backend
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+          - { code: master, label: gitmaster }
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
+      VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
+      BRANCH: ${{ matrix.branch.code }}
+      BUILD_NAME: ${{ matrix.branch.label }}
+    steps:
+      - name: update apt
+        run: |
+          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
+          sudo apt-get update
+      - name: install base dependencies
+        run: |
+          sudo apt-get -y install \
+            build-essential \
+            appstream-util \
+            git \
+            cmake \
+            glslang-tools \
+            libvulkan-dev \
+            libjpeg-dev \
+            libglfw3-dev \
+            zlib1g-dev \
+            libfreetype-dev \
+            libasound2-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libxkbcommon-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            rustc \
+            cargo \
+            libfuse2 \
+            appstream;
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          submodules: true
+          # We have to fetch the entire history to correctly generate the version for the AppImage filename
+          fetch-depth: 0
+      - name: build glfw with pentablet support
+        run: |
+          git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
+          cd glfw
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          sudo cmake --install build
+          cd ..
+          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
+          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+      - name: build and install
+        run: |
+          echo "VKDT_USE_RAWINPUT=2" >> bin/config.mk
+          echo "export VKDT_USE_RAWINPUT" >> bin/config.mk
+          echo "VKDT_PUGIXML_CFLAGS=" >> bin/config.mk
+          echo "VKDT_PUGIXML_LDFLAGS=" >> bin/config.mk
+          echo "export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS" >> bin/config.mk
+          echo "VKDT_USE_EXIV2=0" >> bin/config.mk
+          echo "export VKDT_USE_EXIV2" >> bin/config.mk
+          echo "VKDT_EXIV2_CFLAGS=" >> bin/config.mk
+          echo "VKDT_EXIV2_LDFLAGS=" >> bin/config.mk
+          echo "export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS" >> bin/config.mk
+          bash bin/mkappimg.sh
+      - name: check if it runs
+        run: |
+          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed 's/vkdt-/vkdt-rawler-/')
+          ./vkdt-*.AppImage --version
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: vkdt-*.AppImage*
+          name: artifact-appimage-rawler
+          retention-days: 1
+
   AppImageOld:
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt appimage, old (k)ubuntu
@@ -329,4 +417,5 @@ jobs:
           files: |
             artifact-appimage/*
             artifact-appimage-oldubuntu/*
+            artifact-appimage-rawler/*
             artifact-windows/*
