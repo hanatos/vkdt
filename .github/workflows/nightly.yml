@@ -153,6 +153,7 @@ jobs:
             libjpeg-dev \
             libglfw3-dev \
             zlib1g-dev \
+            libomp-dev \
             libfreetype-dev \
             libasound2-dev \
             libavformat-dev \
