@@ -18,14 +18,14 @@ create_nodes(
     roic.ht = (roif.ht+1)/2;
     id_down[l] = dt_node_add(graph, module, "eq", "down",
         roic.wd, roic.ht, 1, 0, 0, 2,
-        "input",  "read",  "rgba", "f16", &roif,
+        "input",  "read",  "rgba", "f16", dt_no_roi,
         "output", "write", "rgba", "f16", &roic);
     int32_t pc[] = { l + loff };
     id_up[l] = dt_node_add(graph, module, "eq", "up",
         roif.wd, roif.ht, 1, sizeof(int32_t), pc, 4,
-        "coarse0", "read",  "rgba", "f16", &roic,
-        "coarse1", "read",  "rgba", "f16", &roic,
-        "fine",    "read",  "rgba", "f16", &roif,
+        "coarse0", "read",  "rgba", "f16", dt_no_roi,
+        "coarse1", "read",  "rgba", "f16", dt_no_roi,
+        "fine",    "read",  "rgba", "f16", dt_no_roi,
         "output",  "write", "rgba", "f16", &roif);
     roif = roic;
   }
