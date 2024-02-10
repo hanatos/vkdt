@@ -3,6 +3,9 @@
 # and output matrix + gamma values for transformation in the fragment shader.
 import os, sys
 import numpy
+import shutil
+import subprocess
+import platform
 
 def isfloat(num):
     try:
@@ -98,4 +101,33 @@ out.write('%f %f %f\n'%(O[0,0], O[0,1], O[0,2]))
 out.write('%f %f %f\n'%(O[1,0], O[1,1], O[1,2]))
 out.write('%f %f %f\n'%(O[2,0], O[2,1], O[2,2]))
 out.close()
+
+# check if the operating system is not Windows
+if platform.system() != "Windows":
+    # find monitor connection name with xrandr
+    proc = subprocess.Popen(['xrandr'], stdout=subprocess.PIPE)
+    out, err = proc.communicate()
+    lines = out.decode().split('\n')
+    monitor_names = [line.split(' ')[0] for line in lines if ' connected' in line]
+
+    # ask user for which monitor the profile should be installed
+    print("Available monitors:")
+    for i, monitor_name in enumerate(monitor_names):
+        print(f"{i+1}. {monitor_name}")
+    choice = int(input("For which monitor do you want to install the profile? ")) - 1
+    monitor_name = monitor_names[choice]
+
+    # rename the file
+    new_filename = 'display.' + monitor_name
+    os.rename('display.profile', new_filename)
+
+    # path to directory ./config/vkdt in the user directory
+    config_dir = os.path.expanduser('~/.config/vkdt')
+
+    # check if the directory exists, if not, create
+    if not os.path.exists(config_dir):
+        os.makedirs(config_dir)
+
+    # copy the file to ./config/vkdt
+    shutil.copy(new_filename, config_dir)
 
