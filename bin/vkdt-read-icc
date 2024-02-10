@@ -114,7 +114,9 @@ if platform.system() != "Windows":
     print("available monitors:")
     for i, monitor_name in enumerate(monitor_names):
         print(f"{i+1}. {monitor_name}")
-    choice = int(input("for which monitor do you want to install the profile? ")) - 1
+    choice = 0
+    if len(monitor_names) > 1:
+      choice = int(input("for which monitor do you want to install the profile? ")) - 1
     monitor_name = monitor_names[choice]
 
     # path to directory ./config/vkdt in the user directory
@@ -127,5 +129,6 @@ if platform.system() != "Windows":
     new_filename = config_dir + '/display.' + monitor_name
 
     # copy the file to ./config/vkdt
+    print("installing display.profile as "+new_filename)
     shutil.copy('display.profile', new_filename)
 
