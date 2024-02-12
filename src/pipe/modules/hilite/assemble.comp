@@ -119,11 +119,12 @@ main()
   float wb = exp(upsm.b - max(upsm.r, upsm.g));
   float scale = (sr * wr + sg * wg + sb * wb) / (wr + wg + wb);
 
-  vec3 rec = upsm * scale;
+  vec3 rec = clamp(upsm * scale, vec3(-65535.0), vec3(65535.0));
   float t = params.soft;
   // float t = clamp(1.4*params.soft-0.3*length(fine-rec), 0, 1);
   if(any(greaterThanEqual(fine.rgb, vec3(white)))) t = 1.0;
-  t = clamp(mix(t, 1.0, sqrt(fine.a)), 0.0, 1.0);
+  if(isnan(fine.a)) fine.a = 0.0;
+  t = clamp(mix(t, 1.0, sqrt(max(0,fine.a))), 0.0, 1.0);
   fine.rgb = mix(fine.rgb, rec, t);
 #else
   if(any(greaterThanEqual(fine.rgb, vec3(white))))
