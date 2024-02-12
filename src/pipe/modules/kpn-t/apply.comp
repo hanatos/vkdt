@@ -10,6 +10,10 @@
 #include "config.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(push_constant, std140) uniform push_t
+{
+  int level;
+} push;
 layout(set = 1, binding = 0) uniform sampler2D img_M;
 layout(set = 1, binding = 1) readonly buffer ssbo_K_t { float16_t v[]; } ssbo_K;
 layout(set = 1, binding = 2) uniform writeonly image2D img_I;
@@ -26,6 +30,12 @@ void main()
                                   ivec2(0,  2) //, ivec2(666,666)
   };
 #if (APPLY_ACTIVATION==APPLY_SOFTMAX)
+  if(push.level > 1)
+  { // XXX DEBUG train only one level!
+    vec3 rgb =  texture(img_M, (ipos + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+    imageStore(img_I, ipos, vec4(rgb, 1.0));
+    return;
+  }
   vec3 rgb = vec3(0.0);
   float den = 0.0;
   float maxK = -1e38; // softmax(x) = softmax(x + c)

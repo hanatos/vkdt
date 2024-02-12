@@ -292,8 +292,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     graph->node[id_fwd].connector[3].flags = s_conn_clear; // make sure padded entries are 0
     dt_connector_copy(graph, module, 8, id_fwd, 4); // wire noise profile ssbo
 
+    const int pc_apply[] = { i };
     const int id_apply = dt_node_add( // apply convolution
-        graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, sizeof(pc_apply), pc_apply, 3,
         "M", "read",  "rgba", "*",   dt_no_roi,
         "K", "read",  "ssbo", "f16", dt_no_roi,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image

@@ -50,6 +50,8 @@ void main()
       if(all(lessThan(tc, imageSize(img_dEdI)))) imageStore(img_dEdI, tc, dEdI);
     }
   }
+  // XXX DEBUG: train only one level:
+  dEdOc = vec3(0.0); // XXX
   imageStore(img_dEdOc, opos, vec4(dEdOc, 0));
 
 
