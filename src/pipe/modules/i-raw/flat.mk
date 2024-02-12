@@ -42,6 +42,9 @@ endif # end rawspeed
 # use rawloader
 ifeq ($(VKDT_USE_RAWINPUT),2)
 MOD_LDFLAGS=pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
+ifeq ($(OS),Windows_NT)
+MOD_LDFLAGS+=-lws2_32 -lntdll -lbcrypt -lkernel32 -ladvapi32
+endif
 MOD_CFLAGS=-Ipipe/modules/i-raw/rawloader-c
 pipe/modules/i-raw/libi-raw.so: pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
 
