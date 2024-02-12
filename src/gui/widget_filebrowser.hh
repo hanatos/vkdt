@@ -3,6 +3,7 @@
 #include "gui/render.h"
 #include "core/fs.h"
 #include "core/sort.h"
+#include "widget_filteredlist.hh" // for tooltip
 #include <dirent.h>
 
 // store some state
@@ -47,16 +48,18 @@ int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
   return strcmp(a->d_name, b->d_name);
 }
 
-int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd)
+int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd, const char *filter)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
+  if(filter[0] && !strstr(d->d_name, filter)) return 0; // if filter required, apply it
   if(!fs_isdir(cwd, d)) return 0; // filter out non-dirs too
   return 1;
 }
 
-int dt_filebrowser_filter_file(const struct dirent *d, const char *cwd)
+int dt_filebrowser_filter_file(const struct dirent *d, const char *cwd, const char *filter)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
+  if(filter[0] && !strstr(d->d_name, filter)) return 0; // if filter required, apply it
   return 1;
 }
 
@@ -67,6 +70,8 @@ dt_filebrowser(
     dt_filebrowser_widget_t *w,
     const char               mode) // 'f' or 'd'
 {
+  static char filter[100] = {0};
+  static int setfocus = 0;
 #ifdef _WIN64
   if(w->cwd[0] == 0) strcpy(w->cwd, dt_pipe.homedir);
 #else
@@ -80,8 +85,8 @@ dt_filebrowser(
     if(dirp)
     { // first count valid entries
       while((ent = readdir(dirp)))
-        if((mode == 'd' && dt_filebrowser_filter_dir(ent, w->cwd)) ||
-           (mode != 'd' && dt_filebrowser_filter_file(ent, w->cwd)))
+        if((mode == 'd' && dt_filebrowser_filter_dir (ent, w->cwd, filter)) ||
+           (mode != 'd' && dt_filebrowser_filter_file(ent, w->cwd, filter)))
            w->ent_cnt++;
       if(w->ent_cnt)
       {
@@ -89,8 +94,8 @@ dt_filebrowser(
         w->ent = (struct dirent *)malloc(sizeof(w->ent[0])*w->ent_cnt);
         w->ent_cnt = 0;
         while((ent = readdir(dirp)))
-          if((mode == 'd' && dt_filebrowser_filter_dir(ent, w->cwd)) ||
-             (mode != 'd' && dt_filebrowser_filter_file(ent, w->cwd)))
+          if((mode == 'd' && dt_filebrowser_filter_dir (ent, w->cwd, filter)) ||
+             (mode != 'd' && dt_filebrowser_filter_file(ent, w->cwd, filter)))
             w->ent[w->ent_cnt++] = *ent;
         sort(w->ent, w->ent_cnt, sizeof(w->ent[0]), dt_filebrowser_sort_dir_first, w->cwd);
       }
@@ -106,16 +111,24 @@ dt_filebrowser(
 
   // print cwd
   ImGui::PushFont(dt_gui_imgui_get_font(2));
-  if(ImGui::InputText("##", w->cwd, sizeof(w->cwd), ImGuiInputTextFlags_EnterReturnsTrue))
+  if(ImGui::InputText("##cwd", w->cwd, sizeof(w->cwd), ImGuiInputTextFlags_EnterReturnsTrue))
     if(ImGui::IsKeyDown(ImGuiKey_Enter))
-      dt_filebrowser_cleanup(w);
+    { dt_filebrowser_cleanup(w); setfocus = 1; }
+  if(ImGui::IsItemHovered())
+    dt_gui_set_tooltip("current working directory, edit to taste and press enter to change");
+  ImGui::SameLine();
+  if(ImGui::InputText("##filter", filter, sizeof(filter), ImGuiInputTextFlags_EnterReturnsTrue))
+    if(ImGui::IsKeyDown(ImGuiKey_Enter))
+    { dt_filebrowser_cleanup(w); setfocus = 1; }
+  if(ImGui::IsItemHovered())
+    dt_gui_set_tooltip("filter the displayed filenames. type a search string and press enter to apply");
   ImGui::PopFont();
   ImGui::BeginChild("scroll files");
   // display list of file names
   ImGui::PushFont(dt_gui_imgui_get_font(1));
   for(int i=0;i<w->ent_cnt;i++)
   {
-    if(i == 0 && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+    if(setfocus || (i == 0 && ImGui::IsWindowAppearing())) { ImGui::SetKeyboardFocusHere(); setfocus = 0; }
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
         w->ent[i].d_name,

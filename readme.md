@@ -103,10 +103,15 @@ and we may link to some others, too.
 * glfw (libglfw3-dev and libglfw3, only use libglfw3-wayland if you're on wayland)
 * submodule imgui
 * for raw input support:
-  * either rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp, build-depends on cmake, libomp-dev)
+  * either rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp, build-depends on cmake, libomp-dev, optionally libexiv2)
   * or rawler (depends on rust toolchain which will manage their own dependencies)
 * libjpeg
+* video input: libavformat libavcodec (minimum version 6)
+* sound: libasound2
+* video output: ffmpeg binary
 * build: make, pkg-config, clang, rsync, sed
+
+the full list of packages used to build the nightly appimages can be found in the [workflow yaml file](.github/workflows/nightly.yml).
 
 optional (configure in `bin/config.mk`):
 

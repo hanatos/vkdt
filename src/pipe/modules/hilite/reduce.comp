@@ -34,12 +34,15 @@ main()
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
-  const float white = params.white;
+  float white = params.white;
+  if(!(white > 0.0)) white = 1.0;
   // blur, store only coarse res
   const float w[5] = {1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0};
   const float sw[5] = {1.0, 2.0, 0.0, -2.0, -1.0};
   vec2 edge = vec2(0.0);
   vec3 col = vec3(0.0);
+  vec3 wb = push.wb.rgb;
+  if(!(dot(wb,wb) > 1e-3)) wb = vec3(1);
   // vec3 center;
   float wgt = 0.0;
   for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
@@ -48,17 +51,17 @@ main()
     edge += vec2(w[jj+2]*sw[ii+2], w[ii+2]*sw[jj+2]) * luminance_rec2020(rgb);
     // if(jj==0 && ii==0) center = rgb;
     float u = w[ii+2]*w[jj+2];
-    vec3 rgbw = rgb.rgb * push.wb.rgb;
+    vec3 rgbw = rgb.rgb * wb.rgb;
     float cmax = max(rgbw.r, max(rgbw.g, rgbw.b));
     float cmin = min(rgbw.r, min(rgbw.g, rgbw.b));
-    float sat = (cmax-cmin)/cmax;
+    float sat = (cmax-cmin)/max(1e-3,cmax);
     if(all(lessThan(rgb, vec3(white))))
     { // desaturate colours, if close to white (s)
       float s = smoothstep(0.2, 1.0, max(rgb.r, max(rgb.g, rgb.b))/white);
       float t = smoothstep(0.15, 0.9, sat); // and desaturate more saturated colours more
       float ds = params.desat * params.desat;
       t = clamp(5.0*ds*ds*s*t, 0.0, 1.0);
-      rgb = mix(rgb, vec3(cmax+cmin)/push.wb.rgb*.5, t);
+      rgb = mix(rgb, vec3(cmax+cmin)/wb.rgb*.5, t);
       col += rgb * u;
       wgt += u;
     }

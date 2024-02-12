@@ -2,7 +2,7 @@
 name = "rawloader-clib"
 description = "thin c bindings for rawler"
 version = "0.1.0"
-authors = ["Johannes Hanika <hanika@kit.edu>"]
+authors = ["Johannes Hanika <hanatos@gmail.com>"]
 license = "WTFPL"
 edition = "2018"
 

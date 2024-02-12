@@ -133,7 +133,9 @@ typedef struct qvk_t
 }
 qvk_t;
 
+#ifndef VKDT_DSO_BUILD
 VKDT_API extern qvk_t qvk;
+#endif
 
 #ifdef QVK_ENABLE_VALIDATION
 #define _VK_EXTENSION_LIST \

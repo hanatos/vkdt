@@ -230,5 +230,8 @@ main()
     rgb = xyY_to_rec2020(xyY);
   }
 
+  // emergency overflow clamping:
+  rgb = clamp(rgb, vec3(-65535.0), vec3(65535.0));
+
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

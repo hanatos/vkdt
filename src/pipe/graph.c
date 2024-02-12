@@ -1184,7 +1184,7 @@ write_descriptor_sets(
             int iii = cur_img++;
             if(c->format == dt_token("yuv"))
               img_info[iii].sampler   = 0; // needs immutable sampler
-            else if(c->type == dt_token("sink") || c->format == dt_token("ui32"))
+            else if(c->type == dt_token("sink") || c->format == dt_token("ui32") || c->format == dt_token("atom"))
               img_info[iii].sampler   = qvk.tex_sampler_nearest;
             else
               img_info[iii].sampler   = qvk.tex_sampler;

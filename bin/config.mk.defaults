@@ -113,6 +113,6 @@ GLSLC_FLAGS=--target-env vulkan1.2
 OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG
 OPT_LDFLAGS=-s
 AR=ar
-DYNAMIC=-rdynamic
+DYNAMIC=-rdynamic -fvisibility=hidden
 
 export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR DYNAMIC

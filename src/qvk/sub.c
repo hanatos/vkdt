@@ -64,9 +64,8 @@ VkResult qvk_submit(
 
   // mark as ready
   __sync_val_compare_and_swap(&task->status, s_sub_initing, s_sub_ready);
-  // wake up thread
-  // XXX how?
-  // glfwPostEmptyEvent but not without gui?
+  // wake up thread. all users must implement this.
+  qvk_sub_wakeup();
   if(fence == VK_NULL_HANDLE) return VK_SUCCESS; // no fence no problem
   while(1)
   { // if a fence is passed, we need to block the caller until the queue was submitted:

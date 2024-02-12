@@ -62,6 +62,10 @@ jobs:
             libasound2-dev \
             libavformat-dev \
             libavcodec-dev \
+            libxkbcommon-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
             libfuse2 \
             appstream;
       - uses: actions/checkout@v4
@@ -70,9 +74,216 @@ jobs:
           submodules: true
           # We have to fetch the entire history to correctly generate the version for the AppImage filename
           fetch-depth: 0
+      - name: build glfw with pentablet support
+        run: |
+          git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
+          cd glfw
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          sudo cmake --install build
+          cd ..
+          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
+          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
       - name: build and install
         run: |
           bash bin/mkappimg.sh
+      - name: check if it runs
+        run: |
+          ./vkdt-*.AppImage --version
+          # *sigh* we'd like to do this but the github runners don't have a gpu:
+          # sudo apt-get -y remove \
+          #   git \
+          #   glslang-tools \
+          #   libvulkan-dev \
+          #   libjpeg-dev \
+          #   libglfw3-dev \
+          #   zlib1g-dev \
+          #   libpugixml-dev \
+          #   libomp-dev \
+          #   libfreetype-dev \
+          #   libexiv2-dev \
+          #   libasound2-dev \
+          #   libavformat-dev \
+          #   libavcodec-dev \
+          #   libxkbcommon-dev \
+          #   libxinerama-dev \
+          #   libxcursor-dev \
+          #   libxi-dev
+          # ./vkdt-*.AppImage cli -g bin/examples/spheres.cfg --config frames:1
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: vkdt-*.AppImage*
+          name: artifact-appimage
+          retention-days: 1
+
+  AppImageRawler:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt appimage, rawler backend
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+          - { code: master, label: gitmaster }
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
+      VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
+      BRANCH: ${{ matrix.branch.code }}
+      BUILD_NAME: ${{ matrix.branch.label }}
+    steps:
+      - name: update apt
+        run: |
+          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
+          sudo apt-get update
+      - name: install base dependencies
+        run: |
+          sudo apt-get -y install \
+            build-essential \
+            appstream-util \
+            git \
+            cmake \
+            glslang-tools \
+            libvulkan-dev \
+            libjpeg-dev \
+            libglfw3-dev \
+            zlib1g-dev \
+            libomp-dev \
+            libfreetype-dev \
+            libasound2-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libxkbcommon-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            rustc \
+            cargo \
+            libfuse2 \
+            appstream;
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          submodules: true
+          # We have to fetch the entire history to correctly generate the version for the AppImage filename
+          fetch-depth: 0
+      - name: build glfw with pentablet support
+        run: |
+          git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
+          cd glfw
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          sudo cmake --install build
+          cd ..
+          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
+          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+      - name: build and install
+        run: |
+          echo "VKDT_USE_RAWINPUT=2" >> bin/config.mk
+          echo "export VKDT_USE_RAWINPUT" >> bin/config.mk
+          echo "VKDT_PUGIXML_CFLAGS=" >> bin/config.mk
+          echo "VKDT_PUGIXML_LDFLAGS=" >> bin/config.mk
+          echo "export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS" >> bin/config.mk
+          echo "VKDT_USE_EXIV2=0" >> bin/config.mk
+          echo "export VKDT_USE_EXIV2" >> bin/config.mk
+          echo "VKDT_EXIV2_CFLAGS=" >> bin/config.mk
+          echo "VKDT_EXIV2_LDFLAGS=" >> bin/config.mk
+          echo "export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS" >> bin/config.mk
+          bash bin/mkappimg.sh
+      - name: check if it runs
+        run: |
+          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed 's/vkdt-/vkdt-rawler-/')
+          ./vkdt-*.AppImage --version
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: vkdt-*.AppImage*
+          name: artifact-appimage-rawler
+          retention-days: 1
+
+  AppImageOld:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt appimage, old (k)ubuntu
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { compiler: GNU12, CC: gcc-12, CXX: g++-12, packages: gcc-12 g++-12 }
+        branch:
+          - { code: master, label: gitmaster }
+    env:
+      CC: ${{ matrix.compiler.CC }}
+      CXX: ${{ matrix.compiler.CXX }}
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}
+      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
+      CMAKE_BUILD_TYPE: ${{ matrix.btype }}
+      GENERATOR: ${{ matrix.generator }}
+      TARGET: ${{ matrix.target }}
+      VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
+      BRANCH: ${{ matrix.branch.code }}
+      BUILD_NAME: ${{ matrix.branch.label }}
+    steps:
+      - name: install compiler ${{ matrix.compiler.compiler }}
+        run: |
+          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get -y install \
+            ${{ matrix.compiler.packages }}
+      - name: install base dependencies
+        run: |
+          sudo apt-get -y install \
+            build-essential \
+            appstream-util \
+            git \
+            glslang-tools \
+            libvulkan-dev \
+            libjpeg-dev \
+            libglfw3-dev \
+            zlib1g-dev \
+            libpugixml-dev \
+            libomp-dev \
+            libfreetype-dev \
+            libexiv2-dev \
+            libasound2-dev \
+            libxkbcommon-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libfuse2 \
+            appstream;
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          submodules: true
+          # We have to fetch the entire history to correctly generate the version for the AppImage filename
+          fetch-depth: 0
+      - name: build glfw with pentablet support
+        run: |
+          git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
+          cd glfw
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          sudo cmake --install build
+          cd ..
+          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
+          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+      - name: build and install
+        run: |
+          echo "VKDT_USE_FFMPEG=0" >> bin/config.mk
+          echo "VKDT_AV_CFLAGS=" >> bin/config.mk
+          echo "VKDT_AV_LDFLAGS=" >> bin/config.mk
+          echo "export VKDT_USE_FFMPEG VKDT_AV_CFLAGS VKDT_AV_LDFLAGS" >> bin/config.mk
+          bash bin/mkappimg.sh
+          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed 's/vkdt-/vkdt-oldubuntu-/')
       - name: check if it runs
         run: |
           ./vkdt-*.AppImage --version
@@ -81,7 +292,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: vkdt-*.AppImage*
-          name: artifact-appimage
+          name: artifact-appimage-oldubuntu
           retention-days: 1
 
   Windows:
@@ -108,11 +319,15 @@ jobs:
             rsync
             make
             zip
+            unzip
+            wget
           pacboy: >-
             cc:p
             gcc-libs:p
             dlfcn:p
             glfw:p
+            freetype:p
+            ffmpeg:p
             vulkan-devel:p
             glslang:p
             libjpeg-turbo:p
@@ -133,6 +348,11 @@ jobs:
         run: |
           make -C ${SRC_DIR}
           make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
+      - name: bundle exiftool
+        run: |
+          wget https://exiftool.org/exiftool-12.76.zip
+          unzip exiftool-12.76.zip
+          mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
@@ -157,11 +377,92 @@ jobs:
           name: artifact-windows
           retention-days: 1
 
+  WindowsRawler:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt windows with rawler backend
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        msystem:
+          - UCRT64
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: >-
+            git
+            rsync
+            make
+            zip
+            unzip
+            wget
+          pacboy: >-
+            cc:p
+            gcc-libs:p
+            dlfcn:p
+            glfw:p
+            freetype:p
+            ffmpeg:p
+            vulkan-devel:p
+            glslang:p
+            libjpeg-turbo:p
+            zlib:p
+            rust:p
+            omp:p
+            cmake:p
+            pugixml:p
+          update: false
+      - run: git config --global core.autocrlf input
+        shell: bash
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+          path: src
+      - name: build and install
+        run: |
+          echo "VKDT_USE_RAWINPUT=2" >> ${SRC_DIR}/bin/config.mk
+          echo "export VKDT_USE_RAWINPUT" >> ${SRC_DIR}/bin/config.mk
+          echo "VKDT_USE_EXIV2=0" >> ${SRC_DIR}/bin/config.mk
+          echo "export VKDT_USE_EXIV2" >> ${SRC_DIR}/bin/config.mk
+          make -C ${SRC_DIR}
+          make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
+      - name: check if it runs
+        run: |
+          ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
+      - name: get version info
+        run: |
+          cd ${SRC_DIR}
+          echo "VERSION=$(git describe)" >> $GITHUB_ENV
+          ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
+      - name: create zip package
+        run: |
+          cd ${INSTALL_PREFIX}/usr/lib
+          # copy dso for vkdt
+          cp /ucrt64/bin/{libdl.dll,libgcc_s_seh-1.dll,libjpeg-8.dll,libstdc++-6.dll,libwinpthread-1.dll} vkdt/
+          # copy dso for mlv/exr
+          cp /ucrt64/bin/{libgomp-1.dll,zlib1.dll,libzstd.dll} vkdt/
+          zip -r vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.INSTALL_PREFIX}}/usr/lib/vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
+          name: artifact-windows-rawler
+          retention-days: 1
+
   upload_to_release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, Windows]
+    needs: [AppImage, AppImageOld, AppImageRawler, Windows, WindowsRawler]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -178,14 +479,41 @@ jobs:
 
             it may contain pre-release quality features, use with care :)
 
-            the appimage compiles in a lot of features (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype)
-            but not all (no quake). you also currently need `exiftool` and `ffmpeg` binaries installed
-            on your host system to enable all features (o-vid and metadata handling).
+            appimage
+            ========
+            the appimage compiles in a lot of features
+            (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
+            but not all
+            (no quake).
+            you also currently need `exiftool` and `ffmpeg`
+            binaries installed on your host system to enable all features (o-vid and metadata handling).
 
+            appimage for old ubuntu
+            =======================
+            there is also an appimage for reduced features (with `-oldubuntu-` in the name) that does not
+            handle video input but works with older standard libraries.
+
+            appimage with rawler
+            ====================
+            use this for CR3 raws (newer canon cameras), uses the rust-based backend instead of the c++-based
+            rawspeed which does not have CR3 support.
+
+            windows
+            =======
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
-            it compiles less features (rawspeed, exiv2) and leaves out many (no mlv, no v4l, no sound, no i-vid, no freetype, no quake).
+            it compiles less features
+            (rawspeed, exiv2, freetype mlv, i-vid)
+            and leaves out many
+            (no v4l, no sound, no quake, no o-vid, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
+
+            windows with rawler
+            ===================
+            same as above, but using rawler instead of rawspeed (try this for CR3 support)
 
           files: |
             artifact-appimage/*
+            artifact-appimage-oldubuntu/*
+            artifact-appimage-rawler/*
             artifact-windows/*
+            artifact-windows-rawler/*

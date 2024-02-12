@@ -161,6 +161,18 @@ compute_coefficients(
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
+  // mark image matrix from here on as rec2020/identity
+  module->img_param.cam_to_rec2020[0] = 1.0;
+  module->img_param.cam_to_rec2020[1] = 0.0;
+  module->img_param.cam_to_rec2020[2] = 0.0;
+  module->img_param.cam_to_rec2020[3] = 0.0;
+  module->img_param.cam_to_rec2020[4] = 1.0;
+  module->img_param.cam_to_rec2020[5] = 0.0;
+  module->img_param.cam_to_rec2020[6] = 0.0;
+  module->img_param.cam_to_rec2020[7] = 1.0;
+
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
 
@@ -191,11 +203,11 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   i[off+3] = p_pck;
   i[off+4] = p_gam;
 
-  if(p_mat == 1 && !(module->img_param.cam_to_rec2020[0] > 0)) p_mat = 0; // no matrix? default to identity
+  if(p_mat == 1 && !(img_param->cam_to_rec2020[0] == img_param->cam_to_rec2020[0])) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      f[4+4*i+j] = module->img_param.cam_to_rec2020[3*j+i];
+      f[4+4*i+j] = img_param->cam_to_rec2020[3*j+i];
   }
   else if(p_mat == 2)
   { // CIE XYZ
@@ -274,12 +286,17 @@ void create_nodes(
   int have_pick = dt_connected(module->connector+3);
   int have_abney = dt_connected(module->connector+4) && dt_connected(module->connector+5);
   const int pc[] = { have_clut, have_pick, have_abney };
-  const int nodeid = dt_node_add(graph, module, "colour", qvk.float_atomics_supported ? "main" : "main-",
+  // we'll need the uint sampler in case there are no float atomics supported.
+  // but only if anything picked is connected at all. our dummy is f16 in any
+  // case and will run through the normal code with float atomics (there are no
+  // atomics here, we just read the buffer and need to know if it's uint or float)
+  const int nodeid = dt_node_add(graph, module, "colour",
+      (qvk.float_atomics_supported || !have_pick || (have_pick && module->connector[3].format != dt_token("atom"))) ? "main" : "main-",
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 6,
       "input",   "read",  "rgba", "f16",  dt_no_roi,
       "output",  "write", "rgba", "f16",  &module->connector[0].roi,
       "clut",    "read",  "rgba", "f16",  dt_no_roi,
-      "picked",  "read",  "r",    "atom", dt_no_roi,
+      "picked",  "read",  "r",    have_pick ? dt_token_str(module->connector[3].format) : "f16", dt_no_roi,
       "abney",   "read",  "rg",   "f16",  dt_no_roi,
       "spectra", "read",  "rgba", "f16",  dt_no_roi);
   dt_connector_copy(graph, module, 0, nodeid, 0);

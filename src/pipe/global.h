@@ -131,7 +131,9 @@ typedef struct dt_pipe_global_t
 }
 dt_pipe_global_t;
 
+#ifndef VKDT_DSO_BUILD
 VKDT_API extern dt_pipe_global_t dt_pipe;
+#endif
 
 // returns non-zero on failure:
 int dt_pipe_global_init();

@@ -171,7 +171,7 @@ vec4 sample_flower(sampler2D tex, vec2 uv)
   vec4 result = vec4(0);
 #define LOAD(T, W)\
   do {\
-    vec4 v = textureLod(tex, T, 0);\
+    vec4 v = texture(tex, T);\
     float l = max(v.r, max(v.g, v.b));\
     result += vec4(W*v.rgb, W*l*l);\
   } while(false)

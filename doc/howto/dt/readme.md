@@ -35,7 +35,7 @@ input color profile  | `colour`                | can ingest DCP profiles or spec
 white balance        | `colour`                | DCP dual wb, finetune via rgb sliders
 exposure             | `colour`, `exposure`    |
 monochrome           | `colour`                | set saturation to zero, map colours before using rbf
-color balance rgb    | `grade`                 |
+color balance rgb    | `colour`, `mask`,`blend`|
 crop                 | `crop`                  |
 rotate and perspective| `crop`                 |
 sharpen              | `deconv`, `eq`, `contrast`| none of them is a direct match

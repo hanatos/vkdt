@@ -33,12 +33,14 @@ layout( // output picked colour buffer
 void imgAtomicAdd(ivec2 tc, float a)
 {
   bool done = false;
+  int i = 0;
   while(!done)
   {
     uint val = imageLoad(img_out, tc).r;
     uint nvl = floatBitsToUint(uintBitsToFloat(val)+a);
     uint ovl = imageAtomicCompSwap(img_out, tc, val, nvl);
     done = (ovl == val);
+    if(i++ > 10) break; // oh what the fuck
   }
 }
 
@@ -47,6 +49,7 @@ main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
+  uint seed = ipos.x*1337 + ipos.y * 123456789;
 
   for(int i=0;i<params.nspots.x;i++)
   {
@@ -54,7 +57,7 @@ main()
     uvec4 aabb = uvec4(params.spot[i] * textureSize(img_in, 0).xxyy);
 
     float cnt = (aabb.y - aabb.x)*(aabb.w - aabb.z); // how many pixels in patch
-    float scale = 1.0/cnt;
+    float scale = 1.0/min(100.0, float(cnt));
 
     // check whether we're inside the 2D AABB
     if(ipos.x >= aabb.x && ipos.x <= aabb.y &&
@@ -65,11 +68,17 @@ main()
     rgb = subgroupAdd(rgb);
     subgroupBarrier();
 
-    if(gl_SubgroupInvocationID == 0 && !all(equal(vec3(0), rgb)))
-    { // only one thread needs to do the atomics
-      imgAtomicAdd(ivec2(i, 0), rgb.r);
-      imgAtomicAdd(ivec2(i, 1), rgb.g);
-      imgAtomicAdd(ivec2(i, 2), rgb.b);
+    float xi = mrand(seed);
+    // intel/older hardware will just lose the device if we work too much.
+    // so subsample the patch randomly to just use 100 samples:
+    if(xi < min(100.0, float(cnt)) / float(cnt))
+    {
+      if(gl_SubgroupInvocationID == 0 && !all(equal(vec3(0), rgb)))
+      { // only one thread needs to do the atomics
+        imgAtomicAdd(ivec2(i, 0), rgb.r);
+        imgAtomicAdd(ivec2(i, 1), rgb.g);
+        imgAtomicAdd(ivec2(i, 2), rgb.b);
+      }
     }
   }
 }
