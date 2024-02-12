@@ -3,7 +3,7 @@
 #define SKEW 8  // or 0 if WIDTH % 16 != 0
 #define N_BLOCKS (WIDTH / 16)     // how many blocks in the weights for one layer, when we can work on 16x16 at a time.
 #define N_ITERS 8 // or 2 if WIDTH >= 256 // going over pixels: how many iterations working on batches of px
-#define N_HIDDEN_LAYERS 3
+#define N_HIDDEN_LAYERS 4
 #define GRAD_SCALE 128.0 // avoid underflow in f16 loss/gradients
 // modes for convolution by kernel:
 #define APPLY_SOFTMAX 1
