@@ -377,6 +377,87 @@ jobs:
           name: artifact-windows
           retention-days: 1
 
+  WindowsRawler:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt windows with rawler backend
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        msystem:
+          - UCRT64
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: >-
+            git
+            rsync
+            make
+            zip
+            unzip
+            wget
+          pacboy: >-
+            cc:p
+            gcc-libs:p
+            dlfcn:p
+            glfw:p
+            freetype:p
+            ffmpeg:p
+            vulkan-devel:p
+            glslang:p
+            libjpeg-turbo:p
+            zlib:p
+            rust:p
+            omp:p
+            cmake:p
+            pugixml:p
+          update: false
+      - run: git config --global core.autocrlf input
+        shell: bash
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+          path: src
+      - name: build and install
+        run: |
+          echo "VKDT_USE_RAWINPUT=2" >> bin/config.mk
+          echo "export VKDT_USE_RAWINPUT" >> bin/config.mk
+          echo "VKDT_USE_EXIV2=0" >> bin/config.mk
+          echo "export VKDT_USE_EXIV2" >> bin/config.mk
+          make -C ${SRC_DIR}
+          make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
+      - name: check if it runs
+        run: |
+          ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
+      - name: get version info
+        run: |
+          cd ${SRC_DIR}
+          echo "VERSION=$(git describe)" >> $GITHUB_ENV
+          ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
+      - name: create zip package
+        run: |
+          cd ${INSTALL_PREFIX}/usr/lib
+          # copy dso for vkdt
+          cp /ucrt64/bin/{libdl.dll,libgcc_s_seh-1.dll,libjpeg-8.dll,libstdc++-6.dll,libwinpthread-1.dll} vkdt/
+          # copy dso for mlv/exr
+          cp /ucrt64/bin/{libgomp-1.dll,zlib1.dll,libzstd.dll} vkdt/
+          zip -r vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.INSTALL_PREFIX}}/usr/lib/vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
+          name: artifact-windows-rawler
+          retention-days: 1
+
   upload_to_release:
     permissions:
       contents: write
@@ -426,8 +507,13 @@ jobs:
             (no v4l, no sound, no quake, no o-vid, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
+            windows with rawler
+            ===================
+            same as above, but using rawler instead of rawspeed (try this for CR3 support)
+
           files: |
             artifact-appimage/*
             artifact-appimage-oldubuntu/*
             artifact-appimage-rawler/*
             artifact-windows/*
+            artifact-windows-rawler/*
