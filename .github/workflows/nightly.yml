@@ -243,7 +243,7 @@ jobs:
             libglfw3-dev \
             zlib1g-dev \
             libpugixml-dev \
-            libgomp1 \
+            libomp-dev \
             libfreetype-dev \
             libexiv2-dev \
             libasound2-dev \
@@ -271,8 +271,6 @@ jobs:
           echo "export VKDT_USE_PENTABLET" >> bin/config.mk
       - name: build and install
         run: |
-          echo "CC=gcc-12" >> bin/config.mk
-          echo "CXX=g++-12" >> bin/config.mk
           echo "VKDT_USE_FFMPEG=0" >> bin/config.mk
           echo "VKDT_AV_CFLAGS=" >> bin/config.mk
           echo "VKDT_AV_LDFLAGS=" >> bin/config.mk
