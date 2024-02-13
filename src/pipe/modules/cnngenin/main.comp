@@ -51,12 +51,12 @@ void main()
   if(params.generate == 2)
   { // add noise according to gaussian/poissonian profile
     // sample noise a/b based on per-frame seed
-    if(mrand(seed) < 0.1)
+    if(mrand(seed) < 10.1)
     {
       float phi = mrand(seed) * 2.0*M_PI;
       mat2 R = mat2(cos(phi), -sin(phi), sin(phi), cos(phi));
       vec2 tc = ivec2(R * vec2(ipos));
-      float wd = 1.0 + mrand(seed) * 20.0;
+      float wd = 5.0 + mrand(seed) * 20.0;
       vec3 lo = 0.55 * vec3(mrand(seed), mrand(seed), mrand(seed));
       vec3 hi = 0.45 + 0.55*vec3(mrand(seed), mrand(seed), mrand(seed));
       if(mrand(seed) < 0.5)
@@ -64,8 +64,9 @@ void main()
         hi = vec3(mrand(seed)*0.2);
         lo = vec3(0.5 + 0.5*mrand(seed));
       }
-      float n = mrand(seed)*7 + 1;
-      ref.rgb = smoothstep(lo, hi, vec3(pow(2.0*abs(mod(tc.x, wd)/wd - 0.5), n)));
+      float n = mrand(seed)*7 + 8;
+      // ref.rgb = smoothstep(lo, hi, vec3(pow(2.0*abs(mod(tc.x, wd)/wd - 0.5), n)));
+      ref.rgb = mix(lo, hi, bvec3(mod(tc.x, wd)/wd > 0.5));
     }
     const float scale = 65535.0;
     noise_a = 1000.0 * scale * mrand(seed);
