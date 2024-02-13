@@ -118,8 +118,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
         "w", "read",  "ssbo", "f16", dt_no_roi, // MLP weights
         "K", "write", "ssbo", "f16", &roi_K);   // network output, 15 kernel weights + 1 alpha per px 
 
+    const int pc_apply[] = { i };
     const int id_apply = dt_node_add( // apply convolution
-        graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, 0, 0, 3,
+        graph, module, "kpn-t", "apply", roi_M[i].wd, roi_M[i].ht, 1, sizeof(pc_apply), pc_apply, 3,
         "M", "read",  "rgba", "*",   dt_no_roi,
         "K", "read",  "ssbo", "f16", dt_no_roi,
         "I", "write", "rgba", "f16", &roi_M[i]);  // output convolved image
