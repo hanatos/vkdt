@@ -207,87 +207,6 @@ jobs:
           name: artifact-appimage-rawler
           retention-days: 1
 
-  AppImageOld:
-    if: github.repository == 'hanatos/vkdt'
-    name: nightly vkdt appimage, old (k)ubuntu
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        branch:
-          - { code: master, label: gitmaster }
-    env:
-      SRC_DIR: ${{ github.workspace }}/src
-      BUILD_DIR: ${{ github.workspace }}
-      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
-      CMAKE_BUILD_TYPE: ${{ matrix.btype }}
-      GENERATOR: ${{ matrix.generator }}
-      TARGET: ${{ matrix.target }}
-      VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
-      BRANCH: ${{ matrix.branch.code }}
-      BUILD_NAME: ${{ matrix.branch.label }}
-    steps:
-      - name: prepare apt
-        run: |
-          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
-          sudo sed -i 's/azure\.//' /etc/apt/sources.list
-      - name: install base dependencies
-        run: |
-          sudo apt-get -y install \
-            build-essential \
-            appstream-util \
-            git \
-            glslang-tools \
-            libvulkan-dev \
-            libjpeg-dev \
-            libglfw3-dev \
-            zlib1g-dev \
-            libpugixml-dev \
-            libomp-dev \
-            libfreetype-dev \
-            libexiv2-dev \
-            libasound2-dev \
-            libxkbcommon-dev \
-            libxinerama-dev \
-            libxcursor-dev \
-            libxi-dev \
-            libfuse2 \
-            appstream;
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.BRANCH }}
-          submodules: true
-          # We have to fetch the entire history to correctly generate the version for the AppImage filename
-          fetch-depth: 0
-      - name: build glfw with pentablet support
-        run: |
-          git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
-          cd glfw
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build build
-          sudo cmake --install build
-          cd ..
-          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
-          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
-      - name: build and install
-        run: |
-          echo "VKDT_USE_FFMPEG=0" >> bin/config.mk
-          echo "VKDT_AV_CFLAGS=" >> bin/config.mk
-          echo "VKDT_AV_LDFLAGS=" >> bin/config.mk
-          echo "export VKDT_USE_FFMPEG VKDT_AV_CFLAGS VKDT_AV_LDFLAGS" >> bin/config.mk
-          bash bin/mkappimg.sh
-          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed 's/vkdt-/vkdt-oldubuntu-/')
-      - name: check if it runs
-        run: |
-          ./vkdt-*.AppImage --version
-      - name: package upload
-        if: ${{ success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          path: vkdt-*.AppImage*
-          name: artifact-appimage-oldubuntu
-          retention-days: 1
-
   Windows:
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt windows
@@ -455,7 +374,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, AppImageOld, AppImageRawler, Windows, WindowsRawler]
+    needs: [AppImage, AppImageRawler, Windows, WindowsRawler]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -481,15 +400,11 @@ jobs:
             you also currently need `exiftool` and `ffmpeg`
             binaries installed on your host system to enable all features (o-vid and metadata handling).
 
-            appimage for old ubuntu
-            =======================
-            there is also an appimage for reduced features (with `-oldubuntu-` in the name) that does not
-            handle video input but works with older standard libraries.
-
             appimage with rawler
             ====================
-            use this for CR3 raws (newer canon cameras), uses the rust-based backend instead of the c++-based
-            rawspeed which does not have CR3 support.
+            use this for CR3 raws (newer canon cameras) and for older ubuntu
+            that don't have a recent libstdc++, uses the rust-based backend
+            instead of the c++-based rawspeed which does not have CR3 support.
 
             windows
             =======
@@ -506,7 +421,6 @@ jobs:
 
           files: |
             artifact-appimage/*
-            artifact-appimage-oldubuntu/*
             artifact-appimage-rawler/*
             artifact-windows/*
             artifact-windows-rawler/*
