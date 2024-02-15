@@ -20,7 +20,7 @@ recently_used_collections()
         dt_gui_switch_collection(dir);
         ImGui::PopStyleVar(1);
         ImGui::PopID();
-        return 0; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
+        return 1; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
       if(ImGui::IsItemHovered())
         dt_gui_set_tooltip("%s", dir);
