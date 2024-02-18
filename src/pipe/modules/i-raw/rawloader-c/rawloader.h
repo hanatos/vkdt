@@ -22,6 +22,8 @@ typedef struct rawimage_t
   float    aperture;
   float    focal_length;
   char     datetime[32];
+  uint8_t *dng_opcode_lists[3];
+  uint32_t dng_opcode_lists_len[3];
   uint32_t data_type; // 0 means u16, 1 means f32
   uint32_t cfa_off_x;
   uint32_t cfa_off_y;
