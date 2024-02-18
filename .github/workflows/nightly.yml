@@ -276,10 +276,10 @@ jobs:
       - name: create zip package
         run: |
           cd ${INSTALL_PREFIX}/usr/lib
-          # copy dso for vkdt
-          cp /ucrt64/bin/{libdl.dll,libgcc_s_seh-1.dll,libjpeg-8.dll,libstdc++-6.dll,libwinpthread-1.dll} vkdt/
-          # copy dso for rawspeed + exiv2
-          cp /ucrt64/bin/{libbrotlicommon.dll,libbrotlidec.dll,libcrypto-3-x64.dll,libcurl-4.dll,libexiv2-28.dll,libexpat-1.dll,libidn2-0.dll,libintl-8.dll,libnghttp2-14.dll,libpsl-5.dll,libpugixml.dll,libssh2-1.dll,libssl-3-x64.dll,libunistring-5.dll,libgomp-1.dll,zlib1.dll,libiconv-2.dll,libINIReader-0.dll,libinih-0.dll,libzstd.dll} vkdt/
+          # find and copy required libraries
+          ldd vkdt/vkdt.exe | grep '/ucrt64/bin/' | awk '{print($1)}' > dllhell
+          find vkdt/ -name "*lib*.so" -exec ldd {} \; | grep '/ucrt64/bin/' | awk '{print($1)}' | sort | uniq >> dllhell
+          for i in $(cat dllhell); do cp /ucrt64/bin/${i} vkdt/; done
           zip -r vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
       - name: package upload
         if: ${{ success() }}
