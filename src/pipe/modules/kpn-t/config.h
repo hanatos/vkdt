@@ -1,5 +1,5 @@
 #define EL_PER_UVEC4 8 // how many float16_t elements per uvec4/128 bit load
-#define WIDTH 32
+#define WIDTH 64
 #define SKEW 8  // or 0 if WIDTH % 16 != 0
 #define N_BLOCKS (WIDTH / 16)     // how many blocks in the weights for one layer, when we can work on 16x16 at a time.
 #define N_ITERS 8 // or 2 if WIDTH >= 256 // going over pixels: how many iterations working on batches of px

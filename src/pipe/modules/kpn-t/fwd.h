@@ -18,8 +18,8 @@ void threadblock_load_input_static(
   {
     const uint32_t idx = in_idx + lane_offset + (row + 16 * i) * WIDTH;
     uvec4 load; // this is the base index into an f16 buffer where we should find 8 f16 in contiguous memory.
-    [[unroll]] for(int k=0;k<8;k+=2)
-    { // y-coord in this rowmajor layout is the pixel index, x are the 32 input elements
+    [[unroll]] for(int k=0;k<WIDTH/4;k+=2)
+    { // y-coord in this rowmajor layout is the pixel index, x are the WIDTH input elements
       uint32_t chan =((idx+k) % WIDTH);    // 16 taps with 2 channels each
       uint32_t pxi  = (idx+k) / WIDTH;     // outer index: px coordinate
       ivec2 tc = ivec2(pxi % textureSize(img_in, 0).x, pxi / textureSize(img_in, 0).x);
