@@ -5,6 +5,12 @@ load_input_tap(
     ivec2     px,     // pixel coordinate of center pixel
     uint      chan)   // 2 channels per tap number [0,14] or extra: 15
 {
+#if WIDTH==64
+  uint i = chan / 8;
+  uint j = chan - 8*i;
+  px += ivec2(i-4, j-4); // not symmetric but who cares
+  return luminance_rec2020(texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb);
+#else
   const ivec2 tap[] = {           ivec2(0, -2),
     ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
                    ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
@@ -37,5 +43,6 @@ load_input_tap(
 #else
   // during training, grab noise params from ssbo routed in from cnngenin
   return mul * sqrt(ssbo_nab.noise_a + scale*max(lum, 0)*ssbo_nab.noise_b)/scale;
+#endif
 #endif
 }
