@@ -20,10 +20,13 @@ void threadblock_load_input_static(
     uvec4 load; // this is the base index into an f16 buffer where we should find 8 f16 in contiguous memory.
     [[unroll]] for(int k=0;k<8;k+=2)
     { // y-coord in this rowmajor layout is the pixel index, x are the 32 input elements
-      uint32_t tp  =((idx+k) % WIDTH)/2;  // 16 taps with 2 channels each
-      uint32_t pxi = (idx+k) / WIDTH;     // outer index: px coordinate
+      uint32_t chan =((idx+k) % WIDTH);    // 16 taps with 2 channels each
+      uint32_t pxi  = (idx+k) / WIDTH;     // outer index: px coordinate
       ivec2 tc = ivec2(pxi % textureSize(img_in, 0).x, pxi / textureSize(img_in, 0).x);
-      uint32_t val = packFloat2x16(f16vec2(load_input_tap(img_in, tc, tp)));
+      uint32_t val = packFloat2x16(f16vec2(vec2(
+            load_input_tap(img_in, tc, chan),
+            load_input_tap(img_in, tc, chan+1))
+            ));
       if     (k < 2) load.x = val;
       else if(k < 4) load.y = val;
       else if(k < 6) load.z = val;

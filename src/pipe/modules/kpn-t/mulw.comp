@@ -30,9 +30,7 @@ shared float shm_tmp[32];
 
 float load_input(uint c, uint p)
 {
-  vec2 res = load_input_tap(img_in, ivec2(p % textureSize(img_in, 0).x, p / textureSize(img_in, 0).x), c/2);
-  if((c & 1) == 0) return res.x;
-  return res.y;
+  return load_input_tap(img_in, ivec2(p % textureSize(img_in, 0).x, p / textureSize(img_in, 0).x), c);
 }
 
 float c16(in float v)
