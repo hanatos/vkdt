@@ -15,6 +15,7 @@ layout(set = 1, binding = 1) writeonly buffer ssbo_dEdK_t { float16_t v[]; } ssb
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_dEdO, 0)))) return;
   uint32_t sub = (ipos.x & 1) + 2*(ipos.y & 1);
   uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * textureSize(img_dEdO, 0).x/2));
   vec3 dEdO = texelFetch(img_dEdO, ipos, 0).rgb;
