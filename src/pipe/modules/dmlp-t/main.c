@@ -46,13 +46,8 @@ modify_roi_out(
   module->img_param.meta = dt_metadata_append(module->img_param.meta, module->data);
   module->connector[3].roi = (dt_roi_t){ .full_wd = WIDTH, .full_ht = (N_HIDDEN_LAYERS+1)*WIDTH};  // weights
   module->connector[2].roi = module->connector[0].roi; // output image
-#ifdef DEBUG_DERIV
-  module->connector[4].roi.full_wd = (N_HIDDEN_LAYERS+1)*WIDTH * WIDTH - WIDTH*16 + 1; // enough for all the partial derivatives
-  module->connector[4].roi.full_ht = 1;
-#else
   module->connector[4].roi.full_wd = 500; // output graph
   module->connector[4].roi.full_ht = 200;
-#endif
   module->connector[5].roi = (dt_roi_t){ .full_wd = (N_HIDDEN_LAYERS+2)*WIDTH, .full_ht = 4*WIDTH };
   module->connector[6].roi = (dt_roi_t){ .full_wd = 4*module->connector[0].roi.full_wd, .full_ht = 4*module->connector[0].roi.full_ht };
 
@@ -94,7 +89,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   const uint32_t batch_size = 128 * ((127 + (roi_input.wd*roi_input.ht+3)/4)/128);      // #2x2 bayer blocks rounded up to 128 (=N_ITERS*16)
   dt_roi_t roi_K = (dt_roi_t){ .wd = batch_size,  .ht = 16 };                           // output: 3 channels for 4 pixels, and some rest to pad to 16
   dt_roi_t roi_A = (dt_roi_t){ .wd = batch_size,  .ht = (N_HIDDEN_LAYERS + 1) *WIDTH};  // intermediates for backprop
-  dt_roi_t roi_weights = (dt_roi_t){ .wd = WIDTH, .ht = (N_HIDDEN_LAYERS + 1) * WIDTH}; // weights
+  dt_roi_t roi_weights = (dt_roi_t){ .wd = WIDTH, .ht = (N_HIDDEN_LAYERS + 1) *WIDTH};  // weights
   const int id_ass = dt_node_add( // assemble output from network into final image
       graph, module, "dmlp-t", "ass", roi_input.wd, roi_input.ht, 1, 0, 0, 2,
       "K", "read",  "ssbo", "f16", dt_no_roi,

@@ -18,10 +18,11 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_I)))) return;
 
   uint32_t sub = (ipos.x & 1) + 2*(ipos.y & 1);
-  uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * imageSize(img_I).x));
+  uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * imageSize(img_I).x/2));
+  idx += 3*sub;
   vec3 rgb = vec3(
-      ssbo_K.v[idx + 3*sub + 0],
-      ssbo_K.v[idx + 3*sub + 1],
-      ssbo_K.v[idx + 3*sub + 2]);
+      ssbo_K.v[idx + 0],
+      ssbo_K.v[idx + 1],
+      ssbo_K.v[idx + 2]);
   imageStore(img_I, ipos, vec4(rgb, 1.0));
 }

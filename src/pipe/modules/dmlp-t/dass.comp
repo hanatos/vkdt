@@ -16,7 +16,7 @@ void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   uint32_t sub = (ipos.x & 1) + 2*(ipos.y & 1);
-  uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * textureSize(img_dEdO, 0).x));
+  uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * textureSize(img_dEdO, 0).x/2));
   vec3 dEdO = texelFetch(img_dEdO, ipos, 0).rgb;
   idx += 3*sub;
   ssbo_dEdK.v[idx+0] = float16_t(dEdO.r);

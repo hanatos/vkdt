@@ -22,10 +22,9 @@ void threadblock_load_input_static(
     { // y-coord in this rowmajor layout is the pixel index, x are the WIDTH input elements
       uint32_t chan =((idx+k) % WIDTH);    // 16 taps with 2 channels each
       uint32_t pxi  = (idx+k) / WIDTH;     // outer index: px coordinate
-      ivec2 tc = ivec2(pxi % textureSize(img_in, 0).x, pxi / textureSize(img_in, 0).x);
       uint32_t val = packFloat2x16(f16vec2(vec2(
-            load_input_tap(img_in, tc, chan),
-            load_input_tap(img_in, tc, chan+1))
+            load_input_tap(img_in, pxi, chan),
+            load_input_tap(img_in, pxi, chan+1))
             ));
       if     (k < 2) load.x = val;
       else if(k < 4) load.y = val;
