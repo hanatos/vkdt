@@ -22,4 +22,11 @@ void main()
   ssbo_dEdK.v[idx+0] = float16_t(dEdO.r);
   ssbo_dEdK.v[idx+1] = float16_t(dEdO.g);
   ssbo_dEdK.v[idx+2] = float16_t(dEdO.b);
+  if(sub == 0)
+  { // make sure to kill potential stray memory gradients
+    ssbo_dEdK.v[idx+12] = float16_t(0.0);
+    ssbo_dEdK.v[idx+13] = float16_t(0.0);
+    ssbo_dEdK.v[idx+14] = float16_t(0.0);
+    ssbo_dEdK.v[idx+15] = float16_t(0.0);
+  }
 }
