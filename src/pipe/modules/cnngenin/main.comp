@@ -82,9 +82,9 @@ void main()
   if(params.generate == 3 || params.generate == 4)
   {
     // bayer mosaic the reference
-    if((ipos.x + ipos.y) & 1 == 1) rgb.rgb = rgb.ggg;
-    else if(ipos.y & 1 == 1)       rgb.rgb = rgb.rrr;
-    else                           rgb.rgb = rgb.bbb;
+    if(((ipos.x + ipos.y) & 1) == 1) rgb.rgb = rgb.ggg;
+    else if((ipos.y & 1) == 1)       rgb.rgb = rgb.rrr;
+    else                             rgb.rgb = rgb.bbb;
   }
 
   if(ipos.x == 0 && ipos.y == 0)
