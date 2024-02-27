@@ -1,4 +1,3 @@
-extern "C" {
 #include "gui.h"
 #include "view.h"
 #include "qvk/qvk.h"
@@ -7,27 +6,13 @@ extern "C" {
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
 #include "api.h"
-}
 #include "render.h"
-#include "imgui.h"
-#include "imgui_impl_vulkan.h"
-#include "imgui_impl_glfw.h"
-#include "imnodes.h"
-#include "widget_draw.hh"
-#include "render_view.hh"
-#if VKDT_USE_FREETYPE == 1
-#include "misc/freetype/imgui_freetype.h"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsubobject-linkage"
-#include "misc/freetype/imgui_freetype.cpp" // come on gcc, this is clearly not a header!
-#pragma GCC diagnostic pop
-#endif
+#include "widget_draw.h"
+#include "render_view.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-namespace { // anonymous gui state namespace
-
-inline void dark_corporate_style()
+static inline void dark_corporate_style()
 {
   ImGuiStyle &style = ImGui::GetStyle();
   ImVec4 * colors = style.Colors;
@@ -127,7 +112,7 @@ ImFont *dt_gui_imgui_get_font(int which)
   return g_font[which];
 }
 
-extern "C" void dt_gui_init_fonts()
+void dt_gui_init_fonts()
 {
   char tmp[PATH_MAX+100] = {0};
   ImGuiIO& io = ImGui::GetIO();
@@ -189,7 +174,7 @@ extern "C" void dt_gui_init_fonts()
   }
 }
 
-extern "C" int dt_gui_init_imgui()
+int dt_gui_init_imgui()
 {
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   // Setup Dear ImGui context
@@ -308,7 +293,7 @@ extern "C" int dt_gui_init_imgui()
 }
 
 // call from main loop:
-extern "C" void dt_gui_render_frame_imgui()
+void dt_gui_render_frame_imgui()
 {
   // Start the Dear ImGui frame
   ImGui_ImplVulkan_NewFrame();
@@ -375,12 +360,12 @@ extern "C" void dt_gui_render_frame_imgui()
   }
 }
 
-extern "C" void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
+void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
 {
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf);
 }
 
-extern "C" void dt_gui_cleanup_imgui()
+void dt_gui_cleanup_imgui()
 {
   render_nodes_cleanup();
   render_darkroom_cleanup();
@@ -394,48 +379,48 @@ extern "C" void dt_gui_cleanup_imgui()
   ImGui::DestroyContext();
 }
 
-extern "C" void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
+void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
 
-extern "C" void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
   ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 }
-extern "C" void dt_gui_imgui_mouse_button(GLFWwindow *window, int button, int action, int mods)
+void dt_gui_imgui_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
   ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 }
-extern "C" void dt_gui_imgui_mouse_position(GLFWwindow *window, double x, double y)
+void dt_gui_imgui_mouse_position(GLFWwindow *window, double x, double y)
 { }
-extern "C" void dt_gui_imgui_character(GLFWwindow *window, int c)
+void dt_gui_imgui_character(GLFWwindow *window, int c)
 {
   ImGui_ImplGlfw_CharCallback(window, c);
 }
-extern "C" void dt_gui_imgui_scrolled(GLFWwindow *window, double xoff, double yoff)
+void dt_gui_imgui_scrolled(GLFWwindow *window, double xoff, double yoff)
 {
   ImGui_ImplGlfw_ScrollCallback(window, xoff, yoff);
 }
 
-extern "C" int dt_gui_imgui_want_mouse()
+int dt_gui_imgui_want_mouse()
 {
   return ImGui::GetIO().WantCaptureMouse;
 }
-extern "C" int dt_gui_imgui_want_keyboard()
+int dt_gui_imgui_want_keyboard()
 {
   return ImGui::GetIO().WantCaptureKeyboard;
 }
-extern "C" int dt_gui_imgui_want_text()
+int dt_gui_imgui_want_text()
 {
   return ImGui::GetIO().WantTextInput; // this is meant for onscreen keyboards for TextInputs
 }
 
-extern "C" void dt_gui_grab_mouse()
+void dt_gui_grab_mouse()
 {
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
   glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   vkdt.wstate.grabbed = 1;
 }
 
-extern "C" void dt_gui_ungrab_mouse()
+void dt_gui_ungrab_mouse()
 {
   ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
   glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -450,17 +435,17 @@ struct dt_gamepadhelp_t
 };
 static dt_gamepadhelp_t g_gamepadhelp = {0};
 
-extern "C" void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str)
+void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str)
 {
   if(which < 0 || which >= dt_gamepadhelp_cnt) return;
   g_gamepadhelp.help[g_gamepadhelp.sp][which] = str;
 }
-extern "C" void dt_gamepadhelp_clear()
+void dt_gamepadhelp_clear()
 {
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
     g_gamepadhelp.help[g_gamepadhelp.sp][k] = 0;
 }
-extern "C" void dt_gamepadhelp_push()
+void dt_gamepadhelp_push()
 {
   int sp = 0;
   if(g_gamepadhelp.sp < 10) sp = ++g_gamepadhelp.sp;
@@ -468,7 +453,7 @@ extern "C" void dt_gamepadhelp_push()
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
     g_gamepadhelp.help[sp][k] = g_gamepadhelp.help[sp-1][k];
 }
-extern "C" void dt_gamepadhelp_pop()
+void dt_gamepadhelp_pop()
 {
   if(g_gamepadhelp.sp > 0) g_gamepadhelp.sp--;
 }
@@ -504,7 +489,7 @@ void dt_gamepadhelp()
   }
 }
 
-extern "C" int dt_gui_imgui_input_blocked()
+int dt_gui_imgui_input_blocked()
 {
   return ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel);
 }

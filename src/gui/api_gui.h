@@ -1,7 +1,5 @@
 #pragma once
-#include "imgui.h"
-#include "widget_filteredlist.hh"
-extern "C" {
+#include "widget_filteredlist.h"
 #include "widget_image.h"
 #include "api.h"
 #include "core/fs.h"
@@ -9,7 +7,6 @@ extern "C" {
 #include "pipe/graph-io.h"
 #include "pipe/graph-export.h"
 #include "pipe/graph-history.h"
-}
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -24,7 +21,7 @@ extern "C" {
 // in particular, to realise modal dialogs, all modals are rendered
 // in the dt_gui_*_modals() callback.
 
-inline void
+static inline void
 dt_gui_lt_modals()
 {
   ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
@@ -46,7 +43,7 @@ dt_gui_lt_modals()
   }
 }
 
-inline void
+static inline void
 dt_gui_lt_assign_tag()
 {
   if(vkdt.db.selection_cnt <= 0)
@@ -58,7 +55,7 @@ dt_gui_lt_assign_tag()
   vkdt.wstate.busy += 5;
 }
 
-inline void
+static inline void
 dt_gui_lt_toggle_select_all()
 {
   if(vkdt.db.selection_cnt > 0) // select none
@@ -69,13 +66,13 @@ dt_gui_lt_toggle_select_all()
   dt_gui_notification("selected %d/%d images", vkdt.db.selection_cnt, vkdt.db.collection_cnt);
 }
 
-inline void
+static inline void
 dt_gui_lt_copy()
 {
   vkdt.wstate.copied_imgid = dt_db_current_imgid(&vkdt.db);
 }
 
-inline void
+static inline void
 dt_gui_lt_paste_history()
 {
   if(vkdt.wstate.copied_imgid == -1u)
@@ -142,14 +139,14 @@ dt_gui_lt_paste_history()
 }
 
 // scroll to top of collection
-inline void
+static inline void
 dt_gui_lt_scroll_top()
 {
   ImGui::SetScrollY(0.0f);
 }
 
 // scroll to show current image
-inline void
+static inline void
 dt_gui_lt_scroll_current()
 {
   uint32_t colid = dt_db_current_colid(&vkdt.db);
@@ -159,7 +156,7 @@ dt_gui_lt_scroll_current()
   ImGui::SetScrollY(p);
 }
 
-inline void
+static inline void
 dt_gui_lt_scroll_basename(const char *bn)
 {
   static uint32_t colid = -1u;
@@ -179,7 +176,7 @@ dt_gui_lt_scroll_basename(const char *bn)
 }
 
 // scroll to end of collection
-inline void
+static inline void
 dt_gui_lt_scroll_bottom()
 {
   ImGui::SetScrollY(ImGui::GetScrollMaxY());
@@ -192,7 +189,7 @@ dt_gui_lt_scroll_bottom()
 // darkroom mode accessors
 // XXX these modals should likely go into render.cc or something else!
 // XXX they cannot be called from anywhere else and context still depends on them!
-inline void
+static inline void
 dt_gui_dr_modals()
 {
   ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
@@ -397,21 +394,21 @@ error:
   } // end BeginPopupModal assign tag
 }
 
-inline void
+static inline void
 dt_gui_dr_preset_create()
 {
   ImGui::OpenPopup("create preset");
   vkdt.wstate.busy += 5;
 }
 
-inline void
+static inline void
 dt_gui_dr_preset_apply()
 {
   ImGui::OpenPopup("apply preset");
   vkdt.wstate.busy += 5;
 }
 
-inline void
+static inline void
 dt_gui_dr_module_add()
 {
   ImGui::SetNextWindowSize(ImVec2(0.8*vkdt.state.center_wd, 0.9*vkdt.state.center_ht), ImGuiCond_Always);
@@ -419,14 +416,14 @@ dt_gui_dr_module_add()
   vkdt.wstate.busy += 5;
 }
 
-inline void
+static inline void
 dt_gui_dr_assign_tag()
 {
   ImGui::OpenPopup("assign tag");
   vkdt.wstate.busy += 5;
 }
 
-inline void
+static inline void
 dt_gui_dr_zoom()
 { // zoom 1:1
   // where does the mouse look in the current image?

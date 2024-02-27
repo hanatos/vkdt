@@ -4,7 +4,7 @@
 #include "db/db.h"
 #include "db/rc.h"
 #include "snd/snd.h"
-#include "widget_image.h"
+#include "widget_image_util.h"
 
 #include <vulkan/vulkan.h>
 

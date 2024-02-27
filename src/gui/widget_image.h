@@ -1,6 +1,6 @@
 #pragma once
-#include "widget_image.h"
-#include "api.hh"
+#include "widget_image_util.h"
+#include "api_gui.h"
 // widget for window-size image with zoom/pan interaction
 
 inline void

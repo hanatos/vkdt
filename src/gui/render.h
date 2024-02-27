@@ -3,11 +3,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// initialise imgui. has to go after glfw and vulkan surface have been inited.
+// initialise nuklear gui. has to go after glfw and vulkan surface have been inited.
 // will steal whatever is needed from global qvk struct.
 int dt_gui_init_imgui();
 
@@ -71,10 +67,9 @@ void dt_gamepadhelp_clear();
 void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
 
-#ifdef __cplusplus
+// XXX what's with this and gui code that shall not spill?
 struct ImFont;
 // 0 small, 1 medium, 2 large, 3 material symbols
 ImFont *dt_gui_imgui_get_font(int which);
 void dt_gamepadhelp();
 }
-#endif
