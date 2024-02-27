@@ -12,6 +12,12 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(set = 1, binding = 0) readonly buffer ssbo_K_t { float16_t v[]; } ssbo_K;
 layout(set = 1, binding = 1) uniform writeonly image2D img_I;
 
+float fixup(float v)
+{
+  if(!(v == v)) return 0.0;
+  return clamp(v, -20.0, 20.0);
+}
+
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
@@ -21,8 +27,8 @@ void main()
   uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * imageSize(img_I).x/2));
   idx += 3*sub;
   vec3 rgb = vec3(
-      ssbo_K.v[idx + 0],
-      ssbo_K.v[idx + 1],
-      ssbo_K.v[idx + 2]);
+      fixup(ssbo_K.v[idx + 0]),
+      fixup(ssbo_K.v[idx + 1]),
+      fixup(ssbo_K.v[idx + 2]));
   imageStore(img_I, ipos, vec4(rgb, 1.0));
 }

@@ -8,6 +8,10 @@ load_input_tap(
 #if 1 // XXX this only for demosaicing blocks!
   const uint stride = textureSize(img, 0).x/2;
   ivec2 px = 2*ivec2(pxid % stride, pxid / stride);
+  if(px.y >= textureSize(img, 0).y)
+  { // out of bounds for the input image
+    return 0.0;
+  }
 #if WIDTH==64
   uint j = chan / 8;
   uint i = chan - 8*j;

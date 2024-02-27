@@ -19,6 +19,8 @@ void main()
   uint32_t sub = (ipos.x & 1) + 2*(ipos.y & 1);
   uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * textureSize(img_dEdO, 0).x/2));
   vec3 dEdO = texelFetch(img_dEdO, ipos, 0).rgb;
+  // XXX DEBUG rule out boundary issues
+  // if(ipos.x < 3 || ipos.y < 3 || ipos.x >= textureSize(img_dEdO, 0).x-4 || ipos.y >= textureSize(img_dEdO, 0).y-4) dEdO = vec3(0);
   idx += 3*sub;
   ssbo_dEdK.v[idx+0] = float16_t(dEdO.r);
   ssbo_dEdK.v[idx+1] = float16_t(dEdO.g);

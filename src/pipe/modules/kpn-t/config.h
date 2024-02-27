@@ -44,7 +44,7 @@
 #define LOSS_L2 1    // prefers strong contrast edges
 #define LOSS_SMAPE 2 // prefers noise reduction
 #define LOSS_COSH 3
-#define LOSS LOSS_SMAPE
+#define LOSS LOSS_L2
 
 // #define DEBUG_DERIV // debug derivatives instead of training
 #define DERIV_EPS 1 // lower will only show numeric jitter
