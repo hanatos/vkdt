@@ -1,0 +1,35 @@
+# this is a preset for modifying the color of certain areas that you paint over
+# change the sliders in the module colour tint, e.g. saturation or white balance, and draw over the area
+module:draw:tint:377.763:802.2
+module:blend:tint:814.11:418.1
+module:guided:tint:602.01:652.1
+module:colour:tint:598:354
+connect:blend:tint:output:filmcurv:01:input
+connect:colour:01:output:blend:tint:back
+connect:colour:tint:output:blend:tint:input
+connect:guided:tint:output:blend:tint:mask
+connect:colour:01:output:guided:tint:input
+connect:draw:tint:output:guided:tint:guide
+connect:colour:01:output:colour:tint:input
+param:draw:tint:opacity:5
+param:draw:tint:radius:0.01
+param:draw:tint:hardness:1
+param:draw:tint:draw:1:0:0
+param:blend:tint:opacity:1
+param:blend:tint:taathrs:0
+param:blend:tint:mode:0
+param:blend:tint:mask:1
+param:guided:tint:radius:0.01
+param:guided:tint:epsilon:0.01
+param:colour:tint:exposure:0
+param:colour:tint:sat:1
+param:colour:tint:mode:0
+param:colour:tint:picked:0
+param:colour:tint:matrix:0
+param:colour:tint:gamut:0
+param:colour:tint:temp:6504
+param:colour:tint:white:0.5:0.5:0.5:0.5
+param:colour:tint:mat:-1:0:0:0:0:0:0:0:0
+param:colour:tint:cnt:4
+param:colour:tint:rbmap:0.3333:0.3333:0.3333:0.3333:0.3333:0.3333:0.5:0.25:0.25:0.5:0.25:0.25:0.25:0.5:0.25:0.25:0.5:0.25:0.25:0.25:0.5:0.25:0.25:0.5:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0
+param:colour:tint:import:01
