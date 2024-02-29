@@ -72,7 +72,7 @@ void main()
     const float scale = 65535.0;
     noise_a = 1000.0 * scale * mrand(seed);
     noise_b = 1000.0 * mrand(seed);
-    noise_a = noise_b = 200.0;// easy problem..?
+    // noise_a = noise_b = 200.0;// easy problem..?
     seed += 7654*ipos.x + 1357900*ipos.y;
     seed = uint((1<<29)*mrand(seed));
     vec4 z = vec4(warp_gaussian(vec2(mrand(seed), mrand(seed))),
