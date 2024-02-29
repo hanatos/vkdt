@@ -3,7 +3,8 @@ float // return channel
 load_input_tap(
     sampler2D img,
     uint      pxid,   // pixel coordinate of center pixel
-    uint      chan)   // channel
+    uint      chan,   // channel
+    vec2      noise)  // gaussian and poissonian noise parameters
 {
 #if 1 // XXX this only for demosaicing blocks!
   const uint stride = textureSize(img, 0).x/2;
@@ -56,12 +57,7 @@ load_input_tap(
   const float mul = pow(0.5, push.level); // our mipmaps are 2x2 averages, so the stddev is halved every time (Var = 4 * (1/4)^2*Var(X))
   const float scale = 65535.0;
   float lum = luminance_rec2020(texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb);
-#ifdef INFERENCE
-  return mul * sqrt(params.noise_a + scale*max(lum, 0)*params.noise_b)/scale;
-#else
-  // during training, grab noise params from ssbo routed in from cnngenin
-  return mul * sqrt(ssbo_nab.noise_a + scale*max(lum, 0)*ssbo_nab.noise_b)/scale;
-#endif
+  return mul * sqrt(noise.x + scale*max(lum, 0)*noise.y)/scale;
 #endif
 #endif
 }

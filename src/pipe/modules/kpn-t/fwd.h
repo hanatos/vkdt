@@ -14,6 +14,11 @@ void threadblock_load_input_static(
       ssbo_input.v[(in_idx + lane_offset + (row + 16 * i) * WIDTH)/EL_PER_UVEC4];
     // *(int4*)&act_shmem[lane_offset + (row + 16 * i) * (WIDTH + SKEW)] = *(int4*)&input_threadblock[lane_offset + (row + 16 * i) * WIDTH];
 #else
+#ifdef INFERENCE
+  const vec2 noise_ab = vec2(params.noise_a, params.noise_b);
+#else
+  const vec2 noise_ab = vec2(ssbo_nab.noise_a, ssbo_nab.noise_b);
+#endif
   [[unroll]] for (int i = 0; i < N_ITERS; ++i)
   {
     const uint32_t idx = in_idx + lane_offset + (row + 16 * i) * WIDTH;
@@ -23,8 +28,8 @@ void threadblock_load_input_static(
       uint32_t chan =((idx+k) % WIDTH);    // 16 taps with 2 channels each
       uint32_t pxi  = (idx+k) / WIDTH;     // outer index: px coordinate
       uint32_t val = packFloat2x16(f16vec2(vec2(
-            load_input_tap(img_in, pxi, chan),
-            load_input_tap(img_in, pxi, chan+1))
+            load_input_tap(img_in, pxi, chan,   noise_ab),
+            load_input_tap(img_in, pxi, chan+1, noise_ab))
             ));
       if     (k < 2) load.x = val;
       else if(k < 4) load.y = val;

@@ -77,7 +77,7 @@ void main()
     seed = uint((1<<29)*mrand(seed));
     vec4 z = vec4(warp_gaussian(vec2(mrand(seed), mrand(seed))),
                   warp_gaussian(vec2(mrand(seed), mrand(seed))));
-    rgb.rgb = ref.rgb;//XXX + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
+    rgb.rgb = ref.rgb + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
   }
 
   if(params.generate == 3 || params.generate == 4)

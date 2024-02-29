@@ -12,7 +12,6 @@
 #define INFERENCE
 
 #include "shared/coopmat.glsl"
-#include "config.h"
 #include "shared.glsl"
 
 layout(local_size_x = 32, local_size_y = N_BLOCKS, local_size_z = 1) in;
@@ -28,7 +27,6 @@ layout(push_constant, std140) uniform push_t
   uint32_t output_stride;
   uint32_t level;
 } push;
-#include "input.glsl"
 layout(set = 1, binding = 0) uniform sampler2D img_in; // 'M'
 layout(set = 1, binding = 1) readonly  buffer ssbo_wgt_t { uvec4 v[]; } ssbo_weights; // 'w'
 layout(set = 1, binding = 2) writeonly buffer ssbo_res_t { uvec4 v[]; } ssbo_res;     // output/result of the network 'K'
