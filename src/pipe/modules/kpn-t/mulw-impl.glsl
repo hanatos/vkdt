@@ -5,7 +5,6 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
 #extension GL_KHR_shader_subgroup_arithmetic               : enable
 
-#include "shared.glsl"
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 0) uniform global_t { } global;
 layout(push_constant, std140) uniform push_t

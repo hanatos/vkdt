@@ -14,9 +14,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
 
-#include "shared/coopmat.glsl"
 #include "config.h"
-#include "shared.glsl"
+#include "input.glsl"
+#include "shared/coopmat.glsl"
 #include "sigmoid.glsl"
 #define INFERENCE
 
@@ -33,7 +33,6 @@ layout(push_constant, std140) uniform push_t
   uint32_t output_stride;
   uint32_t level;
 } push;
-#include "input.glsl"
 layout(set = 1, binding = 0) uniform sampler2D img_in; // 'M' input mipmap
 layout(set = 1, binding = 1) readonly buffer ssbo_wgt_t { uvec4 v[]; } ssbo_weights; // 'w'
 layout(set = 1, binding = 2) uniform writeonly image2D img_I; // 'I' output convolved image

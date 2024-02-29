@@ -11,7 +11,6 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
 
 #include "shared/coopmat.glsl"
-#include "shared.glsl"
 
 layout(local_size_x = 32, local_size_y = N_BLOCKS, local_size_z = 1) in;
 layout(push_constant, std140) uniform push_t

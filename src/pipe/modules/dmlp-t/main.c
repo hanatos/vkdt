@@ -100,7 +100,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
       "dEdK", "write", "ssbo", "f16", &roi_K);   // to backpropagation, this is directly dE/dK
   int pc_mulw[] = { batch_size, 0 };
   const int id_dw = dt_node_add( // backpropagation: compute dE/dw
-      graph, module, "kpn-t", "mulw", WIDTH * DT_LOCAL_SIZE_X, WIDTH * DT_LOCAL_SIZE_Y, 1, sizeof(pc_mulw), pc_mulw, 6,
+      graph, module, "dmlp-t", "mulw", WIDTH * DT_LOCAL_SIZE_X, WIDTH * DT_LOCAL_SIZE_Y, 1, sizeof(pc_mulw), pc_mulw, 6,
       "M",    "read",  "rgba", "*",   dt_no_roi,     // input image
       "dEdK", "read",  "ssbo", "f16", dt_no_roi,     // last layer dE/dK from dass
       "A",    "read",  "ssbo", "f16", dt_no_roi,     // intermediate fwd activations
@@ -198,7 +198,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
     
   // we are passing the number of threads assuming DT_LOCAL_SIZE_X and DT_LOCAL_SIZE_Y
   const int id_fwd = dt_node_add( // infer kernel and store intermediate activations too
-      graph, module, "kpn-t", "fwd", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_fwd), pc_fwd, 5,
+      graph, module, "dmlp-t", "fwd", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_fwd), pc_fwd, 5,
       "M", "read",  "rgba", "*",   dt_no_roi, // input image, bayer mosaiced
       "w", "read",  "ssbo", "f16", dt_no_roi, // MLP weights
       "K", "write", "ssbo", "f16", &roi_K,    // network output, direct prediction of colour per px block
@@ -210,7 +210,7 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
   // out_width = rows = 16;  batch_size = columns; output_stride = 16
   int pc_bck[] = { 16, pc_fwd[1], 16 };
   const int id_bck = dt_node_add( // backpropagation: compute dE/dA
-      graph, module, "kpn-t", "bck", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_bck), pc_bck, 4,
+      graph, module, "dmlp-t", "bck", blocks[0] * DT_LOCAL_SIZE_X, blocks[1] * DT_LOCAL_SIZE_Y, 1, sizeof(pc_bck), pc_bck, 4,
       "w",    "read",  "ssbo", "f16", dt_no_roi,  // weights
       "dEdA", "write", "ssbo", "f16", &roi_A,     // write gradients (intermediate + last layer) for activations A
       "A",    "read",  "ssbo", "f16", dt_no_roi,  // intermediate layer activations, written as fwd -> A
