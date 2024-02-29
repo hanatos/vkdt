@@ -27,8 +27,8 @@ void main()
   ivec2 off = ivec2(0);
   float ev = 0;
 
-  // uint seed = 123456789+133700 * (global.frame/500);
-  uint seed = 123456789+133700 * global.frame;
+  uint seed = 123456789+133700 * (global.frame/100);
+  // uint seed = 123456789+133700 * global.frame;
   if(params.generate != 0)
   {
     ev = -2.0 + 4.0*mrand(seed);
@@ -51,7 +51,7 @@ void main()
   if(params.generate == 2 || params.generate == 4)
   { // add noise according to gaussian/poissonian profile
     // sample noise a/b based on per-frame seed
-    if(mrand(seed) < 0.1)
+    if(mrand(seed) < 10.1)
     {
       float phi = mrand(seed) * 2.0*M_PI;
       mat2 R = mat2(cos(phi), -sin(phi), sin(phi), cos(phi));
@@ -65,8 +65,8 @@ void main()
         lo = vec3(0.5 + 0.5*mrand(seed));
       }
       float n = mrand(seed)*7;
-      ref.rgb = smoothstep(lo, hi, vec3(pow(2.0*abs(mod(tc.x, wd)/wd - 0.5), n)));
-      // ref.rgb = mix(lo, hi, bvec3(mod(tc.x, wd)/wd > 0.5)); // hard edges
+      // ref.rgb = smoothstep(lo, hi, vec3(pow(2.0*abs(mod(tc.x, wd)/wd - 0.5), n)));
+      ref.rgb = mix(lo, hi, bvec3(mod(tc.x, wd)/wd > 0.5)); // hard edges
     }
     const float scale = 65535.0;
     noise_a = 1000.0 * scale * mrand(seed);
@@ -76,7 +76,7 @@ void main()
     seed = uint((1<<29)*mrand(seed));
     vec4 z = vec4(warp_gaussian(vec2(mrand(seed), mrand(seed))),
                   warp_gaussian(vec2(mrand(seed), mrand(seed))));
-    rgb.rgb = ref.rgb + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
+    rgb.rgb = ref.rgb;//XXX + z.rgb * sqrt(noise_a + scale*max(ref.rgb, vec3(0))*noise_b)/scale;
   }
 
   if(params.generate == 3 || params.generate == 4)
