@@ -2,4 +2,4 @@
 #extension GL_GOOGLE_include_directive    : enable
 #include "config.h"
 #include "input.glsl"
-#include "mulw-impl.glsl"
+#include "../kpn-t/mulw-impl.glsl"

@@ -1,30 +1,12 @@
+#include "shared.glsl"
 // abstraction for feeding input to the MLP (used during inferencing and backpropagation)
 float // return channel
 load_input_tap(
     sampler2D img,
     uint      pxid,   // pixel coordinate of center pixel
-    uint      chan)   // channel
+    uint      chan,   // channel
+    vec2      noise)  // gaussian and poissonian noise parameters
 {
-#if 1 // XXX this only for demosaicing blocks!
-  const uint stride = textureSize(img, 0).x/2;
-  ivec2 px = 2*ivec2(pxid % stride, pxid / stride);
-  if(px.y >= textureSize(img, 0).y)
-  { // out of bounds for the input image
-    return 0.0;
-  }
-#if WIDTH==64
-  uint j = chan / 8;
-  uint i = chan - 8*j;
-  px += ivec2(i-3, j-3);
-  if(px.x < 0) px.x = -2*(px.x/2) + (px.x & 1);
-  if(px.x >= textureSize(img, 0).x) px.x = 2*((2*textureSize(img, 0).x - px.x - 1)/2) + (px.x & 1);
-  if(px.y < 0) px.y = -2*(px.y/2) + (px.y & 1);
-  if(px.y >= textureSize(img, 0).y) px.y = 2*((2*textureSize(img, 0).y - px.y - 1)/2) + (px.y & 1);
-  return texelFetch(img, px, 0).r;
-#else
-#error demosaicing needs 64 wide networks!
-#endif
-#else
   const uint stride = textureSize(img, 0).x;
   ivec2 px = ivec2(pxid % stride, pxid / stride);
 #if WIDTH==64
@@ -60,12 +42,6 @@ load_input_tap(
   const float mul = pow(0.5, push.level); // our mipmaps are 2x2 averages, so the stddev is halved every time (Var = 4 * (1/4)^2*Var(X))
   const float scale = 65535.0;
   float lum = luminance_rec2020(texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb);
-#ifdef INFERENCE
-  return mul * sqrt(params.noise_a + scale*max(lum, 0)*params.noise_b)/scale;
-#else
-  // during training, grab noise params from ssbo routed in from cnngenin
-  return mul * sqrt(ssbo_nab.noise_a + scale*max(lum, 0)*ssbo_nab.noise_b)/scale;
-#endif
-#endif
+  return mul * sqrt(noise.x + scale*max(lum, 0)*noise.y)/scale;
 #endif
 }

@@ -11,8 +11,6 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
 
 #include "shared/coopmat.glsl"
-#include "config.h"
-#include "shared.glsl"
 
 layout(local_size_x = 32, local_size_y = N_BLOCKS, local_size_z = 1) in;
 layout(push_constant, std140) uniform push_t
@@ -27,7 +25,6 @@ layout(std430, set = 1, binding = 1) readonly  buffer ssbo_wgt_t { uvec4 v[]; } 
 layout(std430, set = 1, binding = 2) writeonly buffer ssbo_res_t { uvec4 v[]; } ssbo_res;     // output/result of the network 'K'
 layout(std430, set = 1, binding = 3) writeonly buffer ssbo_aux_t { uvec4 v[]; } ssbo_out;     // intermediate activations written here 'A'
 layout(std430, set = 1, binding = 4) readonly  buffer ssbo_nab_t { float noise_a; float noise_b; } ssbo_nab; // noise profile a b
-#include "input.glsl"
 
 shared uvec4 shm_act[((16 + 16*N_ITERS) * (WIDTH + SKEW)) / EL_PER_UVEC4];
 
