@@ -62,8 +62,8 @@ void main()
       float wd = 8.0 + mrand(seed) * 10.0;
       // vec3 lo = 0.55 * vec3(mrand(seed), mrand(seed), mrand(seed));
       // vec3 hi = 0.45 + 0.55*vec3(mrand(seed), mrand(seed), mrand(seed));
-      vec3 lo = 0.10 * (0.5-vec3(mrand(seed), mrand(seed), mrand(seed)));
-      vec3 hi = 0.5 + 1.0*(0.5-vec3(mrand(seed), mrand(seed), mrand(seed)));
+      vec3 lo = 0.10 * (0.5-vec3(mrand(seed)));//, mrand(seed), mrand(seed)));
+      vec3 hi = 0.5 + 1.0*(0.5-vec3(mrand(seed)));//, mrand(seed), mrand(seed)));
       if(mrand(seed) < 0.5)
       {
         vec3 tmp = hi;

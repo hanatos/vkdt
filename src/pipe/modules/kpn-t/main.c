@@ -60,7 +60,8 @@ modify_roi_out(
   module->connector[4].roi.full_ht = 200;
 #endif
   module->connector[5].roi = (dt_roi_t){ .full_wd = (N_HIDDEN_LAYERS+2)*WIDTH, .full_ht = 4*WIDTH };
-  module->connector[6].roi = (dt_roi_t){ .full_wd = 4*module->connector[0].roi.full_wd, .full_ht = 4*module->connector[0].roi.full_ht };
+  // module->connector[6].roi = (dt_roi_t){ .full_wd = 4*module->connector[0].roi.full_wd, .full_ht = 4*module->connector[0].roi.full_ht };
+  module->connector[6].roi = (dt_roi_t){ .full_wd = module->connector[0].roi.full_wd, .full_ht = module->connector[0].roi.full_ht };
 
   // init roi for outputs just in case there is no downstream chain to do it later:
   module->connector[3].roi.wd = module->connector[3].roi.full_wd;
@@ -471,9 +472,22 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
 #endif
     }
 #endif
+#if 1
+    if(i == 0)
+    {
+      const int id_deb = dt_node_add(graph, module, "kpn-t", "debug", 
+            roi_M[0].wd, roi_M[0].ht, 1, sizeof(pc_apply), pc_apply, 3,
+            "M", "read",  "rgba", "*",   dt_no_roi,
+            "K", "read",  "ssbo", "f16", dt_no_roi,
+            "I", "write", "rgba", "f16", &roi_M[0]);  // output convolved image
+      dt_connector_copy(graph, module, 6, id_deb, 2); // output kernel visualisation
+      dt_connector_copy(graph, module, 0, id_deb, 0);
+      CONN(dt_node_connect_named(graph, id_fwd,    "K",    id_deb,  "K"));
+    }
+#endif
   }
   dt_connector_copy(graph, module, 3, id_adam, 4); // output weights
-  dt_connector_copy(graph, module, 6, id_loss, 4); // DEBUG: output per pixel loss
+  // dt_connector_copy(graph, module, 6, id_loss, 4); // DEBUG: output per pixel loss
   // dt_connector_copy(graph, module, 6, id_mip, 3); // DEBUG: output low mipmap
   // dt_connector_copy(graph, module, 6, id_sub[3], 1); // DEBUG: output low mipmap
   dt_connector_copy(graph, module, 1, id_loss, 1); // reference image
