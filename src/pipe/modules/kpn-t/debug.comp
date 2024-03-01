@@ -29,13 +29,14 @@ void main()
     ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
                                   ivec2(0,  2) //, ivec2(666,666)
   };
-#if (APPLY_ACTIVATION==APPLY_SOFTMAX)
   if(push.level > 1)
   { // XXX DEBUG train only one level!
     vec3 rgb =  texture(img_M, (ipos + 0.5)/vec2(textureSize(img_M, 0))).rgb;
     imageStore(img_I, ipos, vec4(rgb, 1.0));
     return;
   }
+#if 0
+#if (APPLY_ACTIVATION==APPLY_SOFTMAX)
   vec3 rgb = vec3(0.0);
   float den = 0.0;
   float maxK = -1e38; // softmax(x) = softmax(x + c)
@@ -85,20 +86,56 @@ void main()
 #elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
   const float alpha = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), 0, 1); // clamp
 #endif
+#else
+  const float alpha = 1.0;
+  vec3 rgb = texture(img_M, (ipos + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+#endif
 
-  // plot kernels in 8x8 blocks overlaid!
-  ivec2 c = (ipos / 8) * 8 + 3;
-  ivec2 o = ipos - c;
-  int tapi = -1;
-  for(int i=0;i<15;i++)
   {
-    if(all(equal(o, tap[i]))) { tapi = i; break; }
-  }
-  if(tapi >= 0)
-  {
-    uint32_t idx = 16*(ipos.x + ipos.y * imageSize(img_I).x) + tapi;
-    float w = float(ssbo_K.v[nonuniformEXT(idx)]);
-    rgb = mix(rgb, vec3(1, 0, 1), w);
+    // plot kernels in 8x8 blocks overlaid!
+    rgb = rgb.ggg*0.05; // better kernel visibility
+    ivec2 c = (ipos / 8) * 8 + 3;
+    ivec2 o = ipos - c;
+    int tapi = -1;
+    for(int i=0;i<15;i++)
+      if(all(equal(o, tap[i]))) { tapi = i; break; }
+#if (APPLY_ACTIVATION==APPLY_SOFTMAX)
+    float den = 0.0;
+    float maxK = -1e38; // softmax(x) = softmax(x + c)
+    [[unroll]] for(int k=0;k<15;k++)
+    {
+      uint32_t idx = 16*(c.x + c.y * imageSize(img_I).x) + k;
+      maxK = max(maxK, float(ssbo_K.v[nonuniformEXT(idx)]));
+    }
+    [[unroll]] for(int k=0;k<15;k++)
+    {
+      uint32_t idx = 16*(c.x + c.y * imageSize(img_I).x) + k;
+      const float w = sigma_exp(ssbo_K.v[nonuniformEXT(idx)]-maxK);
+      // rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+      den += w;
+    }
+    if(tapi >= 0)
+    {
+      uint32_t idx = 16*(c.x + c.y * imageSize(img_I).x) + tapi;
+      float w = sigma_exp(ssbo_K.v[nonuniformEXT(idx)]-maxK);
+      rgb = mix(rgb, vec3(1, 0, 1), w);
+    }
+#else
+    if(tapi >= 0)
+    {
+      float sumw = 0.0;
+      [[unroll]] for(int k=0;k<15;k++)
+      {
+        uint32_t idx = 16*(c.x + c.y * imageSize(img_I).x) + k;
+        sumw += float(ssbo_K.v[nonuniformEXT(idx)]);
+      }
+      uint32_t idx = 16*(c.x + c.y * imageSize(img_I).x) + tapi;
+      float w = float(ssbo_K.v[nonuniformEXT(idx)]);
+      // w *= w*w;
+      w /= max(0.001, sumw);
+      rgb = mix(rgb, vec3(4, 4, 0), w);
+    }
+#endif
   }
 
   imageStore(img_I, ipos, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));

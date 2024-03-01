@@ -1,4 +1,5 @@
 #include "shared.glsl"
+#include "zernike.glsl"
 // abstraction for feeding input to the MLP (used during inferencing and backpropagation)
 float // return channel
 load_input_tap(
@@ -10,10 +11,30 @@ load_input_tap(
   const uint stride = textureSize(img, 0).x;
   ivec2 px = ivec2(pxid % stride, pxid / stride);
 #if WIDTH==64
+#if 0 // zernike version:
+  float z = 0;
+  if(chan < 15)
+  {
+    const int R=4;
+    for(int r1=-R;r1<=R;r1++) for(int r0=-R;r0<=R;r0++)
+    {
+      float rho = sqrt(r0*r0+r1*r1)/(R+0.5);
+      float phi = atan(r0, r1);
+      z += luminance_rec2020(abs(texture(img, (px+ivec2(r0,r1)+0.5)/vec2(textureSize(img, 0))).rgb))* zernike(chan, rho, phi);
+    }
+    return z;
+  }
+  chan-=15;
+  uint i = chan / 7;
+  uint j = chan - 7*i;
+  px += ivec2(i-3, j-3);
+  return luminance_rec2020(abs(texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb));
+#else // plain surroundings
   uint i = chan / 8;
   uint j = chan - 8*i;
-  px += ivec2(i-4, j-4); // not symmetric but who cares
-  return luminance_rec2020(texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb);
+  px += ivec2(i-4, j-4);
+  return luminance_rec2020(abs(texture(img, (px+0.5)/vec2(textureSize(img, 0))).rgb));
+#endif
 #else
   const ivec2 tap[] = {           ivec2(0, -2),
     ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),

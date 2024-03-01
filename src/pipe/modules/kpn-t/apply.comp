@@ -53,6 +53,13 @@ void main()
   }
   rgb /= max(1e-3, den);
 #elif (APPLY_ACTIVATION==APPLY_PLAIN)
+  if(push.level > 1)
+  { // XXX DEBUG train only one level!
+    vec3 rgb =  texture(img_M, (ipos + 0.5)/vec2(textureSize(img_M, 0))).rgb;
+    imageStore(img_I, ipos, vec4(rgb, 1.0));
+    return;
+  }
+  float sumw = 0.0;
   vec3 rgb = vec3(0.0);
   [[unroll]] for(int k=0;k<15;k++)
   {
@@ -60,8 +67,10 @@ void main()
     // const float w = clamp(float(ssbo_K.v[nonuniformEXT(idx)]), -20000.0, 20000.0);
     float w = float(ssbo_K.v[nonuniformEXT(idx)]);
     if(!(w < 10.0) || !(w > -10.0)) w = 0.001;
+    sumw += w;
     rgb += w * texture(img_M, (ipos + tap[k] + 0.5)/vec2(textureSize(img_M, 0))).rgb;
   }
+  rgb /= max(0.001, sumw);
 #elif (APPLY_ACTIVATION==APPLY_DEBUG)
   uint32_t ix = 16*(ipos.x + ipos.y * imageSize(img_I).x) + 7;
   const float w = clamp(float(ssbo_K.v[nonuniformEXT(ix)]), -65000.0, 65000.0);

@@ -481,8 +481,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module)
             "K", "read",  "ssbo", "f16", dt_no_roi,
             "I", "write", "rgba", "f16", &roi_M[0]);  // output convolved image
       dt_connector_copy(graph, module, 6, id_deb, 2); // output kernel visualisation
-      dt_connector_copy(graph, module, 0, id_deb, 0);
-      CONN(dt_node_connect_named(graph, id_fwd,    "K",    id_deb,  "K"));
+#ifdef PRE_MLP_DIFF
+      CONN(dt_node_connect_named(graph, id_diff[0], "D", id_deb,  "M"));
+#else
+      dt_connector_copy(graph, module, 0, id_deb,  0);
+#endif
+      CONN(dt_node_connect_named(graph, id_fwd,     "K", id_deb,  "K"));
     }
 #endif
   }
