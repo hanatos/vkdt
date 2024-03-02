@@ -7,7 +7,6 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
 #include "shared/coopmat.glsl"
-#include "config.h"
 
 layout(local_size_x = 32, local_size_y = N_BLOCKS, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;

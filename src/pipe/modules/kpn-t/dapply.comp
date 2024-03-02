@@ -44,23 +44,31 @@ void main()
     { // compute dI/dK from I = K * M => sum img pixel taps that connect I and K (exactly one)
 #if (APPLY_ACTIVATION==APPLY_SOFTMAX)
       vec3 dIdK = vec3(0.0);
+      float maxK = -1e38;
+      for(int i=0;i<15;i++)
+        maxK = max(maxK, float(ssbo_K.v[nonuniformEXT(idx0+i)]));
       // now dI/dK also changes because K changes the normalisation of other K and M in the sum
       // go through all connected M in kernel support. all the M[i] need to be summed up into dIdK, weighted by ddK_k s(K_i)
-      float sk = sigma_exp(ssbo_K.v[nonuniformEXT(idx0+k)]);
+      float sk = sigma_exp(ssbo_K.v[nonuniformEXT(idx0+k)]-maxK);
       float den = 0.0;
       for(int i=0;i<15;i++)
-        den += sigma_exp(ssbo_K.v[nonuniformEXT(idx0+i)]);
+        den += sigma_exp(ssbo_K.v[nonuniformEXT(idx0+i)]-maxK);
       for(int i=0;i<15;i++)
       { // s(K_i) = exp(K_i)/sum exp(K_k),  d/dK_k s(K_i) = s(K_i) (delta_ik - s(K_k))
         vec3 M = texture(img_M, (ipos + tap[nonuniformEXT(i)] + 0.5)/textureSize(img_M, 0)).rgb;
-        float si = sigma_exp(ssbo_K.v[nonuniformEXT(idx0+i)]);
+        float si = sigma_exp(ssbo_K.v[nonuniformEXT(idx0+i)]-maxK);
         float ddk_si = si/den * ((i==k ? 1.0 : 0.0) - sk/den);
         dIdK += ddk_si * M;
       }
-      dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -1000.0, 1000.0));
+      dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
 #elif (APPLY_ACTIVATION==APPLY_PLAIN)
       vec3 dIdK = texture(img_M, (ipos + tap[nonuniformEXT(k)] + 0.5)/textureSize(img_M, 0)).rgb;
-      dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
+      float K = float(ssbo_K.v[nonuniformEXT(idx0+k)]);
+      if(K > -10.0 && K < 10.0)
+        dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
+#elif (APPLY_ACTIVATION==APPLY_DEBUG)
+      vec3 dIdK = texture(img_M, (ipos + 0.5)/textureSize(img_M, 0)).rgb;
+      if(k == 7) dEdK = float16_t(clamp(dot(dEdI.rgb, dIdK), -65000.0, 65000.0));
 // #elif (APPLY_ACTIVATION==APPLY_SIGMOID)
       // vec3 dOdw = texture(img_in, (ipos + tap[nonuniformEXT(k)] + 0.5)/textureSize(img_in, 0)).rgb;
       // float win = ssbo_kernel.v[nonuniformEXT((gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * textureSize(img_in, 0).x)*output_stride+k)];
@@ -80,8 +88,10 @@ void main()
       // float dIdK = clamps(ddx_sigmoid(inv_sigmoid(I.a)), -10.0, 10.0);
       float dIdK = ddx_sigmoid(inv_sigmoid(I.a));
       dEdK = float16_t(dEdI.a * dIdK);
+#elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
+      dEdK = float16_t(dEdI.a); // straight
+      if(I.a < 0.0 || I.a > 1.0) dEdK = float16_t(0.0); // no derivative outside interval
 #endif
-      // dEdK = float16_t(mix(0.0, dEdI.a, I.a > 0 && I.a < 1)); // clamped both sides
       // dEdK = float16_t(mix(dEdI.a, 0.0, I.a <= 0)); // relu
     }
   }

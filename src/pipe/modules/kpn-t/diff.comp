@@ -1,0 +1,33 @@
+#version 460
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_EXT_control_flow_attributes   : enable
+#include "shared.glsl"
+#include "config.h"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(set = 1, binding = 0) uniform sampler2D img_M0; // fine image
+layout(set = 1, binding = 1) uniform sampler2D img_M1; // coarse mipmap
+layout(set = 1, binding = 2) uniform writeonly image2D img_out; // output: detail coefs
+
+void main()
+{ // compute wavelet detail coefficients for given fine and coarse. upsample coarse res and take difference.
+  const ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  vec3 C = vec3(0.0);
+#ifdef NO_ALIAS
+  C = texture(img_M1, (opos + 1.0)/vec2(textureSize(img_M0, 0))).rgb;
+#else
+  const float w0[3] = {5.0 / 16.0, 10.0 / 16.0, 1.0 / 16.0};
+  const float w1[3] = {1.0 / 16.0, 10.0 / 16.0, 5.0 / 16.0};
+  [[unroll]] for(int jj=-1;jj<=1;jj++) [[unroll]] for(int ii=-1;ii<=1;ii++)
+  {
+    vec3 rgb = texture(img_M1, (opos/2 + ivec2(ii,jj) + 0.5)/vec2(textureSize(img_M1, 0))).rgb;
+    float w = ((opos.x & 1) == 0) ? w0[ii+1] : w1[ii+1];
+    w      *= ((opos.y & 1) == 0) ? w0[jj+1] : w1[jj+1];
+    C += w*rgb;
+  }
+#endif
+  vec3 I = texelFetch(img_M0, opos, 0).rgb;
+  vec3 diff = I - C;
+  imageStore(img_out, opos, vec4(diff, 1));
+}

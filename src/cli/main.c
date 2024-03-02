@@ -56,6 +56,8 @@ int main(int argc, char *argv[])
       param.dump_modules = 1;
     else if(!strcmp(argv[i], "--dump-nodes"))
       dump_nodes = 1;
+    else if(!strcmp(argv[i], "--progress"))
+      param.print_progress = 1;
     else if(!strcmp(argv[i], "--output") && i < argc-1 && ++i)
       param.output[output_cnt++].inst = dt_token(argv[i]);
     else if(!strcmp(argv[i], "--device") && i < argc-1)
@@ -74,6 +76,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "usage: vkdt-cli -g <graph.cfg>\n"
     "    [-d verbosity]                set log verbosity (none,qvk,pipe,gui,db,cli,snd,perf,mem,err,all)\n"
     "    [--last-frame-only]           only write the last frame, not the intermediates\n"
+    "    [--progress]                  print some progress information (useful for long animations)\n"
     "    [--dump-modules|--dump-nodes] write graphvis dot files to stdout\n"
     "    [--quality <0-100>]           jpg output quality\n"
     "    [--width <x>]                 max output width\n"

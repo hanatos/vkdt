@@ -1,0 +1,34 @@
+#version 460
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_EXT_nonuniform_qualifier      : enable
+#extension GL_EXT_control_flow_attributes   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+// layout(push_constant, std140) uniform push_t { } push;
+layout(set = 1, binding = 0) readonly buffer ssbo_K_t { float16_t v[]; } ssbo_K;
+layout(set = 1, binding = 1) uniform writeonly image2D img_I;
+
+float fixup(float v)
+{
+  if(!(v == v)) return 0.0;
+  return clamp(v, -20.0, 20.0);
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_I)))) return;
+
+  uint32_t sub = (ipos.x & 1) + 2*(ipos.y & 1);
+  uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * imageSize(img_I).x/2));
+  idx += 3*sub;
+  vec3 rgb = vec3(
+      fixup(ssbo_K.v[idx + 0]),
+      fixup(ssbo_K.v[idx + 1]),
+      fixup(ssbo_K.v[idx + 2]));
+  imageStore(img_I, ipos, vec4(rgb, 1.0));
+}

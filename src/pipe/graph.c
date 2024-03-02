@@ -862,7 +862,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         // init the reference counter now accordingly:
         img->mem->ref = c->connected_mi;
 
-        if(c->type == dt_token("source"))
+        if(c->type == dt_token("source") || (c->flags & s_conn_protected))
           img->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
       }
     }
@@ -2908,7 +2908,8 @@ dt_graph_connector_image(
 {
   if(graph->node[nid].conn_image[cid] == -1)
   {
-    dt_log(s_log_err, "requesting disconnected image buffer!");
+    dt_log(s_log_err, "requesting disconnected image buffer! %" PRItkn ":%" PRItkn ":%" PRItkn,
+        dt_token_str(graph->node[nid].name), dt_token_str(graph->node[nid].kernel), dt_token_str(graph->node[nid].connector[cid].name));
     return 0;
   }
   int nid2 = nid, cid2 = cid;

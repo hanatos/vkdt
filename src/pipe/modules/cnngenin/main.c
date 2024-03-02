@@ -21,6 +21,8 @@ void modify_roi_out(
   module->connector[2].roi.full_ht = wd;
   module->connector[3].roi.full_wd = wd;
   module->connector[3].roi.full_ht = wd;
+  module->connector[4].roi.full_wd = 2;
+  module->connector[4].roi.full_ht = 2;
 }
 
 void create_nodes(
@@ -30,10 +32,11 @@ void create_nodes(
   const int id = dt_node_add(
       graph, module, "cnngenin", "main", 
       module->connector[2].roi.wd, module->connector[2].roi.ht, 1,
-      0, 0, 4,
+      0, 0, 5,
       "imgi", "read",  "*",    "*",   &module->connector[0].roi,
       "refi", "read",  "*",    "*",   &module->connector[1].roi,
       "imgo", "write", "rgba", "f16", &module->connector[2].roi,
-      "refo", "write", "rgba", "f16", &module->connector[3].roi);
-  for(int i=0;i<4;i++) dt_connector_copy(graph, module, i, id, i);
+      "refo", "write", "rgba", "f16", &module->connector[3].roi,
+      "nab",  "write", "ssbo", "f32", &module->connector[4].roi);
+  for(int i=0;i<5;i++) dt_connector_copy(graph, module, i, id, i);
 }

@@ -1,0 +1,35 @@
+#version 460
+#extension GL_GOOGLE_include_directive      : enable
+#extension GL_EXT_nonuniform_qualifier      : enable
+#extension GL_EXT_control_flow_attributes   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+// layout(push_constant, std140) uniform push_t { } push;
+layout(set = 1, binding = 0) uniform sampler2D img_dEdO;
+layout(set = 1, binding = 1) writeonly buffer ssbo_dEdK_t { float16_t v[]; } ssbo_dEdK;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_dEdO, 0)))) return;
+  uint32_t sub = (ipos.x & 1) + 2*(ipos.y & 1);
+  uint32_t idx = nonuniformEXT(16*(ipos.x/2 + ipos.y/2 * textureSize(img_dEdO, 0).x/2));
+  vec3 dEdO = texelFetch(img_dEdO, ipos, 0).rgb;
+  // XXX DEBUG rule out boundary issues
+  // if(ipos.x < 3 || ipos.y < 3 || ipos.x >= textureSize(img_dEdO, 0).x-4 || ipos.y >= textureSize(img_dEdO, 0).y-4) dEdO = vec3(0);
+  idx += 3*sub;
+  ssbo_dEdK.v[idx+0] = float16_t(dEdO.r);
+  ssbo_dEdK.v[idx+1] = float16_t(dEdO.g);
+  ssbo_dEdK.v[idx+2] = float16_t(dEdO.b);
+  if(sub == 0)
+  { // make sure to kill potential stray memory gradients
+    ssbo_dEdK.v[idx+12] = float16_t(0.0);
+    ssbo_dEdK.v[idx+13] = float16_t(0.0);
+    ssbo_dEdK.v[idx+14] = float16_t(0.0);
+    ssbo_dEdK.v[idx+15] = float16_t(0.0);
+  }
+}

@@ -15,7 +15,7 @@ vulkan/glsl.
 
 ## connectors
 
-* `input` the noisy image to work on, in rgb
+* `input` the noisy image to work on, in camera rgb scaled to [0,1] range but not clipped at 0
 * `output` the denoised image
 * `w` the weights for the neural network
 

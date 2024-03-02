@@ -167,7 +167,7 @@ void render_darkroom_widget(int modid, int parid)
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
   for(int num=0;num<count;num++)
   {
-  ImGui::PushID(2000*modid + 200*parid + num);
+  ImGui::PushID(20000*modid + 200*parid + num);
   char string[256];
   const float halfw = (0.66*vkdt.state.panel_wd - ImGui::GetStyle().ItemSpacing.x)/2;
   char str[10] = {0};

@@ -41,7 +41,7 @@ void main()
     if(layer * WIDTH*WIDTH + act * WIDTH + w + 1 > global.frame)
       rgb = vec3(0);
 #else
-    rgb = vec3(ssbo_dw.v[layer * WIDTH*WIDTH + act * WIDTH + w]/GRAD_SCALE);
+    rgb = vec3(10000.0*ssbo_dw.v[layer * WIDTH*WIDTH + act * WIDTH + w]/GRAD_SCALE);
 #endif
   }
   if(rgb.x < 0) rgb = vec3(-rgb.x, 0, 0);
