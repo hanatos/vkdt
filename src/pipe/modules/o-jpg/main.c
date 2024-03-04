@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/fs.h"
+#include "pipe/icc-profiles.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,11 @@ error_exit(j_common_ptr cinfo)
   longjmp(myerr->setjmp_buffer, 1);
 }
 
+#define EXIF_MARKER (JPEG_APP0 + 1) /* JPEG marker code for Exif */
+#define ICC_MARKER (JPEG_APP0 + 2)  /* JPEG marker code for ICC */
+#define ICC_OVERHEAD_LEN 14         /* size of non-profile data in APP2 */
+#define MAX_BYTES_IN_MARKER 65533   /* maximum data len of a JPEG marker */
+#define MAX_DATA_BYTES_IN_MARKER (MAX_BYTES_IN_MARKER - ICC_OVERHEAD_LEN)
 /*
  * stolen from darktable imageio, i.e. this is GPLv3 code:
  * This routine writes the given ICC profile data into a JPEG file.
@@ -36,7 +42,7 @@ error_exit(j_common_ptr cinfo)
 static void
 write_icc_profile(
     j_compress_ptr cinfo,
-    const char    *icc_data_ptr,
+    const uint8_t *icc_data_ptr,
     unsigned int   icc_data_len)
 {
   unsigned int num_markers; /* total number of markers we'll write */
@@ -86,6 +92,11 @@ write_icc_profile(
     cur_marker++;
   }
 }
+#undef EXIF_MARKER
+#undef ICC_MARKER
+#undef ICC_OVERHEAD_LEN
+#undef MAX_BYTES_IN_MARKER
+#undef MAX_DATA_BYTES_IN_MARKER
 
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
@@ -145,7 +156,10 @@ void write_sink(
   jpeg_start_compress(&cinfo, TRUE);
 
   if(module->img_param.colour_primaries == dt_colour_primaries_adobe && module->img_param.colour_trc == dt_colour_trc_gamma)
+  {
+    fprintf(stderr, "dumping adobe profile\n");
     write_icc_profile(&cinfo, icc_AdobeCompat_v2, icc_AdobeCompat_v2_len);
+  }
   else if(module->img_param.colour_primaries == dt_colour_primaries_2020 && module->img_param.colour_trc == dt_colour_trc_709)
     write_icc_profile(&cinfo, icc_Rec2020_v2_micro, icc_Rec2020_v2_micro_len);
 

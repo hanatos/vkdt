@@ -93,6 +93,7 @@ it follows the reference documentation of available modules, grouped into catego
 * [align: align animation frames or burst photographs](./align/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
 * [cnngenin: generate random input for neural network training](./cnngenin/readme.md)
+* [colenc: encode colour for colour managed output like adobeRGB, P3, etc](./colenc/readme.md)
 * [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
 * [kpn-t: kernel prediction neural network for denoising, training](./kpn-t/readme.md)
 * [mv2rot: estimate rotation + translation from motion vectors](./mv2rot/readme.md)

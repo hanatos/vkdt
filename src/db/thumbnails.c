@@ -254,7 +254,8 @@ dt_thumbnails_cache_one(
   dt_graph_reset(graph);
 
   char *extrap[] = {
-    "param:f2srgb:main:usemat:0", // write thumbnails as rec2020 with gamma
+    "param:colenc:main:prim:2",   // write thumbnails as rec2020 with gamma
+    "param:colenc:main:trc:2",    //
     "frames:1",                   // only render first frame of animation
   };
   dt_graph_export_t param = {

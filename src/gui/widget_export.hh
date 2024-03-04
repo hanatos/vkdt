@@ -102,6 +102,8 @@ struct dt_export_widget_t
   int modid_cnt;       // number of output modules found
   int *modid;          // points into dt_pipe.module, lists all output modules
   char *format_text;   // output module selection text for imgui combobox
+  char *colour_prim_text;
+  char *colour_trc_text;
   uint8_t *pdata_buf;  // allocation for all the parameters
   uint8_t **pdata;     // pointer to parameter data for all output modules
 
@@ -110,6 +112,8 @@ struct dt_export_widget_t
   int     wd, ht;
   int     format;
   float   quality;
+  int     colour_prim;
+  int     colour_trc;
   int     overwrite;
   int     last_frame_only;
 };
@@ -153,6 +157,8 @@ dt_export_init(
   w->ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
   w->format = dt_rc_get_int(&vkdt.rc, "gui/export/format", 4);
   w->quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
+  w->colour_prim = dt_rc_get_int(&vkdt.rc, "gui/export/primaries", dt_colour_primaries_srgb);
+  w->colour_trc  = dt_rc_get_int(&vkdt.rc, "gui/export/trc", dt_colour_trc_srgb);
   strncpy(w->basename,
         dt_rc_get(&vkdt.rc, "gui/export/basename", "${home}/img_${seq}"),
         sizeof(w->basename)-1);
@@ -189,8 +195,17 @@ dt_export(
       "${seq} -- sequence number\n"
       "${fdir} -- directory of input file\n"
       "${fbase} -- basename of input file");
+  const char *colour_prim_text = "custom\0sRGB\0rec2020\0AdobeRGB\0P3\0XYZ\0\0";
+  const char *colour_trc_text  = "linear\0rec709\0sRGB\0PQ\0DCI\0HLG\0gamma\0\0";
   if(ImGui::InputFloat("quality", &w->quality, 1, 100, 0))
     dt_rc_set_float(&vkdt.rc, "gui/export/quality", w->quality);
+  // XXX if(strcmp(dt_token_str(g->module[w->modid[w->format]].name), "o-ffmpeg"))
+  { // video codecs have their own colours
+    if(ImGui::Combo("primaries", &w->colour_prim, colour_prim_text))
+      dt_rc_set_int(&vkdt.rc, "gui/export/primaries", w->colour_prim);
+    if(ImGui::Combo("trc", &w->colour_trc, colour_trc_text))
+      dt_rc_set_int(&vkdt.rc, "gui/export/trc", w->colour_trc);
+  }
   if(ImGui::Combo("format", &w->format, w->format_text))
     dt_rc_set_int(&vkdt.rc, "gui/export/format", w->format);
   ImGui::Combo("animations", &w->last_frame_only, "export every frame\0export last frame only\0\0");

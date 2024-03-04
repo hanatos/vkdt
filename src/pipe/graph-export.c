@@ -22,7 +22,9 @@ dt_graph_replace_display(
     dt_graph_t *graph,
     dt_token_t  inst,   // instance name of the display module to replace. leave 0 for default (main)
     dt_token_t  mod,    // module type of the output module to drop into place instead, e.g. "o-jpg". leave 0 for default (o-jpg)
-    int         resize) // pass 1 to insert a resize module before output
+    int         resize, // pass 1 to insert a resize module before output
+    int         prim,   // colour primaries
+    int         trc)
 {
   if(inst == 0) inst = dt_token("main"); // default to "main" instance
   const int mid = dt_module_get(graph, dt_token("display"), inst);
@@ -32,6 +34,7 @@ dt_graph_replace_display(
   int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
   int m0 = graph->module[mid].connector[cid].connected_mi;
   int o0 = graph->module[mid].connector[cid].connected_mc;
+  if(prim == dt_colour_primaries_custom) prim = dt_colour_primaries_2020; // don't currently support free matrices
 
   if(m0 < 0) return 2; // display input not connected
 
@@ -47,13 +50,19 @@ dt_graph_replace_display(
   }
 
   // new module export with same inst
-  const int m1 = dt_module_add(graph, dt_token("f2srgb"), inst);
+  const int m1 = dt_module_add(graph, dt_token("colenc"), inst);
   const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
   const int m2 = dt_module_add(graph, mod, inst);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
-  if(graph->module[m2].connector[i2].format == dt_token("ui8"))
+  fprintf(stderr, "got colour %d %d \n", prim, trc);
+  if(graph->module[m2].connector[i2].format == dt_token("ui8") ||
+     prim != dt_colour_primaries_2020 || 
+     trc  != dt_colour_trc_linear)
   {
+    dt_module_t *mod = graph->module + m1;
+    *(int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim"))) = prim;
+    *(int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc" ))) = trc;
     // output buffer reading is inflexible about buffer configuration. texture
     // units can handle it, so just push further:
     graph->module[m1].connector[o1].format = graph->module[m2].connector[i2].format;
@@ -147,7 +156,9 @@ dt_graph_export(
       if(dt_graph_replace_display(
             graph, param->output[cnt].inst, param->output[cnt].mod,
             ( param->output[cnt].mod != dt_token("o-bc1")) && // no hq thumbnails
-            ((param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0))))
+            ((param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0)),
+            param->output[cnt].colour_primaries, param->output[cnt].colour_trc
+            ))
         break;
     if(cnt != param->output_cnt)
     {
