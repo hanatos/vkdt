@@ -172,6 +172,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   module->img_param.cam_to_rec2020[5] = 0.0;
   module->img_param.cam_to_rec2020[6] = 0.0;
   module->img_param.cam_to_rec2020[7] = 1.0;
+  module->img_param.colour_primaries = dt_colour_primaries_2020;
+  module->img_param.colour_trc       = dt_colour_trc_linear;
 
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;

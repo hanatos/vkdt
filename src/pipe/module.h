@@ -18,6 +18,30 @@
 #include "connector.h"
 #include "metadata.h"
 
+typedef enum dt_colour_primaries_t
+{
+  dt_colour_primaries_custom = 0, // use cam_to_rec2020
+  dt_colour_primaries_srgb   = 1,
+  dt_colour_primaries_2020   = 2, // = 2100
+  dt_colour_primaries_adobe  = 3,
+  dt_colour_primaries_P3     = 4,
+  dt_colour_primaries_XYZ    = 5,
+}
+dt_colour_primaries_t;
+
+typedef enum dt_colour_trc_t
+{
+  dt_colour_trc_linear = 0,
+  dt_colour_trc_709    = 1, // SMPTE RP 431-2
+  dt_colour_trc_srgb   = 2, // IEC 61966-2-1 sRGB
+  dt_colour_trc_PQ     = 3, // SMPTE ST 2084
+  dt_colour_trc_DCI    = 4, // SMPTE ST 428-1
+  dt_colour_trc_HLG    = 5, // Rec. ITU-R BT.2100-1 (HLG)
+  dt_colour_trc_gamma  = 6, //
+}
+dt_colour_trc_t;
+
+
 // bare essential meta data that travels
 // with a (raw) input buffer along the graph.
 // since this data may be tampered with as it is processed
@@ -42,6 +66,10 @@ typedef struct dt_image_params_t
   float    aperture;          // f-stop as shot
   float    iso;               // iso value as shot
   float    focal_length;      // focal length of lens
+
+  // colour info as defined in dt_colour_primaries_t and dt_colour_trc_t
+  int colour_primaries;       // these describe the current image buffer and may change
+  int colour_trc;             // as the data travels through the graph
 
   // audio information (from ffmpeg or mlv or game code)
   int snd_format;             // see alsa's snd_pcm_format_t
