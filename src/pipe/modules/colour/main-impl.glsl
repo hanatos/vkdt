@@ -154,7 +154,7 @@ vec3 decode_colour(vec3 rgb)
   }
   else if(params.trc == 6) // gamma
   { // TODO get gamma from params
-    rgb = pow(rgb, vec3(2.2)); // happens to be adobe rgb
+    rgb = pow(max(rgb, vec3(0.0)), vec3(2.2)); // happens to be adobe rgb
   }
 
   if(params.primaries == 0)

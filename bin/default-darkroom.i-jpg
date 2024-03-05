@@ -16,7 +16,7 @@ connect:colour:01:output:display:main:input
 connect:colour:01:output:hist:01:input
 connect:hist:01:output:display:hist:input
 param:colour:01:exposure:0
-param:colour:01:matrix:0
+param:colour:01:matrix:1
 param:llap:01:sigma:0.12
 param:llap:01:shadows:1
 param:llap:01:hilights:1

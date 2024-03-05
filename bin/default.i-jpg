@@ -11,6 +11,6 @@ connect:crop:01:output:colour:01:input
 connect:colour:01:output:colenc:main:input
 connect:colenc:main:output:o-bc1:main:input
 param:colour:01:exposure:0
-param:colour:01:matrix:0
+param:colour:01:matrix:1
 param:colenc:main:prim:2
 param:colenc:main:trc:2

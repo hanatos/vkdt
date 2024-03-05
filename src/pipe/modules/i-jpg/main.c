@@ -330,7 +330,7 @@ read_header(
     float D50[] = {0.99628443, 1.02042736, 0.81864437}; // D50 white in bradford/lms space
     float wtp[3] = {0.0}; // = B * wt
     for(int j=0;j<3;j++) for(int i=0;i<3;i++) wtp[j] += B[3*j+i] * wt[i];
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++) B[3*j+i] *= D50[j]/wtp[j]; // diagonal matrix affects rows of matrix to the right
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++) B[3*j+i] *= wtp[j]/D50[j]; // diagonal matrix affects rows of matrix to the right
     float B_to_rec2020[9] = { // from bradford lms to rec2020 directly
        1.54272507, -0.44695197,  0.01168675,
        0.04066615,  0.93658984, -0.01169462,
@@ -424,6 +424,24 @@ void cleanup(dt_module_t *mod)
   }
   free(jpg);
   mod->data = 0;
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  if(parid == 2 || parid == 3) // colour space
+  {
+    const int prim = dt_module_param_int(module, 2)[0];
+    const int trc  = dt_module_param_int(module, 3)[0];
+    module->img_param.colour_primaries = prim;
+    module->img_param.colour_trc       = trc;
+    return s_graph_run_all; // propagate image params and potentially different buffer sizes downwards
+  }
+  return s_graph_run_record_cmd_buf;
 }
 
 // this callback is responsible to set the full_{wd,ht} dimensions on the
