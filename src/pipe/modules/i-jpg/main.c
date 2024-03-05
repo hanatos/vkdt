@@ -109,6 +109,7 @@ static float read_gamma(const icc_header_t *h, int beoff)
   uint32_t cnt = le(*(uint32_t*)data); //cnt==0 means linear, ==1 means gamma, and the rest we don't.
   if(cnt == 0) return 0.0;
   if(cnt == 1) return data[4] + data[5]/256.0;
+  return 0.0; // unsupported, let's pretend it's linear
 }
 
 
@@ -305,14 +306,12 @@ read_header(
   boolean res = read_icc_profile(&(jpg->dinfo), &h, &length);
   if(res)
   {
-    fprintf(stderr, "found icc profile! len %d num tags %d\n", length, le(h->tag_cnt));
     const int tag_cnt = le(h->tag_cnt);
     float gamma = 0.0, wt[3] = {0.0}, M[9] = {0.0};  // image rgb to xyz
     mod->img_param.colour_primaries = dt_colour_primaries_custom;
     for(int i=0;i<tag_cnt;i++)
     {
       icc_tag_t *entry = h->tag + i;
-      fprintf(stderr, "tag %d has %.4s %d %d\n", i, (char*)&entry->sig, le(entry->off), le(entry->size));
       if     (entry->sig == *((int*)"wtpt")) for(int k=0;k<3;k++) wt[k]    = read_s15u16(h, entry->off, k);
       else if(entry->sig == *((int*)"rXYZ")) for(int k=0;k<3;k++) M[3*k+0] = read_s15u16(h, entry->off, k);
       else if(entry->sig == *((int*)"gXYZ")) for(int k=0;k<3;k++) M[3*k+1] = read_s15u16(h, entry->off, k);
@@ -442,6 +441,14 @@ void modify_roi_out(
   jpginput_buf_t *jpg = mod->data;
   mod->connector[0].roi.full_wd = jpg->width;
   mod->connector[0].roi.full_ht = jpg->height;
+
+  int *p_prim = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim")));
+  int *p_trc  = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc" )));
+  // don't overwrite user choice, but if they don't know/leave at defaults we do:
+  if(*p_prim == dt_colour_primaries_unknown) *p_prim = mod->img_param.colour_primaries;
+  if(*p_trc  == dt_colour_trc_unknown)       *p_trc  = mod->img_param.colour_trc;
+  mod->img_param.colour_primaries = *p_prim;
+  mod->img_param.colour_trc       = *p_trc;
 }
 
 int read_source(

@@ -111,6 +111,8 @@ void modify_roi_out(
 
   for(int k=0;k<9;k++)
     mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
+  mod->img_param.colour_primaries = dt_colour_primaries_custom;
+  mod->img_param.colour_trc       = dt_colour_trc_linear;
 
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_maker);

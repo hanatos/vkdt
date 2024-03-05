@@ -204,6 +204,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[off+2] = p_sat;
   i[off+3] = p_pck;
   i[off+4] = p_gam;
+  i[off+5] = img_param->colour_primaries;
+  i[off+6] = img_param->colour_trc;
 
   if(p_mat == 1 && !(img_param->cam_to_rec2020[0] == img_param->cam_to_rec2020[0])) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
@@ -276,7 +278,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*(4+12+4+12+4*24+4*24+5);
+  mod->committed_param_size = sizeof(float)*(4+12+4+12+4*24+4*24+5+8);
   return 0;
 }
 
