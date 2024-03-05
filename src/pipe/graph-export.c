@@ -55,7 +55,6 @@ dt_graph_replace_display(
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
   const int m2 = dt_module_add(graph, mod, inst);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
-  fprintf(stderr, "got colour %d %d \n", prim, trc);
   if(graph->module[m2].connector[i2].format == dt_token("ui8") ||
      prim != dt_colour_primaries_2020 || 
      trc  != dt_colour_trc_linear)
@@ -169,7 +168,7 @@ dt_graph_export(
   // make sure all remaining display nodes are removed:
   dt_graph_disconnect_display_modules(graph);
 
-  // read extra arguments after replacing display, so we can access the additional f2srgb
+  // read extra arguments after replacing display, so we can access the additional modules
   for(int i=0;i<param->extra_param_cnt;i++)
     if(dt_graph_read_config_line(graph, param->p_extra_param[i]))
       dt_log(s_log_pipe|s_log_err, "failed to read extra params %d: '%s'", i + 1, param->p_extra_param[i]);

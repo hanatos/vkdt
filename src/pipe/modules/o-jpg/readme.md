@@ -1,6 +1,6 @@
 # o-jpg: write jpg files
 
-supports writing jpg images to disk. [convert to srgb](../f2srgb/readme.md)
+supports writing jpg images to disk. [convert to srgb or a similar colour space](../colenc/readme.md)
 before connecting to this module.
 
 ## connectors
