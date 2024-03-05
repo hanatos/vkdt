@@ -26,6 +26,7 @@ typedef enum dt_colour_primaries_t
   dt_colour_primaries_adobe  = 3,
   dt_colour_primaries_P3     = 4,
   dt_colour_primaries_XYZ    = 5,
+  dt_colour_primaries_unknown = 0xffff, // signal that we don't know and can be overwritten
 }
 dt_colour_primaries_t;
 
@@ -38,6 +39,7 @@ typedef enum dt_colour_trc_t
   dt_colour_trc_DCI    = 4, // SMPTE ST 428-1
   dt_colour_trc_HLG    = 5, // Rec. ITU-R BT.2100-1 (HLG)
   dt_colour_trc_gamma  = 6, //
+  dt_colour_trc_unknown = 0xffff,
 }
 dt_colour_trc_t;
 

@@ -68,13 +68,19 @@ void main()
     rgb = mix(rgb * 12.92, pow(rgb, vec3(1.0/2.4))*1.055-0.055, greaterThan(rgb, vec3(0.0031308)));
   }
   else if(params.trc == 3) // PQ
-  {
+  { // oetf
     const float c3 = 2392.0/128.0;
     const float c2 = 2413.0/128.0;
     const float c1 = c3-c2+1.0;
     const float m1 = 1305.0/8192.0;
     const float m2 = 2523.0/32.0;
-    rgb = pow((c1+c2*pow(rgb, vec3(m1)))/(1.0+c3*pow(rgb, vec3(m1))), vec3(m2));
+    // zimg says:
+    // More stable arrangement that avoids some cancellation error.
+    rgb = max(vec3(0.0), rgb);
+    rgb = pow(rgb, vec3(m1));
+    vec3 num = (c1 - 1.0) + (c2 - c3) * rgb;
+    vec3 den = 1.0 + c3 * rgb;
+    rgb = pow(1.0 + num / den, vec3(m2));
   }
   else if(params.trc == 4) // DCI
   {

@@ -1,5 +1,5 @@
 module:i-jpg:main
-module:srgb2f:01
+module:coldec:01
 module:crop:01
 module:colour:01
 module:filmcurv:01
@@ -11,8 +11,8 @@ module:display:hist
 # last display is the one determining the ROI:
 module:display:main
 connect:i-jpg:main:output:resize:01:input
-connect:resize:01:output:srgb2f:01:input
-connect:srgb2f:01:output:crop:01:input
+connect:resize:01:output:coldec:01:input
+connect:coldec:01:output:crop:01:input
 connect:crop:01:output:colour:01:input
 connect:colour:01:output:display:main:input
 connect:colour:01:output:hist:01:input
