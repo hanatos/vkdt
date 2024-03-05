@@ -52,17 +52,6 @@ error_exit(j_common_ptr cinfo)
 #define MAX_BYTES_IN_MARKER 65533   /* maximum data len of a JPEG marker */
 #define MAX_DATA_BYTES_IN_MARKER (MAX_BYTES_IN_MARKER - ICC_OVERHEAD_LEN)
 
-
-/*
- * Prepare for reading an ICC profile
- */
-
-static void setup_read_icc_profile(j_decompress_ptr cinfo)
-{
-  /* Tell the library to keep any APP2 data it may find */
-  jpeg_save_markers(cinfo, ICC_MARKER, 0xFFFF);
-}
-
 typedef struct icc_tag_t
 {
   uint32_t sig;
@@ -229,11 +218,6 @@ static boolean read_icc_profile(const j_decompress_ptr dinfo,
 
   return TRUE;
 }
-#undef ICC_MARKER
-#undef ICC_OVERHEAD_LEN
-#undef MAX_BYTES_IN_MARKER
-#undef MAX_DATA_BYTES_IN_MARKER
-#undef MAX_SEQ_NO
 
 static int 
 read_header(
@@ -277,7 +261,8 @@ read_header(
   jpeg_create_decompress(&(jpg->dinfo));
   jpeg_stdio_src(&(jpg->dinfo), jpg->f);
   // setup_read_exif(&(jpg->dinfo));
-  setup_read_icc_profile(&(jpg->dinfo));
+  // setup_read_icc_profile(&(jpg->dinfo));
+  jpeg_save_markers(&(jpg->dinfo), ICC_MARKER, 0xFFFF);
   // jpg->dinfo.buffered_image = TRUE;
   jpeg_read_header(&(jpg->dinfo), TRUE);
   jpg->dinfo.out_color_space = JCS_RGB;
@@ -481,3 +466,8 @@ int read_source(
   jpeg_read(jpg, mapped);
   return 0;
 }
+#undef ICC_MARKER
+#undef ICC_OVERHEAD_LEN
+#undef MAX_BYTES_IN_MARKER
+#undef MAX_DATA_BYTES_IN_MARKER
+#undef MAX_SEQ_NO
