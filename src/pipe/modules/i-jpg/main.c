@@ -101,23 +101,13 @@ static float read_gamma(const icc_header_t *h, int beoff)
   return 0.0; // unsupported, let's pretend it's linear
 }
 
-
-/*
- * Handy subroutine to test whether a saved marker is an ICC profile marker.
- */
-static boolean marker_is_icc(jpeg_saved_marker_ptr marker)
+static int marker_is_icc(jpeg_saved_marker_ptr marker)
 {
   return marker->marker == ICC_MARKER && marker->data_length >= ICC_OVERHEAD_LEN
-         &&
-         /* verify the identifying string */
-         GETJOCTET(marker->data[0]) == 0x49 && GETJOCTET(marker->data[1]) == 0x43
-         && GETJOCTET(marker->data[2]) == 0x43 && GETJOCTET(marker->data[3]) == 0x5F
-         && GETJOCTET(marker->data[4]) == 0x50 && GETJOCTET(marker->data[5]) == 0x52
-         && GETJOCTET(marker->data[6]) == 0x4F && GETJOCTET(marker->data[7]) == 0x46
-         && GETJOCTET(marker->data[8]) == 0x49 && GETJOCTET(marker->data[9]) == 0x4C
-         && GETJOCTET(marker->data[10]) == 0x45 && GETJOCTET(marker->data[11]) == 0x0;
+         && !strcmp((char*)marker->data, "ICC_PROFILE");
 }
 /*
+ * icc reading stuff stolen from darktable/imageio, so this code is GPLv3
  * See if there was an ICC profile in the JPEG file being read;
  * if so, reassemble and return the profile data.
  *
@@ -135,10 +125,10 @@ static boolean marker_is_icc(jpeg_saved_marker_ptr marker)
  * NOTE: if the file contains invalid ICC APP2 markers, we just silently
  * return FALSE.  You might want to issue an error message instead.
  */
-
-static boolean read_icc_profile(const j_decompress_ptr dinfo,
-                                icc_header_t **icc_data_ptr,
-                                unsigned int *icc_data_len)
+static icc_header_t*
+read_icc_profile(
+    const j_decompress_ptr dinfo,
+    unsigned int *icc_data_len)
 {
   jpeg_saved_marker_ptr marker;
   int num_markers = 0;
@@ -150,7 +140,6 @@ static boolean read_icc_profile(const j_decompress_ptr dinfo,
   unsigned int data_length[MAX_SEQ_NO + 1]; /* size of profile data in marker */
   unsigned int data_offset[MAX_SEQ_NO + 1]; /* offset for data in marker */
 
-  *icc_data_ptr = NULL; /* avoid confusion if FALSE return */
   *icc_data_len = 0;
 
   /* This first pass over the saved markers discovers whether there are
@@ -166,16 +155,16 @@ static boolean read_icc_profile(const j_decompress_ptr dinfo,
       if(num_markers == 0)
         num_markers = GETJOCTET(marker->data[13]);
       else if(num_markers != GETJOCTET(marker->data[13]))
-        return FALSE; /* inconsistent num_markers fields */
+        return 0; /* inconsistent num_markers fields */
       seq_no = GETJOCTET(marker->data[12]);
-      if(seq_no <= 0 || seq_no > num_markers) return FALSE; /* bogus sequence number */
-      if(marker_present[seq_no]) return FALSE;              /* duplicate sequence numbers */
+      if(seq_no <= 0 || seq_no > num_markers) return 0; /* bogus sequence number */
+      if(marker_present[seq_no]) return 0;              /* duplicate sequence numbers */
       marker_present[seq_no] = 1;
       data_length[seq_no] = marker->data_length - ICC_OVERHEAD_LEN;
     }
   }
 
-  if(num_markers == 0) return FALSE;
+  if(num_markers == 0) return 0;
 
   /* Check for missing markers, count total space needed,
    * compute offset of each marker's part of the data.
@@ -184,12 +173,12 @@ static boolean read_icc_profile(const j_decompress_ptr dinfo,
   total_length = 0;
   for(seq_no = 1; seq_no <= num_markers; seq_no++)
   {
-    if(marker_present[seq_no] == 0) return FALSE; /* missing sequence number */
+    if(marker_present[seq_no] == 0) return 0; /* missing sequence number */
     data_offset[seq_no] = total_length;
     total_length += data_length[seq_no];
   }
 
-  if(total_length == 0) return FALSE; /* found only empty markers? */
+  if(total_length == 0) return 0; /* found only empty markers? */
 
   /* Allocate space for assembled data */
   icc_data = (JOCTET *)malloc(total_length * sizeof(JOCTET));
@@ -206,17 +195,12 @@ static boolean read_icc_profile(const j_decompress_ptr dinfo,
       dst_ptr = icc_data + data_offset[seq_no];
       src_ptr = marker->data + ICC_OVERHEAD_LEN;
       length = data_length[seq_no];
-      while(length--)
-      {
-        *dst_ptr++ = *src_ptr++;
-      }
+      while(length--) *dst_ptr++ = *src_ptr++;
     }
   }
 
-  *icc_data_ptr = (icc_header_t *)icc_data;
   *icc_data_len = total_length;
-
-  return TRUE;
+  return (icc_header_t *)icc_data;
 }
 
 static int 
@@ -261,7 +245,6 @@ read_header(
   jpeg_create_decompress(&(jpg->dinfo));
   jpeg_stdio_src(&(jpg->dinfo), jpg->f);
   // setup_read_exif(&(jpg->dinfo));
-  // setup_read_icc_profile(&(jpg->dinfo));
   jpeg_save_markers(&(jpg->dinfo), ICC_MARKER, 0xFFFF);
   // jpg->dinfo.buffered_image = TRUE;
   jpeg_read_header(&(jpg->dinfo), TRUE);
@@ -287,9 +270,8 @@ read_header(
   // we don't really support icc, like at all. the only thing we do is read a
   // matrix + single gamma for all three colours (or linear).
   unsigned int length = 0;
-  icc_header_t *h;
-  boolean res = read_icc_profile(&(jpg->dinfo), &h, &length);
-  if(res)
+  icc_header_t *h = read_icc_profile(&(jpg->dinfo), &length);
+  if(h)
   {
     const int tag_cnt = le(h->tag_cnt);
     float gamma = 0.0, wt[3] = {0.0}, M[9] = {0.0};  // image rgb to xyz
@@ -324,6 +306,7 @@ read_header(
     for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++) T[3*j+i] += B[3*j+k] * M[3*k+i];
     for(int j=0;j<3;j++) for(int i=0;i<3;i++) mod->img_param.cam_to_rec2020[3*j+i] = 0.0; // = (xyz_to_rec2020 * Bi) * (S * B * M)
     for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++) mod->img_param.cam_to_rec2020[3*j+i] += B_to_rec2020[3*j+k] * T[3*k+i];
+    free(h);
   }
 
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
