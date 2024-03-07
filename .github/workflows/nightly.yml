@@ -374,7 +374,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, AppImageRawler, Windows, WindowsRawler]
+    needs: [AppImageRawler, Windows, WindowsRawler]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -391,8 +391,8 @@ jobs:
 
             it may contain pre-release quality features, use with care :)
 
-            appimage
-            ========
+            appimage (currently disabled)
+            =============================
             the appimage compiles in a lot of features
             (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
             but not all
@@ -420,7 +420,6 @@ jobs:
             same as above, but using rawler instead of rawspeed (try this for CR3 support)
 
           files: |
-            artifact-appimage/*
             artifact-appimage-rawler/*
             artifact-windows/*
             artifact-windows-rawler/*
