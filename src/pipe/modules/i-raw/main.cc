@@ -274,12 +274,13 @@ void modify_roi_out(
   mod->img_param.crop_aabb[2] = cropTL.x + dimCropped.x;
   mod->img_param.crop_aabb[3] = cropTL.y + dimCropped.y;
 
-  if(mod_data->d->mRaw->blackLevelSeparate[0] == -1)
+  if(!mod_data->d->mRaw->blackAreas.empty() || !mod_data->d->mRaw->blackLevelSeparate)
     mod_data->d->mRaw->calculateBlackAreas();
+  const auto bl = *(mod_data->d->mRaw->blackLevelSeparate->getAsArray1DRef());
   for(int k=0;k<4;k++)
   {
-    mod->img_param.black[k]        = mod_data->d->mRaw->blackLevelSeparate[k];
-    mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint;
+    mod->img_param.black[k]        = bl(k);
+    mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint.value_or((1u << 16)-1);
     mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k];
   }
   // normalise wb

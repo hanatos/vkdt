@@ -1,7 +1,8 @@
 # use rawspeed
 ifeq ($(VKDT_USE_RAWINPUT),1)
-RAWSPEED_I=pipe/modules/i-raw/rawspeed
-RAWSPEED_L=pipe/modules/i-raw/rawspeed/build
+RS_COMMIT=6142eb3
+RAWSPEED_I=pipe/modules/i-raw/rawspeed-$(RS_COMMIT)
+RAWSPEED_L=$(RAWSPEED_I)/build
 MOD_CFLAGS=-std=c++20 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(VKDT_PUGIXML_CFLAGS) $(VKDT_JPEG_CFLAGS)
 MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(VKDT_PUGIXML_LDFLAGS) $(VKDT_JPEG_LDFLAGS)
 
@@ -29,7 +30,9 @@ $(RAWSPEED_L)/librawspeed.a: $(RAWSPEED_L)/Makefile
 	strip -S $(RAWSPEED_L)/librawspeed.a
 
 $(RAWSPEED_I)/CMakeLists.txt:
-	$(shell git clone https://github.com/hanatos/rawspeed.git --depth 1 --branch rebase_cr3 --single-branch $(RAWSPEED_I))
+	rm -rf pipe/modules/i-raw/rawspeed-*
+	git clone https://github.com/darktable-org/rawspeed.git --depth 1 --branch develop --single-branch $(RAWSPEED_I)
+	cd $(RAWSPEED_I); git reset --hard $(RS_COMMIT)
 
 ifeq ($(VKDT_USE_EXIV2),1)
 MOD_CFLAGS+=$(VKDT_EXIV2_CFLAGS) -DVKDT_USE_EXIV2=1
