@@ -22,4 +22,15 @@ jobs:
     - name: install dependencies
       run: sudo apt-get install -y cmake pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libpugixml-dev libfreetype-dev zlib1g-dev libexiv2-dev libxml2-utils rsync glslang-tools cargo rustc libavcodec-dev libavformat-dev
     - name: make
-      run: make -j20
+      run: |
+        echo "VKDT_USE_RAWINPUT=2" >> bin/config.mk
+        echo "export VKDT_USE_RAWINPUT" >> bin/config.mk
+        echo "VKDT_PUGIXML_CFLAGS=" >> bin/config.mk
+        echo "VKDT_PUGIXML_LDFLAGS=" >> bin/config.mk
+        echo "export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS" >> bin/config.mk
+        echo "VKDT_USE_EXIV2=0" >> bin/config.mk
+        echo "export VKDT_USE_EXIV2" >> bin/config.mk
+        echo "VKDT_EXIV2_CFLAGS=" >> bin/config.mk
+        echo "VKDT_EXIV2_LDFLAGS=" >> bin/config.mk
+        echo "export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS" >> bin/config.mk
+        make -j20
