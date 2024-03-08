@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
     }
     else if(!strcmp(argv[1], "--help"))
     {
-      printf("vkdt "VKDT_VERSION" (c) 2020--2023 johannes hanika\n");
+      printf("vkdt "VKDT_VERSION" (c) 2020--2024 johannes hanika\n");
       dt_tool_print_usage();
       dt_gui_print_usage();
       exit(0);
@@ -359,8 +359,9 @@ int main(int argc, char *argv[])
       beg_rf = end_rf;
     }
 
-    dt_gui_render_frame_imgui();
-
+    // XXX refactor: call this dt_gui_render() and then call nuklear stuff in render.c from within this (to get to semaphore and frame index)
+    // XXX it will then also include the command buffer execution
+    // XXX essentially copy demo code here
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
     else

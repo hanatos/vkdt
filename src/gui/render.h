@@ -5,35 +5,30 @@
 
 // initialise nuklear gui. has to go after glfw and vulkan surface have been inited.
 // will steal whatever is needed from global qvk struct.
-int dt_gui_init_imgui();
+int dt_gui_init_nk();
 
 // initialise and upload fonts for current window height
 void dt_gui_init_fonts();
 
-// tear down imgui and free resources
-void dt_gui_cleanup_imgui();
+// tear down nuklear and free resources
+void dt_gui_cleanup_nk();
 
-// poll imgui events from given event
+// poll nk events from given event
 // return non-zero if event should not be passed on
-int dt_gui_poll_event_imgui(GLFWwindow *w, int key, int scancode, int action, int mods);
+int dt_gui_poll_event_nk(GLFWwindow *w, int key, int scancode, int action, int mods);
 
-void dt_gui_imgui_keyboard(GLFWwindow *w, int key, int scancade, int action, int mods);
-void dt_gui_imgui_mouse_button(GLFWwindow *w, int button, int action, int mods);
-void dt_gui_imgui_mouse_position(GLFWwindow *w, double x, double y);
-void dt_gui_imgui_character(GLFWwindow *w, int c);
-void dt_gui_imgui_scrolled(GLFWwindow *w, double xoff, double yoff);
-void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y);
+void dt_gui_nk_keyboard(GLFWwindow *w, int key, int scancade, int action, int mods);
+void dt_gui_nk_mouse_button(GLFWwindow *w, int button, int action, int mods);
+void dt_gui_nk_mouse_position(GLFWwindow *w, double x, double y);
+void dt_gui_nk_character(GLFWwindow *w, int c);
+void dt_gui_nk_scrolled(GLFWwindow *w, double xoff, double yoff);
+void dt_gui_nk_window_position(GLFWwindow *w, int x, int y);
+int  dt_gui_nk_want_keyboard();
 
-int dt_gui_imgui_want_mouse();
-int dt_gui_imgui_want_keyboard();
-int dt_gui_imgui_want_text();
-int dt_gui_imgui_input_blocked(); // modal dialog open or something
-
-
-void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf);
+void dt_gui_record_command_buffer_nk(VkCommandBuffer cmd_buf);
 // time-throttled access to nav input (keyboard/gamepad navigation)
-float dt_gui_imgui_nav_input(int which);
-float dt_gui_imgui_nav_button(int which);
+float dt_gui_nk_nav_input(int which);
+float dt_gui_nk_nav_button(int which);
 
 // display context sensitive help:
 // all inputs of the dualshock 3 controller
@@ -67,8 +62,6 @@ void dt_gamepadhelp_clear();
 void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
 
-// XXX what's with this and gui code that shall not spill?
-// struct ImFont;
-// 0 small, 1 medium, 2 large, 3 material symbols
-// ImFont *dt_gui_imgui_get_font(int which);
+struct nk_font;
+struct nk_font* dt_gui_get_font(int which); // 0 small, 1 medium, 2 large, 3 material symbols
 void dt_gamepadhelp();

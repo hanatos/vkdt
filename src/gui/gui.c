@@ -318,7 +318,7 @@ VkResult dt_gui_render()
     // XXX kill all semaphores
     return res;
   }
-
+  
   const int i = vkdt.frame_index;
   QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
   QVKR(vkResetFences(qvk.device, 1, vkdt.fence+i));
@@ -340,7 +340,9 @@ VkResult dt_gui_render()
   vkCmdBeginRenderPass(vkdt.command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
   vkdt.sem_fence[vkdt.sem_index] = i; // remember which frame in flight uses the semaphores
 
-  dt_gui_record_command_buffer_imgui(vkdt.command_buffer[i]);
+  // XXX TODO put call to nuklear here, it depends ot the vkdt.frame_index!
+  dt_gui_record_command_buffer_nk(vkdt.command_buffer[i]);
+  // TODO: returns a semaphore!
 
   // Submit command buffer
   vkCmdEndRenderPass(vkdt.command_buffer[i]);

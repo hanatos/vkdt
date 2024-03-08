@@ -145,8 +145,8 @@ void dt_gui_cleanup();
 // create or resize swapchain
 VkResult dt_gui_recreate_swapchain();
 
-// draws imgui things, implemented in render.cc
-void dt_gui_render_frame_imgui();
+// draws nuklear things, implemented in render.c
+void dt_gui_render_frame_nk();
 
 // records and submits command buffer
 VkResult dt_gui_render();
@@ -175,5 +175,5 @@ void dt_gui_notification(const char *msg, ...);
 // lets the current input module grab the mouse, i.e. hide it from the rest of the gui
 void dt_gui_grab_mouse();
 
-// ungrab the mouse, pass it on to imgui again
+// ungrab the mouse, pass it on to nuklear again
 void dt_gui_ungrab_mouse();

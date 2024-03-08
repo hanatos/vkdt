@@ -11,103 +11,154 @@
 #include "render_view.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define NK_INCLUDE_FIXED_TYPES
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_IMPLEMENTATION
+#define NK_GLFW_VULKAN_IMPLEMENTATION
+#define NK_KEYSTATE_BASED_INPUT
+#include "nuklear.h"
+#include "nuklear_glfw_vulkan.h"
 
-static inline void dark_corporate_style()
+
+enum theme {THEME_BLACK, THEME_WHITE, THEME_RED, THEME_BLUE, THEME_DARK};
+
+static void
+set_style(struct nk_context *ctx, enum theme theme)
 {
-  ImGuiStyle &style = ImGui::GetStyle();
-  ImVec4 * colors = style.Colors;
-
-	/// 0 = FLAT APPEARENCE
-	/// 1 = MORE "3D" LOOK
-	int is3D = 0;
-
-	colors[ImGuiCol_Text]                   = gamma(ImVec4(1.00f, 1.00f, 1.00f, 1.00f));
-	colors[ImGuiCol_TextDisabled]           = gamma(ImVec4(0.40f, 0.40f, 0.40f, 1.00f));
-	colors[ImGuiCol_ChildBg]                = gamma(ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
-	colors[ImGuiCol_WindowBg]               = gamma(ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
-	colors[ImGuiCol_PopupBg]                = gamma(ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
-	colors[ImGuiCol_Border]                 = gamma(ImVec4(0.12f, 0.12f, 0.12f, 0.71f));
-	colors[ImGuiCol_BorderShadow]           = gamma(ImVec4(1.00f, 1.00f, 1.00f, 0.06f));
-	colors[ImGuiCol_FrameBg]                = gamma(ImVec4(0.42f, 0.42f, 0.42f, 0.54f));
-	colors[ImGuiCol_FrameBgHovered]         = gamma(ImVec4(0.42f, 0.42f, 0.42f, 0.40f));
-	colors[ImGuiCol_FrameBgActive]          = gamma(ImVec4(0.56f, 0.56f, 0.56f, 0.67f));
-	colors[ImGuiCol_TitleBg]                = gamma(ImVec4(0.19f, 0.19f, 0.19f, 1.00f));
-	colors[ImGuiCol_TitleBgActive]          = gamma(ImVec4(0.22f, 0.22f, 0.22f, 1.00f));
-	colors[ImGuiCol_TitleBgCollapsed]       = gamma(ImVec4(0.17f, 0.17f, 0.17f, 0.90f));
-	colors[ImGuiCol_MenuBarBg]              = gamma(ImVec4(0.335f, 0.335f, 0.335f, 1.000f));
-	colors[ImGuiCol_ScrollbarBg]            = gamma(ImVec4(0.24f, 0.24f, 0.24f, 0.53f));
-	colors[ImGuiCol_ScrollbarGrab]          = gamma(ImVec4(0.41f, 0.41f, 0.41f, 1.00f));
-	colors[ImGuiCol_ScrollbarGrabHovered]   = gamma(ImVec4(0.52f, 0.52f, 0.52f, 1.00f));
-	colors[ImGuiCol_ScrollbarGrabActive]    = gamma(ImVec4(0.76f, 0.76f, 0.76f, 1.00f));
-	colors[ImGuiCol_CheckMark]              = gamma(ImVec4(0.65f, 0.65f, 0.65f, 1.00f));
-	colors[ImGuiCol_SliderGrab]             = gamma(ImVec4(0.52f, 0.52f, 0.52f, 1.00f));
-	colors[ImGuiCol_SliderGrabActive]       = gamma(ImVec4(0.64f, 0.64f, 0.64f, 1.00f));
-	colors[ImGuiCol_Button]                 = gamma(ImVec4(0.54f, 0.54f, 0.54f, 0.35f));
-	colors[ImGuiCol_ButtonHovered]          = gamma(ImVec4(0.52f, 0.52f, 0.52f, 0.59f));
-	colors[ImGuiCol_ButtonActive]           = gamma(ImVec4(0.76f, 0.76f, 0.76f, 1.00f));
-	colors[ImGuiCol_Header]                 = gamma(ImVec4(0.38f, 0.38f, 0.38f, 1.00f));
-	colors[ImGuiCol_HeaderHovered]          = gamma(ImVec4(0.47f, 0.47f, 0.47f, 1.00f));
-	colors[ImGuiCol_HeaderActive]           = gamma(ImVec4(0.76f, 0.76f, 0.76f, 0.77f));
-	colors[ImGuiCol_Separator]              = gamma(ImVec4(0.000f, 0.000f, 0.000f, 0.137f));
-	colors[ImGuiCol_SeparatorHovered]       = gamma(ImVec4(0.700f, 0.671f, 0.600f, 0.290f));
-	colors[ImGuiCol_SeparatorActive]        = gamma(ImVec4(0.702f, 0.671f, 0.600f, 0.674f));
-	colors[ImGuiCol_ResizeGrip]             = gamma(ImVec4(0.26f, 0.59f, 0.98f, 0.25f));
-	colors[ImGuiCol_ResizeGripHovered]      = gamma(ImVec4(0.26f, 0.59f, 0.98f, 0.67f));
-	colors[ImGuiCol_ResizeGripActive]       = gamma(ImVec4(0.26f, 0.59f, 0.98f, 0.95f));
-	colors[ImGuiCol_PlotLines]              = gamma(ImVec4(0.61f, 0.61f, 0.61f, 1.00f));
-	colors[ImGuiCol_PlotLinesHovered]       = gamma(ImVec4(1.00f, 0.43f, 0.35f, 1.00f));
-	colors[ImGuiCol_PlotHistogram]          = gamma(ImVec4(0.90f, 0.70f, 0.00f, 1.00f));
-	colors[ImGuiCol_PlotHistogramHovered]   = gamma(ImVec4(1.00f, 0.60f, 0.00f, 1.00f));
-	colors[ImGuiCol_TextSelectedBg]         = gamma(ImVec4(0.73f, 0.73f, 0.73f, 0.35f));
-	colors[ImGuiCol_ModalWindowDimBg]       = gamma(ImVec4(0.80f, 0.80f, 0.80f, 0.35f));
-	colors[ImGuiCol_DragDropTarget]         = gamma(ImVec4(1.00f, 1.00f, 0.00f, 0.90f));
-	colors[ImGuiCol_NavHighlight]           = gamma(ImVec4(0.26f, 0.59f, 0.98f, 1.00f));
-	colors[ImGuiCol_NavWindowingHighlight]  = gamma(ImVec4(1.00f, 1.00f, 1.00f, 0.70f));
-	colors[ImGuiCol_NavWindowingDimBg]      = gamma(ImVec4(0.80f, 0.80f, 0.80f, 0.20f));
-
-	style.PopupRounding = 3;
-
-	style.WindowPadding = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.01);
-	style.FramePadding  = ImVec2(vkdt.state.panel_wd*0.02, vkdt.state.panel_wd*0.01);
-	style.ItemSpacing   = ImVec2(vkdt.state.panel_wd*0.01, vkdt.state.panel_wd*0.005);
-
-	style.ScrollbarSize = 18;
-
-	style.WindowBorderSize = 1;
-	style.ChildBorderSize  = 1;
-	style.PopupBorderSize  = 1;
-	style.FrameBorderSize  = is3D;
-
-	style.WindowRounding    = 0;
-	style.ChildRounding     = 0;
-	style.FrameRounding     = 0;
-	style.ScrollbarRounding = 2;
-	style.GrabRounding      = 3;
-
-#ifdef IMGUI_HAS_DOCK
-  style.TabBorderSize = is3D;
-  style.TabRounding   = 3;
-
-  colors[ImGuiCol_DockingEmptyBg]     = gamma(ImVec4(0.38f, 0.38f, 0.38f, 1.00f));
-  colors[ImGuiCol_Tab]                = gamma(ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
-  colors[ImGuiCol_TabHovered]         = gamma(ImVec4(0.40f, 0.40f, 0.40f, 1.00f));
-  colors[ImGuiCol_TabActive]          = gamma(ImVec4(0.33f, 0.33f, 0.33f, 1.00f));
-  colors[ImGuiCol_TabUnfocused]       = gamma(ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
-  colors[ImGuiCol_TabUnfocusedActive] = gamma(ImVec4(0.33f, 0.33f, 0.33f, 1.00f));
-  colors[ImGuiCol_DockingPreview]     = gamma(ImVec4(0.85f, 0.85f, 0.85f, 0.28f));
-
-  if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-  {
-    style.WindowRounding = 0.0f;
-    style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-  }
-#endif
+    struct nk_color table[NK_COLOR_COUNT];
+    if (theme == THEME_WHITE) {
+        table[NK_COLOR_TEXT] = nk_rgba(70, 70, 70, 255);
+        table[NK_COLOR_WINDOW] = nk_rgba(175, 175, 175, 255);
+        table[NK_COLOR_HEADER] = nk_rgba(175, 175, 175, 255);
+        table[NK_COLOR_BORDER] = nk_rgba(0, 0, 0, 255);
+        table[NK_COLOR_BUTTON] = nk_rgba(185, 185, 185, 255);
+        table[NK_COLOR_BUTTON_HOVER] = nk_rgba(170, 170, 170, 255);
+        table[NK_COLOR_BUTTON_ACTIVE] = nk_rgba(160, 160, 160, 255);
+        table[NK_COLOR_TOGGLE] = nk_rgba(150, 150, 150, 255);
+        table[NK_COLOR_TOGGLE_HOVER] = nk_rgba(120, 120, 120, 255);
+        table[NK_COLOR_TOGGLE_CURSOR] = nk_rgba(175, 175, 175, 255);
+        table[NK_COLOR_SELECT] = nk_rgba(190, 190, 190, 255);
+        table[NK_COLOR_SELECT_ACTIVE] = nk_rgba(175, 175, 175, 255);
+        table[NK_COLOR_SLIDER] = nk_rgba(190, 190, 190, 255);
+        table[NK_COLOR_SLIDER_CURSOR] = nk_rgba(80, 80, 80, 255);
+        table[NK_COLOR_SLIDER_CURSOR_HOVER] = nk_rgba(70, 70, 70, 255);
+        table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = nk_rgba(60, 60, 60, 255);
+        table[NK_COLOR_PROPERTY] = nk_rgba(175, 175, 175, 255);
+        table[NK_COLOR_EDIT] = nk_rgba(150, 150, 150, 255);
+        table[NK_COLOR_EDIT_CURSOR] = nk_rgba(0, 0, 0, 255);
+        table[NK_COLOR_COMBO] = nk_rgba(175, 175, 175, 255);
+        table[NK_COLOR_CHART] = nk_rgba(160, 160, 160, 255);
+        table[NK_COLOR_CHART_COLOR] = nk_rgba(45, 45, 45, 255);
+        table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba( 255, 0, 0, 255);
+        table[NK_COLOR_SCROLLBAR] = nk_rgba(180, 180, 180, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR] = nk_rgba(140, 140, 140, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = nk_rgba(150, 150, 150, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = nk_rgba(160, 160, 160, 255);
+        table[NK_COLOR_TAB_HEADER] = nk_rgba(180, 180, 180, 255);
+        nk_style_from_table(ctx, table);
+    } else if (theme == THEME_RED) {
+        table[NK_COLOR_TEXT] = nk_rgba(190, 190, 190, 255);
+        table[NK_COLOR_WINDOW] = nk_rgba(30, 33, 40, 215);
+        table[NK_COLOR_HEADER] = nk_rgba(181, 45, 69, 220);
+        table[NK_COLOR_BORDER] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_BUTTON] = nk_rgba(181, 45, 69, 255);
+        table[NK_COLOR_BUTTON_HOVER] = nk_rgba(190, 50, 70, 255);
+        table[NK_COLOR_BUTTON_ACTIVE] = nk_rgba(195, 55, 75, 255);
+        table[NK_COLOR_TOGGLE] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_TOGGLE_HOVER] = nk_rgba(45, 60, 60, 255);
+        table[NK_COLOR_TOGGLE_CURSOR] = nk_rgba(181, 45, 69, 255);
+        table[NK_COLOR_SELECT] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_SELECT_ACTIVE] = nk_rgba(181, 45, 69, 255);
+        table[NK_COLOR_SLIDER] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_SLIDER_CURSOR] = nk_rgba(181, 45, 69, 255);
+        table[NK_COLOR_SLIDER_CURSOR_HOVER] = nk_rgba(186, 50, 74, 255);
+        table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = nk_rgba(191, 55, 79, 255);
+        table[NK_COLOR_PROPERTY] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_EDIT] = nk_rgba(51, 55, 67, 225);
+        table[NK_COLOR_EDIT_CURSOR] = nk_rgba(190, 190, 190, 255);
+        table[NK_COLOR_COMBO] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_CHART] = nk_rgba(51, 55, 67, 255);
+        table[NK_COLOR_CHART_COLOR] = nk_rgba(170, 40, 60, 255);
+        table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba( 255, 0, 0, 255);
+        table[NK_COLOR_SCROLLBAR] = nk_rgba(30, 33, 40, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR] = nk_rgba(64, 84, 95, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = nk_rgba(70, 90, 100, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = nk_rgba(75, 95, 105, 255);
+        table[NK_COLOR_TAB_HEADER] = nk_rgba(181, 45, 69, 220);
+        nk_style_from_table(ctx, table);
+    } else if (theme == THEME_BLUE) {
+        table[NK_COLOR_TEXT] = nk_rgba(20, 20, 20, 255);
+        table[NK_COLOR_WINDOW] = nk_rgba(202, 212, 214, 215);
+        table[NK_COLOR_HEADER] = nk_rgba(137, 182, 224, 220);
+        table[NK_COLOR_BORDER] = nk_rgba(140, 159, 173, 255);
+        table[NK_COLOR_BUTTON] = nk_rgba(137, 182, 224, 255);
+        table[NK_COLOR_BUTTON_HOVER] = nk_rgba(142, 187, 229, 255);
+        table[NK_COLOR_BUTTON_ACTIVE] = nk_rgba(147, 192, 234, 255);
+        table[NK_COLOR_TOGGLE] = nk_rgba(177, 210, 210, 255);
+        table[NK_COLOR_TOGGLE_HOVER] = nk_rgba(182, 215, 215, 255);
+        table[NK_COLOR_TOGGLE_CURSOR] = nk_rgba(137, 182, 224, 255);
+        table[NK_COLOR_SELECT] = nk_rgba(177, 210, 210, 255);
+        table[NK_COLOR_SELECT_ACTIVE] = nk_rgba(137, 182, 224, 255);
+        table[NK_COLOR_SLIDER] = nk_rgba(177, 210, 210, 255);
+        table[NK_COLOR_SLIDER_CURSOR] = nk_rgba(137, 182, 224, 245);
+        table[NK_COLOR_SLIDER_CURSOR_HOVER] = nk_rgba(142, 188, 229, 255);
+        table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = nk_rgba(147, 193, 234, 255);
+        table[NK_COLOR_PROPERTY] = nk_rgba(210, 210, 210, 255);
+        table[NK_COLOR_EDIT] = nk_rgba(210, 210, 210, 225);
+        table[NK_COLOR_EDIT_CURSOR] = nk_rgba(20, 20, 20, 255);
+        table[NK_COLOR_COMBO] = nk_rgba(210, 210, 210, 255);
+        table[NK_COLOR_CHART] = nk_rgba(210, 210, 210, 255);
+        table[NK_COLOR_CHART_COLOR] = nk_rgba(137, 182, 224, 255);
+        table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba( 255, 0, 0, 255);
+        table[NK_COLOR_SCROLLBAR] = nk_rgba(190, 200, 200, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR] = nk_rgba(64, 84, 95, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = nk_rgba(70, 90, 100, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = nk_rgba(75, 95, 105, 255);
+        table[NK_COLOR_TAB_HEADER] = nk_rgba(156, 193, 220, 255);
+        nk_style_from_table(ctx, table);
+    } else if (theme == THEME_DARK) {
+        table[NK_COLOR_TEXT] = nk_rgba(210, 210, 210, 255);
+        table[NK_COLOR_WINDOW] = nk_rgba(57, 67, 71, 215);
+        table[NK_COLOR_HEADER] = nk_rgba(51, 51, 56, 220);
+        table[NK_COLOR_BORDER] = nk_rgba(46, 46, 46, 255);
+        table[NK_COLOR_BUTTON] = nk_rgba(48, 83, 111, 255);
+        table[NK_COLOR_BUTTON_HOVER] = nk_rgba(58, 93, 121, 255);
+        table[NK_COLOR_BUTTON_ACTIVE] = nk_rgba(63, 98, 126, 255);
+        table[NK_COLOR_TOGGLE] = nk_rgba(50, 58, 61, 255);
+        table[NK_COLOR_TOGGLE_HOVER] = nk_rgba(45, 53, 56, 255);
+        table[NK_COLOR_TOGGLE_CURSOR] = nk_rgba(48, 83, 111, 255);
+        table[NK_COLOR_SELECT] = nk_rgba(57, 67, 61, 255);
+        table[NK_COLOR_SELECT_ACTIVE] = nk_rgba(48, 83, 111, 255);
+        table[NK_COLOR_SLIDER] = nk_rgba(50, 58, 61, 255);
+        table[NK_COLOR_SLIDER_CURSOR] = nk_rgba(48, 83, 111, 245);
+        table[NK_COLOR_SLIDER_CURSOR_HOVER] = nk_rgba(53, 88, 116, 255);
+        table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = nk_rgba(58, 93, 121, 255);
+        table[NK_COLOR_PROPERTY] = nk_rgba(50, 58, 61, 255);
+        table[NK_COLOR_EDIT] = nk_rgba(50, 58, 61, 225);
+        table[NK_COLOR_EDIT_CURSOR] = nk_rgba(210, 210, 210, 255);
+        table[NK_COLOR_COMBO] = nk_rgba(50, 58, 61, 255);
+        table[NK_COLOR_CHART] = nk_rgba(50, 58, 61, 255);
+        table[NK_COLOR_CHART_COLOR] = nk_rgba(48, 83, 111, 255);
+        table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba(255, 0, 0, 255);
+        table[NK_COLOR_SCROLLBAR] = nk_rgba(50, 58, 61, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR] = nk_rgba(48, 83, 111, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = nk_rgba(53, 88, 116, 255);
+        table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = nk_rgba(58, 93, 121, 255);
+        table[NK_COLOR_TAB_HEADER] = nk_rgba(48, 83, 111, 255);
+        nk_style_from_table(ctx, table);
+    } else {
+        nk_style_default(ctx);
+    }
 }
 
-static ImFont *g_font[4] = {0}; // remember to add an image sampler in gui.c if adding more fonts!
-} // anonymous namespace
 
-ImFont *dt_gui_imgui_get_font(int which)
+
+static struct nk_font *g_font[4] = {0}; // remember to add an image sampler in gui.c if adding more fonts!
+struct nk_font *dt_gui_get_font(int which)
 {
   return g_font[which];
 }
@@ -115,88 +166,53 @@ ImFont *dt_gui_imgui_get_font(int which)
 void dt_gui_init_fonts()
 {
   char tmp[PATH_MAX+100] = {0};
-  ImGuiIO& io = ImGui::GetIO();
-  io.Fonts->Clear();
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
-  static const ImWchar ranges[] = { 0x0020, 0xFFFF, 0, };
   const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
   if(fontfile[0] != '/')
     snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
   else
     snprintf(tmp, sizeof(tmp), "%s", fontfile);
-  g_font[0] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, 0, ranges);
-  g_font[1] = io.Fonts->AddFontFromFileTTF(tmp, floorf(1.5*fontsize), 0, ranges);
-  g_font[2] = io.Fonts->AddFontFromFileTTF(tmp, 2.0*fontsize, 0, ranges);
+
+  struct nk_font_atlas *atlas;
+  nk_glfw3_font_stash_begin(&atlas);
+  // TODO: last parameter is glyph ranges, maybe keep from imgui version?
+  g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
+  g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
+  g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
-  ImFontConfig config;
-  // config.MergeMode = true;
-  config.GlyphMinAdvanceX = fontsize; // Use if you want to make the icon monospaced
-  static const ImWchar icon_ranges[] = { 0x2000, 0xF000, 0};
-  g_font[3] = io.Fonts->AddFontFromFileTTF(tmp, fontsize, &config, icon_ranges);
-  vkdt.wstate.fontsize = fontsize;
-#if VKDT_USE_FREETYPE == 1
-  io.Fonts->TexGlyphPadding = 1;
-  uint32_t flags = 0; // ImGuiFreeType::{NoHinting NoAutoHint ForceAutoHint LightHinting MonoHinting Bold Oblique Monochrome}
-  for (int n = 0; n < io.Fonts->ConfigData.Size; n++)
-  {
-    ImFontConfig* font_config = (ImFontConfig*)&io.Fonts->ConfigData[n];
-    font_config->RasterizerMultiply = 1.0f;
-  }
-  ImGuiFreeType::BuildFontAtlas(io.Fonts, flags); // same flags
-#endif
-
-  { // upload Fonts, use any command queue
-    VkCommandPool command_pool = vkdt.command_pool[0];
-    VkCommandBuffer command_buffer = vkdt.command_buffer[0];
-
-    vkResetCommandPool(qvk.device, command_pool, 0);
-    VkCommandBufferBeginInfo begin_info = {};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(command_buffer, &begin_info);
-
-    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-
-    VkSubmitInfo end_info = {};
-    end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    end_info.commandBufferCount = 1;
-    end_info.pCommandBuffers = &command_buffer;
-    vkEndCommandBuffer(command_buffer);
-    threads_mutex_lock(&qvk.queue_mutex);
-    qvk_submit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
-    threads_mutex_unlock(&qvk.queue_mutex);
-
-    threads_mutex_lock(&qvk.queue_mutex);
-    vkDeviceWaitIdle(qvk.device);
-    threads_mutex_unlock(&qvk.queue_mutex);
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
-  }
+  g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
+  nk_glfw3_font_stash_end(demo.graphics_queue);
+  /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
+  /*nk_style_set_font(ctx, &droid->handle);*/
 }
+
 
 int dt_gui_init_imgui()
 {
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
-  // Setup Dear ImGui context
-  ImGui::CreateContext();
-  ImNodes::CreateContext();
-  ImGuiIO& io = ImGui::GetIO();
-  io.IniFilename = 0; // disable automatic writing of "imgui.ini"
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-  if(vkdt.wstate.have_joystick)
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos; //  | ImGuiBackendFlags_HasSetMousePos;
+     struct nk_context *ctx; // XXX put in vkdt!
+     // XXX also put secondary context
 
-  // enable docking and multiple viewports:
-  // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-  io.ConfigDockingWithShift = true;
+     // TODO: pass qvk stuff
+     // TODO: don't install callbacks, we'll do that
+     ctx = nk_glfw3_init(
+        demo.win,
+        qvk.device, qvk.physical_device, qvk.queue_idx_graphics,
+        demo.overlay_image_views,
+        demo.swap_chain_images_len,
+        demo.swap_chain_image_format,
+        NK_GLFW3_INSTALL_CALLBACKS,
+        MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 
-  // Setup Dear ImGui style
-  // ImGui::StyleColorsDark();
-  // ImGui::StyleColorsClassic();
-  dark_corporate_style();
+     // XXX setup keyboard and gamepad nav!
+     // https://github.com/smallbasic/smallbasic.plugins/blob/master/nuklear/nkbd.h
+     // XXX setup multi viewport for dual screen! (requires a second ctx and manual handling of the second viewport/command buffer)
+     // XXX setup colour management! (use our imgui shaders and port to nuklear)
 
+   set_style(ctx, THEME_DARK); 
+
+#if 0 // TODO: see above init call and put things
   // Setup Platform/Renderer bindings
   ImGui_ImplGlfw_InitForVulkan(qvk.window, false); // don't install callbacks
   ImGui_ImplVulkan_InitInfo init_info = {};
@@ -212,13 +228,14 @@ int dt_gui_init_imgui()
   init_info.ImageCount       = vkdt.image_count;
   init_info.CheckVkResultFn  = 0;//check_vk_result;
   ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
+#endif
 
   char tmp[PATH_MAX+100] = {0};
   {
     int monitors_cnt;
     GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
     if(monitors_cnt > 2)
-      fprintf(stderr, "[gui] you have more than 2 monitors attached! only the first two will be colour managed!\n");
+      dt_log(s_log_gui, "you have more than 2 monitors attached! only the first two will be colour managed!");
     const char *name0 = glfwGetMonitorName(monitors[0]);
     const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
     int xpos0, xpos1, ypos;
@@ -249,7 +266,7 @@ int dt_gui_init_imgui()
       fscanf(f, "%f %f %f\n", rec2020_to_dspy0+6, rec2020_to_dspy0+7, rec2020_to_dspy0+8);
       fclose(f);
     }
-    else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name0);
+    else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name0);
     snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name1);
     f = fopen(tmp, "r");
     if(!f)
@@ -265,12 +282,13 @@ int dt_gui_init_imgui()
       fscanf(f, "%f %f %f\n", rec2020_to_dspy1+6, rec2020_to_dspy1+7, rec2020_to_dspy1+8);
       fclose(f);
     }
-    else fprintf(stderr, "[gui] no display profile file display.%s, using sRGB!\n", name1);
+    else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
     int bitdepth = 8; // the display output will be dithered according to this
     if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
-    ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
+    // XXX ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
+    // TODO: store in common place in nk context or our own
   }
 
   // prepare list of potential modules for ui selection:
@@ -287,23 +305,17 @@ int dt_gui_init_imgui()
   }
 
   render_lighttable_init();
-  render_darkroom_init();
-  render_nodes_init();
+  // render_darkroom_init();
+  // render_nodes_init();
   return 0;
 }
 
 // call from main loop:
-void dt_gui_render_frame_imgui()
+// XXX TODO call this from dt_gui_render after acquiring the image, or factor out the call to nk_glfw3_render!
+void dt_gui_render_frame_nk()
 {
-  // Start the Dear ImGui frame
-  ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
+  nk_glfw3_new_frame();
   double now = glfwGetTime();
-
-  // ???
-  // ImGuiDockNodeFlags_PassthruCentralNode
-  // ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
   static double button_pressed_time = 0.0;
   if(now - button_pressed_time > 0.1)
@@ -316,18 +328,18 @@ void dt_gui_render_frame_imgui()
 
   switch(vkdt.view_mode)
   {
-    case s_view_files:
-      render_files();
-      break;
+    // case s_view_files:
+      // render_files();
+      // break;
     case s_view_lighttable:
       render_lighttable();
       break;
-    case s_view_darkroom:
-      render_darkroom();
-      break;
-    case s_view_nodes:
-      render_nodes();
-      break;
+    // case s_view_darkroom:
+      // render_darkroom();
+      // break;
+    // case s_view_nodes:
+      // render_nodes();
+      // break;
     default:;
   }
 
@@ -336,49 +348,51 @@ void dt_gui_render_frame_imgui()
   if(vkdt.wstate.notification_msg[0] &&
      now - vkdt.wstate.notification_time < 4.0)
   {
-    ImGuiWindowFlags window_flags = 
-        ImGuiWindowFlags_NoTitleBar
-      | ImGuiWindowFlags_NoMove
-      | ImGuiWindowFlags_NoResize
-      | ImGuiWindowFlags_NoBackground;
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
-          ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y/2),  ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, 0.05 * vkdt.state.center_ht), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::Begin("notification message", 0, window_flags);
-    ImGui::Text("%s", vkdt.wstate.notification_msg);
-    ImGui::End();
+    if (nk_begin(ctx, "notification message",
+          nk_rect(vkdt.state.center_x, vkdt.state.center_y/2, vkdt.state.center_wd, 0.05*vkdt.state.center_ht),
+          NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+      // TODO yeah no essentially none of the above please :)
+    {
+      nk_label(ctx, vkdt.wstate.notification_msg, NK_TEXT_LEFT);
+    }
+    nk_end(ctx);
   }
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 
-  ImGui::Render();
-  if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-  { // Update and Render additional Platform Windows
-    ImGui::UpdatePlatformWindows();
-    ImGui::RenderPlatformWindowsDefault();
-  }
+  // TODO: now render second screen context, if any (this will only be a full res image widget, we could put the code here)
 }
 
-void dt_gui_record_command_buffer_imgui(VkCommandBuffer cmd_buf)
+VkSemaphore dt_gui_record_command_buffer_nk(VkCommandBuffer cmd_buf)
 {
-  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf);
+  // XXX TODO: is this 
+  // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf);
+  // XXX image index from acquire next image!
+  // XXX but only grab the parts of this function that actually push into the command buffer!
+  nk_semaphore = nk_glfw3_render(
+      qvk.queue_graphics,
+      image_index, // whatever we got from AcquireImage
+      demo.image_available, // VkSemaphore
+      NK_ANTI_ALIASING_ON);
+  // XXX and then call our render function: this one in the demo is our dt_gui_render()
+        // if (!render(&demo, &bg, nk_semaphore, image_index)) {
 }
 
 void dt_gui_cleanup_imgui()
 {
-  render_nodes_cleanup();
-  render_darkroom_cleanup();
+  // render_nodes_cleanup();
+  // render_darkroom_cleanup();
   render_lighttable_cleanup();
   threads_mutex_lock(&qvk.queue_mutex);
   vkDeviceWaitIdle(qvk.device);
   threads_mutex_unlock(&qvk.queue_mutex);
-  ImGui_ImplVulkan_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
-  ImNodes::DestroyContext();
-  ImGui::DestroyContext();
+  nk_glfw3_shutdown();
 }
 
+// XXX TODO: wire these through by calling the callbacks in glfw_vulkan.h:
+//         glfwSetScrollCallback(win, nk_gflw3_scroll_callback);
+//         glfwSetCharCallback(win, nk_glfw3_char_callback);
+//         glfwSetMouseButtonCallback(win, nk_glfw3_mouse_button_callback);
+#if 0
 void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
 
 void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
@@ -399,31 +413,40 @@ void dt_gui_imgui_scrolled(GLFWwindow *window, double xoff, double yoff)
 {
   ImGui_ImplGlfw_ScrollCallback(window, xoff, yoff);
 }
-
 int dt_gui_imgui_want_mouse()
 {
+  // XXX do we use this anywhere at all? different to grab?
   return ImGui::GetIO().WantCaptureMouse;
 }
-int dt_gui_imgui_want_keyboard()
+#endif
+int dt_gui_nk_want_keyboard()
 {
-  return ImGui::GetIO().WantCaptureKeyboard;
+  // XXX caveat: only works after drawing the full frame. i.e. keyboard accelerators should be evaluated at the very end!
+  return nk_item_is_any_active(ctx);
+  // return ImGui::GetIO().WantCaptureKeyboard;
 }
-int dt_gui_imgui_want_text()
+#if 0
+int dt_gui_imgui_input_blocked()
 {
-  return ImGui::GetIO().WantTextInput; // this is meant for onscreen keyboards for TextInputs
+  // XXX FIXME: this is probably just a workaround for the keyboard input flag
+  return ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel);
 }
+#endif
 
 void dt_gui_grab_mouse()
 {
-  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
-  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  // TODO ctx->input.mouse.grab (then takes care of cursor too)
+  // ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+  // glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  // XXX need this mirror?
   vkdt.wstate.grabbed = 1;
 }
 
 void dt_gui_ungrab_mouse()
 {
-  ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  // ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+  // glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  // XXX need this mirror?
   vkdt.wstate.grabbed = 0;
   dt_gui_dr_unset_fullscreen_view();
 }
@@ -471,12 +494,14 @@ void dt_gamepadhelp()
     vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
     0.0f, vkdt.state.center_wd / 1200.0f, vkdt.state.center_ht * 0.50f,
   };
-  dt_draw(dt_draw_list_gamepad, IM_ARRAYSIZE(dt_draw_list_gamepad), 10, m);
+  dt_draw(dt_draw_list_gamepad, sizeof(dt_draw_list_gamepad)/sizeof(dt_draw_list_gamepad[0]), 10, m);
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
   {
     if(g_gamepadhelp.help[g_gamepadhelp.sp][k])
     {
-      dt_draw(dt_draw_list_gamepad_arrow[k], IM_ARRAYSIZE(dt_draw_list_gamepad_arrow[k]), 10, m);
+      dt_draw(dt_draw_list_gamepad_arrow[k], sizeof(dt_draw_list_gamepad_arrow[k])/sizeof(dt_draw_list_gamepad_arrow[k][0]), 10, m);
+      // XXX FIXME:
+#if 0
       ImVec2 v = ImVec2(dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]);
       ImVec2 pos = ImVec2(
           v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
@@ -485,11 +510,7 @@ void dt_gamepadhelp()
       ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, dt_gamepadhelp_input_str[k]);
       pos.y += vkdt.wstate.fontsize * 1.1;
       ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, g_gamepadhelp.help[g_gamepadhelp.sp][k]);
+#endif
     }
   }
-}
-
-int dt_gui_imgui_input_blocked()
-{
-  return ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel);
 }
