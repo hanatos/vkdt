@@ -68,8 +68,7 @@ void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
 
 // XXX what's with this and gui code that shall not spill?
-struct ImFont;
+// struct ImFont;
 // 0 small, 1 medium, 2 large, 3 material symbols
-ImFont *dt_gui_imgui_get_font(int which);
+// ImFont *dt_gui_imgui_get_font(int which);
 void dt_gamepadhelp();
-}
