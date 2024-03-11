@@ -265,6 +265,15 @@ jobs:
           wget https://exiftool.org/exiftool-12.76.zip
           unzip exiftool-12.76.zip
           mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
+      - name: download ffmpeg
+        run: |
+          wget https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z
+      - uses: edgarrc/action-7z@v1
+        with:
+          args: 7z e -r -y ffmpeg-*.7z
+      - name: bundle ffmpeg
+        run: |
+          mv ffmpeg*_build/bin/ffmpeg.exe ${INSTALL_PREFIX}/usr/lib/vkdt/ffmpeg.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
