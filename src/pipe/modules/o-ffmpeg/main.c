@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/core.h"
+#include "core/fs.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,20 +66,14 @@ void write_sink(
     char search[1024] = {0};
     char cmdline[1024], filename[512];
     // look for ffmpeg in our vkdt base directory
-    fprintf(cmdline, sizeof(cmdline), "%s/ffmpeg", dt_pipe.basedir);
-    if(fs_isreg_file(cmdline)) search
-    {
-      fprintf(search, sizeof(search), "%s/", dt_pipe.basedir);
-    }
-    else 
-    {
-      if(fs_isreg_file(cmdline))
-      {
-        fprintf(cmdline, sizeof(cmdline), "%s/ffmpeg.exe", dt_pipe.basedir);
-        fprintf(search, sizeof(search), "%s/", dt_pipe.basedir);
-      } // if we can't find it, assume it'll be on PATH:
-      else search[0] = 0;
-    }
+    if(snprintf(cmdline, sizeof(cmdline), "%s/ffmpeg", dt_pipe.basedir) < sizeof(cmdline) &&
+       fs_isreg_file(cmdline) &&
+       snprintf(search, sizeof(search), "%s/", dt_pipe.basedir) < sizeof(search));
+    else if(snprintf(cmdline, sizeof(cmdline), "%s/ffmpeg.exe", dt_pipe.basedir) < sizeof(cmdline) &&
+        fs_isreg_file(cmdline) &&
+        snprintf(search, sizeof(search), "%s/", dt_pipe.basedir) < sizeof(search));
+      // if we can't find it, assume it'll be on PATH:
+    else search[0] = 0;
 #if 1
     if(p_codec == 0)
     { // apple prores encoding, 10 bit output

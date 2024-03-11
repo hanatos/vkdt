@@ -433,9 +433,9 @@ jobs:
             =======
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
-            (rawspeed, exiv2, freetype mlv, i-vid)
+            (rawspeed, exiv2, freetype mlv, i-vid, o-ffmpeg)
             and leaves out many
-            (no v4l, no sound, no quake, no o-vid, no pentablet support).
+            (no v4l, no sound, no quake, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
             windows with rawler
