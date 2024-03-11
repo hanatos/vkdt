@@ -31,7 +31,7 @@ $(RAWSPEED_L)/librawspeed.a: $(RAWSPEED_L)/Makefile
 
 $(RAWSPEED_I)/CMakeLists.txt:
 	rm -rf pipe/modules/i-raw/rawspeed-*
-	git clone https://github.com/darktable-org/rawspeed.git --depth 1 --branch develop --single-branch $(RAWSPEED_I)
+	git clone https://github.com/darktable-org/rawspeed.git --branch develop --single-branch $(RAWSPEED_I)
 	cd $(RAWSPEED_I); git reset --hard $(RS_COMMIT)
 
 ifeq ($(VKDT_USE_EXIV2),1)

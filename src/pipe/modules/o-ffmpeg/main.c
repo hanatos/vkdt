@@ -62,13 +62,29 @@ void write_sink(
     if(width <= 0 || height <= 0) return;
 
     // establish pipe to ffmpeg binary
+    char search[1024] = {0};
     char cmdline[1024], filename[512];
+    // look for ffmpeg in our vkdt base directory
+    fprintf(cmdline, sizeof(cmdline), "%s/ffmpeg", dt_pipe.basedir);
+    if(fs_isreg_file(cmdline)) search
+    {
+      fprintf(search, sizeof(search), "%s/", dt_pipe.basedir);
+    }
+    else 
+    {
+      if(fs_isreg_file(cmdline))
+      {
+        fprintf(cmdline, sizeof(cmdline), "%s/ffmpeg.exe", dt_pipe.basedir);
+        fprintf(search, sizeof(search), "%s/", dt_pipe.basedir);
+      } // if we can't find it, assume it'll be on PATH:
+      else search[0] = 0;
+    }
 #if 1
     if(p_codec == 0)
     { // apple prores encoding, 10 bit output
       snprintf(filename, sizeof(filename), "%s.mov", basename);
       snprintf(cmdline, sizeof(cmdline),
-        "ffmpeg -y -probesize 5000000 -f rawvideo "
+        "%sffmpeg -y -probesize 5000000 -f rawvideo "
         "-threads 0 "
         "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
         "-pix_fmt rgbaf16le -s %dx%d -r %g -i - "
@@ -82,6 +98,7 @@ void write_sink(
         "-qscale:v %d " // is this our quality parameter: 2--31, lower qs -> higher bitrate
         "-vendor apl0 -pix_fmt %s " // yuv422p10le or yuva444p10le for 4444
         "\"%s\"",
+        search,
         width, height, rate,
         CLAMP(p_profile, 0, 3),
         (int)CLAMP(31-p_quality*30/100.0, 1, 31),
@@ -127,7 +144,7 @@ void write_sink(
     { // h264, 8-bit
       snprintf(filename, sizeof(filename), "%s.mp4", basename);
       snprintf(cmdline, sizeof(cmdline),
-          "ffmpeg -threads 0 -y -f rawvideo "
+          "%sffmpeg -threads 0 -y -f rawvideo "
           "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
           "-pix_fmt rgbaf16le -s %dx%d -r %g -i - "
           "-vf 'colorspace=all=bt709:trc=bt709:iall=bt2020:itrc=linear' "
@@ -139,7 +156,7 @@ void write_sink(
           "-crf %d "
           // "-v error "
           "\"%s\"",
-          width, height, rate, (int)CLAMP(51-p_quality*51.0/100.0, 0, 51), filename);
+          search, width, height, rate, (int)CLAMP(51-p_quality*51.0/100.0, 0, 51), filename);
     }
     fprintf(stderr, "[o-ffmpeg] running `%s'\n", cmdline);
 
