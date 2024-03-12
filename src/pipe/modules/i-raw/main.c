@@ -172,7 +172,8 @@ void modify_roi_out(
     mod->img_param.filters = 0;
   }
 
-  if(isnanf(mod->img_param.cam_to_rec2020[0]))
+  float test = mod->img_param.cam_to_rec2020[0];
+  if(!(test == test))
   { // camera matrix not found in exif or compiled without exiv2
     float xyz_to_cam[12], mat[9] = {0};
     // get d65 camera matrix from rawloader
