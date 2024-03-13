@@ -185,7 +185,7 @@ int dt_gui_init()
   }
   else dt_log(s_log_gui, "no joysticks found");
 
-  dt_gui_init_imgui();
+  dt_gui_init_nk();
 
   return 0;
 }
@@ -281,7 +281,7 @@ dt_gui_recreate_swapchain()
 
 void dt_gui_cleanup()
 {
-  dt_gui_cleanup_imgui();
+  dt_gui_cleanup_nk();
   char configfile[512];
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
     dt_rc_write(&vkdt.rc, configfile);

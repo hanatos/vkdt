@@ -5,6 +5,7 @@
 #include "db/rc.h"
 #include "snd/snd.h"
 #include "widget_image_util.h"
+#include "nk.h"
 
 #include <vulkan/vulkan.h>
 
@@ -98,6 +99,9 @@ typedef struct dt_gui_t
   VkDescriptorPool descriptor_pool;
   uint32_t         min_image_count;
   uint32_t         image_count;
+
+  struct nk_context ctx;          // nuklear gui context, main screen
+  struct nk_context ctx1;         // nuklear gui context, secondary viewport
 
   VkClearValue     clear_value;   // TODO: more colours
   dt_gui_style_t   style;

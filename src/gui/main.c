@@ -14,6 +14,7 @@
 #include "gui/render.h"
 #include "gui/view.h"
 #include "db/db.h"
+#include "nuklear_glfw_vulkan.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -134,8 +135,6 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   const int grabbed = vkdt.wstate.grabbed;
   dt_view_keyboard(window, key, scancode, action, mods);
-  if(!grabbed) // also don't pass on if we just ungrabbed
-    dt_gui_imgui_keyboard(window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
@@ -152,7 +151,7 @@ mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
   dt_view_mouse_button(window, button, action, mods);
   if(!vkdt.wstate.grabbed)
-    dt_gui_imgui_mouse_button(window, button, action, mods);
+    nk_glfw3_mouse_button_callback(window, button, action, mods);
 }
 
 static void
@@ -175,17 +174,13 @@ window_size_callback(GLFWwindow* window, int width, int height)
   dt_gui_init_fonts();
 }
 
-static void
-window_pos_callback(GLFWwindow* window, int xpos, int ypos)
-{
-  dt_gui_imgui_window_position(window, xpos, ypos);
-}
+// static void window_pos_callback(GLFWwindow* window, int xpos, int ypos) { }
 
 static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
   if(!vkdt.wstate.grabbed)
-    dt_gui_imgui_character(window, c);
+    nk_glfw3_char_callback(window, c);
 }
 
 static void
@@ -193,7 +188,7 @@ scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
   dt_view_mouse_scrolled(window, xoff, yoff);
   if(!vkdt.wstate.grabbed)
-    dt_gui_imgui_scrolled(window, xoff, yoff);
+    nk_glfw3_scroll_callback(window, xoff, yoff);
 }
 
 #if VKDT_USE_PENTABLET==1
@@ -263,7 +258,7 @@ int main(int argc, char *argv[])
 
   glfwSetKeyCallback(qvk.window, key_callback);
   glfwSetWindowSizeCallback(qvk.window, window_size_callback);
-  glfwSetWindowPosCallback(qvk.window, window_pos_callback);
+  // glfwSetWindowPosCallback(qvk.window, window_pos_callback);
   glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
   glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
   glfwSetCharCallback(qvk.window, char_callback);
@@ -345,8 +340,6 @@ int main(int argc, char *argv[])
     // TODO: what about the frame limiter? we don't want it to affect the subs
     // TODO: - if sub work item cnt > 0 ignore frame limiter
 
-    // should probably consider this instead:
-    // https://github.com/bvgastel/imgui/commits/imgui-2749
     if(frame_limiter || (dt_log_global.mask & s_log_perf))
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
       double end_rf = dt_time();

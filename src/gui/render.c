@@ -11,18 +11,9 @@
 #include "render_view.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#define NK_INCLUDE_FIXED_TYPES
-#define NK_INCLUDE_STANDARD_IO
-#define NK_INCLUDE_STANDARD_VARARGS
-#define NK_INCLUDE_DEFAULT_ALLOCATOR
-#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
-#define NK_INCLUDE_FONT_BAKING
 #define NK_IMPLEMENTATION
 #define NK_GLFW_VULKAN_IMPLEMENTATION
-#define NK_KEYSTATE_BASED_INPUT
-#include "nuklear.h"
-#include "nuklear_glfw_vulkan.h"
-
+#include "nk.h"
 
 enum theme {THEME_BLACK, THEME_WHITE, THEME_RED, THEME_BLUE, THEME_DARK};
 
@@ -188,29 +179,32 @@ void dt_gui_init_fonts()
 }
 
 
-int dt_gui_init_imgui()
+int dt_gui_init_nk()
 {
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
-     struct nk_context *ctx; // XXX put in vkdt!
-     // XXX also put secondary context
 
-     // TODO: pass qvk stuff
-     // TODO: don't install callbacks, we'll do that
-     ctx = nk_glfw3_init(
-        demo.win,
-        qvk.device, qvk.physical_device, qvk.queue_idx_graphics,
-        demo.overlay_image_views,
-        demo.swap_chain_images_len,
-        demo.swap_chain_image_format,
-        NK_GLFW3_INSTALL_CALLBACKS,
-        MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+  nk_init_default(&vkdt.ctx, 0);
+  // nk_init_default(&vkdt.ctx1, 0); // TODO secondary screen
+  // TODO: pass qvk stuff
+  // TODO: don't install callbacks, we'll do that
+  nk_glfw3_init(
+      demo.win,
+      qvk.device, qvk.physical_device,
+      MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+
+  // XXX TODO: wire these through from our handlers
+    // if (init_state == NK_GLFW3_INSTALL_CALLBACKS) {
+        glfwSetScrollCallback(win, nk_gflw3_scroll_callback);
+        glfwSetCharCallback(win, nk_glfw3_char_callback);
+        glfwSetMouseButtonCallback(win, nk_glfw3_mouse_button_callback);
+    // }
 
      // XXX setup keyboard and gamepad nav!
      // https://github.com/smallbasic/smallbasic.plugins/blob/master/nuklear/nkbd.h
      // XXX setup multi viewport for dual screen! (requires a second ctx and manual handling of the second viewport/command buffer)
      // XXX setup colour management! (use our imgui shaders and port to nuklear)
 
-   set_style(ctx, THEME_DARK); 
+  set_style(&vkdt.ctx, THEME_DARK); 
 
 #if 0 // TODO: see above init call and put things
   // Setup Platform/Renderer bindings
@@ -319,7 +313,7 @@ void dt_gui_render_frame_nk()
 
   static double button_pressed_time = 0.0;
   if(now - button_pressed_time > 0.1)
-  { // the imgui/glfw backend does not support the "ps" button, so we do the stupid thing:
+  { // the glfw backend does not support the "ps" button, so we do the stupid thing:
     int buttons_count = 0;
     const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons_count);
     if(buttons && buttons[10]) vkdt.wstate.show_gamepadhelp ^= 1;
@@ -348,37 +342,28 @@ void dt_gui_render_frame_nk()
   if(vkdt.wstate.notification_msg[0] &&
      now - vkdt.wstate.notification_time < 4.0)
   {
-    if (nk_begin(ctx, "notification message",
+    if (nk_begin(&vkdt.ctx, "notification message",
           nk_rect(vkdt.state.center_x, vkdt.state.center_y/2, vkdt.state.center_wd, 0.05*vkdt.state.center_ht),
           NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
       // TODO yeah no essentially none of the above please :)
     {
-      nk_label(ctx, vkdt.wstate.notification_msg, NK_TEXT_LEFT);
+      nk_label(&vkdt.ctx, vkdt.wstate.notification_msg, NK_TEXT_LEFT);
     }
-    nk_end(ctx);
+    nk_end(&vkdt.ctx);
   }
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 
   // TODO: now render second screen context, if any (this will only be a full res image widget, we could put the code here)
 }
 
-VkSemaphore dt_gui_record_command_buffer_nk(VkCommandBuffer cmd_buf)
+void dt_gui_record_command_buffer_nk(VkCommandBuffer cmd_buf)
 {
-  // XXX TODO: is this 
-  // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf);
-  // XXX image index from acquire next image!
-  // XXX but only grab the parts of this function that actually push into the command buffer!
-  nk_semaphore = nk_glfw3_render(
-      qvk.queue_graphics,
-      image_index, // whatever we got from AcquireImage
-      demo.image_available, // VkSemaphore
-      NK_ANTI_ALIASING_ON);
-  // XXX and then call our render function: this one in the demo is our dt_gui_render()
-        // if (!render(&demo, &bg, nk_semaphore, image_index)) {
+  nk_glfw3_create_cmd(cmd_buf, NK_ANTI_ALIASING_ON);
 }
 
-void dt_gui_cleanup_imgui()
+void dt_gui_cleanup_nk()
 {
+  nk_free(&vkdt.ctx);
   // render_nodes_cleanup();
   // render_darkroom_cleanup();
   render_lighttable_cleanup();
@@ -388,55 +373,15 @@ void dt_gui_cleanup_imgui()
   nk_glfw3_shutdown();
 }
 
-// XXX TODO: wire these through by calling the callbacks in glfw_vulkan.h:
-//         glfwSetScrollCallback(win, nk_gflw3_scroll_callback);
-//         glfwSetCharCallback(win, nk_glfw3_char_callback);
-//         glfwSetMouseButtonCallback(win, nk_glfw3_mouse_button_callback);
-#if 0
-void dt_gui_imgui_window_position(GLFWwindow *w, int x, int y) { }
-
-void dt_gui_imgui_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
-{
-  ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-}
-void dt_gui_imgui_mouse_button(GLFWwindow *window, int button, int action, int mods)
-{
-  ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-}
-void dt_gui_imgui_mouse_position(GLFWwindow *window, double x, double y)
-{ }
-void dt_gui_imgui_character(GLFWwindow *window, int c)
-{
-  ImGui_ImplGlfw_CharCallback(window, c);
-}
-void dt_gui_imgui_scrolled(GLFWwindow *window, double xoff, double yoff)
-{
-  ImGui_ImplGlfw_ScrollCallback(window, xoff, yoff);
-}
-int dt_gui_imgui_want_mouse()
-{
-  // XXX do we use this anywhere at all? different to grab?
-  return ImGui::GetIO().WantCaptureMouse;
-}
-#endif
 int dt_gui_nk_want_keyboard()
 {
   // XXX caveat: only works after drawing the full frame. i.e. keyboard accelerators should be evaluated at the very end!
-  return nk_item_is_any_active(ctx);
-  // return ImGui::GetIO().WantCaptureKeyboard;
+  return nk_item_is_any_active(&vkdt.ctx);
 }
-#if 0
-int dt_gui_imgui_input_blocked()
-{
-  // XXX FIXME: this is probably just a workaround for the keyboard input flag
-  return ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel);
-}
-#endif
 
 void dt_gui_grab_mouse()
 {
-  // TODO ctx->input.mouse.grab (then takes care of cursor too)
-  // ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+  // TODO vkdt.ctx.input.mouse.grab (then takes care of cursor too)
   // glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   // XXX need this mirror?
   vkdt.wstate.grabbed = 1;
@@ -444,7 +389,6 @@ void dt_gui_grab_mouse()
 
 void dt_gui_ungrab_mouse()
 {
-  // ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
   // glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   // XXX need this mirror?
   vkdt.wstate.grabbed = 0;
