@@ -1,5 +1,6 @@
 #include "gui.h"
 #include "view.h"
+#include "core/log.h"
 #include "qvk/qvk.h"
 #include "qvk/sub.h"
 #include "pipe/graph-export.h"
@@ -173,7 +174,7 @@ void dt_gui_init_fonts()
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
-  nk_glfw3_font_stash_end(demo.graphics_queue);
+  nk_glfw3_font_stash_end(qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
 }
@@ -188,16 +189,9 @@ int dt_gui_init_nk()
   // TODO: pass qvk stuff
   // TODO: don't install callbacks, we'll do that
   nk_glfw3_init(
-      demo.win,
+      qvk.window,
       qvk.device, qvk.physical_device,
-      MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-
-  // XXX TODO: wire these through from our handlers
-    // if (init_state == NK_GLFW3_INSTALL_CALLBACKS) {
-        glfwSetScrollCallback(win, nk_gflw3_scroll_callback);
-        glfwSetCharCallback(win, nk_glfw3_char_callback);
-        glfwSetMouseButtonCallback(win, nk_glfw3_mouse_button_callback);
-    // }
+      512*1024, 128*1024);
 
      // XXX setup keyboard and gamepad nav!
      // https://github.com/smallbasic/smallbasic.plugins/blob/master/nuklear/nkbd.h
@@ -277,12 +271,14 @@ int dt_gui_init_nk()
       fclose(f);
     }
     else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
+#if 0
     int bitdepth = 8; // the display output will be dithered according to this
     if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
     // XXX ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
     // TODO: store in common place in nk context or our own
+#endif
   }
 
   // prepare list of potential modules for ui selection:
@@ -395,11 +391,11 @@ void dt_gui_ungrab_mouse()
   dt_gui_dr_unset_fullscreen_view();
 }
 
-struct dt_gamepadhelp_t
+typedef struct dt_gamepadhelp_t
 {
   int sp;
   const char *help[10][dt_gamepadhelp_cnt];
-};
+} dt_gamepadhelp_t;
 static dt_gamepadhelp_t g_gamepadhelp = {0};
 
 void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str)
@@ -438,13 +434,14 @@ void dt_gamepadhelp()
     vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
     0.0f, vkdt.state.center_wd / 1200.0f, vkdt.state.center_ht * 0.50f,
   };
-  dt_draw(dt_draw_list_gamepad, sizeof(dt_draw_list_gamepad)/sizeof(dt_draw_list_gamepad[0]), 10, m);
+  dt_draw(&vkdt.ctx, dt_draw_list_gamepad, sizeof(dt_draw_list_gamepad)/sizeof(dt_draw_list_gamepad[0]), m);
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
   {
     if(g_gamepadhelp.help[g_gamepadhelp.sp][k])
     {
-      dt_draw(dt_draw_list_gamepad_arrow[k], sizeof(dt_draw_list_gamepad_arrow[k])/sizeof(dt_draw_list_gamepad_arrow[k][0]), 10, m);
+      dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], sizeof(dt_draw_list_gamepad_arrow[k])/sizeof(dt_draw_list_gamepad_arrow[k][0]), m);
       // XXX FIXME:
+      // nk_draw_text(buf, rect, *text, len, nk_user_font, nk_col bg, nu_col fg)
 #if 0
       ImVec2 v = ImVec2(dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]);
       ImVec2 pos = ImVec2(

@@ -1,18 +1,14 @@
-// imgui rendering for the files view
-extern "C" {
+// rendering for the files view
 #include "gui/gui.h"
 #include "gui/view.h"
 #include "core/fs.h"
-}
-#include "gui/render_view.hh"
-#include "gui/widget_filebrowser.hh"
-#include "gui/widget_recentcollect.hh"
+#include "gui/render_view.h"
+#include "gui/widget_filebrowser.h"
+#include "gui/widget_recentcollect.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <atomic>
-
-namespace { // anonymous namespace
+#include <atomic.h>
 
 static dt_filebrowser_widget_t filebrowser = {{0}};
 
@@ -92,8 +88,6 @@ int copy_job(
   j->taskid = threads_task("copy", j->cnt, -1, j, copy_job_work, copy_job_cleanup);
   return j->taskid;
 }
-
-} // end anonymous namespace
 
 void render_files()
 {

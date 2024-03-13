@@ -3,7 +3,7 @@
 #include "gui/render.h"
 #include "core/fs.h"
 #include "core/sort.h"
-#include "widget_filteredlist.hh" // for tooltip
+#include "widget_filteredlist.h" // for tooltip
 #include <dirent.h>
 
 // store some state

@@ -7,16 +7,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// just wraps imgui but sets the viewport to the existing one.
-// avoids swapchain recomputation and issues with tiling window managers.
+// just wraps nuklear
 inline void
 dt_gui_set_tooltip(const char *fmt, ...)
 {
-  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-  ImGui::PushTextWrapPos(vkdt.state.panel_wd);
   va_list args;
   va_start(args, fmt);
-  ImGui::SetTooltipV(fmt, args);
+  nk_tooltip(&vkdt.ctx, fmt, args);
+  // nk_tooltip_begin with something like vkdt.state.panel_wd
+  // nk_text_wrap 
+  // nk_tooltip_end
   va_end(args);
 }
 
@@ -64,7 +64,7 @@ int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
 // displays a filtered list of directory entries.
 // this is useful to select from existing presets, blocks, tags, etc.
 // call this between BeginPopupModal and EndPopup.
-// return values != 0 mean you should call ImGui::CloseCurrentPopup().
+// return values != 0 mean you should call nk_popup_close()
 static inline int            // return 0 - nothing, 1 - ok, 2 - cancel
 filteredlist(
     const char *dir,         // optional. %s will be replaced as global basedir
@@ -75,6 +75,8 @@ filteredlist(
     filteredlist_flags_t flags)
   // TODO: custom filter rule?
 {
+  struct nk_context *ctx = &vkdt.ctx;
+  static int appearing = 1;
   int ok = 0;
   int pick = -1, local = 0;
 #define FREE_ENT do {\
@@ -89,10 +91,15 @@ filteredlist(
   static char dirname[PATH_MAX];
   static char dirname_local[PATH_MAX];
   static char **desc = 0, **desc_local = 0;
-  if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
-  if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
+
+  // nk_edit
+  nk_label(ctx, "filter", NK_TEXT_LEFT);
+  nk_rect bounds = nk_widget_bounds(ctx);
+  if(nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default))
     ok = 1;
-  if(ImGui::IsItemHovered())
+  if(appearing) nk_edit_focus(ctx, 0);
+  appearing = 0;
+  if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
     dt_gui_set_tooltip(
         "type to filter the list\n"
         "press enter to apply top item\n"
@@ -100,7 +107,7 @@ filteredlist(
   if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
      ImGui::IsKeyPressed(ImGuiKey_Escape)||
      ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-  { FREE_ENT; return 2; }
+  { FREE_ENT; appearing = 1; return 2; }
 
   if(!ent_cnt)
   { // open directory
@@ -185,7 +192,7 @@ filteredlist(
   ImGui::Dummy(ImVec2(0.8f*vkdt.state.center_wd-2.0f*bwd, 0)); ImGui::SameLine();
   if((flags & s_filteredlist_allow_new) && ImGui::Button("create new", ImVec2(bwd, 0))) { pick = -1; ok = 1; }
   if (flags & s_filteredlist_allow_new) ImGui::SameLine();
-  if (ImGui::Button("cancel", ImVec2(bwd, 0))) {FREE_ENT; return 2;}
+  if (ImGui::Button("cancel", ImVec2(bwd, 0))) {FREE_ENT; appearing = 1; return 2;}
   ImGui::SameLine();
   if (ImGui::Button("ok", ImVec2(bwd, 0))) ok = 1;
 
@@ -203,6 +210,7 @@ filteredlist(
       else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick].d_name);
       else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick].d_name);
     }
+    appearing = 1;
     FREE_ENT;
   }
   return ok;

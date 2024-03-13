@@ -258,7 +258,6 @@ enum nk_glfw_init_state { NK_GLFW3_DEFAULT = 0, NK_GLFW3_INSTALL_CALLBACKS };
 NK_API struct nk_context *
 nk_glfw3_init(GLFWwindow *win, VkDevice logical_device,
               VkPhysicalDevice physical_device,
-              enum nk_glfw_init_state init_state,
               VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
