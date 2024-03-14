@@ -85,7 +85,7 @@ void write_sink(
         "-pix_fmt rgbaf16le -s %dx%d -r %g -i - "
 //        "-vf 'colorspace=all=bt2020:trc=bt2020-10:iall=bt2020:itrc=linear' "
 //        "-vf 'zscale=rangein=full:range=limited:primaries=2020:matrix=2020_ncl:primariesin=2020:transferin=linear:transfer=smpte2084' "
-        "-vf 'zscale=rangein=full:range=limited:primaries=2020:matrix=2020_ncl:primariesin=2020:transferin=linear:transfer=arib-std-b67' "
+        "-vf zscale=rangein=full:range=limited:primaries=2020:matrix=2020_ncl:primariesin=2020:transferin=linear:transfer=arib-std-b67 "
         "-threads 0 " // after input, so it'll affect the ouput encoding
         "-color_trc smpte2084 "
 //        "-color_trc arib-std-b67 "
@@ -142,7 +142,7 @@ void write_sink(
           "%sffmpeg -threads 0 -y -f rawvideo "
           "-colorspace bt2020nc -color_trc linear -color_primaries bt2020 -color_range pc "
           "-pix_fmt rgbaf16le -s %dx%d -r %g -i - "
-          "-vf 'colorspace=all=bt709:trc=bt709:iall=bt2020:itrc=linear' "
+          "-vf colorspace=all=bt709:trc=bt709:iall=bt2020:itrc=linear "
           "-c:v libx264 -preset ultrafast "
 //          "-c:v h264_nvenc -preset llhp " // -preset llhp/fast
 //          "-c:v rawvideo -pix_fmt rgb24 -f mpegts "
