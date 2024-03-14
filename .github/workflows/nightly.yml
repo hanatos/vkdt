@@ -208,7 +208,7 @@ jobs:
           retention-days: 1
 
   Windows:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'hanatos/vkdt' && false
     name: nightly vkdt windows
     runs-on: windows-latest
     strategy:
@@ -389,7 +389,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImageRawler, Windows, WindowsRawler]
+    needs: [AppImageRawler, WindowsRawler]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -405,9 +405,12 @@ jobs:
             this is an automated nightly build of vkdt.
 
             it may contain pre-release quality features, use with care :)
+            
+            note that the rawspeed builds have c++ issues, they don't like specific compiler versions.
+            these are thus currently disabled. they might come back at some point.
 
-            appimage (currently disabled)
-            =============================
+            appimage (currently disabled, use the next in list)
+            ===================================================
             the appimage compiles in a lot of features
             (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
             but not all
@@ -421,8 +424,8 @@ jobs:
             that don't have a recent libstdc++, uses the rust-based backend
             instead of the c++-based rawspeed which does not have CR3 support.
 
-            windows
-            =======
+            windows (currently disabled, us the next in list)
+            =================================================
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
             (rawspeed, exiv2, freetype mlv, i-vid, o-ffmpeg)
@@ -436,5 +439,4 @@ jobs:
 
           files: |
             artifact-appimage-rawler/*
-            artifact-windows/*
             artifact-windows-rawler/*
