@@ -3,13 +3,13 @@
 #include "api_gui.h"
 // widget for window-size image with zoom/pan interaction
 
-inline void
-dt_image_events(dt_image_widget_t *w, bool hovered, int main)
+static inline void
+dt_image_events(dt_image_widget_t *w, int hovered, int main)
 {
-  bool do_events = true;
+  int do_events = 1;
   if(main && vkdt.wstate.active_widget_modid >= 0)
   { // on-canvas widget interaction
-    do_events = false; // by default disable std events (zoom/pan) if there is overlay
+    do_events = 0; // by default disable std events (zoom/pan) if there is overlay
     switch(vkdt.graph_dev.module[
         vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type)
@@ -86,6 +86,7 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
         }
         if(hovered && ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
         {
+          // XXX and if selected set to something?
           vkdt.wstate.selected = 0;
           float dx = pos.x - vkdt.wstate.state[1];
           float dy = pos.y - vkdt.wstate.state[2];
@@ -100,6 +101,7 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
         }
         if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
         {
+          // and selected not yet set to anything?
           vkdt.wstate.state[1] = vkdt.wstate.state[3] = pos.x;
           vkdt.wstate.state[2] = vkdt.wstate.state[4] = pos.y;
           vkdt.wstate.selected = 1;
@@ -139,6 +141,7 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
               {
                 max_dist = dist2;
                 edge_hovered = ee;
+                // XXX mouse down and not selected previously
                 if(ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
                   vkdt.wstate.selected = ee;
               }
@@ -186,6 +189,7 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
         dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
         if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
         {
+          // XXX abuse "selected" so we know when a press started!
           vkdt.wstate.state[0] = n[0];
           vkdt.wstate.state[1] = n[0];
           vkdt.wstate.state[2] = n[1];
@@ -239,6 +243,11 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
         ImGui::GetWindowDrawList()->AddPolyline(
             (ImVec2 *)p, 4, IM_COL32_WHITE, true, 3.0);
 
+        // XXX set selected to -1 if nothing is pressed
+        // XXX set selected to something >= 0 if a mouse button is pressed
+        // XXX test that for the right mouse and wheel clicks
+        // XXX nk_widget_is_mouse_pressed
+        // XXX or even nk_input_is_mouse_pressed(const struct nk_input *i, enum nk_buttons id)
         uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
         if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseRight, false))
         { // right mouse click resets the last stroke
@@ -349,19 +358,22 @@ dt_image_events(dt_image_widget_t *w, bool hovered, int main)
 
 inline void
 dt_image(
+    struct nk_context *ctx,     // this is crucial to run on secondary screen
     dt_image_widget_t *w,
     dt_node_t         *out,     // make sure the out->dset is valid!
     int                events,  // if !=0 provide zoom/pan interaction
     int                main)    // if !=0 do on-canvas ui elements
 {
   if(!out) return;
+  dt_connector_image_t *img = dt_graph_connector_image(&vkdt.graph_dev, out-vkdt.graph_dev.node, 0, 0, vkdt.graph_dev.frame);
+  if(!img) return;
   w->out = out;
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
-  w->win_x = ImGui::GetWindowPos().x;  w->win_y = ImGui::GetWindowPos().y;
-  w->win_w = ImGui::GetWindowSize().x; w->win_h = ImGui::GetWindowSize().y;
-  ImTextureID imgid = out->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES];
-  if(!imgid) return;
+  struct nk_vec2 w_pos = nk_window_position(ctx); // uh how does that work
+  struct nk_vec2 w_ext = nk_window_size(ctx);
+  w->win_x = w_pos.x; w->win_y = w_pos.y;
+  w->win_w = w_ext.x; w->win_h = w_ext.y;
   float im0[2], im1[2];
   float v0[2] = {w->win_x, w->win_y};
   float v1[2] = {w->win_x+w->win_w, w->win_y+w->win_h};
@@ -373,19 +385,30 @@ dt_image(
   im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
   dt_image_to_view(w, im0, v0);
   dt_image_to_view(w, im1, v1);
-  ImGui::GetWindowDrawList()->AddImage(
-      imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
-      ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+  // TODO:
+  struct nk_rect subimg = {0, 0, w->wd, w->ht};
+  // struct nk_rect disp;
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
+  struct nk_image nkimg = nk_subimage_ptr(img->image_view, w->wd, w->ht, subimg);
+  nk_image(ctx, &nkimg); // ??
+  int hover = nk_widget_is_hovered(ctx);
+  // nk_draw_image(buf, disp, &nkimg, col);
+  // XXX how to scale this image?
+  // ImGui::GetWindowDrawList()->AddImage(
+      // imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
+      // ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
   char scaletext[10];
   if(w->scale >= 1.0f)
   {
     snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(w->scale*100.0));
     // XXX something scaled by fontsize!
-    ImGui::GetWindowDrawList()->AddText(ImVec2(w->win_x+w->win_w-120.0f, w->win_y+30.0f), 0xffffffffu, scaletext);
+    // XXX rect needs to be something AABB reasonably tight
+    nk_draw_text(buf, rect, scaletext, strlen(scaletext), font, bgcol, fgcol);
+    // ImGui::GetWindowDrawList()->AddText(ImVec2(w->win_x+w->win_w-120.0f, w->win_y+30.0f), 0xffffffffu, scaletext);
   }
 
   // now the controls:
-  ImGui::InvisibleButton("display", ImVec2(0.975*w->win_w, 0.975*w->win_h));
+  // XXX probably doesn't need replacement with image above: ImGui::InvisibleButton("display", ImVec2(0.975*w->win_w, 0.975*w->win_h));
   if(!events) return;
-  dt_image_events(w, ImGui::IsItemHovered(), main);
+  dt_image_events(w, hover, main);
 }
