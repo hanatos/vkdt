@@ -108,12 +108,11 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  // XXX FIXME: call nk_want_keyboard() instead and make sure this runs after rendering the frame
-  if(!vkdt.wstate.grabbed && dt_gui_imgui_want_text()) return;
+  if(!vkdt.wstate.grabbed && dt_gui_nk_want_keyboard()) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
-    darkroom_keyboard(window, key, scancode, action, mods);
+    // darkroom_keyboard(window, key, scancode, action, mods);
     break;
   case s_view_lighttable:
     lighttable_keyboard(window, key, scancode, action, mods);

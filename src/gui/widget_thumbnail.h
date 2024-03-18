@@ -1,10 +1,7 @@
 #pragma once
-#include "imgui.h"
-#include "imgui_internal.h"
-#include <algorithm>
+#include "nk.h"
 
-namespace {
-void draw_star(float u, float v, float size, uint32_t col)
+void dt_draw_star(float u, float v, float size, struct nk_color col)
 {
   float c[] = {
      0,         1,
@@ -27,84 +24,89 @@ void draw_star(float u, float v, float size, uint32_t col)
     x[2*i+0] = u + size * c[((4*i  )%10)+0];
     x[2*i+1] = v + size * c[((4*i  )%10)+1];
   }
-  // imgui's line aa doesn't really do what you'd expect, so we draw
-  // really thick lines to not look ridiculous for these sharp angles:
-  ImGui::GetWindowDrawList()->AddPolyline(
-      (ImVec2 *)x, 5, col, true, .45*size);//vkdt.state.center_ht/50.0f);
-}
+  struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
+  nk_stroke_polyline(buf, x, 5, .45*size, col);
 }
 
 inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
 {
-  const uint32_t starcol = 0xff000000u;
+  const struct nk_color starcol = { 0, 0, 0, 0xff };
   for(int i=0;i<rating;i++)
-    draw_star(x + wd*i, y, 0.3*wd, starcol);
+    dt_draw_star(x + wd*i, y, 0.3*wd, starcol);
 }
 inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
 {
-  const uint32_t label_col[] = {
-    0xff3333ccu, // red
-    0xff33cc33u, // green
-    0xffcc3333u, // blue
-    0xff33ccccu, // yellow
-    0xffcc33ccu, // magenta
-    0xff333333u, // black
-    0xff333333u, // black
+  const struct nk_color label_col[] = {
+    {0xcc,0x33,0x33,0xff}, // red
+    {0x33,0xcc,0x33,0xff}, // green
+    {0x33,0x33,0xcc,0xff}, // blue
+    {0xcc,0xcc,0x33,0xff}, // yellow
+    {0xcc,0x33,0xcc,0xff}, // magenta
+    {0x33,0x33,0x33,0xff}, // black
+    {0x33,0x33,0x33,0xff}, // black
   };
-  ImGuiWindow* window = ImGui::GetCurrentWindow();
+  struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
   int j=0;
   for(int i=0;i<5;i++) // regular round colour labels
     if(labels & (1<<i))
-      window->DrawList->AddCircleFilled(ImVec2(x + wd*(j++), y), 0.4*wd, label_col[i]);
+      nk_fill_circle(buf, (struct nk_rect){x+wd*(j++)-0.2*wd, y-0.2*wd, 0.4*wd, 0.4*wd}, label_col[i]);
   if(labels & s_image_label_video)
   { // movie indicator
-    const float tc[] = {x + wd*j - 0.2f*wd, y-0.4f*wd, x + wd*j - 0.2f*wd, y+0.4f*wd, x+wd*j+0.4f*wd, y };
-    ImGui::GetWindowDrawList()->AddConvexPolyFilled((ImVec2 *)tc, 3, label_col[5]);
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc, 3, 0xffffffffu, true, .05*wd);
+    float tc[] = {x + wd*j - 0.2f*wd, y-0.4f*wd, x + wd*j - 0.2f*wd, y+0.4f*wd, x+wd*j+0.4f*wd, y };
+    nk_fill_polygon(buf, tc, 3, label_col[5]);
+    nk_stroke_polygon(buf, tc, 3, .05*wd, (struct nk_color){0xff,0xff,0xff,0xff});
     j++;
   }
   if(labels & s_image_label_bracket)
   { // bracketed shot indicator
-    const float tc[] = {
+    float tc[] = {
       x+j*wd-0.2f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y+0.4f*wd, x+j*wd-0.2f*wd, y+0.4f*wd,
       x+j*wd+0.2f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y+0.4f*wd, x+j*wd+0.2f*wd, y+0.4f*wd };
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc,   4, label_col[6], false, .1*wd);
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)tc+4, 4, label_col[6], false, .1*wd);
+    nk_stroke_polyline(buf, tc,   4, .1*wd, label_col[6]);
+    nk_stroke_polyline(buf, tc+4, 4, .1*wd, label_col[6]);
   }
 }
 
-namespace ImGui {
-
-// this is pretty much ImGui::ImageButton with a few custom hacks:
-inline uint32_t ThumbnailImage(
+static inline uint32_t
+dt_thumbnail_image(
+    struct nk_context *ctx,
     uint32_t imgid,
-    ImTextureID user_texture_id,
-    const ImVec2& size,
-    const ImVec2& uv0,
-    const ImVec2& uv1,
-    int frame_padding,
-    const ImVec4& bg_col,
-    const ImVec4& tint_col,
+    VkImageView image_view,
+    const struct nk_vec2 size,
+    const struct nk_vec2 uv0,
+    const struct nk_vec2 uv1,
+    int padding,
+    const struct nk_color bg_col,
+    const struct nk_color tint_col,
     uint16_t rating,
     uint16_t labels,
     const char *text,
     int set_nav_focus)
 {
-  ImGuiWindow* window = GetCurrentWindow();
-  if (window->SkipItems)
-    return 0;
+  int ret = 0;
+  if(nk_group_begin(ctx, "thumbnail", 0))
+  {
+    // struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
+    // struct nk_rect total_space = nk_window_get_content_region(ctx);
+    // nk_draw_image(canvas, total_space, &img, nk_white);
+    struct nk_image img = nk_image_ptr(image_view);
+    // nk_subimage_ptr ! need to find out what it does XXX
+    if(nk_button_image(ctx, img)) ret = 1;
 
-  ImGuiContext& g = *GImGui;
-  const ImGuiStyle& style = g.Style;
+    // XXX TODO: copy nk_button_text_styled
+    // XXX TODO: make it nk_draw_button_image
+    // TODO: need to work our way through these widgets and do exactly as they, but zoom into image and be sure to make it aspect preserving
 
-  // use image id as imgui id
-  PushID(imgid);
-  const ImGuiID id = window->GetID("#image");
-  PopID();
+    // TODO: draw decorations
 
+    nk_group_end(ctx);
+  }
+  return ret;
+
+
+#if 0
   // make sure we're square:
-  float padding = frame_padding >= 0 ? frame_padding : style.FramePadding[0];
-  float wd = std::max(size[0], size[1]) + 2*padding;
+  float wd = MAX(size[0], size[1]) + 2*padding;
   // overloaded operators are not exposed in imgui_internal, so we'll do the hard way:
   const ImRect bb(window->DC.CursorPos, ImVec2(window->DC.CursorPos[0] + wd, window->DC.CursorPos[1] + wd));
   ImVec2 off((wd - size[0])*.5f, (wd - size[1])*.5f);
@@ -141,6 +143,5 @@ inline uint32_t ThumbnailImage(
 
   // TODO: return stars or labels if they have been clicked
   return pressed ? 1 : 0;
+#endif
 }
-
-} // namespace ImGui

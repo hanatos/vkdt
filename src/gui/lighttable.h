@@ -4,7 +4,11 @@
 #include "gui/render.h"
 
 static inline void
-lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods) {}
+lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
+{
+  // XXX TODO: hotkey
+
+}
 
 static inline void
 lighttable_mouse_button(GLFWwindow* window, int button, int action, int mods) {}

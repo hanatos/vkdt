@@ -1,9 +1,6 @@
 GUI_O=gui/gui.o\
       gui/render.o\
-      gui/render_files.o\
       gui/render_lighttable.o\
-      gui/render_darkroom.o\
-      gui/render_nodes.o\
       gui/darkroom.o\
       gui/main.o\
       gui/view.o\

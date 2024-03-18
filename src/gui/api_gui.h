@@ -24,22 +24,25 @@
 static inline void
 dt_gui_lt_modals()
 {
-  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-  if(ImGui::BeginPopupModal("assign tag", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+  if(vkdt.wstate.popup == s_popup_assign_tag)
   {
-    static char filter[256] = "all time best";
-    static char name[PATH_MAX];
-    int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name),
-        static_cast<filteredlist_flags_t>(s_filteredlist_allow_new | s_filteredlist_return_short));
-    if(ok) ImGui::CloseCurrentPopup(); // got some answer
-    ImGui::EndPopup();
-    if(ok == 1)
+    struct nk_rect bounds = { XXX };
+    if(nk_popup_begin(&vkdt.ctx, NK_POPUP_STATIC, "assign tag", NK_WINDOW_CLOSABLE, bounds))
     {
-      const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
-        dt_db_add_to_collection(&vkdt.db, sel[i], name);
-      dt_gui_read_tags();
+      static char filter[256] = "all time best";
+      static char name[PATH_MAX];
+      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
+      if(ok) vkdt.wstate.popup = 0; // got some answer
+      nk_popup_end(&vkdt.ctx);
+      if(ok == 1)
+      {
+        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+        for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
+          dt_db_add_to_collection(&vkdt.db, sel[i], name);
+        dt_gui_read_tags();
+      }
     }
+    else vkdt.wstate.popup = 0;
   }
 }
 
@@ -51,7 +54,7 @@ dt_gui_lt_assign_tag()
     dt_gui_notification("need to select at least one image to assign a tag!");
     return;
   }
-  ImGui::OpenPopup("assign tag");
+  vkdt.wstate.popup = s_popup_assign_tag;
   vkdt.wstate.busy += 5;
 }
 
@@ -142,7 +145,7 @@ dt_gui_lt_paste_history()
 static inline void
 dt_gui_lt_scroll_top()
 {
-  ImGui::SetScrollY(0.0f);
+  nk_window_set_scroll(&vkdt.ctx, 0, 0);
 }
 
 // scroll to show current image
@@ -152,8 +155,9 @@ dt_gui_lt_scroll_current()
   uint32_t colid = dt_db_current_colid(&vkdt.db);
   if(colid == -1u) return;
   const int ipl = 6; // hardcoded images per line :(
-  const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * ImGui::GetScrollMaxY();
-  ImGui::SetScrollY(p);
+  struct nk_rect b = nk_window_get_bounds(&vkdt.ctx);
+  const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * b.h;
+  nk_window_set_scroll(&vkdt.ctx, 0, p);
 }
 
 static inline void
@@ -169,8 +173,9 @@ dt_gui_lt_scroll_basename(const char *bn)
   else if(colid != -1u && (cnt-- <= 0))
   {
     const int ipl = 6; // hardcoded images per line :(
-    const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * ImGui::GetScrollMaxY();
-    ImGui::SetScrollY(p);
+    struct nk_rect b = nk_window_get_bounds(&vkdt.ctx);
+    const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * b.h;
+    nk_window_set_scroll(&vkdt.ctx, 0, p);
     colid = -1u;
   }
 }
@@ -179,11 +184,12 @@ dt_gui_lt_scroll_basename(const char *bn)
 static inline void
 dt_gui_lt_scroll_bottom()
 {
-  ImGui::SetScrollY(ImGui::GetScrollMaxY());
+  struct nk_rect b = nk_window_get_bounds(&vkdt.ctx);
+  nk_window_set_scroll(&vkdt.ctx, 0, b.h);
 }
 
 
-
+#if 0 // XXX disabled darkroom for now
 
 
 // darkroom mode accessors
@@ -397,29 +403,28 @@ error:
 static inline void
 dt_gui_dr_preset_create()
 {
-  ImGui::OpenPopup("create preset");
+  vkdt.wstate.popup = s_popup_create_preset;
   vkdt.wstate.busy += 5;
 }
 
 static inline void
 dt_gui_dr_preset_apply()
 {
-  ImGui::OpenPopup("apply preset");
+  vkdt.wstate.popup = s_popup_apply_preset;
   vkdt.wstate.busy += 5;
 }
 
 static inline void
 dt_gui_dr_module_add()
 {
-  ImGui::SetNextWindowSize(ImVec2(0.8*vkdt.state.center_wd, 0.9*vkdt.state.center_ht), ImGuiCond_Always);
-  ImGui::OpenPopup("add module");
+  vkdt.wstate.popup = s_popup_add_module;
   vkdt.wstate.busy += 5;
 }
 
 static inline void
 dt_gui_dr_assign_tag()
 {
-  ImGui::OpenPopup("assign tag");
+  vkdt.wstate.popup = s_popup_assign_tag;
   vkdt.wstate.busy += 5;
 }
 
@@ -431,3 +436,4 @@ dt_gui_dr_zoom()
   glfwGetCursorPos(qvk.window, &x, &y);
   dt_image_zoom(&vkdt.wstate.img_widget, x, y);
 }
+#endif // XXX DEBUG

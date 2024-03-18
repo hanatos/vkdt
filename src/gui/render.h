@@ -17,7 +17,6 @@ void dt_gui_cleanup_nk();
 // return non-zero if event should not be passed on
 int dt_gui_poll_event_nk(GLFWwindow *w, int key, int scancode, int action, int mods);
 
-void dt_gui_nk_keyboard(GLFWwindow *w, int key, int scancade, int action, int mods);
 void dt_gui_nk_mouse_button(GLFWwindow *w, int button, int action, int mods);
 void dt_gui_nk_mouse_position(GLFWwindow *w, double x, double y);
 void dt_gui_nk_character(GLFWwindow *w, int c);

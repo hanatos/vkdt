@@ -13,7 +13,7 @@ dt_gui_set_tooltip(const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
-  nk_tooltip(&vkdt.ctx, fmt, args);
+  nk_tooltipfv(&vkdt.ctx, fmt, args);
   // nk_tooltip_begin with something like vkdt.state.panel_wd
   // nk_text_wrap 
   // nk_tooltip_end
@@ -42,7 +42,7 @@ filteredlist_get_heading(
   return res;
 }
 
-enum filteredlist_flags_t
+typedef enum dt_filteredlist_flags_t
 {
   s_filteredlist_default      = 0,
   s_filteredlist_allow_new    = 1, // provide "new" button
@@ -50,15 +50,13 @@ enum filteredlist_flags_t
   s_filteredlist_descr_req    = 4, // descriptions are mandatory, else the entry is filtered out
   s_filteredlist_descr_any    = 6, // both the above (for testing only, don't pass this)
   s_filteredlist_return_short = 8, // return only the short filename, not the absolute one
-};
+} dt_filteredlist_flags_t;
 
-namespace {
 int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
 {
   const struct dirent *a = (const struct dirent *)aa;
   const struct dirent *b = (const struct dirent *)bb;
   return strcmp(a->d_name, b->d_name);
-}
 }
 
 // displays a filtered list of directory entries.
@@ -72,7 +70,7 @@ filteredlist(
     char        filter[256], // initial filter string (will be updated)
     char       *retstr,      // selection will be written here
     int         retstr_len,  // buffer size
-    filteredlist_flags_t flags)
+    dt_filteredlist_flags_t flags)
   // TODO: custom filter rule?
 {
   struct nk_context *ctx = &vkdt.ctx;
@@ -94,7 +92,8 @@ filteredlist(
 
   // nk_edit
   nk_label(ctx, "filter", NK_TEXT_LEFT);
-  nk_rect bounds = nk_widget_bounds(ctx);
+  struct nk_rect bounds = nk_widget_bounds(ctx);
+  int len = 0;
   if(nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default))
     ok = 1;
   if(appearing) nk_edit_focus(ctx, 0);
@@ -104,6 +103,11 @@ filteredlist(
         "type to filter the list\n"
         "press enter to apply top item\n"
         "press escape to close");
+  // XXX TODO
+  // need to introduce these keys into nuklear? we need fwd/back kinda semantics (there is backspace and enter and tab)
+  // XXX or make a generic esc closes all popups kinda thing in the key handler? then we wouldn't need nk support here at all.
+  // XXX seems the hotkey edit backend would require to pass *all* keys like this
+  nk_input_is_key_pressed(&ctx->input, NK_KEY_ESCAPE);
   if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
      ImGui::IsKeyPressed(ImGuiKey_Escape)||
      ImGui::IsKeyPressed(ImGuiKey_CapsLock))

@@ -26,335 +26,339 @@
 //
 #pragma once
 
-extern "C" {
 #include "gui/gui.h"
-}
 #include "render.h"
-#include "imgui.h"
+#include "nk.h"
 
-namespace ImHotKey
+typedef struct hk_t
 {
-  struct HotKey
-  {
-    const char *functionName;
-    const char *functionLib;
-    uint16_t    key[4];
-  };
+  const char *name;
+  const char *lib;
+  uint16_t    key[4];
+  nk_bool     sel;
+} hk_t;
 
-  struct Key
-  {
-    const char   *lib;
-    unsigned int  imkey;
-    float         offset;
-    float         width;
-  };
+typedef struct hk_key_t
+{
+  const char   *lib;
+  unsigned int  key;
+  float         offset;
+  float         width;
+} hk_key_t;
 
-  static const Key Keys[6][18] = {{
-    {"esc", ImGuiKey_Escape, 18},
-    {"f1",  ImGuiKey_F1, 18},
-    {"f2",  ImGuiKey_F2},
-    {"f3",  ImGuiKey_F3},
-    {"f4",  ImGuiKey_F4},
-    {"f5",  ImGuiKey_F5, 24},
-    {"f6",  ImGuiKey_F6},
-    {"f7",  ImGuiKey_F7},
-    {"f8",  ImGuiKey_F8},
-    {"f9",  ImGuiKey_F9, 24},
-    {"f10", ImGuiKey_F10},
-    {"f11", ImGuiKey_F11},
-    {"f12", ImGuiKey_F12},
-    {"prsn",ImGuiKey_PrintScreen, 24},
-    {"sclk",ImGuiKey_ScrollLock},
-    {"brk", ImGuiKey_Pause},
-  },{
-    {"~", }, // ???
-    {"1", ImGuiKey_1},
-    {"2", ImGuiKey_2},
-    {"3", ImGuiKey_3},
-    {"4", ImGuiKey_4},
-    {"5", ImGuiKey_5},
-    {"6", ImGuiKey_6},
-    {"7", ImGuiKey_7},
-    {"8", ImGuiKey_8},
-    {"9", ImGuiKey_9},
-    {"0", ImGuiKey_0},
-    {"-", ImGuiKey_Minus},
-    {"+", }, // ???
-    {"backspace", ImGuiKey_Backspace, 0, 80},
-    {"ins", ImGuiKey_Insert, 24},
-    {"hom", ImGuiKey_Home},
-    {"pgu", ImGuiKey_PageUp}
-  },{
-    {"tab", ImGuiKey_Tab, 0, 60},
-    {"q", ImGuiKey_Q},
-    {"w", ImGuiKey_W},
-    {"e", ImGuiKey_E},
-    {"r", ImGuiKey_R},
-    {"t", ImGuiKey_T},
-    {"y", ImGuiKey_Y},
-    {"u", ImGuiKey_U},
-    {"i", ImGuiKey_I},
-    {"o", ImGuiKey_O},
-    {"p", ImGuiKey_P},
-    {"[", ImGuiKey_LeftBracket},
-    {"]", ImGuiKey_RightBracket},
-    {"|", 0, 0, 60}, // ???
-    {"del", ImGuiKey_Delete, 24},
-    {"end", ImGuiKey_End},
-    {"pgd", ImGuiKey_PageDown}
-  },{
-    {"caps lock", ImGuiKey_CapsLock, 0, 80},
-    {"a", ImGuiKey_A},
-    {"s", ImGuiKey_S},
-    {"d", ImGuiKey_D},
-    {"f", ImGuiKey_F},
-    {"g", ImGuiKey_G},
-    {"h", ImGuiKey_H},
-    {"j", ImGuiKey_J},
-    {"k", ImGuiKey_K},
-    {"l", ImGuiKey_L},
-    {";", ImGuiKey_Semicolon},
-    {"'", ImGuiKey_Apostrophe},
-    {"ret", ImGuiKey_Enter, 0, 84}
-  },{
-    {"shift", ImGuiKey_LeftShift, 0, 104},
-    {"z", ImGuiKey_Z},
-    {"x", ImGuiKey_X},
-    {"c", ImGuiKey_C},
-    {"v", ImGuiKey_V},
-    {"b", ImGuiKey_B},
-    {"n", ImGuiKey_N},
-    {"m", ImGuiKey_M},
-    {",", ImGuiKey_Comma},
-    {".", ImGuiKey_Period},
-    {"/", ImGuiKey_Slash},
-    {"shift", ImGuiKey_RightShift, 0, 104},
-    {"up", ImGuiKey_UpArrow, 68}
-  },{
-    {"ctrl",  ImGuiKey_LeftCtrl,  0, 60},
-    {"alt",   ImGuiKey_LeftAlt, 68, 60},
-    {"space", ImGuiKey_Space,  0, 260},
-    {"alt",   ImGuiKey_RightAlt,  0, 60},
-    {"ctrl",  ImGuiKey_RightCtrl, 68, 60},
-    {"left",  ImGuiKey_LeftArrow, 24},
-    {"down",  ImGuiKey_DownArrow},
-    {"right", ImGuiKey_RightArrow}
-  }};
+static const hk_key_t hk_keys[6][18] = {{
+  {"esc", GLFW_KEY_ESCAPE, 18},
+  {"f1",  GLFW_KEY_F1, 18},
+  {"f2",  GLFW_KEY_F2},
+  {"f3",  GLFW_KEY_F3},
+  {"f4",  GLFW_KEY_F4},
+  {"f5",  GLFW_KEY_F5, 24},
+  {"f6",  GLFW_KEY_F6},
+  {"f7",  GLFW_KEY_F7},
+  {"f8",  GLFW_KEY_F8},
+  {"f9",  GLFW_KEY_F9, 24},
+  {"f10", GLFW_KEY_F10},
+  {"f11", GLFW_KEY_F11},
+  {"f12", GLFW_KEY_F12},
+  {"prsn",GLFW_KEY_PRINT_SCREEN, 24},
+  {"sclk",GLFW_KEY_SCROLL_LOCK},
+  {"brk", GLFW_KEY_PAUSE},
+},{
+  {"~", }, // ???
+  {"1", GLFW_KEY_1},
+  {"2", GLFW_KEY_2},
+  {"3", GLFW_KEY_3},
+  {"4", GLFW_KEY_4},
+  {"5", GLFW_KEY_5},
+  {"6", GLFW_KEY_6},
+  {"7", GLFW_KEY_7},
+  {"8", GLFW_KEY_8},
+  {"9", GLFW_KEY_9},
+  {"0", GLFW_KEY_0},
+  {"-", GLFW_KEY_MINUS},
+  {"+", }, // ???
+  {"backspace", GLFW_KEY_BACKSPACE, 0, 80},
+  {"ins", GLFW_KEY_INSERT, 24},
+  {"hom", GLFW_KEY_HOME},
+  {"pgu", GLFW_KEY_PAGE_UP}
+},{
+  {"tab", GLFW_KEY_TAB, 0, 60},
+  {"q", GLFW_KEY_Q},
+  {"w", GLFW_KEY_W},
+  {"e", GLFW_KEY_E},
+  {"r", GLFW_KEY_R},
+  {"t", GLFW_KEY_T},
+  {"y", GLFW_KEY_Y},
+  {"u", GLFW_KEY_U},
+  {"i", GLFW_KEY_I},
+  {"o", GLFW_KEY_O},
+  {"p", GLFW_KEY_P},
+  {"[", GLFW_KEY_LEFT_BRACKET},
+  {"]", GLFW_KEY_RIGHT_BRACKET},
+  {"|", 0, 0, 60}, // ???
+  {"del", GLFW_KEY_DELETE, 24},
+  {"end", GLFW_KEY_END},
+  {"pgd", GLFW_KEY_PAGE_DOWN}
+},{
+  {"caps lock", GLFW_KEY_CAPS_LOCK, 0, 80},
+  {"a", GLFW_KEY_A},
+  {"s", GLFW_KEY_S},
+  {"d", GLFW_KEY_D},
+  {"f", GLFW_KEY_F},
+  {"g", GLFW_KEY_G},
+  {"h", GLFW_KEY_H},
+  {"j", GLFW_KEY_J},
+  {"k", GLFW_KEY_K},
+  {"l", GLFW_KEY_L},
+  {";", GLFW_KEY_SEMICOLON},
+  {"'", GLFW_KEY_APOSTROPHE},
+  {"ret", GLFW_KEY_ENTER, 0, 84}
+},{
+  {"shift", GLFW_KEY_LEFT_SHIFT, 0, 104},
+  {"z", GLFW_KEY_Z},
+  {"x", GLFW_KEY_X},
+  {"c", GLFW_KEY_C},
+  {"v", GLFW_KEY_V},
+  {"b", GLFW_KEY_B},
+  {"n", GLFW_KEY_N},
+  {"m", GLFW_KEY_M},
+  {",", GLFW_KEY_COMMA},
+  {".", GLFW_KEY_PERIOD},
+  {"/", GLFW_KEY_SLASH},
+  {"shift", GLFW_KEY_RIGHT_SHIFT, 0, 104},
+  {"up", GLFW_KEY_UP, 68}
+},{
+  {"ctrl",  GLFW_KEY_LEFT_CONTROL,  0, 60},
+  {"alt",   GLFW_KEY_LEFT_ALT, 68, 60},
+  {"space", GLFW_KEY_SPACE,  0, 260},
+  {"alt",   GLFW_KEY_RIGHT_ALT,  0, 60},
+  {"ctrl",  GLFW_KEY_RIGHT_CONTROL, 68, 60},
+  {"left",  GLFW_KEY_LEFT, 24},
+  {"down",  GLFW_KEY_DOWN},
+  {"right", GLFW_KEY_RIGHT}
+}};
 
-  static const Key& GetKeyForScanCode(unsigned int scancode)
+static inline const hk_key_t*
+hk_get_key_for_scancode(unsigned int scancode)
+{
+  if(!scancode) return &hk_keys[0][0];
+  for (unsigned int y = 0; y < 6; y++)
   {
-    if(!scancode) return Keys[0][0];
-    for (unsigned int y = 0; y < 6; y++)
+    int x = 0;
+    while (hk_keys[y][x].lib)
     {
-      int x = 0;
-      while (Keys[y][x].lib)
-      {
-        if (Keys[y][x].imkey == scancode)
-          return Keys[y][x];
-        x++;
-      }
+      if (hk_keys[y][x].key == scancode)
+        return &hk_keys[y][x];
+      x++;
     }
-    return Keys[0][0];
+  }
+  return &hk_keys[0][0];
+}
+
+static inline void
+hk_get_hotkey_lib(hk_t *hk, char *buffer, size_t bs)
+{
+  buffer[0] = '#'; buffer[1] = '#'; buffer[2] = 0;
+  if(hk->key[0] == 0)
+  {
+    snprintf(buffer, bs, "%s (unassigned)", hk->name);
+    return;
   }
 
-  static void GetHotKeyLib(HotKey *hk, char *buffer, size_t bs)
+  int cnt = 0;
+  for(int k=0;k<4&&hk->key[k];k++,cnt++);
+  const char* k0 = hk_get_key_for_scancode(hk->key[0])->lib;
+  const char* k1 = hk_get_key_for_scancode(hk->key[1])->lib;
+  const char* k2 = hk_get_key_for_scancode(hk->key[2])->lib;
+  const char* k3 = hk_get_key_for_scancode(hk->key[3])->lib;
+  if(cnt == 4)
+    snprintf(buffer, bs, "%s (%s + %s + %s + %s)", hk->name, k0, k1, k2, k3);
+  else if(cnt == 3)
+    snprintf(buffer, bs, "%s (%s + %s + %s)", hk->name, k0, k1, k2);
+  else if(cnt == 2)
+    snprintf(buffer, bs, "%s (%s + %s)", hk->name, k0, k1);
+  else if(cnt == 1)
+    snprintf(buffer, bs, "%s (%s)", hk->name, k0);
+}
+
+// returns non-zero if popup was closed
+static inline int
+hk_edit(hk_t *hotkey, size_t num, const char *popup_name)
+{
+  static int editingHotkey = -1;
+  if (!num) return 1;
+  static int keyDown[512] = {};
+
+  struct nk_rect bound = {.2*vkdt.state.center_wd, .2*vkdt.state.center_ht, .6*vkdt.state.center_wd, .6*vkdt.state.center_ht};
+  if(!nk_popup_begin(&vkdt.ctx, NK_POPUP_STATIC, popup_name, 0, bound))
+    return 1; // XXX need to make sure thing remains closed?
+
+  nk_layout_row_dynamic(&vkdt.ctx, .2*vkdt.state.center_wd, 2);
+  if(nk_group_begin(&vkdt.ctx, "hotkey_list", 0))
   {
-    buffer[0] = '#'; buffer[1] = '#'; buffer[2] = 0;
-    if(hk->key[0] == 0)
+    nk_layout_row_static(&vkdt.ctx, 18, 150, 1);
+    for(int i=0;i<num;i++)
     {
-      snprintf(buffer, bs, "%s (unassigned)", hk->functionName);
-      return;
-    }
-
-    int cnt = 0;
-    for(int k=0;k<4&&hk->key[k];k++,cnt++);
-    const char* k0 = GetKeyForScanCode(hk->key[0]).lib;
-    const char* k1 = GetKeyForScanCode(hk->key[1]).lib;
-    const char* k2 = GetKeyForScanCode(hk->key[2]).lib;
-    const char* k3 = GetKeyForScanCode(hk->key[3]).lib;
-    if(cnt == 4)
-      snprintf(buffer, bs, "%s (%s + %s + %s + %s)", hk->functionName, k0, k1, k2, k3);
-    else if(cnt == 3)
-      snprintf(buffer, bs, "%s (%s + %s + %s)", hk->functionName, k0, k1, k2);
-    else if(cnt == 2)
-      snprintf(buffer, bs, "%s (%s + %s)", hk->functionName, k0, k1);
-    else if(cnt == 1)
-      snprintf(buffer, bs, "%s (%s)", hk->functionName, k0);
-  }
-
-  static void Edit(HotKey *hotkey, size_t hotkeyCount, const char *popupModal)
-  {
-    static int editingHotkey = -1;
-    if (!hotkeyCount) return;
-    static bool keyDown[512] = {};
-#define IDX(IMK) (IMK >= ImGuiKey_NamedKey_BEGIN && IMK <= ImGuiKey_KeypadEqual ? IMK-ImGuiKey_NamedKey_BEGIN : 0)
-
-    // scale with width of lt center view
-    float s = vkdt.state.center_wd / 1000.0;
-
-    ImGui::SetNextWindowSize(ImVec2(1060*s, 400*s));
-    if (!ImGui::BeginPopupModal(popupModal, NULL, ImGuiWindowFlags_NoResize))
-      return;
-
-    ImGui::BeginChildFrame(127*s, ImVec2(220*s, -1));
-    for(size_t i = 0;i < hotkeyCount;i++)
-    {
-      char hotKeyLib[128];
-      GetHotKeyLib(hotkey+i, hotKeyLib, sizeof(hotKeyLib));
-      if (ImGui::Selectable(hotKeyLib, editingHotkey == int(i)) || editingHotkey == -1)
+      char lib[128];
+      hk_get_hotkey_lib(hotkey+i, lib, sizeof(lib));
+      if(nk_selectable_label(&vkdt.ctx, lib, NK_TEXT_LEFT, &hotkey[i].sel))
       {
-        editingHotkey = int(i);
+        editingHotkey = i;
         memset(keyDown, 0, sizeof(keyDown));
-        if(IDX(hotkey[editingHotkey].key[0]))
-          keyDown[IDX(hotkey[editingHotkey].key[0])] = true;
-        if(IDX(hotkey[editingHotkey].key[1]))
-          keyDown[IDX(hotkey[editingHotkey].key[1])] = true;
-        if(IDX(hotkey[editingHotkey].key[2]))
-          keyDown[IDX(hotkey[editingHotkey].key[2])] = true;
-        if(IDX(hotkey[editingHotkey].key[3]))
-          keyDown[IDX(hotkey[editingHotkey].key[3])] = true;
+        if(hotkey[editingHotkey].key[0]) keyDown[hotkey[editingHotkey].key[0]] = 1;
+        if(hotkey[editingHotkey].key[1]) keyDown[hotkey[editingHotkey].key[1]] = 1;
+        if(hotkey[editingHotkey].key[2]) keyDown[hotkey[editingHotkey].key[2]] = 1;
+        if(hotkey[editingHotkey].key[3]) keyDown[hotkey[editingHotkey].key[3]] = 1;
       }
+      if(editingHotkey == i) hotkey[i].sel = 1;
+      else hotkey[i].sel = 0;
     }
-    ImGui::EndChildFrame();
-    ImGui::SameLine();
+    nk_group_end(&vkdt.ctx);
+  }
+
+#if 0 // XXX FIXME: somehow have to conspire with the keyboard callback!
+  for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_KeypadEqual; i++)
+    if (IDX(i) && ImGui::IsKeyPressed(ImGuiKey(i), false))
+      keyDown[IDX(i)] = !keyDown[IDX(i)];
+#endif
+
+#if 0 // TODO: port this
+  for (unsigned int y = 0; y < 6; y++)
+  {
+    int x = 0;
     ImGui::BeginGroup();
-
-    for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_KeypadEqual; i++)
-      if (IDX(i) && ImGui::IsKeyPressed(ImGuiKey(i), false))
-        keyDown[IDX(i)] = !keyDown[IDX(i)];
-
-    for (unsigned int y = 0; y < 6; y++)
+    while (Keys[y][x].lib)
     {
-      int x = 0;
-      ImGui::BeginGroup();
-      while (Keys[y][x].lib)
-      {
-        const Key& key = Keys[y][x];
-        const float ofs = key.offset + (x?4.f:0.f);
-        const float width = key.width > 0 ? key.width : 40;
-        if (x)
-          ImGui::SameLine(0.f, ofs*s);
-        else if (ofs >= 1.f)
-          ImGui::Indent(ofs*s);
-        const int kid = IDX(key.imkey);
-        bool& butSwtch = keyDown[kid];
-        if(kid) ImGui::PushStyleColor(ImGuiCol_Button, butSwtch ?
-            ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram] :
-            ImGui::GetStyle().Colors[ImGuiCol_Button]);
-        if (ImGui::Button(Keys[y][x].lib, ImVec2(width*s, 40*s)))
-          if(kid)
-            butSwtch = !butSwtch;
-        if(kid) ImGui::PopStyleColor();
-        x++;
-      }
-      ImGui::EndGroup();
+      const Key& key = Keys[y][x];
+      const float ofs = key.offset + (x?4.f:0.f);
+      const float width = key.width > 0 ? key.width : 40;
+      if (x)
+        ImGui::SameLine(0.f, ofs*s);
+      else if (ofs >= 1.f)
+        ImGui::Indent(ofs*s);
+      const int kid = IDX(key.key);
+      bool& butSwtch = keyDown[kid];
+      if(kid) ImGui::PushStyleColor(ImGuiCol_Button, butSwtch ?
+          ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram] :
+          ImGui::GetStyle().Colors[ImGuiCol_Button]);
+      if (ImGui::Button(Keys[y][x].lib, ImVec2(width*s, 40*s)))
+        if(kid)
+          butSwtch = !butSwtch;
+      if(kid) ImGui::PopStyleColor();
+      x++;
     }
-    ImGui::InvisibleButton("space", ImVec2(10*s, 55*s));
-    ImGui::BeginChildFrame(18, ImVec2(540*s, 40*s));
-    ImGui::Text("%s:", hotkey[editingHotkey].functionName);
-    ImGui::SameLine();
-    ImGui::TextWrapped("%s", hotkey[editingHotkey].functionLib);
-    ImGui::EndChildFrame();
-    ImGui::SameLine();
-    int keyDownCount = 0;
-    for (auto d : keyDown)
-      keyDownCount += d ? 1 : 0;
-    if (ImGui::Button("clear", ImVec2(80*s, 40*s)))
-      memset(keyDown, 0, sizeof(keyDown));
-    ImGui::SameLine();
-    if (ImGui::Button("set", ImVec2(80*s, 40*s)))
-    {
-      int scanCodeCount = 0;
-      hotkey[editingHotkey].key[0] = 0;
-      hotkey[editingHotkey].key[1] = 0;
-      hotkey[editingHotkey].key[2] = 0;
-      hotkey[editingHotkey].key[3] = 0;
-      if(keyDownCount && keyDownCount <= 4) // else clear
-      for(uint32_t i = 1; i < sizeof(keyDown); i++)
-      {
-        if (keyDown[i])
-        {
-          if(scanCodeCount++)
-          {
-            uint16_t *k = hotkey[editingHotkey].key + scanCodeCount-1;
-            k[0] = i + ImGuiKey_NamedKey_BEGIN;
-            if(k[0] >= ImGuiKey_ModCtrl)
-            { // swap control/mod to beginning
-              uint16_t tmp = hotkey[editingHotkey].key[0];
-              hotkey[editingHotkey].key[0] = k[0];
-              k[0] = tmp;
-            }
-          }
-          else hotkey[editingHotkey].key[0] = i + ImGuiKey_NamedKey_BEGIN;
-        }
-      }
-    }
-    ImGui::SameLine(0.f, 20.f*s);
-
-    if (ImGui::Button("done", ImVec2(80*s, 40*s))) { ImGui::CloseCurrentPopup(); }
     ImGui::EndGroup();
-    ImGui::EndPopup();
-#undef IDX
   }
-
-  static int GetHotKey(HotKey *hotkey, size_t hotkeyCount)
+  ImGui::InvisibleButton("space", ImVec2(10*s, 55*s));
+  ImGui::BeginChildFrame(18, ImVec2(540*s, 40*s));
+  ImGui::Text("%s:", hotkey[editingHotkey].name);
+  ImGui::SameLine();
+  ImGui::TextWrapped("%s", hotkey[editingHotkey].lib);
+  ImGui::EndChildFrame();
+  ImGui::SameLine();
+  int keyDownCount = 0;
+  for (auto d : keyDown)
+    keyDownCount += d ? 1 : 0;
+  if (ImGui::Button("clear", ImVec2(80*s, 40*s)))
+    memset(keyDown, 0, sizeof(keyDown));
+  ImGui::SameLine();
+  if (ImGui::Button("set", ImVec2(80*s, 40*s)))
   {
-    if(dt_gui_imgui_want_text()) return -1;
-    int max_cnt = 0;
-    int key = -1;
-    for(uint32_t i=0;i<hotkeyCount;i++)
+    int scanCodeCount = 0;
+    hotkey[editingHotkey].key[0] = 0;
+    hotkey[editingHotkey].key[1] = 0;
+    hotkey[editingHotkey].key[2] = 0;
+    hotkey[editingHotkey].key[3] = 0;
+    if(keyDownCount && keyDownCount <= 4) // else clear
+    for(uint32_t i = 1; i < sizeof(keyDown); i++)
     {
-      int cnt = 0;
-      for(int k=0;k<4&&hotkey[i].key[k];k++,cnt++);
-      if((cnt == 4 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[1]))
-                   && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[2])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[3]), false)) ||
-         (cnt == 3 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[1]))
-                   && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[2]), false)) ||
-         (cnt == 2 && ImGui::IsKeyDown(ImGuiKey(hotkey[i].key[0])) && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[1]), false)) ||
-         (cnt == 1 && ImGui::IsKeyPressed(ImGuiKey(hotkey[i].key[0]), false)))
+      if (keyDown[i])
       {
-        if(cnt > max_cnt)
+        if(scanCodeCount++)
         {
-          max_cnt = cnt;
-          key = i;
+          uint16_t *k = hotkey[editingHotkey].key + scanCodeCount-1;
+          k[0] = i + ImGuiKey_NamedKey_BEGIN;
+          if(k[0] >= ImGuiKey_ModCtrl)
+          { // swap control/mod to beginning
+            uint16_t tmp = hotkey[editingHotkey].key[0];
+            hotkey[editingHotkey].key[0] = k[0];
+            k[0] = tmp;
+          }
         }
+        else hotkey[editingHotkey].key[0] = i + ImGuiKey_NamedKey_BEGIN;
       }
     }
-    return key;
   }
+  ImGui::SameLine(0.f, 20.f*s);
 
-  static void Serialise(const char *fn, HotKey *hk, int cnt)
+  if (ImGui::Button("done", ImVec2(80*s, 40*s))) { ImGui::CloseCurrentPopup(); }
+  ImGui::EndGroup();
+  ImGui::EndPopup();
+#endif
+  int ret = 0;
+  if(nk_button_label(&vkdt.ctx, "done"))
+    ret = 1;
+  nk_popup_close(&vkdt.ctx);
+
+  return ret;
+}
+
+// FIXME: need to call this from the glfw keyboard handler!
+static inline int
+hk_get_hotkey(hk_t *hotkey, size_t num, int key)
+{
+  if(dt_gui_nk_want_keyboard()) return -1;
+  int max_cnt = 0;
+  int res = -1;
+  for(uint32_t i=0;i<num;i++)
   {
-    char filename[PATH_MAX+100];
-    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", dt_pipe.homedir, fn);
-    FILE *f = fopen(filename, "wb");
-    if(f)
+    int cnt = 0;
+    for(int k=0;k<4&&hotkey[i].key[k];k++,cnt++);
+    if(key != hotkey[i].key[cnt-1]) goto next;
+    for(int k=0;k<cnt-1;k++) if(glfwGetKey(qvk.window, hotkey[i].key[k]) != GLFW_PRESS) goto next;
+    if(cnt > max_cnt)
     {
+      max_cnt = cnt;
+      res = i;
+    }
+next:;
+  }
+  return res;
+}
+
+static inline void
+hk_serialise(const char *fn, hk_t *hk, int cnt)
+{
+  char filename[PATH_MAX+100];
+  snprintf(filename, sizeof(filename), "%s/%s.hotkeys", dt_pipe.homedir, fn);
+  FILE *f = fopen(filename, "wb");
+  if(f)
+  {
+    for(int i=0;i<cnt;i++)
+      fprintf(f, "%s:%d %d %d %d\n", hk[i].name, hk[i].key[0], hk[i].key[1], hk[i].key[2], hk[i].key[3]);
+    fclose(f);
+  }
+}
+
+static inline void
+hk_deserialise(const char *fn, hk_t *hk, int cnt)
+{
+  char filename[PATH_MAX+100];
+  snprintf(filename, sizeof(filename), "%s/%s.hotkeys", dt_pipe.homedir, fn);
+  FILE *f = fopen(filename, "rb");
+  if(f)
+  {
+    while(!feof(f))
+    {
+      char name[100] = {0};
+      int key[4] = {0};
+      fscanf(f, "%[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
+      if(!name[0]) break;
+      fgetc(f);
       for(int i=0;i<cnt;i++)
-        fprintf(f, "%s:%d %d %d %d\n", hk[i].functionName, hk[i].key[0], hk[i].key[1], hk[i].key[2], hk[i].key[3]);
-      fclose(f);
+        if(!strcmp(hk[i].name, name))
+          for(int k=0;k<4;k++) hk[i].key[k] = key[k];
     }
+    fclose(f);
   }
-
-  static void Deserialise(const char *fn, HotKey *hk, int cnt)
-  {
-    char filename[PATH_MAX+100];
-    snprintf(filename, sizeof(filename), "%s/%s.hotkeys", dt_pipe.homedir, fn);
-    FILE *f = fopen(filename, "rb");
-    if(f)
-    {
-      while(!feof(f))
-      {
-        char name[100] = {0};
-        int key[4] = {0};
-        fscanf(f, "%[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
-        if(!name[0]) break;
-        fgetc(f);
-        for(int i=0;i<cnt;i++)
-          if(!strcmp(hk[i].functionName, name))
-            for(int k=0;k<4;k++) hk[i].key[k] = key[k];
-      }
-      fclose(f);
-    }
-  }
-};
+}

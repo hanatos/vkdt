@@ -1,6 +1,4 @@
 // the imgui render functions for the lighttable view
-extern "C"
-{
 #include "gui/view.h"
 #include "gui/gui.h"
 #include "db/thumbnails.h"
@@ -8,13 +6,12 @@ extern "C"
 #include "db/hash.h"
 #include "core/fs.h"
 #include "pipe/graph-defaults.h"
-}
-#include "gui/render_view.hh"
-#include "gui/hotkey.hh"
-#include "gui/widget_thumbnail.hh"
-#include "gui/widget_recentcollect.hh"
-#include "gui/widget_export.hh"
-#include "gui/api.hh"
+#include "gui/render_view.h"
+#include "gui/hotkey.h"
+#include "gui/widget_thumbnail.h"
+#include "gui/widget_recentcollect.h"
+#include "gui/widget_export.h"
+#include "gui/api-gui.h"
 #include "gui/render.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -22,11 +19,12 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <atomic>
+#include <atomic.h>
 
-namespace { // anonymous namespace
 
-static ImHotKey::HotKey hk_lighttable[] = {
+// TODO: merge lighttable.c into here and put hk into callbacks
+
+static hk_t hk_lighttable[] = {
   {"tag",           "assign a tag to selected images",  {ImGuiKey_LeftCtrl,  ImGuiKey_T}},
   {"select all",    "toggle select all/none",           {ImGuiKey_LeftCtrl,  ImGuiKey_A}},
   {"export",        "export selected images",           {ImGuiKey_LeftCtrl,  ImGuiKey_S}},
@@ -48,7 +46,7 @@ static ImHotKey::HotKey hk_lighttable[] = {
   {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
   {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
 };
-enum hotkey_names_t
+typedef enum hotkey_names_t
 {
   s_hotkey_assign_tag = 0,
   s_hotkey_select_all = 1,
@@ -70,7 +68,7 @@ enum hotkey_names_t
   s_hotkey_label_3    = 17,
   s_hotkey_label_4    = 18,
   s_hotkey_label_5    = 19,
-};
+} hotkey_names_t;
 
 void render_lighttable_center(int hotkey)
 { // center image view
@@ -835,12 +833,10 @@ void render_lighttable_right_panel(int hotkey)
   ImGui::End(); // lt right panel
 }
 
-} // end anonymous namespace
-
-
 void render_lighttable()
 {
-  int hotkey = ImHotKey::GetHotKey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
+  // XXX needs to move to key handler
+  int hotkey = hk_get_hotkey(hk_lighttable, sizeof(hk_lighttable)/sizeof(hk_lighttable[0]));
   render_lighttable_right_panel(hotkey);
   render_lighttable_center(hotkey);
 }

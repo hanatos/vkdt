@@ -50,6 +50,15 @@ typedef struct dt_gui_state_t
 }
 dt_gui_state_t;
 
+typedef enum dt_gui_popup_t
+{ // constants identifying currently opened popup
+  s_popup_none = 0,
+  s_popup_assign_tag,
+  s_popup_create_preset,
+  s_popup_apply_preset,
+  s_popup_add_module,
+} dt_gui_popup_t;
+
 // a few local things to exchange data between core and ui and c and c++
 typedef struct dt_gui_wstate_t
 {
@@ -88,6 +97,8 @@ typedef struct dt_gui_wstate_t
   int   show_gamepadhelp;       // show context sensitive gamepad help
 
   int show_perf_overlay;        // show a frame time graph as overlay
+
+  int popup;                    // currently open popup, see dt_gui_popup_t
 }
 dt_gui_wstate_t;
 
