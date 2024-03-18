@@ -99,6 +99,7 @@ typedef struct dt_gui_wstate_t
   int show_perf_overlay;        // show a frame time graph as overlay
 
   int popup;                    // currently open popup, see dt_gui_popup_t
+  int popup_appearing;          // set on the first frame a popup is shown
 }
 dt_gui_wstate_t;
 

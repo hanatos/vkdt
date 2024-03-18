@@ -136,7 +136,11 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   const int grabbed = vkdt.wstate.grabbed;
   dt_view_keyboard(window, key, scancode, action, mods);
 
-  if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
+  if(key == GLFW_KEY_ESCAPE) // TODO: or gamepad equivalent
+  {
+    if(vkdt.wstate.popup) vkdt.wstate.popup = 0; // close any popup
+  }
+  else if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
     glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
   }

@@ -55,6 +55,7 @@ dt_gui_lt_assign_tag()
     return;
   }
   vkdt.wstate.popup = s_popup_assign_tag;
+  vkdt.wstate.popup_appearing = 1;
   vkdt.wstate.busy += 5;
 }
 
@@ -404,6 +405,7 @@ static inline void
 dt_gui_dr_preset_create()
 {
   vkdt.wstate.popup = s_popup_create_preset;
+  vkdt.wstate.popup_appearing = 1;
   vkdt.wstate.busy += 5;
 }
 
@@ -411,6 +413,7 @@ static inline void
 dt_gui_dr_preset_apply()
 {
   vkdt.wstate.popup = s_popup_apply_preset;
+  vkdt.wstate.popup_appearing = 1;
   vkdt.wstate.busy += 5;
 }
 
@@ -418,6 +421,7 @@ static inline void
 dt_gui_dr_module_add()
 {
   vkdt.wstate.popup = s_popup_add_module;
+  vkdt.wstate.popup_appearing = 1;
   vkdt.wstate.busy += 5;
 }
 
@@ -425,6 +429,7 @@ static inline void
 dt_gui_dr_assign_tag()
 {
   vkdt.wstate.popup = s_popup_assign_tag;
+  vkdt.wstate.popup_appearing = 1;
   vkdt.wstate.busy += 5;
 }
 

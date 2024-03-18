@@ -61,8 +61,8 @@ int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
 
 // displays a filtered list of directory entries.
 // this is useful to select from existing presets, blocks, tags, etc.
-// call this between BeginPopupModal and EndPopup.
-// return values != 0 mean you should call nk_popup_close()
+// call this inside a nuklear popup
+// return values != 0 mean there was an answer and the popup should close
 static inline int            // return 0 - nothing, 1 - ok, 2 - cancel
 filteredlist(
     const char *dir,         // optional. %s will be replaced as global basedir
@@ -74,7 +74,6 @@ filteredlist(
   // TODO: custom filter rule?
 {
   struct nk_context *ctx = &vkdt.ctx;
-  static int appearing = 1;
   int ok = 0;
   int pick = -1, local = 0;
 #define FREE_ENT do {\
@@ -96,22 +95,13 @@ filteredlist(
   int len = 0;
   if(nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default))
     ok = 1;
-  if(appearing) nk_edit_focus(ctx, 0);
-  appearing = 0;
+  if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
+  vkdt.wstate.popup_appearing = 0;
   if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
     dt_gui_set_tooltip(
         "type to filter the list\n"
         "press enter to apply top item\n"
         "press escape to close");
-  // XXX TODO
-  // need to introduce these keys into nuklear? we need fwd/back kinda semantics (there is backspace and enter and tab)
-  // XXX or make a generic esc closes all popups kinda thing in the key handler? then we wouldn't need nk support here at all.
-  // XXX seems the hotkey edit backend would require to pass *all* keys like this
-  nk_input_is_key_pressed(&ctx->input, NK_KEY_ESCAPE);
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-     ImGui::IsKeyPressed(ImGuiKey_Escape)||
-     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-  { FREE_ENT; appearing = 1; return 2; }
 
   if(!ent_cnt)
   { // open directory
@@ -175,30 +165,32 @@ filteredlist(
   }
 
 
-  ImGui::BeginChild("filteredlist-scrollpane", ImVec2(0.0f, 0.75f*vkdt.state.center_ht));
-  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-#define LIST(E, D, L) do { \
-  for(int i=0;i<E##_cnt;i++)\
-  if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
-      && E[i].d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
-    if(pick < 0) { local = L; pick = i; } \
-    if(ImGui::Button((D && D[i]) ? D[i] : E[i].d_name, ImVec2(-1, 0))) {\
-      ok = 1; pick = i; local = L;\
-    } } } while(0)
-  LIST(ent_local, desc_local, 1);
-  LIST(ent, desc, 0);
-#undef LIST
-  ImGui::PopStyleVar();
-  ImGui::EndChild(); // scrollable list
+  struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
+  static float ratio[] = {0.25f, NK_UNDEFINED};
+  nk_layout_row(&vkdt.ctx, NK_DYNAMIC, total_space.h*0.9, 1, ratio);
+  nk_group_begin(&vkdt.ctx, "filteredlist-scrollpane", 0);
+  {
+#define XLIST(E, D, L) do { \
+    for(int i=0;i<E##_cnt;i++)\
+    if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
+        && E[i].d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
+      if(pick < 0) { local = L; pick = i; } \
+      if(nk_button_label(&vkdt.ctx, (D && D[i]) ? D[i] : E[i].d_name)) {\
+        ok = 1; pick = i; local = L;\
+      } } } while(0)
+    XLIST(ent_local, desc_local, 1);
+    XLIST(ent, desc, 0);
+#undef XLIST
+    nk_group_end(&vkdt.ctx);
+  }
 
-  int bwd = vkdt.state.panel_wd / ((flags & s_filteredlist_allow_new) ? 3 : 2);
-  ImGui::Dummy(ImVec2(0, 0.05f*vkdt.state.panel_wd));
-  ImGui::Dummy(ImVec2(0.8f*vkdt.state.center_wd-2.0f*bwd, 0)); ImGui::SameLine();
-  if((flags & s_filteredlist_allow_new) && ImGui::Button("create new", ImVec2(bwd, 0))) { pick = -1; ok = 1; }
-  if (flags & s_filteredlist_allow_new) ImGui::SameLine();
-  if (ImGui::Button("cancel", ImVec2(bwd, 0))) {FREE_ENT; appearing = 1; return 2;}
-  ImGui::SameLine();
-  if (ImGui::Button("ok", ImVec2(bwd, 0))) ok = 1;
+  nk_layout_row_dynamic(&vkdt.ctx, total_space.h*0.1, 5);
+  nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+  nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+  if( (flags & s_filteredlist_allow_new) && nk_button_label(&vkdt.ctx, "create new")) { pick = -1; ok = 1; }
+  if(!(flags & s_filteredlist_allow_new)) nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+  if (nk_button_label(&vkdt.ctx, "cancel")) {FREE_ENT; return 2;}
+  if (nk_button_label(&vkdt.ctx, "ok")) ok = 1;
 
   if(ok == 1)
   {
@@ -214,7 +206,6 @@ filteredlist(
       else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick].d_name);
       else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick].d_name);
     }
-    appearing = 1;
     FREE_ENT;
   }
   return ok;
