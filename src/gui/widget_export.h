@@ -1,7 +1,11 @@
 #pragma once
 
-namespace{
-inline void
+// this is almost the same as the widgets in darkroom mode.
+// however, this runs on the abstract mso, without a concrete graph instantiated.
+// as such, the parameters are written to pdata and not the params on the graph.
+// also, we don't have to trigger a graph re-run etc when widgets are changed.
+// export supports only a small subset, so we just duplicate these code paths:
+static inline void
 export_render_widget(
     const dt_module_so_t *mso,
     int                   parid,
@@ -15,42 +19,11 @@ export_render_widget(
     if(*(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) != param->widget.mode)
       return;
 
-  static int gamepad_reset = 0;
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
-  // some state for double click detection for reset functionality
-  static int doubleclick = 0;
-  static double doubleclick_time = 0;
-  double time_now = ImGui::GetTime();
-#define RESETBLOCK \
-  {\
-    if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
-    if(doubleclick) memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
-    change = 1;\
-  }\
-  if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) || \
-     (ImGui::IsItemFocused() && gamepad_reset))\
-  {\
-    doubleclick_time = time_now;\
-    gamepad_reset = 0;\
-    doubleclick = 1;\
-    memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
-    change = 1;\
-  }\
-  if(change)
+  // TODO: bring back somehow
+  // static int gamepad_reset = 0;
+  // if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
+  // XXX in fact, ctx->delta_time_seconds needs to be set by us from the outside!
 
-#define TOOLTIP \
-  if(param->tooltip && ImGui::IsItemHovered())\
-  {\
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);\
-    ImGui::BeginTooltip();\
-    ImGui::PushTextWrapPos(vkdt.state.panel_wd);\
-    ImGui::TextUnformatted(param->tooltip);\
-    ImGui::PopTextWrapPos();\
-    ImGui::EndTooltip();\
-  }
-
-  int change = 0;
-  ImGui::PushID(parid);
   char str[10] = {0};
   memcpy(str, &param->name, 8);
   switch(param->widget.type)
@@ -60,16 +33,18 @@ export_render_widget(
       if(param->type == dt_token("float"))
       {
         float *val = (float*)(pdata + param->offset);
-        if(ImGui::SliderFloat(str, val, param->widget.min, param->widget.max, "%2.5f"))
-        RESETBLOCK { }
-        TOOLTIP
+        nk_slider_float(&vkdt.ctx, param->widget.min, val, param->widget.max, 0.01);
+        if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+          memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+        if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       }
       else if(param->type == dt_token("int"))
       {
         int32_t *val = (int32_t*)(pdata + param->offset);
-        if(ImGui::SliderInt(str, val, param->widget.min, param->widget.max, "%d"))
-        RESETBLOCK { }
-        TOOLTIP
+        nk_slider_int(&vkdt.ctx, param->widget.min, val, param->widget.max, 1);
+        if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+          memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+        if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       }
       break;
     }
@@ -78,24 +53,27 @@ export_render_widget(
       if(param->type == dt_token("int"))
       {
         int32_t *val = (int32_t*)(pdata + param->offset);
-        if(ImGui::Combo(str, val, (const char *)param->widget.data))
-        RESETBLOCK { }
-        TOOLTIP
+        // XXX TODO: in nuklear.h in nk_combo_separator make sure to break the loop if length==0 in two places!
+        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, item_height, vec2 size);
+        if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+          memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+        if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       }
       break;
     }
     case dt_token("filename"):
     {
       char *v = (char *)(pdata + param->offset);
-      ImGui::InputText(str, v, param->cnt);
-      TOOLTIP
+      // XXX what are these flags?
+      nk_edit_string_zero_terminated(&vkdt.ctx, 0, v, param->cnt, nk_filter_default);
+      if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+        memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+      if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       break;
     }
     default: break;
   }
-  ImGui::PopID();
 }
-} // end anonymous namespace
 
 struct dt_export_widget_t
 { // this memory belongs to the gui and export threads need to copy it.
