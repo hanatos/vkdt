@@ -3,7 +3,6 @@
 inline int
 recently_used_collections()
 {
-  ImGui::PushID("ruc");
   int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
   for(int i=0;i<num;i++)
   {
@@ -14,19 +13,14 @@ recently_used_collections()
     {
       const char *last = dir;
       for(const char *c=dir;*c!=0;c++) if(*c=='/') last = c+1;
-      ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f,0.5f));
-      if(ImGui::Button(last, ImVec2(-1, 0)))
+      if(nk_button_text(&vkdt.ctx, last, strlen(last))) // TODO: nk_button_text_styled (struct nk_style_button){.text_alignment=NK_TEXT_CENTERED}
       {
         dt_gui_switch_collection(dir);
-        ImGui::PopStyleVar(1);
-        ImGui::PopID();
         return 1; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
-      if(ImGui::IsItemHovered())
+      if(nk_widget_is_hovered(&vkdt.ctx))
         dt_gui_set_tooltip("%s", dir);
-      ImGui::PopStyleVar(1);
     }
   }
-  ImGui::PopID();
   return 0;
 }
