@@ -26,7 +26,7 @@ dt_gui_lt_modals()
 {
   if(vkdt.wstate.popup == s_popup_assign_tag)
   {
-    struct nk_rect bounds = { XXX };
+    struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
     if(nk_popup_begin(&vkdt.ctx, NK_POPUP_STATIC, "assign tag", NK_WINDOW_CLOSABLE, bounds))
     {
       static char filter[256] = "all time best";

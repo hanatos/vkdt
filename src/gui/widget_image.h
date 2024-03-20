@@ -1,15 +1,19 @@
 #pragma once
 #include "widget_image_util.h"
-#include "api_gui.h"
+#include "api.h"
+#include "nk.h"
 // widget for window-size image with zoom/pan interaction
 
 static inline void
-dt_image_events(dt_image_widget_t *w, int hovered, int main)
+dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int main)
 {
+  const struct nk_color nk_white = {255,255,255,255};
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   int do_events = 1;
   if(main && vkdt.wstate.active_widget_modid >= 0)
   { // on-canvas widget interaction
     do_events = 0; // by default disable std events (zoom/pan) if there is overlay
+    struct nk_vec2 pos = ctx->input.mouse.pos;
     switch(vkdt.graph_dev.module[
         vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type)
@@ -20,16 +24,12 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
         float p[8];
         for(int k=0;k<4;k++)
           dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
-        ImGui::GetWindowDrawList()->AddPolyline(
-            (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
+        nk_stroke_polygon(buf, p, 4, 1.0, nk_white);
         int corner_hovered = -1;
-        if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
-        {
+        if(nk_input_is_mouse_released(&ctx->input, NK_BUTTON_LEFT))
           vkdt.wstate.selected = -1;
-        }
         if(hovered)
         { // find active corner if close enough
-          ImVec2 pos = ImGui::GetMousePos();
           float m[] = {pos.x, pos.y};
           float max_dist = FLT_MAX;
           const float px_dist = 0.1*qvk.win_height;
@@ -46,7 +46,7 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
               {
                 max_dist = dist2;
                 corner_hovered = cc;
-                if(ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+                if(nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
                   vkdt.wstate.selected = cc;
               }
             }
@@ -57,12 +57,10 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
           float q[2] = {
             p[2*corner_hovered],
             p[2*corner_hovered+1]};
-          ImGui::GetWindowDrawList()->AddCircleFilled(
-              ImVec2(q[0],q[1]), 0.02 * vkdt.state.center_wd,
-              0x77777777u, 20);
-          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+          float rad = 0.02 * vkdt.state.center_wd;
+          nk_fill_circle(buf, (struct nk_rect){q[0]-rad, q[1]-rad, 2*rad, 2*rad}, (struct nk_color){0x77,0x77,0x77,0x77});
+          if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
           {
-            ImVec2 pos = ImGui::GetMousePos();
             float v[] = {pos.x, pos.y}, n[2] = {0};
             dt_image_from_view(&vkdt.wstate.img_widget, v, n);
             dt_gui_dr_pers_adjust(n, 0);
@@ -72,21 +70,18 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
       }
       case dt_token("straight"):
       {
-        ImVec2 pos = ImGui::GetMousePos();
         if(vkdt.wstate.selected >= 0)
         {
           float v[4] = { vkdt.wstate.state[1], vkdt.wstate.state[2], vkdt.wstate.state[3], vkdt.wstate.state[4] };
-          ImGui::GetWindowDrawList()->AddPolyline(
-              (ImVec2 *)v, 2, IM_COL32_WHITE, false, 1.0);
+          nk_stroke_polyline(buf, v, 2, 1.0, nk_white);
           if(vkdt.wstate.selected > 0)
           {
             vkdt.wstate.state[3] = pos.x;
             vkdt.wstate.state[4] = pos.y;
           }
         }
-        if(hovered && ImGui::IsKeyReleased(ImGuiKey_MouseLeft))
+        if(hovered && nk_input_is_mouse_released(&ctx->input, NK_BUTTON_LEFT))
         {
-          // XXX and if selected set to something?
           vkdt.wstate.selected = 0;
           float dx = pos.x - vkdt.wstate.state[1];
           float dy = pos.y - vkdt.wstate.state[2];
@@ -99,9 +94,8 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
           if(fabsf(a - 180.0f) < fabsf(a)) a -= 180.0f;
           vkdt.wstate.state[0] += a;
         }
-        if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+        if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
         {
-          // and selected not yet set to anything?
           vkdt.wstate.state[1] = vkdt.wstate.state[3] = pos.x;
           vkdt.wstate.state[2] = vkdt.wstate.state[4] = pos.y;
           vkdt.wstate.selected = 1;
@@ -116,14 +110,12 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
         };
         float p[8];
         for(int k=0;k<4;k++) dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
-        ImGui::GetWindowDrawList()->AddPolyline(
-            (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
-        if(!ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+        nk_stroke_polygon(buf, p, 4, 1.0, nk_white);
+        if(!nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
           vkdt.wstate.selected = -1;
         int edge_hovered = -1;
         if(hovered)
         {
-          ImVec2 pos = ImGui::GetMousePos();
           float m[2] = {(float)pos.x, (float)pos.y};
           float max_dist = FLT_MAX;
           const float px_dist = 0.1*qvk.win_height;
@@ -141,8 +133,7 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
               {
                 max_dist = dist2;
                 edge_hovered = ee;
-                // XXX mouse down and not selected previously
-                if(ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+                if(nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
                   vkdt.wstate.selected = ee;
               }
             }
@@ -160,17 +151,14 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
           if(edge_hovered == 1) q = q1;
           if(edge_hovered == 2) q = q0;
           if(edge_hovered == 3) q = q2;
-          ImGui::GetWindowDrawList()->AddQuadFilled(
-              ImVec2(q[0],q[1]), ImVec2(q[2],q[3]),
-              ImVec2(q[4],q[5]), ImVec2(q[6],q[7]), 0x77777777u);
+          nk_fill_polygon(buf, q, 4, (struct nk_color){0x77,0x77,0x77,0x77});
 
-          ImVec2 pos = ImGui::GetMousePos();
           float v[] = {pos.x, pos.y}, n[2] = {0};
           dt_image_from_view(&vkdt.wstate.img_widget, v, n);
           float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
           dt_gui_dr_crop_adjust(edge, 0);
         }
-        if(vkdt.wstate.selected < 0) do_events = true; // enable zoom/panning around
+        if(vkdt.wstate.selected < 0) do_events = 1; // enable zoom/panning around
         break;
       }
       case dt_token("pick"):
@@ -182,20 +170,17 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
         float p[8];
         for(int k=0;k<4;k++)
           dt_image_to_view(&vkdt.wstate.img_widget, v+2*k, p+2*k);
-        ImGui::GetWindowDrawList()->AddPolyline(
-            (ImVec2 *)p, 4, IM_COL32_WHITE, true, 1.0);
-        ImVec2 pos = ImGui::GetMousePos();
+        nk_stroke_polygon(buf, p, 4, 1.0, nk_white);
         float vv[] = {pos.x, pos.y}, n[2] = {0};
         dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
-        if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false))
+        if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
         {
-          // XXX abuse "selected" so we know when a press started!
           vkdt.wstate.state[0] = n[0];
           vkdt.wstate.state[1] = n[0];
           vkdt.wstate.state[2] = n[1];
           vkdt.wstate.state[3] = n[1];
         }
-        if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+        if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
         {
           vkdt.wstate.state[0] = MIN(vkdt.wstate.state[0], n[0]);
           vkdt.wstate.state[1] = MAX(vkdt.wstate.state[1], n[0]);
@@ -206,7 +191,6 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
       }
       case dt_token("draw"):
       { // draw indicators for opacity/hardness/radius for each stroke
-        ImVec2 pos = ImGui::GetMousePos();
         float radius   = vkdt.wstate.state[0];
         float opacity  = vkdt.wstate.state[1];
         float hardness = vkdt.wstate.state[2];
@@ -229,8 +213,7 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
             p[2*k+0] = pos.x + scale * r*sinf(k/(cnt-1.0)*M_PI*2.0);
             p[2*k+1] = pos.y + scale * r*cosf(k/(cnt-1.0)*M_PI*2.0);
           }
-          ImGui::GetWindowDrawList()->AddPolyline(
-              (ImVec2 *)p, cnt, IM_COL32_WHITE, false, 4.0f/(i+1.0f));
+          nk_stroke_polyline(buf, p, cnt, 4.0f/(i+1.0f), nk_white);
         }
         // opacity is a quad
         float sz = 30.0f;
@@ -240,16 +223,10 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
         p[3] = opacity *  pos.y     + (1.0f-opacity)*(pos.y+sz/2.0f);
         p[6] = opacity *  pos.x     + (1.0f-opacity)*(pos.x+sz/2.0f);
         p[7] = opacity * (pos.y+sz) + (1.0f-opacity)*(pos.y+sz/2.0f);
-        ImGui::GetWindowDrawList()->AddPolyline(
-            (ImVec2 *)p, 4, IM_COL32_WHITE, true, 3.0);
+        nk_stroke_polygon(buf, p, 4, 3.0, nk_white);
 
-        // XXX set selected to -1 if nothing is pressed
-        // XXX set selected to something >= 0 if a mouse button is pressed
-        // XXX test that for the right mouse and wheel clicks
-        // XXX nk_widget_is_mouse_pressed
-        // XXX or even nk_input_is_mouse_pressed(const struct nk_input *i, enum nk_buttons id)
         uint32_t *dat = (uint32_t *)vkdt.wstate.mapped;
-        if(hovered && ImGui::IsKeyPressed(ImGuiKey_MouseRight, false))
+        if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_RIGHT))
         { // right mouse click resets the last stroke
           for(int i=dat[0]-2;i>=0;i--)
           {
@@ -263,13 +240,14 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
           vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
           vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
         }
-        if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseWheelY))
+        float yoff = ctx->input.mouse.scroll_delta.y;
+        if(hovered && yoff != 0)
         {
-          float yoff = ImGui::GetIO().MouseWheel;
+          ctx->input.mouse.scroll_delta.y = 0; // handled this
           const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
-          if(ImGui::IsKeyDown(ImGuiKey_LeftShift)) // opacity
+          if(nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT)) // opacity
             vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
-          else if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl)) // hardness
+          else if(nk_input_is_key_down(&ctx->input, NK_KEY_CTRL)) // hardness
             vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
           else // radius
             vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
@@ -278,7 +256,7 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
         {
           float v[] = {pos.x, pos.y}, n[2] = {0};
           dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-          if(hovered && ImGui::IsKeyDown(ImGuiKey_MouseLeft))
+          if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
             dt_gui_dr_draw_position(n, 1.0f);
           else
             dt_gui_dr_draw_position(n, 0.0f);
@@ -293,27 +271,28 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
 
   if(hovered)
   { // zoom/pan interaction
-    ImVec2 mpos = ImGui::GetMousePos();
-    if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft) ||
-       ImGui::IsKeyReleased(ImGuiKey_MouseMiddle))
+    struct nk_vec2 mpos = ctx->input.mouse.pos;
+    if(nk_input_is_mouse_released(&ctx->input, NK_BUTTON_LEFT) ||
+       nk_input_is_mouse_released(&ctx->input, NK_BUTTON_MIDDLE))
     {
       w->m_x = w->m_y = -1;
     }
-    if((!vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseLeft, false)) ||
-        ( vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseMiddle, false)))
+    if((!vkdt.wstate.pentablet_enabled && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT)) ||
+       ( vkdt.wstate.pentablet_enabled && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_MIDDLE)))
     { // click to pan
       w->m_x = mpos.x;
       w->m_y = mpos.y;
       w->old_look_x = w->look_at_x;
       w->old_look_y = w->look_at_y;
     }
-    else if(!vkdt.wstate.pentablet_enabled && ImGui::IsKeyPressed(ImGuiKey_MouseMiddle, false))
+    else if(!vkdt.wstate.pentablet_enabled && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_MIDDLE))
     { // middle click to 1:1
       dt_image_zoom(w, mpos.x, mpos.y);
     }
-    if(ImGui::IsKeyDown(ImGuiKey_MouseWheelY))
+    float yoff = ctx->input.mouse.scroll_delta.y;
+    if(yoff != 0)
     { // mouse wheel (yoff is the input)
-      float yoff = ImGui::GetIO().MouseWheel;
+      ctx->input.mouse.scroll_delta.y = 0;
       const float fit_scale = MIN(w->win_w/w->wd, w->win_h/w->ht);
       const float scale = w->scale <= 0.0f ? fit_scale : w->scale;
       const float im_x = mpos.x - (w->win_x + w->win_w/2.0f);
@@ -339,16 +318,16 @@ dt_image_events(dt_image_widget_t *w, int hovered, int main)
   }
   else
   { // reset stuff, but enable drag outside:
-    if(!ImGui::IsKeyDown(ImGuiKey_MouseLeft) &&
-       !ImGui::IsKeyDown(ImGuiKey_MouseMiddle))
+    if(!nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT) &&
+       !nk_input_is_mouse_down(&ctx->input, NK_BUTTON_MIDDLE))
     {
       w->m_x = w->m_y = -1;
     }
   }
   if(w->m_x > 0 && w->scale > 0.0f)
   { // mouse moved while dragging
-    ImVec2 mpos = ImGui::GetMousePos();
-    ImVec2 d = ImVec2(mpos.x - w->m_x, mpos.y - w->m_y);
+    struct nk_vec2 mpos = ctx->input.mouse.pos;
+    struct nk_vec2 d = {mpos.x - w->m_x, mpos.y - w->m_y};
     w->look_at_x = w->old_look_x - d.x / w->scale;
     w->look_at_y = w->old_look_y - d.y / w->scale;
     w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
@@ -370,8 +349,8 @@ dt_image(
   w->out = out;
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
-  struct nk_vec2 w_pos = nk_window_position(ctx); // uh how does that work
-  struct nk_vec2 w_ext = nk_window_size(ctx);
+  struct nk_vec2 w_pos = nk_window_get_position(ctx); // uh how does that work
+  struct nk_vec2 w_ext = nk_window_get_size(ctx);
   w->win_x = w_pos.x; w->win_y = w_pos.y;
   w->win_w = w_ext.x; w->win_h = w_ext.y;
   float im0[2], im1[2];
@@ -390,7 +369,7 @@ dt_image(
   // struct nk_rect disp;
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   struct nk_image nkimg = nk_subimage_ptr(img->image_view, w->wd, w->ht, subimg);
-  nk_image(ctx, &nkimg); // ??
+  nk_image(ctx, nkimg); // ??
   int hover = nk_widget_is_hovered(ctx);
   // nk_draw_image(buf, disp, &nkimg, col);
   // XXX how to scale this image?
@@ -401,14 +380,12 @@ dt_image(
   if(w->scale >= 1.0f)
   {
     snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(w->scale*100.0));
-    // XXX something scaled by fontsize!
-    // XXX rect needs to be something AABB reasonably tight
-    nk_draw_text(buf, rect, scaletext, strlen(scaletext), font, bgcol, fgcol);
-    // ImGui::GetWindowDrawList()->AddText(ImVec2(w->win_x+w->win_w-120.0f, w->win_y+30.0f), 0xffffffffu, scaletext);
+    nk_draw_text(buf, (struct nk_rect){w->win_x+0.9*w->win_w,w->win_y+0.05*w->win_h, 0.05*w->win_w, 0.05*w->win_h},
+        scaletext, strlen(scaletext), &dt_gui_get_font(0)->handle, (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }
 
   // now the controls:
   // XXX probably doesn't need replacement with image above: ImGui::InvisibleButton("display", ImVec2(0.975*w->win_w, 0.975*w->win_h));
   if(!events) return;
-  dt_image_events(w, hover, main);
+  dt_image_events(ctx, w, hover, main);
 }
