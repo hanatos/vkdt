@@ -24,6 +24,13 @@ export_render_widget(
   // if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
   // XXX in fact, ctx->delta_time_seconds needs to be set by us from the outside!
 
+  // TODO: layout! need to compute static size / at least ratio
+  // TODO: combo popup needs static size
+  const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+  const float ratio[] = { vkdt.state.panel_wd * 0.6 - vkdt.ctx.style.tab.padding.x,
+                          vkdt.state.panel_wd * 0.4 - vkdt.ctx.style.tab.padding.x};
+  nk_layout_row(&vkdt.ctx, NK_DYNAMIC, row_height, 2, ratio);
+
   char str[10] = {0};
   memcpy(str, &param->name, 8);
   switch(param->widget.type)
@@ -37,6 +44,7 @@ export_render_widget(
         if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
           memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
         if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+        nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
       }
       else if(param->type == dt_token("int"))
       {
@@ -45,6 +53,7 @@ export_render_widget(
         if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
           memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
         if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+        nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
       }
       break;
     }
@@ -54,34 +63,35 @@ export_render_widget(
       {
         int32_t *val = (int32_t*)(pdata + param->offset);
         // XXX TODO: in nuklear.h in nk_combo_separator make sure to break the loop if length==0 in two places!
-        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, item_height, vec2 size);
+        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, (struct nk_vec2){ratio[0], ratio[0]});
         if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
           memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
         if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+        nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
       }
       break;
     }
     case dt_token("filename"):
     {
       char *v = (char *)(pdata + param->offset);
-      // XXX what are these flags?
-      nk_edit_string_zero_terminated(&vkdt.ctx, 0, v, param->cnt, nk_filter_default);
+      nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_SIMPLE, v, param->cnt, nk_filter_default);
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
       if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+      nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
       break;
     }
     default: break;
   }
 }
 
-struct dt_export_widget_t
+typedef struct dt_export_widget_t
 { // this memory belongs to the gui and export threads need to copy it.
-  int modid_cnt;       // number of output modules found
-  int *modid;          // points into dt_pipe.module, lists all output modules
-  char *format_text;   // output module selection text for imgui combobox
-  uint8_t *pdata_buf;  // allocation for all the parameters
-  uint8_t **pdata;     // pointer to parameter data for all output modules
+  int      modid_cnt;   // number of output modules found
+  int     *modid;       // points into dt_pipe.module, lists all output modules
+  char    *format_text; // output module selection text for imgui combobox
+  uint8_t *pdata_buf;   // allocation for all the parameters
+  uint8_t **pdata;      // pointer to parameter data for all output modules
 
   // stuff that is selected in the gui:
   char    basename[240];
@@ -90,9 +100,11 @@ struct dt_export_widget_t
   float   quality;
   int     overwrite;
   int     last_frame_only;
-};
+  int     colour_prim;
+  int     colour_trc;
+} dt_export_widget_t;
 
-inline void
+static inline void
 dt_export_init(
     dt_export_widget_t *w)
 {
@@ -127,17 +139,19 @@ dt_export_init(
     c += num + 1;
   }
 
-  w->wd = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
-  w->ht = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
-  w->format = dt_rc_get_int(&vkdt.rc, "gui/export/format", 4);
-  w->quality = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
+  w->wd          = dt_rc_get_int(&vkdt.rc, "gui/export/wd", 0);
+  w->ht          = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
+  w->format      = dt_rc_get_int(&vkdt.rc, "gui/export/format", 4);
+  w->quality     = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
+  w->colour_prim = dt_rc_get_int(&vkdt.rc, "gui/export/primaries", dt_colour_primaries_srgb);
+  w->colour_trc  = dt_rc_get_int(&vkdt.rc, "gui/export/trc", dt_colour_trc_srgb);
   strncpy(w->basename,
         dt_rc_get(&vkdt.rc, "gui/export/basename", "${home}/img_${seq}"),
         sizeof(w->basename)-1);
   w->last_frame_only = 0;
 }
 
-inline void
+static inline void
 dt_export_cleanup(
     dt_export_widget_t *w)
 {
@@ -147,19 +161,25 @@ dt_export_cleanup(
   memset(w, 0, sizeof(*w));
 }
 
-inline void
+static inline void
 dt_export(
     dt_export_widget_t *w)
 {
   if(!w->modid_cnt) dt_export_init(w);
 
-  if(ImGui::InputInt("width", &w->wd, 1, 100, 0))
+  const float ratio[] = {120, 179}; // XXX something panel width?
+  const float row_height = ctx->style->font->height + 2 * ctx->style->tab.padding.y;
+  nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+  if(nk_property_int(ctx, "#", 1, &w->wd, 65535, 1, 1))
     dt_rc_set_int(&vkdt.rc, "gui/export/wd", w->wd);
-  if(ImGui::InputInt("height", &w->ht, 1, 100, 0))
+  nk_label(ctx, "width", NK_TEXT_LEFT);
+  if(nk_property_int(ctx, "#height", 1, &w->ht, 65535, 1, 1))
     dt_rc_set_int(&vkdt.rc, "gui/export/ht", w->ht);
-  if(ImGui::InputText("filename", w->basename, sizeof(w->basename)))
+  nk_label(ctx, "height", NK_TEXT_LEFT);
+  if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, w->basename, sizeof(w->basename), nk_filter_default))
     dt_rc_set(&vkdt.rc, "gui/export/basename", w->basename);
-  if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
+  nk_label(ctx, "filename", NK_TEXT_LEFT);
+  if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip(
       "basename of exported files. the following will be replaced:\n"
       "${home} -- home directory\n"
       "${yyyy} -- current year\n"
@@ -167,14 +187,20 @@ dt_export(
       "${seq} -- sequence number\n"
       "${fdir} -- directory of input file\n"
       "${fbase} -- basename of input file");
-  if(ImGui::InputFloat("quality", &w->quality, 1, 100, 0))
+  if(nk_property_int(ctx, "#", 1, &w->quality, 100, 1, 0.1))
     dt_rc_set_float(&vkdt.rc, "gui/export/quality", w->quality);
-  if(ImGui::Combo("format", &w->format, w->format_text))
-    dt_rc_set_int(&vkdt.rc, "gui/export/format", w->format);
-  ImGui::Combo("animations", &w->last_frame_only, "export every frame\0export last frame only\0\0");
+  nk_label(ctx, "quality", NK_TEXT_LEFT);
+  struct nk_vec2 size = { x, y };
+  int new_format = nk_combo(ctx, w->format_text, w->format, 0xffff, row_height, size);
+  if(new_format != w->format)
+    dt_rc_set_int(&vkdt.rc, "gui/export/format", (w->format = new_format));
+  nk_label(ctx, "format", NK_TEXT_LEFT);
+
+  w->last_frame_only = nk_combo(ctx, "export every frame\0export last frame only\0\0", 0xffff, row_height, size);
+  nk_label(ctx, "animations", NK_TEXT_LEFT);
   // TODO: this is not wired in the backend so hidden from gui for now too:
   // const char *overwrite_mode_str = "keep\0overwrite\0\0";
-  // ImGui::Combo("existing files", &overwrite_mode, overwrite_mode_str);
+  // combo "existing files", &overwrite_mode, overwrite_mode_str;
   w->format = CLAMP(w->format, 0, w->modid_cnt-1);
   const int id = CLAMP(w->modid[w->format], 0l, dt_pipe.num_modules-1l);
   const dt_module_so_t *mso = dt_pipe.module+id;
