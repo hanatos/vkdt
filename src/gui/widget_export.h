@@ -167,18 +167,25 @@ dt_export(
 {
   if(!w->modid_cnt) dt_export_init(w);
 
+  struct nk_context *ctx = &vkdt.ctx;
   const float ratio[] = {120, 179}; // XXX something panel width?
-  const float row_height = ctx->style->font->height + 2 * ctx->style->tab.padding.y;
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-  if(nk_property_int(ctx, "#", 1, &w->wd, 65535, 1, 1))
-    dt_rc_set_int(&vkdt.rc, "gui/export/wd", w->wd);
+  int resi;
+  float resf;
+
+  resi = w->wd;
+  nk_property_int(ctx, "#", 1, &resi, 65535, 1, 1);
+  if(resi != w->wd) dt_rc_set_int(&vkdt.rc, "gui/export/wd", (w->wd = resi));
   nk_label(ctx, "width", NK_TEXT_LEFT);
-  if(nk_property_int(ctx, "#height", 1, &w->ht, 65535, 1, 1))
-    dt_rc_set_int(&vkdt.rc, "gui/export/ht", w->ht);
+
+  resi = w->ht;
+  nk_property_int(ctx, "#height", 1, &resi, 65535, 1, 1);
+  if(resi != w->ht) dt_rc_set_int(&vkdt.rc, "gui/export/ht", (w->ht = resi));
   nk_label(ctx, "height", NK_TEXT_LEFT);
+
   if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, w->basename, sizeof(w->basename), nk_filter_default))
     dt_rc_set(&vkdt.rc, "gui/export/basename", w->basename);
-  nk_label(ctx, "filename", NK_TEXT_LEFT);
   if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip(
       "basename of exported files. the following will be replaced:\n"
       "${home} -- home directory\n"
@@ -187,16 +194,19 @@ dt_export(
       "${seq} -- sequence number\n"
       "${fdir} -- directory of input file\n"
       "${fbase} -- basename of input file");
-  if(nk_property_int(ctx, "#", 1, &w->quality, 100, 1, 0.1))
-    dt_rc_set_float(&vkdt.rc, "gui/export/quality", w->quality);
+  nk_label(ctx, "filename", NK_TEXT_LEFT);
+
+  resf = w->quality;
+  nk_property_float(ctx, "#", 1, &resf, 100, 1, 0.1);
+  if(resf != w->quality) dt_rc_set_float(&vkdt.rc, "gui/export/quality", (w->quality = resf));
   nk_label(ctx, "quality", NK_TEXT_LEFT);
-  struct nk_vec2 size = { x, y };
-  int new_format = nk_combo(ctx, w->format_text, w->format, 0xffff, row_height, size);
-  if(new_format != w->format)
-    dt_rc_set_int(&vkdt.rc, "gui/export/format", (w->format = new_format));
+
+  struct nk_vec2 size = { ratio[0], ratio[0] };
+  int new_format = nk_combo_string(ctx, w->format_text, w->format, 0xffff, row_height, size);
+  if(new_format != w->format) dt_rc_set_int(&vkdt.rc, "gui/export/format", (w->format = new_format));
   nk_label(ctx, "format", NK_TEXT_LEFT);
 
-  w->last_frame_only = nk_combo(ctx, "export every frame\0export last frame only\0\0", 0xffff, row_height, size);
+  w->last_frame_only = nk_combo_string(ctx, "export every frame\0export last frame only\0\0", w->last_frame_only, 0xffff, row_height, size);
   nk_label(ctx, "animations", NK_TEXT_LEFT);
   // TODO: this is not wired in the backend so hidden from gui for now too:
   // const char *overwrite_mode_str = "keep\0overwrite\0\0";

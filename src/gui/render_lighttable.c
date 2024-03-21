@@ -11,7 +11,7 @@
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_recentcollect.h"
 #include "gui/widget_export.h"
-#include "gui/api-gui.h"
+#include "gui/api_gui.h"
 #include "gui/render.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
