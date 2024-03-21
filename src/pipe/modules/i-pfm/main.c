@@ -80,6 +80,8 @@ read_header(
   mod->img_param.noise_a = dt_module_param_float(mod, 2)[0];
   mod->img_param.noise_b = dt_module_param_float(mod, 3)[0];
   mod->img_param.filters = 0;
+  mod->img_param.colour_primaries = dt_colour_primaries_2020;
+  mod->img_param.colour_trc       = dt_colour_trc_linear;
 
   snprintf(pfm->filename, sizeof(pfm->filename), "%s", filename);
   pfm->frame = frame;

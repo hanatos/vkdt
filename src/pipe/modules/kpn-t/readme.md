@@ -8,7 +8,7 @@ if you don't know better already, you probably don't need to read on :)
 
 put the following in a file like `train-mlp-cli.cfg`:
 ```
-frames:150001
+frames:250001
 fps:0
 module:i-pfm:main
 module:i-pfm:ref
@@ -20,19 +20,22 @@ connect:i-pfm:main:output:cnngenin:01:imgi
 connect:i-pfm:ref:output:cnngenin:01:refi
 connect:cnngenin:01:imgo:kpn-t:01:input
 connect:cnngenin:01:refo:kpn-t:01:ref
+connect:cnngenin:01:noiseab:kpn-t:01:noiseab
 connect:kpn-t:01:w:o-lut:w:input
 connect:kpn-t:01:output:display:main:input
 param:i-pfm:main:filename:img_12800.pfm
 param:i-pfm:ref:filename:img_100.pfm
-param:cnngenin:01:generate:1
+param:cnngenin:01:generate:2
 param:kpn-t:01:init:1
 param:kpn-t:01:L2:0
+param:kpn-t:01:alpha:0.003
+param:kpn-t:01:gradclip:1.0
 param:o-lut:w:filename:mlp-w
 ```
 
 and then run something like:
 ```
-$ vkdt cli -g mlp/train-mlp-cli.cfg --last-frame-only
+$ vkdt cli -g mlp/train-mlp-cli.cfg --last-frame-only --progress
 ```
 
 leaky relu works better with reduced learning rate of `alpha:0.001` but relu leads to dead neurons.
@@ -41,21 +44,17 @@ lets us work with leaky relu without exploding gradients.
 
 ## TODO
 
-FIXME: can't compute `DEBUG_DERIV` on current softmax code
-FIXME: loss plot seems fubared
+multilevel:
+* fight aliasing! 2x2 not usable :(
+* try honest flower/5x5 pyramid down + bilinear up
+* implement all (plain, pre-diff, post-diff)
+* how to combine in up? O + I.a * I.rgb or more shrinkage like?
 
 release:
 TODO: use KHR coopmat extension instead of NV (mainly types matA matB matC)
-TODO: compile both versions (bck,fwd,inf)x(cm,nocm)
-TODO: pick kernel based on flag in qvk
 TODO: what about the non-32 subgroups? (is a vk1.3 extension)
-TODO: what is good input? (paris/durand propose shipping noise sigma)
+TODO: what is good input? (paris/durand propose shipping noise sigma, but seems to be ignored by MLP)
 TODO: luma/chroma blend
-
-training:
-TODO: input luminance + noise std dev (for rendering)
-TODO: generate noisy input synthetically from noise profiles
-TODO: cnngenin: train with ref vs. all other iso
 
 extra credits: run on raw bayer and demosaic as you go?
 
@@ -68,6 +67,7 @@ extra credits: run on raw bayer and demosaic as you go?
 * `eps`   adam: the value to avoid division by zero
 * `init`  how to initialise weights in the first iteration
 * `L2`    how much L2 regularisation to apply to the weights (0 means none)
+* `gradclip` perform gradient norm clipping at the given threshold
 
 ## connectors
 
@@ -78,6 +78,8 @@ extra credits: run on raw bayer and demosaic as you go?
 * `graph` a log-space error graph for visualisation of the convergence behaviour
 * `vis` visualisation of the weights and their derivatives
 * `debug` ever changing dev wire during coding
+* `wcp` weights from checkpoint. will be loaded if initialisation is requested
+* `noiseab` noise profile created by cnngenin
 
 
 ## model
@@ -198,9 +200,7 @@ we'll feed forward and compute the loss in an animation, one frame for each weig
 
 finite differences for `dEdw`: for each frame, pick one `w`. permute it by some epsilon, compute loss.
 
-FIXME: seems the recent updates broke this (diff version doesn't output useful stuff any more)
-
-try these
+try these (remember to set `cnngenin` to static input and disable gradient norm clipping!)
 ```
 # with DEBUG_DERIV in config.h:
 make debug -j20 && vkdt cli -g mlp/mlp.cfg --format o-pfm --filename diff --last-frame-only --output view0

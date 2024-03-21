@@ -1,0 +1,5 @@
+#version 460 core
+#extension GL_GOOGLE_include_directive    : enable
+#include "config.h"
+#include "input.glsl"
+#include "../kpn-t/mulw-impl.glsl"

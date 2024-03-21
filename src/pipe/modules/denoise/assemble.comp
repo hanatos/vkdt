@@ -71,7 +71,7 @@ main()
     // normalise these by dividing out expected noise std dev:
     // our data is now normalised to [0, 1] already:
     // the noise model is  sigma^2 = a + x*b  where x is the uint16_t scale raw value minus the raw black level.
-    // this meas we have to re-scale our normalised value to the previous white level.
+    // this means we have to re-scale our normalised value to the previous white level.
     // const float scale = 65535.0*(push.white.g-push.black.g);
     // const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
     const float scale = 65535.0;

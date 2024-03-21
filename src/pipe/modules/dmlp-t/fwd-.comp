@@ -1,0 +1,7 @@
+#version 460 core
+#define VDKT_COOPMAT_FALLBACK
+#pragma use_vulkan_memory_model
+#extension GL_GOOGLE_include_directive      : enable
+#include "config.h"
+#include "input.glsl"
+#include "../kpn-t/fwd-impl.glsl"

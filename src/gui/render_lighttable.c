@@ -251,6 +251,7 @@ struct export_job_t
   dt_token_t output_module;
   int wd, ht;
   float quality;
+  int colour_prim, colour_trc;
   uint32_t cnt;
   uint32_t overwrite;
   uint32_t last_frame_only;
@@ -297,6 +298,8 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].mod        = j->output_module;
   param.output[0].p_pdata    = (char *)j->pdata;
   param.last_frame_only      = j->last_frame_only;
+  param.output[0].colour_primaries = j->colour_prim;
+  param.output[0].colour_trc       = j->colour_trc;
   param.p_cfgfile = infilename;
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
@@ -324,6 +327,8 @@ int export_job(
   j->ht = w->ht;
   j->output_module = dt_pipe.module[w->modid[w->format]].name;
   j->quality = w->quality;
+  j->colour_prim = w->colour_prim;
+  j->colour_trc  = w->colour_trc;
   j->last_frame_only = w->last_frame_only;
   size_t psize = dt_module_total_param_size(w->modid[w->format]);
   j->pdata = (uint8_t *)malloc(sizeof(uint8_t)*psize);

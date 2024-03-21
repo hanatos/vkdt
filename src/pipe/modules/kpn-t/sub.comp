@@ -1,0 +1,24 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(set = 1, binding = 0) uniform sampler2D img_in;           // fine res input image
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;  // coarse res output image
+
+void main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
+
+  ivec2 sz = textureSize(img_in, 0).xy;
+  ivec2 ipos = 2 * opos;
+
+  // make sure we bandlimit the signal before downsampling it, to avoid the terrible aliasing you would see with a plain 2x2 mipmap:
+  const float w[] = {1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0};
+  vec4 rgb = vec4(0.0);
+  for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
+    rgb += w[j+2]*w[i+2] * texture(img_in, (ipos + vec2(i, j) + 0.5)/vec2(sz));
+  imageStore(img_out, opos, rgb);
+}

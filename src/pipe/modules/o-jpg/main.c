@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/fs.h"
+#include "pipe/icc-profiles.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +25,78 @@ error_exit(j_common_ptr cinfo)
   (*cinfo->err->output_message)(cinfo);
   longjmp(myerr->setjmp_buffer, 1);
 }
+
+#define EXIF_MARKER (JPEG_APP0 + 1) /* JPEG marker code for Exif */
+#define ICC_MARKER (JPEG_APP0 + 2)  /* JPEG marker code for ICC */
+#define ICC_OVERHEAD_LEN 14         /* size of non-profile data in APP2 */
+#define MAX_BYTES_IN_MARKER 65533   /* maximum data len of a JPEG marker */
+#define MAX_DATA_BYTES_IN_MARKER (MAX_BYTES_IN_MARKER - ICC_OVERHEAD_LEN)
+/*
+ * stolen from darktable imageio, i.e. this is GPLv3 code:
+ * This routine writes the given ICC profile data into a JPEG file.
+ * It *must* be called AFTER calling jpeg_start_compress() and BEFORE
+ * the first call to jpeg_write_scanlines().
+ * (This ordering ensures that the APP2 marker(s) will appear after the
+ * SOI and JFIF or Adobe markers, but before all else.)
+ */
+static void
+write_icc_profile(
+    j_compress_ptr cinfo,
+    const uint8_t *icc_data_ptr,
+    unsigned int   icc_data_len)
+{
+  unsigned int num_markers; /* total number of markers we'll write */
+  int cur_marker = 1;       /* per spec, counting starts at 1 */
+
+  /* Calculate the number of markers we'll need, rounding up of course */
+  num_markers = icc_data_len / MAX_DATA_BYTES_IN_MARKER;
+  if(num_markers * MAX_DATA_BYTES_IN_MARKER != icc_data_len) num_markers++;
+
+  while(icc_data_len > 0)
+  {
+    /* length of profile to put in this marker */
+    unsigned int length = icc_data_len;
+    if(length > MAX_DATA_BYTES_IN_MARKER) length = MAX_DATA_BYTES_IN_MARKER;
+    icc_data_len -= length;
+
+    /* Write the JPEG marker header (APP2 code and marker length) */
+    jpeg_write_m_header(cinfo, ICC_MARKER, (unsigned int)(length + ICC_OVERHEAD_LEN));
+
+    /* Write the marker identifying string "ICC_PROFILE" (null-terminated).
+     * We code it in this less-than-transparent way so that the code works
+     * even if the local character set is not ASCII.
+     */
+    jpeg_write_m_byte(cinfo, 0x49);
+    jpeg_write_m_byte(cinfo, 0x43);
+    jpeg_write_m_byte(cinfo, 0x43);
+    jpeg_write_m_byte(cinfo, 0x5F);
+    jpeg_write_m_byte(cinfo, 0x50);
+    jpeg_write_m_byte(cinfo, 0x52);
+    jpeg_write_m_byte(cinfo, 0x4F);
+    jpeg_write_m_byte(cinfo, 0x46);
+    jpeg_write_m_byte(cinfo, 0x49);
+    jpeg_write_m_byte(cinfo, 0x4C);
+    jpeg_write_m_byte(cinfo, 0x45);
+    jpeg_write_m_byte(cinfo, 0x0);
+
+    /* Add the sequencing info */
+    jpeg_write_m_byte(cinfo, cur_marker);
+    jpeg_write_m_byte(cinfo, (int)num_markers);
+
+    /* Add the profile data */
+    while(length--)
+    {
+      jpeg_write_m_byte(cinfo, *icc_data_ptr);
+      icc_data_ptr++;
+    }
+    cur_marker++;
+  }
+}
+#undef EXIF_MARKER
+#undef ICC_MARKER
+#undef ICC_OVERHEAD_LEN
+#undef MAX_BYTES_IN_MARKER
+#undef MAX_DATA_BYTES_IN_MARKER
 
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
@@ -81,6 +154,11 @@ void write_sink(
   cinfo.Y_density = 300;
 
   jpeg_start_compress(&cinfo, TRUE);
+
+  if(module->img_param.colour_primaries == dt_colour_primaries_adobe && module->img_param.colour_trc == dt_colour_trc_gamma)
+    write_icc_profile(&cinfo, icc_AdobeCompat_v2, icc_AdobeCompat_v2_len);
+  else if(module->img_param.colour_primaries == dt_colour_primaries_2020 && module->img_param.colour_trc == dt_colour_trc_709)
+    write_icc_profile(&cinfo, icc_Rec2020_v2_micro, icc_Rec2020_v2_micro_len);
 
   uint8_t *row = malloc((size_t)3 * width * sizeof(uint8_t));
   while(cinfo.next_scanline < cinfo.image_height)

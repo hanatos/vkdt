@@ -16,10 +16,8 @@ sequence data (use the `%04d` pattern in the filename input of `i-jpg`, say).
 * `refi` the reference image to be compared to
 * `imgo` a random tile of the input image
 * `refo` the corresponding tile of the reference image
+* `noiseab` the generated noise profile values to pass on to training
 
 ## parameters
 
-* `off` offset xy
-* `flip` flip the image in x or y
-* `ev` exposure value
-* `generate` switch randomisation of input on or off
+* `generate` switch randomisation of input on or off, or add synthetic noise

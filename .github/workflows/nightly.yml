@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'hanatos/vkdt' && false
     name: nightly vkdt appimage
     runs-on: ubuntu-latest
     strategy:
@@ -208,7 +208,7 @@ jobs:
           retention-days: 1
 
   Windows:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'hanatos/vkdt' && false
     name: nightly vkdt windows
     runs-on: windows-latest
     strategy:
@@ -265,6 +265,11 @@ jobs:
           wget https://exiftool.org/exiftool-12.76.zip
           unzip exiftool-12.76.zip
           mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
+      - name: bundle ffmpeg
+        run: |
+          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
+          unzip ffmpeg*.zip
+          mv ffmpeg*win64*/bin/ffmpeg.exe ${INSTALL_PREFIX}/usr/lib/vkdt/ffmpeg.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
@@ -346,6 +351,16 @@ jobs:
           echo "export VKDT_USE_EXIV2" >> ${SRC_DIR}/bin/config.mk
           make -C ${SRC_DIR}
           make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
+      - name: bundle exiftool
+        run: |
+          wget https://exiftool.org/exiftool-12.76.zip
+          unzip exiftool-12.76.zip
+          mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
+      - name: bundle ffmpeg
+        run: |
+          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
+          unzip ffmpeg*.zip
+          mv ffmpeg*win64*/bin/ffmpeg.exe ${INSTALL_PREFIX}/usr/lib/vkdt/ffmpeg.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
@@ -374,7 +389,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, AppImageRawler, Windows, WindowsRawler]
+    needs: [AppImageRawler, WindowsRawler]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -390,9 +405,12 @@ jobs:
             this is an automated nightly build of vkdt.
 
             it may contain pre-release quality features, use with care :)
+            
+            note that the rawspeed builds have c++ issues, they don't like specific compiler versions.
+            these are thus currently disabled. they might come back at some point.
 
-            appimage
-            ========
+            appimage (currently disabled, use the next in list)
+            ===================================================
             the appimage compiles in a lot of features
             (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
             but not all
@@ -406,13 +424,13 @@ jobs:
             that don't have a recent libstdc++, uses the rust-based backend
             instead of the c++-based rawspeed which does not have CR3 support.
 
-            windows
-            =======
+            windows (currently disabled, us the next in list)
+            =================================================
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
-            (rawspeed, exiv2, freetype mlv, i-vid)
+            (rawspeed, exiv2, freetype mlv, i-vid, o-ffmpeg)
             and leaves out many
-            (no v4l, no sound, no quake, no o-vid, no pentablet support).
+            (no v4l, no sound, no quake, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
             windows with rawler
@@ -420,7 +438,5 @@ jobs:
             same as above, but using rawler instead of rawspeed (try this for CR3 support)
 
           files: |
-            artifact-appimage/*
             artifact-appimage-rawler/*
-            artifact-windows/*
             artifact-windows-rawler/*

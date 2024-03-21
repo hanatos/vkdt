@@ -1,0 +1,28 @@
+#version 460
+#extension GL_GOOGLE_include_directive       : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_KHR_shader_subgroup_clustered  : enable
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
+layout(push_constant, std140) uniform push_t
+{
+  uint num_elements;
+  uint iteration;
+} push;
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(set = 1, binding = 0) buffer ssboi_t { float v[]; } dwi;
+layout(set = 1, binding = 1) buffer ssboo_t { float v[]; } dwo;
+
+void main()
+{ // compute squared norm of gradient vector by some reduction scheme
+  float v = 0;
+  if(gl_GlobalInvocationID.x < push.num_elements)
+    v = dwi.v[gl_GlobalInvocationID.x];
+  if(push.iteration == 0) v = v*v; // first iteration, these are straight dw gradient values, not squared yet
+  subgroupBarrier();
+  v = subgroupAdd(v);
+  if(gl_SubgroupInvocationID == 0) dwo.v[gl_WorkGroupID.x] = v;
+}

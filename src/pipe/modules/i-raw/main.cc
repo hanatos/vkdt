@@ -231,6 +231,8 @@ void modify_roi_out(
   float *noise_b = (float*)dt_module_param_float(mod, 2);
   for(int k=0;k<9;k++)
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
+  mod->img_param.colour_primaries = dt_colour_primaries_custom;
+  mod->img_param.colour_trc       = dt_colour_trc_linear;
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
   dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
 #endif
@@ -272,12 +274,13 @@ void modify_roi_out(
   mod->img_param.crop_aabb[2] = cropTL.x + dimCropped.x;
   mod->img_param.crop_aabb[3] = cropTL.y + dimCropped.y;
 
-  if(mod_data->d->mRaw->blackLevelSeparate[0] == -1)
+  if(!mod_data->d->mRaw->blackAreas.empty() || !mod_data->d->mRaw->blackLevelSeparate)
     mod_data->d->mRaw->calculateBlackAreas();
+  const auto bl = *(mod_data->d->mRaw->blackLevelSeparate->getAsArray1DRef());
   for(int k=0;k<4;k++)
   {
-    mod->img_param.black[k]        = mod_data->d->mRaw->blackLevelSeparate[k];
-    mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint;
+    mod->img_param.black[k]        = bl(k);
+    mod->img_param.white[k]        = mod_data->d->mRaw->whitePoint.value_or((1u << 16)-1);
     mod->img_param.whitebalance[k] = mod_data->d->mRaw->metadata.wbCoeffs[k];
   }
   // normalise wb
@@ -286,7 +289,8 @@ void modify_roi_out(
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
 
-  if(isnanf(mod->img_param.cam_to_rec2020[0]))
+  float test = mod->img_param.cam_to_rec2020[0];
+  if(!(test == test))
   { // camera matrix not found in exif or compiled without exiv2
     float xyz_to_cam[12], mat[9] = {0};
     if(mod_data->d->mRaw->metadata.colorMatrix.size() > 0)

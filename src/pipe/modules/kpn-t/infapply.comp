@@ -14,18 +14,24 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
 
-#include "shared/coopmat.glsl"
 #include "config.h"
-#include "shared.glsl"
 #include "input.glsl"
+#include "shared/coopmat.glsl"
 #include "sigmoid.glsl"
+#define INFERENCE
 
 layout(local_size_x = 32, local_size_y = N_BLOCKS, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float noise_a;
+  float noise_b;
+} params;
 layout(push_constant, std140) uniform push_t
 {
   uint32_t in_width;
   uint32_t batch_size;
   uint32_t output_stride;
+  uint32_t level;
 } push;
 layout(set = 1, binding = 0) uniform sampler2D img_in; // 'M' input mipmap
 layout(set = 1, binding = 1) readonly buffer ssbo_wgt_t { uvec4 v[]; } ssbo_weights; // 'w'
@@ -33,7 +39,6 @@ layout(set = 1, binding = 2) uniform writeonly image2D img_I; // 'I' output conv
 
 shared uvec4 shm_act[((32 + 16*N_ITERS) * (WIDTH + SKEW)) / EL_PER_UVEC4];
 
-#define INFERENCE
 #define HAVE_NO_SSBO_RES
 #include "mlp.h"
 #include "fwd.h"
@@ -181,6 +186,8 @@ void main()
       const float w = clamp(float(wgt[k]), -200.0, 200.0);
       rgb += w * texture(img_in, (px + tap[k] + 0.5)/vec2(textureSize(img_in, 0))).rgb;
     }
+#elif (APPLY_ACTIVATION==APPLY_DEBUG)
+    vec3 rgb = vec3(1);
 #endif
 #if (ALPHA_ACTIVATION==ALPHA_CONST)
     const float alpha = 1.0;
@@ -188,6 +195,8 @@ void main()
     const float alpha = wgt[15];
 #elif (ALPHA_ACTIVATION==ALPHA_SIGMOID)
     const float alpha = sigmoid(wgt[15]);
+#elif (ALPHA_ACTIVATION==ALPHA_CLAMPED)
+    const float alpha = clamp(float(wgt[15]), -1.0, 1.0);
 #endif
     // TODO: if out of bounds?
     imageStore(img_I, px, vec4(clamp(rgb, vec3(-65000.0), vec3(65000.0)), alpha));

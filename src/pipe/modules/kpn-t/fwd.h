@@ -14,16 +14,23 @@ void threadblock_load_input_static(
       ssbo_input.v[(in_idx + lane_offset + (row + 16 * i) * WIDTH)/EL_PER_UVEC4];
     // *(int4*)&act_shmem[lane_offset + (row + 16 * i) * (WIDTH + SKEW)] = *(int4*)&input_threadblock[lane_offset + (row + 16 * i) * WIDTH];
 #else
+#ifdef INFERENCE
+  const vec2 noise_ab = vec2(params.noise_a, params.noise_b);
+#else
+  const vec2 noise_ab = vec2(ssbo_nab.noise_a, ssbo_nab.noise_b);
+#endif
   [[unroll]] for (int i = 0; i < N_ITERS; ++i)
   {
     const uint32_t idx = in_idx + lane_offset + (row + 16 * i) * WIDTH;
     uvec4 load; // this is the base index into an f16 buffer where we should find 8 f16 in contiguous memory.
-    [[unroll]] for(int k=0;k<8;k+=2)
-    { // y-coord in this rowmajor layout is the pixel index, x are the 32 input elements
-      uint32_t tp  =((idx+k) % WIDTH)/2;  // 16 taps with 2 channels each
-      uint32_t pxi = (idx+k) / WIDTH;     // outer index: px coordinate
-      ivec2 tc = ivec2(pxi % textureSize(img_in, 0).x, pxi / textureSize(img_in, 0).x);
-      uint32_t val = packFloat2x16(f16vec2(load_input_tap(img_in, tc, tp)));
+    [[unroll]] for(int k=0;k<WIDTH/4;k+=2)
+    { // y-coord in this rowmajor layout is the pixel index, x are the WIDTH input elements
+      uint32_t chan =((idx+k) % WIDTH);    // 16 taps with 2 channels each
+      uint32_t pxi  = (idx+k) / WIDTH;     // outer index: px coordinate
+      uint32_t val = packFloat2x16(f16vec2(vec2(
+            load_input_tap(img_in, pxi, chan,   noise_ab),
+            load_input_tap(img_in, pxi, chan+1, noise_ab))
+            ));
       if     (k < 2) load.x = val;
       else if(k < 4) load.y = val;
       else if(k < 6) load.z = val;
@@ -70,8 +77,10 @@ threadblock_last_layer_forward(
 
   barrier();
   [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
+  {
     CHK_SHM((weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
     coopmat_load(weights_frag[i], shm_act, (weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/true);
+  }
   barrier();
 
   for (uint32_t idx = wi; idx < N_ITERS; idx += N_BLOCKS)

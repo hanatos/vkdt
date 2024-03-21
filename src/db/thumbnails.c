@@ -254,11 +254,10 @@ dt_thumbnails_cache_one(
   dt_graph_reset(graph);
 
   char *extrap[] = {
-    "param:f2srgb:main:usemat:0", // write thumbnails as rec2020 with gamma
     "frames:1",                   // only render first frame of animation
   };
   dt_graph_export_t param = {
-    .extra_param_cnt = 2,
+    .extra_param_cnt = 1,
     .p_extra_param   = extrap,
     .p_cfgfile       = cfgfilename,
     .p_defcfg        = deffilename,
@@ -270,6 +269,8 @@ dt_thumbnails_cache_one(
       .mod        = dt_token("o-bc1"),
       .inst       = dt_token("main"),
       .p_filename = bc1filename,
+      .colour_primaries = dt_colour_primaries_2020, // thumbnails are immediately in working space
+      .colour_trc       = dt_colour_trc_srgb,       // but have srgb gamma to better fit into 8 bit files
     }},
   };
 

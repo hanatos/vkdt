@@ -22,6 +22,7 @@ void main()
   {
     vec4 ref = texelFetch(img_R, ipos, 0);
     vec4 res = texelFetch(img_O, ipos, 0);
+    ref.w = res.w = 1.0;
 #if 0 // also add something based on sharpness
     vec4 refs = -8.0*ref, ress = -8.0*res;
     for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
@@ -37,17 +38,15 @@ void main()
     vec4 dEdO = vec4(0.0);
     if(all(not(isnan(res))) && all(not(isinf(res))))
     {
-#if 0 // L2 loss
+#if (LOSS==LOSS_L2)
       dEdO = 2.0 * (res - ref) * corr;
       E = dot(res - ref, res - ref) * corr;
-#endif
-#if 1 // SMAPE
-      const float eps = 1e-5;
+#elif (LOSS==LOSS_SMAPE)
+      const float eps = 1e-3;
       vec4 den = abs(res) + abs(ref) + eps;
-      E = dot(vec4(1.0), abs(res - ref)/den)/4.0;
+      E = dot(vec4(1.0), abs(res - ref)/den);
       dEdO = (res - ref)/(den*den) * (abs(res*ref) + eps * abs(res) + res*ref) / (eps + abs(res * (res-ref)));
-#endif
-#if 0 // cosh
+#elif (LOSS==LOSS_COSH)
       E = dot(vec4(1.0), cosh(res - ref)) - 1.0;
       dEdO = sinh(res - ref);
 #endif

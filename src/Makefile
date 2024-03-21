@@ -66,7 +66,7 @@ clean: Makefile
 
 # GNU_SOURCE for sched_affinity
 CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
-CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE
+CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c++17
 EXE_CFLAGS?=-fPIC
 # LDFLAGS=
 VK_CFLAGS:=$(VKDT_VULKAN_CFLAGS)
