@@ -281,7 +281,7 @@ NK_API void nk_glfw3_device_create(
     uint32_t framebuffer_width, uint32_t framebuffer_height);
 
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
-NK_API void nk_gflw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
+NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
 NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button,
                                            int action, int mods);
 
@@ -1438,7 +1438,7 @@ NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint) {
         glfw.text[glfw.text_len++] = codepoint;
 }
 
-NK_API void nk_gflw3_scroll_callback(GLFWwindow *win, double xoff,
+NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff,
                                      double yoff) {
     (void)win;
     (void)xoff;

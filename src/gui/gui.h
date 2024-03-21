@@ -57,9 +57,10 @@ typedef enum dt_gui_popup_t
   s_popup_create_preset,
   s_popup_apply_preset,
   s_popup_add_module,
+  s_popup_edit_hotkeys,
 } dt_gui_popup_t;
 
-// a few local things to exchange data between core and ui and c and c++
+// a few local things to exchange data between core and ui
 typedef struct dt_gui_wstate_t
 {
   dt_image_widget_t img_widget;
@@ -74,8 +75,7 @@ typedef struct dt_gui_wstate_t
   float   *mapped;
   int      grabbed;
   int      lod;
-  uint32_t copied_imgid;       // imgid copied for copy/paste
-  float    connector[100][30][2];
+  uint32_t copied_imgid;        // imgid copied for copy/paste
   char    *module_names_buf;
   const char **module_names;
 
@@ -94,8 +94,8 @@ typedef struct dt_gui_wstate_t
   int busy;                     // still busy for how many frames before stopping redraw?
 
   float fontsize;               // pixel size of currently loaded (regular) font
-  int   show_gamepadhelp;       // show context sensitive gamepad help
 
+  int show_gamepadhelp;         // show context sensitive gamepad help
   int show_perf_overlay;        // show a frame time graph as overlay
 
   int popup;                    // currently open popup, see dt_gui_popup_t
@@ -115,7 +115,7 @@ typedef struct dt_gui_t
   struct nk_context ctx;          // nuklear gui context, main screen
   struct nk_context ctx1;         // nuklear gui context, secondary viewport
 
-  VkClearValue     clear_value;   // TODO: more colours
+  VkClearValue     clear_value;
   dt_gui_style_t   style;
   dt_gui_state_t   state;
   dt_gui_wstate_t  wstate;

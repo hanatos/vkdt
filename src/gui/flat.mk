@@ -3,8 +3,7 @@ GUI_O=gui/gui.o\
       gui/render_lighttable.o\
       gui/darkroom.o\
       gui/main.o\
-      gui/view.o\
-      gui/imnodes.o
+      gui/view.o
 GUI_H=gui/gui.h\
       gui/render.h\
       gui/render_view.h\

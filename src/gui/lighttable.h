@@ -3,12 +3,8 @@
 #include "gui/api.h"
 #include "gui/render.h"
 
-static inline void
-lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
-{
-  // XXX TODO: hotkey
-
-}
+// implementation in render_lighttable.c, deals with hotkeys
+void lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods);
 
 static inline void
 lighttable_mouse_button(GLFWwindow* window, int button, int action, int mods) {}

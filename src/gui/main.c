@@ -14,7 +14,7 @@
 #include "gui/render.h"
 #include "gui/view.h"
 #include "db/db.h"
-#include "nuklear_glfw_vulkan.h"
+#include "nk.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -133,7 +133,6 @@ toggle_fullscreen()
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-  const int grabbed = vkdt.wstate.grabbed;
   dt_view_keyboard(window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_ESCAPE) // TODO: or gamepad equivalent

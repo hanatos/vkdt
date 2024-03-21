@@ -17,33 +17,14 @@
 // api functions for gui interactions. these can be
 // triggered by pressing buttons or by issuing hotkey combinations.
 // thus, they cannot have parameters, but they can read
-// global state variables, as well as assume some imgui context.
-// in particular, to realise modal dialogs, all modals are rendered
-// in the dt_gui_*_modals() callback.
+// global state variables, as well as assume some gui context.
 
 static inline void
-dt_gui_lt_modals()
+dt_gui_edit_hotkeys()
 {
-  if(vkdt.wstate.popup == s_popup_assign_tag)
-  {
-    struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
-    if(nk_popup_begin(&vkdt.ctx, NK_POPUP_STATIC, "assign tag", NK_WINDOW_CLOSABLE, bounds))
-    {
-      static char filter[256] = "all time best";
-      static char name[PATH_MAX];
-      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
-      if(ok) vkdt.wstate.popup = 0; // got some answer
-      nk_popup_end(&vkdt.ctx);
-      if(ok == 1)
-      {
-        const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-        for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
-          dt_db_add_to_collection(&vkdt.db, sel[i], name);
-        dt_gui_read_tags();
-      }
-    }
-    else vkdt.wstate.popup = 0;
-  }
+  vkdt.wstate.popup = s_popup_edit_hotkeys;
+  vkdt.wstate.popup_appearing = 1;
+  vkdt.wstate.busy += 5;
 }
 
 static inline void

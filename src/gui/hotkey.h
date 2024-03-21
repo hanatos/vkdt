@@ -183,15 +183,11 @@ hk_get_hotkey_lib(hk_t *hk, char *buffer, size_t bs)
 
 // returns non-zero if popup was closed
 static inline int
-hk_edit(hk_t *hotkey, size_t num, const char *popup_name)
+hk_edit(hk_t *hotkey, size_t num)
 {
   static int editingHotkey = -1;
   if (!num) return 1;
   static int keyDown[512] = {};
-
-  struct nk_rect bound = {.2*vkdt.state.center_wd, .2*vkdt.state.center_ht, .6*vkdt.state.center_wd, .6*vkdt.state.center_ht};
-  if(!nk_popup_begin(&vkdt.ctx, NK_POPUP_STATIC, popup_name, 0, bound))
-    return 1; // XXX need to make sure thing remains closed?
 
   nk_layout_row_dynamic(&vkdt.ctx, .2*vkdt.state.center_wd, 2);
   if(nk_group_begin(&vkdt.ctx, "hotkey_list", 0))
@@ -298,8 +294,6 @@ hk_edit(hk_t *hotkey, size_t num, const char *popup_name)
   int ret = 0;
   if(nk_button_label(&vkdt.ctx, "done"))
     ret = 1;
-  nk_popup_close(&vkdt.ctx);
-
   return ret;
 }
 

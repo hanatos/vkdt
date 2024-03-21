@@ -1,3 +1,6 @@
+#define NK_IMPLEMENTATION
+#define NK_GLFW_VULKAN_IMPLEMENTATION
+#include "nk.h"
 #include "gui.h"
 #include "view.h"
 #include "core/log.h"
@@ -12,9 +15,6 @@
 #include "render_view.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#define NK_IMPLEMENTATION
-#define NK_GLFW_VULKAN_IMPLEMENTATION
-#include "nk.h"
 
 enum theme {THEME_BLACK, THEME_WHITE, THEME_RED, THEME_BLUE, THEME_DARK};
 
