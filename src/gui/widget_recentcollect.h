@@ -1,6 +1,6 @@
 #pragma once
 #include "api_gui.h"
-inline int
+static inline int
 recently_used_collections()
 {
   int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);

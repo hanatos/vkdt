@@ -13,6 +13,7 @@
 #ifndef NK_GLFW_VULKAN_H_
 #define NK_GLFW_VULKAN_H_
 
+#ifdef NK_GLFW_VULKAN_IMPLEMENTATION
 unsigned char nuklearshaders_nuklear_vert_spv[] = {
   0x03, 0x02, 0x23, 0x07, 0x00, 0x00, 0x01, 0x00, 0x0b, 0x00, 0x0d, 0x00,
   0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x02, 0x00,
@@ -246,6 +247,7 @@ unsigned char nuklearshaders_nuklear_frag_spv[] = {
   0xfd, 0x00, 0x01, 0x00, 0x38, 0x00, 0x01, 0x00
 };
 unsigned int nuklearshaders_nuklear_frag_spv_len = 860;
+#endif
 
 #include <assert.h>
 #include <stddef.h>
@@ -255,15 +257,16 @@ unsigned int nuklearshaders_nuklear_frag_spv_len = 860;
 
 enum nk_glfw_init_state { NK_GLFW3_DEFAULT = 0, NK_GLFW3_INSTALL_CALLBACKS };
 
-NK_API struct nk_context *
-nk_glfw3_init(GLFWwindow *win, VkDevice logical_device,
+NK_API void
+nk_glfw3_init(struct nk_context *ctx, GLFWwindow *win, VkDevice logical_device,
               VkPhysicalDevice physical_device,
               VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
-NK_API void nk_glfw3_font_stash_end(VkQueue graphics_queue);
+NK_API void nk_glfw3_font_stash_end(VkCommandBuffer cmd, VkQueue graphics_queue);
 NK_API void nk_glfw3_new_frame();
 NK_API void nk_glfw3_create_cmd(
+    struct nk_context *ctx,
     VkCommandBuffer cmd,
     enum nk_anti_aliasing AA);
 #if 0
@@ -756,7 +759,6 @@ NK_INTERN void nk_glfw3_create_pipeline(struct nk_glfw_device *dev) {
     pipeline_info.pColorBlendState = &color_blend_state;
     pipeline_info.pDynamicState = &dynamic_state;
     pipeline_info.layout = dev->pipeline_layout;
-    pipeline_info.renderPass = dev->render_pass;
     pipeline_info.basePipelineIndex = -1;
     pipeline_info.basePipelineHandle = NULL;
 
@@ -783,9 +785,9 @@ NK_INTERN void nk_glfw3_create_render_resources(struct nk_glfw_device *dev,
 
 NK_API void nk_glfw3_device_create(
     VkDevice logical_device, VkPhysicalDevice physical_device,
-    uint32_t graphics_queue_family_index,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer,
-    uint32_t framebuffer_width, uint32_t framebuffer_height) {
+    uint32_t framebuffer_width, uint32_t framebuffer_height)
+{
     struct nk_glfw_device *dev = &glfw.vulkan;
     dev->max_vertex_buffer = max_vertex_buffer;
     dev->max_element_buffer = max_element_buffer;
@@ -817,9 +819,13 @@ NK_API void nk_glfw3_device_create(
                                      framebuffer_height);
 }
 
-NK_INTERN void nk_glfw3_device_upload_atlas(VkQueue graphics_queue,
-                                            const void *image, int width,
-                                            int height) {
+NK_INTERN void
+nk_glfw3_device_upload_atlas(
+    VkCommandBuffer cmd,
+    VkQueue graphics_queue,
+    const void *image, int width,
+    int height)
+{
     struct nk_glfw_device *dev = &glfw.vulkan;
 
     VkImageCreateInfo image_info;
@@ -913,13 +919,11 @@ NK_INTERN void nk_glfw3_device_upload_atlas(VkQueue graphics_queue,
     memset(&begin_info, 0, sizeof(VkCommandBufferBeginInfo));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    NK_ASSERT(dev->command_buffers_len > 0);
     /*
     use the same command buffer as for render as we are regenerating the
     buffer during render anyway
     */
-    command_buffer = dev->command_buffers[0];
-    result = vkBeginCommandBuffer(command_buffer, &begin_info);
+    result = vkBeginCommandBuffer(cmd, &begin_info);
     NK_ASSERT(result == VK_SUCCESS);
 
     memset(&image_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
@@ -935,7 +939,7 @@ NK_INTERN void nk_glfw3_device_upload_atlas(VkQueue graphics_queue,
     image_memory_barrier.subresourceRange.layerCount = 1;
     image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1,
                          &image_memory_barrier);
 
@@ -947,7 +951,7 @@ NK_INTERN void nk_glfw3_device_upload_atlas(VkQueue graphics_queue,
     buffer_copy_region.imageExtent.depth = 1;
 
     vkCmdCopyBufferToImage(
-        command_buffer, staging_buffer.buffer, dev->font_image,
+        cmd, staging_buffer.buffer, dev->font_image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copy_region);
 
     memset(&image_shader_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
@@ -966,11 +970,11 @@ NK_INTERN void nk_glfw3_device_upload_atlas(VkQueue graphics_queue,
     image_shader_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
     image_shader_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0,
                          NULL, 1, &image_shader_memory_barrier);
 
-    result = vkEndCommandBuffer(command_buffer);
+    result = vkEndCommandBuffer(cmd);
     NK_ASSERT(result == VK_SUCCESS);
 
     memset(&fence_create, 0, sizeof(VkFenceCreateInfo));
@@ -1009,9 +1013,8 @@ NK_INTERN void nk_glfw3_device_upload_atlas(VkQueue graphics_queue,
     NK_ASSERT(result == VK_SUCCESS);
 }
 
-NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev) {
-    uint32_t i;
-
+NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
+{
     vkDestroyPipeline(dev->logical_device, dev->pipeline, NULL);
     vkDestroyPipelineLayout(dev->logical_device, dev->pipeline_layout, NULL);
     vkDestroyDescriptorSetLayout(dev->logical_device,
@@ -1019,14 +1022,8 @@ NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev) {
     vkDestroyDescriptorSetLayout(dev->logical_device,
                                  dev->uniform_descriptor_set_layout, NULL);
     vkDestroyDescriptorPool(dev->logical_device, dev->descriptor_pool, NULL);
-    for (i = 0; i < dev->framebuffers_len; i++) {
-        vkDestroyFramebuffer(dev->logical_device, dev->framebuffers[i], NULL);
-    }
-    free(dev->framebuffers);
-    dev->framebuffers_len = 0;
     free(dev->texture_descriptor_sets);
     dev->texture_descriptor_sets_len = 0;
-    vkDestroyRenderPass(dev->logical_device, dev->render_pass, NULL);
 }
 
 NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
@@ -1049,11 +1046,6 @@ NK_API void nk_glfw3_device_destroy(void) {
 
     nk_glfw3_destroy_render_resources(dev);
 
-    vkFreeCommandBuffers(dev->logical_device, dev->command_pool,
-                         dev->command_buffers_len, dev->command_buffers);
-    vkDestroyCommandPool(dev->logical_device, dev->command_pool, NULL);
-    vkDestroySemaphore(dev->logical_device, dev->render_completed, NULL);
-
     vkUnmapMemory(dev->logical_device, dev->vertex_memory);
     vkUnmapMemory(dev->logical_device, dev->index_memory);
     vkUnmapMemory(dev->logical_device, dev->uniform_memory);
@@ -1071,8 +1063,6 @@ NK_API void nk_glfw3_device_destroy(void) {
     vkFreeMemory(dev->logical_device, dev->font_memory, NULL);
     vkDestroyImage(dev->logical_device, dev->font_image, NULL);
     vkDestroyImageView(dev->logical_device, dev->font_image_view, NULL);
-
-    free(dev->command_buffers);
     nk_buffer_free(&dev->cmds);
 }
 
@@ -1089,13 +1079,15 @@ NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas) {
     *atlas = &glfw.atlas;
 }
 
-NK_API void nk_glfw3_font_stash_end(VkQueue graphics_queue) {
+NK_API void nk_glfw3_font_stash_end(
+    VkCommandBuffer cmd,
+    VkQueue graphics_queue)
+{
     struct nk_glfw_device *dev = &glfw.vulkan;
-
     const void *image;
     int w, h;
     image = nk_font_atlas_bake(&glfw.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
-    nk_glfw3_device_upload_atlas(graphics_queue, image, w, h);
+    nk_glfw3_device_upload_atlas(cmd, graphics_queue, image, w, h);
     nk_font_atlas_end(&glfw.atlas, nk_handle_ptr(dev->font_image_view),
                       &dev->tex_null);
     if (glfw.atlas.default_font) {
@@ -1253,10 +1245,6 @@ void nk_glfw3_create_cmd(
     VkImageView current_texture = NULL;
     uint32_t index_offset = 0;
     VkRect2D scissor;
-    uint32_t wait_semaphore_count;
-    VkSemaphore *wait_semaphores;
-    VkPipelineStageFlags wait_stage =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     projection.m[0] /= glfw.width;
     projection.m[5] /= glfw.height;

@@ -12,16 +12,16 @@ dt_view_switch(dt_gui_view_t view)
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      if(view != s_view_nodes) err = darkroom_leave();
+      // if(view != s_view_nodes) err = darkroom_leave();
       break;
     case s_view_lighttable:
       err = lighttable_leave();
       break;
     case s_view_files:
-      err = files_leave();
+      // err = files_leave();
       break;
     case s_view_nodes:
-      err = nodes_leave();
+      // err = nodes_leave();
       break;
     default:;
   }
@@ -31,19 +31,19 @@ dt_view_switch(dt_gui_view_t view)
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      if(old_view != s_view_nodes) err = darkroom_enter();
+      // if(old_view != s_view_nodes) err = darkroom_enter();
       break;
     case s_view_lighttable:
       err = lighttable_enter();
       break;
     case s_view_files:
-      err = files_enter();
+      // err = files_enter();
       break;
     case s_view_nodes:
-      err = nodes_enter();
+      // err = nodes_enter();
       break;
     case s_view_cnt: // called on exit
-      if(old_view == s_view_nodes) err = darkroom_leave(); // make sure to write .cfg too
+      // if(old_view == s_view_nodes) err = darkroom_leave(); // make sure to write .cfg too
       break;
     default:;
   }
@@ -64,7 +64,7 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
-    darkroom_mouse_button(window, button, action, mods);
+    // darkroom_mouse_button(window, button, action, mods);
     break;
   case s_view_lighttable:
     lighttable_mouse_button(window, button, action, mods);
@@ -81,7 +81,7 @@ dt_view_mouse_position(GLFWwindow *window, double x, double y)
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
-    darkroom_mouse_position(window, x, y);
+    // darkroom_mouse_position(window, x, y);
     break;
   case s_view_lighttable:
     lighttable_mouse_position(window, x, y);
@@ -96,7 +96,7 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
-    darkroom_mouse_scrolled(window, xoff, yoff);
+    // darkroom_mouse_scrolled(window, xoff, yoff);
     break;
   case s_view_lighttable:
     lighttable_mouse_scrolled(window, xoff, yoff);
@@ -127,10 +127,10 @@ dt_view_process()
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      darkroom_process();
+      // darkroom_process();
       break;
     case s_view_nodes:
-      nodes_process();
+      // nodes_process();
       break;
     default:;
   }
@@ -142,7 +142,7 @@ dt_view_pentablet_data(double x, double y, double z, double pressure, double pit
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
-      darkroom_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
+      // darkroom_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
       break;
     default:;
   }

@@ -174,7 +174,7 @@ void dt_gui_init_fonts()
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
-  nk_glfw3_font_stash_end(qvk.queue_graphics);
+  nk_glfw3_font_stash_end(vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
 }
@@ -186,9 +186,8 @@ int dt_gui_init_nk()
 
   nk_init_default(&vkdt.ctx, 0);
   // nk_init_default(&vkdt.ctx1, 0); // TODO secondary screen
-  // TODO: pass qvk stuff
-  // TODO: don't install callbacks, we'll do that
   nk_glfw3_init(
+      &vkdt.ctx,
       qvk.window,
       qvk.device, qvk.physical_device,
       512*1024, 128*1024);
@@ -354,7 +353,7 @@ void dt_gui_render_frame_nk()
 
 void dt_gui_record_command_buffer_nk(VkCommandBuffer cmd_buf)
 {
-  nk_glfw3_create_cmd(cmd_buf, NK_ANTI_ALIASING_ON);
+  nk_glfw3_create_cmd(&vkdt.ctx, cmd_buf, NK_ANTI_ALIASING_ON);
 }
 
 void dt_gui_cleanup_nk()

@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 // just wraps nuklear
-inline void
+static inline void
 dt_gui_set_tooltip(const char *fmt, ...)
 {
   va_list args;
