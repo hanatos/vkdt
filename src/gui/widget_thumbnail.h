@@ -70,12 +70,8 @@ inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
 static inline uint32_t
 dt_thumbnail_image(
     struct nk_context *ctx,
-    uint32_t imgid,
     VkImageView image_view,
     const struct nk_vec2 size,
-    const struct nk_vec2 uv0,
-    const struct nk_vec2 uv1,
-    int padding,
     const struct nk_color bg_col,
     const struct nk_color tint_col,
     uint16_t rating,
@@ -84,23 +80,18 @@ dt_thumbnail_image(
     int set_nav_focus)
 {
   int ret = 0;
-  if(nk_group_begin(ctx, "thumbnail", 0))
-  {
-    // struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
-    // struct nk_rect total_space = nk_window_get_content_region(ctx);
-    // nk_draw_image(canvas, total_space, &img, nk_white);
-    struct nk_image img = nk_image_ptr(image_view);
-    // nk_subimage_ptr ! need to find out what it does XXX
-    if(nk_button_image(ctx, img)) ret = 1;
+  struct nk_image img = nk_image_ptr(image_view);
+  int wd = MAX(size.x, size.y);
 
-    // XXX TODO: copy nk_button_text_styled
-    // XXX TODO: make it nk_draw_button_image
-    // TODO: need to work our way through these widgets and do exactly as they, but zoom into image and be sure to make it aspect preserving
+  struct nk_rect bound = nk_widget_bounds(ctx);
+  if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
+  struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
+  bound.x += (wd-size.x)/2;
+  bound.w -= (wd-size.x);
+  bound.y += (wd-size.y)/2;
+  bound.h -= (wd-size.y);
+  nk_draw_image(canvas, bound, &img, (struct nk_color){0x77,0x77,0x77,0xff});
 
-    // TODO: draw decorations
-
-    nk_group_end(ctx);
-  }
   return ret;
 
 

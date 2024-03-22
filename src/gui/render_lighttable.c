@@ -184,11 +184,8 @@ void render_lighttable_center()
     float h = vkdt.thumbnails.thumb[tid].ht * scale;
     uint32_t ret = dt_thumbnail_image(
         &vkdt.ctx,
-        vkdt.db.collection[i],
         vkdt.thumbnails.thumb[tid].image_view,
         (struct nk_vec2){w, h},
-        (struct nk_vec2){0,0}, (struct nk_vec2){1,1},
-        border,
         (struct nk_color){0x77,0x77,0x77,0xff},
         (struct nk_color){0xff,0xff,0xff,0xff},
         vkdt.db.image[vkdt.db.collection[i]].rating,
