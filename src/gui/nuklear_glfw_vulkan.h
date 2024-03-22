@@ -263,7 +263,7 @@ nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win,
               VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
-NK_API void nk_glfw3_font_stash_end(VkCommandBuffer cmd, VkQueue graphics_queue);
+NK_API void nk_glfw3_font_stash_end(struct nk_context *ctx, VkCommandBuffer cmd, VkQueue graphics_queue);
 NK_API void nk_glfw3_new_frame();
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
@@ -365,7 +365,6 @@ static struct nk_glfw {
     int width, height;
     int display_width, display_height;
     struct nk_glfw_device vulkan;
-    struct nk_context ctx;
     struct nk_font_atlas atlas;
     struct nk_vec2 fb_scale;
     unsigned int text[NK_GLFW_TEXT_MAX];
@@ -1088,6 +1087,7 @@ NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas) {
 }
 
 NK_API void nk_glfw3_font_stash_end(
+    struct nk_context *ctx,
     VkCommandBuffer cmd,
     VkQueue graphics_queue)
 {
@@ -1099,14 +1099,14 @@ NK_API void nk_glfw3_font_stash_end(
     nk_font_atlas_end(&glfw.atlas, nk_handle_ptr(dev->font_image_view),
                       &dev->tex_null);
     if (glfw.atlas.default_font) {
-        nk_style_set_font(&glfw.ctx, &glfw.atlas.default_font->handle);
+        nk_style_set_font(ctx, &glfw.atlas.default_font->handle);
     }
 }
 
-NK_API void nk_glfw3_new_frame(void) {
+NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
+{
     int i;
     double x, y;
-    struct nk_context *ctx = &glfw.ctx;
     struct GLFWwindow *win = glfw.win;
 
     nk_input_begin(ctx);
@@ -1202,7 +1202,7 @@ NK_API void nk_glfw3_new_frame(void) {
     nk_input_button(ctx, NK_BUTTON_DOUBLE, (int)glfw.double_click_pos.x,
                     (int)glfw.double_click_pos.y, glfw.is_double_click_down);
     nk_input_scroll(ctx, glfw.scroll);
-    nk_input_end(&glfw.ctx);
+    nk_input_end(ctx);
     glfw.text_len = 0;
     glfw.scroll = nk_vec2(0, 0);
 }
@@ -1442,22 +1442,25 @@ NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff,
     glfw.scroll.y += (float)yoff;
 }
 
-NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *window, int button,
-                                           int action, int mods) {
-    double x, y;
-    NK_UNUSED(mods);
-    if (button != GLFW_MOUSE_BUTTON_LEFT)
-        return;
-    glfwGetCursorPos(window, &x, &y);
-    if (action == GLFW_PRESS) {
-        double dt = glfwGetTime() - glfw.last_button_click;
-        if (dt > NK_GLFW_DOUBLE_CLICK_LO && dt < NK_GLFW_DOUBLE_CLICK_HI) {
-            glfw.is_double_click_down = nk_true;
-            glfw.double_click_pos = nk_vec2((float)x, (float)y);
-        }
-        glfw.last_button_click = glfwGetTime();
-    } else
-        glfw.is_double_click_down = nk_false;
+NK_API void
+nk_glfw3_mouse_button_callback(
+    GLFWwindow *window, int button,
+    int action, int mods)
+{
+  double x, y;
+  NK_UNUSED(mods);
+  if (button != GLFW_MOUSE_BUTTON_LEFT)
+    return;
+  glfwGetCursorPos(window, &x, &y);
+  if (action == GLFW_PRESS) {
+    double dt = glfwGetTime() - glfw.last_button_click;
+    if (dt > NK_GLFW_DOUBLE_CLICK_LO && dt < NK_GLFW_DOUBLE_CLICK_HI) {
+      glfw.is_double_click_down = nk_true;
+      glfw.double_click_pos = nk_vec2((float)x, (float)y);
+    }
+    glfw.last_button_click = glfwGetTime();
+  } else
+    glfw.is_double_click_down = nk_false;
 }
 
 NK_INTERN void nk_glfw3_clipboard_paste(nk_handle usr,

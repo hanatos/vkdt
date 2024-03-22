@@ -174,7 +174,7 @@ void dt_gui_init_fonts()
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
-  nk_glfw3_font_stash_end(vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
+  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
   nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
@@ -304,7 +304,7 @@ int dt_gui_init_nk()
 // call from main loop:
 void dt_gui_render_frame_nk()
 {
-  nk_glfw3_new_frame();
+  nk_glfw3_new_frame(&vkdt.ctx); // this context will get input
   double now = glfwGetTime();
 
   static double button_pressed_time = 0.0;

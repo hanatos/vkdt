@@ -145,7 +145,11 @@ void render_lighttable_center()
   }
 #endif
   struct nk_rect bounds = {vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht};
-  if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, 0)) return;
+  if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, 0))
+  {
+    nk_end(&vkdt.ctx);
+    return;
+  }
 
   const int ipl = 6;
   const int border = 0.004 * qvk.win_width;
@@ -363,17 +367,16 @@ int export_job(
 void render_lighttable_right_panel()
 { // right panel
   struct nk_context *ctx = &vkdt.ctx;
-  struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.center_ht};
-  if(!nk_begin(ctx, "lighttable panel right", bounds, 0)) return;
-
-  // XXX
-  // float lineht = ImGui::GetTextLineHeight();
-  // float bwd = 0.47f;
-  // ImVec2 size(bwd*vkdt.state.panel_wd, 1.6*lineht);
-
-  const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.4}; // XXX padding?
+  struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
+  const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3}; // XXX padding?
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {ratio[0], ratio[0]};
+
+  if(!nk_begin(ctx, "lighttable panel right", bounds, 0))
+  {
+    nk_end(ctx);
+    return;
+  }
 
   if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
   {

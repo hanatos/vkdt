@@ -26,6 +26,7 @@ GUI_H=gui/gui.h\
       gui/files.h\
       gui/nodes.h\
       gui/nuklear.h\
+      gui/nuklear_glfw_vulkan.h\
       core/core.h\
       core/fs.h\
       core/tools.h\
