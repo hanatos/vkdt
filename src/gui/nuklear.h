@@ -29870,6 +29870,7 @@ nk_combo_separator(struct nk_context *ctx, const char *items_separated_by_separa
         iter = current_item;
         while (*iter && *iter != separator) iter++;
         length = (int)(iter - current_item);
+        if (length == 0) break;
         if (i == selected) break;
         current_item = iter + 1;
     }
@@ -29881,6 +29882,7 @@ nk_combo_separator(struct nk_context *ctx, const char *items_separated_by_separa
             iter = current_item;
             while (*iter && *iter != separator) iter++;
             length = (int)(iter - current_item);
+            if (length == 0) break;
             if (nk_combo_item_text(ctx, current_item, length, NK_TEXT_LEFT))
                 selected = i;
             current_item = current_item + length + 1;
