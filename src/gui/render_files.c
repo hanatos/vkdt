@@ -30,16 +30,16 @@ void set_cwd(const char *dir, int up)
   dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
 }
 
-struct copy_job_t
+typedef struct copy_job_t
 { // copy contents of a folder
   char src[1000], dst[1000];
   struct dirent *ent;
   uint32_t cnt;
   uint32_t move;  // set to non-zero to remove src after copy
-  std::atomic_uint abort;
-  std::atomic_uint state;
+  atomic_uint abort;
+  atomic_uint state;
   int taskid;
-};
+} copy_job_t;
 void copy_job_cleanup(void *arg)
 { // task is done, every thread will call this (but we put only one)
   copy_job_t *j = (copy_job_t *)arg;
@@ -91,6 +91,7 @@ int copy_job(
 
 void render_files()
 {
+  // XXX also use this to focus text box
   static int just_entered = 1;
   if(just_entered)
   {

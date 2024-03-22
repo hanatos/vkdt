@@ -340,9 +340,7 @@ VkResult dt_gui_render()
   vkCmdBeginRenderPass(vkdt.command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
   vkdt.sem_fence[vkdt.sem_index] = i; // remember which frame in flight uses the semaphores
 
-  // XXX TODO put call to nuklear here, it depends ot the vkdt.frame_index!
   dt_gui_record_command_buffer_nk(vkdt.command_buffer[i]);
-  // TODO: returns a semaphore!
 
   // Submit command buffer
   vkCmdEndRenderPass(vkdt.command_buffer[i]);

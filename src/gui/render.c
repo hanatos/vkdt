@@ -188,6 +188,7 @@ int dt_gui_init_nk()
   // nk_init_default(&vkdt.ctx1, 0); // TODO secondary screen
   nk_glfw3_init(
       &vkdt.ctx,
+      vkdt.render_pass,
       qvk.window,
       qvk.device, qvk.physical_device,
       512*1024, 128*1024);

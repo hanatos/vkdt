@@ -258,7 +258,7 @@ unsigned int nuklearshaders_nuklear_frag_spv_len = 860;
 enum nk_glfw_init_state { NK_GLFW3_DEFAULT = 0, NK_GLFW3_INSTALL_CALLBACKS };
 
 NK_API void
-nk_glfw3_init(struct nk_context *ctx, GLFWwindow *win, VkDevice logical_device,
+nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win, VkDevice logical_device,
               VkPhysicalDevice physical_device,
               VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 NK_API void nk_glfw3_shutdown(void);
@@ -279,6 +279,7 @@ NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
                             uint32_t framebuffer_height);
 NK_API void nk_glfw3_device_destroy(void);
 NK_API void nk_glfw3_device_create(
+    VkRenderPass render_pass,
     VkDevice logical_device, VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer,
     uint32_t framebuffer_width, uint32_t framebuffer_height);
@@ -335,6 +336,7 @@ struct nk_glfw_device {
     int max_element_buffer;
     VkDevice logical_device;
     VkPhysicalDevice physical_device;
+    VkRenderPass render_pass;
     VkSampler sampler;
     VkBuffer vertex_buffer;
     VkDeviceMemory vertex_memory;
@@ -605,7 +607,9 @@ nk_glfw3_create_texture_descriptor_sets(struct nk_glfw_device *dev) {
     free(descriptor_sets);
 }
 
-NK_INTERN void nk_glfw3_create_pipeline_layout(struct nk_glfw_device *dev) {
+NK_INTERN void
+nk_glfw3_create_pipeline_layout(struct nk_glfw_device *dev)
+{
     VkPipelineLayoutCreateInfo pipeline_layout_info;
     VkDescriptorSetLayout descriptor_set_layouts[2];
     VkResult result;
@@ -647,7 +651,9 @@ nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
     return shader_info;
 }
 
-NK_INTERN void nk_glfw3_create_pipeline(struct nk_glfw_device *dev) {
+NK_INTERN void
+nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
+{
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
     VkPipelineRasterizationStateCreateInfo rasterization_state;
     VkPipelineColorBlendAttachmentState attachment_state = {
@@ -670,7 +676,6 @@ NK_INTERN void nk_glfw3_create_pipeline(struct nk_glfw_device *dev) {
     VkVertexInputBindingDescription vertex_input_info;
     VkVertexInputAttributeDescription vertex_attribute_description[3];
     VkPipelineVertexInputStateCreateInfo vertex_input;
-    VkGraphicsPipelineCreateInfo pipeline_info;
     VkResult result;
 
     memset(&input_assembly_state, 0,
@@ -746,21 +751,23 @@ NK_INTERN void nk_glfw3_create_pipeline(struct nk_glfw_device *dev) {
     vertex_input.vertexAttributeDescriptionCount = 3;
     vertex_input.pVertexAttributeDescriptions = vertex_attribute_description;
 
-    memset(&pipeline_info, 0, sizeof(VkGraphicsPipelineCreateInfo));
-    pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeline_info.flags = 0;
-    pipeline_info.stageCount = 2;
-    pipeline_info.pStages = shader_stages;
-    pipeline_info.pVertexInputState = &vertex_input;
-    pipeline_info.pInputAssemblyState = &input_assembly_state;
-    pipeline_info.pViewportState = &viewport_state;
-    pipeline_info.pRasterizationState = &rasterization_state;
-    pipeline_info.pMultisampleState = &multisample_state;
-    pipeline_info.pColorBlendState = &color_blend_state;
-    pipeline_info.pDynamicState = &dynamic_state;
-    pipeline_info.layout = dev->pipeline_layout;
-    pipeline_info.basePipelineIndex = -1;
-    pipeline_info.basePipelineHandle = NULL;
+    VkGraphicsPipelineCreateInfo pipeline_info = {
+      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+      .flags = 0,
+      .stageCount = 2,
+      .pStages = shader_stages,
+      .pVertexInputState = &vertex_input,
+      .pInputAssemblyState = &input_assembly_state,
+      .pViewportState = &viewport_state,
+      .pRasterizationState = &rasterization_state,
+      .pMultisampleState = &multisample_state,
+      .pColorBlendState = &color_blend_state,
+      .pDynamicState = &dynamic_state,
+      .layout = dev->pipeline_layout,
+      .renderPass = dev->render_pass,
+      .basePipelineIndex = -1,
+      .basePipelineHandle = NULL,
+    };
 
     result = vkCreateGraphicsPipelines(dev->logical_device, NULL, 1,
                                        &pipeline_info, NULL, &dev->pipeline);
@@ -784,6 +791,7 @@ NK_INTERN void nk_glfw3_create_render_resources(struct nk_glfw_device *dev,
 }
 
 NK_API void nk_glfw3_device_create(
+    VkRenderPass render_pass,
     VkDevice logical_device, VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer,
     uint32_t framebuffer_width, uint32_t framebuffer_height)
@@ -794,6 +802,7 @@ NK_API void nk_glfw3_device_create(
     nk_buffer_init_default(&dev->cmds);
     dev->logical_device = logical_device;
     dev->physical_device = physical_device;
+    dev->render_pass = render_pass;
 
     nk_glfw3_create_sampler(dev);
     nk_glfw3_create_buffer_and_memory(
@@ -835,7 +844,6 @@ nk_glfw3_device_upload_atlas(
     VkBufferCreateInfo buffer_info;
     uint8_t *data = 0;
     VkCommandBufferBeginInfo begin_info;
-    VkCommandBuffer command_buffer;
     VkImageMemoryBarrier image_memory_barrier;
     VkBufferImageCopy buffer_copy_region;
     VkImageMemoryBarrier image_shader_memory_barrier;
@@ -986,7 +994,7 @@ nk_glfw3_device_upload_atlas(
     memset(&submit_info, 0, sizeof(VkSubmitInfo));
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
+    submit_info.pCommandBuffers = &cmd;
 
     result = vkQueueSubmit(graphics_queue, 1, &submit_info, fence);
     NK_ASSERT(result == VK_SUCCESS);
@@ -1476,9 +1484,15 @@ NK_INTERN void nk_glfw3_clipboard_copy(nk_handle usr, const char *text,
 }
 
 NK_API void
-nk_glfw3_init(struct nk_context *ctx, GLFWwindow *win, VkDevice logical_device,
-              VkPhysicalDevice physical_device,
-              VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer) {
+nk_glfw3_init(
+    struct nk_context *ctx,
+    VkRenderPass render_pass,
+    GLFWwindow *win,
+    VkDevice logical_device,
+    VkPhysicalDevice physical_device,
+    VkDeviceSize max_vertex_buffer,
+    VkDeviceSize max_element_buffer)
+{
     memset(&glfw, 0, sizeof(struct nk_glfw));
     glfw.win = win;
     ctx->clip.copy  = nk_glfw3_clipboard_copy;
@@ -1489,10 +1503,13 @@ nk_glfw3_init(struct nk_context *ctx, GLFWwindow *win, VkDevice logical_device,
     glfwGetWindowSize(win, &glfw.width, &glfw.height);
     glfwGetFramebufferSize(win, &glfw.display_width, &glfw.display_height);
 
-    nk_glfw3_device_create(logical_device, physical_device,
-                           max_vertex_buffer,
-                           max_element_buffer, (uint32_t)glfw.display_width,
-                           (uint32_t)glfw.display_height);
+    nk_glfw3_device_create(
+        render_pass,
+        logical_device, physical_device,
+        max_vertex_buffer,
+        max_element_buffer,
+        (uint32_t)glfw.display_width,
+        (uint32_t)glfw.display_height);
 
     glfw.is_double_click_down = nk_false;
     glfw.double_click_pos = nk_vec2(0, 0);

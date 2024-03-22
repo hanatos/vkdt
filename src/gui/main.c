@@ -337,12 +337,6 @@ int main(int argc, char *argv[])
     glfwWaitEvents();
     for(int i=0;i<100;i++) if(!qvk_sub_work()) break;
 
-    // TODO: time sliced submitter thread here!
-    // TODO: work until queue completely drained (or crazy max)
-    // TODO:   post empty event to wake up this thread
-    // TODO: what about the frame limiter? we don't want it to affect the subs
-    // TODO: - if sub work item cnt > 0 ignore frame limiter
-
     if(frame_limiter || (dt_log_global.mask & s_log_perf))
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
       double end_rf = dt_time();
@@ -355,9 +349,6 @@ int main(int argc, char *argv[])
       beg_rf = end_rf;
     }
 
-    // XXX refactor: call this dt_gui_render() and then call nuklear stuff in render.c from within this (to get to semaphore and frame index)
-    // XXX it will then also include the command buffer execution
-    // XXX essentially copy demo code here
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
     else

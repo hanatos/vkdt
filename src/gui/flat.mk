@@ -9,7 +9,7 @@ GUI_H=gui/gui.h\
       gui/render_view.h\
       gui/render_darkroom.h\
       gui/api.h\
-      gui/api-gui.h\
+      gui/api_gui.h\
       gui/hotkey.h\
       gui/keyaccel.h\
       gui/widget_dopesheet.h\

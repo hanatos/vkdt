@@ -33,55 +33,49 @@ export_render_widget(
 
   char str[10] = {0};
   memcpy(str, &param->name, 8);
-  switch(param->widget.type)
+  const dt_token_t widget = param->widget.type;
+  if(widget == dt_token("slider"))
   { // distinguish by type:
-    case dt_token("slider"):
+    if(param->type == dt_token("float"))
     {
-      if(param->type == dt_token("float"))
-      {
-        float *val = (float*)(pdata + param->offset);
-        nk_slider_float(&vkdt.ctx, param->widget.min, val, param->widget.max, 0.01);
-        if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
-          memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-        if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
-        nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
-      }
-      else if(param->type == dt_token("int"))
-      {
-        int32_t *val = (int32_t*)(pdata + param->offset);
-        nk_slider_int(&vkdt.ctx, param->widget.min, val, param->widget.max, 1);
-        if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
-          memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-        if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
-        nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
-      }
-      break;
-    }
-    case dt_token("combo"):
-    { // combo box
-      if(param->type == dt_token("int"))
-      {
-        int32_t *val = (int32_t*)(pdata + param->offset);
-        // XXX TODO: in nuklear.h in nk_combo_separator make sure to break the loop if length==0 in two places!
-        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, (struct nk_vec2){ratio[0], ratio[0]});
-        if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
-          memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-        if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
-        nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
-      }
-      break;
-    }
-    case dt_token("filename"):
-    {
-      char *v = (char *)(pdata + param->offset);
-      nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_SIMPLE, v, param->cnt, nk_filter_default);
+      float *val = (float*)(pdata + param->offset);
+      nk_slider_float(&vkdt.ctx, param->widget.min, val, param->widget.max, 0.01);
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
       if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
-      break;
     }
-    default: break;
+    else if(param->type == dt_token("int"))
+    {
+      int32_t *val = (int32_t*)(pdata + param->offset);
+      nk_slider_int(&vkdt.ctx, param->widget.min, val, param->widget.max, 1);
+      if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+        memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+      if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+      nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
+    }
+  }
+  else if(widget == dt_token("combo"))
+  { // combo box
+    if(param->type == dt_token("int"))
+    {
+      int32_t *val = (int32_t*)(pdata + param->offset);
+      // XXX TODO: in nuklear.h in nk_combo_separator make sure to break the loop if length==0 in two places!
+      nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, (struct nk_vec2){ratio[0], ratio[0]});
+      if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+        memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+      if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+      nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
+    }
+  }
+  else if(widget == dt_token("filename"))
+  {
+    char *v = (char *)(pdata + param->offset);
+    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_SIMPLE, v, param->cnt, nk_filter_default);
+    if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
+      memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+    if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
+    nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
   }
 }
 
