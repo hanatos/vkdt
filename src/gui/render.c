@@ -177,6 +177,7 @@ void dt_gui_init_fonts()
   nk_glfw3_font_stash_end(vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
+  nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
 }
 
 
@@ -301,7 +302,6 @@ int dt_gui_init_nk()
 }
 
 // call from main loop:
-// XXX TODO call this from dt_gui_render after acquiring the image, or factor out the call to nk_glfw3_render!
 void dt_gui_render_frame_nk()
 {
   nk_glfw3_new_frame();

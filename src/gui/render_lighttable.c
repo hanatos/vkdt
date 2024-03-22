@@ -835,6 +835,7 @@ void render_lighttable_right_panel()
 void render_lighttable()
 {
   render_lighttable_right_panel();
+  render_lighttable_center();
 
   // popup windows
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
@@ -867,10 +868,6 @@ void render_lighttable()
     }
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
-  }
-  else
-  { // no popups, can use center view for regular lighttable stuff
-    render_lighttable_center();
   }
 }
 
