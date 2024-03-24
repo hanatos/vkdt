@@ -11,6 +11,8 @@
 static inline void
 dt_gui_set_tooltip(const char *fmt, ...)
 {
+  // XXX FIXME: these need to all go *before* the widget, we should also include the is_hovering part here
+#if 0
   va_list args;
   va_start(args, fmt);
   nk_tooltipfv(&vkdt.ctx, fmt, args);
@@ -18,6 +20,7 @@ dt_gui_set_tooltip(const char *fmt, ...)
   // nk_text_wrap 
   // nk_tooltip_end
   va_end(args);
+#endif
 }
 
 

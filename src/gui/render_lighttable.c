@@ -184,7 +184,7 @@ void render_lighttable_center()
     float h = vkdt.thumbnails.thumb[tid].ht * scale;
     uint32_t ret = dt_thumbnail_image(
         &vkdt.ctx,
-        vkdt.thumbnails.thumb[tid].image_view,
+        vkdt.thumbnails.thumb[tid].dset,
         (struct nk_vec2){w, h},
         (struct nk_color){0x77,0x77,0x77,0xff},
         (struct nk_color){0xff,0xff,0xff,0xff},
@@ -196,9 +196,8 @@ void render_lighttable_center()
         vkdt.wstate.set_nav_focus : 0);
     if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
-    if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db) ||
-        (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
 
+    // if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db) || (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
       // XXX ImGui::PopStyleColor(2);
 
     if(ret)
@@ -427,6 +426,8 @@ void render_lighttable_right_panel()
 
         int sel = filter_val & (1<<k);
         if(sel) nk_style_push_float(ctx, &ctx->style.button.border, vkdt.wstate.fontsize*0.2);
+        if(nk_widget_is_hovered(ctx))
+          dt_gui_set_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
         if(nk_button_label(ctx, k==5 ? "m" : k==6 ? "[ ]" : " "))
         {
           filter_val ^= (1<<k);
@@ -434,8 +435,9 @@ void render_lighttable_right_panel()
           dt_db_update_collection(&vkdt.db);
           dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
         }
-        if(nk_widget_is_hovered(ctx))
-          dt_gui_set_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
+        if(sel) nk_style_pop_float(ctx);
+        nk_style_pop_float(ctx);
+        nk_style_pop_style_item(ctx);
       }
     }
     else if(filter_prop == s_prop_filetype)
@@ -468,6 +470,7 @@ void render_lighttable_right_panel()
       nk_label(ctx, "filter value", NK_TEXT_LEFT);
     }
 
+    nk_layout_row_dynamic(ctx, row_height, 1);
     if(nk_button_label(ctx, "open directory"))
       dt_view_switch(s_view_files);
 
@@ -484,8 +487,7 @@ void render_lighttable_right_panel()
 
     // ==============================================================
     // recently used tags:
-    // XXX dynamic does this /3 automatically maybe?
-    nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd/3, 3);
+    nk_layout_row_dynamic(ctx, row_height, 3);
     char filename[PATH_MAX+100];
     for(int i=0;i<vkdt.tag_cnt;i++)
     {

@@ -70,7 +70,7 @@ inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
 static inline uint32_t
 dt_thumbnail_image(
     struct nk_context *ctx,
-    VkImageView image_view,
+    VkDescriptorSet dset,
     const struct nk_vec2 size,
     const struct nk_color bg_col,
     const struct nk_color tint_col,
@@ -80,7 +80,7 @@ dt_thumbnail_image(
     int set_nav_focus)
 {
   int ret = 0;
-  struct nk_image img = nk_image_ptr(image_view);
+  struct nk_image img = nk_image_ptr(dset);
   int wd = MAX(size.x, size.y);
 
   struct nk_rect bound = nk_widget_bounds(ctx);

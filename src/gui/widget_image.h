@@ -327,7 +327,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
   }
 }
 
-inline void
+static inline void
 dt_image(
     struct nk_context *ctx,     // this is crucial to run on secondary screen
     dt_image_widget_t *w,
@@ -336,8 +336,8 @@ dt_image(
     int                main)    // if !=0 do on-canvas ui elements
 {
   if(!out) return;
-  dt_connector_image_t *img = dt_graph_connector_image(&vkdt.graph_dev, out-vkdt.graph_dev.node, 0, 0, vkdt.graph_dev.frame);
-  if(!img) return;
+  // dt_connector_image_t *img = dt_graph_connector_image(&vkdt.graph_dev, out-vkdt.graph_dev.node, 0, 0, vkdt.graph_dev.frame);
+  // if(!img) return;
   w->out = out;
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
@@ -360,7 +360,8 @@ dt_image(
   struct nk_rect subimg = {0, 0, w->wd, w->ht};
   // struct nk_rect disp;
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
-  struct nk_image nkimg = nk_subimage_ptr(img->image_view, w->wd, w->ht, subimg);
+  //struct nk_image nkimg = nk_subimage_ptr(img->image_view, w->wd, w->ht, subimg);
+  struct nk_image nkimg = nk_subimage_ptr(out->dset[0], w->wd, w->ht, subimg);
   nk_image(ctx, nkimg); // ??
   int hover = nk_widget_is_hovered(ctx);
   // nk_draw_image(buf, disp, &nkimg, col);

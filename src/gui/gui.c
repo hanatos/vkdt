@@ -341,7 +341,7 @@ VkResult dt_gui_render()
   vkdt.sem_fence[vkdt.sem_index] = i; // remember which frame in flight uses the semaphores
 
   dt_gui_render_frame_nk();
-  dt_gui_record_command_buffer_nk(vkdt.command_buffer[i]);
+  nk_glfw3_create_cmd(&vkdt.ctx, vkdt.command_buffer[i], NK_ANTI_ALIASING_ON);
 
   // Submit command buffer
   vkCmdEndRenderPass(vkdt.command_buffer[i]);

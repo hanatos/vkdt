@@ -171,9 +171,9 @@ window_close_callback(GLFWwindow* window)
 
 static void
 window_size_callback(GLFWwindow* window, int width, int height)
-{
-  // window resized, need to rebuild our swapchain:
+{ // window resized, need to rebuild our swapchain:
   dt_gui_recreate_swapchain();
+  nk_glfw3_resize(qvk.win_width, qvk.win_height);
   dt_gui_init_fonts();
 }
 

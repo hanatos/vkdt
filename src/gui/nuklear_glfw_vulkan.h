@@ -281,8 +281,7 @@ NK_API void nk_glfw3_device_destroy(void);
 NK_API void nk_glfw3_device_create(
     VkRenderPass render_pass,
     VkDevice logical_device, VkPhysicalDevice physical_device,
-    VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer,
-    uint32_t framebuffer_width, uint32_t framebuffer_height);
+    VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
@@ -324,40 +323,36 @@ struct nk_glfw_vertex {
     nk_byte col[4];
 };
 
-struct nk_vulkan_texture_descriptor_set {
-    VkImageView image_view;
-    VkDescriptorSet descriptor_set;
-};
+struct nk_glfw_device
+{
+  struct nk_buffer cmds;
+  struct nk_draw_null_texture tex_null;
+  int max_vertex_buffer;
+  int max_element_buffer;
+  VkDevice logical_device;
+  VkPhysicalDevice physical_device;
+  VkRenderPass render_pass;
+  VkSampler sampler;
+  VkBuffer vertex_buffer;
+  VkDeviceMemory vertex_memory;
+  void *mapped_vertex;
+  VkBuffer index_buffer;
+  VkDeviceMemory index_memory;
+  void *mapped_index;
+  VkBuffer uniform_buffer;
+  VkDeviceMemory uniform_memory;
+  void *mapped_uniform;
+  VkDescriptorPool descriptor_pool;
+  VkDescriptorSetLayout uniform_descriptor_set_layout;
+  VkDescriptorSet uniform_descriptor_set;
+  VkDescriptorSetLayout texture_descriptor_set_layout;
+  VkPipelineLayout pipeline_layout;
+  VkPipeline pipeline;
 
-struct nk_glfw_device {
-    struct nk_buffer cmds;
-    struct nk_draw_null_texture tex_null;
-    int max_vertex_buffer;
-    int max_element_buffer;
-    VkDevice logical_device;
-    VkPhysicalDevice physical_device;
-    VkRenderPass render_pass;
-    VkSampler sampler;
-    VkBuffer vertex_buffer;
-    VkDeviceMemory vertex_memory;
-    void *mapped_vertex;
-    VkBuffer index_buffer;
-    VkDeviceMemory index_memory;
-    void *mapped_index;
-    VkBuffer uniform_buffer;
-    VkDeviceMemory uniform_memory;
-    void *mapped_uniform;
-    VkDescriptorPool descriptor_pool;
-    VkDescriptorSetLayout uniform_descriptor_set_layout;
-    VkDescriptorSet uniform_descriptor_set;
-    VkDescriptorSetLayout texture_descriptor_set_layout;
-    struct nk_vulkan_texture_descriptor_set *texture_descriptor_sets;
-    uint32_t texture_descriptor_sets_len;
-    VkPipelineLayout pipeline_layout;
-    VkPipeline pipeline;
-    VkImage font_image;
-    VkImageView font_image_view;
-    VkDeviceMemory font_memory;
+  VkImage font_image;
+  VkDescriptorSet font_dset;
+  VkImageView font_image_view;
+  VkDeviceMemory font_memory;
 };
 
 static struct nk_glfw {
@@ -398,41 +393,41 @@ NK_INTERN uint32_t nk_glfw3_find_memory_index(
     return 0;
 }
 
-NK_INTERN void nk_glfw3_create_sampler(struct nk_glfw_device *dev) {
-    VkResult result;
-    VkSamplerCreateInfo sampler_info;
-    memset(&sampler_info, 0, sizeof(VkSamplerCreateInfo));
-
-    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sampler_info.pNext = NULL;
-    sampler_info.maxAnisotropy = 1.0;
-    sampler_info.magFilter = VK_FILTER_LINEAR;
-    sampler_info.minFilter = VK_FILTER_LINEAR;
-    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_info.mipLodBias = 0.0f;
-    sampler_info.compareEnable = VK_FALSE;
-    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-    sampler_info.minLod = 0.0f;
-    sampler_info.maxLod = 0.0f;
-    sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-
-    result = vkCreateSampler(dev->logical_device, &sampler_info, NULL,
-                             &dev->sampler);
-    NK_ASSERT(result == VK_SUCCESS);
+NK_INTERN VkResult
+nk_glfw3_create_sampler(struct nk_glfw_device *dev)
+{
+  VkSamplerCreateInfo sampler_info = {
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext = NULL,
+    .maxAnisotropy = 1.0,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mipLodBias = 0.0f,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .minLod = 0.0f,
+    .maxLod = 0.0f,
+    .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+  };
+  return vkCreateSampler(dev->logical_device, &sampler_info, NULL, &dev->sampler);
 }
 
-NK_INTERN void nk_glfw3_create_buffer_and_memory(struct nk_glfw_device *dev,
-                                                 VkBuffer *buffer,
-                                                 VkBufferUsageFlags usage,
-                                                 VkDeviceMemory *memory,
-                                                 VkDeviceSize size) {
+NK_INTERN VkResult
+nk_glfw3_create_buffer_and_memory(
+    struct nk_glfw_device *dev,
+    VkBuffer *buffer,
+    VkBufferUsageFlags usage,
+    VkDeviceMemory *memory,
+    VkDeviceSize size)
+{
     VkMemoryRequirements mem_reqs;
-    VkResult result;
     VkBufferCreateInfo buffer_info;
     VkMemoryAllocateInfo alloc_info;
+    VkResult result;
 
     memset(&buffer_info, 0, sizeof(VkBufferCreateInfo));
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -441,7 +436,7 @@ NK_INTERN void nk_glfw3_create_buffer_and_memory(struct nk_glfw_device *dev,
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     result = vkCreateBuffer(dev->logical_device, &buffer_info, NULL, buffer);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     vkGetBufferMemoryRequirements(dev->logical_device, *buffer, &mem_reqs);
 
@@ -454,156 +449,129 @@ NK_INTERN void nk_glfw3_create_buffer_and_memory(struct nk_glfw_device *dev,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL, memory);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
     result = vkBindBufferMemory(dev->logical_device, *buffer, *memory, 0);
-    NK_ASSERT(result == VK_SUCCESS);
+    return result;
 }
 
-NK_INTERN void nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev) {
-    VkDescriptorPoolSize pool_sizes[2];
-    VkDescriptorPoolCreateInfo pool_info;
-    VkResult result;
+NK_INTERN void nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev)
+{
+  VkDescriptorPoolSize pool_sizes[2];
+  VkDescriptorPoolCreateInfo pool_info;
+  VkResult result;
 
-    memset(&pool_sizes, 0, sizeof(VkDescriptorPoolSize) * 2);
-    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes[0].descriptorCount = 1;
-    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[1].descriptorCount = NK_GLFW_MAX_TEXTURES;
+  memset(&pool_sizes, 0, sizeof(VkDescriptorPoolSize) * 2);
+  pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  pool_sizes[0].descriptorCount = 1;
+  pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  pool_sizes[1].descriptorCount = 1; // font atlas
 
-    memset(&pool_info, 0, sizeof(VkDescriptorPoolCreateInfo));
-    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.poolSizeCount = 2;
-    pool_info.pPoolSizes = pool_sizes;
-    pool_info.maxSets = 1 + NK_GLFW_MAX_TEXTURES;
+  memset(&pool_info, 0, sizeof(VkDescriptorPoolCreateInfo));
+  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  pool_info.poolSizeCount = 2;
+  pool_info.pPoolSizes = pool_sizes;
+  pool_info.maxSets = 1 + 1;
 
-    result = vkCreateDescriptorPool(dev->logical_device, &pool_info, NULL,
-                                    &dev->descriptor_pool);
-    NK_ASSERT(result == VK_SUCCESS);
-}
-
-NK_INTERN void
-nk_glfw3_create_uniform_descriptor_set_layout(struct nk_glfw_device *dev) {
-    VkDescriptorSetLayoutBinding binding;
-    VkDescriptorSetLayoutCreateInfo descriptor_set_info;
-    VkResult result;
-
-    memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
-    binding.binding = 0;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    binding.descriptorCount = 1;
-    binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    memset(&descriptor_set_info, 0, sizeof(VkDescriptorSetLayoutCreateInfo));
-    descriptor_set_info.sType =
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptor_set_info.bindingCount = 1;
-    descriptor_set_info.pBindings = &binding;
-
-    result =
-        vkCreateDescriptorSetLayout(dev->logical_device, &descriptor_set_info,
-                                    NULL, &dev->uniform_descriptor_set_layout);
-
-    NK_ASSERT(result == VK_SUCCESS);
+  result = vkCreateDescriptorPool(
+      dev->logical_device, &pool_info, NULL,
+      &dev->descriptor_pool);
+  NK_ASSERT(result == VK_SUCCESS);
 }
 
 NK_INTERN void
-nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev) {
-    VkDescriptorSetAllocateInfo allocate_info;
-    VkDescriptorBufferInfo buffer_info;
-    VkWriteDescriptorSet descriptor_write;
-    VkResult result;
+nk_glfw3_create_uniform_descriptor_set_layout(struct nk_glfw_device *dev)
+{
+  VkDescriptorSetLayoutBinding binding;
+  VkDescriptorSetLayoutCreateInfo descriptor_set_info;
+  VkResult result;
 
-    memset(&allocate_info, 0, sizeof(VkDescriptorSetAllocateInfo));
-    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = dev->descriptor_pool;
-    allocate_info.descriptorSetCount = 1;
-    allocate_info.pSetLayouts = &dev->uniform_descriptor_set_layout;
+  memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
+  binding.binding = 0;
+  binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  binding.descriptorCount = 1;
+  binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info,
-                                      &dev->uniform_descriptor_set);
-    NK_ASSERT(result == VK_SUCCESS);
+  memset(&descriptor_set_info, 0, sizeof(VkDescriptorSetLayoutCreateInfo));
+  descriptor_set_info.sType =
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  descriptor_set_info.bindingCount = 1;
+  descriptor_set_info.pBindings = &binding;
 
-    memset(&buffer_info, 0, sizeof(VkDescriptorBufferInfo));
-    buffer_info.buffer = dev->uniform_buffer;
-    buffer_info.offset = 0;
-    buffer_info.range = sizeof(struct Mat4f);
+  result =
+    vkCreateDescriptorSetLayout(dev->logical_device, &descriptor_set_info,
+        NULL, &dev->uniform_descriptor_set_layout);
 
-    memset(&descriptor_write, 0, sizeof(VkWriteDescriptorSet));
-    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_write.dstSet = dev->uniform_descriptor_set;
-    descriptor_write.dstBinding = 0;
-    descriptor_write.dstArrayElement = 0;
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptor_write.descriptorCount = 1;
-    descriptor_write.pBufferInfo = &buffer_info;
-
-    vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
+  NK_ASSERT(result == VK_SUCCESS);
 }
 
 NK_INTERN void
-nk_glfw3_create_texture_descriptor_set_layout(struct nk_glfw_device *dev) {
-    VkDescriptorSetLayoutBinding binding;
-    VkDescriptorSetLayoutCreateInfo descriptor_set_info;
-    VkResult result;
+nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev)
+{
+  VkDescriptorSetAllocateInfo allocate_info;
+  VkDescriptorBufferInfo buffer_info;
+  VkWriteDescriptorSet descriptor_write;
+  VkResult result;
 
-    memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
-    binding.binding = 0;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    binding.descriptorCount = 1;
-    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  memset(&allocate_info, 0, sizeof(VkDescriptorSetAllocateInfo));
+  allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocate_info.descriptorPool = dev->descriptor_pool;
+  allocate_info.descriptorSetCount = 1;
+  allocate_info.pSetLayouts = &dev->uniform_descriptor_set_layout;
 
-    memset(&descriptor_set_info, 0, sizeof(VkDescriptorSetLayoutCreateInfo));
-    descriptor_set_info.sType =
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptor_set_info.bindingCount = 1;
-    descriptor_set_info.pBindings = &binding;
+  result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info,
+      &dev->uniform_descriptor_set);
+  NK_ASSERT(result == VK_SUCCESS);
 
-    result =
-        vkCreateDescriptorSetLayout(dev->logical_device, &descriptor_set_info,
-                                    NULL, &dev->texture_descriptor_set_layout);
+  memset(&buffer_info, 0, sizeof(VkDescriptorBufferInfo));
+  buffer_info.buffer = dev->uniform_buffer;
+  buffer_info.offset = 0;
+  buffer_info.range = sizeof(struct Mat4f);
 
-    NK_ASSERT(result == VK_SUCCESS);
+  memset(&descriptor_write, 0, sizeof(VkWriteDescriptorSet));
+  descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptor_write.dstSet = dev->uniform_descriptor_set;
+  descriptor_write.dstBinding = 0;
+  descriptor_write.dstArrayElement = 0;
+  descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  descriptor_write.descriptorCount = 1;
+  descriptor_write.pBufferInfo = &buffer_info;
+
+  vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
 }
 
 NK_INTERN void
-nk_glfw3_create_texture_descriptor_sets(struct nk_glfw_device *dev) {
-    VkDescriptorSetLayout *descriptor_set_layouts;
-    VkDescriptorSet *descriptor_sets;
-    VkDescriptorSetAllocateInfo allocate_info;
-    VkResult result;
-    int i;
+nk_glfw3_create_texture_descriptor_set_layout(struct nk_glfw_device *dev)
+{
+  VkDescriptorSetLayoutBinding binding;
+  VkDescriptorSetLayoutCreateInfo descriptor_set_info;
+  VkResult result;
 
-    descriptor_set_layouts = (VkDescriptorSetLayout *)malloc(
-        NK_GLFW_MAX_TEXTURES * sizeof(VkDescriptorSetLayout));
-    descriptor_sets = (VkDescriptorSet *)malloc(NK_GLFW_MAX_TEXTURES *
-                                                sizeof(VkDescriptorSet));
+  memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
+  binding.binding = 0;
+  binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  binding.descriptorCount = 1;
+  binding.stageFlags = VK_SHADER_STAGE_ALL;//VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    dev->texture_descriptor_sets =
-        (struct nk_vulkan_texture_descriptor_set *)malloc(
-            NK_GLFW_MAX_TEXTURES *
-            sizeof(struct nk_vulkan_texture_descriptor_set));
-    dev->texture_descriptor_sets_len = 0;
+  memset(&descriptor_set_info, 0, sizeof(VkDescriptorSetLayoutCreateInfo));
+  descriptor_set_info.sType =
+    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  descriptor_set_info.bindingCount = 1;
+  descriptor_set_info.pBindings = &binding;
 
-    for (i = 0; i < NK_GLFW_MAX_TEXTURES; i++) {
-        descriptor_set_layouts[i] = dev->texture_descriptor_set_layout;
-        descriptor_sets[i] = dev->texture_descriptor_sets[i].descriptor_set;
-    }
+  result = vkCreateDescriptorSetLayout(
+      dev->logical_device, &descriptor_set_info,
+      NULL, &dev->texture_descriptor_set_layout);
 
-    memset(&allocate_info, 0, sizeof(VkDescriptorSetAllocateInfo));
-    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = dev->descriptor_pool;
-    allocate_info.descriptorSetCount = NK_GLFW_MAX_TEXTURES;
-    allocate_info.pSetLayouts = descriptor_set_layouts;
+  NK_ASSERT(result == VK_SUCCESS);
 
-    result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info,
-                                      descriptor_sets);
-    NK_ASSERT(result == VK_SUCCESS);
-
-    for (i = 0; i < NK_GLFW_MAX_TEXTURES; i++) {
-        dev->texture_descriptor_sets[i].descriptor_set = descriptor_sets[i];
-    }
-    free(descriptor_set_layouts);
-    free(descriptor_sets);
+  VkDescriptorSetAllocateInfo allocate_info = {
+    .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool     = dev->descriptor_pool,
+    .descriptorSetCount = 1,
+    .pSetLayouts        = &dev->texture_descriptor_set_layout,
+  };
+  result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info, &dev->font_dset);
+  NK_ASSERT(result == VK_SUCCESS);
 }
 
 NK_INTERN void
@@ -776,15 +744,14 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
     vkDestroyShaderModule(dev->logical_device, shader_stages[1].module, NULL);
 }
 
-// XXX TODO: axe through this and remove what we already have in qvk!
-NK_INTERN void nk_glfw3_create_render_resources(struct nk_glfw_device *dev,
-                                                uint32_t framebuffer_width,
-                                                uint32_t framebuffer_height) {
+NK_INTERN void
+nk_glfw3_create_render_resources(
+    struct nk_glfw_device *dev)
+{
     nk_glfw3_create_descriptor_pool(dev);
     nk_glfw3_create_uniform_descriptor_set_layout(dev);
     nk_glfw3_create_and_update_uniform_descriptor_set(dev);
     nk_glfw3_create_texture_descriptor_set_layout(dev);
-    nk_glfw3_create_texture_descriptor_sets(dev);
     nk_glfw3_create_pipeline_layout(dev);
     nk_glfw3_create_pipeline(dev);
 }
@@ -792,8 +759,7 @@ NK_INTERN void nk_glfw3_create_render_resources(struct nk_glfw_device *dev,
 NK_API void nk_glfw3_device_create(
     VkRenderPass render_pass,
     VkDevice logical_device, VkPhysicalDevice physical_device,
-    VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer,
-    uint32_t framebuffer_width, uint32_t framebuffer_height)
+    VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer)
 {
     struct nk_glfw_device *dev = &glfw.vulkan;
     dev->max_vertex_buffer = max_vertex_buffer;
@@ -823,8 +789,7 @@ NK_API void nk_glfw3_device_create(
     vkMapMemory(dev->logical_device, dev->uniform_memory, 0,
                 sizeof(struct Mat4f), 0, &dev->mapped_uniform);
 
-    nk_glfw3_create_render_resources(dev, framebuffer_width,
-                                     framebuffer_height);
+    nk_glfw3_create_render_resources(dev);
 }
 
 NK_INTERN void
@@ -871,12 +836,11 @@ nk_glfw3_device_upload_atlas(
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    result =
-        vkCreateImage(dev->logical_device, &image_info, NULL, &dev->font_image);
+    result = vkCreateImage(dev->logical_device, &image_info, NULL, &dev->font_image);
     NK_ASSERT(result == VK_SUCCESS);
 
-    vkGetImageMemoryRequirements(dev->logical_device, dev->font_image,
-                                 &mem_reqs);
+    vkGetImageMemoryRequirements(
+        dev->logical_device, dev->font_image, &mem_reqs);
 
     memset(&alloc_info, 0, sizeof(VkMemoryAllocateInfo));
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -978,6 +942,7 @@ nk_glfw3_device_upload_atlas(
     image_shader_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 
     vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        // VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT ??
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0,
                          NULL, 1, &image_shader_memory_barrier);
 
@@ -1018,6 +983,22 @@ nk_glfw3_device_upload_atlas(
     result = vkCreateImageView(dev->logical_device, &image_view_info, NULL,
                                &dev->font_image_view);
     NK_ASSERT(result == VK_SUCCESS);
+
+    VkDescriptorImageInfo descriptor_image_info = {
+      .sampler     = dev->sampler,
+      .imageView   = dev->font_image_view,
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    };
+    VkWriteDescriptorSet descriptor_write = {
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = dev->font_dset,
+      .dstBinding      = 0,
+      .dstArrayElement = 0,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .pImageInfo      = &descriptor_image_info,
+    };
+    vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
 }
 
 NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
@@ -1029,24 +1010,21 @@ NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
     vkDestroyDescriptorSetLayout(dev->logical_device,
                                  dev->uniform_descriptor_set_layout, NULL);
     vkDestroyDescriptorPool(dev->logical_device, dev->descriptor_pool, NULL);
-    free(dev->texture_descriptor_sets);
-    dev->texture_descriptor_sets_len = 0;
 }
 
-NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
-                            uint32_t framebuffer_height) {
-    struct nk_glfw_device *dev = &glfw.vulkan;
-    glfwGetWindowSize(glfw.win, &glfw.width, &glfw.height);
-    glfwGetFramebufferSize(glfw.win, &glfw.display_width, &glfw.display_height);
-    glfw.fb_scale.x = (float)glfw.display_width / (float)glfw.width;
-    glfw.fb_scale.y = (float)glfw.display_height / (float)glfw.height;
-
-    nk_glfw3_destroy_render_resources(dev);
-    nk_glfw3_create_render_resources(dev, framebuffer_width,
-                                     framebuffer_height);
+NK_API void
+nk_glfw3_resize(
+    uint32_t framebuffer_width,
+    uint32_t framebuffer_height)
+{
+  glfwGetWindowSize(glfw.win, &glfw.width, &glfw.height);
+  glfwGetFramebufferSize(glfw.win, &glfw.display_width, &glfw.display_height);
+  glfw.fb_scale.x = (float)glfw.display_width / (float)glfw.width;
+  glfw.fb_scale.y = (float)glfw.display_height / (float)glfw.height;
 }
 
-NK_API void nk_glfw3_device_destroy(void) {
+NK_API void nk_glfw3_device_destroy(void)
+{
     struct nk_glfw_device *dev = &glfw.vulkan;
 
     vkDeviceWaitIdle(dev->logical_device);
@@ -1074,10 +1052,11 @@ NK_API void nk_glfw3_device_destroy(void) {
 }
 
 NK_API
-void nk_glfw3_shutdown(void) {
-    nk_font_atlas_clear(&glfw.atlas);
-    nk_glfw3_device_destroy();
-    memset(&glfw, 0, sizeof(glfw));
+void nk_glfw3_shutdown(void)
+{
+  nk_font_atlas_clear(&glfw.atlas);
+  nk_glfw3_device_destroy();
+  memset(&glfw, 0, sizeof(glfw));
 }
 
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas) {
@@ -1091,16 +1070,18 @@ NK_API void nk_glfw3_font_stash_end(
     VkCommandBuffer cmd,
     VkQueue graphics_queue)
 {
-    struct nk_glfw_device *dev = &glfw.vulkan;
-    const void *image;
-    int w, h;
-    image = nk_font_atlas_bake(&glfw.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
-    nk_glfw3_device_upload_atlas(cmd, graphics_queue, image, w, h);
-    nk_font_atlas_end(&glfw.atlas, nk_handle_ptr(dev->font_image_view),
-                      &dev->tex_null);
-    if (glfw.atlas.default_font) {
-        nk_style_set_font(ctx, &glfw.atlas.default_font->handle);
-    }
+  struct nk_glfw_device *dev = &glfw.vulkan;
+  const void *image;
+  int w, h;
+  image = nk_font_atlas_bake(&glfw.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
+  nk_glfw3_device_upload_atlas(cmd, graphics_queue, image, w, h);
+  nk_font_atlas_end(
+      &glfw.atlas,
+      nk_handle_ptr(dev->font_dset),
+      &dev->tex_null);
+
+  if (glfw.atlas.default_font)
+    nk_style_set_font(ctx, &glfw.atlas.default_font->handle);
 }
 
 NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
@@ -1207,10 +1188,12 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
     glfw.scroll = nk_vec2(0, 0);
 }
 
+#if 0
 NK_INTERN void update_texture_descriptor_set(
     struct nk_glfw_device *dev,
     struct nk_vulkan_texture_descriptor_set *texture_descriptor_set,
-    VkImageView image_view) {
+    VkImageView image_view)
+{
     VkDescriptorImageInfo descriptor_image_info;
     VkWriteDescriptorSet descriptor_write;
 
@@ -1219,8 +1202,7 @@ NK_INTERN void update_texture_descriptor_set(
     memset(&descriptor_image_info, 0, sizeof(VkDescriptorImageInfo));
     descriptor_image_info.sampler = dev->sampler;
     descriptor_image_info.imageView = texture_descriptor_set->image_view;
-    descriptor_image_info.imageLayout =
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    descriptor_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     memset(&descriptor_write, 0, sizeof(VkWriteDescriptorSet));
     descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1233,127 +1215,98 @@ NK_INTERN void update_texture_descriptor_set(
 
     vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
 }
+#endif
 
 NK_API
 void nk_glfw3_create_cmd(
-    struct nk_context *ctx,
-    VkCommandBuffer command_buffer,
+    struct nk_context    *ctx,
+    VkCommandBuffer       command_buffer,
     enum nk_anti_aliasing AA)
 {
-    struct nk_glfw_device *dev = &glfw.vulkan;
-    struct nk_buffer vbuf, ebuf;
+  struct nk_glfw_device *dev = &glfw.vulkan;
 
-    struct Mat4f projection = {
-        {2.0f, 0.0f, 0.0f, 0.0f, 0.0f, -2.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f,
-         0.0f, -1.0f, 1.0f, 0.0f, 1.0f},
-    };
+  struct Mat4f projection = {
+    {2.0f,  0.0f,  0.0f, 0.0f,
+     0.0f, -2.0f,  0.0f, 0.0f,
+     0.0f,  0.0f, -1.0f, 0.0f,
+    -1.0f,  1.0f,  0.0f, 1.0f}};
+  projection.m[0] /= glfw.width;
+  projection.m[5] /= glfw.height;
 
-    VkViewport viewport;
-    VkDeviceSize doffset = 0;
-    VkImageView current_texture = NULL;
-    uint32_t index_offset = 0;
-    VkRect2D scissor;
+  memcpy(dev->mapped_uniform, &projection, sizeof(projection));
 
-    projection.m[0] /= glfw.width;
-    projection.m[5] /= glfw.height;
+  VkViewport viewport = {
+    .width    = (float)glfw.width,
+    .height   = (float)glfw.height,
+    .maxDepth = 1.0f,
+  };
+  vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+  vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, dev->pipeline);
+  vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      dev->pipeline_layout, 0, 1,
+      &dev->uniform_descriptor_set, 0, NULL);
 
-    memcpy(dev->mapped_uniform, &projection, sizeof(projection));
+  /* fill convert configuration */
+  static const struct nk_draw_vertex_layout_element vertex_layout[] = {
+    {NK_VERTEX_POSITION, NK_FORMAT_FLOAT, NK_OFFSETOF(struct nk_glfw_vertex, position)},
+    {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT, NK_OFFSETOF(struct nk_glfw_vertex, uv)},
+    {NK_VERTEX_COLOR, NK_FORMAT_R8G8B8A8, NK_OFFSETOF(struct nk_glfw_vertex, col)},
+    {NK_VERTEX_LAYOUT_END}};
+  struct nk_convert_config config = {
+    .vertex_layout = vertex_layout,
+    .vertex_size = sizeof(struct nk_glfw_vertex),
+    .vertex_alignment = NK_ALIGNOF(struct nk_glfw_vertex),
+    .tex_null = dev->tex_null,
+    .circle_segment_count = 22,
+    .curve_segment_count = 22,
+    .arc_segment_count = 22,
+    .global_alpha = 1.0f,
+    .shape_AA = AA,
+    .line_AA = AA,
+  };
 
-    memset(&viewport, 0, sizeof(VkViewport));
-    viewport.width = (float)glfw.width;
-    viewport.height = (float)glfw.height;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+  /* setup buffers to load vertices and elements */
+  struct nk_buffer vbuf, ebuf;
+  nk_buffer_init_fixed(&vbuf, dev->mapped_vertex, (size_t)dev->max_vertex_buffer);
+  nk_buffer_init_fixed(&ebuf, dev->mapped_index,  (size_t)dev->max_element_buffer);
+  // BREAKING CHANGE: nk_draw_list_clear no longer tries to
+///                        clear provided buffers. So make sure to either free
+///                        or clear each passed buffer after calling nk_convert.
+  nk_convert(ctx, &dev->cmds, &vbuf, &ebuf, &config);
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      dev->pipeline);
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            dev->pipeline_layout, 0, 1,
-                            &dev->uniform_descriptor_set, 0, NULL);
+  VkDeviceSize doffset = 0;
+  vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &doffset);
+  vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+  VkDescriptorSet current_texture = 0;
+  uint32_t index_offset = 0;
+  const struct nk_draw_command *cmd;
+  nk_draw_foreach(cmd, ctx, &dev->cmds)
+  { // iterate over draw commands and issue as vulkan draw call
+    if(!cmd->texture.ptr || !cmd->elem_count) continue;
+    if(cmd->texture.ptr != current_texture)
     {
-        /* convert from command queue into draw list and draw to screen */
-        const struct nk_draw_command *cmd;
-        /* load draw vertices & elements directly into vertex + element buffer
-         */
-        {
-            /* fill convert configuration */
-            struct nk_convert_config config;
-            static const struct nk_draw_vertex_layout_element vertex_layout[] =
-                {{NK_VERTEX_POSITION, NK_FORMAT_FLOAT,
-                  NK_OFFSETOF(struct nk_glfw_vertex, position)},
-                 {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT,
-                  NK_OFFSETOF(struct nk_glfw_vertex, uv)},
-                 {NK_VERTEX_COLOR, NK_FORMAT_R8G8B8A8,
-                  NK_OFFSETOF(struct nk_glfw_vertex, col)},
-                 {NK_VERTEX_LAYOUT_END}};
-            NK_MEMSET(&config, 0, sizeof(config));
-            config.vertex_layout = vertex_layout;
-            config.vertex_size = sizeof(struct nk_glfw_vertex);
-            config.vertex_alignment = NK_ALIGNOF(struct nk_glfw_vertex);
-            config.tex_null = dev->tex_null;
-            config.circle_segment_count = 22;
-            config.curve_segment_count = 22;
-            config.arc_segment_count = 22;
-            config.global_alpha = 1.0f;
-            config.shape_AA = AA;
-            config.line_AA = AA;
-
-            /* setup buffers to load vertices and elements */
-            nk_buffer_init_fixed(&vbuf, dev->mapped_vertex,
-                                 (size_t)dev->max_vertex_buffer);
-            nk_buffer_init_fixed(&ebuf, dev->mapped_index,
-                                 (size_t)dev->max_element_buffer);
-            nk_convert(ctx, &dev->cmds, &vbuf, &ebuf, &config);
-        }
-
-        /* iterate over and execute each draw command */
-
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer,
-                               &doffset);
-        vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, 0,
-                             VK_INDEX_TYPE_UINT16);
-
-        nk_draw_foreach(cmd, ctx, &dev->cmds) {
-            if (!cmd->texture.ptr) {
-                continue;
-            }
-            if (cmd->texture.ptr && cmd->texture.ptr != current_texture) {
-                int found = 0;
-                uint32_t i;
-                for (i = 0; i < dev->texture_descriptor_sets_len; i++) {
-                    if (dev->texture_descriptor_sets[i].image_view ==
-                        cmd->texture.ptr) {
-                        found = 1;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    update_texture_descriptor_set(
-                        dev, &dev->texture_descriptor_sets[i],
-                        (VkImageView)cmd->texture.ptr);
-                    dev->texture_descriptor_sets_len++;
-                }
-                vkCmdBindDescriptorSets(
-                    command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    dev->pipeline_layout, 1, 1,
-                    &dev->texture_descriptor_sets[i].descriptor_set, 0, NULL);
-            }
-
-            if (!cmd->elem_count)
-                continue;
-
-            scissor.offset.x = (int32_t)(NK_MAX(cmd->clip_rect.x, 0.f));
-            scissor.offset.y = (int32_t)(NK_MAX(cmd->clip_rect.y, 0.f));
-            scissor.extent.width = (uint32_t)(cmd->clip_rect.w);
-            scissor.extent.height = (uint32_t)(cmd->clip_rect.h);
-            vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-            vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset,
-                             0, 0);
-            index_offset += cmd->elem_count;
-        }
-        nk_clear(ctx);
+      vkCmdBindDescriptorSets(
+          command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+          dev->pipeline_layout, 1, 1,
+          (VkDescriptorSet*)&cmd->texture.ptr,
+          0, NULL);
+      current_texture = cmd->texture.ptr;
     }
+
+    VkRect2D scissor = {
+      .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x, 0.f)),
+      .offset.y      = (int32_t)(NK_MAX(cmd->clip_rect.y, 0.f)),
+      .extent.width  = (uint32_t)(cmd->clip_rect.w),
+      .extent.height = (uint32_t)(cmd->clip_rect.h),
+    };
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset, 0, 0);
+    index_offset += cmd->elem_count;
+  }
+  nk_clear(ctx);
+  // XXX is this required now or not
+  nk_buffer_clear(&dev->cmds);
 }
 
 #if 0
@@ -1510,9 +1463,7 @@ nk_glfw3_init(
         render_pass,
         logical_device, physical_device,
         max_vertex_buffer,
-        max_element_buffer,
-        (uint32_t)glfw.display_width,
-        (uint32_t)glfw.display_height);
+        max_element_buffer);
 
     glfw.is_double_click_down = nk_false;
     glfw.double_click_pos = nk_vec2(0, 0);
