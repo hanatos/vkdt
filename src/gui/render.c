@@ -167,15 +167,14 @@ void dt_gui_init_fonts()
     snprintf(tmp, sizeof(tmp), "%s", fontfile);
 
   struct nk_font_atlas *atlas;
+  if(g_font[0]) nk_glfw3_font_cleanup();
   nk_glfw3_font_stash_begin(&atlas);
   // TODO: last parameter is glyph ranges, maybe keep from imgui version?
   g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
-#if 0
   g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
-#endif
   nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/

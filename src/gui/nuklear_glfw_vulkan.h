@@ -255,8 +255,6 @@ unsigned int nuklearshaders_nuklear_frag_spv_len = 860;
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-enum nk_glfw_init_state { NK_GLFW3_DEFAULT = 0, NK_GLFW3_INSTALL_CALLBACKS };
-
 NK_API void
 nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win, VkDevice logical_device,
               VkPhysicalDevice physical_device,
@@ -264,17 +262,12 @@ nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win,
 NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
 NK_API void nk_glfw3_font_stash_end(struct nk_context *ctx, VkCommandBuffer cmd, VkQueue graphics_queue);
+NK_API void nk_glfw3_font_cleanup();
 NK_API void nk_glfw3_new_frame();
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
     VkCommandBuffer cmd,
     enum nk_anti_aliasing AA);
-#if 0
-NK_API VkSemaphore nk_glfw3_render(VkQueue graphics_queue,
-                                   uint32_t buffer_index,
-                                   VkSemaphore wait_semaphore,
-                                   enum nk_anti_aliasing AA);
-#endif
 NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
                             uint32_t framebuffer_height);
 NK_API void nk_glfw3_device_destroy(void);
@@ -285,8 +278,7 @@ NK_API void nk_glfw3_device_create(
 
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
-NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button,
-                                           int action, int mods);
+NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
 
 #endif
 /*
@@ -329,6 +321,7 @@ struct nk_glfw_device
   struct nk_draw_null_texture tex_null;
   int max_vertex_buffer;
   int max_element_buffer;
+
   VkDevice logical_device;
   VkPhysicalDevice physical_device;
   VkRenderPass render_pass;
@@ -342,6 +335,7 @@ struct nk_glfw_device
   VkBuffer uniform_buffer;
   VkDeviceMemory uniform_memory;
   void *mapped_uniform;
+
   VkDescriptorPool descriptor_pool;
   VkDescriptorSetLayout uniform_descriptor_set_layout;
   VkDescriptorSet uniform_descriptor_set;
@@ -942,7 +936,6 @@ nk_glfw3_device_upload_atlas(
     image_shader_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 
     vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        // VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT ??
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0,
                          NULL, 1, &image_shader_memory_barrier);
 
@@ -1059,10 +1052,20 @@ void nk_glfw3_shutdown(void)
   memset(&glfw, 0, sizeof(glfw));
 }
 
-NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas) {
-    nk_font_atlas_init_default(&glfw.atlas);
-    nk_font_atlas_begin(&glfw.atlas);
-    *atlas = &glfw.atlas;
+NK_API void nk_glfw3_font_cleanup()
+{
+  struct nk_glfw_device *dev = &glfw.vulkan;
+  vkDestroyImage(dev->logical_device, dev->font_image, 0);
+  vkDestroyImageView(dev->logical_device, dev->font_image_view, 0);
+  vkFreeMemory(dev->logical_device, dev->font_memory, 0);
+  nk_font_atlas_cleanup(&glfw.atlas);
+}
+
+NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas)
+{
+  nk_font_atlas_init_default(&glfw.atlas);
+  nk_font_atlas_begin(&glfw.atlas);
+  *atlas = &glfw.atlas;
 }
 
 NK_API void nk_glfw3_font_stash_end(
@@ -1188,35 +1191,6 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
     glfw.scroll = nk_vec2(0, 0);
 }
 
-#if 0
-NK_INTERN void update_texture_descriptor_set(
-    struct nk_glfw_device *dev,
-    struct nk_vulkan_texture_descriptor_set *texture_descriptor_set,
-    VkImageView image_view)
-{
-    VkDescriptorImageInfo descriptor_image_info;
-    VkWriteDescriptorSet descriptor_write;
-
-    texture_descriptor_set->image_view = image_view;
-
-    memset(&descriptor_image_info, 0, sizeof(VkDescriptorImageInfo));
-    descriptor_image_info.sampler = dev->sampler;
-    descriptor_image_info.imageView = texture_descriptor_set->image_view;
-    descriptor_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    memset(&descriptor_write, 0, sizeof(VkWriteDescriptorSet));
-    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_write.dstSet = texture_descriptor_set->descriptor_set;
-    descriptor_write.dstBinding = 0;
-    descriptor_write.dstArrayElement = 0;
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_write.descriptorCount = 1;
-    descriptor_write.pImageInfo = &descriptor_image_info;
-
-    vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
-}
-#endif
-
 NK_API
 void nk_glfw3_create_cmd(
     struct nk_context    *ctx,
@@ -1224,7 +1198,6 @@ void nk_glfw3_create_cmd(
     enum nk_anti_aliasing AA)
 {
   struct nk_glfw_device *dev = &glfw.vulkan;
-
   struct Mat4f projection = {
     {2.0f,  0.0f,  0.0f, 0.0f,
      0.0f, -2.0f,  0.0f, 0.0f,
