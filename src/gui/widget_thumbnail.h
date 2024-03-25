@@ -84,13 +84,14 @@ dt_thumbnail_image(
   int wd = MAX(size.x, size.y);
 
   struct nk_rect bound = nk_widget_bounds(ctx);
-  if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
-  struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
+  //if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
+  // nk_label(ctx, "", 0);
+  // struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
   bound.x += (wd-size.x)/2;
   bound.w -= (wd-size.x);
   bound.y += (wd-size.y)/2;
   bound.h -= (wd-size.y);
-  nk_draw_image(canvas, bound, &img, (struct nk_color){0x77,0x77,0x77,0xff});
+  // nk_draw_image(canvas, bound, &img, (struct nk_color){0x77,0x77,0x77,0xff});
 
   return ret;
 

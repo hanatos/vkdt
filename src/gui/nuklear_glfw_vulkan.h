@@ -1022,18 +1022,21 @@ void nk_glfw3_create_cmd(
   VkDescriptorSet current_texture = 0;
   uint32_t index_offset = 0;
   const struct nk_draw_command *cmd;
+    fprintf(stderr, "redraw========================================\n");
   nk_draw_foreach(cmd, ctx, &dev->cmds)
   { // iterate over draw commands and issue as vulkan draw call
-    if(!cmd->texture.ptr || !cmd->elem_count) continue;
-    if(cmd->texture.ptr != current_texture)
+    // if(!cmd->texture.ptr) goto next;
+    if(cmd->texture.ptr && cmd->texture.ptr != current_texture)
     {
       vkCmdBindDescriptorSets(
           command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
           dev->pipeline_layout, 1, 1,
           (VkDescriptorSet*)&cmd->texture.ptr,
           0, NULL);
-      current_texture = cmd->texture.ptr;
+      current_texture = cmd->texture.ptr; // i think this is already checked before pushing the cmd
     }
+    fprintf(stderr, "drawing %d elements, tex %lx\n", cmd->elem_count, cmd->texture.ptr);
+    if(!cmd->elem_count) continue;
 
     VkRect2D scissor = {
       .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x, 0.f)),
@@ -1043,11 +1046,12 @@ void nk_glfw3_create_cmd(
     };
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset, 0, 0);
+next:
     index_offset += cmd->elem_count;
   }
   nk_clear(ctx);
   // XXX is this required now or not
-  nk_buffer_clear(&dev->cmds);
+  // nk_buffer_clear(&dev->cmds);
 }
 
 #if 0
