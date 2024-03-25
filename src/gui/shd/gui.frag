@@ -7,5 +7,5 @@ layout(location = 0) out vec4 outColor;
 void main()
 {
   vec4 texColor = texture(currentTexture, fragUv);
-  outColor = pow(fragColor * texColor, vec4(1.0/2.2));
+  outColor = pow(fragColor * texColor, vec4(vec3(1.0/2.2), 1));
 }
