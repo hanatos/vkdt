@@ -27,6 +27,7 @@ GUI_H=gui/gui.h\
       gui/nodes.h\
       gui/nuklear.h\
       gui/nuklear_glfw_vulkan.h\
+      gui/shd.h\
       core/core.h\
       core/fs.h\
       core/tools.h\
@@ -41,3 +42,9 @@ GUI_CFLAGS+=-DVKDT_USE_PENTABLET=1
 endif
 
 gui/main.o: core/signal.h
+gui/shd.h: gui/shd/gui.vert.spv gui/shd/gui.frag.spv
+	xxd -i gui/shd/gui.vert.spv > gui/shd.h
+	xxd -i gui/shd/gui.frag.spv >> gui/shd.h
+
+%.spv: %
+	$(GLSLC) -I$(dir $$<) $(GLSLC_FLAGS) $$< -o $$@
