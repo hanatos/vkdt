@@ -31,7 +31,7 @@ NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
 NK_API void nk_glfw3_font_stash_end(struct nk_context *ctx, VkCommandBuffer cmd, VkQueue graphics_queue);
 NK_API void nk_glfw3_font_cleanup();
-NK_API void nk_glfw3_new_frame();
+NK_API void nk_glfw3_new_frame(struct nk_context *ctx);
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
     VkCommandBuffer cmd,
@@ -544,12 +544,9 @@ NK_API void nk_glfw3_device_create(
         dev, &dev->uniform_buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         &dev->uniform_memory, sizeof(struct Mat4f));
 
-    vkMapMemory(dev->logical_device, dev->vertex_memory, 0, max_vertex_buffer,
-                0, &dev->mapped_vertex);
-    vkMapMemory(dev->logical_device, dev->index_memory, 0, max_element_buffer,
-                0, &dev->mapped_index);
-    vkMapMemory(dev->logical_device, dev->uniform_memory, 0,
-                sizeof(struct Mat4f), 0, &dev->mapped_uniform);
+    vkMapMemory(dev->logical_device, dev->vertex_memory, 0, max_vertex_buffer, 0, &dev->mapped_vertex);
+    vkMapMemory(dev->logical_device, dev->index_memory, 0, max_element_buffer, 0, &dev->mapped_index);
+    vkMapMemory(dev->logical_device, dev->uniform_memory, 0, sizeof(struct Mat4f), 0, &dev->mapped_uniform);
 
     nk_glfw3_create_render_resources(dev);
 }
@@ -643,8 +640,7 @@ nk_glfw3_device_upload_atlas(
                                 staging_buffer.memory, 0);
     NK_ASSERT(result == VK_SUCCESS);
 
-    result = vkMapMemory(dev->logical_device, staging_buffer.memory, 0,
-                         alloc_info.allocationSize, 0, (void **)&data);
+    result = vkMapMemory(dev->logical_device, staging_buffer.memory, 0, alloc_info.allocationSize, 0, (void **)&data);
     NK_ASSERT(result == VK_SUCCESS);
     memcpy(data, image, width * height * 4);
     vkUnmapMemory(dev->logical_device, staging_buffer.memory);
@@ -1050,81 +1046,7 @@ next:
     index_offset += cmd->elem_count;
   }
   nk_clear(ctx);
-  // XXX is this required now or not
-  // nk_buffer_clear(&dev->cmds);
 }
-
-#if 0
-NK_API
-VkSemaphore nk_glfw3_render(VkQueue graphics_queue, uint32_t buffer_index,
-                            VkSemaphore wait_semaphore,
-                            enum nk_anti_aliasing AA) {
-    struct nk_glfw_device *dev = &glfw.vulkan;
-
-    VkCommandBufferBeginInfo begin_info;
-    VkClearValue clear_value = {{{0.0f, 0.0f, 0.0f, 0.0f}}};
-    VkRenderPassBeginInfo render_pass_begin_nfo;
-    VkCommandBuffer command_buffer;
-    VkResult result;
-
-    uint32_t wait_semaphore_count;
-    VkSemaphore *wait_semaphores;
-    VkPipelineStageFlags wait_stage =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkSubmitInfo submit_info;
-
-    projection.m[0] /= glfw.width;
-    projection.m[5] /= glfw.height;
-
-    memset(&begin_info, 0, sizeof(VkCommandBufferBeginInfo));
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    memset(&render_pass_begin_nfo, 0, sizeof(VkRenderPassBeginInfo));
-    render_pass_begin_nfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_nfo.renderPass = dev->render_pass;
-    render_pass_begin_nfo.renderArea.extent.width = (uint32_t)glfw.width;
-    render_pass_begin_nfo.renderArea.extent.height = (uint32_t)glfw.height;
-    render_pass_begin_nfo.clearValueCount = 1;
-    render_pass_begin_nfo.pClearValues = &clear_value;
-    render_pass_begin_nfo.framebuffer = dev->framebuffers[buffer_index];
-
-    command_buffer = dev->command_buffers[buffer_index];
-
-    result = vkBeginCommandBuffer(command_buffer, &begin_info);
-    NK_ASSERT(result == VK_SUCCESS);
-    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_nfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
-
-    nk_glfw3_create_cmd(command_buffer, AA);
-
-    vkCmdEndRenderPass(command_buffer);
-    result = vkEndCommandBuffer(command_buffer);
-    NK_ASSERT(result == VK_SUCCESS);
-
-    if (wait_semaphore) {
-        wait_semaphore_count = 1;
-        wait_semaphores = &wait_semaphore;
-    } else {
-        wait_semaphore_count = 0;
-        wait_semaphores = NULL;
-    }
-
-    memset(&submit_info, 0, sizeof(VkSubmitInfo));
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    submit_info.pWaitDstStageMask = &wait_stage;
-    submit_info.waitSemaphoreCount = wait_semaphore_count;
-    submit_info.pWaitSemaphores = wait_semaphores;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &dev->render_completed;
-
-    result = vkQueueSubmit(graphics_queue, 1, &submit_info, NULL);
-    NK_ASSERT(result == VK_SUCCESS);
-
-    return dev->render_completed;
-}
-#endif
 
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint) {
     (void)win;
