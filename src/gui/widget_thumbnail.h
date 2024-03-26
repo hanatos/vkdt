@@ -25,16 +25,16 @@ void dt_draw_star(float u, float v, float size, struct nk_color col)
     x[2*i+1] = v + size * c[((4*i  )%10)+1];
   }
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
-  nk_stroke_polyline(buf, x, 5, .45*size, col);
+  nk_stroke_polygon(buf, x, 5, .1*size, col);
 }
 
-inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
+static inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
 {
   const struct nk_color starcol = { 0, 0, 0, 0xff };
   for(int i=0;i<rating;i++)
     dt_draw_star(x + wd*i, y, 0.3*wd, starcol);
 }
-inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
+static inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
 {
   const struct nk_color label_col[] = {
     {0xcc,0x33,0x33,0xff}, // red
@@ -49,7 +49,7 @@ inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
   int j=0;
   for(int i=0;i<5;i++) // regular round colour labels
     if(labels & (1<<i))
-      nk_fill_circle(buf, (struct nk_rect){x+wd*(j++)-0.2*wd, y-0.2*wd, 0.4*wd, 0.4*wd}, label_col[i]);
+      nk_fill_circle(buf, (struct nk_rect){x+wd*(j++)-0.4*wd, y-0.4*wd, 0.8*wd, 0.8*wd}, label_col[i]);
   if(labels & s_image_label_video)
   { // movie indicator
     float tc[] = {x + wd*j - 0.2f*wd, y-0.4f*wd, x + wd*j - 0.2f*wd, y+0.4f*wd, x+wd*j+0.4f*wd, y };
@@ -63,7 +63,7 @@ inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
       x+j*wd-0.2f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y-0.4f*wd, x+j*wd-0.4f*wd,y+0.4f*wd, x+j*wd-0.2f*wd, y+0.4f*wd,
       x+j*wd+0.2f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y-0.4f*wd, x+j*wd+0.4f*wd,y+0.4f*wd, x+j*wd+0.2f*wd, y+0.4f*wd };
     nk_stroke_polyline(buf, tc,   4, .1*wd, label_col[6]);
-    nk_stroke_polyline(buf, tc+4, 4, .1*wd, label_col[6]);
+    nk_stroke_polyline(buf, tc+8, 4, .1*wd, label_col[6]);
   }
 }
 
@@ -83,15 +83,27 @@ dt_thumbnail_image(
   struct nk_image img = nk_image_ptr(dset);
   int wd = MAX(size.x, size.y);
 
-  struct nk_rect bound = nk_widget_bounds(ctx);
-  //if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
-  nk_label(ctx, "", 0);
+  struct nk_rect full = nk_widget_bounds(ctx);
+  struct nk_rect bound = full;
+  if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
+  // nk_label(ctx, "", 0);
   struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
   bound.x += (wd-size.x)/2;
   bound.w -= (wd-size.x);
   bound.y += (wd-size.y)/2;
   bound.h -= (wd-size.y);
   nk_draw_image(canvas, bound, &img, (struct nk_color){0x77,0x77,0x77,0xff});
+
+  // render decorations (colour labels/stars/etc?)
+  // FIXME: maybe rendering a unicode character instead could work better?
+  // ★	U+2605
+  // ★
+  dt_draw_rating(full.x+0.1*wd, full.y+0.10*wd, 0.1*wd, rating);
+  dt_draw_labels(full.x+0.1*wd, full.y+0.95*wd, 0.1*wd, labels);
+  nk_draw_text(canvas, full, "\u2605", 1, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
+
+  if(text) // optionally render text
+    nk_draw_text(canvas, full, text, strlen(text), &dt_gui_get_font(0)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
 
   return ret;
 

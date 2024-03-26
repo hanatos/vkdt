@@ -199,7 +199,10 @@ void dt_gui_init_fonts()
   g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
-  g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
+  cfg.oversample_h = 3;
+  cfg.oversample_v = 1;
+  cfg.size = fontsize;
+  g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
   nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
@@ -218,7 +221,7 @@ int dt_gui_init_nk()
       vkdt.render_pass,
       qvk.window,
       qvk.device, qvk.physical_device,
-      512*1024, 128*1024);
+      5120*1024, 1280*1024);
 
      // XXX setup keyboard and gamepad nav!
      // https://github.com/smallbasic/smallbasic.plugins/blob/master/nuklear/nkbd.h
