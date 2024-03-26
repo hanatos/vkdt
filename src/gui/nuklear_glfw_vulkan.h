@@ -35,7 +35,8 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx);
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
     VkCommandBuffer cmd,
-    enum nk_anti_aliasing AA);
+    enum nk_anti_aliasing AA,
+    int frame);
 NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
                             uint32_t framebuffer_height);
 NK_API void nk_glfw3_device_destroy(void);
@@ -959,7 +960,8 @@ NK_API
 void nk_glfw3_create_cmd(
     struct nk_context    *ctx,
     VkCommandBuffer       command_buffer,
-    enum nk_anti_aliasing AA)
+    enum nk_anti_aliasing AA,
+    int frame)
 {
   struct nk_glfw_device *dev = &glfw.vulkan;
   struct Mat4f projection = {
@@ -1004,24 +1006,20 @@ void nk_glfw3_create_cmd(
 
   /* setup buffers to load vertices and elements */
   struct nk_buffer vbuf, ebuf;
-  nk_buffer_init_fixed(&vbuf, dev->mapped_vertex, (size_t)dev->max_vertex_buffer);
-  nk_buffer_init_fixed(&ebuf, dev->mapped_index,  (size_t)dev->max_element_buffer);
-  // BREAKING CHANGE: nk_draw_list_clear no longer tries to
-///                        clear provided buffers. So make sure to either free
-///                        or clear each passed buffer after calling nk_convert.
+  nk_buffer_init_fixed(&vbuf, dev->mapped_vertex+frame*dev->max_vertex_buffer /2, (size_t)dev->max_vertex_buffer/2);
+  nk_buffer_init_fixed(&ebuf, dev->mapped_index +frame*dev->max_element_buffer/2, (size_t)dev->max_element_buffer/2);
   nk_convert(ctx, &dev->cmds, &vbuf, &ebuf, &config);
 
-  VkDeviceSize doffset = 0;
-  vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &doffset);
-  vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+  VkDeviceSize voffset = frame*dev->max_vertex_buffer/2;
+  VkDeviceSize ioffset = frame*dev->max_element_buffer/2;
+  vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &voffset);
+  vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, ioffset, VK_INDEX_TYPE_UINT16);
 
   VkDescriptorSet current_texture = 0;
   uint32_t index_offset = 0;
   const struct nk_draw_command *cmd;
-    fprintf(stderr, "redraw========================================\n");
   nk_draw_foreach(cmd, ctx, &dev->cmds)
   { // iterate over draw commands and issue as vulkan draw call
-    // if(!cmd->texture.ptr) goto next;
     if(cmd->texture.ptr && cmd->texture.ptr != current_texture)
     {
       vkCmdBindDescriptorSets(
@@ -1031,7 +1029,6 @@ void nk_glfw3_create_cmd(
           0, NULL);
       current_texture = cmd->texture.ptr; // i think this is already checked before pushing the cmd
     }
-    fprintf(stderr, "drawing %d elements, tex %lx\n", cmd->elem_count, cmd->texture.ptr);
     if(!cmd->elem_count) continue;
 
     VkRect2D scissor = {
@@ -1042,7 +1039,6 @@ void nk_glfw3_create_cmd(
     };
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset, 0, 0);
-next:
     index_offset += cmd->elem_count;
   }
   nk_clear(ctx);
