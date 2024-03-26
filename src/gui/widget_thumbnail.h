@@ -100,7 +100,9 @@ dt_thumbnail_image(
   // ★
   dt_draw_rating(full.x+0.1*wd, full.y+0.10*wd, 0.1*wd, rating);
   dt_draw_labels(full.x+0.1*wd, full.y+0.95*wd, 0.1*wd, labels);
-  nk_draw_text(canvas, full, "\u2605", 1, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
+  // nk_draw_text(canvas, full, "\u2605", 1, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
+  // material icon code point, also doesn't work
+  nk_draw_text(canvas, full, "\ue838", 1, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
 
   if(text) // optionally render text
     nk_draw_text(canvas, full, text, strlen(text), &dt_gui_get_font(0)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
