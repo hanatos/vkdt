@@ -170,7 +170,32 @@ void dt_gui_init_fonts()
   if(g_font[0]) nk_glfw3_font_cleanup();
   nk_glfw3_font_stash_begin(&atlas);
   // TODO: last parameter is glyph ranges, maybe keep from imgui version?
-  g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, 0);
+#if 0
+  nk_font_config(float pixel_height)
+{
+    struct nk_font_config cfg;
+    nk_zero_struct(cfg);
+    cfg.ttf_blob = 0;
+    cfg.ttf_size = 0;
+    cfg.ttf_data_owned_by_atlas = 0;
+    cfg.size = pixel_height;
+    cfg.oversample_h = 3;
+    cfg.oversample_v = 1;
+    cfg.pixel_snap = 0;
+    cfg.coord_type = NK_COORD_UV;
+    cfg.spacing = nk_vec2(0,0);
+    cfg.range = nk_font_default_glyph_ranges();
+    cfg.merge_mode = 0;
+    cfg.fallback_glyph = '?';
+    cfg.font = 0;
+    cfg.n = 0;
+    return cfg;
+}
+#endif
+  struct nk_font_config cfg = nk_font_config(fontsize);
+  cfg.oversample_h = 5;
+  cfg.oversample_v = 5;
+  g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
   g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
