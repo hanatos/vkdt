@@ -7560,15 +7560,25 @@ nk_text_clamp(const struct nk_user_font *font, const char *text,
         width = s;
         glyph_len = nk_utf_decode(&text[len], &unicode, text_len - len);
         g++;
+        if(unicode == '\n')
+        {
+          len += glyph_len;
+          sep_width = last_width = width;
+          sep_g = g;
+          sep_len = len;
+          *glyphs = sep_g;
+          *text_width = sep_width;
+          return sep_len-1; // - 1 because the last one is the separator
+        }
     }
     if (len >= text_len) {
         *glyphs = g;
         *text_width = last_width;
-        return len;
+        return len; // last one is good character
     } else {
         *glyphs = sep_g;
         *text_width = sep_width;
-        return (!sep_len) ? len: sep_len;
+        return ((!sep_len) ? len: sep_len) - 1; // last one is separator
     }
 }
 NK_LIB struct nk_vec2
@@ -23545,7 +23555,7 @@ nk_widget_text_wrap(struct nk_command_buffer *o, struct nk_rect b,
     int done = 0;
     struct nk_rect line;
     struct nk_text text;
-    NK_INTERN nk_rune seperator[] = {' '};
+    NK_INTERN nk_rune seperator[] = {' ', '\n'};
 
     NK_ASSERT(o);
     NK_ASSERT(t);
@@ -23568,7 +23578,8 @@ nk_widget_text_wrap(struct nk_command_buffer *o, struct nk_rect b,
     while (done < len) {
         if (!fitting || line.y + line.h >= (b.y + b.h)) break;
         nk_widget_text(o, line, &string[done], fitting, &text, NK_TEXT_LEFT, f);
-        done += fitting;
+        fprintf(stderr, "string:%d: `%.*s`\n", fitting, fitting, &string[done]);
+        done += fitting + 1; // also skip separator, if any
         line.y += f->height + 2 * t->padding.y;
         fitting = nk_text_clamp(f, &string[done], len - done, line.w, &glyphs, &width, seperator,NK_LEN(seperator));
     }
