@@ -173,15 +173,15 @@ void render_lighttable_center()
     struct nk_rect row = nk_layout_widget_bounds(&vkdt.ctx);
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
-    if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
+    struct nk_color col = {0x55,0x55,0x55,0xff};
+    struct nk_color hov = {0xff,0xff,0xff,0xff};
+    const int current  = vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db);
+    const int selected = vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected;
+    if(selected) col = (struct nk_color){0xaa,0xaa,0xaa,0xff};
+    if(current) 
     {
-      // XXX ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0, 1.0, 1.0, 1.0));
-      // XXX ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
-    }
-    else if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
-    {
-      // XXX ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6, 0.6, 0.6, 1.0));
-      // XXX ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8, 0.8, 0.8, 1.0));
+      col = (struct nk_color){0xff,0xff,0xff,0xff};
+      hov = (struct nk_color){0xee,0xee,0xee,0xee};
     }
     float scale = MIN(
         wd/(float)vkdt.thumbnails.thumb[tid].wd,
@@ -192,8 +192,7 @@ void render_lighttable_center()
         &vkdt.ctx,
         vkdt.thumbnails.thumb[tid].dset,
         (struct nk_vec2){w, h},
-        (struct nk_color){0x77,0x77,0x77,0xff},
-        (struct nk_color){0xff,0xff,0xff,0xff},
+        hov, col,
         vkdt.db.image[vkdt.db.collection[i]].rating,
         vkdt.db.image[vkdt.db.collection[i]].labels,
         (vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db)) ?
@@ -209,15 +208,17 @@ void render_lighttable_center()
 
     if(ret)
     {
+      int shift = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
+      int ctrl  = glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
       vkdt.wstate.busy += 2;
-      if(nk_input_is_key_down(&vkdt.ctx.input, NK_KEY_CTRL))
+      if(ctrl)
       {
         if(vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected)
           dt_db_selection_remove(&vkdt.db, i);
         else
           dt_db_selection_add(&vkdt.db, i);
       }
-      else if(nk_input_is_key_down(&vkdt.ctx.input, NK_KEY_SHIFT))
+      else if(shift)
       { // shift selects ranges
         uint32_t colid = dt_db_current_colid(&vkdt.db);
         if(colid != -1u)
