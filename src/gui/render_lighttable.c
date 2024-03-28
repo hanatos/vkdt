@@ -441,6 +441,8 @@ void render_lighttable_right_panel()
 
         int sel = filter_val & (1<<k);
         if(sel) nk_style_push_float(ctx, &ctx->style.button.border, vkdt.wstate.fontsize*0.2);
+        if(sel) nk_style_push_float(ctx, &ctx->style.button.rounding, row_height/2);
+        else    nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
         if(nk_widget_is_hovered(ctx))
           dt_gui_set_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
         if(nk_button_label(ctx, k==5 ? "m" : k==6 ? "[ ]" : " "))
@@ -450,6 +452,7 @@ void render_lighttable_right_panel()
           dt_db_update_collection(&vkdt.db);
           dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
         }
+        nk_style_pop_float(ctx);
         if(sel) nk_style_pop_float(ctx);
         nk_style_pop_float(ctx);
         nk_style_pop_style_item(ctx);
