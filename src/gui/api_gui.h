@@ -123,54 +123,6 @@ dt_gui_lt_paste_history()
       &glfwPostEmptyEvent);
 }
 
-// scroll to top of collection
-static inline void
-dt_gui_lt_scroll_top()
-{
-  nk_window_set_scroll(&vkdt.ctx, 0, 0);
-}
-
-// scroll to show current image
-static inline void
-dt_gui_lt_scroll_current()
-{
-  uint32_t colid = dt_db_current_colid(&vkdt.db);
-  if(colid == -1u) return;
-  const int ipl = 6; // hardcoded images per line :(
-  struct nk_rect b = nk_window_get_bounds(&vkdt.ctx);
-  const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * b.h;
-  nk_window_set_scroll(&vkdt.ctx, 0, p);
-}
-
-static inline void
-dt_gui_lt_scroll_basename(const char *bn)
-{
-  static uint32_t colid = -1u;
-  static int32_t  cnt = 2; // need a delay to let imgui determine correct GetScrollMaxY
-  if(bn)
-  {
-    colid = dt_db_filename_colid(&vkdt.db, bn);
-    cnt = 2;
-  }
-  else if(colid != -1u && (cnt-- <= 0))
-  {
-    const int ipl = 6; // hardcoded images per line :(
-    struct nk_rect b = nk_window_get_bounds(&vkdt.ctx);
-    const float p = (colid/ipl)/(float)(vkdt.db.collection_cnt/ipl) * b.h;
-    nk_window_set_scroll(&vkdt.ctx, 0, p);
-    colid = -1u;
-  }
-}
-
-// scroll to end of collection
-static inline void
-dt_gui_lt_scroll_bottom()
-{
-  struct nk_rect b = nk_window_get_bounds(&vkdt.ctx);
-  nk_window_set_scroll(&vkdt.ctx, 0, b.h);
-}
-
-
 #if 0 // XXX disabled darkroom for now
 
 

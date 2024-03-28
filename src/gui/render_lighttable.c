@@ -68,6 +68,7 @@ typedef enum hotkey_names_t
   s_hotkey_label_5    = 19,
 } hotkey_names_t;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
+static int g_scroll_colid = -1; // to scroll to certain file name
 
 void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
@@ -158,6 +159,9 @@ void render_lighttable_center()
   const int ht = wd;
   nk_layout_row_dynamic(&vkdt.ctx, ht + 2*border, ipl);
 
+  struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
+  int scroll_to = -1;
+
   // XXX only do this for visible stuff
   dt_thumbnails_load_list(
       &vkdt.thumbnails,
@@ -166,6 +170,7 @@ void render_lighttable_center()
       0, vkdt.db.collection_cnt);
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
+    struct nk_rect row = nk_layout_widget_bounds(&vkdt.ctx);
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
     if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
@@ -198,8 +203,9 @@ void render_lighttable_center()
     if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
 
-    // if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db) || (vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected))
-      // XXX ImGui::PopStyleColor(2);
+    if(g_scroll_colid == i) { scroll_to = row.y; g_scroll_colid = -1; }
+    if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
+      scroll_to = row.y;
 
     if(ret)
     {
@@ -243,20 +249,20 @@ void render_lighttable_center()
   switch(g_hotkey)
   {
     case s_hotkey_scroll_cur:
-      dt_gui_lt_scroll_current();
       g_hotkey = -1;
       break;
     case s_hotkey_scroll_end:
-      dt_gui_lt_scroll_bottom();
+      vkdt.ctx.current->scrollbar.y = 0xffffffffu;
       g_hotkey = -1;
       break;
     case s_hotkey_scroll_top:
-      dt_gui_lt_scroll_top();
+      vkdt.ctx.current->scrollbar.y = 0u;
       g_hotkey = -1;
       break;
     default: break;
   }
-  dt_gui_lt_scroll_basename(0); // clear basename scrolling state and set if it was requested
+  if(scroll_to >= 0) 
+    vkdt.ctx.current->scrollbar.y = scroll_to;
 
   // draw context sensitive help overlay
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
@@ -513,7 +519,7 @@ void render_lighttable_right_panel()
           if(len > 4) bn[len-4] = 0; // cut away .cfg
           fs_dirname(resolved);
           dt_gui_switch_collection(resolved);
-          dt_gui_lt_scroll_basename(bn);
+          g_scroll_colid = dt_db_filename_colid(&vkdt.db, bn);
           free(resolved);
         }
       }

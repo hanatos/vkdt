@@ -69,9 +69,12 @@ dt_thumbnail_image(
   int wd = MAX(size.x, size.y);
 
   struct nk_rect full = nk_widget_bounds(ctx);
+  // if(nk_widget_is_mouse_clicked(ctx, NK_BUTTON_LEFT)) ret = 1;
+  if(nk_input_mouse_clicked(&ctx->input, NK_BUTTON_LEFT, full)) ret = 1;
   struct nk_rect bound = full;
-  if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
-  // nk_label(ctx, "", 0);
+  //if(nk_button_color(ctx, (struct nk_color){0x77,0x77,0x77,0xff})) ret = 1;
+  // if(nk_button_label(ctx, "#")) ret = 1;
+  nk_label_colored(ctx, "", 0, bg_col);
   struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
   bound.x += (wd-size.x)/2;
   bound.w -= (wd-size.x);
