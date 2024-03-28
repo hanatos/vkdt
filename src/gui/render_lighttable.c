@@ -162,15 +162,26 @@ void render_lighttable_center()
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   int scroll_to = -1;
 
-  // XXX only do this for visible stuff
-  dt_thumbnails_load_list(
-      &vkdt.thumbnails,
-      &vkdt.db,
-      vkdt.db.collection,
-      0, vkdt.db.collection_cnt);
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_layout_widget_bounds(&vkdt.ctx);
+    if(g_scroll_colid == i) { scroll_to = row.y; g_scroll_colid = -1; }
+    if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
+      scroll_to = row.y;
+    if(row.y - vkdt.ctx.current->scrollbar.y + row.h < content.y ||
+       row.y - vkdt.ctx.current->scrollbar.y > content.y + content.h)
+    { // add dummy for invisible thumbnails
+      nk_label(&vkdt.ctx, "", 0);
+      continue;
+    }
+
+    if((i % ipl) == 0)
+      dt_thumbnails_load_list(
+          &vkdt.thumbnails,
+          &vkdt.db,
+          vkdt.db.collection,
+          i, MIN(vkdt.db.collection_cnt, i+ipl));
+
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
     struct nk_color col = {0x55,0x55,0x55,0xff};
@@ -201,10 +212,6 @@ void render_lighttable_center()
         vkdt.wstate.set_nav_focus : 0);
     if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
-
-    if(g_scroll_colid == i) { scroll_to = row.y; g_scroll_colid = -1; }
-    if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
-      scroll_to = row.y;
 
     if(ret)
     {

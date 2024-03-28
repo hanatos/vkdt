@@ -240,9 +240,11 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       {
         ctx->input.mouse.scroll_delta.y = 0; // handled this
         const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
-        if(nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT)) // opacity
+        int shift = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
+        int ctrl  = glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
+        if(shift) // opacity
           vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
-        else if(nk_input_is_key_down(&ctx->input, NK_KEY_CTRL)) // hardness
+        else if(ctrl) // hardness
           vkdt.wstate.state[2] = CLAMP(vkdt.wstate.state[2] * scale, 0.1f, 1.0f);
         else // radius
           vkdt.wstate.state[0] = CLAMP(vkdt.wstate.state[0] * scale, 0.1f, 1.0f);
