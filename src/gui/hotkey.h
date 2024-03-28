@@ -26,6 +26,7 @@
 //
 #pragma once
 
+#include "core/log.h"
 #include "gui/gui.h"
 #include "render.h"
 #include "nk.h"
@@ -297,11 +298,9 @@ hk_edit(hk_t *hotkey, size_t num)
   return ret;
 }
 
-// FIXME: need to call this from the glfw keyboard handler!
 static inline int
 hk_get_hotkey(hk_t *hotkey, size_t num, int key)
 {
-  if(dt_gui_nk_want_keyboard()) return -1;
   int max_cnt = 0;
   int res = -1;
   for(uint32_t i=0;i<num;i++)
@@ -328,6 +327,7 @@ hk_serialise(const char *fn, hk_t *hk, int cnt)
   FILE *f = fopen(filename, "wb");
   if(f)
   {
+    fprintf(f, "v2\n");
     for(int i=0;i<cnt;i++)
       fprintf(f, "%s:%d %d %d %d\n", hk[i].name, hk[i].key[0], hk[i].key[1], hk[i].key[2], hk[i].key[3]);
     fclose(f);
@@ -342,10 +342,16 @@ hk_deserialise(const char *fn, hk_t *hk, int cnt)
   FILE *f = fopen(filename, "rb");
   if(f)
   {
-    while(!feof(f))
+    char name[100] = {0};
+    int key[4] = {0};
+    fscanf(f, "%[^\n]", name);
+    fgetc(f);
+    if(strcmp(name, "v2"))
     {
-      char name[100] = {0};
-      int key[4] = {0};
+      dt_log(s_log_err, "ignoring old hotkeys for %s, sorry for the inconvenience", fn);
+    }
+    else while(!feof(f))
+    {
       fscanf(f, "%[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
       if(!name[0]) break;
       fgetc(f);

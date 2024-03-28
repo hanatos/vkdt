@@ -22,7 +22,6 @@ void dt_gui_nk_mouse_position(GLFWwindow *w, double x, double y);
 void dt_gui_nk_character(GLFWwindow *w, int c);
 void dt_gui_nk_scrolled(GLFWwindow *w, double xoff, double yoff);
 void dt_gui_nk_window_position(GLFWwindow *w, int x, int y);
-int  dt_gui_nk_want_keyboard();
 
 // time-throttled access to nav input (keyboard/gamepad navigation)
 float dt_gui_nk_nav_input(int which);

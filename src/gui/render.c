@@ -201,6 +201,13 @@ void dt_gui_init_fonts()
   snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
   cfg.oversample_h = 3;
   cfg.oversample_v = 1;
+  static nk_rune ranges_icons[] = {
+    0xe15b, 0xe15b, // stuff for disabled button
+    0xe612, 0xe612, 
+    0xe836, 0xe838, // star in material icons
+    0,
+  };
+  cfg.range = ranges_icons;
   cfg.size = fontsize;
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
   nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
@@ -392,12 +399,6 @@ void dt_gui_cleanup_nk()
   vkDeviceWaitIdle(qvk.device);
   threads_mutex_unlock(&qvk.queue_mutex);
   nk_glfw3_shutdown();
-}
-
-int dt_gui_nk_want_keyboard()
-{
-  // XXX caveat: only works after drawing the full frame. i.e. keyboard accelerators should be evaluated at the very end!
-  return nk_item_is_any_active(&vkdt.ctx);
 }
 
 void dt_gui_grab_mouse()

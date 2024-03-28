@@ -3,36 +3,21 @@
 
 void dt_draw_star(float u, float v, float size, struct nk_color col)
 {
-  float c[] = {
-     0,         1,
-     0.951057,  0.309017,
-     0.587785, -0.809017,
-    -0.587785, -0.809017,
-    -0.951057,  0.309017};
-  float x[20];
-#if 0
-  for(int i=0;i<5;i++)
-  { // outline
-    x[4*i+0] = u +     size * c[((2*i  )%10)+0];
-    x[4*i+1] = v +     size * c[((2*i  )%10)+1];
-    x[4*i+2] = u - 0.5*size * c[((2*i+6)%10)+0];
-    x[4*i+3] = v - 0.5*size * c[((2*i+6)%10)+1];
-  }
-#endif
-  for(int i=0;i<5;i++)
-  { // classic pentagram
-    x[2*i+0] = u + size * c[((4*i  )%10)+0];
-    x[2*i+1] = v + size * c[((4*i  )%10)+1];
-  }
+  // material icon code point for star:
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
-  nk_stroke_polygon(buf, x, 5, .1*size, col);
+  const char* stars = "\ue838\ue838\ue838\ue838\ue838";
+  const struct nk_rect bounds = {u-0.5*size, v-0.5*size, u+0.5*size, v+0.5*size};
+  nk_draw_text(buf, bounds, stars, 2, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
 }
 
 static inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
 {
-  const struct nk_color starcol = { 0, 0, 0, 0xff };
-  for(int i=0;i<rating;i++)
-    dt_draw_star(x + wd*i, y, 0.3*wd, starcol);
+  if(!rating) return;
+  const struct nk_color col = { 0, 0, 0, 0xff };
+  const char* stars = "\ue838\ue838\ue838\ue838\ue838";
+  const struct nk_rect bounds = {x-0.5*wd, y-0.5*wd, rating*wd, wd};
+  struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
+  nk_draw_text(buf, bounds, stars, 3*rating, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
 }
 static inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
 {
@@ -95,14 +80,8 @@ dt_thumbnail_image(
   nk_draw_image(canvas, bound, &img, (struct nk_color){0x77,0x77,0x77,0xff});
 
   // render decorations (colour labels/stars/etc?)
-  // FIXME: maybe rendering a unicode character instead could work better?
-  // ★	U+2605
-  // ★
   dt_draw_rating(full.x+0.1*wd, full.y+0.10*wd, 0.1*wd, rating);
   dt_draw_labels(full.x+0.1*wd, full.y+0.95*wd, 0.1*wd, labels);
-  // nk_draw_text(canvas, full, "\u2605", 1, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
-  // material icon code point, also doesn't work
-  nk_draw_text(canvas, full, "\ue838", 1, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
 
   if(text) // optionally render text
     nk_draw_text(canvas, full, text, strlen(text), &dt_gui_get_font(0)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});

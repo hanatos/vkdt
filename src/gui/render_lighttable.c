@@ -72,6 +72,7 @@ static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary
 void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 {
+  if(action != GLFW_PRESS) return; // only handle key down events
   const int hotkey = hk_get_hotkey(hk_lighttable, NK_LEN(hk_lighttable), key);
   switch(hotkey)
   {
