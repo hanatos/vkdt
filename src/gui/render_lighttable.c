@@ -443,8 +443,7 @@ void render_lighttable_right_panel()
         if(sel) nk_style_push_float(ctx, &ctx->style.button.border, vkdt.wstate.fontsize*0.2);
         if(sel) nk_style_push_float(ctx, &ctx->style.button.rounding, row_height/2);
         else    nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
-        if(nk_widget_is_hovered(ctx))
-          dt_gui_set_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
+        dt_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
         if(nk_button_label(ctx, k==5 ? "m" : k==6 ? "[ ]" : " "))
         {
           filter_val ^= (1<<k);
@@ -461,18 +460,17 @@ void render_lighttable_right_panel()
     else if(filter_prop == s_prop_filetype)
     {
       char *filter_type = dt_token_str(vkdt.db.collection_filter_val);
+      dt_tooltip("enter the responsible input module here, for instance\n"
+          "raw : raw files\n"
+          "jpg : jpg files\n"
+          "vid : video files\n"
+          "mlv : raw video files");
       if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, filter_type, 6, nk_filter_default))
       {
         filter_type[0] = 'i'; filter_type[1] = '-';
         dt_db_update_collection(&vkdt.db);
         dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
-      if(nk_widget_is_hovered(ctx))
-        dt_gui_set_tooltip("enter the responsible input module here, for instance\n"
-                          "raw : raw files\n"
-                          "jpg : jpg files\n"
-                          "vid : video files\n"
-                          "mlv : raw video files");
     }
     else
     {
@@ -566,24 +564,24 @@ void render_lighttable_right_panel()
     if(really_delete) { if(nk_button_label(ctx, "no, don't delete!")) really_delete = 0; }
     else
     {
+      dt_tooltip("will ask you again");
       if(nk_button_label(ctx, "delete image[s]")) really_delete = 1;
-      if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip("will ask you again");
     }
 
     if(really_delete)
     {
-      if(nk_button_label(ctx, "*really* delete image[s]"))
-      {
-        dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
-        really_delete = 0;
-      }
-      if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip(
+      dt_tooltip(
           "this button will physically delete the .cfg files of the selection.\n"
           "it will only delete the source image file if its filename is\n"
           "exacty the .cfg file name without the .cfg postfix.\n"
           "this means duplicates or tag collections will keep the source\n"
           "image file name on disk untouched, but only remove the duplicate\n"
           "or the tag from the image");
+      if(nk_button_label(ctx, "*really* delete image[s]"))
+      {
+        dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+        really_delete = 0;
+      }
     }
     else nk_label(ctx, "", 0);
 
@@ -618,6 +616,11 @@ void render_lighttable_right_panel()
     {
       // ==============================================================
       // create timelapse video
+      dt_tooltip(
+          "update the first image to become a timelapse video of the selected images.\n"
+          "this assumes consecutive numbering of the image file names in the last four digits:\n"
+          "for example IMG_0001.CR2..IMG_0020.CR2.\n"
+          "does not work on tag collections or duplicates.");
       if(nk_button_label(ctx, "create video"))
       { // does not work on tag list images or duplicates.
         const uint32_t *sel = dt_db_selection_get(&vkdt.db);
@@ -674,14 +677,10 @@ void render_lighttable_right_panel()
           }
         }
       }
-      if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip(
-          "update the first image to become a timelapse video of the selected images.\n"
-          "this assumes consecutive numbering of the image file names in the last four digits:\n"
-          "for example IMG_0001.CR2..IMG_0020.CR2.\n"
-          "does not work on tag collections or duplicates.");
 
       // ==============================================================
       // merge/align images
+      dt_tooltip("align and stack selected images for low light photography. they have to be same exposure to work.");
       if(nk_button_label(ctx, "low light bracket"))
       { // overwrite .cfg for this image file:
         uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
@@ -764,8 +763,6 @@ void render_lighttable_right_panel()
             &main_imgid, 1,
             &glfwPostEmptyEvent);
       }
-      if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip(
-          "align and stack selected images for low light photography. they have to be same exposure to work.");
     } // end if multiple images are selected
     nk_tree_pop(ctx);
   } // end collapsing header "selected"
@@ -801,8 +798,8 @@ void render_lighttable_right_panel()
         }
       }
     }
+    dt_tooltip("customise what is shown here in config.rc");
     nk_label_wrap(ctx, text);
-    if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip("customise what is shown here in config.rc");
     nk_tree_pop(ctx);
   } // end collapsing header "metadata"
 
@@ -825,12 +822,12 @@ void render_lighttable_right_panel()
         { // show at max one idle job
           break;
         }
+        dt_tooltip("export current selection");
         if(g_hotkey == s_hotkey_export || nk_button_label(ctx, "export"))
         { // TODO: make sure we don't start a job that is already running in another job[.]
           export_job(job+k, &w);
           g_hotkey = -1;
         }
-        if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip("export current selection");
         nk_label(ctx, "", 0);
       }
       else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))

@@ -39,19 +39,19 @@ export_render_widget(
     if(param->type == dt_token("float"))
     {
       float *val = (float*)(pdata + param->offset);
+      dt_tooltip(param->tooltip);
       nk_slider_float(&vkdt.ctx, param->widget.min, val, param->widget.max, 0.01);
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-      if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
     }
     else if(param->type == dt_token("int"))
     {
       int32_t *val = (int32_t*)(pdata + param->offset);
+      dt_tooltip(param->tooltip);
       nk_slider_int(&vkdt.ctx, param->widget.min, val, param->widget.max, 1);
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-      if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
     }
   }
@@ -60,21 +60,20 @@ export_render_widget(
     if(param->type == dt_token("int"))
     {
       int32_t *val = (int32_t*)(pdata + param->offset);
-      // XXX TODO: in nuklear.h in nk_combo_separator make sure to break the loop if length==0 in two places!
+      dt_tooltip(param->tooltip);
       nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, (struct nk_vec2){ratio[0], ratio[0]});
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-      if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
     }
   }
   else if(widget == dt_token("filename"))
   {
     char *v = (char *)(pdata + param->offset);
+    dt_tooltip(param->tooltip);
     nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_SIMPLE, v, param->cnt, nk_filter_default);
     if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
       memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-    if(nk_widget_is_hovered(&vkdt.ctx)) dt_gui_set_tooltip(param->tooltip);
     nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
   }
 }
@@ -178,9 +177,7 @@ dt_export(
   if(resi != w->ht) dt_rc_set_int(&vkdt.rc, "gui/export/ht", (w->ht = resi));
   nk_label(ctx, "height", NK_TEXT_LEFT);
 
-  if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, w->basename, sizeof(w->basename), nk_filter_default))
-    dt_rc_set(&vkdt.rc, "gui/export/basename", w->basename);
-  if(nk_widget_is_hovered(ctx)) dt_gui_set_tooltip(
+  dt_tooltip(
       "basename of exported files. the following will be replaced:\n"
       "${home} -- home directory\n"
       "${yyyy} -- current year\n"
@@ -188,6 +185,8 @@ dt_export(
       "${seq} -- sequence number\n"
       "${fdir} -- directory of input file\n"
       "${fbase} -- basename of input file");
+  if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, w->basename, sizeof(w->basename), nk_filter_default))
+    dt_rc_set(&vkdt.rc, "gui/export/basename", w->basename);
   nk_label(ctx, "filename", NK_TEXT_LEFT);
 
   resf = w->quality;

@@ -13,13 +13,14 @@ recently_used_collections()
     {
       const char *last = dir;
       for(const char *c=dir;*c!=0;c++) if(*c=='/') last = c+1;
-      if(nk_button_text(&vkdt.ctx, last, strlen(last))) // TODO: nk_button_text_styled (struct nk_style_button){.text_alignment=NK_TEXT_CENTERED}
+      nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+      dt_tooltip(dir);
+      if(nk_button_text(&vkdt.ctx, last, strlen(last)))
       {
         dt_gui_switch_collection(dir);
         return 1; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
-      if(nk_widget_is_hovered(&vkdt.ctx))
-        dt_gui_set_tooltip("%s", dir);
+      nk_style_pop_flags(&vkdt.ctx);
     }
   }
   return 0;

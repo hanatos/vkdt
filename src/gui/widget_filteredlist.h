@@ -9,18 +9,25 @@
 
 // just wraps nuklear
 static inline void
-dt_gui_set_tooltip(const char *fmt, ...)
+dt_tooltip(const char *fmt, ...)
 {
-  // XXX FIXME: these need to all go *before* the widget, we should also include the is_hovering part here
-#if 0
-  va_list args;
-  va_start(args, fmt);
-  nk_tooltipfv(&vkdt.ctx, fmt, args);
-  // nk_tooltip_begin with something like vkdt.state.panel_wd
-  // nk_text_wrap 
-  // nk_tooltip_end
-  va_end(args);
-#endif
+  char text[512];
+  if(fmt && fmt[0] && nk_widget_is_hovered(&vkdt.ctx))
+  {
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    if(nk_tooltip_begin(&vkdt.ctx, vkdt.state.panel_wd))
+    {
+      // nk_layout_row_dynamic(&vkdt.ctx, vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.window.padding.y, 1);
+      // nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.window.padding.y, vkdt.state.panel_wd, 1);
+      // XXX fuck this needs to be large enough to accomodate the wrap
+      nk_layout_row_static(&vkdt.ctx, vkdt.state.panel_wd, vkdt.state.panel_wd, 1);
+      nk_label_wrap(&vkdt.ctx, text);
+      nk_tooltip_end(&vkdt.ctx);
+    }
+  }
 }
 
 
@@ -94,17 +101,15 @@ filteredlist(
 
   // nk_edit
   nk_label(ctx, "filter", NK_TEXT_LEFT);
-  struct nk_rect bounds = nk_widget_bounds(ctx);
   int len = 0;
+  dt_tooltip(
+      "type to filter the list\n"
+      "press enter to apply top item\n"
+      "press escape to close");
   if(nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default))
     ok = 1;
   if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
   vkdt.wstate.popup_appearing = 0;
-  if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
-    dt_gui_set_tooltip(
-        "type to filter the list\n"
-        "press enter to apply top item\n"
-        "press escape to close");
 
   if(!ent_cnt)
   { // open directory
