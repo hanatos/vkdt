@@ -20,7 +20,7 @@ dt_tooltip(const char *fmt, ...)
     va_end(args);
     if(nk_tooltip_begin(&vkdt.ctx, vkdt.state.panel_wd))
     {
-      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.window.padding.y, vkdt.state.panel_wd, 1);
+      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height, vkdt.state.panel_wd, 1);
       text[sizeof(text)-1]=0;
       char *c = text;
       int len = strlen(text);

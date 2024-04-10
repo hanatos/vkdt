@@ -771,10 +771,10 @@ void render_lighttable_right_panel()
   {
     nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd, 1);
     static uint32_t imgid = -1u;
-    static char text[2048];//, *text_end = text;
+    static char text[2048], *text_end = text;
     if(imgid != vkdt.db.current_imgid)
     {
-      text[0] = 0;// text_end = text;
+      text[0] = 0; text_end = text;
       const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", "/usr/bin/exiftool -l -createdate -aperture -shutterspeed -iso");
       dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
       char cmd[PATH_MAX], imgpath[PATH_MAX];
@@ -791,7 +791,7 @@ void render_lighttable_right_panel()
         {
           len = fread(text, 1, sizeof(text), f);
           while(!feof(f) && !ferror(f)) fgetc(f); // drain empty
-          // text_end = text + len;
+          text_end = text + len;
           text[len] = 0;
           imgid = vkdt.db.current_imgid;
           pclose(f);
@@ -799,7 +799,15 @@ void render_lighttable_right_panel()
       }
     }
     dt_tooltip("customise what is shown here in config.rc");
-    nk_label_wrap(ctx, text);
+    char *c = text;
+    while(c < text_end)
+    {
+      char *cc = c;
+      for(;*cc!='\n'&&*cc!=0&&cc<text_end;cc++) ;
+      if(*cc=='\n') *cc = 0;
+      nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
+      c = cc+1;
+    }
     nk_tree_pop(ctx);
   } // end collapsing header "metadata"
 
