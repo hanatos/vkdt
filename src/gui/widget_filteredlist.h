@@ -20,11 +20,18 @@ dt_tooltip(const char *fmt, ...)
     va_end(args);
     if(nk_tooltip_begin(&vkdt.ctx, vkdt.state.panel_wd))
     {
-      // nk_layout_row_dynamic(&vkdt.ctx, vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.window.padding.y, 1);
-      // nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.window.padding.y, vkdt.state.panel_wd, 1);
-      // XXX fuck this needs to be large enough to accomodate the wrap
-      nk_layout_row_static(&vkdt.ctx, vkdt.state.panel_wd, vkdt.state.panel_wd, 1);
-      nk_label_wrap(&vkdt.ctx, text);
+      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.window.padding.y, vkdt.state.panel_wd, 1);
+      text[sizeof(text)-1]=0;
+      char *c = text;
+      int len = strlen(text);
+      while(c < text + len)
+      {
+        char *cc = c;
+        for(;*cc!='\n'&&cc<text+len;cc++) ;
+        if(*cc == '\n') *cc = 0;
+        nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
+        c = cc+1;
+      }
       nk_tooltip_end(&vkdt.ctx);
     }
   }
