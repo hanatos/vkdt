@@ -231,8 +231,8 @@ void modify_roi_out(
   float *noise_b = (float*)dt_module_param_float(mod, 2);
   for(int k=0;k<9;k++)
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
-  mod->img_param.colour_primaries = dt_colour_primaries_custom;
-  mod->img_param.colour_trc       = dt_colour_trc_linear;
+  mod->img_param.colour_primaries = s_colour_primaries_custom;
+  mod->img_param.colour_trc       = s_colour_trc_linear;
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
   dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
 #endif

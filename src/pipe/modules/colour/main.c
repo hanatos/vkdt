@@ -173,8 +173,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   module->img_param.cam_to_rec2020[6] = 0.0;
   module->img_param.cam_to_rec2020[7] = 0.0;
   module->img_param.cam_to_rec2020[8] = 1.0;
-  module->img_param.colour_primaries = dt_colour_primaries_2020;
-  module->img_param.colour_trc       = dt_colour_trc_linear;
+  module->img_param.colour_primaries = s_colour_primaries_2020;
+  module->img_param.colour_trc       = s_colour_trc_linear;
 
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
@@ -211,34 +211,31 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   if(p_mat == 1 && !(img_param->cam_to_rec2020[0] == img_param->cam_to_rec2020[0])) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
+    i[off+5] = s_colour_primaries_custom;
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*i+j] = img_param->cam_to_rec2020[3*j+i];
   }
   else if(p_mat == 2)
   { // CIE XYZ
-    const float xyz_to_rec2020[] = {
-      1.7166511880, -0.3556707838, -0.2533662814,
-     -0.6666843518,  1.6164812366,  0.0157685458,
-      0.0176398574, -0.0427706133,  0.9421031212};
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      f[4+4*i+j] = xyz_to_rec2020[3*j+i];
+    i[off+5] = s_colour_primaries_XYZ;
+    i[off+6] = s_colour_trc_linear;
   }
   else if(p_mat == 3)
   { // rec709/linear srgb
-    const float rec709_to_rec2020[] = {
-      0.62750375, 0.32927542, 0.04330267,
-      0.06910828, 0.91951917, 0.0113596,
-      0.01639406, 0.08801128, 0.89538036};
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      f[4+4*i+j] = rec709_to_rec2020[3*j+i];
+    i[off+5] = s_colour_primaries_srgb;
+    i[off+6] = s_colour_trc_linear;
   }
   else if(p_mat == 5)
   { // read what we have stored in params
+    i[off+5] = s_colour_primaries_custom;
+    i[off+6] = s_colour_trc_linear;
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*i+j] = p_mtx[3*j+i];
   }
   else
   { // p_mat == 0 (or default) rec2020, identity matrix
+    i[off+5] = s_colour_primaries_2020;
+    i[off+6] = s_colour_trc_linear;
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*j+i] = i==j ? 1.0f : 0.0f;
   }

@@ -269,8 +269,8 @@ dt_thumbnails_cache_one(
       .mod        = dt_token("o-bc1"),
       .inst       = dt_token("main"),
       .p_filename = bc1filename,
-      .colour_primaries = dt_colour_primaries_2020, // thumbnails are immediately in working space
-      .colour_trc       = dt_colour_trc_srgb,       // but have srgb gamma to better fit into 8 bit files
+      .colour_primaries = s_colour_primaries_2020, // thumbnails are immediately in working space
+      .colour_trc       = s_colour_trc_srgb,       // but have srgb gamma to better fit into 8 bit files
     }},
   };
 

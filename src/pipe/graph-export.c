@@ -34,7 +34,7 @@ dt_graph_replace_display(
   int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
   int m0 = graph->module[mid].connector[cid].connected_mi;
   int o0 = graph->module[mid].connector[cid].connected_mc;
-  if(prim == dt_colour_primaries_custom) prim = dt_colour_primaries_2020; // don't currently support free matrices
+  if(prim == s_colour_primaries_custom) prim = s_colour_primaries_2020; // don't currently support free matrices
 
   if(m0 < 0) return 2; // display input not connected
 
@@ -56,8 +56,8 @@ dt_graph_replace_display(
   const int m2 = dt_module_add(graph, mod, inst);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
   if(graph->module[m2].connector[i2].format == dt_token("ui8") ||
-     prim != dt_colour_primaries_2020 || 
-     trc  != dt_colour_trc_linear)
+     prim != s_colour_primaries_2020 || 
+     trc  != s_colour_trc_linear)
   {
     dt_module_t *mod = graph->module + m1;
     *(int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim"))) = prim;

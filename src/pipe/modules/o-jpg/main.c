@@ -155,9 +155,9 @@ void write_sink(
 
   jpeg_start_compress(&cinfo, TRUE);
 
-  if(module->img_param.colour_primaries == dt_colour_primaries_adobe && module->img_param.colour_trc == dt_colour_trc_gamma)
+  if(module->img_param.colour_primaries == s_colour_primaries_adobe && module->img_param.colour_trc == s_colour_trc_gamma)
     write_icc_profile(&cinfo, icc_AdobeCompat_v2, icc_AdobeCompat_v2_len);
-  else if(module->img_param.colour_primaries == dt_colour_primaries_2020 && module->img_param.colour_trc == dt_colour_trc_709)
+  else if(module->img_param.colour_primaries == s_colour_primaries_2020 && module->img_param.colour_trc == s_colour_trc_709)
     write_icc_profile(&cinfo, icc_Rec2020_v2_micro, icc_Rec2020_v2_micro_len);
 
   uint8_t *row = malloc((size_t)3 * width * sizeof(uint8_t));
