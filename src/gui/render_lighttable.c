@@ -815,9 +815,10 @@ void render_lighttable_right_panel()
   // export selection
   if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "export selection", NK_MINIMIZED))
   {
-    nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd/2, 2); // XXX???
     static dt_export_widget_t w = {0};
     dt_export(&w);
+    const float ratio[] = {0.7f, 0.3f};
+    nk_layout_row(ctx, NK_DYNAMIC, 0, 2, ratio);
 #define NUM_JOBS 4
     static export_job_t job[NUM_JOBS] = {{0}};
     int32_t num_idle = 0;

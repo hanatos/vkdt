@@ -24,11 +24,8 @@ export_render_widget(
   // if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
   // XXX in fact, ctx->delta_time_seconds needs to be set by us from the outside!
 
-  // TODO: layout! need to compute static size / at least ratio
-  // TODO: combo popup needs static size
+  const float ratio[] = {0.7f, 0.3f};
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
-  const float ratio[] = { vkdt.state.panel_wd * 0.6 - vkdt.ctx.style.tab.padding.x,
-                          vkdt.state.panel_wd * 0.4 - vkdt.ctx.style.tab.padding.x};
   nk_layout_row(&vkdt.ctx, NK_DYNAMIC, row_height, 2, ratio);
 
   char str[10] = {0};
@@ -61,7 +58,8 @@ export_render_widget(
     {
       int32_t *val = (int32_t*)(pdata + param->offset);
       dt_tooltip(param->tooltip);
-      nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, (struct nk_vec2){ratio[0], ratio[0]});
+      struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
+      nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, size);
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
@@ -161,9 +159,9 @@ dt_export(
   if(!w->modid_cnt) dt_export_init(w);
 
   struct nk_context *ctx = &vkdt.ctx;
-  const float ratio[] = {120, 179}; // XXX something panel width?
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
-  nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+  const float ratio[] = {0.7f, 0.3f};
+  nk_layout_row(&vkdt.ctx, NK_DYNAMIC, row_height, 2, ratio);
   int resi;
   float resf;
 
@@ -194,7 +192,7 @@ dt_export(
   if(resf != w->quality) dt_rc_set_float(&vkdt.rc, "gui/export/quality", (w->quality = resf));
   nk_label(ctx, "quality", NK_TEXT_LEFT);
 
-  struct nk_vec2 size = { ratio[0], ratio[0] };
+  struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
   int new_format = nk_combo_string(ctx, w->format_text, w->format, 0xffff, row_height, size);
   if(new_format != w->format) dt_rc_set_int(&vkdt.rc, "gui/export/format", (w->format = new_format));
   nk_label(ctx, "format", NK_TEXT_LEFT);
