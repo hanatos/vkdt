@@ -1,21 +1,16 @@
 // the imgui render functions for the darkroom view
-extern "C"
-{
 #include "gui/view.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-history.h"
 #include "pipe/graph-defaults.h"
-}
-#include "gui/render_view.hh"
-#include "gui/hotkey.hh"
-#include "gui/keyaccel.hh"
-#include "gui/api.hh"
-#include "gui/widget_dopesheet.hh"
-#include "gui/widget_draw.hh"
-#include "gui/widget_thumbnail.hh"
-#include "gui/widget_image.hh"
-
-namespace { // anonymous namespace
+#include "gui/render_view.h"
+#include "gui/hotkey.h"
+#include "gui/keyaccel.h"
+#include "gui/api_gui.h"
+// #include "gui/widget_dopesheet.h"
+#include "gui/widget_draw.h"
+#include "gui/widget_thumbnail.h"
+#include "gui/widget_image.h"
 
 static dt_keyaccel_t keyaccel;
 
@@ -50,42 +45,188 @@ enum hotkey_names_t
 
 static const int hk_darkroom_size = 128;
 static int hk_darkroom_cnt = s_hotkey_count;
-static ImHotKey::HotKey hk_darkroom[hk_darkroom_size] = {
-  {"create preset",   "create new preset from image",               {ImGuiKey_LeftCtrl, ImGuiKey_O}},
-  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"show history",    "toggle visibility of left panel",            {ImGuiKey_LeftCtrl, ImGuiKey_H}},
-  {"redo",            "go up in history stack one item",            {ImGuiKey_LeftCtrl, ImGuiKey_LeftShift, ImGuiKey_Z}}, // test before undo
-  {"undo",            "go down in history stack one item",          {ImGuiKey_LeftCtrl, ImGuiKey_Z}},
-  {"assign tag",      "assign a tag to the current image",          {ImGuiKey_LeftCtrl, ImGuiKey_T}},
-  {"insert keyframe", "insert a keyframe for the active widget",    {ImGuiKey_LeftCtrl, ImGuiKey_K}},
-  {"node editor",     "show node editor for the current image",     {ImGuiKey_LeftCtrl, ImGuiKey_N}},
-  {"next image",      "switch to next image in folder",             {ImGuiKey_Space}},
-  {"prev image",      "switch to previous image in folder",         {ImGuiKey_Backspace}},
-  {"fullscreen",      "show/hide side panels for fullscreen",       {ImGuiKey_Tab}},
-  {"dopesheet",       "show/hide keyframe overview",                {ImGuiKey_LeftCtrl, ImGuiKey_D}},
-  {"rate 0",          "assign zero stars",                          {ImGuiKey_0}},
-  {"rate 1",          "assign one star",                            {ImGuiKey_1}},
-  {"rate 2",          "assign two stars",                           {ImGuiKey_2}},
-  {"rate 3",          "assign three stars",                         {ImGuiKey_3}},
-  {"rate 4",          "assign four stars",                          {ImGuiKey_4}},
-  {"rate 5",          "assign five stars",                          {ImGuiKey_5}},
-  {"label red",       "toggle red label",                           {ImGuiKey_F1}},
-  {"label green",     "toggle green label",                         {ImGuiKey_F2}},
-  {"label blue",      "toggle blue label",                          {ImGuiKey_F3}},
-  {"label yellow",    "toggle yellow label",                        {ImGuiKey_F4}},
-  {"label purple",    "toggle purple label",                        {ImGuiKey_F5}},
+static hk_t hk_darkroom[128] = {
+  {"create preset",   "create new preset from image",               {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_O}},
+  {"apply preset",    "choose preset to apply",                     {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_P}},
+  {"show history",    "toggle visibility of left panel",            {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_H}},
+  {"redo",            "go up in history stack one item",            {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_LEFT_SHIFT, GLFW_KEY_Z}},
+  {"undo",            "go down in history stack one item",          {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_Z}},
+  {"assign tag",      "assign a tag to the current image",          {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_T}},
+  {"insert keyframe", "insert a keyframe for the active widget",    {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_K}},
+  {"node editor",     "show node editor for the current image",     {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_N}},
+  {"next image",      "switch to next image in folder",             {GLFW_KEY_SPACE}},
+  {"prev image",      "switch to previous image in folder",         {GLFW_KEY_BACKSPACE}},
+  {"fullscreen",      "show/hide side panels for fullscreen",       {GLFW_KEY_TAB}},
+  {"dopesheet",       "show/hide keyframe overview",                {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_D}},
+  {"rate 0",          "assign zero stars",                          {GLFW_KEY_0}},
+  {"rate 1",          "assign one star",                            {GLFW_KEY_1}},
+  {"rate 2",          "assign two stars",                           {GLFW_KEY_2}},
+  {"rate 3",          "assign three stars",                         {GLFW_KEY_3}},
+  {"rate 4",          "assign four stars",                          {GLFW_KEY_4}},
+  {"rate 5",          "assign five stars",                          {GLFW_KEY_5}},
+  {"label red",       "toggle red label",                           {GLFW_KEY_F1}},
+  {"label green",     "toggle green label",                         {GLFW_KEY_F2}},
+  {"label blue",      "toggle blue label",                          {GLFW_KEY_F3}},
+  {"label yellow",    "toggle yellow label",                        {GLFW_KEY_F4}},
+  {"label purple",    "toggle purple label",                        {GLFW_KEY_F5}},
   {"reload shaders",  "debug: reload shader code while running",    {}},
 };
 
 // used to communictate between the gui helper functions
 static struct gui_state_data_t
 {
-  int hotkey = -1;
+  int hotkey;
 } gui;
 
 // goes here because the keyframe code depends on the above defines/hotkeys
 // could probably pass a function pointer instead.
-#include "gui/render_darkroom.hh"
+#include "gui/render_darkroom.h"
+
+void
+darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  if(vkdt.wstate.grabbed)
+  {
+    dt_module_input_event_t p = {
+      .type     = 4,
+      .key      = key,
+      .scancode = scancode,
+      .action   = action,
+      .mods     = mods,
+    };
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
+    {
+      dt_gui_ungrab_mouse();
+      p.type = -1; // disconnect event
+      // dt_gui_dr_toggle_fullscreen_view(); // bring panels back
+    }
+    if(vkdt.wstate.active_widget_modid >= 0)
+    {
+      if(mod->so->input) mod->so->input(mod, &p);
+      if(p.type == -1) vkdt.wstate.active_widget_modid = -1;
+    }
+    return; // grabbed, don't execute hotkeys
+  }
+
+  if(vkdt.wstate.active_widget_modid >= 0) return; // active widget grabs controls
+  if(action != GLFW_PRESS) return; // only handle key down events
+
+  gui.hotkey = -1; // XXX or if no popup is open:
+  gui.hotkey = hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key);
+  switch(gui.hotkey)
+  { // these are "destructive" hotkeys, they change the image and invalidate the dset.
+    // this has to happen this frame *before* the dset is sent to imgui for display.
+    case s_hotkey_next_image:
+      dt_gui_dr_next();
+      break;
+    case s_hotkey_prev_image:
+      dt_gui_dr_prev();
+      break;
+    case s_hotkey_create_preset:
+      dt_gui_dr_preset_create();
+      break;
+    case s_hotkey_apply_preset:
+      dt_gui_dr_preset_apply();
+      break;
+    case s_hotkey_show_history:
+      dt_gui_dr_toggle_history();
+      break;
+    case s_hotkey_redo:
+      dt_gui_dr_show_history();
+      dt_gui_dr_history_redo();
+      break;
+    case s_hotkey_undo:
+      dt_gui_dr_show_history();
+      dt_gui_dr_history_undo();
+      break;
+    case s_hotkey_assign_tag:
+      dt_gui_dr_assign_tag();
+      break;
+    case s_hotkey_nodes_enter:
+      dt_view_switch(s_view_nodes);
+      break;
+    case s_hotkey_fullscreen:
+      dt_gui_dr_toggle_fullscreen_view();
+      break;
+    case s_hotkey_dopesheet:
+      dt_gui_dr_toggle_dopesheet();
+      break;
+    case s_hotkey_rate_0: dt_gui_rate_0(); break;
+    case s_hotkey_rate_1: dt_gui_rate_1(); break;
+    case s_hotkey_rate_2: dt_gui_rate_2(); break;
+    case s_hotkey_rate_3: dt_gui_rate_3(); break;
+    case s_hotkey_rate_4: dt_gui_rate_4(); break;
+    case s_hotkey_rate_5: dt_gui_rate_5(); break;
+    case s_hotkey_label_1: dt_gui_label_1(); break;
+    case s_hotkey_label_2: dt_gui_label_2(); break;
+    case s_hotkey_label_3: dt_gui_label_3(); break;
+    case s_hotkey_label_4: dt_gui_label_4(); break;
+    case s_hotkey_label_5: dt_gui_label_5(); break;
+    case s_hotkey_reload_shaders: dt_gui_dr_reload_shaders(); break;
+    default:
+     if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].name);
+     break;
+  }
+  // XXX TODO bring back (and move to render call)
+  // dt_gui_dr_modals(); // draw modal windows for presets etc
+
+  // XXX only if no popup is open!
+  // XXX gamepad!
+  if(key == GLFW_KEY_ESCAPE)
+  {
+  // TODO: place on top of image widget
+  // nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE);
+
+    dt_view_switch(s_view_lighttable);
+    vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
+  }
+  // ?? if(key == GLFW_KEY_ENTER) dt_view_switch(s_view_nodes);
+
+#if 0 // TODO: port this!
+    ImGuiIO& io = ImGui::GetIO();
+    if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
+      !dt_gui_imgui_input_blocked() &&
+      !vkdt.wstate.grabbed)
+    {
+      static int fs_state = 0;
+      if(!ImGui::IsKeyDown(ImGuiKey_GamepadL2) &&
+         !ImGui::IsKeyDown(ImGuiKey_GamepadR2)) fs_state = 0;
+      else if(fs_state == 0 && ImGui::IsKeyPressed(ImGuiKey_GamepadL2)) fs_state = 1;
+      else if(fs_state == 1 && ImGui::IsKeyDown(ImGuiKey_GamepadL2) && ImGui::IsKeyPressed(ImGuiKey_GamepadR2))
+      {
+        fs_state = 2;
+        dt_gui_dr_toggle_fullscreen_view();
+      }
+
+        goto abort;
+      }
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+         ImGui::IsKeyPressed(ImGuiKey_Escape)||
+         ImGui::IsKeyPressed(ImGuiKey_CapsLock)||
+         (ImGui::IsWindowHovered() && ImGui::IsMouseDoubleClicked(0)))
+      {
+        dt_view_switch(s_view_lighttable);
+        vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too
+        goto abort;
+      }
+      // disable keyboard nav ctrl + shift to change images:
+      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyCtrl &&
+               ImGui::IsKeyPressed(ImGuiKey_GamepadL1))
+        dt_gui_dr_prev();
+      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyShift &&
+               ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
+        dt_gui_dr_next();
+      else if(0)
+      {
+abort:
+        ImGui::End();
+        ImGui::PopStyleColor();
+        return;
+      }
+    }
+#endif
+}
 
 void dt_gui_set_lod(int lod)
 {
@@ -106,6 +247,7 @@ void dt_gui_set_lod(int lod)
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }
 
+#if 0 // TODO:port
 void render_darkroom_favourite()
 { // streamlined "favourite" ui
   dt_graph_t *graph = &vkdt.graph_dev;
@@ -164,32 +306,21 @@ void render_darkroom_full()
       memcpy(inst, dt_token_str(vkdt.graph_dev.module[modid[m]].inst), 8);
       if(!strstr(inst, filter_inst)) continue;
     }
-    render_darkroom_widgets(&vkdt.graph_dev, modid[m], open, active_module);
+    render_darkroom_widgets(&vkdt.graph_dev, modid[m], open, &active_module);
   }
 }
-} // end anonymous namespace
-
+#endif
 
 void render_darkroom()
 {
-  gui.hotkey = -1;
-  if(!ImGui::IsPopupOpen("edit hotkeys", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
-    gui.hotkey = ImHotKey::GetHotKey(hk_darkroom, hk_darkroom_cnt);
-  switch(gui.hotkey)
-  { // these are "destructive" hotkeys, they change the image and invalidate the dset.
-    // this has to happen this frame *before* the dset is sent to imgui for display.
-    case s_hotkey_next_image:
-      dt_gui_dr_next();
-      break;
-    case s_hotkey_prev_image:
-      dt_gui_dr_prev();
-      break;
-  }
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
+  int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
+  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+  struct nk_rect bounds = {win_x, win_y, win_w, win_h};
+  if(nk_begin(&vkdt.ctx, "lighttable center", bounds, 0))
   { // center image view
-    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+#if 0 // TODO: merge this in same window, draw on top of img
     { // draw image properties
       ImGui::SetNextWindowPos (ImGui::GetMainViewport()->Pos, ImGuiCond_Always);
       ImGui::SetNextWindowSize(ImVec2(win_w+2*win_x, win_y), ImGuiCond_Always);
@@ -210,66 +341,13 @@ void render_darkroom()
       }
       ImGui::End();
     }
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + win_x,
-          ImGui::GetMainViewport()->Pos.y + win_y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w, win_h), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-    ImGui::Begin("darkroom center", 0, ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoBackground);
-
-    ImGuiIO& io = ImGui::GetIO();
-    if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
-      !dt_gui_imgui_input_blocked() &&
-      !vkdt.wstate.grabbed)
-    {
-      static int fs_state = 0;
-      if(!ImGui::IsKeyDown(ImGuiKey_GamepadL2) &&
-         !ImGui::IsKeyDown(ImGuiKey_GamepadR2)) fs_state = 0;
-      else if(fs_state == 0 && ImGui::IsKeyPressed(ImGuiKey_GamepadL2)) fs_state = 1;
-      else if(fs_state == 1 && ImGui::IsKeyDown(ImGuiKey_GamepadL2) && ImGui::IsKeyPressed(ImGuiKey_GamepadR2))
-      {
-        fs_state = 2;
-        dt_gui_dr_toggle_fullscreen_view();
-      }
-
-      if(gui.hotkey == s_hotkey_nodes_enter)
-      {
-        dt_view_switch(s_view_nodes);
-        goto abort;
-      }
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-         ImGui::IsKeyPressed(ImGuiKey_Escape)||
-         ImGui::IsKeyPressed(ImGuiKey_CapsLock)||
-         (ImGui::IsWindowHovered() && ImGui::IsMouseDoubleClicked(0)))
-      {
-        dt_view_switch(s_view_lighttable);
-        vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too
-        goto abort;
-      }
-      // disable keyboard nav ctrl + shift to change images:
-      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyCtrl &&
-               ImGui::IsKeyPressed(ImGuiKey_GamepadL1))
-        dt_gui_dr_prev();
-      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyShift &&
-               ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-        dt_gui_dr_next();
-      else if(0)
-      {
-abort:
-        ImGui::End();
-        ImGui::PopStyleColor();
-        return;
-      }
-    }
+#endif
 
     // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
+#if 0 // TODO: port gamepad stuff
       if(ImGui::IsKeyPressed(ImGuiKey_GamepadL3)) // left stick pressed
         dt_image_reset_zoom(&vkdt.wstate.img_widget);
       if(axes)
@@ -288,22 +366,22 @@ abort:
         vkdt.wstate.img_widget.scale = scale;
 #undef SMOOTH
       }
+#endif
       if(vkdt.graph_res == VK_SUCCESS)
       {
         int events = !vkdt.wstate.grabbed;
         // center view has on-canvas widgets (but only if there *is* an image):
-        dt_image(&vkdt.wstate.img_widget, out_main, events, out_main != 0);
+        dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
       }
     }
 
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
     if(vkdt.wstate.show_perf_overlay) render_perf_overlay();
-
-    ImGui::End();
-    ImGui::PopStyleColor();
   } // end center view
+  nk_end(&vkdt.ctx);
 
+#if 0 // XXX port me!
   if(vkdt.wstate.dopesheet_view > 0.0f)
   { // draw dopesheet
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y + vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
@@ -597,66 +675,18 @@ abort:
 
     ImGui::End();
   } // end right panel
-
-  switch(gui.hotkey)
-  {
-    case s_hotkey_create_preset:
-      dt_gui_dr_preset_create();
-      break;
-    case s_hotkey_apply_preset:
-      dt_gui_dr_preset_apply();
-      break;
-    case s_hotkey_show_history:
-      dt_gui_dr_toggle_history();
-      break;
-    case s_hotkey_redo:
-      dt_gui_dr_show_history();
-      dt_gui_dr_history_redo();
-      break;
-    case s_hotkey_undo:
-      dt_gui_dr_show_history();
-      dt_gui_dr_history_undo();
-      break;
-    case s_hotkey_assign_tag:
-      dt_gui_dr_assign_tag();
-      break;
-    case s_hotkey_nodes_enter:
-      dt_view_switch(s_view_nodes);
-      break;
-    case s_hotkey_fullscreen:
-      dt_gui_dr_toggle_fullscreen_view();
-      break;
-    case s_hotkey_dopesheet:
-      dt_gui_dr_toggle_dopesheet();
-      break;
-    case s_hotkey_rate_0: dt_gui_rate_0(); break;
-    case s_hotkey_rate_1: dt_gui_rate_1(); break;
-    case s_hotkey_rate_2: dt_gui_rate_2(); break;
-    case s_hotkey_rate_3: dt_gui_rate_3(); break;
-    case s_hotkey_rate_4: dt_gui_rate_4(); break;
-    case s_hotkey_rate_5: dt_gui_rate_5(); break;
-    case s_hotkey_label_1: dt_gui_label_1(); break;
-    case s_hotkey_label_2: dt_gui_label_2(); break;
-    case s_hotkey_label_3: dt_gui_label_3(); break;
-    case s_hotkey_label_4: dt_gui_label_4(); break;
-    case s_hotkey_label_5: dt_gui_label_5(); break;
-    case s_hotkey_reload_shaders: dt_gui_dr_reload_shaders(); break;
-    default:
-     if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].functionName);
-     break;
-  }
-  dt_gui_dr_modals(); // draw modal windows for presets etc
+#endif
 }
 
 void render_darkroom_init()
 {
   hk_darkroom_cnt = dt_keyaccel_init(&keyaccel, hk_darkroom, hk_darkroom_cnt, hk_darkroom_size);
-  ImHotKey::Deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
+  hk_deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
 }
 
 void render_darkroom_cleanup()
 {
-  ImHotKey::Serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
+  hk_serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
   dt_keyaccel_cleanup(&keyaccel);
   widget_end(); // commit params if still ongoing
 }

@@ -332,7 +332,7 @@ int dt_gui_init_nk()
   }
 
   render_lighttable_init();
-  // render_darkroom_init();
+  render_darkroom_init();
   // render_nodes_init();
   return 0;
 }
@@ -360,9 +360,9 @@ void dt_gui_render_frame_nk()
     case s_view_lighttable:
       render_lighttable();
       break;
-    // case s_view_darkroom:
-      // render_darkroom();
-      // break;
+    case s_view_darkroom:
+      render_darkroom();
+      break;
     // case s_view_nodes:
       // render_nodes();
       // break;
@@ -393,7 +393,7 @@ void dt_gui_cleanup_nk()
 {
   nk_free(&vkdt.ctx);
   // render_nodes_cleanup();
-  // render_darkroom_cleanup();
+  render_darkroom_cleanup();
   render_lighttable_cleanup();
   threads_mutex_lock(&qvk.queue_mutex);
   vkDeviceWaitIdle(qvk.device);

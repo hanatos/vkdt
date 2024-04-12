@@ -333,6 +333,7 @@ error:
     }
   } // end BeginPopupModal assign tag
 }
+#endif // XXX DEBUG
 
 static inline void
 dt_gui_dr_preset_create()
@@ -374,4 +375,3 @@ dt_gui_dr_zoom()
   glfwGetCursorPos(qvk.window, &x, &y);
   dt_image_zoom(&vkdt.wstate.img_widget, x, y);
 }
-#endif // XXX DEBUG

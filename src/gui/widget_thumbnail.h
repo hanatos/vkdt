@@ -1,7 +1,7 @@
 #pragma once
 #include "nk.h"
 
-void dt_draw_star(float u, float v, float size, struct nk_color col)
+static inline void dt_draw_star(float u, float v, float size, struct nk_color col)
 {
   // material icon code point for star:
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
@@ -89,46 +89,4 @@ dt_thumbnail_image(
     nk_draw_text(canvas, full, text, strlen(text), &dt_gui_get_font(0)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
 
   return ret;
-
-
-#if 0
-  // make sure we're square:
-  float wd = MAX(size[0], size[1]) + 2*padding;
-  // overloaded operators are not exposed in imgui_internal, so we'll do the hard way:
-  const ImRect bb(window->DC.CursorPos, ImVec2(window->DC.CursorPos[0] + wd, window->DC.CursorPos[1] + wd));
-  ImVec2 off((wd - size[0])*.5f, (wd - size[1])*.5f);
-  const ImRect image_bb(
-      ImVec2(window->DC.CursorPos[0] + off[0],
-        window->DC.CursorPos[1] + off[1]),
-      ImVec2(window->DC.CursorPos[0] + off[0] + size[0],
-        window->DC.CursorPos[1] + off[1] + size[1]));
-  ItemSize(bb);
-  if (!ItemAdd(bb, id))
-    return 0;
-
-  if(set_nav_focus)
-    SetFocusID(id, window);
-
-  // stars clicked?
-  bool hovered, held;
-  bool pressed = ButtonBehavior(bb, id, &hovered, &held);
-
-  // Render
-  const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-  RenderNavHighlight(bb, id);
-  RenderFrame(bb.Min, bb.Max, col, true, ImClamp(padding, 0.0f, style.FrameRounding));
-  if (bg_col.w > 0.0f)
-    window->DrawList->AddRectFilled(image_bb.Min, image_bb.Max, GetColorU32(bg_col));
-  window->DrawList->AddImage(user_texture_id, image_bb.Min, image_bb.Max, uv0, uv1, GetColorU32(tint_col));
-
-  // render decorations (colour labels/stars/etc?)
-  dt_draw_rating(bb.Min[0]+0.1*wd, bb.Min[1]+0.1*wd, 0.1*wd, rating);
-  dt_draw_labels(bb.Min[0]+0.1*wd, bb.Min[1]+0.9*wd, 0.1*wd, labels);
-
-  if(text) // optionally render text
-    window->DrawList->AddText(0, 0.0f, ImVec2(bb.Min[0]+padding, bb.Min[1]+padding), 0xff111111u, text, text+strlen(text), wd, 0);
-
-  // TODO: return stars or labels if they have been clicked
-  return pressed ? 1 : 0;
-#endif
 }

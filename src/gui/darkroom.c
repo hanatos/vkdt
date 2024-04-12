@@ -44,6 +44,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
+    return;
   }
 }
 
@@ -63,6 +64,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
+    return;
   }
 }
 
@@ -79,34 +81,6 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
       if(mod->so->input) mod->so->input(mod, &p);
-  }
-}
-
-// some static helper functions for the gui
-void
-darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
-{
-  if(vkdt.wstate.grabbed)
-  {
-    dt_module_input_event_t p = {
-      .type     = 4,
-      .key      = key,
-      .scancode = scancode,
-      .action   = action,
-      .mods     = mods,
-    };
-    dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
-    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
-    {
-      dt_gui_ungrab_mouse();
-      p.type = -1; // disconnect event
-      // dt_gui_dr_toggle_fullscreen_view(); // bring panels back
-    }
-    if(vkdt.wstate.active_widget_modid >= 0)
-    {
-      if(mod->so->input) mod->so->input(mod, &p);
-      if(p.type == -1) vkdt.wstate.active_widget_modid = -1;
-    }
   }
 }
 

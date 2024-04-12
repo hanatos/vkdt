@@ -338,8 +338,6 @@ dt_image(
     int                main)    // if !=0 do on-canvas ui elements
 {
   if(!out) return;
-  // dt_connector_image_t *img = dt_graph_connector_image(&vkdt.graph_dev, out-vkdt.graph_dev.node, 0, 0, vkdt.graph_dev.frame);
-  // if(!img) return;
   w->out = out;
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
@@ -358,19 +356,12 @@ dt_image(
   im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
   dt_image_to_view(w, im0, v0);
   dt_image_to_view(w, im1, v1);
-  // TODO:
-  struct nk_rect subimg = {0, 0, w->wd, w->ht};
-  // struct nk_rect disp;
+  struct nk_rect subimg = {w->wd * im0[0], w->ht * im0[1], w->wd * (im1[0]-im0[0]), w->ht * (im1[1]-im0[1])};
+  struct nk_rect disp = {v0[0], v0[1], v1[0]-v0[0], v1[1]-v0[1]};
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
-  //struct nk_image nkimg = nk_subimage_ptr(img->image_view, w->wd, w->ht, subimg);
   struct nk_image nkimg = nk_subimage_ptr(out->dset[0], w->wd, w->ht, subimg);
-  nk_image(ctx, nkimg); // ??
-  int hover = nk_widget_is_hovered(ctx);
-  // nk_draw_image(buf, disp, &nkimg, col);
-  // XXX how to scale this image?
-  // ImGui::GetWindowDrawList()->AddImage(
-      // imgid, ImVec2(v0[0], v0[1]), ImVec2(v1[0], v1[1]),
-      // ImVec2(im0[0], im0[1]), ImVec2(im1[0], im1[1]), IM_COL32_WHITE);
+  int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
+  nk_draw_image(buf, disp, &nkimg, (struct nk_color){0x77,0x77,0x77,0xff});
   char scaletext[10];
   if(w->scale >= 1.0f)
   {
@@ -378,9 +369,7 @@ dt_image(
     nk_draw_text(buf, (struct nk_rect){w->win_x+0.9*w->win_w,w->win_y+0.05*w->win_h, 0.05*w->win_w, 0.05*w->win_h},
         scaletext, strlen(scaletext), &dt_gui_get_font(0)->handle, (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }
-
   // now the controls:
-  // XXX probably doesn't need replacement with image above: ImGui::InvisibleButton("display", ImVec2(0.975*w->win_w, 0.975*w->win_h));
   if(!events) return;
   dt_image_events(ctx, w, hover, main);
 }

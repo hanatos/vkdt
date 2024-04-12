@@ -69,7 +69,7 @@ typedef enum dt_filteredlist_flags_t
   s_filteredlist_return_short = 8, // return only the short filename, not the absolute one
 } dt_filteredlist_flags_t;
 
-int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
+static inline int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
 {
   const struct dirent *a = (const struct dirent *)aa;
   const struct dirent *b = (const struct dirent *)bb;

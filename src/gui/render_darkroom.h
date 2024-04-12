@@ -1,13 +1,12 @@
 #pragma once
 // some drawing routines shared between node editor and darkroom mode
-namespace {
-void widget_end()
+static inline void widget_end()
 {
   if(!vkdt.wstate.grabbed)
   {
     if(vkdt.wstate.active_widget_modid < 0) return; // all good already
     // rerun all (roi could have changed, buttons are drastic)
-    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+    vkdt.graph_dev.runflags = s_graph_run_all;
     int modid = vkdt.wstate.active_widget_modid;
     int parid = vkdt.wstate.active_widget_parid;
     int parnm = vkdt.wstate.active_widget_parnm;
@@ -27,24 +26,23 @@ void widget_end()
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
 }
-void widget_abort()
+static inline void widget_abort()
 {
   if(!vkdt.wstate.grabbed)
   {
     if(vkdt.wstate.active_widget_modid < 0) return; // all good already
     // rerun all (roi could have changed, buttons are drastic)
-    vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+    vkdt.graph_dev.runflags = s_graph_run_all;
     if(vkdt.wstate.mapped) vkdt.wstate.mapped = 0; // mapped can't really abort, need to rollback via history.
   }
   dt_gui_ungrab_mouse();
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
 }
-} // end anonymous namespace
-
 
 void render_perf_overlay()
 {
+#if 0 // TODO port
   const int nvmask = 127;
   static float values[128] = {0.0f};
   static int values_offset = 0;
@@ -72,10 +70,12 @@ void render_perf_overlay()
   ImGui::GetWindowDrawList()->AddLine(ImVec2(pos.x, (1.0-16.0/100.0)*sz.y+pos.y), ImVec2(pos.x+sz.x, (1.0-16.0/100.0)*sz.y+pos.y), bgcol);
   ImGui::GetWindowDrawList()->AddText(dt_gui_imgui_get_font(2), dt_gui_imgui_get_font(2)->FontSize, pos, col, overlay);
   values_offset = (values_offset + 1) & nvmask;
+#endif
 }
 
 void render_darkroom_widget(int modid, int parid)
 {
+#if 0 // TODO port!
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
   if(!param) return;
   ImGuiIO& io = ImGui::GetIO();
@@ -945,14 +945,16 @@ void render_darkroom_widget(int modid, int parid)
 #undef RESETBLOCK
 #undef KEYFRAME
 #undef TOOLTIP
+#endif
 }
 
 void render_darkroom_widgets(
     dt_graph_t *graph,          // graph with the modules and parameters
     int         curr,           // which module id to draw
     char       *open,           // gui state: is the expander open
-    int32_t    &active_module)  // id of the currently active module
+    int32_t    *active_module)  // id of the currently active module
 {
+#if 0 // TODO port
   char name[30];
   dt_module_t *const arr = graph->module;
   if(!arr[curr].so->num_params) return;
@@ -1046,5 +1048,6 @@ void render_darkroom_widgets(
   }
   else open[curr] = 0;
   ImGui::PopID();
+#endif
 }
 
