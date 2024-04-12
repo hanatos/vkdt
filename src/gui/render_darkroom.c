@@ -313,11 +313,18 @@ void render_darkroom_full()
 
 void render_darkroom()
 {
-  int axes_cnt = 0;
-  const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
+  // int axes_cnt = 0;
+  // const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
+  if(nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
+  {
+    dt_view_switch(s_view_lighttable);
+    vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
+    return;
+  }
+
   if(nk_begin(&vkdt.ctx, "lighttable center", bounds, 0))
   { // center image view
 #if 0 // TODO: merge this in same window, draw on top of img
