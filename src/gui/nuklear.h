@@ -30006,6 +30006,8 @@ nk_tooltip_begin(struct nk_context *ctx, float width)
     bounds.y = (float)y;
     bounds.w = (float)w;
     bounds.h = (float)h;
+    if ((win->layout->clip.x + bounds.x + bounds.w) > (win->bounds.x + win->bounds.w))
+        bounds.x = win->bounds.x + win->bounds.w - bounds.w - win->layout->clip.x;
 
     ret = nk_popup_begin(ctx, NK_POPUP_DYNAMIC,
         "__##Tooltip##__", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER, bounds);
