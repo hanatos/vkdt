@@ -23578,7 +23578,6 @@ nk_widget_text_wrap(struct nk_command_buffer *o, struct nk_rect b,
     while (done < len) {
         if (!fitting || line.y + line.h >= (b.y + b.h)) break;
         nk_widget_text(o, line, &string[done], fitting, &text, NK_TEXT_LEFT, f);
-        fprintf(stderr, "string:%d: `%.*s`\n", fitting, fitting, &string[done]);
         done += fitting + 1; // also skip separator, if any
         line.y += f->height + 2 * t->padding.y;
         fitting = nk_text_clamp(f, &string[done], len - done, line.w, &glyphs, &width, seperator,NK_LEN(seperator));

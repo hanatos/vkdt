@@ -57,11 +57,11 @@ export_render_widget(
     if(param->type == dt_token("int"))
     {
       int32_t *val = (int32_t*)(pdata + param->offset);
-      dt_tooltip(param->tooltip);
       struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
       nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, size);
       if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
         memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+      dt_tooltip(param->tooltip); // combo boxes can't have tooltips, or else the popup doesn't work any more
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
     }
   }
