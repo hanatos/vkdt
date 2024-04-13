@@ -402,7 +402,6 @@ void render_lighttable_right_panel()
     int32_t sort_prop   = vkdt.db.collection_sort;
 
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-    // XXX ??? nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
 
     int res = nk_combo_string(ctx, dt_db_property_text, sort_prop, 0xffff, row_height, size);
     if(res != sort_prop)

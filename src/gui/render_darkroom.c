@@ -392,7 +392,9 @@ void render_darkroom()
     ImGui::End();
     ImGui::PopStyleColor();
   }
+#endif
 
+#if 0
   if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
   { // left panel
     ImGui::SetNextWindowPos (ImVec2(
@@ -482,27 +484,21 @@ void render_darkroom()
     ImGui::EndChild();
     ImGui::End();
   } // end left panel
+#endif
 
-  if(!vkdt.wstate.fullscreen_view)
+  struct nk_context *ctx = &vkdt.ctx;
+  bounds = (struct nk_rect){ qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
+  if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, 0))
   { // right panel
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
-          ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::Begin("panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-
     // draw histogram image:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
     if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
     {
-      int wd = vkdt.state.panel_wd * 0.975;
-      // int ht = wd * 2.0f/3.0f; // force 2/3 aspect ratio
+      int wd = vkdt.state.panel_wd;
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
-      ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
-          ImVec2(wd, ht),
-          ImVec2(0,0), ImVec2(1,1),
-          ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+      nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
+      struct nk_image img = nk_image_ptr(out_hist->dset[0]);
+      nk_image(ctx, img);
     }
 
     dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
@@ -513,43 +509,42 @@ void render_darkroom()
       float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
       int ht = scale * iht;
       int wd = scale * iwd;
-      ImGui::NewLine(); // end expander
-      ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
-      ImGui::Image(out_view0->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
-          ImVec2(wd, ht),
-          ImVec2(0,0), ImVec2(1,1),
-          ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+      nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
+      struct nk_image img = nk_image_ptr(out_view0->dset[0]);
+      nk_image(ctx, img);
     }
 
-
     { // print some basic exif if we have
+      const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+      nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
       const dt_image_params_t *ip = &vkdt.graph_dev.module[0].img_param;
       if(ip->exposure != 0.0f)
       {
         if(ip->exposure >= 1.0f)
           if(nearbyintf(ip->exposure) == ip->exposure)
-            ImGui::Text("%s %s %.0f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
+            nk_labelf(ctx, NK_TEXT_LEFT, "%s %s %.0f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
                 (int)ip->focal_length, (int)ip->iso);
           else
-            ImGui::Text("%s %s %.1f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
+            nk_labelf(ctx, NK_TEXT_LEFT, "%s %s %.1f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
                 (int)ip->focal_length, (int)ip->iso);
         /* want to catch everything below 0.3 seconds */
         else if(ip->exposure < 0.29f)
-          ImGui::Text("%s %s 1/%.0f f/%.1f %dmm ISO %d", ip->maker, ip->model, 1.0 / ip->exposure, ip->aperture,
+          nk_labelf(ctx, NK_TEXT_LEFT, "%s %s 1/%.0f f/%.1f %dmm ISO %d", ip->maker, ip->model, 1.0 / ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
         /* catch 1/2, 1/3 */
         else if(nearbyintf(1.0f / ip->exposure) == 1.0f / ip->exposure)
-          ImGui::Text("%s %s 1/%.0f f/%.1f %dmm ISO %d", ip->maker, ip->model, 1.0 / ip->exposure, ip->aperture,
+          nk_labelf(ctx, NK_TEXT_LEFT, "%s %s 1/%.0f f/%.1f %dmm ISO %d", ip->maker, ip->model, 1.0 / ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
         /* catch 1/1.3, 1/1.6, etc. */
         else if(10 * nearbyintf(10.0f / ip->exposure) == nearbyintf(100.0f / ip->exposure))
-          ImGui::Text("%s %s 1/%.1f f/%.1f %dmm ISO %d", ip->maker, ip->model, 1.0 / ip->exposure, ip->aperture,
+          nk_labelf(ctx, NK_TEXT_LEFT, "%s %s 1/%.1f f/%.1f %dmm ISO %d", ip->maker, ip->model, 1.0 / ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
         else
-          ImGui::Text("%s %s %.1f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
+          nk_labelf(ctx, NK_TEXT_LEFT, "%s %s %.1f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
               (int)ip->focal_length, (int)ip->iso);
       }
     }
+#if 0
     if(vkdt.graph_dev.frame_cnt != 1 && vkdt.wstate.dopesheet_view == 0)
     { // print timeline/navigation only if not a still
       float bwd = 0.12f;
@@ -664,10 +659,9 @@ void render_darkroom()
       }
       ImGui::EndTabBar();
     }
-
-    ImGui::End();
-  } // end right panel
 #endif
+    nk_end(ctx);
+  } // end right panel
 }
 
 void render_darkroom_init()
