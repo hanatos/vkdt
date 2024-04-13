@@ -326,31 +326,7 @@ void render_darkroom()
   }
 
   if(nk_begin(&vkdt.ctx, "lighttable center", bounds, 0))
-  { // center image view
-#if 0 // TODO: merge this in same window, draw on top of img
-    { // draw image properties
-      ImGui::SetNextWindowPos (ImGui::GetMainViewport()->Pos, ImGuiCond_Always);
-      ImGui::SetNextWindowSize(ImVec2(win_w+2*win_x, win_y), ImGuiCond_Always);
-      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-      ImGui::Begin("darkroom statusbar", 0, ImGuiWindowFlags_NoTitleBar |
-          ImGuiWindowFlags_NoMove |
-          ImGuiWindowFlags_NoResize |
-          ImGuiWindowFlags_NoMouseInputs |
-          ImGuiWindowFlags_NoBackground);
-      float wd = 0.5*vkdt.style.border_frac * qvk.win_width;
-      const uint32_t ci = dt_db_current_imgid(&vkdt.db);
-      if(ci != -1u)
-      { // this should *always* be the case
-        const uint16_t labels = vkdt.db.image[ci].labels;
-        const uint16_t rating = vkdt.db.image[ci].rating;
-        dt_draw_rating(ImGui::GetMainViewport()->Pos.x + win_x-wd,   ImGui::GetMainViewport()->Pos.y + win_y-wd, wd, rating);
-        dt_draw_labels(ImGui::GetMainViewport()->Pos.x + win_x+4*wd, ImGui::GetMainViewport()->Pos.y + win_y-wd, wd, labels);
-      }
-      ImGui::End();
-    }
-#endif
-
-    // draw center view image:
+  { // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
@@ -380,6 +356,15 @@ void render_darkroom()
         // center view has on-canvas widgets (but only if there *is* an image):
         dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
       }
+    }
+    float wd = 0.5*vkdt.style.border_frac * qvk.win_width;
+    const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+    if(ci != -1u)
+    { // this should *always* be the case
+      const uint16_t labels = vkdt.db.image[ci].labels;
+      const uint16_t rating = vkdt.db.image[ci].rating;
+      dt_draw_rating(win_x+wd,   win_y+wd, wd, rating);
+      dt_draw_labels(win_x+5*wd, win_y+wd, wd, labels);
     }
 
     // draw context sensitive help overlay
