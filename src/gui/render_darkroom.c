@@ -247,7 +247,6 @@ void dt_gui_set_lod(int lod)
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }
 
-#if 0 // TODO:port
 void render_darkroom_favourite()
 { // streamlined "favourite" ui
   dt_graph_t *graph = &vkdt.graph_dev;
@@ -277,6 +276,7 @@ void render_darkroom_full()
   static int32_t active_module = -1;
   static char filter_name[10] = {0};
   static char filter_inst[10] = {0};
+#if 0 // TODO:port
   ImGui::PushItemWidth(int(vkdt.state.panel_wd * 0.495));
   ImGui::InputText("##filter name", filter_name, sizeof(filter_name));
   if(ImGui::IsItemHovered()) dt_gui_set_tooltip("filter by module name");
@@ -284,6 +284,7 @@ void render_darkroom_full()
   ImGui::InputText("##filter instance", filter_inst, sizeof(filter_inst));
   if(ImGui::IsItemHovered()) dt_gui_set_tooltip("filter by module instance");
   ImGui::PopItemWidth();
+#endif
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
@@ -309,7 +310,6 @@ void render_darkroom_full()
     render_darkroom_widgets(&vkdt.graph_dev, modid[m], open, &active_module);
   }
 }
-#endif
 
 void render_darkroom()
 {
@@ -394,7 +394,7 @@ void render_darkroom()
   }
 #endif
 
-#if 0
+#if 0 // XXX port history view!
   if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
   { // left panel
     ImGui::SetNextWindowPos (ImVec2(
@@ -487,6 +487,7 @@ void render_darkroom()
 #endif
 
   struct nk_context *ctx = &vkdt.ctx;
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   bounds = (struct nk_rect){ qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
   if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, 0))
   { // right panel
@@ -507,19 +508,17 @@ void render_darkroom()
       float iwd = out_view0->connector[0].roi.wd;
       float iht = out_view0->connector[0].roi.ht;
       float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
-      int ht = scale * iht;
-      int wd = scale * iwd;
+      int ht = scale * iht; // wd = scale * iwd;
       nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
       struct nk_image img = nk_image_ptr(out_view0->dset[0]);
       nk_image(ctx, img);
     }
 
     { // print some basic exif if we have
-      const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
-      nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
       const dt_image_params_t *ip = &vkdt.graph_dev.module[0].img_param;
       if(ip->exposure != 0.0f)
       {
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
         if(ip->exposure >= 1.0f)
           if(nearbyintf(ip->exposure) == ip->exposure)
             nk_labelf(ctx, NK_TEXT_LEFT, "%s %s %.0f″ f/%.1f %dmm ISO %d", ip->maker, ip->model, ip->exposure, ip->aperture,
@@ -544,7 +543,7 @@ void render_darkroom()
               (int)ip->focal_length, (int)ip->iso);
       }
     }
-#if 0
+#if 0 // XXX port animation controls!
     if(vkdt.graph_dev.frame_cnt != 1 && vkdt.wstate.dopesheet_view == 0)
     { // print timeline/navigation only if not a still
       float bwd = 0.12f;
@@ -571,27 +570,45 @@ void render_darkroom()
             "press space to play/pause and backspace to reset to beginning.\n"
             "hint: you can hover over many controls and press the keyframe hotkey (default ctrl-k)");
     }
+#endif
 
     // tabs for module/params controls:
-    ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
-    if(ImGui::BeginTabBar("layer", tab_bar_flags))
+    nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, 0));
+    nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
+    nk_layout_row_begin(ctx, NK_STATIC, row_height, 3);
+    const char *names[] = {"favourites", "tweak all", "esoteric"};
+    static int current_tab = 0;
+    for(int i = 0; i < 3; i++)
     {
-      if(ImGui::BeginTabItem("favourites"))
+      const struct nk_user_font *f = ctx->style.font;
+      float text_width = f->width(f->userdata, f->height, names[i], nk_strlen(names[i]));
+      float widget_width = text_width + 3 * ctx->style.button.padding.x;
+      nk_layout_row_push(ctx, widget_width+5);
+      if (current_tab == i) 
       {
-        render_darkroom_favourite();
-        ImGui::EndTabItem();
-      }
-      if(ImGui::BeginTabItem("tweak all"))
-      {
-        render_darkroom_full();
-        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-        if(ImGui::Button("open node editor", ImVec2(-1, 0)))
-          gui.hotkey = s_hotkey_nodes_enter;
-        ImGui::PopStyleVar();
-        ImGui::EndTabItem();
-      }
-      if(ImGui::BeginTabItem("esoteric"))
-      {
+        struct nk_style_item button_color = ctx->style.button.normal;
+        ctx->style.button.normal = ctx->style.button.active;
+        current_tab = nk_button_label(ctx, names[i]) ? i: current_tab;
+        ctx->style.button.normal = button_color;
+      } else current_tab = nk_button_label(ctx, names[i]) ? i: current_tab;
+    }
+    nk_style_pop_float(ctx);
+    nk_style_pop_vec2(ctx);
+    nk_layout_row_begin(ctx, NK_DYNAMIC, 0, 1);
+
+    if(current_tab == 0)
+    {
+      render_darkroom_favourite();
+    }
+    else if(current_tab == 1)
+    {
+      render_darkroom_full();
+      if(nk_button_text(ctx, "open node editor", NK_TEXT_LEFT))
+        gui.hotkey = s_hotkey_nodes_enter;
+    }
+    else if(current_tab == 2)
+    {
+#if 0
         if(ImGui::CollapsingHeader("settings"))
         {
           ImGui::Indent();
@@ -654,12 +671,8 @@ void render_darkroom()
           if(ImGui::Button("apply preset", size))
             gui.hotkey = s_hotkey_apply_preset;
         }
-
-        ImGui::EndTabItem();
-      }
-      ImGui::EndTabBar();
-    }
 #endif
+    }
     nk_end(ctx);
   } // end right panel
 }

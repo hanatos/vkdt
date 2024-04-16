@@ -169,29 +169,6 @@ void dt_gui_init_fonts()
   struct nk_font_atlas *atlas;
   if(g_font[0]) nk_glfw3_font_cleanup();
   nk_glfw3_font_stash_begin(&atlas);
-  // TODO: last parameter is glyph ranges, maybe keep from imgui version?
-#if 0
-  nk_font_config(float pixel_height)
-{
-    struct nk_font_config cfg;
-    nk_zero_struct(cfg);
-    cfg.ttf_blob = 0;
-    cfg.ttf_size = 0;
-    cfg.ttf_data_owned_by_atlas = 0;
-    cfg.size = pixel_height;
-    cfg.oversample_h = 3;
-    cfg.oversample_v = 1;
-    cfg.pixel_snap = 0;
-    cfg.coord_type = NK_COORD_UV;
-    cfg.spacing = nk_vec2(0,0);
-    cfg.range = nk_font_default_glyph_ranges();
-    cfg.merge_mode = 0;
-    cfg.fallback_glyph = '?';
-    cfg.font = 0;
-    cfg.n = 0;
-    return cfg;
-}
-#endif
   struct nk_font_config cfg = nk_font_config(fontsize);
   cfg.oversample_h = 5;
   cfg.oversample_v = 5;
@@ -236,24 +213,6 @@ int dt_gui_init_nk()
      // XXX setup colour management! (use our imgui shaders and port to nuklear)
 
   set_style(&vkdt.ctx, THEME_DARK); 
-
-#if 0 // TODO: see above init call and put things
-  // Setup Platform/Renderer bindings
-  ImGui_ImplGlfw_InitForVulkan(qvk.window, false); // don't install callbacks
-  ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance         = qvk.instance;
-  init_info.PhysicalDevice   = qvk.physical_device;
-  init_info.Device           = qvk.device;
-  init_info.QueueFamily      = qvk.queue_idx_graphics;
-  init_info.Queue            = qvk.queue_graphics;
-  init_info.PipelineCache    = vkdt.pipeline_cache;
-  init_info.DescriptorPool   = vkdt.descriptor_pool;
-  init_info.Allocator        = 0;
-  init_info.MinImageCount    = vkdt.min_image_count;
-  init_info.ImageCount       = vkdt.image_count;
-  init_info.CheckVkResultFn  = 0;//check_vk_result;
-  ImGui_ImplVulkan_Init(&init_info, vkdt.render_pass);
-#endif
 
   char tmp[PATH_MAX+100] = {0};
   {
