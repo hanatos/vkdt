@@ -186,6 +186,7 @@ void dt_gui_init_fonts()
   };
   cfg.range = ranges_icons;
   cfg.size = fontsize;
+  cfg.fallback_glyph = 0xe15b;
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
   nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/

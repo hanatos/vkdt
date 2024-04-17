@@ -933,19 +933,25 @@ void render_darkroom_widgets(
     char       *open,           // gui state: is the expander open
     int32_t    *active_module)  // id of the currently active module
 {
-#if 0 // TODO port
   char name[30];
   dt_module_t *const arr = graph->module;
   if(!arr[curr].so->num_params) return;
 
+  struct nk_context *ctx = &vkdt.ctx;
+  const float ratio[] = {0.1f, 0.9f};
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
-  ImGui::PushID(curr);
   dt_module_t *module = graph->module+curr;
+  nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
   if(module->so->has_inout_chain)
   {
-    ImGui::PushFont(dt_gui_imgui_get_font(3));
-    if(ImGui::Button(module->disabled ? "\ue612" : "\ue836", ImVec2(1.6*vkdt.wstate.fontsize, 0)))
+    dt_tooltip(module->disabled ? "re-enable this module" :
+        "temporarily disable this module without disconnecting it from the graph.\n"
+        "this is just a convenience A/B switch in the ui and will not affect your\n"
+        "processing history, lighttable thumbnail, or export.");
+    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
+    if(nk_button_text(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_LEFT))
     {
       int bad = 0;
       for(int c=0;c<module->num_connectors;c++)
@@ -967,29 +973,21 @@ void render_darkroom_widgets(
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
     }
-    ImGui::PopFont();
-    if(ImGui::IsItemHovered())
-      dt_gui_set_tooltip(module->disabled ? "re-enable this module" :
-          "temporarily disable this module without disconnecting it from the graph.\n"
-          "this is just a convenience A/B switch in the ui and will not affect your\n"
-          "processing history, lighttable thumbnail, or export.");
-    ImGui::SameLine();
+    nk_style_pop_font(ctx);
   }
   else
   {
-    ImGui::PushFont(dt_gui_imgui_get_font(3));
-    ImGui::Button("\ue15b", ImVec2(1.6*vkdt.wstate.fontsize, 0));
-    ImGui::PopFont();
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
-        "this module cannot be disabled automatically because\n"
-        "it does not implement a simple input -> output chain");
-    ImGui::SameLine();
+    dt_tooltip("this module cannot be disabled automatically because\n"
+               "it does not implement a simple input -> output chain");
+    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
+    nk_button_text(ctx, "\ue15b", NK_TEXT_LEFT);
+    nk_style_pop_font(ctx);
   }
-  if(ImGui::CollapsingHeader(name))
+  if(nk_tree_push_id(ctx, NK_TREE_TAB, name, NK_MINIMIZED, curr))
   {
     if(!open[curr])
     { // just opened, now this is the 'active module'.
-      active_module = curr;
+      *active_module = curr;
       int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
       if(cid >= 0)
       { // if 'dspy' output exists, connect to 'dspy' display
@@ -1003,7 +1001,7 @@ void render_darkroom_widgets(
       }
       open[curr] = 1;
     }
-    if(active_module == curr &&
+    if(*active_module == curr &&
         dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
     {
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
@@ -1013,20 +1011,14 @@ void render_darkroom_widgets(
         float iht = out_dspy->connector[0].roi.ht;
         float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
         int ht = scale * iht;
-        int wd = scale * iwd;
-        ImGui::NewLine(); // end expander
-        ImGui::SameLine((vkdt.state.panel_wd - wd)/2);
-        ImGui::Image(out_dspy->dset[graph->frame % DT_GRAPH_MAX_FRAMES],
-            ImVec2(wd, ht),
-            ImVec2(0,0), ImVec2(1,1),
-            ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+        nk_layout_row_dynamic(ctx, ht, 1);
+        struct nk_image img = nk_image_ptr(out_dspy->dset[0]);
+        nk_image(ctx, img);
       }
     }
     for(int i=0;i<arr[curr].so->num_params;i++)
       render_darkroom_widget(curr, i);
+    nk_tree_pop(ctx);
   }
   else open[curr] = 0;
-  ImGui::PopID();
-#endif
 }
-
