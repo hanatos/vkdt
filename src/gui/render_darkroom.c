@@ -594,7 +594,6 @@ void render_darkroom()
     }
     nk_style_pop_float(ctx);
     nk_style_pop_vec2(ctx);
-    nk_layout_row_begin(ctx, NK_DYNAMIC, 0, 1);
 
     if(current_tab == 0)
     {

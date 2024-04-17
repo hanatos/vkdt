@@ -75,47 +75,32 @@ void render_perf_overlay()
 
 void render_darkroom_widget(int modid, int parid)
 {
-#if 0 // TODO port!
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
   if(!param) return;
-  ImGuiIO& io = ImGui::GetIO();
+  struct nk_context *ctx = &vkdt.ctx;
 
   // skip if group mode does not match:
   if(param->widget.grpid != -1)
     if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
 
-  ImGui::PushItemWidth(.66*vkdt.state.panel_wd);
-
+#if 0 // TODO port
   int axes_cnt = 0;
   const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
   static int gamepad_reset = 0;
   if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
-  // some state for double click detection for reset functionality
-  static int doubleclick = 0;
-  static double doubleclick_time = 0;
-  double time_now = ImGui::GetTime();
+#endif
 #define RESETBLOCK \
-  {\
-    if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;\
-    if(doubleclick) memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
-    change = 1;\
-  }\
-  if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) || \
-     (ImGui::IsItemFocused() && gamepad_reset))\
-  {\
-    doubleclick_time = time_now;\
-    gamepad_reset = 0;\
-    doubleclick = 1;\
+  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx))) \
+  { \
     memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
-    change = 1;\
-  }\
-  if(change)
+    change = 1; \
+  }
 
 #ifndef KEYFRAME // enable node graph editor to switch this off
   // common code block to insert a keyframe. currently only supports float (for interpolation)
 #define KEYFRAME\
-  if(ImGui::IsItemHovered())\
+  if(nk_widget_is_hovered(ctx))\
   {\
     if(gui.hotkey == s_hotkey_insert_keyframe)\
     {\
@@ -144,16 +129,6 @@ void render_darkroom_widget(int modid, int parid)
     }\
   }
 #endif
-#define TOOLTIP \
-  if(param->tooltip && ImGui::IsItemHovered())\
-  {\
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);\
-    ImGui::BeginTooltip();\
-    ImGui::PushTextWrapPos(vkdt.state.panel_wd);\
-    ImGui::TextUnformatted(param->tooltip);\
-    ImGui::PopTextWrapPos();\
-    ImGui::EndTooltip();\
-  }
 
   const double throttle = 2.0; // min delay for same param in history, in seconds
   // distinguish by count:
@@ -167,51 +142,58 @@ void render_darkroom_widget(int modid, int parid)
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
   for(int num=0;num<count;num++)
   {
-  ImGui::PushID(20000*modid + 200*parid + num);
+  const float ratio[] = {0.7f, 0.3f};
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   char string[256];
-  const float halfw = (0.66*vkdt.state.panel_wd - ImGui::GetStyle().ItemSpacing.x)/2;
-  char str[10] = {0};
+  // const float halfw = (0.66*vkdt.state.panel_wd - ctx.style.tab.padding.x)/2;
+  char str[10] = { 0 };
   memcpy(str, &param->name, 8);
   // distinguish by type:
   switch(param->widget.type)
   {
     case dt_token("slider"):
     {
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       if(param->type == dt_token("float"))
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float oldval = *val;
-        if(ImGui::SliderFloat(str, val, param->widget.min, param->widget.max, "%2.5f"))
-        RESETBLOCK {
+        RESETBLOCK
+        nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
+        if(*val != oldval) change = 1;
+        if(change)
+        {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | flags);
+          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        KEYFRAME
-        TOOLTIP
       }
       else if(param->type == dt_token("int"))
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
-        if(ImGui::SliderInt(str, val, param->widget.min, param->widget.max, "%d"))
-        RESETBLOCK {
+        RESETBLOCK
+        nk_property_int(ctx, "#", param->widget.min, val, param->widget.max, 1, 0.1);
+        if(*val != oldval) change = 1;
+        if(change)
+        {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf);
+          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        TOOLTIP
       }
+      dt_tooltip(param->tooltip);
+      KEYFRAME
+      nk_label(ctx, str, NK_TEXT_LEFT);
       break;
     }
+#if 0
     case dt_token("coledit"):
     { // only works for param->type == float and count == 3
       if((num % 3) == 0)
@@ -937,15 +919,12 @@ void render_darkroom_widget(int modid, int parid)
       num = count; // we've done it all at once
       break;
     }
+#endif
     default:;
   }
-  ImGui::PopID();
   } // end for multiple widgets
-  ImGui::PopItemWidth();
 #undef RESETBLOCK
 #undef KEYFRAME
-#undef TOOLTIP
-#endif
 }
 
 void render_darkroom_widgets(
