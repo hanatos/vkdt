@@ -602,6 +602,7 @@ void render_darkroom()
     else if(current_tab == 1)
     {
       render_darkroom_full();
+      nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
       if(nk_button_text(ctx, "open node editor", NK_TEXT_LEFT))
         gui.hotkey = s_hotkey_nodes_enter;
     }

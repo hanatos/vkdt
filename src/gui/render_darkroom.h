@@ -938,12 +938,18 @@ void render_darkroom_widgets(
   if(!arr[curr].so->num_params) return;
 
   struct nk_context *ctx = &vkdt.ctx;
-  const float ratio[] = {0.1f, 0.9f};
+  const float ratio[] = {0.06f, 0.06f, 0.88f};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
   dt_module_t *module = graph->module+curr;
-  nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+  nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, ratio);
+
+  struct nk_rect bound = nk_layout_widget_bounds(ctx);
+  bound.h -= 2; // leave 2px padding
+  nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
+  bound.x += ratio[0] * vkdt.state.panel_wd; // mouse click: not the disable button
+
   if(module->so->has_inout_chain)
   {
     dt_tooltip(module->disabled ? "re-enable this module" :
@@ -951,7 +957,9 @@ void render_darkroom_widgets(
         "this is just a convenience A/B switch in the ui and will not affect your\n"
         "processing history, lighttable thumbnail, or export.");
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
-    if(nk_button_text(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_LEFT))
+    struct nk_rect box = nk_widget_bounds(ctx);
+    nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_LEFT);
+    if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, box))
     {
       int bad = 0;
       for(int c=0;c<module->num_connectors;c++)
@@ -973,17 +981,18 @@ void render_darkroom_widgets(
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
     }
-    nk_style_pop_font(ctx);
   }
   else
   {
     dt_tooltip("this module cannot be disabled automatically because\n"
                "it does not implement a simple input -> output chain");
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
-    nk_button_text(ctx, "\ue15b", NK_TEXT_LEFT);
-    nk_style_pop_font(ctx);
+    nk_label(ctx, "\ue15b", NK_TEXT_LEFT);
   }
-  if(nk_tree_push_id(ctx, NK_TREE_TAB, name, NK_MINIMIZED, curr))
+  nk_label(ctx, open[curr] ? "\ue5cf" : "\ue5cc", NK_TEXT_LEFT);
+  nk_style_pop_font(ctx);
+  nk_label(ctx, name, NK_TEXT_LEFT);
+  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bound))
   {
     if(!open[curr])
     { // just opened, now this is the 'active module'.
@@ -1001,12 +1010,17 @@ void render_darkroom_widgets(
       }
       open[curr] = 1;
     }
+    else open[curr] = 0;
+  }
+  if(open[curr])
+  {
     if(*active_module == curr &&
         dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
     {
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
       if(out_dspy && vkdt.graph_res == VK_SUCCESS)
       {
+        // TODO: center and aspect
         float iwd = out_dspy->connector[0].roi.wd;
         float iht = out_dspy->connector[0].roi.ht;
         float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
@@ -1018,7 +1032,5 @@ void render_darkroom_widgets(
     }
     for(int i=0;i<arr[curr].so->num_params;i++)
       render_darkroom_widget(curr, i);
-    nk_tree_pop(ctx);
   }
-  else open[curr] = 0;
 }
