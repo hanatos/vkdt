@@ -276,29 +276,32 @@ void render_darkroom_widget(int modid, int parid)
       }
       break;
     }
+#endif
     case dt_token("bitmask"):
     { // select named entries of a bitmask
       if(param->type == dt_token("int"))
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
-        ImGui::Text("%s = 0x%x", str, val[0]);
-        if(ImGui::IsItemClicked(0)) RESETBLOCK {};
-        TOOLTIP
+        nk_layout_row_dynamic(ctx, row_height, 1);
+        RESETBLOCK
+        dt_tooltip(param->tooltip);
+        nk_labelf(ctx, NK_TEXT_LEFT, "%s = 0x%x", str, val[0]);
         const char *c = (const char *)param->widget.data;
+        nk_layout_row_dynamic(ctx, row_height, 8);
         for(int k=0;k<32;k++)
         {
           const int sel = val[0] & (1<<k);
-          if(sel) ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.wstate.fontsize*0.2);
+          if(sel) nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.wstate.fontsize*0.2);
           char label[10];
           snprintf(label, sizeof(label), "%d", k);
-          if(ImGui::Button(label, ImVec2(vkdt.state.panel_wd * 0.6 / 8.0, 0))) { val[0] ^= (1<<k); change = 1; }
-          if(ImGui::IsItemHovered()) dt_gui_set_tooltip(c);
-          if(sel) ImGui::PopStyleVar();
+          dt_tooltip(c);
+          if(nk_button_label(ctx, label)) { val[0] ^= (1<<k); change = 1; }
+          if(sel) nk_style_pop_float(ctx);
+
           for(;*c!=0;c++);
           c++;
           if(*c == 0) break; // no more named bits in mask
-          if(k % 8 != 7) ImGui::SameLine(); // arrange in blocks of 8
         }
 
         if(change)
@@ -306,8 +309,7 @@ void render_darkroom_widget(int modid, int parid)
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf);
+          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           vkdt.wstate.busy += 2;
@@ -315,7 +317,6 @@ void render_darkroom_widget(int modid, int parid)
       }
       break;
     }
-#endif
     case dt_token("callback"):
     { // special callback button
       if(num == 0)
