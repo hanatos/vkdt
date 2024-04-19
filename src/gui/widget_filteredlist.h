@@ -113,8 +113,8 @@ filteredlist(
       "type to filter the list\n"
       "press enter to apply top item\n"
       "press escape to close");
-  if(nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default))
-    ok = 1;
+  nk_flags ret = nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default);
+  if(ret & NK_EDIT_COMMITED) ok = 1;
   if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
   vkdt.wstate.popup_appearing = 0;
 

@@ -159,7 +159,7 @@ void render_darkroom_widget(int modid, int parid)
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         float oldval = *val;
         RESETBLOCK
-        nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
+        nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .01);
         if(*val != oldval) change = 1;
         if(change)
         {
@@ -315,25 +315,26 @@ void render_darkroom_widget(int modid, int parid)
       }
       break;
     }
+#endif
     case dt_token("callback"):
     { // special callback button
       if(num == 0)
       {
-        if(ImGui::Button(str, ImVec2(halfw, 0)))
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+        if(nk_button_label(ctx, str))
         {
           dt_module_t *m = vkdt.graph_dev.module+modid;
           if(m->so->ui_callback) m->so->ui_callback(m, param->name);
           // TODO: probably needs a history item appended. for all parameters?
         }
-        TOOLTIP
+        dt_tooltip(param->tooltip);
+        KEYFRAME
         if(param->type == dt_token("string"))
         {
-          ImGui::SameLine();
           char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-          ImGui::PushItemWidth(-1);
-          ImGui::InputText("##s", v, count);
-          ImGui::PopItemWidth();
+          nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
         }
+        else nk_label(ctx, "", NK_TEXT_LEFT);
       }
       break;
     }
@@ -343,19 +344,23 @@ void render_darkroom_widget(int modid, int parid)
       {
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
-        if(ImGui::Combo(str, val, (const char *)param->widget.data))
         RESETBLOCK
+        struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
+        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, size);
+        if(oldval != *val) change = 1;
+        if(change)
         {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf);
+          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
           vkdt.wstate.busy += 2;
         }
-        TOOLTIP
+        dt_tooltip(param->tooltip);
+        KEYFRAME
+        nk_label(ctx, str, NK_TEXT_LEFT);
       }
       break;
     }
@@ -363,14 +368,13 @@ void render_darkroom_widget(int modid, int parid)
     {
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
       snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
-      ImVec4 col(val[0], val[1], val[2], 1.0f);
-      ImVec2 size(0.1*vkdt.state.panel_wd, 0.1*vkdt.state.panel_wd);
-      ImGui::ColorButton(string, col, ImGuiColorEditFlags_HDR, size);
-      TOOLTIP
-      if((num < count - 1) && ((num % 6) != 5))
-        ImGui::SameLine();
+      nk_layout_row_dynamic(ctx, row_height, 6);
+      struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
+      dt_tooltip(param->tooltip);
+      nk_button_color(ctx, col);
       break;
     }
+#if 0
     case dt_token("pers"):
     {
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
@@ -635,27 +639,28 @@ void render_darkroom_widget(int modid, int parid)
       num = count;
       break;
     }
+#endif
     case dt_token("pick"):  // simple aabb for selection, no distortion transform
     {
       int sz = dt_ui_param_size(param->type, 4);
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
+      nk_layout_row_dynamic(ctx, row_height, 6);
+      dt_tooltip(param->tooltip);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid &&
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-        if(ImGui::Button(string))
+        if(nk_button_label(ctx, string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        ImGui::PopStyleColor();
       }
       else
       {
         snprintf(string, sizeof(string), "%02d", num);
-        if(ImGui::Button(string))
+        if(nk_button_label(ctx, string))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
@@ -665,38 +670,34 @@ void render_darkroom_widget(int modid, int parid)
           // copy to quad state
           memcpy(vkdt.wstate.state, v, sz);
         }
-        TOOLTIP
       }
-      if((num < count - 1) && ((num % 6) != 5))
-        ImGui::SameLine();
       break;
     }
     case dt_token("rbmap"): // red/blue chromaticity mapping via src/target coordinates
     {
-      if(num == 0) ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
-      ImVec2 size = ImVec2(vkdt.state.panel_wd * 0.135, 0);
+      if(6*(num / 6) == num) nk_layout_row_dynamic(ctx, row_height, 6);
       int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(v[0], v[1], v[2], 1.0));
-      ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(v[3], v[4], v[5], 1.0));
-      ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, vkdt.state.panel_wd*0.02);
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){255*v[0], 255*v[1], 255*v[2], 0xff}));
+      nk_style_push_color(ctx, &ctx->style.button.border_color, (struct nk_color){255*v[3], 255*v[4], 255*v[5], 0xff});
+      nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.state.panel_wd);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid &&
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-        if(ImGui::Button(string, size))
+        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
+        if(nk_button_label(ctx, string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        ImGui::PopStyleColor();
+        nk_style_pop_style_item(ctx);
       }
       else
       {
         snprintf(string, sizeof(string), "%02d", num);
-        if(ImGui::Button(string, size))
+        if(nk_button_label(ctx, string))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.active_widget_modid = modid;
@@ -708,57 +709,45 @@ void render_darkroom_widget(int modid, int parid)
         KEYFRAME
         count /= 6;
       }
-      ImGui::PopStyleVar(1);
-      ImGui::PopStyleColor(2);
-      if((num < count - 1) && ((num % 6) != 5))
-      {
-        ImGui::SameLine();
-        ImGui::Dummy(ImVec2(0.01*vkdt.state.panel_wd, 0));
-        ImGui::SameLine();
-      }
-      else if(num == count - 1)
+      nk_style_pop_float(ctx);
+      nk_style_pop_color(ctx);
+      nk_style_pop_style_item(ctx);
+      if(num == count - 1)
       { // edit specific colour patch below list of patches:
-        ImGui::Dummy(ImVec2(0, 0.01*vkdt.state.panel_wd));
         if(vkdt.wstate.active_widget_modid == modid &&
            vkdt.wstate.active_widget_parid == parid)
         { // now add ability to change target colour coordinate
           int active_num = vkdt.wstate.active_widget_parnm;
+          nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
           for(int i=0;i<3;i++)
           {
             float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
             float oldval = *val;
             const char *label[] = {"red", "green", "blue"};
-            if(ImGui::SliderFloat(label[i], val, 0.0, 1.0, "%2.5f"))
-            { // custom resetblock: set only this colour spot to identity mapping
-              if(time_now - doubleclick_time > ImGui::GetIO().MouseDoubleClickTime) doubleclick = 0;
-              if(doubleclick) memcpy(val-i, val-i-3, sizeof(float)*3);
-              change = 1;
-            }
-            if((ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) ||
-               (ImGui::IsItemFocused() && gamepad_reset))
+            // custom resetblock: set only this colour spot to identity mapping
+            if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx)))
             {
-              doubleclick_time = time_now;
-              gamepad_reset = 0;
-              doubleclick = 1;
               memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
+            nk_property_float(ctx, "#", 0.0, val, 1.0, 0.1, .001);
+            if(*val != oldval) change = 1;
             if(change)
             {
               dt_graph_run_t flags = s_graph_run_none;
               if(vkdt.graph_dev.module[modid].so->check_params)
                 flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-              vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                  s_graph_run_record_cmd_buf | flags);
+              vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
               vkdt.graph_dev.active_module = modid;
               dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
             }
+            nk_label(ctx, label[i], NK_TEXT_LEFT);
           }
         }
       }
-      else ImGui::Dummy(ImVec2(0, 0.02*vkdt.state.panel_wd));
       break;
     }
+#if 0
     case dt_token("grab"):  // grab all input
     {
       if(num != 0) break;
@@ -863,27 +852,29 @@ void render_darkroom_widget(int modid, int parid)
       num = count;
       break;
     }
+#endif
     case dt_token("filename"):
     {
       if(num == 0)
       { // only show first, cnt refers to allocation length of string param
         char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        if(ImGui::InputText(str, v, count, ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-          if(ImGui::IsKeyDown(ImGuiKey_Enter))
-          { // kinda grave change, rerun all, but only if enter pressed
-            vkdt.graph_dev.runflags = s_graph_run_all;
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
+        dt_tooltip(param->tooltip);
+        nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
+        if(ret & NK_EDIT_COMMITED)
+        { // kinda grave change, rerun all, but only if enter pressed
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        TOOLTIP
       }
       break;
     }
     case dt_token("rgb"):
     {
       float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      ImGui::PushStyleColor(ImGuiCol_FrameBg, gamma(ImVec4(col[0], col[1], col[2], 1.0)));
+      nk_style_push_style_item(ctx, &ctx->style.property.normal, nk_style_item_color((struct nk_color){255*col[0], 255*col[1], 255*col[2], 0xff}));
+      nk_style_push_style_item(ctx, &ctx->style.property.hover,  nk_style_item_color((struct nk_color){255*col[0], 255*col[1], 255*col[2], 0xaa}));
+      nk_style_push_style_item(ctx, &ctx->style.property.active, nk_style_item_color((struct nk_color){255*col[0], 255*col[1], 255*col[2], 0x77}));
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       for(int comp=0;comp<3;comp++)
       {
         float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
@@ -891,35 +882,37 @@ void render_darkroom_widget(int modid, int parid)
         snprintf(string, sizeof(string), "%" PRItkn " %s",
             dt_token_str(param->name),
             comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
-        if(ImGui::SliderFloat(string, val,
-              param->widget.min, param->widget.max, "%2.5f"))
         RESETBLOCK
+        nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
+        if(*val != oldval) change = 1;
+        if(change)
         {
-          if(io.KeyShift) // lockstep all three if shift is pressed
+          if(nk_input_is_key_pressed(&ctx->input, NK_KEY_SHIFT)) // lockstep all three if shift is pressed
             for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | flags);
+          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        dt_tooltip(param->tooltip);
         KEYFRAME
-        TOOLTIP
+        nk_label(ctx, string, NK_TEXT_LEFT);
       }
-      ImGui::PopStyleColor();
+      nk_style_pop_style_item(ctx);
+      nk_style_pop_style_item(ctx);
+      nk_style_pop_style_item(ctx);
       if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       break;
     }
     case dt_token("print"):
     {
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      ImGui::Text("%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
+      nk_labelf(ctx, NK_TEXT_LEFT, "%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
       num = count; // we've done it all at once
       break;
     }
-#endif
     default:;
   }
   } // end for multiple widgets
@@ -958,7 +951,7 @@ void render_darkroom_widgets(
         "processing history, lighttable thumbnail, or export.");
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     struct nk_rect box = nk_widget_bounds(ctx);
-    nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_LEFT);
+    nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_CENTERED);
     if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, box))
     {
       int bad = 0;
@@ -987,9 +980,9 @@ void render_darkroom_widgets(
     dt_tooltip("this module cannot be disabled automatically because\n"
                "it does not implement a simple input -> output chain");
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
-    nk_label(ctx, "\ue15b", NK_TEXT_LEFT);
+    nk_label(ctx, "\ue15b", NK_TEXT_CENTERED);
   }
-  nk_label(ctx, open[curr] ? "\ue5cf" : "\ue5cc", NK_TEXT_LEFT);
+  nk_label(ctx, open[curr] ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
   nk_style_pop_font(ctx);
   nk_label(ctx, name, NK_TEXT_LEFT);
   if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bound))
