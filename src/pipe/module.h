@@ -20,26 +20,26 @@
 
 typedef enum dt_colour_primaries_t
 {
-  dt_colour_primaries_custom = 0, // use cam_to_rec2020
-  dt_colour_primaries_srgb   = 1,
-  dt_colour_primaries_2020   = 2, // = 2100
-  dt_colour_primaries_adobe  = 3,
-  dt_colour_primaries_P3     = 4,
-  dt_colour_primaries_XYZ    = 5,
-  dt_colour_primaries_unknown = 0xffff, // signal that we don't know and can be overwritten
+  s_colour_primaries_custom = 0, // use cam_to_rec2020
+  s_colour_primaries_srgb   = 1,
+  s_colour_primaries_2020   = 2, // = 2100
+  s_colour_primaries_adobe  = 3,
+  s_colour_primaries_P3     = 4,
+  s_colour_primaries_XYZ    = 5,
+  s_colour_primaries_unknown = 0xffff, // signal that we don't know and can be overwritten
 }
 dt_colour_primaries_t;
 
 typedef enum dt_colour_trc_t
 {
-  dt_colour_trc_linear = 0,
-  dt_colour_trc_709    = 1, // SMPTE RP 431-2
-  dt_colour_trc_srgb   = 2, // IEC 61966-2-1 sRGB
-  dt_colour_trc_PQ     = 3, // SMPTE ST 2084
-  dt_colour_trc_DCI    = 4, // SMPTE ST 428-1
-  dt_colour_trc_HLG    = 5, // Rec. ITU-R BT.2100-1 (HLG)
-  dt_colour_trc_gamma  = 6, //
-  dt_colour_trc_unknown = 0xffff,
+  s_colour_trc_linear = 0,
+  s_colour_trc_709    = 1, // SMPTE RP 431-2
+  s_colour_trc_srgb   = 2, // IEC 61966-2-1 sRGB
+  s_colour_trc_PQ     = 3, // SMPTE ST 2084
+  s_colour_trc_DCI    = 4, // SMPTE ST 428-1
+  s_colour_trc_HLG    = 5, // Rec. ITU-R BT.2100-1 (HLG)
+  s_colour_trc_gamma  = 6, //
+  s_colour_trc_unknown = 0xffff,
 }
 dt_colour_trc_t;
 

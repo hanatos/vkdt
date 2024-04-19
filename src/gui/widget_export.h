@@ -134,8 +134,8 @@ dt_export_init(
   w->ht          = dt_rc_get_int(&vkdt.rc, "gui/export/ht", 0);
   w->format      = dt_rc_get_int(&vkdt.rc, "gui/export/format", 4);
   w->quality     = dt_rc_get_float(&vkdt.rc, "gui/export/quality", 90);
-  w->colour_prim = dt_rc_get_int(&vkdt.rc, "gui/export/primaries", dt_colour_primaries_srgb);
-  w->colour_trc  = dt_rc_get_int(&vkdt.rc, "gui/export/trc", dt_colour_trc_srgb);
+  w->colour_prim = dt_rc_get_int(&vkdt.rc, "gui/export/primaries", s_colour_primaries_srgb);
+  w->colour_trc  = dt_rc_get_int(&vkdt.rc, "gui/export/trc", s_colour_trc_srgb);
   strncpy(w->basename,
         dt_rc_get(&vkdt.rc, "gui/export/basename", "${home}/img_${seq}"),
         sizeof(w->basename)-1);

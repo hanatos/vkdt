@@ -260,8 +260,8 @@ read_header(
     mod->img_param.whitebalance[k] = 1.0f;
   }
   mod->img_param.filters = 0;
-  mod->img_param.colour_primaries = dt_colour_primaries_srgb;
-  mod->img_param.colour_trc       = dt_colour_trc_srgb;
+  mod->img_param.colour_primaries = s_colour_primaries_srgb;
+  mod->img_param.colour_trc       = s_colour_trc_srgb;
 
   FILE *f2 = dt_graph_open_resource(mod->graph, frame, filename, "rb");
   mod->img_param.orientation = jpg_read_orientation(f2);
@@ -275,7 +275,7 @@ read_header(
   {
     const int tag_cnt = le(h->tag_cnt);
     float gamma = 0.0, wt[3] = {0.0}, M[9] = {0.0};  // image rgb to xyz
-    mod->img_param.colour_primaries = dt_colour_primaries_custom;
+    mod->img_param.colour_primaries = s_colour_primaries_custom;
     for(int i=0;i<tag_cnt;i++)
     {
       icc_tag_t *entry = h->tag + i;
@@ -287,8 +287,8 @@ read_header(
       else if(entry->sig == *((int*)"gTRC")) gamma = read_gamma(h, entry->off);
       else if(entry->sig == *((int*)"bTRC")) gamma = read_gamma(h, entry->off);
     }
-    if(gamma == 0.0) mod->img_param.colour_trc = dt_colour_trc_linear;
-    if(gamma >  0.0) mod->img_param.colour_trc = dt_colour_trc_gamma;
+    if(gamma == 0.0) mod->img_param.colour_trc = s_colour_trc_linear;
+    if(gamma >  0.0) mod->img_param.colour_trc = s_colour_trc_gamma;
     // bradford adapt stupid matrix: xyz_to_rec2020 * Bi * S * B * M
     // where B is the bradford matrix and S a diagonal matrix adapting from wtpt to D50 in the icc XYZ
     float B[9]  = { 0.8951000,   0.2664000, -0.1614000,
@@ -431,8 +431,8 @@ void modify_roi_out(
   int *p_prim = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim")));
   int *p_trc  = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc" )));
   // don't overwrite user choice, but if they don't know/leave at defaults we do:
-  if(*p_prim == dt_colour_primaries_unknown) *p_prim = mod->img_param.colour_primaries;
-  if(*p_trc  == dt_colour_trc_unknown)       *p_trc  = mod->img_param.colour_trc;
+  if(*p_prim == s_colour_primaries_unknown) *p_prim = mod->img_param.colour_primaries;
+  if(*p_trc  == s_colour_trc_unknown)       *p_trc  = mod->img_param.colour_trc;
   mod->img_param.colour_primaries = *p_prim;
   mod->img_param.colour_trc       = *p_trc;
 }

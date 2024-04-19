@@ -12,12 +12,21 @@ void write_sink(
   const char *basename = dt_module_param_string(module, 0);
   fprintf(stderr, "[o-lut] writing '%s'\n", basename);
 
-  int datatype = module->connector[0].format == dt_token("f32") ? dt_lut_header_f32 : dt_lut_header_f16;
-  if(module->connector[0].chan == dt_token("ssbo")) datatype += dt_lut_header_ssbo_f16;
+  // if this varies based on parameters, we might not pick it up unless we ask directly:
+  int mid = module->connector[0].connected_mi;
+  int cid = module->connector[0].connected_mc;
+  if(mid < 0) return;
+  if(cid < 0) return;
+  dt_token_t format = module->graph->module[mid].connector[cid].format;
+  dt_token_t chan   = module->graph->module[mid].connector[cid].chan;
+  int channels = dt_connector_channels(module->graph->module[mid].connector+cid);
+
+  int datatype = format == dt_token("f32") ? dt_lut_header_f32 : dt_lut_header_f16;
+  if(chan == dt_token("ssbo")) datatype += dt_lut_header_ssbo_f16;
   dt_lut_header_t header = (dt_lut_header_t){
     .magic    = dt_lut_header_magic,
     .version  = dt_lut_header_version,
-    .channels = dt_connector_channels(module->connector+0),
+    .channels = channels,
     .datatype = datatype,
     .wd       = module->connector[0].roi.wd,
     .ht       = module->connector[0].roi.ht,
