@@ -42,7 +42,6 @@ static inline void widget_abort()
 
 void render_perf_overlay()
 {
-#if 0 // TODO port
   const int nvmask = 127;
   static float values[128] = {0.0f};
   static int values_offset = 0;
@@ -50,27 +49,28 @@ void render_perf_overlay()
   values[values_offset] = vkdt.graph_dev.query[(vkdt.graph_dev.frame+1)%2].last_frame_duration;
   snprintf(overlay, sizeof(overlay), "%.2fms", values[values_offset]);
 
-  ImVec2 sz  = ImGui::GetMainViewport()->Size;
-  ImVec2 pos = ImGui::GetMainViewport()->Pos;
-  pos = ImVec2(pos.x + sz.x/2.0, pos.y + sz.y * 0.1);
-  sz = ImVec2(sz.x/2.0, sz.y*0.1);
-  ImU32 col = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
-  for(int i=0;i<IM_ARRAYSIZE(values)-1;i++)
+  struct nk_context *ctx = &vkdt.ctx;
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
+  float sx = vkdt.state.center_wd, sy = vkdt.state.center_ht;
+  float px = vkdt.state.center_x + sx/2, py = vkdt.state.center_y + sy*0.1;
+  sx = sx/2;
+  sy = sy*0.1;
+  struct nk_color col = {0x77, 0x77, 0x77, 0xff};
+  for(int i=0;i<sizeof(values)/sizeof(values[0])-1;i++)
   {
     int j0 = (i + values_offset    )&nvmask;
     int j1 = (i + values_offset + 1)&nvmask;
-    ImGui::GetWindowDrawList()->AddLine(
-        ImVec2(pos.x + sz.x * (i    /(nvmask+1.0)), pos.y + sz.y * (1.0 - values[j0]/100.0)),
-        ImVec2(pos.x + sz.x * ((i+1)/(nvmask+1.0)), pos.y + sz.y * (1.0 - values[j1]/100.0)),
-        col, 4.0);
+    nk_stroke_line(buf,
+        px + sx * (i    /(nvmask+1.0)), py + sy * (1.0 - values[j0]/100.0),
+        px + sx * ((i+1)/(nvmask+1.0)), py + sy * (1.0 - values[j1]/100.0),
+        4.0, col);
   }
-  ImU32 bgcol = ImGui::GetColorU32(ImGuiCol_PlotLines);
-  ImGui::GetWindowDrawList()->AddLine(pos, ImVec2(pos.x+sz.x, pos.y), bgcol);
-  ImGui::GetWindowDrawList()->AddLine(ImVec2(pos.x, pos.y+sz.y), ImVec2(pos.x+sz.x, pos.y+sz.y), bgcol);
-  ImGui::GetWindowDrawList()->AddLine(ImVec2(pos.x, (1.0-16.0/100.0)*sz.y+pos.y), ImVec2(pos.x+sz.x, (1.0-16.0/100.0)*sz.y+pos.y), bgcol);
-  ImGui::GetWindowDrawList()->AddText(dt_gui_imgui_get_font(2), dt_gui_imgui_get_font(2)->FontSize, pos, col, overlay);
+  struct nk_color bgcol = {0xcc, 0xcc, 0xcc, 0xff};
+  nk_stroke_line(buf, px, py, px+sx, py, 4.0, bgcol);
+  nk_stroke_line(buf, px, py+sy, px+sx, py+sy, 4.0, bgcol);
+  nk_stroke_line(buf, px, py+(1-16.0/100.0)*sy, px+sx, py+(1-16.0/100.0)*sy, 4.0, bgcol);
+  nk_draw_text(buf, (struct nk_rect){px, py, sx,sy}, overlay, strlen(overlay), &dt_gui_get_font(2)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
   values_offset = (values_offset + 1) & nvmask;
-#endif
 }
 
 void render_darkroom_widget(int modid, int parid)
