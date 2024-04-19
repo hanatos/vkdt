@@ -872,9 +872,22 @@ void render_darkroom_widget(int modid, int parid)
     case dt_token("rgb"):
     {
       float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      nk_style_push_style_item(ctx, &ctx->style.property.normal, nk_style_item_color((struct nk_color){255*col[0], 255*col[1], 255*col[2], 0xff}));
-      nk_style_push_style_item(ctx, &ctx->style.property.hover,  nk_style_item_color((struct nk_color){255*col[0], 255*col[1], 255*col[2], 0xaa}));
-      nk_style_push_style_item(ctx, &ctx->style.property.active, nk_style_item_color((struct nk_color){255*col[0], 255*col[1], 255*col[2], 0x77}));
+      struct nk_color normal = {255*col[0], 255*col[1], 255*col[2], 0xff};
+      struct nk_color hover  = normal;
+      struct nk_color active = normal;
+      // questionable if separate hover/active makes much sense, it is separate for buttons and edit and bg and shows boxy artifacts
+      nk_style_push_style_item(ctx, &ctx->style.property.edit.normal,       nk_style_item_color(normal));
+      nk_style_push_style_item(ctx, &ctx->style.property.edit.hover,        nk_style_item_color(hover));
+      nk_style_push_style_item(ctx, &ctx->style.property.edit.active,       nk_style_item_color(active));
+      nk_style_push_style_item(ctx, &ctx->style.property.inc_button.normal, nk_style_item_color(normal));
+      nk_style_push_style_item(ctx, &ctx->style.property.inc_button.hover,  nk_style_item_color(hover));
+      nk_style_push_style_item(ctx, &ctx->style.property.inc_button.active, nk_style_item_color(active));
+      nk_style_push_style_item(ctx, &ctx->style.property.dec_button.normal, nk_style_item_color(normal));
+      nk_style_push_style_item(ctx, &ctx->style.property.dec_button.hover,  nk_style_item_color(hover));
+      nk_style_push_style_item(ctx, &ctx->style.property.dec_button.active, nk_style_item_color(active));
+      nk_style_push_style_item(ctx, &ctx->style.property.normal, nk_style_item_color(normal));
+      nk_style_push_style_item(ctx, &ctx->style.property.hover,  nk_style_item_color(hover));
+      nk_style_push_style_item(ctx, &ctx->style.property.active, nk_style_item_color(active));
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       for(int comp=0;comp<3;comp++)
       {
@@ -901,9 +914,7 @@ void render_darkroom_widget(int modid, int parid)
         KEYFRAME
         nk_label(ctx, string, NK_TEXT_LEFT);
       }
-      nk_style_pop_style_item(ctx);
-      nk_style_pop_style_item(ctx);
-      nk_style_pop_style_item(ctx);
+      for(int i=0;i<12;i++) nk_style_pop_style_item(ctx);
       if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
       break;
     }
