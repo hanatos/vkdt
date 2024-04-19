@@ -179,9 +179,9 @@ void dt_gui_init_fonts()
   cfg.oversample_h = 3;
   cfg.oversample_v = 1;
   static nk_rune ranges_icons[] = {
-    0xe15b, 0xe15b, // stuff for disabled button
-    0xe612, 0xe612, 
-    0xe836, 0xe838, // star in material icons
+    0xe15b, 0xe15c, // stuff for disabled button
+    0xe612, 0xe613,
+    0xe836, 0xe839, // star in material icons
     0,
   };
   cfg.range = ranges_icons;
