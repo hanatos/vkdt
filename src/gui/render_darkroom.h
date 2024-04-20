@@ -774,14 +774,14 @@ void render_darkroom_widget(int modid, int parid)
       }
       break;
     }
-#if 0
     case dt_token("grab"):  // grab all input
     {
       if(num != 0) break;
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid)
       {
-        if(ImGui::Button("stop [esc]", ImVec2(halfw, 0)))
+        if(nk_button_label(ctx, "stop [esc]"))
         {
           // dt_gui_dr_toggle_fullscreen_view();
           dt_module_t *mod = vkdt.graph_dev.module + modid;
@@ -792,7 +792,8 @@ void render_darkroom_widget(int modid, int parid)
       }
       else
       {
-        if(ImGui::Button("grab input", ImVec2(halfw, 0)))
+        dt_tooltip(param->tooltip);
+        if(nk_button_label(ctx, "grab input"))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
@@ -804,10 +805,7 @@ void render_darkroom_widget(int modid, int parid)
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
         }
-        KEYFRAME
-        TOOLTIP
-        ImGui::SameLine();
-        if(ImGui::Button("grab fullscreen", ImVec2(halfw, 0)))
+        if(nk_button_label(ctx, "grab fullscreen"))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
@@ -820,29 +818,33 @@ void render_darkroom_widget(int modid, int parid)
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
         }
-        KEYFRAME
-        TOOLTIP
       }
       break;
     }
     case dt_token("draw"):
     {
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
-        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
+        snprintf(string, sizeof(string), "done");
+        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
+        if(nk_button_label(ctx, string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        ImGui::PopStyleColor();
+        nk_style_pop_style_item(ctx);
       }
       else
       {
         snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
+        dt_tooltip("start drawing brush strokes with the mouse\n"
+            "scroll - fine tune radius\n"
+            "ctrl scroll - fine tune hardness\n"
+            "shift scroll - fine tune opacity\n"
+            "right click - discard last stroke");
+        if(nk_button_label(ctx, string))
         {
           widget_end(); // if another one is still in progress, end that now
           vkdt.wstate.state[0] = 1.0f; // abuse for radius
@@ -864,22 +866,14 @@ void render_darkroom_widget(int modid, int parid)
           vkdt.wstate.mapped = v; // map state
         }
         KEYFRAME
-        if(ImGui::IsItemHovered())
-          dt_gui_set_tooltip("start drawing brush strokes with the mouse\n"
-              "scroll - fine tune radius\n"
-              "ctrl scroll - fine tune hardness\n"
-              "shift scroll - fine tune opacity\n"
-              "right click - discard last stroke");
       }
       if(vkdt.wstate.mapped)
       {
-        ImGui::SameLine();
-        ImGui::Text("%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
+        nk_labelf(ctx, NK_TEXT_LEFT, "%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
       }
       num = count;
       break;
     }
-#endif
     case dt_token("filename"):
     {
       if(num == 0)
