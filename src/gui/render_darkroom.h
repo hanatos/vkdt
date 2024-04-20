@@ -533,10 +533,10 @@ void render_darkroom_widget(int modid, int parid)
       nk_label(ctx, str, NK_TEXT_LEFT);
       break;
     }
-#if 0
     case dt_token("crop"):
     {
-      ImGui::InputFloat("aspect ratio", &vkdt.wstate.aspect, 0.0f, 4.0f, "%.3f");
+      const float rat3[] = {0.3f, 0.4f, 0.3f};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
@@ -544,6 +544,7 @@ void render_darkroom_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
+#if 0 // TODO port gamepad controls
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
         {
           vkdt.wstate.selected ++;
@@ -559,10 +560,7 @@ void render_darkroom_widget(int modid, int parid)
         if(vkdt.wstate.selected >= 0 && axes)
           dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
 #undef SMOOTH
-
-        snprintf(string, sizeof(string), "%" PRItkn" done",
-            dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
+        // TODO: at least make keyboard interaction work
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
            ImGui::IsKeyPressed(ImGuiKey_Escape)||
            ImGui::IsKeyPressed(ImGuiKey_CapsLock))
@@ -571,7 +569,10 @@ void render_darkroom_widget(int modid, int parid)
           dt_gamepadhelp_pop();
           dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
-        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
+#endif
+        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
+        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
+        if(nk_button_label(ctx, string) || accept)
         {
           vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
@@ -582,13 +583,12 @@ void render_darkroom_widget(int modid, int parid)
           dt_image_reset_zoom(&vkdt.wstate.img_widget);
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        ImGui::PopStyleColor();
+        nk_style_pop_style_item(ctx);
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn" start",
-            dt_token_str(param->name));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
+        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+        if(nk_button_label(ctx, string))
         {
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
@@ -636,31 +636,35 @@ void render_darkroom_widget(int modid, int parid)
           dt_image_widget_t *w = &vkdt.wstate.img_widget;
           w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
         }
-        if(0) RESETBLOCK {
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
-        }
-        KEYFRAME
-        TOOLTIP
       }
+      nk_property_float(ctx, "#aspect", 0.0, &vkdt.wstate.aspect, 10.0, 0.1, .001);
+      RESETBLOCK
+      if(change)
+      {
+        vkdt.graph_dev.runflags = s_graph_run_all;
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
+      }
+      KEYFRAME
       dt_module_t *m = vkdt.graph_dev.module+modid;
       if(m->so->ui_callback)
       {
-        ImGui::SameLine();
-        if(ImGui::Button("auto crop", ImVec2(halfw, 0)))
+        dt_tooltip("automatically crop away black rims");
+        if(nk_button_label(ctx, "auto crop"))
         {
           m->so->ui_callback(m, param->name);
           dt_image_reset_zoom(&vkdt.wstate.img_widget);
           vkdt.graph_dev.runflags = s_graph_run_all;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        if(ImGui::IsItemHovered())
-          dt_gui_set_tooltip("automatically crop away black rims");
+      }
+      else
+      {
+        dt_tooltip(param->tooltip);
+        nk_label(ctx, str, NK_TEXT_LEFT);
       }
       num = count;
       break;
     }
-#endif
     case dt_token("pick"):  // simple aabb for selection, no distortion transform
     {
       int sz = dt_ui_param_size(param->type, 4);
