@@ -7568,6 +7568,7 @@ nk_text_clamp(const struct nk_user_font *font, const char *text,
           sep_len = len;
           *glyphs = sep_g;
           *text_width = sep_width;
+          assert(sep_len > 0);
           return sep_len-1; // - 1 because the last one is the separator
         }
     }
@@ -7578,6 +7579,7 @@ nk_text_clamp(const struct nk_user_font *font, const char *text,
     } else {
         *glyphs = sep_g;
         *text_width = sep_width;
+          assert(sep_len > 0 || len > 0);
         return ((!sep_len) ? len: sep_len) - 1; // last one is separator
     }
 }

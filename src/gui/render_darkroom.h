@@ -193,30 +193,42 @@ void render_darkroom_widget(int modid, int parid)
       nk_label(ctx, str, NK_TEXT_LEFT);
       break;
     }
-#if 0
     case dt_token("coledit"):
     { // only works for param->type == float and count == 3
       if((num % 3) == 0)
       {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        float  oldval = *val;
-        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-        if(ImGui::ColorEdit3(str, val, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_PickerHueWheel |
-             ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_InputRGB   | ImGuiColorEditFlags_Float))
-        RESETBLOCK {
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+        struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+        struct nk_colorf oldval = *val;
+        float size = nk_widget_width(ctx);
+        RESETBLOCK
+        if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(size, size)))
+        {
+          nk_layout_row_dynamic(ctx, size * 0.2, 1);
+          *val = nk_color_picker(ctx, *val, NK_RGB);
+          nk_layout_row_dynamic(ctx, size/16.0, 1);
+          val->r = nk_propertyf(ctx, "#R:", 0, val->r, 1.0f, 0.01f, 0.005f);
+          val->g = nk_propertyf(ctx, "#G:", 0, val->g, 1.0f, 0.01f, 0.005f);
+          val->b = nk_propertyf(ctx, "#B:", 0, val->b, 1.0f, 0.01f, 0.005f);
+          nk_combo_end(ctx);
+        }
+        if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
+        if(change)
+        {
           dt_graph_run_t flags = s_graph_run_none;
           if(vkdt.graph_dev.module[modid].so->check_params)
             flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              flags | s_graph_run_record_cmd_buf);
+          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
           vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        dt_tooltip(param->tooltip);
         KEYFRAME
-        TOOLTIP
+        nk_label(ctx, str, NK_TEXT_LEFT);
       }
       break;
     }
+#if 0
     case dt_token("vslider"):
     {
       if(param->type == dt_token("float"))
@@ -343,11 +355,12 @@ void render_darkroom_widget(int modid, int parid)
     { // combo box
       if(param->type == dt_token("int"))
       {
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
         int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
         int32_t oldval = *val;
         RESETBLOCK
         struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
-        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0xffff, row_height, size);
+        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0x7fff, row_height, size);
         if(oldval != *val) change = 1;
         if(change)
         {
@@ -858,14 +871,16 @@ void render_darkroom_widget(int modid, int parid)
     {
       if(num == 0)
       { // only show first, cnt refers to allocation length of string param
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
         char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        dt_tooltip(param->tooltip);
         nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
         if(ret & NK_EDIT_COMMITED)
         { // kinda grave change, rerun all, but only if enter pressed
           vkdt.graph_dev.runflags = s_graph_run_all;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        dt_tooltip(param->tooltip);
+        nk_label(ctx, str, NK_TEXT_LEFT);
       }
       break;
     }
@@ -920,6 +935,7 @@ void render_darkroom_widget(int modid, int parid)
     }
     case dt_token("print"):
     {
+      nk_layout_row_dynamic(ctx, row_height, 1);
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       nk_labelf(ctx, NK_TEXT_LEFT, "%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
       num = count; // we've done it all at once
@@ -950,7 +966,10 @@ void render_darkroom_widgets(
   dt_module_t *module = graph->module+curr;
   nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, ratio);
 
+  nk_uint offx, offy;
+  nk_window_get_scroll(ctx, &offx, &offy);
   struct nk_rect bound = nk_layout_widget_bounds(ctx);
+  bound.y -= offy; // account for scrolling: both drawing and mouse events are not relative to scroll window, widget bounds are
   bound.h -= 2; // leave 2px padding
   nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
   bound.x += ratio[0] * vkdt.state.panel_wd; // mouse click: not the disable button

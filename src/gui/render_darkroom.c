@@ -594,6 +594,8 @@ void render_darkroom()
     }
     nk_style_pop_float(ctx);
     nk_style_pop_vec2(ctx);
+    nk_layout_row_dynamic(ctx, 2, 1);
+    nk_rule_horizontal(ctx, (struct nk_color){0x77,0x77,0x77,0xff}, nk_true);
 
     if(current_tab == 0)
     {
