@@ -388,9 +388,9 @@ void render_darkroom_widget(int modid, int parid)
       nk_button_color(ctx, col);
       break;
     }
-#if 0
     case dt_token("pers"):
     {
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
@@ -398,6 +398,7 @@ void render_darkroom_widget(int modid, int parid)
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
         int accept = 0;
+#if 0 // TODO: port gamepad interaction
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
         {
           vkdt.wstate.selected ++;
@@ -415,15 +416,16 @@ void render_darkroom_widget(int modid, int parid)
 #undef SMOOTH
           dt_gui_dr_pers_adjust(inc, 1);
         }
-        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
         if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
         {
           dt_gamepadhelp_pop();
           dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
           widget_abort();
         }
-        else if(ImGui::Button(string, ImVec2(halfw, 0)) || accept)
+#endif
+        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
+        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
+        if(nk_button_label(ctx, string) || accept)
         {
           dt_gamepadhelp_pop();
           dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
@@ -431,12 +433,12 @@ void render_darkroom_widget(int modid, int parid)
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        ImGui::PopStyleColor();
+        nk_style_pop_style_item(ctx);
       }
       else
       {
         snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        if(ImGui::Button(string, ImVec2(halfw, 0)))
+        if(nk_button_label(ctx, string))
         {
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
@@ -469,11 +471,14 @@ void render_darkroom_widget(int modid, int parid)
           dt_image_widget_t *w = &vkdt.wstate.img_widget;
           w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
         }
-        if(0) RESETBLOCK {
+        RESETBLOCK
+        if(change)
+        {
           vkdt.graph_dev.runflags = s_graph_run_all;
           dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }
-        TOOLTIP
+        dt_tooltip(param->tooltip);
+        nk_label(ctx, str, NK_TEXT_LEFT);
       }
       num = count;
       break;
@@ -482,20 +487,23 @@ void render_darkroom_widget(int modid, int parid)
     { // horizon line straighten tool for rotation
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       float oldval = *val;
+      const float rat3[] = {0.3f, 0.4f, 0.3f};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
 
       if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
       {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-        if(ImGui::Button("done"))
+        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
+        if(nk_button_label(ctx, "done"))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        ImGui::PopStyleColor();
+        nk_style_pop_style_item(ctx);
       }
       else
       {
-        if(ImGui::Button("straighten"))
+        dt_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
+        if(nk_button_label(ctx, "straighten"))
         {
           widget_end();
           vkdt.wstate.active_widget_modid = modid;
@@ -505,28 +513,27 @@ void render_darkroom_widget(int modid, int parid)
           vkdt.wstate.selected = -1;
           memcpy(vkdt.wstate.state, val, sizeof(float));
         }
-        if(ImGui::IsItemHovered())
-          dt_gui_set_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
       }
 
       // full manual control over parameter using the slider:
-      ImGui::SameLine(); // almost matches the right size:
-      ImGui::SetNextItemWidth(ImGui::GetStyle().ItemSpacing.x + 0.66*vkdt.state.panel_wd - ImGui::GetCursorPosX());
-
-      if(ImGui::SliderFloat(str, val, 0.0f, 360.0f, "%2.5f"))
-      RESETBLOCK {
+      RESETBLOCK
+      nk_property_float(ctx, "#", 0.0f, val, 360.0f, 0.1, .01);
+      if(*val != oldval) change = 1;
+      if(change)
+      {
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-            s_graph_run_record_cmd_buf | flags);
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
+      dt_tooltip(param->tooltip);
       KEYFRAME
-      TOOLTIP
+      nk_label(ctx, str, NK_TEXT_LEFT);
       break;
     }
+#if 0
     case dt_token("crop"):
     {
       ImGui::InputFloat("aspect ratio", &vkdt.wstate.aspect, 0.0f, 4.0f, "%.3f");
@@ -665,11 +672,13 @@ void render_darkroom_widget(int modid, int parid)
          vkdt.wstate.active_widget_parnm == num)
       {
         snprintf(string, sizeof(string), "done");
+        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
         if(nk_button_label(ctx, string))
         {
           widget_end();
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        nk_style_pop_style_item(ctx);
       }
       else
       {
