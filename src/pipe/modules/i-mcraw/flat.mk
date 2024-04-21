@@ -1,10 +1,10 @@
 MCRAW_COMMIT=d0de7fa
-MCRAW_I=pipe/modules/i-raw/mcraw-$(MCRAW_COMMIT)
+MCRAW_I=pipe/modules/i-mcraw/mcraw-$(MCRAW_COMMIT)
 MCRAW_L=$(MCRAW_I)/build
-MOD_CFLAGS=-std=c++17 -Wall -I$(MCRAW_I)/lib/include/motioncam/
+MOD_CFLAGS=-std=c++17 -Wall -I$(MCRAW_I)/lib/include -I$(MCRAW_I)/thirdparty
 MOD_LDFLAGS=-L$(MCRAW_L) -lmotioncam_decoder
 
-pipe/modules/i-raw/libi-mcraw.so: $(MCRAW_L)/libmotioncam_decoder.a
+pipe/modules/i-mcraw/libi-mcraw.so: $(MCRAW_L)/libmotioncam_decoder.a
 
 $(MCRAW_L)/Makefile: $(MCRAW_I)/CMakeLists.txt
 	mkdir -p $(MCRAW_L)

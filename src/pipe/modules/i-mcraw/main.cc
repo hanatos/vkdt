@@ -2,7 +2,7 @@
 #include "connector.h"
 #include "core/core.h"
 
-#include "Decoder.hpp"
+#include "motioncam/Decoder.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
