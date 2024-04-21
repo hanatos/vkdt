@@ -29,7 +29,7 @@ open_file(
     dt_module_t *mod,
     const char  *fname)
 {
-  buf_t *dat = mod->data;
+  buf_t *dat = (buf_t *)mod->data;
   if(dat && !strcmp(dat->filename, fname))
     return 0; // already open
 
@@ -42,7 +42,7 @@ open_file(
   dat->dec = new motioncam::Decoder(filename);
 
   // load first frame to find out about resolution
-  std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
+  const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   if(frame_list.size() == 0) return 1; // no frames in file
   if(mFrameOffsetMap.find(frame_list[0]) == mFrameOffsetMap.end())
     return 1; // frame 0 not found
@@ -58,8 +58,10 @@ open_file(
   if(bufferItem.type != Type::BUFFER)
     return 1; // invalid buffer type
 
-  dat->dec->tmp.resize(bufferItem.size);
-  read(tmp.data(), bufferItem.size);
+  // dat->dec->tmp.resize(bufferItem.size);
+  // read(tmp.data(), bufferItem.size);
+  if(FSEEK(mFile, bufferItem.size, SEEK_CUR) != 0)
+    return 1; // can't seek to metadata
 
   // Get metadata
   Item metadataItem{};
@@ -91,8 +93,8 @@ read_frame(
     dt_module_t *mod,
     void        *mapped)
 {
-  buf_t *dat = mod->data;
-  std::vector<motioncam::Timestamp> &frame_list = d->getFrames();
+  buf_t *dat = (buf_t *)mod->data;
+  std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   int frame = CLAMP(mod->graph->frame, 0, frame_list.size());
 
   nlohmann::json metadata;
@@ -180,7 +182,7 @@ void modify_roi_out(
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
 
-  nlohmann::json& cmeta = dat->dec->getContainerMetadata();
+  const nlohmann::json& cmeta = dat->dec->getContainerMetadata();
   // TODO somehow wire this to params per frame (commit_params?)
   // std::vector<double> wb = dat->metadata["asShotNeutral"];
   std::vector<uint16_t> black = cmeta["blackLevel"];
@@ -205,7 +207,7 @@ void modify_roi_out(
   // ???  .aperture       = dat->video.LENS.aperture * 0.01f,
   // ???  .iso            = dat->video.EXPO.isoValue,
   // ???  .focal_length   = dat->video.LENS.focalLength,
-    .snd_samplerate = dat->dec->audioSmapleRateHz(),
+    .snd_samplerate = dat->dec->audioSampleRateHz(),
     .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE,
     .snd_channels   = dat->dec->numAudioChannels(),
 
@@ -218,7 +220,7 @@ void modify_roi_out(
   // snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
-  mod->graph->frame_cnt  = dat->dec.getFrames().size();
+  mod->graph->frame_cnt  = dat->dec->getFrames().size();
   // TODO mod->graph->frame_rate = dat->video.frame_rate;
 
   // load noise profile:
@@ -288,7 +290,7 @@ int audio(
 
 
   int channels = dat->dec->numAudioChannels();
-  int rate = dat->dec->audioSmapleRateHz();
+  int rate = dat->dec->audioSampleRateHz();
 
   // TODO:
   // find right audio chunk for frame by timestamp, i.e. audio_chunk.first
