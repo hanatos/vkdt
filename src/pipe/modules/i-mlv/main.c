@@ -60,7 +60,7 @@ open_file(
   if(dat && !strcmp(dat->filename, fname))
     return 0; // already open
 
-  fprintf(stderr, "[o-mlv] opening `%s'\n", fname);
+  fprintf(stderr, "[i-mlv] opening `%s'\n", fname);
 
   const char *filename = fname;
   char tmpfn[2*PATH_MAX+10]; // replicate api.h:dt_graph_open_resource
