@@ -2,6 +2,8 @@ extern "C" {
 #include "modules/api.h"
 #include "connector.h"
 #include "core/core.h"
+#include "core/log.h"
+#include "../i-raw/mat3.h"
 }
 
 #include "motioncam/Decoder.hpp"
@@ -23,6 +25,7 @@ struct buf_t
   motioncam::Decoder *dec;
   std::vector<motioncam::AudioChunk> audio_chunks;
   int32_t wd, ht;
+  int ox, oy;
   std::vector<uint16_t> dummy; // tmp mem to decode frame, please remove this for direct access to mapped memory!
 };
 
@@ -34,8 +37,6 @@ open_file(
   buf_t *dat = (buf_t *)mod->data;
   if(dat && !strcmp(dat->filename, fname))
     return 0; // already open
-
-  fprintf(stderr, "[i-mcraw] opening `%s'\n", fname);
 
   char filename[512];
   if(dt_graph_get_resource_filename(mod, fname, 0, filename, sizeof(filename)))
@@ -72,6 +73,7 @@ read_frame(
     dt_module_t *mod,
     void        *mapped)
 {
+  clock_t end, beg = clock();
   buf_t *dat = (buf_t *)mod->data;
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   int frame = CLAMP(mod->graph->frame, 0, frame_list.size()-1);
@@ -84,11 +86,35 @@ read_frame(
     return 1;
   }
 
-  uint32_t wd = metadata["width"];
-  uint32_t ht = metadata["height"];
+  uint32_t owd = metadata["width"];
+  uint32_t oht = metadata["height"];
+  const size_t bufsize_mcraw = (size_t)owd * oht * sizeof(uint16_t);
+  if(dat->wd != owd || dat->ht != oht) return 1;
 
-  if(dat->wd != wd || dat->ht != ht) return 1;
-  memcpy(mapped, dat->dummy.data(), wd*ht*sizeof(uint16_t));
+  int ox = dat->ox;
+  int oy = dat->oy;
+  int wd = owd - ox;
+  int ht = oht - oy;
+
+  // round down to full block size:
+  const int block = 2;
+  wd = (wd/block)*block;
+  ht = (ht/block)*block;
+  // make sure the roi we get on the connector agrees with this!
+  if(mod->connector[0].roi.wd < wd || mod->connector[0].roi.ht < ht) return 0;
+
+  uint16_t *buf = (uint16_t *)mapped;
+  const size_t bufsize_compact = (size_t)wd * ht * sizeof(uint16_t);
+  if(bufsize_compact == bufsize_mcraw)
+    memcpy(mapped, dat->dummy.data(), wd*ht*sizeof(uint16_t));
+  else
+    for(int j=0;j<ht;j++)
+      memcpy(buf + j*wd,
+          dat->dummy.data() + (j+oy)*owd + ox,
+          sizeof(uint16_t)*wd);
+
+  end = clock();
+  dt_log(s_log_perf, "[mcraw] load %s in %3.0fms", dat->filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
 
   return 0;
 }
@@ -127,8 +153,9 @@ void modify_roi_out(
   buf_t *dat= (buf_t *)mod->data;
   const uint32_t wd = dat->wd;
   const uint32_t ht = dat->ht;
-  mod->connector[0].roi.full_wd = wd;
-  mod->connector[0].roi.full_ht = ht;
+  dt_roi_t *ro = &mod->connector[0].roi;
+  ro->full_wd = wd;
+  ro->full_ht = ht;
 
   const nlohmann::json& cmeta = dat->dec->getContainerMetadata();
   // TODO somehow wire this to params per frame (commit_params?)
@@ -136,10 +163,10 @@ void modify_roi_out(
   std::vector<uint16_t> black = cmeta["blackLevel"];
   float white = cmeta["whiteLevel"];
   std::string sensorArrangement = cmeta["sensorArrangment"];
-  std::vector<double> colorMatrix1 = cmeta["colorMatrix1"];
-  std::vector<double> colorMatrix2 = cmeta["colorMatrix2"];
-  std::vector<double> fwd = cmeta["forwardMatrix1"];
-  std::vector<double> forwardMatrix2 = cmeta["forwardMatrix2"];
+  std::vector<double> cm1 = cmeta["colorMatrix1"];
+  // std::vector<double> colorMatrix2 = cmeta["colorMatrix2"];
+  // std::vector<double> fwd = cmeta["forwardMatrix1"];
+  // std::vector<double> forwardMatrix2 = cmeta["forwardMatrix2"];
 
   mod->img_param = (dt_image_params_t) {
     .black          = {(float)black[0], (float)black[1], (float)black[2], (float)black[3]}, // XXX do we always get 4?
@@ -168,7 +195,7 @@ void modify_roi_out(
   // snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
-  mod->graph->frame_cnt  = dat->dec->getFrames().size();
+  mod->graph->frame_cnt = dat->dec->getFrames().size();
   // TODO mod->graph->frame_rate = dat->video.frame_rate;
 
   // load noise profile:
@@ -191,10 +218,17 @@ void modify_roi_out(
   }
   
   // compute matrix camrgb -> rec2020 d65
+  float xyz_to_cam[9], mat[9] = {0};
+  // get d65 camera matrix
+  for(int i=0;i<9;i++)
+    xyz_to_cam[i] = cm1[i];
+  mat3inv(mat, xyz_to_cam);
+
+  // compute matrix camrgb -> rec2020 d65
   double cam_to_xyz[] = {
-    fwd[0], fwd[1], fwd[2],
-    fwd[3], fwd[4], fwd[5],
-    fwd[6], fwd[7], fwd[8]};
+    mat[0], mat[1], mat[2],
+    mat[3], mat[4], mat[5],
+    mat[6], mat[7], mat[8]};
   // find white balance baked into matrix:
   mod->img_param.whitebalance[0] = (cam_to_xyz[0]+cam_to_xyz[1]+cam_to_xyz[2]);
   mod->img_param.whitebalance[1] = (cam_to_xyz[3]+cam_to_xyz[4]+cam_to_xyz[5]);
@@ -214,6 +248,32 @@ void modify_roi_out(
       xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
   for(int k=0;k<9;k++)
     mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
+
+  // deal with CFA offsets to rggb block:
+  int ox = 0, oy = 0;
+  if(sensorArrangement == "bggr") ox = oy = 1;
+  if(sensorArrangement == "grbg") ox = 1;
+  if(sensorArrangement == "gbrg") oy = 1;
+  const int block = 2;
+  const int bigblock = 2;
+  // crop aabb is relative to buffer we emit,
+  // so we need to move it along to the CFA pattern boundary
+  uint32_t *b = mod->img_param.crop_aabb;
+  b[2] -= ox;
+  b[3] -= oy;
+  // and also we'll round it to cut only between CFA blocks
+  b[0] = ((b[0] + bigblock - 1) / bigblock) * bigblock;
+  b[1] = ((b[1] + bigblock - 1) / bigblock) * bigblock;
+  b[2] =  (b[2] / block) * block;
+  b[3] =  (b[3] / block) * block;
+  ro->full_wd -= ox;
+  ro->full_ht -= oy;
+  // round down to full block size:
+  ro->full_wd = (ro->full_wd/block)*block;
+  ro->full_ht = (ro->full_ht/block)*block;
+  
+  dat->ox = ox;
+  dat->oy = oy;
 }
 
 int read_source(
