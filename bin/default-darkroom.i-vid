@@ -2,7 +2,6 @@ module:i-vid:main
 module:colour:01
 module:hist:01
 module:resize:01
-module:pick:01
 module:display:hist
 # last display is the one determining the ROI:
 module:display:main

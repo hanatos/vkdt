@@ -29,6 +29,9 @@ endif
 ifneq ($(VKDT_USE_QUAKE), 1)
   MODULES:=$(filter-out quake,$(MODULES))
 endif
+ifneq ($(VKDT_USE_MCRAW), 1)
+  MODULESXX:=$(filter-out i-mcraw,$(MODULESXX))
+endif
 
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
 MOD_DSOS:=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
