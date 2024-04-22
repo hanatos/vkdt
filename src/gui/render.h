@@ -58,6 +58,10 @@ void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str);
 void dt_gamepadhelp_clear();
 void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
+static inline int dt_gui_input_blocked()
+{
+  return vkdt.wstate.popup | vkdt.wstate.grabbed;//  |  TODO something with nk text edit
+}
 
 struct nk_font;
 struct nk_font* dt_gui_get_font(int which); // 0 small, 1 medium, 2 large, 3 material symbols

@@ -311,6 +311,228 @@ void render_darkroom_full()
   }
 }
 
+static inline void
+render_darkroom_modals()
+{
+  struct nk_rect bounds = { vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,
+    0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht };
+  if(vkdt.wstate.popup == s_popup_assign_tag)
+  {
+    if(nk_begin(&vkdt.ctx, "assign tag", bounds, NK_WINDOW_NO_SCROLLBAR))
+    {
+      static char filter[256] = "all time best";
+      static char name[PATH_MAX];
+      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
+      if(ok) vkdt.wstate.popup = 0;
+      if(ok == 1)
+      {
+        dt_db_add_to_collection(&vkdt.db, vkdt.db.current_imgid, name);
+        dt_gui_read_tags();
+      }
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
+  else if(vkdt.wstate.popup == s_popup_add_module)
+  {
+    if(nk_begin(&vkdt.ctx, "add module", bounds, 0))
+    {
+      static char mod_inst[10] = "01";
+      nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, mod_inst, 8, nk_filter_default);
+      char filename[1024] = {0};
+      static char filter[256];
+      int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename), s_filteredlist_descr_req | s_filteredlist_return_short);
+      if(ok) vkdt.wstate.popup = 0;
+      if(ok == 1)
+      {
+        int new_modid = dt_module_add(&vkdt.graph_dev, dt_token(filename), dt_token(mod_inst));
+        if(new_modid >= 0) dt_graph_history_module(&vkdt.graph_dev, new_modid);
+      }
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
+  else if(vkdt.wstate.popup == s_popup_create_preset)
+  {
+    if(nk_begin(&vkdt.ctx, "create preset", bounds, 0))
+    {
+#if 0
+    static char  preset[32] = "default";
+    static char  filter[32] = "";
+    static int   line_cnt = 0;
+    static char *line[1024] = {0};
+    static char  sel[1024];
+    static char *buf = 0;
+    static int   ok = 0;
+    if(!buf)
+    {
+      ok = 0;
+      char filename[1024] = {0};
+      uint32_t cid = dt_db_current_imgid(&vkdt.db);
+      if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+      if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
+        dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
+      FILE *f = fopen(filename, "rb");
+      size_t s = 0;
+      if(f)
+      {
+        fseek(f, 0, SEEK_END);
+        s = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        buf = (char *)malloc(s);
+        fread(buf, s, 1, f);
+        fclose(f);
+      }
+      line_cnt = 1;
+      line[0] = buf;
+      for(uint32_t i=0;i<s-1 && line_cnt < 1024;i++) if(buf[i] == '\n')
+      {
+        line[line_cnt++] = buf+i+1;
+        buf[i] = 0;
+      }
+      for(int i=0;i<line_cnt;i++)
+      { // mark all lines as selected initially, only ones related to input modules not
+        sel[i] = strstr(line[i], "param:i-") == 0 ? 1 : 0;
+      }
+      if(buf[s-1] == '\n') buf[s-1] = 0;
+    }
+    
+    if(ok == 0)
+    {
+      if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+      if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
+        ok = 1;
+      if(ImGui::IsItemHovered())
+        dt_gui_set_tooltip("type to filter the list\n"
+                          "press enter to accept\n"
+                          "press escape to close");
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+         ImGui::IsKeyPressed(ImGuiKey_Escape)||
+         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+        ok = 3;
+
+      int select_all = 0;
+      if(ImGui::Button("select all shown")) select_all = 1;
+      ImGui::SameLine();
+      if(ImGui::Button("deselect shown")) select_all = 2;
+
+      for(int i=0;i<line_cnt;i++)
+      {
+        if(filter[0] == 0 || strstr(line[i], filter))
+        {
+          if(select_all == 1) sel[i] = 1;
+          if(select_all == 2) sel[i] = 0;
+          const int selected = sel[i];
+          if(selected)
+          {
+            ImGui::PushStyleColor(ImGuiCol_Button,        ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogramHovered]);
+          }
+          if(ImGui::Button(line[i])) sel[i] ^= 1;
+          if(ImGui::IsItemHovered())
+          {
+            if(selected) dt_gui_set_tooltip("click to drop from preset");
+            else         dt_gui_set_tooltip("click to include in preset");
+          }
+          if(selected) ImGui::PopStyleColor(2);
+        }
+      }
+
+      if (ImGui::Button("cancel")) ok = 3;
+      ImGui::SameLine();
+      if (ImGui::Button("ok")) ok = 1;
+    }
+    else if(ok == 1)
+    {
+      ImGui::Text("enter preset name");
+      if(ImGui::InputText("##preset", preset, IM_ARRAYSIZE(preset), ImGuiInputTextFlags_EnterReturnsTrue))
+        ok = 2;
+      if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("presets will be stored as\n"
+                          "~/.config/vkdt/presets/<this>.pst");
+      if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
+        ok = 3;
+      if (ImGui::Button("cancel##2", ImVec2(120, 0))) ok = 3;
+      ImGui::SameLine();
+      if (ImGui::Button("ok##2", ImVec2(120, 0))) ok = 2;
+    }
+
+    if(ok == 2)
+    {
+      char filename[PATH_MAX+100];
+      snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
+      fs_mkdir_p(filename, 0755);
+      snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
+      FILE *f = fopen(filename, "wb");
+      if(f)
+      {
+        for(int i=0;i<line_cnt;i++)
+          if(sel[i]) fprintf(f, "%s\n", line[i]);
+        fclose(f);
+      }
+      else dt_gui_notification("failed to write %s!", filename);
+    }
+
+    if(ok > 1)
+    {
+      free(buf);
+      buf = 0;
+      line_cnt = 0;
+      ok = 0;
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+#endif
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
+  else if(vkdt.wstate.popup == s_popup_apply_preset)
+  {
+    if(nk_begin(&vkdt.ctx, "apply preset", bounds, 0))
+    {
+      char filename[1024] = {0};
+      uint32_t cid = dt_db_current_imgid(&vkdt.db);
+      if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+      if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
+        dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
+      static char filter[256];
+      int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      if(ok) vkdt.wstate.popup = 0;
+      if(ok == 1)
+      {
+        FILE *f = fopen(filename, "rb");
+        uint32_t lno = 0;
+        if(f)
+        {
+          char line[300000];
+          while(!feof(f))
+          {
+            fscanf(f, "%299999[^\n]", line);
+            if(fgetc(f) == EOF) break; // read \n
+            lno++;
+            // > 0 are warnings, < 0 are fatal, 0 is success
+            if(dt_graph_read_config_line(&vkdt.graph_dev, line) < 0) goto error;
+            dt_graph_history_line(&vkdt.graph_dev, line);
+          }
+          fclose(f);
+          vkdt.graph_dev.runflags = s_graph_run_all;
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
+        }
+        else
+        {
+  error:
+          if(f) fclose(f);
+          dt_gui_notification("failed to read %s line %d", filename, lno);
+        }
+      } // end if ok == 1
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
+}
+
+
 void render_darkroom()
 {
   // int axes_cnt = 0;
@@ -318,14 +540,14 @@ void render_darkroom()
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
-  if(nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
+  if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   {
     dt_view_switch(s_view_lighttable);
     vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
     return;
   }
 
-  if(nk_begin(&vkdt.ctx, "lighttable center", bounds, 0))
+  if(nk_begin(&vkdt.ctx, "darkroom center", bounds, 0))
   { // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
@@ -677,6 +899,7 @@ void render_darkroom()
     }
     nk_end(ctx);
   } // end right panel
+  render_darkroom_modals();
 }
 
 void render_darkroom_init()

@@ -106,14 +106,15 @@ filteredlist(
   static char dirname_local[PATH_MAX];
   static char **desc = 0, **desc_local = 0;
 
-  // nk_edit
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
+  nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
   nk_label(ctx, "filter", NK_TEXT_LEFT);
-  int len = 0;
   dt_tooltip(
       "type to filter the list\n"
       "press enter to apply top item\n"
       "press escape to close");
-  nk_flags ret = nk_edit_string(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, &len, 256, nk_filter_default);
+  nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED) ok = 1;
   if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
   vkdt.wstate.popup_appearing = 0;
@@ -179,12 +180,10 @@ filteredlist(
     else ent_local_cnt = 0;
   }
 
-
-  struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
-  static float ratio[] = {0.25f, NK_UNDEFINED};
-  nk_layout_row(&vkdt.ctx, NK_DYNAMIC, total_space.h*0.9, 1, ratio);
+  nk_layout_row_dynamic(&vkdt.ctx, total_space.h-2*row_height, 1);
   nk_group_begin(&vkdt.ctx, "filteredlist-scrollpane", 0);
   {
+    nk_layout_row_dynamic(&vkdt.ctx, 0, 1);
 #define XLIST(E, D, L) do { \
     for(int i=0;i<E##_cnt;i++)\
     if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
@@ -199,7 +198,7 @@ filteredlist(
     nk_group_end(&vkdt.ctx);
   }
 
-  nk_layout_row_dynamic(&vkdt.ctx, total_space.h*0.1, 5);
+  nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
   nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
   nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
   if( (flags & s_filteredlist_allow_new) && nk_button_label(&vkdt.ctx, "create new")) { pick = -1; ok = 1; }
