@@ -29,6 +29,14 @@ struct buf_t
   std::vector<uint16_t> dummy; // tmp mem to decode frame, please remove this for direct access to mapped memory!
 };
 
+#if 0
+commit_params()
+{
+  // grab the following from metadata
+  // ,"asShotNeutral":[0.51171875,1.0,0.578125],"needRemosaic":false,"iso":234,"exposureCompensation":0,"exposureTime":10000000.0,"orientation":0,"isCompressed":true,"compressionType":7,"dynamicWhiteLevel":1023.0,"dynamicBlackLevel":[63.9375,64.0,63.9375,64.0],"lensShadingMapWidth":17,"lensShadingMapHeight":13,"lensShadingMap":[[
+}
+#endif
+
 int
 open_file(
     dt_module_t *mod,
@@ -178,10 +186,10 @@ void modify_roi_out(
     .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
 
     .orientation    = 0,
-  // ???  .exposure       = dat->video.EXPO.shutterValue * 1e-6f,
-  // ???  .aperture       = dat->video.LENS.aperture * 0.01f,
-  // ???  .iso            = dat->video.EXPO.isoValue,
-  // ???  .focal_length   = dat->video.LENS.focalLength,
+    .exposure       = 1.0f, // can't seem to get useful values, even per frame
+    .aperture       = cmeta["apertures"][0],
+    .iso            = 100.0f, // this is per frame really
+    .focal_length   = cmeta["focalLengths"][0],
     .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE,
     .snd_channels   = dat->dec->numAudioChannels(),
     .snd_samplerate = dat->dec->audioSampleRateHz(),
@@ -192,8 +200,8 @@ void modify_roi_out(
   // snprintf(mod->img_param.datetime, sizeof(mod->img_param.datetime), "%4d%2d%2d %2d:%2d%2d",
   //     dat->video.RTCI.tm_year, dat->video.RTCI.tm_mon, dat->video.RTCI.tm_mday,
   //     dat->video.RTCI.tm_hour, dat->video.RTCI.tm_min, dat->video.RTCI.tm_sec);
-  // snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
-  // snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
+  snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", cmeta["extraData"]["postProcessSettings"]["metadata"]["build.model"].template get<std::string>().c_str());
+  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", cmeta["extraData"]["postProcessSettings"]["metadata"]["build.manufacturer"].template get<std::string>().c_str());
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   mod->graph->frame_cnt = dat->dec->getFrames().size();
   // TODO mod->graph->frame_rate = dat->video.frame_rate;
@@ -286,25 +294,22 @@ int read_source(
   return read_frame(mod, mapped);
 }
 
-#if 0
 int audio(
     dt_module_t  *mod,
     const int     frame,
     uint8_t     **samples)
 {
-  buf_t *dat = mod->data;
+  buf_t *dat = (buf_t *)mod->data;
   if(!dat || !dat->filename[0])
     return 0;
 
-
   int channels = dat->dec->numAudioChannels();
-  int rate = dat->dec->audioSampleRateHz();
+  int f = CLAMP(frame, 0, dat->audio_chunks.size());
 
-  // TODO:
-  // find right audio chunk for frame by timestamp, i.e. audio_chunk.first
-  // *samples = audio_chunk.second
-  // return audio_chuck.second / channels; // number of samples
-  // TODO: are these timestamps always the right granularity for the frame?
+  const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
+  if(frame_list.size() == 0) return 0; // no frames in file
+  // find right audio chunk for frame by timestamp, i.e. audio_chunk.first (so far they seem to be always zero?)
+  *samples = (uint8_t*)dat->audio_chunks[f].second.data();
+  return dat->audio_chunks[f].second.size() / channels; // number of samples
 }
-#endif
 } // extern "C"

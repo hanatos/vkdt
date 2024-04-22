@@ -159,8 +159,8 @@ void modify_roi_out(
       dat->video.RTCI.tm_year, dat->video.RTCI.tm_mon, dat->video.RTCI.tm_mday,
       dat->video.RTCI.tm_hour, dat->video.RTCI.tm_min, dat->video.RTCI.tm_sec);
 #pragma GCC diagnostic pop
-  snprintf(mod->img_param.model, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
-  snprintf(mod->img_param.maker, sizeof(mod->img_param), "%s", dat->video.IDNT.cameraName);
+  snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", dat->video.IDNT.cameraName);
+  snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", dat->video.IDNT.cameraName);
   for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   mod->graph->frame_cnt  = dat->video.MLVI.videoFrameCount;
   mod->graph->frame_rate = dat->video.frame_rate;
