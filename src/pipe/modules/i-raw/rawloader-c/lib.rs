@@ -76,7 +76,14 @@ pub unsafe extern "C" fn rl_decode_file(
 {
   let c_str: &CStr = CStr::from_ptr(filename);
   let strn : &str = c_str.to_str().unwrap();
-  let mut image = rawler::decode_file(strn).unwrap();
+  let result = rawler::decode_file(strn);
+  match result
+  {
+    Ok(_) => {}
+    Err(_) => { return 0 as u64; }
+  }
+  let mut image = result.unwrap();
+
   let mut len = 0 as usize;
   if let rawler::RawImageData::Integer(ref mut vdat) = image.data
   {

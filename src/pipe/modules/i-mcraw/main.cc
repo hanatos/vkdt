@@ -20,8 +20,8 @@ struct buf_t
   char filename[256];
   motioncam::Decoder *dec;
   std::vector<motioncam::AudioChunk> audio_chunks;
-  std::vector<uint8_t> tmp;
   int32_t wd, ht;
+  std::vector<uint16_t> dummy; // tmp mem to decode frame, please remove this for direct access to mapped memory!
 };
 
 int
@@ -44,45 +44,22 @@ open_file(
   // load first frame to find out about resolution
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   if(frame_list.size() == 0) return 1; // no frames in file
-  if(mFrameOffsetMap.find(frame_list[0]) == mFrameOffsetMap.end())
-    return 1; // frame 0 not found
+  std::vector<uint16_t> dummy;
+  nlohmann::json metadata;
+  try {
+    dat->dec->loadFrame(frame_list[0], dummy, metadata);
+  } catch(...) {
+    return 1;
+  }
 
-  int64_t offset = mFrameOffsetMap.at(frame_list[0]).offset;
+  dat->wd = metadata["width"];
+  dat->ht = metadata["height"];
 
-  if(FSEEK(mFile, offset, SEEK_SET) != 0)
-    return 1; // invalid offset
-
-  Item bufferItem{};
-  read(&bufferItem, sizeof(Item));
-
-  if(bufferItem.type != Type::BUFFER)
-    return 1; // invalid buffer type
-
-  // dat->dec->tmp.resize(bufferItem.size);
-  // read(tmp.data(), bufferItem.size);
-  if(FSEEK(mFile, bufferItem.size, SEEK_CUR) != 0)
-    return 1; // can't seek to metadata
-
-  // Get metadata
-  Item metadataItem{};
-  read(&metadataItem, sizeof(Item));
-
-  if(metadataItem.type != Type::METADATA)
-    return 1; // invalid metadata
-
-  std::vector<uint8_t> metadataJson(metadataItem.size);
-  read(metadataJson.data(), metadataItem.size);
-  std::string metadataString = std::string(metadataJson.begin(), metadataJson.end());
-  nlohman::json meta = nlohmann::json::parse(metadataString);
-
-  dat->wd = meta["width"];
-  dat->ht = meta["height"];
-  const int compressionType = meta["compressionType"];
-
-  if(compressionType != MOTIONCAM_COMPRESSION_TYPE)
-    return 1; // invalid compression type
-
-  d->loadAudio(dat->audio_chunks);
+  try {
+    dat->dec->loadAudio(dat->audio_chunks);
+  } catch(...) {
+    return 1;
+  }
 
   snprintf(dat->filename, sizeof(dat->filename), "%s", fname);
   return 0;
@@ -94,53 +71,23 @@ read_frame(
     void        *mapped)
 {
   buf_t *dat = (buf_t *)mod->data;
-  std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
-  int frame = CLAMP(mod->graph->frame, 0, frame_list.size());
+  const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
+  int frame = CLAMP(mod->graph->frame, 0, frame_list.size()-1);
 
+  // this is so dumb, we could decode directly into gpu memory, avoiding 2 memcopies!
   nlohmann::json metadata;
-  // writes to std stuff, we have memory mapped gpu pointers
-  // d.loadFrame(frame_list[frame], data, metadata);
-  // copy of their code:
-  if(mFrameOffsetMap.find(timestamp) == mFrameOffsetMap.end())
-    return 1; // frame not found
-
-  int64_t offset = mFrameOffsetMap.at(timestamp).offset;
-
-  if(FSEEK(mFile, offset, SEEK_SET) != 0)
-    return 1; // invalid offset
-
-  Item bufferItem{};
-  read(&bufferItem, sizeof(Item));
-
-  if(bufferItem.type != Type::BUFFER)
-    return 1; // invalid buffer type
-
-  mTmpBuffer.resize(bufferItem.size);
-
-  read(mTmpBuffer.data(), bufferItem.size);
-
-  // Get metadata
-  Item metadataItem{};
-  read(&metadataItem, sizeof(Item));
-
-  if(metadataItem.type != Type::METADATA)
-    return 1; // invalid metadata
-
-  std::vector<uint8_t> metadataJson(metadataItem.size);
-  read(metadataJson.data(), metadataItem.size);
-  std::string metadataString = std::string(metadataJson.begin(), metadataJson.end());
-  outMetadata = nlohmann::json::parse(metadataString);
-
-  const int width = outMetadata["width"];
-  const int height = outMetadata["height"];
-  const int compressionType = outMetadata["compressionType"];
-
-  if(compressionType != MOTIONCAM_COMPRESSION_TYPE)
-    return 1; // invalid compression type
-
-  if(raw::Decode(mapped, width, height, mTmpBuffer.data(), mTmpBuffer.size()) <= 0)
+  try {
+    dat->dec->loadFrame(frame_list[frame], dat->dummy, metadata);
+  } catch(...) {
     return 1;
-  // end copy
+  }
+
+  uint32_t wd = metadata["width"];
+  uint32_t ht = metadata["height"];
+
+  if(dat->wd != wd || dat->ht != ht) return 1;
+  memcpy(mapped, dat->dummy.data(), wd*ht*sizeof(uint16_t));
+
   return 0;
 }
 
@@ -156,7 +103,7 @@ int init(dt_module_t *mod)
 void cleanup(dt_module_t *mod)
 {
   if(!mod->data) return;
-  buf_t *dat= mod->data;
+  buf_t *dat= (buf_t *)mod->data;
   if(dat->filename[0])
   {
     delete dat->dec;
@@ -175,8 +122,7 @@ void modify_roi_out(
   // load image if not happened yet
   const char *filename = dt_module_param_string(mod, 0);
   if(open_file(mod, filename)) return;
-  buf_t *dat = mod->data;
-  // XXX fuck these seem to be per frame!
+  buf_t *dat= (buf_t *)mod->data;
   const uint32_t wd = dat->wd;
   const uint32_t ht = dat->ht;
   mod->connector[0].roi.full_wd = wd;
@@ -186,7 +132,7 @@ void modify_roi_out(
   // TODO somehow wire this to params per frame (commit_params?)
   // std::vector<double> wb = dat->metadata["asShotNeutral"];
   std::vector<uint16_t> black = cmeta["blackLevel"];
-  double white = cmeta["whiteLevel"];
+  float white = cmeta["whiteLevel"];
   std::string sensorArrangement = cmeta["sensorArrangment"];
   std::vector<double> colorMatrix1 = cmeta["colorMatrix1"];
   std::vector<double> colorMatrix2 = cmeta["colorMatrix2"];
@@ -194,7 +140,7 @@ void modify_roi_out(
   std::vector<double> forwardMatrix2 = cmeta["forwardMatrix2"];
 
   mod->img_param = (dt_image_params_t) {
-    .black          = {black[0], black[1], black[2], black[3]}, // XXX do we always get 4?
+    .black          = {(float)black[0], (float)black[1], (float)black[2], (float)black[3]}, // XXX do we always get 4?
     .white          = {white, white, white, white},
     // .whitebalance   = {wb[0], wb[1], wb[2], wb[3]},
     .whitebalance   = {1, 1, 1, 1},
@@ -207,9 +153,9 @@ void modify_roi_out(
   // ???  .aperture       = dat->video.LENS.aperture * 0.01f,
   // ???  .iso            = dat->video.EXPO.isoValue,
   // ???  .focal_length   = dat->video.LENS.focalLength,
-    .snd_samplerate = dat->dec->audioSampleRateHz(),
     .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE,
     .snd_channels   = dat->dec->numAudioChannels(),
+    .snd_samplerate = dat->dec->audioSampleRateHz(),
 
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
