@@ -67,6 +67,11 @@ VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$
 VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
 export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
 
+# build the i-mcraw loader module to load raw video from the motioncam app.
+# it has no additional dependencies but comes with several ten thousand lines of c++ code
+VKDT_USE_MCRAW=1
+export VKDT_USE_MCRAW
+
 # for the i-vid module using libavformat/libavcodec to read
 # video streams, we depend on these libraries
 VKDT_USE_FFMPEG=1

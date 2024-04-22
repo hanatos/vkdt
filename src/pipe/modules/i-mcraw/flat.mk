@@ -1,4 +1,8 @@
-MCRAW_COMMIT=d0de7fa
+# this is upstream, use as soon as this works:
+# MCRAW_COMMIT=d0de7fa
+# MCRAW_REPO=https://github.com/mirsadm/motioncam-decoder.git 
+MCRAW_COMMIT=dc7ba78
+MCRAW_REPO=https://github.com/hanatos/motioncam-decoder.git
 MCRAW_I=pipe/modules/i-mcraw/mcraw-$(MCRAW_COMMIT)
 MCRAW_L=$(MCRAW_I)/build
 MOD_CFLAGS=-std=c++17 -Wall -I$(MCRAW_I)/lib/include -I$(MCRAW_I)/thirdparty
@@ -16,5 +20,5 @@ $(MCRAW_L)/libmotioncam_decoder.a: $(MCRAW_L)/Makefile
 
 $(MCRAW_I)/CMakeLists.txt:
 	rm -rf pipe/modules/i-mcraw/motioncam-decoder-*
-	git clone https://github.com/mirsadm/motioncam-decoder.git --branch main --single-branch $(MCRAW_I)
+	git clone $(MCRAW_REPO) --branch main --single-branch $(MCRAW_I)
 	cd $(MCRAW_I); git reset --hard $(MCRAW_COMMIT)
