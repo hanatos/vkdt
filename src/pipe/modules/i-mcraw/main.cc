@@ -1,6 +1,8 @@
+extern "C" {
 #include "modules/api.h"
 #include "connector.h"
 #include "core/core.h"
+}
 
 #include "motioncam/Decoder.hpp"
 
