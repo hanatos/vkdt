@@ -269,14 +269,11 @@ int dt_gui_init_nk()
       fclose(f);
     }
     else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
-#if 0
     int bitdepth = 8; // the display output will be dithered according to this
     if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
-    // XXX ImGui_ImplVulkan_SetDisplayProfile(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
-    // TODO: store in common place in nk context or our own
-#endif
+    nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 
   // prepare list of potential modules for ui selection:

@@ -49,6 +49,7 @@ NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
 NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
 
+NK_API void nk_glfw3_setup_display_colour_management(float *g0, float *M0, float *g1, float *M1, int xpos1, int bitdepth);
 #endif
 /*
  * ==============================================================
@@ -116,26 +117,58 @@ struct nk_glfw_device
   VkDescriptorSet font_dset;
   VkImageView font_image_view;
   VkDeviceMemory font_memory;
+
+  int push_constant_size;
+  int push_constant[128];
 };
 
-static struct nk_glfw {
-    GLFWwindow *win;
-    int width, height;
-    int display_width, display_height;
-    struct nk_glfw_device vulkan;
-    struct nk_font_atlas atlas;
-    struct nk_vec2 fb_scale;
-    unsigned int text[NK_GLFW_TEXT_MAX];
-    int text_len;
-    struct nk_vec2 scroll;
-    double last_button_click;
-    int is_double_click_down;
-    struct nk_vec2 double_click_pos;
+static struct nk_glfw
+{
+  GLFWwindow *win;
+  int width, height;
+  int display_width, display_height;
+  struct nk_glfw_device vulkan;
+  struct nk_font_atlas atlas;
+  struct nk_vec2 fb_scale;
+  unsigned int text[NK_GLFW_TEXT_MAX];
+  int text_len;
+  struct nk_vec2 scroll;
+  double last_button_click;
+  int is_double_click_down;
+  struct nk_vec2 double_click_pos;
+
+  // colour management
+  float gamma0[3];
+  float gamma1[3];
+  float M0[9];
+  float M1[9];
+  int winposx, borderx;
+  float maxval;
 } glfw;
 
 struct Mat4f {
     float m[16];
 };
+
+NK_API void nk_glfw3_setup_display_colour_management(float *g0, float *M0, float *g1, float *M1, int xpos1, int bitdepth)
+{
+  int xpos, ypos;
+  glfwGetWindowPos(glfw.win, &xpos, &ypos);
+  memcpy(glfw.gamma0, g0, sizeof(glfw.gamma0));
+  memcpy(glfw.gamma1, g1, sizeof(glfw.gamma1));
+  memcpy(glfw.M0, M0, sizeof(glfw.M0));
+  memcpy(glfw.M1, M1, sizeof(glfw.M1));
+  glfw.borderx = xpos1;
+  glfw.maxval = powf(2.0f, bitdepth);
+  glfw.vulkan.push_constant_size = (2*(3+9)+3)*sizeof(float);
+  memcpy(glfw.vulkan.push_constant,     glfw.gamma0, sizeof(glfw.gamma0));
+  memcpy(glfw.vulkan.push_constant +3,  glfw.gamma1, sizeof(glfw.gamma1));
+  memcpy(glfw.vulkan.push_constant +6,  glfw.M0, sizeof(glfw.M0));
+  memcpy(glfw.vulkan.push_constant+15,  glfw.M1, sizeof(glfw.M1));
+  memcpy(glfw.vulkan.push_constant+24, &glfw.maxval, sizeof(glfw.maxval));
+  memcpy(glfw.vulkan.push_constant+25, &xpos, sizeof(xpos));
+  memcpy(glfw.vulkan.push_constant+26, &glfw.borderx, sizeof(glfw.borderx));
+}
 
 NK_INTERN uint32_t nk_glfw3_find_memory_index(
     VkPhysicalDevice physical_device, uint32_t type_filter,
@@ -347,10 +380,17 @@ nk_glfw3_create_pipeline_layout(struct nk_glfw_device *dev)
     descriptor_set_layouts[0] = dev->uniform_descriptor_set_layout;
     descriptor_set_layouts[1] = dev->texture_descriptor_set_layout;
 
+    VkPushConstantRange pcrange = {
+      .stageFlags = VK_SHADER_STAGE_ALL,
+      .offset     = 0,
+      .size       = dev->push_constant_size,
+    };
     memset(&pipeline_layout_info, 0, sizeof(VkPipelineLayoutCreateInfo));
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_layout_info.setLayoutCount = 2;
     pipeline_layout_info.pSetLayouts = descriptor_set_layouts;
+    pipeline_layout_info.pushConstantRangeCount = 1;
+    pipeline_layout_info.pPushConstantRanges = &pcrange;
 
     result = (vkCreatePipelineLayout(dev->logical_device, &pipeline_layout_info,
                                      NULL, &dev->pipeline_layout));
@@ -527,6 +567,7 @@ NK_API void nk_glfw3_device_create(
     struct nk_glfw_device *dev = &glfw.vulkan;
     dev->max_vertex_buffer = max_vertex_buffer;
     dev->max_element_buffer = max_element_buffer;
+    dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
     nk_buffer_init_default(&dev->cmds);
     dev->logical_device = logical_device;
     dev->physical_device = physical_device;
@@ -1014,6 +1055,9 @@ void nk_glfw3_create_cmd(
   VkDeviceSize ioffset = frame*dev->max_element_buffer/2;
   vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &voffset);
   vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, ioffset, VK_INDEX_TYPE_UINT16);
+
+  vkCmdPushConstants(command_buffer, dev->pipeline_layout,
+      VK_SHADER_STAGE_ALL, 0, dev->push_constant_size, dev->push_constant);
 
   VkDescriptorSet current_texture = 0;
   uint32_t index_offset = 0;
