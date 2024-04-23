@@ -26,28 +26,28 @@ export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 # switched off:
 # VKDT_USE_RAWINPUT=0
 # rawspeed  (c++):
-VKDT_USE_RAWINPUT=1
+# VKDT_USE_RAWINPUT=1
 CMAKE=cmake
 export CMAKE
 # rawler (rust):
-# VKDT_USE_RAWINPUT=2
+VKDT_USE_RAWINPUT=2
 export VKDT_USE_RAWINPUT
 
 # needed for rawspeed (RAWINPUT=1) only
-VKDT_PUGIXML_CFLAGS=-I/c/msys64/include
+# VKDT_PUGIXML_CFLAGS=-I/c/msys64/include
 # VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/c/msys64/mingw64/lib -l:libpugixml.a
-VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/ucrt64/bin -lpugixml
-export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
+# VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/ucrt64/bin -lpugixml
+# export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 
 # exiv2 can optionally be used to load some super basic metadata (iso
 # speed, shutter time etc) inside the i-raw module when using rawspeed.
 # that is, it is only effective if VKDT_USE_RAWINPUT=1.
-VKDT_USE_EXIV2=1
-export VKDT_USE_EXIV2 
-VKDT_EXIV2_CFLAGS=-I/c/msys64/ucrt64/include/
+# VKDT_USE_EXIV2=1
+# export VKDT_USE_EXIV2 
+# VKDT_EXIV2_CFLAGS=-I/c/msys64/ucrt64/include/
 # VKDT_EXIV2_LDFLAGS=-L/c/msys64/mingw64/lib -l:libexiv2.a -l:libexiv2-xmp.a
-VKDT_EXIV2_LDFLAGS=-L/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
-export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+# VKDT_EXIV2_LDFLAGS=-L/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
+# export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
@@ -59,6 +59,9 @@ export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 # you want video, you probably also want VKDT_USE_ALSA=1, see below.
 VKDT_USE_MLV=1
 export VKDT_USE_MLV
+
+VKDT_USE_MCRAW=1
+export VKDT_USE_MCRAW
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
