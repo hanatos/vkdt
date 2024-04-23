@@ -60,6 +60,10 @@ export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 VKDT_USE_MLV=1
 export VKDT_USE_MLV
 
+# build and use the motioncam raw format
+VKDT_USE_MCRAW=1
+export VKDT_USE_MCRAW
+
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
 # VKDT_USE_ALSA=1
