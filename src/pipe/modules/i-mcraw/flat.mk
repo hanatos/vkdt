@@ -1,7 +1,7 @@
 # this is upstream, use as soon as this works:
 # MCRAW_COMMIT=d0de7fa
 # MCRAW_REPO=https://github.com/mirsadm/motioncam-decoder.git 
-MCRAW_COMMIT=dc7ba78
+MCRAW_COMMIT=15fd711
 MCRAW_REPO=https://github.com/hanatos/motioncam-decoder.git
 MCRAW_I=pipe/modules/i-mcraw/mcraw-$(MCRAW_COMMIT)
 MCRAW_L=$(MCRAW_I)/build
