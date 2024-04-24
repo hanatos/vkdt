@@ -17,6 +17,12 @@ int bs_init()
 }
 #endif
 
+#ifdef __cplusplus
+// listen, this is c code it doesn't have types that care about the order of implicit destructors
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreorder-init-list"
+#endif
+
 #define dt_no_roi UINT64_C(-1)
 
 // some module specific helpers and constants
@@ -62,7 +68,6 @@ dt_node_sink(dt_node_t *n)
   return n->connector[0].type == dt_token("sink");
 }
 
-#ifndef __cplusplus
 static inline void
 dt_connector_copy(
     dt_graph_t  *graph,
@@ -100,6 +105,7 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+#ifndef __cplusplus
 static inline void
 dt_connector_copy_feedback(
     dt_graph_t  *graph,
@@ -113,6 +119,7 @@ dt_connector_copy_feedback(
   graph->node[nid].connector[nc].frames = 2;
   module->connector[mc].frames = 2;
 }
+#endif
 
 // bypass a module: instead of linking the module connectors to their
 // counterparts on the node level, directly link to the node level of the next
@@ -158,11 +165,11 @@ dt_node_add(
     .kernel = dt_token(kernel),
     .module = module,
     .flags  = module->flags,    // propagate sink/source copy requests
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
+    .wd     = (uint32_t)wd,
+    .ht     = (uint32_t)ht,
+    .dp     = (uint32_t)dp,
     .num_connectors     = nc,
-    .push_constant_size = pc_size,
+    .push_constant_size = (size_t)pc_size,
   };
   if(pc) memcpy(graph->node[id].push_constant, pc, pc_size);
   va_list args;
@@ -251,7 +258,7 @@ dt_api_blur_3x3(
     graph->node[nodeid_input].connector + connid_input :
     module->connector + connid_input;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
-  const int *sigmai = (int*)&sigma;
+  const uint32_t *sigmai = (uint32_t*)&sigma;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blur = graph->num_nodes++;
   graph->node[id_blur] = (dt_node_t) {
@@ -396,8 +403,8 @@ dt_api_blur_sub(
     {
       assert(graph->num_nodes < graph->max_nodes);
       const int id_blur = graph->num_nodes++;
-      int hwd = j == mul[i]-1 ? (roi.wd + 1)/2 : roi.wd;
-      int hht = j == mul[i]-1 ? (roi.ht + 1)/2 : roi.ht;
+      uint32_t hwd = j == mul[i]-1 ? (roi.wd + 1)/2 : roi.wd;
+      uint32_t hht = j == mul[i]-1 ? (roi.ht + 1)/2 : roi.ht;
       graph->node[id_blur] = (dt_node_t) {
         .name   = dt_token("shared"),
         .kernel = dt_token("blur"),
@@ -914,8 +921,6 @@ dt_api_guided_filter(
   *exit_nodeid = id_guided3;
 }
 
-#endif // not defined cplusplus
-
 // return modid or -1
 static inline int
 dt_module_get(
@@ -1318,4 +1323,7 @@ dt_api_radix_sort(
   if(id_radix_out) *id_radix_out = id_in;
   return id_in;
 }
+#endif
+#ifdef __cplusplus
+#pragma GCC diagnostic pop
 #endif
