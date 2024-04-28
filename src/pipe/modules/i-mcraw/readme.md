@@ -1,6 +1,6 @@
 # i-mcraw: load raw video from the motioncam app
 
-TODO describe something, also about audio
+this input module reads `.mcraw` files written by the motioncam android app.
 
 # connectors
 

@@ -14,6 +14,7 @@ it follows the reference documentation of available modules, grouped into catego
 * [i-jpg: jpg input module](./i-jpg/readme.md)
 * [i-jpglst: input a longer list of jpg as an array connector](./i-jpglst/readme.md)
 * [i-lut: half float lut input module](./i-lut/readme.md)
+* [i-mcraw: read motioncam raw video](./i-mcraw/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
 * [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
 * [i-raw: input module for raw-format photographic stills or timelapses](./i-raw/readme.md)
