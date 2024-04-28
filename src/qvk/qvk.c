@@ -445,7 +445,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .samplerYcbcrConversion = 1,
-    .pNext                  = &atomic_features,
+    .pNext                  = qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f,
     // .pNext                  = &sub_features,
   };
   // VkPhysicalDeviceMaintenance4Features maintenance4 = {
