@@ -71,7 +71,6 @@ RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules
 ifeq ($(VKDT_USE_RAWINPUT), 1)
   RAWSPEED_DIR=$(shell ls -d src/pipe/modules/i-raw/rawspeed-*)
   RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's#^#$(RAWSPEED_DIR)/#')
-echo $(RELEASE_FILES)
 endif
 ifeq ($(VKDT_USE_MCRAW), 1)
   MCRAW_DIR=$(shell ls -d src/pipe/modules/i-mcraw/mcraw-*)
