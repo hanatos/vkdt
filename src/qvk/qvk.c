@@ -460,7 +460,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = &coopmat,
+    .pNext    = qvk.coopmat_supported ? (void*)&coopmat : (void*)&v11f,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
