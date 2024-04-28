@@ -3,6 +3,10 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float size;
@@ -13,7 +17,7 @@ layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 vec2 hash(in vec2 i)
 {
-  uint seed = uint(13370* i.x + i.y * 7);
+  uint seed = uint(13370* i.x + i.y * 7 + 13 * global.frame);
   seed = uint(4000000*mrand(seed));
   seed = uint(4000000*mrand(seed));
 #if 0
