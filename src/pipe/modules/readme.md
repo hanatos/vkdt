@@ -88,6 +88,7 @@ it follows the reference documentation of available modules, grouped into catego
 **effects**
 
 * [frame: postcard-style decor border around the image](./frame/readme.md)
+* [grain: simulate analog film grain](./grain/readme.md)
 
 **technical**
 
