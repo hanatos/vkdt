@@ -284,7 +284,7 @@ static inline int fs_islnk(const char *dirname, const struct dirent *e)
   else if (e->d_type == DT_UNKNOWN)
   {
     char buf[PATH_MAX];
-    if(sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
+    if((int)sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
     return fs_islnk_file(buf);
   }
   return 0;
@@ -317,7 +317,7 @@ static inline int fs_isreg(const char *dirname, const struct dirent *e)
   else if (e->d_type == DT_UNKNOWN)
   {
     char buf[PATH_MAX];
-    if(sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
+    if((int)sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
     return fs_isreg_file(buf);
   }
   return 0;

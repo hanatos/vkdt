@@ -80,61 +80,11 @@ open_file(
   return 0;
 }
 
-int
-read_frame(
-    dt_module_t *mod,
-    void        *mapped)
-{
-  double end, beg = dt_time();
-  buf_t *dat = (buf_t *)mod->data;
-  const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
-  int frame = CLAMP(mod->graph->frame, 0, frame_list.size()-1);
-
-  // this is so dumb, we could decode directly into gpu memory, avoiding 2 memcopies!
-  nlohmann::json metadata;
-  try {
-    dat->dec->loadFrame(frame_list[frame], dat->dummy, metadata);
-  } catch(...) {
-    return 1;
-  }
-
-  uint32_t owd = metadata["width"];
-  uint32_t oht = metadata["height"];
-  const size_t bufsize_mcraw = (size_t)owd * oht * sizeof(uint16_t);
-  if(dat->wd != owd || dat->ht != oht) return 1;
-
-  int ox = dat->ox;
-  int oy = dat->oy;
-  int wd = owd - ox;
-  int ht = oht - oy;
-
-  // round down to full block size:
-  const int block = 2;
-  wd = (wd/block)*block;
-  ht = (ht/block)*block;
-  // make sure the roi we get on the connector agrees with this!
-  if(mod->connector[0].roi.wd < wd || mod->connector[0].roi.ht < ht) return 0;
-
-  uint16_t *buf = (uint16_t *)mapped;
-  const size_t bufsize_compact = (size_t)wd * ht * sizeof(uint16_t);
-  if(bufsize_compact == bufsize_mcraw)
-    memcpy(mapped, dat->dummy.data(), wd*ht*sizeof(uint16_t));
-  else
-    for(int j=0;j<ht;j++)
-      memcpy(buf + j*wd,
-          dat->dummy.data() + (j+oy)*owd + ox,
-          sizeof(uint16_t)*wd);
-
-  end = dt_time();
-  dt_log(s_log_perf, "[mcraw] load %s in %3.0fms", dat->filename, 1000.0*(end-beg));
-
-  return 0;
-}
-
 int init(dt_module_t *mod)
 {
   buf_t *dat = new buf_t();
-  memset(dat, 0, sizeof(*dat));
+  memset(dat->filename, 0, sizeof(dat->filename));
+  dat->bitcnt = 0;
   mod->data = dat;
   mod->flags = s_module_request_read_source;
   return 0;
@@ -342,14 +292,11 @@ int read_source(
   const char *filename = dt_module_param_string(mod, 0);
   if(open_file(mod, filename)) return 1;
 
-  // XXX this is the cpu code path:
-  // return read_frame(mod, mapped);
-
   buf_t *dat = (buf_t *)mod->data;
   const int blocks = dat->wd * dat->ht / 64;
 
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
-  int frame = CLAMP(mod->graph->frame, 0, frame_list.size()-1);
+  int frame = CLAMP(mod->graph->frame, (int)0, (int)(frame_list.size()-1));
   size_t out_data_max_len = sizeof(uint16_t) * blocks * 64;
 
   if(p->node->kernel == dt_token("bitcnt"))
@@ -383,7 +330,7 @@ int audio(
     return 0;
 
   int channels = dat->dec->numAudioChannels();
-  int f = CLAMP(frame, 0, dat->audio_chunks.size()-1);
+  int f = CLAMP(frame, (int)0, (int)(dat->audio_chunks.size()-1));
 
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   if(frame_list.size() == 0) return 0; // no frames in file
