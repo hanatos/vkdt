@@ -383,7 +383,7 @@ int audio(
     return 0;
 
   int channels = dat->dec->numAudioChannels();
-  int f = CLAMP(frame, 0, dat->audio_chunks.size());
+  int f = CLAMP(frame, 0, dat->audio_chunks.size()-1);
 
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   if(frame_list.size() == 0) return 0; // no frames in file
