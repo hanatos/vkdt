@@ -465,7 +465,10 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
   if(atomic_features.shaderImageFloat32AtomicAdd == VK_FALSE)
+  {
     qvk.float_atomics_supported = 0;
+    v11f.pNext = &v12f; // take the atomics out of the chain
+  }
 
   dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics and %s coopmat support", picked_device,
       qvk.raytracing_supported ? "with" : "without",
