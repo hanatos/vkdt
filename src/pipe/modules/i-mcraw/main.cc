@@ -24,8 +24,8 @@ struct buf_t
   char filename[256];
   motioncam::Decoder *dec;
   std::vector<motioncam::AudioChunk> audio_chunks;
-  int32_t wd, ht; // original image dimensions from decoder
-  int ox, oy;     // offset to first canonical rggb bayer block
+  int32_t wd, ht, rwd; // original image dimensions from decoder
+  int ox, oy;          // offset to first canonical rggb bayer block
   std::vector<uint16_t> dummy; // tmp mem to decode frame, please remove this for direct access to mapped memory!
   uint16_t *bitcnt;
 };
@@ -66,7 +66,8 @@ open_file(
 
   dat->wd = metadata["width"];
   dat->ht = metadata["height"];
-  const int blocks = dat->wd * dat->ht / 64;
+  dat->rwd = (((dat->wd + 63)/64) * 64); // round up to multiple of 64 for the decoder
+  const int blocks = dat->rwd * dat->ht / 64;
   if(dat->bitcnt) free(dat->bitcnt);
   dat->bitcnt = (uint16_t*)malloc(sizeof(uint16_t)*2*((blocks+1)/2));
 
@@ -246,7 +247,7 @@ create_nodes(
 {
   buf_t *dat = (buf_t *)module->data;
   const uint32_t data_size = sizeof(uint16_t)*dat->wd*dat->ht; // maximum size of encoded data blocks, for allocation
-  const uint32_t blocks = dat->wd * dat->ht / 64;              // number of decoding blocks/64 pixels each
+  const uint32_t blocks = dat->rwd * dat->ht / 64;              // number of decoding blocks/64 pixels each
   dt_roi_t roi_block = {.wd = blocks, .ht = 1 };               // one per block, this is for reference values and data offsets
   dt_roi_t roi_bits  = {.wd = (blocks+1)/2, .ht = 1 };         // bits are encoded as 4 bits each, i.e. 2 per 8-bit pixel
   dt_roi_t roi_data  = {.wd = data_size, .ht = 1 };
@@ -268,7 +269,7 @@ create_nodes(
     "scratch", "write", "ssbo", "ui32", &roi_scrt);
   graph->node[id_prefix].connector[2].flags = static_cast<dt_connector_flags_t>(graph->node[id_prefix].connector[2].flags | s_conn_clear);
   // create decoder kernel:
-  const int pc[] = { dat->ox, dat->oy, dat->wd, dat->ht };
+  const int pc[] = { dat->ox, dat->oy, dat->rwd, dat->ht };
   const int id_decode = dt_node_add(graph, module, "i-mcraw", "decode", blocks * DT_LOCAL_SIZE_X, 1, 1, sizeof(pc), pc, 5,
     "output", "write", "rggb", "ui16", &module->connector[0].roi,
     "bitcnt", "read",  "ssbo", "ui8",  dt_no_roi,
@@ -293,8 +294,7 @@ int read_source(
   if(open_file(mod, filename)) return 1;
 
   buf_t *dat = (buf_t *)mod->data;
-  const int blocks = dat->wd * dat->ht / 64;
-
+  const int blocks = dat->rwd * dat->ht / 64;
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   int frame = CLAMP(mod->graph->frame, (int)0, (int)(frame_list.size()-1));
   size_t out_data_max_len = sizeof(uint16_t) * blocks * 64;
