@@ -34,6 +34,9 @@ pub struct c_rawimage {
   pub focal_length: f32,
   pub datetime    : [c_char;32],
 
+  pub dng_opcode_lists     : [*mut c_void;3],
+  pub dng_opcode_lists_len : [u32;3],
+
   pub data_type   : u32,   // 0 means u16, 1 means f32
   pub cfa_off_x   : u32,
   pub cfa_off_y   : u32,
@@ -52,6 +55,14 @@ fn copy_string(
   dst[cmp::min(src.len(),31)] = 0;
 }
 
+fn data_to_c(src: &Vec<u8>, ptr: &mut *mut c_void, len: &mut u32)
+{
+  let mut msrc = src.clone();
+  *ptr = msrc.as_mut_ptr() as *mut c_void;
+  *len = msrc.len() as u32;
+  std::mem::forget(msrc);
+}
+
 unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
 {
   let input = BufReader::new(File::open(&path).map_err(|e| rawler::RawlerError::with_io_error("load into buffer", &path, e))?);
@@ -65,6 +76,14 @@ unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
   match md.exif.focal_length      { Some(v) => { (*rawimg).focal_length = v.try_into().ok().unwrap(); } None => {}}
   match md.exif.orientation       { Some(v) => { (*rawimg).orientation  = v as u32; } None => {}}
   match md.exif.create_date       { Some(d) => { copy_string(&d, &mut (*rawimg).datetime) } None => {}}
+  match md.dng_opcode_lists {
+    Some(lists) => {
+      match lists.list_1 { Some(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[0], &mut (*rawimg).dng_opcode_lists_len[0]) } None => {}}
+      match lists.list_2 { Some(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[1], &mut (*rawimg).dng_opcode_lists_len[1]) } None => {}}
+      match lists.list_3 { Some(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[2], &mut (*rawimg).dng_opcode_lists_len[2]) } None => {}}
+    }
+    None => {}
+  }
   Ok(())
 }
 
