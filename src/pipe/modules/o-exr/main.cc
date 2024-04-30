@@ -84,7 +84,7 @@ void write_sink(
     "chromaticities",
     "Chromaticities",
     (unsigned char*)(chromaticities[mod->img_param.colour_primaries]),
-    sizeof(chromaticities),
+    sizeof(chromaticities[0]),
   }};
   hdr.custom_attributes = custom_attributes;
   hdr.num_custom_attributes = sizeof(custom_attributes)/sizeof(custom_attributes[0]);
