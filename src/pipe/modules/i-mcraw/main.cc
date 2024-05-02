@@ -67,9 +67,10 @@ open_file(
   dat->wd = metadata["width"];
   dat->ht = metadata["height"];
   dat->rwd = (((dat->wd + 63)/64) * 64); // round up to multiple of 64 for the decoder
-  const int blocks = dat->rwd * dat->ht / 64;
+  const uint32_t blocks = dat->rwd * dat->ht / 64;
+  const uint32_t rblock = ((blocks+63)/64) * 64;
   if(dat->bitcnt) free(dat->bitcnt);
-  dat->bitcnt = (uint16_t*)malloc(sizeof(uint16_t)*2*((blocks+1)/2));
+  dat->bitcnt = (uint16_t*)malloc(sizeof(uint16_t)*2*((rblock+1)/2));
 
   try {
     dat->dec->loadAudio(dat->audio_chunks);
@@ -247,11 +248,12 @@ create_nodes(
 {
   buf_t *dat = (buf_t *)module->data;
   const uint32_t data_size = sizeof(uint16_t)*dat->wd*dat->ht; // maximum size of encoded data blocks, for allocation
-  const uint32_t blocks = dat->rwd * dat->ht / 64;              // number of decoding blocks/64 pixels each
-  dt_roi_t roi_block = {.wd = blocks, .ht = 1 };               // one per block, this is for reference values and data offsets
-  dt_roi_t roi_bits  = {.wd = (blocks+1)/2, .ht = 1 };         // bits are encoded as 4 bits each, i.e. 2 per 8-bit pixel
+  const uint32_t blocks = dat->rwd * dat->ht / 64;             // number of decoding blocks/64 pixels each
+  const uint32_t rblock = ((blocks+63)/64) * 64;               // buffer sizes rounded up to multiple of decoding block too
+  dt_roi_t roi_block = {.wd = rblock, .ht = 1 };               // one per block, this is for reference values and data offsets
+  dt_roi_t roi_bits  = {.wd = (rblock+1)/2, .ht = 1 };         // bits are encoded as 4 bits each, i.e. 2 per 8-bit pixel
   dt_roi_t roi_data  = {.wd = data_size, .ht = 1 };
-  dt_roi_t roi_scrt  = {.wd = (blocks+511)/512+1, .ht = 4 };  // scratch size per partition, is workgroup size * number of rows
+  dt_roi_t roi_scrt  = {.wd = (rblock+511)/512+1, .ht = 4 };  // scratch size per partition, is workgroup size * number of rows
 
   // source nodes for data upload:
   const int id_bitcnt = dt_node_add(graph, module, "i-mcraw", "bitcnt", 1, 1, 1, 0, 0, 1,
@@ -295,13 +297,14 @@ int read_source(
 
   buf_t *dat = (buf_t *)mod->data;
   const int blocks = dat->rwd * dat->ht / 64;
+  const int rblock = ((blocks+63)/64)*64;
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   int frame = CLAMP(mod->graph->frame, (int)0, (int)(frame_list.size()-1));
-  size_t out_data_max_len = sizeof(uint16_t) * blocks * 64;
+  size_t out_data_max_len = sizeof(uint16_t) * rblock * 64;
 
   if(p->node->kernel == dt_token("bitcnt"))
   {
-    dat->dec->getEncoded(frame_list[frame], dat->bitcnt, blocks, 0, 0, 0, 0);
+    dat->dec->getEncoded(frame_list[frame], dat->bitcnt, rblock, 0, 0, 0, 0);
     const int hb = (blocks+1)/2;
     uint8_t *out = (uint8_t *)mapped;
     for(int k=0;k<hb;k++)
@@ -309,7 +312,7 @@ int read_source(
   }
   else if(p->node->kernel == dt_token("refval"))
   {
-    dat->dec->getEncoded(frame_list[frame], 0, 0, (uint16_t*)mapped, blocks, 0, 0);
+    dat->dec->getEncoded(frame_list[frame], 0, 0, (uint16_t*)mapped, rblock, 0, 0);
   }
   else if(p->node->kernel == dt_token("datain"))
   {
