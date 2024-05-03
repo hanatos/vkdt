@@ -24,6 +24,15 @@ typedef struct dt_image_metadata_text_t
 }
 dt_image_metadata_text_t;
 
+#define s_image_metadata_dngop 2
+typedef struct dt_image_metadata_dngop_t
+{ // dng opcode list
+  uint32_t    type; // = s_image_metadata_dngop
+  void       *next;
+  void       *op_list[3];
+}
+dt_image_metadata_dngop_t;
+
 static inline dt_image_metadata_t*
 dt_metadata_append(
     dt_image_metadata_t *meta,

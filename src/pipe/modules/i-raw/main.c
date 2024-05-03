@@ -17,6 +17,7 @@ typedef struct rawinput_buf_t
   int frame;
   int ox, oy;
   dt_dng_opcode_list_t *dng_opcode_lists[3];
+  dt_image_metadata_dngop_t dngop;
 }
 rawinput_buf_t;
   
@@ -54,6 +55,7 @@ load_raw(
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
   mod_data->frame = frame;
 
+  int have_dngop = 0;
   for(int i=0;i<3;i++)
   {
     if(mod_data->img.dng_opcode_lists_len[i] > 0)
@@ -63,8 +65,20 @@ load_raw(
         mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
       // free the raw opcode list now that we have decoded it
       rl_deallocate(mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
-      mod->img_param.dng_opcode_lists[i] = mod_data->dng_opcode_lists[i];
+      have_dngop = 1;
     }
+  }
+  if(have_dngop)
+  {
+    mod_data->dngop = (dt_image_metadata_dngop_t){
+      .type = s_image_metadata_dngop,
+      .op_list = {
+        mod_data->dng_opcode_lists[0],
+        mod_data->dng_opcode_lists[1],
+        mod_data->dng_opcode_lists[2],
+      },
+    };
+    mod->img_param.meta = dt_metadata_append(mod->img_param.meta, (void*)&mod_data->dngop);
   }
   return 0;
 error:
