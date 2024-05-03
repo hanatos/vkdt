@@ -196,7 +196,7 @@ dt_export(
       "${fdir} -- directory of input file\n"
       "${fbase} -- basename of input file");
   const char *colour_prim_text = "custom\0sRGB\0rec2020\0AdobeRGB\0P3\0XYZ\0\0";
-  const char *colour_trc_text  = "linear\0rec709\0sRGB\0PQ\0DCI\0HLG\0gamma\0\0";
+  const char *colour_trc_text  = "linear\0rec709\0sRGB\0PQ\0DCI\0HLG\0gamma\0mclog\0\0";
   if(ImGui::InputFloat("quality", &w->quality, 1, 100, 0))
     dt_rc_set_float(&vkdt.rc, "gui/export/quality", w->quality);
   // XXX if(strcmp(dt_token_str(g->module[w->modid[w->format]].name), "o-ffmpeg"))

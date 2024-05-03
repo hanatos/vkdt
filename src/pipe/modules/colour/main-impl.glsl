@@ -157,6 +157,11 @@ vec3 decode_colour(vec3 rgb)
   { // TODO get gamma from params
     rgb = pow(max(rgb, vec3(0.0)), vec3(2.2)); // happens to be adobe rgb
   }
+  else if(params.trc == 7) // mcraw log to linear
+  {
+    const float a = 0.13, b = 1.0 - 4.0 * a, c = 0.5 - a * log(4.0 * a);
+    rgb = mix(rgb * rgb / 3.0, (exp((rgb - c) / a) + b) / 12.0, greaterThan(rgb, vec3(0.5)));
+  }
 
   if(params.primaries == 0)
   { // use uploaded custom matrix
