@@ -5,6 +5,7 @@ mode:combo:parametric:data driven
 matrix:combo:rec2020:image:XYZ:rec709:clut
 gamut:combo:no limit:limit to spectral locus:limit to rec2020:limit to rec709
 white:rgb:0:1
+clip:combo:preserve highlights:clip highlights
 mat:hidden
 group:mode:1
 cnt:slider:2:24

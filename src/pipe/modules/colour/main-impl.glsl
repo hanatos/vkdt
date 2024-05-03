@@ -18,6 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint  gamut_mode;        // 0 nothing, 1 spec locus, 2 rec2020, 3, rec709
   uint  primaries;         // see module.h
   uint  trc;
+  uint  clip_highlights;   // pass highlights through or clip at minimum of rgb after processing
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -239,6 +240,27 @@ main()
     rgb = cat16(rgb, picked_rgb, params.mul.rgb);
   } // regular white balancing
   else rgb = cat16(rgb, vec3(1.0), params.mul.rgb);
+
+  if(params.clip_highlights == 1)
+  {
+    vec3 clip = vec3(1.0);
+    if(params.colour_mode == 0 || push.have_clut == 0)
+      clip = decode_colour(clip);
+    else rgb = process_clut(clip);
+
+    if(push.have_pick == 1 && (params.pick_mode & 1) != 0)
+    { // spot wb
+      if(params.colour_mode == 0 || push.have_clut == 0)
+        picked_rgb = params.cam_to_rec2020 * picked_rgb;
+      else
+        picked_rgb = process_clut(picked_rgb);
+      picked_rgb /= picked_rgb.g;
+      clip = cat16(clip, picked_rgb, params.mul.rgb);
+    } // regular white balancing
+    else clip = cat16(clip, vec3(1.0), params.mul.rgb);
+    const float t = min(clip.r, min(clip.g, clip.b));
+    rgb = min(rgb, vec3(t));
+  } // end highlight clipping
 
   if(push.have_pick == 1 && (params.pick_mode & 2) != 0)
   { // deflicker based on input patch
