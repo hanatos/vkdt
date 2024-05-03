@@ -79,7 +79,8 @@ gamut.
 * `clip` this is a last-resort brute force method to avoid pink highlights in case the highlight reconstruction
    module does not produce satisfactory results. this can be the case if chromatic aberration or noise is
    interpolated into the clipped region. clipping highlights here will simply set all channels to the minimum
-   clipping threshold, producing a neutral colour. set to 0.0 for no clipping, 1.0 would be the ideal clipping threshold.
+   clipping threshold, producing a neutral colour.
+* `clipmax` 1.0 would be the ideal clipping threshold
 * `picked` what to do with the picked input colour, if it is connected to the `picked` connector.
   it can be used as source for white balancing and/or deflickering.
 * `matrix` input device transform mode: use the image matrix or a selection of presets, or the colour lut.

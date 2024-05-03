@@ -4,7 +4,8 @@ mode:int:1:0
 picked:int:1:0
 matrix:int:1:1
 gamut:int:1:0
-clip:float:1:0
+clip:int:1:0
+clipmax:float:1:1
 temp:float:1:6504
 white:float:4:0.5:0.5:0.5:0.5
 mat:float:9:-1.0
