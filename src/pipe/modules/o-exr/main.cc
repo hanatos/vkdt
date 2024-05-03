@@ -75,14 +75,14 @@ void write_sink(
     { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // rec2020
     { 0.6400, 0.3300, 0.2100, 0.7100, 0.1500, 0.0600, 0.3127, 0.3290}, // adobe rgb
     { 0.680,  0.320,  0.265,  0.690,  0.150,  0.060,  0.3127, 0.3290}, // P3 D65 (display)
-    { 1.0,    0.0,    0.0,    1.0,    0.5,    0.5,    0.3333, 0.3333}, // XYZ illum E
+    { 1.0,    0.0,    0.0,    1.0,    0.0,    0.0,    0.3333, 0.3333}, // XYZ illum E
     { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // unknown, assume rec2020
   };
   if(mod->img_param.colour_trc != s_colour_trc_linear)
     fprintf(stderr, "[o-exr] WARN: exporting non-linear trc to %s!\n", filename);
   EXRAttribute custom_attributes[] = {{
     "chromaticities",
-    "Chromaticities",
+    "chromaticities",
     (unsigned char*)(chromaticities[mod->img_param.colour_primaries]),
     sizeof(chromaticities[0]),
   }};
