@@ -179,10 +179,12 @@ create_nodes(
     dt_roi_t gmdata_roi = (dt_roi_t){ .wd = map_wd, .ht = map_ht };
     id_gmdata = dt_node_add(graph, module, "denoise", "gainmap", map_wd, map_ht, 1, 0, 0, 1,
         "source", "source", "rgba", "f32", &gmdata_roi);
-    gainmap_ox = *(uint32_t*)&dat->gm[0]->map_origin_h;
-    gainmap_oy = *(uint32_t*)&dat->gm[0]->map_origin_v;
-    float sx = 1.0 / (dat->gm[0]->map_spacing_h * (map_wd - 1));
-    float sy = 1.0 / (dat->gm[0]->map_spacing_v * (map_ht - 1));
+    float ox = dat->gm[0]->map_origin_h;
+    float oy = dat->gm[0]->map_origin_v;
+    gainmap_ox = *(uint32_t*)&ox;
+    gainmap_oy = *(uint32_t*)&oy;
+    float sx = 1.0 / (dat->gm[0]->map_spacing_h * map_wd);
+    float sy = 1.0 / (dat->gm[0]->map_spacing_v * map_ht);
     gainmap_sx = *(uint32_t*)&sx;
     gainmap_sy = *(uint32_t*)&sy;
   }
