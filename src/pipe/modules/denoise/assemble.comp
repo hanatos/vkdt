@@ -10,6 +10,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float strength;
   float luma;
+  int   gainmap;
 } params;
 
 layout(push_constant, std140) uniform push_t

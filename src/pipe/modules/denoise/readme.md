@@ -30,6 +30,7 @@ you can use the [align](../align/readme.md) module for further noise reduction.
 
 * `strength` the overall strength of the wavelet thresholding. this directly scales the unbiased soft shrinkage threshold.
 * `luma` this blends back a portion of the original `y` channel after denoising
+* `gainmap` if the input file ships metadata about a gainmap, it can be applied here
 
 
 ## examples

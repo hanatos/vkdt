@@ -1,0 +1,3 @@
+strength:slider:0:1
+luma:slider:0:1
+gainmap:combo:ignore:apply if present
