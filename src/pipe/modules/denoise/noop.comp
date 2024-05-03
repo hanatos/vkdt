@@ -9,19 +9,17 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 // global uniform stuff about image and roi
 layout(push_constant, std140) uniform push_t
 {
-  uint crop_x, crop_y;
-  uint crop_X, crop_Y;
+  ivec4 crop;
   vec4 black;
   vec4 white;
+  vec4 map_os;
+  int  filters;
+  int  gainmap;
 } push;
 
-layout(
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout(
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform sampler2D img_gainmap;
 
 // this is a dummy: it doesn't in fact denoise, but it crops away
 // the noise estimation areas and scales to black/white.
@@ -34,8 +32,16 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   // written to work on bayer or rgb, assuming that black and white are monochrome for bayer images.
-  vec3 col = texelFetch(img_in, ipos+ivec2(push.crop_x, push.crop_y), 0).rgb;
+  vec3 col = texelFetch(img_in, ipos+push.crop.xy, 0).rgb;
   col = max(vec3(0), (col - push.black.rgb)/(push.white.rgb - push.black.rgb));
+  if(push.filters != 9 && push.gainmap == 1)
+  { // gainmap
+    vec2 pos = (0.5 + ipos + push.crop.xy) / textureSize(img_in, 0);
+    pos = clamp((pos * push.map_os.zw) - push.map_os.xy, vec2(0.), vec2(1.));
+    vec4 gains = texture(img_gainmap, pos);
+    float gain = gains[(ipos.x & 1) + (ipos.y & 1) * 2];
+    col *= gain;
+  } // end gainmap
   imageStore(img_out, ipos, vec4(col, 1));
 }
 
