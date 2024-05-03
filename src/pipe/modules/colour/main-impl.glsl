@@ -18,7 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint  gamut_mode;        // 0 nothing, 1 spec locus, 2 rec2020, 3, rec709
   uint  primaries;         // see module.h
   uint  trc;
-  uint  clip_highlights;   // pass highlights through or clip at minimum of rgb after processing
+  float clip_highlights;   // pass highlights through or clip at minimum of rgb after processing
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -241,9 +241,9 @@ main()
   } // regular white balancing
   else rgb = cat16(rgb, vec3(1.0), params.mul.rgb);
 
-  if(params.clip_highlights == 1)
+  if(params.clip_highlights > 0.0)
   {
-    vec3 clip = vec3(1.0);
+    vec3 clip = vec3(params.clip_highlights);
     if(params.colour_mode == 0 || push.have_clut == 0)
       clip = decode_colour(clip);
     else rgb = process_clut(clip);
