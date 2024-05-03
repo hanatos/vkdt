@@ -238,7 +238,7 @@ main()
   if(push.have_pick == 1 && (params.pick_mode & 1) != 0)
   { // spot wb
     if(params.colour_mode == 0 || push.have_clut == 0)
-      picked_rgb = params.cam_to_rec2020 * picked_rgb;
+      picked_rgb = decode_colour(picked_rgb);
     else
       picked_rgb = process_clut(picked_rgb);
     picked_rgb /= picked_rgb.g;
