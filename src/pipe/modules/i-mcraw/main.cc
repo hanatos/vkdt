@@ -106,6 +106,24 @@ void cleanup(dt_module_t *mod)
   mod->data = 0;
 }
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  if(parid == 1 || parid == 2) // noise model
+  {
+    const float noise_a = dt_module_param_float(module, 1)[0];
+    const float noise_b = dt_module_param_float(module, 2)[0];
+    module->img_param.noise_a = noise_a;
+    module->img_param.noise_b = noise_b;
+    return s_graph_run_all; // need no do modify_roi_out again to read noise model from file
+  }
+  return s_graph_run_record_cmd_buf;
+}
+
 // this callback is responsible to set the full_{wd,ht} dimensions on the
 // regions of interest on all "write"|"source" channels
 void modify_roi_out(
@@ -161,25 +179,47 @@ void modify_roi_out(
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", cmeta["extraData"]["postProcessSettings"]["metadata"]["build.manufacturer"].template get<std::string>().c_str());
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   mod->graph->frame_cnt = dat->dec->getFrames().size();
-  // TODO mod->graph->frame_rate = dat->video.frame_rate;
+  if(mod->graph->frame_rate == 0)
+  { // estimate frame rate only if it's set to nothing reasonable
+    if(mod->graph->frame_cnt > 5)
+    {
+      const int N = 5;
+      double sum = 0.0;
+      for(int i=1;i<N;i++)
+        sum += dat->dec->getFrames()[i] - dat->dec->getFrames()[i-1];
+      double avg = sum / (N-1.0);
+      mod->graph->frame_rate = 1e9/avg;
+    }
+    else mod->graph->frame_rate = 24;
+  }
 
   // load noise profile:
-  char pname[512];
-  snprintf(pname, sizeof(pname), "data/nprof/%s-%s-%d.nprof",
-      mod->img_param.maker,
-      mod->img_param.model,
-      (int)mod->img_param.iso);
-  FILE *f = dt_graph_open_resource(graph, 0, pname, "rb");
-  if(f)
+  float *noise_a = (float*)dt_module_param_float(mod, 1);
+  float *noise_b = (float*)dt_module_param_float(mod, 2);
+  if(noise_a[0] == 0.0f && noise_b[0] == 0.0f)
   {
-    float a = 0.0f, b = 0.0f;
-    int num = fscanf(f, "%g %g", &a, &b);
-    if(num == 2)
+    char pname[512];
+    snprintf(pname, sizeof(pname), "nprof/%s-%s-%d.nprof",
+        mod->img_param.maker,
+        mod->img_param.model,
+        (int)mod->img_param.iso);
+    FILE *f = dt_graph_open_resource(graph, 0, pname, "rb");
+    if(f)
     {
-      mod->img_param.noise_a = a;
-      mod->img_param.noise_b = b;
+      float a = 0.0f, b = 0.0f;
+      int num = fscanf(f, "%g %g", &a, &b);
+      if(num == 2)
+      {
+        noise_a[0] = mod->img_param.noise_a = a;
+        noise_b[0] = mod->img_param.noise_b = b;
+      }
+      fclose(f);
     }
-    fclose(f);
+  }
+  else
+  {
+    mod->img_param.noise_a = noise_a[0];
+    mod->img_param.noise_b = noise_b[0];
   }
   
   // compute matrix camrgb -> rec2020 d65

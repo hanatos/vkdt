@@ -205,7 +205,7 @@ create_nodes(
       module->connector[1].roi.wd, module->connector[1].roi.ht, 1, sizeof(pc), pc, 3,
       "input",   "read",  "rgba", "f16", dt_no_roi,
       "output",  "write", "rgba", "f16", &module->connector[1].roi,
-      "gainmap", "read",  "rgba", "f32", dt_no_roi);
+      "gainmap", "read",  "rgba", "*", dt_no_roi);
     dt_connector_copy(graph, module, 0, id_noop, 0);
     if(gainmap) CONN(dt_node_connect(graph, id_gmdata, 0, id_noop, 2));
     else dt_connector_copy(graph, module, 0, id_noop, 2);
@@ -301,7 +301,7 @@ create_nodes(
       "crs0", "read", "rgba", "f16", dt_no_roi,
       "crs1", "read", "rgba", "f16", dt_no_roi,
       "output", "write", "rggb", "f16", &module->connector[1].roi,
-      "gainmap", "read", "rgba", "f32", dt_no_roi);
+      "gainmap", "read", "rgba", "*", dt_no_roi);
     CONN(dt_node_connect(graph, id_assemble, 5, id_doub, 1));
     CONN(dt_node_connect(graph, id_half,     1, id_doub, 2));
     if(gainmap) CONN(dt_node_connect(graph, id_gmdata, 0, id_doub, 4));
