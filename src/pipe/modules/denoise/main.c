@@ -168,7 +168,7 @@ create_nodes(
   uint32_t gainmap_sx = 0, gainmap_sy = 0, gainmap_ox = 0, gainmap_oy = 0;
   mod_data_t *dat = module->data;
   const dt_image_metadata_dngop_t *dngop = dt_metadata_find(module->img_param.meta, s_image_metadata_dngop);
-  dt_dng_opcode_list_t *op_list = dngop->op_list[1];
+  dt_dng_opcode_list_t *op_list = dngop ? dngop->op_list[1] : 0;
   if(op_list)
     for(int op=0;op<op_list->count&&!gainmap;op++)
       gainmap = get_gain_maps_bayer(op_list, op, dat);
