@@ -2,6 +2,79 @@
 #include <math.h>
 #include <stdlib.h>
 
+typedef struct mod_data_t
+{
+  dt_dng_gain_map_t *gm[4];
+}
+mod_data_t;
+
+static int
+get_gain_maps_bayer(dt_dng_opcode_list_t *op_list, int index, mod_data_t *dat)
+{
+  if(op_list->count - index < 4) return 0;
+  dt_dng_opcode_t *ops = op_list->ops;
+  for(int i=0;i<4;i++) if(ops[i].id != s_dngop_gain_map) return 0;
+  for(int i=0;i<4;i++) dat->gm[i] = 0;
+  for(int i=0;i<4;i++)
+  {
+    dt_dng_gain_map_t *gm = (dt_dng_gain_map_t *)ops[i].data;
+    if(!(gm->region.plane == 0 && gm->region.planes == 1 && gm->map_planes == 1 &&
+         gm->region.row_pitch == 2 && gm->region.col_pitch == 2))
+      return 0;
+    if(gm->map_points_h < 2 && gm->map_points_v < 2) return 0;
+    int filter = ((gm->region.top & 1) << 1) + (gm->region.left & 1);
+    dat->gm[filter] = gm;
+  }
+  for(int i=0;i<4;i++) if(!dat->gm[i]) return 0;
+  for(int i=1;i<4;i++)
+    if (dat->gm[0]->map_points_h  != dat->gm[i]->map_points_h  ||
+        dat->gm[0]->map_points_v  != dat->gm[i]->map_points_v  ||
+        dat->gm[0]->map_spacing_h != dat->gm[i]->map_spacing_h ||
+        dat->gm[0]->map_spacing_v != dat->gm[i]->map_spacing_v ||
+        dat->gm[0]->map_origin_h  != dat->gm[i]->map_origin_h  ||
+        dat->gm[0]->map_origin_v  != dat->gm[i]->map_origin_v  ||
+        dat->gm[0]->region.top    / 2 != dat->gm[i]->region.top    / 2 ||
+        dat->gm[0]->region.left   / 2 != dat->gm[i]->region.left   / 2 ||
+        dat->gm[0]->region.bottom / 2 != dat->gm[i]->region.bottom / 2 ||
+        dat->gm[0]->region.right  / 2 != dat->gm[i]->region.right  / 2)
+      return 0;
+  return 1;
+}
+
+int
+init(dt_module_t *mod)
+{
+  mod_data_t *d = calloc(sizeof(*d), 1);
+  mod->data = d;
+  return 0;
+}
+
+void
+cleanup(dt_module_t *mod)
+{
+  mod_data_t *d = mod->data;
+  free(d);
+  mod->data = 0;
+}
+
+int
+read_source(
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
+{
+  mod_data_t *dat = mod->data;
+  if(p->node->kernel == dt_token("gainmap"))
+  {
+    const int wd = dat->gm[0]->map_points_h, ht = dat->gm[0]->map_points_v;
+    for(int i=0;i<ht;i++)
+      for(int j=0;j<wd;j++)
+        for(int c=0;c<4;c++)
+          ((float*)mapped)[(i*wd+j)*4+c] = dat->gm[c]->map_gain[(i*wd+j)];
+  }
+  return 0;
+}
+
 void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
@@ -90,8 +163,29 @@ create_nodes(
   const float noise[2] = { img_param->noise_a, img_param->noise_b };
   uint32_t *noisei = (uint32_t *)noise;
 
-  const uint32_t gainmap = 0;
-  const uint32_t gainmap_sx = 0, gainmap_sy = 0, gainmap_ox = 0, gainmap_oy = 0;
+  uint32_t gainmap = 0;
+  uint32_t gainmap_sx = 0, gainmap_sy = 0, gainmap_ox = 0, gainmap_oy = 0;
+  mod_data_t *dat = module->data;
+  // TODO: make this a metadata object owned by i-raw
+  dt_dng_opcode_list_t *op_list = module->img_param.dng_opcode_lists[1];
+  if(op_list)
+    for(int op=0;op<op_list->count&&!gainmap;op++)
+      gainmap = get_gain_maps_bayer(op_list, op, dat);
+  int id_gmdata = -1;
+  if(gainmap)
+  {
+    const int map_wd = dat->gm[0]->map_points_h;
+    const int map_ht = dat->gm[0]->map_points_v;
+    dt_roi_t gmdata_roi = (dt_roi_t){ .wd = map_wd, .ht = map_ht };
+    id_gmdata = dt_node_add(graph, module, "denoise", "gainmap", map_wd, map_ht, 1, 0, 0, 1,
+        "source", "source", "rgba", "f32", &gmdata_roi);
+    gainmap_ox = *(uint32_t*)&dat->gm[0]->map_origin_h;
+    gainmap_oy = *(uint32_t*)&dat->gm[0]->map_origin_v;
+    float sx = 1.0 / (dat->gm[0]->map_spacing_h * (map_wd - 1));
+    float sy = 1.0 / (dat->gm[0]->map_spacing_v * (map_ht - 1));
+    gainmap_sx = *(uint32_t*)&sx;
+    gainmap_sy = *(uint32_t*)&sy;
+  }
 
   // shortcut if no denoising is requested:
   const float strength = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("strength")))[0];
@@ -108,9 +202,10 @@ create_nodes(
       module->connector[1].roi.wd, module->connector[1].roi.ht, 1, sizeof(pc), pc, 3,
       "input",   "read",  "rgba", "f16", dt_no_roi,
       "output",  "write", "rgba", "f16", &module->connector[1].roi,
-      "gainmap", "read",  "rgba", "f16", dt_no_roi);
+      "gainmap", "read",  "rgba", "f32", dt_no_roi);
     dt_connector_copy(graph, module, 0, id_noop, 0);
-    dt_connector_copy(graph, module, 0, id_noop, 2);
+    if(gainmap) CONN(dt_node_connect(graph, id_gmdata, 0, id_noop, 2));
+    else dt_connector_copy(graph, module, 0, id_noop, 2);
     dt_connector_copy(graph, module, 1, id_noop, 1);
     return;
   }
@@ -203,10 +298,11 @@ create_nodes(
       "crs0", "read", "rgba", "f16", dt_no_roi,
       "crs1", "read", "rgba", "f16", dt_no_roi,
       "output", "write", "rggb", "f16", &module->connector[1].roi,
-      "gainmap", "read", "rgba", "f16", dt_no_roi);
+      "gainmap", "read", "rgba", "f32", dt_no_roi);
     CONN(dt_node_connect(graph, id_assemble, 5, id_doub, 1));
     CONN(dt_node_connect(graph, id_half,     1, id_doub, 2));
-    CONN(dt_node_connect(graph, id_half,     1, id_doub, 4)); // connect dummy gainmap
+    if(gainmap) CONN(dt_node_connect(graph, id_gmdata, 0, id_doub, 4));
+    else CONN(dt_node_connect(graph, id_half, 1, id_doub, 4)); // connect dummy gainmap
     dt_connector_copy(graph, module, 0, id_doub,  0);
     dt_connector_copy(graph, module, 1, id_doub, 3);
 
