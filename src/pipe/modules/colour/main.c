@@ -214,7 +214,6 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   if(p_mat == 1 && !(img_param->cam_to_rec2020[0] == img_param->cam_to_rec2020[0])) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
-    i[off+5] = s_colour_primaries_custom;
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*i+j] = img_param->cam_to_rec2020[3*j+i];
   }

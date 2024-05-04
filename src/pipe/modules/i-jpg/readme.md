@@ -24,8 +24,8 @@ through the `prim` and `trc` parameters.
 
 * `filename` the filename to load. can include a "%04d" template for timelapses
 * `startid` the start index. this + frame number will be filled into the "%04d" template
-* `prim` identifies the primaries of the output colour space
-* `trc` identifies the tone response curve
+* `prim` the primaries used to encode this file
+* `trc` the tone response curve applied to the data in this file (this will be undone to go to linear in the colour module)
 
 ## connectors
 
