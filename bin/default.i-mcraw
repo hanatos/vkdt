@@ -13,4 +13,6 @@ connect:colour:01:output:f2srgb:main:input
 connect:f2srgb:main:output:o-bc1:main:input
 param:colour:01:exposure:0
 param:colour:01:matrix:1
+param:colour:01:clip:1
+param:colour:01:clipmax:1
 param:f2srgb:main:usemat:0
