@@ -9,6 +9,10 @@ use std::convert::TryInto;
 use rawler::Result;
 use rawler::imgop::xyz::Illuminant;
 use rawler::decoders::RawDecodeParams;
+use rawler::decoders::FormatHint;
+use rawler::decoders::WellKnownIFD;
+use rawler::tags::DngTag;
+use rawler::formats::tiff::Value;
 use rawler::rawimage::RawPhotometricInterpretation;
 
 #[repr(C)]
@@ -76,13 +80,15 @@ unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
   match md.exif.focal_length      { Some(v) => { (*rawimg).focal_length = v.try_into().ok().unwrap(); } None => {}}
   match md.exif.orientation       { Some(v) => { (*rawimg).orientation  = v as u32; } None => {}}
   match md.exif.create_date       { Some(d) => { copy_string(&d, &mut (*rawimg).datetime) } None => {}}
-  match md.dng_opcode_lists {
-    Some(lists) => {
-      match lists.list_1 { Some(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[0], &mut (*rawimg).dng_opcode_lists_len[0]) } None => {}}
-      match lists.list_2 { Some(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[1], &mut (*rawimg).dng_opcode_lists_len[1]) } None => {}}
-      match lists.list_3 { Some(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[2], &mut (*rawimg).dng_opcode_lists_len[2]) } None => {}}
+  if decoder.format_hint() == FormatHint::DNG
+  {
+    if let Ok(Some(raw)) = decoder.ifd(WellKnownIFD::Raw) {
+      if let Some(oplist2) = raw.get_entry(DngTag::OpcodeList2) {
+        match &oplist2.value {
+          Value::Undefined(v) => { data_to_c(&v, &mut (*rawimg).dng_opcode_lists[1], &mut (*rawimg).dng_opcode_lists_len[1]) },
+            _ => {}}
+      } else { }
     }
-    None => {}
   }
   Ok(())
 }
