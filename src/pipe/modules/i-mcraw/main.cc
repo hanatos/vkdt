@@ -37,8 +37,8 @@ struct buf_t
 #if 0
 commit_params()
 {
-  // grab the following from metadata
-  // ,"asShotNeutral":[0.51171875,1.0,0.578125],"needRemosaic":false,"iso":234,"exposureCompensation":0,"exposureTime":10000000.0,"orientation":0,"isCompressed":true,"compressionType":7,"dynamicWhiteLevel":1023.0,"dynamicBlackLevel":[63.9375,64.0,63.9375,64.0],"lensShadingMapWidth":17,"lensShadingMapHeight":13,"lensShadingMap":[[
+  // grab the following from metadata? most doesn't seem to change, luckily (gainmap for instance)
+  // ,"asShotNeutral":[0.51171875,1.0,0.578125],"needRemosaic":false,"iso":234,"exposureCompensation":0,"exposureTime":10000000.0,"orientation":0,"isCompressed":true,"compressionType":7,"dynamicWhiteLevel":1023.0,"dynamicBlackLevel":[63.9375,64.0,63.9375,64.0],
 }
 #endif
 
@@ -247,6 +247,7 @@ void modify_roi_out(
     else mod->graph->frame_rate = 24;
   }
 
+  // could probably check bool cmeta["deviceSpecificProfile"]["disableShadingMap"], only what does it mean?
   // append our gainmap/dngops if any
   if(dat->oplist) mod->img_param.meta = dt_metadata_append(mod->img_param.meta, (dt_image_metadata_t *)&dat->dngop);
 
