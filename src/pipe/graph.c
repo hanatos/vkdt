@@ -2946,8 +2946,10 @@ void dt_graph_reset(dt_graph_t *g)
   for(int i=0;i<g->conn_image_end;i++)
   {
     if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     g->conn_image_pool[i].image = 0;
+    g->conn_image_pool[i].buffer = 0;
     g->conn_image_pool[i].image_view = 0;
   }
   for(int i=0;i<g->num_nodes;i++)
