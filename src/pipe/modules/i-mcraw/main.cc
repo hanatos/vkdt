@@ -4,6 +4,7 @@ extern "C" {
 #include "core/core.h"
 #include "core/log.h"
 #include "../i-raw/mat3.h"
+#include "pipe/dng_opcode.h"
 }
 
 #include "motioncam/Decoder.hpp"
@@ -28,6 +29,9 @@ struct buf_t
   int ox, oy;          // offset to first canonical rggb bayer block
   std::vector<uint16_t> dummy; // tmp mem to decode frame, please remove this for direct access to mapped memory!
   uint16_t *bitcnt;
+  dt_image_metadata_dngop_t dngop;
+  dt_dng_opcode_list_t     *oplist;
+  dt_dng_gain_map_t        *gainmap[4];
 };
 
 #if 0
@@ -66,6 +70,48 @@ open_file(
 
   dat->wd = metadata["width"];
   dat->ht = metadata["height"];
+
+  // load gainmap  
+  int uncropped_wd = metadata["originalWidth"];
+  int uncropped_ht = metadata["originalHeight"];
+  int shwd = metadata["lensShadingMapWidth"];
+  int shht = metadata["lensShadingMapHeight"];
+  // if this is not always present, check via .at() and catch basic_json::out_of_range exception instead of []:
+  std::vector<std::vector<double> > shmp = metadata["lensShadingMap"]; // is [4][wd*ht]
+  dat->dngop.type = s_image_metadata_dngop;
+  dat->dngop.op_list[0] = 0;
+  dat->dngop.op_list[1] = 0;
+  dat->dngop.op_list[2] = 0;
+
+  dat->oplist = (dt_dng_opcode_list_t *)malloc(sizeof(dt_dng_opcode_list_t) + sizeof(dt_dng_opcode_t)*4);
+  for(int k=0;k<4;k++)
+  {
+    dat->gainmap[k] = (dt_dng_gain_map_t *)malloc(sizeof(dt_dng_gain_map_t) + sizeof(float)*shwd*shht);
+    dat->gainmap[k]->map_points_h  = metadata["lensShadingMapWidth"];
+    dat->gainmap[k]->map_points_v  = metadata["lensShadingMapHeight"];
+    dat->gainmap[k]->map_spacing_h = uncropped_wd / (shwd-1.0);
+    dat->gainmap[k]->map_spacing_v = uncropped_ht / (shht-1.0);
+    dat->gainmap[k]->map_origin_v  = 0.5f;
+    dat->gainmap[k]->map_origin_h  = 0.5f;
+    dat->gainmap[k]->map_planes    = 1;
+    for(int j=0;j<shht;j++) for(int i=0;i<shwd;i++)
+      dat->gainmap[k]->map_gain[shwd * j + i] = shmp[k][shwd*j+i];
+
+    dat->gainmap[k]->region.plane = 0;
+    dat->gainmap[k]->region.planes = 1;
+    dat->gainmap[k]->region.row_pitch = 2;
+    dat->gainmap[k]->region.col_pitch = 2;
+    dat->gainmap[k]->region.top =  k >> 1;
+    dat->gainmap[k]->region.left = k & 1;
+
+    dat->oplist->ops[k].id = s_dngop_gain_map;
+    dat->oplist->ops[k].optional = 1;
+    dat->oplist->ops[k].preview_skip = 0;
+    dat->oplist->ops[k].data = dat->gainmap[k];
+  }
+  dat->oplist->count = 4;
+  dat->dngop.op_list[1] = dat->oplist;
+
   dat->rwd = (((dat->wd + 63)/64) * 64); // round up to multiple of 64 for the decoder
   const uint32_t blocks = dat->rwd * dat->ht / 64;
   const uint32_t rblock = ((blocks+63)/64) * 64;
@@ -89,6 +135,8 @@ int init(dt_module_t *mod)
   dat->bitcnt = 0;
   mod->data = dat;
   mod->flags = s_module_request_read_source;
+  dat->gainmap[0] = dat->gainmap[1] = dat->gainmap[2] = dat->gainmap[3] = 0;
+  dat->oplist = 0;
   return 0;
 }
 
@@ -102,6 +150,12 @@ void cleanup(dt_module_t *mod)
     dat->filename[0] = 0;
   }
   if(dat->bitcnt) free(dat->bitcnt);
+  for(int k=0;k<4;k++)
+  {
+    free(dat->gainmap[k]);
+    dat->gainmap[k] = 0;
+  }
+  free(dat->oplist);  dat->oplist  = 0; 
   delete dat; // destroy audio std vector too
   mod->data = 0;
 }
@@ -192,6 +246,9 @@ void modify_roi_out(
     }
     else mod->graph->frame_rate = 24;
   }
+
+  // append our gainmap/dngops if any
+  if(dat->oplist) mod->img_param.meta = dt_metadata_append(mod->img_param.meta, (dt_image_metadata_t *)&dat->dngop);
 
   // load noise profile:
   float *noise_a = (float*)dt_module_param_float(mod, 1);
