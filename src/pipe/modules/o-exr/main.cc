@@ -15,8 +15,9 @@
 extern "C" {
 
 void write_sink(
-    dt_module_t *mod,
-    void *buf)
+    dt_module_t            *mod,
+    void                   *buf,
+    dt_write_sink_params_t *p)
 {
   const char *basename = dt_module_param_string(mod, 0);
   fprintf(stderr, "[o-exr] writing '%s'\n", basename);

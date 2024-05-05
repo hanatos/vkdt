@@ -2813,6 +2813,8 @@ VkResult dt_graph_run(
   if((module_flags & s_module_request_write_sink) ||
      (run & s_graph_run_download_sink))
   {
+    uint8_t *mapped = 0;
+    QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
     for(int n=0;n<graph->num_nodes;n++)
     { // for all sink nodes:
       dt_node_t *node = graph->node + n;
@@ -2822,15 +2824,13 @@ VkResult dt_graph_run(
           ((node->module->flags & s_module_request_write_sink) ||
            (run & s_graph_run_download_sink)))
         {
-          uint8_t *mapped = 0;
-          QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE,
-                0, (void**)&mapped));
+          dt_write_sink_params_t p = { .node = node, .c = 0, .a = 0 };
           node->module->so->write_sink(node->module,
-              mapped + node->connector[0].offset_staging);
-          vkUnmapMemory(qvk.device, graph->vkmem_staging);
+              mapped + node->connector[0].offset_staging, &p);
         }
       }
     }
+    vkUnmapMemory(qvk.device, graph->vkmem_staging);
   }
 
   if(dt_log_global.mask & s_log_perf)

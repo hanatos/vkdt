@@ -55,13 +55,18 @@ open_file(
   if(dt_graph_get_resource_filename(mod, fname, 0, filename, sizeof(filename)))
     return 1; // file not found
 
-  dat->dec = new motioncam::Decoder(filename);
+  try {
+    dat->dec = new motioncam::Decoder(filename);
+  } catch(...) {
+    return 1;
+  }
 
   // load first frame to find out about resolution
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
   if(frame_list.size() == 0) return 1; // no frames in file
   std::vector<uint16_t> dummy;
   nlohmann::json metadata;
+
   try {
     dat->dec->loadFrame(frame_list[0], dummy, metadata);
   } catch(...) {
