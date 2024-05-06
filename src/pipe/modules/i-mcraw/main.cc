@@ -254,7 +254,7 @@ void modify_roi_out(
 
   // could probably check bool cmeta["deviceSpecificProfile"]["disableShadingMap"], only what does it mean?
   // append our gainmap/dngops if any
-  if(dat->oplist && cmeta["deviceSpecificProfile"]["disableShadingMap"])
+  if(dat->oplist)
     mod->img_param.meta = dt_metadata_append(mod->img_param.meta, (dt_image_metadata_t *)&dat->dngop);
 
   // load noise profile:
