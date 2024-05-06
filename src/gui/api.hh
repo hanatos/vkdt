@@ -122,8 +122,12 @@ dt_gui_lt_paste_history()
         fn[len-=4] = 0; // cut off .cfg
         if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
           fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
+        else if(len > 6 && !strncasecmp(fn+len-6, ".mcraw", 6))
+          fprintf(fout, "param:i-mcraw:main:filename:%s\n", fn);
         else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
           fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
+        else if(len > 4 && !strncasecmp(fn+len-4, ".exr", 4))
+          fprintf(fout, "param:i-exr:main:filename:%s\n", fn);
         else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
           fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
         else

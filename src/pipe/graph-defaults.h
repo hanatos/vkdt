@@ -4,6 +4,7 @@ static inline dt_token_t
 dt_graph_default_input_module(
     const char *filename) // main file, not the .cfg (will strip .cfg if present)
 {
+  // XXX remember to also look at the copy/paste history stack routine (TODO: unify this)
   int len = strlen(filename);
   if(len <= 4) return 0;
   int off = 4;
