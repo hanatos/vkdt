@@ -9,6 +9,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 0) uniform global_t
 {
   uint frame;
+  uint frame_cnt;
 } global;
 
 layout(std140, set = 0, binding = 1) uniform params_t
@@ -19,21 +20,15 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   mask;
 } params;
 
-layout( // input back buffer
-    set = 1, binding = 0
-) uniform sampler2D img_in;
+layout(push_constant, std140) uniform push_t
+{
+  uint filters;
+} push;
 
-layout( // new top layer
-    set = 1, binding = 1
-) uniform sampler2D img_top;
-
-layout( // mask (single channel)
-    set = 1, binding = 2
-) uniform sampler2D img_mask;
-
-layout( // output
-    set = 1, binding = 3
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in; // input back buffer
+layout(set = 1, binding = 1) uniform sampler2D img_top; // new top layer
+layout(set = 1, binding = 2) uniform sampler2D img_mask; // mask (single channel)
+layout(set = 1, binding = 3) uniform writeonly image2D img_out; // output
 
 void
 main()
@@ -62,30 +57,54 @@ main()
     rgb = mix(bck, rgb, t);
   }
   else if(params.mode == 1)
-  {
-    // use TAA style box clamping
+  { // use TAA style box clamping
     // estimate variance from spatial neighbours.
-    // this works best for real time anti aliasing, since it will increase
-    // the threshold near edges and thus blur more there. for photography,
-    // arguably we want the opposite behaviour.
-    vec3 mom1 = vec3(0.0f);
-    vec3 mom2 = vec3(0.0f);
-    const int r = 1;
-    for(int yy = -r; yy <= r; yy++) {
-      for(int xx = -r; xx <= r; xx++) {
-        vec3 c = texture(img_top, (ipos + 0.5 + vec2(xx, yy))/vec2(imageSize(img_out))).rgb;
-        mom1 += c;
-        mom2 += c * c;
+    if(push.filters != 0)
+    { // bayer version
+      float mom1 = 0.0f;
+      float mom2 = 0.0f;
+      const int r = 2;
+      for(int yy = -r; yy <= r; yy+=2) {
+        for(int xx = -r; xx <= r; xx+=2) {
+          float c = texture(img_top, (ipos + 0.5 + vec2(xx, yy))/vec2(imageSize(img_out))).r;
+          mom1 += c;
+          mom2 += c * c;
+        }
       }
-    }
-    mom1 /= (2.0 * r + 1) * (2.0 * r + 1);
-    mom2 /= (2.0 * r + 1) * (2.0 * r + 1);
+      mom1 /= (r + 1) * (r + 1);
+      mom2 /= (r + 1) * (r + 1);
 
-    vec3 s2 = max(vec3(0), mom2 - mom1 * mom1);
-    vec3 sigma = sqrt(s2);
-    const float thresh = params.taa_thrs;// * mask;
-    bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
-    rgb = mix(rgb, bck, t);
+      float s2 = max(0.0, mom2 - mom1 * mom1);
+      float sigma = sqrt(s2);
+      const float thresh = params.taa_thrs;
+      bck = clamp(bck, max(0.0, mom1 - thresh * sigma), mom1 + thresh * sigma);
+      if(global.frame_cnt == 1 || global.frame > 0)
+        rgb = mix(bck, rgb, t);
+    }
+    else
+    { // rgb version
+      // this works best for real time anti aliasing, since it will increase
+      // the threshold near edges and thus blur more there. for photography,
+      // arguably we want the opposite behaviour.
+      vec3 mom1 = vec3(0.0f);
+      vec3 mom2 = vec3(0.0f);
+      const int r = 1;
+      for(int yy = -r; yy <= r; yy++) {
+        for(int xx = -r; xx <= r; xx++) {
+          vec3 c = texture(img_top, (ipos + 0.5 + vec2(xx, yy))/vec2(imageSize(img_out))).rgb;
+          mom1 += c;
+          mom2 += c * c;
+        }
+      }
+      mom1 /= (2.0 * r + 1) * (2.0 * r + 1);
+      mom2 /= (2.0 * r + 1) * (2.0 * r + 1);
+
+      vec3 s2 = max(vec3(0), mom2 - mom1 * mom1);
+      vec3 sigma = sqrt(s2);
+      const float thresh = params.taa_thrs;// * mask;
+      bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
+      rgb = mix(rgb, bck, t);
+    }
   }
   else if(params.mode == 3)
   { // multiply
