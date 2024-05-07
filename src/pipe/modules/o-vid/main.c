@@ -49,7 +49,6 @@ close_stream(AVFormatContext *oc, output_stream_t *ost)
   av_frame_free(&ost->frame);
   av_frame_free(&ost->tmp_frame);
   av_packet_free(&ost->tmp_pkt);
-  // sws_freeContext(ost->sws_ctx);
   swr_free(&ost->swr_ctx);
 }
 
@@ -273,7 +272,6 @@ open_audio(
 
   c = ost->enc;
 
-  /* open it */
   av_dict_copy(&opt, opt_arg, 0);
   ret = avcodec_open2(c, codec, &opt);
   av_dict_free(&opt);
@@ -296,7 +294,7 @@ open_audio(
   else
     nb_samples = c->frame_size;
 
-  ost->frame     = alloc_audio_frame(c->sample_fmt, &c->ch_layout,
+  ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout,
       c->sample_rate, nb_samples);
   // XXX TODO this is the frame as it comes from our audio module: we need to init it according to audio_mod img_param sound properties!
   ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, &c->ch_layout,
@@ -334,12 +332,24 @@ open_audio(
 }
 
 static inline int
-open_file(buf_t *dat)
+open_file(dt_module_t *mod)
 {
+  buf_t *dat = mod->data;
+  const char *basename  = dt_module_param_string(mod, 0);
+  const float p_quality = dt_module_param_float(mod, 1)[0];
+  const int   p_codec   = dt_module_param_int  (mod, 2)[0];
+  const int   p_profile = dt_module_param_int  (mod, 3)[0];
+  const int   p_colour  = dt_module_param_int  (mod, 4)[0];
+
+  const int width  = mod->connector[0].roi.wd & ~1;
+  const int height = mod->connector[0].roi.ht & ~1;
+  const float rate = mod->graph->frame_rate > 0.0f ? mod->graph->frame_rate : 24;
+  if(width <= 0 || height <= 0) return;
+
   // TODO insert the usual dance around filename caching and resource searchpaths
   /* allocate the output media context */
   // TODO: use mp4 for h264 and mov for prores
-  avformat_alloc_output_context2(&dat->oc, NULL, NULL, filename);
+  avformat_alloc_output_context2(&dat->oc, NULL, "mp4", basename);
   if (!oc)
   {
     fprintf(stderr, "[o-vid] could not deduce output format from file extension: using MPEG.\n");
@@ -368,56 +378,6 @@ open_file(buf_t *dat)
     return 1;
   }
   return 0;
-}
-
-// =================================================
-//  module api callbacks
-// =================================================
-
-int init(dt_module_t *mod)
-{
-  buf_t *dat = malloc(sizeof(*dat));
-  memset(dat, 0, sizeof(*dat));
-  mod->data = dat;
-  mod->flags = s_module_request_write_sink;
-  return 0;
-}
-
-void cleanup(dt_module_t *mod)
-{
-  if(!mod->data) return;
-  buf_t *dat = mod->data;
-  close_file(dat);
-  free(dat);
-  mod->data = 0;
-}
-
-void create_nodes(
-    dt_graph_t  *graph,
-    dt_module_t *module)
-{ // encode kernel, wire sink modules for Y Cb Cr
-  const int wd = module->connector[0].roi.wd;
-  const int ht = module->connector[0].roi.ht;
-  dt_roi_t roi_Y  = module->connector[0].roi;
-  dt_roi_t roi_CbCr = roi_Y;
-  // TODO: if 422 or 420 roi_CbCr.wd /= 2
-  // TODO: if 420 roi_CbCr.ht /= 2
-  // TODO: pass push constants identifying the buffer input and output characteristics (bit depth, colour space, trc, subsampling)
-  const int id_enc = dt_node_add(graph, module, "o-vid", "enc", wd, ht, 1, 0, 0, 4,
-      "input", "read", "rgba", "f16", dt_no_roi,
-      "Y",     "write", "r",   "ui8", &roi_Y, // TODO: if more than 8 bits, use ui16!
-      "Cb",    "write", "r",   "ui8", &roi_CbCr, // TODO: if more than 8 bits, use ui16!
-      "Cr",    "write", "r",   "ui8", &roi_CbCr);// TODO: if more than 8 bits, use ui16!
-  const int id_Y = dt_node_add(graph, module, "o-vid", "Y", 1, 1, 1, 0, 0, 1,
-      "Y", "sink", "r", "ui8", dt_no_roi);
-  const int id_Cb = dt_node_add(graph, module, "o-vid", "Cb", 1, 1, 1, 0, 0, 1,
-      "Cb", "sink", "r", "ui8", dt_no_roi);
-  const int id_Cr = dt_node_add(graph, module, "o-vid", "Cr", 1, 1, 1, 0, 0, 1,
-      "Cr", "sink", "r", "ui8", dt_no_roi);
-  CONN(dt_node_connect_named(graph, id_enc, "Y",  id_Y,  "Y"));
-  CONN(dt_node_connect_named(graph, id_enc, "Cb", id_Cb, "Cb"));
-  CONN(dt_node_connect_named(graph, id_enc, "Cr", id_Cr, "Cr"));
-  dt_connector_copy(graph, module, 0, id_enc, 0);
 }
 
 static inline int
@@ -449,7 +409,8 @@ write_frame(
     pkt->stream_index = st->index;
 
     /* Write the compressed frame to the media file. */
-    log_packet(fmt_ctx, pkt);
+    // output some stuff:
+    // log_packet(fmt_ctx, pkt);
     ret = av_interleaved_write_frame(fmt_ctx, pkt);
     /* pkt is now blank (av_interleaved_write_frame() takes ownership of
      * its contents and resets pkt), so that no unreferencing is necessary.
@@ -462,6 +423,59 @@ write_frame(
   }
   if(ret == AVERROR_EOF) return 1;
   return 0;
+}
+
+// =================================================
+//  module api callbacks
+// =================================================
+
+int init(dt_module_t *mod)
+{
+  buf_t *dat = malloc(sizeof(*dat));
+  memset(dat, 0, sizeof(*dat));
+  mod->data = dat;
+  mod->flags = s_module_request_write_sink;
+  return 0;
+}
+
+void cleanup(dt_module_t *mod)
+{
+  if(!mod->data) return;
+  buf_t *dat = mod->data;
+  close_file(dat);
+  free(dat);
+  mod->data = 0;
+}
+
+void create_nodes(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{ // encode kernel, wire sink modules for Y Cb Cr
+  // TODO this is the place where we could padd wd to be linesize for ffmpeg frames
+  const int wd = module->connector[0].roi.wd;
+  const int ht = module->connector[0].roi.ht;
+  dt_roi_t roi_Y  = module->connector[0].roi;
+  dt_roi_t roi_CbCr = roi_Y;
+  // TODO: if 422 or 420 roi_CbCr.wd /= 2
+  roi_CbCr.wd /= 2;
+  // TODO: if 420 roi_CbCr.ht /= 2
+  roi_CbCr.ht /= 2;
+  // TODO: pass push constants identifying the buffer input and output characteristics (bit depth, colour space, trc, subsampling)
+  const int id_enc = dt_node_add(graph, module, "o-vid", "enc", wd, ht, 1, 0, 0, 4,
+      "input", "read", "rgba", "f16", dt_no_roi,
+      "Y",     "write", "r",   "ui8", &roi_Y, // TODO: if more than 8 bits, use ui16!
+      "Cb",    "write", "r",   "ui8", &roi_CbCr, // TODO: if more than 8 bits, use ui16!
+      "Cr",    "write", "r",   "ui8", &roi_CbCr);// TODO: if more than 8 bits, use ui16!
+  const int id_Y = dt_node_add(graph, module, "o-vid", "Y", 1, 1, 1, 0, 0, 1,
+      "Y", "sink", "r", "ui8", dt_no_roi);
+  const int id_Cb = dt_node_add(graph, module, "o-vid", "Cb", 1, 1, 1, 0, 0, 1,
+      "Cb", "sink", "r", "ui8", dt_no_roi);
+  const int id_Cr = dt_node_add(graph, module, "o-vid", "Cr", 1, 1, 1, 0, 0, 1,
+      "Cr", "sink", "r", "ui8", dt_no_roi);
+  CONN(dt_node_connect_named(graph, id_enc, "Y",  id_Y,  "Y"));
+  CONN(dt_node_connect_named(graph, id_enc, "Cb", id_Cb, "Cb"));
+  CONN(dt_node_connect_named(graph, id_enc, "Cr", id_Cr, "Cr"));
+  dt_connector_copy(graph, module, 0, id_enc, 0);
 }
 
 // TODO: which data do we need?
@@ -482,6 +496,9 @@ void write_sink(
   output_stream_t *vost = &dat->video_stream;
   AVCodecContext *vc = vost->enc;
 
+  const int wd = mod->connector[0].roi.wd;
+  const int ht = mod->connector[0].roi.ht;
+
   /* when we pass a frame to the encoder, it may keep a reference to it
    * internally; make sure we do not overwrite it here */
   if (av_frame_make_writable(ost->frame) < 0) return;
@@ -490,21 +507,23 @@ void write_sink(
     // fill_yuv_image(ost->frame, ost->next_pts, c->width, c->height);
   if(p->node->kernel == dt_token("Y"))
   {
-    // TODO memcpy
-    for (int y = 0; y < height; y++)
-      for (int x = 0; x < width; x++)
-        ost->frame->data[0][y * ost->frame->linesize[0] + x] = x + y + i * 3;
+    if(wd != ost->frame->linesize[0]) fprintf(stderr, "linesize 0 wrong!\n");
+    // TODO can we pass the mapped memory to ffmpeg as frame directly?
+    memcpy(ost->frame->data[0], buf, sizeof(uint8_t)*wd*ht);
+        // ost->frame->data[0][y * ost->frame->linesize[0] + x] = x + y + i * 3;
     dat->have_buf[0] = 1;
   }
   else if(p->node->kernel == dt_token("Cb"))
   { // ffmpeg expects the colour planes separate, not in a 2-channel texture
     // something memcpy with subsampled size. make sure linesize and gpu width match!
-    ost->frame->data[1][y * ost->frame->linesize[1] + x] = x + y + i * 3;
+    if(wd/2 != ost->frame->linesize[1]) fprintf(stderr, "linesize 1 wrong!\n");
+    memcpy(ost->frame->data[1], buf, sizeof(uint8_t)*wd/2*ht/2);
     dat->have_buf[1] = 1;
   }
   else if(p->node->kernel == dt_token("Cr"))
   {
-    // TODO: memcpy data[2]
+    if(wd/2 != ost->frame->linesize[2]) fprintf(stderr, "linesize 2 wrong!\n");
+    memcpy(ost->frame->data[2], buf, sizeof(uint8_t)*wd/2*ht/2);
     dat->have_buf[2] = 1;
   }
   // alpha has no connector and copies no data
@@ -545,10 +564,11 @@ void write_sink(
         // TODO: make sure sample_cnt <= frame.nb_samples
         uint16_t *samples = 0;
         int sample_cnt = mod->graph->module[audio_mod].so->audio(mod->graph->module+audio_mod, mod->graph->frame, &samples);
+        memcpy(frame->data[0], samples, sizeof(uint16_t)*2*sample_cnt);
         // TODO: memcpy samples to frame->data[0], it is both interleaved stereo S16 (or otherwise set to the same when initing the audio frame)
         // TODO: during audio frame init: query img_params for sound properties
         frame->pts = ost->next_pts;
-        ost->next_pts  += sample_cnt;// frame->nb_samples;
+        ost->next_pts += sample_cnt;// frame->nb_samples;
 
         /* convert samples from native format to destination codec format, using the resampler */
         /* compute destination number of samples */
@@ -585,9 +605,19 @@ void write_sink(
     // prepare for next frame
     dat->have_buf[0] = dat->have_buf[1] = dat->have_buf[2] = 0;
 
-    // TODO: init stuff and cleanup stuff?
     // finalise the file:
     if(mod->graph->frame == mod->graph->frame_cnt-1)
       close_file(dat);
   }
+}
+
+void modify_roi_out(
+    dt_graph_t  *graph,
+    dt_module_t *mod)
+{
+  if(graph->frame_cnt <= 1) return;
+  buf_t *dat = mod->data;
+  close_file(dat);
+  // TODO write back wd and ht on the connector
+  open_file(mod);
 }
