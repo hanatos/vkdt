@@ -6,85 +6,46 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <libavutil/avassert.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/opt.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/timestamp.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libswresample/swresample.h>
+
 // a wrapper around a single output AVStream
-typedef struct OutputStream
+typedef struct output_stream_t
 {
     AVStream *st;
     AVCodecContext *enc;
 
     /* pts of the next frame that will be generated */
     int64_t next_pts;
-    int samples_count;
+    int samples_count; // used to compute time stamp for audio. XXX can this overflow?
 
     AVFrame *frame;
     AVFrame *tmp_frame;
 
     AVPacket *tmp_pkt;
-
-    float t, tincr, tincr2;
-
-    struct SwsContext *sws_ctx;
     struct SwrContext *swr_ctx;
 }
-OutputStream;
+output_stream_t;
 
 typedef struct buf_t
 {
-  // TODO
-  // avcodec / avformat stuff
+  AVFormatContext *oc;
+  const AVCodec *audio_codec, *video_codec;
+  output_stream_t video_stream;
+  output_stream_t audio_stream;
   int audio_mod;   // the module on our graph that has the audio
   int have_buf[3]; // flag that we have read the buffers for Y Cb Cr for the given frame
 }
 buf_t;
 
-int init(dt_module_t *mod)
-{
-  buf_t *dat = malloc(sizeof(*dat));
-  memset(dat, 0, sizeof(*dat));
-  mod->data = dat;
-  mod->flags = s_module_request_write_sink;
-  return 0;
-}
-
-void cleanup(dt_module_t *mod)
-{
-  if(!mod->data) return;
-  buf_t *dat = mod->data;
-  close_file(dat);
-  free(dat);
-  mod->data = 0;
-}
-
-void create_nodes(
-    dt_graph_t  *graph,
-    dt_module_t *module)
-{ // encode kernel, wire sink modules for Y Cb Cr
-  const int wd = module->connector[0].roi.wd;
-  const int ht = module->connector[0].roi.ht;
-  dt_roi_t roi_Y  = module->connector[0].roi;
-  dt_roi_t roi_CbCr = roi_Y;
-  // TODO: if 422 or 420 roi_CbCr.wd /= 2
-  // TODO: if 420 roi_CbCr.ht /= 2
-  // TODO: pass push constants identifying the buffer input and output characteristics (bit depth, colour space, trc, subsampling)
-  const int id_enc = dt_node_add(graph, module, "o-vid", "enc", wd, ht, 1, 0, 0, 4,
-      "input", "read", "rgba", "f16", dt_no_roi,
-      "Y",     "write", "r",   "ui8", &roi_Y, // TODO: if more than 8 bits, use ui16!
-      "Cb",    "write", "r",   "ui8", &roi_CbCr, // TODO: if more than 8 bits, use ui16!
-      "Cr",    "write", "r",   "ui8", &roi_CbCr);// TODO: if more than 8 bits, use ui16!
-  const int id_Y = dt_node_add(graph, module, "o-vid", "Y", 1, 1, 1, 0, 0, 1,
-      "Y", "sink", "r", "ui8", dt_no_roi);
-  const int id_Cb = dt_node_add(graph, module, "o-vid", "Cb", 1, 1, 1, 0, 0, 1,
-      "Cb", "sink", "r", "ui8", dt_no_roi);
-  const int id_Cr = dt_node_add(graph, module, "o-vid", "Cr", 1, 1, 1, 0, 0, 1,
-      "Cr", "sink", "r", "ui8", dt_no_roi);
-  CONN(dt_node_connect_named(graph, id_enc, "Y",  id_Y,  "Y"));
-  CONN(dt_node_connect_named(graph, id_enc, "Cb", id_Cb, "Cb"));
-  CONN(dt_node_connect_named(graph, id_enc, "Cr", id_Cr, "Cr"));
-  dt_connector_copy(graph, module, 0, id_enc, 0);
-}
-
 static inline void
-close_stream(AVFormatContext *oc, OutputStream *ost)
+close_stream(AVFormatContext *oc, output_stream_t *ost)
 {
   avcodec_free_context(&ost->enc);
   av_frame_free(&ost->frame);
@@ -114,7 +75,7 @@ close_file(buf_t *dat)
 
 static void
 add_stream(
-    OutputStream *ost, AVFormatContext *oc,
+    output_stream_t *ost, AVFormatContext *oc,
     const AVCodec **codec,
     enum AVCodecID codec_id)
 {
@@ -229,7 +190,7 @@ alloc_frame(enum AVPixelFormat pix_fmt, int width, int height)
 static inline void
 open_video(
     AVFormatContext *oc, const AVCodec *codec,
-    OutputStream *ost, AVDictionary *opt_arg)
+    output_stream_t *ost, AVDictionary *opt_arg)
 {
     int ret;
     AVCodecContext *c = ost->enc;
@@ -302,7 +263,7 @@ alloc_audio_frame(
 static inline void
 open_audio(
     AVFormatContext *oc, const AVCodec *codec,
-    OutputStream *ost, AVDictionary *opt_arg)
+    output_stream_t *ost, AVDictionary *opt_arg)
 {
     AVCodecContext *c;
     int nb_samples;
@@ -320,11 +281,13 @@ open_audio(
         exit(1);
     }
 
+#if 0
     /* init signal generator */
     ost->t     = 0;
     ost->tincr = 2 * M_PI * 110.0 / c->sample_rate;
     /* increment frequency by 110 Hz per second */
     ost->tincr2 = 2 * M_PI * 110.0 / c->sample_rate / c->sample_rate;
+#endif
 
     if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)
         nb_samples = 10000;
@@ -333,6 +296,7 @@ open_audio(
 
     ost->frame     = alloc_audio_frame(c->sample_fmt, &c->ch_layout,
                                        c->sample_rate, nb_samples);
+    // XXX TODO this is the frame as it comes from our audio module: we need to init it according to audio_mod img_param sound properties!
     ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, &c->ch_layout,
                                        c->sample_rate, nb_samples);
 
@@ -368,25 +332,27 @@ open_audio(
 static inline int
 init_file(buf_t *dat)
 {
+  // TODO insert the usual dance around filename caching and resource searchpaths
     /* allocate the output media context */
-    avformat_alloc_output_context2(&oc, NULL, NULL, filename);
+    avformat_alloc_output_context2(&dat->oc, NULL, NULL, filename);
     if (!oc) {
         printf("Could not deduce output format from file extension: using MPEG.\n");
-        avformat_alloc_output_context2(&oc, NULL, "mpeg", filename);
+        avformat_alloc_output_context2(&dat->oc, NULL, "mpeg", filename);
     }
-    if (!oc) return 1;
+    if (!dat->oc) return 1;
 
-    fmt = oc->oformat;
+    const AVOutputFormat *fmt = dat->oc->oformat;
 
     /* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
     if (fmt->video_codec != AV_CODEC_ID_NONE)
-        add_stream(&video_st, oc, &video_codec, fmt->video_codec);
+        add_stream(&video_st, oc, &dat->video_codec, fmt->video_codec);
     if (fmt->audio_codec != AV_CODEC_ID_NONE)
-        add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);
+        add_stream(&audio_st, oc, &dat->audio_codec, fmt->audio_codec);
 
-    open_video(oc, video_codec, &video_st, opt);
-    open_audio(oc, audio_codec, &audio_st, opt);
+    AVDictionary *opt = NULL;
+    open_video(oc, dat->video_codec, &dat->video_stream, opt);
+    open_audio(oc, dat->audio_codec, &dat->audio_stream, opt);
 
     /* Write the stream header, if any. */
     ret = avformat_write_header(oc, &opt);
@@ -395,6 +361,99 @@ init_file(buf_t *dat)
                 av_err2str(ret));
         return 1;
     }
+}
+
+// =================================================
+//  module api callbacks
+// =================================================
+
+int init(dt_module_t *mod)
+{
+  buf_t *dat = malloc(sizeof(*dat));
+  memset(dat, 0, sizeof(*dat));
+  mod->data = dat;
+  mod->flags = s_module_request_write_sink;
+  return 0;
+}
+
+void cleanup(dt_module_t *mod)
+{
+  if(!mod->data) return;
+  buf_t *dat = mod->data;
+  close_file(dat);
+  free(dat);
+  mod->data = 0;
+}
+
+void create_nodes(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{ // encode kernel, wire sink modules for Y Cb Cr
+  const int wd = module->connector[0].roi.wd;
+  const int ht = module->connector[0].roi.ht;
+  dt_roi_t roi_Y  = module->connector[0].roi;
+  dt_roi_t roi_CbCr = roi_Y;
+  // TODO: if 422 or 420 roi_CbCr.wd /= 2
+  // TODO: if 420 roi_CbCr.ht /= 2
+  // TODO: pass push constants identifying the buffer input and output characteristics (bit depth, colour space, trc, subsampling)
+  const int id_enc = dt_node_add(graph, module, "o-vid", "enc", wd, ht, 1, 0, 0, 4,
+      "input", "read", "rgba", "f16", dt_no_roi,
+      "Y",     "write", "r",   "ui8", &roi_Y, // TODO: if more than 8 bits, use ui16!
+      "Cb",    "write", "r",   "ui8", &roi_CbCr, // TODO: if more than 8 bits, use ui16!
+      "Cr",    "write", "r",   "ui8", &roi_CbCr);// TODO: if more than 8 bits, use ui16!
+  const int id_Y = dt_node_add(graph, module, "o-vid", "Y", 1, 1, 1, 0, 0, 1,
+      "Y", "sink", "r", "ui8", dt_no_roi);
+  const int id_Cb = dt_node_add(graph, module, "o-vid", "Cb", 1, 1, 1, 0, 0, 1,
+      "Cb", "sink", "r", "ui8", dt_no_roi);
+  const int id_Cr = dt_node_add(graph, module, "o-vid", "Cr", 1, 1, 1, 0, 0, 1,
+      "Cr", "sink", "r", "ui8", dt_no_roi);
+  CONN(dt_node_connect_named(graph, id_enc, "Y",  id_Y,  "Y"));
+  CONN(dt_node_connect_named(graph, id_enc, "Cb", id_Cb, "Cb"));
+  CONN(dt_node_connect_named(graph, id_enc, "Cr", id_Cr, "Cr"));
+  dt_connector_copy(graph, module, 0, id_enc, 0);
+}
+
+static inline int
+write_frame(
+    AVFormatContext *fmt_ctx, AVCodecContext *c,
+    AVStream *st, AVFrame *frame, AVPacket *pkt)
+{
+    int ret;
+
+    // send the frame to the encoder
+    ret = avcodec_send_frame(c, frame);
+    if (ret < 0) {
+        fprintf(stderr, "Error sending a frame to the encoder: %s\n",
+                av_err2str(ret));
+        exit(1);
+    }
+
+    while (ret >= 0) {
+        ret = avcodec_receive_packet(c, pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            break;
+        else if (ret < 0) {
+            fprintf(stderr, "Error encoding a frame: %s\n", av_err2str(ret));
+            exit(1);
+        }
+
+        /* rescale output packet timestamp values from codec to stream timebase */
+        av_packet_rescale_ts(pkt, c->time_base, st->time_base);
+        pkt->stream_index = st->index;
+
+        /* Write the compressed frame to the media file. */
+        log_packet(fmt_ctx, pkt);
+        ret = av_interleaved_write_frame(fmt_ctx, pkt);
+        /* pkt is now blank (av_interleaved_write_frame() takes ownership of
+         * its contents and resets pkt), so that no unreferencing is necessary.
+         * This would be different if one used av_write_frame(). */
+        if (ret < 0) {
+            fprintf(stderr, "Error while writing output packet: %s\n", av_err2str(ret));
+            exit(1);
+        }
+    }
+
+    return ret == AVERROR_EOF ? 1 : 0;
 }
 
 // TODO: which data do we need?
@@ -411,12 +470,9 @@ void write_sink(
     dt_write_sink_params_t *p)
 {
   buf_t *dat = mod->data;
-  AVCodecContext *c = ost->enc;
 
-    // XXX TODO: compare to our total length (last timestamp? assume fixed frame rate?)
-    /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, c->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
-        return;
+  output_stream_t *vost = dat->video_stream;
+  AVCodecContext *vc = vost->enc;
 
     /* when we pass a frame to the encoder, it may keep a reference to it
      * internally; make sure we do not overwrite it here */
@@ -445,63 +501,49 @@ void write_sink(
   // alpha has no connector and copies no data
 
   if(dat->have_buf[0] && dat->have_buf[1] && dat->have_buf[2])
-  {
-    ost->frame->pts = ost->next_pts++;
+  { // if we have all three channels for a certain frame:
+    // XXX TODO: compare to our total length (last timestamp? assume fixed frame rate?)
+    /* check if we want to generate more frames */
+    if (av_compare_ts(vost->next_pts, vc->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
+        return;
 
-    int ret = write_frame(oc, ost->enc, ost->st, ost->frame, ost->tmp_pkt);
-    // now it says its finished maybe
+    vost->frame->pts = vost->next_pts++;
+
+    { // write video frame
+      int ret = write_frame(oc, vost->enc, vost->st, vost->frame, vost->tmp_pkt);
+      // now it says its finished maybe
+    }
 
     // TODO: we will *not* get an audio callback, we need to grab the samples from the audio module
 
-#if 0
-/* Prepare a 16 bit dummy audio frame of 'frame_size' samples and
- * 'nb_channels' channels. */
-static AVFrame *get_audio_frame(OutputStream *ost)
-{
-    AVFrame *frame = ost->tmp_frame;
-    int j, i, v;
-    int16_t *q = (int16_t*)frame->data[0];
+    { // write audio frame
+      output_stream_t *ost = dat->audio_stream;
+      AVCodecContext *c;
+      AVFrame *frame = ost->tmp_frame;
+      int ret;
+      int dst_nb_samples;
 
-    /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
-        return NULL;
+      c = ost->enc;
 
-    for (j = 0; j <frame->nb_samples; j++) {
-        v = (int)(sin(ost->t) * 10000);
-        for (i = 0; i < ost->enc->ch_layout.nb_channels; i++)
-            *q++ = v;
-        ost->t     += ost->tincr;
-        ost->tincr += ost->tincr2;
-    }
 
-    frame->pts = ost->next_pts;
-    ost->next_pts  += frame->nb_samples;
+      /* check if we want to generate more frames */ // XXX we are not buffering the audio otherwise. this better work out exactly!
+      if (av_compare_ts(ost->next_pts, ost->enc->time_base,
+            STREAM_DURATION, (AVRational){ 1, 1 }) <= 0)
 
-    return frame;
-}
+      {
 
-/*
- * encode one audio frame and send it to the muxer
- * return 1 when encoding is finished, 0 otherwise
- */
-static inline int
-write_audio_frame(AVFormatContext *oc, OutputStream *ost)
-{
-    AVCodecContext *c;
-    AVFrame *frame;
-    int ret;
-    int dst_nb_samples;
+        // TODO: make sure sample_cnt <= frame.nb_samples
+        uint16_t *samples = 0;
+        int sample_cnt = mod->graph->module[audio_mod].so->audio(mod->graph->module+audio_mod, mod->graph->frame, &samples);
+        // TODO: memcpy samples to frame->data[0], it is both interleaved stereo S16 (or otherwise set to the same when initing the audio frame)
+        // TODO: during audio frame init: query img_params for sound properties
+        frame->pts = ost->next_pts;
+        ost->next_pts  += sample_cnt;// frame->nb_samples;
 
-    c = ost->enc;
-
-    frame = get_audio_frame(ost);
-
-    if (frame) {
         /* convert samples from native format to destination codec format, using the resampler */
         /* compute destination number of samples */
         dst_nb_samples = av_rescale_rnd(swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples,
-                                        c->sample_rate, c->sample_rate, AV_ROUND_UP);
+            c->sample_rate, c->sample_rate, AV_ROUND_UP);
         av_assert0(dst_nb_samples == frame->nb_samples);
 
         /* when we pass a frame to the encoder, it may keep a reference to it
@@ -510,34 +552,28 @@ write_audio_frame(AVFormatContext *oc, OutputStream *ost)
          */
         ret = av_frame_make_writable(ost->frame);
         if (ret < 0)
-            exit(1);
+          exit(1);
 
         /* convert to destination format */
         ret = swr_convert(ost->swr_ctx,
-                          ost->frame->data, dst_nb_samples,
-                          (const uint8_t **)frame->data, frame->nb_samples);
+            ost->frame->data, dst_nb_samples,
+            (const uint8_t **)frame->data, frame->nb_samples);
         if (ret < 0) {
-            fprintf(stderr, "Error while converting\n");
-            exit(1);
+          fprintf(stderr, "Error while converting\n");
+          exit(1);
         }
         frame = ost->frame;
 
         frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
         ost->samples_count += dst_nb_samples;
-    }
+      }
 
-    return write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
-}
-#endif
+      int ret = write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
+      // ret indicating something stream end?
+    } // end audio frame
 
-    // if we have all three channels for a certain frame:
-    uint16_t *samples = 0;
-    int sample_cnt = mod->graph->module[audio_mod].so->audio(mod->graph->module+audio_mod, mod->graph->frame, &samples);
-    // also query img_params for sound properties
-
-    write_audio_frame(oc, &audio_st);
+    // prepare for next frame
     dat->have_buf[0] = dat->have_buf[1] = dat->have_buf[2] = 0;
-
 
     // TODO: init stuff and cleanup stuff?
     // finalise the file:
