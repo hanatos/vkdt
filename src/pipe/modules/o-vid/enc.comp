@@ -25,9 +25,15 @@ layout(set = 1, binding = 3) uniform writeonly image2D img_Cr;
 
 void main()
 {
+  // uint idx = gl_GlobalInvocationID.y * imageSize(img_Y).x + gl_GlobalInvocationID.x;
+  uint idx = (gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x) * gl_WorkGroupSize.x*gl_WorkGroupSize.y
+    + gl_SubgroupID * gl_SubgroupSize + gl_SubgroupInvocationID;
+  idx /= 4;
+  ivec2 ipos = 2*ivec2(idx % (imageSize(img_Y).x/2), idx / (imageSize(img_Y).x/2));
   // subgroup blocks are 2x2 blocks in the image:
-  ivec2 ipos = 2*(ivec2(gl_GlobalInvocationID)/2);
-  ipos.x += int(gl_SubgroupInvocationID & 2);
+  // ivec2 ipos = (ivec2(gl_GlobalInvocationID));
+  // ivec2 ipos = 2*(ivec2(gl_GlobalInvocationID)/2);
+  ipos.x += int((gl_SubgroupInvocationID & 2)>>1);
   ipos.y += int(gl_SubgroupInvocationID & 1);
   if(any(greaterThanEqual(ipos, imageSize(img_Y)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
@@ -47,10 +53,10 @@ void main()
   vec3 YCbCr = M3 * rgb;
 
   // TODO: if full range: quantise to number of bits, rescale to max within data type (>8 is 16 bits)
-  // params.bits == 0 // 8-bit
+  // params.bits == 0 // 8-bit full range
   YCbCr = YCbCr + vec3(0.0, 128.0/255.0, 128.0/255.0);
   // 8 bit mpeg range:
-  YCbCr = (YCbCr * vec3(219.0, 224.0, 224.0) + vec3(16.0, 128.0, 128.0))/255.0;
+  // YCbCr = clamp(YCbCr * vec3(219.0, 224.0, 224.0) + vec3(16.0, 128.0, 128.0), vec3(0.0), vec3(255.0))/255.0;
 
   // =====
   // 420 TODO: implement 422 (only sub x) and 444 (no sub)
@@ -58,11 +64,13 @@ void main()
   YCbCr.yz = subgroupClusteredAdd(YCbCr.yz, 4)/4.0;
 
   ivec2 cpos = ipos/2;
-  // TODO: use subgroup partition2x2 to average subsampled stuff
 
-  imageStore(img_Y,  ipos, vec4(YCbCr.x));
+  imageStore(img_Y, ipos, vec4(YCbCr.x));
   if((gl_SubgroupInvocationID & 3) == 0)
   { // if subgroup leader of 2x2 block
+    // YCbCr.yz = gl_WorkGroupID.xy / vec2(gl_NumWorkGroups.xy);
+    // YCbCr.yz = gl_SubgroupInvocationID / vec2(gl_SubgroupSize);
+    // YCbCr.yz = ipos / vec2(imageSize(img_Y).xy);
     imageStore(img_Cb, cpos, vec4(YCbCr.y));
     imageStore(img_Cr, cpos, vec4(YCbCr.z));
   }

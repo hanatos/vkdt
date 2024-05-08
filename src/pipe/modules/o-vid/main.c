@@ -365,7 +365,9 @@ open_file(dt_module_t *mod)
   // for(int i=0;i<mod->graph->num_modules;i++)
     // if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
   const char *basename  = dt_module_param_string(mod, 0);
-  fprintf(stderr, "opening file %s\n", basename);
+  char filename[512];
+  snprintf(filename, sizeof(filename), "%s.mp4", basename);
+  fprintf(stderr, "opening file %s\n", filename);
 
   const int width  = mod->connector[0].roi.wd & ~1;
   const int height = mod->connector[0].roi.ht & ~1;
@@ -376,7 +378,7 @@ open_file(dt_module_t *mod)
   /* allocate the output media context */
   // TODO: use mp4 for h264 and mov for prores
   // TODO: append correct extension?
-  avformat_alloc_output_context2(&dat->oc, NULL, "mp4", basename);
+  avformat_alloc_output_context2(&dat->oc, NULL, "mp4", filename);
   if (!dat->oc) return 1;
 
   const AVOutputFormat *fmt = dat->oc->oformat;
@@ -392,10 +394,10 @@ open_file(dt_module_t *mod)
   open_video(dat->oc, dat->video_codec, &dat->video_stream, opt);
   open_audio(dat->oc, dat->audio_codec, &dat->audio_stream, opt);
 
-  int ret = avio_open(&dat->oc->pb, basename, AVIO_FLAG_WRITE);
+  int ret = avio_open(&dat->oc->pb, filename, AVIO_FLAG_WRITE);
   if (ret < 0)
   {
-    fprintf(stderr, "[o-vid] could not open '%s': %s\n", basename, av_err2str(ret));
+    fprintf(stderr, "[o-vid] could not open '%s': %s\n", filename, av_err2str(ret));
     return 1;
   }
 
@@ -495,8 +497,8 @@ void create_nodes(
       "Y",     "write", "r",   "ui8", &roi_Y, // TODO: if more than 8 bits, use ui16!
       "Cb",    "write", "r",   "ui8", &roi_CbCr, // TODO: if more than 8 bits, use ui16!
       "Cr",    "write", "r",   "ui8", &roi_CbCr);// TODO: if more than 8 bits, use ui16!
-  const int id_Y = dt_node_add(graph, module, "o-vid", "Y", 1, 1, 1, 0, 0, 1,
-      "Y", "sink", "r", "ui8", dt_no_roi);
+  const int id_Y  = dt_node_add(graph, module, "o-vid", "Y",  1, 1, 1, 0, 0, 1,
+      "Y",  "sink", "r", "ui8", dt_no_roi);
   const int id_Cb = dt_node_add(graph, module, "o-vid", "Cb", 1, 1, 1, 0, 0, 1,
       "Cb", "sink", "r", "ui8", dt_no_roi);
   const int id_Cr = dt_node_add(graph, module, "o-vid", "Cr", 1, 1, 1, 0, 0, 1,
@@ -521,12 +523,13 @@ void write_sink(
     dt_write_sink_params_t *p)
 {
   buf_t *dat = mod->data;
-  if(!dat->oc) open_file(mod);
+  if(mod->graph->frame < mod->graph->frame_cnt-1 && !dat->oc) open_file(mod);
   if(!dat->oc) return; // avoid crashes in case opening the file went wrong
   output_stream_t *vost = &dat->video_stream;
 
   const int wd = mod->connector[0].roi.wd & ~1;
   const int ht = mod->connector[0].roi.ht & ~1;
+  // fprintf(stderr, "conn size %d node %d\n", wd, p->node->connector[0].roi.wd);
 
   /* when we pass a frame to the encoder, it may keep a reference to it
    * internally; make sure we do not overwrite it here */
