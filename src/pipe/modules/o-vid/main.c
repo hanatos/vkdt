@@ -70,11 +70,13 @@ close_file(buf_t *dat)
 
 static inline int
 add_stream(
+    dt_module_t     *mod,
     output_stream_t *ost,
     AVFormatContext *oc,
     const AVCodec  **codec,
     enum AVCodecID   codec_id)
 {
+  // buf_t *dat = mod->data;
   AVCodecContext *c;
 
   *codec = avcodec_find_encoder(codec_id);
@@ -106,6 +108,12 @@ add_stream(
   }
   ost->enc = c;
 
+  // const float p_quality = dt_module_param_float(mod, 1)[0];
+  // const int   p_codec   = dt_module_param_int  (mod, 2)[0];
+  // const int   p_profile = dt_module_param_int  (mod, 3)[0];
+  // const int   p_colour  = dt_module_param_int  (mod, 4)[0];
+  const float frame_rate = mod->graph->frame_rate > 0.0f ? mod->graph->frame_rate : 24;
+
   switch ((*codec)->type)
   {
     case AVMEDIA_TYPE_AUDIO:
@@ -130,14 +138,14 @@ add_stream(
        * of which frame timestamps are represented. For fixed-fps content,
        * timebase should be 1/framerate and timestamp increments should be
        * identical to 1. */
-      ost->st->time_base = (AVRational){ 1, STREAM_FRAME_RATE };
+      ost->st->time_base = (AVRational){ 1, frame_rate };
       c->time_base       = ost->st->time_base;
 
       // XXX TODO get from output parameters/defaults for h264 or something
       c->bit_rate = 400000;
       /* Resolution must be a multiple of two. */
-      c->width    = 352;
-      c->height   = 288;
+      c->width    = mod->connector[0].roi.wd & ~1;
+      c->height   = mod->connector[0].roi.ht & ~1;
       c->gop_size      = 12; /* emit one intra frame every twelve frames at most */
       c->pix_fmt       = AV_PIX_FMT_YUV420P;
 #if 0
@@ -335,43 +343,48 @@ static inline int
 open_file(dt_module_t *mod)
 {
   buf_t *dat = mod->data;
+  if(dat->oc) close_file(dat);
+  dat->audio_mod = -1;
+  // XXX disable for now
+  // for(int i=0;i<mod->graph->num_modules;i++)
+    // if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
   const char *basename  = dt_module_param_string(mod, 0);
-  const float p_quality = dt_module_param_float(mod, 1)[0];
-  const int   p_codec   = dt_module_param_int  (mod, 2)[0];
-  const int   p_profile = dt_module_param_int  (mod, 3)[0];
-  const int   p_colour  = dt_module_param_int  (mod, 4)[0];
+  fprintf(stderr, "opening file %s\n", basename);
 
   const int width  = mod->connector[0].roi.wd & ~1;
   const int height = mod->connector[0].roi.ht & ~1;
-  const float rate = mod->graph->frame_rate > 0.0f ? mod->graph->frame_rate : 24;
-  if(width <= 0 || height <= 0) return;
+  fprintf(stderr, "size %d x %d\n", width, height);
+  if(width <= 0 || height <= 0) return 1;
 
   // TODO insert the usual dance around filename caching and resource searchpaths
   /* allocate the output media context */
   // TODO: use mp4 for h264 and mov for prores
+  // TODO: append correct extension?
   avformat_alloc_output_context2(&dat->oc, NULL, "mp4", basename);
-  if (!oc)
-  {
-    fprintf(stderr, "[o-vid] could not deduce output format from file extension: using MPEG.\n");
-    avformat_alloc_output_context2(&dat->oc, NULL, "mpeg", filename);
-  }
   if (!dat->oc) return 1;
 
   const AVOutputFormat *fmt = dat->oc->oformat;
 
   /* Add the audio and video streams using the default format codecs
    * and initialize the codecs. */
-  if (fmt->video_codec != AV_CODEC_ID_NONE)
-    add_stream(&video_st, oc, &dat->video_codec, fmt->video_codec);
-  if (fmt->audio_codec != AV_CODEC_ID_NONE)
-    add_stream(&audio_st, oc, &dat->audio_codec, fmt->audio_codec);
+  // if (fmt->video_codec != AV_CODEC_ID_NONE)
+    add_stream(mod, &dat->video_stream, dat->oc, &dat->video_codec, fmt->video_codec);
+  // if (fmt->audio_codec != AV_CODEC_ID_NONE)
+    add_stream(mod, &dat->audio_stream, dat->oc, &dat->audio_codec, fmt->audio_codec);
 
   AVDictionary *opt = NULL;
-  open_video(oc, dat->video_codec, &dat->video_stream, opt);
-  open_audio(oc, dat->audio_codec, &dat->audio_stream, opt);
+  open_video(dat->oc, dat->video_codec, &dat->video_stream, opt);
+  open_audio(dat->oc, dat->audio_codec, &dat->audio_stream, opt);
+
+  int ret = avio_open(&dat->oc->pb, basename, AVIO_FLAG_WRITE);
+  if (ret < 0)
+  {
+    fprintf(stderr, "[o-vid] could not open '%s': %s\n", basename, av_err2str(ret));
+    return 1;
+  }
 
   /* Write the stream header, if any. */
-  ret = avformat_write_header(oc, &opt);
+  ret = avformat_write_header(dat->oc, &opt);
   if (ret < 0)
   {
     fprintf(stderr, "[o-vid] error occurred when opening output file: %s\n", av_err2str(ret));
@@ -452,9 +465,9 @@ void create_nodes(
     dt_module_t *module)
 { // encode kernel, wire sink modules for Y Cb Cr
   // TODO this is the place where we could padd wd to be linesize for ffmpeg frames
-  const int wd = module->connector[0].roi.wd;
-  const int ht = module->connector[0].roi.ht;
-  dt_roi_t roi_Y  = module->connector[0].roi;
+  const int wd = module->connector[0].roi.wd & ~1;
+  const int ht = module->connector[0].roi.ht & ~1;
+  dt_roi_t roi_Y  = { .wd = wd, .ht = ht };
   dt_roi_t roi_CbCr = roi_Y;
   // TODO: if 422 or 420 roi_CbCr.wd /= 2
   roi_CbCr.wd /= 2;
@@ -492,38 +505,45 @@ void write_sink(
     dt_write_sink_params_t *p)
 {
   buf_t *dat = mod->data;
+  if(!dat->oc) open_file(mod);
   if(!dat->oc) return; // avoid crashes in case opening the file went wrong
   output_stream_t *vost = &dat->video_stream;
-  AVCodecContext *vc = vost->enc;
 
-  const int wd = mod->connector[0].roi.wd;
-  const int ht = mod->connector[0].roi.ht;
+  const int wd = mod->connector[0].roi.wd & ~1;
+  const int ht = mod->connector[0].roi.ht & ~1;
 
   /* when we pass a frame to the encoder, it may keep a reference to it
    * internally; make sure we do not overwrite it here */
-  if (av_frame_make_writable(ost->frame) < 0) return;
+  if (av_frame_make_writable(vost->frame) < 0) return;
 
+  uint8_t *mapped8 = buf; // TODO: or 16 bit
     // is what we do below with the memcpy
     // fill_yuv_image(ost->frame, ost->next_pts, c->width, c->height);
   if(p->node->kernel == dt_token("Y"))
   {
-    if(wd != ost->frame->linesize[0]) fprintf(stderr, "linesize 0 wrong!\n");
+    // if(wd != vost->frame->linesize[0]) fprintf(stderr, "linesize 0 wrong! %d %d\n", wd, vost->frame->linesize[0]);
     // TODO can we pass the mapped memory to ffmpeg as frame directly?
-    memcpy(ost->frame->data[0], buf, sizeof(uint8_t)*wd*ht);
+    for(int j=0;j<ht;j++)
+      memcpy(&vost->frame->data[0][j * vost->frame->linesize[0]], mapped8 + j*wd, sizeof(uint8_t)*wd);
+    // memcpy(vost->frame->data[0], buf, sizeof(uint8_t)*wd*ht);
         // ost->frame->data[0][y * ost->frame->linesize[0] + x] = x + y + i * 3;
     dat->have_buf[0] = 1;
   }
   else if(p->node->kernel == dt_token("Cb"))
   { // ffmpeg expects the colour planes separate, not in a 2-channel texture
     // something memcpy with subsampled size. make sure linesize and gpu width match!
-    if(wd/2 != ost->frame->linesize[1]) fprintf(stderr, "linesize 1 wrong!\n");
-    memcpy(ost->frame->data[1], buf, sizeof(uint8_t)*wd/2*ht/2);
+    // if(wd/2 != vost->frame->linesize[1]) fprintf(stderr, "linesize 1 wrong!\n");
+    // memcpy(vost->frame->data[1], buf, sizeof(uint8_t)*wd/2*ht/2);
+    for(int j=0;j<ht/2;j++)
+      memcpy(&vost->frame->data[1][j * vost->frame->linesize[1]], mapped8 + j*(wd/2), sizeof(uint8_t)*wd/2);
     dat->have_buf[1] = 1;
   }
   else if(p->node->kernel == dt_token("Cr"))
   {
-    if(wd/2 != ost->frame->linesize[2]) fprintf(stderr, "linesize 2 wrong!\n");
-    memcpy(ost->frame->data[2], buf, sizeof(uint8_t)*wd/2*ht/2);
+    // if(wd/2 != vost->frame->linesize[2]) fprintf(stderr, "linesize 2 wrong!\n");
+    // memcpy(vost->frame->data[2], buf, sizeof(uint8_t)*wd/2*ht/2);
+    for(int j=0;j<ht/2;j++)
+      memcpy(&vost->frame->data[2][j * vost->frame->linesize[2]], mapped8+ j*(wd/2), sizeof(uint8_t)*wd/2);
     dat->have_buf[2] = 1;
   }
   // alpha has no connector and copies no data
@@ -532,21 +552,21 @@ void write_sink(
   { // if we have all three channels for a certain frame:
     // XXX TODO: compare to our total length (last timestamp? assume fixed frame rate?)
     /* check if we want to generate more frames */
-    if (av_compare_ts(vost->next_pts, vc->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
-        return;
+    // if (av_compare_ts(vost->next_pts, vc->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) > 0) return;
 
     vost->frame->pts = vost->next_pts++;
 
     { // write video frame
       // TODO: fill ost->frame->data[3] with constant alpha, maybe suffices to do once
-      int ret = write_frame(oc, vost->enc, vost->st, vost->frame, vost->tmp_pkt);
+      write_frame(dat->oc, vost->enc, vost->st, vost->frame, vost->tmp_pkt);
       // now it says its finished maybe
     }
 
     // TODO: we will *not* get an audio callback, we need to grab the samples from the audio module
 
+    if(dat->audio_mod >= 0)
     { // write audio frame
-      output_stream_t *ost = dat->audio_stream;
+      output_stream_t *ost = &dat->audio_stream;
       AVCodecContext *c;
       AVFrame *frame = ost->tmp_frame;
       int ret;
@@ -556,14 +576,12 @@ void write_sink(
 
 
       /* check if we want to generate more frames */ // XXX we are not buffering the audio otherwise. this better work out exactly!
-      if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-            STREAM_DURATION, (AVRational){ 1, 1 }) <= 0)
-
+      // if (av_compare_ts(ost->next_pts, ost->enc->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) <= 0)
       {
 
         // TODO: make sure sample_cnt <= frame.nb_samples
         uint16_t *samples = 0;
-        int sample_cnt = mod->graph->module[audio_mod].so->audio(mod->graph->module+audio_mod, mod->graph->frame, &samples);
+        int sample_cnt = mod->graph->module[dat->audio_mod].so->audio(mod->graph->module+dat->audio_mod, mod->graph->frame, &samples);
         memcpy(frame->data[0], samples, sizeof(uint16_t)*2*sample_cnt);
         // TODO: memcpy samples to frame->data[0], it is both interleaved stereo S16 (or otherwise set to the same when initing the audio frame)
         // TODO: during audio frame init: query img_params for sound properties
@@ -598,7 +616,7 @@ void write_sink(
         ost->samples_count += dst_nb_samples;
       }
 
-      write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
+      write_frame(dat->oc, c, ost->st, frame, ost->tmp_pkt);
       // ret indicating something stream end?
     } // end audio frame
 
@@ -609,15 +627,4 @@ void write_sink(
     if(mod->graph->frame == mod->graph->frame_cnt-1)
       close_file(dat);
   }
-}
-
-void modify_roi_out(
-    dt_graph_t  *graph,
-    dt_module_t *mod)
-{
-  if(graph->frame_cnt <= 1) return;
-  buf_t *dat = mod->data;
-  close_file(dat);
-  // TODO write back wd and ht on the connector
-  open_file(mod);
 }

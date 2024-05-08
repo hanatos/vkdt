@@ -269,7 +269,7 @@ dt_graph_create_shader_module(
   };
   QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, shader_module));
   free(data);
-#ifdef DEBUG_MARKERS
+#if 0 // def DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
   char name[100];
   const char *dedup;
