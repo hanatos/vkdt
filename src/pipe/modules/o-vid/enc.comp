@@ -54,9 +54,9 @@ void main()
 
   // TODO: if full range: quantise to number of bits, rescale to max within data type (>8 is 16 bits)
   // params.bits == 0 // 8-bit full range
-  YCbCr = YCbCr + vec3(0.0, 128.0/255.0, 128.0/255.0);
+  // YCbCr = YCbCr + vec3(0.0, 128.0/255.0, 128.0/255.0);
   // 8 bit mpeg range:
-  // YCbCr = clamp(YCbCr * vec3(219.0, 224.0, 224.0) + vec3(16.0, 128.0, 128.0), vec3(0.0), vec3(255.0))/255.0;
+  YCbCr = clamp(YCbCr * vec3(219.0, 224.0, 224.0) + vec3(16.0, 128.0, 128.0), vec3(0.0), vec3(255.0))/255.0;
 
   // =====
   // 420 TODO: implement 422 (only sub x) and 444 (no sub)

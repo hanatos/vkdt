@@ -82,6 +82,33 @@ add_stream(
 
   // XXX TODO if video select h265 or prores
   // if(ost == &dat->video_stream) *codec = avcodec_find_encoder(AV_CODEC_ID_H265);
+  // AV_CODEC_ID_PRORES
+#if 0
+  (AVCodecParameters *par)
+ {
+     av_freep(&par->extradata);
+     av_channel_layout_uninit(&par->ch_layout);
+     av_packet_side_data_free(&par->coded_side_data, &par->nb_coded_side_data);
+
+     memset(par, 0, sizeof(*par));
+
+codec: CodecContext
+     par->codec_type          = AVMEDIA_TYPE_UNKNOWN;
+     par->codec_id            = AV_CODEC_ID_NONE;
+     par->format              = -1;
+     par->ch_layout.order     = AV_CHANNEL_ORDER_UNSPEC;
+     par->field_order         = AV_FIELD_UNKNOWN;
+     par->color_range         = AVCOL_RANGE_UNSPECIFIED;
+     par->color_primaries     = AVCOL_PRI_UNSPECIFIED;
+     par->color_trc           = AVCOL_TRC_UNSPECIFIED;
+     par->color_space         = AVCOL_SPC_UNSPECIFIED;
+     par->chroma_location     = AVCHROMA_LOC_UNSPECIFIED;
+     par->sample_aspect_ratio = (AVRational){ 0, 1 };
+     par->framerate           = (AVRational){ 0, 1 };
+     par->profile             = AV_PROFILE_UNKNOWN;
+     par->level               = AV_LEVEL_UNKNOWN;
+ }
+#endif
   // else *codec = avcodec_find_encoder(AV_CODEC_ID_MP3);
 
   *codec = avcodec_find_encoder(codec_id);
@@ -157,7 +184,32 @@ add_stream(
       c->width    = mod->connector[0].roi.wd & ~1;
       c->height   = mod->connector[0].roi.ht & ~1;
       // c->gop_size = 12; /* emit one intra frame every twelve frames at most */
-      c->pix_fmt  = AV_PIX_FMT_YUV420P;
+      c->pix_fmt     = AV_PIX_FMT_YUV420P;
+      c->color_range = AVCOL_RANGE_MPEG; // limited (prores uses the other bits)
+      switch(mod->img_param.colour_primaries)
+      {
+        case s_colour_primaries_srgb:
+          c->color_primaries = AVCOL_PRI_BT709;
+          c->colorspace      = AVCOL_SPC_BT709;
+          break;
+        case s_colour_primaries_2020:
+          c->color_primaries = AVCOL_PRI_BT2020;
+          c->colorspace      = AVCOL_SPC_BT2020_NCL;
+          break;
+        case s_colour_primaries_P3  : c->color_primaries = AVCOL_PRI_SMPTE432; break;
+        default: c->color_primaries = AVCOL_PRI_UNSPECIFIED;
+      }
+      switch(mod->img_param.colour_trc)
+      {
+        case s_colour_trc_linear: c->color_trc = AVCOL_TRC_LINEAR;       break;
+        case s_colour_trc_709:    c->color_trc = AVCOL_TRC_BT709;        break;
+        case s_colour_trc_PQ:     c->color_trc = AVCOL_TRC_SMPTE2084;    break;
+        case s_colour_trc_DCI:    c->color_trc = AVCOL_TRC_SMPTE428;     break;
+        case s_colour_trc_HLG:    c->color_trc = AVCOL_TRC_ARIB_STD_B67; break;
+        case s_colour_trc_gamma:  c->color_trc = AVCOL_TRC_GAMMA22;      break; // adobe rgb gamma
+        default: c->color_trc = AVCOL_TRC_UNSPECIFIED;
+      }
+      c->chroma_sample_location = AVCHROMA_LOC_CENTER; // do we care? do i understand what this means?
 #if 0
       if (c->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
         /* just for testing, we also add B-frames */
