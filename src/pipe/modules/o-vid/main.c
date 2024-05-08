@@ -177,12 +177,13 @@ add_stream(
 
       /// Compression rate (lower -> higher compression) compress to lower size, makes decoded image more noisy
       /// Range: [0; 51], sane range: [18; 26]. I used 35 as good compression/quality compromise. This option also critical for realtime encoding
-      av_opt_set(c->priv_data, "crf", "35", 0);
+      av_opt_set(c->priv_data, "crf", "26", 0);
 
       /// Change settings based upon the specifics of input
       /// [psnr, ssim, grain, zerolatency, fastdecode, animation]
       /// This option is most critical for realtime encoding, because it removes delay between 1th input frame and 1th output packet.
-      av_opt_set(c->priv_data, "tune", "zerolatency", 0);
+      // i think this is most crucial for realtime *decoding* because i don't care so much about latency. it does slow us down.
+      // av_opt_set(c->priv_data, "tune", "zerolatency", 0);
       break;
 
     default:
@@ -222,6 +223,9 @@ open_video(
 {
   AVCodecContext *c = ost->enc;
   AVDictionary *opt = NULL;
+  // have not been very successful in making this faster:
+  // c->thread_count = 4;
+  // c->thread_type = FF_THREAD_SLICE;
 
   av_dict_copy(&opt, opt_arg, 0);
 
