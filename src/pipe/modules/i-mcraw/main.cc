@@ -429,20 +429,20 @@ int read_source(
 
 int audio(
     dt_module_t  *mod,
-    const int     frame,
+    uint64_t      sample_beg,
+    uint32_t      sample_cnt,
     uint8_t     **samples)
 {
   buf_t *dat = (buf_t *)mod->data;
-  if(!dat || !dat->filename[0])
-    return 0;
+  if(!dat || !dat->filename[0]) return 0;
 
-  int channels = dat->dec->numAudioChannels();
-  int f = CLAMP(frame, (int)0, (int)(dat->audio_chunks.size()-1));
-
-  const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
-  if(frame_list.size() == 0) return 0; // no frames in file
+  int channels   = dat->dec->numAudioChannels();
+  int chunk_size = dat->audio_chunks[0].second.size() / channels; // is in number of samples, but already vec<int16>
+  int chunk_id   = CLAMP(sample_beg / chunk_size, 0, dat->audio_chunks.size()-1);
+  int chunk_off  = CLAMP(sample_beg - chunk_id * chunk_size, 0, chunk_size-1);
   // find right audio chunk for frame by timestamp, i.e. audio_chunk.first (so far they seem to be always zero?)
-  *samples = (uint8_t*)dat->audio_chunks[f].second.data();
-  return dat->audio_chunks[f].second.size() / channels; // number of samples
+  *samples = (uint8_t*)(dat->audio_chunks[chunk_id].second.data() + chunk_off);
+
+  return MIN(sample_cnt, chunk_size - chunk_off);
 }
 } // extern "C"

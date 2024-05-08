@@ -190,8 +190,16 @@ darkroom_process()
       if(g->module[i].so->audio)
       {
         uint16_t *samples;
-        int cnt = g->module[i].so->audio(g->module+i, g->frame, &samples);
-        if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
+        int samples_per_frame = g->module[i].img_param.snd_samplerate / g->frame_rate;
+        uint64_t pos = g->frame * samples_per_frame;
+        uint32_t left = samples_per_frame;
+        while(left)
+        {
+          int cnt = g->module[i].so->audio(g->module+i, pos, left, &samples);
+          left -= cnt; pos += cnt;
+          if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
+          else break;
+        }
         break;
       }
     }

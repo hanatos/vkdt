@@ -59,7 +59,7 @@ typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef int  (*dt_module_bs_init_t) ();
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_ui_callback_t)(dt_module_t *module, dt_token_t param);
-typedef int  (*dt_module_audio_t)(dt_module_t *module, const int frame, uint16_t **samples);
+typedef int  (*dt_module_audio_t)(dt_module_t *module, uint64_t sample_beg, uint32_t sample_cnt, uint16_t **samples);
 typedef void (*dt_module_input_t)(dt_module_t *module, dt_module_input_event_t *e);
 typedef dt_graph_run_t (*dt_module_check_params_t)(dt_module_t *module, uint32_t parid, uint32_t num, void *oldval);
 
