@@ -247,6 +247,7 @@ dt_graph_export(
         int delta = graph->module[audio_mod].so->audio(graph->module+audio_mod, audio_pos, audio_cnt, &audio_samples);
         if(delta) fwrite(audio_samples, audio_bps, delta, audio_f);
         else break;
+        if(graph->frame_rate == 0) break; // no fixed frame rate have to provide the right amount of audio
         audio_cnt -= delta; audio_pos += delta;
       }
     }
@@ -278,6 +279,7 @@ dt_graph_export(
           int delta = graph->module[audio_mod].so->audio(graph->module+audio_mod, audio_pos, audio_cnt, &audio_samples);
           if(delta) fwrite(audio_samples, audio_bps, delta, audio_f);
           else break;
+          if(graph->frame_rate == 0) break; // no fixed frame rate have to provide the right amount of audio
           audio_cnt -= delta; audio_pos += delta;
         }
       }

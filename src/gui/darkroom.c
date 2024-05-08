@@ -190,15 +190,23 @@ darkroom_process()
       if(g->module[i].so->audio)
       {
         uint16_t *samples;
-        int samples_per_frame = g->module[i].img_param.snd_samplerate / g->frame_rate;
-        uint64_t pos = g->frame * samples_per_frame;
-        uint32_t left = samples_per_frame;
-        while(left)
-        {
-          int cnt = g->module[i].so->audio(g->module+i, pos, left, &samples);
-          left -= cnt; pos += cnt;
+        if(g->frame_rate > 0)
+        { // fixed frame rate, maybe video
+          int samples_per_frame = g->module[i].img_param.snd_samplerate / g->frame_rate;
+          uint64_t pos = g->frame * samples_per_frame;
+          uint32_t left = samples_per_frame;
+          while(left)
+          {
+            int cnt = g->module[i].so->audio(g->module+i, pos, left, &samples);
+            left -= cnt; pos += cnt;
+            if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
+            else break;
+          }
+        }
+        else
+        { // go as fast as we can, probably a game engine. ask only once
+          int cnt = g->module[i].so->audio(g->module+i, 0, 0, &samples);
           if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
-          else break;
         }
         break;
       }
