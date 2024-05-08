@@ -210,32 +210,43 @@ codec: CodecContext
         default: c->color_trc = AVCOL_TRC_UNSPECIFIED;
       }
       c->chroma_sample_location = AVCHROMA_LOC_CENTER; // do we care? do i understand what this means?
+
+      if(c->codec_id == AV_CODEC_ID_H264)
+      {
+        /// Compression efficiency (slower -> better quality + higher cpu%)
+        /// [ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow]
+        /// Set this option to "ultrafast" is critical for realtime encoding
+        av_opt_set(c->priv_data, "preset", "ultrafast", 0);
+
+        /// Compression rate (lower -> higher compression) compress to lower size, makes decoded image more noisy
+        /// Range: [0; 51], sane range: [18; 26]. I used 35 as good compression/quality compromise. This option also critical for realtime encoding
+        const float p_quality = dt_module_param_float(mod, 1)[0];
+        int crf = 35 - p_quality * (35-16);
+        char str[5] = {0};
+        snprintf(str, sizeof(str), "%d", crf);
+        av_opt_set(c->priv_data, "crf", str, 0);
+
+        /// Change settings based upon the specifics of input
+        /// [psnr, ssim, grain, zerolatency, fastdecode, animation]
+        /// This option is most critical for realtime encoding, because it removes delay between 1th input frame and 1th output packet.
+        // i think this is most crucial for realtime *decoding* because i don't care so much about latency. it does slow us down.
+        // av_opt_set(c->priv_data, "tune", "zerolatency", 0);
+      }
+      else if(c->codec_id == AV_CODEC_ID_PRORES)
+      {
 #if 0
-      if (c->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
-        /* just for testing, we also add B-frames */
-        c->max_b_frames = 2;
-      }
-      if (c->codec_id == AV_CODEC_ID_MPEG1VIDEO) {
-        /* Needed to avoid using macroblocks in which some coeffs overflow.
-         * This does not happen with normal video, it just happens here as
-         * the motion of the chroma plane does not match the luma plane. */
-        c->mb_decision = 2;
-      }
+        // TODO: uses 
+         FF_PROFILE_PRORES_PROXY     0
+avcodec.h:1716:#define FF_PROFILE_PRORES_LT        1
+avcodec.h:1717:#define FF_PROFILE_PRORES_STANDARD  2
+avcodec.h:1718:#define FF_PROFILE_PRORES_HQ        3
+avcodec.h:1719:#define FF_PROFILE_PRORES_4444      4
+avcodec.h:1720:#define FF_PROFILE_PRORES_XQ
+        "-c:v prores -profile:v %d " // 0 1 2 3 for Proxy LT SQ HQ // prores_ks has slice level threading
+        "-qscale:v %d " // is this our quality parameter: 2--31, lower qs -> higher bitrate
+        "-vendor apl0 -pix_fmt %s " // yuv422p10le or yuva444p10le for 4444
 #endif
-      /// Compression efficiency (slower -> better quality + higher cpu%)
-      /// [ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow]
-      /// Set this option to "ultrafast" is critical for realtime encoding
-      av_opt_set(c->priv_data, "preset", "ultrafast", 0);
-
-      /// Compression rate (lower -> higher compression) compress to lower size, makes decoded image more noisy
-      /// Range: [0; 51], sane range: [18; 26]. I used 35 as good compression/quality compromise. This option also critical for realtime encoding
-      av_opt_set(c->priv_data, "crf", "26", 0);
-
-      /// Change settings based upon the specifics of input
-      /// [psnr, ssim, grain, zerolatency, fastdecode, animation]
-      /// This option is most critical for realtime encoding, because it removes delay between 1th input frame and 1th output packet.
-      // i think this is most crucial for realtime *decoding* because i don't care so much about latency. it does slow us down.
-      // av_opt_set(c->priv_data, "tune", "zerolatency", 0);
+      }
       break;
 
     default:
