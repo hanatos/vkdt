@@ -79,6 +79,9 @@ add_stream(
   // buf_t *dat = mod->data;
   AVCodecContext *c;
 
+  // XXX TODO if video
+  // avcodec_find_encoder(AV_CODEC_ID_H265);
+
   *codec = avcodec_find_encoder(codec_id);
   if (!(*codec))
   {
@@ -142,12 +145,12 @@ add_stream(
       c->time_base       = ost->st->time_base;
 
       // XXX TODO get from output parameters/defaults for h264 or something
-      c->bit_rate = 400000;
+      // c->bit_rate = 400000;
       /* Resolution must be a multiple of two. */
       c->width    = mod->connector[0].roi.wd & ~1;
       c->height   = mod->connector[0].roi.ht & ~1;
-      c->gop_size      = 12; /* emit one intra frame every twelve frames at most */
-      c->pix_fmt       = AV_PIX_FMT_YUV420P;
+      // c->gop_size = 12; /* emit one intra frame every twelve frames at most */
+      c->pix_fmt  = AV_PIX_FMT_YUV420P;
 #if 0
       if (c->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
         /* just for testing, we also add B-frames */
@@ -160,6 +163,19 @@ add_stream(
         c->mb_decision = 2;
       }
 #endif
+      /// Compression efficiency (slower -> better quality + higher cpu%)
+      /// [ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow]
+      /// Set this option to "ultrafast" is critical for realtime encoding
+      av_opt_set(c->priv_data, "preset", "ultrafast", 0);
+
+      /// Compression rate (lower -> higher compression) compress to lower size, makes decoded image more noisy
+      /// Range: [0; 51], sane range: [18; 26]. I used 35 as good compression/quality compromise. This option also critical for realtime encoding
+      av_opt_set(c->priv_data, "crf", "35", 0);
+
+      /// Change settings based upon the specifics of input
+      /// [psnr, ssim, grain, zerolatency, fastdecode, animation]
+      /// This option is most critical for realtime encoding, because it removes delay between 1th input frame and 1th output packet.
+      av_opt_set(c->priv_data, "tune", "zerolatency", 0);
       break;
 
     default:
