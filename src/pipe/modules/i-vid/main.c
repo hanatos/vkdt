@@ -571,7 +571,8 @@ error:
 
 int audio(
     dt_module_t  *mod,
-    const int     frame,
+    uint64_t      sample_beg,
+    uint32_t      sample_cnt,
     uint8_t     **samples)
 {
   vid_data_t *d = mod->data;
@@ -626,13 +627,6 @@ int audio(
       }
     }
     memcpy(((uint8_t*)d->sndbuf) + written*bps*channels, input_l, d->aframe->nb_samples * bps * channels);
-#if 0
-    for(int i=0;i<d->aframe->nb_samples;i++)
-    {
-      d->sndbuf[2*(i+written)+0] = input_l[i];
-      d->sndbuf[2*(i+written)+1] = input_r[i];
-    }
-#endif
     written += d->aframe->nb_samples;
     d->snd_lag = written - need_samples;
   } while(d->snd_lag < 0);

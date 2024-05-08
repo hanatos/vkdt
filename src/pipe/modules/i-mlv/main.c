@@ -228,18 +228,17 @@ int read_source(
 
 int audio(
     dt_module_t  *mod,
-    const int     frame,
+    uint64_t      sample_beg,
+    uint32_t      sample_cnt,
     uint8_t     **samples)
 {
   buf_t *dat = mod->data;
   if(!dat || !dat->filename[0] || !dat->video.audio_data || !dat->video.audio_size)
     return 0;
-  uint64_t bytes_per_frame = dat->video.WAVI.bytesPerSecond / dat->video.frame_rate;
-  *samples = dat->video.audio_data + frame * bytes_per_frame;
+  int bytes_per_sample = dat->video.WAVI.bytesPerSecond / dat->video.WAVI.samplingRate;
+  *samples = dat->video.audio_data + sample_beg * bytes_per_sample;
+  if(*samples >= dat->video.audio_data + dat->video.audio_size) return 0;
 
-  bytes_per_frame = MIN(bytes_per_frame, 
-    MAX(0, dat->video.audio_data + dat->video.audio_size - *samples));
-
-  // samples: stereo and 2 bytes/channel => /4
-  return bytes_per_frame/4;
+  return MIN(sample_cnt, 
+    MAX(0, dat->video.audio_data + dat->video.audio_size - *samples))/bytes_per_sample;
 }
