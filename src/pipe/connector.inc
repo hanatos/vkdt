@@ -101,14 +101,16 @@
       { cn0->chan = graph->element[m0].connector[c].chan; break; }
   }
 #endif
-  if(cn0->chan   != dt_token("*") && cn1->chan   != dt_token("*") && cn1->chan   != cn0->chan)   return 10;
-  if(cn0->format != dt_token("*") && cn1->format != dt_token("*") && cn1->format != cn0->format) return 11;
-  // the output needs to decide what it is going to be so we can allocate the buffer.
-  // the input pin doesn't need to update the * (it is only used for connections in the code here)
-  if(cn0->chan == dt_token("*") && cn1->chan != dt_token("*")) cn0->chan = cn1->chan;
-  if(cn0->chan == dt_token("*") && cn1->chan == dt_token("*")) cn0->chan = dt_token("rgba");
-  if(cn0->format == dt_token("*") && cn1->format != dt_token("*")) cn0->format = cn1->format;
-  if(cn0->format == dt_token("*") && cn1->format == dt_token("*")) cn0->format = dt_token("f16");
+  if(cn1->chan == dt_token("*")) cn1->chan = cn0->chan;
+  if(cn0->chan == dt_token("*")) cn0->chan = cn1->chan;
+  if(cn1->chan == dt_token("*")) cn1->chan = dt_token("rgba");
+  if(cn0->chan == dt_token("*")) cn0->chan = dt_token("rgba");
+  if(cn1->chan != cn0->chan) return 10;
+  if(cn1->format == dt_token("*")) cn1->format = cn0->format;
+  if(cn0->format == dt_token("*")) cn0->format = cn1->format;
+  if(cn1->format == dt_token("*")) cn1->format = dt_token("f16");
+  if(cn0->format == dt_token("*")) cn0->format = dt_token("f16");
+  if(cn1->format != cn0->format) return 11;
 
   // now we checked everything will be alright, so we can proceed and execute
   // the connection in one go, leaving us with a consintent state after.
@@ -130,4 +132,3 @@
 
   return 0;
 }
-
