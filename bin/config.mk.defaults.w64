@@ -77,7 +77,7 @@ export VKDT_USE_MCRAW
 VKDT_USE_FFMPEG=1
 export VKDT_USE_FFMPEG
 VKDT_AV_CFLAGS=
-VKDT_AV_LDFLAGS=-L/ucrt64/lib -lavformat -lavcodec -lavutil
+VKDT_AV_LDFLAGS=-L/ucrt64/lib -lavformat -lavcodec -lavutil -lswresample
 export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # install mingw-w64-x86_64-glfw via pacman -S!
