@@ -91,21 +91,12 @@
   // if any one is "*" use the other
   // if both are "*" fall back to default "f16"
   // this should happen on the module level and is done just before the buffers are created on the graph
-#ifdef connect_module
-  // set output channel and format to same as an already connected input channel, prefix token by &:
-  if(dt_token_str(cn0->chan)[0] == '&')
-  {
-    dt_token_t tmp = cn0->chan >> 8;
-    for(int c=0;c<graph->element[m0].num_connectors;c++)
-      if(graph->element[m0].connector[c].name == tmp)
-      { cn0->chan = graph->element[m0].connector[c].chan; break; }
-  }
-#endif
-  if(cn1->chan == dt_token("*")) cn1->chan = cn0->chan;
+  int c0ref = dt_token_str(cn0->chan)[0] == '&';
+  if(cn1->chan == dt_token("*") && !c0ref) cn1->chan = cn0->chan;
   if(cn0->chan == dt_token("*")) cn0->chan = cn1->chan;
   if(cn1->chan == dt_token("*")) cn1->chan = dt_token("rgba");
   if(cn0->chan == dt_token("*")) cn0->chan = dt_token("rgba");
-  if(cn1->chan != cn0->chan) return 10;
+  if(!c0ref && cn1->chan != cn0->chan) return 10;
   if(cn1->format == dt_token("*")) cn1->format = cn0->format;
   if(cn0->format == dt_token("*")) cn0->format = cn1->format;
   if(cn1->format == dt_token("*")) cn1->format = dt_token("f16");

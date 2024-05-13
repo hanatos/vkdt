@@ -1413,6 +1413,8 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
 static void
 modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
+  // =========================================================
+  // manage img_param metadata propagated along with the graph
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
   if(input >= 0 &&
@@ -1437,12 +1439,36 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     if(c->connected_mi != -1u)
       module->img_param = graph->module[c->connected_mi].img_param;
   }
+  // =========================================================
+  // now handle &input style channel and format references
+  // these are copied before the roi_out callback because this often
+  // allocates resources based on input formats.
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    dt_connector_t *c = module->connector+i;
+    if(dt_token_str(c->chan)[0] == '&')
+    {
+      dt_token_t tmp = c->chan >> 8;
+      for(int j=0;j<module->num_connectors;j++)
+      {
+        if(module->connector[j].name == tmp)
+        {
+          c->chan = module->connector[j].chan;
+          break;
+        }
+      }
+    }
+  }
+  // =========================================================
+  // copy extents of module inputs from the connected output connectors
   for(int i=0;i<module->num_connectors;i++)
   { // keep incoming roi in sync:
     dt_connector_t *c = module->connector+i;
     if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
       c->roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
   }
+  // =========================================================
+  // execute callback if present, or run default
   if(!module->disabled && module->so->modify_roi_out)
   {
     module->so->modify_roi_out(graph, module);
