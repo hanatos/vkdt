@@ -196,9 +196,6 @@ add_stream(
         const int p_profile = dt_module_param_int(mod, 3)[0];
         c->profile = p_profile;
         c->pix_fmt = AV_PIX_FMT_YUV422P10LE;
-        const float p_quality = dt_module_param_float(mod, 1)[0];
-        int qscale = 31 - p_quality * (31-2);
-        c->global_quality = qscale;
         // av_dict_set(&opt, "vendor", "apl0", 0);//???
 #if 0
 //TODO: support these:

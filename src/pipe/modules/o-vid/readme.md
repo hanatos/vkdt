@@ -16,6 +16,7 @@ seems to be something like
 ```
  ffplay test_0000.mov -vf zscale=transferin=arib-std-b67:transfer=bt709:rangein=tv:range=pc:primariesin=2020:primaries=709
 ```
+in general `mpv` seems to have better colour and tone response curve handling.
 
 ## connectors
 
@@ -25,5 +26,5 @@ seems to be something like
 
 * `filename` the output filename to write the stream to
 * `profile` the encoding quality preset
-* `quality` affects the bitrate
+* `quality` affects the bitrate (ignored for prores, use profiles instead)
 * `colour` chroma subsampling: 422 or 4444, both 10 bits
