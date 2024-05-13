@@ -77,40 +77,7 @@ add_stream(
     const AVCodec  **codec,
     enum AVCodecID   codec_id)
 {
-  buf_t *dat = mod->data;
   AVCodecContext *c;
-
-  // XXX TODO if video select h265 or prores
-  // if(ost == &dat->video_stream) *codec = avcodec_find_encoder(AV_CODEC_ID_H265);
-  // AV_CODEC_ID_PRORES
-#if 0
-  (AVCodecParameters *par)
- {
-     av_freep(&par->extradata);
-     av_channel_layout_uninit(&par->ch_layout);
-     av_packet_side_data_free(&par->coded_side_data, &par->nb_coded_side_data);
-
-     memset(par, 0, sizeof(*par));
-
-codec: CodecContext
-     par->codec_type          = AVMEDIA_TYPE_UNKNOWN;
-     par->codec_id            = AV_CODEC_ID_NONE;
-     par->format              = -1;
-     par->ch_layout.order     = AV_CHANNEL_ORDER_UNSPEC;
-     par->field_order         = AV_FIELD_UNKNOWN;
-     par->color_range         = AVCOL_RANGE_UNSPECIFIED;
-     par->color_primaries     = AVCOL_PRI_UNSPECIFIED;
-     par->color_trc           = AVCOL_TRC_UNSPECIFIED;
-     par->color_space         = AVCOL_SPC_UNSPECIFIED;
-     par->chroma_location     = AVCHROMA_LOC_UNSPECIFIED;
-     par->sample_aspect_ratio = (AVRational){ 0, 1 };
-     par->framerate           = (AVRational){ 0, 1 };
-     par->profile             = AV_PROFILE_UNKNOWN;
-     par->level               = AV_LEVEL_UNKNOWN;
- }
-#endif
-  // else *codec = avcodec_find_encoder(AV_CODEC_ID_MP3);
-
   *codec = avcodec_find_encoder(codec_id);
   if (!(*codec))
   {
@@ -140,19 +107,12 @@ codec: CodecContext
   }
   ost->enc = c;
 
-  // const float p_quality = dt_module_param_float(mod, 1)[0];
-  // const int   p_codec   = dt_module_param_int  (mod, 2)[0];
-  // const int   p_profile = dt_module_param_int  (mod, 3)[0];
   // const int   p_colour  = dt_module_param_int  (mod, 4)[0];
   const float frame_rate = mod->graph->frame_rate > 0.0f ? mod->graph->frame_rate : 24;
 
   switch ((*codec)->type)
   {
     case AVMEDIA_TYPE_AUDIO:
-      fprintf(stderr, "got audio fmt %d  chn %d rate %d\n",
-          mod->graph->module[dat->audio_mod].img_param.snd_format,
-          mod->graph->module[dat->audio_mod].img_param.snd_channels,
-          mod->graph->module[dat->audio_mod].img_param.snd_samplerate);
       c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
       // c->sample_fmt  = AV_SAMPLE_FMT_S16;
       c->bit_rate    = 64000;
@@ -178,13 +138,11 @@ codec: CodecContext
       ost->st->time_base = (AVRational){ 1, frame_rate };
       c->time_base       = ost->st->time_base;
 
-      // XXX TODO get from output parameters/defaults for h264 or something
       // c->bit_rate = 400000;
       /* Resolution must be a multiple of two. */
       c->width    = mod->connector[0].roi.wd & ~1;
       c->height   = mod->connector[0].roi.ht & ~1;
       // c->gop_size = 12; /* emit one intra frame every twelve frames at most */
-      c->pix_fmt     = AV_PIX_FMT_YUV420P;
       c->color_range = AVCOL_RANGE_MPEG; // limited (prores uses the other bits)
       switch(mod->img_param.colour_primaries)
       {
@@ -213,6 +171,7 @@ codec: CodecContext
 
       if(c->codec_id == AV_CODEC_ID_H264)
       {
+        c->pix_fmt = AV_PIX_FMT_YUV420P;
         /// Compression efficiency (slower -> better quality + higher cpu%)
         /// [ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow]
         /// Set this option to "ultrafast" is critical for realtime encoding
@@ -234,17 +193,17 @@ codec: CodecContext
       }
       else if(c->codec_id == AV_CODEC_ID_PRORES)
       {
+        const int p_profile = dt_module_param_int(mod, 3)[0];
+        c->profile = p_profile;
+        c->pix_fmt = AV_PIX_FMT_YUV422P10LE;
+        const float p_quality = dt_module_param_float(mod, 1)[0];
+        int qscale = 31 - p_quality * (31-2);
+        c->global_quality = qscale;
+        // av_dict_set(&opt, "vendor", "apl0", 0);//???
 #if 0
-        // TODO: uses 
-         FF_PROFILE_PRORES_PROXY     0
-avcodec.h:1716:#define FF_PROFILE_PRORES_LT        1
-avcodec.h:1717:#define FF_PROFILE_PRORES_STANDARD  2
-avcodec.h:1718:#define FF_PROFILE_PRORES_HQ        3
+//TODO: support these:
 avcodec.h:1719:#define FF_PROFILE_PRORES_4444      4
 avcodec.h:1720:#define FF_PROFILE_PRORES_XQ
-        "-c:v prores -profile:v %d " // 0 1 2 3 for Proxy LT SQ HQ // prores_ks has slice level threading
-        "-qscale:v %d " // is this our quality parameter: 2--31, lower qs -> higher bitrate
-        "-vendor apl0 -pix_fmt %s " // yuv422p10le or yuva444p10le for 4444
 #endif
       }
       break;
@@ -436,7 +395,7 @@ open_audio(
     /* initialize the resampling context */
     if ((ret = swr_init(ost->swr_ctx)) < 0)
     {
-      fprintf(stderr, "[o-vid] failed to initialize the resampling context\n");
+      fprintf(stderr, "[o-vid] failed to initialise the resampling context\n");
       return;
     }
   }
@@ -452,24 +411,23 @@ open_file(dt_module_t *mod)
     if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
   const char *basename  = dt_module_param_string(mod, 0);
   char filename[512];
-  snprintf(filename, sizeof(filename), "%s.mp4", basename);
-  fprintf(stderr, "opening file %s\n", filename);
+  const int p_codec = dt_module_param_int(mod, 2)[0];
+  if(p_codec == 0) snprintf(filename, sizeof(filename), "%s.mov", basename);
+  else             snprintf(filename, sizeof(filename), "%s.mp4", basename);
 
   const int width  = mod->connector[0].roi.wd & ~1;
   const int height = mod->connector[0].roi.ht & ~1;
-  fprintf(stderr, "size %d x %d\n", width, height);
   if(width <= 0 || height <= 0) return 1;
 
-  // TODO insert the usual dance around filename caching and resource searchpaths
-  /* allocate the output media context */
-  // TODO: use mp4 for h264 and mov for prores
-  // TODO: append correct extension?
-  avformat_alloc_output_context2(&dat->oc, NULL, "mp4", filename);
+  if(p_codec == 0) avformat_alloc_output_context2(&dat->oc, NULL, "mov", filename);
+  else             avformat_alloc_output_context2(&dat->oc, NULL, "mp4", filename);
   if (!dat->oc) return 1;
 
   const AVOutputFormat *fmt = dat->oc->oformat;
 
-  add_stream(mod, &dat->video_stream, dat->oc, &dat->video_codec, fmt->video_codec);
+  enum AVCodecID codec_id = AV_CODEC_ID_H264;
+  if(p_codec == 0) codec_id = AV_CODEC_ID_PRORES;
+  add_stream(mod, &dat->video_stream, dat->oc, &dat->video_codec, codec_id);  
   add_stream(mod, &dat->audio_stream, dat->oc, &dat->audio_codec, fmt->audio_codec);
 
   AVDictionary *opt = NULL;
@@ -564,41 +522,49 @@ void create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 { // encode kernel, wire sink modules for Y Cb Cr
-  // TODO this is the place where we could padd wd to be linesize for ffmpeg frames
-  const int wd = module->connector[0].roi.wd & ~1;
+  const int wd = module->connector[0].roi.wd & ~1; // pad to multiple of two for ffmpeg
   const int ht = module->connector[0].roi.ht & ~1;
   dt_roi_t roi_Y  = { .wd = wd, .ht = ht };
   dt_roi_t roi_CbCr = roi_Y;
-  // TODO: if 422 or 420 roi_CbCr.wd /= 2
-  roi_CbCr.wd /= 2;
-  // TODO: if 420 roi_CbCr.ht /= 2
-  roi_CbCr.ht /= 2;
-  // TODO: pass push constants identifying the buffer input and output characteristics (bit depth, colour space, trc, subsampling)
-  const int id_enc = dt_node_add(graph, module, "o-vid", "enc", wd, ht, 1, 0, 0, 4,
+  const int p_codec = dt_module_param_int(module, 2)[0];
+  int bits  = 0; // 8 bit
+  int chr   = 0; // 420 chroma subsampling
+  int range = 0; // mpeg/limited range
+  if(p_codec == 0)
+  { // prores 422
+    roi_CbCr.wd /= 2;
+    bits = 1; // 10 bit
+    chr  = 1; // 422
+  }
+  else if(p_codec == 1)
+  { // h264 420
+    roi_CbCr.wd /= 2;
+    roi_CbCr.ht /= 2;
+  }
+  int pc[] = { bits, chr, range };
+  const int id_enc = dt_node_add(graph, module, "o-vid", "enc", wd, ht, 1, sizeof(pc), pc, 4,
       "input", "read", "rgba", "f16", dt_no_roi,
-      "Y",     "write", "r",   "ui8", &roi_Y, // TODO: if more than 8 bits, use ui16!
-      "Cb",    "write", "r",   "ui8", &roi_CbCr, // TODO: if more than 8 bits, use ui16!
-      "Cr",    "write", "r",   "ui8", &roi_CbCr);// TODO: if more than 8 bits, use ui16!
+      "Y",     "write", "r",   bits ? "ui16" : "ui8", &roi_Y,
+      "Cb",    "write", "r",   bits ? "ui16" : "ui8", &roi_CbCr,
+      "Cr",    "write", "r",   bits ? "ui16" : "ui8", &roi_CbCr);
   const int id_Y  = dt_node_add(graph, module, "o-vid", "Y",  1, 1, 1, 0, 0, 1,
-      "Y",  "sink", "r", "ui8", dt_no_roi);
+      "Y",  "sink", "r", bits ? "ui16" : "ui8", dt_no_roi);
   const int id_Cb = dt_node_add(graph, module, "o-vid", "Cb", 1, 1, 1, 0, 0, 1,
-      "Cb", "sink", "r", "ui8", dt_no_roi);
+      "Cb", "sink", "r", bits ? "ui16" : "ui8", dt_no_roi);
   const int id_Cr = dt_node_add(graph, module, "o-vid", "Cr", 1, 1, 1, 0, 0, 1,
-      "Cr", "sink", "r", "ui8", dt_no_roi);
+      "Cr", "sink", "r", bits ? "ui16" : "ui8", dt_no_roi);
   CONN(dt_node_connect_named(graph, id_enc, "Y",  id_Y,  "Y"));
   CONN(dt_node_connect_named(graph, id_enc, "Cb", id_Cb, "Cb"));
   CONN(dt_node_connect_named(graph, id_enc, "Cr", id_Cr, "Cr"));
   dt_connector_copy(graph, module, 0, id_enc, 0);
 }
 
-// TODO: which data do we need?
+// TODO: check params that reconstruct nodes on codec/chroma sampling change!
+
 // yuv422p10le : y full res, cb and cr half res in x, full res in y
 // yuva444p10le : y, cb, cr, alpha all fullres 10 bits padded to 16 bits
 // yuv420p for h264, which is the same as in this example, 8bps for all channels
-// there is also
 // yuv444p16le which we could use as input, but it only scales the data (it is padded to 16 in the case of 10bits)
-// TODO: encoding kernel that inputs anything and will output y + chroma texture
-// TODO: fill alpha with constant 1023
 void write_sink(
     dt_module_t            *mod,
     void                   *buf,
@@ -611,59 +577,52 @@ void write_sink(
 
   const int wd = mod->connector[0].roi.wd & ~1;
   const int ht = mod->connector[0].roi.ht & ~1;
-  // fprintf(stderr, "conn size %d node %d\n", wd, p->node->connector[0].roi.wd);
 
   /* when we pass a frame to the encoder, it may keep a reference to it
    * internally; make sure we do not overwrite it here */
   if (av_frame_make_writable(vost->frame) < 0) return;
 
-  uint8_t *mapped8 = buf; // TODO: or 16 bit
-    // is what we do below with the memcpy
-    // fill_yuv_image(ost->frame, ost->next_pts, c->width, c->height);
+  const int p_codec = dt_module_param_int(mod, 2)[0];
+  uint8_t  *mapped8  = buf;
+  uint16_t *mapped16 = buf;
   if(p->node->kernel == dt_token("Y"))
   {
-    // if(wd != vost->frame->linesize[0]) fprintf(stderr, "linesize 0 wrong! %d %d\n", wd, vost->frame->linesize[0]);
-    // TODO can we pass the mapped memory to ffmpeg as frame directly?
-    for(int j=0;j<ht;j++)
-      memcpy(&vost->frame->data[0][j * vost->frame->linesize[0]], mapped8 + j*wd, sizeof(uint8_t)*wd);
-    // memcpy(vost->frame->data[0], buf, sizeof(uint8_t)*wd*ht);
-        // ost->frame->data[0][y * ost->frame->linesize[0] + x] = x + y + i * 3;
+    if(p_codec == 0)
+      for(int j=0;j<ht;j++)
+        memcpy(&vost->frame->data[0][j * vost->frame->linesize[0]], mapped16 + j*wd, sizeof(uint16_t)*wd);
+    else
+      for(int j=0;j<ht;j++)
+        memcpy(&vost->frame->data[0][j * vost->frame->linesize[0]], mapped8 + j*wd, sizeof(uint8_t)*wd);
     dat->have_buf[0] = 1;
   }
   else if(p->node->kernel == dt_token("Cb"))
   { // ffmpeg expects the colour planes separate, not in a 2-channel texture
-    // something memcpy with subsampled size. make sure linesize and gpu width match!
-    // if(wd/2 != vost->frame->linesize[1]) fprintf(stderr, "linesize 1 wrong!\n");
-    // memcpy(vost->frame->data[1], buf, sizeof(uint8_t)*wd/2*ht/2);
-    for(int j=0;j<ht/2;j++)
-      memcpy(&vost->frame->data[1][j * vost->frame->linesize[1]], mapped8 + j*(wd/2), sizeof(uint8_t)*wd/2);
+    if(p_codec == 0)
+      for(int j=0;j<ht;j++)
+        memcpy(&vost->frame->data[1][j * vost->frame->linesize[1]], mapped16 + j*(wd/2), sizeof(uint16_t)*wd/2);
+    else
+      for(int j=0;j<ht/2;j++)
+        memcpy(&vost->frame->data[1][j * vost->frame->linesize[1]], mapped8 + j*(wd/2), sizeof(uint8_t)*wd/2);
     dat->have_buf[1] = 1;
   }
   else if(p->node->kernel == dt_token("Cr"))
   {
-    // if(wd/2 != vost->frame->linesize[2]) fprintf(stderr, "linesize 2 wrong!\n");
-    // memcpy(vost->frame->data[2], buf, sizeof(uint8_t)*wd/2*ht/2);
-    for(int j=0;j<ht/2;j++)
-      memcpy(&vost->frame->data[2][j * vost->frame->linesize[2]], mapped8+ j*(wd/2), sizeof(uint8_t)*wd/2);
+    if(p_codec == 0)
+      for(int j=0;j<ht;j++)
+        memcpy(&vost->frame->data[2][j * vost->frame->linesize[2]], mapped16 + j*(wd/2), sizeof(uint16_t)*wd/2);
+    else
+      for(int j=0;j<ht/2;j++)
+        memcpy(&vost->frame->data[2][j * vost->frame->linesize[2]], mapped8 + j*(wd/2), sizeof(uint8_t)*wd/2);
     dat->have_buf[2] = 1;
   }
   // alpha has no connector and copies no data
 
   if(dat->have_buf[0] && dat->have_buf[1] && dat->have_buf[2])
   { // if we have all three channels for a certain frame:
-    // XXX TODO: compare to our total length (last timestamp? assume fixed frame rate?)
-    /* check if we want to generate more frames */
-    // if (av_compare_ts(vost->next_pts, vc->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) > 0) return;
-
     vost->frame->pts = vost->next_pts++;
 
-    { // write video frame
-      // TODO: fill ost->frame->data[3] with constant alpha, maybe suffices to do once
-      write_frame(dat->oc, vost->enc, vost->st, vost->frame, vost->tmp_pkt);
-      // now it says its finished maybe
-    }
-
-    // TODO: we will *not* get an audio callback, we need to grab the samples from the audio module
+    // write video frame
+    write_frame(dat->oc, vost->enc, vost->st, vost->frame, vost->tmp_pkt);
 
     if(dat->audio_mod >= 0)
     { // write audio frame
@@ -675,7 +634,7 @@ void write_sink(
 
       c = ost->enc;
 
-      // TODO: keep going encoding audio until we're ahead of / equal to video
+      // keep going encoding audio until we're ahead of / equal to video
       while(av_compare_ts(
             dat->video_stream.next_pts, dat->video_stream.enc->time_base,
             dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0) // XXX is this the right time base for next_pts?
@@ -683,9 +642,6 @@ void write_sink(
 
         if(!ost->swr_ctx)
           frame = ost->frame;
-
-        /* check if we want to generate more frames */ // XXX we are not buffering the audio otherwise. this better work out exactly!
-                                                       // if (av_compare_ts(ost->next_pts, ost->enc->time_base, STREAM_DURATION, (AVRational){ 1, 1 }) <= 0)
 
         int src_nb_samples = frame->nb_samples;
         while(src_nb_samples)
