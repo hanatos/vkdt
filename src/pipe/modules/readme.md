@@ -25,11 +25,11 @@ it follows the reference documentation of available modules, grouped into catego
 
 * [o-bc1: write bc1 compressed thumbnail files](./o-bc1/readme.md)
 * [o-exr: write openexr image files](./o-exr/readme.md)
-* [o-ffmpeg: write h264 compressed video stream for multi-frame input](./o-ffmpeg/readme.md)
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
 * [o-lut: write varying precision multi channel luts](./o-lut/readme.md)
 * [o-null: write absolutely nothing](./o-null/readme.md)
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
+* [o-vid: write h264 or prores compressed video streams](./o-vid/readme.md)
 * [loss: compute loss for optimisation](./loss/readme.md)
 
 **visualisation and inspection**
