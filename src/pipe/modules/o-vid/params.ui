@@ -3,4 +3,3 @@ quality:slider:0:100
 codec:combo:prores:h264
 group:codec:0
 profile:combo:prores proxy:prores lt:prores sq:prores hq
-colour:combo:yuv422:yuv444

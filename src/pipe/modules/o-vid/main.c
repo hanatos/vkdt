@@ -107,7 +107,6 @@ add_stream(
   }
   ost->enc = c;
 
-  // const int   p_colour  = dt_module_param_int  (mod, 4)[0];
   const float frame_rate = mod->graph->frame_rate > 0.0f ? mod->graph->frame_rate : 24;
 
   switch ((*codec)->type)

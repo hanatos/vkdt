@@ -5,11 +5,6 @@
 #extension GL_KHR_shader_subgroup_clustered  : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-#if 0
-layout(std140, set = 0, binding = 1) uniform params_t
-{
-} params;
-#endif
 layout(push_constant, std140) uniform push_t
 { // this is the same as we have in `i-vid`
   int bits;     // 8, 10, 12, 16
