@@ -354,133 +354,137 @@ render_darkroom_modals()
   {
     if(nk_begin(&vkdt.ctx, "create preset", bounds, NK_WINDOW_NO_SCROLLBAR))
     {
-#if 0
-    static char  preset[32] = "default";
-    static char  filter[32] = "";
-    static int   line_cnt = 0;
-    static char *line[1024] = {0};
-    static char  sel[1024];
-    static char *buf = 0;
-    static int   ok = 0;
-    if(!buf)
-    {
-      ok = 0;
-      char filename[1024] = {0};
-      uint32_t cid = dt_db_current_imgid(&vkdt.db);
-      if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
-      if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
-        dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
-      FILE *f = fopen(filename, "rb");
-      size_t s = 0;
-      if(f)
-      {
-        fseek(f, 0, SEEK_END);
-        s = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        buf = (char *)malloc(s);
-        fread(buf, s, 1, f);
-        fclose(f);
+      struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
+      static char  preset[32] = "default";
+      static char  filter[32] = "";
+      static int   line_cnt = 0;
+      static char *line[1024] = {0};
+      static char  sel[1024];
+      static char *buf = 0;
+      static int   ok = 0;
+      if(vkdt.wstate.popup_appearing && buf)
+      { // free any potential leftovers from last time
+        free(buf);
+        buf = 0;
       }
-      line_cnt = 1;
-      line[0] = buf;
-      for(uint32_t i=0;i<s-1 && line_cnt < 1024;i++) if(buf[i] == '\n')
+      if(!buf)
       {
-        line[line_cnt++] = buf+i+1;
-        buf[i] = 0;
-      }
-      for(int i=0;i<line_cnt;i++)
-      { // mark all lines as selected initially, only ones related to input modules not
-        sel[i] = strstr(line[i], "param:i-") == 0 ? 1 : 0;
-      }
-      if(buf[s-1] == '\n') buf[s-1] = 0;
-    }
-    
-    if(ok == 0)
-    {
-      if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
-      if(ImGui::InputText("##edit", filter, IM_ARRAYSIZE(filter), ImGuiInputTextFlags_EnterReturnsTrue))
-        ok = 1;
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("type to filter the list\n"
-                          "press enter to accept\n"
-                          "press escape to close");
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-         ImGui::IsKeyPressed(ImGuiKey_Escape)||
-         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-        ok = 3;
-
-      int select_all = 0;
-      if(ImGui::Button("select all shown")) select_all = 1;
-      ImGui::SameLine();
-      if(ImGui::Button("deselect shown")) select_all = 2;
-
-      for(int i=0;i<line_cnt;i++)
-      {
-        if(filter[0] == 0 || strstr(line[i], filter))
+        ok = 0;
+        char filename[1024] = {0};
+        uint32_t cid = dt_db_current_imgid(&vkdt.db);
+        if(cid != -1u) dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
+        if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
+          dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
+        FILE *f = fopen(filename, "rb");
+        size_t s = 0;
+        if(f)
         {
-          if(select_all == 1) sel[i] = 1;
-          if(select_all == 2) sel[i] = 0;
-          const int selected = sel[i];
-          if(selected)
-          {
-            ImGui::PushStyleColor(ImGuiCol_Button,        ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogramHovered]);
-          }
-          if(ImGui::Button(line[i])) sel[i] ^= 1;
-          if(ImGui::IsItemHovered())
-          {
-            if(selected) dt_gui_set_tooltip("click to drop from preset");
-            else         dt_gui_set_tooltip("click to include in preset");
-          }
-          if(selected) ImGui::PopStyleColor(2);
+          fseek(f, 0, SEEK_END);
+          s = ftell(f);
+          fseek(f, 0, SEEK_SET);
+          buf = (char *)malloc(s);
+          fread(buf, s, 1, f);
+          fclose(f);
         }
-      }
-
-      if (ImGui::Button("cancel")) ok = 3;
-      ImGui::SameLine();
-      if (ImGui::Button("ok")) ok = 1;
-    }
-    else if(ok == 1)
-    {
-      ImGui::Text("enter preset name");
-      if(ImGui::InputText("##preset", preset, IM_ARRAYSIZE(preset), ImGuiInputTextFlags_EnterReturnsTrue))
-        ok = 2;
-      if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("presets will be stored as\n"
-                          "~/.config/vkdt/presets/<this>.pst");
-      if(ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape)))
-        ok = 3;
-      if (ImGui::Button("cancel##2", ImVec2(120, 0))) ok = 3;
-      ImGui::SameLine();
-      if (ImGui::Button("ok##2", ImVec2(120, 0))) ok = 2;
-    }
-
-    if(ok == 2)
-    {
-      char filename[PATH_MAX+100];
-      snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
-      fs_mkdir_p(filename, 0755);
-      snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
-      FILE *f = fopen(filename, "wb");
-      if(f)
-      {
+        line_cnt = 1;
+        line[0] = buf;
+        for(uint32_t i=0;i<s-1 && line_cnt < 1024;i++) if(buf[i] == '\n')
+        {
+          line[line_cnt++] = buf+i+1;
+          buf[i] = 0;
+        }
         for(int i=0;i<line_cnt;i++)
-          if(sel[i]) fprintf(f, "%s\n", line[i]);
-        fclose(f);
+        { // mark all lines as selected initially, only ones related to input modules not
+          sel[i] = strstr(line[i], "param:i-") == 0 ? 1 : 0;
+        }
+        if(buf[s-1] == '\n') buf[s-1] = 0;
       }
-      else dt_gui_notification("failed to write %s!", filename);
-    }
+    
+      const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+      if(ok == 0)
+      {
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 4);
+        nk_label(&vkdt.ctx, "filter", NK_TEXT_LEFT);
+        dt_tooltip(
+            "type to filter the list\n"
+            "press enter to apply top item\n"
+            "press escape to close");
+        if(vkdt.wstate.popup_appearing) nk_edit_focus(&vkdt.ctx, 0);
+        nk_flags ret = nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+        if(ret & NK_EDIT_COMMITED) ok = 1;
+        vkdt.wstate.popup_appearing = 0;
 
-    if(ok > 1)
-    {
-      free(buf);
-      buf = 0;
-      line_cnt = 0;
-      ok = 0;
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
-#endif
+        int select_all = 0;
+        if(nk_button_label(&vkdt.ctx, "select all shown")) select_all = 1;
+        if(nk_button_label(&vkdt.ctx, "deselect shown"))   select_all = 2;
+
+        nk_layout_row_dynamic(&vkdt.ctx, total_space.h-3*row_height, 1);
+        nk_group_begin(&vkdt.ctx, "new-preset-scrollpane", 0);
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+        for(int i=0;i<line_cnt;i++)
+        {
+          if(filter[0] == 0 || strstr(line[i], filter))
+          {
+            if(select_all == 1) sel[i] = 1;
+            if(select_all == 2) sel[i] = 0;
+            const int selected = sel[i];
+            if(selected)
+              nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color((struct nk_color){0x99, 0x77, 0x11, 0xff}));
+            dt_tooltip(selected ? "click to drop from preset" : "click to include in preset");
+            if(nk_button_label(&vkdt.ctx, line[i])) sel[i] ^= 1;
+            if(selected) nk_style_pop_style_item(&vkdt.ctx);
+          }
+        }
+        nk_group_end(&vkdt.ctx);
+
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
+        nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+        nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+        nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+        if (nk_button_label(&vkdt.ctx, "cancel")) ok = 3;
+        if (nk_button_label(&vkdt.ctx, "ok"))     ok = 1;
+      }
+      else if(ok == 1)
+      {
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
+        nk_label(&vkdt.ctx, "enter preset name", NK_TEXT_LEFT);
+        dt_tooltip("presets will be stored as\n"
+            "~/.config/vkdt/presets/<this>.pst");
+        nk_edit_focus(&vkdt.ctx, 0); // ???
+        nk_flags ret = nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, preset, NK_LEN(preset), nk_filter_default);
+        if(ret & NK_EDIT_COMMITED) ok = 2;
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
+        nk_label(&vkdt.ctx, "", 0);
+        nk_label(&vkdt.ctx, "", 0);
+        nk_label(&vkdt.ctx, "", 0);
+        if (nk_button_label(&vkdt.ctx, "cancel")) ok = 3;
+        if (nk_button_label(&vkdt.ctx, "ok"))     ok = 2;
+      }
+
+      if(ok == 2)
+      {
+        char filename[PATH_MAX+100];
+        snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
+        fs_mkdir_p(filename, 0755);
+        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
+        FILE *f = fopen(filename, "wb");
+        if(f)
+        {
+          for(int i=0;i<line_cnt;i++)
+            if(sel[i]) fprintf(f, "%s\n", line[i]);
+          fclose(f);
+        }
+        else dt_gui_notification("failed to write %s!", filename);
+      }
+
+      if(ok > 1)
+      {
+        free(buf);
+        buf = 0;
+        line_cnt = 0;
+        ok = 0;
+        vkdt.wstate.popup = 0;
+      }
     }
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
