@@ -15,8 +15,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
-// TODO: dspy connector for vis? also plot histogram in bg?
-// histogram will need additional kernel + main.c
+
+const float min_log_histogram = -12.0;
+const float max_log_histogram =  20.0;
 
 void main()
 {
@@ -25,10 +26,33 @@ void main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  float x = 0.0;
+  float x = 0.0, w = 0.0;
   if     (params.mode == 0) x = luminance_rec2020(rgb);
   else if(params.mode == 1) x = rgb2hsv(rgb).x;
   else if(params.mode == 2) x = rgb2hsv(rgb).y;
+  else if(params.mode == 3)
+  { // luminance of bayer
+    ivec2 bmin = (ipos / 2) * 2;
+    if((ipos.x & 1) == 0) bmin.x -= 2;
+    if((ipos.y & 1) == 0) bmin.y -= 2;
+    for(int jj=0;jj<2;jj++) for(int ii=0;ii<2;ii++)
+    {
+      float sum = 0.0;
+      for(int j=0;j<2;j++) for(int i=0;i<2;i++)
+        sum += texelFetch(img_in, bmin + 2*ivec2(ii, jj) + ivec2(i, j), 0).r;
+      sum /= 4.0;
+      vec2 dist = (ipos+0.5) - (bmin + 2*ivec2(ii,jj)+vec2(1));
+      float a = 1.0/length(dist);
+      w += a;
+      x += sum * a;
+    }
+    x /= w;
+  }
+  if(params.mode == 0 || params.mode == 3)
+  {
+    if (x < pow(2.0, min_log_histogram)) x = 0;
+    else x = (log2(x) - min_log_histogram) / max_log_histogram;
+  }
   float v = smoothstep(params.x0, params.x1, x) * (1.0-smoothstep(params.x2, params.x3, x));
   v = mix(params.vmin, params.vmax, v);
 

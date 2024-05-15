@@ -20,7 +20,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 shared uint[hist_size] local_hist;
 shared uint count;
-const float min_log_histogram = -15.0;
+const float min_log_histogram = -12.0;
 const float max_log_histogram =  20.0;
 
 uint get_bin(vec3 rgb)
@@ -29,13 +29,18 @@ uint get_bin(vec3 rgb)
   if     (params.mode == 0) l = luminance_rec2020(rgb);
   else if(params.mode == 1) l = rgb2hsv(rgb).x;
   else if(params.mode == 2) l = rgb2hsv(rgb).y;
-#if 0
-  if (l < pow(2.0, min_log_histogram)) return 0;
-  const float normalized = (log2(l) - min_log_histogram) / max_log_histogram;
-  const uint bin = uint(normalized * (hist_size - 2) + 1);
-#else
-  const uint bin = uint(hist_size * l + 0.5);
-#endif
+  else if(params.mode == 3) l = rgb.r;
+  uint bin = 0;
+  if(params.mode == 0 || params.mode == 3)
+  {
+    if (l < pow(2.0, min_log_histogram)) bin = 0;
+    else
+    {
+      const float normalized = (log2(l) - min_log_histogram) / max_log_histogram;
+      bin = uint(normalized * (hist_size - 2) + 1);
+    }
+  }
+  else bin = uint(hist_size * l + 0.5);
   return clamp(bin, 0, hist_size - 1);
 }
 
@@ -50,24 +55,33 @@ void main()
   const ivec2 isize = textureSize(img_src, 0);
   if (all(lessThan(ipos, isize)))
   {
-#if 0
-    bool mask = false;
-    { // Dirty but works :D
-      mask = true;
-      mask = mask && (ipos.x % max(uint(smoothstep(.1 * isize.r / 2, isize.r / 2, distance(isize / 2, ipos)) * 13), 1)) == 0;
-      mask = mask && (ipos.y % max(uint(smoothstep(.1 * isize.r / 2, isize.r / 2, distance(isize / 2, ipos)) * 7), 1)) == 0;
-    }
-
-    if (mask)
-#endif
-    {
-      const vec3 color = texelFetch(img_src, ipos, 0).rgb;
-      const uint bin = get_bin(color);
-      if(bin > 0)
+    vec3 color;
+    if(params.mode == 3)
+    { // luminance of bayer
+      ivec2 bmin = (ipos / 2) * 2;
+      if((ipos.x & 1) == 0) bmin.x -= 2;
+      if((ipos.y & 1) == 0) bmin.y -= 2;
+      float res = 0.0, w = 0.0;
+      for(int jj=0;jj<2;jj++) for(int ii=0;ii<2;ii++)
       {
-        atomicAdd(local_hist[bin], 1);
-        atomicAdd(count, 1);
+        float sum = 0.0;
+        for(int j=0;j<2;j++) for(int i=0;i<2;i++)
+          sum += texelFetch(img_src, bmin + 2*ivec2(ii, jj) + ivec2(i, j), 0).r;
+        sum /= 4.0;
+        vec2 dist = (ipos+0.5) - (bmin + 2*ivec2(ii,jj)+vec2(1));
+        float a = 1.0/length(dist);
+        w += a;
+        res += sum * a;
       }
+      res /= w;
+      color = vec3(res);
+    }
+    else color = texelFetch(img_src, ipos, 0).rgb;
+    const uint bin = get_bin(color);
+    if(bin > 0)
+    {
+      atomicAdd(local_hist[bin], 1);
+      atomicAdd(count, 1);
     }
   }
   barrier();
