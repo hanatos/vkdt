@@ -62,7 +62,6 @@ dt_node_sink(dt_node_t *n)
   return n->connector[0].type == dt_token("sink");
 }
 
-#ifndef __cplusplus
 static inline void
 dt_connector_copy(
     dt_graph_t  *graph,
@@ -100,6 +99,7 @@ dt_connector_copy(
   c1->associated_c = mc;
 }
 
+#ifndef __cplusplus
 static inline void
 dt_connector_copy_feedback(
     dt_graph_t  *graph,
@@ -113,6 +113,7 @@ dt_connector_copy_feedback(
   graph->node[nid].connector[nc].frames = 2;
   module->connector[mc].frames = 2;
 }
+#endif
 
 // bypass a module: instead of linking the module connectors to their
 // counterparts on the node level, directly link to the node level of the next
@@ -157,12 +158,12 @@ dt_node_add(
     .name   = dt_token(name),
     .kernel = dt_token(kernel),
     .module = module,
+    .num_connectors = nc,
     .flags  = module->flags,    // propagate sink/source copy requests
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors     = nc,
-    .push_constant_size = pc_size,
+    .wd     = (uint32_t)wd,
+    .ht     = (uint32_t)ht,
+    .dp     = (uint32_t)dp,
+    .push_constant_size = (size_t)pc_size,
   };
   if(pc) memcpy(graph->node[id].push_constant, pc, pc_size);
   va_list args;
@@ -251,25 +252,21 @@ dt_api_blur_3x3(
     graph->node[nodeid_input].connector + connid_input :
     module->connector + connid_input;
   const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
-  const int *sigmai = (int*)&sigma;
+  const uint32_t *sigmai = (uint32_t*)&sigma;
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blur = graph->num_nodes++;
   graph->node[id_blur] = (dt_node_t) {
     .name   = dt_token("shared"),
     .kernel = dt_token("blurs"),
     .module = module,
-    .wd     = conn_input->roi.wd,
-    .ht     = conn_input->roi.ht,
-    .dp     = dp,
-    .num_connectors = 2,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = conn_input->chan,
       .format = conn_input->format,
-      .roi    = conn_input->roi,
       .flags  = s_conn_smooth,
       .connected_mi = -1,
+      .roi    = conn_input->roi,
       .array_length = conn_input->array_length,
     },{
       .name   = dt_token("output"),
@@ -279,8 +276,12 @@ dt_api_blur_3x3(
       .roi    = conn_input->roi,
       .array_length = conn_input->array_length,
     }},
-    .push_constant_size = sizeof(float),
+    .num_connectors = 2,
+    .wd     = conn_input->roi.wd,
+    .ht     = conn_input->roi.ht,
+    .dp     = dp,
     .push_constant = { sigmai[0] },
+    .push_constant_size = sizeof(float),
   };
   if(id_blur_in)  *id_blur_in  = id_blur;
   if(id_blur_out) *id_blur_out = id_blur;
@@ -314,18 +315,14 @@ dt_api_blur_5x5(
     .name   = dt_token("shared"),
     .kernel = dt_token("blur"),
     .module = module,
-    .wd     = conn_input->roi.wd,
-    .ht     = conn_input->roi.ht,
-    .dp     = dp,
-    .num_connectors = 2,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = conn_input->chan,
       .format = conn_input->format,
-      .roi    = conn_input->roi,
       .flags  = s_conn_smooth,
       .connected_mi = -1,
+      .roi    = conn_input->roi,
       .array_length = conn_input->array_length,
     },{
       .name   = dt_token("output"),
@@ -335,6 +332,10 @@ dt_api_blur_5x5(
       .roi    = conn_input->roi,
       .array_length = conn_input->array_length,
     }},
+    .num_connectors = 2,
+    .wd     = conn_input->roi.wd,
+    .ht     = conn_input->roi.ht,
+    .dp     = dp,
   };
   if(id_blur_in)  *id_blur_in  = id_blur;
   if(id_blur_out) *id_blur_out = id_blur;
@@ -370,9 +371,9 @@ dt_api_blur_sub(
     .type   = dt_token("read"),
     .chan   = conn_input->chan,
     .format = conn_input->format,
-    .roi    = conn_input->roi,
     .flags  = s_conn_smooth,
     .connected_mi = -1,
+    .roi    = conn_input->roi,
     .array_length = conn_input->array_length,
   };
   dt_connector_t co = {
@@ -392,21 +393,21 @@ dt_api_blur_sub(
   for(uint32_t i=0;i<levels;i++)
   {
     // int owd = roi.wd, oht = roi.ht; // for multi upsampling
-    for(int j=0;j<mul[i];j++)
+    for(uint32_t j=0;j<mul[i];j++)
     {
       assert(graph->num_nodes < graph->max_nodes);
       const int id_blur = graph->num_nodes++;
-      int hwd = j == mul[i]-1 ? (roi.wd + 1)/2 : roi.wd;
-      int hht = j == mul[i]-1 ? (roi.ht + 1)/2 : roi.ht;
+      uint32_t hwd = j == mul[i]-1 ? (roi.wd + 1)/2 : roi.wd;
+      uint32_t hht = j == mul[i]-1 ? (roi.ht + 1)/2 : roi.ht;
       graph->node[id_blur] = (dt_node_t) {
         .name   = dt_token("shared"),
         .kernel = dt_token("blur"),
         .module = module,
+        .connector = { ci, co },
+        .num_connectors = 2,
         .wd     = hwd,
         .ht     = hht,
         .dp     = dp,
-        .num_connectors = 2,
-        .connector = { ci, co },
       };
       if(id_blur_in && *id_blur_in < 0) *id_blur_in = id_blur;
       graph->node[id_blur].connector[0].roi = roi;
@@ -463,11 +464,11 @@ dt_api_blur_sub(
       .name   = dt_token("shared"),
         .kernel = dt_token("resample"),
         .module = module,
+        .connector = { ci, co },
+        .num_connectors = 2,
         .wd     = conn_input->roi.wd,
         .ht     = conn_input->roi.ht,
         .dp     = dp,
-        .num_connectors = 2,
-        .connector = { ci, co },
     };
     graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[cid_input].roi;
     CONN(dt_node_connect(graph, nid_input, cid_input, id_upsample, 0));
@@ -506,8 +507,8 @@ dt_api_blur_sep(
     .type   = dt_token("read"),
     .chan   = conn_input->chan,
     .format = conn_input->format,
-    .roi    = conn_input->roi,
     .connected_mi = -1,
+    .roi    = conn_input->roi,
     .array_length = conn_input->array_length,
   };
   dt_connector_t co = {
@@ -525,13 +526,13 @@ dt_api_blur_sep(
     .name   = dt_token("shared"),
     .kernel = blurh,
     .module = module,
+    .connector = { ci, co },
+    .num_connectors = 2,
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 2,
-    .connector = { ci, co },
-    .push_constant_size = sizeof(float),
     .push_constant = {irad[0]},
+    .push_constant_size = sizeof(float),
   };
   assert(graph->num_nodes < graph->max_nodes);
   const int id_blurv = graph->num_nodes++;
@@ -539,13 +540,13 @@ dt_api_blur_sep(
     .name   = dt_token("shared"),
     .kernel = blurv,
     .module = module,
+    .connector = { ci, co },
+    .num_connectors = 2,
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 2,
-    .connector = { ci, co },
-    .push_constant_size = sizeof(float),
     .push_constant = {irad[0]},
+    .push_constant_size = sizeof(float),
   };
   // interconnect nodes:
   CONN(dt_node_connect(graph, nodeid_input,  connid_input, id_blurh, 0));
@@ -675,24 +676,20 @@ dt_api_guided_filter_full(
     .name   = dt_token("shared"),
     .kernel = dt_token("guided1f"),
     .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 3,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
-      .roi    = *roi,
       .connected_mi = -1,
+      .roi    = *roi,
     },{
       .name   = dt_token("edges"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
-      .roi    = *roi,
       .connected_mi = -1,
+      .roi    = *roi,
     },{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
@@ -700,6 +697,10 @@ dt_api_guided_filter_full(
       .format = dt_token("f16"),
       .roi    = *roi,
     }},
+    .num_connectors = 3,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
   };
 
   // mean_I  = blur(I)
@@ -717,18 +718,14 @@ dt_api_guided_filter_full(
     .name   = dt_token("shared"),
     .kernel = dt_token("guided2f"),
     .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 2,
     .connector = {{
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
       .flags  = s_conn_smooth,
-      .roi    = *roi,
       .connected_mi = -1,
+      .roi    = *roi,
     },{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
@@ -736,6 +733,10 @@ dt_api_guided_filter_full(
       .format = dt_token("f16"),
       .roi    = *roi,
     }},
+    .num_connectors = 2,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
   };
   CONN(dt_node_connect(graph, id_blur1, 1, id_guided2, 0));
 
@@ -751,25 +752,21 @@ dt_api_guided_filter_full(
     .name   = dt_token("shared"),
     .kernel = dt_token("guided3"),
     .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 3,
     .connector = {{ // original image as input rgba f16
       .name   = dt_token("input"),
       .type   = dt_token("read"),
       .chan   = dt_token("rgba"),
       .format = dt_token("f16"),
-      .roi    = *roi,
       .connected_mi = -1,
+      .roi    = *roi,
     },{ // mean ab
       .name   = dt_token("ab"),
       .type   = dt_token("read"),
       .chan   = dt_token("rg"),
       .format = dt_token("f16"),
       .flags  = s_conn_smooth,
-      .roi    = *roi,
       .connected_mi = -1,
+      .roi    = *roi,
     },{
       .name   = dt_token("output"),
       .type   = dt_token("write"),
@@ -777,6 +774,10 @@ dt_api_guided_filter_full(
       .format = dt_token("f16"),
       .roi    = *roi,
     }},
+    .num_connectors = 3,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
   };
   CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
   if(id_out) *id_out = id_guided3;
@@ -819,8 +820,8 @@ dt_api_guided_filter(
     .type   = dt_token("read"),
     .chan   = dt_token("rgba"),
     .format = dt_token("f16"),
-    .roi    = *roi,
     .connected_mi = -1,
+    .roi    = *roi,
   };
   dt_connector_t co = {
     .name   = dt_token("output"),
@@ -839,13 +840,11 @@ dt_api_guided_filter(
     .name   = dt_token("shared"),
     .kernel = dt_token("guided1"),
     .module = module,
+    .connector = { ci, co, },
+    .num_connectors = 2,
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
   };
 
   // then connect 1x blur:
@@ -865,13 +864,11 @@ dt_api_guided_filter(
     .name   = dt_token("shared"),
     .kernel = dt_token("guided2"),
     .module = module,
+    .connector = { ci, co, },
+    .num_connectors = 2,
     .wd     = wd,
     .ht     = ht,
     .dp     = dp,
-    .num_connectors = 2,
-    .connector = {
-      ci, co,
-    },
   };
 
   CONN(dt_node_connect(graph, id_blur1, 1, id_guided2, 0));
@@ -893,28 +890,26 @@ dt_api_guided_filter(
     .type   = dt_token("read"),
     .chan   = dt_token("rg"),
     .format = dt_token("f16"),
-    .roi    = *roi,
     .connected_mi = -1,
+    .roi    = *roi,
   };
   *node_guided3 = (dt_node_t) {
     .name   = dt_token("shared"),
     .kernel = dt_token("guided3"),
     .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 3,
     .connector = {
       ci, // - original image as input rgba f16
       cm, // - mean a mean b as rg f16
       co, // - output rgba f16
     },
+    .num_connectors = 3,
+    .wd     = wd,
+    .ht     = ht,
+    .dp     = dp,
   };
   CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
   *exit_nodeid = id_guided3;
 }
-
-#endif // not defined cplusplus
 
 // return modid or -1
 static inline int

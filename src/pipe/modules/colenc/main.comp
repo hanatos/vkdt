@@ -95,6 +95,11 @@ void main()
   { // TODO get gamma from params
     rgb = pow(rgb, vec3(1.0/2.2)); // happens to be adobe rgb
   }
+  else if(params.trc == 7) // mcraw linear to log
+  {
+    const float a = 0.13, b = 1.0 - 4.0 * a, c = 0.5 - a * log(4.0 * a);
+    rgb = mix(sqrt(3.0*rgb), a * log(12.0 * rgb - b) + c, greaterThan(rgb, vec3(1.0/12.0)));
+  }
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }

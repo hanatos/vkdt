@@ -7,7 +7,6 @@
 #include "modules/localsize.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
 #include "graph-print.h"
 #ifdef DEBUG_MARKERS
 #include "db/stringpool.h"
@@ -32,7 +31,7 @@
 } while(0)
 
 void
-dt_graph_init(dt_graph_t *g)
+dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
 {
   memset(g, 0, sizeof(*g));
 #ifdef DEBUG_MARKERS
@@ -40,6 +39,7 @@ dt_graph_init(dt_graph_t *g)
 #endif
 
   g->frame_cnt = 1;
+  g->queue_name = qname;
 
   // allocate module and node buffers:
   g->max_modules = 100;
@@ -59,7 +59,7 @@ dt_graph_init(dt_graph_t *g)
 
   VkCommandPoolCreateInfo cmd_pool_create_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .queueFamilyIndex = g->queue_idx,
+    .queueFamilyIndex = qvk.queue[qvk.qid[g->queue_name]].family,
     .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
   };
   QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &g->command_pool));
@@ -92,10 +92,6 @@ dt_graph_init(dt_graph_t *g)
     g->query[i].kernel = malloc(sizeof(dt_token_t)*g->query[i].max);
   }
 
-  // grab default queue:
-  g->queue = qvk.queue_compute;
-  g->queue_idx = qvk.queue_idx_compute;
-
   g->lod_scale = 1;
   g->active_module = -1;
 }
@@ -109,7 +105,7 @@ dt_graph_cleanup(dt_graph_t *g)
 #endif
   // needs sync if the gui graph, or none if running in bg
   if(g->gui_attached) // i suppose we could wait on the gui fence instead.
-    QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+    QVKL(&qvk.queue[qvk.qid[g->queue_name]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[g->queue_name]].queue));
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -269,7 +265,7 @@ dt_graph_create_shader_module(
   };
   QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, shader_module));
   free(data);
-#ifdef DEBUG_MARKERS
+#if 0 // def DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
   char name[100];
   const char *dedup;
@@ -1413,6 +1409,8 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
 static void
 modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
+  // =========================================================
+  // manage img_param metadata propagated along with the graph
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
   if(input >= 0 &&
@@ -1437,12 +1435,36 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     if(c->connected_mi != -1u)
       module->img_param = graph->module[c->connected_mi].img_param;
   }
+  // =========================================================
+  // now handle &input style channel and format references
+  // these are copied before the roi_out callback because this often
+  // allocates resources based on input formats.
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    dt_connector_t *c = module->connector+i;
+    if(dt_token_str(c->chan)[0] == '&')
+    {
+      dt_token_t tmp = c->chan >> 8;
+      for(int j=0;j<module->num_connectors;j++)
+      {
+        if(module->connector[j].name == tmp)
+        {
+          c->chan = module->connector[j].chan;
+          break;
+        }
+      }
+    }
+  }
+  // =========================================================
+  // copy extents of module inputs from the connected output connectors
   for(int i=0;i<module->num_connectors;i++)
   { // keep incoming roi in sync:
     dt_connector_t *c = module->connector+i;
     if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
       c->roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
   }
+  // =========================================================
+  // execute callback if present, or run default
   if(!module->disabled && module->so->modify_roi_out)
   {
     module->so->modify_roi_out(graph, module);
@@ -2127,7 +2149,7 @@ VkResult dt_graph_run(
   // if we intend to clean it up behind their back
   if(graph->gui_attached &&
     (run & (s_graph_run_roi | s_graph_run_alloc | s_graph_run_create_nodes)))
-    QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device)); // probably enough to wait on gui queue fence
+    QVKL(&qvk.queue[qvk.qid[graph->queue_name]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[graph->queue_name]].queue)); // probably enough to wait on gui queue fence
 
   if(run & s_graph_run_alloc)
   {
@@ -2708,7 +2730,8 @@ VkResult dt_graph_run(
                   .pCommandBuffers    = &cmd_buf,
                 };
                 vkResetFences(qvk.device, 1, &graph->command_fence[f]);
-                QVKR(qvk_submit(graph->queue, 1, &submit, graph->command_fence[f]));
+                QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
+                    vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[f]));
                 QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
@@ -2800,7 +2823,8 @@ VkResult dt_graph_run(
   if(run & s_graph_run_record_cmd_buf)
   {
     vkResetFences(qvk.device, 1, &graph->command_fence[f]);
-    QVKR(qvk_submit(graph->queue, 1, &submit, graph->command_fence[f]));
+    QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
+        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[f]));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
       QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[f], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
     else
@@ -2813,6 +2837,8 @@ VkResult dt_graph_run(
   if((module_flags & s_module_request_write_sink) ||
      (run & s_graph_run_download_sink))
   {
+    uint8_t *mapped = 0;
+    QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
     for(int n=0;n<graph->num_nodes;n++)
     { // for all sink nodes:
       dt_node_t *node = graph->node + n;
@@ -2822,15 +2848,13 @@ VkResult dt_graph_run(
           ((node->module->flags & s_module_request_write_sink) ||
            (run & s_graph_run_download_sink)))
         {
-          uint8_t *mapped = 0;
-          QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE,
-                0, (void**)&mapped));
+          dt_write_sink_params_t p = { .node = node, .c = 0, .a = 0 };
           node->module->so->write_sink(node->module,
-              mapped + node->connector[0].offset_staging);
-          vkUnmapMemory(qvk.device, graph->vkmem_staging);
+              mapped + node->connector[0].offset_staging, &p);
         }
       }
     }
+    vkUnmapMemory(qvk.device, graph->vkmem_staging);
   }
 
   if(dt_log_global.mask & s_log_perf)
@@ -2946,8 +2970,10 @@ void dt_graph_reset(dt_graph_t *g)
   for(int i=0;i<g->conn_image_end;i++)
   {
     if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     g->conn_image_pool[i].image = 0;
+    g->conn_image_pool[i].buffer = 0;
     g->conn_image_pool[i].image_view = 0;
   }
   for(int i=0;i<g->num_nodes;i++)

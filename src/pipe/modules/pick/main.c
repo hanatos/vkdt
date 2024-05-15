@@ -236,8 +236,9 @@ _cie_de76(
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
 void write_sink(
-    dt_module_t *module,
-    void *buf)
+    dt_module_t            *module,
+    void                   *buf,
+    dt_write_sink_params_t *p)
 {
   float *f32 = buf;
   const int wd = module->connector[3].roi.wd;

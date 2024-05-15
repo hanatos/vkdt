@@ -1,6 +1,5 @@
 #include "gui.h"
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
 #include "core/fs.h"
 #include "core/log.h"
 #include "core/threads.h"
@@ -120,7 +119,7 @@ int dt_gui_init()
   }
 
   VkBool32 res;
-  vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, qvk.queue_idx_graphics, qvk.surface, &res);
+  vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, qvk.queue[qvk.qid[s_queue_graphics]].family, qvk.surface, &res);
   if (res != VK_TRUE)
   {
     dt_log(s_log_qvk|s_log_err, "no WSI support on physical device");
@@ -135,7 +134,7 @@ int dt_gui_init()
   {
     VkCommandPoolCreateInfo cmd_pool_create_info = {
       .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-      .queueFamilyIndex = qvk.queue_idx_graphics,
+      .queueFamilyIndex = qvk.queue[qvk.qid[s_queue_graphics]].family,
       .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
     };
     QVKR(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, vkdt.command_pool+i));
@@ -194,7 +193,7 @@ int dt_gui_init()
 VkResult
 dt_gui_recreate_swapchain()
 {
-  QVKLR(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+  QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
   for(int i = 0; i < vkdt.image_count; i++)
     vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
   if(vkdt.render_pass)
@@ -359,9 +358,8 @@ VkResult dt_gui_render()
   };
 
   QVKR(vkEndCommandBuffer(vkdt.command_buffer[i]));
-  threads_mutex_lock(&qvk.queue_mutex);
-  qvk_submit(qvk.queue_graphics, 1, &sub_info, vkdt.fence[i]);
-  threads_mutex_unlock(&qvk.queue_mutex);
+  QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex,
+      vkQueueSubmit(qvk.queue[qvk.qid[s_queue_graphics]].queue, 1, &sub_info, vkdt.fence[i]));
   return res;
 }
 
@@ -376,11 +374,10 @@ VkResult dt_gui_present()
     .pSwapchains        = &qvk.swap_chain,
     .pImageIndices      = &vkdt.frame_index,
   };
-  threads_mutex_lock(&qvk.queue_mutex);
-  VkResult res = vkQueuePresentKHR(qvk.queue_graphics, &info);
-  threads_mutex_unlock(&qvk.queue_mutex);
   vkdt.sem_index = (vkdt.sem_index + 1) % vkdt.image_count;
-  return res;
+  QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex,
+      vkQueuePresentKHR(qvk.queue[qvk.qid[s_queue_graphics]].queue, &info));
+  return VK_SUCCESS;
 }
 
 void
@@ -482,7 +479,7 @@ void dt_gui_switch_collection(const char *dir)
   dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
   dt_db_cleanup(&vkdt.db);
   dt_db_init(&vkdt.db);
-  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+  QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
   dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
   dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
 

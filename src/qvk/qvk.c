@@ -18,7 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "qvk.h"
-#include "sub.h"
 #include "core/log.h"
 
 #include <vulkan/vulkan.h>
@@ -139,7 +138,7 @@ VkResult
 qvk_create_swapchain()
 {
   VkSwapchainKHR old_swap_chain = qvk.swap_chain;
-  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+  QVKL(&qvk.queue[s_queue_graphics].mutex, vkQueueWaitIdle(qvk.queue[s_queue_graphics].queue));
 
   if(old_swap_chain)
     for(int i = 0; i < qvk.num_swap_chain_images; i++)
@@ -260,9 +259,6 @@ out:;
 VkResult
 qvk_init(const char *preferred_device_name, int preferred_device_id)
 {
-  qvk_sub_init();
-  threads_mutex_init(&qvk.queue_mutex, 0);
-  /* layers */
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
   /* instance extensions */
@@ -406,10 +402,10 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     return 1;
   }
 
-  float queue_priorities[3] = {1.0f};
+  float queue_priorities[s_queue_cnt] = {1.0f};
   VkDeviceQueueCreateInfo queue_create_info = {
     .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-    .queueCount       = MIN(queue_cnt, 3),
+    .queueCount       = MIN(queue_cnt, s_queue_cnt),
     .pQueuePriorities = queue_priorities,
     .queueFamilyIndex = queue_family_index,
   };
@@ -445,7 +441,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .samplerYcbcrConversion = 1,
-    .pNext                  = &atomic_features,
+    .pNext                  = qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f,
     // .pNext                  = &sub_features,
   };
   // VkPhysicalDeviceMaintenance4Features maintenance4 = {
@@ -460,17 +456,20 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = &coopmat,
+    .pNext    = qvk.coopmat_supported ? (void*)&coopmat : (void*)&v11f,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
   if(atomic_features.shaderImageFloat32AtomicAdd == VK_FALSE)
+  {
     qvk.float_atomics_supported = 0;
+    v11f.pNext = &v12f; // take the atomics out of the chain
+  }
 
   dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics and %s coopmat support", picked_device,
-      qvk.raytracing_supported ? "with" : "without",
+      qvk.raytracing_supported    ? "with" : "without",
       qvk.float_atomics_supported ? "with" : "without",
-      qvk.coopmat_supported ? "with" : "without");
+      qvk.coopmat_supported       ? "with" : "without");
 
   const char *requested_device_extensions[30] = {
     // ray tracing
@@ -505,10 +504,18 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   /* create device and queue */
   QVKR(vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device));
 
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work0,    MIN(queue_cnt-1, 1), &qvk.queue_work0);
-  vkGetDeviceQueue(qvk.device, qvk.queue_idx_work1,    MIN(queue_cnt-1, 2), &qvk.queue_work1);
+  for(int k=0;k<s_queue_cnt;k++)
+  {
+    qvk.queue[k].idx = MIN(queue_cnt-1, k);
+    qvk.qid[k] = qvk.queue[k].idx;
+    if(k == qvk.queue[k].idx)
+    { // new unique index, need to construct all the things
+      vkGetDeviceQueue(qvk.device, queue_family_index, qvk.queue[k].idx, &qvk.queue[k].queue);
+      threads_mutex_init(&qvk.queue[k].mutex, 0);
+      qvk.queue[k].family = queue_family_index;
+    }
+    else qvk.queue[k].idx = -1; // mark as not initialised
+  }
 
 #define _VK_EXTENSION_DO(a) \
     q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
@@ -620,9 +627,14 @@ destroy_swapchain()
 int
 qvk_cleanup()
 {
-  qvk_sub_cleanup();
-  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
-  threads_mutex_destroy(&qvk.queue_mutex);
+  for(int k=0;k<s_queue_cnt;k++)
+  {
+    if(qvk.queue[k].idx >= 0)
+    {
+      QVKL(&qvk.queue[k].mutex, vkQueueWaitIdle(qvk.queue[k].queue));
+      threads_mutex_destroy(&qvk.queue[k].mutex);
+    }
+  }
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_yuv, 0);

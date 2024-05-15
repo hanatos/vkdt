@@ -61,7 +61,7 @@
   // cn0 is the source. it has either previously negotiated a specialised format with a different
   // sink, in which case we need to respect it. or it didn't yet, in which case it will still
   // have the wildcard format "*" which means we don't have to touch it.
-  //   the only case in which we'll have to reset is when an explicit disconnect takes place.
+  // the only case in which we'll have to reset is when an explicit disconnect takes place.
   // note that this only happens with (-1, -1, sink, sink), so this case is covered above
   // by resetting the previously connected input (old source).
 
@@ -90,29 +90,13 @@
   // if output is already connected to another input, use this format as mandatory (can't be "*" any more)
   // if any one is "*" use the other
   // if both are "*" fall back to default "f16"
-  // this should mostly happen on the module level
-#ifdef connect_module
-  // set output channel and format to same as an already connected input channel, prefix token by &:
-  if(dt_token_str(cn0->chan)[0] == '&')
-  {
-    dt_token_t tmp = cn0->chan >> 8;
-    for(int c=0;c<graph->element[m0].num_connectors;c++)
-      if(graph->element[m0].connector[c].name == tmp)
-      { cn0->chan = graph->element[m0].connector[c].chan; break; }
-  }
-  if(dt_token_str(cn0->format)[0] == '&')
-  {
-    dt_token_t tmp = cn0->format >> 8;
-    for(int c=0;c<graph->element[m0].num_connectors;c++)
-      if(graph->element[m0].connector[c].name == tmp)
-      { cn0->format = graph->element[m0].connector[c].format; break; }
-  }
-#endif
-  if(cn1->chan == dt_token("*")) cn1->chan = cn0->chan;
+  // this should happen on the module level and is done just before the buffers are created on the graph
+  int c0ref = dt_token_str(cn0->chan)[0] == '&';
+  if(cn1->chan == dt_token("*") && !c0ref) cn1->chan = cn0->chan;
   if(cn0->chan == dt_token("*")) cn0->chan = cn1->chan;
   if(cn1->chan == dt_token("*")) cn1->chan = dt_token("rgba");
   if(cn0->chan == dt_token("*")) cn0->chan = dt_token("rgba");
-  if(cn1->chan != cn0->chan) return 10;
+  if(!c0ref && cn1->chan != cn0->chan) return 10;
   if(cn1->format == dt_token("*")) cn1->format = cn0->format;
   if(cn0->format == dt_token("*")) cn0->format = cn1->format;
   if(cn1->format == dt_token("*")) cn1->format = dt_token("f16");
@@ -139,4 +123,3 @@
 
   return 0;
 }
-

@@ -1,6 +1,4 @@
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
-
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/global.h"
@@ -29,11 +27,6 @@
 dt_gui_t vkdt = {0};
 
 int g_fullscreen = 0;
-
-void qvk_sub_wakeup()
-{ // provide linkage and implementation
-  glfwPostEmptyEvent();
-}
 
 // from a stackoverflow answer. get the monitor that currently covers most of
 // the window area.
@@ -337,7 +330,6 @@ int main(int argc, char *argv[])
     else vkdt.wstate.busy = 3;
 
     glfwWaitEvents();
-    for(int i=0;i<100;i++) if(!qvk_sub_work()) break;
 
     if(frame_limiter || (dt_log_global.mask & s_log_perf))
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
@@ -361,14 +353,15 @@ int main(int argc, char *argv[])
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 
-  QVKL(&qvk.queue_mutex, vkDeviceWaitIdle(qvk.device));
+  for(int q=0;q<s_queue_cnt;q++)
+    if(qvk.qid[q] == q)
+      QVKL(&qvk.queue[qvk.qid[q]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[q]].queue));
 
 out:
   // leave whatever view we're still in:
   dt_view_switch(s_view_cnt);
 
   threads_shutdown();
-  qvk_sub_shutdown();
   threads_global_cleanup(); // join worker threads before killing their resources
   dt_thumbnails_cleanup(&vkdt.thumbnails);
   dt_thumbnails_cleanup(&vkdt.thumbnail_gen);

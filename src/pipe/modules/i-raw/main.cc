@@ -1,6 +1,8 @@
 // unfortunately, since we'll link to rawspeed, we need c++ here.
 extern "C" {
 #include "modules/api.h"
+#include "dng_opcode.h"
+#include "dng_opcode_decode.c"
 }
 #include "RawSpeed-API.h"
 #include "mat3.h"
@@ -38,6 +40,8 @@ typedef struct rawinput_buf_t
   std::unique_ptr<rawspeed::RawDecoder> d;
   char filename[PATH_MAX] = {0};
   int ox, oy;
+  dt_dng_opcode_list_t *dng_opcode_lists[3];
+  dt_image_metadata_dngop_t dngop;
 }
 rawinput_buf_t;
 
@@ -86,6 +90,11 @@ void
 free_raw(dt_module_t *mod)
 { // free auto pointers
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  for(int i=0;i<3;i++)
+  {
+    dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
+    mod_data->dng_opcode_lists[i] = NULL;
+  }
   if(mod_data->d.get()) mod_data->d.reset();
 }
 
@@ -233,8 +242,19 @@ void modify_roi_out(
   mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
   mod->img_param.colour_primaries = s_colour_primaries_custom;
   mod->img_param.colour_trc       = s_colour_trc_linear;
-#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value
-  dt_exif_read(&mod->img_param, filename); // FIXME: will not work for timelapses
+  for(int i =0;i<3;i++)
+    mod_data->dng_opcode_lists[i] = nullptr;
+#ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value and DNG opcodes
+  dt_exif_read(&mod->img_param, filename, mod_data->dng_opcode_lists); // FIXME: will not work for timelapses
+
+  if(mod_data->dng_opcode_lists[0] || mod_data->dng_opcode_lists[1] || mod_data->dng_opcode_lists[2])
+  {
+    mod_data->dngop.type = s_image_metadata_dngop;
+    mod_data->dngop.op_list[0] = mod_data->dng_opcode_lists[0];
+    mod_data->dngop.op_list[1] = mod_data->dng_opcode_lists[1];
+    mod_data->dngop.op_list[2] = mod_data->dng_opcode_lists[2];
+    mod->img_param.meta = dt_metadata_append(mod->img_param.meta, (dt_image_metadata_t*)&mod_data->dngop);
+  }
 #endif
   // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->d->mRaw->metadata.canonical_make.c_str());

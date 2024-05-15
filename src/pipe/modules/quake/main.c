@@ -1233,7 +1233,8 @@ create_nodes(
 
 int audio(
     dt_module_t  *mod,
-    const int     frame,
+    uint64_t      unused_sample_beg,
+    uint32_t      unused_sample_cnt,
     uint8_t     **samples)
 {
   qs_data_t *dat = mod->data;

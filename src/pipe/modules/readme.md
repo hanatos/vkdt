@@ -14,6 +14,7 @@ it follows the reference documentation of available modules, grouped into catego
 * [i-jpg: jpg input module](./i-jpg/readme.md)
 * [i-jpglst: input a longer list of jpg as an array connector](./i-jpglst/readme.md)
 * [i-lut: half float lut input module](./i-lut/readme.md)
+* [i-mcraw: read motioncam raw video](./i-mcraw/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
 * [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
 * [i-raw: input module for raw-format photographic stills or timelapses](./i-raw/readme.md)
@@ -24,11 +25,11 @@ it follows the reference documentation of available modules, grouped into catego
 
 * [o-bc1: write bc1 compressed thumbnail files](./o-bc1/readme.md)
 * [o-exr: write openexr image files](./o-exr/readme.md)
-* [o-ffmpeg: write h264 compressed video stream for multi-frame input](./o-ffmpeg/readme.md)
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
 * [o-lut: write varying precision multi channel luts](./o-lut/readme.md)
 * [o-null: write absolutely nothing](./o-null/readme.md)
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
+* [o-vid: write h264 or prores compressed video streams](./o-vid/readme.md)
 * [loss: compute loss for optimisation](./loss/readme.md)
 
 **visualisation and inspection**
@@ -87,6 +88,7 @@ it follows the reference documentation of available modules, grouped into catego
 **effects**
 
 * [frame: postcard-style decor border around the image](./frame/readme.md)
+* [grain: simulate analog film grain](./grain/readme.md)
 
 **technical**
 

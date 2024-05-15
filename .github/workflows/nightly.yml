@@ -265,11 +265,6 @@ jobs:
           wget https://exiftool.org/exiftool-12.76.zip
           unzip exiftool-12.76.zip
           mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
-      - name: bundle ffmpeg
-        run: |
-          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
-          unzip ffmpeg*.zip
-          mv ffmpeg*win64*/bin/ffmpeg.exe ${INSTALL_PREFIX}/usr/lib/vkdt/ffmpeg.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
@@ -356,11 +351,6 @@ jobs:
           wget https://exiftool.org/exiftool-12.76.zip
           unzip exiftool-12.76.zip
           mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
-      - name: bundle ffmpeg
-        run: |
-          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
-          unzip ffmpeg*.zip
-          mv ffmpeg*win64*/bin/ffmpeg.exe ${INSTALL_PREFIX}/usr/lib/vkdt/ffmpeg.exe
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
@@ -412,11 +402,11 @@ jobs:
             appimage (currently disabled, use the next in list)
             ===================================================
             the appimage compiles in a lot of features
-            (mlv, v4l, asound, i-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
+            (mlv, v4l, asound, i-vid, o-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
             but not all
             (no quake).
-            you also currently need `exiftool` and `ffmpeg`
-            binaries installed on your host system to enable all features (o-vid and metadata handling).
+            you also currently need the `exiftool` binary installed on your
+            host system to enable all features (o-vid and metadata handling).
 
             appimage with rawler
             ====================
@@ -428,7 +418,7 @@ jobs:
             =================================================
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
-            (rawspeed, exiv2, freetype mlv, i-vid, o-ffmpeg)
+            (rawspeed, exiv2, freetype mlv, i-vid, o-vid)
             and leaves out many
             (no v4l, no sound, no quake, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).

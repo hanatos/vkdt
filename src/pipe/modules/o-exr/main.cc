@@ -15,8 +15,9 @@
 extern "C" {
 
 void write_sink(
-    dt_module_t *mod,
-    void *buf)
+    dt_module_t            *mod,
+    void                   *buf,
+    dt_write_sink_params_t *p)
 {
   const char *basename = dt_module_param_string(mod, 0);
   fprintf(stderr, "[o-exr] writing '%s'\n", basename);
@@ -69,12 +70,23 @@ void write_sink(
   }
 
   // rr gg bb ww assuming rec2020 D65
-  float chromaticities[] = { 0.708, 0.292, 0.170, 0.797, 0.131, 0.046, 0.3127, 0.3290};
+  const float chromaticities[][8] = {
+    { 0, }, // custom matrix, would need to multiply rec2020_to_XYZ * img_param.cam_to_rec2020 * (1,0,0) and then convert to xy chromaticities etc
+    { 0.6400, 0.3300, 0.3000, 0.6000, 0.1500, 0.0600, 0.3127, 0.3290}, // sRGB
+    { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // rec2020
+    { 0.6400, 0.3300, 0.2100, 0.7100, 0.1500, 0.0600, 0.3127, 0.3290}, // adobe rgb
+    { 0.680,  0.320,  0.265,  0.690,  0.150,  0.060,  0.3127, 0.3290}, // P3 D65 (display)
+    { 1.0,    0.0,    0.0,    1.0,    0.0,    0.0,    0.3333, 0.3333}, // XYZ illum E
+    { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // unknown, assume rec2020
+  };
+  const char *trc[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma", "mclog"};
   EXRAttribute custom_attributes[] = {{
     "chromaticities",
-    "Chromaticities",
-    (unsigned char*)chromaticities,
-    sizeof(chromaticities),
+    "chromaticities",
+    (unsigned char*)(chromaticities[CLAMP(mod->img_param.colour_primaries, 0, 7)]),
+    sizeof(chromaticities[0]),
+  },{
+    "trc", "char", (unsigned char*)trc[CLAMP(mod->img_param.colour_trc, 0, 7)], sizeof(trc[CLAMP(mod->img_param.colour_trc, 0, 7)]),
   }};
   hdr.custom_attributes = custom_attributes;
   hdr.num_custom_attributes = sizeof(custom_attributes)/sizeof(custom_attributes[0]);

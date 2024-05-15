@@ -1,0 +1,339 @@
+#version 460
+#extension GL_GOOGLE_include_directive                     : enable
+#extension GL_EXT_shader_16bit_storage                     : enable
+#extension GL_EXT_shader_8bit_storage                      : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int16   : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int32   : enable
+#include "shared.glsl"
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+// push constants: offset to standard bayer pattern, original width and height
+layout(push_constant, std140) uniform push_t {
+  uint ox;
+  uint oy;
+  uint owd;
+  uint oht;
+} push;
+layout(set = 1, binding = 0) uniform writeonly image2D img_out;
+layout(set = 1, binding = 1) buffer ssbo_cnt_t { uint8_t  v[]; } ssbo_cnt; // bit count for two blocks
+layout(set = 1, binding = 2) buffer ssbo_off_t { uint32_t v[]; } ssbo_off; // memory offset or the block data
+layout(set = 1, binding = 3) buffer ssbo_ref_t { uint16_t v[]; } ssbo_ref; // reference value for each block
+layout(set = 1, binding = 4) buffer ssbo_inp_t { uint8_t  v[]; } ssbo_dat; // block data
+
+// read and extract bit counts
+uint read_bitcount(uint i)
+{
+  uint res = ssbo_cnt.v[i/2];
+  if((i&1)==1) res >>= 4;
+  res &= 0xf;
+  return res;
+}
+
+// shared mem large enough to hold extra bits in the worst case
+// might want to address this as uint8_t because the decoder does the same
+// and often times we load much less than a full uvec4 anyways
+shared uint8_t shm[128]; // largest block size is 128 bytes
+
+// run as subgroup of 32 threads, this will return 2x32 = 64 decoded 16 bit ints
+uvec2 decode1(const uint off)
+{ // load 8 8-bit values from input
+  const int si = int(gl_LocalInvocationID.x);
+  if(si < 8) shm[si] = ssbo_dat.v[off+si];
+  barrier();
+  const int reg = 2*(si%4); // we'll be working on two input registers, this is the index of the first
+  const int bit = 1*(si/4); // 32 threads extract up to bit number 7
+  uvec2 p = uvec2(shm[reg], shm[reg+1]);
+  // we are going to write two values out of one of the r0..r7 sse registers
+  // for instance r0.xy, where 0 means it's bit number 0 from the loaded p.
+  // this means every thread deals with a fixed bit to extract:
+  return uvec2(bitfieldExtract(p, bit, 1));
+}
+
+// run as subgroup of 32 threads, this will return 2x32 = 64 decoded 16 bit ints
+uvec2 decode2(const uint off)
+{ // load 16 8-bit values
+  const int si = int(gl_LocalInvocationID.x);
+  if(si < 16) shm[si] = ssbo_dat.v[off+si];
+  barrier();
+  const int reg = 2*(si%8); // we'll be working on two input registers, this is the index of the first
+  const int bit = 2*(si/8); // 32 threads extract up to bit number 7
+  uvec2 p = uvec2(shm[reg], shm[reg+1]);
+  return bitfieldExtract(p, bit, 2);
+}
+
+uvec2 decode3(const uint offs)
+{ // load 24 8-bit values
+  const int si = int(gl_LocalInvocationID.x);
+  if(si < 24) shm[si] = ssbo_dat.v[offs+si];
+  barrier();
+  // extract conceptually bits in groups of 3.
+  // r0: threads 0..3 grab 3 lsb of reg 0..7
+  // r1: threads 4..7 grab 3 bits offset 3 from reg 0..7
+  // r2: threads 8..11 grab the two msb of regs 0..7
+  // and the last bit will be restored later.
+  // r3,r4: threads 12..19 work by grabbing 3 bits from reg 8..15
+  // r5: threads 20..23 grab two msb of reg 8..15
+  // r6: threads 24..27 grab 3 lsb from reg 16..23
+  // r7: threads 28..31 grab 3 off 3 from reg 16..23
+  // r2, r5 (t8..11,20..23) get bits 6 and 7 from reg 16..23 appended as their msb
+  //
+  // map subgroup invocation id to read register and bit offset:
+  // t0 - r0 1 o0
+  // t1 - r2 3 o0
+  // t2 - r4 5 o0
+  // t3 - r6 7 o0
+  int reg, off;
+  if(si < 4) { reg = 0 + si*2; off = 0; }
+  // 
+  // t4 - r0 1 o3
+  // t5 - r2 3 o3
+  // t6 - r4 5 o3
+  // t7 - r6 7 o3
+  else if(si < 8) { reg = 0 + (si-4)*2; off = 3; }
+  // 
+  // t8  - r0 1 o6
+  // t9  - r2 3 o6
+  // t10 - r4 5 o6
+  // t11 - r6 7 o6
+  else if(si < 12) { reg = 0 + (si-8)*2; off = 6; }
+  //
+  // t12 - r8 9 o0
+  // t13 - r10 11 o0
+  // t14 - r12 13 o0
+  // t15 - r14 15 o0
+  else if(si < 16) { reg = 8 + (si-12)*2; off = 0; }
+  // 
+  // t16 - r8 9 o3
+  // t17 - r10 11 o3
+  // t18 - r12 13 o3
+  // t19 - r14 15 o3
+  else if(si < 20) { reg = 8 + (si-16)*2; off = 3; }
+  // 
+  // t20 - r8 9 o6
+  // t21 - r10 11 o6
+  // t22 - r12 13 o6
+  // t23 - r14 15 o6
+  else if(si < 24) { reg = 8 + (si-20)*2; off = 6; }
+  // 
+  // t24 - r16 17 o0
+  // t25 - r18 19 o0
+  // t26 - r20 21 o0
+  // t27 - r22 23 o0
+  else if(si < 28) { reg = 16 + (si-24)*2; off = 0; }
+  // 
+  // t28 - r16 17 o3
+  // t29 - r18 19 o3
+  // t30 - r20 21 o3
+  // t31 - r22 23 o3
+  else if(si < 32) { reg = 16 + (si-28)*2; off = 3; }
+  //
+  // and all o6 need one additional bit from regs 16..23 at o6 (t8..t11) and o7 (t20..t23)
+  uvec2 p = uvec2(shm[reg], shm[reg+1]); // this padds zeroes if we ask for more bits than 8
+  uvec2 res = bitfieldExtract(p, off, 3);
+  if(si >= 8 && si < 12)
+  {
+    reg = 16 + (si - 8)*2;
+    p = uvec2(shm[reg], shm[reg+1]);
+    res |= bitfieldExtract(p, 6, 1)<<2;
+  }
+  else if(si >= 20 && si < 24)
+  {
+    reg = 16 + (si - 20)*2;
+    p = uvec2(shm[reg], shm[reg+1]);
+    res |= bitfieldExtract(p, 7, 1)<<2;
+  }
+  return res;
+}
+
+uvec2 decode4(const uint off)
+{ // load 32 (=4x8) 8-bit values and distribute the 64 4-bit nibbles to the output
+  const int si = int(gl_LocalInvocationID.x);
+  shm[si] = ssbo_dat.v[off+si];
+  barrier();
+  const int bit = ((2*si / 8) & 1) == 0 ? 0 : 4;
+  const int reg = (2*si / 16)*8 + ((2*si)%8);
+  uvec2 p = uvec2(shm[reg], shm[reg+1]);
+  return bitfieldExtract(p, bit, 4);
+}
+
+uvec2 decode5(const uint off)
+{ // load 40 (=5x8) 8-bit values and distribute the bits to the output
+  const int si = int(gl_LocalInvocationID.x);
+  shm[si] = ssbo_dat.v[off+si];
+  if(si < 8) shm[si+32] = ssbo_dat.v[off+si+32];
+  barrier();
+  // r0: threads 0..3   grab 5 lsb of reg 0..7
+  // r1: threads 4..7   grab 5 lsb of reg 8..15
+  // r2: threads 8..11  grab 5 lsb of reg 16..23
+  // r3: threads 12..15 grab 5 lsb of reg 24..31
+  // r4: threads 16..19 grab 5 lsb of reg 32..39
+  // r5, r6, r7 special case
+  if(si < 20)
+  {
+    const int reg = 2*si;
+    uvec2 p = uvec2(shm[reg], shm[reg+1]);
+    return bitfieldExtract(p, 0, 5);
+  }
+  // r5: threads 20..23
+  // r6: threads 24..27
+  if(si < 28)
+  {
+    const int rl = si < 24 ? 0 + (si - 20)*2 : 8 + (si - 24)*2, ru = si < 24 ? 24 + (si - 20)*2 : 32 + (si - 24)*2;
+    uvec2 pl = uvec2(shm[rl], shm[rl+1]);
+    uvec2 pu = uvec2(shm[ru], shm[ru+1]);
+    return bitfieldExtract(pl, 5, 3) | (bitfieldExtract(pu, 5, 2)<<3);
+  }
+  // r7: threads 28..31
+  const int rl = 16 + (si-28)*2, rm = 24 + (si-28)*2, rh = 32 + (si-28)*2;
+  uvec2 pl = uvec2(shm[rl], shm[rl+1]);
+  uvec2 pm = uvec2(shm[rm], shm[rm+1]);
+  uvec2 ph = uvec2(shm[rh], shm[rh+1]);
+  return bitfieldExtract(pl, 5, 3) | (bitfieldExtract(pm, 7, 1)<<3) | (bitfieldExtract(ph, 7, 1)<<4);
+}
+
+uvec2 decode6(const uint off)
+{ // load 48 (=6x8) 8-bit values and distribute the bits to the output
+  const int si = int(gl_LocalInvocationID.x);
+  shm[si] = ssbo_dat.v[off+si];
+  if(si < 16) shm[si+32] = ssbo_dat.v[off+si+32];
+  barrier();
+  // r0..r5 grab the lower 6 bits regularly
+  if(si < 24)
+  {
+    const int reg = 2*si;
+    uvec2 p = uvec2(shm[reg], shm[reg+1]);
+    return bitfieldExtract(p, 0, 6);
+  }
+  // r6 and r7 (threads 24..27 and 28..31) are special cases
+  if(si < 28)
+  {
+    const int rl = 0 + (si - 24)*2, rm = 8 + (si - 24)*2, rh = 16 + (si - 24)*2;
+    uvec2 pl = uvec2(shm[rl], shm[rl+1]);
+    uvec2 pm = uvec2(shm[rm], shm[rm+1]);
+    uvec2 ph = uvec2(shm[rh], shm[rh+1]);
+    return bitfieldExtract(pl, 6, 2) | (bitfieldExtract(pm, 6, 2)<<2) | (bitfieldExtract(ph, 6, 2)<<4);
+  }
+  const int rl = 24 + (si - 28)*2, rm = 32 + (si - 28)*2, rh = 40 + (si - 28)*2;
+  uvec2 pl = uvec2(shm[rl], shm[rl+1]);
+  uvec2 pm = uvec2(shm[rm], shm[rm+1]);
+  uvec2 ph = uvec2(shm[rh], shm[rh+1]);
+  return bitfieldExtract(pl, 6, 2) | (bitfieldExtract(pm, 6, 2)<<2) | (bitfieldExtract(ph, 6, 2)<<4);
+}
+
+uvec2 decode8(const uint off)
+{ // load 64 (=8x8) 8-bit values and expand evenly to 16 bit output
+  const int si = int(gl_LocalInvocationID.x);
+  shm[si]    = ssbo_dat.v[off+si];
+  shm[si+32] = ssbo_dat.v[off+si+32];
+  barrier();
+  return uvec2(shm[2*si + 0], shm[2*si + 1]);
+}
+
+uvec2 decode10(const uint offs)
+{ // load 80 (=10x8) 8-bit values and distribute the bits to the output
+  const int si = int(gl_LocalInvocationID.x);
+  shm[si]    = ssbo_dat.v[offs+si];
+  shm[si+32] = ssbo_dat.v[offs+si+32];
+  if(si < 16) shm[si+64] = ssbo_dat.v[offs+si+64];
+  barrier();
+  // all r0..r7 grab the lower 8 bits, but from p0..3 and p5..8 
+  // p4 and p9 donate the remaining two bits to each result
+  const int rl = si < 16 ? 2*si : 40 + (si-16)*2;
+  uvec2 res = uvec2(shm[rl], shm[rl+1]); // set lower 8 bits
+
+  const int rh = si < 16 ? 32+(si%4)*2 : 72 + (si%4)*2;
+  const int off = 2*((si&15) / 4); // 0, 2, 4, 6 for 0..15 and 16..31
+  uvec2 p = uvec2(shm[rh], shm[rh+1]);
+  return res | (bitfieldExtract(p, off, 2) << 8); // add upper 2 bits
+}
+
+uvec2 decode16(const uint off)
+{ // load 64 16-bit values and write to 16 bit output
+  const int si = int(gl_LocalInvocationID.x);
+  shm[si]    = ssbo_dat.v[off+si];
+  shm[si+32] = ssbo_dat.v[off+si+32];
+  shm[si+64] = ssbo_dat.v[off+si+64];
+  shm[si+96] = ssbo_dat.v[off+si+96];
+  barrier();
+  return uvec2(
+      pack16(u8vec2(shm[4*si + 0], shm[4*si + 1])),
+      pack16(u8vec2(shm[4*si + 2], shm[4*si + 3])));
+}
+
+// one workgroup decodes one block of 64 uint16 in the output
+void main()
+{
+  const int idx = int(gl_WorkGroupID.x); // this index references into bit count, ref value, and block offset arrays
+  uint cnt = read_bitcount(idx); // bit count for this block
+  uint ref = ssbo_ref.v[idx]; // reference value for this block
+  uint off = idx > 0 ? ssbo_off.v[idx-1] : 0; // memory offset to block data. prefix sum has no leading 0, so we need to offset by 1
+  uvec2 res;
+  switch(cnt)
+  {
+    case 0:
+      res = uvec2(0);
+      break;
+    case 1:
+      res = decode1(off);
+      break;
+    case 2:
+      res = decode2(off);
+      break;
+    case 3:
+      res = decode3(off);
+      break;
+    case 4:
+      res = decode4(off);
+      break;
+    case 5:
+      res = decode5(off);
+      break;
+    case 6:
+      res = decode6(off);
+      break;
+    case 7:
+    case 8:
+      res = decode8(off);
+      break;
+    case 9:
+    case 10:
+      res = decode10(off);
+      break;
+    default:
+    case 16:
+      res = decode16(off);
+      break;
+  }
+
+  // sum ref value and decoded bits
+  res += ref; // this should never overflow or else the decoder is buggy
+
+  // swizzle stuff into place
+  // four consecutive blocks cover a 64x4 block in imagespace.
+  // block 0 covers row0 0..63 and row2 0..63 in that order, in steps of 2 starting at 0
+  // block 1 covers row0 and row2 in steps of 2 starting at 1
+  uint k = idx / 4;
+  uint bpr = push.owd / 64;
+  uint bpc = push.oht / 4;
+  ivec2 bi = ivec2(k % bpr, k / bpr); // block index x y
+  const uint wd = push.owd;
+  ivec2 block_pos = ivec2(64, 4) * bi; // upper left corner of decoded pixel block
+  const int si = int(gl_LocalInvocationID.x);
+  if(si >= 16)       { block_pos.x -= 64; block_pos.y += 2; }
+  if((idx & 3) == 1) { block_pos.x += 1;  block_pos.y += 0; }
+  if((idx & 3) == 2) { block_pos.x += 0;  block_pos.y += 1; }
+  if((idx & 3) == 3) { block_pos.x += 1;  block_pos.y += 1; }
+  block_pos.x += 4*si;
+  {
+    ivec2 tc = block_pos - ivec2(push.ox, push.oy);
+    if(all(greaterThanEqual(tc, ivec2(0))) && all(lessThan(tc, imageSize(img_out))))
+      imageStore(img_out, tc, vec4(res.x/65536.0));
+  }
+  block_pos.x += 2;
+  {
+    ivec2 tc = block_pos - ivec2(push.ox, push.oy);
+    if(all(greaterThanEqual(tc, ivec2(0))) && all(lessThan(tc, imageSize(img_out))))
+      imageStore(img_out, tc, vec4(res.y/65536.0));
+  }
+}

@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "core/half.h"
 #include "core/core.h"
+#include "../i-raw/mat3.h"
 
 #include <zlib.h>
 #define TINYEXR_USE_THREAD (1)
@@ -38,6 +39,14 @@ check_params(
     module->img_param.noise_b = noise_b;
     return s_graph_run_all; // need no do modify_roi_out again to read noise model from file
   }
+  if(parid == 4 || parid == 5) // colour space
+  {
+    const int prim = dt_module_param_int(module, 4)[0];
+    const int trc  = dt_module_param_int(module, 5)[0];
+    module->img_param.colour_primaries = prim;
+    module->img_param.colour_trc       = trc;
+    return s_graph_run_all; // propagate image params and potentially different buffer sizes downwards
+  }
   return s_graph_run_record_cmd_buf;
 }
 
@@ -60,6 +69,8 @@ read_header(
   if(dt_graph_get_resource_filename(mod, filename, frame, fname, sizeof(fname)))
     return 1;
 
+  float *chroma = 0;
+  const char *trc = 0;
   const char *err = 0;
   EXRVersion exr_version;
   {
@@ -77,6 +88,61 @@ read_header(
     goto error;
   }
   // TODO: maybe set hdr->requested_pixel_types[c] to something HALF?
+
+  mod->img_param.colour_primaries = s_colour_primaries_2020;
+  mod->img_param.colour_trc       = s_colour_trc_linear;
+
+  for(int i=0;i<exr->hdr.num_custom_attributes;i++)
+  {
+    if(!strcmp(exr->hdr.custom_attributes[i].name, "chromaticities") && exr->hdr.custom_attributes[i].size == 32)
+      chroma  = (float *)exr->hdr.custom_attributes[i].value;
+    if(!strcmp(exr->hdr.custom_attributes[i].name, "trc") && !strcmp(exr->hdr.custom_attributes[i].type, "char"))
+      trc = (const char *)exr->hdr.custom_attributes[i].value;
+  }
+
+  if(chroma)
+  { // bruce lindbloom says (oh why can't they just store the matrix..):
+    float Xr = chroma[0] / chroma[1];
+    float Yr = 1.0;
+    float Zr = (1.0-chroma[0]-chroma[1])/chroma[1];
+    float Xg = chroma[2] / chroma[3];
+    float Yg = 1.0;
+    float Zg = (1.0-chroma[2]-chroma[3])/chroma[3];
+    float Xb = chroma[4] / chroma[5];
+    float Yb = 1.0;
+    float Zb = (1.0f-chroma[4]-chroma[5])/chroma[5];
+    float w[] = { chroma[6]/chroma[7], 1.0f,
+      (1.0f-chroma[6]-chroma[7])/chroma[7]};
+    float Ri[9], R[9] = {
+      Xr, Xg, Xb,
+      Yr, Yg, Yb,
+      Zr, Zg, Zb};
+    if(!mat3inv(Ri, R))
+    {
+      float S[3] = {0.0};
+      for(int j=0;j<3;j++) for(int i=0;i<3;i++) S[j] += Ri[3*j+i]*w[i];
+      float M[9] = { // rgb to xyz
+        S[0] * Xr, S[1] * Xg, S[2] * Xb,
+        S[0] * Yr, S[1] * Yg, S[2] * Yb,
+        S[0] * Zr, S[1] * Zg, S[2] * Zb,
+      };
+      float XYZ_to_rec2020[] = {
+        1.7166511880, -0.3556707838, -0.2533662814,
+       -0.6666843518,  1.6164812366,  0.0157685458,
+        0.0176398574, -0.0427706133,  0.9421031212 };
+      for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+        mod->img_param.cam_to_rec2020[3*j+i] = 0.0;
+      for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+        mod->img_param.cam_to_rec2020[3*j+i] += XYZ_to_rec2020[3*j+k] * M[3*k+i];
+      mod->img_param.colour_primaries = s_colour_primaries_custom;
+    }
+  }
+  if(trc)
+  {
+    const char *names[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma", "mclog"};
+    for(int i=0;i<sizeof(names)/sizeof(names[0]);i++)
+      if(!strcmp(trc, names[i])) mod->img_param.colour_trc = i;
+  }
 
   for(int k=0;k<4;k++)
   {
@@ -232,6 +298,14 @@ void modify_roi_out(
   mod->connector[0].chan = exr->hdr.num_channels == 1 ? dt_token("y") : dt_token("rgba");
   mod->connector[0].roi.full_wd = exr->hdr.data_window.max_x - exr->hdr.data_window.min_x + 1;
   mod->connector[0].roi.full_ht = exr->hdr.data_window.max_y - exr->hdr.data_window.min_y + 1;
+
+  int *p_prim = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim")));
+  int *p_trc  = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc" )));
+  // don't overwrite user choice, but if they don't know/leave at defaults we do:
+  if(*p_prim == s_colour_primaries_unknown) *p_prim = mod->img_param.colour_primaries;
+  if(*p_trc  == s_colour_trc_unknown)       *p_trc  = mod->img_param.colour_trc;
+  mod->img_param.colour_primaries = *p_prim;
+  mod->img_param.colour_trc       = *p_trc;
 }
 
 int read_source(

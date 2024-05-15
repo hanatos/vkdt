@@ -223,12 +223,17 @@ dt_graph_export(
       dt_module_set_param_float(mod_out[i], dt_token("quality"), param->output[i].quality);
   }
 
-  int audio_mod= -1, audio_cnt = 0;
+  int audio_mod = -1;
   uint16_t *audio_samples;
   for(int i=0;i<graph->num_modules;i++)
     if(graph->module[i].name && graph->module[i].so->audio) { audio_mod = i; break; }
   FILE *audio_f = 0;
   if(param->output[0].p_audio && audio_mod >= 0) audio_f = fopen(param->output[0].p_audio, "wb");
+
+  // TODO: want bytes per sample from snd header!
+  const int audio_bps = audio_mod < 0 ? 0 : graph->module[audio_mod].img_param.snd_channels * sizeof(int16_t);
+  const int audio_spf = audio_mod < 0 ? 0 : graph->module[audio_mod].img_param.snd_samplerate / graph->frame_rate;
+  uint64_t audio_pos = 0;
 
   if(graph->frame_cnt > 1)
   {
@@ -237,10 +242,14 @@ dt_graph_export(
     dt_graph_run(graph, s_graph_run_all);
     if(audio_f)
     {
-      do {
-        audio_cnt = graph->module[audio_mod].so->audio(graph->module+audio_mod, 0, &audio_samples);
-        if(audio_cnt) fwrite(audio_samples, 2*sizeof(uint16_t), audio_cnt, audio_f);
-      } while(audio_cnt);
+      for(int audio_cnt=audio_spf;audio_cnt;)
+      {
+        int delta = graph->module[audio_mod].so->audio(graph->module+audio_mod, audio_pos, audio_cnt, &audio_samples);
+        if(delta) fwrite(audio_samples, audio_bps, delta, audio_f);
+        else break;
+        if(graph->frame_rate == 0) break; // no fixed frame rate have to provide the right amount of audio
+        audio_cnt -= delta; audio_pos += delta;
+      }
     }
     for(int f=1;f<graph->frame_cnt;f++)
     {
@@ -265,10 +274,14 @@ dt_graph_export(
       if(res != VK_SUCCESS) goto done;
       if(audio_f)
       {
-        do {
-          audio_cnt = graph->module[audio_mod].so->audio(graph->module+audio_mod, f, &audio_samples);
-          if(audio_cnt) fwrite(audio_samples, 2*sizeof(uint16_t), audio_cnt, audio_f);
-        } while(audio_cnt);
+        for(int audio_cnt=audio_spf;audio_cnt;)
+        {
+          int delta = graph->module[audio_mod].so->audio(graph->module+audio_mod, audio_pos, audio_cnt, &audio_samples);
+          if(delta) fwrite(audio_samples, audio_bps, delta, audio_f);
+          else break;
+          if(graph->frame_rate == 0) break; // no fixed frame rate have to provide the right amount of audio
+          audio_cnt -= delta; audio_pos += delta;
+        }
       }
       if(param->print_progress)
         fprintf(stderr, "\r[export] processing frame %d/%d", graph->frame, graph->frame_cnt-1);

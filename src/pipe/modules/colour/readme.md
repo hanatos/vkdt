@@ -76,6 +76,11 @@ gamut.
   this parameter runs a ui group, so it will show/hide a few other elements.
 * `gamut` the gamut can be left untouched, projected to spectral locus, rec2020, or rec709.
   works only if the abney and spectra inputs are connected.
+* `clip` this is a last-resort brute force method to avoid pink highlights in case the highlight reconstruction
+   module does not produce satisfactory results. this can be the case if chromatic aberration or noise is
+   interpolated into the clipped region. clipping highlights here will simply set all channels to the minimum
+   clipping threshold, producing a neutral colour.
+* `clipmax` 1.0 would be the ideal clipping threshold
 * `picked` what to do with the picked input colour, if it is connected to the `picked` connector.
   it can be used as source for white balancing and/or deflickering.
 * `matrix` input device transform mode: use the image matrix or a selection of presets, or the colour lut.

@@ -190,6 +190,8 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const int    p_mod = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("mode")))[0];
   const float  p_sat = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("sat")))[0];
   const int    p_pck = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("picked")))[0];
+  const int    p_clp = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("clip")))[0];
+  const float  p_clm = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("clipmax")))[0];
 
   // wb and exposure mul:
   f[0] = p_wb[0] / p_wb[1];
@@ -207,11 +209,11 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   i[off+4] = p_gam;
   i[off+5] = img_param->colour_primaries;
   i[off+6] = img_param->colour_trc;
+  f[off+7] = p_clp ? p_clm : 0.0;
 
   if(p_mat == 1 && !(img_param->cam_to_rec2020[0] == img_param->cam_to_rec2020[0])) p_mat = 0; // no matrix? default to identity
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
-    i[off+5] = s_colour_primaries_custom;
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       f[4+4*i+j] = img_param->cam_to_rec2020[3*j+i];
   }
@@ -276,7 +278,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*(4+12+4+12+4*24+4*24+5+8);
+  mod->committed_param_size = sizeof(float)*(4+12+4+12+4*24+4*24+5+8+1);
   return 0;
 }
 

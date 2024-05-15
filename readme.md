@@ -1,6 +1,6 @@
-# raw image processing workflow which sucks less
+# raw photography processing workflow which sucks less
 
-[vkdt](https://vkdt.org) is a workflow toolbox for raw photography and video.
+[vkdt](https://vkdt.org) is a workflow toolbox for raw stills and video.
 `vkdt` is designed with high performance in mind. it features a flexible
 processing node graph at its core, enabling real-time support for animations,
 timelapses, raw video, and heavy lifting algorithms like image alignment and
@@ -38,9 +38,7 @@ targets, such as the main view and histograms.
 
 ## packages
 
-there are up-to-date packages (deb/rpm/pkgbuild) in the
-
-[opensuse build system](https://software.opensuse.org/download.html?project=graphics%3Adarktable%3Amaster&package=vkdt)
+there are [nightly packages built by the github ci](https://github.com/hanatos/vkdt/releases/tag/nightly).
 
 also there are [nixos packages](https://search.nixos.org/packages?channel=unstable&show=vkdt) `vkdt`
 and `vkdt-wayland` which you can use to try out/run on any linux distro, for instance:

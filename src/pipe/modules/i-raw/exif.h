@@ -19,6 +19,7 @@
 extern "C" {
 #include "module.h"
 #include "core/fs.h"
+#include "dng_opcode.h"
 }
 
 #include <cassert>
@@ -54,7 +55,7 @@ typedef enum dt_exif_image_orientation_t
 }
 dt_exif_image_orientation_t;
 
-int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
+int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData, dt_dng_opcode_list_t **dng_opcode_lists)
 {
   try
   {
@@ -248,6 +249,43 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
         for(int k=0;k<9;k++)
           ip->cam_to_rec2020[k] = cam_to_rec2020[k];
       }
+
+      // get and decode DNG opcode lists  
+      if(dng_opcode_lists != nullptr && FIND_EXIF_TAG("Exif.Image.DNGVersion"))
+      {
+        // this is a DNG file - locate the primary raw image
+        std::string primary_group;
+        for(pos = exifData.begin(); pos != exifData.end(); ++pos)
+          if(strcmp(pos->tagName().c_str(), "NewSubfileType") == 0 && pos->toLong() == 0)
+          {
+            primary_group = pos->groupName();
+            break;
+          }
+        if(!primary_group.empty())
+        {
+          if(FIND_EXIF_TAG("Exif." + primary_group + ".OpcodeList1"))
+          {
+            uint8_t *data = (uint8_t *)malloc(pos->size());
+            pos->copy(data, Exiv2::invalidByteOrder);
+            dng_opcode_lists[0] = dng_opcode_list_decode(data, pos->size());
+            free(data);
+          }
+          if(FIND_EXIF_TAG("Exif." + primary_group + ".OpcodeList2"))
+          {
+            uint8_t *data = (uint8_t *)malloc(pos->size());
+            pos->copy(data, Exiv2::invalidByteOrder);
+            dng_opcode_lists[1] = dng_opcode_list_decode(data, pos->size());
+            free(data);
+          }
+          if(FIND_EXIF_TAG("Exif." + primary_group + ".OpcodeList3"))
+          {
+            uint8_t *data = (uint8_t *)malloc(pos->size());
+            pos->copy(data, Exiv2::invalidByteOrder);
+            dng_opcode_lists[2] = dng_opcode_list_decode(data, pos->size());
+            free(data);
+          }
+        }
+      }
     }
     return 0;
   }
@@ -264,7 +302,7 @@ int dt_exif_read_exif_data(dt_image_params_t *ip, Exiv2::ExifData &exifData)
 /** read the metadata of an image.
  * XMP data trumps IPTC data trumps EXIF data
  */
-int dt_exif_read(dt_image_params_t *ip, const char *path)
+int dt_exif_read(dt_image_params_t *ip, const char *path, dt_dng_opcode_list_t **dng_opcode_lists)
 {
   // at least set datetime taken to something useful in case there is no exif
   // data in this file (pfm, png, ...)
@@ -279,7 +317,7 @@ int dt_exif_read(dt_image_params_t *ip, const char *path)
     // EXIF metadata
     Exiv2::ExifData &exifData = image->exifData();
     if(!exifData.empty())
-      return dt_exif_read_exif_data(ip, exifData);
+      return dt_exif_read_exif_data(ip, exifData, dng_opcode_lists);
     return 1;
   }
   catch(Exiv2::AnyError &e)

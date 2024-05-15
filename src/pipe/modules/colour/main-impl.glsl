@@ -18,6 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint  gamut_mode;        // 0 nothing, 1 spec locus, 2 rec2020, 3, rec709
   uint  primaries;         // see module.h
   uint  trc;
+  float clip_highlights;   // pass highlights through or clip at minimum of rgb after processing
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -156,6 +157,11 @@ vec3 decode_colour(vec3 rgb)
   { // TODO get gamma from params
     rgb = pow(max(rgb, vec3(0.0)), vec3(2.2)); // happens to be adobe rgb
   }
+  else if(params.trc == 7) // mcraw log to linear
+  {
+    const float a = 0.13, b = 1.0 - 4.0 * a, c = 0.5 - a * log(4.0 * a);
+    rgb = mix(rgb * rgb / 3.0, (exp((rgb - c) / a) + b) / 12.0, greaterThan(rgb, vec3(0.5)));
+  }
 
   if(params.primaries == 0)
   { // use uploaded custom matrix
@@ -232,13 +238,34 @@ main()
   if(push.have_pick == 1 && (params.pick_mode & 1) != 0)
   { // spot wb
     if(params.colour_mode == 0 || push.have_clut == 0)
-      picked_rgb = params.cam_to_rec2020 * picked_rgb;
+      picked_rgb = decode_colour(picked_rgb);
     else
       picked_rgb = process_clut(picked_rgb);
     picked_rgb /= picked_rgb.g;
     rgb = cat16(rgb, picked_rgb, params.mul.rgb);
   } // regular white balancing
   else rgb = cat16(rgb, vec3(1.0), params.mul.rgb);
+
+  if(params.clip_highlights > 0.0)
+  {
+    vec3 clip = vec3(params.clip_highlights);
+    if(params.colour_mode == 0 || push.have_clut == 0)
+      clip = decode_colour(clip);
+    else rgb = process_clut(clip);
+
+    if(push.have_pick == 1 && (params.pick_mode & 1) != 0)
+    { // spot wb
+      if(params.colour_mode == 0 || push.have_clut == 0)
+        picked_rgb = params.cam_to_rec2020 * picked_rgb;
+      else
+        picked_rgb = process_clut(picked_rgb);
+      picked_rgb /= picked_rgb.g;
+      clip = cat16(clip, picked_rgb, params.mul.rgb);
+    } // regular white balancing
+    else clip = cat16(clip, vec3(1.0), params.mul.rgb);
+    const float t = min(clip.r, min(clip.g, clip.b));
+    rgb = min(rgb, vec3(t));
+  } // end highlight clipping
 
   if(push.have_pick == 1 && (params.pick_mode & 2) != 0)
   { // deflicker based on input patch

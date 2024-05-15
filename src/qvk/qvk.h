@@ -75,21 +75,33 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // forward declare
 typedef struct GLFWwindow GLFWwindow;
 
+typedef enum qvk_queue_name_t
+{
+  s_queue_graphics = 0,
+  s_queue_compute  = 1,
+  s_queue_work0    = 2,
+  s_queue_work1    = 3,
+  s_queue_cnt      = 4,
+}
+qvk_queue_name_t;
+
+typedef struct qvk_queue_t
+{ // wraps all we need to identify and talk to a vulkan queue
+  threads_mutex_t mutex;
+  VkQueue         queue;
+  int32_t         family;
+  int32_t         idx;
+}
+qvk_queue_t;
+
 typedef struct qvk_t
 {
   VkInstance                  instance;
   VkPhysicalDevice            physical_device;
   VkPhysicalDeviceMemoryProperties mem_properties;
   VkDevice                    device;
-  threads_mutex_t             queue_mutex;
-  VkQueue                     queue_graphics;
-  VkQueue                     queue_compute;
-  VkQueue                     queue_work0;
-  VkQueue                     queue_work1;
-  int32_t                     queue_idx_graphics;
-  int32_t                     queue_idx_compute;
-  int32_t                     queue_idx_work0;
-  int32_t                     queue_idx_work1;
+  int                         qid[s_queue_cnt];   // map queue names to actual indices in the queue array (they may be the same)
+  qvk_queue_t                 queue[s_queue_cnt];
   VkSurfaceKHR                surface;
   VkSwapchainKHR              swap_chain;
   VkSurfaceFormatKHR          surf_format;

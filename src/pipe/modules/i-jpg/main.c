@@ -287,8 +287,8 @@ read_header(
       else if(entry->sig == *((int*)"gTRC")) gamma = read_gamma(h, entry->off);
       else if(entry->sig == *((int*)"bTRC")) gamma = read_gamma(h, entry->off);
     }
-    if(gamma == 0.0) mod->img_param.colour_trc = s_colour_trc_linear;
-    if(gamma >  0.0) mod->img_param.colour_trc = s_colour_trc_gamma;
+    // stay with srgb in case gamma is zero
+    if(gamma > 0.0) mod->img_param.colour_trc = s_colour_trc_gamma;
     // bradford adapt stupid matrix: xyz_to_rec2020 * Bi * S * B * M
     // where B is the bradford matrix and S a diagonal matrix adapting from wtpt to D50 in the icc XYZ
     float B[9]  = { 0.8951000,   0.2664000, -0.1614000,
@@ -308,6 +308,7 @@ read_header(
     for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++) mod->img_param.cam_to_rec2020[3*j+i] += B_to_rec2020[3*j+k] * T[3*k+i];
     free(h);
   }
+  else mod->img_param.cam_to_rec2020[0] = 0.0f/0.0f; // mark as uninitialised
 
   snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
   jpg->frame = frame;

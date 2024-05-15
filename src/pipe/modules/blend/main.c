@@ -79,8 +79,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
   else
   { // per pixel blending, all the same kernel
+    int pc[] = {module->img_param.filters};
     int id_main = dt_node_add(graph, module, "blend", "main",
-        roif.wd, roif.ht, 1, 0, 0, 4,
+        roif.wd, roif.ht, 1, sizeof(pc), pc, 4,
         "back",   "read",  "rgba", "f16", dt_no_roi,
         "top",    "read",  "rgba", "f16", dt_no_roi,
         "mask",   "read",  "r",    "f16", dt_no_roi,

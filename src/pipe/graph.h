@@ -80,8 +80,7 @@ typedef struct dt_graph_t
   VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
   VkCommandPool         command_pool;
   VkFence               command_fence[2];    // one per command buffer
-  VkQueue               queue;
-  uint32_t              queue_idx;
+  qvk_queue_name_t      queue_name;
 
   VkBuffer              uniform_buffer;      // uniform buffer shared between all nodes
   VkDeviceMemory        vkmem_uniform;
@@ -129,9 +128,9 @@ typedef struct dt_graph_t
 }
 dt_graph_t;
 
-void dt_graph_init(dt_graph_t *g);     // init
-void dt_graph_cleanup(dt_graph_t *g);  // cleanup, free memory
-void dt_graph_reset(dt_graph_t *g);    // lightweight reset, keep allocations
+void dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname); // init
+void dt_graph_cleanup(dt_graph_t *g);                      // cleanup, free memory
+void dt_graph_reset(dt_graph_t *g);                        // lightweight reset, keep allocations
 
 dt_node_t *dt_graph_get_display(dt_graph_t *g, dt_token_t  which);
 

@@ -46,8 +46,9 @@ void modify_roi_out(
 }
 
 void write_sink(
-    dt_module_t *mod,
-    void        *buf)
+    dt_module_t            *mod,
+    void                   *buf,
+    dt_write_sink_params_t *p)
 {
   buf_t *dat = mod->data;
   if(!dat->f)

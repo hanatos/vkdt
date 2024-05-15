@@ -6,8 +6,9 @@
 // called after pipeline finished up to here.
 // our input buffer will come in memory mapped.
 void write_sink(
-    dt_module_t *module,
-    void *buf)
+    dt_module_t            *module,
+    void                   *buf,
+    dt_write_sink_params_t *p)
 {
   const char *basename = dt_module_param_string(module, 0);
   fprintf(stderr, "[o-pfm] writing '%s'\n", basename);

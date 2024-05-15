@@ -16,7 +16,6 @@ connect:llap:01:output:hist:01:input
 connect:i-exr:main:output:resize:01:input
 connect:hist:01:output:display:hist:input
 connect:llap:01:output:display:main:input
-param:i-exr:main:filename:Desk.exr
 param:i-exr:main:startid:0
 param:i-exr:main:noise a:0
 param:i-exr:main:noise b:0
@@ -24,7 +23,7 @@ param:colour:01:exposure:0
 param:colour:01:sat:1
 param:colour:01:mode:0
 param:colour:01:picked:0
-param:colour:01:matrix:0
+param:colour:01:matrix:1
 param:colour:01:gamut:0
 param:colour:01:temp:6504
 param:colour:01:white:0.5:0.5:0.5:0.5

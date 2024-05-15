@@ -122,6 +122,28 @@ dt_filebrowser(
     { dt_filebrowser_cleanup(w); setfocus = 1; }
   if(ImGui::IsItemHovered())
     dt_gui_set_tooltip("filter the displayed filenames. type a search string and press enter to apply");
+#ifdef _WIN64
+  int dm = GetLogicalDrives();
+  char letter = 'A';
+  int haveone = 0;
+  for(;dm;dm>>=1,letter++)
+  {
+    if(dm & 1)
+    {
+      char drive[10];
+      snprintf(drive, sizeof(drive), "%c:\\", letter);
+      if(haveone) ImGui::SameLine();
+      if(ImGui::Button(drive))
+      {
+        snprintf(w->cwd, sizeof(w->cwd), "%s", drive);
+        dt_filebrowser_cleanup(w);
+      }
+      if(ImGui::IsItemHovered())
+        dt_gui_set_tooltip("click to change to this drive");
+      haveone = 1;
+    }
+  }
+#endif
   ImGui::PopFont();
   ImGui::BeginChild("scroll files");
   // display list of file names
