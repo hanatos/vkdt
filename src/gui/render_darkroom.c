@@ -549,8 +549,10 @@ void render_darkroom()
     return;
   }
 
-  if(nk_begin(&vkdt.ctx, "darkroom center", bounds, 0))
+  const int disabled = vkdt.wstate.popup;
+  if(nk_begin(&vkdt.ctx, "darkroom center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   { // draw center view image:
+    if(disabled) nk_widget_disable_begin(&vkdt.ctx);
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
@@ -576,7 +578,7 @@ void render_darkroom()
 #endif
       if(vkdt.graph_res == VK_SUCCESS)
       {
-        int events = !vkdt.wstate.grabbed;
+        int events = !vkdt.wstate.grabbed && !disabled;
         // center view has on-canvas widgets (but only if there *is* an image):
         dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
       }
@@ -594,6 +596,7 @@ void render_darkroom()
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
     if(vkdt.wstate.show_perf_overlay) render_perf_overlay();
+    if(disabled) nk_widget_disable_end(&vkdt.ctx);
   } // end center view
   nk_end(&vkdt.ctx);
 

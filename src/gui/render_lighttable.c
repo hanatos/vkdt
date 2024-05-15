@@ -147,8 +147,11 @@ void render_lighttable_center()
   }
 #endif
   struct nk_rect bounds = {vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht};
-  if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, 0))
+  const int disabled = vkdt.wstate.popup;
+  if(disabled) nk_widget_disable_begin(&vkdt.ctx);
+  if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   {
+    if(disabled) nk_widget_disable_end(&vkdt.ctx);
     nk_end(&vkdt.ctx);
     return;
   }
@@ -161,19 +164,20 @@ void render_lighttable_center()
 
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   int scroll_to = -1;
-
+ 
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
-    struct nk_rect row = nk_layout_widget_bounds(&vkdt.ctx);
+    struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
     if(g_scroll_colid == i) { scroll_to = row.y; g_scroll_colid = -1; }
     if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       scroll_to = row.y;
-    if(row.y - vkdt.ctx.current->scrollbar.y + row.h < content.y ||
-       row.y - vkdt.ctx.current->scrollbar.y > content.y + content.h)
+    if(row.y + row.h < content.y ||
+       row.y > content.y + content.h)
     { // add dummy for invisible thumbnails
       nk_label(&vkdt.ctx, "", 0);
       continue;
     }
+    if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 10*content.h) break; // okay this list is really long
 
     if((i % ipl) == 0)
       dt_thumbnails_load_list(
@@ -213,7 +217,7 @@ void render_lighttable_center()
     if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
 
-    if(ret)
+    if(!vkdt.wstate.popup && ret)
     {
       int shift = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
       int ctrl  = glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
@@ -276,6 +280,7 @@ void render_lighttable_center()
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
 
   nk_end(&vkdt.ctx); // lt center window
+  if(disabled) nk_widget_disable_end(&vkdt.ctx);
 }
 
 
