@@ -114,9 +114,9 @@ filteredlist(
       "type to filter the list\n"
       "press enter to apply top item\n"
       "press escape to close");
+  if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
   nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED) ok = 1;
-  if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
   vkdt.wstate.popup_appearing = 0;
 
   if(!ent_cnt)
@@ -180,7 +180,7 @@ filteredlist(
     else ent_local_cnt = 0;
   }
 
-  nk_layout_row_dynamic(&vkdt.ctx, total_space.h-2*row_height, 1);
+  nk_layout_row_dynamic(&vkdt.ctx, total_space.h-3*row_height, 1);
   nk_group_begin(&vkdt.ctx, "filteredlist-scrollpane", 0);
   {
     nk_layout_row_dynamic(&vkdt.ctx, 0, 1);

@@ -168,8 +168,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
      if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].name);
      break;
   }
-  // XXX TODO bring back (and move to render call)
-  // dt_gui_dr_modals(); // draw modal windows for presets etc
 
   // XXX only if no popup is open!
   // XXX gamepad!
@@ -335,7 +333,7 @@ render_darkroom_modals()
   }
   else if(vkdt.wstate.popup == s_popup_add_module)
   {
-    if(nk_begin(&vkdt.ctx, "add module", bounds, 0))
+    if(nk_begin(&vkdt.ctx, "add module", bounds, NK_WINDOW_NO_SCROLLBAR))
     {
       static char mod_inst[10] = "01";
       nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, mod_inst, 8, nk_filter_default);
@@ -354,7 +352,7 @@ render_darkroom_modals()
   }
   else if(vkdt.wstate.popup == s_popup_create_preset)
   {
-    if(nk_begin(&vkdt.ctx, "create preset", bounds, 0))
+    if(nk_begin(&vkdt.ctx, "create preset", bounds, NK_WINDOW_NO_SCROLLBAR))
     {
 #if 0
     static char  preset[32] = "default";
@@ -489,7 +487,7 @@ render_darkroom_modals()
   }
   else if(vkdt.wstate.popup == s_popup_apply_preset)
   {
-    if(nk_begin(&vkdt.ctx, "apply preset", bounds, 0))
+    if(nk_begin(&vkdt.ctx, "apply preset", bounds, NK_WINDOW_NO_SCROLLBAR))
     {
       char filename[1024] = {0};
       uint32_t cid = dt_db_current_imgid(&vkdt.db);
