@@ -79,7 +79,7 @@ dt_thumbnail_image(
   bound.w -= (wd-size.x);
   bound.y += (wd-size.y)/2;
   bound.h -= (wd-size.y);
-  nk_draw_image(canvas, bound, &img, (struct nk_color){0x77,0x77,0x77,0xff});
+  nk_draw_image(canvas, bound, &img, (struct nk_color){0xff,0xff,0xff,0xff});
 
   // render decorations (colour labels/stars/etc?)
   dt_draw_rating(full.x+0.1*wd, full.y+0.10*wd, 0.1*wd, rating);

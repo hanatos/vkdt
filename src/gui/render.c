@@ -5,7 +5,6 @@
 #include "view.h"
 #include "core/log.h"
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
@@ -189,7 +188,10 @@ void dt_gui_init_fonts()
   cfg.size = fontsize;
   cfg.fallback_glyph = 0xe15b;
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
-  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue_graphics);
+
+  threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue[qvk.qid[s_queue_graphics]].queue);
+  threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
   nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
@@ -353,9 +355,7 @@ void dt_gui_cleanup_nk()
   // render_nodes_cleanup();
   render_darkroom_cleanup();
   render_lighttable_cleanup();
-  threads_mutex_lock(&qvk.queue_mutex);
-  vkDeviceWaitIdle(qvk.device);
-  threads_mutex_unlock(&qvk.queue_mutex);
+  QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
   nk_glfw3_shutdown();
 }
 

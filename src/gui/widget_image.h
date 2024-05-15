@@ -361,7 +361,7 @@ dt_image(
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   struct nk_image nkimg = nk_subimage_ptr(out->dset[0], w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
-  nk_draw_image(buf, disp, &nkimg, (struct nk_color){0x77,0x77,0x77,0xff});
+  nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});
   char scaletext[10];
   if(w->scale >= 1.0f)
   {
