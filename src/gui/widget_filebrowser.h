@@ -12,6 +12,7 @@ typedef struct dt_filebrowser_widget_t
   char cwd[PATH_MAX];      // current working directory
   struct dirent *ent;      // cached directory entries
   int ent_cnt;             // number of cached directory entries
+  int selected_idx;        // index of selected ent
   const char *selected;    // points to selected file name ent->d_name
   int selected_isdir;      // selected is a directory
 }
@@ -33,6 +34,7 @@ dt_filebrowser_cleanup(
   free(w->ent);
   w->ent_cnt = 0;
   w->ent = 0;
+  w->selected_idx = -1;
   w->selected = 0;
   w->selected_isdir = 0;
 }
@@ -69,7 +71,6 @@ dt_filebrowser(
 {
   struct nk_context *ctx = &vkdt.ctx;
   static char filter[100] = {0};
-  static int setfocus = 0;
 #ifdef _WIN64
   if(w->cwd[0] == 0) strcpy(w->cwd, dt_pipe.homedir);
 #else
@@ -115,19 +116,13 @@ dt_filebrowser(
   nk_style_pop_font(ctx);
   nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
-  {
     dt_filebrowser_cleanup(w);
-    setfocus = 1;
-  }
   nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
   dt_tooltip("filter the displayed filenames.\ntype a search string and press enter to apply");
   nk_style_pop_font(ctx);
   ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
-  {
     dt_filebrowser_cleanup(w);
-    setfocus = 1;
-  }
 #ifdef _WIN64
   int dm = GetLogicalDrives();
   char letter = 'A';
@@ -159,61 +154,20 @@ dt_filebrowser(
   nk_layout_row_dynamic(ctx, row_height, 1);
   for(int i=0;i<w->ent_cnt;i++)
   {
-    // TODO: keyboard nav!
-    // if(setfocus || (i == 0 && ImGui::IsWindowAppearing())) { ImGui::SetKeyboardFocusHere(); setfocus = 0; }
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
         w->ent[i].d_name,
         fs_isdir(w->cwd, w->ent+i) ? "/":"");
     int selected = w->ent[i].d_name == w->selected;
-    // TODO: keyboard nav
-    // if(selected && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
     struct nk_rect bounds = nk_widget_bounds(ctx);
     nk_bool select = nk_selectable_label(ctx, name, NK_TEXT_LEFT, &selected);
-    // select |= ImGui::IsItemFocused(); // TODO: has key/gamepad focus?
     if(select)
     {
+      w->selected_idx = i;
       w->selected = w->ent[i].d_name; // mark as selected
       w->selected_isdir = fs_isdir(w->cwd, w->ent+i);
-
-      if((nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, bounds) ||
-          nk_false) &&
-          // XXX TODO: keyboard nav nk_input_is_key_down(&ctx->input, NK_KEY_SPACE) && 
-          fs_isdir(w->cwd, w->ent+i))
-      { // directory double-clicked
-        // change cwd by appending to the string
-        int len = strnlen(w->cwd, sizeof(w->cwd));
-        char *c = w->cwd;
-        if(!strcmp(w->ent[i].d_name, ".."))
-        { // go up one dir
-          c += len;
-          *(--c) = 0;
-          while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
-        }
-        else
-        { // append dir name
-          snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->ent[i].d_name);
-        }
-        // and then clean up the dirent cache
-        dt_filebrowser_cleanup(w);
-      }
     }
   }
   nk_style_pop_font(ctx);
   nk_group_end(ctx);
-
-#if 0 // XXX TODO port
-  // =====
-NK_KEY_BACKSPACE
-  if(!dt_gui_imgui_input_blocked() &&
-     !dt_gui_imgui_want_text() &&
-     ImGui::IsKeyPressed(ImGuiKey_Backspace))
-  { // go up one dir
-    int len = strnlen(w->cwd, sizeof(w->cwd));
-    char *c = w->cwd + len;
-    *(--c) = 0;
-    while(c > w->cwd && *c != '/') *(c--) = 0;
-    dt_filebrowser_cleanup(w);
-  }
-#endif
 }

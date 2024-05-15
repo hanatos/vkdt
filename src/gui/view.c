@@ -69,6 +69,9 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
   case s_view_lighttable:
     lighttable_mouse_button(window, button, action, mods);
     break;
+  case s_view_files:
+    files_mouse_button(window, button, action, mods);
+    break;
   default:;
   }
 }
@@ -116,6 +119,9 @@ dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods
     break;
   case s_view_lighttable:
     lighttable_keyboard(window, key, scancode, action, mods);
+    break;
+  case s_view_files:
+    files_keyboard(window, key, scancode, action, mods);
     break;
   default:;
   }

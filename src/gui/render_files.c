@@ -99,13 +99,6 @@ void render_files()
     just_entered = 0;
   }
 
-#if 0 // XXX TODO what do the others do here?
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-     ImGui::IsKeyPressed(ImGuiKey_Escape)||
-     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-    dt_view_switch(s_view_lighttable);
-#endif
-
   struct nk_context *ctx = &vkdt.ctx;
   struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
   const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3}; // XXX padding?
@@ -301,8 +294,70 @@ void render_files()
   if(nk_begin(ctx, "files center", bounds, NK_WINDOW_NO_SCROLLBAR))
   {
     dt_filebrowser(&filebrowser, 'f');
+    // draw context sensitive help overlay
+    if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
+    nk_end(ctx);
+  } // end center window
+}
 
-    if(filebrowser.selected && nk_input_is_key_down(&ctx->input, NK_KEY_ENTER))
+void
+files_mouse_button(GLFWwindow *window, int button, int action, int mods)
+{
+  // TODO: double clicked a selected thing?
+}
+
+void
+files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  dt_filebrowser_widget_t *w = &filebrowser;
+  if(action == GLFW_PRESS && key == GLFW_KEY_UP)
+  { // up arrow: select entry above
+    w->selected_idx = CLAMP(w->selected_idx - 1, 0, w->ent_cnt-1);
+    w->selected = w->ent[w->selected_idx].d_name;
+    w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+  }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_DOWN)
+  { // down arrow: select entry below
+    w->selected_idx = CLAMP(w->selected_idx + 1, 0, w->ent_cnt-1);
+    w->selected = w->ent[w->selected_idx].d_name;
+    w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+  }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
+  { // space bar to descend into directory in file browser
+    if(w->selected_isdir)
+    { // directory double-clicked
+      // change cwd by appending to the string
+      int len = strnlen(w->cwd, sizeof(w->cwd));
+      char *c = w->cwd;
+      if(!strcmp(w->selected, ".."))
+      { // go up one dir
+        c += len;
+        *(--c) = 0;
+        while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
+      }
+      else
+      { // append dir name
+        snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->selected);
+      }
+      // and then clean up the dirent cache
+      dt_filebrowser_cleanup(w);
+    }
+  }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
+  { // escape to go back to light table
+    dt_view_switch(s_view_lighttable);
+  }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
+  { // backspace to go up once
+    int len = strnlen(w->cwd, sizeof(w->cwd));
+    char *c = w->cwd + len;
+    *(--c) = 0;
+    while(c > w->cwd && *c != '/') *(c--) = 0;
+    dt_filebrowser_cleanup(w);
+  }
+  else if(action == GLFW_PRESS && key == GLFW_KEY_ENTER)
+  { // enter to go to lighttable with new folder
+    if(filebrowser.selected)
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
       if(!strcmp(filebrowser.selected, ".."))
@@ -318,9 +373,6 @@ void render_files()
         dt_view_switch(s_view_lighttable);
       }
     }
+  }
 
-    // draw context sensitive help overlay
-    if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
-    nk_end(ctx);
-  } // end center window
 }
