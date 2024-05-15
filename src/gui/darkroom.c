@@ -251,7 +251,7 @@ darkroom_enter()
     load_default = 1;
   }
 
-  dt_graph_init(&vkdt.graph_dev);
+  dt_graph_init(&vkdt.graph_dev, s_queue_graphics);
   vkdt.graph_dev.gui_attached = 1;
   dt_graph_history_init(&vkdt.graph_dev);
 

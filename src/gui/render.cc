@@ -2,7 +2,6 @@ extern "C" {
 #include "gui.h"
 #include "view.h"
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
 #include "pipe/graph-export.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
@@ -178,13 +177,13 @@ extern "C" void dt_gui_init_fonts()
     end_info.commandBufferCount = 1;
     end_info.pCommandBuffers = &command_buffer;
     vkEndCommandBuffer(command_buffer);
-    threads_mutex_lock(&qvk.queue_mutex);
-    qvk_submit(qvk.queue_graphics, 1, &end_info, VK_NULL_HANDLE);
-    threads_mutex_unlock(&qvk.queue_mutex);
 
-    threads_mutex_lock(&qvk.queue_mutex);
-    vkDeviceWaitIdle(qvk.device);
-    threads_mutex_unlock(&qvk.queue_mutex);
+    // TODO: do this in the c version:
+    // QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueSubmit(qvk.queue[qvk.qid[s_queue_graphics]].queue, 1, &end_info, 0));
+    threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+    vkQueueSubmit(qvk.queue[qvk.qid[s_queue_graphics]].queue, 1, &end_info, 0);
+    vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue);
+    threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
   }
 }
@@ -218,8 +217,8 @@ extern "C" int dt_gui_init_imgui()
   init_info.Instance         = qvk.instance;
   init_info.PhysicalDevice   = qvk.physical_device;
   init_info.Device           = qvk.device;
-  init_info.QueueFamily      = qvk.queue_idx_graphics;
-  init_info.Queue            = qvk.queue_graphics;
+  init_info.QueueFamily      = qvk.queue[qvk.qid[s_queue_graphics]].family;
+  init_info.Queue            = qvk.queue[qvk.qid[s_queue_graphics]].queue;
   init_info.PipelineCache    = vkdt.pipeline_cache;
   init_info.DescriptorPool   = vkdt.descriptor_pool;
   init_info.Allocator        = 0;
@@ -385,9 +384,9 @@ extern "C" void dt_gui_cleanup_imgui()
   render_nodes_cleanup();
   render_darkroom_cleanup();
   render_lighttable_cleanup();
-  threads_mutex_lock(&qvk.queue_mutex);
-  vkDeviceWaitIdle(qvk.device);
-  threads_mutex_unlock(&qvk.queue_mutex);
+  threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+  vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue);
+  threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImNodes::DestroyContext();

@@ -183,7 +183,7 @@ add_stream(
         /// Compression rate (lower -> higher compression) compress to lower size, makes decoded image more noisy
         /// Range: [0; 51], sane range: [18; 26]. I used 35 as good compression/quality compromise. This option also critical for realtime encoding
         const float p_quality = dt_module_param_float(mod, 1)[0];
-        int crf = 35 - p_quality * (35-16);
+        int crf = 35 - p_quality/100.0 * (35-16);
         char str[5] = {0};
         snprintf(str, sizeof(str), "%d", crf);
         av_opt_set(c->priv_data, "crf", str, 0);

@@ -1,5 +1,4 @@
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
 #include "pipe/graph.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-print.h"
@@ -96,7 +95,7 @@ int main(int argc, char *argv[])
   }
 
   dt_graph_t graph;
-  dt_graph_init(&graph);
+  dt_graph_init(&graph, s_queue_compute);
 
   param.extra_param_cnt = config_start ? argc - config_start : 0;
   param.p_extra_param   = argv + config_start;

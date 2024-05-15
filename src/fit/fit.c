@@ -1,5 +1,4 @@
 #include "qvk/qvk.h"
-#include "qvk/sub.h"
 #include "pipe/graph.h"
 #include "pipe/asciiio.h"
 #include "pipe/graph-io.h"
@@ -12,11 +11,6 @@
 #include <stdlib.h>
 #include <float.h>
 #include <signal.h>
-
-void qvk_sub_wakeup()
-{ // provide linkage
-  dt_log(s_log_err, "cli should not submit async queues!");
-}
 
 // this limits the number of module parameters to optimise for.
 // each parameter may hold an array of values though.
@@ -264,7 +258,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  dt_graph_init(&dat.graph);
+  dt_graph_init(&dat.graph, s_queue_compute);
   VkResult err = dt_graph_read_config_ascii(&dat.graph, graph_cfg);
   if(err)
   {
@@ -356,7 +350,6 @@ int main(int argc, char *argv[])
   dt_graph_write_config_ascii(&dat.graph, "/dev/stdout");
 
   dt_graph_cleanup(&dat.graph);
-  qvk_sub_shutdown();
   threads_global_cleanup();
   qvk_cleanup();
   exit(0);

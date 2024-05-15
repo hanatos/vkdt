@@ -335,7 +335,7 @@ int export_job(
   size_t psize = dt_module_total_param_size(w->modid[w->format]);
   j->pdata = (uint8_t *)malloc(sizeof(uint8_t)*psize);
   memcpy(j->pdata, w->pdata[w->format], psize);
-  dt_graph_init(&j->graph);
+  dt_graph_init(&j->graph, s_queue_compute);
   j->taskid = threads_task("export", j->cnt, -1, j, export_job_work, export_job_cleanup);
   return j->taskid;
 }
