@@ -863,10 +863,11 @@ void render_lighttable()
   render_lighttable_center();
 
   // popup windows
-  struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
+  struct nk_rect bounds = { vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,
+    0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht };
   if(vkdt.wstate.popup == s_popup_assign_tag)
   {
-    if(nk_begin(&vkdt.ctx, "assign tag", bounds, 0))
+    if(nk_begin(&vkdt.ctx, "assign tag", bounds, NK_WINDOW_NO_SCROLLBAR))
     {
       static char filter[256] = "all time best";
       static char name[PATH_MAX];
@@ -886,7 +887,7 @@ void render_lighttable()
   }
   else if(vkdt.wstate.popup == s_popup_edit_hotkeys)
   {
-    if(nk_begin(&vkdt.ctx, "edit lighttable hotkeys", bounds, 0))
+    if(nk_begin(&vkdt.ctx, "edit lighttable hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR))
     {
       int ok = hk_edit(hk_lighttable, NK_LEN(hk_lighttable));
       if(ok) vkdt.wstate.popup = 0;
