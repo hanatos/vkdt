@@ -334,11 +334,10 @@ void dt_gui_render_frame_nk()
   if(vkdt.wstate.notification_msg[0] &&
      now - vkdt.wstate.notification_time < 4.0)
   {
-    if (nk_begin(&vkdt.ctx, "notification message",
-          nk_rect(vkdt.state.center_x, vkdt.state.center_y/2, vkdt.state.center_wd, 0.05*vkdt.state.center_ht),
-          NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
-      // TODO yeah no essentially none of the above please :)
+    if(nk_begin(&vkdt.ctx, "notification message",
+          nk_rect(0, 0, vkdt.state.center_x+vkdt.state.center_wd, vkdt.state.center_y), 0))
     {
+      nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_y*0.55, 1);
       nk_label(&vkdt.ctx, vkdt.wstate.notification_msg, NK_TEXT_LEFT);
     }
     nk_end(&vkdt.ctx);
