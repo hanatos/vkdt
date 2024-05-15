@@ -40,6 +40,7 @@ typedef struct buf_t
   output_stream_t audio_stream, video_stream;
   int audio_mod;   // the module on our graph that has the audio
   int have_buf[3]; // flag that we have read the buffers for Y Cb Cr for the given frame
+  double time_beg;
 }
 buf_t;
 
@@ -64,6 +65,9 @@ close_file(buf_t *dat)
 
   // if (!(fmt->flags & AVFMT_NOFILE))
   avio_closep(&dat->oc->pb);
+
+  double end = dt_time();
+  fprintf(stderr, "[o-vid] wrote video in %.3f seconds.\n", (end - dat->time_beg));
 
   avformat_free_context(dat->oc);
   dat->oc = 0;
@@ -242,7 +246,7 @@ open_video(
   AVCodecContext *c = ost->enc;
   AVDictionary *opt = NULL;
   // have not been very successful in making this faster:
-  // c->thread_count = 4;
+  c->thread_count = 16;
   // c->thread_type = FF_THREAD_SLICE;
 
   av_dict_copy(&opt, opt_arg, 0);
@@ -263,22 +267,6 @@ open_video(
     fprintf(stderr, "[o-vid] could not allocate video frame\n");
     return;
   }
-
-#if 0
-  /* If the output format is not YUV420P, then a temporary YUV420P
-   * picture is needed too. It is then converted to the required
-   * output format. */
-  ost->tmp_frame = NULL;
-  if (c->pix_fmt != AV_PIX_FMT_YUV420P)
-  {
-    ost->tmp_frame = alloc_frame(AV_PIX_FMT_YUV420P, c->width, c->height);
-    if (!ost->tmp_frame)
-    {
-      fprintf(stderr, "[o-vid] could not allocate temporary video frame\n");
-      return;
-    }
-  }
-#endif
 
   /* copy the stream parameters to the muxer */
   if(avcodec_parameters_from_context(ost->st->codecpar, c) < 0)
@@ -336,18 +324,6 @@ open_audio(
     return;
   }
 
-#if 0
-  /* init signal generator */
-  ost->t     = 0;
-  ost->tincr = 2 * M_PI * 110.0 / c->sample_rate;
-  /* increment frequency by 110 Hz per second */
-  ost->tincr2 = 2 * M_PI * 110.0 / c->sample_rate / c->sample_rate;
-#endif
-
-  if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)
-    fprintf(stderr, "variable frame size codec!!\n");
-  // nb_samples = 10000;
-  // else
   nb_samples = c->frame_size;
 
   ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout, c->sample_rate, nb_samples);
@@ -402,6 +378,7 @@ open_file(dt_module_t *mod)
 {
   buf_t *dat = mod->data;
   if(dat->oc) close_file(dat);
+  dat->time_beg = dt_time();
   dat->audio_mod = -1;
   for(int i=0;i<mod->graph->num_modules;i++)
     if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
@@ -476,8 +453,6 @@ write_frame(
     pkt->stream_index = st->index;
 
     /* Write the compressed frame to the media file. */
-    // output some stuff:
-    // log_packet(fmt_ctx, pkt);
     ret = av_interleaved_write_frame(fmt_ctx, pkt);
     /* pkt is now blank (av_interleaved_write_frame() takes ownership of
      * its contents and resets pkt), so that no unreferencing is necessary.
@@ -557,7 +532,7 @@ void create_nodes(
 
 // TODO: check params that reconstruct nodes on codec/chroma sampling change!
 
-// yuv422p10le : y full res, cb and cr half res in x, full res in y
+// yuv422p10le  : y full res, cb and cr half res in x, full res in y
 // yuva444p10le : y, cb, cr, alpha all fullres 10 bits padded to 16 bits
 // yuv420p for h264, which is the same as in this example, 8bps for all channels
 // yuv444p16le which we could use as input, but it only scales the data (it is padded to 16 in the case of 10bits)
@@ -665,10 +640,9 @@ void write_sink(
               c->sample_rate, c->sample_rate, AV_ROUND_UP);
           av_assert0(dst_nb_samples == frame->nb_samples);
 
-          /* when we pass a frame to the encoder, it may keep a reference to it
-           * internally;
-           * make sure we do not overwrite it here
-           */
+          // when we pass a frame to the encoder, it may keep a reference to it
+          // internally;
+          // make sure we do not overwrite it here
           ret = av_frame_make_writable(ost->frame);
           if (ret < 0) return;
 
