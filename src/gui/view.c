@@ -19,7 +19,7 @@ dt_view_switch(dt_gui_view_t view)
       err = lighttable_leave();
       break;
     case s_view_files:
-      // err = files_leave();
+      err = files_leave();
       break;
     case s_view_nodes:
       // err = nodes_leave();
@@ -38,7 +38,7 @@ dt_view_switch(dt_gui_view_t view)
       err = lighttable_enter();
       break;
     case s_view_files:
-      // err = files_enter();
+      err = files_enter();
       break;
     case s_view_nodes:
       // err = nodes_enter();

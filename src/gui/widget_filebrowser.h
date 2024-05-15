@@ -7,14 +7,15 @@
 #include <dirent.h>
 
 // store some state
-struct dt_filebrowser_widget_t
+typedef struct dt_filebrowser_widget_t
 {
   char cwd[PATH_MAX];      // current working directory
   struct dirent *ent;      // cached directory entries
   int ent_cnt;             // number of cached directory entries
   const char *selected;    // points to selected file name ent->d_name
   int selected_isdir;      // selected is a directory
-};
+}
+dt_filebrowser_widget_t;
 
 // no need to explicitly call it, just sets 0
 inline void
@@ -25,7 +26,7 @@ dt_filebrowser_init(
 }
 
 // this makes sure all memory is freed and also that the directory is re-read for new cwd.
-inline void
+static inline void
 dt_filebrowser_cleanup(
     dt_filebrowser_widget_t *w)
 {
@@ -36,9 +37,7 @@ dt_filebrowser_cleanup(
   w->selected_isdir = 0;
 }
 
-namespace {
-
-int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
+static int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
 {
   const struct dirent *a = (const struct dirent *)aa;
   const struct dirent *b = (const struct dirent *)bb;
@@ -48,7 +47,7 @@ int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
   return strcmp(a->d_name, b->d_name);
 }
 
-int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd, const char *filter)
+static int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd, const char *filter)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
   if(filter[0] && !strstr(d->d_name, filter)) return 0; // if filter required, apply it
@@ -56,20 +55,19 @@ int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd, const cha
   return 1;
 }
 
-int dt_filebrowser_filter_file(const struct dirent *d, const char *cwd, const char *filter)
+static int dt_filebrowser_filter_file(const struct dirent *d, const char *cwd, const char *filter)
 {
   if(d->d_name[0] == '.' && d->d_name[1] != '.') return 0; // filter out hidden files
   if(filter[0] && !strstr(d->d_name, filter)) return 0; // if filter required, apply it
   return 1;
 }
 
-}
-
-inline void
+static inline void
 dt_filebrowser(
     dt_filebrowser_widget_t *w,
     const char               mode) // 'f' or 'd'
 {
+  struct nk_context *ctx = &vkdt.ctx;
   static char filter[100] = {0};
   static int setfocus = 0;
 #ifdef _WIN64
@@ -109,63 +107,78 @@ dt_filebrowser(
     }
   }
 
-  // print cwd
-  ImGui::PushFont(dt_gui_imgui_get_font(2));
-  if(ImGui::InputText("##cwd", w->cwd, sizeof(w->cwd), ImGuiInputTextFlags_EnterReturnsTrue))
-    if(ImGui::IsKeyDown(ImGuiKey_Enter))
-    { dt_filebrowser_cleanup(w); setfocus = 1; }
-  if(ImGui::IsItemHovered())
-    dt_gui_set_tooltip("current working directory, edit to taste and press enter to change");
-  ImGui::SameLine();
-  if(ImGui::InputText("##filter", filter, sizeof(filter), ImGuiInputTextFlags_EnterReturnsTrue))
-    if(ImGui::IsKeyDown(ImGuiKey_Enter))
-    { dt_filebrowser_cleanup(w); setfocus = 1; }
-  if(ImGui::IsItemHovered())
-    dt_gui_set_tooltip("filter the displayed filenames. type a search string and press enter to apply");
+  nk_style_push_font(ctx, &dt_gui_get_font(2)->handle);
+  float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  nk_layout_row_dynamic(ctx, row_height, 2);
+  nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
+  dt_tooltip("current working directory.\nedit to taste and press enter to change");
+  nk_style_pop_font(ctx);
+  nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
+  if(ret & NK_EDIT_COMMITED)
+  {
+    dt_filebrowser_cleanup(w);
+    setfocus = 1;
+  }
+  nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
+  dt_tooltip("filter the displayed filenames.\ntype a search string and press enter to apply");
+  nk_style_pop_font(ctx);
+  ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+  if(ret & NK_EDIT_COMMITED)
+  {
+    dt_filebrowser_cleanup(w);
+    setfocus = 1;
+  }
 #ifdef _WIN64
   int dm = GetLogicalDrives();
   char letter = 'A';
   int haveone = 0;
+  nk_layout_row_dynamic(ctx, row_height, 16);
   for(;dm;dm>>=1,letter++)
   {
     if(dm & 1)
     {
       char drive[10];
       snprintf(drive, sizeof(drive), "%c:\\", letter);
-      if(haveone) ImGui::SameLine();
-      if(ImGui::Button(drive))
+      dt_tooltip("click to change to this drive");
+      if(nk_button_label(ctx, drive))
       {
         snprintf(w->cwd, sizeof(w->cwd), "%s", drive);
         dt_filebrowser_cleanup(w);
       }
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("click to change to this drive");
       haveone = 1;
     }
   }
 #endif
-  ImGui::PopFont();
-  ImGui::BeginChild("scroll files");
-  // display list of file names
-  ImGui::PushFont(dt_gui_imgui_get_font(1));
+  nk_style_pop_font(ctx);
+  row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+
+  struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
+  nk_layout_row_dynamic(ctx, total_space.h-2*row_height, 1);
+  nk_group_begin(ctx, "scroll files", 0);
+  nk_style_push_font(ctx, &dt_gui_get_font(1)->handle);
+  nk_layout_row_dynamic(ctx, row_height, 1);
   for(int i=0;i<w->ent_cnt;i++)
   {
-    if(setfocus || (i == 0 && ImGui::IsWindowAppearing())) { ImGui::SetKeyboardFocusHere(); setfocus = 0; }
+    // TODO: keyboard nav!
+    // if(setfocus || (i == 0 && ImGui::IsWindowAppearing())) { ImGui::SetKeyboardFocusHere(); setfocus = 0; }
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
         w->ent[i].d_name,
         fs_isdir(w->cwd, w->ent+i) ? "/":"");
     int selected = w->ent[i].d_name == w->selected;
-    if(selected && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
-    int select = ImGui::Selectable(name, selected, ImGuiSelectableFlags_AllowDoubleClick|ImGuiSelectableFlags_DontClosePopups);
-    select |= ImGui::IsItemFocused(); // has key/gamepad focus?
+    // TODO: keyboard nav
+    // if(selected && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+    struct nk_rect bounds = nk_widget_bounds(ctx);
+    nk_bool select = nk_selectable_label(ctx, name, NK_TEXT_LEFT, &selected);
+    // select |= ImGui::IsItemFocused(); // TODO: has key/gamepad focus?
     if(select)
     {
       w->selected = w->ent[i].d_name; // mark as selected
       w->selected_isdir = fs_isdir(w->cwd, w->ent+i);
-      if((ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown) ||
-          ImGui::IsKeyPressed(ImGuiKey_Space) ||
-          ImGui::IsMouseDoubleClicked(0)) && 
+
+      if((nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, bounds) ||
+          nk_false) &&
+          // XXX TODO: keyboard nav nk_input_is_key_down(&ctx->input, NK_KEY_SPACE) && 
           fs_isdir(w->cwd, w->ent+i))
       { // directory double-clicked
         // change cwd by appending to the string
@@ -186,6 +199,12 @@ dt_filebrowser(
       }
     }
   }
+  nk_style_pop_font(ctx);
+  nk_group_end(ctx);
+
+#if 0 // XXX TODO port
+  // =====
+NK_KEY_BACKSPACE
   if(!dt_gui_imgui_input_blocked() &&
      !dt_gui_imgui_want_text() &&
      ImGui::IsKeyPressed(ImGuiKey_Backspace))
@@ -196,6 +215,5 @@ dt_filebrowser(
     while(c > w->cwd && *c != '/') *(c--) = 0;
     dt_filebrowser_cleanup(w);
   }
-  ImGui::PopFont();
-  ImGui::EndChild();
+#endif
 }

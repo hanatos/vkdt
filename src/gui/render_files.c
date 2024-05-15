@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <atomic.h>
 
 static dt_filebrowser_widget_t filebrowser = {{0}};
 
@@ -36,8 +35,8 @@ typedef struct copy_job_t
   struct dirent *ent;
   uint32_t cnt;
   uint32_t move;  // set to non-zero to remove src after copy
-  atomic_uint abort;
-  atomic_uint state;
+  _Atomic uint32_t abort;
+  _Atomic uint32_t state;
   int taskid;
 } copy_job_t;
 void copy_job_cleanup(void *arg)
@@ -100,28 +99,22 @@ void render_files()
     just_entered = 0;
   }
 
+#if 0 // XXX TODO what do the others do here?
   if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
      ImGui::IsKeyPressed(ImGuiKey_Escape)||
      ImGui::IsKeyPressed(ImGuiKey_CapsLock))
     dt_view_switch(s_view_lighttable);
-
-  { // right panel
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
-          ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::Begin("files panel-right", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-    // if(ImGui::CollapsingHeader("settings")) ??
-#if 0
-    if(ImGui::CollapsingHeader("folder"))
-    {
-      ImGui::Indent();
-      ImGui::Unindent();
-      // TODO: show images/show only directories
-      // TODO: feature to show only raw/whatever?
-    }
 #endif
+
+  struct nk_context *ctx = &vkdt.ctx;
+  struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
+  const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3}; // XXX padding?
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  const struct nk_vec2 size = {ratio[0], ratio[0]};
+  if(nk_begin(ctx, "files panel right", bounds, 0))
+  { // right panel
+
+#if 0
     if(ImGui::CollapsingHeader("drives"))
     {
       ImGui::Indent();
@@ -281,53 +274,35 @@ void render_files()
       } // end for jobs
       ImGui::Unindent();
     }
-    ImGui::End();
+#endif
+    nk_end(ctx);
   }
 
+  bounds = (struct nk_rect){vkdt.state.center_x, vkdt.state.center_ht, vkdt.state.center_wd, vkdt.state.center_y};
+  if(nk_begin(ctx, "files buttons", bounds, NK_WINDOW_NO_SCROLLBAR))
   { // bottom panel with buttons
-    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    ImVec2 border = ImVec2(2*win_x, win_y);
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + 0,
-          ImGui::GetMainViewport()->Pos.y + win_h+border.y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, border.y), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::Begin("files buttons", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-    int bwd = win_w / 4;
-    int twd = ImGui::GetStyle().ItemSpacing.x + bwd * 2;
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - twd);
-    if(ImGui::Button("open in lighttable", ImVec2(bwd, 0)))
+    nk_layout_row_dynamic(ctx, row_height, 5);
+    nk_label(ctx, "", 0); nk_label(ctx, "", 0); nk_label(ctx, "", 0);
+    dt_tooltip("return to lighttable mode without changing directory");
+    if(nk_button_label(ctx, "back to lighttable"))
+    {
+      dt_view_switch(s_view_lighttable);
+    }
+    dt_tooltip("open current directory in light table mode");
+    if(nk_button_label(ctx, "open in lighttable"))
     {
       dt_gui_switch_collection(filebrowser.cwd);
       dt_view_switch(s_view_lighttable);
     }
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("open current directory in light table mode");
-    ImGui::SameLine();
-    if(ImGui::Button("back to lighttable", ImVec2(bwd, 0)))
-    {
-      dt_view_switch(s_view_lighttable);
-    }
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("return to lighttable mode without changing directory");
-    ImGui::End();
+    nk_end(ctx);
   }
 
-  { // center window (last so it has key focus by default)
-    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
-    ImVec2 border = ImVec2(2*win_x, win_y);
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + 0,
-          ImGui::GetMainViewport()->Pos.y + 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w+border.x, win_h+border.y), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-    ImGui::Begin("files center", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+  bounds = (struct nk_rect){vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht-vkdt.state.center_y};
+  if(nk_begin(ctx, "files center", bounds, NK_WINDOW_NO_SCROLLBAR))
+  {
     dt_filebrowser(&filebrowser, 'f');
 
-    if(filebrowser.selected &&
-      (ImGui::IsKeyPressed(ImGuiKey_GamepadFaceUp) ||
-       ImGui::IsKeyPressed(ImGuiKey_Enter))) // triangle or enter
+    if(filebrowser.selected && nk_input_is_key_down(&ctx->input, NK_KEY_ENTER))
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
       if(!strcmp(filebrowser.selected, ".."))
@@ -346,8 +321,6 @@ void render_files()
 
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
-
-    ImGui::End();
-    ImGui::PopStyleColor(1);
+    nk_end(ctx);
   } // end center window
 }

@@ -314,9 +314,9 @@ void dt_gui_render_frame_nk()
 
   switch(vkdt.view_mode)
   {
-    // case s_view_files:
-      // render_files();
-      // break;
+    case s_view_files:
+      render_files();
+      break;
     case s_view_lighttable:
       render_lighttable();
       break;
