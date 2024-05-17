@@ -60,7 +60,7 @@ void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
 static inline int dt_gui_input_blocked()
 {
-  return vkdt.wstate.popup | vkdt.wstate.grabbed;//  |  TODO something with nk text edit
+  return vkdt.wstate.popup | vkdt.wstate.grabbed | vkdt.wstate.nk_active;
 }
 
 struct nk_font;

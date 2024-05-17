@@ -301,6 +301,7 @@ hk_edit(hk_t *hotkey, size_t num)
 static inline int
 hk_get_hotkey(hk_t *hotkey, size_t num, int key)
 {
+  if(dt_gui_input_blocked()) return -1;
   int max_cnt = 0;
   int res = -1;
   for(uint32_t i=0;i<num;i++)

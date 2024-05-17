@@ -106,25 +106,24 @@ void render_files()
   const struct nk_vec2 size = {ratio[0], ratio[0]};
   if(nk_begin(ctx, "files panel right", bounds, 0))
   { // right panel
-
-#if 0
-    if(ImGui::CollapsingHeader("drives"))
+    if(nk_tree_push(ctx, NK_TREE_TAB, "drives", NK_MINIMIZED))
     {
-      ImGui::Indent();
       static int cnt = 0;
       static char devname[20][20] = {{0}}, mountpoint[20][50] = {{0}};
       char command[1000];
-      if(ImGui::Button("refresh list"))
+      nk_layout_row_dynamic(ctx, row_height, 1);
+      if(nk_button_label(ctx, "refresh list"))
         cnt = fs_find_usb_block_devices(devname, mountpoint);
+      nk_layout_row_dynamic(ctx, row_height, 2);
       for(int i=0;i<cnt;i++)
       {
         int red = mountpoint[i][0];
         if(red)
         {
-          ImGui::PushStyleColor(ImGuiCol_Button,        ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogramHovered]);
+          nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0x99, 0x77, 0x11, 0xff}));
         }
-        if(ImGui::Button(devname[i]))
+        dt_tooltip(red ? "click to unmount" : "click to mount");
+        if(nk_button_label(ctx, devname[i]))
         {
           if(red) snprintf(command, sizeof(command), "/usr/bin/udisksctl unmount -b %s", devname[i]);
           // TODO: use -f for lazy unmounting?
@@ -142,65 +141,63 @@ void render_files()
             pclose(f); // TODO: if(.) need to refresh the list
           }
         }
-        if(ImGui::IsItemHovered()) dt_gui_set_tooltip(red ? "click to unmount" : "click to mount");
         if(red)
         {
-          ImGui::PopStyleColor(2);
-          ImGui::SameLine();
-          ImGui::PushID(i);
-          if(ImGui::Button("go to mountpoint", ImVec2(-1,0)))
+          nk_style_pop_style_item(ctx);
+          dt_tooltip("%s", mountpoint[i]);
+          if(nk_button_label(ctx, "go to mountpoint"))
             set_cwd(mountpoint[i], 0);
-          if(ImGui::IsItemHovered()) dt_gui_set_tooltip("%s", mountpoint[i]);
-          ImGui::PopID();
         }
       }
-      ImGui::Unindent();
-    }
-    if(ImGui::CollapsingHeader("recent collections"))
+      nk_tree_pop(ctx);
+    } // end drives
+
+    if(nk_tree_push(ctx, NK_TREE_TAB, "recent collections", NK_MINIMIZED))
     { // recently used collections in ringbuffer:
-      ImGui::Indent();
       if(recently_used_collections())
       {
         set_cwd(vkdt.db.dirname, 0);
         dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
       }
-      ImGui::Unindent();
+      nk_tree_pop(ctx);
     } // end collapsing header "recent collections"
-    if(ImGui::CollapsingHeader("import"))
+
+    if(nk_tree_push(ctx, NK_TREE_TAB, "import", NK_MINIMIZED))
     {
-      ImGui::Indent();
+      const float ratio[] = {0.7f, 0.3f};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       static char pattern[100] = {0};
       if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
-      if(ImGui::InputText("pattern", pattern, sizeof(pattern))) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("destination directory pattern. expands the following:\n"
-                          "${home} - home directory\n"
-                          "${date} - YYYYMMDD date\n"
-                          "${yyyy} - four char year\n"
-                          "${dest} - dest string just below");
+      dt_tooltip("destination directory pattern. expands the following:\n"
+          "${home} - home directory\n"
+          "${date} - YYYYMMDD date\n"
+          "${yyyy} - four char year\n"
+          "${dest} - dest string just below");
+      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, pattern, sizeof(pattern), nk_filter_default);
+      if(ret & NK_EDIT_COMMITED) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
+      nk_label(ctx, "destination", NK_TEXT_LEFT);
       static char dest[20];
-      ImGui::InputText("dest", dest, sizeof(dest));
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip(
-            "enter a descriptive string to be used as the ${dest} variable when expanding\n"
-            "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
-            "`%s'", pattern);
+      dt_tooltip(
+          "enter a descriptive string to be used as the ${dest} variable when expanding\n"
+          "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
+          "`%s'", pattern);
+      nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dest, sizeof(dest), nk_filter_default);
+      nk_label(ctx, "dest", NK_TEXT_LEFT);
       static copy_job_t job[4] = {{{0}}};
       static int32_t copy_mode = 0;
       int32_t num_idle = 0;
       const char *copy_mode_str = "keep original\0delete original\0\0";
-      ImGui::Combo("copy mode", &copy_mode, copy_mode_str);
+      nk_combobox_string(ctx, copy_mode_str, &copy_mode, 0x7fff, row_height, size);
+      nk_label(ctx, "overwrite", NK_TEXT_LEFT);
       for(int k=0;k<4;k++)
       { // list of four jobs to copy stuff simultaneously
-        ImGui::PushID(k);
         if(job[k].state == 0)
         { // idle job
-          if(num_idle++)
-          { // show at max one idle job
-            ImGui::PopID();
+          if(num_idle++) // show at max one idle job
             break;
-          }
-          if(ImGui::Button("copy"))
+          dt_tooltip("copy contents of %s\nto %s,\n%s",
+              filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
+          if(nk_button_label(ctx, "copy"))
           { // make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
@@ -210,13 +207,11 @@ void render_files()
             }
             if(duplicate)
             { // this doesn't sound right
-              ImGui::SameLine();
-              ImGui::Text("duplicate warning!");
-              if(ImGui::IsItemHovered())
-                dt_gui_set_tooltip("another job already has the current directory as source."
-                                  "it may still be running or be aborted or have finished already,"
-                                  "but either way you may want to double check you actually want to"
-                                  "start this again (and if so reset the job in question)");
+              dt_tooltip("another job already has the current directory as source."
+                  "it may still be running or be aborted or have finished already,"
+                  "but either way you may want to double check you actually want to"
+                  "start this again (and if so reset the job in question)");
+              nk_label(ctx, "duplicate warning!", NK_TEXT_LEFT);
             }
             else
             { // green light :)
@@ -224,50 +219,45 @@ void render_files()
               char dst[1000];
               fs_expand_import_filename(pattern, strlen(pattern), dst, sizeof(dst), dest);
               copy_job(job+k, dst, filebrowser.cwd);
+              nk_label(ctx, "", 0);
             }
           }
-          if(ImGui::IsItemHovered())
-            dt_gui_set_tooltip("copy contents of %s\nto %s,\n%s",
-                filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
+          else nk_label(ctx, "", 0);
         }
         else if(job[k].state == 1)
         { // running
-          if(ImGui::Button("abort")) job[k].abort = 1;
-          ImGui::SameLine();
-          ImGui::ProgressBar(threads_task_progress(job[k].taskid), ImVec2(-1, 0));
-          if(ImGui::IsItemHovered()) dt_gui_set_tooltip("copying %s to %s", job[k].src, job[k].dst);
+          if(nk_button_label(ctx, "abort")) job[k].abort = 1;
+          dt_tooltip("copying %s to %s", job[k].src, job[k].dst);
+          nk_prog(ctx, 1024*threads_task_progress(job[k].taskid), 1024, nk_false);
         }
         else
         { // done/aborted
-          if(ImGui::Button(job[k].abort ? "aborted" : "done"))
-          { // reset
-            job[k].state = 0;
-          }
-          if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
+          dt_tooltip(
               job[k].abort == 1 ? "copy from %s aborted by user. click to reset" :
              (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
               "copy from %s done. click to reset"),
              job[k].src);
+          if(nk_button_label(ctx, job[k].abort ? "aborted" : "done"))
+          { // reset
+            job[k].state = 0;
+          }
           if(!job[k].abort)
           {
-            ImGui::SameLine();
-            if(ImGui::Button("view copied files", ImVec2(-1, 0)))
+            dt_tooltip("open %s in lighttable mode", job[k].dst);
+            if(nk_button_label(ctx, "view copied files"))
             {
               set_cwd(job[k].dst, 1);
               dt_gui_switch_collection(job[k].dst);
               job[k].state = 0;
               dt_view_switch(s_view_lighttable);
             }
-            if(ImGui::IsItemHovered()) dt_gui_set_tooltip(
-                "open %s in lighttable mode",
-                job[k].dst);
           }
+          else nk_label(ctx, "", 0);
         }
-        ImGui::PopID();
       } // end for jobs
-      ImGui::Unindent();
-    }
-#endif
+      nk_tree_pop(ctx);
+    } // end import
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   }
 
@@ -287,6 +277,7 @@ void render_files()
       dt_gui_switch_collection(filebrowser.cwd);
       dt_view_switch(s_view_lighttable);
     }
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   }
 
@@ -296,6 +287,7 @@ void render_files()
     dt_filebrowser(&filebrowser, 'f');
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   } // end center window
 }
@@ -337,6 +329,7 @@ files_mouse_button(GLFWwindow *window, int button, int action, int mods)
 void
 files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(dt_gui_input_blocked()) return;
   dt_filebrowser_widget_t *w = &filebrowser;
   if(action == GLFW_PRESS && key == GLFW_KEY_UP)
   { // up arrow: select entry above

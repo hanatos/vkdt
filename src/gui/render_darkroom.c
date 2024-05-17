@@ -171,15 +171,15 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 
   // XXX only if no popup is open!
   // XXX gamepad!
-  if(key == GLFW_KEY_ESCAPE)
+  if(!dt_gui_input_blocked())
   {
-  // TODO: place on top of image widget
-  // nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE);
-
-    dt_view_switch(s_view_lighttable);
-    vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
-  }
+    if(key == GLFW_KEY_ESCAPE)
+    {
+      dt_view_switch(s_view_lighttable);
+      vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
+    }
   // ?? if(key == GLFW_KEY_ENTER) dt_view_switch(s_view_nodes);
+  }
 
 #if 0 // TODO: port this!
     ImGuiIO& io = ImGui::GetIO();
@@ -598,6 +598,7 @@ void render_darkroom()
     if(vkdt.wstate.show_perf_overlay) render_perf_overlay();
     if(disabled) nk_widget_disable_end(&vkdt.ctx);
   } // end center view
+  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(&vkdt.ctx);
 
 #if 0 // XXX port me!
@@ -902,6 +903,7 @@ void render_darkroom()
         }
 #endif
     }
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   } // end right panel
   render_darkroom_modals();

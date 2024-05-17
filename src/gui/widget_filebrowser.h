@@ -122,7 +122,10 @@ dt_filebrowser(
   nk_style_pop_font(ctx);
   ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
+  {
+    nk_edit_unfocus(ctx); // make keyboard nav in list below work
     dt_filebrowser_cleanup(w);
+  }
 #ifdef _WIN64
   int dm = GetLogicalDrives();
   char letter = 'A';
@@ -159,7 +162,6 @@ dt_filebrowser(
         w->ent[i].d_name,
         fs_isdir(w->cwd, w->ent+i) ? "/":"");
     int selected = w->ent[i].d_name == w->selected;
-    struct nk_rect bounds = nk_widget_bounds(ctx);
     nk_bool select = nk_selectable_label(ctx, name, NK_TEXT_LEFT, &selected);
     if(select)
     {

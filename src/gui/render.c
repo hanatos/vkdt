@@ -345,6 +345,10 @@ void dt_gui_render_frame_nk()
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 
   // TODO: now render second screen context, if any (this will only be a full res image widget, we could put the code here)
+
+  // nuklear requires the input, when modifying a text edit etc:
+  vkdt.wstate.nk_active = vkdt.wstate.nk_active_next;
+  vkdt.wstate.nk_active_next = 0;
 }
 
 

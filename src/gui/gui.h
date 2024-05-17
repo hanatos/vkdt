@@ -73,7 +73,9 @@ typedef struct dt_gui_wstate_t
   float    state[2100];
   size_t   mapped_size;
   float   *mapped;
-  int      grabbed;
+  int      grabbed;             // module grabbed input (quake for instance)
+  int      nk_active;           // nuklear wants input (typing into an edit field)
+  int      nk_active_next;
   int      lod;
   uint32_t copied_imgid;        // imgid copied for copy/paste
   char    *module_names_buf;

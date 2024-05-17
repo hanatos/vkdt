@@ -112,13 +112,14 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     default: break;
   }
 
-  // XXX only if no popup is open!
-  // XXX gamepad!
-  if(key == GLFW_KEY_ESCAPE)
-    dt_view_switch(s_view_files);
-  if(key == GLFW_KEY_ENTER)
-    if(dt_db_current_imgid(&vkdt.db) != -1u)
-      dt_view_switch(s_view_darkroom);
+  if(!dt_gui_input_blocked())
+  {
+    if(key == GLFW_KEY_ESCAPE)
+      dt_view_switch(s_view_files);
+    if(key == GLFW_KEY_ENTER)
+      if(dt_db_current_imgid(&vkdt.db) != -1u)
+        dt_view_switch(s_view_darkroom);
+  }
 }
 
 
@@ -152,6 +153,7 @@ void render_lighttable_center()
   if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   {
     if(disabled) nk_widget_disable_end(&vkdt.ctx);
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(&vkdt.ctx);
     return;
   }
@@ -279,6 +281,7 @@ void render_lighttable_center()
   // draw context sensitive help overlay
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
 
+  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(&vkdt.ctx); // lt center window
   if(disabled) nk_widget_disable_end(&vkdt.ctx);
 }
@@ -390,6 +393,7 @@ void render_lighttable_right_panel()
 
   if(!nk_begin(ctx, "lighttable panel right", bounds, 0))
   {
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
     return;
   }
@@ -859,6 +863,7 @@ void render_lighttable_right_panel()
 #undef NUM_JOBS
     nk_tree_pop(ctx);
   } // end collapsing header "export"
+  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(&vkdt.ctx); // lt right panel
 }
 
