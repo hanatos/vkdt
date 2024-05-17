@@ -1,4 +1,4 @@
-mode:combo:luminance:hue:saturation
+mode:combo:luminance:hue:saturation:bayer luminance
 vmin:slider:0:1
 vmax:slider:0:1
 envelope:slider:0:1
