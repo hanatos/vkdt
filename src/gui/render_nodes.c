@@ -399,6 +399,7 @@ void render_nodes()
 
   dt_gui_dr_modals(); // draw modal windows for presets etc
 #endif
+  render_darkroom_modals();
 }
 
 void render_nodes_init()
@@ -426,6 +427,7 @@ int nodes_enter()
 int nodes_leave()
 {
   nodes.nedit.selected = 0; // don't leave stray selection. leads to problems re-entering with another graph.
+  memset(nodes.nedit.selected_mid, 0, sizeof(nodes.nedit.selected_mid));
   return 0;
 }
 
@@ -444,8 +446,8 @@ void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int m
   { // escape to go back to darkroom
     dt_view_switch(s_view_darkroom);
   }
-#if 0
-  switch(nodes.hotkey)
+  int hotkey = hk_get_hotkey(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), key);
+  switch(hotkey)
   {
     case s_hotkey_apply_preset:
       dt_gui_dr_preset_apply();
@@ -456,5 +458,4 @@ void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int m
       break;
     default:;
   }
-#endif
 }

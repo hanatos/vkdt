@@ -109,7 +109,6 @@ filteredlist(
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
   nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
-  nk_label(ctx, "filter", NK_TEXT_LEFT);
   dt_tooltip(
       "type to filter the list\n"
       "press enter to apply top item\n"
@@ -117,6 +116,9 @@ filteredlist(
   if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
   nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED) ok = 1;
+  struct nk_rect rowbound = nk_layout_widget_bounds(ctx);
+  total_space.h -= rowbound.y - total_space.y;
+  nk_label(ctx, "filter", NK_TEXT_LEFT);
   vkdt.wstate.popup_appearing = 0;
 
   if(!ent_cnt)
@@ -181,6 +183,7 @@ filteredlist(
   }
 
   nk_layout_row_dynamic(&vkdt.ctx, total_space.h-3*row_height, 1);
+  nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
   nk_group_begin(&vkdt.ctx, "filteredlist-scrollpane", 0);
   {
     nk_layout_row_dynamic(&vkdt.ctx, 0, 1);
@@ -197,6 +200,7 @@ filteredlist(
 #undef XLIST
     nk_group_end(&vkdt.ctx);
   }
+  nk_style_pop_flags(&vkdt.ctx);
 
   nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
   nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);

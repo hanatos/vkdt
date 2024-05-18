@@ -12,10 +12,11 @@ nk_node_connection_t;
 typedef struct nk_node_editor_t
 {
   int inited;
-  dt_module_t *selected;
+  dt_module_t *selected;  // last selected module, active
   int show_grid;
   struct nk_vec2 scrolling;
   nk_node_connection_t connection;
+  int selected_mid[1000]; // list of selected modules
 }
 nk_node_editor_t;
 
@@ -196,26 +197,6 @@ nk_node_editor(
     nedit->connection.mid = -1;
     nedit->connection.cid = -1;
   }
-
-#if 0 // i think this should already have been done, modulo coordinate space madness?
-  /* node selection */
-  if (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, nk_layout_space_bounds(ctx)))
-  {
-    it = nodedit->begin;
-    nodedit->selected = NULL;
-    // XXX wtf is this?
-    // nodedit->bounds = nk_rect(in->mouse.pos.x, in->mouse.pos.y, 100, 200);
-    while (it) {
-      // XXX TODO: do this inline above
-      struct nk_rect b = nk_layout_space_rect_to_screen(ctx, it->bounds);
-      b.x -= nodedit->scrolling.x;
-      b.y -= nodedit->scrolling.y;
-      if (nk_input_is_mouse_hovering_rect(in, b))
-        nodedit->selected = it;
-      it = it->next;
-    }
-  }
-#endif
 
   // TODO: only if mouse button hasn't been handled because it's on a node
   /* contextual menu */
