@@ -341,10 +341,9 @@ dt_image(
   w->out = out;
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
-  struct nk_vec2 w_pos = nk_window_get_position(ctx); // uh how does that work
-  struct nk_vec2 w_ext = nk_window_get_size(ctx);
-  w->win_x = w_pos.x; w->win_y = w_pos.y;
-  w->win_w = w_ext.x; w->win_h = w_ext.y;
+  struct nk_rect wb = nk_widget_bounds(ctx);
+  w->win_x = wb.x; w->win_y = wb.y;
+  w->win_w = wb.w; w->win_h = wb.h;
   float im0[2], im1[2];
   float v0[2] = {w->win_x, w->win_y};
   float v1[2] = {w->win_x+w->win_w, w->win_y+w->win_h};
@@ -366,7 +365,7 @@ dt_image(
   if(w->scale >= 1.0f)
   {
     snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(w->scale*100.0));
-    nk_draw_text(buf, (struct nk_rect){w->win_x+0.9*w->win_w,w->win_y+0.05*w->win_h, 0.05*w->win_w, 0.05*w->win_h},
+    nk_draw_text(buf, (struct nk_rect){w->win_x+0.9*w->win_w,w->win_y+0.05*w->win_h, 0.5*w->win_w, 0.05*w->win_h},
         scaletext, strlen(scaletext), &dt_gui_get_font(0)->handle, (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }
   // now the controls:

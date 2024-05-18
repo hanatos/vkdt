@@ -41,25 +41,22 @@ gui_nodes_t nodes;
 
 void render_nodes_right_panel()
 {
-#if 0 // TODO port
-  ImGui::SetNextWindowPos (ImVec2(
-        ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
-        ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
-  ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-  ImGui::Begin("nodes right panel", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-
+  struct nk_context *ctx = &vkdt.ctx;
+  struct nk_rect bounds = { qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
+  if(!nk_begin(ctx, "nodes panel", bounds, 0))
+  {
+    // TODO: handle edit active
+    nk_end(ctx);
+  }
   dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
   if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
   {
-    int wd = vkdt.state.panel_wd * 0.975;
+    int wd = vkdt.state.panel_wd;
     int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
-    ImGui::Image(out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES],
-        ImVec2(wd, ht),
-        ImVec2(0,0), ImVec2(1,1),
-        ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+    nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
+    struct nk_image img = nk_image_ptr(out_hist->dset[0]);
+    nk_image(ctx, img);
   }
-
   static dt_image_widget_t imgw[] = {
     { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 },
     { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 },
@@ -70,23 +67,23 @@ void render_nodes_right_panel()
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
     if(out && vkdt.graph_res == VK_SUCCESS)
     {
-      int popout = ImGui::GetPlatformIO().Monitors.size() > 1 &&
-        dsp[d] == dt_token("main") && nodes.dual_monitor;
+      int popout = dsp[d] == dt_token("main") && nodes.dual_monitor;
       char title[20] = {0};
       snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
-      if(popout) ImGui::Begin(title, 0, ImGuiWindowFlags_SecondMonitor);
-      else ImGui::BeginChild(title, ImVec2(0.975*ImGui::GetWindowSize().x,
-            MIN(ImGui::GetWindowSize().y, ImGui::GetWindowSize().x*2.0f/3.0f)));
-
+      // if(popout) // TODO use vkdt.ctx2 and decorate with some window around it
+      // TODO: this requires a new window because it'll fill the whole bounds
+      // TODO: i suppose we could make it grab the widget/layout size instead
+      int wd = vkdt.state.panel_wd;
+      int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
+      nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
       if(dsp[d] == dt_token("main"))
-        dt_image(&vkdt.wstate.img_widget, out, 1, 1);
+        dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out, 1, 1);
       else
-        dt_image(imgw+d, out, 1, 0);
-      if(popout) ImGui::End();
-      else ImGui::EndChild();
+        dt_image(&vkdt.ctx, imgw+d, out, 1, 0);
+      // if(popout) // TODO: nk_end and stuff?
     }
   }
-
+#if 0 // TODO port
   // expanders for selection and individual nodes:
   int  sel_node_cnt = ImNodes::NumSelectedNodes();
   int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
@@ -282,9 +279,9 @@ void render_nodes_right_panel()
     dt_view_switch(s_view_darkroom);
   ImGui::PopStyleVar();
   ImGui::End();
+#endif
   // TODO: handle edit active
   nk_end(ctx);
-#endif
 }
 
 void render_nodes()
@@ -394,11 +391,9 @@ void render_nodes()
   // only reset if the apply preset popup has been closed (loading a preset may give us new positions)
   if(!ImGui::IsPopupOpen("apply preset"))
     nodes.do_layout = 0;
+#endif
 
   render_nodes_right_panel();
-
-  dt_gui_dr_modals(); // draw modal windows for presets etc
-#endif
   render_darkroom_modals();
 }
 
@@ -416,9 +411,8 @@ int nodes_enter()
 {
   nodes.dual_monitor = 0; // XXX TODO: get from rc and write on leave
   nodes.hotkey = -1;
-  nodes.do_layout = 1; // assume bad initial auto layout
   nodes.node_hovered_link = -1;
-  nodes.do_layout = 2; // ask to read positions
+  nodes.do_layout = 1; // maybe overwrite uninited node positions
   // make sure we process once:
   vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
   return 0;

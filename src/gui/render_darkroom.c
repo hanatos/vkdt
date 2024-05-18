@@ -354,6 +354,7 @@ void render_darkroom()
       {
         int events = !vkdt.wstate.grabbed && !disabled;
         // center view has on-canvas widgets (but only if there *is* an image):
+        nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht, 1);
         dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
       }
     }
