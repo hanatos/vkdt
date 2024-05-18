@@ -1,5 +1,6 @@
 #pragma once
 // simple node editor for dt_graph_t, based on the draft that comes with nuklear
+#include "widget_filteredlist.h"
 
 typedef struct nk_node_connection_t
 {
@@ -36,26 +37,20 @@ nk_node_editor(
     nedit->inited = 1;
   }
 
-  // TODO: do this outside as customary for all our other widgets
-  // if (nk_begin(ctx, "node edit", nk_rect(0, 0, 800, 600), NK_WINDOW_BORDER|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE))
-  /* allocate complete window space */
   canvas = nk_window_get_canvas(ctx);
   total_space = nk_window_get_content_region(ctx);
-  nk_layout_space_begin(ctx, NK_STATIC, total_space.h, graph->num_modules);  // XXX what does this do?nodedit->node_count);
+  nk_layout_space_begin(ctx, NK_STATIC, total_space.h, graph->num_modules);
   struct nk_rect size = nk_layout_space_bounds(ctx);
 
-#if 1
-  // if (nedit->show_grid)
   { // render a grid
     float x, y;
     const float grid_size = 32.0f;
-    const struct nk_color grid_color = nk_rgb(0, 0, 0);
+    const struct nk_color grid_color = nk_rgb(30, 30, 30);
     for (x = (float)fmod(size.x - nedit->scrolling.x, grid_size); x < size.w; x += grid_size)
       nk_stroke_line(canvas, x+size.x, size.y, x+size.x, size.y+size.h, 1.0f, grid_color);
     for (y = (float)fmod(size.y - nedit->scrolling.y, grid_size); y < size.h; y += grid_size)
       nk_stroke_line(canvas, size.x, y+size.y, size.x+size.w, y+size.y, 1.0f, grid_color);
   }
-#endif
 
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
 
@@ -70,6 +65,7 @@ nk_node_editor(
     nk_layout_space_push(ctx, nk_rect(module_bounds.x - nedit->scrolling.x, module_bounds.y - nedit->scrolling.y, module_bounds.w, module_bounds.h));
 
     const float pin_radius = 0.01*vkdt.state.center_ht;
+    const float link_thickness = 0.2*pin_radius;
 
     for(int c=0;c<module->num_connectors;c++)
     {
@@ -98,8 +94,8 @@ nk_node_editor(
           struct nk_vec2 l0 = nk_vec2(circle.x + pin_radius, circle.y + pin_radius);
           struct nk_vec2 l1 = in->mouse.pos;
           // XXX curvature and stroke thickness will need work here
-          nk_stroke_curve(canvas, l0.x, l0.y, l0.x + 50.0f, l0.y,
-              l1.x - 50.0f, l1.y, l1.x, l1.y, 1.0f, nk_rgb(100, 100, 100));
+          nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + l1.x)*0.5f, l0.y,
+              (l0.x + l1.x)*0.5f, l1.y, l1.x, l1.y, link_thickness, nk_rgb(100, 100, 100));
         }
       }
       else if(dt_connector_input(module->connector + c))
@@ -141,41 +137,38 @@ nk_node_editor(
               mo_bounds.y + row_height * (cido+2) + pin_radius - nedit->scrolling.y));
           p.x += pin_radius;
           p.y += pin_radius;
-
-          // XXX again, stroke width and curvature need work
-          nk_stroke_curve(canvas, l0.x, l0.y, l0.x + 50.0f, l0.y,
-              p.x - 50.0f, p.y, p.x, p.y, 1.0f, nk_rgb(100, 100, 100));
+          nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + p.x)*0.5f, l0.y,
+              (l0.x + p.x)*0.5f, p.y, p.x, p.y, link_thickness, nk_rgb(100, 100, 100));
         }
       }
     }
    
     char str[32];
     snprintf(str, sizeof(str), "%"PRItkn":%"PRItkn, dt_token_str(module->name), dt_token_str(module->inst));
+    if(nedit->selected == module)
+      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(80,60,40)));
+    else if(module->disabled)
+      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(0,0,0)));
+    else
+      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(40,40,40)));
     if(nk_group_begin(ctx, str, NK_WINDOW_MOVABLE|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
     {
       struct nk_panel * node_panel = nk_window_get_panel(ctx);
       if (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, node_panel->bounds))
-        // wot??
-         // (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, nk_layout_space_rect_to_screen(ctx, node_panel->bounds)))
         nedit->selected = module;
 
-      // TODO: if module->disabled draw it somehow in different colour
       nk_layout_row_dynamic(ctx, row_height, 1);
       for(int c=0;c<module->num_connectors;c++)
       {
-#if 0 // TODO: format tooltip
-        // TODO: while at it extend by primaries and trc
-      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-      ImGui::BeginTooltip();
-      ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-      ImGui::Text("format: %" PRItkn ":%" PRItkn,
-          dt_token_str(mod->connector[c].chan),
-          dt_token_str(mod->connector[c].format));
-      if(mod->connector[c].tooltip)
-        ImGui::TextUnformatted(mod->connector[c].tooltip);
-      ImGui::PopTextWrapPos();
-      ImGui::EndTooltip();
-#endif
+        if(module->connector[c].tooltip)
+          dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s",
+              dt_token_str(module->connector[c].chan),
+              dt_token_str(module->connector[c].format),
+              module->connector[c].tooltip);
+        else
+          dt_tooltip("format: %" PRItkn ":%" PRItkn,
+              dt_token_str(module->connector[c].chan),
+              dt_token_str(module->connector[c].format));
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);
       }
@@ -188,6 +181,7 @@ nk_node_editor(
       module->gui_x = bounds.x;
       module->gui_y = bounds.y;
     }
+    nk_style_pop_style_item(ctx);
   } // for all modules
 
   if (nedit->connection.active && nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
