@@ -1,5 +1,3 @@
-extern "C"
-{
 #include "view.h"
 #include "gui.h"
 #include "pipe/modules/api.h"
@@ -9,23 +7,21 @@ extern "C"
 #include "nodes.h"
 #include "db/hash.h"
 #include "core/fs.h"
-}
-#include "render_view.hh"
+#include "render_view.h"
 #include "render.h"
-#include "imnodes.h"
-#include "hotkey.hh"
-#include "api.hh"
-#include "widget_image.hh"
+#include "widget_nodes.h"
+#include "hotkey.h"
+#include "api_gui.h"
+#include "widget_image.h"
 #define KEYFRAME // empty define to disable hover/keyframe behaviour
-#include "render_darkroom.hh"
+#include "render_darkroom.h"
 #include <stdint.h>
 
-static ImHotKey::HotKey hk_nodes[] = {
-  {"apply preset",    "choose preset to apply",                     {ImGuiKey_LeftCtrl, ImGuiKey_P}},
-  {"add module",      "add a new module to the graph",              {ImGuiKey_LeftCtrl, ImGuiKey_M}},
+static hk_t hk_nodes[] = {
+  {"apply preset",    "choose preset to apply",                     {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_P}},
+  {"add module",      "add a new module to the graph",              {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_M}},
 };
 
-namespace {
 enum hotkey_names_t
 { // for sane access in code
   s_hotkey_apply_preset    = 0,
@@ -38,80 +34,14 @@ typedef struct gui_nodes_t
   int hotkey;
   int node_hovered_link;
   int dual_monitor;
+  nk_node_editor_t nedit;
 }
 gui_nodes_t;
 gui_nodes_t nodes;
 
-void write_back_module_positions()
-{
-  dt_graph_t *g = &vkdt.graph_dev;
-  for(uint32_t m=0;m<g->num_modules;m++)
-  { // set gui positions on modules
-    if(g->module[m].name == 0) continue; // don't write removed ones
-    ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
-    g->module[m].gui_x = pos.x;
-    g->module[m].gui_y = pos.y;
-  }
-}
-}; // anonymous namespace
-
-void render_nodes_module(dt_graph_t *g, int m)
-{
-  dt_module_t *mod = g->module+m;
-  if(mod->name == 0) return; // has been removed, only the zombie left
-  if(mod->disabled)
-  {
-    ImNodes::PushColorStyle(ImNodesCol_NodeBackground, IM_COL32(10,10,10,255));
-    ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(10,10,10,255));
-    ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(10,10,10,255));
-  }
-  else
-    ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(70,70,70,255));
-  ImNodes::BeginNode(m);
-
-  ImNodes::BeginNodeTitleBar();
-  ImGui::Text("%" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
-  if(mod->disabled) ImGui::TextUnformatted("disabled");
-  ImNodes::EndNodeTitleBar();
-
-  for(int c=0;c<mod->num_connectors;c++)
-  {
-    const int cid = (m<<5) + c;
-    if(dt_connector_output(mod->connector+c))
-    {
-      ImNodes::BeginOutputAttribute(cid);
-      ImGui::Text("%" PRItkn, dt_token_str(mod->connector[c].name));
-      ImNodes::EndOutputAttribute();
-    }
-    else
-    {
-      ImNodes::PushAttributeFlag( // inputs have only one source so we can disconnect:
-          ImNodesAttributeFlags_EnableLinkDetachWithDragClick);
-      ImNodes::BeginInputAttribute(cid);
-      ImGui::Text("%" PRItkn, dt_token_str(mod->connector[c].name));
-      ImNodes::EndInputAttribute();
-      ImNodes::PopAttributeFlag();
-    }
-    if(ImGui::IsItemHovered())
-    {
-      ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-      ImGui::BeginTooltip();
-      ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-      ImGui::Text("format: %" PRItkn ":%" PRItkn,
-          dt_token_str(mod->connector[c].chan),
-          dt_token_str(mod->connector[c].format));
-      if(mod->connector[c].tooltip)
-        ImGui::TextUnformatted(mod->connector[c].tooltip);
-      ImGui::PopTextWrapPos();
-      ImGui::EndTooltip();
-    }
-  }
-  ImNodes::EndNode();
-  if(mod->disabled) for(int k=0;k<3;k++) ImNodes::PopColorStyle();
-}
-
 void render_nodes_right_panel()
 {
+#if 0 // TODO port
   ImGui::SetNextWindowPos (ImVec2(
         ImGui::GetMainViewport()->Pos.x + qvk.win_width - vkdt.state.panel_wd,
         ImGui::GetMainViewport()->Pos.y + 0),   ImGuiCond_Always);
@@ -352,122 +282,81 @@ void render_nodes_right_panel()
     dt_view_switch(s_view_darkroom);
   ImGui::PopStyleVar();
   ImGui::End();
+  // TODO: handle edit active
+  nk_end(ctx);
+#endif
 }
 
 void render_nodes()
 {
-  nodes.hotkey = ImHotKey::GetHotKey(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
-  ImGuiWindowFlags window_flags = 0;
-  window_flags |= ImGuiWindowFlags_NoTitleBar;
-  window_flags |= ImGuiWindowFlags_NoMove;
-  window_flags |= ImGuiWindowFlags_NoResize;
-  window_flags |= ImGuiWindowFlags_NoBackground;
-  ImGui::SetNextWindowPos (ImVec2(
-        ImGui::GetMainViewport()->Pos.x + vkdt.state.center_x,
-        ImGui::GetMainViewport()->Pos.y + vkdt.state.center_y),  ImGuiCond_Always);
-  ImGui::SetNextWindowSize(ImVec2(vkdt.state.center_wd, vkdt.state.center_ht), ImGuiCond_Always);
-  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-  ImGui::Begin("nodes center", 0, window_flags);
-
-  // make dpi independent:
-  ImNodes::PushStyleVar(ImNodesStyleVar_LinkThickness, vkdt.state.center_ht*0.003);
-  ImNodes::PushStyleVar(ImNodesStyleVar_PinCircleRadius, vkdt.state.center_ht*0.004);
-  ImNodes::PushStyleVar(ImNodesStyleVar_NodePadding, ImVec2(
-        vkdt.state.center_ht*0.005, vkdt.state.center_ht*0.005));
-  // TODO: ImNodesStyleVar_PinHoverRadius
-  // TODO: ImNodesStyleVar_LinkHoverDistance
-  ImNodes::BeginNodeEditor();
+  struct nk_context *ctx = &vkdt.ctx;
+  struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
+  if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR)) // TODO etc
+  {
+    // TODO: handle edit active
+    nk_end(ctx);
+  }
 
   dt_graph_t *g = &vkdt.graph_dev;
 
-  uint32_t mod_id[100];       // module id, including disconnected modules
-  assert(g->num_modules < sizeof(mod_id)/sizeof(mod_id[0]));
-  for(uint32_t k=0;k<g->num_modules;k++) mod_id[k] = k;
-  dt_module_t *const arr = g->module;
-  const int arr_cnt = g->num_modules;
-  int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
-  uint32_t modid[100], cnt = 0;
-  for(int m=0;m<arr_cnt;m++)
-    modid[m] = m; // init as identity mapping
+  if(nodes.do_layout)
+  {
+    uint32_t mod_id[100];       // module id, including disconnected modules
+    assert(g->num_modules < sizeof(mod_id)/sizeof(mod_id[0]));
+    for(uint32_t k=0;k<g->num_modules;k++) mod_id[k] = k;
+    dt_module_t *const arr = g->module;
+    const int arr_cnt = g->num_modules;
+    int pos = 0, pos2 = 0; // find pos2 as the swapping position, where mod_id[pos2] = curr
+    uint32_t modid[100], cnt = 0;
+    for(int m=0;m<arr_cnt;m++)
+      modid[m] = m; // init as identity mapping
+    const float nodew = vkdt.state.center_wd * 0.09;
+    const float nodey = vkdt.state.center_ht * 0.3;
 
-  const float nodew = vkdt.state.center_wd * 0.09;
-  const float nodey = vkdt.state.center_ht * 0.3;
-  ImNodes::PushAttributeFlag(
-      ImNodesAttributeFlags_EnableLinkCreationOnSnap);
-
-  int vpos = nodey;
+    int vpos = nodey;
 #define TRAVERSE_POST \
-  assert(cnt < sizeof(modid)/sizeof(modid[0]));\
-  modid[cnt++] = curr;
+    assert(cnt < sizeof(modid)/sizeof(modid[0]));\
+    modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
-  for(int m=cnt-1;m>=0;m--)
-  { // draw the graph
-    uint32_t curr = modid[m];
-    pos2 = curr;
-    while(mod_id[pos2] != curr) pos2 = mod_id[pos2];
-    uint32_t tmp = mod_id[pos];
-    mod_id[pos++] = mod_id[pos2];
-    mod_id[pos2] = tmp;
-    render_nodes_module(g, curr);
-    if(!g->module[curr].name) continue;
-    if(nodes.do_layout)
-    {
+    for(int m=cnt-1;m>=0;m--)
+    { // position connected modules
+      uint32_t curr = modid[m];
+      pos2 = curr;
+      while(mod_id[pos2] != curr) pos2 = mod_id[pos2];
+      uint32_t tmp = mod_id[pos];
+      mod_id[pos++] = mod_id[pos2];
+      mod_id[pos2] = tmp;
+      if(!g->module[curr].name) continue;
       if(g->module[curr].gui_x == 0 && g->module[curr].gui_y == 0)
       {
         if(strncmp(dt_token_str(g->module[curr].name), "i-", 2))
-          ImNodes::SetNodeEditorSpacePos(curr, ImVec2(nodew*(m+0.25), nodey));
+        {
+          g->module[curr].gui_x = nodew*(m+0.25);
+          g->module[curr].gui_y = nodey;
+        }
         else // input nodes get their own vertical alignment
         {
-          ImNodes::SetNodeEditorSpacePos(curr, ImVec2(0, vpos));
+          g->module[curr].gui_x = 0;
+          g->module[curr].gui_y = vpos;
           vpos += nodew;
         }
       }
-      else
-        ImNodes::SetNodeEditorSpacePos(curr, ImVec2(g->module[curr].gui_x, g->module[curr].gui_y));
     }
-  }
 
-  for(int m=pos;m<arr_cnt;m++)
-  { // draw disconnected modules
-    render_nodes_module(g, mod_id[m]);
-    if(!g->module[mod_id[m]].name) continue;
-    if(nodes.do_layout)
-    {
+    for(int m=pos;m<arr_cnt;m++)
+    { // position disconnected modules
+      if(!g->module[mod_id[m]].name) continue;
       if(g->module[mod_id[m]].gui_x == 0 && g->module[mod_id[m]].gui_y == 0)
-        ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(nodew*(m+0.25-pos), 2*nodey));
-      else
-        ImNodes::SetNodeEditorSpacePos(mod_id[m], ImVec2(g->module[mod_id[m]].gui_x, g->module[mod_id[m]].gui_y));
-    }
-  }
-  ImNodes::PopAttributeFlag();
-
-  for(uint32_t m=0;m<g->num_modules;m++)
-  {
-    dt_module_t *mod = g->module+m;
-    if(mod->name == 0) continue;
-    for(int c=0;c<mod->num_connectors;c++)
-    {
-      if(dt_connector_input(mod->connector+c) && dt_connected(mod->connector+c))
       {
-        int id0 = (m<<5) + c;
-        int id1 = (mod->connector[c].connected_mi<<5) + mod->connector[c].connected_mc;
-        if(mod->connector[c].flags & s_conn_feedback)
-          ImNodes::PushColorStyle(ImNodesCol_Link, IM_COL32(210,10,210,255));
-        if(id0 == nodes.node_hovered_link)
-          ImNodes::PushColorStyle(ImNodesCol_Link, IM_COL32(210,10,10,255));
-        ImNodes::Link(id0, id0, id1); // id0 is the input connector which is unique
-        if(id0 == nodes.node_hovered_link)
-          ImNodes::PopColorStyle();
-        if(mod->connector[c].flags & s_conn_feedback)
-          ImNodes::PopColorStyle();
+        g->module[mod_id[m]].gui_x = nodew*(m+0.25-pos);
+        g->module[mod_id[m]].gui_x = 2*nodey;
       }
     }
   }
 
-  ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_TopRight);
-  ImNodes::EndNodeEditor();
-  ImNodes::PopStyleVar(3);
+  nk_node_editor(ctx, &nodes.nedit, g);
 
+#if 0 // XXX delete a module!
   int lid = 0, mid = -1;
   nodes.node_hovered_link = -1;
   if(ImNodes::NumSelectedNodes() == 1)
@@ -496,67 +385,33 @@ void render_nodes()
       }
     }
   }
+#endif
 
-  int sid, eid;
-  if(ImNodes::IsLinkCreated(&sid, &eid))
-  { // handle new links
-    int mi0 = sid>>5,   mi1 = eid>>5;
-    int mc0 = sid&0x1f, mc1 = eid&0x1f;
+  // TODO: handle edit active
+  nk_end(ctx); // end center nodes view
 
-    int err = 0;
-    if(ImGui::IsKeyDown(ImGuiKey_ModShift))
-      err = dt_module_feedback_with_history(g, mi0, mc0, mi1, mc1);
-    else
-      err = dt_module_connect_with_history(g, mi0, mc0, mi1, mc1);
-    if(err) dt_gui_notification(dt_connector_error_str(err));
-    else vkdt.graph_dev.runflags = s_graph_run_all;
-  }
-
-  if(ImNodes::IsLinkDestroyed(&lid))
-  { // handle deleted links
-    int mi = lid>>5, mc = lid&0x1f;
-    dt_module_connect_with_history(g, -1, -1, mi, mc);
-    vkdt.graph_dev.runflags = s_graph_run_all;
-  }
-
-  ImGui::End(); // nodes center
-  if(!dt_gui_imgui_input_blocked())
-    if(ImGui::IsKeyPressed(ImGuiKey_Escape) ||
-       ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-      dt_view_switch(s_view_darkroom);
-
+#if 0 // TODO port
   // only reset if the apply preset popup has been closed (loading a preset may give us new positions)
   if(!ImGui::IsPopupOpen("apply preset"))
     nodes.do_layout = 0;
 
   render_nodes_right_panel();
 
-  switch(nodes.hotkey)
-  {
-    case s_hotkey_apply_preset:
-      dt_gui_dr_preset_apply();
-      write_back_module_positions(); // make sure to keep stuff we moved just now
-      nodes.do_layout = 1;           // presets may ship positions for newly added nodes
-      break;
-    case s_hotkey_module_add:
-      dt_gui_dr_module_add();
-      break;
-    default:;
-  }
   dt_gui_dr_modals(); // draw modal windows for presets etc
+#endif
 }
 
 void render_nodes_init()
 {
-  ImHotKey::Deserialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
+  hk_deserialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
 }
 
 void render_nodes_cleanup()
 {
-  ImHotKey::Serialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
+  hk_serialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
 }
 
-extern "C" int nodes_enter()
+int nodes_enter()
 {
   nodes.dual_monitor = 0; // XXX TODO: get from rc and write on leave
   nodes.hotkey = -1;
@@ -568,17 +423,38 @@ extern "C" int nodes_enter()
   return 0;
 }
 
-extern "C" int nodes_leave()
+int nodes_leave()
 {
-  ImNodes::ClearNodeSelection(); // don't leave stray selection. leads to problems re-entering with another graph.
-  write_back_module_positions();
+  nodes.nedit.selected = 0; // don't leave stray selection. leads to problems re-entering with another graph.
   return 0;
 }
 
-extern "C" void nodes_process()
+void nodes_process()
 {
   dt_gui_dr_anim_stop(); // we don't animate in graph edit mode
   if(vkdt.graph_dev.runflags)
     vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
+}
+
+void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+  if(dt_gui_input_blocked()) return;
+  if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
+  { // escape to go back to darkroom
+    dt_view_switch(s_view_darkroom);
+  }
+#if 0
+  switch(nodes.hotkey)
+  {
+    case s_hotkey_apply_preset:
+      dt_gui_dr_preset_apply();
+      nodes.do_layout = 1;           // presets may ship positions for newly added nodes
+      break;
+    case s_hotkey_module_add:
+      dt_gui_dr_module_add();
+      break;
+    default:;
+  }
+#endif
 }

@@ -22,7 +22,7 @@ dt_view_switch(dt_gui_view_t view)
       err = files_leave();
       break;
     case s_view_nodes:
-      // err = nodes_leave();
+      err = nodes_leave();
       break;
     default:;
   }
@@ -41,10 +41,10 @@ dt_view_switch(dt_gui_view_t view)
       err = files_enter();
       break;
     case s_view_nodes:
-      // err = nodes_enter();
+      err = nodes_enter();
       break;
     case s_view_cnt: // called on exit
-      // if(old_view == s_view_nodes) err = darkroom_leave(); // make sure to write .cfg too
+      if(old_view == s_view_nodes) err = darkroom_leave(); // make sure to write .cfg too
       break;
     default:;
   }
@@ -123,6 +123,9 @@ dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods
   case s_view_files:
     files_keyboard(window, key, scancode, action, mods);
     break;
+  case s_view_nodes:
+    nodes_keyboard(window, key, scancode, action, mods);
+    break;
   default:;
   }
 }
@@ -136,7 +139,7 @@ dt_view_process()
       darkroom_process();
       break;
     case s_view_nodes:
-      // nodes_process();
+      nodes_process();
       break;
     default:;
   }

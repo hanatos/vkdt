@@ -3,6 +3,7 @@ GUI_O=gui/gui.o\
       gui/render_lighttable.o\
       gui/render_darkroom.o\
       gui/render_files.o\
+      gui/render_nodes.o\
       gui/darkroom.o\
       gui/main.o\
       gui/view.o
@@ -20,6 +21,7 @@ GUI_H=gui/gui.h\
       gui/widget_filebrowser.h\
       gui/widget_filteredlist.h\
       gui/widget_image.h\
+      gui/widget_nodes.h\
       gui/widget_recentcollect.h\
       gui/widget_thumbnail.h\
       gui/view.h\

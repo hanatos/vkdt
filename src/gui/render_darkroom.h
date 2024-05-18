@@ -40,7 +40,7 @@ static inline void widget_abort()
   vkdt.wstate.selected = -1;
 }
 
-void render_perf_overlay()
+static inline void render_perf_overlay()
 {
   const int nvmask = 127;
   static float values[128] = {0.0f};
@@ -73,7 +73,7 @@ void render_perf_overlay()
   values_offset = (values_offset + 1) & nvmask;
 }
 
-void render_darkroom_widget(int modid, int parid)
+static inline void render_darkroom_widget(int modid, int parid)
 {
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
   if(!param) return;
@@ -955,7 +955,7 @@ void render_darkroom_widget(int modid, int parid)
 #undef KEYFRAME
 }
 
-void render_darkroom_widgets(
+static inline void render_darkroom_widgets(
     dt_graph_t *graph,          // graph with the modules and parameters
     int         curr,           // which module id to draw
     char       *open,           // gui state: is the expander open
