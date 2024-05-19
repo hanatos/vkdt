@@ -186,7 +186,7 @@ filteredlist(
   nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
   nk_group_begin(&vkdt.ctx, "filteredlist-scrollpane", 0);
   {
-    nk_layout_row_dynamic(&vkdt.ctx, 0, 1);
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
 #define XLIST(E, D, L) do { \
     for(int i=0;i<E##_cnt;i++)\
     if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\

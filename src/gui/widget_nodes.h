@@ -2,29 +2,58 @@
 // simple node editor for dt_graph_t, based on the draft that comes with nuklear
 #include "widget_filteredlist.h"
 
-typedef struct nk_node_connection_t
-{
+typedef struct dt_node_connection_t
+{ // temp struct for connection started by gui interaction
   int active;
   int mid;
   int cid;
 }
-nk_node_connection_t;
+dt_node_connection_t;
 
-typedef struct nk_node_editor_t
+typedef struct dt_node_editor_t
 {
   int inited;
   dt_module_t *selected;  // last selected module, active
-  int show_grid;
   struct nk_vec2 scrolling;
-  nk_node_connection_t connection;
-  int selected_mid[1000]; // list of selected modules
+  dt_node_connection_t connection;
+  uint8_t selected_mid[1000]; // flag whether the corresponding module id is selected
 }
-nk_node_editor_t;
+dt_node_editor_t;
+
+// returns the number of selected nodes.
+// if mid is not null, it has to be large enough to accomodate all module ids of the selection
+static inline int
+dt_node_editor_selection(
+    dt_node_editor_t *nedit,
+    dt_graph_t       *graph,
+    int              *mid)
+{
+  int cnt = 0;
+  for(int m=0;m<graph->num_modules;m++)
+  {
+    if(graph->module[m].name == 0) continue;
+    if(m >= NK_LEN(nedit->selected_mid)) break;
+    if(nedit->selected_mid[m])
+    {
+      if(mid) mid[cnt] = m;
+      cnt++;
+    }
+  }
+  return cnt;
+}
 
 static inline void
-nk_node_editor(
+dt_node_editor_clear_selection(
+    dt_node_editor_t *nedit)
+{
+  nedit->selected = 0;
+  memset(nedit->selected_mid, 0, sizeof(nedit->selected_mid));
+}
+
+static inline void
+dt_node_editor(
     struct nk_context *ctx,
-    nk_node_editor_t  *nedit,
+    dt_node_editor_t  *nedit,
     dt_graph_t        *graph)
 {
   struct nk_rect total_space;
@@ -197,16 +226,14 @@ nk_node_editor(
   // TODO: scale size of popup
   if (nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx)))
   {
-    const char *grid_option[] = {"Show Grid", "Hide Grid"};
     nk_layout_row_dynamic(ctx, 25, 1);
     if (nk_contextual_item_label(ctx, "add module", NK_TEXT_CENTERED))
     {
       // XXX TODO: set add module popup id
       // TODO: and of course also put the dr mode modals at the end of render
+      // XXX TODO: set position to mouse coordinates
     }
     // XXX probably also presets or something based on selected module
-    // if (nk_contextual_item_label(ctx, grid_option[nodedit->show_grid],NK_TEXT_CENTERED))
-      // nodedit->show_grid = !nodedit->show_grid;
     nk_contextual_end(ctx);
   }
   nk_layout_space_end(ctx);

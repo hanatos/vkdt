@@ -72,6 +72,9 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
   case s_view_files:
     files_mouse_button(window, button, action, mods);
     break;
+  case s_view_nodes:
+    nodes_mouse_button(window, button, action, mods);
+    break;
   default:;
   }
 }

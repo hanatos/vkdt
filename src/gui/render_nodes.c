@@ -31,10 +31,9 @@ enum hotkey_names_t
 typedef struct gui_nodes_t
 {
   int do_layout;          // do initial auto layout
-  int hotkey;
   int node_hovered_link;
   int dual_monitor;
-  nk_node_editor_t nedit;
+  dt_node_editor_t nedit;
 }
 gui_nodes_t;
 gui_nodes_t nodes;
@@ -45,7 +44,7 @@ void render_nodes_right_panel()
   struct nk_rect bounds = { qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
   if(!nk_begin(ctx, "nodes panel", bounds, 0))
   {
-    // TODO: handle edit active
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   }
   dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
@@ -67,12 +66,10 @@ void render_nodes_right_panel()
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
     if(out && vkdt.graph_res == VK_SUCCESS)
     {
-      int popout = dsp[d] == dt_token("main") && nodes.dual_monitor;
+      // int popout = dsp[d] == dt_token("main") && nodes.dual_monitor;
       char title[20] = {0};
       snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
       // if(popout) // TODO use vkdt.ctx2 and decorate with some window around it
-      // TODO: this requires a new window because it'll fill the whole bounds
-      // TODO: i suppose we could make it grab the widget/layout size instead
       int wd = vkdt.state.panel_wd;
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
       nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
@@ -83,16 +80,15 @@ void render_nodes_right_panel()
       // if(popout) // TODO: nk_end and stuff?
     }
   }
-#if 0 // TODO port
   // expanders for selection and individual nodes:
-  int  sel_node_cnt = ImNodes::NumSelectedNodes();
+  int sel_node_cnt = dt_node_editor_selection(&nodes.nedit, &vkdt.graph_dev, 0);
   int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
-  ImNodes::GetSelectedNodes(sel_node_id);
-  if(sel_node_cnt && ImGui::CollapsingHeader("selection"))
-  { // all selected nodes:
-    ImGui::Indent();
-    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-    if(ImGui::Button("ab compare", ImVec2(-1, 0)))
+  dt_node_editor_selection(&nodes.nedit, &vkdt.graph_dev, sel_node_id);
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  if(sel_node_cnt && nk_tree_push(ctx, NK_TREE_TAB, "selection", NK_MINIMIZED))
+  {
+    nk_layout_row_dynamic(ctx, row_height, 1);
+    if(nk_button_label(ctx, "ab compare"))
     {
       vkdt.graph_dev.runflags = s_graph_run_all;
       for(int i=0;i<sel_node_cnt;i++)
@@ -102,9 +98,10 @@ void render_nodes_right_panel()
         if(modid >= 0)
         {
           dt_graph_history_module(&vkdt.graph_dev, modid);
-          ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
-          ImVec2 dim = ImNodes::GetNodeDimensions(m);
-          ImNodes::SetNodeEditorSpacePos(modid, ImVec2(pos.x, pos.y+1.2*dim.y));
+          // TODO: set position of modid to position of m with some offset in y!
+          // ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
+          // ImVec2 dim = ImNodes::GetNodeDimensions(m);
+          // ImNodes::SetNodeEditorSpacePos(modid, ImVec2(pos.x, pos.y+1.2*dim.y));
         }
         else
         {
@@ -145,9 +142,10 @@ void render_nodes_right_panel()
                   dt_module_connect_with_history(&vkdt.graph_dev, m,     c, mab, 0);
                   dt_module_connect_with_history(&vkdt.graph_dev, modid, c, mab, 1);
                   dt_graph_history_module(&vkdt.graph_dev, mab);
-                  ImVec2 pos = ImNodes::GetNodeEditorSpacePos(nm[k]);
-                  ImVec2 dim = ImNodes::GetNodeDimensions(nm[k]);
-                  ImNodes::SetNodeEditorSpacePos(mab, ImVec2(pos.x-dim.x*1.2, pos.y));
+                  // TODO: set map pos to nm[k] pos with offset in x
+                  // ImVec2 pos = ImNodes::GetNodeEditorSpacePos(nm[k]);
+                  // ImVec2 dim = ImNodes::GetNodeDimensions(nm[k]);
+                  // ImNodes::SetNodeEditorSpacePos(mab, ImVec2(pos.x-dim.x*1.2, pos.y));
                 }
               }
             }
@@ -155,132 +153,87 @@ void render_nodes_right_panel()
         }
       }
     }
-    if(ImGui::Button("remove selected modules", ImVec2(-1, 0)))
+    if(nk_button_label(ctx, "remove selected modules"))
     {
-      ImNodes::ClearNodeSelection();
+      dt_node_editor_clear_selection(&nodes.nedit);
+      sel_node_cnt = 0;
       for(int i=0;i<sel_node_cnt;i++)
         dt_gui_dr_remove_module(sel_node_id[i]);
     }
-    ImGui::PopStyleVar();
-    ImGui::Unindent();
+    nk_tree_pop(ctx);
   }
-  sel_node_cnt = ImNodes::NumSelectedNodes();
-  ImNodes::GetSelectedNodes(sel_node_id); // we only *remove* ids in the global section above
   for(int i=0;i<sel_node_cnt;i++)
   {
     dt_module_t *mod = vkdt.graph_dev.module + sel_node_id[i];
     if(mod->name == 0) continue; // skip deleted
     char name[100];
     snprintf(name, sizeof(name), "manage %" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
-    if(ImGui::CollapsingHeader(name))
+    if(nk_tree_push(ctx, NK_TREE_TAB, name, NK_MINIMIZED))
     { // expander for individual module
-      ImGui::Indent();
-      ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-      if(mod->so->has_inout_chain && !mod->disabled && ImGui::Button("temporarily disable", ImVec2(-1, 0)))
+      nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+      nk_layout_row_dynamic(&vkdt.ctx, 0, 1);
+      if(mod->so->has_inout_chain)
+        dt_tooltip(mod->disabled ? "re-enable this module" :
+            "temporarily disable this module without disconnecting it from the graph.\n"
+            "this is just a convenience A/B switch in the ui and will not affect your\n"
+            "processing history, lighttable thumbnail, or export.");
+      if(mod->so->has_inout_chain && !mod->disabled && nk_button_label(ctx, "temporarily disable"))
       {
         mod->disabled = 1;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      else if(mod->so->has_inout_chain && mod->disabled && ImGui::Button("re-enable", ImVec2(-1, 0)))
+      else if(mod->so->has_inout_chain && mod->disabled && nk_button_label(ctx, "re-enable"))
       {
         mod->disabled = 0;
         vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      if(mod->so->has_inout_chain && ImGui::IsItemHovered())
-        dt_gui_set_tooltip(mod->disabled ? "re-enable this module" :
-            "temporarily disable this module without disconnecting it from the graph.\n"
-            "this is just a convenience A/B switch in the ui and will not affect your\n"
-            "processing history, lighttable thumbnail, or export.");
-
-      if(ImGui::Button("disconnect module", ImVec2(-1, 0)))
+      dt_tooltip("disconnect all connectors of this module, try to\n"
+                 "establish links to the neighbours directly where possible");
+      if(nk_button_label(ctx, "disconnect module"))
       {
-        ImNodes::ClearNodeSelection();
+        dt_node_editor_clear_selection(&nodes.nedit);
         dt_gui_dr_disconnect_module(sel_node_id[i]);
       }
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("disconnect all connectors of this module, try to\n"
-                          "establish links to the neighbours directly where possible");
-      if(ImGui::Button("remove module", ImVec2(-1, 0)))
+      dt_tooltip("remove this module from the graph completely, try to\n"
+                 "establish links to the neighbours directly where possible");
+      if(nk_button_label(ctx, "remove module"))
       {
-        ImNodes::ClearNodeSelection();
+        dt_node_editor_clear_selection(&nodes.nedit);
         dt_gui_dr_remove_module(sel_node_id[i]);
       }
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("remove this module from the graph completely, try to\n"
-                          "establish links to the neighbours directly where possible");
-
-      if(ImGui::Button("insert block before this..", ImVec2(-1, 0)))
-        ImGui::OpenPopup("insert block");
-      ImGui::PopStyleVar();
-      if(ImGui::BeginPopupModal("insert block", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-      {
-        static char mod_inst[10] = "01";
-        char filename[PATH_MAX];
-        ImGui::InputText("instance", mod_inst, 8);
-        static char filter[256] = "";
-        int ok = filteredlist("%s/data/blocks", "%s/blocks", filter, filename, sizeof(filename), s_filteredlist_default);
-        if(ok) ImGui::CloseCurrentPopup();
-        if(ok == 1)
-        {
-          int err = 0;
-          int c_prev, m_prev = dt_module_get_module_before(mod->graph, mod, &c_prev);
-          if(m_prev != -1)
-          {
-            int c_our_in = dt_module_get_connector(mod, dt_token("input"));
-            if(c_our_in != -1)
-            {
-              err |= dt_graph_read_block(mod->graph, filename,
-                  dt_token(mod_inst),
-                  mod->graph->module[m_prev].name,
-                  mod->graph->module[m_prev].inst,
-                  mod->graph->module[m_prev].connector[c_prev].name,
-                  mod->name,
-                  mod->inst,
-                  mod->connector[c_our_in].name);
-              if(!err) vkdt.graph_dev.runflags = s_graph_run_all;
-            }
-            else err = 3;
-          }
-          else err = 3;
-          if(err == 3) dt_gui_notification("no clear input/output chain!");
-          else if(err) dt_gui_notification("reading the block failed!");
-        }
-        ImGui::EndPopup();
-      }
-      ImGui::Unindent();
+      nk_style_pop_flags(ctx);
+      nk_tree_pop(ctx);
     } // end collapsing header
     static int32_t active_module = -1;
-    static char open[100] = {0};
-    render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i], open, active_module);
+    static char open[1000] = {0};
+    render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i], open, &active_module);
   }
-
-  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-  if(ImGui::CollapsingHeader("settings"))
+  if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
   {
-    ImGui::Indent();
-    if(ImGui::Button("hotkeys", ImVec2(-1, 0)))
-      ImGui::OpenPopup("edit hotkeys");
-    ImHotKey::Edit(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), "edit hotkeys");
-    if(ImGui::GetPlatformIO().Monitors.size() > 1)
-    {
-      if(nodes.dual_monitor && ImGui::Button("single monitor", ImVec2(-1, 0)))
-        nodes.dual_monitor = 0;
-      else if(!nodes.dual_monitor && ImGui::Button("dual monitor", ImVec2(-1, 0)))
-        nodes.dual_monitor = 1;
-    }
-    ImGui::Unindent();
+    nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+    if(nk_button_label(ctx, "hotkeys"))
+      dt_gui_edit_hotkeys();
+    if(nodes.dual_monitor && nk_button_label(ctx, "single monitor"))
+      nodes.dual_monitor = 0;
+    else if(!nodes.dual_monitor && nk_button_label(ctx, "dual monitor"))
+      nodes.dual_monitor = 1;
+    nk_style_pop_flags(ctx);
+    nk_tree_pop(ctx);
   }
 
-  if(ImGui::Button("add module..", ImVec2(-1, 0)))
-    nodes.hotkey = s_hotkey_module_add;
-  if(ImGui::Button("apply preset", ImVec2(-1, 0)))
-    nodes.hotkey = s_hotkey_apply_preset;
-  if(ImGui::Button("back to darkroom mode", ImVec2(-1, 0)))
+  nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+  if(nk_button_label(ctx, "add module.."))
+    dt_gui_dr_module_add();
+  if(nk_button_label(ctx, "apply preset.."))
+  {
+    dt_gui_dr_preset_apply();
+    nodes.do_layout = 1;           // presets may ship positions for newly added nodes
+  }
+  if(nk_button_label(ctx, "back to darkroom mode"))
     dt_view_switch(s_view_darkroom);
-  ImGui::PopStyleVar();
-  ImGui::End();
-#endif
-  // TODO: handle edit active
+  nk_style_pop_flags(ctx);
+
+  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(ctx);
 }
 
@@ -290,7 +243,7 @@ void render_nodes()
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
   if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR)) // TODO etc
   {
-    // TODO: handle edit active
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   }
 
@@ -351,7 +304,7 @@ void render_nodes()
     }
   }
 
-  nk_node_editor(ctx, &nodes.nedit, g);
+  dt_node_editor(ctx, &nodes.nedit, g);
 
 #if 0 // XXX delete a module!
   int lid = 0, mid = -1;
@@ -384,7 +337,7 @@ void render_nodes()
   }
 #endif
 
-  // TODO: handle edit active
+  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(ctx); // end center nodes view
 
 #if 0 // TODO port
@@ -410,7 +363,6 @@ void render_nodes_cleanup()
 int nodes_enter()
 {
   nodes.dual_monitor = 0; // XXX TODO: get from rc and write on leave
-  nodes.hotkey = -1;
   nodes.node_hovered_link = -1;
   nodes.do_layout = 1; // maybe overwrite uninited node positions
   // make sure we process once:
@@ -420,8 +372,7 @@ int nodes_enter()
 
 int nodes_leave()
 {
-  nodes.nedit.selected = 0; // don't leave stray selection. leads to problems re-entering with another graph.
-  memset(nodes.nedit.selected_mid, 0, sizeof(nodes.nedit.selected_mid));
+  dt_node_editor_clear_selection(&nodes.nedit); // don't leave stray selection. leads to problems re-entering with another graph.
   return 0;
 }
 
@@ -431,6 +382,10 @@ void nodes_process()
   if(vkdt.graph_dev.runflags)
     vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
+}
+
+void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)
+{
 }
 
 void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)

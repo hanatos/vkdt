@@ -324,7 +324,7 @@ void render_darkroom()
   }
 
   const int disabled = vkdt.wstate.popup;
-  if(nk_begin(&vkdt.ctx, "darkroom center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
+  if(nk_begin(&vkdt.ctx, "darkroom center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // draw center view image:
     if(disabled) nk_widget_disable_begin(&vkdt.ctx);
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
