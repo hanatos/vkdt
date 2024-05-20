@@ -345,7 +345,7 @@ hk_deserialise(const char *fn, hk_t *hk, int cnt)
   {
     char name[100] = {0};
     int key[4] = {0};
-    fscanf(f, "%[^\n]", name);
+    fscanf(f, "%99[^\n]", name);
     fgetc(f);
     if(strcmp(name, "v2"))
     {
@@ -353,7 +353,7 @@ hk_deserialise(const char *fn, hk_t *hk, int cnt)
     }
     else while(!feof(f))
     {
-      fscanf(f, "%[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
+      fscanf(f, "%99[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
       if(!name[0]) break;
       fgetc(f);
       for(int i=0;i<cnt;i++)

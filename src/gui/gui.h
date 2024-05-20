@@ -27,8 +27,12 @@ dt_gui_view_t;
 // set of static user input
 typedef struct dt_gui_style_t
 {
+#define NK_COLOR_DT_ACCENT         NK_COLOR_COUNT
+#define NK_COLOR_DT_ACCENT_HOVER  (NK_COLOR_COUNT+1)
+#define NK_COLOR_DT_ACCENT_ACTIVE (NK_COLOR_COUNT+2)
   float panel_width_frac;   // width of the side panel as fraction of the total window width
   float border_frac;        // width of border between image and panel
+  struct nk_color colour[NK_COLOR_COUNT+3];
 }
 dt_gui_style_t;
 
