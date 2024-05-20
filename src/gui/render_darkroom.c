@@ -324,6 +324,7 @@ void render_darkroom()
   }
 
   const int disabled = vkdt.wstate.popup;
+  nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(nk_begin(&vkdt.ctx, "darkroom center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // draw center view image:
     if(disabled) nk_widget_disable_begin(&vkdt.ctx);
@@ -375,6 +376,7 @@ void render_darkroom()
   } // end center view
   if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(&vkdt.ctx);
+  nk_style_pop_style_item(&vkdt.ctx);
 
 #if 0 // XXX port me!
   if(vkdt.wstate.dopesheet_view > 0.0f)

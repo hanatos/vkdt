@@ -219,12 +219,12 @@ void render_lighttable_center()
 #endif
   struct nk_rect bounds = {vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht};
   const int disabled = vkdt.wstate.popup;
-  if(disabled) nk_widget_disable_begin(&vkdt.ctx);
+  nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   {
-    if(disabled) nk_widget_disable_end(&vkdt.ctx);
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(&vkdt.ctx);
+    nk_style_pop_style_item(&vkdt.ctx);
     return;
   }
 
@@ -373,7 +373,7 @@ void render_lighttable_center()
 
   if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(&vkdt.ctx); // lt center window
-  if(disabled) nk_widget_disable_end(&vkdt.ctx);
+  nk_style_pop_style_item(&vkdt.ctx);
 }
 
 

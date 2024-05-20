@@ -241,11 +241,14 @@ void render_nodes()
 {
   struct nk_context *ctx = &vkdt.ctx;
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
+  nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR)) // TODO etc
   {
+    nk_style_pop_style_item(&vkdt.ctx);
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   }
+  nk_style_pop_style_item(&vkdt.ctx);
 
   dt_graph_t *g = &vkdt.graph_dev;
 

@@ -262,6 +262,7 @@ void render_files()
   }
 
   bounds = (struct nk_rect){vkdt.state.center_x, vkdt.state.center_ht, vkdt.state.center_wd, vkdt.state.center_y};
+  nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(nk_begin(ctx, "files buttons", bounds, NK_WINDOW_NO_SCROLLBAR))
   { // bottom panel with buttons
     nk_layout_row_dynamic(ctx, row_height, 5);
@@ -290,6 +291,7 @@ void render_files()
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   } // end center window
+  nk_style_pop_style_item(&vkdt.ctx);
 }
 
 void
