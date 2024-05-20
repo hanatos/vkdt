@@ -40,6 +40,7 @@ jobs:
         run: |
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main" >> /etc/apt/sources.list
           sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
           sudo apt-get update
           sudo apt-get -y install \
@@ -56,6 +57,7 @@ jobs:
             libglfw3-dev \
             zlib1g-dev \
             libpugixml-dev \
+            clang-17 \
             libomp-dev \
             libfreetype-dev \
             libexiv2-dev \
@@ -379,7 +381,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImageRawler, WindowsRawler]
+    needs: [AppImage, AppImageRawler, WindowsRawler]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -399,14 +401,14 @@ jobs:
             note that the rawspeed builds have c++ issues, they don't like specific compiler versions.
             these are thus currently disabled. they might come back at some point.
 
-            appimage (currently disabled, use the next in list)
+            appimage
             ===================================================
             the appimage compiles in a lot of features
             (mlv, v4l, asound, i-vid, o-vid, rawspeed, exiv2, freetype, custom glfw with pentablet/wacom support)
             but not all
             (no quake).
             you also currently need the `exiftool` binary installed on your
-            host system to enable all features (o-vid and metadata handling).
+            host system to enable all features (metadata handling).
 
             appimage with rawler
             ====================
@@ -428,5 +430,6 @@ jobs:
             same as above, but using rawler instead of rawspeed (try this for CR3 support)
 
           files: |
+            artifact-appimage/*
             artifact-appimage-rawler/*
             artifact-windows-rawler/*
