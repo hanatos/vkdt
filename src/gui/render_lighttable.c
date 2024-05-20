@@ -103,6 +103,7 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     case s_hotkey_scroll_cur:
     case s_hotkey_scroll_end:
     case s_hotkey_scroll_top:
+      g_image_cursor = -1;
       g_hotkey = hotkey;
       break;
     case s_hotkey_copy_hist:

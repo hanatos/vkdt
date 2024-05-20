@@ -147,7 +147,6 @@ int dt_gui_init()
     };
     QVKR(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, vkdt.command_buffer+i));
   }
-  // XXX intel says 0,0,0,1 is fastest:
   vkdt.clear_value = (VkClearValue){{.float32={0.18f, 0.18f, 0.18f, 1.0f}}};
 
   vkdt.pipeline_cache = VK_NULL_HANDLE;
