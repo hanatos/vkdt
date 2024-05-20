@@ -84,8 +84,20 @@ jobs:
           cmake --build build
           sudo cmake --install build
           cd ..
-          echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
-          echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+          cat > bin/config.mk << EOF
+          VKDT_USE_PENTABLET=1
+          export VKDT_USE_PENTABLET
+          VKDT_USE_RAWINPUT=1
+          export VKDT_USE_RAWINPUT
+          VKDT_PUGIXML_CFLAGS=$(eval VKDT_PUGIXML_CFLAGS := $$(shell pkg-config --cflags pugixml))$(VKDT_PUGIXML_CFLAGS)
+          VKDT_PUGIXML_LDFLAGS=$(eval VKDT_PUGIXML_LDFLAGS := $$(shell pkg-config --libs pugixml))$(VKDT_PUGIXML_LDFLAGS)
+          export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
+          VKDT_USE_EXIV2=1
+          export VKDT_USE_EXIV2
+          VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
+          VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
+          export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+          EOF
       - name: build and install
         run: |
           bash bin/mkappimg.sh
