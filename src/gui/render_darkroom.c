@@ -548,34 +548,36 @@ void render_darkroom()
               (int)ip->focal_length, (int)ip->iso);
       }
     }
-#if 0 // XXX port animation controls!
+
     if(vkdt.graph_dev.frame_cnt != 1 && vkdt.wstate.dopesheet_view == 0)
     { // print timeline/navigation only if not a still
-      float bwd = 0.12f;
-      ImVec2 size(bwd*vkdt.state.panel_wd, 0);
+      const float ratio[] = {0.1f, 0.9f};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      dt_tooltip("play/pause the animation");
+      nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
       if(vkdt.state.anim_playing)
       {
-        if(ImGui::Button("stop", size))
+        if(nk_button_label(ctx, "\ue047"))
           dt_gui_dr_anim_stop();
       }
-      else if(ImGui::Button("play", size))
+      else if(nk_button_label(ctx, "\ue037"))
         dt_gui_dr_anim_start();
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("play/pause the animation");
-      ImGui::SameLine();
-      if(ImGui::SliderInt("frame", &vkdt.state.anim_frame, 0, vkdt.state.anim_max_frame))
+      nk_style_pop_font(ctx);
+      dt_tooltip("timeline navigation: set current frame.\n"
+          "press space to play/pause and\n"
+          "backspace to reset to beginning.\n"
+          "hint: you can hover over many controls\n"
+          "and press the keyframe hotkey (default ctrl-k)");
+      nk_size anim_frame = vkdt.state.anim_frame;
+      if(nk_progress(ctx, &anim_frame, vkdt.state.anim_max_frame, nk_true))
       {
+        vkdt.state.anim_frame = anim_frame;
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
         vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
         dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
       }
-      if(ImGui::IsItemHovered())
-        dt_gui_set_tooltip("timeline navigation: set current frame.\n"
-            "press space to play/pause and backspace to reset to beginning.\n"
-            "hint: you can hover over many controls and press the keyframe hotkey (default ctrl-k)");
     }
-#endif
 
     // tabs for module/params controls:
     nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, 0));
@@ -600,7 +602,7 @@ void render_darkroom()
     nk_style_pop_float(ctx);
     nk_style_pop_vec2(ctx);
     nk_layout_row_dynamic(ctx, 2, 1);
-    nk_rule_horizontal(ctx, (struct nk_color){0x77,0x77,0x77,0xff}, nk_true);
+    nk_rule_horizontal(ctx, vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE], nk_true);
 
     if(current_tab == 0)
     {
