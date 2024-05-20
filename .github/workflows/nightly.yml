@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'hanatos/vkdt' && false
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt appimage
     runs-on: ubuntu-latest
     strategy:
