@@ -116,7 +116,10 @@ dt_filebrowser(
   nk_style_pop_font(ctx);
   nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
+  {
+    nk_edit_unfocus(ctx); // make keyboard nav in list below work
     dt_filebrowser_cleanup(w);
+  }
   nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
   dt_tooltip("filter the displayed filenames.\ntype a search string and press enter to apply");
   nk_style_pop_font(ctx);
@@ -148,6 +151,7 @@ dt_filebrowser(
   }
 #endif
   nk_style_pop_font(ctx);
+  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
   row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
 
   struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
@@ -171,5 +175,6 @@ dt_filebrowser(
     }
   }
   nk_style_pop_font(ctx);
+  nk_style_pop_vec2(ctx);
   nk_group_end(ctx);
 }

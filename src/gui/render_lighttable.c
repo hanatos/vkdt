@@ -230,6 +230,7 @@ void render_lighttable_center()
 
   const int ipl = g_images_per_line;
   const int border = 0.004 * qvk.win_width;
+  const int spacing = border/2;
   const int wd = vkdt.state.center_wd / ipl - border*2;
   const int ht = wd;
   nk_layout_row_dynamic(&vkdt.ctx, ht + 2*border, ipl);
@@ -237,12 +238,13 @@ void render_lighttable_center()
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   int scroll_to = -1;
  
+  nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
     if(g_scroll_colid == i)
     {
-      scroll_to = 1+(row.h + (border+1)/2) * (i/ipl); // row.y unreliable/negative in case of out of frustum
+      scroll_to = 1+(row.h + spacing) * (i/ipl); // row.y unreliable/negative in case of out of frustum
       g_scroll_colid = -1;
     }
     if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
@@ -252,7 +254,7 @@ void render_lighttable_center()
     { // only half visible
       if(g_image_cursor == i)
       { // i do not understand the nuklear way to compute borders, but this works:
-        scroll_to = 1+(row.h + (border+1)/2) * (i/ipl); // row.y unreliable/negative in case of out of frustum
+        scroll_to = 1+(row.h + spacing) * (i/ipl); // row.y unreliable/negative in case of out of frustum
         g_scroll_colid = -1;
       }
     }
@@ -348,6 +350,7 @@ void render_lighttable_center()
       }
     }
   }
+  nk_style_pop_vec2(&vkdt.ctx);
 
   // lt hotkeys in same scope as center window (scroll)
   switch(g_hotkey)
