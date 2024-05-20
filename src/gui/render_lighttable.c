@@ -115,10 +115,18 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   if(!dt_gui_input_blocked())
   {
     if(key == GLFW_KEY_ESCAPE)
+    {
       dt_view_switch(s_view_files);
-    if(key == GLFW_KEY_ENTER)
+    }
+    else if(key == GLFW_KEY_ENTER)
+    {
       if(dt_db_current_imgid(&vkdt.db) != -1u)
         dt_view_switch(s_view_darkroom);
+    }
+    else if(key == GLFW_KEY_UP)
+    {
+      // TODO: navigate images in view
+    }
   }
 }
 
