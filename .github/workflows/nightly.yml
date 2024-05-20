@@ -79,7 +79,7 @@ jobs:
           fetch-depth: 0
       - name: update config.mk for rawspeed
         run: |
-          cat > bin/config.mk << EOF
+          cat > bin/config.mk << 'EOF'
           VKDT_USE_RAWINPUT=1
           export VKDT_USE_RAWINPUT
           VKDT_PUGIXML_CFLAGS=$(eval VKDT_PUGIXML_CFLAGS := $$(shell pkg-config --cflags pugixml))$(VKDT_PUGIXML_CFLAGS)
