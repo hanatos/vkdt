@@ -69,6 +69,8 @@ typedef enum hotkey_names_t
 } hotkey_names_t;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
 static int g_scroll_colid = -1; // to scroll to certain file name
+static int g_image_cursor = -1; // gui keyboard navigation in the center view, cursor
+static const int g_images_per_line = 6;
 
 void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
@@ -122,10 +124,69 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     {
       if(dt_db_current_imgid(&vkdt.db) != -1u)
         dt_view_switch(s_view_darkroom);
+      else if(g_image_cursor >= 0)
+      {
+        dt_db_selection_clear(&vkdt.db);
+        dt_db_selection_add(&vkdt.db, g_image_cursor);
+        dt_view_switch(s_view_darkroom);
+      }
     }
     else if(key == GLFW_KEY_UP)
     {
-      // TODO: navigate images in view
+      if(g_image_cursor < 0) g_image_cursor = -2;
+      else if(g_image_cursor >= g_images_per_line) g_image_cursor -= g_images_per_line;
+    }
+    else if(key == GLFW_KEY_DOWN)
+    {
+      if(g_image_cursor < 0) g_image_cursor = -2;
+      else if(g_image_cursor < vkdt.db.collection_cnt - g_images_per_line) g_image_cursor += g_images_per_line;
+    }
+    else if(key == GLFW_KEY_LEFT)
+    {
+      if(g_image_cursor < 0) g_image_cursor = -2;
+      else g_image_cursor = MAX(0, g_image_cursor-1);
+    }
+    else if(key == GLFW_KEY_RIGHT)
+    {
+      if(g_image_cursor < 0) g_image_cursor = -2;
+      else g_image_cursor = MIN(vkdt.db.collection_cnt-1, g_image_cursor+1);
+    }
+    else if(key == GLFW_KEY_SPACE && g_image_cursor >= 0)
+    {
+      int shift = mods & (GLFW_KEY_LEFT_SHIFT   | GLFW_KEY_RIGHT_SHIFT);
+      int ctrl  = mods & (GLFW_KEY_LEFT_CONTROL | GLFW_KEY_RIGHT_CONTROL);
+      vkdt.wstate.busy += 2;
+      if(ctrl)
+      {
+        if(vkdt.db.image[vkdt.db.collection[g_image_cursor]].labels & s_image_label_selected)
+          dt_db_selection_remove(&vkdt.db, g_image_cursor);
+        else
+          dt_db_selection_add(&vkdt.db, g_image_cursor);
+      }
+      else if(shift)
+      { // shift selects ranges
+        uint32_t colid = dt_db_current_colid(&vkdt.db);
+        if(colid != -1u)
+        {
+          int a = MIN(colid, (uint32_t)g_image_cursor);
+          int b = MAX(colid, (uint32_t)g_image_cursor);
+          dt_db_selection_clear(&vkdt.db);
+          for(int i=a;i<=b;i++)
+            dt_db_selection_add(&vkdt.db, i);
+        }
+      }
+      else
+      { // no modifier, select exactly this image:
+        if(dt_db_selection_contains(&vkdt.db, g_image_cursor))
+        {
+          dt_db_selection_clear(&vkdt.db);
+        }
+        else
+        {
+          dt_db_selection_clear(&vkdt.db);
+          dt_db_selection_add(&vkdt.db, g_image_cursor);
+        }
+      }
     }
   }
 }
@@ -166,7 +227,7 @@ void render_lighttable_center()
     return;
   }
 
-  const int ipl = 6;
+  const int ipl = g_images_per_line;
   const int border = 0.004 * qvk.win_width;
   const int wd = vkdt.state.center_wd / ipl - border*2;
   const int ht = wd;
@@ -178,9 +239,19 @@ void render_lighttable_center()
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
-    if(g_scroll_colid == i) { scroll_to = row.y; g_scroll_colid = -1; }
+    if(g_scroll_colid == i) { scroll_to = row.y - content.y; g_scroll_colid = -1; }
     if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
-      scroll_to = row.y;
+      scroll_to = row.y - content.y;
+    if(row.y < content.y ||
+       row.y + row.h > content.y + content.h)
+    { // only half visible
+      if(g_image_cursor == i)
+      { // i do not understand the nuklear way to compute borders, but this works:
+        int offy = (row.h + (border+1)/2) * (i/ipl); // row.y unreliable/negative in case of out of frustum
+        scroll_to = offy;
+        g_scroll_colid = -1;
+      }
+    }
     if(row.y + row.h < content.y ||
        row.y > content.y + content.h)
     { // add dummy for invisible thumbnails
@@ -189,12 +260,16 @@ void render_lighttable_center()
     }
     if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 10*content.h) break; // okay this list is really long
 
+    // precache
     if((i % ipl) == 0)
       dt_thumbnails_load_list(
           &vkdt.thumbnails,
           &vkdt.db,
           vkdt.db.collection,
           i, MIN(vkdt.db.collection_cnt, i+ipl));
+
+    // set cursor to first visible image if it wasn't set before:
+    if(g_image_cursor == -2) g_image_cursor = i;
 
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
@@ -227,6 +302,9 @@ void render_lighttable_center()
     if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
 
+    if(g_image_cursor == i)
+      nk_stroke_rect(nk_window_get_canvas(&vkdt.ctx), row, 0, 0.004*vkdt.state.center_ht, nk_rgb(30,200,200));
+
     if(!vkdt.wstate.popup && ret)
     {
       int shift = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
@@ -254,7 +332,7 @@ void render_lighttable_center()
       else
       { // no modifier, select exactly this image:
         if(dt_db_selection_contains(&vkdt.db, i) ||
-           nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, nk_widget_bounds(&vkdt.ctx)))
+           nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, row))
         {
           dt_view_switch(s_view_darkroom);
         }
@@ -925,3 +1003,21 @@ void render_lighttable_cleanup()
 {
   hk_serialise("lighttable", hk_lighttable, NK_LEN(hk_lighttable));
 }
+
+int lighttable_leave()
+{
+  g_image_cursor = -1;
+  dt_gamepadhelp_clear();
+  return 0;
+}
+
+void lighttable_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
+{
+  g_image_cursor = -1;
+}
+
+void lighttable_mouse_button(GLFWwindow* window, int button, int action, int mods)
+{
+  g_image_cursor = -1;
+}
+
