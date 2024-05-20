@@ -1,6 +1,6 @@
 # use rawspeed
 ifeq ($(VKDT_USE_RAWINPUT),1)
-RS_COMMIT=6142eb3
+RS_COMMIT=ae217c0
 RAWSPEED_I=pipe/modules/i-raw/rawspeed-$(RS_COMMIT)
 RAWSPEED_L=$(RAWSPEED_I)/build
 MOD_CFLAGS=-std=c++20 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(VKDT_PUGIXML_CFLAGS) $(VKDT_JPEG_CFLAGS)
