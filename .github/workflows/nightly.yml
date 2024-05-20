@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         compiler:
-          - { compiler: clang, CC: clang-17, CXX: clang++-17, packages: clang-17 }
+          - { compiler: clang, CC: clang-17, CXX: clang++-17, packages: clang-17 libomp-17-dev }
         branch:
           - { code: master, label: gitmaster }
     env:
@@ -58,7 +58,6 @@ jobs:
             libglfw3-dev \
             zlib1g-dev \
             libpugixml-dev \
-            libomp-dev \
             libfreetype-dev \
             libexiv2-dev \
             libasound2-dev \
