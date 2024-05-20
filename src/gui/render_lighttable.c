@@ -239,7 +239,11 @@ void render_lighttable_center()
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
-    if(g_scroll_colid == i) { scroll_to = row.y - content.y; g_scroll_colid = -1; }
+    if(g_scroll_colid == i)
+    {
+      scroll_to = 1+(row.h + (border+1)/2) * (i/ipl); // row.y unreliable/negative in case of out of frustum
+      g_scroll_colid = -1;
+    }
     if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       scroll_to = row.y - content.y;
     if(row.y < content.y ||
@@ -247,8 +251,7 @@ void render_lighttable_center()
     { // only half visible
       if(g_image_cursor == i)
       { // i do not understand the nuklear way to compute borders, but this works:
-        int offy = (row.h + (border+1)/2) * (i/ipl); // row.y unreliable/negative in case of out of frustum
-        scroll_to = offy;
+        scroll_to = 1+(row.h + (border+1)/2) * (i/ipl); // row.y unreliable/negative in case of out of frustum
         g_scroll_colid = -1;
       }
     }
@@ -303,7 +306,7 @@ void render_lighttable_center()
       vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
 
     if(g_image_cursor == i)
-      nk_stroke_rect(nk_window_get_canvas(&vkdt.ctx), row, 0, 0.004*vkdt.state.center_ht, nk_rgb(30,200,200));
+      nk_stroke_rect(nk_window_get_canvas(&vkdt.ctx), row, 0, 0.004*vkdt.state.center_ht, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
 
     if(!vkdt.wstate.popup && ret)
     {
@@ -1008,6 +1011,27 @@ int lighttable_leave()
 {
   g_image_cursor = -1;
   dt_gamepadhelp_clear();
+  return 0;
+}
+
+int lighttable_enter()
+{
+  uint32_t colid = dt_db_current_colid(&vkdt.db);
+  g_scroll_colid = colid;
+  g_image_cursor = -1;
+  if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
+  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  dt_gamepadhelp_set(dt_gamepadhelp_ps,              "display this help");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "plus L1/R1: switch panel");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to files");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "hold + L1/R1: stars, +L2/R2: colour labels");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "select highlighted image (twice to enter darkroom)");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "highlight entry one up");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "highlight entry one down");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "highlight entry one left");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "highlight entry one right");
+  vkdt.wstate.copied_imgid = -1u; // reset to invalid
   return 0;
 }
 
