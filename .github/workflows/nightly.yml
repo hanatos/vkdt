@@ -89,6 +89,9 @@ jobs:
           VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
           VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
           export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+          CC=clang-17
+          CXX=clang++-17
+          export CC CXX
           EOF
       - name: build and install
         run: |
