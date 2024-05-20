@@ -153,8 +153,8 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     }
     else if(key == GLFW_KEY_SPACE && g_image_cursor >= 0)
     {
-      int shift = mods & (GLFW_KEY_LEFT_SHIFT   | GLFW_KEY_RIGHT_SHIFT);
-      int ctrl  = mods & (GLFW_KEY_LEFT_CONTROL | GLFW_KEY_RIGHT_CONTROL);
+      int shift = mods & GLFW_MOD_SHIFT;
+      int ctrl  = mods & GLFW_MOD_CONTROL;
       vkdt.wstate.busy += 2;
       if(ctrl)
       {
