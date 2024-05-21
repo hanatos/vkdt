@@ -278,16 +278,16 @@ void render_lighttable_center()
 
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
-    struct nk_color col = {0x55,0x55,0x55,0xff};
-    struct nk_color hov = {0xff,0xff,0xff,0xff};
+    struct nk_color col = vkdt.style.colour[NK_COLOR_BUTTON];
+    struct nk_color hov = vkdt.style.colour[NK_COLOR_BUTTON_HOVER];
     const int current  = vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db);
     const int selected = vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected;
-    if(selected) col = (struct nk_color){0xaa,0xaa,0xaa,0xff};
-    if(current) 
-    {
-      col = (struct nk_color){0xff,0xff,0xff,0xff};
-      hov = (struct nk_color){0xee,0xee,0xee,0xee};
-    }
+    if(selected) col = vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE];
+    // if(current) 
+    // { // can't miss this due to all the decoration shown
+    //   hov = vkdt.style.colour[NK_COLOR_BUTTON];
+    //   col = vkdt.style.colour[NK_COLOR_BUTTON_HOVER];
+    // }
     float scale = MIN(
         wd/(float)vkdt.thumbnails.thumb[tid].wd,
         ht/(float)vkdt.thumbnails.thumb[tid].ht);
