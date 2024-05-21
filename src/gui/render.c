@@ -230,6 +230,7 @@ int dt_gui_init_nk()
   render_lighttable_init();
   render_darkroom_init();
   render_nodes_init();
+  render_files_init();
   return 0;
 }
 
@@ -294,6 +295,7 @@ void dt_gui_cleanup_nk()
   render_nodes_cleanup();
   render_darkroom_cleanup();
   render_lighttable_cleanup();
+  render_files_cleanup();
   QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
   nk_glfw3_shutdown();
 }

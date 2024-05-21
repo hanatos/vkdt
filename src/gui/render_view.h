@@ -3,6 +3,8 @@
 #include <math.h>
 
 void render_files();
+void render_files_init();
+void render_files_cleanup();
 void render_lighttable();
 void render_lighttable_init();
 void render_lighttable_cleanup();

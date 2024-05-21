@@ -15,6 +15,9 @@ typedef struct dt_filebrowser_widget_t
   int selected_idx;        // index of selected ent
   const char *selected;    // points to selected file name ent->d_name
   int selected_isdir;      // selected is a directory
+
+  int focus_filter;        // signal we want gui focus
+  int focus_path;
 }
 dt_filebrowser_widget_t;
 
@@ -37,6 +40,7 @@ dt_filebrowser_cleanup(
   w->selected_idx = -1;
   w->selected = 0;
   w->selected_isdir = 0;
+  w->focus_filter = w->focus_path = 0;
 }
 
 static int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
@@ -114,7 +118,9 @@ dt_filebrowser(
   nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
   dt_tooltip("current working directory.\nedit to taste and press enter to change");
   nk_style_pop_font(ctx);
-  nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
+  if(w->focus_path) nk_edit_focus(ctx, 0);
+  nk_flags ret = nk_edit_string_zero_terminated(ctx,
+      (w->focus_path ? NK_EDIT_AUTO_SELECT : 0) | NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
   {
     nk_edit_unfocus(ctx); // make keyboard nav in list below work
@@ -123,12 +129,16 @@ dt_filebrowser(
   nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
   dt_tooltip("filter the displayed filenames.\ntype a search string and press enter to apply");
   nk_style_pop_font(ctx);
-  ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+  if(w->focus_filter) nk_edit_focus(ctx, 0);
+  ret = nk_edit_string_zero_terminated(ctx,
+      (w->focus_filter ? NK_EDIT_AUTO_SELECT : 0) | NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
   {
     nk_edit_unfocus(ctx); // make keyboard nav in list below work
     dt_filebrowser_cleanup(w);
   }
+  w->focus_path   = MAX(w->focus_path-1, 0);
+  w->focus_filter = MAX(w->focus_filter-1, 0);
 #ifdef _WIN64
   int dm = GetLogicalDrives();
   char letter = 'A';
@@ -152,6 +162,7 @@ dt_filebrowser(
 #endif
   nk_style_pop_font(ctx);
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
+  nk_style_push_vec2(ctx, &ctx->style.window.group_padding, nk_vec2(0,0));
   row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
 
   struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
@@ -175,6 +186,7 @@ dt_filebrowser(
     }
   }
   nk_style_pop_font(ctx);
+  nk_style_pop_vec2(ctx);
   nk_style_pop_vec2(ctx);
   nk_group_end(ctx);
 }

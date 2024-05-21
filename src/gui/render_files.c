@@ -3,6 +3,7 @@
 #include "gui/view.h"
 #include "core/fs.h"
 #include "gui/render_view.h"
+#include "gui/hotkey.h"
 #include "gui/widget_filebrowser.h"
 #include "gui/widget_recentcollect.h"
 #include <sys/types.h>
@@ -10,6 +11,17 @@
 #include <unistd.h>
 
 static dt_filebrowser_widget_t filebrowser = {{0}};
+
+static hk_t hk_files[] = {
+  {"focus filter",    "move the gui focus to the filter edit box",      {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_F}},
+  {"focus path",      "move the gui focus to the path edit box",        {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_L}},
+};
+
+enum hotkey_names_t
+{ // for sane access in code
+  s_hotkey_focus_filter = 0,
+  s_hotkey_focus_path   = 1,
+};
 
 void set_cwd(const char *dir, int up)
 {
@@ -333,6 +345,19 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
   if(dt_gui_input_blocked()) return;
   dt_filebrowser_widget_t *w = &filebrowser;
+
+  int hotkey = hk_get_hotkey(hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key);
+  switch(hotkey)
+  {
+    case s_hotkey_focus_filter:
+      w->focus_filter = 2;
+      break;
+    case s_hotkey_focus_path:
+      w->focus_path = 4;
+      break;
+    default:;
+  }
+
   if(action == GLFW_PRESS && key == GLFW_KEY_UP)
   { // up arrow: select entry above
     w->selected_idx = CLAMP(w->selected_idx - 1, 0, w->ent_cnt-1);
@@ -397,4 +422,14 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
       }
     }
   }
+}
+
+void render_files_init()
+{
+  hk_deserialise("files", hk_files, sizeof(hk_files)/sizeof(hk_files[0]));
+}
+
+void render_files_cleanup()
+{
+  hk_serialise("files", hk_files, sizeof(hk_files)/sizeof(hk_files[0]));
 }
