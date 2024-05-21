@@ -132,7 +132,7 @@ void render_files()
         int red = mountpoint[i][0];
         if(red)
         {
-          nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0x99, 0x77, 0x11, 0xff}));
+          nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
         }
         dt_tooltip(red ? "click to unmount" : "click to mount");
         if(nk_button_label(ctx, devname[i]))
