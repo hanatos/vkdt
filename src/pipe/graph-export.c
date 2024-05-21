@@ -172,6 +172,7 @@ dt_graph_export(
   for(int i=0;i<param->extra_param_cnt;i++)
     if(dt_graph_read_config_line(graph, param->p_extra_param[i]))
       dt_log(s_log_pipe|s_log_err, "failed to read extra params %d: '%s'", i + 1, param->p_extra_param[i]);
+  for(int m=0;m<graph->num_modules;m++) dt_module_keyframe_post_update(graph->module+m);
 
   graph->frame = 0;
   dt_module_t *mod_out[20] = {0};

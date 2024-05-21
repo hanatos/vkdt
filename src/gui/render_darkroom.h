@@ -123,6 +123,7 @@ static inline void render_darkroom_widget(int modid, int parid)
         assert(g->params_end <= g->params_max);\
       }\
       memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
+      dt_module_keyframe_post_update(g->module+modid);\
       dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
           g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
       dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
@@ -1281,6 +1282,7 @@ render_darkroom_modals()
             dt_graph_history_line(&vkdt.graph_dev, line);
           }
           fclose(f);
+          for(int m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_keyframe_post_update(vkdt.graph_dev.module+m);
           vkdt.graph_dev.runflags = s_graph_run_all;
           dt_image_reset_zoom(&vkdt.wstate.img_widget);
         }

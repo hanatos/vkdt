@@ -115,6 +115,7 @@ dt_keyaccel_exec(const char *key)
 error:
     dt_log(s_log_err, "[keyaccel] failed to execute %s : %d", key, lno);
   }
+  for(int m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_keyframe_post_update(vkdt.graph_dev.module+m);
   vkdt.graph_dev.runflags = s_graph_run_all;
   fclose(f);
 }

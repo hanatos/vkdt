@@ -1,10 +1,7 @@
 #pragma once
-#include "imgui_internal.h"
 
-namespace {
-
-inline void
-dt_draw_quad(float u, float v, float size, uint32_t col)
+static inline void
+dt_draw_quad(struct nk_command_buffer *buf, float u, float v, float size, struct nk_color col)
 {
   float c[] = {
      0,  1,  1,  0,
@@ -15,101 +12,96 @@ dt_draw_quad(float u, float v, float size, uint32_t col)
     x[2*i+0] = u + size * c[2*i+0];
     x[2*i+1] = v + size * c[2*i+1];
   }
-  ImGui::GetWindowDrawList()->AddConvexPolyFilled((ImVec2 *)x, 4, col);
-  ImGui::GetWindowDrawList()->AddPolyline( (ImVec2 *)x, 4, 0xff000000, true, .1*size);
+  nk_fill_polygon  (buf, x, 4, col);
+  nk_stroke_polygon(buf, x, 4, .1*size, nk_rgb(0,0,0));
 }
 
-inline int screen_to_frame(float sx, dt_graph_t *g, ImRect bb)
+static inline int
+screen_to_frame(float sx, dt_graph_t *g, struct nk_rect bb)
 {
-  return CLAMP((int)((sx - bb.Min[0])/(bb.Max[0]-bb.Min[0]) * g->frame_cnt + 0.5), 0, g->frame_cnt-1);
+  return CLAMP((int)((sx - bb.x)/bb.w * g->frame_cnt + 0.5), 0, g->frame_cnt-1);
 }
 
-inline float frame_to_screen(int f, dt_graph_t *g, ImRect bb)
+static inline float
+frame_to_screen(int f, dt_graph_t *g, struct nk_rect bb)
 {
-  return CLAMP(bb.Min[0] + (bb.Max[0]-bb.Min[0]) * f / (float)g->frame_cnt, bb.Min[0], bb.Max[0]);
+  return CLAMP(bb.x + bb.w * f / (float)g->frame_cnt, bb.x, bb.x+bb.w);
 }
 
-inline float
+static inline float
 dt_draw_param_line(
     dt_module_t *mod,
     int          p)
 {
-  ImGuiWindow* window = ImGui::GetCurrentWindow();
-  if (window->SkipItems) return 0.0f;
-
-  ImGui::PushID(p + 200*(mod-mod->graph->module));
-  const ImGuiID id = window->GetID("#image");
-  ImGui::PopID();
-
-  int win_w = vkdt.state.center_wd;
-  int ht = vkdt.wstate.fontsize; // line height = font_size + 2*FramePadding.y ?
-  const ImVec2 cp = ImVec2((int)window->DC.CursorPos[0], (int)window->DC.CursorPos[1]);
-  const ImRect bb(ImVec2(cp[0]+(int)(0.12*win_w), cp[1]), ImVec2(cp[0] + win_w, cp[1] + ht));
+  struct nk_context *ctx = &vkdt.ctx;
+  const float ht = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  nk_layout_row_dynamic(ctx, ht, 1);
+  struct nk_rect bounds = nk_widget_bounds(ctx);
+  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds)) // left click: move animation time
+    dt_gui_dr_anim_seek(screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds));
 
   static uint32_t drag_k = -1u, drag_mod = -1u;
-
-  int have_keys = 0;
-  for(uint32_t k=0;k<mod->keyframe_cnt;k++)
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
+   
+  if(mod->param_keyframe[p] == 0xffff) return 0.0f; // should never happen
+  int modified = 0;
+  char text[60];
+  snprintf(text, sizeof(text), "%"PRItkn" %"PRItkn" %"PRItkn,
+      dt_token_str(mod->name), dt_token_str(mod->inst), dt_token_str(mod->so->param[p]->name));
+  nk_label(ctx, text, NK_TEXT_LEFT);
+  dt_keyframe_t *key = mod->keyframe + mod->param_keyframe[p];
+  do
   {
-    if(mod->keyframe[k].param == mod->so->param[p]->name)
+    int k = key - mod->keyframe;
+    float x = frame_to_screen(key->frame, mod->graph, bounds);
+    float y = bounds.y+bounds.h/2.0;
+    dt_draw_quad(buf, x, y, bounds.h/2.0, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
+    struct nk_rect bbk = {.x = x-ht/2.0, .y = y-ht/2.0, .w = ht, .h = ht};
+    if(nk_input_is_mouse_hovering_rect(&ctx->input, bbk))
     {
-      if(!have_keys)
+      if(nk_tooltip_begin(ctx, vkdt.state.panel_wd))
       {
-        ImGui::ItemSize(bb);
-        if (!ImGui::ItemAdd(bb, id)) return 0.0f;
-        if(ImGui::IsItemClicked(0)) // left click: move animation time
-          dt_gui_dr_anim_seek(screen_to_frame(ImGui::GetMousePos().x, mod->graph, bb));
-        ImGui::SameLine();
-        char text[60];
-        window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_Button));
-        int len = snprintf(text, sizeof(text), "%" PRItkn " %" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst), dt_token_str(mod->so->param[p]->name));
-        window->DrawList->AddText(cp, ImGui::GetColorU32(ImGuiCol_Text), text, text+len);
-        have_keys = 1;
+        nk_layout_row_static(ctx, ht, vkdt.state.panel_wd, 1);
+        // TODO: echo more dimensions of the same parameter?
+        nk_labelf(ctx, NK_TEXT_LEFT, "%"PRItkn " %f", dt_token_str(mod->so->param[p]->name), *((float*)mod->keyframe[k].data));
+        nk_label(ctx, "right click to delete", NK_TEXT_LEFT);
+        nk_label(ctx, "left click and drag to move", NK_TEXT_LEFT);
+        nk_tooltip_end(ctx);
       }
-      float x = frame_to_screen(mod->keyframe[k].frame, mod->graph, bb);
-      float y = (bb.Min[1]+bb.Max[1])/2.0;
-      dt_draw_quad(x, y, ht/2.0, ImGui::GetColorU32(ImGuiCol_PlotHistogram));
-      const ImRect bbk(ImVec2(x-ht/2.0, y-ht/2.0), ImVec2(x+ht/2.0, y+ht/2.0));
-      ImGui::ItemSize(bbk);
-      ImGui::PushID(k + 30*p + 1000*(mod-mod->graph->module));
-      const ImGuiID idk = window->GetID("#image");
-      ImGui::PopID();
-      if (!ImGui::ItemAdd(bbk, idk)) continue;
-      if(ImGui::IsItemHovered())
-      { // TODO: make this at least respect length (mod->so->param[p]->{type, cnt}
-        dt_gui_set_tooltip("%" PRItkn " %f\nright click to delete\nleft click and drag to move",
-            dt_token_str(mod->so->param[p]->name), *((float*)mod->keyframe[k].data));
-      }
-      if(ImGui::IsItemClicked(0))
-      { // set state: dragging keyframe k
-        drag_k = k;
-        drag_mod = mod-mod->graph->module;
-      }
-      if(ImGui::IsKeyReleased(ImGuiKey_MouseLeft) && drag_k == k && drag_mod == mod-mod->graph->module)
-      { // drag finished
-        mod->keyframe[k].frame = screen_to_frame(ImGui::GetMousePos().x, mod->graph, bb);
-        drag_k = drag_mod = -1u;
-      }
-      if(ImGui::IsItemClicked(1))
-      { // right click: delete this keyframe by copying the last one over it and decreasing keyframe_cnt
-        mod->keyframe[k--] = mod->keyframe[--mod->keyframe_cnt];
-      }
-      ImGui::SameLine();
     }
+    if (nk_input_has_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bbk))
+    { // set state: dragging keyframe k
+      drag_k = k;
+      drag_mod = mod-mod->graph->module;
+    }
+    if (nk_input_has_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, bbk, nk_false) &&
+        drag_k == k && drag_mod == mod-mod->graph->module)
+    { // drag finished
+      mod->keyframe[k].frame = screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds);
+      drag_k = drag_mod = -1u;
+      modified = 1;
+    }
+    if (nk_input_has_mouse_click_in_rect(&ctx->input, NK_BUTTON_RIGHT, bbk))
+    { // right click: delete this keyframe by copying the last one over it and decreasing keyframe_cnt
+      mod->keyframe[k--] = mod->keyframe[--mod->keyframe_cnt];
+      modified = 1;
+      break; // oops we broke the pointers
+    }
+    key = key->next;
   }
-  if(have_keys)
-  {
-    const float x[4] = {
-      frame_to_screen(mod->graph->frame, mod->graph, bb), bb.Min[1],
-      frame_to_screen(mod->graph->frame, mod->graph, bb), bb.Max[1] };
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)x, 2, 0xff000000, false, .1*ht);
-    ImGui::NewLine();
-    return ht;
-  }
-  return 0.0f;
+  while(key);
+
+  // fix keyframe list if we changed anything
+  if(modified) dt_module_keyframe_post_update(mod);
+
+  float x[4] = {
+    frame_to_screen(mod->graph->frame, mod->graph, bounds), bounds.y,
+    frame_to_screen(mod->graph->frame, mod->graph, bounds), bounds.y + bounds.h };
+  nk_stroke_polyline(buf, x, 2, .1*ht, nk_rgb(0,0,0));
+  return ht;
 }
 
-inline float
+static inline float
 dt_dopesheet_module(dt_graph_t *g, uint32_t modid)
 { // draw all parameters of a module
   dt_module_t *mod = g->module + modid;
@@ -120,61 +112,43 @@ dt_dopesheet_module(dt_graph_t *g, uint32_t modid)
   return size;
 }
 
-} // end anonymous namespace
-
-inline void
+static inline void
 dt_dopesheet()
 { // draw all modules connected on the graph in same order as right panel in darkroom mode
   dt_graph_t *graph = &vkdt.graph_dev;
+  struct nk_context *ctx = &vkdt.ctx;
 
-  ImGui::PushFont(dt_gui_imgui_get_font(3));
+  nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
 #define TOOLTIP(STR) do {\
-    ImGui::PopFont();\
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip(STR);\
-    ImGui::PushFont(dt_gui_imgui_get_font(3));\
-    } while(0)
+  nk_style_pop_font(ctx);\
+  dt_tooltip(STR);\
+  nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);\
+} while(0)
 
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  nk_layout_row_dynamic(ctx, row_height, 7);
+
+  TOOLTIP("play/pause the animation");
   if(vkdt.state.anim_playing)
   {
-    if(ImGui::Button("\ue047")) // or \ue034 for pause icon
+    if(nk_button_label(ctx, "\ue047")) // or \ue034 for pause icon
       dt_gui_dr_anim_stop();
   }
-  else if(ImGui::Button("\ue037"))
+  else if(nk_button_label(ctx, "\ue037"))
     dt_gui_dr_anim_start();
-  TOOLTIP("play/pause the animation");
-  ImGui::SameLine();
-  if(ImGui::Button("\ue020"))
-  { // prev keyframe
-    dt_gui_dr_anim_seek_keyframe_bck();
-  }
   TOOLTIP("seek to previous keyframe");
-  ImGui::SameLine();
-  if(ImGui::Button("\ue01f"))
-  { // next keyframe
-    dt_gui_dr_anim_seek_keyframe_fwd();
-  }
+  if(nk_button_label(ctx, "\ue020")) dt_gui_dr_anim_seek_keyframe_bck();
   TOOLTIP("seek to next keyframe");
-  ImGui::SameLine();
-  if(ImGui::Button("\ue045"))
-  { // prev frame
-    dt_gui_dr_anim_step_bck();
-  }
+  if(nk_button_label(ctx, "\ue01f")) dt_gui_dr_anim_seek_keyframe_fwd();
   TOOLTIP("back to previous frame");
-  ImGui::SameLine();
-  if(ImGui::Button("\ue044"))
-  { // next frame
-    dt_gui_dr_anim_step_fwd();
-  }
+  if(nk_button_label(ctx, "\ue045")) dt_gui_dr_anim_step_bck();
   TOOLTIP("advance to next frame");
-  ImGui::SameLine();
-  if(ImGui::Button("\ue042"))
-  { // rewind
-    dt_gui_dr_prev();
-  }
+  if(nk_button_label(ctx, "\ue044")) dt_gui_dr_anim_step_fwd();
   TOOLTIP("rewind to start");
-  ImGui::PopFont();
-  ImGui::SameLine();
-  ImGui::Text("frame %d/%d", vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt);
+  if(nk_button_label(ctx, "\ue042")) dt_gui_dr_prev();
+  nk_style_pop_font(ctx);\
+
+  nk_labelf(ctx, NK_TEXT_LEFT, "frame %d/%d", vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt);
 #undef TOOLTIP
 
   dt_module_t *const arr = graph->module;
@@ -190,28 +164,17 @@ dt_dopesheet()
 
   if(size == 0.0f)
   { // no keyframes yet, want to display something
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    ImGui::PushID(1337);
-    const ImGuiID id = window->GetID("timeline");
-    ImGui::PopID();
+    struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
+    nk_layout_row_dynamic(ctx, row_height, 1);
+    struct nk_rect bounds = nk_widget_bounds(ctx);
+    if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds)) // left click: move animation time
+      dt_gui_dr_anim_seek(screen_to_frame(ctx->input.mouse.pos.x, graph, bounds));
 
-    int win_w = vkdt.state.center_wd;
-    int ht = vkdt.wstate.fontsize; // line height = font_size + 2*FramePadding.y ?
-    const ImVec2 cp = ImVec2((int)window->DC.CursorPos[0], (int)window->DC.CursorPos[1]);
-    const ImRect bb(ImVec2(cp[0]+(int)(0.12*win_w), cp[1]), ImVec2(cp[0] + win_w, cp[1] + ht));
-    ImGui::ItemSize(bb);
-    ImGui::ItemAdd(bb, id);
-    if(ImGui::IsItemClicked(0)) // left click: move animation time
-      dt_gui_dr_anim_seek(screen_to_frame(ImGui::GetMousePos().x, &vkdt.graph_dev, bb));
-    ImGui::SameLine();
-    const char *text = "timeline";
-    window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_Button));
-    window->DrawList->AddText(cp, ImGui::GetColorU32(ImGuiCol_Text), text);
-    const float x[4] = {
-      frame_to_screen(vkdt.graph_dev.frame, &vkdt.graph_dev, bb), bb.Min[1],
-      frame_to_screen(vkdt.graph_dev.frame, &vkdt.graph_dev, bb), bb.Max[1] };
-    ImGui::GetWindowDrawList()->AddPolyline((ImVec2 *)x, 2, 0xff000000, false, .1*ht);
-    ImGui::NewLine();
+    nk_label(ctx, "timeline", NK_TEXT_LEFT);
+    float x[4] = {
+      frame_to_screen(graph->frame, graph, bounds), bounds.y,
+      frame_to_screen(graph->frame, graph, bounds), bounds.y+bounds.h };
+    nk_stroke_polyline(buf, x, 2, .1*row_height, nk_rgb(0,0,0));
   }
 
   // this is unfortunately not reliable since we skip drawing and everything

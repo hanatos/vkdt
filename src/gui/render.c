@@ -113,7 +113,7 @@ void dt_gui_init_fonts()
   cfg.oversample_h = 3;
   cfg.oversample_v = 1;
   static nk_rune ranges_icons[] = {
-    0xe037, 0xe048, // play pause
+    0xe01f, 0xe048, // play pause
     0xe15b, 0xe15c, // stuff for disabled button
     0xe5cc, 0xe5d0, // expander e5cc e5cf
     0xe612, 0xe613,

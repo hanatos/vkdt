@@ -280,9 +280,9 @@ void render_lighttable_center()
     if(tid == -1u) tid = 0; // busybee
     struct nk_color col = vkdt.style.colour[NK_COLOR_BUTTON];
     struct nk_color hov = vkdt.style.colour[NK_COLOR_BUTTON_HOVER];
-    const int current  = vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db);
     const int selected = vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected;
     if(selected) col = vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE];
+    // const int current  = vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db);
     // if(current) 
     // { // can't miss this due to all the decoration shown
     //   hov = vkdt.style.colour[NK_COLOR_BUTTON];
@@ -479,7 +479,7 @@ void render_lighttable_right_panel()
 { // right panel
   struct nk_context *ctx = &vkdt.ctx;
   struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
-  const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3}; // XXX padding?
+  const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {ratio[0], ratio[0]};
 

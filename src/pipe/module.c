@@ -188,3 +188,33 @@ void dt_module_reset_params(dt_module_t *mod)
     memcpy(mod->param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
   }
 }
+
+void dt_module_keyframe_post_update(dt_module_t *mod)
+{
+  if(mod->name == 0) return; // skip deleted modules
+  if(mod->keyframe_cnt == 0) return; // no keyframes
+  for(uint32_t p=0;p<mod->so->num_params;p++)
+  {
+    mod->param_keyframe[p] = 0xffff;
+    for(uint32_t k=0;k<mod->keyframe_cnt;k++)
+    {
+      if(mod->keyframe[k].param == mod->so->param[p]->name)
+      {
+        if(mod->param_keyframe[p] == 0xffff)
+        {
+          mod->param_keyframe[p] = k;
+          mod->keyframe[k].next = 0;
+        }
+        else
+        { // insert into chain in the right place
+          dt_keyframe_t *key = mod->keyframe + mod->param_keyframe[p];
+          while(key->frame > mod->keyframe[k].frame)
+            key = key->next;
+          // now key->frame is < than ours for the first time
+          mod->keyframe[k].next = key->next;
+          key->next = mod->keyframe+k;
+        }
+      }
+    }
+  }
+}

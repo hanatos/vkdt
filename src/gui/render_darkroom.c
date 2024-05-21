@@ -7,7 +7,7 @@
 #include "gui/hotkey.h"
 #include "gui/keyaccel.h"
 #include "gui/api_gui.h"
-// #include "gui/widget_dopesheet.h"
+#include "gui/widget_dopesheet.h"
 #include "gui/widget_draw.h"
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_image.h"
@@ -178,7 +178,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       dt_view_switch(s_view_lighttable);
       vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
     }
-  // ?? if(key == GLFW_KEY_ENTER) dt_view_switch(s_view_nodes);
   }
 
 #if 0 // TODO: port this!
@@ -327,7 +326,6 @@ void render_darkroom()
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(nk_begin(&vkdt.ctx, "darkroom center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // draw center view image:
-    if(disabled) nk_widget_disable_begin(&vkdt.ctx);
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
@@ -372,32 +370,25 @@ void render_darkroom()
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
     if(vkdt.wstate.show_perf_overlay) render_perf_overlay();
-    if(disabled) nk_widget_disable_end(&vkdt.ctx);
   } // end center view
   if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(&vkdt.ctx);
   nk_style_pop_style_item(&vkdt.ctx);
 
-#if 0 // XXX port me!
   if(vkdt.wstate.dopesheet_view > 0.0f)
   { // draw dopesheet
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y + vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
     int win_w = vkdt.state.center_wd, win_h = vkdt.wstate.dopesheet_view;
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x + win_x,
-          ImGui::GetMainViewport()->Pos.y + win_y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w, win_h), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, gamma(ImVec4(0.5, 0.5, 0.5, 1.0)));
-    ImGui::Begin("darkroom dopesheet", 0, ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoBackground);
-    dt_dopesheet();
-    ImGui::End();
-    ImGui::PopStyleColor();
+    struct nk_rect bounds = { .x = win_x, .y = win_y, .w = win_w, .h = win_h };
+    const int disabled = vkdt.wstate.popup;
+    nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
+    if(nk_begin(&vkdt.ctx, "dopesheet", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
+      dt_dopesheet();
+
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    nk_end(&vkdt.ctx);
+    nk_style_pop_style_item(&vkdt.ctx);
   }
-#endif
 
 #if 0 // XXX port history view!
   if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
@@ -618,9 +609,8 @@ void render_darkroom()
     else if(current_tab == 2)
     {
 #if 0
-        if(ImGui::CollapsingHeader("settings"))
-        {
-          ImGui::Indent();
+      if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
+      {
           ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
           if(ImGui::Button("hotkeys", ImVec2(-1, 0)))
             ImGui::OpenPopup("edit hotkeys");
@@ -632,54 +622,64 @@ void render_darkroom()
           { // LOD switcher
             dt_gui_set_lod(vkdt.wstate.lod);
           }
-          ImGui::PopStyleVar();
-          ImGui::Unindent();
-        }
-
-        if(ImGui::CollapsingHeader("animation"))
-        { // animation controls
-          if(ImGui::SliderInt("last frame", &vkdt.state.anim_max_frame, 0, 10000))
-          {
-            vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
-            dt_graph_history_global(&vkdt.graph_dev);
-          }
-          float frame_rate = vkdt.graph_dev.frame_rate;
-          if(ImGui::SliderFloat("frame rate", &frame_rate, 0, 200))
-          {
-            vkdt.graph_dev.frame_rate = frame_rate; // conv to double
-            dt_graph_history_global(&vkdt.graph_dev);
-          }
-          if(vkdt.graph_dev.frame_cnt != 1)
-          {
-            if(vkdt.wstate.dopesheet_view == 0.0f && ImGui::Button("show dopesheet", ImVec2(-1, 0)))
-            {
-              dt_gui_dr_show_dopesheet();
-            }
-            else if(vkdt.wstate.dopesheet_view > 0.0f && ImGui::Button("hide dopesheet", ImVec2(-1, 0)))
-            {
-              dt_gui_dr_hide_dopesheet();
-            }
-            if(ImGui::Button("force downloading all outputs", ImVec2(-1, 0)))
-            {
-              vkdt.graph_dev.runflags = s_graph_run_download_sink;
-            }
-            if(ImGui::IsItemHovered())
-              dt_gui_set_tooltip("this is useful if an animated graph has output modules\n"
-                                "attached to it. for instance this allows you to trigger\n"
-                                "writing of intermediate results of an optimisation from the gui.\n"
-                                "only works when the animation is stopped.");
-          }
-        }
-
-        if(ImGui::CollapsingHeader("presets"))
+        nk_tree_pop(ctx)
+      }
+#endif
+      if(nk_tree_push(ctx, NK_TREE_TAB, "animation", NK_MINIMIZED))
+      { // animation controls
+        const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
+        const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+        nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+        int resi = vkdt.state.anim_max_frame;
+        nk_property_int(ctx, "#", 0, &resi, 10000, 1, 1);
+        if(resi != vkdt.state.anim_max_frame) 
         {
+          vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
+          dt_graph_history_global(&vkdt.graph_dev);
+        }
+        nk_label(ctx, "last frame", NK_TEXT_LEFT);
+        float resf = vkdt.graph_dev.frame_rate;
+        nk_property_float(ctx, "#", 0, &resf, 200, 1, 1);
+        if(resf != vkdt.graph_dev.frame_rate)
+        {
+          vkdt.graph_dev.frame_rate = resf; // conv to double
+          dt_graph_history_global(&vkdt.graph_dev);
+        }
+        nk_label(ctx, "frame rate", NK_TEXT_LEFT);
+        if(vkdt.graph_dev.frame_cnt != 1)
+        {
+          if(vkdt.wstate.dopesheet_view <= 0.0f && nk_button_label(ctx, "show dopesheet"))
+          {
+            dt_gui_dr_show_dopesheet();
+          }
+          else if(vkdt.wstate.dopesheet_view > 0.0f && nk_button_label(ctx, "hide dopesheet"))
+          {
+            dt_gui_dr_hide_dopesheet();
+          }
+          nk_label(ctx, "", 0);
+          dt_tooltip("this is useful if an animated graph has output modules\n"
+              "attached to it. for instance this allows you to trigger\n"
+              "writing of intermediate results of an optimisation from the gui.\n"
+              "only works when the animation is stopped.");
+          if(nk_button_label(ctx, "force downloading all outputs"))
+          {
+            vkdt.graph_dev.runflags = s_graph_run_download_sink;
+          }
+          nk_label(ctx, "", 0);
+        }
+        nk_tree_pop(ctx);
+      }
+#if 0
+      if(nk_tree_push(ctx, NK_TREE_TAB, "animation", NK_MINIMIZED))
+      {
           ImVec2 size((vkdt.state.panel_wd-4)/2, 0);
           if(ImGui::Button("create preset", size))
             gui.hotkey = s_hotkey_create_preset;
           ImGui::SameLine();
           if(ImGui::Button("apply preset", size))
             gui.hotkey = s_hotkey_apply_preset;
-        }
+        nk_tree_pop(ctx);
+      }
 #endif
     }
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
