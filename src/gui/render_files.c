@@ -358,13 +358,13 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
     default:;
   }
 
-  if(action == GLFW_PRESS && key == GLFW_KEY_UP)
+  if((action == GLFW_PRESS || action == GLFW_REPEAT) && key == GLFW_KEY_UP)
   { // up arrow: select entry above
     w->selected_idx = CLAMP(w->selected_idx - 1, 0, w->ent_cnt-1);
     w->selected = w->ent[w->selected_idx].d_name;
     w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
   }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_DOWN)
+  else if((action == GLFW_PRESS || action == GLFW_REPEAT) && key == GLFW_KEY_DOWN)
   { // down arrow: select entry below
     w->selected_idx = CLAMP(w->selected_idx + 1, 0, w->ent_cnt-1);
     w->selected = w->ent[w->selected_idx].d_name;
