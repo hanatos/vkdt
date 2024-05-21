@@ -350,10 +350,10 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   switch(hotkey)
   {
     case s_hotkey_focus_filter:
-      w->focus_filter = 2;
+      w->focus_filter = 1;
       break;
     case s_hotkey_focus_path:
-      w->focus_path = 4;
+      w->focus_path = 1;
       break;
     default:;
   }

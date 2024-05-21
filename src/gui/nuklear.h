@@ -27979,6 +27979,9 @@ nk_edit_string(struct nk_context *ctx, nk_flags flags,
         if (!(flags & NK_EDIT_SELECTABLE)) {
             edit->select_start = win->edit.cursor;
             edit->select_end = win->edit.cursor;
+        } else if(flags & NK_EDIT_AUTO_SELECT) {
+            edit->select_start = 0;
+            edit->select_end = *len;
         } else {
             edit->select_start = win->edit.sel_start;
             edit->select_end = win->edit.sel_end;

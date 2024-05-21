@@ -120,7 +120,8 @@ dt_filebrowser(
   nk_style_pop_font(ctx);
   if(w->focus_path) nk_edit_focus(ctx, 0);
   nk_flags ret = nk_edit_string_zero_terminated(ctx,
-      (w->focus_path ? NK_EDIT_AUTO_SELECT : 0) | NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
+      (w->focus_path ? NK_EDIT_AUTO_SELECT|NK_EDIT_SELECTABLE : 0) |
+      NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
   {
     nk_edit_unfocus(ctx); // make keyboard nav in list below work
@@ -131,14 +132,14 @@ dt_filebrowser(
   nk_style_pop_font(ctx);
   if(w->focus_filter) nk_edit_focus(ctx, 0);
   ret = nk_edit_string_zero_terminated(ctx,
-      (w->focus_filter ? NK_EDIT_AUTO_SELECT : 0) | NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+      (w->focus_filter ? NK_EDIT_AUTO_SELECT|NK_EDIT_SELECTABLE : 0) |
+      NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
   {
     nk_edit_unfocus(ctx); // make keyboard nav in list below work
     dt_filebrowser_cleanup(w);
   }
-  w->focus_path   = MAX(w->focus_path-1, 0);
-  w->focus_filter = MAX(w->focus_filter-1, 0);
+  w->focus_path = w->focus_filter = 0;
 #ifdef _WIN64
   int dm = GetLogicalDrives();
   char letter = 'A';
