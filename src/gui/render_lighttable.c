@@ -249,8 +249,7 @@ void render_lighttable_center()
     }
     if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       scroll_to = row.y - content.y;
-    if(row.y < content.y ||
-       row.y + row.h > content.y + content.h)
+    if(row.y < content.y || row.y + row.h > content.y + content.h)
     { // only half visible
       if(g_image_cursor == i)
       { // i do not understand the nuklear way to compute borders, but this works:

@@ -162,17 +162,28 @@ dt_filebrowser(
   }
 #endif
   nk_style_pop_font(ctx);
-  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
+  int spacing = 0;
+  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(spacing,spacing));
   nk_style_push_vec2(ctx, &ctx->style.window.group_padding, nk_vec2(0,0));
   row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  int scroll_to = -1;
 
   struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
   nk_layout_row_dynamic(ctx, total_space.h-2*row_height, 1);
   nk_group_begin(ctx, "scroll files", 0);
   nk_style_push_font(ctx, &dt_gui_get_font(1)->handle);
   nk_layout_row_dynamic(ctx, row_height, 1);
+  struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   for(int i=0;i<w->ent_cnt;i++)
   {
+    if(i == w->selected_idx)
+    {
+      struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
+      if(row.y < content.y || row.y + row.h > content.y + content.h)
+      { // only half visible
+        scroll_to = 1+(row.h + spacing) * i;
+      }
+    }
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
         w->ent[i].d_name,
@@ -189,5 +200,6 @@ dt_filebrowser(
   nk_style_pop_font(ctx);
   nk_style_pop_vec2(ctx);
   nk_style_pop_vec2(ctx);
+  if(scroll_to >= 0) nk_group_set_scroll(ctx, "scroll files", 0, scroll_to);
   nk_group_end(ctx);
 }
