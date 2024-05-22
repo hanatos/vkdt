@@ -393,97 +393,97 @@ void render_darkroom()
     nk_style_pop_style_item(&vkdt.ctx);
   }
 
-#if 0 // XXX port history view!
   if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
-  { // left panel
-    ImGui::SetNextWindowPos (ImVec2(
-          ImGui::GetMainViewport()->Pos.x,
-          ImGui::GetMainViewport()->Pos.y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(vkdt.state.panel_wd, vkdt.state.panel_ht), ImGuiCond_Always);
-    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-    ImGui::Begin("panel-left", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-
-    int action = 0;
-    if(ImGui::Button("compress",  ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 1; // compress
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("rewrite history in a compact way");
-    ImGui::SameLine();
-    if(ImGui::Button("roll back", ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 2; // load previously stored cfg from disk
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("roll back to the state when entered darkroom mode");
-    ImGui::SameLine();
-    if(ImGui::Button("reset",     ImVec2(vkdt.state.panel_wd/3.1, 0.0))) action = 3; // load factory defaults
-    if(ImGui::IsItemHovered()) dt_gui_set_tooltip("reset everything to factory defaults");
-    if(action)
+  { // left panel: history view
+    struct nk_rect bounds = { .x = 0, .y = 0, .w = vkdt.state.panel_wd, .h = vkdt.state.panel_ht };
+    const int disabled = vkdt.wstate.popup;
+    if(nk_begin(&vkdt.ctx, "history panel", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
     {
-      uint32_t imgid = dt_db_current_imgid(&vkdt.db);
-      char graph_cfg[PATH_MAX+100];
-      char realimg[PATH_MAX];
-      dt_token_t input_module = dt_token("i-raw");
-
-      if(action >= 2) dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
-      if(action == 2)
+      int action = 0;
+      const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+      nk_layout_row_dynamic(&vkdt.ctx, row_height, 3);
+      dt_tooltip("rewrite compactified history");
+      if(nk_button_label(&vkdt.ctx, "compress")) action = 1; // compress
+      dt_tooltip("roll back to the state when entered darkroom mode");
+      if(nk_button_label(&vkdt.ctx, "roll back")) action = 2; // load previously stored cfg from disk
+      dt_tooltip("reset everything to factory defaults");
+      if(nk_button_label(&vkdt.ctx, "reset")) action = 3; // load factory defaults
+      if(action)
       {
-        struct stat statbuf;
-        if(stat(graph_cfg, &statbuf)) action = 3;
+        uint32_t imgid = dt_db_current_imgid(&vkdt.db);
+        char graph_cfg[PATH_MAX+100];
+        char realimg[PATH_MAX];
+        dt_token_t input_module = dt_token("i-raw");
+
+        if(action >= 2) dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
+        if(action == 2)
+        {
+          struct stat statbuf;
+          if(stat(graph_cfg, &statbuf)) action = 3;
+        }
+        if(action == 3)
+        {
+          fs_realpath(graph_cfg, realimg);
+          int len = strlen(realimg);
+          assert(len > 4);
+          realimg[len-4] = 0; // cut away ".cfg"
+          input_module = dt_graph_default_input_module(realimg);
+          snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
+        }
+
+        if(action >= 2)
+        { // read previous cfg or factory default cfg, first init modules to their default state:
+          for(uint32_t m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_reset_params(vkdt.graph_dev.module+m);
+          dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
+        }
+
+        if(action == 3)
+        { // default needs to update input filename and search path
+          dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
+          char *basen = fs_basename(realimg); // cut away path so we can relocate more easily
+          int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("main"));
+          if(modid >= 0)
+            dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
+                basen);
+        }
+
+        dt_graph_history_reset(&vkdt.graph_dev);
+        vkdt.graph_dev.runflags = s_graph_run_all;
       }
-      if(action == 3)
+
+      nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+      nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+      for(int i=vkdt.graph_dev.history_item_end-1;i>=0;i--)
       {
-        fs_realpath(graph_cfg, realimg);
-        int len = strlen(realimg);
-        assert(len > 4);
-        realimg[len-4] = 0; // cut away ".cfg"
-        input_module = dt_graph_default_input_module(realimg);
-        snprintf(graph_cfg, sizeof(graph_cfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
+        int pop = 0;
+        if(i >= (int)vkdt.graph_dev.history_item_cur)
+        { // inactive
+          pop = 2;
+          nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(nk_rgb(0,0,0)));
+          nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_BORDER]));
+        }
+        else if(i+1 == (int)vkdt.graph_dev.history_item_cur)
+        { // last active item
+          pop = 2;
+          nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+          nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]));
+        }
+        if(nk_button_label(&vkdt.ctx, vkdt.graph_dev.history_item[i]))
+        {
+          dt_graph_history_set(&vkdt.graph_dev, i);
+          vkdt.graph_dev.runflags = s_graph_run_all;
+        }
+        if(pop)
+        {
+          nk_style_pop_style_item(&vkdt.ctx);
+          nk_style_pop_style_item(&vkdt.ctx);
+        }
       }
-
-      if(action >= 2)
-      { // read previous cfg or factory default cfg, first init modules to their default state:
-        for(uint32_t m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_reset_params(vkdt.graph_dev.module+m);
-        dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
-      }
-
-      if(action == 3)
-      { // default needs to update input filename and search path
-        dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
-        char *basen = fs_basename(realimg); // cut away path so we can relocate more easily
-        int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("main"));
-        if(modid >= 0)
-          dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
-              basen);
-      }
-
-      dt_graph_history_reset(&vkdt.graph_dev);
-      vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+      nk_style_pop_flags(&vkdt.ctx);
     }
-
-    ImGui::BeginChild("history-scrollpane");
-
-    for(int i=vkdt.graph_dev.history_item_end-1;i>=0;i--)
-    {
-      int pop = 0;
-      if(i >= (int)vkdt.graph_dev.history_item_cur)
-      { // inactive
-        pop = 3;
-        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(.01f, .01f, .01f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-      }
-      else if(i+1 == (int)vkdt.graph_dev.history_item_cur)
-      { // last active item
-        pop = 2;
-        ImGui::PushStyleColor(ImGuiCol_Button,        ImGui::GetStyle().Colors[ImGuiCol_PlotHistogram]);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_PlotHistogramHovered]);
-      }
-      if(ImGui::Button(vkdt.graph_dev.history_item[i]))
-      {
-        dt_graph_history_set(&vkdt.graph_dev, i);
-        vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-      }
-      if(pop) ImGui::PopStyleColor(pop);
-    }
-    ImGui::EndChild();
-    ImGui::End();
-  } // end left panel
-#endif
+    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    nk_end(&vkdt.ctx);
+  } // end history panel on the left
 
   struct nk_context *ctx = &vkdt.ctx;
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
