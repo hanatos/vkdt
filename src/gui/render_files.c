@@ -121,6 +121,7 @@ void render_files()
   { // right panel
     if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
     {
+      nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
       if(nk_button_label(ctx, "hotkeys"))
         dt_gui_edit_hotkeys();
       nk_tree_pop(ctx);

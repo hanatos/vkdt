@@ -85,7 +85,9 @@ static struct gui_state_data_t
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  if(vkdt.wstate.popup) return;
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+    return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
+  if(dt_gui_input_blocked()) return;
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {
@@ -596,6 +598,9 @@ void render_darkroom()
     nk_layout_row_dynamic(ctx, 2, 1);
     nk_rule_horizontal(ctx, vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE], nk_true);
 
+    const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
+    const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+
     if(current_tab == 0)
     {
       render_darkroom_favourite();
@@ -609,27 +614,28 @@ void render_darkroom()
     }
     else if(current_tab == 2)
     {
-#if 0
       if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
       {
-          ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-          if(ImGui::Button("hotkeys", ImVec2(-1, 0)))
-            ImGui::OpenPopup("edit hotkeys");
-          ImHotKey::Edit(hk_darkroom, hk_darkroom_cnt, "edit hotkeys");
-          if(ImGui::Button("toggle perf overlay", ImVec2(-1, 0)))
-            vkdt.wstate.show_perf_overlay ^= 1;
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+        if(nk_button_label(ctx, "hotkeys"))
+          dt_gui_edit_hotkeys();
+        if(nk_button_label(ctx, "toggle perf overlay"))
+          vkdt.wstate.show_perf_overlay ^= 1;
+        nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
 
-          if(ImGui::SliderInt("LOD", &vkdt.wstate.lod, 1, 16, "%d"))
-          { // LOD switcher
-            dt_gui_set_lod(vkdt.wstate.lod);
-          }
-        nk_tree_pop(ctx)
+        int resi = vkdt.wstate.lod;
+        nk_property_int(ctx, "#", 1, &resi, 16, 1, 1);
+        if(resi != vkdt.wstate.lod)
+        {
+          vkdt.wstate.lod = resi;
+          dt_gui_set_lod(vkdt.wstate.lod);
+        }
+        nk_label(ctx, "level of detail", NK_TEXT_LEFT);
+        nk_tree_pop(ctx);
       }
-#endif
+
       if(nk_tree_push(ctx, NK_TREE_TAB, "animation", NK_MINIMIZED))
       { // animation controls
-        const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
-        const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
         nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
         int resi = vkdt.state.anim_max_frame;
         nk_property_int(ctx, "#", 0, &resi, 10000, 1, 1);
@@ -686,7 +692,21 @@ void render_darkroom()
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);
   } // end right panel
-  render_darkroom_modals();
+
+  // popup windows
+  render_darkroom_modals(); // this is shared with nodes view, but this last one is distinct:
+  bounds = nk_rect(vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,
+    0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht);
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+  {
+    if(nk_begin(&vkdt.ctx, "edit darkroom hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR))
+    {
+      int ok = hk_edit(hk_darkroom, hk_darkroom_cnt);
+      if(ok) vkdt.wstate.popup = 0;
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
 }
 
 void render_darkroom_init()
