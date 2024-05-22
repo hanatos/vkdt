@@ -85,6 +85,7 @@ static struct gui_state_data_t
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(vkdt.wstate.popup) return;
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {

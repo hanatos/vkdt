@@ -75,7 +75,10 @@ static const int g_images_per_line = 6;
 void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 {
-  if(action != GLFW_PRESS) return; // only handle key down events
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys) // this window needs special
+    return hk_keyboard(hk_lighttable, w, key, scancode, action, mods);
+  if(dt_gui_input_blocked()) return; // includes other popups
+
   const int hotkey = hk_get_hotkey(hk_lighttable, NK_LEN(hk_lighttable), key);
   switch(hotkey)
   {
@@ -115,78 +118,76 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     default: break;
   }
 
-  if(!dt_gui_input_blocked())
+  if(action != GLFW_PRESS) return; // only handle key down events
+  if(key == GLFW_KEY_ESCAPE)
   {
-    if(key == GLFW_KEY_ESCAPE)
+    dt_view_switch(s_view_files);
+  }
+  else if(key == GLFW_KEY_ENTER)
+  {
+    if(dt_db_current_imgid(&vkdt.db) != -1u)
+      dt_view_switch(s_view_darkroom);
+    else if(g_image_cursor >= 0)
     {
-      dt_view_switch(s_view_files);
+      dt_db_selection_clear(&vkdt.db);
+      dt_db_selection_add(&vkdt.db, g_image_cursor);
+      dt_view_switch(s_view_darkroom);
     }
-    else if(key == GLFW_KEY_ENTER)
+  }
+  else if(key == GLFW_KEY_UP)
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else if(g_image_cursor >= g_images_per_line) g_image_cursor -= g_images_per_line;
+  }
+  else if(key == GLFW_KEY_DOWN)
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else if(g_image_cursor < vkdt.db.collection_cnt - g_images_per_line) g_image_cursor += g_images_per_line;
+  }
+  else if(key == GLFW_KEY_LEFT)
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else g_image_cursor = MAX(0, g_image_cursor-1);
+  }
+  else if(key == GLFW_KEY_RIGHT)
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else g_image_cursor = MIN(vkdt.db.collection_cnt-1, g_image_cursor+1);
+  }
+  else if(key == GLFW_KEY_SPACE && g_image_cursor >= 0)
+  {
+    int shift = mods & GLFW_MOD_SHIFT;
+    int ctrl  = mods & GLFW_MOD_CONTROL;
+    vkdt.wstate.busy += 2;
+    if(ctrl)
     {
-      if(dt_db_current_imgid(&vkdt.db) != -1u)
-        dt_view_switch(s_view_darkroom);
-      else if(g_image_cursor >= 0)
+      if(vkdt.db.image[vkdt.db.collection[g_image_cursor]].labels & s_image_label_selected)
+        dt_db_selection_remove(&vkdt.db, g_image_cursor);
+      else
+        dt_db_selection_add(&vkdt.db, g_image_cursor);
+    }
+    else if(shift)
+    { // shift selects ranges
+      uint32_t colid = dt_db_current_colid(&vkdt.db);
+      if(colid != -1u)
+      {
+        int a = MIN(colid, (uint32_t)g_image_cursor);
+        int b = MAX(colid, (uint32_t)g_image_cursor);
+        dt_db_selection_clear(&vkdt.db);
+        for(int i=a;i<=b;i++)
+          dt_db_selection_add(&vkdt.db, i);
+      }
+    }
+    else
+    { // no modifier, select exactly this image:
+      if(dt_db_selection_contains(&vkdt.db, g_image_cursor))
+      {
+        dt_db_selection_clear(&vkdt.db);
+      }
+      else
       {
         dt_db_selection_clear(&vkdt.db);
         dt_db_selection_add(&vkdt.db, g_image_cursor);
-        dt_view_switch(s_view_darkroom);
-      }
-    }
-    else if(key == GLFW_KEY_UP)
-    {
-      if(g_image_cursor < 0) g_image_cursor = -2;
-      else if(g_image_cursor >= g_images_per_line) g_image_cursor -= g_images_per_line;
-    }
-    else if(key == GLFW_KEY_DOWN)
-    {
-      if(g_image_cursor < 0) g_image_cursor = -2;
-      else if(g_image_cursor < vkdt.db.collection_cnt - g_images_per_line) g_image_cursor += g_images_per_line;
-    }
-    else if(key == GLFW_KEY_LEFT)
-    {
-      if(g_image_cursor < 0) g_image_cursor = -2;
-      else g_image_cursor = MAX(0, g_image_cursor-1);
-    }
-    else if(key == GLFW_KEY_RIGHT)
-    {
-      if(g_image_cursor < 0) g_image_cursor = -2;
-      else g_image_cursor = MIN(vkdt.db.collection_cnt-1, g_image_cursor+1);
-    }
-    else if(key == GLFW_KEY_SPACE && g_image_cursor >= 0)
-    {
-      int shift = mods & GLFW_MOD_SHIFT;
-      int ctrl  = mods & GLFW_MOD_CONTROL;
-      vkdt.wstate.busy += 2;
-      if(ctrl)
-      {
-        if(vkdt.db.image[vkdt.db.collection[g_image_cursor]].labels & s_image_label_selected)
-          dt_db_selection_remove(&vkdt.db, g_image_cursor);
-        else
-          dt_db_selection_add(&vkdt.db, g_image_cursor);
-      }
-      else if(shift)
-      { // shift selects ranges
-        uint32_t colid = dt_db_current_colid(&vkdt.db);
-        if(colid != -1u)
-        {
-          int a = MIN(colid, (uint32_t)g_image_cursor);
-          int b = MAX(colid, (uint32_t)g_image_cursor);
-          dt_db_selection_clear(&vkdt.db);
-          for(int i=a;i<=b;i++)
-            dt_db_selection_add(&vkdt.db, i);
-        }
-      }
-      else
-      { // no modifier, select exactly this image:
-        if(dt_db_selection_contains(&vkdt.db, g_image_cursor))
-        {
-          dt_db_selection_clear(&vkdt.db);
-        }
-        else
-        {
-          dt_db_selection_clear(&vkdt.db);
-          dt_db_selection_add(&vkdt.db, g_image_cursor);
-        }
       }
     }
   }

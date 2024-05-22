@@ -1,35 +1,11 @@
-// loosely based on (mainly the cool clickable keyboard layout):
-// ImHotKey v1.0
-// https://github.com/CedricGuillemet/ImHotKey
-//
-// The MIT License(MIT)
-// 
-// Copyright(c) 2019 Cedric Guillemet
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
 #pragma once
 
 #include "core/log.h"
 #include "gui/gui.h"
 #include "render.h"
 #include "nk.h"
+
+static int g_hk_editing = -1;
 
 typedef struct hk_t
 {
@@ -46,6 +22,10 @@ typedef struct hk_key_t
   float         offset;
   float         width;
 } hk_key_t;
+
+// TODO: one array to map GLFW keys to strings, try const char* key_name = glfwGetKeyName(GLFW_KEY_W, 0);
+// TODO: define K_short instead of the GLFW_KEY prefix (can we append tokens?)
+// TODO: different keyboard layouts with 2D positions per key
 
 static const hk_key_t hk_keys[6][18] = {{
   {"esc", GLFW_KEY_ESCAPE, 18},
@@ -184,40 +164,32 @@ hk_get_hotkey_lib(hk_t *hk, char *buffer, size_t bs)
 
 // returns non-zero if popup was closed
 static inline int
-hk_edit(hk_t *hotkey, size_t num)
+hk_edit(hk_t *hk, size_t num)
 {
-  static int editingHotkey = -1;
+  if(vkdt.wstate.popup_appearing)
+    g_hk_editing = -1;
+  vkdt.wstate.popup_appearing = 0;
   if (!num) return 1;
-  static int keyDown[512] = {};
 
-  nk_layout_row_dynamic(&vkdt.ctx, .2*vkdt.state.center_wd, 2);
-  if(nk_group_begin(&vkdt.ctx, "hotkey_list", 0))
+  struct nk_context *ctx = &vkdt.ctx;
+  static int selected = -1;
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
+  nk_layout_row_dynamic(&vkdt.ctx, total_space.h-3*row_height, 1);
+  if(nk_group_begin(&vkdt.ctx, "hotkey list", 0))
   {
-    nk_layout_row_static(&vkdt.ctx, 18, 150, 1);
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
     for(int i=0;i<num;i++)
     {
       char lib[128];
-      hk_get_hotkey_lib(hotkey+i, lib, sizeof(lib));
-      if(nk_selectable_label(&vkdt.ctx, lib, NK_TEXT_LEFT, &hotkey[i].sel))
-      {
-        editingHotkey = i;
-        memset(keyDown, 0, sizeof(keyDown));
-        if(hotkey[editingHotkey].key[0]) keyDown[hotkey[editingHotkey].key[0]] = 1;
-        if(hotkey[editingHotkey].key[1]) keyDown[hotkey[editingHotkey].key[1]] = 1;
-        if(hotkey[editingHotkey].key[2]) keyDown[hotkey[editingHotkey].key[2]] = 1;
-        if(hotkey[editingHotkey].key[3]) keyDown[hotkey[editingHotkey].key[3]] = 1;
-      }
-      if(editingHotkey == i) hotkey[i].sel = 1;
-      else hotkey[i].sel = 0;
+      hk_get_hotkey_lib(hk+i, lib, sizeof(lib));
+      if(nk_selectable_label(&vkdt.ctx, lib, NK_TEXT_LEFT, &hk[i].sel))
+        selected = i;
+      if(selected == i) hk[i].sel = 1;
+      else hk[i].sel = 0;
     }
     nk_group_end(&vkdt.ctx);
   }
-
-#if 0 // XXX FIXME: somehow have to conspire with the keyboard callback!
-  for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_KeypadEqual; i++)
-    if (IDX(i) && ImGui::IsKeyPressed(ImGuiKey(i), false))
-      keyDown[IDX(i)] = !keyDown[IDX(i)];
-#endif
 
 #if 0 // TODO: port this
   for (unsigned int y = 0; y < 6; y++)
@@ -246,55 +218,25 @@ hk_edit(hk_t *hotkey, size_t num)
     }
     ImGui::EndGroup();
   }
-  ImGui::InvisibleButton("space", ImVec2(10*s, 55*s));
-  ImGui::BeginChildFrame(18, ImVec2(540*s, 40*s));
-  ImGui::Text("%s:", hotkey[editingHotkey].name);
-  ImGui::SameLine();
-  ImGui::TextWrapped("%s", hotkey[editingHotkey].lib);
-  ImGui::EndChildFrame();
-  ImGui::SameLine();
-  int keyDownCount = 0;
-  for (auto d : keyDown)
-    keyDownCount += d ? 1 : 0;
-  if (ImGui::Button("clear", ImVec2(80*s, 40*s)))
-    memset(keyDown, 0, sizeof(keyDown));
-  ImGui::SameLine();
-  if (ImGui::Button("set", ImVec2(80*s, 40*s)))
-  {
-    int scanCodeCount = 0;
-    hotkey[editingHotkey].key[0] = 0;
-    hotkey[editingHotkey].key[1] = 0;
-    hotkey[editingHotkey].key[2] = 0;
-    hotkey[editingHotkey].key[3] = 0;
-    if(keyDownCount && keyDownCount <= 4) // else clear
-    for(uint32_t i = 1; i < sizeof(keyDown); i++)
-    {
-      if (keyDown[i])
-      {
-        if(scanCodeCount++)
-        {
-          uint16_t *k = hotkey[editingHotkey].key + scanCodeCount-1;
-          k[0] = i + ImGuiKey_NamedKey_BEGIN;
-          if(k[0] >= ImGuiKey_ModCtrl)
-          { // swap control/mod to beginning
-            uint16_t tmp = hotkey[editingHotkey].key[0];
-            hotkey[editingHotkey].key[0] = k[0];
-            k[0] = tmp;
-          }
-        }
-        else hotkey[editingHotkey].key[0] = i + ImGuiKey_NamedKey_BEGIN;
-      }
-    }
-  }
-  ImGui::SameLine(0.f, 20.f*s);
-
-  if (ImGui::Button("done", ImVec2(80*s, 40*s))) { ImGui::CloseCurrentPopup(); }
-  ImGui::EndGroup();
-  ImGui::EndPopup();
 #endif
+  nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
+  nk_label(ctx, "", 0);
+  nk_label(ctx, "", 0);
+  nk_label(ctx, "", 0);
+  if(selected >= 0)
+  {
+    if(nk_button_label(ctx, "set"))
+    {
+      hk[selected].key[0] = 0;
+      hk[selected].key[1] = 0;
+      hk[selected].key[2] = 0;
+      hk[selected].key[3] = 0;
+      g_hk_editing = selected;
+    }
+  } else nk_label(ctx, "", 0);
+
   int ret = 0;
-  if(nk_button_label(&vkdt.ctx, "done"))
-    ret = 1;
+  if(nk_button_label(&vkdt.ctx, "done")) ret = 1;
   return ret;
 }
 
@@ -361,5 +303,22 @@ hk_deserialise(const char *fn, hk_t *hk, int cnt)
           for(int k=0;k<4;k++) hk[i].key[k] = key[k];
     }
     fclose(f);
+  }
+}
+
+static inline void
+hk_keyboard(hk_t *hk, GLFWwindow *w, int key, int scancode, int action, int mods)
+{
+  if(g_hk_editing < 0) return;
+  if(action == GLFW_PRESS)
+  {
+    if(key == GLFW_KEY_ENTER)
+    { // done editing this hotkey
+      g_hk_editing = -1;
+      return;
+    }
+    int k = 0;
+    for(;k<4&&hk[g_hk_editing].key[k];k++) {}
+    if(k < 4) hk[g_hk_editing].key[k] = key;
   }
 }

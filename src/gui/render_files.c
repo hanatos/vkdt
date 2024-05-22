@@ -365,6 +365,8 @@ files_mouse_button(GLFWwindow *window, int button, int action, int mods)
 void
 files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+    return hk_keyboard(hk_files, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
   dt_filebrowser_widget_t *w = &filebrowser;
 
