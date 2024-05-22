@@ -116,8 +116,16 @@ void render_files()
   const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3}; // XXX padding?
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {ratio[0], ratio[0]};
-  if(nk_begin(ctx, "files panel right", bounds, 0))
+  const int disabled = vkdt.wstate.popup;
+  if(nk_begin(ctx, "files panel right", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   { // right panel
+    if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
+    {
+      if(nk_button_label(ctx, "hotkeys"))
+        dt_gui_edit_hotkeys();
+      nk_tree_pop(ctx);
+    }
+
     if(nk_tree_push(ctx, NK_TREE_TAB, "drives", NK_MINIMIZED))
     {
       static int cnt = 0;
@@ -275,7 +283,7 @@ void render_files()
 
   bounds = (struct nk_rect){vkdt.state.center_x, vkdt.state.center_ht, vkdt.state.center_wd, vkdt.state.center_y};
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
-  if(nk_begin(ctx, "files buttons", bounds, NK_WINDOW_NO_SCROLLBAR))
+  if(nk_begin(ctx, "files buttons", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // bottom panel with buttons
     nk_layout_row_dynamic(ctx, row_height, 5);
     nk_label(ctx, "", 0); nk_label(ctx, "", 0); nk_label(ctx, "", 0);
@@ -295,7 +303,7 @@ void render_files()
   }
 
   bounds = (struct nk_rect){vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht-vkdt.state.center_y};
-  if(nk_begin(ctx, "files center", bounds, NK_WINDOW_NO_SCROLLBAR))
+  if(nk_begin(ctx, "files center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   {
     dt_filebrowser(&filebrowser, 'f');
     // draw context sensitive help overlay
@@ -304,6 +312,20 @@ void render_files()
     nk_end(ctx);
   } // end center window
   nk_style_pop_style_item(&vkdt.ctx);
+
+  // popup windows
+  bounds = nk_rect(vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,
+    0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht);
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+  {
+    if(nk_begin(&vkdt.ctx, "edit files hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR))
+    {
+      int ok = hk_edit(hk_files, NK_LEN(hk_files));
+      if(ok) vkdt.wstate.popup = 0;
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
 }
 
 void
