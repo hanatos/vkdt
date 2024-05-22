@@ -676,18 +676,16 @@ void render_darkroom()
         }
         nk_tree_pop(ctx);
       }
-#if 0
-      if(nk_tree_push(ctx, NK_TREE_TAB, "animation", NK_MINIMIZED))
+
+      if(nk_tree_push(ctx, NK_TREE_TAB, "presets", NK_MINIMIZED))
       {
-          ImVec2 size((vkdt.state.panel_wd-4)/2, 0);
-          if(ImGui::Button("create preset", size))
-            gui.hotkey = s_hotkey_create_preset;
-          ImGui::SameLine();
-          if(ImGui::Button("apply preset", size))
-            gui.hotkey = s_hotkey_apply_preset;
+        nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+        if(nk_button_label(ctx, "create preset"))
+          dt_gui_dr_preset_create();
+        if(nk_button_label(ctx, "apply preset"))
+          dt_gui_dr_preset_apply();
         nk_tree_pop(ctx);
       }
-#endif
     }
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
     nk_end(ctx);

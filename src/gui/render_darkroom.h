@@ -1193,7 +1193,7 @@ render_darkroom_modals()
             if(select_all == 2) sel[i] = 0;
             const int selected = sel[i];
             if(selected)
-              nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color((struct nk_color){0x99, 0x77, 0x11, 0xff}));
+              nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
             dt_tooltip(selected ? "click to drop from preset" : "click to include in preset");
             if(nk_button_label(&vkdt.ctx, line[i])) sel[i] ^= 1;
             if(selected) nk_style_pop_style_item(&vkdt.ctx);
