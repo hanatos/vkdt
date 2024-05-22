@@ -33,17 +33,18 @@ dt_draw_param_line(
     dt_module_t *mod,
     int          p)
 {
+  if(mod->param_keyframe[p] == 0xffff) return 0.0f; // module has some keyframes, but our parameter?
   struct nk_context *ctx = &vkdt.ctx;
+  static uint32_t drag_k = -1u, drag_mod = -1u;
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   const float ht = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   nk_layout_row_dynamic(ctx, ht, 1);
   struct nk_rect bounds = nk_widget_bounds(ctx);
-  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds)) // left click: move animation time
-    dt_gui_dr_anim_seek(screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds));
+  bounds.x += 0.11 * bounds.w; // move in a bit so we can read the labels
+  bounds.y += 0.05 * bounds.h;
+  bounds.h -= 0.1  * bounds.h;
+  nk_fill_rect(buf, bounds, 0, vkdt.style.colour[NK_COLOR_BUTTON]);
 
-  static uint32_t drag_k = -1u, drag_mod = -1u;
-  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
-   
-  if(mod->param_keyframe[p] == 0xffff) return 0.0f; // should never happen
   int modified = 0;
   char text[60];
   snprintf(text, sizeof(text), "%"PRItkn" %"PRItkn" %"PRItkn,
@@ -55,27 +56,38 @@ dt_draw_param_line(
     int k = key - mod->keyframe;
     float x = frame_to_screen(key->frame, mod->graph, bounds);
     float y = bounds.y+bounds.h/2.0;
-    dt_draw_quad(buf, x, y, bounds.h/2.0, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
+    dt_draw_quad(buf, x, y, bounds.h/2.5, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
     struct nk_rect bbk = {.x = x-ht/2.0, .y = y-ht/2.0, .w = ht, .h = ht};
     if(nk_input_is_mouse_hovering_rect(&ctx->input, bbk))
     {
+      nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, 0));
+      nk_style_push_vec2(ctx, &ctx->style.window.padding, nk_vec2(0, 0));
       if(nk_tooltip_begin(ctx, vkdt.state.panel_wd))
       {
-        nk_layout_row_static(ctx, ht, vkdt.state.panel_wd, 1);
+        nk_layout_row_static(ctx, vkdt.ctx.style.font->height, vkdt.state.panel_wd, 1);
         // TODO: echo more dimensions of the same parameter?
         nk_labelf(ctx, NK_TEXT_LEFT, "%"PRItkn " %f", dt_token_str(mod->so->param[p]->name), *((float*)mod->keyframe[k].data));
         nk_label(ctx, "right click to delete", NK_TEXT_LEFT);
         nk_label(ctx, "left click and drag to move", NK_TEXT_LEFT);
         nk_tooltip_end(ctx);
       }
+      nk_style_pop_vec2(ctx);
+      nk_style_pop_vec2(ctx);
     }
-    if (nk_input_has_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bbk))
+    if(nk_input_has_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, bbk, nk_true) && 
+       drag_k == -1u)
     { // set state: dragging keyframe k
       drag_k = k;
       drag_mod = mod-mod->graph->module;
     }
-    if (nk_input_has_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, bbk, nk_false) &&
-        drag_k == k && drag_mod == mod-mod->graph->module)
+    if(nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT) && 
+       drag_k == k && drag_mod == mod-mod->graph->module)
+    { // keep dragging along
+      mod->keyframe[k].frame = screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds);
+      modified = 1;
+    }
+    if(nk_input_is_mouse_released(&ctx->input, NK_BUTTON_LEFT) && 
+       drag_k == k && drag_mod == mod-mod->graph->module)
     { // drag finished
       mod->keyframe[k].frame = screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds);
       drag_k = drag_mod = -1u;
@@ -93,6 +105,9 @@ dt_draw_param_line(
 
   // fix keyframe list if we changed anything
   if(modified) dt_module_keyframe_post_update(mod);
+
+  if(!modified && nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds)) // left click: move animation time
+    dt_gui_dr_anim_seek(screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds));
 
   float x[4] = {
     frame_to_screen(mod->graph->frame, mod->graph, bounds), bounds.y,
@@ -167,6 +182,10 @@ dt_dopesheet()
     struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
     nk_layout_row_dynamic(ctx, row_height, 1);
     struct nk_rect bounds = nk_widget_bounds(ctx);
+    bounds.x += 0.11 * bounds.w; // move in a bit so we can read the labels
+    bounds.y += 0.05 * bounds.h;
+    bounds.h -= 0.1  * bounds.h;
+    nk_fill_rect(buf, bounds, 0, vkdt.style.colour[NK_COLOR_BUTTON]);
     if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds)) // left click: move animation time
       dt_gui_dr_anim_seek(screen_to_frame(ctx->input.mouse.pos.x, graph, bounds));
 

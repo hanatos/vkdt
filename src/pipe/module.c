@@ -201,16 +201,16 @@ void dt_module_keyframe_post_update(dt_module_t *mod)
       if(mod->keyframe[k].param == mod->so->param[p]->name)
       {
         if(mod->param_keyframe[p] == 0xffff)
-        {
+        { // no keyframe in the chain yet, set first one:
           mod->param_keyframe[p] = k;
           mod->keyframe[k].next = 0;
         }
         else
         { // insert into chain in the right place
           dt_keyframe_t *key = mod->keyframe + mod->param_keyframe[p];
-          while(key->frame > mod->keyframe[k].frame)
+          while(key->next && key->frame > mod->keyframe[k].frame)
             key = key->next;
-          // now key->frame is < than ours for the first time
+          // now key->frame is <= than ours for the first time, or we reached the end of the list
           mod->keyframe[k].next = key->next;
           key->next = mod->keyframe+k;
         }
