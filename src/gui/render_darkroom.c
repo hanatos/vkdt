@@ -85,9 +85,6 @@ static struct gui_state_data_t
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
-    return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
-  if(dt_gui_input_blocked()) return;
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {
@@ -102,7 +99,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     {
       dt_gui_ungrab_mouse();
       p.type = -1; // disconnect event
-      // dt_gui_dr_toggle_fullscreen_view(); // bring panels back
+      dt_gui_dr_unset_fullscreen_view();
     }
     if(vkdt.wstate.active_widget_modid >= 0)
     {
@@ -111,11 +108,13 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     }
     return; // grabbed, don't execute hotkeys
   }
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+    return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
+  if(dt_gui_input_blocked()) return;
 
   if(vkdt.wstate.active_widget_modid >= 0) return; // active widget grabs controls
   if(action != GLFW_PRESS) return; // only handle key down events
 
-  gui.hotkey = -1; // XXX or if no popup is open:
   gui.hotkey = hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key);
   switch(gui.hotkey)
   { // these are "destructive" hotkeys, they change the image and invalidate the dset.

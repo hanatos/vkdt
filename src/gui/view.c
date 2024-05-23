@@ -116,19 +116,19 @@ dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods
 {
   switch(vkdt.view_mode)
   {
-  case s_view_darkroom:
-    darkroom_keyboard(window, key, scancode, action, mods);
-    break;
-  case s_view_lighttable:
-    lighttable_keyboard(window, key, scancode, action, mods);
-    break;
-  case s_view_files:
-    files_keyboard(window, key, scancode, action, mods);
-    break;
-  case s_view_nodes:
-    nodes_keyboard(window, key, scancode, action, mods);
-    break;
-  default:;
+    case s_view_darkroom:
+      darkroom_keyboard(window, key, scancode, action, mods);
+      break;
+    case s_view_lighttable:
+      lighttable_keyboard(window, key, scancode, action, mods);
+      break;
+    case s_view_files:
+      files_keyboard(window, key, scancode, action, mods);
+      break;
+    case s_view_nodes:
+      nodes_keyboard(window, key, scancode, action, mods);
+      break;
+    default:;
   }
 }
 

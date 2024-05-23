@@ -126,9 +126,7 @@ toggle_fullscreen()
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-  if(!vkdt.wstate.grabbed
-    && (!vkdt.ctx.current || !vkdt.ctx.current->edit.active)) // XXX what is the right way of doing this?
-    dt_view_keyboard(window, key, scancode, action, mods);
+  dt_view_keyboard(window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_ESCAPE) // TODO: or gamepad equivalent
   {

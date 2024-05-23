@@ -303,15 +303,13 @@ void dt_gui_cleanup_nk()
 void dt_gui_grab_mouse()
 {
   // TODO vkdt.ctx.input.mouse.grab (then takes care of cursor too)
-  // glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-  // XXX need this mirror?
+  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   vkdt.wstate.grabbed = 1;
 }
 
 void dt_gui_ungrab_mouse()
 {
-  // glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-  // XXX need this mirror?
+  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   vkdt.wstate.grabbed = 0;
   dt_gui_dr_unset_fullscreen_view();
 }
