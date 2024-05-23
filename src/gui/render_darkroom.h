@@ -150,375 +150,15 @@ static inline void render_darkroom_widget(int modid, int parid)
   char str[10] = { 0 };
   memcpy(str, &param->name, 8);
   // distinguish by type:
-  switch(param->widget.type)
+  if(param->widget.type == dt_token("slider"))
   {
-    case dt_token("slider"):
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    if(param->type == dt_token("float"))
     {
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-      if(param->type == dt_token("float"))
-      {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        float oldval = *val;
-        RESETBLOCK
-        nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .01);
-        if(*val != oldval) change = 1;
-        if(change)
-        {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-      }
-      else if(param->type == dt_token("int"))
-      {
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        int32_t oldval = *val;
-        RESETBLOCK
-        nk_property_int(ctx, "#", param->widget.min, val, param->widget.max, 1, 0.1);
-        if(*val != oldval) change = 1;
-        if(change)
-        {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-      }
-      dt_tooltip(param->tooltip);
-      KEYFRAME
-      nk_label(ctx, str, NK_TEXT_LEFT);
-      break;
-    }
-    case dt_token("coledit"):
-    { // only works for param->type == float and count == 3
-      if((num % 3) == 0)
-      {
-        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-        struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        struct nk_colorf oldval = *val;
-        float size = nk_widget_width(ctx);
-        RESETBLOCK
-        if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(size, size)))
-        {
-          nk_layout_row_dynamic(ctx, size * 0.2, 1);
-          *val = nk_color_picker(ctx, *val, NK_RGB);
-          nk_layout_row_dynamic(ctx, size/16.0, 1);
-          val->r = nk_propertyf(ctx, "#R:", 0, val->r, 1.0f, 0.01f, 0.005f);
-          val->g = nk_propertyf(ctx, "#G:", 0, val->g, 1.0f, 0.01f, 0.005f);
-          val->b = nk_propertyf(ctx, "#B:", 0, val->b, 1.0f, 0.01f, 0.005f);
-          nk_combo_end(ctx);
-        }
-        if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
-        if(change)
-        {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        dt_tooltip(param->tooltip);
-        KEYFRAME
-        nk_label(ctx, str, NK_TEXT_LEFT);
-      }
-      break;
-    }
-#if 0
-    case dt_token("vslider"):
-    {
-      if(param->type == dt_token("float"))
-      {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        float oldval = *val;
-        if(count == 3)
-        { // assume rgb vsliders
-          ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
-          ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
-          ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
-          ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
-          if(ImGui::VSliderFloat("##v",
-                ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
-                param->widget.min, param->widget.max, ""))
-          RESETBLOCK {
-            if(io.KeyShift) // lockstep all three if shift is pressed
-              for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
-            dt_graph_run_t flags = s_graph_run_none;
-            if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                s_graph_run_record_cmd_buf | flags);
-            vkdt.graph_dev.active_module = modid;
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
-          KEYFRAME
-          if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-            dt_gui_set_tooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
-
-          ImGui::PopStyleColor(4);
-          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-              num < count - 1) ImGui::SameLine();
-        }
-        else
-        {
-          if(ImGui::VSliderFloat("##v",
-                ImVec2(vkdt.state.panel_wd / (count+1.0), vkdt.state.panel_ht * 0.2), val,
-                param->widget.min, param->widget.max, ""))
-          RESETBLOCK {
-            if(io.KeyShift) // lockstep all three if shift is pressed
-              for(int k=0;k<count;k++) val[k-num] = val[0];
-            dt_graph_run_t flags = s_graph_run_none;
-            if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-            vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-                s_graph_run_record_cmd_buf | flags);
-            vkdt.graph_dev.active_module = modid;
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
-          KEYFRAME
-          TOOLTIP
-
-          if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-              num < count - 1) ImGui::SameLine();
-        }
-      }
-      break;
-    }
-#endif
-    case dt_token("bitmask"):
-    { // select named entries of a bitmask
-      if(param->type == dt_token("int"))
-      {
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        int32_t oldval = *val;
-        nk_layout_row_dynamic(ctx, row_height, 1);
-        RESETBLOCK
-        dt_tooltip(param->tooltip);
-        nk_labelf(ctx, NK_TEXT_LEFT, "%s = 0x%x", str, val[0]);
-        const char *c = (const char *)param->widget.data;
-        nk_layout_row_dynamic(ctx, row_height, 8);
-        for(int k=0;k<32;k++)
-        {
-          const int sel = val[0] & (1<<k);
-          if(sel) nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.wstate.fontsize*0.2);
-          char label[10];
-          snprintf(label, sizeof(label), "%d", k);
-          dt_tooltip(c);
-          if(nk_button_label(ctx, label)) { val[0] ^= (1<<k); change = 1; }
-          if(sel) nk_style_pop_float(ctx);
-
-          for(;*c!=0;c++);
-          c++;
-          if(*c == 0) break; // no more named bits in mask
-        }
-
-        if(change)
-        {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          vkdt.wstate.busy += 2;
-        }
-      }
-      break;
-    }
-    case dt_token("callback"):
-    { // special callback button
-      if(num == 0)
-      {
-        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-        if(nk_button_label(ctx, str))
-        {
-          dt_module_t *m = vkdt.graph_dev.module+modid;
-          if(m->so->ui_callback) m->so->ui_callback(m, param->name);
-          // TODO: probably needs a history item appended. for all parameters?
-        }
-        dt_tooltip(param->tooltip);
-        KEYFRAME
-        if(param->type == dt_token("string"))
-        {
-          char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-          nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
-        }
-        else nk_label(ctx, "", NK_TEXT_LEFT);
-      }
-      break;
-    }
-    case dt_token("combo"):
-    { // combo box
-      if(param->type == dt_token("int"))
-      {
-        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-        int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-        int32_t oldval = *val;
-        RESETBLOCK
-        struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
-        nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0x7fff, row_height, size);
-        if(oldval != *val) change = 1;
-        if(change)
-        {
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          vkdt.wstate.busy += 2;
-        }
-        dt_tooltip(param->tooltip);
-        KEYFRAME
-        nk_label(ctx, str, NK_TEXT_LEFT);
-      }
-      break;
-    }
-    case dt_token("colour"):
-    {
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
-      nk_layout_row_dynamic(ctx, row_height, 6);
-      struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
-      dt_tooltip(param->tooltip);
-      nk_button_color(ctx, col);
-      break;
-    }
-    case dt_token("pers"):
-    {
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-      const float aspect = iwd/iht;
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        int accept = 0;
-#if 0 // TODO: port gamepad interaction
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-        {
-          vkdt.wstate.selected ++;
-          if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-        }
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
-          accept = 1;
-        const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
-        if(vkdt.wstate.selected >= 0 && axes)
-        {
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-          float inc[2] = {
-              0.002f/scale * SMOOTH(axes[3]),
-              0.002f/scale * SMOOTH(axes[4])};
-#undef SMOOTH
-          dt_gui_dr_pers_adjust(inc, 1);
-        }
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
-        {
-          dt_gamepadhelp_pop();
-          dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
-          widget_abort();
-        }
-#endif
-        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
-        if(nk_button_label(ctx, string) || accept)
-        {
-          dt_gamepadhelp_pop();
-          dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
-          dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        nk_style_pop_style_item(ctx);
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        if(nk_button_label(ctx, string))
-        {
-          dt_gamepadhelp_push();
-          dt_gamepadhelp_clear();
-          dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
-          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          // copy to quad state
-          memcpy(vkdt.wstate.state, v, sizeof(float)*8);
-          float rot = dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("rotate")))[0];
-          dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), 0.0f);
-          vkdt.wstate.state[9] = rot;
-          // reset module params so the image will not appear cropped:
-          float defc[] = {
-            .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
-            .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
-            .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
-            .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
-          memcpy(vkdt.wstate.state+10, dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("crop"))), sizeof(float)*4);
-          dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), defc, 4);
-          // reset module params so the image will not appear distorted:
-          float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
-          memcpy(v, def, sizeof(float)*8);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_widget_t *w = &vkdt.wstate.img_widget;
-          w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
-        }
-        RESETBLOCK
-        if(change)
-        {
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
-        }
-        dt_tooltip(param->tooltip);
-        nk_label(ctx, str, NK_TEXT_LEFT);
-      }
-      num = count;
-      break;
-    }
-    case dt_token("straight"):
-    { // horizon line straighten tool for rotation
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       float oldval = *val;
-      const float rat3[] = {0.3f, 0.4f, 0.3f};
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
-
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
-        if(nk_button_label(ctx, "done"))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        nk_style_pop_style_item(ctx);
-      }
-      else
-      {
-        dt_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
-        if(nk_button_label(ctx, "straighten"))
-        {
-          widget_end();
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          vkdt.wstate.active_widget_parsz = sizeof(float);
-          vkdt.wstate.selected = -1;
-          memcpy(vkdt.wstate.state, val, sizeof(float));
-        }
-      }
-
-      // full manual control over parameter using the slider:
       RESETBLOCK
-      nk_property_float(ctx, "#", 0.0f, val, 360.0f, 0.1, .01);
+      nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .01);
       if(*val != oldval) change = 1;
       if(change)
       {
@@ -529,255 +169,602 @@ static inline void render_darkroom_widget(int modid, int parid)
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
+    }
+    else if(param->type == dt_token("int"))
+    {
+      int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      int32_t oldval = *val;
+      RESETBLOCK
+      nk_property_int(ctx, "#", param->widget.min, val, param->widget.max, 1, 0.1);
+      if(*val != oldval) change = 1;
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+    }
+    dt_tooltip(param->tooltip);
+    KEYFRAME
+    nk_label(ctx, str, NK_TEXT_LEFT);
+  }
+  else if(param->widget.type == dt_token("coledit"))
+  { // only works for param->type == float and count == 3
+    if((num % 3) == 0)
+    {
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      struct nk_colorf oldval = *val;
+      float size = nk_widget_width(ctx);
+      RESETBLOCK
+      if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(size, size)))
+      {
+        nk_layout_row_dynamic(ctx, size * 0.2, 1);
+        *val = nk_color_picker(ctx, *val, NK_RGB);
+        nk_layout_row_dynamic(ctx, size/16.0, 1);
+        val->r = nk_propertyf(ctx, "#R:", 0, val->r, 1.0f, 0.01f, 0.005f);
+        val->g = nk_propertyf(ctx, "#G:", 0, val->g, 1.0f, 0.01f, 0.005f);
+        val->b = nk_propertyf(ctx, "#B:", 0, val->b, 1.0f, 0.01f, 0.005f);
+        nk_combo_end(ctx);
+      }
+      if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
       dt_tooltip(param->tooltip);
       KEYFRAME
       nk_label(ctx, str, NK_TEXT_LEFT);
-      break;
     }
-    case dt_token("crop"):
+  }
+#if 0
+  else if(param->widget.type == dt_token("vslider"))
+  {
+    if(param->type == dt_token("float"))
     {
-      const float rat3[] = {0.3f, 0.4f, 0.3f};
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-      const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-      const float aspect = iwd/iht;
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        int accept = 0;
-#if 0 // TODO port gamepad controls
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-        {
-          vkdt.wstate.selected ++;
-          if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-        }
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
-          accept = 1;
-
-        int axes_cnt = 0;
-        const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-        const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-        if(vkdt.wstate.selected >= 0 && axes)
-          dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
-#undef SMOOTH
-        // TODO: at least make keyboard interaction work
-        if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-           ImGui::IsKeyPressed(ImGuiKey_Escape)||
-           ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-        {
-          widget_abort();
-          dt_gamepadhelp_pop();
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
-        }
-#endif
-        snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
-        if(nk_button_label(ctx, string) || accept)
-        {
-          vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
-          vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
-          vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
-          vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
-          widget_end();
-          dt_gamepadhelp_pop();
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      float oldval = *val;
+      if(count == 3)
+      { // assume rgb vsliders
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
+        if(ImGui::VSliderFloat("##v",
+              ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
+              param->widget.min, param->widget.max, ""))
+        RESETBLOCK {
+          if(io.KeyShift) // lockstep all three if shift is pressed
+            for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              s_graph_run_record_cmd_buf | flags);
+          vkdt.graph_dev.active_module = modid;
           dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
-        nk_style_pop_style_item(ctx);
+        KEYFRAME
+        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+          dt_gui_set_tooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
+
+        ImGui::PopStyleColor(4);
+        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+            num < count - 1) ImGui::SameLine();
       }
       else
       {
-        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        if(nk_button_label(ctx, string))
-        {
-          dt_gamepadhelp_push();
-          dt_gamepadhelp_clear();
-          dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
-          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          // copy to quad state
-          memcpy(vkdt.wstate.state, v, sizeof(float)*4);
-
-          // the values we draw are relative to output of the whole pipeline,
-          // but the coordinates of crop are relative to the *input*
-          // coordinates of the module!
-          // the output is the anticipated output while we switched off crop, i.e
-          // using the default values to result in a square of max(iwd, iht)^2
-          // first convert these v[] from input w/h to output w/h of the module:
-          const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
-          const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
-          const float owd = MAX(iwd, iht);
-          const float oht = MAX(iwd, iht);
-          float *c = vkdt.wstate.state;
-          if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
-          {
-            c[0] = c[2] = 0.0f;
-            c[1] = c[3] = 1.0f;
-          }
-          vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
-          vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
-          vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);
-          vkdt.wstate.state[3] = .5f +  iht/oht * (vkdt.wstate.state[3] - .5f);
-
-          // reset module params so the image will not appear cropped:
-          float def[] = {
-            .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
-            .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
-            .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
-            .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
-          memcpy(v, def, sizeof(float)*4);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_widget_t *w = &vkdt.wstate.img_widget;
-          w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
+        if(ImGui::VSliderFloat("##v",
+              ImVec2(vkdt.state.panel_wd / (count+1.0), vkdt.state.panel_ht * 0.2), val,
+              param->widget.min, param->widget.max, ""))
+        RESETBLOCK {
+          if(io.KeyShift) // lockstep all three if shift is pressed
+            for(int k=0;k<count;k++) val[k-num] = val[0];
+          dt_graph_run_t flags = s_graph_run_none;
+          if(vkdt.graph_dev.module[modid].so->check_params)
+            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
+              s_graph_run_record_cmd_buf | flags);
+          vkdt.graph_dev.active_module = modid;
+          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         }
+        KEYFRAME
+        TOOLTIP
+
+        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
+            num < count - 1) ImGui::SameLine();
       }
-      nk_property_float(ctx, "#aspect", 0.0, &vkdt.wstate.aspect, 10.0, 0.1, .001);
+    }
+  }
+#endif
+  else if(param->widget.type == dt_token("bitmask"))
+  { // select named entries of a bitmask
+    if(param->type == dt_token("int"))
+    {
+      int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      int32_t oldval = *val;
+      nk_layout_row_dynamic(ctx, row_height, 1);
+      RESETBLOCK
+      dt_tooltip(param->tooltip);
+      nk_labelf(ctx, NK_TEXT_LEFT, "%s = 0x%x", str, val[0]);
+      const char *c = (const char *)param->widget.data;
+      nk_layout_row_dynamic(ctx, row_height, 8);
+      for(int k=0;k<32;k++)
+      {
+        const int sel = val[0] & (1<<k);
+        if(sel) nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.wstate.fontsize*0.2);
+        char label[10];
+        snprintf(label, sizeof(label), "%d", k);
+        dt_tooltip(c);
+        if(nk_button_label(ctx, label)) { val[0] ^= (1<<k); change = 1; }
+        if(sel) nk_style_pop_float(ctx);
+
+        for(;*c!=0;c++);
+        c++;
+        if(*c == 0) break; // no more named bits in mask
+      }
+
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        vkdt.wstate.busy += 2;
+      }
+    }
+  }
+  else if(param->widget.type == dt_token("callback"))
+  { // special callback button
+    if(num == 0)
+    {
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      if(nk_button_label(ctx, str))
+      {
+        dt_module_t *m = vkdt.graph_dev.module+modid;
+        if(m->so->ui_callback) m->so->ui_callback(m, param->name);
+        // TODO: probably needs a history item appended. for all parameters?
+      }
+      dt_tooltip(param->tooltip);
+      KEYFRAME
+      if(param->type == dt_token("string"))
+      {
+        char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
+        nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
+      }
+      else nk_label(ctx, "", NK_TEXT_LEFT);
+    }
+  }
+  else if(param->widget.type == dt_token("combo"))
+  { // combo box
+    if(param->type == dt_token("int"))
+    {
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      int32_t oldval = *val;
+      RESETBLOCK
+      struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
+      nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0x7fff, row_height, size);
+      if(oldval != *val) change = 1;
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        vkdt.wstate.busy += 2;
+      }
+      dt_tooltip(param->tooltip);
+      KEYFRAME
+      nk_label(ctx, str, NK_TEXT_LEFT);
+    }
+  }
+  else if(param->widget.type == dt_token("colour"))
+  {
+    float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+    snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
+    nk_layout_row_dynamic(ctx, row_height, 6);
+    struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
+    dt_tooltip(param->tooltip);
+    nk_button_color(ctx, col);
+  }
+  else if(param->widget.type == dt_token("pers"))
+  {
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+    const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
+    const float aspect = iwd/iht;
+    if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+    {
+      int accept = 0;
+#if 0 // TODO: port gamepad interaction
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
+      {
+        vkdt.wstate.selected ++;
+        if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
+      }
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
+        accept = 1;
+      const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
+      if(vkdt.wstate.selected >= 0 && axes)
+      {
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+        float inc[2] = {
+            0.002f/scale * SMOOTH(axes[3]),
+            0.002f/scale * SMOOTH(axes[4])};
+#undef SMOOTH
+        dt_gui_dr_pers_adjust(inc, 1);
+      }
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
+      {
+        dt_gamepadhelp_pop();
+        dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
+        widget_abort();
+      }
+#endif
+      snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, string) || accept)
+      {
+        dt_gamepadhelp_pop();
+        dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
+        dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+    else
+    {
+      snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+      if(nk_button_label(ctx, string))
+      {
+        dt_gamepadhelp_push();
+        dt_gamepadhelp_clear();
+        dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
+        dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
+        dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
+        dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = 0;
+        vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+        // copy to quad state
+        memcpy(vkdt.wstate.state, v, sizeof(float)*8);
+        float rot = dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("rotate")))[0];
+        dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), 0.0f);
+        vkdt.wstate.state[9] = rot;
+        // reset module params so the image will not appear cropped:
+        float defc[] = {
+          .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
+          .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
+          .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
+          .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
+        memcpy(vkdt.wstate.state+10, dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("crop"))), sizeof(float)*4);
+        dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), defc, 4);
+        // reset module params so the image will not appear distorted:
+        float def[] = {0.f, 0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f};
+        memcpy(v, def, sizeof(float)*8);
+        vkdt.graph_dev.runflags = s_graph_run_all;
+        dt_image_widget_t *w = &vkdt.wstate.img_widget;
+        w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
+      }
       RESETBLOCK
       if(change)
       {
         vkdt.graph_dev.runflags = s_graph_run_all;
         dt_image_reset_zoom(&vkdt.wstate.img_widget);
       }
-      KEYFRAME
-      dt_module_t *m = vkdt.graph_dev.module+modid;
-      if(m->so->ui_callback)
-      {
-        dt_tooltip("automatically crop away black rims");
-        if(nk_button_label(ctx, "auto crop"))
-        {
-          m->so->ui_callback(m, param->name);
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-      }
-      else
-      {
-        dt_tooltip(param->tooltip);
-        nk_label(ctx, str, NK_TEXT_LEFT);
-      }
-      num = count;
-      break;
-    }
-    case dt_token("pick"):  // simple aabb for selection, no distortion transform
-    {
-      int sz = dt_ui_param_size(param->type, 4);
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      nk_layout_row_dynamic(ctx, row_height, 6);
       dt_tooltip(param->tooltip);
-      if(vkdt.wstate.active_widget_modid == modid &&
-         vkdt.wstate.active_widget_parid == parid &&
-         vkdt.wstate.active_widget_parnm == num)
-      {
-        snprintf(string, sizeof(string), "done");
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
-        if(nk_button_label(ctx, string))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        nk_style_pop_style_item(ctx);
-      }
-      else
-      {
-        snprintf(string, sizeof(string), "%02d", num);
-        if(nk_button_label(ctx, string))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = num;
-          vkdt.wstate.active_widget_parsz = sz;
-          // copy to quad state
-          memcpy(vkdt.wstate.state, v, sz);
-        }
-      }
-      break;
+      nk_label(ctx, str, NK_TEXT_LEFT);
     }
-    case dt_token("rbmap"): // red/blue chromaticity mapping via src/target coordinates
+    num = count;
+  }
+  else if(param->widget.type == dt_token("straight"))
+  { // horizon line straighten tool for rotation
+    float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+    float oldval = *val;
+    const float rat3[] = {0.3f, 0.4f, 0.3f};
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
+
+    if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
-      if(6*(num / 6) == num) nk_layout_row_dynamic(ctx, row_height, 6);
-      int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){255*v[0], 255*v[1], 255*v[2], 0xff}));
-      nk_style_push_color(ctx, &ctx->style.button.border_color, (struct nk_color){255*v[3], 255*v[4], 255*v[5], 0xff});
-      nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.state.panel_wd);
-      if(vkdt.wstate.active_widget_modid == modid &&
-         vkdt.wstate.active_widget_parid == parid &&
-         vkdt.wstate.active_widget_parnm == num)
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, "done"))
       {
-        snprintf(string, sizeof(string), "done");
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
-        if(nk_button_label(ctx, string))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        nk_style_pop_style_item(ctx);
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
-      else
-      {
-        snprintf(string, sizeof(string), "%02d", num);
-        if(nk_button_label(ctx, string))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = num;
-          vkdt.wstate.active_widget_parsz = 0;
-        }
-        count *= 6; // keyframe needs to know it's 6 floats too
-        KEYFRAME
-        count /= 6;
-      }
-      nk_style_pop_float(ctx);
-      nk_style_pop_color(ctx);
       nk_style_pop_style_item(ctx);
-      if(num == count - 1)
-      { // edit specific colour patch below list of patches:
-        if(vkdt.wstate.active_widget_modid == modid &&
-           vkdt.wstate.active_widget_parid == parid)
-        { // now add ability to change target colour coordinate
-          int active_num = vkdt.wstate.active_widget_parnm;
-          nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-          for(int i=0;i<3;i++)
+    }
+    else
+    {
+      dt_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
+      if(nk_button_label(ctx, "straighten"))
+      {
+        widget_end();
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = 0;
+        vkdt.wstate.active_widget_parsz = sizeof(float);
+        vkdt.wstate.selected = -1;
+        memcpy(vkdt.wstate.state, val, sizeof(float));
+      }
+    }
+
+    // full manual control over parameter using the slider:
+    RESETBLOCK
+    nk_property_float(ctx, "#", 0.0f, val, 360.0f, 0.1, .01);
+    if(*val != oldval) change = 1;
+    if(change)
+    {
+      dt_graph_run_t flags = s_graph_run_none;
+      if(vkdt.graph_dev.module[modid].so->check_params)
+        flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+      vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+      vkdt.graph_dev.active_module = modid;
+      dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+    }
+    dt_tooltip(param->tooltip);
+    KEYFRAME
+    nk_label(ctx, str, NK_TEXT_LEFT);
+  }
+  else if(param->widget.type == dt_token("crop"))
+  {
+    const float rat3[] = {0.3f, 0.4f, 0.3f};
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+    const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
+    const float aspect = iwd/iht;
+    if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+    {
+      int accept = 0;
+#if 0 // TODO port gamepad controls
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
+      {
+        vkdt.wstate.selected ++;
+        if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
+      }
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
+        accept = 1;
+
+      int axes_cnt = 0;
+      const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
+      const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+      if(vkdt.wstate.selected >= 0 && axes)
+        dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
+#undef SMOOTH
+      // TODO: at least make keyboard interaction work
+      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
+         ImGui::IsKeyPressed(ImGuiKey_Escape)||
+         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
+      {
+        widget_abort();
+        dt_gamepadhelp_pop();
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
+      }
+#endif
+      snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, string) || accept)
+      {
+        vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
+        vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
+        vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
+        vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
+        widget_end();
+        dt_gamepadhelp_pop();
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+    else
+    {
+      snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+      if(nk_button_label(ctx, string))
+      {
+        dt_gamepadhelp_push();
+        dt_gamepadhelp_clear();
+        dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
+        dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
+        dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
+        dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = 0;
+        vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+        // copy to quad state
+        memcpy(vkdt.wstate.state, v, sizeof(float)*4);
+
+        // the values we draw are relative to output of the whole pipeline,
+        // but the coordinates of crop are relative to the *input*
+        // coordinates of the module!
+        // the output is the anticipated output while we switched off crop, i.e
+        // using the default values to result in a square of max(iwd, iht)^2
+        // first convert these v[] from input w/h to output w/h of the module:
+        const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
+        const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
+        const float owd = MAX(iwd, iht);
+        const float oht = MAX(iwd, iht);
+        float *c = vkdt.wstate.state;
+        if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
+        {
+          c[0] = c[2] = 0.0f;
+          c[1] = c[3] = 1.0f;
+        }
+        vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
+        vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
+        vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);
+        vkdt.wstate.state[3] = .5f +  iht/oht * (vkdt.wstate.state[3] - .5f);
+
+        // reset module params so the image will not appear cropped:
+        float def[] = {
+          .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
+          .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
+          .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
+          .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
+        memcpy(v, def, sizeof(float)*4);
+        vkdt.graph_dev.runflags = s_graph_run_all;
+        dt_image_widget_t *w = &vkdt.wstate.img_widget;
+        w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
+      }
+    }
+    nk_property_float(ctx, "#aspect", 0.0, &vkdt.wstate.aspect, 10.0, 0.1, .001);
+    RESETBLOCK
+    if(change)
+    {
+      vkdt.graph_dev.runflags = s_graph_run_all;
+      dt_image_reset_zoom(&vkdt.wstate.img_widget);
+    }
+    KEYFRAME
+    dt_module_t *m = vkdt.graph_dev.module+modid;
+    if(m->so->ui_callback)
+    {
+      dt_tooltip("automatically crop away black rims");
+      if(nk_button_label(ctx, "auto crop"))
+      {
+        m->so->ui_callback(m, param->name);
+        dt_image_reset_zoom(&vkdt.wstate.img_widget);
+        vkdt.graph_dev.runflags = s_graph_run_all;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+    }
+    else
+    {
+      dt_tooltip(param->tooltip);
+      nk_label(ctx, str, NK_TEXT_LEFT);
+    }
+    num = count;
+  }
+  else if(param->widget.type == dt_token("pick"))
+  {  // simple aabb for selection, no distortion transform
+    int sz = dt_ui_param_size(param->type, 4);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
+    nk_layout_row_dynamic(ctx, row_height, 6);
+    dt_tooltip(param->tooltip);
+    if(vkdt.wstate.active_widget_modid == modid &&
+       vkdt.wstate.active_widget_parid == parid &&
+       vkdt.wstate.active_widget_parnm == num)
+    {
+      snprintf(string, sizeof(string), "done");
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, string))
+      {
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+    else
+    {
+      snprintf(string, sizeof(string), "%02d", num);
+      if(nk_button_label(ctx, string))
+      {
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = num;
+        vkdt.wstate.active_widget_parsz = sz;
+        // copy to quad state
+        memcpy(vkdt.wstate.state, v, sz);
+      }
+    }
+  }
+  else if(param->widget.type == dt_token("rbmap"))
+  { // red/blue chromaticity mapping via src/target coordinates
+    if(6*(num / 6) == num) nk_layout_row_dynamic(ctx, row_height, 6);
+    int sz = dt_ui_param_size(param->type, 6); // src rgb -> tgt rgb is six floats
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
+    nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){255*v[0], 255*v[1], 255*v[2], 0xff}));
+    nk_style_push_color(ctx, &ctx->style.button.border_color, (struct nk_color){255*v[3], 255*v[4], 255*v[5], 0xff});
+    nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.state.panel_wd);
+    if(vkdt.wstate.active_widget_modid == modid &&
+       vkdt.wstate.active_widget_parid == parid &&
+       vkdt.wstate.active_widget_parnm == num)
+    {
+      snprintf(string, sizeof(string), "done");
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, string))
+      {
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+    else
+    {
+      snprintf(string, sizeof(string), "%02d", num);
+      if(nk_button_label(ctx, string))
+      {
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = num;
+        vkdt.wstate.active_widget_parsz = 0;
+      }
+      count *= 6; // keyframe needs to know it's 6 floats too
+      KEYFRAME
+      count /= 6;
+    }
+    nk_style_pop_float(ctx);
+    nk_style_pop_color(ctx);
+    nk_style_pop_style_item(ctx);
+    if(num == count - 1)
+    { // edit specific colour patch below list of patches:
+      if(vkdt.wstate.active_widget_modid == modid &&
+         vkdt.wstate.active_widget_parid == parid)
+      { // now add ability to change target colour coordinate
+        int active_num = vkdt.wstate.active_widget_parnm;
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+        for(int i=0;i<3;i++)
+        {
+          float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
+          float oldval = *val;
+          const char *label[] = {"red", "green", "blue"};
+          // custom resetblock: set only this colour spot to identity mapping
+          if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx)))
           {
-            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
-            float oldval = *val;
-            const char *label[] = {"red", "green", "blue"};
-            // custom resetblock: set only this colour spot to identity mapping
-            if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx)))
-            {
-              memcpy(val-i, val-i-3, sizeof(float)*3);
-              change = 1;
-            }
-            nk_property_float(ctx, "#", 0.0, val, 1.0, 0.1, .001);
-            if(*val != oldval) change = 1;
-            if(change)
-            {
-              dt_graph_run_t flags = s_graph_run_none;
-              if(vkdt.graph_dev.module[modid].so->check_params)
-                flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-              vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
-              vkdt.graph_dev.active_module = modid;
-              dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-            }
-            nk_label(ctx, label[i], NK_TEXT_LEFT);
+            memcpy(val-i, val-i-3, sizeof(float)*3);
+            change = 1;
           }
+          nk_property_float(ctx, "#", 0.0, val, 1.0, 0.1, .001);
+          if(*val != oldval) change = 1;
+          if(change)
+          {
+            dt_graph_run_t flags = s_graph_run_none;
+            if(vkdt.graph_dev.module[modid].so->check_params)
+              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+            vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+            vkdt.graph_dev.active_module = modid;
+            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+          }
+          nk_label(ctx, label[i], NK_TEXT_LEFT);
         }
       }
-      break;
     }
-    case dt_token("grab"):  // grab all input
+  }
+  else if(param->widget.type == dt_token("grab"))
+  {  // grab all input
+    if(num == 0)
     {
-      if(num != 0) break;
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid)
@@ -819,136 +806,130 @@ static inline void render_darkroom_widget(int modid, int parid)
             if(mod->so->input) mod->so->input(mod, &p);
         }
       }
-      break;
     }
-    case dt_token("draw"):
+  }
+  else if(param->widget.type == dt_token("draw"))
+  {
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
+      snprintf(string, sizeof(string), "done");
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, string))
+      {
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+    else
+    {
+      snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
+      dt_tooltip("start drawing brush strokes with the mouse\n"
+          "scroll - fine tune radius\n"
+          "ctrl scroll - fine tune hardness\n"
+          "shift scroll - fine tune opacity\n"
+          "right click - discard last stroke");
+      if(nk_button_label(ctx, string))
+      {
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.state[0] = 1.0f; // abuse for radius
+        vkdt.wstate.state[1] = 1.0f; // abuse for opacity
+        vkdt.wstate.state[2] = 1.0f; // abuse for hardness
+        // get base radius from other param
+        int pid = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("radius"));
+        if(pid >= 0) vkdt.wstate.state[3] = dt_module_param_float(
+            vkdt.graph_dev.module+modid, pid)[0];
+        else vkdt.wstate.state[3] = 1.0;
+        vkdt.wstate.state[4] = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = 0;
+        // TODO: how to crop this to smaller size in case it's not required?
+        vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+        // for sanity also keep mapped_size to make clear that it belongs to the mapping, not the copy
+        vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
+        vkdt.wstate.mapped = v; // map state
+      }
+      KEYFRAME
+    }
+    if(vkdt.wstate.mapped)
+    {
+      nk_labelf(ctx, NK_TEXT_LEFT, "%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
+    }
+    num = count;
+  }
+  else if(param->widget.type == dt_token("filename"))
+  {
+    if(num == 0)
+    { // only show first, cnt refers to allocation length of string param
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-      float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
-      {
-        snprintf(string, sizeof(string), "done");
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){0xff,0xaa,0x33,0xff}));
-        if(nk_button_label(ctx, string))
-        {
-          widget_end();
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        nk_style_pop_style_item(ctx);
+      char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
+      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
+      if(ret & NK_EDIT_COMMITED)
+      { // kinda grave change, rerun all, but only if enter pressed
+        vkdt.graph_dev.runflags = s_graph_run_all;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
-      else
-      {
-        snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-        dt_tooltip("start drawing brush strokes with the mouse\n"
-            "scroll - fine tune radius\n"
-            "ctrl scroll - fine tune hardness\n"
-            "shift scroll - fine tune opacity\n"
-            "right click - discard last stroke");
-        if(nk_button_label(ctx, string))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.wstate.state[0] = 1.0f; // abuse for radius
-          vkdt.wstate.state[1] = 1.0f; // abuse for opacity
-          vkdt.wstate.state[2] = 1.0f; // abuse for hardness
-          // get base radius from other param
-          int pid = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("radius"));
-          if(pid >= 0) vkdt.wstate.state[3] = dt_module_param_float(
-              vkdt.graph_dev.module+modid, pid)[0];
-          else vkdt.wstate.state[3] = 1.0;
-          vkdt.wstate.state[4] = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          vkdt.wstate.active_widget_parnm = 0;
-          // TODO: how to crop this to smaller size in case it's not required?
-          vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-          // for sanity also keep mapped_size to make clear that it belongs to the mapping, not the copy
-          vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
-          vkdt.wstate.mapped = v; // map state
-        }
-        KEYFRAME
-      }
-      if(vkdt.wstate.mapped)
-      {
-        nk_labelf(ctx, NK_TEXT_LEFT, "%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
-      }
-      num = count;
-      break;
+      dt_tooltip(param->tooltip);
+      nk_label(ctx, str, NK_TEXT_LEFT);
     }
-    case dt_token("filename"):
+  }
+  else if(param->widget.type == dt_token("rgb"))
+  {
+    float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+    struct nk_color normal = {255*col[0], 255*col[1], 255*col[2], 0xff};
+    struct nk_color hover  = normal;
+    struct nk_color active = normal;
+    // questionable if separate hover/active makes much sense, it is separate for buttons and edit and bg and shows boxy artifacts
+    nk_style_push_style_item(ctx, &ctx->style.property.edit.normal,       nk_style_item_color(normal));
+    nk_style_push_style_item(ctx, &ctx->style.property.edit.hover,        nk_style_item_color(hover));
+    nk_style_push_style_item(ctx, &ctx->style.property.edit.active,       nk_style_item_color(active));
+    nk_style_push_style_item(ctx, &ctx->style.property.inc_button.normal, nk_style_item_color(normal));
+    nk_style_push_style_item(ctx, &ctx->style.property.inc_button.hover,  nk_style_item_color(hover));
+    nk_style_push_style_item(ctx, &ctx->style.property.inc_button.active, nk_style_item_color(active));
+    nk_style_push_style_item(ctx, &ctx->style.property.dec_button.normal, nk_style_item_color(normal));
+    nk_style_push_style_item(ctx, &ctx->style.property.dec_button.hover,  nk_style_item_color(hover));
+    nk_style_push_style_item(ctx, &ctx->style.property.dec_button.active, nk_style_item_color(active));
+    nk_style_push_style_item(ctx, &ctx->style.property.normal, nk_style_item_color(normal));
+    nk_style_push_style_item(ctx, &ctx->style.property.hover,  nk_style_item_color(hover));
+    nk_style_push_style_item(ctx, &ctx->style.property.active, nk_style_item_color(active));
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    for(int comp=0;comp<3;comp++)
     {
-      if(num == 0)
-      { // only show first, cnt refers to allocation length of string param
-        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-        char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
-        if(ret & NK_EDIT_COMMITED)
-        { // kinda grave change, rerun all, but only if enter pressed
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        dt_tooltip(param->tooltip);
-        nk_label(ctx, str, NK_TEXT_LEFT);
-      }
-      break;
-    }
-    case dt_token("rgb"):
-    {
-      float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-      struct nk_color normal = {255*col[0], 255*col[1], 255*col[2], 0xff};
-      struct nk_color hover  = normal;
-      struct nk_color active = normal;
-      // questionable if separate hover/active makes much sense, it is separate for buttons and edit and bg and shows boxy artifacts
-      nk_style_push_style_item(ctx, &ctx->style.property.edit.normal,       nk_style_item_color(normal));
-      nk_style_push_style_item(ctx, &ctx->style.property.edit.hover,        nk_style_item_color(hover));
-      nk_style_push_style_item(ctx, &ctx->style.property.edit.active,       nk_style_item_color(active));
-      nk_style_push_style_item(ctx, &ctx->style.property.inc_button.normal, nk_style_item_color(normal));
-      nk_style_push_style_item(ctx, &ctx->style.property.inc_button.hover,  nk_style_item_color(hover));
-      nk_style_push_style_item(ctx, &ctx->style.property.inc_button.active, nk_style_item_color(active));
-      nk_style_push_style_item(ctx, &ctx->style.property.dec_button.normal, nk_style_item_color(normal));
-      nk_style_push_style_item(ctx, &ctx->style.property.dec_button.hover,  nk_style_item_color(hover));
-      nk_style_push_style_item(ctx, &ctx->style.property.dec_button.active, nk_style_item_color(active));
-      nk_style_push_style_item(ctx, &ctx->style.property.normal, nk_style_item_color(normal));
-      nk_style_push_style_item(ctx, &ctx->style.property.hover,  nk_style_item_color(hover));
-      nk_style_push_style_item(ctx, &ctx->style.property.active, nk_style_item_color(active));
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-      for(int comp=0;comp<3;comp++)
-      {
-        float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
-        float oldval = *val;
-        snprintf(string, sizeof(string), "%" PRItkn " %s",
-            dt_token_str(param->name),
-            comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
-        RESETBLOCK
+      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
+      float oldval = *val;
+      snprintf(string, sizeof(string), "%" PRItkn " %s",
+          dt_token_str(param->name),
+          comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
+      RESETBLOCK
         nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
-        if(*val != oldval) change = 1;
-        if(change)
-        {
-          if(nk_input_is_key_pressed(&ctx->input, NK_KEY_SHIFT)) // lockstep all three if shift is pressed
-            for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        dt_tooltip(param->tooltip);
-        KEYFRAME
-        nk_label(ctx, string, NK_TEXT_LEFT);
+      if(*val != oldval) change = 1;
+      if(change)
+      {
+        if(nk_input_is_key_pressed(&ctx->input, NK_KEY_SHIFT)) // lockstep all three if shift is pressed
+          for(int k=3*(comp/3);k<3*(comp/3)+3;k++) val[k-comp] = val[0];
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
-      for(int i=0;i<12;i++) nk_style_pop_style_item(ctx);
-      if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
-      break;
+      dt_tooltip(param->tooltip);
+      KEYFRAME
+        nk_label(ctx, string, NK_TEXT_LEFT);
     }
-    case dt_token("print"):
-    {
-      nk_layout_row_dynamic(ctx, row_height, 1);
-      float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-      nk_labelf(ctx, NK_TEXT_LEFT, "%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
-      num = count; // we've done it all at once
-      break;
-    }
-    default:;
+    for(int i=0;i<12;i++) nk_style_pop_style_item(ctx);
+    if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
+  }
+  else if(param->widget.type == dt_token("print"))
+  {
+    nk_layout_row_dynamic(ctx, row_height, 1);
+    float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    nk_labelf(ctx, NK_TEXT_LEFT, "%g | %g | %g   %" PRItkn, val[0], val[1], val[2], dt_token_str(param->name));
+    num = count; // we've done it all at once
   }
   } // end for multiple widgets
 #undef RESETBLOCK

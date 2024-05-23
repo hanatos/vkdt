@@ -111,7 +111,15 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
 
-  if(vkdt.wstate.active_widget_modid >= 0) return; // active widget grabs controls
+  if(vkdt.wstate.active_widget_modid >= 0)
+  { // active widget grabs controls
+    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
+    { // abort all widget interaction
+      widget_end();
+    }
+    return;
+  }
+
   if(action != GLFW_PRESS) return; // only handle key down events
 
   gui.hotkey = hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key);

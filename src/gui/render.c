@@ -60,12 +60,12 @@ read_style_colours(struct nk_context *ctx)
   // see if we can find 
   FILE *f = 0;
   char filename[256];
-  snprintf(filename, sizeof(filename), "%s/style.txt", dt_pipe.homedir);
+  if(sizeof(filename) <= snprintf(filename, sizeof(filename), "%s/style.txt", dt_pipe.homedir)) return;
   f = fopen(filename, "rb");
   // global basedir
   if(!f)
   {
-    snprintf(filename, sizeof(filename), "%s/style.txt", dt_pipe.basedir);
+    if(sizeof(filename) <= snprintf(filename, sizeof(filename), "%s/style.txt", dt_pipe.basedir)) return;
     f = fopen(filename, "rb");
   }
   if(!f) return;
