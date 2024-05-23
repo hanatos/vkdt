@@ -784,7 +784,6 @@ static inline void render_darkroom_widget(int modid, int parid)
       {
         if(nk_button_label(ctx, "stop [esc]"))
         {
-          // dt_gui_dr_toggle_fullscreen_view();
           dt_module_t *mod = vkdt.graph_dev.module + modid;
           dt_module_input_event_t p = { .type = -1 };
           if(modid >= 0 && mod->so->input) mod->so->input(mod, &p);
@@ -794,18 +793,6 @@ static inline void render_darkroom_widget(int modid, int parid)
       else
       {
         dt_tooltip(param->tooltip);
-        if(nk_button_label(ctx, "grab input"))
-        {
-          widget_end(); // if another one is still in progress, end that now
-          vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
-          vkdt.wstate.active_widget_modid = modid;
-          vkdt.wstate.active_widget_parid = parid;
-          dt_module_input_event_t p = { 0 };
-          dt_module_t *mod = vkdt.graph_dev.module + modid;
-          dt_gui_grab_mouse();
-          if(modid >= 0)
-            if(mod->so->input) mod->so->input(mod, &p);
-        }
         if(nk_button_label(ctx, "grab fullscreen"))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -816,6 +803,18 @@ static inline void render_darkroom_widget(int modid, int parid)
           dt_module_t *mod = vkdt.graph_dev.module + modid;
           dt_gui_grab_mouse();
           dt_gui_dr_set_fullscreen_view();
+          if(modid >= 0)
+            if(mod->so->input) mod->so->input(mod, &p);
+        }
+        if(nk_button_label(ctx, "grab input"))
+        {
+          widget_end(); // if another one is still in progress, end that now
+          vkdt.state.anim_no_keyframes = 1; // switch off animation, we will be moving ourselves
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          dt_module_input_event_t p = { 0 };
+          dt_module_t *mod = vkdt.graph_dev.module + modid;
+          dt_gui_grab_mouse();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
         }
