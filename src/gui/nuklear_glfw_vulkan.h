@@ -40,7 +40,7 @@ NK_API void nk_glfw3_create_cmd(
 NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
                             uint32_t framebuffer_height);
 NK_API void nk_glfw3_device_destroy(void);
-NK_API void nk_glfw3_device_create(
+NK_API VkResult nk_glfw3_device_create(
     VkRenderPass render_pass,
     VkDevice logical_device, VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
@@ -250,11 +250,10 @@ nk_glfw3_create_buffer_and_memory(
     return result;
 }
 
-NK_INTERN void nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev)
+NK_INTERN VkResult nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev)
 {
   VkDescriptorPoolSize pool_sizes[2];
   VkDescriptorPoolCreateInfo pool_info;
-  VkResult result;
 
   memset(&pool_sizes, 0, sizeof(VkDescriptorPoolSize) * 2);
   pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -268,18 +267,16 @@ NK_INTERN void nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev)
   pool_info.pPoolSizes = pool_sizes;
   pool_info.maxSets = 1 + 1;
 
-  result = vkCreateDescriptorPool(
+  return vkCreateDescriptorPool(
       dev->logical_device, &pool_info, NULL,
       &dev->descriptor_pool);
-  NK_ASSERT(result == VK_SUCCESS);
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_create_uniform_descriptor_set_layout(struct nk_glfw_device *dev)
 {
   VkDescriptorSetLayoutBinding binding;
   VkDescriptorSetLayoutCreateInfo descriptor_set_info;
-  VkResult result;
 
   memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
   binding.binding = 0;
@@ -293,14 +290,11 @@ nk_glfw3_create_uniform_descriptor_set_layout(struct nk_glfw_device *dev)
   descriptor_set_info.bindingCount = 1;
   descriptor_set_info.pBindings = &binding;
 
-  result =
-    vkCreateDescriptorSetLayout(dev->logical_device, &descriptor_set_info,
+  return vkCreateDescriptorSetLayout(dev->logical_device, &descriptor_set_info,
         NULL, &dev->uniform_descriptor_set_layout);
-
-  NK_ASSERT(result == VK_SUCCESS);
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev)
 {
   VkDescriptorSetAllocateInfo allocate_info;
@@ -316,7 +310,7 @@ nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev)
 
   result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info,
       &dev->uniform_descriptor_set);
-  NK_ASSERT(result == VK_SUCCESS);
+  if(result != VK_SUCCESS) return result;
 
   memset(&buffer_info, 0, sizeof(VkDescriptorBufferInfo));
   buffer_info.buffer = dev->uniform_buffer;
@@ -333,14 +327,14 @@ nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev)
   descriptor_write.pBufferInfo = &buffer_info;
 
   vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
+  return VK_SUCCESS;
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_create_texture_descriptor_set_layout(struct nk_glfw_device *dev)
 {
   VkDescriptorSetLayoutBinding binding;
   VkDescriptorSetLayoutCreateInfo descriptor_set_info;
-  VkResult result;
 
   memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
   binding.binding = 0;
@@ -354,9 +348,10 @@ nk_glfw3_create_texture_descriptor_set_layout(struct nk_glfw_device *dev)
   descriptor_set_info.bindingCount = 1;
   descriptor_set_info.pBindings = &binding;
 
-  result = vkCreateDescriptorSetLayout(
+  VkResult result = vkCreateDescriptorSetLayout(
       dev->logical_device, &descriptor_set_info,
       NULL, &dev->texture_descriptor_set_layout);
+  if(result != VK_SUCCESS) return result;
 
   NK_ASSERT(result == VK_SUCCESS);
 
@@ -366,16 +361,14 @@ nk_glfw3_create_texture_descriptor_set_layout(struct nk_glfw_device *dev)
     .descriptorSetCount = 1,
     .pSetLayouts        = &dev->texture_descriptor_set_layout,
   };
-  result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info, &dev->font_dset);
-  NK_ASSERT(result == VK_SUCCESS);
+  return vkAllocateDescriptorSets(dev->logical_device, &allocate_info, &dev->font_dset);
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_create_pipeline_layout(struct nk_glfw_device *dev)
 {
     VkPipelineLayoutCreateInfo pipeline_layout_info;
     VkDescriptorSetLayout descriptor_set_layouts[2];
-    VkResult result;
 
     descriptor_set_layouts[0] = dev->uniform_descriptor_set_layout;
     descriptor_set_layouts[1] = dev->texture_descriptor_set_layout;
@@ -392,16 +385,15 @@ nk_glfw3_create_pipeline_layout(struct nk_glfw_device *dev)
     pipeline_layout_info.pushConstantRangeCount = 1;
     pipeline_layout_info.pPushConstantRanges = &pcrange;
 
-    result = (vkCreatePipelineLayout(dev->logical_device, &pipeline_layout_info,
-                                     NULL, &dev->pipeline_layout));
-    NK_ASSERT(result == VK_SUCCESS);
+    return vkCreatePipelineLayout(dev->logical_device, &pipeline_layout_info,
+                                     NULL, &dev->pipeline_layout);
 }
 
 NK_INTERN VkPipelineShaderStageCreateInfo
 nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
                        uint32_t size, VkShaderStageFlagBits stage_bit) {
     VkShaderModuleCreateInfo create_info;
-    VkPipelineShaderStageCreateInfo shader_info;
+    VkPipelineShaderStageCreateInfo shader_info = {0};
     VkShaderModule module = NULL;
     VkResult result;
 
@@ -411,7 +403,7 @@ nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
     create_info.pCode = (const uint32_t *)spv_shader;
     result =
         vkCreateShaderModule(dev->logical_device, &create_info, NULL, &module);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return shader_info;
 
     memset(&shader_info, 0, sizeof(VkPipelineShaderStageCreateInfo));
     shader_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -421,7 +413,7 @@ nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
     return shader_info;
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
 {
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
@@ -541,59 +533,67 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
 
     result = vkCreateGraphicsPipelines(dev->logical_device, NULL, 1,
                                        &pipeline_info, NULL, &dev->pipeline);
-    NK_ASSERT(result == VK_SUCCESS);
 
     vkDestroyShaderModule(dev->logical_device, shader_stages[0].module, NULL);
     vkDestroyShaderModule(dev->logical_device, shader_stages[1].module, NULL);
+    return result;
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_create_render_resources(
     struct nk_glfw_device *dev)
 {
-    nk_glfw3_create_descriptor_pool(dev);
-    nk_glfw3_create_uniform_descriptor_set_layout(dev);
-    nk_glfw3_create_and_update_uniform_descriptor_set(dev);
-    nk_glfw3_create_texture_descriptor_set_layout(dev);
-    nk_glfw3_create_pipeline_layout(dev);
-    nk_glfw3_create_pipeline(dev);
+  VkResult result;
+  result = nk_glfw3_create_descriptor_pool(dev);
+  if(result != VK_SUCCESS) return result;
+  result = nk_glfw3_create_uniform_descriptor_set_layout(dev);
+  if(result != VK_SUCCESS) return result;
+  result = nk_glfw3_create_and_update_uniform_descriptor_set(dev);
+  if(result != VK_SUCCESS) return result;
+  result = nk_glfw3_create_texture_descriptor_set_layout(dev);
+  if(result != VK_SUCCESS) return result;
+  result = nk_glfw3_create_pipeline_layout(dev);
+  if(result != VK_SUCCESS) return result;
+  result = nk_glfw3_create_pipeline(dev);
+  if(result != VK_SUCCESS) return result;
+  return result;
 }
 
-NK_API void nk_glfw3_device_create(
+NK_API VkResult nk_glfw3_device_create(
     VkRenderPass render_pass,
     VkDevice logical_device, VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer)
 {
-    struct nk_glfw_device *dev = &glfw.vulkan;
-    dev->max_vertex_buffer = max_vertex_buffer;
-    dev->max_element_buffer = max_element_buffer;
-    dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
-    nk_buffer_init_default(&dev->cmds);
-    dev->logical_device = logical_device;
-    dev->physical_device = physical_device;
-    dev->render_pass = render_pass;
+  struct nk_glfw_device *dev = &glfw.vulkan;
+  dev->max_vertex_buffer = max_vertex_buffer;
+  dev->max_element_buffer = max_element_buffer;
+  dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
+  nk_buffer_init_default(&dev->cmds);
+  dev->logical_device = logical_device;
+  dev->physical_device = physical_device;
+  dev->render_pass = render_pass;
 
-    nk_glfw3_create_sampler(dev);
-    nk_glfw3_create_buffer_and_memory(
-        dev, &dev->vertex_buffer,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        &dev->vertex_memory, max_vertex_buffer);
-    nk_glfw3_create_buffer_and_memory(
-        dev, &dev->index_buffer,
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        &dev->index_memory, max_element_buffer);
-    nk_glfw3_create_buffer_and_memory(
-        dev, &dev->uniform_buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        &dev->uniform_memory, sizeof(struct Mat4f));
+  nk_glfw3_create_sampler(dev);
+  nk_glfw3_create_buffer_and_memory(
+      dev, &dev->vertex_buffer,
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      &dev->vertex_memory, max_vertex_buffer);
+  nk_glfw3_create_buffer_and_memory(
+      dev, &dev->index_buffer,
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      &dev->index_memory, max_element_buffer);
+  nk_glfw3_create_buffer_and_memory(
+      dev, &dev->uniform_buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      &dev->uniform_memory, sizeof(struct Mat4f));
 
-    vkMapMemory(dev->logical_device, dev->vertex_memory, 0, max_vertex_buffer, 0, &dev->mapped_vertex);
-    vkMapMemory(dev->logical_device, dev->index_memory, 0, max_element_buffer, 0, &dev->mapped_index);
-    vkMapMemory(dev->logical_device, dev->uniform_memory, 0, sizeof(struct Mat4f), 0, &dev->mapped_uniform);
+  vkMapMemory(dev->logical_device, dev->vertex_memory, 0, max_vertex_buffer, 0, &dev->mapped_vertex);
+  vkMapMemory(dev->logical_device, dev->index_memory, 0, max_element_buffer, 0, &dev->mapped_index);
+  vkMapMemory(dev->logical_device, dev->uniform_memory, 0, sizeof(struct Mat4f), 0, &dev->mapped_uniform);
 
-    nk_glfw3_create_render_resources(dev);
+  return nk_glfw3_create_render_resources(dev);
 }
 
-NK_INTERN void
+NK_INTERN VkResult
 nk_glfw3_device_upload_atlas(
     VkCommandBuffer cmd,
     VkQueue graphics_queue,
@@ -638,7 +638,7 @@ nk_glfw3_device_upload_atlas(
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     result = vkCreateImage(dev->logical_device, &image_info, NULL, &dev->font_image);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     vkGetImageMemoryRequirements(
         dev->logical_device, dev->font_image, &mem_reqs);
@@ -652,10 +652,10 @@ nk_glfw3_device_upload_atlas(
 
     result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL,
                               &dev->font_memory);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
     result = vkBindImageMemory(dev->logical_device, dev->font_image,
                                dev->font_memory, 0);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     memset(&buffer_info, 0, sizeof(VkBufferCreateInfo));
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -665,7 +665,7 @@ nk_glfw3_device_upload_atlas(
 
     result = vkCreateBuffer(dev->logical_device, &buffer_info, NULL,
                             &staging_buffer.buffer);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
     vkGetBufferMemoryRequirements(dev->logical_device, staging_buffer.buffer,
                                   &mem_reqs);
 
@@ -677,13 +677,13 @@ nk_glfw3_device_upload_atlas(
 
     result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL,
                               &staging_buffer.memory);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
     result = vkBindBufferMemory(dev->logical_device, staging_buffer.buffer,
                                 staging_buffer.memory, 0);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     result = vkMapMemory(dev->logical_device, staging_buffer.memory, 0, alloc_info.allocationSize, 0, (void **)&data);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
     memcpy(data, image, width * height * 4);
     vkUnmapMemory(dev->logical_device, staging_buffer.memory);
 
@@ -695,7 +695,7 @@ nk_glfw3_device_upload_atlas(
     buffer during render anyway
     */
     result = vkBeginCommandBuffer(cmd, &begin_info);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     memset(&image_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
     image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -746,13 +746,13 @@ nk_glfw3_device_upload_atlas(
                          NULL, 1, &image_shader_memory_barrier);
 
     result = vkEndCommandBuffer(cmd);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     memset(&fence_create, 0, sizeof(VkFenceCreateInfo));
     fence_create.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
     result = vkCreateFence(dev->logical_device, &fence_create, NULL, &fence);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     memset(&submit_info, 0, sizeof(VkSubmitInfo));
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -760,10 +760,10 @@ nk_glfw3_device_upload_atlas(
     submit_info.pCommandBuffers = &cmd;
 
     result = vkQueueSubmit(graphics_queue, 1, &submit_info, fence);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
     result =
         vkWaitForFences(dev->logical_device, 1, &fence, VK_TRUE, UINT64_MAX);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     vkDestroyFence(dev->logical_device, fence, NULL);
 
@@ -781,7 +781,7 @@ nk_glfw3_device_upload_atlas(
 
     result = vkCreateImageView(dev->logical_device, &image_view_info, NULL,
                                &dev->font_image_view);
-    NK_ASSERT(result == VK_SUCCESS);
+    if(result != VK_SUCCESS) return result;
 
     VkDescriptorImageInfo descriptor_image_info = {
       .sampler     = dev->sampler,
@@ -798,6 +798,7 @@ nk_glfw3_device_upload_atlas(
       .pImageInfo      = &descriptor_image_info,
     };
     vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
+    return VK_SUCCESS;
 }
 
 NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)

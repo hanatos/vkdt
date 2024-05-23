@@ -346,12 +346,12 @@ void dt_gamepadhelp_pop()
 
 void dt_gamepadhelp()
 {
-  static const char *dt_gamepadhelp_input_str[] = {
-    "analog L", "analog R", "trigger L2", "trigger R2",
-    "triangle", "circle", "cross", "square", "L1", "R1", // "∆", "o", "x", "□"
-    "up", "left", "down", "right", // "↑", "←", "↓", "→",
-    "start", "select", "ps", "L3", "R3",
-  };
+  // static const char *dt_gamepadhelp_input_str[] = {
+  //   "analog L", "analog R", "trigger L2", "trigger R2",
+  //   "triangle", "circle", "cross", "square", "L1", "R1", // "∆", "o", "x", "□"
+  //   "up", "left", "down", "right", // "↑", "←", "↓", "→",
+  //   "start", "select", "ps", "L3", "R3",
+  // };
 
   const float m[] = {
     vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
