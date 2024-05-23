@@ -1,4 +1,3 @@
-// the imgui render functions for the darkroom view
 #include "gui/view.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-history.h"
@@ -171,8 +170,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
      break;
   }
 
-  // XXX only if no popup is open!
-  // XXX gamepad!
   if(!dt_gui_input_blocked())
   {
     if(key == GLFW_KEY_ESCAPE)
@@ -275,15 +272,12 @@ void render_darkroom_full()
   static int32_t active_module = -1;
   static char filter_name[10] = {0};
   static char filter_inst[10] = {0};
-#if 0 // TODO:port
-  ImGui::PushItemWidth(int(vkdt.state.panel_wd * 0.495));
-  ImGui::InputText("##filter name", filter_name, sizeof(filter_name));
-  if(ImGui::IsItemHovered()) dt_gui_set_tooltip("filter by module name");
-  ImGui::SameLine();
-  ImGui::InputText("##filter instance", filter_inst, sizeof(filter_inst));
-  if(ImGui::IsItemHovered()) dt_gui_set_tooltip("filter by module instance");
-  ImGui::PopItemWidth();
-#endif
+  const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+  nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
+  dt_tooltip("filter by module name");
+  nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_name, sizeof(filter_name), nk_filter_default);
+  dt_tooltip("filter by module instance");
+  nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_inst, sizeof(filter_inst), nk_filter_default);
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
