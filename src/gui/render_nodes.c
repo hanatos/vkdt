@@ -339,14 +339,20 @@ void render_nodes()
   if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(ctx); // end center nodes view
 
-#if 0 // TODO port
-  // only reset if the apply preset popup has been closed (loading a preset may give us new positions)
-  if(!ImGui::IsPopupOpen("apply preset"))
-    nodes.do_layout = 0;
-#endif
-
   render_nodes_right_panel();
   render_darkroom_modals();
+  bounds = nk_rect(vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,
+    0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht);
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+  {
+    if(nk_begin(&vkdt.ctx, "edit nodes hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR))
+    {
+      int ok = hk_edit(hk_nodes, NK_LEN(hk_nodes));
+      if(ok) vkdt.wstate.popup = 0;
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
 }
 
 void render_nodes_init()
@@ -389,6 +395,8 @@ void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)
 
 void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys)
+    return hk_keyboard(hk_nodes, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
   if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
   { // escape to go back to darkroom

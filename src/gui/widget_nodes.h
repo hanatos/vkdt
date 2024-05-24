@@ -265,7 +265,9 @@ dt_node_editor(
           MAX(drag_x, in->mouse.pos.x), MAX(drag_y, in->mouse.pos.y));
       drag_rect.w -= drag_rect.x;
       drag_rect.h -= drag_rect.y;
-      nk_fill_rect(canvas, drag_rect, 0, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
+      struct nk_color bg = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
+      bg.a = 128;
+      nk_fill_rect(canvas, drag_rect, 0, bg);
       nk_stroke_rect(canvas, drag_rect, 0, 0.002*vkdt.state.center_ht, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
     }
     if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
