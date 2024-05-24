@@ -152,9 +152,9 @@ void render_nodes_right_panel()
     if(nk_button_label(ctx, "remove selected modules"))
     {
       dt_node_editor_clear_selection(&nodes.nedit);
-      sel_node_cnt = 0;
       for(int i=0;i<sel_node_cnt;i++)
         dt_gui_dr_remove_module(sel_node_id[i]);
+      sel_node_cnt = 0;
     }
     nk_tree_pop(ctx);
   }
@@ -236,9 +236,16 @@ void render_nodes_right_panel()
 void render_nodes()
 {
   struct nk_context *ctx = &vkdt.ctx;
+  int num_modules = vkdt.graph_dev.num_modules;
+  render_darkroom_modals(); // comes first so we can add a module popup from the context menu
+  if(num_modules < vkdt.graph_dev.num_modules)
+  { // module has been added
+    vkdt.graph_dev.module[num_modules].gui_x = nodes.nedit.add_pos_x;
+    vkdt.graph_dev.module[num_modules].gui_y = nodes.nedit.add_pos_y;
+  }
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
-  if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR)) // TODO etc
+  if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR))
   {
     nk_style_pop_style_item(&vkdt.ctx);
     if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
@@ -340,7 +347,6 @@ void render_nodes()
   nk_end(ctx); // end center nodes view
 
   render_nodes_right_panel();
-  render_darkroom_modals();
   bounds = nk_rect(vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,
     0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht);
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)

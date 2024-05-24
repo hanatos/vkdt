@@ -1,6 +1,7 @@
 #pragma once
 // simple node editor for dt_graph_t, based on the draft that comes with nuklear
 #include "widget_filteredlist.h"
+#include "api_gui.h"
 
 typedef struct dt_node_connection_t
 { // temp struct for connection started by gui interaction
@@ -16,6 +17,7 @@ typedef struct dt_node_editor_t
   dt_module_t *selected;  // last selected module, active
   struct nk_vec2 scrolling;
   dt_node_connection_t connection;
+  float add_pos_x, add_pos_y;
   uint8_t selected_mid[1000]; // flag whether the corresponding module id is selected
 }
 dt_node_editor_t;
@@ -213,7 +215,9 @@ dt_node_editor(
       if(nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
       if(nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
       {
-        if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0)
+        if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0 &&
+            glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
+            glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) != GLFW_PRESS)
           dt_node_editor_clear_selection(nedit); // only clear selection if we haven't been selected before
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
         nedit->selected = module;
@@ -284,17 +288,19 @@ dt_node_editor(
     nedit->connection.cid = -1;
   }
 
-  // TODO: only if mouse button hasn't been handled because it's on a node
-  /* contextual menu */
+  nedit->add_pos_x = vkdt.state.center_x + vkdt.state.center_wd/2 + nedit->scrolling.x;
+  nedit->add_pos_y = vkdt.state.center_y + vkdt.state.center_ht/2 + nedit->scrolling.y;
+
+  // right click context menu
   // TODO: scale size of popup
-  if (nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx)))
+  if(!mouse_over_something && nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx)))
   {
-    nk_layout_row_dynamic(ctx, 25, 1);
+    nedit->add_pos_x = in->mouse.pos.x + nedit->scrolling.x;
+    nedit->add_pos_y = in->mouse.pos.y + nedit->scrolling.y;
+    nk_layout_row_dynamic(ctx, row_height, 1);
     if (nk_contextual_item_label(ctx, "add module", NK_TEXT_CENTERED))
     {
-      // XXX TODO: set add module popup id
-      // TODO: and of course also put the dr mode modals at the end of render
-      // XXX TODO: set position to mouse coordinates
+      dt_gui_dr_module_add();
     }
     // XXX probably also presets or something based on selected module
     nk_contextual_end(ctx);
