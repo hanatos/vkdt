@@ -87,14 +87,13 @@ dt_node_editor(
   int mouse_over_something = 0;
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
 
-  for(int mid2=-1;mid2<(int)graph->num_modules;mid2++)
+  for(int mid2=0;mid2<=(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
-    // XXX FIXME: now we're drawing the active node *last* so it is hidden by everything else!
-    dt_module_t *module = mid2 < 0 ? nedit->selected : graph->module + mid2;
-    if(!module) continue;                                // no module selected
-    if(module->name == 0) continue;                      // module previously deleted
-    if(mid2 >= 0 && module == nedit->selected) continue; // 2nd time we iterate over this module
-    const int mid = module - graph->module;              // fix index
+    dt_module_t *module = mid2 == graph->num_modules ? nedit->selected : graph->module + mid2;
+    if(!module) continue;                   // no module selected
+    if(module->name == 0) continue;         // module previously deleted
+    if(mid2 < graph->num_modules && module == nedit->selected) continue; // skip 1st time we iterate over this module
+    const int mid = module - graph->module; // fix index
 
     struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, vkdt.state.center_wd * 0.1, row_height * (module->num_connectors + 3));
     struct nk_rect lbb = nk_rect(module_bounds.x - nedit->scrolling.x, module_bounds.y - nedit->scrolling.y, module_bounds.w, module_bounds.h);
@@ -214,7 +213,6 @@ dt_node_editor(
       if(nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
       if(nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
       {
-        fprintf(stderr, "selecting node %d\n", mid);
         if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0)
           dt_node_editor_clear_selection(nedit); // only clear selection if we haven't been selected before
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
