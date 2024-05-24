@@ -81,20 +81,38 @@ dt_node_editor(
       nk_stroke_line(canvas, size.x, y+size.y, size.x+size.w, y+size.y, 1.0f, grid_color);
   }
 
+  static struct nk_rect drag_rect;
+  static float drag_x, drag_y;
+  static int drag_selection = 0;
+  int mouse_over_something = 0;
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
 
-  for(int mid=-1;mid<(int)graph->num_modules;mid++)
+  for(int mid2=-1;mid2<(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
-    dt_module_t *module = mid < 0 ? nedit->selected : graph->module + mid;
-    if(!module) continue;                               // no module selected
-    if(module->name == 0) continue;                     // module previously deleted
-    if(mid >= 0 && module == nedit->selected) continue; // 2nd time we iterate over this module
+    // XXX FIXME: now we're drawing the active node *last* so it is hidden by everything else!
+    dt_module_t *module = mid2 < 0 ? nedit->selected : graph->module + mid2;
+    if(!module) continue;                                // no module selected
+    if(module->name == 0) continue;                      // module previously deleted
+    if(mid2 >= 0 && module == nedit->selected) continue; // 2nd time we iterate over this module
+    const int mid = module - graph->module;              // fix index
 
     struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, vkdt.state.center_wd * 0.1, row_height * (module->num_connectors + 3));
-    nk_layout_space_push(ctx, nk_rect(module_bounds.x - nedit->scrolling.x, module_bounds.y - nedit->scrolling.y, module_bounds.w, module_bounds.h));
+    struct nk_rect lbb = nk_rect(module_bounds.x - nedit->scrolling.x, module_bounds.y - nedit->scrolling.y, module_bounds.w, module_bounds.h);
+    nk_layout_space_push(ctx, lbb);
+    if(nk_input_is_mouse_hovering_rect(in, lbb)) mouse_over_something = 1;
+
+    if(drag_selection)
+    {
+      if(lbb.x >= drag_rect.x && lbb.x+lbb.w <= drag_rect.x+drag_rect.w &&
+         lbb.y >= drag_rect.y && lbb.y+lbb.h <= drag_rect.y+drag_rect.h)
+      {
+        if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
+      }
+      else if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 0;
+    }
 
     const float pin_radius = 0.01*vkdt.state.center_ht;
-    const float link_thickness = 0.2*pin_radius;
+    const float link_thickness = 0.4*pin_radius;
 
     for(int c=0;c<module->num_connectors;c++)
     {
@@ -111,6 +129,7 @@ dt_node_editor(
         };
         nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
 
+        if (nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
         if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true))
         { // start link
           nedit->connection.active = nk_true;
@@ -122,7 +141,6 @@ dt_node_editor(
         { // draw dangling link to mouse if it belongs to us
           struct nk_vec2 l0 = nk_vec2(circle.x + pin_radius, circle.y + pin_radius);
           struct nk_vec2 l1 = in->mouse.pos;
-          // XXX curvature and stroke thickness will need work here
           nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + l1.x)*0.5f, l0.y,
               (l0.x + l1.x)*0.5f, l1.y, l1.x, l1.y, link_thickness, nk_rgb(100, 100, 100));
         }
@@ -138,6 +156,7 @@ dt_node_editor(
           .w = 2*pin_radius,
           .h = 2*pin_radius,
         };
+        if (nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
         if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true))
         { // TODO if right clicked on the connector disconnect
           dt_module_connect_with_history(graph, -1, -1, mid, c);
@@ -153,7 +172,6 @@ dt_node_editor(
           int err = dt_module_connect_with_history(graph, nedit->connection.mid, nedit->connection.cid, mid, c);
           if(err) dt_gui_notification(dt_connector_error_str(err));
           else vkdt.graph_dev.runflags = s_graph_run_all;
-          // XXX  dt_connector_error_str(res) and something dt_gui_notification
         }
         int mido = module->connector[c].connected_mi;
         int cido = module->connector[c].connected_mc;
@@ -174,17 +192,34 @@ dt_node_editor(
    
     char str[32];
     snprintf(str, sizeof(str), "%"PRItkn":%"PRItkn, dt_token_str(module->name), dt_token_str(module->inst));
-    if(nedit->selected == module)
-      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(80,60,40)));
-    else if(module->disabled)
-      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(0,0,0)));
-    else
-      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(40,40,40)));
-    if(nk_group_begin(ctx, str, NK_WINDOW_MOVABLE|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
+    if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
     {
-      struct nk_panel * node_panel = nk_window_get_panel(ctx);
-      if (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, node_panel->bounds))
+      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]));
+    }
+    else if(module->disabled)
+    {
+      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(0,0,0)));
+      nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(nk_rgb(0,0,0)));
+    }
+    else
+    {
+      nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_HEADER]));
+      nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_BUTTON_HOVER]));
+    }
+    // the movable thing is buggy!
+    struct nk_rect bb = nk_widget_bounds(ctx);
+    if(nk_group_begin(ctx, str, NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
+    {
+      if(nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
+      if(nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
+      {
+        fprintf(stderr, "selecting node %d\n", mid);
+        if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0)
+          dt_node_editor_clear_selection(nedit); // only clear selection if we haven't been selected before
+        if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
         nedit->selected = module;
+      }
 
       nk_layout_row_dynamic(ctx, row_height, 1);
       for(int c=0;c<module->num_connectors;c++)
@@ -203,15 +238,43 @@ dt_node_editor(
       }
       nk_group_end(ctx);
       // update module position if group has been dragged
-      struct nk_rect bounds;
-      bounds = nk_layout_space_rect_to_local(ctx, node_panel->bounds);
-      bounds.x += nedit->scrolling.x;
-      bounds.y += nedit->scrolling.y;
-      module->gui_x = bounds.x;
-      module->gui_y = bounds.y;
+      if(!drag_selection)
+      if(!nedit->connection.active)
+      if(nk_input_is_mouse_down(in, NK_BUTTON_LEFT))
+      if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
+      {
+        module->gui_x += in->mouse.delta.x;
+        module->gui_y += in->mouse.delta.y;
+      }
     }
     nk_style_pop_style_item(ctx);
+    nk_style_pop_style_item(ctx);
   } // for all modules
+
+  if(!nedit->connection.active)
+  { // drag selection box
+    if(!mouse_over_something && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, total_space, nk_true))
+    {
+      dt_node_editor_clear_selection(nedit);
+      drag_selection = 1;
+      drag_x = in->mouse.pos.x;
+      drag_y = in->mouse.pos.y;
+    }
+    if(drag_selection)
+    {
+      drag_rect = nk_rect(
+          MIN(drag_x, in->mouse.pos.x), MIN(drag_y, in->mouse.pos.y),
+          MAX(drag_x, in->mouse.pos.x), MAX(drag_y, in->mouse.pos.y));
+      drag_rect.w -= drag_rect.x;
+      drag_rect.h -= drag_rect.y;
+      nk_fill_rect(canvas, drag_rect, 0, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
+      nk_stroke_rect(canvas, drag_rect, 0, 0.002*vkdt.state.center_ht, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
+    }
+    if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
+    {
+      drag_selection = 0;
+    }
+  }
 
   if (nedit->connection.active && nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
   { // reset connection

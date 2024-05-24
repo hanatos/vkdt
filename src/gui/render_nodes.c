@@ -98,10 +98,8 @@ void render_nodes_right_panel()
         if(modid >= 0)
         {
           dt_graph_history_module(&vkdt.graph_dev, modid);
-          // TODO: set position of modid to position of m with some offset in y!
-          // ImVec2 pos = ImNodes::GetNodeEditorSpacePos(m);
-          // ImVec2 dim = ImNodes::GetNodeDimensions(m);
-          // ImNodes::SetNodeEditorSpacePos(modid, ImVec2(pos.x, pos.y+1.2*dim.y));
+          vkdt.graph_dev.module[modid].gui_x = vkdt.graph_dev.module[i].gui_x;
+          vkdt.graph_dev.module[modid].gui_y = vkdt.graph_dev.module[i].gui_y + row_height * 10;
         }
         else
         {
@@ -142,10 +140,8 @@ void render_nodes_right_panel()
                   dt_module_connect_with_history(&vkdt.graph_dev, m,     c, mab, 0);
                   dt_module_connect_with_history(&vkdt.graph_dev, modid, c, mab, 1);
                   dt_graph_history_module(&vkdt.graph_dev, mab);
-                  // TODO: set map pos to nm[k] pos with offset in x
-                  // ImVec2 pos = ImNodes::GetNodeEditorSpacePos(nm[k]);
-                  // ImVec2 dim = ImNodes::GetNodeDimensions(nm[k]);
-                  // ImNodes::SetNodeEditorSpacePos(mab, ImVec2(pos.x-dim.x*1.2, pos.y));
+                  vkdt.graph_dev.module[mab].gui_x = vkdt.graph_dev.module[i].gui_x - row_height * 30;
+                  vkdt.graph_dev.module[mab].gui_y = vkdt.graph_dev.module[i].gui_y;
                 }
               }
             }
