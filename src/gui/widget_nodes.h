@@ -83,6 +83,7 @@ dt_node_editor(
       nk_stroke_line(canvas, size.x, y+size.y, size.x+size.w, y+size.y, 1.0f, grid_color);
   }
 
+  const struct nk_color col_feedback = nk_rgb(200, 30, 200);
   static struct nk_rect selected_rect;
   static struct nk_rect drag_rect;
   static float drag_x, drag_y;
@@ -143,8 +144,12 @@ dt_node_editor(
         { // draw dangling link to mouse if it belongs to us
           struct nk_vec2 l0 = nk_vec2(circle.x + pin_radius, circle.y + pin_radius);
           struct nk_vec2 l1 = in->mouse.pos;
+          struct nk_color col = nk_rgb(100,100,100);
+          if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS ||
+             glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+            col = col_feedback;
           nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + l1.x)*0.5f, l0.y,
-              (l0.x + l1.x)*0.5f, l1.y, l1.x, l1.y, link_thickness, nk_rgb(100, 100, 100));
+              (l0.x + l1.x)*0.5f, l1.y, l1.x, l1.y, link_thickness, col);
         }
       }
       else if(dt_connector_input(module->connector + c))
@@ -170,8 +175,12 @@ dt_node_editor(
             nedit->connection.active && nedit->connection.mid != mid)
         {
           nedit->connection.active = nk_false;
-          // TODO: if shift held down do a feedback instead connect
-          int err = dt_module_connect_with_history(graph, nedit->connection.mid, nedit->connection.cid, mid, c);
+          int err = 0;
+          if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS ||
+             glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+            err = dt_module_feedback_with_history(graph, nedit->connection.mid, nedit->connection.cid, mid, c);
+          else
+            err = dt_module_connect_with_history(graph, nedit->connection.mid, nedit->connection.cid, mid, c);
           if(err) dt_gui_notification(dt_connector_error_str(err));
           else vkdt.graph_dev.runflags = s_graph_run_all;
         }
@@ -187,6 +196,8 @@ dt_node_editor(
           p.x += pin_radius;
           p.y += pin_radius;
           struct nk_color col = nk_rgb(100,100,100);
+          if(module->connector[c].flags & s_conn_feedback)
+            col = col_feedback;
           if(nedit->selected &&
               !drag_selection && !nedit->connection.active &&
               MAX(l0.x, p.x) >= selected_rect.x && MIN(l0.x, p.x) <= selected_rect.x + selected_rect.w && 
