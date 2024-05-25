@@ -80,7 +80,9 @@ void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  if(module->connector[0].chan == dt_token("rggb"))
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return; // input chain disconnected
+  if(img_param->filters)
   {
     // request the full uncropped thing, we want the borders
     module->connector[0].roi.wd = module->connector[0].roi.full_wd;
@@ -145,7 +147,7 @@ create_nodes(
 
   const float nowb[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   const uint32_t *wbi = 
-    (module->connector[0].chan != dt_token("rggb")) ? (uint32_t *)nowb :
+    (!img_param->filters) ? (uint32_t *)nowb :
     (uint32_t *)img_param->whitebalance;
   float black[4], white[4];
   uint32_t *blacki = (uint32_t *)black;
@@ -214,7 +216,7 @@ create_nodes(
   }
 
   const int block =
-    (module->connector[0].chan != dt_token("rggb")) ? 1 :
+    (img_param->filters == 0) ? 1 :
     (img_param->filters == 9u ? 3 : 2);
   dt_roi_t roi_half = module->connector[1].roi;
   roi_half.full_wd /= block;
@@ -240,7 +242,7 @@ create_nodes(
         (i == 0 && block == 1) ? crop_aabb[3] : 0,
         noisei[0], noisei[1],
         i, block };
-    int cov = (module->connector[0].chan == dt_token("rggb")) && (i==0);
+    int cov = (img_param->filters) && (i==0);
     id_down[i] = dt_node_add(graph, module, "denoise", cov ? "downcov" : "down",
         wd, ht, 1, sizeof(pc), pc, cov ? 3 : 2,
         "input",  "read",  "rgba", "f16", dt_no_roi,
@@ -276,7 +278,7 @@ create_nodes(
   CONN(dt_node_connect(graph, id_down[2], 1, id_assemble, 3));
   CONN(dt_node_connect(graph, id_down[3], 1, id_assemble, 4));
 
-  if(module->connector[0].chan == dt_token("rggb"))
+  if(img_param->filters)
   { // raw data. need to wrap into mosaic-aware nodes:
     int32_t pch[] = {
       wbi[0], wbi[1], wbi[2], wbi[3],
