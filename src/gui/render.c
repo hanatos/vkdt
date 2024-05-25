@@ -184,6 +184,7 @@ int dt_gui_init_nk()
     }
     if(f)
     {
+      dt_log(s_log_gui, "loading display profile %s", tmp);
       fscanf(f, "%f %f %f\n", gamma0, gamma0+1, gamma0+2);
       fscanf(f, "%f %f %f\n", rec2020_to_dspy0+0, rec2020_to_dspy0+1, rec2020_to_dspy0+2);
       fscanf(f, "%f %f %f\n", rec2020_to_dspy0+3, rec2020_to_dspy0+4, rec2020_to_dspy0+5);
@@ -191,22 +192,26 @@ int dt_gui_init_nk()
       fclose(f);
     }
     else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name0);
-    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name1);
-    f = fopen(tmp, "r");
-    if(!f)
+    if(monitors_cnt > 1)
     {
-      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name1);
       f = fopen(tmp, "r");
+      if(!f)
+      {
+        snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
+        f = fopen(tmp, "r");
+      }
+      if(f)
+      {
+        dt_log(s_log_gui, "loading display profile %s", tmp);
+        fscanf(f, "%f %f %f\n", gamma1, gamma1+1, gamma1+2);
+        fscanf(f, "%f %f %f\n", rec2020_to_dspy1+0, rec2020_to_dspy1+1, rec2020_to_dspy1+2);
+        fscanf(f, "%f %f %f\n", rec2020_to_dspy1+3, rec2020_to_dspy1+4, rec2020_to_dspy1+5);
+        fscanf(f, "%f %f %f\n", rec2020_to_dspy1+6, rec2020_to_dspy1+7, rec2020_to_dspy1+8);
+        fclose(f);
+      }
+      else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
     }
-    if(f)
-    {
-      fscanf(f, "%f %f %f\n", gamma1, gamma1+1, gamma1+2);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+0, rec2020_to_dspy1+1, rec2020_to_dspy1+2);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+3, rec2020_to_dspy1+4, rec2020_to_dspy1+5);
-      fscanf(f, "%f %f %f\n", rec2020_to_dspy1+6, rec2020_to_dspy1+7, rec2020_to_dspy1+8);
-      fclose(f);
-    }
-    else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
     int bitdepth = 8; // the display output will be dithered according to this
     if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)

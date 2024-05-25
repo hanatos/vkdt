@@ -312,37 +312,6 @@ void render_nodes()
 
   dt_node_editor(ctx, &nodes.nedit, g);
 
-#if 0 // XXX delete a module!
-  int lid = 0, mid = -1;
-  nodes.node_hovered_link = -1;
-  if(ImNodes::NumSelectedNodes() == 1)
-  {
-    ImNodes::GetSelectedNodes(&mid);
-    if(mid >= 0 && mid < (int)g->num_modules && g->module[mid].so->has_inout_chain)
-    {
-      int mco = dt_module_get_connector(g->module+mid, dt_token("output"));
-      int mci = dt_module_get_connector(g->module+mid, dt_token("input"));
-      if(mco >= 0 && mci >= 0 &&
-         !dt_connected(g->module[mid].connector+mco) &&
-         !dt_connected(g->module[mid].connector+mci))
-      {
-        if(ImNodes::IsLinkNodeHovered(&lid))
-          nodes.node_hovered_link = lid;
-        if(ImNodes::IsLinkNodeDropped(&lid))
-        {
-          nodes.node_hovered_link = -1;
-          int mi0 = lid>>5, mc0 = lid&0x1f; // lid encodes input connector
-          int mi1 = g->module[mi0].connector[mc0].connected_mi;
-          int mc1 = g->module[mi0].connector[mc0].connected_mc;
-          dt_module_connect_with_history(g, mi1, mc1, mid, mci);
-          dt_module_connect_with_history(g, mid, mco, mi0, mc0);
-          g->runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
-        }
-      }
-    }
-  }
-#endif
-
   if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
   nk_end(ctx); // end center nodes view
 

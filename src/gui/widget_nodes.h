@@ -83,6 +83,7 @@ dt_node_editor(
       nk_stroke_line(canvas, size.x, y+size.y, size.x+size.w, y+size.y, 1.0f, grid_color);
   }
 
+  static struct nk_rect selected_rect;
   static struct nk_rect drag_rect;
   static float drag_x, drag_y;
   static int drag_selection = 0;
@@ -185,8 +186,33 @@ dt_node_editor(
               mo_bounds.y + row_height * (cido+2) + pin_radius - nedit->scrolling.y));
           p.x += pin_radius;
           p.y += pin_radius;
+          struct nk_color col = nk_rgb(100,100,100);
+          if(nedit->selected &&
+              !drag_selection && !nedit->connection.active &&
+              MAX(l0.x, p.x) >= selected_rect.x && MIN(l0.x, p.x) <= selected_rect.x + selected_rect.w && 
+              MAX(l0.y, p.y) >= selected_rect.y && MIN(l0.y, p.y) <= selected_rect.y + selected_rect.h)
+          { // selected / active node overlaps here and is dropped connect it in between!
+            if(nedit->selected->so->has_inout_chain)
+            { // if selected module is disconnected and has inout chain
+              int mco = dt_module_get_connector(nedit->selected, dt_token("output"));
+              int mci = dt_module_get_connector(nedit->selected, dt_token("input"));
+              if(mco >= 0 && mci >= 0 &&
+                  !dt_connected(nedit->selected->connector+mco) &&
+                  !dt_connected(nedit->selected->connector+mci))
+              {
+                if(nk_input_is_mouse_down(in, NK_BUTTON_LEFT))
+                  col = vkdt.style.colour[NK_COLOR_DT_ACCENT];
+                if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
+                {
+                  dt_module_connect_with_history(&vkdt.graph_dev, mido, cido, nedit->selected - vkdt.graph_dev.module, mci);
+                  dt_module_connect_with_history(&vkdt.graph_dev, nedit->selected - vkdt.graph_dev.module, mco, mid, c);
+                  vkdt.graph_dev.runflags = s_graph_run_all;
+                }
+              }
+            }
+          }
           nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + p.x)*0.5f, l0.y,
-              (l0.x + p.x)*0.5f, p.y, p.x, p.y, link_thickness, nk_rgb(100, 100, 100));
+              (l0.x + p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
         }
       }
     }
@@ -208,7 +234,6 @@ dt_node_editor(
       nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_HEADER]));
       nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_BUTTON_HOVER]));
     }
-    // the movable thing is buggy!
     struct nk_rect bb = nk_widget_bounds(ctx);
     if(nk_group_begin(ctx, str, NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
     {
@@ -222,6 +247,8 @@ dt_node_editor(
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
         nedit->selected = module;
       }
+      if(nedit->selected == module)
+        selected_rect = bb; // remember for connector overlap test
 
       nk_layout_row_dynamic(ctx, row_height, 1);
       for(int c=0;c<module->num_connectors;c++)
@@ -240,10 +267,10 @@ dt_node_editor(
       }
       nk_group_end(ctx);
       // update module position if group has been dragged
-      if(!drag_selection)
-      if(!nedit->connection.active)
-      if(nk_input_is_mouse_down(in, NK_BUTTON_LEFT))
-      if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
+      // TODO: do this before draw to minimise lag
+      if(!drag_selection && !nedit->connection.active &&
+          nk_input_is_mouse_down(in, NK_BUTTON_LEFT) &&
+          (mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
       {
         module->gui_x += in->mouse.delta.x;
         module->gui_y += in->mouse.delta.y;
