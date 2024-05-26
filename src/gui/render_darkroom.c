@@ -122,7 +122,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 
   if(action != GLFW_PRESS) return; // only handle key down events
 
-  gui.hotkey = hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key);
+  gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
   switch(gui.hotkey)
   { // these are "destructive" hotkeys, they change the image and invalidate the dset.
     // this has to happen this frame *before* the dset is sent to imgui for display.
@@ -181,10 +181,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   if(!dt_gui_input_blocked())
   {
     if(key == GLFW_KEY_ESCAPE)
-    {
       dt_view_switch(s_view_lighttable);
-      vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
-    }
   }
 
 #if 0 // TODO: port this!
@@ -211,7 +208,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
          (ImGui::IsWindowHovered() && ImGui::IsMouseDoubleClicked(0)))
       {
         dt_view_switch(s_view_lighttable);
-        vkdt.wstate.set_nav_focus = 2; // introduce some delay because imgui nav has it too
         goto abort;
       }
       // disable keyboard nav ctrl + shift to change images:
@@ -322,7 +318,6 @@ void render_darkroom()
   if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   {
     dt_view_switch(s_view_lighttable);
-    vkdt.wstate.set_nav_focus = 2; // introduce some delay because gui nav has it too
     return;
   }
 

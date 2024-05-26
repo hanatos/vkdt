@@ -79,7 +79,7 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     return hk_keyboard(hk_lighttable, w, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return; // includes other popups
 
-  const int hotkey = hk_get_hotkey(hk_lighttable, NK_LEN(hk_lighttable), key);
+  const int hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_lighttable, NK_LEN(hk_lighttable), key) : -1;
   switch(hotkey)
   {
     case s_hotkey_duplicate:
@@ -302,11 +302,7 @@ void render_lighttable_center()
         vkdt.db.image[vkdt.db.collection[i]].rating,
         vkdt.db.image[vkdt.db.collection[i]].labels,
         (vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db)) ?
-        vkdt.db.image[vkdt.db.collection[i]].filename : 0,
-        (vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db)) ?
-        vkdt.wstate.set_nav_focus : 0);
-    if(vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
-      vkdt.wstate.set_nav_focus = MAX(0, vkdt.wstate.set_nav_focus-1);
+        vkdt.db.image[vkdt.db.collection[i]].filename : 0);
 
     if(g_image_cursor == i)
       nk_stroke_rect(nk_window_get_canvas(&vkdt.ctx), row, 0, 0.004*vkdt.state.center_ht, vkdt.style.colour[NK_COLOR_DT_ACCENT]);

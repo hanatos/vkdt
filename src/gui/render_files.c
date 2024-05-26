@@ -371,7 +371,7 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   if(dt_gui_input_blocked()) return;
   dt_filebrowser_widget_t *w = &filebrowser;
 
-  int hotkey = hk_get_hotkey(hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key);
+  int hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key) : -1;
   switch(hotkey)
   {
     case s_hotkey_focus_filter:

@@ -377,7 +377,7 @@ void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int m
   { // escape to go back to darkroom
     dt_view_switch(s_view_darkroom);
   }
-  int hotkey = hk_get_hotkey(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), key);
+  int hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), key) : -1;
   switch(hotkey)
   {
     case s_hotkey_apply_preset:

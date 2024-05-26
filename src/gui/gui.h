@@ -97,7 +97,6 @@ typedef struct dt_gui_wstate_t
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)
   int pentablet_enabled;        // 1 if the stylus is in proxmity of the pen tablet
 
-  int set_nav_focus;            // gamepad navigation delay to communicate between lighttable and darkroom
   int busy;                     // still busy for how many frames before stopping redraw?
 
   float fontsize;               // pixel size of currently loaded (regular) font

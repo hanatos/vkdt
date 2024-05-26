@@ -61,8 +61,7 @@ dt_thumbnail_image(
     const struct nk_color reg_col,
     uint16_t rating,
     uint16_t labels,
-    const char *text,
-    int set_nav_focus)
+    const char *text)
 {
   int ret = 0;
   struct nk_image img = nk_image_ptr(dset);
