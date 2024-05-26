@@ -1004,7 +1004,11 @@ static inline void render_darkroom_widgets(
   nk_label(ctx, open[curr] ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
   nk_style_pop_font(ctx);
   nk_label(ctx, name, NK_TEXT_LEFT);
-  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bound))
+  // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
+  const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
+  if(in && nk_input_is_mouse_hovering_rect(in, bound) && 
+      nk_input_has_mouse_click_in_button_rect(in, NK_BUTTON_LEFT, bound) &&
+      nk_input_is_mouse_pressed(in, NK_BUTTON_LEFT))
   {
     if(!open[curr])
     { // just opened, now this is the 'active module'.
