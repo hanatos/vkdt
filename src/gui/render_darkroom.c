@@ -370,7 +370,7 @@ void render_darkroom()
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
     if(vkdt.wstate.show_perf_overlay) render_perf_overlay();
   } // end center view
-  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+  NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx);
   nk_style_pop_style_item(&vkdt.ctx);
 
@@ -384,7 +384,7 @@ void render_darkroom()
     if(nk_begin(&vkdt.ctx, "dopesheet", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
       dt_dopesheet();
 
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);
     nk_style_pop_style_item(&vkdt.ctx);
   }
@@ -477,7 +477,7 @@ void render_darkroom()
       }
       nk_style_pop_flags(&vkdt.ctx);
     }
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);
   } // end history panel on the left
 
@@ -683,7 +683,7 @@ void render_darkroom()
         nk_tree_pop(ctx);
       }
     }
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
   } // end right panel
 

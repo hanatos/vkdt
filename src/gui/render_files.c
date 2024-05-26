@@ -278,7 +278,7 @@ void render_files()
       } // end for jobs
       nk_tree_pop(ctx);
     } // end import
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
   }
 
@@ -299,7 +299,7 @@ void render_files()
       dt_gui_switch_collection(filebrowser.cwd);
       dt_view_switch(s_view_lighttable);
     }
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
   }
 
@@ -309,7 +309,7 @@ void render_files()
     dt_filebrowser(&filebrowser, 'f');
     // draw context sensitive help overlay
     if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
   } // end center window
   nk_style_pop_style_item(&vkdt.ctx);

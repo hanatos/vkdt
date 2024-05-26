@@ -223,7 +223,7 @@ void render_lighttable_center()
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   {
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);
     nk_style_pop_style_item(&vkdt.ctx);
     return;
@@ -372,7 +372,7 @@ void render_lighttable_center()
   // draw context sensitive help overlay
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
 
-  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+  NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx); // lt center window
   nk_style_pop_style_item(&vkdt.ctx);
 }
@@ -484,7 +484,7 @@ void render_lighttable_right_panel()
 
   if(!nk_begin(ctx, "lighttable panel right", bounds, 0))
   {
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
     return;
   }
@@ -955,7 +955,7 @@ void render_lighttable_right_panel()
 #undef NUM_JOBS
     nk_tree_pop(ctx);
   } // end collapsing header "export"
-  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+  NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx); // lt right panel
 }
 

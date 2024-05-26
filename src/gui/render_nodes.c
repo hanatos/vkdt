@@ -44,7 +44,7 @@ void render_nodes_right_panel()
   struct nk_rect bounds = { qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
   if(!nk_begin(ctx, "nodes panel", bounds, 0))
   {
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
   }
   dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
@@ -229,7 +229,7 @@ void render_nodes_right_panel()
     dt_view_switch(s_view_darkroom);
   nk_style_pop_flags(ctx);
 
-  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+  NK_UPDATE_ACTIVE;
   nk_end(ctx);
 }
 
@@ -248,7 +248,7 @@ void render_nodes()
   if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR))
   {
     nk_style_pop_style_item(&vkdt.ctx);
-    if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+    NK_UPDATE_ACTIVE;
     nk_end(ctx);
   }
   nk_style_pop_style_item(&vkdt.ctx);
@@ -312,7 +312,7 @@ void render_nodes()
 
   dt_node_editor(ctx, &nodes.nedit, g);
 
-  if(vkdt.ctx.current && vkdt.ctx.current->edit.active) vkdt.wstate.nk_active_next = 1;
+  NK_UPDATE_ACTIVE;
   nk_end(ctx); // end center nodes view
 
   render_nodes_right_panel();

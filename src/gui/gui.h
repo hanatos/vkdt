@@ -11,6 +11,7 @@
 
 // max images in flight in vulkan pipeline/swap chain
 #define DT_GUI_MAX_IMAGES 8
+#define NK_UPDATE_ACTIVE do {if(vkdt.ctx.current && (vkdt.ctx.current->property.active || vkdt.ctx.current->edit.active)) vkdt.wstate.nk_active_next = 1;} while(0)
 
 // view modes, lighttable, darkroom, ..
 typedef enum dt_gui_view_t
