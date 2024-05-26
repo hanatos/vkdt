@@ -141,15 +141,15 @@ dt_node_editor(
 
     struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, vkdt.state.center_wd * 0.1, 0);
     struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(module->gui_x, module->gui_y));
-    struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(module->gui_x + vkdt.state.center_wd * 0.1, module->gui_y));
+    struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(module->gui_x + module_bounds.w, module->gui_y));
     struct nk_rect lbb = nk_rect(lbb_min.x, lbb_min.y, lbb_max.x-lbb_min.x, row_height * (module->num_connectors + 3));
     nk_layout_space_push(ctx, lbb);
     if(nk_input_is_mouse_hovering_rect(in, lbb)) mouse_over_something = 1;
 
     if(drag_selection)
     {
-      if(lbb.x >= drag_rect.x && lbb.x+lbb.w <= drag_rect.x+drag_rect.w &&
-         lbb.y >= drag_rect.y && lbb.y+lbb.h <= drag_rect.y+drag_rect.h)
+      if(size.x + lbb.x >= drag_rect.x && size.x + lbb.x+lbb.w <= drag_rect.x+drag_rect.w &&
+         size.y + lbb.y >= drag_rect.y && size.y + lbb.y+lbb.h <= drag_rect.y+drag_rect.h)
       {
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
       }
