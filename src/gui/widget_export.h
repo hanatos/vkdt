@@ -193,6 +193,23 @@ dt_export(
   nk_label(ctx, "quality", NK_TEXT_LEFT);
 
   struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
+  const char *colour_prim_text = "custom\0sRGB\0rec2020\0AdobeRGB\0P3\0XYZ\0\0";
+  const char *colour_trc_text  = "linear\0bt709\0sRGB\0PQ\0DCI\0HLG\0gamma\0mclog\0\0";
+  int new_prim = nk_combo_string(ctx, colour_prim_text, w->colour_prim, 0xffff, row_height, size);
+  if(new_prim != w->colour_prim)
+  {
+    w->colour_prim = new_prim;
+    dt_rc_set_int(&vkdt.rc, "gui/export/primaries", w->colour_prim);
+  }
+  nk_label(ctx, "primaries", NK_TEXT_LEFT);
+  int new_trc  = nk_combo_string(ctx, colour_trc_text, w->colour_trc, 0xffff, row_height, size);
+  if(new_trc != w->colour_trc)
+  {
+    w->colour_trc = new_trc;
+    dt_rc_set_int(&vkdt.rc, "gui/export/trc", w->colour_trc);
+  }
+  nk_label(ctx, "trc", NK_TEXT_LEFT);
+
   int new_format = nk_combo_string(ctx, w->format_text, w->format, 0xffff, row_height, size);
   if(new_format != w->format) dt_rc_set_int(&vkdt.rc, "gui/export/format", (w->format = new_format));
   nk_label(ctx, "format", NK_TEXT_LEFT);
