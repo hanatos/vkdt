@@ -98,8 +98,8 @@ void render_nodes_right_panel()
         if(modid >= 0)
         {
           dt_graph_history_module(&vkdt.graph_dev, modid);
-          vkdt.graph_dev.module[modid].gui_x = vkdt.graph_dev.module[i].gui_x;
-          vkdt.graph_dev.module[modid].gui_y = vkdt.graph_dev.module[i].gui_y + row_height * 10;
+          vkdt.graph_dev.module[modid].gui_x = vkdt.graph_dev.module[m].gui_x;
+          vkdt.graph_dev.module[modid].gui_y = vkdt.graph_dev.module[m].gui_y + row_height * 10;
         }
         else
         {
@@ -140,8 +140,8 @@ void render_nodes_right_panel()
                   dt_module_connect_with_history(&vkdt.graph_dev, m,     c, mab, 0);
                   dt_module_connect_with_history(&vkdt.graph_dev, modid, c, mab, 1);
                   dt_graph_history_module(&vkdt.graph_dev, mab);
-                  vkdt.graph_dev.module[mab].gui_x = vkdt.graph_dev.module[i].gui_x - row_height * 30;
-                  vkdt.graph_dev.module[mab].gui_y = vkdt.graph_dev.module[i].gui_y;
+                  vkdt.graph_dev.module[mab].gui_x = vkdt.graph_dev.module[nm[k]].gui_x - row_height * 8;
+                  vkdt.graph_dev.module[mab].gui_y = vkdt.graph_dev.module[nm[k]].gui_y;
                 }
               }
             }
@@ -366,6 +366,23 @@ void nodes_process()
 
 void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
+  // XXX this is not a good idea because middle mouse means pan
+  // if(button == GLFW_MOUSE_BUTTON_MIDDLE) nodes.nedit.zoom = 1;
+}
+
+void nodes_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
+{
+  double mx, my;
+  glfwGetCursorPos(window, &mx, &my);
+  const struct nk_vec2 mouse = nk_vec2(mx-vkdt.state.center_x, my-vkdt.state.center_y);
+  struct nk_vec2 center_ws = dt_node_view_to_world(&nodes.nedit, mouse);
+
+  nodes.nedit.zoom *= powf(1.2f, yoff);
+  nodes.nedit.zoom = CLAMP(nodes.nedit.zoom, 0.1, 10.0);
+
+  struct nk_vec2 center2_ws = dt_node_view_to_world(&nodes.nedit, mouse);
+  nodes.nedit.scroll.x += center_ws.x - center2_ws.x;
+  nodes.nedit.scroll.y += center_ws.y - center2_ws.y;
 }
 
 void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)

@@ -107,6 +107,9 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
   case s_view_lighttable:
     lighttable_mouse_scrolled(window, xoff, yoff);
     break;
+  case s_view_nodes:
+    nodes_mouse_scrolled(window, xoff, yoff);
+    break;
   default:;
   }
 }
