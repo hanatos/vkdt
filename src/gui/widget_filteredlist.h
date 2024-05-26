@@ -14,26 +14,41 @@ dt_tooltip(const char *fmt, ...)
   char text[512];
   if(fmt && fmt[0] && nk_widget_is_hovered(&vkdt.ctx))
   {
+    nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(0)->handle);
     va_list args;
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
-    if(nk_tooltip_begin(&vkdt.ctx, vkdt.state.panel_wd))
+    text[sizeof(text)-1]=0;
+    char *c = text;
+    int len = strlen(text);
+    struct nk_user_font *font = &dt_gui_get_font(0)->handle;
+    float w = font->width(font->userdata, font->height, text, len) + vkdt.ctx.style.tab.padding.x*2;
+    if(nk_tooltip_begin(&vkdt.ctx, MIN(w, vkdt.state.panel_wd)))
     {
-      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height, vkdt.state.panel_wd, 1);
-      text[sizeof(text)-1]=0;
-      char *c = text;
-      int len = strlen(text);
+      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height, MIN(w, vkdt.state.panel_wd), 1);
       while(c < text + len)
       {
         char *cc = c;
-        for(;*cc!='\n'&&cc<text+len;cc++) ;
+        for(;*cc!='\n'&&cc<text+len;cc++)
+        {
+          if(*cc==' ')
+          {
+            float w = font->width(font->userdata, font->height, c, cc-c);
+            if(w > 0.8*vkdt.state.panel_wd)
+            {
+              *cc = '\n';
+              break;
+            }
+          }
+        }
         if(*cc == '\n') *cc = 0;
         nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
         c = cc+1;
       }
       nk_tooltip_end(&vkdt.ctx);
     }
+    nk_style_pop_font(&vkdt.ctx);
   }
 }
 
