@@ -254,7 +254,9 @@ void render_lighttable_center()
     { // only half visible
       if(g_image_cursor == i)
       { // i do not understand the nuklear way to compute borders, but this works:
-        scroll_to = 1+(row.h + spacing) * (i/ipl); // row.y unreliable/negative in case of out of frustum
+        scroll_to = 1+(row.h + spacing) * (i/ipl); // scroll up
+        if(row.y + row.h > content.y + content.h)  // scroll down
+          scroll_to = vkdt.ctx.current->scrollbar.y + (row.y + row.h - content.y - content.h) + 1;
         g_scroll_colid = -1;
       }
     }
