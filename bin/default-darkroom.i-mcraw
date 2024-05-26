@@ -30,3 +30,4 @@ param:llap:01:hilights:1
 param:llap:01:clarity:0.2
 param:demosaic:01:method:1
 param:denoise:01:luma:0.3
+param:denoise:01:gainmap:0

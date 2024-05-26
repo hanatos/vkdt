@@ -16,3 +16,4 @@ param:colour:01:matrix:1
 param:colour:01:clip:1
 param:colour:01:clipmax:1
 param:f2srgb:main:usemat:0
+param:denoise:01:gainmap:0
