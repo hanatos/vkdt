@@ -171,7 +171,7 @@ dt_export(
   nk_label(ctx, "width", NK_TEXT_LEFT);
 
   resi = w->ht;
-  nk_property_int(ctx, "#height", 0, &resi, 65535, 1, 1);
+  nk_property_int(ctx, "#", 0, &resi, 65535, 1, 1);
   if(resi != w->ht) dt_rc_set_int(&vkdt.rc, "gui/export/ht", (w->ht = resi));
   nk_label(ctx, "height", NK_TEXT_LEFT);
 
