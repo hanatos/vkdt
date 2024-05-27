@@ -1036,17 +1036,22 @@ static inline void render_darkroom_widgets(
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
       if(out_dspy && vkdt.graph_res == VK_SUCCESS)
       {
+        struct nk_rect row = nk_layout_widget_bounds(ctx);
         float iwd = out_dspy->connector[0].roi.wd;
         float iht = out_dspy->connector[0].roi.ht;
-        float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
+        float scale = MIN(
+            MIN(out_dspy->connector[0].roi.wd, row.w) / iwd,
+            MIN(out_dspy->connector[0].roi.ht, 2.0f/3.0f*row.w) / iht);
         int ht = scale * iht, wd = scale * iwd;
-        float r = wd / (float)vkdt.state.panel_wd;
+        float r = wd / (float)row.w;
         float ratio[] = {0.5*(1-r) , r, 0.5*(1-r)};
+        nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
         nk_layout_row(ctx, NK_DYNAMIC, ht, 3, ratio);
         nk_label(ctx, "", 0);
         struct nk_image img = nk_image_ptr(out_dspy->dset[0]);
         nk_image(ctx, img);
         nk_label(ctx, "", 0);
+        nk_style_pop_vec2(ctx);
       }
     }
     for(int i=0;i<arr[curr].so->num_params;i++)

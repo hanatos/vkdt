@@ -1520,8 +1520,8 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
         {
           const float pwf = 0.2; // probably make a config param so we have access too (not only the gui)
           const float pwd = pwf * (16.0/9.0) * qvk.win_height;
-          module->connector[i].roi.full_wd = 2.0/3.0 * pwd;
-          module->connector[i].roi.full_ht = 2.0/3.0 * pwd;
+          module->connector[i].roi.full_wd = 2.0/3.2 * pwd; // a bit less than the panel size for scrollbars and margins and shit
+          module->connector[i].roi.full_ht = 2.0/3.2 * pwd;
         }
       }
     }
