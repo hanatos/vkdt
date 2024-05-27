@@ -158,7 +158,9 @@ static inline void render_darkroom_widget(int modid, int parid)
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       float oldval = *val;
       RESETBLOCK
-      nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .01);
+      nk_property_float(ctx, "#", param->widget.min, val, param->widget.max,
+          (param->widget.max - param->widget.min)/100.0,
+          (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
       if(*val != oldval) change = 1;
       if(change)
       {
@@ -175,7 +177,9 @@ static inline void render_darkroom_widget(int modid, int parid)
       int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       int32_t oldval = *val;
       RESETBLOCK
-      nk_property_int(ctx, "#", param->widget.min, val, param->widget.max, 1, 0.1);
+      nk_property_int(ctx, "#", param->widget.min, val, param->widget.max,
+          (int)(1.0+(param->widget.max - param->widget.min)/100.0),
+          (int)(1.0+(param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
       if(*val != oldval) change = 1;
       if(change)
       {
