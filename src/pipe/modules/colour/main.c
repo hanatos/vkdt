@@ -180,7 +180,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   uint32_t *i = (uint32_t *)module->committed_param;
 
   // grab params by name:
-  const float *p_wb  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("white")));
+        float *p_wb  = (float*)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("white")));
   const float  p_tmp = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("temp")))[0];
   const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
   const float *p_map = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("rbmap")));
@@ -192,6 +192,23 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const int    p_pck = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("picked")))[0];
   const int    p_clp = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("clip")))[0];
   const float  p_clm = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("clipmax")))[0];
+
+  if(p_wb[0] == 0.0f && p_wb[1] == 0.0f && p_wb[2] == 0.0f)
+  { // use camera coefs
+    float w0[3] = {0}, w[] = {
+      img_param->whitebalance[0],
+      img_param->whitebalance[1],
+      img_param->whitebalance[2]};
+    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+      w0[j] += img_param->cam_to_rec2020[3*j+i];
+    p_wb[0] = w[0]/w0[0];
+    p_wb[1] = w[1]/w0[1];
+    p_wb[2] = w[2]/w0[2];
+  }
+  if(p_wb[0] == 0.0f && p_wb[1] == 0.0f && p_wb[2] == 0.0f)
+  { // got no useful wb
+    p_wb[0] = p_wb[1] = p_wb[2] = 1.0f;
+  }
 
   // wb and exposure mul:
   f[0] = p_wb[0] / p_wb[1];
