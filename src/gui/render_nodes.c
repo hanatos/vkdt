@@ -239,9 +239,12 @@ void render_nodes()
   int num_modules = vkdt.graph_dev.num_modules;
   render_darkroom_modals(); // comes first so we can add a module popup from the context menu
   if(num_modules < vkdt.graph_dev.num_modules)
-  { // module has been added
+  { // module has been added, move and select it. does not work if a module reclaims the slot of a previously deleted one. do we care?
     vkdt.graph_dev.module[num_modules].gui_x = nodes.nedit.add_pos_x;
     vkdt.graph_dev.module[num_modules].gui_y = nodes.nedit.add_pos_y;
+    dt_node_editor_clear_selection(&nodes.nedit);
+    if(num_modules < NK_LEN(nodes.nedit.selected_mid)) nodes.nedit.selected_mid[num_modules] = 1;
+    nodes.nedit.selected = vkdt.graph_dev.module + num_modules;
   }
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
@@ -372,17 +375,20 @@ void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)
 
 void nodes_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 {
-  double mx, my;
-  glfwGetCursorPos(window, &mx, &my);
-  const struct nk_vec2 mouse = nk_vec2(mx-vkdt.state.center_x, my-vkdt.state.center_y);
-  struct nk_vec2 center_ws = dt_node_view_to_world(&nodes.nedit, mouse);
+  if (nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, nk_rect(vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht)))
+  {
+    double mx, my;
+    glfwGetCursorPos(window, &mx, &my);
+    const struct nk_vec2 mouse = nk_vec2(mx-vkdt.state.center_x, my-vkdt.state.center_y);
+    struct nk_vec2 center_ws = dt_node_view_to_world(&nodes.nedit, mouse);
 
-  nodes.nedit.zoom *= powf(1.2f, yoff);
-  nodes.nedit.zoom = CLAMP(nodes.nedit.zoom, 0.1, 10.0);
+    nodes.nedit.zoom *= powf(1.2f, yoff);
+    nodes.nedit.zoom = CLAMP(nodes.nedit.zoom, 0.1, 10.0);
 
-  struct nk_vec2 center2_ws = dt_node_view_to_world(&nodes.nedit, mouse);
-  nodes.nedit.scroll.x += center_ws.x - center2_ws.x;
-  nodes.nedit.scroll.y += center_ws.y - center2_ws.y;
+    struct nk_vec2 center2_ws = dt_node_view_to_world(&nodes.nedit, mouse);
+    nodes.nedit.scroll.x += center_ws.x - center2_ws.x;
+    nodes.nedit.scroll.y += center_ws.y - center2_ws.y;
+  }
 }
 
 void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)

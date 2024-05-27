@@ -69,8 +69,8 @@ dt_node_view_to_world(
     struct nk_vec2 view)
 {
   return nk_vec2(
-      view.x/nedit->zoom - nedit->scroll.x,
-      view.y/nedit->zoom - nedit->scroll.y);
+      view.x/nedit->zoom + nedit->scroll.x,
+      view.y/nedit->zoom + nedit->scroll.y);
 }
 
 static inline void
@@ -100,7 +100,7 @@ dt_node_editor(
     float x, y;
     const float grid_size_ws = 32.0f;
     const struct nk_vec2 size_ws = dt_node_view_to_world(nedit, nk_vec2(size.x,size.y));
-    struct nk_vec2 off_ws = nk_vec2(fmod(size_ws.x, grid_size_ws), fmod(size_ws.y, grid_size_ws));
+    struct nk_vec2 off_ws = nk_vec2(-fmod(size_ws.x, grid_size_ws), -fmod(size_ws.y, grid_size_ws));
     if(off_ws.x < 0) off_ws.x += grid_size_ws;
     if(off_ws.y < 0) off_ws.y += grid_size_ws;
     const struct nk_vec2 off_vs = nk_vec2(off_ws.x * nedit->zoom, off_ws.y * nedit->zoom);
@@ -128,8 +128,10 @@ dt_node_editor(
   static struct nk_rect selected_rect;
   static struct nk_rect drag_rect;
   static float drag_x, drag_y;
-  static int drag_selection = 0;
+  static int drag_selection = 0; // drag the selection box
+  static int move_nodes = 0;     // move selected nodes with the mouse
   int mouse_over_something = 0;
+  const int disabled = dt_gui_input_blocked(); // io is going to popup window or something
 
   for(int mid2=0;mid2<=(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
@@ -176,8 +178,8 @@ dt_node_editor(
         };
         nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
 
-        if (nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
-        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true))
+        if (!disabled && nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
+        if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true))
         { // start link
           nedit->connection.active = nk_true;
           nedit->connection.mid = mid;
@@ -209,14 +211,14 @@ dt_node_editor(
           .w = 2*pin_radius*nedit->zoom,
           .h = 2*pin_radius*nedit->zoom,
         };
-        if (nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
-        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true))
+        if (!disabled && nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
+        if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true))
         { // if right clicked on the connector disconnect
           dt_module_connect_with_history(graph, -1, -1, mid, c);
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
         nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
-        if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
+        if (!disabled && nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
             nk_input_is_mouse_hovering_rect(in, circle) &&
             nedit->connection.active && nedit->connection.mid != mid)
         {
@@ -247,7 +249,7 @@ dt_node_editor(
           struct nk_color col = nk_rgb(100,100,100);
           if(module->connector[c].flags & s_conn_feedback)
             col = col_feedback;
-          if(nedit->selected &&
+          if(!disabled && nedit->selected &&
               !drag_selection && !nedit->connection.active &&
               MAX(l0.x, p.x) >= selected_rect.x && MIN(l0.x, p.x) <= selected_rect.x + selected_rect.w && 
               MAX(l0.y, p.y) >= selected_rect.y && MIN(l0.y, p.y) <= selected_rect.y + selected_rect.h)
@@ -297,8 +299,8 @@ dt_node_editor(
     struct nk_rect bb = nk_widget_bounds(ctx);
     if(nk_group_begin(ctx, str, NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
     {
-      if(nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
-      if(nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
+      if(!disabled && nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
+      if(!disabled && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
       {
         if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0 &&
             glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
@@ -306,6 +308,7 @@ dt_node_editor(
           dt_node_editor_clear_selection(nedit); // only clear selection if we haven't been selected before
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
         nedit->selected = module;
+        move_nodes = 1;
       }
       if(nedit->selected == module)
         selected_rect = bb; // remember for connector overlap test
@@ -330,7 +333,7 @@ dt_node_editor(
       nk_group_end(ctx);
       // update module position if group has been dragged
       // TODO: do this before draw to minimise lag
-      if(!drag_selection && !nedit->connection.active &&
+      if(!disabled && move_nodes && !drag_selection && !nedit->connection.active &&
           nk_input_is_mouse_down(in, NK_BUTTON_LEFT) &&
           (mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
       {
@@ -342,7 +345,7 @@ dt_node_editor(
     nk_style_pop_style_item(ctx);
   } // for all modules
 
-  if(!nedit->connection.active)
+  if(!disabled && !nedit->connection.active)
   { // drag selection box
     if(!mouse_over_something && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, total_space, nk_true))
     {
@@ -363,23 +366,20 @@ dt_node_editor(
       nk_fill_rect(canvas, drag_rect, 0, bg);
       nk_stroke_rect(canvas, drag_rect, 0, 0.002*vkdt.state.center_ht, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
     }
-    if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
-    {
-      drag_selection = 0;
-    }
   }
 
-  if (nedit->connection.active && nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
-  { // reset connection
-    // TODO disconnect with history all connected inputs?
+  if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
+  {
+    drag_selection = 0;
+    move_nodes = 0;
     nedit->connection.active = nk_false;
     nedit->connection.mid = -1;
     nedit->connection.cid = -1;
   }
 
   struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(
-        vkdt.state.center_x + vkdt.state.center_wd/2,
-        vkdt.state.center_y + vkdt.state.center_ht/2));
+        size.x + size.w/2,
+        size.y + size.h/2));
   nedit->add_pos_x = pos.x;
   nedit->add_pos_y = pos.y;
 
@@ -393,9 +393,9 @@ dt_node_editor(
 
   // right click context menu
   // TODO: scale size of popup
-  if(!mouse_over_something && nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx)))
+  if(!disabled && !mouse_over_something && nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx)))
   {
-    struct nk_vec2 pos = dt_node_view_to_world(nedit, in->mouse.pos);
+    struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(in->mouse.pos.x - size.x, in->mouse.pos.y - size.y));
     nedit->add_pos_x = pos.x;
     nedit->add_pos_y = pos.y;
     nk_layout_row_dynamic(ctx, row_height, 1);
@@ -408,7 +408,8 @@ dt_node_editor(
   }
   nk_layout_space_end(ctx);
 
-  if (nk_input_is_mouse_hovering_rect(in, nk_window_get_bounds(ctx)) &&
+  if (!disabled &&
+      nk_input_is_mouse_hovering_rect(in, nk_window_get_bounds(ctx)) &&
       nk_input_is_mouse_down(in, NK_BUTTON_MIDDLE))
   { // panning by middle mouse drag
     nedit->scroll.x -= in->mouse.delta.x/nedit->zoom;
