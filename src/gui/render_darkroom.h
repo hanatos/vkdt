@@ -896,7 +896,7 @@ static inline void render_darkroom_widget(int modid, int parid)
   else if(param->widget.type == dt_token("rgb"))
   {
     float *col = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
-    struct nk_color normal = {255*col[0], 255*col[1], 255*col[2], 0xff};
+    struct nk_color normal = {(200*col[0]+30)/2, (200*col[1]+30)/2, (200*col[2]+30)/2, 0xff};
     struct nk_color hover  = normal;
     struct nk_color active = normal;
     // questionable if separate hover/active makes much sense, it is separate for buttons and edit and bg and shows boxy artifacts
@@ -921,7 +921,7 @@ static inline void render_darkroom_widget(int modid, int parid)
           dt_token_str(param->name),
           comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
       RESETBLOCK
-        nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
+      nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
       if(*val != oldval) change = 1;
       if(change)
       {
@@ -936,7 +936,7 @@ static inline void render_darkroom_widget(int modid, int parid)
       }
       dt_tooltip(param->tooltip);
       KEYFRAME
-        nk_label(ctx, string, NK_TEXT_LEFT);
+      nk_label(ctx, string, NK_TEXT_LEFT);
     }
     for(int i=0;i<12;i++) nk_style_pop_style_item(ctx);
     if(param->cnt == count && count <= 4) num = 4; // non-array rgb controls
