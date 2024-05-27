@@ -158,9 +158,22 @@ static inline void render_darkroom_widget(int modid, int parid)
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       float oldval = *val;
       RESETBLOCK
+      struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_property_float(ctx, "#", param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
           (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
+      // draw fill level
+      struct nk_color col = nk_rgba(255,255,255,30);
+      struct nk_rect bar = nk_rect(bounds.x + 0.1*bounds.w, bounds.y + 0.15*bounds.h,
+          bounds.w * 0.8*(*val - param->widget.min)/(param->widget.max - param->widget.min), bounds.h * 0.7);
+      nk_fill_rect(nk_window_get_canvas(ctx), bar, 0, col);
+      // draw default value
+      col = nk_rgba(0,0,0,40);
+      float defval = param->val[num];
+      bar = nk_rect(bounds.x + 0.1*bounds.w + bounds.w * 0.8*(defval - param->widget.min)/(param->widget.max - param->widget.min),
+          bounds.y + 0.15*bounds.h, 0.01*bounds.w, 0.7*bounds.h);
+      nk_fill_rect(nk_window_get_canvas(ctx), bar, 0, col);
+
       if(*val != oldval) change = 1;
       if(change)
       {
