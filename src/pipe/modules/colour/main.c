@@ -202,7 +202,6 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
       w0[j] += img_param->cam_to_rec2020[3*j+i];
     w0[0] /= w0[1]; w0[2] /= w0[1]; w0[1] = 1.0f;
-    fprintf(stderr, "whites %f %f / %f %f / %f %f\n", w[0],w0[0], w[1],w0[1], w[2],w0[2]);
     p_wb[0] = w[0]/w0[0];
     p_wb[1] = w[1]/w0[1];
     p_wb[2] = w[2]/w0[2];
