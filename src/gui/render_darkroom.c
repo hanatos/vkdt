@@ -604,9 +604,10 @@ void render_darkroom()
     else if(current_tab == 1)
     {
       render_darkroom_full();
-      nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
       if(nk_button_label(ctx, "open node editor"))
-        gui.hotkey = s_hotkey_nodes_enter;
+        dt_view_switch(s_view_nodes);
+      nk_label(ctx, "", 0);
     }
     else if(current_tab == 2)
     {
