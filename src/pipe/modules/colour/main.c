@@ -1,6 +1,5 @@
 #include "core/gaussian_elimination.h"
 #include "modules/api.h"
-#include "../i-raw/mat3.h"
 #include <math.h>
 #include <stdlib.h>
 

@@ -27,6 +27,7 @@ struct buf_t
   std::vector<motioncam::AudioChunk> audio_chunks;
   int32_t wd, ht, rwd; // original image dimensions from decoder
   int ox, oy;          // offset to first canonical rggb bayer block
+  float as_shot_neutral[4];
   std::vector<uint16_t> dummy; // tmp mem to decode frame, please remove this for direct access to mapped memory!
   uint16_t *bitcnt;
   dt_image_metadata_dngop_t dngop;
@@ -75,6 +76,8 @@ open_file(
 
   dat->wd = metadata["width"];
   dat->ht = metadata["height"];
+  std::vector<double> wb = metadata["asShotNeutral"];
+  for(int k=0;k<4;k++) dat->as_shot_neutral[k] = 1.0/wb[k];
 
   // load gainmap  
   int uncropped_wd = metadata["originalWidth"];
@@ -200,8 +203,6 @@ void modify_roi_out(
   ro->full_ht = ht;
 
   const nlohmann::json& cmeta = dat->dec->getContainerMetadata();
-  // TODO somehow wire this to params per frame (commit_params?)
-  // std::vector<double> wb = dat->metadata["asShotNeutral"];
   std::vector<uint16_t> black = cmeta["blackLevel"];
   float white = cmeta["whiteLevel"];
   std::string sensorArrangement = cmeta["sensorArrangment"];
@@ -213,8 +214,8 @@ void modify_roi_out(
   mod->img_param = (dt_image_params_t) {
     .black          = {(float)black[0], (float)black[1], (float)black[2], (float)black[3]}, // XXX do we always get 4?
     .white          = {white, white, white, white},
-    // .whitebalance   = {wb[0], wb[1], wb[2], wb[3]},
-    .whitebalance   = {1, 1, 1, 1},
+    .whitebalance   = {dat->as_shot_neutral[0], dat->as_shot_neutral[1], dat->as_shot_neutral[2], dat->as_shot_neutral[3]},
+    // .whitebalance   = {0, 0, 0, 0},
     .filters        = 0x5d5d5d5d, // anything not 0 or 9 will be bayer starting at R
     .crop_aabb      = {0, 0, wd, ht},
     .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
@@ -298,10 +299,6 @@ void modify_roi_out(
     mat[0], mat[1], mat[2],
     mat[3], mat[4], mat[5],
     mat[6], mat[7], mat[8]};
-  // find white balance baked into matrix:
-  mod->img_param.whitebalance[0] = (cam_to_xyz[0]+cam_to_xyz[1]+cam_to_xyz[2]);
-  mod->img_param.whitebalance[1] = (cam_to_xyz[3]+cam_to_xyz[4]+cam_to_xyz[5]);
-  mod->img_param.whitebalance[2] = (cam_to_xyz[6]+cam_to_xyz[7]+cam_to_xyz[8]);
   mod->img_param.whitebalance[0] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1]  = 1.0f;
@@ -438,11 +435,11 @@ int audio(
 
   int channels   = dat->dec->numAudioChannels();
   int chunk_size = dat->audio_chunks[0].second.size() / channels; // is in number of samples, but already vec<int16>
-  int chunk_id   = CLAMP(sample_beg / chunk_size, 0, dat->audio_chunks.size()-1);
-  int chunk_off  = CLAMP(sample_beg - chunk_id * chunk_size, 0, chunk_size-1);
+  int chunk_id   = CLAMP((int)(sample_beg / chunk_size), (int)0, (int)(dat->audio_chunks.size()-1));
+  int chunk_off  = CLAMP((int)(sample_beg - chunk_id * chunk_size), (int)0, (int)(chunk_size-1));
   // find right audio chunk for frame by timestamp, i.e. audio_chunk.first (so far they seem to be always zero?)
   *samples = (uint8_t*)(dat->audio_chunks[chunk_id].second.data() + chunk_off);
 
-  return MIN(sample_cnt, chunk_size - chunk_off);
+  return MIN((int)sample_cnt, (int)(chunk_size - chunk_off));
 }
 } // extern "C"
