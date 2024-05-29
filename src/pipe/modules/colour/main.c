@@ -1,5 +1,6 @@
 #include "core/gaussian_elimination.h"
 #include "modules/api.h"
+#include "../i-raw/mat3.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -200,13 +201,13 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
       img_param->whitebalance[1],
       img_param->whitebalance[2]};
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      w0[j] += img_param->cam_to_rec2020[3*j+i];
+      w0[j] += img_param->cam_to_rec2020[3*j+i]/w[i];
     w0[0] /= w0[1]; w0[2] /= w0[1]; w0[1] = 1.0f;
-    p_wb[0] = w[0]/w0[0];
-    p_wb[1] = w[1]/w0[1];
-    p_wb[2] = w[2]/w0[2];
+    p_wb[0] = 1/w0[0];
+    p_wb[1] = 1;
+    p_wb[2] = 1/w0[2];
   }
-  if(p_wb[0] == 0.0f && p_wb[1] == 0.0f && p_wb[2] == 0.0f)
+  if(!(p_wb[0] == p_wb[0]) || p_wb[0] == 0.0f || p_wb[1] == 0.0f || p_wb[2] == 0.0f)
   { // got no useful wb
     p_wb[0] = p_wb[1] = p_wb[2] = 1.0f;
   }
