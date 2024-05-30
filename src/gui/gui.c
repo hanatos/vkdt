@@ -147,7 +147,6 @@ int dt_gui_init()
     };
     QVKR(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, vkdt.command_buffer+i));
   }
-  // XXX intel says 0,0,0,1 is fastest:
   vkdt.clear_value = (VkClearValue){{.float32={0.18f, 0.18f, 0.18f, 1.0f}}};
 
   vkdt.pipeline_cache = VK_NULL_HANDLE;
@@ -184,7 +183,7 @@ int dt_gui_init()
   }
   else dt_log(s_log_gui, "no joysticks found");
 
-  dt_gui_init_imgui();
+  dt_gui_init_nk();
 
   return 0;
 }
@@ -229,7 +228,8 @@ dt_gui_recreate_swapchain()
     .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                     VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
   };
   VkRenderPassCreateInfo info = {
     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -280,7 +280,7 @@ dt_gui_recreate_swapchain()
 
 void dt_gui_cleanup()
 {
-  dt_gui_cleanup_imgui();
+  dt_gui_cleanup_nk();
   char configfile[512];
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
     dt_rc_write(&vkdt.rc, configfile);
@@ -317,7 +317,7 @@ VkResult dt_gui_render()
     // XXX kill all semaphores
     return res;
   }
-
+  
   const int i = vkdt.frame_index;
   QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
   QVKR(vkResetFences(qvk.device, 1, vkdt.fence+i));
@@ -339,7 +339,8 @@ VkResult dt_gui_render()
   vkCmdBeginRenderPass(vkdt.command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
   vkdt.sem_fence[vkdt.sem_index] = i; // remember which frame in flight uses the semaphores
 
-  dt_gui_record_command_buffer_imgui(vkdt.command_buffer[i]);
+  dt_gui_render_frame_nk();
+  nk_glfw3_create_cmd(&vkdt.ctx, vkdt.command_buffer[i], NK_ANTI_ALIASING_ON, i);
 
   // Submit command buffer
   vkCmdEndRenderPass(vkdt.command_buffer[i]);

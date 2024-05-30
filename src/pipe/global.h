@@ -6,6 +6,8 @@
 #include "graph-fwd.h"
 #include <limits.h>
 
+#define DT_MAX_PARAMS_PER_MODULE 30
+
 // static global structs to keep around for all instances of pipelines.
 // this queries the modules on startup, does the dlopen and expensive
 // parsing once, and holds a list for modules to quickly access run time.
@@ -118,7 +120,7 @@ typedef struct dt_module_so_t
   int num_connectors;
 
   // pointer to variably-sized parameters
-  dt_ui_param_t *param[30];
+  dt_ui_param_t *param[DT_MAX_PARAMS_PER_MODULE];
   int num_params;
 
   // is this module simple, i.e. has a clear input and output connector chain?

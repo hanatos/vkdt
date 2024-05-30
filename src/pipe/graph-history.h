@@ -203,6 +203,7 @@ dt_graph_history_set(
   for(uint32_t i=0;i<graph->history_item_cur;i++)
     if(dt_graph_read_config_line(graph, graph->history_item[i]) < 0)
       return 1;
+  for(int m=0;m<graph->num_modules;m++) dt_module_keyframe_post_update(graph->module+m);
   return 0;
 }
 

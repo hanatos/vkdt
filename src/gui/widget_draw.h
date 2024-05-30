@@ -1,9 +1,7 @@
 #pragma once
 // minimal postscript interpreter to draw decorative line patterns
-// could use imgui's 
-// PathClear PathLineTo PathBezierCubicCurveTo(v,v,v,num_seg) PathStroke(col, flags, thickness) to avoid internal vertex buffer
-// ImDrawFlags_Closed (instead of true/false btw!)
 // TODO: add transformations on vertices before tessellation
+#include "nk.h"
 
 static const float dt_draw_cmd_marker = -0.0f/0.0f;
 enum dt_draw_cmd_t
@@ -148,29 +146,28 @@ static const float dt_draw_list_gamepad_arrow[][20] = {
 #undef c
 #undef h
 
-namespace {
-inline ImVec2 xf(ImVec2 v, const float *m)
-{
-  if(!m) return v;
-  return ImVec2(
-      v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
-      v.x * m[3*1 + 0] + v.y * m[3*1 + 1] + m[3*1 + 2]);
-}
-};
+#define xf(v, m) ({ struct nk_vec2 r = v; if(m) r = (struct nk_vec2){ \
+    v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2], \
+    v.x * m[3*1 + 0] + v.y * m[3*1 + 1] + m[3*1 + 2]};\
+    r;})
 
-inline void
+static inline void
 dt_draw(
-    const float *cmd,  // command buffer
-    const int    cnt,  // number of commands
-    const int    det,  // detail/how many points per bezier
-    const float *m)    // 3x2 affine transform, optional
+    struct nk_context *ctx, // which nuklear context to draw to
+    const float       *cmd, // command buffer
+    const int          cnt, // number of commands
+    // const int          det, // detail/how many points per bezier
+    // TODO: and colour?
+    const float       *m)   // 3x2 affine transform, optional
 {
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   float stack[10];
   const int stacksize = sizeof(stack)/sizeof(stack[0]);
   int sp = 0;
   const float thickness = vkdt.state.center_ht / 500.0f;
-  ImDrawList *dl = ImGui::GetWindowDrawList();
-  dl->PathClear();
+  struct nk_color col = {255, 255, 255, 255};
+  struct nk_vec2 pos = {0};
+  struct nk_vec2 beg = {0};
   for(int i=0;i<cnt;i++)
   {
     if(!memcmp(cmd+i, &dt_draw_cmd_marker, sizeof(float)))
@@ -178,23 +175,26 @@ dt_draw(
       switch((int)cmd[++i])
       {
         case dt_draw_moveto:
-          dl->PathStroke(IM_COL32_WHITE, 0, thickness);
-          // note: no break
+          beg = pos = xf(((struct nk_vec2){stack[sp-2], stack[sp-1]}), m);
+          sp -= 2;
         case dt_draw_lineto:
           if(sp < 2) return; // stack underflow
-          dl->PathLineTo(xf(ImVec2(stack[sp-2], stack[sp-1]), m));
+          struct nk_vec2 p = xf(((struct nk_vec2){stack[sp-2], stack[sp-1]}), m);
+          nk_stroke_line(buf, pos.x, pos.y, p.x, p.y, thickness, col);
+          pos = p;
           sp -= 2;
           break;
         case dt_draw_curveto:
           if(sp < 6) return; // stack underflow
           sp -= 6;
-          dl->PathBezierCubicCurveTo(
-            xf(ImVec2(stack[sp+0], stack[sp+1]), m),
-            xf(ImVec2(stack[sp+2], stack[sp+3]), m),
-            xf(ImVec2(stack[sp+4], stack[sp+5]), m), det);
+          struct nk_vec2 p1 = xf(((struct nk_vec2){stack[sp+0], stack[sp+1]}), m);
+          struct nk_vec2 p2 = xf(((struct nk_vec2){stack[sp+2], stack[sp+3]}), m);
+          struct nk_vec2 p3 = xf(((struct nk_vec2){stack[sp+4], stack[sp+5]}), m);
+          pos = p3;
+          nk_stroke_curve(buf, pos.x, pos.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, thickness, col);
           break;
         case dt_draw_closepath:
-          dl->PathStroke(IM_COL32_WHITE, ImDrawFlags_Closed, thickness);
+          nk_stroke_line(buf, pos.x, pos.y, beg.x, beg.y, thickness, col);
           break;
         default: // unknown command
           continue;
@@ -203,6 +203,5 @@ dt_draw(
     else if(sp < stacksize) stack[sp++] = cmd[i];
     else return; // stack overflow
   }
-  // stroke last batch
-  dl->PathStroke(IM_COL32_WHITE, 0, thickness);
 }
+#undef xf

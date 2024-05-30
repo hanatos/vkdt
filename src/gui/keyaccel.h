@@ -15,22 +15,22 @@ typedef struct dt_keyaccel_t
 }
 dt_keyaccel_t;
 
-static int
+int
 compare_keyaccel(const void *a, const void *b, void *data)
 {
-  ImHotKey::HotKey *aa = (ImHotKey::HotKey *)a;
-  ImHotKey::HotKey *bb = (ImHotKey::HotKey *)b;
-  const char *s0 = aa->functionName;
-  const char *s1 = bb->functionName;
+  hk_t *aa = (hk_t *)a;
+  hk_t *bb = (hk_t *)b;
+  const char *s0 = aa->name;
+  const char *s1 = bb->name;
   return strcmp(s0, s1);
 }
 
-inline int // return the new count after putting our stuff in there
+static inline int // return the new count after putting our stuff in there
 dt_keyaccel_init(
-    dt_keyaccel_t    *ka,        // key accel struct to initialise/store strings on
-    ImHotKey::HotKey *list,      // list of partially inited hotkeys
-    int               list_cnt,  // currently in list
-    const int         list_size) // allocation size of the array
+    dt_keyaccel_t *ka,        // key accel struct to initialise/store strings on
+    hk_t          *list,      // list of partially inited hotkeys
+    int            list_cnt,  // currently in list
+    const int      list_size) // allocation size of the array
 {
   dt_stringpool_init(&ka->sp, 2*list_size, 30); // + space for description/comment
   char dirname[PATH_MAX];
@@ -67,8 +67,8 @@ dt_keyaccel_init(
       if(id0 != id) continue; // this preset name already inserted (probably local overriding global)
       dt_stringpool_get(&ka->sp, comment, strlen(comment), 0, &dedup1);
       // dt_log(s_log_gui, "[keyaccel] adding hotkey %d %s %s\n", list_cnt, dedup0, dedup1);
-      list[list_cnt].functionName = dedup0;
-      list[list_cnt].functionLib  = dedup1;
+      list[list_cnt].name = dedup0;
+      list[list_cnt].lib  = dedup1;
       for(int k=0;k<4;k++) list[list_cnt].key[k] = 0; // these will be set when reading the darkroom.hotkeys config file
       list_cnt++;
     }
@@ -79,14 +79,14 @@ dt_keyaccel_init(
   return list_cnt;
 }
 
-inline void
+static inline void
 dt_keyaccel_cleanup(
     dt_keyaccel_t *ka)
 {
   dt_stringpool_cleanup(&ka->sp);
 }
 
-inline void
+static inline void
 dt_keyaccel_exec(const char *key)
 { // first search home dir, then global dir. ingest preset line by line, with history
   char filename[PATH_MAX];
@@ -115,6 +115,7 @@ dt_keyaccel_exec(const char *key)
 error:
     dt_log(s_log_err, "[keyaccel] failed to execute %s : %d", key, lno);
   }
-  vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(s_graph_run_all);
+  for(int m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_keyframe_post_update(vkdt.graph_dev.module+m);
+  vkdt.graph_dev.runflags = s_graph_run_all;
   fclose(f);
 }

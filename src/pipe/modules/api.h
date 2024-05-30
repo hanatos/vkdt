@@ -1086,7 +1086,6 @@ dt_graph_open_resource(
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     return fopen(filename, mode);
   }
-  fprintf(stderr, "fuck, failed to find %s %s\n", fname, filename);
   return 0;
 }
 

@@ -21,3 +21,6 @@ files_leave()
   dt_gamepadhelp_clear();
   return 0;
 }
+
+void files_mouse_button(GLFWwindow *window, int button, int action, int mods);
+void files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods);

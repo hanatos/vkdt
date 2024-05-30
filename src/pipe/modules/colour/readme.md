@@ -86,7 +86,7 @@ gamut.
 * `matrix` input device transform mode: use the image matrix or a selection of presets, or the colour lut.
 * `temp` if a clut is used, this allows to blend between the two illuminants. usually this
   is illuminant A and D65 and reflected in the values of the temperature here.
-* `white` the white balance destination colour
+* `white` the white balance destination colour. 1 1 1 is D65. setting this to 0 0 0 (doubleclick to default) will try to load the camera white balance.
 * `mat` a hidden parameter containing the coefficients of the image matrix.
 * `cnt` the number of patches to use in the rbf mapping
 * `rbmap` the patch source and destination colours

@@ -299,6 +299,7 @@ int dt_graph_read_config_ascii(
     // > 0 are warnings, < 0 are fatal, 0 is success
     if(dt_graph_read_config_line(graph, line) < 0) goto error;
   }
+  for(int m=0;m<graph->num_modules;m++) dt_module_keyframe_post_update(graph->module+m);
   fclose(f);
   return 0;
 error:
@@ -580,6 +581,7 @@ dt_graph_read_block(
     fclose(f);
     return 0;
   }
+  for(int m=0;m<graph->num_modules;m++) dt_module_keyframe_post_update(graph->module+m);
   dt_log(s_log_pipe|s_log_err, "could not open '%s'", filename);
   return 1;
 }

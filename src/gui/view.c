@@ -8,6 +8,7 @@
 int
 dt_view_switch(dt_gui_view_t view)
 {
+  vkdt.wstate.popup = 0;
   int err = 0;
   switch(vkdt.view_mode)
   {
@@ -59,8 +60,7 @@ dt_view_switch(dt_gui_view_t view)
 void
 dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
-  // unfortunately this is always true:
-  // if(dt_gui_imgui_want_mouse()) return;
+  if(vkdt.wstate.popup) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
@@ -69,6 +69,12 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
   case s_view_lighttable:
     lighttable_mouse_button(window, button, action, mods);
     break;
+  case s_view_files:
+    files_mouse_button(window, button, action, mods);
+    break;
+  case s_view_nodes:
+    nodes_mouse_button(window, button, action, mods);
+    break;
   default:;
   }
 }
@@ -76,8 +82,7 @@ dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 void
 dt_view_mouse_position(GLFWwindow *window, double x, double y)
 {
-  // unfortunately this is always true:
-  // if(dt_gui_imgui_want_mouse()) return;
+  if(vkdt.wstate.popup) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
@@ -93,6 +98,7 @@ dt_view_mouse_position(GLFWwindow *window, double x, double y)
 void
 dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 {
+  if(vkdt.wstate.popup) return;
   switch(vkdt.view_mode)
   {
   case s_view_darkroom:
@@ -101,6 +107,9 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
   case s_view_lighttable:
     lighttable_mouse_scrolled(window, xoff, yoff);
     break;
+  case s_view_nodes:
+    nodes_mouse_scrolled(window, xoff, yoff);
+    break;
   default:;
   }
 }
@@ -108,16 +117,21 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  if(!vkdt.wstate.grabbed && dt_gui_imgui_want_text()) return;
   switch(vkdt.view_mode)
   {
-  case s_view_darkroom:
-    darkroom_keyboard(window, key, scancode, action, mods);
-    break;
-  case s_view_lighttable:
-    lighttable_keyboard(window, key, scancode, action, mods);
-    break;
-  default:;
+    case s_view_darkroom:
+      darkroom_keyboard(window, key, scancode, action, mods);
+      break;
+    case s_view_lighttable:
+      lighttable_keyboard(window, key, scancode, action, mods);
+      break;
+    case s_view_files:
+      files_keyboard(window, key, scancode, action, mods);
+      break;
+    case s_view_nodes:
+      nodes_keyboard(window, key, scancode, action, mods);
+      break;
+    default:;
   }
 }
 
@@ -139,6 +153,7 @@ dt_view_process()
 void
 dt_view_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
+  if(vkdt.wstate.popup) return;
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:

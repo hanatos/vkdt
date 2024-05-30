@@ -39,7 +39,7 @@ install-bin: all Makefile
 	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
 	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo ${VKDTDIR}
 	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
-	cp -rfL bin/darkroom.ui ${VKDTDIR}
+	cp -rfL bin/darkroom.ui bin/style.txt ${VKDTDIR}
 
 install-mod: bin Makefile
 	mkdir -p $(VKDTDIR)/modules

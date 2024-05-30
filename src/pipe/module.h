@@ -92,10 +92,13 @@ dt_image_params_t;
 // a keyframe param change
 typedef struct dt_keyframe_t
 {
-  dt_token_t param;     // the parameter name
-  int        frame;     // the frame to apply this
-  uint32_t   beg, end;  // the begin and end byte offsets in the params array
-  uint8_t   *data;      // the data to slap over. points into the graph's param pool.
+  dt_token_t     param;     // the parameter name
+  int            frame;     // the frame to apply this
+  uint32_t       beg, end;  // the begin and end byte offsets in the params array
+  uint8_t       *data;      // the data to slap over. points into the graph's param pool.
+  // if this keyframe is hooked into the acceleration structure per param,
+  // module->param_keyframe, this is a linked list sorted by frame.
+  struct dt_keyframe_t *next; 
 }
 dt_keyframe_t;
 
@@ -137,6 +140,8 @@ typedef struct dt_module_t
   uint32_t       keyframe_cnt;  // number of keyframes
   uint64_t       keyframe_size; // allocation size
   dt_keyframe_t *keyframe;      // dynamically allocated keyframe array
+
+  uint16_t param_keyframe[DT_MAX_PARAMS_PER_MODULE]; // index to the first keyframe in the array corresponding to the parameter id
 
   // these stay 0 unless inited by the module in init().
   // if the module implements commit_params(), it shall be used
@@ -188,3 +193,5 @@ int dt_module_get_module_after(
 
 // reset all parameters to their defaults
 void dt_module_reset_params(dt_module_t *mod);
+// update keyframe acceleration structure param_keyframe based on a keyframe change
+void dt_module_keyframe_post_update(dt_module_t *mod);

@@ -7,17 +7,49 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// just wraps imgui but sets the viewport to the existing one.
-// avoids swapchain recomputation and issues with tiling window managers.
-inline void
-dt_gui_set_tooltip(const char *fmt, ...)
+// just wraps nuklear
+static inline void
+dt_tooltip(const char *fmt, ...)
 {
-  ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
-  ImGui::PushTextWrapPos(vkdt.state.panel_wd);
-  va_list args;
-  va_start(args, fmt);
-  ImGui::SetTooltipV(fmt, args);
-  va_end(args);
+  char text[512];
+  if(fmt && fmt[0] && nk_widget_is_hovered(&vkdt.ctx))
+  {
+    nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(0)->handle);
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    text[sizeof(text)-1]=0;
+    char *c = text;
+    int len = strlen(text);
+    struct nk_user_font *font = &dt_gui_get_font(0)->handle;
+    float w = font->width(font->userdata, font->height, text, len) + vkdt.ctx.style.tab.padding.x*2;
+    if(nk_tooltip_begin(&vkdt.ctx, MIN(w, vkdt.state.panel_wd)))
+    {
+      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height, MIN(w, vkdt.state.panel_wd), 1);
+      while(c < text + len)
+      {
+        char *cc = c;
+        for(;*cc!='\n'&&cc<text+len;cc++)
+        {
+          if(*cc==' ')
+          {
+            float w = font->width(font->userdata, font->height, c, cc-c);
+            if(w > 0.8*vkdt.state.panel_wd)
+            {
+              *cc = '\n';
+              break;
+            }
+          }
+        }
+        if(*cc == '\n') *cc = 0;
+        nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
+        c = cc+1;
+      }
+      nk_tooltip_end(&vkdt.ctx);
+    }
+    nk_style_pop_font(&vkdt.ctx);
+  }
 }
 
 
@@ -42,7 +74,7 @@ filteredlist_get_heading(
   return res;
 }
 
-enum filteredlist_flags_t
+typedef enum dt_filteredlist_flags_t
 {
   s_filteredlist_default      = 0,
   s_filteredlist_allow_new    = 1, // provide "new" button
@@ -50,21 +82,19 @@ enum filteredlist_flags_t
   s_filteredlist_descr_req    = 4, // descriptions are mandatory, else the entry is filtered out
   s_filteredlist_descr_any    = 6, // both the above (for testing only, don't pass this)
   s_filteredlist_return_short = 8, // return only the short filename, not the absolute one
-};
+} dt_filteredlist_flags_t;
 
-namespace {
-int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
+static inline int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
 {
   const struct dirent *a = (const struct dirent *)aa;
   const struct dirent *b = (const struct dirent *)bb;
   return strcmp(a->d_name, b->d_name);
 }
-}
 
 // displays a filtered list of directory entries.
 // this is useful to select from existing presets, blocks, tags, etc.
-// call this between BeginPopupModal and EndPopup.
-// return values != 0 mean you should call ImGui::CloseCurrentPopup().
+// call this inside a nuklear popup
+// return values != 0 mean there was an answer and the popup should close
 static inline int            // return 0 - nothing, 1 - ok, 2 - cancel
 filteredlist(
     const char *dir,         // optional. %s will be replaced as global basedir
@@ -72,9 +102,10 @@ filteredlist(
     char        filter[256], // initial filter string (will be updated)
     char       *retstr,      // selection will be written here
     int         retstr_len,  // buffer size
-    filteredlist_flags_t flags)
+    dt_filteredlist_flags_t flags)
   // TODO: custom filter rule?
 {
+  struct nk_context *ctx = &vkdt.ctx;
   int ok = 0;
   int pick = -1, local = 0;
 #define FREE_ENT do {\
@@ -89,18 +120,21 @@ filteredlist(
   static char dirname[PATH_MAX];
   static char dirname_local[PATH_MAX];
   static char **desc = 0, **desc_local = 0;
-  if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
-  if(ImGui::InputText("filter", filter, 256, ImGuiInputTextFlags_EnterReturnsTrue))
-    ok = 1;
-  if(ImGui::IsItemHovered())
-    dt_gui_set_tooltip(
-        "type to filter the list\n"
-        "press enter to apply top item\n"
-        "press escape to close");
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-     ImGui::IsKeyPressed(ImGuiKey_Escape)||
-     ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-  { FREE_ENT; return 2; }
+
+  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
+  nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
+  dt_tooltip(
+      "type to filter the list\n"
+      "press enter to apply top item\n"
+      "press escape to close");
+  if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
+  nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+  if(ret & NK_EDIT_COMMITED) ok = 1;
+  struct nk_rect rowbound = nk_layout_widget_bounds(ctx);
+  total_space.h -= rowbound.y - total_space.y;
+  nk_label(ctx, "filter", NK_TEXT_LEFT);
+  vkdt.wstate.popup_appearing = 0;
 
   if(!ent_cnt)
   { // open directory
@@ -163,31 +197,33 @@ filteredlist(
     else ent_local_cnt = 0;
   }
 
+  nk_layout_row_dynamic(&vkdt.ctx, total_space.h-3*row_height, 1);
+  nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+  nk_group_begin(&vkdt.ctx, "filteredlist-scrollpane", 0);
+  {
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+#define XLIST(E, D, L) do { \
+    for(int i=0;i<E##_cnt;i++)\
+    if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
+        && E[i].d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
+      if(pick < 0) { local = L; pick = i; } \
+      if(nk_button_label(&vkdt.ctx, (D && D[i]) ? D[i] : E[i].d_name)) {\
+        ok = 1; pick = i; local = L;\
+      } } } while(0)
+    XLIST(ent_local, desc_local, 1);
+    XLIST(ent, desc, 0);
+#undef XLIST
+    nk_group_end(&vkdt.ctx);
+  }
+  nk_style_pop_flags(&vkdt.ctx);
 
-  ImGui::BeginChild("filteredlist-scrollpane", ImVec2(0.0f, 0.75f*vkdt.state.center_ht));
-  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0, 0.5));
-#define LIST(E, D, L) do { \
-  for(int i=0;i<E##_cnt;i++)\
-  if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
-      && E[i].d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
-    if(pick < 0) { local = L; pick = i; } \
-    if(ImGui::Button((D && D[i]) ? D[i] : E[i].d_name, ImVec2(-1, 0))) {\
-      ok = 1; pick = i; local = L;\
-    } } } while(0)
-  LIST(ent_local, desc_local, 1);
-  LIST(ent, desc, 0);
-#undef LIST
-  ImGui::PopStyleVar();
-  ImGui::EndChild(); // scrollable list
-
-  int bwd = vkdt.state.panel_wd / ((flags & s_filteredlist_allow_new) ? 3 : 2);
-  ImGui::Dummy(ImVec2(0, 0.05f*vkdt.state.panel_wd));
-  ImGui::Dummy(ImVec2(0.8f*vkdt.state.center_wd-2.0f*bwd, 0)); ImGui::SameLine();
-  if((flags & s_filteredlist_allow_new) && ImGui::Button("create new", ImVec2(bwd, 0))) { pick = -1; ok = 1; }
-  if (flags & s_filteredlist_allow_new) ImGui::SameLine();
-  if (ImGui::Button("cancel", ImVec2(bwd, 0))) {FREE_ENT; return 2;}
-  ImGui::SameLine();
-  if (ImGui::Button("ok", ImVec2(bwd, 0))) ok = 1;
+  nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
+  nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+  nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+  if( (flags & s_filteredlist_allow_new) && nk_button_label(&vkdt.ctx, "create new")) { pick = -1; ok = 1; }
+  if(!(flags & s_filteredlist_allow_new)) nk_label(&vkdt.ctx, "", NK_TEXT_LEFT);
+  if (nk_button_label(&vkdt.ctx, "cancel")) {FREE_ENT; return 2;}
+  if (nk_button_label(&vkdt.ctx, "ok")) ok = 1;
 
   if(ok == 1)
   {
