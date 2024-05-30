@@ -77,27 +77,40 @@ run `bin/mkappimg.sh` from the root directory
 ### current changelog
 
 main features:
-neural network infrastructure. better `loss` node with
-logarithmic plotting. `kpn`: kernel predicting neural network for
-denoising, training included as `kpn-t`. based on tiny mlp using
-tensor cores/registers/shm.
+
+* neural network infrastructure. better `loss` node with
+  logarithmic plotting. `kpn`: kernel predicting neural network for
+  denoising, training included as `kpn-t`. based on tiny mlp using
+  tensor cores/registers/shm.
+* dngop gainmap support (the `denoise` module applies it if it's in the metadata)
+* `colour` module with emergency highlight clipping option
+* `o-jpg` can now write exif metadata if requested
 
 new modules:
 * `mask` create data-dependent masks from luminance, hue, or saturation of an image
 * `mv2rot` compute rotation/translation from per pixel motion vectors
 * `o-exr` write openexr images with chromaticities attribute
 * `o-csv` dump image data to text file
+* `i-exr` read openexr images with chromaticities attribute
+* `i-mcraw` input motioncam raw video, with gpu-based decoder suitable for real time
+* `grain` add parametric film grain with standard deviation and correlation
+* `format` generic pixel format converter, necessary sometimes
 
 legacy modules:
 * `cnn`: renamed to `resnet` (training in gmic may be incompatible now)
 * `menon`: superseded by rcd mode in demosaic module
+* `o-ffmpeg`: removed, superseded by much faster `o-vid` (with 10 bit/prores support)
 
 platform compatibility:
 * move platform dependent code to `fs.h` and implement some windows stuff
+* windows package build in ci
 
 other:
-* rawler/rust-c interface updated
-* better video support
+* rawler/rust-c now the default raw loading backend
+* better audio/video support
+* reworked colour management, buffers can now annotate their primaries and trc
+  front to end, with support for the most common set (DCI, HLG, ..)
+* new presets
 
 bugfixes and code cleanups, gui streamlining things.
 
