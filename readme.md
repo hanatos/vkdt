@@ -1,4 +1,5 @@
-# raw photography processing workflow which sucks less
+# raw photography processing workflow
+# which sucks less
 
 [vkdt](https://vkdt.org) is a workflow toolbox for raw stills and video.
 `vkdt` is designed with high performance in mind. it features a flexible
@@ -27,7 +28,6 @@ targets, such as the main view and histograms.
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
-* [gamepad input](https://github.com/ocornut/imgui/issues/787) inherited from imgui
 * [automatic parameter optimisation](src/fit/readme.md), for instance to fit vignetting
 * [heavy handed processing](src/pipe/modules/kpn-t/readme.md) at almost realistic speeds
 
@@ -49,15 +49,9 @@ and `vkdt-wayland` which you can use to try out/run on any linux distro, for ins
 
 ## build instructions
 
-you should have checked out this repo recursively. if not, do
-```
-  git submodule init
-  git submodule update
-```
-
-to grab the dependencies in the `ext/` folder. you should then be able to
-simply run 'make' from the bin/ folder. for debug builds (which enable the
-vulkan validation layers, so you need to have them installed), try
+you should then be able to simply run 'make' from the bin/ folder. for debug
+builds (which enable the vulkan validation layers, so you need to have them
+installed), try
 ```
   cd bin/
   make debug -j12
@@ -88,44 +82,41 @@ exists on your system.
 ## licence
 
 our code is licenced under the 2-clause bsd licence (if not clearly marked
-otherwise in the respective source files). there are parts from other libraries
-that are licenced differently. in particular:
+otherwise in the respective source files, which contain a bit of GPLv3).
+there are parts from other libraries that are licenced differently. in
+particular:
 
 rawspeed:     LGPLv2
-imgui:        MIT
+ffmpeg:       LGPLv2
+nuklear:      public domain
 
 and we may link to some others, too.
 
 ## dependencies
 * vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
 * glfw (libglfw3-dev and libglfw3, only use libglfw3-wayland if you're on wayland)
-* submodule imgui
 * for raw input support:
   * either rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp, build-depends on cmake, libomp-dev, optionally libexiv2)
   * or rawler (depends on rust toolchain which will manage their own dependencies)
 * libjpeg
-* video input: libavformat libavcodec (minimum version 6)
+* video io: libavformat libavcodec (minimum version 6)
 * sound: libasound2
-* video output: ffmpeg binary
 * build: make, pkg-config, clang, rsync, sed
 
 the full list of packages used to build the nightly appimages can be found in the [workflow yaml file](.github/workflows/nightly.yml).
 
 optional (configure in `bin/config.mk`):
 
-* freetype (libfreetype-dev libpng16-16) for nicer font rendering
 * exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles, only needed for rawspeed builds
 * asound (libasound2) for audio support in mlv raw video
-* ffmpeg (ffmpeg, libavformat-dev libavcodec-dev) for the video input module `i-vid` and the output module `o-ffmpeg`
+* ffmpeg (libavformat-dev libavcodec-dev) for the video io modules `i-vid` and `o-vid`
 
 you can also build without rawspeed or rawler if that is useful for you.
 
 
 ## faq
 * **can i load canon cr3 files?**  
-yes. the rawspeed submodule in this repository is now by default
-already using a branch that supports cr3 files. this may go away in the future
-though. the rawler backend supports cr3.
+yes. use the rawler backend.
 
 * **does it work with wayland?**  
 `vkdt` has been confirmed to run on wayland, using amd and nvidia hardware.

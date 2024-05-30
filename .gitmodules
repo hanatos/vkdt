@@ -1,3 +1,0 @@
-[submodule "ext/imgui"]
-	path = ext/imgui
-	url = https://github.com/hanatos/imgui.git
