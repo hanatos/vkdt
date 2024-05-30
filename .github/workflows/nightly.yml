@@ -323,6 +323,7 @@ jobs:
             zip
             unzip
             wget
+            vim
           pacboy: >-
             cc:p
             gcc-libs:p
