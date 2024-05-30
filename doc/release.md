@@ -5,8 +5,8 @@ action items are labelled (a)..(i).
 
 ## release branch
 
-use semantic versioning and make a branch `release-0.8` to
-contain tags for point releases `0.8.0` and `0.8.1` etc.
+use semantic versioning and make a branch `release-0.9` to
+contain tags for point releases `0.9.0` and `0.9.1` etc.
 the `master` branch will carry on with new features and eventually become the
 next release branch.
 
@@ -30,8 +30,8 @@ rawspeed and quakespasm will only be deployed depending on build settings in `bi
 to generate it for local testing purposes without pushing the tag
 to the public repository, (c)
 ```
-git tag -s '0.8.0' -m "this is release 0.8.0"
-git push dreggn 0.8.0
+git tag -s '0.9.0' -m "this is release 0.9.0"
+git push dreggn 0.9.0
 git fetch --all --tags
 ```
 
@@ -49,8 +49,8 @@ cat src/core/version.h
 
 ```
 cd /tmp
-tar xvJf vkdt-0.8.0.tar.xz
-cd vkdt-0.8.0/
+tar xvJf vkdt-0.9.0.tar.xz
+cd vkdt-0.9.0/
 make -j20
 DESTDIR=/tmp/testrel make install
 /tmp/testrel/usr/bin/vkdt
@@ -62,10 +62,10 @@ run `bin/mkappimg.sh` from the root directory
 
 ## upload
 
-(g) push to public: `git push origin 0.8.0 release-0.8`
+(g) push to public: `git push origin 0.9.0 release-0.9`
 
 (h) sign the tarball:
-`gpg -u jo@dreggn.org --detach-sign vkdt-0.8.0.tar.xz`
+`gpg -u jo@dreggn.org --detach-sign vkdt-0.9.0.tar.xz`
 
 (i) github release announcement
 
@@ -78,42 +78,14 @@ run `bin/mkappimg.sh` from the root directory
 
 main features:
 
-* neural network infrastructure. better `loss` node with
-  logarithmic plotting. `kpn`: kernel predicting neural network for
-  denoising, training included as `kpn-t`. based on tiny mlp using
-  tensor cores/registers/shm.
-* dngop gainmap support (the `denoise` module applies it if it's in the metadata)
-* `colour` module with emergency highlight clipping option
-* `o-jpg` can now write exif metadata if requested
-
-new modules:
-* `mask` create data-dependent masks from luminance, hue, or saturation of an image
-* `mv2rot` compute rotation/translation from per pixel motion vectors
-* `o-exr` write openexr images with chromaticities attribute
-* `o-csv` dump image data to text file
-* `i-exr` read openexr images with chromaticities attribute
-* `i-mcraw` input motioncam raw video, with gpu-based decoder suitable for real time
-* `grain` add parametric film grain with standard deviation and correlation
-* `format` generic pixel format converter, necessary sometimes
-
-legacy modules:
-* `cnn`: renamed to `resnet` (training in gmic may be incompatible now)
-* `menon`: superseded by rcd mode in demosaic module
-* `o-ffmpeg`: removed, superseded by much faster `o-vid` (with 10 bit/prores support)
-
-platform compatibility:
-* move platform dependent code to `fs.h` and implement some windows stuff
-* windows package build in ci
-
-other:
-* rawler/rust-c now the default raw loading backend
-* better audio/video support
-* reworked colour management, buffers can now annotate their primaries and trc
-  front to end, with support for the most common set (DCI, HLG, ..)
-* new presets
-
-bugfixes and code cleanups, gui streamlining things.
-
+* gui now based on nuklear (instead of imgui)
+* `colour` module now reads and applies the camera as shot neutral white balance by default
+* mcraw files will not by default apply the embedded gainmap since it is
+  unclear which raw files have it pre-applied (so switch on in the `denoise`
+  module if your files need it)
+* `style.txt` contains ui colours for customisation
+* zoomable graph editor (can finally work with large graphs, yay!)
+* some new hotkeys added
 
 ## diverge branches
 
@@ -122,5 +94,5 @@ will also only be pushed to this branch). the release branch will be used for
 bugfix/pointreleases.
 tag the master/development branch as such, so dev packages will be ordered correctly:
 ```
-git tag -s 0.8.99 -m "this is the beginning of the unreleased development branch which will become 0.9.0 eventually"
+git tag -s 0.9.99 -m "this is the beginning of the unreleased development branch which will become 0.9.0 eventually"
 ```
