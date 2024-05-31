@@ -354,10 +354,7 @@ dt_thumbnails_cache_list(
     void           (*updatefn)(void))
 {
   if(imgid_cnt <= 0)
-  {
-    dt_log(s_log_err, "[thm] no images in list!");
     return VK_INCOMPLETE;
-  }
 
   uint32_t *collection = malloc(sizeof(uint32_t) * imgid_cnt);
   memcpy(collection, imgid, sizeof(uint32_t) * imgid_cnt); // take copy because this thing changes

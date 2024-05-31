@@ -229,6 +229,25 @@ void render_lighttable_center()
     return;
   }
 
+  if(vkdt.db.collection_cnt == 0)
+  {
+    // nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(1)->handle);
+    nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/5, 1);
+    nk_label(&vkdt.ctx, "", 0);
+    nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/3, 3);
+    nk_label(&vkdt.ctx, "", 0);
+    nk_labelf_wrap(&vkdt.ctx,
+        "this collection is empty. the current directory (%s) contains %d files, "
+        "try to relax the filter in the right panel in the `collect' expander. "
+        "to open another directory press escape to go to the file browser.", vkdt.db.dirname, vkdt.db.image_cnt);
+    nk_label(&vkdt.ctx, "", 0);
+    // nk_style_pop_font(&vkdt.ctx);
+    NK_UPDATE_ACTIVE;
+    nk_end(&vkdt.ctx);
+    nk_style_pop_style_item(&vkdt.ctx);
+    return;
+  }
+
   const int ipl = g_images_per_line;
   const int border = 0.004 * qvk.win_width;
   const int spacing = border/2;
@@ -238,7 +257,7 @@ void render_lighttable_center()
 
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   int scroll_to = -1;
- 
+
   nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
