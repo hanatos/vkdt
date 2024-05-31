@@ -582,6 +582,7 @@ void render_lighttable_right_panel()
       dt_tooltip("enter the responsible input module here, for instance\n"
           "raw : raw files\n"
           "jpg : jpg files\n"
+          "exr : high dynamic range scene linear exr\n"
           "vid : video files\n"
           "mlv : raw video files");
       if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, filter_type+2, 6, nk_filter_default))
@@ -594,14 +595,16 @@ void render_lighttable_right_panel()
     else if(filter_prop == s_prop_none)
     { // hide filter value, it's meaningless
     }
-    else
+    else if(filter_prop == s_prop_filename)   {} // TODO wire these in the db.c backend!
+    else if(filter_prop == s_prop_createdate) {} // TODO probably want to support longer filter strings too.
+    else if(filter_prop == s_prop_rating)
     {
       nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
       int resi = filter_val;
-      nk_property_int(ctx, "#", 1, &resi, 100, 1, 1);
+      nk_property_int(ctx, "#", 0, &resi, 5, 1, 1);
       if(resi != filter_val) 
       {
-        vkdt.db.collection_filter_val = filter_val;
+        vkdt.db.collection_filter_val = filter_val = resi;
         dt_db_update_collection(&vkdt.db);
         dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
