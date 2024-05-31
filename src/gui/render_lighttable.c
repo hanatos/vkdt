@@ -565,12 +565,15 @@ void render_lighttable_right_panel()
           "jpg : jpg files\n"
           "vid : video files\n"
           "mlv : raw video files");
-      if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, filter_type, 6, nk_filter_default))
+      if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, filter_type+2, 6, nk_filter_default))
       {
         filter_type[0] = 'i'; filter_type[1] = '-';
         dt_db_update_collection(&vkdt.db);
         dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
+    }
+    else if(filter_prop == s_prop_none)
+    { // hide filter value, it's meaningless
     }
     else
     {
