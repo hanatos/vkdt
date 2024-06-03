@@ -966,14 +966,22 @@ void render_lighttable_right_panel()
       }
       else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
       { // running
+        struct nk_rect bb = nk_widget_bounds(ctx);
+        float progress = threads_task_progress(job[k].taskid);
+        nk_prog(ctx, 100*progress, 100, nk_false);
+        char text[50];
+        snprintf(text, sizeof(text), "%g%%", 100.0*progress);
+        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
         if(nk_button_label(ctx, "abort")) job[k].abort = 1;
-        nk_prog(ctx, 100*threads_task_progress(job[k].taskid), 100, nk_false);
         // technically a race condition on frame_cnt being inited by graph
         // loading during the async job. do we care?
         if(job[k].graph.frame_cnt > 1)
         {
-          nk_label(ctx, "", 0);
+          bb = nk_widget_bounds(ctx);
           nk_prog(ctx, job[k].graph.frame, job[k].graph.frame_cnt, nk_false);
+          snprintf(text, sizeof(text), "frame %d/%d", job[k].graph.frame, job[k].graph.frame_cnt);
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          nk_label(ctx, "", 0);
         }
       }
     }
