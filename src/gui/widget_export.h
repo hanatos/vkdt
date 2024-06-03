@@ -69,7 +69,7 @@ export_render_widget(
   {
     char *v = (char *)(pdata + param->offset);
     dt_tooltip(param->tooltip);
-    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_SIMPLE, v, param->cnt, nk_filter_default);
+    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_SIMPLE|NK_EDIT_ALWAYS_INSERT_MODE, v, param->cnt, nk_filter_default);
     if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
       memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
     nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);

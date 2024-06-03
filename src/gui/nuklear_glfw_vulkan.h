@@ -45,6 +45,7 @@ NK_API VkResult nk_glfw3_device_create(
     VkDevice logical_device, VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 
+NK_API void nk_glfw3_keyboard_callback(struct nk_context *ctx, GLFWwindow *w, int key, int scancode, int action, int mods);
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
 NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
@@ -136,6 +137,9 @@ static struct nk_glfw
   double last_button_click;
   int is_double_click_down;
   struct nk_vec2 double_click_pos;
+
+  // key repeat
+  int key_repeat[10];
 
   // colour management
   float gamma0[3];
@@ -912,16 +916,32 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
         glfwSetInputMode(glfw.win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 #endif
 
-    nk_input_key(ctx, NK_KEY_DEL,
-                 glfwGetKey(win, GLFW_KEY_DELETE) == GLFW_PRESS);
-    nk_input_key(ctx, NK_KEY_ENTER,
-                 glfwGetKey(win, GLFW_KEY_ENTER) == GLFW_PRESS);
+    if(glfw.key_repeat[0])
+    {
+      nk_input_key(ctx, NK_KEY_DEL, nk_false);
+      nk_input_key(ctx, NK_KEY_DEL, nk_true);
+    }
+    else nk_input_key(ctx, NK_KEY_DEL, glfwGetKey(win, GLFW_KEY_DELETE) == GLFW_PRESS);
+    nk_input_key(ctx, NK_KEY_ENTER, glfwGetKey(win, GLFW_KEY_ENTER) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_TAB, glfwGetKey(win, GLFW_KEY_TAB) == GLFW_PRESS);
-    nk_input_key(ctx, NK_KEY_BACKSPACE,
-                 glfwGetKey(win, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
-    nk_input_key(ctx, NK_KEY_UP, glfwGetKey(win, GLFW_KEY_UP) == GLFW_PRESS);
-    nk_input_key(ctx, NK_KEY_DOWN,
-                 glfwGetKey(win, GLFW_KEY_DOWN) == GLFW_PRESS);
+    if(glfw.key_repeat[2])
+    {
+      nk_input_key(ctx, NK_KEY_BACKSPACE, nk_false);
+      nk_input_key(ctx, NK_KEY_BACKSPACE, nk_true);
+    }
+    else nk_input_key(ctx, NK_KEY_BACKSPACE, glfwGetKey(win, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
+    if(glfw.key_repeat[3])
+    {
+      nk_input_key(ctx, NK_KEY_UP, nk_false);
+      nk_input_key(ctx, NK_KEY_UP, nk_true);
+    }
+    else nk_input_key(ctx, NK_KEY_UP, glfwGetKey(win, GLFW_KEY_UP) == GLFW_PRESS);
+    if(glfw.key_repeat[4])
+    {
+      nk_input_key(ctx, NK_KEY_DOWN, nk_false);
+      nk_input_key(ctx, NK_KEY_DOWN, nk_true);
+    }
+    else nk_input_key(ctx, NK_KEY_DOWN, glfwGetKey(win, GLFW_KEY_DOWN) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_TEXT_START,
                  glfwGetKey(win, GLFW_KEY_HOME) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_TEXT_END,
@@ -960,15 +980,25 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
                      glfwGetKey(win, GLFW_KEY_E) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_SELECT_ALL,
                      glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS);
-    } else {
-        nk_input_key(ctx, NK_KEY_LEFT,
-                     glfwGetKey(win, GLFW_KEY_LEFT) == GLFW_PRESS);
-        nk_input_key(ctx, NK_KEY_RIGHT,
-                     glfwGetKey(win, GLFW_KEY_RIGHT) == GLFW_PRESS);
-        nk_input_key(ctx, NK_KEY_COPY, 0);
-        nk_input_key(ctx, NK_KEY_PASTE, 0);
-        nk_input_key(ctx, NK_KEY_CUT, 0);
-        nk_input_key(ctx, NK_KEY_SHIFT, 0);
+    }
+    else
+    {
+      if(glfw.key_repeat[5])
+      {
+        nk_input_key(ctx, NK_KEY_LEFT, nk_false);
+        nk_input_key(ctx, NK_KEY_LEFT, nk_true);
+      }
+      else nk_input_key(ctx, NK_KEY_LEFT, glfwGetKey(win, GLFW_KEY_LEFT) == GLFW_PRESS);
+      if(glfw.key_repeat[6])
+      {
+        nk_input_key(ctx, NK_KEY_RIGHT, nk_false);
+        nk_input_key(ctx, NK_KEY_RIGHT, nk_true);
+      }
+      else nk_input_key(ctx, NK_KEY_RIGHT, glfwGetKey(win, GLFW_KEY_RIGHT) == GLFW_PRESS);
+      nk_input_key(ctx, NK_KEY_COPY, 0);
+      nk_input_key(ctx, NK_KEY_PASTE, 0);
+      nk_input_key(ctx, NK_KEY_CUT, 0);
+      nk_input_key(ctx, NK_KEY_SHIFT, 0);
     }
 
     glfwGetCursorPos(win, &x, &y);
@@ -1087,6 +1117,23 @@ void nk_glfw3_create_cmd(
     index_offset += cmd->elem_count;
   }
   nk_clear(ctx);
+}
+
+NK_API void nk_glfw3_keyboard_callback(struct nk_context *ctx, GLFWwindow *w, int key, int scancode, int action, int mods)
+{
+  // this is called while wait event, right after that there'll be new_frame nuking all our efforts here.
+  // going new_frame earlier will introduce lag key/render, so we remember in a separate list:
+  for(int k=0;k<7;k++) glfw.key_repeat[k] = 0;
+  if(action == GLFW_REPEAT)
+  { // also input key repeats not captured by new_frame
+    if     (key == GLFW_KEY_DELETE)    glfw.key_repeat[0] = 1;
+    else if(key == GLFW_KEY_ENTER)     glfw.key_repeat[1] = 1;
+    else if(key == GLFW_KEY_BACKSPACE) glfw.key_repeat[2] = 1;
+    else if(key == GLFW_KEY_UP)        glfw.key_repeat[3] = 1;
+    else if(key == GLFW_KEY_DOWN)      glfw.key_repeat[4] = 1;
+    else if(key == GLFW_KEY_LEFT)      glfw.key_repeat[5] = 1;
+    else if(key == GLFW_KEY_RIGHT)     glfw.key_repeat[6] = 1;
+  }
 }
 
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint) {

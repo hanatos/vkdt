@@ -127,6 +127,8 @@ static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   dt_view_keyboard(window, key, scancode, action, mods);
+  if(!vkdt.wstate.grabbed)
+    nk_glfw3_keyboard_callback(&vkdt.ctx, window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_ESCAPE) // TODO: or gamepad equivalent
   {
