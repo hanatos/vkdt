@@ -28,7 +28,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
     VkBufferMemoryBarrier mem_barrier = { \
       .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, \
       .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT, \
-      .dstAccessMask    = VK_ACCESS_TRANSFER_READ_BIT, \
+      .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
       .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
       .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
       .buffer = buf, \
@@ -48,7 +48,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
       __VA_ARGS__ \
     }; \
     vkCmdPipelineBarrier(cmd_buf, \
-        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, \
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, \
         VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,\
         0, NULL, 0, NULL, \
         1, &img_mem_barrier); \
@@ -65,8 +65,8 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
           .baseArrayLayer = 0, \
           .layerCount     = 1 \
         }, \
-        .srcAccessMask    = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT, \
-        .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
+        .srcAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT, \
+        .dstAccessMask    = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_TRANSFER_WRITE_BIT|VK_ACCESS_TRANSFER_READ_BIT, \
         .oldLayout        = old_layout, \
         .newLayout        = new_layout, \
     ); \

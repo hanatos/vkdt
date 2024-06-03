@@ -1874,6 +1874,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
     }
   }
+  else if(dt_node_source(node) &&
+         dt_connector_ssbo(node->connector+0) && // ssbo source node just needs a barrier on the staging memory
+         (node->connector[0].array_length <= 1)) // arrays share the staging buffer, are handled by iterating read_source()
+  {
+    BARRIER_COMPUTE_BUFFER(dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->buffer);
+  }
 
   // only non-sink and non-source nodes have a pipeline:
   if(!node->pipeline) return VK_SUCCESS;
