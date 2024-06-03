@@ -41,6 +41,7 @@ dt_draw_param_line(
   nk_layout_row_dynamic(ctx, ht, 1);
   struct nk_rect bounds = nk_widget_bounds(ctx);
   bounds.x += 0.11 * bounds.w; // move in a bit so we can read the labels
+  bounds.w -= 0.11 * bounds.w;
   bounds.y += 0.05 * bounds.h;
   bounds.h -= 0.1  * bounds.h;
   nk_fill_rect(buf, bounds, 0, vkdt.style.colour[NK_COLOR_BUTTON]);
@@ -183,6 +184,7 @@ dt_dopesheet()
     nk_layout_row_dynamic(ctx, row_height, 1);
     struct nk_rect bounds = nk_widget_bounds(ctx);
     bounds.x += 0.11 * bounds.w; // move in a bit so we can read the labels
+    bounds.w -= 0.11 * bounds.w;
     bounds.y += 0.05 * bounds.h;
     bounds.h -= 0.1  * bounds.h;
     nk_fill_rect(buf, bounds, 0, vkdt.style.colour[NK_COLOR_BUTTON]);
