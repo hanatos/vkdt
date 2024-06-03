@@ -594,7 +594,7 @@ void render_darkroom()
     nk_layout_row_dynamic(ctx, 2, 1);
     nk_rule_horizontal(ctx, vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE], nk_true);
 
-    const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
+    const float ratio[] = {0.7, 0.3};
     const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
 
     if(current_tab == 0)
@@ -604,7 +604,7 @@ void render_darkroom()
     else if(current_tab == 1)
     {
       render_darkroom_full();
-      nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       if(nk_button_label(ctx, "open node editor"))
         dt_view_switch(s_view_nodes);
       nk_label(ctx, "", 0);
@@ -618,7 +618,7 @@ void render_darkroom()
           dt_gui_edit_hotkeys();
         if(nk_button_label(ctx, "toggle perf overlay"))
           vkdt.wstate.show_perf_overlay ^= 1;
-        nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 
         int resi = vkdt.wstate.lod;
         nk_property_int(ctx, "#", 1, &resi, 16, 1, 1);
@@ -633,7 +633,7 @@ void render_darkroom()
 
       if(nk_tree_push(ctx, NK_TREE_TAB, "animation", NK_MINIMIZED))
       { // animation controls
-        nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
         int resi = vkdt.state.anim_max_frame;
         nk_property_int(ctx, "#", 0, &resi, 10000, 1, 1);
         if(resi != vkdt.state.anim_max_frame) 
