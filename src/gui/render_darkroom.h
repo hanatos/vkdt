@@ -525,7 +525,9 @@ static inline void render_darkroom_widget(int modid, int parid)
 
     // full manual control over parameter using the slider:
     RESETBLOCK
-    nk_property_float(ctx, "#", 0.0f, val, 360.0f, 0.1, .01);
+    nk_property_float(ctx, "#", -360.0f, val, 360.0f, 
+          (360.0f)/100.0,
+          (360.0f)/(0.6*vkdt.state.center_wd));
     if(*val != oldval) change = 1;
     if(change)
     {
