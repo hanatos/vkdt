@@ -179,10 +179,10 @@ dt_filebrowser(
     if(i == w->selected_idx)
     {
       struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
-      if(row.y < content.y || row.y + row.h > content.y + content.h)
-      { // only half visible
+      if(row.y < content.y) // scrolled out of top with key nav
         scroll_to = 1+(row.h + spacing) * i;
-      }
+      if(row.y + row.h > content.y + 0.9*content.h) // about to scroll out of bottom
+        scroll_to = 1 - 0.9*content.h + (row.h + spacing) * i;
     }
     char name[260];
     snprintf(name, sizeof(name), "%s %s",
