@@ -71,7 +71,7 @@ void render_nodes_right_panel()
       snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
       // if(popout) // TODO use vkdt.ctx2 and decorate with some window around it
       int wd = vkdt.state.panel_wd;
-      int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
+      int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
       nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
       if(dsp[d] == dt_token("main"))
         dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out, 1, 1);
