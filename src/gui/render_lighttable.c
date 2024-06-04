@@ -28,6 +28,7 @@ static hk_t hk_lighttable[] = {
   {"export",        "export selected images",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_S}},
   {"copy",          "copy from selected image",         {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_C}},
   {"paste history", "paste history to selected images", {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_V}},
+  {"append preset", "append preset to selected images", {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_P}},
   {"scroll cur",    "scroll to current image",          {GLFW_KEY_LEFT_SHIFT,    GLFW_KEY_C}},
   {"scroll end",    "scroll to end of collection",      {GLFW_KEY_LEFT_SHIFT,    GLFW_KEY_G}},
   {"scroll top",    "scroll to top of collection",      {GLFW_KEY_G}},
@@ -46,26 +47,27 @@ static hk_t hk_lighttable[] = {
 };
 typedef enum hotkey_names_t
 {
-  s_hotkey_assign_tag = 0,
-  s_hotkey_select_all = 1,
-  s_hotkey_export     = 2,
-  s_hotkey_copy_hist  = 3,
-  s_hotkey_paste_hist = 4,
-  s_hotkey_scroll_cur = 5,
-  s_hotkey_scroll_end = 6,
-  s_hotkey_scroll_top = 7,
-  s_hotkey_duplicate  = 8,
-  s_hotkey_rate_0     = 9,
-  s_hotkey_rate_1     = 10,
-  s_hotkey_rate_2     = 11,
-  s_hotkey_rate_3     = 12,
-  s_hotkey_rate_4     = 13,
-  s_hotkey_rate_5     = 14,
-  s_hotkey_label_1    = 15,
-  s_hotkey_label_2    = 16,
-  s_hotkey_label_3    = 17,
-  s_hotkey_label_4    = 18,
-  s_hotkey_label_5    = 19,
+  s_hotkey_assign_tag    = 0,
+  s_hotkey_select_all    = 1,
+  s_hotkey_export        = 2,
+  s_hotkey_copy_hist     = 3,
+  s_hotkey_paste_hist    = 4,
+  s_hotkey_append_preset = 5,
+  s_hotkey_scroll_cur    = 6,
+  s_hotkey_scroll_end    = 7,
+  s_hotkey_scroll_top    = 8,
+  s_hotkey_duplicate     = 9,
+  s_hotkey_rate_0        = 10,
+  s_hotkey_rate_1        = 20,
+  s_hotkey_rate_2        = 21,
+  s_hotkey_rate_3        = 22,
+  s_hotkey_rate_4        = 23,
+  s_hotkey_rate_5        = 24,
+  s_hotkey_label_1       = 25,
+  s_hotkey_label_2       = 26,
+  s_hotkey_label_3       = 27,
+  s_hotkey_label_4       = 28,
+  s_hotkey_label_5       = 29,
 } hotkey_names_t;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
 static int g_scroll_colid = -1; // to scroll to certain file name
@@ -114,6 +116,9 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
       break;
     case s_hotkey_paste_hist:
       dt_gui_lt_paste_history();
+      break;
+    case s_hotkey_append_preset:
+      dt_gui_dr_preset_apply();
       break;
     default: break;
   }
@@ -683,6 +688,10 @@ void render_lighttable_right_panel()
     }
     else nk_label(ctx, "", 0);
 
+    if(nk_button_label(ctx, "append preset"))
+      dt_gui_dr_preset_apply();
+    nk_label(ctx, "", 0);
+
     // ==============================================================
     // delete images
     static int really_delete = 0;
@@ -1026,6 +1035,85 @@ void render_lighttable()
     {
       int ok = hk_edit(hk_lighttable, NK_LEN(hk_lighttable));
       if(ok) vkdt.wstate.popup = 0;
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
+  else if(vkdt.wstate.popup == s_popup_apply_preset)
+  {
+    if(nk_begin(&vkdt.ctx, "apply preset", bounds, NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE))
+    {
+      char filename[1024] = {0};
+      static char filter[256];
+      int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      if(ok) vkdt.wstate.popup = 0;
+      if(ok == 1)
+      {
+        FILE *fin = fopen(filename, "rb");
+        if(!fin)
+        { // also fails if src is 0
+          dt_gui_notification("could not open preset %s!", filename);
+        }
+        else
+        {
+          fseek(fin, 0, SEEK_END);
+          size_t fsize = ftell(fin);
+          fseek(fin, 0, SEEK_SET);
+          uint8_t *buf = (uint8_t*)malloc(fsize);
+          fread(buf, fsize, 1, fin);
+          fclose(fin);
+          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+          for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
+          {
+            dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+            char dst[PATH_MAX];
+            fs_realpath(filename, dst);
+            FILE *fout = fopen(dst, "ab");
+            if(fout)
+            {
+              size_t pos = ftell(fout);
+              if(pos == 0)
+              { // no pre-existing cfg, copy defaults
+                dt_token_t input_module = dt_graph_default_input_module(filename);
+                char graph_cfg[PATH_MAX+100];
+                snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.homedir, dt_token_str(input_module));
+                FILE *f = fopen(graph_cfg, "rb");
+                if(!f)
+                {
+                  snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+                  f = fopen(graph_cfg, "rb");
+                }
+                if(!f)
+                {
+                  dt_gui_notification("could not open default graph %s!", graph_cfg);
+                }
+                else
+                {
+                  fseek(f, 0, SEEK_END);
+                  size_t fsize2 = ftell(f);
+                  fseek(f, 0, SEEK_SET);
+                  uint8_t *buf2 = (uint8_t*)malloc(fsize2);
+                  fread(buf2, fsize2, 1, f);
+                  fclose(f);
+                  fwrite(buf2, fsize2, 1, fout);
+                  free(buf2);
+                  filename[strlen(filename)-4] = 0; // cut off .cfg
+                  fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), filename);
+                }
+              }
+              // now append preset
+              fwrite(buf, fsize, 1, fout);
+              fclose(fout);
+            }
+          }
+          dt_thumbnails_cache_list(
+              &vkdt.thumbnail_gen,
+              &vkdt.db,
+              sel, vkdt.db.selection_cnt,
+              &glfwPostEmptyEvent);
+          free(buf);
+        } // if fin
+      } // end if ok == 1
     }
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
