@@ -129,7 +129,9 @@ filteredlist(
       "press enter to apply top item\n"
       "press escape to close");
   if(vkdt.wstate.popup_appearing) nk_edit_focus(ctx, 0);
-  nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+  nk_flags ret = nk_edit_string_zero_terminated(ctx,
+      (vkdt.wstate.popup_appearing ? NK_EDIT_AUTO_SELECT : 0)|
+      NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED) ok = 1;
   struct nk_rect rowbound = nk_layout_widget_bounds(ctx);
   total_space.h -= rowbound.y - total_space.y;
