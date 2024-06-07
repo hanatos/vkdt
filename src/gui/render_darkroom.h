@@ -317,12 +317,12 @@ static inline void render_darkroom_widget(int modid, int parid)
       for(int k=0;k<32;k++)
       {
         const int sel = val[0] & (1<<k);
-        if(sel) nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.wstate.fontsize*0.2);
+        if(sel) nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
         char label[10];
         snprintf(label, sizeof(label), "%d", k);
         dt_tooltip(c);
         if(nk_button_label(ctx, label)) { val[0] ^= (1<<k); change = 1; }
-        if(sel) nk_style_pop_float(ctx);
+        if(sel) nk_style_pop_style_item(ctx);
 
         for(;*c!=0;c++);
         c++;

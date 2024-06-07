@@ -176,9 +176,10 @@ dt_node_editor(
           .w = 2*pin_radius*nedit->zoom,
           .h = 2*pin_radius*nedit->zoom,
         };
-        nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
+        const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
+        nk_fill_circle(canvas, circle, hovering_circle ? vkdt.style.colour[NK_COLOR_DT_ACCENT] : nk_rgb(100, 100, 100));
 
-        if (!disabled && nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
+        if (!disabled && hovering_circle) mouse_over_something = 1;
         if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true))
         { // start link
           nedit->connection.active = nk_true;
@@ -211,13 +212,14 @@ dt_node_editor(
           .w = 2*pin_radius*nedit->zoom,
           .h = 2*pin_radius*nedit->zoom,
         };
-        if (!disabled && nk_input_is_mouse_hovering_rect(in, circle)) mouse_over_something = 1;
+        const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
+        if (!disabled && hovering_circle) mouse_over_something = 1;
         if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true))
         { // if right clicked on the connector disconnect
           dt_module_connect_with_history(graph, -1, -1, mid, c);
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
-        nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
+        nk_fill_circle(canvas, circle, hovering_circle ? vkdt.style.colour[NK_COLOR_DT_ACCENT] : nk_rgb(100, 100, 100));
         if (!disabled && nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
             nk_input_is_mouse_hovering_rect(in, circle) &&
             nedit->connection.active && nedit->connection.mid != mid)
@@ -250,7 +252,7 @@ dt_node_editor(
           if(module->connector[c].flags & s_conn_feedback)
             col = col_feedback;
           if(!disabled && nedit->selected &&
-              !drag_selection && !nedit->connection.active &&
+             !drag_selection && !nedit->connection.active &&
               MAX(l0.x, p.x) >= selected_rect.x && MIN(l0.x, p.x) <= selected_rect.x + selected_rect.w && 
               MAX(l0.y, p.y) >= selected_rect.y && MIN(l0.y, p.y) <= selected_rect.y + selected_rect.h)
           { // selected / active node overlaps here and is dropped connect it in between!
@@ -273,8 +275,14 @@ dt_node_editor(
               }
             }
           }
-          nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + p.x)*0.5f, l0.y,
-              (l0.x + p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
+          if(module->connector[c].flags & s_conn_feedback)
+            nk_stroke_curve(canvas, l0.x, l0.y,
+                l0.x+5*pin_radius*nedit->zoom, l0.y+10*pin_radius*nedit->zoom,
+                p.x -5*pin_radius*nedit->zoom, p.y +10*pin_radius*nedit->zoom,
+                p.x, p.y, link_thickness, col);
+          else
+            nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + p.x)*0.5f, l0.y,
+                (l0.x + p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
         }
       }
     }
@@ -317,15 +325,17 @@ dt_node_editor(
       for(int c=0;c<module->num_connectors;c++)
       {
         nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
-        if(module->connector[c].tooltip)
-          dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s",
+        if(module->connector[c].tooltip && module->connector[c].tooltip[0])
+          dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s%s",
               dt_token_str(module->connector[c].chan),
               dt_token_str(module->connector[c].format),
-              module->connector[c].tooltip);
+              module->connector[c].tooltip,
+              dt_connector_output(module->connector+c) ? "": "\nright click on circle to delete link");
         else
-          dt_tooltip("format: %" PRItkn ":%" PRItkn,
+          dt_tooltip("format: %" PRItkn ":%" PRItkn "%s",
               dt_token_str(module->connector[c].chan),
-              dt_token_str(module->connector[c].format));
+              dt_token_str(module->connector[c].format),
+              dt_connector_output(module->connector+c) ? "": "\nright click on circle to delete link");
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
         nk_style_pop_font(ctx);
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);
