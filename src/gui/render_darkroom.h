@@ -313,7 +313,7 @@ static inline void render_darkroom_widget(int modid, int parid)
       dt_tooltip(param->tooltip);
       nk_labelf(ctx, NK_TEXT_LEFT, "%s = 0x%x", str, val[0]);
       const char *c = (const char *)param->widget.data;
-      nk_layout_row_dynamic(ctx, row_height, 8);
+      nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd/9, 8);
       for(int k=0;k<32;k++)
       {
         const int sel = val[0] & (1<<k);
