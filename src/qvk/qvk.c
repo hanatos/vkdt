@@ -49,6 +49,9 @@ const char *vk_requested_layers[] = {
 };
 
 const char *vk_requested_instance_extensions[] = {
+  // colour management:
+  VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+  // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
 };
@@ -169,7 +172,13 @@ qvk_create_swapchain()
     for(int j = 0; j < num_formats; j++)
       if(acceptable_formats[i] == avail_surface_formats[j].format) {
         qvk.surf_format = avail_surface_formats[j];
-        dt_log(s_log_qvk, "colour space: %u", qvk.surf_format.colorSpace);
+        // please don't mess with our colour management.
+        // see https://github.com/KhronosGroup/Vulkan-Docs/issues/2307
+        // but apparently they will figure it out eventually.
+        // it appears until then the default behaviour might be already what we need.
+        qvk.surf_format.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
+        dt_log(s_log_qvk, "using %s and colour space VK_COLOR_SPACE_PASS_THROUGH_EXT",
+            qvk_format_to_string(qvk.surf_format.format));
         goto out;
       }
   }
