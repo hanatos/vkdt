@@ -559,6 +559,7 @@ void render_darkroom()
           "hint: you can hover over many controls\n"
           "and press the keyframe hotkey (default ctrl-k)");
       nk_size anim_frame = vkdt.state.anim_frame;
+      struct nk_rect bb = nk_widget_bounds(ctx);
       if(nk_progress(ctx, &anim_frame, vkdt.state.anim_max_frame, nk_true))
       {
         vkdt.state.anim_frame = anim_frame;
@@ -567,6 +568,9 @@ void render_darkroom()
         dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
       }
+      char text[50];
+      snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.state.anim_max_frame);
+      nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
     }
 
     // tabs for module/params controls:
@@ -638,6 +642,7 @@ void render_darkroom()
         nk_property_int(ctx, "#", 0, &resi, 10000, 1, 1);
         if(resi != vkdt.state.anim_max_frame) 
         {
+          vkdt.state.anim_max_frame = resi;
           vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
           dt_graph_history_global(&vkdt.graph_dev);
         }
