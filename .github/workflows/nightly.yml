@@ -19,10 +19,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler:
-          - { compiler: clang, CC: clang-17, CXX: clang++-17, packages: clang-17 libomp-17-dev }
-        branch:
-          - { code: master, label: gitmaster }
         glfw:
           - { package: pentablet }
           - { package: xorg }
@@ -30,13 +26,15 @@ jobs:
         raw:
           - { backend: rawler }
           - { backend: rawspeed }
+        compiler:
+          - { compiler: clang, CC: clang-17, CXX: clang++-17, packages: clang-17 libomp-17-dev }
     env:
       CC: ${{ matrix.compiler.CC }}
       CXX: ${{ matrix.compiler.CXX }}
       SRC_DIR: ${{ github.workspace }}/src
       INSTALL_PREFIX: ${{ github.workspace }}/AppDir
       VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
-      BRANCH: ${{ matrix.branch.code }}
+      BRANCH: master
       GLFW: ${{ matrix.glfw.package }}
       RAW: ${{ matrix.raw.backend }}
     steps:
@@ -99,7 +97,7 @@ jobs:
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
-          sudo apt-get -y wayland-scanner++
+          sudo apt-get -y install wayland-scanner++
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
