@@ -1,4 +1,5 @@
 // the imgui render functions for the lighttable view
+#include "core/version.h"
 #include "gui/view.h"
 #include "gui/gui.h"
 #include "db/thumbnails.h"
@@ -518,6 +519,8 @@ void render_lighttable_right_panel()
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
     if(nk_button_label(ctx, "hotkeys"))
       dt_gui_edit_hotkeys();
+
+    nk_label(&vkdt.ctx, "vkdt version "VKDT_VERSION, NK_TEXT_LEFT);
     nk_tree_pop(ctx);
   }
 
