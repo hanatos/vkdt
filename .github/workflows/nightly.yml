@@ -68,26 +68,25 @@ jobs:
             libxcursor-dev \
             libxi-dev \
             libfuse2 \
-            libomp-dev \
             appstream;
       - name: install extra deps
-        if: ${{ matrix.glfw.package }} == 'xorg'
+        if: matrix.glfw.package == 'xorg'
         run: |
           sudo apt-get -y install \
             libglfw3 libglfw3-dev
       - name: install extra deps
-        if: ${{ matrix.glfw.package }} == 'wayland'
+        if: matrix.glfw.package == 'wayland'
         run: |
           sudo apt-get -y install \
             libglfw3-wayland libglfw3-dev
       - name: install extra deps
-        if: ${{ matrix.raw.backend }} == 'rawler'
+        if: matrix.raw.backend == 'rawler'
         run: |
           sudo apt-get -y install \
             rustc \
             cargo
       - name: install extra deps
-        if: ${{ matrix.raw.backend }} == 'rawspeed'
+        if: matrix.raw.backend == 'rawspeed'
         run: |
           sudo apt-get -y install \
             libpugixml-dev \
@@ -98,7 +97,7 @@ jobs:
           # We have to fetch the entire history to correctly generate the version for the AppImage filename
           fetch-depth: 0
       - name: build glfw with pentablet support
-        if: ${{ matrix.glfw.package }} == 'pentablet'
+        if: matrix.glfw.package == 'pentablet'
         run: |
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
@@ -109,7 +108,7 @@ jobs:
           echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
           echo "export VKDT_USE_PENTABLET" >> bin/config.mk
       - name: update config.mk for rawspeed
-        if: ${{ matrix.raw.backend }} == 'rawspeed'
+        if: matrix.raw.backend == 'rawspeed'
         run: |
           cat >> bin/config.mk << 'EOF'
           VKDT_USE_RAWINPUT=1
@@ -142,7 +141,6 @@ jobs:
           #   libglfw3-dev \
           #   zlib1g-dev \
           #   libpugixml-dev \
-          #   libomp-dev \
           #   libfreetype-dev \
           #   libexiv2-dev \
           #   libasound2-dev \
