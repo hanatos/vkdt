@@ -128,7 +128,7 @@ jobs:
       - name: build and install
         run: |
           bash bin/mkappimg.sh
-          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed "s/vkdt-/vkdt-${RAW}-${GLFW}-/')
+          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed "s/vkdt-/vkdt-${{ env.RAW }}-${{ env.GLFW }}-/")
       - name: check if it runs
         run: |
           ./vkdt-*.AppImage --version
