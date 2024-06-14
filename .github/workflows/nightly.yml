@@ -67,23 +67,23 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
-      - name: install extra deps
+      - name: install extra deps for xorg
         if: matrix.glfw.package == 'xorg'
         run: |
           sudo apt-get -y install \
             libglfw3 libglfw3-dev
-      - name: install extra deps
+      - name: install extra deps for wayland
         if: matrix.glfw.package == 'wayland'
         run: |
           sudo apt-get -y install \
             libglfw3-wayland libglfw3-dev
-      - name: install extra deps
+      - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
           sudo apt-get -y install \
             rustc \
             cargo
-      - name: install extra deps
+      - name: install extra deps for rawspeed
         if: matrix.raw.backend == 'rawspeed'
         run: |
           sudo apt-get -y install \
@@ -99,7 +99,7 @@ jobs:
         run: |
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
-          cmake -S . -B build -D GLFW_USE_WAYLAND=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake -S . -B build -DGLFW_BUILD_WAYLAND=0 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
           cmake --build build
           sudo cmake --install build
           cd ..
