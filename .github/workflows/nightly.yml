@@ -97,7 +97,7 @@ jobs:
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
-          sudo apt-get -y install libxrandr-dev
+          sudo apt-get -y install libglfw3-dev libxrandr-dev
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
           cmake -S . -B build -DGLFW_BUILD_WAYLAND=0 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
