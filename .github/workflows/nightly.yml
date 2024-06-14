@@ -99,6 +99,7 @@ jobs:
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
+          sudo apt-get -y wayland-scanner++
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
@@ -156,7 +157,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: vkdt-*.AppImage*
-          name: artifact-appimage
+          name: artifact-appimage-${{ env.RAW }}-${{ env.GLFW }}
           retention-days: 1
 
   Windows:
@@ -380,5 +381,10 @@ jobs:
             same as above, but using rawler instead of rawspeed (try this for CR3 support)
 
           files: |
-            artifact-appimage/*
+            artifact-appimage-rawspeed-xorg/*
+            artifact-appimage-rawspeed-wayland/*
+            artifact-appimage-rawspeed-pentablet/*
+            artifact-appimage-rawler-xorg/*
+            artifact-appimage-rawler-wayland/*
+            artifact-appimage-rawler-pentablet/*
             artifact-windows-rawler/*
