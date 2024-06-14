@@ -97,6 +97,7 @@ jobs:
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
+          sudo apt-get -y install libxrandr-dev
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
           cmake -S . -B build -DGLFW_BUILD_WAYLAND=0 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
@@ -364,18 +365,23 @@ jobs:
             instead of the c++-based rawspeed which does not have CR3 support.
             also it builds a custom glfw with pentablet/wacom support
 
-            windows (currently disabled, us the next in list)
-            =================================================
-            the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
-            it compiles less features
-            (rawspeed, exiv2, freetype mlv, i-vid, o-vid)
-            and leaves out many
-            (no v4l, no sound, no quake, no pentablet support).
-            you can help by reporting more issues (or maybe even fixing, if you can ;) ).
+            appimage with pentablet
+            =======================
+            links against a custom version of glfw, enabling drawing of masks via pentablet/wacom device.
+            only available in xorg version currently.
+
+            appimage xorg/wayland
+            =====================
+            there are both native wayland and xorg versions available.
 
             windows with rawler
             ===================
-            same as above, but using rawler instead of rawspeed (try this for CR3 support)
+            the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
+            it compiles less features
+            (freetype mlv, i-vid, o-vid)
+            and leaves out many
+            (no v4l, no sound, no quake, no pentablet support).
+            you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
           files: |
             artifact-appimage-rawspeed-xorg/*
