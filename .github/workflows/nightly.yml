@@ -97,10 +97,9 @@ jobs:
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
-          sudo apt-get -y install wayland-scanner++
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake -S . -B build -D GLFW_USE_WAYLAND=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
           cmake --build build
           sudo cmake --install build
           cd ..
