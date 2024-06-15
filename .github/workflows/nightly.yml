@@ -14,15 +14,14 @@ permissions:
 jobs:
   AppImage:
     if: github.repository == 'hanatos/vkdt'
-    name: nightly vkdt appimage
-    runs-on: ubuntu-latest
+    name: nightly appimage
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         glfw:
           - { package: pentablet }
-          - { package: xorg }
-          - { package: wayland }
+          - { package: glfw3.4 }
         raw:
           - { backend: rawler }
           - { backend: rawspeed }
@@ -31,8 +30,6 @@ jobs:
     env:
       CC: ${{ matrix.compiler.CC }}
       CXX: ${{ matrix.compiler.CXX }}
-      SRC_DIR: ${{ github.workspace }}/src
-      INSTALL_PREFIX: ${{ github.workspace }}/AppDir
       VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
       BRANCH: master
       GLFW: ${{ matrix.glfw.package }}
@@ -43,7 +40,7 @@ jobs:
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-17 main"
           sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
           sudo apt-get update
           sudo apt-get -y install \
@@ -67,16 +64,6 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
-      - name: install extra deps for xorg
-        if: matrix.glfw.package == 'xorg'
-        run: |
-          sudo apt-get -y install \
-            libglfw3 libglfw3-dev
-      - name: install extra deps for wayland
-        if: matrix.glfw.package == 'wayland'
-        run: |
-          sudo apt-get -y install \
-            libglfw3-wayland libglfw3-dev
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
@@ -94,13 +81,29 @@ jobs:
           ref: ${{ env.BRANCH }}
           # We have to fetch the entire history to correctly generate the version for the AppImage filename
           fetch-depth: 0
+      - name: configure for local glfw
+        run: |
+          echo "VKDT_GLFW_CFLAGS=-I${{ github.workspace }}/glfw/include" >> bin/config.mk
+          echo "VKDT_GLFW_LDFLAGS=-I${{ github.workspace }}/glfw/build/src -lglfw3" >> bin/config.mk
+          echo "export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS" >> bin/config.mk
+      - name: build new glfw without pentablet support
+        if: matrix.glfw.package != 'pentablet'
+        run: |
+          sudo apt-get -y install libglfw3-dev libxrandr-dev
+          git clone --branch master https://github.com/glfw/glfw glfw
+          cd glfw
+          git checkout 3.4
+          cmake -S . -B build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          sudo cmake --install build
+          cd ..
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
           sudo apt-get -y install libglfw3-dev libxrandr-dev
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
-          cmake -S . -B build -DGLFW_BUILD_WAYLAND=0 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake -S . -B build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
           cmake --build build
           sudo cmake --install build
           cd ..
@@ -156,87 +159,6 @@ jobs:
         with:
           path: vkdt-*.AppImage*
           name: artifact-appimage-${{ env.RAW }}-${{ env.GLFW }}
-          retention-days: 1
-
-  Windows:
-    if: github.repository == 'hanatos/vkdt' && false
-    name: nightly vkdt windows
-    runs-on: windows-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        msystem:
-          - UCRT64
-    defaults:
-      run:
-        shell: msys2 {0}
-    env:
-      SRC_DIR: ${{ github.workspace }}/src
-      INSTALL_PREFIX: ${{ github.workspace }}/install
-    steps:
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.msystem }}
-          install: >-
-            git
-            rsync
-            make
-            zip
-            unzip
-            wget
-          pacboy: >-
-            cc:p
-            gcc-libs:p
-            dlfcn:p
-            glfw:p
-            freetype:p
-            ffmpeg:p
-            vulkan-devel:p
-            glslang:p
-            libjpeg-turbo:p
-            zlib:p
-            exiv2:p
-            omp:p
-            cmake:p
-            pugixml:p
-          update: false
-      - run: git config --global core.autocrlf input
-        shell: bash
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          path: src
-      - name: build and install
-        run: |
-          make -C ${SRC_DIR}
-          make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
-      - name: bundle exiftool
-        run: |
-          wget https://exiftool.org/exiftool-12.76.zip
-          unzip exiftool-12.76.zip
-          mv exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
-      - name: check if it runs
-        run: |
-          ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
-      - name: get version info
-        run: |
-          cd ${SRC_DIR}
-          echo "VERSION=$(git describe)" >> $GITHUB_ENV
-          ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
-      - name: create zip package
-        run: |
-          cd ${INSTALL_PREFIX}/usr/lib
-          # find and copy required libraries
-          ldd vkdt/vkdt.exe | grep '/ucrt64/bin/' | awk '{print($1)}' > dllhell
-          find vkdt/ -name "*lib*.so" -exec ldd {} \; | grep '/ucrt64/bin/' | awk '{print($1)}' | sort | uniq >> dllhell
-          for i in $(cat dllhell); do cp /ucrt64/bin/${i} vkdt/; done
-          zip -r vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
-      - name: package upload
-        if: ${{ success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          path: ${{ env.INSTALL_PREFIX}}/usr/lib/vkdt-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
-          name: artifact-windows
           retention-days: 1
 
   WindowsRawler:
@@ -370,10 +292,6 @@ jobs:
             links against a custom version of glfw, enabling drawing of masks via pentablet/wacom device.
             only available in xorg version currently.
 
-            appimage xorg/wayland
-            =====================
-            there are both native wayland and xorg versions available.
-
             windows with rawler
             ===================
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
@@ -384,10 +302,8 @@ jobs:
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
           files: |
-            artifact-appimage-rawspeed-xorg/*
-            artifact-appimage-rawspeed-wayland/*
+            artifact-appimage-rawspeed-glfw3.4/*
             artifact-appimage-rawspeed-pentablet/*
-            artifact-appimage-rawler-xorg/*
-            artifact-appimage-rawler-wayland/*
+            artifact-appimage-rawler-glfw3.4/*
             artifact-appimage-rawler-pentablet/*
             artifact-windows-rawler/*
