@@ -41,7 +41,6 @@ jobs:
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
           sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-17 main"
-          sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
           sudo apt-get update
           sudo apt-get -y install \
             ${{ matrix.compiler.packages }}
