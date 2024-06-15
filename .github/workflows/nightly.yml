@@ -209,9 +209,11 @@ jobs:
         with:
           fetch-depth: 0
           path: src
-      - name: build and install
+      - name: install rust
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - name: build and install
+        run: |
           echo "VKDT_USE_RAWINPUT=2" >> ${SRC_DIR}/bin/config.mk
           echo "export VKDT_USE_RAWINPUT" >> ${SRC_DIR}/bin/config.mk
           echo "VKDT_USE_EXIV2=0" >> ${SRC_DIR}/bin/config.mk
