@@ -37,7 +37,10 @@ jobs:
         sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
         sudo apt-get update
     - name: install dependencies
-      run: sudo apt-get install -y pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libfreetype-dev zlib1g-dev rsync glslang-tools libavcodec-dev libavformat-dev cargo rustc
+      run: sudo apt-get install -y pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libfreetype-dev zlib1g-dev rsync glslang-tools libavcodec-dev libavformat-dev
+    - name: install rust
+      run: |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
       
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
