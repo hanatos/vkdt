@@ -69,6 +69,7 @@ jobs:
           sudo apt-get -y install \
             rustc \
             cargo
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
       - name: install extra deps for rawspeed
         if: matrix.raw.backend == 'rawspeed'
         run: |
@@ -211,6 +212,7 @@ jobs:
           path: src
       - name: build and install
         run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
           echo "VKDT_USE_RAWINPUT=2" >> ${SRC_DIR}/bin/config.mk
           echo "export VKDT_USE_RAWINPUT" >> ${SRC_DIR}/bin/config.mk
           echo "VKDT_USE_EXIV2=0" >> ${SRC_DIR}/bin/config.mk
