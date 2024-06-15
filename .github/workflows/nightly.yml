@@ -199,7 +199,6 @@ jobs:
             glslang:p
             libjpeg-turbo:p
             zlib:p
-            rust:p
             omp:p
             cmake:p
             pugixml:p
