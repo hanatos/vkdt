@@ -214,8 +214,8 @@ jobs:
           curl https://sh.rustup.rs -sSf | sh -s -- -y
       - name: install rust for msys2
         run: |
-          rustup toolchain install stable-x86_64-pc-windows-gnu
-          rustup default stable-x86_64-pc-windows-gnu
+          /c/Users/runneradmin/.cargo/bin/rustup toolchain install stable-x86_64-pc-windows-gnu
+          /c/Users/runneradmin/.cargo/bin/rustup default stable-x86_64-pc-windows-gnu
       - name: build and install
         run: |
           echo "VKDT_USE_RAWINPUT=2" >> ${SRC_DIR}/bin/config.mk
