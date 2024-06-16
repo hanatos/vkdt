@@ -218,6 +218,7 @@ jobs:
           /c/Users/runneradmin/.cargo/bin/rustup default stable-x86_64-pc-windows-gnu
       - name: build and install
         run: |
+          export PATH=/c/Users/runneradmin/.cargo/bin/:$PATH
           echo "VKDT_USE_RAWINPUT=2" >> ${SRC_DIR}/bin/config.mk
           echo "export VKDT_USE_RAWINPUT" >> ${SRC_DIR}/bin/config.mk
           echo "VKDT_USE_EXIV2=0" >> ${SRC_DIR}/bin/config.mk
