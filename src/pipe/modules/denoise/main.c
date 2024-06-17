@@ -67,6 +67,7 @@ read_source(
   mod_data_t *dat = mod->data;
   if(p->node->kernel == dt_token("gainmap"))
   {
+    if(!dat->gm[0]) return 0;
     const int wd = dat->gm[0]->map_points_h, ht = dat->gm[0]->map_points_v;
     for(int i=0;i<ht;i++)
       for(int j=0;j<wd;j++)
@@ -190,6 +191,10 @@ create_nodes(
     float sy = 1.0 / (dat->gm[0]->map_spacing_v * map_ht);
     gainmap_sx = *(uint32_t*)&sx;
     gainmap_sy = *(uint32_t*)&sy;
+  }
+  else
+  {
+    dat->gm[0] = dat->gm[1] = dat->gm[2] = dat->gm[3] = 0;
   }
 
   // shortcut if no denoising is requested:
