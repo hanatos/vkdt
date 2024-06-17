@@ -101,7 +101,7 @@ and we may link to some others, too.
 * libjpeg
 * video io: libavformat libavcodec (minimum version 6)
 * sound: libasound2
-* build: make, pkg-config, clang, rsync, sed
+* build: make, pkg-config, clang, rsync, sed, xxd
 
 the full list of packages used to build the nightly appimages can be found in the [workflow yaml file](.github/workflows/nightly.yml).
 
