@@ -122,7 +122,9 @@ int dt_gui_init()
   vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, qvk.queue[qvk.qid[s_queue_graphics]].family, qvk.surface, &res);
   if (res != VK_TRUE)
   {
-    dt_log(s_log_qvk|s_log_err, "no WSI support on physical device");
+    dt_log(s_log_qvk|s_log_err, "no WSI support on physical device!");
+    dt_log(s_log_qvk|s_log_err, "if you're on intel/amd, check if the selected device is the one with the display cable to the screen.");
+    dt_log(s_log_qvk|s_log_err, "if you're on nvidia and wayland, this might be a driver issue (can you run `vulkaninfo` successfully?)");
     return 1;
   }
 
