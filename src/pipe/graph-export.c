@@ -59,6 +59,9 @@ dt_graph_replace_display(
      prim != s_colour_primaries_2020 || 
      trc  != s_colour_trc_linear)
   {
+    // if we don't know what it is, try to ask the module:
+    if(prim == s_colour_primaries_unknown) prim = graph->module[m0].img_param.colour_primaries;
+    if(trc  == s_colour_trc_unknown)       trc  = graph->module[m0].img_param.colour_trc;
     dt_module_t *mod = graph->module + m1;
     *(int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim"))) = prim;
     *(int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc" ))) = trc;
