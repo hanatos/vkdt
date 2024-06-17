@@ -176,9 +176,13 @@ qvk_create_swapchain()
         // see https://github.com/KhronosGroup/Vulkan-Docs/issues/2307
         // but apparently they will figure it out eventually.
         // it appears until then the default behaviour might be already what we need.
-        qvk.surf_format.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
-        dt_log(s_log_qvk, "using %s and colour space VK_COLOR_SPACE_PASS_THROUGH_EXT",
-            qvk_format_to_string(qvk.surf_format.format));
+        // in fact it seems the situation is even worse. if i try to do this:
+        // qvk.surf_format.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
+        // the validation layers shout at me. this means there seems to be *no* way
+        // to ask for pass through behaviour (and if there was it would be ignored downstream, see above)
+        // fts
+        dt_log(s_log_qvk, "using %s and colour space %d",
+            qvk_format_to_string(qvk.surf_format.format), qvk.surf_format.colorSpace);
         goto out;
       }
   }
