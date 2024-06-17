@@ -220,14 +220,14 @@ dt_node_editor(
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
         nk_fill_circle(canvas, circle, hovering_circle ? vkdt.style.colour[NK_COLOR_DT_ACCENT] : nk_rgb(100, 100, 100));
+        const int feedback = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS;
         if (!disabled && nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
             nk_input_is_mouse_hovering_rect(in, circle) &&
-            nedit->connection.active && nedit->connection.mid != mid)
+            nedit->connection.active && (feedback || nedit->connection.mid != mid))
         {
           nedit->connection.active = nk_false;
           int err = 0;
-          if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS ||
-             glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+          if(feedback)
             err = dt_module_feedback_with_history(graph, nedit->connection.mid, nedit->connection.cid, mid, c);
           else
             err = dt_module_connect_with_history(graph, nedit->connection.mid, nedit->connection.cid, mid, c);
