@@ -243,7 +243,8 @@ dt_graph_export(
   {
     VkResult res = VK_SUCCESS;
     dt_graph_apply_keyframes(graph);
-    dt_graph_run(graph, s_graph_run_all);
+    dt_graph_run(graph, s_graph_run_all
+        ^(param->last_frame_only ? s_graph_run_download_sink : 0));
     if(audio_f)
     {
       for(int audio_cnt=audio_spf;audio_cnt;)
