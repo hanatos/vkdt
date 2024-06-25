@@ -1210,9 +1210,10 @@ write_descriptor_sets(
     else if(c->connected_mi < 0)
     { // sorry not connected, buffer will not be bound.
       // unconnected inputs are a problem however:
-      dt_log(s_log_err | s_log_pipe, "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
+      snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
           dt_token_str(node->name), dt_token_str(node->module->inst),
           dt_token_str(node->kernel), dt_token_str(c->name));
+      graph->gui_msg = graph->gui_msg_buf;
       return VK_INCOMPLETE; // signal a problem
     }
   }

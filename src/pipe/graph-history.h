@@ -257,8 +257,15 @@ dt_module_remove_with_history(
   {
     if(dt_connector_input(graph->module[modid].connector+c))
       dt_module_connect_with_history(graph, -1, -1, modid, c);
-    else
-      dt_module_connect_with_history(graph, modid, c, -1, -1);
+    else for(int m2=0;m2<graph->num_modules;m2++)
+    { // find all connected modules and remove connection
+      if(graph->module[m2].name == 0) continue;
+      for(int c2=0;c2<graph->module[m2].num_connectors;c2++)
+        if(dt_connector_input(graph->module[m2].connector+c2) &&
+            graph->module[m2].connector[c2].connected_mi == modid &&
+            graph->module[m2].connector[c2].connected_mc == c)
+          dt_module_connect_with_history(graph, -1, -1, m2, c2);
+    }
   }
   dt_module_remove(graph, modid);
 }

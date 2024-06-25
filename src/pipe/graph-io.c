@@ -164,7 +164,7 @@ read_connection_ascii(
 
   int modid0 = dt_module_get(graph, mod0, inst0);
   int modid1 = dt_module_get(graph, mod1, inst1);
-  if(modid0 <= -1 || modid1 <= -1 || modid0 >= graph->num_modules || modid1 >= graph->num_modules)
+  if((mod0 != dt_token("-1") && modid0 <= -1) || modid1 <= -1 || modid0 >= graph->num_modules || modid1 >= graph->num_modules)
   {
     dt_log(s_log_pipe, "[read connect] "
         "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
@@ -173,8 +173,10 @@ read_connection_ascii(
     dt_log(s_log_pipe, "[read connect] no such modules %d %d", modid0, modid1);
     return 1;
   }
-  int conid0 = dt_module_get_connector(graph->module+modid0, conn0);
-  int conid1 = dt_module_get_connector(graph->module+modid1, conn1);
+  int conid0 = -1;
+  if(mod0 == dt_token("-1")) modid0 = -1;
+  else conid0 = dt_module_get_connector(graph->module+modid0, conn0);
+  int  conid1 = dt_module_get_connector(graph->module+modid1, conn1);
   int err = extra_flags & s_conn_feedback ?
     dt_module_feedback(graph, modid0, conid0, modid1, conid1) :
     dt_module_connect (graph, modid0, conid0, modid1, conid1);
@@ -343,14 +345,24 @@ dt_graph_write_connection_ascii(
   if(graph->module[m].name == 0) return line;
   dt_connector_t *c = graph->module[m].connector+i;
   if(!dt_connector_input(c)) return line; // refuse to serialise outgoing connections
-  if(c->connected_mi == -1)  return line; // not connected
+  dt_token_t name, inst, conn;
+  if(c->connected_mi == -1)
+  { // explicitly record disconnect event (important for history)
+    name = inst = conn = dt_token("-1");
+  }
+  else
+  {
+    name = graph->module[c->connected_mi].name;
+    inst = graph->module[c->connected_mi].inst;
+    conn = graph->module[c->connected_mi].connector[c->connected_mc].name;
+  }
   WRITE("%s:"
       "%"PRItkn":%"PRItkn":%"PRItkn":"
       "%"PRItkn":%"PRItkn":%"PRItkn"\n",
       c->flags & s_conn_feedback ? "feedback" : "connect",
-      dt_token_str(graph->module[c->connected_mi].name),
-      dt_token_str(graph->module[c->connected_mi].inst),
-      dt_token_str(graph->module[c->connected_mi].connector[c->connected_mc].name),
+      dt_token_str(name),
+      dt_token_str(inst),
+      dt_token_str(conn),
       dt_token_str(graph->module[m].name),
       dt_token_str(graph->module[m].inst),
       dt_token_str(c->name));
