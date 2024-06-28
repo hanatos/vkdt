@@ -15,6 +15,7 @@
 
 #ifdef NK_GLFW_VULKAN_IMPLEMENTATION
 #include "shd.h"
+#include "qvk/qvk.h"
 #endif
 
 #include <assert.h>
@@ -1078,12 +1079,13 @@ void nk_glfw3_create_cmd(
 
   /* setup buffers to load vertices and elements */
   struct nk_buffer vbuf, ebuf;
-  nk_buffer_init_fixed(&vbuf, dev->mapped_vertex+frame*dev->max_vertex_buffer /2, (size_t)dev->max_vertex_buffer/2);
-  nk_buffer_init_fixed(&ebuf, dev->mapped_index +frame*dev->max_element_buffer/2, (size_t)dev->max_element_buffer/2);
+  const int num = qvk.num_swap_chain_images;
+  nk_buffer_init_fixed(&vbuf, dev->mapped_vertex+frame*dev->max_vertex_buffer /num, (size_t)dev->max_vertex_buffer/num);
+  nk_buffer_init_fixed(&ebuf, dev->mapped_index +frame*dev->max_element_buffer/num, (size_t)dev->max_element_buffer/num);
   nk_convert(ctx, &dev->cmds, &vbuf, &ebuf, &config);
 
-  VkDeviceSize voffset = frame*dev->max_vertex_buffer/2;
-  VkDeviceSize ioffset = frame*dev->max_element_buffer/2;
+  VkDeviceSize voffset = frame*dev->max_vertex_buffer/num;
+  VkDeviceSize ioffset = frame*dev->max_element_buffer/num;
   vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &voffset);
   vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, ioffset, VK_INDEX_TYPE_UINT16);
 
