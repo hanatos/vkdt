@@ -78,7 +78,7 @@ export VKDT_USE_MCRAW
 VKDT_USE_FFMPEG=1
 export VKDT_USE_FFMPEG
 VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libswresample))$(VKDT_AV_CFLAGS)
-VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs swresample))$(VKDT_AV_LDFLAGS)
+VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libswresample))$(VKDT_AV_LDFLAGS)
 export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # where to find glfw for the gui:
