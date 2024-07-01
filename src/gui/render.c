@@ -145,7 +145,7 @@ int dt_gui_init_nk()
       vkdt.render_pass,
       qvk.window,
       qvk.device, qvk.physical_device,
-      5120*1024, 1280*1024);
+      qvk.num_swap_chain_images * 2560*1024, qvk.num_swap_chain_images * 640*1024);
 
      // XXX setup keyboard and gamepad nav!
      // https://github.com/smallbasic/smallbasic.plugins/blob/master/nuklear/nkbd.h
