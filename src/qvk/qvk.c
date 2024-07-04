@@ -50,7 +50,7 @@ const char *vk_requested_layers[] = {
 
 const char *vk_requested_instance_extensions[] = {
   // colour management:
-  VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+  // VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
@@ -58,7 +58,7 @@ const char *vk_requested_instance_extensions[] = {
 
 static const VkApplicationInfo vk_app_info = {
   .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-  .pApplicationName   = "darktable ng",
+  .pApplicationName   = "vkdt",
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
