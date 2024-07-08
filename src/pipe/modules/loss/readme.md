@@ -7,9 +7,10 @@ after computing the loss, it will be stored (cpu side) in a parameter `loss`.
 
 ## connectors
 
-* `input` : the processed image
-* `orig` : the reference image
+* `input` the processed image
+* `orig` the reference image
 * `dspy` a display channel to output the masked pixels that are considered during loss computation
+* `loss` pass the loss on as a gpu buffer for optimisers or csv output modules
 
 ## parameters
 
