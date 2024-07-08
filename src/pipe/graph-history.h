@@ -34,7 +34,7 @@ dt_graph_history_reset(
   // write all connections
   for(uint32_t m=0;m<graph->num_modules;m++)
     for(int c=0;c<graph->module[m].num_connectors;c++,i+=(hi[i+1]!=hi[i]))
-      if(!(hi[i+1] = dt_graph_write_connection_ascii(graph, m, c, hi[i], max-hi[i])))
+      if(!(hi[i+1] = dt_graph_write_connection_ascii(graph, m, c, hi[i], max-hi[i], 1)))
         return 1;
 
   // write all params
@@ -130,7 +130,7 @@ dt_graph_history_connection(
   if(_dt_graph_history_check_buf(graph, 70)) return;
   int i = graph->history_item_end;
   char **hi = graph->history_item, *max = graph->history_pool + graph->history_max;
-  if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, modid, conid, hi[i], max - hi[i])))
+  if(hi[i] < (hi[i+1] = dt_graph_write_connection_ascii(graph, modid, conid, hi[i], max - hi[i], 1)))
   { *(hi[i+1]-1) = 0; graph->history_item_cur = ++graph->history_item_end; }
 }
 

@@ -26,7 +26,8 @@ dt_graph_write_connection_ascii(
     const int         m,      // module index
     const int         i,      // connector index on given module
     char             *line,
-    size_t            size);
+    size_t            size,
+    int               write_empty); // also serialise disconnected inputs (for history)
 
 // write param
 VKDT_API char *

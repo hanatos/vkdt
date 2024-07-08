@@ -340,7 +340,8 @@ dt_graph_write_connection_ascii(
     const int         m,      // module index
     const int         i,      // connector index on given module
     char             *line,
-    size_t            size)
+    size_t            size,
+    int               allow_empty)
 {
   if(graph->module[m].name == 0) return line;
   dt_connector_t *c = graph->module[m].connector+i;
@@ -348,6 +349,7 @@ dt_graph_write_connection_ascii(
   dt_token_t name, inst, conn;
   if(c->connected_mi == -1)
   { // explicitly record disconnect event (important for history)
+    if(!allow_empty) return line; // don't write disconnect events explicitly
     name = inst = conn = dt_token("-1");
   }
   else
@@ -490,7 +492,7 @@ int dt_graph_write_config_ascii(
   // write all connections
   for(int m=0;m<graph->num_modules;m++)
     for(int i=0;i<graph->module[m].num_connectors;i++)
-      if(!(buf = dt_graph_write_connection_ascii(graph, m, i, buf, end-buf)))
+      if(!(buf = dt_graph_write_connection_ascii(graph, m, i, buf, end-buf, 0)))
         goto error;
 
   // write all params
