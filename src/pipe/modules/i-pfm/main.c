@@ -95,17 +95,16 @@ error:
 
 static int
 read_plain(
-    pfminput_buf_t *pfm, uint16_t *out)
+    pfminput_buf_t *pfm, float *out)
 {
   fseek(pfm->f, pfm->data_begin, SEEK_SET);
-  uint16_t one = float_to_half(1.0f);
   const int stride = pfm->channels == 1 ? 1 : 4;
   for(int64_t k=0;k<pfm->width*(int64_t)pfm->height;k++)
   {
     float in[3];
     fread(in, pfm->channels, sizeof(float), pfm->f);
-    for(int i=0;i<pfm->channels;i++) out[stride*k+i] = float_to_half(CLAMP(in[i], -65000.0, 65000.0));
-    if(stride == 4) out[stride*k+3] = one;
+    for(int i=0;i<pfm->channels;i++) out[stride*k+i] = in[i];
+    if(stride == 4) out[stride*k+3] = 1.0;
   }
   return 0;
 }
