@@ -888,6 +888,7 @@ static inline void render_darkroom_widget(int modid, int parid)
       nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
       if(ret & NK_EDIT_COMMITED)
       { // kinda grave change, rerun all, but only if enter pressed
+        nk_edit_unfocus(ctx); // make keyboard nav work again
         vkdt.graph_dev.runflags = s_graph_run_all;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
