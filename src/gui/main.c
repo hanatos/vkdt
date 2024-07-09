@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui);
   int lastarg = dt_log_init_arg(argc, argv);
-  dt_log(s_log_gui, "vkdt "VKDT_VERSION" (c) 2020--2024 johannes hanika\n");
+  dt_log(s_log_gui, "vkdt "VKDT_VERSION" (c) 2020--2024 johannes hanika");
   dt_pipe_global_init();
   threads_global_init();
   dt_set_signal_handlers();
