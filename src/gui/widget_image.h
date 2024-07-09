@@ -266,8 +266,8 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
   if(hovered)
   { // zoom/pan interaction
     struct nk_vec2 mpos = ctx->input.mouse.pos;
-    if(nk_input_is_mouse_released(&ctx->input, NK_BUTTON_LEFT) ||
-       nk_input_is_mouse_released(&ctx->input, NK_BUTTON_MIDDLE))
+    if(!nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT) &&
+       !nk_input_is_mouse_down(&ctx->input, NK_BUTTON_MIDDLE))
     {
       w->m_x = w->m_y = -1;
     }
