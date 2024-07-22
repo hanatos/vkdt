@@ -1,7 +1,7 @@
 # raw photography processing workflow
 # which sucks less
 
-[vkdt](https://vkdt.org) is a workflow toolbox for raw stills and video.
+[vkdt](https://jo.dreggn.org/vkdt/) is a workflow toolbox for raw stills and video.
 `vkdt` is designed with high performance in mind. it features a flexible
 processing node graph at its core, enabling real-time support for animations,
 timelapses, raw video, and heavy lifting algorithms like image alignment and
