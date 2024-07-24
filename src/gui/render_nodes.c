@@ -363,8 +363,14 @@ void nodes_process()
 {
   dt_gui_dr_anim_stop(); // we don't animate in graph edit mode
   if(vkdt.graph_dev.runflags)
+  {
+    if(vkdt.graph_res != VK_SUCCESS) vkdt.graph_dev.runflags = s_graph_run_all; // recreate everything on error
     vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
         vkdt.graph_dev.runflags | s_graph_run_wait_done);
+  }
+  // we tried what we could, only re-run on explicit request (topology change, next frame)
+  // in particular don't run expensive retries on error.
+  vkdt.graph_dev.runflags = 0;
 }
 
 void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)

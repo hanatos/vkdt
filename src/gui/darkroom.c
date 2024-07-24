@@ -154,6 +154,7 @@ darkroom_process()
     if(md && memcmp(&old_roi, &md->connector[0].roi, sizeof(dt_roi_t))) // did the output roi change?
       dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
+  vkdt.graph_dev.runflags = 0; // we tried what we could, only re-run on explicit request (topology change, next frame)
 
   if(vkdt.state.anim_playing && advance)
   { // new frame for animations need new audio, too
