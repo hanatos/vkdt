@@ -252,7 +252,7 @@ void render_files()
           struct nk_rect bb = nk_widget_bounds(ctx);
           nk_prog(ctx, 1024*progress, 1024, nk_false);
           char text[50];
-          snprintf(text, sizeof(text), "%g%%", 100.0*progress);
+          snprintf(text, sizeof(text), "%.0f%%", 100.0*progress);
           nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
           if(nk_button_label(ctx, "abort")) job[k].abort = 1;
         }
