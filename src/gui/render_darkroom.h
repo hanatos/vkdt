@@ -714,7 +714,7 @@ static inline void render_darkroom_widget(int modid, int parid)
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
     nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){255*v[0], 255*v[1], 255*v[2], 0xff}));
     nk_style_push_color(ctx, &ctx->style.button.border_color, (struct nk_color){255*v[3], 255*v[4], 255*v[5], 0xff});
-    nk_style_push_float(ctx, &ctx->style.button.border, 0.01*vkdt.state.panel_wd);
+    nk_style_push_float(ctx, &ctx->style.button.border, 0.015*vkdt.state.panel_wd);
     if(vkdt.wstate.active_widget_modid == modid &&
        vkdt.wstate.active_widget_parid == parid &&
        vkdt.wstate.active_widget_parnm == num)
@@ -753,29 +753,34 @@ static inline void render_darkroom_widget(int modid, int parid)
       { // now add ability to change target colour coordinate
         int active_num = vkdt.wstate.active_widget_parnm;
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-        for(int i=0;i<3;i++)
+        for(int j=0;j<2;j++)
         {
-          float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3 + i;
-          float oldval = *val;
-          const char *label[] = {"red", "green", "blue"};
-          // custom resetblock: set only this colour spot to identity mapping
-          if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx)))
+          nk_label(ctx, j ? "destination" : "source", NK_TEXT_LEFT);
+          nk_label(ctx, "", 0);
+          for(int i=0;i<3;i++)
           {
-            memcpy(val-i, val-i-3, sizeof(float)*3);
-            change = 1;
+            float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset + active_num*sz) + 3*j + i;
+            float oldval = *val;
+            const char *label[] = {"red", "green", "blue"};
+            // custom resetblock: set only this colour spot to identity mapping
+            if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx)))
+            {
+              memcpy(val-i, val-i-3, sizeof(float)*3);
+              change = 1;
+            }
+            nk_property_float(ctx, "#", 0.0, val, 1.0, 0.1, .001);
+            if(*val != oldval) change = 1;
+            if(change)
+            {
+              dt_graph_run_t flags = s_graph_run_none;
+              if(vkdt.graph_dev.module[modid].so->check_params)
+                flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+              vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+              vkdt.graph_dev.active_module = modid;
+              dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+            }
+            nk_label(ctx, label[i], NK_TEXT_LEFT);
           }
-          nk_property_float(ctx, "#", 0.0, val, 1.0, 0.1, .001);
-          if(*val != oldval) change = 1;
-          if(change)
-          {
-            dt_graph_run_t flags = s_graph_run_none;
-            if(vkdt.graph_dev.module[modid].so->check_params)
-              flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-            vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
-            vkdt.graph_dev.active_module = modid;
-            dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-          }
-          nk_label(ctx, label[i], NK_TEXT_LEFT);
         }
       }
     }
