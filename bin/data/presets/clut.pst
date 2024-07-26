@@ -4,4 +4,5 @@
 module:i-lut:clut
 connect:i-lut:clut:output:colour:01:clut
 param:colour:01:matrix:4
+param:colour:01:white:1.0:1.0:1.0:1.0
 param:i-lut:clut:filename:data/${maker} ${model}.lut
