@@ -119,7 +119,7 @@ dt_log(
     "[snd]",
     "[perf]",
     "[mem]",
-    "\e[31m[ERR]\e[0m",
+    "\033[31m[ERR]\033[0m",
   };
 
   if(dt_log_global.mask & mask)

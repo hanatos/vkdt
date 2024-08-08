@@ -3,9 +3,11 @@
 *.a
 *ctooltips
 *ptooltips
+cscope.out
 built/
 src/core/version.h
 bin/config.mk
+bin/libvkdt.so
 bin/vkdt
 bin/vkdt-cli
 bin/vkdt-fit

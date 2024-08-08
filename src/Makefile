@@ -24,7 +24,7 @@ ifneq ($(VKDT_USE_MLV), 1)
   MODULES:=$(filter-out i-mlv,$(MODULES))
 endif
 ifneq ($(VKDT_USE_FFMPEG), 1)
-  MODULES:=$(filter-out i-vid,$(MODULES))
+  MODULES:=$(filter-out i-vid o-vid,$(MODULES))
 endif
 ifneq ($(VKDT_USE_QUAKE), 1)
   MODULES:=$(filter-out quake,$(MODULES))
@@ -120,7 +120,8 @@ gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
 # library
 # ======================
 ../bin/libvkdt.so: $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) -shared -nostartfiles -Wl,-soname,libvkdt.so -o $@ $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O)
+	$(CC) -shared -nostartfiles -Wl,-soname,libvkdt.so -o $@ $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) \
+    $(LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # modules
 # ======================
