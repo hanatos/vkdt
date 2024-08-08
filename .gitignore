@@ -3,6 +3,7 @@
 *.a
 *ctooltips
 *ptooltips
+cscope.out
 built/
 src/core/version.h
 bin/config.mk
