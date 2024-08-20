@@ -505,7 +505,7 @@ void render_lighttable_right_panel()
   struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
   const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
-  const struct nk_vec2 size = {ratio[0], ratio[0]};
+  const struct nk_vec2 size = {vkdt.state.panel_wd*0.95, vkdt.state.panel_wd*0.95};
 
   if(!nk_begin(ctx, "lighttable panel right", bounds, 0))
   {
@@ -586,19 +586,33 @@ void render_lighttable_right_panel()
     }
     else if(filter_prop == s_prop_filetype)
     {
-      char *filter_type = dt_token_str(vkdt.db.collection_filter_val);
-      dt_tooltip("enter the responsible input module here, for instance\n"
-          "raw : raw files\n"
-          "jpg : jpg files\n"
-          "exr : high dynamic range scene linear exr\n"
-          "vid : video files\n"
-          "mlv : raw video files");
-      if(nk_edit_string_zero_terminated(ctx, NK_EDIT_SIMPLE, filter_type+2, 6, nk_filter_default))
+      static int32_t filter_module_idx = 0;
+      static const char *input_modules_str =
+          "raw : raw files\0"
+          "jpg : jpg images\0"
+          "exr : high dynamic range scene linear exr\0"
+          "vid : compressed video\0"
+          "mlv : magic lantern raw video\0"
+          "mcraw: motioncam raw video\0\0";
+      dt_token_t input_modules[] = {
+        dt_token("i-raw"),
+        dt_token("i-jpg"),
+        dt_token("i-exr"),
+        dt_token("i-vid"),
+        dt_token("i-mlv"),
+        dt_token("i-mcraw"),
+      };
+      dt_token_t filter_val = vkdt.db.collection_filter_val;
+      for(int k=0;k<NK_LEN(input_modules);k++) if(filter_val == input_modules[k]) { filter_module_idx = k; break; }
+      res = nk_combo_string(ctx, input_modules_str, filter_module_idx, 0xffff, row_height, size);
+      if(res != filter_module_idx)
       {
-        filter_type[0] = 'i'; filter_type[1] = '-';
+        filter_module_idx = res;
+        vkdt.db.collection_filter_val = input_modules[res];
         dt_db_update_collection(&vkdt.db);
         dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
       }
+      nk_label(ctx, "file type", NK_TEXT_LEFT);
     }
     else if(filter_prop == s_prop_none)
     { // hide filter value, it's meaningless
@@ -620,6 +634,7 @@ void render_lighttable_right_panel()
     }
 
     nk_layout_row_dynamic(ctx, row_height, 1);
+    dt_tooltip("open a different folder on your computer");
     if(nk_button_label(ctx, "open directory"))
       dt_view_switch(s_view_files);
 
