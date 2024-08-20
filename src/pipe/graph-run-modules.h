@@ -4,13 +4,12 @@
 static inline VkResult
 dt_graph_run_modules_upload_uniforms(
     dt_graph_t          *graph,
-    const dt_graph_run_t run,
-    int                  frame)
+    const dt_graph_run_t run)
 { // module traversal
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
   uint8_t *uniform_mem = 0;
-  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, ((uint64_t)frame) * graph->uniform_size,
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, ((uint64_t)graph->double_buffer) * graph->uniform_size,
         graph->uniform_size, 0, (void**)&uniform_mem));
   ((uint32_t *)uniform_mem)[0] = graph->frame;
   ((uint32_t *)uniform_mem)[1] = graph->frame_cnt;
@@ -251,6 +250,35 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
       }
     }
   }
+  if(module->name == dt_token("display"))
+  { // if this is a display module, walk our input connector and make the connection a feedback thing for double buffering
+    if(input >= 0)
+    {
+      if(c->connected_mi >= 0 && c->connected_mc >= 0)
+      {
+        c->flags |= s_conn_double_buffer;
+        graph->module[c->connected_mi].connector[c->connected_mc].flags |= s_conn_double_buffer;
+        c->frames = graph->module[c->connected_mi].connector[c->connected_mc].frames = 2;
+        // also every input connected to the output we're referring to here needs to be updated!
+        // this is different from feedback connectors who can happily access both buffers at their dispatch stage.
+        // since we're adding the flag so late, it's our responsibility to propagate it. on the bright side
+        // the graph topology is fixed now, so we can safely do this:
+        for(int m=0;m<graph->num_modules;m++)
+        {
+          for(int i=0;i<graph->module[m].num_connectors;i++)
+          {
+            if(dt_connector_input(graph->module[m].connector+i) &&
+                graph->module[m].connector[i].connected_mi == c->connected_mi &&
+                graph->module[m].connector[i].connected_mc == c->connected_mc)
+            {
+              graph->module[m].connector[i].flags |= s_conn_double_buffer;
+              graph->module[m].connector[i].frames = 2;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 
@@ -463,6 +491,9 @@ dt_graph_run_modules(
           }
         }
       }
+    vkWaitForFences(qvk.device, 2, graph->command_fence, VK_TRUE, ((uint64_t)1)<<40);
+    if(graph->gui_attached)
+      QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    graph->conn_image_pool[i].buffer, VK_NULL_HANDLE);

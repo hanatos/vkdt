@@ -47,13 +47,14 @@ void render_nodes_right_panel()
     NK_UPDATE_ACTIVE;
     nk_end(ctx);
   }
+  const int display_frame = vkdt.graph_dev.double_buffer % 2;
   dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-  if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
+  if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[display_frame])
   {
     int wd = vkdt.state.panel_wd;
     int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
     nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
-    struct nk_image img = nk_image_ptr(out_hist->dset[0]);
+    struct nk_image img = nk_image_ptr(out_hist->dset[display_frame]);
     nk_image(ctx, img);
   }
   static dt_image_widget_t imgw[] = {
@@ -200,9 +201,7 @@ void render_nodes_right_panel()
       nk_style_pop_flags(ctx);
       nk_tree_pop(ctx);
     } // end collapsing header
-    static int32_t active_module = -1;
-    static char open[1000] = {0};
-    render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i], open, &active_module);
+    render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i]);
   }
   if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
   {
@@ -362,15 +361,7 @@ int nodes_leave()
 void nodes_process()
 {
   dt_gui_dr_anim_stop(); // we don't animate in graph edit mode
-  if(vkdt.graph_dev.runflags)
-  {
-    if(vkdt.graph_res != VK_SUCCESS) vkdt.graph_dev.runflags = s_graph_run_all; // recreate everything on error
-    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev,
-        vkdt.graph_dev.runflags | s_graph_run_wait_done);
-  }
-  // we tried what we could, only re-run on explicit request (topology change, next frame)
-  // in particular don't run expensive retries on error.
-  vkdt.graph_dev.runflags = 0;
+  darkroom_process();    // the rest stays the same though.
 }
 
 void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)

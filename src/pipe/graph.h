@@ -110,6 +110,11 @@ typedef struct dt_graph_t
   int                   frame_cnt;     // number of frames to compute
   double                frame_rate;    // frame rate (frames per second)
 
+  // index of the currently written double buffer channel for s_conn_double_buffer connectors.
+  // graph_run will pick this value up and use the dsets for writing.
+  // this also selects the command buffer/fence for interleaved processing.
+  int                   double_buffer;
+
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;
   int                   output_wd;
@@ -155,7 +160,7 @@ dt_graph_connector_image(
     int         nid,    // node id
     int         cid,    // connector id
     int         array,  // array index
-    int         frame); // frame number
+    int         dbuf);  // double buffer index
 
 // apply all keyframes found in the module list and write to the modules parameters according to
 // the current frame in the graph (g->frame). floating point parameters will be interpolated.

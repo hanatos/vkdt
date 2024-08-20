@@ -17,8 +17,6 @@ dt_graph_run_nodes_upload(
     uint32_t            *nodeid,
     int                  cnt,
     dt_module_flags_t    module_flags,
-    int                  frame,
-    int                  frame_prev,
     int                  dynamic_array)
 {
   VkCommandBufferBeginInfo begin_info = {
@@ -59,7 +57,7 @@ dt_graph_run_nodes_upload(
                   mapped + node->connector[c].offset_staging, &p);
               if(node->connector[c].array_length > 1)
               {
-                if(!dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->image)
+                if(!dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image)
                   continue;
                 vkUnmapMemory(qvk.device, graph->vkmem_staging);
                 const uint32_t wd = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+0] : node->connector[c].roi.wd);
@@ -73,26 +71,26 @@ dt_graph_run_nodes_upload(
                   .imageSubresource.layerCount = 1,
                   .imageExtent = { wd, ht, 1 },
                 },{
-                  .bufferOffset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->plane1_offset,
+                  .bufferOffset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->plane1_offset,
                   .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
                   .imageSubresource.layerCount = 1,
                   .imageExtent = { wd / 2, ht / 2, 1 },
                 }};
                 const int yuv = node->connector[c].format == dt_token("yuv");
-                VkCommandBuffer cmd_buf = graph->command_buffer[frame];
+                VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
                 QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
                 IMG_LAYOUT(
-                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
+                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer),
                     UNDEFINED,
                     TRANSFER_DST_OPTIMAL);
                 vkCmdCopyBufferToImage(
                     cmd_buf,
                     node->connector[c].staging,
-                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame)->image,
+                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     yuv ? 2 : 1, yuv ? regions+1 : regions);
                 IMG_LAYOUT(
-                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->frame),
+                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer),
                     TRANSFER_DST_OPTIMAL,
                     SHADER_READ_ONLY_OPTIMAL);
                 QVKR(vkEndCommandBuffer(cmd_buf));
@@ -101,10 +99,10 @@ dt_graph_run_nodes_upload(
                   .commandBufferCount = 1,
                   .pCommandBuffers    = &cmd_buf,
                 };
-                vkResetFences(qvk.device, 1, &graph->command_fence[frame]);
+                vkResetFences(qvk.device, 1, &graph->command_fence[graph->double_buffer]);
                 QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
-                    vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[frame]));
-                QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[frame], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
+                    vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[graph->double_buffer]));
+                QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[graph->double_buffer], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
             }

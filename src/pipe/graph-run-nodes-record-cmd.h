@@ -3,7 +3,7 @@
 static inline VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
-  VkCommandBuffer cmd_buf = graph->command_buffer[graph->frame % 2];
+  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
 
   // sanity check: are all input connectors bound?
   for(int i=0;i<node->num_connectors;i++)
@@ -26,18 +26,19 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       {
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
               SHADER_READ_ONLY_OPTIMAL,
               COLOR_ATTACHMENT_OPTIMAL);
         else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
               SHADER_READ_ONLY_OPTIMAL,
               GENERAL);
       }
     }
     return VK_SUCCESS;
   }
+
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
 
   // special case for end of pipeline and thumbnail creation:
@@ -96,15 +97,15 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           BARRIER_COMPUTE_BUFFER(
               dt_graph_connector_image(graph, node-graph->node, i, k,
                 (node->connector[i].flags & s_conn_feedback) ?
-                1-(graph->frame & 1) :
-                graph->frame)->buffer);
+                1-(graph->double_buffer & 1) :
+                graph->double_buffer)->buffer);
       if(dt_connector_output(node->connector+i) && (node->connector[i].flags & s_conn_clear))
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
         {
           VkBuffer buf = dt_graph_connector_image(graph, node-graph->node, i, k,
               (node->connector[i].flags & s_conn_feedback) ?
-              1-(graph->frame & 1) :
-              graph->frame)->buffer;
+              1-(graph->double_buffer & 1) :
+              graph->double_buffer)->buffer;
           vkCmdFillBuffer(cmd_buf, buf, 0, VK_WHOLE_SIZE, 0);
           BARRIER_COMPUTE_BUFFER(buf);
         }
@@ -121,14 +122,14 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
             IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k,
                 (node->connector[i].flags & s_conn_feedback) ?
-                1-(graph->frame & 1) :
-                graph->frame),
+                1-(graph->double_buffer & 1) :
+                graph->double_buffer),
               GENERAL,
               SHADER_READ_ONLY_OPTIMAL);
       }
       else for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
         IMG_LAYOUT(
-            dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+            dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
             GENERAL,
             TRANSFER_SRC_OPTIMAL);
     }
@@ -140,7 +141,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
         {
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
               TRANSFER_DST_OPTIMAL);
           // in case clearing is requested, zero out the image:
@@ -154,7 +155,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           };
           vkCmdClearColorImage(
               cmd_buf,
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame)->image,
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer)->image,
               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
               &col,
               1,
@@ -162,12 +163,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         }
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
               TRANSFER_DST_OPTIMAL,
               COLOR_ATTACHMENT_OPTIMAL);
         else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
               TRANSFER_DST_OPTIMAL,
               GENERAL);
       }
@@ -175,12 +176,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       {
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
               COLOR_ATTACHMENT_OPTIMAL);
         else if(!(node->connector[i].flags & s_conn_dynamic_array)) for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->frame),
+              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
               UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
               GENERAL);
       }
@@ -198,12 +199,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     .imageSubresource.layerCount = 1,
     .imageExtent = { wd, ht, 1 },
   },{
-    .bufferOffset = dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->plane1_offset,
+    .bufferOffset = dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->plane1_offset,
     .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
     .imageSubresource.layerCount = 1,
     .imageExtent = { wd / 2, ht / 2, 1 },
   }};
-  const int f = graph->frame % 2;
+  const int f = graph->double_buffer;
   const int yuv = node->connector[0].format == dt_token("yuv");
   if(dt_node_sink(node) && node->module->so->write_sink)
   { // only schedule copy back if the node actually asks for it
@@ -216,7 +217,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       };
       vkCmdCopyBuffer(
           cmd_buf,
-          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->buffer,
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->buffer,
           node->connector[0].staging,
           1, &bufreg);
       BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
@@ -225,7 +226,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     {
       vkCmdCopyImageToBuffer(
           cmd_buf,
-          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image,
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
           node->connector[0].staging,
           yuv ? 2 : 1, yuv ? regions+1 : regions);
@@ -245,17 +246,17 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
     }
     IMG_LAYOUT(
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame),
+        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
         UNDEFINED,
         TRANSFER_DST_OPTIMAL);
     vkCmdCopyBufferToImage(
         cmd_buf,
         node->connector[0].staging,
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->image,
+        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         yuv ? 2 : 1, yuv ? regions+1 : regions);
     IMG_LAYOUT(
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame),
+        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
         TRANSFER_DST_OPTIMAL,
         SHADER_READ_ONLY_OPTIMAL);
     // get a profiler timestamp:
@@ -271,7 +272,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
          dt_connector_ssbo(node->connector+0) && // ssbo source node just needs a barrier on the staging memory
          (node->connector[0].array_length <= 1)) // arrays share the staging buffer, are handled by iterating read_source()
   {
-    BARRIER_COMPUTE_BUFFER(dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->frame)->buffer);
+    BARRIER_COMPUTE_BUFFER(dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->buffer);
   }
 
   // only non-sink and non-source nodes have a pipeline:
@@ -370,9 +371,7 @@ dt_graph_run_nodes_record_cmd(
     const dt_graph_run_t run,
     uint32_t            *nodeid,
     int                  cnt,
-    dt_module_flags_t    module_flags,
-    int                  frame,
-    int                  frame_prev)
+    dt_module_flags_t    module_flags)
 {
   if(run & s_graph_run_record_cmd_buf)
   {
@@ -380,9 +379,10 @@ dt_graph_run_nodes_record_cmd(
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
       .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
-    QVKR(vkBeginCommandBuffer(graph->command_buffer[frame], &begin_info));
-    graph->query[frame].cnt = 0;
-    vkCmdResetQueryPool(graph->command_buffer[frame], graph->query[frame].pool, 0, graph->query[frame].max);
+    int buf_curr = graph->double_buffer;
+    QVKR(vkBeginCommandBuffer(graph->command_buffer[buf_curr], &begin_info));
+    graph->query[buf_curr].cnt = 0;
+    vkCmdResetQueryPool(graph->command_buffer[buf_curr], graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
     double rt_beg = dt_time();
     int run_all = run & s_graph_run_upload_source;
     int run_mod = module_flags & s_module_request_read_geo;
@@ -396,13 +396,13 @@ dt_graph_run_nodes_record_cmd(
           (graph->node[nodeid[i]].module->flags & s_module_request_read_source));
       if(res != VK_SUCCESS)
       { // need to clean up command buffer before we quit
-        QVKR(vkEndCommandBuffer(graph->command_buffer[frame]));
+        QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
         return res;
       }
     }
     rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
-    QVKR(vkEndCommandBuffer(graph->command_buffer[frame]));
+    QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
   }
   return VK_SUCCESS;
 }

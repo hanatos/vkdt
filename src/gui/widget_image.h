@@ -355,10 +355,11 @@ dt_image(
   im1[1] = CLAMP(im1[1], 0.0f, 1.0f);
   dt_image_to_view(w, im0, v0);
   dt_image_to_view(w, im1, v1);
+  const int display_frame = out->module->graph->double_buffer;
   struct nk_rect subimg = {w->wd * im0[0], w->ht * im0[1], w->wd * (im1[0]-im0[0]), w->ht * (im1[1]-im0[1])};
   struct nk_rect disp = {v0[0], v0[1], v1[0]-v0[0], v1[1]-v0[1]};
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
-  struct nk_image nkimg = nk_subimage_ptr(out->dset[0], w->wd, w->ht, subimg);
+  struct nk_image nkimg = nk_subimage_ptr(out->dset[display_frame], w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
   nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});
   char scaletext[10];

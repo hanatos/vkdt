@@ -41,14 +41,14 @@ dt_vkalloc_nuke(dt_vkalloc_t *a)
   a->peak_rss = a->rss = a->vmsize = 0ul;
 }
 
-// feedback version of allocation:
+// protected version of allocation:
 // these buffers will be persistent for the next frame, i.e. can't be freed
 // need memory that has no dual use (i.e. used before and then freed)
 // - use last entry in free list
 // - split potentially into three
 // - memory offset is vmsize + alignment
 dt_vkmem_t*
-dt_vkalloc_feedback(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
+dt_vkalloc_protected(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {
   if(!alignment) alignment = 1;
   assert(!dt_vkalloc_check(a));

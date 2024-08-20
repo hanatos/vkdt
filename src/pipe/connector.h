@@ -24,6 +24,7 @@ typedef enum dt_connector_flags_t
   s_conn_feedback      = 4,  // this connection is only in between frames (written frame 1 and read frame 2)
   s_conn_dynamic_array = 8,  // dynamically allocated array connector, contents can change during animation
   s_conn_protected     = 16, // flag this connector for rewrites/accumulation/don't overwrite with other buffers
+  s_conn_double_buffer = 32, // this connector is double-buffered for async compute/display
 }
 dt_connector_flags_t;
 

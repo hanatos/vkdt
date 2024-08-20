@@ -138,8 +138,8 @@ typedef struct dt_gui_t
   VkSemaphore      sem_render_complete[DT_GUI_MAX_IMAGES];
   uint32_t         sem_fence[DT_GUI_MAX_IMAGES];
 
-  VkResult         graph_res;
-  dt_graph_t       graph_dev;
+  VkResult         graph_res;     // result of last run
+  dt_graph_t       graph_dev;     // processing graph
 
   dt_db_t          db;            // image list and current query
   dt_thumbnails_t  thumbnails;    // for light table mode

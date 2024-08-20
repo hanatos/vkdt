@@ -144,10 +144,24 @@ darkroom_process()
     dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(md) old_roi = md->connector[0].roi;
   }
-  if(vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)
-    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, vkdt.graph_dev.runflags & ~s_graph_run_wait_done); // interleave cpu and gpu
-  else if(vkdt.graph_dev.runflags)
-    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, vkdt.graph_dev.runflags | s_graph_run_wait_done);  // wait
+
+
+  // graph->double_buffer points to the buffer currently locked for render/display
+  // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
+  static int running = 0;
+  if(vkdt.graph_res == -1) running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
+
+  if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
+     (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
+  { // double buffered async compute
+    // this will wait for other run
+    vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
+    int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all;
+    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+    vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
+    if(full_rebuild) vkdt.graph_res = -1; // restart waiting for first good image
+    running = 1;
+  }
   if(reset_view)
   {
     dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
@@ -155,6 +169,17 @@ darkroom_process()
       dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
   vkdt.graph_dev.runflags = 0; // we tried what we could, only re-run on explicit request (topology change, next frame)
+
+  if(running)
+  {
+    VkResult res = vkWaitForFences(qvk.device, 1, &vkdt.graph_dev.command_fence[vkdt.graph_dev.double_buffer^1], VK_TRUE, 0); // poll fence state
+    if(res == VK_SUCCESS)
+    {
+      if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display know it's now good to show
+      running = 0;
+      vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
+    }
+  }
 
   if(vkdt.state.anim_playing && advance)
   { // new frame for animations need new audio, too
@@ -226,7 +251,7 @@ darkroom_enter()
     load_default = 1;
   }
 
-  dt_graph_init(&vkdt.graph_dev, s_queue_graphics);
+  dt_graph_init(&vkdt.graph_dev, s_queue_compute);
   vkdt.graph_dev.gui_attached = 1;
   dt_graph_history_init(&vkdt.graph_dev);
 
@@ -253,9 +278,11 @@ darkroom_enter()
   }
   dt_graph_history_reset(&vkdt.graph_dev);
 
-  if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all)) != VK_SUCCESS)
+  if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
     dt_gui_notification("running the graph failed (%s)!",
         qvk_result_to_string(vkdt.graph_res));
+  if(vkdt.graph_res == VK_SUCCESS) vkdt.graph_res = -1;
+  vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
 
   // nodes are only constructed after running once
   // (could run up to s_graph_run_create_nodes)

@@ -272,12 +272,10 @@ void render_darkroom_favourite()
 
 void render_darkroom_full()
 {
-  static char open[100] = {0};
-  static int32_t active_module = -1;
   static char filter_name[10] = {0};
   static char filter_inst[10] = {0};
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
-  if(active_module == -1)
+  if(vkdt.graph_dev.active_module == -1)
   {
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
     dt_tooltip("filter by module name");
@@ -307,7 +305,7 @@ void render_darkroom_full()
       memcpy(inst, dt_token_str(vkdt.graph_dev.module[modid[m]].inst), 8);
       if(!strstr(inst, filter_inst)) continue;
     }
-    render_darkroom_widgets(&vkdt.graph_dev, modid[m], open, &active_module);
+    render_darkroom_widgets(&vkdt.graph_dev, modid[m]);
   }
 }
 
@@ -490,25 +488,26 @@ void render_darkroom()
   if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, 0))
   { // right panel
     // draw histogram image:
+    const int display_frame = vkdt.graph_dev.double_buffer % 2;
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-    if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
+    if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[display_frame])
     {
       int wd = vkdt.state.panel_wd;
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
       nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
-      struct nk_image img = nk_image_ptr(out_hist->dset[0]);
+      struct nk_image img = nk_image_ptr(out_hist->dset[display_frame]);
       nk_image(ctx, img);
     }
 
     dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
-    if(out_view0 && vkdt.graph_res == VK_SUCCESS && out_view0->dset[vkdt.graph_dev.frame % DT_GRAPH_MAX_FRAMES])
+    if(out_view0 && vkdt.graph_res == VK_SUCCESS && out_view0->dset[display_frame])
     {
       float iwd = out_view0->connector[0].roi.wd;
       float iht = out_view0->connector[0].roi.ht;
       float scale = MIN(vkdt.state.panel_wd / iwd, 2.0f/3.0f*vkdt.state.panel_wd / iht);
       int ht = scale * iht; // wd = scale * iwd;
       nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
-      struct nk_image img = nk_image_ptr(out_view0->dset[0]);
+      struct nk_image img = nk_image_ptr(out_view0->dset[display_frame]);
       nk_image(ctx, img);
     }
 

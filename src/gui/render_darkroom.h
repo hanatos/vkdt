@@ -963,14 +963,13 @@ static inline void render_darkroom_widget(int modid, int parid)
 
 static inline void render_darkroom_widgets(
     dt_graph_t *graph,          // graph with the modules and parameters
-    int         curr,           // which module id to draw
-    char       *open,           // gui state: is the expander open
-    int32_t    *active_module)  // id of the currently active module
+    int         curr)           // which module id to draw
 {
   char name[30];
   dt_module_t *const arr = graph->module;
   if(!arr[curr].so->num_params) return;
-  if(*active_module >= 0 && *active_module != curr) return;
+  int active = graph->active_module == curr;
+  if(graph->active_module >= 0 && !active) return;
 
   struct nk_context *ctx = &vkdt.ctx;
   const float ratio[] = {0.06f, 0.06f, 0.88f};
@@ -1031,7 +1030,7 @@ static inline void render_darkroom_widgets(
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     nk_label(ctx, "\ue15b", NK_TEXT_CENTERED);
   }
-  nk_label(ctx, open[curr] ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
+  nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
   nk_style_pop_font(ctx);
   nk_label(ctx, name, NK_TEXT_LEFT);
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
@@ -1040,9 +1039,9 @@ static inline void render_darkroom_widgets(
       nk_input_has_mouse_click_in_button_rect(in, NK_BUTTON_LEFT, bound) &&
       nk_input_is_mouse_pressed(in, NK_BUTTON_LEFT))
   {
-    if(!open[curr])
+    if(!active)
     { // just opened, now this is the 'active module'.
-      *active_module = curr;
+      graph->active_module = curr;
       int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
       if(cid >= 0)
       { // if 'dspy' output exists, connect to 'dspy' display
@@ -1054,22 +1053,23 @@ static inline void render_darkroom_widgets(
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
       }
-      open[curr] = 1;
+      active = 1;
     }
     else
     {
-      open[curr] = 0;
-      *active_module = -1;
+      active = 0;
+      graph->active_module = -1;
     }
   }
-  if(open[curr])
+  if(active)
   {
-    if(*active_module == curr &&
+    if(graph->active_module == curr &&
         dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
     {
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
       if(out_dspy && vkdt.graph_res == VK_SUCCESS)
       {
+        const int display_frame = vkdt.graph_dev.double_buffer % 2;
         struct nk_rect row = nk_layout_widget_bounds(ctx);
         float iwd = out_dspy->connector[0].roi.wd;
         float iht = out_dspy->connector[0].roi.ht;
@@ -1082,7 +1082,7 @@ static inline void render_darkroom_widgets(
         nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
         nk_layout_row(ctx, NK_DYNAMIC, ht, 3, ratio);
         nk_label(ctx, "", 0);
-        struct nk_image img = nk_image_ptr(out_dspy->dset[0]);
+        struct nk_image img = nk_image_ptr(out_dspy->dset[display_frame]);
         nk_image(ctx, img);
         nk_label(ctx, "", 0);
         nk_style_pop_vec2(ctx);

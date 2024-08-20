@@ -90,8 +90,8 @@ write_descriptor_sets(
     if(!dyn_array && dt_connector_ssbo(c))
     { // storage buffer
       const int c_dyn_array = c->flags & s_conn_dynamic_array;
-      int fm = c_dyn_array ? (graph->frame % 2) : 0;
-      int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
+      int fm = c_dyn_array ? graph->double_buffer   : 0;
+      int fM = c_dyn_array ? graph->double_buffer+1 : 2;
       if((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)) for(int f=fm;f<fM;f++)
       {
         int ii = cur_buf;
@@ -120,8 +120,8 @@ write_descriptor_sets(
       // since the frames refer to the odd/even pipelines and not to feedback buffers used in the same
       // command buffer:
       const int c_dyn_array = c->flags & s_conn_dynamic_array;
-      int fm = c_dyn_array ? (graph->frame % 2) : 0;
-      int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
+      int fm = c_dyn_array ? graph->double_buffer   : 0;
+      int fM = c_dyn_array ? graph->double_buffer+1 : 2;
       if((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)) for(int f=fm;f<fM;f++)
       {
         int ii = cur_img;
@@ -156,8 +156,8 @@ write_descriptor_sets(
     if(c->connected_mi >= 0 &&
       ((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)))
     {
-      int fm = c_dyn_array ? (graph->frame % 2) : 0;
-      int fM = c_dyn_array ? (graph->frame % 2) + 1 : DT_GRAPH_MAX_FRAMES;
+      int fm = c_dyn_array ? graph->double_buffer     : 0;
+      int fM = c_dyn_array ? graph->double_buffer + 1 : 2;
       for(int f=fm;f<fM;f++)
       {
         int ii = dt_connector_ssbo(c) ? cur_buf : cur_img;
@@ -171,8 +171,9 @@ write_descriptor_sets(
             // this should be ensured during connection:
             assert(c->frames == 2); 
             assert(graph->node[c->connected_mi].connector[c->connected_mc].frames == 2);
+            assert((c->flags & s_conn_double_buffer) == 0);
           }
-          dt_connector_image_t *img  = dt_graph_connector_image(graph,
+          dt_connector_image_t *img = dt_graph_connector_image(graph,
               node - graph->node, c - node->connector, k, frame);
           if(dt_connector_ssbo(c))
           { // storage buffer
@@ -571,7 +572,7 @@ allocate_buffer_array_element(
         dt_log(s_log_qvk|s_log_err, "staging memory type bits don't match!");
       graph->memory_type_bits_staging = buf_mem_req.memoryTypeBits;
 
-      img->mem = dt_vkalloc_feedback(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
+      img->mem = dt_vkalloc_protected(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
     }
     else
     { // other buffers are device only, i.e. use the default heap:
@@ -590,7 +591,7 @@ allocate_buffer_array_element(
       // XXX this is a problem for geometry node kinda graphs/memory use
       // if(heap_offset == 0 && (c->frames == 2 || c->type == dt_token("source") || (c->flags & s_conn_protected))) // allocate protected memory, only in outer heap
       if((c->frames == 2 || (c->flags & s_conn_protected))) // allocate protected memory
-        img->mem = dt_vkalloc_feedback(&graph->heap_ssbo, buf_mem_req.size, buf_mem_req.alignment);
+        img->mem = dt_vkalloc_protected(&graph->heap_ssbo, buf_mem_req.size, buf_mem_req.alignment);
       else
         img->mem = dt_vkalloc(&graph->heap_ssbo, buf_mem_req.size, buf_mem_req.alignment);
     }
@@ -730,7 +731,7 @@ allocate_image_array_element(
   assert(!(mem_req.alignment & (mem_req.alignment - 1)));
 
   if(heap_offset == 0 && (c->frames == 2 || c->type == dt_token("source") || (c->flags & s_conn_protected))) // allocate protected memory, only in outer heap
-    img->mem = dt_vkalloc_feedback(heap, mem_req.size, mem_req.alignment);
+    img->mem = dt_vkalloc_protected(heap, mem_req.size, mem_req.alignment);
   else
     img->mem = dt_vkalloc(heap, mem_req.size, mem_req.alignment);
   // dt_log(s_log_pipe, "allocating %.1f/%.1f MB for %"PRItkn" %"PRItkn" "
@@ -759,7 +760,7 @@ allocate_image_array_element(
 static inline VkResult
 alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
-  const int f = graph->frame % 2;
+  const int f = graph->double_buffer;
   // create descriptor bindings and pipeline:
   // we'll bind our buffers in the same order as in the connectors file.
   uint32_t drawn_connector_cnt = 0;
@@ -1071,7 +1072,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       { // in case of dynamic allocation, reserve a protected block and wait until later
         dt_log(s_log_err, "ssbo arrays cannot be dynamic!");
         assert(0);
-        c->array_mem = dt_vkalloc_feedback(&graph->heap_ssbo, c->array_alloc_size, 0x100); // TODO check buffer alignment requirements
+        c->array_mem = dt_vkalloc_protected(&graph->heap_ssbo, c->array_alloc_size, 0x100); // TODO check buffer alignment requirements
         c->array_alloc = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }
@@ -1095,7 +1096,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
                 graph, node, c, &graph->heap, 0, f, k));
       else
       { // in case of dynamic allocation, reserve a protected block and wait until later
-        c->array_mem = dt_vkalloc_feedback(&graph->heap, c->array_alloc_size, 0x10000); // this is shit and should probably get a fake alignment value for a fake image. amd requires this large one, nvidia can do one 0 less
+        c->array_mem = dt_vkalloc_protected(&graph->heap, c->array_alloc_size, 0x10000); // this is shit and should probably get a fake alignment value for a fake image. amd requires this large one, nvidia can do one 0 less
         c->array_alloc = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }
@@ -1236,8 +1237,6 @@ dt_graph_run_nodes_allocate(
     dt_graph_run_t *run,
     uint32_t       *nodeid,
     int             cnt,
-    int             frame,
-    int             frame_prev,
     int            *dynamic_array) // will remain 0 if there are dynamic arrays that did not request changes, triggers upload later
 {
   *dynamic_array = 0;
@@ -1455,8 +1454,8 @@ dt_graph_run_nodes_allocate(
       { // last frame has pending sync work to do
         for(int a=0;a<MAX(1,c->array_length);a++)
         { // keep array images the same in general, but delete images that wandered off the command buffer bindings:
-          dt_connector_image_t *oldimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->frame+1);
-          dt_connector_image_t *newimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->frame);
+          dt_connector_image_t *oldimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->double_buffer^1);
+          dt_connector_image_t *newimg = dt_graph_connector_image(graph, node-graph->node, j, a, graph->double_buffer);
           if(!oldimg || !newimg) continue; // will insert dummy later
           if(oldimg->image == newimg->image) continue; // is the same already
           if(newimg->buffer)     vkDestroyBuffer   (qvk.device, newimg->buffer,     VK_NULL_HANDLE);
@@ -1473,23 +1472,23 @@ dt_graph_run_nodes_allocate(
       {
         if(k == 0 && !c->array_req[0])
         { // make sure the fallback slot 0 is always inited with at least rubbish:
-          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, frame);
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, graph->double_buffer);
           assert(img);
           if(!img->image_view)
           {
             *img = (dt_connector_image_t){0}; // make sure nothing is freed here
-            QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, frame, k));
-            QVKR(bind_buffers_to_memory(graph, node, c, frame, k));
+            QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, graph->double_buffer, k));
+            QVKR(bind_buffers_to_memory(graph, node, c, graph->double_buffer, k));
           }
         }
         if(c->array_req[k])
         { // free texture. we depend on f-1 still holding our data, it will be freed during resync.
           *dynamic_array = c->array_resync = 1; // remember to bring other frame in sync next time to pick up our changes
-          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, frame);
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nodeid[i], j, k, graph->double_buffer);
           assert(img);
           *img = (dt_connector_image_t){0}; // make sure nothing is freed here
-          QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, frame, k));
-          QVKR(bind_buffers_to_memory(graph, node, c, frame, k));
+          QVKR(allocate_image_array_element(graph, node, c, c->array_alloc, c->array_mem->offset, graph->double_buffer, k));
+          QVKR(bind_buffers_to_memory(graph, node, c, graph->double_buffer, k));
         }
         // upload is handled below
       }

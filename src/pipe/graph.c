@@ -100,9 +100,11 @@ dt_graph_cleanup(dt_graph_t *g)
 #ifdef DEBUG_MARKERS
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
+  g->active_module = -1;
   // needs sync if the gui graph, or none if running in bg
+  vkWaitForFences(qvk.device, 2, g->command_fence, VK_TRUE, ((uint64_t)1)<<40);
   if(g->gui_attached) // i suppose we could wait on the gui fence instead.
-    QVKL(&qvk.queue[qvk.qid[g->queue_name]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[g->queue_name]].queue));
+    QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -293,10 +295,11 @@ VkResult dt_graph_run(
 {
   double clock_beg = dt_time();
   dt_module_flags_t module_flags = 0;
-  const int frame      =  graph->frame    % 2; // recording this pipeline now
-  const int frame_prev = (graph->frame+1) % 2; // waiting for the previous frame
+  // double_buffer is initialised to 0 and has to be set from the outside if flipping the double buffer is requested.
+  const int buf_curr = graph->double_buffer & 1; // recording this pipeline and writing to this buffer index now
+  const int buf_prev = 1-buf_curr;               // waiting for the previous double buffer
 
-  QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[frame], VK_TRUE, ((uint64_t)1)<<40)); // wait for last invocation of our command buffer, just in case
+  QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[buf_curr], VK_TRUE, ((uint64_t)1)<<40)); // wait for last invocation of our command buffer, just in case
 
   { // module scope
     uint32_t modid[100]; // storage for list of modules after tree traversal
@@ -333,13 +336,13 @@ VkResult dt_graph_run(
 
     // potentially free/re-allocate memory, create buffers, images, image_views, and descriptor sets:
     int dynamic_array = 0;
-    QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, frame, frame_prev, &dynamic_array));
+    QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, &dynamic_array));
 
     // upload all source data to staging memory
-    QVKR(dt_graph_run_nodes_upload(graph, run, nodeid, cnt, module_flags, frame, frame_prev, dynamic_array));
+    QVKR(dt_graph_run_nodes_upload(graph, run, nodeid, cnt, module_flags, dynamic_array));
 
     // record command buffer
-    QVKR(dt_graph_run_nodes_record_cmd(graph, run, nodeid, cnt, module_flags, frame, frame_prev));
+    QVKR(dt_graph_run_nodes_record_cmd(graph, run, nodeid, cnt, module_flags));
   } // end scope, done with nodes
 
   if(run & s_graph_run_alloc)
@@ -356,7 +359,7 @@ VkResult dt_graph_run(
   }
 
   // now upload uniform data before submitting command buffer
-  QVKR(dt_graph_run_modules_upload_uniforms(graph, run, frame));
+  QVKR(dt_graph_run_modules_upload_uniforms(graph, run));
 
   double clock_end = dt_time();
   dt_log(s_log_perf, "record cmd buffer:\t%8.3f ms", 1000.0*(clock_end - clock_beg));
@@ -366,15 +369,15 @@ VkResult dt_graph_run(
     VkSubmitInfo submit = {
       .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .commandBufferCount = 1,
-      .pCommandBuffers    = &graph->command_buffer[frame],
+      .pCommandBuffers    = &graph->command_buffer[buf_curr],
     };
-    vkResetFences(qvk.device, 1, &graph->command_fence[frame]);
+    vkResetFences(qvk.device, 1, &graph->command_fence[buf_curr]);
     QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
-        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[frame]));
+        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[buf_curr]));
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[frame], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
-    else
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[frame_prev], VK_TRUE, ((uint64_t)1)<<30)); // wait for previous command buffer
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[buf_curr], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
+    else // wait for previous command buffer
+      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[buf_prev], VK_TRUE, ((uint64_t)1)<<30)); // wait for previous command buffer
   }
   
   // download sink data from GPU to CPU
@@ -382,8 +385,8 @@ VkResult dt_graph_run(
 
   if(dt_log_global.mask & s_log_perf)
   {
-    int q = frame_prev;
-    if(run & s_graph_run_wait_done) q = frame; // if we're synchronous, use the one we just waited for
+    int q = buf_prev;
+    if(run & s_graph_run_wait_done) q = buf_curr; // if we're synchronous, use the one we just waited for
     if(graph->query[q].cnt) // could store the results just once, but for separation of concerns they are part of the struct:
       QVKR(vkGetQueryPoolResults(qvk.device, graph->query[q].pool,
           0, graph->query[q].cnt,
@@ -451,7 +454,7 @@ dt_graph_connector_image(
     int         nid,    // node id
     int         cid,    // connector id
     int         array,  // array index
-    int         frame)  // frame number
+    int         dbuf)   // double buffer index
 {
   if(graph->node[nid].conn_image[cid] == -1)
   {
@@ -465,6 +468,7 @@ dt_graph_connector_image(
     cid2 = graph->node[nid].connector[cid].connected_mc;
     nid2 = graph->node[nid].connector[cid].connected_mi;
   }
+  int frame = dbuf;
   frame %= MAX(1, graph->node[nid2].connector[cid2].frames);
   return graph->conn_image_pool +
     graph->node[nid].conn_image[cid] + MAX(1,graph->node[nid].connector[cid].array_length) * frame + array;
@@ -478,7 +482,7 @@ void dt_graph_reset(dt_graph_t *g)
   dt_raytrace_graph_reset(g);
   g->gui_attached = 0;
   g->gui_msg = 0;
-  g->active_module = 0;
+  g->active_module = -1;
   g->lod_scale = 0;
   g->runflags = 0;
   g->frame = 0;
