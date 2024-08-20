@@ -17,6 +17,11 @@ pipe/dlist.h\
 pipe/draw.h\
 pipe/global.h\
 pipe/graph.h\
+pipe/graph-run-modules.h\
+pipe/graph-run-nodes-allocate.h\
+pipe/graph-run-nodes-upload.h\
+pipe/graph-run-nodes-record-cmd.h\
+pipe/graph-run-nodes-download.h\
 pipe/graph-io.h\
 pipe/graph-print.h\
 pipe/graph-export.h\

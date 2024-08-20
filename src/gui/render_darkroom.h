@@ -192,7 +192,7 @@ static inline void render_darkroom_widget(int modid, int parid)
       RESETBLOCK
       nk_property_int(ctx, "#", param->widget.min, val, param->widget.max,
           (int)(1.0+(param->widget.max - param->widget.min)/100.0),
-          (int)(1.0+(param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
+          ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
       if(*val != oldval) change = 1;
       if(change)
       {
