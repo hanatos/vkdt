@@ -42,7 +42,7 @@ void ui_callback(
           { // TODO set with history?
             dt_module_set_param_float(module->graph->module+m, dt_token("noise a"), a);
             dt_module_set_param_float(module->graph->module+m, dt_token("noise b"), b);
-            snprintf(msg, sizeof(msg), "setting noise parameters %g %g\n", a, b);
+            snprintf(msg, sizeof(msg), "setting noise parameters %g %g", a, b);
             module->graph->gui_msg = msg;
             module->graph->runflags = s_graph_run_all;
             break;
@@ -60,7 +60,7 @@ void ui_callback(
     r = snprintf(fhome, sizeof(fhome), "%s/nprof/%s", dt_pipe.homedir, filename);
     if(r >= sizeof(fhome)) return;
     fs_copy(fhome, filename);
-    r = snprintf(msg, sizeof(msg), "installing noise profile to %s\n", fhome);
+    r = snprintf(msg, sizeof(msg), "installing noise profile to %s", fhome);
     if(r >= sizeof(msg)) return;
     module->graph->gui_msg = msg;
   }
