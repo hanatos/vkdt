@@ -523,6 +523,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
     qvk.qid[k] = qvk.queue[k].idx;
     if(k == qvk.queue[k].idx)
     { // new unique index, need to construct all the things
+      dt_log(s_log_qvk, "queue %d is idx %d family %d", k, qvk.qid[k], queue_family_index);
       vkGetDeviceQueue(qvk.device, queue_family_index, qvk.queue[k].idx, &qvk.queue[k].queue);
       threads_mutex_init(&qvk.queue[k].mutex, 0);
       qvk.queue[k].family = queue_family_index;

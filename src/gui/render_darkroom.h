@@ -996,7 +996,11 @@ static inline void render_darkroom_widgets(
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     struct nk_rect box = nk_widget_bounds(ctx);
     nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_CENTERED);
-    if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, box))
+    // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
+    const struct nk_input *in = (ctx->current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
+    if(in && nk_input_is_mouse_hovering_rect(in, box) && 
+        nk_input_has_mouse_click_in_button_rect(in, NK_BUTTON_LEFT, box) &&
+        nk_input_is_mouse_pressed(in, NK_BUTTON_LEFT))
     {
       int bad = 0;
       for(int c=0;c<module->num_connectors;c++)
