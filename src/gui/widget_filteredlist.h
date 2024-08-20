@@ -121,6 +121,13 @@ filteredlist(
   static char dirname_local[PATH_MAX];
   static char **desc = 0, **desc_local = 0;
 
+  static char *last_filter = 0;
+  if(filter != last_filter)
+  { // hash on passed in filter string pointer/storage
+    FREE_ENT;
+    last_filter = filter;
+  }
+
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
   nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
