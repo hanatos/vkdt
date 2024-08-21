@@ -28355,17 +28355,17 @@ nk_do_property(nk_flags *ws,
         default: break;
         case NK_PROPERTY_INT:
             variant->value.i = nk_strtoi(buffer, 0);
-            variant->value.i = NK_CLAMP(variant->min_value.i, variant->value.i, variant->max_value.i);
+            // variant->value.i = NK_CLAMP(variant->min_value.i, variant->value.i, variant->max_value.i);
             break;
         case NK_PROPERTY_FLOAT:
             nk_string_float_limit(buffer, NK_MAX_FLOAT_PRECISION);
             variant->value.f = nk_strtof(buffer, 0);
-            variant->value.f = NK_CLAMP(variant->min_value.f, variant->value.f, variant->max_value.f);
+            // variant->value.f = NK_CLAMP(variant->min_value.f, variant->value.f, variant->max_value.f);
             break;
         case NK_PROPERTY_DOUBLE:
             nk_string_float_limit(buffer, NK_MAX_FLOAT_PRECISION);
             variant->value.d = nk_strtod(buffer, 0);
-            variant->value.d = NK_CLAMP(variant->min_value.d, variant->value.d, variant->max_value.d);
+            // variant->value.d = NK_CLAMP(variant->min_value.d, variant->value.d, variant->max_value.d);
             break;
         }
     }
