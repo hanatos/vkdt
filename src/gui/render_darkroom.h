@@ -970,6 +970,7 @@ static inline void render_darkroom_widgets(
   char name[30];
   dt_module_t *const arr = graph->module;
   if(!arr[curr].so->num_params) return;
+  if(*active_module >= 0 && *active_module != curr) return;
 
   struct nk_context *ctx = &vkdt.ctx;
   const float ratio[] = {0.06f, 0.06f, 0.88f};
@@ -1055,7 +1056,11 @@ static inline void render_darkroom_widgets(
       }
       open[curr] = 1;
     }
-    else open[curr] = 0;
+    else
+    {
+      open[curr] = 0;
+      *active_module = -1;
+    }
   }
   if(open[curr])
   {
