@@ -277,11 +277,14 @@ void render_darkroom_full()
   static char filter_name[10] = {0};
   static char filter_inst[10] = {0};
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
-  nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
-  dt_tooltip("filter by module name");
-  nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_name, sizeof(filter_name), nk_filter_default);
-  dt_tooltip("filter by module instance");
-  nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_inst, sizeof(filter_inst), nk_filter_default);
+  if(active_module == -1)
+  {
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
+    dt_tooltip("filter by module name");
+    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_name, sizeof(filter_name), nk_filter_default);
+    dt_tooltip("filter by module instance");
+    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_inst, sizeof(filter_inst), nk_filter_default);
+  }
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
@@ -607,11 +610,10 @@ void render_darkroom()
     }
     else if(current_tab == 1)
     {
-      render_darkroom_full();
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      nk_layout_row_dynamic(ctx, row_height, 1);
       if(nk_button_label(ctx, "open node editor"))
         dt_view_switch(s_view_nodes);
-      nk_label(ctx, "", 0);
+      render_darkroom_full();
     }
     else if(current_tab == 2)
     {
