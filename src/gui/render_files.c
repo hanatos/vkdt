@@ -169,6 +169,7 @@ void render_files()
           if(nk_button_label(ctx, "go to mountpoint"))
             set_cwd(mountpoint[i], 0);
         }
+        else nk_label(ctx, "", 0); // fill row
       }
       nk_tree_pop(ctx);
     } // end drives
@@ -183,7 +184,9 @@ void render_files()
       nk_tree_pop(ctx);
     } // end collapsing header "recent collections"
 
-    if(nk_tree_push(ctx, NK_TREE_TAB, "import", NK_MINIMIZED))
+    static copy_job_t job[4] = {{{0}}};
+    int active = job[0].state | job[1].state | job[2].state | job[3].state;
+    if(nk_tree_push(ctx, NK_TREE_TAB, "import", active ? NK_MAXIMIZED : NK_MINIMIZED))
     {
       const float ratio[] = {0.7f, 0.3f};
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
@@ -204,7 +207,6 @@ void render_files()
           "`%s'", pattern);
       nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dest, sizeof(dest), nk_filter_default);
       nk_label(ctx, "dest", NK_TEXT_LEFT);
-      static copy_job_t job[4] = {{{0}}};
       static int32_t copy_mode = 0;
       int32_t num_idle = 0;
       const char *copy_mode_str = "keep original\0delete original\0\0";
