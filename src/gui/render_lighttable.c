@@ -72,6 +72,7 @@ typedef enum hotkey_names_t
 } hotkey_names_t;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
 static int g_scroll_colid = -1; // to scroll to certain file name
+static int g_scroll_offset = 0; // remember last offset for leave/reenter
 static int g_image_cursor = -1; // gui keyboard navigation in the center view, cursor
 static const int g_images_per_line = 6;
 
@@ -263,6 +264,8 @@ void render_lighttable_center()
 
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   int scroll_to = -1;
+  if(g_scroll_offset > 0) 
+    vkdt.ctx.current->scrollbar.y = g_scroll_offset;
 
   nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
   for(int i=0;i<vkdt.db.collection_cnt;i++)
@@ -270,8 +273,9 @@ void render_lighttable_center()
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
     if(g_scroll_colid == i)
     {
-      scroll_to = 1+(row.h + spacing) * (i/ipl); // row.y unreliable/negative in case of out of frustum
       g_scroll_colid = -1;
+      if(row.y < content.y || row.y + row.h > content.y + content.h)
+        scroll_to = 1+(row.h + spacing) * (i/ipl); // row.y unreliable/negative in case of out of frustum
     }
     if(g_hotkey == s_hotkey_scroll_cur && vkdt.db.collection[i] == dt_db_current_imgid(&vkdt.db))
       scroll_to = row.y - content.y;
@@ -393,6 +397,7 @@ void render_lighttable_center()
   }
   if(scroll_to >= 0) 
     vkdt.ctx.current->scrollbar.y = scroll_to;
+  g_scroll_offset = - vkdt.ctx.current->scrollbar.y; // remember
 
   // draw context sensitive help overlay
   if(vkdt.wstate.show_gamepadhelp) dt_gamepadhelp();
@@ -1160,6 +1165,7 @@ int lighttable_enter()
 {
   uint32_t colid = dt_db_current_colid(&vkdt.db);
   g_scroll_colid = colid;
+  g_scroll_offset = abs(g_scroll_offset);
   g_image_cursor = -1;
   if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
   if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
