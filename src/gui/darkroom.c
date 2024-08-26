@@ -299,6 +299,8 @@ darkroom_enter()
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
 #endif
 
+  if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
+
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "plus L1/R1: switch panel");
   dt_gamepadhelp_set(dt_gamepadhelp_ps, "display this help");
