@@ -12,8 +12,7 @@ path = "lib.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
-# rawler = {path = "../dnglab/rawler", version = "0.5.1"}
-rawler = { git = "https://github.com/dnglab/dnglab", rev = "828ea44" }
+rawler = { git = "https://github.com/dnglab/dnglab", branch = "main" }
 libc = "0.2.148"
 
 [profile.release]
