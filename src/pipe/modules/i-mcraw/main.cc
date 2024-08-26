@@ -239,7 +239,7 @@ void modify_roi_out(
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", cmeta["extraData"]["postProcessSettings"]["metadata"]["build.manufacturer"].template get<std::string>().c_str());
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   mod->graph->frame_cnt = dat->dec->getFrames().size();
-  if(mod->graph->frame_rate == 0)
+  if(mod->graph->frame_rate < 1)
   { // estimate frame rate only if it's set to nothing reasonable
     if(mod->graph->frame_cnt > 5)
     {
@@ -250,8 +250,9 @@ void modify_roi_out(
       double avg = sum / (N-1.0);
       mod->graph->frame_rate = 1e9/avg;
     }
-    else mod->graph->frame_rate = 24;
   }
+  if(mod->graph->frame_rate < 1)
+    mod->graph->frame_rate = 24; // okay whatever failed above let's assume 24
 
   // could probably check bool cmeta["deviceSpecificProfile"]["disableShadingMap"], only what does it mean?
   // append our gainmap/dngops if any
