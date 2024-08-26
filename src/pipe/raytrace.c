@@ -5,7 +5,7 @@
 
 int dt_raytrace_present(dt_graph_t *graph)
 {
-  return qvk.raytracing_supported && (graph->rt[graph->frame%2].nid_cnt > 0);
+  return qvk.raytracing_supported && (graph->rt[graph->double_buffer%2].nid_cnt > 0);
 }
 
 void dt_raytrace_graph_reset(dt_graph_t *graph)
@@ -401,8 +401,8 @@ VkResult
 dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
-  const int f  =  graph->frame    % 2;
-  const int fp = (graph->frame+1) % 2;
+  const int f  =  graph->double_buffer % 2;
+  const int fp = (graph->double_buffer+1) % 2;
   if(!qvk.raytracing_supported || graph->rt[f].nid_cnt == 0) return VK_SUCCESS;
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
