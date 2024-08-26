@@ -387,9 +387,7 @@ close_stream(vid_data_t *d)
   avformat_close_input(&d->fmtc);
   if(d->mp4) av_bsf_free(&d->vbsfc);
   if(d->mp4) av_bsf_free(&d->absfc);
-  avcodec_close(d->vctx); // will clean up codec, not context
   avcodec_free_context(&d->vctx);
-  avcodec_close(d->actx);
   avcodec_free_context(&d->actx);
   memset(d, 0, sizeof(*d));
 }
