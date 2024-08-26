@@ -386,7 +386,7 @@ void render_lighttable_center()
       g_hotkey = -1;
       break;
     case s_hotkey_scroll_end:
-      vkdt.ctx.current->scrollbar.y = 0xffffffffu;
+      vkdt.ctx.current->scrollbar.y = 0x7fffffffu;
       g_hotkey = -1;
       break;
     case s_hotkey_scroll_top:
