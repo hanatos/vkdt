@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
 
   // main loop
   double beg_rf = dt_time();
-  const int frame_limiter = dt_rc_get_int(&vkdt.rc, "gui/frame_limiter", 0);
+  const int frame_limiter = dt_rc_get_int(&vkdt.rc, "gui/frame_limiter", 6); // default: cap ui at 160fps
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   while(!glfwWindowShouldClose(qvk.window))
