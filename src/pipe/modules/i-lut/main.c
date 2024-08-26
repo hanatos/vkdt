@@ -23,9 +23,10 @@ read_header(
 {
   lutinput_buf_t *lut = mod->data;
 
-  char filename[PATH_MAX];
-  const char *key[] = { "maker", "model", 0};
-  const char *val[] = { mod->graph->main_img_param.maker, mod->graph->main_img_param.model, 0};
+  char filename[PATH_MAX], flen[10];
+  snprintf(flen, sizeof(flen), "%f", mod->graph->main_img_param.focal_length);
+  const char *key[] = { "maker", "model", "flen", 0};
+  const char *val[] = { mod->graph->main_img_param.maker, mod->graph->main_img_param.model, flen, 0};
   dt_strexpand(pattern, strlen(pattern), filename, sizeof(filename), key, val);
   // fprintf(stderr, "[i-lut] %"PRItkn" loading `%s'!\n", dt_token_str(mod->inst), filename);
 
