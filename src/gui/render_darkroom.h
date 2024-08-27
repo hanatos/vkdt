@@ -1004,7 +1004,7 @@ static inline void render_darkroom_widgets(
     {
       int bad = 0;
       for(int c=0;c<module->num_connectors;c++)
-        if(module->connector[c].frames > 1) bad = 1;
+        if(module->connector[c].flags & s_conn_feedback) bad = 1;
       if(bad)
       {
         dt_gui_notification("cannot disable a module with feedback connectors!");

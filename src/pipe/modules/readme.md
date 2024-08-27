@@ -66,6 +66,7 @@ it follows the reference documentation of available modules, grouped into catego
 * [kpn: kernel prediction neural network for denoising](./kpn/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [negative: invert film negatives](./negative/readme.md)
+* [usm: unsharp masking sharpening](./usm/readme.md)
 
 **tone**
 
