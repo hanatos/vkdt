@@ -130,9 +130,9 @@ dt_graph_cleanup(dt_graph_t *g)
           dt_connector_image_t *img0 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 0) : 0;
           dt_connector_image_t *img1 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 1) : 0;
           if(!img0 || !img1) continue;
-          // if(img0->image == img1->image)
           if(img0->buffer == img1->buffer)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
+            // if(img0->image) fprintf(stderr, "discarding img %lx -- %lx\n", img0->image, img1 ? img1->image : 0);
             *img0 = (dt_connector_image_t){0};
           }
         }
