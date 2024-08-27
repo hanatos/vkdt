@@ -145,22 +145,45 @@ darkroom_process()
     if(md) old_roi = md->connector[0].roi;
   }
 
+  const int grabbed = vkdt.wstate.grabbed;
+  if(!grabbed)
+  { // async graph compute vs. sync cpu + gui rendering
+    // graph->double_buffer points to the buffer currently locked for render/display
+    // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
+    static int running = 0;
+    if(vkdt.graph_res == -1) running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
 
-  // graph->double_buffer points to the buffer currently locked for render/display
-  // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
-  static int running = 0;
-  if(vkdt.graph_res == -1) running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
-
-  if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
-     (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
-  { // double buffered async compute
-    // this will wait for other run
-    vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
-    int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all;
-    vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
-    vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
-    if(full_rebuild) vkdt.graph_res = -1; // restart waiting for first good image
-    running = 1;
+    if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
+       (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
+    { // double buffered async compute
+      vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
+      int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all; // XXX need to be more accurate!
+      vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
+      if(full_rebuild) vkdt.graph_res = -1; // restart waiting for first good image
+      running = 1;
+    }
+    if(running)
+    {
+      VkResult res = vkWaitForFences(qvk.device, 1, &vkdt.graph_dev.command_fence[vkdt.graph_dev.double_buffer^1], VK_TRUE, 0); // poll fence state
+      if(res == VK_SUCCESS)
+      {
+        if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display know it's now good to show
+        running = 0;
+        vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
+      }
+    }
+  }
+  else // if grabbed
+  { // sync version
+    if((vkdt.graph_dev.runflags) || // stills and stopped animations
+       (vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
+    { // double buffered compute
+      // this will wait for other run
+      // process double_buffer, wait for double_buffer^1
+      vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
+    }
   }
   if(reset_view)
   {
@@ -169,17 +192,6 @@ darkroom_process()
       dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
   vkdt.graph_dev.runflags = 0; // we tried what we could, only re-run on explicit request (topology change, next frame)
-
-  if(running)
-  {
-    VkResult res = vkWaitForFences(qvk.device, 1, &vkdt.graph_dev.command_fence[vkdt.graph_dev.double_buffer^1], VK_TRUE, 0); // poll fence state
-    if(res == VK_SUCCESS)
-    {
-      if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display know it's now good to show
-      running = 0;
-      vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
-    }
-  }
 
   if(vkdt.state.anim_playing && advance)
   { // new frame for animations need new audio, too
