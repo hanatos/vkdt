@@ -52,7 +52,7 @@ MOD_CFLAGS=-Ipipe/modules/i-raw/rawloader-c
 pipe/modules/i-raw/libi-raw.so: pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
 
 pipe/modules/i-raw/rawloader-c/target/release/librawloader.a: pipe/modules/i-raw/rawloader-c/lib.rs pipe/modules/i-raw/rawloader-c/Cargo.toml 
-	cd pipe/modules/i-raw/rawloader-c; cargo update; cargo build --release
+	cd pipe/modules/i-raw/rawloader-c; cargo build --release
 	touch pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
 endif
 
