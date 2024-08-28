@@ -79,7 +79,10 @@ typedef struct dt_graph_t
   VkDescriptorPool      dset_pool;
   VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
   VkCommandPool         command_pool;
-  VkFence               command_fence[2];    // one per command buffer
+  VkSemaphore           semaphore_display;   // timeline semaphore to keep track of commands that use the backbuffer images
+  uint64_t              display_dbuffer[2];  // indicate the largest display timeline position currently reading double buffer 0 or 1
+  VkSemaphore           semaphore_process;   // timeline semaphore indicating that graph processing/double buffer write access is done
+  uint64_t              process_dbuffer[2];  // timestamps indicating that processing will be done for double buffer 0 or 1
   qvk_queue_name_t      queue_name;
 
   VkBuffer              uniform_buffer;      // uniform buffer shared between all nodes

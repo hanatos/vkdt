@@ -94,15 +94,31 @@ dt_graph_run_nodes_upload(
                     TRANSFER_DST_OPTIMAL,
                     SHADER_READ_ONLY_OPTIMAL);
                 QVKR(vkEndCommandBuffer(cmd_buf));
-                VkSubmitInfo submit = {
-                  .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                  .commandBufferCount = 1,
-                  .pCommandBuffers    = &cmd_buf,
+                // we add one more command list, locking the command buffer in this case
+                graph->process_dbuffer[graph->double_buffer] = MAX(graph->process_dbuffer[0], graph->process_dbuffer[1]) + 1;
+                VkTimelineSemaphoreSubmitInfo timeline_info = {
+                  .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+                  .signalSemaphoreValueCount = 1,
+                  .pSignalSemaphoreValues    = &graph->process_dbuffer[graph->double_buffer], // lock for writing, this signal will remove the lock
                 };
-                vkResetFences(qvk.device, 1, &graph->command_fence[graph->double_buffer]);
+                VkSubmitInfo submit = {
+                  .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                  .commandBufferCount   = 1,
+                  .pCommandBuffers      = &cmd_buf,
+                  .pNext                = &timeline_info,
+                  .signalSemaphoreCount = 1,
+                  .pSignalSemaphores    = &graph->semaphore_process,
+                };
                 QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
-                    vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[graph->double_buffer]));
-                QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[graph->double_buffer], VK_TRUE, ((uint64_t)1)<<40)); // wait inline on our lock because we share the staging buf
+                    vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, 0));
+                VkSemaphoreWaitInfo wait_info = {
+                  .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+                  .semaphoreCount = 1,
+                  .pSemaphores    = &graph->semaphore_process,
+                  .pValues        = &graph->process_dbuffer[graph->double_buffer],
+                };
+                // wait inline on our semaphore because we share the staging buf
+                QVKR(vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30));
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
             }

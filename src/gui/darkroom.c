@@ -165,8 +165,9 @@ darkroom_process()
     }
     if(running)
     {
-      VkResult res = vkWaitForFences(qvk.device, 1, &vkdt.graph_dev.command_fence[vkdt.graph_dev.double_buffer^1], VK_TRUE, 0); // poll fence state
-      if(res == VK_SUCCESS)
+      uint64_t value;
+      VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
+      if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
       {
         if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display know it's now good to show
         running = 0;
@@ -182,7 +183,15 @@ darkroom_process()
       // this will wait for other run
       // process double_buffer, wait for double_buffer^1
       vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
-      vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
+      VkSemaphoreWaitInfo wait_info = {
+        .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+        .semaphoreCount = 1,
+        .pSemaphores    = &vkdt.graph_dev.semaphore_process,
+        .pValues        = &vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1],
+      };
+      VkResult res = vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
+      if(res == VK_SUCCESS)
+        vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
     }
   }
   if(reset_view)

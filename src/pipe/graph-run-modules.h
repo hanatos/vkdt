@@ -491,9 +491,21 @@ dt_graph_run_modules(
           }
         }
       }
-    vkWaitForFences(qvk.device, 2, graph->command_fence, VK_TRUE, ((uint64_t)1)<<40);
-    if(graph->gui_attached)
-      QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
+    const uint64_t wait_value[] = {
+      MAX(graph->display_dbuffer[0], graph->display_dbuffer[1]),
+      MAX(graph->process_dbuffer[0], graph->process_dbuffer[1]),
+    };
+    VkSemaphore sem[] = {
+      graph->semaphore_display,
+      graph->semaphore_process,
+    };
+    VkSemaphoreWaitInfo wait_info = {
+      .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+      .semaphoreCount = 2,
+      .pSemaphores    = sem,
+      .pValues        = wait_value,
+    };
+    QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    graph->conn_image_pool[i].buffer, VK_NULL_HANDLE);

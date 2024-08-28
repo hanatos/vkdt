@@ -68,12 +68,19 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
     .commandBufferCount = 2,
   };
   QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer));
-  VkFenceCreateInfo fence_info = {
-    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-    .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+  VkSemaphoreTypeCreateInfo timelineCreateInfo = {
+    .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+    .pNext         = NULL,
+    .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+    .initialValue  = 0,
   };
-  QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+0));
-  QVK(vkCreateFence(qvk.device, &fence_info, NULL, g->command_fence+1));
+  VkSemaphoreCreateInfo createInfo = {
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    .pNext = &timelineCreateInfo,
+    .flags = 0,
+  };
+  vkCreateSemaphore(qvk.device, &createInfo, NULL, &g->semaphore_display);
+  vkCreateSemaphore(qvk.device, &createInfo, NULL, &g->semaphore_process);
   for(int i=0;i<2;i++)
   {
     g->query[i].max = 2000;
@@ -101,10 +108,30 @@ dt_graph_cleanup(dt_graph_t *g)
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
   g->active_module = -1;
-  // needs sync if the gui graph, or none if running in bg
-  vkWaitForFences(qvk.device, 2, g->command_fence, VK_TRUE, ((uint64_t)1)<<40);
-  if(g->gui_attached) // i suppose we could wait on the gui fence instead.
-    QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
+  // need to wait on pending commands for graph processing and potential gui display
+  // in case no gui is attached, the display indices should stay at 0 so the wait is a no-op
+  const uint64_t wait_value[] = {
+    MAX(g->display_dbuffer[0], g->display_dbuffer[1]),
+    MAX(g->process_dbuffer[0], g->process_dbuffer[1]),
+  };
+  VkSemaphore sem[] = {
+    g->semaphore_display,
+    g->semaphore_process,
+  };
+  VkSemaphoreWaitInfo wait_info = {
+    .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+    .semaphoreCount = 2,
+    .pSemaphores    = sem,
+    .pValues        = wait_value,
+  };
+  VkResult res = vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX);
+  // this can only return all good or DEVICE LOST which would be really bad
+  if(res != VK_SUCCESS)
+  {
+    dt_log(s_log_pipe|s_log_err, "[graph_cleanup] lost device while waiting for semaphores!");
+    return;
+  }
+
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -189,10 +216,10 @@ dt_graph_cleanup(dt_graph_t *g)
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
   g->vkmem = g->vkmem_ssbo = g->vkmem_staging = g->vkmem_uniform = 0;
   g->vkmem_size = g->vkmem_ssbo_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
-  vkDestroyFence(qvk.device, g->command_fence[0], 0);
-  vkDestroyFence(qvk.device, g->command_fence[1], 0);
-  g->command_fence[0] = 0;
-  g->command_fence[1] = 0;
+  vkDestroySemaphore(qvk.device, g->semaphore_display, 0);
+  vkDestroySemaphore(qvk.device, g->semaphore_process, 0);
+  g->semaphore_display = 0;
+  g->semaphore_process = 0;
   if(g->command_pool != VK_NULL_HANDLE)
     vkFreeCommandBuffers(qvk.device, g->command_pool, 2, g->command_buffer);
   g->command_buffer[0] = g->command_buffer[1] = VK_NULL_HANDLE;
@@ -299,7 +326,14 @@ VkResult dt_graph_run(
   const int buf_curr = graph->double_buffer & 1; // recording this pipeline and writing to this buffer index now
   const int buf_prev = 1-buf_curr;               // waiting for the previous double buffer
 
-  QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[buf_curr], VK_TRUE, ((uint64_t)1)<<40)); // wait for last invocation of our command buffer, just in case
+  // wait for last invocation of our command buffer to finish:
+  VkSemaphoreWaitInfo wait_info = {
+    .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+    .semaphoreCount = 1,
+    .pSemaphores    = &graph->semaphore_process,
+    .pValues        = &graph->process_dbuffer[buf_curr],
+  };
+  QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
 
   { // module scope
     uint32_t modid[100]; // storage for list of modules after tree traversal
@@ -366,18 +400,39 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_record_cmd_buf)
   {
-    VkSubmitInfo submit = {
-      .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-      .commandBufferCount = 1,
-      .pCommandBuffers    = &graph->command_buffer[buf_curr],
+    graph->process_dbuffer[buf_curr] = MAX(graph->process_dbuffer[0], graph->process_dbuffer[1]) + 1;
+    // we add one more command list working on the buf_curr double buffer with write access
+    VkTimelineSemaphoreSubmitInfo timeline_info = {
+      .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+      .waitSemaphoreValueCount   = 1,
+      .pWaitSemaphoreValues      = &graph->display_dbuffer[buf_curr], // we want to write this buffer, wait for last display command to read it
+      .signalSemaphoreValueCount = 1,
+      .pSignalSemaphoreValues    = &graph->process_dbuffer[buf_curr], // lock buf_curr for writing, this signal will remove the lock
     };
-    vkResetFences(qvk.device, 1, &graph->command_fence[buf_curr]);
+    VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkSubmitInfo submit = {
+      .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .commandBufferCount   = 1,
+      .pCommandBuffers      = &graph->command_buffer[buf_curr],
+      .pNext                = &timeline_info,
+      .waitSemaphoreCount   = 1,
+      .pWaitSemaphores      = &graph->semaphore_display,
+      .pWaitDstStageMask    = &wait_stage,
+      .signalSemaphoreCount = 1,
+      .pSignalSemaphores    = &graph->semaphore_process,
+    };
+
     QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
-        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, graph->command_fence[buf_curr]));
+        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, 0));
+
+    VkSemaphoreWaitInfo wait_info = {
+      .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+      .semaphoreCount = 1,
+      .pSemaphores    = &graph->semaphore_process,
+      .pValues        = &graph->process_dbuffer[buf_curr],
+    };
     if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[buf_curr], VK_TRUE, ((uint64_t)1)<<30)); // wait for our command buffer
-    else // wait for previous command buffer
-      QVKR(vkWaitForFences(qvk.device, 1, &graph->command_fence[buf_prev], VK_TRUE, ((uint64_t)1)<<30)); // wait for previous command buffer
+      QVKR(vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30));
   }
   
   // download sink data from GPU to CPU
@@ -387,6 +442,16 @@ VkResult dt_graph_run(
   {
     int q = buf_prev;
     if(run & s_graph_run_wait_done) q = buf_curr; // if we're synchronous, use the one we just waited for
+    else
+    { // async, have to wait for previous queries to come back:
+      VkSemaphoreWaitInfo wait_info = {
+        .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+        .semaphoreCount = 1,
+        .pSemaphores    = &graph->semaphore_process,
+        .pValues        = &graph->process_dbuffer[buf_prev],
+      };
+      QVKR(vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30));
+    }
     if(graph->query[q].cnt) // could store the results just once, but for separation of concerns they are part of the struct:
       QVKR(vkGetQueryPoolResults(qvk.device, graph->query[q].pool,
           0, graph->query[q].cnt,

@@ -35,6 +35,7 @@ style_to_state()
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
+  vkdt.graph_res = -1;
   if(!glfwInit())
   {
     const char* description;
@@ -315,10 +316,7 @@ VkResult dt_gui_render()
   // timeout is in nanoseconds (these are ~2sec)
   VkResult res = vkAcquireNextImageKHR(qvk.device, qvk.swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &vkdt.frame_index);
   if(res != VK_SUCCESS)
-  {
-    // XXX kill all semaphores
     return res;
-  }
   
   const int i = vkdt.frame_index;
   QVKR(vkWaitForFences(qvk.device, 1, vkdt.fence+i, VK_TRUE, UINT64_MAX));    // wait indefinitely instead of periodically checking
@@ -344,23 +342,40 @@ VkResult dt_gui_render()
   dt_gui_render_frame_nk();
   nk_glfw3_create_cmd(&vkdt.ctx, vkdt.command_buffer[i], NK_ANTI_ALIASING_ON, i);
 
-  // Submit command buffer
+  // submit command buffer
   vkCmdEndRenderPass(vkdt.command_buffer[i]);
-  VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  VkSubmitInfo sub_info = {
+  const int len = vkdt.graph_res == VK_SUCCESS ? 2 : 1;
+  VkPipelineStageFlags wait_stage[] = { 
+    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT|VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, };
+  if(len > 1) // we are adding one more command list reading the current double buf
+    vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] = MAX(vkdt.graph_dev.display_dbuffer[0], vkdt.graph_dev.display_dbuffer[1]) + 1;
+  uint64_t value_wait  [] = { 0, vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer] };
+  uint64_t value_signal[] = { 0, vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] };
+  VkTimelineSemaphoreSubmitInfo timeline_info = {
+    .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+    .waitSemaphoreValueCount   = len,
+    .pWaitSemaphoreValues      = value_wait,
+    .signalSemaphoreValueCount = len,
+    .pSignalSemaphoreValues    = value_signal,
+  };
+  VkSemaphore sem_wait  [] = { image_acquired_semaphore,  vkdt.graph_dev.semaphore_process };
+  VkSemaphore sem_signal[] = { render_complete_semaphore, vkdt.graph_dev.semaphore_display };
+  VkSubmitInfo submit = {
     .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .waitSemaphoreCount   = 1,
-    .pWaitSemaphores      = &image_acquired_semaphore,
-    .pWaitDstStageMask    = &wait_stage,
+    .pNext                = &timeline_info,
+    .waitSemaphoreCount   = len,
+    .pWaitSemaphores      = sem_wait,
+    .pWaitDstStageMask    = wait_stage,
     .commandBufferCount   = 1,
     .pCommandBuffers      = vkdt.command_buffer+i,
-    .signalSemaphoreCount = 1,
-    .pSignalSemaphores    = &render_complete_semaphore,
+    .signalSemaphoreCount = len,
+    .pSignalSemaphores    = sem_signal,
   };
 
   QVKR(vkEndCommandBuffer(vkdt.command_buffer[i]));
   QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex,
-      vkQueueSubmit(qvk.queue[qvk.qid[s_queue_graphics]].queue, 1, &sub_info, vkdt.fence[i]));
+      vkQueueSubmit(qvk.queue[qvk.qid[s_queue_graphics]].queue, 1, &submit, vkdt.fence[i]));
   return res;
 }
 
