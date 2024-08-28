@@ -78,6 +78,21 @@ compare_labels(const void *a, const void *b, void *arg)
   return db->image[ia[0]].labels - db->image[ib[0]].labels;
 }
 
+static inline void
+read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
+{
+  char fn[1024], f[1024];
+  dt_db_image_path(db, imgid, fn, sizeof(fn));
+  size_t off;
+  fs_realpath(fn, f);
+  off = strnlen(f, sizeof(f));
+  if(off > 4) f[off - 4] = 0;
+  else f[off] = 0;
+
+  char model[32];
+  dt_db_exif_mini(f, createdate, model, sizeof(model));
+}
+
 static int
 compare_createdate(const void *a, const void *b, void *arg)
 { // you ask for complicated sort, you get slow and stupid.
@@ -87,25 +102,8 @@ compare_createdate(const void *a, const void *b, void *arg)
   dt_db_t *db = arg;
   const uint32_t *ia = a, *ib = b;
   char cda[20] = {0}, cdb[20] = {0};
-  char fna[1024], fnb[1024];
-  char aa[1024], bb[1024];
-  dt_db_image_path(db, ia[0], fna, sizeof(fna));
-  dt_db_image_path(db, ib[0], fnb, sizeof(fnb));
-  size_t off;
-  fs_realpath(fna, aa);
-  off = strnlen(aa, sizeof(aa));
-  if(off > 4) aa[off - 4] = 0;
-  else aa[off] = 0;
-
-  fs_realpath(fnb, bb);
-  off = strnlen(bb, sizeof(bb));
-  if(off > 4) bb[off - 4] = 0;
-  else bb[off] = 0;
-
-  char model[32];
-  dt_db_exif_mini(aa, cda, model, sizeof(model));
-  dt_db_exif_mini(bb, cdb, model, sizeof(model));
-
+  read_createdate(db, ia[0], cda);
+  read_createdate(db, ib[0], cdb);
   return strcmp(cda, cdb);
 }
 
@@ -133,6 +131,7 @@ void
 dt_db_update_collection(dt_db_t *db)
 {
   // filter
+  char createdate[20];
   db->collection_cnt = 0;
   for(int k=0;k<db->image_cnt;k++)
   {
@@ -150,7 +149,9 @@ dt_db_update_collection(dt_db_t *db)
       if(!(db->image[k].labels & db->collection_filter_val)) continue;
       break;
     case s_prop_createdate:
-      // TODO: match beginning of filter val string
+      read_createdate(db, k, createdate);
+      char val[10]; snprintf(val, sizeof(val), "%" PRItkn, dt_token_str(db->collection_filter_val));
+      if(!strstr(createdate, val)) continue;
       break;
     case s_prop_filetype:
       if(dt_graph_default_input_module(db->image[k].filename) != db->collection_filter_val) continue;

@@ -549,12 +549,13 @@ void render_lighttable_right_panel()
     if(res != filter_prop)
     {
       vkdt.db.collection_filter = filter_prop = res;
+      vkdt.db.collection_filter_val = 0;
       dt_db_update_collection(&vkdt.db);
       dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
     nk_label(ctx, "filter", NK_TEXT_LEFT);
 
-    int filter_val = vkdt.db.collection_filter_val;
+    uint64_t filter_val = vkdt.db.collection_filter_val;
     if(filter_prop == s_prop_labels)
     {
       const struct nk_color col[] = {
@@ -622,8 +623,20 @@ void render_lighttable_right_panel()
     else if(filter_prop == s_prop_none)
     { // hide filter value, it's meaningless
     }
-    else if(filter_prop == s_prop_filename)   {} // TODO wire these in the db.c backend!
-    else if(filter_prop == s_prop_createdate) {} // TODO probably want to support longer filter strings too.
+    else if(filter_prop == s_prop_filename)   {} // TODO wire this in the db.c backend!
+    else if(filter_prop == s_prop_createdate)
+    {
+      static dt_token_t typed_filter_val = 666;
+      if(typed_filter_val == 666) typed_filter_val = vkdt.db.collection_filter_val;
+      dt_tooltip("substring to match in the createdate\nin YYYY:MM:DD HH:MM:SS form");
+      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dt_token_str(typed_filter_val), 8, nk_filter_default);
+      if(ret & NK_EDIT_COMMITED)
+      {
+        vkdt.db.collection_filter_val = typed_filter_val;
+        dt_db_update_collection(&vkdt.db);
+        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+      }
+    }
     else if(filter_prop == s_prop_rating)
     {
       nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
