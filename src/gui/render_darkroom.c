@@ -38,8 +38,10 @@ enum hotkey_names_t
   s_hotkey_label_3         = 20,
   s_hotkey_label_4         = 21,
   s_hotkey_label_5         = 22,
-  s_hotkey_reload_shaders  = 23,
-  s_hotkey_count           = 24,
+  s_hotkey_upvote          = 23,
+  s_hotkey_downvote        = 24,
+  s_hotkey_reload_shaders  = 25,
+  s_hotkey_count           = 26,
 };
 
 static const int hk_darkroom_size = 128;
@@ -68,6 +70,8 @@ static hk_t hk_darkroom[128] = {
   {"label blue",      "toggle blue label",                          {GLFW_KEY_F3}},
   {"label yellow",    "toggle yellow label",                        {GLFW_KEY_F4}},
   {"label purple",    "toggle purple label",                        {GLFW_KEY_F5}},
+  {"upvote",          "increase star rating and go to next image",  {GLFW_KEY_F12}},
+  {"downvote",        "decrease star rating and go to next image",  {GLFW_KEY_F9}},
   {"reload shaders",  "debug: reload shader code while running",    {}},
 };
 
@@ -131,6 +135,12 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       break;
     case s_hotkey_prev_image:
       dt_gui_dr_prev();
+      break;
+    case s_hotkey_upvote:
+      dt_gui_dr_advance_upvote();
+      break;
+    case s_hotkey_downvote:
+      dt_gui_dr_advance_downvote();
       break;
     case s_hotkey_create_preset:
       dt_gui_dr_preset_create();

@@ -159,6 +159,44 @@ dt_gui_dr_prev()
   }
 }
 
+static inline void
+dt_gui_dr_advance_rate(int rate)
+{ // advance to next image in lighttable collection, and apply rating offset
+  assert(vkdt.view_mode == s_view_darkroom);
+  const uint32_t ci = dt_db_current_imgid(&vkdt.db);
+  if(ci != -1u) vkdt.db.image[ci].rating = CLAMP(vkdt.db.image[ci].rating + rate, 0, 5);
+
+  uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
+  if(next < vkdt.db.collection_cnt)
+  {
+    int err;
+    err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+    if(err) return;
+    dt_db_selection_clear(&vkdt.db);
+    dt_db_selection_add(&vkdt.db, next);
+    err = darkroom_enter();
+    if(err)
+    { // roll back
+      dt_db_selection_clear(&vkdt.db);
+      dt_db_selection_add(&vkdt.db, next-1);
+      darkroom_enter(); // hope they take us back
+    }
+  }
+  else dt_gui_notification("reached the end of the collection");
+}
+
+static inline void
+dt_gui_dr_advance_downvote()
+{
+  dt_gui_dr_advance_rate(-1);
+}
+
+static inline void
+dt_gui_dr_advance_upvote()
+{
+  dt_gui_dr_advance_rate(1);
+}
+
 // assumes the crop start button has been pressed and we're in crop mode in the ui
 static inline void
 dt_gui_dr_crop_adjust(
