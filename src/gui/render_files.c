@@ -26,6 +26,8 @@ enum hotkey_names_t
 void set_cwd(const char *dir, int up)
 {
   if(dir != filebrowser.cwd) snprintf(filebrowser.cwd, sizeof(filebrowser.cwd), "%s", dir);
+  // now strip filter, i.e. replace '&' by '\0' in filebrowser.cwd, it might come from recently used collections
+  for(int i=0;i<sizeof(filebrowser.cwd) && filebrowser.cwd[i];i++) if(filebrowser.cwd[i] == '&') { filebrowser.cwd[i] = 0; break; }
   if(up)
   {
     char *c = filebrowser.cwd + strlen(filebrowser.cwd) - 2; // ignore '/' as last character
@@ -102,7 +104,6 @@ int copy_job(
 
 void render_files()
 {
-  // XXX also use this to focus text box
   static int just_entered = 1;
   if(just_entered)
   {

@@ -283,7 +283,11 @@ int main(int argc, char *argv[])
   {
     char defpath[1024];
     const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
-    if(strcmp(mru, "null")) snprintf(defpath, sizeof(defpath), "%s", mru);
+    if(strcmp(mru, "null"))
+    {
+      snprintf(defpath, sizeof(defpath), "%s", mru);
+      for(int i=0;i<sizeof(defpath) && defpath[i];i++) if(defpath[i] == '&') { defpath[i] = 0; break; }
+    }
     else fs_picturesdir(defpath, sizeof(defpath));
     if(argc > lastarg+1) filename = fs_realpath(argv[lastarg+1], 0);
     else                 filename = fs_realpath(defpath, 0);

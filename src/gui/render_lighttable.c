@@ -529,6 +529,7 @@ void render_lighttable_right_panel()
     nk_tree_pop(ctx);
   }
 
+  int update_collection = 0;
   if(nk_tree_push(ctx, NK_TREE_TAB, "collect", NK_MINIMIZED))
   {
     int32_t filter_prop = vkdt.db.collection_filter;
@@ -540,8 +541,7 @@ void render_lighttable_right_panel()
     if(res != sort_prop)
     {
       vkdt.db.collection_sort = sort_prop = res;
-      dt_db_update_collection(&vkdt.db);
-      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+      update_collection = 1;
     }
     nk_label(&vkdt.ctx, "sort", NK_TEXT_LEFT);
 
@@ -550,8 +550,7 @@ void render_lighttable_right_panel()
     {
       vkdt.db.collection_filter = filter_prop = res;
       vkdt.db.collection_filter_val = 0;
-      dt_db_update_collection(&vkdt.db);
-      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+      update_collection = 1;
     }
     nk_label(ctx, "filter", NK_TEXT_LEFT);
 
@@ -581,8 +580,7 @@ void render_lighttable_right_panel()
         {
           filter_val ^= (1<<k);
           vkdt.db.collection_filter_val = filter_val;
-          dt_db_update_collection(&vkdt.db);
-          dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+          update_collection = 1;
         }
         nk_style_pop_float(ctx);
         if(sel) nk_style_pop_float(ctx);
@@ -615,8 +613,7 @@ void render_lighttable_right_panel()
       {
         filter_module_idx = res;
         vkdt.db.collection_filter_val = input_modules[res];
-        dt_db_update_collection(&vkdt.db);
-        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+        update_collection = 1;
       }
       nk_label(ctx, "file type", NK_TEXT_LEFT);
     }
@@ -633,8 +630,7 @@ void render_lighttable_right_panel()
       if(ret & NK_EDIT_COMMITED)
       {
         vkdt.db.collection_filter_val = typed_filter_val;
-        dt_db_update_collection(&vkdt.db);
-        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+        update_collection = 1;
       }
     }
     else if(filter_prop == s_prop_rating)
@@ -645,8 +641,7 @@ void render_lighttable_right_panel()
       if(resi != filter_val) 
       {
         vkdt.db.collection_filter_val = filter_val = resi;
-        dt_db_update_collection(&vkdt.db);
-        dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+        update_collection = 1;
       }
       nk_label(ctx, "filter value", NK_TEXT_LEFT);
     }
@@ -657,6 +652,12 @@ void render_lighttable_right_panel()
       dt_view_switch(s_view_files);
 
     nk_tree_pop(ctx);
+  }
+  if(update_collection)
+  {
+    dt_db_update_collection(&vkdt.db);
+    dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+    dt_gui_update_recently_used_collections();
   }
 
   if(nk_tree_push(ctx, NK_TREE_TAB, "tags", NK_MINIMIZED))

@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <inttypes.h>
 
 static void
 style_to_state()
@@ -489,8 +490,52 @@ dt_gui_read_tags()
   qsort(vkdt.tag, vkdt.tag_cnt, sizeof(vkdt.tag[0]), (int(*)(const void*,const void*))strcmp);
 }
 
+void dt_gui_update_recently_used_collections()
+{
+  int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
+  char entry[512], saved[2][1018], collstr[512];
+  int32_t j=0;
+  // instead of vkdt.db.dirname use a new string that has &filter:value appended, except if filter is 0
+  const char *filter_name[] = {"none", "filename", "rating", "label", "create date", "file type"};
+  if(vkdt.db.collection_filter == s_prop_none)
+  {
+    snprintf(collstr, sizeof(collstr), "%s&all", vkdt.db.dirname);
+  }
+  else if(vkdt.db.collection_filter == s_prop_rating ||
+          vkdt.db.collection_filter == s_prop_labels)
+  {
+    snprintf(collstr, sizeof(collstr), "%s&%s:%"PRIu64, vkdt.db.dirname, filter_name[vkdt.db.collection_filter], vkdt.db.collection_filter_val);
+  }
+  else if(vkdt.db.collection_filter == s_prop_filename ||
+          vkdt.db.collection_filter == s_prop_createdate ||
+          vkdt.db.collection_filter == s_prop_filetype)
+  {
+    snprintf(collstr, sizeof(collstr), "%s&%s:%"PRItkn, vkdt.db.dirname, filter_name[vkdt.db.collection_filter], dt_token_str(vkdt.db.collection_filter_val));
+  }
+  snprintf(saved[1], sizeof(saved[1]), "%s", collstr);
+  for(int32_t i=0;i<=num;i++)
+  { // compact the list by deleting all duplicate entries
+    snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", i);
+    const char *read_dir = i == num ? 0 : dt_rc_get(&vkdt.rc, entry, "null");
+    if(read_dir && strcmp(read_dir, collstr)) snprintf(saved[i&1], sizeof(saved[i&1]), "%s", read_dir); // take a copy
+    else saved[i&1][0] = 0;
+    snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", j);
+    if(saved[(i+1)&1][0]) { dt_rc_set(&vkdt.rc, entry, saved[(i+1)&1]); j++; }
+    saved[(i+1)&1][0] = 0;
+  }
+  dt_rc_set_int(&vkdt.rc, "gui/ruc_num", MIN(j, 10));
+}
+
 void dt_gui_switch_collection(const char *dir)
 {
+  char *end = 0;
+  if(dir)
+  { // find '&' in dir and replace by '\0', remember the position
+    const int len = strlen(dir);
+    for(int i=0;i<len;i++) if(dir[i] == '&') { end = (char *)(dir + i); break; }
+    if(end) *end = 0;
+  }
+
   vkdt.wstate.copied_imgid = -1u; // invalidate
   dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
   dt_db_cleanup(&vkdt.db);
@@ -499,22 +544,41 @@ void dt_gui_switch_collection(const char *dir)
   dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
   dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
 
-  // update recently used collection list:
-  int32_t num = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/ruc_num", 0), 0, 10);
-  char entry[512], saved[2][1018];
-  int32_t j=0;
-  snprintf(saved[1], sizeof(saved[1]), "%s", vkdt.db.dirname);
-  for(int32_t i=0;i<=num;i++)
-  { // compact the list by deleting all duplicate entries
-    snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", i);
-    const char *read_dir = i == num ? 0 : dt_rc_get(&vkdt.rc, entry, "null");
-    if(read_dir && strcmp(read_dir, vkdt.db.dirname)) snprintf(saved[i&1], sizeof(saved[i&1]), "%s", read_dir); // take a copy
-    else saved[i&1][0] = 0;
-    snprintf(entry, sizeof(entry), "gui/ruc_entry%02d", j);
-    if(saved[(i+1)&1][0]) { dt_rc_set(&vkdt.rc, entry, saved[(i+1)&1]); j++; }
-    saved[(i+1)&1][0] = 0;
+  if(end)
+  { // now set db filter based on stuff we parse behind &
+    *end = '&'; // restore & (because the string was const, right..?)
+    end++;
+    char filter[20] = {0};
+    sscanf(end, "%[^:]", filter);
+    if(!strcmp(filter, "all"))         vkdt.db.collection_filter = s_prop_none;
+    if(!strcmp(filter, "filename"))    vkdt.db.collection_filter = s_prop_filename;
+    if(!strcmp(filter, "rating"))      vkdt.db.collection_filter = s_prop_rating;
+    if(!strcmp(filter, "label"))       vkdt.db.collection_filter = s_prop_labels;
+    if(!strcmp(filter, "create date")) vkdt.db.collection_filter = s_prop_createdate;
+    if(!strcmp(filter, "file type"))   vkdt.db.collection_filter = s_prop_filetype;
+    end += strlen(filter);
+    if(end[0] == ':' && end[1] != 0)
+    {
+      uint64_t num = 0;
+      end++;
+      if(vkdt.db.collection_filter == s_prop_rating ||
+         vkdt.db.collection_filter == s_prop_labels)
+      {
+        sscanf(end, "%"PRIu64, &num);
+      }
+      else if(vkdt.db.collection_filter == s_prop_filename ||
+              vkdt.db.collection_filter == s_prop_createdate ||
+              vkdt.db.collection_filter == s_prop_filetype)
+      {
+        char inp[10] = {0};
+        sscanf(end, "%8s", inp);
+        num = dt_token(inp);
+      }
+      vkdt.db.collection_filter_val = num;
+    }
+    dt_db_update_collection(&vkdt.db);
   }
-  dt_rc_set_int(&vkdt.rc, "gui/ruc_num", MIN(j, 10));
+  dt_gui_update_recently_used_collections();
 }
 
 void dt_gui_notification(const char *msg, ...)
