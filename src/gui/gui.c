@@ -201,7 +201,7 @@ dt_gui_recreate_swapchain()
     vkDestroyFramebuffer(qvk.device, vkdt.framebuffer[i], 0);
   if(vkdt.render_pass)
     vkDestroyRenderPass(qvk.device, vkdt.render_pass, 0);
-  glfwGetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
+  glfwGetFramebufferSize(qvk.window, &qvk.win_width, &qvk.win_height);
   style_to_state();
   QVKR(qvk_create_swapchain());
 

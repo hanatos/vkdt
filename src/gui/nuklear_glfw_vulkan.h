@@ -128,10 +128,8 @@ static struct nk_glfw
 {
   GLFWwindow *win;
   int width, height;
-  int display_width, display_height;
   struct nk_glfw_device vulkan;
   struct nk_font_atlas atlas;
-  struct nk_vec2 fb_scale;
   unsigned int text[NK_GLFW_TEXT_MAX];
   int text_len;
   struct nk_vec2 scroll;
@@ -822,10 +820,7 @@ nk_glfw3_resize(
     uint32_t framebuffer_width,
     uint32_t framebuffer_height)
 {
-  glfwGetWindowSize(glfw.win, &glfw.width, &glfw.height);
-  glfwGetFramebufferSize(glfw.win, &glfw.display_width, &glfw.display_height);
-  glfw.fb_scale.x = (float)glfw.display_width / (float)glfw.width;
-  glfw.fb_scale.y = (float)glfw.display_height / (float)glfw.height;
+  glfwGetFramebufferSize(glfw.win, &glfw.width, &glfw.height);
 }
 
 NK_API void nk_glfw3_device_destroy(void)
@@ -1213,8 +1208,7 @@ nk_glfw3_init(
     ctx->clip.userdata = nk_handle_ptr(0);
     glfw.last_button_click = 0;
 
-    glfwGetWindowSize(win, &glfw.width, &glfw.height);
-    glfwGetFramebufferSize(win, &glfw.display_width, &glfw.display_height);
+    glfwGetFramebufferSize(win, &glfw.width, &glfw.height);
 
     nk_glfw3_device_create(
         render_pass,
