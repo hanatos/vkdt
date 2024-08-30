@@ -339,12 +339,12 @@ int main(int argc, char *argv[])
     if(frame_limiter || (dt_log_global.mask & s_log_perf))
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
       double end_rf = dt_time();
-      dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
       if(frame_limiter && end_rf - beg_rf < frame_limiter / 1000.0)
       {
         usleep(frame_limiter * 1000);
         continue;
       }
+      dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
       beg_rf = end_rf;
     }
 
