@@ -615,6 +615,7 @@ void render_darkroom()
 
     if(current_tab == 0)
     {
+      vkdt.graph_dev.active_module = -1;
       render_darkroom_favourite();
     }
     else if(current_tab == 1)
@@ -626,6 +627,7 @@ void render_darkroom()
     }
     else if(current_tab == 2)
     {
+      vkdt.graph_dev.active_module = -1;
       if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
       {
         nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);

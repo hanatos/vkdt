@@ -317,6 +317,7 @@ dt_node_editor(
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
         nedit->selected = module;
         move_nodes = 1;
+        vkdt.graph_dev.active_module = -1;
       }
       if(nedit->selected == module)
         selected_rect = bb; // remember for connector overlap test
