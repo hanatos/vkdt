@@ -244,6 +244,7 @@ void modify_roi_out(
   mod->img_param.colour_trc       = s_colour_trc_linear;
   for(int i =0;i<3;i++)
     mod_data->dng_opcode_lists[i] = nullptr;
+  mod->img_param.meta = 0;
 #ifdef VKDT_USE_EXIV2 // now essentially only for exposure time/aperture value and DNG opcodes
   dt_exif_read(&mod->img_param, filename, mod_data->dng_opcode_lists); // FIXME: will not work for timelapses
 

@@ -80,6 +80,7 @@ load_raw(
     };
     mod->img_param.meta = dt_metadata_append(mod->img_param.meta, (void*)&mod_data->dngop);
   }
+  else mod->img_param.meta = 0;
   return 0;
 error:
   dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);
