@@ -192,3 +192,5 @@ void dt_db_current_set(dt_db_t *db, uint32_t colid);
 // internal storage anyways. this is all done at once by calling dt_gui_switch_collection,
 // which by separation of concerns also cares about the thumbnail creation (the db doesn't).
 void dt_db_duplicate_selected_images(dt_db_t *db);
+// convenience function to read create date of an image
+void dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20]);

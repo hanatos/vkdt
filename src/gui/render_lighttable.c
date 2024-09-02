@@ -632,6 +632,49 @@ void render_lighttable_right_panel()
         vkdt.db.collection_filter_val = typed_filter_val;
         update_collection = 1;
       }
+      static int cached_hash = 0;
+      static int day_cnt = 0;
+      static dt_token_t day[31]; // okay if you have more than a month you should split it some other way first
+      if(sort_prop == s_prop_createdate)
+      {
+        int hash = nk_murmur_hash(vkdt.db.dirname, (int)nk_strlen(vkdt.db.dirname), 0);
+        if(hash != cached_hash)
+        {
+          dt_tooltip("create list of quick buttons for every day in current collection");
+          if(nk_button_label(ctx, "by day"))
+          {
+            day_cnt = 0;
+            for(int i=0;i<vkdt.db.collection_cnt;i++)
+            {
+              if(day_cnt >= NK_LEN(day)) break;
+              char createdate[20];
+              dt_db_read_createdate(&vkdt.db, vkdt.db.collection[i], createdate);
+              if(!day_cnt || strncmp(createdate+4, dt_token_str(day[day_cnt-1]), 6))
+              {
+                day[day_cnt] = 0;
+                strncpy(dt_token_str(day[day_cnt]), createdate+4, 6);
+                day_cnt++;
+              }
+            }
+            cached_hash = hash;
+          }
+        }
+        else
+        {
+          nk_label(ctx, "", 0);
+          nk_layout_row_dynamic(ctx, row_height, 7);
+          for(int i=0;i<day_cnt;i++)
+          {
+            dt_tooltip(dt_token_str(day[i])); // careful htis only works because we copy a max of 6<8 chars (so there'll always be 0 in the end)
+            if(nk_button_text(ctx, dt_token_str(day[i])+4, 2))
+            {
+              typed_filter_val = day[i];
+              vkdt.db.collection_filter_val = typed_filter_val;
+              update_collection = 1;
+            }
+          }
+        }
+      }
     }
     else if(filter_prop == s_prop_rating)
     {

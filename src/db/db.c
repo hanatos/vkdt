@@ -78,14 +78,13 @@ compare_labels(const void *a, const void *b, void *arg)
   return db->image[ia[0]].labels - db->image[ib[0]].labels;
 }
 
-static inline void
-read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
+void
+dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
 {
   char fn[1024], f[1024];
   dt_db_image_path(db, imgid, fn, sizeof(fn));
-  size_t off;
   fs_realpath(fn, f);
-  off = strnlen(f, sizeof(f));
+  size_t off = strnlen(f, sizeof(f));
   if(off > 4) f[off - 4] = 0;
   else f[off] = 0;
 
@@ -102,8 +101,8 @@ compare_createdate(const void *a, const void *b, void *arg)
   dt_db_t *db = arg;
   const uint32_t *ia = a, *ib = b;
   char cda[20] = {0}, cdb[20] = {0};
-  read_createdate(db, ia[0], cda);
-  read_createdate(db, ib[0], cdb);
+  dt_db_read_createdate(db, ia[0], cda);
+  dt_db_read_createdate(db, ib[0], cdb);
   return strcmp(cda, cdb);
 }
 
@@ -149,7 +148,7 @@ dt_db_update_collection(dt_db_t *db)
       if(!(db->image[k].labels & db->collection_filter_val)) continue;
       break;
     case s_prop_createdate:
-      read_createdate(db, k, createdate);
+      dt_db_read_createdate(db, k, createdate);
       char val[10]; snprintf(val, sizeof(val), "%" PRItkn, dt_token_str(db->collection_filter_val));
       if(!strstr(createdate, val)) continue;
       break;
