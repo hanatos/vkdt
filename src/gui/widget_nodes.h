@@ -73,6 +73,163 @@ dt_node_view_to_world(
       view.y/nedit->zoom + nedit->scroll.y);
 }
 
+static inline int
+dt_node_editor_context_menu(
+    struct nk_context *ctx,
+    dt_node_editor_t  *nedit)
+{
+  const struct nk_input *in = &ctx->input;
+  struct nk_rect size = nk_layout_space_bounds(ctx);
+  int ret = 0;
+  // TODO: scale size of popup
+  if(nk_contextual_begin(ctx, 0, nk_vec2(vkdt.state.panel_wd, 220), nk_window_get_bounds(ctx)))
+  { // right click over node/selection to open context menu
+    int sel_node_cnt = dt_node_editor_selection(nedit, &vkdt.graph_dev, 0);
+    int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
+    dt_node_editor_selection(nedit, &vkdt.graph_dev, sel_node_id);
+    const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+    if(sel_node_cnt)
+    {
+      nk_layout_row_dynamic(ctx, row_height, 1);
+      if(nk_contextual_item_label(ctx, "ab compare selection", NK_TEXT_LEFT))
+      {
+        vkdt.graph_dev.runflags = s_graph_run_all;
+        for(int i=0;i<sel_node_cnt;i++)
+        {
+          int m = sel_node_id[i];
+          int modid = dt_module_add(&vkdt.graph_dev, vkdt.graph_dev.module[m].name, vkdt.graph_dev.module[m].inst+1);
+          if(modid >= 0)
+          {
+            dt_graph_history_module(&vkdt.graph_dev, modid);
+            vkdt.graph_dev.module[modid].gui_x = vkdt.graph_dev.module[m].gui_x;
+            vkdt.graph_dev.module[modid].gui_y = vkdt.graph_dev.module[m].gui_y + row_height * 10;
+          }
+          else
+          {
+            dt_gui_notification("adding the module failed!");
+            break;
+          }
+          for(int c=0;c<vkdt.graph_dev.module[m].num_connectors;c++)
+          {
+            dt_connector_t *cn = vkdt.graph_dev.module[m].connector + c;
+            if(dt_connected(cn) && dt_connector_input(cn))
+            { // for all input connectors, see where we are going
+              int m0 = cn->connected_mi, c0 = cn->connected_mc;
+              dt_module_connect_with_history(&vkdt.graph_dev, m0, c0, modid, c);
+              for(int j=0;j<sel_node_cnt;j++) if(sel_node_id[j] == m0)
+              { // if the module id is in the selection, connect to the copy instead
+                int pmodid = dt_module_add(&vkdt.graph_dev, vkdt.graph_dev.module[m0].name, vkdt.graph_dev.module[m0].inst+1);
+                if(pmodid >= 0)
+                  dt_module_connect_with_history(&vkdt.graph_dev, pmodid, c0, modid, c);
+                break;
+              }
+            }
+            else if(dt_connected(cn) && dt_connector_output(cn) && cn->name != dt_token("dspy"))
+            { // is this the exit point? connect to new ab module
+              int nm[10], nc[10];
+              int ncnt = dt_module_get_module_after(
+                  &vkdt.graph_dev, vkdt.graph_dev.module+m, nm, nc, 10);
+              for(int k=0;k<ncnt;k++)
+              {
+                int dup = 0; // is the following node in the dup selection too?
+                for(int j=0;j<sel_node_cnt;j++)
+                  if(sel_node_id[j] == nm[k]) {dup = 1; break; }
+                if(!dup)
+                { // if not, we need to connect it through an ab/module
+                  int mab = dt_module_add(&vkdt.graph_dev, dt_token("ab"), dt_token("ab"));
+                  if(mab >= 0)
+                  {
+                    dt_module_connect_with_history(&vkdt.graph_dev, mab, 2, nm[k], nc[k]);
+                    dt_module_connect_with_history(&vkdt.graph_dev, m,     c, mab, 0);
+                    dt_module_connect_with_history(&vkdt.graph_dev, modid, c, mab, 1);
+                    dt_graph_history_module(&vkdt.graph_dev, mab);
+                    vkdt.graph_dev.module[mab].gui_x = vkdt.graph_dev.module[nm[k]].gui_x - row_height * 8;
+                    vkdt.graph_dev.module[mab].gui_y = vkdt.graph_dev.module[nm[k]].gui_y;
+                  }
+                }
+              }
+            }
+          }
+        }
+        ret = 1;
+      }
+      dt_tooltip("disconnect all connectors of selected modules, try to\n"
+                 "establish links to the neighbours directly where possible");
+      if(nk_contextual_item_label(ctx, "disconnect selected module", NK_TEXT_LEFT))
+      {
+        dt_node_editor_clear_selection(nedit);
+        for(int i=0;i<sel_node_cnt;i++)
+          dt_gui_dr_disconnect_module(sel_node_id[i]);
+        sel_node_cnt = 0;
+        ret = 1;
+      }
+      dt_tooltip("remove selected modules from the graph completely, try to\n"
+                 "establish links to the neighbours directly where possible");
+      if(nk_contextual_item_label(ctx, "remove selected modules", NK_TEXT_LEFT))
+      {
+        dt_node_editor_clear_selection(nedit);
+        for(int i=0;i<sel_node_cnt;i++)
+          dt_gui_dr_remove_module(sel_node_id[i]);
+        sel_node_cnt = 0;
+        ret = 1;
+      }
+    }
+    if(sel_node_cnt)
+    {
+      const int i = sel_node_cnt-1;
+      dt_module_t *mod = vkdt.graph_dev.module + sel_node_id[i];
+      char name[100];
+      if(mod->name != 0) // skip deleted
+      { // expander for individual module
+        nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
+        nk_layout_row_dynamic(&vkdt.ctx, 0, 1);
+        if(mod->so->has_inout_chain)
+          dt_tooltip(mod->disabled ? "re-enable this module" :
+              "temporarily disable this module without disconnecting it from the graph.\n"
+              "this is just a convenience A/B switch in the ui and will not affect your\n"
+              "processing history, lighttable thumbnail, or export.");
+        if(mod->so->has_inout_chain && !mod->disabled)
+        {
+          snprintf(name, sizeof(name), "temporarily disable %" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
+          if(nk_contextual_item_label(ctx, name, NK_TEXT_LEFT))
+          {
+            mod->disabled = 1;
+            vkdt.graph_dev.runflags = s_graph_run_all;
+            ret = 1;
+          }
+        }
+        else if(mod->so->has_inout_chain && mod->disabled)
+        {
+          snprintf(name, sizeof(name), "re-enable %" PRItkn " %" PRItkn, dt_token_str(mod->name), dt_token_str(mod->inst));
+          if(nk_contextual_item_label(ctx, name, NK_TEXT_LEFT))
+          {
+            mod->disabled = 0;
+            vkdt.graph_dev.runflags = s_graph_run_all;
+            ret = 1;
+          }
+        }
+        nk_style_pop_flags(ctx);
+      }
+    }
+
+    if(!sel_node_cnt)
+    {
+      struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(in->mouse.pos.x - size.x, in->mouse.pos.y - size.y));
+      nedit->add_pos_x = pos.x;
+      nedit->add_pos_y = pos.y;
+      nk_layout_row_dynamic(ctx, row_height, 1);
+      if (nk_contextual_item_label(ctx, "add module..", NK_TEXT_LEFT))
+      {
+        dt_gui_dr_module_add();
+        ret = 1;
+      }
+      // XXX probably also presets or something based on selected module
+    }
+    nk_contextual_end(ctx);
+  }
+  return ret;
+}
+
 static inline void
 dt_node_editor(
     struct nk_context *ctx,
@@ -94,6 +251,9 @@ dt_node_editor(
   total_space = nk_window_get_content_region(ctx);
   nk_layout_space_begin(ctx, NK_STATIC, total_space.h, graph->num_modules);
   struct nk_rect size = nk_layout_space_bounds(ctx);
+
+  // right click context menues:
+  int context_menu_clicked = dt_node_editor_context_menu(ctx, nedit);
 
   if(nedit->zoom > 0.3)
   { // render a grid
@@ -131,7 +291,7 @@ dt_node_editor(
   static int drag_selection = 0; // drag the selection box
   static int move_nodes = 0;     // move selected nodes with the mouse
   int mouse_over_something = 0;
-  const int disabled = dt_gui_input_blocked(); // io is going to popup window or something
+  const int disabled = context_menu_clicked | dt_gui_input_blocked(); // io is going to popup window or something
 
   for(int mid2=0;mid2<=(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
@@ -213,7 +373,7 @@ dt_node_editor(
           .h = 2*pin_radius*nedit->zoom,
         };
         const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
-        if (!disabled && hovering_circle) mouse_over_something = 1;
+        if (!disabled && hovering_circle) mouse_over_something = 2;
         if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true))
         { // if right clicked on the connector disconnect
           dt_module_connect_with_history(graph, -1, -1, mid, c);
@@ -402,21 +562,6 @@ dt_node_editor(
   nk_style_pop_font(ctx);
   row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
 
-  // right click context menu
-  // TODO: scale size of popup
-  if(!disabled && !mouse_over_something && nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx)))
-  {
-    struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(in->mouse.pos.x - size.x, in->mouse.pos.y - size.y));
-    nedit->add_pos_x = pos.x;
-    nedit->add_pos_y = pos.y;
-    nk_layout_row_dynamic(ctx, row_height, 1);
-    if (nk_contextual_item_label(ctx, "add module", NK_TEXT_CENTERED))
-    {
-      dt_gui_dr_module_add();
-    }
-    // XXX probably also presets or something based on selected module
-    nk_contextual_end(ctx);
-  }
   nk_layout_space_end(ctx);
 
   if (!disabled &&
