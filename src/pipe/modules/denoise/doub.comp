@@ -99,6 +99,7 @@ main()
     // protect details and coarse, better for low noise:
     // tt *= 1.0 - upsm.w; // will affect details coefs only
     upsm.w = pow(min(1.0, 1.0*upsm.w), 4.0); // will affect both, pull more towards protected areas (0)
+    // upsm.w = 1.0; // protect nothing!
     val = mix(val, max(0, crs + sigma * sign(wav) * mix(max(0.0, abs(wav) - T), abs(wav), tt)), upsm.w * blendw);
     // in general super noisy stuff beyond iso 25600 or some such cannot make good use of protection (the lowest scale is pretty much just noise)
     // TODO: introduce switch/user parameter for detail protection? something automatic based on iso?

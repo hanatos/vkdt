@@ -77,7 +77,7 @@ main()
     const float scale = 65535.0;
     const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
-    const float sigma = pow(0.7, push.level) * 4.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
+    const float sigma = pow(0.7, push.level) * 20.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
     vec3 wc = vec3(1./sigma);
 #define lookup(O) \
     do { \

@@ -76,7 +76,8 @@ main()
     // const float scale = 65535.0*(push.white.g-push.black.g);
     // const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
     const float scale = 65535.0;
-    const float sigma = max(1e-8, 10.0 * sqrt(push.noise_a + scale*max(down2.g, 0.0)*push.noise_b)/scale);
+    // keep this in sync with down.comp!
+    const float sigma = max(1e-8, 20.0 * sqrt(push.noise_a + scale*max(down2.g, 0.0)*push.noise_b)/scale);
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
@@ -86,10 +87,10 @@ main()
     // for xtrans these are 5 greens, so std dev / sqrt(5), bayer / sqrt(2).
     // demosaiced images have way less noise to begin with, so we should tune down variance, too!
     float block = push.filters == 0u ? 1.0 : (push.filters == 9u ? 2.23607 : 1.414213);
-    const float b0 = 1.0/block;
-    const float b1 = 0.5/block;
-    const float b2 = 0.25/block;
-    const float b3 = 0.125/block;
+    const float b0 = 0.7000/block;
+    const float b1 = 0.4900/block;
+    const float b2 = 0.3430/block;
+    const float b3 = 0.2401/block;
     down0 = (down0 - down1)/(sigma*b0);
     down1 = (down1 - down2)/(sigma*b1);
     down2 = (down2 - down3)/(sigma*b2);
