@@ -663,6 +663,10 @@ void render_lighttable_right_panel()
           dt_tooltip("create list of quick buttons for every day in current collection");
           if(nk_button_label(ctx, "by day"))
           {
+            // reset collection filter first, so we can query all images in this folder.
+            // we don't simply go through imageid because these aren't sorted by date
+            typed_filter_val = vkdt.db.collection_filter_val = 0;
+            dt_db_update_collection(&vkdt.db);
             day_cnt = 0;
             for(int i=0;i<vkdt.db.collection_cnt;i++)
             {
