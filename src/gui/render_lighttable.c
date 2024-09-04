@@ -417,10 +417,49 @@ render_lighttable_header()
         NK_WINDOW_NO_SCROLLBAR))
   { // draw current collection description
     char str[100];
-    dt_db_pretty_print(&vkdt.db, str, sizeof(str));
+    int len = sizeof(str);
+    const char *last = vkdt.db.dirname;
+    for(const char *c=last;*c!=0;c++) if(*c=='/') last = c+1;
+    char date[10] = {0}, desc[100];
+    sscanf(last, "%8s_%99s", date, desc);
+    char *c = str;
+    int off;
+    if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
+      off = snprintf(c, len, "%.4s %s", date, desc);
+    else
+      off = snprintf(c, len, "%s", last);
+    c += off; len -= off;
+
+    dt_db_filter_t *ft = &vkdt.db.collection_filter;
+    if(len > 0 && (ft->active & (1<<s_prop_createdate)))
+    {
+      off = snprintf(c, len, " %s", ft->createdate);
+      for(int i=0;c[i];i++) if(c[i] == ':') c[i] = ' ';
+      c += off; len -= off;
+    }
+    if(len > 0 && (ft->active & (1<<s_prop_filename)))
+    {
+      off = snprintf(c, len, " %s", ft->filename);
+      c += off; len -= off;
+    }
+    if(len > 0 && (ft->active & (1<<s_prop_filetype)))
+    {
+      off = snprintf(c, len, " %"PRItkn, dt_token_str(ft->filetype));
+      c += off; len -= off;
+    }
     struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
-    const struct nk_rect bounds = {vkdt.state.center_x, 0, vkdt.state.center_x+vkdt.state.center_wd, 0.1*vkdt.state.center_ht};
+    const struct nk_rect bounds = {vkdt.state.center_x, 0, vkdt.state.center_x+vkdt.state.center_wd, vkdt.state.center_ht};
     nk_draw_text(buf, bounds, str, strlen(str), &dt_gui_get_font(2)->handle, nk_rgba(0,0,0,255), vkdt.style.colour[NK_COLOR_TEXT]);
+
+#if 0
+    // TODO: draw circles and stars, make clickable, what do we click if there's nothing yet?
+    if(ft->active & (1<<s_prop_rating))
+    { // draw stars
+    }
+    if(ft->active & (1<<s_prop_labels))
+    { // draw circles
+    }
+#endif
   }
   nk_end(&vkdt.ctx);
   nk_style_pop_style_item(&vkdt.ctx);
@@ -552,8 +591,8 @@ void render_lighttable_right_panel()
   int update_collection = 0;
   if(nk_tree_push(ctx, NK_TREE_TAB, "collect", NK_MINIMIZED))
   {
-    int32_t filter_prop = vkdt.db.collection_filter;
-    int32_t sort_prop   = vkdt.db.collection_sort;
+    dt_db_filter_t *ft = &vkdt.db.collection_filter;
+    int32_t sort_prop  =  vkdt.db.collection_sort;
 
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
 
@@ -565,17 +604,38 @@ void render_lighttable_right_panel()
     }
     nk_label(&vkdt.ctx, "sort", NK_TEXT_LEFT);
 
-    res = nk_combo_string(ctx, dt_db_property_text, filter_prop, 0xffff, row_height, size);
-    if(res != filter_prop)
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+    int rating = (ft->active >> s_prop_rating)&1;
+    res = nk_combo_string(ctx, "any\0filter by\0\0", rating, 0xffff, row_height, size);
+    if(res != rating)
     {
-      vkdt.db.collection_filter = filter_prop = res;
-      vkdt.db.collection_filter_val = 0;
+      ft->active ^= 1<<s_prop_rating;
       update_collection = 1;
     }
-    nk_label(ctx, "filter", NK_TEXT_LEFT);
+    nk_label(ctx, "rating", NK_TEXT_LEFT);
+    if(ft->active & (1<<s_prop_rating))
+    {
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+      int resi = ft->rating;
+      nk_property_int(ctx, "#", 0, &resi, 5, 1, 1);
+      if(resi != ft->rating) 
+      {
+        ft->rating = resi;
+        update_collection = 1;
+      }
+      nk_label(ctx, "filter value", NK_TEXT_LEFT);
+    }
 
-    uint64_t filter_val = vkdt.db.collection_filter_val;
-    if(filter_prop == s_prop_labels)
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+    int label = (ft->active >> s_prop_labels)&1;
+    res = nk_combo_string(ctx, "any\0filter by\0\0", label, 0xffff, row_height, size);
+    if(res != label)
+    {
+      ft->active ^= 1<<s_prop_labels;
+      update_collection = 1;
+    }
+    nk_label(ctx, "labels", NK_TEXT_LEFT);
+    if(ft->active & (1<<s_prop_labels))
     {
       const struct nk_color col[] = {
         {0xee, 0x11, 0x11, 0xff},
@@ -591,15 +651,14 @@ void render_lighttable_right_panel()
         nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(col[k]));
         nk_style_push_float(ctx, &ctx->style.button.border, 1);
 
-        int sel = filter_val & (1<<k);
+        int sel = ft->labels & (1<<k);
         if(sel) nk_style_push_float(ctx, &ctx->style.button.border, vkdt.wstate.fontsize*0.2);
         if(sel) nk_style_push_float(ctx, &ctx->style.button.rounding, row_height/2);
         else    nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
         dt_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
         if(nk_button_label(ctx, k==5 ? "m" : k==6 ? "[ ]" : " "))
         {
-          filter_val ^= (1<<k);
-          vkdt.db.collection_filter_val = filter_val;
+          ft->labels ^= (1<<k);
           update_collection = 1;
         }
         nk_style_pop_float(ctx);
@@ -608,7 +667,16 @@ void render_lighttable_right_panel()
         nk_style_pop_style_item(ctx);
       }
     }
-    else if(filter_prop == s_prop_filetype)
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+    int filetype = (ft->active >> s_prop_filetype)&1;
+    res = nk_combo_string(ctx, "any\0filter by\0\0", filetype, 0xffff, row_height, size);
+    if(res != filetype)
+    {
+      ft->active ^= 1<<s_prop_filetype;
+      update_collection = 1;
+    }
+    nk_label(ctx, "filetype", NK_TEXT_LEFT);
+    if(ft->active & (1<<s_prop_filetype))
     {
       static int32_t filter_module_idx = 0;
       static const char *input_modules_str =
@@ -626,30 +694,50 @@ void render_lighttable_right_panel()
         dt_token("i-mlv"),
         dt_token("i-mcraw"),
       };
-      dt_token_t filter_val = vkdt.db.collection_filter_val;
+      dt_token_t filter_val = ft->filetype;
       for(int k=0;k<NK_LEN(input_modules);k++) if(filter_val == input_modules[k]) { filter_module_idx = k; break; }
       res = nk_combo_string(ctx, input_modules_str, filter_module_idx, 0xffff, row_height, size);
       if(res != filter_module_idx)
       {
         filter_module_idx = res;
-        vkdt.db.collection_filter_val = input_modules[res];
+        ft->filetype = input_modules[res];
         update_collection = 1;
       }
-      nk_label(ctx, "file type", NK_TEXT_LEFT);
+      nk_label(ctx, "input module", NK_TEXT_LEFT);
     }
-    else if(filter_prop == s_prop_none)
-    { // hide filter value, it's meaningless
-    }
-    else if(filter_prop == s_prop_filename)   {} // TODO wire this in the db.c backend!
-    else if(filter_prop == s_prop_createdate)
+#if 0
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+    int filename = (ft->active >> s_prop_filename)&1;
+    res = nk_combo_string(ctx, "any\0filter by\0\0", filename, 0xffff, row_height, size);
+    if(res != filename)
     {
-      static dt_token_t typed_filter_val = 666;
-      if(typed_filter_val == 666) typed_filter_val = vkdt.db.collection_filter_val;
+      ft->active ^= 1<<s_prop_filename;
+      update_collection = 1;
+    }
+    nk_label(ctx, "filename", NK_TEXT_LEFT);
+    if(ft->active & (1<<s_prop_filename))
+    {
+      // TODO
+    }
+#endif
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
+    int createdate = (ft->active >> s_prop_createdate)&1;
+    res = nk_combo_string(ctx, "any\0filter by\0\0", createdate, 0xffff, row_height, size);
+    if(res != createdate)
+    {
+      ft->active ^= 1<<s_prop_createdate;
+      update_collection = 1;
+    }
+    nk_label(ctx, "createdate", NK_TEXT_LEFT);
+    if(ft->active & (1<<s_prop_createdate))
+    {
+      static char typed_filter_val[20] = "uninited";
+      if(!strcmp(typed_filter_val, "uninited")) snprintf(typed_filter_val, sizeof(typed_filter_val), "%s", ft->createdate);
       dt_tooltip("substring to match in the createdate\nin YYYY:MM:DD HH:MM:SS form");
-      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dt_token_str(typed_filter_val), 8, nk_filter_default);
+      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, typed_filter_val, sizeof(typed_filter_val), nk_filter_default);
       if(ret & NK_EDIT_COMMITED)
       {
-        vkdt.db.collection_filter_val = typed_filter_val;
+        snprintf(ft->createdate, sizeof(ft->createdate), "%s", typed_filter_val);
         update_collection = 1;
       }
       static int cached_hash = 0;
@@ -665,7 +753,9 @@ void render_lighttable_right_panel()
           {
             // reset collection filter first, so we can query all images in this folder.
             // we don't simply go through imageid because these aren't sorted by date
-            typed_filter_val = vkdt.db.collection_filter_val = 0;
+            typed_filter_val[0] = ft->createdate[0] = 0;
+            uint64_t old_active = ft->active; // save
+            ft->active = 0;
             dt_db_update_collection(&vkdt.db);
             day_cnt = 0;
             for(int i=0;i<vkdt.db.collection_cnt;i++)
@@ -681,6 +771,8 @@ void render_lighttable_right_panel()
               }
             }
             cached_hash = hash;
+            ft->active = old_active; // restore
+            dt_db_update_collection(&vkdt.db);
           }
         }
         else
@@ -692,25 +784,13 @@ void render_lighttable_right_panel()
             dt_tooltip(dt_token_str(day[i])); // careful htis only works because we copy a max of 6<8 chars (so there'll always be 0 in the end)
             if(nk_button_text(ctx, dt_token_str(day[i])+4, 2))
             {
-              typed_filter_val = day[i];
-              vkdt.db.collection_filter_val = typed_filter_val;
+              snprintf(typed_filter_val, sizeof(typed_filter_val), "%"PRItkn, dt_token_str(day[i]));
+              snprintf(ft->createdate, sizeof(ft->createdate), "%s", typed_filter_val);
               update_collection = 1;
             }
           }
         }
       }
-    }
-    else if(filter_prop == s_prop_rating)
-    {
-      nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-      int resi = filter_val;
-      nk_property_int(ctx, "#", 0, &resi, 5, 1, 1);
-      if(resi != filter_val) 
-      {
-        vkdt.db.collection_filter_val = filter_val = resi;
-        update_collection = 1;
-      }
-      nk_label(ctx, "filter value", NK_TEXT_LEFT);
     }
 
     nk_layout_row_dynamic(ctx, row_height, 1);

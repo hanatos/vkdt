@@ -50,6 +50,7 @@ typedef enum dt_db_property_t
   s_prop_labels      = 3, // &
   s_prop_createdate  = 4,
   s_prop_filetype    = 5, // == input module token
+  s_prop_cnt         = 6, // number of possible properties
 }
 dt_db_property_t;
 
@@ -60,11 +61,22 @@ dt_db_property_text =
   "none\0"
   "filename\0"
   "rating\0"
-  "label\0"
+  "labels\0"
   "create date\0"
   "file type\0"
   "\0"
 };
+
+typedef struct dt_db_filter_t
+{
+  uint64_t   active;            // bitmask of 1<<property which filters are active
+  char       filename[20];
+  uint32_t   rating;
+  uint32_t   labels;
+  char       createdate[20];
+  uint64_t   filetype;
+}
+dt_db_filter_t;
 
 typedef struct dt_db_t
 {
@@ -84,8 +96,7 @@ typedef struct dt_db_t
 
   // current sort and filter criteria for collection
   dt_db_property_t collection_sort;
-  dt_db_property_t collection_filter;
-  uint64_t         collection_filter_val;
+  dt_db_filter_t   collection_filter;
 
   // current query
   uint32_t *collection;
@@ -194,5 +205,3 @@ void dt_db_current_set(dt_db_t *db, uint32_t colid);
 void dt_db_duplicate_selected_images(dt_db_t *db);
 // convenience function to read create date of an image
 void dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20]);
-// format the current directory and filters as a nice readable string
-void dt_db_pretty_print(const dt_db_t *db, char *str, int len);
