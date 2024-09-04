@@ -194,3 +194,5 @@ void dt_db_current_set(dt_db_t *db, uint32_t colid);
 void dt_db_duplicate_selected_images(dt_db_t *db);
 // convenience function to read create date of an image
 void dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20]);
+// format the current directory and filters as a nice readable string
+void dt_db_pretty_print(const dt_db_t *db, char *str, int len);

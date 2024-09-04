@@ -408,6 +408,25 @@ void render_lighttable_center()
 }
 
 
+static inline void
+render_lighttable_header()
+{
+  if(nk_begin(&vkdt.ctx, "lighttable header",
+        nk_rect(0, 0, vkdt.state.center_wd, vkdt.state.center_y),
+        NK_WINDOW_NO_SCROLLBAR))
+  { // draw current collection description
+    vkdt.ctx.style.window.fixed_background.type = 1337; // none of the backgrounds, will render nothing
+    char str[100];
+    dt_db_pretty_print(&vkdt.db, str, sizeof(str));
+    struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
+    const struct nk_rect bounds = {vkdt.state.center_x, 0, vkdt.state.center_x+vkdt.state.center_wd, 0.1*vkdt.state.center_ht};
+    nk_draw_text(buf, bounds, str, strlen(str), &dt_gui_get_font(2)->handle, nk_rgba(0,0,0,255), vkdt.style.colour[NK_COLOR_TEXT]);
+  }
+  nk_end(&vkdt.ctx);
+}
+
+
+
 // export bg job stuff. put into api.hh?
 typedef struct export_job_t
 { // this memory belongs to the export thread and will not change behind its back.
@@ -1085,6 +1104,7 @@ void render_lighttable()
 {
   render_lighttable_right_panel();
   render_lighttable_center();
+  render_lighttable_header();
 
   // popup windows
   struct nk_rect bounds = { vkdt.state.center_x+0.2*vkdt.state.center_wd, vkdt.state.center_y+0.2*vkdt.state.center_ht,

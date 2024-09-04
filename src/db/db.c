@@ -630,3 +630,37 @@ void dt_db_duplicate_selected_images(dt_db_t *db)
 next:;
   }
 }
+
+void dt_db_pretty_print(const dt_db_t *db, char *str, int len)
+{
+  if(!str || len <= 0) return;
+  const char *last = db->dirname;
+  for(const char *c=last;*c!=0;c++) if(*c=='/') last = c+1;
+  char date[10] = {0}, desc[100], dir[100];
+  sscanf(last, "%8s_%99s", date, desc);
+  if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
+    snprintf(dir, sizeof(dir), "%.4s %s", date, desc);
+  else
+    snprintf(dir, sizeof(dir), "%s", last);
+
+  const char *filter_name[] = {"none", "filename", "rating", "label", "create date", "file type"};
+  if(db->collection_filter == s_prop_none)
+  {
+    snprintf(str, len, "%s", dir);
+  }
+  else if(db->collection_filter == s_prop_rating ||
+          db->collection_filter == s_prop_labels)
+  {
+    snprintf(str, len, "%s %s %"PRIu64, dir, filter_name[db->collection_filter], db->collection_filter_val);
+  }
+  else if(db->collection_filter == s_prop_createdate)
+  {
+    snprintf(str, len, "%s %"PRItkn, dir, dt_token_str(db->collection_filter_val));
+    for(int i=0;i<strlen(str);i++) if(str[i] == ':') str[i] = ' ';
+  }
+  else if(db->collection_filter == s_prop_filename ||
+          db->collection_filter == s_prop_filetype)
+  {
+    snprintf(str, len, "%s %s %"PRItkn, dir, filter_name[db->collection_filter], dt_token_str(db->collection_filter_val));
+  }
+}
