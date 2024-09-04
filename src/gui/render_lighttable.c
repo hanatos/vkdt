@@ -411,11 +411,11 @@ void render_lighttable_center()
 static inline void
 render_lighttable_header()
 {
+  nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_hide());
   if(nk_begin(&vkdt.ctx, "lighttable header",
         nk_rect(0, 0, vkdt.state.center_wd, vkdt.state.center_y),
         NK_WINDOW_NO_SCROLLBAR))
   { // draw current collection description
-    vkdt.ctx.style.window.fixed_background.type = 1337; // none of the backgrounds, will render nothing
     char str[100];
     dt_db_pretty_print(&vkdt.db, str, sizeof(str));
     struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
@@ -423,6 +423,7 @@ render_lighttable_header()
     nk_draw_text(buf, bounds, str, strlen(str), &dt_gui_get_font(2)->handle, nk_rgba(0,0,0,255), vkdt.style.colour[NK_COLOR_TEXT]);
   }
   nk_end(&vkdt.ctx);
+  nk_style_pop_style_item(&vkdt.ctx);
 }
 
 

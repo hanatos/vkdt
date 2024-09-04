@@ -85,7 +85,6 @@ void render_nodes_right_panel()
   int sel_node_cnt = dt_node_editor_selection(&nodes.nedit, &vkdt.graph_dev, 0);
   int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
   dt_node_editor_selection(&nodes.nedit, &vkdt.graph_dev, sel_node_id);
-  const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   for(int i=0;i<sel_node_cnt;i++)
   {
     render_darkroom_widgets(&vkdt.graph_dev, sel_node_id[i]);

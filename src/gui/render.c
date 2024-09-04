@@ -277,7 +277,7 @@ void dt_gui_render_frame_nk()
      now - vkdt.wstate.notification_time < 4.0)
   {
     if(nk_begin(&vkdt.ctx, "notification message",
-          nk_rect(0, vkdt.state.center_y+vkdt.state.center_ht, vkdt.state.center_x+vkdt.state.center_wd, 2*vkdt.state.center_y+vkdt.state.center_ht),
+          nk_rect(0, vkdt.state.center_y+vkdt.state.center_ht, 2*vkdt.state.center_x+vkdt.state.center_wd, 2*vkdt.state.center_y+vkdt.state.center_ht),
           NK_WINDOW_NO_SCROLLBAR))
     {
       nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_y*0.55, 1);
