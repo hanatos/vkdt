@@ -22,11 +22,11 @@ style_to_state()
 {
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * qvk.win_height;
   vkdt.state = (dt_gui_state_t) {
-    .center_x = vkdt.style.border_frac * qvk.win_width,
-    .center_y = vkdt.style.border_frac * qvk.win_width,
+    .center_x = vkdt.style.border_frac * qvk.win_height,
+    .center_y = vkdt.style.border_frac * qvk.win_height,
     .panel_wd = pwd,
-    .center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - pwd,
-    .center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width,
+    .center_wd = qvk.win_width  - 2.0f*vkdt.style.border_frac * qvk.win_height - pwd,
+    .center_ht = qvk.win_height * (1.0f-2.0f*vkdt.style.border_frac),
     .panel_ht = qvk.win_height,
     .anim_frame = vkdt.state.anim_frame,
     .anim_max_frame = vkdt.state.anim_max_frame,
@@ -62,8 +62,10 @@ int dt_gui_init()
   vkdt.wstate.copied_imgid = -1u; // none copied at startup
   threads_mutex_init(&vkdt.wstate.notification_mutex, 0);
 
+  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+  float rel_fontsize = 2.0f / 55.0f * dpi_scale;
   vkdt.style.panel_width_frac = 0.2f;
-  vkdt.style.border_frac = 0.02f;
+  vkdt.style.border_frac = rel_fontsize * 1.05f; // large enough to fit 2x fontsize heading
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   // start "full screen"
