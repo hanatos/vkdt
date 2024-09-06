@@ -17,7 +17,10 @@ static inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
   const char* stars = "\ue838\ue838\ue838\ue838\ue838";
   const struct nk_rect bounds = {x-0.5*wd, y-0.5*wd, rating*wd, wd};
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
-  nk_draw_text(buf, bounds, stars, 3*rating, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
+  static struct nk_user_font font;
+  font = dt_gui_get_font(3)->handle;
+  font.height = wd;
+  nk_draw_text(buf, bounds, stars, 3*rating, &font, (struct nk_color){0x77,0x77,0x77,0xff}, col);
 }
 static inline void dt_draw_labels(float x, float y, float wd, uint16_t labels)
 {

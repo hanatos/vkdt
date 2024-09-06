@@ -374,7 +374,7 @@ void render_darkroom()
       const uint16_t labels = vkdt.db.image[ci].labels;
       const uint16_t rating = vkdt.db.image[ci].rating;
       dt_draw_rating(win_x+wd,   win_y+wd, wd, rating);
-      dt_draw_labels(win_x+5*wd, win_y+wd, wd, labels);
+      dt_draw_labels(win_x+6*wd, win_y+wd, wd, labels);
     }
 
     // draw context sensitive help overlay
