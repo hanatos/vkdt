@@ -433,7 +433,10 @@ render_lighttable_header()
     dt_db_filter_t *ft = &vkdt.db.collection_filter;
     if(len > 0 && (ft->active & (1<<s_prop_createdate)))
     {
-      off = snprintf(c, len, " %s", ft->createdate);
+      if(!strncmp(date, ft->createdate, 4))
+        off = snprintf(c, len, " %s", ft->createdate+5);
+      else
+        off = snprintf(c, len, " %s", ft->createdate);
       for(int i=0;c[i];i++) if(c[i] == ':') c[i] = ' ';
       c += off; len -= off;
     }
@@ -742,7 +745,7 @@ void render_lighttable_right_panel()
       }
       static int cached_hash = 0;
       static int day_cnt = 0;
-      static dt_token_t day[31]; // okay if you have more than a month you should split it some other way first
+      static char day[31][11]; // okay if you have more than a month you should split it some other way first
       if(sort_prop == s_prop_createdate)
       {
         int hash = nk_murmur_hash(vkdt.db.dirname, (int)nk_strlen(vkdt.db.dirname), 0);
@@ -763,10 +766,10 @@ void render_lighttable_right_panel()
               if(day_cnt >= NK_LEN(day)) break;
               char createdate[20];
               dt_db_read_createdate(&vkdt.db, vkdt.db.collection[i], createdate);
-              if(!day_cnt || strncmp(createdate+4, dt_token_str(day[day_cnt-1]), 6))
+              if(!day_cnt || strncmp(createdate, day[day_cnt-1], 10))
               {
-                day[day_cnt] = 0;
-                strncpy(dt_token_str(day[day_cnt]), createdate+4, 6);
+                day[day_cnt][10] = 0;
+                strncpy(day[day_cnt], createdate, 10);
                 day_cnt++;
               }
             }
@@ -781,10 +784,10 @@ void render_lighttable_right_panel()
           nk_layout_row_dynamic(ctx, row_height, 7);
           for(int i=0;i<day_cnt;i++)
           {
-            dt_tooltip(dt_token_str(day[i])); // careful htis only works because we copy a max of 6<8 chars (so there'll always be 0 in the end)
-            if(nk_button_text(ctx, dt_token_str(day[i])+4, 2))
+            dt_tooltip(day[i]);
+            if(nk_button_text(ctx, day[i]+8, 2))
             {
-              snprintf(typed_filter_val, sizeof(typed_filter_val), "%"PRItkn, dt_token_str(day[i]));
+              snprintf(typed_filter_val, sizeof(typed_filter_val), "%s", day[i]);
               snprintf(ft->createdate, sizeof(ft->createdate), "%s", typed_filter_val);
               update_collection = 1;
             }
