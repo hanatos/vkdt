@@ -514,7 +514,7 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
   const dt_db_filter_t *ft = &db->collection_filter;
   if(ft->active & (1<<s_prop_filename))   fprintf(f, "filter:filename:%s\n",    ft->filename);
   if(ft->active & (1<<s_prop_rating))     fprintf(f, "filter:rating:%u\n",      ft->rating);
-  if(ft->active & (1<<s_prop_labels))     fprintf(f, "filter:labels:%u\n",      ft->labels);
+  if(ft->active & (1<<s_prop_labels))     fprintf(f, "filter:label:%u\n",       ft->labels);
   if(ft->active & (1<<s_prop_createdate)) fprintf(f, "filter:create date:%s\n", ft->createdate);
   if(ft->active & (1<<s_prop_filetype))   fprintf(f, "filter:file type:%s\n",   dt_token_str(ft->filetype));
 

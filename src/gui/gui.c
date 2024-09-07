@@ -578,7 +578,7 @@ void dt_gui_switch_collection(const char *dir)
       if(!strcmp(filter, "all"))         ft->active = s_prop_none;
       if(!strcmp(filter, "filename"))    { ft->active |= 1<<s_prop_filename;   snprintf(ft->filename, sizeof(ft->filename), "%s", val); }
       if(!strcmp(filter, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); }
-      if(!strcmp(filter, "label"))       { ft->active |= 1<<s_prop_labels;     ft->labels = atol(val); }
+      if(!strcmp(filter, "labels"))      { ft->active |= 1<<s_prop_labels;     ft->labels = atol(val); }
       if(!strcmp(filter, "createdate"))  { ft->active |= 1<<s_prop_createdate; snprintf(ft->createdate, sizeof(ft->createdate), "%s", val); }
       if(!strcmp(filter, "filetype"))    { ft->active |= 1<<s_prop_filetype;   snprintf(dt_token_str(ft->filetype), 8, "%.8s", val); }
       while(*end != '&' && *end != 0) end++;
