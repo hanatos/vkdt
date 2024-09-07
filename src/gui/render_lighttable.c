@@ -608,7 +608,7 @@ void render_lighttable_right_panel()
     nk_label(&vkdt.ctx, "sort", NK_TEXT_LEFT);
 
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-    int resi = CLAMP(ft->rating, 0, 5);
+    int resi = ft->active & (1<<s_prop_rating) ? CLAMP(ft->rating, 0, 5) : 0;
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     resi = nk_combo_string(ctx, "\ue836\0\ue838\0\ue838\ue838\0\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\ue838\0\0", resi, 0xffff, row_height, size);
 

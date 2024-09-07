@@ -568,12 +568,13 @@ void dt_gui_switch_collection(const char *dir)
   if(end)
   { // now set db filter based on stuff we parse behind &
     *end = '&'; // restore & (because the string was const, right..?)
+    dt_db_filter_t *ft = &vkdt.db.collection_filter;
+    ft->active = 0;
     for(int i=0;i<s_prop_cnt;i++)
     {
       end++;
       char filter[20] = {0}, val[30] = {0};
       sscanf(end, "%[^:]:%[^&]", filter, val);
-      dt_db_filter_t *ft = &vkdt.db.collection_filter;
       if(!strcmp(filter, "all"))         ft->active = s_prop_none;
       if(!strcmp(filter, "filename"))    { ft->active |= 1<<s_prop_filename;   snprintf(ft->filename, sizeof(ft->filename), "%s", val); }
       if(!strcmp(filter, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); }
