@@ -271,10 +271,10 @@ dt_gui_dr_toggle_fullscreen_view()
   }
   else
   {
-    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width;
-    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
-    vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - vkdt.state.panel_wd;
-    vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_height;
+    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_height;
+    vkdt.state.center_wd = qvk.win_width  - 2.0f*vkdt.style.border_frac * qvk.win_height - vkdt.state.panel_wd;
+    vkdt.state.center_ht = qvk.win_height * (1.0f-2.0f*vkdt.style.border_frac); 
   }
 }
 
@@ -296,17 +296,17 @@ dt_gui_dr_toggle_history()
   vkdt.wstate.history_view ^= 1;
   if(vkdt.wstate.history_view)
   {
-    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width + vkdt.state.panel_wd;
-    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
-    vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - 2*vkdt.state.panel_wd;
-    vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_height + vkdt.state.panel_wd;
+    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_height;
+    vkdt.state.center_wd = qvk.win_width  - 2.0f*vkdt.style.border_frac * qvk.win_height - 2*vkdt.state.panel_wd;
+    vkdt.state.center_ht = qvk.win_height * (1.0f-2.0f*vkdt.style.border_frac); 
   }
   else
   {
-    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_width;
-    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_width;
-    vkdt.state.center_wd = qvk.win_width * (1.0f-2.0f*vkdt.style.border_frac) - vkdt.state.panel_wd;
-    vkdt.state.center_ht = qvk.win_height - 2*vkdt.style.border_frac * qvk.win_width;
+    vkdt.state.center_x = vkdt.style.border_frac * qvk.win_height;
+    vkdt.state.center_y = vkdt.style.border_frac * qvk.win_height;
+    vkdt.state.center_wd = qvk.win_width  - 2.0f*vkdt.style.border_frac * qvk.win_height - vkdt.state.panel_wd;
+    vkdt.state.center_ht = qvk.win_height * (1.0f-2.0f*vkdt.style.border_frac); 
   }
 }
 
