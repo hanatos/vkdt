@@ -608,106 +608,87 @@ void render_lighttable_right_panel()
     nk_label(&vkdt.ctx, "sort", NK_TEXT_LEFT);
 
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-    int rating = (ft->active >> s_prop_rating)&1;
-    res = nk_combo_string(ctx, "any\0filter by\0\0", rating, 0xffff, row_height, size);
-    if(res != rating)
+    int resi = CLAMP(ft->rating, 0, 5);
+    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
+    resi = nk_combo_string(ctx, "\ue836\0\ue838\0\ue838\ue838\0\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\ue838\0\0", resi, 0xffff, row_height, size);
+
+    nk_style_pop_font(ctx);
+    if(resi != ft->rating) 
     {
-      ft->active ^= 1<<s_prop_rating;
+      if(resi == 0) ft->active &= ~(1<<s_prop_rating);
+      else          ft->active |=   1<<s_prop_rating ;
+      ft->rating = resi;
       update_collection = 1;
     }
+    dt_tooltip("select the minimum star rating of images in the collection");
     nk_label(ctx, "rating", NK_TEXT_LEFT);
-    if(ft->active & (1<<s_prop_rating))
+
+    const struct nk_color col[] = {
+      {0xee, 0x11, 0x11, 0xff},
+      {0x11, 0xee, 0x11, 0xff},
+      {0x11, 0x11, 0xee, 0xff},
+      {0xee, 0xee, 0x11, 0xff},
+      {0xee, 0x11, 0xee, 0xff},
+      {0x07, 0x07, 0x07, 0xff},
+      {0x07, 0x07, 0x07, 0xff}};
+    nk_layout_row_dynamic(ctx, row_height, 7);
+    if(!(ft->active & (1<<s_prop_labels))) ft->labels = 0;
+    for(int k=0;k<7;k++)
     {
-      nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-      int resi = ft->rating;
-      nk_property_int(ctx, "#", 0, &resi, 5, 1, 1);
-      if(resi != ft->rating) 
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(col[k]));
+      nk_style_push_float(ctx, &ctx->style.button.border, 1);
+
+      int sel = ft->labels & (1<<k);
+      if(sel) nk_style_push_float(ctx, &ctx->style.button.border, vkdt.wstate.fontsize*0.2);
+      if(sel) nk_style_push_float(ctx, &ctx->style.button.rounding, row_height/2);
+      else    nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
+      dt_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
+      if(nk_button_label(ctx, k==5 ? "m" : k==6 ? "[ ]" : " "))
       {
-        ft->rating = resi;
+        ft->labels ^= (1<<k);
         update_collection = 1;
       }
-      nk_label(ctx, "filter value", NK_TEXT_LEFT);
+      nk_style_pop_float(ctx);
+      if(sel) nk_style_pop_float(ctx);
+      nk_style_pop_float(ctx);
+      nk_style_pop_style_item(ctx);
     }
+    if(!ft->labels) ft->active &= ~(1<<s_prop_labels);
+    else            ft->active |=   1<<s_prop_labels;
+
 
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-    int label = (ft->active >> s_prop_labels)&1;
-    res = nk_combo_string(ctx, "any\0filter by\0\0", label, 0xffff, row_height, size);
-    if(res != label)
+    static int32_t filter_module_idx = 0;
+    static const char *input_modules_str =
+        "any\0"
+        "raw : raw files\0"
+        "jpg : jpg images\0"
+        "exr : high dynamic range scene linear exr\0"
+        "vid : compressed video\0"
+        "mlv : magic lantern raw video\0"
+        "mcraw: motioncam raw video\0\0";
+    dt_token_t input_modules[] = {
+      0,
+      dt_token("i-raw"),
+      dt_token("i-jpg"),
+      dt_token("i-exr"),
+      dt_token("i-vid"),
+      dt_token("i-mlv"),
+      dt_token("i-mcraw"),
+    };
+    dt_token_t filter_val = ft->filetype;
+    for(int k=0;k<NK_LEN(input_modules);k++) if(filter_val == input_modules[k]) { filter_module_idx = k; break; }
+    res = nk_combo_string(ctx, input_modules_str, filter_module_idx, 0xffff, row_height, size);
+    if(res != filter_module_idx)
     {
-      ft->active ^= 1<<s_prop_labels;
-      update_collection = 1;
-    }
-    nk_label(ctx, "labels", NK_TEXT_LEFT);
-    if(ft->active & (1<<s_prop_labels))
-    {
-      const struct nk_color col[] = {
-        {0xee, 0x11, 0x11, 0xff},
-        {0x11, 0xee, 0x11, 0xff},
-        {0x11, 0x11, 0xee, 0xff},
-        {0xee, 0xee, 0x11, 0xff},
-        {0xee, 0x11, 0xee, 0xff},
-        {0x07, 0x07, 0x07, 0xff},
-        {0x07, 0x07, 0x07, 0xff}};
-      nk_layout_row_dynamic(ctx, row_height, 7);
-      for(int k=0;k<7;k++)
-      {
-        nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(col[k]));
-        nk_style_push_float(ctx, &ctx->style.button.border, 1);
-
-        int sel = ft->labels & (1<<k);
-        if(sel) nk_style_push_float(ctx, &ctx->style.button.border, vkdt.wstate.fontsize*0.2);
-        if(sel) nk_style_push_float(ctx, &ctx->style.button.rounding, row_height/2);
-        else    nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
-        dt_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":k==4?"purple":k==5?"video":"bracket");
-        if(nk_button_label(ctx, k==5 ? "m" : k==6 ? "[ ]" : " "))
-        {
-          ft->labels ^= (1<<k);
-          update_collection = 1;
-        }
-        nk_style_pop_float(ctx);
-        if(sel) nk_style_pop_float(ctx);
-        nk_style_pop_float(ctx);
-        nk_style_pop_style_item(ctx);
-      }
-    }
-    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-    int filetype = (ft->active >> s_prop_filetype)&1;
-    res = nk_combo_string(ctx, "any\0filter by\0\0", filetype, 0xffff, row_height, size);
-    if(res != filetype)
-    {
-      ft->active ^= 1<<s_prop_filetype;
+      filter_module_idx = res;
+      ft->filetype = input_modules[res];
       update_collection = 1;
     }
     nk_label(ctx, "filetype", NK_TEXT_LEFT);
-    if(ft->active & (1<<s_prop_filetype))
-    {
-      static int32_t filter_module_idx = 0;
-      static const char *input_modules_str =
-          "raw : raw files\0"
-          "jpg : jpg images\0"
-          "exr : high dynamic range scene linear exr\0"
-          "vid : compressed video\0"
-          "mlv : magic lantern raw video\0"
-          "mcraw: motioncam raw video\0\0";
-      dt_token_t input_modules[] = {
-        dt_token("i-raw"),
-        dt_token("i-jpg"),
-        dt_token("i-exr"),
-        dt_token("i-vid"),
-        dt_token("i-mlv"),
-        dt_token("i-mcraw"),
-      };
-      dt_token_t filter_val = ft->filetype;
-      for(int k=0;k<NK_LEN(input_modules);k++) if(filter_val == input_modules[k]) { filter_module_idx = k; break; }
-      res = nk_combo_string(ctx, input_modules_str, filter_module_idx, 0xffff, row_height, size);
-      if(res != filter_module_idx)
-      {
-        filter_module_idx = res;
-        ft->filetype = input_modules[res];
-        update_collection = 1;
-      }
-      nk_label(ctx, "input module", NK_TEXT_LEFT);
-    }
+    if(!ft->filetype) ft->active &= ~(1<<s_prop_filetype);
+    else              ft->active |=   1<<s_prop_filetype;
+
 #if 0
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
     int filename = (ft->active >> s_prop_filename)&1;
