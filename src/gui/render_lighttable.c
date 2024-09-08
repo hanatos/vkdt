@@ -267,6 +267,12 @@ void render_lighttable_center()
   if(g_scroll_offset > 0) 
     vkdt.ctx.current->scrollbar.y = g_scroll_offset;
 
+  if(g_image_cursor == -2)
+  { // set cursor to current image if any:
+    g_image_cursor = dt_db_current_colid(&vkdt.db);
+    if(g_image_cursor == -1) g_image_cursor = -2; // no current image
+  }
+
   nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
