@@ -79,13 +79,19 @@ run `bin/mkappimg.sh` from the root directory
 main features:
 
 * gui now based on nuklear (instead of imgui)
+* a lot of nuklear/gui streamlining fixes
 * `colour` module now reads and applies the camera as shot neutral white balance by default
 * mcraw files will not by default apply the embedded gainmap since it is
   unclear which raw files have it pre-applied (so switch on in the `denoise`
   module if your files need it)
 * `style.txt` contains ui colours for customisation
 * zoomable graph editor (can finally work with large graphs, yay!)
-* some new hotkeys added
+* some new hotkeys added ("upvote and advance" etc)
+* re-did the collection interface in lighttable, streamlined support for per-day rating workflow
+* added lighttable header describing the visible collection
+* recently used collections now also store filter attributes
+* asynchronous image rendering and gui display
+* support focal length in string expansion when loading luts, enables colour profile per lens in smartphones
 
 ## diverge branches
 
