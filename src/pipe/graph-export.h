@@ -2,21 +2,6 @@
 
 // export convenience functions, see cli/main.c
 
-// fine grained interface:
-
-// replace given display node instance by export module.
-// returns 0 on success.
-int
-dt_graph_replace_display(
-    dt_graph_t *graph,
-    dt_token_t  inst,    // instance of display module, 0 -> "main"
-    dt_token_t  mod,     // export module to insert, 0 -> "o-jpg"
-    int         resize,  // if this is non-zero, insert an explicit resize node
-    int         max_wd,  // if > 0 will change the output resolution
-    int         max_ht,
-    int         prim,    // primaries as in module.h
-    int         trc);    // tone response curve
-
 // disconnect all (remaining) display modules
 void
 dt_graph_disconnect_display_modules(
@@ -28,6 +13,7 @@ typedef struct dt_graph_export_output_t
   int max_height;
   dt_token_t mod;          // o-bc1, o-jpg, o-pfm, .. ?
   dt_token_t inst;         // instance name of sink to replace
+  dt_token_t inst_out;     // instance name of the module to replace the sink. leave 0 for == inst.
   const char *p_filename;  // set filename param to this
   const char *p_audio;     // if set, write audio to this file
   const char *p_pdata;     // if set, overwrite params of output module

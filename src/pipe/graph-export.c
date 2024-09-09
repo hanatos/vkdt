@@ -16,11 +16,15 @@
 // fine grained interface:
 
 // replace given display node instance by export module.
-// returns 0 on success.
-int
+// does not in fact delete the display module but adds an output module (plus support modules if required) and
+// hooks this up to the same connector as the given display.
+// this means you can call it multiple times to attach several different outputs.
+// returns id of the newly added output module on success, or negative on failure
+static inline int
 dt_graph_replace_display(
     dt_graph_t *graph,
     dt_token_t  inst,   // instance name of the display module to replace. leave 0 for default (main)
+    dt_token_t  iout,   // instance name of the newly added output module, or 0 if same as inst
     dt_token_t  mod,    // module type of the output module to drop into place instead, e.g. "o-jpg". leave 0 for default (o-jpg)
     int         resize, // pass 1 to insert a resize module before output
     int         max_wd, // if > 0, limit export size
@@ -29,8 +33,9 @@ dt_graph_replace_display(
     int         trc)
 {
   if(inst == 0) inst = dt_token("main"); // default to "main" instance
+  if(iout == 0) iout = inst;
   const int mid = dt_module_get(graph, dt_token("display"), inst);
-  if(mid < 0) return 1; // no display node by that name
+  if(mid < 0) return -1; // no display node by that name
 
   // get module the display is connected to:
   int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
@@ -38,13 +43,13 @@ dt_graph_replace_display(
   int o0 = graph->module[mid].connector[cid].connected_mc;
   if(prim == s_colour_primaries_custom) prim = s_colour_primaries_2020; // don't currently support free matrices
 
-  if(m0 < 0) return 2; // display input not connected
+  if(m0 < 0) return -2; // display input not connected
 
   if(mod == 0) mod = dt_token("o-jpg"); // default to jpg output
 
   if(resize)
   {
-    const int m1 = dt_module_add(graph, dt_token("resize"), inst);
+    const int m1 = dt_module_add(graph, dt_token("resize"), iout);
     const int i1 = 0, o1 = 1;
     CONN(dt_module_connect(graph, m0, o0, m1, i1));
     m0 = m1;
@@ -52,10 +57,10 @@ dt_graph_replace_display(
   }
 
   // new module export with same inst
-  const int m1 = dt_module_add(graph, dt_token("colenc"), inst);
+  const int m1 = dt_module_add(graph, dt_token("colenc"), iout);
   const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
-  const int m2 = dt_module_add(graph, mod, inst);
+  const int m2 = dt_module_add(graph, mod, iout);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
   graph->module[m2].connector[0].max_wd = max_wd;
   graph->module[m2].connector[0].max_ht = max_ht;
@@ -82,7 +87,7 @@ dt_graph_replace_display(
     graph->module[m0].connector[o0].chan   = graph->module[m2].connector[i2].chan;
     CONN(dt_module_connect(graph, m0, o0, m2, i2));
   }
-  return 0;
+  return m2;
 }
 
 // disconnect all (remaining) display modules
@@ -154,18 +159,20 @@ dt_graph_export(
   // insert default:
   if(!param->output[0].inst) param->output[0].inst = dt_token("main");
 
-  // replace requested display node by export node:
+  int mod_out[20];
+  for(int i=0;i<param->output_cnt;i++) mod_out[i] = -1;
+  assert(param->output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));
   if(!found_main)
-  {
+  { // replace requested display node by export node:
     int cnt = 0;
     for(;cnt<param->output_cnt;cnt++)
-      if(dt_graph_replace_display(
-            graph, param->output[cnt].inst, param->output[cnt].mod,
+      if(0 >= (mod_out[cnt] = dt_graph_replace_display(
+            graph, param->output[cnt].inst, param->output[cnt].inst_out, param->output[cnt].mod,
             ( param->output[cnt].mod != dt_token("o-bc1")) && // no hq thumbnails
             ((param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0)),
             param->output[cnt].max_width, param->output[cnt].max_height,
             param->output[cnt].colour_primaries, param->output[cnt].colour_trc
-            ))
+            )))
         break;
     if(cnt != param->output_cnt)
     {
@@ -183,23 +190,22 @@ dt_graph_export(
   for(int m=0;m<graph->num_modules;m++) dt_module_keyframe_post_update(graph->module+m);
 
   graph->frame = 0;
-  dt_module_t *mod_out[20] = {0};
-  assert(param->output_cnt <= sizeof(mod_out)/sizeof(mod_out[0]));
   char filename[256];
-  for(int i=0;i<param->output_cnt;i++) for(int m=0;m<graph->num_modules;m++)
+  if(found_main) for(int i=0;i<param->output_cnt;i++) for(int m=0;m<graph->num_modules;m++)
   {
-    if(graph->module[m].inst == param->output[i].inst &&
-        dt_token_str(graph->module[m].name)[0] == 'o' &&
-        dt_token_str(graph->module[m].name)[1] == '-')
+    dt_token_t inst = param->output[i].inst_out;
+    if(!inst)  inst = param->output[i].inst;
+    if(graph->module[m].inst == inst &&
+       graph->module[m].name == param->output[i].mod)
     {
-      mod_out[i] = graph->module+m;
+      mod_out[i] = m;
       break;
     }
   }
 
   for(int i=0;i<param->output_cnt;i++)
   {
-    if(mod_out[i] == 0) continue; // not a known output module (display node requested on command line)
+    if(mod_out[i] < 0) continue; // not a known output module (display node requested on command line)
     if(graph->frame_cnt > 1)
     {
       if(param->output[i].p_filename)
@@ -215,12 +221,12 @@ dt_graph_export(
         snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(param->output[i].inst));
     }
     if(param->output[i].p_pdata)
-      memcpy(mod_out[i]->param, param->output[i].p_pdata, dt_module_total_param_size(mod_out[i]->so - dt_pipe.module));
+      memcpy(graph->module[mod_out[i]].param, param->output[i].p_pdata, dt_module_total_param_size(graph->module[mod_out[i]].so - dt_pipe.module));
     dt_module_set_param_string(
-        mod_out[i], dt_token("filename"),
+        graph->module+mod_out[i], dt_token("filename"),
         filename);
     if(param->output[i].quality > 0)
-      dt_module_set_param_float(mod_out[i], dt_token("quality"), param->output[i].quality);
+      dt_module_set_param_float(graph->module+mod_out[i], dt_token("quality"), param->output[i].quality);
   }
 
   int audio_mod = -1;
@@ -257,13 +263,13 @@ dt_graph_export(
       graph->frame = f;
       for(int i=0;i<param->output_cnt;i++)
       {
-        if(mod_out[i] == 0) continue; // not a known output module
+        if(mod_out[i] < 0) continue; // not a known output module
         if(param->output[i].p_filename)
           snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, f);
         else
           snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->output[i].inst), f);
         dt_module_set_param_string(
-            mod_out[i], dt_token("filename"),
+            graph->module+mod_out[i], dt_token("filename"),
             filename);
       }
       dt_graph_apply_keyframes(graph);
