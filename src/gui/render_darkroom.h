@@ -392,7 +392,7 @@ static inline void render_darkroom_widget(int modid, int parid)
   {
     float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
     snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
-    nk_layout_row_dynamic(ctx, row_height, 6);
+    if(num == 0) nk_layout_row_dynamic(ctx, row_height, 6);
     struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
     dt_tooltip(param->tooltip);
     nk_button_color(ctx, col);
@@ -677,7 +677,7 @@ static inline void render_darkroom_widget(int modid, int parid)
   {  // simple aabb for selection, no distortion transform
     int sz = dt_ui_param_size(param->type, 4);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
-    nk_layout_row_dynamic(ctx, row_height, 6);
+    if(num == 0) nk_layout_row_dynamic(ctx, row_height, 6);
     dt_tooltip(param->tooltip);
     if(vkdt.wstate.active_widget_modid == modid &&
        vkdt.wstate.active_widget_parid == parid &&
