@@ -12,6 +12,8 @@ dt_graph_replace_display(
     dt_token_t  inst,    // instance of display module, 0 -> "main"
     dt_token_t  mod,     // export module to insert, 0 -> "o-jpg"
     int         resize,  // if this is non-zero, insert an explicit resize node
+    int         max_wd,  // if > 0 will change the output resolution
+    int         max_ht,
     int         prim,    // primaries as in module.h
     int         trc);    // tone response curve
 

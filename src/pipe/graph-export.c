@@ -23,6 +23,8 @@ dt_graph_replace_display(
     dt_token_t  inst,   // instance name of the display module to replace. leave 0 for default (main)
     dt_token_t  mod,    // module type of the output module to drop into place instead, e.g. "o-jpg". leave 0 for default (o-jpg)
     int         resize, // pass 1 to insert a resize module before output
+    int         max_wd, // if > 0, limit export size
+    int         max_ht,
     int         prim,   // colour primaries
     int         trc)
 {
@@ -55,6 +57,8 @@ dt_graph_replace_display(
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
   const int m2 = dt_module_add(graph, mod, inst);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
+  graph->module[m2].connector[0].max_wd = max_wd;
+  graph->module[m2].connector[0].max_ht = max_ht;
   if(graph->module[m2].connector[i2].format == dt_token("ui8") ||
      prim != s_colour_primaries_2020 || 
      trc  != s_colour_trc_linear)
@@ -159,6 +163,7 @@ dt_graph_export(
             graph, param->output[cnt].inst, param->output[cnt].mod,
             ( param->output[cnt].mod != dt_token("o-bc1")) && // no hq thumbnails
             ((param->output[cnt].max_width > 0) || (param->output[cnt].max_height > 0)),
+            param->output[cnt].max_width, param->output[cnt].max_height,
             param->output[cnt].colour_primaries, param->output[cnt].colour_trc
             ))
         break;
@@ -195,15 +200,6 @@ dt_graph_export(
   for(int i=0;i<param->output_cnt;i++)
   {
     if(mod_out[i] == 0) continue; // not a known output module (display node requested on command line)
-    if(param->output[i].inst == dt_token("main"))
-    { // set bounds to drive roi computation to main output if we find one
-      // can this be generalised some more?
-      // we assume that the "main" output is the last display in the config (driving the main roi)
-      // which will also be confined by the user supplied max dimensions. we can explicitly introduce
-      // resampling nodes. this may be useful for more high quality resampling in the future.
-      if(param->output[i].max_width  > 0) graph->output_wd = param->output[i].max_width;
-      if(param->output[i].max_height > 0) graph->output_ht = param->output[i].max_height;
-    }
     if(graph->frame_cnt > 1)
     {
       if(param->output[i].p_filename)

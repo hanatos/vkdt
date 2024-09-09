@@ -612,9 +612,6 @@ dt_thumbnails_load_one(
   // now run the rest of the graph and copy over VkImage
   // let graph render into our thumbnail:
   graph->thumbnail_image = tn->thumb[*thumb_index].image;
-  // these should already match, let's not mess with rounding errors:
-  // tn->graph.output_wd = th->wd;
-  // tn->graph.output_ht = th->ht;
 
   clock_t beg = clock();
   // run all the rest we didn't run above

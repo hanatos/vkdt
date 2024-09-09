@@ -7,7 +7,6 @@
 #include <vulkan/vulkan.h>
 
 // info about a region of interest.
-// stores full buffer dimensions, context and roi.
 typedef struct dt_roi_t
 {
   uint32_t full_wd, full_ht; // full input size
@@ -82,6 +81,7 @@ typedef struct dt_connector_t
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;
+  int max_wd, max_ht; // if > 0 will be used to clamp roi of sinks which don't implement their own roi callbacks.
 
   // if the output/write connector holds an array and the entries have different size:
   uint32_t     *array_dim;        // or 0 if all have the same size of the roi
