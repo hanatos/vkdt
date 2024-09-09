@@ -18,11 +18,12 @@ void write_sink(
     dt_write_sink_params_t *p)
 {
   const char *filename = dt_module_param_string(module, 0);
-  // fprintf(stderr, "[o-bc1] writing '%s'\n", filename);
 
   const uint32_t wd = module->connector[0].roi.wd;
   const uint32_t ht = module->connector[0].roi.ht;
   const uint8_t *in = (const uint8_t *)buf;
+
+  // fprintf(stderr, "[o-bc1] graph %lx writing '%s' %d x %d\n", module->graph, filename, wd, ht);
 
   // go through all 4x4 blocks
   // parallelise via our thread pool or openmp or what?

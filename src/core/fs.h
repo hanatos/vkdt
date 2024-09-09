@@ -427,8 +427,9 @@ fs_expand_export_filename(
   char *filebase = fs_basename(filename);
   size_t len = strlen(filebase);
   if(len > 4) filebase[len-4] = 0; // cut away .cfg
-  if(len > 8 && filebase[len-8] == '.') filebase[len-8] = 0; // cut .xxx
-  if(len > 9 && filebase[len-9] == '.') filebase[len-9] = 0; // cut .xxxx
+  if(len > 8 && filebase[len- 8] == '.') filebase[len- 8] = 0; // cut .xxx
+  if(len > 9 && filebase[len- 9] == '.') filebase[len- 9] = 0; // cut .xxxx
+  if(len >10 && filebase[len-10] == '.') filebase[len-10] = 0; // cut .xxxxx
   fs_dirname(filename);
   char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
 #ifdef _WIN64

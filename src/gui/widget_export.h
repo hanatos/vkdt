@@ -210,15 +210,17 @@ dt_export(
   }
   nk_label(ctx, "trc", NK_TEXT_LEFT);
 
+  w->last_frame_only = nk_combo_string(ctx, "export every frame\0export last frame only\0\0", w->last_frame_only, 0xffff, row_height, size);
+  nk_label(ctx, "animations", NK_TEXT_LEFT);
+
+  // TODO: this is not wired in the backend so hidden from gui for now too:
+  // const char *overwrite_mode_str = "keep\0overwrite\0\0";
+  // combo "existing files", &overwrite_mode, overwrite_mode_str;
+
   int new_format = nk_combo_string(ctx, w->format_text, w->format, 0xffff, row_height, size);
   if(new_format != w->format) dt_rc_set_int(&vkdt.rc, "gui/export/format", (w->format = new_format));
   nk_label(ctx, "format", NK_TEXT_LEFT);
 
-  w->last_frame_only = nk_combo_string(ctx, "export every frame\0export last frame only\0\0", w->last_frame_only, 0xffff, row_height, size);
-  nk_label(ctx, "animations", NK_TEXT_LEFT);
-  // TODO: this is not wired in the backend so hidden from gui for now too:
-  // const char *overwrite_mode_str = "keep\0overwrite\0\0";
-  // combo "existing files", &overwrite_mode, overwrite_mode_str;
   w->format = CLAMP(w->format, 0, w->modid_cnt-1);
   const int id = CLAMP(w->modid[w->format], 0l, dt_pipe.num_modules-1l);
   const dt_module_so_t *mso = dt_pipe.module+id;

@@ -46,6 +46,11 @@ dt_graph_replace_display(
   if(m0 < 0) return -2; // display input not connected
 
   if(mod == 0) mod = dt_token("o-jpg"); // default to jpg output
+  else if(mod == dt_token("o-web"))
+  { // special fake output module will dispatch video for multi-frame and jpg for stills
+    if(graph->frame_cnt > 1) mod = dt_token("o-vid");
+    else                     mod = dt_token("o-jpg");
+  }
 
   if(resize)
   {
@@ -62,8 +67,6 @@ dt_graph_replace_display(
   const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
   const int m2 = dt_module_add(graph, mod, iout);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
-  graph->module[m2].connector[0].max_wd = max_wd;
-  graph->module[m2].connector[0].max_ht = max_ht;
   if(graph->module[m2].connector[i2].format == dt_token("ui8") ||
      prim != s_colour_primaries_2020 || 
      trc  != s_colour_trc_linear)
@@ -87,6 +90,8 @@ dt_graph_replace_display(
     graph->module[m0].connector[o0].chan   = graph->module[m2].connector[i2].chan;
     CONN(dt_module_connect(graph, m0, o0, m2, i2));
   }
+  graph->module[m2].connector[i2].max_wd = max_wd;
+  graph->module[m2].connector[i2].max_ht = max_ht;
   return m2;
 }
 
@@ -199,6 +204,8 @@ dt_graph_export(
        graph->module[m].name == param->output[i].mod)
     {
       mod_out[i] = m;
+      graph->module[m].connector[0].max_wd = param->output[i].max_width;
+      graph->module[m].connector[0].max_ht = param->output[i].max_height;
       break;
     }
   }
@@ -206,7 +213,7 @@ dt_graph_export(
   for(int i=0;i<param->output_cnt;i++)
   {
     if(mod_out[i] < 0) continue; // not a known output module (display node requested on command line)
-    if(graph->frame_cnt > 1)
+    if(graph->frame_cnt > 1 && !param->last_frame_only)
     {
       if(param->output[i].p_filename)
         snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, 0);
@@ -264,10 +271,20 @@ dt_graph_export(
       for(int i=0;i<param->output_cnt;i++)
       {
         if(mod_out[i] < 0) continue; // not a known output module
-        if(param->output[i].p_filename)
-          snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, f);
+        if(param->last_frame_only)
+        {
+          if(param->output[i].p_filename)
+            snprintf(filename, sizeof(filename), "%s", param->output[i].p_filename);
+          else
+            snprintf(filename, sizeof(filename), "%"PRItkn, dt_token_str(param->output[i].inst));
+        }
         else
-          snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->output[i].inst), f);
+        {
+          if(param->output[i].p_filename)
+            snprintf(filename, sizeof(filename), "%s_%04d", param->output[i].p_filename, f);
+          else
+            snprintf(filename, sizeof(filename), "%"PRItkn"_%04d", dt_token_str(param->output[i].inst), f);
+        }
         dt_module_set_param_string(
             graph->module+mod_out[i], dt_token("filename"),
             filename);

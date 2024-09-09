@@ -529,10 +529,26 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].quality    = j->quality;
   param.output[0].mod        = j->output_module;
   param.output[0].p_pdata    = (char *)j->pdata;
-  param.last_frame_only      = j->last_frame_only;
   param.output[0].colour_primaries = j->colour_prim;
   param.output[0].colour_trc       = j->colour_trc;
-  param.p_cfgfile = infilename;
+  param.last_frame_only      = j->last_frame_only;
+  param.p_cfgfile            = infilename;
+  if(j->output_module == dt_token("o-web"))
+  { // if module is o-web, also generate thumbnails at reduced size.
+    param.output_cnt = 2;
+    param.last_frame_only = 1; // avoid small thumbnail per frame in videos
+    snprintf(filedir, sizeof(filedir), "%s-small", filename);
+    param.output[1].p_filename = filedir;
+    param.output[1].max_width  = 400;
+    param.output[1].max_height = 400;
+    param.output[1].quality    = j->quality;
+    param.output[1].inst_out   = dt_token("small");
+    param.output[1].mod        = dt_token("o-jpg");
+    param.output[0].p_pdata    =
+    param.output[1].p_pdata    = 0; // dangerous because the module doesn't match the ui. this will be mostly uninited memory.
+    param.output[1].colour_primaries = j->colour_prim;
+    param.output[1].colour_trc       = j->colour_trc;
+  }
   if(dt_graph_export(&j->graph, &param))
     dt_gui_notification("export %s failed!\n", infilename);
 out:
@@ -1153,7 +1169,7 @@ void render_lighttable_right_panel()
         float progress = threads_task_progress(job[k].taskid);
         nk_prog(ctx, 100*progress, 100, nk_false);
         char text[50];
-        snprintf(text, sizeof(text), "%g%%", 100.0*progress);
+        snprintf(text, sizeof(text), "%d%%", (int)(100.0*progress));
         nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
         if(nk_button_label(ctx, "abort")) job[k].abort = 1;
         // technically a race condition on frame_cnt being inited by graph

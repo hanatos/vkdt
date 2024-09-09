@@ -196,7 +196,7 @@ add_stream(
       }
       else if(c->codec_id == AV_CODEC_ID_PRORES)
       {
-        const int p_profile = dt_module_param_int(mod, 3)[0];
+        const int p_profile = CLAMP(dt_module_param_int(mod, 3)[0], 0, 3);
         c->profile = p_profile;
         c->pix_fmt = AV_PIX_FMT_YUV422P10LE;
         // av_dict_set(&opt, "vendor", "apl0", 0);//???

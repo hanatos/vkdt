@@ -1,5 +1,6 @@
 #!/bin/bash
 # bash script to create html/css web gallery from list of jpg images in this directory.
+# export your images with vkdt as o-web, so it will create thumbnail jpg and mp4 videos.
 
 VKDT_PATH=$(dirname ${0})
 
@@ -7,7 +8,7 @@ if [ "$1" == "--help" ]
 then
 echo "this is vkdt's web gallery creation script."
 echo "it will create a pure css (js-free) html web gallery page."
-echo "call this script from within a directory that hosts your jpg files"
+echo "call this script from within a directory that hosts your jpg/mp4 files"
 echo "and it will create a file 'index.html' which you can edit to taste."
 exit
 fi
@@ -22,11 +23,11 @@ fi
 cat >> index.html << EOF
 <div class="gallery">
   <a class="gallery__link" href="#gallery-$2">
-    <div class="gallery__thumbnail" style="background-image:url(${2%.jpg}-small.jpg);"></div>
+    <div class="gallery__thumbnail" style="background-image:url(${2%.*}-small.jpg);"></div>
   </a>
   <div id="gallery-$2" class="gallery__overlay fadeIn">
     <figure class="gallery__content gallery__figure">
-      <img src="${2%.jpg}-small.jpg" alt="$2">
+      <img src="${2%.*}-small.jpg" alt="$2">
       <div class="gallery__image" style="background-image: url($2);"></div>
     </figure>
     <a href="#gallery-untarget" class="gallery__close gallery__control">close</a>
@@ -61,14 +62,12 @@ cat > index.html << EOF
 <div class="gallery__grid">
 EOF
 
-rm -f *-small.jpg
 rm -f modal.txt row.txt
 prev=x
 curr=x
 next=x
-for i in $(ls -1 *.jpg)
+for i in $(ls -1 *.jpg *.mp4 | grep -v small)
 do
-  convert -resize 512x512 -quality 90 $i ${i%.jpg}-small.jpg
   next=$i
   print_image $prev $curr $next
   prev=$curr

@@ -300,8 +300,7 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       r->scale = 1.0f;
       // this is the performance/LOD switch for faster processing
       // on low end computers. needs to be wired somehow in gui/config.
-      if(module->connector[0].type == dt_token("sink") &&
-         module->inst == dt_token("main"))
+      if(module->connector[0].type == dt_token("sink"))
       { // scale to fit into requested roi
         float max_wd = module->connector[0].max_wd, max_ht = module->connector[0].max_ht;
         float scalex = max_wd > 0 ? r->full_wd / (float) max_wd : 1.0f;

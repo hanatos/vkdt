@@ -1,4 +1,4 @@
 filename:string:256:output
 quality:float:1:100
-codec:int:1:0
+codec:int:1:1
 profile:int:1:3
