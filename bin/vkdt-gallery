@@ -20,6 +20,25 @@ if [ $2 == "x" ]
 then
   return
 fi
+if [ ${2##*.} == "mp4" ]
+then
+cat >> index.html << EOF
+<div class="gallery">
+  <a class="gallery__link" href="#gallery-$2">
+    <div class="gallery__thumbnail" style="background-image:url(${2%.*}-small.jpg);"></div>
+  </a>
+  <div id="gallery-$2" class="gallery__overlay fadeIn">
+    <figure class="gallery__content gallery__figure">
+      <img src="${2%.*}-small.jpg" alt="$2">
+      <div class="gallery__image" style="background-color:#000">
+      <video controls width="100%">
+      <source src="$2" type="video/mp4">
+      </video>
+      </div>
+    </figure>
+    <a href="#gallery-untarget" class="gallery__close gallery__control">close</a>
+EOF
+else
 cat >> index.html << EOF
 <div class="gallery">
   <a class="gallery__link" href="#gallery-$2">
@@ -32,6 +51,7 @@ cat >> index.html << EOF
     </figure>
     <a href="#gallery-untarget" class="gallery__close gallery__control">close</a>
 EOF
+fi
 if [ $3 != "x" ]
 then
 cat >> index.html << EOF
