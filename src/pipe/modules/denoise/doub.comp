@@ -109,7 +109,7 @@ main()
   // val = upsm.w; // XXX DEBUG see detail shielding
   if(push.filters != 9 && push.gainmap == 1 && params.gainmap == 1)
   { // gainmap
-    vec2 pos = (0.5 + ipos + push.crop.xy) / textureSize(img_in, 0);
+    vec2 pos = (0.5 + (ipos + push.crop.xy)/2) / (textureSize(img_in, 0)/2);
     pos = clamp((pos * push.map_os.zw) - push.map_os.xy, vec2(0.), vec2(1.));
     vec4 gains = texture(img_gainmap, pos);
     float gain = gains[(ipos.x & 1) + (ipos.y & 1) * 2];
