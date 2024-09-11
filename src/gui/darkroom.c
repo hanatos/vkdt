@@ -323,15 +323,18 @@ darkroom_enter()
   if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
-  dt_gamepadhelp_set(dt_gamepadhelp_button_square, "plus L1/R1: switch panel");
-  dt_gamepadhelp_set(dt_gamepadhelp_ps, "display this help");
-  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
-  dt_gamepadhelp_set(dt_gamepadhelp_L1, "previous image. anim: stop/reset");
-  dt_gamepadhelp_set(dt_gamepadhelp_R1, "next image. anim: play");
-  dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
-  dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
-  dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
-  dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
+  dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");
+  // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_up, "anim: play");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_down, "anim: rewind");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_right, "next image");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_left, "prev image");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "upvote and next");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_square, "downvote and next");
+  // dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
+  // dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
+  // dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
+  // dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
   return 0;
 }
 

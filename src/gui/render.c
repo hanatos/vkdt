@@ -354,24 +354,24 @@ void dt_gamepadhelp()
     vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
     0.0f, vkdt.state.center_wd / 1200.0f, vkdt.state.center_ht * 0.50f,
   };
+  struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
   dt_draw(&vkdt.ctx, dt_draw_list_gamepad, NK_LEN(dt_draw_list_gamepad), m);
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
   {
     if(g_gamepadhelp.help[g_gamepadhelp.sp][k])
     {
       dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], NK_LEN(dt_draw_list_gamepad_arrow[k]), m);
-      // XXX FIXME:
-      // nk_draw_text(buf, rect, *text, len, nk_user_font, nk_col bg, nu_col fg)
-#if 0
-      ImVec2 v = ImVec2(dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]);
-      ImVec2 pos = ImVec2(
-          v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
-          v.x * m[3*1 + 0] + v.y * m[3*1 + 1] + m[3*1 + 2]);
-      pos.y -= vkdt.wstate.fontsize * 1.1;
-      ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, dt_gamepadhelp_input_str[k]);
-      pos.y += vkdt.wstate.fontsize * 1.1;
-      ImGui::GetWindowDrawList()->AddText(pos, IM_COL32_WHITE, g_gamepadhelp.help[g_gamepadhelp.sp][k]);
-#endif
+      struct nk_vec2 v = {dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]};
+      struct nk_rect rect = {
+        .x = v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
+        .y = v.x * m[3*1 + 0] + v.y * m[3*1 + 1] + m[3*1 + 2],
+      };
+      rect.w = rect.x + 300;
+      rect.h = rect.y + 300;
+      rect.y -= 0.03*vkdt.state.center_ht;
+      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), &dt_gui_get_font(1)->handle, nk_rgb(0,0,0), nk_rgb(255,255,255));
+      // rect.y -= 0.03*vkdt.state.center_ht;
+      // nk_draw_text(buf, rect, dt_gamepadhelp_input_str[k], strlen(dt_gamepadhelp_input_str[k]), &dt_gui_get_font(1)->handle, nk_rgb(0,0,0), nk_rgb(255,255,255));
     }
   }
 }

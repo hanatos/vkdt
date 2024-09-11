@@ -436,7 +436,7 @@ static inline void render_darkroom_widget(int modid, int parid)
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
       if(nk_button_label(ctx, string) || accept)
       {
-        dt_gamepadhelp_pop();
+        // dt_gamepadhelp_pop();
         dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
         dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
         widget_end();
@@ -449,12 +449,12 @@ static inline void render_darkroom_widget(int modid, int parid)
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
       if(nk_button_label(ctx, string))
       {
-        dt_gamepadhelp_push();
-        dt_gamepadhelp_clear();
-        dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
-        dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
-        dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-        dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
+        // dt_gamepadhelp_push();
+        // dt_gamepadhelp_clear();
+        // dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
+        // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
+        // dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
+        // dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;
         vkdt.wstate.active_widget_parid = parid;
@@ -588,7 +588,7 @@ static inline void render_darkroom_widget(int modid, int parid)
         vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
         vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
         widget_end();
-        dt_gamepadhelp_pop();
+        // dt_gamepadhelp_pop();
         dt_image_reset_zoom(&vkdt.wstate.img_widget);
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -599,12 +599,12 @@ static inline void render_darkroom_widget(int modid, int parid)
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
       if(nk_button_label(ctx, string))
       {
-        dt_gamepadhelp_push();
-        dt_gamepadhelp_clear();
-        dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
-        dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
-        dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-        dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
+        // dt_gamepadhelp_push();
+        // dt_gamepadhelp_clear();
+        // dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
+        // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
+        // dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
+        // dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;
         vkdt.wstate.active_widget_parid = parid;
