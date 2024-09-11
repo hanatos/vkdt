@@ -173,6 +173,12 @@ void
 dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
   if(vkdt.wstate.popup) return;
+
+#define PRESSED(A) curr->buttons[A] && !last->buttons[A]
+  if(PRESSED(GLFW_GAMEPAD_BUTTON_GUIDE))
+    vkdt.wstate.show_gamepadhelp ^= 1;
+#undef PRESSED
+
   switch(vkdt.view_mode)
   {
     case s_view_lighttable:

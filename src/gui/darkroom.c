@@ -386,5 +386,37 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
 void
 darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
-  // TODO: some basic navigation
+#define PRESSED(A) curr->buttons[A] && !last->buttons[A]
+  if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+  {
+    dt_view_switch(s_view_lighttable);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_RIGHT))
+  {
+    dt_gui_dr_next();
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_LEFT))
+  {
+    dt_gui_dr_prev();
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
+  {
+    dt_gui_dr_play();
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_DOWN))
+  {
+    dt_gui_dr_rewind();
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_X))
+  {
+    dt_gui_dr_advance_downvote();
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_Y))
+  {
+    dt_gui_dr_advance_upvote();
+  }
+  // TODO: right shoulder fullscreen?
+  // TODO: right stick pan image?
+  // TODO: left stick zoom image?
+#undef PRESSED
 }

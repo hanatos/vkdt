@@ -145,6 +145,7 @@ static const float dt_draw_list_gamepad_arrow[][20] = {
 #undef l
 #undef c
 #undef h
+#undef S
 
 #define xf(v, m) ({ struct nk_vec2 r = v; if(m) r = (struct nk_vec2){ \
     v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2], \
@@ -162,9 +163,9 @@ dt_draw(
 {
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   float stack[10];
-  const int stacksize = sizeof(stack)/sizeof(stack[0]);
+  const int stacksize = NK_LEN(stack);
   int sp = 0;
-  const float thickness = vkdt.state.center_ht / 500.0f;
+  const float thickness = vkdt.state.center_ht / 300.0f;
   struct nk_color col = {255, 255, 255, 255};
   struct nk_vec2 pos = {0};
   struct nk_vec2 beg = {0};
@@ -175,8 +176,10 @@ dt_draw(
       switch((int)cmd[++i])
       {
         case dt_draw_moveto:
+          if(sp < 2) return; // stack underflow
           beg = pos = xf(((struct nk_vec2){stack[sp-2], stack[sp-1]}), m);
           sp -= 2;
+          break;
         case dt_draw_lineto:
           if(sp < 2) return; // stack underflow
           struct nk_vec2 p = xf(((struct nk_vec2){stack[sp-2], stack[sp-1]}), m);
@@ -190,8 +193,8 @@ dt_draw(
           struct nk_vec2 p1 = xf(((struct nk_vec2){stack[sp+0], stack[sp+1]}), m);
           struct nk_vec2 p2 = xf(((struct nk_vec2){stack[sp+2], stack[sp+3]}), m);
           struct nk_vec2 p3 = xf(((struct nk_vec2){stack[sp+4], stack[sp+5]}), m);
-          pos = p3;
           nk_stroke_curve(buf, pos.x, pos.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, thickness, col);
+          pos = p3;
           break;
         case dt_draw_closepath:
           nk_stroke_line(buf, pos.x, pos.y, beg.x, beg.y, thickness, col);

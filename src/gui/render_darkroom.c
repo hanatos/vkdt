@@ -131,10 +131,10 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   { // these are "destructive" hotkeys, they change the image and invalidate the dset.
     // this has to happen this frame *before* the dset is sent to imgui for display.
     case s_hotkey_next_image:
-      dt_gui_dr_next();
+      dt_gui_dr_next_or_play();
       break;
     case s_hotkey_prev_image:
-      dt_gui_dr_prev();
+      dt_gui_dr_prev_or_rewind();
       break;
     case s_hotkey_upvote:
       dt_gui_dr_advance_upvote();
@@ -193,49 +193,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     if(key == GLFW_KEY_ESCAPE)
       dt_view_switch(s_view_lighttable);
   }
-
-#if 0 // TODO: port this!
-    ImGuiIO& io = ImGui::GetIO();
-    if(vkdt.wstate.active_widget_modid < 0 && // active widget grabs controls
-      !dt_gui_imgui_input_blocked() &&
-      !vkdt.wstate.grabbed)
-    {
-      static int fs_state = 0;
-      if(!ImGui::IsKeyDown(ImGuiKey_GamepadL2) &&
-         !ImGui::IsKeyDown(ImGuiKey_GamepadR2)) fs_state = 0;
-      else if(fs_state == 0 && ImGui::IsKeyPressed(ImGuiKey_GamepadL2)) fs_state = 1;
-      else if(fs_state == 1 && ImGui::IsKeyDown(ImGuiKey_GamepadL2) && ImGui::IsKeyPressed(ImGuiKey_GamepadR2))
-      {
-        fs_state = 2;
-        dt_gui_dr_toggle_fullscreen_view();
-      }
-
-        goto abort;
-      }
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-         ImGui::IsKeyPressed(ImGuiKey_Escape)||
-         ImGui::IsKeyPressed(ImGuiKey_CapsLock)||
-         (ImGui::IsWindowHovered() && ImGui::IsMouseDoubleClicked(0)))
-      {
-        dt_view_switch(s_view_lighttable);
-        goto abort;
-      }
-      // disable keyboard nav ctrl + shift to change images:
-      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyCtrl &&
-               ImGui::IsKeyPressed(ImGuiKey_GamepadL1))
-        dt_gui_dr_prev();
-      else if(!ImGui::IsKeyDown(ImGuiKey_GamepadFaceLeft) && !io.KeyShift &&
-               ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-        dt_gui_dr_next();
-      else if(0)
-      {
-abort:
-        ImGui::End();
-        ImGui::PopStyleColor();
-        return;
-      }
-    }
-#endif
 }
 
 void dt_gui_set_lod(int lod)

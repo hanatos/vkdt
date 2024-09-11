@@ -245,15 +245,6 @@ void dt_gui_render_frame_nk()
   nk_glfw3_new_frame(&vkdt.ctx); // this context will get input
   double now = glfwGetTime();
 
-  static double button_pressed_time = 0.0;
-  if(now - button_pressed_time > 0.1)
-  { // the glfw backend does not support the "ps" button, so we do the stupid thing:
-    int buttons_count = 0;
-    const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons_count);
-    if(buttons && buttons[10]) vkdt.wstate.show_gamepadhelp ^= 1;
-    button_pressed_time = now;
-  }
-
   switch(vkdt.view_mode)
   {
     case s_view_files:
@@ -363,12 +354,12 @@ void dt_gamepadhelp()
     vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
     0.0f, vkdt.state.center_wd / 1200.0f, vkdt.state.center_ht * 0.50f,
   };
-  dt_draw(&vkdt.ctx, dt_draw_list_gamepad, sizeof(dt_draw_list_gamepad)/sizeof(dt_draw_list_gamepad[0]), m);
+  dt_draw(&vkdt.ctx, dt_draw_list_gamepad, NK_LEN(dt_draw_list_gamepad), m);
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
   {
     if(g_gamepadhelp.help[g_gamepadhelp.sp][k])
     {
-      dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], sizeof(dt_draw_list_gamepad_arrow[k])/sizeof(dt_draw_list_gamepad_arrow[k][0]), m);
+      dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], NK_LEN(dt_draw_list_gamepad_arrow[k]), m);
       // XXX FIXME:
       // nk_draw_text(buf, rect, *text, len, nk_user_font, nk_col bg, nu_col fg)
 #if 0

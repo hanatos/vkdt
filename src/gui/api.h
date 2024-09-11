@@ -97,7 +97,7 @@ dt_gui_dr_anim_step_bck()
 }
 
 static inline void
-dt_gui_dr_next()
+dt_gui_dr_play()
 {
   if(vkdt.graph_dev.frame_cnt != 1)
   { // start/stop animation
@@ -106,29 +106,38 @@ dt_gui_dr_next()
     else
       dt_gui_dr_anim_stop();
   }
-  else
-  { // advance to next image in lighttable collection
-    uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
-    if(next < vkdt.db.collection_cnt)
-    {
-      int err;
-      err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
-      if(err) return;
+}
+
+static inline void
+dt_gui_dr_next()
+{ // advance to next image in lighttable collection
+  uint32_t next = dt_db_current_colid(&vkdt.db) + 1;
+  if(next < vkdt.db.collection_cnt)
+  {
+    int err;
+    err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+    if(err) return;
+    dt_db_selection_clear(&vkdt.db);
+    dt_db_selection_add(&vkdt.db, next);
+    err = darkroom_enter();
+    if(err)
+    { // roll back
       dt_db_selection_clear(&vkdt.db);
-      dt_db_selection_add(&vkdt.db, next);
-      err = darkroom_enter();
-      if(err)
-      { // roll back
-        dt_db_selection_clear(&vkdt.db);
-        dt_db_selection_add(&vkdt.db, next-1);
-        darkroom_enter(); // hope they take us back
-      }
+      dt_db_selection_add(&vkdt.db, next-1);
+      darkroom_enter(); // hope they take us back
     }
   }
 }
 
 static inline void
-dt_gui_dr_prev()
+dt_gui_dr_next_or_play()
+{
+  if(vkdt.graph_dev.frame_cnt != 1) dt_gui_dr_play();
+  else dt_gui_dr_next();
+}
+
+static inline void
+dt_gui_dr_rewind()
 {
   if(vkdt.graph_dev.frame_cnt != 1)
   {
@@ -138,25 +147,34 @@ dt_gui_dr_prev()
     dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
     dt_gui_dr_anim_stop();
   }
-  else
-  { // backtrack to last image in lighttable collection
-    int32_t next = dt_db_current_colid(&vkdt.db) - 1;
-    if(next >= 0)
-    {
-      int err;
-      err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
-      if(err) return;
+}
+
+static inline void
+dt_gui_dr_prev()
+{ // backtrack to last image in lighttable collection
+  int32_t next = dt_db_current_colid(&vkdt.db) - 1;
+  if(next >= 0)
+  {
+    int err;
+    err = darkroom_leave(); // writes back thumbnails. maybe there'd be a cheaper way to invalidate.
+    if(err) return;
+    dt_db_selection_clear(&vkdt.db);
+    dt_db_selection_add(&vkdt.db, next);
+    err = darkroom_enter();
+    if(err)
+    { // roll back
       dt_db_selection_clear(&vkdt.db);
-      dt_db_selection_add(&vkdt.db, next);
-      err = darkroom_enter();
-      if(err)
-      { // roll back
-        dt_db_selection_clear(&vkdt.db);
-        dt_db_selection_add(&vkdt.db, next+1);
-        darkroom_enter(); // hope they take us back
-      }
+      dt_db_selection_add(&vkdt.db, next+1);
+      darkroom_enter(); // hope they take us back
     }
   }
+}
+
+static inline void
+dt_gui_dr_prev_or_rewind()
+{
+  if(vkdt.graph_dev.frame_cnt != 1) dt_gui_dr_rewind();
+  else dt_gui_dr_prev();
 }
 
 static inline void
