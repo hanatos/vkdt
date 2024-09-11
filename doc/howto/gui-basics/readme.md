@@ -150,9 +150,3 @@ can be customised for each view separately in the gui via `settings`→
 `f11` goes full screen
 
 `ctrl+x` quits the application
-
-### imgui widgets
-
-most widgets are stock imgui widgets. in particular, if you want to
-type a value instead of clicking, the way to do it is to `ctrl+click`.
-most widgets support a double-click-to-reset-to default action.
