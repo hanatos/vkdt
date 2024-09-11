@@ -7,6 +7,7 @@
 void lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods);
 void lighttable_mouse_scrolled(GLFWwindow* window, double xoff, double yoff);
 void lighttable_mouse_button(GLFWwindow* window, int button, int action, int mods);
+void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr);
 
 static inline void
 lighttable_mouse_position(GLFWwindow* window, double x, double y) {}

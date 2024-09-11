@@ -171,10 +171,10 @@ int dt_gui_init()
 
   // joystick detection:
   vkdt.wstate.have_joystick = glfwJoystickPresent(GLFW_JOYSTICK_1);
-  if(vkdt.wstate.have_joystick)
+  if(vkdt.wstate.have_joystick && glfwJoystickIsGamepad(GLFW_JOYSTICK_1))
   {
     const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
-    dt_log(s_log_gui, "found joystick %s", name);
+    dt_log(s_log_gui, "found gamepad %s", name);
     const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
     if(disable)
     {

@@ -1361,3 +1361,37 @@ void lighttable_mouse_button(GLFWwindow* window, int button, int action, int mod
   g_image_cursor = -1;
 }
 
+void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
+{
+#define PRESSED(A) curr->buttons[A] && !last->buttons[A]
+  if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
+  {
+    if(g_image_cursor >= 0)
+    {
+      dt_db_selection_clear(&vkdt.db);
+      dt_db_selection_add(&vkdt.db, g_image_cursor);
+      dt_view_switch(s_view_darkroom);
+    }
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else if(g_image_cursor >= g_images_per_line) g_image_cursor -= g_images_per_line;
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_DOWN))
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else if(g_image_cursor < vkdt.db.collection_cnt - g_images_per_line) g_image_cursor += g_images_per_line;
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_LEFT))
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else g_image_cursor = MAX(0, g_image_cursor-1);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_RIGHT))
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else g_image_cursor = MIN(vkdt.db.collection_cnt-1, g_image_cursor+1);
+  }
+#undef PRESSED
+}

@@ -96,6 +96,8 @@ typedef struct dt_gui_wstate_t
   float dopesheet_view;         // darkroom mode dopesheet, stores adaptive size (0 means collapsed)
 
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)
+  GLFWgamepadstate gamepad_curr;// current state of gamepad buttons.
+  GLFWgamepadstate gamepad_prev;
   int pentablet_enabled;        // 1 if the stylus is in proxmity of the pen tablet
 
   int busy;                     // still busy for how many frames before stopping redraw?

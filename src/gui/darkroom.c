@@ -382,3 +382,9 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
     }
   }
 }
+
+void
+darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
+{
+  // TODO: some basic navigation
+}

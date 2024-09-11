@@ -168,3 +168,19 @@ dt_view_pentablet_proximity(int enter)
 {
   vkdt.wstate.pentablet_enabled = enter; // do this in any case to stay consistent
 }
+
+void
+dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
+{
+  if(vkdt.wstate.popup) return;
+  switch(vkdt.view_mode)
+  {
+    case s_view_lighttable:
+      lighttable_gamepad(window, last, curr);
+      break;
+    case s_view_darkroom:
+      darkroom_gamepad(window, last, curr);
+      break;
+    default:;
+  }
+}

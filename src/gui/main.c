@@ -63,37 +63,38 @@ get_current_monitor(GLFWwindow *window)
   return bestmonitor;
 }
 
+static inline int
+gamepad_changed(
+    GLFWgamepadstate *last,
+    GLFWgamepadstate *curr)
+{
+  for(int i=0;i<sizeof(curr->buttons)/sizeof(curr->buttons[0]);i++)
+    if(curr->buttons[i] != last->buttons[i])
+      return 1;
+  for(int i=0;i<sizeof(curr->axes)/sizeof(curr->axes[0]);i++)
+    if(fabsf(curr->axes[i] - last->axes[i]) > 0.1)
+      return 1;
+  return 0;
+}
+
 // since in glfw, joysticks can only be polled and have no event interface
 // (see this pull request: https://github.com/glfw/glfw/pull/1590)
 // we need to look for changes in a busy loop in this dedicated thread.
 // once we find activity, we'll step outside the glfwWaitEvents call by
 // posting an empty event from here.
+// note that the actual joystick callbacks will be handled there, in
+// the gui thread. here, we only detect change and raise the flag.
 static void*
 joystick_active(void *unused)
 {
-  uint8_t prev_butt[100] = {0};
+  static GLFWgamepadstate last = {0};
+  GLFWgamepadstate curr;
   while(!glfwWindowShouldClose(qvk.window))
   {
-    int res = 0;
-    int axes_cnt = 0, butt_cnt = 0;
-    const float   *axes = glfwGetJoystickAxes   (GLFW_JOYSTICK_1, &axes_cnt);
-    const uint8_t *butt = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &butt_cnt);
-    assert(butt_cnt < 100);
-    assert(axes_cnt < 100);
-    for(int i=0;i<butt_cnt;i++) if(butt[i] != prev_butt[i])
+    if(!glfwGetGamepadState(GLFW_JOYSTICK_1, &curr)) break; // no more joystick?
+    if(gamepad_changed(&last, &curr))
     {
-      prev_butt[i] = butt[i];
-      res = 1;
-      break;
-    }
-    float restpos[20] = {0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f}; // rest positions of the dual shock 3
-    for(int i=0;i<MIN(20,axes_cnt);i++) if(fabsf(axes[i] - restpos[i]) > 0.25)
-    {
-      res = 1;
-      break;
-    }
-    if(res)
-    {
+      last = curr;
       vkdt.wstate.busy = 20; // make sure we'll stay awake for a few frames
       glfwPostEmptyEvent();
     }
@@ -321,6 +322,7 @@ int main(int argc, char *argv[])
   const int frame_limiter = dt_rc_get_int(&vkdt.rc, "gui/frame_limiter", 6); // default: cap ui at 160fps
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
+  GLFWgamepadstate gamepad_last = {0};
   while(!glfwWindowShouldClose(qvk.window))
   {
     // block and wait for one event instead of polling all the time to save on
@@ -335,6 +337,17 @@ int main(int argc, char *argv[])
     else vkdt.wstate.busy = 3;
 
     glfwWaitEvents();
+
+    if(vkdt.wstate.have_joystick)
+    {
+      GLFWgamepadstate gamepad_curr;
+      if (!glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
+      else if(gamepad_changed(&gamepad_last, &gamepad_curr))
+      {
+        dt_view_gamepad(qvk.window, &gamepad_last, &gamepad_curr);
+        gamepad_last = gamepad_curr;
+      }
+    }
 
     if(frame_limiter || (dt_log_global.mask & s_log_perf))
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
