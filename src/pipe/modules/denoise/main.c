@@ -187,8 +187,8 @@ create_nodes(
     float oy = dat->gm[0]->map_origin_v;
     gainmap_ox = *(uint32_t*)&ox;
     gainmap_oy = *(uint32_t*)&oy;
-    float sx = 1.0 / (dat->gm[0]->map_spacing_h * map_wd);
-    float sy = 1.0 / (dat->gm[0]->map_spacing_v * map_ht);
+    float sx = 1.0 / (dat->gm[0]->map_spacing_h * (map_wd-1));
+    float sy = 1.0 / (dat->gm[0]->map_spacing_v * (map_ht-1));
     gainmap_sx = *(uint32_t*)&sx;
     gainmap_sy = *(uint32_t*)&sy;
   }
