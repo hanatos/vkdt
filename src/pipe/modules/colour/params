@@ -1,6 +1,5 @@
 exposure:float:1:0.0
 sat:float:1:1.0
-mode:int:1:0
 picked:int:1:0
 matrix:int:1:1
 gamut:int:1:0
@@ -9,6 +8,7 @@ clipmax:float:1:1
 temp:float:1:6504
 white:float:4:0.0:0.0:0.0:0.0
 mat:float:9:-1.0
+mode:int:1:0
 cnt:int:1:4
 rbmap:float:144:0.3333:0.3333:0.3333:0.3333:0.3333:0.3333:0.5:0.25:0.25:0.5:0.25:0.25:0.25:0.5:0.25:0.25:0.5:0.25:0.25:0.25:0.5:0.25:0.25:0.5
 import:string:8:01

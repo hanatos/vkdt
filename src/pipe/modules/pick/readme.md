@@ -15,8 +15,8 @@ for the graph contain *download sink*.
 
 * `nspots` number of picked spots
 * `spots` geometric coordinates of the picked spots in the image
-* `picked` actually picked colour values (3x `nspots` floats, rec2020)
-* `ref` reference values, to be set by the user in the `.cfg` file (rec2020)
+* `picked` actually picked colour values (rec2020)
+* `ref` reference values (rec2020)
 * `show` 0 - picked, 1 - ref, 2 - diff
 * `grab` indicates whether the results will be grabbed all the time (not only during regular pipeline reruns)
 * `de76` a dummy parameter that gets filled with the CIE DE76 error metric between `picked` and `ref`

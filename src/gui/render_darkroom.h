@@ -350,7 +350,10 @@ static inline void render_darkroom_widget(int modid, int parid)
       {
         dt_module_t *m = vkdt.graph_dev.module+modid;
         if(m->so->ui_callback) m->so->ui_callback(m, param->name);
-        // TODO: probably needs a history item appended. for all parameters?
+        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        vkdt.wstate.busy += 2;
       }
       dt_tooltip(param->tooltip);
       KEYFRAME

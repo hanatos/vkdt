@@ -1,17 +1,19 @@
 exposure:slider:-5:5
 sat:slider:0.0:3.0
 picked:combo:ignore:white balance:deflicker:both
-mode:combo:parametric:data driven
 matrix:combo:rec2020:image:XYZ:rec709:clut
 gamut:combo:no limit:limit to spectral locus:limit to rec2020:limit to rec709
 white:rgb:0:2
+group:matrix:4
+temp:slider:2856:6504
+group:-1:0
 clip:combo:preserve highlights:clip highlights
 group:clip:1
 clipmax:slider:0.0:2.0
 mat:hidden
+group:-1:0
+mode:combo:no rbf:use rbf
 group:mode:1
 cnt:slider:2:24
 rbmap:rbmap:cnt
 import:callback
-group:matrix:4
-temp:slider:2856:6504

@@ -1,0 +1,143 @@
+#!/usr/bin/python3
+# parse an argyll .cht file to create a vkdt preset for the given chart.
+# the preset will include:
+# * colour picker spots in the right places
+# * reference values in the radial basis function of the colour module
+# * reference values in the ciediag module for visualisation
+# i know the argyll docs say the cht values are approximate and not for calibration.
+# unfortunately it seems we don't get ti2 or similar data.
+
+import os, sys, pathlib
+import numpy
+
+if len(sys.argv) < 2:
+  print('usage: vkdt scanin /usr/share/color/argyll/ref/<yourchart>.cht')
+  print('creates a vkdt preset for use with the given chart')
+  sys.exit(1)
+
+basename = pathlib.Path(sys.argv[1]).stem
+
+x=0.0
+y=0.0
+w=0.0
+h=0.0
+
+xlist=[]
+ylist=[]
+xyz=[]
+
+block="none"
+swapped=0
+
+with open(sys.argv[1], "r") as file:
+  for line in file:
+    line = line.split()
+    if len(line) < 1:
+      continue
+    if line[0] == "BOXES":
+      block="BOXES"
+      num=float(line[1])
+      if num > 25:
+        print('sorry the presets can only hold up to 24 patches currently')
+        sys.exit(2)
+      continue
+    if line[0] == "XLIST":
+      block="XLIST"
+      continue
+    if line[0] == "YLIST":
+      block="YLIST"
+      continue
+    if line[0] == "EXPECTED" and line[1] == "XYZ":
+      block="EXPECTED"
+      continue
+
+    if block == "BOXES":
+      if line[0] == "D" and line[1] == "ALL" and line[2] == "ALL":
+        w=float(line[5])
+        h=float(line[6])
+        x=float(line[7])
+        y=float(line[8])
+      if line[0] == "X":
+        swapped=1
+
+    if block == "XLIST":
+      xlist.append(float(line[0]))
+    if block == "YLIST":
+      ylist.append(float(line[0]))
+    if block == "EXPECTED":
+      xyz.append([float(line[1]),float(line[2]),float(line[3])])
+
+cols=len(xlist)/2
+rows=len(ylist)/2
+
+xyz_to_rec2020 = numpy.array([
+[ 1.7166511880, -0.3556707838, -0.2533662814],
+[-0.6666843518,  1.6164812366,  0.0157685458],
+[ 0.0176398574, -0.0427706133,  0.9421031212],
+])
+
+row=0
+col=0
+with open(basename+".pst", "w", encoding="utf-8") as file:
+  print("# this preset adds support for the ", basename, " colour target", file=file)
+  print("# it adds the colour picker locations and reference values to ciediag, colour, and pick modules", file=file)
+  print("# to enable the rbf colour correction, press the 'import' button in the colour module", file=file)
+  print("# after applying this preset. then copy/paste the settings of the colour module to other images", file=file)
+  print("# preset created by `vkdt scanin`", file=file)
+  print("module:pick:target", file=file)
+  print("connect:colour:01:output:pick:target:input", file=file)
+  print("param:pick:target:show:0", file=file)
+  print("param:pick:target:grab:0", file=file)
+  print("param:pick:target:nspots:%d"%len(xyz), file=file)
+  print("param:pick:target:pad:0:0:0", file=file)
+  print("param:pick:target:spots", file=file, end='')
+  row = col = 0
+  for p in xyz:
+    aabb = numpy.array([
+          (xlist[2*col]-x)/w,
+          (xlist[2*col+1]-x)/w,
+          (ylist[2*row]-y)/h,
+          (ylist[2*row+1]-y)/h])
+    center = numpy.array([
+        (aabb[0]+aabb[1])/2.0, 
+        (aabb[2]+aabb[3])/2.0])
+    shrink=1.0
+    aabb[0] = (aabb[0] + shrink*center[0])/(1.0+shrink)
+    aabb[1] = (aabb[1] + shrink*center[0])/(1.0+shrink)
+    aabb[2] = (aabb[2] + shrink*center[1])/(1.0+shrink)
+    aabb[3] = (aabb[3] + shrink*center[1])/(1.0+shrink)
+    print(":%g:%g:%g:%g"%(aabb[0], aabb[1], aabb[2], aabb[3]), file=file, end='')
+    if swapped==1:
+      row = row + 1
+      if row >= rows:
+        row = 0
+        col = col +1
+    else:
+      col = col + 1
+      if col >= cols:
+        col = 0
+        row = row +1
+  print("\n", file=file, end='')
+  print("param:pick:target:ref", file=file, end='')
+  for p in xyz:
+    rgb=xyz_to_rec2020 @ (numpy.array(p)/100.0)
+    print(":%g:%g:%g"%(rgb[0],rgb[1],rgb[2]), end='', file=file)
+  print("\n", file=file, end='')
+  print("param:ciediag:01:nspots:%u"%(len(xyz)-6), file=file) # strip grey ramp
+  print("param:ciediag:01:ref:", file=file, end='')
+  for p in xyz:
+    rgb=xyz_to_rec2020 @ (numpy.array(p)/100.0)
+    print(":%g:%g:%g"%(rgb[0],rgb[1],rgb[2]), end='', file=file)
+  print("\n", file=file, end='')
+  print("param:colour:01:sat:1", file=file)
+  print("param:colour:01:mode:1", file=file)        # enable rbf so it will show the import button
+  print("param:colour:01:cnt:0", file=file)         # user has to press the "import" button for the rbf to do anything
+  print("param:colour:01:import:target", file=file) # point to our pick module instance
+  print("param:colour:01:rbmap:", file=file, end='')
+  for p in xyz:
+    rgb=xyz_to_rec2020 @ (numpy.array(p)/100.0)
+    print(":%g:%g:%g"%(rgb[0],rgb[1],rgb[2]), end='', file=file) # src
+    print(":%g:%g:%g"%(rgb[0],rgb[1],rgb[2]), end='', file=file) # dst
+  print("\n", file=file, end='')
+  print("param:colour:01:white:1:1:1:1", file=file)
+
