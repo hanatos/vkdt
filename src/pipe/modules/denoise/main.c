@@ -69,10 +69,10 @@ read_source(
   {
     if(!dat->gm[0]) return 0;
     const int wd = dat->gm[0]->map_points_h, ht = dat->gm[0]->map_points_v;
-    for(int i=0;i<ht;i++)
-      for(int j=0;j<wd;j++)
+    for(int j=0;j<ht;j++)
+      for(int i=0;i<wd;i++)
         for(int c=0;c<4;c++)
-          ((float*)mapped)[(i*wd+j)*4+c] = dat->gm[c]->map_gain[(i*wd+j)];
+          ((float*)mapped)[(j*wd+i)*4+c] = dat->gm[c]->map_gain[(j*wd+i)];
   }
   return 0;
 }
