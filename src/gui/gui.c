@@ -321,7 +321,7 @@ out:;
   QVKR(vkCreateSwapchainKHR(qvk.device, &swpch_create_info, NULL, &win->swap_chain));
 
   vkGetSwapchainImagesKHR(qvk.device, win->swap_chain, &win->num_swap_chain_images, NULL);
-  assert(qvk.num_swap_chain_images <= QVK_MAX_SWAPCHAIN_IMAGES);
+  assert(vkdt.win.num_swap_chain_images <= QVK_MAX_SWAPCHAIN_IMAGES);
   vkGetSwapchainImagesKHR(qvk.device, win->swap_chain, &win->num_swap_chain_images, win->swap_chain_images);
 
   for(int i = 0; i < win->num_swap_chain_images; i++)
