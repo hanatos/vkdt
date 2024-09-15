@@ -133,13 +133,11 @@ void dt_gui_init_fonts()
   nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
 }
 
-
 int dt_gui_init_nk()
 {
   vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
 
   nk_init_default(&vkdt.ctx, 0);
-  // nk_init_default(&vkdt.ctx1, 0); // TODO secondary screen
   nk_glfw3_init(
       &vkdt.ctx,
       vkdt.win.render_pass,
@@ -147,8 +145,6 @@ int dt_gui_init_nk()
       qvk.device, qvk.physical_device,
       vkdt.win.num_swap_chain_images * 2560*1024,
       vkdt.win.num_swap_chain_images * 640*1024);
-
-     // XXX setup multi viewport for dual screen! (requires a second ctx and manual handling of the second viewport/command buffer)
 
   read_style_colours(&vkdt.ctx);
 
@@ -275,8 +271,6 @@ void dt_gui_render_frame_nk()
     nk_end(&vkdt.ctx);
   }
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
-
-  // TODO: now render second screen context, if any (this will only be a full res image widget, we could put the code here)
 
   // nuklear requires the input, when modifying a text edit etc:
   vkdt.wstate.nk_active = vkdt.wstate.nk_active_next;

@@ -221,3 +221,9 @@ void dt_gui_grab_mouse();
 
 // ungrab the mouse, pass it on to nuklear again
 void dt_gui_ungrab_mouse();
+
+// open secondary window for dual screen use
+void dt_gui_win1_open();
+
+// close secondary window
+void dt_gui_win1_close();

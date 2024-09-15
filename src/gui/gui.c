@@ -34,7 +34,7 @@ style_to_state()
 }
 
 static inline void
-dt_gui_init_win(dt_gui_win_t *win)
+dt_gui_win_init(dt_gui_win_t *win)
 {
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -49,7 +49,7 @@ dt_gui_init_win(dt_gui_win_t *win)
 }
 
 static inline int
-dt_gui_init_win_vk(dt_gui_win_t *win)
+dt_gui_win_init_vk(dt_gui_win_t *win)
 {
   /* create surface */
   if(glfwCreateWindowSurface(qvk.instance, win->window, NULL, &win->surface))
@@ -140,7 +140,7 @@ int dt_gui_init()
   float rel_fontsize = 2.0f / 55.0f * dpi_scale;
   vkdt.style.panel_width_frac = 0.2f;
   vkdt.style.border_frac = rel_fontsize * 1.05f; // large enough to fit 2x fontsize heading
-  dt_gui_init_win(&vkdt.win);
+  dt_gui_win_init(&vkdt.win);
 
   // be verbose about monitor names so we can colour manage them:
   int monitors_cnt;
@@ -180,7 +180,7 @@ int dt_gui_init()
     return 1;
   }
 
-  dt_gui_init_win_vk(&vkdt.win);
+  dt_gui_win_init_vk(&vkdt.win);
 
   // joystick detection:
   vkdt.wstate.have_joystick = glfwJoystickPresent(GLFW_JOYSTICK_1);
@@ -211,9 +211,17 @@ static inline VkResult
 dt_gui_destroy_swapchain(dt_gui_win_t *win)
 {
   for(int i = 0; i < win->num_swap_chain_images; i++)
-    vkDestroyImageView(qvk.device, win->swap_chain_image_views[i], NULL);
+  {
+    if(win->swap_chain_image_views[i]) vkDestroyImageView  (qvk.device, win->swap_chain_image_views[i], 0);
+    if(win->framebuffer[i])            vkDestroyFramebuffer(qvk.device, win->framebuffer[i], 0);
+    if(win->render_pass)               vkDestroyRenderPass (qvk.device, win->render_pass, 0);
+    win->swap_chain_image_views[i] = 0;
+    win->framebuffer[i] = 0;
+    win->render_pass = 0;
+  }
 
   vkDestroySwapchainKHR(qvk.device, win->swap_chain, NULL);
+  win->swap_chain = 0;
   return VK_SUCCESS;
 }
 
@@ -438,7 +446,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
 }
 
 static inline void
-dt_gui_cleanup_win(dt_gui_win_t *win)
+dt_gui_win_cleanup(dt_gui_win_t *win)
 {
   for(int i=0;i<win->num_swap_chain_images;i++)
   {
@@ -448,18 +456,29 @@ dt_gui_cleanup_win(dt_gui_win_t *win)
     vkDestroySemaphore(qvk.device, win->sem_render_complete[i], 0);
     vkDestroyFence(qvk.device, win->fence[i], 0);
     vkDestroyFramebuffer(qvk.device, win->framebuffer[i], 0);
+    win->command_buffer[i] = 0;
+    win->command_pool[i] = 0;
+    win->sem_image_acquired[i] = 0;
+    win->sem_render_complete[i] = 0;
+    win->fence[i] = 0;
+    win->framebuffer[i] = 0;
   }
   if(win->render_pass)
     vkDestroyRenderPass(qvk.device, win->render_pass, 0);
+  win->render_pass = 0;
   vkDestroyDescriptorPool(qvk.device, win->descriptor_pool, 0);
+  win->descriptor_pool = 0;
 
   if(win->window)  dt_gui_destroy_swapchain(win);
   if(win->surface) vkDestroySurfaceKHR(qvk.instance, win->surface, NULL);
   glfwDestroyWindow(win->window);
+  win->window = 0;
+  win->surface = 0;
 }
 
 void dt_gui_cleanup()
 {
+  dt_gui_win1_close();
   dt_gui_cleanup_nk();
   char configfile[512];
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
@@ -467,7 +486,7 @@ void dt_gui_cleanup()
   dt_rc_cleanup(&vkdt.rc);
   dt_graph_cleanup(&vkdt.graph_dev);
 
-  dt_gui_cleanup_win(&vkdt.win);
+  dt_gui_win_cleanup(&vkdt.win);
 
   qvk_cleanup();
   glfwTerminate();
@@ -553,16 +572,25 @@ dt_gui_render_win_end(dt_gui_win_t *win)
 
 VkResult dt_gui_render()
 {
-  QVKR(dt_gui_render_win_beg(&vkdt.win));
-
   // potentially set off commands for both ctx/win
   dt_gui_render_frame_nk();
 
-  // TODO: pass win
+  const int have_win1 = vkdt.win1.window != 0;
+  QVKR(dt_gui_render_win_beg(&vkdt.win));
+  if(have_win1)
+    QVKR(dt_gui_render_win_beg(&vkdt.win1));
+
+  int num = vkdt.win.num_swap_chain_images;
+  if(have_win1) num += vkdt.win1.num_swap_chain_images;
   nk_glfw3_create_cmd(&vkdt.ctx, vkdt.win.command_buffer[vkdt.win.frame_index],
-      NK_ANTI_ALIASING_ON, vkdt.win.frame_index, vkdt.win.num_swap_chain_images);
+      NK_ANTI_ALIASING_ON, vkdt.win.frame_index, num);
+  if(have_win1)
+    nk_glfw3_create_cmd(&vkdt.ctx1, vkdt.win1.command_buffer[vkdt.win1.frame_index],
+        NK_ANTI_ALIASING_ON, vkdt.win.num_swap_chain_images + vkdt.win1.frame_index, num);
 
   QVKR(dt_gui_render_win_end(&vkdt.win));
+  if(have_win1)
+    QVKR(dt_gui_render_win_end(&vkdt.win1));
   return VK_SUCCESS;
 }
 
@@ -586,6 +614,8 @@ dt_gui_present_win(dt_gui_win_t *win)
 
 VkResult dt_gui_present()
 {
+  if(vkdt.win1.window)
+    QVKR(dt_gui_present_win(&vkdt.win1));
   return dt_gui_present_win(&vkdt.win);
 }
 
@@ -790,3 +820,30 @@ void dt_gui_notification(const char *msg, ...)
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 }
 
+void dt_gui_win1_close()
+{
+  if(!vkdt.win1.window) return;
+  QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
+  dt_gui_win_cleanup(&vkdt.win1);
+  nk_free(&vkdt.ctx1);
+}
+
+void dt_gui_win1_open()
+{
+  if(vkdt.win1.window) dt_gui_win1_close();
+  dt_gui_win_init(&vkdt.win1);
+  dt_gui_win_init_vk(&vkdt.win1);
+  nk_init_default(&vkdt.ctx1, 0);
+#if 0 // this is for event handling and will break if we call it on win1
+  nk_glfw3_init(
+      &vkdt.ctx1,
+      vkdt.win1.render_pass,
+      vkdt.win1.window,
+      qvk.device, qvk.physical_device,
+      vkdt.win1.num_swap_chain_images * 2560*1024,
+      vkdt.win1.num_swap_chain_images * 640*1024);
+#endif
+  nk_style_default(&vkdt.ctx1);
+  nk_style_from_table(&vkdt.ctx1, vkdt.style.colour);
+  nk_style_set_font(&vkdt.ctx1, &dt_gui_get_font(0)->handle);
+}

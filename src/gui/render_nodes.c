@@ -32,7 +32,6 @@ typedef struct gui_nodes_t
 {
   int do_layout;          // do initial auto layout
   int node_hovered_link;
-  int dual_monitor;
   dt_node_editor_t nedit;
 }
 gui_nodes_t;
@@ -67,18 +66,37 @@ void render_nodes_right_panel()
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
     if(out && vkdt.graph_res == VK_SUCCESS)
     {
-      // int popout = dsp[d] == dt_token("main") && nodes.dual_monitor;
+      const int popout = (dsp[d] == dt_token("main")) && vkdt.win1.window;
       char title[20] = {0};
       snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
-      // if(popout) // TODO use vkdt.ctx2 and decorate with some window around it
+      struct nk_context *ctx = &vkdt.ctx;
       int wd = vkdt.state.panel_wd;
-      int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
-      nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
-      if(dsp[d] == dt_token("main"))
-        dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out, 1, 1);
-      else
-        dt_image(&vkdt.ctx, imgw+d, out, 1, 0);
-      // if(popout) // TODO: nk_end and stuff?
+      int visible = 1;
+      if(popout)
+      {
+        ctx = &vkdt.ctx1;
+        struct nk_rect bounds = {0, 0, vkdt.win1.width, vkdt.win1.height};
+        wd = vkdt.win1.width;
+        nk_style_push_style_item(ctx, &ctx->style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
+        int disabled = 1; // XXX try this later
+        if(!nk_begin(ctx, "vkdt secondary", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
+          visible = 0;
+      }
+      if(visible)
+      {
+        int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
+        nk_layout_row_dynamic(ctx, ht, 1);
+        if(dsp[d] == dt_token("main"))
+          dt_image(ctx, &vkdt.wstate.img_widget, out, 1, popout ? 0 : 1);
+        else
+          dt_image(ctx, imgw+d, out, 1, 0);
+      }
+      if(popout)
+      {
+        // NK_UPDATE_ACTIVE; ??
+        nk_end(ctx);
+        nk_style_pop_style_item(ctx);
+      }
     }
   }
   // expanders for selection and individual nodes:
@@ -94,10 +112,10 @@ void render_nodes_right_panel()
     nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
     if(nk_button_label(ctx, "hotkeys"))
       dt_gui_edit_hotkeys();
-    if(nodes.dual_monitor && nk_button_label(ctx, "single monitor"))
-      nodes.dual_monitor = 0;
-    else if(!nodes.dual_monitor && nk_button_label(ctx, "dual monitor"))
-      nodes.dual_monitor = 1;
+    if(vkdt.win1.window && nk_button_label(ctx, "single monitor"))
+      dt_gui_win1_close();
+    else if(!vkdt.win1.window && nk_button_label(ctx, "dual monitor"))
+      dt_gui_win1_open();
     nk_style_pop_flags(ctx);
     nk_tree_pop(ctx);
   }
@@ -230,7 +248,6 @@ void render_nodes_cleanup()
 
 int nodes_enter()
 {
-  nodes.dual_monitor = 0; // XXX TODO: get from rc and write on leave
   nodes.node_hovered_link = -1;
   nodes.do_layout = 1; // maybe overwrite uninited node positions
   // make sure we process once:
