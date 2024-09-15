@@ -251,7 +251,7 @@ hk_get_hotkey(hk_t *hotkey, size_t num, int key)
     int cnt = 0;
     for(int k=0;k<4&&hotkey[i].key[k];k++,cnt++);
     if(key != hotkey[i].key[cnt-1]) goto next;
-    for(int k=0;k<cnt-1;k++) if(glfwGetKey(qvk.window, hotkey[i].key[k]) != GLFW_PRESS) goto next;
+    for(int k=0;k<cnt-1;k++) if(glfwGetKey(vkdt.win.window, hotkey[i].key[k]) != GLFW_PRESS) goto next;
     if(cnt > max_cnt)
     {
       max_cnt = cnt;

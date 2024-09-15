@@ -352,8 +352,8 @@ dt_node_editor(
           struct nk_vec2 l0 = nk_vec2(circle.x + pin_radius, circle.y + pin_radius);
           struct nk_vec2 l1 = in->mouse.pos;
           struct nk_color col = nk_rgb(100,100,100);
-          if(glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS ||
-             glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+          if(glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS ||
+             glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
             col = col_feedback;
           nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + l1.x)*0.5f, l0.y,
               (l0.x + l1.x)*0.5f, l1.y, l1.x, l1.y, link_thickness, col);
@@ -380,7 +380,7 @@ dt_node_editor(
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
         nk_fill_circle(canvas, circle, hovering_circle ? vkdt.style.colour[NK_COLOR_DT_ACCENT] : nk_rgb(100, 100, 100));
-        const int feedback = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS;
+        const int feedback = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_SHIFT)  == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS;
         if (!disabled && nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
             nk_input_is_mouse_hovering_rect(in, circle) &&
             nedit->connection.active && (feedback || nedit->connection.mid != mid))
@@ -471,8 +471,8 @@ dt_node_editor(
       if(!disabled && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
       {
         if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0 &&
-            glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
-            glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) != GLFW_PRESS)
+            glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
+            glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_CONTROL) != GLFW_PRESS)
           dt_node_editor_clear_selection(nedit); // only clear selection if we haven't been selected before
         if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 1;
         nedit->selected = module;

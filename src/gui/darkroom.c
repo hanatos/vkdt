@@ -29,7 +29,7 @@ void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
-  glfwGetCursorPos(qvk.window, &x, &y);
+  glfwGetCursorPos(vkdt.win.window, &x, &y);
 
   if(vkdt.wstate.grabbed)
   {
@@ -52,7 +52,7 @@ void
 darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 {
   double x, y;
-  glfwGetCursorPos(qvk.window, &x, &y);
+  glfwGetCursorPos(vkdt.win.window, &x, &y);
 
   if(vkdt.wstate.grabbed)
   {
@@ -380,7 +380,7 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
     {
       float v[] = {(float)x, (float)y}, n[2] = {0};
       dt_image_from_view(&vkdt.wstate.img_widget, v, n);
-      if(glfwGetMouseButton(qvk.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
+      if(glfwGetMouseButton(vkdt.win.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
         dt_gui_dr_draw_position(n, pressure);
     }
   }

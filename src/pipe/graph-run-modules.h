@@ -238,16 +238,6 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
         module->connector[i].roi.full_wd = roi.full_wd;
         module->connector[i].roi.full_ht = roi.full_ht;
       }
-      if(module->connector[i].name == dt_token("dspy"))
-      { // special temporary display modules have default roi of exactly what the gui needs:
-        if(graph->gui_attached)
-        {
-          const float pwf = 0.2; // probably make a config param so we have access too (not only the gui)
-          const float pwd = pwf * (16.0/9.0) * qvk.win_height;
-          module->connector[i].roi.full_wd = 2.0/3.2 * pwd; // a bit less than the panel size for scrollbars and margins and shit
-          module->connector[i].roi.full_ht = 2.0/3.2 * pwd;
-        }
-      }
     }
   }
   if(module->name == dt_token("display"))

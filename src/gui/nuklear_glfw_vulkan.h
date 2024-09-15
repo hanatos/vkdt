@@ -37,7 +37,7 @@ NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
     VkCommandBuffer cmd,
     enum nk_anti_aliasing AA,
-    int frame);
+    int frame, int max_frames);
 NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
                             uint32_t framebuffer_height);
 NK_API void nk_glfw3_device_destroy(void);
@@ -1029,7 +1029,8 @@ void nk_glfw3_create_cmd(
     struct nk_context    *ctx,
     VkCommandBuffer       command_buffer,
     enum nk_anti_aliasing AA,
-    int frame)
+    int                   frame,
+    int                   max_frames)
 {
   struct nk_glfw_device *dev = &glfw.vulkan;
   struct Mat4f projection = {
@@ -1074,7 +1075,7 @@ void nk_glfw3_create_cmd(
 
   /* setup buffers to load vertices and elements */
   struct nk_buffer vbuf, ebuf;
-  const int num = qvk.num_swap_chain_images;
+  const int num = max_frames;
   nk_buffer_init_fixed(&vbuf, dev->mapped_vertex+frame*dev->max_vertex_buffer /num, (size_t)dev->max_vertex_buffer/num);
   nk_buffer_init_fixed(&ebuf, dev->mapped_index +frame*dev->max_element_buffer/num, (size_t)dev->max_element_buffer/num);
   nk_convert(ctx, &dev->cmds, &vbuf, &ebuf, &config);

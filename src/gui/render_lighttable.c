@@ -256,7 +256,7 @@ void render_lighttable_center()
   }
 
   const int ipl = g_images_per_line;
-  const int border = 0.004 * qvk.win_width;
+  const int border = 0.004 * vkdt.win.width;
   const int spacing = border/2;
   const int wd = vkdt.state.center_wd / ipl - border*2;
   const int ht = wd;
@@ -346,8 +346,8 @@ void render_lighttable_center()
 
     if(!vkdt.wstate.popup && ret)
     {
-      int shift = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
-      int ctrl  = glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
+      int shift = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
+      int ctrl  = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
       vkdt.wstate.busy += 2;
       if(ctrl)
       {
@@ -591,7 +591,7 @@ int export_job(
 void render_lighttable_right_panel()
 { // right panel
   struct nk_context *ctx = &vkdt.ctx;
-  struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
+  struct nk_rect bounds = {vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.win.height};
   const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {vkdt.state.panel_wd*0.95, vkdt.state.panel_wd*0.95};

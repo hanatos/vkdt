@@ -164,6 +164,6 @@ dt_gui_dr_zoom()
 { // zoom 1:1
   // where does the mouse look in the current image?
   double x, y;
-  glfwGetCursorPos(qvk.window, &x, &y);
+  glfwGetCursorPos(vkdt.win.window, &x, &y);
   dt_image_zoom(&vkdt.wstate.img_widget, x, y);
 }

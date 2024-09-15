@@ -113,7 +113,7 @@ void render_files()
   }
 
   struct nk_context *ctx = &vkdt.ctx;
-  struct nk_rect bounds = {qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, qvk.win_height};
+  struct nk_rect bounds = {vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.win.height};
   const float ratio[] = {vkdt.state.panel_wd*0.6, vkdt.state.panel_wd*0.3}; // XXX padding?
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {ratio[0], ratio[0]};

@@ -101,15 +101,6 @@ typedef struct qvk_t
   VkDevice                    device;
   int                         qid[s_queue_cnt];   // map queue names to actual indices in the queue array (they may be the same)
   qvk_queue_t                 queue[s_queue_cnt];
-  VkSurfaceKHR                surface;
-  VkSwapchainKHR              swap_chain;
-  VkSurfaceFormatKHR          surf_format;
-  VkPresentModeKHR            present_mode;
-  VkExtent2D                  extent;
-  VkCommandPool               command_pool;
-  uint32_t                    num_swap_chain_images;
-  VkImage                     swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
-  VkImageView                 swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_nearest;
@@ -124,15 +115,10 @@ typedef struct qvk_t
 
   VkDebugUtilsMessengerEXT    dbg_messenger;
 
-  int                         win_width;
-  int                         win_height;
   uint64_t                    frame_counter;
 
-  GLFWwindow                  *window;
   uint32_t                    num_glfw_extensions;
   const char                  **glfw_extensions;
-
-  uint32_t                    current_image_index;
 
   float                       ticks_to_nanoseconds;
   uint64_t                    uniform_alignment;
@@ -161,7 +147,5 @@ _VK_EXTENSION_LIST
 
 // global initialisation. pick device by that name if it is not null,
 // same for the direct id if it is not negative (use for multiple identical devices)
-VkResult qvk_init(const char *preferred_device_name, int preferred_device_id);
+VkResult qvk_init(const char *preferred_device_name, int preferred_device_id, int window);
 VkResult qvk_cleanup();
-
-VkResult qvk_create_swapchain();

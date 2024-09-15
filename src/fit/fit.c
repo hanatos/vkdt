@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
     { config_start = i+1; break; }
   }
 
-  if(qvk_init(0, -1)) exit(1);
+  if(qvk_init(0, -1, 0)) exit(1);
 
   if(!graph_cfg || !dat.param_cnt)
   {

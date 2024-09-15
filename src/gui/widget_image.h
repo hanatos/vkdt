@@ -31,7 +31,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       { // find active corner if close enough
         float m[] = {pos.x, pos.y};
         float max_dist = FLT_MAX;
-        const float px_dist = 0.1*qvk.win_height;
+        const float px_dist = 0.1*vkdt.win.height;
         for(int cc=0;cc<4;cc++)
         {
           float n[] = {vkdt.wstate.state[2*cc+0], vkdt.wstate.state[2*cc+1]}, v[2];
@@ -115,7 +115,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       {
         float m[2] = {(float)pos.x, (float)pos.y};
         float max_dist = FLT_MAX;
-        const float px_dist = 0.1*qvk.win_height;
+        const float px_dist = 0.1*vkdt.win.height;
         for(int ee=0;ee<4;ee++)
         {
           float n[] = {ee < 2 ? vkdt.wstate.state[ee] : 0, ee >= 2 ? vkdt.wstate.state[ee] : 0}, v[2];
@@ -240,8 +240,8 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       {
         ctx->input.mouse.scroll_delta.y = 0; // handled this
         const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
-        int shift = glfwGetKey(qvk.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
-        int ctrl  = glfwGetKey(qvk.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(qvk.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
+        int shift = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
+        int ctrl  = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
         if(shift) // opacity
           vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
         else if(ctrl) // hardness

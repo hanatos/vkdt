@@ -41,7 +41,7 @@ gui_nodes_t nodes;
 void render_nodes_right_panel()
 {
   struct nk_context *ctx = &vkdt.ctx;
-  struct nk_rect bounds = { qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
+  struct nk_rect bounds = { vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
   if(!nk_begin(ctx, "nodes panel", bounds, 0))
   {
     NK_UPDATE_ACTIVE;

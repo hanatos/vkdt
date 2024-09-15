@@ -326,7 +326,7 @@ void render_darkroom()
         dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
       }
     }
-    float wd = 0.5*vkdt.style.border_frac * qvk.win_width;
+    float wd = 0.5*vkdt.style.border_frac * vkdt.win.width;
     const uint32_t ci = dt_db_current_imgid(&vkdt.db);
     if(ci != -1u)
     { // this should *always* be the case
@@ -453,7 +453,7 @@ void render_darkroom()
 
   struct nk_context *ctx = &vkdt.ctx;
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
-  bounds = (struct nk_rect){ qvk.win_width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
+  bounds = (struct nk_rect){ vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
   if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, 0))
   { // right panel
     // draw histogram image:

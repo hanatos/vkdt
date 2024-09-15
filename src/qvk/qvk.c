@@ -35,9 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 qvk_t qvk =
 {
-  .win_width          = 1920,
-  .win_height         = 1080,
-  .frame_counter      = 0,
+  .frame_counter = 0,
 };
 
 #define _VK_EXTENSION_DO(a) PFN_##a q##a;
@@ -137,140 +135,9 @@ qvkDestroyDebugUtilsMessengerEXT(
   return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-VkResult
-qvk_create_swapchain()
-{
-  VkSwapchainKHR old_swap_chain = qvk.swap_chain;
-  QVKL(&qvk.queue[s_queue_graphics].mutex, vkQueueWaitIdle(qvk.queue[s_queue_graphics].queue));
-
-  if(old_swap_chain)
-    for(int i = 0; i < qvk.num_swap_chain_images; i++)
-      vkDestroyImageView(qvk.device, qvk.swap_chain_image_views[i], 0);
-
-  /* create swapchain */
-  VkSurfaceCapabilitiesKHR surf_capabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(qvk.physical_device, qvk.surface, &surf_capabilities);
-
-  uint32_t num_formats = 0;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, NULL);
-  VkSurfaceFormatKHR *avail_surface_formats = alloca(sizeof(VkSurfaceFormatKHR) * num_formats);
-  vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, avail_surface_formats);
-
-  dt_log(s_log_qvk, "available surface formats:");
-  for(int i = 0; i < num_formats; i++)
-    dt_log(s_log_qvk, qvk_format_to_string(avail_surface_formats[i].format));
-
-
-  VkFormat acceptable_formats[] = {
-    // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
-    VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_FORMAT_A2B10G10R10_UNORM_PACK32,
-    VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM,
-    VK_FORMAT_R8G8B8_UNORM, VK_FORMAT_B8G8R8_UNORM,
-  };
-
-  for(int i = 0; i < LENGTH(acceptable_formats); i++) {
-    for(int j = 0; j < num_formats; j++)
-      if(acceptable_formats[i] == avail_surface_formats[j].format) {
-        qvk.surf_format = avail_surface_formats[j];
-        // please don't mess with our colour management.
-        // see https://github.com/KhronosGroup/Vulkan-Docs/issues/2307
-        // but apparently they will figure it out eventually.
-        // it appears until then the default behaviour might be already what we need.
-        // in fact it seems the situation is even worse. if i try to do this:
-        // qvk.surf_format.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
-        // the validation layers shout at me. this means there seems to be *no* way
-        // to ask for pass through behaviour (and if there was it would be ignored downstream, see above)
-        // fts
-        dt_log(s_log_qvk, "using %s and colour space %d",
-            qvk_format_to_string(qvk.surf_format.format), qvk.surf_format.colorSpace);
-        goto out;
-      }
-  }
-out:;
-
-  uint32_t num_present_modes = 0;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, NULL);
-  VkPresentModeKHR *avail_present_modes = alloca(sizeof(VkPresentModeKHR) * num_present_modes);
-  vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, avail_present_modes);
-  qvk.present_mode = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to be there, but has vsync frame time jitter
-
-  if(surf_capabilities.currentExtent.width != ~0u)
-  {
-    qvk.extent = surf_capabilities.minImageExtent;
-  }
-  else
-  {
-    qvk.extent.width  = MIN(surf_capabilities.maxImageExtent.width,  qvk.win_width);
-    qvk.extent.height = MIN(surf_capabilities.maxImageExtent.height, qvk.win_height);
-
-    qvk.extent.width  = MAX(surf_capabilities.minImageExtent.width,  qvk.extent.width);
-    qvk.extent.height = MAX(surf_capabilities.minImageExtent.height, qvk.extent.height);
-  }
-
-  // this is stupid, but it seems if the window manager does not allow going fullscreen
-  // it crashes otherwise. sometimes you need to first make the window floating in dwm
-  // before going F11 -> fullscreen works. sigh.
-  qvk.win_width  = qvk.extent.width;
-  qvk.win_height = qvk.extent.height;
-
-  uint32_t num_images = surf_capabilities.minImageCount;
-  if(surf_capabilities.maxImageCount > 0)
-    num_images = MIN(num_images, surf_capabilities.maxImageCount);
-
-  VkSwapchainCreateInfoKHR swpch_create_info = {
-    .sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-    .surface               = qvk.surface,
-    .minImageCount         = num_images,
-    .imageFormat           = qvk.surf_format.format,
-    .imageColorSpace       = qvk.surf_format.colorSpace,
-    .imageExtent           = qvk.extent,
-    .imageArrayLayers      = 1, /* only needs to be changed for stereoscopic rendering */ 
-    .imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                           | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-    .imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE, /* VK_SHARING_MODE_CONCURRENT if not using same queue */
-    .queueFamilyIndexCount = 0,
-    .pQueueFamilyIndices   = NULL,
-    .preTransform          = surf_capabilities.currentTransform,
-    .compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, /* no alpha for window transparency */
-    .presentMode           = qvk.present_mode,
-    .clipped               = VK_FALSE, /* do not render pixels that are occluded by other windows */
-    .oldSwapchain          = old_swap_chain, /* need to provide previous swapchain in case of window resize */
-  };
-
-  QVKR(vkCreateSwapchainKHR(qvk.device, &swpch_create_info, NULL, &qvk.swap_chain));
-
-  vkGetSwapchainImagesKHR(qvk.device, qvk.swap_chain, &qvk.num_swap_chain_images, NULL);
-  assert(qvk.num_swap_chain_images <= QVK_MAX_SWAPCHAIN_IMAGES);
-  vkGetSwapchainImagesKHR(qvk.device, qvk.swap_chain, &qvk.num_swap_chain_images, qvk.swap_chain_images);
-
-  for(int i = 0; i < qvk.num_swap_chain_images; i++)
-  {
-    VkImageViewCreateInfo img_create_info = {
-      .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-      .image      = qvk.swap_chain_images[i],
-      .viewType   = VK_IMAGE_VIEW_TYPE_2D,
-      .format     = qvk.surf_format.format,
-      .subresourceRange = {
-        .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-        .baseMipLevel   = 0,
-        .levelCount     = 1,
-        .baseArrayLayer = 0,
-        .layerCount     = 1
-      }
-    };
-
-    QVKR(vkCreateImageView(qvk.device, &img_create_info, NULL, qvk.swap_chain_image_views + i));
-  }
-
-  if(old_swap_chain)
-    vkDestroySwapchainKHR(qvk.device, old_swap_chain, 0);
-
-  return VK_SUCCESS;
-}
-
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init(const char *preferred_device_name, int preferred_device_id)
+qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 {
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
@@ -503,7 +370,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif
-  if(qvk.window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+  if(window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -622,19 +489,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id)
   };
   QVKR(vkCreateSampler(qvk.device, &sampler_yuv_info, NULL, &qvk.tex_sampler_yuv));
 
-  // initialise a safe fallback for cli mode ("dspy" format is going to look here):
-  qvk.surf_format.format = VK_FORMAT_R8G8B8A8_UNORM;
-
-  return VK_SUCCESS;
-}
-
-static VkResult
-destroy_swapchain()
-{
-  for(int i = 0; i < qvk.num_swap_chain_images; i++)
-    vkDestroyImageView(qvk.device, qvk.swap_chain_image_views[i], NULL);
-
-  vkDestroySwapchainKHR(qvk.device, qvk.swap_chain, NULL);
   return VK_SUCCESS;
 }
 
@@ -654,10 +508,6 @@ qvk_cleanup()
   vkDestroySampler(qvk.device, qvk.tex_sampler_yuv, 0);
   vkDestroySamplerYcbcrConversion(qvk.device, qvk.yuv_conversion, 0);
 
-  if(qvk.window)  destroy_swapchain();
-  if(qvk.surface) vkDestroySurfaceKHR(qvk.instance, qvk.surface, NULL);
-
-  vkDestroyCommandPool (qvk.device, qvk.command_pool,     NULL);
   vkDestroyDevice      (qvk.device,   NULL);
   QVK(qvkDestroyDebugUtilsMessengerEXT(qvk.instance, qvk.dbg_messenger, NULL));
   vkDestroyInstance    (qvk.instance, NULL);

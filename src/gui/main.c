@@ -89,7 +89,7 @@ joystick_active(void *unused)
 {
   static GLFWgamepadstate last = {0};
   GLFWgamepadstate curr;
-  while(!glfwWindowShouldClose(qvk.window))
+  while(!glfwWindowShouldClose(vkdt.win.window))
   {
     if(!glfwGetGamepadState(GLFW_JOYSTICK_1, &curr)) break; // no more joystick?
     if(gamepad_changed(&last, &curr))
@@ -107,20 +107,20 @@ joystick_active(void *unused)
 static void
 toggle_fullscreen()
 {
-  GLFWmonitor* monitor = get_current_monitor(qvk.window);
+  GLFWmonitor* monitor = get_current_monitor(vkdt.win.window);
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   if(g_fullscreen)
   {
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-    glfwSetWindowMonitor(qvk.window, 0, mode->width/8, mode->height/8, mode->width/4 * 3, mode->height/4 * 3, mode->refreshRate);
+    glfwSetWindowMonitor(vkdt.win.window, 0, mode->width/8, mode->height/8, mode->width/4 * 3, mode->height/4 * 3, mode->refreshRate);
     g_fullscreen = 0;
   }
   else
   {
-    glfwSetWindowMonitor(qvk.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     g_fullscreen = 1;
   }
-  dt_gui_recreate_swapchain();
+  dt_gui_recreate_swapchain(&vkdt.win);
   dt_gui_init_fonts();
 }
 
@@ -137,7 +137,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_X && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
   {
-    glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
+    glfwSetWindowShouldClose(vkdt.win.window, GLFW_TRUE);
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
@@ -162,14 +162,14 @@ mouse_position_callback(GLFWwindow* window, double x, double y)
 static void
 window_close_callback(GLFWwindow* window)
 {
-  glfwSetWindowShouldClose(qvk.window, GLFW_TRUE);
+  glfwSetWindowShouldClose(vkdt.win.window, GLFW_TRUE);
 }
 
 static void
 window_size_callback(GLFWwindow* window, int width, int height)
 { // window resized, need to rebuild our swapchain:
-  dt_gui_recreate_swapchain();
-  nk_glfw3_resize(qvk.win_width, qvk.win_height);
+  dt_gui_recreate_swapchain(&vkdt.win);
+  nk_glfw3_resize(vkdt.win.width, vkdt.win.height);
   dt_gui_init_fonts();
 }
 
@@ -256,14 +256,14 @@ int main(int argc, char *argv[])
   g_fullscreen = 1;
   toggle_fullscreen();
 
-  glfwSetKeyCallback(qvk.window, key_callback);
-  glfwSetWindowSizeCallback(qvk.window, window_size_callback);
-  // glfwSetWindowPosCallback(qvk.window, window_pos_callback);
-  glfwSetMouseButtonCallback(qvk.window, mouse_button_callback);
-  glfwSetCursorPosCallback(qvk.window, mouse_position_callback);
-  glfwSetCharCallback(qvk.window, char_callback);
-  glfwSetScrollCallback(qvk.window, scroll_callback);
-  glfwSetWindowCloseCallback(qvk.window, window_close_callback);
+  glfwSetKeyCallback(vkdt.win.window, key_callback);
+  glfwSetWindowSizeCallback(vkdt.win.window, window_size_callback);
+  // glfwSetWindowPosCallback(vkdt.win.window, window_pos_callback);
+  glfwSetMouseButtonCallback(vkdt.win.window, mouse_button_callback);
+  glfwSetCursorPosCallback(vkdt.win.window, mouse_position_callback);
+  glfwSetCharCallback(vkdt.win.window, char_callback);
+  glfwSetScrollCallback(vkdt.win.window, scroll_callback);
+  glfwSetWindowCloseCallback(vkdt.win.window, window_close_callback);
 #if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   GLFWgamepadstate gamepad_last = {0};
-  while(!glfwWindowShouldClose(qvk.window))
+  while(!glfwWindowShouldClose(vkdt.win.window))
   {
     // block and wait for one event instead of polling all the time to save on
     // gpu workload. might need an interrupt for "render finished" etc. we might
@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
       if (!glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
       else if(gamepad_changed(&gamepad_last, &gamepad_curr))
       {
-        dt_view_gamepad(qvk.window, &gamepad_last, &gamepad_curr);
+        dt_view_gamepad(vkdt.win.window, &gamepad_last, &gamepad_curr);
         gamepad_last = gamepad_curr;
       }
     }
@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
     else
-      dt_gui_recreate_swapchain();
+      dt_gui_recreate_swapchain(&vkdt.win);
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 

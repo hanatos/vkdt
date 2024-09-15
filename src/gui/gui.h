@@ -112,33 +112,49 @@ typedef struct dt_gui_wstate_t
 }
 dt_gui_wstate_t;
 
+typedef struct dt_gui_win_t
+{ // stuff required to open a window
+  GLFWwindow        *window;
+  int                width;
+  int                height;
+
+  VkSurfaceKHR       surface;
+  VkSwapchainKHR     swap_chain;
+  VkSurfaceFormatKHR surf_format;
+  VkPresentModeKHR   present_mode;
+  uint32_t           num_swap_chain_images;
+  VkImage            swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
+  VkImageView        swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
+
+  VkRenderPass       render_pass;
+  VkPipelineCache    pipeline_cache;
+  VkDescriptorPool   descriptor_pool;
+
+  uint32_t           frame_index;
+  VkFence            fence         [DT_GUI_MAX_IMAGES];
+  VkCommandPool      command_pool  [DT_GUI_MAX_IMAGES];
+  VkCommandBuffer    command_buffer[DT_GUI_MAX_IMAGES];
+  VkFramebuffer      framebuffer   [DT_GUI_MAX_IMAGES];
+
+  uint32_t           sem_index;
+  VkSemaphore        sem_image_acquired [DT_GUI_MAX_IMAGES];
+  VkSemaphore        sem_render_complete[DT_GUI_MAX_IMAGES];
+  uint32_t           sem_fence[DT_GUI_MAX_IMAGES];
+}
+dt_gui_win_t;
+
 typedef struct dt_graph_t dt_graph_t;
 typedef struct dt_gui_t
 {
-  VkRenderPass     render_pass;
-  VkPipelineCache  pipeline_cache;
-  VkDescriptorPool descriptor_pool;
-  uint32_t         min_image_count;
-  uint32_t         image_count;
+  dt_gui_win_t     win;
+  dt_gui_win_t     win1;
 
   struct nk_context ctx;          // nuklear gui context, main screen
   struct nk_context ctx1;         // nuklear gui context, secondary viewport
 
-  VkClearValue     clear_value;
   dt_gui_style_t   style;
   dt_gui_state_t   state;
   dt_gui_wstate_t  wstate;
-
-  uint32_t         frame_index;
-  VkFence          fence         [DT_GUI_MAX_IMAGES];
-  VkCommandPool    command_pool  [DT_GUI_MAX_IMAGES];
-  VkCommandBuffer  command_buffer[DT_GUI_MAX_IMAGES];
-  VkFramebuffer    framebuffer   [DT_GUI_MAX_IMAGES];
-
-  uint32_t         sem_index;
-  VkSemaphore      sem_image_acquired [DT_GUI_MAX_IMAGES];
-  VkSemaphore      sem_render_complete[DT_GUI_MAX_IMAGES];
-  uint32_t         sem_fence[DT_GUI_MAX_IMAGES];
 
   VkResult         graph_res;     // result of last run
   dt_graph_t       graph_dev;     // processing graph
@@ -168,7 +184,7 @@ int  dt_gui_init();
 void dt_gui_cleanup();
 
 // create or resize swapchain
-VkResult dt_gui_recreate_swapchain();
+VkResult dt_gui_recreate_swapchain(dt_gui_win_t *win);
 
 // draws nuklear things, implemented in render.c
 void dt_gui_render_frame_nk();

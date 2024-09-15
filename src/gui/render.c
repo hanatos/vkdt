@@ -93,7 +93,7 @@ void dt_gui_init_fonts()
 {
   char tmp[PATH_MAX+100] = {0};
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = floorf(qvk.win_height / 55.0f * dpi_scale);
+  float fontsize = floorf(vkdt.win.height / 55.0f * dpi_scale);
   const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
   if(fontfile[0] != '/')
     snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
@@ -126,7 +126,7 @@ void dt_gui_init_fonts()
   g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
 
   threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
-  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.command_buffer[vkdt.frame_index%DT_GUI_MAX_IMAGES], qvk.queue[qvk.qid[s_queue_graphics]].queue);
+  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.win.command_buffer[vkdt.win.frame_index%DT_GUI_MAX_IMAGES], qvk.queue[qvk.qid[s_queue_graphics]].queue);
   threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
@@ -142,15 +142,13 @@ int dt_gui_init_nk()
   // nk_init_default(&vkdt.ctx1, 0); // TODO secondary screen
   nk_glfw3_init(
       &vkdt.ctx,
-      vkdt.render_pass,
-      qvk.window,
+      vkdt.win.render_pass,
+      vkdt.win.window,
       qvk.device, qvk.physical_device,
-      qvk.num_swap_chain_images * 2560*1024, qvk.num_swap_chain_images * 640*1024);
+      vkdt.win.num_swap_chain_images * 2560*1024,
+      vkdt.win.num_swap_chain_images * 640*1024);
 
-     // XXX setup keyboard and gamepad nav!
-     // https://github.com/smallbasic/smallbasic.plugins/blob/master/nuklear/nkbd.h
      // XXX setup multi viewport for dual screen! (requires a second ctx and manual handling of the second viewport/command buffer)
-     // XXX setup colour management! (use our imgui shaders and port to nuklear)
 
   read_style_colours(&vkdt.ctx);
 
@@ -213,8 +211,8 @@ int dt_gui_init_nk()
       else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
     }
     int bitdepth = 8; // the display output will be dithered according to this
-    if(qvk.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
-       qvk.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+    if(vkdt.win.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+       vkdt.win.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
     nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
@@ -299,14 +297,13 @@ void dt_gui_cleanup_nk()
 
 void dt_gui_grab_mouse()
 {
-  // TODO vkdt.ctx.input.mouse.grab (then takes care of cursor too)
-  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   vkdt.wstate.grabbed = 1;
 }
 
 void dt_gui_ungrab_mouse()
 {
-  glfwSetInputMode(qvk.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   vkdt.wstate.grabbed = 0;
   dt_gui_dr_unset_fullscreen_view();
 }
