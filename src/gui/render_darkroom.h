@@ -1059,8 +1059,9 @@ static inline void render_darkroom_widgets(
         { // scale output to match panel
           const float pwf = 0.2; // probably make a config param so we have access too (not only the gui)
           const float pwd = pwf * (16.0/9.0) * vkdt.win.height;
-          graph->module[mid].connector[0].max_wd = (2.0/3.2) * pwd;
+          graph->module[mid].connector[0].max_wd = pwd;
           graph->module[mid].connector[0].max_ht = (2.0/3.2) * pwd;
+          vkdt.graph_dev.runflags = s_graph_run_all;
         }
       }
       active = 1;
