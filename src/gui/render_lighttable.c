@@ -132,14 +132,14 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_ENTER)
   {
-    if(dt_db_current_imgid(&vkdt.db) != -1u)
-      dt_view_switch(s_view_darkroom);
-    else if(g_image_cursor >= 0)
+    if(g_image_cursor >= 0)
     {
       dt_db_selection_clear(&vkdt.db);
       dt_db_selection_add(&vkdt.db, g_image_cursor);
       dt_view_switch(s_view_darkroom);
     }
+    else if(dt_db_current_imgid(&vkdt.db) != -1u)
+      dt_view_switch(s_view_darkroom);
   }
   else if(key == GLFW_KEY_UP)
   {
