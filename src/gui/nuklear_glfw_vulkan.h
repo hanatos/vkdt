@@ -152,7 +152,7 @@ struct Mat4f {
 NK_API void nk_glfw3_setup_display_colour_management(
     float g0[3], float M0[9], float g1[3], float M1[9], int xpos1, int bitdepth)
 {
-  int xpos = 0, ypos = 0;
+  int xpos = 0;
   float maxval = powf(2.0f, bitdepth);
   for(int i=0;i<2;i++)
   {
@@ -1072,7 +1072,6 @@ void nk_glfw3_create_cmd(
 
   int xpos, ypos;
   glfwGetWindowPos(win->win, &xpos, &ypos);
-  (void)ypos;
   memcpy(dev->push_constant+25, &xpos, sizeof(xpos));
   vkCmdPushConstants(command_buffer, dev->pipeline_layout,
       VK_SHADER_STAGE_ALL, 0, dev->push_constant_size, dev->push_constant);

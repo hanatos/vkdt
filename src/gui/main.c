@@ -166,18 +166,6 @@ window_close_callback(GLFWwindow* window)
 }
 
 static void
-window_size_callback(GLFWwindow* w, int width, int height)
-{ // window resized, need to rebuild our swapchain:
-  dt_gui_win_t *win = &vkdt.win;
-  if(w == vkdt.win1.window) win = &vkdt.win1;
-  dt_gui_recreate_swapchain(win);
-  nk_glfw3_resize(w, win->width, win->height);
-  dt_gui_init_fonts();
-}
-
-// static void window_pos_callback(GLFWwindow* window, int xpos, int ypos) { }
-
-static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
   if(!vkdt.wstate.grabbed)
@@ -259,8 +247,6 @@ int main(int argc, char *argv[])
   toggle_fullscreen();
 
   glfwSetKeyCallback(vkdt.win.window, key_callback);
-  glfwSetWindowSizeCallback(vkdt.win.window, window_size_callback);
-  // glfwSetWindowPosCallback(vkdt.win.window, window_pos_callback);
   glfwSetMouseButtonCallback(vkdt.win.window, mouse_button_callback);
   glfwSetCursorPosCallback(vkdt.win.window, mouse_position_callback);
   glfwSetCharCallback(vkdt.win.window, char_callback);

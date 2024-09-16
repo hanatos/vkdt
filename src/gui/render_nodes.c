@@ -78,8 +78,7 @@ void render_nodes_right_panel()
         struct nk_rect bounds = {0, 0, vkdt.win1.width, vkdt.win1.height};
         wd = vkdt.win1.width;
         nk_style_push_style_item(ctx, &ctx->style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
-        int disabled = 1; // XXX try this later
-        if(!nk_begin(ctx, "vkdt secondary", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
+        if(!nk_begin(ctx, "vkdt secondary", bounds, NK_WINDOW_NO_SCROLLBAR))
           visible = 0;
       }
       if(visible)
@@ -93,7 +92,7 @@ void render_nodes_right_panel()
       }
       if(popout)
       {
-        // NK_UPDATE_ACTIVE; ??
+        // NK_UPDATE_ACTIVE; // does not work on ctx1
         nk_end(ctx);
         nk_style_pop_style_item(ctx);
       }

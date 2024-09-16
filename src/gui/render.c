@@ -236,7 +236,10 @@ int dt_gui_init_nk()
 // call from main loop:
 void dt_gui_render_frame_nk()
 {
-  nk_glfw3_new_frame(&vkdt.ctx, vkdt.win.window); // this context will get input
+  // collect input from windows for our contexts
+  nk_glfw3_new_frame(&vkdt.ctx, vkdt.win.window);
+  if(vkdt.win1.window)
+    nk_glfw3_new_frame(&vkdt.ctx1, vkdt.win1.window);
   double now = glfwGetTime();
 
   switch(vkdt.view_mode)

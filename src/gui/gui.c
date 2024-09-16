@@ -18,6 +18,16 @@
 #include <inttypes.h>
 
 static void
+window_size_callback(GLFWwindow* w, int width, int height)
+{ // window resized, need to rebuild our swapchain:
+  dt_gui_win_t *win = &vkdt.win;
+  if(w == vkdt.win1.window) win = &vkdt.win1;
+  dt_gui_recreate_swapchain(win);
+  nk_glfw3_resize(w, win->width, win->height);
+  if(w == vkdt.win.window) dt_gui_init_fonts();
+}
+
+static void
 style_to_state()
 {
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
@@ -46,6 +56,7 @@ dt_gui_win_init(dt_gui_win_t *win)
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
   win->window = glfwCreateWindow(win->width, win->height, "vkdt", NULL, NULL);
   glfwSetWindowPos(win->window, win->width/8, win->height/8);
+  glfwSetWindowSizeCallback(win->window, window_size_callback);
 }
 
 static inline int
@@ -569,14 +580,10 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
 
 VkResult dt_gui_render()
 {
-  // potentially set off commands for both ctx/win
-  dt_gui_render_frame_nk();
-
-  QVKR(dt_gui_win_render(&vkdt.ctx, &vkdt.win));
-
-  if(vkdt.win1.window != 0) QVKR(dt_gui_win_render(&vkdt.ctx1, &vkdt.win1));
-
-  return VK_SUCCESS;
+  dt_gui_render_frame_nk(); // potentially set off commands for both ctx/win
+  VkResult res = 0;
+  if(vkdt.win1.window) res = dt_gui_win_render(&vkdt.ctx1, &vkdt.win1);
+  return res | dt_gui_win_render(&vkdt.ctx, &vkdt.win);
 }
 
 static inline VkResult
@@ -598,9 +605,9 @@ dt_gui_present_win(dt_gui_win_t *win)
 
 VkResult dt_gui_present()
 {
-  if(vkdt.win1.window)
-    QVKR(dt_gui_present_win(&vkdt.win1));
-  return dt_gui_present_win(&vkdt.win);
+  VkResult res = 0;
+  if(vkdt.win1.window) res = dt_gui_present_win(&vkdt.win1);
+  return res | dt_gui_present_win(&vkdt.win);
 }
 
 void
@@ -825,4 +832,5 @@ void dt_gui_win1_open()
   nk_glfw3_win1_open(&vkdt.ctx1, vkdt.win1.render_pass, vkdt.win1.window, 
       vkdt.win1.num_swap_chain_images * 2560*1024,
       vkdt.win1.num_swap_chain_images * 640*1024);
+  // XXX TODO glfw callbacks for resize, close, maybe some buttons for fullscreen/close
 }
