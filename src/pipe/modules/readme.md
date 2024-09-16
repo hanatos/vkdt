@@ -30,6 +30,7 @@ it follows the reference documentation of available modules, grouped into catego
 * [o-null: write absolutely nothing](./o-null/readme.md)
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)
 * [o-vid: write h264 or prores compressed video streams](./o-vid/readme.md)
+* [o-web: transitional module for jpg and mp4 for webpages](./o-web/readme.md)
 * [loss: compute loss for optimisation](./loss/readme.md)
 
 **visualisation and inspection**
