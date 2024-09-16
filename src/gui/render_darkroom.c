@@ -124,9 +124,8 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     return;
   }
 
-  if(action != GLFW_PRESS) return; // only handle key down events
-
   gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
+  if(action != GLFW_PRESS) return; // only handle key down events
   switch(gui.hotkey)
   { // these are "destructive" hotkeys, they change the image and invalidate the dset.
     // this has to happen this frame *before* the dset is sent to imgui for display.

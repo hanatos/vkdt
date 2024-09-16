@@ -127,6 +127,7 @@ static inline void render_darkroom_widget(int modid, int parid)
       dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
           g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
       dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
+      gui.hotkey = -1;\
     }\
   }
 #endif
