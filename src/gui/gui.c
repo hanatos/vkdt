@@ -574,8 +574,7 @@ VkResult dt_gui_render()
 
   QVKR(dt_gui_win_render(&vkdt.ctx, &vkdt.win));
 
-  if(vkdt.win1.window != 0)
-    QVKR(dt_gui_win_render(&vkdt.ctx1, &vkdt.win1));
+  if(vkdt.win1.window != 0) QVKR(dt_gui_win_render(&vkdt.ctx1, &vkdt.win1));
 
   return VK_SUCCESS;
 }

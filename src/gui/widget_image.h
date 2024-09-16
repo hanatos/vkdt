@@ -370,6 +370,5 @@ dt_image(
         scaletext, strlen(scaletext), &dt_gui_get_font(0)->handle, (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }
   // now the controls:
-  if(!events) return;
-  dt_image_events(ctx, w, hover, main);
+  if(events) dt_image_events(ctx, w, hover, main);
 }

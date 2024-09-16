@@ -152,19 +152,12 @@ struct Mat4f {
 NK_API void nk_glfw3_setup_display_colour_management(
     float g0[3], float M0[9], float g1[3], float M1[9], int xpos1, int bitdepth)
 {
-  int xpos, ypos;
+  int xpos = 0, ypos = 0;
   float maxval = powf(2.0f, bitdepth);
   for(int i=0;i<2;i++)
   {
     struct nk_glfw_device *dev = &glfw.d0;
-    struct nk_glfw_win    *win = &glfw.w0;
-    if(i)
-    {
-      if(!glfw.w1.win) return;
-      dev = &glfw.d1;
-      win = &glfw.w1;
-    }
-    glfwGetWindowPos(win->win, &xpos, &ypos);
+    if(i) dev = &glfw.d1;
     dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
     memcpy(dev->push_constant,     g0, 3*sizeof(float));
     memcpy(dev->push_constant +3,  g1, 3*sizeof(float));
@@ -564,7 +557,7 @@ NK_API VkResult nk_glfw3_device_create(
     VkRenderPass render_pass,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer)
 {
-  dev->max_vertex_buffer = max_vertex_buffer;
+  dev->max_vertex_buffer  = max_vertex_buffer;
   dev->max_element_buffer = max_element_buffer;
   dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
   nk_buffer_init_default(&dev->cmds);
@@ -1077,6 +1070,10 @@ void nk_glfw3_create_cmd(
   vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &voffset);
   vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, ioffset, VK_INDEX_TYPE_UINT16);
 
+  int xpos, ypos;
+  glfwGetWindowPos(win->win, &xpos, &ypos);
+  (void)ypos;
+  memcpy(dev->push_constant+25, &xpos, sizeof(xpos));
   vkCmdPushConstants(command_buffer, dev->pipeline_layout,
       VK_SHADER_STAGE_ALL, 0, dev->push_constant_size, dev->push_constant);
 
@@ -1156,7 +1153,7 @@ nk_glfw3_mouse_button_callback(
   NK_UNUSED(mods);
   if (button != GLFW_MOUSE_BUTTON_LEFT)
     return;
-  glfwGetCursorPos(win->win, &x, &y);
+  glfwGetCursorPos(w, &x, &y);
   if (action == GLFW_PRESS) {
     double dt = glfwGetTime() - win->last_button_click;
     if (dt > NK_GLFW_DOUBLE_CLICK_LO && dt < NK_GLFW_DOUBLE_CLICK_HI) {
@@ -1173,9 +1170,7 @@ NK_INTERN void nk_glfw3_clipboard_paste(
     struct nk_text_edit *edit)
 {
   GLFWwindow *w = (GLFWwindow*)usr.ptr;
-  struct nk_glfw_win  *win = &glfw.w0;
-  if(w == glfw.w1.win) win = &glfw.w1;
-  const char *text = glfwGetClipboardString(win->win);
+  const char *text = glfwGetClipboardString(w);
   if (text) nk_textedit_paste(edit, text, nk_strlen(text));
 }
 
@@ -1184,15 +1179,13 @@ NK_INTERN void nk_glfw3_clipboard_copy(
     int len)
 {
   GLFWwindow *w = (GLFWwindow*)usr.ptr;
-  struct nk_glfw_win  *win = &glfw.w0;
-  if(w == glfw.w1.win) win = &glfw.w1;
   char *str = 0;
   if (!len) return;
   str = (char *)malloc((size_t)len + 1);
   if (!str) return;
   memcpy(str, text, (size_t)len);
   str[len] = '\0';
-  glfwSetClipboardString(win->win, str);
+  glfwSetClipboardString(w, str);
   free(str);
 }
 

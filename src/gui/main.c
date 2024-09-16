@@ -171,7 +171,7 @@ window_size_callback(GLFWwindow* w, int width, int height)
   dt_gui_win_t *win = &vkdt.win;
   if(w == vkdt.win1.window) win = &vkdt.win1;
   dt_gui_recreate_swapchain(win);
-  nk_glfw3_resize(win->width, win->height);
+  nk_glfw3_resize(w, win->width, win->height);
   dt_gui_init_fonts();
 }
 
