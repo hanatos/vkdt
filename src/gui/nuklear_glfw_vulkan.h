@@ -32,20 +32,15 @@ NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
 NK_API void nk_glfw3_font_stash_end(struct nk_context *ctx, VkCommandBuffer cmd, VkQueue graphics_queue);
 NK_API void nk_glfw3_font_cleanup();
-NK_API void nk_glfw3_new_frame(struct nk_context *ctx);
+NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *win);
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
+    GLFWwindow *win,
     VkCommandBuffer cmd,
     enum nk_anti_aliasing AA,
     int frame, int max_frames);
 NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
                             uint32_t framebuffer_height);
-NK_API void nk_glfw3_device_destroy(void);
-NK_API VkResult nk_glfw3_device_create(
-    VkRenderPass render_pass,
-    VkDevice logical_device, VkPhysicalDevice physical_device,
-    VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
-
 NK_API void nk_glfw3_keyboard_callback(struct nk_context *ctx, GLFWwindow *w, int key, int scancode, int action, int mods);
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
@@ -90,14 +85,10 @@ struct nk_glfw_vertex {
 struct nk_glfw_device
 {
   struct nk_buffer cmds;
-  struct nk_draw_null_texture tex_null;
   int max_vertex_buffer;
   int max_element_buffer;
 
-  VkDevice logical_device;
-  VkPhysicalDevice physical_device;
   VkRenderPass render_pass;
-  VkSampler sampler;
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_memory;
   void *mapped_vertex;
@@ -111,25 +102,17 @@ struct nk_glfw_device
   VkDescriptorPool descriptor_pool;
   VkDescriptorSetLayout uniform_descriptor_set_layout;
   VkDescriptorSet uniform_descriptor_set;
-  VkDescriptorSetLayout texture_descriptor_set_layout;
   VkPipelineLayout pipeline_layout;
   VkPipeline pipeline;
-
-  VkImage font_image;
-  VkDescriptorSet font_dset;
-  VkImageView font_image_view;
-  VkDeviceMemory font_memory;
 
   int push_constant_size;
   int push_constant[128];
 };
 
-static struct nk_glfw
+struct nk_glfw_win
 {
   GLFWwindow *win;
   int width, height;
-  struct nk_glfw_device vulkan;
-  struct nk_font_atlas atlas;
   unsigned int text[NK_GLFW_TEXT_MAX];
   int text_len;
   struct nk_vec2 scroll;
@@ -137,40 +120,57 @@ static struct nk_glfw
   int is_double_click_down;
   struct nk_vec2 double_click_pos;
 
-  // key repeat
   int key_repeat[10];
+};
 
-  // colour management
-  float gamma0[3];
-  float gamma1[3];
-  float M0[9];
-  float M1[9];
-  int winposx, borderx;
-  float maxval;
+static struct nk_glfw
+{
+  struct nk_glfw_win    w0, w1;  // user input/window stuff
+  struct nk_glfw_device d0, d1;  // each has their own render pass and such
+
+  // common vulkan resources
+  VkDevice logical_device;
+  VkPhysicalDevice physical_device;
+  VkSampler sampler;
+  struct nk_draw_null_texture tex_null;
+  struct nk_font_atlas atlas;
+  VkImage font_image;
+  VkImageView font_image_view;
+  VkDeviceMemory font_memory;
+  VkDescriptorPool descriptor_pool;
+  VkDescriptorSetLayout font_dset_layout;
+  VkDescriptorSet font_dset;
 } glfw;
 
 struct Mat4f {
     float m[16];
 };
 
-NK_API void nk_glfw3_setup_display_colour_management(float *g0, float *M0, float *g1, float *M1, int xpos1, int bitdepth)
+NK_API void nk_glfw3_setup_display_colour_management(
+    float g0[3], float M0[9], float g1[3], float M1[9], int xpos1, int bitdepth)
 {
   int xpos, ypos;
-  glfwGetWindowPos(glfw.win, &xpos, &ypos);
-  memcpy(glfw.gamma0, g0, sizeof(glfw.gamma0));
-  memcpy(glfw.gamma1, g1, sizeof(glfw.gamma1));
-  memcpy(glfw.M0, M0, sizeof(glfw.M0));
-  memcpy(glfw.M1, M1, sizeof(glfw.M1));
-  glfw.borderx = xpos1;
-  glfw.maxval = powf(2.0f, bitdepth);
-  glfw.vulkan.push_constant_size = (2*(3+9)+3)*sizeof(float);
-  memcpy(glfw.vulkan.push_constant,     glfw.gamma0, sizeof(glfw.gamma0));
-  memcpy(glfw.vulkan.push_constant +3,  glfw.gamma1, sizeof(glfw.gamma1));
-  memcpy(glfw.vulkan.push_constant +6,  glfw.M0, sizeof(glfw.M0));
-  memcpy(glfw.vulkan.push_constant+15,  glfw.M1, sizeof(glfw.M1));
-  memcpy(glfw.vulkan.push_constant+24, &glfw.maxval, sizeof(glfw.maxval));
-  memcpy(glfw.vulkan.push_constant+25, &xpos, sizeof(xpos));
-  memcpy(glfw.vulkan.push_constant+26, &glfw.borderx, sizeof(glfw.borderx));
+  float maxval = powf(2.0f, bitdepth);
+  for(int i=0;i<2;i++)
+  {
+    struct nk_glfw_device *dev = &glfw.d0;
+    struct nk_glfw_win    *win = &glfw.w0;
+    if(i)
+    {
+      if(!glfw.w1.win) return;
+      dev = &glfw.d1;
+      win = &glfw.w1;
+    }
+    glfwGetWindowPos(win->win, &xpos, &ypos);
+    dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
+    memcpy(dev->push_constant,     g0, 3*sizeof(float));
+    memcpy(dev->push_constant +3,  g1, 3*sizeof(float));
+    memcpy(dev->push_constant +6,  M0, 9*sizeof(float));
+    memcpy(dev->push_constant+15,  M1, 9*sizeof(float));
+    memcpy(dev->push_constant+24, &maxval, sizeof(maxval));
+    memcpy(dev->push_constant+25, &xpos, sizeof(xpos));
+    memcpy(dev->push_constant+26, &xpos1, sizeof(xpos1));
+  }
 }
 
 NK_INTERN uint32_t nk_glfw3_find_memory_index(
@@ -193,7 +193,7 @@ NK_INTERN uint32_t nk_glfw3_find_memory_index(
 }
 
 NK_INTERN VkResult
-nk_glfw3_create_sampler(struct nk_glfw_device *dev)
+nk_glfw3_create_sampler()
 {
   VkSamplerCreateInfo sampler_info = {
     .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -212,7 +212,7 @@ nk_glfw3_create_sampler(struct nk_glfw_device *dev)
     .maxLod = 0.0f,
     .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
   };
-  return vkCreateSampler(dev->logical_device, &sampler_info, NULL, &dev->sampler);
+  return vkCreateSampler(glfw.logical_device, &sampler_info, NULL, &glfw.sampler);
 }
 
 NK_INTERN VkResult
@@ -234,66 +234,73 @@ nk_glfw3_create_buffer_and_memory(
     buffer_info.usage = usage;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    result = vkCreateBuffer(dev->logical_device, &buffer_info, NULL, buffer);
+    result = vkCreateBuffer(glfw.logical_device, &buffer_info, NULL, buffer);
     if(result != VK_SUCCESS) return result;
 
-    vkGetBufferMemoryRequirements(dev->logical_device, *buffer, &mem_reqs);
+    vkGetBufferMemoryRequirements(glfw.logical_device, *buffer, &mem_reqs);
 
     memset(&alloc_info, 0, sizeof(VkMemoryAllocateInfo));
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     alloc_info.allocationSize = mem_reqs.size;
     alloc_info.memoryTypeIndex = nk_glfw3_find_memory_index(
-        dev->physical_device, mem_reqs.memoryTypeBits,
+        glfw.physical_device, mem_reqs.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL, memory);
+    result = vkAllocateMemory(glfw.logical_device, &alloc_info, NULL, memory);
     if(result != VK_SUCCESS) return result;
-    result = vkBindBufferMemory(dev->logical_device, *buffer, *memory, 0);
+    result = vkBindBufferMemory(glfw.logical_device, *buffer, *memory, 0);
     return result;
+}
+
+NK_INTERN VkResult nk_glfw3_create_font_descriptor_pool()
+{
+  VkDescriptorPoolSize pool_sizes = {
+    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+  };
+  VkDescriptorPoolCreateInfo pool_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .poolSizeCount = 1,
+    .pPoolSizes = &pool_sizes,
+    .maxSets = 1,
+  };
+  return vkCreateDescriptorPool(
+      glfw.logical_device, &pool_info, NULL,
+      &glfw.descriptor_pool);
 }
 
 NK_INTERN VkResult nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev)
 {
-  VkDescriptorPoolSize pool_sizes[2];
-  VkDescriptorPoolCreateInfo pool_info;
-
-  memset(&pool_sizes, 0, sizeof(VkDescriptorPoolSize) * 2);
-  pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  pool_sizes[0].descriptorCount = 1;
-  pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  pool_sizes[1].descriptorCount = 1; // font atlas
-
-  memset(&pool_info, 0, sizeof(VkDescriptorPoolCreateInfo));
-  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  pool_info.poolSizeCount = 2;
-  pool_info.pPoolSizes = pool_sizes;
-  pool_info.maxSets = 1 + 1;
-
+  VkDescriptorPoolSize pool_sizes = {
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+  };
+  VkDescriptorPoolCreateInfo pool_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .poolSizeCount = 1,
+    .pPoolSizes = &pool_sizes,
+    .maxSets = 1,
+  };
   return vkCreateDescriptorPool(
-      dev->logical_device, &pool_info, NULL,
+      glfw.logical_device, &pool_info, NULL,
       &dev->descriptor_pool);
 }
 
 NK_INTERN VkResult
 nk_glfw3_create_uniform_descriptor_set_layout(struct nk_glfw_device *dev)
 {
-  VkDescriptorSetLayoutBinding binding;
-  VkDescriptorSetLayoutCreateInfo descriptor_set_info;
-
-  memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
-  binding.binding = 0;
-  binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  binding.descriptorCount = 1;
-  binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-  memset(&descriptor_set_info, 0, sizeof(VkDescriptorSetLayoutCreateInfo));
-  descriptor_set_info.sType =
-    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  descriptor_set_info.bindingCount = 1;
-  descriptor_set_info.pBindings = &binding;
-
-  return vkCreateDescriptorSetLayout(dev->logical_device, &descriptor_set_info,
+  VkDescriptorSetLayoutBinding binding = {
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+  };
+  VkDescriptorSetLayoutCreateInfo descriptor_set_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings = &binding,
+  };
+  return vkCreateDescriptorSetLayout(glfw.logical_device, &descriptor_set_info,
         NULL, &dev->uniform_descriptor_set_layout);
 }
 
@@ -311,7 +318,7 @@ nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev)
   allocate_info.descriptorSetCount = 1;
   allocate_info.pSetLayouts = &dev->uniform_descriptor_set_layout;
 
-  result = vkAllocateDescriptorSets(dev->logical_device, &allocate_info,
+  result = vkAllocateDescriptorSets(glfw.logical_device, &allocate_info,
       &dev->uniform_descriptor_set);
   if(result != VK_SUCCESS) return result;
 
@@ -329,72 +336,62 @@ nk_glfw3_create_and_update_uniform_descriptor_set(struct nk_glfw_device *dev)
   descriptor_write.descriptorCount = 1;
   descriptor_write.pBufferInfo = &buffer_info;
 
-  vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
+  vkUpdateDescriptorSets(glfw.logical_device, 1, &descriptor_write, 0, NULL);
   return VK_SUCCESS;
 }
 
 NK_INTERN VkResult
-nk_glfw3_create_texture_descriptor_set_layout(struct nk_glfw_device *dev)
+nk_glfw3_create_font_dset()
 {
-  VkDescriptorSetLayoutBinding binding;
-  VkDescriptorSetLayoutCreateInfo descriptor_set_info;
-
-  memset(&binding, 0, sizeof(VkDescriptorSetLayoutBinding));
-  binding.binding = 0;
-  binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  binding.descriptorCount = 1;
-  binding.stageFlags = VK_SHADER_STAGE_ALL;//VK_SHADER_STAGE_FRAGMENT_BIT;
-
-  memset(&descriptor_set_info, 0, sizeof(VkDescriptorSetLayoutCreateInfo));
-  descriptor_set_info.sType =
-    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  descriptor_set_info.bindingCount = 1;
-  descriptor_set_info.pBindings = &binding;
-
+  VkDescriptorSetLayoutBinding binding = {
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_ALL,
+  };
+  VkDescriptorSetLayoutCreateInfo descriptor_set_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings = &binding,
+  };
   VkResult result = vkCreateDescriptorSetLayout(
-      dev->logical_device, &descriptor_set_info,
-      NULL, &dev->texture_descriptor_set_layout);
+      glfw.logical_device, &descriptor_set_info,
+      NULL, &glfw.font_dset_layout);
   if(result != VK_SUCCESS) return result;
-
-  NK_ASSERT(result == VK_SUCCESS);
-
   VkDescriptorSetAllocateInfo allocate_info = {
     .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorPool     = dev->descriptor_pool,
+    .descriptorPool     = glfw.descriptor_pool,
     .descriptorSetCount = 1,
-    .pSetLayouts        = &dev->texture_descriptor_set_layout,
+    .pSetLayouts        = &glfw.font_dset_layout,
   };
-  return vkAllocateDescriptorSets(dev->logical_device, &allocate_info, &dev->font_dset);
+  return vkAllocateDescriptorSets(glfw.logical_device, &allocate_info, &glfw.font_dset);
 }
 
 NK_INTERN VkResult
 nk_glfw3_create_pipeline_layout(struct nk_glfw_device *dev)
 {
-    VkPipelineLayoutCreateInfo pipeline_layout_info;
-    VkDescriptorSetLayout descriptor_set_layouts[2];
+  VkDescriptorSetLayout descriptor_set_layouts[2] = {
+    dev->uniform_descriptor_set_layout, glfw.font_dset_layout };
+  VkPushConstantRange pcrange = {
+    .stageFlags = VK_SHADER_STAGE_ALL,
+    .offset     = 0,
+    .size       = dev->push_constant_size,
+  };
+  VkPipelineLayoutCreateInfo pipeline_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 2,
+    .pSetLayouts = descriptor_set_layouts,
+    .pushConstantRangeCount = 1,
+    .pPushConstantRanges = &pcrange,
+  };
 
-    descriptor_set_layouts[0] = dev->uniform_descriptor_set_layout;
-    descriptor_set_layouts[1] = dev->texture_descriptor_set_layout;
-
-    VkPushConstantRange pcrange = {
-      .stageFlags = VK_SHADER_STAGE_ALL,
-      .offset     = 0,
-      .size       = dev->push_constant_size,
-    };
-    memset(&pipeline_layout_info, 0, sizeof(VkPipelineLayoutCreateInfo));
-    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = 2;
-    pipeline_layout_info.pSetLayouts = descriptor_set_layouts;
-    pipeline_layout_info.pushConstantRangeCount = 1;
-    pipeline_layout_info.pPushConstantRanges = &pcrange;
-
-    return vkCreatePipelineLayout(dev->logical_device, &pipeline_layout_info,
-                                     NULL, &dev->pipeline_layout);
+  return vkCreatePipelineLayout(glfw.logical_device, &pipeline_layout_info,
+      NULL, &dev->pipeline_layout);
 }
 
 NK_INTERN VkPipelineShaderStageCreateInfo
 nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
-                       uint32_t size, VkShaderStageFlagBits stage_bit) {
+                       uint32_t size, VkShaderStageFlagBits stage_bit)
+{
     VkShaderModuleCreateInfo create_info;
     VkPipelineShaderStageCreateInfo shader_info = {0};
     VkShaderModule module = NULL;
@@ -405,7 +402,7 @@ nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
     create_info.codeSize = size;
     create_info.pCode = (const uint32_t *)spv_shader;
     result =
-        vkCreateShaderModule(dev->logical_device, &create_info, NULL, &module);
+        vkCreateShaderModule(glfw.logical_device, &create_info, NULL, &module);
     if(result != VK_SUCCESS) return shader_info;
 
     memset(&shader_info, 0, sizeof(VkPipelineShaderStageCreateInfo));
@@ -534,11 +531,11 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
       .basePipelineHandle = NULL,
     };
 
-    result = vkCreateGraphicsPipelines(dev->logical_device, NULL, 1,
+    result = vkCreateGraphicsPipelines(glfw.logical_device, NULL, 1,
                                        &pipeline_info, NULL, &dev->pipeline);
 
-    vkDestroyShaderModule(dev->logical_device, shader_stages[0].module, NULL);
-    vkDestroyShaderModule(dev->logical_device, shader_stages[1].module, NULL);
+    vkDestroyShaderModule(glfw.logical_device, shader_stages[0].module, NULL);
+    vkDestroyShaderModule(glfw.logical_device, shader_stages[1].module, NULL);
     return result;
 }
 
@@ -553,8 +550,6 @@ nk_glfw3_create_render_resources(
   if(result != VK_SUCCESS) return result;
   result = nk_glfw3_create_and_update_uniform_descriptor_set(dev);
   if(result != VK_SUCCESS) return result;
-  result = nk_glfw3_create_texture_descriptor_set_layout(dev);
-  if(result != VK_SUCCESS) return result;
   result = nk_glfw3_create_pipeline_layout(dev);
   if(result != VK_SUCCESS) return result;
   result = nk_glfw3_create_pipeline(dev);
@@ -563,20 +558,16 @@ nk_glfw3_create_render_resources(
 }
 
 NK_API VkResult nk_glfw3_device_create(
+    struct nk_glfw_device *dev,
     VkRenderPass render_pass,
-    VkDevice logical_device, VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer)
 {
-  struct nk_glfw_device *dev = &glfw.vulkan;
   dev->max_vertex_buffer = max_vertex_buffer;
   dev->max_element_buffer = max_element_buffer;
   dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
   nk_buffer_init_default(&dev->cmds);
-  dev->logical_device = logical_device;
-  dev->physical_device = physical_device;
   dev->render_pass = render_pass;
 
-  nk_glfw3_create_sampler(dev);
   nk_glfw3_create_buffer_and_memory(
       dev, &dev->vertex_buffer,
       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -589,9 +580,9 @@ NK_API VkResult nk_glfw3_device_create(
       dev, &dev->uniform_buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       &dev->uniform_memory, sizeof(struct Mat4f));
 
-  vkMapMemory(dev->logical_device, dev->vertex_memory, 0, max_vertex_buffer, 0, &dev->mapped_vertex);
-  vkMapMemory(dev->logical_device, dev->index_memory, 0, max_element_buffer, 0, &dev->mapped_index);
-  vkMapMemory(dev->logical_device, dev->uniform_memory, 0, sizeof(struct Mat4f), 0, &dev->mapped_uniform);
+  vkMapMemory(glfw.logical_device, dev->vertex_memory, 0, max_vertex_buffer, 0, &dev->mapped_vertex);
+  vkMapMemory(glfw.logical_device, dev->index_memory, 0, max_element_buffer, 0, &dev->mapped_index);
+  vkMapMemory(glfw.logical_device, dev->uniform_memory, 0, sizeof(struct Mat4f), 0, &dev->mapped_uniform);
 
   return nk_glfw3_create_render_resources(dev);
 }
@@ -603,8 +594,6 @@ nk_glfw3_device_upload_atlas(
     const void *image, int width,
     int height)
 {
-    struct nk_glfw_device *dev = &glfw.vulkan;
-
     VkImageCreateInfo image_info;
     VkResult result;
     VkMemoryRequirements mem_reqs;
@@ -640,24 +629,24 @@ nk_glfw3_device_upload_atlas(
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    result = vkCreateImage(dev->logical_device, &image_info, NULL, &dev->font_image);
+    result = vkCreateImage(glfw.logical_device, &image_info, NULL, &glfw.font_image);
     if(result != VK_SUCCESS) return result;
 
     vkGetImageMemoryRequirements(
-        dev->logical_device, dev->font_image, &mem_reqs);
+        glfw.logical_device, glfw.font_image, &mem_reqs);
 
     memset(&alloc_info, 0, sizeof(VkMemoryAllocateInfo));
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     alloc_info.allocationSize = mem_reqs.size;
     alloc_info.memoryTypeIndex = nk_glfw3_find_memory_index(
-        dev->physical_device, mem_reqs.memoryTypeBits,
+        glfw.physical_device, mem_reqs.memoryTypeBits,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL,
-                              &dev->font_memory);
+    result = vkAllocateMemory(glfw.logical_device, &alloc_info, NULL,
+                              &glfw.font_memory);
     if(result != VK_SUCCESS) return result;
-    result = vkBindImageMemory(dev->logical_device, dev->font_image,
-                               dev->font_memory, 0);
+    result = vkBindImageMemory(glfw.logical_device, glfw.font_image,
+                               glfw.font_memory, 0);
     if(result != VK_SUCCESS) return result;
 
     memset(&buffer_info, 0, sizeof(VkBufferCreateInfo));
@@ -666,29 +655,29 @@ nk_glfw3_device_upload_atlas(
     buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    result = vkCreateBuffer(dev->logical_device, &buffer_info, NULL,
+    result = vkCreateBuffer(glfw.logical_device, &buffer_info, NULL,
                             &staging_buffer.buffer);
     if(result != VK_SUCCESS) return result;
-    vkGetBufferMemoryRequirements(dev->logical_device, staging_buffer.buffer,
+    vkGetBufferMemoryRequirements(glfw.logical_device, staging_buffer.buffer,
                                   &mem_reqs);
 
     alloc_info.allocationSize = mem_reqs.size;
     alloc_info.memoryTypeIndex = nk_glfw3_find_memory_index(
-        dev->physical_device, mem_reqs.memoryTypeBits,
+        glfw.physical_device, mem_reqs.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    result = vkAllocateMemory(dev->logical_device, &alloc_info, NULL,
+    result = vkAllocateMemory(glfw.logical_device, &alloc_info, NULL,
                               &staging_buffer.memory);
     if(result != VK_SUCCESS) return result;
-    result = vkBindBufferMemory(dev->logical_device, staging_buffer.buffer,
+    result = vkBindBufferMemory(glfw.logical_device, staging_buffer.buffer,
                                 staging_buffer.memory, 0);
     if(result != VK_SUCCESS) return result;
 
-    result = vkMapMemory(dev->logical_device, staging_buffer.memory, 0, alloc_info.allocationSize, 0, (void **)&data);
+    result = vkMapMemory(glfw.logical_device, staging_buffer.memory, 0, alloc_info.allocationSize, 0, (void **)&data);
     if(result != VK_SUCCESS) return result;
     memcpy(data, image, width * height * 4);
-    vkUnmapMemory(dev->logical_device, staging_buffer.memory);
+    vkUnmapMemory(glfw.logical_device, staging_buffer.memory);
 
     memset(&begin_info, 0, sizeof(VkCommandBufferBeginInfo));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -702,7 +691,7 @@ nk_glfw3_device_upload_atlas(
 
     memset(&image_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
     image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_memory_barrier.image = dev->font_image;
+    image_memory_barrier.image = glfw.font_image;
     image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -725,12 +714,12 @@ nk_glfw3_device_upload_atlas(
     buffer_copy_region.imageExtent.depth = 1;
 
     vkCmdCopyBufferToImage(
-        cmd, staging_buffer.buffer, dev->font_image,
+        cmd, staging_buffer.buffer, glfw.font_image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copy_region);
 
     memset(&image_shader_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
     image_shader_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_shader_memory_barrier.image = dev->font_image;
+    image_shader_memory_barrier.image = glfw.font_image;
     image_shader_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_shader_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_shader_memory_barrier.oldLayout =
@@ -754,7 +743,7 @@ nk_glfw3_device_upload_atlas(
     memset(&fence_create, 0, sizeof(VkFenceCreateInfo));
     fence_create.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
-    result = vkCreateFence(dev->logical_device, &fence_create, NULL, &fence);
+    result = vkCreateFence(glfw.logical_device, &fence_create, NULL, &fence);
     if(result != VK_SUCCESS) return result;
 
     memset(&submit_info, 0, sizeof(VkSubmitInfo));
@@ -765,54 +754,51 @@ nk_glfw3_device_upload_atlas(
     result = vkQueueSubmit(graphics_queue, 1, &submit_info, fence);
     if(result != VK_SUCCESS) return result;
     result =
-        vkWaitForFences(dev->logical_device, 1, &fence, VK_TRUE, UINT64_MAX);
+        vkWaitForFences(glfw.logical_device, 1, &fence, VK_TRUE, UINT64_MAX);
     if(result != VK_SUCCESS) return result;
 
-    vkDestroyFence(dev->logical_device, fence, NULL);
+    vkDestroyFence(glfw.logical_device, fence, NULL);
 
-    vkFreeMemory(dev->logical_device, staging_buffer.memory, NULL);
-    vkDestroyBuffer(dev->logical_device, staging_buffer.buffer, NULL);
+    vkFreeMemory(glfw.logical_device, staging_buffer.memory, NULL);
+    vkDestroyBuffer(glfw.logical_device, staging_buffer.buffer, NULL);
 
     memset(&image_view_info, 0, sizeof(VkImageViewCreateInfo));
     image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    image_view_info.image = dev->font_image;
+    image_view_info.image = glfw.font_image;
     image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     image_view_info.format = image_info.format;
     image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     image_view_info.subresourceRange.layerCount = 1;
     image_view_info.subresourceRange.levelCount = 1;
 
-    result = vkCreateImageView(dev->logical_device, &image_view_info, NULL,
-                               &dev->font_image_view);
+    result = vkCreateImageView(glfw.logical_device, &image_view_info, NULL,
+                               &glfw.font_image_view);
     if(result != VK_SUCCESS) return result;
 
     VkDescriptorImageInfo descriptor_image_info = {
-      .sampler     = dev->sampler,
-      .imageView   = dev->font_image_view,
+      .sampler     = glfw.sampler,
+      .imageView   = glfw.font_image_view,
       .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
     VkWriteDescriptorSet descriptor_write = {
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = dev->font_dset,
+      .dstSet          = glfw.font_dset,
       .dstBinding      = 0,
       .dstArrayElement = 0,
       .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       .descriptorCount = 1,
       .pImageInfo      = &descriptor_image_info,
     };
-    vkUpdateDescriptorSets(dev->logical_device, 1, &descriptor_write, 0, NULL);
+    vkUpdateDescriptorSets(glfw.logical_device, 1, &descriptor_write, 0, NULL);
     return VK_SUCCESS;
 }
 
 NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
 {
-    vkDestroyPipeline(dev->logical_device, dev->pipeline, NULL);
-    vkDestroyPipelineLayout(dev->logical_device, dev->pipeline_layout, NULL);
-    vkDestroyDescriptorSetLayout(dev->logical_device,
-                                 dev->texture_descriptor_set_layout, NULL);
-    vkDestroyDescriptorSetLayout(dev->logical_device,
-                                 dev->uniform_descriptor_set_layout, NULL);
-    vkDestroyDescriptorPool(dev->logical_device, dev->descriptor_pool, NULL);
+  vkDestroyPipeline(glfw.logical_device, dev->pipeline, NULL);
+  vkDestroyPipelineLayout(glfw.logical_device, dev->pipeline_layout, NULL);
+  vkDestroyDescriptorSetLayout(glfw.logical_device, dev->uniform_descriptor_set_layout, NULL);
+  vkDestroyDescriptorPool(glfw.logical_device, dev->descriptor_pool, NULL);
 }
 
 NK_API void
@@ -820,51 +806,52 @@ nk_glfw3_resize(
     uint32_t framebuffer_width,
     uint32_t framebuffer_height)
 {
-  glfwGetFramebufferSize(glfw.win, &glfw.width, &glfw.height);
+  glfwGetFramebufferSize(glfw.w0.win, &glfw.w0.width, &glfw.w0.height);
+  if(glfw.w1.win)
+    glfwGetFramebufferSize(glfw.w1.win, &glfw.w1.width, &glfw.w1.height);
 }
 
-NK_API void nk_glfw3_device_destroy(void)
+NK_API void nk_glfw3_device_destroy(struct nk_glfw_device *dev)
 {
-    struct nk_glfw_device *dev = &glfw.vulkan;
+  nk_glfw3_destroy_render_resources(dev);
 
-    vkDeviceWaitIdle(dev->logical_device);
+  vkUnmapMemory(glfw.logical_device, dev->vertex_memory);
+  vkUnmapMemory(glfw.logical_device, dev->index_memory);
+  vkUnmapMemory(glfw.logical_device, dev->uniform_memory);
 
-    nk_glfw3_destroy_render_resources(dev);
+  vkFreeMemory(glfw.logical_device, dev->vertex_memory, NULL);
+  vkFreeMemory(glfw.logical_device, dev->index_memory, NULL);
+  vkFreeMemory(glfw.logical_device, dev->uniform_memory, NULL);
 
-    vkUnmapMemory(dev->logical_device, dev->vertex_memory);
-    vkUnmapMemory(dev->logical_device, dev->index_memory);
-    vkUnmapMemory(dev->logical_device, dev->uniform_memory);
+  vkDestroyBuffer(glfw.logical_device, dev->vertex_buffer, NULL);
+  vkDestroyBuffer(glfw.logical_device, dev->index_buffer, NULL);
+  vkDestroyBuffer(glfw.logical_device, dev->uniform_buffer, NULL);
 
-    vkFreeMemory(dev->logical_device, dev->vertex_memory, NULL);
-    vkFreeMemory(dev->logical_device, dev->index_memory, NULL);
-    vkFreeMemory(dev->logical_device, dev->uniform_memory, NULL);
+  vkDestroySampler(glfw.logical_device, glfw.sampler, NULL);
 
-    vkDestroyBuffer(dev->logical_device, dev->vertex_buffer, NULL);
-    vkDestroyBuffer(dev->logical_device, dev->index_buffer, NULL);
-    vkDestroyBuffer(dev->logical_device, dev->uniform_buffer, NULL);
-
-    vkDestroySampler(dev->logical_device, dev->sampler, NULL);
-
-    vkFreeMemory(dev->logical_device, dev->font_memory, NULL);
-    vkDestroyImage(dev->logical_device, dev->font_image, NULL);
-    vkDestroyImageView(dev->logical_device, dev->font_image_view, NULL);
-    nk_buffer_free(&dev->cmds);
+  nk_buffer_free(&dev->cmds);
 }
 
 NK_API
 void nk_glfw3_shutdown(void)
 {
+  vkDeviceWaitIdle(glfw.logical_device);
+  vkDestroyDescriptorSetLayout(glfw.logical_device, glfw.font_dset_layout, NULL);
+  vkDestroyDescriptorPool(glfw.logical_device, glfw.descriptor_pool, NULL);
   nk_font_atlas_clear(&glfw.atlas);
-  nk_glfw3_device_destroy();
+  nk_glfw3_device_destroy(&glfw.d0);
+  vkDestroyImage(glfw.logical_device, glfw.font_image, NULL);
+  vkDestroyImageView(glfw.logical_device, glfw.font_image_view, NULL);
+  vkFreeMemory(glfw.logical_device, glfw.font_memory, NULL);
+
   memset(&glfw, 0, sizeof(glfw));
 }
 
 NK_API void nk_glfw3_font_cleanup()
 {
-  struct nk_glfw_device *dev = &glfw.vulkan;
-  vkDestroyImage(dev->logical_device, dev->font_image, 0);
-  vkDestroyImageView(dev->logical_device, dev->font_image_view, 0);
-  vkFreeMemory(dev->logical_device, dev->font_memory, 0);
+  vkDestroyImage(glfw.logical_device, glfw.font_image, 0);
+  vkDestroyImageView(glfw.logical_device, glfw.font_image_view, 0);
+  vkFreeMemory(glfw.logical_device, glfw.font_memory, 0);
   nk_font_atlas_cleanup(&glfw.atlas);
 }
 
@@ -880,172 +867,175 @@ NK_API void nk_glfw3_font_stash_end(
     VkCommandBuffer cmd,
     VkQueue graphics_queue)
 {
-  struct nk_glfw_device *dev = &glfw.vulkan;
   const void *image;
   int w, h;
   image = nk_font_atlas_bake(&glfw.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
   nk_glfw3_device_upload_atlas(cmd, graphics_queue, image, w, h);
   nk_font_atlas_end(
       &glfw.atlas,
-      nk_handle_ptr(dev->font_dset),
-      &dev->tex_null);
+      nk_handle_ptr(glfw.font_dset),
+      &glfw.tex_null);
 
   if (glfw.atlas.default_font)
     nk_style_set_font(ctx, &glfw.atlas.default_font->handle);
 }
 
-NK_API void nk_glfw3_new_frame(struct nk_context *ctx)
+NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
 {
     int i;
     double x, y;
-    struct GLFWwindow *win = glfw.win;
+    struct nk_glfw_win *win = &glfw.w0;
+    if(window == glfw.w1.win) win = &glfw.w1;
 
     nk_input_begin(ctx);
-    for (i = 0; i < glfw.text_len; ++i)
-        nk_input_unicode(ctx, glfw.text[i]);
+    for (i = 0; i < win->text_len; ++i)
+        nk_input_unicode(ctx, win->text[i]);
 
 #ifdef NK_GLFW_GL4_MOUSE_GRABBING
     /* optional grabbing behavior */
     if (ctx->input.mouse.grab)
-        glfwSetInputMode(glfw.win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     else if (ctx->input.mouse.ungrab)
-        glfwSetInputMode(glfw.win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 #endif
 
-    if(glfw.key_repeat[0])
+    if(win->key_repeat[0])
     {
       nk_input_key(ctx, NK_KEY_DEL, nk_false);
       nk_input_key(ctx, NK_KEY_DEL, nk_true);
     }
-    else nk_input_key(ctx, NK_KEY_DEL, glfwGetKey(win, GLFW_KEY_DELETE) == GLFW_PRESS);
-    nk_input_key(ctx, NK_KEY_ENTER, glfwGetKey(win, GLFW_KEY_ENTER) == GLFW_PRESS);
-    nk_input_key(ctx, NK_KEY_TAB, glfwGetKey(win, GLFW_KEY_TAB) == GLFW_PRESS);
-    if(glfw.key_repeat[2])
+    else nk_input_key(ctx, NK_KEY_DEL, glfwGetKey(win->win, GLFW_KEY_DELETE) == GLFW_PRESS);
+    nk_input_key(ctx, NK_KEY_ENTER, glfwGetKey(win->win, GLFW_KEY_ENTER) == GLFW_PRESS);
+    nk_input_key(ctx, NK_KEY_TAB, glfwGetKey(win->win, GLFW_KEY_TAB) == GLFW_PRESS);
+    if(win->key_repeat[2])
     {
       nk_input_key(ctx, NK_KEY_BACKSPACE, nk_false);
       nk_input_key(ctx, NK_KEY_BACKSPACE, nk_true);
     }
-    else nk_input_key(ctx, NK_KEY_BACKSPACE, glfwGetKey(win, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
-    if(glfw.key_repeat[3])
+    else nk_input_key(ctx, NK_KEY_BACKSPACE, glfwGetKey(win->win, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
+    if(win->key_repeat[3])
     {
       nk_input_key(ctx, NK_KEY_UP, nk_false);
       nk_input_key(ctx, NK_KEY_UP, nk_true);
     }
-    else nk_input_key(ctx, NK_KEY_UP, glfwGetKey(win, GLFW_KEY_UP) == GLFW_PRESS);
-    if(glfw.key_repeat[4])
+    else nk_input_key(ctx, NK_KEY_UP, glfwGetKey(win->win, GLFW_KEY_UP) == GLFW_PRESS);
+    if(win->key_repeat[4])
     {
       nk_input_key(ctx, NK_KEY_DOWN, nk_false);
       nk_input_key(ctx, NK_KEY_DOWN, nk_true);
     }
-    else nk_input_key(ctx, NK_KEY_DOWN, glfwGetKey(win, GLFW_KEY_DOWN) == GLFW_PRESS);
+    else nk_input_key(ctx, NK_KEY_DOWN, glfwGetKey(win->win, GLFW_KEY_DOWN) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_TEXT_START,
-                 glfwGetKey(win, GLFW_KEY_HOME) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_HOME) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_TEXT_END,
-                 glfwGetKey(win, GLFW_KEY_END) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_END) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_SCROLL_START,
-                 glfwGetKey(win, GLFW_KEY_HOME) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_HOME) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_SCROLL_END,
-                 glfwGetKey(win, GLFW_KEY_END) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_END) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_SCROLL_DOWN,
-                 glfwGetKey(win, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_SCROLL_UP,
-                 glfwGetKey(win, GLFW_KEY_PAGE_UP) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_PAGE_UP) == GLFW_PRESS);
     nk_input_key(ctx, NK_KEY_SHIFT,
-                 glfwGetKey(win, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ||
-                     glfwGetKey(win, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+                 glfwGetKey(win->win, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ||
+                     glfwGetKey(win->win, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
 
-    if (glfwGetKey(win, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
-        glfwGetKey(win, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS) {
+    if (glfwGetKey(win->win, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+        glfwGetKey(win->win, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS) {
         nk_input_key(ctx, NK_KEY_COPY,
-                     glfwGetKey(win, GLFW_KEY_C) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_C) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_PASTE,
-                     glfwGetKey(win, GLFW_KEY_V) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_V) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_CUT,
-                     glfwGetKey(win, GLFW_KEY_X) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_X) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_UNDO,
-                     glfwGetKey(win, GLFW_KEY_Z) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_Z) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_REDO,
-                     glfwGetKey(win, GLFW_KEY_R) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_R) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_WORD_LEFT,
-                     glfwGetKey(win, GLFW_KEY_LEFT) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_LEFT) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_WORD_RIGHT,
-                     glfwGetKey(win, GLFW_KEY_RIGHT) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_RIGHT) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_LINE_START,
-                     glfwGetKey(win, GLFW_KEY_B) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_B) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_LINE_END,
-                     glfwGetKey(win, GLFW_KEY_E) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_E) == GLFW_PRESS);
         nk_input_key(ctx, NK_KEY_TEXT_SELECT_ALL,
-                     glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS);
+                     glfwGetKey(win->win, GLFW_KEY_A) == GLFW_PRESS);
     }
     else
     {
-      if(glfw.key_repeat[5])
+      if(win->key_repeat[5])
       {
         nk_input_key(ctx, NK_KEY_LEFT, nk_false);
         nk_input_key(ctx, NK_KEY_LEFT, nk_true);
       }
-      else nk_input_key(ctx, NK_KEY_LEFT, glfwGetKey(win, GLFW_KEY_LEFT) == GLFW_PRESS);
-      if(glfw.key_repeat[6])
+      else nk_input_key(ctx, NK_KEY_LEFT, glfwGetKey(win->win, GLFW_KEY_LEFT) == GLFW_PRESS);
+      if(win->key_repeat[6])
       {
         nk_input_key(ctx, NK_KEY_RIGHT, nk_false);
         nk_input_key(ctx, NK_KEY_RIGHT, nk_true);
       }
-      else nk_input_key(ctx, NK_KEY_RIGHT, glfwGetKey(win, GLFW_KEY_RIGHT) == GLFW_PRESS);
+      else nk_input_key(ctx, NK_KEY_RIGHT, glfwGetKey(win->win, GLFW_KEY_RIGHT) == GLFW_PRESS);
       nk_input_key(ctx, NK_KEY_COPY, 0);
       nk_input_key(ctx, NK_KEY_PASTE, 0);
       nk_input_key(ctx, NK_KEY_CUT, 0);
       nk_input_key(ctx, NK_KEY_SHIFT, 0);
     }
 
-    glfwGetCursorPos(win, &x, &y);
+    glfwGetCursorPos(win->win, &x, &y);
     nk_input_motion(ctx, (int)x, (int)y);
 #ifdef NK_GLFW_GL4_MOUSE_GRABBING
     if (ctx->input.mouse.grabbed) {
-        glfwSetCursorPos(glfw.win, ctx->input.mouse.prev.x,
+        glfwSetCursorPos(win->win, ctx->input.mouse.prev.x,
                          ctx->input.mouse.prev.y);
         ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
         ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
     }
 #endif
     nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y,
-                    glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT) ==
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_LEFT) ==
                         GLFW_PRESS);
     nk_input_button(ctx, NK_BUTTON_MIDDLE, (int)x, (int)y,
-                    glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_MIDDLE) ==
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_MIDDLE) ==
                         GLFW_PRESS);
     nk_input_button(ctx, NK_BUTTON_RIGHT, (int)x, (int)y,
-                    glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_RIGHT) ==
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_RIGHT) ==
                         GLFW_PRESS);
-    nk_input_button(ctx, NK_BUTTON_DOUBLE, (int)glfw.double_click_pos.x,
-                    (int)glfw.double_click_pos.y, glfw.is_double_click_down);
-    nk_input_scroll(ctx, glfw.scroll);
+    nk_input_button(ctx, NK_BUTTON_DOUBLE, (int)win->double_click_pos.x,
+                    (int)win->double_click_pos.y, win->is_double_click_down);
+    nk_input_scroll(ctx, win->scroll);
     nk_input_end(ctx);
-    glfw.text_len = 0;
-    glfw.scroll = nk_vec2(0, 0);
+    win->text_len = 0;
+    win->scroll = nk_vec2(0, 0);
 }
 
 NK_API
 void nk_glfw3_create_cmd(
     struct nk_context    *ctx,
+    GLFWwindow           *window,
     VkCommandBuffer       command_buffer,
     enum nk_anti_aliasing AA,
     int                   frame,
     int                   max_frames)
 {
-  struct nk_glfw_device *dev = &glfw.vulkan;
+  struct nk_glfw_device *dev = &glfw.d0;
+  struct nk_glfw_win    *win = &glfw.w0;
+  if(window == glfw.w1.win) { dev = &glfw.d1; win = &glfw.w1; }
   struct Mat4f projection = {
     {2.0f,  0.0f,  0.0f, 0.0f,
      0.0f, -2.0f,  0.0f, 0.0f,
      0.0f,  0.0f, -1.0f, 0.0f,
     -1.0f,  1.0f,  0.0f, 1.0f}};
-  projection.m[0] /= glfw.width;
-  projection.m[5] /= glfw.height;
+  projection.m[0] /= win->width;
+  projection.m[5] /= win->height;
 
   memcpy(dev->mapped_uniform, &projection, sizeof(projection));
 
   VkViewport viewport = {
-    .width    = (float)glfw.width,
-    .height   = (float)glfw.height,
+    .width    = (float)win->width,
+    .height   = (float)win->height,
     .maxDepth = 1.0f,
   };
   vkCmdSetViewport(command_buffer, 0, 1, &viewport);
@@ -1064,7 +1054,7 @@ void nk_glfw3_create_cmd(
     .vertex_layout = vertex_layout,
     .vertex_size = sizeof(struct nk_glfw_vertex),
     .vertex_alignment = NK_ALIGNOF(struct nk_glfw_vertex),
-    .tex_null = dev->tex_null,
+    .tex_null = glfw.tex_null,
     .circle_segment_count = 22,
     .curve_segment_count = 22,
     .arc_segment_count = 22,
@@ -1119,77 +1109,124 @@ void nk_glfw3_create_cmd(
 
 NK_API void nk_glfw3_keyboard_callback(struct nk_context *ctx, GLFWwindow *w, int key, int scancode, int action, int mods)
 {
+  struct nk_glfw_win  *win = &glfw.w0;
+  if(w == glfw.w1.win) win = &glfw.w1;
   // this is called while wait event, right after that there'll be new_frame nuking all our efforts here.
   // going new_frame earlier will introduce lag key/render, so we remember in a separate list:
-  for(int k=0;k<7;k++) glfw.key_repeat[k] = 0;
+  for(int k=0;k<7;k++) win->key_repeat[k] = 0;
   if(action == GLFW_REPEAT)
   { // also input key repeats not captured by new_frame
-    if     (key == GLFW_KEY_DELETE)    glfw.key_repeat[0] = 1;
-    else if(key == GLFW_KEY_ENTER)     glfw.key_repeat[1] = 1;
-    else if(key == GLFW_KEY_BACKSPACE) glfw.key_repeat[2] = 1;
-    else if(key == GLFW_KEY_UP)        glfw.key_repeat[3] = 1;
-    else if(key == GLFW_KEY_DOWN)      glfw.key_repeat[4] = 1;
-    else if(key == GLFW_KEY_LEFT)      glfw.key_repeat[5] = 1;
-    else if(key == GLFW_KEY_RIGHT)     glfw.key_repeat[6] = 1;
+    if     (key == GLFW_KEY_DELETE)    win->key_repeat[0] = 1;
+    else if(key == GLFW_KEY_ENTER)     win->key_repeat[1] = 1;
+    else if(key == GLFW_KEY_BACKSPACE) win->key_repeat[2] = 1;
+    else if(key == GLFW_KEY_UP)        win->key_repeat[3] = 1;
+    else if(key == GLFW_KEY_DOWN)      win->key_repeat[4] = 1;
+    else if(key == GLFW_KEY_LEFT)      win->key_repeat[5] = 1;
+    else if(key == GLFW_KEY_RIGHT)     win->key_repeat[6] = 1;
   }
 }
 
-NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint) {
-    (void)win;
-    if (glfw.text_len < NK_GLFW_TEXT_MAX)
-        glfw.text[glfw.text_len++] = codepoint;
+NK_API void nk_glfw3_char_callback(GLFWwindow *w, unsigned int codepoint)
+{
+  struct nk_glfw_win  *win = &glfw.w0;
+  if(w == glfw.w1.win) win = &glfw.w1;
+  if (win->text_len < NK_GLFW_TEXT_MAX)
+    win->text[win->text_len++] = codepoint;
 }
 
-NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff,
-                                     double yoff) {
-    (void)win;
-    (void)xoff;
-    glfw.scroll.x += (float)xoff;
-    glfw.scroll.y += (float)yoff;
+NK_API void nk_glfw3_scroll_callback(
+    GLFWwindow *w, double xoff, double yoff)
+{
+  struct nk_glfw_win  *win = &glfw.w0;
+  if(w == glfw.w1.win) win = &glfw.w1;
+  win->scroll.x += (float)xoff;
+  win->scroll.y += (float)yoff;
 }
 
 NK_API void
 nk_glfw3_mouse_button_callback(
-    GLFWwindow *window, int button,
+    GLFWwindow *w, int button,
     int action, int mods)
 {
+  struct nk_glfw_win  *win = &glfw.w0;
+  if(w == glfw.w1.win) win = &glfw.w1;
   double x, y;
   NK_UNUSED(mods);
   if (button != GLFW_MOUSE_BUTTON_LEFT)
     return;
-  glfwGetCursorPos(window, &x, &y);
+  glfwGetCursorPos(win->win, &x, &y);
   if (action == GLFW_PRESS) {
-    double dt = glfwGetTime() - glfw.last_button_click;
+    double dt = glfwGetTime() - win->last_button_click;
     if (dt > NK_GLFW_DOUBLE_CLICK_LO && dt < NK_GLFW_DOUBLE_CLICK_HI) {
-      glfw.is_double_click_down = nk_true;
-      glfw.double_click_pos = nk_vec2((float)x, (float)y);
+      win->is_double_click_down = nk_true;
+      win->double_click_pos = nk_vec2((float)x, (float)y);
     }
-    glfw.last_button_click = glfwGetTime();
+    win->last_button_click = glfwGetTime();
   } else
-    glfw.is_double_click_down = nk_false;
+    win->is_double_click_down = nk_false;
 }
 
-NK_INTERN void nk_glfw3_clipboard_paste(nk_handle usr,
-                                        struct nk_text_edit *edit) {
-    const char *text = glfwGetClipboardString(glfw.win);
-    if (text)
-        nk_textedit_paste(edit, text, nk_strlen(text));
-    (void)usr;
+NK_INTERN void nk_glfw3_clipboard_paste(
+    nk_handle usr,
+    struct nk_text_edit *edit)
+{
+  GLFWwindow *w = (GLFWwindow*)usr.ptr;
+  struct nk_glfw_win  *win = &glfw.w0;
+  if(w == glfw.w1.win) win = &glfw.w1;
+  const char *text = glfwGetClipboardString(win->win);
+  if (text) nk_textedit_paste(edit, text, nk_strlen(text));
 }
 
-NK_INTERN void nk_glfw3_clipboard_copy(nk_handle usr, const char *text,
-                                       int len) {
-    char *str = 0;
-    (void)usr;
-    if (!len)
-        return;
-    str = (char *)malloc((size_t)len + 1);
-    if (!str)
-        return;
-    memcpy(str, text, (size_t)len);
-    str[len] = '\0';
-    glfwSetClipboardString(glfw.win, str);
-    free(str);
+NK_INTERN void nk_glfw3_clipboard_copy(
+    nk_handle usr, const char *text,
+    int len)
+{
+  GLFWwindow *w = (GLFWwindow*)usr.ptr;
+  struct nk_glfw_win  *win = &glfw.w0;
+  if(w == glfw.w1.win) win = &glfw.w1;
+  char *str = 0;
+  if (!len) return;
+  str = (char *)malloc((size_t)len + 1);
+  if (!str) return;
+  memcpy(str, text, (size_t)len);
+  str[len] = '\0';
+  glfwSetClipboardString(win->win, str);
+  free(str);
+}
+
+NK_API void
+nk_glfw3_win1_open(
+    struct nk_context *ctx,
+    VkRenderPass render_pass,
+    GLFWwindow *win,
+    VkDevice logical_device,
+    VkPhysicalDevice physical_device,
+    VkDeviceSize max_vertex_buffer,
+    VkDeviceSize max_element_buffer)
+{
+  glfw.w1.win = win;
+  ctx->clip.copy  = nk_glfw3_clipboard_copy;
+  ctx->clip.paste = nk_glfw3_clipboard_paste;
+  ctx->clip.userdata = nk_handle_ptr(win);
+  glfw.w1.last_button_click = 0;
+
+  glfwGetFramebufferSize(win, &glfw.w1.width, &glfw.w1.height);
+
+  nk_glfw3_device_create(
+      &glfw.d1,
+      render_pass,
+      max_vertex_buffer,
+      max_element_buffer);
+
+  glfw.w1.is_double_click_down = nk_false;
+  glfw.w1.double_click_pos = nk_vec2(0, 0);
+}
+
+NK_API void
+nk_glfw3_win1_close()
+{
+  glfw.w1.win = 0;
+  // XXX TODO uh cleanup something? reverse of device_create?
 }
 
 NK_API void
@@ -1202,23 +1239,28 @@ nk_glfw3_init(
     VkDeviceSize max_vertex_buffer,
     VkDeviceSize max_element_buffer)
 {
-    memset(&glfw, 0, sizeof(struct nk_glfw));
-    glfw.win = win;
-    ctx->clip.copy  = nk_glfw3_clipboard_copy;
-    ctx->clip.paste = nk_glfw3_clipboard_paste;
-    ctx->clip.userdata = nk_handle_ptr(0);
-    glfw.last_button_click = 0;
+  memset(&glfw, 0, sizeof(struct nk_glfw));
+  glfw.w0.win = win;
+  ctx->clip.copy  = nk_glfw3_clipboard_copy;
+  ctx->clip.paste = nk_glfw3_clipboard_paste;
+  ctx->clip.userdata = nk_handle_ptr(win);
+  glfw.w0.last_button_click = 0;
 
-    glfwGetFramebufferSize(win, &glfw.width, &glfw.height);
+  glfwGetFramebufferSize(win, &glfw.w0.width, &glfw.w0.height);
 
-    nk_glfw3_device_create(
-        render_pass,
-        logical_device, physical_device,
-        max_vertex_buffer,
-        max_element_buffer);
+  glfw.logical_device = logical_device;
+  glfw.physical_device = physical_device;
+  nk_glfw3_create_sampler();
+  nk_glfw3_create_font_descriptor_pool();
+  nk_glfw3_create_font_dset();
+  nk_glfw3_device_create(
+      &glfw.d0,
+      render_pass,
+      max_vertex_buffer,
+      max_element_buffer);
 
-    glfw.is_double_click_down = nk_false;
-    glfw.double_click_pos = nk_vec2(0, 0);
+  glfw.w0.is_double_click_down = nk_false;
+  glfw.w0.double_click_pos = nk_vec2(0, 0);
 }
 
 #endif

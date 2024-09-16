@@ -575,6 +575,7 @@ VkResult dt_gui_render()
   // potentially set off commands for both ctx/win
   dt_gui_render_frame_nk();
 
+  // TODO: combine the following calls / de-interleave
   const int have_win1 = vkdt.win1.window != 0;
   QVKR(dt_gui_render_win_beg(&vkdt.win));
   if(have_win1)
@@ -582,10 +583,10 @@ VkResult dt_gui_render()
 
   int num = vkdt.win.num_swap_chain_images;
   if(have_win1) num += vkdt.win1.num_swap_chain_images;
-  nk_glfw3_create_cmd(&vkdt.ctx, vkdt.win.command_buffer[vkdt.win.frame_index],
+  nk_glfw3_create_cmd(&vkdt.ctx, vkdt.win.window, vkdt.win.command_buffer[vkdt.win.frame_index],
       NK_ANTI_ALIASING_ON, vkdt.win.frame_index, num);
   if(have_win1)
-    nk_glfw3_create_cmd(&vkdt.ctx1, vkdt.win1.command_buffer[vkdt.win1.frame_index],
+    nk_glfw3_create_cmd(&vkdt.ctx1, vkdt.win1.window, vkdt.win1.command_buffer[vkdt.win1.frame_index],
         NK_ANTI_ALIASING_ON, vkdt.win.num_swap_chain_images + vkdt.win1.frame_index, num);
 
   QVKR(dt_gui_render_win_end(&vkdt.win));
