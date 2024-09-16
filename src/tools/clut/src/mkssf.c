@@ -461,9 +461,6 @@ int main(int argc, char *argv[])
   { // load dng profiles (matrices etc) from exif tags
     dng_profile_fill(&profile_a,   model, 1);
     dng_profile_fill(&profile_d65, model, 2);
-    // kill the HueSatMap because it assumes normalised input which we don't provide during optimisation
-    free(profile_a.hsm);   profile_a.hsm   = 0;
-    free(profile_d65.hsm); profile_d65.hsm = 0;
   }
 
 #if 0

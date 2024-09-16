@@ -372,7 +372,6 @@ dng_process(
   float hsvmap[3];
   lookup_hsm(p, hsv, hsvmap);
   // add hue shift and wrap
-  fprintf(stderr, "hueshift %g\n", hsvmap[0]);
   hsv[0] = fmod(hsv[0] + hsvmap[0], 360.0f);
   // multiply sat factor and clamp
   hsv[1] *= hsvmap[1];
