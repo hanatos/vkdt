@@ -411,6 +411,8 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   };
   QVKR(vkCreateRenderPass(qvk.device, &info, 0, &win->render_pass));
 
+  // XXX TODO need to pass new render pass to nk/glfw3?
+
   // create framebuffers
   VkImageView attachment[1] = {};
   VkFramebufferCreateInfo fb_create_info = {
@@ -494,7 +496,7 @@ void dt_gui_cleanup()
 }
 
 static inline VkResult
-dt_gui_render_win(struct nk_context *ctx, dt_gui_win_t *win)
+dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
 {
   VkSemaphore render_complete_semaphore = win->sem_render_complete[win->sem_index];
   VkSemaphore image_acquired_semaphore  = win->sem_image_acquired [win->sem_index];
@@ -526,8 +528,7 @@ dt_gui_render_win(struct nk_context *ctx, dt_gui_win_t *win)
   vkCmdBeginRenderPass(win->command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
   win->sem_fence[win->sem_index] = i; // remember which frame in flight uses the semaphores
 
-  nk_glfw3_create_cmd(ctx, win->window, win->command_buffer[win->frame_index],
-      NK_ANTI_ALIASING_ON, win->frame_index, win->num_swap_chain_images);
+  nk_glfw3_create_cmd(ctx, win->window, win->command_buffer[i], NK_ANTI_ALIASING_ON, i, win->num_swap_chain_images);
 
   // submit command buffer
   vkCmdEndRenderPass(win->command_buffer[i]);
@@ -571,10 +572,10 @@ VkResult dt_gui_render()
   // potentially set off commands for both ctx/win
   dt_gui_render_frame_nk();
 
-  QVKR(dt_gui_render_win(&vkdt.ctx, &vkdt.win));
+  QVKR(dt_gui_win_render(&vkdt.ctx, &vkdt.win));
 
   if(vkdt.win1.window != 0)
-    QVKR(dt_gui_render_win(&vkdt.ctx1, &vkdt.win1));
+    QVKR(dt_gui_win_render(&vkdt.ctx1, &vkdt.win1));
 
   return VK_SUCCESS;
 }

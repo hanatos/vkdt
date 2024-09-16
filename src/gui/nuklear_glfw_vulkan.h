@@ -39,8 +39,9 @@ NK_API void nk_glfw3_create_cmd(
     VkCommandBuffer cmd,
     enum nk_anti_aliasing AA,
     int frame, int max_frames);
-NK_API void nk_glfw3_resize(uint32_t framebuffer_width,
-                            uint32_t framebuffer_height);
+NK_API void nk_glfw3_resize(GLFWwindow *win,
+    uint32_t framebuffer_width,
+    uint32_t framebuffer_height);
 NK_API void nk_glfw3_keyboard_callback(struct nk_context *ctx, GLFWwindow *w, int key, int scancode, int action, int mods);
 NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
@@ -555,7 +556,6 @@ nk_glfw3_create_render_resources(
   result = nk_glfw3_create_pipeline_layout(dev);
   if(result != VK_SUCCESS) return result;
   result = nk_glfw3_create_pipeline(dev);
-  if(result != VK_SUCCESS) return result;
   return result;
 }
 
@@ -805,12 +805,12 @@ NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
 
 NK_API void
 nk_glfw3_resize(
+    GLFWwindow *w,
     uint32_t framebuffer_width,
     uint32_t framebuffer_height)
 {
-  glfwGetFramebufferSize(glfw.w0.win, &glfw.w0.width, &glfw.w0.height);
-  if(glfw.w1.win)
-    glfwGetFramebufferSize(glfw.w1.win, &glfw.w1.width, &glfw.w1.height);
+  if(w == glfw.w1.win) glfwGetFramebufferSize(glfw.w1.win, &glfw.w1.width, &glfw.w1.height);
+  else                 glfwGetFramebufferSize(glfw.w0.win, &glfw.w0.width, &glfw.w0.height);
 }
 
 NK_API void nk_glfw3_device_destroy(struct nk_glfw_device *dev)
