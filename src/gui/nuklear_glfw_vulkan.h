@@ -47,6 +47,8 @@ NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
 NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
 
 NK_API void nk_glfw3_setup_display_colour_management(float *g0, float *M0, float *g1, float *M1, int xpos1, int bitdepth);
+NK_API void nk_glfw3_win1_open(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win, VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
+NK_API void nk_glfw3_win1_close();
 #endif
 /*
  * ==============================================================
@@ -827,8 +829,6 @@ NK_API void nk_glfw3_device_destroy(struct nk_glfw_device *dev)
   vkDestroyBuffer(glfw.logical_device, dev->index_buffer, NULL);
   vkDestroyBuffer(glfw.logical_device, dev->uniform_buffer, NULL);
 
-  vkDestroySampler(glfw.logical_device, glfw.sampler, NULL);
-
   nk_buffer_free(&dev->cmds);
 }
 
@@ -839,7 +839,9 @@ void nk_glfw3_shutdown(void)
   vkDestroyDescriptorSetLayout(glfw.logical_device, glfw.font_dset_layout, NULL);
   vkDestroyDescriptorPool(glfw.logical_device, glfw.descriptor_pool, NULL);
   nk_font_atlas_clear(&glfw.atlas);
+  vkDestroySampler(glfw.logical_device, glfw.sampler, NULL);
   nk_glfw3_device_destroy(&glfw.d0);
+  if(glfw.w1.win) nk_glfw3_device_destroy(&glfw.d1);
   vkDestroyImage(glfw.logical_device, glfw.font_image, NULL);
   vkDestroyImageView(glfw.logical_device, glfw.font_image_view, NULL);
   vkFreeMemory(glfw.logical_device, glfw.font_memory, NULL);
@@ -1199,8 +1201,6 @@ nk_glfw3_win1_open(
     struct nk_context *ctx,
     VkRenderPass render_pass,
     GLFWwindow *win,
-    VkDevice logical_device,
-    VkPhysicalDevice physical_device,
     VkDeviceSize max_vertex_buffer,
     VkDeviceSize max_element_buffer)
 {
@@ -1226,7 +1226,7 @@ NK_API void
 nk_glfw3_win1_close()
 {
   glfw.w1.win = 0;
-  // XXX TODO uh cleanup something? reverse of device_create?
+  nk_glfw3_device_destroy(&glfw.d1);
 }
 
 NK_API void

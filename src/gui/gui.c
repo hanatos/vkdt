@@ -494,9 +494,10 @@ void dt_gui_cleanup()
 }
 
 static inline VkResult
-dt_gui_render_win_beg(dt_gui_win_t *win)
+dt_gui_render_win(struct nk_context *ctx, dt_gui_win_t *win)
 {
-  VkSemaphore image_acquired_semaphore = win->sem_image_acquired [win->sem_index];
+  VkSemaphore render_complete_semaphore = win->sem_render_complete[win->sem_index];
+  VkSemaphore image_acquired_semaphore  = win->sem_image_acquired [win->sem_index];
   QVKR(vkWaitForFences(qvk.device, 1, win->fence+win->sem_fence[win->sem_index], VK_TRUE, UINT64_MAX)); // make sure the semaphore is free
   // timeout is in nanoseconds (these are ~2sec)
   VkResult res = vkAcquireNextImageKHR(qvk.device, win->swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &win->frame_index);
@@ -525,15 +526,10 @@ dt_gui_render_win_beg(dt_gui_win_t *win)
   vkCmdBeginRenderPass(win->command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
   win->sem_fence[win->sem_index] = i; // remember which frame in flight uses the semaphores
 
-  return VK_SUCCESS;
-}
+  nk_glfw3_create_cmd(ctx, win->window, win->command_buffer[win->frame_index],
+      NK_ANTI_ALIASING_ON, win->frame_index, win->num_swap_chain_images);
 
-static inline VkResult
-dt_gui_render_win_end(dt_gui_win_t *win)
-{ // submit command buffer
-  const int i = win->frame_index;
-  VkSemaphore render_complete_semaphore = win->sem_render_complete[win->sem_index];
-  VkSemaphore image_acquired_semaphore  = win->sem_image_acquired [win->sem_index];
+  // submit command buffer
   vkCmdEndRenderPass(win->command_buffer[i]);
   const int len = vkdt.graph_res == VK_SUCCESS ? 2 : 1;
   VkPipelineStageFlags wait_stage[] = { 
@@ -575,23 +571,11 @@ VkResult dt_gui_render()
   // potentially set off commands for both ctx/win
   dt_gui_render_frame_nk();
 
-  // TODO: combine the following calls / de-interleave
-  const int have_win1 = vkdt.win1.window != 0;
-  QVKR(dt_gui_render_win_beg(&vkdt.win));
-  if(have_win1)
-    QVKR(dt_gui_render_win_beg(&vkdt.win1));
+  QVKR(dt_gui_render_win(&vkdt.ctx, &vkdt.win));
 
-  int num = vkdt.win.num_swap_chain_images;
-  if(have_win1) num += vkdt.win1.num_swap_chain_images;
-  nk_glfw3_create_cmd(&vkdt.ctx, vkdt.win.window, vkdt.win.command_buffer[vkdt.win.frame_index],
-      NK_ANTI_ALIASING_ON, vkdt.win.frame_index, num);
-  if(have_win1)
-    nk_glfw3_create_cmd(&vkdt.ctx1, vkdt.win1.window, vkdt.win1.command_buffer[vkdt.win1.frame_index],
-        NK_ANTI_ALIASING_ON, vkdt.win.num_swap_chain_images + vkdt.win1.frame_index, num);
+  if(vkdt.win1.window != 0)
+    QVKR(dt_gui_render_win(&vkdt.ctx1, &vkdt.win1));
 
-  QVKR(dt_gui_render_win_end(&vkdt.win));
-  if(have_win1)
-    QVKR(dt_gui_render_win_end(&vkdt.win1));
   return VK_SUCCESS;
 }
 
@@ -608,8 +592,7 @@ dt_gui_present_win(dt_gui_win_t *win)
     .pImageIndices      = &win->frame_index,
   };
   win->sem_index = (win->sem_index + 1) % win->num_swap_chain_images;
-  QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex,
-      vkQueuePresentKHR(qvk.queue[qvk.qid[s_queue_graphics]].queue, &info));
+  QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueuePresentKHR(qvk.queue[qvk.qid[s_queue_graphics]].queue, &info));
   return VK_SUCCESS;
 }
 
@@ -826,6 +809,7 @@ void dt_gui_win1_close()
   if(!vkdt.win1.window) return;
   QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
   dt_gui_win_cleanup(&vkdt.win1);
+  nk_glfw3_win1_close();
   nk_free(&vkdt.ctx1);
 }
 
@@ -835,16 +819,10 @@ void dt_gui_win1_open()
   dt_gui_win_init(&vkdt.win1);
   dt_gui_win_init_vk(&vkdt.win1);
   nk_init_default(&vkdt.ctx1, 0);
-#if 0 // this is for event handling and will break if we call it on win1
-  nk_glfw3_init(
-      &vkdt.ctx1,
-      vkdt.win1.render_pass,
-      vkdt.win1.window,
-      qvk.device, qvk.physical_device,
-      vkdt.win1.num_swap_chain_images * 2560*1024,
-      vkdt.win1.num_swap_chain_images * 640*1024);
-#endif
   nk_style_default(&vkdt.ctx1);
   nk_style_from_table(&vkdt.ctx1, vkdt.style.colour);
   nk_style_set_font(&vkdt.ctx1, &dt_gui_get_font(0)->handle);
+  nk_glfw3_win1_open(&vkdt.ctx1, vkdt.win1.render_pass, vkdt.win1.window, 
+      vkdt.win1.num_swap_chain_images * 2560*1024,
+      vkdt.win1.num_swap_chain_images * 640*1024);
 }
