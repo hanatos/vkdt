@@ -15,13 +15,13 @@ this in the future: simply delete module directory
 
 (b) update release notes/changelog, and commit
 
-## submodules
+## sub-projects
 
-will be exported by `make release`.
+will be exported by `make release`, except the rust part which will be downloaded
+during the build process (Cargo.lock takes care the version will be the same).
 
-`ext/imgui` is relatively recent
-
-rawspeed and quakespasm will only be deployed depending on build settings in `bin/config.mk`.
+rawspeed, mcraw, and quakespasm will only be deployed depending on build
+settings in `bin/config.mk` when issuing `make release`.
 
 ## version.h
 
@@ -100,5 +100,5 @@ will also only be pushed to this branch). the release branch will be used for
 bugfix/pointreleases.
 tag the master/development branch as such, so dev packages will be ordered correctly:
 ```
-git tag -s 0.9.99 -m "this is the beginning of the unreleased development branch which will become 0.9.0 eventually"
+git tag -s 0.9.99 -m "this is the beginning of the unreleased development branch which will become 1.0.0 eventually"
 ```
