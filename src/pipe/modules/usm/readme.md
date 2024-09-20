@@ -3,6 +3,7 @@
 this implements simple unsharp mask sharpening. it operates on a pixel level
 and is resolution dependent. it is best applied just before the output, in
 display referred after a curve.
+for scene-referred deblurring, see the [`deconv` module](../deconv/readme.md).
 
 ## connectors
 

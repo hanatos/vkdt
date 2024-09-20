@@ -1,32 +1,39 @@
 # how to characterise the colour response of your camera
 
 vkdt mainly uses the D65 colour matrix for this. it is extracted from
-the metadata shipped with rawspeed or contained in the dng exif tags
-of the raw file.
+the metadata shipped with the raw file.
+
+more colour accuracy can be gained by:
+* using a better input lut profile/clut
+* performing colour correction with a target such as a ColorChecker
+
+## using colour profiles/luts
 
 more accurate spectral input profiles can be created if you have
-spectral response curves of the colour filter array. if you don't,
+spectral response functions of the colour filter array. if you don't,
 vkdt ships a tool to reconstruct plausible curves which will still
 behave better than the matrix: gamut boundaries will be handled
 gracefully without creating imaginary stimuli/negative energy, and
 interpolation of the input transform for white balancing can be
-performed more accurately.
+performed more accurately. this interpolation will show as a temperature slider
+in the `colour` module. it is similar in spirit to the interpolation done in
+adobe DCP profiles.
 
 the processing of all of this is done in the [`colour` module](../../../src/pipe/modules/colour/readme.md) and the [documentation for the
 tool to create spectral lookup tables is found here](../../../src/tools/clut/readme.md).
-in short, it creates a spectral lut from a dcp profile or the same data
-embedded in a dng file.
+in short, it creates a spectral lut from a DCP profile or the same data
+embedded in a DNG file.
 
 tl;dr:
 ```
 vkdt-mkssf your.dcp
-vkdt-mkclut <camera model>.txt
+vkdt-mkclut <camera model>
 ```
 
 there are a few options for the optimisation process involved here
 and there is an instructive report printed as html.
 
-## contributing an input profile lut
+### contributing an input profile lut
 
 once you created a lut, are happy with the results and want to share with
 others, please submit a pull request to [the `camconst` data
@@ -47,18 +54,20 @@ of the frame now.
 you'll notice it looks a little blueish. from this picture, you can create a
 correction function (via radial basis functions) that will map all the 24
 patches exactly to their reference value. for this, we'll need to pick the
-patches and we'll need the reference values. for both of these tasks, there is
-the `cc24.pst` preset. if you press `ctrl-p` in darkroom mode this will trigger
-the default hotkey for applying a preset, so you can select `cc24.pst`.
+patches and we'll need the reference values. for both of these tasks, vkdt comes with
+the `ColorChecker.pst` and the `SpyderChecker24.pst` preset (you can create
+your own from an argyll .cht file with the `vkdt scanin` tool). if you press
+`ctrl-p` in darkroom mode this will trigger the default hotkey for applying a
+preset, so you can select `ColorChecker.pst`.
 
 this preset contains the spot positions and reference values from the
-`ColorChecker.cht` shipped with argyll. your graph should now contain a `pick:01`
+`ColorChecker.cht` shipped with argyll. your graph should now contain a `pick:target`
 module connected like so:
 
 [![pick-graph](pick-graph.png)](pick-graph.png)
 
 make sure you left the parameters of the `colour` module at their default before
-doing this. in particular leave `mode` at `parametric`, or else the colour picker
+doing this. in particular leave `mode` at `no rbf`, or else the colour picker
 will not grab vanilla source values now.
 
 you should see the picker grabbed colours like these:
@@ -69,9 +78,9 @@ if that is the case it's now safe to leave the `grab` combo box at `only on chan
 
 you can now use these patches for correction in the `colour` module. for this,
 use the `import` button in the `colour` module's ui. make sure the argument is
-set to `01` which is the instance id of your colour picker.
+set to `target` which is the instance id of your colour picker.
 
-if you now set the `mode` in the `colour` module to `data driven`, you should see
+if you now set the `mode` in the `colour` module to `use rbf`, you should see
 the corrected output in the main window and an indication of the corrected patches
 in the ui of the module, like so:
 

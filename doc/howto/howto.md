@@ -23,7 +23,6 @@ this folder lists quick instructions on a few special topics:
 
 * [how to customise metadata display](./metadata/readme.md)
 * [how to manage presets](./presets/readme.md)
-* [how to manage custom blocks](./blocks/readme.md)
 * [how to find similar modules to darktable](./dt/readme.md)
 * [how to customise the default processing graph](./defgraph/readme.md)
 
