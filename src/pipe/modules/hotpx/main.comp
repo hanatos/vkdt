@@ -8,6 +8,11 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float t; // threshold to detect a hot pixel
   int chn; // apply to which channels
 } params;
+layout(push_constant, std140) uniform push_t
+{
+  ivec4 crop;
+  int filters;
+} push;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
@@ -16,19 +21,63 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   float v = texelFetch(img_in, ipos, 0).r;
-  int chn = 2;
-  if((ipos.x & 1) == 0 && (ipos.y & 1) == 0) chn = 1;
-  if((ipos.x & 1) == 1 && (ipos.y & 1) == 1) chn = 4;
-  if((params.chn & chn) != 0)
-  {
-    // TODO: xtrans
-    float v0 = texture(img_in, (ipos + 0.5 + vec2(-2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
-    float v1 = texture(img_in, (ipos + 0.5 + vec2( 2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
-    float v2 = texture(img_in, (ipos + 0.5 + vec2( 0.0, -2.0))/vec2(textureSize(img_in, 0))).r;
-    float v3 = texture(img_in, (ipos + 0.5 + vec2( 0.0,  2.0))/vec2(textureSize(img_in, 0))).r;
-    // float M = max(max(v0, v1), max(v2, v3));
-    float M = (v0 + v1 + v2 + v3)/4.0;
-    if(v - M > params.t) v = M;
+  ivec2 ip = ipos - push.crop.xy; // this is where the mosic pattern aligns
+  if(push.filters == 9)
+  { // xtrans
+    ivec2 pos3 = (ip/3)*3;
+    float c0 = v;//texelFetch(img_in, push.crop.xy + pos3, 0).r;
+    float c1 = texelFetch(img_in, push.crop.xy + pos3+ivec2(0,1), 0).r;
+    float c2 = texelFetch(img_in, push.crop.xy + pos3+ivec2(0,2), 0).r;
+    float c3 = texelFetch(img_in, push.crop.xy + pos3+ivec2(1,0), 0).r;
+    float c4 = texelFetch(img_in, push.crop.xy + pos3+ivec2(1,1), 0).r;
+    float c5 = texelFetch(img_in, push.crop.xy + pos3+ivec2(1,2), 0).r;
+    float c6 = texelFetch(img_in, push.crop.xy + pos3+ivec2(2,0), 0).r;
+    float c7 = texelFetch(img_in, push.crop.xy + pos3+ivec2(2,1), 0).r;
+    float c8 = texelFetch(img_in, push.crop.xy + pos3+ivec2(2,2), 0).r;
+
+    float ming = min(min(min(c0, c2), c4), min(c6, c8));
+    float maxg = max(max(max(c0, c2), c4), max(c6, c8));
+    vec4 mmrb = vec4(min(c1, c7), max(c1, c7), min(c3, c5), max(c3, c5));
+    ivec2 rbmask = ivec2(1, 4);
+
+    if(((pos3.x/3 + pos3.y/3) & 1) == 0)
+    {
+      mmrb = mmrb.zwxy; // swap red and blue
+      rbmask = rbmask.yx;
+    }
+
+    ivec2 p = ip-pos3;
+    if(all(equal(p,ivec2(0,1))) || all(equal(p,ivec2(2,1))))
+    {
+      if((params.chn & rbmask.x) != 0)
+        if(mmrb.y - mmrb.x > params.t)
+          v = mmrb.x;//ming;
+    }
+    else if(all(equal(p,ivec2(1,0))) || all(equal(p,ivec2(1,2))))
+    {
+      if((params.chn & rbmask.y) != 0)
+        if(mmrb.w - mmrb.z > params.t)
+          v = mmrb.z;//ming;
+    }
+    else if((params.chn & 2) != 0)
+      if(maxg - ming > params.t)
+        v = ming;
+  }
+  else
+  { // bayer
+    int chn = 2;
+    if((ip.x & 1) == 0 && (ip.y & 1) == 0) chn = 1;
+    if((ip.x & 1) == 1 && (ip.y & 1) == 1) chn = 4;
+    if((params.chn & chn) != 0)
+    {
+      float v0 = texture(img_in, (ipos + 0.5 + vec2(-2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
+      float v1 = texture(img_in, (ipos + 0.5 + vec2( 2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
+      float v2 = texture(img_in, (ipos + 0.5 + vec2( 0.0, -2.0))/vec2(textureSize(img_in, 0))).r;
+      float v3 = texture(img_in, (ipos + 0.5 + vec2( 0.0,  2.0))/vec2(textureSize(img_in, 0))).r;
+      // float M = max(max(v0, v1), max(v2, v3));
+      float M = (v0 + v1 + v2 + v3)/4.0;
+      if(v - M > params.t) v = M;
+    }
   }
   imageStore(img_out, ipos, vec4(vec3(v), 1));
 }
