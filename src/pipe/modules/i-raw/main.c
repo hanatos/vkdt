@@ -72,6 +72,8 @@ load_raw(
   {
     mod_data->dngop = (dt_image_metadata_dngop_t){
       .type = s_image_metadata_dngop,
+      .ox   = mod_data->img.cfa_off_x,
+      .oy   = mod_data->img.cfa_off_y,
       .op_list = {
         mod_data->dng_opcode_lists[0],
         mod_data->dng_opcode_lists[1],

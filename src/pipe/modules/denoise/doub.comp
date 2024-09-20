@@ -112,8 +112,7 @@ main()
     vec2 pos = (0.5 + (ipos + push.crop.xy)/2) / (imageSize(img_out)/2);
     pos = clamp((pos * push.map_os.zw) - push.map_os.xy, vec2(0.), vec2(1.));
     vec4 gains = texture(img_gainmap, pos);
-    gains = gains.wzyx; // wtf
-    float gain = gains[((ipos.x+push.crop.x) & 1) + ((ipos.y+push.crop.y) & 1) * 2];
+    float gain = gains[(ipos.x & 1) + (ipos.y & 1) * 2];
     val *= gain;
     // val = gain; // XXX visualise gain map
   } // end gainmap

@@ -47,8 +47,7 @@ main()
     // in files i've seen, this mapping is the identity anyways:
     pos = clamp((pos * push.map_os.zw) - push.map_os.xy, vec2(0.), vec2(1.));
     vec4 gains = texture(img_gainmap, pos);
-    gains = gains.wzyx; // wtf
-    float gain = gains[((ipos.x+push.crop.x) & 1) + ((ipos.y+push.crop.y) & 1) * 2];
+    float gain = gains[(ipos.x & 1) + (ipos.y & 1) * 2]; // CFA does not depend on crop, is normalised to block sizes/rggb during upload
     col *= gain;
     // col = vec3(gain);
   } // end gainmap

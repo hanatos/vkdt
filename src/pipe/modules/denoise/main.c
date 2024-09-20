@@ -10,7 +10,7 @@ typedef struct mod_data_t
 mod_data_t;
 
 static int
-get_gain_maps_bayer(dt_dng_opcode_list_t *op_list, int index, mod_data_t *dat)
+get_gain_maps_bayer(dt_dng_opcode_list_t *op_list, int index, mod_data_t *dat, uint32_t ox, uint32_t oy)
 {
   if(op_list->count - index < 4) return 0;
   dt_dng_opcode_t *ops = op_list->ops;
@@ -23,7 +23,7 @@ get_gain_maps_bayer(dt_dng_opcode_list_t *op_list, int index, mod_data_t *dat)
          gm->region.row_pitch == 2 && gm->region.col_pitch == 2))
       return 0;
     if(gm->map_points_h < 2 && gm->map_points_v < 2) return 0;
-    int filter = ((gm->region.top & 1) << 1) + (gm->region.left & 1);
+    int filter = (((gm->region.top+oy) & 1) << 1) + ((gm->region.left+ox) & 1);
     dat->gm[filter] = gm;
   }
   for(int i=0;i<4;i++) if(!dat->gm[i]) return 0;
@@ -174,7 +174,7 @@ create_nodes(
   dt_dng_opcode_list_t *op_list = dngop ? dngop->op_list[1] : 0;
   if(op_list)
     for(int op=0;op<op_list->count&&!gainmap;op++)
-      gainmap = get_gain_maps_bayer(op_list, op, dat);
+      gainmap = get_gain_maps_bayer(op_list, op, dat, dngop->ox, dngop->oy);
   int id_gmdata = -1;
   if(gainmap)
   {
