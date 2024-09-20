@@ -274,9 +274,6 @@ jobs:
             this is an automated nightly build of vkdt.
 
             it may contain pre-release quality features, use with care :)
-            
-            note that the rawspeed builds have c++ issues, they don't like specific compiler versions.
-            these are thus currently disabled. they might come back at some point.
 
             appimage
             ===================================================
