@@ -98,6 +98,7 @@ processing modules:
   module if your files need it)
 * `o-web`: new transitional module that delegates to `o-jpg` and `o-vid`, so you can export
   images and videos of a certain session in one pass.
+* `usm`: unsharp mask, very simple and efficient basic sharpening
 
 tooling:
 * `vkdt mkssf` now considers the HueSatMap in the dcp profile it converts
