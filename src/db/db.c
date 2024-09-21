@@ -146,7 +146,9 @@ dt_db_update_collection(dt_db_t *db)
           if(!strstr(db->image[k].filename, db->collection_filter.filename)) goto discard;
           break;
         case s_prop_rating:
-          if(!(db->image[k].rating >= db->collection_filter.rating)) goto discard;
+          if(db->collection_filter.rating_cmp == 0 && !(db->image[k].rating >= db->collection_filter.rating)) goto discard;
+          if(db->collection_filter.rating_cmp == 1 && !(db->image[k].rating == db->collection_filter.rating)) goto discard;
+          if(db->collection_filter.rating_cmp == 2 && !(db->image[k].rating <= db->collection_filter.rating)) goto discard;
           break;
         case s_prop_labels:
           if(!(db->image[k].labels & db->collection_filter.labels)) goto discard;

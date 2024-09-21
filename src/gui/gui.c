@@ -726,7 +726,7 @@ void dt_gui_update_recently_used_collections()
   }
   if(len > 0 && (ft->active & (1<<s_prop_rating)))
   {
-    off = snprintf(c, len, "&rating:%u", ft->rating);
+    off = snprintf(c, len, "&rating:%u|%s", ft->rating, ft->rating_cmp == 1 ? "==" : ft->rating_cmp == 2 ? "<=" : ">=");
     c += off; len -= off;
   }
   if(len > 0 && (ft->active & (1<<s_prop_labels)))
@@ -784,11 +784,11 @@ void dt_gui_switch_collection(const char *dir)
     for(int i=0;i<s_prop_cnt;i++)
     {
       end++;
-      char filter[20] = {0}, val[30] = {0};
-      sscanf(end, "%[^:]:%[^&]", filter, val);
+      char filter[20] = {0}, val[30] = {0}, ext[10] = {0};
+      sscanf(end, "%[^:]:%[^&|]:%[^&]", filter, val, ext);
       if(!strcmp(filter, "all"))         ft->active = s_prop_none;
       if(!strcmp(filter, "filename"))    { ft->active |= 1<<s_prop_filename;   snprintf(ft->filename, sizeof(ft->filename), "%s", val); }
-      if(!strcmp(filter, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); }
+      if(!strcmp(filter, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); ft->rating_cmp = !strcmp(ext, "==") ? 1 : !strcmp(ext, "<=") ? 2 : 0; }
       if(!strcmp(filter, "labels"))      { ft->active |= 1<<s_prop_labels;     ft->labels = atol(val); }
       if(!strcmp(filter, "createdate"))  { ft->active |= 1<<s_prop_createdate; snprintf(ft->createdate, sizeof(ft->createdate), "%s", val); }
       if(!strcmp(filter, "filetype"))    { ft->active |= 1<<s_prop_filetype;   snprintf(dt_token_str(ft->filetype), 8, "%.8s", val); }

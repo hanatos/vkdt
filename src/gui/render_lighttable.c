@@ -629,8 +629,23 @@ void render_lighttable_right_panel()
     }
     nk_label(&vkdt.ctx, "sort", NK_TEXT_LEFT);
 
-    nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
-    int resi = ft->active & (1<<s_prop_rating) ? CLAMP(ft->rating, 0, 5) : 0;
+    float ratio3[] = {ratio[0]*0.2, ratio[0]*0.8-ctx->style.combo.spacing.x, ratio[1]};
+    nk_layout_row(ctx, NK_STATIC, row_height, 3, ratio3);
+    int resi = ft->active & (1<<s_prop_rating) ? CLAMP(ft->rating_cmp, 0, 2) : 0;
+    enum nk_symbol_type old0 = ctx->style.combo.sym_normal;
+    enum nk_symbol_type old1 = ctx->style.combo.sym_hover;
+    enum nk_symbol_type old2 = ctx->style.combo.sym_active;
+    ctx->style.combo.sym_normal = ctx->style.combo.sym_hover = ctx->style.combo.sym_active = NK_SYMBOL_NONE;
+    resi = nk_combo_string(ctx, ">=\0==\0<=\0\0", resi, 0xffff, row_height, size);
+    if(resi != ft->rating_cmp)
+    {
+      ft->rating_cmp = resi;
+      update_collection = 1;
+    }
+    ctx->style.combo.sym_normal = old0;
+    ctx->style.combo.sym_hover  = old1;
+    ctx->style.combo.sym_active = old2;
+    resi = ft->active & (1<<s_prop_rating) ? CLAMP(ft->rating, 0, 5) : 0;
     nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     resi = nk_combo_string(ctx, "\ue836\0\ue838\0\ue838\ue838\0\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\ue838\0\0", resi, 0xffff, row_height, size);
 
