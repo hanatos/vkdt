@@ -636,7 +636,7 @@ void render_lighttable_right_panel()
     enum nk_symbol_type old1 = ctx->style.combo.sym_hover;
     enum nk_symbol_type old2 = ctx->style.combo.sym_active;
     ctx->style.combo.sym_normal = ctx->style.combo.sym_hover = ctx->style.combo.sym_active = NK_SYMBOL_NONE;
-    resi = nk_combo_string(ctx, ">=\0==\0<=\0\0", resi, 0xffff, row_height, size);
+    resi = nk_combo_string(ctx, ">=\0==\0<\0\0", resi, 0xffff, row_height, size);
     if(resi != ft->rating_cmp)
     {
       ft->rating_cmp = resi;

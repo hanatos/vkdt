@@ -6,6 +6,7 @@
 #include "render.h"
 #include "pipe/asciiio.h"
 #include "pipe/modules/api.h"
+#include "widget_recentcollect.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -726,7 +727,7 @@ void dt_gui_update_recently_used_collections()
   }
   if(len > 0 && (ft->active & (1<<s_prop_rating)))
   {
-    off = snprintf(c, len, "&rating:%u|%s", ft->rating, ft->rating_cmp == 1 ? "==" : ft->rating_cmp == 2 ? "<=" : ">=");
+    off = snprintf(c, len, "&rating:%u|%s", ft->rating, ft->rating_cmp == 1 ? "==" : ft->rating_cmp == 2 ? "<" : ">=");
     c += off; len -= off;
   }
   if(len > 0 && (ft->active & (1<<s_prop_labels)))
@@ -760,43 +761,7 @@ void dt_gui_update_recently_used_collections()
 
 void dt_gui_switch_collection(const char *dir)
 {
-  char *end = 0;
-  if(dir)
-  { // find '&' in dir and replace by '\0', remember the position
-    const int len = strlen(dir);
-    for(int i=0;i<len;i++) if(dir[i] == '&') { end = (char *)(dir + i); break; }
-    if(end) *end = 0;
-  }
-
-  vkdt.wstate.copied_imgid = -1u; // invalidate
-  dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
-  dt_db_cleanup(&vkdt.db);
-  dt_db_init(&vkdt.db);
-  QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
-  dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
-  dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
-
-  if(end)
-  { // now set db filter based on stuff we parse behind &
-    *end = '&'; // restore & (because the string was const, right..?)
-    dt_db_filter_t *ft = &vkdt.db.collection_filter;
-    ft->active = 0;
-    for(int i=0;i<s_prop_cnt;i++)
-    {
-      end++;
-      char filter[20] = {0}, val[30] = {0}, ext[10] = {0};
-      sscanf(end, "%[^:]:%[^&|]:%[^&]", filter, val, ext);
-      if(!strcmp(filter, "all"))         ft->active = s_prop_none;
-      if(!strcmp(filter, "filename"))    { ft->active |= 1<<s_prop_filename;   snprintf(ft->filename, sizeof(ft->filename), "%s", val); }
-      if(!strcmp(filter, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); ft->rating_cmp = !strcmp(ext, "==") ? 1 : !strcmp(ext, "<=") ? 2 : 0; }
-      if(!strcmp(filter, "labels"))      { ft->active |= 1<<s_prop_labels;     ft->labels = atol(val); }
-      if(!strcmp(filter, "createdate"))  { ft->active |= 1<<s_prop_createdate; snprintf(ft->createdate, sizeof(ft->createdate), "%s", val); }
-      if(!strcmp(filter, "filetype"))    { ft->active |= 1<<s_prop_filetype;   snprintf(dt_token_str(ft->filetype), 8, "%.8s", val); }
-      while(*end != '&' && *end != 0) end++;
-      if(*end == 0) break;
-    }
-    dt_db_update_collection(&vkdt.db);
-  }
+  recently_used_collections_parse(dir, &vkdt.db.collection_filter, 1);
   dt_gui_update_recently_used_collections();
 }
 

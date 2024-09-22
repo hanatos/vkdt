@@ -69,9 +69,9 @@ dt_db_property_text =
 
 typedef struct dt_db_filter_t
 {
-  uint64_t   active;            // bitmask of 1<<property which filters are active
+  uint64_t   active;             // bitmask of 1<<property which filters are active
   char       filename[20];
-  uint32_t   rating, rating_cmp;
+  uint32_t   rating, rating_cmp; // rating compare: 0 >= 1 == 2 <
   uint32_t   labels;
   char       createdate[20];
   uint64_t   filetype;
