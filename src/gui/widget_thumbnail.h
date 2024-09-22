@@ -13,7 +13,7 @@ static inline void dt_draw_star(float u, float v, float size, struct nk_color co
 static inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
 {
   if(!rating) return;
-  const struct nk_color col = { 0, 0, 0, 0xff };
+  const struct nk_color col = vkdt.style.colour[NK_COLOR_TEXT];
   const char* stars = "\ue838\ue838\ue838\ue838\ue838";
   const struct nk_rect bounds = {x-0.5*wd, y-0.5*wd, rating*wd, wd};
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);

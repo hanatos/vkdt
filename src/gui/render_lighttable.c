@@ -422,53 +422,12 @@ render_lighttable_header()
         nk_rect(0, 0, vkdt.state.center_wd, vkdt.state.center_y),
         NK_WINDOW_NO_SCROLLBAR))
   { // draw current collection description
-    char str[100];
-    int len = sizeof(str);
-    const char *last = vkdt.db.dirname;
-    for(const char *c=last;*c!=0;c++) if(*c=='/') last = c+1;
-    char date[10] = {0}, desc[100];
-    sscanf(last, "%8s_%99s", date, desc);
-    char *c = str;
-    int off;
-    if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
-      off = snprintf(c, len, "%.4s %s", date, desc);
-    else
-      off = snprintf(c, len, "%s", last);
-    c += off; len -= off;
-
-    dt_db_filter_t *ft = &vkdt.db.collection_filter;
-    if(len > 0 && (ft->active & (1<<s_prop_createdate)))
-    {
-      if(!strncmp(date, ft->createdate, 4))
-        off = snprintf(c, len, " %s", ft->createdate+5);
-      else
-        off = snprintf(c, len, " %s", ft->createdate);
-      for(int i=0;c[i];i++) if(c[i] == ':') c[i] = ' ';
-      c += off; len -= off;
-    }
-    if(len > 0 && (ft->active & (1<<s_prop_filename)))
-    {
-      off = snprintf(c, len, " %s", ft->filename);
-      c += off; len -= off;
-    }
-    if(len > 0 && (ft->active & (1<<s_prop_filetype)))
-    {
-      off = snprintf(c, len, " %"PRItkn, dt_token_str(ft->filetype));
-      c += off; len -= off;
-    }
-    struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
-    const struct nk_rect bounds = {vkdt.state.center_x, 0, vkdt.state.center_x+vkdt.state.center_wd, vkdt.state.center_ht};
-    nk_draw_text(buf, bounds, str, strlen(str), &dt_gui_get_font(2)->handle, nk_rgba(0,0,0,255), vkdt.style.colour[NK_COLOR_TEXT]);
-
-#if 0
-    // TODO: draw circles and stars, make clickable, what do we click if there's nothing yet?
-    if(ft->active & (1<<s_prop_rating))
-    { // draw stars
-    }
-    if(ft->active & (1<<s_prop_labels))
-    { // draw circles
-    }
-#endif
+    nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_y, 1);
+    struct nk_rect bounds = nk_widget_bounds(&vkdt.ctx);
+    nk_label(&vkdt.ctx, "", 0);
+    nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(2)->handle);
+    recently_used_collections_draw(bounds, vkdt.db.dirname, &vkdt.db.collection_filter);
+    nk_style_pop_font(&vkdt.ctx);
   }
   nk_end(&vkdt.ctx);
   nk_style_pop_style_item(&vkdt.ctx);
@@ -714,7 +673,8 @@ void render_lighttable_right_panel()
       dt_token("i-mcraw"),
     };
     dt_token_t filter_val = ft->filetype;
-    for(int k=0;k<NK_LEN(input_modules);k++) if(filter_val == input_modules[k]) { filter_module_idx = k; break; }
+    if(!(ft->active & (1<<s_prop_filetype))) { filter_module_idx = 0; ft->filetype = 0; }
+    else for(int k=0;k<NK_LEN(input_modules);k++) if(filter_val == input_modules[k]) { filter_module_idx = k; break; }
     res = nk_combo_string(ctx, input_modules_str, filter_module_idx, 0xffff, row_height, size);
     if(res != filter_module_idx)
     {

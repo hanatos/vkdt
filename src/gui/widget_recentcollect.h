@@ -54,6 +54,75 @@ recently_used_collections_parse(
   }
 }
 
+static inline void
+recently_used_collections_draw(
+    struct nk_rect  bounds,
+    const char     *dir,
+    dt_db_filter_t *f)
+{
+  const char *last = dir;
+  for(const char *c=dir;*c!=0;c++) if(*c=='/') last = c+1;
+  char str[100];
+  int len = sizeof(str);
+  char date[10] = {0}, desc[100];
+  sscanf(last, "%8s_%99[^&]s", date, desc);
+  char *c = str;
+  int off;
+  if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
+    off = snprintf(c, len, "%.4s %s", date, desc);
+  else
+    off = snprintf(c, len, "%s", last);
+  c += off; len -= off;
+
+  if(len > 0 && (f->active & (1<<s_prop_createdate)))
+  {
+    if(!strncmp(date, f->createdate, 4))
+      off = snprintf(c, len, " %s", f->createdate+5);
+    else
+      off = snprintf(c, len, " %s", f->createdate);
+    for(int i=0;c[i];i++) if(c[i] == ':') c[i] = ' ';
+    c += off; len -= off;
+  }
+  if(len > 0 && (f->active & (1<<s_prop_filename)))
+  {
+    off = snprintf(c, len, " %s", f->filename);
+    c += off; len -= off;
+  }
+  if(len > 0 && (f->active & (1<<s_prop_filetype)))
+  {
+    off = snprintf(c, len, " %"PRItkn, dt_token_str(f->filetype));
+    c += off; len -= off;
+  }
+  float wd = vkdt.ctx.style.font->height;
+  float pos = bounds.x + bounds.w;
+  float ypos = bounds.y + vkdt.ctx.style.tab.padding.y;
+  nk_draw_text(nk_window_get_canvas(&vkdt.ctx),
+      (struct nk_rect){.x=bounds.x+vkdt.ctx.style.tab.padding.x, .w=bounds.w, .y=ypos, .h=wd},
+      str, strlen(str),
+      vkdt.ctx.style.font, nk_rgba(0,0,0,0), vkdt.style.colour[NK_COLOR_TEXT]);
+
+  if((f->active & (1<<s_prop_rating)) && f->rating > 0)
+  {
+    pos -= f->rating * wd;
+    dt_draw_rating(pos, ypos+wd*0.5, wd, f->rating);
+    pos -= 1.5*wd;
+    if(f->rating_cmp == 0)
+      nk_draw_text(nk_window_get_canvas(&vkdt.ctx),
+          (struct nk_rect){.x=pos, .w=bounds.w, .y=ypos, .h=wd},
+          ">=", 2,
+          vkdt.ctx.style.font, nk_rgba(0,0,0,0), vkdt.style.colour[NK_COLOR_TEXT]);
+    if(f->rating_cmp == 2)
+      nk_draw_text(nk_window_get_canvas(&vkdt.ctx),
+          (struct nk_rect){.x=pos, .w=bounds.w, .y=ypos, .h=wd},
+          "<", 1,
+          vkdt.ctx.style.font, nk_rgba(0,0,0,0), vkdt.style.colour[NK_COLOR_TEXT]);
+  }
+  if((f->active & (1<<s_prop_labels)) && f->labels > 0)
+  {
+    for(int i=0;i<5;i++) if(f->labels & (1<<i)) pos -= wd;
+    dt_draw_labels(pos, ypos+wd*0.5, wd, f->labels);
+  }
+}
 
 static inline int
 recently_used_collections()
@@ -67,74 +136,16 @@ recently_used_collections()
     const char *dir = dt_rc_get(&vkdt.rc, entry, "null");
     if(strcmp(dir, "null"))
     {
-      const char *last = dir;
       recently_used_collections_parse(dir, &f, 0);
-      for(const char *c=dir;*c!=0;c++) if(*c=='/') last = c+1;
-      int len = strlen(last);
-      nk_style_push_flags(&vkdt.ctx, &vkdt.ctx.style.button.text_alignment, NK_TEXT_LEFT);
       dt_tooltip(dir);
       struct nk_rect bounds = nk_widget_bounds(&vkdt.ctx);
-      char str[100];
-      char date[10] = {0}, desc[100];
-      sscanf(last, "%8s_%99[^&]s", date, desc);
-      char *c = str;
-      int off;
-      if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
-        off = snprintf(c, len, "%.4s %s", date, desc);
-      else
-        off = snprintf(c, len, "%s", last);
-      c += off; len -= off;
-
-      if(len > 0 && (f.active & (1<<s_prop_createdate)))
-      {
-        if(!strncmp(date, f.createdate, 4))
-          off = snprintf(c, len, " %s", f.createdate+5);
-        else
-          off = snprintf(c, len, " %s", f.createdate);
-        for(int i=0;c[i];i++) if(c[i] == ':') c[i] = ' ';
-        c += off; len -= off;
-      }
-      if(len > 0 && (f.active & (1<<s_prop_filename)))
-      {
-        off = snprintf(c, len, " %s", f.filename);
-        c += off; len -= off;
-      }
-      if(len > 0 && (f.active & (1<<s_prop_filetype)))
-      {
-        off = snprintf(c, len, " %"PRItkn, dt_token_str(f.filetype));
-        c += off; len -= off;
-      }
-      if(nk_button_text(&vkdt.ctx, str, strlen(str)))
+      if(nk_button_text(&vkdt.ctx, "", 0))
       {
         dt_gui_switch_collection(dir);
         nk_style_pop_flags(&vkdt.ctx);
         return 1; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
-      nk_style_pop_flags(&vkdt.ctx);
-      float wd = vkdt.ctx.style.font->height;
-      float pos = bounds.x + bounds.w;
-      float ypos = bounds.y + vkdt.ctx.style.tab.padding.y;
-      if((f.active & (1<<s_prop_rating)) && f.rating > 0)
-      {
-        pos -= f.rating * wd;
-        dt_draw_rating(pos, ypos+wd*0.5, wd, f.rating);
-        pos -= 1.5*wd;
-        if(f.rating_cmp == 0)
-          nk_draw_text(nk_window_get_canvas(&vkdt.ctx),
-              (struct nk_rect){.x=pos, .w=bounds.w, .y=ypos, .h=wd},
-              ">=", 2,
-              &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
-        if(f.rating_cmp == 2)
-          nk_draw_text(nk_window_get_canvas(&vkdt.ctx),
-              (struct nk_rect){.x=pos, .w=bounds.w, .y=ypos, .h=wd},
-              "<", 1,
-              &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
-      }
-      if((f.active & (1<<s_prop_labels)) && f.labels > 0)
-      {
-        for(int i=0;i<5;i++) if(f.labels & (1<<i)) pos -= wd;
-        dt_draw_labels(pos, ypos+wd*0.5, wd, f.labels);
-      }
+      recently_used_collections_draw(bounds, dir, &f);
     }
   }
   return 0;
