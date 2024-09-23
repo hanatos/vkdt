@@ -709,6 +709,8 @@ void render_darkroom()
 
 void render_darkroom_init()
 {
+  gui.active_module = 0;
+  gui.active_instance = 0;
   hk_darkroom_cnt = dt_keyaccel_init(&keyaccel, hk_darkroom, hk_darkroom_cnt, hk_darkroom_size);
   hk_deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
 }
@@ -1000,6 +1002,9 @@ darkroom_enter()
   if(vkdt.graph_res == VK_SUCCESS) vkdt.graph_res = -1;
   vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
 
+  // if we don't find it, this will be -1
+  vkdt.graph_dev.active_module = dt_module_get(&vkdt.graph_dev, gui.active_module, gui.active_instance);
+
   // nodes are only constructed after running once
   // (could run up to s_graph_run_create_nodes)
   if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
@@ -1044,6 +1049,12 @@ darkroom_leave()
 
   if(vkdt.graph_dev.frame_cnt != 1) dt_gui_label_set(s_image_label_video);
   else dt_gui_label_unset(s_image_label_video);
+
+  if(vkdt.graph_dev.active_module >= 0)
+  {
+    gui.active_module   = vkdt.graph_dev.module[vkdt.graph_dev.active_module].name;
+    gui.active_instance = vkdt.graph_dev.module[vkdt.graph_dev.active_module].inst;
+  }
 
   // TODO: start from already loaded/inited graph instead of from scratch!
   const uint32_t imgid = dt_db_current_imgid(&vkdt.db);
