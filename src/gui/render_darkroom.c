@@ -996,14 +996,30 @@ darkroom_enter()
   }
   dt_graph_history_reset(&vkdt.graph_dev);
 
+  vkdt.graph_dev.active_module = dt_module_get(&vkdt.graph_dev, gui.active_module, gui.active_instance);
+  if(vkdt.graph_dev.active_module >= 0)
+  { // if we don't find it, this will be -1
+    int cid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("dspy"));
+    if(cid >= 0)
+    { // connect dspy
+      int mid = dt_module_add(&vkdt.graph_dev, dt_token("display"), dt_token("dspy"));
+      if(mid >= 0)
+      {
+        dt_module_connect(&vkdt.graph_dev, vkdt.graph_dev.active_module, cid, mid, 0); // reconnect
+        const float pwf = 0.2; // probably make a config param
+        const float pwd = pwf * (16.0/9.0) * vkdt.win.height;
+        vkdt.graph_dev.module[mid].connector[0].max_wd = pwd;
+        vkdt.graph_dev.module[mid].connector[0].max_ht = (2.0/3.2) * pwd;
+        vkdt.graph_dev.runflags = s_graph_run_all;
+      }
+    }
+  }
+
   if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
     dt_gui_notification("running the graph failed (%s)!",
         qvk_result_to_string(vkdt.graph_res));
   if(vkdt.graph_res == VK_SUCCESS) vkdt.graph_res = -1;
   vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
-
-  // if we don't find it, this will be -1
-  vkdt.graph_dev.active_module = dt_module_get(&vkdt.graph_dev, gui.active_module, gui.active_instance);
 
   // nodes are only constructed after running once
   // (could run up to s_graph_run_create_nodes)
