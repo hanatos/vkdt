@@ -6,6 +6,7 @@ for iterative/multi-frame execution.
 
 ## list of modules
 it follows the reference documentation of available modules, grouped into categories.
+also see the [list of presets shipped with vkdt](../../../doc/howto/presets/presets.md).
 
 **input**
 

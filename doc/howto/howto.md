@@ -25,13 +25,13 @@ this folder lists quick instructions on a few special topics:
 * [how to manage presets](./presets/readme.md)
 * [how to find similar modules to darktable](./dt/readme.md)
 * [how to customise the default processing graph](./defgraph/readme.md)
+* [how to customise the favourites ui in darkroom mode](./favs/readme.md)
 
 
 -- these following topics do not exist yet --
 
 * [how to use feedback connectors](./feedback/readme.md)
 * [how to create a css/html website gallery](./gallery/readme.md)
-* [how to customise the favourites ui in darkroom mode](./favs/readme.md)
 * [how to fit parameters automatically](./fit/readme.md)
 * [how to align and merge handheld images for low light photography](./align/readme.md)
 * [how to provide a useful crash report](./crash/readme.md)
