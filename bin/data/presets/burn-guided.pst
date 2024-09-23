@@ -1,22 +1,24 @@
-# draw burn, i.e. make shadows brighter brush strokes
+# draw brush strokes for burning, i.e. make shadows brighter.
+# this variant introduces a guided blur for the brush strokes, so
+# it will be easier to stick to object edges.
+# see [the documentation of the draw module](../../../src/pipe/modules/draw/readme.md).
 module:draw:burn:767.213:202.1
 module:exposure:burn:1070.31:178.1
 module:blend:burn:1285.36:233.1
 module:guided:burn:1068.26:370.1
 connect:draw:burn:output:guided:burn:guide
 connect:guided:burn:output:blend:burn:mask
-# we want to inject dodge/burn before colour in linear scene rgb.
-# the default pipeline connects crop->colour so we'll go in between.
+# we inject both dodge and burn presets before `colour` in linear scene rgb.
+# the default pipeline connects crop->colour so we'll go in between these two.
 connect:crop:01:output:blend:burn:back
 connect:crop:01:output:exposure:burn:input
 connect:crop:01:output:guided:burn:input
 connect:exposure:burn:output:blend:burn:input
 connect:blend:burn:output:colour:01:input
 # now if we already connected a `blend:dodge` module in between, we'll
-# want to go in between crop->dodge. we try this now, the connection
-# will just silently fail if the module doesn't yet exist.
+# want to go in between crop->dodge. this preset tries this first
+# and will just silently fall back if `dodge` does not exist.
 connect:blend:burn:output:blend:dodge:back
-# reconnect in case it exists
 connect:blend:dodge:output:colour:01:input
 param:blend:burn:opacity:1
 param:blend:burn:mode:0

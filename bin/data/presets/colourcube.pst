@@ -1,3 +1,4 @@
-# this preset presents a double rgb cube for the colour mapping rbf:
+# this preset presents a double rgb cube for the colour mapping rbf.
+# this is useful for manual/artistic tweaking.
 param:colour:01:cnt:15
 param:colour:01:rbmap:1:0:0:1:0:0:0:1:0:0:1:0:0:0:1:0:0:1:1:1:0:1:1:0:0:1:1:0:1:1:1:0:1:1:0:1:0.8:0.2:0.2:0.8:0.2:0.2:0.2:0.8:0.2:0.2:0.8:0.2:0.2:0.2:0.8:0.2:0.2:0.8:0.8:0.8:0.2:0.8:0.8:0.2:0.2:0.8:0.8:0.2:0.8:0.8:0.8:0.2:0.8:0.8:0.2:0.8:0:0:0:0:0:0:0.5:0.5:0.5:0.5:0.5:0.5:1:1:1:1:1:1:

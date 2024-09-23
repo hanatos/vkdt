@@ -1,5 +1,7 @@
-# spot white balance for skin tones.
-# assumes colour input comes directly from crop
+# spot white balance for skin tones using google's monk scale.
+# assumes colour input comes directly from crop.
+# <div style="background:#f6ede4;width:100px;height:100px">&nbsp;</div>
+# 
 module:pick:01
 connect:crop:01:output:pick:01:input
 connect:pick:01:picked:colour:01:picked
