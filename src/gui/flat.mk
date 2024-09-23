@@ -4,7 +4,6 @@ GUI_O=gui/gui.o\
       gui/render_darkroom.o\
       gui/render_files.o\
       gui/render_nodes.o\
-      gui/darkroom.o\
       gui/main.o\
       gui/view.o
 GUI_H=gui/gui.h\
