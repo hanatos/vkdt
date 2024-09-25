@@ -10,6 +10,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   int generate;
+  int tiles;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_rfi;
@@ -29,7 +30,7 @@ void main()
 
   // uint seed = 123456789+133700 * (global.frame/100);
   uint seed = 123456789+133700 * global.frame;
-  if(params.generate != 0)
+  if(params.tiles != 0 && params.generate != 0)
   {
     ev = -2.0 + 4.0*mrand(seed);
     flip = int(4.0*mrand(seed));
