@@ -515,7 +515,7 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
   QVKR(vkWaitForFences(qvk.device, 1, win->fence+win->sem_fence[win->sem_index], VK_TRUE, UINT64_MAX)); // make sure the semaphore is free
   // timeout is in nanoseconds (these are ~2sec)
   VkResult res = vkAcquireNextImageKHR(qvk.device, win->swap_chain, 2ul<<30, image_acquired_semaphore, VK_NULL_HANDLE, &win->frame_index);
-  if(res != VK_SUCCESS)
+  if(!(res == VK_SUCCESS || res == VK_TIMEOUT || res == VK_NOT_READY || res == VK_SUBOPTIMAL_KHR))
     return res;
   
   const int i = win->frame_index;
@@ -600,7 +600,11 @@ dt_gui_present_win(dt_gui_win_t *win)
     .pImageIndices      = &win->frame_index,
   };
   win->sem_index = (win->sem_index + 1) % win->num_swap_chain_images;
-  QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueuePresentKHR(qvk.queue[qvk.qid[s_queue_graphics]].queue, &info));
+
+  threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+  VkResult res = vkQueuePresentKHR(qvk.queue[qvk.qid[s_queue_graphics]].queue, &info);
+  threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+  if(!(res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR)) return res;
   return VK_SUCCESS;
 }
 
