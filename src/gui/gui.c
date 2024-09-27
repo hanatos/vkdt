@@ -23,6 +23,8 @@ window_size_callback(GLFWwindow* w, int width, int height)
 { // window resized, need to rebuild our swapchain:
   dt_gui_win_t *win = &vkdt.win;
   if(w == vkdt.win1.window) win = &vkdt.win1;
+  win->width = width;
+  win->height = height;
   dt_gui_recreate_swapchain(win);
   nk_glfw3_resize(w, win->width, win->height);
   if(w == vkdt.win.window) dt_gui_init_fonts();
@@ -295,18 +297,10 @@ out:;
   win->present_mode = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to be there, but has vsync frame time jitter
 
   VkExtent2D extent;
-  if(surf_capabilities.currentExtent.width != ~0u)
-  {
-    extent = surf_capabilities.minImageExtent;
-  }
-  else
-  {
-    extent.width  = MIN(surf_capabilities.maxImageExtent.width,  win->width);
-    extent.height = MIN(surf_capabilities.maxImageExtent.height, win->height);
-
-    extent.width  = MAX(surf_capabilities.minImageExtent.width,  extent.width);
-    extent.height = MAX(surf_capabilities.minImageExtent.height, extent.height);
-  }
+  extent.width  = MIN(surf_capabilities.maxImageExtent.width,  win->width);
+  extent.height = MIN(surf_capabilities.maxImageExtent.height, win->height);
+  extent.width  = MAX(surf_capabilities.minImageExtent.width,  extent.width);
+  extent.height = MAX(surf_capabilities.minImageExtent.height, extent.height);
 
   // this is stupid, but it seems if the window manager does not allow going fullscreen
   // it crashes otherwise. sometimes you need to first make the window floating in dwm
@@ -378,9 +372,8 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
     vkDestroyFramebuffer(qvk.device, win->framebuffer[i], 0);
   if(win->render_pass)
     vkDestroyRenderPass(qvk.device, win->render_pass, 0);
-  glfwGetFramebufferSize(win->window, &win->width, &win->height);
-  style_to_state();
   QVKR(dt_gui_create_swapchain(win));
+  style_to_state();
 
   // create the render pass
   VkAttachmentDescription attachment_desc = {

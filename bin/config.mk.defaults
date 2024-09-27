@@ -6,14 +6,6 @@
 # overwrite the settings in here by copying the file over and making changes
 # there.
 
-# if you have freetype2 and png16, you can uncomment this:
-VKDT_USE_FREETYPE=1
-export VKDT_USE_FREETYPE
-# note the retarted assignment is due to https://savannah.gnu.org/bugs/index.php?64746
-VKDT_FREETYPE2_CFLAGS=$(eval VKDT_FREETYPE2_CFLAGS := $$(shell pkg-config --cflags freetype2))$(VKDT_FREETYPE2_CFLAGS)
-VKDT_FREETYPE2_LDFLAGS=$(eval VKDT_FREETYPE2_LDFLAGS := $$(shell pkg-config --libs freetype2))$(VKDT_FREETYPE2_LDFLAGS)
-export VKDT_FREETYPE2_CFLAGS VKDT_FREETYPE2_LDFLAGS
-
 # needed for jpeg input (currently not optional)
 VKDT_JPEG_CFLAGS=$(eval VKDT_JPEG_CFLAGS := $$(shell pkg-config --cflags libjpeg))$(VKDT_JPEG_CFLAGS)
 VKDT_JPEG_LDFLAGS=$(eval VKDT_JPEG_LDFLAGS := $$(shell pkg-config --libs libjpeg))$(VKDT_JPEG_LDFLAGS)
