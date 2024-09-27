@@ -88,7 +88,7 @@ cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
 
 
 float
-kernel(vec3 ci, vec3 p)
+rbfk(vec3 ci, vec3 p)
 { // thinplate spline kernel
   float r2 = dot(ci-p, ci-p);
   return sqrt(r2);
@@ -277,7 +277,7 @@ main()
   { // now rbf part:
     vec3 co = params.rbf_P * rgb;
     uint N = clamp(params.N.x, 0, 24);
-    for(int i=0;i<N;i++) co += params.rbf_c[i].rgb * kernel(rgb, params.rbf_p[i].rgb);
+    for(int i=0;i<N;i++) co += params.rbf_c[i].rgb * rbfk(rgb, params.rbf_p[i].rgb);
     rgb = co;
   }
 
