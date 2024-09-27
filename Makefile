@@ -7,7 +7,11 @@
 ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
 else
+ifeq ($(shell uname),Darwin)
+include bin/config.mk.defaults.osx
+else
 include bin/config.mk.defaults
+endif
 endif
 sinclude bin/config.mk
 

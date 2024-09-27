@@ -93,7 +93,7 @@ void dt_gui_init_fonts()
 {
   char tmp[PATH_MAX+100] = {0};
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = floorf(vkdt.win.height / 55.0f * dpi_scale);
+  float fontsize = MAX(5, floorf(vkdt.win.height / 55.0f * dpi_scale));
   const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
   if(fontfile[0] != '/')
     snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);

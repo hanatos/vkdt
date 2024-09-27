@@ -10,12 +10,17 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#ifndef _WIN64
-#include <sys/sendfile.h>
-#else
+#if defined(__APPLE__)
+#include <libproc.h>
+#endif
+#if defined(_WIN64)
 #include <shlobj.h>
 #include <direct.h>
 #include <io.h>
+#endif
+#if !defined(_WIN64) && !defined(__APPLE__)
+#include <sys/sendfile.h>
+#else
 #include <stdbool.h>
 #endif
 #include <errno.h>
@@ -25,7 +30,7 @@ fs_copy(
     const char *dst,
     const char *src)
 {
-#ifdef _WIN64
+#if defined(_WIN64) || defined(__APPLE__)
   FILE *fdst = fopen(dst, "wb");
   if(!fdst) return 1;
   FILE *fsrc = fopen(src, "rb");
@@ -199,6 +204,10 @@ fs_basedir(
   char *path;
   _get_pgmptr(&path);
   snprintf(basedir, maxlen, "%s", path);
+  fs_dirname(basedir);
+#elif defined(__APPLE__)
+  pid_t pid = getpid();
+  proc_pidpath (pid, basedir, maxlen);
   fs_dirname(basedir);
 #else
 #warning "port me! (basedir)"
@@ -457,6 +466,10 @@ fs_createtime(
 #ifdef _WIN64
 #warning "port me! (create time)"
   return 0; // TODO!
+#elif defined(__APPLE__)
+  struct stat statbuf = {0};
+  stat(filename, &statbuf);
+  return statbuf.st_birthtimespec.tv_sec;
 #else
   struct stat statbuf = {0};
   stat(filename, &statbuf);

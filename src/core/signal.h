@@ -21,7 +21,7 @@
 #include "db/db.h"
 #include "gui/gui.h"
 
-#ifdef _WIN64
+#if defined(_WIN64) || defined(__APPLE__)
 static inline void dt_set_signal_handlers() {}
 #else
 #include <signal.h>

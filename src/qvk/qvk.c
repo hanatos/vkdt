@@ -52,6 +52,7 @@ const char *vk_requested_instance_extensions[] = {
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+  VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 };
 
 static const VkApplicationInfo vk_app_info = {
@@ -159,6 +160,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 #endif
     .enabledExtensionCount   = num_inst_ext_combined,
     .ppEnabledExtensionNames = (const char * const*)ext,
+    .flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
   };
 
   {
@@ -370,6 +372,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif
+#ifdef __APPLE__
+  requested_device_extensions[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
+#endif
   if(window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 
   VkDeviceCreateInfo dev_create_info = {
@@ -404,8 +409,12 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
+  VkPhysicalDevicePortabilitySubsetPropertiesKHR subprop = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_PROPERTIES_KHR,
+  };
   VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+    .pNext = &subprop,
   };
   VkPhysicalDeviceProperties2 devprop = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,

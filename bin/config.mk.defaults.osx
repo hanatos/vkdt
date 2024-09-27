@@ -1,4 +1,4 @@
-# build time configuration for windows/msys2 platform.
+# build time configuration.
 # select your favourite bloat here.
 # this is the default file which is always loaded. please don't edit it
 # directly, it will be overwritten by a new version that may come with a git
@@ -7,8 +7,8 @@
 # there.
 
 # needed for jpeg input (currently not optional)
-VKDT_JPEG_CFLAGS=-I/c/msys64/ucrt64/include
-VKDT_JPEG_LDFLAGS=-L/ucrt64/lib -ljpeg
+VKDT_JPEG_CFLAGS=$(eval VKDT_JPEG_CFLAGS := $$(shell pkg-config --cflags libjpeg))$(VKDT_JPEG_CFLAGS)
+VKDT_JPEG_LDFLAGS=$(eval VKDT_JPEG_LDFLAGS := $$(shell pkg-config --libs libjpeg))$(VKDT_JPEG_LDFLAGS)
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
 # if you disable this, the i-raw module will not be built
@@ -20,32 +20,31 @@ export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 # VKDT_USE_RAWINPUT=0
 # rawspeed  (c++):
 # VKDT_USE_RAWINPUT=1
-CMAKE=cmake
-export CMAKE
 # rawler (rust):
 VKDT_USE_RAWINPUT=2
 export VKDT_USE_RAWINPUT
 
+CMAKE=cmake
+export CMAKE
+
 # needed for rawspeed (RAWINPUT=1) only
-# VKDT_PUGIXML_CFLAGS=-I/c/msys64/include
-# VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/c/msys64/mingw64/lib -l:libpugixml.a
-# VKDT_PUGIXML_LDFLAGS=-lstdc++ -L/ucrt64/bin -lpugixml
+# VKDT_PUGIXML_CFLAGS=$(eval VKDT_PUGIXML_CFLAGS := $$(shell pkg-config --cflags pugixml))$(VKDT_PUGIXML_CFLAGS)
+# VKDT_PUGIXML_LDFLAGS=$(eval VKDT_PUGIXML_LDFLAGS := $$(shell pkg-config --libs pugixml))$(VKDT_PUGIXML_LDFLAGS)
 # export VKDT_PUGIXML_CFLAGS VKDT_PUGIXML_LDFLAGS
 
 # exiv2 can optionally be used to load some super basic metadata (iso
 # speed, shutter time etc) inside the i-raw module when using rawspeed.
 # that is, it is only effective if VKDT_USE_RAWINPUT=1.
 # VKDT_USE_EXIV2=1
-# export VKDT_USE_EXIV2 
-# VKDT_EXIV2_CFLAGS=-I/c/msys64/ucrt64/include/
-# VKDT_EXIV2_LDFLAGS=-L/c/msys64/mingw64/lib -l:libexiv2.a -l:libexiv2-xmp.a
-# VKDT_EXIV2_LDFLAGS=-L/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
+# export VKDT_USE_EXIV2
+# VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
+# VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
 # export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
-# VKDT_USE_V4L2=1
-# export VKDT_USE_V4L2
+VKDT_USE_V4L2=0
+export VKDT_USE_V4L2
 
 # we use GPL3 code in the i-mlv magic lantern raw video input
 # module. if you don't want it, leave it disabled here. if
@@ -53,30 +52,29 @@ export VKDT_USE_RAWINPUT
 VKDT_USE_MLV=1
 export VKDT_USE_MLV
 
-# build and use the motioncam raw format
+# to play the audio that comes with the mlv video, vkdt uses
+# alsa. this introduces an asound dependency. disable here:
+VKDT_USE_ALSA=0
+export VKDT_USE_ALSA
+
+# build the i-mcraw loader module to load raw video from the motioncam app.
+# it has no additional dependencies but comes with several ten thousand lines of c++ code
 VKDT_USE_MCRAW=1
 export VKDT_USE_MCRAW
 
-# to play the audio that comes with the mlv video, vkdt uses
-# alsa. this introduces an asound dependency. disable here:
-# VKDT_USE_ALSA=1
-# export VKDT_USE_ALSA
-# VKDT_ALSA_CFLAGS=$(shell pkg-config --cflags alsa)
-# VKDT_ALSA_LDFLAGS=$(shell pkg-config --libs alsa)
-# export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
-
 # for the i-vid module using libavformat/libavcodec to read
 # video streams, we depend on these libraries
-VKDT_USE_FFMPEG=1
+# note that vkdt requires ffmpeg version > 5 (6 is first good)
+FFMPEG_VERSION=$(shell ffmpeg -version | head -1 | cut -f 3 -d' ' | cut -d. -f1)
+VKDT_USE_FFMPEG=$(eval VKDT_USE_FFMPEG := $$(shell [ $(FFMPEG_VERSION) -gt 5 ] && echo 1 || echo 0))
 export VKDT_USE_FFMPEG
-VKDT_AV_CFLAGS=
-VKDT_AV_LDFLAGS=-L/ucrt64/lib -lavformat -lavcodec -lavutil -lswresample
+VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libswresample))$(VKDT_AV_CFLAGS)
+VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libswresample))$(VKDT_AV_LDFLAGS)
 export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
-# install mingw-w64-x86_64-glfw via pacman -S!
 # where to find glfw for the gui:
-VKDT_GLFW_CFLAGS=-I/c/msys64/ucrt64/include/GLFW
-VKDT_GLFW_LDFLAGS=-L/ucrt64/lib -l:libglfw3.a -lgdi32
+VKDT_GLFW_CFLAGS=$(eval VKDT_GLFW_CFLAGS := $$(shell pkg-config --cflags glfw3))$(VKDT_GLFW_CFLAGS)
+VKDT_GLFW_LDFLAGS=$(eval VKDT_GLFW_LDFLAGS := $$(shell pkg-config --libs glfw3))$(VKDT_GLFW_LDFLAGS)
 export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 
 # enable this if you have a custom build of glfw that supports the following
@@ -91,33 +89,28 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 # this will download and compile GPL code.
 # VKDT_USE_QUAKE=1
 # export VKDT_USE_QUAKE
-# VKDT_QEXTRA_CFLAGS=$(shell pkg-config --cflags vorbis vorbisfile ogg mad)
-# VKDT_QEXTRA_LDFLAGS=$(shell pkg-config --libs vorbis vorbisfile ogg mad)
+# VKDT_QEXTRA_CFLAGS=$(eval VKDT_QEXTRA_CFLAGS := $$(shell pkg-config --cflags vorbis vorbisfile ogg mad))$(VKDT_QEXTRA_CFLAGS)
+# VKDT_QEXTRA_LDFLAGS=$(eval VKDT_QEXTRA_LDFLAGS := $$(shell pkg-config --libs vorbis vorbisfile ogg mad))$(VKDT_QEXTRA_LDFLAGS)
 # export VKDT_QEXTRA_CFLAGS VKDT_QEXTRA_LDFLAGS
 
 # need vulkan
-VKDT_VULKAN_CFLAGS=-I/c/msys64/ucrt64/include
-VKDT_VULKAN_LDFLAGS=-L/ucrt64/lib -lvulkan-1
+VKDT_VULKAN_CFLAGS=$(eval VKDT_VULKAN_CFLAGS := -DVK_ENABLE_BETA_EXTENSIONS $$(shell pkg-config --cflags vulkan))$(VKDT_VULKAN_CFLAGS)
+VKDT_VULKAN_LDFLAGS=$(eval VKDT_VULKAN_LDFLAGS := $$(shell pkg-config --libs vulkan))$(VKDT_VULKAN_LDFLAGS)
+VKDT_VULKAN_CFLAGS+= -DVK_ENABLE_BETA_EXTENSIONS
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
-CC=gcc
-CXX=g++
-GLSLC=/ucrt64/bin/glslangValidator.exe
+CC=clang
+CXX=clang++
+GLSLC=glslangValidator
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.2
-CFLAGS=-I/c/msys64/ucrt64/include -I.
-CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
-LDFLAGS=-L/c/msys64/ucrt64/lib
-export CFLAGS CXXFLAGS LDFLAGS
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
 OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG
 OPT_LDFLAGS=
 AR=ar
-
-# replace -rdynamic for windows:
-DYNAMIC=
+DYNAMIC=-rdynamic -fvisibility=hidden
 
 export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR DYNAMIC
