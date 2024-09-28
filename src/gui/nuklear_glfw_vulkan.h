@@ -799,11 +799,11 @@ NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
 NK_API void
 nk_glfw3_resize(
     GLFWwindow *w,
-    uint32_t framebuffer_width,
-    uint32_t framebuffer_height)
+    uint32_t width,
+    uint32_t height)
 {
-  if(w == glfw.w1.win) glfwGetFramebufferSize(glfw.w1.win, &glfw.w1.width, &glfw.w1.height);
-  else                 glfwGetFramebufferSize(glfw.w0.win, &glfw.w0.width, &glfw.w0.height);
+  if(w == glfw.w1.win) { glfw.w1.width = width; glfw.w1.height = height; }
+  else                 { glfw.w0.width = width; glfw.w0.height = height; }
 }
 
 NK_API void nk_glfw3_device_destroy(struct nk_glfw_device *dev)

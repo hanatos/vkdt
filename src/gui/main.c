@@ -39,6 +39,7 @@ get_current_monitor(GLFWwindow *window)
   int wx, wy, ww, wh;
   glfwGetWindowPos(window, &wx, &wy);
   glfwGetFramebufferSize(window, &ww, &wh);
+
   int nmonitors;
   GLFWmonitor **monitors = glfwGetMonitors(&nmonitors);
 

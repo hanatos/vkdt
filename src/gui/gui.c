@@ -23,8 +23,7 @@ window_size_callback(GLFWwindow* w, int width, int height)
 { // window resized, need to rebuild our swapchain:
   dt_gui_win_t *win = &vkdt.win;
   if(w == vkdt.win1.window) win = &vkdt.win1;
-  win->width = width;
-  win->height = height;
+  glfwGetFramebufferSize(win->window, &win->width, &win->height);
   dt_gui_recreate_swapchain(win);
   nk_glfw3_resize(w, win->width, win->height);
   if(w == vkdt.win.window) dt_gui_init_fonts();
@@ -52,13 +51,16 @@ dt_gui_win_init(dt_gui_win_t *win)
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-  win->width  = 3*mode->width/4;
-  win->height = 3*mode->height/4;
+  int wd = 3*mode->width/4;
+  int ht = 3*mode->height/4;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+  glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
-  win->window = glfwCreateWindow(win->width, win->height, "vkdt", NULL, NULL);
-  glfwSetWindowPos(win->window, win->width/8, win->height/8);
+  win->window = glfwCreateWindow(wd, ht, "vkdt", NULL, NULL);
+  glfwSetWindowPos(win->window, wd/8, ht/8);
+  glfwGetFramebufferSize(win->window, &win->width, &win->height);
   glfwSetWindowSizeCallback(win->window, window_size_callback);
 }
 
