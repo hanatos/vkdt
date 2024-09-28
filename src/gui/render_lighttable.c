@@ -295,7 +295,7 @@ void render_lighttable_center()
         g_scroll_colid = -1;
       }
     }
-    if(row.y + row.h < content.y ||
+    if(row.y + row.h <= content.y ||
        row.y > content.y + content.h)
     { // add dummy for invisible thumbnails
       nk_label(&vkdt.ctx, "", 0);
