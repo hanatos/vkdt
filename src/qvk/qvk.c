@@ -52,7 +52,9 @@ const char *vk_requested_instance_extensions[] = {
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+#ifdef __APPLE__
   VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+#endif
 };
 
 static const VkApplicationInfo vk_app_info = {
@@ -160,7 +162,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 #endif
     .enabledExtensionCount   = num_inst_ext_combined,
     .ppEnabledExtensionNames = (const char * const*)ext,
+#ifdef __APPLE__
     .flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#endif
   };
 
   {
