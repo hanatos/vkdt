@@ -409,12 +409,16 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
   _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
+#ifdef __APPLE__
   VkPhysicalDevicePortabilitySubsetPropertiesKHR subprop = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_PROPERTIES_KHR,
   };
+#endif
   VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+#ifdef __APPLE__
     .pNext = &subprop,
+#endif
   };
   VkPhysicalDeviceProperties2 devprop = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
