@@ -71,7 +71,11 @@ recently_used_collections_draw(
   if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
     off = snprintf(c, len, "%.4s %s", date, desc);
   else
-    off = snprintf(c, len, "%s", last);
+  {
+    int l = 0;
+    for(;last[l]&&last[l]!='&';l++) {}
+    off = snprintf(c, len, "%.*s", l, last);
+  }
   c += off; len -= off;
 
   if(len > 0 && (f->active & (1<<s_prop_createdate)))
