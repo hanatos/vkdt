@@ -52,6 +52,7 @@ void main()
   if(params.generate == 2 || params.generate == 4)
   { // add noise according to gaussian/poissonian profile
     // sample noise a/b based on per-frame seed
+#if 0 // rasterise line
     if(mrand(seed) < 10.1)
     {
       float phi = mrand(seed) * 2.0*M_PI;
@@ -75,6 +76,7 @@ void main()
       // ref.rgb = smoothstep(lo, hi, vec3(pow(2.0*abs(mod(tc.x, wd)/wd - 0.5), n)));
       ref.rgb = mix(lo, hi, bvec3(mod(tc.x, wd)/wd > 0.5)); // hard edges
     }
+#endif
     const float scale = 65535.0;
     noise_a = 1000.0 * scale * mrand(seed);
     noise_b = 1000.0 * mrand(seed);

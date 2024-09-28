@@ -190,7 +190,7 @@ static void
 pentablet_data_callback(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
   float xscale, yscale;
-  glfwGetWindowContentScale(window, &xscale, &yscale);
+  glfwGetWindowContentScale(vkdt.win.window, &xscale, &yscale);
   dt_view_pentablet_data(x*xscale, y*yscale, z, pressure, pitch, yaw, roll);
 }
 
