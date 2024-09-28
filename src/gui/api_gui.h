@@ -2,6 +2,7 @@
 #include "widget_filteredlist.h"
 #include "widget_image.h"
 #include "api.h"
+#include "view.h"
 #include "core/fs.h"
 #include "pipe/modules/api.h"
 #include "pipe/graph-io.h"
@@ -164,6 +165,6 @@ dt_gui_dr_zoom()
 { // zoom 1:1
   // where does the mouse look in the current image?
   double x, y;
-  glfwGetCursorPos(vkdt.win.window, &x, &y);
+  dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
   dt_image_zoom(&vkdt.wstate.img_widget, x, y);
 }

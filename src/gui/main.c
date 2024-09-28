@@ -157,7 +157,9 @@ mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 static void
 mouse_position_callback(GLFWwindow* window, double x, double y)
 {
-  dt_view_mouse_position(window, x, y);
+  float xscale, yscale;
+  glfwGetWindowContentScale(window, &xscale, &yscale);
+  dt_view_mouse_position(window, x*xscale, y*yscale);
 }
 
 static void
@@ -176,16 +178,20 @@ char_callback(GLFWwindow* window, unsigned int c)
 static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
-  dt_view_mouse_scrolled(window, xoff, yoff);
+  float xscale, yscale;
+  glfwGetWindowContentScale(window, &xscale, &yscale);
+  dt_view_mouse_scrolled(window, xoff*xscale, yoff*yscale);
   if(!vkdt.wstate.grabbed)
-    nk_glfw3_scroll_callback(window, xoff, yoff);
+    nk_glfw3_scroll_callback(window, xoff*xscale, yoff*yscale);
 }
 
 #if VKDT_USE_PENTABLET==1
 static void
 pentablet_data_callback(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
-  dt_view_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
+  float xscale, yscale;
+  glfwGetWindowContentScale(window, &xscale, &yscale);
+  dt_view_pentablet_data(x*xscale, y*yscale, z, pressure, pitch, yaw, roll);
 }
 
 static void

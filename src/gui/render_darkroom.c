@@ -726,7 +726,7 @@ void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
-  glfwGetCursorPos(vkdt.win.window, &x, &y);
+  dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
 
   if(vkdt.wstate.grabbed)
   {
@@ -749,7 +749,7 @@ void
 darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 {
   double x, y;
-  glfwGetCursorPos(vkdt.win.window, &x, &y);
+  dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
 
   if(vkdt.wstate.grabbed)
   {

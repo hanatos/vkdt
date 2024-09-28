@@ -277,7 +277,7 @@ void nodes_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
   if (nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, nk_rect(vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht)))
   {
     double mx, my;
-    glfwGetCursorPos(window, &mx, &my);
+    dt_view_get_cursor_pos(window, &mx, &my);
     const struct nk_vec2 mouse = nk_vec2(mx-vkdt.state.center_x, my-vkdt.state.center_y);
     struct nk_vec2 center_ws = dt_node_view_to_world(&nodes.nedit, mouse);
 

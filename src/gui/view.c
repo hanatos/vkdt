@@ -190,3 +190,12 @@ dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *cu
     default:;
   }
 }
+
+void dt_view_get_cursor_pos(GLFWwindow *window, double *x, double *y)
+{
+  float xscale, yscale;
+  glfwGetWindowContentScale(window, &xscale, &yscale);
+  glfwGetCursorPos(window, x, y);
+  *x *= xscale;
+  *y *= yscale;
+}

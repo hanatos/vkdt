@@ -13,3 +13,4 @@ void dt_view_pentablet_data(double x, double y, double z, double pressure, doubl
 void dt_view_pentablet_proximity(int enter);
 void dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr);
 void dt_view_process();
+void dt_view_get_cursor_pos(GLFWwindow *window, double *x, double *y);
