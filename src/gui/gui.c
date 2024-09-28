@@ -55,7 +55,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   int ht = 3*mode->height/4;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
-  glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
+  // glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
+  glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE); // this is for github's super ancient ubuntu glfw 3.3
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
   win->window = glfwCreateWindow(wd, ht, "vkdt", NULL, NULL);
