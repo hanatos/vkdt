@@ -112,11 +112,11 @@ reload-shaders: Makefile
 
 CLI=../bin/vkdt-cli ../bin/vkdt-fit
 cli: Makefile bin src/core/version.h
-	$(MAKE) -C src/ ${CLI} tools modules
+	$(MAKE) -C src/ $(CLI) tools modules
 
 LIB=../bin/libvkdt.so
 lib: Makefile bin src/core/version.h
-	$(MAKE) -C src/ ${LIB} modules
+	$(MAKE) -C src/ $(LIB) modules
 
 clean:
 	$(MAKE) -C src/ clean
