@@ -355,9 +355,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 
   const char *requested_device_extensions[30] = {
     // ray tracing
+    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
     VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
     VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
     VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
     VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
     VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
@@ -365,7 +365,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
     // VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, // to bring intel + amd in line with our 32-wide code..
     // end of ray tracing
   };
-  int len = (qvk.raytracing_supported ? 7 : 0);
+  int len = (qvk.raytracing_supported ? 7 : 1);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_COOPERATIVE_MATRIX_EXTENSION_NAME;
