@@ -278,7 +278,7 @@ jobs:
             appimage
             ===================================================
             the appimage compiles in a lot of features
-            (mlv, v4l, asound, i-vid, o-vid, rawspeed, exiv2, freetype)
+            (mlv, v4l, asound, i-vid, o-vid, exiv2, freetype)
             but not all
             (no quake).
             you also currently need the `exiftool` binary installed on your
@@ -290,6 +290,11 @@ jobs:
             that don't have a recent libstdc++, uses the rust-based backend
             instead of the c++-based rawspeed which does not have CR3 support.
             also it builds a custom glfw with pentablet/wacom support
+
+            appimage with rawspeed
+            ======================
+            these are currently temporarily disabled due to some dynaming linking error
+            when running the appimage.
 
             appimage with pentablet
             =======================
@@ -306,8 +311,6 @@ jobs:
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
           files: |
-            artifact-appimage-rawspeed-glfw3.4/*
-            artifact-appimage-rawspeed-pentablet/*
             artifact-appimage-rawler-glfw3.4/*
             artifact-appimage-rawler-pentablet/*
             artifact-windows-rawler/*
