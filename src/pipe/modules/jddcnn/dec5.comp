@@ -1,0 +1,17 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+
+#define INPUT_SKIP_CONNECTION
+
+// XXX TODO: define something that also upsamples the skip connections!
+const uint NB_INPUT_FEATURES_1 = 32;
+const uint NB_INPUT_FEATURES_2 = 5; // this is the skip connection from the bayer input
+const uint INPUT_1_FEATURE_STRIDE = 32;
+const uint INPUT_2_FEATURE_STRIDE = 5;
+const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1 + NB_INPUT_FEATURES_2;
+
+const uint NB_OUTPUT_FEATURES = 3;
+const uint OUTPUT_FEATURE_STRIDE = 3;
+const uint F_OUT_32 = 32;
+
+#include "conv-impl.glsl"

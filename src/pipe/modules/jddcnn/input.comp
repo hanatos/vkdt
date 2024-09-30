@@ -1,0 +1,37 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float noise_a;
+  float noise_b;
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(std430, set = 1, binding = 1) buffer buf_t { float16_t v[]; } buf;
+
+// TODO: replace this memory bandwidth hog by something integrated into the convolution layer
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
+
+  float v = texelFetch(img_in, ipos, 0).r;
+  // write out in ssbo index format, 5 channels
+  const int ht = textureSize(img_in, 0).y/2;
+  const int wd = textureSize(img_in, 0).x/2;
+  const int cn = 5;
+  int c = 1;
+  if     ((ipos.x & 1)==0 && (ipos.y & 1)==0) c = 0;
+  else if((ipos.x & 1)==1 && (ipos.y & 1)==1) c = 2;
+  const int idx = cn*(wd*ipos.y + ipos.x) + c;
+  // TODO scale by black and white
+  buf.v[idx] = float16_t(v);
+  if((ipos.x & 1)==1 && (ipos.y & 1)==0)
+  { // add noise estimate. could load it from painted input too
+    float noise = sqrt((noise_a + noise_b * v)/65535.0);
+    buf.v[idx-c+4] = float16_t(noise);
+  }
+}
