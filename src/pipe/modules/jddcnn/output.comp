@@ -5,8 +5,8 @@
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
-layout(std430, set = 1, binding = 0) buffer buf_t { float16_t v[]; } buf;
-layout(set = 1, binding = 1) uniform sampler2D img_out;
+layout(std430, set = 1, binding = 0) readonly buffer buf_t { float16_t v[]; } buf;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // TODO: replace this memory bandwidth hog by something integrated into the convolution layer
 void main()
@@ -14,9 +14,9 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  const int ht = (imageSize(img_out, 0).y/2)*2;
-  const int wd = (imageSize(img_out, 0).x/2)*2;
-  const int cn = 3; // ???
+  const int ht = (imageSize(img_out).y/2)*2;
+  const int wd = (imageSize(img_out).x/2)*2;
+  const int cn = 3;
   const int idx = cn*(wd * ipos.y + ipos.x);
   vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
   imageStore(img_out, ipos, col);

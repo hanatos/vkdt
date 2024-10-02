@@ -69,15 +69,18 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
     float16_t res;
 
 #ifdef INPUT_SKIP_CONNECTION
-    // XXX TODO the final input / bayer pattern stuff also requires upsampling of the skip connection, i.e. input2! use another define to switch this
     if (f_in < NB_INPUT_FEATURES_1) {
         // Here, we need to do the upsampling
         const uint pos = i/2 * push.wd/2 + j/2;
-
         res = buff_in_1[INPUT_1_FEATURE_STRIDE * pos + f_in];
     } else {
+#ifdef UPSAMPLE_SKIP_CONNECTION
+        const uint pos = i/2 * push.wd/2 + j/2;
+        res = buff_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
+#else
         const uint pos = i * push.wd + j;
         res = buff_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
+#endif
     }
 #else
 

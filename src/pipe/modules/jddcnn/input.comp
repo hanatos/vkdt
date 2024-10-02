@@ -6,6 +6,8 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  vec4  black;
+  vec4  white;
   float noise_a;
   float noise_b;
 } params;
@@ -19,6 +21,8 @@ void main()
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
   float v = texelFetch(img_in, ipos, 0).r;
+  const float s = 65535.0;
+  v = (v*s - params.black.r)/(params.white.r - params.black.r);
   // write out in ssbo index format, 5 channels
   const int ht = textureSize(img_in, 0).y/2;
   const int wd = textureSize(img_in, 0).x/2;
@@ -27,11 +31,11 @@ void main()
   if     ((ipos.x & 1)==0 && (ipos.y & 1)==0) c = 0;
   else if((ipos.x & 1)==1 && (ipos.y & 1)==1) c = 2;
   const int idx = cn*(wd*ipos.y + ipos.x) + c;
-  // TODO scale by black and white
   buf.v[idx] = float16_t(v);
   if((ipos.x & 1)==1 && (ipos.y & 1)==0)
   { // add noise estimate. could load it from painted input too
-    float noise = sqrt((noise_a + noise_b * v)/65535.0);
+    // XXX TODO check with training. our noise estimates should be computed with 16 bit input v
+    float noise = sqrt(params.noise_a + params.noise_b * s * v);
     buf.v[idx-c+4] = float16_t(noise);
   }
 }
