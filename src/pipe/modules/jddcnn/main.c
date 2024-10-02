@@ -1,10 +1,9 @@
 #include "modules/api.h"
 
 static inline int round16(const int x)
-{
-  // rounds x to the next multiple of 16
-  // return 16 * (x / 16) + (x % 16 != 0 ? 16 : 0);
+{ // rounds x to the next multiple of 16
   return 16 * ((x+15)/16);
+  // return 32* ((x+31)/32); // XXX DEBUG this changes the error pattern
 }
 
 int read_source(
