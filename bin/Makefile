@@ -1,8 +1,5 @@
 .PHONY: all debug sanitize sanitize-thread cli reload-shaders clean
 
-include config.mk.defaults
-sinclude config.mk
-
 all:
 	$(MAKE) -C .. all
 
