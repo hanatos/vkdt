@@ -28,11 +28,13 @@ void main()
   const int wd = textureSize(img_in, 0).x/2;
   const int cn = 5;
   int c = 1;
-  if     ((ipos.x & 1)==0 && (ipos.y & 1)==0) c = 0;
-  else if((ipos.x & 1)==1 && (ipos.y & 1)==1) c = 2;
+  if     (((ipos.x & 1)==0) && ((ipos.y & 1)==0)) c = 0;
+  else if(((ipos.x & 1)==1) && ((ipos.y & 1)==0)) c = 1;
+  else if(((ipos.x & 1)==0) && ((ipos.y & 1)==1)) c = 2;
+  else if(((ipos.x & 1)==1) && ((ipos.y & 1)==1)) c = 3;
   const int idx = cn*(wd*(ipos.y/2) + ipos.x/2) + c;
   buf.v[idx] = float16_t(v);
-  if((ipos.x & 1)==1 && (ipos.y & 1)==0)
+  if(c == 1)
   { // add noise estimate. could load it from painted input too
     // XXX this is how we apply noise a and b during training, with a ~exp(100/65k) and b~exp(2/65k).
     // XXX the noise profiling we run fits a and b to data that is still on the 16-bit range but has black subtracted.

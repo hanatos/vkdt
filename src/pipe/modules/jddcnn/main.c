@@ -35,8 +35,11 @@ int read_source(
   return 0;
 }
 
+// TODO: something commit params and replace black and white values
+
 void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
+  fprintf(stderr, "bw %f %f\n", module->img_param.black[0], module->img_param.white[0]);
 #define layers_cnt 6
   const int feat[] = {32, 43, 57, 76, 101, 101};
   char shader[10];
@@ -110,7 +113,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<layers_cnt;i++)
     dt_node_connect_named(graph, id_lut, "weights", id_decoder[i], "weights");
 
-  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = round16(5) }; // XXX round this up, really?
+  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 5 }; // XXX round this up, really?
   const int id_input = dt_node_add(graph, module, "jddcnn", "input", wd[0], ht[0], 1, 0, 0, 2,
       "input",  "read",  "rggb", "*",   dt_no_roi,
       "output", "write", "ssbo", "f16", &roi_out);
@@ -132,3 +135,4 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");
   dt_node_connect_named(graph, id_input,                 "output", id_decoder[layers_cnt-1], "skip");
 }
+#undef layers_cnt

@@ -4,7 +4,6 @@
 #extension GL_EXT_control_flow_attributes: enable
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
-
 layout(push_constant, std140) uniform push_t
 {
   int off; // beginning of the weights
@@ -16,8 +15,8 @@ layout(push_constant, std140) uniform push_t
 const int TILE_HEIGHT = 8;
 const int TILE_WIDTH  = 8;
 
-layout(std430, set = 1, binding = 0) readonly buffer buf_w_t   { float16_t weights[]; };
-layout(std430, set = 1, binding = 1) buffer          buf_out_t { float16_t buff_out[]; };
+layout(std430, set = 1, binding = 0) readonly  buffer buf_w_t   { float16_t weights[]; };
+layout(std430, set = 1, binding = 1) writeonly buffer buf_out_t { float16_t buff_out[]; };
 
 #ifdef INPUT_SKIP_CONNECTION
 // the input is separated in two buffers whose features must be concatenated on the fly.
@@ -54,13 +53,15 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
 #ifdef INPUT_SKIP_CONNECTION
   if (f_in < NB_INPUT_FEATURES_1)
   { // we need to upsample
-    const uint pos = i/2 * push.wd/2 + j/2;
+    const uint cwd = (push.wd+1)/2;
+    const uint pos = i/2 * cwd + j/2;
     res = buff_in_1[INPUT_1_FEATURE_STRIDE * pos + f_in];
   }
   else
   {
 #ifdef UPSAMPLE_SKIP_CONNECTION
-    const uint pos = i/2 * push.wd/2 + j/2;
+    const uint cwd = (push.wd+1)/2;
+    const uint pos = i/2 * cwd + j/2;
     res = buff_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
 #else
     const uint pos = i * push.wd + j;
@@ -102,7 +103,7 @@ float16_t coef_matrix_I(const uint line, const uint column)
 float16_t coef_matrix_W(const uint line, const uint column)
 {
   if (line >= I_WIDTH) return float16_t(0.);
-  if (column >= NB_OUTPUT_FEATURES) return float16_t(0.); // TODO useless ?
+  // if (column >= NB_OUTPUT_FEATURES) return float16_t(0.); // TODO useless ?
 
   // TODO check directions
   const int i = int(line / NB_INPUT_FEATURES) / 3 - 1;
@@ -178,8 +179,9 @@ void main()
         if (feature < NB_OUTPUT_FEATURES)
         { // compute the final value
           float16_t value = exported_matrix[32*p + id_loc];
-          value += bias(feature); // Bias
+          value += bias(feature);           // bias
           value = max(value, float16_t(0)); // ReLU
+          // value = float16_t(1.0); // XXX DEBUG
 
           buff_out[OUTPUT_FEATURE_STRIDE * (line_img * push.wd + column_img) + feature] = value;
         }
