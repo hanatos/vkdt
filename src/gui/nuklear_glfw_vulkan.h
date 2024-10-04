@@ -995,11 +995,23 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
     }
 #endif
     nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y,
-                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_LEFT) ==
-                        GLFW_PRESS);
+#ifdef __APPLE__
+                    glfwGetKey(win->win, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
+                    glfwGetKey(win->win, GLFW_KEY_RIGHT_CONTROL) != GLFW_PRESS &&
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+
+#else
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+#endif
     nk_input_button(ctx, NK_BUTTON_MIDDLE, (int)x, (int)y,
-                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_MIDDLE) ==
-                        GLFW_PRESS);
+#ifdef __APPLE__
+                    (glfwGetKey(win->win, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+                     glfwGetKey(win->win, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS) &&
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+
+#else
+                    glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS);
+#endif
     nk_input_button(ctx, NK_BUTTON_RIGHT, (int)x, (int)y,
                     glfwGetMouseButton(win->win, GLFW_MOUSE_BUTTON_RIGHT) ==
                         GLFW_PRESS);

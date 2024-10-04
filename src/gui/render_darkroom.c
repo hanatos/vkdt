@@ -1102,7 +1102,12 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
     {
       float v[] = {(float)x, (float)y}, n[2] = {0};
       dt_image_from_view(&vkdt.wstate.img_widget, v, n);
+#ifdef __APPLE__
+     if(glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL)  != GLFW_PRESS &&
+        glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_CONTROL) != GLFW_PRESS)
+#else
       if(glfwGetMouseButton(vkdt.win.window, GLFW_MOUSE_BUTTON_MIDDLE) != GLFW_PRESS)
+#endif
         dt_gui_dr_draw_position(n, pressure);
     }
   }
