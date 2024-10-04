@@ -24085,7 +24085,7 @@ nk_draw_symbol(struct nk_command_buffer *out, enum nk_symbol_type type,
         heading = (type == NK_SYMBOL_TRIANGLE_RIGHT) ? NK_RIGHT :
             (type == NK_SYMBOL_TRIANGLE_LEFT) ? NK_LEFT:
             (type == NK_SYMBOL_TRIANGLE_UP) ? NK_UP: NK_DOWN;
-        nk_triangle_from_direction(points, content, 0, 0, heading);
+        nk_triangle_from_direction(points, content, 0.15*content.w, 0.15*content.w, heading);
         nk_fill_triangle(out, points[0].x, points[0].y, points[1].x, points[1].y,
             points[2].x, points[2].y, foreground);
     } break;
