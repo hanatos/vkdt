@@ -384,7 +384,6 @@ fs_realpath(const char *path, char *resolved_path)
     snprintf(ret,  PATH_MAX, "%s", ret2);
     free(ret2);
   }
-  fprintf(stderr, "final handle %s\n", ret);
   return ret;
 #else
   return realpath(path, resolved_path);
@@ -395,7 +394,6 @@ static inline int // return 0 on success
 fs_symlink(const char *target, const char *linkpath)
 {
 #ifdef _WIN64
-  fprintf(stderr, "XXX *** XXX creating %s -> %s link!\n", linkpath, target);
   return !CreateSymbolicLinkA(linkpath, target, 2);
 #else
   return symlink(target, linkpath);
