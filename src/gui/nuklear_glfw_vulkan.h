@@ -47,7 +47,7 @@ NK_API void nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint);
 NK_API void nk_glfw3_scroll_callback(GLFWwindow *win, double xoff, double yoff);
 NK_API void nk_glfw3_mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
 
-NK_API void nk_glfw3_setup_display_colour_management(float *g0, float *M0, float *g1, float *M1, int xpos1, int bitdepth);
+NK_API void nk_glfw3_setup_display_colour_management(float g0[3], float M0[9], float g1[3], float M1[9], int xpos1, int bitdepth);
 NK_API void nk_glfw3_win1_open(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win, VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 NK_API void nk_glfw3_win1_close();
 #endif

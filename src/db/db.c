@@ -482,7 +482,7 @@ int dt_db_read(dt_db_t *db, const char *filename)
       if(!strcmp(what, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); }
       if(!strcmp(what, "label"))       { ft->active |= 1<<s_prop_labels;     ft->labels = atol(val); }
       if(!strcmp(what, "create date")) { ft->active |= 1<<s_prop_createdate; snprintf(ft->createdate, sizeof(ft->createdate), "%s", val); }
-      if(!strcmp(what, "file type"))   { ft->active |= 1<<s_prop_filetype;   snprintf(dt_token_str(ft->filetype), 8, "%.8s", val); }
+      if(!strcmp(what, "file type"))   { ft->active |= 1<<s_prop_filetype;   strncpy(dt_token_str(ft->filetype), val, 8); }
       continue;
     }
 

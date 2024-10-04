@@ -42,7 +42,7 @@ recently_used_collections_parse(
       if(!strcmp(filter, "rating"))      { ft->active |= 1<<s_prop_rating;     ft->rating = atol(val); ft->rating_cmp = !strcmp(ext, "==") ? 1 : !strcmp(ext, "<") ? 2 : 0; }
       if(!strcmp(filter, "labels"))      { ft->active |= 1<<s_prop_labels;     ft->labels = atol(val); }
       if(!strcmp(filter, "createdate"))  { ft->active |= 1<<s_prop_createdate; snprintf(ft->createdate, sizeof(ft->createdate), "%s", val); }
-      if(!strcmp(filter, "filetype"))    { ft->active |= 1<<s_prop_filetype;   snprintf(dt_token_str(ft->filetype), 8, "%.8s", val); }
+      if(!strcmp(filter, "filetype"))    { ft->active |= 1<<s_prop_filetype;   strncpy(dt_token_str(ft->filetype), val, 8); }
       while(*end != '&' && *end != 0) end++;
       if(*end == 0) break;
     }
