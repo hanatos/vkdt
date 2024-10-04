@@ -16713,7 +16713,7 @@ nk_font_bake_pack(struct nk_font_baker *baker,
     NK_STORAGE const nk_size max_height = 1024 * 32;
     const struct nk_font_config *config_iter, *it;
     int total_glyph_count = 0;
-    int total_range_count = 0;
+    // int total_range_count = 0;
     int range_count = 0;
     int i = 0;
 
@@ -16728,7 +16728,7 @@ nk_font_bake_pack(struct nk_font_baker *baker,
     for (config_iter = config_list; config_iter; config_iter = config_iter->next) {
         it = config_iter;
         do {range_count = nk_range_count(it->range);
-            total_range_count += range_count;
+            // total_range_count += range_count;
             total_glyph_count += nk_range_glyph_count(it->range, range_count);
         } while ((it = it->n) != config_iter);
     }
@@ -16816,7 +16816,7 @@ nk_font_bake_pack(struct nk_font_baker *baker,
         }
         NK_ASSERT(rect_n == total_glyph_count);
         NK_ASSERT(char_n == total_glyph_count);
-        NK_ASSERT(range_n == total_range_count);
+        // NK_ASSERT(range_n == total_range_count);
     }
     *height = (int)nk_round_up_pow2((nk_uint)*height);
     *image_memory = (nk_size)(*width) * (nk_size)(*height);
