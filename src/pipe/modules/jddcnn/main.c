@@ -30,6 +30,7 @@ int read_source(
       }
       fclose(f);
     }
+    else fprintf(stderr, "could not find data/jddcnn-weights.dat!\n");
   }
   return 0;
 }
@@ -112,7 +113,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<layers_cnt;i++)
     dt_node_connect_named(graph, id_lut, "weights", id_decoder[i], "weights");
 
-  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 5 }; // XXX round this up, really?
+  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 5 };
   const int id_input = dt_node_add(graph, module, "jddcnn", "input", wd[0], ht[0], 1, 0, 0, 2,
       "input",  "read",  "rggb", "*",   dt_no_roi,
       "output", "write", "ssbo", "f16", &roi_out);
