@@ -62,8 +62,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     snprintf(shader, sizeof(shader), "enc%d", i);
     id_encoder[i] = dt_node_add(
         graph, module, "jddcnn", shader,
-        wd[i+1] / 8 * DT_LOCAL_SIZE_X, ht[i+1] / 8 * DT_LOCAL_SIZE_Y, 1,
-        sizeof(pc), pc, 3,
+        MIN(256, wd[i+1] / 8 * DT_LOCAL_SIZE_X),
+        MIN(256, ht[i+1] / 8 * DT_LOCAL_SIZE_Y),
+        1, sizeof(pc), pc, 3,
         "weights", "read",  "ssbo", "f16", dt_no_roi,
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
@@ -92,8 +93,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     snprintf(shader, sizeof(shader), "dec%d", i);
     id_decoder[i] = dt_node_add(
         graph, module, "jddcnn", shader,
-        wd[layers_cnt-1-i] / 8 * DT_LOCAL_SIZE_X, ht[layers_cnt-1-i] / 8 * DT_LOCAL_SIZE_Y, 1,
-        sizeof(pc), pc, 4,
+        MIN(256, wd[layers_cnt-1-i] / 8 * DT_LOCAL_SIZE_X),
+        MIN(256, ht[layers_cnt-1-i] / 8 * DT_LOCAL_SIZE_Y),
+        1, sizeof(pc), pc, 4,
         "weights", "read",  "ssbo", "f16", dt_no_roi,
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi,  // low res inputs, to be upsampled first

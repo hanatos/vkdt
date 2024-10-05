@@ -1,7 +1,10 @@
 #extension GL_KHR_memory_scope_semantics: enable
-#extension GL_NV_cooperative_matrix: enable
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
 #extension GL_EXT_control_flow_attributes: enable
+#extension GL_KHR_shader_subgroup_basic: enable
+// XXX TODO put in impl- file for runtime switching
+#define VKDT_COOPMAT_FALLBACK
+#include "shared/coopmat.glsl"
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 layout(push_constant, std140) uniform push_t
@@ -119,11 +122,11 @@ float16_t coef_matrix_W(const uint line, const uint column)
 shared float16_t current_column_I[(TILE_HEIGHT * TILE_WIDTH) * 16];
 shared float16_t current_line_W[16 * F_OUT_32];
 
-fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> coop_mat_column_I[(TILE_WIDTH * TILE_HEIGHT) / 16];
-fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> coop_mat_line_W[F_OUT_32 / 16];
+coopmat_t coop_mat_column_I[(TILE_WIDTH * TILE_HEIGHT) / 16];
+coopmat_t coop_mat_line_W[F_OUT_32 / 16];
 
 // output of the multiplication
-fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sums[(TILE_WIDTH * TILE_HEIGHT) / 16][F_OUT_32 / 16];
+coopmat_t sums[(TILE_WIDTH * TILE_HEIGHT) / 16][F_OUT_32 / 16];
 
 // used when exporting to the output buffer
 shared float16_t exported_matrix[16*16];
@@ -137,7 +140,7 @@ void main()
 
   [[unroll]] for (int x = 0; x < TILE_WIDTH * TILE_HEIGHT / 16; x++)
     [[unroll]] for (int y = 0; y < F_OUT_32 / 16; y++)
-      sums[x][y] = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(0.);
+      sums[x][y] = coopmat_new(0.);
 
   for (int k = 0; k < I_WIDTH_32 / 16; k++)
   { // load to shared memory
@@ -150,15 +153,15 @@ void main()
 
     // load the cooperative matrices
     [[unroll]] for (int i = 0; i < (TILE_WIDTH * TILE_HEIGHT) / 16; i++)
-      coopMatLoadNV(coop_mat_column_I[i], current_column_I, 16*16*i, 16, false);
+      coopmat_load_f16(coop_mat_column_I[i], current_column_I, 16*16*i, 16);//, false);
 
     [[unroll]] for (int i = 0; i < F_OUT_32 / 16; i++)
-      coopMatLoadNV(coop_mat_line_W[i], current_line_W, 16*i, F_OUT_32, false);
+      coopmat_load_f16(coop_mat_line_W[i], current_line_W, 16*i, F_OUT_32);//, false);
 
     // do the products
     [[unroll]] for (int i = 0; i < (TILE_WIDTH * TILE_HEIGHT) / 16; i++)
       [[unroll]] for (int j = 0; j < F_OUT_32 / 16; j++)
-        sums[i][j] = coopMatMulAddNV(coop_mat_column_I[i], coop_mat_line_W[j], sums[i][j]);
+        sums[i][j] = coopmat_madd(coop_mat_column_I[i], coop_mat_line_W[j], sums[i][j]);
   }
 
   // export the results
@@ -166,7 +169,7 @@ void main()
   {
     [[unroll]] for (int j = 0; j < F_OUT_32 / 16; j++)
     {
-      coopMatStoreNV(sums[i][j], exported_matrix, 0, 16, false);
+      coopmat_store_f16(sums[i][j], exported_matrix, 0, 16);//, false);
 
       [[unroll]] for (int p = 0; p < 16 / 2; p++)
       {
