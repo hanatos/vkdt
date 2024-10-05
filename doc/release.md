@@ -5,8 +5,8 @@ action items are labelled (a)..(i).
 
 ## release branch
 
-use semantic versioning and make a branch `release-0.9` to
-contain tags for point releases `0.9.0` and `0.9.1` etc.
+use semantic versioning and make a branch `release-1.0` to
+contain tags for point releases `1.0.0` and `0.0.1` etc.
 the `master` branch will carry on with new features and eventually become the
 next release branch.
 
@@ -30,8 +30,8 @@ settings in `bin/config.mk` when issuing `make release`.
 to generate it for local testing purposes without pushing the tag
 to the public repository, (c)
 ```
-git tag -s '0.9.0' -m "this is release 0.9.0"
-git push dreggn 0.9.0
+git tag -s '1.0.0' -m "this is release 1.0.0"
+git push dreggn 1.0.0
 git fetch --all --tags
 ```
 
@@ -49,8 +49,8 @@ cat src/core/version.h
 
 ```
 cd /tmp
-tar xvJf vkdt-0.9.0.tar.xz
-cd vkdt-0.9.0/
+tar xvJf vkdt-1.0.0.tar.xz
+cd vkdt-1.0.0/
 make -j20
 DESTDIR=/tmp/testrel make install
 /tmp/testrel/usr/bin/vkdt
@@ -59,13 +59,15 @@ DESTDIR=/tmp/testrel make install
 ## create appimage
 
 run `bin/mkappimg.sh` from the root directory
+or push master same as release branch and grab
+packages from github nightly ci.
 
 ## upload
 
-(g) push to public: `git push origin 0.9.0 release-0.9`
+(g) push to public: `git push origin 1.0.0 release-1.0`
 
 (h) sign the tarball:
-`gpg -u jo@dreggn.org --detach-sign vkdt-0.9.0.tar.xz`
+`gpg -u jo@dreggn.org --detach-sign vkdt-1.0.0.tar.xz`
 
 (i) github release announcement
 
@@ -76,40 +78,6 @@ run `bin/mkappimg.sh` from the root directory
 
 ### current changelog
 
-user interface:
-* gui now based on [nuklear](https://github.com/Immediate-Mode-UI/Nuklear) (instead of dear imgui)
-* a lot of nuklear/gui streamlining fixes, bringing back:
-  * some keyboard navigation
-  * some gampad navigation
-  * dual monitor support in graph view
-  * `style.txt` contains ui colours for customisation, as always, the one in `~/.config/vkdt/` takes precedence
-* zoomable graph editor (can finally work with large graphs, yay!)
-* some new hotkeys added ("upvote and advance" etc)
-* re-did the collection interface in lighttable, streamlined support for [per-day rating workflow](https://jo.dreggn.org/vkdt/doc/howto/lt-workflow/readme.html)
-* added lighttable header describing the visible collection
-* recently used collections now also store filter attributes
-* asynchronous image rendering and gui display, makes ui feel more responsive on slow machines
-
-processing modules:
-* `colour` module now reads and applies the camera as shot neutral white balance by default
-* `denoise` module with detail protection slider, especially useful on low-res telephone images
-* MotionCam .mcraw video files will not by default apply the embedded gainmap since it is
-  unclear which raw files have it pre-applied (so switch on in the `denoise`
-  module if your files need it)
-* [`o-web`: new transitional module](https://jo.dreggn.org/vkdt/src/pipe/modules/o-web/readme.html) that delegates to `o-jpg` and `o-vid`, so you can export
-  images and videos of a certain session in one pass.
-* [`usm`: unsharp mask](https://jo.dreggn.org/vkdt/src/pipe/modules/usm/readme.html), very simple and efficient basic sharpening
-
-tooling:
-* `vkdt mkssf` now considers the HueSatMap in the dcp profile it converts
-* support focal length `${flen}` in string expansion when loading luts, enables colour profile per lens in smartphones
-* `vkdt scanin` to convert argyll .cht charts to [colour picking/colour correction presets](https://jo.dreggn.org/vkdt/doc/howto/colour-input/readme.html)
-* `vkdt gallery` now supports jpg and mp4 videos in website creation
-
-platform compatibility:
-* vkdt now builds on macos, though there are issues with newer machines
-  due to some spir-v/metal translation layer.
-
 ## diverge branches
 
 on the master branch, delete the changelog (to be filled with new features which
@@ -117,5 +85,5 @@ will also only be pushed to this branch). the release branch will be used for
 bugfix/pointreleases.
 tag the master/development branch as such, so dev packages will be ordered correctly:
 ```
-git tag -s 0.9.99 -m "this is the beginning of the unreleased development branch which will become 1.0.0 eventually"
+git tag -s 1.0.99 -m "this is the beginning of the unreleased development branch which will become 1.1.0 eventually"
 ```
