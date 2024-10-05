@@ -748,6 +748,7 @@ void render_lighttable_right_panel()
               {
                 day[day_cnt][10] = 0;
                 strncpy(day[day_cnt], createdate, 10);
+                dt_sanitize_user_string(day[day_cnt]);
                 day_cnt++;
               }
             }
