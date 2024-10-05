@@ -106,6 +106,10 @@ tooling:
 * `vkdt scanin` to convert argyll .cht charts to [colour picking/colour correction presets](https://jo.dreggn.org/vkdt/doc/howto/colour-input/readme.html)
 * `vkdt gallery` now supports jpg and mp4 videos in website creation
 
+platform compatibility:
+* vkdt now builds on macos, though there are issues with newer machines
+  due to some spir-v/metal translation layer.
+
 ## diverge branches
 
 on the master branch, delete the changelog (to be filled with new features which
