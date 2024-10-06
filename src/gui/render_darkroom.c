@@ -480,7 +480,7 @@ void render_darkroom()
   struct nk_context *ctx = &vkdt.ctx;
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   bounds = (struct nk_rect){ vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
-  if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, 0))
+  if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // right panel
     // draw histogram image:
     const int display_frame = vkdt.graph_dev.double_buffer % 2;
