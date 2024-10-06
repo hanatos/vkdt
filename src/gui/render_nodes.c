@@ -39,9 +39,10 @@ gui_nodes_t nodes;
 
 void render_nodes_right_panel()
 {
+  const int disabled = vkdt.wstate.popup;
   struct nk_context *ctx = &vkdt.ctx;
   struct nk_rect bounds = { vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.state.panel_ht };
-  if(!nk_begin(ctx, "nodes panel", bounds, 0))
+  if(!nk_begin(ctx, "nodes panel", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
   {
     NK_UPDATE_ACTIVE;
     nk_end(ctx);
@@ -78,7 +79,7 @@ void render_nodes_right_panel()
         struct nk_rect bounds = {0, 0, vkdt.win1.width, vkdt.win1.height};
         wd = vkdt.win1.width;
         nk_style_push_style_item(ctx, &ctx->style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
-        if(!nk_begin(ctx, "vkdt secondary", bounds, NK_WINDOW_NO_SCROLLBAR))
+        if(!nk_begin(ctx, "vkdt secondary", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
           visible = 0;
       }
       if(visible)
@@ -137,6 +138,7 @@ void render_nodes_right_panel()
 
 void render_nodes()
 {
+  const int disabled = vkdt.wstate.popup;
   struct nk_context *ctx = &vkdt.ctx;
   int num_modules = vkdt.graph_dev.num_modules;
   render_darkroom_modals(); // comes first so we can add a module popup from the context menu
@@ -150,7 +152,7 @@ void render_nodes()
   }
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
-  if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR))
+  if(!nk_begin(ctx, "nodes center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   {
     nk_style_pop_style_item(&vkdt.ctx);
     NK_UPDATE_ACTIVE;
@@ -225,7 +227,7 @@ void render_nodes()
     0.6*vkdt.state.center_wd, 0.6*vkdt.state.center_ht);
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)
   {
-    if(nk_begin(&vkdt.ctx, "edit nodes hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR))
+    if(nk_begin(&vkdt.ctx, "edit nodes hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
     {
       int ok = hk_edit(hk_nodes, NK_LEN(hk_nodes));
       if(ok) vkdt.wstate.popup = 0;
