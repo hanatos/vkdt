@@ -146,7 +146,6 @@ recently_used_collections()
       if(nk_button_text(&vkdt.ctx, "", 0))
       {
         dt_gui_switch_collection(dir);
-        nk_style_pop_flags(&vkdt.ctx);
         return 1; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
       recently_used_collections_draw(bounds, dir, &f);
