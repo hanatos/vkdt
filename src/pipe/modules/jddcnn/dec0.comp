@@ -5,12 +5,15 @@
 
 const uint NB_INPUT_FEATURES_1 = 101;
 const uint NB_INPUT_FEATURES_2 = 101;
-const uint INPUT_1_FEATURE_STRIDE = 112;
-const uint INPUT_2_FEATURE_STRIDE = 112;
+// const uint INPUT_1_FEATURE_STRIDE = 112;
+// const uint INPUT_2_FEATURE_STRIDE = 112;
+const uint INPUT_1_FEATURE_STRIDE = 101;
+const uint INPUT_2_FEATURE_STRIDE = 101;
 const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1 + NB_INPUT_FEATURES_2;
 
 const uint NB_OUTPUT_FEATURES = 101;
-const uint OUTPUT_FEATURE_STRIDE = 112;
+// const uint OUTPUT_FEATURE_STRIDE = 112;
+const uint OUTPUT_FEATURE_STRIDE = 101;
 const uint F_OUT_32 = 128;
 
 #include "conv-impl.glsl"

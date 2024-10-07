@@ -4,10 +4,12 @@
 #define MAX_POOLING
 
 const uint NB_INPUT_FEATURES = 101;
-const uint INPUT_FEATURE_STRIDE = 112;
+// const uint INPUT_FEATURE_STRIDE = 112;
+const uint INPUT_FEATURE_STRIDE = 101;
 
 const uint NB_OUTPUT_FEATURES = 101;
-const uint OUTPUT_FEATURE_STRIDE = 112;
+// const uint OUTPUT_FEATURE_STRIDE = 112;
+const uint OUTPUT_FEATURE_STRIDE = 101;
 const uint F_OUT_32 = 128;
 
 #include "conv-impl.glsl"
