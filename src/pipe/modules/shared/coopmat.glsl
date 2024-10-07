@@ -10,6 +10,8 @@
 #define coopmat_t fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>
 #define coopmat_load(frag, mem, idx, stride, colmajor) coopMatLoadNV(frag, mem, idx, stride, colmajor)
 #define coopmat_store(frag, mem, idx, stride, colmajor) coopMatStoreNV(frag, mem, idx, stride, colmajor)
+#define coopmat_load_f16(frag, mem, idx, stride, colmajor) coopMatLoadNV(frag, mem, idx, stride, colmajor)
+#define coopmat_store_f16(frag, mem, idx, stride, colmajor) coopMatStoreNV(frag, mem, idx, stride, colmajor)
 #define coopmat_madd(A, B, C) coopMatMulAddNV(A, B, C)
 #define coopmat_new(A) coopmat_t(A)
 #else
@@ -60,7 +62,7 @@ do {\
       packFloat2x16(f16vec2(As[el + 16*row + 8*col + 6], As[el + 16*row + 8*col + 7])));\
 } while(false)
 
-#define coopmat_load_f16(frag, buf, element, stride)\
+#define coopmat_load_f16(frag, buf, element, stride, colmajor)\
 do {\
   uint lane = gl_SubgroupInvocationID;\
   subgroupMemoryBarrierShared();\
@@ -71,7 +73,7 @@ do {\
   }\
 } while(false)
 
-#define coopmat_store_f16(frag, buf, element, stride)\
+#define coopmat_store_f16(frag, buf, element, stride, colmajor)\
 do {\
   uint lane = gl_SubgroupInvocationID;\
   for(int j=0;j<8;j++)\
@@ -86,8 +88,8 @@ do {\
 coopmat_t coopmat_madd(in coopmat_t A, in coopmat_t B, in coopmat_t C)
 {
   const uint el = 256*gl_SubgroupID;
-  coopmat_store_f16(A, As, el, 16);
-  coopmat_store_f16(B, Bs, el, 16);
+  coopmat_store_f16(A, As, el, 16, false);
+  coopmat_store_f16(B, Bs, el, 16, false);
 
   uint lane = gl_SubgroupInvocationID;
   for(int i=0;i<8;i++)
