@@ -12,6 +12,7 @@ layout(push_constant, std140) uniform push_t
   int off; // beginning of the weights
   int wd;
   int ht;
+  int wd2; // width of once-coarser buffer, approx 2*wd but not always (downsampling is wd = (wd2+1)/2)
 } push;
 
 // a thread block is responsible of a tile with these dimensions
@@ -33,12 +34,11 @@ layout(std430, set = 1, binding = 2) readonly buffer buf_in   { float16_t buff_i
 uint I_WIDTH; // Same as W_HEIGHT
 uint I_WIDTH_32; // Same as W_HEIGHT_32
 
-float16_t weight(const int i, const int j, const uint feature_in, const uint feature_out)
-{
-  uint idx = (i+1);
-  //uint idx = (1 - i);
-  idx = 3 * idx + (j+1);
-  //idx = 3 * idx + (1 - j);
+float16_t weight(const int row, const int col, const uint feature_in, const uint feature_out)
+{ // pytorch weights come as OIHW
+  // i think these are transposed because the matrices need to be that
+  uint idx = row;
+  idx = 3 * idx + col;
   idx = NB_INPUT_FEATURES  * idx + feature_in;
   idx = NB_OUTPUT_FEATURES * idx + feature_out;
   return weights[push.off + idx];
@@ -74,10 +74,10 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
 #else // no skip connection, this might be an encoder input, they might do max pooling
 #ifdef MAX_POOLING
   res = max(
-      max(buff_in[INPUT_FEATURE_STRIDE * ((2*i  ) * 2*push.wd + 2*j  ) + f_in],
-          buff_in[INPUT_FEATURE_STRIDE * ((2*i  ) * 2*push.wd + 2*j+1) + f_in]),
-      max(buff_in[INPUT_FEATURE_STRIDE * ((2*i+1) * 2*push.wd + 2*j  ) + f_in],
-          buff_in[INPUT_FEATURE_STRIDE * ((2*i+1) * 2*push.wd + 2*j+1) + f_in]));
+      max(buff_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j  ) + f_in],
+          buff_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j+1) + f_in]),
+      max(buff_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j  ) + f_in],
+          buff_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j+1) + f_in]));
 #else
   res = buff_in[INPUT_FEATURE_STRIDE * (i * push.wd + j) + f_in];
 #endif
@@ -87,20 +87,20 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
 
 float16_t coef_matrix_I(const uint line, const uint column)
 {
-  if (column >= I_WIDTH) return float16_t(0.);
+  // if (column >= I_WIDTH) return float16_t(0.);
 
   // input pixel
-  int i = int(TILE_HEIGHT * gl_WorkGroupID.x + line / TILE_WIDTH);
-  int j = int(TILE_WIDTH  * gl_WorkGroupID.y + line % TILE_WIDTH);
+  int row = int(TILE_HEIGHT * gl_WorkGroupID.x + line / TILE_WIDTH);
+  int col = int(TILE_WIDTH  * gl_WorkGroupID.y + line % TILE_WIDTH);
 
   const int neighbour = int(column / NB_INPUT_FEATURES);
 
   // TODO check orientation
-  i += neighbour / 3 - 1;
-  j += neighbour % 3 - 1;
+  row += neighbour / 3 - 1;
+  col += neighbour % 3 - 1;
 
   const uint feature = column % NB_INPUT_FEATURES;
-  return coef_of_image(i, j, feature);
+  return coef_of_image(row, col, feature);
 }
 
 float16_t coef_matrix_W(const uint line, const uint column)
@@ -109,13 +109,13 @@ float16_t coef_matrix_W(const uint line, const uint column)
   // if (column >= NB_OUTPUT_FEATURES) return float16_t(0.); // TODO useless ?
 
   // TODO check directions
-  const int i = int(line / NB_INPUT_FEATURES) / 3 - 1;
-  const int j = int(line / NB_INPUT_FEATURES) % 3 - 1;
+  const int row = int(line / NB_INPUT_FEATURES) / 3;// - 1;
+  const int col = int(line / NB_INPUT_FEATURES) % 3;// - 1;
 
   const uint feature_in = line % NB_INPUT_FEATURES;
   const uint feature_out = column;
-
-  return weight(i, j, feature_in, feature_out);
+  
+  return weight(row, col, feature_in, feature_out);
 }
 
 // the threads cooperate to load the current part of I and W to shared memory
@@ -176,17 +176,14 @@ void main()
         const uint line_O  = 16*i + 2*p + (id_loc >= 16 ? 1 : 0);
         const uint feature = 16*j + (id_loc % 16);
 
-        const uint line_img   = TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH;
-        const uint column_img = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
-
-        if (feature < NB_OUTPUT_FEATURES)
+        const uint img_row = TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH;
+        const uint img_col = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
+        if(img_row < push.ht && img_col < push.wd && feature < NB_OUTPUT_FEATURES)
         { // compute the final value
           float16_t value = exported_matrix[32*p + id_loc];
           value += bias(feature);           // bias
           value = max(value, float16_t(0)); // ReLU
-          // value = float16_t(1.0); // XXX DEBUG
-
-          buff_out[OUTPUT_FEATURE_STRIDE * (line_img * push.wd + column_img) + feature] = value;
+          buff_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
         }
       }
     }

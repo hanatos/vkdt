@@ -14,10 +14,21 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
+#if 0 // version with one full-res convolution at the end
+  // XXX TODO check all buffer sizes. we downsample via (w+1)/2!
   const int ht = (imageSize(img_out).y/2)*2;
   const int wd = (imageSize(img_out).x/2)*2;
   const int cn = 3;
   const int idx = cn*(wd * ipos.y + ipos.x);
+#else // version where the low res layer outputs 4 rgb pixels directly:
+  const int ht = (imageSize(img_out).y+1)/2;
+  const int wd = (imageSize(img_out).x+1)/2;
+  const int cn = 12;
+  const int si = (ipos.y & 1)*2 + (ipos.x & 1);
+  const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + 3*si;
+  // const int idx = wd * ht * (3*si) + wd * (ipos.y/2) + ipos.x/2;
+#endif
   vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
+  // vec4 col = vec4(buf.v[idx+0*wd*ht], buf.v[idx+1*wd*ht], buf.v[idx+2*wd*ht], 1.0);
   imageStore(img_out, ipos, col);
 }

@@ -24,8 +24,8 @@ void main()
   const float s = 65535.0;
   v = (v*s - params.black.r)/(params.white.r - params.black.r);
   // write out in ssbo index format, 5 channels
-  const int ht = textureSize(img_in, 0).y/2;
-  const int wd = textureSize(img_in, 0).x/2;
+  const int ht = (textureSize(img_in, 0).y+1)/2;
+  const int wd = (textureSize(img_in, 0).x+1)/2;
   const int cn = 5;
   int c = 1;
   if     (((ipos.x & 1)==0) && ((ipos.y & 1)==0)) c = 0;
@@ -33,6 +33,7 @@ void main()
   else if(((ipos.x & 1)==0) && ((ipos.y & 1)==1)) c = 2;
   else if(((ipos.x & 1)==1) && ((ipos.y & 1)==1)) c = 3;
   const int idx = cn*(wd*(ipos.y/2) + ipos.x/2) + c;
+  // const int idx = wd*ht * c + wd*(ipos.y/2) + ipos.x/2;
   buf.v[idx] = float16_t(v);
   if(c == 1)
   { // add noise estimate. could load it from painted input too
@@ -40,7 +41,8 @@ void main()
     // XXX the noise profiling we run fits a and b to data that is still on the 16-bit range but has black subtracted.
     // XXX this means 1.0 means 65535 but the actual max value of v would potentially be lower depending on white level
     // XXX these need conversion!
-    float noise = sqrt(params.noise_a + params.noise_b * v);
+    float noise = sqrt(params.noise_a + params.noise_b * max(0.0, v) * (params.white.r-params.black.r))/sqrt(s);
+    // buf.v[wd*ht * 4 + wd*(ipos.y/2) + ipos.x/2] = float16_t(noise);
     buf.v[idx-c+4] = float16_t(noise);
   }
 }
