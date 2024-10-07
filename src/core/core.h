@@ -55,7 +55,7 @@ static inline void dt_sanitize_user_string(char *str)
 { // https://wiki.sei.cmu.edu/confluence/display/c/STR02-C.+Sanitize+data+passed+to+complex+subsystems
   static char ok_chars[] = "abcdefghijklmnopqrstuvwxyz"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "1234567890_-.@ /";
+    "1234567890_-.@ /:";
   char *cp = str;
   const char *end = str + strlen(str);
   for (cp += strspn(cp, ok_chars); cp != end; cp += strspn(cp, ok_chars))
