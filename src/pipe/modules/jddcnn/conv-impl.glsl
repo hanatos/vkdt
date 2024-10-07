@@ -3,7 +3,7 @@
 #extension GL_EXT_control_flow_attributes: enable
 #extension GL_KHR_shader_subgroup_basic: enable
 // XXX TODO put in impl- file for runtime switching
-#define VKDT_COOPMAT_FALLBACK
+// #define VKDT_COOPMAT_FALLBACK
 #include "shared/coopmat.glsl"
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
@@ -153,10 +153,10 @@ void main()
 
     // load the cooperative matrices
     [[unroll]] for (int i = 0; i < (TILE_WIDTH * TILE_HEIGHT) / 16; i++)
-      coopmat_load_f16(coop_mat_column_I[i], current_column_I, 16*16*i, 16);//, false);
+      coopmat_load_f16(coop_mat_column_I[i], current_column_I, 16*16*i, 16, false);
 
     [[unroll]] for (int i = 0; i < F_OUT_32 / 16; i++)
-      coopmat_load_f16(coop_mat_line_W[i], current_line_W, 16*i, F_OUT_32);//, false);
+      coopmat_load_f16(coop_mat_line_W[i], current_line_W, 16*i, F_OUT_32, false);
 
     // do the products
     [[unroll]] for (int i = 0; i < (TILE_WIDTH * TILE_HEIGHT) / 16; i++)
@@ -169,7 +169,7 @@ void main()
   {
     [[unroll]] for (int j = 0; j < F_OUT_32 / 16; j++)
     {
-      coopmat_store_f16(sums[i][j], exported_matrix, 0, 16);//, false);
+      coopmat_store_f16(sums[i][j], exported_matrix, 0, 16, false);
 
       [[unroll]] for (int p = 0; p < 16 / 2; p++)
       {
