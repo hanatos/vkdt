@@ -39,6 +39,10 @@ int read_source(
 void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   fprintf(stderr, "bw %f %f\n", module->img_param.black[0], module->img_param.white[0]);
+  fprintf(stderr, "mat\n%f %f %f\n%f %f %f\n%f %f %f\n",
+      module->img_param.cam_to_rec2020[0], module->img_param.cam_to_rec2020[1], module->img_param.cam_to_rec2020[2],
+      module->img_param.cam_to_rec2020[3], module->img_param.cam_to_rec2020[4], module->img_param.cam_to_rec2020[5],
+      module->img_param.cam_to_rec2020[6], module->img_param.cam_to_rec2020[7], module->img_param.cam_to_rec2020[8]);
 #define layers_cnt 6
   const int feat[] = {32, 43, 57, 76, 101, 101};
   char shader[10];
