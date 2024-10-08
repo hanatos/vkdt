@@ -35,26 +35,12 @@ uint I_WIDTH; // Same as W_HEIGHT
 uint I_WIDTH_32; // Same as W_HEIGHT_32
 
 float16_t weight(const int row, const int col, const uint feature_in, const uint feature_out)
-{ // pytorch weights come as IOHW
-  // i think these are transposed because the matrices need to be that.
-  // row is x coordinate of filter, i.e. row=1 causes horizontal blur
-  // return float16_t(1.0/(9.0*NB_INPUT_FEATURES));
-  // if(row == 1) return float16_t(1.0/(3.0*NB_INPUT_FEATURES));
-  // return float16_t(0.0);
-#if 0
-  uint idx = row;
-  idx = 3 * idx + col;
-  idx = NB_OUTPUT_FEATURES * idx + feature_out;
-  idx = NB_INPUT_FEATURES  * idx + feature_in;
-#else // XXX DEBUG
+{ // pytorch weights come as OIHW
   uint idx = 0;
   idx = NB_OUTPUT_FEATURES * idx + feature_out;
   idx = NB_INPUT_FEATURES  * idx + feature_in;
-  // col first gives somewhat credible colours but super blocky image. readout order b0rken?
-  // row first somewhat better acuity but still artifacts and weird colours. matrix transposed on the outside?
   idx = 3 * idx + row;
   idx = 3 * idx + col;
-#endif
   return weights[push.off + idx];
 }
 
@@ -109,15 +95,8 @@ float16_t coef_matrix_I(const uint line, const uint column)
 
   const int neighbour = int(column / NB_INPUT_FEATURES);
 
-  // TODO check orientation
   row += neighbour / 3 - 1;
   col += neighbour % 3 - 1;
-  // row -= neighbour / 3 - 1;
-  // col -= neighbour % 3 - 1;
-  // col -= neighbour / 3 - 1;
-  // row -= neighbour % 3 - 1;
-  // col += neighbour / 3 - 1;
-  // row += neighbour % 3 - 1;
 
   const uint feature = column % NB_INPUT_FEATURES;
   return coef_of_image(row, col, feature);
@@ -126,9 +105,7 @@ float16_t coef_matrix_I(const uint line, const uint column)
 float16_t coef_matrix_W(const uint line, const uint column)
 {
   if (line >= I_WIDTH) return float16_t(0.);
-  // if (column >= NB_OUTPUT_FEATURES) return float16_t(0.); // TODO useless ?
 
-  // TODO check directions
   const int row = int(line / NB_INPUT_FEATURES) / 3;
   const int col = int(line / NB_INPUT_FEATURES) % 3;
 
@@ -136,7 +113,6 @@ float16_t coef_matrix_W(const uint line, const uint column)
   const uint feature_out = column;
   
   return weight(row, col, feature_in, feature_out);
-  // return weight(col, row, feature_in, feature_out);
 }
 
 // the threads cooperate to load the current part of I and W to shared memory
