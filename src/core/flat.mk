@@ -4,4 +4,4 @@ CORE_H=core/core.h \
        core/log.h \
        core/threads.h
 CORE_CFLAGS=
-CORE_LDFLAGS=-pthread -ldl
+CORE_LDFLAGS=-pthread
