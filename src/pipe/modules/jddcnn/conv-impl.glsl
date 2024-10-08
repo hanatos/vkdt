@@ -20,27 +20,41 @@ const int TILE_HEIGHT = 8;
 const int TILE_WIDTH  = 8;
 
 layout(std430, set = 1, binding = 0) readonly  buffer buf_w_t   { float16_t weights[]; };
-layout(std430, set = 1, binding = 1) writeonly buffer buf_out_t { float16_t buff_out[]; };
+layout(std430, set = 1, binding = 1) writeonly buffer buf_out_t { float16_t buf_out[]; };
 
 #ifdef INPUT_SKIP_CONNECTION
 // the input is separated in two buffers whose features must be concatenated on the fly.
 // the sizes are given in NB_INPUT_FEATURES_1 and NB_INPUT_FEATURES_2.
-layout(std430, set = 1, binding = 2) readonly buffer buf_in   { float16_t buff_in_1[]; };
-layout(std430, set = 1, binding = 3) readonly buffer buf_skip { float16_t buff_in_2[]; };
+layout(std430, set = 1, binding = 2) readonly buffer buf_in_t   { float16_t buf_in_1[]; };
+layout(std430, set = 1, binding = 3) readonly buffer buf_skip_t { float16_t buf_in_2[]; };
 #else
-layout(std430, set = 1, binding = 2) readonly buffer buf_in   { float16_t buff_in[]; };
+layout(std430, set = 1, binding = 2) readonly buffer buf_in_t   { float16_t buf_in[]; };
 #endif
 
 uint I_WIDTH; // Same as W_HEIGHT
 uint I_WIDTH_32; // Same as W_HEIGHT_32
 
 float16_t weight(const int row, const int col, const uint feature_in, const uint feature_out)
-{ // pytorch weights come as OIHW
-  // i think these are transposed because the matrices need to be that
+{ // pytorch weights come as IOHW
+  // i think these are transposed because the matrices need to be that.
+  // row is x coordinate of filter, i.e. row=1 causes horizontal blur
+  // return float16_t(1.0/(9.0*NB_INPUT_FEATURES));
+  // if(row == 1) return float16_t(1.0/(3.0*NB_INPUT_FEATURES));
+  // return float16_t(0.0);
+#if 0
   uint idx = row;
   idx = 3 * idx + col;
-  idx = NB_INPUT_FEATURES  * idx + feature_in;
   idx = NB_OUTPUT_FEATURES * idx + feature_out;
+  idx = NB_INPUT_FEATURES  * idx + feature_in;
+#else // XXX DEBUG
+  uint idx = 0;
+  idx = NB_OUTPUT_FEATURES * idx + feature_out;
+  idx = NB_INPUT_FEATURES  * idx + feature_in;
+  // col first gives somewhat credible colours but super blocky image. readout order b0rken?
+  // row first somewhat better acuity but still artifacts and weird colours. matrix transposed on the outside?
+  idx = 3 * idx + row;
+  idx = 3 * idx + col;
+#endif
   return weights[push.off + idx];
 }
 
@@ -58,28 +72,28 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
   { // we need to upsample
     const uint cwd = (push.wd+1)/2;
     const uint pos = i/2 * cwd + j/2;
-    res = buff_in_1[INPUT_1_FEATURE_STRIDE * pos + f_in];
+    res = buf_in_1[INPUT_1_FEATURE_STRIDE * pos + f_in];
   }
   else
   {
-#ifdef UPSAMPLE_SKIP_CONNECTION
+#if 0//def UPSAMPLE_SKIP_CONNECTION
     const uint cwd = (push.wd+1)/2;
     const uint pos = i/2 * cwd + j/2;
-    res = buff_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
+    res = buf_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
 #else
     const uint pos = i * push.wd + j;
-    res = buff_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
+    res = buf_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
 #endif
   }
 #else // no skip connection, this might be an encoder input, they might do max pooling
 #ifdef MAX_POOLING
   res = max(
-      max(buff_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j  ) + f_in],
-          buff_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j+1) + f_in]),
-      max(buff_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j  ) + f_in],
-          buff_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j+1) + f_in]));
+      max(buf_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j  ) + f_in],
+          buf_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j+1) + f_in]),
+      max(buf_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j  ) + f_in],
+          buf_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j+1) + f_in]));
 #else
-  res = buff_in[INPUT_FEATURE_STRIDE * (i * push.wd + j) + f_in];
+  res = buf_in[INPUT_FEATURE_STRIDE * (i * push.wd + j) + f_in];
 #endif
 #endif
   return res;
@@ -87,7 +101,7 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
 
 float16_t coef_matrix_I(const uint line, const uint column)
 {
-  // if (column >= I_WIDTH) return float16_t(0.);
+  if (column >= I_WIDTH) return float16_t(0.);
 
   // input pixel
   int row = int(TILE_HEIGHT * gl_WorkGroupID.x + line / TILE_WIDTH);
@@ -98,6 +112,12 @@ float16_t coef_matrix_I(const uint line, const uint column)
   // TODO check orientation
   row += neighbour / 3 - 1;
   col += neighbour % 3 - 1;
+  // row -= neighbour / 3 - 1;
+  // col -= neighbour % 3 - 1;
+  // col -= neighbour / 3 - 1;
+  // row -= neighbour % 3 - 1;
+  // col += neighbour / 3 - 1;
+  // row += neighbour % 3 - 1;
 
   const uint feature = column % NB_INPUT_FEATURES;
   return coef_of_image(row, col, feature);
@@ -109,13 +129,14 @@ float16_t coef_matrix_W(const uint line, const uint column)
   // if (column >= NB_OUTPUT_FEATURES) return float16_t(0.); // TODO useless ?
 
   // TODO check directions
-  const int row = int(line / NB_INPUT_FEATURES) / 3;// - 1;
-  const int col = int(line / NB_INPUT_FEATURES) % 3;// - 1;
+  const int row = int(line / NB_INPUT_FEATURES) / 3;
+  const int col = int(line / NB_INPUT_FEATURES) % 3;
 
   const uint feature_in = line % NB_INPUT_FEATURES;
   const uint feature_out = column;
   
   return weight(row, col, feature_in, feature_out);
+  // return weight(col, row, feature_in, feature_out);
 }
 
 // the threads cooperate to load the current part of I and W to shared memory
@@ -183,7 +204,7 @@ void main()
           float16_t value = exported_matrix[32*p + id_loc];
           value += bias(feature);           // bias
           value = max(value, float16_t(0)); // ReLU
-          buff_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
+          buf_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
         }
       }
     }
