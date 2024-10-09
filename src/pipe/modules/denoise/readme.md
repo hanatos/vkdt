@@ -23,7 +23,7 @@ you can use the [align](../align/readme.md) module for further noise reduction.
 ## connectors
 
 * `input` the input image can be `rggb` or `rgba`
-* `output` the output image will be the same format as the input
+* `output` the output image either mosaic (normalised with black point subtracted) or full rgb, depending on input
 
 
 ## parameters
