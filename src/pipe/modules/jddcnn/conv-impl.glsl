@@ -126,7 +126,7 @@ coopmat_t coop_mat_line_W[F_OUT_32 / 16];
 coopmat_t sums[(TILE_WIDTH * TILE_HEIGHT) / 16][F_OUT_32 / 16];
 
 // used when exporting to the output buffer
-shared float16_t exported_matrix[16*16];
+// shared float16_t exported_matrix[16*16];
 
 void main()
 {
@@ -166,7 +166,22 @@ void main()
   {
     [[unroll]] for (int j = 0; j < F_OUT_32 / 16; j++)
     {
-      coopmat_store_f16(sums[i][j], exported_matrix, 0, 16, false);
+      coopmat_store_f16(sums[i][j], current_column_I, 0, 16, false);
+
+      // now we hold in our hands all the data for the [8x8] rows x cols
+      // of the output tile for the first up to 16 output channels.
+      // that is, we can perform max pooling for these features *now* and only write
+      // a downsampled block of 1x4 rows and cols.
+      //
+      // most of the subgroup is doing different features (id_loc % 16).
+      // the msb of id_loc (>=16?) indicates a column offset, together with p=0..8
+      // this will let us cycle through 2x8 rows x cols of the output tile
+      // in one subgroup.
+      // to group together the 2x2 max pooling, we have to take the subgroup max of (id_loc msb=0,1) for the column
+      // as well as the max of p<4 and p+4 in the same thread.
+      // this can be done by first unrolling the p loop into two 0..4 and 4..8 manually, taking the max of value,
+      // and then taking the subgroup max: max(x, subgroupShuffleXor(x, 16))
+      // now write to a new location by only writing if id_loc < 16 and only once for p < 4 to img_row/2 and img_col/2.
 
       [[unroll]] for (int p = 0; p < 16 / 2; p++)
       {
@@ -177,7 +192,7 @@ void main()
         const uint img_col = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
         if(img_row < push.ht && img_col < push.wd && feature < NB_OUTPUT_FEATURES)
         { // compute the final value
-          float16_t value = exported_matrix[32*p + id_loc];
+          float16_t value = current_column_I[32*p + id_loc];
           value += bias(feature);           // bias
           value = max(value, float16_t(0)); // ReLU
           buf_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
