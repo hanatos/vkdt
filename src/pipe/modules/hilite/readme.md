@@ -22,6 +22,10 @@ trying to keep colour ratios smoothly varying.
   you may choose to go soft, but when reconstructing a smooth gradient of a sunset you want
   a specific kind of gradient.
 
+## connectors
+  
+* `input` the raw mosaiced image rescaled to [0,1], i.e. after the denoise module
+* `output` a raw mosaiced image with highlights inpainted
 
 ## technical
 
