@@ -173,6 +173,7 @@ void main()
       // that is, we can perform max pooling for these features *now* and only write
       // a downsampled block of 1x4 rows and cols.
       //
+#ifdef PRE_POOL
       // most of the subgroup is doing different features (id_loc % 16).
       // the msb of id_loc (>=16?) indicates a column offset, together with p=0..8
       // this will let us cycle through 2x8 rows x cols of the output tile
@@ -182,7 +183,24 @@ void main()
       // this can be done by first unrolling the p loop into two 0..4 and 4..8 manually, taking the max of value,
       // and then taking the subgroup max: max(x, subgroupShuffleXor(x, 16))
       // now write to a new location by only writing if id_loc < 16 and only once for p < 4 to img_row/2 and img_col/2.
-
+      const uint feature = 16*j + (id_loc % 16);
+      [[unroll]] for (int p = 0; p < 4; p++)
+      {
+        float16_t v0 = current_column_I[32* p    + id_loc] + bias(feature);
+        float16_t v1 = current_column_I[32*(p+4) + id_loc] + bias(feature);
+        float16_t v = max(v0, v1);
+        v = max(v, subgroupShuffleXor(v, 16));
+        v = max(v, float16_t(0.0)); // ReLU is the same after all max ops (other activations might not)
+        if(id_loc < 16)
+        {
+          const uint line_O  = 16*i + 2*p;
+          const uint img_row = (TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH)/2;
+          const uint img_col = (TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH)/2;
+          if(img_row < (push.ht+1)/2 && img_col < (push.wd+1)/2 && feature < NB_OUTPUT_FEATURES)
+            buf_out[OUTPUT_FEATURE_STRIDE * (img_row * (push.wd+1)/2 + img_col) + feature] = v;
+        }
+      }
+#else
       [[unroll]] for (int p = 0; p < 16 / 2; p++)
       {
         const uint line_O  = 16*i + 2*p + (id_loc >= 16 ? 1 : 0);
@@ -198,6 +216,7 @@ void main()
           buf_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
         }
       }
+#endif
     }
   }
 }
