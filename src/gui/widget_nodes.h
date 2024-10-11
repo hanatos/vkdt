@@ -252,8 +252,12 @@ dt_node_editor(
   nk_layout_space_begin(ctx, NK_STATIC, total_space.h, graph->num_modules);
   struct nk_rect size = nk_layout_space_bounds(ctx);
 
+  static int clicked_circle = 0;
   // right click context menues:
-  int context_menu_clicked = dt_node_editor_context_menu(ctx, nedit);
+  int context_menu_clicked = 0;
+  if(!clicked_circle) // don't open context menu if we right clicked on a circle/disconnect before. this comes with one frame delay.
+    context_menu_clicked = dt_node_editor_context_menu(ctx, nedit);
+  clicked_circle = 0;
 
   if(nedit->zoom > 0.3)
   { // render a grid
@@ -374,8 +378,9 @@ dt_node_editor(
         };
         const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
         if (!disabled && hovering_circle) mouse_over_something = 2;
-        if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true))
+        if (!disabled && nk_input_has_mouse_click_in_rect(in, NK_BUTTON_RIGHT, circle))
         { // if right clicked on the connector disconnect
+          clicked_circle = 1;
           dt_module_connect_with_history(graph, -1, -1, mid, c);
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
