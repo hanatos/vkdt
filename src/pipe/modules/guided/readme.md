@@ -6,8 +6,8 @@ image.
 
 ## connectors
 
-* `input` the input image
-* `guide` the guide image
+* `input` the input image. to blur a mask, put the actual image here
+* `guide` the guide image. to blur a mask, put the mask here
 * `output` the output image
 
 
