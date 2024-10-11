@@ -119,7 +119,6 @@ void main()
 {
   const uint id_loc = gl_LocalInvocationID.x;
   I_WIDTH = 9 * NB_INPUT_FEATURES;
-  //I_WIDTH_32 = 32 * (I_WIDTH / 32) + (I_WIDTH % 32 > 0 ? 32 : 0);
   I_WIDTH_32 = 32 * ((I_WIDTH+31) / 32);
 
   [[unroll]] for (int x = 0; x < TILE_WIDTH * TILE_HEIGHT / 16; x++)
@@ -172,19 +171,19 @@ void main()
       // now write to a new location by only writing if id_loc < 16 and only once for p < 4 to img_row/2 and img_col/2.
       [[unroll]] for (int p = 0; p < 4; p++)
       {
-        const uint line_O  = 16*i + 2*p;
-        const uint img_row = (TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH)/2;
-        const uint img_col = (TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH)/2;
-        float16_t v0 = current_column_I[32* p    + id_loc] + bias(feature);
-        float16_t v1 = current_column_I[32*(p+4) + id_loc] + bias(feature);
-        // XXX something out of bounds here? adding bias to something that otherwise comes out as zero seems dangerous
+        const uint line_O  = 16*i + 2*p + (id_loc >= 16 ? 1 : 0);
+        const uint img_row = TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH;
+        const uint img_col = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
+        float16_t v0 = max(float16_t(0.0), current_column_I[32* p    + id_loc] + bias(feature));
+        float16_t v1 = max(float16_t(0.0), current_column_I[32*(p+4) + id_loc] + bias(feature));
+        if(img_row   >= push.ht || img_col >= push.wd) v0 = float16_t(0.0);
+        if(img_row+1 >= push.ht || img_col >= push.wd) v1 = float16_t(0.0);
         float16_t v = max(v0, v1);
         v = max(v, subgroupShuffleXor(v, 16));
-        v = max(v, float16_t(0.0)); // ReLU is the same after all max ops (other activations might not)
         if(id_loc < 16)
         {
-          if(img_row < (push.ht+1)/2 && img_col < (push.wd+1)/2 && feature < NB_OUTPUT_FEATURES)
-            buf_out[OUTPUT_FEATURE_STRIDE * (img_row * (push.wd+1)/2 + img_col) + feature] = v;
+          if(img_row/2 < (push.ht+1)/2 && img_col/2 < (push.wd+1)/2 && feature < NB_OUTPUT_FEATURES)
+            buf_out[OUTPUT_FEATURE_STRIDE * ((img_row/2) * ((push.wd+1)/2) + (img_col/2)) + feature] = v;
         }
       }
 #else
