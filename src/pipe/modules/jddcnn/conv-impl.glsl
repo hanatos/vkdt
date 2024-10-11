@@ -14,8 +14,6 @@ layout(push_constant, std140) uniform push_t
   int off; // beginning of the weights
   int wd;
   int ht;
-  // XXX make sure that we don't need this any more now
-  int wd2; // width of once-coarser buffer, approx 2*wd but not always (downsampling is wd = (wd2+1)/2)
 } push;
 
 // a thread block is responsible of a tile with these dimensions
@@ -65,25 +63,11 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
   }
   else
   {
-#if 0//def UPSAMPLE_SKIP_CONNECTION
-    const uint cwd = (push.wd+1)/2;
-    const uint pos = i/2 * cwd + j/2;
-    res = buf_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
-#else
     const uint pos = i * push.wd + j;
     res = buf_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
-#endif
   }
-#else // no skip connection, this might be an encoder input, they might do max pooling
-#ifdef MAX_POOLING
-  res = max(
-      max(buf_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j  ) + f_in],
-          buf_in[INPUT_FEATURE_STRIDE * ((2*i  ) * push.wd2 + 2*j+1) + f_in]),
-      max(buf_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j  ) + f_in],
-          buf_in[INPUT_FEATURE_STRIDE * ((2*i+1) * push.wd2 + 2*j+1) + f_in]));
-#else
+#else // no skip connection
   res = buf_in[INPUT_FEATURE_STRIDE * (i * push.wd + j) + f_in];
-#endif
 #endif
   return res;
 }
@@ -170,35 +154,35 @@ void main()
     [[unroll]] for (int j = 0; j < F_OUT_32 / 16; j++)
     {
       coopmat_store_f16(sums[i][j], current_column_I, 0, 16, false);
+      const uint feature = 16*j + (id_loc % 16);
 
       // now we hold in our hands all the data for the [8x8] rows x cols
       // of the output tile for the first up to 16 output channels.
       // that is, we can perform max pooling for these features *now* and only write
-      // a downsampled block of 1x4 rows and cols.
-      //
+      // a downsampled block of 4x4 rows and cols.
 #ifdef PRE_POOL
       // most of the subgroup is doing different features (id_loc % 16).
       // the msb of id_loc (>=16?) indicates a column offset, together with p=0..8
       // this will let us cycle through 2x8 rows x cols of the output tile
       // in one subgroup.
       // to group together the 2x2 max pooling, we have to take the subgroup max of (id_loc msb=0,1) for the column
-      // as well as the max of p<4 and p+4 in the same thread.
+      // as well as the max of p<4 and p+4 in the same thread (for the row offset).
       // this can be done by first unrolling the p loop into two 0..4 and 4..8 manually, taking the max of value,
       // and then taking the subgroup max: max(x, subgroupShuffleXor(x, 16))
       // now write to a new location by only writing if id_loc < 16 and only once for p < 4 to img_row/2 and img_col/2.
-      const uint feature = 16*j + (id_loc % 16);
       [[unroll]] for (int p = 0; p < 4; p++)
       {
+        const uint line_O  = 16*i + 2*p;
+        const uint img_row = (TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH)/2;
+        const uint img_col = (TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH)/2;
         float16_t v0 = current_column_I[32* p    + id_loc] + bias(feature);
         float16_t v1 = current_column_I[32*(p+4) + id_loc] + bias(feature);
+        // XXX something out of bounds here? adding bias to something that otherwise comes out as zero seems dangerous
         float16_t v = max(v0, v1);
         v = max(v, subgroupShuffleXor(v, 16));
         v = max(v, float16_t(0.0)); // ReLU is the same after all max ops (other activations might not)
         if(id_loc < 16)
         {
-          const uint line_O  = 16*i + 2*p;
-          const uint img_row = (TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH)/2;
-          const uint img_col = (TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH)/2;
           if(img_row < (push.ht+1)/2 && img_col < (push.wd+1)/2 && feature < NB_OUTPUT_FEATURES)
             buf_out[OUTPUT_FEATURE_STRIDE * (img_row * (push.wd+1)/2 + img_col) + feature] = v;
         }
@@ -207,8 +191,6 @@ void main()
       [[unroll]] for (int p = 0; p < 16 / 2; p++)
       {
         const uint line_O  = 16*i + 2*p + (id_loc >= 16 ? 1 : 0);
-        const uint feature = 16*j + (id_loc % 16);
-
         const uint img_row = TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH;
         const uint img_col = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
         if(img_row < push.ht && img_col < push.wd && feature < NB_OUTPUT_FEATURES)

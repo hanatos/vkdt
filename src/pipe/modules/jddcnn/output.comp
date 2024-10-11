@@ -24,12 +24,9 @@ void main()
   const int ht = (imageSize(img_out).y+1)/2;
   const int wd = (imageSize(img_out).x+1)/2;
   const int cn = 12;
-  // AAARRRGGH seems the block is swizzled *just* for the skip connection
   const int si = (ipos.y & 1)*2 + (ipos.x & 1);
-  // const int si = ((ipos.x & 1))*2 + (ipos.y & 1);
   const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + 3*si;
 #endif
   vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
-  // vec4 col = vec4(vec3(buf.v[idx+2]), 1.0);
   imageStore(img_out, ipos, col);
 }

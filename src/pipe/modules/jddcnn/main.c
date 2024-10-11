@@ -57,13 +57,13 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 
   for(int i=0;i<layers_cnt;i++)
   {
-    const int i_cnt = i == 0 ? 5 : featenc[i - 1];
+    const int i_cnt = i == 0 ? 5 : featenc[i-1];
     const int o_cnt = featenc[i];
 
     wd[i+2] = (wd[i+1]+1)/2;
     ht[i+2] = (ht[i+1]+1)/2;
     dt_roi_t roi_out = { .wd = wd[i+2] * ht[i+2], .ht = round16(o_cnt) };
-    int pc[] = { index_weights_buffer, wd[i+1], ht[i+1], wd[i] };
+    int pc[] = { index_weights_buffer, wd[i+1], ht[i+1] };
 
     snprintf(shader, sizeof(shader), "enc%d", i);
     id_encoder[i] = dt_node_add(
@@ -89,9 +89,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     // layers upsample their inputs first thing when running. so the resolution to run the kernel here is the larger one,
     // i.e. the input resolution of the corresponding encoder layer.
     dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = round16(o_cnt) };
-    int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-1-i] };
+    int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
 
-    // TODO: can this go faster if we parallelise workgroups over feature channels too?
+    // TODO: can this go faster if we parallelise workgroups over feature channels too? i.e. z up to o_cnt/16
     snprintf(shader, sizeof(shader), "dec%d", i);
     id_decoder[i] = dt_node_add(
         graph, module, "jddcnn", shader,
@@ -117,7 +117,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<layers_cnt;i++)
     dt_node_connect_named(graph, id_lut, "weights", id_decoder[i], "weights");
 
-  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = round16(5) };
+  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 5 };
   const int id_input = dt_node_add(graph, module, "jddcnn", "input", wd[0], ht[0], 1, 0, 0, 2,
       "input",  "read",  "rggb", "*",   dt_no_roi,
       "output", "write", "ssbo", "f16", &roi_out);
@@ -132,8 +132,8 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<layers_cnt-1;i++)
   {
     dt_node_connect_named(graph, id_encoder[i], "output", id_encoder[i+1],            "input");
-    fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-1-i);
-    dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-1-i], "skip");
+    fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-2-i);
+    dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-2-i], "skip");
     dt_node_connect_named(graph, id_decoder[i], "output", id_decoder[i+1],            "input");
   }
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");
