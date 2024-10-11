@@ -34,7 +34,6 @@ jobs:
         submodules: recursive
     - name: update apt
       run: |
-        sudo add-apt-repository ppa:ubuntuhandbook1/ffmpeg6
         sudo apt-get update
     - name: install dependencies
       run: sudo apt-get install -y pkg-config libomp-dev clang libasound2-dev libglfw3-dev libvulkan-dev libjpeg-dev libfreetype-dev zlib1g-dev rsync glslang-tools libavcodec-dev libavformat-dev
