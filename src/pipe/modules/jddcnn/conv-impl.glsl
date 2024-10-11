@@ -2,6 +2,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
 #extension GL_EXT_control_flow_attributes: enable
 #extension GL_KHR_shader_subgroup_basic: enable
+#extension GL_EXT_shader_subgroup_extended_types_float16: enable
+#extension GL_KHR_shader_subgroup_shuffle: enable
 // XXX TODO put in impl- file for runtime switching
 // #define VKDT_COOPMAT_FALLBACK
 #include "shared/coopmat.glsl"
@@ -12,6 +14,7 @@ layout(push_constant, std140) uniform push_t
   int off; // beginning of the weights
   int wd;
   int ht;
+  // XXX make sure that we don't need this any more now
   int wd2; // width of once-coarser buffer, approx 2*wd but not always (downsampling is wd = (wd2+1)/2)
 } push;
 

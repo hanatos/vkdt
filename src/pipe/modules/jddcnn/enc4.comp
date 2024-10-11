@@ -1,7 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
-
-#define MAX_POOLING
+#define PRE_POOL
 
 const uint NB_INPUT_FEATURES = 76;
 const uint INPUT_FEATURE_STRIDE = 80;
