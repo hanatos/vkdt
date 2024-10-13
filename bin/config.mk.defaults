@@ -101,9 +101,16 @@ VKDT_VULKAN_CFLAGS=$(eval VKDT_VULKAN_CFLAGS := $$(shell pkg-config --cflags vul
 VKDT_VULKAN_LDFLAGS=$(eval VKDT_VULKAN_LDFLAGS := $$(shell pkg-config --libs vulkan))$(VKDT_VULKAN_LDFLAGS)
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
+# OS detect
+OS := Windows_NT
+
 # compiler config
-CC=clang
-CXX=clang++
+CC  = clang
+CXX = clang++
+AR  = ar
+
+LDFLAGS = -Wl,-pie
+
 GLSLC=glslangValidator
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
@@ -115,4 +122,29 @@ OPT_LDFLAGS=-s
 AR=ar
 DYNAMIC=-rdynamic -fvisibility=hidden
 
-export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR DYNAMIC
+SEXT = so
+
+CFLAGS   += -D_GNU_SOURCE
+CXXFLAGS += -D_GNU_SOURCE
+
+EXE_CFLAGS ?= -fPIC
+
+# Pass the library name as $1
+generate_shared_flags = -shared -nostartfiles -Wl,-soname,$$1.$(SEXT)
+
+
+# set this to 1 to signal rawspeed to build without processor specific extensions.
+# again, this is important for building packages for distros.
+RAWSPEED_PACKAGE_BUILD=0
+
+export CC CXX AR LDFLAGS GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS DYNAMIC RAWSPEED_PACKAGE_BUILD SEXT generate_shared_flags
+
+# where to find glfw for the gui:
+VKDT_GLFW_CFLAGS=$(shell pkg-config --cflags glfw3)
+VKDT_GLFW_LDFLAGS=$(shell pkg-config --libs glfw3)
+export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
+
+# where to find openmp:
+OMP_CFLAGS  = -fopenmp
+OMP_LDFLAGS = $(shell grep OpenMP_omp_LIBRARY:FILEPATH ../built/ext/rawspeed/CMakeCache.txt | cut -f2 -d=) -lgomp
+export OMP_CFLAGS OMP_LDFLAGS

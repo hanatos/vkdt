@@ -6,6 +6,13 @@
 #include <sys/time.h>
 // some random helpers
 
+#ifdef MIN
+#undef MIN
+#endif
+#ifdef MAX
+#undef MAX
+#endif
+
 #define MIN(a,b) \
 ({ __typeof__ (a) _a = (a); \
    __typeof__ (b) _b = (b); \

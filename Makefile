@@ -6,6 +6,8 @@
 .PHONY:all src clean distclean bin install release cli
 ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
+else ifeq ($(OS),Darwin)
+include bin/config.mk.defaults.darwin
 else
 ifeq ($(shell uname),Darwin)
 include bin/config.mk.defaults.osx
@@ -47,7 +49,7 @@ install-bin: all Makefile
 
 install-mod: bin Makefile
 	mkdir -p $(VKDTDIR)/modules
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.$(SEXT)' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/data ${VKDTDIR}
 	cp -rfL bin/default* ${VKDTDIR}
 
@@ -63,7 +65,7 @@ install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/pipe/modules
 	mkdir -p $(VKDTINCDIR)/core
 	mkdir -p $(VKDTINCDIR)/gui
-	cp -rfL bin/libvkdt.so ${VKDTLIBDIR} 
+	cp -rfL bin/libvkdt.$(SEXT) ${VKDTLIBDIR}
 	cp -rfL src/lib/vkdt.h $(VKDTINCDIR)
 	cp -rfL src/qvk/*.h $(VKDTINCDIR)/qvk
 	cp -rfL src/pipe/*.h $(VKDTINCDIR)/pipe
@@ -74,14 +76,14 @@ install-lib: install-mod Makefile src/core/version.h
 RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules)
 ifeq ($(VKDT_USE_RAWINPUT), 1)
   RAWSPEED_DIR=$(shell ls -d src/pipe/modules/i-raw/rawspeed-*)
-  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's#^#$(RAWSPEED_DIR)/#')
+  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's\#^\#$(RAWSPEED_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_MCRAW), 1)
   MCRAW_DIR=$(shell ls -d src/pipe/modules/i-mcraw/mcraw-*)
-  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's#^#$(MCRAW_DIR)/#')
+  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's\#^\#$(MCRAW_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_QUAKE), 1)
-  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's#^#src/pipe/modules/quake/quakespasm/#')
+  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's\#^\#src/pipe/modules/quake/quakespasm/\#')
 endif
 RELEASE_FILES:=$(filter-out .%,$(RELEASE_FILES))
 
@@ -114,7 +116,7 @@ CLI=../bin/vkdt-cli ../bin/vkdt-fit
 cli: Makefile bin src/core/version.h
 	$(MAKE) -C src/ $(CLI) tools modules
 
-LIB=../bin/libvkdt.so
+LIB=../bin/libvkdt.$(SEXT)
 lib: Makefile bin src/core/version.h
 	$(MAKE) -C src/ $(LIB) modules
 
@@ -124,8 +126,8 @@ clean:
 distclean:
 	$(shell find . -name "*.o"   -exec rm {} \;)
 	$(shell find . -name "*.spv" -exec rm {} \;)
-	$(shell find . -name "*.so"  -exec rm {} \;)
-	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile bin/libvkdt.so
+	$(shell find . -name "*.$(SEXT)"  -exec rm {} \;)
+	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile bin/libvkdt.$(SEXT)
 	rm -rf src/macadam
 	rm -rf src/mkabney
 	rm -rf bin/data/*.lut
@@ -135,7 +137,7 @@ distclean:
 	$(MAKE) -C src distclean
 
 uninstall-lib:
-	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
+	rm -rf $(VKDTLIBDIR)/libvkdt.$(SEXT) $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
 	rm -rf $(VKDTINCDIR)
 
 bin: Makefile
