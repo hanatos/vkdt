@@ -311,10 +311,14 @@ int main(int argc, char *argv[])
     if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, filename))
     {
       dt_log(s_log_err, "image `%s' could not be loaded!", filename);
-      goto out;
+      dt_gui_notification("image `%s' could not be loaded!", filename);
+      dt_view_switch(s_view_files);
     }
-    dt_db_selection_add(&vkdt.db, 0);
-    dt_view_switch(s_view_darkroom);
+    else
+    {
+      dt_db_selection_add(&vkdt.db, 0);
+      dt_view_switch(s_view_darkroom);
+    }
   }
   dt_gui_read_tags();
 
@@ -381,7 +385,6 @@ int main(int argc, char *argv[])
     if(qvk.qid[q] == q)
       QVKL(&qvk.queue[qvk.qid[q]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[q]].queue));
 
-out:
   // leave whatever view we're still in:
   dt_view_switch(s_view_cnt);
 
