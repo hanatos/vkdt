@@ -310,7 +310,7 @@ int main(int argc, char *argv[])
   {
     if(dt_db_load_image(&vkdt.db, &vkdt.thumbnails, filename))
     {
-      dt_log(s_log_err, "image could not be loaded!");
+      dt_log(s_log_err, "image `%s' could not be loaded!", filename);
       goto out;
     }
     dt_db_selection_add(&vkdt.db, 0);
