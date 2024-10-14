@@ -37,27 +37,27 @@ typedef enum
 
 // convenience function to detect inputs
 static inline int
-dt_connector_input(dt_connector_t *c)
+dt_connector_input(const dt_connector_t *c)
 {
   return c->type == dt_token("read") || c->type == dt_token("sink");
 }
 static inline int
-dt_connector_output(dt_connector_t *c)
+dt_connector_output(const dt_connector_t *c)
 {
   return c->type == dt_token("write") || c->type == dt_token("source");
 }
 static inline int
-dt_connector_ssbo(dt_connector_t *c)
+dt_connector_ssbo(const dt_connector_t *c)
 {
   return c->chan == dt_token("ssbo");
 }
 static inline int
-dt_node_source(dt_node_t *n)
+dt_node_source(const dt_node_t *n)
 {
   return n->connector[0].type == dt_token("source");
 }
 static inline int
-dt_node_sink(dt_node_t *n)
+dt_node_sink(const dt_node_t *n)
 {
   return n->connector[0].type == dt_token("sink");
 }
