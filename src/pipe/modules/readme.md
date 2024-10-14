@@ -25,6 +25,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 **output**
 
 * [o-bc1: write bc1 compressed thumbnail files](./o-bc1/readme.md)
+* [o-copy: copy the input file to a new destination](./o-copy/readme.md)
 * [o-exr: write openexr image files](./o-exr/readme.md)
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
 * [o-lut: write varying precision multi channel luts](./o-lut/readme.md)
