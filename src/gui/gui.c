@@ -626,13 +626,20 @@ VkResult dt_gui_present()
 void
 dt_gui_add_fav(
     dt_token_t module,
-    dt_token_t inst,
+    dt_token_t insid,
     dt_token_t param)
 {
+  // TODO: unconditionally add to fav_file_* so we don't lose stuff
+  if(vkdt.fav_file_cnt >= sizeof(vkdt.fav_file_modid)/sizeof(vkdt.fav_file_modid[0]))
+    return;
+  int i = vkdt.fav_file_cnt++;
+  vkdt.fav_file_modid[i] = modid;
+  vkdt.fav_file_insid[i] = insid;
+  vkdt.fav_file_parid[i] = parid;
   if(vkdt.fav_cnt >= sizeof(vkdt.fav_modid)/sizeof(vkdt.fav_modid[0]))
     return;
 
-  int modid = dt_module_get(&vkdt.graph_dev, module, inst);
+  int modid = dt_module_get(&vkdt.graph_dev, module, insid);
   if(modid < 0) return;
   int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
   if(parid < 0) return;
@@ -673,6 +680,21 @@ dt_gui_read_favs(
     dt_token_t parm = dt_read_token(line, &line);
     dt_gui_add_fav(mod, inst, parm);
   }
+  fclose(f);
+  return 0;
+}
+
+int
+dt_gui_write_favs(
+    const char *filename)
+{
+  FILE *f = 0;
+  char tmp[PATH_MAX+100] = {0};
+  snprintf(tmp, sizeof(tmp), "%s/%s", vkdt.db.basedir, filename); // always write to home dir
+  f = fopen(tmp, "wb");
+  if(!f) return 1;
+  for(int k=0;k<vkdt.fav_file_cnt;k++)
+    fprintf(f, "%"PRItkn":%"PRItkn":%"PRItkn"\n", vkdt.fav_file_modid[k], vkdt.fav_file_insid[k], vkdt.fav_file_parid[k]);
   fclose(f);
   return 0;
 }

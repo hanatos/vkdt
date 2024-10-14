@@ -258,7 +258,7 @@ void render_darkroom_favourite()
     {
       if(modid[m] == vkdt.fav_modid[i])
       {
-        render_darkroom_widget(vkdt.fav_modid[i], vkdt.fav_parid[i]);
+        render_darkroom_widget(vkdt.fav_modid[i], vkdt.fav_parid[i], 1);
         break;
       }
     }

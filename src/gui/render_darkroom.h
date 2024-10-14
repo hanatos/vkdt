@@ -73,7 +73,8 @@ static inline void render_perf_overlay()
   values_offset = (values_offset + 1) & nvmask;
 }
 
-static inline void render_darkroom_widget(int modid, int parid)
+static inline void
+render_darkroom_widget(int modid, int parid, int is_fav_menu)
 {
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
   if(!param) return;
@@ -160,6 +161,28 @@ static inline void render_darkroom_widget(int modid, int parid)
       float oldval = *val;
       RESETBLOCK
       struct nk_rect bounds = nk_widget_bounds(ctx);
+      struct nk_vec2 size = {bounds.w, bounds.w};
+      if(nk_contextual_begin(ctx, 0, size, bounds))
+      {
+        nk_layout_row_dynamic(ctx, row_height, 1);
+        if(is_fav_menu)
+        {
+          if(nk_contextual_item_label(ctx, "remove from favs", NK_TEXT_LEFT))
+          {
+          }
+          if(nk_contextual_item_label(ctx, "move up", NK_TEXT_LEFT))
+          {
+          }
+          if(nk_contextual_item_label(ctx, "move down", NK_TEXT_LEFT))
+          {
+          }
+        }
+        else if(nk_contextual_item_label(ctx, "add to favs", NK_TEXT_LEFT))
+        {
+          // XXX
+        }
+        nk_contextual_end(ctx);
+      }
       nk_property_float(ctx, "#", param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
           (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
@@ -1101,7 +1124,7 @@ static inline void render_darkroom_widgets(
       }
     }
     for(int i=0;i<arr[curr].so->num_params;i++)
-      render_darkroom_widget(curr, i);
+      render_darkroom_widget(curr, i, 0);
   }
 }
 
