@@ -1,0 +1,10 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+
+const uint NB_INPUT_FEATURES = 43;
+const uint INPUT_FEATURE_STRIDE = 48;
+const uint NB_OUTPUT_FEATURES = 43;
+const uint OUTPUT_FEATURE_STRIDE = 48;
+const uint F_OUT_32 = 64;
+
+#include "conv-impl.glsl"

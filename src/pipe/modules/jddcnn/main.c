@@ -49,6 +49,8 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   char shader[10];
 
   int id_encoder[layers_cnt];   // convolution layer nodes
+  int id_decoder[layers_cnt];   // decoder with skip connections as input
+  int id_convolv[layers_cnt];   // extra convolution on each level of the decoder
   int index_weights_buffer = 0; // beginning of the weights of the next convolution
 
   // starting with bayer planes, i.e. 2x2 downsampled
@@ -78,7 +80,6 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
-  int id_decoder[layers_cnt];
   for(int i=0;i<layers_cnt;i++)
   {
     // const int i_cnt = (i == layers_cnt-1) ? feat[layers_cnt - 1 - i] + 5: feat[layers_cnt - 2 - i] + feat[layers_cnt - 1 - i];
@@ -104,6 +105,18 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 
     fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
+    snprintf(shader, sizeof(shader), "con%d", i);
+    pc[0] = index_weights_buffer;
+    id_convolv[i] = dt_node_add(
+        graph, module, "jddcnn", shader,
+        (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
+        1, sizeof(pc), pc, 4,
+        "weights", "read",  "ssbo", "f16", dt_no_roi,
+        "output",  "write", "ssbo", "f16", &roi_out,
+        "input",   "read",  "ssbo", "f16", dt_no_roi);
+
+    fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i]);
+    index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
   fprintf(stderr, "weights %lu bytes\n", sizeof(uint16_t)*index_weights_buffer);
 
@@ -113,9 +126,11 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       "weights", "source", "ssbo", "f16", &roi_weights);
   graph->module[id_lut].flags = s_module_request_read_source; // read once
   for(int i=0;i<layers_cnt;i++)
+  {
     dt_node_connect_named(graph, id_lut, "weights", id_encoder[i], "weights");
-  for(int i=0;i<layers_cnt;i++)
     dt_node_connect_named(graph, id_lut, "weights", id_decoder[i], "weights");
+    dt_node_connect_named(graph, id_lut, "weights", id_convolv[i], "weights");
+  }
 
   dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 5 };
   const int id_input = dt_node_add(graph, module, "jddcnn", "input", wd[0], ht[0], 1, 0, 0, 2,
@@ -127,14 +142,16 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_connector_copy(graph, module, 0, id_input,  0);
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input,                 "output", id_encoder[0], "input");
-  dt_node_connect_named(graph, id_decoder[layers_cnt-1], "output", id_output,     "input");
+  dt_node_connect_named(graph, id_convolv[layers_cnt-1], "output", id_output,     "input");
+  // dt_node_connect_named(graph, id_decoder[layers_cnt-1], "output", id_output,     "input");
 
   for(int i=0;i<layers_cnt-1;i++)
   {
     dt_node_connect_named(graph, id_encoder[i], "output", id_encoder[i+1],            "input");
     fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-2-i);
     dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-2-i], "skip");
-    dt_node_connect_named(graph, id_decoder[i], "output", id_decoder[i+1],            "input");
+    dt_node_connect_named(graph, id_decoder[i], "output", id_convolv[i+1],            "input");
+    dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i+1],            "input");
   }
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");
   dt_node_connect_named(graph, id_input,                 "output", id_decoder[layers_cnt-1], "skip");
