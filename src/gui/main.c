@@ -157,13 +157,9 @@ mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 static void
 mouse_position_callback(GLFWwindow* window, double x, double y)
 {
-#ifdef __APPLE__
   float xscale, yscale;
   glfwGetWindowContentScale(window, &xscale, &yscale);
   dt_view_mouse_position(window, x*xscale, y*yscale);
-#else
-  dt_view_mouse_position(window, x, y);
-#endif
 }
 
 static void
@@ -182,12 +178,10 @@ char_callback(GLFWwindow* window, unsigned int c)
 static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
-#ifdef __APPLE__
   float xscale, yscale;
   glfwGetWindowContentScale(window, &xscale, &yscale);
   xoff *= xscale;
   yoff *= yscale;
-#endif
   dt_view_mouse_scrolled(window, xoff, yoff);
   if(!vkdt.wstate.grabbed)
     nk_glfw3_scroll_callback(window, xoff, yoff);
@@ -197,11 +191,9 @@ scroll_callback(GLFWwindow *window, double xoff, double yoff)
 static void
 pentablet_data_callback(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
-#ifdef __APPLE__
   float xscale, yscale;
   glfwGetWindowContentScale(vkdt.win.window, &xscale, &yscale);
   x *= xscale; y *= yscale;
-#endif
   dt_view_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
 }
 

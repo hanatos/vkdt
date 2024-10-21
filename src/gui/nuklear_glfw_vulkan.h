@@ -981,10 +981,8 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
 
     glfwGetCursorPos(win->win, &x, &y);
     float xscale = 1.0f, yscale = 1.0f;
-#ifdef __APPLE__
     glfwGetWindowContentScale(win->win, &xscale, &yscale);
     x *= xscale; y *= yscale;
-#endif
     nk_input_motion(ctx, (int)x, (int)y);
 #ifdef NK_GLFW_GL4_MOUSE_GRABBING
     if (ctx->input.mouse.grabbed) {
@@ -1170,11 +1168,9 @@ nk_glfw3_mouse_button_callback(
   if (button != GLFW_MOUSE_BUTTON_LEFT)
     return;
   glfwGetCursorPos(w, &x, &y);
-#ifdef __APPLE__
   float xscale, yscale;
   glfwGetWindowContentScale(w, &xscale, &yscale);
   x *= xscale; y *= yscale;
-#endif
   if (action == GLFW_PRESS) {
     double dt = glfwGetTime() - win->last_button_click;
     if (dt > NK_GLFW_DOUBLE_CLICK_LO && dt < NK_GLFW_DOUBLE_CLICK_HI) {
