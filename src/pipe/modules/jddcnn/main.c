@@ -76,14 +76,12 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
 
-    fprintf(stderr, "encoder conv %d [%d %d %d %d] running on %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1]);
+    fprintf(stderr, "encoder conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+2], ht[i+2]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
   for(int i=0;i<layers_cnt;i++)
   {
-    // const int i_cnt = (i == layers_cnt-1) ? feat[layers_cnt - 1 - i] + 5: feat[layers_cnt - 2 - i] + feat[layers_cnt - 1 - i];
-    // const int o_cnt = (i == layers_cnt-1) ? 3                           : feat[layers_cnt - 2 - i];
     const int i_cnt = ((i == layers_cnt-1) ?  5 : featenc[layers_cnt - 2 - i] ) + (i ? featdec[i-1] : featenc[layers_cnt-1]);
     const int o_cnt = featdec[i];
 
@@ -103,20 +101,21 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "input",   "read",  "ssbo", "f16", dt_no_roi,  // low res inputs, to be upsampled first
         "skip",    "read",  "ssbo", "f16", dt_no_roi); // these are the skip connections on high res
 
-    fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i]);
+    if(i==layers_cnt-1) roi_out = (dt_roi_t){ .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
+    fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
     snprintf(shader, sizeof(shader), "con%d", i);
     pc[0] = index_weights_buffer;
     id_convolv[i] = dt_node_add(
         graph, module, "jddcnn", shader,
         (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
-        1, sizeof(pc), pc, 4,
+        1, sizeof(pc), pc, 3,
         "weights", "read",  "ssbo", "f16", dt_no_roi,
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
 
-    fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i]);
-    index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
+    fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, o_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
+    index_weights_buffer += 9 * o_cnt * o_cnt + o_cnt;
   }
   fprintf(stderr, "weights %lu bytes\n", sizeof(uint16_t)*index_weights_buffer);
 
@@ -130,6 +129,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_lut, "weights", id_encoder[i], "weights");
     dt_node_connect_named(graph, id_lut, "weights", id_decoder[i], "weights");
     dt_node_connect_named(graph, id_lut, "weights", id_convolv[i], "weights");
+    dt_node_connect_named(graph, id_decoder[i], "output", id_convolv[i], "input");
   }
 
   dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 5 };
@@ -143,14 +143,12 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input,                 "output", id_encoder[0], "input");
   dt_node_connect_named(graph, id_convolv[layers_cnt-1], "output", id_output,     "input");
-  // dt_node_connect_named(graph, id_decoder[layers_cnt-1], "output", id_output,     "input");
 
   for(int i=0;i<layers_cnt-1;i++)
   {
     dt_node_connect_named(graph, id_encoder[i], "output", id_encoder[i+1],            "input");
     fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-2-i);
     dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-2-i], "skip");
-    dt_node_connect_named(graph, id_decoder[i], "output", id_convolv[i+1],            "input");
     dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i+1],            "input");
   }
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");

@@ -58,11 +58,11 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
   if (f_in < NB_INPUT_FEATURES_1)
   { // we need to upsample
     const uint cwd = (push.wd+1)/2;
-    const uint pos = i/2 * cwd + j/2;
+    const uint pos = (i/2) * cwd + (j/2);
     res = buf_in_1[INPUT_1_FEATURE_STRIDE * pos + f_in];
   }
   else
-  {
+  { // this is input2, the skip connection at same res as our output
     const uint pos = i * push.wd + j;
     res = buf_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
   }
@@ -180,11 +180,8 @@ void main()
         if(img_row+1 >= push.ht || img_col >= push.wd) v1 = float16_t(0.0);
         float16_t v = max(v0, v1);
         v = max(v, subgroupShuffleXor(v, 16));
-        if(id_loc < 16)
-        {
-          if(img_row/2 < (push.ht+1)/2 && img_col/2 < (push.wd+1)/2 && feature < NB_OUTPUT_FEATURES)
-            buf_out[OUTPUT_FEATURE_STRIDE * ((img_row/2) * ((push.wd+1)/2) + (img_col/2)) + feature] = v;
-        }
+        if(id_loc < 16 && feature < NB_OUTPUT_FEATURES)
+          buf_out[OUTPUT_FEATURE_STRIDE * ((img_row/2) * ((push.wd+1)/2) + (img_col/2)) + feature] = v;
       }
 #else
       [[unroll]] for (int p = 0; p < 16 / 2; p++)
