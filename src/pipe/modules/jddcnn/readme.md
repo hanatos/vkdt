@@ -27,6 +27,11 @@ for optimisation:
 * uvec4 loads (though i think i don't want to be doing this)
 * look at nvidia coopmat gemm sample and at tencent ncnn 3x3 convolution kernel for comparison
 
+for quality:
+* fill up feature channels to multiples of 16, we're paying for them anyways
+* oidn has some extra convolutions on input/output, does it help quality?
+* try loss after tone curve
+
 ## parameters
 
 * `black` custom raw black level
