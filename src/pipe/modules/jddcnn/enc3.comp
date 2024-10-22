@@ -2,10 +2,10 @@
 #extension GL_GOOGLE_include_directive : enable
 #define PRE_POOL
 
-const uint NB_INPUT_FEATURES = 57;
+const uint NB_INPUT_FEATURES = 64;
 const uint INPUT_FEATURE_STRIDE = 64;
 
-const uint NB_OUTPUT_FEATURES = 76;
+const uint NB_OUTPUT_FEATURES = 80;
 const uint OUTPUT_FEATURE_STRIDE = 80;
 const uint F_OUT_32 = 96;
 

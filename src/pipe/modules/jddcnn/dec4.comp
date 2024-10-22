@@ -3,7 +3,7 @@
 
 #define INPUT_SKIP_CONNECTION
 
-const uint NB_INPUT_FEATURES_1 = 43;
+const uint NB_INPUT_FEATURES_1 = 48;
 const uint NB_INPUT_FEATURES_2 = 32;
 const uint INPUT_1_FEATURE_STRIDE = 48;
 const uint INPUT_2_FEATURE_STRIDE = 32;

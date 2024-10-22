@@ -44,8 +44,10 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       module->img_param.cam_to_rec2020[3], module->img_param.cam_to_rec2020[4], module->img_param.cam_to_rec2020[5],
       module->img_param.cam_to_rec2020[6], module->img_param.cam_to_rec2020[7], module->img_param.cam_to_rec2020[8]);
 #define layers_cnt 6
-  const int featenc[] = {32, 43, 57, 76, 101, 101};
-  const int featdec[] = {101, 76, 57, 43, 16, 12};
+  // const int featenc[] = {32, 43, 57, 76, 101, 101};
+  // const int featdec[] = {101, 76, 57, 43, 16, 12};
+  const int featenc[] = {32, 48, 64, 80, 112, 112};
+  const int featdec[] = {112, 80, 64, 48, 16, 12};
   char shader[10];
 
   int id_encoder[layers_cnt];   // convolution layer nodes
