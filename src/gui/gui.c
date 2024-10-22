@@ -315,6 +315,18 @@ out:;
   if(surf_capabilities.maxImageCount > 0)
     num_images = MIN(num_images, surf_capabilities.maxImageCount);
 
+  // boy is this idiotic. but swapchain creation may fail otherwise, see https://github.com/hanatos/vkdt/issues/142
+  if (surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR  &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR  &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR  &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR  &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR  &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR &&
+      surf_capabilities.currentTransform != VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR)
+      surf_capabilities.currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
   VkSwapchainCreateInfoKHR swpch_create_info = {
     .sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
     .surface               = win->surface,
