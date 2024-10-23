@@ -811,7 +811,7 @@ NK_API void nk_input_begin(struct nk_context*);
 /// Mirrors current mouse position to nuklear
 ///
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-/// void nk_input_motion(struct nk_context *ctx, int x, int y);
+/// void nk_input_motion(struct nk_context *ctx, float x, float y);
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///
 /// Parameter   | Description
@@ -820,7 +820,7 @@ NK_API void nk_input_begin(struct nk_context*);
 /// __x__       | Must hold an integer describing the current mouse cursor x-position
 /// __y__       | Must hold an integer describing the current mouse cursor y-position
 */
-NK_API void nk_input_motion(struct nk_context*, int x, int y);
+NK_API void nk_input_motion(struct nk_context*, float x, float y);
 /*/// #### nk_input_key
 /// Mirrors the state of a specific key to nuklear
 ///
@@ -17961,14 +17961,14 @@ nk_input_end(struct nk_context *ctx)
     }
 }
 NK_API void
-nk_input_motion(struct nk_context *ctx, int x, int y)
+nk_input_motion(struct nk_context *ctx, float x, float y)
 {
     struct nk_input *in;
     NK_ASSERT(ctx);
     if (!ctx) return;
     in = &ctx->input;
-    in->mouse.pos.x = (float)x;
-    in->mouse.pos.y = (float)y;
+    in->mouse.pos.x = x;
+    in->mouse.pos.y = y;
     in->mouse.delta.x = in->mouse.pos.x - in->mouse.prev.x;
     in->mouse.delta.y = in->mouse.pos.y - in->mouse.prev.y;
 }

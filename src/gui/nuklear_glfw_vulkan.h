@@ -889,7 +889,7 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
 #ifdef NK_GLFW_GL4_MOUSE_GRABBING
     /* optional grabbing behavior */
     if (ctx->input.mouse.grab)
-        glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     else if (ctx->input.mouse.ungrab)
         glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 #endif
@@ -985,11 +985,11 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
     x *= xscale; y *= yscale;
     nk_input_motion(ctx, (int)x, (int)y);
 #ifdef NK_GLFW_GL4_MOUSE_GRABBING
-    if (ctx->input.mouse.grabbed) {
-        glfwSetCursorPos(win->win, ctx->input.mouse.prev.x/xscale,
-                         ctx->input.mouse.prev.y/yscale);
-        ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
-        ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
+    if (ctx->input.mouse.grabbed)
+    { // wayland does not support this, but CURSOR_DISABLED handles it transparently. so we leave this in for xorg:
+      glfwSetCursorPos(win->win, ctx->input.mouse.prev.x/xscale, ctx->input.mouse.prev.y/yscale);
+      ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
+      ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
     }
 #endif
     nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y,
