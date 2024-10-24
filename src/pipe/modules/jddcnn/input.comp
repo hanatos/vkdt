@@ -22,7 +22,8 @@ void main()
 
   float v = texelFetch(img_in, ipos, 0).r;
   const float s = params.white.r - params.black.r;
-  v = (v*65535.0 - params.black.r)/s;
+  // we assume a no-op denoise module has run before this and cropped ad rescaled and gainmapped the data for us:
+  // v = (v*65535.0 - params.black.r)/s;
   // write out in ssbo index format, 5 channels
   const int ht = (textureSize(img_in, 0).y+1)/2;
   const int wd = (textureSize(img_in, 0).x+1)/2;

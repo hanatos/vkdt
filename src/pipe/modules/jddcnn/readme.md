@@ -1,6 +1,9 @@
 # jddcnn: joined denoising and demosaicing convolutional neural network
 
-this module should be run on rggb bayer input data.
+disclaimer: this module is in a highly experimental stage and is probably
+not very useful for productive use.
+
+the weights are read from `~/.config/vkdt/data/jddcnn-weights.dat`.
 
 this executes a network trained externally (pytorch ipython notebook).
 in the pipeline it should replace denoising and demosaicing.
@@ -17,9 +20,7 @@ as a sidenote, [working with neural networks is pretty exciting](https://youtu.b
 
 ## TODO
 
-apply gainmap *before* denoising, for telephones it can be so extreme/throw off the rggb pattern
-
-compat:
+compatibility:
 * make it work for non-coopmat devices (compile two versions of the shaders)
 
 for optimisation:
@@ -28,7 +29,6 @@ for optimisation:
 * look at nvidia coopmat gemm sample and at tencent ncnn 3x3 convolution kernel for comparison
 
 for quality:
-* fill up feature channels to multiples of 16, we're paying for them anyways
 * oidn has some extra convolutions on input/output, does it help quality?
 * try loss after tone curve
 
@@ -41,5 +41,5 @@ for quality:
 
 ## connectors
 
-* `input` a raw rggb bayer pattern image
+* `input` a raw rggb bayer pattern image, after the denoise module scaled it to [0,1)
 * `output` the denoised and demosaiced rgb image
