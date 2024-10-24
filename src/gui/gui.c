@@ -725,7 +725,7 @@ int
 dt_gui_read_favs(
     const char *filename)
 {
-  vkdt.fav_cnt = 0;
+  vkdt.fav_file_cnt = 0;
   FILE *f = 0;
   char tmp[PATH_MAX+100] = {0};
   if(filename[0] == '/')
