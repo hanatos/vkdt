@@ -1,0 +1,16 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+
+#define INPUT_SKIP_CONNECTION
+
+const uint NB_INPUT_FEATURES_1 = 48;
+const uint NB_INPUT_FEATURES_2 = 32;
+const uint INPUT_1_FEATURE_STRIDE = 48;
+const uint INPUT_2_FEATURE_STRIDE = 32;
+const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1 + NB_INPUT_FEATURES_2;
+
+const uint NB_OUTPUT_FEATURES = 16;
+const uint OUTPUT_FEATURE_STRIDE = 16;
+const uint F_OUT_32 = 32;
+
+#include "conv-impl.glsl"

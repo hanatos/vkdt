@@ -53,6 +53,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [ca: correct chromatic aberrations](./ca/readme.md)
 * [demosaic: demosaic bayer or x-trans raw files](./demosaic/readme.md)
 * [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
+* [jddcnn: joint demosaicing and denoising via neural network](./jddcnn/readme.md)
 
 **colour processing**
 
