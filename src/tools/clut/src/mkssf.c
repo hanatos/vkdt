@@ -16,10 +16,10 @@
 // - cfa model: plain gauss sigmoid pca
 // - optimiser: gauss/newton adam nelder/mead
 // - parameter: number of iterations
-static int num_it        = 30;
+static int num_it        = 80;
 static int num_epochs    = 6;
 static int cfa_model     = 2;          // default to gauss
-static int cfa_num_coeff = 20;
+static int cfa_num_coeff = 30;
 static double cfa_param[3*36] = {0.1}; // init to something. zero has zero derivatives and is thus bad.
 
 static double ill[2][CIE2_SAMPLES];    // tabulated illuminants for the two target shots

@@ -292,8 +292,8 @@ dng_profile_fill(
   }
   if(illuminant == 2)
   { // D65 in XYZ (illum E)
-    p->wb[0] = 0.3127;
-    p->wb[1] = 0.329;
+    p->wb[0] = 0.31272;
+    p->wb[1] = 0.32903;
     p->wb[2] = 1.0-p->wb[0]-p->wb[1];
   }
 
