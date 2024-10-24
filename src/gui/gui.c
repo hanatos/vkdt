@@ -623,30 +623,102 @@ VkResult dt_gui_present()
   return res | dt_gui_present_win(&vkdt.win);
 }
 
+static inline void
+dt_gui_rebuild_fav()
+{ // rebuild favourites from global list, specific to current graph
+  vkdt.fav_cnt = 0;
+  for(int i=0;i<vkdt.fav_file_cnt;i++)
+  {
+    int modid = dt_module_get(&vkdt.graph_dev, vkdt.fav_file_modid[i], vkdt.fav_file_insid[i]);
+    if(modid < 0) continue;
+    int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, vkdt.fav_file_parid[i]);
+    if(parid < 0) continue;
+
+    int j = vkdt.fav_cnt++;
+    vkdt.fav_modid[j] = modid;
+    vkdt.fav_parid[j] = parid;
+  }
+}
+
 void
 dt_gui_add_fav(
-    dt_token_t module,
+    dt_token_t modid,
     dt_token_t insid,
-    dt_token_t param)
+    dt_token_t parid)
 {
-  // TODO: unconditionally add to fav_file_* so we don't lose stuff
   if(vkdt.fav_file_cnt >= sizeof(vkdt.fav_file_modid)/sizeof(vkdt.fav_file_modid[0]))
+  {
+    dt_gui_notification("too many favourites! remove one first!");
     return;
+  }
+
   int i = vkdt.fav_file_cnt++;
   vkdt.fav_file_modid[i] = modid;
   vkdt.fav_file_insid[i] = insid;
   vkdt.fav_file_parid[i] = parid;
-  if(vkdt.fav_cnt >= sizeof(vkdt.fav_modid)/sizeof(vkdt.fav_modid[0]))
-    return;
+  dt_gui_rebuild_fav();
+}
 
-  int modid = dt_module_get(&vkdt.graph_dev, module, insid);
-  if(modid < 0) return;
-  int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
-  if(parid < 0) return;
+void
+dt_gui_remove_fav(
+    dt_token_t modid,
+    dt_token_t insid,
+    dt_token_t parid)
+{
+  for(int i=0;i<vkdt.fav_file_cnt;i++)
+  {
+    if(modid == vkdt.fav_file_modid[i] &&
+       insid == vkdt.fav_file_insid[i] &&
+       parid == vkdt.fav_file_parid[i])
+    {
+      for(int j=i+1;j<vkdt.fav_file_cnt;j++)
+      {
+        vkdt.fav_file_modid[j-1] = vkdt.fav_file_modid[j];
+        vkdt.fav_file_insid[j-1] = vkdt.fav_file_insid[j];
+        vkdt.fav_file_parid[j-1] = vkdt.fav_file_parid[j];
+      }
+      vkdt.fav_file_cnt--;
+      break;
+    }
+  }
+  dt_gui_rebuild_fav();
+}
 
-  int i = vkdt.fav_cnt++;
-  vkdt.fav_modid[i] = modid;
-  vkdt.fav_parid[i] = parid;
+void
+dt_gui_move_fav(
+    dt_token_t modid,
+    dt_token_t insid,
+    dt_token_t parid,
+    int        up)
+{
+  for(int i=0;i<vkdt.fav_file_cnt;i++)
+  {
+    if(modid == vkdt.fav_file_modid[i] &&
+       insid == vkdt.fav_file_insid[i] &&
+       parid == vkdt.fav_file_parid[i])
+    {
+      if(up && i > 0)
+      {
+        vkdt.fav_file_modid[i] = vkdt.fav_file_modid[i-1];
+        vkdt.fav_file_insid[i] = vkdt.fav_file_insid[i-1];
+        vkdt.fav_file_parid[i] = vkdt.fav_file_parid[i-1];
+        vkdt.fav_file_modid[i-1] = modid;
+        vkdt.fav_file_insid[i-1] = insid;
+        vkdt.fav_file_parid[i-1] = parid;
+      }
+      else if(!up && i < vkdt.fav_file_cnt-1)
+      {
+        vkdt.fav_file_modid[i] = vkdt.fav_file_modid[i+1];
+        vkdt.fav_file_insid[i] = vkdt.fav_file_insid[i+1];
+        vkdt.fav_file_parid[i] = vkdt.fav_file_parid[i+1];
+        vkdt.fav_file_modid[i+1] = modid;
+        vkdt.fav_file_insid[i+1] = insid;
+        vkdt.fav_file_parid[i+1] = parid;
+      }
+      break;
+    }
+  }
+  dt_gui_rebuild_fav();
 }
 
 int
@@ -678,9 +750,15 @@ dt_gui_read_favs(
     dt_token_t mod  = dt_read_token(line, &line);
     dt_token_t inst = dt_read_token(line, &line);
     dt_token_t parm = dt_read_token(line, &line);
-    dt_gui_add_fav(mod, inst, parm);
+    if(vkdt.fav_file_cnt >= sizeof(vkdt.fav_file_modid)/sizeof(vkdt.fav_file_modid[0]))
+      break; // too many favs
+    int i = vkdt.fav_file_cnt++;
+    vkdt.fav_file_modid[i] = mod;
+    vkdt.fav_file_insid[i] = inst;
+    vkdt.fav_file_parid[i] = parm;
   }
   fclose(f);
+  dt_gui_rebuild_fav();
   return 0;
 }
 
@@ -694,7 +772,7 @@ dt_gui_write_favs(
   f = fopen(tmp, "wb");
   if(!f) return 1;
   for(int k=0;k<vkdt.fav_file_cnt;k++)
-    fprintf(f, "%"PRItkn":%"PRItkn":%"PRItkn"\n", vkdt.fav_file_modid[k], vkdt.fav_file_insid[k], vkdt.fav_file_parid[k]);
+    fprintf(f, "%"PRItkn":%"PRItkn":%"PRItkn"\n", dt_token_str(vkdt.fav_file_modid[k]), dt_token_str(vkdt.fav_file_insid[k]), dt_token_str(vkdt.fav_file_parid[k]));
   fclose(f);
   return 0;
 }

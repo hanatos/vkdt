@@ -169,17 +169,20 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         {
           if(nk_contextual_item_label(ctx, "remove from favs", NK_TEXT_LEFT))
           {
+            dt_gui_remove_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);
           }
           if(nk_contextual_item_label(ctx, "move up", NK_TEXT_LEFT))
           {
+            dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 1);
           }
           if(nk_contextual_item_label(ctx, "move down", NK_TEXT_LEFT))
           {
+            dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 0);
           }
         }
         else if(nk_contextual_item_label(ctx, "add to favs", NK_TEXT_LEFT))
         {
-          // XXX
+          dt_gui_add_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);
         }
         nk_contextual_end(ctx);
       }

@@ -171,6 +171,11 @@ typedef struct dt_gui_t
   int fav_cnt;
   int fav_modid[20];
   int fav_parid[20];
+  // same in global file, possibly not all present all the time:
+  int fav_file_cnt;
+  dt_token_t fav_file_modid[20];
+  dt_token_t fav_file_insid[20];
+  dt_token_t fav_file_parid[20];
 
   // list of recently used tags
   int  tag_cnt;
@@ -200,8 +205,11 @@ void dt_gui_add_widget(
     dt_token_t module, dt_token_t inst, dt_token_t param, dt_token_t type,
     float min, float max);
 
-// read a gui configuration from ascii config file
-int dt_gui_read_favs(const char *filename);
+int  dt_gui_read_favs (const char *filename); // read a gui configuration from ascii config file
+int  dt_gui_write_favs(const char *filename); // serialise the file with potential changes to home directory
+void dt_gui_add_fav   (dt_token_t modid, dt_token_t insid, dt_token_t parid);
+void dt_gui_move_fav  (dt_token_t modid, dt_token_t insid, dt_token_t parid, int up);
+void dt_gui_remove_fav(dt_token_t modid, dt_token_t insid, dt_token_t parid);
 
 // read list of tags (i.e. the directories in ~/.config/vkdt/tags/)
 void dt_gui_read_tags();

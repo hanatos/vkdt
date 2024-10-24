@@ -1085,6 +1085,7 @@ darkroom_leave()
   dt_graph_history_cleanup(&vkdt.graph_dev);
   vkdt.graph_res = VK_INCOMPLETE; // invalidate
   dt_gamepadhelp_clear();
+  dt_gui_write_favs("darkroom.ui");
   return 0;
 }
 
