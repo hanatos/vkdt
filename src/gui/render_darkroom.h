@@ -92,11 +92,30 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
 #endif
 #define RESETBLOCK \
-  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, nk_widget_bounds(ctx))) \
+  {\
+  struct nk_rect bounds = nk_widget_bounds(ctx);\
+  struct nk_vec2 size = {bounds.w, bounds.w};\
+  if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, bounds)) \
   { \
     memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));\
     change = 1; \
-  }
+  }\
+  if(nk_contextual_begin(ctx, 0, size, bounds))\
+  {\
+    nk_layout_row_dynamic(ctx, row_height, 1);\
+    if(is_fav_menu)\
+    {\
+      if(nk_contextual_item_label(ctx, "remove from favs", NK_TEXT_LEFT))\
+        dt_gui_remove_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);\
+      if(nk_contextual_item_label(ctx, "move up", NK_TEXT_LEFT))\
+        dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 1);\
+      if(nk_contextual_item_label(ctx, "move down", NK_TEXT_LEFT))\
+        dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 0);\
+    }\
+    else if(nk_contextual_item_label(ctx, "add to favs", NK_TEXT_LEFT))\
+      dt_gui_add_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);\
+    nk_contextual_end(ctx);\
+  }}
 
 #ifndef KEYFRAME // enable node graph editor to switch this off
   // common code block to insert a keyframe. currently only supports float (for interpolation)
@@ -161,31 +180,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       float oldval = *val;
       RESETBLOCK
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      struct nk_vec2 size = {bounds.w, bounds.w};
-      if(nk_contextual_begin(ctx, 0, size, bounds))
-      {
-        nk_layout_row_dynamic(ctx, row_height, 1);
-        if(is_fav_menu)
-        {
-          if(nk_contextual_item_label(ctx, "remove from favs", NK_TEXT_LEFT))
-          {
-            dt_gui_remove_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);
-          }
-          if(nk_contextual_item_label(ctx, "move up", NK_TEXT_LEFT))
-          {
-            dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 1);
-          }
-          if(nk_contextual_item_label(ctx, "move down", NK_TEXT_LEFT))
-          {
-            dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 0);
-          }
-        }
-        else if(nk_contextual_item_label(ctx, "add to favs", NK_TEXT_LEFT))
-        {
-          dt_gui_add_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);
-        }
-        nk_contextual_end(ctx);
-      }
       nk_property_float(ctx, "#", param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
           (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
@@ -278,53 +272,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       float oldval = *val;
       if(count == 3)
       { // assume rgb vsliders
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.5f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.6f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.7f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(2*num / 7.0f, 0.9f, 0.9f));
-        if(ImGui::VSliderFloat("##v",
-              ImVec2(vkdt.state.panel_wd / 10.0, vkdt.state.panel_ht * 0.2), val,
-              param->widget.min, param->widget.max, ""))
-        RESETBLOCK {
-          if(io.KeyShift) // lockstep all three if shift is pressed
-            for(int k=3*(num/3);k<3*(num/3)+3;k++) val[k-num] = val[0];
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | flags);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        KEYFRAME
-        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-          dt_gui_set_tooltip("%s %.3f\nhold shift to lockstep rgb", str, val[0]);
-
-        ImGui::PopStyleColor(4);
-        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-            num < count - 1) ImGui::SameLine();
       }
       else
       {
-        if(ImGui::VSliderFloat("##v",
-              ImVec2(vkdt.state.panel_wd / (count+1.0), vkdt.state.panel_ht * 0.2), val,
-              param->widget.min, param->widget.max, ""))
-        RESETBLOCK {
-          if(io.KeyShift) // lockstep all three if shift is pressed
-            for(int k=0;k<count;k++) val[k-num] = val[0];
-          dt_graph_run_t flags = s_graph_run_none;
-          if(vkdt.graph_dev.module[modid].so->check_params)
-            flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-          vkdt.graph_dev.runflags = static_cast<dt_graph_run_t>(
-              s_graph_run_record_cmd_buf | flags);
-          vkdt.graph_dev.active_module = modid;
-          dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
-        }
-        KEYFRAME
-        TOOLTIP
-
-        if(parid < vkdt.graph_dev.module[modid].so->num_params - 1 ||
-            num < count - 1) ImGui::SameLine();
       }
     }
   }
