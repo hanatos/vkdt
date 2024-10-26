@@ -238,7 +238,10 @@ void modify_roi_out(
   snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", cmeta["extraData"]["postProcessSettings"]["metadata"]["build.model"].template get<std::string>().c_str());
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", cmeta["extraData"]["postProcessSettings"]["metadata"]["build.manufacturer"].template get<std::string>().c_str());
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
-  mod->graph->frame_cnt = dat->dec->getFrames().size();
+  if(mod->graph->frame_cnt == 0)
+    mod->graph->frame_cnt = dat->dec->getFrames().size();
+  else
+    mod->graph->frame_cnt = MIN(mod->graph->frame_cnt, dat->dec->getFrames().size());
   if(mod->graph->frame_rate < 1)
   { // estimate frame rate only if it's set to nothing reasonable
     if(mod->graph->frame_cnt > 5)
