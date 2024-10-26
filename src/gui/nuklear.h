@@ -28976,7 +28976,7 @@ nk_color_picker_behavior(nk_flags *state,
         *state = NK_WIDGET_STATE_HOVERED;
     if (*state & NK_WIDGET_STATE_HOVER && !nk_input_is_mouse_prev_hovering_rect(in, *bounds))
         *state |= NK_WIDGET_STATE_ENTERED;
-    else if (nk_input_is_mouse_prev_hovering_rect(in, *bounds))
+    else if ((!in || (in->mouse.buttons[NK_BUTTON_LEFT].down == nk_false)) && nk_input_is_mouse_prev_hovering_rect(in, *bounds))
         *state |= NK_WIDGET_STATE_LEFT;
     return value_changed;
 }
