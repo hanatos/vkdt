@@ -238,11 +238,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_colorf oldval = *val;
       float size = nk_widget_width(ctx);
       RESETBLOCK
-      if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(size, size)))
+      if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(vkdt.state.panel_wd, size+4.0*row_height)))
       {
-        nk_layout_row_dynamic(ctx, size * 0.2, 1);
+        nk_layout_row_dynamic(ctx, size, 1);
         *val = nk_color_picker(ctx, *val, NK_RGB);
-        nk_layout_row_dynamic(ctx, size/16.0, 1);
+        nk_layout_row_dynamic(ctx, row_height, 1);
         val->r = nk_propertyf(ctx, "#R:", 0, val->r, 1.0f, 0.01f, 0.005f);
         val->g = nk_propertyf(ctx, "#G:", 0, val->g, 1.0f, 0.01f, 0.005f);
         val->b = nk_propertyf(ctx, "#B:", 0, val->b, 1.0f, 0.01f, 0.005f);
