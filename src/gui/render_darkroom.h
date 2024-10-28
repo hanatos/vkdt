@@ -238,9 +238,13 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       struct nk_colorf oldval = *val;
       nk_label(ctx, "h", NK_TEXT_RIGHT);
+      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_hsv_f(val->r, 1.0, 1.0));
       nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // H
+      nk_style_pop_color(ctx);
       nk_label(ctx, "s", NK_TEXT_RIGHT);
+      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_hsv_f(val->r, val->g, 1.0));
       nk_knob_float(ctx, 0.0, &val->g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
+      nk_style_pop_color(ctx);
       nk_label(ctx, "v", NK_TEXT_RIGHT);
       nk_knob_float(ctx, 0.0, &val->b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
       if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
