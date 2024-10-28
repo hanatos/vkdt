@@ -229,6 +229,36 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     KEYFRAME
     nk_label(ctx, str, NK_TEXT_LEFT);
   }
+  else if(param->widget.type == dt_token("hsvknobs"))
+  { // only works for param->type == float and count == 3
+    if((num % 3) == 0)
+    {
+      float r7[] = {0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], ratio[1] };
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
+      struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      struct nk_colorf oldval = *val;
+      nk_label(ctx, "h", NK_TEXT_RIGHT);
+      nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // H
+      nk_label(ctx, "s", NK_TEXT_RIGHT);
+      nk_knob_float(ctx, 0.0, &val->g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
+      nk_label(ctx, "v", NK_TEXT_RIGHT);
+      nk_knob_float(ctx, 0.0, &val->b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
+      if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
+      dt_tooltip(param->tooltip);
+      KEYFRAME
+      RESETBLOCK
+      nk_label(ctx, str, NK_TEXT_LEFT);
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+    }
+  }
   else if(param->widget.type == dt_token("coledit"))
   { // only works for param->type == float and count == 3
     if((num % 3) == 0)

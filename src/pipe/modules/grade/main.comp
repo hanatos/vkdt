@@ -5,7 +5,6 @@
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float lift_r;
@@ -18,15 +17,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float gain_g;
   float gain_b;
 } params;
-
-
-layout( // input
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()
@@ -34,9 +26,9 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 lift  = vec3(params.lift_r, params.lift_g, params.lift_b);
-  vec3 gamma = vec3(params.gamma_r, params.gamma_g, params.gamma_b);
-  vec3 gain  = vec3(params.gain_r, params.gain_g, params.gain_b);
+  vec3 lift  = hsv2rgb(vec3(params.lift_r, params.lift_g, params.lift_b));
+  vec3 gamma = hsv2rgb(vec3(params.gamma_r, params.gamma_g, params.gamma_b));
+  vec3 gain  = hsv2rgb(vec3(params.gain_r, params.gain_g, params.gain_b));
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   rgb = gain * rgb + lift;
   rgb = pow(max(rgb, vec3(0)), 1.0/gamma);

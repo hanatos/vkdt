@@ -46,6 +46,10 @@ style_name_to_colour(const char *name)
   if(!strcmp(name, "SCROLLBAR_CURSOR_HOVER"))      return  NK_COLOR_SCROLLBAR_CURSOR_HOVER;
   if(!strcmp(name, "SCROLLBAR_CURSOR_ACTIVE"))     return  NK_COLOR_SCROLLBAR_CURSOR_ACTIVE;
   if(!strcmp(name, "TAB_HEADER"))                  return  NK_COLOR_TAB_HEADER;
+  if(!strcmp(name, "KNOB"))                        return  NK_COLOR_KNOB;
+  if(!strcmp(name, "KNOB_CURSOR"))                 return  NK_COLOR_KNOB_CURSOR;
+  if(!strcmp(name, "KNOB_CURSOR_HOVER"))           return  NK_COLOR_KNOB_CURSOR_HOVER;
+  if(!strcmp(name, "KNOB_CURSOR_ACTIVE"))          return  NK_COLOR_KNOB_CURSOR_ACTIVE;
   if(!strcmp(name, "DT_ACCENT"))                   return  NK_COLOR_DT_ACCENT;
   if(!strcmp(name, "DT_ACCENT_HOVER"))             return  NK_COLOR_DT_ACCENT_HOVER;
   if(!strcmp(name, "DT_ACCENT_ACTIVE"))            return  NK_COLOR_DT_ACCENT_ACTIVE;

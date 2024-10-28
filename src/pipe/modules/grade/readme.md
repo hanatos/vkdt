@@ -15,6 +15,6 @@ see: ACES S-2016-001 : ACEScct --- A Quasi-Logarithmic Encoding of ACES Data for
 
 ## parameters
 
-* `lift` a 3-vector for red green blue to lift the blacks
-* `gamma` a 3-vector for red green blue to push the gamma (affects the mid tones mostly)
-* `gain` a 3-vector for red green blue gain. this affects the whole image (but mostly pins the highlights) and works as rgb white balance coefficients would.
+* `lift` hsv colour to lift the blacks
+* `gamma` hsv colour to push the gamma (affects the mid tones mostly)
+* `gain` hsv colour gain. this affects the whole image (but mostly pins the highlights) and works as white balance coefficients would.
