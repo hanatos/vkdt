@@ -26062,7 +26062,7 @@ nk_draw_knob(struct nk_command_buffer *out, nk_flags state,
     cursor_start.y = (cursor_start.y + cursor_end.y) / 2;
 
     /* draw cursor */
-    nk_stroke_line(out, cursor_start.x, cursor_start.y, cursor_end.x, cursor_end.y, 2, nk_rgb_factor(cursor, style->color_factor));
+    nk_stroke_line(out, cursor_start.x, cursor_start.y, cursor_end.x, cursor_end.y, 0.3*half_circle_size, nk_rgb_factor(cursor, style->color_factor));
     }
 }
 NK_LIB float
