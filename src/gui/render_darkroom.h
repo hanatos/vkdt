@@ -239,10 +239,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_colorf oldval = *val;
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
       const float dead_angle = 60.0f;
-      nk_label(ctx, "h", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_hsv_f(val->r, 1.0, 1.0));
+      dt_tooltip("oklab hue angle");
+      nk_label(ctx, "hue", NK_TEXT_RIGHT);
+      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(val->r, 1.0, 1.0)));
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
+      nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
 
 #define DECORATE(VAL, COL) do {\
@@ -252,7 +253,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
         int N = 40;\
         float phi = (3.0f/2.0f*M_PI-dead_angle/2.0f*M_PI/180.0f), delta_phi = (2.0f*M_PI - dead_angle*M_PI/180.0f)/N,\
-              r0 = 0.4*vkdt.state.panel_wd, r1 = 0.5*vkdt.state.panel_wd;\
+              r0 = 0.3*vkdt.state.panel_wd, r1 = 0.4*vkdt.state.panel_wd;\
         for(int k=0;k<=N;k++)\
         {\
           if(k==N) {\
@@ -269,18 +270,19 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }\
       }} while(0)
 
-      DECORATE(val->r, nk_hsv_f((k+0.5)/N, 1.0, 1.0));
-
-      nk_label(ctx, "s", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_hsv_f(val->r, val->g, 1.0));
+      DECORATE(val->r, nk_rgba_cf(hsv2rgb((k+0.5)/N, 0.45, 0.45)));
+      dt_tooltip("oklab colourfulness");
+      nk_label(ctx, "col", NK_TEXT_RIGHT);
+      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(val->r, val->g, 1.0)));
       bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &val->g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
+      nk_knob_float(ctx, 0.0, &val->g, 1.0, 1.0/200.0, NK_DOWN, 60.0f); // S
       nk_style_pop_color(ctx);
-      DECORATE(val->g, nk_hsv_f(val->r, (k+0.5)/N, 1.0));
-      nk_label(ctx, "v", NK_TEXT_RIGHT);
+      DECORATE(val->g, nk_rgba_cf(hsv2rgb(val->r, (k+0.5)/N, 0.45)));
+      dt_tooltip("oklab lightness");
+      nk_label(ctx, "lit", NK_TEXT_RIGHT);
       bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &val->b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
-      DECORATE(val->b/2.0, nk_hsv_f(val->r, val->g, (k+0.5)/N));
+      nk_knob_float(ctx, 0.0, &val->b, 2.0, 1.0/200.0, NK_DOWN, 60.0f); // V
+      DECORATE(val->b/2.0, nk_rgba_cf(hsv2rgb(val->r, val->g, 2.0*(k+0.5)/N)));
 
 #undef DECORATE
       if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;

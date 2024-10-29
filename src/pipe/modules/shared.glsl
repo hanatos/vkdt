@@ -223,6 +223,36 @@ vec3 xyY_to_rec2020(vec3 xyY)
   return xyz_to_rec2020 * xyz;
 }
 
+vec3 rec2020_to_oklab(vec3 rgb)
+{
+  mat3 M = mat3( // M1 * rgb_to_xyz
+      0.61668844, 0.2651402 , 0.10015065,
+      0.36015907, 0.63585648, 0.20400432,
+      0.02304329, 0.09903023, 0.69632468);
+  vec3 lms = M * rgb;
+  lms = pow(lms, vec3(1.0/3.0));
+  mat3 M2 = mat3(
+      0.21045426,  1.9779985 ,  0.02590404,
+      0.79361779, -2.42859221,  0.78277177,
+     -0.00407205,  0.45059371, -0.80867577);
+  return M2 * lms;
+}
+
+vec3 oklab_to_rec2020(vec3 oklab)
+{
+  mat3 M2inv = mat3(
+      1.        ,  1.00000001,  1.00000005,
+      0.39633779, -0.10556134, -0.08948418,
+      0.21580376, -0.06385417, -1.29148554);
+  vec3 lms = M2inv * oklab;
+  lms = lms*lms*lms;
+  mat3 M = mat3( // = xyz_to_rec2020 * M1inv
+      2.14014041, -0.88483245, -0.04857906,
+     -1.24635595,  2.16317272, -0.45449091,
+      0.10643173, -0.27836159,  1.50235629);
+  return M * lms;
+}
+
 // (c) christoph peters:
 void evd2x2(
     out vec2 eval,
@@ -376,21 +406,17 @@ float mrand(inout uint seed)
   return seed / 4294967296.0;
 }
 
+// since hsv is a severely broken concept, we mean oklab LCh (or hCL really)
 vec3 rgb2hsv(vec3 c)
 {
-  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-  float d = q.x - min(q.w, q.y);
-  float e = 1.0e-6;
-  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+  vec3 oklab = rec2020_to_oklab(c);
+  return vec3(fract(1.0 + atan(oklab.z, oklab.y)/(2.0*M_PI)), length(oklab.yz), oklab.x);
 }
 
-vec3 hsv2rgb(vec3 c)
+vec3 hsv2rgb(vec3 hCL)
 {
-  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+  vec3 oklab = vec3(hCL.z, hCL.y * cos(2.0*M_PI*hCL.x), hCL.y * sin(2.0*M_PI*hCL.x));
+  return oklab_to_rec2020(oklab);
 }
 
 vec2 warp_gaussian(vec2 xi)
