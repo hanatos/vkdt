@@ -36,6 +36,7 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *win);
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
     GLFWwindow *win,
+    struct nk_buffer *cmd_extra,
     VkCommandBuffer cmd,
     enum nk_anti_aliasing AA,
     int frame, int max_frames);
@@ -1021,14 +1022,163 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
     win->scroll = nk_vec2(0, 0);
 }
 
+// this is shit but removing it would require api changes to nuklear (i.e. expose the inner of the loop here as an NK_API function)
+static inline nk_flags
+nk_convert_extra(struct nk_context *ctx, struct nk_buffer *buf, struct nk_buffer *cmds,
+    struct nk_buffer *vertices, struct nk_buffer *elements,
+    const struct nk_convert_config *config)
+{
+    nk_flags res = NK_CONVERT_SUCCESS;
+    NK_ASSERT(ctx);
+    NK_ASSERT(cmds);
+    NK_ASSERT(vertices);
+    NK_ASSERT(elements);
+    NK_ASSERT(config);
+    NK_ASSERT(config->vertex_layout);
+    NK_ASSERT(config->vertex_size);
+    if (!ctx || !cmds || !vertices || !elements || !config || !config->vertex_layout)
+        return NK_CONVERT_INVALID_PARAM;
+
+    nk_byte *buffer = buf->memory.ptr;
+    if (0 >= buf->allocated) return 0;
+    const struct nk_command *cmd = nk_ptr_add_const(struct nk_command, buffer, 0);
+
+    // everything is already setup, we run this after converting the rest of nuklear
+    while(cmd)
+    {
+#ifdef NK_INCLUDE_COMMAND_USERDATA
+        ctx->draw_list.userdata = cmd->userdata;
+#endif
+        switch (cmd->type) {
+        case NK_COMMAND_NOP: break;
+        case NK_COMMAND_SCISSOR: {
+            const struct nk_command_scissor *s = (const struct nk_command_scissor*)cmd;
+            nk_draw_list_add_clip(&ctx->draw_list, nk_rect(s->x, s->y, s->w, s->h));
+        } break;
+        case NK_COMMAND_LINE: {
+            const struct nk_command_line *l = (const struct nk_command_line*)cmd;
+            nk_draw_list_stroke_line(&ctx->draw_list, nk_vec2(l->begin.x, l->begin.y),
+                nk_vec2(l->end.x, l->end.y), l->color, l->line_thickness);
+        } break;
+        case NK_COMMAND_CURVE: {
+            const struct nk_command_curve *q = (const struct nk_command_curve*)cmd;
+            nk_draw_list_stroke_curve(&ctx->draw_list, nk_vec2(q->begin.x, q->begin.y),
+                nk_vec2(q->ctrl[0].x, q->ctrl[0].y), nk_vec2(q->ctrl[1].x,
+                q->ctrl[1].y), nk_vec2(q->end.x, q->end.y), q->color,
+                config->curve_segment_count, q->line_thickness);
+        } break;
+        case NK_COMMAND_RECT: {
+            const struct nk_command_rect *r = (const struct nk_command_rect*)cmd;
+            nk_draw_list_stroke_rect(&ctx->draw_list, nk_rect(r->x, r->y, r->w, r->h),
+                r->color, (float)r->rounding, r->line_thickness);
+        } break;
+        case NK_COMMAND_RECT_FILLED: {
+            const struct nk_command_rect_filled *r = (const struct nk_command_rect_filled*)cmd;
+            nk_draw_list_fill_rect(&ctx->draw_list, nk_rect(r->x, r->y, r->w, r->h),
+                r->color, (float)r->rounding);
+        } break;
+        case NK_COMMAND_RECT_MULTI_COLOR: {
+            const struct nk_command_rect_multi_color *r = (const struct nk_command_rect_multi_color*)cmd;
+            nk_draw_list_fill_rect_multi_color(&ctx->draw_list, nk_rect(r->x, r->y, r->w, r->h),
+                r->left, r->top, r->right, r->bottom);
+        } break;
+        case NK_COMMAND_CIRCLE: {
+            const struct nk_command_circle *c = (const struct nk_command_circle*)cmd;
+            nk_draw_list_stroke_circle(&ctx->draw_list, nk_vec2((float)c->x + (float)c->w/2,
+                (float)c->y + (float)c->h/2), (float)c->w/2, c->color,
+                config->circle_segment_count, c->line_thickness);
+        } break;
+        case NK_COMMAND_CIRCLE_FILLED: {
+            const struct nk_command_circle_filled *c = (const struct nk_command_circle_filled *)cmd;
+            nk_draw_list_fill_circle(&ctx->draw_list, nk_vec2((float)c->x + (float)c->w/2,
+                (float)c->y + (float)c->h/2), (float)c->w/2, c->color,
+                config->circle_segment_count);
+        } break;
+        case NK_COMMAND_ARC: {
+            const struct nk_command_arc *c = (const struct nk_command_arc*)cmd;
+            nk_draw_list_path_line_to(&ctx->draw_list, nk_vec2(c->cx, c->cy));
+            nk_draw_list_path_arc_to(&ctx->draw_list, nk_vec2(c->cx, c->cy), c->r,
+                c->a[0], c->a[1], config->arc_segment_count);
+            nk_draw_list_path_stroke(&ctx->draw_list, c->color, NK_STROKE_CLOSED, c->line_thickness);
+        } break;
+        case NK_COMMAND_ARC_FILLED: {
+            const struct nk_command_arc_filled *c = (const struct nk_command_arc_filled*)cmd;
+            nk_draw_list_path_line_to(&ctx->draw_list, nk_vec2(c->cx, c->cy));
+            nk_draw_list_path_arc_to(&ctx->draw_list, nk_vec2(c->cx, c->cy), c->r,
+                c->a[0], c->a[1], config->arc_segment_count);
+            nk_draw_list_path_fill(&ctx->draw_list, c->color);
+        } break;
+        case NK_COMMAND_TRIANGLE: {
+            const struct nk_command_triangle *t = (const struct nk_command_triangle*)cmd;
+            nk_draw_list_stroke_triangle(&ctx->draw_list, nk_vec2(t->a.x, t->a.y),
+                nk_vec2(t->b.x, t->b.y), nk_vec2(t->c.x, t->c.y), t->color,
+                t->line_thickness);
+        } break;
+        case NK_COMMAND_TRIANGLE_FILLED: {
+            const struct nk_command_triangle_filled *t = (const struct nk_command_triangle_filled*)cmd;
+            nk_draw_list_fill_triangle(&ctx->draw_list, nk_vec2(t->a.x, t->a.y),
+                nk_vec2(t->b.x, t->b.y), nk_vec2(t->c.x, t->c.y), t->color);
+        } break;
+        case NK_COMMAND_POLYGON: {
+            int i;
+            const struct nk_command_polygon*p = (const struct nk_command_polygon*)cmd;
+            for (i = 0; i < p->point_count; ++i) {
+                struct nk_vec2 pnt = nk_vec2((float)p->points[i].x, (float)p->points[i].y);
+                nk_draw_list_path_line_to(&ctx->draw_list, pnt);
+            }
+            nk_draw_list_path_stroke(&ctx->draw_list, p->color, NK_STROKE_CLOSED, p->line_thickness);
+        } break;
+        case NK_COMMAND_POLYGON_FILLED: {
+            int i;
+            const struct nk_command_polygon_filled *p = (const struct nk_command_polygon_filled*)cmd;
+            for (i = 0; i < p->point_count; ++i) {
+                struct nk_vec2 pnt = nk_vec2((float)p->points[i].x, (float)p->points[i].y);
+                nk_draw_list_path_line_to(&ctx->draw_list, pnt);
+            }
+            nk_draw_list_path_fill(&ctx->draw_list, p->color);
+        } break;
+        case NK_COMMAND_POLYLINE: {
+            int i;
+            const struct nk_command_polyline *p = (const struct nk_command_polyline*)cmd;
+            for (i = 0; i < p->point_count; ++i) {
+                struct nk_vec2 pnt = nk_vec2((float)p->points[i].x, (float)p->points[i].y);
+                nk_draw_list_path_line_to(&ctx->draw_list, pnt);
+            }
+            nk_draw_list_path_stroke(&ctx->draw_list, p->color, NK_STROKE_OPEN, p->line_thickness);
+        } break;
+        case NK_COMMAND_TEXT: {
+            const struct nk_command_text *t = (const struct nk_command_text*)cmd;
+            nk_draw_list_add_text(&ctx->draw_list, t->font, nk_rect(t->x, t->y, t->w, t->h),
+                t->string, t->length, t->height, t->foreground);
+        } break;
+        case NK_COMMAND_IMAGE: {
+            const struct nk_command_image *i = (const struct nk_command_image*)cmd;
+            nk_draw_list_add_image(&ctx->draw_list, i->img, nk_rect(i->x, i->y, i->w, i->h), i->col);
+        } break;
+        case NK_COMMAND_CUSTOM: {
+            const struct nk_command_custom *c = (const struct nk_command_custom*)cmd;
+            c->callback(&ctx->draw_list, c->x, c->y, c->w, c->h, c->callback_data);
+        } break;
+        default: break;
+        }
+        if (cmd->next >= buf->allocated) return 0;
+        cmd = nk_ptr_add_const(struct nk_command, buffer, cmd->next);
+    }
+    res |= (cmds->needed > cmds->allocated + (cmds->memory.size - cmds->size)) ? NK_CONVERT_COMMAND_BUFFER_FULL: 0;
+    res |= (vertices->needed > vertices->allocated) ? NK_CONVERT_VERTEX_BUFFER_FULL: 0;
+    res |= (elements->needed > elements->allocated) ? NK_CONVERT_ELEMENT_BUFFER_FULL: 0;
+    return res;
+}
+
 NK_API
 void nk_glfw3_create_cmd(
-    struct nk_context    *ctx,
-    GLFWwindow           *window,
-    VkCommandBuffer       command_buffer,
-    enum nk_anti_aliasing AA,
-    int                   frame,
-    int                   max_frames)
+    struct nk_context        *ctx,
+    GLFWwindow               *window,
+    struct nk_buffer         *cmd_extra,
+    VkCommandBuffer           command_buffer,
+    enum nk_anti_aliasing     AA,
+    int                       frame,
+    int                       max_frames)
 {
   struct nk_glfw_device *dev = &glfw.d0;
   struct nk_glfw_win    *win = &glfw.w0;
@@ -1079,6 +1229,7 @@ void nk_glfw3_create_cmd(
   nk_buffer_init_fixed(&vbuf, dev->mapped_vertex+frame*dev->max_vertex_buffer /num, (size_t)dev->max_vertex_buffer/num);
   nk_buffer_init_fixed(&ebuf, dev->mapped_index +frame*dev->max_element_buffer/num, (size_t)dev->max_element_buffer/num);
   nk_convert(ctx, &dev->cmds, &vbuf, &ebuf, &config);
+  if(cmd_extra) nk_convert_extra(ctx, cmd_extra, &dev->cmds, &vbuf, &ebuf, &config);
 
   VkDeviceSize voffset = frame*dev->max_vertex_buffer/num;
   VkDeviceSize ioffset = frame*dev->max_element_buffer/num;

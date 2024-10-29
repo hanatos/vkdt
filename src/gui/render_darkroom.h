@@ -237,16 +237,52 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
       struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       struct nk_colorf oldval = *val;
+      struct nk_command_buffer *cmd = &vkdt.global_cmd;
+      const float dead_angle = 60.0f;
       nk_label(ctx, "h", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_hsv_f(val->r, 1.0, 1.0));
-      nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // H
+      struct nk_rect bounds = nk_widget_bounds(ctx);
+      nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
+
+#define DECORATE(VAL, COL) do {\
+      if((!ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && (nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) || \
+         ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && (ctx->last_widget_state & NK_WIDGET_STATE_ACTIVED))))\
+      {\
+        const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
+        int N = 40;\
+        float phi = (3.0f/2.0f*M_PI-dead_angle/2.0f*M_PI/180.0f), delta_phi = (2.0f*M_PI - dead_angle*M_PI/180.0f)/N,\
+              r0 = 0.4*vkdt.state.panel_wd, r1 = 0.5*vkdt.state.panel_wd;\
+        for(int k=0;k<=N;k++)\
+        {\
+          if(k==N) {\
+            phi = (3.0f/2.0f*M_PI-(dead_angle/2.0f-0.5f+VAL*(360.0f-dead_angle))*M_PI/180.0f);\
+            delta_phi = M_PI/180.0f;\
+          }\
+          float x[] = {\
+            c[0] + cosf(phi) * r0,           c[1] - sinf(phi) * r0,\
+            c[0] + cosf(phi-delta_phi) * r0, c[1] - sinf(phi-delta_phi) * r0,\
+            c[0] + cosf(phi-delta_phi) * r1, c[1] - sinf(phi-delta_phi) * r1,\
+            c[0] + cosf(phi) * r1,           c[1] - sinf(phi) * r1};\
+          nk_fill_polygon(cmd, x, 4, k==N ? nk_rgb(0,0,0) : COL);\
+          phi -= delta_phi;\
+        }\
+      }} while(0)
+
+      DECORATE(val->r, nk_hsv_f((k+0.5)/N, 1.0, 1.0));
+
       nk_label(ctx, "s", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_hsv_f(val->r, val->g, 1.0));
+      bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &val->g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
       nk_style_pop_color(ctx);
+      DECORATE(val->g, nk_hsv_f(val->r, (k+0.5)/N, 1.0));
       nk_label(ctx, "v", NK_TEXT_RIGHT);
+      bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &val->b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
+      DECORATE(val->b/2.0, nk_hsv_f(val->r, val->g, (k+0.5)/N));
+
+#undef DECORATE
       if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
       dt_tooltip(param->tooltip);
       KEYFRAME

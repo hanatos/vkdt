@@ -548,7 +548,7 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
   vkCmdBeginRenderPass(win->command_buffer[i], &rp_info, VK_SUBPASS_CONTENTS_INLINE);
   win->sem_fence[win->sem_index] = i; // remember which frame in flight uses the semaphores
 
-  nk_glfw3_create_cmd(ctx, win->window, win->command_buffer[i], NK_ANTI_ALIASING_ON, i, win->num_swap_chain_images);
+  nk_glfw3_create_cmd(ctx, win->window, win == &vkdt.win ? &vkdt.global_buf : 0, win->command_buffer[i], NK_ANTI_ALIASING_ON, i, win->num_swap_chain_images);
 
   // submit command buffer
   vkCmdEndRenderPass(win->command_buffer[i]);

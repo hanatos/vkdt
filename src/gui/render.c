@@ -152,6 +152,9 @@ int dt_gui_init_nk()
 
   read_style_colours(&vkdt.ctx);
 
+  nk_buffer_init_default(&vkdt.global_buf);
+  nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
+
   char tmp[PATH_MAX+100] = {0};
   {
     int monitors_cnt;
@@ -244,6 +247,7 @@ void dt_gui_render_frame_nk()
   nk_glfw3_new_frame(&vkdt.ctx, vkdt.win.window);
   if(vkdt.win1.window)
     nk_glfw3_new_frame(&vkdt.ctx1, vkdt.win1.window);
+  nk_buffer_clear(&vkdt.global_buf);
   double now = glfwGetTime();
 
   switch(vkdt.view_mode)
@@ -287,6 +291,7 @@ void dt_gui_render_frame_nk()
 
 void dt_gui_cleanup_nk()
 {
+  nk_buffer_free(&vkdt.global_buf);
   nk_free(&vkdt.ctx);
   render_nodes_cleanup();
   render_darkroom_cleanup();

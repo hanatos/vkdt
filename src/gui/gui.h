@@ -152,6 +152,9 @@ typedef struct dt_gui_t
   struct nk_context ctx;          // nuklear gui context, main screen
   struct nk_context ctx1;         // nuklear gui context, secondary viewport
 
+  struct nk_buffer         global_buf; // buffer backend for global_cmd
+  struct nk_command_buffer global_cmd; // extra ui elements drawn on top of everything else in window 0
+
   dt_gui_style_t   style;
   dt_gui_state_t   state;
   dt_gui_wstate_t  wstate;
