@@ -31,7 +31,7 @@ main()
   vec3 gain  = hsv2rgb(vec3(params.gain_r, params.gain_g, params.gain_b));
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   rgb = gain * rgb + lift;
-  rgb = pow(max(rgb, vec3(0)), 1.0/gamma);
+  rgb = pow(max(rgb, vec3(0)), 1.0/max(vec3(1e-6),gamma));
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
