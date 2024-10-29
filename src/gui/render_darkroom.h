@@ -229,9 +229,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     KEYFRAME
     nk_label(ctx, str, NK_TEXT_LEFT);
   }
-  else if(param->widget.type == dt_token("hsvknobs"))
+  else if(param->widget.type == dt_token("hsvknobs") ||
+          param->widget.type == dt_token("rgbknobs"))
   { // only works for param->type == float and count == 3
-    if((num % 3) == 0)
+    if((num % 3) == 0 && num+3 <= count)
     {
       float r7[] = {0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], ratio[1] };
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
@@ -240,10 +241,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
       const float dead_angle = 60.0f;
       dt_tooltip("oklab hue angle");
+      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv(val->r, val->g, val->b) : *val;
       nk_label(ctx, "hue", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(val->r, 1.0, 1.0)));
+      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &val->r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
+      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
 
 #define DECORATE(VAL, COL) do {\
@@ -270,22 +272,25 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }\
       }} while(0)
 
-      DECORATE(val->r, nk_rgba_cf(hsv2rgb((k+0.5)/N, 0.45, 0.45)));
+      DECORATE(hsv.r, nk_rgba_cf(hsv2rgb((k+0.5)/N, 0.45, 0.45)));
       dt_tooltip("oklab colourfulness");
       nk_label(ctx, "col", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(val->r, val->g, 1.0)));
+      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
       bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &val->g, 1.0, 1.0/200.0, NK_DOWN, 60.0f); // S
+      nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/200.0, NK_DOWN, 60.0f); // S
       nk_style_pop_color(ctx);
-      DECORATE(val->g, nk_rgba_cf(hsv2rgb(val->r, (k+0.5)/N, 0.45)));
+      DECORATE(hsv.g, nk_rgba_cf(hsv2rgb(hsv.r, (k+0.5)/N, 0.45)));
       dt_tooltip("oklab lightness");
       nk_label(ctx, "lit", NK_TEXT_RIGHT);
       bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &val->b, 2.0, 1.0/200.0, NK_DOWN, 60.0f); // V
-      DECORATE(val->b/2.0, nk_rgba_cf(hsv2rgb(val->r, val->g, 2.0*(k+0.5)/N)));
+      nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/200.0, NK_DOWN, 60.0f); // V
+      DECORATE(hsv.b/2.0, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N)));
 
 #undef DECORATE
-      if(memcmp(val, &oldval, sizeof(float)*3)) change = 1;
+      struct nk_colorf hsv_old = param->widget.type == dt_token("rgbknobs") ? rgb2hsv(oldval.r, oldval.g, oldval.b) : oldval;
+      if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
+      if(change) // don't do this if resetblock triggers change
+        *val = param->widget.type == dt_token("rgbknobs") ? hsv2rgb(hsv.r, hsv.g, hsv.b) : hsv;
       dt_tooltip(param->tooltip);
       KEYFRAME
       RESETBLOCK
