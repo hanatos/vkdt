@@ -116,35 +116,64 @@ dt_raytrace_node_init(
     const int f)
 {
   if(!qvk.raytracing_supported) return VK_SUCCESS;
-  node->rt[f].vtx_cnt = 3, node->rt[f].idx_cnt = 3;
-  for(int c=0;c<node->num_connectors;c++) if(node->connector[c].format == dt_token("geo"))
-  { // find connector with geo:
-    node->rt[f].vtx_cnt = node->connector[c].roi.full_wd;
-    node->rt[f].idx_cnt = node->connector[c].roi.full_ht;
-    break;
-  }
-  node->rt[f].tri_cnt = node->rt[f].idx_cnt/3;
-  if(node->rt[f].tri_cnt == 0) return VK_SUCCESS;
-  CREATE_STAGING_BUF_R(node->rt[f].vtx_cnt * sizeof(float) * 3,    node->rt[f].buf_vtx);
-  CREATE_STAGING_BUF_R(node->rt[f].idx_cnt * sizeof(uint32_t),     node->rt[f].buf_idx);
-  CREATE_STAGING_BUF_R(node->rt[f].tri_cnt * sizeof(int16_t) * 14, node->rt[f].buf_ext);
 
-  VkAccelerationStructureBuildSizesInfoKHR accel_size = {
-    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
-  node->rt[f].geometry = (VkAccelerationStructureGeometryKHR) {
-    .sType             = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
-    .geometryType      = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
-    .geometry          = {
-      .triangles       = {
-        .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-        .maxVertex     = node->rt[f].vtx_cnt-1,
-        .vertexStride  = 3 * sizeof(float),
-        .transformData = {0},
-        .indexType     = VK_INDEX_TYPE_UINT32,
-        .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
-      }},
-    // .flags             = VK_GEOMETRY_OPAQUE_BIT_KHR,
-  };
+  if(node->name == dt_token("bvh"))
+  { // generic bvh sink
+    node->rt[f].buf_vtx = 0;
+    node->rt[f].buf_idx = 0;
+    node->rt[f].buf_ext = 0;
+
+    node->rt[f].tri_cnt = node->connector[0].roi.wd;
+    node->rt[f].vtx_cnt = 3*node->rt[f].tri_cnt;
+
+    VkAccelerationStructureBuildSizesInfoKHR accel_size = {
+      .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+    node->rt[f].geometry = (VkAccelerationStructureGeometryKHR) {
+      .sType             = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+      .geometryType      = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+      .geometry          = {
+        .triangles       = {
+          .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+          .maxVertex     = node->rt[f].vtx_cnt-1,
+          .vertexStride  = 17 * sizeof(uint16_t),
+          .transformData = {0},
+          .indexType     = VK_INDEX_TYPE_NONE_KHR,
+          .vertexFormat  = VK_FORMAT_R16G16B16_SFLOAT,
+        }},
+    };
+  }
+  else
+  { // custom uploaded geo
+    node->rt[f].vtx_cnt = 3, node->rt[f].idx_cnt = 3;
+    for(int c=0;c<node->num_connectors;c++) if(node->connector[c].format == dt_token("geo"))
+    { // find connector with geo:
+      node->rt[f].vtx_cnt = node->connector[c].roi.full_wd;
+      node->rt[f].idx_cnt = node->connector[c].roi.full_ht;
+      break;
+    }
+    node->rt[f].tri_cnt = node->rt[f].idx_cnt/3;
+    if(node->rt[f].tri_cnt == 0) return VK_SUCCESS;
+    CREATE_STAGING_BUF_R(node->rt[f].vtx_cnt * sizeof(float) * 3,    node->rt[f].buf_vtx);
+    CREATE_STAGING_BUF_R(node->rt[f].idx_cnt * sizeof(uint32_t),     node->rt[f].buf_idx);
+    CREATE_STAGING_BUF_R(node->rt[f].tri_cnt * sizeof(int16_t) * 14, node->rt[f].buf_ext);
+
+    VkAccelerationStructureBuildSizesInfoKHR accel_size = {
+      .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+    node->rt[f].geometry = (VkAccelerationStructureGeometryKHR) {
+      .sType             = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+      .geometryType      = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+      .geometry          = {
+        .triangles       = {
+          .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+          .maxVertex     = node->rt[f].vtx_cnt-1,
+          .vertexStride  = 3 * sizeof(float),
+          .transformData = {0},
+          .indexType     = VK_INDEX_TYPE_UINT32,
+          .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
+        }},
+      // .flags             = VK_GEOMETRY_OPAQUE_BIT_KHR,
+    };
+  }
   node->rt[f].build_info = (VkAccelerationStructureBuildGeometryInfoKHR) {
     .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
     .type          = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
