@@ -9,10 +9,10 @@ note that it is not necessary to include an edge from here to any ray tracing no
 
 TODO:
 * static geometry: flag nodes somehow so BLAS build and dependent compute shaders will be skipped
-* refactor raytrace.c to not allocate staging memory but use ssbo handed in here
-* `s_conn_double_buffered` as we do for `display` nodes.
-* raytrace.c to use 17-f16-strided vertex arrays with R16G16B16 non-indexed triangles + extra data in the gaps
 * producing modules: load obj, spawn particles, deform, animate, extrude with particle sim
+* quake: use bvh nodes
+* `request_read_geo` flag to be called `request_build_bvh`
+* `geo` type on ssbo to multiply by known height and use f16 type etc (maybe need memory type flags)
 
 ## connectors
 

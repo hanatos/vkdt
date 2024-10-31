@@ -383,13 +383,10 @@ encode_normal(
 
 static void
 add_particles(
-    float    *vtx,   // vertex data, 3f
-    uint32_t *idx,   // triangle indices, 3 per tri
-    int16_t  *ext,
-    uint32_t *vtx_cnt,
-    uint32_t *idx_cnt)
+    float    *vtx,   // vertex data + extra
+    uint32_t *vtx_cnt)
 {
-  uint32_t nvtx = 0, nidx = 0;
+  uint32_t nvtx = 0;
   xrand(1); // reset so we can do reference renders
   for(particle_t *p=active_particles;p;p=p->next)
   {
@@ -399,17 +396,15 @@ add_particles(
     // rocket trails are r=2*g=2*b a bit randomised
     uint32_t tex_col = c[1] == 0 && c[2] == 0 ? qs_data.tex_blood : qs_data.tex_explosion;
     uint32_t tex_lum = c[1] == 0 && c[2] == 0 ? 0 : qs_data.tex_explosion;
-    int numv = 4; // add tet
-    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
-       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
-          return;
+    int numv = 4*3; // add tet
+    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT) return;
     const float voff[4][3] = {
       { 0.0,  1.0,  0.0},
       {-0.5, -0.5, -0.87},
       {-0.5, -0.5,  0.87},
       { 1.0, -0.5,  0.0}};
     float vert[4][3];
-    if(vtx || ext)
+    if(vtx)
     {
       for(int l=0;l<3;l++)
       {
@@ -417,82 +412,35 @@ add_particles(
         for(int k=0;k<4;k++)
           vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
       }
-    }
-    if(vtx)
-    {
-      for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
-    }
-    if(idx)
-    {
-      idx[nidx+3*0+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*0+1] = *vtx_cnt + nvtx+1;
-      idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
-
-      idx[nidx+3*1+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*1+1] = *vtx_cnt + nvtx+2;
-      idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
-
-      idx[nidx+3*2+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*2+1] = *vtx_cnt + nvtx+3;
-      idx[nidx+3*2+2] = *vtx_cnt + nvtx+1;
-
-      idx[nidx+3*3+0] = *vtx_cnt + nvtx+1;
-      idx[nidx+3*3+1] = *vtx_cnt + nvtx+2;
-      idx[nidx+3*3+2] = *vtx_cnt + nvtx+3;
-    }
-    if(ext)
-    {
       for(int k=0;k<4;k++)
       {
-        int pi = nidx/3 + k; // start of the tet + tri index
-        // float n[3], e0[] = {
-        //   vert[2][0] - vert[0][0],
-        //   vert[2][1] - vert[0][1],
-        //   vert[2][2] - vert[0][2]}, e1[] = {
-        //   vert[1][0] - vert[0][0],
-        //   vert[1][1] - vert[0][1],
-        //   vert[1][2] - vert[0][2]};
-        // cross(e0, e1, n);
-        // encode_normal(ext+14*pi+0, n);
-        // encode_normal(ext+14*pi+2, n);
-        // encode_normal(ext+14*pi+4, n);
-        // encode_normal(ext+14*(pi+1)+0, n);
-        // encode_normal(ext+14*(pi+1)+2, n);
-        // encode_normal(ext+14*(pi+1)+4, n);
-        ext[14*pi+ 0] = 0;
-        ext[14*pi+ 1] = 0;
-        ext[14*pi+ 2] = 0;
-        ext[14*pi+ 3] = 0;
-        ext[14*pi+ 6] = float_to_half(0);
-        ext[14*pi+ 7] = float_to_half(1);
-        ext[14*pi+ 8] = float_to_half(0);
-        ext[14*pi+ 9] = float_to_half(0);
-        ext[14*pi+10] = float_to_half(1);
-        ext[14*pi+11] = float_to_half(0);
-        ext[14*pi+12] = tex_col;
-        ext[14*pi+13] = tex_lum;
+        // vertex stride: 3v 2n 2uv 1texid = 8
+        for(int l=0;l<3;l++) vtx[8*(nvtx+0)+l] = vert[0][l]; // TODO index into vertex array above
+        for(int l=0;l<3;l++) vtx[8*(nvtx+1)+l] = vert[1][l];
+        for(int l=0;l<3;l++) vtx[8*(nvtx+2)+l] = vert[2][l];
+        vtx[8*(nvtx+0)+3] = 0; // encoded normal
+        vtx[8*(nvtx+0)+4] = 0; // encoded normal
+        vtx[8*(nvtx+0)+5] = float_to_half(0);
+        vtx[8*(nvtx+0)+6] = float_to_half(1);
+        vtx[8*(nvtx+1)+5] = float_to_half(0);
+        vtx[8*(nvtx+1)+6] = float_to_half(0);
+        vtx[8*(nvtx+2)+5] = float_to_half(1);
+        vtx[8*(nvtx+2)+6] = float_to_half(0);
+        vtx[8*(nvtx+0)+7] = tex_col;
+        vtx[8*(nvtx+1)+7] = tex_lum;
+        vtx[8*(nvtx+2)+7] = 0; // extra
+        nvtx += 3;
       }
     }
-    nvtx += 4;
-    nidx += 3*4;
   } // end for all particles
   *vtx_cnt += nvtx;
-  *idx_cnt += nidx;
 }
 
 static void
 add_geo(
     entity_t *ent,
-    float    *vtx,   // vertex data, 3f
-    uint32_t *idx,   // triangle indices, 3 per tri
-    // oh fuckit. we just store all the following rubbish once per primitive:
-    // 1x mat, 3x n, 3x st = 1+3*2+3*2 = 13 int16 + 1 pad
-    int16_t  *ext,
-    uint32_t *vtx_cnt,
-    uint32_t *idx_cnt)
+    uint16_t *vtx,   // triangle data: 3v f16 + all the extra data, vertex stride is 8 uint16_t
+    uint32_t *vtx_cnt)
 {
   if(!ent) return;
   // count all verts in all models
@@ -1029,37 +977,22 @@ int read_source(
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
   }
-  return 0;
-}
-
-int read_geo(
-    dt_module_t *mod,
-    dt_read_geo_params_t *p)
-{
-  // this is only called for our "geo" node because it has an output connector with format "geo".
-  uint32_t vtx_cnt = 0, idx_cnt = 0;
+  uint32_t vtx_cnt = 0;
   const int f = mod->graph->double_buffer;
+  uint16_t *m16 = mapped;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 7*(idx_cnt/3), &vtx_cnt, &idx_cnt); // player model
-    add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt); // weapon
+    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 7*(idx_cnt/3), &vtx_cnt); // player model
+    add_geo(&cl.viewent, m16 + 3*vtx_cnt, &vtx_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
+      add_geo(cl_visedicts[i], m16 + 3*vtx_cnt, &vtx_cnt);
     for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-    // idx_cnt = MAX(3, idx_cnt);
-    p->node->rt[f].vtx_cnt = vtx_cnt;
-    p->node->rt[f].tri_cnt = idx_cnt / 3;
+      add_geo(cl_static_entities+i, m16 + 3*vtx_cnt, &vtx_cnt);
+    add_particles(16 + 3*vtx_cnt, &vtx_cnt);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-    idx_cnt = MAX(3, idx_cnt);
-    p->node->rt[f].vtx_cnt = vtx_cnt;
-    p->node->rt[f].tri_cnt = idx_cnt / 3;
+    add_geo(cl_entities+0, m16 + 3*vtx_cnt, &vtx_cnt);
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
@@ -1076,7 +1009,6 @@ int read_geo(
         aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
 #endif
   }
-  // fprintf(stderr, "[read_geo '%"PRItkn"']: vertex count %u index count %u\n", dt_token_str(p->node->kernel), vtx_cnt, idx_cnt);
   return 0;
 }
 
@@ -1091,20 +1023,17 @@ create_nodes(
   int id_rt = dt_node_add(graph, module, "quake", "main", 
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
       "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
-      "stcgeo",   "read",  "ssbo", "geo",  dt_no_roi,                 // 1
-      "dyngeo",   "read",  "ssbo", "geo",  dt_no_roi,                 // 2
-      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 3
-      "blue",     "read",  "*",    "*",    dt_no_roi,                 // 4
-      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 5
-      "nee_in",   "read",  "rgba", "ui32", dt_no_roi,                 // 6
-      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 7
-      "mv",       "read",  "rg",   "f16",  dt_no_roi,                 // 8
-      "gbuf_in",  "read",  "rgba", "f32",  dt_no_roi,                 // 9
-      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 10
-      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 11
-      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 12
-  graph->module[id_rt].connector[ 7].flags |= s_conn_clear;
-  graph->module[id_rt].connector[10].flags |= s_conn_clear;
+      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 1
+      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 2
+      "nee_in",   "read",  "rgba", "ui32", dt_no_roi,                 // 3
+      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 4
+      "mv",       "read",  "rg",   "f16",  dt_no_roi,                 // 5
+      "gbuf_in",  "read",  "rgba", "f32",  dt_no_roi,                 // 6
+      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 7
+      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 8
+      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 9
+  graph->module[id_rt].connector[4].flags |= s_conn_clear;
+  graph->module[id_rt].connector[7].flags |= s_conn_clear;
 
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_tex = graph->num_nodes++;
@@ -1141,91 +1070,37 @@ create_nodes(
   for(int i=0;i<d->tex_cnt;i++)
     if(d->tex[i]) d->tex_req[i] = 1;
 
-  uint32_t vtx_cnt = 0, idx_cnt = 0;
-#if 0
-  // add_geo(cl_entities+cl.viewentity, 0, 0, 0, &vtx_cnt, &idx_cnt);
-  add_geo(&cl.viewent, 0, 0, 0, &vtx_cnt, &idx_cnt);
-  for(int i=0;i<cl_numvisedicts;i++)
-    add_geo(cl_visedicts[i], 0, 0, 0, &vtx_cnt, &idx_cnt);
-  fprintf(stderr, "[create_nodes] dynamic vertex count %u index count %u\n", vtx_cnt, idx_cnt);
-#endif
+  uint32_t vtx_cnt = 0;
   // we'll statically assign a global buffer size here because we want to avoid a fresh
   // node creation/memory allocation pass. reallocation usually invalidates *all* buffers
   // requiring fresh data upload for everything.
   // i suppose the core allocator might need support for incremental additions otherwise.
   vtx_cnt = MAX_VTX_CNT;
-  idx_cnt = MAX_IDX_CNT;
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_dyngeo = graph->num_nodes++;
-  graph->node[id_dyngeo] = (dt_node_t) {
-    .name   = dt_token("quake"),
-    .kernel = dt_token("dyngeo"),
-    .module = module,
-    .wd     = 1,
-    .ht     = 1,
-    .dp     = 1,
-    .flags  = s_module_request_read_geo,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("dyngeo"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .roi    = {
-        .scale   = 1.0,
-        .wd      = vtx_cnt,
-        .ht      = idx_cnt,
-        .full_wd = vtx_cnt,
-        .full_ht = idx_cnt,
-      },
-    }},
-  };
+  dt_roi_t roi_geo = { .scale = 1.0, .wd = 3*vtx_cnt, .ht = 3*8, .full_wd = 3*vtx_cnt, .full_ht = 3*8 };
+  const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
+    "dyngeo", "source", "ssbo", "f16", &roi_geo);
+  graph->node[id_dyngeo].flags  = s_module_request_read_geo,
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
-  vtx_cnt = idx_cnt = 0;
-  add_geo(cl_entities+0, 0, 0, 0, &vtx_cnt, &idx_cnt);
-  fprintf(stderr, "[create_nodes] static vertex count %u index count %u\n", vtx_cnt, idx_cnt);
+  vtx_cnt = 0;
+  add_geo(cl_entities+0, 0, 0, 0, &vtx_cnt);
+  fprintf(stderr, "[create_nodes] static vertex count %u\n", vtx_cnt);
   vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-  idx_cnt = MAX(3, idx_cnt);
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_stcgeo = graph->num_nodes++;
-  graph->node[id_stcgeo] = (dt_node_t) {
-    .name   = dt_token("quake"),
-    .kernel = dt_token("stcgeo"),
-    .module = module,
-    .wd     = 1,
-    .ht     = 1,
-    .dp     = 1,
-    .flags  = s_module_request_read_geo,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("stcgeo"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .roi    = {
-        .scale   = 1.0,
-        .wd      = vtx_cnt,
-        .ht      = idx_cnt,
-        .full_wd = vtx_cnt,
-        .full_ht = idx_cnt,
-      },
-    }},
-  };
+  roi_geo = (dt_roi_t){ .scale = 1.0, .wd = 3*vtx_cnt, .ht = 3*8, .full_wd = 3*vtx_cnt, .full_ht = 3*8 };
+  const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
+    "stcgeo", "source", "ssbo", "f16", &roi_geo);
+  graph->node[id_stcgeo].flags  = s_module_request_read_geo,
 
-  CONN(dt_node_connect(graph, id_tex, 0, id_rt, 3));
-  CONN(dt_node_connect(graph, id_stcgeo, 0, id_rt, 1));
-  CONN(dt_node_connect(graph, id_dyngeo, 0, id_rt, 2));
-  CONN(dt_node_feedback(graph, id_rt,  7, id_rt, 6)); // nee cache
-  CONN(dt_node_feedback(graph, id_rt, 10, id_rt, 9)); // gbuf
-  dt_connector_copy(graph, module, 0, id_rt,  0); // wire output buffer
-  dt_connector_copy(graph, module, 1, id_rt,  4); // wire blue noise input
-  dt_connector_copy(graph, module, 2, id_rt,  5); // output aov image
-  dt_connector_copy(graph, module, 3, id_rt,  8); // motion vectors from outside
-  dt_connector_copy(graph, module, 4, id_rt, 10); // gbuf output (n, d, mu_1, mu_2)
-  dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
+  CONN(dt_node_connect(graph, id_tex, 0, id_rt, 1));
+  CONN(dt_node_feedback(graph, id_rt, 4, id_rt, 3)); // nee cache
+  CONN(dt_node_feedback(graph, id_rt, 7, id_rt, 6)); // gbuf
+  dt_connector_copy(graph, module, 0, id_rt, 0); // wire output buffer
+  dt_connector_copy(graph, module, 2, id_rt, 2); // output aov image
+  dt_connector_copy(graph, module, 3, id_rt, 5); // motion vectors from outside
+  dt_connector_copy(graph, module, 4, id_rt, 7); // gbuf output (n, d, mu_1, mu_2)
+  dt_connector_copy(graph, module, 5, id_rt, 8); // wire debug output
 
   // propagate up so things will start to move at all at the node level:
   module->flags = s_module_request_read_geo;

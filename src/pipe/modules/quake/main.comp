@@ -47,21 +47,18 @@ layout(std140, set = 0, binding = 1) uniform params_t
 // { } push;
 
 layout(set = 1, binding = 0) uniform writeonly image2D img_irradiance;
-layout(set = 1, binding = 1) buffer buf_inst0_t { float dum; } buf_inst0; // geo connector for instance 0
-layout(set = 1, binding = 2) buffer buf_inst1_t { float dum; } buf_inst1;
 
-layout(set = 1, binding = 3) uniform sampler2D img_tex[];
-layout(set = 1, binding = 4) uniform sampler2D img_blue;
+layout(set = 1, binding = 1) uniform sampler2D img_tex[];
 
-layout(set = 1, binding = 5) uniform writeonly image2D img_albedo;
+layout(set = 1, binding = 2) uniform writeonly image2D img_albedo;
 
-layout(set = 1, binding = 6) uniform usampler2D img_nee_in;
-layout(set = 1, binding = 7) uniform writeonly uimage2D img_nee_out;
-layout(set = 1, binding = 8) uniform sampler2D img_mv;
+layout(set = 1, binding = 3) uniform usampler2D img_nee_in;
+layout(set = 1, binding = 4) uniform writeonly uimage2D img_nee_out;
+layout(set = 1, binding = 5) uniform sampler2D img_mv;
 
-layout(set = 1, binding =  9) uniform sampler2D img_gbuf_in;
-layout(set = 1, binding = 10) uniform writeonly image2D img_gbuf_out;
-layout(set = 1, binding = 11) uniform writeonly image2D img_debug;
+layout(set = 1, binding = 6) uniform sampler2D img_gbuf_in;
+layout(set = 1, binding = 7) uniform writeonly image2D img_gbuf_out;
+layout(set = 1, binding = 8) uniform writeonly image2D img_debug;
 // layout(set = 1, binding = 12) uniform sampler2D img_oldout;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;

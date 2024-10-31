@@ -125,7 +125,7 @@ dt_raytrace_node_init(
       .triangles       = {
         .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
         .maxVertex     = 3*node->rt[f].tri_cnt-1,
-        .vertexStride  = 17 * sizeof(uint16_t),
+        .vertexStride  = 8 * sizeof(uint16_t),
         .transformData = {0},
         .indexType     = VK_INDEX_TYPE_NONE_KHR,
         .vertexFormat  = VK_FORMAT_R16G16B16_SFLOAT,
@@ -395,7 +395,7 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt[f].geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
       .maxVertex     = 3*node->rt[f].tri_cnt-1,
-      .vertexStride  = 17*sizeof(uint16_t),
+      .vertexStride  = 8*sizeof(uint16_t),
       .transformData = {0},
       .indexType     = VK_INDEX_TYPE_NONE_KHR,
       .vertexFormat  = VK_FORMAT_R16G16B16_SFLOAT,
