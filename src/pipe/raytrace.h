@@ -40,17 +40,9 @@ typedef struct dt_raytrace_node_t
   VkAccelerationStructureBuildGeometryInfoKHR build_info;     // geometry info
   VkBuffer                                    buf_accel;      // buffer to hold accel struct
   VkBuffer                                    buf_scratch;    // scratch memory for accel build
-  VkBuffer                                    buf_vtx;        // vertex buffer
-  VkBuffer                                    buf_idx;        // index buffer
-  VkBuffer                                    buf_ext;        // index buffer
   off_t                                       buf_accel_offset;
   off_t                                       buf_scratch_offset;
-  off_t                                       buf_vtx_offset;
-  off_t                                       buf_idx_offset;
-  off_t                                       buf_ext_offset;
-  uint32_t                                    vtx_cnt;        // number of vertices provided
-  uint32_t                                    idx_cnt;        // number of indices provided by this node
-  uint32_t                                    tri_cnt;        // number of indices provided by this node, i.e. idx_cnt/3
+  uint32_t                                    tri_cnt;        // number of triangles provided by this node, i.e. number of vertices / 3
   int                                         force_read_geo; // override for static geo in odd frames
 }
 dt_raytrace_node_t;
