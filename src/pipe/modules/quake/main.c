@@ -463,10 +463,6 @@ add_geo(
     int16_t *indexes = (int16_t *) ((uint8_t *) hdr + hdr->indexes);
     trivertx_t *trivertexes = (trivertx_t *) ((uint8_t *)hdr + hdr->vertexes);
 
-    if(*vtx_cnt + nvtx + hdr->numverts_vbo >= MAX_VTX_CNT) return;
-    if(*idx_cnt + nidx + hdr->numindexes >= MAX_IDX_CNT) return;
-    nvtx += hdr->numverts_vbo;
-    nidx += hdr->numindexes;
 
     lerpdata_t  lerpdata;
     R_SetupAliasFrame(ent, hdr, ent->frame, &lerpdata);
@@ -517,11 +513,20 @@ add_geo(
       encode_normal(tmpn+2*v, nw);
     }
 #endif
-    if(idx) for(int i = 0; i < hdr->numindexes; i++)
-      idx[i] = *vtx_cnt + indexes[i];
-
     if(ext) for(int i = 0; i < hdr->numindexes/3; i++)
     {
+      // XXX FIX:
+      if(*vtx_cnt + nvtx + hdr->numverts_vbo >= MAX_VTX_CNT) return;
+      nidx += hdr->numindexes;
+
+      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
+      for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+      for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+
+      for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
+      for(int k=0;k<3;k++)
+        vtx[3*v+k] = origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
 #if 0
       float nm[3], nw[3];
       int off = hdr->numverts * f;
