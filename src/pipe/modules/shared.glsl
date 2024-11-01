@@ -416,6 +416,7 @@ vec3 rgb2hsv(vec3 c)
 vec3 hsv2rgb(vec3 hCL)
 {
   vec3 oklab = vec3(hCL.z, hCL.y * cos(2.0*M_PI*hCL.x), hCL.y * sin(2.0*M_PI*hCL.x));
+  if(oklab.x <= 0.0) return vec3(0);
   return oklab_to_rec2020(oklab);
 }
 
