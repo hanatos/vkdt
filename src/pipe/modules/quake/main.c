@@ -17,9 +17,9 @@
 typedef struct rtgeo_vtx_t
 {
   uint16_t x, y, z;  // half float cartesian vertex coordinate
+  uint16_t tex;      // texture id
   int16_t  n0, n1;   // encoded normal
   uint16_t s, t;     // half float texture st coordinates
-  uint16_t tex;      // texture id
 }
 rtgeo_vtx_t;
 typedef struct rtgeo_tri_t
@@ -496,17 +496,6 @@ add_geo(
     // TODO: upload all vertices so we can just alter the indices on gpu
     int f = ent->frame;
     if(f < 0 || f >= hdr->numposes) return;
-    if(vtx) for(int v = 0; v < hdr->numverts_vbo; v++)
-    {
-      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
-      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
-      for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-      for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-
-      for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
-      for(int k=0;k<3;k++)
-        vtx[3*v+k] = origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
-    }
 #if 1 // both options fail to extract correct creases/vertex normals for health/shells
     // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
     // just by chance happened to produce something similar enough sometimes?
@@ -596,7 +585,7 @@ again:;
       glpoly_t *p = surf->polys;
       while(p)
       {
-        if(*vtx_cnt + nvtx + 3*(p->numverts-2) >= MAX_VTX_CNT) break;
+        if(*vtx_cnt + nvtx + (p->numverts-2) >= MAX_VTX_CNT) break;
 #if WATER_MODE==WATER_MODE_FULL
         if(vtx && wateroffset) for(int k=2;k<p->numverts;k++)
         {
@@ -620,10 +609,10 @@ again:;
         texture_t *t = R_TextureAnimation(surf->texinfo->texture, ent->frame);
         if(vtx) for(int k=2;k<p->numverts;k++)
         {
-          const int i0 = *vtx_cnt + nvtx;
-          const int i1 = *vtx_cnt + nvtx+k-1;
-          const int i2 = *vtx_cnt + nvtx+k;
-          rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + k-2;
+          const int i0 = 0;
+          const int i1 = k-1;
+          const int i2 = k;
+          rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + nvtx/3 + k-2;
           *tri = (rtgeo_tri_t){0};
           tri->v0.x = float_to_half(p->verts[i0][0] * fwd[0] - p->verts[i0][1] * rgt[0] + p->verts[i0][2] * top[0] + ent->origin[0]);
           tri->v0.y = float_to_half(p->verts[i0][0] * fwd[1] - p->verts[i0][1] * rgt[1] + p->verts[i0][2] * top[1] + ent->origin[1]);
@@ -1013,7 +1002,8 @@ int read_source(
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     add_geo(cl_entities+0, m16 + 3*vtx_cnt, &vtx_cnt);
-    if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+    // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+    if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 
@@ -1097,10 +1087,10 @@ create_nodes(
   // i suppose the core allocator might need support for incremental additions otherwise.
   vtx_cnt = MAX_VTX_CNT;
 
-  dt_roi_t roi_geo = { .scale = 1.0, .wd = 3*vtx_cnt, .ht = 3*8, .full_wd = 3*vtx_cnt, .full_ht = 3*8 };
+  dt_roi_t roi_geo = { .scale = 1.0, .wd = vtx_cnt/3, .ht = 3*8, .full_wd = vtx_cnt/3, .full_ht = 3*8 };
   const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
     "dyngeo", "source", "ssbo", "f16", &roi_geo);
-  graph->node[id_dyngeo].flags  = s_module_request_read_geo;
+  graph->node[id_dyngeo].flags = s_module_request_read_geo | s_module_request_read_source;
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
   vtx_cnt = 0;
@@ -1108,10 +1098,10 @@ create_nodes(
   fprintf(stderr, "[create_nodes] static vertex count %u\n", vtx_cnt);
   vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
 
-  roi_geo = (dt_roi_t){ .scale = 1.0, .wd = 3*vtx_cnt, .ht = 3*8, .full_wd = 3*vtx_cnt, .full_ht = 3*8 };
+  roi_geo = (dt_roi_t){ .scale = 1.0, .wd = vtx_cnt/3, .ht = 3*8, .full_wd = vtx_cnt/3, .full_ht = 3*8 };
   const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
     "stcgeo", "source", "ssbo", "f16", &roi_geo);
-  graph->node[id_stcgeo].flags  = s_module_request_read_geo;
+  graph->node[id_stcgeo].flags = s_module_request_read_geo | s_module_request_read_source;
 
   const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "bvh", 1, 1, 1, 0, 0, 1,
     "geo", "sink", "ssbo", "f16", dt_no_roi);

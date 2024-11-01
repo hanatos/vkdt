@@ -66,9 +66,9 @@ layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 struct rtgeo_vtx_t
 {
   float16_t x, y, z;
+  uint16_t tex;
   uint n;
   uint st;
-  uint16_t tex;
 };
 
 layout(set = 2, binding = 1) buffer buf_vtx_t
