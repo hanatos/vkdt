@@ -13,6 +13,21 @@
 #define MAX_IDX_CNT 2000000 // global bounds for dynamic geometry, because lazy programmer
 #define MAX_VTX_CNT 2000000
 
+// TODO factor out into some geo.h
+typedef struct rtgeo_vtx_t
+{
+  uint16_t x, y, z;  // half float cartesian vertex coordinate
+  int16_t  n0, n1;   // encoded normal
+  uint16_t s, t;     // half float texture st coordinates
+  uint16_t tex;      // texture id
+}
+rtgeo_vtx_t;
+typedef struct rtgeo_tri_t
+{ // plain flat triangle. each vertex stores a different texture for the triangle: albedo, normals, extra.
+  rtgeo_vtx_t v0, v1, v2;
+}
+rtgeo_tri_t;
+
 static inline double
 xrand(uint32_t reset)
 { // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
@@ -383,7 +398,7 @@ encode_normal(
 
 static void
 add_particles(
-    float    *vtx,   // vertex data + extra
+    uint16_t *vtx,   // vertex data + extra
     uint32_t *vtx_cnt)
 {
   uint32_t nvtx = 0;
@@ -396,7 +411,7 @@ add_particles(
     // rocket trails are r=2*g=2*b a bit randomised
     uint32_t tex_col = c[1] == 0 && c[2] == 0 ? qs_data.tex_blood : qs_data.tex_explosion;
     uint32_t tex_lum = c[1] == 0 && c[2] == 0 ? 0 : qs_data.tex_explosion;
-    int numv = 4*3; // add tet
+    int numv = 3; // add single random triangle
     if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT) return;
     const float voff[4][3] = {
       { 0.0,  1.0,  0.0},
@@ -412,25 +427,22 @@ add_particles(
         for(int k=0;k<4;k++)
           vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
       }
-      for(int k=0;k<4;k++)
-      {
-        // vertex stride: 3v 2n 2uv 1texid = 8
-        for(int l=0;l<3;l++) vtx[8*(nvtx+0)+l] = vert[0][l]; // TODO index into vertex array above
-        for(int l=0;l<3;l++) vtx[8*(nvtx+1)+l] = vert[1][l];
-        for(int l=0;l<3;l++) vtx[8*(nvtx+2)+l] = vert[2][l];
-        vtx[8*(nvtx+0)+3] = 0; // encoded normal
-        vtx[8*(nvtx+0)+4] = 0; // encoded normal
-        vtx[8*(nvtx+0)+5] = float_to_half(0);
-        vtx[8*(nvtx+0)+6] = float_to_half(1);
-        vtx[8*(nvtx+1)+5] = float_to_half(0);
-        vtx[8*(nvtx+1)+6] = float_to_half(0);
-        vtx[8*(nvtx+2)+5] = float_to_half(1);
-        vtx[8*(nvtx+2)+6] = float_to_half(0);
-        vtx[8*(nvtx+0)+7] = tex_col;
-        vtx[8*(nvtx+1)+7] = tex_lum;
-        vtx[8*(nvtx+2)+7] = 0; // extra
-        nvtx += 3;
-      }
+      // vertex stride: 3v 2n 2uv 1texid = 8
+      for(int l=0;l<3;l++) vtx[8*(nvtx+0)+l] = float_to_half(vert[0][l]);
+      for(int l=0;l<3;l++) vtx[8*(nvtx+1)+l] = float_to_half(vert[1][l]);
+      for(int l=0;l<3;l++) vtx[8*(nvtx+2)+l] = float_to_half(vert[2][l]);
+      vtx[8*(nvtx+0)+3] = 0; // encoded normal
+      vtx[8*(nvtx+0)+4] = 0; // encoded normal
+      vtx[8*(nvtx+0)+5] = float_to_half(0);
+      vtx[8*(nvtx+0)+6] = float_to_half(1);
+      vtx[8*(nvtx+1)+5] = float_to_half(0);
+      vtx[8*(nvtx+1)+6] = float_to_half(0);
+      vtx[8*(nvtx+2)+5] = float_to_half(1);
+      vtx[8*(nvtx+2)+6] = float_to_half(0);
+      vtx[8*(nvtx+0)+7] = tex_col;
+      vtx[8*(nvtx+1)+7] = tex_lum;
+      vtx[8*(nvtx+2)+7] = 0; // extra
+      nvtx += 3;
     }
   } // end for all particles
   *vtx_cnt += nvtx;
@@ -444,7 +456,7 @@ add_geo(
 {
   if(!ent) return;
   // count all verts in all models
-  uint32_t nvtx = 0, nidx = 0;
+  uint32_t nvtx = 0;
   qmodel_t *m = ent->model;
   // fprintf(stderr, "[add_geo] %s\n", m->name);
   // if (!m || m->name[0] == '*') return; // '*' is the moving brush models such as doors
@@ -462,7 +474,6 @@ add_geo(
     // the plural here really hurts but it's from quakespasm code:
     int16_t *indexes = (int16_t *) ((uint8_t *) hdr + hdr->indexes);
     trivertx_t *trivertexes = (trivertx_t *) ((uint8_t *)hdr + hdr->vertexes);
-
 
     lerpdata_t  lerpdata;
     R_SetupAliasFrame(ent, hdr, ent->frame, &lerpdata);
@@ -501,7 +512,7 @@ add_geo(
     // just by chance happened to produce something similar enough sometimes?
     // TODO: fuck this vbo bs and get the mdl itself
     int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
-    if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
+    if(vtx) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
       int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
       int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
@@ -513,20 +524,42 @@ add_geo(
       encode_normal(tmpn+2*v, nw);
     }
 #endif
-    if(ext) for(int i = 0; i < hdr->numindexes/3; i++)
+    if(*vtx_cnt + nvtx + 3*hdr->numindexes >= MAX_VTX_CNT) return;
+    if(vtx) for(int i = 0; i < hdr->numindexes/3; i++)
     {
-      // XXX FIX:
-      if(*vtx_cnt + nvtx + hdr->numverts_vbo >= MAX_VTX_CNT) return;
-      nidx += hdr->numindexes;
+      rtgeo_tri_t *tri = ((rtgeo_tri_t *)vtx) + i;
+      rtgeo_vtx_t *trivtx = &tri->v0;
 
-      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
-      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
-      for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-      for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+      for(int tv=0;tv<3;tv++)
+      {
+        int v = indexes[3*i+tv];
+        int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+        int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
 
-      for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
-      for(int k=0;k<3;k++)
-        vtx[3*v+k] = origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
+        for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+        for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+
+        for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
+        trivtx[tv].x = float_to_half(origin[0] + rgt[0] * pos[1] + top[0] * pos[2] + fwd[0] * pos[0]);
+        trivtx[tv].y = float_to_half(origin[1] + rgt[1] * pos[1] + top[1] * pos[2] + fwd[1] * pos[0]);
+        trivtx[tv].z = float_to_half(origin[2] + rgt[2] * pos[1] + top[2] * pos[2] + fwd[2] * pos[0]);
+        memcpy(&trivtx[tv].n0, tmpn+2*v, sizeof(int16_t)*2);
+        trivtx[tv].s = float_to_half((desc[v].st[0]+0.5)/(float)hdr->skinwidth);
+        trivtx[tv].t = float_to_half((desc[v].st[1]+0.5)/(float)hdr->skinheight);
+      }
+      const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
+      tri->v0.tex = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
+      tri->v1.tex = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
+      tri->v2.tex = 0;
+#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
+      if(hdr->nmtextures[sk][fm])
+      {
+        tri->v0.n0 = 0;
+        tri->v0.n1 = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum);
+        tri->v1.n0 = 0xffff; // mark as brush model // XXX ??? why aren't we using v2.tex?
+        tri->v1.n1 = 0xffff;
+      }
+#endif
 #if 0
       float nm[3], nw[3];
       int off = hdr->numverts * f;
@@ -540,28 +573,6 @@ add_geo(
       memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+2]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+4, nw);
-#else
-      memcpy(ext+14*i+0, tmpn+2*indexes[3*i+0], sizeof(int16_t)*2);
-      memcpy(ext+14*i+2, tmpn+2*indexes[3*i+1], sizeof(int16_t)*2);
-      memcpy(ext+14*i+4, tmpn+2*indexes[3*i+2], sizeof(int16_t)*2);
-#endif
-      ext[14*i+ 6] = float_to_half((desc[indexes[3*i+0]].st[0]+0.5)/(float)hdr->skinwidth);
-      ext[14*i+ 7] = float_to_half((desc[indexes[3*i+0]].st[1]+0.5)/(float)hdr->skinheight);
-      ext[14*i+ 8] = float_to_half((desc[indexes[3*i+1]].st[0]+0.5)/(float)hdr->skinwidth);
-      ext[14*i+ 9] = float_to_half((desc[indexes[3*i+1]].st[1]+0.5)/(float)hdr->skinheight);
-      ext[14*i+10] = float_to_half((desc[indexes[3*i+2]].st[0]+0.5)/(float)hdr->skinwidth);
-      ext[14*i+11] = float_to_half((desc[indexes[3*i+2]].st[1]+0.5)/(float)hdr->skinheight);
-      const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
-      ext[14*i+12] = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
-      ext[14*i+13] = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
-#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
-      if(hdr->nmtextures[sk][fm])
-      {
-        ext[14*i+0] = 0;
-        ext[14*i+1] = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum);
-        ext[14*i+2] = 0xffff; // mark as brush model
-        ext[14*i+3] = 0xffff;
-      }
 #endif
     }
   }
@@ -585,53 +596,63 @@ again:;
       glpoly_t *p = surf->polys;
       while(p)
       {
-        if(*vtx_cnt + nvtx + p->numverts >= MAX_VTX_CNT ||
-           *idx_cnt + nidx + 3*(p->numverts-2) >= MAX_IDX_CNT)
-          break;
-        if(vtx) for(int k=0;k<p->numverts;k++)
-          for(int l=0;l<3;l++)
-            vtx[3*(nvtx+k)+l] =
-              p->verts[k][0] * fwd[l] -
-              p->verts[k][1] * rgt[l] +
-              p->verts[k][2] * top[l]
-              + ent->origin[l];
+        if(*vtx_cnt + nvtx + 3*(p->numverts-2) >= MAX_VTX_CNT) break;
 #if WATER_MODE==WATER_MODE_FULL
-        if(vtx && wateroffset) for(int k=0;k<p->numverts;k++)
+        if(vtx && wateroffset) for(int k=2;k<p->numverts;k++)
         {
-          for(int l=0;l<3;l++)
+          rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + k-2;
+          rtgeo_vtx_t *vert = &tri->v0;
+          for(int tv=0;tv<3;tv++)
           { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
-            vtx[3*(nvtx+k)+l] += fwd[l] * (p->verts[k][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
-            vtx[3*(nvtx+k)+l] -= rgt[l] * (p->verts[k][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            const int i0 = *vtx_cnt + nvtx + (tv == 0 ? 0 : tv == 1 ? k-1 : k);
+            vert[tv].x += fwd[0] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].x -= rgt[0] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].y += fwd[1] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].y -= rgt[1] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].z += fwd[2] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].z -= rgt[2] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].z -= WATER_DEPTH;
           }
-          vtx[3*(nvtx+k)+2] -= WATER_DEPTH;
         }
 #endif
-        if(idx) for(int k=2;k<p->numverts;k++)
-        {
-          idx[nidx+3*(k-2)+0] = *vtx_cnt + nvtx;
-          idx[nidx+3*(k-2)+1] = *vtx_cnt + nvtx+k-1;
-          idx[nidx+3*(k-2)+2] = *vtx_cnt + nvtx+k;
-        }
         // TODO: make somehow dynamic. don't want to re-upload the whole model just because the texture animates.
         // for now that means static brush models will not actually animate their textures
         texture_t *t = R_TextureAnimation(surf->texinfo->texture, ent->frame);
-        if(ext) for(int k=2;k<p->numverts;k++)
+        if(vtx) for(int k=2;k<p->numverts;k++)
         {
-          int pi = (nidx+3*(k-2))/3;
-          ext[14*pi+0] = t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0;
-          ext[14*pi+1] = t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0;
-          ext[14*pi+2] = 0xffff; // mark as brush model
-          ext[14*pi+3] = 0xffff;
+          const int i0 = *vtx_cnt + nvtx;
+          const int i1 = *vtx_cnt + nvtx+k-1;
+          const int i2 = *vtx_cnt + nvtx+k;
+          rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + k-2;
+          *tri = (rtgeo_tri_t){0};
+          tri->v0.x = float_to_half(p->verts[i0][0] * fwd[0] - p->verts[i0][1] * rgt[0] + p->verts[i0][2] * top[0] + ent->origin[0]);
+          tri->v0.y = float_to_half(p->verts[i0][0] * fwd[1] - p->verts[i0][1] * rgt[1] + p->verts[i0][2] * top[1] + ent->origin[1]);
+          tri->v0.z = float_to_half(p->verts[i0][0] * fwd[2] - p->verts[i0][1] * rgt[2] + p->verts[i0][2] * top[2] + ent->origin[2]);
+          tri->v1.x = float_to_half(p->verts[i1][0] * fwd[0] - p->verts[i1][1] * rgt[0] + p->verts[i1][2] * top[0] + ent->origin[0]);
+          tri->v1.y = float_to_half(p->verts[i1][0] * fwd[1] - p->verts[i1][1] * rgt[1] + p->verts[i1][2] * top[1] + ent->origin[1]);
+          tri->v1.z = float_to_half(p->verts[i1][0] * fwd[2] - p->verts[i1][1] * rgt[2] + p->verts[i1][2] * top[2] + ent->origin[2]);
+          tri->v2.x = float_to_half(p->verts[i2][0] * fwd[0] - p->verts[i2][1] * rgt[0] + p->verts[i2][2] * top[0] + ent->origin[0]);
+          tri->v2.y = float_to_half(p->verts[i2][0] * fwd[1] - p->verts[i2][1] * rgt[1] + p->verts[i2][2] * top[1] + ent->origin[1]);
+          tri->v2.z = float_to_half(p->verts[i2][0] * fwd[2] - p->verts[i2][1] * rgt[2] + p->verts[i2][2] * top[2] + ent->origin[2]);
+          // normals, brush models don't have normals
+          tri->v0.n0 = t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0;
+          tri->v0.n1 = t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0;
+          tri->v1.n0 = 0xffff; // mark as brush model
+          tri->v1.n1 = 0xffff;
+          tri->v2.n0 = 0xffff;
+          tri->v2.n1 = 0xffff;
           if(surf->texinfo->texture->gltexture)
-          {
-            ext[14*pi+ 6] = float_to_half(p->verts[0  ][3]);
-            ext[14*pi+ 7] = float_to_half(p->verts[0  ][4]);
-            ext[14*pi+ 8] = float_to_half(p->verts[k-1][3]);
-            ext[14*pi+ 9] = float_to_half(p->verts[k-1][4]);
-            ext[14*pi+10] = float_to_half(p->verts[k-0][3]);
-            ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
-            ext[14*pi+12] = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
-            ext[14*pi+13] = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
+          { // texture st coordinates
+            tri->v0.s = float_to_half(p->verts[i0][3]);
+            tri->v0.t = float_to_half(p->verts[i0][4]);
+            tri->v1.s = float_to_half(p->verts[i1][3]);
+            tri->v1.t = float_to_half(p->verts[i1][4]);
+            tri->v2.s = float_to_half(p->verts[i2][3]);
+            tri->v2.t = float_to_half(p->verts[i2][4]);
+            // texture ids for albedo + fullbright
+            tri->v0.tex = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
+            tri->v1.tex = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
+            tri->v2.tex = 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
@@ -644,18 +665,17 @@ again:;
             if(wateroffset)                  flags = 5; // this is our procedural water lower mark
 #endif
             // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
-            ext[14*pi+13] |= flags << 12;
+            tri->v1.tex |= flags << 12;
             uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15); // alpha in 4 bits
             if(!ent->alpha) ai = 15;
             // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
             // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
             // TODO: or "slime" or "tele" instead of "lava"
-            ext[14*pi+12] |= ai << 12;
+            tri->v0.tex |= ai << 12;
           }
-          if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xfff;
+          if(surf->flags & SURF_DRAWSKY) tri->v0.tex = 0xfff;
         }
-        nvtx += p->numverts;
-        nidx += 3*(p->numverts-2);
+        nvtx += 3*(p->numverts-2);
 #if WATER_MODE==WATER_MODE_FULL
         if(!wateroffset && (surf->flags & SURF_DRAWWATER))
         { // TODO: and normal points the right way?
@@ -732,53 +752,53 @@ again:;
         return;
     }
 
-    int numv = 3* 4; // add three quads
-    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
-       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
-          return;
+    int numv = 3*4; // add three quads
+    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT) return;
     for(int k=0;k<3;k++)
     {
       float vert[4][3];
-      if(vtx || ext)
-      {
-        vec3_t front;
-        CrossProduct(s_up, s_right, front);
-        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
-        VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[0][l] = point[l];
+      vec3_t front;
+      CrossProduct(s_up, s_right, front);
+      VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+      VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[0][l] = point[l];
 
-        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
-        VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[1][l] = point[l];
+      VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
+      VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[1][l] = point[l];
 
-        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
-        VectorMA (point, frame->right * scale,    k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[2][l] = point[l];
+      VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
+      VectorMA (point, frame->right * scale,    k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[2][l] = point[l];
 
-        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
-        VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[3][l] = point[l];
-      }
+      VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+      VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[3][l] = point[l];
+
       if(vtx)
       {
-        for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
-        for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
-        for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
-        for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
-      }
-      if(idx)
-      {
-        idx[nidx+3*0+0] = *vtx_cnt + nvtx;
-        idx[nidx+3*0+1] = *vtx_cnt + nvtx+2-1;
-        idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+        rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx)+nvtx/3;
+        tri[0] = (rtgeo_tri_t){0};
+        tri[1] = (rtgeo_tri_t){0};
+        tri[0].v0.x = float_to_half(vert[0][0]);
+        tri[0].v0.y = float_to_half(vert[0][1]);
+        tri[0].v0.z = float_to_half(vert[0][2]);
+        tri[0].v1.x = float_to_half(vert[1][0]);
+        tri[0].v1.y = float_to_half(vert[1][1]);
+        tri[0].v1.z = float_to_half(vert[1][2]);
+        tri[0].v2.x = float_to_half(vert[2][0]);
+        tri[0].v2.y = float_to_half(vert[2][1]);
+        tri[0].v2.z = float_to_half(vert[2][2]);
+        tri[1].v0.x = float_to_half(vert[2][0]);
+        tri[1].v0.y = float_to_half(vert[2][1]);
+        tri[1].v0.z = float_to_half(vert[2][2]);
+        tri[1].v1.x = float_to_half(vert[3][0]);
+        tri[1].v1.y = float_to_half(vert[3][1]);
+        tri[1].v1.z = float_to_half(vert[3][2]);
+        tri[1].v2.x = float_to_half(vert[0][0]);
+        tri[1].v2.y = float_to_half(vert[0][1]);
+        tri[1].v2.z = float_to_half(vert[0][2]);
 
-        idx[nidx+3*1+0] = *vtx_cnt + nvtx;
-        idx[nidx+3*1+1] = *vtx_cnt + nvtx+3-1;
-        idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
-      }
-      if(ext)
-      {
-        int pi = nidx/3; // start of the two triangles
         float n[3], e0[] = {
           vert[2][0] - vert[0][0],
           vert[2][1] - vert[0][1],
@@ -787,40 +807,36 @@ again:;
           vert[1][1] - vert[0][1],
           vert[1][2] - vert[0][2]};
         cross(e0, e1, n);
-        encode_normal(ext+14*pi+0, n);
-        encode_normal(ext+14*pi+2, n);
-        encode_normal(ext+14*pi+4, n);
-        encode_normal(ext+14*(pi+1)+0, n);
-        encode_normal(ext+14*(pi+1)+2, n);
-        encode_normal(ext+14*(pi+1)+4, n);
+        encode_normal(&tri[0].v0.n0, n);
+        encode_normal(&tri[0].v1.n0, n);
+        encode_normal(&tri[0].v2.n0, n);
+        encode_normal(&tri[1].v0.n0, n);
+        encode_normal(&tri[1].v1.n0, n);
+        encode_normal(&tri[1].v2.n0, n);
+        tri[0].v0.s = float_to_half(0);
+        tri[0].v0.t = float_to_half(1);
+        tri[0].v1.s = float_to_half(0);
+        tri[0].v1.t = float_to_half(0);
+        tri[0].v2.s = float_to_half(1);
+        tri[0].v2.t = float_to_half(0);
+        tri[1].v0.s = float_to_half(0);
+        tri[1].v0.t = float_to_half(1);
+        tri[1].v1.s = float_to_half(1);
+        tri[1].v1.t = float_to_half(0);
+        tri[1].v2.s = float_to_half(1);
+        tri[1].v2.t = float_to_half(1);
         if(frame->gltexture)
         {
-          ext[14*pi+ 6] = float_to_half(0);
-          ext[14*pi+ 7] = float_to_half(1);
-          ext[14*pi+ 8] = float_to_half(0);
-          ext[14*pi+ 9] = float_to_half(0);
-          ext[14*pi+10] = float_to_half(1);
-          ext[14*pi+11] = float_to_half(0);
-
-          ext[14*(pi+1)+ 6] = float_to_half(0);
-          ext[14*(pi+1)+ 7] = float_to_half(1);
-          ext[14*(pi+1)+ 8] = float_to_half(1);
-          ext[14*(pi+1)+ 9] = float_to_half(0);
-          ext[14*(pi+1)+10] = float_to_half(1);
-          ext[14*(pi+1)+11] = float_to_half(1);
-
-          ext[14*pi+12]     = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          ext[14*pi+13]     = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
-          ext[14*(pi+1)+12] = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          ext[14*(pi+1)+13] = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          tri[0].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          tri[0].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
+          tri[1].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          tri[1].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
         }
       }
-      nvtx += 4;
-      nidx += 6;
+      nvtx += 6;
     } // end three axes
   } // end sprite model
   *vtx_cnt += nvtx;
-  *idx_cnt += nidx;
 }
 
 void modify_roi_out(
@@ -983,7 +999,6 @@ int read_source(
     d->tex_req[p->a] = 0;
   }
   uint32_t vtx_cnt = 0;
-  const int f = mod->graph->double_buffer;
   uint16_t *m16 = mapped;
   if(p->node->kernel == dt_token("dyngeo"))
   {
@@ -993,7 +1008,7 @@ int read_source(
       add_geo(cl_visedicts[i], m16 + 3*vtx_cnt, &vtx_cnt);
     for (int i=0; i<cl.num_statics; i++)
       add_geo(cl_static_entities+i, m16 + 3*vtx_cnt, &vtx_cnt);
-    add_particles(16 + 3*vtx_cnt, &vtx_cnt);
+    add_particles(m16 + 3*vtx_cnt, &vtx_cnt);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
@@ -1089,7 +1104,7 @@ create_nodes(
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
   vtx_cnt = 0;
-  add_geo(cl_entities+0, 0, 0, 0, &vtx_cnt);
+  add_geo(cl_entities+0, 0, &vtx_cnt);
   fprintf(stderr, "[create_nodes] static vertex count %u\n", vtx_cnt);
   vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
 
