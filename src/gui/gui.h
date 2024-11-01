@@ -297,7 +297,8 @@ rgb2hsv(float r, float g, float b)
 static inline struct nk_colorf
 hsv2rgb(float h, float s, float v)
 {
+  if(v <= 0.0f) return (struct nk_colorf){0,0,0,1.0f};
   float oklab[3] = {v, s * cosf(2.0f*M_PI*h), s * sinf(2.0f*M_PI*h)}, rgb[3];
   oklab_to_rec2020(oklab, rgb);
-  return (struct nk_colorf){rgb[0], rgb[1], rgb[2], 1.0};
+  return (struct nk_colorf){rgb[0], rgb[1], rgb[2], 1.0f};
 }
