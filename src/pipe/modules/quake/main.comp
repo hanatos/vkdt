@@ -63,20 +63,18 @@ layout(set = 1, binding = 8) uniform writeonly image2D img_debug;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
+struct rtgeo_vtx_t
+{
+  float16_t x, y, z;
+  uint n;
+  uint st;
+  uint16_t tex;
+};
+
 layout(set = 2, binding = 1) buffer buf_vtx_t
-{ // 3x float vertex data for every instance
-  float v[];
+{ // vertex data, 3 form a triangle
+  rtgeo_vtx_t v[];
 } buf_vtx[];
-
-layout(set = 2, binding = 2) buffer buf_idx_t
-{ // index data for every instance
-  uint i[];
-} buf_idx[];
-
-layout(set = 2, binding = 3) buffer buf_ext_t
-{ // extra geometry data for every instance
-  uint v[];
-} buf_ext[];
 
 // importance sample the blackman harris pixel filter.
 // has 1.5px radius support
@@ -217,48 +215,45 @@ prepare_material_info(
   vec3 b;
   b.yz = unpackHalf2x16(inter.opaque.uv);
   b.x = 1.0-b.z-b.y;
-  nonuniformEXT int i = 7*inter.opaque.primid;
   vec3 n0, n1, n2;
   vec2 st0, st1, st2;
   bool brush_model = false;
   nonuniformEXT int inst = inter.opaque.instid;
-  m.mat =   buf_ext[inst].v[i+6] & 0xfff;
-  alpha =  (buf_ext[inst].v[i+6]>>12)/15.0;
-  matfb =  (buf_ext[inst].v[i+6]>>16) & 0xfff;
-  m.flags = buf_ext[inst].v[i+6]>>28;
+  nonuniformEXT int tri  = 3*inter.opaque.primid;
+  m.mat =   buf_vtx[inst].v[tri+0].tex & 0xfff;
+  alpha =  (buf_vtx[inst].v[tri+0].tex>>12)/15.0;
+  matfb =  (buf_vtx[inst].v[tri+1].tex>>16) & 0xfff;
+  m.flags = buf_vtx[inst].v[tri+1].tex>>28;
   matgl = matnd = 0;
-  brush_model = (buf_ext[inst].v[i+1] == 0xffffffff);
+  brush_model = (buf_vtx[inst].v[tri+1].n == 0xffffffff);
   if(brush_model)
   {
-    matgl = buf_ext[inst].v[i+0]&0xffff;
-    matnd = buf_ext[inst].v[i+0]>>16;
+    matgl = buf_vtx[inst].v[tri+0].n&0xffff;
+    matnd = buf_vtx[inst].v[tri+0].n>>16;
   }
   else
   {
-    n0 = geo_decode_normal(buf_ext[inst].v[i+0]);
-    n1 = geo_decode_normal(buf_ext[inst].v[i+1]);
-    n2 = geo_decode_normal(buf_ext[inst].v[i+2]);
+    n0 = geo_decode_normal(buf_vtx[inst].v[tri+0].n);
+    n1 = geo_decode_normal(buf_vtx[inst].v[tri+1].n);
+    n2 = geo_decode_normal(buf_vtx[inst].v[tri+2].n);
   }
-  st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
-  st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
-  st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+  st0 = unpackHalf2x16(buf_vtx[inst].v[tri+0].st);
+  st1 = unpackHalf2x16(buf_vtx[inst].v[tri+1].st);
+  st2 = unpackHalf2x16(buf_vtx[inst].v[tri+2].st);
   st = mat3x2(st0, st1, st2) * b;
   // more precise intersection point by using vertices + barycentrics
-  uint i0 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+0)];
-  uint i1 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+1)];
-  uint i2 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+2)];
   vec3 v0 = vec3(
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+0],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+1],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+2]);
+      buf_vtx[inst].v[tri].x,
+      buf_vtx[inst].v[tri].y,
+      buf_vtx[inst].v[tri].z);
   vec3 v1 = vec3(
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+0],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+1],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+2]);
+      buf_vtx[inst].v[tri+1].x,
+      buf_vtx[inst].v[tri+1].y,
+      buf_vtx[inst].v[tri+1].z);
   vec3 v2 = vec3(
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+0],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+1],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+2]);
+      buf_vtx[inst].v[tri+2].x,
+      buf_vtx[inst].v[tri+2].y,
+      buf_vtx[inst].v[tri+2].z);
   m.c.x = mat3(v0, v1, v2) * b;
   m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
   m.c.ng = normalize(cross(v2-v0,v1-v0));
@@ -497,13 +492,13 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      int i = 7*pi;
-      uint mat = buf_ext[inst].v[i+6]&0xfff;
-      // uint alpha = buf_ext[inst].v[i+6]>>12;
-      uint flags = buf_ext[inst].v[i+6]>>28;
-      vec2 st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
-      vec2 st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
-      vec2 st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+      int i = 3*pi;
+      uint mat = buf_vtx[inst].v[i].tex&0xfff;
+      // uint alpha = buf_vtx[inst].v[i].tex>>12;
+      uint flags = buf_vtx[inst].v[i+1].tex>>28;
+      vec2 st0 = unpackHalf2x16(buf_vtx[inst].v[i+0].st);
+      vec2 st1 = unpackHalf2x16(buf_vtx[inst].v[i+1].st);
+      vec2 st2 = unpackHalf2x16(buf_vtx[inst].v[i+2].st);
       vec2 st = mat3x2(st0, st1, st2) * b;
       if(flags > 0) st = vec2(
           st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),

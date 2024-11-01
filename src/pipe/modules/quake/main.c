@@ -1041,7 +1041,7 @@ create_nodes(
 
   // ray tracing kernel:
   int id_rt = dt_node_add(graph, module, "quake", "main", 
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 9,
       "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
       "tex",      "read",  "*",    "*",    dt_no_roi,                 // 1
       "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 2
@@ -1100,7 +1100,7 @@ create_nodes(
   dt_roi_t roi_geo = { .scale = 1.0, .wd = 3*vtx_cnt, .ht = 3*8, .full_wd = 3*vtx_cnt, .full_ht = 3*8 };
   const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
     "dyngeo", "source", "ssbo", "f16", &roi_geo);
-  graph->node[id_dyngeo].flags  = s_module_request_read_geo,
+  graph->node[id_dyngeo].flags  = s_module_request_read_geo;
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
   vtx_cnt = 0;
@@ -1111,7 +1111,14 @@ create_nodes(
   roi_geo = (dt_roi_t){ .scale = 1.0, .wd = 3*vtx_cnt, .ht = 3*8, .full_wd = 3*vtx_cnt, .full_ht = 3*8 };
   const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
     "stcgeo", "source", "ssbo", "f16", &roi_geo);
-  graph->node[id_stcgeo].flags  = s_module_request_read_geo,
+  graph->node[id_stcgeo].flags  = s_module_request_read_geo;
+
+  const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "bvh", 1, 1, 1, 0, 0, 1,
+    "geo", "sink", "ssbo", "f16", dt_no_roi);
+  const uint32_t id_stcbvh = dt_node_add(graph, module, "bvh", "bvh", 1, 1, 1, 0, 0, 1,
+    "geo", "sink", "ssbo", "f16", dt_no_roi);
+  CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
+  CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));
 
   CONN(dt_node_connect(graph, id_tex, 0, id_rt, 1));
   CONN(dt_node_feedback(graph, id_rt, 4, id_rt, 3)); // nee cache
