@@ -259,15 +259,17 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         for(int k=0;k<=N;k++)\
         {\
           if(k==N) {\
-            phi = (3.0f/2.0f*M_PI-(dead_angle/2.0f-0.5f+VAL*(360.0f-dead_angle))*M_PI/180.0f);\
-            delta_phi = M_PI/180.0f;\
+            float wd = 5.0f;\
+            phi = (3.0f/2.0f*M_PI-(dead_angle/2.0f-wd/2.0f+VAL*(360.0f-dead_angle))*M_PI/180.0f);\
+            delta_phi = wd*M_PI/180.0f;\
+            r0 = 0.28*vkdt.state.panel_wd; r1 = 0.41*vkdt.state.panel_wd;\
           }\
           float x[] = {\
-            c[0] + cosf(phi) * r0,           c[1] - sinf(phi) * r0,\
-            c[0] + cosf(phi-delta_phi) * r0, c[1] - sinf(phi-delta_phi) * r0,\
-            c[0] + cosf(phi-delta_phi) * r1, c[1] - sinf(phi-delta_phi) * r1,\
-            c[0] + cosf(phi) * r1,           c[1] - sinf(phi) * r1};\
-          nk_fill_polygon(cmd, x, 4, k==N ? nk_rgb(0,0,0) : COL);\
+            c[0] + cosf(phi+0.013) * r1,           c[1] - sinf(phi+0.013) * r1,\
+            c[0] + cosf(phi-delta_phi-0.013) * r1, c[1] - sinf(phi-delta_phi-0.013) * r1,\
+            c[0] + cosf(phi-delta_phi-0.013) * r0, c[1] - sinf(phi-delta_phi-0.013) * r0,\
+            c[0] + cosf(phi+0.013) * r0,           c[1] - sinf(phi+0.013) * r0};\
+          nk_fill_polygon(cmd, x, 4, k==N ? nk_rgba(100,100,100,200) : COL);\
           phi -= delta_phi;\
         }\
       }} while(0)
