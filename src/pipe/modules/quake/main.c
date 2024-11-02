@@ -1001,14 +1001,14 @@ int read_source(
   if(p->node->kernel == dt_token("dyngeo"))
   {
     // add_geo(cl_entities+cl.viewentity, m16 + 8*3*vtx_cnt, &vtx_cnt); // player model
-    add_geo(&cl.viewent, m16 + 8*3*vtx_cnt, &vtx_cnt); // weapon
+    add_geo(&cl.viewent, m16 + 8*vtx_cnt, &vtx_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], m16 + 8*3*vtx_cnt, &vtx_cnt);
+      add_geo(cl_visedicts[i], m16 + 8*vtx_cnt, &vtx_cnt);
     for(int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, m16 + 8*3*vtx_cnt, &vtx_cnt);
-    add_particles(m16 + 8*3*vtx_cnt, &vtx_cnt);
+      add_geo(cl_static_entities+i, m16 + 8*vtx_cnt, &vtx_cnt);
+    add_particles(m16 + 8*vtx_cnt, &vtx_cnt);
     p->node->flags |= s_module_request_read_source; // need to do this all the time
-    p->node->module->flags |= s_module_request_read_source; // need to do this all the time
+    mod->flags |= s_module_request_read_source; // need to do this all the time
     // XXX we are called on the source node, not the bvh sink node! need to somehow propagate these counts along!
     // TODO: need facility to propagate updated roi along with geometry cpu-side!
     // this could work via modify_roi_out for geo modules, but not internal nodes.
@@ -1021,9 +1021,19 @@ int read_source(
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, m16 + 8*3*vtx_cnt, &vtx_cnt);
+    add_geo(cl_entities+0, m16 + 8*vtx_cnt, &vtx_cnt);
     // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
+#if 0// TODO unset flag for bvh build or something
+    for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("stc"))
+    {
+      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = vtx_cnt/3;
+      break;
+    }
+    p->node->flags |= s_module_request_read_source;
+    mod->flags |= s_module_request_read_source;
+#endif
+    fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 
@@ -1129,6 +1139,17 @@ create_nodes(
     "geo", "sink", "ssbo", "f16", dt_no_roi);
   CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
   CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));
+
+  // XXX apparently this runs so in sync that it's not even needed:
+  // graph->node[id_dyngeo].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_dyngeo].connector[0].frames = 2;
+  // graph->node[id_dynbvh].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_dynbvh].connector[0].frames = 2;
+  // .. and this would need extra love to actually init both buffers at least once:
+  // graph->node[id_stcgeo].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_stcgeo].connector[0].frames = 2;
+  // graph->node[id_stcbvh].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_stcbvh].connector[0].frames = 2;
 
   CONN(dt_node_connect(graph, id_tex, 0, id_rt, 1));
   CONN(dt_node_feedback(graph, id_rt, 4, id_rt, 3)); // nee cache
