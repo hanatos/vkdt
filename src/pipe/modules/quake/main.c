@@ -421,6 +421,7 @@ add_particles(
     float vert[4][3];
     if(vtx)
     {
+      rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + nvtx/3;
       for(int l=0;l<3;l++)
       {
         float off = 2*(xrand(0)-0.5) + 2*(xrand(0)-0.5);
@@ -428,20 +429,26 @@ add_particles(
           vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
       }
       // vertex stride: 3v 2n 2uv 1texid = 8
-      for(int l=0;l<3;l++) vtx[8*(nvtx+0)+l] = float_to_half(vert[0][l]);
-      for(int l=0;l<3;l++) vtx[8*(nvtx+1)+l] = float_to_half(vert[1][l]);
-      for(int l=0;l<3;l++) vtx[8*(nvtx+2)+l] = float_to_half(vert[2][l]);
-      vtx[8*(nvtx+0)+3] = 0; // encoded normal
-      vtx[8*(nvtx+0)+4] = 0; // encoded normal
-      vtx[8*(nvtx+0)+5] = float_to_half(0);
-      vtx[8*(nvtx+0)+6] = float_to_half(1);
-      vtx[8*(nvtx+1)+5] = float_to_half(0);
-      vtx[8*(nvtx+1)+6] = float_to_half(0);
-      vtx[8*(nvtx+2)+5] = float_to_half(1);
-      vtx[8*(nvtx+2)+6] = float_to_half(0);
-      vtx[8*(nvtx+0)+7] = tex_col;
-      vtx[8*(nvtx+1)+7] = tex_lum;
-      vtx[8*(nvtx+2)+7] = 0; // extra
+      tri->v0.x = float_to_half(vert[0][0]);
+      tri->v0.y = float_to_half(vert[0][1]);
+      tri->v0.z = float_to_half(vert[0][2]);
+      tri->v1.x = float_to_half(vert[1][0]);
+      tri->v1.y = float_to_half(vert[1][1]);
+      tri->v1.z = float_to_half(vert[1][2]);
+      tri->v2.x = float_to_half(vert[2][0]);
+      tri->v2.y = float_to_half(vert[2][1]);
+      tri->v2.z = float_to_half(vert[2][2]);
+      tri->v0.n0 = tri->v1.n0 = tri->v2.n0 = 0;
+      tri->v0.n1 = tri->v1.n1 = tri->v2.n1 = 0;
+      tri->v0.s = float_to_half(0);
+      tri->v0.t = float_to_half(1);
+      tri->v1.s = float_to_half(0);
+      tri->v1.t = float_to_half(0);
+      tri->v2.s = float_to_half(1);
+      tri->v2.t = float_to_half(0);
+      tri->v0.tex = tex_col;
+      tri->v1.tex = tex_lum;
+      tri->v2.tex = 0;
       nvtx += 3;
     }
   } // end for all particles
@@ -513,10 +520,11 @@ add_geo(
       encode_normal(tmpn+2*v, nw);
     }
 #endif
-    if(*vtx_cnt + nvtx + 3*hdr->numindexes >= MAX_VTX_CNT) return;
+    if(*vtx_cnt + nvtx + hdr->numindexes >= MAX_VTX_CNT) return;
     if(vtx) for(int i = 0; i < hdr->numindexes/3; i++)
     {
-      rtgeo_tri_t *tri = ((rtgeo_tri_t *)vtx) + i;
+      rtgeo_tri_t *tri = ((rtgeo_tri_t *)vtx) + nvtx/3 + i;
+      *tri = (rtgeo_tri_t){0};
       rtgeo_vtx_t *trivtx = &tri->v0;
 
       for(int tv=0;tv<3;tv++)
@@ -564,6 +572,7 @@ add_geo(
       encode_normal(ext+14*i+4, nw);
 #endif
     }
+    nvtx += hdr->numindexes;
   }
   else if(m->type == mod_brush)
   { // brush model:
@@ -593,7 +602,7 @@ again:;
           rtgeo_vtx_t *vert = &tri->v0;
           for(int tv=0;tv<3;tv++)
           { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
-            const int i0 = *vtx_cnt + nvtx + (tv == 0 ? 0 : tv == 1 ? k-1 : k);
+            const int i0 = (tv == 0 ? 0 : tv == 1 ? k-1 : k);
             vert[tv].x += fwd[0] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
             vert[tv].x -= rgt[0] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
             vert[tv].y += fwd[1] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
@@ -991,17 +1000,28 @@ int read_source(
   uint16_t *m16 = mapped;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 7*(idx_cnt/3), &vtx_cnt); // player model
-    add_geo(&cl.viewent, m16 + 3*vtx_cnt, &vtx_cnt); // weapon
+    // add_geo(cl_entities+cl.viewentity, m16 + 8*3*vtx_cnt, &vtx_cnt); // player model
+    add_geo(&cl.viewent, m16 + 8*3*vtx_cnt, &vtx_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], m16 + 3*vtx_cnt, &vtx_cnt);
-    for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, m16 + 3*vtx_cnt, &vtx_cnt);
-    add_particles(m16 + 3*vtx_cnt, &vtx_cnt);
+      add_geo(cl_visedicts[i], m16 + 8*3*vtx_cnt, &vtx_cnt);
+    for(int i=0; i<cl.num_statics; i++)
+      add_geo(cl_static_entities+i, m16 + 8*3*vtx_cnt, &vtx_cnt);
+    add_particles(m16 + 8*3*vtx_cnt, &vtx_cnt);
+    p->node->flags |= s_module_request_read_source; // need to do this all the time
+    p->node->module->flags |= s_module_request_read_source; // need to do this all the time
+    // XXX we are called on the source node, not the bvh sink node! need to somehow propagate these counts along!
+    // TODO: need facility to propagate updated roi along with geometry cpu-side!
+    // this could work via modify_roi_out for geo modules, but not internal nodes.
+    for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("dyn"))
+    {
+      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = vtx_cnt/3;
+      break;
+    }
+    fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, m16 + 3*vtx_cnt, &vtx_cnt);
+    add_geo(cl_entities+0, m16 + 8*3*vtx_cnt, &vtx_cnt);
     // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
 #if 0 // debug: quake aabb are in +-4096
@@ -1103,9 +1123,9 @@ create_nodes(
     "stcgeo", "source", "ssbo", "f16", &roi_geo);
   graph->node[id_stcgeo].flags = s_module_request_read_geo | s_module_request_read_source;
 
-  const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "bvh", 1, 1, 1, 0, 0, 1,
+  const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "dyn", 1, 1, 1, 0, 0, 1,
     "geo", "sink", "ssbo", "f16", dt_no_roi);
-  const uint32_t id_stcbvh = dt_node_add(graph, module, "bvh", "bvh", 1, 1, 1, 0, 0, 1,
+  const uint32_t id_stcbvh = dt_node_add(graph, module, "bvh", "stc", 1, 1, 1, 0, 0, 1,
     "geo", "sink", "ssbo", "f16", dt_no_roi);
   CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
   CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));

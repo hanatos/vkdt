@@ -368,6 +368,8 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt[f].force_read_geo = 0; // we are done now
     if(node->rt[f].tri_cnt == 0) continue;
 
+    fprintf(stderr, "building accel struct for node %"PRItkn" with %d tris f %d\n", dt_token_str(node->kernel), node->rt[f].tri_cnt, f);
+
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
       .accelerationStructure = node->rt[f].accel,

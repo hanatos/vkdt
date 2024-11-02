@@ -1035,6 +1035,7 @@ main()
     float off = (ipos.x/float(imageSize(img_irradiance).x) - 0.8)/0.1;
     if(off*100 < val) irr = col;
   }
+  irr = vec3(1.0);
 
   imageStore(img_nee_out,    ipos, mc_state_encode(curr));
   imageStore(img_irradiance, ipos, vec4(irr, 1));
