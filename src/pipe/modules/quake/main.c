@@ -1017,7 +1017,7 @@ int read_source(
       mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = vtx_cnt/3;
       break;
     }
-    fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
+    // fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
@@ -1033,7 +1033,7 @@ int read_source(
     p->node->flags |= s_module_request_read_source;
     mod->flags |= s_module_request_read_source;
 #endif
-    fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
+    // fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 

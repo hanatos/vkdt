@@ -222,8 +222,8 @@ prepare_material_info(
   nonuniformEXT int tri  = 3*inter.opaque.primid;
   m.mat =   buf_vtx[inst].v[tri+0].tex & 0xfff;
   alpha =  (buf_vtx[inst].v[tri+0].tex>>12)/15.0;
-  matfb =  (buf_vtx[inst].v[tri+1].tex>>16) & 0xfff;
-  m.flags = buf_vtx[inst].v[tri+1].tex>>28;
+  matfb =   buf_vtx[inst].v[tri+1].tex & 0xfff;
+  m.flags = buf_vtx[inst].v[tri+1].tex>>12;
   matgl = matnd = 0;
   brush_model = (buf_vtx[inst].v[tri+1].n == 0xffffffff);
   if(brush_model)
@@ -380,7 +380,7 @@ prepare_material_info(
 #if 1
       m.mat   =  buf_ext[inter.water.instid].v[i+6]&0xfff;
       alpha   = (buf_ext[inter.water.instid].v[i+6]>>12)/15.0;
-      matfb   = (buf_ext[inter.water.instid].v[i+6]>>16) & 0xfff;
+      matfb   =  buf_ext[inter.water.instid].v[i+6]&0xfff;
       matgl   =  buf_ext[inter.water.instid].v[i+0]&0xffff;
       matnd   =  buf_ext[inter.water.instid].v[i+0]>>16;
       st      = m.c.x.xy*0.01;

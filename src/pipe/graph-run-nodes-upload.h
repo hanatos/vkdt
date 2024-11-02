@@ -58,7 +58,6 @@ dt_graph_run_nodes_upload(
                 offset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->offset;
               node->module->so->read_source(node->module,
                   mapped + offset, &p);
-              fprintf(stderr, "got %d frames \n", node->connector[c].frames);
               if(node->connector[c].array_length > 1)
               {
                 if(!dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image)
