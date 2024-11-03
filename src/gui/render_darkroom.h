@@ -239,18 +239,25 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       struct nk_colorf oldval = *val;
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
+      // cache previous hsv so we can reconstruct for rgb=0
+      static struct nk_colorf cc_hsv[5] = {{0}};
+      const int hash = (3*modid + parid)%5;
       const float dead_angle = 60.0f;
       dt_tooltip("oklab hue angle");
-      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv(val->r, val->g, val->b) : *val;
+      struct nk_colorf hsv = cc_hsv[hash];
+      hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val->r, val->g, val->b, hsv) : *val;
+
       nk_label(ctx, "hue", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
       struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
 
+      // if not mouse down and hovering over bounds, or mouse clicked pos is in bounds
 #define DECORATE(VAL, COL) do {\
-      if((!ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && (nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) || \
-         ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && (ctx->last_widget_state & NK_WIDGET_STATE_ACTIVED))))\
+      if((!ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) || \
+         ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && \
+         NK_INBOX(ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.x,ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.y,bounds.x,bounds.y,bounds.w,bounds.h)))\
       {\
         const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
         int N = 40;\
@@ -299,6 +306,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_label(ctx, str, NK_TEXT_LEFT);
       if(change)
       {
+        cc_hsv[hash] = hsv;
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
