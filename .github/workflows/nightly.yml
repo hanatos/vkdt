@@ -4,7 +4,7 @@ name: nightly packages
 
 on:
   push:
-    branches: [ "master", "release-0.9" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
