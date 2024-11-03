@@ -309,7 +309,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_label(ctx, str, NK_TEXT_LEFT);
       if(change)
       {
-        cc_hsv[hash] = hsv;
+        if(hsv.g > 0.0 && hsv.b > 0.0) cc_hsv[hash] = hsv;
+        else cc_hsv[hash] = (struct nk_colorf){cc_hsv[hash].r, hsv.g, hsv.b};
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);

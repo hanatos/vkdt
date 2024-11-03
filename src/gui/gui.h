@@ -312,7 +312,9 @@ static inline struct nk_colorf
 rgb2hsv_prior(float r, float g, float b, struct nk_colorf hsv_prior)
 {
   if(r <= 0 && g <= 0 && b <= 0) return (struct nk_colorf){hsv_prior.r, hsv_prior.g, 0.0, 1.0};
-  return rgb2hsv(r, g, b);
+  struct nk_colorf res = rgb2hsv(r, g, b);
+  if(res.g <= 1e-5) res.r = hsv_prior.r;
+  return res;
 }
 
 static inline struct nk_colorf
