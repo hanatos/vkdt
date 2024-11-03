@@ -158,7 +158,7 @@ static void
 mouse_position_callback(GLFWwindow* window, double x, double y)
 {
   float xscale, yscale;
-  glfwGetWindowContentScale(window, &xscale, &yscale);
+  dt_gui_content_scale(window, &xscale, &yscale);
   dt_view_mouse_position(window, x*xscale, y*yscale);
 }
 
@@ -179,7 +179,7 @@ static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
   float xscale, yscale;
-  glfwGetWindowContentScale(window, &xscale, &yscale);
+  dt_gui_content_scale(window, &xscale, &yscale);
   xoff *= xscale;
   yoff *= yscale;
   dt_view_mouse_scrolled(window, xoff, yoff);
@@ -192,7 +192,7 @@ static void
 pentablet_data_callback(double x, double y, double z, double pressure, double pitch, double yaw, double roll)
 {
   float xscale, yscale;
-  glfwGetWindowContentScale(vkdt.win.window, &xscale, &yscale);
+  dt_gui_content_scale(vkdt.win.window, &xscale, &yscale);
   x *= xscale; y *= yscale;
   dt_view_pentablet_data(x, y, z, pressure, pitch, yaw, roll);
 }

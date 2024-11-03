@@ -16,6 +16,7 @@
 #ifdef NK_GLFW_VULKAN_IMPLEMENTATION
 #include "shd.h"
 #include "qvk/qvk.h"
+#include "gui/gui.h"
 #endif
 
 #include <assert.h>
@@ -981,7 +982,7 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
 
     glfwGetCursorPos(win->win, &x, &y);
     float xscale = 1.0f, yscale = 1.0f;
-    glfwGetWindowContentScale(win->win, &xscale, &yscale);
+    dt_gui_content_scale(win->win, &xscale, &yscale);
     x *= xscale; y *= yscale;
     nk_input_motion(ctx, (int)x, (int)y);
 #ifdef NK_GLFW_GL4_MOUSE_GRABBING
@@ -1169,7 +1170,7 @@ nk_glfw3_mouse_button_callback(
     return;
   glfwGetCursorPos(w, &x, &y);
   float xscale, yscale;
-  glfwGetWindowContentScale(w, &xscale, &yscale);
+  dt_gui_content_scale(w, &xscale, &yscale);
   x *= xscale; y *= yscale;
   if (action == GLFW_PRESS) {
     double dt = glfwGetTime() - win->last_button_click;
