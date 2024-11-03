@@ -195,7 +195,7 @@ void dt_view_get_cursor_pos(GLFWwindow *window, double *x, double *y)
 {
   glfwGetCursorPos(window, x, y);
   float xscale, yscale;
-  glfwGetWindowContentScale(window, &xscale, &yscale);
+  dt_gui_content_scale(window, &xscale, &yscale);
   *x *= xscale;
   *y *= yscale;
 }

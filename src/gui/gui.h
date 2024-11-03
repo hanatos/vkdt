@@ -9,6 +9,7 @@
 
 #include <vulkan/vulkan.h>
 #include <math.h>
+#include <GLFW/glfw3.h>
 
 // max images in flight in vulkan pipeline/swap chain
 #define DT_GUI_MAX_IMAGES 8
@@ -184,6 +185,8 @@ typedef struct dt_gui_t
   // list of recently used tags
   int  tag_cnt;
   char tag[10][30];
+
+  int  is_x11; // running on xorg
 }
 dt_gui_t;
 
@@ -239,6 +242,17 @@ void dt_gui_win1_open();
 
 // close secondary window
 void dt_gui_win1_close();
+
+static inline void
+dt_gui_content_scale(GLFWwindow *w, float *x, float *y)
+{
+  if(vkdt.is_x11)
+  {
+    x[0] = y[0] = 1.0;
+    return;
+  }
+  glfwGetWindowContentScale(w, x, y);
+}
 
 // some gui colour things. we want perceptually uniform colour picking.
 // since hsv is a severely broken concept, we mean oklab LCh (or hCL really)
