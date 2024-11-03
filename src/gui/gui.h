@@ -289,7 +289,7 @@ static inline void oklab_to_rec2020(const float oklab[], float rgb[])
 static inline struct nk_colorf
 rgb2hsv(float r, float g, float b)
 {
-  float oklab[3], rgb[] = {r,g,b, 0.0};
+  float oklab[3], rgb[] = {r, g, b, 0.0f};
   rec2020_to_oklab(rgb, oklab);
   return (struct nk_colorf){modff(1.0f + atan2f(oklab[2], oklab[1])/(2.0f*M_PI), rgb+3), sqrtf(oklab[1]*oklab[1]+oklab[2]*oklab[2]), oklab[0], 1.0};
 }
@@ -298,9 +298,7 @@ static inline struct nk_colorf
 rgb2hsv_prior(float r, float g, float b, struct nk_colorf hsv_prior)
 {
   if(r <= 0 && g <= 0 && b <= 0) return (struct nk_colorf){hsv_prior.r, hsv_prior.g, 0.0, 1.0};
-  float oklab[3], rgb[] = {r,g,b, 0.0};
-  rec2020_to_oklab(rgb, oklab);
-  return (struct nk_colorf){modff(1.0f + atan2f(oklab[2], oklab[1])/(2.0f*M_PI), rgb+3), sqrtf(oklab[1]*oklab[1]+oklab[2]*oklab[2]), oklab[0], 1.0};
+  return rgb2hsv(r, g, b);
 }
 
 static inline struct nk_colorf
