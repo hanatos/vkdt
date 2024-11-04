@@ -938,6 +938,7 @@ void commit_params(
   for(int k=0;k<3;k++) p_cam[k]   = r_refdef.vieworg[k];
   for(int k=0;k<3;k++) p_cam[4+k] = fwd[k];
   for(int k=0;k<3;k++) p_cam[8+k] = top[k];
+  // fprintf(stderr, "camera pos %g %g %g\n", p_cam[0], p_cam[1], p_cam[2]);
 #endif
 }
 

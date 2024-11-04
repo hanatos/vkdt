@@ -1,4 +1,5 @@
 #pragma once
+#include <float.h>
 // simple header to parse a wavefront obj file into raw geo triangles
 
 typedef struct geo_obj_face_t
@@ -27,7 +28,8 @@ geo_obj_load_lists(
     float *vt,
     uint64_t num_verts,
     uint64_t num_normals,
-    uint64_t num_vts)
+    uint64_t num_vts,
+    float   *aabb)
 {
   char line[2048];
   int lineno = 1;
@@ -55,6 +57,8 @@ geo_obj_load_lists(
       if(vi >= num_verts) fprintf(stderr, "obj has fewer vertices than expected (%lu)\n", num_verts);
       assert(vi < num_verts);
       const int cnt = sscanf(line, "v %f %f %f", v + 3*vi, v+3*vi+1, v+3*vi+2);
+      for(int i=0;i<3;i++) aabb[i+0] = MIN(aabb[i+0], v[3*vi+i]);
+      for(int i=0;i<3;i++) aabb[i+3] = MAX(aabb[i+3], v[3*vi+i]);
       if(cnt == 3) vi++;
       else fprintf(stderr, "line %d: weird vertex: `%s'\n", lineno, line);
     }
@@ -96,6 +100,7 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
   num_normals = MAX(4, num_normals);
   num_vts     = MAX(4, num_vts);
 
+  float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX,-FLT_MAX,-FLT_MAX,-FLT_MAX};
   float *v  = malloc(sizeof(float)*3*num_verts);
   float *n  = malloc(sizeof(float)*3*num_normals);
   float *vt = malloc(sizeof(float)*2*num_vts);
@@ -106,10 +111,12 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
   memset(vt, 0, 2*sizeof(float)*4);
 
   // second pass: load lists of vertices etc
-  geo_obj_load_lists(f, v, n, vt, num_verts, num_normals, num_vts);
+  geo_obj_load_lists(f, v, n, vt, num_verts, num_normals, num_vts, aabb);
+  fprintf(stderr, "obj: bounding box %g %g %g -- %g %g %g\n",
+      aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
 
   // third pass: load faces and write out
-  int lineno = 1;
+  int lineno = 1, messaged = 0;
   fseek(f, 0, SEEK_SET);
   int mtl = 0; // fake material id
   uint32_t face = 0;
@@ -163,8 +170,11 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
         vcnt = 3;
       // else if(cnt == 2) // uv and normal-less lines
       //   vcnt = 2;
-      else
+      else if(!messaged)
+      {
         fprintf(stderr, "obj: only tris supported so far\n");
+        messaged = 1;
+      }
 
       geo_vtx_t vtx[4];
       for(int vi=0;vi<vcnt;vi++)

@@ -367,6 +367,7 @@ dt_raytrace_record_command_buffer_accel_build(
     // if(!(node->flags & s_module_request_read_geo) && !node->rt[f].force_read_geo) node->rt[fp].force_read_geo = 1;
     node->rt[f].force_read_geo = 0; // we are done now
     if(node->rt[f].tri_cnt == 0) continue;
+    // fprintf(stderr, "ray tracing instance %d with %d tris\n", i, node->rt[f].tri_cnt);
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,

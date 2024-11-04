@@ -80,16 +80,13 @@ void modify_roi_out(
     mod->flags = s_module_request_read_source;
   if(read_obj(mod, id+graph->frame, filename))
   { // XXX connect dummy data
-    mod->connector[0].chan = dt_token("rgba");
-    mod->connector[0].roi.full_wd = 32;
-    mod->connector[0].roi.full_ht = 32;
+    mod->connector[0].roi.full_wd = 1;
+    mod->connector[0].roi.full_ht = sizeof(geo_tri_t)/sizeof(float);
     return;
   }
   objinput_buf_t *obj = mod->data;
-  // XXX channels not needed to change
-  mod->connector[0].chan = dt_token("ssbo");
   mod->connector[0].roi.full_wd = obj->tri_cnt;
-  mod->connector[0].roi.full_ht = 6*3;
+  mod->connector[0].roi.full_ht = sizeof(geo_tri_t)/sizeof(float);
   // XXX TODO: something static allocation with enough triangle count?
 }
 
